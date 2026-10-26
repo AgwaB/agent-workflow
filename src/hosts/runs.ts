@@ -35,6 +35,7 @@ import {
 	readRunRecord,
 } from "../core/store.js";
 import type { WorkflowRunRecord } from "../core/types.js";
+import { isWorkflowStopPendingError } from "../core/workflow-stop.js";
 import {
 	executeWorkflowNoticesCommand,
 	parseWorkflowNoticesArgs,
@@ -378,12 +379,16 @@ export async function waitAction(
 				: {}),
 		});
 	} catch (error) {
-		if (request.signal?.aborted) throw error;
-		const current = await refreshRun(ctx.cwd, resolved.runId).catch(() =>
+		// Only the wait bound ("Flow run … still running … after …ms wait") becomes a result;
+		// the run may also have settled right at the boundary.
+		const timedOut =
+			!request.signal?.aborted &&
+			error instanceof Error &&
+			/still running .*after \d+ms wait/.test(error.message);
+		if (!timedOut) throw error;
+		run = await refreshRun(ctx.cwd, resolved.runId).catch(() =>
 			readRunRecord(ctx.cwd, resolved.runId),
 		);
-		if (!hasActiveSchedulerWork(current)) throw error;
-		run = current;
 	}
 	const stillRunning = hasActiveSchedulerWork(run);
 	const terminal = await summarizeWorkflowTerminal(ctx.cwd, run);
@@ -492,28 +497,64 @@ export async function resumeAction(
 	);
 }
 
-/** `stop <run>`: interrupt a non-terminal run (durable stop intent; workers are cancelled). */
+export interface StopData {
+	runId: string;
+	status: WorkflowRunRecord["status"];
+	interruptedTaskIds: string[];
+	/** The durable stop intent is recorded but another supervisor has not applied it yet. */
+	pending: boolean;
+}
+
+/** Bound for confirming a stop while another supervisor (e.g. a detached one) holds the run. */
+export const HOST_STOP_CONFIRM_TIMEOUT_MS = 15_000;
+
+/**
+ * `stop <run>`: interrupt a non-terminal run (durable stop intent; workers are cancelled). When
+ * another supervisor holds the run lease the engine reports the stop as pending; the handler
+ * retries until the stop is confirmed or `timeoutMs` (default 15 s) passes, then returns
+ * `pending: true` (outcome `running`; the intent stays durable).
+ */
 export async function stopAction(
 	ctx: HostApiContext,
-	request: { runId: string },
-): Promise<
-	HostResult<{
-		runId: string;
-		status: WorkflowRunRecord["status"];
-		interruptedTaskIds: string[];
-	}>
-> {
+	request: { runId: string; timeoutMs?: number },
+): Promise<HostResult<StopData>> {
 	assertActionAllowed(ctx, "stop");
-	const { run, interruptedTaskIds } = await stopRun(
-		ctx.cwd,
-		requireRunRef(request.runId, "stop"),
-	);
-	return result(
-		"stop",
-		"success",
-		{ runId: run.runId, status: run.status, interruptedTaskIds },
-		formatHumanRunStop(run, interruptedTaskIds.length),
-	);
+	const ref = requireRunRef(request.runId, "stop");
+	const deadline =
+		Date.now() + (request.timeoutMs ?? HOST_STOP_CONFIRM_TIMEOUT_MS);
+	while (true) {
+		try {
+			const { run, interruptedTaskIds } = await stopRun(ctx.cwd, ref);
+			return result(
+				"stop",
+				"success",
+				{
+					runId: run.runId,
+					status: run.status,
+					interruptedTaskIds,
+					pending: false,
+				},
+				formatHumanRunStop(run, interruptedTaskIds.length),
+			);
+		} catch (error) {
+			if (!isWorkflowStopPendingError(error)) throw error;
+			if (Date.now() >= deadline) {
+				const run = await readRunRecord(ctx.cwd, ref);
+				return result(
+					"stop",
+					"running",
+					{
+						runId: run.runId,
+						status: run.status,
+						interruptedTaskIds: [],
+						pending: true,
+					},
+					`Stop requested for ${run.runId}; the active supervisor has not confirmed it yet. The stop intent is durable. Check: agent-workflow status ${run.runId}`,
+				);
+			}
+			await new Promise((done) => setTimeout(done, 250));
+		}
+	}
 }
 
 /** `prune`: retention of terminal runs. Dry run unless `yes`. Accepts parsed options or argv. */

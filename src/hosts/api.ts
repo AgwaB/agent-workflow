@@ -72,6 +72,8 @@ export {
 	type RunSummary,
 	resumeAction,
 	type StatusData,
+	type StopData,
+	HOST_STOP_CONFIRM_TIMEOUT_MS,
 	type SuperviseData,
 	type SuperviseRequest,
 	showRunAction,

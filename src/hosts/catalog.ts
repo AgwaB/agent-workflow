@@ -198,8 +198,8 @@ export async function listWorkflowsAction(
 	request: ListRequest = {},
 ): Promise<HostResult<ListData>> {
 	assertActionAllowed(ctx, "list");
-	const offset = request.offset ?? 0;
-	if (!Number.isSafeInteger(offset) || offset < 0)
+	const offset = request.offset === undefined ? 0 : request.offset;
+	if (typeof offset !== "number" || !Number.isSafeInteger(offset) || offset < 0)
 		throw new HostUsageError("list offset must be a non-negative integer");
 	if (
 		request.limit !== undefined &&

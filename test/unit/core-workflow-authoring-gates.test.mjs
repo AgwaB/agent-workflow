@@ -75,9 +75,9 @@ test("a bundle directory containing spec.json resolves as a workflow path", asyn
 	}
 });
 
-// Dropped here (deferred to WP11a): "inspect --failures --results falls back to
-// every task result on a clean run" and "inspect --failures --results keeps
-// failure-only listing when a task failed" spawn src/cli.mjs, which is not ported.
+// Moved (WP11a): "inspect --failures --results falls back to every task result on a clean run"
+// and "inspect --failures --results keeps failure-only listing when a task failed" run the
+// agent-workflow CLI and live in test/unit/host-ported-cli-args.test.mjs.
 
 test("strict prompt diagnostics skip dynamic helpers but still reject model prompt drift", async () => {
 	const cwd = await scratch("dynamic-shape-warning");

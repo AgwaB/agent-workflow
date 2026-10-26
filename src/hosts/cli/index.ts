@@ -186,10 +186,12 @@ const LAUNCH_SPEC: OptionSpec = {
 
 type Emit = (result: HostResult<unknown>, exitCode?: number) => number;
 
-/** Exit code of a handler result: still-running waits and failed/refused outcomes are 1. */
+/** Exit code of a handler result: still-running waits, unconfirmed stops and failed/refused outcomes are 1. */
 export function exitCodeFor(result: HostResult<unknown>): number {
-	const data = result.data as { stillRunning?: unknown } | undefined;
-	if (data?.stillRunning === true) return EXIT_FAILED;
+	const data = result.data as
+		| { stillRunning?: unknown; pending?: unknown }
+		| undefined;
+	if (data?.stillRunning === true || data?.pending === true) return EXIT_FAILED;
 	return result.ok ? EXIT_OK : EXIT_FAILED;
 }
 

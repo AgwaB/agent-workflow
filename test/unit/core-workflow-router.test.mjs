@@ -209,7 +209,7 @@ function validComparison(
 
 // Not ported (Pi host extension (WP11): workflowAutoSlashLaunchCapture; see docs/core-port.md WP10): test("auto v2 command capture preserves the supplied slash arguments exactly once").
 
-// Not ported (Pi host extension (WP11): parseWorkflowDynamicArgs; see docs/core-port.md WP10): test("explicit run and dynamic reject retired routing flags while preserving quoted task text").
+// Moved (WP11a, host API parsers): test("explicit run and dynamic reject retired routing flags while preserving quoted task text") → test/unit/host-ported-cli-args.test.mjs.
 
 // Not ported (Pi host extension (WP11): workflowExtension; see docs/core-port.md WP10): test("cancelling a dynamic foreground launch reclaims the created run").
 
