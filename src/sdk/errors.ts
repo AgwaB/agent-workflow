@@ -4,7 +4,14 @@
  */
 
 /** Normalized failure classes. Adapters map CLI error text onto these. */
-export const FAILURE_CLASSES = ["transient", "rate_limit", "auth", "config", "permanent", "unknown"] as const;
+export const FAILURE_CLASSES = [
+	"transient",
+	"rate_limit",
+	"auth",
+	"config",
+	"permanent",
+	"unknown",
+] as const;
 export type FailureClass = (typeof FAILURE_CLASSES)[number];
 
 export type SdkErrorCode =
@@ -28,8 +35,15 @@ export class SdkError extends Error {
 	/** Optional qualifier, e.g. `toolAllowlist.fine` for `CAPABILITY_MISSING:toolAllowlist.fine`. */
 	readonly subject: string | undefined;
 
-	constructor(code: SdkErrorCode, message: string, options: { subject?: string; cause?: unknown } = {}) {
-		super(message, options.cause === undefined ? undefined : { cause: options.cause });
+	constructor(
+		code: SdkErrorCode,
+		message: string,
+		options: { subject?: string; cause?: unknown } = {},
+	) {
+		super(
+			message,
+			options.cause === undefined ? undefined : { cause: options.cause },
+		);
 		this.name = "SdkError";
 		this.code = code;
 		this.subject = options.subject;
@@ -37,12 +51,19 @@ export class SdkError extends Error {
 
 	/** Stable identifier such as `CAPABILITY_MISSING:toolAllowlist.fine`. */
 	get qualifiedCode(): string {
-		return this.subject === undefined ? this.code : `${this.code}:${this.subject}`;
+		return this.subject === undefined
+			? this.code
+			: `${this.code}:${this.subject}`;
 	}
 }
 
-export function isSdkError(value: unknown, code?: SdkErrorCode): value is SdkError {
-	return value instanceof SdkError && (code === undefined || value.code === code);
+export function isSdkError(
+	value: unknown,
+	code?: SdkErrorCode,
+): value is SdkError {
+	return (
+		value instanceof SdkError && (code === undefined || value.code === code)
+	);
 }
 
 /** One row of an adapter's "CLI error text → class" table. First matching rule wins. */
@@ -69,7 +90,10 @@ export function classifyFailure(
 	const lower = message.toLowerCase();
 	for (const rule of rules) {
 		if (rule.exitCode !== undefined && rule.exitCode !== exitCode) continue;
-		const hit = typeof rule.match === "string" ? lower.includes(rule.match.toLowerCase()) : rule.match.test(message);
+		const hit =
+			typeof rule.match === "string"
+				? lower.includes(rule.match.toLowerCase())
+				: rule.match.test(message);
 		if (hit) return rule.class;
 	}
 	return "unknown";

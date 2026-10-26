@@ -10,7 +10,10 @@ export type JsonValue =
 export type JsonObject = { [key: string]: JsonValue };
 
 /** True when `value` survives a JSON round trip unchanged in shape (no functions, symbols, cycles, NaN, undefined). */
-export function isJsonValue(value: unknown, seen: Set<object> = new Set()): value is JsonValue {
+export function isJsonValue(
+	value: unknown,
+	seen: Set<object> = new Set(),
+): value is JsonValue {
 	if (value === null) return true;
 	switch (typeof value) {
 		case "boolean":
@@ -22,7 +25,8 @@ export function isJsonValue(value: unknown, seen: Set<object> = new Set()): valu
 			if (seen.has(value)) return false;
 			seen.add(value);
 			try {
-				if (Array.isArray(value)) return value.every((entry) => isJsonValue(entry, seen));
+				if (Array.isArray(value))
+					return value.every((entry) => isJsonValue(entry, seen));
 				const proto: unknown = Object.getPrototypeOf(value);
 				if (proto !== Object.prototype && proto !== null) return false;
 				return Object.values(value).every((entry) => isJsonValue(entry, seen));
@@ -35,8 +39,11 @@ export function isJsonValue(value: unknown, seen: Set<object> = new Set()): valu
 	}
 }
 
-export function isPlainObject(value: unknown): value is Record<string, unknown> {
-	if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+export function isPlainObject(
+	value: unknown,
+): value is Record<string, unknown> {
+	if (value === null || typeof value !== "object" || Array.isArray(value))
+		return false;
 	const proto: unknown = Object.getPrototypeOf(value);
 	return proto === Object.prototype || proto === null;
 }

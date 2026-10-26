@@ -34,7 +34,12 @@ export const PI_TOOL_KINDS: Readonly<Record<PiToolName, ToolKind>> = {
 };
 
 /** Kinds that change state. Denied in readOnly stages (D2, R#4). */
-export const MUTATING_TOOL_KINDS: readonly ToolKind[] = ["edit", "delete", "move", "execute"];
+export const MUTATING_TOOL_KINDS: readonly ToolKind[] = [
+	"edit",
+	"delete",
+	"move",
+	"execute",
+];
 
 export function isMutatingKind(kind: ToolKind): boolean {
 	return MUTATING_TOOL_KINDS.includes(kind);
@@ -62,7 +67,10 @@ export interface ToolMapping {
 
 export interface ToolMappingResult {
 	readonly executorTools: readonly string[];
-	readonly mcpTools: readonly { readonly server: string; readonly tool: string }[];
+	readonly mcpTools: readonly {
+		readonly server: string;
+		readonly tool: string;
+	}[];
 	/** Strongest sandbox mode any requested tool needs, or null when no tool maps to a sandbox. */
 	readonly sandbox: SandboxMode | null;
 	/** Requested tools with no mapping (or an explicit `none`). */
@@ -75,10 +83,15 @@ export interface ToolMappingResult {
 export function toolKind(name: string, mapping?: ToolMapping): ToolKind {
 	const custom = mapping?.kinds?.[name];
 	if (custom !== undefined) return custom;
-	return (PI_TOOL_NAMES as readonly string[]).includes(name) ? PI_TOOL_KINDS[name as PiToolName] : "other";
+	return (PI_TOOL_NAMES as readonly string[]).includes(name)
+		? PI_TOOL_KINDS[name as PiToolName]
+		: "other";
 }
 
-export function mapTools(requested: readonly string[], mapping: ToolMapping): ToolMappingResult {
+export function mapTools(
+	requested: readonly string[],
+	mapping: ToolMapping,
+): ToolMappingResult {
 	const executorTools: string[] = [];
 	const mcpTools: { server: string; tool: string }[] = [];
 	const unmapped: string[] = [];
@@ -89,16 +102,24 @@ export function mapTools(requested: readonly string[], mapping: ToolMapping): To
 		const kind = toolKind(name, mapping);
 		kinds[name] = kind;
 		if (isMutatingKind(kind)) mutating = true;
-		const entry = Object.hasOwn(mapping.entries, name) ? mapping.entries[name] : undefined;
+		const entry = Object.hasOwn(mapping.entries, name)
+			? mapping.entries[name]
+			: undefined;
 		if (entry === undefined || entry.type === "none") {
 			unmapped.push(name);
 			continue;
 		}
 		if (entry.type === "tool") {
-			for (const native of entry.names) if (!executorTools.includes(native)) executorTools.push(native);
+			for (const native of entry.names)
+				if (!executorTools.includes(native)) executorTools.push(native);
 		} else if (entry.type === "sandbox") {
-			if (entry.mode === "workspace-write" || sandbox === null) sandbox = entry.mode;
-		} else if (!mcpTools.some((tool) => tool.server === entry.server && tool.tool === entry.tool)) {
+			if (entry.mode === "workspace-write" || sandbox === null)
+				sandbox = entry.mode;
+		} else if (
+			!mcpTools.some(
+				(tool) => tool.server === entry.server && tool.tool === entry.tool,
+			)
+		) {
 			mcpTools.push({ server: entry.server, tool: entry.tool });
 		}
 	}
@@ -106,7 +127,10 @@ export function mapTools(requested: readonly string[], mapping: ToolMapping): To
 }
 
 /** Identity mapping (the Pi executor uses Pi names natively). */
-export function identityToolMapping(executorId: string, names: readonly string[] = PI_TOOL_NAMES): ToolMapping {
+export function identityToolMapping(
+	executorId: string,
+	names: readonly string[] = PI_TOOL_NAMES,
+): ToolMapping {
 	const entries: Record<string, ToolMappingEntry> = {};
 	for (const name of names) entries[name] = { type: "tool", names: [name] };
 	return { executorId, entries };

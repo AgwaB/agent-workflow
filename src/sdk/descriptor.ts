@@ -6,7 +6,13 @@
  */
 import { isAbsolute } from "node:path";
 import { pathToFileURL } from "node:url";
-import { assertWorkflowExecutor, EXECUTOR_CONTRACT_VERSION, isContractCompatible, isVersionCompatible, type WorkflowExecutor } from "./contract.js";
+import {
+	assertWorkflowExecutor,
+	EXECUTOR_CONTRACT_VERSION,
+	isContractCompatible,
+	isVersionCompatible,
+	type WorkflowExecutor,
+} from "./contract.js";
 import { SdkError } from "./errors.js";
 import { isJsonValue, isPlainObject, type JsonValue } from "./json.js";
 
@@ -23,28 +29,51 @@ export interface ExecutorDescriptor {
 
 /** What an adapter module exports so `loadExecutor` can rebuild it in a new process. */
 export interface ExecutorModule {
-	createExecutor(config: JsonValue): WorkflowExecutor | Promise<WorkflowExecutor>;
+	createExecutor(
+		config: JsonValue,
+	): WorkflowExecutor | Promise<WorkflowExecutor>;
 }
 
 export function validateExecutorDescriptor(value: unknown): string[] {
 	if (!isPlainObject(value)) return ["descriptor must be an object"];
 	const problems: string[] = [];
-	if (typeof value.id !== "string" || value.id === "") problems.push("id must be a non-empty string");
-	if (typeof value.version !== "string" || !isVersionCompatible(value.version, value.version)) problems.push("version must be semver");
-	if (typeof value.contractVersion !== "string") problems.push("contractVersion must be a string");
-	if (typeof value.module !== "string" || value.module === "") problems.push("module must be a non-empty string");
-	else if (value.module.startsWith(".")) problems.push("module must not be relative (absolute path, file: URL or package specifier)");
-	if (!("config" in value) || !isJsonValue(value.config)) problems.push("config must be JSON-serializable");
+	if (typeof value.id !== "string" || value.id === "")
+		problems.push("id must be a non-empty string");
+	if (
+		typeof value.version !== "string" ||
+		!isVersionCompatible(value.version, value.version)
+	)
+		problems.push("version must be semver");
+	if (typeof value.contractVersion !== "string")
+		problems.push("contractVersion must be a string");
+	if (typeof value.module !== "string" || value.module === "")
+		problems.push("module must be a non-empty string");
+	else if (value.module.startsWith("."))
+		problems.push(
+			"module must not be relative (absolute path, file: URL or package specifier)",
+		);
+	if (!("config" in value) || !isJsonValue(value.config))
+		problems.push("config must be JSON-serializable");
 	return problems;
 }
 
-export function assertExecutorDescriptor(value: unknown): asserts value is ExecutorDescriptor {
+export function assertExecutorDescriptor(
+	value: unknown,
+): asserts value is ExecutorDescriptor {
 	const problems = validateExecutorDescriptor(value);
-	if (problems.length > 0) throw new SdkError("DESCRIPTOR_INVALID", `invalid executor descriptor: ${problems.join("; ")}`);
+	if (problems.length > 0)
+		throw new SdkError(
+			"DESCRIPTOR_INVALID",
+			`invalid executor descriptor: ${problems.join("; ")}`,
+		);
 }
 
 /** Build a descriptor for a live executor (stored in the run record at dispatch time). */
-export function describeExecutor(executor: WorkflowExecutor, module: string, config: JsonValue = null): ExecutorDescriptor {
+export function describeExecutor(
+	executor: WorkflowExecutor,
+	module: string,
+	config: JsonValue = null,
+): ExecutorDescriptor {
 	const descriptor: ExecutorDescriptor = {
 		id: executor.id,
 		version: executor.version,
@@ -67,7 +96,10 @@ export function createExecutorRegistry(): ExecutorRegistry {
 	return {
 		register(module, executorModule) {
 			if (typeof executorModule?.createExecutor !== "function")
-				throw new SdkError("DESCRIPTOR_INVALID", `executor module ${module} must export createExecutor(config)`);
+				throw new SdkError(
+					"DESCRIPTOR_INVALID",
+					`executor module ${module} must export createExecutor(config)`,
+				);
 			modules.set(module, executorModule);
 		},
 		get: (module) => modules.get(module),
@@ -83,13 +115,25 @@ async function importExecutorModule(module: string): Promise<ExecutorModule> {
 	try {
 		loaded = await import(importSpecifier(module));
 	} catch (error) {
-		throw new SdkError("DESCRIPTOR_MODULE_NOT_FOUND", `cannot load executor module ${module}`, { subject: module, cause: error });
+		throw new SdkError(
+			"DESCRIPTOR_MODULE_NOT_FOUND",
+			`cannot load executor module ${module}`,
+			{ subject: module, cause: error },
+		);
 	}
 	const record = loaded as Record<string, unknown> | null;
-	const candidate = typeof record?.createExecutor === "function" ? record : (record?.default as Record<string, unknown> | undefined);
+	const candidate =
+		typeof record?.createExecutor === "function"
+			? record
+			: (record?.default as Record<string, unknown> | undefined);
 	if (typeof candidate?.createExecutor !== "function")
-		throw new SdkError("DESCRIPTOR_INVALID", `executor module ${module} does not export createExecutor(config)`, { subject: module });
-	const createExecutor = candidate.createExecutor as ExecutorModule["createExecutor"];
+		throw new SdkError(
+			"DESCRIPTOR_INVALID",
+			`executor module ${module} does not export createExecutor(config)`,
+			{ subject: module },
+		);
+	const createExecutor =
+		candidate.createExecutor as ExecutorModule["createExecutor"];
 	// The returned executor is structurally validated by assertWorkflowExecutor in loadExecutor.
 	return { createExecutor: (config) => createExecutor.call(candidate, config) };
 }
@@ -110,13 +154,19 @@ export async function loadExecutor(
 			`descriptor contract ${descriptor.contractVersion} is not compatible with SDK contract ${EXECUTOR_CONTRACT_VERSION}`,
 			{ subject: descriptor.id },
 		);
-	const executorModule = options.registry?.get(descriptor.module) ?? (await importExecutorModule(descriptor.module));
+	const executorModule =
+		options.registry?.get(descriptor.module) ??
+		(await importExecutorModule(descriptor.module));
 	const executor = await executorModule.createExecutor(descriptor.config);
 	assertWorkflowExecutor(executor);
 	if (executor.id !== descriptor.id)
-		throw new SdkError("DESCRIPTOR_ID_MISMATCH", `module ${descriptor.module} built executor ${executor.id}, expected ${descriptor.id}`, {
-			subject: descriptor.id,
-		});
+		throw new SdkError(
+			"DESCRIPTOR_ID_MISMATCH",
+			`module ${descriptor.module} built executor ${executor.id}, expected ${descriptor.id}`,
+			{
+				subject: descriptor.id,
+			},
+		);
 	if (!isVersionCompatible(descriptor.version, executor.version))
 		throw new SdkError(
 			"DESCRIPTOR_VERSION_MISMATCH",

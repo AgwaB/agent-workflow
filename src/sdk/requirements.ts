@@ -4,7 +4,11 @@
  * Nothing is dropped silently: every gap is either refused with a named error, degraded with a
  * record, or emulated by the engine with a record.
  */
-import type { CapabilityName, ExecutorCapabilities, Level } from "./capabilities.js";
+import type {
+	CapabilityName,
+	ExecutorCapabilities,
+	Level,
+} from "./capabilities.js";
 import { LEVEL_CAPABILITY_NAMES } from "./capabilities.js";
 import { EXECUTOR_CONTRACT_VERSION } from "./contract.js";
 import { SdkError } from "./errors.js";
@@ -72,7 +76,11 @@ export interface NegotiationEntry {
 	readonly key: string;
 	readonly need: Need;
 	readonly onMissing: OnMissing;
-	readonly observed: { readonly level: Level["level"]; readonly source: Level["source"]; readonly detail?: string } | null;
+	readonly observed: {
+		readonly level: Level["level"];
+		readonly source: Level["source"];
+		readonly detail?: string;
+	} | null;
 	readonly outcome: NegotiationOutcome;
 	/** Who provides an `emulated` outcome. */
 	readonly emulatedBy?: "executor" | "engine";
@@ -105,17 +113,24 @@ const DEGRADE_NOTES: Partial<Record<CapabilityName, string>> = {
 	partialStream: "foreach starts only after completion",
 	resume: "same-session repair uses a new session",
 	contextIsolation: "inherit: worker may read user context; recorded",
-	toolResultBudget: "no cumulative tool-result budget; adapter output caps only (C1)",
+	toolResultBudget:
+		"no cumulative tool-result budget; adapter output caps only (C1)",
 	fastTier: "runs without fast tier",
 	usage: "usage recorded as unknown",
 	webTools: "web safety controls are not engine-enforced (C2, plan §6.5)",
 };
 
-function splitKey(key: string): { name: CapabilityName; detail: string | undefined } {
+function splitKey(key: string): {
+	name: CapabilityName;
+	detail: string | undefined;
+} {
 	const dot = key.indexOf(".");
 	const name = (dot < 0 ? key : key.slice(0, dot)) as CapabilityName;
 	if (!(LEVEL_CAPABILITY_NAMES as readonly string[]).includes(name))
-		throw new SdkError("INVALID_REQUEST", `unknown capability in requirement: ${key}`);
+		throw new SdkError(
+			"INVALID_REQUEST",
+			`unknown capability in requirement: ${key}`,
+		);
 	return { name, detail: dot < 0 ? undefined : key.slice(dot + 1) };
 }
 
@@ -124,31 +139,54 @@ function detailOf(entry: Level): string | undefined {
 	return typeof detail === "string" ? detail : undefined;
 }
 
-function detailSatisfies(name: CapabilityName, have: string | undefined, want: string | undefined): boolean {
+function detailSatisfies(
+	name: CapabilityName,
+	have: string | undefined,
+	want: string | undefined,
+): boolean {
 	if (want === undefined) return have !== "none";
 	const rank = DETAIL_RANK[name];
-	if (rank !== undefined && have !== undefined) return rank.indexOf(have) >= rank.indexOf(want) && rank.indexOf(want) >= 0;
+	if (rank !== undefined && have !== undefined)
+		return rank.indexOf(have) >= rank.indexOf(want) && rank.indexOf(want) >= 0;
 	return have === want;
 }
 
 function isAvailable(entry: Level, allowUnverified: boolean): boolean {
-	return entry.level !== "none" && (entry.source !== "unverified" || allowUnverified);
+	return (
+		entry.level !== "none" && (entry.source !== "unverified" || allowUnverified)
+	);
 }
 
 /** Collect the requirement set for a stage (defaults + explicit overrides). */
-export function stageRequirements(ctx: StageRequirementContext): Map<string, Requirement> {
+export function stageRequirements(
+	ctx: StageRequirementContext,
+): Map<string, Requirement> {
 	const set = new Map<string, Requirement>();
 	const tools = ctx.tools ?? [];
 	if (ctx.readOnly) set.set("readOnly", DEFAULT_REQUIREMENTS.readOnly);
-	if (ctx.hasRequiredReads) set.set("mcpInjection", DEFAULT_REQUIREMENTS.mcpInjection);
-	if (tools.length > 0) set.set("toolAllowlist.fine", DEFAULT_REQUIREMENTS["toolAllowlist.fine"]);
-	if (ctx.wantsCost ?? true) set.set("usage.cost", DEFAULT_REQUIREMENTS["usage.cost"]);
-	if (ctx.partialStream) set.set("partialStream", DEFAULT_REQUIREMENTS.partialStream);
+	if (ctx.hasRequiredReads)
+		set.set("mcpInjection", DEFAULT_REQUIREMENTS.mcpInjection);
+	if (tools.length > 0)
+		set.set("toolAllowlist.fine", DEFAULT_REQUIREMENTS["toolAllowlist.fine"]);
+	if (ctx.wantsCost ?? true)
+		set.set("usage.cost", DEFAULT_REQUIREMENTS["usage.cost"]);
+	if (ctx.partialStream)
+		set.set("partialStream", DEFAULT_REQUIREMENTS.partialStream);
 	if (ctx.sameSessionRepair) set.set("resume", DEFAULT_REQUIREMENTS.resume);
-	set.set("contextIsolation", ctx.inherit ? DEFAULT_REQUIREMENTS.contextIsolationInherit : DEFAULT_REQUIREMENTS.contextIsolation);
-	if (ctx.toolResultBudget) set.set("toolResultBudget", DEFAULT_REQUIREMENTS.toolResultBudget);
+	set.set(
+		"contextIsolation",
+		ctx.inherit
+			? DEFAULT_REQUIREMENTS.contextIsolationInherit
+			: DEFAULT_REQUIREMENTS.contextIsolation,
+	);
+	if (ctx.toolResultBudget)
+		set.set("toolResultBudget", DEFAULT_REQUIREMENTS.toolResultBudget);
 	if (ctx.fastTier) set.set("fastTier", DEFAULT_REQUIREMENTS.fastTier);
-	if (ctx.webTools || tools.includes("web_search") || tools.includes("fetch_content"))
+	if (
+		ctx.webTools ||
+		tools.includes("web_search") ||
+		tools.includes("fetch_content")
+	)
 		set.set("webTools", DEFAULT_REQUIREMENTS.webTools);
 	for (const [key, requirement] of Object.entries(ctx.requirements ?? {})) {
 		if (requirement === undefined) continue;
@@ -168,11 +206,23 @@ export function negotiateCapabilities(
 	const unverifiedOptIn = new Set<string>(ctx.allowUnverified ?? []);
 	let forcedReadOnly = false;
 
-	const readOnlyDowngrade = (key: string, code: string, note: string): NegotiationEntry | null => {
+	const readOnlyDowngrade = (
+		key: string,
+		code: string,
+		note: string,
+	): NegotiationEntry | null => {
 		if (!(ctx.allowReadOnlyDowngrade ?? false)) return null;
 		if (!isAvailable(caps.readOnly, unverifiedOptIn.has("readOnly"))) return null;
 		forcedReadOnly = true;
-		return { key, need: "preferred", onMissing: "degrade", observed: null, outcome: "degraded", code, note: `${note}; running as readOnly (spec allows)` };
+		return {
+			key,
+			need: "preferred",
+			onMissing: "degrade",
+			observed: null,
+			outcome: "degraded",
+			code,
+			note: `${note}; running as readOnly (spec allows)`,
+		};
 	};
 
 	for (const [key, requirement] of stageRequirements(ctx)) {
@@ -186,7 +236,12 @@ export function negotiateCapabilities(
 		};
 		const optIn = unverifiedOptIn.has(key) || unverifiedOptIn.has(name);
 		const detailOk = detailSatisfies(name, observedDetail, detail);
-		const base = { key, need: requirement.need, onMissing: requirement.onMissing, observed };
+		const base = {
+			key,
+			need: requirement.need,
+			onMissing: requirement.onMissing,
+			observed,
+		};
 		let entry: NegotiationEntry;
 
 		if (detailOk && isAvailable(observedLevel, optIn)) {
@@ -194,7 +249,9 @@ export function negotiateCapabilities(
 			entry = {
 				...base,
 				outcome: observedLevel.level === "emulated" ? "emulated" : "native",
-				...(observedLevel.level === "emulated" ? { emulatedBy: "executor" as const } : {}),
+				...(observedLevel.level === "emulated"
+					? { emulatedBy: "executor" as const }
+					: {}),
 				...(viaOptIn ? { note: "unverified capability used by user opt-in" } : {}),
 			};
 			if (name === "webTools" && caps.webTools.safetyPolicy !== "engine") {
@@ -205,26 +262,61 @@ export function negotiateCapabilities(
 				};
 			}
 		} else {
-			const unverified = detailOk && observedLevel.level !== "none" && observedLevel.source === "unverified";
+			const unverified =
+				detailOk &&
+				observedLevel.level !== "none" &&
+				observedLevel.source === "unverified";
 			const code = `${unverified ? "CAPABILITY_UNVERIFIED" : "CAPABILITY_MISSING"}:${key}`;
 			const refused: NegotiationEntry = { ...base, outcome: "refused", code };
 			if (requirement.onMissing === "refuse") {
 				entry = refused;
 			} else if (requirement.onMissing === "emulate") {
-				if (key === "usage.cost" && isAvailable(caps.usage, optIn) && detailSatisfies("usage", caps.usage.detail, "tokens")) {
-					entry = { ...base, outcome: "emulated", emulatedBy: "engine", code, note: "cost = tokens × model price table" };
+				if (
+					key === "usage.cost" &&
+					isAvailable(caps.usage, optIn) &&
+					detailSatisfies("usage", caps.usage.detail, "tokens")
+				) {
+					entry = {
+						...base,
+						outcome: "emulated",
+						emulatedBy: "engine",
+						code,
+						note: "cost = tokens × model price table",
+					};
 				} else if (requirement.need === "required") {
 					entry = { ...refused, note: "no engine emulation available" };
 				} else {
-					entry = { ...base, outcome: "degraded", code, note: DEGRADE_NOTES[name] ?? "no engine emulation available" };
+					entry = {
+						...base,
+						outcome: "degraded",
+						code,
+						note: DEGRADE_NOTES[name] ?? "no engine emulation available",
+					};
 				}
 			} else if (name === "toolAllowlist") {
-				entry = readOnlyDowngrade(key, code, "precise tool allowlist unavailable") ?? { ...refused, note: "spec does not allow readOnly downgrade" };
-				if (entry.outcome === "degraded") entry = { ...entry, observed, need: requirement.need };
-			} else if (name === "toolResultBudget" && caps.toolLoop === "agent" && requirement.need === "required") {
-				entry = { ...refused, note: "agent owns the tool loop; engine cannot enforce a budget" };
+				entry = readOnlyDowngrade(
+					key,
+					code,
+					"precise tool allowlist unavailable",
+				) ?? { ...refused, note: "spec does not allow readOnly downgrade" };
+				if (entry.outcome === "degraded")
+					entry = { ...entry, observed, need: requirement.need };
+			} else if (
+				name === "toolResultBudget" &&
+				caps.toolLoop === "agent" &&
+				requirement.need === "required"
+			) {
+				entry = {
+					...refused,
+					note: "agent owns the tool loop; engine cannot enforce a budget",
+				};
 			} else {
-				entry = { ...base, outcome: "degraded", code, note: DEGRADE_NOTES[name] ?? "capability unavailable; recorded" };
+				entry = {
+					...base,
+					outcome: "degraded",
+					code,
+					note: DEGRADE_NOTES[name] ?? "capability unavailable; recorded",
+				};
 			}
 		}
 		entries.push(entry);
@@ -235,7 +327,11 @@ export function negotiateCapabilities(
 			const key = `tool.${tool}`;
 			const code = `CAPABILITY_MISSING:${key}`;
 			entries.push(
-				readOnlyDowngrade(key, code, `no ${ctx.toolMapping.executorId} mapping for ${tool}`) ?? {
+				readOnlyDowngrade(
+					key,
+					code,
+					`no ${ctx.toolMapping.executorId} mapping for ${tool}`,
+				) ?? {
 					key,
 					need: "required",
 					onMissing: "refuse",
@@ -248,15 +344,22 @@ export function negotiateCapabilities(
 		}
 	}
 
-	const refusals = entries.filter((entry) => entry.outcome === "refused").map((entry) => entry.code ?? entry.key);
-	const degradations = entries.filter((entry) => entry.outcome === "degraded").map((entry) => entry.code ?? entry.key);
+	const refusals = entries
+		.filter((entry) => entry.outcome === "refused")
+		.map((entry) => entry.code ?? entry.key);
+	const degradations = entries
+		.filter((entry) => entry.outcome === "degraded")
+		.map((entry) => entry.code ?? entry.key);
 	return {
 		contractVersion: EXECUTOR_CONTRACT_VERSION,
 		executorId: executor.id,
 		executorVersion: executor.version,
 		accepted: refusals.length === 0,
 		forcedReadOnly,
-		needsConfirmation: refusals.length === 0 && degradations.length > 0 && (ctx.interactive ?? false),
+		needsConfirmation:
+			refusals.length === 0 &&
+			degradations.length > 0 &&
+			(ctx.interactive ?? false),
 		entries,
 		refusals,
 		degradations,
@@ -269,24 +372,38 @@ export function assertAccepted(report: NegotiationReport): void {
 	const first = report.refusals[0] ?? "CAPABILITY_MISSING:unknown";
 	const [code, ...rest] = first.split(":");
 	throw new SdkError(
-		code === "CAPABILITY_UNVERIFIED" ? "CAPABILITY_UNVERIFIED" : "CAPABILITY_MISSING",
+		code === "CAPABILITY_UNVERIFIED"
+			? "CAPABILITY_UNVERIFIED"
+			: "CAPABILITY_MISSING",
 		`executor ${report.executorId}@${report.executorVersion} refused: ${report.refusals.join(", ")}`,
 		{ subject: rest.join(":") },
 	);
 }
 
 /** Human-readable pre-start preview lines (extends the compiler's permission preview, design §8.3). */
-export function formatNegotiationPreview(report: NegotiationReport, label?: string): string[] {
+export function formatNegotiationPreview(
+	report: NegotiationReport,
+	label?: string,
+): string[] {
 	const head = `${label === undefined ? "" : `${label}: `}${report.executorId}@${report.executorVersion} — ${
-		report.accepted ? (report.degradations.length > 0 ? "accepted with degradation" : "accepted") : "REFUSED"
+		report.accepted
+			? report.degradations.length > 0
+				? "accepted with degradation"
+				: "accepted"
+			: "REFUSED"
 	}${report.forcedReadOnly ? " (forced readOnly)" : ""}`;
 	const lines = [head];
 	for (const entry of report.entries) {
-		const observed = entry.observed === null ? "unmapped" : `${entry.observed.level}/${entry.observed.source}${entry.observed.detail === undefined ? "" : `/${entry.observed.detail}`}`;
+		const observed =
+			entry.observed === null
+				? "unmapped"
+				: `${entry.observed.level}/${entry.observed.source}${entry.observed.detail === undefined ? "" : `/${entry.observed.detail}`}`;
 		const by = entry.emulatedBy === undefined ? "" : ` by ${entry.emulatedBy}`;
 		const code = entry.code === undefined ? "" : ` [${entry.code}]`;
 		const note = entry.note === undefined ? "" : ` — ${entry.note}`;
-		lines.push(`  ${entry.key}: ${entry.outcome}${by} (${entry.need}, ${observed})${code}${note}`);
+		lines.push(
+			`  ${entry.key}: ${entry.outcome}${by} (${entry.need}, ${observed})${code}${note}`,
+		);
 	}
 	return lines;
 }

@@ -32,7 +32,10 @@ export interface ExecutorRunRecord {
 	readonly dispatch: ExecutorDispatch;
 	readonly descriptor: ExecutorDescriptor;
 	readonly negotiation: NegotiationReport;
-	readonly probe: Pick<ExecutorProbe, "installed" | "cliVersion" | "auth"> | null;
+	readonly probe: Pick<
+		ExecutorProbe,
+		"installed" | "cliVersion" | "auth"
+	> | null;
 	/** Convenience flag for result views: "this run ran degraded". */
 	readonly degraded: boolean;
 }
@@ -52,7 +55,16 @@ export function createExecutorRunRecord(input: {
 		dispatch: input.dispatch,
 		descriptor: input.descriptor,
 		negotiation: input.negotiation,
-		probe: probe === null ? null : { installed: probe.installed, cliVersion: probe.cliVersion, auth: probe.auth },
-		degraded: input.negotiation.degradations.length > 0 || input.negotiation.forcedReadOnly,
+		probe:
+			probe === null
+				? null
+				: {
+						installed: probe.installed,
+						cliVersion: probe.cliVersion,
+						auth: probe.auth,
+					},
+		degraded:
+			input.negotiation.degradations.length > 0 ||
+			input.negotiation.forcedReadOnly,
 	};
 }

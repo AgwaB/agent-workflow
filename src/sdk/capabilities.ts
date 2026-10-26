@@ -50,7 +50,10 @@ export interface ExecutorCapabilities {
 	readonly fastTier: Level;
 	/** Only the Pi executor is native; everyone else declares none (C1). */
 	readonly toolResultBudget: Level;
-	readonly webTools: Level & { readonly detail: WebToolsDetail; readonly safetyPolicy: WebSafetyPolicy };
+	readonly webTools: Level & {
+		readonly detail: WebToolsDetail;
+		readonly safetyPolicy: WebSafetyPolicy;
+	};
 }
 
 /** Capabilities that carry a `Level` (everything except ownership flags and effortLevels). */
@@ -82,8 +85,14 @@ const DETAIL_VALUES: Partial<Record<CapabilityName, readonly string[]>> = {
 	webTools: ["search", "search+fetch", "none"],
 };
 
-export function level(levelName: CapabilityLevelName, source: CapabilitySource = "declared", verifiedWith?: string): Level {
-	return verifiedWith === undefined ? { level: levelName, source } : { level: levelName, source, verifiedWith };
+export function level(
+	levelName: CapabilityLevelName,
+	source: CapabilitySource = "declared",
+	verifiedWith?: string,
+): Level {
+	return verifiedWith === undefined
+		? { level: levelName, source }
+		: { level: levelName, source, verifiedWith };
 }
 
 /** Most conservative table: nothing supported, every row declared `none`. Adapters spread over this. */
@@ -116,10 +125,16 @@ export function noneCapabilities(): ExecutorCapabilities {
 export function validateCapabilities(value: unknown): string[] {
 	const problems: string[] = [];
 	if (!isPlainObject(value)) return ["capabilities must be an object"];
-	if (value.toolLoop !== "engine" && value.toolLoop !== "agent") problems.push("toolLoop must be engine|agent");
-	if (value.context !== "engine" && value.context !== "agent") problems.push("context must be engine|agent");
-	if (typeof value.sessionBound !== "boolean") problems.push("sessionBound must be boolean");
-	if (!Array.isArray(value.effortLevels) || !value.effortLevels.every((entry) => typeof entry === "string"))
+	if (value.toolLoop !== "engine" && value.toolLoop !== "agent")
+		problems.push("toolLoop must be engine|agent");
+	if (value.context !== "engine" && value.context !== "agent")
+		problems.push("context must be engine|agent");
+	if (typeof value.sessionBound !== "boolean")
+		problems.push("sessionBound must be boolean");
+	if (
+		!Array.isArray(value.effortLevels) ||
+		!value.effortLevels.every((entry) => typeof entry === "string")
+	)
 		problems.push("effortLevels must be string[]");
 	for (const name of LEVEL_CAPABILITY_NAMES) {
 		const entry = value[name];
@@ -127,30 +142,53 @@ export function validateCapabilities(value: unknown): string[] {
 			problems.push(`${name} must be an object`);
 			continue;
 		}
-		if (!(CAPABILITY_LEVELS as readonly unknown[]).includes(entry.level)) problems.push(`${name}.level is invalid`);
-		if (!(CAPABILITY_SOURCES as readonly unknown[]).includes(entry.source)) problems.push(`${name}.source is invalid`);
-		if (entry.verifiedWith !== undefined && typeof entry.verifiedWith !== "string")
+		if (!(CAPABILITY_LEVELS as readonly unknown[]).includes(entry.level))
+			problems.push(`${name}.level is invalid`);
+		if (!(CAPABILITY_SOURCES as readonly unknown[]).includes(entry.source))
+			problems.push(`${name}.source is invalid`);
+		if (
+			entry.verifiedWith !== undefined &&
+			typeof entry.verifiedWith !== "string"
+		)
 			problems.push(`${name}.verifiedWith must be a string`);
 		const details = DETAIL_VALUES[name];
-		if (details !== undefined && !details.includes(entry.detail as string)) problems.push(`${name}.detail is invalid`);
-		if (entry.level === "none" && details !== undefined && name !== "cancel" && entry.detail !== "none")
+		if (details !== undefined && !details.includes(entry.detail as string))
+			problems.push(`${name}.detail is invalid`);
+		if (
+			entry.level === "none" &&
+			details !== undefined &&
+			name !== "cancel" &&
+			entry.detail !== "none"
+		)
 			problems.push(`${name}.detail must be none when level is none`);
 	}
 	const webTools = value.webTools;
-	if (isPlainObject(webTools) && !["engine", "cli", "unknown"].includes(webTools.safetyPolicy as string))
+	if (
+		isPlainObject(webTools) &&
+		!["engine", "cli", "unknown"].includes(webTools.safetyPolicy as string)
+	)
 		problems.push("webTools.safetyPolicy must be engine|cli|unknown");
 	// Ownership rule (prior-art §3 #2): when the agent owns the tool loop, the engine cannot emulate
 	// tool-loop features such as a cumulative tool-result budget.
 	const budget = value.toolResultBudget;
-	if (value.toolLoop === "agent" && isPlainObject(budget) && budget.level === "emulated")
+	if (
+		value.toolLoop === "agent" &&
+		isPlainObject(budget) &&
+		budget.level === "emulated"
+	)
 		problems.push("toolResultBudget cannot be emulated when toolLoop is agent");
 	return problems;
 }
 
-export function assertCapabilities(value: unknown): asserts value is ExecutorCapabilities {
+export function assertCapabilities(
+	value: unknown,
+): asserts value is ExecutorCapabilities {
 	const problems = validateCapabilities(value);
 	if (problems.length > 0)
-		throw new SdkError("INVALID_CAPABILITIES", `invalid executor capabilities: ${problems.join("; ")}`);
+		throw new SdkError(
+			"INVALID_CAPABILITIES",
+			`invalid executor capabilities: ${problems.join("; ")}`,
+		);
 }
 
 /**
@@ -167,7 +205,8 @@ export function mergeProbedCapabilities(
 		const entry: unknown = raw;
 		if (entry === undefined) continue;
 		merged[key] =
-			(LEVEL_CAPABILITY_NAMES as readonly string[]).includes(key) && isPlainObject(entry)
+			(LEVEL_CAPABILITY_NAMES as readonly string[]).includes(key) &&
+			isPlainObject(entry)
 				? { source: "probed", ...entry }
 				: entry;
 	}

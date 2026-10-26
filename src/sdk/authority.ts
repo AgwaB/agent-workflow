@@ -34,18 +34,32 @@ export interface ExecutionAuthority {
 }
 
 /** Adapter helper: throw `AUTHORITY_REVOKED` unless the decision is `released`. */
-export function requireReleased(decision: AuthorityDecision): AuthorityReleased {
+export function requireReleased(
+	decision: AuthorityDecision,
+): AuthorityReleased {
 	if (decision.kind === "released") return decision;
-	throw new SdkError("AUTHORITY_REVOKED", `execution authority for ${decision.attemptKey} was revoked: ${decision.reason}`, {
-		subject: decision.attemptKey,
-	});
+	throw new SdkError(
+		"AUTHORITY_REVOKED",
+		`execution authority for ${decision.attemptKey} was revoked: ${decision.reason}`,
+		{
+			subject: decision.attemptKey,
+		},
+	);
 }
 
 export type AuthorityGateState = "pending" | "released" | "revoked";
 
 export type AuthorityTraceEntry =
-	| { readonly type: "consume"; readonly attemptKey: string; readonly outcome: "released" | "revoked" | "rejected" }
-	| { readonly type: "revoke"; readonly attemptKey: string; readonly outcome: "revoked" | "too_late" };
+	| {
+			readonly type: "consume";
+			readonly attemptKey: string;
+			readonly outcome: "released" | "revoked" | "rejected";
+	  }
+	| {
+			readonly type: "revoke";
+			readonly attemptKey: string;
+			readonly outcome: "revoked" | "too_late";
+	  };
 
 /** Engine-side handle for one attempt's authority. */
 export interface AuthorityGate {
@@ -71,7 +85,10 @@ export function createAuthorityGate(options: {
 }): AuthorityGate {
 	const { attemptKey, onTrace } = options;
 	if (typeof attemptKey !== "string" || attemptKey === "")
-		throw new SdkError("INVALID_REQUEST", "authority gate requires a non-empty attemptKey");
+		throw new SdkError(
+			"INVALID_REQUEST",
+			"authority gate requires a non-empty attemptKey",
+		);
 	let current: AuthorityGateState = "pending";
 	let revokeReason = "";
 	grantCounter += 1;
@@ -85,9 +102,13 @@ export function createAuthorityGate(options: {
 			}
 			if (current === "released") {
 				onTrace?.({ type: "consume", attemptKey, outcome: "rejected" });
-				throw new SdkError("AUTHORITY_ALREADY_CONSUMED", `execution authority for ${attemptKey} was already consumed`, {
-					subject: attemptKey,
-				});
+				throw new SdkError(
+					"AUTHORITY_ALREADY_CONSUMED",
+					`execution authority for ${attemptKey} was already consumed`,
+					{
+						subject: attemptKey,
+					},
+				);
 			}
 			current = "released";
 			onTrace?.({ type: "consume", attemptKey, outcome: "released" });

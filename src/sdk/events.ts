@@ -6,7 +6,17 @@
 import { FAILURE_CLASSES, type FailureClass, SdkError } from "./errors.js";
 import { isJsonValue, isPlainObject, type JsonValue } from "./json.js";
 
-export const TOOL_KINDS = ["read", "edit", "delete", "move", "search", "execute", "think", "fetch", "other"] as const;
+export const TOOL_KINDS = [
+	"read",
+	"edit",
+	"delete",
+	"move",
+	"search",
+	"execute",
+	"think",
+	"fetch",
+	"other",
+] as const;
 export type ToolKind = (typeof TOOL_KINDS)[number];
 
 export const TOOL_STATUSES = [
@@ -96,21 +106,37 @@ export const EXEC_EVENT_TYPES: readonly ExecEventType[] = [
 	"failed",
 ];
 
-export function isTerminalEvent(event: ExecEvent): event is CompletedEvent | FailedEvent {
+export function isTerminalEvent(
+	event: ExecEvent,
+): event is CompletedEvent | FailedEvent {
 	return event.type === "completed" || event.type === "failed";
 }
 
-function includes<T extends string>(values: readonly T[], value: unknown): value is T {
-	return typeof value === "string" && (values as readonly string[]).includes(value);
+function includes<T extends string>(
+	values: readonly T[],
+	value: unknown,
+): value is T {
+	return (
+		typeof value === "string" && (values as readonly string[]).includes(value)
+	);
 }
 
 function isCount(value: unknown): boolean {
-	return value === null || (typeof value === "number" && Number.isInteger(value) && value >= 0);
+	return (
+		value === null ||
+		(typeof value === "number" && Number.isInteger(value) && value >= 0)
+	);
 }
 
 function checkOwnedSession(value: unknown, problems: string[]): void {
 	if (value === undefined) return;
-	if (!isPlainObject(value) || typeof value.kind !== "string" || value.kind === "" || typeof value.locator !== "string" || value.locator === "")
+	if (
+		!isPlainObject(value) ||
+		typeof value.kind !== "string" ||
+		value.kind === "" ||
+		typeof value.locator !== "string" ||
+		value.locator === ""
+	)
 		problems.push("ownedSession must be {kind, locator} with non-empty strings");
 }
 
@@ -120,41 +146,67 @@ export function validateExecEvent(value: unknown): string[] {
 	const problems: string[] = [];
 	switch (value.type) {
 		case "started":
-			if (value.sessionId !== null && typeof value.sessionId !== "string") problems.push("started.sessionId must be string|null");
+			if (value.sessionId !== null && typeof value.sessionId !== "string")
+				problems.push("started.sessionId must be string|null");
 			break;
 		case "message_delta":
-			if (typeof value.text !== "string") problems.push("message_delta.text must be a string");
+			if (typeof value.text !== "string")
+				problems.push("message_delta.text must be a string");
 			break;
 		case "tool_call":
-			if (typeof value.name !== "string" || value.name === "") problems.push("tool_call.name must be a non-empty string");
-			if (!includes(TOOL_KINDS, value.kind)) problems.push("tool_call.kind is not an ACP tool kind");
-			if (!includes(TOOL_STATUSES, value.status)) problems.push("tool_call.status is invalid");
-			if (value.callId !== undefined && typeof value.callId !== "string") problems.push("tool_call.callId must be a string");
-			if (value.input !== undefined && !isJsonValue(value.input)) problems.push("tool_call.input must be JSON");
-			if (value.output !== undefined && !isJsonValue(value.output)) problems.push("tool_call.output must be JSON");
+			if (typeof value.name !== "string" || value.name === "")
+				problems.push("tool_call.name must be a non-empty string");
+			if (!includes(TOOL_KINDS, value.kind))
+				problems.push("tool_call.kind is not an ACP tool kind");
+			if (!includes(TOOL_STATUSES, value.status))
+				problems.push("tool_call.status is invalid");
+			if (value.callId !== undefined && typeof value.callId !== "string")
+				problems.push("tool_call.callId must be a string");
+			if (value.input !== undefined && !isJsonValue(value.input))
+				problems.push("tool_call.input must be JSON");
+			if (value.output !== undefined && !isJsonValue(value.output))
+				problems.push("tool_call.output must be JSON");
 			break;
 		case "usage":
 			for (const key of ["input", "output", "cached"] as const)
-				if (!isCount(value[key])) problems.push(`usage.${key} must be a non-negative integer or null`);
-			if (!includes(USAGE_SOURCES, value.source)) problems.push("usage.source is invalid");
-			if (value.cost !== null && !(typeof value.cost === "number" && Number.isFinite(value.cost) && value.cost >= 0))
+				if (!isCount(value[key]))
+					problems.push(`usage.${key} must be a non-negative integer or null`);
+			if (!includes(USAGE_SOURCES, value.source))
+				problems.push("usage.source is invalid");
+			if (
+				value.cost !== null &&
+				!(
+					typeof value.cost === "number" &&
+					Number.isFinite(value.cost) &&
+					value.cost >= 0
+				)
+			)
 				problems.push("usage.cost must be a non-negative number or null");
-			if (value.source === "unknown" && value.cost !== null) problems.push("usage.cost must be null when source is unknown");
-			if (value.source !== "unknown" && value.cost === null) problems.push("usage.source must be unknown when cost is null");
+			if (value.source === "unknown" && value.cost !== null)
+				problems.push("usage.cost must be null when source is unknown");
+			if (value.source !== "unknown" && value.cost === null)
+				problems.push("usage.source must be unknown when cost is null");
 			break;
 		case "approval_request":
-			if (typeof value.requestId !== "string" || value.requestId === "") problems.push("approval_request.requestId must be a non-empty string");
-			if (!includes(TOOL_KINDS, value.kind)) problems.push("approval_request.kind is not an ACP tool kind");
-			if (typeof value.detail !== "string") problems.push("approval_request.detail must be a string");
+			if (typeof value.requestId !== "string" || value.requestId === "")
+				problems.push("approval_request.requestId must be a non-empty string");
+			if (!includes(TOOL_KINDS, value.kind))
+				problems.push("approval_request.kind is not an ACP tool kind");
+			if (typeof value.detail !== "string")
+				problems.push("approval_request.detail must be a string");
 			break;
 		case "completed":
-			if (typeof value.finalText !== "string") problems.push("completed.finalText must be a string");
+			if (typeof value.finalText !== "string")
+				problems.push("completed.finalText must be a string");
 			checkOwnedSession(value.ownedSession, problems);
 			break;
 		case "failed":
-			if (!includes(FAILURE_CLASSES, value.class)) problems.push("failed.class is invalid");
-			if (typeof value.message !== "string") problems.push("failed.message must be a string");
-			if (!("raw" in value) || !isJsonValue(value.raw)) problems.push("failed.raw must be JSON (use null when absent)");
+			if (!includes(FAILURE_CLASSES, value.class))
+				problems.push("failed.class is invalid");
+			if (typeof value.message !== "string")
+				problems.push("failed.message must be a string");
+			if (!("raw" in value) || !isJsonValue(value.raw))
+				problems.push("failed.raw must be JSON (use null when absent)");
 			checkOwnedSession(value.ownedSession, problems);
 			break;
 		default:
@@ -165,7 +217,11 @@ export function validateExecEvent(value: unknown): string[] {
 
 export function assertExecEvent(value: unknown): asserts value is ExecEvent {
 	const problems = validateExecEvent(value);
-	if (problems.length > 0) throw new SdkError("INVALID_EVENT", `invalid executor event: ${problems.join("; ")}`);
+	if (problems.length > 0)
+		throw new SdkError(
+			"INVALID_EVENT",
+			`invalid executor event: ${problems.join("; ")}`,
+		);
 }
 
 /**
@@ -173,32 +229,50 @@ export function assertExecEvent(value: unknown): asserts value is ExecEvent {
  * event (`completed` | `failed`) at the end, approval request ids unique.
  * Pass `{ complete: false }` for a stream that is still running (terminal not yet required).
  */
-export function validateEventSequence(events: readonly unknown[], options: { complete?: boolean } = {}): string[] {
+export function validateEventSequence(
+	events: readonly unknown[],
+	options: { complete?: boolean } = {},
+): string[] {
 	const problems: string[] = [];
 	const complete = options.complete ?? true;
 	const approvals = new Set<string>();
 	let started = 0;
 	let terminalAt = -1;
 	events.forEach((event, index) => {
-		for (const problem of validateExecEvent(event)) problems.push(`#${index}: ${problem}`);
+		for (const problem of validateExecEvent(event))
+			problems.push(`#${index}: ${problem}`);
 		if (!isPlainObject(event)) return;
-		if (terminalAt >= 0) problems.push(`#${index}: event after terminal event #${terminalAt}`);
+		if (terminalAt >= 0)
+			problems.push(`#${index}: event after terminal event #${terminalAt}`);
 		if (event.type === "started") {
 			started += 1;
 			if (index !== 0) problems.push(`#${index}: started must be the first event`);
 		} else if (index === 0) problems.push("#0: first event must be started");
-		if (event.type === "approval_request" && typeof event.requestId === "string") {
-			if (approvals.has(event.requestId)) problems.push(`#${index}: duplicate approval requestId ${event.requestId}`);
+		if (
+			event.type === "approval_request" &&
+			typeof event.requestId === "string"
+		) {
+			if (approvals.has(event.requestId))
+				problems.push(`#${index}: duplicate approval requestId ${event.requestId}`);
 			approvals.add(event.requestId);
 		}
-		if ((event.type === "completed" || event.type === "failed") && terminalAt < 0) terminalAt = index;
+		if ((event.type === "completed" || event.type === "failed") && terminalAt < 0)
+			terminalAt = index;
 	});
 	if (started > 1) problems.push("started emitted more than once");
-	if (complete && terminalAt < 0) problems.push("stream ended without a terminal event");
+	if (complete && terminalAt < 0)
+		problems.push("stream ended without a terminal event");
 	return problems;
 }
 
-export function assertEventSequence(events: readonly unknown[], options: { complete?: boolean } = {}): asserts events is readonly ExecEvent[] {
+export function assertEventSequence(
+	events: readonly unknown[],
+	options: { complete?: boolean } = {},
+): asserts events is readonly ExecEvent[] {
 	const problems = validateEventSequence(events, options);
-	if (problems.length > 0) throw new SdkError("INVALID_EVENT_SEQUENCE", `invalid event sequence: ${problems.join("; ")}`);
+	if (problems.length > 0)
+		throw new SdkError(
+			"INVALID_EVENT_SEQUENCE",
+			`invalid event sequence: ${problems.join("; ")}`,
+		);
 }

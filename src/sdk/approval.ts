@@ -19,8 +19,15 @@ export interface ApprovalPolicy {
 
 export const DEFAULT_APPROVAL_TIMEOUT_MS = 60_000;
 
-export function defaultApprovalPolicy(overrides: Partial<ApprovalPolicy> = {}): ApprovalPolicy {
-	return { allowKinds: [], interactive: false, timeoutMs: DEFAULT_APPROVAL_TIMEOUT_MS, ...overrides };
+export function defaultApprovalPolicy(
+	overrides: Partial<ApprovalPolicy> = {},
+): ApprovalPolicy {
+	return {
+		allowKinds: [],
+		interactive: false,
+		timeoutMs: DEFAULT_APPROVAL_TIMEOUT_MS,
+		...overrides,
+	};
 }
 
 /**
@@ -49,7 +56,10 @@ export async function awaitApprovalAnswer(
 		timer = setTimeout(() => resolve("deny"), Math.max(0, policy.timeoutMs));
 	});
 	try {
-		return await Promise.race([answer.catch((): ApprovalDecision => "deny"), timeout]);
+		return await Promise.race([
+			answer.catch((): ApprovalDecision => "deny"),
+			timeout,
+		]);
 	} finally {
 		if (timer !== undefined) clearTimeout(timer);
 	}
