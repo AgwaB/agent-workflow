@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/launch-session.ts. MIT, same author. Changes: none.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/launch-session.ts. MIT, same author. Changes: worker session ids agent-workflow.<run>.<task> / awf.<digest> (were pi-workflow. / piwf., user-visible in executor CLI sessions; WP4c).
 import { createHash } from "node:crypto";
 
 import type { WorkflowRunRecord, WorkflowTaskRunRecord } from "./types.js";
@@ -83,7 +83,7 @@ export function isWorkflowTaskSessionIdentity(input: {
 }
 
 function workflowTaskBaseSessionId(runId: string, taskId: string): string {
-	return boundedWorkflowSessionId(`pi-workflow.${runId}.${taskId}`);
+	return boundedWorkflowSessionId(`agent-workflow.${runId}.${taskId}`);
 }
 
 function boundedWorkflowSessionId(value: string): string {
@@ -94,7 +94,7 @@ function boundedWorkflowSessionId(value: string): string {
 		.digest("hex")
 		.slice(0, 16);
 	const suffix = sanitized.split(".").at(-1) || "session";
-	const prefix = `piwf.${digest}`;
+	const prefix = `awf.${digest}`;
 	const maxSuffixLength = MAX_SUBAGENT_SESSION_ID_LENGTH - prefix.length - 1;
 	const boundedSuffix = suffix.slice(-Math.max(1, maxSuffixLength));
 	return `${prefix}.${boundedSuffix}`;

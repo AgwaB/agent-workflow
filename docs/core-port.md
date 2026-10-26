@@ -1,4 +1,4 @@
-# Core port (WP4a, WP4b)
+# Core port (WP4a, WP4b, WP4c-1)
 
 Source: `@agwab/pi-workflow` 0.16.4, commit `b83cc4f` (MIT, same author).
 Destination: `src/core/` (flat, same file names), compiled to `dist/core/`.
@@ -366,6 +366,240 @@ and the legacy `.pi` directory.
   - Map `HostContext` from the Pi `ExtensionContext` (`isProjectTrusted`) at launch.
 - `serverSpecSha256` includes `process.execPath`. A node upgrade between recording and re-checking the same
   attempt's provenance fails closed. The old wrapper digest already pinned the package path.
+
+## WP4c-1 — engine on the runtime API, subagent-backend decomposed
+
+Source: `src/engine.ts`, `src/subagent-backend.ts`, `src/workflow-router.ts`, `src/workflow-parent-usage.ts`,
+`src/index.ts` and `src/backend.ts` at `b83cc4f`. `subagent-backend.ts` (7,450 lines) has no single
+destination. Its policies moved to focused core modules, its pi-subagent calls go to the in-repo runtime
+API (`src/runtime/api.ts`), and its Pi launch code is listed below as Pi executor (WP6) or dropped.
+
+### Policy inventory and policy-move table (WP4 acceptance)
+
+The inventory was written from `subagent-backend.ts` before any code moved. Line ranges refer to that
+file at `b83cc4f`. Every row has a destination; nothing was removed silently.
+
+| # | Policy (what it enforces) | Source lines | Destination |
+|---|---|---|---|
+| 1 | Process launch gate: `PI_WORKFLOW_MAX_CONCURRENT_LAUNCHES` (default max(2, cores/2)), FIFO wait queue, slot hand-off, abort while queued, release delay (3 s; 250 ms with the launch ramp) | 176, 186-187, 192-193, 962-983, 1079-1158, 1563-1580, 1633-1673 | `launch-slots.ts` (env → `AGENT_WORKFLOW_*`) |
+| 2 | Live model worker slots per run (`MAX_LIVE_MODEL_WORKERS`) and adaptive live workers (floor 4, grow/shrink on median execution time, shrink on rate-limit backoff) | 177-185, 1159-1327, 1506-1562 | `launch-slots.ts` |
+| 3 | Launch control telemetry and test controls (`setSubagentLaunchControlsForTests`, slot snapshots) | 765-779, 1581-1632, 2680-2726 | `launch-slots.ts` |
+| 4 | Bounded runtime operations: launch ack 30 s, refresh 10 s, interrupt 10 s; abort and workflow-stop checks between every launch step | 196-198, 984-1078, 1685-1687 | `launch-operations.ts` |
+| 5 | Retry limits: transient launch failures 5, artifact-output repairs 2, env overrides validated as non-negative safe integers | 169-174, 6146-6159 | `retry-policy.ts` (env → `AGENT_WORKFLOW_*`) |
+| 6 | Transient failure retry: no-output model failures retried with a new launch attempt, 1-5 s jitter, `nextEligibleAt` honored, exhaustion → failed | 199-200, 1674-1684, 6083-6121, 6160-6211 | `retry-policy.ts` (jitter: `launch-slots.ts`, which owns the test hook); retryable kinds now include runtime `transient`, `rate_limit`, `not_started` |
+| 7 | Rate-limit backoff: Retry-After/"try again in" parsing, exponential default, per-provider shared backoff persisted across processes (lock dir, merge maxima, 32 keys, telemetry on write failure) | 208-213, 781-961, 2727-2736, 5882-6013, 6035-6082 | `retry-policy.ts` (file under `AGENT_WORKFLOW_HOME`); runtime `failureKind: rate_limit` backs off without text evidence |
+| 8 | Auth-type probe: read `~/.pi/agent/auth.json` (or `PI_WORKFLOW_AUTH_FILE`) to choose the OAuth backoff profile | 214, 6014-6034 (used at 6035-6049) | **dropped (R#12, D1)**: unknown auth kind takes the conservative OAuth profile (15 min base, 60 min cap); `setExecutorAuthKindProbe` lets an executor probe report a non-secret `subscription`/`api-key` kind |
+| 9 | Failure classification: deterministic boot failures, permanent provider input-validation failures (never retried) | 5776-5881 | `retry-policy.ts` |
+| 10 | Required artifact reads: ledger after attempt start, truncated rows excluded, path aliases, exact counts, projection policies, failure messages | 5443-5725 | `required-reads.ts`; R#9: rows with `deliveryUnverified: true` never count |
+| 11 | Output-contract validation and repair: artifact bundle validation, retry instructions, new-session and same-session repair (`AGENT_WORKFLOW_EXPERIMENTAL_SAME_SESSION_REPAIR`), salvage of failed-but-complete output, claim-support/refs checks, missing-read attempt records | 4922-5442, 5726-5775, 6212-6319 | `output-validation.ts` (`retryOrFailArtifactGraphTask` in `retry-policy.ts`) |
+| 12 | Foreach batch: terminal demux of the leader, evidence persistence, fallback to per-item launches, capability checks, restart recovery | 4511-4921 | `foreach-recovery.ts` |
+| 13 | Durable launch barrier, engine side: create/resume per authority (3087-3144); READY validation against the authorized launch, authority consume, release vs **revoke on workflow stop or lease loss**, ACK validation, revoke+interrupt on any failure (3322-3573); cancellation decision (1328-1467); restart reconcile from barrier receipts (3610-3820) | 531-533, 1328-1467, 3087-3144, 3322-3573, 3610-3820 | `launch-barrier-engine.ts` (`createOrResumeDurableLaunchBarrier`, `settleDurableLaunchBarrier`, `decideDurableBarrierCancellation`, `reconcileDurableLaunchBarrierTask`); same order and checks |
+| 14 | Cancellation: exact-attempt interrupt with terminal acknowledgement, barrier-aware `acknowledgeSubagentTaskInterrupted`, run cleanup, timeout interruption | 1468-1505, 2737-2867, 4194-4217 | `task-cancellation.ts`, `task-backend.ts`; the runtime turns the interrupt into `executor.cancel(ref, "owned")` |
+| 15 | Launch authority and launch-bootstrap provenance: create/issue, assert current, register before launch, consume on READY or handle | 2950-2980, 3187-3227, 3371-3376, 3575-3580 | `task-backend.ts` (`launchSubagentTask`), `launch-barrier-engine.ts`; backend id `agent-workflow/runtime` |
+| 16 | Stale launch claims and handle recovery (correlation id, pre-claim records ignored, non-spawnable authority → fail, never duplicate spawn) | 194, 4218-4245, 7241-7340 | `task-backend.ts`, `task-artifacts.ts` |
+| 17 | Refresh polling: bounded concurrency 8, reconcile + status per handle, partial-output refresh, timeout handling, coalesced single write | 195, 3821-4193 | `task-backend.ts` (`refreshRunFromSubagentArtifacts`) |
+| 18 | Terminal result mapping: log copies, result/tool-call summaries, status from the run snapshot, transient retry hand-off | 4246-4510, 6320-6400 | `terminal-result.ts`; runtime `needs_decision` → blocked (below) |
+| 19 | Usage, timing and tool-result-budget telemetry on task records | 1689-2679 | `task-observability.ts` (record `source: "executor"`) |
+| 20 | Tool-result budgets for dynamic tasks (default 320k chars, env override) | 205-207, 2027-2032, 6123-6145, 3238-3242 | configuration and telemetry: `task-observability.ts`; **enforcement: Pi executor (WP6)** (C1, Pi only) |
+| 21 | Parent usage: child started/terminal events with usage totals to a parent runtime run | 188-191, 463-482, 666-764 | `parent-child-events.ts` (env → `AGENT_WORKFLOW_PARENT_SUBAGENT_*`); parent-session usage stays in `workflow-parent-usage.ts` |
+| 22 | Worker role: `PI_WORKFLOW_ROLE=worker` scoped around the launch (process env) | 619-662 | `task-backend.ts`: `SubmitRequest.env.AGENT_WORKFLOW_ROLE = "worker"` (change log 3) |
+| 23 | Worktree/safety at launch: runtime workspace `shared` + `worktreePolicy: never` (the engine manages worktrees) | 3157-3160 | `task-backend.ts`, plus the new R#5 gate `assertWorktreeEnforced` |
+| 24 | Prepared launch: resource policy seal, tool providers, artifact binding seal + drift check before launch | 6406-6416, 6623-6701, 6756-6774 | `task-backend.ts` (`prepareSubagentTaskLaunch`; binding = manifest + `artifact-access.json` + MCP server spec) |
+| 25 | Worker system prompt (effective tool policy, output contract) | 7371-7450 | `task-backend.ts` ("You are workflow subagent …") |
+| 26 | Artifact copies and safety: hard-link/copy of runtime logs, safe relative paths inside the runs dir, failed tool-call summaries (20 max) | 175, 6394-6400, 7038-7240 | `task-artifacts.ts` |
+| 27 | Runtime runs directory per task | 162, 7364-7370 | `task-artifacts.ts`: `.agent-workflow/workflow-subagents/<run>/<task>` |
+| 28 | One-shot call for the auto router | 535-558 | `task-backend.ts` (`runOneShotSubagentCall`) |
+| 29 | pi-subagent API seam (`@agwab/pi-subagent/api` import, `setSubagentApiForTests`) | 263-533 | `runtime-port.ts` (static `../runtime/api.js`, `setTaskRuntimeApiForTests`) |
+
+**Pi executor (WP6)** — Pi launch code that is not ported:
+
+| Pi-specific code | Source lines |
+|---|---|
+| Extension isolation probe (`supportsExplicitExtensionIsolation`, `noExtensions`) | 552-563, 3214-3215, 6627 |
+| Extension preflight (`assertSubagentExtensionsLoadable`, imports `@earendil-works/pi-coding-agent`) | 564-618, 3217-3218 |
+| Pi agent option `skills: []` when skill discovery is disabled (core maps the sealed policy to `SubmitRequest.isolation`) | 3206-3209 |
+| `toolResultBudget` launch option to the Pi child | 3219-3223 |
+| Native-host extension wrapper (host-tool inheritance; core keeps `hostContext` and provenance fails closed for other executors) | 237-240, 6583-6599 |
+| Fast-mode extension wrapper (core keeps `fast-tier.ts` config) | 241-244, 6603-6621 |
+| Provider extension resolution for tool providers with `extensions` (`TOOL_PROVIDER_EXTENSIONS`, `bundledNodeModulePath`, `resolvePreparedToolProviders`, `resolveProviderExtensionRef`, `providerExtensionsForTools`) | 215-216, 245-262, 6833-6892, 6996-7024 |
+| Extra extensions env `PI_WORKFLOW_SUBAGENT_EXTRA_EXTENSIONS` | 163, 7025-7033 |
+
+**Dropped** (with reason):
+
+| Code | Source lines | Reason |
+|---|---|---|
+| `auth.json` read (`workflowAuthFile`, `providerAuthType`, `PI_WORKFLOW_AUTH_FILE`) | 214, 6014-6034 | R#12/D1: the engine never reads credential stores; conservative backoff + probe hook instead |
+| Fetch-content cache wrapper and its env (`PI_WORKFLOW_FETCH_CONTENT_CACHE`, `…_INLINE_CHARS`, legacy `PI_WORKFLOW_FETCH_CACHE`) | 165-168, 229-232, 6448-6500, 6775-6781, 6975-6995 | C2: built-in CLI web tools; `workflow_web_*` removed in WP10 |
+| Web-source wrapper, pi-web-access/code-search provider resolution and passthrough tools | 217-228, 233-236, 6418-6426, 6502-6578, 6702-6755, 6782-6832, 6893-6974 | C2 (same) |
+| `uniqueStrings` helper | 7034-7037 | only used by dropped extension code |
+
+Counts: 29 policies moved (one, #20, with enforcement left to the Pi executor), 8 Pi executor (WP6)
+items, 4 dropped items.
+
+### Executor selection
+
+- `executor-registry.ts` maps executor ids to `ExecutorDescriptor`s. The built-ins `pi`, `codex`, `claude`
+  are known but unavailable until WP6/WP7/WP8 register their adapters. Tests register descriptors with
+  `registerWorkflowExecutor(descriptor)`.
+- Precedence (B2): run flag `WorkflowRunOptions.executor` > workflow-declared profile (new spec field
+  `executionProfileExecutors: { <declared profile>: <executor id> }`, used when `executionProfile` names
+  that profile) > saved user profile (`WorkflowCapturedExecutionProfile.executor`) > default
+  (`WorkflowRunOptions.defaultExecutor`, else `"pi"`).
+- `runLoadedWorkflowSpec` resolves the selection before the run record exists. An unknown or unavailable
+  executor throws `WorkflowExecutorUnavailableError` naming the executor and its source (for example
+  `executor "codex" from workflow execution profile "fast" is unavailable: …`). The run is not created and
+  nothing launches. A lower tier is never tried as a fallback.
+- The selection `{id, source, profile?, descriptor}` is frozen as `run.executor`. Nested runs copy the
+  parent's. The backend launches with that recorded descriptor; the durable worker reloads the adapter
+  from `descriptor.module`. A run without a selection (created directly through the store, or an imported
+  record) gets the default tier at its first launch, which must itself be available.
+
+### attemptKey
+
+`awf1:<workflowRunId>:<taskId>:<16 hex>`. The hex is the first 16 characters of SHA-256 over the launch
+authority's attempt identity, `launch-retry:N;output-retry:N;resume:N[;physical:N];session:<id|none>`
+(`launch-session.ts`). The key is stable for one task attempt: re-entering the launch for the same attempt
+(stale claim, ack timeout) reuses it, so an idempotent executor returns the existing ExecRef. Every launch
+retry, output repair, resume or foreach physical attempt changes the identity and therefore the key. The key
+is passed as `RunSubagentOptions.attemptKey` and reaches `SubmitRequest.attemptKey`.
+
+### SubmitRequest mapping
+
+| SubmitRequest field | From |
+|---|---|
+| `prompt`, `systemPrompt` | compiled prompt; `buildSystemPrompt` |
+| `model`, `effort` | `runtime.model`; `runtime.thinking` (passed verbatim) |
+| `tools` | effective launch tools (Pi vocabulary); an unspecified list is `read, bash, edit, write` (`DEFAULT_WORKER_TOOLS`, what Pi used by default) |
+| `readOnly` | `safety.capability === "read-only"` |
+| `isolation` | `{inherit: true}` only when the stage/agent sets `inheritProjectContext` or `inheritSkills` (B5) |
+| `env` | `{AGENT_WORKFLOW_ROLE: "worker"}` |
+| `approvalPolicy` | `allowKinds` = ACP kinds of the stage's tools (`PI_TOOL_KINDS`), minus mutating kinds for read-only tasks; `interactive: false` |
+| `mcpServers` | `toolProviders[*].mcpServer` (WP4b), checked against the sealed artifact binding's server spec |
+| `artifactsDir`, `cwd`, `deadlineMs` | runtime (attempt dir, `task.cwd`, `maxRuntimeMs`) |
+
+`inheritHostTools` and `allowSharedCheckoutWrites` are new `WorkflowRunOptions` passed to `compileWorkflow`;
+nested runs take them from the parent run record.
+
+### Reconcile mapping (B3)
+
+- Runtime `failed/needs_decision` (executor reconcile `unknown` or unprovable) → the task becomes
+  `blocked` with statusDetail `executor_needs_decision`, `result.json` records `failureKind: needs_decision`,
+  and the run status becomes `blocked`. The run is an eligible notice (`notices list`). Nothing retries,
+  relaunches or falls back; a foreach batch leader stops the batch with both members blocked instead of
+  falling back to per-item launches. The owner decides: an explicit `resume` relaunches with a new attempt
+  key (`executor_needs_decision` is a resumable blocked detail), `stop` abandons it.
+- Runtime `failed/not_started` (reconcile `absent`) → eligible for the normal transient retry policy
+  (new launch attempt, new key, retry limit and backoff apply).
+- `transient`, `rate_limit` → retry policy (rate limit with backoff). `executor_auth`, `executor_config`,
+  `executor_permanent`, `executor_unknown`, `guard_failure` → failed, no retry. `revoked` → interrupted.
+
+### R#9, R#10, R#12, R#5
+
+- **R#9 groundwork:** `WorkflowArtifactReadLedgerRecord.deliveryUnverified?: true` is preserved by the
+  ledger reader (a non-boolean value fails the ledger closed). `checkRequiredArtifactReads` ignores such
+  rows for required reads and projection policies. WP5 writes them.
+- **R#10 / D3:** the runtime records the adapter's `ownedSession` in `result.json`
+  `metadata.executor.ownedSession` (additive runtime change). The terminal mapping copies it to
+  `task.ownedSessions[]` (`executorId, kind, locator, backendRunId, backendAttemptId`). `pruneWorkflowRuns`
+  (`deleteOwnedSessions` default true) loads the run's executor and calls the new optional
+  `WorkflowExecutor.deleteOwnedSession(locator)` for exactly those locators, before the run is removed. A
+  refusal or error keeps the run (protected, with the error). An executor without the method is counted as
+  `unsupported`. A session recorded for another executor id is refused.
+- **R#12:** see policy row 8.
+- **R#5:** `engine.ts` 2860 (foreach batch eligibility) now applies the same tool policy as
+  `prepareDagTask` (`inheritHostTools`, `allowSharedCheckoutWrites` from the run), so a mutation-capable
+  task can never join a shared-cwd batch. 5418 only labels a failure (`worktree_failed`); no bypass.
+  `applyExistingLoopWorktree` clears `requiresWorktree` only after moving the task into the loop's managed
+  worktree. As a last gate, `launchSubagentTask` refuses (fatal, before any effect) a task whose safety
+  requires a worktree unless `task.cwd` is its recorded managed worktree path.
+
+### Paths, env and literals
+
+| Before | After | Where |
+|---|---|---|
+| `.pi/workflow-subagents/<run>/<task>` | `.agent-workflow/workflow-subagents/<run>/<task>` | task-artifacts |
+| `.pi/workflows/auto-router-runs` | `.agent-workflow/workflows/auto-router-runs` | workflow-router |
+| `~/.pi/agent/model-rate-limit-backoff.json` | `$AGENT_WORKFLOW_HOME/model-rate-limit-backoff.json` | retry-policy |
+| `PI_WORKFLOW_ROLE_ENV` (process env scoping) | `AGENT_WORKFLOW_ROLE_ENV` in `SubmitRequest.env` | task-backend |
+| `PI_WORKFLOW_MAX_CONCURRENT_LAUNCHES`, `…_MAX_LIVE_MODEL_WORKERS`, `…_ADAPTIVE_LIVE_WORKERS`, `…_LAUNCH_SLOT_RELEASE_DELAY_MS` | `AGENT_WORKFLOW_…` | launch-slots |
+| `PI_WORKFLOW_TRANSIENT_MODEL_FAILURE_RETRIES`, `…_ARTIFACT_OUTPUT_RETRIES` | `AGENT_WORKFLOW_…` | retry-policy |
+| `PI_WORKFLOW_DYNAMIC_TOOL_RESULT_BUDGET_CHARS` | `AGENT_WORKFLOW_…` | task-observability |
+| `PI_WORKFLOW_PARENT_SUBAGENT_{CWD,RUNS_DIR,RUN_ID,ATTEMPT_ID}` | `AGENT_WORKFLOW_PARENT_SUBAGENT_…` | parent-child-events |
+| `PI_WORKFLOW_CAPTURE_TOOL_CALLS` | `AGENT_WORKFLOW_CAPTURE_TOOL_CALLS` | task-backend |
+| backend id `pi-subagent/headless` | `agent-workflow/runtime` | launch authority / provenance |
+| task handle `{engine: "pi-subagent", backend: "headless"}` | `{engine: "agent-workflow", backend: "runtime"}` | task-artifacts |
+| worktree branch `pi-workflow/<run>-<task>` | `agent-workflow/<run>-<task>` | worktree |
+| worker session ids `pi-workflow.<run>.<task>`, `piwf.<digest>` | `agent-workflow.<run>.<task>`, `awf.<digest>` | launch-session |
+| usage/budget record `source: "pi-subagent"` | `"executor"` (type accepts both) | task-observability, types |
+| messages "pi-subagent …", "child Pi …", "You are Pi workflow subagent" | "executor …", "You are workflow subagent" | task-backend, terminal-result |
+
+Kept on purpose (stored-format or wire identifiers; renaming them is a format change, not a port):
+`pi-workflow-*-v1/v2` schema ids (launch, launch authority, provenance, auto binding, dynamic state/events,
+state root, capabilities, release/cancellation digests, auto comparison), `issuer: "pi-workflow-engine"`,
+timing/budget sources `pi-workflow`, `pi-workflow-launch`, `pi-workflow-budget-disabled`, the
+`pi-subagent-durable-launch-barrier-*` wire schemas (runtime), and `backend: {type: "local-pi", mode:
+"headless"}` in run/compiled records (F5; it now names the runtime-API task backend). No old `PI_WORKFLOW_*`
+name is read as a fallback.
+
+### Module table (WP4c-1)
+
+| Source | Destination | Status |
+|---|---|---|
+| `src/engine.ts` | `src/core/engine.ts` | ported-adapted: backend registration, executor selection, `inheritHostTools`/`allowSharedCheckoutWrites` options, host context via `withHostContext`, R#5 batch eligibility |
+| `src/subagent-backend.ts` | 13 modules (table above) + `runtime-port.ts` | decomposed |
+| `src/backend.ts` (remaining part) | `src/core/task-backend.ts` (`workflowTaskBackend`, fatal wrapper, registration) | ported |
+| `src/workflow-router.ts` | `src/core/workflow-router.ts` | ported-adapted (one-shot via task backend, runs dir) |
+| `src/workflow-parent-usage.ts` | `src/core/workflow-parent-usage.ts` | ported (import moved) |
+| `src/index.ts` | `src/core/index.ts`, `src/index.ts` re-exports core | ported-adapted (`WORKFLOW_COMMAND`/`WORKFLOW_HELP` → Pi host, WP11b) |
+| — | `src/core/executor-registry.ts` | new |
+
+Other core files touched: `types.ts` (run.executor, executionProfileExecutors, ownedSessions, source
+literal), `artifact-graph-schema.ts`, `store.ts` (resumable `executor_needs_decision`),
+`workflow-notices.ts`, `workflow-artifact-tool.ts`, `run-retention.ts`, `launch-session.ts`,
+`worktree.ts`. Each header names the change.
+
+### SDK and runtime changes (additive, own commit)
+
+- `src/sdk/contract.ts`: optional `WorkflowExecutor.deleteOwnedSession?(session)` returning
+  `"deleted" | "not_found" | "refused"`, plus `OwnedSessionLocator` / `DeleteOwnedSessionResult`.
+  `assertWorkflowExecutor` does not require it.
+- `src/runtime/artifacts/result.ts` + `orchestrate/execute.ts`: `ResultExecutorMetadata.ownedSession`
+  records the terminal event's `ownedSession`.
+- `test/unit/core-import-isolation.test.mjs` now also allows `../sdk/*.js` and `../runtime/*.js` imports
+  from core (both Pi-free, same `dist/` tree); the temp-copy import of every `dist/core/*.js` without
+  `node_modules` still runs.
+
+### WP4c-1 change log (behavior-relevant)
+
+1. Tasks launch through the runtime API with the run's recorded executor descriptor; pi-subagent and Pi
+   launch options are gone (Pi pieces → WP6).
+2. A run without an available executor is refused before it is created (`WorkflowExecutorUnavailableError`);
+   the default executor `pi` is unavailable until WP6.
+3. The worker role is passed as `SubmitRequest.env.AGENT_WORKFLOW_ROLE` instead of mutating the engine's
+   process env around the launch.
+4. Runtime `needs_decision` blocks the task and run (statusDetail `executor_needs_decision`, notice,
+   resumable by a person); `not_started`, `transient` and `rate_limit` join the transient retry policy.
+5. Rate-limit backoff no longer reads `auth.json`; an unknown auth kind uses the long (OAuth) profile.
+6. Unspecified task tools launch as `read, bash, edit, write` (explicit list required by the SDK).
+7. Required reads ignore `deliveryUnverified` ledger rows.
+8. Pruning deletes engine-owned worker sessions first and keeps the run if that fails.
+9. Backend gate: a worktree-requiring task never launches outside its managed worktree.
+10. Renames in the table above (paths, env, ids, session ids, worktree branch, messages).
+11. Spec field `executionProfileExecutors` and run option `executor` / `defaultExecutor` are new.
+
+### For later WPs
+
+- **WP4c-2:** port `unit-test-support.mjs` (its fake SubagentApi plugs into `setTaskRuntimeApiForTests`;
+  the injected API may omit the barrier functions, as before) and the 15 tests marked `deferred-WP4c-2`.
+  Runs created with `createRunRecord` get the default executor at first launch, so register a descriptor
+  as `pi` (see `register-default-executor.mjs`).
+- **WP1b:** replay compares the renamed literals above (session ids, worktree branch, handle, backend id,
+  record sources); add them to the allowed-difference list.
+- **WP5:** write `deliveryUnverified: true` ledger rows when delivery cannot be verified.
+- **WP6:** the Pi rows above; register the `pi` descriptor; report the auth kind through
+  `setExecutorAuthKindProbe`; implement `deleteOwnedSession` for kept sessions; honor
+  `runtime.inheritHostTools` with the native-host wrapper (provenance requires it).
+- **WP11a/WP11b:** expose `--executor`; move `WORKFLOW_HELP` into the Pi host.
 
 ## Tests (WP4a)
 

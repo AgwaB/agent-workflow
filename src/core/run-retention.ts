@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/run-retention.ts. MIT, same author. Changes: subagent mirror root .pi/workflow-subagents→.agent-workflow/workflow-subagents.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/run-retention.ts. MIT, same author. Changes: subagent mirror root .pi/workflow-subagents→.agent-workflow/workflow-subagents. WP4c (R#10, D3): pruning deletes engine-owned worker sessions (task.ownedSessions) through the run executor's optional deleteOwnedSession first and keeps the run when that fails.
 import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import {
 	lstat,
@@ -22,12 +22,20 @@ import {
 	updateIndex,
 	workflowsRoot,
 } from "./store.js";
+import { type ExecutorRegistry, loadExecutor } from "../sdk/descriptor.js";
 import type { WorkflowRunRecord, WorkflowRunStatus } from "./types.js";
 
 export interface WorkflowPruneOptions {
 	keep?: number;
 	olderThanDays?: number;
 	yes?: boolean;
+	/**
+	 * R#10/D3: delete the worker sessions each pruned run recorded as engine-owned
+	 * (`task.ownedSessions`) through the run's executor `deleteOwnedSession`. Default true.
+	 */
+	deleteOwnedSessions?: boolean;
+	/** In-process executor modules checked before importing a recorded descriptor module. */
+	executorRegistry?: ExecutorRegistry;
 }
 
 export interface WorkflowPruneRun {
@@ -44,6 +52,13 @@ export interface WorkflowPruneRun {
 	purged?: boolean;
 	retainedEvidencePath?: string;
 	retainedMirrorPath?: string;
+	/** R#10: owned worker sessions handled for this run. */
+	ownedSessions?: {
+		deleted: number;
+		notFound: number;
+		/** The executor has no deleteOwnedSession (sessions are left in place). */
+		unsupported: number;
+	};
 	error?: string;
 }
 
@@ -193,10 +208,22 @@ async function prunePlan(
 			continue;
 		}
 		await beforeDeleteForTests?.();
-		const deletion = await deleteCandidate(cwd, candidate, async () => {
-			await assertTopologyOwner?.();
-			return retainedChildReason(cwd, candidate.run.runId, plan, purgedRunIds);
-		});
+		const deletion = await deleteCandidate(
+			cwd,
+			candidate,
+			async () => {
+				await assertTopologyOwner?.();
+				return retainedChildReason(
+					cwd,
+					candidate.run.runId,
+					plan,
+					purgedRunIds,
+				);
+			},
+			options.deleteOwnedSessions === false
+				? undefined
+				: (run) => deleteRunOwnedSessions(run, options.executorRegistry),
+		);
 		Object.assign(entry, deletion);
 		if (deletion.detached) detachedRunIds.push(candidate.run.runId);
 		if (deletion.purged) purgedRunIds.add(candidate.run.runId);
@@ -398,12 +425,16 @@ type DeletionOutcome = Pick<
 	| "error"
 	| "retainedEvidencePath"
 	| "retainedMirrorPath"
+	| "ownedSessions"
 >;
 
 async function deleteCandidate(
 	cwd: string,
 	candidate: Candidate,
 	recheckReferences: () => Promise<string | undefined>,
+	deleteOwnedSessions?: (
+		run: WorkflowRunRecord,
+	) => Promise<NonNullable<WorkflowPruneRun["ownedSessions"]>>,
 ): Promise<DeletionOutcome> {
 	const root = workflowsRoot(cwd);
 	let lease: Awaited<ReturnType<typeof acquireRunFileLease>>;
@@ -452,6 +483,20 @@ async function deleteCandidate(
 		const reason = await recheckReferences();
 		if (reason) return { ...outcome, protected: true, error: reason };
 		await lease.assertOwner();
+		// R#10: owned worker sessions go first; a failure keeps the run (its record is the
+		// only evidence of which sessions the engine owns).
+		if (deleteOwnedSessions) {
+			try {
+				outcome.ownedSessions = await deleteOwnedSessions(current);
+			} catch (error) {
+				return {
+					...outcome,
+					protected: true,
+					error: `owned worker session deletion failed: ${errorMessage(error)}`,
+				};
+			}
+			await lease.assertOwner();
+		}
 		// No irreversible removal until BOTH generations are safely detached.
 		mirror = await quarantineContainedDirectory(
 			join(cwd, PROJECT_STATE_DIRECTORY, "workflow-subagents"),
@@ -665,4 +710,49 @@ function normalizeNonNegativeInteger(
 
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * R#10 (D3): delete the worker sessions a run recorded as engine-owned, through the run's
+ * recorded executor. Never touches a session that is not in `task.ownedSessions`, and only
+ * those whose executor id matches the run's executor.
+ */
+export async function deleteRunOwnedSessions(
+	run: WorkflowRunRecord,
+	registry?: ExecutorRegistry,
+): Promise<NonNullable<WorkflowPruneRun["ownedSessions"]>> {
+	const result = { deleted: 0, notFound: 0, unsupported: 0 };
+	const sessions = run.tasks.flatMap((task) => task.ownedSessions ?? []);
+	if (sessions.length === 0) return result;
+	const descriptor = run.executor?.descriptor;
+	if (descriptor === undefined)
+		throw new Error(
+			`run ${run.runId} records owned worker sessions but no executor`,
+		);
+	const executor = await loadExecutor(descriptor, { registry });
+	const seen = new Set<string>();
+	for (const session of sessions) {
+		if (session.executorId !== descriptor.id)
+			throw new Error(
+				`owned worker session ${session.kind}:${session.locator} belongs to executor ${session.executorId}, not ${descriptor.id}`,
+			);
+		const key = `${session.kind}\0${session.locator}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		if (typeof executor.deleteOwnedSession !== "function") {
+			result.unsupported += 1;
+			continue;
+		}
+		const outcome = await executor.deleteOwnedSession({
+			kind: session.kind,
+			locator: session.locator,
+		});
+		if (outcome === "deleted") result.deleted += 1;
+		else if (outcome === "not_found") result.notFound += 1;
+		else
+			throw new Error(
+				`executor ${descriptor.id} refused to delete owned session ${session.kind}:${session.locator}`,
+			);
+	}
+	return result;
 }

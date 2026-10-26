@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-notices.ts. MIT, same author. Changes: notices root .pi/workflows→.agent-workflow/workflows.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-notices.ts. MIT, same author. Changes: notices root .pi/workflows→.agent-workflow/workflows; a run blocked on executor_needs_decision (WP4c, B3) is an eligible notice.
 import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
@@ -200,7 +200,9 @@ async function observe(root: string, runId: string): Promise<ObservedNotice> {
 						object(task) &&
 						task.status === "blocked" &&
 						(task.statusDetail === "dynamic_ui_unavailable" ||
-							task.statusDetail === "dynamic_approval_timeout"),
+							task.statusDetail === "dynamic_approval_timeout" ||
+							// WP4c (B3): an executor attempt that needs an owner decision.
+							task.statusDetail === "executor_needs_decision"),
 				)
 			: !run.parentRunId;
 	if (!eligible) throw new Error("Run is not an eligible unfinished notice.");
