@@ -1,0 +1,60 @@
+[
+  {
+    "artifact": "control",
+    "charsTruncated": false,
+    "id": "validation",
+    "originalChars": 5207,
+    "path": "$",
+    "source": "impact-analysis.validation-impact"
+  },
+  {
+    "artifact": "control",
+    "charsTruncated": false,
+    "id": "docs-release",
+    "originalChars": 2895,
+    "path": "$",
+    "source": "impact-analysis.docs-release-impact"
+  },
+  {
+    "artifact": "control",
+    "charsTruncated": false,
+    "id": "security-performance",
+    "originalChars": 3224,
+    "path": "$",
+    "source": "impact-analysis.security-performance-impact"
+  },
+  {
+    "id": "loader",
+    "lines": "484-506",
+    "path": "src/subagent-backend.ts"
+  },
+  {
+    "id": "recorder",
+    "lines": "24-197",
+    "path": "src/subagent-api-recorder.ts"
+  },
+  {
+    "id": "tests",
+    "lines": "49-62,174-215,254-295",
+    "path": "test/unit/replay-self-consistency.test.mjs"
+  },
+  {
+    "id": "usage",
+    "lines": "391-402",
+    "path": "docs/usage.md"
+  },
+  {
+    "id": "package",
+    "lines": "8-64",
+    "path": "package.json"
+  },
+  {
+    "id": "release",
+    "lines": "182-328",
+    "path": "tools/release/release-check.mjs"
+  },
+  {
+    "id": "schema-contract",
+    "path": "workflows/impact-review/schemas/ship-readiness-control.schema.json"
+  }
+]

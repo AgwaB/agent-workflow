@@ -1,0 +1,71 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "digest": {
+      "maxLength": 1200,
+      "minLength": 1,
+      "type": "string"
+    },
+    "implementationMap": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "component": {
+            "maxLength": 240,
+            "type": "string"
+          },
+          "evidence": {
+            "maxLength": 400,
+            "type": "string"
+          },
+          "file": {
+            "maxLength": 240,
+            "type": "string"
+          },
+          "observedBehavior": {
+            "maxLength": 400,
+            "type": "string"
+          },
+          "relatedSignals": {
+            "items": {
+              "maxLength": 80,
+              "type": "string"
+            },
+            "maxItems": 8,
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "maxItems": 60,
+      "type": "array"
+    },
+    "notes": {
+      "items": {
+        "maxLength": 240,
+        "type": "string"
+      },
+      "maxItems": 40,
+      "type": "array"
+    },
+    "schema": {
+      "maxLength": 1200,
+      "minLength": 1,
+      "type": "string"
+    },
+    "unmappedAreas": {
+      "items": {
+        "maxLength": 240,
+        "type": "string"
+      },
+      "maxItems": 40,
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "digest",
+    "implementationMap"
+  ],
+  "type": "object"
+}

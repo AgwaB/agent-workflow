@@ -1,0 +1,54 @@
+[
+  {
+    "id": "api-contract",
+    "source": "impact-analysis.api-contract-impact",
+    "artifact": "control",
+    "path": "$"
+  },
+  {
+    "id": "state-data",
+    "source": "impact-analysis.state-data-impact",
+    "artifact": "control",
+    "path": "$"
+  },
+  {
+    "id": "validation",
+    "source": "impact-analysis.validation-impact",
+    "artifact": "control",
+    "path": "$"
+  },
+  {
+    "id": "security-performance",
+    "source": "impact-analysis.security-performance-impact",
+    "artifact": "control",
+    "path": "$"
+  },
+  {
+    "id": "recorder",
+    "path": "src/subagent-api-recorder.ts",
+    "startLine": 24,
+    "endLine": 197
+  },
+  {
+    "id": "loader",
+    "path": "src/subagent-backend.ts",
+    "startLine": 484,
+    "endLine": 506
+  },
+  {
+    "id": "tests",
+    "path": "test/unit/replay-self-consistency.test.mjs",
+    "startLine": 172,
+    "endLine": 295
+  },
+  {
+    "id": "replay-reader",
+    "path": "test/replay/replay-subagent-api.mjs",
+    "startLine": 76,
+    "endLine": 82
+  },
+  {
+    "id": "control-schema",
+    "path": "workflows/impact-review/schemas/regression-risk-control.schema.json"
+  }
+]

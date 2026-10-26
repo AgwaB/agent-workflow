@@ -1,0 +1,84 @@
+[
+  {
+    "id": "scope-source",
+    "kind": "workflow-artifact",
+    "source": "impact-analysis.change-scope",
+    "artifact": "control",
+    "path": "$",
+    "originalChars": 6025,
+    "truncated": false
+  },
+  {
+    "id": "implementation-source",
+    "kind": "workflow-artifact",
+    "source": "impact-analysis.implementation-map",
+    "artifact": "control",
+    "path": "$",
+    "originalChars": 10271,
+    "truncated": false
+  },
+  {
+    "id": "recorder",
+    "path": "src/subagent-api-recorder.ts",
+    "lines": "24-197",
+    "symbols": [
+      "recordDirFromEnv",
+      "toRecordable",
+      "createRecordingSubagentApi",
+      "maybeRecordSubagentApi"
+    ]
+  },
+  {
+    "id": "loader",
+    "path": "src/subagent-backend.ts",
+    "lines": "484-505",
+    "symbols": [
+      "loadSubagentApi",
+      "cachedSubagentApi"
+    ]
+  },
+  {
+    "id": "launch-options",
+    "path": "src/subagent-backend.ts",
+    "lines": [
+      "3152-3177",
+      "3300-3315"
+    ]
+  },
+  {
+    "id": "refresh-polls",
+    "path": "src/subagent-backend.ts",
+    "lines": "4090-4134",
+    "symbols": [
+      "pollSubagentForRefresh"
+    ]
+  },
+  {
+    "id": "replay-reader",
+    "path": "test/replay/replay-subagent-api.mjs",
+    "lines": "75-81",
+    "symbols": [
+      "readCalls"
+    ]
+  },
+  {
+    "id": "worker-environment",
+    "path": "node_modules/@agwab/pi-subagent/src/orchestrate/async.ts",
+    "lines": "316-334"
+  },
+  {
+    "id": "portable-copy",
+    "path": "internal/record/make-portable.mjs",
+    "lines": "1-31"
+  },
+  {
+    "id": "recorder-test",
+    "path": "test/unit/replay-self-consistency.test.mjs",
+    "lines": "238-278"
+  },
+  {
+    "id": "control-contract",
+    "path": "workflows/impact-review/schemas/api-contract-impact-control.schema.json",
+    "verification": "Manual structural validation"
+  }
+]

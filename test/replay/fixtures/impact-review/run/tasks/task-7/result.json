@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "Medium opt-in operational/documentation impact; packaging accommodates the recorder, but activation and artifact-handling guidance are missing.",
+  "startedAt": "2026-10-26T05:43:49.030Z",
+  "completedAt": "2026-10-26T05:47:14.356Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "34b4ace0450dcc11e063619c36a18d9017b3c8ce343d5a7da33c63e9577fefe4",
+    "bytes": 8507,
+    "sha256": "cd833a8db4e5df3f820361d8b4f73dd3563f9c896b98e27aaf4dac4a4453fb04",
+    "terminal": {
+      "runId": "run_mvotzrm5_29a397",
+      "attemptId": "attempt_mvotzrm5_25199c",
+      "status": "completed",
+      "startedAt": "2026-10-26T05:43:49.030Z",
+      "completedAt": "2026-10-26T05:47:14.356Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 587082945,
+      "size": 1900,
+      "nlink": 1,
+      "mtimeMs": 1792993634357.3127,
+      "ctimeMs": 1792993634357.4526
+    }
+  }
+}

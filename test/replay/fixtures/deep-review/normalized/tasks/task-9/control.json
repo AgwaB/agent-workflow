@@ -1,0 +1,141 @@
+{
+  "digest": "Found four stop-lifecycle defects: overlapping persistence polls, premature launch-fence removal, post-disposal aborts, and cancellation masking on read rejection.",
+  "evidenceChecked": [
+    "src/workflow-stop.ts:1-28",
+    "src/workflow-stop.ts:30-51",
+    "src/workflow-stop.ts:53-85",
+    "src/workflow-stop.ts:89-99",
+    "src/workflow-cancellation.ts",
+    "src/workflow-terminal.ts",
+    "package.json"
+  ],
+  "findings": [
+    {
+      "confidence": "high",
+      "evidence": "Every interval invokes check without waiting for an earlier check. While an intent read remains unresolved, each subsequent tick starts another read for the same run; no in-flight guard or concurrency bound exists.",
+      "evidenceQuotes": [
+        "\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);",
+        "\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);"
+      ],
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 68,
+          "lineEnd": 81,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "rationale": "Slow or stalled persistence causes pending reads and retained promises to accumulate for as long as the watcher remains active. This amplifies storage pressure precisely when cancellation depends on that storage and can exhaust resources or further delay stop propagation.",
+      "recommendedAction": "Allow at most one durable intent read per watcher at a time. Continue checking foreground launch cancellation independently, including while that read is pending, so serialization does not make local cancellation wait for storage.",
+      "severity": "high",
+      "title": "Stop polling starts unbounded concurrent persistence reads"
+    },
+    {
+      "confidence": "high",
+      "evidence": "Binding the same AbortSignal twice for one run creates only one Set entry but returns two cleanup functions. Calling either cleanup deletes the signal, even though the other binding is still active. An ensuing abort is invisible to launchStopRequested until a durable intent becomes readable.",
+      "evidenceQuotes": [
+        "\tconst signals = launchSignals.get(key) ?? new Set<AbortSignal>();\n\tsignals.add(signal);",
+        "\treturn () => {\n\t\tsignals.delete(signal);\n\t\tif (signals.size === 0 && launchSignals.get(key) === signals)\n\t\t\tlaunchSignals.delete(key);\n\t};",
+        "\treturn [...(launchSignals.get(workflowRunPath(cwd, runId)) ?? [])].some(\n\t\t(signal) => signal.aborted,\n\t);"
+      ],
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 14,
+          "lineEnd": 20,
+          "symbol": "bindWorkflowLaunchSignal"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 24,
+          "lineEnd": 27,
+          "symbol": "launchStopRequested"
+        }
+      ],
+      "rationale": "Registration lifetime is tracked by signal identity rather than binding ownership. Overlapping owners sharing a signal can therefore lose the synchronous fence that is meant to cover the durable-write window. Callers are absent, so the frequency of shared-signal registrations cannot be established.",
+      "recommendedAction": "Give each binding a unique registration token, or reference-count registrations per signal. Make each returned cleanup function idempotent and remove only that binding's ownership.",
+      "severity": "medium",
+      "title": "Disposing one binding can remove another owner's launch fence"
+    },
+    {
+      "confidence": "medium",
+      "evidence": "The initial check can be awaiting readWorkflowStopIntent when dispose clears the interval. If that read subsequently returns an intent, execution resumes and aborts the returned signal; there is no disposed-state check after the await.",
+      "evidenceQuotes": [
+        "\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);\n\t\tif (intent || launchStopRequested(cwd, runId))\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));",
+        "\t\tdispose: () => clearInterval(timer),"
+      ],
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 74,
+          "lineEnd": 85,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "rationale": "Disposal stops future timer ticks but does not end cancellation notifications from work already launched. A retained abort listener can consequently run after the consumer has torn down this watcher or released its lifecycle ownership. Downstream listener effects are not available in this excerpt.",
+      "recommendedAction": "Set a disposed flag synchronously in dispose and check it before polling and immediately after awaited reads, before aborting. Cancel or drain outstanding reads where supported.",
+      "severity": "medium",
+      "title": "An in-flight check can abort the signal after disposal"
+    },
+    {
+      "confidence": "high",
+      "evidence": "If the launch signal aborts after the initial check and the pending intent read rejects, the await exits the function before the second launchStopRequested check. The caller receives the persistence error instead of WorkflowStopRequested despite an active local stop request.",
+      "evidenceQuotes": [
+        "\tif (launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);\n\tconst intent = await readWorkflowStopIntent(cwd, runId);\n\t// Cancellation may have arrived while the disk read was in flight.\n\tif (intent || launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);",
+        "\t\terror instanceof Error &&\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))"
+      ],
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 93,
+          "lineEnd": 98,
+          "symbol": "throwIfWorkflowStopRequested"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 53,
+          "lineEnd": 58,
+          "symbol": "isWorkflowStopRequestedError"
+        }
+      ],
+      "rationale": "The race protection covers fulfilled reads only. An unrelated persistence error generally fails the stop-error classifier, so callers cannot reliably distinguish cancellation from operational failure during this race. Actual caller recovery behavior is unavailable.",
+      "recommendedAction": "On read rejection, recheck the launch fence and throw WorkflowStopRequested if cancellation arrived; otherwise preserve the original persistence error. Do not indiscriminately swallow storage errors.",
+      "severity": "medium",
+      "title": "A rejected persistence read bypasses the post-read launch fence"
+    }
+  ],
+  "lens": "stop-lifecycle",
+  "noIssueNotes": [
+    "The polling check rechecks launch cancellation after its fulfilled or caught-rejected intent read; the corresponding rejection race is specific to throwIfWorkflowStopRequested.",
+    "workflow-cancellation.ts and workflow-terminal.ts were read; no additional registration, polling, or disposal defect was established under this lens.",
+    "This repository is an excerpt without store.js, types.js, callers, or provider adapters. Storage guarantees and downstream cancellation effects could not be verified."
+  ],
+  "schema": "stage-control-v1",
+  "sourceCoverage": [
+    {
+      "artifact": "",
+      "evidence": "const launchSignals = new Map<string, Set<AbortSignal>>();",
+      "path": "src/workflow-stop.ts:1-28",
+      "reason": "",
+      "status": "read"
+    },
+    {
+      "artifact": "",
+      "evidence": "\tconst timer = setInterval(() => void check(), pollMs);",
+      "path": "src/workflow-stop.ts:53-85",
+      "reason": "",
+      "status": "read"
+    },
+    {
+      "artifact": "",
+      "evidence": "\tconst intent = await readWorkflowStopIntent(cwd, runId);",
+      "path": "src/workflow-stop.ts:89-99",
+      "reason": "",
+      "status": "read"
+    }
+  ]
+}

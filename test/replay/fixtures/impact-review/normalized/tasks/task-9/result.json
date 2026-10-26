@@ -1,0 +1,43 @@
+{
+  "artifacts": {
+    "analysis": "analysis.md",
+    "control": "control.json",
+    "raw": "raw.md",
+    "refs": "refs.json",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "completedAt": "<TS>",
+  "controlDigest": "Default compatibility and packaging align; enabled recording has undocumented outcome changes and incompatible shared-directory assumptions.",
+  "exitCode": 0,
+  "outputValidation": {
+    "issues": [],
+    "valid": true
+  },
+  "protocol": "workflow-output-sections-v1",
+  "rawIntegrity": {
+    "bytes": 5674,
+    "owner": "<ALLOWED:timestamp-derived-digest#9>",
+    "sha256": "9c68760c0a995e8e70d95d6251fa3138f47cf3f6ab03a79075afd2b83d40cb0c",
+    "terminal": {
+      "attemptId": "<SA_ATTEMPT_9>",
+      "completedAt": "<TS>",
+      "exitCode": 0,
+      "runId": "<SA_RUN_9>",
+      "startedAt": "<TS>",
+      "status": "completed"
+    },
+    "terminalVersion": {
+      "ctimeMs": "<EPOCH_MS>",
+      "dev": "<FS_DEV>",
+      "ino": "<FS_INO>",
+      "mtimeMs": "<EPOCH_MS>",
+      "nlink": 1,
+      "size": "<ALLOWED:host-path-file-size>"
+    },
+    "version": 1
+  },
+  "schema": "workflow-task-result-v1",
+  "startedAt": "<TS>",
+  "status": "completed"
+}

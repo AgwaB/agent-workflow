@@ -1,0 +1,30 @@
+[
+  {
+    "file": "SPEC.md",
+    "evidence": "Requirements 1–13 define launch signals, stop checks, cancellation markers, and terminal summaries."
+  },
+  {
+    "file": "package.json",
+    "evidence": "The sole script is typecheck; the description identifies omitted store.js and types.js."
+  },
+  {
+    "file": "tsconfig.json",
+    "evidence": "Compilation includes src/**/*.ts only."
+  },
+  {
+    "file": "src/workflow-terminal.ts",
+    "startLine": 59,
+    "endLine": 61,
+    "evidence": "Controller control read failures become undefined."
+  },
+  {
+    "file": "src/workflow-terminal.ts",
+    "startLine": 80,
+    "endLine": 95,
+    "evidence": "dynamic_incomplete takes precedence over the unreadable-control fallback."
+  },
+  {
+    "file": ".pi/workflows/workflow_mvoufde9_8566f1/bundle/schemas/spec-review-inspect-tests-control.schema.json",
+    "evidence": "Available validation contract used for manual control-shape checking."
+  }
+]

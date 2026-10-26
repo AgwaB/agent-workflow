@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "Verified client stderr interpretation guidance.",
+  "startedAt": "2026-10-26T06:15:37.174Z",
+  "completedAt": "2026-10-26T06:16:00.994Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "ce949f00918e3e2dda51314c9dc183abe9344f90db3c35e2fb848b90c37274fd",
+    "bytes": 1315,
+    "sha256": "1f228047c7c10dbf98712161686de7a25cc49fa3b218e9814af106a8870193cc",
+    "terminal": {
+      "runId": "run_mvov4o02_0ca941",
+      "attemptId": "attempt_mvov4o02_e2380f",
+      "status": "completed",
+      "startedAt": "2026-10-26T06:15:37.174Z",
+      "completedAt": "2026-10-26T06:16:00.994Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 587211499,
+      "size": 1891,
+      "nlink": 1,
+      "mtimeMs": 1792995360995.6382,
+      "ctimeMs": 1792995360995.7898
+    }
+  }
+}

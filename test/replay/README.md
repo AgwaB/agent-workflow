@@ -14,8 +14,11 @@ tags are in `INVENTORY.md`.
 | `allowed-differences.json` | Allowed-difference list (each entry has a reason) |
 | `replay-subagent-api.mjs` | Reference copy of pi-workflow's replay `SubagentApi` (from the seam branch) |
 | `fixtures/minimal/` | One live recording: `calls.jsonl`, `api-surface.json`, `run/`, `subagent-runs/`, `normalized/`, `project/` (spec, input file, agent), `fixture.json`, `meta.json` |
+| `fixtures/<bundled>/` | Live recordings of the four bundled workflows (`deep-review`, `spec-review`, `impact-review`, `deep-research`). Same layout as `minimal`. `project/` holds only the project files the run used plus the agent installed as `<ROOT>/.pi/agents/<agent>.md`. `fixture.json` names the bundled spec (`<PKG>/workflows/<name>/spec.json`) and the host pins. `meta.json` holds versions, models, usage, cost, verdict, and attempts. |
 | `tools/capture-run.mjs` | Copies `<cwd>/.pi/workflows/<runId>` (and `.pi/workflow-subagents/<runId>`) into a record dir |
 | `tools/run-minimal.mjs` | Recording driver used for `fixtures/minimal` |
+| `tools/run-bundled.mjs` | Recording driver for bundled workflows (`<workflow> <project> <recordDir> --task …`) |
+| `tools/compact-calls.mjs` | Drops observation polls that replay collapses anyway (see POLICY.md, Known limits) |
 | `tools/make-portable.mjs` | Rewrites absolute host roots to `<ROOT>/<PKG>/<HOME>/<TMP>` |
 
 `tools/` sits under `test/replay/`, not at the top-level `tools/`, because
@@ -64,11 +67,38 @@ tags are in `INVENTORY.md`.
    node test/replay/normalize.mjs <fixtureDir>/run <fixtureDir>/normalized
    ```
 
+### Bundled workflows (WP1a-2)
+
+```sh
+node internal/record/run-bundled.mjs <workflow> <projectDir> <recordDir> --task "<task>" \
+  [--profile <name>] [--input key=value] [--snapshot-web-cache] [--fake]
+```
+
+- The driver loads `<checkout>/workflows/<workflow>/spec.json`. Like a
+  headless launch, it applies the spec's `defaultExecutionProfile` unless
+  `--profile` is given. It passes no model or thinking override, so workers
+  use Pi's default model.
+- It pins `PI_WORKFLOW_MAX_CONCURRENT_LAUNCHES=6` and writes `driver.json`
+  (status, profile, inputs, wall time, run usage, resolved model per task).
+- The bundled agent (`agents/scout.md`, `agents/researcher.md`) is copied
+  into `<project>/.pi/agents/`. Without this, the user's `~/.pi/agent/agents/`
+  copy would shadow it, and a replay with a temporary `HOME` could not resolve
+  the same agent.
+- `--snapshot-web-cache` records through an injected copy of the same recorder
+  and copies the run's `web-source-cache/` each time a subagent run is first
+  seen terminal (see POLICY.md, Side effects).
+- Raw captures, with real host paths, stay under
+  `internal/raw-recordings/<workflow>/` in the main agent-workflow checkout.
+  `internal/` is ignored. Fixtures are built from them by making paths
+  portable, compacting `calls.jsonl`, and normalizing `run/`.
+
 ## Self-replay proof (pi-workflow side)
 
-`test/unit/replay-self-consistency.test.mjs` on the seam branch replays
-`fixtures/minimal` through the real engine with the replay API. No Pi, model,
-or network is involved. It asserts that the normalized replay run record is
+`test/unit/replay-self-consistency.test.mjs` on the seam branch replays every
+fixture under its `test/replay/fixtures/` (`minimal` plus the four bundled
+workflows) through the real engine with the replay API. No Pi, model, or
+network is involved. For each fixture it applies the host pins from
+`fixture.json`. It then asserts that the normalized replay run record is
 byte-identical to `normalized/` under the allowed-difference list.
 
 Run it after `npm run build`:

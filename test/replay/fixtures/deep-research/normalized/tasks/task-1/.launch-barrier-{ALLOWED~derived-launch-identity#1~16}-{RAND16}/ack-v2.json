@@ -1,0 +1,11 @@
+{
+  "ackSha256": "4289f282c37f0575b839bf41900b5022d58b8a7a8fd850f5ce1246a44714ce57",
+  "attemptId": "<SA_ATTEMPT_4>",
+  "barrierIdentitySha256": "4abb434de767bd61d34e731ef48308d542e0faafb9321561e02d8a0620d573f6",
+  "challenge": "ee25a763e5780a5623c385159abb52a9d9e5687c27ee10bb5833fda996d4551b",
+  "decisionNonce": "fe2975a9e656bff375a37208509fcbbbf9227f862a3b23292f96b2e594d56bd9",
+  "decisionSha256": "c2a2e2abe7e9e98da5718c7d9e0381c855695d1ebae8357efc752641a919a880",
+  "readySha256": "a0c2cc6b60bc95bc3b18a19e7d88c791acdc9239c145386f149abca03e460889",
+  "runId": "<SA_RUN_4>",
+  "schema": "pi-subagent-durable-launch-barrier-ack-v2"
+}

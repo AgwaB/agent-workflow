@@ -1,0 +1,72 @@
+{
+  "actualChars": 2146,
+  "digest": "5004011687047a8df835b801591b44d8fdcf44534536d90194bf483c00f086b4",
+  "maxChars": 15000,
+  "normalizationNotes": [],
+  "overflowCounts": {
+    "drop": 0,
+    "keep": 3,
+    "needsHuman": 0,
+    "normalizationNotes": 0,
+    "omittedStringChars": 15,
+    "partialFailures": 0,
+    "supportNotes": 0,
+    "truncatedStrings": 1,
+    "weaken": 0
+  },
+  "partitionSummary": {
+    "batchIntegrityIssues": 0,
+    "drop": 0,
+    "keep": 7,
+    "mergedFindings": 0,
+    "missingVerdicts": 0,
+    "needsHuman": 0,
+    "partialFailures": 0,
+    "reviewerCoverageIssues": 0,
+    "reviewerFindings": 7,
+    "supportNotes": 0,
+    "verdictIntegrityIssues": 0,
+    "verdictsReceived": 7,
+    "weaken": 0
+  },
+  "reportContext": {
+    "drop": [],
+    "keep": [
+      {
+        "findingId": "finding-001",
+        "recommendedAction": "Permit only one outstanding intent read per watcher, while checking foreground launch cancellation before the in-flight guard. Add a deferred-read regression test covering repeated ticks and local cancellation before tha",
+        "severity": "high",
+        "title": "Stop polling starts unbounded concurrent persistence reads"
+      },
+      {
+        "findingId": "finding-002",
+        "recommendedAction": "Track each binding with a unique registration token or reference count, make cleanup idempotent, and test that disposing one duplicate binding leaves the other effective.",
+        "severity": "medium",
+        "title": "Disposing one binding can remove another owner's launch fence"
+      },
+      {
+        "findingId": "finding-003",
+        "recommendedAction": "Set a disposed flag synchronously in dispose, check it before polling and immediately after the awaited read, and add a regression test resolving a pending read with a stop intent after disposal.",
+        "severity": "medium",
+        "title": "An in-flight check can abort the signal after disposal"
+      },
+      {
+        "findingId": "finding-004",
+        "recommendedAction": "Catch intent-read rejection, recheck the launch fence, and throw WorkflowStopRequested only when locally stopped; otherwise rethrow the original error. Add regression tests for both outcomes.",
+        "severity": "medium",
+        "title": "A rejected persistence read bypasses the post-read launch fence"
+      }
+    ],
+    "needsHuman": [],
+    "supportNoteSummaries": [],
+    "weaken": []
+  },
+  "schema": "deep-review-report-packet-v1",
+  "sourceStatusSummary": {
+    "completed": 8,
+    "nonCompleted": 0,
+    "partialFailureCount": 0,
+    "partialFailures": [],
+    "total": 8
+  }
+}

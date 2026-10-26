@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "Prioritize stop-signal lifecycle races, cancellation classification, and terminal-status precedence; integration evidence is absent from this excerpt.",
+  "startedAt": "2026-10-26T05:13:31.558Z",
+  "completedAt": "2026-10-26T05:15:11.115Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "f6b923dd7468019fa9b9ccb3821cd6e247b4aa2f67f22f66d895419aba4eaef9",
+    "bytes": 5119,
+    "sha256": "f5014aad2557f8e3cda6c1f9f7686c5c4ee82f95e816ca3fdbdf722825bd9b9e",
+    "terminal": {
+      "runId": "run_mvoswslb_4d8383",
+      "attemptId": "attempt_mvoswslb_92e6cf",
+      "status": "completed",
+      "startedAt": "2026-10-26T05:13:31.558Z",
+      "completedAt": "2026-10-26T05:15:11.115Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 586838992,
+      "size": 1919,
+      "nlink": 1,
+      "mtimeMs": 1792991711119.5662,
+      "ctimeMs": 1792991711119.7654
+    }
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "policy": {
+    "accessMode": "workflow-task"
+  },
+  "runId": "<WF_RUN_1>",
+  "schema": "workflow-source-manifest-v1",
+  "sources": [
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-4/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-4/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-4/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-4/refs.json"
+        }
+      },
+      "digest": "18 requirements have positive source coverage; one terminal-status precedence candidate affects two partial requirements, and degradation precedence remains unclear.",
+      "displayName": "candidate-findings.main",
+      "lastMessage": "completed",
+      "source": "candidate-findings",
+      "specId": "candidate-findings.main",
+      "stageId": "candidate-findings",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-4"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-9/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-9/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-9/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-9/refs.json"
+        }
+      },
+      "digest": "Kept: task-level dynamic_incomplete overrides controller-derived status and SPEC 13's unreadable-control fallback.",
+      "displayName": "verify-findings.finding-001",
+      "itemIdentity": "finding-001",
+      "lastMessage": "completed",
+      "placeholderSpecId": "verify-findings.item",
+      "source": "verify-findings",
+      "sourceGeneration": 0,
+      "specId": "verify-findings.finding-001",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-9"
+    }
+  ],
+  "taskId": "task-6"
+}

@@ -1,0 +1,43 @@
+{
+  "artifacts": {
+    "analysis": "analysis.md",
+    "control": "control.json",
+    "raw": "raw.md",
+    "refs": "refs.json",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "completedAt": "<TS>",
+  "controlDigest": "Two-file, opt-in pi-subagent API recording change affecting the shared backend loader, lifecycle calls, and replay inputs.",
+  "exitCode": 0,
+  "outputValidation": {
+    "issues": [],
+    "valid": true
+  },
+  "protocol": "workflow-output-sections-v1",
+  "rawIntegrity": {
+    "bytes": 11992,
+    "owner": "<ALLOWED:timestamp-derived-digest#1>",
+    "sha256": "5700270f7e3cb2c245f6d98ddd8543b8fe69fad349f022155c7910f4f155ffab",
+    "terminal": {
+      "attemptId": "<SA_ATTEMPT_1>",
+      "completedAt": "<TS>",
+      "exitCode": 0,
+      "runId": "<SA_RUN_1>",
+      "startedAt": "<TS>",
+      "status": "completed"
+    },
+    "terminalVersion": {
+      "ctimeMs": "<EPOCH_MS>",
+      "dev": "<FS_DEV>",
+      "ino": "<FS_INO>",
+      "mtimeMs": "<EPOCH_MS>",
+      "nlink": 1,
+      "size": "<ALLOWED:host-path-file-size>"
+    },
+    "version": 1
+  },
+  "schema": "workflow-task-result-v1",
+  "startedAt": "<TS>",
+  "status": "completed"
+}

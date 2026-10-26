@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 2,
+  "runId": "run_mvoufdru_d351f7",
+  "attemptId": "attempt_mvoufdru_7453eb",
+  "correlationId": "workflow_mvoufde9_8566f1:task-1",
+  "backend": "headless",
+  "status": "completed",
+  "failureKind": null,
+  "cwd": "<ROOT>",
+  "startedAt": "2026-10-26T05:55:57.388Z",
+  "completedAt": "2026-10-26T05:59:03.907Z",
+  "durationMs": 186519,
+  "workspace": {
+    "mode": "shared",
+    "cwd": "<ROOT>",
+    "worktreePath": null
+  },
+  "sandbox": {
+    "enabled": false
+  },
+  "exitCode": 0,
+  "signal": null,
+  "artifacts": [
+    {
+      "type": "stderr",
+      "path": ".pi/workflow-subagents/workflow_mvoufde9_8566f1/task-1/run_mvoufdru_d351f7/attempts/attempt_mvoufdru_7453eb/stderr.log",
+      "bytes": 126
+    },
+    {
+      "type": "output",
+      "path": ".pi/workflow-subagents/workflow_mvoufde9_8566f1/task-1/run_mvoufdru_d351f7/attempts/attempt_mvoufdru_7453eb/output.log",
+      "bytes": 19371
+    },
+    {
+      "type": "result",
+      "path": ".pi/workflow-subagents/workflow_mvoufde9_8566f1/task-1/run_mvoufdru_d351f7/attempts/attempt_mvoufdru_7453eb/result.json"
+    }
+  ],
+  "metadata": {
+    "contextLengthExceeded": false,
+    "provider": "openai-codex",
+    "model": "gpt-6.1-sol",
+    "usage": {
+      "input": 10962,
+      "output": 7367,
+      "cacheRead": 21888,
+      "cacheWrite": 0,
+      "reasoning": 2683,
+      "totalTokens": 40217,
+      "cost": {
+        "input": 0.021924,
+        "output": 0.07367000000000001,
+        "cacheRead": 0.0021888000000000003,
+        "cacheWrite": 0,
+        "total": 0.0977828
+      }
+    },
+    "stopReason": "stop",
+    "sessionId": "pi-workflow.workflow_mvoufde9_8566f1.task-1",
+    "session": {
+      "id": "pi-workflow.workflow_mvoufde9_8566f1.task-1",
+      "requested": true,
+      "disposition": "created"
+    }
+  }
+}

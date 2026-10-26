@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "Selected eight source-backed atoms covering specification currency, framing, and stream policy; general message encoding remains unestablished.",
+  "startedAt": "2026-10-26T06:14:23.578Z",
+  "completedAt": "2026-10-26T06:15:34.391Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "7d680a868870d3e3c0c6c708812542959656e310df8566214529c1ee32b2a3c1",
+    "bytes": 15781,
+    "sha256": "d06a160479b8a65807e137ce6b6258e9889483fbff67acfe4377b488d5099c72",
+    "terminal": {
+      "runId": "run_mvov335j_a70559",
+      "attemptId": "attempt_mvov335j_8ec4a0",
+      "status": "completed",
+      "startedAt": "2026-10-26T06:14:23.578Z",
+      "completedAt": "2026-10-26T06:15:34.391Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 587209572,
+      "size": 1864,
+      "nlink": 1,
+      "mtimeMs": 1792995334392.276,
+      "ctimeMs": 1792995334392.4375
+    }
+  }
+}

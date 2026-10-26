@@ -1,0 +1,25 @@
+{
+  "caveats": [],
+  "confidence": "high",
+  "correctionOrCounterclaim": "",
+  "digest": "The official versioning page explicitly identifies 2026-07-28 as the current protocol version.",
+  "evidence": [
+    {
+      "matchType": "exact",
+      "quote": "The **current** protocol version is [**2026-07-28**](https://modelcontextprotocol.io/specification/2026-07-28.md).",
+      "relevance": "Directly establishes the exact version and its current designation.",
+      "source": "Official MCP specification versioning page",
+      "sourceRef": "wsrc_6f2e06f5a0dd2c8d98ce75ab416660e7",
+      "url": "https://modelcontextprotocol.io/specification/versioning"
+    }
+  ],
+  "id": "claim-001",
+  "schema": "deep-research-verify-claim-v1",
+  "status": "verified",
+  "verdictDigest": {
+    "sourceUrls": [
+      "https://modelcontextprotocol.io/specification/versioning"
+    ],
+    "support": "The primary-source versioning page explicitly labels 2026-07-28 as the current MCP protocol version."
+  }
+}

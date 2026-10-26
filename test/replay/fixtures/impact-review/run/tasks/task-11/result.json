@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "Needs work: default-off behavior is preserved, but activated-loader coverage, recording-failure policy, safe-use documentation, and fresh validation evidence are required.",
+  "startedAt": "2026-10-26T05:47:31.796Z",
+  "completedAt": "2026-10-26T05:50:18.973Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "e6d0d8794877ef243b5ad42e06f958169c5d7cc1301af58b0e8678fdd3a0fb6e",
+    "bytes": 8660,
+    "sha256": "ba427ea54b41e3be040e1219aa1c64442f70e75ebf5de18081d1d4595594995d",
+    "terminal": {
+      "runId": "run_mvou4jfp_688d17",
+      "attemptId": "attempt_mvou4jfp_4270af",
+      "status": "completed",
+      "startedAt": "2026-10-26T05:47:31.796Z",
+      "completedAt": "2026-10-26T05:50:18.973Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 587099521,
+      "size": 1883,
+      "nlink": 1,
+      "mtimeMs": 1792993818977.7556,
+      "ctimeMs": 1792993818977.9424
+    }
+  }
+}

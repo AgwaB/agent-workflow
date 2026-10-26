@@ -1,0 +1,4658 @@
+{
+  "schemaVersion": 1,
+  "runId": "workflow_mvotu0ko_b9761d",
+  "name": "impact-review",
+  "description": "Read-only DAG impact review: map a proposed or applied change, analyze contract, state/data, validation, docs/release, and security/performance impact in parallel, then join those lenses into ship-risk and action-plan synthesis without editing files.",
+  "type": "artifact-graph",
+  "artifactGraph": {
+    "enabled": true
+  },
+  "status": "failed",
+  "taskSummary": {
+    "total": 13,
+    "pending": 0,
+    "running": 0,
+    "blocked": 0,
+    "completed": 12,
+    "failed": 1,
+    "skipped": 0,
+    "interrupted": 0
+  },
+  "cwd": "<ROOT>",
+  "backend": {
+    "type": "local-pi",
+    "mode": "headless"
+  },
+  "createdAt": "2026-10-26T05:39:20.040Z",
+  "updatedAt": "2026-10-26T05:54:09.693Z",
+  "specPath": "<ROOT>/workflows/impact-review/spec.json",
+  "tasks": [
+    {
+      "taskId": "task-1",
+      "specId": "impact-analysis.change-scope.main",
+      "displayName": "impact-analysis.change-scope.main",
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "roles": [],
+      "status": "completed",
+      "statusDetail": "completed",
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "cwd": "<ROOT>",
+      "worktree": {
+        "enabled": false,
+        "path": null,
+        "branch": null,
+        "baseCwd": null,
+        "warning": null
+      },
+      "backendTaskId": "run_mvotu11h_afb79d",
+      "kind": "single",
+      "stageId": "impact-analysis.change-scope",
+      "dependsOn": [],
+      "artifactGraph": {
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "refsRequired": true,
+          "controlSchema": "./schemas/change-scope-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/bundle/schemas/change-scope-control.schema.json"
+        },
+        "requiredReads": [],
+        "artifactAccess": "enabled"
+      },
+      "files": {
+        "systemPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-1/system-prompt.md",
+        "taskPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-1/task.md",
+        "output": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-1/output.log",
+        "stderr": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-1/stderr.log",
+        "result": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-1/result.json"
+      },
+      "launchBootstrap": {
+        "version": 1,
+        "records": [
+          {
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "workflow": {
+              "type": "artifact-graph",
+              "specPathSha256": "1ecfcd57ca0c63fe35978556689f8f40e11e0814ba429c4354d8c4488cac4575"
+            },
+            "runId": "workflow_mvotu0ko_b9761d",
+            "task": {
+              "taskId": "task-1",
+              "specId": "impact-analysis.change-scope.main"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-1",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "sessionId": "pi-workflow.workflow_mvotu0ko_b9761d.task-1",
+            "backend": {
+              "id": "pi-subagent/headless",
+              "type": "local-pi",
+              "mode": "headless"
+            },
+            "prompt": {
+              "sha256": "17afe987446ffd8ae698ebb365506e82b257a1227a4d3ad423f5d9659bb966f4",
+              "bytes": 10864
+            },
+            "artifacts": {
+              "manifestSha256": "adcb5b62a825196b4b3905d13355006ee1170122cd8fb538a3ea0f2225d16a8c",
+              "wrapperSha256": "2986a6dc53c35ec23c6df2bb7591f6326db2f3769bd4b9175ba6262c45d70d5b",
+              "configSha256": "065df438628266a7b78c840a2a4eaec47c7966594e598706da7d31b55f813ef6"
+            },
+            "effectiveLaunch": {
+              "noExtensions": true,
+              "extensions": [
+                {
+                  "pathSha256": "432836964b9b1b2405aa0fe0ec3ddda81ec835b8e822a06d7085adede0982036"
+                }
+              ],
+              "captureToolCalls": false,
+              "artifactBinding": {
+                "manifestPathSha256": "ddfc32f3340d17674a18732e3270908865cf7030008a0972784bf52495addaf7",
+                "manifestBytesSha256": "3d9cc901f0aa436df8a41e4e9e0f458cd83a485b12b94c47f06345d257a6a68e",
+                "wrapperPathSha256": "432836964b9b1b2405aa0fe0ec3ddda81ec835b8e822a06d7085adede0982036",
+                "wrapperBytesSha256": "2986a6dc53c35ec23c6df2bb7591f6326db2f3769bd4b9175ba6262c45d70d5b"
+              }
+            },
+            "effectivePolicy": {
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "toolProvidersSha256": "57f0a1cc026b3436a18a3aabdc51a887b894c5488144dde8b8122dd1bdd42872",
+              "approvalMode": "non-interactive",
+              "maxRuntimeMs": 1800000,
+              "cwdSha256": "1f8038a3108b39228e59d3bbf4856ad4ff05ad2b60fb8a771342e4e02e3c0bb5",
+              "stateRootSha256": "fc84062043bd3dcc308c9d020a850ccfdeb6231905776dacd6f234ce2d967b5c",
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "sourceDependencies": {
+              "contextDependsOn": [],
+              "requiredReads": [],
+              "artifactAccess": "enabled"
+            },
+            "resourcePolicy": {
+              "version": 1,
+              "skillDiscovery": "ambient",
+              "contextFiles": "disabled"
+            },
+            "identitySha256": "d3b2ac10ef1befdd3c9d06957784788fdf7f123e13f6f232a62d3892b5c02b12"
+          }
+        ]
+      },
+      "launchAuthority": {
+        "version": 1,
+        "records": [
+          {
+            "grant": {
+              "schema": "pi-workflow-launch-authority-v1",
+              "issuer": "pi-workflow-engine",
+              "operation": "launch-task",
+              "runId": "workflow_mvotu0ko_b9761d",
+              "task": {
+                "taskId": "task-1",
+                "specId": "impact-analysis.change-scope.main"
+              },
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-1",
+              "backendId": "pi-subagent/headless",
+              "launchBootstrapSha256": "d3b2ac10ef1befdd3c9d06957784788fdf7f123e13f6f232a62d3892b5c02b12",
+              "identitySha256": "9a684671a3c04c3118f02599fd09a463109dd042a08dc136eb66fbfde7fbbb68"
+            },
+            "state": {
+              "phase": "consumed",
+              "backendRunId": "run_mvotu11h_afb79d",
+              "backendAttemptId": "attempt_mvotu11h_e31aa1"
+            }
+          }
+        ]
+      },
+      "startedAt": "2026-10-26T05:39:20.152Z",
+      "lastMessage": "completed",
+      "durableLaunchBarrier": {
+        "version": 2,
+        "records": [
+          {
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-1",
+            "launchAuthoritySha256": "9a684671a3c04c3118f02599fd09a463109dd042a08dc136eb66fbfde7fbbb68",
+            "descriptor": {
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "directory": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-1/.launch-barrier-9a684671a3c04c31-43a8a0c10777692c",
+              "readyPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-1/.launch-barrier-9a684671a3c04c31-43a8a0c10777692c/ready-v2.json",
+              "decisionPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-1/.launch-barrier-9a684671a3c04c31-43a8a0c10777692c/decision-v2.json",
+              "ackPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-1/.launch-barrier-9a684671a3c04c31-43a8a0c10777692c/ack-v2.json",
+              "challenge": "3bead35905fc25fb7e291d17b9a20b5d583f3f3c3166b347b32a6560231e0d2f",
+              "decisionNonce": "9cf4b6a1a2f9414ddf22899759de7fff941b593a63e27ee675b470fa1c26854a",
+              "subjectSha256": "9a684671a3c04c3118f02599fd09a463109dd042a08dc136eb66fbfde7fbbb68",
+              "directoryIdentity": {
+                "device": 16777229,
+                "inode": 587039526,
+                "uid": 501
+              },
+              "timeoutMs": 120000,
+              "pollIntervalMs": 10,
+              "identitySha256": "fa828ad56a705fc99bee8c491cf980e9ef552369aaf2c798d785295c6b8c7d83"
+            },
+            "phase": "acknowledged",
+            "readySha256": "64e2a216e4df8c88bfa43d968cf20330dd115e1950d33832e5365643f5b8e479",
+            "launchPayloadSha256": "bdef4da9a7ef36e2714c21eaf75de1261f3ea2f1d7a2197f9ff2504613c58b38",
+            "executionPlanSha256": "a07d3eded43b3658bd89df90793de441d98ed61af05b9f26d2885c409cc6d8d8",
+            "backendRunId": "run_mvotu11h_afb79d",
+            "backendAttemptId": "attempt_mvotu11h_e31aa1",
+            "releasePayloadSha256": "ec9df9f8055c6c05ebc5559987dd1e183bd85b681ad6fce5cdf5113be610dd9c",
+            "decisionSha256": "eef624d4371cc7e55e844787a5593240a21399450b229ac44e6ceeb2e121600c",
+            "releaseWinner": true,
+            "ackSha256": "a31e83d7093363c0add7858af12551b7ad20321b064f15149421697e5271b2a7"
+          }
+        ]
+      },
+      "timing": {
+        "source": "pi-workflow",
+        "capturedAt": "2026-10-26T05:41:57.639Z",
+        "launchQueuedAt": "2026-10-26T05:39:20.168Z",
+        "launchStartedAt": "2026-10-26T05:39:20.168Z",
+        "launchCompletedAt": "2026-10-26T05:39:20.660Z",
+        "launchWaitMs": 0,
+        "launchDurationMs": 492,
+        "launchSlotReleaseDelayMs": 3000,
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": 10,
+        "refreshStatusPollMs": 1,
+        "terminalOutputCopyMs": 1,
+        "terminalStderrCopyMs": 1,
+        "terminalOutputBytes": 11992,
+        "terminalStderrBytes": 126,
+        "executionStartedAt": "2026-10-26T05:39:21.223Z",
+        "executionCompletedAt": "2026-10-26T05:41:57.516Z",
+        "executionMs": 156293,
+        "totalMs": 157364,
+        "aggregate": {
+          "attempts": 1,
+          "launchWaitMs": 0,
+          "launchDurationMs": 492,
+          "executionMs": 156293,
+          "totalMs": 157364
+        },
+        "attempts": [
+          {
+            "source": "pi-subagent",
+            "capturedAt": "2026-10-26T05:41:57.628Z",
+            "backendRunId": "run_mvotu11h_afb79d",
+            "backendAttemptId": "attempt_mvotu11h_e31aa1",
+            "launchQueuedAt": "2026-10-26T05:39:20.168Z",
+            "launchStartedAt": "2026-10-26T05:39:20.168Z",
+            "launchCompletedAt": "2026-10-26T05:39:20.660Z",
+            "launchWaitMs": 0,
+            "launchDurationMs": 492,
+            "executionStartedAt": "2026-10-26T05:39:21.223Z",
+            "executionCompletedAt": "2026-10-26T05:41:57.516Z",
+            "executionMs": 156293,
+            "totalMs": 157364
+          }
+        ],
+        "terminalArtifactBundleWriteMs": 5,
+        "terminalArtifactMaterializeMs": 10
+      },
+      "pid": 24603,
+      "usage": {
+        "source": "pi-subagent",
+        "capturedAt": "2026-10-26T05:41:57.628Z",
+        "provider": "openai-codex",
+        "model": "gpt-6.1-sol",
+        "inputTokens": 35355,
+        "outputTokens": 5332,
+        "totalTokens": 167663,
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 126976,
+        "reasoningTokens": 1333,
+        "costUsd": 0.1367276,
+        "aggregate": {
+          "attempts": 1,
+          "inputTokens": 35355,
+          "outputTokens": 5332,
+          "totalTokens": 167663,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 126976,
+          "reasoningTokens": 1333,
+          "costUsd": 0.1367276
+        },
+        "attempts": [
+          {
+            "source": "subagent-result-metadata",
+            "capturedAt": "2026-10-26T05:41:57.628Z",
+            "backendRunId": "run_mvotu11h_afb79d",
+            "backendAttemptId": "attempt_mvotu11h_e31aa1",
+            "provider": "openai-codex",
+            "model": "gpt-6.1-sol",
+            "raw": {
+              "input": 35355,
+              "output": 5332,
+              "cacheRead": 126976,
+              "cacheWrite": 0,
+              "reasoning": 1333,
+              "totalTokens": 167663,
+              "cost": {
+                "input": 0.07071000000000001,
+                "output": 0.053320000000000006,
+                "cacheRead": 0.012697600000000002,
+                "cacheWrite": 0,
+                "total": 0.1367276
+              }
+            },
+            "inputTokens": 35355,
+            "outputTokens": 5332,
+            "totalTokens": 167663,
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 126976,
+            "reasoningTokens": 1333,
+            "costUsd": 0.1367276
+          }
+        ]
+      },
+      "rawArtifactIntegrity": {
+        "version": 1,
+        "owner": "23d125c0424caa3767616b79dc9d645eaf6b418409a895a9084f593244448e0f",
+        "bytes": 11992,
+        "sha256": "5700270f7e3cb2c245f6d98ddd8543b8fe69fad349f022155c7910f4f155ffab",
+        "terminal": {
+          "runId": "run_mvotu11h_afb79d",
+          "attemptId": "attempt_mvotu11h_e31aa1",
+          "status": "completed",
+          "startedAt": "2026-10-26T05:39:21.223Z",
+          "completedAt": "2026-10-26T05:41:57.516Z",
+          "exitCode": 0
+        },
+        "terminalVersion": {
+          "dev": 16777229,
+          "ino": 587052986,
+          "size": 1891,
+          "nlink": 1,
+          "mtimeMs": 1792993317517.4858,
+          "ctimeMs": 1792993317517.6711
+        }
+      },
+      "completedAt": "2026-10-26T05:41:57.516Z",
+      "exitCode": 0
+    },
+    {
+      "taskId": "task-2",
+      "specId": "impact-analysis.implementation-map.main",
+      "displayName": "impact-analysis.implementation-map.main",
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "roles": [],
+      "status": "completed",
+      "statusDetail": "completed",
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "cwd": "<ROOT>",
+      "worktree": {
+        "enabled": false,
+        "path": null,
+        "branch": null,
+        "baseCwd": null,
+        "warning": null
+      },
+      "backendTaskId": "run_mvotu191_6ce2b6",
+      "kind": "single",
+      "stageId": "impact-analysis.implementation-map",
+      "dependsOn": [],
+      "artifactGraph": {
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "refsRequired": true,
+          "controlSchema": "./schemas/implementation-map-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/bundle/schemas/implementation-map-control.schema.json"
+        },
+        "requiredReads": [],
+        "artifactAccess": "enabled"
+      },
+      "files": {
+        "systemPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-2/system-prompt.md",
+        "taskPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-2/task.md",
+        "output": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-2/output.log",
+        "stderr": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-2/stderr.log",
+        "result": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-2/result.json"
+      },
+      "launchBootstrap": {
+        "version": 1,
+        "records": [
+          {
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "workflow": {
+              "type": "artifact-graph",
+              "specPathSha256": "1ecfcd57ca0c63fe35978556689f8f40e11e0814ba429c4354d8c4488cac4575"
+            },
+            "runId": "workflow_mvotu0ko_b9761d",
+            "task": {
+              "taskId": "task-2",
+              "specId": "impact-analysis.implementation-map.main"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-2",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "sessionId": "pi-workflow.workflow_mvotu0ko_b9761d.task-2",
+            "backend": {
+              "id": "pi-subagent/headless",
+              "type": "local-pi",
+              "mode": "headless"
+            },
+            "prompt": {
+              "sha256": "dc48eb10fcbde7a8021442a8265664bd0dcd5724b8d94a019fb55bcbc662159e",
+              "bytes": 10737
+            },
+            "artifacts": {
+              "manifestSha256": "ce69b6e76de6d0ce77a6b246380b829343e6d17d8cc58308ff97f059e957aab4",
+              "wrapperSha256": "1b9193a09e6fc532d865d5718a470ba7bfe600d1988f785edde985486ead823f",
+              "configSha256": "32e39e769172564ddd7342b979b608b50ce67f9e05e28c56c0f1f00c4859c9ff"
+            },
+            "effectiveLaunch": {
+              "noExtensions": true,
+              "extensions": [
+                {
+                  "pathSha256": "38d1fdd111ee3538105f10b5afd34e627f5ebd70e11512e8e7b0cd1cd9dc04e1"
+                }
+              ],
+              "captureToolCalls": false,
+              "artifactBinding": {
+                "manifestPathSha256": "d907b9ac344d7446f70e4ab7dbac0a0615b6a451c3c091176f9c3a6293074ffd",
+                "manifestBytesSha256": "b71cce0ff3b7e44f2e47f9e0bb85fc326093e1c967690c9d79a46abbc1ca7568",
+                "wrapperPathSha256": "38d1fdd111ee3538105f10b5afd34e627f5ebd70e11512e8e7b0cd1cd9dc04e1",
+                "wrapperBytesSha256": "1b9193a09e6fc532d865d5718a470ba7bfe600d1988f785edde985486ead823f"
+              }
+            },
+            "effectivePolicy": {
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "toolProvidersSha256": "df703269c3028de2da560b1b1a7c2687fc58d728f4ef5133bfef8e8bba14bf6c",
+              "approvalMode": "non-interactive",
+              "maxRuntimeMs": 1800000,
+              "cwdSha256": "1f8038a3108b39228e59d3bbf4856ad4ff05ad2b60fb8a771342e4e02e3c0bb5",
+              "stateRootSha256": "fc84062043bd3dcc308c9d020a850ccfdeb6231905776dacd6f234ce2d967b5c",
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "sourceDependencies": {
+              "contextDependsOn": [],
+              "requiredReads": [],
+              "artifactAccess": "enabled"
+            },
+            "resourcePolicy": {
+              "version": 1,
+              "skillDiscovery": "ambient",
+              "contextFiles": "disabled"
+            },
+            "identitySha256": "70d33bf213e22d1ae9143d3be6ea9fd41c36f2a346f5e01df8269113c8f439af"
+          }
+        ]
+      },
+      "launchAuthority": {
+        "version": 1,
+        "records": [
+          {
+            "grant": {
+              "schema": "pi-workflow-launch-authority-v1",
+              "issuer": "pi-workflow-engine",
+              "operation": "launch-task",
+              "runId": "workflow_mvotu0ko_b9761d",
+              "task": {
+                "taskId": "task-2",
+                "specId": "impact-analysis.implementation-map.main"
+              },
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-2",
+              "backendId": "pi-subagent/headless",
+              "launchBootstrapSha256": "70d33bf213e22d1ae9143d3be6ea9fd41c36f2a346f5e01df8269113c8f439af",
+              "identitySha256": "f392634c9efda9696788b0bd8359551748a33c23bf19680fe9e930936147a0f0"
+            },
+            "state": {
+              "phase": "consumed",
+              "backendRunId": "run_mvotu191_6ce2b6",
+              "backendAttemptId": "attempt_mvotu191_507a90"
+            }
+          }
+        ]
+      },
+      "startedAt": "2026-10-26T05:39:20.878Z",
+      "lastMessage": "completed",
+      "durableLaunchBarrier": {
+        "version": 2,
+        "records": [
+          {
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-2",
+            "launchAuthoritySha256": "f392634c9efda9696788b0bd8359551748a33c23bf19680fe9e930936147a0f0",
+            "descriptor": {
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "directory": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-2/.launch-barrier-f392634c9efda969-fc39c5feb38cc961",
+              "readyPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-2/.launch-barrier-f392634c9efda969-fc39c5feb38cc961/ready-v2.json",
+              "decisionPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-2/.launch-barrier-f392634c9efda969-fc39c5feb38cc961/decision-v2.json",
+              "ackPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-2/.launch-barrier-f392634c9efda969-fc39c5feb38cc961/ack-v2.json",
+              "challenge": "9859cda210ac35e37ab6fa7f9344945f150b69d9967235954acad01f56ebb03f",
+              "decisionNonce": "78580709b236f85633dd469576a60947a9a813cd801c99abcdb3099f3905c401",
+              "subjectSha256": "f392634c9efda9696788b0bd8359551748a33c23bf19680fe9e930936147a0f0",
+              "directoryIdentity": {
+                "device": 16777229,
+                "inode": 587039601,
+                "uid": 501
+              },
+              "timeoutMs": 120000,
+              "pollIntervalMs": 10,
+              "identitySha256": "6a69aa742282cfe5d3eb698298f92f515dd3bb508a1a097802cdf70ee3be035b"
+            },
+            "phase": "acknowledged",
+            "readySha256": "011df9d9c9fe63223381cabb875f54cd79562c2c70c7603bfedc45d69d63be90",
+            "launchPayloadSha256": "2b04af54435d9bbe5e5b9d2a5b72a924bfc4a625a9c4e95c057d87a8053a0e50",
+            "executionPlanSha256": "35d73ffcf4719e420aedcf2c201ce58546dae6fda4cbcb94a4d4f10022eb7a11",
+            "backendRunId": "run_mvotu191_6ce2b6",
+            "backendAttemptId": "attempt_mvotu191_507a90",
+            "releasePayloadSha256": "79e26655f1450921b00d98ecb92472a24a03f4853403e410928375196a673147",
+            "decisionSha256": "44f91d44afbc178c2b429bb87bc37f1c429386e857391b93f8f2ba6c60930cb7",
+            "releaseWinner": true,
+            "ackSha256": "a45b0bda6ab11534885cd5d79a888f18779025caaa1e7378c80381cd31a31bdc"
+          }
+        ]
+      },
+      "timing": {
+        "source": "pi-workflow",
+        "capturedAt": "2026-10-26T05:43:47.721Z",
+        "launchQueuedAt": "2026-10-26T05:39:20.892Z",
+        "launchStartedAt": "2026-10-26T05:39:20.892Z",
+        "launchCompletedAt": "2026-10-26T05:39:20.925Z",
+        "launchWaitMs": 0,
+        "launchDurationMs": 33,
+        "launchSlotReleaseDelayMs": 3000,
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": 14,
+        "refreshStatusPollMs": 0,
+        "terminalOutputCopyMs": 1,
+        "terminalStderrCopyMs": 1,
+        "terminalOutputBytes": 16480,
+        "terminalStderrBytes": 126,
+        "executionStartedAt": "2026-10-26T05:39:21.567Z",
+        "executionCompletedAt": "2026-10-26T05:43:47.642Z",
+        "executionMs": 266075,
+        "totalMs": 266764,
+        "aggregate": {
+          "attempts": 1,
+          "launchWaitMs": 0,
+          "launchDurationMs": 33,
+          "executionMs": 266075,
+          "totalMs": 266764
+        },
+        "attempts": [
+          {
+            "source": "pi-subagent",
+            "capturedAt": "2026-10-26T05:43:47.704Z",
+            "backendRunId": "run_mvotu191_6ce2b6",
+            "backendAttemptId": "attempt_mvotu191_507a90",
+            "launchQueuedAt": "2026-10-26T05:39:20.892Z",
+            "launchStartedAt": "2026-10-26T05:39:20.892Z",
+            "launchCompletedAt": "2026-10-26T05:39:20.925Z",
+            "launchWaitMs": 0,
+            "launchDurationMs": 33,
+            "executionStartedAt": "2026-10-26T05:39:21.567Z",
+            "executionCompletedAt": "2026-10-26T05:43:47.642Z",
+            "executionMs": 266075,
+            "totalMs": 266764
+          }
+        ],
+        "terminalArtifactBundleWriteMs": 14,
+        "terminalArtifactMaterializeMs": 17
+      },
+      "pid": 24614,
+      "usage": {
+        "source": "pi-subagent",
+        "capturedAt": "2026-10-26T05:43:47.704Z",
+        "provider": "openai-codex",
+        "model": "gpt-6.1-sol",
+        "inputTokens": 100545,
+        "outputTokens": 6840,
+        "totalTokens": 1382393,
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 1275008,
+        "reasoningTokens": 1401,
+        "costUsd": 0.3969908,
+        "aggregate": {
+          "attempts": 1,
+          "inputTokens": 100545,
+          "outputTokens": 6840,
+          "totalTokens": 1382393,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 1275008,
+          "reasoningTokens": 1401,
+          "costUsd": 0.3969908
+        },
+        "attempts": [
+          {
+            "source": "subagent-result-metadata",
+            "capturedAt": "2026-10-26T05:43:47.704Z",
+            "backendRunId": "run_mvotu191_6ce2b6",
+            "backendAttemptId": "attempt_mvotu191_507a90",
+            "provider": "openai-codex",
+            "model": "gpt-6.1-sol",
+            "raw": {
+              "input": 100545,
+              "output": 6840,
+              "cacheRead": 1275008,
+              "cacheWrite": 0,
+              "reasoning": 1401,
+              "totalTokens": 1382393,
+              "cost": {
+                "input": 0.20108999999999996,
+                "output": 0.0684,
+                "cacheRead": 0.12750080000000003,
+                "cacheWrite": 0,
+                "total": 0.3969908
+              }
+            },
+            "inputTokens": 100545,
+            "outputTokens": 6840,
+            "totalTokens": 1382393,
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 1275008,
+            "reasoningTokens": 1401,
+            "costUsd": 0.3969908
+          }
+        ]
+      },
+      "rawArtifactIntegrity": {
+        "version": 1,
+        "owner": "bc9021257c4449e6124b84f93abc030a91400b025bd90a53e80eb0c9f901415b",
+        "bytes": 16480,
+        "sha256": "747a83ddc6250e64ee33ebaac212246cf85ff21381999fbf7ac11703ea6ea96f",
+        "terminal": {
+          "runId": "run_mvotu191_6ce2b6",
+          "attemptId": "attempt_mvotu191_507a90",
+          "status": "completed",
+          "startedAt": "2026-10-26T05:39:21.567Z",
+          "completedAt": "2026-10-26T05:43:47.642Z",
+          "exitCode": 0
+        },
+        "terminalVersion": {
+          "dev": 16777229,
+          "ino": 587071368,
+          "size": 1879,
+          "nlink": 1,
+          "mtimeMs": 1792993427645.282,
+          "ctimeMs": 1792993427645.4575
+        }
+      },
+      "completedAt": "2026-10-26T05:43:47.642Z",
+      "exitCode": 0
+    },
+    {
+      "taskId": "task-3",
+      "specId": "impact-analysis.validation-map.main",
+      "displayName": "impact-analysis.validation-map.main",
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "roles": [],
+      "status": "completed",
+      "statusDetail": "completed",
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "cwd": "<ROOT>",
+      "worktree": {
+        "enabled": false,
+        "path": null,
+        "branch": null,
+        "baseCwd": null,
+        "warning": null
+      },
+      "backendTaskId": "run_mvotu1gt_0523b6",
+      "kind": "single",
+      "stageId": "impact-analysis.validation-map",
+      "dependsOn": [],
+      "artifactGraph": {
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "refsRequired": true,
+          "controlSchema": "./schemas/validation-map-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/bundle/schemas/validation-map-control.schema.json"
+        },
+        "requiredReads": [],
+        "artifactAccess": "enabled"
+      },
+      "files": {
+        "systemPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-3/system-prompt.md",
+        "taskPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-3/task.md",
+        "output": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-3/output.log",
+        "stderr": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-3/stderr.log",
+        "result": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-3/result.json"
+      },
+      "launchBootstrap": {
+        "version": 1,
+        "records": [
+          {
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "workflow": {
+              "type": "artifact-graph",
+              "specPathSha256": "1ecfcd57ca0c63fe35978556689f8f40e11e0814ba429c4354d8c4488cac4575"
+            },
+            "runId": "workflow_mvotu0ko_b9761d",
+            "task": {
+              "taskId": "task-3",
+              "specId": "impact-analysis.validation-map.main"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-3",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "sessionId": "pi-workflow.workflow_mvotu0ko_b9761d.task-3",
+            "backend": {
+              "id": "pi-subagent/headless",
+              "type": "local-pi",
+              "mode": "headless"
+            },
+            "prompt": {
+              "sha256": "a1b8b65a0386a42dde4f5e0b8652e8421791390a32e889be1e6ddee039797b5b",
+              "bytes": 10681
+            },
+            "artifacts": {
+              "manifestSha256": "8a4d0d69853363f58caedaf3014f7f6cb08105d4d1ade2bab694dbec619a487d",
+              "wrapperSha256": "30bf6fd125498208bc133c3252207afafcafed11a1b96740b713be499bcf4450",
+              "configSha256": "816a1a493759200a82b4653acb320e89ef71f64346d086022f7bbb8dae4a3d65"
+            },
+            "effectiveLaunch": {
+              "noExtensions": true,
+              "extensions": [
+                {
+                  "pathSha256": "29d46e17400de23d369058aa730b3950fe753c29a13f588fa1603c262d1bc080"
+                }
+              ],
+              "captureToolCalls": false,
+              "artifactBinding": {
+                "manifestPathSha256": "68aec76e6ba834512dafbe7899e4f98a384feaf501116bcf0c3d4c12dd4f62f0",
+                "manifestBytesSha256": "6dfe1040c9dd2ddfab22c1b6304a5672ebf097b4e838c3cc6787bdf95325256b",
+                "wrapperPathSha256": "29d46e17400de23d369058aa730b3950fe753c29a13f588fa1603c262d1bc080",
+                "wrapperBytesSha256": "30bf6fd125498208bc133c3252207afafcafed11a1b96740b713be499bcf4450"
+              }
+            },
+            "effectivePolicy": {
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "toolProvidersSha256": "af7825495d4a84fa9548f1c98fd1b817409cb73ac1e8dd0603ddf8b8b17c322a",
+              "approvalMode": "non-interactive",
+              "maxRuntimeMs": 1800000,
+              "cwdSha256": "1f8038a3108b39228e59d3bbf4856ad4ff05ad2b60fb8a771342e4e02e3c0bb5",
+              "stateRootSha256": "fc84062043bd3dcc308c9d020a850ccfdeb6231905776dacd6f234ce2d967b5c",
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "sourceDependencies": {
+              "contextDependsOn": [],
+              "requiredReads": [],
+              "artifactAccess": "enabled"
+            },
+            "resourcePolicy": {
+              "version": 1,
+              "skillDiscovery": "ambient",
+              "contextFiles": "disabled"
+            },
+            "identitySha256": "a433651a4837638e88f1d2f8787caf2a9f1b1db0b9a7e760c13f7908a85fafe8"
+          }
+        ]
+      },
+      "launchAuthority": {
+        "version": 1,
+        "records": [
+          {
+            "grant": {
+              "schema": "pi-workflow-launch-authority-v1",
+              "issuer": "pi-workflow-engine",
+              "operation": "launch-task",
+              "runId": "workflow_mvotu0ko_b9761d",
+              "task": {
+                "taskId": "task-3",
+                "specId": "impact-analysis.validation-map.main"
+              },
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-3",
+              "backendId": "pi-subagent/headless",
+              "launchBootstrapSha256": "a433651a4837638e88f1d2f8787caf2a9f1b1db0b9a7e760c13f7908a85fafe8",
+              "identitySha256": "f3cb2351ccee2ba86e22453d0b5bb993115e9a0bb54c82caf19162b1c99c412e"
+            },
+            "state": {
+              "phase": "consumed",
+              "backendRunId": "run_mvotu1gt_0523b6",
+              "backendAttemptId": "attempt_mvotu1gt_c45ea8"
+            }
+          }
+        ]
+      },
+      "startedAt": "2026-10-26T05:39:21.147Z",
+      "lastMessage": "completed",
+      "durableLaunchBarrier": {
+        "version": 2,
+        "records": [
+          {
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-3",
+            "launchAuthoritySha256": "f3cb2351ccee2ba86e22453d0b5bb993115e9a0bb54c82caf19162b1c99c412e",
+            "descriptor": {
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "directory": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-3/.launch-barrier-f3cb2351ccee2ba8-54c81e2876408735",
+              "readyPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-3/.launch-barrier-f3cb2351ccee2ba8-54c81e2876408735/ready-v2.json",
+              "decisionPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-3/.launch-barrier-f3cb2351ccee2ba8-54c81e2876408735/decision-v2.json",
+              "ackPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-3/.launch-barrier-f3cb2351ccee2ba8-54c81e2876408735/ack-v2.json",
+              "challenge": "a7fab97f25f68f9498d725c7eb8f76f2e956c20961fda32953598cae7697279d",
+              "decisionNonce": "4d7c321e44ed0f9ce0624c5c088b5fbe8df3bf60d37c736054742519e2207570",
+              "subjectSha256": "f3cb2351ccee2ba86e22453d0b5bb993115e9a0bb54c82caf19162b1c99c412e",
+              "directoryIdentity": {
+                "device": 16777229,
+                "inode": 587039668,
+                "uid": 501
+              },
+              "timeoutMs": 120000,
+              "pollIntervalMs": 10,
+              "identitySha256": "32f258fbb56eb5fae6f61d391ea8056a348f107b18b65a2b889d571d37939fe2"
+            },
+            "phase": "acknowledged",
+            "readySha256": "7b4b4bda64e5b55a124aa716c07d24236287213525bbd58fb8a2a2e9938e7636",
+            "launchPayloadSha256": "bc058e818254a60bbb41a69aca2d2e039b86b9bf2f5ff24b1677f635202a6e50",
+            "executionPlanSha256": "4dba580447c6bc1a4a6e6aba4ea94ec5d277fcbd4a33ff073644bcae42465fe9",
+            "backendRunId": "run_mvotu1gt_0523b6",
+            "backendAttemptId": "attempt_mvotu1gt_c45ea8",
+            "releasePayloadSha256": "9406971eab34478020593ff7b3e8c54b15ff3d701503ddaaed282fb84d7ed604",
+            "decisionSha256": "4512a7395554b823cb02f3d6d69d935f24d4cbbd92234be2014b5d50d4f1de2f",
+            "releaseWinner": true,
+            "ackSha256": "9f59a10c9d47dbe425229b6bb6ff552888e0dec0fd226c815f162632a6a53f5b"
+          }
+        ]
+      },
+      "timing": {
+        "source": "pi-workflow",
+        "capturedAt": "2026-10-26T05:42:46.724Z",
+        "launchQueuedAt": "2026-10-26T05:39:21.163Z",
+        "launchStartedAt": "2026-10-26T05:39:21.163Z",
+        "launchCompletedAt": "2026-10-26T05:39:21.215Z",
+        "launchWaitMs": 0,
+        "launchDurationMs": 52,
+        "launchSlotReleaseDelayMs": 3000,
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": 13,
+        "refreshStatusPollMs": 1,
+        "terminalOutputCopyMs": 0,
+        "terminalStderrCopyMs": 0,
+        "terminalOutputBytes": 16166,
+        "terminalStderrBytes": 126,
+        "executionStartedAt": "2026-10-26T05:39:21.950Z",
+        "executionCompletedAt": "2026-10-26T05:42:46.672Z",
+        "executionMs": 204722,
+        "totalMs": 205525,
+        "aggregate": {
+          "attempts": 1,
+          "launchWaitMs": 0,
+          "launchDurationMs": 52,
+          "executionMs": 204722,
+          "totalMs": 205525
+        },
+        "attempts": [
+          {
+            "source": "pi-subagent",
+            "capturedAt": "2026-10-26T05:42:46.713Z",
+            "backendRunId": "run_mvotu1gt_0523b6",
+            "backendAttemptId": "attempt_mvotu1gt_c45ea8",
+            "launchQueuedAt": "2026-10-26T05:39:21.163Z",
+            "launchStartedAt": "2026-10-26T05:39:21.163Z",
+            "launchCompletedAt": "2026-10-26T05:39:21.215Z",
+            "launchWaitMs": 0,
+            "launchDurationMs": 52,
+            "executionStartedAt": "2026-10-26T05:39:21.950Z",
+            "executionCompletedAt": "2026-10-26T05:42:46.672Z",
+            "executionMs": 204722,
+            "totalMs": 205525
+          }
+        ],
+        "terminalArtifactBundleWriteMs": 7,
+        "terminalArtifactMaterializeMs": 11
+      },
+      "pid": 24617,
+      "usage": {
+        "source": "pi-subagent",
+        "capturedAt": "2026-10-26T05:42:46.713Z",
+        "provider": "openai-codex",
+        "model": "gpt-6.1-sol",
+        "inputTokens": 56309,
+        "outputTokens": 7849,
+        "totalTokens": 312350,
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 248192,
+        "reasoningTokens": 2060,
+        "costUsd": 0.21592719999999999,
+        "aggregate": {
+          "attempts": 1,
+          "inputTokens": 56309,
+          "outputTokens": 7849,
+          "totalTokens": 312350,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 248192,
+          "reasoningTokens": 2060,
+          "costUsd": 0.21592719999999999
+        },
+        "attempts": [
+          {
+            "source": "subagent-result-metadata",
+            "capturedAt": "2026-10-26T05:42:46.713Z",
+            "backendRunId": "run_mvotu1gt_0523b6",
+            "backendAttemptId": "attempt_mvotu1gt_c45ea8",
+            "provider": "openai-codex",
+            "model": "gpt-6.1-sol",
+            "raw": {
+              "input": 56309,
+              "output": 7849,
+              "cacheRead": 248192,
+              "cacheWrite": 0,
+              "reasoning": 2060,
+              "totalTokens": 312350,
+              "cost": {
+                "input": 0.112618,
+                "output": 0.07849,
+                "cacheRead": 0.024819200000000003,
+                "cacheWrite": 0,
+                "total": 0.21592719999999999
+              }
+            },
+            "inputTokens": 56309,
+            "outputTokens": 7849,
+            "totalTokens": 312350,
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 248192,
+            "reasoningTokens": 2060,
+            "costUsd": 0.21592719999999999
+          }
+        ]
+      },
+      "rawArtifactIntegrity": {
+        "version": 1,
+        "owner": "cdd3a7651918ed53398af801842b4f785534f8aea809432622bbb95c26343db9",
+        "bytes": 16166,
+        "sha256": "7674c87151df32a55facf90c468b7ddc82590b5f5202173d5e8456f3823ef431",
+        "terminal": {
+          "runId": "run_mvotu1gt_0523b6",
+          "attemptId": "attempt_mvotu1gt_c45ea8",
+          "status": "completed",
+          "startedAt": "2026-10-26T05:39:21.950Z",
+          "completedAt": "2026-10-26T05:42:46.672Z",
+          "exitCode": 0
+        },
+        "terminalVersion": {
+          "dev": 16777229,
+          "ino": 587058540,
+          "size": 1877,
+          "nlink": 1,
+          "mtimeMs": 1792993366675.792,
+          "ctimeMs": 1792993366676.3887
+        }
+      },
+      "completedAt": "2026-10-26T05:42:46.672Z",
+      "exitCode": 0
+    },
+    {
+      "taskId": "task-4",
+      "specId": "impact-analysis.api-contract-impact.main",
+      "displayName": "impact-analysis.api-contract-impact.main",
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "roles": [],
+      "status": "completed",
+      "statusDetail": "completed",
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "cwd": "<ROOT>",
+      "worktree": {
+        "enabled": false,
+        "path": null,
+        "branch": null,
+        "baseCwd": null,
+        "warning": null
+      },
+      "backendTaskId": "run_mvotzr79_a816ad",
+      "kind": "reduce",
+      "stageId": "impact-analysis.api-contract-impact",
+      "dependsOn": [
+        "impact-analysis.change-scope.main",
+        "impact-analysis.implementation-map.main"
+      ],
+      "artifactGraph": {
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "refsRequired": true,
+          "controlSchema": "./schemas/api-contract-impact-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/bundle/schemas/api-contract-impact-control.schema.json"
+        },
+        "requiredReads": [
+          {
+            "source": "impact-analysis.change-scope",
+            "artifact": "control",
+            "path": "$"
+          },
+          {
+            "source": "impact-analysis.implementation-map",
+            "artifact": "control",
+            "path": "$"
+          }
+        ],
+        "requiredReadPolicy": [
+          {
+            "source": "impact-analysis.change-scope",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          },
+          {
+            "source": "impact-analysis.implementation-map",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          }
+        ],
+        "artifactAccess": "enabled"
+      },
+      "files": {
+        "systemPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-4/system-prompt.md",
+        "taskPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-4/task.md",
+        "output": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-4/output.log",
+        "stderr": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-4/stderr.log",
+        "result": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-4/result.json"
+      },
+      "launchBootstrap": {
+        "version": 1,
+        "records": [
+          {
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "workflow": {
+              "type": "artifact-graph",
+              "specPathSha256": "1ecfcd57ca0c63fe35978556689f8f40e11e0814ba429c4354d8c4488cac4575"
+            },
+            "runId": "workflow_mvotu0ko_b9761d",
+            "task": {
+              "taskId": "task-4",
+              "specId": "impact-analysis.api-contract-impact.main"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-4",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "sessionId": "pi-workflow.workflow_mvotu0ko_b9761d.task-4",
+            "backend": {
+              "id": "pi-subagent/headless",
+              "type": "local-pi",
+              "mode": "headless"
+            },
+            "prompt": {
+              "sha256": "3a649eaf0cc3517ce939db9303b935445ad6f8dbe30757937dc5b20c03f46a61",
+              "bytes": 13447
+            },
+            "artifacts": {
+              "manifestSha256": "7bbec9591430de0fd99977598d843f7fee23e4a9efb87de898a45b8ac5681d76",
+              "wrapperSha256": "0ebde38ae70fdbac3a04c2173d64bcdad55a56fc3654538ae7d481120e5684ce",
+              "configSha256": "c9e7faf11b259b2cdd90d89581a3e2068f9baf3d3c9f55bcb53c628627ddce66"
+            },
+            "effectiveLaunch": {
+              "noExtensions": true,
+              "extensions": [
+                {
+                  "pathSha256": "3f0540e84c7caa8fed3d8fadad6ec905b9a970596a430bdb5469f71cdd66a840"
+                }
+              ],
+              "captureToolCalls": false,
+              "artifactBinding": {
+                "manifestPathSha256": "8a213e239fee8a166f1fb01d81e365017da211854e15205135c8283d50be82b5",
+                "manifestBytesSha256": "e0b0961974e53f508eb93f0bca73606bcf7b4246613a5b0ad75bf2ac52f46866",
+                "wrapperPathSha256": "3f0540e84c7caa8fed3d8fadad6ec905b9a970596a430bdb5469f71cdd66a840",
+                "wrapperBytesSha256": "0ebde38ae70fdbac3a04c2173d64bcdad55a56fc3654538ae7d481120e5684ce"
+              }
+            },
+            "effectivePolicy": {
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "toolProvidersSha256": "c60f526f9a4c5e0943e04a5cf500e9c632bb1b6f8301733e736c4c9732141bd2",
+              "approvalMode": "non-interactive",
+              "maxRuntimeMs": 1800000,
+              "cwdSha256": "1f8038a3108b39228e59d3bbf4856ad4ff05ad2b60fb8a771342e4e02e3c0bb5",
+              "stateRootSha256": "fc84062043bd3dcc308c9d020a850ccfdeb6231905776dacd6f234ce2d967b5c",
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "sourceDependencies": {
+              "contextDependsOn": [],
+              "requiredReads": [
+                {
+                  "source": "impact-analysis.change-scope",
+                  "artifact": "control",
+                  "path": "$"
+                },
+                {
+                  "source": "impact-analysis.implementation-map",
+                  "artifact": "control",
+                  "path": "$"
+                }
+              ],
+              "requiredReadPolicy": [
+                {
+                  "source": "impact-analysis.change-scope",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                },
+                {
+                  "source": "impact-analysis.implementation-map",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                }
+              ],
+              "artifactAccess": "enabled"
+            },
+            "resourcePolicy": {
+              "version": 1,
+              "skillDiscovery": "ambient",
+              "contextFiles": "disabled"
+            },
+            "identitySha256": "bdc5d0454f99fdcd15360b5843e733499cb2757f24c75276bacab2622d1dd26f"
+          }
+        ]
+      },
+      "launchAuthority": {
+        "version": 1,
+        "records": [
+          {
+            "grant": {
+              "schema": "pi-workflow-launch-authority-v1",
+              "issuer": "pi-workflow-engine",
+              "operation": "launch-task",
+              "runId": "workflow_mvotu0ko_b9761d",
+              "task": {
+                "taskId": "task-4",
+                "specId": "impact-analysis.api-contract-impact.main"
+              },
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-4",
+              "backendId": "pi-subagent/headless",
+              "launchBootstrapSha256": "bdc5d0454f99fdcd15360b5843e733499cb2757f24c75276bacab2622d1dd26f",
+              "identitySha256": "a9c12fe71c88d7b0490ddd476ec70c2ec2a4d94c40e2ec8b32c665f52ce619a9"
+            },
+            "state": {
+              "phase": "consumed",
+              "backendRunId": "run_mvotzr79_a816ad",
+              "backendAttemptId": "attempt_mvotzr79_b7fd02"
+            }
+          }
+        ]
+      },
+      "startedAt": "2026-10-26T05:43:47.764Z",
+      "lastMessage": "completed",
+      "durableLaunchBarrier": {
+        "version": 2,
+        "records": [
+          {
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-4",
+            "launchAuthoritySha256": "a9c12fe71c88d7b0490ddd476ec70c2ec2a4d94c40e2ec8b32c665f52ce619a9",
+            "descriptor": {
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "directory": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-4/.launch-barrier-a9c12fe71c88d7b0-213b8a4f476a4d67",
+              "readyPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-4/.launch-barrier-a9c12fe71c88d7b0-213b8a4f476a4d67/ready-v2.json",
+              "decisionPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-4/.launch-barrier-a9c12fe71c88d7b0-213b8a4f476a4d67/decision-v2.json",
+              "ackPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-4/.launch-barrier-a9c12fe71c88d7b0-213b8a4f476a4d67/ack-v2.json",
+              "challenge": "35cf34d41a43cb7feb9716b07ad6d4359cf707f84bceb727cd8993226ba1d2d2",
+              "decisionNonce": "553370e55fae1e87e33b6ff59b3fbdebaff52de67aff4e717ec80b1badb8c987",
+              "subjectSha256": "a9c12fe71c88d7b0490ddd476ec70c2ec2a4d94c40e2ec8b32c665f52ce619a9",
+              "directoryIdentity": {
+                "device": 16777229,
+                "inode": 587071430,
+                "uid": 501
+              },
+              "timeoutMs": 120000,
+              "pollIntervalMs": 10,
+              "identitySha256": "62a5347531b97e6167c5262241303745af3707151c5b03798cb0ac0bd1886df4"
+            },
+            "phase": "acknowledged",
+            "readySha256": "9e94e8ff8141b1b229900e11e12c24194307e2f3979cc30b4d61c7e3f8e65ea0",
+            "launchPayloadSha256": "4dbde1b4042af2b175472805a60e2ef809042f9ec7a592fc4a22da3fa319fefe",
+            "executionPlanSha256": "afd05e8431e99b8158e6678695a8c86352d932db27e3a90c3be1c7cff8ec60fb",
+            "backendRunId": "run_mvotzr79_a816ad",
+            "backendAttemptId": "attempt_mvotzr79_b7fd02",
+            "releasePayloadSha256": "ef8f39eb0efc30f19f733a7bd4ba43eac7aa16865ae4bb9e9184305ca2bb99ff",
+            "decisionSha256": "9a1c2383a8d847c99c04a90431a52df97d45d8865a54be9e2a45590425535f12",
+            "releaseWinner": true,
+            "ackSha256": "caee9190129d602b2036ecea3a9c69df53a62767d92a8386ef2ed1c2fe73aaea"
+          }
+        ]
+      },
+      "timing": {
+        "source": "pi-workflow",
+        "capturedAt": "2026-10-26T05:47:31.943Z",
+        "launchQueuedAt": "2026-10-26T05:43:47.775Z",
+        "launchStartedAt": "2026-10-26T05:43:47.775Z",
+        "launchCompletedAt": "2026-10-26T05:43:47.849Z",
+        "launchWaitMs": 0,
+        "launchDurationMs": 74,
+        "launchSlotReleaseDelayMs": 3000,
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": 9,
+        "refreshStatusPollMs": 0,
+        "terminalOutputCopyMs": 1,
+        "terminalStderrCopyMs": 1,
+        "terminalOutputBytes": 5481,
+        "terminalStderrBytes": 126,
+        "executionStartedAt": "2026-10-26T05:43:48.529Z",
+        "executionCompletedAt": "2026-10-26T05:47:31.362Z",
+        "executionMs": 222833,
+        "totalMs": 223598,
+        "aggregate": {
+          "attempts": 1,
+          "launchWaitMs": 0,
+          "launchDurationMs": 74,
+          "executionMs": 222833,
+          "totalMs": 223598
+        },
+        "attempts": [
+          {
+            "source": "pi-subagent",
+            "capturedAt": "2026-10-26T05:47:31.938Z",
+            "backendRunId": "run_mvotzr79_a816ad",
+            "backendAttemptId": "attempt_mvotzr79_b7fd02",
+            "launchQueuedAt": "2026-10-26T05:43:47.775Z",
+            "launchStartedAt": "2026-10-26T05:43:47.775Z",
+            "launchCompletedAt": "2026-10-26T05:43:47.849Z",
+            "launchWaitMs": 0,
+            "launchDurationMs": 74,
+            "executionStartedAt": "2026-10-26T05:43:48.529Z",
+            "executionCompletedAt": "2026-10-26T05:47:31.362Z",
+            "executionMs": 222833,
+            "totalMs": 223598
+          }
+        ],
+        "terminalArtifactBundleWriteMs": 3,
+        "terminalArtifactMaterializeMs": 4
+      },
+      "pid": 49469,
+      "usage": {
+        "source": "pi-subagent",
+        "capturedAt": "2026-10-26T05:47:31.938Z",
+        "provider": "openai-codex",
+        "model": "gpt-6.1-sol",
+        "inputTokens": 43099,
+        "outputTokens": 4871,
+        "totalTokens": 517474,
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 469504,
+        "reasoningTokens": 2941,
+        "costUsd": 0.1818584,
+        "aggregate": {
+          "attempts": 1,
+          "inputTokens": 43099,
+          "outputTokens": 4871,
+          "totalTokens": 517474,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 469504,
+          "reasoningTokens": 2941,
+          "costUsd": 0.1818584
+        },
+        "attempts": [
+          {
+            "source": "subagent-result-metadata",
+            "capturedAt": "2026-10-26T05:47:31.938Z",
+            "backendRunId": "run_mvotzr79_a816ad",
+            "backendAttemptId": "attempt_mvotzr79_b7fd02",
+            "provider": "openai-codex",
+            "model": "gpt-6.1-sol",
+            "raw": {
+              "input": 43099,
+              "output": 4871,
+              "cacheRead": 469504,
+              "cacheWrite": 0,
+              "reasoning": 2941,
+              "totalTokens": 517474,
+              "cost": {
+                "input": 0.08619799999999997,
+                "output": 0.04871,
+                "cacheRead": 0.046950399999999996,
+                "cacheWrite": 0,
+                "total": 0.1818584
+              }
+            },
+            "inputTokens": 43099,
+            "outputTokens": 4871,
+            "totalTokens": 517474,
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 469504,
+            "reasoningTokens": 2941,
+            "costUsd": 0.1818584
+          }
+        ]
+      },
+      "rawArtifactIntegrity": {
+        "version": 1,
+        "owner": "9e974ee4799e2d1edc890cc8d88318472632f05a04d21f9a4945f6f1f7a49184",
+        "bytes": 5481,
+        "sha256": "1dcb74c413128cc8c67830384b9aee42e0b2329fb8f3493f98209cf559d70fc3",
+        "terminal": {
+          "runId": "run_mvotzr79_a816ad",
+          "attemptId": "attempt_mvotzr79_b7fd02",
+          "status": "completed",
+          "startedAt": "2026-10-26T05:43:48.529Z",
+          "completedAt": "2026-10-26T05:47:31.362Z",
+          "exitCode": 0
+        },
+        "terminalVersion": {
+          "dev": 16777229,
+          "ino": 587083723,
+          "size": 1877,
+          "nlink": 1,
+          "mtimeMs": 1792993651362.953,
+          "ctimeMs": 1792993651363.1108
+        }
+      },
+      "completedAt": "2026-10-26T05:47:31.362Z",
+      "exitCode": 0
+    },
+    {
+      "taskId": "task-5",
+      "specId": "impact-analysis.state-data-impact.main",
+      "displayName": "impact-analysis.state-data-impact.main",
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "roles": [],
+      "status": "completed",
+      "statusDetail": "completed",
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "cwd": "<ROOT>",
+      "worktree": {
+        "enabled": false,
+        "path": null,
+        "branch": null,
+        "baseCwd": null,
+        "warning": null
+      },
+      "backendTaskId": "run_mvotzrf5_25aa0e",
+      "kind": "reduce",
+      "stageId": "impact-analysis.state-data-impact",
+      "dependsOn": [
+        "impact-analysis.change-scope.main",
+        "impact-analysis.implementation-map.main"
+      ],
+      "artifactGraph": {
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "refsRequired": true,
+          "controlSchema": "./schemas/api-contract-impact-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/bundle/schemas/api-contract-impact-control.schema.json"
+        },
+        "requiredReads": [
+          {
+            "source": "impact-analysis.change-scope",
+            "artifact": "control",
+            "path": "$"
+          },
+          {
+            "source": "impact-analysis.implementation-map",
+            "artifact": "control",
+            "path": "$"
+          }
+        ],
+        "requiredReadPolicy": [
+          {
+            "source": "impact-analysis.change-scope",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          },
+          {
+            "source": "impact-analysis.implementation-map",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          }
+        ],
+        "artifactAccess": "enabled"
+      },
+      "files": {
+        "systemPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-5/system-prompt.md",
+        "taskPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-5/task.md",
+        "output": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-5/output.log",
+        "stderr": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-5/stderr.log",
+        "result": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-5/result.json"
+      },
+      "launchBootstrap": {
+        "version": 1,
+        "records": [
+          {
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "workflow": {
+              "type": "artifact-graph",
+              "specPathSha256": "1ecfcd57ca0c63fe35978556689f8f40e11e0814ba429c4354d8c4488cac4575"
+            },
+            "runId": "workflow_mvotu0ko_b9761d",
+            "task": {
+              "taskId": "task-5",
+              "specId": "impact-analysis.state-data-impact.main"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-5",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "sessionId": "pi-workflow.workflow_mvotu0ko_b9761d.task-5",
+            "backend": {
+              "id": "pi-subagent/headless",
+              "type": "local-pi",
+              "mode": "headless"
+            },
+            "prompt": {
+              "sha256": "93695c2b30109d333cb92592127af702fa481c4d8c1756942801c0f7edb82684",
+              "bytes": 13362
+            },
+            "artifacts": {
+              "manifestSha256": "cabde69a7163321a50172ffdfbca5bdb877bf015c255fa75306233a69de8eee7",
+              "wrapperSha256": "fdb2434144db9ed2fd5b0faa6e757a777f45abf24152f3213cb3484498164546",
+              "configSha256": "6e9bd7ea5f3be4161aad398afe82cdd33b4d3e1bf346af9084058a0c9daeba66"
+            },
+            "effectiveLaunch": {
+              "noExtensions": true,
+              "extensions": [
+                {
+                  "pathSha256": "58bb056a267e57606022ed780480fe1bb54f923db613a90e84609a8f280dac78"
+                }
+              ],
+              "captureToolCalls": false,
+              "artifactBinding": {
+                "manifestPathSha256": "daf91eb5ed49721235e62e30aa60bea671587f777caf856078edb979f22791fe",
+                "manifestBytesSha256": "ddbb4d7fa315f5455b2f1e278be6bdb369c25b4440d1b495ac31345f2cf9dd86",
+                "wrapperPathSha256": "58bb056a267e57606022ed780480fe1bb54f923db613a90e84609a8f280dac78",
+                "wrapperBytesSha256": "fdb2434144db9ed2fd5b0faa6e757a777f45abf24152f3213cb3484498164546"
+              }
+            },
+            "effectivePolicy": {
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "toolProvidersSha256": "633a5a4e50fb1385385fb172d041ee631a4d5a21f15e496c8705f416843018c7",
+              "approvalMode": "non-interactive",
+              "maxRuntimeMs": 1800000,
+              "cwdSha256": "1f8038a3108b39228e59d3bbf4856ad4ff05ad2b60fb8a771342e4e02e3c0bb5",
+              "stateRootSha256": "fc84062043bd3dcc308c9d020a850ccfdeb6231905776dacd6f234ce2d967b5c",
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "sourceDependencies": {
+              "contextDependsOn": [],
+              "requiredReads": [
+                {
+                  "source": "impact-analysis.change-scope",
+                  "artifact": "control",
+                  "path": "$"
+                },
+                {
+                  "source": "impact-analysis.implementation-map",
+                  "artifact": "control",
+                  "path": "$"
+                }
+              ],
+              "requiredReadPolicy": [
+                {
+                  "source": "impact-analysis.change-scope",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                },
+                {
+                  "source": "impact-analysis.implementation-map",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                }
+              ],
+              "artifactAccess": "enabled"
+            },
+            "resourcePolicy": {
+              "version": 1,
+              "skillDiscovery": "ambient",
+              "contextFiles": "disabled"
+            },
+            "identitySha256": "fcf55d03396a23ac160c2db44251c0335f9a0f3c337dee4d58dcb1d26740b27d"
+          }
+        ]
+      },
+      "launchAuthority": {
+        "version": 1,
+        "records": [
+          {
+            "grant": {
+              "schema": "pi-workflow-launch-authority-v1",
+              "issuer": "pi-workflow-engine",
+              "operation": "launch-task",
+              "runId": "workflow_mvotu0ko_b9761d",
+              "task": {
+                "taskId": "task-5",
+                "specId": "impact-analysis.state-data-impact.main"
+              },
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-5",
+              "backendId": "pi-subagent/headless",
+              "launchBootstrapSha256": "fcf55d03396a23ac160c2db44251c0335f9a0f3c337dee4d58dcb1d26740b27d",
+              "identitySha256": "2e08bce738f35e966856b8790aa13889ce866926448dcb622ed72c8e7b5c5883"
+            },
+            "state": {
+              "phase": "consumed",
+              "backendRunId": "run_mvotzrf5_25aa0e",
+              "backendAttemptId": "attempt_mvotzrf5_0e5f44"
+            }
+          }
+        ]
+      },
+      "startedAt": "2026-10-26T05:43:48.071Z",
+      "lastMessage": "completed",
+      "durableLaunchBarrier": {
+        "version": 2,
+        "records": [
+          {
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-5",
+            "launchAuthoritySha256": "2e08bce738f35e966856b8790aa13889ce866926448dcb622ed72c8e7b5c5883",
+            "descriptor": {
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "directory": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-5/.launch-barrier-2e08bce738f35e96-28bb4099e61c27c2",
+              "readyPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-5/.launch-barrier-2e08bce738f35e96-28bb4099e61c27c2/ready-v2.json",
+              "decisionPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-5/.launch-barrier-2e08bce738f35e96-28bb4099e61c27c2/decision-v2.json",
+              "ackPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-5/.launch-barrier-2e08bce738f35e96-28bb4099e61c27c2/ack-v2.json",
+              "challenge": "27d8d4228470832d459fa296f667d262ea67de6732f0f829476cebb17614fe35",
+              "decisionNonce": "ea4eef89334cbd9ca3dbf67c9cb3fee2ba44eab2ec5f9cbfa728a1cd04079962",
+              "subjectSha256": "2e08bce738f35e966856b8790aa13889ce866926448dcb622ed72c8e7b5c5883",
+              "directoryIdentity": {
+                "device": 16777229,
+                "inode": 587071577,
+                "uid": 501
+              },
+              "timeoutMs": 120000,
+              "pollIntervalMs": 10,
+              "identitySha256": "ad2d9a15b676c198dd1a6701fcfcc68c42af7ac369084e01e0830ecd8ec2e333"
+            },
+            "phase": "acknowledged",
+            "readySha256": "2a3469ef1be73af4cb4a27c4b3a3022f36af8d34690bbd6a04ea23407a2d2d9f",
+            "launchPayloadSha256": "1cba18e8de1f0657166d087fac3a413f2dead1095d6a53aa64f9e37a2f993384",
+            "executionPlanSha256": "a646faf2f0ae5208efcf8d8ed8448bce79c179676b5ba93fb1f638bb5dd7b86f",
+            "backendRunId": "run_mvotzrf5_25aa0e",
+            "backendAttemptId": "attempt_mvotzrf5_0e5f44",
+            "releasePayloadSha256": "8b5a1c02a1ca658f908f02a4a9adda0b4b739be5e16256c2ec803a54f707b991",
+            "decisionSha256": "f75fa49961d90271ff3add83d4d5026975ca69b95c64420d212ba91691389edc",
+            "releaseWinner": true,
+            "ackSha256": "b459d091e20c32a74e8c49f42320a400752e03a4634f980de148ae48ddaee75b"
+          }
+        ]
+      },
+      "timing": {
+        "source": "pi-workflow",
+        "capturedAt": "2026-10-26T05:48:05.957Z",
+        "launchQueuedAt": "2026-10-26T05:43:48.082Z",
+        "launchStartedAt": "2026-10-26T05:43:48.082Z",
+        "launchCompletedAt": "2026-10-26T05:43:48.122Z",
+        "launchWaitMs": 0,
+        "launchDurationMs": 40,
+        "launchSlotReleaseDelayMs": 3000,
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": 19,
+        "refreshStatusPollMs": 19,
+        "terminalOutputCopyMs": 2,
+        "terminalStderrCopyMs": 2,
+        "terminalOutputBytes": 10221,
+        "terminalStderrBytes": 126,
+        "executionStartedAt": "2026-10-26T05:43:48.644Z",
+        "executionCompletedAt": "2026-10-26T05:48:05.177Z",
+        "executionMs": 256533,
+        "totalMs": 257106,
+        "aggregate": {
+          "attempts": 1,
+          "launchWaitMs": 0,
+          "launchDurationMs": 40,
+          "executionMs": 256533,
+          "totalMs": 257106
+        },
+        "attempts": [
+          {
+            "source": "pi-subagent",
+            "capturedAt": "2026-10-26T05:48:05.942Z",
+            "backendRunId": "run_mvotzrf5_25aa0e",
+            "backendAttemptId": "attempt_mvotzrf5_0e5f44",
+            "launchQueuedAt": "2026-10-26T05:43:48.082Z",
+            "launchStartedAt": "2026-10-26T05:43:48.082Z",
+            "launchCompletedAt": "2026-10-26T05:43:48.122Z",
+            "launchWaitMs": 0,
+            "launchDurationMs": 40,
+            "executionStartedAt": "2026-10-26T05:43:48.644Z",
+            "executionCompletedAt": "2026-10-26T05:48:05.177Z",
+            "executionMs": 256533,
+            "totalMs": 257106
+          }
+        ],
+        "terminalArtifactBundleWriteMs": 9,
+        "terminalArtifactMaterializeMs": 14
+      },
+      "pid": 49506,
+      "usage": {
+        "source": "pi-subagent",
+        "capturedAt": "2026-10-26T05:48:05.942Z",
+        "provider": "openai-codex",
+        "model": "gpt-6.1-sol",
+        "inputTokens": 69578,
+        "outputTokens": 6029,
+        "totalTokens": 608215,
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 532608,
+        "reasoningTokens": 3113,
+        "costUsd": 0.2527068,
+        "aggregate": {
+          "attempts": 1,
+          "inputTokens": 69578,
+          "outputTokens": 6029,
+          "totalTokens": 608215,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 532608,
+          "reasoningTokens": 3113,
+          "costUsd": 0.2527068
+        },
+        "attempts": [
+          {
+            "source": "subagent-result-metadata",
+            "capturedAt": "2026-10-26T05:48:05.942Z",
+            "backendRunId": "run_mvotzrf5_25aa0e",
+            "backendAttemptId": "attempt_mvotzrf5_0e5f44",
+            "provider": "openai-codex",
+            "model": "gpt-6.1-sol",
+            "raw": {
+              "input": 69578,
+              "output": 6029,
+              "cacheRead": 532608,
+              "cacheWrite": 0,
+              "reasoning": 3113,
+              "totalTokens": 608215,
+              "cost": {
+                "input": 0.139156,
+                "output": 0.06029,
+                "cacheRead": 0.053260800000000004,
+                "cacheWrite": 0,
+                "total": 0.2527068
+              }
+            },
+            "inputTokens": 69578,
+            "outputTokens": 6029,
+            "totalTokens": 608215,
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 532608,
+            "reasoningTokens": 3113,
+            "costUsd": 0.2527068
+          }
+        ]
+      },
+      "rawArtifactIntegrity": {
+        "version": 1,
+        "owner": "88c2157992956da1057e55cdc1dc8fa1a2e176e8014360b6280635de79262632",
+        "bytes": 10221,
+        "sha256": "bd35dd628a1b7c363dd3c4bfcd52138fd1f6c4c4778f7476a46773e6252b2463",
+        "terminal": {
+          "runId": "run_mvotzrf5_25aa0e",
+          "attemptId": "attempt_mvotzrf5_0e5f44",
+          "status": "completed",
+          "startedAt": "2026-10-26T05:43:48.644Z",
+          "completedAt": "2026-10-26T05:48:05.177Z",
+          "exitCode": 0
+        },
+        "terminalVersion": {
+          "dev": 16777229,
+          "ino": 587085122,
+          "size": 1867,
+          "nlink": 1,
+          "mtimeMs": 1792993685178.4688,
+          "ctimeMs": 1792993685178.6108
+        }
+      },
+      "completedAt": "2026-10-26T05:48:05.177Z",
+      "exitCode": 0
+    },
+    {
+      "taskId": "task-6",
+      "specId": "impact-analysis.validation-impact.main",
+      "displayName": "impact-analysis.validation-impact.main",
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "roles": [],
+      "status": "completed",
+      "statusDetail": "completed",
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "cwd": "<ROOT>",
+      "worktree": {
+        "enabled": false,
+        "path": null,
+        "branch": null,
+        "baseCwd": null,
+        "warning": null
+      },
+      "backendTaskId": "run_mvotyg41_228da7",
+      "kind": "reduce",
+      "stageId": "impact-analysis.validation-impact",
+      "dependsOn": [
+        "impact-analysis.change-scope.main",
+        "impact-analysis.validation-map.main"
+      ],
+      "artifactGraph": {
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "refsRequired": true,
+          "controlSchema": "./schemas/validation-impact-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/bundle/schemas/validation-impact-control.schema.json"
+        },
+        "requiredReads": [
+          {
+            "source": "impact-analysis.change-scope",
+            "artifact": "control",
+            "path": "$"
+          },
+          {
+            "source": "impact-analysis.validation-map",
+            "artifact": "control",
+            "path": "$"
+          }
+        ],
+        "requiredReadPolicy": [
+          {
+            "source": "impact-analysis.change-scope",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          },
+          {
+            "source": "impact-analysis.validation-map",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          }
+        ],
+        "artifactAccess": "enabled"
+      },
+      "files": {
+        "systemPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-6/system-prompt.md",
+        "taskPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-6/task.md",
+        "output": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-6/output.log",
+        "stderr": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-6/stderr.log",
+        "result": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-6/result.json"
+      },
+      "launchBootstrap": {
+        "version": 1,
+        "records": [
+          {
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "workflow": {
+              "type": "artifact-graph",
+              "specPathSha256": "1ecfcd57ca0c63fe35978556689f8f40e11e0814ba429c4354d8c4488cac4575"
+            },
+            "runId": "workflow_mvotu0ko_b9761d",
+            "task": {
+              "taskId": "task-6",
+              "specId": "impact-analysis.validation-impact.main"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-6",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "sessionId": "pi-workflow.workflow_mvotu0ko_b9761d.task-6",
+            "backend": {
+              "id": "pi-subagent/headless",
+              "type": "local-pi",
+              "mode": "headless"
+            },
+            "prompt": {
+              "sha256": "cd9b74876b25dceae57446a559374ee30785ee3fcc7083de9058620f7f63bf8f",
+              "bytes": 13372
+            },
+            "artifacts": {
+              "manifestSha256": "9fcbf1d0f9584b7e34a5a4e70391e3ca327340a9ccf447e3050c3601beaff1b7",
+              "wrapperSha256": "5425b5bc60592ba30e6f8c236598a1c584b634086d0d1d6d4a811aae5f89f3ad",
+              "configSha256": "ae4a8edc62117bf9a12b4cf9a04f28605b22ab61a139b68b3486208393f90d3c"
+            },
+            "effectiveLaunch": {
+              "noExtensions": true,
+              "extensions": [
+                {
+                  "pathSha256": "e45ffd5c095c57628247b8b323fa23babf11d10b891ce06f4d887c27d8880fbd"
+                }
+              ],
+              "captureToolCalls": false,
+              "artifactBinding": {
+                "manifestPathSha256": "35cda8b16aa8a4baed4b3b53e8a1c3a287f845d9b4aa09cfceaed1c8d63a9ff9",
+                "manifestBytesSha256": "292dc55971ab82242af504e2cf702b329f0f7176828f485348c24cdb28ea694b",
+                "wrapperPathSha256": "e45ffd5c095c57628247b8b323fa23babf11d10b891ce06f4d887c27d8880fbd",
+                "wrapperBytesSha256": "5425b5bc60592ba30e6f8c236598a1c584b634086d0d1d6d4a811aae5f89f3ad"
+              }
+            },
+            "effectivePolicy": {
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "toolProvidersSha256": "c61f90eb84d2d9114ed74dd34643a3503adf606332f350cbd182e692296a0064",
+              "approvalMode": "non-interactive",
+              "maxRuntimeMs": 1800000,
+              "cwdSha256": "1f8038a3108b39228e59d3bbf4856ad4ff05ad2b60fb8a771342e4e02e3c0bb5",
+              "stateRootSha256": "fc84062043bd3dcc308c9d020a850ccfdeb6231905776dacd6f234ce2d967b5c",
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "sourceDependencies": {
+              "contextDependsOn": [],
+              "requiredReads": [
+                {
+                  "source": "impact-analysis.change-scope",
+                  "artifact": "control",
+                  "path": "$"
+                },
+                {
+                  "source": "impact-analysis.validation-map",
+                  "artifact": "control",
+                  "path": "$"
+                }
+              ],
+              "requiredReadPolicy": [
+                {
+                  "source": "impact-analysis.change-scope",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                },
+                {
+                  "source": "impact-analysis.validation-map",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                }
+              ],
+              "artifactAccess": "enabled"
+            },
+            "resourcePolicy": {
+              "version": 1,
+              "skillDiscovery": "ambient",
+              "contextFiles": "disabled"
+            },
+            "identitySha256": "3c9d908887604b367521f212a506bc268caa6b55bee168c3767c9e5e65f63180"
+          }
+        ]
+      },
+      "launchAuthority": {
+        "version": 1,
+        "records": [
+          {
+            "grant": {
+              "schema": "pi-workflow-launch-authority-v1",
+              "issuer": "pi-workflow-engine",
+              "operation": "launch-task",
+              "runId": "workflow_mvotu0ko_b9761d",
+              "task": {
+                "taskId": "task-6",
+                "specId": "impact-analysis.validation-impact.main"
+              },
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-6",
+              "backendId": "pi-subagent/headless",
+              "launchBootstrapSha256": "3c9d908887604b367521f212a506bc268caa6b55bee168c3767c9e5e65f63180",
+              "identitySha256": "abac3294a8110c98d16a9138214651ec17544a7ebc6399f4827964ea2af6b919"
+            },
+            "state": {
+              "phase": "consumed",
+              "backendRunId": "run_mvotyg41_228da7",
+              "backendAttemptId": "attempt_mvotyg41_ebe0a4"
+            }
+          }
+        ]
+      },
+      "startedAt": "2026-10-26T05:42:46.745Z",
+      "lastMessage": "completed",
+      "durableLaunchBarrier": {
+        "version": 2,
+        "records": [
+          {
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-6",
+            "launchAuthoritySha256": "abac3294a8110c98d16a9138214651ec17544a7ebc6399f4827964ea2af6b919",
+            "descriptor": {
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "directory": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-6/.launch-barrier-abac3294a8110c98-a4b599b6243dcedf",
+              "readyPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-6/.launch-barrier-abac3294a8110c98-a4b599b6243dcedf/ready-v2.json",
+              "decisionPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-6/.launch-barrier-abac3294a8110c98-a4b599b6243dcedf/decision-v2.json",
+              "ackPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-6/.launch-barrier-abac3294a8110c98-a4b599b6243dcedf/ack-v2.json",
+              "challenge": "062a34dad4b20b8a32293ff8c0407ace50a6637258d388677dc96adb930e71a3",
+              "decisionNonce": "dabc2c3f82d4a1da35d85274b296652410c407959455a662b16ca2a318d59365",
+              "subjectSha256": "abac3294a8110c98d16a9138214651ec17544a7ebc6399f4827964ea2af6b919",
+              "directoryIdentity": {
+                "device": 16777229,
+                "inode": 587058569,
+                "uid": 501
+              },
+              "timeoutMs": 120000,
+              "pollIntervalMs": 10,
+              "identitySha256": "ebb3552270ade3c8e875e82773856ef53249f6a818a348d793d75fa55a1d6728"
+            },
+            "phase": "acknowledged",
+            "readySha256": "cf89d98adc73a06d25423e0e63a25327044f3e198493ddd9fe4603c16da77bb9",
+            "launchPayloadSha256": "29ed83f054fa324c0decde0d6a10b5084101d09465f603e97f8ab8e245b33ee6",
+            "executionPlanSha256": "046e3fa0de61125154fa74d53ef75dff72baa3de79ab9d0cd9c11550b9fb19c4",
+            "backendRunId": "run_mvotyg41_228da7",
+            "backendAttemptId": "attempt_mvotyg41_ebe0a4",
+            "releasePayloadSha256": "44b32b1f6d1518025fc2f158233d229666d09649b9eb6a716775f1b16ff2972e",
+            "decisionSha256": "057414a045d10010309d133f963b6f42b1d2377af8079e59ab7f8685f7a41cbc",
+            "releaseWinner": true,
+            "ackSha256": "d3d8902b37ac0fa869897cf823b8737bf2c5d6a8fea48825f2b1033c26e6f396"
+          }
+        ]
+      },
+      "timing": {
+        "source": "pi-workflow",
+        "capturedAt": "2026-10-26T05:45:43.855Z",
+        "launchQueuedAt": "2026-10-26T05:42:46.757Z",
+        "launchStartedAt": "2026-10-26T05:42:46.757Z",
+        "launchCompletedAt": "2026-10-26T05:42:46.810Z",
+        "launchWaitMs": 0,
+        "launchDurationMs": 53,
+        "launchSlotReleaseDelayMs": 3000,
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": 8,
+        "refreshStatusPollMs": 1,
+        "terminalOutputCopyMs": 1,
+        "terminalStderrCopyMs": 0,
+        "terminalOutputBytes": 10427,
+        "terminalStderrBytes": 126,
+        "executionStartedAt": "2026-10-26T05:42:47.565Z",
+        "executionCompletedAt": "2026-10-26T05:45:43.406Z",
+        "executionMs": 175841,
+        "totalMs": 176661,
+        "aggregate": {
+          "attempts": 1,
+          "launchWaitMs": 0,
+          "launchDurationMs": 53,
+          "executionMs": 175841,
+          "totalMs": 176661
+        },
+        "attempts": [
+          {
+            "source": "pi-subagent",
+            "capturedAt": "2026-10-26T05:45:43.845Z",
+            "backendRunId": "run_mvotyg41_228da7",
+            "backendAttemptId": "attempt_mvotyg41_ebe0a4",
+            "launchQueuedAt": "2026-10-26T05:42:46.757Z",
+            "launchStartedAt": "2026-10-26T05:42:46.757Z",
+            "launchCompletedAt": "2026-10-26T05:42:46.810Z",
+            "launchWaitMs": 0,
+            "launchDurationMs": 53,
+            "executionStartedAt": "2026-10-26T05:42:47.565Z",
+            "executionCompletedAt": "2026-10-26T05:45:43.406Z",
+            "executionMs": 175841,
+            "totalMs": 176661
+          }
+        ],
+        "terminalArtifactBundleWriteMs": 4,
+        "terminalArtifactMaterializeMs": 9
+      },
+      "pid": 42193,
+      "usage": {
+        "source": "pi-subagent",
+        "capturedAt": "2026-10-26T05:45:43.845Z",
+        "provider": "openai-codex",
+        "model": "gpt-6.1-sol",
+        "inputTokens": 33234,
+        "outputTokens": 5756,
+        "totalTokens": 155086,
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 116096,
+        "reasoningTokens": 2662,
+        "costUsd": 0.1356376,
+        "aggregate": {
+          "attempts": 1,
+          "inputTokens": 33234,
+          "outputTokens": 5756,
+          "totalTokens": 155086,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 116096,
+          "reasoningTokens": 2662,
+          "costUsd": 0.1356376
+        },
+        "attempts": [
+          {
+            "source": "subagent-result-metadata",
+            "capturedAt": "2026-10-26T05:45:43.845Z",
+            "backendRunId": "run_mvotyg41_228da7",
+            "backendAttemptId": "attempt_mvotyg41_ebe0a4",
+            "provider": "openai-codex",
+            "model": "gpt-6.1-sol",
+            "raw": {
+              "input": 33234,
+              "output": 5756,
+              "cacheRead": 116096,
+              "cacheWrite": 0,
+              "reasoning": 2662,
+              "totalTokens": 155086,
+              "cost": {
+                "input": 0.066468,
+                "output": 0.05756000000000001,
+                "cacheRead": 0.011609600000000001,
+                "cacheWrite": 0,
+                "total": 0.1356376
+              }
+            },
+            "inputTokens": 33234,
+            "outputTokens": 5756,
+            "totalTokens": 155086,
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 116096,
+            "reasoningTokens": 2662,
+            "costUsd": 0.1356376
+          }
+        ]
+      },
+      "rawArtifactIntegrity": {
+        "version": 1,
+        "owner": "04166fd22d29255748691f7225501f7743a3e844cc36d647ccd4fcce1a9295c5",
+        "bytes": 10427,
+        "sha256": "fa1d1de803b89d77b35310d37b1d61b7544eb8b676bf6ae1eeaf6cf57b249ebd",
+        "terminal": {
+          "runId": "run_mvotyg41_228da7",
+          "attemptId": "attempt_mvotyg41_ebe0a4",
+          "status": "completed",
+          "startedAt": "2026-10-26T05:42:47.565Z",
+          "completedAt": "2026-10-26T05:45:43.406Z",
+          "exitCode": 0
+        },
+        "terminalVersion": {
+          "dev": 16777229,
+          "ino": 587078343,
+          "size": 1879,
+          "nlink": 1,
+          "mtimeMs": 1792993543407.9841,
+          "ctimeMs": 1792993543408.5383
+        }
+      },
+      "completedAt": "2026-10-26T05:45:43.406Z",
+      "exitCode": 0
+    },
+    {
+      "taskId": "task-7",
+      "specId": "impact-analysis.docs-release-impact.main",
+      "displayName": "impact-analysis.docs-release-impact.main",
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "roles": [],
+      "status": "completed",
+      "statusDetail": "completed",
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "cwd": "<ROOT>",
+      "worktree": {
+        "enabled": false,
+        "path": null,
+        "branch": null,
+        "baseCwd": null,
+        "warning": null
+      },
+      "backendTaskId": "run_mvotzrm5_29a397",
+      "kind": "reduce",
+      "stageId": "impact-analysis.docs-release-impact",
+      "dependsOn": [
+        "impact-analysis.change-scope.main",
+        "impact-analysis.implementation-map.main",
+        "impact-analysis.validation-map.main"
+      ],
+      "artifactGraph": {
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "refsRequired": true,
+          "controlSchema": "./schemas/api-contract-impact-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/bundle/schemas/api-contract-impact-control.schema.json"
+        },
+        "requiredReads": [
+          {
+            "source": "impact-analysis.change-scope",
+            "artifact": "control",
+            "path": "$"
+          },
+          {
+            "source": "impact-analysis.implementation-map",
+            "artifact": "control",
+            "path": "$"
+          },
+          {
+            "source": "impact-analysis.validation-map",
+            "artifact": "control",
+            "path": "$"
+          }
+        ],
+        "requiredReadPolicy": [
+          {
+            "source": "impact-analysis.change-scope",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          },
+          {
+            "source": "impact-analysis.implementation-map",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          },
+          {
+            "source": "impact-analysis.validation-map",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          }
+        ],
+        "artifactAccess": "enabled"
+      },
+      "files": {
+        "systemPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-7/system-prompt.md",
+        "taskPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-7/task.md",
+        "output": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-7/output.log",
+        "stderr": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-7/stderr.log",
+        "result": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-7/result.json"
+      },
+      "launchBootstrap": {
+        "version": 1,
+        "records": [
+          {
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "workflow": {
+              "type": "artifact-graph",
+              "specPathSha256": "1ecfcd57ca0c63fe35978556689f8f40e11e0814ba429c4354d8c4488cac4575"
+            },
+            "runId": "workflow_mvotu0ko_b9761d",
+            "task": {
+              "taskId": "task-7",
+              "specId": "impact-analysis.docs-release-impact.main"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-7",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "sessionId": "pi-workflow.workflow_mvotu0ko_b9761d.task-7",
+            "backend": {
+              "id": "pi-subagent/headless",
+              "type": "local-pi",
+              "mode": "headless"
+            },
+            "prompt": {
+              "sha256": "3dc134642ffe95ab4d6ea2d6dc912c9ebbe06a93bbc4404e403f949207df97bc",
+              "bytes": 14202
+            },
+            "artifacts": {
+              "manifestSha256": "fc457ddc24e564cb72bab8cca65ead6d44552f4ac72bcd3c44c3e8da53eb9465",
+              "wrapperSha256": "d60c41aca42e521036f95a3c6e3f08dbe7dc0d00f31e24fe5e45acea800b6150",
+              "configSha256": "4e3e5c71163c4633b9e8b28bd98a23b46fa9ca4dd19d86c7860f86f76839db9c"
+            },
+            "effectiveLaunch": {
+              "noExtensions": true,
+              "extensions": [
+                {
+                  "pathSha256": "69e71ba72a3ff05d8f4d129f2fd87bb6505a8f6751a2d0c67266531a8299b532"
+                }
+              ],
+              "captureToolCalls": false,
+              "artifactBinding": {
+                "manifestPathSha256": "340dc73dc3152662304ba57a24269339d48a3531e98415a2b42b514e46c3d92e",
+                "manifestBytesSha256": "df1d86c8bc9d1cf33833de5c1ef57c801ec77b12fe621e29d6f138e498ce99a8",
+                "wrapperPathSha256": "69e71ba72a3ff05d8f4d129f2fd87bb6505a8f6751a2d0c67266531a8299b532",
+                "wrapperBytesSha256": "d60c41aca42e521036f95a3c6e3f08dbe7dc0d00f31e24fe5e45acea800b6150"
+              }
+            },
+            "effectivePolicy": {
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "toolProvidersSha256": "c4a55e082db5ce87729e767943b1925225c826dfbc6afc04ab1e4e553e6c9cf4",
+              "approvalMode": "non-interactive",
+              "maxRuntimeMs": 1800000,
+              "cwdSha256": "1f8038a3108b39228e59d3bbf4856ad4ff05ad2b60fb8a771342e4e02e3c0bb5",
+              "stateRootSha256": "fc84062043bd3dcc308c9d020a850ccfdeb6231905776dacd6f234ce2d967b5c",
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "sourceDependencies": {
+              "contextDependsOn": [],
+              "requiredReads": [
+                {
+                  "source": "impact-analysis.change-scope",
+                  "artifact": "control",
+                  "path": "$"
+                },
+                {
+                  "source": "impact-analysis.implementation-map",
+                  "artifact": "control",
+                  "path": "$"
+                },
+                {
+                  "source": "impact-analysis.validation-map",
+                  "artifact": "control",
+                  "path": "$"
+                }
+              ],
+              "requiredReadPolicy": [
+                {
+                  "source": "impact-analysis.change-scope",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                },
+                {
+                  "source": "impact-analysis.implementation-map",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                },
+                {
+                  "source": "impact-analysis.validation-map",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                }
+              ],
+              "artifactAccess": "enabled"
+            },
+            "resourcePolicy": {
+              "version": 1,
+              "skillDiscovery": "ambient",
+              "contextFiles": "disabled"
+            },
+            "identitySha256": "e6d05adffdb6a1954a980d40f82250cae4de856fd5fca93e3d5cee0a0351d6b5"
+          }
+        ]
+      },
+      "launchAuthority": {
+        "version": 1,
+        "records": [
+          {
+            "grant": {
+              "schema": "pi-workflow-launch-authority-v1",
+              "issuer": "pi-workflow-engine",
+              "operation": "launch-task",
+              "runId": "workflow_mvotu0ko_b9761d",
+              "task": {
+                "taskId": "task-7",
+                "specId": "impact-analysis.docs-release-impact.main"
+              },
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-7",
+              "backendId": "pi-subagent/headless",
+              "launchBootstrapSha256": "e6d05adffdb6a1954a980d40f82250cae4de856fd5fca93e3d5cee0a0351d6b5",
+              "identitySha256": "8e1f29b8069cd27effa7fcb219eaf87e83f7d229b0eed11290b968b843d2b01c"
+            },
+            "state": {
+              "phase": "consumed",
+              "backendRunId": "run_mvotzrm5_29a397",
+              "backendAttemptId": "attempt_mvotzrm5_25199c"
+            }
+          }
+        ]
+      },
+      "startedAt": "2026-10-26T05:43:48.328Z",
+      "lastMessage": "completed",
+      "durableLaunchBarrier": {
+        "version": 2,
+        "records": [
+          {
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-7",
+            "launchAuthoritySha256": "8e1f29b8069cd27effa7fcb219eaf87e83f7d229b0eed11290b968b843d2b01c",
+            "descriptor": {
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "directory": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-7/.launch-barrier-8e1f29b8069cd27e-d6b4c8db53260cf3",
+              "readyPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-7/.launch-barrier-8e1f29b8069cd27e-d6b4c8db53260cf3/ready-v2.json",
+              "decisionPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-7/.launch-barrier-8e1f29b8069cd27e-d6b4c8db53260cf3/decision-v2.json",
+              "ackPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-7/.launch-barrier-8e1f29b8069cd27e-d6b4c8db53260cf3/ack-v2.json",
+              "challenge": "bde1a5a95cbfa1133bf8847fa76c0b9737189002a10707c913641a8237cbfcfe",
+              "decisionNonce": "4ff5a2d2dfc97e0fc0eaf9903e97ff8ac9b99767c0363376c7a0383699777841",
+              "subjectSha256": "8e1f29b8069cd27effa7fcb219eaf87e83f7d229b0eed11290b968b843d2b01c",
+              "directoryIdentity": {
+                "device": 16777229,
+                "inode": 587071662,
+                "uid": 501
+              },
+              "timeoutMs": 120000,
+              "pollIntervalMs": 10,
+              "identitySha256": "3048ec53c06d35a3fae86c14748e3985f849549a41b9e93b8446412015976f90"
+            },
+            "phase": "acknowledged",
+            "readySha256": "c06a83f8270ae2a0e1e847249eca4e97b6b1269d6042a27f4246648d792879a1",
+            "launchPayloadSha256": "436ecfd4a8047eee2fc12ea5e54bf463f7e308ef0e5e2341ba9fa2c8fb744e74",
+            "executionPlanSha256": "74292c92124a6c6f9b60aae68f924f704ac83837e42628058516c1c51ef64f84",
+            "backendRunId": "run_mvotzrm5_29a397",
+            "backendAttemptId": "attempt_mvotzrm5_25199c",
+            "releasePayloadSha256": "00c878a45c3071563d6dcff0d5722026e5fd97997c17a5995de432ac8b9b9c0d",
+            "decisionSha256": "20daa49b565ff0d81d5de49a6dae51ec42e14cfd27e7c662e01fc2d7526147e6",
+            "releaseWinner": true,
+            "ackSha256": "125b16a38b48223a6700081b093247317b5d7ab8e81c40ca13c61fe3f7c70eb0"
+          }
+        ]
+      },
+      "timing": {
+        "source": "pi-workflow",
+        "capturedAt": "2026-10-26T05:47:14.934Z",
+        "launchQueuedAt": "2026-10-26T05:43:48.340Z",
+        "launchStartedAt": "2026-10-26T05:43:48.340Z",
+        "launchCompletedAt": "2026-10-26T05:43:48.371Z",
+        "launchWaitMs": 0,
+        "launchDurationMs": 31,
+        "launchSlotReleaseDelayMs": 3000,
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": 8,
+        "refreshStatusPollMs": 1,
+        "terminalOutputCopyMs": 1,
+        "terminalStderrCopyMs": 1,
+        "terminalOutputBytes": 8507,
+        "terminalStderrBytes": 126,
+        "executionStartedAt": "2026-10-26T05:43:49.030Z",
+        "executionCompletedAt": "2026-10-26T05:47:14.356Z",
+        "executionMs": 205326,
+        "totalMs": 206028,
+        "aggregate": {
+          "attempts": 1,
+          "launchWaitMs": 0,
+          "launchDurationMs": 31,
+          "executionMs": 205326,
+          "totalMs": 206028
+        },
+        "attempts": [
+          {
+            "source": "pi-subagent",
+            "capturedAt": "2026-10-26T05:47:14.925Z",
+            "backendRunId": "run_mvotzrm5_29a397",
+            "backendAttemptId": "attempt_mvotzrm5_25199c",
+            "launchQueuedAt": "2026-10-26T05:43:48.340Z",
+            "launchStartedAt": "2026-10-26T05:43:48.340Z",
+            "launchCompletedAt": "2026-10-26T05:43:48.371Z",
+            "launchWaitMs": 0,
+            "launchDurationMs": 31,
+            "executionStartedAt": "2026-10-26T05:43:49.030Z",
+            "executionCompletedAt": "2026-10-26T05:47:14.356Z",
+            "executionMs": 205326,
+            "totalMs": 206028
+          }
+        ],
+        "terminalArtifactBundleWriteMs": 4,
+        "terminalArtifactMaterializeMs": 8
+      },
+      "pid": 49518,
+      "usage": {
+        "source": "pi-subagent",
+        "capturedAt": "2026-10-26T05:47:14.925Z",
+        "provider": "openai-codex",
+        "model": "gpt-6.1-sol",
+        "inputTokens": 58454,
+        "outputTokens": 5024,
+        "totalTokens": 1100278,
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 1036800,
+        "reasoningTokens": 1756,
+        "costUsd": 0.27082800000000007,
+        "aggregate": {
+          "attempts": 1,
+          "inputTokens": 58454,
+          "outputTokens": 5024,
+          "totalTokens": 1100278,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 1036800,
+          "reasoningTokens": 1756,
+          "costUsd": 0.27082800000000007
+        },
+        "attempts": [
+          {
+            "source": "subagent-result-metadata",
+            "capturedAt": "2026-10-26T05:47:14.925Z",
+            "backendRunId": "run_mvotzrm5_29a397",
+            "backendAttemptId": "attempt_mvotzrm5_25199c",
+            "provider": "openai-codex",
+            "model": "gpt-6.1-sol",
+            "raw": {
+              "input": 58454,
+              "output": 5024,
+              "cacheRead": 1036800,
+              "cacheWrite": 0,
+              "reasoning": 1756,
+              "totalTokens": 1100278,
+              "cost": {
+                "input": 0.11690799999999998,
+                "output": 0.05024000000000001,
+                "cacheRead": 0.10368000000000002,
+                "cacheWrite": 0,
+                "total": 0.27082800000000007
+              }
+            },
+            "inputTokens": 58454,
+            "outputTokens": 5024,
+            "totalTokens": 1100278,
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 1036800,
+            "reasoningTokens": 1756,
+            "costUsd": 0.27082800000000007
+          }
+        ]
+      },
+      "rawArtifactIntegrity": {
+        "version": 1,
+        "owner": "34b4ace0450dcc11e063619c36a18d9017b3c8ce343d5a7da33c63e9577fefe4",
+        "bytes": 8507,
+        "sha256": "cd833a8db4e5df3f820361d8b4f73dd3563f9c896b98e27aaf4dac4a4453fb04",
+        "terminal": {
+          "runId": "run_mvotzrm5_29a397",
+          "attemptId": "attempt_mvotzrm5_25199c",
+          "status": "completed",
+          "startedAt": "2026-10-26T05:43:49.030Z",
+          "completedAt": "2026-10-26T05:47:14.356Z",
+          "exitCode": 0
+        },
+        "terminalVersion": {
+          "dev": 16777229,
+          "ino": 587082945,
+          "size": 1900,
+          "nlink": 1,
+          "mtimeMs": 1792993634357.3127,
+          "ctimeMs": 1792993634357.4526
+        }
+      },
+      "completedAt": "2026-10-26T05:47:14.356Z",
+      "exitCode": 0
+    },
+    {
+      "taskId": "task-8",
+      "specId": "impact-analysis.security-performance-impact.main",
+      "displayName": "impact-analysis.security-performance-impact.main",
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "roles": [],
+      "status": "completed",
+      "statusDetail": "completed",
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "cwd": "<ROOT>",
+      "worktree": {
+        "enabled": false,
+        "path": null,
+        "branch": null,
+        "baseCwd": null,
+        "warning": null
+      },
+      "backendTaskId": "run_mvotzrti_9312d7",
+      "kind": "reduce",
+      "stageId": "impact-analysis.security-performance-impact",
+      "dependsOn": [
+        "impact-analysis.change-scope.main",
+        "impact-analysis.implementation-map.main"
+      ],
+      "artifactGraph": {
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "refsRequired": true,
+          "controlSchema": "./schemas/api-contract-impact-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/bundle/schemas/api-contract-impact-control.schema.json"
+        },
+        "requiredReads": [
+          {
+            "source": "impact-analysis.change-scope",
+            "artifact": "control",
+            "path": "$"
+          },
+          {
+            "source": "impact-analysis.implementation-map",
+            "artifact": "control",
+            "path": "$"
+          }
+        ],
+        "requiredReadPolicy": [
+          {
+            "source": "impact-analysis.change-scope",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          },
+          {
+            "source": "impact-analysis.implementation-map",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          }
+        ],
+        "artifactAccess": "enabled"
+      },
+      "files": {
+        "systemPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-8/system-prompt.md",
+        "taskPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-8/task.md",
+        "output": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-8/output.log",
+        "stderr": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-8/stderr.log",
+        "result": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-8/result.json"
+      },
+      "launchBootstrap": {
+        "version": 1,
+        "records": [
+          {
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "workflow": {
+              "type": "artifact-graph",
+              "specPathSha256": "1ecfcd57ca0c63fe35978556689f8f40e11e0814ba429c4354d8c4488cac4575"
+            },
+            "runId": "workflow_mvotu0ko_b9761d",
+            "task": {
+              "taskId": "task-8",
+              "specId": "impact-analysis.security-performance-impact.main"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-8",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "sessionId": "pi-workflow.workflow_mvotu0ko_b9761d.task-8",
+            "backend": {
+              "id": "pi-subagent/headless",
+              "type": "local-pi",
+              "mode": "headless"
+            },
+            "prompt": {
+              "sha256": "8f74fd5dcf49e3d2a60437c7c45b3909cc26ecb2961d0c759e74898528ccd2e2",
+              "bytes": 13255
+            },
+            "artifacts": {
+              "manifestSha256": "ae28f39bfb9ac9ae4ad2f1a438a4f800ba6709507e4911f5c4e1530dfbc993ee",
+              "wrapperSha256": "3f3a97f4621f96877097d2b548b8876befa78c9cfc4f0e5eeabf9fe32169bc44",
+              "configSha256": "f53292ef262f6c1320cf5510725a8068c6e4f7b77c6e522c8d6086fe189f9598"
+            },
+            "effectiveLaunch": {
+              "noExtensions": true,
+              "extensions": [
+                {
+                  "pathSha256": "264e0aeb487395ac899c1e6f6b274ee219e9377793b5a115479d545674ac6052"
+                }
+              ],
+              "captureToolCalls": false,
+              "artifactBinding": {
+                "manifestPathSha256": "3399db6a45a56b9aad3c18c1d0f13c3bb3fd63ff82a900844f970e49326a03b5",
+                "manifestBytesSha256": "383ec5f73784bc9ecfe1792a1a8cb448c98c71d2a4758e499ea05fa42753991a",
+                "wrapperPathSha256": "264e0aeb487395ac899c1e6f6b274ee219e9377793b5a115479d545674ac6052",
+                "wrapperBytesSha256": "3f3a97f4621f96877097d2b548b8876befa78c9cfc4f0e5eeabf9fe32169bc44"
+              }
+            },
+            "effectivePolicy": {
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "toolProvidersSha256": "bf8633ad42df64684f311b01e86533872f5ec3feaf17c6e30612051bdfbb61f3",
+              "approvalMode": "non-interactive",
+              "maxRuntimeMs": 1800000,
+              "cwdSha256": "1f8038a3108b39228e59d3bbf4856ad4ff05ad2b60fb8a771342e4e02e3c0bb5",
+              "stateRootSha256": "fc84062043bd3dcc308c9d020a850ccfdeb6231905776dacd6f234ce2d967b5c",
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "sourceDependencies": {
+              "contextDependsOn": [],
+              "requiredReads": [
+                {
+                  "source": "impact-analysis.change-scope",
+                  "artifact": "control",
+                  "path": "$"
+                },
+                {
+                  "source": "impact-analysis.implementation-map",
+                  "artifact": "control",
+                  "path": "$"
+                }
+              ],
+              "requiredReadPolicy": [
+                {
+                  "source": "impact-analysis.change-scope",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                },
+                {
+                  "source": "impact-analysis.implementation-map",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                }
+              ],
+              "artifactAccess": "enabled"
+            },
+            "resourcePolicy": {
+              "version": 1,
+              "skillDiscovery": "ambient",
+              "contextFiles": "disabled"
+            },
+            "identitySha256": "4af621cddb18b1db43c0b8dfb6e9d5af384dc6d65a31ff8467b7e1b6ea0bd2fe"
+          }
+        ]
+      },
+      "launchAuthority": {
+        "version": 1,
+        "records": [
+          {
+            "grant": {
+              "schema": "pi-workflow-launch-authority-v1",
+              "issuer": "pi-workflow-engine",
+              "operation": "launch-task",
+              "runId": "workflow_mvotu0ko_b9761d",
+              "task": {
+                "taskId": "task-8",
+                "specId": "impact-analysis.security-performance-impact.main"
+              },
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-8",
+              "backendId": "pi-subagent/headless",
+              "launchBootstrapSha256": "4af621cddb18b1db43c0b8dfb6e9d5af384dc6d65a31ff8467b7e1b6ea0bd2fe",
+              "identitySha256": "1ea2b041e45d2edfaf24954173aa193a68b941866c50d23b1081de839e859cec"
+            },
+            "state": {
+              "phase": "consumed",
+              "backendRunId": "run_mvotzrti_9312d7",
+              "backendAttemptId": "attempt_mvotzrti_35b28a"
+            }
+          }
+        ]
+      },
+      "startedAt": "2026-10-26T05:43:48.575Z",
+      "lastMessage": "completed",
+      "durableLaunchBarrier": {
+        "version": 2,
+        "records": [
+          {
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-8",
+            "launchAuthoritySha256": "1ea2b041e45d2edfaf24954173aa193a68b941866c50d23b1081de839e859cec",
+            "descriptor": {
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "directory": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-8/.launch-barrier-1ea2b041e45d2edf-3c2991cda5765388",
+              "readyPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-8/.launch-barrier-1ea2b041e45d2edf-3c2991cda5765388/ready-v2.json",
+              "decisionPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-8/.launch-barrier-1ea2b041e45d2edf-3c2991cda5765388/decision-v2.json",
+              "ackPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-8/.launch-barrier-1ea2b041e45d2edf-3c2991cda5765388/ack-v2.json",
+              "challenge": "f7a61858342922c0edf93bb13ec602be2e14e660fc69cbdb1364ee8aca35d276",
+              "decisionNonce": "b9eed760622bbdb2a62d93152538f435c5fa8067d55aff73cfafb3138dcd5fcf",
+              "subjectSha256": "1ea2b041e45d2edfaf24954173aa193a68b941866c50d23b1081de839e859cec",
+              "directoryIdentity": {
+                "device": 16777229,
+                "inode": 587071749,
+                "uid": 501
+              },
+              "timeoutMs": 120000,
+              "pollIntervalMs": 10,
+              "identitySha256": "ffd9e7a3abe3f766b7ef75c5a945595a6c825045e80a18ddc1c9ffc6438140ff"
+            },
+            "phase": "acknowledged",
+            "readySha256": "ce94f0064df21a05f1d461e64ded138a12b916c9aaa79779360fb6c065725326",
+            "launchPayloadSha256": "bb99989c79dbc99de264b71a8ebc6851fcbf0b75689b472d765a3aa3fd235216",
+            "executionPlanSha256": "41de8dc7c27efb90a9487427832316acb82b4ca7c8990d9303d1ff43b8cf5b1a",
+            "backendRunId": "run_mvotzrti_9312d7",
+            "backendAttemptId": "attempt_mvotzrti_35b28a",
+            "releasePayloadSha256": "55466597746175c6ed44c20e1e631d10265cdf1b2f3fcb18fa3a31ae531747e3",
+            "decisionSha256": "55d5d11cdcb5e553748a4e97d8a33f1a96644defd066bb3292b215da38035a61",
+            "releaseWinner": true,
+            "ackSha256": "618a665ad09c2a67b3c1893d3d2038b41ec88b714394ba6608406084e1586b64"
+          }
+        ]
+      },
+      "timing": {
+        "source": "pi-workflow",
+        "capturedAt": "2026-10-26T05:47:30.949Z",
+        "launchQueuedAt": "2026-10-26T05:43:48.587Z",
+        "launchStartedAt": "2026-10-26T05:43:48.587Z",
+        "launchCompletedAt": "2026-10-26T05:43:48.659Z",
+        "launchWaitMs": 0,
+        "launchDurationMs": 72,
+        "launchSlotReleaseDelayMs": 3000,
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": 8,
+        "refreshStatusPollMs": 1,
+        "terminalOutputCopyMs": 1,
+        "terminalStderrCopyMs": 1,
+        "terminalOutputBytes": 9489,
+        "terminalStderrBytes": 126,
+        "executionStartedAt": "2026-10-26T05:43:49.518Z",
+        "executionCompletedAt": "2026-10-26T05:47:30.309Z",
+        "executionMs": 220791,
+        "totalMs": 221734,
+        "aggregate": {
+          "attempts": 1,
+          "launchWaitMs": 0,
+          "launchDurationMs": 72,
+          "executionMs": 220791,
+          "totalMs": 221734
+        },
+        "attempts": [
+          {
+            "source": "pi-subagent",
+            "capturedAt": "2026-10-26T05:47:30.942Z",
+            "backendRunId": "run_mvotzrti_9312d7",
+            "backendAttemptId": "attempt_mvotzrti_35b28a",
+            "launchQueuedAt": "2026-10-26T05:43:48.587Z",
+            "launchStartedAt": "2026-10-26T05:43:48.587Z",
+            "launchCompletedAt": "2026-10-26T05:43:48.659Z",
+            "launchWaitMs": 0,
+            "launchDurationMs": 72,
+            "executionStartedAt": "2026-10-26T05:43:49.518Z",
+            "executionCompletedAt": "2026-10-26T05:47:30.309Z",
+            "executionMs": 220791,
+            "totalMs": 221734
+          }
+        ],
+        "terminalArtifactBundleWriteMs": 4,
+        "terminalArtifactMaterializeMs": 6
+      },
+      "pid": 49538,
+      "usage": {
+        "source": "pi-subagent",
+        "capturedAt": "2026-10-26T05:47:30.942Z",
+        "provider": "openai-codex",
+        "model": "gpt-6.1-sol",
+        "inputTokens": 42030,
+        "outputTokens": 6752,
+        "totalTokens": 240526,
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 191744,
+        "reasoningTokens": 3536,
+        "costUsd": 0.1707544,
+        "aggregate": {
+          "attempts": 1,
+          "inputTokens": 42030,
+          "outputTokens": 6752,
+          "totalTokens": 240526,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 191744,
+          "reasoningTokens": 3536,
+          "costUsd": 0.1707544
+        },
+        "attempts": [
+          {
+            "source": "subagent-result-metadata",
+            "capturedAt": "2026-10-26T05:47:30.942Z",
+            "backendRunId": "run_mvotzrti_9312d7",
+            "backendAttemptId": "attempt_mvotzrti_35b28a",
+            "provider": "openai-codex",
+            "model": "gpt-6.1-sol",
+            "raw": {
+              "input": 42030,
+              "output": 6752,
+              "cacheRead": 191744,
+              "cacheWrite": 0,
+              "reasoning": 3536,
+              "totalTokens": 240526,
+              "cost": {
+                "input": 0.08406,
+                "output": 0.06752,
+                "cacheRead": 0.0191744,
+                "cacheWrite": 0,
+                "total": 0.1707544
+              }
+            },
+            "inputTokens": 42030,
+            "outputTokens": 6752,
+            "totalTokens": 240526,
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 191744,
+            "reasoningTokens": 3536,
+            "costUsd": 0.1707544
+          }
+        ]
+      },
+      "rawArtifactIntegrity": {
+        "version": 1,
+        "owner": "ec0bfc108ebd7604dddedcd592a7ef62996f3c85e458ab4c7b4101b4b76b0265",
+        "bytes": 9489,
+        "sha256": "00816d59355324065a9914ed0ad68935d3f8291bba47a2f8e8d8c46c49e91282",
+        "terminal": {
+          "runId": "run_mvotzrti_9312d7",
+          "attemptId": "attempt_mvotzrti_35b28a",
+          "status": "completed",
+          "startedAt": "2026-10-26T05:43:49.518Z",
+          "completedAt": "2026-10-26T05:47:30.309Z",
+          "exitCode": 0
+        },
+        "terminalVersion": {
+          "dev": 16777229,
+          "ino": 587083613,
+          "size": 1854,
+          "nlink": 1,
+          "mtimeMs": 1792993650310.2175,
+          "ctimeMs": 1792993650310.3599
+        }
+      },
+      "completedAt": "2026-10-26T05:47:30.309Z",
+      "exitCode": 0
+    },
+    {
+      "taskId": "task-9",
+      "specId": "impact-analysis.contract-consistency.main",
+      "displayName": "impact-analysis.contract-consistency.main",
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "roles": [],
+      "status": "completed",
+      "statusDetail": "completed",
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "cwd": "<ROOT>",
+      "worktree": {
+        "enabled": false,
+        "path": null,
+        "branch": null,
+        "baseCwd": null,
+        "warning": null
+      },
+      "backendTaskId": "run_mvou5ag2_58435e",
+      "kind": "reduce",
+      "stageId": "impact-analysis.contract-consistency",
+      "dependsOn": [
+        "impact-analysis.api-contract-impact.main",
+        "impact-analysis.state-data-impact.main",
+        "impact-analysis.docs-release-impact.main"
+      ],
+      "artifactGraph": {
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "refsRequired": true,
+          "controlSchema": "./schemas/contract-consistency-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/bundle/schemas/contract-consistency-control.schema.json"
+        },
+        "requiredReads": [
+          {
+            "source": "impact-analysis.api-contract-impact",
+            "artifact": "control",
+            "path": "$"
+          },
+          {
+            "source": "impact-analysis.state-data-impact",
+            "artifact": "control",
+            "path": "$"
+          },
+          {
+            "source": "impact-analysis.docs-release-impact",
+            "artifact": "control",
+            "path": "$"
+          }
+        ],
+        "requiredReadPolicy": [
+          {
+            "source": "impact-analysis.api-contract-impact",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          },
+          {
+            "source": "impact-analysis.state-data-impact",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          },
+          {
+            "source": "impact-analysis.docs-release-impact",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          }
+        ],
+        "artifactAccess": "enabled"
+      },
+      "files": {
+        "systemPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-9/system-prompt.md",
+        "taskPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-9/task.md",
+        "output": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-9/output.log",
+        "stderr": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-9/stderr.log",
+        "result": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-9/result.json"
+      },
+      "launchBootstrap": {
+        "version": 1,
+        "records": [
+          {
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "workflow": {
+              "type": "artifact-graph",
+              "specPathSha256": "1ecfcd57ca0c63fe35978556689f8f40e11e0814ba429c4354d8c4488cac4575"
+            },
+            "runId": "workflow_mvotu0ko_b9761d",
+            "task": {
+              "taskId": "task-9",
+              "specId": "impact-analysis.contract-consistency.main"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-9",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "sessionId": "pi-workflow.workflow_mvotu0ko_b9761d.task-9",
+            "backend": {
+              "id": "pi-subagent/headless",
+              "type": "local-pi",
+              "mode": "headless"
+            },
+            "prompt": {
+              "sha256": "d5282c9c7bb3165d6ed5e914c71117bd718c907c6f349b9e9e9892b873e2cac9",
+              "bytes": 14435
+            },
+            "artifacts": {
+              "manifestSha256": "6cf497e5575ecd663943217271e14ba6c6e54996e6c09d7f17625c047cb2bd9c",
+              "wrapperSha256": "33a7747420c431acc7a3289909747f91c84798c255e8586a326e62487a0974d8",
+              "configSha256": "a84d4465ba310454b457aca84f492b44b74427d33bd74143bc89e4743abd40bf"
+            },
+            "effectiveLaunch": {
+              "noExtensions": true,
+              "extensions": [
+                {
+                  "pathSha256": "3c23dcc22291d29a8b0ab5fcf68b683e75d4c539a4c5d097d26027fa6ce88e03"
+                }
+              ],
+              "captureToolCalls": false,
+              "artifactBinding": {
+                "manifestPathSha256": "9723a3618a6d6d9518c6d42458e6aa94c94f26f18e5b4af866df16da514228c1",
+                "manifestBytesSha256": "62f83033d0ec05995bec80ea19a05047594a9268758de2d3d35ff0d3a262877e",
+                "wrapperPathSha256": "3c23dcc22291d29a8b0ab5fcf68b683e75d4c539a4c5d097d26027fa6ce88e03",
+                "wrapperBytesSha256": "33a7747420c431acc7a3289909747f91c84798c255e8586a326e62487a0974d8"
+              }
+            },
+            "effectivePolicy": {
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "toolProvidersSha256": "576dabc6b34e44189ce823fc90baf35558208403f300e73c79c5e8d80c17c9a5",
+              "approvalMode": "non-interactive",
+              "maxRuntimeMs": 1800000,
+              "cwdSha256": "1f8038a3108b39228e59d3bbf4856ad4ff05ad2b60fb8a771342e4e02e3c0bb5",
+              "stateRootSha256": "fc84062043bd3dcc308c9d020a850ccfdeb6231905776dacd6f234ce2d967b5c",
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "sourceDependencies": {
+              "contextDependsOn": [],
+              "requiredReads": [
+                {
+                  "source": "impact-analysis.api-contract-impact",
+                  "artifact": "control",
+                  "path": "$"
+                },
+                {
+                  "source": "impact-analysis.state-data-impact",
+                  "artifact": "control",
+                  "path": "$"
+                },
+                {
+                  "source": "impact-analysis.docs-release-impact",
+                  "artifact": "control",
+                  "path": "$"
+                }
+              ],
+              "requiredReadPolicy": [
+                {
+                  "source": "impact-analysis.api-contract-impact",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                },
+                {
+                  "source": "impact-analysis.state-data-impact",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                },
+                {
+                  "source": "impact-analysis.docs-release-impact",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                }
+              ],
+              "artifactAccess": "enabled"
+            },
+            "resourcePolicy": {
+              "version": 1,
+              "skillDiscovery": "ambient",
+              "contextFiles": "disabled"
+            },
+            "identitySha256": "0d8873e9631ceb5e3bc801b8c72a82e90a39fa2ac05e707752d7d622a56bceb6"
+          }
+        ]
+      },
+      "launchAuthority": {
+        "version": 1,
+        "records": [
+          {
+            "grant": {
+              "schema": "pi-workflow-launch-authority-v1",
+              "issuer": "pi-workflow-engine",
+              "operation": "launch-task",
+              "runId": "workflow_mvotu0ko_b9761d",
+              "task": {
+                "taskId": "task-9",
+                "specId": "impact-analysis.contract-consistency.main"
+              },
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-9",
+              "backendId": "pi-subagent/headless",
+              "launchBootstrapSha256": "0d8873e9631ceb5e3bc801b8c72a82e90a39fa2ac05e707752d7d622a56bceb6",
+              "identitySha256": "b5a7892394be3dc27025b26bd531389b71c860890c8f776cc023b846413570a5"
+            },
+            "state": {
+              "phase": "consumed",
+              "backendRunId": "run_mvou5ag2_58435e",
+              "backendAttemptId": "attempt_mvou5ag2_c6dfb1"
+            }
+          }
+        ]
+      },
+      "startedAt": "2026-10-26T05:48:06.000Z",
+      "lastMessage": "completed",
+      "durableLaunchBarrier": {
+        "version": 2,
+        "records": [
+          {
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-9",
+            "launchAuthoritySha256": "b5a7892394be3dc27025b26bd531389b71c860890c8f776cc023b846413570a5",
+            "descriptor": {
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "directory": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-9/.launch-barrier-b5a7892394be3dc2-48daec46fd74f93e",
+              "readyPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-9/.launch-barrier-b5a7892394be3dc2-48daec46fd74f93e/ready-v2.json",
+              "decisionPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-9/.launch-barrier-b5a7892394be3dc2-48daec46fd74f93e/decision-v2.json",
+              "ackPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-9/.launch-barrier-b5a7892394be3dc2-48daec46fd74f93e/ack-v2.json",
+              "challenge": "85d5f520475699c49afca58314aa6a6c655cfe9ca7664c22e3f9cce503585f67",
+              "decisionNonce": "60e11811e780b92c97443f444250a560e6b8c965839522f02ea14a691a31bacd",
+              "subjectSha256": "b5a7892394be3dc27025b26bd531389b71c860890c8f776cc023b846413570a5",
+              "directoryIdentity": {
+                "device": 16777229,
+                "inode": 587085204,
+                "uid": 501
+              },
+              "timeoutMs": 120000,
+              "pollIntervalMs": 10,
+              "identitySha256": "0ed4d73b4c4a15f688de016f15eb676104431d005a698b8ae8be0278169a7a10"
+            },
+            "phase": "acknowledged",
+            "readySha256": "242b516d9beb7acfe9ae801eacc4f4f0570e32bee0420521d46e7709c6ea1a57",
+            "launchPayloadSha256": "ae34a234cf05999dbf5dfc67ece63c64afd3392fb6a73bbb7998032641b02f59",
+            "executionPlanSha256": "f3e93c051fb1c57ab4da5b28e04fabe6780f13011e4f12dd509fc9a57c38fc44",
+            "backendRunId": "run_mvou5ag2_58435e",
+            "backendAttemptId": "attempt_mvou5ag2_c6dfb1",
+            "releasePayloadSha256": "494d90735ebdad23d0f018240df19e752d50a528f4f4e3cb0557923804ec005d",
+            "decisionSha256": "709fd8c3575b87600a6318cf050a992a3509bfd437894c7401d6343bafdb9fa6",
+            "releaseWinner": true,
+            "ackSha256": "aa7c0da71b16c54dd0ffb72e1729a95434bb0d73caed95172c937c27b69c2a91"
+          }
+        ]
+      },
+      "timing": {
+        "source": "pi-workflow",
+        "capturedAt": "2026-10-26T05:51:27.313Z",
+        "launchQueuedAt": "2026-10-26T05:48:06.012Z",
+        "launchStartedAt": "2026-10-26T05:48:06.012Z",
+        "launchCompletedAt": "2026-10-26T05:48:06.059Z",
+        "launchWaitMs": 0,
+        "launchDurationMs": 47,
+        "launchSlotReleaseDelayMs": 3000,
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": 13,
+        "refreshStatusPollMs": 1,
+        "terminalOutputCopyMs": 1,
+        "terminalStderrCopyMs": 1,
+        "terminalOutputBytes": 5674,
+        "terminalStderrBytes": 126,
+        "executionStartedAt": "2026-10-26T05:48:06.954Z",
+        "executionCompletedAt": "2026-10-26T05:51:26.539Z",
+        "executionMs": 199585,
+        "totalMs": 200539,
+        "aggregate": {
+          "attempts": 1,
+          "launchWaitMs": 0,
+          "launchDurationMs": 47,
+          "executionMs": 199585,
+          "totalMs": 200539
+        },
+        "attempts": [
+          {
+            "source": "pi-subagent",
+            "capturedAt": "2026-10-26T05:51:27.306Z",
+            "backendRunId": "run_mvou5ag2_58435e",
+            "backendAttemptId": "attempt_mvou5ag2_c6dfb1",
+            "launchQueuedAt": "2026-10-26T05:48:06.012Z",
+            "launchStartedAt": "2026-10-26T05:48:06.012Z",
+            "launchCompletedAt": "2026-10-26T05:48:06.059Z",
+            "launchWaitMs": 0,
+            "launchDurationMs": 47,
+            "executionStartedAt": "2026-10-26T05:48:06.954Z",
+            "executionCompletedAt": "2026-10-26T05:51:26.539Z",
+            "executionMs": 199585,
+            "totalMs": 200539
+          }
+        ],
+        "terminalArtifactBundleWriteMs": 4,
+        "terminalArtifactMaterializeMs": 6
+      },
+      "pid": 70732,
+      "usage": {
+        "source": "pi-subagent",
+        "capturedAt": "2026-10-26T05:51:27.306Z",
+        "provider": "openai-codex",
+        "model": "gpt-6.1-sol",
+        "inputTokens": 45070,
+        "outputTokens": 4679,
+        "totalTokens": 378965,
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 329216,
+        "reasoningTokens": 2759,
+        "costUsd": 0.16985160000000002,
+        "aggregate": {
+          "attempts": 1,
+          "inputTokens": 45070,
+          "outputTokens": 4679,
+          "totalTokens": 378965,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 329216,
+          "reasoningTokens": 2759,
+          "costUsd": 0.16985160000000002
+        },
+        "attempts": [
+          {
+            "source": "subagent-result-metadata",
+            "capturedAt": "2026-10-26T05:51:27.306Z",
+            "backendRunId": "run_mvou5ag2_58435e",
+            "backendAttemptId": "attempt_mvou5ag2_c6dfb1",
+            "provider": "openai-codex",
+            "model": "gpt-6.1-sol",
+            "raw": {
+              "input": 45070,
+              "output": 4679,
+              "cacheRead": 329216,
+              "cacheWrite": 0,
+              "reasoning": 2759,
+              "totalTokens": 378965,
+              "cost": {
+                "input": 0.09013999999999998,
+                "output": 0.046790000000000005,
+                "cacheRead": 0.032921599999999995,
+                "cacheWrite": 0,
+                "total": 0.16985160000000002
+              }
+            },
+            "inputTokens": 45070,
+            "outputTokens": 4679,
+            "totalTokens": 378965,
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 329216,
+            "reasoningTokens": 2759,
+            "costUsd": 0.16985160000000002
+          }
+        ]
+      },
+      "rawArtifactIntegrity": {
+        "version": 1,
+        "owner": "56a8151a49ca4af2a54bd8a60b3e9f28425b024176eb7f9b1a5070a284b5f095",
+        "bytes": 5674,
+        "sha256": "9c68760c0a995e8e70d95d6251fa3138f47cf3f6ab03a79075afd2b83d40cb0c",
+        "terminal": {
+          "runId": "run_mvou5ag2_58435e",
+          "attemptId": "attempt_mvou5ag2_c6dfb1",
+          "status": "completed",
+          "startedAt": "2026-10-26T05:48:06.954Z",
+          "completedAt": "2026-10-26T05:51:26.539Z",
+          "exitCode": 0
+        },
+        "terminalVersion": {
+          "dev": 16777229,
+          "ino": 587111576,
+          "size": 1900,
+          "nlink": 1,
+          "mtimeMs": 1792993886543.1401,
+          "ctimeMs": 1792993886543.3064
+        }
+      },
+      "completedAt": "2026-10-26T05:51:26.539Z",
+      "exitCode": 0
+    },
+    {
+      "taskId": "task-10",
+      "specId": "impact-analysis.regression-risk.main",
+      "displayName": "impact-analysis.regression-risk.main",
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "roles": [],
+      "status": "completed",
+      "statusDetail": "completed",
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "cwd": "<ROOT>",
+      "worktree": {
+        "enabled": false,
+        "path": null,
+        "branch": null,
+        "baseCwd": null,
+        "warning": null
+      },
+      "backendTaskId": "run_mvou5aoi_348f69",
+      "kind": "reduce",
+      "stageId": "impact-analysis.regression-risk",
+      "dependsOn": [
+        "impact-analysis.api-contract-impact.main",
+        "impact-analysis.state-data-impact.main",
+        "impact-analysis.validation-impact.main",
+        "impact-analysis.security-performance-impact.main"
+      ],
+      "artifactGraph": {
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "refsRequired": true,
+          "controlSchema": "./schemas/regression-risk-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/bundle/schemas/regression-risk-control.schema.json"
+        },
+        "requiredReads": [
+          {
+            "source": "impact-analysis.api-contract-impact",
+            "artifact": "control",
+            "path": "$"
+          },
+          {
+            "source": "impact-analysis.state-data-impact",
+            "artifact": "control",
+            "path": "$"
+          },
+          {
+            "source": "impact-analysis.validation-impact",
+            "artifact": "control",
+            "path": "$"
+          },
+          {
+            "source": "impact-analysis.security-performance-impact",
+            "artifact": "control",
+            "path": "$"
+          }
+        ],
+        "requiredReadPolicy": [
+          {
+            "source": "impact-analysis.api-contract-impact",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          },
+          {
+            "source": "impact-analysis.state-data-impact",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          },
+          {
+            "source": "impact-analysis.validation-impact",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          },
+          {
+            "source": "impact-analysis.security-performance-impact",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          }
+        ],
+        "artifactAccess": "enabled"
+      },
+      "files": {
+        "systemPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-10/system-prompt.md",
+        "taskPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-10/task.md",
+        "output": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-10/output.log",
+        "stderr": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-10/stderr.log",
+        "result": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-10/result.json"
+      },
+      "launchBootstrap": {
+        "version": 1,
+        "records": [
+          {
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "workflow": {
+              "type": "artifact-graph",
+              "specPathSha256": "1ecfcd57ca0c63fe35978556689f8f40e11e0814ba429c4354d8c4488cac4575"
+            },
+            "runId": "workflow_mvotu0ko_b9761d",
+            "task": {
+              "taskId": "task-10",
+              "specId": "impact-analysis.regression-risk.main"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-10",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "sessionId": "pi-workflow.workflow_mvotu0ko_b9761d.task-10",
+            "backend": {
+              "id": "pi-subagent/headless",
+              "type": "local-pi",
+              "mode": "headless"
+            },
+            "prompt": {
+              "sha256": "8aa20158e6005d7f08649911a8481b13cbd50775da6305f8c2af99de26b669ac",
+              "bytes": 15439
+            },
+            "artifacts": {
+              "manifestSha256": "3f36c407f1a4b3b0557f88defe0ea838c66ef47ffe66a84baa69da1b56b87a67",
+              "wrapperSha256": "be351f61ac90cec2b0279e6876132c829d501c2f171b988344c7d33777d92b22",
+              "configSha256": "fe11df8fc3d05ed553e86bedbd65da9a6e52ff10fc713f9042a86218801f8595"
+            },
+            "effectiveLaunch": {
+              "noExtensions": true,
+              "extensions": [
+                {
+                  "pathSha256": "b24280678fc8095dd1ae2772b7a6e9a62a51b4e9fba0fd20b4ec695034bb50d8"
+                }
+              ],
+              "captureToolCalls": false,
+              "artifactBinding": {
+                "manifestPathSha256": "581e3d0bb36ebe4272535158fc38cdfb411c6e160c7f1bee8b38893cee9c67dd",
+                "manifestBytesSha256": "074ffff78b702be0fb0186049ea834df7c024c740101c9c9656f259c61e8f58f",
+                "wrapperPathSha256": "b24280678fc8095dd1ae2772b7a6e9a62a51b4e9fba0fd20b4ec695034bb50d8",
+                "wrapperBytesSha256": "be351f61ac90cec2b0279e6876132c829d501c2f171b988344c7d33777d92b22"
+              }
+            },
+            "effectivePolicy": {
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "toolProvidersSha256": "7de90301337c646d1119ff743cfafa703f50d3eb5b9c5c81846f044c2241f219",
+              "approvalMode": "non-interactive",
+              "maxRuntimeMs": 1800000,
+              "cwdSha256": "1f8038a3108b39228e59d3bbf4856ad4ff05ad2b60fb8a771342e4e02e3c0bb5",
+              "stateRootSha256": "fc84062043bd3dcc308c9d020a850ccfdeb6231905776dacd6f234ce2d967b5c",
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "sourceDependencies": {
+              "contextDependsOn": [],
+              "requiredReads": [
+                {
+                  "source": "impact-analysis.api-contract-impact",
+                  "artifact": "control",
+                  "path": "$"
+                },
+                {
+                  "source": "impact-analysis.state-data-impact",
+                  "artifact": "control",
+                  "path": "$"
+                },
+                {
+                  "source": "impact-analysis.validation-impact",
+                  "artifact": "control",
+                  "path": "$"
+                },
+                {
+                  "source": "impact-analysis.security-performance-impact",
+                  "artifact": "control",
+                  "path": "$"
+                }
+              ],
+              "requiredReadPolicy": [
+                {
+                  "source": "impact-analysis.api-contract-impact",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                },
+                {
+                  "source": "impact-analysis.state-data-impact",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                },
+                {
+                  "source": "impact-analysis.validation-impact",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                },
+                {
+                  "source": "impact-analysis.security-performance-impact",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                }
+              ],
+              "artifactAccess": "enabled"
+            },
+            "resourcePolicy": {
+              "version": 1,
+              "skillDiscovery": "ambient",
+              "contextFiles": "disabled"
+            },
+            "identitySha256": "597305fb56da94be55437379da35318dd72967875069df11bae866f37531bbd6"
+          }
+        ]
+      },
+      "launchAuthority": {
+        "version": 1,
+        "records": [
+          {
+            "grant": {
+              "schema": "pi-workflow-launch-authority-v1",
+              "issuer": "pi-workflow-engine",
+              "operation": "launch-task",
+              "runId": "workflow_mvotu0ko_b9761d",
+              "task": {
+                "taskId": "task-10",
+                "specId": "impact-analysis.regression-risk.main"
+              },
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-10",
+              "backendId": "pi-subagent/headless",
+              "launchBootstrapSha256": "597305fb56da94be55437379da35318dd72967875069df11bae866f37531bbd6",
+              "identitySha256": "4f6be30901bb6d01cb9c151808f5f0ab1fd5aaa90685cbdb06ca787a822ccd06"
+            },
+            "state": {
+              "phase": "consumed",
+              "backendRunId": "run_mvou5aoi_348f69",
+              "backendAttemptId": "attempt_mvou5aoi_a801a3"
+            }
+          }
+        ]
+      },
+      "startedAt": "2026-10-26T05:48:06.325Z",
+      "lastMessage": "completed",
+      "durableLaunchBarrier": {
+        "version": 2,
+        "records": [
+          {
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-10",
+            "launchAuthoritySha256": "4f6be30901bb6d01cb9c151808f5f0ab1fd5aaa90685cbdb06ca787a822ccd06",
+            "descriptor": {
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "directory": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-10/.launch-barrier-4f6be30901bb6d01-787e2237fca54aec",
+              "readyPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-10/.launch-barrier-4f6be30901bb6d01-787e2237fca54aec/ready-v2.json",
+              "decisionPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-10/.launch-barrier-4f6be30901bb6d01-787e2237fca54aec/decision-v2.json",
+              "ackPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-10/.launch-barrier-4f6be30901bb6d01-787e2237fca54aec/ack-v2.json",
+              "challenge": "18f0a1632dc26ffff2bae16a5d977f5bded6e1b0f5a3ab6cab79771542687f76",
+              "decisionNonce": "479e1bb46633d2f65615dba5752b245abf129887004a3cb0c92a26f0b924b79f",
+              "subjectSha256": "4f6be30901bb6d01cb9c151808f5f0ab1fd5aaa90685cbdb06ca787a822ccd06",
+              "directoryIdentity": {
+                "device": 16777229,
+                "inode": 587085280,
+                "uid": 501
+              },
+              "timeoutMs": 120000,
+              "pollIntervalMs": 10,
+              "identitySha256": "eff582ff7e6a865227f7e7eb3d52ca5c36f725dc70160382fda366be1cb80163"
+            },
+            "phase": "acknowledged",
+            "readySha256": "bc1d1acf57e2409fe5ecb91cee7ea954c92353dbe2f232efd7a5ea02ba563800",
+            "launchPayloadSha256": "b0f5027a3d4aa38ebf5bb2ee8f1efd6581f310982a9c583488f305020bbf9cb4",
+            "executionPlanSha256": "3ab09e929ad0aa64aa59714cce121bb14156d47dc68013ac23a78001dec10462",
+            "backendRunId": "run_mvou5aoi_348f69",
+            "backendAttemptId": "attempt_mvou5aoi_a801a3",
+            "releasePayloadSha256": "b103c28a98108d62e9ab0a15ed53c0462137298318b0793e6a77ed056c170f36",
+            "decisionSha256": "5dc613b8eb754736f488a38753b79bcacc07201ced17690dd44b9bff95d2b865",
+            "releaseWinner": true,
+            "ackSha256": "d898c534cdbb649f03dd7f04248c73babf14179859904e0c05954cab795048da"
+          }
+        ]
+      },
+      "timing": {
+        "source": "pi-workflow",
+        "capturedAt": "2026-10-26T05:50:30.134Z",
+        "launchQueuedAt": "2026-10-26T05:48:06.334Z",
+        "launchStartedAt": "2026-10-26T05:48:06.334Z",
+        "launchCompletedAt": "2026-10-26T05:48:06.360Z",
+        "launchWaitMs": 0,
+        "launchDurationMs": 26,
+        "launchSlotReleaseDelayMs": 3000,
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": 9,
+        "refreshStatusPollMs": 1,
+        "terminalOutputCopyMs": 1,
+        "terminalStderrCopyMs": 1,
+        "terminalOutputBytes": 5905,
+        "terminalStderrBytes": 127,
+        "executionStartedAt": "2026-10-26T05:48:06.953Z",
+        "executionCompletedAt": "2026-10-26T05:50:29.365Z",
+        "executionMs": 142412,
+        "totalMs": 143040,
+        "aggregate": {
+          "attempts": 1,
+          "launchWaitMs": 0,
+          "launchDurationMs": 26,
+          "executionMs": 142412,
+          "totalMs": 143040
+        },
+        "attempts": [
+          {
+            "source": "pi-subagent",
+            "capturedAt": "2026-10-26T05:50:30.125Z",
+            "backendRunId": "run_mvou5aoi_348f69",
+            "backendAttemptId": "attempt_mvou5aoi_a801a3",
+            "launchQueuedAt": "2026-10-26T05:48:06.334Z",
+            "launchStartedAt": "2026-10-26T05:48:06.334Z",
+            "launchCompletedAt": "2026-10-26T05:48:06.360Z",
+            "launchWaitMs": 0,
+            "launchDurationMs": 26,
+            "executionStartedAt": "2026-10-26T05:48:06.953Z",
+            "executionCompletedAt": "2026-10-26T05:50:29.365Z",
+            "executionMs": 142412,
+            "totalMs": 143040
+          }
+        ],
+        "terminalArtifactBundleWriteMs": 3,
+        "terminalArtifactMaterializeMs": 9
+      },
+      "pid": 70736,
+      "usage": {
+        "source": "pi-subagent",
+        "capturedAt": "2026-10-26T05:50:30.125Z",
+        "provider": "openai-codex",
+        "model": "gpt-6.1-sol",
+        "inputTokens": 28777,
+        "outputTokens": 3260,
+        "totalTokens": 255397,
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 223360,
+        "reasoningTokens": 1345,
+        "costUsd": 0.11248999999999999,
+        "aggregate": {
+          "attempts": 1,
+          "inputTokens": 28777,
+          "outputTokens": 3260,
+          "totalTokens": 255397,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 223360,
+          "reasoningTokens": 1345,
+          "costUsd": 0.11248999999999999
+        },
+        "attempts": [
+          {
+            "source": "subagent-result-metadata",
+            "capturedAt": "2026-10-26T05:50:30.125Z",
+            "backendRunId": "run_mvou5aoi_348f69",
+            "backendAttemptId": "attempt_mvou5aoi_a801a3",
+            "provider": "openai-codex",
+            "model": "gpt-6.1-sol",
+            "raw": {
+              "input": 28777,
+              "output": 3260,
+              "cacheRead": 223360,
+              "cacheWrite": 0,
+              "reasoning": 1345,
+              "totalTokens": 255397,
+              "cost": {
+                "input": 0.057553999999999994,
+                "output": 0.032600000000000004,
+                "cacheRead": 0.022336000000000005,
+                "cacheWrite": 0,
+                "total": 0.11248999999999999
+              }
+            },
+            "inputTokens": 28777,
+            "outputTokens": 3260,
+            "totalTokens": 255397,
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 223360,
+            "reasoningTokens": 1345,
+            "costUsd": 0.11248999999999999
+          }
+        ]
+      },
+      "rawArtifactIntegrity": {
+        "version": 1,
+        "owner": "81510253edaa0c974d1dbf5f2a5eddd5453f2c5971811f0a6449ef82d6792e2c",
+        "bytes": 5905,
+        "sha256": "3c6c7023cd582477b52ba4e0f54e6572ad22285b995e37e9a9f43ed6a51d1406",
+        "terminal": {
+          "runId": "run_mvou5aoi_348f69",
+          "attemptId": "attempt_mvou5aoi_a801a3",
+          "status": "completed",
+          "startedAt": "2026-10-26T05:48:06.953Z",
+          "completedAt": "2026-10-26T05:50:29.365Z",
+          "exitCode": 0
+        },
+        "terminalVersion": {
+          "dev": 16777229,
+          "ino": 587101096,
+          "size": 1907,
+          "nlink": 1,
+          "mtimeMs": 1792993829372.1897,
+          "ctimeMs": 1792993829375.464
+        }
+      },
+      "completedAt": "2026-10-26T05:50:29.365Z",
+      "exitCode": 0
+    },
+    {
+      "taskId": "task-11",
+      "specId": "impact-analysis.ship-readiness.main",
+      "displayName": "impact-analysis.ship-readiness.main",
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "roles": [],
+      "status": "completed",
+      "statusDetail": "completed",
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "cwd": "<ROOT>",
+      "worktree": {
+        "enabled": false,
+        "path": null,
+        "branch": null,
+        "baseCwd": null,
+        "warning": null
+      },
+      "backendTaskId": "run_mvou4jfp_688d17",
+      "kind": "reduce",
+      "stageId": "impact-analysis.ship-readiness",
+      "dependsOn": [
+        "impact-analysis.validation-impact.main",
+        "impact-analysis.docs-release-impact.main",
+        "impact-analysis.security-performance-impact.main"
+      ],
+      "artifactGraph": {
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "refsRequired": true,
+          "controlSchema": "./schemas/ship-readiness-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/bundle/schemas/ship-readiness-control.schema.json"
+        },
+        "requiredReads": [
+          {
+            "source": "impact-analysis.validation-impact",
+            "artifact": "control",
+            "path": "$"
+          },
+          {
+            "source": "impact-analysis.docs-release-impact",
+            "artifact": "control",
+            "path": "$"
+          },
+          {
+            "source": "impact-analysis.security-performance-impact",
+            "artifact": "control",
+            "path": "$"
+          }
+        ],
+        "requiredReadPolicy": [
+          {
+            "source": "impact-analysis.validation-impact",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          },
+          {
+            "source": "impact-analysis.docs-release-impact",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          },
+          {
+            "source": "impact-analysis.security-performance-impact",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          }
+        ],
+        "artifactAccess": "enabled"
+      },
+      "files": {
+        "systemPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-11/system-prompt.md",
+        "taskPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-11/task.md",
+        "output": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-11/output.log",
+        "stderr": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-11/stderr.log",
+        "result": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-11/result.json"
+      },
+      "launchBootstrap": {
+        "version": 1,
+        "records": [
+          {
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "workflow": {
+              "type": "artifact-graph",
+              "specPathSha256": "1ecfcd57ca0c63fe35978556689f8f40e11e0814ba429c4354d8c4488cac4575"
+            },
+            "runId": "workflow_mvotu0ko_b9761d",
+            "task": {
+              "taskId": "task-11",
+              "specId": "impact-analysis.ship-readiness.main"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-11",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "sessionId": "pi-workflow.workflow_mvotu0ko_b9761d.task-11",
+            "backend": {
+              "id": "pi-subagent/headless",
+              "type": "local-pi",
+              "mode": "headless"
+            },
+            "prompt": {
+              "sha256": "333f0e8d73a148a61fffa4d6a78c2d6a948da69585934b13c657fbe6ba358595",
+              "bytes": 14276
+            },
+            "artifacts": {
+              "manifestSha256": "d765a9383e860771927a8190f22732137f7f7090b3006aa2137f8da5bfa1c683",
+              "wrapperSha256": "d423d4b3af16599a0309cd603bbf90f50435efa08efe32542988a76326176818",
+              "configSha256": "c074de24d9a3fa11d7f5d4717f7700c12b6defb67517042f39fec8ddd8d86ad9"
+            },
+            "effectiveLaunch": {
+              "noExtensions": true,
+              "extensions": [
+                {
+                  "pathSha256": "eec42b9856d4454b7bb2a13fa908080b678fa8c268fdaeb073eec5d658db7ce7"
+                }
+              ],
+              "captureToolCalls": false,
+              "artifactBinding": {
+                "manifestPathSha256": "2579a4512eb82594af3c5ea64761ce547dfabe9187ac7ad577224c90e77cc0af",
+                "manifestBytesSha256": "828face2261287389d3181dabc50922820f55c66beb274f62e7e75a9d7648d69",
+                "wrapperPathSha256": "eec42b9856d4454b7bb2a13fa908080b678fa8c268fdaeb073eec5d658db7ce7",
+                "wrapperBytesSha256": "d423d4b3af16599a0309cd603bbf90f50435efa08efe32542988a76326176818"
+              }
+            },
+            "effectivePolicy": {
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "toolProvidersSha256": "1af65303442eddf2afb516ee2d68a99bfde629db92c1c5bed8983abfe4d75ecc",
+              "approvalMode": "non-interactive",
+              "maxRuntimeMs": 1800000,
+              "cwdSha256": "1f8038a3108b39228e59d3bbf4856ad4ff05ad2b60fb8a771342e4e02e3c0bb5",
+              "stateRootSha256": "fc84062043bd3dcc308c9d020a850ccfdeb6231905776dacd6f234ce2d967b5c",
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "sourceDependencies": {
+              "contextDependsOn": [],
+              "requiredReads": [
+                {
+                  "source": "impact-analysis.validation-impact",
+                  "artifact": "control",
+                  "path": "$"
+                },
+                {
+                  "source": "impact-analysis.docs-release-impact",
+                  "artifact": "control",
+                  "path": "$"
+                },
+                {
+                  "source": "impact-analysis.security-performance-impact",
+                  "artifact": "control",
+                  "path": "$"
+                }
+              ],
+              "requiredReadPolicy": [
+                {
+                  "source": "impact-analysis.validation-impact",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                },
+                {
+                  "source": "impact-analysis.docs-release-impact",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                },
+                {
+                  "source": "impact-analysis.security-performance-impact",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                }
+              ],
+              "artifactAccess": "enabled"
+            },
+            "resourcePolicy": {
+              "version": 1,
+              "skillDiscovery": "ambient",
+              "contextFiles": "disabled"
+            },
+            "identitySha256": "69045c6753d091ed3faed867dd1ba874318595fb3fe9d56031eead60aa771e2a"
+          }
+        ]
+      },
+      "launchAuthority": {
+        "version": 1,
+        "records": [
+          {
+            "grant": {
+              "schema": "pi-workflow-launch-authority-v1",
+              "issuer": "pi-workflow-engine",
+              "operation": "launch-task",
+              "runId": "workflow_mvotu0ko_b9761d",
+              "task": {
+                "taskId": "task-11",
+                "specId": "impact-analysis.ship-readiness.main"
+              },
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-11",
+              "backendId": "pi-subagent/headless",
+              "launchBootstrapSha256": "69045c6753d091ed3faed867dd1ba874318595fb3fe9d56031eead60aa771e2a",
+              "identitySha256": "6e91a0b9f593e3253a8254bdc6e9e47fbcca29ea1f7aca6759b28b4a7ef40471"
+            },
+            "state": {
+              "phase": "consumed",
+              "backendRunId": "run_mvou4jfp_688d17",
+              "backendAttemptId": "attempt_mvou4jfp_4270af"
+            }
+          }
+        ]
+      },
+      "startedAt": "2026-10-26T05:47:30.988Z",
+      "lastMessage": "completed",
+      "durableLaunchBarrier": {
+        "version": 2,
+        "records": [
+          {
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-11",
+            "launchAuthoritySha256": "6e91a0b9f593e3253a8254bdc6e9e47fbcca29ea1f7aca6759b28b4a7ef40471",
+            "descriptor": {
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "directory": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-11/.launch-barrier-6e91a0b9f593e325-82a0022492ade276",
+              "readyPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-11/.launch-barrier-6e91a0b9f593e325-82a0022492ade276/ready-v2.json",
+              "decisionPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-11/.launch-barrier-6e91a0b9f593e325-82a0022492ade276/decision-v2.json",
+              "ackPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-11/.launch-barrier-6e91a0b9f593e325-82a0022492ade276/ack-v2.json",
+              "challenge": "c784432284d96f2504fed590e08dcaaa2ed5ad5238e3b4a2ce8fcc98b495882c",
+              "decisionNonce": "e2e135d24cd4fa370f0fe65af3e05622663d6e5ae61937fcc10336023c1cedae",
+              "subjectSha256": "6e91a0b9f593e3253a8254bdc6e9e47fbcca29ea1f7aca6759b28b4a7ef40471",
+              "directoryIdentity": {
+                "device": 16777229,
+                "inode": 587083667,
+                "uid": 501
+              },
+              "timeoutMs": 120000,
+              "pollIntervalMs": 10,
+              "identitySha256": "e6323b2e2d57fe9c8ddba82e9de3268e674fe61c8780e76ac8b0c2c57078bbe0"
+            },
+            "phase": "acknowledged",
+            "readySha256": "15471fa5c91484f54077e69eaf92c5b00230f370239f7de3c60631fc23acdb7a",
+            "launchPayloadSha256": "33bc6622cc488cd6340e6dfeb87426efe45517f82df0f8120e74b4fc5499c026",
+            "executionPlanSha256": "f07edb4a32358f81be3bf97700806d184ece80b592ce40d67dd36b5622e45902",
+            "backendRunId": "run_mvou4jfp_688d17",
+            "backendAttemptId": "attempt_mvou4jfp_4270af",
+            "releasePayloadSha256": "a0e001346b243d53c8a53b4a56eff6336cbe51952148dc663b0bd3df66f97f06",
+            "decisionSha256": "f29067f2d7f8e8328b7122686dc210b1dc8d655b71bd2aa39635bf9506b5e499",
+            "releaseWinner": true,
+            "ackSha256": "0976196f74a6f84f528e4749fc53e8381d3d99668bc522ba717745d434cc1ea1"
+          }
+        ]
+      },
+      "timing": {
+        "source": "pi-workflow",
+        "capturedAt": "2026-10-26T05:50:19.276Z",
+        "launchQueuedAt": "2026-10-26T05:47:30.998Z",
+        "launchStartedAt": "2026-10-26T05:47:30.999Z",
+        "launchCompletedAt": "2026-10-26T05:47:31.056Z",
+        "launchWaitMs": 1,
+        "launchDurationMs": 57,
+        "launchSlotReleaseDelayMs": 3000,
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": 24,
+        "refreshStatusPollMs": 1,
+        "terminalOutputCopyMs": 1,
+        "terminalStderrCopyMs": 1,
+        "terminalOutputBytes": 8660,
+        "terminalStderrBytes": 127,
+        "executionStartedAt": "2026-10-26T05:47:31.796Z",
+        "executionCompletedAt": "2026-10-26T05:50:18.973Z",
+        "executionMs": 167177,
+        "totalMs": 167985,
+        "aggregate": {
+          "attempts": 1,
+          "launchWaitMs": 1,
+          "launchDurationMs": 57,
+          "executionMs": 167177,
+          "totalMs": 167985
+        },
+        "attempts": [
+          {
+            "source": "pi-subagent",
+            "capturedAt": "2026-10-26T05:50:19.263Z",
+            "backendRunId": "run_mvou4jfp_688d17",
+            "backendAttemptId": "attempt_mvou4jfp_4270af",
+            "launchQueuedAt": "2026-10-26T05:47:30.998Z",
+            "launchStartedAt": "2026-10-26T05:47:30.999Z",
+            "launchCompletedAt": "2026-10-26T05:47:31.056Z",
+            "launchWaitMs": 1,
+            "launchDurationMs": 57,
+            "executionStartedAt": "2026-10-26T05:47:31.796Z",
+            "executionCompletedAt": "2026-10-26T05:50:18.973Z",
+            "executionMs": 167177,
+            "totalMs": 167985
+          }
+        ],
+        "terminalArtifactBundleWriteMs": 8,
+        "terminalArtifactMaterializeMs": 13
+      },
+      "pid": 68033,
+      "usage": {
+        "source": "pi-subagent",
+        "capturedAt": "2026-10-26T05:50:19.263Z",
+        "provider": "openai-codex",
+        "model": "gpt-6.1-sol",
+        "inputTokens": 43329,
+        "outputTokens": 4386,
+        "totalTokens": 268771,
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 221056,
+        "reasoningTokens": 1903,
+        "costUsd": 0.1526236,
+        "aggregate": {
+          "attempts": 1,
+          "inputTokens": 43329,
+          "outputTokens": 4386,
+          "totalTokens": 268771,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 221056,
+          "reasoningTokens": 1903,
+          "costUsd": 0.1526236
+        },
+        "attempts": [
+          {
+            "source": "subagent-result-metadata",
+            "capturedAt": "2026-10-26T05:50:19.263Z",
+            "backendRunId": "run_mvou4jfp_688d17",
+            "backendAttemptId": "attempt_mvou4jfp_4270af",
+            "provider": "openai-codex",
+            "model": "gpt-6.1-sol",
+            "raw": {
+              "input": 43329,
+              "output": 4386,
+              "cacheRead": 221056,
+              "cacheWrite": 0,
+              "reasoning": 1903,
+              "totalTokens": 268771,
+              "cost": {
+                "input": 0.08665800000000001,
+                "output": 0.04386,
+                "cacheRead": 0.022105600000000006,
+                "cacheWrite": 0,
+                "total": 0.1526236
+              }
+            },
+            "inputTokens": 43329,
+            "outputTokens": 4386,
+            "totalTokens": 268771,
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 221056,
+            "reasoningTokens": 1903,
+            "costUsd": 0.1526236
+          }
+        ]
+      },
+      "rawArtifactIntegrity": {
+        "version": 1,
+        "owner": "e6d0d8794877ef243b5ad42e06f958169c5d7cc1301af58b0e8678fdd3a0fb6e",
+        "bytes": 8660,
+        "sha256": "ba427ea54b41e3be040e1219aa1c64442f70e75ebf5de18081d1d4595594995d",
+        "terminal": {
+          "runId": "run_mvou4jfp_688d17",
+          "attemptId": "attempt_mvou4jfp_4270af",
+          "status": "completed",
+          "startedAt": "2026-10-26T05:47:31.796Z",
+          "completedAt": "2026-10-26T05:50:18.973Z",
+          "exitCode": 0
+        },
+        "terminalVersion": {
+          "dev": 16777229,
+          "ino": 587099521,
+          "size": 1883,
+          "nlink": 1,
+          "mtimeMs": 1792993818977.7556,
+          "ctimeMs": 1792993818977.9424
+        }
+      },
+      "completedAt": "2026-10-26T05:50:18.973Z",
+      "exitCode": 0
+    },
+    {
+      "taskId": "task-12",
+      "specId": "impact-analysis.impact-synthesis.main",
+      "displayName": "impact-analysis.impact-synthesis.main",
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "roles": [],
+      "status": "completed",
+      "statusDetail": "completed",
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "cwd": "<ROOT>",
+      "worktree": {
+        "enabled": false,
+        "path": null,
+        "branch": null,
+        "baseCwd": null,
+        "warning": null
+      },
+      "backendTaskId": "run_mvou9lsw_faf717",
+      "kind": "reduce",
+      "stageId": "impact-analysis.impact-synthesis",
+      "dependsOn": [
+        "impact-analysis.change-scope.main",
+        "impact-analysis.contract-consistency.main",
+        "impact-analysis.regression-risk.main",
+        "impact-analysis.ship-readiness.main"
+      ],
+      "artifactGraph": {
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "refsRequired": true,
+          "controlSchema": "./schemas/impact-synthesis-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/bundle/schemas/impact-synthesis-control.schema.json"
+        },
+        "requiredReads": [
+          {
+            "source": "impact-analysis.change-scope",
+            "artifact": "control",
+            "path": "$"
+          },
+          {
+            "source": "impact-analysis.contract-consistency",
+            "artifact": "control",
+            "path": "$"
+          },
+          {
+            "source": "impact-analysis.regression-risk",
+            "artifact": "control",
+            "path": "$"
+          },
+          {
+            "source": "impact-analysis.ship-readiness",
+            "artifact": "control",
+            "path": "$"
+          }
+        ],
+        "requiredReadPolicy": [
+          {
+            "source": "impact-analysis.change-scope",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          },
+          {
+            "source": "impact-analysis.contract-consistency",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          },
+          {
+            "source": "impact-analysis.regression-risk",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          },
+          {
+            "source": "impact-analysis.ship-readiness",
+            "artifact": "control",
+            "path": "$",
+            "mustNotTruncate": true
+          }
+        ],
+        "artifactAccess": "enabled"
+      },
+      "files": {
+        "systemPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-12/system-prompt.md",
+        "taskPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-12/task.md",
+        "output": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-12/output.log",
+        "stderr": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-12/stderr.log",
+        "result": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-12/result.json"
+      },
+      "launchBootstrap": {
+        "version": 1,
+        "records": [
+          {
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "workflow": {
+              "type": "artifact-graph",
+              "specPathSha256": "1ecfcd57ca0c63fe35978556689f8f40e11e0814ba429c4354d8c4488cac4575"
+            },
+            "runId": "workflow_mvotu0ko_b9761d",
+            "task": {
+              "taskId": "task-12",
+              "specId": "impact-analysis.impact-synthesis.main"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-12",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "sessionId": "pi-workflow.workflow_mvotu0ko_b9761d.task-12",
+            "backend": {
+              "id": "pi-subagent/headless",
+              "type": "local-pi",
+              "mode": "headless"
+            },
+            "prompt": {
+              "sha256": "2a141acab4346a34819f5a6cc8e7c9a8f990233fbea7dfad49a6b8ab465c07ee",
+              "bytes": 15799
+            },
+            "artifacts": {
+              "manifestSha256": "c43619c56ddc6838940482eff0c0d62a352e96360785f9fd6ac92d90ffe3b17e",
+              "wrapperSha256": "79498bae3471c27cbfbfae2fc8f9b9df99e21fc644769e2a920ca339a4c03d2f",
+              "configSha256": "76d152e42c75d6d582d826102be97535f9628409b8596f0a0102c56c08b9d07f"
+            },
+            "effectiveLaunch": {
+              "noExtensions": true,
+              "extensions": [
+                {
+                  "pathSha256": "df821b9e616f74acc8b380c5fa29313612eca06514c85b7e2561eea93544d249"
+                }
+              ],
+              "captureToolCalls": false,
+              "artifactBinding": {
+                "manifestPathSha256": "b58fd4a0897033b4af362f4b346034841310478d3c98468a563358593a965154",
+                "manifestBytesSha256": "332e48207c779ffc4d9286f40b911fcea93655982670a41217e08319f3111674",
+                "wrapperPathSha256": "df821b9e616f74acc8b380c5fa29313612eca06514c85b7e2561eea93544d249",
+                "wrapperBytesSha256": "79498bae3471c27cbfbfae2fc8f9b9df99e21fc644769e2a920ca339a4c03d2f"
+              }
+            },
+            "effectivePolicy": {
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "toolProvidersSha256": "10d71236feea9ee9af6ed12bdada6a824e52ebaa10c274b0b6bf2865add6e57a",
+              "approvalMode": "non-interactive",
+              "maxRuntimeMs": 1800000,
+              "cwdSha256": "1f8038a3108b39228e59d3bbf4856ad4ff05ad2b60fb8a771342e4e02e3c0bb5",
+              "stateRootSha256": "fc84062043bd3dcc308c9d020a850ccfdeb6231905776dacd6f234ce2d967b5c",
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "sourceDependencies": {
+              "contextDependsOn": [],
+              "requiredReads": [
+                {
+                  "source": "impact-analysis.change-scope",
+                  "artifact": "control",
+                  "path": "$"
+                },
+                {
+                  "source": "impact-analysis.contract-consistency",
+                  "artifact": "control",
+                  "path": "$"
+                },
+                {
+                  "source": "impact-analysis.regression-risk",
+                  "artifact": "control",
+                  "path": "$"
+                },
+                {
+                  "source": "impact-analysis.ship-readiness",
+                  "artifact": "control",
+                  "path": "$"
+                }
+              ],
+              "requiredReadPolicy": [
+                {
+                  "source": "impact-analysis.change-scope",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                },
+                {
+                  "source": "impact-analysis.contract-consistency",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                },
+                {
+                  "source": "impact-analysis.regression-risk",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                },
+                {
+                  "source": "impact-analysis.ship-readiness",
+                  "artifact": "control",
+                  "path": "$",
+                  "mustNotTruncate": true
+                }
+              ],
+              "artifactAccess": "enabled"
+            },
+            "resourcePolicy": {
+              "version": 1,
+              "skillDiscovery": "ambient",
+              "contextFiles": "disabled"
+            },
+            "identitySha256": "0ffae4290c88b728f4bba8aaaa1bd3448b5f8e69d48414f6bd5e0195ecd2fffc"
+          }
+        ]
+      },
+      "launchAuthority": {
+        "version": 1,
+        "records": [
+          {
+            "grant": {
+              "schema": "pi-workflow-launch-authority-v1",
+              "issuer": "pi-workflow-engine",
+              "operation": "launch-task",
+              "runId": "workflow_mvotu0ko_b9761d",
+              "task": {
+                "taskId": "task-12",
+                "specId": "impact-analysis.impact-synthesis.main"
+              },
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-12",
+              "backendId": "pi-subagent/headless",
+              "launchBootstrapSha256": "0ffae4290c88b728f4bba8aaaa1bd3448b5f8e69d48414f6bd5e0195ecd2fffc",
+              "identitySha256": "965b9717d1009e67113921ddea6d7b68e6270c69910299622fa2f4003e36318d"
+            },
+            "state": {
+              "phase": "consumed",
+              "backendRunId": "run_mvou9lsw_faf717",
+              "backendAttemptId": "attempt_mvou9lsw_aa6e79"
+            }
+          }
+        ]
+      },
+      "startedAt": "2026-10-26T05:51:27.337Z",
+      "lastMessage": "completed",
+      "durableLaunchBarrier": {
+        "version": 2,
+        "records": [
+          {
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvotu0ko_b9761d.task-12",
+            "launchAuthoritySha256": "965b9717d1009e67113921ddea6d7b68e6270c69910299622fa2f4003e36318d",
+            "descriptor": {
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "directory": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-12/.launch-barrier-965b9717d1009e67-0e3e3f535ca1a12b",
+              "readyPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-12/.launch-barrier-965b9717d1009e67-0e3e3f535ca1a12b/ready-v2.json",
+              "decisionPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-12/.launch-barrier-965b9717d1009e67-0e3e3f535ca1a12b/decision-v2.json",
+              "ackPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-12/.launch-barrier-965b9717d1009e67-0e3e3f535ca1a12b/ack-v2.json",
+              "challenge": "ad6c318760b8a43ad88e15bc73507e6ad1718c1651df05ea455bea8da3f21be2",
+              "decisionNonce": "63e158d7fa9b0f3d7e4e888859ebb00f9eb52e81cdde6be8d3ad4eb93dc81785",
+              "subjectSha256": "965b9717d1009e67113921ddea6d7b68e6270c69910299622fa2f4003e36318d",
+              "directoryIdentity": {
+                "device": 16777229,
+                "inode": 587111614,
+                "uid": 501
+              },
+              "timeoutMs": 120000,
+              "pollIntervalMs": 10,
+              "identitySha256": "2c165da73edf845c4607a14d95805494cf811d2cfebb2dfaa43851d626e0d45a"
+            },
+            "phase": "acknowledged",
+            "readySha256": "fcd58e5d5440dd750252965fac215f872afdf681f8bc4259c88e014d14db0bd0",
+            "launchPayloadSha256": "64a8d7f6cf846c411fe5ed207614843f2c4d0dd720581a03a62bb737629bea6d",
+            "executionPlanSha256": "bc41508905ef47e60442a415a308ca78012e27427a7e93265a5f319b325c7ac9",
+            "backendRunId": "run_mvou9lsw_faf717",
+            "backendAttemptId": "attempt_mvou9lsw_aa6e79",
+            "releasePayloadSha256": "049f21f0592ef1976ee37151f6a9035a304b02a5c923ae556d1efbef5ba2e6d1",
+            "decisionSha256": "eeaddbbeb38e92fcbd928d82e498a6c1fc4f805eb60ce1425d50cfeaadd22bff",
+            "releaseWinner": true,
+            "ackSha256": "ccc958fb4b89b8ef388ed8fd99a2d82ada7448405a549967524b773e560821df"
+          }
+        ]
+      },
+      "timing": {
+        "source": "pi-workflow",
+        "capturedAt": "2026-10-26T05:54:09.521Z",
+        "launchQueuedAt": "2026-10-26T05:51:27.347Z",
+        "launchStartedAt": "2026-10-26T05:51:27.347Z",
+        "launchCompletedAt": "2026-10-26T05:51:27.401Z",
+        "launchWaitMs": 0,
+        "launchDurationMs": 54,
+        "launchSlotReleaseDelayMs": 3000,
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": 35,
+        "refreshStatusPollMs": 10,
+        "terminalOutputCopyMs": 1,
+        "terminalStderrCopyMs": 1,
+        "terminalOutputBytes": 7866,
+        "terminalStderrBytes": 127,
+        "executionStartedAt": "2026-10-26T05:51:28.189Z",
+        "executionCompletedAt": "2026-10-26T05:54:09.144Z",
+        "executionMs": 160955,
+        "totalMs": 161807,
+        "aggregate": {
+          "attempts": 1,
+          "launchWaitMs": 0,
+          "launchDurationMs": 54,
+          "executionMs": 160955,
+          "totalMs": 161807
+        },
+        "attempts": [
+          {
+            "source": "pi-subagent",
+            "capturedAt": "2026-10-26T05:54:09.486Z",
+            "backendRunId": "run_mvou9lsw_faf717",
+            "backendAttemptId": "attempt_mvou9lsw_aa6e79",
+            "launchQueuedAt": "2026-10-26T05:51:27.347Z",
+            "launchStartedAt": "2026-10-26T05:51:27.347Z",
+            "launchCompletedAt": "2026-10-26T05:51:27.401Z",
+            "launchWaitMs": 0,
+            "launchDurationMs": 54,
+            "executionStartedAt": "2026-10-26T05:51:28.189Z",
+            "executionCompletedAt": "2026-10-26T05:54:09.144Z",
+            "executionMs": 160955,
+            "totalMs": 161807
+          }
+        ],
+        "terminalArtifactBundleWriteMs": 13,
+        "terminalArtifactMaterializeMs": 33
+      },
+      "pid": 91574,
+      "usage": {
+        "source": "pi-subagent",
+        "capturedAt": "2026-10-26T05:54:09.486Z",
+        "provider": "openai-codex",
+        "model": "gpt-6.1-sol",
+        "inputTokens": 43209,
+        "outputTokens": 3888,
+        "totalTokens": 233721,
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 186624,
+        "reasoningTokens": 1768,
+        "costUsd": 0.1439604,
+        "aggregate": {
+          "attempts": 1,
+          "inputTokens": 43209,
+          "outputTokens": 3888,
+          "totalTokens": 233721,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 186624,
+          "reasoningTokens": 1768,
+          "costUsd": 0.1439604
+        },
+        "attempts": [
+          {
+            "source": "subagent-result-metadata",
+            "capturedAt": "2026-10-26T05:54:09.486Z",
+            "backendRunId": "run_mvou9lsw_faf717",
+            "backendAttemptId": "attempt_mvou9lsw_aa6e79",
+            "provider": "openai-codex",
+            "model": "gpt-6.1-sol",
+            "raw": {
+              "input": 43209,
+              "output": 3888,
+              "cacheRead": 186624,
+              "cacheWrite": 0,
+              "reasoning": 1768,
+              "totalTokens": 233721,
+              "cost": {
+                "input": 0.08641800000000001,
+                "output": 0.03888,
+                "cacheRead": 0.0186624,
+                "cacheWrite": 0,
+                "total": 0.1439604
+              }
+            },
+            "inputTokens": 43209,
+            "outputTokens": 3888,
+            "totalTokens": 233721,
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 186624,
+            "reasoningTokens": 1768,
+            "costUsd": 0.1439604
+          }
+        ]
+      },
+      "rawArtifactIntegrity": {
+        "version": 1,
+        "owner": "7013606444f112766443961361c5bf1b4aa56d8d95009ecc1f27383e6f3a6f0d",
+        "bytes": 7866,
+        "sha256": "0d2ba95ec021e720e72511b5e7e59ecccc05b620094746344233dbbc0deb5b7d",
+        "terminal": {
+          "runId": "run_mvou9lsw_faf717",
+          "attemptId": "attempt_mvou9lsw_aa6e79",
+          "status": "completed",
+          "startedAt": "2026-10-26T05:51:28.189Z",
+          "completedAt": "2026-10-26T05:54:09.144Z",
+          "exitCode": 0
+        },
+        "terminalVersion": {
+          "dev": 16777229,
+          "ino": 587119525,
+          "size": 1872,
+          "nlink": 1,
+          "mtimeMs": 1792994049147.073,
+          "ctimeMs": 1792994049147.3093
+        }
+      },
+      "completedAt": "2026-10-26T05:54:09.144Z",
+      "exitCode": 0
+    },
+    {
+      "taskId": "task-13",
+      "specId": "impact-analysis.final.main",
+      "displayName": "impact-analysis.final.main",
+      "agent": "support",
+      "agentDescription": "Workflow-local support helper",
+      "agentFile": ".pi/workflows/workflow_mvotu0ko_b9761d/bundle/helpers/render-impact-report.mjs",
+      "roles": [],
+      "status": "failed",
+      "statusDetail": "support_declared_failed",
+      "runtime": {
+        "approvalMode": "non-interactive"
+      },
+      "cwd": "<ROOT>",
+      "worktree": {
+        "enabled": false,
+        "path": null,
+        "branch": null,
+        "baseCwd": null,
+        "warning": null
+      },
+      "backendTaskId": "task-13",
+      "kind": "support",
+      "stageId": "impact-analysis.final",
+      "dependsOn": [
+        "impact-analysis.change-scope.main",
+        "impact-analysis.implementation-map.main",
+        "impact-analysis.validation-map.main",
+        "impact-analysis.api-contract-impact.main",
+        "impact-analysis.state-data-impact.main",
+        "impact-analysis.validation-impact.main",
+        "impact-analysis.docs-release-impact.main",
+        "impact-analysis.security-performance-impact.main",
+        "impact-analysis.contract-consistency.main",
+        "impact-analysis.regression-risk.main",
+        "impact-analysis.ship-readiness.main",
+        "impact-analysis.impact-synthesis.main"
+      ],
+      "terminalBarrier": {
+        "mode": "all-sources",
+        "sourceSpecIds": [
+          "impact-analysis.change-scope.main",
+          "impact-analysis.implementation-map.main",
+          "impact-analysis.validation-map.main",
+          "impact-analysis.api-contract-impact.main",
+          "impact-analysis.state-data-impact.main",
+          "impact-analysis.validation-impact.main",
+          "impact-analysis.docs-release-impact.main",
+          "impact-analysis.security-performance-impact.main",
+          "impact-analysis.contract-consistency.main",
+          "impact-analysis.regression-risk.main",
+          "impact-analysis.ship-readiness.main",
+          "impact-analysis.impact-synthesis.main"
+        ]
+      },
+      "artifactGraph": {
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "refsRequired": true,
+          "controlSchema": "./schemas/impact-render-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/bundle/schemas/impact-render-control.schema.json"
+        },
+        "requiredReads": [],
+        "artifactAccess": "enabled",
+        "inputPolicy": {
+          "terminalBarrier": "all-sources"
+        }
+      },
+      "files": {
+        "systemPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-13/system-prompt.md",
+        "taskPrompt": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-13/task.md",
+        "output": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-13/output.log",
+        "stderr": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-13/stderr.log",
+        "result": ".pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-13/result.json"
+      },
+      "startedAt": "2026-10-26T05:54:09.611Z",
+      "rawArtifactIntegrity": {
+        "version": 1,
+        "owner": "ca52ea7735498f249399b20774d0d9da1c42d1f4aba001b5930f8ee8969cabb8",
+        "bytes": 231325,
+        "sha256": "ec2c1757123feee55c732d019d905a13e8c0bb24b865cce5dd091d79ae046672"
+      },
+      "completedAt": "2026-10-26T05:54:09.692Z",
+      "exitCode": 1,
+      "lastMessage": "support declared failed"
+    }
+  ],
+  "usage": {
+    "source": "task-rollup",
+    "capturedAt": "2026-10-26T05:54:09.695Z",
+    "taskCount": 13,
+    "tasksReporting": 12,
+    "inputTokens": 598989,
+    "outputTokens": 64666,
+    "totalTokens": 5620839,
+    "cachedInputTokens": 0,
+    "cacheCreationInputTokens": 0,
+    "cacheReadInputTokens": 4957184,
+    "reasoningTokens": 26577,
+    "costUsd": 2.3403564
+  }
+}

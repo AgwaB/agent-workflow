@@ -1,0 +1,104 @@
+[
+  {
+    "artifact": "control",
+    "id": "change-scope",
+    "path": "$",
+    "source": "impact-analysis.change-scope"
+  },
+  {
+    "artifact": "control",
+    "id": "implementation-map",
+    "path": "$",
+    "source": "impact-analysis.implementation-map"
+  },
+  {
+    "artifact": "control",
+    "id": "validation-map",
+    "path": "$",
+    "source": "impact-analysis.validation-map"
+  },
+  {
+    "id": "loader",
+    "lines": "484-505",
+    "path": "src/subagent-backend.ts"
+  },
+  {
+    "id": "recorder",
+    "lines": "20-29,55-197",
+    "path": "src/subagent-api-recorder.ts"
+  },
+  {
+    "id": "launch-inputs",
+    "lines": "3153-3172",
+    "path": "src/subagent-backend.ts"
+  },
+  {
+    "id": "usage",
+    "lines": "391-402",
+    "path": "docs/usage.md"
+  },
+  {
+    "id": "retention",
+    "paths": [
+      "docs/usage.md:901-935",
+      "src/run-retention.ts:72-101"
+    ]
+  },
+  {
+    "id": "metadata",
+    "path": "package.json",
+    "pointers": [
+      "version",
+      "files",
+      "exports",
+      "scripts",
+      "dependencies",
+      "engines"
+    ]
+  },
+  {
+    "id": "build-config",
+    "path": "tsconfig.json",
+    "pointers": [
+      "compilerOptions.declaration",
+      "include"
+    ]
+  },
+  {
+    "id": "release-check",
+    "lines": "24-84,220-250,279-304",
+    "path": "tools/release/release-check.mjs"
+  },
+  {
+    "id": "public-surface",
+    "paths": [
+      ".gitignore",
+      "tools/release/check-public-surface.mjs:16-62"
+    ]
+  },
+  {
+    "id": "tests",
+    "lines": "52-59,161-207,238-278",
+    "path": "test/unit/replay-self-consistency.test.mjs"
+  },
+  {
+    "id": "ci",
+    "path": ".github/workflows/ci.yml"
+  },
+  {
+    "id": "publish",
+    "lines": "75-137",
+    "path": ".github/workflows/publish.yml"
+  },
+  {
+    "id": "local-tooling",
+    "paths": [
+      "internal/record/run-minimal.mjs:1-42",
+      "internal/record/make-portable.mjs:1-28"
+    ]
+  },
+  {
+    "id": "control-contract",
+    "path": "workflows/impact-review/schemas/api-contract-impact-control.schema.json"
+  }
+]

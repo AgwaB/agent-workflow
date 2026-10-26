@@ -1,0 +1,14 @@
+{
+  "attemptId": "<SA_ATTEMPT_12>",
+  "barrierIdentitySha256": "2c165da73edf845c4607a14d95805494cf811d2cfebb2dfaa43851d626e0d45a",
+  "challenge": "ad6c318760b8a43ad88e15bc73507e6ad1718c1651df05ea455bea8da3f21be2",
+  "decisionNonce": "63e158d7fa9b0f3d7e4e888859ebb00f9eb52e81cdde6be8d3ad4eb93dc81785",
+  "executionPlanSha256": "bc41508905ef47e60442a415a308ca78012e27427a7e93265a5f319b325c7ac9",
+  "launchPayloadSha256": "64a8d7f6cf846c411fe5ed207614843f2c4d0dd720581a03a62bb737629bea6d",
+  "readySha256": "fcd58e5d5440dd750252965fac215f872afdf681f8bc4259c88e014d14db0bd0",
+  "runId": "<SA_RUN_12>",
+  "schema": "pi-subagent-durable-launch-barrier-ready-v2",
+  "subjectSha256": "<ALLOWED:derived-launch-identity#23>",
+  "workerPid": "<PID>",
+  "workerProcessGroupId": "<PID>"
+}

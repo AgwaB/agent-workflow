@@ -1,0 +1,13 @@
+{
+  "attemptId": "<SA_ATTEMPT_1>",
+  "barrierIdentitySha256": "fa828ad56a705fc99bee8c491cf980e9ef552369aaf2c798d785295c6b8c7d83",
+  "challenge": "3bead35905fc25fb7e291d17b9a20b5d583f3f3c3166b347b32a6560231e0d2f",
+  "decisionNonce": "9cf4b6a1a2f9414ddf22899759de7fff941b593a63e27ee675b470fa1c26854a",
+  "decisionSha256": "eef624d4371cc7e55e844787a5593240a21399450b229ac44e6ceeb2e121600c",
+  "kind": "released",
+  "readySha256": "64e2a216e4df8c88bfa43d968cf20330dd115e1950d33832e5365643f5b8e479",
+  "releasePayloadSha256": "ec9df9f8055c6c05ebc5559987dd1e183bd85b681ad6fce5cdf5113be610dd9c",
+  "runId": "<SA_RUN_1>",
+  "schema": "pi-subagent-durable-launch-barrier-decision-v2",
+  "subjectSha256": "<ALLOWED:derived-launch-identity#1>"
+}

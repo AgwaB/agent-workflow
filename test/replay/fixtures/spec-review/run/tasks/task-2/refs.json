@@ -1,0 +1,66 @@
+[
+  {
+    "file": "SPEC.md",
+    "lineStart": 1,
+    "lineEnd": 51,
+    "purpose": "Review scope and numbered requirements 1–13"
+  },
+  {
+    "file": "src/workflow-stop.ts",
+    "lineStart": 5,
+    "lineEnd": 29,
+    "specItems": [
+      1,
+      2,
+      3
+    ]
+  },
+  {
+    "file": "src/workflow-stop.ts",
+    "lineStart": 31,
+    "lineEnd": 59,
+    "specItems": [
+      4,
+      5,
+      6
+    ]
+  },
+  {
+    "file": "src/workflow-stop.ts",
+    "lineStart": 61,
+    "lineEnd": 99,
+    "specItems": [
+      7,
+      8
+    ]
+  },
+  {
+    "file": "src/workflow-cancellation.ts",
+    "lineStart": 1,
+    "lineEnd": 37,
+    "specItems": [
+      9,
+      10
+    ]
+  },
+  {
+    "file": "src/workflow-terminal.ts",
+    "lineStart": 27,
+    "lineEnd": 113,
+    "specItems": [
+      11,
+      12,
+      13
+    ]
+  },
+  {
+    "file": "package.json",
+    "lineStart": 1,
+    "lineEnd": 8,
+    "purpose": "Sample boundary and available typecheck script"
+  },
+  {
+    "file": ".pi/workflows/workflow_mvoufde9_8566f1/bundle/schemas/spec-review-map-implementation-control.schema.json",
+    "purpose": "Located control contract used for manual structural validation"
+  }
+]

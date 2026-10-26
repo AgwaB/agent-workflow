@@ -1,0 +1,13 @@
+<control>{"schema":"stage-control-v1","digest":"The disposal race is present: clearing the interval cannot prevent an already-awaited read from subsequently aborting the signal.","findingId":"finding-003","finding":"An in-flight check can abort the signal after disposal","verdict":"KEEP","evidence":[{"file":"src/workflow-stop.ts","line":74,"lineEnd":78,"symbol":"createWorkflowStopSignal","quote":"\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);\n\t\tif (intent || launchStopRequested(cwd, runId))\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));"},{"file":"src/workflow-stop.ts","line":80,"lineEnd":85,"symbol":"createWorkflowStopSignal","quote":"\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);\n\ttimer.unref?.();\n\treturn {\n\t\tsignal: controller.signal,\n\t\tdispose: () => clearInterval(timer),"},{"file":"src/workflow-stop.ts","line":69,"symbol":"createWorkflowStopSignal","quote":"\t\tif (controller.signal.aborted) return;"}],"counterEvidence":["dispose clears the interval, preventing future scheduled polling; the defect concerns checks already in flight.","The existing aborted guard prevents subsequent checks once cancellation is observed, but neither represents disposal nor guards the post-await continuation."],"recommendedAction":"Set a disposed flag synchronously in dispose, check it before polling and immediately after the awaited read, and add a regression test resolving a pending read with a stop intent after disposal."}</control>
+
+<analysis>
+The proposed race survives inspection. Execution can start the initial check, suspend at the read, return the watcher, and receive dispose(). When the read subsequently supplies an intent, the continuation unconditionally reaches controller.abort(). Clearing the timer cannot cancel that continuation.
+
+The existing aborted guard does not refute this: disposal never aborts the controller or changes any state checked by the continuation. A synchronous disposed flag would fence notification without needing to cancel the filesystem operation.
+
+Downstream listener effects and production severity remain applicability caveats: this repository intentionally omits store/types implementations and consumer call sites. The local lifecycle behavior is nevertheless directly supported. No runtime tests were executed.
+
+The requested schema path was absent; the control object was checked against the available bundled copy of the stage-control-v1 schema.
+</analysis>
+
+<refs>[]</refs>

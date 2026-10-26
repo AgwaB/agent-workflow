@@ -99,7 +99,9 @@ those keys become `<ALLOWED:id>`.
 The values themselves may differ. The **equality structure** must still match:
 if field A equals field B in the recording, it must equal it in the replay too.
 
-Current entries. Each one was needed for the minimal self-replay to pass:
+Current entries. The first five were needed for the minimal self-replay to
+pass. The last three were added by WP1a-2 for the bundled fixtures. They are
+new entries; no existing entry was widened:
 
 | id | Keys | Reason |
 |---|---|---|
@@ -108,6 +110,9 @@ Current entries. Each one was needed for the minimal self-replay to pass:
 | `derived-launch-identity` | `records.identitySha256`, `grant.identitySha256`, `grant.launchBootstrapSha256`, `launchBootstrapSha256`, `launchAuthoritySha256`, `subjectSha256` | Canonical self-digests of launch provenance and authority records, which include the two rows above, plus every field that references them (and the `.launch-barrier-<16hex>` directory prefix). |
 | `timestamp-derived-digest` | `rawIntegrity.owner`, `rawArtifactIntegrity.owner` | Raw-artifact owner identity is sha256 over JSON that contains the run `createdAt` timestamp. |
 | `host-path-file-size` | `terminalVersion.size` | Byte size of the pi-subagent attempt `result.json`, which embeds absolute host paths; its length depends on the path length. The dev, ino, mtime, and ctime of the same version stamp are already placeholders. |
+| `host-path-manifest-digest` | `artifacts.manifestSha256`, `artifactBinding.manifestBytesSha256` | Digests (canonical JSON and raw bytes) of a task's `source-manifest.json`, whose artifact entries embed absolute `<ROOT>` paths. They appear for every stage with upstream artifact access (`deep-review` task-7 first; minimal's manifest has no paths, so its digest happened to match). This is a manifest digest, so content stays pinned another way: the manifest file is compared after path normalization, the pi-workflow self-replay test asserts that both replayed digests equal the digests of the replayed `source-manifest.json`, and the fixture build checked the same binding on the raw recording. |
+| `foreach-batch-capability-identity` | `foreachBatches.capabilitySubjectSha256`, `args.capabilitySubjectSha256`, `args.stateRootSha256` | Profile-only foreach batching (`deep-research` verify-claims) records `foreachBatches[]` with the host-specific `stateRootSha256` and `capabilitySubjectSha256`, a digest over the batch record that includes that state root and the `preparedAt` timestamp. The engine also passes both to `durableLaunchBarrierDigest`, where no `effectivePolicy` key renames the state root within that one call's replay key. Batch and member prompt digests stay compared. |
+| `supervisor-progress-snapshot` | `taskStatusCounts.{blocked,completed,failed,interrupted,pending,running,skipped}` | `supervisor.json` is the supervisor heartbeat. Its counts are the progress at the last write, which races the final task transitions. In `deep-research` the recording had 20 completed and the replay 19, 3 of 3 times. Final statuses stay compared in `run.json`; `total` is not masked. |
 
 ## Replay key
 
@@ -117,6 +122,13 @@ Current entries. Each one was needed for the minimal self-replay to pass:
    fresh for each call.
 2. Apply the allowed-difference renaming within that one call.
 3. Take the sha256 of the canonical (sorted, compact) JSON.
+
+Replay queues are keyed by `replayQueueId`: method, replay key, and the
+literal pi-subagent run and attempt ids (`run_…`, `attempt_…`) that appear in the
+arguments. The replay hands out the recorded ids verbatim, so they are
+reproducible. Without them, the status polls of two attempts of one task (an
+output retry) share one key, because id numbering is fresh per call, and the
+replay serves the second attempt's responses to the first.
 
 Recorded args are already portable. Replay args are normalized with the replay
 host roots.
@@ -145,7 +157,17 @@ line.
   replay request.
 - **Side effects** are restored from the recording:
   - Barrier directory files are written after `createDurableLaunchBarrierV2`.
-  - `subagent-runs/` is written at the first terminal `getSubagentStatus`.
+  - `subagent-runs/<taskId>/` is written at the first terminal
+    `getSubagentStatus` for that task.
+  - Files the worker itself writes into the workflow task directory are
+    restored at the same moment from `run/tasks/<taskId>/`. Today that is the
+    `workflow_artifact` read ledger `read-ledger.jsonl`; the engine checks
+    required artifact reads against it after the worker ends.
+  - When a fixture has `worker-snapshots/<subagentRunId>/web-source-cache/`
+    (recorded with `run-bundled.mjs --snapshot-web-cache`), it is written over
+    `<ROOT>/.pi/workflows/<runId>/web-source-cache/` at the first terminal
+    status of that subagent run. Workers fill this shared cache while they run,
+    and support helpers read it later.
 - **Harness pins:**
   - The replay reuses the recorded workflow run id (`runId` option).
   - `PI_WORKFLOW_MAX_CONCURRENT_LAUNCHES` is set to the recorded value of 6,
@@ -154,11 +176,54 @@ line.
     and `PI_WORKFLOW_RECORD_DIR` are unset.
   - The engine is loaded from the same `dist/` build as the recording, because
     the worker wrapper imports `<PKG>/dist/...`.
+  - Per-fixture pins in `fixture.json` (also listed under `meta.json`
+    `hostPins`):
+    - `env`: environment values, today `PI_WORKFLOW_MAX_CONCURRENT_LAUNCHES`.
+    - `rootPathLength`: the replay project gets an absolute path of exactly this
+      length. Workers write absolute paths into their output, and the engine
+      cuts some of that text by character count (for example the excerpt of
+      the previous output in an output-retry prompt).
+    - `replayRoot` (+ `replayRootPlatform`): replay at this exact absolute path.
+      Used when workers write absolute project paths into outputs whose
+      digests the engine records (output `sha256`, support control digests
+      that are then embedded in later prompts). `spec-review` needs it: its
+      evidence citations carry full local paths. No allowed difference can
+      cover these digests, so the recording ran at a fixed path that the
+      replay can recreate (`/private/tmp/piwf-replay-roots/<name>`, macOS).
+      `deep-research` uses it as well: at a temporary path its
+      `foreachBatches[].executionSurfaceSha256` diverges.
+    - `projectIsPackageRoot`: the recording used the engine checkout itself as
+      project cwd (`<ROOT>` == `<PKG>`, written as `<ROOT>`), so the replay
+      does too (`impact-review`).
+    - `executionProfile`, `inputOverrides`: launch options, as recorded.
+    - `expectedStatus`: the recorded engine status. A domain render that fails
+      closed (`failed`) is still a complete recording.
 
 ## Known limits
 
-- Timing-dependent snapshots such as `supervisor.json` `taskStatusCounts`
-  matched in 6 of 6 replays of the minimal fixture. They are not masked. If
-  WP1b finds them flaky, add an entry with the observed reason.
+- `supervisor.json` `taskStatusCounts` matched in every minimal replay, but
+  `deep-research` differed. It is now masked (`supervisor-progress-snapshot`).
+- The run record can turn terminal a moment before the supervisor removes
+  `supervisor.lock`. The self-replay test waits for the lock to go away before
+  it normalizes; without the wait it failed 1 run in 6.
+- `PI_WORKFLOW_REPLAY_TRACE=1` (or `full`) makes the replay API log each served
+  or missed call to stderr. It is a debugging aid only.
 - Digest renaming trusts the key list. A digest at an unlisted key that differs
   shows up as a real difference. That is intended.
+- `calls.jsonl` in the bundled fixtures is compacted by
+  `tools/compact-calls.mjs`: observation polls whose normalized response equals
+  the previous response of the same replay queue are dropped. This builds the
+  same replay queues as the full file. The full portable file stays under
+  `internal/raw-recordings/<name>/` (local, not committed).
+- Output retry and recording fidelity: pi-subagent hard-links an attempt's
+  `output.log`/`stderr.log` to the workflow task files, and the engine
+  truncates those files before it relaunches the task. The capture at run end
+  therefore holds an empty `output.log` for the earlier attempt. The fixture
+  build restores those bytes from the engine's verbatim
+  `raw.invalid-attempt-<n>.md` copy, but only when the byte count matches
+  `result.json`. That attempt's `stderr.log` is lost and stays empty
+  (`meta.json` `reconstructedAttemptOutputs`).
+- `replayRoot` fixtures replay byte-identically only where that absolute path
+  can be created (the pi-workflow test skips them on other platforms).
+  Elsewhere, digests over worker text that contains host paths will differ,
+  and so will prompts that embed those digests.

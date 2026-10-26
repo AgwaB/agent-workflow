@@ -1,0 +1,43 @@
+{
+  "artifacts": {
+    "analysis": "analysis.md",
+    "control": "control.json",
+    "raw": "raw.md",
+    "refs": "refs.json",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "completedAt": "<TS>",
+  "controlDigest": "No tests or fixtures were found; behavioral coverage is unsubstantiated, including unreadable dynamic-control fallback precedence.",
+  "exitCode": 0,
+  "outputValidation": {
+    "issues": [],
+    "valid": true
+  },
+  "protocol": "workflow-output-sections-v1",
+  "rawIntegrity": {
+    "bytes": 3979,
+    "owner": "<ALLOWED:timestamp-derived-digest#3>",
+    "sha256": "7258f613bc9168d6636d3add9f8294d074102b95fec100430418eeec9097076d",
+    "terminal": {
+      "attemptId": "<SA_ATTEMPT_3>",
+      "completedAt": "<TS>",
+      "exitCode": 0,
+      "runId": "<SA_RUN_3>",
+      "startedAt": "<TS>",
+      "status": "completed"
+    },
+    "terminalVersion": {
+      "ctimeMs": "<EPOCH_MS>",
+      "dev": "<FS_DEV>",
+      "ino": "<FS_INO>",
+      "mtimeMs": "<EPOCH_MS>",
+      "nlink": 1,
+      "size": "<ALLOWED:host-path-file-size>"
+    },
+    "version": 1
+  },
+  "schema": "workflow-task-result-v1",
+  "startedAt": "<TS>",
+  "status": "completed"
+}

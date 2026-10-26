@@ -1,0 +1,30 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "KEEP: successful response text containing domain JSON can satisfy the cancellation predicate without any cancellation envelope.",
+  "findingId": "finding-005",
+  "finding": "Ordinary provider content can be mistaken for workflow cancellation",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 16,
+      "quote": "if (value.cancelled === true) return true;"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 23,
+      "lineEnd": 25,
+      "quote": "if (Array.isArray(value.content)) {\n\t\tfor (const entry of value.content) {\n\t\t\tif (!isRecord(entry) || typeof entry.text !== \"string\") continue;"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 27,
+      "lineEnd": 28,
+      "quote": "const parsed: unknown = JSON.parse(entry.text);\n\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;"
+    }
+  ],
+  "counterEvidence": [
+    "Recognition uses exact cancellation markers, and JSON parsing failures are caught; arbitrary prose does not automatically become cancellation. These safeguards do not exclude valid domain JSON containing cancelled:true."
+  ],
+  "recommendedAction": "Restrict text-based recognition to explicitly identified adapter cancellation envelopes, preserve legacy wrappers explicitly, and add a regression test showing successful content containing domain JSON with cancelled:true is not classified as cancellation."
+}

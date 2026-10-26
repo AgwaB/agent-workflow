@@ -1,0 +1,43 @@
+{
+  "artifacts": {
+    "analysis": "analysis.md",
+    "control": "control.json",
+    "raw": "raw.md",
+    "refs": "refs.json",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "completedAt": "<TS>",
+  "controlDigest": "Found four stop-lifecycle defects: overlapping persistence polls, premature launch-fence removal, post-disposal aborts, and cancellation masking on read rejection.",
+  "exitCode": 0,
+  "outputValidation": {
+    "issues": [],
+    "valid": true
+  },
+  "protocol": "workflow-output-sections-v1",
+  "rawIntegrity": {
+    "bytes": 9303,
+    "owner": "<ALLOWED:timestamp-derived-digest#2>",
+    "sha256": "74dbdb45e9ea57c96476ade5fdc01905ce3ee7e39b992171f5f4459fa0b17722",
+    "terminal": {
+      "attemptId": "<SA_ATTEMPT_2>",
+      "completedAt": "<TS>",
+      "exitCode": 0,
+      "runId": "<SA_RUN_2>",
+      "startedAt": "<TS>",
+      "status": "completed"
+    },
+    "terminalVersion": {
+      "ctimeMs": "<EPOCH_MS>",
+      "dev": "<FS_DEV>",
+      "ino": "<FS_INO>",
+      "mtimeMs": "<EPOCH_MS>",
+      "nlink": 1,
+      "size": "<ALLOWED:host-path-file-size>"
+    },
+    "version": 1
+  },
+  "schema": "workflow-task-result-v1",
+  "startedAt": "<TS>",
+  "status": "completed"
+}

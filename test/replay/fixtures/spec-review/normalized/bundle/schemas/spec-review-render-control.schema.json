@@ -1,0 +1,197 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "blockers": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 32,
+      "type": "array"
+    },
+    "completionSummaryMarkdown": {
+      "maxLength": 6000,
+      "type": "string"
+    },
+    "digest": {
+      "maxLength": 1200,
+      "minLength": 1,
+      "type": "string"
+    },
+    "findingSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "dropped": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "final": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "needsHuman": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "final",
+        "needsHuman",
+        "dropped"
+      ],
+      "type": "object"
+    },
+    "gates": {
+      "additionalProperties": false,
+      "properties": {
+        "actionableEvidenceComplete": {
+          "type": "boolean"
+        },
+        "duplicateCanonicalIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "ownerLedgerReconciliationPassed": {
+          "type": "boolean"
+        },
+        "partitionAvailable": {
+          "type": "boolean"
+        },
+        "passed": {
+          "type": "boolean"
+        },
+        "renderedAllCanonicalRows": {
+          "type": "boolean"
+        },
+        "reportSynthesisAvailable": {
+          "type": "boolean"
+        },
+        "reportVerdictConsistent": {
+          "type": "boolean"
+        },
+        "sourceCoverageComplete": {
+          "type": "boolean"
+        },
+        "verifierCoverageComplete": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "partitionAvailable",
+        "reportSynthesisAvailable",
+        "ownerLedgerReconciliationPassed",
+        "sourceCoverageComplete",
+        "verifierCoverageComplete",
+        "reportVerdictConsistent",
+        "renderedAllCanonicalRows",
+        "duplicateCanonicalIds",
+        "actionableEvidenceComplete",
+        "passed"
+      ],
+      "type": "object"
+    },
+    "ledgerSidecarPath": {
+      "const": "source-ledger.json",
+      "type": "string"
+    },
+    "markdown": {
+      "type": "string"
+    },
+    "renderedDroppedFindingIds": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "renderedFindingIds": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "renderedNeedsHumanIds": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "schema": {
+      "const": "spec-review-render-v1",
+      "type": "string"
+    },
+    "scopeLimitations": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "blocking": {
+            "const": false,
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "NONBLOCKING",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 240,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "text"
+        ],
+        "type": "object"
+      },
+      "maxItems": 40,
+      "type": "array"
+    },
+    "sidecarPath": {
+      "const": "final-report.md",
+      "type": "string"
+    },
+    "sourceArtifacts": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "failed",
+        "blocked"
+      ],
+      "type": "string"
+    },
+    "testExecutionAttested": {
+      "const": false,
+      "type": "boolean"
+    },
+    "verdict": {
+      "enum": [
+        "CONFORMS",
+        "GAPS_FOUND",
+        "NEEDS_HUMAN",
+        "INCONCLUSIVE"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "digest",
+    "status",
+    "completionSummaryMarkdown",
+    "markdown",
+    "verdict",
+    "findingSummary",
+    "renderedFindingIds",
+    "renderedNeedsHumanIds",
+    "renderedDroppedFindingIds",
+    "sourceArtifacts",
+    "gates"
+  ],
+  "type": "object"
+}

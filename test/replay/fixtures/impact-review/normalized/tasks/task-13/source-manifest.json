@@ -1,0 +1,358 @@
+{
+  "policy": {
+    "accessMode": "workflow-task"
+  },
+  "runId": "<WF_RUN_1>",
+  "schema": "workflow-source-manifest-v1",
+  "sources": [
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-1/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-1/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-1/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-1/refs.json"
+        }
+      },
+      "digest": "Two-file, opt-in pi-subagent API recording change affecting the shared backend loader, lifecycle calls, and replay inputs.",
+      "displayName": "impact-analysis.change-scope.main",
+      "lastMessage": "completed",
+      "source": "impact-analysis.change-scope",
+      "specId": "impact-analysis.change-scope.main",
+      "stageId": "impact-analysis.change-scope",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-1"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-2/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-2/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-2/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-2/refs.json"
+        }
+      },
+      "digest": "Maps the env-gated recording wrapper, shared backend API loader, workflow lifecycle callers, recording artifacts, replay consumers, and build/test surfaces without assigning risk.",
+      "displayName": "impact-analysis.implementation-map.main",
+      "lastMessage": "completed",
+      "source": "impact-analysis.implementation-map",
+      "specId": "impact-analysis.implementation-map.main",
+      "stageId": "impact-analysis.implementation-map",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-2"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-3/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-3/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-3/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-3/refs.json"
+        }
+      },
+      "digest": "Mapped recorder unit coverage, three replay fixtures, backend/package smoke checks, documentation, release artifacts, and unexecuted validation commands.",
+      "displayName": "impact-analysis.validation-map.main",
+      "lastMessage": "completed",
+      "source": "impact-analysis.validation-map",
+      "specId": "impact-analysis.validation-map.main",
+      "stageId": "impact-analysis.validation-map",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-3"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-4/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-4/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-4/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-4/refs.json"
+        }
+      },
+      "digest": "Default contracts remain unchanged; opt-in recording adds filesystem contracts and can alter API failure semantics.",
+      "displayName": "impact-analysis.api-contract-impact.main",
+      "lastMessage": "completed",
+      "source": "impact-analysis.api-contract-impact",
+      "specId": "impact-analysis.api-contract-impact.main",
+      "stageId": "impact-analysis.api-contract-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-4"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-5/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-5/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-5/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-5/refs.json"
+        }
+      },
+      "digest": "Medium overall impact: disabled behavior is unchanged, but recording introduces failure-coupled persistence, shared-directory ordering risks, and lossy replay data. No existing-state migration is required.",
+      "displayName": "impact-analysis.state-data-impact.main",
+      "lastMessage": "completed",
+      "source": "impact-analysis.state-data-impact",
+      "specId": "impact-analysis.state-data-impact.main",
+      "stageId": "impact-analysis.state-data-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-5"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-6/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-6/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-6/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-6/refs.json"
+        }
+      },
+      "digest": "Partial coverage: recorder happy paths and replay fixtures are mapped, but loader activation, serialization breadth, and recording-failure behavior lack targeted tests. No validation was executed.",
+      "displayName": "impact-analysis.validation-impact.main",
+      "lastMessage": "completed",
+      "source": "impact-analysis.validation-impact",
+      "specId": "impact-analysis.validation-impact.main",
+      "stageId": "impact-analysis.validation-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-6"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-7/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-7/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-7/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-7/refs.json"
+        }
+      },
+      "digest": "Medium opt-in operational/documentation impact; packaging accommodates the recorder, but activation and artifact-handling guidance are missing.",
+      "displayName": "impact-analysis.docs-release-impact.main",
+      "lastMessage": "completed",
+      "source": "impact-analysis.docs-release-impact",
+      "specId": "impact-analysis.docs-release-impact.main",
+      "stageId": "impact-analysis.docs-release-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-7"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-8/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-8/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-8/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-8/refs.json"
+        }
+      },
+      "digest": "Medium, opt-in impact: additional sensitive-data retention, synchronous recording overhead, API failure coupling, and mixed-session trace risks; disabled behavior remains unchanged.",
+      "displayName": "impact-analysis.security-performance-impact.main",
+      "lastMessage": "completed",
+      "source": "impact-analysis.security-performance-impact",
+      "specId": "impact-analysis.security-performance-impact.main",
+      "stageId": "impact-analysis.security-performance-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-8"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-9/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-9/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-9/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-9/refs.json"
+        }
+      },
+      "digest": "Default compatibility and packaging align; enabled recording has undocumented outcome changes and incompatible shared-directory assumptions.",
+      "displayName": "impact-analysis.contract-consistency.main",
+      "lastMessage": "completed",
+      "source": "impact-analysis.contract-consistency",
+      "specId": "impact-analysis.contract-consistency.main",
+      "stageId": "impact-analysis.contract-consistency",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-9"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-10/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-10/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-10/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-10/refs.json"
+        }
+      },
+      "digest": "Medium overall regression risk, concentrated in opt-in recording; failure handling and loader integration remain insufficiently validated.",
+      "displayName": "impact-analysis.regression-risk.main",
+      "lastMessage": "completed",
+      "source": "impact-analysis.regression-risk",
+      "specId": "impact-analysis.regression-risk.main",
+      "stageId": "impact-analysis.regression-risk",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-10"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-11/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-11/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-11/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-11/refs.json"
+        }
+      },
+      "digest": "Needs work: default-off behavior is preserved, but activated-loader coverage, recording-failure policy, safe-use documentation, and fresh validation evidence are required.",
+      "displayName": "impact-analysis.ship-readiness.main",
+      "lastMessage": "completed",
+      "source": "impact-analysis.ship-readiness",
+      "specId": "impact-analysis.ship-readiness.main",
+      "stageId": "impact-analysis.ship-readiness",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-11"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-12/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-12/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-12/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-12/refs.json"
+        }
+      },
+      "digest": "Default behavior is preserved; enabled recording needs failure-contract, integration-test, and operational-safety work.",
+      "displayName": "impact-analysis.impact-synthesis.main",
+      "lastMessage": "completed",
+      "source": "impact-analysis.impact-synthesis",
+      "specId": "impact-analysis.impact-synthesis.main",
+      "stageId": "impact-analysis.impact-synthesis",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-12"
+    }
+  ],
+  "taskId": "task-13"
+}

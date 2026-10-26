@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "Verify the current official MCP specification, then extract exact stdio framing and server stdout/stderr requirements.",
+  "startedAt": "2026-10-26T06:11:42.002Z",
+  "completedAt": "2026-10-26T06:12:47.034Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "d94c94e066444678fcef8ee3c66f98c4316434915c712b60bb2e74bf7a54367c",
+    "bytes": 10499,
+    "sha256": "62c9c3fbf9bd06d7fad1f8c1a4341a4dd0a2d50b6bf24d02ec73666289cb20e6",
+    "terminal": {
+      "runId": "run_mvouzmkq_347ab9",
+      "attemptId": "attempt_mvouzmkq_8e07f5",
+      "status": "completed",
+      "startedAt": "2026-10-26T06:11:42.002Z",
+      "completedAt": "2026-10-26T06:12:47.034Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 587199667,
+      "size": 1864,
+      "nlink": 1,
+      "mtimeMs": 1792995167035.9822,
+      "ctimeMs": 1792995167036.1729
+    }
+  }
+}

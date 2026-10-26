@@ -1,0 +1,155 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mvouzm7h_b19c26",
+  "taskId": "task-8",
+  "sources": [
+    {
+      "source": "plan",
+      "displayName": "plan.main",
+      "taskId": "task-1",
+      "specId": "plan.main",
+      "stageId": "plan",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "Verify the current official MCP specification, then extract exact stdio framing and server stdout/stderr requirements.",
+      "artifacts": {
+        "control": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-1/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-1/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-1/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-1/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "normalize-input-packet",
+      "displayName": "normalize-input-packet.main",
+      "taskId": "task-3",
+      "specId": "normalize-input-packet.main",
+      "stageId": "normalize-input-packet",
+      "status": "completed",
+      "statusDetail": "support_completed",
+      "lastMessage": "support completed",
+      "digest": "Support helper completed.",
+      "artifacts": {
+        "control": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-3/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-3/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-3/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-3/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "normalize-claims",
+      "displayName": "normalize-claims.main",
+      "taskId": "task-4",
+      "specId": "normalize-claims.main",
+      "stageId": "normalize-claims",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "Selected eight source-backed atoms covering specification currency, framing, and stream policy; general message encoding remains unestablished.",
+      "artifacts": {
+        "control": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-4/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-4/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-4/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-4/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "sanitize-claims",
+      "displayName": "sanitize-claims.main",
+      "taskId": "task-5",
+      "specId": "sanitize-claims.main",
+      "stageId": "sanitize-claims",
+      "status": "completed",
+      "statusDetail": "support_completed",
+      "lastMessage": "support completed",
+      "digest": "Support helper completed.",
+      "artifacts": {
+        "control": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-5/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-5/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-5/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-5/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "audit-claims",
+      "displayName": "audit-claims.main",
+      "taskId": "task-7",
+      "specId": "audit-claims.main",
+      "stageId": "audit-claims",
+      "status": "completed",
+      "statusDetail": "support_completed",
+      "lastMessage": "support completed",
+      "digest": "Support helper completed.",
+      "artifacts": {
+        "control": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-7/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-7/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-7/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-7/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

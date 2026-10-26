@@ -1,0 +1,56 @@
+{
+  "cwd": "<ROOT>",
+  "backend": "headless",
+  "runId": "run_mvosyyp0_681c05",
+  "attemptId": "attempt_mvosyyp0_2ee09d",
+  "startedAt": "2026-10-26T05:15:11.268Z",
+  "input": {
+    "backend": "headless",
+    "workspace": "shared",
+    "worktreePolicy": "never",
+    "cwd": "<ROOT>",
+    "runsDir": ".pi/workflow-subagents/workflow_mvosws5z_d4d559/task-9",
+    "correlationId": "workflow_mvosws5z_d4d559:task-9",
+    "sessionId": "pi-workflow.workflow_mvosws5z_d4d559.task-9",
+    "async": true,
+    "durableLaunchBarrier": {
+      "schema": "pi-subagent-durable-launch-barrier-v2",
+      "directory": "<ROOT>/.pi/workflows/workflow_mvosws5z_d4d559/tasks/task-9/.launch-barrier-7dad23b85a5237bb-1bfe352365d6a118",
+      "readyPath": "<ROOT>/.pi/workflows/workflow_mvosws5z_d4d559/tasks/task-9/.launch-barrier-7dad23b85a5237bb-1bfe352365d6a118/ready-v2.json",
+      "decisionPath": "<ROOT>/.pi/workflows/workflow_mvosws5z_d4d559/tasks/task-9/.launch-barrier-7dad23b85a5237bb-1bfe352365d6a118/decision-v2.json",
+      "ackPath": "<ROOT>/.pi/workflows/workflow_mvosws5z_d4d559/tasks/task-9/.launch-barrier-7dad23b85a5237bb-1bfe352365d6a118/ack-v2.json",
+      "challenge": "b8fefc922a358c19f2f40adfd3604f35c99127fea8ec7e2501d1afce77309392",
+      "decisionNonce": "89c1e108e470f4bbae9850d66c9c875865c77edb699d03f5eb83701f5442c416",
+      "subjectSha256": "7dad23b85a5237bb505b5598de6dc4eab0a7ff84e696294649dda05d2e3a2521",
+      "directoryIdentity": {
+        "device": 16777229,
+        "inode": 586839027,
+        "uid": 501
+      },
+      "timeoutMs": 120000,
+      "pollIntervalMs": 10,
+      "identitySha256": "d861db71dd9caa6c0348dc4e4e2abd9124936464a32b71663c257c63b266e698"
+    },
+    "onComplete": "detach",
+    "asyncDependency": "needed-before-final",
+    "timeoutMs": 1800000,
+    "tools": [
+      "read",
+      "grep",
+      "find",
+      "ls"
+    ],
+    "extensions": [],
+    "noExtensions": true,
+    "taskRef": {
+      "path": "task.md",
+      "bytes": 5972,
+      "sha256": "10cbfb385d45c31a71fffa726a66729f9b7488c69307255b9926fc1541dba889"
+    },
+    "systemPromptRef": {
+      "path": "system-prompt.md",
+      "bytes": 2043,
+      "sha256": "216795106840fb99432a20ce17e8478e5286354e4ee63b17ab65aad77c410da3"
+    }
+  }
+}

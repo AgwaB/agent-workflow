@@ -5,13 +5,13 @@
   "pid": "<PID>",
   "schemaVersion": 1,
   "taskStatusCounts": {
-    "blocked": 0,
-    "completed": 0,
-    "failed": 0,
-    "interrupted": 0,
-    "pending": 0,
-    "running": 1,
-    "skipped": 0,
+    "blocked": "<ALLOWED:supervisor-progress-snapshot>",
+    "completed": "<ALLOWED:supervisor-progress-snapshot>",
+    "failed": "<ALLOWED:supervisor-progress-snapshot>",
+    "interrupted": "<ALLOWED:supervisor-progress-snapshot>",
+    "pending": "<ALLOWED:supervisor-progress-snapshot>",
+    "running": "<ALLOWED:supervisor-progress-snapshot>",
+    "skipped": "<ALLOWED:supervisor-progress-snapshot>",
     "total": 1
   },
   "updatedAt": "<TS>"

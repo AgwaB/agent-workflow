@@ -1,0 +1,37 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "No tests or fixtures were found; behavioral coverage is unsubstantiated, including unreadable dynamic-control fallback precedence.",
+  "testMap": [],
+  "coverageGapsSuspected": [
+    "SPEC 1-3: No test evidence for no-signal binding, run-path isolation, multiple signals, selective unbinding, or deletion of the final registration.",
+    "SPEC 4-6: No test evidence for exact error names/messages, message-prefix recognition, pending-name matching, or rejection of non-errors.",
+    "SPEC 7: No test exercises immediate launch abort, durable intent, or abort arriving while the durable read is pending.",
+    "SPEC 8: No test evidence for immediate polling, default/minimum intervals, read-failure handling, abort reason, disposal, or timer unref behavior.",
+    "SPEC 9-10: No tests cover AbortError, top-level/details cancellation, reason/error markers, JSON content, or ordinary provider-error rejection.",
+    "SPEC 11-12: No tests verify summary fields, output task IDs, retry totals, artifact root, or completed_degraded.",
+    "SPEC 13: No tests cover dynamic semantic statuses or unreadable control. With a dynamic_incomplete task and failed control read, source selects dynamic_incomplete rather than the specified fallback."
+  ],
+  "notes": [
+    "The sample contains three implementation files, no test/fixture files, and only a typecheck script; testMap is intentionally empty.",
+    "Missing test evidence is not itself a SPEC violation. No runtime conformance verdict is inferred from test absence.",
+    "Control structure was manually checked against the bundled inspect-tests schema; no validator command was run."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "Read-only inspection only; commands and test execution are prohibited by this stage.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "store.js and types.js are intentionally excluded from this sample; their implementations and any external tests were unavailable.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "The requested ./schemas schema file was absent; the matching workflow-bundled schema was read for manual validation.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false
+}

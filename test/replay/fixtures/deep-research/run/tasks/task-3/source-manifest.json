@@ -1,0 +1,135 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mvouzm7h_b19c26",
+  "taskId": "task-3",
+  "sources": [
+    {
+      "source": "plan",
+      "displayName": "plan.main",
+      "taskId": "task-1",
+      "specId": "plan.main",
+      "stageId": "plan",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "Verify the current official MCP specification, then extract exact stdio framing and server stdout/stderr requirements.",
+      "artifacts": {
+        "control": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-1/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-1/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-1/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-1/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "research-questions",
+      "displayName": "research-questions.rq-001",
+      "taskId": "task-11",
+      "specId": "research-questions.rq-001",
+      "stageId": "research-questions",
+      "status": "completed",
+      "itemIdentity": "rq-001",
+      "placeholderSpecId": "research-questions.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "Official release announcement identifies specification 2026-07-28; its canonical stdio binding is a dedicated transport page.",
+      "artifacts": {
+        "control": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-11/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-11/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-11/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-11/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "research-questions.rq-002",
+      "displayName": "research-questions.rq-002",
+      "taskId": "task-12",
+      "specId": "research-questions.rq-002",
+      "stageId": "research-questions",
+      "status": "completed",
+      "itemIdentity": "rq-002",
+      "placeholderSpecId": "research-questions.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "Located the official transport specification, but repeated fetch failures prevented verification of framing and encoding clauses.",
+      "artifacts": {
+        "control": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-12/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-12/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-12/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-12/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "research-questions.rq-003",
+      "displayName": "research-questions.rq-003",
+      "taskId": "task-13",
+      "specId": "research-questions.rq-003",
+      "stageId": "research-questions",
+      "status": "completed",
+      "itemIdentity": "rq-003",
+      "placeholderSpecId": "research-questions.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "Current official stdio specification reserves stdout for valid MCP messages and permits UTF-8 diagnostic logging on stderr.",
+      "artifacts": {
+        "control": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-13/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-13/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-13/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-13/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

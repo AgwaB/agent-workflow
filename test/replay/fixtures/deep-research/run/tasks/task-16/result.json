@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "The cited stdio specification directly supports the message-format claim.",
+  "startedAt": "2026-10-26T06:15:36.416Z",
+  "completedAt": "2026-10-26T06:16:04.774Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "c6909611d407cc2aaf67c89c491c066791554cbde1a31d0b425a517c31f2197e",
+    "bytes": 1260,
+    "sha256": "cbbfa77b72f35dc0b7d9c965fd774af165d3e5521321474ba6bf0e457490d945",
+    "terminal": {
+      "runId": "run_mvov4n0b_78d09d",
+      "attemptId": "attempt_mvov4n0b_7b17f6",
+      "status": "completed",
+      "startedAt": "2026-10-26T06:15:36.416Z",
+      "completedAt": "2026-10-26T06:16:04.774Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 587211846,
+      "size": 1865,
+      "nlink": 1,
+      "mtimeMs": 1792995364775.2024,
+      "ctimeMs": 1792995364775.3625
+    }
+  }
+}

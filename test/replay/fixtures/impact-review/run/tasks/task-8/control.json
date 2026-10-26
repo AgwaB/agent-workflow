@@ -1,0 +1,115 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Medium, opt-in impact: additional sensitive-data retention, synchronous recording overhead, API failure coupling, and mixed-session trace risks; disabled behavior remains unchanged.",
+  "status": "medium",
+  "impacts": [
+    {
+      "id": "default-path",
+      "areas": [
+        "security",
+        "performance",
+        "reliability"
+      ],
+      "severity": "none",
+      "condition": "Recording variable unset or blank",
+      "summary": "Original API identity is retained; no recording files are written.",
+      "evidence": [
+        "recorder",
+        "loader"
+      ]
+    },
+    {
+      "id": "sensitive-records",
+      "areas": [
+        "security",
+        "privacy"
+      ],
+      "severity": "medium",
+      "condition": "Recording enabled for sensitive workloads",
+      "summary": "Arguments, outcomes, and error messages receive an additional plaintext copy without redaction, retention limits, or explicit restrictive permissions.",
+      "evidence": [
+        "recorder",
+        "launch-options",
+        "portable-copy"
+      ]
+    },
+    {
+      "id": "failure-coupling",
+      "areas": [
+        "reliability"
+      ],
+      "severity": "medium",
+      "condition": "Recording initialization, serialization, or append fails",
+      "summary": "Recorder failures can prevent API calls, reject successful operations, replace original errors, or poison the cached API-load promise.",
+      "evidence": [
+        "recorder",
+        "loader",
+        "launch-options"
+      ]
+    },
+    {
+      "id": "hot-path-cost",
+      "areas": [
+        "performance",
+        "reliability"
+      ],
+      "severity": "medium",
+      "condition": "Recording enabled, especially with large payloads or frequent polling",
+      "summary": "Recursive projection and synchronous file appends block the event loop; recording size and serialization depth are unbounded.",
+      "evidence": [
+        "recorder",
+        "refresh-polls"
+      ]
+    },
+    {
+      "id": "trace-isolation",
+      "areas": [
+        "observability",
+        "reliability"
+      ],
+      "severity": "medium",
+      "condition": "A recording directory is reused or shared by multiple wrappers or processes",
+      "summary": "Appended calls have wrapper-local sequence numbers while surface metadata is overwritten; replay sorts only by sequence and can mix sessions.",
+      "evidence": [
+        "recorder",
+        "replay-reader",
+        "worker-environment"
+      ]
+    },
+    {
+      "id": "observation-limits",
+      "areas": [
+        "observability"
+      ],
+      "severity": "low",
+      "condition": "Recordings used for diagnostics or reference replay",
+      "summary": "Structured outcomes and full method metadata improve reproducibility, but unfinished calls are absent, values are lossy, and endedAt excludes final serialization and write overhead.",
+      "evidence": [
+        "recorder",
+        "recorder-test"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "scope",
+      "statement": "The supplied diff defines b83cc4f..7e813aa; related unchanged files were inspected only to establish impact."
+    },
+    {
+      "id": "activation",
+      "statement": "Environment configuration is operator-controlled. It is evaluated at initial cached API loading; injected test APIs bypass the seam."
+    },
+    {
+      "id": "verification",
+      "statement": "Assessment used read-only inspection. Tests, benchmarks, and fault-injection scenarios were not executed."
+    },
+    {
+      "id": "source-completeness",
+      "statement": "Both required upstream control artifacts were read through complete, non-truncated path=$ projections."
+    },
+    {
+      "id": "schema-validation",
+      "statement": "The requested ./schemas/api-contract-impact-control.schema.json was absent. Required fields, types, and severity enum were checked manually against the repository copy at workflows/impact-review/schemas/api-contract-impact-control.schema.json; no executable validator was run."
+    }
+  ]
+}

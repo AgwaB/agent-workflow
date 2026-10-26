@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "ownerId": "24572-930a0c",
+  "pid": 24572,
+  "updatedAt": "2026-10-26T05:54:10.423Z",
+  "lockFile": ".pi/workflows/workflow_mvotu0ko_b9761d/supervisor.lock",
+  "lastTaskTransitionAt": "2026-10-26T05:54:09.536Z",
+  "taskStatusCounts": {
+    "total": 13,
+    "pending": 1,
+    "running": 0,
+    "blocked": 0,
+    "completed": 12,
+    "failed": 0,
+    "skipped": 0,
+    "interrupted": 0
+  }
+}

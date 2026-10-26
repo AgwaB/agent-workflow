@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "Extracted 21 requirements covering launch signals, stop errors and polling, cancellation recognition, and terminal summaries.",
+  "startedAt": "2026-10-26T05:55:57.388Z",
+  "completedAt": "2026-10-26T05:59:03.907Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "372847f173cb91d6ccc2f37d870908c9a8ec6812e619f8c7b86cc20b7dd7f568",
+    "bytes": 19371,
+    "sha256": "8f0a46c39ef80dbf54dc9fb1966643f14c122af77db2b78088422cf2ff8efdf2",
+    "terminal": {
+      "runId": "run_mvoufdru_d351f7",
+      "attemptId": "attempt_mvoufdru_7453eb",
+      "status": "completed",
+      "startedAt": "2026-10-26T05:55:57.388Z",
+      "completedAt": "2026-10-26T05:59:03.907Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 587141952,
+      "size": 1876,
+      "nlink": 1,
+      "mtimeMs": 1792994343908.3955,
+      "ctimeMs": 1792994343909.111
+    }
+  }
+}

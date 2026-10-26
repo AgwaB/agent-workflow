@@ -1,0 +1,18 @@
+[
+  {
+    "matchType": "exact",
+    "sourceRef": "wsrc_e42b5addd714a3ae1543bb53ac209078",
+    "supports": [
+      "slot-001"
+    ],
+    "url": "https://blog.modelcontextprotocol.io/posts/2026-07-28"
+  },
+  {
+    "matchType": "exact",
+    "sourceRef": "wsrc_deaa05710c11e5368c903185b113c8fd",
+    "supports": [
+      "slot-001"
+    ],
+    "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio"
+  }
+]

@@ -1,0 +1,95 @@
+[
+  {
+    "id": "api-contract-input",
+    "source": "impact-analysis.api-contract-impact",
+    "artifact": "control",
+    "path": "$",
+    "originalChars": 1445,
+    "charsTruncated": false
+  },
+  {
+    "id": "state-data-input",
+    "source": "impact-analysis.state-data-impact",
+    "artifact": "control",
+    "path": "$",
+    "originalChars": 3967,
+    "charsTruncated": false
+  },
+  {
+    "id": "docs-release-input",
+    "source": "impact-analysis.docs-release-impact",
+    "artifact": "control",
+    "path": "$",
+    "originalChars": 2895,
+    "charsTruncated": false
+  },
+  {
+    "id": "recorder",
+    "path": "src/subagent-api-recorder.ts",
+    "lines": [
+      "4-18",
+      "55-117",
+      "123-197"
+    ]
+  },
+  {
+    "id": "loader",
+    "path": "src/subagent-backend.ts",
+    "lines": [
+      "484-505"
+    ]
+  },
+  {
+    "id": "backend-errors",
+    "path": "src/subagent-backend.ts",
+    "lines": [
+      "3263-3320"
+    ]
+  },
+  {
+    "id": "usage",
+    "path": "docs/usage.md",
+    "lines": [
+      "391-402"
+    ]
+  },
+  {
+    "id": "replay",
+    "path": "test/replay/replay-subagent-api.mjs",
+    "lines": [
+      "75-81",
+      "124-144",
+      "229-236"
+    ]
+  },
+  {
+    "id": "capture",
+    "path": "internal/record/capture-run.mjs",
+    "lines": [
+      "30-45"
+    ]
+  },
+  {
+    "id": "package",
+    "path": "package.json",
+    "pointers": [
+      "files",
+      "exports",
+      "scripts.build",
+      "scripts.prepack"
+    ]
+  },
+  {
+    "id": "build",
+    "path": "tsconfig.json",
+    "pointers": [
+      "include",
+      "compilerOptions.declaration"
+    ]
+  },
+  {
+    "id": "control-schema",
+    "path": "workflows/impact-review/schemas/contract-consistency-control.schema.json",
+    "validation": "Manual structural validation; requested root-relative location absent."
+  }
+]

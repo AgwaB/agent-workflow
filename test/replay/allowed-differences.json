@@ -50,6 +50,36 @@
       "keys": [
         "terminalVersion.size"
       ]
+    },
+    {
+      "id": "host-path-manifest-digest",
+      "reason": "Digests of the task's source-manifest.json, whose artifact entries embed absolute <ROOT> paths, so the values change with the project path: launchBootstrap records[].artifacts.manifestSha256 = sha256 over its canonical JSON and effectiveLaunch.artifactBinding.manifestBytesSha256 = sha256 over its bytes (src/launch-bootstrap-provenance.ts). They occur only for stages with upstream artifact access (first seen in fixtures/deep-review task-7; minimal's manifest has no paths, so its digest happened to match). Content stays pinned: the manifest file itself is compared after path normalization, the self-replay test asserts both replayed digests equal the digests of the replayed source-manifest.json, and the fixture build verified the same binding on the raw recording.",
+      "keys": [
+        "artifacts.manifestSha256",
+        "artifactBinding.manifestBytesSha256"
+      ]
+    },
+    {
+      "id": "foreach-batch-capability-identity",
+      "reason": "Profile-only foreach batching (deep-research low/medium verify-claims, max 2 items) records run.json foreachBatches[] with stateRootSha256 (the same host-specific state-root identity as effectivePolicy.stateRootSha256, so its run.json occurrences are already renamed by equality) and capabilitySubjectSha256 = sha256 over canonical JSON of the batch record including that stateRootSha256 and the preparedAt timestamp (src/foreach-batch-capability.ts). The engine also passes both values to durableLaunchBarrierDigest (reservation payload schema workflow-foreach-batch-dispatch-reservation-v1), where no effectivePolicy key renames the state root inside that single call's replay key. The prompt content stays compared: foreachBatches[].batchPromptSha256 and members[].preparedPromptSha256 are not masked.",
+      "keys": [
+        "foreachBatches.capabilitySubjectSha256",
+        "args.capabilitySubjectSha256",
+        "args.stateRootSha256"
+      ]
+    },
+    {
+      "id": "supervisor-progress-snapshot",
+      "reason": "supervisor.json is the supervisor heartbeat file; taskStatusCounts is the progress snapshot taken at its last write (src/store.ts run progress), which races the final task transitions. Observed in fixtures/deep-research: recording completed=20/pending=1, replay completed=19 in 3 of 3 replays (the minimal, deep-review, spec-review and impact-review fixtures happened to match). Final per-task statuses stay compared through run.json tasks[] and taskSummary; taskStatusCounts.total is not masked.",
+      "keys": [
+        "taskStatusCounts.blocked",
+        "taskStatusCounts.completed",
+        "taskStatusCounts.failed",
+        "taskStatusCounts.interrupted",
+        "taskStatusCounts.pending",
+        "taskStatusCounts.running",
+        "taskStatusCounts.skipped"
+      ]
     }
   ]
 }

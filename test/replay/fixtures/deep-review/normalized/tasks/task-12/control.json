@@ -1,0 +1,40 @@
+{
+  "counterEvidence": [
+    "The aborted-signal guard and foreground launch check prevent further reads once cancellation is observed. Thus storage stalls do not inherently prevent foreground cancellation detection.",
+    "Disposal clears the interval, limiting future starts to the watcher's active lifetime. It does not bound outstanding reads before disposal."
+  ],
+  "digest": "The watcher starts overlapping intent reads without an in-flight bound; abort and disposal only limit subsequent polling.",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 67,
+      "quote": "\tconst pollMs = Math.max(10, options.pollMs ?? 50);",
+      "symbol": "createWorkflowStopSignal"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 68,
+      "lineEnd": 78,
+      "quote": "\tconst check = async (): Promise<void> => {\n\t\tif (controller.signal.aborted) return;\n\t\tif (launchStopRequested(cwd, runId)) {\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));\n\t\t\treturn;\n\t\t}\n\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);\n\t\tif (intent || launchStopRequested(cwd, runId))\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));",
+      "symbol": "createWorkflowStopSignal"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 80,
+      "lineEnd": 82,
+      "quote": "\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);\n\ttimer.unref?.();",
+      "symbol": "createWorkflowStopSignal"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 85,
+      "quote": "\t\tdispose: () => clearInterval(timer),",
+      "symbol": "createWorkflowStopSignal"
+    }
+  ],
+  "finding": "Stop polling starts unbounded concurrent persistence reads",
+  "findingId": "finding-001",
+  "recommendedAction": "Permit only one outstanding intent read per watcher, while checking foreground launch cancellation before the in-flight guard. Add a deferred-read regression test covering repeated ticks and local cancellation before that read settles.",
+  "schema": "stage-control-v1",
+  "verdict": "KEEP"
+}

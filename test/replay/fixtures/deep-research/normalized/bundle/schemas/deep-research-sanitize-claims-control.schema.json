@@ -1,0 +1,105 @@
+{
+  "properties": {
+    "claimInventory": {
+      "properties": {
+        "duplicates": {},
+        "preservedClaims": {
+          "items": {
+            "type": "object"
+          },
+          "maxItems": 24,
+          "type": "array"
+        },
+        "verificationCandidates": {
+          "items": {
+            "properties": {
+              "claim": {
+                "type": "string"
+              },
+              "factSlotIds": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "id": {
+                "type": "string"
+              },
+              "reasonToVerify": {
+                "type": "string"
+              },
+              "scopeItems": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "sourceQuality": {
+                "type": "string"
+              },
+              "sourceRefs": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "sourceUrls": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "verificationNeed": {
+                "enum": [
+                  "core",
+                  "useful",
+                  "optional"
+                ]
+              }
+            },
+            "type": "object"
+          },
+          "maxItems": 48,
+          "type": "array"
+        }
+      },
+      "required": [
+        "verificationCandidates",
+        "preservedClaims",
+        "duplicates"
+      ],
+      "type": "object"
+    },
+    "coverageGaps": {
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "factSlotCoverage": {
+      "items": {
+        "type": "object"
+      },
+      "maxItems": 64,
+      "type": "array"
+    },
+    "normalizationNotes": {},
+    "researchScopeCoverage": {
+      "items": {
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "sanitizerDiagnostics": {},
+    "schema": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "claimInventory",
+    "factSlotCoverage"
+  ],
+  "type": "object"
+}

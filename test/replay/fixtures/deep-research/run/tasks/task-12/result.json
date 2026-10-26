@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "Located the official transport specification, but repeated fetch failures prevented verification of framing and encoding clauses.",
+  "startedAt": "2026-10-26T06:12:49.035Z",
+  "completedAt": "2026-10-26T06:14:20.887Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "93a57d315c2334b9a0ab5607311d2b6244bb6cdff8d58a1ddf375db7f2b2ec58",
+    "bytes": 3505,
+    "sha256": "71ec5cb9d396cdd0e9255e8da3cb15ce63aaa281e4ebe485496f6a7b54f0d871",
+    "terminal": {
+      "runId": "run_mvov126d_1451a4",
+      "attemptId": "attempt_mvov126d_424797",
+      "status": "completed",
+      "startedAt": "2026-10-26T06:12:49.035Z",
+      "completedAt": "2026-10-26T06:14:20.887Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 587205876,
+      "size": 1904,
+      "nlink": 1,
+      "mtimeMs": 1792995260888.0132,
+      "ctimeMs": 1792995260888.1238
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "artifacts": {
+    "analysis": "analysis.md",
+    "control": "control.json",
+    "raw": "raw.md",
+    "refs": "refs.json",
+    "result": "result.json"
+  },
+  "completedAt": "<TS>",
+  "controlDigest": "Prepared final-audit packet with 8 audited claim(s), 5 fact slot(s), and 2 gap row(s).",
+  "exitCode": 0,
+  "outputValidation": {
+    "issues": [],
+    "valid": true
+  },
+  "protocol": "workflow-output-sections-v1",
+  "rawIntegrity": {
+    "bytes": 79969,
+    "owner": "<ALLOWED:timestamp-derived-digest#17>",
+    "sha256": "b2fc74f29de9a028febba413ba9ef634f84e260262e0fe762f439f233ebe5b8d",
+    "version": 1
+  },
+  "schema": "workflow-task-result-v1",
+  "status": "completed"
+}

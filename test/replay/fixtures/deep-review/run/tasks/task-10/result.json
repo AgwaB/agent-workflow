@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "Found two cancellation false-positive paths: unrestricted decoding of provider content and overly broad stop-error message matching.",
+  "startedAt": "2026-10-26T05:15:12.208Z",
+  "completedAt": "2026-10-26T05:18:02.429Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "fbbca39c2f4333c50b9c0226cb251ab48f90f094dadf054942ab6dd50079b222",
+    "bytes": 5968,
+    "sha256": "ca86f8af6dae72d5fd6a123fae3460b23582f6d29e669c41939f765373eae88e",
+    "terminal": {
+      "runId": "run_mvosyyx3_00624d",
+      "attemptId": "attempt_mvosyyx3_de59d0",
+      "status": "completed",
+      "startedAt": "2026-10-26T05:15:12.208Z",
+      "completedAt": "2026-10-26T05:18:02.429Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 586856299,
+      "size": 1961,
+      "nlink": 1,
+      "mtimeMs": 1792991882437.5156,
+      "ctimeMs": 1792991882440.1667
+    }
+  }
+}

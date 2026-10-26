@@ -1,0 +1,832 @@
+<control>
+{
+  "schema": "stage-control-v1",
+  "digest": "Support helper completed.",
+  "auditedClaims": [
+    {
+      "schema": "deep-research-verify-claim-v1",
+      "digest": "The official versioning page explicitly identifies 2026-07-28 as the current protocol version.",
+      "id": "claim-001",
+      "status": "verified",
+      "confidence": "high",
+      "verdictDigest": {
+        "support": "The primary-source versioning page explicitly labels 2026-07-28 as the current MCP protocol version.",
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/versioning"
+        ]
+      },
+      "evidence": [
+        {
+          "source": "Official MCP specification versioning page",
+          "url": "https://modelcontextprotocol.io/specification/versioning",
+          "sourceRef": "wsrc_6f2e06f5a0dd2c8d98ce75ab416660e7",
+          "quote": "The **current** protocol version is [**2026-07-28**](https://modelcontextprotocol.io/specification/2026-07-28.md).",
+          "relevance": "Directly establishes the exact version and its current designation.",
+          "matchType": "exact"
+        }
+      ],
+      "caveats": [],
+      "correctionOrCounterclaim": "",
+      "verifierOwner": {
+        "source": "verify-claims",
+        "stageId": "verify-claims",
+        "specId": "verify-claims.claim-001",
+        "taskId": "task-14",
+        "itemIdentity": "claim-001",
+        "placeholderSpecId": "verify-claims.item",
+        "status": "completed"
+      },
+      "sourceId": "verify-claims",
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/versioning",
+        "https://modelcontextprotocol.io/specification/2026-07-28.md",
+        "wsrc_6f2e06f5a0dd2c8d98ce75ab416660e7"
+      ],
+      "evidenceRefs": [
+        "https://modelcontextprotocol.io/specification/versioning",
+        "https://modelcontextprotocol.io/specification/2026-07-28.md",
+        "wsrc_6f2e06f5a0dd2c8d98ce75ab416660e7"
+      ],
+      "claim": "The official versioning page identifies 2026-07-28 as the current MCP protocol version.",
+      "factSlotIds": [
+        "slot-001"
+      ],
+      "sourceRefs": [
+        "wsrc_6f2e06f5a0dd2c8d98ce75ab416660e7"
+      ]
+    },
+    {
+      "schema": "deep-research-verify-claim-v1",
+      "digest": "Verified: the official latest transport overview explicitly links the dated stdio binding.",
+      "id": "claim-002",
+      "status": "verified",
+      "confidence": "high",
+      "verdictDigest": {
+        "support": "The official overview explicitly links stdio to the exact claimed dated specification URL.",
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/latest/basic/transports"
+        ]
+      },
+      "evidence": [
+        {
+          "source": "Official MCP transport overview",
+          "url": "https://modelcontextprotocol.io/specification/latest/basic/transports",
+          "sourceRef": "wsrc_3af3257c452fc577322dd1fe372b693b",
+          "quote": "[stdio](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md): newline-delimited",
+          "matchType": "exact",
+          "relevance": "Directly establishes the exact stdio binding link, including its dated path."
+        }
+      ],
+      "caveats": [],
+      "correctionOrCounterclaim": "",
+      "verifierOwner": {
+        "source": "verify-claims.claim-002",
+        "stageId": "verify-claims",
+        "specId": "verify-claims.claim-002",
+        "taskId": "task-15",
+        "itemIdentity": "claim-002",
+        "placeholderSpecId": "verify-claims.item",
+        "status": "completed"
+      },
+      "sourceId": "verify-claims.claim-002",
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/latest/basic/transports",
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_3af3257c452fc577322dd1fe372b693b"
+      ],
+      "evidenceRefs": [
+        "https://modelcontextprotocol.io/specification/latest/basic/transports",
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_3af3257c452fc577322dd1fe372b693b"
+      ],
+      "claim": "The official transport overview links stdio to /specification/2026-07-28/basic/transports/stdio.md.",
+      "factSlotIds": [
+        "slot-001"
+      ],
+      "sourceRefs": [
+        "wsrc_3af3257c452fc577322dd1fe372b693b",
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ]
+    },
+    {
+      "schema": "deep-research-verify-claim-v1",
+      "digest": "The cited stdio specification directly supports the message-format claim.",
+      "id": "claim-003",
+      "status": "verified",
+      "confidence": "high",
+      "verdictDigest": {
+        "support": "The specification explicitly describes each message as one JSON-RPC request, notification, or response.",
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ]
+      },
+      "evidence": [
+        {
+          "source": "Model Context Protocol specification — stdio",
+          "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+          "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+          "quote": "Each message is a single JSON-RPC request, notification, or response.",
+          "matchType": "exact",
+          "relevance": "Directly states the claimed message format."
+        }
+      ],
+      "caveats": [],
+      "correctionOrCounterclaim": "",
+      "verifierOwner": {
+        "source": "verify-claims.claim-003",
+        "stageId": "verify-claims",
+        "specId": "verify-claims.claim-003",
+        "taskId": "task-16",
+        "itemIdentity": "claim-003",
+        "placeholderSpecId": "verify-claims.item",
+        "status": "completed"
+      },
+      "sourceId": "verify-claims.claim-003",
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "evidenceRefs": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "claim": "The stdio specification states that each message is a single JSON-RPC request, notification, or response.",
+      "factSlotIds": [
+        "slot-002"
+      ],
+      "sourceRefs": [
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ]
+    },
+    {
+      "schema": "deep-research-verify-claim-v1",
+      "digest": "The cited specification explicitly prohibits non-MCP stdout output.",
+      "id": "claim-004",
+      "status": "verified",
+      "confidence": "high",
+      "verdictDigest": {
+        "support": "The primary specification contains the claimed normative stdout prohibition verbatim.",
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ]
+      },
+      "evidence": [
+        {
+          "source": "Model Context Protocol specification — stdio",
+          "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+          "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+          "quote": "The server **MUST NOT** write anything to its `stdout` that is not a valid MCP\n  message.",
+          "matchType": "exact",
+          "relevance": "Direct normative support for the normalized stdout restriction."
+        }
+      ],
+      "caveats": [
+        "This verdict verifies the rewritten stdout claim, not the original newline-framing claim."
+      ],
+      "correctionOrCounterclaim": "",
+      "verifierOwner": {
+        "source": "verify-claims.claim-004",
+        "stageId": "verify-claims",
+        "specId": "verify-claims.claim-004",
+        "taskId": "task-17",
+        "itemIdentity": "claim-004",
+        "placeholderSpecId": "verify-claims.item",
+        "status": "completed"
+      },
+      "sourceId": "verify-claims.claim-004",
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "evidenceRefs": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "claim": "The server **MUST NOT** write anything to its `stdout` that is not a valid MCP\n  message.",
+      "factSlotIds": [
+        "slot-002"
+      ],
+      "sourceRefs": [
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ]
+    },
+    {
+      "schema": "deep-research-verify-claim-v1",
+      "digest": "Embedded-newline prohibition verified directly.",
+      "id": "claim-005",
+      "status": "verified",
+      "confidence": "high",
+      "verdictDigest": {
+        "support": "The cited primary specification explicitly prohibits embedded newlines using MUST NOT.",
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ]
+      },
+      "evidence": [
+        {
+          "source": "Model Context Protocol specification — stdio",
+          "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+          "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+          "quote": "Messages are delimited by newlines, and **MUST NOT** contain embedded newlines.",
+          "matchType": "exact",
+          "relevance": "Direct normative support for the embedded-newline prohibition."
+        }
+      ],
+      "caveats": [],
+      "correctionOrCounterclaim": "",
+      "verifierOwner": {
+        "source": "verify-claims.claim-005",
+        "stageId": "verify-claims",
+        "specId": "verify-claims.claim-005",
+        "taskId": "task-18",
+        "itemIdentity": "claim-005",
+        "placeholderSpecId": "verify-claims.item",
+        "status": "completed"
+      },
+      "sourceId": "verify-claims.claim-005",
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "evidenceRefs": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "claim": "The stdio specification says messages MUST NOT contain embedded newlines.",
+      "factSlotIds": [
+        "slot-002"
+      ],
+      "sourceRefs": [
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ]
+    },
+    {
+      "schema": "deep-research-verify-claim-v1",
+      "digest": "Server stdout prohibition verified directly.",
+      "id": "claim-006",
+      "status": "verified",
+      "confidence": "high",
+      "verdictDigest": {
+        "support": "The cited primary specification states the server stdout prohibition explicitly with MUST NOT.",
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ]
+      },
+      "evidence": [
+        {
+          "source": "Model Context Protocol specification — stdio",
+          "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+          "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+          "quote": "The server **MUST NOT** write anything to its `stdout` that is not a valid MCP\n  message.",
+          "matchType": "exact",
+          "relevance": "Directly establishes the claimed server stdout restriction."
+        }
+      ],
+      "caveats": [],
+      "correctionOrCounterclaim": "",
+      "verifierOwner": {
+        "source": "verify-claims.claim-006",
+        "stageId": "verify-claims",
+        "specId": "verify-claims.claim-006",
+        "taskId": "task-19",
+        "itemIdentity": "claim-006",
+        "placeholderSpecId": "verify-claims.item",
+        "status": "completed"
+      },
+      "sourceId": "verify-claims.claim-006",
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "evidenceRefs": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "claim": "The stdio specification says the server MUST NOT write anything to stdout that is not a valid MCP message.",
+      "factSlotIds": [
+        "slot-004"
+      ],
+      "sourceRefs": [
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ]
+    },
+    {
+      "schema": "deep-research-verify-claim-v1",
+      "digest": "Verified server stderr logging permission.",
+      "id": "claim-007",
+      "status": "verified",
+      "confidence": "high",
+      "verdictDigest": {
+        "support": "The cited primary specification explicitly permits UTF-8 stderr logging for informational, debug, and error messages.",
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ]
+      },
+      "evidence": [
+        {
+          "source": "Model Context Protocol specification — stdio",
+          "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+          "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+          "quote": "The server **MAY** write UTF-8 strings to `stderr` for any logging purposes\n  including informational, debug, and error messages.",
+          "matchType": "exact",
+          "relevance": "Directly establishes permission, encoding, stream, and logging scope."
+        }
+      ],
+      "caveats": [],
+      "correctionOrCounterclaim": "",
+      "verifierOwner": {
+        "source": "verify-claims.claim-007",
+        "stageId": "verify-claims",
+        "specId": "verify-claims.claim-007",
+        "taskId": "task-20",
+        "itemIdentity": "claim-007",
+        "placeholderSpecId": "verify-claims.item",
+        "status": "completed"
+      },
+      "sourceId": "verify-claims.claim-007",
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "evidenceRefs": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "claim": "The stdio specification says servers MAY write UTF-8 strings to stderr for any logging purposes, including informational, debug, and error messages.",
+      "factSlotIds": [
+        "slot-005"
+      ],
+      "sourceRefs": [
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ]
+    },
+    {
+      "schema": "deep-research-verify-claim-v1",
+      "digest": "Verified client stderr interpretation guidance.",
+      "id": "claim-008",
+      "status": "verified",
+      "confidence": "high",
+      "verdictDigest": {
+        "support": "The cited primary specification explicitly says clients SHOULD NOT assume server stderr output indicates error conditions.",
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ]
+      },
+      "evidence": [
+        {
+          "source": "Model Context Protocol specification — stdio",
+          "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+          "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+          "quote": "The client **MAY** capture, forward, or ignore the server's `stderr` output and\n  **SHOULD NOT** assume `stderr` output indicates error conditions.",
+          "matchType": "exact",
+          "relevance": "Directly states the claimed client-side normative guidance."
+        }
+      ],
+      "caveats": [],
+      "correctionOrCounterclaim": "",
+      "verifierOwner": {
+        "source": "verify-claims.claim-008",
+        "stageId": "verify-claims",
+        "specId": "verify-claims.claim-008",
+        "taskId": "task-21",
+        "itemIdentity": "claim-008",
+        "placeholderSpecId": "verify-claims.item",
+        "status": "completed"
+      },
+      "sourceId": "verify-claims.claim-008",
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "evidenceRefs": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "claim": "The stdio specification says clients SHOULD NOT assume server stderr output indicates error conditions.",
+      "factSlotIds": [
+        "slot-005"
+      ],
+      "sourceRefs": [
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ]
+    }
+  ],
+  "claimDigests": [
+    {
+      "id": "claim-001",
+      "claim": "The official versioning page identifies 2026-07-28 as the current MCP protocol version.",
+      "factSlotIds": [
+        "slot-001"
+      ],
+      "status": "verified",
+      "confidence": "high",
+      "sourceRefs": [
+        "wsrc_6f2e06f5a0dd2c8d98ce75ab416660e7"
+      ],
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/versioning",
+        "https://modelcontextprotocol.io/specification/2026-07-28.md",
+        "wsrc_6f2e06f5a0dd2c8d98ce75ab416660e7"
+      ],
+      "verifierOwner": {
+        "source": "verify-claims",
+        "stageId": "verify-claims",
+        "specId": "verify-claims.claim-001",
+        "taskId": "task-14",
+        "itemIdentity": "claim-001",
+        "placeholderSpecId": "verify-claims.item",
+        "status": "completed"
+      },
+      "verdictDigest": {
+        "support": "The primary-source versioning page explicitly labels 2026-07-28 as the current MCP protocol version.",
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/versioning"
+        ]
+      },
+      "correctionOrCounterclaim": ""
+    },
+    {
+      "id": "claim-002",
+      "claim": "The official transport overview links stdio to /specification/2026-07-28/basic/transports/stdio.md.",
+      "factSlotIds": [
+        "slot-001"
+      ],
+      "status": "verified",
+      "confidence": "high",
+      "sourceRefs": [
+        "wsrc_3af3257c452fc577322dd1fe372b693b",
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/latest/basic/transports",
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_3af3257c452fc577322dd1fe372b693b"
+      ],
+      "verifierOwner": {
+        "source": "verify-claims.claim-002",
+        "stageId": "verify-claims",
+        "specId": "verify-claims.claim-002",
+        "taskId": "task-15",
+        "itemIdentity": "claim-002",
+        "placeholderSpecId": "verify-claims.item",
+        "status": "completed"
+      },
+      "verdictDigest": {
+        "support": "The official overview explicitly links stdio to the exact claimed dated specification URL.",
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/latest/basic/transports"
+        ]
+      },
+      "correctionOrCounterclaim": ""
+    },
+    {
+      "id": "claim-003",
+      "claim": "The stdio specification states that each message is a single JSON-RPC request, notification, or response.",
+      "factSlotIds": [
+        "slot-002"
+      ],
+      "status": "verified",
+      "confidence": "high",
+      "sourceRefs": [
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "verifierOwner": {
+        "source": "verify-claims.claim-003",
+        "stageId": "verify-claims",
+        "specId": "verify-claims.claim-003",
+        "taskId": "task-16",
+        "itemIdentity": "claim-003",
+        "placeholderSpecId": "verify-claims.item",
+        "status": "completed"
+      },
+      "verdictDigest": {
+        "support": "The specification explicitly describes each message as one JSON-RPC request, notification, or response.",
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ]
+      },
+      "correctionOrCounterclaim": ""
+    },
+    {
+      "id": "claim-004",
+      "claim": "The server **MUST NOT** write anything to its `stdout` that is not a valid MCP\n  message.",
+      "factSlotIds": [
+        "slot-002"
+      ],
+      "status": "verified",
+      "confidence": "high",
+      "sourceRefs": [
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "verifierOwner": {
+        "source": "verify-claims.claim-004",
+        "stageId": "verify-claims",
+        "specId": "verify-claims.claim-004",
+        "taskId": "task-17",
+        "itemIdentity": "claim-004",
+        "placeholderSpecId": "verify-claims.item",
+        "status": "completed"
+      },
+      "verdictDigest": {
+        "support": "The primary specification contains the claimed normative stdout prohibition verbatim.",
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ]
+      },
+      "correctionOrCounterclaim": ""
+    },
+    {
+      "id": "claim-005",
+      "claim": "The stdio specification says messages MUST NOT contain embedded newlines.",
+      "factSlotIds": [
+        "slot-002"
+      ],
+      "status": "verified",
+      "confidence": "high",
+      "sourceRefs": [
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "verifierOwner": {
+        "source": "verify-claims.claim-005",
+        "stageId": "verify-claims",
+        "specId": "verify-claims.claim-005",
+        "taskId": "task-18",
+        "itemIdentity": "claim-005",
+        "placeholderSpecId": "verify-claims.item",
+        "status": "completed"
+      },
+      "verdictDigest": {
+        "support": "The cited primary specification explicitly prohibits embedded newlines using MUST NOT.",
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ]
+      },
+      "correctionOrCounterclaim": ""
+    },
+    {
+      "id": "claim-006",
+      "claim": "The stdio specification says the server MUST NOT write anything to stdout that is not a valid MCP message.",
+      "factSlotIds": [
+        "slot-004"
+      ],
+      "status": "verified",
+      "confidence": "high",
+      "sourceRefs": [
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "verifierOwner": {
+        "source": "verify-claims.claim-006",
+        "stageId": "verify-claims",
+        "specId": "verify-claims.claim-006",
+        "taskId": "task-19",
+        "itemIdentity": "claim-006",
+        "placeholderSpecId": "verify-claims.item",
+        "status": "completed"
+      },
+      "verdictDigest": {
+        "support": "The cited primary specification states the server stdout prohibition explicitly with MUST NOT.",
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ]
+      },
+      "correctionOrCounterclaim": ""
+    },
+    {
+      "id": "claim-007",
+      "claim": "The stdio specification says servers MAY write UTF-8 strings to stderr for any logging purposes, including informational, debug, and error messages.",
+      "factSlotIds": [
+        "slot-005"
+      ],
+      "status": "verified",
+      "confidence": "high",
+      "sourceRefs": [
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "verifierOwner": {
+        "source": "verify-claims.claim-007",
+        "stageId": "verify-claims",
+        "specId": "verify-claims.claim-007",
+        "taskId": "task-20",
+        "itemIdentity": "claim-007",
+        "placeholderSpecId": "verify-claims.item",
+        "status": "completed"
+      },
+      "verdictDigest": {
+        "support": "The cited primary specification explicitly permits UTF-8 stderr logging for informational, debug, and error messages.",
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ]
+      },
+      "correctionOrCounterclaim": ""
+    },
+    {
+      "id": "claim-008",
+      "claim": "The stdio specification says clients SHOULD NOT assume server stderr output indicates error conditions.",
+      "factSlotIds": [
+        "slot-005"
+      ],
+      "status": "verified",
+      "confidence": "high",
+      "sourceRefs": [
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "verifierOwner": {
+        "source": "verify-claims.claim-008",
+        "stageId": "verify-claims",
+        "specId": "verify-claims.claim-008",
+        "taskId": "task-21",
+        "itemIdentity": "claim-008",
+        "placeholderSpecId": "verify-claims.item",
+        "status": "completed"
+      },
+      "verdictDigest": {
+        "support": "The cited primary specification explicitly says clients SHOULD NOT assume server stderr output indicates error conditions.",
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ]
+      },
+      "correctionOrCounterclaim": ""
+    }
+  ],
+  "gateSummary": {
+    "total": 8,
+    "unchanged": 8,
+    "downgraded": 0,
+    "identityRejoined": 8,
+    "sourceRefsRejoined": 1,
+    "sourceRefsBackfilledFromUrls": 0,
+    "sourceRefJoinFailures": 0,
+    "verifierRowsTotal": 8,
+    "validVerifierRows": 8,
+    "invalidVerifierRows": 0,
+    "missingVerifierResults": 0,
+    "duplicateVerifierClaims": 0,
+    "duplicateVerifierRows": 0,
+    "duplicateStatusConflicts": 0,
+    "invalidNormalizedCandidates": 0,
+    "refsNoneMultiClaimBatches": 0,
+    "sourceEvidenceCompatibilityFailures": 0,
+    "sourceEvidenceCompatibilityMismatches": 0,
+    "verifierOwnerIssues": 0,
+    "additionalEvidenceSourceDowngrades": 0,
+    "zeroCandidateFloorBlockers": 0
+  },
+  "verifierOwnerLedger": [
+    {
+      "source": "verify-claims",
+      "stageId": "verify-claims",
+      "specId": "verify-claims.claim-001",
+      "taskId": "task-14",
+      "itemIdentity": "claim-001",
+      "placeholderSpecId": "verify-claims.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-claims.claim-002",
+      "stageId": "verify-claims",
+      "specId": "verify-claims.claim-002",
+      "taskId": "task-15",
+      "itemIdentity": "claim-002",
+      "placeholderSpecId": "verify-claims.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-claims.claim-003",
+      "stageId": "verify-claims",
+      "specId": "verify-claims.claim-003",
+      "taskId": "task-16",
+      "itemIdentity": "claim-003",
+      "placeholderSpecId": "verify-claims.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-claims.claim-004",
+      "stageId": "verify-claims",
+      "specId": "verify-claims.claim-004",
+      "taskId": "task-17",
+      "itemIdentity": "claim-004",
+      "placeholderSpecId": "verify-claims.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-claims.claim-005",
+      "stageId": "verify-claims",
+      "specId": "verify-claims.claim-005",
+      "taskId": "task-18",
+      "itemIdentity": "claim-005",
+      "placeholderSpecId": "verify-claims.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-claims.claim-006",
+      "stageId": "verify-claims",
+      "specId": "verify-claims.claim-006",
+      "taskId": "task-19",
+      "itemIdentity": "claim-006",
+      "placeholderSpecId": "verify-claims.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-claims.claim-007",
+      "stageId": "verify-claims",
+      "specId": "verify-claims.claim-007",
+      "taskId": "task-20",
+      "itemIdentity": "claim-007",
+      "placeholderSpecId": "verify-claims.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-claims.claim-008",
+      "stageId": "verify-claims",
+      "specId": "verify-claims.claim-008",
+      "taskId": "task-21",
+      "itemIdentity": "claim-008",
+      "placeholderSpecId": "verify-claims.item",
+      "status": "completed"
+    }
+  ],
+  "verifierOwnerIssues": [],
+  "batchAdoptionReadiness": {
+    "status": "eligible_for_canary",
+    "adopted": false,
+    "canaryRequired": true,
+    "reason": "Verifier identity/sourceRef integrity is clean; batch adoption still requires a non-holdout canary before use.",
+    "blockers": []
+  },
+  "remainingGaps": [],
+  "sourceRefJoinFailures": [],
+  "invalidVerifierRows": [],
+  "duplicateVerifierRows": [],
+  "invalidNormalizedCandidates": [],
+  "refsNoneMultiClaimBatchIssues": [],
+  "statusPartitions": {
+    "verified": [
+      "claim-001",
+      "claim-002",
+      "claim-003",
+      "claim-004",
+      "claim-005",
+      "claim-006",
+      "claim-007",
+      "claim-008"
+    ],
+    "partiallySupported": [],
+    "unsupported": [],
+    "conflicting": [],
+    "verificationBlocked": [],
+    "other": []
+  },
+  "verdictCounts": {
+    "verified": 8,
+    "partiallySupported": 0,
+    "unsupported": 0,
+    "conflicting": 0,
+    "verificationBlocked": 0,
+    "other": 0
+  },
+  "slotCoverageCheck": {
+    "plannedSlotCount": 5,
+    "coveredSlotCount": 5,
+    "droppedSlotIds": []
+  },
+  "identityJoinNotes": [],
+  "precisionGuardDiagnostics": {
+    "totalClaims": 5,
+    "flaggedClaims": 2,
+    "issueCounts": {
+      "normative_language": 2,
+      "multi_obligation_claim": 1
+    }
+  }
+}
+</control>
+<analysis>
+Support helper completed deterministically.
+</analysis>
+<refs>
+[]
+</refs>

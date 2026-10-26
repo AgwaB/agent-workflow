@@ -1,0 +1,28 @@
+{
+  "schema": "pi-workflow-replay-fixture-v1",
+  "name": "deep-research",
+  "workflowRunId": "workflow_mvouzm7h_b19c26",
+  "task": "How does the Model Context Protocol stdio transport frame messages, and what are the documented rules for stdout/stderr use by servers? Cite the current specification.",
+  "bundledWorkflow": "deep-research",
+  "spec": "<PKG>/workflows/deep-research/spec.json",
+  "executionProfile": "low",
+  "inputOverrides": {
+    "depth": "quick"
+  },
+  "expectedStatus": "completed",
+  "projectFiles": [],
+  "rootPathLength": 44,
+  "replayRoot": "/private/tmp/piwf-replay-roots/deep-research",
+  "replayRootPlatform": "darwin",
+  "projectAgents": {
+    "researcher": "project/agents/researcher.md"
+  },
+  "env": {
+    "PI_WORKFLOW_MAX_CONCURRENT_LAUNCHES": "6"
+  },
+  "recordedWith": {
+    "piWorkflowBase": "b83cc4f",
+    "seamBranch": "work/wp1a-recording-seam-20261026",
+    "driver": "internal/record/run-bundled.mjs (in-process dist/engine.js runWorkflow + waitForRun)"
+  }
+}

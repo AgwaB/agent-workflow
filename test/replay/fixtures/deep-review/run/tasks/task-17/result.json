@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "The prefix fallback demonstrably accepts unrelated Errors; downstream diagnostic suppression remains unverified.",
+  "startedAt": "2026-10-26T05:18:43.234Z",
+  "completedAt": "2026-10-26T05:19:45.243Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "7b86bbdb376e7bb5d355d78c0adaa1a49364b2696f76c176326e1dd5ee78def7",
+    "bytes": 2721,
+    "sha256": "f43e783dd02b80431c9211ebedd0654fbd7d8d6855ce9ae573f0cd626218254a",
+    "terminal": {
+      "runId": "run_mvot3hpt_61a36d",
+      "attemptId": "attempt_mvot3hpt_62a84a",
+      "status": "completed",
+      "startedAt": "2026-10-26T05:18:43.234Z",
+      "completedAt": "2026-10-26T05:19:45.243Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 586868101,
+      "size": 1938,
+      "nlink": 1,
+      "mtimeMs": 1792991985249.4702,
+      "ctimeMs": 1792991985249.8105
+    }
+  }
+}

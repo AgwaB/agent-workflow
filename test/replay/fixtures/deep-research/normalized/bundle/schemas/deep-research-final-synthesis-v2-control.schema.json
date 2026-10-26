@@ -1,0 +1,248 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "digest": {
+      "maxLength": 1200,
+      "minLength": 1,
+      "type": "string"
+    },
+    "schema": {
+      "const": "deep-research-final-synthesis-v2",
+      "type": "string"
+    },
+    "synthesis": {
+      "additionalProperties": false,
+      "properties": {
+        "actionPlan": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "action": {
+                "maxLength": 1200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "evidenceStatus": {
+                "type": "string"
+              },
+              "step": {},
+              "supportingClaimIds": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 8,
+                "type": "array"
+              }
+            },
+            "required": [
+              "action",
+              "supportingClaimIds"
+            ],
+            "type": "object"
+          },
+          "maxItems": 12,
+          "type": "array"
+        },
+        "bottomLine": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "caveatNotes": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "gapIds": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 8,
+                "type": "array"
+              },
+              "note": {
+                "maxLength": 1200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "readerNote": {
+                "maxLength": 1200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "relatedClaimIds": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 8,
+                "type": "array"
+              }
+            },
+            "required": [
+              "note"
+            ],
+            "type": "object"
+          },
+          "maxItems": 16,
+          "type": "array"
+        },
+        "comparisonRows": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "area": {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "assessment": {
+                "maxLength": 800,
+                "minLength": 1,
+                "type": "string"
+              },
+              "evidenceStatus": {
+                "type": "string"
+              },
+              "referencePattern": {
+                "maxLength": 800,
+                "minLength": 1,
+                "type": "string"
+              },
+              "subjectStatus": {
+                "maxLength": 800,
+                "minLength": 1,
+                "type": "string"
+              },
+              "supportingClaimIds": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 8,
+                "type": "array"
+              }
+            },
+            "required": [
+              "area",
+              "subjectStatus",
+              "referencePattern",
+              "assessment",
+              "supportingClaimIds"
+            ],
+            "type": "object"
+          },
+          "maxItems": 8,
+          "type": "array"
+        },
+        "contestedClaimIds": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 12,
+          "type": "array"
+        },
+        "keyFindingIds": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 12,
+          "type": "array"
+        },
+        "notableUnsupportedClaimIds": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 12,
+          "type": "array"
+        },
+        "parentDecisionNotes": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "evidenceStatus": {
+                "type": "string"
+              },
+              "note": {
+                "maxLength": 1200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "suggestedParentDecision": {
+                "maxLength": 1200,
+                "type": "string"
+              },
+              "supportingClaimIds": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 8,
+                "type": "array"
+              },
+              "whyItMatters": {
+                "maxLength": 1200,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "note",
+              "whyItMatters",
+              "evidenceStatus",
+              "suggestedParentDecision"
+            ],
+            "type": "object"
+          },
+          "maxItems": 12,
+          "type": "array"
+        },
+        "recommendations": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "evidenceStatus": {
+                "type": "string"
+              },
+              "rationale": {
+                "maxLength": 1200,
+                "type": "string"
+              },
+              "recommendation": {
+                "maxLength": 1200,
+                "minLength": 1,
+                "type": "string"
+              },
+              "supportingClaimIds": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 8,
+                "type": "array"
+              }
+            },
+            "required": [
+              "recommendation",
+              "supportingClaimIds"
+            ],
+            "type": "object"
+          },
+          "maxItems": 12,
+          "type": "array"
+        }
+      },
+      "required": [
+        "bottomLine",
+        "comparisonRows",
+        "keyFindingIds",
+        "recommendations",
+        "actionPlan",
+        "caveatNotes",
+        "parentDecisionNotes"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "digest",
+    "synthesis"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,25 @@
+{
+  "caveats": [],
+  "confidence": "high",
+  "correctionOrCounterclaim": "",
+  "digest": "The cited stdio specification directly supports the message-format claim.",
+  "evidence": [
+    {
+      "matchType": "exact",
+      "quote": "Each message is a single JSON-RPC request, notification, or response.",
+      "relevance": "Directly states the claimed message format.",
+      "source": "Model Context Protocol specification — stdio",
+      "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+      "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+    }
+  ],
+  "id": "claim-003",
+  "schema": "deep-research-verify-claim-v1",
+  "status": "verified",
+  "verdictDigest": {
+    "sourceUrls": [
+      "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+    ],
+    "support": "The specification explicitly describes each message as one JSON-RPC request, notification, or response."
+  }
+}

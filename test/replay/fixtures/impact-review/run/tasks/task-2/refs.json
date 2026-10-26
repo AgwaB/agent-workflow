@@ -1,0 +1,130 @@
+[
+  {
+    "path": "workflows/impact-review/schemas/implementation-map-control.schema.json",
+    "lines": [
+      1,
+      46
+    ],
+    "supports": "Control-object required fields and types"
+  },
+  {
+    "path": "src/subagent-api-recorder.ts",
+    "lines": [
+      20,
+      197
+    ],
+    "supports": "Configuration, exports, projection, wrapper forwarding, artifact writes"
+  },
+  {
+    "path": "src/subagent-backend.ts",
+    "lines": [
+      407,
+      565
+    ],
+    "supports": "API interface, injection/cache lifecycle, wrapped import, one-shot launch"
+  },
+  {
+    "path": "src/subagent-backend.ts",
+    "lines": [
+      623,
+      744
+    ],
+    "supports": "Worker-role launch and optional parent-child event reporting"
+  },
+  {
+    "path": "src/subagent-backend.ts",
+    "lines": [
+      2789,
+      2870
+    ],
+    "supports": "Interruption and exact-attempt status acknowledgement"
+  },
+  {
+    "path": "src/subagent-backend.ts",
+    "lines": [
+      3071,
+      3249
+    ],
+    "supports": "Durable API detection, barrier creation, launch-option content, real launch"
+  },
+  {
+    "path": "src/subagent-backend.ts",
+    "lines": [
+      3839,
+      4148
+    ],
+    "supports": "Refresh reconciliation, concurrent polls, status processing"
+  },
+  {
+    "path": "src/subagent-backend.ts",
+    "lines": [
+      6626,
+      6641
+    ],
+    "supports": "Preparation-time API load and extension-isolation feature detection"
+  },
+  {
+    "path": "src/backend.ts",
+    "lines": [
+      74,
+      123
+    ],
+    "supports": "Headless backend registration and launch-error translation"
+  },
+  {
+    "path": "src/workflow-router.ts",
+    "lines": [
+      1499,
+      1533
+    ],
+    "supports": "Auto-comparison one-shot API caller and argument content"
+  },
+  {
+    "path": "package.json",
+    "supports": "Build/test commands, published files, package exports, dependency version"
+  },
+  {
+    "path": "tsconfig.json",
+    "supports": "NodeNext TypeScript compilation and src inclusion"
+  },
+  {
+    "path": "node_modules/@agwab/pi-subagent/api.mjs",
+    "supports": "Actual runtime export surface and error constructors"
+  },
+  {
+    "path": "node_modules/@agwab/pi-subagent/src/orchestrate/async.ts",
+    "lines": [
+      316,
+      335
+    ],
+    "supports": "Worker environment inheritance"
+  },
+  {
+    "path": "internal/record/run-minimal.mjs",
+    "lines": [
+      23,
+      67
+    ],
+    "supports": "Environment activation, built-engine driver, explicitly wrapped fake injection"
+  },
+  {
+    "path": "internal/record/build-fixture.mjs",
+    "supports": "Portable fixture construction and recording artifact consumers"
+  },
+  {
+    "path": "test/replay/replay-subagent-api.mjs",
+    "supports": "Sequence sorting, method/argument matching, sync restoration, surface-based API reconstruction"
+  },
+  {
+    "path": "test/unit/replay-self-consistency.test.mjs",
+    "lines": [
+      106,
+      259
+    ],
+    "supports": "Replay injection, normalized-run comparisons, recorder unit coverage"
+  },
+  {
+    "path": "test/replay/fixtures/minimal/record/api-surface.json",
+    "supports": "Existing method/constructor/value artifact shape"
+  }
+]

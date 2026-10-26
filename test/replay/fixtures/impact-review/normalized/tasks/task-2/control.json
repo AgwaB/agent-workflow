@@ -1,0 +1,355 @@
+{
+  "components": [
+    {
+      "behavior": "The cached dynamic import of @agwab/pi-subagent/api now passes through maybeRecordSubagentApi. Injected APIs return before the recording seam. Resetting the test API also clears the cached import promise.",
+      "changed": true,
+      "id": "api-loader",
+      "path": "src/subagent-backend.ts",
+      "symbols": [
+        "SubagentApi",
+        "loadSubagentApi",
+        "cachedSubagentApi",
+        "injectedSubagentApi",
+        "setSubagentApiForTests"
+      ]
+    },
+    {
+      "behavior": "Disabled mode returns the original API object. Enabled mode copies own enumerable string-keyed exports into a plain object, preserves values and class-syntax constructors, and wraps other functions using fn.apply(real, args).",
+      "changed": true,
+      "config": {
+        "activation": "A nonempty value after trim enables recording.",
+        "key": "PI_WORKFLOW_RECORD_DIR",
+        "source": "process.env by default"
+      },
+      "exports": [
+        "PI_WORKFLOW_RECORD_DIR_ENV",
+        "RECORDED_CALLS_FILE",
+        "RECORDED_SURFACE_FILE",
+        "recordDirFromEnv",
+        "Recordable",
+        "toRecordable",
+        "createRecordingSubagentApi",
+        "maybeRecordSubagentApi"
+      ],
+      "id": "recording-wrapper",
+      "path": "src/subagent-api-recorder.ts"
+    },
+    {
+      "artifacts": [
+        {
+          "behavior": "Created without truncation and appended synchronously after return, throw, fulfillment, or rejection. Sequence numbers start at one for each wrapper; physical line order follows completion.",
+          "fields": [
+            "seq",
+            "method",
+            "pid",
+            "startedAt",
+            "args",
+            "sync",
+            "result or error",
+            "endedAt"
+          ],
+          "name": "calls.jsonl"
+        },
+        {
+          "behavior": "Overwritten at wrapper construction with sorted export-name arrays, including methods never called.",
+          "fields": [
+            "methods",
+            "constructors",
+            "values"
+          ],
+          "name": "api-surface.json"
+        }
+      ],
+      "changed": true,
+      "dependencies": [
+        "node:fs mkdirSync/writeFileSync/appendFileSync",
+        "node:path join",
+        "process.pid",
+        "Date",
+        "JSON.stringify"
+      ],
+      "id": "recording-artifacts",
+      "path": "src/subagent-api-recorder.ts"
+    },
+    {
+      "behavior": [
+        "Sorts object keys; omits undefined object properties and projects undefined array entries as null.",
+        "Marks functions, symbols, bigints, nonfinite numbers, AbortSignals, buffers/views, thenables, streams, and cycles with $nonSerializable.",
+        "Projects Dates as ISO strings, Maps through Object.fromEntries, and Sets as arrays.",
+        "Projects Errors to $error/name/message plus optional code/failureKind.",
+        "Records null for nullish successful results while forwarding the original result value."
+      ],
+      "changed": true,
+      "id": "json-projection",
+      "path": "src/subagent-api-recorder.ts",
+      "symbol": "toRecordable"
+    },
+    {
+      "behavior": "The local-pi/headless backend and engine scheduling, refresh, cancellation, durable launch coordination, and parent-child reporting share the wrapped API.",
+      "changed": false,
+      "id": "workflow-backend",
+      "paths": [
+        "src/backend.ts",
+        "src/engine.ts",
+        "src/subagent-backend.ts"
+      ],
+      "symbols": [
+        "resolveWorkflowBackend",
+        "prepareSubagentTaskLaunch",
+        "launchSubagentTask",
+        "refreshRunFromSubagentArtifacts",
+        "interruptSubagentTask",
+        "acknowledgeSubagentTaskInterrupted",
+        "recordParentSubagentChildEvent"
+      ]
+    },
+    {
+      "behavior": "Auto-comparison launches also use the shared loader; their options include task/system prompt, model/thinking, tools, run paths, timeout, and AbortSignal.",
+      "changed": false,
+      "id": "one-shot-router",
+      "paths": [
+        "src/workflow-router.ts",
+        "src/subagent-backend.ts"
+      ],
+      "symbols": [
+        "runWorkflowAutoComparison",
+        "runOneShotSubagentCall"
+      ]
+    },
+    {
+      "behavior": "The /api export resolves to api.mjs, which exposes runtime functions and three error constructors. Recording enumerates the complete runtime module, not only the narrower TypeScript SubagentApi interface.",
+      "changed": false,
+      "declaredVersion": "^0.7.2",
+      "dependency": "@agwab/pi-subagent",
+      "id": "runtime-package",
+      "installedVersion": "0.7.2",
+      "paths": [
+        "package.json",
+        "node_modules/@agwab/pi-subagent/package.json",
+        "node_modules/@agwab/pi-subagent/api.mjs"
+      ]
+    },
+    {
+      "behavior": "Recording drivers enable the seam before driving dist/engine.js. Fixture tooling captures filesystem artifacts, rewrites host paths, and compacts observations. Replay consumes recorded calls and surface metadata through test API injection.",
+      "changed": false,
+      "existingFixtures": [
+        "test/replay/fixtures/minimal",
+        "test/replay/fixtures/deep-review",
+        "test/replay/fixtures/spec-review"
+      ],
+      "id": "recording-replay-consumers",
+      "paths": [
+        "internal/record/run-minimal.mjs",
+        "internal/record/run-bundled.mjs",
+        "internal/record/capture-run.mjs",
+        "internal/record/build-fixture.mjs",
+        "internal/record/compact-calls.mjs",
+        "internal/record/make-portable.mjs",
+        "test/replay/replay-subagent-api.mjs",
+        "test/replay/normalize.mjs",
+        "test/replay/allowed-differences.json",
+        "test/unit/replay-self-consistency.test.mjs"
+      ]
+    },
+    {
+      "behavior": "src/**/*.ts includes the recorder in TypeScript builds and declarations. Published files include src and dist. The recorder is not re-exported from src/index.ts or given a package export subpath.",
+      "changed": false,
+      "commands": [
+        "npm run typecheck",
+        "npm run build",
+        "npm run test:unit",
+        "npm run build && node --test test/unit/replay-self-consistency.test.mjs"
+      ],
+      "id": "build-and-package",
+      "paths": [
+        "package.json",
+        "tsconfig.json",
+        "src/index.ts"
+      ]
+    }
+  ],
+  "dataFlows": [
+    {
+      "details": "Directory selection occurs when the dynamic import resolves, not separately for every call.",
+      "from": "process.env.PI_WORKFLOW_RECORD_DIR",
+      "id": "environment-to-api",
+      "to": "Original module or cached recording wrapper",
+      "via": [
+        "loadSubagentApi",
+        "maybeRecordSubagentApi",
+        "recordDirFromEnv"
+      ]
+    },
+    {
+      "data": [
+        "task/systemPrompt",
+        "cwd/runsDir",
+        "model/thinking",
+        "tools/extensions/skills",
+        "timeout",
+        "correlation/session IDs",
+        "durable launch descriptor",
+        "tool-result budget"
+      ],
+      "details": "Arguments are projected before invoking the real function. Returned envelopes and errors are projected when the call finishes.",
+      "from": "Compiled task and prepared launch",
+      "id": "launch-to-record",
+      "to": [
+        "Real subagent API",
+        "calls.jsonl"
+      ],
+      "via": [
+        "launchSubagentTask",
+        "runSubagentWithWorkflowWorkerRole",
+        "wrapped runSubagent"
+      ]
+    },
+    {
+      "data": [
+        "Run/attempt IDs",
+        "status snapshots",
+        "artifact paths",
+        "barrier descriptors and digests",
+        "cancellation details",
+        "child-event usage"
+      ],
+      "from": "Refresh, interruption, durable barrier, and parent-child event operations",
+      "id": "observations-and-control",
+      "to": [
+        "Existing workflow state/artifact handling",
+        "calls.jsonl"
+      ],
+      "via": "Shared wrapped API"
+    },
+    {
+      "details": "Synchronous outcomes append before return/rethrow. Thenables return a chained then result that appends before forwarding fulfillment/rejection. Recorder filesystem and projection errors have no independent suppression boundary.",
+      "from": "Real function result or exception",
+      "id": "completion-forwarding",
+      "to": "Backend caller",
+      "via": "Recorder append"
+    },
+    {
+      "details": "readCalls sorts by seq. Replay matches normalized method/arguments, derives sync behavior from records and known helpers, and exposes methods from surface metadata for feature detection.",
+      "from": [
+        "calls.jsonl",
+        "api-surface.json",
+        "Captured workflow/subagent files"
+      ],
+      "id": "recording-to-replay",
+      "to": "Engine tests via setSubagentApiForTests",
+      "via": [
+        "Portable-path normalization",
+        "Observation compaction",
+        "readCalls",
+        "createReplaySubagentApi"
+      ]
+    },
+    {
+      "details": "The launcher copies process.env into workerEnv; PI_WORKFLOW_RECORD_DIR is not removed at that boundary.",
+      "from": "Parent process environment",
+      "id": "environment-to-worker",
+      "to": "Durable worker process environment",
+      "via": "Installed pi-subagent async launcher"
+    }
+  ],
+  "digest": "Maps the env-gated recording wrapper, shared backend API loader, workflow lifecycle callers, recording artifacts, replay consumers, and build/test surfaces without assigning risk.",
+  "entryPoints": [
+    {
+      "activation": "First non-injected API load; subsequent callers reuse the cached promise and selected wrapper.",
+      "id": "normal-load",
+      "path": "src/subagent-backend.ts:497",
+      "symbol": "loadSubagentApi"
+    },
+    {
+      "activation": "Direct internal/test import; always enables recording for the supplied directory.",
+      "id": "explicit-wrapper",
+      "path": "src/subagent-api-recorder.ts:123",
+      "symbol": "createRecordingSubagentApi"
+    },
+    {
+      "apiMethods": [
+        "supportsExplicitExtensionIsolation",
+        "runSubagent",
+        "reconcileSubagentRun",
+        "getSubagentStatus"
+      ],
+      "callers": [
+        "src/engine.ts:2752",
+        "src/engine.ts:3335",
+        "src/engine.ts:5335"
+      ],
+      "id": "workflow-lifecycle",
+      "path": "src/backend.ts:74",
+      "symbols": [
+        "prepareTaskLaunch",
+        "launchTask",
+        "refreshRun"
+      ]
+    },
+    {
+      "apiMethods": [
+        "createDurableLaunchBarrierV2",
+        "durableLaunchBarrierDigest",
+        "waitForDurableLaunchBarrierV2Ready",
+        "resolveDurableLaunchBarrierV2Release",
+        "revokeDurableLaunchBarrierV2",
+        "readDurableLaunchBarrierV2State",
+        "waitForDurableLaunchBarrierV2Ack"
+      ],
+      "id": "durable-launch",
+      "path": "src/subagent-backend.ts",
+      "symbols": [
+        "hasDurableLaunchBarrierApi",
+        "launchSubagentTask",
+        "reconcileDurableLaunchBarrierTask"
+      ]
+    },
+    {
+      "apiMethods": [
+        "interruptSubagent",
+        "getSubagentStatus",
+        "recordSubagentChildEvent"
+      ],
+      "id": "cancellation-and-child-events",
+      "path": "src/subagent-backend.ts",
+      "symbols": [
+        "interruptSubagentTask",
+        "recordParentSubagentChildEvent"
+      ]
+    },
+    {
+      "id": "auto-comparison",
+      "path": "src/workflow-router.ts:1499",
+      "symbol": "runWorkflowAutoComparison",
+      "via": "src/subagent-backend.ts:550 runOneShotSubagentCall"
+    },
+    {
+      "behavior": "Checks disabled identity, sync success, async success/rejection, function/AbortSignal markers, Error code projection, and method-surface output.",
+      "id": "recorder-test",
+      "path": "test/unit/replay-self-consistency.test.mjs:217"
+    }
+  ],
+  "schema": "stage-control-v1",
+  "unknowns": [
+    {
+      "id": "execution-evidence",
+      "question": "Do typecheck, recorder tests, and replay tests pass for this checkout?",
+      "status": "Not executed; this stage used read-only inspection."
+    },
+    {
+      "evidence": "Calls append across directory reuse, surface metadata overwrites, and seq is wrapper-local; worker environment inheritance is present.",
+      "id": "directory-ownership",
+      "question": "Is a recording directory intended to belong to one wrapper/process/run, and can descendants load the backend with the inherited setting?"
+    },
+    {
+      "evidence": "The inspected recorder test does not exercise constructors, cyclic Error metadata, getters/proxies, invalid Dates, Map/Set conversion, custom thenables, or filesystem failures.",
+      "id": "exceptional-input-coverage",
+      "question": "Which production API values exercise projection beyond the basic unit-test cases?"
+    },
+    {
+      "evidence": "The seam records projected argument/result content without redaction, truncation, explicit permission modes, or cleanup; portable-path rewriting is separate tooling.",
+      "id": "artifact-policy",
+      "question": "What retention, permissions, sharing, and content-handling policy applies to recording directories?"
+    }
+  ]
+}

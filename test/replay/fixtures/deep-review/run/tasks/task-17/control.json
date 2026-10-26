@@ -1,0 +1,39 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "The prefix fallback demonstrably accepts unrelated Errors; downstream diagnostic suppression remains unverified.",
+  "findingId": "finding-006",
+  "finding": "Stop-error matching accepts unrelated failures with a similar message prefix",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 55,
+      "lineEnd": 57,
+      "symbol": "isWorkflowStopRequestedError",
+      "quote": "error instanceof Error &&\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 44,
+      "symbol": "workflowStopRequestedMessage",
+      "quote": "return `workflow stop requested for ${runId}`;"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 49,
+      "symbol": "createWorkflowStopRequestedError",
+      "quote": "error.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME;"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 35,
+      "symbol": "createWorkflowStopPendingError",
+      "quote": "error.name = WORKFLOW_STOP_PENDING_ERROR_NAME;"
+    }
+  ],
+  "counterEvidence": [
+    "The instanceof Error guard excludes plain strings and plain records; the false-positive scope is limited to Error instances.",
+    "Canonical stop errors already receive the dedicated WorkflowStopRequested name, so their classification is intentional."
+  ],
+  "recommendedAction": "Prefer the explicit stop sentinel. If legacy message-only errors must remain supported, compare against the exact expected-run message without overriding conflicting error names. Add regression tests for similarly prefixed operational failures and WorkflowStopPending errors."
+}

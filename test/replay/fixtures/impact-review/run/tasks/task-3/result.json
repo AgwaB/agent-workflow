@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "Mapped recorder unit coverage, three replay fixtures, backend/package smoke checks, documentation, release artifacts, and unexecuted validation commands.",
+  "startedAt": "2026-10-26T05:39:21.950Z",
+  "completedAt": "2026-10-26T05:42:46.672Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "cdd3a7651918ed53398af801842b4f785534f8aea809432622bbb95c26343db9",
+    "bytes": 16166,
+    "sha256": "7674c87151df32a55facf90c468b7ddc82590b5f5202173d5e8456f3823ef431",
+    "terminal": {
+      "runId": "run_mvotu1gt_0523b6",
+      "attemptId": "attempt_mvotu1gt_c45ea8",
+      "status": "completed",
+      "startedAt": "2026-10-26T05:39:21.950Z",
+      "completedAt": "2026-10-26T05:42:46.672Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 587058540,
+      "size": 1877,
+      "nlink": 1,
+      "mtimeMs": 1792993366675.792,
+      "ctimeMs": 1792993366676.3887
+    }
+  }
+}

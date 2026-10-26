@@ -1,0 +1,27 @@
+{
+  "caveats": [
+    "This verdict verifies the rewritten stdout claim, not the original newline-framing claim."
+  ],
+  "confidence": "high",
+  "correctionOrCounterclaim": "",
+  "digest": "The cited specification explicitly prohibits non-MCP stdout output.",
+  "evidence": [
+    {
+      "matchType": "exact",
+      "quote": "The server **MUST NOT** write anything to its `stdout` that is not a valid MCP\n  message.",
+      "relevance": "Direct normative support for the normalized stdout restriction.",
+      "source": "Model Context Protocol specification — stdio",
+      "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+      "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+    }
+  ],
+  "id": "claim-004",
+  "schema": "deep-research-verify-claim-v1",
+  "status": "verified",
+  "verdictDigest": {
+    "sourceUrls": [
+      "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+    ],
+    "support": "The primary specification contains the claimed normative stdout prohibition verbatim."
+  }
+}

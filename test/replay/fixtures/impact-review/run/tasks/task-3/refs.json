@@ -1,0 +1,113 @@
+[
+  {
+    "id": "control-contract",
+    "path": "workflows/impact-review/schemas/validation-map-control.schema.json"
+  },
+  {
+    "id": "recorder",
+    "path": "src/subagent-api-recorder.ts",
+    "lines": [
+      1,
+      197
+    ]
+  },
+  {
+    "id": "loader",
+    "path": "src/subagent-backend.ts",
+    "lines": [
+      484,
+      506
+    ]
+  },
+  {
+    "id": "direct-recorder-test",
+    "path": "test/unit/replay-self-consistency.test.mjs",
+    "lines": [
+      217,
+      257
+    ]
+  },
+  {
+    "id": "engine-replay-tests",
+    "path": "test/unit/replay-self-consistency.test.mjs",
+    "lines": [
+      34,
+      215
+    ]
+  },
+  {
+    "id": "replay-adapter",
+    "path": "test/replay/replay-subagent-api.mjs"
+  },
+  {
+    "id": "normalization-policy",
+    "paths": [
+      "test/replay/normalize.mjs",
+      "test/replay/allowed-differences.json"
+    ]
+  },
+  {
+    "id": "fixture-metadata",
+    "paths": [
+      "test/replay/fixtures/minimal/fixture.json",
+      "test/replay/fixtures/deep-review/fixture.json",
+      "test/replay/fixtures/spec-review/fixture.json"
+    ]
+  },
+  {
+    "id": "fixture-surface-example",
+    "path": "test/replay/fixtures/minimal/record/api-surface.json"
+  },
+  {
+    "id": "backend-regressions",
+    "paths": [
+      "test/unit/subagent-extension-preflight.test.mjs",
+      "test/unit/runtime-bundled-api-boundary.test.mjs"
+    ]
+  },
+  {
+    "id": "packed-smoke",
+    "paths": [
+      "test/e2e/run.mjs",
+      "test/e2e/cases/packed-web-loader.mjs"
+    ]
+  },
+  {
+    "id": "package-build",
+    "paths": [
+      "package.json",
+      "tsconfig.json",
+      ".gitignore",
+      "src/index.ts"
+    ]
+  },
+  {
+    "id": "release-gates",
+    "paths": [
+      "tools/release/check-public-surface.mjs",
+      "tools/release/release-check.mjs",
+      ".github/workflows/ci.yml",
+      ".github/workflows/publish.yml"
+    ]
+  },
+  {
+    "id": "validation-guidance",
+    "paths": [
+      "CONTRIBUTING.md",
+      "docs/usage.md"
+    ]
+  },
+  {
+    "id": "local-recording-toolchain",
+    "paths": [
+      "internal/record/run-minimal.mjs",
+      "internal/record/run-bundled.mjs",
+      "internal/record/build-fixture.mjs",
+      "internal/record/compact-calls.mjs"
+    ]
+  },
+  {
+    "id": "generated-recorder-declaration",
+    "path": "dist/subagent-api-recorder.d.ts"
+  }
+]

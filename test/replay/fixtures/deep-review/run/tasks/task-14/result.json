@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "The disposal race is present: clearing the interval cannot prevent an already-awaited read from subsequently aborting the signal.",
+  "startedAt": "2026-10-26T05:18:41.912Z",
+  "completedAt": "2026-10-26T05:19:34.373Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "b377107f74a4d87457a181e53f27c2f9693535c592d9b1feb45489241735d4f0",
+    "bytes": 2544,
+    "sha256": "050450738ab70b93007d415d3b27b28d909bc90cc88c311c2a6561932dc49b76",
+    "terminal": {
+      "runId": "run_mvot3gq7_fb336c",
+      "attemptId": "attempt_mvot3gq7_81aa86",
+      "status": "completed",
+      "startedAt": "2026-10-26T05:18:41.912Z",
+      "completedAt": "2026-10-26T05:19:34.373Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 586867101,
+      "size": 1924,
+      "nlink": 1,
+      "mtimeMs": 1792991974374.609,
+      "ctimeMs": 1792991974374.808
+    }
+  }
+}

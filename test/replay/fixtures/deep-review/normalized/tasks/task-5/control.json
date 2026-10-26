@@ -1,0 +1,1296 @@
+{
+  "dedupSummary": {
+    "complete": true,
+    "dedupFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "dispositionFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "duplicateCount": 0,
+    "duplicates": [],
+    "lineageFindingIds": [],
+    "rawCount": 7,
+    "rawFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "supportFindingIds": [],
+    "uniqueCount": 7
+  },
+  "digest": "partition: keep=7, weaken=0, drop=0, needsHuman=0, missingVerdicts=0, partialFailures=0, supportNotes=0, ledgerDigest=5004011687047a8df835b801591b44d8fdcf44534536d90194bf483c00f086b4",
+  "normalizationNotes": [],
+  "partitionSummary": {
+    "batchIntegrityIssues": 0,
+    "drop": 0,
+    "keep": 7,
+    "mergedFindings": 0,
+    "missingVerdicts": 0,
+    "needsHuman": 0,
+    "partialFailures": 0,
+    "reviewerCoverageIssues": 0,
+    "reviewerFindings": 7,
+    "supportNotes": 0,
+    "verdictIntegrityIssues": 0,
+    "verdictsReceived": 7,
+    "weaken": 0
+  },
+  "partitions": {
+    "drop": [],
+    "keep": [
+      {
+        "counterEvidence": [
+          "The aborted-signal guard and foreground launch check prevent further reads once cancellation is observed. Thus storage stalls do not inherently prevent foreground cancellation detection.",
+          "Disposal clears the interval, limiting future starts to the watcher's active lifetime. It does not bound outstanding reads before disposal."
+        ],
+        "evidence": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 67,
+            "quote": "\tconst pollMs = Math.max(10, options.pollMs ?? 50);",
+            "symbol": "createWorkflowStopSignal"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 68,
+            "lineEnd": 78,
+            "quote": "\tconst check = async (): Promise<void> => {\n\t\tif (controller.signal.aborted) return;\n\t\tif (launchStopRequested(cwd, runId)) {\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));\n\t\t\treturn;\n\t\t}\n\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);\n\t\tif (intent || launchStopRequested(cwd, runId))\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));",
+            "symbol": "createWorkflowStopSignal"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 80,
+            "lineEnd": 82,
+            "quote": "\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);\n\ttimer.unref?.();",
+            "symbol": "createWorkflowStopSignal"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 85,
+            "quote": "\t\tdispose: () => clearInterval(timer),",
+            "symbol": "createWorkflowStopSignal"
+          }
+        ],
+        "evidenceQuotes": [
+          "\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);",
+          "\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);",
+          "\tconst pollMs = Math.max(10, options.pollMs ?? 50);",
+          "\tconst check = async (): Promise<void> => {\n\t\tif (controller.signal.aborted) return;\n\t\tif (launchStopRequested(cwd, runId)) {\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));\n\t\t\treturn;\n\t\t}\n\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);\n\t\tif (intent || launchStopRequested(cwd, runId))\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));",
+          "\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);\n\ttimer.unref?.();",
+          "\t\tdispose: () => clearInterval(timer),"
+        ],
+        "file": "src/workflow-stop.ts",
+        "findingId": "finding-001",
+        "generatedRootCauseId": true,
+        "locations": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 68,
+            "lineEnd": 81,
+            "symbol": "createWorkflowStopSignal"
+          }
+        ],
+        "originalFindingId": "finding-001",
+        "originalSeverity": "high",
+        "originalVerdict": "KEEP",
+        "rationale": "Slow or stalled persistence causes pending reads and retained promises to accumulate for as long as the watcher remains active. This amplifies storage pressure precisely when cancellation depends on that storage and can exhaust resources or further delay stop propagation.",
+        "recommendedAction": "Permit only one outstanding intent read per watcher, while checking foreground launch cancellation before the in-flight guard. Add a deferred-read regression test covering repeated ticks and local cancellation before that read settles.",
+        "reviewerEvidenceQuotes": [
+          "\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);",
+          "\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);"
+        ],
+        "reviewerIdentity": {
+          "itemIdentity": "stop-lifecycle",
+          "placeholderSpecId": "reviewers.item",
+          "source": "reviewers",
+          "specId": "reviewers.stop-lifecycle",
+          "taskId": "task-9"
+        },
+        "rootCauseId": "root-001",
+        "severity": "high",
+        "source": "reviewers",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "sourceLineage": [
+          "reviewers"
+        ],
+        "title": "Stop polling starts unbounded concurrent persistence reads",
+        "verdict": "KEEP",
+        "verifierEvidence": [
+          "\tconst pollMs = Math.max(10, options.pollMs ?? 50);",
+          "\tconst check = async (): Promise<void> => {\n\t\tif (controller.signal.aborted) return;\n\t\tif (launchStopRequested(cwd, runId)) {\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));\n\t\t\treturn;\n\t\t}\n\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);\n\t\tif (intent || launchStopRequested(cwd, runId))\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));",
+          "\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);\n\ttimer.unref?.();",
+          "\t\tdispose: () => clearInterval(timer),"
+        ],
+        "verifierOwner": {
+          "itemIdentity": "finding-001",
+          "placeholderSpecId": "devil-advocate.item",
+          "source": "devil-advocate",
+          "specId": "devil-advocate.finding-001",
+          "taskId": "task-12"
+        }
+      },
+      {
+        "counterEvidence": [
+          "The map-identity guard prevents an old cleanup from deleting a replacement Set, but does not preserve multiple registrations within the same Set.",
+          "A readable durable stop intent still triggers cancellation, limiting the lost-fence effect to the interval before that intent becomes readable."
+        ],
+        "evidence": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 14,
+            "lineEnd": 16,
+            "quote": "\tconst signals = launchSignals.get(key) ?? new Set<AbortSignal>();\n\tsignals.add(signal);\n\tlaunchSignals.set(key, signals);",
+            "symbol": "bindWorkflowLaunchSignal"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 17,
+            "lineEnd": 21,
+            "quote": "\treturn () => {\n\t\tsignals.delete(signal);\n\t\tif (signals.size === 0 && launchSignals.get(key) === signals)\n\t\t\tlaunchSignals.delete(key);\n\t};",
+            "symbol": "bindWorkflowLaunchSignal"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 25,
+            "lineEnd": 27,
+            "quote": "\treturn [...(launchSignals.get(workflowRunPath(cwd, runId)) ?? [])].some(\n\t\t(signal) => signal.aborted,\n\t);",
+            "symbol": "launchStopRequested"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 93,
+            "lineEnd": 98,
+            "quote": "\tif (launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);\n\tconst intent = await readWorkflowStopIntent(cwd, runId);\n\t// Cancellation may have arrived while the disk read was in flight.\n\tif (intent || launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);",
+            "symbol": "throwIfWorkflowStopRequested"
+          }
+        ],
+        "evidenceQuotes": [
+          "\tconst signals = launchSignals.get(key) ?? new Set<AbortSignal>();\n\tsignals.add(signal);",
+          "\treturn () => {\n\t\tsignals.delete(signal);\n\t\tif (signals.size === 0 && launchSignals.get(key) === signals)\n\t\t\tlaunchSignals.delete(key);\n\t};",
+          "\treturn [...(launchSignals.get(workflowRunPath(cwd, runId)) ?? [])].some(\n\t\t(signal) => signal.aborted,\n\t);",
+          "\tconst signals = launchSignals.get(key) ?? new Set<AbortSignal>();\n\tsignals.add(signal);\n\tlaunchSignals.set(key, signals);",
+          "\tif (launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);\n\tconst intent = await readWorkflowStopIntent(cwd, runId);\n\t// Cancellation may have arrived while the disk read was in flight.\n\tif (intent || launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);"
+        ],
+        "file": "src/workflow-stop.ts",
+        "findingId": "finding-002",
+        "generatedRootCauseId": true,
+        "locations": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 14,
+            "lineEnd": 20,
+            "symbol": "bindWorkflowLaunchSignal"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 24,
+            "lineEnd": 27,
+            "symbol": "launchStopRequested"
+          }
+        ],
+        "originalFindingId": "finding-002",
+        "originalSeverity": "medium",
+        "originalVerdict": "KEEP",
+        "rationale": "Registration lifetime is tracked by signal identity rather than binding ownership. Overlapping owners sharing a signal can therefore lose the synchronous fence that is meant to cover the durable-write window. Callers are absent, so the frequency of shared-signal registrations cannot be established.",
+        "recommendedAction": "Track each binding with a unique registration token or reference count, make cleanup idempotent, and test that disposing one duplicate binding leaves the other effective.",
+        "reviewerEvidenceQuotes": [
+          "\tconst signals = launchSignals.get(key) ?? new Set<AbortSignal>();\n\tsignals.add(signal);",
+          "\treturn () => {\n\t\tsignals.delete(signal);\n\t\tif (signals.size === 0 && launchSignals.get(key) === signals)\n\t\t\tlaunchSignals.delete(key);\n\t};",
+          "\treturn [...(launchSignals.get(workflowRunPath(cwd, runId)) ?? [])].some(\n\t\t(signal) => signal.aborted,\n\t);"
+        ],
+        "reviewerIdentity": {
+          "itemIdentity": "stop-lifecycle",
+          "placeholderSpecId": "reviewers.item",
+          "source": "reviewers",
+          "specId": "reviewers.stop-lifecycle",
+          "taskId": "task-9"
+        },
+        "rootCauseId": "root-002",
+        "severity": "medium",
+        "source": "reviewers",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "sourceLineage": [
+          "reviewers"
+        ],
+        "title": "Disposing one binding can remove another owner's launch fence",
+        "verdict": "KEEP",
+        "verifierEvidence": [
+          "\tconst signals = launchSignals.get(key) ?? new Set<AbortSignal>();\n\tsignals.add(signal);\n\tlaunchSignals.set(key, signals);",
+          "\treturn () => {\n\t\tsignals.delete(signal);\n\t\tif (signals.size === 0 && launchSignals.get(key) === signals)\n\t\t\tlaunchSignals.delete(key);\n\t};",
+          "\treturn [...(launchSignals.get(workflowRunPath(cwd, runId)) ?? [])].some(\n\t\t(signal) => signal.aborted,\n\t);",
+          "\tif (launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);\n\tconst intent = await readWorkflowStopIntent(cwd, runId);\n\t// Cancellation may have arrived while the disk read was in flight.\n\tif (intent || launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);"
+        ],
+        "verifierOwner": {
+          "itemIdentity": "finding-002",
+          "placeholderSpecId": "devil-advocate.item",
+          "source": "devil-advocate.finding-002",
+          "specId": "devil-advocate.finding-002",
+          "taskId": "task-13"
+        }
+      },
+      {
+        "counterEvidence": [
+          "dispose clears the interval, preventing future scheduled polling; the defect concerns checks already in flight.",
+          "The existing aborted guard prevents subsequent checks once cancellation is observed, but neither represents disposal nor guards the post-await continuation."
+        ],
+        "evidence": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 74,
+            "lineEnd": 78,
+            "quote": "\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);\n\t\tif (intent || launchStopRequested(cwd, runId))\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));",
+            "symbol": "createWorkflowStopSignal"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 80,
+            "lineEnd": 85,
+            "quote": "\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);\n\ttimer.unref?.();\n\treturn {\n\t\tsignal: controller.signal,\n\t\tdispose: () => clearInterval(timer),",
+            "symbol": "createWorkflowStopSignal"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 69,
+            "quote": "\t\tif (controller.signal.aborted) return;",
+            "symbol": "createWorkflowStopSignal"
+          }
+        ],
+        "evidenceQuotes": [
+          "\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);\n\t\tif (intent || launchStopRequested(cwd, runId))\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));",
+          "\t\tdispose: () => clearInterval(timer),",
+          "\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);\n\ttimer.unref?.();\n\treturn {\n\t\tsignal: controller.signal,\n\t\tdispose: () => clearInterval(timer),",
+          "\t\tif (controller.signal.aborted) return;"
+        ],
+        "file": "src/workflow-stop.ts",
+        "findingId": "finding-003",
+        "generatedRootCauseId": true,
+        "locations": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 74,
+            "lineEnd": 85,
+            "symbol": "createWorkflowStopSignal"
+          }
+        ],
+        "originalFindingId": "finding-003",
+        "originalSeverity": "medium",
+        "originalVerdict": "KEEP",
+        "rationale": "Disposal stops future timer ticks but does not end cancellation notifications from work already launched. A retained abort listener can consequently run after the consumer has torn down this watcher or released its lifecycle ownership. Downstream listener effects are not available in this excerpt.",
+        "recommendedAction": "Set a disposed flag synchronously in dispose, check it before polling and immediately after the awaited read, and add a regression test resolving a pending read with a stop intent after disposal.",
+        "reviewerEvidenceQuotes": [
+          "\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);\n\t\tif (intent || launchStopRequested(cwd, runId))\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));",
+          "\t\tdispose: () => clearInterval(timer),"
+        ],
+        "reviewerIdentity": {
+          "itemIdentity": "stop-lifecycle",
+          "placeholderSpecId": "reviewers.item",
+          "source": "reviewers",
+          "specId": "reviewers.stop-lifecycle",
+          "taskId": "task-9"
+        },
+        "rootCauseId": "root-003",
+        "severity": "medium",
+        "source": "reviewers",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "sourceLineage": [
+          "reviewers"
+        ],
+        "title": "An in-flight check can abort the signal after disposal",
+        "verdict": "KEEP",
+        "verifierEvidence": [
+          "\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);\n\t\tif (intent || launchStopRequested(cwd, runId))\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));",
+          "\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);\n\ttimer.unref?.();\n\treturn {\n\t\tsignal: controller.signal,\n\t\tdispose: () => clearInterval(timer),",
+          "\t\tif (controller.signal.aborted) return;"
+        ],
+        "verifierOwner": {
+          "itemIdentity": "finding-003",
+          "placeholderSpecId": "devil-advocate.item",
+          "source": "devil-advocate.finding-003",
+          "specId": "devil-advocate.finding-003",
+          "taskId": "task-14"
+        }
+      },
+      {
+        "counterEvidence": [
+          "The rejected await still rejects the guard: this demonstrates incorrect cancellation classification, not successful dispatch past cancellation.",
+          "The polling helper catches read rejection before its second launch check, so this specific rejection race does not affect that helper."
+        ],
+        "evidence": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 93,
+            "lineEnd": 98,
+            "quote": "\tif (launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);\n\tconst intent = await readWorkflowStopIntent(cwd, runId);\n\t// Cancellation may have arrived while the disk read was in flight.\n\tif (intent || launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);",
+            "symbol": "throwIfWorkflowStopRequested"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 53,
+            "lineEnd": 59,
+            "quote": "export function isWorkflowStopRequestedError(error: unknown): boolean {\n\treturn (\n\t\terror instanceof Error &&\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))\n\t);\n}",
+            "symbol": "isWorkflowStopRequestedError"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 24,
+            "lineEnd": 28,
+            "quote": "function launchStopRequested(cwd: string, runId: string): boolean {\n\treturn [...(launchSignals.get(workflowRunPath(cwd, runId)) ?? [])].some(\n\t\t(signal) => signal.aborted,\n\t);\n}",
+            "symbol": "launchStopRequested"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 74,
+            "lineEnd": 78,
+            "quote": "\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);\n\t\tif (intent || launchStopRequested(cwd, runId))\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));",
+            "symbol": "createWorkflowStopSignal"
+          }
+        ],
+        "evidenceQuotes": [
+          "\tif (launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);\n\tconst intent = await readWorkflowStopIntent(cwd, runId);\n\t// Cancellation may have arrived while the disk read was in flight.\n\tif (intent || launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);",
+          "\t\terror instanceof Error &&\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))",
+          "export function isWorkflowStopRequestedError(error: unknown): boolean {\n\treturn (\n\t\terror instanceof Error &&\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))\n\t);\n}",
+          "function launchStopRequested(cwd: string, runId: string): boolean {\n\treturn [...(launchSignals.get(workflowRunPath(cwd, runId)) ?? [])].some(\n\t\t(signal) => signal.aborted,\n\t);\n}",
+          "\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);\n\t\tif (intent || launchStopRequested(cwd, runId))\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));"
+        ],
+        "file": "src/workflow-stop.ts",
+        "findingId": "finding-004",
+        "generatedRootCauseId": true,
+        "locations": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 93,
+            "lineEnd": 98,
+            "symbol": "throwIfWorkflowStopRequested"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 53,
+            "lineEnd": 58,
+            "symbol": "isWorkflowStopRequestedError"
+          }
+        ],
+        "originalFindingId": "finding-004",
+        "originalSeverity": "medium",
+        "originalVerdict": "KEEP",
+        "rationale": "The race protection covers fulfilled reads only. An unrelated persistence error generally fails the stop-error classifier, so callers cannot reliably distinguish cancellation from operational failure during this race. Actual caller recovery behavior is unavailable.",
+        "recommendedAction": "Catch intent-read rejection, recheck the launch fence, and throw WorkflowStopRequested only when locally stopped; otherwise rethrow the original error. Add regression tests for both outcomes.",
+        "reviewerEvidenceQuotes": [
+          "\tif (launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);\n\tconst intent = await readWorkflowStopIntent(cwd, runId);\n\t// Cancellation may have arrived while the disk read was in flight.\n\tif (intent || launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);",
+          "\t\terror instanceof Error &&\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))"
+        ],
+        "reviewerIdentity": {
+          "itemIdentity": "stop-lifecycle",
+          "placeholderSpecId": "reviewers.item",
+          "source": "reviewers",
+          "specId": "reviewers.stop-lifecycle",
+          "taskId": "task-9"
+        },
+        "rootCauseId": "root-004",
+        "severity": "medium",
+        "source": "reviewers",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "sourceLineage": [
+          "reviewers"
+        ],
+        "title": "A rejected persistence read bypasses the post-read launch fence",
+        "verdict": "KEEP",
+        "verifierEvidence": [
+          "\tif (launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);\n\tconst intent = await readWorkflowStopIntent(cwd, runId);\n\t// Cancellation may have arrived while the disk read was in flight.\n\tif (intent || launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);",
+          "export function isWorkflowStopRequestedError(error: unknown): boolean {\n\treturn (\n\t\terror instanceof Error &&\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))\n\t);\n}",
+          "function launchStopRequested(cwd: string, runId: string): boolean {\n\treturn [...(launchSignals.get(workflowRunPath(cwd, runId)) ?? [])].some(\n\t\t(signal) => signal.aborted,\n\t);\n}",
+          "\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);\n\t\tif (intent || launchStopRequested(cwd, runId))\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));"
+        ],
+        "verifierOwner": {
+          "itemIdentity": "finding-004",
+          "placeholderSpecId": "devil-advocate.item",
+          "source": "devil-advocate.finding-004",
+          "specId": "devil-advocate.finding-004",
+          "taskId": "task-15"
+        }
+      },
+      {
+        "counterEvidence": [
+          "Recognition uses exact cancellation markers, and JSON parsing failures are caught; arbitrary prose does not automatically become cancellation. These safeguards do not exclude valid domain JSON containing cancelled:true."
+        ],
+        "evidence": [
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 16,
+            "quote": "if (value.cancelled === true) return true;"
+          },
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 23,
+            "lineEnd": 25,
+            "quote": "if (Array.isArray(value.content)) {\n\t\tfor (const entry of value.content) {\n\t\t\tif (!isRecord(entry) || typeof entry.text !== \"string\") continue;"
+          },
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 27,
+            "lineEnd": 28,
+            "quote": "const parsed: unknown = JSON.parse(entry.text);\n\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;"
+          }
+        ],
+        "evidenceQuotes": [
+          "if (!isRecord(entry) || typeof entry.text !== \"string\") continue;",
+          "const parsed: unknown = JSON.parse(entry.text);",
+          "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+          "if (value.cancelled === true) return true;",
+          "if (Array.isArray(value.content)) {\n\t\tfor (const entry of value.content) {\n\t\t\tif (!isRecord(entry) || typeof entry.text !== \"string\") continue;",
+          "const parsed: unknown = JSON.parse(entry.text);\n\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;"
+        ],
+        "file": "src/workflow-cancellation.ts",
+        "findingId": "finding-005",
+        "generatedRootCauseId": true,
+        "locations": [
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 23,
+            "lineEnd": 29,
+            "symbol": "isWorkflowReturnedCancellation"
+          },
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 16,
+            "lineEnd": 21,
+            "symbol": "isWorkflowReturnedCancellation"
+          }
+        ],
+        "originalFindingId": "finding-005",
+        "originalSeverity": "medium",
+        "originalVerdict": "KEEP",
+        "rationale": "Application data and provider cancellation metadata share the same interpretation here. A cancellation field describing an application entity can therefore become a workflow cancellation signal. Callers relying on this predicate could discard valid output or suppress diagnostics. The false-positive return is established by the implementation; downstream handling is not included in this excerpt.",
+        "recommendedAction": "Restrict text-based recognition to explicitly identified adapter cancellation envelopes, preserve legacy wrappers explicitly, and add a regression test showing successful content containing domain JSON with cancelled:true is not classified as cancellation.",
+        "reviewerEvidenceQuotes": [
+          "if (!isRecord(entry) || typeof entry.text !== \"string\") continue;",
+          "const parsed: unknown = JSON.parse(entry.text);",
+          "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+          "if (value.cancelled === true) return true;"
+        ],
+        "reviewerIdentity": {
+          "itemIdentity": "cancellation-classification",
+          "placeholderSpecId": "reviewers.item",
+          "source": "reviewers.cancellation-classification",
+          "specId": "reviewers.cancellation-classification",
+          "taskId": "task-10"
+        },
+        "rootCauseId": "root-005",
+        "severity": "medium",
+        "source": "reviewers.cancellation-classification",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "sourceLineage": [
+          "reviewers.cancellation-classification"
+        ],
+        "title": "Ordinary provider content can be mistaken for workflow cancellation",
+        "verdict": "KEEP",
+        "verifierEvidence": [
+          "if (value.cancelled === true) return true;",
+          "if (Array.isArray(value.content)) {\n\t\tfor (const entry of value.content) {\n\t\t\tif (!isRecord(entry) || typeof entry.text !== \"string\") continue;",
+          "const parsed: unknown = JSON.parse(entry.text);\n\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;"
+        ],
+        "verifierOwner": {
+          "itemIdentity": "finding-005",
+          "placeholderSpecId": "devil-advocate.item",
+          "source": "devil-advocate.finding-005",
+          "specId": "devil-advocate.finding-005",
+          "taskId": "task-16"
+        }
+      },
+      {
+        "counterEvidence": [
+          "The instanceof Error guard excludes plain strings and plain records; the false-positive scope is limited to Error instances.",
+          "Canonical stop errors already receive the dedicated WorkflowStopRequested name, so their classification is intentional."
+        ],
+        "evidence": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 55,
+            "lineEnd": 57,
+            "quote": "error instanceof Error &&\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))",
+            "symbol": "isWorkflowStopRequestedError"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 44,
+            "quote": "return `workflow stop requested for ${runId}`;",
+            "symbol": "workflowStopRequestedMessage"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 49,
+            "quote": "error.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME;",
+            "symbol": "createWorkflowStopRequestedError"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 35,
+            "quote": "error.name = WORKFLOW_STOP_PENDING_ERROR_NAME;",
+            "symbol": "createWorkflowStopPendingError"
+          }
+        ],
+        "evidenceQuotes": [
+          "error instanceof Error &&",
+          "(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||",
+          "error.message.startsWith(\"workflow stop requested\"))",
+          "return `workflow stop requested for ${runId}`;",
+          "error instanceof Error &&\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))",
+          "error.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME;",
+          "error.name = WORKFLOW_STOP_PENDING_ERROR_NAME;"
+        ],
+        "file": "src/workflow-stop.ts",
+        "findingId": "finding-006",
+        "generatedRootCauseId": true,
+        "locations": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 53,
+            "lineEnd": 58,
+            "symbol": "isWorkflowStopRequestedError"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 43,
+            "lineEnd": 50,
+            "symbol": "createWorkflowStopRequestedError"
+          }
+        ],
+        "originalFindingId": "finding-006",
+        "originalSeverity": "medium",
+        "originalVerdict": "KEEP",
+        "rationale": "A failure while requesting or processing a stop can be indistinguishable from the intentional stop sentinel. Consumers that use this classifier to suppress expected cancellation errors can consequently hide an operational failure. No consumer is supplied, so the downstream consequence remains unverified.",
+        "recommendedAction": "Prefer the explicit stop sentinel. If legacy message-only errors must remain supported, compare against the exact expected-run message without overriding conflicting error names. Add regression tests for similarly prefixed operational failures and WorkflowStopPending errors.",
+        "reviewerEvidenceQuotes": [
+          "error instanceof Error &&",
+          "(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||",
+          "error.message.startsWith(\"workflow stop requested\"))",
+          "return `workflow stop requested for ${runId}`;"
+        ],
+        "reviewerIdentity": {
+          "itemIdentity": "cancellation-classification",
+          "placeholderSpecId": "reviewers.item",
+          "source": "reviewers.cancellation-classification",
+          "specId": "reviewers.cancellation-classification",
+          "taskId": "task-10"
+        },
+        "rootCauseId": "root-006",
+        "severity": "medium",
+        "source": "reviewers.cancellation-classification",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "sourceLineage": [
+          "reviewers.cancellation-classification"
+        ],
+        "title": "Stop-error matching accepts unrelated failures with a similar message prefix",
+        "verdict": "KEEP",
+        "verifierEvidence": [
+          "error instanceof Error &&\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))",
+          "return `workflow stop requested for ${runId}`;",
+          "error.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME;",
+          "error.name = WORKFLOW_STOP_PENDING_ERROR_NAME;"
+        ],
+        "verifierOwner": {
+          "itemIdentity": "finding-006",
+          "placeholderSpecId": "devil-advocate.item",
+          "source": "devil-advocate.finding-006",
+          "specId": "devil-advocate.finding-006",
+          "taskId": "task-17"
+        }
+      },
+      {
+        "counterEvidence": [
+          "src/workflow-terminal.ts:99-101 preserves terminal and engineStatus, so the summary does not erase the engine outcome entirely or alter cancellation execution.",
+          "src/workflow-terminal.ts:83-86 gives dynamic_incomplete precedence; runs carrying that marker do not receive the completion-labelled fallback."
+        ],
+        "evidence": [
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 67,
+            "lineEnd": 69,
+            "quote": "\tif (run.status === \"completed\")\n\t\treturn run.degradation ? \"completed_degraded\" : \"completed\";\n\treturn run.status;"
+          },
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 80,
+            "quote": "if (terminal && run.provenance?.mode === \"direct-dynamic\") {"
+          },
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 57,
+            "lineEnd": 61,
+            "quote": "\tif (!controller) return undefined;\n\tconst taskOutput = fromProjectPath(cwd, controller.files.output);\n\treturn await readJson<DynamicControllerControl>(\n\t\tjoin(dirname(taskOutput), \"control.json\"),\n\t).catch(() => undefined);"
+          },
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 83,
+            "lineEnd": 87,
+            "quote": "\t\tconst incomplete = run.tasks.some(\n\t\t\t(task) => task.statusDetail === \"dynamic_incomplete\",\n\t\t);\n\t\tif (incomplete) semanticStatus = \"dynamic_incomplete\";\n\t\telse if (control?.status === \"synthesized\") semanticStatus = \"synthesized\";"
+          },
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 95,
+            "quote": "else semanticStatus = \"completed_without_semantic_result\";"
+          },
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 99,
+            "lineEnd": 102,
+            "quote": "\t\tterminal,\n\t\tengineStatus: run.status,\n\t\tsemanticStatus,\n\t\toutputTaskIds,"
+          }
+        ],
+        "evidenceQuotes": [
+          "\treturn run.status;",
+          "\tif (!controller) return undefined;",
+          "\t).catch(() => undefined);",
+          "\tif (terminal && run.provenance?.mode === \"direct-dynamic\") {",
+          "\t\telse if (control?.status === \"synthesized\") semanticStatus = \"synthesized\";",
+          "\t\telse semanticStatus = \"completed_without_semantic_result\";",
+          "\t\tengineStatus: run.status,",
+          "\tif (run.status === \"completed\")\n\t\treturn run.degradation ? \"completed_degraded\" : \"completed\";\n\treturn run.status;",
+          "if (terminal && run.provenance?.mode === \"direct-dynamic\") {",
+          "\tif (!controller) return undefined;\n\tconst taskOutput = fromProjectPath(cwd, controller.files.output);\n\treturn await readJson<DynamicControllerControl>(\n\t\tjoin(dirname(taskOutput), \"control.json\"),\n\t).catch(() => undefined);",
+          "\t\tconst incomplete = run.tasks.some(\n\t\t\t(task) => task.statusDetail === \"dynamic_incomplete\",\n\t\t);\n\t\tif (incomplete) semanticStatus = \"dynamic_incomplete\";\n\t\telse if (control?.status === \"synthesized\") semanticStatus = \"synthesized\";",
+          "else semanticStatus = \"completed_without_semantic_result\";",
+          "\t\tterminal,\n\t\tengineStatus: run.status,\n\t\tsemanticStatus,\n\t\toutputTaskIds,"
+        ],
+        "file": "src/workflow-terminal.ts",
+        "findingId": "finding-007",
+        "generatedRootCauseId": true,
+        "locations": [
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 80,
+            "lineEnd": 95,
+            "symbol": "summarizeWorkflowTerminal"
+          },
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 48,
+            "lineEnd": 61,
+            "symbol": "readDynamicControllerControl"
+          },
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 64,
+            "lineEnd": 69,
+            "symbol": "nonDynamicSemanticStatus"
+          },
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 98,
+            "lineEnd": 102,
+            "symbol": "summarizeWorkflowTerminal"
+          }
+        ],
+        "originalFindingId": "finding-007",
+        "originalSeverity": "high",
+        "originalVerdict": "KEEP",
+        "rationale": "Cancellation before controller output exists and failures with unavailable controller artifacts lose their failed/interrupted semantic outcome. An existing synthesized artifact can also override those outcomes because controller success and artifact currency are not checked here. Although engineStatus remains accurate, consumers relying on semanticStatus receive a contradictory completion-labelled or successful-looking result and can misreport termination or omit recovery.",
+        "recommendedAction": "Preserve failed/interrupted semantic outcomes before applying completion-derived dynamic refinements. Keep controller/output metadata extraction separate from status precedence. Add regression cases for absent, unreadable, and synthesized artifacts, including completed-run controls.",
+        "reviewerEvidenceQuotes": [
+          "\treturn run.status;",
+          "\tif (!controller) return undefined;",
+          "\t).catch(() => undefined);",
+          "\tif (terminal && run.provenance?.mode === \"direct-dynamic\") {",
+          "\t\telse if (control?.status === \"synthesized\") semanticStatus = \"synthesized\";",
+          "\t\telse semanticStatus = \"completed_without_semantic_result\";",
+          "\t\tengineStatus: run.status,"
+        ],
+        "reviewerIdentity": {
+          "itemIdentity": "terminal-semantics",
+          "placeholderSpecId": "reviewers.item",
+          "source": "reviewers.terminal-semantics",
+          "specId": "reviewers.terminal-semantics",
+          "taskId": "task-11"
+        },
+        "rootCauseId": "root-007",
+        "severity": "high",
+        "source": "reviewers.terminal-semantics",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "sourceLineage": [
+          "reviewers.terminal-semantics"
+        ],
+        "title": "Preserve failed and interrupted outcomes before applying dynamic status overrides",
+        "verdict": "KEEP",
+        "verifierEvidence": [
+          "\tif (run.status === \"completed\")\n\t\treturn run.degradation ? \"completed_degraded\" : \"completed\";\n\treturn run.status;",
+          "if (terminal && run.provenance?.mode === \"direct-dynamic\") {",
+          "\tif (!controller) return undefined;\n\tconst taskOutput = fromProjectPath(cwd, controller.files.output);\n\treturn await readJson<DynamicControllerControl>(\n\t\tjoin(dirname(taskOutput), \"control.json\"),\n\t).catch(() => undefined);",
+          "\t\tconst incomplete = run.tasks.some(\n\t\t\t(task) => task.statusDetail === \"dynamic_incomplete\",\n\t\t);\n\t\tif (incomplete) semanticStatus = \"dynamic_incomplete\";\n\t\telse if (control?.status === \"synthesized\") semanticStatus = \"synthesized\";",
+          "else semanticStatus = \"completed_without_semantic_result\";",
+          "\t\tterminal,\n\t\tengineStatus: run.status,\n\t\tsemanticStatus,\n\t\toutputTaskIds,"
+        ],
+        "verifierOwner": {
+          "itemIdentity": "finding-007",
+          "placeholderSpecId": "devil-advocate.item",
+          "source": "devil-advocate.finding-007",
+          "specId": "devil-advocate.finding-007",
+          "taskId": "task-18"
+        }
+      }
+    ],
+    "needsHuman": [],
+    "weaken": []
+  },
+  "reportContext": {
+    "drop": [],
+    "keep": [
+      {
+        "findingId": "finding-001",
+        "recommendedAction": "Permit only one outstanding intent read per watcher, while checking foreground launch cancellation before the in-flight guard. Add a deferred-read regression test covering repeated ticks and local cancellation before that read settles.",
+        "rootCauseId": "root-001",
+        "severity": "high",
+        "title": "Stop polling starts unbounded concurrent persistence reads"
+      },
+      {
+        "findingId": "finding-002",
+        "recommendedAction": "Track each binding with a unique registration token or reference count, make cleanup idempotent, and test that disposing one duplicate binding leaves the other effective.",
+        "rootCauseId": "root-002",
+        "severity": "medium",
+        "title": "Disposing one binding can remove another owner's launch fence"
+      },
+      {
+        "findingId": "finding-003",
+        "recommendedAction": "Set a disposed flag synchronously in dispose, check it before polling and immediately after the awaited read, and add a regression test resolving a pending read with a stop intent after disposal.",
+        "rootCauseId": "root-003",
+        "severity": "medium",
+        "title": "An in-flight check can abort the signal after disposal"
+      },
+      {
+        "findingId": "finding-004",
+        "recommendedAction": "Catch intent-read rejection, recheck the launch fence, and throw WorkflowStopRequested only when locally stopped; otherwise rethrow the original error. Add regression tests for both outcomes.",
+        "rootCauseId": "root-004",
+        "severity": "medium",
+        "title": "A rejected persistence read bypasses the post-read launch fence"
+      },
+      {
+        "findingId": "finding-005",
+        "recommendedAction": "Restrict text-based recognition to explicitly identified adapter cancellation envelopes, preserve legacy wrappers explicitly, and add a regression test showing successful content containing domain JSON with cancelled:true is not classified as cancellation.",
+        "rootCauseId": "root-005",
+        "severity": "medium",
+        "title": "Ordinary provider content can be mistaken for workflow cancellation"
+      },
+      {
+        "findingId": "finding-006",
+        "recommendedAction": "Prefer the explicit stop sentinel. If legacy message-only errors must remain supported, compare against the exact expected-run message without overriding conflicting error names. Add regression tests for similarly prefixed operational failures and WorkflowStopPending errors.",
+        "rootCauseId": "root-006",
+        "severity": "medium",
+        "title": "Stop-error matching accepts unrelated failures with a similar message prefix"
+      },
+      {
+        "findingId": "finding-007",
+        "recommendedAction": "Preserve failed/interrupted semantic outcomes before applying completion-derived dynamic refinements. Keep controller/output metadata extraction separate from status precedence. Add regression cases for absent, unreadable, and synthesized artifacts, including completed-run controls.",
+        "rootCauseId": "root-007",
+        "severity": "high",
+        "title": "Preserve failed and interrupted outcomes before applying dynamic status overrides"
+      }
+    ],
+    "needsHuman": [],
+    "partialFailures": [],
+    "supportNoteSummaries": [],
+    "weaken": []
+  },
+  "reportPacket": {
+    "actualChars": 2146,
+    "digest": "5004011687047a8df835b801591b44d8fdcf44534536d90194bf483c00f086b4",
+    "maxChars": 15000,
+    "normalizationNotes": [],
+    "overflowCounts": {
+      "drop": 0,
+      "keep": 3,
+      "needsHuman": 0,
+      "normalizationNotes": 0,
+      "omittedStringChars": 15,
+      "partialFailures": 0,
+      "supportNotes": 0,
+      "truncatedStrings": 1,
+      "weaken": 0
+    },
+    "partitionSummary": {
+      "batchIntegrityIssues": 0,
+      "drop": 0,
+      "keep": 7,
+      "mergedFindings": 0,
+      "missingVerdicts": 0,
+      "needsHuman": 0,
+      "partialFailures": 0,
+      "reviewerCoverageIssues": 0,
+      "reviewerFindings": 7,
+      "supportNotes": 0,
+      "verdictIntegrityIssues": 0,
+      "verdictsReceived": 7,
+      "weaken": 0
+    },
+    "reportContext": {
+      "drop": [],
+      "keep": [
+        {
+          "findingId": "finding-001",
+          "recommendedAction": "Permit only one outstanding intent read per watcher, while checking foreground launch cancellation before the in-flight guard. Add a deferred-read regression test covering repeated ticks and local cancellation before tha",
+          "severity": "high",
+          "title": "Stop polling starts unbounded concurrent persistence reads"
+        },
+        {
+          "findingId": "finding-002",
+          "recommendedAction": "Track each binding with a unique registration token or reference count, make cleanup idempotent, and test that disposing one duplicate binding leaves the other effective.",
+          "severity": "medium",
+          "title": "Disposing one binding can remove another owner's launch fence"
+        },
+        {
+          "findingId": "finding-003",
+          "recommendedAction": "Set a disposed flag synchronously in dispose, check it before polling and immediately after the awaited read, and add a regression test resolving a pending read with a stop intent after disposal.",
+          "severity": "medium",
+          "title": "An in-flight check can abort the signal after disposal"
+        },
+        {
+          "findingId": "finding-004",
+          "recommendedAction": "Catch intent-read rejection, recheck the launch fence, and throw WorkflowStopRequested only when locally stopped; otherwise rethrow the original error. Add regression tests for both outcomes.",
+          "severity": "medium",
+          "title": "A rejected persistence read bypasses the post-read launch fence"
+        }
+      ],
+      "needsHuman": [],
+      "supportNoteSummaries": [],
+      "weaken": []
+    },
+    "schema": "deep-review-report-packet-v1",
+    "sourceStatusSummary": {
+      "completed": 8,
+      "nonCompleted": 0,
+      "partialFailureCount": 0,
+      "partialFailures": [],
+      "total": 8
+    }
+  },
+  "reviewerLedger": {
+    "attestedLensIds": [
+      "stop-lifecycle",
+      "cancellation-classification",
+      "terminal-semantics"
+    ],
+    "complete": true,
+    "dedupFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "dispositionFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "duplicateMaterializedReviewerIds": [],
+    "invalidAttestations": [],
+    "invalidFindingIds": [],
+    "lineageFindingIds": [],
+    "materializedReviewerIds": [
+      "stop-lifecycle",
+      "cancellation-classification",
+      "terminal-semantics"
+    ],
+    "materializedReviewerSourceIds": [
+      "reviewers",
+      "reviewers.cancellation-classification",
+      "reviewers.terminal-semantics"
+    ],
+    "missingAttestedLensIds": [],
+    "missingPlannedLensIds": [],
+    "ownerMap": [
+      {
+        "itemIdentity": "stop-lifecycle",
+        "placeholderSpecId": "reviewers.item",
+        "source": "reviewers",
+        "specId": "reviewers.stop-lifecycle",
+        "taskId": "task-9"
+      },
+      {
+        "itemIdentity": "cancellation-classification",
+        "placeholderSpecId": "reviewers.item",
+        "source": "reviewers.cancellation-classification",
+        "specId": "reviewers.cancellation-classification",
+        "taskId": "task-10"
+      },
+      {
+        "itemIdentity": "terminal-semantics",
+        "placeholderSpecId": "reviewers.item",
+        "source": "reviewers.terminal-semantics",
+        "specId": "reviewers.terminal-semantics",
+        "taskId": "task-11"
+      }
+    ],
+    "plannedLensIds": [
+      "stop-lifecycle",
+      "cancellation-classification",
+      "terminal-semantics"
+    ],
+    "provenanceOwnerFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "rawFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "setEquality": true,
+    "sourceCoverageFailures": [],
+    "sourceStatuses": [
+      {
+        "displayName": "triage.main",
+        "lastMessage": "completed",
+        "source": "triage",
+        "specId": "triage.main",
+        "stageId": "triage",
+        "status": "completed",
+        "statusDetail": "completed",
+        "taskId": "task-1"
+      },
+      {
+        "displayName": "reviewers.stop-lifecycle",
+        "itemIdentity": "stop-lifecycle",
+        "lastMessage": "completed",
+        "placeholderSpecId": "reviewers.item",
+        "source": "reviewers",
+        "specId": "reviewers.stop-lifecycle",
+        "stageId": "reviewers",
+        "status": "completed",
+        "statusDetail": "completed",
+        "taskId": "task-9"
+      },
+      {
+        "displayName": "reviewers.cancellation-classification",
+        "itemIdentity": "cancellation-classification",
+        "lastMessage": "completed",
+        "placeholderSpecId": "reviewers.item",
+        "source": "reviewers.cancellation-classification",
+        "specId": "reviewers.cancellation-classification",
+        "stageId": "reviewers",
+        "status": "completed",
+        "statusDetail": "completed",
+        "taskId": "task-10"
+      },
+      {
+        "displayName": "reviewers.terminal-semantics",
+        "itemIdentity": "terminal-semantics",
+        "lastMessage": "completed",
+        "placeholderSpecId": "reviewers.item",
+        "source": "reviewers.terminal-semantics",
+        "specId": "reviewers.terminal-semantics",
+        "stageId": "reviewers",
+        "status": "completed",
+        "statusDetail": "completed",
+        "taskId": "task-11"
+      }
+    ],
+    "supportFindingIds": [],
+    "unexpectedAttestedLensIds": [],
+    "unexpectedMaterializedReviewerIds": [],
+    "validAttestationSourceIds": [
+      "reviewers",
+      "reviewers.cancellation-classification",
+      "reviewers.terminal-semantics"
+    ],
+    "validFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ]
+  },
+  "schema": "stage-control-v1",
+  "sourceStatusSummary": {
+    "completed": 8,
+    "nonCompleted": 0,
+    "partialFailures": [],
+    "total": 8
+  },
+  "supportNotes": [],
+  "verifierCoverage": {
+    "complete": true,
+    "digest": "0b6fd1828fb1fbec44f5ea2c133208e390a0510ffdfb89f045a2f5dcc3cd8c8e",
+    "duplicateFindingIds": [],
+    "exactSetEquality": true,
+    "expectedFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "missingFindingIds": [],
+    "orphanFindingIds": [],
+    "ownerIssues": [],
+    "rows": [
+      {
+        "findingId": "finding-001",
+        "index": 0,
+        "owner": {
+          "itemIdentity": "finding-001",
+          "placeholderSpecId": "devil-advocate.item",
+          "source": "devil-advocate",
+          "specId": "devil-advocate.finding-001",
+          "taskId": "task-12"
+        },
+        "ownerItemIdentity": "finding-001",
+        "ownerSource": "devil-advocate",
+        "ownerSpecId": "devil-advocate.finding-001",
+        "ownerTaskId": "task-12",
+        "sourceId": "devil-advocate",
+        "valid": true
+      },
+      {
+        "findingId": "finding-002",
+        "index": 1,
+        "owner": {
+          "itemIdentity": "finding-002",
+          "placeholderSpecId": "devil-advocate.item",
+          "source": "devil-advocate.finding-002",
+          "specId": "devil-advocate.finding-002",
+          "taskId": "task-13"
+        },
+        "ownerItemIdentity": "finding-002",
+        "ownerSource": "devil-advocate.finding-002",
+        "ownerSpecId": "devil-advocate.finding-002",
+        "ownerTaskId": "task-13",
+        "sourceId": "devil-advocate.finding-002",
+        "valid": true
+      },
+      {
+        "findingId": "finding-003",
+        "index": 2,
+        "owner": {
+          "itemIdentity": "finding-003",
+          "placeholderSpecId": "devil-advocate.item",
+          "source": "devil-advocate.finding-003",
+          "specId": "devil-advocate.finding-003",
+          "taskId": "task-14"
+        },
+        "ownerItemIdentity": "finding-003",
+        "ownerSource": "devil-advocate.finding-003",
+        "ownerSpecId": "devil-advocate.finding-003",
+        "ownerTaskId": "task-14",
+        "sourceId": "devil-advocate.finding-003",
+        "valid": true
+      },
+      {
+        "findingId": "finding-004",
+        "index": 3,
+        "owner": {
+          "itemIdentity": "finding-004",
+          "placeholderSpecId": "devil-advocate.item",
+          "source": "devil-advocate.finding-004",
+          "specId": "devil-advocate.finding-004",
+          "taskId": "task-15"
+        },
+        "ownerItemIdentity": "finding-004",
+        "ownerSource": "devil-advocate.finding-004",
+        "ownerSpecId": "devil-advocate.finding-004",
+        "ownerTaskId": "task-15",
+        "sourceId": "devil-advocate.finding-004",
+        "valid": true
+      },
+      {
+        "findingId": "finding-005",
+        "index": 4,
+        "owner": {
+          "itemIdentity": "finding-005",
+          "placeholderSpecId": "devil-advocate.item",
+          "source": "devil-advocate.finding-005",
+          "specId": "devil-advocate.finding-005",
+          "taskId": "task-16"
+        },
+        "ownerItemIdentity": "finding-005",
+        "ownerSource": "devil-advocate.finding-005",
+        "ownerSpecId": "devil-advocate.finding-005",
+        "ownerTaskId": "task-16",
+        "sourceId": "devil-advocate.finding-005",
+        "valid": true
+      },
+      {
+        "findingId": "finding-006",
+        "index": 5,
+        "owner": {
+          "itemIdentity": "finding-006",
+          "placeholderSpecId": "devil-advocate.item",
+          "source": "devil-advocate.finding-006",
+          "specId": "devil-advocate.finding-006",
+          "taskId": "task-17"
+        },
+        "ownerItemIdentity": "finding-006",
+        "ownerSource": "devil-advocate.finding-006",
+        "ownerSpecId": "devil-advocate.finding-006",
+        "ownerTaskId": "task-17",
+        "sourceId": "devil-advocate.finding-006",
+        "valid": true
+      },
+      {
+        "findingId": "finding-007",
+        "index": 6,
+        "owner": {
+          "itemIdentity": "finding-007",
+          "placeholderSpecId": "devil-advocate.item",
+          "source": "devil-advocate.finding-007",
+          "specId": "devil-advocate.finding-007",
+          "taskId": "task-18"
+        },
+        "ownerItemIdentity": "finding-007",
+        "ownerSource": "devil-advocate.finding-007",
+        "ownerSpecId": "devil-advocate.finding-007",
+        "ownerTaskId": "task-18",
+        "sourceId": "devil-advocate.finding-007",
+        "valid": true
+      }
+    ],
+    "sourceStatuses": [
+      {
+        "displayName": "dedup-findings.main",
+        "lastMessage": "support completed",
+        "source": "dedup-findings",
+        "specId": "dedup-findings.main",
+        "stageId": "dedup-findings",
+        "status": "completed",
+        "statusDetail": "support_completed",
+        "taskId": "task-3"
+      },
+      {
+        "displayName": "devil-advocate.finding-001",
+        "itemIdentity": "finding-001",
+        "lastMessage": "completed",
+        "placeholderSpecId": "devil-advocate.item",
+        "source": "devil-advocate",
+        "specId": "devil-advocate.finding-001",
+        "stageId": "devil-advocate",
+        "status": "completed",
+        "statusDetail": "completed",
+        "taskId": "task-12"
+      },
+      {
+        "displayName": "devil-advocate.finding-002",
+        "itemIdentity": "finding-002",
+        "lastMessage": "completed",
+        "placeholderSpecId": "devil-advocate.item",
+        "source": "devil-advocate.finding-002",
+        "specId": "devil-advocate.finding-002",
+        "stageId": "devil-advocate",
+        "status": "completed",
+        "statusDetail": "completed",
+        "taskId": "task-13"
+      },
+      {
+        "displayName": "devil-advocate.finding-003",
+        "itemIdentity": "finding-003",
+        "lastMessage": "completed",
+        "placeholderSpecId": "devil-advocate.item",
+        "source": "devil-advocate.finding-003",
+        "specId": "devil-advocate.finding-003",
+        "stageId": "devil-advocate",
+        "status": "completed",
+        "statusDetail": "completed",
+        "taskId": "task-14"
+      },
+      {
+        "displayName": "devil-advocate.finding-004",
+        "itemIdentity": "finding-004",
+        "lastMessage": "completed",
+        "placeholderSpecId": "devil-advocate.item",
+        "source": "devil-advocate.finding-004",
+        "specId": "devil-advocate.finding-004",
+        "stageId": "devil-advocate",
+        "status": "completed",
+        "statusDetail": "completed",
+        "taskId": "task-15"
+      },
+      {
+        "displayName": "devil-advocate.finding-005",
+        "itemIdentity": "finding-005",
+        "lastMessage": "completed",
+        "placeholderSpecId": "devil-advocate.item",
+        "source": "devil-advocate.finding-005",
+        "specId": "devil-advocate.finding-005",
+        "stageId": "devil-advocate",
+        "status": "completed",
+        "statusDetail": "completed",
+        "taskId": "task-16"
+      },
+      {
+        "displayName": "devil-advocate.finding-006",
+        "itemIdentity": "finding-006",
+        "lastMessage": "completed",
+        "placeholderSpecId": "devil-advocate.item",
+        "source": "devil-advocate.finding-006",
+        "specId": "devil-advocate.finding-006",
+        "stageId": "devil-advocate",
+        "status": "completed",
+        "statusDetail": "completed",
+        "taskId": "task-17"
+      },
+      {
+        "displayName": "devil-advocate.finding-007",
+        "itemIdentity": "finding-007",
+        "lastMessage": "completed",
+        "placeholderSpecId": "devil-advocate.item",
+        "source": "devil-advocate.finding-007",
+        "specId": "devil-advocate.finding-007",
+        "stageId": "devil-advocate",
+        "status": "completed",
+        "statusDetail": "completed",
+        "taskId": "task-18"
+      }
+    ],
+    "statusIssues": [],
+    "verdictFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "verdictsReceived": 7
+  }
+}

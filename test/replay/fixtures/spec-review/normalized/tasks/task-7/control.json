@@ -1,0 +1,62 @@
+{
+  "digest": "One verified terminal-status gap remains, while unresolved degradation precedence prevents complete requirement reconciliation.",
+  "ownerLedger": [
+    {
+      "itemIdentity": "finding-001",
+      "placeholderSpecId": "verify-findings.item",
+      "source": "verify-findings",
+      "specId": "verify-findings.finding-001",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "taskId": "task-9"
+    }
+  ],
+  "ownerLedgerReconciliation": {
+    "cardinalityPassed": true,
+    "duplicateOwnerIds": [],
+    "duplicateVerifierIds": [],
+    "missingOwnerRows": [],
+    "orphanOwnerRows": [],
+    "ownerIds": [
+      "finding-001"
+    ],
+    "ownerRowCount": 1,
+    "passed": true,
+    "statusMismatches": [],
+    "verifierIds": [
+      "finding-001"
+    ],
+    "verifierRowCount": 1
+  },
+  "recommendedNextAction": "Correct direct-dynamic status precedence and add regression cases for unreadable and synthesized controller results with incomplete tasks. Clarify degradation precedence, then rerun reconciliation.",
+  "risks": [
+    "Task-level incomplete markers can mask controller status and the required unreadable-control fallback.",
+    "Degradation precedence for terminal direct-dynamic runs remains unresolved."
+  ],
+  "schema": "spec-review-report-v1",
+  "scopeLimitations": [
+    {
+      "blocking": false,
+      "kind": "NONBLOCKING",
+      "text": "Read-only inspection only; commands and test execution are prohibited by this stage."
+    },
+    {
+      "blocking": false,
+      "kind": "NONBLOCKING",
+      "text": "store.js and types.js are intentionally excluded from this sample; their implementations and any external tests were unavailable."
+    },
+    {
+      "blocking": false,
+      "kind": "NONBLOCKING",
+      "text": "The requested ./schemas schema file was absent; the matching workflow-bundled schema was read for manual validation."
+    },
+    {
+      "blocking": false,
+      "kind": "NONBLOCKING",
+      "text": "No tests or fixtures were found; coverage assessments use static implementation evidence, not runtime execution."
+    }
+  ],
+  "summary": "src/ has a confirmed terminal-status conformance gap. Overall conformance remains inconclusive because degradation precedence is unresolved.",
+  "testExecutionAttested": false,
+  "verdict": "INCONCLUSIVE"
+}

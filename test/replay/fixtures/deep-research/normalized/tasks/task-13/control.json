@@ -1,0 +1,164 @@
+{
+  "additionalUnverifiedLeads": [],
+  "budgetLedger": {
+    "budgetExhausted": false,
+    "gapRecorded": false,
+    "omittedSearchQueries": [],
+    "searchBudget": 3,
+    "searchCallsUsed": 2,
+    "searchQueriesAttempted": [
+      "site:modelcontextprotocol.io specification stdio server stdout stderr MUST",
+      "site:modelcontextprotocol.io/specification \"The server MUST NOT\" \"stdout\"",
+      "site:modelcontextprotocol.io/specification \"2025-11-25\" transports"
+    ]
+  },
+  "caveats": [
+    "The requested local schema could not be inspected because this public-web task prohibits filesystem reads; no schema-validation tool is enabled."
+  ],
+  "claims": [
+    {
+      "claim": "Server stdout MUST NOT contain anything that is not a valid MCP message.",
+      "dateOrYear": "2026-07-28",
+      "factSlotIds": [
+        "slot-004"
+      ],
+      "scopeItems": [
+        "Server stdout and stderr rules"
+      ],
+      "sourceQuality": "primary",
+      "sourceRefs": [
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "sourceTitleOrPublisher": "Official MCP stdio specification",
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+      ]
+    },
+    {
+      "claim": "Servers MAY write UTF-8 strings to stderr for informational, debug, and error logging.",
+      "dateOrYear": "2026-07-28",
+      "factSlotIds": [
+        "slot-005"
+      ],
+      "scopeItems": [
+        "Server stdout and stderr rules"
+      ],
+      "sourceQuality": "primary",
+      "sourceRefs": [
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "sourceTitleOrPublisher": "Official MCP stdio specification",
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+      ]
+    },
+    {
+      "claim": "Clients MAY capture, forward, or ignore server stderr and SHOULD NOT assume it indicates errors.",
+      "dateOrYear": "2026-07-28",
+      "factSlotIds": [
+        "slot-005"
+      ],
+      "scopeItems": [
+        "Server stdout and stderr rules"
+      ],
+      "sourceQuality": "primary",
+      "sourceRefs": [
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "sourceTitleOrPublisher": "Official MCP stdio specification",
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+      ]
+    }
+  ],
+  "covers": [
+    "Server stdout and stderr rules"
+  ],
+  "digest": "Current official stdio specification reserves stdout for valid MCP messages and permits UTF-8 diagnostic logging on stderr.",
+  "extractedFacts": [
+    {
+      "confidence": "high",
+      "entity": "Model Context Protocol stdio server",
+      "factType": "policy",
+      "notes": "Plain-text logs, banners, and debug prints are therefore prohibited on stdout; this is an application of the normative rule.",
+      "quote": "The server **MUST NOT** write anything to its `stdout` that is not a valid MCP\n  message.",
+      "slotId": "slot-004",
+      "slotLabel": "Server stdout permitted content and prohibitions",
+      "sourceQuality": "primary",
+      "sourceRefs": [
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "sourceTitleOrPublisher": "Model Context Protocol specification — stdio",
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+      ],
+      "value": "The server writes JSON-RPC messages to stdout; each message is a single request, notification, or response. It MUST NOT write anything to stdout that is not a valid MCP message."
+    },
+    {
+      "confidence": "high",
+      "entity": "Model Context Protocol stdio server",
+      "factType": "policy",
+      "notes": "MAY is permission, not a requirement to log. Stderr is not restricted to errors.",
+      "quote": "The server **MAY** write UTF-8 strings to `stderr` for any logging purposes\n  including informational, debug, and error messages.",
+      "slotId": "slot-005",
+      "slotLabel": "Server stderr logging permissions and normative strength",
+      "sourceQuality": "primary",
+      "sourceRefs": [
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "sourceTitleOrPublisher": "Model Context Protocol specification — stdio",
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+      ],
+      "value": "The server MAY write UTF-8 strings to stderr for any logging purposes, including informational, debug, and error messages."
+    },
+    {
+      "confidence": "high",
+      "entity": "Model Context Protocol stdio client handling server stderr",
+      "factType": "policy",
+      "notes": "Client-side context prevents interpreting all server stderr output as failure.",
+      "quote": "The client **MAY** capture, forward, or ignore the server's `stderr` output and\n  **SHOULD NOT** assume `stderr` output indicates error conditions.",
+      "slotId": "slot-005",
+      "slotLabel": "Server stderr logging permissions and normative strength",
+      "sourceQuality": "primary",
+      "sourceRefs": [
+        "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+      ],
+      "sourceTitleOrPublisher": "Model Context Protocol specification — stdio",
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+      ],
+      "value": "The client MAY capture, forward, or ignore server stderr and SHOULD NOT assume stderr output indicates error conditions."
+    }
+  ],
+  "question": "What does the current MCP stdio specification permit or prohibit servers from writing to stdout and stderr?",
+  "questionId": "rq-003",
+  "schema": "stage-control-v1",
+  "sourceQualityNotes": [
+    "Official versioning explicitly identifies 2026-07-28 as current, and the latest transport URL resolves to that version. Currency is based on retrieved official navigation rather than remembered release dates.",
+    "Search results mostly returned SDK documentation; normative evidence was instead retrieved from known official specification entry URLs and their linked stdio binding."
+  ],
+  "sources": [
+    {
+      "matchType": "exact",
+      "quote": "The server **MUST NOT** write anything to its `stdout` that is not a valid MCP\n  message.",
+      "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+      "sourceUrl": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+      "title": "Official MCP specification — stdio"
+    },
+    {
+      "matchType": "exact",
+      "quote": "The **current** protocol version is [**2026-07-28**](https://modelcontextprotocol.io/specification/2026-07-28.md).",
+      "sourceRef": "wsrc_6f2e06f5a0dd2c8d98ce75ab416660e7",
+      "sourceUrl": "https://modelcontextprotocol.io/specification/versioning",
+      "title": "Official MCP versioning"
+    },
+    {
+      "matchType": "exact",
+      "quote": "[stdio](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md): newline-delimited\n   messages over the standard streams of a client-launched subprocess.",
+      "sourceRef": "wsrc_3af3257c452fc577322dd1fe372b693b",
+      "sourceUrl": "https://modelcontextprotocol.io/specification/latest/basic/transports",
+      "title": "Official MCP transport overview"
+    }
+  ]
+}

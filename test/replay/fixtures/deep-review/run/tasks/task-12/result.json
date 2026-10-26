@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "The watcher starts overlapping intent reads without an in-flight bound; abort and disposal only limit subsequent polling.",
+  "startedAt": "2026-10-26T05:18:41.688Z",
+  "completedAt": "2026-10-26T05:20:09.844Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "e75e016a5c2f3188abc5ac4056d4c26d3168227e0bb16b4dd8513b0096d4dbc3",
+    "bytes": 3239,
+    "sha256": "016f81e1c7a139c30101f8a707eedd459b14c2418545c3decdd0dd2080db62c1",
+    "terminal": {
+      "runId": "run_mvot3g6w_319ca6",
+      "attemptId": "attempt_mvot3g6w_6f5ec5",
+      "status": "completed",
+      "startedAt": "2026-10-26T05:18:41.688Z",
+      "completedAt": "2026-10-26T05:20:09.844Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 586871079,
+      "size": 1927,
+      "nlink": 1,
+      "mtimeMs": 1792992009846.3853,
+      "ctimeMs": 1792992009846.762
+    }
+  }
+}

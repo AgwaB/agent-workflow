@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 2,
+  "runId": "run_mvou9lsw_faf717",
+  "mode": "single",
+  "status": "completed",
+  "failureKind": null,
+  "dependency": "needed-before-final",
+  "backend": "headless",
+  "cwd": "<ROOT>",
+  "runsDir": ".pi/workflow-subagents/workflow_mvotu0ko_b9761d/task-12",
+  "startedAt": "2026-10-26T05:51:27.392Z",
+  "updatedAt": "2026-10-26T05:54:09.242Z",
+  "completedAt": "2026-10-26T05:54:09.144Z",
+  "activeAttemptId": null,
+  "latestAttemptId": "attempt_mvou9lsw_aa6e79",
+  "attempts": [
+    {
+      "attemptId": "attempt_mvou9lsw_aa6e79",
+      "status": "completed",
+      "backend": "headless",
+      "failureKind": null,
+      "startedAt": "2026-10-26T05:51:28.189Z",
+      "updatedAt": "2026-10-26T05:54:09.242Z",
+      "completedAt": "2026-10-26T05:54:09.144Z",
+      "artifactCwd": "<ROOT>",
+      "resultPath": ".pi/workflow-subagents/workflow_mvotu0ko_b9761d/task-12/run_mvou9lsw_faf717/attempts/attempt_mvou9lsw_aa6e79/result.json",
+      "heartbeatAt": "2026-10-26T05:54:07.521Z",
+      "process": {
+        "command": "pi",
+        "workerPid": 91574,
+        "workerProcessGroupId": 91574,
+        "workerProcessBirthIdentity": "darwin:1792993887:398175",
+        "pid": 91705,
+        "processGroupId": 91705,
+        "processBirthIdentity": "darwin:1792993888:191247"
+      },
+      "workspace": {
+        "mode": "shared",
+        "cwd": "<ROOT>",
+        "worktreePath": null
+      },
+      "stderrPath": ".pi/workflow-subagents/workflow_mvotu0ko_b9761d/task-12/run_mvou9lsw_faf717/attempts/attempt_mvou9lsw_aa6e79/stderr.log",
+      "outputPath": ".pi/workflow-subagents/workflow_mvotu0ko_b9761d/task-12/run_mvou9lsw_faf717/attempts/attempt_mvou9lsw_aa6e79/output.log"
+    }
+  ],
+  "correlationId": "workflow_mvotu0ko_b9761d:task-12"
+}

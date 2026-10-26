@@ -1,0 +1,25 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json"
+  },
+  "controlDigest": "5004011687047a8df835b801591b44d8fdcf44534536d90194bf483c00f086b4",
+  "completedAt": "2026-10-26T05:20:10.045Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "7c287d866bff9a37c18575dc54d780a1c780ff8eb876a6205e547e3e7084fa00",
+    "bytes": 2714,
+    "sha256": "c3eeb224d45806b1e10c47091c634180fad38e726e681b1055b8c8007eca10e4"
+  }
+}

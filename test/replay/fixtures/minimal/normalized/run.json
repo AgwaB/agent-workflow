@@ -122,7 +122,7 @@
           {
             "artifacts": {
               "configSha256": "<ALLOWED:host-path-digest#1>",
-              "manifestSha256": "56fcca143a113f0027c3650e81ac04e1b9180637d120c45bc820752b1278e7b9",
+              "manifestSha256": "<ALLOWED:host-path-manifest-digest#1>",
               "wrapperSha256": "<ALLOWED:host-path-digest#2>"
             },
             "attempt": {
@@ -138,7 +138,7 @@
             },
             "effectiveLaunch": {
               "artifactBinding": {
-                "manifestBytesSha256": "e1c90e554e491463d56c31dc46dd404933a676fea18d0fa5adda2684282a9802",
+                "manifestBytesSha256": "<ALLOWED:host-path-manifest-digest#2>",
                 "manifestPathSha256": "<ALLOWED:host-path-digest#3>",
                 "wrapperBytesSha256": "<ALLOWED:host-path-digest#2>",
                 "wrapperPathSha256": "<ALLOWED:host-path-digest#4>"

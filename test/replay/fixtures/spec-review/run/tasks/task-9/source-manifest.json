@@ -1,0 +1,39 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mvoufde9_8566f1",
+  "taskId": "task-9",
+  "sources": [
+    {
+      "source": "candidate-findings",
+      "displayName": "candidate-findings.main",
+      "taskId": "task-4",
+      "specId": "candidate-findings.main",
+      "stageId": "candidate-findings",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "18 requirements have positive source coverage; one terminal-status precedence candidate affects two partial requirements, and degradation precedence remains unclear.",
+      "artifacts": {
+        "control": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvoufde9_8566f1/tasks/task-4/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvoufde9_8566f1/tasks/task-4/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvoufde9_8566f1/tasks/task-4/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": "<ROOT>/.pi/workflows/workflow_mvoufde9_8566f1/tasks/task-4/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

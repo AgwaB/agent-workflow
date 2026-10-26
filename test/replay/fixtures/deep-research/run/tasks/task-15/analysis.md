@@ -1,0 +1,1 @@
+The cached official overview was inspected directly. An initial candidate match was followed by a successful exact-text read, establishing the hyperlink rather than inferring it from URL structure. This verdict verifies the overview’s link target only; it does not independently verify the destination’s transport requirements.

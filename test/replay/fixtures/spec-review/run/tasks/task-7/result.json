@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "One verified terminal-status gap remains, while unresolved degradation precedence prevents complete requirement reconciliation.",
+  "startedAt": "2026-10-26T06:07:52.537Z",
+  "completedAt": "2026-10-26T06:10:29.481Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "2a78d1ac9178f0e9ae0df537e9190c7b93109279b67a7d0422623451bdb0e139",
+    "bytes": 3731,
+    "sha256": "6a22f50c54336050f41d9ccc7d34ab6102ade842c802cde7df919b21a92ed82b",
+    "terminal": {
+      "runId": "run_mvouup0b_c5ec6d",
+      "attemptId": "attempt_mvouup0b_77e223",
+      "status": "completed",
+      "startedAt": "2026-10-26T06:07:52.537Z",
+      "completedAt": "2026-10-26T06:10:29.481Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 587190509,
+      "size": 1864,
+      "nlink": 1,
+      "mtimeMs": 1792995029482.526,
+      "ctimeMs": 1792995029482.713
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Default compatibility and packaging align; enabled recording has undocumented outcome changes and incompatible shared-directory assumptions.",
+  "status": "warn",
+  "issues": [
+    {
+      "id": "diagnostic-contract-gap",
+      "severity": "medium",
+      "lenses": [
+        "api-contract",
+        "state-data",
+        "docs-release"
+      ],
+      "mismatch": "The recorder describes unchanged forwarding, but serialization and filesystem failures can prevent calls or replace completed API outcomes. Usage documentation omits the new control and these operational semantics.",
+      "action": "Document first-load caching, restart requirements, outcome-affecting recording failures, and private storage/cleanup requirements; qualify unchanged-forwarding language.",
+      "evidenceIds": [
+        "recorder",
+        "loader",
+        "backend-errors",
+        "usage"
+      ]
+    },
+    {
+      "id": "reference-session-mismatch",
+      "severity": "medium",
+      "lenses": [
+        "api-contract",
+        "state-data",
+        "docs-release"
+      ],
+      "mismatch": "The producer permits directory reuse while appending calls, restarting sequence numbers, and overwriting surface metadata. Replay sorts only by sequence without producer/session partitioning, and capture replaces filesystem snapshots independently.",
+      "action": "Require and document fresh exclusive recording directories, or introduce session identity and enforce matching call, surface, and snapshot provenance.",
+      "evidenceIds": [
+        "recorder",
+        "replay",
+        "capture",
+        "usage"
+      ]
+    }
+  ],
+  "confirmedConsistencies": [
+    {
+      "id": "default-compatibility",
+      "finding": "Unset or blank configuration returns the original API; injected test APIs bypass recording."
+    },
+    {
+      "id": "capability-surface",
+      "finding": "Recording preserves enumerable methods and emits the full method surface used by replay feature detection."
+    },
+    {
+      "id": "existing-state",
+      "finding": "The bounded change adds separate recording artifacts without changing existing workflow persistence schemas or requiring migration."
+    },
+    {
+      "id": "release-structure",
+      "finding": "Existing TypeScript inclusion and package src/dist roots accommodate the mandatory recorder import without a new dependency or public export."
+    }
+  ]
+}

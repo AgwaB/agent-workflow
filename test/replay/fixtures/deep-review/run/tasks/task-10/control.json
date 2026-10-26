@@ -1,0 +1,91 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Found two cancellation false-positive paths: unrestricted decoding of provider content and overly broad stop-error message matching.",
+  "lens": "cancellation-classification",
+  "findings": [
+    {
+      "severity": "medium",
+      "title": "Ordinary provider content can be mistaken for workflow cancellation",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 23,
+          "lineEnd": 29,
+          "symbol": "isWorkflowReturnedCancellation"
+        },
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 16,
+          "lineEnd": 21,
+          "symbol": "isWorkflowReturnedCancellation"
+        }
+      ],
+      "evidence": "Every content entry with a string text field is JSON-decoded and recursively classified, without checking whether the enclosing response represents an error or a cancellation envelope. Consequently, normal provider output containing domain JSON such as {\"cancelled\":true,\"orderId\":\"123\"} is classified as workflow cancellation.",
+      "evidenceQuotes": [
+        "if (!isRecord(entry) || typeof entry.text !== \"string\") continue;",
+        "const parsed: unknown = JSON.parse(entry.text);",
+        "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+        "if (value.cancelled === true) return true;"
+      ],
+      "rationale": "Application data and provider cancellation metadata share the same interpretation here. A cancellation field describing an application entity can therefore become a workflow cancellation signal. Callers relying on this predicate could discard valid output or suppress diagnostics. The false-positive return is established by the implementation; downstream handling is not included in this excerpt.",
+      "recommendedAction": "Make text-based cancellation recognition context-aware at the provider boundary. Decode cancellation text only in an identified cancellation/error envelope, preserving historical cancellation wrappers through explicit adapter mappings rather than treating arbitrary response content as authoritative metadata.",
+      "confidence": "medium"
+    },
+    {
+      "severity": "medium",
+      "title": "Stop-error matching accepts unrelated failures with a similar message prefix",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 53,
+          "lineEnd": 58,
+          "symbol": "isWorkflowStopRequestedError"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 43,
+          "lineEnd": 50,
+          "symbol": "createWorkflowStopRequestedError"
+        }
+      ],
+      "evidence": "The message fallback accepts any Error whose message starts with \"workflow stop requested\", even when its name is not WorkflowStopRequested and its message does not match the generated \"workflow stop requested for <runId>\" format. For example, an ordinary Error with message \"workflow stop requested but persistence failed: EACCES\" returns true.",
+      "evidenceQuotes": [
+        "error instanceof Error &&",
+        "(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||",
+        "error.message.startsWith(\"workflow stop requested\"))",
+        "return `workflow stop requested for ${runId}`;"
+      ],
+      "rationale": "A failure while requesting or processing a stop can be indistinguishable from the intentional stop sentinel. Consumers that use this classifier to suppress expected cancellation errors can consequently hide an operational failure. No consumer is supplied, so the downstream consequence remains unverified.",
+      "recommendedAction": "Prefer the dedicated error name or another explicit sentinel. If legacy message-only errors must remain supported, constrain that fallback to their actual message format, preferably using the expected run ID, and avoid overriding conflicting typed errors. Preserve legitimate historical stop errors while rejecting similarly prefixed failure diagnostics.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-cancellation.ts:1-37",
+    "src/workflow-stop.ts",
+    "src/workflow-terminal.ts",
+    "package.json"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-cancellation.ts:1-37",
+      "status": "read",
+      "evidence": "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-stop.ts:30-58",
+      "status": "read",
+      "evidence": "error.message.startsWith(\"workflow stop requested\")",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "Boolean cancellation markers require literal true, and error/reason string markers use exact equality rather than substring matching.",
+    "Provider adapters, classifier consumers, tests, store.js and types.js are absent from this excerpt. Additional supported cancellation shapes and end-to-end failure suppression could not be established."
+  ]
+}

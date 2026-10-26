@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "MCP stdio uses newline-delimited JSON-RPC; stdout is reserved for valid MCP messages, while stderr permits UTF-8 logging.",
+  "startedAt": "2026-10-26T06:16:17.861Z",
+  "completedAt": "2026-10-26T06:17:22.088Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "f72d90ea0f2975d157d0cf8fc4b021dacca9c0f626ea60d5c1a0e996b7219354",
+    "bytes": 2874,
+    "sha256": "f5cc495f5b10b565f50a919b65ff3c7db3c0db85ac92f18effdc6fffa88ceaa1",
+    "terminal": {
+      "runId": "run_mvov5jbj_939559",
+      "attemptId": "attempt_mvov5jbj_88bcfd",
+      "status": "completed",
+      "startedAt": "2026-10-26T06:16:17.861Z",
+      "completedAt": "2026-10-26T06:17:22.088Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 587216846,
+      "size": 1889,
+      "nlink": 1,
+      "mtimeMs": 1792995442089.093,
+      "ctimeMs": 1792995442089.2126
+    }
+  }
+}

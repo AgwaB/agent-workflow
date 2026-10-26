@@ -1,0 +1,251 @@
+{
+  "schema": "agent-workflow-replay-fixture-meta-v1",
+  "fixture": "deep-review",
+  "recordedAt": "2026-10-26T05:13:29.482Z",
+  "piWorkflow": {
+    "package": "@agwab/pi-workflow",
+    "version": "0.16.4",
+    "baseCommit": "b83cc4f297eca6df9e684d0a17fcd4475ee53ae9",
+    "seamBranch": "work/wp1a-recording-seam-20261026",
+    "seamCommit": "7e813aa5394b5b5eb7a9081b0072aee8c48951d3"
+  },
+  "piVersion": "1.1.0",
+  "piSubagentVersion": "0.7.2",
+  "node": "v24.16.0",
+  "platform": "darwin",
+  "model": {
+    "resolvedModels": {
+      "openai-codex/gpt-6.1-sol": 12
+    },
+    "source": "Pi default (settings.json defaultProvider/defaultModel); no model override passed by driver or spec. Thinking comes from the spec/profile when declared, else Pi default (settings defaultThinkingLevel xhigh)."
+  },
+  "workflow": {
+    "name": "deep-review",
+    "spec": "<PKG>/workflows/deep-review/spec.json",
+    "executionProfile": null,
+    "inputOverrides": {},
+    "task": "Review src/workflow-stop.ts, src/workflow-cancellation.ts and src/workflow-terminal.ts for correctness and reliability defects in stop/cancel handling.",
+    "agents": {
+      "scout": "project/agents/scout.md: copy of pi-workflow agents/scout.md installed as <ROOT>/.pi/agents/scout.md (project scope) so the user's ~/.pi/agent/agents/scout.md does not shadow the bundled agent"
+    },
+    "projectFiles": [
+      "src/workflow-stop.ts",
+      "src/workflow-cancellation.ts",
+      "src/workflow-terminal.ts"
+    ]
+  },
+  "run": {
+    "workflowRunId": "workflow_mvosws5z_d4d559",
+    "status": "completed",
+    "finalRender": {
+      "taskId": "task-8",
+      "status": "passed",
+      "verdict": "NEEDS_WORK",
+      "blockers": []
+    },
+    "tasks": 18,
+    "modelTasks": 12,
+    "recordedCalls": 10467,
+    "committedCalls": 156,
+    "wallMs": 445853,
+    "perTask": [
+      {
+        "taskId": "task-1",
+        "stageId": "triage",
+        "kind": "single",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 106230,
+        "costUsd": 0.0589064
+      },
+      {
+        "taskId": "task-2",
+        "stageId": "reviewers",
+        "kind": "foreach",
+        "status": "completed",
+        "model": null,
+        "totalTokens": null,
+        "costUsd": null
+      },
+      {
+        "taskId": "task-9",
+        "stageId": "reviewers",
+        "kind": "foreach",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 89317,
+        "costUsd": 0.1377972
+      },
+      {
+        "taskId": "task-10",
+        "stageId": "reviewers",
+        "kind": "foreach",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 162166,
+        "costUsd": 0.11098160000000001
+      },
+      {
+        "taskId": "task-11",
+        "stageId": "reviewers",
+        "kind": "foreach",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 203384,
+        "costUsd": 0.0900064
+      },
+      {
+        "taskId": "task-3",
+        "stageId": "dedup-findings",
+        "kind": "support",
+        "status": "completed",
+        "model": null,
+        "totalTokens": null,
+        "costUsd": null
+      },
+      {
+        "taskId": "task-4",
+        "stageId": "devil-advocate",
+        "kind": "foreach",
+        "status": "completed",
+        "model": null,
+        "totalTokens": null,
+        "costUsd": null
+      },
+      {
+        "taskId": "task-12",
+        "stageId": "devil-advocate",
+        "kind": "foreach",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 35839,
+        "costUsd": 0.0710908
+      },
+      {
+        "taskId": "task-13",
+        "stageId": "devil-advocate",
+        "kind": "foreach",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 56058,
+        "costUsd": 0.053263200000000004
+      },
+      {
+        "taskId": "task-14",
+        "stageId": "devil-advocate",
+        "kind": "foreach",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 46909,
+        "costUsd": 0.0671156
+      },
+      {
+        "taskId": "task-15",
+        "stageId": "devil-advocate",
+        "kind": "foreach",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 66174,
+        "costUsd": 0.0819704
+      },
+      {
+        "taskId": "task-16",
+        "stageId": "devil-advocate",
+        "kind": "foreach",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 35176,
+        "costUsd": 0.0602928
+      },
+      {
+        "taskId": "task-17",
+        "stageId": "devil-advocate",
+        "kind": "foreach",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 62351,
+        "costUsd": 0.0731276
+      },
+      {
+        "taskId": "task-18",
+        "stageId": "devil-advocate",
+        "kind": "foreach",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 163678,
+        "costUsd": 0.09816559999999999
+      },
+      {
+        "taskId": "task-5",
+        "stageId": "partition-verdicts",
+        "kind": "support",
+        "status": "completed",
+        "model": null,
+        "totalTokens": null,
+        "costUsd": null
+      },
+      {
+        "taskId": "task-6",
+        "stageId": "report-packet",
+        "kind": "support",
+        "status": "completed",
+        "model": null,
+        "totalTokens": null,
+        "costUsd": null
+      },
+      {
+        "taskId": "task-7",
+        "stageId": "report",
+        "kind": "reduce",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 5390,
+        "costUsd": 0.017378400000000002
+      },
+      {
+        "taskId": "task-8",
+        "stageId": "final",
+        "kind": "support",
+        "status": "completed",
+        "model": null,
+        "totalTokens": null,
+        "costUsd": null
+      }
+    ]
+  },
+  "usage": {
+    "source": "task-rollup",
+    "capturedAt": "2026-10-26T05:20:54.682Z",
+    "taskCount": 18,
+    "tasksReporting": 12,
+    "inputTokens": 259484,
+    "outputTokens": 32708,
+    "totalTokens": 1032672,
+    "cachedInputTokens": 0,
+    "cacheCreationInputTokens": 0,
+    "cacheReadInputTokens": 740480,
+    "reasoningTokens": 17488,
+    "costUsd": 0.9200959999999999
+  },
+  "env": {
+    "PI_WORKFLOW_MAX_CONCURRENT_LAUNCHES": "6"
+  },
+  "hostPins": {
+    "PI_WORKFLOW_MAX_CONCURRENT_LAUNCHES": "6",
+    "rootPathLength": 71,
+    "note": "Applied by the self-replay test (test/unit/replay-self-consistency.test.mjs in the pi-workflow seam branch): the concurrency env value; rootPathLength = replay project path padded to the recorded absolute project path length (the engine truncates worker text that embeds absolute paths by character count, e.g. output-retry excerpts); replayRoot = replay at this exact absolute path (workers embed absolute paths in outputs whose digests the engine records); projectIsPackageRoot = replay with the engine checkout as project cwd."
+  },
+  "launch": "node internal/record/run-bundled.mjs deep-review <project> <recordDir> --task <task>",
+  "callsCompaction": "calls.jsonl keeps every effectful call and drops observation polls whose normalized response equals the previous one for the same replay key (tools/compact-calls.mjs; mirrors replay-subagent-api.mjs queue construction). 10467 recorded -> 156 committed; the full portable file lives under internal/raw-recordings/deep-review/.",
+  "pathForm": "calls.jsonl, run/, subagent-runs/ are the raw capture with absolute host roots rewritten to <ROOT> (project), <PKG> (pi-workflow checkout), <HOME>, <TMP> by tools/make-portable.mjs.",
+  "normalized": "normalized/ = node test/replay/normalize.mjs fixtures/deep-review/run fixtures/deep-review/normalized",
+  "liveAttempts": {
+    "used": 1,
+    "budget": 2
+  },
+  "project": {
+    "location": "internal/raw-recordings/projects/deep-review/ (as briefed)",
+    "committed": "src/workflow-stop.ts, src/workflow-cancellation.ts, src/workflow-terminal.ts (read by the deterministic reducer that verifies quotes) and agents/scout.md",
+    "omitted": "package.json and tsconfig.json (minimal placeholders that only workers could read; the engine does not read them)"
+  }
+}

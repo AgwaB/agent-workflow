@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "Dynamic terminal summaries overwrite failed and interrupted outcomes with controller-derived or completion-labelled statuses.",
+  "startedAt": "2026-10-26T05:15:12.601Z",
+  "completedAt": "2026-10-26T05:16:41.838Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "d30bf9406055d6aeb29f60930e29861d395af185ac2dfd378294b5c0e61e3b35",
+    "bytes": 5234,
+    "sha256": "f7410abf3fbe9d9982ac563d0c8cb2e7d9c793a4b4b4a4554afbd752aafb9a45",
+    "terminal": {
+      "runId": "run_mvosyz6x_095a3d",
+      "attemptId": "attempt_mvosyz6x_38cf55",
+      "status": "completed",
+      "startedAt": "2026-10-26T05:15:12.601Z",
+      "completedAt": "2026-10-26T05:16:41.838Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 586848180,
+      "size": 1952,
+      "nlink": 1,
+      "mtimeMs": 1792991801838.9492,
+      "ctimeMs": 1792991801839.0522
+    }
+  }
+}

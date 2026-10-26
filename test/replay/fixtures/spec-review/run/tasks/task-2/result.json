@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "Mapped all 13 spec items to the three source modules, identifying dependency boundaries and review-sensitive branches without judging conformance.",
+  "startedAt": "2026-10-26T05:55:57.647Z",
+  "completedAt": "2026-10-26T05:58:33.407Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "63e36aa679c33fc88fe000b86d5d92b14a3347445ae4f1723ab4754a148d15b9",
+    "bytes": 11247,
+    "sha256": "f0d2abbfe3b9a6d0fc9587ab553c610afe0a749b370dd5df9ee308463e7ccd77",
+    "terminal": {
+      "runId": "run_mvoufdxl_778855",
+      "attemptId": "attempt_mvoufdxl_aa6b05",
+      "status": "completed",
+      "startedAt": "2026-10-26T05:55:57.647Z",
+      "completedAt": "2026-10-26T05:58:33.407Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 587138124,
+      "size": 1885,
+      "nlink": 1,
+      "mtimeMs": 1792994313408.2097,
+      "ctimeMs": 1792994313408.5117
+    }
+  }
+}

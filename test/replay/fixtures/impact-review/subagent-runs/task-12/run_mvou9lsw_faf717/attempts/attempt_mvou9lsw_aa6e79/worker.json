@@ -1,0 +1,59 @@
+{
+  "cwd": "<ROOT>",
+  "backend": "headless",
+  "runId": "run_mvou9lsw_faf717",
+  "attemptId": "attempt_mvou9lsw_aa6e79",
+  "startedAt": "2026-10-26T05:51:27.392Z",
+  "input": {
+    "backend": "headless",
+    "workspace": "shared",
+    "worktreePolicy": "never",
+    "cwd": "<ROOT>",
+    "runsDir": ".pi/workflow-subagents/workflow_mvotu0ko_b9761d/task-12",
+    "correlationId": "workflow_mvotu0ko_b9761d:task-12",
+    "sessionId": "pi-workflow.workflow_mvotu0ko_b9761d.task-12",
+    "async": true,
+    "durableLaunchBarrier": {
+      "schema": "pi-subagent-durable-launch-barrier-v2",
+      "directory": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-12/.launch-barrier-965b9717d1009e67-0e3e3f535ca1a12b",
+      "readyPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-12/.launch-barrier-965b9717d1009e67-0e3e3f535ca1a12b/ready-v2.json",
+      "decisionPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-12/.launch-barrier-965b9717d1009e67-0e3e3f535ca1a12b/decision-v2.json",
+      "ackPath": "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-12/.launch-barrier-965b9717d1009e67-0e3e3f535ca1a12b/ack-v2.json",
+      "challenge": "ad6c318760b8a43ad88e15bc73507e6ad1718c1651df05ea455bea8da3f21be2",
+      "decisionNonce": "63e158d7fa9b0f3d7e4e888859ebb00f9eb52e81cdde6be8d3ad4eb93dc81785",
+      "subjectSha256": "965b9717d1009e67113921ddea6d7b68e6270c69910299622fa2f4003e36318d",
+      "directoryIdentity": {
+        "device": 16777229,
+        "inode": 587111614,
+        "uid": 501
+      },
+      "timeoutMs": 120000,
+      "pollIntervalMs": 10,
+      "identitySha256": "2c165da73edf845c4607a14d95805494cf811d2cfebb2dfaa43851d626e0d45a"
+    },
+    "onComplete": "detach",
+    "asyncDependency": "needed-before-final",
+    "timeoutMs": 1800000,
+    "tools": [
+      "read",
+      "grep",
+      "find",
+      "ls",
+      "workflow_artifact"
+    ],
+    "extensions": [
+      "<ROOT>/.pi/workflows/workflow_mvotu0ko_b9761d/tasks/task-12/workflow-artifact-extension.ts"
+    ],
+    "noExtensions": true,
+    "taskRef": {
+      "path": "task.md",
+      "bytes": 15799,
+      "sha256": "2a141acab4346a34819f5a6cc8e7c9a8f990233fbea7dfad49a6b8ab465c07ee"
+    },
+    "systemPromptRef": {
+      "path": "system-prompt.md",
+      "bytes": 1960,
+      "sha256": "1052a80311c8cab98657c612170db9463dce3cecffbf2d1936eea9639111fef0"
+    }
+  }
+}

@@ -1,0 +1,208 @@
+{
+  "schema": "agent-workflow-replay-fixture-meta-v1",
+  "fixture": "impact-review",
+  "recordedAt": "2026-10-26T05:39:20.029Z",
+  "piWorkflow": {
+    "package": "@agwab/pi-workflow",
+    "version": "0.16.4",
+    "baseCommit": "b83cc4f297eca6df9e684d0a17fcd4475ee53ae9",
+    "seamBranch": "work/wp1a-recording-seam-20261026",
+    "seamCommit": "7e813aa5394b5b5eb7a9081b0072aee8c48951d3"
+  },
+  "piVersion": "1.1.0",
+  "piSubagentVersion": "0.7.2",
+  "node": "v24.16.0",
+  "platform": "darwin",
+  "model": {
+    "resolvedModels": {
+      "openai-codex/gpt-6.1-sol": 12
+    },
+    "source": "Pi default (settings.json defaultProvider/defaultModel); no model override passed by driver or spec. Thinking comes from the spec/profile when declared, else Pi default (settings defaultThinkingLevel xhigh)."
+  },
+  "workflow": {
+    "name": "impact-review",
+    "spec": "<PKG>/workflows/impact-review/spec.json",
+    "executionProfile": null,
+    "inputOverrides": {},
+    "task": "Assess the impact of the change b83cc4f..7e813aa (git range in this repository) limited to src/subagent-backend.ts and src/subagent-api-recorder.ts. The working tree is at 7e813aa, so both files show the post-change state. The diff (git diff b83cc4f..7e813aa -- src/subagent-backend.ts src/subagent-api-recorder.ts) is:\n\n```diff\ndiff --git a/src/subagent-api-recorder.ts b/src/subagent-api-recorder.ts\nnew file mode 100644\nindex 0000000..ca0a930\n--- /dev/null\n+++ b/src/subagent-api-recorder.ts\n@@ -0,0 +1,197 @@\n+import { appendFileSync, mkdirSync, writeFileSync } from \"node:fs\";\n+import { join } from \"node:path\";\n+\n+/**\n+ * Env-gated recording seam for the pi-subagent API (WP1a reference recordings).\n+ *\n+ * When PI_WORKFLOW_RECORD_DIR is set, the real API returned by\n+ * loadSubagentApi() is wrapped so that every function-valued export is\n+ * forwarded unchanged and one JSON line per call is appended to\n+ * `$PI_WORKFLOW_RECORD_DIR/calls.jsonl`:\n+ *\n+ *   {seq, method, startedAt, args, result | error, endedAt, pid, sync}\n+ *\n+ * Values are serialized with sorted keys. Functions, AbortSignals, streams,\n+ * buffers, symbols, bigints and cycles are replaced with\n+ * `{\"$nonSerializable\": \"<type>\"}` so the record stays plain JSON. Constructors\n+ * (error classes) are passed through unwrapped. When the variable is unset the\n+ * seam is inert and the real module is returned as-is.\n+ */\n+export const PI_WORKFLOW_RECORD_DIR_ENV = \"PI_WORKFLOW_RECORD_DIR\";\n+export const RECORDED_CALLS_FILE = \"calls.jsonl\";\n+export const RECORDED_SURFACE_FILE = \"api-surface.json\";\n+\n+export function recordDirFromEnv(\n+\tenv: NodeJS.ProcessEnv = process.env,\n+): string | undefined {\n+\tconst value = env[PI_WORKFLOW_RECORD_DIR_ENV]?.trim();\n+\treturn value ? value : undefined;\n+}\n+\n+/** Plain JSON value produced by {@link toRecordable}. */\n+export type Recordable =\n+\t| null\n+\t| string\n+\t| boolean\n+\t| number\n+\t| Recordable[]\n+\t| { [key: string]: Recordable };\n+\n+/** A forwarded pi-subagent export (sync or async). */\n+type ApiFunction = (...args: unknown[]) => unknown;\n+\n+function nonSerializable(type: string): { $nonSerializable: string } {\n+\treturn { $nonSerializable: type };\n+}\n+\n+function isStreamLike(candidate: Record<string, unknown>): boolean {\n+\treturn (\n+\t\t(typeof candidate.pipe === \"function\" && typeof candidate.on === \"function\") ||\n+\t\ttypeof candidate.getReader === \"function\"\n+\t);\n+}\n+\n+/** Plain-JSON projection with sorted object keys; deterministic for equal input. */\n+export function toRecordable(\n+\tvalue: unknown,\n+\tseen = new WeakSet<object>(),\n+): Recordable | undefined {\n+\tif (value === null) return null;\n+\tswitch (typeof value) {\n+\t\tcase \"string\":\n+\t\tcase \"boolean\":\n+\t\t\treturn value;\n+\t\tcase \"number\":\n+\t\t\treturn Number.isFinite(value) ? value : nonSerializable(`number:${String(value)}`);\n+\t\tcase \"undefined\":\n+\t\t\treturn undefined;\n+\t\tcase \"function\":\n+\t\t\treturn nonSerializable(\"function\");\n+\t\tcase \"symbol\":\n+\t\t\treturn nonSerializable(\"symbol\");\n+\t\tcase \"bigint\":\n+\t\t\treturn nonSerializable(\"bigint\");\n+\t\tdefault:\n+\t\t\tbreak;\n+\t}\n+\tconst object = value as object;\n+\tif (typeof AbortSignal !== \"undefined\" && object instanceof AbortSignal)\n+\t\treturn nonSerializable(\"AbortSignal\");\n+\tif (Buffer.isBuffer(object) || ArrayBuffer.isView(object))\n+\t\treturn nonSerializable(\"Buffer\");\n+\tif (object instanceof Date) return object.toISOString();\n+\tif (object instanceof Error) {\n+\t\tconst error = object as Error & { code?: unknown; failureKind?: unknown };\n+\t\treturn toRecordable(\n+\t\t\t{\n+\t\t\t\t$error: true,\n+\t\t\t\tname: error.name,\n+\t\t\t\tmessage: error.message,\n+\t\t\t\t...(error.code === undefined ? {} : { code: error.code }),\n+\t\t\t\t...(error.failureKind === undefined ? {} : { failureKind: error.failureKind }),\n+\t\t\t},\n+\t\t\tseen,\n+\t\t);\n+\t}\n+\tif (typeof (object as { then?: unknown }).then === \"function\")\n+\t\treturn nonSerializable(\"Promise\");\n+\tif (isStreamLike(object as Record<string, unknown>)) return nonSerializable(\"stream\");\n+\tif (seen.has(object)) return nonSerializable(\"cycle\");\n+\tseen.add(object);\n+\ttry {\n+\t\tif (Array.isArray(object))\n+\t\t\treturn object.map((entry) => {\n+\t\t\t\tconst projected = toRecordable(entry, seen);\n+\t\t\t\treturn projected === undefined ? null : projected;\n+\t\t\t});\n+\t\tif (object instanceof Map)\n+\t\t\treturn toRecordable(Object.fromEntries(object), seen);\n+\t\tif (object instanceof Set) return toRecordable([...object], seen);\n+\t\tconst out: { [key: string]: Recordable } = {};\n+\t\tfor (const key of Object.keys(object).sort()) {\n+\t\t\tconst projected = toRecordable((object as Record<string, unknown>)[key], seen);\n+\t\t\tif (projected !== undefined) out[key] = projected;\n+\t\t}\n+\t\treturn out;\n+\t} finally {\n+\t\tseen.delete(object);\n+\t}\n+}\n+\n+function isConstructor(fn: (...args: unknown[]) => unknown): boolean {\n+\treturn /^class[\\s{]/u.test(Function.prototype.toString.call(fn));\n+}\n+\n+export function createRecordingSubagentApi<T extends object>(\n+\treal: T,\n+\trecordDir: string,\n+): T {\n+\tmkdirSync(recordDir, { recursive: true });\n+\tconst callsFile = join(recordDir, RECORDED_CALLS_FILE);\n+\twriteFileSync(callsFile, \"\", { flag: \"a\" });\n+\tlet seq = 0;\n+\tconst append = (entry: Record<string, unknown>): void => {\n+\t\tappendFileSync(callsFile, `${JSON.stringify(toRecordable(entry))}\\n`, \"utf8\");\n+\t};\n+\tconst wrapped: Record<string, unknown> = {};\n+\tconst surface = { methods: [] as string[], constructors: [] as string[], values: [] as string[] };\n+\tfor (const key of Object.keys(real).sort()) {\n+\t\tconst member = (real as Record<string, unknown>)[key];\n+\t\tif (typeof member !== \"function\") surface.values.push(key);\n+\t\telse if (isConstructor(member as ApiFunction)) surface.constructors.push(key);\n+\t\telse surface.methods.push(key);\n+\t}\n+\t// Replay needs the full method surface (the engine feature-detects optional\n+\t// methods), not only the methods that happened to be called.\n+\twriteFileSync(join(recordDir, RECORDED_SURFACE_FILE), `${JSON.stringify(surface, null, 2)}\\n`);\n+\tfor (const key of Object.keys(real)) {\n+\t\tconst member = (real as Record<string, unknown>)[key];\n+\t\tif (typeof member !== \"function\" || isConstructor(member as ApiFunction)) {\n+\t\t\twrapped[key] = member;\n+\t\t\tcontinue;\n+\t\t}\n+\t\tconst fn = member as ApiFunction;\n+\t\tconst forward: ApiFunction = (...args) => {\n+\t\t\tseq += 1;\n+\t\t\tconst base = {\n+\t\t\t\tseq,\n+\t\t\t\tmethod: key,\n+\t\t\t\tpid: process.pid,\n+\t\t\t\tstartedAt: new Date().toISOString(),\n+\t\t\t\targs: toRecordable(args),\n+\t\t\t};\n+\t\t\tlet result: unknown;\n+\t\t\ttry {\n+\t\t\t\tresult = fn.apply(real, args);\n+\t\t\t} catch (error) {\n+\t\t\t\tappend({ ...base, sync: true, error, endedAt: new Date().toISOString() });\n+\t\t\t\tthrow error;\n+\t\t\t}\n+\t\t\tif (result && typeof (result as { then?: unknown }).then === \"function\") {\n+\t\t\t\treturn (result as Promise<unknown>).then(\n+\t\t\t\t\t(value) => {\n+\t\t\t\t\t\tappend({ ...base, sync: false, result: value ?? null, endedAt: new Date().toISOString() });\n+\t\t\t\t\t\treturn value;\n+\t\t\t\t\t},\n+\t\t\t\t\t(error: unknown) => {\n+\t\t\t\t\t\tappend({ ...base, sync: false, error, endedAt: new Date().toISOString() });\n+\t\t\t\t\t\tthrow error;\n+\t\t\t\t\t},\n+\t\t\t\t);\n+\t\t\t}\n+\t\t\tappend({ ...base, sync: true, result: result ?? null, endedAt: new Date().toISOString() });\n+\t\t\treturn result;\n+\t\t};\n+\t\twrapped[key] = forward;\n+\t}\n+\treturn wrapped as T;\n+}\n+\n+/** Wraps `real` when PI_WORKFLOW_RECORD_DIR is set; otherwise returns it unchanged. */\n+export function maybeRecordSubagentApi<T extends object>(\n+\treal: T,\n+\tenv: NodeJS.ProcessEnv = process.env,\n+): T {\n+\tconst recordDir = recordDirFromEnv(env);\n+\treturn recordDir ? createRecordingSubagentApi(real, recordDir) : real;\n+}\ndiff --git a/src/subagent-backend.ts b/src/subagent-backend.ts\nindex 179d5b7..949be3a 100644\n--- a/src/subagent-backend.ts\n+++ b/src/subagent-backend.ts\n@@ -53,6 +53,7 @@ import {\n \tvalidateJsonSchemaSubset,\n } from \"./json-schema.js\";\n import { piAgentDir } from \"./pi-agent-dir.js\";\n+import { maybeRecordSubagentApi } from \"./subagent-api-recorder.js\";\n import {\n \tnormalizedToolResultBudgetValues,\n \tsummarizeToolResultBudgetAttempts,\n@@ -495,8 +496,10 @@ export function setSubagentApiForTests(api: unknown | undefined): void {\n \n async function loadSubagentApi(): Promise<SubagentApi> {\n \tif (injectedSubagentApi) return injectedSubagentApi;\n-\tcachedSubagentApi ??= import(subagentApiSpecifier).then(\n-\t\t(mod) => mod as SubagentApi,\n+\t// PI_WORKFLOW_RECORD_DIR (unset by default) wraps the real API in the\n+\t// call-recording seam used for reference recordings; see subagent-api-recorder.\n+\tcachedSubagentApi ??= import(subagentApiSpecifier).then((mod) =>\n+\t\tmaybeRecordSubagentApi(mod as SubagentApi),\n \t);\n \treturn cachedSubagentApi;\n }\n```",
+    "agents": {
+      "scout": "project/agents/scout.md: copy of pi-workflow agents/scout.md installed as <ROOT>/.pi/agents/scout.md (project scope) so the user's ~/.pi/agent/agents/scout.md does not shadow the bundled agent"
+    },
+    "projectFiles": []
+  },
+  "run": {
+    "workflowRunId": "workflow_mvotu0ko_b9761d",
+    "status": "failed",
+    "finalRender": {
+      "taskId": "task-13",
+      "status": "failed",
+      "verdict": "BLOCKED",
+      "blockers": [
+        "Known canonical impact risk floor is high.",
+        "Impact review does not attest historical source-file bytes; content hashes cover host-supplied control values only, and citations are unverified unless an authoritative byte snapshot is supplied.",
+        "Synthesis verdict NEEDS_WORK contradicts required verdict BLOCKED.",
+        "Synthesis risk medium understates or obscures the known source risk floor high (regression risk medium)."
+      ]
+    },
+    "tasks": 13,
+    "modelTasks": 12,
+    "recordedCalls": 23331,
+    "committedCalls": 153,
+    "wallMs": 890396,
+    "perTask": [
+      {
+        "taskId": "task-1",
+        "stageId": "impact-analysis.change-scope",
+        "kind": "single",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 167663,
+        "costUsd": 0.1367276
+      },
+      {
+        "taskId": "task-2",
+        "stageId": "impact-analysis.implementation-map",
+        "kind": "single",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 1382393,
+        "costUsd": 0.3969908
+      },
+      {
+        "taskId": "task-3",
+        "stageId": "impact-analysis.validation-map",
+        "kind": "single",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 312350,
+        "costUsd": 0.21592719999999999
+      },
+      {
+        "taskId": "task-4",
+        "stageId": "impact-analysis.api-contract-impact",
+        "kind": "reduce",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 517474,
+        "costUsd": 0.1818584
+      },
+      {
+        "taskId": "task-5",
+        "stageId": "impact-analysis.state-data-impact",
+        "kind": "reduce",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 608215,
+        "costUsd": 0.2527068
+      },
+      {
+        "taskId": "task-6",
+        "stageId": "impact-analysis.validation-impact",
+        "kind": "reduce",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 155086,
+        "costUsd": 0.1356376
+      },
+      {
+        "taskId": "task-7",
+        "stageId": "impact-analysis.docs-release-impact",
+        "kind": "reduce",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 1100278,
+        "costUsd": 0.27082800000000007
+      },
+      {
+        "taskId": "task-8",
+        "stageId": "impact-analysis.security-performance-impact",
+        "kind": "reduce",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 240526,
+        "costUsd": 0.1707544
+      },
+      {
+        "taskId": "task-9",
+        "stageId": "impact-analysis.contract-consistency",
+        "kind": "reduce",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 378965,
+        "costUsd": 0.16985160000000002
+      },
+      {
+        "taskId": "task-10",
+        "stageId": "impact-analysis.regression-risk",
+        "kind": "reduce",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 255397,
+        "costUsd": 0.11248999999999999
+      },
+      {
+        "taskId": "task-11",
+        "stageId": "impact-analysis.ship-readiness",
+        "kind": "reduce",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 268771,
+        "costUsd": 0.1526236
+      },
+      {
+        "taskId": "task-12",
+        "stageId": "impact-analysis.impact-synthesis",
+        "kind": "reduce",
+        "status": "completed",
+        "model": "openai-codex/gpt-6.1-sol",
+        "totalTokens": 233721,
+        "costUsd": 0.1439604
+      },
+      {
+        "taskId": "task-13",
+        "stageId": "impact-analysis.final",
+        "kind": "support",
+        "status": "failed",
+        "model": null,
+        "totalTokens": null,
+        "costUsd": null
+      }
+    ]
+  },
+  "usage": {
+    "source": "task-rollup",
+    "capturedAt": "2026-10-26T05:54:09.695Z",
+    "taskCount": 13,
+    "tasksReporting": 12,
+    "inputTokens": 598989,
+    "outputTokens": 64666,
+    "totalTokens": 5620839,
+    "cachedInputTokens": 0,
+    "cacheCreationInputTokens": 0,
+    "cacheReadInputTokens": 4957184,
+    "reasoningTokens": 26577,
+    "costUsd": 2.3403564
+  },
+  "env": {
+    "PI_WORKFLOW_MAX_CONCURRENT_LAUNCHES": "6"
+  },
+  "hostPins": {
+    "PI_WORKFLOW_MAX_CONCURRENT_LAUNCHES": "6",
+    "projectIsPackageRoot": true,
+    "packageRootNote": "The project cwd was the pi-workflow checkout itself (<ROOT> == <PKG>; portable paths use <ROOT>). Replay must run with the engine checkout as project cwd.",
+    "note": "Applied by the self-replay test (test/unit/replay-self-consistency.test.mjs in the pi-workflow seam branch): the concurrency env value; rootPathLength = replay project path padded to the recorded absolute project path length (the engine truncates worker text that embeds absolute paths by character count, e.g. output-retry excerpts); replayRoot = replay at this exact absolute path (workers embed absolute paths in outputs whose digests the engine records); projectIsPackageRoot = replay with the engine checkout as project cwd."
+  },
+  "launch": "node internal/record/run-bundled.mjs impact-review <project> <recordDir> --task <task>",
+  "callsCompaction": "calls.jsonl keeps every effectful call and drops observation polls whose normalized response equals the previous one for the same replay key (tools/compact-calls.mjs; mirrors replay-subagent-api.mjs queue construction). 23331 recorded -> 153 committed; the full portable file lives under internal/raw-recordings/impact-review/.",
+  "pathForm": "calls.jsonl, run/, subagent-runs/ are the raw capture with absolute host roots rewritten to <ROOT> (project), <PKG> (pi-workflow checkout), <HOME>, <TMP> by tools/make-portable.mjs.",
+  "normalized": "normalized/ = node test/replay/normalize.mjs fixtures/impact-review/run fixtures/impact-review/normalized",
+  "liveAttempts": {
+    "used": 1,
+    "budget": 2
+  },
+  "project": {
+    "location": "the pi-workflow seam worktree itself (read-only use; run records written to its ignored .pi/)",
+    "committed": "agents/scout.md only (installed as <ROOT>/.pi/agents/scout.md). The engine reads no other project file for this workflow; the replay runs in the engine checkout (fixture.json projectIsPackageRoot)."
+  },
+  "taskInput": "Workers only have read/grep/find/ls, so the git range b83cc4f..7e813aa is given together with the full diff text of the two files in the runtime task."
+}

@@ -1,0 +1,44 @@
+{
+  "digest": "Prioritize stop-signal lifecycle races, cancellation classification, and terminal-status precedence; integration evidence is absent from this excerpt.",
+  "reviewLenses": [
+    {
+      "evidenceToInspect": [
+        "src/workflow-stop.ts:1-28",
+        "src/workflow-stop.ts:53-85",
+        "src/workflow-stop.ts:89-99"
+      ],
+      "focus": "Runtime correctness of launch fencing, polling, and disposal",
+      "id": "stop-lifecycle",
+      "severityBias": "high",
+      "whyNeeded": "Cancellation combines shared registrations, asynchronous persistence reads, and interval polling; races or read failures could delay or lose stop propagation."
+    },
+    {
+      "evidenceToInspect": [
+        "src/workflow-cancellation.ts:1-37",
+        "src/workflow-stop.ts:30-58"
+      ],
+      "focus": "Provider cancellation recognition and error-contract precision",
+      "id": "cancellation-classification",
+      "severityBias": "medium",
+      "whyNeeded": "Cancellation markers are accepted across several object shapes and recursively parsed provider text; false positives can suppress failures, while missing supported shapes can defeat cancellation handling."
+    },
+    {
+      "evidenceToInspect": [
+        "src/workflow-terminal.ts:37-69",
+        "src/workflow-terminal.ts:72-95"
+      ],
+      "focus": "Preservation of interrupted and failed outcomes in dynamic summaries",
+      "id": "terminal-semantics",
+      "severityBias": "high",
+      "whyNeeded": "Every terminal direct-dynamic run receives a semantic-status override based on controller artifacts, potentially obscuring cancellation or failure with stale or missing output."
+    }
+  ],
+  "riskLevel": "high",
+  "schema": "stage-control-v1",
+  "skippedLenses": [
+    "Dedicated security audit: no authentication, authorization, or process-execution boundary is present; classifier robustness remains in correctness scope.",
+    "Dedicated release/test hygiene: no tests or integration dependencies are supplied; reviewers should identify focused reproductions without claiming executed coverage.",
+    "Migration/compatibility audit: no diff or removed public exception is supplied; provider-shape compatibility is covered by the classification lens."
+  ],
+  "triageSummary": "Three small modules warrant three bounded correctness lenses, not broad security or architecture fanout. Highest-risk questions are whether stop propagation survives asynchronous lifecycle races and whether dynamic summaries preserve interruption/failure. This repository explicitly omits store.js and types.js and supplies no callers, provider adapters, or tests, so persistence guarantees, real provider contracts, and end-to-end behavior remain unverified. Review must stay within this excerpt."
+}

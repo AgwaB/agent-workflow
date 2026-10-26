@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "18 requirements have positive source coverage; one terminal-status precedence candidate affects two partial requirements, and degradation precedence remains unclear.",
+  "startedAt": "2026-10-26T05:59:05.705Z",
+  "completedAt": "2026-10-26T06:05:36.767Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "a8723708184c2437a876e5dd3728aa194b212d5e2598423b94a50a82214eeef3",
+    "bytes": 21666,
+    "sha256": "cdd81f829fc53a36ff609d7904136ef636d5e2fa8c777100740be226f9f8c539",
+    "terminal": {
+      "runId": "run_mvoujeq2_21fbf7",
+      "attemptId": "attempt_mvoujeq2_62bce0",
+      "status": "completed",
+      "startedAt": "2026-10-26T05:59:05.705Z",
+      "completedAt": "2026-10-26T06:05:36.767Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 587178261,
+      "size": 1878,
+      "nlink": 1,
+      "mtimeMs": 1792994736770.678,
+      "ctimeMs": 1792994736770.84
+    }
+  }
+}

@@ -1,0 +1,3 @@
+{"artifact":"control","at":"<TS>","bytes":5863,"maxChars":51200,"path":"$","returnedBytes":5346,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.validation-impact","taskId":"task-11","truncated":false}
+{"artifact":"control","at":"<TS>","bytes":3876,"maxChars":51200,"path":"$","returnedBytes":3034,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.docs-release-impact","taskId":"task-11","truncated":false}
+{"artifact":"control","at":"<TS>","bytes":4048,"maxChars":51200,"path":"$","returnedBytes":3363,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.security-performance-impact","taskId":"task-11","truncated":false}

@@ -1,0 +1,29 @@
+{
+  "attempt": 1,
+  "backend": {
+    "attemptId": "<SA_ATTEMPT_2>",
+    "backend": "headless",
+    "failureKind": null,
+    "runId": "<SA_RUN_2>"
+  },
+  "batchId": "foreach-batch-task-16-task-17-g0",
+  "completedAt": "<TS>",
+  "exitCode": 0,
+  "members": [
+    {
+      "role": "leader",
+      "specId": "verify-claims.claim-003",
+      "taskId": "task-16"
+    },
+    {
+      "role": "member",
+      "specId": "verify-claims.claim-004",
+      "taskId": "task-17"
+    }
+  ],
+  "phase": "terminal_received",
+  "rawSha256": "32e93906dc0e430b878257c20c512bd79cbcf384f930378d205bcfd4cb7a2774",
+  "schema": "workflow-foreach-batch-receipt-v1",
+  "startedAt": "<TS>",
+  "status": "completed"
+}

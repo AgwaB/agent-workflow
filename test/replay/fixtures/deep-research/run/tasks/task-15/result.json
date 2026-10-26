@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "Verified: the official latest transport overview explicitly links the dated stdio binding.",
+  "startedAt": "2026-10-26T06:15:35.982Z",
+  "completedAt": "2026-10-26T06:16:09.481Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "252595bca2f0c8cd0967eeca0b35a56622b6dcde9fa5bd9b0b24dc10bb953341",
+    "bytes": 1391,
+    "sha256": "b74a7f137e91f98a3acc4320d0fbee06c1a105b34a7a08945d9e41ce88980a61",
+    "terminal": {
+      "runId": "run_mvov4mp2_265c50",
+      "attemptId": "attempt_mvov4mp2_a3c352",
+      "status": "completed",
+      "startedAt": "2026-10-26T06:15:35.982Z",
+      "completedAt": "2026-10-26T06:16:09.481Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 587212160,
+      "size": 1880,
+      "nlink": 1,
+      "mtimeMs": 1792995369499.0803,
+      "ctimeMs": 1792995369500.4866
+    }
+  }
+}

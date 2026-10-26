@@ -1,0 +1,382 @@
+{
+  "policy": {
+    "accessMode": "workflow-task"
+  },
+  "runId": "<WF_RUN_1>",
+  "schema": "workflow-source-manifest-v1",
+  "sources": [
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-1/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-1/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-1/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-1/refs.json"
+        }
+      },
+      "digest": "Verify the current official MCP specification, then extract exact stdio framing and server stdout/stderr requirements.",
+      "displayName": "plan.main",
+      "lastMessage": "completed",
+      "source": "plan",
+      "specId": "plan.main",
+      "stageId": "plan",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-1"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-3/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-3/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-3/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-3/refs.json"
+        }
+      },
+      "digest": "Support helper completed.",
+      "displayName": "normalize-input-packet.main",
+      "lastMessage": "support completed",
+      "source": "normalize-input-packet",
+      "specId": "normalize-input-packet.main",
+      "stageId": "normalize-input-packet",
+      "status": "completed",
+      "statusDetail": "support_completed",
+      "taskId": "task-3"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-4/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-4/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-4/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-4/refs.json"
+        }
+      },
+      "digest": "Selected eight source-backed atoms covering specification currency, framing, and stream policy; general message encoding remains unestablished.",
+      "displayName": "normalize-claims.main",
+      "lastMessage": "completed",
+      "source": "normalize-claims",
+      "specId": "normalize-claims.main",
+      "stageId": "normalize-claims",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-4"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-5/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-5/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-5/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-5/refs.json"
+        }
+      },
+      "digest": "Support helper completed.",
+      "displayName": "sanitize-claims.main",
+      "lastMessage": "support completed",
+      "source": "sanitize-claims",
+      "specId": "sanitize-claims.main",
+      "stageId": "sanitize-claims",
+      "status": "completed",
+      "statusDetail": "support_completed",
+      "taskId": "task-5"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-14/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-14/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-14/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-14/refs.json"
+        }
+      },
+      "digest": "The official versioning page explicitly identifies 2026-07-28 as the current protocol version.",
+      "displayName": "verify-claims.claim-001",
+      "itemIdentity": "claim-001",
+      "lastMessage": "completed",
+      "placeholderSpecId": "verify-claims.item",
+      "source": "verify-claims",
+      "sourceGeneration": 0,
+      "specId": "verify-claims.claim-001",
+      "stageId": "verify-claims",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-14"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-15/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-15/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-15/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-15/refs.json"
+        }
+      },
+      "digest": "Verified: the official latest transport overview explicitly links the dated stdio binding.",
+      "displayName": "verify-claims.claim-002",
+      "itemIdentity": "claim-002",
+      "lastMessage": "completed",
+      "placeholderSpecId": "verify-claims.item",
+      "source": "verify-claims.claim-002",
+      "sourceGeneration": 0,
+      "specId": "verify-claims.claim-002",
+      "stageId": "verify-claims",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-15"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-16/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-16/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-16/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-16/refs.json"
+        }
+      },
+      "digest": "The cited stdio specification directly supports the message-format claim.",
+      "displayName": "verify-claims.claim-003",
+      "itemIdentity": "claim-003",
+      "lastMessage": "completed from foreach batch demux",
+      "placeholderSpecId": "verify-claims.item",
+      "source": "verify-claims.claim-003",
+      "sourceGeneration": 0,
+      "specId": "verify-claims.claim-003",
+      "stageId": "verify-claims",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-16"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-17/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-17/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-17/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-17/refs.json"
+        }
+      },
+      "digest": "The cited specification explicitly prohibits non-MCP stdout output.",
+      "displayName": "verify-claims.claim-004",
+      "itemIdentity": "claim-004",
+      "lastMessage": "completed from foreach batch demux",
+      "placeholderSpecId": "verify-claims.item",
+      "source": "verify-claims.claim-004",
+      "sourceGeneration": 0,
+      "specId": "verify-claims.claim-004",
+      "stageId": "verify-claims",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-17"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-18/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-18/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-18/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-18/refs.json"
+        }
+      },
+      "digest": "Embedded-newline prohibition verified directly.",
+      "displayName": "verify-claims.claim-005",
+      "itemIdentity": "claim-005",
+      "lastMessage": "completed from foreach batch demux",
+      "placeholderSpecId": "verify-claims.item",
+      "source": "verify-claims.claim-005",
+      "sourceGeneration": 0,
+      "specId": "verify-claims.claim-005",
+      "stageId": "verify-claims",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-18"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-19/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-19/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-19/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-19/refs.json"
+        }
+      },
+      "digest": "Server stdout prohibition verified directly.",
+      "displayName": "verify-claims.claim-006",
+      "itemIdentity": "claim-006",
+      "lastMessage": "completed from foreach batch demux",
+      "placeholderSpecId": "verify-claims.item",
+      "source": "verify-claims.claim-006",
+      "sourceGeneration": 0,
+      "specId": "verify-claims.claim-006",
+      "stageId": "verify-claims",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-19"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-20/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-20/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-20/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-20/refs.json"
+        }
+      },
+      "digest": "Verified server stderr logging permission.",
+      "displayName": "verify-claims.claim-007",
+      "itemIdentity": "claim-007",
+      "lastMessage": "completed from foreach batch demux",
+      "placeholderSpecId": "verify-claims.item",
+      "source": "verify-claims.claim-007",
+      "sourceGeneration": 0,
+      "specId": "verify-claims.claim-007",
+      "stageId": "verify-claims",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-20"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-21/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-21/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-21/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-21/refs.json"
+        }
+      },
+      "digest": "Verified client stderr interpretation guidance.",
+      "displayName": "verify-claims.claim-008",
+      "itemIdentity": "claim-008",
+      "lastMessage": "completed from foreach batch demux",
+      "placeholderSpecId": "verify-claims.item",
+      "source": "verify-claims.claim-008",
+      "sourceGeneration": 0,
+      "specId": "verify-claims.claim-008",
+      "stageId": "verify-claims",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-21"
+    }
+  ],
+  "taskId": "task-7"
+}

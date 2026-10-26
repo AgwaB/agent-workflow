@@ -1,0 +1,17 @@
+[
+  {
+    "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+    "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+    "supports": [
+      "slot-004",
+      "slot-005"
+    ]
+  },
+  {
+    "sourceRef": "wsrc_6f2e06f5a0dd2c8d98ce75ab416660e7",
+    "url": "https://modelcontextprotocol.io/specification/versioning",
+    "supports": [
+      "Specification currency"
+    ]
+  }
+]

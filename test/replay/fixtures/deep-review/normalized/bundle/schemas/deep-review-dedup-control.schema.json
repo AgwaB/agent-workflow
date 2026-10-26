@@ -1,0 +1,245 @@
+{
+  "properties": {
+    "dedupSummary": {
+      "properties": {
+        "duplicateCount": {
+          "minimum": 0,
+          "type": "number"
+        },
+        "duplicates": {
+          "items": {
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "rawCount": {
+          "minimum": 0,
+          "type": "number"
+        },
+        "uniqueCount": {
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "rawCount",
+        "uniqueCount",
+        "duplicateCount",
+        "rawFindingIds",
+        "dedupFindingIds",
+        "dispositionFindingIds",
+        "supportFindingIds",
+        "lineageFindingIds",
+        "complete",
+        "duplicates"
+      ],
+      "type": "object"
+    },
+    "digest": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "findings": {
+      "items": {
+        "properties": {
+          "classification": {
+            "enum": [
+              "behavioral",
+              "support-only"
+            ],
+            "type": "string"
+          },
+          "evidenceQuotes": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "file": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "findingId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "locations": {
+            "items": {
+              "properties": {
+                "file": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "line": {
+                  "type": "number"
+                },
+                "lineEnd": {
+                  "type": "number"
+                },
+                "symbol": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "file"
+              ],
+              "type": "object"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "rootCauseId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "severity": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "supportClassification": {
+            "enum": [
+              "behavioral",
+              "support-only"
+            ],
+            "type": "string"
+          },
+          "supportingFindingId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "findingId",
+          "rootCauseId",
+          "title",
+          "severity",
+          "locations",
+          "evidenceQuotes"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "reviewerLedger": {
+      "additionalProperties": true,
+      "properties": {
+        "attestedLensIds": {
+          "type": "array"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "dedupFindingIds": {
+          "type": "array"
+        },
+        "materializedReviewerIds": {
+          "type": "array"
+        },
+        "ownerMap": {
+          "type": "array"
+        },
+        "plannedLensIds": {
+          "type": "array"
+        },
+        "rawFindingIds": {
+          "type": "array"
+        },
+        "sourceStatuses": {
+          "type": "array"
+        }
+      },
+      "required": [
+        "complete",
+        "plannedLensIds",
+        "materializedReviewerIds",
+        "attestedLensIds",
+        "ownerMap",
+        "rawFindingIds",
+        "dedupFindingIds",
+        "sourceStatuses"
+      ],
+      "type": "object"
+    },
+    "schema": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "sourceStatusSummary": {
+      "properties": {
+        "completed": {
+          "minimum": 0,
+          "type": "number"
+        },
+        "nonCompleted": {
+          "minimum": 0,
+          "type": "number"
+        },
+        "partialFailures": {
+          "items": {
+            "properties": {
+              "displayName": {
+                "type": "string"
+              },
+              "errorType": {
+                "type": "string"
+              },
+              "lastMessage": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "specId": {
+                "type": "string"
+              },
+              "stageId": {
+                "type": "string"
+              },
+              "status": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "statusDetail": {
+                "type": "string"
+              },
+              "taskId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "status"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "total": {
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "total",
+        "completed",
+        "nonCompleted",
+        "partialFailures"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "digest",
+    "findings",
+    "sourceStatusSummary",
+    "dedupSummary",
+    "reviewerLedger"
+  ],
+  "type": "object"
+}

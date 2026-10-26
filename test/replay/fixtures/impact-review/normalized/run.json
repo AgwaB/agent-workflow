@@ -1,0 +1,4658 @@
+{
+  "artifactGraph": {
+    "enabled": true
+  },
+  "backend": {
+    "mode": "headless",
+    "type": "local-pi"
+  },
+  "createdAt": "<TS>",
+  "cwd": "<ROOT>",
+  "description": "Read-only DAG impact review: map a proposed or applied change, analyze contract, state/data, validation, docs/release, and security/performance impact in parallel, then join those lenses into ship-risk and action-plan synthesis without editing files.",
+  "name": "impact-review",
+  "runId": "<WF_RUN_1>",
+  "schemaVersion": 1,
+  "specPath": "<ROOT>/workflows/impact-review/spec.json",
+  "status": "failed",
+  "taskSummary": {
+    "blocked": 0,
+    "completed": 12,
+    "failed": 1,
+    "interrupted": 0,
+    "pending": 0,
+    "running": 0,
+    "skipped": 0,
+    "total": 13
+  },
+  "tasks": [
+    {
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "artifactGraph": {
+        "artifactAccess": "enabled",
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "controlSchema": "./schemas/change-scope-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/bundle/schemas/change-scope-control.schema.json",
+          "refsRequired": true
+        },
+        "requiredReads": []
+      },
+      "backendTaskId": "<SA_RUN_1>",
+      "completedAt": "<TS>",
+      "cwd": "<ROOT>",
+      "dependsOn": [],
+      "displayName": "impact-analysis.change-scope.main",
+      "durableLaunchBarrier": {
+        "records": [
+          {
+            "ackSha256": "a31e83d7093363c0add7858af12551b7ad20321b064f15149421697e5271b2a7",
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-1",
+            "backendAttemptId": "<SA_ATTEMPT_1>",
+            "backendRunId": "<SA_RUN_1>",
+            "decisionSha256": "eef624d4371cc7e55e844787a5593240a21399450b229ac44e6ceeb2e121600c",
+            "descriptor": {
+              "ackPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#1:16>-<RAND16>/ack-v2.json",
+              "challenge": "3bead35905fc25fb7e291d17b9a20b5d583f3f3c3166b347b32a6560231e0d2f",
+              "decisionNonce": "9cf4b6a1a2f9414ddf22899759de7fff941b593a63e27ee675b470fa1c26854a",
+              "decisionPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#1:16>-<RAND16>/decision-v2.json",
+              "directory": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#1:16>-<RAND16>",
+              "directoryIdentity": {
+                "device": "<FS_DEV>",
+                "inode": "<FS_INO>",
+                "uid": "<UID>"
+              },
+              "identitySha256": "fa828ad56a705fc99bee8c491cf980e9ef552369aaf2c798d785295c6b8c7d83",
+              "pollIntervalMs": 10,
+              "readyPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#1:16>-<RAND16>/ready-v2.json",
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "subjectSha256": "<ALLOWED:derived-launch-identity#1>",
+              "timeoutMs": 120000
+            },
+            "executionPlanSha256": "a07d3eded43b3658bd89df90793de441d98ed61af05b9f26d2885c409cc6d8d8",
+            "launchAuthoritySha256": "<ALLOWED:derived-launch-identity#1>",
+            "launchPayloadSha256": "bdef4da9a7ef36e2714c21eaf75de1261f3ea2f1d7a2197f9ff2504613c58b38",
+            "phase": "acknowledged",
+            "readySha256": "64e2a216e4df8c88bfa43d968cf20330dd115e1950d33832e5365643f5b8e479",
+            "releasePayloadSha256": "ec9df9f8055c6c05ebc5559987dd1e183bd85b681ad6fce5cdf5113be610dd9c",
+            "releaseWinner": true
+          }
+        ],
+        "version": 2
+      },
+      "exitCode": 0,
+      "files": {
+        "output": ".pi/workflows/<WF_RUN_1>/tasks/task-1/output.log",
+        "result": ".pi/workflows/<WF_RUN_1>/tasks/task-1/result.json",
+        "stderr": ".pi/workflows/<WF_RUN_1>/tasks/task-1/stderr.log",
+        "systemPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-1/system-prompt.md",
+        "taskPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-1/task.md"
+      },
+      "kind": "single",
+      "lastMessage": "completed",
+      "launchAuthority": {
+        "records": [
+          {
+            "grant": {
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-1",
+              "backendId": "pi-subagent/headless",
+              "identitySha256": "<ALLOWED:derived-launch-identity#1>",
+              "issuer": "pi-workflow-engine",
+              "launchBootstrapSha256": "<ALLOWED:derived-launch-identity#2>",
+              "operation": "launch-task",
+              "runId": "<WF_RUN_1>",
+              "schema": "pi-workflow-launch-authority-v1",
+              "task": {
+                "specId": "impact-analysis.change-scope.main",
+                "taskId": "task-1"
+              }
+            },
+            "state": {
+              "backendAttemptId": "<SA_ATTEMPT_1>",
+              "backendRunId": "<SA_RUN_1>",
+              "phase": "consumed"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "launchBootstrap": {
+        "records": [
+          {
+            "artifacts": {
+              "configSha256": "<ALLOWED:host-path-digest#1>",
+              "manifestSha256": "<ALLOWED:host-path-manifest-digest#1>",
+              "wrapperSha256": "<ALLOWED:host-path-digest#2>"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-1",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "backend": {
+              "id": "pi-subagent/headless",
+              "mode": "headless",
+              "type": "local-pi"
+            },
+            "effectiveLaunch": {
+              "artifactBinding": {
+                "manifestBytesSha256": "<ALLOWED:host-path-manifest-digest#2>",
+                "manifestPathSha256": "<ALLOWED:host-path-digest#3>",
+                "wrapperBytesSha256": "<ALLOWED:host-path-digest#2>",
+                "wrapperPathSha256": "<ALLOWED:host-path-digest#4>"
+              },
+              "captureToolCalls": false,
+              "extensions": [
+                {
+                  "pathSha256": "<ALLOWED:host-path-digest#4>"
+                }
+              ],
+              "noExtensions": true
+            },
+            "effectivePolicy": {
+              "approvalMode": "non-interactive",
+              "cwdSha256": "<ALLOWED:host-path-digest#5>",
+              "maxRuntimeMs": 1800000,
+              "stateRootSha256": "<ALLOWED:state-root-identity#1>",
+              "toolProvidersSha256": "<ALLOWED:host-path-digest#6>",
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "identitySha256": "<ALLOWED:derived-launch-identity#2>",
+            "prompt": {
+              "bytes": 10864,
+              "sha256": "17afe987446ffd8ae698ebb365506e82b257a1227a4d3ad423f5d9659bb966f4"
+            },
+            "resourcePolicy": {
+              "contextFiles": "disabled",
+              "skillDiscovery": "ambient",
+              "version": 1
+            },
+            "runId": "<WF_RUN_1>",
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "sessionId": "pi-workflow.<WF_RUN_1>.task-1",
+            "sourceDependencies": {
+              "artifactAccess": "enabled",
+              "contextDependsOn": [],
+              "requiredReads": []
+            },
+            "task": {
+              "specId": "impact-analysis.change-scope.main",
+              "taskId": "task-1"
+            },
+            "workflow": {
+              "specPathSha256": "<ALLOWED:host-path-digest#7>",
+              "type": "artifact-graph"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "pid": "<PID>",
+      "rawArtifactIntegrity": {
+        "bytes": 11992,
+        "owner": "<ALLOWED:timestamp-derived-digest#1>",
+        "sha256": "5700270f7e3cb2c245f6d98ddd8543b8fe69fad349f022155c7910f4f155ffab",
+        "terminal": {
+          "attemptId": "<SA_ATTEMPT_1>",
+          "completedAt": "<TS>",
+          "exitCode": 0,
+          "runId": "<SA_RUN_1>",
+          "startedAt": "<TS>",
+          "status": "completed"
+        },
+        "terminalVersion": {
+          "ctimeMs": "<EPOCH_MS>",
+          "dev": "<FS_DEV>",
+          "ino": "<FS_INO>",
+          "mtimeMs": "<EPOCH_MS>",
+          "nlink": 1,
+          "size": "<ALLOWED:host-path-file-size>"
+        },
+        "version": 1
+      },
+      "roles": [],
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "specId": "impact-analysis.change-scope.main",
+      "stageId": "impact-analysis.change-scope",
+      "startedAt": "<TS>",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-1",
+      "timing": {
+        "aggregate": {
+          "attempts": 1,
+          "executionMs": "<DURATION_MS>",
+          "launchDurationMs": "<DURATION_MS>",
+          "launchWaitMs": "<DURATION_MS>",
+          "totalMs": "<DURATION_MS>"
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_1>",
+            "backendRunId": "<SA_RUN_1>",
+            "capturedAt": "<TS>",
+            "executionCompletedAt": "<TS>",
+            "executionMs": "<DURATION_MS>",
+            "executionStartedAt": "<TS>",
+            "launchCompletedAt": "<TS>",
+            "launchDurationMs": "<DURATION_MS>",
+            "launchQueuedAt": "<TS>",
+            "launchStartedAt": "<TS>",
+            "launchWaitMs": "<DURATION_MS>",
+            "source": "pi-subagent",
+            "totalMs": "<DURATION_MS>"
+          }
+        ],
+        "capturedAt": "<TS>",
+        "executionCompletedAt": "<TS>",
+        "executionMs": "<DURATION_MS>",
+        "executionStartedAt": "<TS>",
+        "launchCompletedAt": "<TS>",
+        "launchDurationMs": "<DURATION_MS>",
+        "launchQueuedAt": "<TS>",
+        "launchSlotReleaseDelayMs": 3000,
+        "launchStartedAt": "<TS>",
+        "launchWaitMs": "<DURATION_MS>",
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": "<DURATION_MS>",
+        "refreshStatusPollMs": "<DURATION_MS>",
+        "source": "pi-workflow",
+        "terminalArtifactBundleWriteMs": "<DURATION_MS>",
+        "terminalArtifactMaterializeMs": "<DURATION_MS>",
+        "terminalOutputBytes": 11992,
+        "terminalOutputCopyMs": "<DURATION_MS>",
+        "terminalStderrBytes": 126,
+        "terminalStderrCopyMs": "<DURATION_MS>",
+        "totalMs": "<DURATION_MS>"
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "usage": {
+        "aggregate": {
+          "attempts": 1,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 126976,
+          "costUsd": 0.1367276,
+          "inputTokens": 35355,
+          "outputTokens": 5332,
+          "reasoningTokens": 1333,
+          "totalTokens": 167663
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_1>",
+            "backendRunId": "<SA_RUN_1>",
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 126976,
+            "capturedAt": "<TS>",
+            "costUsd": 0.1367276,
+            "inputTokens": 35355,
+            "model": "gpt-6.1-sol",
+            "outputTokens": 5332,
+            "provider": "openai-codex",
+            "raw": {
+              "cacheRead": 126976,
+              "cacheWrite": 0,
+              "cost": {
+                "cacheRead": 0.012697600000000002,
+                "cacheWrite": 0,
+                "input": 0.07071000000000001,
+                "output": 0.053320000000000006,
+                "total": 0.1367276
+              },
+              "input": 35355,
+              "output": 5332,
+              "reasoning": 1333,
+              "totalTokens": 167663
+            },
+            "reasoningTokens": 1333,
+            "source": "subagent-result-metadata",
+            "totalTokens": 167663
+          }
+        ],
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 126976,
+        "capturedAt": "<TS>",
+        "costUsd": 0.1367276,
+        "inputTokens": 35355,
+        "model": "gpt-6.1-sol",
+        "outputTokens": 5332,
+        "provider": "openai-codex",
+        "reasoningTokens": 1333,
+        "source": "pi-subagent",
+        "totalTokens": 167663
+      },
+      "worktree": {
+        "baseCwd": null,
+        "branch": null,
+        "enabled": false,
+        "path": null,
+        "warning": null
+      }
+    },
+    {
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "artifactGraph": {
+        "artifactAccess": "enabled",
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "controlSchema": "./schemas/implementation-map-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/bundle/schemas/implementation-map-control.schema.json",
+          "refsRequired": true
+        },
+        "requiredReads": []
+      },
+      "backendTaskId": "<SA_RUN_2>",
+      "completedAt": "<TS>",
+      "cwd": "<ROOT>",
+      "dependsOn": [],
+      "displayName": "impact-analysis.implementation-map.main",
+      "durableLaunchBarrier": {
+        "records": [
+          {
+            "ackSha256": "a45b0bda6ab11534885cd5d79a888f18779025caaa1e7378c80381cd31a31bdc",
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-2",
+            "backendAttemptId": "<SA_ATTEMPT_2>",
+            "backendRunId": "<SA_RUN_2>",
+            "decisionSha256": "44f91d44afbc178c2b429bb87bc37f1c429386e857391b93f8f2ba6c60930cb7",
+            "descriptor": {
+              "ackPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-2/.launch-barrier-<ALLOWED:derived-launch-identity#3:16>-<RAND16>/ack-v2.json",
+              "challenge": "9859cda210ac35e37ab6fa7f9344945f150b69d9967235954acad01f56ebb03f",
+              "decisionNonce": "78580709b236f85633dd469576a60947a9a813cd801c99abcdb3099f3905c401",
+              "decisionPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-2/.launch-barrier-<ALLOWED:derived-launch-identity#3:16>-<RAND16>/decision-v2.json",
+              "directory": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-2/.launch-barrier-<ALLOWED:derived-launch-identity#3:16>-<RAND16>",
+              "directoryIdentity": {
+                "device": "<FS_DEV>",
+                "inode": "<FS_INO>",
+                "uid": "<UID>"
+              },
+              "identitySha256": "6a69aa742282cfe5d3eb698298f92f515dd3bb508a1a097802cdf70ee3be035b",
+              "pollIntervalMs": 10,
+              "readyPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-2/.launch-barrier-<ALLOWED:derived-launch-identity#3:16>-<RAND16>/ready-v2.json",
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "subjectSha256": "<ALLOWED:derived-launch-identity#3>",
+              "timeoutMs": 120000
+            },
+            "executionPlanSha256": "35d73ffcf4719e420aedcf2c201ce58546dae6fda4cbcb94a4d4f10022eb7a11",
+            "launchAuthoritySha256": "<ALLOWED:derived-launch-identity#3>",
+            "launchPayloadSha256": "2b04af54435d9bbe5e5b9d2a5b72a924bfc4a625a9c4e95c057d87a8053a0e50",
+            "phase": "acknowledged",
+            "readySha256": "011df9d9c9fe63223381cabb875f54cd79562c2c70c7603bfedc45d69d63be90",
+            "releasePayloadSha256": "79e26655f1450921b00d98ecb92472a24a03f4853403e410928375196a673147",
+            "releaseWinner": true
+          }
+        ],
+        "version": 2
+      },
+      "exitCode": 0,
+      "files": {
+        "output": ".pi/workflows/<WF_RUN_1>/tasks/task-2/output.log",
+        "result": ".pi/workflows/<WF_RUN_1>/tasks/task-2/result.json",
+        "stderr": ".pi/workflows/<WF_RUN_1>/tasks/task-2/stderr.log",
+        "systemPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-2/system-prompt.md",
+        "taskPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-2/task.md"
+      },
+      "kind": "single",
+      "lastMessage": "completed",
+      "launchAuthority": {
+        "records": [
+          {
+            "grant": {
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-2",
+              "backendId": "pi-subagent/headless",
+              "identitySha256": "<ALLOWED:derived-launch-identity#3>",
+              "issuer": "pi-workflow-engine",
+              "launchBootstrapSha256": "<ALLOWED:derived-launch-identity#4>",
+              "operation": "launch-task",
+              "runId": "<WF_RUN_1>",
+              "schema": "pi-workflow-launch-authority-v1",
+              "task": {
+                "specId": "impact-analysis.implementation-map.main",
+                "taskId": "task-2"
+              }
+            },
+            "state": {
+              "backendAttemptId": "<SA_ATTEMPT_2>",
+              "backendRunId": "<SA_RUN_2>",
+              "phase": "consumed"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "launchBootstrap": {
+        "records": [
+          {
+            "artifacts": {
+              "configSha256": "<ALLOWED:host-path-digest#8>",
+              "manifestSha256": "<ALLOWED:host-path-manifest-digest#3>",
+              "wrapperSha256": "<ALLOWED:host-path-digest#9>"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-2",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "backend": {
+              "id": "pi-subagent/headless",
+              "mode": "headless",
+              "type": "local-pi"
+            },
+            "effectiveLaunch": {
+              "artifactBinding": {
+                "manifestBytesSha256": "<ALLOWED:host-path-manifest-digest#4>",
+                "manifestPathSha256": "<ALLOWED:host-path-digest#10>",
+                "wrapperBytesSha256": "<ALLOWED:host-path-digest#9>",
+                "wrapperPathSha256": "<ALLOWED:host-path-digest#11>"
+              },
+              "captureToolCalls": false,
+              "extensions": [
+                {
+                  "pathSha256": "<ALLOWED:host-path-digest#11>"
+                }
+              ],
+              "noExtensions": true
+            },
+            "effectivePolicy": {
+              "approvalMode": "non-interactive",
+              "cwdSha256": "<ALLOWED:host-path-digest#5>",
+              "maxRuntimeMs": 1800000,
+              "stateRootSha256": "<ALLOWED:state-root-identity#1>",
+              "toolProvidersSha256": "<ALLOWED:host-path-digest#12>",
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "identitySha256": "<ALLOWED:derived-launch-identity#4>",
+            "prompt": {
+              "bytes": 10737,
+              "sha256": "dc48eb10fcbde7a8021442a8265664bd0dcd5724b8d94a019fb55bcbc662159e"
+            },
+            "resourcePolicy": {
+              "contextFiles": "disabled",
+              "skillDiscovery": "ambient",
+              "version": 1
+            },
+            "runId": "<WF_RUN_1>",
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "sessionId": "pi-workflow.<WF_RUN_1>.task-2",
+            "sourceDependencies": {
+              "artifactAccess": "enabled",
+              "contextDependsOn": [],
+              "requiredReads": []
+            },
+            "task": {
+              "specId": "impact-analysis.implementation-map.main",
+              "taskId": "task-2"
+            },
+            "workflow": {
+              "specPathSha256": "<ALLOWED:host-path-digest#7>",
+              "type": "artifact-graph"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "pid": "<PID>",
+      "rawArtifactIntegrity": {
+        "bytes": 16480,
+        "owner": "<ALLOWED:timestamp-derived-digest#2>",
+        "sha256": "747a83ddc6250e64ee33ebaac212246cf85ff21381999fbf7ac11703ea6ea96f",
+        "terminal": {
+          "attemptId": "<SA_ATTEMPT_2>",
+          "completedAt": "<TS>",
+          "exitCode": 0,
+          "runId": "<SA_RUN_2>",
+          "startedAt": "<TS>",
+          "status": "completed"
+        },
+        "terminalVersion": {
+          "ctimeMs": "<EPOCH_MS>",
+          "dev": "<FS_DEV>",
+          "ino": "<FS_INO>",
+          "mtimeMs": "<EPOCH_MS>",
+          "nlink": 1,
+          "size": "<ALLOWED:host-path-file-size>"
+        },
+        "version": 1
+      },
+      "roles": [],
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "specId": "impact-analysis.implementation-map.main",
+      "stageId": "impact-analysis.implementation-map",
+      "startedAt": "<TS>",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-2",
+      "timing": {
+        "aggregate": {
+          "attempts": 1,
+          "executionMs": "<DURATION_MS>",
+          "launchDurationMs": "<DURATION_MS>",
+          "launchWaitMs": "<DURATION_MS>",
+          "totalMs": "<DURATION_MS>"
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_2>",
+            "backendRunId": "<SA_RUN_2>",
+            "capturedAt": "<TS>",
+            "executionCompletedAt": "<TS>",
+            "executionMs": "<DURATION_MS>",
+            "executionStartedAt": "<TS>",
+            "launchCompletedAt": "<TS>",
+            "launchDurationMs": "<DURATION_MS>",
+            "launchQueuedAt": "<TS>",
+            "launchStartedAt": "<TS>",
+            "launchWaitMs": "<DURATION_MS>",
+            "source": "pi-subagent",
+            "totalMs": "<DURATION_MS>"
+          }
+        ],
+        "capturedAt": "<TS>",
+        "executionCompletedAt": "<TS>",
+        "executionMs": "<DURATION_MS>",
+        "executionStartedAt": "<TS>",
+        "launchCompletedAt": "<TS>",
+        "launchDurationMs": "<DURATION_MS>",
+        "launchQueuedAt": "<TS>",
+        "launchSlotReleaseDelayMs": 3000,
+        "launchStartedAt": "<TS>",
+        "launchWaitMs": "<DURATION_MS>",
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": "<DURATION_MS>",
+        "refreshStatusPollMs": "<DURATION_MS>",
+        "source": "pi-workflow",
+        "terminalArtifactBundleWriteMs": "<DURATION_MS>",
+        "terminalArtifactMaterializeMs": "<DURATION_MS>",
+        "terminalOutputBytes": 16480,
+        "terminalOutputCopyMs": "<DURATION_MS>",
+        "terminalStderrBytes": 126,
+        "terminalStderrCopyMs": "<DURATION_MS>",
+        "totalMs": "<DURATION_MS>"
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "usage": {
+        "aggregate": {
+          "attempts": 1,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 1275008,
+          "costUsd": 0.3969908,
+          "inputTokens": 100545,
+          "outputTokens": 6840,
+          "reasoningTokens": 1401,
+          "totalTokens": 1382393
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_2>",
+            "backendRunId": "<SA_RUN_2>",
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 1275008,
+            "capturedAt": "<TS>",
+            "costUsd": 0.3969908,
+            "inputTokens": 100545,
+            "model": "gpt-6.1-sol",
+            "outputTokens": 6840,
+            "provider": "openai-codex",
+            "raw": {
+              "cacheRead": 1275008,
+              "cacheWrite": 0,
+              "cost": {
+                "cacheRead": 0.12750080000000003,
+                "cacheWrite": 0,
+                "input": 0.20108999999999996,
+                "output": 0.0684,
+                "total": 0.3969908
+              },
+              "input": 100545,
+              "output": 6840,
+              "reasoning": 1401,
+              "totalTokens": 1382393
+            },
+            "reasoningTokens": 1401,
+            "source": "subagent-result-metadata",
+            "totalTokens": 1382393
+          }
+        ],
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 1275008,
+        "capturedAt": "<TS>",
+        "costUsd": 0.3969908,
+        "inputTokens": 100545,
+        "model": "gpt-6.1-sol",
+        "outputTokens": 6840,
+        "provider": "openai-codex",
+        "reasoningTokens": 1401,
+        "source": "pi-subagent",
+        "totalTokens": 1382393
+      },
+      "worktree": {
+        "baseCwd": null,
+        "branch": null,
+        "enabled": false,
+        "path": null,
+        "warning": null
+      }
+    },
+    {
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "artifactGraph": {
+        "artifactAccess": "enabled",
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "controlSchema": "./schemas/validation-map-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/bundle/schemas/validation-map-control.schema.json",
+          "refsRequired": true
+        },
+        "requiredReads": []
+      },
+      "backendTaskId": "<SA_RUN_3>",
+      "completedAt": "<TS>",
+      "cwd": "<ROOT>",
+      "dependsOn": [],
+      "displayName": "impact-analysis.validation-map.main",
+      "durableLaunchBarrier": {
+        "records": [
+          {
+            "ackSha256": "9f59a10c9d47dbe425229b6bb6ff552888e0dec0fd226c815f162632a6a53f5b",
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-3",
+            "backendAttemptId": "<SA_ATTEMPT_3>",
+            "backendRunId": "<SA_RUN_3>",
+            "decisionSha256": "4512a7395554b823cb02f3d6d69d935f24d4cbbd92234be2014b5d50d4f1de2f",
+            "descriptor": {
+              "ackPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-3/.launch-barrier-<ALLOWED:derived-launch-identity#5:16>-<RAND16>/ack-v2.json",
+              "challenge": "a7fab97f25f68f9498d725c7eb8f76f2e956c20961fda32953598cae7697279d",
+              "decisionNonce": "4d7c321e44ed0f9ce0624c5c088b5fbe8df3bf60d37c736054742519e2207570",
+              "decisionPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-3/.launch-barrier-<ALLOWED:derived-launch-identity#5:16>-<RAND16>/decision-v2.json",
+              "directory": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-3/.launch-barrier-<ALLOWED:derived-launch-identity#5:16>-<RAND16>",
+              "directoryIdentity": {
+                "device": "<FS_DEV>",
+                "inode": "<FS_INO>",
+                "uid": "<UID>"
+              },
+              "identitySha256": "32f258fbb56eb5fae6f61d391ea8056a348f107b18b65a2b889d571d37939fe2",
+              "pollIntervalMs": 10,
+              "readyPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-3/.launch-barrier-<ALLOWED:derived-launch-identity#5:16>-<RAND16>/ready-v2.json",
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "subjectSha256": "<ALLOWED:derived-launch-identity#5>",
+              "timeoutMs": 120000
+            },
+            "executionPlanSha256": "4dba580447c6bc1a4a6e6aba4ea94ec5d277fcbd4a33ff073644bcae42465fe9",
+            "launchAuthoritySha256": "<ALLOWED:derived-launch-identity#5>",
+            "launchPayloadSha256": "bc058e818254a60bbb41a69aca2d2e039b86b9bf2f5ff24b1677f635202a6e50",
+            "phase": "acknowledged",
+            "readySha256": "7b4b4bda64e5b55a124aa716c07d24236287213525bbd58fb8a2a2e9938e7636",
+            "releasePayloadSha256": "9406971eab34478020593ff7b3e8c54b15ff3d701503ddaaed282fb84d7ed604",
+            "releaseWinner": true
+          }
+        ],
+        "version": 2
+      },
+      "exitCode": 0,
+      "files": {
+        "output": ".pi/workflows/<WF_RUN_1>/tasks/task-3/output.log",
+        "result": ".pi/workflows/<WF_RUN_1>/tasks/task-3/result.json",
+        "stderr": ".pi/workflows/<WF_RUN_1>/tasks/task-3/stderr.log",
+        "systemPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-3/system-prompt.md",
+        "taskPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-3/task.md"
+      },
+      "kind": "single",
+      "lastMessage": "completed",
+      "launchAuthority": {
+        "records": [
+          {
+            "grant": {
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-3",
+              "backendId": "pi-subagent/headless",
+              "identitySha256": "<ALLOWED:derived-launch-identity#5>",
+              "issuer": "pi-workflow-engine",
+              "launchBootstrapSha256": "<ALLOWED:derived-launch-identity#6>",
+              "operation": "launch-task",
+              "runId": "<WF_RUN_1>",
+              "schema": "pi-workflow-launch-authority-v1",
+              "task": {
+                "specId": "impact-analysis.validation-map.main",
+                "taskId": "task-3"
+              }
+            },
+            "state": {
+              "backendAttemptId": "<SA_ATTEMPT_3>",
+              "backendRunId": "<SA_RUN_3>",
+              "phase": "consumed"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "launchBootstrap": {
+        "records": [
+          {
+            "artifacts": {
+              "configSha256": "<ALLOWED:host-path-digest#13>",
+              "manifestSha256": "<ALLOWED:host-path-manifest-digest#5>",
+              "wrapperSha256": "<ALLOWED:host-path-digest#14>"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-3",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "backend": {
+              "id": "pi-subagent/headless",
+              "mode": "headless",
+              "type": "local-pi"
+            },
+            "effectiveLaunch": {
+              "artifactBinding": {
+                "manifestBytesSha256": "<ALLOWED:host-path-manifest-digest#6>",
+                "manifestPathSha256": "<ALLOWED:host-path-digest#15>",
+                "wrapperBytesSha256": "<ALLOWED:host-path-digest#14>",
+                "wrapperPathSha256": "<ALLOWED:host-path-digest#16>"
+              },
+              "captureToolCalls": false,
+              "extensions": [
+                {
+                  "pathSha256": "<ALLOWED:host-path-digest#16>"
+                }
+              ],
+              "noExtensions": true
+            },
+            "effectivePolicy": {
+              "approvalMode": "non-interactive",
+              "cwdSha256": "<ALLOWED:host-path-digest#5>",
+              "maxRuntimeMs": 1800000,
+              "stateRootSha256": "<ALLOWED:state-root-identity#1>",
+              "toolProvidersSha256": "<ALLOWED:host-path-digest#17>",
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "identitySha256": "<ALLOWED:derived-launch-identity#6>",
+            "prompt": {
+              "bytes": 10681,
+              "sha256": "a1b8b65a0386a42dde4f5e0b8652e8421791390a32e889be1e6ddee039797b5b"
+            },
+            "resourcePolicy": {
+              "contextFiles": "disabled",
+              "skillDiscovery": "ambient",
+              "version": 1
+            },
+            "runId": "<WF_RUN_1>",
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "sessionId": "pi-workflow.<WF_RUN_1>.task-3",
+            "sourceDependencies": {
+              "artifactAccess": "enabled",
+              "contextDependsOn": [],
+              "requiredReads": []
+            },
+            "task": {
+              "specId": "impact-analysis.validation-map.main",
+              "taskId": "task-3"
+            },
+            "workflow": {
+              "specPathSha256": "<ALLOWED:host-path-digest#7>",
+              "type": "artifact-graph"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "pid": "<PID>",
+      "rawArtifactIntegrity": {
+        "bytes": 16166,
+        "owner": "<ALLOWED:timestamp-derived-digest#3>",
+        "sha256": "7674c87151df32a55facf90c468b7ddc82590b5f5202173d5e8456f3823ef431",
+        "terminal": {
+          "attemptId": "<SA_ATTEMPT_3>",
+          "completedAt": "<TS>",
+          "exitCode": 0,
+          "runId": "<SA_RUN_3>",
+          "startedAt": "<TS>",
+          "status": "completed"
+        },
+        "terminalVersion": {
+          "ctimeMs": "<EPOCH_MS>",
+          "dev": "<FS_DEV>",
+          "ino": "<FS_INO>",
+          "mtimeMs": "<EPOCH_MS>",
+          "nlink": 1,
+          "size": "<ALLOWED:host-path-file-size>"
+        },
+        "version": 1
+      },
+      "roles": [],
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "specId": "impact-analysis.validation-map.main",
+      "stageId": "impact-analysis.validation-map",
+      "startedAt": "<TS>",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-3",
+      "timing": {
+        "aggregate": {
+          "attempts": 1,
+          "executionMs": "<DURATION_MS>",
+          "launchDurationMs": "<DURATION_MS>",
+          "launchWaitMs": "<DURATION_MS>",
+          "totalMs": "<DURATION_MS>"
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_3>",
+            "backendRunId": "<SA_RUN_3>",
+            "capturedAt": "<TS>",
+            "executionCompletedAt": "<TS>",
+            "executionMs": "<DURATION_MS>",
+            "executionStartedAt": "<TS>",
+            "launchCompletedAt": "<TS>",
+            "launchDurationMs": "<DURATION_MS>",
+            "launchQueuedAt": "<TS>",
+            "launchStartedAt": "<TS>",
+            "launchWaitMs": "<DURATION_MS>",
+            "source": "pi-subagent",
+            "totalMs": "<DURATION_MS>"
+          }
+        ],
+        "capturedAt": "<TS>",
+        "executionCompletedAt": "<TS>",
+        "executionMs": "<DURATION_MS>",
+        "executionStartedAt": "<TS>",
+        "launchCompletedAt": "<TS>",
+        "launchDurationMs": "<DURATION_MS>",
+        "launchQueuedAt": "<TS>",
+        "launchSlotReleaseDelayMs": 3000,
+        "launchStartedAt": "<TS>",
+        "launchWaitMs": "<DURATION_MS>",
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": "<DURATION_MS>",
+        "refreshStatusPollMs": "<DURATION_MS>",
+        "source": "pi-workflow",
+        "terminalArtifactBundleWriteMs": "<DURATION_MS>",
+        "terminalArtifactMaterializeMs": "<DURATION_MS>",
+        "terminalOutputBytes": 16166,
+        "terminalOutputCopyMs": "<DURATION_MS>",
+        "terminalStderrBytes": 126,
+        "terminalStderrCopyMs": "<DURATION_MS>",
+        "totalMs": "<DURATION_MS>"
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "usage": {
+        "aggregate": {
+          "attempts": 1,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 248192,
+          "costUsd": 0.21592719999999999,
+          "inputTokens": 56309,
+          "outputTokens": 7849,
+          "reasoningTokens": 2060,
+          "totalTokens": 312350
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_3>",
+            "backendRunId": "<SA_RUN_3>",
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 248192,
+            "capturedAt": "<TS>",
+            "costUsd": 0.21592719999999999,
+            "inputTokens": 56309,
+            "model": "gpt-6.1-sol",
+            "outputTokens": 7849,
+            "provider": "openai-codex",
+            "raw": {
+              "cacheRead": 248192,
+              "cacheWrite": 0,
+              "cost": {
+                "cacheRead": 0.024819200000000003,
+                "cacheWrite": 0,
+                "input": 0.112618,
+                "output": 0.07849,
+                "total": 0.21592719999999999
+              },
+              "input": 56309,
+              "output": 7849,
+              "reasoning": 2060,
+              "totalTokens": 312350
+            },
+            "reasoningTokens": 2060,
+            "source": "subagent-result-metadata",
+            "totalTokens": 312350
+          }
+        ],
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 248192,
+        "capturedAt": "<TS>",
+        "costUsd": 0.21592719999999999,
+        "inputTokens": 56309,
+        "model": "gpt-6.1-sol",
+        "outputTokens": 7849,
+        "provider": "openai-codex",
+        "reasoningTokens": 2060,
+        "source": "pi-subagent",
+        "totalTokens": 312350
+      },
+      "worktree": {
+        "baseCwd": null,
+        "branch": null,
+        "enabled": false,
+        "path": null,
+        "warning": null
+      }
+    },
+    {
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "artifactGraph": {
+        "artifactAccess": "enabled",
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "controlSchema": "./schemas/api-contract-impact-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/bundle/schemas/api-contract-impact-control.schema.json",
+          "refsRequired": true
+        },
+        "requiredReadPolicy": [
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.change-scope"
+          },
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.implementation-map"
+          }
+        ],
+        "requiredReads": [
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.change-scope"
+          },
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.implementation-map"
+          }
+        ]
+      },
+      "backendTaskId": "<SA_RUN_4>",
+      "completedAt": "<TS>",
+      "cwd": "<ROOT>",
+      "dependsOn": [
+        "impact-analysis.change-scope.main",
+        "impact-analysis.implementation-map.main"
+      ],
+      "displayName": "impact-analysis.api-contract-impact.main",
+      "durableLaunchBarrier": {
+        "records": [
+          {
+            "ackSha256": "caee9190129d602b2036ecea3a9c69df53a62767d92a8386ef2ed1c2fe73aaea",
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-4",
+            "backendAttemptId": "<SA_ATTEMPT_4>",
+            "backendRunId": "<SA_RUN_4>",
+            "decisionSha256": "9a1c2383a8d847c99c04a90431a52df97d45d8865a54be9e2a45590425535f12",
+            "descriptor": {
+              "ackPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-4/.launch-barrier-<ALLOWED:derived-launch-identity#7:16>-<RAND16>/ack-v2.json",
+              "challenge": "35cf34d41a43cb7feb9716b07ad6d4359cf707f84bceb727cd8993226ba1d2d2",
+              "decisionNonce": "553370e55fae1e87e33b6ff59b3fbdebaff52de67aff4e717ec80b1badb8c987",
+              "decisionPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-4/.launch-barrier-<ALLOWED:derived-launch-identity#7:16>-<RAND16>/decision-v2.json",
+              "directory": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-4/.launch-barrier-<ALLOWED:derived-launch-identity#7:16>-<RAND16>",
+              "directoryIdentity": {
+                "device": "<FS_DEV>",
+                "inode": "<FS_INO>",
+                "uid": "<UID>"
+              },
+              "identitySha256": "62a5347531b97e6167c5262241303745af3707151c5b03798cb0ac0bd1886df4",
+              "pollIntervalMs": 10,
+              "readyPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-4/.launch-barrier-<ALLOWED:derived-launch-identity#7:16>-<RAND16>/ready-v2.json",
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "subjectSha256": "<ALLOWED:derived-launch-identity#7>",
+              "timeoutMs": 120000
+            },
+            "executionPlanSha256": "afd05e8431e99b8158e6678695a8c86352d932db27e3a90c3be1c7cff8ec60fb",
+            "launchAuthoritySha256": "<ALLOWED:derived-launch-identity#7>",
+            "launchPayloadSha256": "4dbde1b4042af2b175472805a60e2ef809042f9ec7a592fc4a22da3fa319fefe",
+            "phase": "acknowledged",
+            "readySha256": "9e94e8ff8141b1b229900e11e12c24194307e2f3979cc30b4d61c7e3f8e65ea0",
+            "releasePayloadSha256": "ef8f39eb0efc30f19f733a7bd4ba43eac7aa16865ae4bb9e9184305ca2bb99ff",
+            "releaseWinner": true
+          }
+        ],
+        "version": 2
+      },
+      "exitCode": 0,
+      "files": {
+        "output": ".pi/workflows/<WF_RUN_1>/tasks/task-4/output.log",
+        "result": ".pi/workflows/<WF_RUN_1>/tasks/task-4/result.json",
+        "stderr": ".pi/workflows/<WF_RUN_1>/tasks/task-4/stderr.log",
+        "systemPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-4/system-prompt.md",
+        "taskPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-4/task.md"
+      },
+      "kind": "reduce",
+      "lastMessage": "completed",
+      "launchAuthority": {
+        "records": [
+          {
+            "grant": {
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-4",
+              "backendId": "pi-subagent/headless",
+              "identitySha256": "<ALLOWED:derived-launch-identity#7>",
+              "issuer": "pi-workflow-engine",
+              "launchBootstrapSha256": "<ALLOWED:derived-launch-identity#8>",
+              "operation": "launch-task",
+              "runId": "<WF_RUN_1>",
+              "schema": "pi-workflow-launch-authority-v1",
+              "task": {
+                "specId": "impact-analysis.api-contract-impact.main",
+                "taskId": "task-4"
+              }
+            },
+            "state": {
+              "backendAttemptId": "<SA_ATTEMPT_4>",
+              "backendRunId": "<SA_RUN_4>",
+              "phase": "consumed"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "launchBootstrap": {
+        "records": [
+          {
+            "artifacts": {
+              "configSha256": "<ALLOWED:host-path-digest#18>",
+              "manifestSha256": "<ALLOWED:host-path-manifest-digest#7>",
+              "wrapperSha256": "<ALLOWED:host-path-digest#19>"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-4",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "backend": {
+              "id": "pi-subagent/headless",
+              "mode": "headless",
+              "type": "local-pi"
+            },
+            "effectiveLaunch": {
+              "artifactBinding": {
+                "manifestBytesSha256": "<ALLOWED:host-path-manifest-digest#8>",
+                "manifestPathSha256": "<ALLOWED:host-path-digest#20>",
+                "wrapperBytesSha256": "<ALLOWED:host-path-digest#19>",
+                "wrapperPathSha256": "<ALLOWED:host-path-digest#21>"
+              },
+              "captureToolCalls": false,
+              "extensions": [
+                {
+                  "pathSha256": "<ALLOWED:host-path-digest#21>"
+                }
+              ],
+              "noExtensions": true
+            },
+            "effectivePolicy": {
+              "approvalMode": "non-interactive",
+              "cwdSha256": "<ALLOWED:host-path-digest#5>",
+              "maxRuntimeMs": 1800000,
+              "stateRootSha256": "<ALLOWED:state-root-identity#1>",
+              "toolProvidersSha256": "<ALLOWED:host-path-digest#22>",
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "identitySha256": "<ALLOWED:derived-launch-identity#8>",
+            "prompt": {
+              "bytes": 13447,
+              "sha256": "3a649eaf0cc3517ce939db9303b935445ad6f8dbe30757937dc5b20c03f46a61"
+            },
+            "resourcePolicy": {
+              "contextFiles": "disabled",
+              "skillDiscovery": "ambient",
+              "version": 1
+            },
+            "runId": "<WF_RUN_1>",
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "sessionId": "pi-workflow.<WF_RUN_1>.task-4",
+            "sourceDependencies": {
+              "artifactAccess": "enabled",
+              "contextDependsOn": [],
+              "requiredReadPolicy": [
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.change-scope"
+                },
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.implementation-map"
+                }
+              ],
+              "requiredReads": [
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.change-scope"
+                },
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.implementation-map"
+                }
+              ]
+            },
+            "task": {
+              "specId": "impact-analysis.api-contract-impact.main",
+              "taskId": "task-4"
+            },
+            "workflow": {
+              "specPathSha256": "<ALLOWED:host-path-digest#7>",
+              "type": "artifact-graph"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "pid": "<PID>",
+      "rawArtifactIntegrity": {
+        "bytes": 5481,
+        "owner": "<ALLOWED:timestamp-derived-digest#4>",
+        "sha256": "1dcb74c413128cc8c67830384b9aee42e0b2329fb8f3493f98209cf559d70fc3",
+        "terminal": {
+          "attemptId": "<SA_ATTEMPT_4>",
+          "completedAt": "<TS>",
+          "exitCode": 0,
+          "runId": "<SA_RUN_4>",
+          "startedAt": "<TS>",
+          "status": "completed"
+        },
+        "terminalVersion": {
+          "ctimeMs": "<EPOCH_MS>",
+          "dev": "<FS_DEV>",
+          "ino": "<FS_INO>",
+          "mtimeMs": "<EPOCH_MS>",
+          "nlink": 1,
+          "size": "<ALLOWED:host-path-file-size>"
+        },
+        "version": 1
+      },
+      "roles": [],
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "specId": "impact-analysis.api-contract-impact.main",
+      "stageId": "impact-analysis.api-contract-impact",
+      "startedAt": "<TS>",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-4",
+      "timing": {
+        "aggregate": {
+          "attempts": 1,
+          "executionMs": "<DURATION_MS>",
+          "launchDurationMs": "<DURATION_MS>",
+          "launchWaitMs": "<DURATION_MS>",
+          "totalMs": "<DURATION_MS>"
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_4>",
+            "backendRunId": "<SA_RUN_4>",
+            "capturedAt": "<TS>",
+            "executionCompletedAt": "<TS>",
+            "executionMs": "<DURATION_MS>",
+            "executionStartedAt": "<TS>",
+            "launchCompletedAt": "<TS>",
+            "launchDurationMs": "<DURATION_MS>",
+            "launchQueuedAt": "<TS>",
+            "launchStartedAt": "<TS>",
+            "launchWaitMs": "<DURATION_MS>",
+            "source": "pi-subagent",
+            "totalMs": "<DURATION_MS>"
+          }
+        ],
+        "capturedAt": "<TS>",
+        "executionCompletedAt": "<TS>",
+        "executionMs": "<DURATION_MS>",
+        "executionStartedAt": "<TS>",
+        "launchCompletedAt": "<TS>",
+        "launchDurationMs": "<DURATION_MS>",
+        "launchQueuedAt": "<TS>",
+        "launchSlotReleaseDelayMs": 3000,
+        "launchStartedAt": "<TS>",
+        "launchWaitMs": "<DURATION_MS>",
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": "<DURATION_MS>",
+        "refreshStatusPollMs": "<DURATION_MS>",
+        "source": "pi-workflow",
+        "terminalArtifactBundleWriteMs": "<DURATION_MS>",
+        "terminalArtifactMaterializeMs": "<DURATION_MS>",
+        "terminalOutputBytes": 5481,
+        "terminalOutputCopyMs": "<DURATION_MS>",
+        "terminalStderrBytes": 126,
+        "terminalStderrCopyMs": "<DURATION_MS>",
+        "totalMs": "<DURATION_MS>"
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "usage": {
+        "aggregate": {
+          "attempts": 1,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 469504,
+          "costUsd": 0.1818584,
+          "inputTokens": 43099,
+          "outputTokens": 4871,
+          "reasoningTokens": 2941,
+          "totalTokens": 517474
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_4>",
+            "backendRunId": "<SA_RUN_4>",
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 469504,
+            "capturedAt": "<TS>",
+            "costUsd": 0.1818584,
+            "inputTokens": 43099,
+            "model": "gpt-6.1-sol",
+            "outputTokens": 4871,
+            "provider": "openai-codex",
+            "raw": {
+              "cacheRead": 469504,
+              "cacheWrite": 0,
+              "cost": {
+                "cacheRead": 0.046950399999999996,
+                "cacheWrite": 0,
+                "input": 0.08619799999999997,
+                "output": 0.04871,
+                "total": 0.1818584
+              },
+              "input": 43099,
+              "output": 4871,
+              "reasoning": 2941,
+              "totalTokens": 517474
+            },
+            "reasoningTokens": 2941,
+            "source": "subagent-result-metadata",
+            "totalTokens": 517474
+          }
+        ],
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 469504,
+        "capturedAt": "<TS>",
+        "costUsd": 0.1818584,
+        "inputTokens": 43099,
+        "model": "gpt-6.1-sol",
+        "outputTokens": 4871,
+        "provider": "openai-codex",
+        "reasoningTokens": 2941,
+        "source": "pi-subagent",
+        "totalTokens": 517474
+      },
+      "worktree": {
+        "baseCwd": null,
+        "branch": null,
+        "enabled": false,
+        "path": null,
+        "warning": null
+      }
+    },
+    {
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "artifactGraph": {
+        "artifactAccess": "enabled",
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "controlSchema": "./schemas/api-contract-impact-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/bundle/schemas/api-contract-impact-control.schema.json",
+          "refsRequired": true
+        },
+        "requiredReadPolicy": [
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.change-scope"
+          },
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.implementation-map"
+          }
+        ],
+        "requiredReads": [
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.change-scope"
+          },
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.implementation-map"
+          }
+        ]
+      },
+      "backendTaskId": "<SA_RUN_5>",
+      "completedAt": "<TS>",
+      "cwd": "<ROOT>",
+      "dependsOn": [
+        "impact-analysis.change-scope.main",
+        "impact-analysis.implementation-map.main"
+      ],
+      "displayName": "impact-analysis.state-data-impact.main",
+      "durableLaunchBarrier": {
+        "records": [
+          {
+            "ackSha256": "b459d091e20c32a74e8c49f42320a400752e03a4634f980de148ae48ddaee75b",
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-5",
+            "backendAttemptId": "<SA_ATTEMPT_5>",
+            "backendRunId": "<SA_RUN_5>",
+            "decisionSha256": "f75fa49961d90271ff3add83d4d5026975ca69b95c64420d212ba91691389edc",
+            "descriptor": {
+              "ackPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-5/.launch-barrier-<ALLOWED:derived-launch-identity#9:16>-<RAND16>/ack-v2.json",
+              "challenge": "27d8d4228470832d459fa296f667d262ea67de6732f0f829476cebb17614fe35",
+              "decisionNonce": "ea4eef89334cbd9ca3dbf67c9cb3fee2ba44eab2ec5f9cbfa728a1cd04079962",
+              "decisionPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-5/.launch-barrier-<ALLOWED:derived-launch-identity#9:16>-<RAND16>/decision-v2.json",
+              "directory": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-5/.launch-barrier-<ALLOWED:derived-launch-identity#9:16>-<RAND16>",
+              "directoryIdentity": {
+                "device": "<FS_DEV>",
+                "inode": "<FS_INO>",
+                "uid": "<UID>"
+              },
+              "identitySha256": "ad2d9a15b676c198dd1a6701fcfcc68c42af7ac369084e01e0830ecd8ec2e333",
+              "pollIntervalMs": 10,
+              "readyPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-5/.launch-barrier-<ALLOWED:derived-launch-identity#9:16>-<RAND16>/ready-v2.json",
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "subjectSha256": "<ALLOWED:derived-launch-identity#9>",
+              "timeoutMs": 120000
+            },
+            "executionPlanSha256": "a646faf2f0ae5208efcf8d8ed8448bce79c179676b5ba93fb1f638bb5dd7b86f",
+            "launchAuthoritySha256": "<ALLOWED:derived-launch-identity#9>",
+            "launchPayloadSha256": "1cba18e8de1f0657166d087fac3a413f2dead1095d6a53aa64f9e37a2f993384",
+            "phase": "acknowledged",
+            "readySha256": "2a3469ef1be73af4cb4a27c4b3a3022f36af8d34690bbd6a04ea23407a2d2d9f",
+            "releasePayloadSha256": "8b5a1c02a1ca658f908f02a4a9adda0b4b739be5e16256c2ec803a54f707b991",
+            "releaseWinner": true
+          }
+        ],
+        "version": 2
+      },
+      "exitCode": 0,
+      "files": {
+        "output": ".pi/workflows/<WF_RUN_1>/tasks/task-5/output.log",
+        "result": ".pi/workflows/<WF_RUN_1>/tasks/task-5/result.json",
+        "stderr": ".pi/workflows/<WF_RUN_1>/tasks/task-5/stderr.log",
+        "systemPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-5/system-prompt.md",
+        "taskPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-5/task.md"
+      },
+      "kind": "reduce",
+      "lastMessage": "completed",
+      "launchAuthority": {
+        "records": [
+          {
+            "grant": {
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-5",
+              "backendId": "pi-subagent/headless",
+              "identitySha256": "<ALLOWED:derived-launch-identity#9>",
+              "issuer": "pi-workflow-engine",
+              "launchBootstrapSha256": "<ALLOWED:derived-launch-identity#10>",
+              "operation": "launch-task",
+              "runId": "<WF_RUN_1>",
+              "schema": "pi-workflow-launch-authority-v1",
+              "task": {
+                "specId": "impact-analysis.state-data-impact.main",
+                "taskId": "task-5"
+              }
+            },
+            "state": {
+              "backendAttemptId": "<SA_ATTEMPT_5>",
+              "backendRunId": "<SA_RUN_5>",
+              "phase": "consumed"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "launchBootstrap": {
+        "records": [
+          {
+            "artifacts": {
+              "configSha256": "<ALLOWED:host-path-digest#23>",
+              "manifestSha256": "<ALLOWED:host-path-manifest-digest#9>",
+              "wrapperSha256": "<ALLOWED:host-path-digest#24>"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-5",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "backend": {
+              "id": "pi-subagent/headless",
+              "mode": "headless",
+              "type": "local-pi"
+            },
+            "effectiveLaunch": {
+              "artifactBinding": {
+                "manifestBytesSha256": "<ALLOWED:host-path-manifest-digest#10>",
+                "manifestPathSha256": "<ALLOWED:host-path-digest#25>",
+                "wrapperBytesSha256": "<ALLOWED:host-path-digest#24>",
+                "wrapperPathSha256": "<ALLOWED:host-path-digest#26>"
+              },
+              "captureToolCalls": false,
+              "extensions": [
+                {
+                  "pathSha256": "<ALLOWED:host-path-digest#26>"
+                }
+              ],
+              "noExtensions": true
+            },
+            "effectivePolicy": {
+              "approvalMode": "non-interactive",
+              "cwdSha256": "<ALLOWED:host-path-digest#5>",
+              "maxRuntimeMs": 1800000,
+              "stateRootSha256": "<ALLOWED:state-root-identity#1>",
+              "toolProvidersSha256": "<ALLOWED:host-path-digest#27>",
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "identitySha256": "<ALLOWED:derived-launch-identity#10>",
+            "prompt": {
+              "bytes": 13362,
+              "sha256": "93695c2b30109d333cb92592127af702fa481c4d8c1756942801c0f7edb82684"
+            },
+            "resourcePolicy": {
+              "contextFiles": "disabled",
+              "skillDiscovery": "ambient",
+              "version": 1
+            },
+            "runId": "<WF_RUN_1>",
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "sessionId": "pi-workflow.<WF_RUN_1>.task-5",
+            "sourceDependencies": {
+              "artifactAccess": "enabled",
+              "contextDependsOn": [],
+              "requiredReadPolicy": [
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.change-scope"
+                },
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.implementation-map"
+                }
+              ],
+              "requiredReads": [
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.change-scope"
+                },
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.implementation-map"
+                }
+              ]
+            },
+            "task": {
+              "specId": "impact-analysis.state-data-impact.main",
+              "taskId": "task-5"
+            },
+            "workflow": {
+              "specPathSha256": "<ALLOWED:host-path-digest#7>",
+              "type": "artifact-graph"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "pid": "<PID>",
+      "rawArtifactIntegrity": {
+        "bytes": 10221,
+        "owner": "<ALLOWED:timestamp-derived-digest#5>",
+        "sha256": "bd35dd628a1b7c363dd3c4bfcd52138fd1f6c4c4778f7476a46773e6252b2463",
+        "terminal": {
+          "attemptId": "<SA_ATTEMPT_5>",
+          "completedAt": "<TS>",
+          "exitCode": 0,
+          "runId": "<SA_RUN_5>",
+          "startedAt": "<TS>",
+          "status": "completed"
+        },
+        "terminalVersion": {
+          "ctimeMs": "<EPOCH_MS>",
+          "dev": "<FS_DEV>",
+          "ino": "<FS_INO>",
+          "mtimeMs": "<EPOCH_MS>",
+          "nlink": 1,
+          "size": "<ALLOWED:host-path-file-size>"
+        },
+        "version": 1
+      },
+      "roles": [],
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "specId": "impact-analysis.state-data-impact.main",
+      "stageId": "impact-analysis.state-data-impact",
+      "startedAt": "<TS>",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-5",
+      "timing": {
+        "aggregate": {
+          "attempts": 1,
+          "executionMs": "<DURATION_MS>",
+          "launchDurationMs": "<DURATION_MS>",
+          "launchWaitMs": "<DURATION_MS>",
+          "totalMs": "<DURATION_MS>"
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_5>",
+            "backendRunId": "<SA_RUN_5>",
+            "capturedAt": "<TS>",
+            "executionCompletedAt": "<TS>",
+            "executionMs": "<DURATION_MS>",
+            "executionStartedAt": "<TS>",
+            "launchCompletedAt": "<TS>",
+            "launchDurationMs": "<DURATION_MS>",
+            "launchQueuedAt": "<TS>",
+            "launchStartedAt": "<TS>",
+            "launchWaitMs": "<DURATION_MS>",
+            "source": "pi-subagent",
+            "totalMs": "<DURATION_MS>"
+          }
+        ],
+        "capturedAt": "<TS>",
+        "executionCompletedAt": "<TS>",
+        "executionMs": "<DURATION_MS>",
+        "executionStartedAt": "<TS>",
+        "launchCompletedAt": "<TS>",
+        "launchDurationMs": "<DURATION_MS>",
+        "launchQueuedAt": "<TS>",
+        "launchSlotReleaseDelayMs": 3000,
+        "launchStartedAt": "<TS>",
+        "launchWaitMs": "<DURATION_MS>",
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": "<DURATION_MS>",
+        "refreshStatusPollMs": "<DURATION_MS>",
+        "source": "pi-workflow",
+        "terminalArtifactBundleWriteMs": "<DURATION_MS>",
+        "terminalArtifactMaterializeMs": "<DURATION_MS>",
+        "terminalOutputBytes": 10221,
+        "terminalOutputCopyMs": "<DURATION_MS>",
+        "terminalStderrBytes": 126,
+        "terminalStderrCopyMs": "<DURATION_MS>",
+        "totalMs": "<DURATION_MS>"
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "usage": {
+        "aggregate": {
+          "attempts": 1,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 532608,
+          "costUsd": 0.2527068,
+          "inputTokens": 69578,
+          "outputTokens": 6029,
+          "reasoningTokens": 3113,
+          "totalTokens": 608215
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_5>",
+            "backendRunId": "<SA_RUN_5>",
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 532608,
+            "capturedAt": "<TS>",
+            "costUsd": 0.2527068,
+            "inputTokens": 69578,
+            "model": "gpt-6.1-sol",
+            "outputTokens": 6029,
+            "provider": "openai-codex",
+            "raw": {
+              "cacheRead": 532608,
+              "cacheWrite": 0,
+              "cost": {
+                "cacheRead": 0.053260800000000004,
+                "cacheWrite": 0,
+                "input": 0.139156,
+                "output": 0.06029,
+                "total": 0.2527068
+              },
+              "input": 69578,
+              "output": 6029,
+              "reasoning": 3113,
+              "totalTokens": 608215
+            },
+            "reasoningTokens": 3113,
+            "source": "subagent-result-metadata",
+            "totalTokens": 608215
+          }
+        ],
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 532608,
+        "capturedAt": "<TS>",
+        "costUsd": 0.2527068,
+        "inputTokens": 69578,
+        "model": "gpt-6.1-sol",
+        "outputTokens": 6029,
+        "provider": "openai-codex",
+        "reasoningTokens": 3113,
+        "source": "pi-subagent",
+        "totalTokens": 608215
+      },
+      "worktree": {
+        "baseCwd": null,
+        "branch": null,
+        "enabled": false,
+        "path": null,
+        "warning": null
+      }
+    },
+    {
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "artifactGraph": {
+        "artifactAccess": "enabled",
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "controlSchema": "./schemas/validation-impact-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/bundle/schemas/validation-impact-control.schema.json",
+          "refsRequired": true
+        },
+        "requiredReadPolicy": [
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.change-scope"
+          },
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.validation-map"
+          }
+        ],
+        "requiredReads": [
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.change-scope"
+          },
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.validation-map"
+          }
+        ]
+      },
+      "backendTaskId": "<SA_RUN_6>",
+      "completedAt": "<TS>",
+      "cwd": "<ROOT>",
+      "dependsOn": [
+        "impact-analysis.change-scope.main",
+        "impact-analysis.validation-map.main"
+      ],
+      "displayName": "impact-analysis.validation-impact.main",
+      "durableLaunchBarrier": {
+        "records": [
+          {
+            "ackSha256": "d3d8902b37ac0fa869897cf823b8737bf2c5d6a8fea48825f2b1033c26e6f396",
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-6",
+            "backendAttemptId": "<SA_ATTEMPT_6>",
+            "backendRunId": "<SA_RUN_6>",
+            "decisionSha256": "057414a045d10010309d133f963b6f42b1d2377af8079e59ab7f8685f7a41cbc",
+            "descriptor": {
+              "ackPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-6/.launch-barrier-<ALLOWED:derived-launch-identity#11:16>-<RAND16>/ack-v2.json",
+              "challenge": "062a34dad4b20b8a32293ff8c0407ace50a6637258d388677dc96adb930e71a3",
+              "decisionNonce": "dabc2c3f82d4a1da35d85274b296652410c407959455a662b16ca2a318d59365",
+              "decisionPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-6/.launch-barrier-<ALLOWED:derived-launch-identity#11:16>-<RAND16>/decision-v2.json",
+              "directory": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-6/.launch-barrier-<ALLOWED:derived-launch-identity#11:16>-<RAND16>",
+              "directoryIdentity": {
+                "device": "<FS_DEV>",
+                "inode": "<FS_INO>",
+                "uid": "<UID>"
+              },
+              "identitySha256": "ebb3552270ade3c8e875e82773856ef53249f6a818a348d793d75fa55a1d6728",
+              "pollIntervalMs": 10,
+              "readyPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-6/.launch-barrier-<ALLOWED:derived-launch-identity#11:16>-<RAND16>/ready-v2.json",
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "subjectSha256": "<ALLOWED:derived-launch-identity#11>",
+              "timeoutMs": 120000
+            },
+            "executionPlanSha256": "046e3fa0de61125154fa74d53ef75dff72baa3de79ab9d0cd9c11550b9fb19c4",
+            "launchAuthoritySha256": "<ALLOWED:derived-launch-identity#11>",
+            "launchPayloadSha256": "29ed83f054fa324c0decde0d6a10b5084101d09465f603e97f8ab8e245b33ee6",
+            "phase": "acknowledged",
+            "readySha256": "cf89d98adc73a06d25423e0e63a25327044f3e198493ddd9fe4603c16da77bb9",
+            "releasePayloadSha256": "44b32b1f6d1518025fc2f158233d229666d09649b9eb6a716775f1b16ff2972e",
+            "releaseWinner": true
+          }
+        ],
+        "version": 2
+      },
+      "exitCode": 0,
+      "files": {
+        "output": ".pi/workflows/<WF_RUN_1>/tasks/task-6/output.log",
+        "result": ".pi/workflows/<WF_RUN_1>/tasks/task-6/result.json",
+        "stderr": ".pi/workflows/<WF_RUN_1>/tasks/task-6/stderr.log",
+        "systemPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-6/system-prompt.md",
+        "taskPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-6/task.md"
+      },
+      "kind": "reduce",
+      "lastMessage": "completed",
+      "launchAuthority": {
+        "records": [
+          {
+            "grant": {
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-6",
+              "backendId": "pi-subagent/headless",
+              "identitySha256": "<ALLOWED:derived-launch-identity#11>",
+              "issuer": "pi-workflow-engine",
+              "launchBootstrapSha256": "<ALLOWED:derived-launch-identity#12>",
+              "operation": "launch-task",
+              "runId": "<WF_RUN_1>",
+              "schema": "pi-workflow-launch-authority-v1",
+              "task": {
+                "specId": "impact-analysis.validation-impact.main",
+                "taskId": "task-6"
+              }
+            },
+            "state": {
+              "backendAttemptId": "<SA_ATTEMPT_6>",
+              "backendRunId": "<SA_RUN_6>",
+              "phase": "consumed"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "launchBootstrap": {
+        "records": [
+          {
+            "artifacts": {
+              "configSha256": "<ALLOWED:host-path-digest#28>",
+              "manifestSha256": "<ALLOWED:host-path-manifest-digest#11>",
+              "wrapperSha256": "<ALLOWED:host-path-digest#29>"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-6",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "backend": {
+              "id": "pi-subagent/headless",
+              "mode": "headless",
+              "type": "local-pi"
+            },
+            "effectiveLaunch": {
+              "artifactBinding": {
+                "manifestBytesSha256": "<ALLOWED:host-path-manifest-digest#12>",
+                "manifestPathSha256": "<ALLOWED:host-path-digest#30>",
+                "wrapperBytesSha256": "<ALLOWED:host-path-digest#29>",
+                "wrapperPathSha256": "<ALLOWED:host-path-digest#31>"
+              },
+              "captureToolCalls": false,
+              "extensions": [
+                {
+                  "pathSha256": "<ALLOWED:host-path-digest#31>"
+                }
+              ],
+              "noExtensions": true
+            },
+            "effectivePolicy": {
+              "approvalMode": "non-interactive",
+              "cwdSha256": "<ALLOWED:host-path-digest#5>",
+              "maxRuntimeMs": 1800000,
+              "stateRootSha256": "<ALLOWED:state-root-identity#1>",
+              "toolProvidersSha256": "<ALLOWED:host-path-digest#32>",
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "identitySha256": "<ALLOWED:derived-launch-identity#12>",
+            "prompt": {
+              "bytes": 13372,
+              "sha256": "cd9b74876b25dceae57446a559374ee30785ee3fcc7083de9058620f7f63bf8f"
+            },
+            "resourcePolicy": {
+              "contextFiles": "disabled",
+              "skillDiscovery": "ambient",
+              "version": 1
+            },
+            "runId": "<WF_RUN_1>",
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "sessionId": "pi-workflow.<WF_RUN_1>.task-6",
+            "sourceDependencies": {
+              "artifactAccess": "enabled",
+              "contextDependsOn": [],
+              "requiredReadPolicy": [
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.change-scope"
+                },
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.validation-map"
+                }
+              ],
+              "requiredReads": [
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.change-scope"
+                },
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.validation-map"
+                }
+              ]
+            },
+            "task": {
+              "specId": "impact-analysis.validation-impact.main",
+              "taskId": "task-6"
+            },
+            "workflow": {
+              "specPathSha256": "<ALLOWED:host-path-digest#7>",
+              "type": "artifact-graph"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "pid": "<PID>",
+      "rawArtifactIntegrity": {
+        "bytes": 10427,
+        "owner": "<ALLOWED:timestamp-derived-digest#6>",
+        "sha256": "fa1d1de803b89d77b35310d37b1d61b7544eb8b676bf6ae1eeaf6cf57b249ebd",
+        "terminal": {
+          "attemptId": "<SA_ATTEMPT_6>",
+          "completedAt": "<TS>",
+          "exitCode": 0,
+          "runId": "<SA_RUN_6>",
+          "startedAt": "<TS>",
+          "status": "completed"
+        },
+        "terminalVersion": {
+          "ctimeMs": "<EPOCH_MS>",
+          "dev": "<FS_DEV>",
+          "ino": "<FS_INO>",
+          "mtimeMs": "<EPOCH_MS>",
+          "nlink": 1,
+          "size": "<ALLOWED:host-path-file-size>"
+        },
+        "version": 1
+      },
+      "roles": [],
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "specId": "impact-analysis.validation-impact.main",
+      "stageId": "impact-analysis.validation-impact",
+      "startedAt": "<TS>",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-6",
+      "timing": {
+        "aggregate": {
+          "attempts": 1,
+          "executionMs": "<DURATION_MS>",
+          "launchDurationMs": "<DURATION_MS>",
+          "launchWaitMs": "<DURATION_MS>",
+          "totalMs": "<DURATION_MS>"
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_6>",
+            "backendRunId": "<SA_RUN_6>",
+            "capturedAt": "<TS>",
+            "executionCompletedAt": "<TS>",
+            "executionMs": "<DURATION_MS>",
+            "executionStartedAt": "<TS>",
+            "launchCompletedAt": "<TS>",
+            "launchDurationMs": "<DURATION_MS>",
+            "launchQueuedAt": "<TS>",
+            "launchStartedAt": "<TS>",
+            "launchWaitMs": "<DURATION_MS>",
+            "source": "pi-subagent",
+            "totalMs": "<DURATION_MS>"
+          }
+        ],
+        "capturedAt": "<TS>",
+        "executionCompletedAt": "<TS>",
+        "executionMs": "<DURATION_MS>",
+        "executionStartedAt": "<TS>",
+        "launchCompletedAt": "<TS>",
+        "launchDurationMs": "<DURATION_MS>",
+        "launchQueuedAt": "<TS>",
+        "launchSlotReleaseDelayMs": 3000,
+        "launchStartedAt": "<TS>",
+        "launchWaitMs": "<DURATION_MS>",
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": "<DURATION_MS>",
+        "refreshStatusPollMs": "<DURATION_MS>",
+        "source": "pi-workflow",
+        "terminalArtifactBundleWriteMs": "<DURATION_MS>",
+        "terminalArtifactMaterializeMs": "<DURATION_MS>",
+        "terminalOutputBytes": 10427,
+        "terminalOutputCopyMs": "<DURATION_MS>",
+        "terminalStderrBytes": 126,
+        "terminalStderrCopyMs": "<DURATION_MS>",
+        "totalMs": "<DURATION_MS>"
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "usage": {
+        "aggregate": {
+          "attempts": 1,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 116096,
+          "costUsd": 0.1356376,
+          "inputTokens": 33234,
+          "outputTokens": 5756,
+          "reasoningTokens": 2662,
+          "totalTokens": 155086
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_6>",
+            "backendRunId": "<SA_RUN_6>",
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 116096,
+            "capturedAt": "<TS>",
+            "costUsd": 0.1356376,
+            "inputTokens": 33234,
+            "model": "gpt-6.1-sol",
+            "outputTokens": 5756,
+            "provider": "openai-codex",
+            "raw": {
+              "cacheRead": 116096,
+              "cacheWrite": 0,
+              "cost": {
+                "cacheRead": 0.011609600000000001,
+                "cacheWrite": 0,
+                "input": 0.066468,
+                "output": 0.05756000000000001,
+                "total": 0.1356376
+              },
+              "input": 33234,
+              "output": 5756,
+              "reasoning": 2662,
+              "totalTokens": 155086
+            },
+            "reasoningTokens": 2662,
+            "source": "subagent-result-metadata",
+            "totalTokens": 155086
+          }
+        ],
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 116096,
+        "capturedAt": "<TS>",
+        "costUsd": 0.1356376,
+        "inputTokens": 33234,
+        "model": "gpt-6.1-sol",
+        "outputTokens": 5756,
+        "provider": "openai-codex",
+        "reasoningTokens": 2662,
+        "source": "pi-subagent",
+        "totalTokens": 155086
+      },
+      "worktree": {
+        "baseCwd": null,
+        "branch": null,
+        "enabled": false,
+        "path": null,
+        "warning": null
+      }
+    },
+    {
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "artifactGraph": {
+        "artifactAccess": "enabled",
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "controlSchema": "./schemas/api-contract-impact-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/bundle/schemas/api-contract-impact-control.schema.json",
+          "refsRequired": true
+        },
+        "requiredReadPolicy": [
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.change-scope"
+          },
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.implementation-map"
+          },
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.validation-map"
+          }
+        ],
+        "requiredReads": [
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.change-scope"
+          },
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.implementation-map"
+          },
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.validation-map"
+          }
+        ]
+      },
+      "backendTaskId": "<SA_RUN_7>",
+      "completedAt": "<TS>",
+      "cwd": "<ROOT>",
+      "dependsOn": [
+        "impact-analysis.change-scope.main",
+        "impact-analysis.implementation-map.main",
+        "impact-analysis.validation-map.main"
+      ],
+      "displayName": "impact-analysis.docs-release-impact.main",
+      "durableLaunchBarrier": {
+        "records": [
+          {
+            "ackSha256": "125b16a38b48223a6700081b093247317b5d7ab8e81c40ca13c61fe3f7c70eb0",
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-7",
+            "backendAttemptId": "<SA_ATTEMPT_7>",
+            "backendRunId": "<SA_RUN_7>",
+            "decisionSha256": "20daa49b565ff0d81d5de49a6dae51ec42e14cfd27e7c662e01fc2d7526147e6",
+            "descriptor": {
+              "ackPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-7/.launch-barrier-<ALLOWED:derived-launch-identity#13:16>-<RAND16>/ack-v2.json",
+              "challenge": "bde1a5a95cbfa1133bf8847fa76c0b9737189002a10707c913641a8237cbfcfe",
+              "decisionNonce": "4ff5a2d2dfc97e0fc0eaf9903e97ff8ac9b99767c0363376c7a0383699777841",
+              "decisionPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-7/.launch-barrier-<ALLOWED:derived-launch-identity#13:16>-<RAND16>/decision-v2.json",
+              "directory": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-7/.launch-barrier-<ALLOWED:derived-launch-identity#13:16>-<RAND16>",
+              "directoryIdentity": {
+                "device": "<FS_DEV>",
+                "inode": "<FS_INO>",
+                "uid": "<UID>"
+              },
+              "identitySha256": "3048ec53c06d35a3fae86c14748e3985f849549a41b9e93b8446412015976f90",
+              "pollIntervalMs": 10,
+              "readyPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-7/.launch-barrier-<ALLOWED:derived-launch-identity#13:16>-<RAND16>/ready-v2.json",
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "subjectSha256": "<ALLOWED:derived-launch-identity#13>",
+              "timeoutMs": 120000
+            },
+            "executionPlanSha256": "74292c92124a6c6f9b60aae68f924f704ac83837e42628058516c1c51ef64f84",
+            "launchAuthoritySha256": "<ALLOWED:derived-launch-identity#13>",
+            "launchPayloadSha256": "436ecfd4a8047eee2fc12ea5e54bf463f7e308ef0e5e2341ba9fa2c8fb744e74",
+            "phase": "acknowledged",
+            "readySha256": "c06a83f8270ae2a0e1e847249eca4e97b6b1269d6042a27f4246648d792879a1",
+            "releasePayloadSha256": "00c878a45c3071563d6dcff0d5722026e5fd97997c17a5995de432ac8b9b9c0d",
+            "releaseWinner": true
+          }
+        ],
+        "version": 2
+      },
+      "exitCode": 0,
+      "files": {
+        "output": ".pi/workflows/<WF_RUN_1>/tasks/task-7/output.log",
+        "result": ".pi/workflows/<WF_RUN_1>/tasks/task-7/result.json",
+        "stderr": ".pi/workflows/<WF_RUN_1>/tasks/task-7/stderr.log",
+        "systemPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-7/system-prompt.md",
+        "taskPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-7/task.md"
+      },
+      "kind": "reduce",
+      "lastMessage": "completed",
+      "launchAuthority": {
+        "records": [
+          {
+            "grant": {
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-7",
+              "backendId": "pi-subagent/headless",
+              "identitySha256": "<ALLOWED:derived-launch-identity#13>",
+              "issuer": "pi-workflow-engine",
+              "launchBootstrapSha256": "<ALLOWED:derived-launch-identity#14>",
+              "operation": "launch-task",
+              "runId": "<WF_RUN_1>",
+              "schema": "pi-workflow-launch-authority-v1",
+              "task": {
+                "specId": "impact-analysis.docs-release-impact.main",
+                "taskId": "task-7"
+              }
+            },
+            "state": {
+              "backendAttemptId": "<SA_ATTEMPT_7>",
+              "backendRunId": "<SA_RUN_7>",
+              "phase": "consumed"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "launchBootstrap": {
+        "records": [
+          {
+            "artifacts": {
+              "configSha256": "<ALLOWED:host-path-digest#33>",
+              "manifestSha256": "<ALLOWED:host-path-manifest-digest#13>",
+              "wrapperSha256": "<ALLOWED:host-path-digest#34>"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-7",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "backend": {
+              "id": "pi-subagent/headless",
+              "mode": "headless",
+              "type": "local-pi"
+            },
+            "effectiveLaunch": {
+              "artifactBinding": {
+                "manifestBytesSha256": "<ALLOWED:host-path-manifest-digest#14>",
+                "manifestPathSha256": "<ALLOWED:host-path-digest#35>",
+                "wrapperBytesSha256": "<ALLOWED:host-path-digest#34>",
+                "wrapperPathSha256": "<ALLOWED:host-path-digest#36>"
+              },
+              "captureToolCalls": false,
+              "extensions": [
+                {
+                  "pathSha256": "<ALLOWED:host-path-digest#36>"
+                }
+              ],
+              "noExtensions": true
+            },
+            "effectivePolicy": {
+              "approvalMode": "non-interactive",
+              "cwdSha256": "<ALLOWED:host-path-digest#5>",
+              "maxRuntimeMs": 1800000,
+              "stateRootSha256": "<ALLOWED:state-root-identity#1>",
+              "toolProvidersSha256": "<ALLOWED:host-path-digest#37>",
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "identitySha256": "<ALLOWED:derived-launch-identity#14>",
+            "prompt": {
+              "bytes": 14202,
+              "sha256": "3dc134642ffe95ab4d6ea2d6dc912c9ebbe06a93bbc4404e403f949207df97bc"
+            },
+            "resourcePolicy": {
+              "contextFiles": "disabled",
+              "skillDiscovery": "ambient",
+              "version": 1
+            },
+            "runId": "<WF_RUN_1>",
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "sessionId": "pi-workflow.<WF_RUN_1>.task-7",
+            "sourceDependencies": {
+              "artifactAccess": "enabled",
+              "contextDependsOn": [],
+              "requiredReadPolicy": [
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.change-scope"
+                },
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.implementation-map"
+                },
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.validation-map"
+                }
+              ],
+              "requiredReads": [
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.change-scope"
+                },
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.implementation-map"
+                },
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.validation-map"
+                }
+              ]
+            },
+            "task": {
+              "specId": "impact-analysis.docs-release-impact.main",
+              "taskId": "task-7"
+            },
+            "workflow": {
+              "specPathSha256": "<ALLOWED:host-path-digest#7>",
+              "type": "artifact-graph"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "pid": "<PID>",
+      "rawArtifactIntegrity": {
+        "bytes": 8507,
+        "owner": "<ALLOWED:timestamp-derived-digest#7>",
+        "sha256": "cd833a8db4e5df3f820361d8b4f73dd3563f9c896b98e27aaf4dac4a4453fb04",
+        "terminal": {
+          "attemptId": "<SA_ATTEMPT_7>",
+          "completedAt": "<TS>",
+          "exitCode": 0,
+          "runId": "<SA_RUN_7>",
+          "startedAt": "<TS>",
+          "status": "completed"
+        },
+        "terminalVersion": {
+          "ctimeMs": "<EPOCH_MS>",
+          "dev": "<FS_DEV>",
+          "ino": "<FS_INO>",
+          "mtimeMs": "<EPOCH_MS>",
+          "nlink": 1,
+          "size": "<ALLOWED:host-path-file-size>"
+        },
+        "version": 1
+      },
+      "roles": [],
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "specId": "impact-analysis.docs-release-impact.main",
+      "stageId": "impact-analysis.docs-release-impact",
+      "startedAt": "<TS>",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-7",
+      "timing": {
+        "aggregate": {
+          "attempts": 1,
+          "executionMs": "<DURATION_MS>",
+          "launchDurationMs": "<DURATION_MS>",
+          "launchWaitMs": "<DURATION_MS>",
+          "totalMs": "<DURATION_MS>"
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_7>",
+            "backendRunId": "<SA_RUN_7>",
+            "capturedAt": "<TS>",
+            "executionCompletedAt": "<TS>",
+            "executionMs": "<DURATION_MS>",
+            "executionStartedAt": "<TS>",
+            "launchCompletedAt": "<TS>",
+            "launchDurationMs": "<DURATION_MS>",
+            "launchQueuedAt": "<TS>",
+            "launchStartedAt": "<TS>",
+            "launchWaitMs": "<DURATION_MS>",
+            "source": "pi-subagent",
+            "totalMs": "<DURATION_MS>"
+          }
+        ],
+        "capturedAt": "<TS>",
+        "executionCompletedAt": "<TS>",
+        "executionMs": "<DURATION_MS>",
+        "executionStartedAt": "<TS>",
+        "launchCompletedAt": "<TS>",
+        "launchDurationMs": "<DURATION_MS>",
+        "launchQueuedAt": "<TS>",
+        "launchSlotReleaseDelayMs": 3000,
+        "launchStartedAt": "<TS>",
+        "launchWaitMs": "<DURATION_MS>",
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": "<DURATION_MS>",
+        "refreshStatusPollMs": "<DURATION_MS>",
+        "source": "pi-workflow",
+        "terminalArtifactBundleWriteMs": "<DURATION_MS>",
+        "terminalArtifactMaterializeMs": "<DURATION_MS>",
+        "terminalOutputBytes": 8507,
+        "terminalOutputCopyMs": "<DURATION_MS>",
+        "terminalStderrBytes": 126,
+        "terminalStderrCopyMs": "<DURATION_MS>",
+        "totalMs": "<DURATION_MS>"
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "usage": {
+        "aggregate": {
+          "attempts": 1,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 1036800,
+          "costUsd": 0.27082800000000007,
+          "inputTokens": 58454,
+          "outputTokens": 5024,
+          "reasoningTokens": 1756,
+          "totalTokens": 1100278
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_7>",
+            "backendRunId": "<SA_RUN_7>",
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 1036800,
+            "capturedAt": "<TS>",
+            "costUsd": 0.27082800000000007,
+            "inputTokens": 58454,
+            "model": "gpt-6.1-sol",
+            "outputTokens": 5024,
+            "provider": "openai-codex",
+            "raw": {
+              "cacheRead": 1036800,
+              "cacheWrite": 0,
+              "cost": {
+                "cacheRead": 0.10368000000000002,
+                "cacheWrite": 0,
+                "input": 0.11690799999999998,
+                "output": 0.05024000000000001,
+                "total": 0.27082800000000007
+              },
+              "input": 58454,
+              "output": 5024,
+              "reasoning": 1756,
+              "totalTokens": 1100278
+            },
+            "reasoningTokens": 1756,
+            "source": "subagent-result-metadata",
+            "totalTokens": 1100278
+          }
+        ],
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 1036800,
+        "capturedAt": "<TS>",
+        "costUsd": 0.27082800000000007,
+        "inputTokens": 58454,
+        "model": "gpt-6.1-sol",
+        "outputTokens": 5024,
+        "provider": "openai-codex",
+        "reasoningTokens": 1756,
+        "source": "pi-subagent",
+        "totalTokens": 1100278
+      },
+      "worktree": {
+        "baseCwd": null,
+        "branch": null,
+        "enabled": false,
+        "path": null,
+        "warning": null
+      }
+    },
+    {
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "artifactGraph": {
+        "artifactAccess": "enabled",
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "controlSchema": "./schemas/api-contract-impact-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/bundle/schemas/api-contract-impact-control.schema.json",
+          "refsRequired": true
+        },
+        "requiredReadPolicy": [
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.change-scope"
+          },
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.implementation-map"
+          }
+        ],
+        "requiredReads": [
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.change-scope"
+          },
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.implementation-map"
+          }
+        ]
+      },
+      "backendTaskId": "<SA_RUN_8>",
+      "completedAt": "<TS>",
+      "cwd": "<ROOT>",
+      "dependsOn": [
+        "impact-analysis.change-scope.main",
+        "impact-analysis.implementation-map.main"
+      ],
+      "displayName": "impact-analysis.security-performance-impact.main",
+      "durableLaunchBarrier": {
+        "records": [
+          {
+            "ackSha256": "618a665ad09c2a67b3c1893d3d2038b41ec88b714394ba6608406084e1586b64",
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-8",
+            "backendAttemptId": "<SA_ATTEMPT_8>",
+            "backendRunId": "<SA_RUN_8>",
+            "decisionSha256": "55d5d11cdcb5e553748a4e97d8a33f1a96644defd066bb3292b215da38035a61",
+            "descriptor": {
+              "ackPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-8/.launch-barrier-<ALLOWED:derived-launch-identity#15:16>-<RAND16>/ack-v2.json",
+              "challenge": "f7a61858342922c0edf93bb13ec602be2e14e660fc69cbdb1364ee8aca35d276",
+              "decisionNonce": "b9eed760622bbdb2a62d93152538f435c5fa8067d55aff73cfafb3138dcd5fcf",
+              "decisionPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-8/.launch-barrier-<ALLOWED:derived-launch-identity#15:16>-<RAND16>/decision-v2.json",
+              "directory": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-8/.launch-barrier-<ALLOWED:derived-launch-identity#15:16>-<RAND16>",
+              "directoryIdentity": {
+                "device": "<FS_DEV>",
+                "inode": "<FS_INO>",
+                "uid": "<UID>"
+              },
+              "identitySha256": "ffd9e7a3abe3f766b7ef75c5a945595a6c825045e80a18ddc1c9ffc6438140ff",
+              "pollIntervalMs": 10,
+              "readyPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-8/.launch-barrier-<ALLOWED:derived-launch-identity#15:16>-<RAND16>/ready-v2.json",
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "subjectSha256": "<ALLOWED:derived-launch-identity#15>",
+              "timeoutMs": 120000
+            },
+            "executionPlanSha256": "41de8dc7c27efb90a9487427832316acb82b4ca7c8990d9303d1ff43b8cf5b1a",
+            "launchAuthoritySha256": "<ALLOWED:derived-launch-identity#15>",
+            "launchPayloadSha256": "bb99989c79dbc99de264b71a8ebc6851fcbf0b75689b472d765a3aa3fd235216",
+            "phase": "acknowledged",
+            "readySha256": "ce94f0064df21a05f1d461e64ded138a12b916c9aaa79779360fb6c065725326",
+            "releasePayloadSha256": "55466597746175c6ed44c20e1e631d10265cdf1b2f3fcb18fa3a31ae531747e3",
+            "releaseWinner": true
+          }
+        ],
+        "version": 2
+      },
+      "exitCode": 0,
+      "files": {
+        "output": ".pi/workflows/<WF_RUN_1>/tasks/task-8/output.log",
+        "result": ".pi/workflows/<WF_RUN_1>/tasks/task-8/result.json",
+        "stderr": ".pi/workflows/<WF_RUN_1>/tasks/task-8/stderr.log",
+        "systemPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-8/system-prompt.md",
+        "taskPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-8/task.md"
+      },
+      "kind": "reduce",
+      "lastMessage": "completed",
+      "launchAuthority": {
+        "records": [
+          {
+            "grant": {
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-8",
+              "backendId": "pi-subagent/headless",
+              "identitySha256": "<ALLOWED:derived-launch-identity#15>",
+              "issuer": "pi-workflow-engine",
+              "launchBootstrapSha256": "<ALLOWED:derived-launch-identity#16>",
+              "operation": "launch-task",
+              "runId": "<WF_RUN_1>",
+              "schema": "pi-workflow-launch-authority-v1",
+              "task": {
+                "specId": "impact-analysis.security-performance-impact.main",
+                "taskId": "task-8"
+              }
+            },
+            "state": {
+              "backendAttemptId": "<SA_ATTEMPT_8>",
+              "backendRunId": "<SA_RUN_8>",
+              "phase": "consumed"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "launchBootstrap": {
+        "records": [
+          {
+            "artifacts": {
+              "configSha256": "<ALLOWED:host-path-digest#38>",
+              "manifestSha256": "<ALLOWED:host-path-manifest-digest#15>",
+              "wrapperSha256": "<ALLOWED:host-path-digest#39>"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-8",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "backend": {
+              "id": "pi-subagent/headless",
+              "mode": "headless",
+              "type": "local-pi"
+            },
+            "effectiveLaunch": {
+              "artifactBinding": {
+                "manifestBytesSha256": "<ALLOWED:host-path-manifest-digest#16>",
+                "manifestPathSha256": "<ALLOWED:host-path-digest#40>",
+                "wrapperBytesSha256": "<ALLOWED:host-path-digest#39>",
+                "wrapperPathSha256": "<ALLOWED:host-path-digest#41>"
+              },
+              "captureToolCalls": false,
+              "extensions": [
+                {
+                  "pathSha256": "<ALLOWED:host-path-digest#41>"
+                }
+              ],
+              "noExtensions": true
+            },
+            "effectivePolicy": {
+              "approvalMode": "non-interactive",
+              "cwdSha256": "<ALLOWED:host-path-digest#5>",
+              "maxRuntimeMs": 1800000,
+              "stateRootSha256": "<ALLOWED:state-root-identity#1>",
+              "toolProvidersSha256": "<ALLOWED:host-path-digest#42>",
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "identitySha256": "<ALLOWED:derived-launch-identity#16>",
+            "prompt": {
+              "bytes": 13255,
+              "sha256": "8f74fd5dcf49e3d2a60437c7c45b3909cc26ecb2961d0c759e74898528ccd2e2"
+            },
+            "resourcePolicy": {
+              "contextFiles": "disabled",
+              "skillDiscovery": "ambient",
+              "version": 1
+            },
+            "runId": "<WF_RUN_1>",
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "sessionId": "pi-workflow.<WF_RUN_1>.task-8",
+            "sourceDependencies": {
+              "artifactAccess": "enabled",
+              "contextDependsOn": [],
+              "requiredReadPolicy": [
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.change-scope"
+                },
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.implementation-map"
+                }
+              ],
+              "requiredReads": [
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.change-scope"
+                },
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.implementation-map"
+                }
+              ]
+            },
+            "task": {
+              "specId": "impact-analysis.security-performance-impact.main",
+              "taskId": "task-8"
+            },
+            "workflow": {
+              "specPathSha256": "<ALLOWED:host-path-digest#7>",
+              "type": "artifact-graph"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "pid": "<PID>",
+      "rawArtifactIntegrity": {
+        "bytes": 9489,
+        "owner": "<ALLOWED:timestamp-derived-digest#8>",
+        "sha256": "00816d59355324065a9914ed0ad68935d3f8291bba47a2f8e8d8c46c49e91282",
+        "terminal": {
+          "attemptId": "<SA_ATTEMPT_8>",
+          "completedAt": "<TS>",
+          "exitCode": 0,
+          "runId": "<SA_RUN_8>",
+          "startedAt": "<TS>",
+          "status": "completed"
+        },
+        "terminalVersion": {
+          "ctimeMs": "<EPOCH_MS>",
+          "dev": "<FS_DEV>",
+          "ino": "<FS_INO>",
+          "mtimeMs": "<EPOCH_MS>",
+          "nlink": 1,
+          "size": "<ALLOWED:host-path-file-size>"
+        },
+        "version": 1
+      },
+      "roles": [],
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "specId": "impact-analysis.security-performance-impact.main",
+      "stageId": "impact-analysis.security-performance-impact",
+      "startedAt": "<TS>",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-8",
+      "timing": {
+        "aggregate": {
+          "attempts": 1,
+          "executionMs": "<DURATION_MS>",
+          "launchDurationMs": "<DURATION_MS>",
+          "launchWaitMs": "<DURATION_MS>",
+          "totalMs": "<DURATION_MS>"
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_8>",
+            "backendRunId": "<SA_RUN_8>",
+            "capturedAt": "<TS>",
+            "executionCompletedAt": "<TS>",
+            "executionMs": "<DURATION_MS>",
+            "executionStartedAt": "<TS>",
+            "launchCompletedAt": "<TS>",
+            "launchDurationMs": "<DURATION_MS>",
+            "launchQueuedAt": "<TS>",
+            "launchStartedAt": "<TS>",
+            "launchWaitMs": "<DURATION_MS>",
+            "source": "pi-subagent",
+            "totalMs": "<DURATION_MS>"
+          }
+        ],
+        "capturedAt": "<TS>",
+        "executionCompletedAt": "<TS>",
+        "executionMs": "<DURATION_MS>",
+        "executionStartedAt": "<TS>",
+        "launchCompletedAt": "<TS>",
+        "launchDurationMs": "<DURATION_MS>",
+        "launchQueuedAt": "<TS>",
+        "launchSlotReleaseDelayMs": 3000,
+        "launchStartedAt": "<TS>",
+        "launchWaitMs": "<DURATION_MS>",
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": "<DURATION_MS>",
+        "refreshStatusPollMs": "<DURATION_MS>",
+        "source": "pi-workflow",
+        "terminalArtifactBundleWriteMs": "<DURATION_MS>",
+        "terminalArtifactMaterializeMs": "<DURATION_MS>",
+        "terminalOutputBytes": 9489,
+        "terminalOutputCopyMs": "<DURATION_MS>",
+        "terminalStderrBytes": 126,
+        "terminalStderrCopyMs": "<DURATION_MS>",
+        "totalMs": "<DURATION_MS>"
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "usage": {
+        "aggregate": {
+          "attempts": 1,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 191744,
+          "costUsd": 0.1707544,
+          "inputTokens": 42030,
+          "outputTokens": 6752,
+          "reasoningTokens": 3536,
+          "totalTokens": 240526
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_8>",
+            "backendRunId": "<SA_RUN_8>",
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 191744,
+            "capturedAt": "<TS>",
+            "costUsd": 0.1707544,
+            "inputTokens": 42030,
+            "model": "gpt-6.1-sol",
+            "outputTokens": 6752,
+            "provider": "openai-codex",
+            "raw": {
+              "cacheRead": 191744,
+              "cacheWrite": 0,
+              "cost": {
+                "cacheRead": 0.0191744,
+                "cacheWrite": 0,
+                "input": 0.08406,
+                "output": 0.06752,
+                "total": 0.1707544
+              },
+              "input": 42030,
+              "output": 6752,
+              "reasoning": 3536,
+              "totalTokens": 240526
+            },
+            "reasoningTokens": 3536,
+            "source": "subagent-result-metadata",
+            "totalTokens": 240526
+          }
+        ],
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 191744,
+        "capturedAt": "<TS>",
+        "costUsd": 0.1707544,
+        "inputTokens": 42030,
+        "model": "gpt-6.1-sol",
+        "outputTokens": 6752,
+        "provider": "openai-codex",
+        "reasoningTokens": 3536,
+        "source": "pi-subagent",
+        "totalTokens": 240526
+      },
+      "worktree": {
+        "baseCwd": null,
+        "branch": null,
+        "enabled": false,
+        "path": null,
+        "warning": null
+      }
+    },
+    {
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "artifactGraph": {
+        "artifactAccess": "enabled",
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "controlSchema": "./schemas/contract-consistency-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/bundle/schemas/contract-consistency-control.schema.json",
+          "refsRequired": true
+        },
+        "requiredReadPolicy": [
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.api-contract-impact"
+          },
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.state-data-impact"
+          },
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.docs-release-impact"
+          }
+        ],
+        "requiredReads": [
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.api-contract-impact"
+          },
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.state-data-impact"
+          },
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.docs-release-impact"
+          }
+        ]
+      },
+      "backendTaskId": "<SA_RUN_9>",
+      "completedAt": "<TS>",
+      "cwd": "<ROOT>",
+      "dependsOn": [
+        "impact-analysis.api-contract-impact.main",
+        "impact-analysis.state-data-impact.main",
+        "impact-analysis.docs-release-impact.main"
+      ],
+      "displayName": "impact-analysis.contract-consistency.main",
+      "durableLaunchBarrier": {
+        "records": [
+          {
+            "ackSha256": "aa7c0da71b16c54dd0ffb72e1729a95434bb0d73caed95172c937c27b69c2a91",
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-9",
+            "backendAttemptId": "<SA_ATTEMPT_9>",
+            "backendRunId": "<SA_RUN_9>",
+            "decisionSha256": "709fd8c3575b87600a6318cf050a992a3509bfd437894c7401d6343bafdb9fa6",
+            "descriptor": {
+              "ackPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-9/.launch-barrier-<ALLOWED:derived-launch-identity#17:16>-<RAND16>/ack-v2.json",
+              "challenge": "85d5f520475699c49afca58314aa6a6c655cfe9ca7664c22e3f9cce503585f67",
+              "decisionNonce": "60e11811e780b92c97443f444250a560e6b8c965839522f02ea14a691a31bacd",
+              "decisionPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-9/.launch-barrier-<ALLOWED:derived-launch-identity#17:16>-<RAND16>/decision-v2.json",
+              "directory": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-9/.launch-barrier-<ALLOWED:derived-launch-identity#17:16>-<RAND16>",
+              "directoryIdentity": {
+                "device": "<FS_DEV>",
+                "inode": "<FS_INO>",
+                "uid": "<UID>"
+              },
+              "identitySha256": "0ed4d73b4c4a15f688de016f15eb676104431d005a698b8ae8be0278169a7a10",
+              "pollIntervalMs": 10,
+              "readyPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-9/.launch-barrier-<ALLOWED:derived-launch-identity#17:16>-<RAND16>/ready-v2.json",
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "subjectSha256": "<ALLOWED:derived-launch-identity#17>",
+              "timeoutMs": 120000
+            },
+            "executionPlanSha256": "f3e93c051fb1c57ab4da5b28e04fabe6780f13011e4f12dd509fc9a57c38fc44",
+            "launchAuthoritySha256": "<ALLOWED:derived-launch-identity#17>",
+            "launchPayloadSha256": "ae34a234cf05999dbf5dfc67ece63c64afd3392fb6a73bbb7998032641b02f59",
+            "phase": "acknowledged",
+            "readySha256": "242b516d9beb7acfe9ae801eacc4f4f0570e32bee0420521d46e7709c6ea1a57",
+            "releasePayloadSha256": "494d90735ebdad23d0f018240df19e752d50a528f4f4e3cb0557923804ec005d",
+            "releaseWinner": true
+          }
+        ],
+        "version": 2
+      },
+      "exitCode": 0,
+      "files": {
+        "output": ".pi/workflows/<WF_RUN_1>/tasks/task-9/output.log",
+        "result": ".pi/workflows/<WF_RUN_1>/tasks/task-9/result.json",
+        "stderr": ".pi/workflows/<WF_RUN_1>/tasks/task-9/stderr.log",
+        "systemPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-9/system-prompt.md",
+        "taskPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-9/task.md"
+      },
+      "kind": "reduce",
+      "lastMessage": "completed",
+      "launchAuthority": {
+        "records": [
+          {
+            "grant": {
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-9",
+              "backendId": "pi-subagent/headless",
+              "identitySha256": "<ALLOWED:derived-launch-identity#17>",
+              "issuer": "pi-workflow-engine",
+              "launchBootstrapSha256": "<ALLOWED:derived-launch-identity#18>",
+              "operation": "launch-task",
+              "runId": "<WF_RUN_1>",
+              "schema": "pi-workflow-launch-authority-v1",
+              "task": {
+                "specId": "impact-analysis.contract-consistency.main",
+                "taskId": "task-9"
+              }
+            },
+            "state": {
+              "backendAttemptId": "<SA_ATTEMPT_9>",
+              "backendRunId": "<SA_RUN_9>",
+              "phase": "consumed"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "launchBootstrap": {
+        "records": [
+          {
+            "artifacts": {
+              "configSha256": "<ALLOWED:host-path-digest#43>",
+              "manifestSha256": "<ALLOWED:host-path-manifest-digest#17>",
+              "wrapperSha256": "<ALLOWED:host-path-digest#44>"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-9",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "backend": {
+              "id": "pi-subagent/headless",
+              "mode": "headless",
+              "type": "local-pi"
+            },
+            "effectiveLaunch": {
+              "artifactBinding": {
+                "manifestBytesSha256": "<ALLOWED:host-path-manifest-digest#18>",
+                "manifestPathSha256": "<ALLOWED:host-path-digest#45>",
+                "wrapperBytesSha256": "<ALLOWED:host-path-digest#44>",
+                "wrapperPathSha256": "<ALLOWED:host-path-digest#46>"
+              },
+              "captureToolCalls": false,
+              "extensions": [
+                {
+                  "pathSha256": "<ALLOWED:host-path-digest#46>"
+                }
+              ],
+              "noExtensions": true
+            },
+            "effectivePolicy": {
+              "approvalMode": "non-interactive",
+              "cwdSha256": "<ALLOWED:host-path-digest#5>",
+              "maxRuntimeMs": 1800000,
+              "stateRootSha256": "<ALLOWED:state-root-identity#1>",
+              "toolProvidersSha256": "<ALLOWED:host-path-digest#47>",
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "identitySha256": "<ALLOWED:derived-launch-identity#18>",
+            "prompt": {
+              "bytes": 14435,
+              "sha256": "d5282c9c7bb3165d6ed5e914c71117bd718c907c6f349b9e9e9892b873e2cac9"
+            },
+            "resourcePolicy": {
+              "contextFiles": "disabled",
+              "skillDiscovery": "ambient",
+              "version": 1
+            },
+            "runId": "<WF_RUN_1>",
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "sessionId": "pi-workflow.<WF_RUN_1>.task-9",
+            "sourceDependencies": {
+              "artifactAccess": "enabled",
+              "contextDependsOn": [],
+              "requiredReadPolicy": [
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.api-contract-impact"
+                },
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.state-data-impact"
+                },
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.docs-release-impact"
+                }
+              ],
+              "requiredReads": [
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.api-contract-impact"
+                },
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.state-data-impact"
+                },
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.docs-release-impact"
+                }
+              ]
+            },
+            "task": {
+              "specId": "impact-analysis.contract-consistency.main",
+              "taskId": "task-9"
+            },
+            "workflow": {
+              "specPathSha256": "<ALLOWED:host-path-digest#7>",
+              "type": "artifact-graph"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "pid": "<PID>",
+      "rawArtifactIntegrity": {
+        "bytes": 5674,
+        "owner": "<ALLOWED:timestamp-derived-digest#9>",
+        "sha256": "9c68760c0a995e8e70d95d6251fa3138f47cf3f6ab03a79075afd2b83d40cb0c",
+        "terminal": {
+          "attemptId": "<SA_ATTEMPT_9>",
+          "completedAt": "<TS>",
+          "exitCode": 0,
+          "runId": "<SA_RUN_9>",
+          "startedAt": "<TS>",
+          "status": "completed"
+        },
+        "terminalVersion": {
+          "ctimeMs": "<EPOCH_MS>",
+          "dev": "<FS_DEV>",
+          "ino": "<FS_INO>",
+          "mtimeMs": "<EPOCH_MS>",
+          "nlink": 1,
+          "size": "<ALLOWED:host-path-file-size>"
+        },
+        "version": 1
+      },
+      "roles": [],
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "specId": "impact-analysis.contract-consistency.main",
+      "stageId": "impact-analysis.contract-consistency",
+      "startedAt": "<TS>",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-9",
+      "timing": {
+        "aggregate": {
+          "attempts": 1,
+          "executionMs": "<DURATION_MS>",
+          "launchDurationMs": "<DURATION_MS>",
+          "launchWaitMs": "<DURATION_MS>",
+          "totalMs": "<DURATION_MS>"
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_9>",
+            "backendRunId": "<SA_RUN_9>",
+            "capturedAt": "<TS>",
+            "executionCompletedAt": "<TS>",
+            "executionMs": "<DURATION_MS>",
+            "executionStartedAt": "<TS>",
+            "launchCompletedAt": "<TS>",
+            "launchDurationMs": "<DURATION_MS>",
+            "launchQueuedAt": "<TS>",
+            "launchStartedAt": "<TS>",
+            "launchWaitMs": "<DURATION_MS>",
+            "source": "pi-subagent",
+            "totalMs": "<DURATION_MS>"
+          }
+        ],
+        "capturedAt": "<TS>",
+        "executionCompletedAt": "<TS>",
+        "executionMs": "<DURATION_MS>",
+        "executionStartedAt": "<TS>",
+        "launchCompletedAt": "<TS>",
+        "launchDurationMs": "<DURATION_MS>",
+        "launchQueuedAt": "<TS>",
+        "launchSlotReleaseDelayMs": 3000,
+        "launchStartedAt": "<TS>",
+        "launchWaitMs": "<DURATION_MS>",
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": "<DURATION_MS>",
+        "refreshStatusPollMs": "<DURATION_MS>",
+        "source": "pi-workflow",
+        "terminalArtifactBundleWriteMs": "<DURATION_MS>",
+        "terminalArtifactMaterializeMs": "<DURATION_MS>",
+        "terminalOutputBytes": 5674,
+        "terminalOutputCopyMs": "<DURATION_MS>",
+        "terminalStderrBytes": 126,
+        "terminalStderrCopyMs": "<DURATION_MS>",
+        "totalMs": "<DURATION_MS>"
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "usage": {
+        "aggregate": {
+          "attempts": 1,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 329216,
+          "costUsd": 0.16985160000000002,
+          "inputTokens": 45070,
+          "outputTokens": 4679,
+          "reasoningTokens": 2759,
+          "totalTokens": 378965
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_9>",
+            "backendRunId": "<SA_RUN_9>",
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 329216,
+            "capturedAt": "<TS>",
+            "costUsd": 0.16985160000000002,
+            "inputTokens": 45070,
+            "model": "gpt-6.1-sol",
+            "outputTokens": 4679,
+            "provider": "openai-codex",
+            "raw": {
+              "cacheRead": 329216,
+              "cacheWrite": 0,
+              "cost": {
+                "cacheRead": 0.032921599999999995,
+                "cacheWrite": 0,
+                "input": 0.09013999999999998,
+                "output": 0.046790000000000005,
+                "total": 0.16985160000000002
+              },
+              "input": 45070,
+              "output": 4679,
+              "reasoning": 2759,
+              "totalTokens": 378965
+            },
+            "reasoningTokens": 2759,
+            "source": "subagent-result-metadata",
+            "totalTokens": 378965
+          }
+        ],
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 329216,
+        "capturedAt": "<TS>",
+        "costUsd": 0.16985160000000002,
+        "inputTokens": 45070,
+        "model": "gpt-6.1-sol",
+        "outputTokens": 4679,
+        "provider": "openai-codex",
+        "reasoningTokens": 2759,
+        "source": "pi-subagent",
+        "totalTokens": 378965
+      },
+      "worktree": {
+        "baseCwd": null,
+        "branch": null,
+        "enabled": false,
+        "path": null,
+        "warning": null
+      }
+    },
+    {
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "artifactGraph": {
+        "artifactAccess": "enabled",
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "controlSchema": "./schemas/regression-risk-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/bundle/schemas/regression-risk-control.schema.json",
+          "refsRequired": true
+        },
+        "requiredReadPolicy": [
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.api-contract-impact"
+          },
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.state-data-impact"
+          },
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.validation-impact"
+          },
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.security-performance-impact"
+          }
+        ],
+        "requiredReads": [
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.api-contract-impact"
+          },
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.state-data-impact"
+          },
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.validation-impact"
+          },
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.security-performance-impact"
+          }
+        ]
+      },
+      "backendTaskId": "<SA_RUN_10>",
+      "completedAt": "<TS>",
+      "cwd": "<ROOT>",
+      "dependsOn": [
+        "impact-analysis.api-contract-impact.main",
+        "impact-analysis.state-data-impact.main",
+        "impact-analysis.validation-impact.main",
+        "impact-analysis.security-performance-impact.main"
+      ],
+      "displayName": "impact-analysis.regression-risk.main",
+      "durableLaunchBarrier": {
+        "records": [
+          {
+            "ackSha256": "d898c534cdbb649f03dd7f04248c73babf14179859904e0c05954cab795048da",
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-10",
+            "backendAttemptId": "<SA_ATTEMPT_10>",
+            "backendRunId": "<SA_RUN_10>",
+            "decisionSha256": "5dc613b8eb754736f488a38753b79bcacc07201ced17690dd44b9bff95d2b865",
+            "descriptor": {
+              "ackPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-10/.launch-barrier-<ALLOWED:derived-launch-identity#19:16>-<RAND16>/ack-v2.json",
+              "challenge": "18f0a1632dc26ffff2bae16a5d977f5bded6e1b0f5a3ab6cab79771542687f76",
+              "decisionNonce": "479e1bb46633d2f65615dba5752b245abf129887004a3cb0c92a26f0b924b79f",
+              "decisionPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-10/.launch-barrier-<ALLOWED:derived-launch-identity#19:16>-<RAND16>/decision-v2.json",
+              "directory": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-10/.launch-barrier-<ALLOWED:derived-launch-identity#19:16>-<RAND16>",
+              "directoryIdentity": {
+                "device": "<FS_DEV>",
+                "inode": "<FS_INO>",
+                "uid": "<UID>"
+              },
+              "identitySha256": "eff582ff7e6a865227f7e7eb3d52ca5c36f725dc70160382fda366be1cb80163",
+              "pollIntervalMs": 10,
+              "readyPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-10/.launch-barrier-<ALLOWED:derived-launch-identity#19:16>-<RAND16>/ready-v2.json",
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "subjectSha256": "<ALLOWED:derived-launch-identity#19>",
+              "timeoutMs": 120000
+            },
+            "executionPlanSha256": "3ab09e929ad0aa64aa59714cce121bb14156d47dc68013ac23a78001dec10462",
+            "launchAuthoritySha256": "<ALLOWED:derived-launch-identity#19>",
+            "launchPayloadSha256": "b0f5027a3d4aa38ebf5bb2ee8f1efd6581f310982a9c583488f305020bbf9cb4",
+            "phase": "acknowledged",
+            "readySha256": "bc1d1acf57e2409fe5ecb91cee7ea954c92353dbe2f232efd7a5ea02ba563800",
+            "releasePayloadSha256": "b103c28a98108d62e9ab0a15ed53c0462137298318b0793e6a77ed056c170f36",
+            "releaseWinner": true
+          }
+        ],
+        "version": 2
+      },
+      "exitCode": 0,
+      "files": {
+        "output": ".pi/workflows/<WF_RUN_1>/tasks/task-10/output.log",
+        "result": ".pi/workflows/<WF_RUN_1>/tasks/task-10/result.json",
+        "stderr": ".pi/workflows/<WF_RUN_1>/tasks/task-10/stderr.log",
+        "systemPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-10/system-prompt.md",
+        "taskPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-10/task.md"
+      },
+      "kind": "reduce",
+      "lastMessage": "completed",
+      "launchAuthority": {
+        "records": [
+          {
+            "grant": {
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-10",
+              "backendId": "pi-subagent/headless",
+              "identitySha256": "<ALLOWED:derived-launch-identity#19>",
+              "issuer": "pi-workflow-engine",
+              "launchBootstrapSha256": "<ALLOWED:derived-launch-identity#20>",
+              "operation": "launch-task",
+              "runId": "<WF_RUN_1>",
+              "schema": "pi-workflow-launch-authority-v1",
+              "task": {
+                "specId": "impact-analysis.regression-risk.main",
+                "taskId": "task-10"
+              }
+            },
+            "state": {
+              "backendAttemptId": "<SA_ATTEMPT_10>",
+              "backendRunId": "<SA_RUN_10>",
+              "phase": "consumed"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "launchBootstrap": {
+        "records": [
+          {
+            "artifacts": {
+              "configSha256": "<ALLOWED:host-path-digest#48>",
+              "manifestSha256": "<ALLOWED:host-path-manifest-digest#19>",
+              "wrapperSha256": "<ALLOWED:host-path-digest#49>"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-10",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "backend": {
+              "id": "pi-subagent/headless",
+              "mode": "headless",
+              "type": "local-pi"
+            },
+            "effectiveLaunch": {
+              "artifactBinding": {
+                "manifestBytesSha256": "<ALLOWED:host-path-manifest-digest#20>",
+                "manifestPathSha256": "<ALLOWED:host-path-digest#50>",
+                "wrapperBytesSha256": "<ALLOWED:host-path-digest#49>",
+                "wrapperPathSha256": "<ALLOWED:host-path-digest#51>"
+              },
+              "captureToolCalls": false,
+              "extensions": [
+                {
+                  "pathSha256": "<ALLOWED:host-path-digest#51>"
+                }
+              ],
+              "noExtensions": true
+            },
+            "effectivePolicy": {
+              "approvalMode": "non-interactive",
+              "cwdSha256": "<ALLOWED:host-path-digest#5>",
+              "maxRuntimeMs": 1800000,
+              "stateRootSha256": "<ALLOWED:state-root-identity#1>",
+              "toolProvidersSha256": "<ALLOWED:host-path-digest#52>",
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "identitySha256": "<ALLOWED:derived-launch-identity#20>",
+            "prompt": {
+              "bytes": 15439,
+              "sha256": "8aa20158e6005d7f08649911a8481b13cbd50775da6305f8c2af99de26b669ac"
+            },
+            "resourcePolicy": {
+              "contextFiles": "disabled",
+              "skillDiscovery": "ambient",
+              "version": 1
+            },
+            "runId": "<WF_RUN_1>",
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "sessionId": "pi-workflow.<WF_RUN_1>.task-10",
+            "sourceDependencies": {
+              "artifactAccess": "enabled",
+              "contextDependsOn": [],
+              "requiredReadPolicy": [
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.api-contract-impact"
+                },
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.state-data-impact"
+                },
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.validation-impact"
+                },
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.security-performance-impact"
+                }
+              ],
+              "requiredReads": [
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.api-contract-impact"
+                },
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.state-data-impact"
+                },
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.validation-impact"
+                },
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.security-performance-impact"
+                }
+              ]
+            },
+            "task": {
+              "specId": "impact-analysis.regression-risk.main",
+              "taskId": "task-10"
+            },
+            "workflow": {
+              "specPathSha256": "<ALLOWED:host-path-digest#7>",
+              "type": "artifact-graph"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "pid": "<PID>",
+      "rawArtifactIntegrity": {
+        "bytes": 5905,
+        "owner": "<ALLOWED:timestamp-derived-digest#10>",
+        "sha256": "3c6c7023cd582477b52ba4e0f54e6572ad22285b995e37e9a9f43ed6a51d1406",
+        "terminal": {
+          "attemptId": "<SA_ATTEMPT_10>",
+          "completedAt": "<TS>",
+          "exitCode": 0,
+          "runId": "<SA_RUN_10>",
+          "startedAt": "<TS>",
+          "status": "completed"
+        },
+        "terminalVersion": {
+          "ctimeMs": "<EPOCH_MS>",
+          "dev": "<FS_DEV>",
+          "ino": "<FS_INO>",
+          "mtimeMs": "<EPOCH_MS>",
+          "nlink": 1,
+          "size": "<ALLOWED:host-path-file-size>"
+        },
+        "version": 1
+      },
+      "roles": [],
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "specId": "impact-analysis.regression-risk.main",
+      "stageId": "impact-analysis.regression-risk",
+      "startedAt": "<TS>",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-10",
+      "timing": {
+        "aggregate": {
+          "attempts": 1,
+          "executionMs": "<DURATION_MS>",
+          "launchDurationMs": "<DURATION_MS>",
+          "launchWaitMs": "<DURATION_MS>",
+          "totalMs": "<DURATION_MS>"
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_10>",
+            "backendRunId": "<SA_RUN_10>",
+            "capturedAt": "<TS>",
+            "executionCompletedAt": "<TS>",
+            "executionMs": "<DURATION_MS>",
+            "executionStartedAt": "<TS>",
+            "launchCompletedAt": "<TS>",
+            "launchDurationMs": "<DURATION_MS>",
+            "launchQueuedAt": "<TS>",
+            "launchStartedAt": "<TS>",
+            "launchWaitMs": "<DURATION_MS>",
+            "source": "pi-subagent",
+            "totalMs": "<DURATION_MS>"
+          }
+        ],
+        "capturedAt": "<TS>",
+        "executionCompletedAt": "<TS>",
+        "executionMs": "<DURATION_MS>",
+        "executionStartedAt": "<TS>",
+        "launchCompletedAt": "<TS>",
+        "launchDurationMs": "<DURATION_MS>",
+        "launchQueuedAt": "<TS>",
+        "launchSlotReleaseDelayMs": 3000,
+        "launchStartedAt": "<TS>",
+        "launchWaitMs": "<DURATION_MS>",
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": "<DURATION_MS>",
+        "refreshStatusPollMs": "<DURATION_MS>",
+        "source": "pi-workflow",
+        "terminalArtifactBundleWriteMs": "<DURATION_MS>",
+        "terminalArtifactMaterializeMs": "<DURATION_MS>",
+        "terminalOutputBytes": 5905,
+        "terminalOutputCopyMs": "<DURATION_MS>",
+        "terminalStderrBytes": 127,
+        "terminalStderrCopyMs": "<DURATION_MS>",
+        "totalMs": "<DURATION_MS>"
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "usage": {
+        "aggregate": {
+          "attempts": 1,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 223360,
+          "costUsd": 0.11248999999999999,
+          "inputTokens": 28777,
+          "outputTokens": 3260,
+          "reasoningTokens": 1345,
+          "totalTokens": 255397
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_10>",
+            "backendRunId": "<SA_RUN_10>",
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 223360,
+            "capturedAt": "<TS>",
+            "costUsd": 0.11248999999999999,
+            "inputTokens": 28777,
+            "model": "gpt-6.1-sol",
+            "outputTokens": 3260,
+            "provider": "openai-codex",
+            "raw": {
+              "cacheRead": 223360,
+              "cacheWrite": 0,
+              "cost": {
+                "cacheRead": 0.022336000000000005,
+                "cacheWrite": 0,
+                "input": 0.057553999999999994,
+                "output": 0.032600000000000004,
+                "total": 0.11248999999999999
+              },
+              "input": 28777,
+              "output": 3260,
+              "reasoning": 1345,
+              "totalTokens": 255397
+            },
+            "reasoningTokens": 1345,
+            "source": "subagent-result-metadata",
+            "totalTokens": 255397
+          }
+        ],
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 223360,
+        "capturedAt": "<TS>",
+        "costUsd": 0.11248999999999999,
+        "inputTokens": 28777,
+        "model": "gpt-6.1-sol",
+        "outputTokens": 3260,
+        "provider": "openai-codex",
+        "reasoningTokens": 1345,
+        "source": "pi-subagent",
+        "totalTokens": 255397
+      },
+      "worktree": {
+        "baseCwd": null,
+        "branch": null,
+        "enabled": false,
+        "path": null,
+        "warning": null
+      }
+    },
+    {
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "artifactGraph": {
+        "artifactAccess": "enabled",
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "controlSchema": "./schemas/ship-readiness-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/bundle/schemas/ship-readiness-control.schema.json",
+          "refsRequired": true
+        },
+        "requiredReadPolicy": [
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.validation-impact"
+          },
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.docs-release-impact"
+          },
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.security-performance-impact"
+          }
+        ],
+        "requiredReads": [
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.validation-impact"
+          },
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.docs-release-impact"
+          },
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.security-performance-impact"
+          }
+        ]
+      },
+      "backendTaskId": "<SA_RUN_11>",
+      "completedAt": "<TS>",
+      "cwd": "<ROOT>",
+      "dependsOn": [
+        "impact-analysis.validation-impact.main",
+        "impact-analysis.docs-release-impact.main",
+        "impact-analysis.security-performance-impact.main"
+      ],
+      "displayName": "impact-analysis.ship-readiness.main",
+      "durableLaunchBarrier": {
+        "records": [
+          {
+            "ackSha256": "0976196f74a6f84f528e4749fc53e8381d3d99668bc522ba717745d434cc1ea1",
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-11",
+            "backendAttemptId": "<SA_ATTEMPT_11>",
+            "backendRunId": "<SA_RUN_11>",
+            "decisionSha256": "f29067f2d7f8e8328b7122686dc210b1dc8d655b71bd2aa39635bf9506b5e499",
+            "descriptor": {
+              "ackPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-11/.launch-barrier-<ALLOWED:derived-launch-identity#21:16>-<RAND16>/ack-v2.json",
+              "challenge": "c784432284d96f2504fed590e08dcaaa2ed5ad5238e3b4a2ce8fcc98b495882c",
+              "decisionNonce": "e2e135d24cd4fa370f0fe65af3e05622663d6e5ae61937fcc10336023c1cedae",
+              "decisionPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-11/.launch-barrier-<ALLOWED:derived-launch-identity#21:16>-<RAND16>/decision-v2.json",
+              "directory": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-11/.launch-barrier-<ALLOWED:derived-launch-identity#21:16>-<RAND16>",
+              "directoryIdentity": {
+                "device": "<FS_DEV>",
+                "inode": "<FS_INO>",
+                "uid": "<UID>"
+              },
+              "identitySha256": "e6323b2e2d57fe9c8ddba82e9de3268e674fe61c8780e76ac8b0c2c57078bbe0",
+              "pollIntervalMs": 10,
+              "readyPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-11/.launch-barrier-<ALLOWED:derived-launch-identity#21:16>-<RAND16>/ready-v2.json",
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "subjectSha256": "<ALLOWED:derived-launch-identity#21>",
+              "timeoutMs": 120000
+            },
+            "executionPlanSha256": "f07edb4a32358f81be3bf97700806d184ece80b592ce40d67dd36b5622e45902",
+            "launchAuthoritySha256": "<ALLOWED:derived-launch-identity#21>",
+            "launchPayloadSha256": "33bc6622cc488cd6340e6dfeb87426efe45517f82df0f8120e74b4fc5499c026",
+            "phase": "acknowledged",
+            "readySha256": "15471fa5c91484f54077e69eaf92c5b00230f370239f7de3c60631fc23acdb7a",
+            "releasePayloadSha256": "a0e001346b243d53c8a53b4a56eff6336cbe51952148dc663b0bd3df66f97f06",
+            "releaseWinner": true
+          }
+        ],
+        "version": 2
+      },
+      "exitCode": 0,
+      "files": {
+        "output": ".pi/workflows/<WF_RUN_1>/tasks/task-11/output.log",
+        "result": ".pi/workflows/<WF_RUN_1>/tasks/task-11/result.json",
+        "stderr": ".pi/workflows/<WF_RUN_1>/tasks/task-11/stderr.log",
+        "systemPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-11/system-prompt.md",
+        "taskPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-11/task.md"
+      },
+      "kind": "reduce",
+      "lastMessage": "completed",
+      "launchAuthority": {
+        "records": [
+          {
+            "grant": {
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-11",
+              "backendId": "pi-subagent/headless",
+              "identitySha256": "<ALLOWED:derived-launch-identity#21>",
+              "issuer": "pi-workflow-engine",
+              "launchBootstrapSha256": "<ALLOWED:derived-launch-identity#22>",
+              "operation": "launch-task",
+              "runId": "<WF_RUN_1>",
+              "schema": "pi-workflow-launch-authority-v1",
+              "task": {
+                "specId": "impact-analysis.ship-readiness.main",
+                "taskId": "task-11"
+              }
+            },
+            "state": {
+              "backendAttemptId": "<SA_ATTEMPT_11>",
+              "backendRunId": "<SA_RUN_11>",
+              "phase": "consumed"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "launchBootstrap": {
+        "records": [
+          {
+            "artifacts": {
+              "configSha256": "<ALLOWED:host-path-digest#53>",
+              "manifestSha256": "<ALLOWED:host-path-manifest-digest#21>",
+              "wrapperSha256": "<ALLOWED:host-path-digest#54>"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-11",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "backend": {
+              "id": "pi-subagent/headless",
+              "mode": "headless",
+              "type": "local-pi"
+            },
+            "effectiveLaunch": {
+              "artifactBinding": {
+                "manifestBytesSha256": "<ALLOWED:host-path-manifest-digest#22>",
+                "manifestPathSha256": "<ALLOWED:host-path-digest#55>",
+                "wrapperBytesSha256": "<ALLOWED:host-path-digest#54>",
+                "wrapperPathSha256": "<ALLOWED:host-path-digest#56>"
+              },
+              "captureToolCalls": false,
+              "extensions": [
+                {
+                  "pathSha256": "<ALLOWED:host-path-digest#56>"
+                }
+              ],
+              "noExtensions": true
+            },
+            "effectivePolicy": {
+              "approvalMode": "non-interactive",
+              "cwdSha256": "<ALLOWED:host-path-digest#5>",
+              "maxRuntimeMs": 1800000,
+              "stateRootSha256": "<ALLOWED:state-root-identity#1>",
+              "toolProvidersSha256": "<ALLOWED:host-path-digest#57>",
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "identitySha256": "<ALLOWED:derived-launch-identity#22>",
+            "prompt": {
+              "bytes": 14276,
+              "sha256": "333f0e8d73a148a61fffa4d6a78c2d6a948da69585934b13c657fbe6ba358595"
+            },
+            "resourcePolicy": {
+              "contextFiles": "disabled",
+              "skillDiscovery": "ambient",
+              "version": 1
+            },
+            "runId": "<WF_RUN_1>",
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "sessionId": "pi-workflow.<WF_RUN_1>.task-11",
+            "sourceDependencies": {
+              "artifactAccess": "enabled",
+              "contextDependsOn": [],
+              "requiredReadPolicy": [
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.validation-impact"
+                },
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.docs-release-impact"
+                },
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.security-performance-impact"
+                }
+              ],
+              "requiredReads": [
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.validation-impact"
+                },
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.docs-release-impact"
+                },
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.security-performance-impact"
+                }
+              ]
+            },
+            "task": {
+              "specId": "impact-analysis.ship-readiness.main",
+              "taskId": "task-11"
+            },
+            "workflow": {
+              "specPathSha256": "<ALLOWED:host-path-digest#7>",
+              "type": "artifact-graph"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "pid": "<PID>",
+      "rawArtifactIntegrity": {
+        "bytes": 8660,
+        "owner": "<ALLOWED:timestamp-derived-digest#11>",
+        "sha256": "ba427ea54b41e3be040e1219aa1c64442f70e75ebf5de18081d1d4595594995d",
+        "terminal": {
+          "attemptId": "<SA_ATTEMPT_11>",
+          "completedAt": "<TS>",
+          "exitCode": 0,
+          "runId": "<SA_RUN_11>",
+          "startedAt": "<TS>",
+          "status": "completed"
+        },
+        "terminalVersion": {
+          "ctimeMs": "<EPOCH_MS>",
+          "dev": "<FS_DEV>",
+          "ino": "<FS_INO>",
+          "mtimeMs": "<EPOCH_MS>",
+          "nlink": 1,
+          "size": "<ALLOWED:host-path-file-size>"
+        },
+        "version": 1
+      },
+      "roles": [],
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "specId": "impact-analysis.ship-readiness.main",
+      "stageId": "impact-analysis.ship-readiness",
+      "startedAt": "<TS>",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-11",
+      "timing": {
+        "aggregate": {
+          "attempts": 1,
+          "executionMs": "<DURATION_MS>",
+          "launchDurationMs": "<DURATION_MS>",
+          "launchWaitMs": "<DURATION_MS>",
+          "totalMs": "<DURATION_MS>"
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_11>",
+            "backendRunId": "<SA_RUN_11>",
+            "capturedAt": "<TS>",
+            "executionCompletedAt": "<TS>",
+            "executionMs": "<DURATION_MS>",
+            "executionStartedAt": "<TS>",
+            "launchCompletedAt": "<TS>",
+            "launchDurationMs": "<DURATION_MS>",
+            "launchQueuedAt": "<TS>",
+            "launchStartedAt": "<TS>",
+            "launchWaitMs": "<DURATION_MS>",
+            "source": "pi-subagent",
+            "totalMs": "<DURATION_MS>"
+          }
+        ],
+        "capturedAt": "<TS>",
+        "executionCompletedAt": "<TS>",
+        "executionMs": "<DURATION_MS>",
+        "executionStartedAt": "<TS>",
+        "launchCompletedAt": "<TS>",
+        "launchDurationMs": "<DURATION_MS>",
+        "launchQueuedAt": "<TS>",
+        "launchSlotReleaseDelayMs": 3000,
+        "launchStartedAt": "<TS>",
+        "launchWaitMs": "<DURATION_MS>",
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": "<DURATION_MS>",
+        "refreshStatusPollMs": "<DURATION_MS>",
+        "source": "pi-workflow",
+        "terminalArtifactBundleWriteMs": "<DURATION_MS>",
+        "terminalArtifactMaterializeMs": "<DURATION_MS>",
+        "terminalOutputBytes": 8660,
+        "terminalOutputCopyMs": "<DURATION_MS>",
+        "terminalStderrBytes": 127,
+        "terminalStderrCopyMs": "<DURATION_MS>",
+        "totalMs": "<DURATION_MS>"
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "usage": {
+        "aggregate": {
+          "attempts": 1,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 221056,
+          "costUsd": 0.1526236,
+          "inputTokens": 43329,
+          "outputTokens": 4386,
+          "reasoningTokens": 1903,
+          "totalTokens": 268771
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_11>",
+            "backendRunId": "<SA_RUN_11>",
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 221056,
+            "capturedAt": "<TS>",
+            "costUsd": 0.1526236,
+            "inputTokens": 43329,
+            "model": "gpt-6.1-sol",
+            "outputTokens": 4386,
+            "provider": "openai-codex",
+            "raw": {
+              "cacheRead": 221056,
+              "cacheWrite": 0,
+              "cost": {
+                "cacheRead": 0.022105600000000006,
+                "cacheWrite": 0,
+                "input": 0.08665800000000001,
+                "output": 0.04386,
+                "total": 0.1526236
+              },
+              "input": 43329,
+              "output": 4386,
+              "reasoning": 1903,
+              "totalTokens": 268771
+            },
+            "reasoningTokens": 1903,
+            "source": "subagent-result-metadata",
+            "totalTokens": 268771
+          }
+        ],
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 221056,
+        "capturedAt": "<TS>",
+        "costUsd": 0.1526236,
+        "inputTokens": 43329,
+        "model": "gpt-6.1-sol",
+        "outputTokens": 4386,
+        "provider": "openai-codex",
+        "reasoningTokens": 1903,
+        "source": "pi-subagent",
+        "totalTokens": 268771
+      },
+      "worktree": {
+        "baseCwd": null,
+        "branch": null,
+        "enabled": false,
+        "path": null,
+        "warning": null
+      }
+    },
+    {
+      "agent": "scout",
+      "agentDescription": "Read-only codebase explorer for repo maps and context.",
+      "agentFile": "<ROOT>/.pi/agents/scout.md",
+      "artifactGraph": {
+        "artifactAccess": "enabled",
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "controlSchema": "./schemas/impact-synthesis-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/bundle/schemas/impact-synthesis-control.schema.json",
+          "refsRequired": true
+        },
+        "requiredReadPolicy": [
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.change-scope"
+          },
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.contract-consistency"
+          },
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.regression-risk"
+          },
+          {
+            "artifact": "control",
+            "mustNotTruncate": true,
+            "path": "$",
+            "source": "impact-analysis.ship-readiness"
+          }
+        ],
+        "requiredReads": [
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.change-scope"
+          },
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.contract-consistency"
+          },
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.regression-risk"
+          },
+          {
+            "artifact": "control",
+            "path": "$",
+            "source": "impact-analysis.ship-readiness"
+          }
+        ]
+      },
+      "backendTaskId": "<SA_RUN_12>",
+      "completedAt": "<TS>",
+      "cwd": "<ROOT>",
+      "dependsOn": [
+        "impact-analysis.change-scope.main",
+        "impact-analysis.contract-consistency.main",
+        "impact-analysis.regression-risk.main",
+        "impact-analysis.ship-readiness.main"
+      ],
+      "displayName": "impact-analysis.impact-synthesis.main",
+      "durableLaunchBarrier": {
+        "records": [
+          {
+            "ackSha256": "ccc958fb4b89b8ef388ed8fd99a2d82ada7448405a549967524b773e560821df",
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-12",
+            "backendAttemptId": "<SA_ATTEMPT_12>",
+            "backendRunId": "<SA_RUN_12>",
+            "decisionSha256": "eeaddbbeb38e92fcbd928d82e498a6c1fc4f805eb60ce1425d50cfeaadd22bff",
+            "descriptor": {
+              "ackPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-12/.launch-barrier-<ALLOWED:derived-launch-identity#23:16>-<RAND16>/ack-v2.json",
+              "challenge": "ad6c318760b8a43ad88e15bc73507e6ad1718c1651df05ea455bea8da3f21be2",
+              "decisionNonce": "63e158d7fa9b0f3d7e4e888859ebb00f9eb52e81cdde6be8d3ad4eb93dc81785",
+              "decisionPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-12/.launch-barrier-<ALLOWED:derived-launch-identity#23:16>-<RAND16>/decision-v2.json",
+              "directory": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-12/.launch-barrier-<ALLOWED:derived-launch-identity#23:16>-<RAND16>",
+              "directoryIdentity": {
+                "device": "<FS_DEV>",
+                "inode": "<FS_INO>",
+                "uid": "<UID>"
+              },
+              "identitySha256": "2c165da73edf845c4607a14d95805494cf811d2cfebb2dfaa43851d626e0d45a",
+              "pollIntervalMs": 10,
+              "readyPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-12/.launch-barrier-<ALLOWED:derived-launch-identity#23:16>-<RAND16>/ready-v2.json",
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "subjectSha256": "<ALLOWED:derived-launch-identity#23>",
+              "timeoutMs": 120000
+            },
+            "executionPlanSha256": "bc41508905ef47e60442a415a308ca78012e27427a7e93265a5f319b325c7ac9",
+            "launchAuthoritySha256": "<ALLOWED:derived-launch-identity#23>",
+            "launchPayloadSha256": "64a8d7f6cf846c411fe5ed207614843f2c4d0dd720581a03a62bb737629bea6d",
+            "phase": "acknowledged",
+            "readySha256": "fcd58e5d5440dd750252965fac215f872afdf681f8bc4259c88e014d14db0bd0",
+            "releasePayloadSha256": "049f21f0592ef1976ee37151f6a9035a304b02a5c923ae556d1efbef5ba2e6d1",
+            "releaseWinner": true
+          }
+        ],
+        "version": 2
+      },
+      "exitCode": 0,
+      "files": {
+        "output": ".pi/workflows/<WF_RUN_1>/tasks/task-12/output.log",
+        "result": ".pi/workflows/<WF_RUN_1>/tasks/task-12/result.json",
+        "stderr": ".pi/workflows/<WF_RUN_1>/tasks/task-12/stderr.log",
+        "systemPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-12/system-prompt.md",
+        "taskPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-12/task.md"
+      },
+      "kind": "reduce",
+      "lastMessage": "completed",
+      "launchAuthority": {
+        "records": [
+          {
+            "grant": {
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-12",
+              "backendId": "pi-subagent/headless",
+              "identitySha256": "<ALLOWED:derived-launch-identity#23>",
+              "issuer": "pi-workflow-engine",
+              "launchBootstrapSha256": "<ALLOWED:derived-launch-identity#24>",
+              "operation": "launch-task",
+              "runId": "<WF_RUN_1>",
+              "schema": "pi-workflow-launch-authority-v1",
+              "task": {
+                "specId": "impact-analysis.impact-synthesis.main",
+                "taskId": "task-12"
+              }
+            },
+            "state": {
+              "backendAttemptId": "<SA_ATTEMPT_12>",
+              "backendRunId": "<SA_RUN_12>",
+              "phase": "consumed"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "launchBootstrap": {
+        "records": [
+          {
+            "artifacts": {
+              "configSha256": "<ALLOWED:host-path-digest#58>",
+              "manifestSha256": "<ALLOWED:host-path-manifest-digest#23>",
+              "wrapperSha256": "<ALLOWED:host-path-digest#59>"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-12",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "backend": {
+              "id": "pi-subagent/headless",
+              "mode": "headless",
+              "type": "local-pi"
+            },
+            "effectiveLaunch": {
+              "artifactBinding": {
+                "manifestBytesSha256": "<ALLOWED:host-path-manifest-digest#24>",
+                "manifestPathSha256": "<ALLOWED:host-path-digest#60>",
+                "wrapperBytesSha256": "<ALLOWED:host-path-digest#59>",
+                "wrapperPathSha256": "<ALLOWED:host-path-digest#61>"
+              },
+              "captureToolCalls": false,
+              "extensions": [
+                {
+                  "pathSha256": "<ALLOWED:host-path-digest#61>"
+                }
+              ],
+              "noExtensions": true
+            },
+            "effectivePolicy": {
+              "approvalMode": "non-interactive",
+              "cwdSha256": "<ALLOWED:host-path-digest#5>",
+              "maxRuntimeMs": 1800000,
+              "stateRootSha256": "<ALLOWED:state-root-identity#1>",
+              "toolProvidersSha256": "<ALLOWED:host-path-digest#62>",
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "identitySha256": "<ALLOWED:derived-launch-identity#24>",
+            "prompt": {
+              "bytes": 15799,
+              "sha256": "2a141acab4346a34819f5a6cc8e7c9a8f990233fbea7dfad49a6b8ab465c07ee"
+            },
+            "resourcePolicy": {
+              "contextFiles": "disabled",
+              "skillDiscovery": "ambient",
+              "version": 1
+            },
+            "runId": "<WF_RUN_1>",
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "sessionId": "pi-workflow.<WF_RUN_1>.task-12",
+            "sourceDependencies": {
+              "artifactAccess": "enabled",
+              "contextDependsOn": [],
+              "requiredReadPolicy": [
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.change-scope"
+                },
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.contract-consistency"
+                },
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.regression-risk"
+                },
+                {
+                  "artifact": "control",
+                  "mustNotTruncate": true,
+                  "path": "$",
+                  "source": "impact-analysis.ship-readiness"
+                }
+              ],
+              "requiredReads": [
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.change-scope"
+                },
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.contract-consistency"
+                },
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.regression-risk"
+                },
+                {
+                  "artifact": "control",
+                  "path": "$",
+                  "source": "impact-analysis.ship-readiness"
+                }
+              ]
+            },
+            "task": {
+              "specId": "impact-analysis.impact-synthesis.main",
+              "taskId": "task-12"
+            },
+            "workflow": {
+              "specPathSha256": "<ALLOWED:host-path-digest#7>",
+              "type": "artifact-graph"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "pid": "<PID>",
+      "rawArtifactIntegrity": {
+        "bytes": 7866,
+        "owner": "<ALLOWED:timestamp-derived-digest#12>",
+        "sha256": "0d2ba95ec021e720e72511b5e7e59ecccc05b620094746344233dbbc0deb5b7d",
+        "terminal": {
+          "attemptId": "<SA_ATTEMPT_12>",
+          "completedAt": "<TS>",
+          "exitCode": 0,
+          "runId": "<SA_RUN_12>",
+          "startedAt": "<TS>",
+          "status": "completed"
+        },
+        "terminalVersion": {
+          "ctimeMs": "<EPOCH_MS>",
+          "dev": "<FS_DEV>",
+          "ino": "<FS_INO>",
+          "mtimeMs": "<EPOCH_MS>",
+          "nlink": 1,
+          "size": "<ALLOWED:host-path-file-size>"
+        },
+        "version": 1
+      },
+      "roles": [],
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "specId": "impact-analysis.impact-synthesis.main",
+      "stageId": "impact-analysis.impact-synthesis",
+      "startedAt": "<TS>",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-12",
+      "timing": {
+        "aggregate": {
+          "attempts": 1,
+          "executionMs": "<DURATION_MS>",
+          "launchDurationMs": "<DURATION_MS>",
+          "launchWaitMs": "<DURATION_MS>",
+          "totalMs": "<DURATION_MS>"
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_12>",
+            "backendRunId": "<SA_RUN_12>",
+            "capturedAt": "<TS>",
+            "executionCompletedAt": "<TS>",
+            "executionMs": "<DURATION_MS>",
+            "executionStartedAt": "<TS>",
+            "launchCompletedAt": "<TS>",
+            "launchDurationMs": "<DURATION_MS>",
+            "launchQueuedAt": "<TS>",
+            "launchStartedAt": "<TS>",
+            "launchWaitMs": "<DURATION_MS>",
+            "source": "pi-subagent",
+            "totalMs": "<DURATION_MS>"
+          }
+        ],
+        "capturedAt": "<TS>",
+        "executionCompletedAt": "<TS>",
+        "executionMs": "<DURATION_MS>",
+        "executionStartedAt": "<TS>",
+        "launchCompletedAt": "<TS>",
+        "launchDurationMs": "<DURATION_MS>",
+        "launchQueuedAt": "<TS>",
+        "launchSlotReleaseDelayMs": 3000,
+        "launchStartedAt": "<TS>",
+        "launchWaitMs": "<DURATION_MS>",
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": "<DURATION_MS>",
+        "refreshStatusPollMs": "<DURATION_MS>",
+        "source": "pi-workflow",
+        "terminalArtifactBundleWriteMs": "<DURATION_MS>",
+        "terminalArtifactMaterializeMs": "<DURATION_MS>",
+        "terminalOutputBytes": 7866,
+        "terminalOutputCopyMs": "<DURATION_MS>",
+        "terminalStderrBytes": 127,
+        "terminalStderrCopyMs": "<DURATION_MS>",
+        "totalMs": "<DURATION_MS>"
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "usage": {
+        "aggregate": {
+          "attempts": 1,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 186624,
+          "costUsd": 0.1439604,
+          "inputTokens": 43209,
+          "outputTokens": 3888,
+          "reasoningTokens": 1768,
+          "totalTokens": 233721
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_12>",
+            "backendRunId": "<SA_RUN_12>",
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 186624,
+            "capturedAt": "<TS>",
+            "costUsd": 0.1439604,
+            "inputTokens": 43209,
+            "model": "gpt-6.1-sol",
+            "outputTokens": 3888,
+            "provider": "openai-codex",
+            "raw": {
+              "cacheRead": 186624,
+              "cacheWrite": 0,
+              "cost": {
+                "cacheRead": 0.0186624,
+                "cacheWrite": 0,
+                "input": 0.08641800000000001,
+                "output": 0.03888,
+                "total": 0.1439604
+              },
+              "input": 43209,
+              "output": 3888,
+              "reasoning": 1768,
+              "totalTokens": 233721
+            },
+            "reasoningTokens": 1768,
+            "source": "subagent-result-metadata",
+            "totalTokens": 233721
+          }
+        ],
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 186624,
+        "capturedAt": "<TS>",
+        "costUsd": 0.1439604,
+        "inputTokens": 43209,
+        "model": "gpt-6.1-sol",
+        "outputTokens": 3888,
+        "provider": "openai-codex",
+        "reasoningTokens": 1768,
+        "source": "pi-subagent",
+        "totalTokens": 233721
+      },
+      "worktree": {
+        "baseCwd": null,
+        "branch": null,
+        "enabled": false,
+        "path": null,
+        "warning": null
+      }
+    },
+    {
+      "agent": "support",
+      "agentDescription": "Workflow-local support helper",
+      "agentFile": ".pi/workflows/<WF_RUN_1>/bundle/helpers/render-impact-report.mjs",
+      "artifactGraph": {
+        "artifactAccess": "enabled",
+        "enabled": true,
+        "inputPolicy": {
+          "terminalBarrier": "all-sources"
+        },
+        "output": {
+          "analysisRequired": true,
+          "controlSchema": "./schemas/impact-render-control.schema.json",
+          "controlSchemaPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/bundle/schemas/impact-render-control.schema.json",
+          "refsRequired": true
+        },
+        "requiredReads": []
+      },
+      "backendTaskId": "task-13",
+      "completedAt": "<TS>",
+      "cwd": "<ROOT>",
+      "dependsOn": [
+        "impact-analysis.change-scope.main",
+        "impact-analysis.implementation-map.main",
+        "impact-analysis.validation-map.main",
+        "impact-analysis.api-contract-impact.main",
+        "impact-analysis.state-data-impact.main",
+        "impact-analysis.validation-impact.main",
+        "impact-analysis.docs-release-impact.main",
+        "impact-analysis.security-performance-impact.main",
+        "impact-analysis.contract-consistency.main",
+        "impact-analysis.regression-risk.main",
+        "impact-analysis.ship-readiness.main",
+        "impact-analysis.impact-synthesis.main"
+      ],
+      "displayName": "impact-analysis.final.main",
+      "exitCode": 1,
+      "files": {
+        "output": ".pi/workflows/<WF_RUN_1>/tasks/task-13/output.log",
+        "result": ".pi/workflows/<WF_RUN_1>/tasks/task-13/result.json",
+        "stderr": ".pi/workflows/<WF_RUN_1>/tasks/task-13/stderr.log",
+        "systemPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-13/system-prompt.md",
+        "taskPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-13/task.md"
+      },
+      "kind": "support",
+      "lastMessage": "support declared failed",
+      "rawArtifactIntegrity": {
+        "bytes": 231325,
+        "owner": "<ALLOWED:timestamp-derived-digest#13>",
+        "sha256": "ec2c1757123feee55c732d019d905a13e8c0bb24b865cce5dd091d79ae046672",
+        "version": 1
+      },
+      "roles": [],
+      "runtime": {
+        "approvalMode": "non-interactive"
+      },
+      "specId": "impact-analysis.final.main",
+      "stageId": "impact-analysis.final",
+      "startedAt": "<TS>",
+      "status": "failed",
+      "statusDetail": "support_declared_failed",
+      "taskId": "task-13",
+      "terminalBarrier": {
+        "mode": "all-sources",
+        "sourceSpecIds": [
+          "impact-analysis.change-scope.main",
+          "impact-analysis.implementation-map.main",
+          "impact-analysis.validation-map.main",
+          "impact-analysis.api-contract-impact.main",
+          "impact-analysis.state-data-impact.main",
+          "impact-analysis.validation-impact.main",
+          "impact-analysis.docs-release-impact.main",
+          "impact-analysis.security-performance-impact.main",
+          "impact-analysis.contract-consistency.main",
+          "impact-analysis.regression-risk.main",
+          "impact-analysis.ship-readiness.main",
+          "impact-analysis.impact-synthesis.main"
+        ]
+      },
+      "worktree": {
+        "baseCwd": null,
+        "branch": null,
+        "enabled": false,
+        "path": null,
+        "warning": null
+      }
+    }
+  ],
+  "type": "artifact-graph",
+  "updatedAt": "<TS>",
+  "usage": {
+    "cacheCreationInputTokens": 0,
+    "cacheReadInputTokens": 4957184,
+    "cachedInputTokens": 0,
+    "capturedAt": "<TS>",
+    "costUsd": 2.3403564,
+    "inputTokens": 598989,
+    "outputTokens": 64666,
+    "reasoningTokens": 26577,
+    "source": "task-rollup",
+    "taskCount": 13,
+    "tasksReporting": 12,
+    "totalTokens": 5620839
+  }
+}

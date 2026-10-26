@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "Official release announcement identifies specification 2026-07-28; its canonical stdio binding is a dedicated transport page.",
+  "startedAt": "2026-10-26T06:12:49.039Z",
+  "completedAt": "2026-10-26T06:14:03.118Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "333262ae277a5f643904a2fc0c2aab2f53c8c0ddf0b93bb2f28a1a009535cd21",
+    "bytes": 5444,
+    "sha256": "3e1405aecc39efb712a013e91785b6e8cb9b97c1052185c447881d5a88ee1edd",
+    "terminal": {
+      "runId": "run_mvov11y4_02ef65",
+      "attemptId": "attempt_mvov11y4_a46b18",
+      "status": "completed",
+      "startedAt": "2026-10-26T06:12:49.039Z",
+      "completedAt": "2026-10-26T06:14:03.118Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 587204630,
+      "size": 1853,
+      "nlink": 1,
+      "mtimeMs": 1792995243119.714,
+      "ctimeMs": 1792995243119.904
+    }
+  }
+}

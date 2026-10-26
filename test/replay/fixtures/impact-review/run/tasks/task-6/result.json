@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "Partial coverage: recorder happy paths and replay fixtures are mapped, but loader activation, serialization breadth, and recording-failure behavior lack targeted tests. No validation was executed.",
+  "startedAt": "2026-10-26T05:42:47.565Z",
+  "completedAt": "2026-10-26T05:45:43.406Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "04166fd22d29255748691f7225501f7743a3e844cc36d647ccd4fcce1a9295c5",
+    "bytes": 10427,
+    "sha256": "fa1d1de803b89d77b35310d37b1d61b7544eb8b676bf6ae1eeaf6cf57b249ebd",
+    "terminal": {
+      "runId": "run_mvotyg41_228da7",
+      "attemptId": "attempt_mvotyg41_ebe0a4",
+      "status": "completed",
+      "startedAt": "2026-10-26T05:42:47.565Z",
+      "completedAt": "2026-10-26T05:45:43.406Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 587078343,
+      "size": 1879,
+      "nlink": 1,
+      "mtimeMs": 1792993543407.9841,
+      "ctimeMs": 1792993543408.5383
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Default contracts remain unchanged; opt-in recording adds filesystem contracts and can alter API failure semantics.",
+  "status": "medium",
+  "impacts": [
+    {
+      "id": "recording-configuration",
+      "severity": "low",
+      "surface": "PI_WORKFLOW_RECORD_DIR",
+      "impact": "New process-level opt-in, evaluated once during cached API initialization."
+    },
+    {
+      "id": "failure-semantics",
+      "severity": "medium",
+      "surface": "Backend API outcomes",
+      "impact": "Recording failures can prevent loading, convert successful operations into failures, or replace original errors."
+    },
+    {
+      "id": "recording-format",
+      "severity": "medium",
+      "surface": "calls.jsonl and api-surface.json",
+      "impact": "New lossy recording format requires directory isolation; sequence numbers restart while existing calls remain appended."
+    },
+    {
+      "id": "data-persistence",
+      "severity": "medium",
+      "surface": "Recording directory",
+      "impact": "API arguments and results are persisted without redaction, size limits, or automatic cleanup."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "scope",
+      "statement": "Assessment uses the supplied two-file diff and inspected post-change files."
+    },
+    {
+      "id": "verification",
+      "statement": "Static inspection only; no runtime validation was performed."
+    },
+    {
+      "id": "schema-validation",
+      "statement": "The requested ./schemas schema was absent. Required fields, types, and status were manually checked against workflows/impact-review/schemas/api-contract-impact-control.schema.json; no executable validator was available."
+    }
+  ]
+}

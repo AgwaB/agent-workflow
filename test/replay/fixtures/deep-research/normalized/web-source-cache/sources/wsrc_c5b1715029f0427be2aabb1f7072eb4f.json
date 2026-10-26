@@ -1,0 +1,21 @@
+{
+  "contentHash": "c6b68ce66e638ab5ec9d68fc11af49b98d71a908360a69f40739e29f213918d8",
+  "createdAt": "<TS>",
+  "domain": "plan.modelcontextprotocol.io",
+  "extractionLossy": true,
+  "provenance": {
+    "fetcher": "pi-workflow-direct-safe-fetch",
+    "policy": "pi-workflow-strict-public-http-v1"
+  },
+  "provider": "pi-workflow-direct-safe-fetch",
+  "redactedUrl": "https://plan.modelcontextprotocol.io/",
+  "runId": "<WF_RUN_1>",
+  "schema": "workflow-web-source-cache-v1",
+  "sourceRef": "wsrc_c5b1715029f0427be2aabb1f7072eb4f",
+  "taskId": "task-11",
+  "text": "MCP Spec TPM",
+  "textChars": 12,
+  "title": "MCP Spec TPM",
+  "url": "https://plan.modelcontextprotocol.io/",
+  "urlKey": "urlkey_d2652c2278ded7586468a6a04b15d002"
+}

@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "No tests or fixtures were found; behavioral coverage is unsubstantiated, including unreadable dynamic-control fallback precedence.",
+  "startedAt": "2026-10-26T05:55:57.924Z",
+  "completedAt": "2026-10-26T05:57:40.095Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "9a1be5a5909e7d07073abc932c32b4648081d3601de39b92867e6393b45b99cc",
+    "bytes": 3979,
+    "sha256": "7258f613bc9168d6636d3add9f8294d074102b95fec100430418eeec9097076d",
+    "terminal": {
+      "runId": "run_mvoufe37_5f6cd8",
+      "attemptId": "attempt_mvoufe37_caa994",
+      "status": "completed",
+      "startedAt": "2026-10-26T05:55:57.924Z",
+      "completedAt": "2026-10-26T05:57:40.095Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 587135562,
+      "size": 1852,
+      "nlink": 1,
+      "mtimeMs": 1792994260095.9456,
+      "ctimeMs": 1792994260096.1157
+    }
+  }
+}

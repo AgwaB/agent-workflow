@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "KEEP: successful response text containing domain JSON can satisfy the cancellation predicate without any cancellation envelope.",
+  "startedAt": "2026-10-26T05:18:42.764Z",
+  "completedAt": "2026-10-26T05:19:45.849Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "1f50efaea7670954442ec97188c2c7b5628dd6fa89466ea6d9639ef6bf693a22",
+    "bytes": 2240,
+    "sha256": "0603eef28ae582bea43bc51bcbb235a0d62ae169ad5a7d30acdfabaf75b36658",
+    "terminal": {
+      "runId": "run_mvot3hf4_ebc3a4",
+      "attemptId": "attempt_mvot3hf4_6aa4b6",
+      "status": "completed",
+      "startedAt": "2026-10-26T05:18:42.764Z",
+      "completedAt": "2026-10-26T05:19:45.849Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 586868179,
+      "size": 1914,
+      "nlink": 1,
+      "mtimeMs": 1792991985851.2515,
+      "ctimeMs": 1792991985851.5354
+    }
+  }
+}

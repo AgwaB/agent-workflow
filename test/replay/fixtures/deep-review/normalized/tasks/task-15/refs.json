@@ -1,0 +1,26 @@
+[
+  {
+    "file": "src/workflow-stop.ts",
+    "line": 89,
+    "lineEnd": 99,
+    "symbol": "throwIfWorkflowStopRequested"
+  },
+  {
+    "file": "src/workflow-stop.ts",
+    "line": 53,
+    "lineEnd": 59,
+    "symbol": "isWorkflowStopRequestedError"
+  },
+  {
+    "file": "src/workflow-stop.ts",
+    "line": 24,
+    "lineEnd": 28,
+    "symbol": "launchStopRequested"
+  },
+  {
+    "file": "src/workflow-stop.ts",
+    "line": 74,
+    "lineEnd": 78,
+    "symbol": "createWorkflowStopSignal"
+  }
+]

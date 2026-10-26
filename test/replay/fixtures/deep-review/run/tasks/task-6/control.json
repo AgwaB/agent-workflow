@@ -1,0 +1,72 @@
+{
+  "schema": "deep-review-report-packet-v1",
+  "digest": "5004011687047a8df835b801591b44d8fdcf44534536d90194bf483c00f086b4",
+  "maxChars": 15000,
+  "actualChars": 2146,
+  "partitionSummary": {
+    "keep": 7,
+    "weaken": 0,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "mergedFindings": 0,
+    "verdictsReceived": 7,
+    "batchIntegrityIssues": 0,
+    "verdictIntegrityIssues": 0,
+    "reviewerCoverageIssues": 0,
+    "reviewerFindings": 7,
+    "missingVerdicts": 0,
+    "partialFailures": 0
+  },
+  "sourceStatusSummary": {
+    "total": 8,
+    "completed": 8,
+    "nonCompleted": 0,
+    "partialFailureCount": 0,
+    "partialFailures": []
+  },
+  "reportContext": {
+    "keep": [
+      {
+        "findingId": "finding-001",
+        "title": "Stop polling starts unbounded concurrent persistence reads",
+        "severity": "high",
+        "recommendedAction": "Permit only one outstanding intent read per watcher, while checking foreground launch cancellation before the in-flight guard. Add a deferred-read regression test covering repeated ticks and local cancellation before tha"
+      },
+      {
+        "findingId": "finding-002",
+        "title": "Disposing one binding can remove another owner's launch fence",
+        "severity": "medium",
+        "recommendedAction": "Track each binding with a unique registration token or reference count, make cleanup idempotent, and test that disposing one duplicate binding leaves the other effective."
+      },
+      {
+        "findingId": "finding-003",
+        "title": "An in-flight check can abort the signal after disposal",
+        "severity": "medium",
+        "recommendedAction": "Set a disposed flag synchronously in dispose, check it before polling and immediately after the awaited read, and add a regression test resolving a pending read with a stop intent after disposal."
+      },
+      {
+        "findingId": "finding-004",
+        "title": "A rejected persistence read bypasses the post-read launch fence",
+        "severity": "medium",
+        "recommendedAction": "Catch intent-read rejection, recheck the launch fence, and throw WorkflowStopRequested only when locally stopped; otherwise rethrow the original error. Add regression tests for both outcomes."
+      }
+    ],
+    "weaken": [],
+    "drop": [],
+    "needsHuman": [],
+    "supportNoteSummaries": []
+  },
+  "normalizationNotes": [],
+  "overflowCounts": {
+    "keep": 3,
+    "weaken": 0,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "partialFailures": 0,
+    "normalizationNotes": 0,
+    "truncatedStrings": 1,
+    "omittedStringChars": 15
+  }
+}

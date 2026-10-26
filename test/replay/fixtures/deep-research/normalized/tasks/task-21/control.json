@@ -1,0 +1,25 @@
+{
+  "caveats": [],
+  "confidence": "high",
+  "correctionOrCounterclaim": "",
+  "digest": "Verified client stderr interpretation guidance.",
+  "evidence": [
+    {
+      "matchType": "exact",
+      "quote": "The client **MAY** capture, forward, or ignore the server's `stderr` output and\n  **SHOULD NOT** assume `stderr` output indicates error conditions.",
+      "relevance": "Directly states the claimed client-side normative guidance.",
+      "source": "Model Context Protocol specification — stdio",
+      "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+      "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+    }
+  ],
+  "id": "claim-008",
+  "schema": "deep-research-verify-claim-v1",
+  "status": "verified",
+  "verdictDigest": {
+    "sourceUrls": [
+      "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+    ],
+    "support": "The cited primary specification explicitly says clients SHOULD NOT assume server stderr output indicates error conditions."
+  }
+}

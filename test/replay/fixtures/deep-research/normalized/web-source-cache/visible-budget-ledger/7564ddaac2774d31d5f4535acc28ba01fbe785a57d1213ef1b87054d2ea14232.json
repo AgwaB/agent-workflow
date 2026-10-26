@@ -1,0 +1,8 @@
+{
+  "limit": 12000,
+  "runId": "<WF_RUN_1>",
+  "schema": "workflow-web-visible-budget-ledger-v1",
+  "taskId": "task-15",
+  "updatedAt": "<TS>",
+  "used": 1900
+}

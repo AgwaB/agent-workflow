@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "Maps the env-gated recording wrapper, shared backend API loader, workflow lifecycle callers, recording artifacts, replay consumers, and build/test surfaces without assigning risk.",
+  "startedAt": "2026-10-26T05:39:21.567Z",
+  "completedAt": "2026-10-26T05:43:47.642Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "bc9021257c4449e6124b84f93abc030a91400b025bd90a53e80eb0c9f901415b",
+    "bytes": 16480,
+    "sha256": "747a83ddc6250e64ee33ebaac212246cf85ff21381999fbf7ac11703ea6ea96f",
+    "terminal": {
+      "runId": "run_mvotu191_6ce2b6",
+      "attemptId": "attempt_mvotu191_507a90",
+      "status": "completed",
+      "startedAt": "2026-10-26T05:39:21.567Z",
+      "completedAt": "2026-10-26T05:43:47.642Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 587071368,
+      "size": 1879,
+      "nlink": 1,
+      "mtimeMs": 1792993427645.282,
+      "ctimeMs": 1792993427645.4575
+    }
+  }
+}

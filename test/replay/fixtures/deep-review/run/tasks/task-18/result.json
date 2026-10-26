@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "The dynamic branch overwrites unsuccessful engine outcomes with completion-labelled semantic statuses; accurate engineStatus limits but does not eliminate the defect.",
+  "startedAt": "2026-10-26T05:18:44.267Z",
+  "completedAt": "2026-10-26T05:20:03.610Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "79eaa86487e0a5b314d5966cf800dab29d01f6e1591ad6a6a11491b1e71f6bde",
+    "bytes": 3559,
+    "sha256": "fa351fcc78d7c9d1a58b8eb9adb363db40142965fbabb42d115d4cca7cf5ad65",
+    "terminal": {
+      "runId": "run_mvot3ijq_b74bc0",
+      "attemptId": "attempt_mvot3ijq_5b7b08",
+      "status": "completed",
+      "startedAt": "2026-10-26T05:18:44.267Z",
+      "completedAt": "2026-10-26T05:20:03.610Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 586870309,
+      "size": 1936,
+      "nlink": 1,
+      "mtimeMs": 1792992003612.6738,
+      "ctimeMs": 1792992003613.1138
+    }
+  }
+}

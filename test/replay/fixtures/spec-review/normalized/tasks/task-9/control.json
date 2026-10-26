@@ -1,0 +1,55 @@
+{
+  "counterEvidence": [
+    {
+      "file": "SPEC.md",
+      "lineEnd": 4,
+      "lineStart": 3,
+      "quote": "This spec covers `src/workflow-stop.ts`, `src/workflow-cancellation.ts` and\n`src/workflow-terminal.ts`. `store.js` and `types.js` are outside this sample.",
+      "relevance": "Limits verification of production run invariants and concrete persisted fixtures."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineEnd": 23,
+      "lineStart": 23,
+      "quote": "| \"dynamic_incomplete\"",
+      "relevance": "The implementation deliberately supports this semantic status, but its existence does not establish a specification exception."
+    }
+  ],
+  "digest": "Kept: task-level dynamic_incomplete overrides controller-derived status and SPEC 13's unreadable-control fallback.",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineEnd": 51,
+      "lineStart": 49,
+      "quote": "13. Terminal direct-dynamic runs derive their semantic status from the dynamic\n    controller's `control.json`; an unreadable control yields\n    `completed_without_semantic_result`.",
+      "relevance": "Requires controller-derived semantics and explicitly specifies the unreadable-control result."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineEnd": 61,
+      "lineStart": 59,
+      "quote": "return await readJson<DynamicControllerControl>(\n\t\tjoin(dirname(taskOutput), \"control.json\"),\n\t).catch(() => undefined);",
+      "relevance": "A rejected controller read produces undefined."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineEnd": 87,
+      "lineStart": 80,
+      "quote": "if (terminal && run.provenance?.mode === \"direct-dynamic\") {\n\t\tconst control = await readDynamicControllerControl(cwd, run);\n\t\toutputTaskIds = stringArray(control?.outputTasks);\n\t\tconst incomplete = run.tasks.some(\n\t\t\t(task) => task.statusDetail === \"dynamic_incomplete\",\n\t\t);\n\t\tif (incomplete) semanticStatus = \"dynamic_incomplete\";\n\t\telse if (control?.status === \"synthesized\") semanticStatus = \"synthesized\";",
+      "relevance": "Any incomplete task wins regardless of controller readability or status."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineEnd": 95,
+      "lineStart": 93,
+      "quote": "else if (control?.status === \"blocked\") semanticStatus = \"dynamic_blocked\";\n\t\telse if (control?.status === \"stopped\") semanticStatus = \"dynamic_stopped\";\n\t\telse semanticStatus = \"completed_without_semantic_result\";",
+      "relevance": "The required fallback is subordinate to the task-marker branch."
+    }
+  ],
+  "finalClaim": "For a terminal direct-dynamic run containing any task marked dynamic_incomplete, summarizeWorkflowTerminal returns dynamic_incomplete even when the controller control.json read rejects, contrary to SPEC 13's completed_without_semantic_result requirement. The same task-marker precedence overrides readable controller statuses.",
+  "id": "finding-001",
+  "recommendedAction": "Make terminal direct-dynamic semantic status follow controller control.json, including unconditional unreadable-control fallback. Add regression cases combining an incomplete task with a rejected control read and with a readable synthesized controller status.",
+  "schema": "stage-control-v1",
+  "severity": "medium",
+  "verdict": "KEEP"
+}

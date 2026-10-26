@@ -1,0 +1,2 @@
+{"schema":"workflow-artifact-read-v1","runId":"workflow_mvotu0ko_b9761d","taskId":"task-4","source":"impact-analysis.change-scope","artifact":"control","at":"2026-10-26T05:43:52.042Z","bytes":7349,"returnedBytes":6164,"truncated":false,"path":"$","maxChars":51200}
+{"schema":"workflow-artifact-read-v1","runId":"workflow_mvotu0ko_b9761d","taskId":"task-4","source":"impact-analysis.implementation-map","artifact":"control","at":"2026-10-26T05:43:54.060Z","bytes":13078,"returnedBytes":10412,"truncated":false,"path":"$","maxChars":51200}

@@ -1,0 +1,398 @@
+<control>{
+  "schema": "stage-control-v1",
+  "digest": "18 requirements have positive source coverage; one terminal-status precedence candidate affects two partial requirements, and degradation precedence remains unclear.",
+  "requirementCoverage": [
+    {
+      "requirementId": "REQ-001",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 12,
+          "lineEnd": 16,
+          "quote": "if (!signal) return () => {};\n\tconst key = workflowRunPath(cwd, runId);\n\tconst signals = launchSignals.get(key) ?? new Set<AbortSignal>();\n\tsignals.add(signal);\n\tlaunchSignals.set(key, signals);"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-002",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 17,
+          "lineEnd": 21,
+          "quote": "return () => {\n\t\tsignals.delete(signal);\n\t\tif (signals.size === 0 && launchSignals.get(key) === signals)\n\t\t\tlaunchSignals.delete(key);\n\t};"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-003",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 24,
+          "lineEnd": 28,
+          "quote": "function launchStopRequested(cwd: string, runId: string): boolean {\n\treturn [...(launchSignals.get(workflowRunPath(cwd, runId)) ?? [])].some(\n\t\t(signal) => signal.aborted,\n\t);\n}"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-004",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 30,
+          "lineEnd": 30,
+          "quote": "export const WORKFLOW_STOP_REQUESTED_ERROR_NAME = \"WorkflowStopRequested\";"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 43,
+          "lineEnd": 51,
+          "quote": "export function workflowStopRequestedMessage(runId: string): string {\n\treturn `workflow stop requested for ${runId}`;\n}\n\nexport function createWorkflowStopRequestedError(runId: string): Error {\n\tconst error = new Error(workflowStopRequestedMessage(runId));\n\terror.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME;\n\treturn error;\n}"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-005",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 30,
+          "lineEnd": 30,
+          "quote": "export const WORKFLOW_STOP_REQUESTED_ERROR_NAME = \"WorkflowStopRequested\";"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 53,
+          "lineEnd": 59,
+          "quote": "export function isWorkflowStopRequestedError(error: unknown): boolean {\n\treturn (\n\t\terror instanceof Error &&\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))\n\t);\n}"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-006",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 31,
+          "lineEnd": 41,
+          "quote": "const WORKFLOW_STOP_PENDING_ERROR_NAME = \"WorkflowStopPending\";\n\nexport function createWorkflowStopPendingError(message: string): Error {\n\tconst error = new Error(message);\n\terror.name = WORKFLOW_STOP_PENDING_ERROR_NAME;\n\treturn error;\n}\n\nexport function isWorkflowStopPendingError(error: unknown): error is Error {\n\treturn error instanceof Error && error.name === WORKFLOW_STOP_PENDING_ERROR_NAME;\n}"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-007",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 93,
+          "lineEnd": 98,
+          "quote": "if (launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);\n\tconst intent = await readWorkflowStopIntent(cwd, runId);\n\t// Cancellation may have arrived while the disk read was in flight.\n\tif (intent || launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);",
+          "relevance": "Both launch abort and durable intent lead to the specified error."
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-008",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 95,
+          "lineEnd": 98,
+          "quote": "const intent = await readWorkflowStopIntent(cwd, runId);\n\t// Cancellation may have arrived while the disk read was in flight.\n\tif (intent || launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);",
+          "relevance": "After the awaited read, launch state is checked when intent has not already established a stop."
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-009",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 64,
+          "lineEnd": 67,
+          "quote": "options: { pollMs?: number } = {},\n): { signal: AbortSignal; dispose: () => void } {\n\tconst controller = new AbortController();\n\tconst pollMs = Math.max(10, options.pollMs ?? 50);"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 80,
+          "lineEnd": 86,
+          "quote": "void check();\n\tconst timer = setInterval(() => void check(), pollMs);\n\ttimer.unref?.();\n\treturn {\n\t\tsignal: controller.signal,\n\t\tdispose: () => clearInterval(timer),\n\t};"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-010",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 70,
+          "lineEnd": 78,
+          "quote": "if (launchStopRequested(cwd, runId)) {\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));\n\t\t\treturn;\n\t\t}\n\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);\n\t\tif (intent || launchStopRequested(cwd, runId))\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 84,
+          "lineEnd": 84,
+          "quote": "signal: controller.signal,"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-011",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 74,
+          "lineEnd": 78,
+          "quote": "const intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);\n\t\tif (intent || launchStopRequested(cwd, runId))\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));",
+          "relevance": "Read rejection becomes undefined rather than durable stop intent."
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-012",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 81,
+          "lineEnd": 85,
+          "quote": "const timer = setInterval(() => void check(), pollMs);\n\ttimer.unref?.();\n\treturn {\n\t\tsignal: controller.signal,\n\t\tdispose: () => clearInterval(timer),",
+          "relevance": "The interval is unreferenced and disposal clears it."
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-013",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "lineStart": 2,
+          "lineEnd": 6,
+          "quote": "export function isWorkflowAbortError(value: unknown): boolean {\n\tif (typeof DOMException !== \"undefined\" && value instanceof DOMException)\n\t\treturn value.name === \"AbortError\";\n\treturn isRecord(value) && value.name === \"AbortError\";\n}"
+        },
+        {
+          "file": "src/workflow-cancellation.ts",
+          "lineStart": 35,
+          "lineEnd": 37,
+          "quote": "function isRecord(value: unknown): value is Record<string, unknown> {\n\treturn typeof value === \"object\" && value !== null && !Array.isArray(value);\n}"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-014",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "lineStart": 16,
+          "lineEnd": 18,
+          "quote": "if (value.cancelled === true) return true;\n\tconst details = isRecord(value.details) ? value.details : undefined;\n\tif (details?.cancelled === true) return true;"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-015",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "lineStart": 19,
+          "lineEnd": 22,
+          "quote": "for (const candidate of [value.error, details?.error, value.reason, details?.reason]) {\n\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\") return true;\n\t\tif (isWorkflowAbortError(candidate)) return true;\n\t}"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-016",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "lineStart": 23,
+          "lineEnd": 31,
+          "quote": "if (Array.isArray(value.content)) {\n\t\tfor (const entry of value.content) {\n\t\t\tif (!isRecord(entry) || typeof entry.text !== \"string\") continue;\n\t\t\ttry {\n\t\t\t\tconst parsed: unknown = JSON.parse(entry.text);\n\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;\n\t\t\t} catch { /* ordinary provider text */ }\n\t\t}\n\t}",
+          "relevance": "Decoded text content is passed recursively through the same cancellation recognizer."
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-017",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "lineStart": 13,
+          "lineEnd": 33,
+          "quote": "export function isWorkflowReturnedCancellation(value: unknown): boolean {\n\tif (isWorkflowAbortError(value)) return true;\n\tif (!isRecord(value)) return false;\n\tif (value.cancelled === true) return true;\n\tconst details = isRecord(value.details) ? value.details : undefined;\n\tif (details?.cancelled === true) return true;\n\tfor (const candidate of [value.error, details?.error, value.reason, details?.reason]) {\n\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\") return true;\n\t\tif (isWorkflowAbortError(candidate)) return true;\n\t}\n\tif (Array.isArray(value.content)) {\n\t\tfor (const entry of value.content) {\n\t\t\tif (!isRecord(entry) || typeof entry.text !== \"string\") continue;\n\t\t\ttry {\n\t\t\t\tconst parsed: unknown = JSON.parse(entry.text);\n\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;\n\t\t\t} catch { /* ordinary provider text */ }\n\t\t}\n\t}\n\treturn false;\n}",
+          "relevance": "Unrelated errors have no acceptance path; parsed content must also satisfy the explicit recognizer."
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-018",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 76,
+          "lineEnd": 78,
+          "quote": "const terminal = isTerminalWorkflowStatus(run.status);\n\tlet semanticStatus: WorkflowSemanticStatus = nonDynamicSemanticStatus(run);\n\tlet outputTaskIds = finalStageTasks(run.tasks).map((task) => task.specId);"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 98,
+          "lineEnd": 112,
+          "quote": "return {\n\t\tterminal,\n\t\tengineStatus: run.status,\n\t\tsemanticStatus,\n\t\toutputTaskIds,\n\t\toutputRetryAttempts: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.outputRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),\n\t\tlaunchRetryAttempts: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),\n\t\tartifactRoot: workflowRunDir(cwd, run.runId),\n\t};"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-019",
+      "status": "unclear",
+      "evidence": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 67,
+          "lineEnd": 69,
+          "quote": "if (run.status === \"completed\")\n\t\treturn run.degradation ? \"completed_degraded\" : \"completed\";\n\treturn run.status;",
+          "relevance": "The baseline implements degradation reporting."
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 80,
+          "lineEnd": 87,
+          "quote": "if (terminal && run.provenance?.mode === \"direct-dynamic\") {\n\t\tconst control = await readDynamicControllerControl(cwd, run);\n\t\toutputTaskIds = stringArray(control?.outputTasks);\n\t\tconst incomplete = run.tasks.some(\n\t\t\t(task) => task.statusDetail === \"dynamic_incomplete\",\n\t\t);\n\t\tif (incomplete) semanticStatus = \"dynamic_incomplete\";\n\t\telse if (control?.status === \"synthesized\") semanticStatus = \"synthesized\";",
+          "relevance": "Direct-dynamic routing overrides the degradation baseline; SPEC items 12 and 13 do not explicitly state their precedence."
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-020",
+      "status": "partial",
+      "evidence": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 52,
+          "lineEnd": 61,
+          "quote": "const controller = run.tasks.find(\n\t\t(task) =>\n\t\t\ttask.specId === \"dynamic.controller\" ||\n\t\t\ttask.statusDetail === \"dynamic_completed\",\n\t);\n\tif (!controller) return undefined;\n\tconst taskOutput = fromProjectPath(cwd, controller.files.output);\n\treturn await readJson<DynamicControllerControl>(\n\t\tjoin(dirname(taskOutput), \"control.json\"),\n\t).catch(() => undefined);"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 80,
+          "lineEnd": 95,
+          "quote": "if (terminal && run.provenance?.mode === \"direct-dynamic\") {\n\t\tconst control = await readDynamicControllerControl(cwd, run);\n\t\toutputTaskIds = stringArray(control?.outputTasks);\n\t\tconst incomplete = run.tasks.some(\n\t\t\t(task) => task.statusDetail === \"dynamic_incomplete\",\n\t\t);\n\t\tif (incomplete) semanticStatus = \"dynamic_incomplete\";\n\t\telse if (control?.status === \"synthesized\") semanticStatus = \"synthesized\";\n\t\telse if (control?.status === \"exhausted\")\n\t\t\tsemanticStatus =\n\t\t\t\toutputTaskIds.length > 0\n\t\t\t\t\t? \"exhausted_with_output\"\n\t\t\t\t\t: \"exhausted_without_output\";\n\t\telse if (control?.status === \"blocked\") semanticStatus = \"dynamic_blocked\";\n\t\telse if (control?.status === \"stopped\") semanticStatus = \"dynamic_stopped\";\n\t\telse semanticStatus = \"completed_without_semantic_result\";",
+          "relevance": "Control-derived statuses exist, but the task-level incomplete marker takes precedence; linked to finding-001."
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-021",
+      "status": "partial",
+      "evidence": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 59,
+          "lineEnd": 61,
+          "quote": "return await readJson<DynamicControllerControl>(\n\t\tjoin(dirname(taskOutput), \"control.json\"),\n\t).catch(() => undefined);",
+          "relevance": "A rejected control read becomes undefined."
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 83,
+          "lineEnd": 86,
+          "quote": "const incomplete = run.tasks.some(\n\t\t\t(task) => task.statusDetail === \"dynamic_incomplete\",\n\t\t);\n\t\tif (incomplete) semanticStatus = \"dynamic_incomplete\";",
+          "relevance": "This branch bypasses the unreadable-control fallback; linked to finding-001."
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 95,
+          "lineEnd": 95,
+          "quote": "else semanticStatus = \"completed_without_semantic_result\";",
+          "relevance": "The specified fallback is present only after higher-priority branches."
+        }
+      ]
+    }
+  ],
+  "candidateFindings": [
+    {
+      "id": "finding-001",
+      "requirementIds": ["REQ-020", "REQ-021"],
+      "severity": "medium",
+      "title": "Task incomplete marker overrides controller status and unreadable-control fallback",
+      "claim": "For a terminal direct-dynamic run containing a task marked dynamic_incomplete, summarizeWorkflowTerminal selects dynamic_incomplete even when reading control.json rejects. This bypasses the explicitly required completed_without_semantic_result fallback. The same branch also overrides readable controller status.",
+      "specEvidence": [
+        "SPEC.md:49-51 requires terminal direct-dynamic semantic status to derive from controller control.json and says an unreadable control yields completed_without_semantic_result."
+      ],
+      "implementationEvidence": [
+        "src/workflow-terminal.ts:59-61 converts a rejected control.json read into undefined.",
+        "src/workflow-terminal.ts:80-86 selects dynamic_incomplete from run.tasks before examining control.status.",
+        "src/workflow-terminal.ts:87-95 reaches controller-derived statuses and completed_without_semantic_result only when no incomplete task was found."
+      ],
+      "testEvidence": [],
+      "uncertainty": "This is an unexecuted static counterexample; the sample excludes run types and store helpers. An independent verifier should seek repository evidence that excludes terminal direct-dynamic runs with an incomplete task and unreadable control, or establishes an allowed precedence exception, rather than merely confirming the branch wording."
+    }
+  ],
+  "needsHuman": [
+    {
+      "id": "degradation-precedence",
+      "requirementIds": ["REQ-019"],
+      "reason": "SPEC item 12 requires completed_degraded for completed runs with degradation, while item 13 assigns controller-derived semantics to terminal direct-dynamic runs. Source implements the degradation baseline but overrides it for direct-dynamic runs; precedence between these requirements is not explicit.",
+      "uncertainty": "Item 13 may be an intended specialization of item 12. No separate violation is asserted for this overlap.",
+      "recommendedAction": "Clarify whether terminal direct-dynamic semantics override completed_degraded, or establish that degraded completed runs cannot enter that branch."
+    }
+  ],
+  "noIssueNotes": [
+    "No additional stop or cancellation gap candidates were identified within the explicitly specified input shapes.",
+    "No tests were found, but SPEC.md does not require tests; test absence is not treated as an implementation violation.",
+    "No additional contracts were inferred for invalid poll intervals, duplicate signal bindings, pending reads after disposal, or unspecified cancellation payload shapes."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "Read-only inspection only; commands and test execution are prohibited by this stage.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "store.js and types.js are intentionally excluded from this sample; their implementations and any external tests were unavailable.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "The requested ./schemas schema file was absent; the matching workflow-bundled schema was read for manual validation.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "No tests or fixtures were found; coverage assessments use static implementation evidence, not runtime execution.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false
+}</control>
+
+<analysis>All 40 required artifact projections were read without truncation. The extracted ID set is REQ-001 through REQ-021, represented exactly once above. SPEC.md and all three in-scope implementation files were read directly. Additional complete control reads supplied ambiguities, scope boundaries, and test-inspection limitations. An unsuccessful optional scopeLimitations projection was recovered through a complete map-implementation control read; no upstream source remains inaccessible.
+
+The strongest counterexample is a terminal direct-dynamic run with an incomplete task and a rejected controller-control read. Rejection becomes undefined, but the incomplete-task branch wins before the fallback. The existing fallback therefore supports ordinary unreadable-control cases without covering this combination. This remains a candidate, not a verified finding. Independent verification should actively seek a repository invariant or specification exception that refutes the counterexample. No such invariant is established by this sample.
+
+Degradation reporting is positively implemented in the baseline. Its interaction with direct-dynamic semantics is left unresolved rather than asserting either unconditional conformance or a second violation.
+
+The empty test map supplies no behavioral assertions or counterexamples. It does not itself establish nonconformance. Dependencies explicitly excluded by SPEC.md are treated as nonblocking boundaries, not missing required implementation proof.
+
+The requested root schema was unavailable. The matching bundled candidate-findings schema was read, and this control was manually checked against its required fields, types, enums, and array limits. No validator or tests were executed.</analysis>
+
+<refs>[]</refs>

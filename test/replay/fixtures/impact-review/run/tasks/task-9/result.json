@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "Default compatibility and packaging align; enabled recording has undocumented outcome changes and incompatible shared-directory assumptions.",
+  "startedAt": "2026-10-26T05:48:06.954Z",
+  "completedAt": "2026-10-26T05:51:26.539Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "56a8151a49ca4af2a54bd8a60b3e9f28425b024176eb7f9b1a5070a284b5f095",
+    "bytes": 5674,
+    "sha256": "9c68760c0a995e8e70d95d6251fa3138f47cf3f6ab03a79075afd2b83d40cb0c",
+    "terminal": {
+      "runId": "run_mvou5ag2_58435e",
+      "attemptId": "attempt_mvou5ag2_c6dfb1",
+      "status": "completed",
+      "startedAt": "2026-10-26T05:48:06.954Z",
+      "completedAt": "2026-10-26T05:51:26.539Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 587111576,
+      "size": 1900,
+      "nlink": 1,
+      "mtimeMs": 1792993886543.1401,
+      "ctimeMs": 1792993886543.3064
+    }
+  }
+}

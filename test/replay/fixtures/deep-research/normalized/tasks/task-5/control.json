@@ -1,0 +1,628 @@
+{
+  "claimInventory": {
+    "duplicates": [
+      {
+        "canonicalClaimId": "claim-006",
+        "claim": "Repeated extracted-fact and claim rows for stdout prohibition and stderr logging permission.",
+        "otherCanonicalClaimIds": [
+          "claim-007"
+        ]
+      },
+      {
+        "canonicalClaimId": "claim-001",
+        "claim": "Release announcement and versioned-page observations overlap the selected currency and canonical-location evidence.",
+        "otherCanonicalClaimIds": [
+          "claim-002"
+        ]
+      }
+    ],
+    "preservedClaims": [
+      {
+        "claim": "The stdio specification says clients MAY capture, forward, or ignore server stderr output.",
+        "factSlotIds": [
+          "slot-005"
+        ],
+        "id": "claim-009",
+        "reason": "budget_overflow",
+        "sourceQuality": "primary",
+        "sourceRefs": [
+          "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+        ],
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ],
+        "whyItMatters": "Additional client-side permission; split from the bundled stderr claim but less central than required server rules."
+      },
+      {
+        "claim": "The stdio specification states that the server writes JSON-RPC messages to stdout.",
+        "factSlotIds": [
+          "slot-004"
+        ],
+        "id": "claim-010",
+        "reason": "unverified_slot_fact",
+        "sourceQuality": "primary",
+        "sourceRefs": [
+          "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+        ],
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ],
+        "whyItMatters": "Preserves the positive stdout description alongside the selected prohibition."
+      },
+      {
+        "claim": "The stdio specification states that messages are delimited by newlines.",
+        "factSlotIds": [
+          "slot-002"
+        ],
+        "id": "preserved-claim-004",
+        "originalCandidateId": "claim-004",
+        "reasonToVerify": "Protects the exact delimiter requirement in critical slot-002.",
+        "sanitizerDemotionReasons": [
+          "source_hint_claim_mismatch"
+        ],
+        "scopeItems": [
+          "Stdio message framing"
+        ],
+        "sourceQuality": "primary",
+        "sourceRefs": [
+          "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+        ],
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ],
+        "status": "preserved_rewritten_before_verification",
+        "verificationNeed": "core",
+        "whyItMatters": "Protects the exact delimiter requirement in critical slot-002."
+      }
+    ],
+    "verificationCandidates": [
+      {
+        "claim": "The official versioning page identifies 2026-07-28 as the current MCP protocol version.",
+        "factSlotIds": [
+          "slot-001"
+        ],
+        "id": "claim-001",
+        "reasonToVerify": "Establishes controlling version for critical slot-001 rather than relying on an announcement or older discovery URL.",
+        "scopeItems": [
+          "Current specification authority"
+        ],
+        "sourceQuality": "primary",
+        "sourceRefs": [
+          "wsrc_6f2e06f5a0dd2c8d98ce75ab416660e7"
+        ],
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/versioning"
+        ],
+        "verificationNeed": "core",
+        "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
+      },
+      {
+        "claim": "The official transport overview links stdio to /specification/2026-07-28/basic/transports/stdio.md.",
+        "factSlotIds": [
+          "slot-001"
+        ],
+        "id": "claim-002",
+        "reasonToVerify": "Supplies the canonical binding location required by slot-001.",
+        "scopeItems": [
+          "Current specification authority"
+        ],
+        "sourceQuality": "primary",
+        "sourceRefs": [
+          "wsrc_3af3257c452fc577322dd1fe372b693b",
+          "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+        ],
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/latest/basic/transports",
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ],
+        "verificationNeed": "core",
+        "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
+      },
+      {
+        "claim": "The stdio specification states that each message is a single JSON-RPC request, notification, or response.",
+        "factSlotIds": [
+          "slot-002"
+        ],
+        "id": "claim-003",
+        "reasonToVerify": "Recovers slot-002 message-format evidence despite the framing question's retrieval failure.",
+        "scopeItems": [
+          "Stdio message framing"
+        ],
+        "sourceEvidenceHints": [
+          {
+            "factSlotIds": [
+              "slot-004"
+            ],
+            "quote": "The server **MUST NOT** write anything to its `stdout` that is not a valid MCP\n  message.",
+            "relevance": "Plain-text logs, banners, and debug prints are therefore prohibited on stdout; this is an application of the normative rule.",
+            "sourceQuality": "primary",
+            "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+            "sourceTitleOrPublisher": "Model Context Protocol specification — stdio",
+            "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+            "value": "The server writes JSON-RPC messages to stdout; each message is a single request, notification, or response. It MUST NOT write anything to stdout that is not a valid MCP message."
+          }
+        ],
+        "sourceQuality": "primary",
+        "sourceRefs": [
+          "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+        ],
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ],
+        "verificationNeed": "core",
+        "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
+      },
+      {
+        "claim": "The server **MUST NOT** write anything to its `stdout` that is not a valid MCP\n  message.",
+        "factSlotIds": [
+          "slot-002"
+        ],
+        "id": "claim-004",
+        "originalClaim": "The stdio specification states that messages are delimited by newlines.",
+        "reasonToVerify": "Deterministically rewritten to a source-backed atom from Model Context Protocol specification — stdio.",
+        "sanitizerRewriteReasons": [
+          "source_hint_claim_mismatch"
+        ],
+        "scopeItems": [
+          "Stdio message framing"
+        ],
+        "sourceEvidenceHints": [
+          {
+            "factSlotIds": [
+              "slot-004"
+            ],
+            "quote": "The server **MUST NOT** write anything to its `stdout` that is not a valid MCP\n  message.",
+            "relevance": "Plain-text logs, banners, and debug prints are therefore prohibited on stdout; this is an application of the normative rule.",
+            "sourceQuality": "primary",
+            "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+            "sourceTitleOrPublisher": "Model Context Protocol specification — stdio",
+            "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+            "value": "The server writes JSON-RPC messages to stdout; each message is a single request, notification, or response. It MUST NOT write anything to stdout that is not a valid MCP message."
+          },
+          {
+            "factSlotIds": [
+              "slot-005"
+            ],
+            "quote": "The server **MAY** write UTF-8 strings to `stderr` for any logging purposes\n  including informational, debug, and error messages.",
+            "relevance": "MAY is permission, not a requirement to log. Stderr is not restricted to errors.",
+            "sourceQuality": "primary",
+            "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+            "sourceTitleOrPublisher": "Model Context Protocol specification — stdio",
+            "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+            "value": "The server MAY write UTF-8 strings to stderr for any logging purposes, including informational, debug, and error messages."
+          }
+        ],
+        "sourceQuality": "primary",
+        "sourceRefs": [
+          "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+        ],
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ],
+        "verificationNeed": "core",
+        "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
+      },
+      {
+        "claim": "The stdio specification says messages MUST NOT contain embedded newlines.",
+        "factSlotIds": [
+          "slot-002"
+        ],
+        "id": "claim-005",
+        "reasonToVerify": "Separates slot-002's embedded-newline prohibition from its delimiter statement without weakening normative strength.",
+        "scopeItems": [
+          "Stdio message framing"
+        ],
+        "sourceEvidenceHints": [
+          {
+            "factSlotIds": [
+              "slot-004"
+            ],
+            "quote": "The server **MUST NOT** write anything to its `stdout` that is not a valid MCP\n  message.",
+            "relevance": "Plain-text logs, banners, and debug prints are therefore prohibited on stdout; this is an application of the normative rule.",
+            "sourceQuality": "primary",
+            "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+            "sourceTitleOrPublisher": "Model Context Protocol specification — stdio",
+            "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+            "value": "The server writes JSON-RPC messages to stdout; each message is a single request, notification, or response. It MUST NOT write anything to stdout that is not a valid MCP message."
+          },
+          {
+            "factSlotIds": [
+              "slot-005"
+            ],
+            "quote": "The server **MAY** write UTF-8 strings to `stderr` for any logging purposes\n  including informational, debug, and error messages.",
+            "relevance": "MAY is permission, not a requirement to log. Stderr is not restricted to errors.",
+            "sourceQuality": "primary",
+            "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+            "sourceTitleOrPublisher": "Model Context Protocol specification — stdio",
+            "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+            "value": "The server MAY write UTF-8 strings to stderr for any logging purposes, including informational, debug, and error messages."
+          },
+          {
+            "factSlotIds": [
+              "slot-005"
+            ],
+            "quote": "The client **MAY** capture, forward, or ignore the server's `stderr` output and\n  **SHOULD NOT** assume `stderr` output indicates error conditions.",
+            "relevance": "Client-side context prevents interpreting all server stderr output as failure.",
+            "sourceQuality": "primary",
+            "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+            "sourceTitleOrPublisher": "Model Context Protocol specification — stdio",
+            "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+            "value": "The client MAY capture, forward, or ignore server stderr and SHOULD NOT assume stderr output indicates error conditions."
+          }
+        ],
+        "sourceQuality": "primary",
+        "sourceRefs": [
+          "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+        ],
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ],
+        "verificationNeed": "core",
+        "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
+      },
+      {
+        "claim": "The stdio specification says the server MUST NOT write anything to stdout that is not a valid MCP message.",
+        "factSlotIds": [
+          "slot-004"
+        ],
+        "id": "claim-006",
+        "reasonToVerify": "Preserves slot-004's exact source-stated prohibition instead of deriving a broader logging recommendation.",
+        "scopeItems": [
+          "Server stdout and stderr rules"
+        ],
+        "sourceEvidenceHints": [
+          {
+            "factSlotIds": [
+              "slot-004"
+            ],
+            "quote": "The server **MUST NOT** write anything to its `stdout` that is not a valid MCP\n  message.",
+            "relevance": "Plain-text logs, banners, and debug prints are therefore prohibited on stdout; this is an application of the normative rule.",
+            "sourceQuality": "primary",
+            "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+            "sourceTitleOrPublisher": "Model Context Protocol specification — stdio",
+            "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+            "value": "The server writes JSON-RPC messages to stdout; each message is a single request, notification, or response. It MUST NOT write anything to stdout that is not a valid MCP message."
+          },
+          {
+            "factSlotIds": [
+              "slot-005"
+            ],
+            "quote": "The server **MAY** write UTF-8 strings to `stderr` for any logging purposes\n  including informational, debug, and error messages.",
+            "relevance": "MAY is permission, not a requirement to log. Stderr is not restricted to errors.",
+            "sourceQuality": "primary",
+            "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+            "sourceTitleOrPublisher": "Model Context Protocol specification — stdio",
+            "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+            "value": "The server MAY write UTF-8 strings to stderr for any logging purposes, including informational, debug, and error messages."
+          },
+          {
+            "factSlotIds": [
+              "slot-005"
+            ],
+            "quote": "The client **MAY** capture, forward, or ignore the server's `stderr` output and\n  **SHOULD NOT** assume `stderr` output indicates error conditions.",
+            "relevance": "Client-side context prevents interpreting all server stderr output as failure.",
+            "sourceQuality": "primary",
+            "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+            "sourceTitleOrPublisher": "Model Context Protocol specification — stdio",
+            "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+            "value": "The client MAY capture, forward, or ignore server stderr and SHOULD NOT assume stderr output indicates error conditions."
+          }
+        ],
+        "sourceQuality": "primary",
+        "sourceRefs": [
+          "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+        ],
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ],
+        "verificationNeed": "core",
+        "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
+      },
+      {
+        "claim": "The stdio specification says servers MAY write UTF-8 strings to stderr for any logging purposes, including informational, debug, and error messages.",
+        "factSlotIds": [
+          "slot-005"
+        ],
+        "id": "claim-007",
+        "reasonToVerify": "Protects slot-005's permission, logging scope, and stderr-specific encoding without asserting message encoding.",
+        "scopeItems": [
+          "Server stdout and stderr rules"
+        ],
+        "sourceEvidenceHints": [
+          {
+            "factSlotIds": [
+              "slot-005"
+            ],
+            "quote": "The server **MAY** write UTF-8 strings to `stderr` for any logging purposes\n  including informational, debug, and error messages.",
+            "relevance": "MAY is permission, not a requirement to log. Stderr is not restricted to errors.",
+            "sourceQuality": "primary",
+            "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+            "sourceTitleOrPublisher": "Model Context Protocol specification — stdio",
+            "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+            "value": "The server MAY write UTF-8 strings to stderr for any logging purposes, including informational, debug, and error messages."
+          },
+          {
+            "factSlotIds": [
+              "slot-005"
+            ],
+            "quote": "The client **MAY** capture, forward, or ignore the server's `stderr` output and\n  **SHOULD NOT** assume `stderr` output indicates error conditions.",
+            "relevance": "Client-side context prevents interpreting all server stderr output as failure.",
+            "sourceQuality": "primary",
+            "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+            "sourceTitleOrPublisher": "Model Context Protocol specification — stdio",
+            "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+            "value": "The client MAY capture, forward, or ignore server stderr and SHOULD NOT assume stderr output indicates error conditions."
+          },
+          {
+            "factSlotIds": [
+              "slot-004"
+            ],
+            "quote": "The server **MUST NOT** write anything to its `stdout` that is not a valid MCP\n  message.",
+            "relevance": "Plain-text logs, banners, and debug prints are therefore prohibited on stdout; this is an application of the normative rule.",
+            "sourceQuality": "primary",
+            "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+            "sourceTitleOrPublisher": "Model Context Protocol specification — stdio",
+            "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+            "value": "The server writes JSON-RPC messages to stdout; each message is a single request, notification, or response. It MUST NOT write anything to stdout that is not a valid MCP message."
+          }
+        ],
+        "sourceQuality": "primary",
+        "sourceRefs": [
+          "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+        ],
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ],
+        "verificationNeed": "core",
+        "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
+      },
+      {
+        "claim": "The stdio specification says clients SHOULD NOT assume server stderr output indicates error conditions.",
+        "factSlotIds": [
+          "slot-005"
+        ],
+        "id": "claim-008",
+        "reasonToVerify": "Separates a bundled obligation and preserves slot-005 context that stderr is not limited to errors.",
+        "scopeItems": [
+          "Server stdout and stderr rules"
+        ],
+        "sourceEvidenceHints": [
+          {
+            "factSlotIds": [
+              "slot-005"
+            ],
+            "quote": "The client **MAY** capture, forward, or ignore the server's `stderr` output and\n  **SHOULD NOT** assume `stderr` output indicates error conditions.",
+            "relevance": "Client-side context prevents interpreting all server stderr output as failure.",
+            "sourceQuality": "primary",
+            "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+            "sourceTitleOrPublisher": "Model Context Protocol specification — stdio",
+            "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+            "value": "The client MAY capture, forward, or ignore server stderr and SHOULD NOT assume stderr output indicates error conditions."
+          },
+          {
+            "factSlotIds": [
+              "slot-005"
+            ],
+            "quote": "The server **MAY** write UTF-8 strings to `stderr` for any logging purposes\n  including informational, debug, and error messages.",
+            "relevance": "MAY is permission, not a requirement to log. Stderr is not restricted to errors.",
+            "sourceQuality": "primary",
+            "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+            "sourceTitleOrPublisher": "Model Context Protocol specification — stdio",
+            "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+            "value": "The server MAY write UTF-8 strings to stderr for any logging purposes, including informational, debug, and error messages."
+          },
+          {
+            "factSlotIds": [
+              "slot-004"
+            ],
+            "quote": "The server **MUST NOT** write anything to its `stdout` that is not a valid MCP\n  message.",
+            "relevance": "Plain-text logs, banners, and debug prints are therefore prohibited on stdout; this is an application of the normative rule.",
+            "sourceQuality": "primary",
+            "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+            "sourceTitleOrPublisher": "Model Context Protocol specification — stdio",
+            "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+            "value": "The server writes JSON-RPC messages to stdout; each message is a single request, notification, or response. It MUST NOT write anything to stdout that is not a valid MCP message."
+          }
+        ],
+        "sourceQuality": "primary",
+        "sourceRefs": [
+          "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83"
+        ],
+        "sourceUrls": [
+          "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+        ],
+        "verificationNeed": "useful",
+        "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
+      }
+    ]
+  },
+  "coverageGaps": [
+    {
+      "gapReason": "General wire-message encoding is not established by visible evidence; stderr UTF-8 logging is a different control.",
+      "parentImpact": "Encoding must remain explicitly unresolved.",
+      "relatedFactSlotIds": [
+        "slot-003"
+      ],
+      "scopeItem": "Stdio message framing",
+      "status": "missing primary source"
+    },
+    {
+      "gapReason": "rq-002 exhausted its search budget after failed transport fetches. Other cached evidence recovered framing, but not message encoding.",
+      "parentImpact": "Do not equate question completion with complete evidence coverage.",
+      "relatedFactSlotIds": [
+        "slot-002",
+        "slot-003"
+      ],
+      "scopeItem": "Stdio message framing",
+      "status": "budget_exhausted"
+    }
+  ],
+  "digest": "Support helper completed.",
+  "factSlotCoverage": [
+    {
+      "bestValue": "Official versioning identifies 2026-07-28 as current; the transport overview links its dedicated stdio binding.",
+      "gapReason": "",
+      "label": "Current official specification version and canonical stdio section",
+      "parentImpact": "Provides version authority for the transport rules; verification remains pending.",
+      "slotId": "slot-001",
+      "sourceQuality": "primary",
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/versioning",
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+      ],
+      "status": "filled",
+      "verificationCandidateIds": [
+        "claim-001",
+        "claim-002"
+      ]
+    },
+    {
+      "bestValue": "Each message is a single JSON-RPC request, notification, or response. Messages are newline-delimited and MUST NOT contain embedded newlines.",
+      "gapReason": "",
+      "label": "Stdio message format, delimiter, and embedded newline rules",
+      "parentImpact": "Framing evidence recovered from the stream-policy source; verification remains pending.",
+      "slotId": "slot-002",
+      "sourceQuality": "primary",
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+      ],
+      "status": "filled",
+      "verificationCandidateIds": [
+        "claim-003",
+        "claim-004",
+        "claim-005"
+      ]
+    },
+    {
+      "bestValue": "",
+      "gapReason": "No retrieved passage establishes general message encoding. UTF-8 permission for stderr logging does not establish wire-message encoding.",
+      "label": "Applicable message encoding requirements",
+      "parentImpact": "Do not assert a general UTF-8 message requirement without further primary evidence.",
+      "slotId": "slot-003",
+      "sourceQuality": "missing primary passage",
+      "sourceUrls": [],
+      "status": "missing",
+      "verificationCandidateIds": []
+    },
+    {
+      "bestValue": "Server stdout carries JSON-RPC messages; the server MUST NOT write anything to stdout that is not a valid MCP message.",
+      "gapReason": "",
+      "label": "Server stdout permitted content and prohibitions",
+      "parentImpact": "Supports the exact stdout restriction; positive stream description is preserved separately.",
+      "slotId": "slot-004",
+      "sourceQuality": "primary",
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+      ],
+      "status": "filled",
+      "verificationCandidateIds": [
+        "claim-006"
+      ]
+    },
+    {
+      "bestValue": "Servers MAY write UTF-8 strings to stderr for any logging purposes, including informational, debug, and error messages.",
+      "gapReason": "",
+      "label": "Server stderr logging permissions and normative strength",
+      "parentImpact": "Preserves permission rather than obligation; client capture permission remains unverified backlog.",
+      "slotId": "slot-005",
+      "sourceQuality": "primary",
+      "sourceUrls": [
+        "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+      ],
+      "status": "filled",
+      "verificationCandidateIds": [
+        "claim-007",
+        "claim-008"
+      ]
+    }
+  ],
+  "normalizationNotes": [
+    "Selected 8 candidates, meeting the quick hard cap. Two useful source-backed atoms remain preserved.",
+    "Precision guard flagged 2 claims: normative_language=2 and multi_obligation_claim=1. Reframed the stdout rule as a specification statement; split client stderr handling into separate permission and assumption atoms.",
+    "rq-002 budgetExhausted=true: searchBudget=3, searchCallsUsed=3; its ledger lists 4 attempted query strings. Other question ledgers report 2 calls used each and no exhaustion.",
+    "Overflow ledger has no nonzero counts; no upstream overflow recovery was needed.",
+    "Official versioning evidence supersedes the unresolved dashboard lookup and the unsupported suggestion that 2025-11-25 remains current.",
+    "Cached stdio source supplied exact framing excerpts absent from extractedFacts; slot preservation was updated without inferring encoding from stderr.",
+    "Coverage statuses describe available observations, not verified truth.",
+    "Schema validation could not be completed: the designated local schema file was absent."
+  ],
+  "researchScopeCoverage": [
+    {
+      "factSlotIds": [
+        "slot-001"
+      ],
+      "scopeItem": "Current specification authority",
+      "status": "covered",
+      "verificationCandidateIds": [
+        "claim-001",
+        "claim-002"
+      ]
+    },
+    {
+      "factSlotIds": [
+        "slot-002",
+        "slot-003"
+      ],
+      "gapReason": "Framing recovered; general message encoding remains unestablished.",
+      "scopeItem": "Stdio message framing",
+      "status": "partial",
+      "verificationCandidateIds": [
+        "claim-003",
+        "claim-004",
+        "claim-005"
+      ]
+    },
+    {
+      "factSlotIds": [
+        "slot-004",
+        "slot-005"
+      ],
+      "scopeItem": "Server stdout and stderr rules",
+      "status": "covered",
+      "verificationCandidateIds": [
+        "claim-006",
+        "claim-007",
+        "claim-008"
+      ]
+    }
+  ],
+  "sanitizerDiagnostics": {
+    "degradationReasons": [],
+    "degraded": false,
+    "demotedCandidateCount": 0,
+    "demotedCandidateIds": [],
+    "demotionReasonCounts": {},
+    "inputCandidateCount": 8,
+    "keptCandidateCount": 8,
+    "keptCandidateIds": [
+      "claim-001",
+      "claim-002",
+      "claim-003",
+      "claim-004",
+      "claim-005",
+      "claim-006",
+      "claim-007",
+      "claim-008"
+    ],
+    "promotedCandidateCount": 0,
+    "promotedCandidateIds": [],
+    "rewriteReasonCounts": {
+      "source_hint_claim_mismatch": 1
+    },
+    "rewrittenCandidateCount": 1,
+    "rewrittenCandidateIds": [
+      "claim-004"
+    ],
+    "schemaCapDrops": [],
+    "schemaCaps": {
+      "factSlotCoverage": 64,
+      "preservedClaims": 24,
+      "verificationCandidates": 48
+    },
+    "sourceEvidenceHintRows": 4,
+    "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+    "webUrlOnlyDemotedCount": 0,
+    "webUrlOnlyDemotedIds": []
+  },
+  "schema": "deep-research-verification-candidate-sanitizer-v1"
+}

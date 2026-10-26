@@ -1,0 +1,10 @@
+[
+  "src/workflow-stop.ts:1-28",
+  "src/workflow-stop.ts:53-85",
+  "src/workflow-stop.ts:89-99",
+  "src/workflow-cancellation.ts:1-37",
+  "src/workflow-terminal.ts:37-69",
+  "src/workflow-terminal.ts:72-95",
+  "package.json",
+  "tsconfig.json"
+]

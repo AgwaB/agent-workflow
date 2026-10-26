@@ -1,0 +1,131 @@
+{
+  "assumptions": [
+    {
+      "id": "scope",
+      "statement": "The supplied diff defines the two-file change; related files were inspected only to trace consequences."
+    },
+    {
+      "id": "activation",
+      "statement": "Overall severity reflects explicit opt-in activation. Directory exclusivity, stable working directory for relative paths, and descendant recording isolation are not enforced."
+    },
+    {
+      "id": "verification",
+      "statement": "Both required upstream controls were read through complete, non-truncated path-$ projections. No tests or runtime experiments were executed."
+    },
+    {
+      "id": "schema-validation",
+      "statement": "The requested ./schemas/api-contract-impact-control.schema.json was absent. This object was manually checked against the matching repository schema under workflows/impact-review/schemas; executable validation was unavailable."
+    }
+  ],
+  "digest": "Medium overall impact: disabled behavior is unchanged, but recording introduces failure-coupled persistence, shared-directory ordering risks, and lossy replay data. No existing-state migration is required.",
+  "impacts": [
+    {
+      "area": [
+        "state",
+        "persistence",
+        "idempotency"
+      ],
+      "condition": "Recording enabled; serialization or filesystem writes fail.",
+      "evidenceIds": [
+        "recorder-writes",
+        "backend-lifecycle"
+      ],
+      "id": "recording-failure-coupling",
+      "impact": "A completed API effect can appear failed to the backend, masking its result or original error and disrupting launch, barrier, interruption, or refresh state.",
+      "severity": "high"
+    },
+    {
+      "area": [
+        "cache",
+        "lifecycle"
+      ],
+      "condition": "Recording configuration changes or recorder initialization fails.",
+      "evidenceIds": [
+        "recorder-gate",
+        "backend-cache"
+      ],
+      "id": "loader-cache-lifecycle",
+      "impact": "The cached import promise retains the first recording choice or initialization rejection; changing the environment does not repair an initialized loader.",
+      "severity": "medium"
+    },
+    {
+      "area": [
+        "concurrency",
+        "artifacts",
+        "idempotency"
+      ],
+      "condition": "Multiple wrappers, processes, or recording sessions use one directory.",
+      "evidenceIds": [
+        "recorder-writes",
+        "replay-consumer",
+        "capture-tool",
+        "worker-environment"
+      ],
+      "id": "directory-reuse-and-sharing",
+      "impact": "Calls accumulate with wrapper-local sequence numbers while surface metadata is overwritten; replay ignores producer identity and can consume a mixed history.",
+      "severity": "medium"
+    },
+    {
+      "area": [
+        "ordering",
+        "persistence",
+        "artifacts"
+      ],
+      "condition": "Concurrent calls, interrupted processes, or capture before calls settle.",
+      "evidenceIds": [
+        "recorder-writes",
+        "replay-consumer"
+      ],
+      "id": "incomplete-recording-history",
+      "impact": "Lines represent completed calls only. Physical order follows completion; sequence order follows invocation. Pending or partially written calls cannot be reliably recovered.",
+      "severity": "medium"
+    },
+    {
+      "area": [
+        "data-shape",
+        "artifacts"
+      ],
+      "condition": "Replay depends on distinctions discarded by projection.",
+      "evidenceIds": [
+        "recorder-projection",
+        "recorder-writes",
+        "replay-consumer"
+      ],
+      "id": "lossy-recorded-data",
+      "impact": "Undefined results become null; special values, container types, and most Error metadata are not reconstructible. Recordings are not lossless state snapshots or recovery journals.",
+      "severity": "medium"
+    },
+    {
+      "area": [
+        "data-flow",
+        "lifecycle"
+      ],
+      "condition": "Exceptional values reach argument, result, or error projection.",
+      "evidenceIds": [
+        "recorder-projection",
+        "recorder-writes",
+        "recorder-test"
+      ],
+      "id": "projection-exceptions",
+      "impact": "Invalid Dates, throwing getters, or cyclic Error metadata can abort projection. Error cycle detection occurs too late to handle a self-referential code field.",
+      "severity": "medium"
+    },
+    {
+      "area": [
+        "persistence",
+        "data-retention",
+        "concurrency"
+      ],
+      "condition": "Recording enabled for large or long-running workflows.",
+      "evidenceIds": [
+        "recorder-writes",
+        "backend-lifecycle"
+      ],
+      "id": "recording-storage-policy",
+      "impact": "Prompts and API payloads are persisted without redaction, limits, rotation, or cleanup. Synchronous serialization and writes add event-loop contention and disk-exhaustion exposure.",
+      "severity": "medium"
+    }
+  ],
+  "schema": "stage-control-v1",
+  "status": "medium"
+}

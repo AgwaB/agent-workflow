@@ -1,0 +1,25 @@
+{
+  "schema": "deep-research-verify-claim-v1",
+  "digest": "Verified server stderr logging permission.",
+  "id": "claim-007",
+  "status": "verified",
+  "confidence": "high",
+  "verdictDigest": {
+    "support": "The cited primary specification explicitly permits UTF-8 stderr logging for informational, debug, and error messages.",
+    "sourceUrls": [
+      "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md"
+    ]
+  },
+  "evidence": [
+    {
+      "source": "Model Context Protocol specification — stdio",
+      "url": "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.md",
+      "sourceRef": "wsrc_ff966eae34ec1ec6ab48a4f0cf055b83",
+      "quote": "The server **MAY** write UTF-8 strings to `stderr` for any logging purposes\n  including informational, debug, and error messages.",
+      "matchType": "exact",
+      "relevance": "Directly establishes permission, encoding, stream, and logging scope."
+    }
+  ],
+  "caveats": [],
+  "correctionOrCounterclaim": ""
+}

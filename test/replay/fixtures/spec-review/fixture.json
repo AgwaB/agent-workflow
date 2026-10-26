@@ -1,0 +1,29 @@
+{
+  "schema": "pi-workflow-replay-fixture-v1",
+  "name": "spec-review",
+  "workflowRunId": "workflow_mvoufde9_8566f1",
+  "task": "Review whether src/ conforms to SPEC.md.",
+  "bundledWorkflow": "spec-review",
+  "spec": "<PKG>/workflows/spec-review/spec.json",
+  "expectedStatus": "failed",
+  "projectFiles": [
+    "SPEC.md",
+    "src/workflow-stop.ts",
+    "src/workflow-cancellation.ts",
+    "src/workflow-terminal.ts"
+  ],
+  "rootPathLength": 42,
+  "replayRoot": "/private/tmp/piwf-replay-roots/spec-review",
+  "replayRootPlatform": "darwin",
+  "projectAgents": {
+    "scout": "project/agents/scout.md"
+  },
+  "env": {
+    "PI_WORKFLOW_MAX_CONCURRENT_LAUNCHES": "6"
+  },
+  "recordedWith": {
+    "piWorkflowBase": "b83cc4f",
+    "seamBranch": "work/wp1a-recording-seam-20261026",
+    "driver": "internal/record/run-bundled.mjs (in-process dist/engine.js runWorkflow + waitForRun)"
+  }
+}

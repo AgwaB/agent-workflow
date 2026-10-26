@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "The cited specification explicitly prohibits non-MCP stdout output.",
+  "startedAt": "2026-10-26T06:15:36.416Z",
+  "completedAt": "2026-10-26T06:16:04.774Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "0dedc264d6116662dd39eaf2b27b57c951391f68fd3ef28de4bca021407b21e4",
+    "bytes": 1438,
+    "sha256": "bc1ac5706150acc863b47abfa5c03af0899df057bd230f52979280e156090a3a",
+    "terminal": {
+      "runId": "run_mvov4n0b_78d09d",
+      "attemptId": "attempt_mvov4n0b_7b17f6",
+      "status": "completed",
+      "startedAt": "2026-10-26T06:15:36.416Z",
+      "completedAt": "2026-10-26T06:16:04.774Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 587211846,
+      "size": 1865,
+      "nlink": 1,
+      "mtimeMs": 1792995364775.2024,
+      "ctimeMs": 1792995364775.3625
+    }
+  }
+}

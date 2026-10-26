@@ -1,0 +1,132 @@
+{
+  "assumptions": [
+    {
+      "id": "scope",
+      "statement": "The supplied two-file diff and stated checkout revision define the assessed change."
+    },
+    {
+      "id": "source-completeness",
+      "statement": "All three required upstream control artifacts were read through complete, non-truncated root JSON projections."
+    },
+    {
+      "id": "execution",
+      "statement": "No tests, builds, package operations, or registry checks were executed."
+    },
+    {
+      "id": "support-intent",
+      "statement": "Source comments identify a WP1a diagnostic seam; its intended long-term support contract is unspecified."
+    },
+    {
+      "id": "schema-validation",
+      "statement": "The requested root schema path was absent. Required fields and types were checked manually against the matching workflow-local schema; no executable validator was available."
+    }
+  ],
+  "digest": "Medium opt-in operational/documentation impact; packaging accommodates the recorder, but activation and artifact-handling guidance are missing.",
+  "impacts": [
+    {
+      "actions": [
+        "Document opt-in use without promising a stable public recording API"
+      ],
+      "area": "docs",
+      "evidenceRefs": [
+        "loader",
+        "recorder",
+        "usage"
+      ],
+      "gaps": [
+        "Diagnostic classification",
+        "Activation timing",
+        "Artifact format and limitations"
+      ],
+      "id": "documentation",
+      "severity": "medium",
+      "surfaces": [
+        "docs/usage.md environment inventory",
+        "recording configuration"
+      ]
+    },
+    {
+      "actions": [
+        "Use a fresh private directory outside publish roots",
+        "Document manual cleanup and review before sharing"
+      ],
+      "area": "operational-artifacts",
+      "evidenceRefs": [
+        "recorder",
+        "launch-inputs",
+        "retention",
+        "metadata"
+      ],
+      "id": "recording-operations",
+      "risks": [
+        "Unredacted content",
+        "Umask-dependent permissions",
+        "Unbounded retention",
+        "Mixed recordings on directory reuse",
+        "Recording failures affect API outcomes"
+      ],
+      "severity": "medium"
+    },
+    {
+      "actions": [
+        "Verify fresh build and packed recorder inclusion",
+        "Exclude generated recordings from package contents"
+      ],
+      "area": "package-release",
+      "dependencyChangeRequired": false,
+      "evidenceRefs": [
+        "metadata",
+        "build-config",
+        "release-check",
+        "public-surface"
+      ],
+      "expectedOutputs": [
+        "src/subagent-api-recorder.ts",
+        "dist/subagent-api-recorder.js",
+        "dist/subagent-api-recorder.d.ts"
+      ],
+      "id": "packaging",
+      "publicExportAdded": false,
+      "severity": "low"
+    },
+    {
+      "actions": [
+        "Run validate, E2E, package dry run, and release checks",
+        "Add isolated loader-activation coverage"
+      ],
+      "area": "ci-publish",
+      "evidenceRefs": [
+        "tests",
+        "ci",
+        "publish",
+        "validation-map"
+      ],
+      "gaps": [
+        "Real loader activation coverage",
+        "Recorder-enabled packed-consumer coverage",
+        "Filesystem failure and directory-reuse coverage"
+      ],
+      "id": "ci-validation",
+      "severity": "medium"
+    },
+    {
+      "actions": [
+        "Describe the default-off diagnostic seam in release communication",
+        "Do not present ignored internal drivers as shipped commands"
+      ],
+      "area": "migration-examples",
+      "evidenceRefs": [
+        "loader",
+        "metadata",
+        "local-tooling",
+        "public-surface"
+      ],
+      "existingExampleChangesRequired": false,
+      "id": "migration-examples",
+      "severity": "low",
+      "workflowMigrationRequired": false
+    }
+  ],
+  "schema": "stage-control-v1",
+  "status": "medium"
+}

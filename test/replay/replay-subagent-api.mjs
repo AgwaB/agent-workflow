@@ -5,7 +5,12 @@
 //
 // Matching: method + replayKey(method, args) from ./normalize.mjs (same
 // normalization as the run record; allowed-difference renaming applied per
-// call). Recorded calls for one key are served in recorded order.
+// call) + the literal pi-subagent run/attempt ids in the arguments
+// (replayQueueId). Replay hands out the recorded run/attempt ids verbatim, so
+// they are reproducible; keeping them in the queue identity stops the polls of
+// two attempts of one task (output retry, launch retry) from sharing a queue,
+// which per-call id numbering would otherwise collapse into one key.
+// Recorded calls for one queue are served in recorded order.
 //   - Observation methods (status/reconcile/state reads, pure helpers) collapse
 //     consecutive identical normalized responses and repeat the last response
 //     once exhausted: poll counts are timing, not behavior.
@@ -25,8 +30,17 @@
 // Side effects the real API leaves on disk are restored from the recording:
 //   - createDurableLaunchBarrierV2: the recorded barrier directory files
 //     (from <fixture>/run/...) are written at the returned descriptor.directory.
-//   - first terminal getSubagentStatus: <fixture>/subagent-runs is written to
-//     <ROOT>/.pi/workflow-subagents/<workflowRunId>/.
+//   - first terminal getSubagentStatus for a task: <fixture>/subagent-runs/<taskId>
+//     is written to <ROOT>/.pi/workflow-subagents/<workflowRunId>/<taskId>, and
+//     the files the worker process itself writes into the workflow task directory
+//     (WORKER_WRITTEN_TASK_FILES: the workflow_artifact read ledger) are restored
+//     from <fixture>/run/tasks/<taskId>/. The engine checks required artifact
+//     reads against that ledger after the worker ends.
+//   - first terminal getSubagentStatus for a pi-subagent run R: when the fixture
+//     has <fixture>/worker-snapshots/R/web-source-cache (recorded by
+//     run-bundled.mjs --snapshot-web-cache when the engine first saw R terminal),
+//     its files are written over <ROOT>/.pi/workflows/<workflowRunId>/web-source-cache.
+//     Workers fill that shared cache during their run; support helpers read it.
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
@@ -50,7 +64,19 @@ const KNOWN_SYNC_METHODS = new Set([
 	"isDurableLaunchBarrierError",
 	"isDurableLaunchBarrierRevokedError",
 ]);
+// Files the worker (through the generated workflow_artifact extension) writes
+// into <ROOT>/.pi/workflows/<workflowRunId>/tasks/<taskId>/ during its run.
+const WORKER_WRITTEN_TASK_FILES = ["read-ledger.jsonl"];
 const TERMINAL = new Set(["completed", "failed", "cancelled", "interrupted", "timed_out", "timeout"]);
+
+const SUBAGENT_IDS = /\b(?:run|attempt)_[0-9a-z]{6,12}_[0-9a-f]{6}\b/g;
+
+/** Queue identity of a call: method, replay key, and literal subagent run/attempt ids in the args. */
+export function replayQueueId(method, args, ctx, allowed = []) {
+	const { key, canonical } = replayKey(method, args, ctx, allowed);
+	const ids = [...new Set(JSON.stringify(args ?? null).match(SUBAGENT_IDS) ?? [])].sort();
+	return { id: `${method}\0${key}\0${ids.join(",")}`, key, canonical };
+}
 
 export function readCalls(file) {
 	return readFileSync(file, "utf8")
@@ -110,8 +136,7 @@ export function createReplaySubagentApi(options) {
 	const queues = new Map();
 	const byMethod = new Map();
 	for (const call of calls) {
-		const { key, canonical } = replayKey(call.method, call.args, recordedCtx, allowed);
-		const id = `${call.method}\0${key}`;
+		const { id, canonical } = replayQueueId(call.method, call.args, recordedCtx, allowed);
 		if (!queues.has(id)) queues.set(id, { method: call.method, canonical, entries: [], served: 0 });
 		const queue = queues.get(id);
 		if (OBSERVATION_METHODS.has(call.method)) {
@@ -149,6 +174,26 @@ export function createReplaySubagentApi(options) {
 		const taskDir = runsDir.split("/").at(-1);
 		const from = join(source, taskDir);
 		if (existsSync(from) && statSync(from).isDirectory()) writeTreeRestored(from, join(cwd, runsDir), roots, echoes);
+		const workflowRunId = runsDir.split("/").at(-2);
+		for (const file of WORKER_WRITTEN_TASK_FILES) {
+			const recorded = join(fixtureDir, "run", "tasks", taskDir, file);
+			if (!existsSync(recorded)) continue;
+			const target = join(cwd, ".pi", "workflows", workflowRunId, "tasks", taskDir, file);
+			mkdirSync(dirname(target), { recursive: true });
+			writeFileSync(target, rebind(restorePaths(readFileSync(recorded, "utf8"), roots), echoes));
+		}
+	}
+
+	function materializeWorkerSnapshot(args, result) {
+		const runsDir = args?.[0]?.runsDir;
+		const cwd = args?.[0]?.cwd;
+		const runId = result?.runId ?? args?.[0]?.runId;
+		if (!fixtureDir || !runsDir || !cwd || !runId || materialized.has(`snapshot:${runId}`)) return;
+		materialized.add(`snapshot:${runId}`);
+		const source = join(fixtureDir, "worker-snapshots", runId, "web-source-cache");
+		if (!existsSync(source)) return;
+		const workflowRunId = runsDir.split("/").at(-2);
+		writeTreeRestored(source, join(cwd, ".pi", "workflows", workflowRunId, "web-source-cache"), roots, echoes);
 	}
 
 	function miss(method, canonical) {
@@ -173,8 +218,10 @@ export function createReplaySubagentApi(options) {
 	}
 
 	function serve(method, args) {
-		const { key, canonical } = replayKey(method, args, replayCtx, allowed);
-		const queue = queues.get(`${method}\0${key}`);
+		const { id, canonical } = replayQueueId(method, args, replayCtx, allowed);
+		const queue = queues.get(id);
+		if (process.env.PI_WORKFLOW_REPLAY_TRACE)
+			process.stderr.write(`replay ${method} ${queue ? `queue ${queue.served}/${queue.entries.length}` : "MISS"} ${canonical.slice(0, process.env.PI_WORKFLOW_REPLAY_TRACE === "full" ? undefined : 160)}\n`);
 		if (!queue) throw miss(method, canonical);
 		let entry;
 		if (queue.served < queue.entries.length) entry = queue.entries[queue.served++];
@@ -192,7 +239,10 @@ export function createReplaySubagentApi(options) {
 		const result =
 			entry.result === undefined ? undefined : JSON.parse(rebind(restorePaths(JSON.stringify(entry.result), roots), echoes));
 		if (method === "createDurableLaunchBarrierV2") materializeBarrier(entry.result);
-		if (method === "getSubagentStatus" && TERMINAL.has(result?.status)) materializeSubagentRuns(args);
+		if (method === "getSubagentStatus" && TERMINAL.has(result?.status)) {
+			materializeSubagentRuns(args);
+			materializeWorkerSnapshot(args, result);
+		}
 		return result;
 	}
 

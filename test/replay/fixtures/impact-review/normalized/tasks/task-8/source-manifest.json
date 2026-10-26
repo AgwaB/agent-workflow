@@ -1,0 +1,68 @@
+{
+  "policy": {
+    "accessMode": "workflow-task"
+  },
+  "runId": "<WF_RUN_1>",
+  "schema": "workflow-source-manifest-v1",
+  "sources": [
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-1/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-1/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-1/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-1/refs.json"
+        }
+      },
+      "digest": "Two-file, opt-in pi-subagent API recording change affecting the shared backend loader, lifecycle calls, and replay inputs.",
+      "displayName": "impact-analysis.change-scope.main",
+      "lastMessage": "completed",
+      "source": "impact-analysis.change-scope",
+      "specId": "impact-analysis.change-scope.main",
+      "stageId": "impact-analysis.change-scope",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-1"
+    },
+    {
+      "artifacts": {
+        "analysis": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-2/analysis.md"
+        },
+        "control": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-2/control.json"
+        },
+        "raw": {
+          "mediaType": "text/markdown",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-2/raw.md"
+        },
+        "refs": {
+          "mediaType": "application/json",
+          "path": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-2/refs.json"
+        }
+      },
+      "digest": "Maps the env-gated recording wrapper, shared backend API loader, workflow lifecycle callers, recording artifacts, replay consumers, and build/test surfaces without assigning risk.",
+      "displayName": "impact-analysis.implementation-map.main",
+      "lastMessage": "completed",
+      "source": "impact-analysis.implementation-map",
+      "specId": "impact-analysis.implementation-map.main",
+      "stageId": "impact-analysis.implementation-map",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-2"
+    }
+  ],
+  "taskId": "task-8"
+}

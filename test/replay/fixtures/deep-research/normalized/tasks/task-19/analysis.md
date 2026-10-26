@@ -1,0 +1,1 @@
+An exact-match read confirmed the supplied evidence quote. The claim preserves both the server-specific scope and the normative MUST NOT language without extending it into a broader logging requirement. This verifies the cited specification text, not whether that version is currently the latest release.

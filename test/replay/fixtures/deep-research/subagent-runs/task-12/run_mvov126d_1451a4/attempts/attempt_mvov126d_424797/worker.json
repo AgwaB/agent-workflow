@@ -1,0 +1,63 @@
+{
+  "cwd": "<ROOT>",
+  "backend": "headless",
+  "runId": "run_mvov126d_1451a4",
+  "attemptId": "attempt_mvov126d_424797",
+  "startedAt": "2026-10-26T06:12:48.325Z",
+  "input": {
+    "backend": "headless",
+    "workspace": "shared",
+    "worktreePolicy": "never",
+    "cwd": "<ROOT>",
+    "runsDir": ".pi/workflow-subagents/workflow_mvouzm7h_b19c26/task-12",
+    "correlationId": "workflow_mvouzm7h_b19c26:task-12",
+    "sessionId": "pi-workflow.workflow_mvouzm7h_b19c26.task-12",
+    "async": true,
+    "durableLaunchBarrier": {
+      "schema": "pi-subagent-durable-launch-barrier-v2",
+      "directory": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-12/.launch-barrier-afb21b1ad7bc1d7f-ed062de274decdf9",
+      "readyPath": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-12/.launch-barrier-afb21b1ad7bc1d7f-ed062de274decdf9/ready-v2.json",
+      "decisionPath": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-12/.launch-barrier-afb21b1ad7bc1d7f-ed062de274decdf9/decision-v2.json",
+      "ackPath": "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-12/.launch-barrier-afb21b1ad7bc1d7f-ed062de274decdf9/ack-v2.json",
+      "challenge": "378bdf5b9c000342f736e157b43456e342740a40b7893a95ea8b9921043f1559",
+      "decisionNonce": "10ae786168fb99d3acf5f7821a5d0b8ab2d9a13fe53f601a314af8fb8a48c491",
+      "subjectSha256": "afb21b1ad7bc1d7fd8c683db0bddc35ad6f94ae4128ceaad308b80a16f9a6cfa",
+      "directoryIdentity": {
+        "device": 16777229,
+        "inode": 587199791,
+        "uid": 501
+      },
+      "timeoutMs": 120000,
+      "pollIntervalMs": 10,
+      "identitySha256": "c793ba967aca79a2e96fab244d5301df40d01a7a082c4219df919804e047e0b4"
+    },
+    "onComplete": "detach",
+    "asyncDependency": "needed-before-final",
+    "timeoutMs": 14400000,
+    "tools": [
+      "read",
+      "grep",
+      "find",
+      "ls",
+      "workflow_web_search",
+      "workflow_web_fetch_source",
+      "workflow_web_source_read",
+      "workflow_artifact"
+    ],
+    "extensions": [
+      "<ROOT>/.pi/workflows/workflow_mvouzm7h_b19c26/tasks/task-12/workflow-web-source-extension.ts"
+    ],
+    "noExtensions": true,
+    "thinking": "low",
+    "taskRef": {
+      "path": "task.md",
+      "bytes": 12316,
+      "sha256": "44f221fe9e6214d4b1098fc00d5db8c725a351005d94b4782fca797d347f5dff"
+    },
+    "systemPromptRef": {
+      "path": "system-prompt.md",
+      "bytes": 4612,
+      "sha256": "75a9fb7afcc2bf35fa5443d4fbfebe94be8203f0609bae103ca94e6c39c9fae5"
+    }
+  }
+}

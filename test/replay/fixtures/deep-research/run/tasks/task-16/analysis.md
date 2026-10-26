@@ -1,0 +1,1 @@
+Verified by inspecting the cited primary source through its cached source reference. The exact sentence supports the normalized claim. Message type is distinct from newline framing; this verdict establishes the former.
