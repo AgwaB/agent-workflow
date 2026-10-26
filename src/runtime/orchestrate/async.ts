@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/orchestrate/async.ts. MIT, same author. Changes: inline-runner hooks (hostPiPackageRoot / PI_PACKAGE_ROOT_ENV) removed; backend resolution replaced by the run's ExecutorDescriptor (per-task override allowed, validated before any spawn); the payload carries the descriptor and the input with an explicit attemptKey; the worker is dist/runtime/workers/durable-worker.js; both binding env names (AGENT_WORKFLOW_ and legacy PI_SUBAGENT_DURABLE_WORKER_BINDING_JSON) are stripped from the worker env.
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/orchestrate/async.ts. MIT, same author. Changes: inline-runner hooks (hostPiPackageRoot / PI_PACKAGE_ROOT_ENV) removed; backend resolution replaced by the run's ExecutorDescriptor (per-task override allowed, validated before any spawn); the payload carries the descriptor and the input with an explicit attemptKey; the worker is dist/runtime/workers/durable-worker.js; both binding env names (AGENT_WORKFLOW_ and legacy PI_SUBAGENT_DURABLE_WORKER_BINDING_JSON) are stripped from the worker env. WP2c: env / mcpServers[].env values are not written to worker.json (only their keys); they reach the worker through its spawn environment (orchestrate/env-values.ts).
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { closeSync, openSync } from "node:fs";
@@ -34,6 +34,7 @@ import {
 } from "./run.js";
 import { writeRunLocator } from "./run-ref.js";
 import { readRunResult, waitForRun } from "./status.js";
+import { DURABLE_WORKER_REQUEST_ENV, splitEnvValues } from "./env-values.js";
 
 export interface StartAsyncSubagentRunOptions {
 	input: RuntimeRunInput;
@@ -223,10 +224,15 @@ export async function startAsyncSubagentRun(
 	});
 	const payloadPath = store.pathFor("worker");
 	const { executor, ...payloadInput } = input;
+	// D1: env values never reach disk; worker.json keeps the keys, the worker gets the values
+	// through its spawn environment.
+	const { persisted: persistedInput, channel: envChannel } = splitEnvValues(
+		payloadInput as Record<string, unknown>,
+	);
 	const payload = await writeDurableWorkerPayload({
 		payloadPath,
 		input: {
-			...payloadInput,
+			...persistedInput,
 			attemptKey: input.attemptKey ?? defaultAttemptKey(runId, attemptId),
 		},
 		cwd: options.cwd,
@@ -303,6 +309,9 @@ export async function startAsyncSubagentRun(
 	const workerEnv = { ...process.env };
 	delete workerEnv[DURABLE_WORKER_BINDING_ENV];
 	delete workerEnv[LEGACY_PI_DURABLE_WORKER_BINDING_ENV];
+	delete workerEnv[DURABLE_WORKER_REQUEST_ENV];
+	if (envChannel !== undefined)
+		workerEnv[DURABLE_WORKER_REQUEST_ENV] = JSON.stringify(envChannel);
 	let child;
 	try {
 		child = spawn(

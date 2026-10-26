@@ -1,4 +1,4 @@
-# Runtime port (WP2a-1, WP2a-2)
+# Runtime port (WP2a-1, WP2a-2, WP2c)
 
 Source: `@agwab/pi-subagent` 0.7.2, repository `pi-subagent-engine` at `ab91a74` (MIT, same author).
 Destination: `src/runtime/` (entry point `@agwab/agent-workflow/runtime`, compiled to `dist/runtime/`).
@@ -84,6 +84,7 @@ Neither changes behavior. The headers do not repeat them.
 | — | `src/runtime/orchestrate/request.ts` | new (WP2a-2) | Runtime run input, validation, SubmitRequest fields, execution plan digest |
 | — | `src/runtime/orchestrate/execute.ts` | new (WP2a-2) | `executeAttempt` / `observeAttempt`: submit/observe under the runtime fence, artifacts |
 | — | `src/runtime/orchestrate/executor-record.ts` | new (WP2a-2) | Per-attempt `executor.json` (descriptor + attemptKey) for reconcile |
+| — | `src/runtime/orchestrate/env-values.ts` | new (WP2c) | Env values off disk: split into persisted keys + spawn-env channel, restore in the worker, plan-digest form |
 
 `src/runtime/index.ts` exports a curated surface:
 
@@ -164,12 +165,15 @@ New agent-workflow tests (no pi-subagent counterpart):
 | Test file | Covers |
 |---|---|
 | `runtime-dir-lock.test.mjs` | Lock exclusivity, `ELOCKED`, release, and cleanup on exit and on SIGTERM |
+| `runtime-dir-lock-owner.test.mjs` (WP2c) | Owner-aware stealing: a SIGKILLed real holder's run lock is stolen and a later reconcile completes; a live holder survives 8 in-process + 6 cross-process contenders; 8 in-process and 6 cross-process stealers of one stale lock → exactly one winner; garbage / no-birth-identity / other-host / token-mismatch / missing owner records are never stolen; a live pid with a different birth identity (pid reuse) is stolen; `process.exit` during an acquisition never leaves an ownerless lock |
 | `runtime-status-interrupt.test.mjs` | Status snapshots and wait; interrupt of an identity-verified process; a forged identity is refused |
 | `runtime-workers.test.mjs` | process-gate exit 125/127, exit code and signal passthrough, `--file` mode |
 | `runtime-packed-install.test.mjs` | `npm pack` → install in a Pi-free temp project → import `./runtime`, spawn both workers; helper mode bits. Skips with a message when npm or the network is unavailable |
 | `runtime-validation.test.mjs` "generic backends" | The generic backend behavior |
 | `runtime-durable-worker.test.mjs` (WP2a-2) | Fencing trio end to end through real worker processes; happy path with a released V2 barrier (READY digests, binding seen by the adapter, usage with `cost: null`); rediscovery refusals (wrong id, version mismatch, missing module) before any effect; resubmitting a terminal attempt; SIGTERM → `cancel(owned)` |
 | `runtime-durable-authority.test.mjs` (WP2a-2) | Single use in-process and across instances; abort → revoked; V2 release/revoke; binding only after release; typed guard errors |
+| `runtime-pre-release-terminal.test.mjs` (WP2c) | Barrier timeout before release (worktree) → `failed/guard_failure`, terminal `result.json`, attempt inactive, finalizer events, worktree removed; engine revoke → `cancelled/revoked`, same terminal checks |
+| `runtime-env-at-rest.test.mjs` (WP2c) | Async run with a released V2 barrier and `env: { SECRET_TOKEN }` + an MCP server env value: every file under the run cwd, the barrier dir and the run index is scanned → zero hits; `worker.json` has keys only; the fixture executor received the values (it logs their SHA-256); a sync run writes no value either; the plan object holds `sha256:` digests and its digest changes when only a value changes; a worker without the env channel fails closed with `guard_failure` naming the key |
 | `runtime-execute.test.mjs` (WP2a-2) | `failed.class` table; invalid events/sequences; post-release submit failure → reconcile; timeouts; approval answers; usage; output recovery; idempotent resubmission; input validation; plan digest; `captureToolCalls` |
 | `runtime-packed-install.test.mjs` (WP2a-2 addition) | The installed `durable-worker.js` runs the fake executor fixture end to end (offline) |
 
@@ -229,6 +233,11 @@ canonical JSON (keys sorted, `undefined` dropped; `durableLaunchBarrierDigest`) 
 - `request`: every `SubmitRequest` field except `authority` — `attemptKey`, `cwd`, `prompt`, `systemPrompt`,
   `model`, `effort`, `tools`, `readOnly`, `mcpServers` (including their `env`), `sessionId`,
   `resumeSessionId`, `deadlineMs`, `env`, `isolation`, `approvalPolicy`, `artifactsDir`.
+- WP2c: in `request.env` and `request.mcpServers[].env` each value is replaced by
+  `"sha256:" + hex(SHA-256(UTF-8 value))`. The plan object never holds a credential, and the digest still
+  changes when only a value changes (same key set, different value → different plan digest). Unsalted, so a
+  low-entropy value could be confirmed by guessing against a known plan; the plan object itself is never
+  written, only its digest (READY, `executor.json`).
 
 `deadlineMs` = payload `startedAt` + `timeoutMs`, or `NO_DEADLINE_MS` (8.64e15, the largest `Date`) when no
 timeout is set, so the digest is deterministic. The launch payload digest (`launchPayloadSha256`) still binds
@@ -244,7 +253,7 @@ ids, nothing after the terminal event; `validateEventSequence` once more at the 
 that ends without a terminal event is `guard_failure`. Other rules:
 
 - `submit` throws before release → no effect (`ExecutionNotStartedError`; the worktree stays discardable):
-  revoked → `cancelled/user_cancelled`; stop → `user_cancelled`/`abort`/`timeout`; authority guard →
+  revoked → `cancelled/revoked` (WP2c; was `user_cancelled`); stop → `user_cancelled`/`abort`/`timeout`; authority guard →
   `guard_failure`; adapter refusal → `validation` (INVALID_REQUEST / CAPABILITY_*), `guard_failure`
   (claims an authority state the runtime never produced) or `spawn`.
 - `submit` throws after release → `executor.reconcile(attemptKey)`: `found` → observe that ref; `absent` →
@@ -276,6 +285,7 @@ that ends without a terminal event is `guard_failure`. Other rules:
 | `failed.class` / outcome | status | failureKind | Auto-retry by the core |
 |---|---|---|---|
 | `cancelled` | `cancelled` | `cancelled` (or the stop kind when the runtime asked) | no |
+| engine revoke before release (WP2c) | `cancelled` | `revoked` | no (the engine decided) |
 | `transient` | `failed` | `transient` | allowed |
 | `rate_limit` | `failed` | `rate_limit` | allowed (after backoff) |
 | `auth` | `failed` | `executor_auth` | no |
@@ -315,6 +325,19 @@ terminal result → finalizer), with: `loadExecutor(payload.executor)` before pr
 `ExecutionNotStartedError` keeping its status/failureKind; an explicit `process.exit` after the terminal
 write (adapters may hold handles). The payload is `{ input, cwd, backend: executor.id, executor, runId,
 attemptId, startedAt }`; `input` is the validated runtime input without `executor` and with `attemptKey`.
+
+**Env values at rest (WP2c, D1).** `input.env` and `input.mcpServers[i].env` are not written to `worker.json`;
+it holds `input.envKeys` / `input.mcpServers[i].envKeys` (sorted key lists) instead. The launcher passes the
+values to the detached worker in its spawn environment as `AGENT_WORKFLOW_DURABLE_WORKER_REQUEST_ENV_JSON`
+(`{ env?, mcpServers?: (map | null)[] }`); the worker deletes that variable from `process.env` as its first
+statement (no grandchild, finalizer or diagnostic inherits it) and merges the values back after the payload
+checks. A missing, unparsable or mismatching channel (keys differ, undeclared values, both `env` and
+`envKeys`) is `guard_failure` before READY or any effect; error messages name keys, never values. A payload
+with inline `env` and no `envKeys` (written before WP2c) is still accepted. Why the spawn environment: it is
+the only channel to a detached process that is not a file and survives the launcher's exit; it is visible to
+the same user through process inspection (`ps eww`, `/proc/<pid>/environ`), the same exposure as any env var
+the caller already holds. A fresh-process reconcile never relaunches, so it never needs the values. Sync
+(in-process) runs keep the values in memory only.
 
 ### SDK change
 
@@ -401,6 +424,24 @@ Run results, statuses and `RunStatusSnapshot` keep their shapes; `backend` is th
      - the "compromised" uncaught throw when the lock directory disappears while held.
 
      Both matter only when stale stealing is on.
+   - **WP2c: owner-aware stealing** (supersedes "no stale stealing" above; elapsed time still never
+     steals). The holder records `owner-<token>.json` = `{ schema: "agent-workflow-dir-lock-owner-v1", token,
+     pid, birthIdentity, host, acquiredAt }` inside the lock directory (staged beside it, renamed in right
+     after `mkdir`). On contention the record is inspected and the lock is stolen only when the owner is
+     provably dead: same host, a recorded birth identity, and `inspectProcessIdentity` says the pid is gone
+     or has a different birth identity (pid reused). No record, an unreadable/ambiguous record, a token that
+     does not match its file name (a steal in progress), another host, no birth identity or an `unknown`
+     liveness answer → not stolen; the reason is appended to the ELOCKED message
+     (`Lock file is already being held (<reason>)`, `error.reason`). The steal renames the dead owner's
+     uniquely named record to the stealer's name inside the same directory (one atomic rename; tokens are
+     never reused, so exactly one concurrent stealer wins and the losers retry normally); the directory is
+     never removed during a steal, so no fresh `mkdir` can create a second owner. Create, claim and release
+     use synchronous fs calls back to back so a `process.exit` cannot land between `mkdir` and the record
+     (with async calls an exit during an in-flight `mkdir` left an ownerless, never-stealable directory —
+     the durable worker exits while a heartbeat may be acquiring). "Alive" answers are reused for 500 ms per
+     acquisition (the Darwin helper is an exec). Residual: a SIGKILL between `mkdir` and the record rename
+     (adjacent syscalls) leaves an ownerless lock that needs operator removal. Release removes our record,
+     then the directory; a directory that lost our record raises `ECOMPROMISED` instead of being removed.
 9. **Barrier, binding and helper schema ids are unchanged** (`pi-subagent-durable-launch-barrier-v1/v2`, `…-worker-binding-…`,
    `pi-subagent-darwin-process-identity-helper-v1`). They are wire and data identifiers, and keeping them keeps
    barrier compatibility with existing pi-workflow callers. Renaming them would be a protocol change, which is
@@ -449,23 +490,53 @@ Run results, statuses and `RunStatusSnapshot` keep their shapes; `backend` is th
     - **Results/registry.** New artifact type `exec-events`, `ResultMetadata.executor`, run event types
       `attempt.executor_submitted` and `reconcile.executor_outcome`.
 
+12. **WP2c runtime hardening** (fixes for defects inherited from pi-subagent 0.7.2; see "Inherited from
+    pi-subagent 0.7.2"):
+    - **Pre-release failures are terminal.** The durable worker no longer calls
+      `discardSubagentExecution` before writing its terminal result. That call marked the attempt
+      `cancelled/user_cancelled` in `run.json` (with `activate: false`, so `activeAttemptId` stayed set),
+      after which the worker's terminal write saw a terminal attempt with a different status and skipped
+      `result.json` (left `running`) and the finalizer. Now the worker discards only the pristine
+      workspace (`discardPreparedExecutionWorkspace`, worktree `removed`), writes `result.json`, and spawns
+      the terminal finalizer, which drains ownership and commits through the normal path. A guard or
+      integrity failure before release (barrier timeout, barrier/binding/authority errors, rediscovery
+      refusals) is `failed/guard_failure` with the reason in `stderr.log`.
+    - **Engine revoke = new failure kind `revoked`** (status `cancelled`). Chosen over `user_cancelled` so
+      the core can tell "the engine withdrew the launch" (barrier revoke, nothing ran) from "an operator
+      interrupted the worker" (SIGINT/SIGTERM → `user_cancelled`). `DurableLaunchBarrierRevokedError.failureKind`
+      is unchanged (`user_cancelled`, barrier wire compatibility); the runtime maps it to `revoked`.
+    - `discardSubagentExecution` (in-process callers) now clears `activeAttemptId` when it cancels the active
+      attempt (`onlyIfActive` still spares a successor).
+    - **Owner-aware run lock** (a SIGKILLed holder no longer blocks reconcile forever): see item 8.
+    - **No env values at rest:** `worker.json` keeps env keys only, values go through the worker's spawn
+      environment, the plan digest hashes each value (see "Env values at rest" and "Execution plan digest").
+      Adapters must still keep values out of their own logs and `artifactsDir` files (the runtime cannot
+      redact what an executor writes).
+
+## Inherited from pi-subagent 0.7.2
+
+The WP2c defects as they exist in `pi-subagent-engine` at `ab91a74` (read-only check; paths relative to that
+repository), so its owner can decide whether to fix pi-subagent too.
+
+| WP2c defect | In pi-subagent 0.7.2? | Where |
+|---|---|---|
+| 1a. Guard/integrity failure before release → `cancelled/user_cancelled`, `result.json` stays `running`, attempt stays active | Yes, identical | `src/workers/durable-worker.mjs:524-525` calls `discardSubagentExecution` before the terminal write; `src/orchestrate/run.ts:437-462` upserts `cancelled/user_cancelled` with `activate: false` (line 459, keeps `activeAttemptId`); `src/workers/durable-worker.mjs:295-299` then skips the terminal write because the statuses differ, so no `result.json` update and no finalizer (`:546` spawns only for a returned result). The barrier wait is in the worker itself (`:468-485`), so a barrier timeout takes this path |
+| 1b. Revoke before release keeps the attempt active; revoke recorded as `user_cancelled` | Yes, identical | Same discard (`run.ts:459`); `durable-worker.mjs:527-538` maps `isDurableLaunchBarrierRevokedError` to `cancelled/user_cancelled`; `durable-worker.mjs:333-337` backfills `result.json` but returns no result, so no finalizer drains ownership. `src/durable-launch-barrier.ts:180` tags the revoke error `user_cancelled` |
+| 1c. In-process pre-release error leaves the cancelled attempt active | Yes | `src/orchestrate/run.ts:796` (`runSubagentTask` → `discardSubagentExecution`, `activate: false`) |
+| 2. SIGKILLed run-lock holder blocks every later mutation/reconcile (`ELOCKED`) | Yes, identical | `src/artifacts/registry.ts:501-514`: `proper-lockfile` with `stale: Number.MAX_SAFE_INTEGER`; no owner identity is recorded, so nothing can prove the holder dead |
+| 3. Env values persisted at rest | Not in `worker.json` (pi-subagent's run input has no `env`/`mcpServers`), but a related exposure exists | `src/runners/tmux.ts:420` (`tmux-pane.gate` in the task dir), `:425-429` (`childEnv` = the full parent `process.env`, passed as the pane env at `:718`; `sandboxEnv` at `:708`), `:543-553` writes `{ argv, cwd, env }` to that file (mode 0600, `flag: "wx"`), and `src/workers/process-gate.mjs:18-29` reads and unlinks it. The whole parent environment (API keys included) is on disk until the gate reads it, and stays there if the gate never starts |
+| WP2a-2 note: `process-gate --file` non-atomic writer | Yes | `src/runners/tmux.ts:501` (`--file paneGatePath`) and `:543-553`: `writeFile(..., { flag: "wx" })` creates the file and then writes it, while `process-gate.mjs:18-29` polls `readFile` and treats any successful read as the payload, so the gate can read an empty or partial file (JSON parse failure → launch fails). Fix: write to a temp name and `rename` (agent-workflow's test does this, see "Test-only fix" above) |
+
 ## Open problems (WP2a-2 → later packages)
 
 - **WP2b:** approval requests are answered by policy only (`ask` → deny); an interactive channel and a
   re-attachable observer for a still-running adopted ref (today reconcile observes for `adoptTimeoutMs` and
   otherwise leaves the attempt `running`) belong to the broker. Adoption restarts `exec-events.jsonl`
   (observe replays from the start for the fake; real adapters must define replay semantics).
-- **WP2b/WP4:** `env` and `mcpServers[].env` are persisted in `worker.json` (and hashed into the plan) —
-  secrets there need a permission-restricted side file before real adapters use them.
 - **WP4:** map `needs_decision` to "stop and ask", `not_started` to "safe to relaunch with a new attempt",
   `transient`/`rate_limit` to the retry policy; pass an engine-issued `attemptKey`; replace the Pi extension
   preflight with `mcpServers`; READY validation is unchanged but the plan digest schema changed.
 - **WP6:** the Pi adapter must hand the binding to Pi children under both env names, map Pi JSON events
   (tool-call telemetry, usage with cache read/write) to normalized events, and own the Pi child process group
   (the dropped "stubborn interrupt" and "orphaned headless child" checks).
-- **Inherited quirks (unchanged from pi-subagent):** a guard failure after `prepare` but before release is
-  recorded by `discardSubagentExecution` as `cancelled/user_cancelled` and the later terminal write is skipped
-  (statuses differ), so `result.json` can stay `running` in that path; a revoked attempt keeps
-  `activeAttemptId` set (no finalizer is spawned for the duplicate-result backfill); a worker SIGKILLed while
-  holding the run lock leaves the lock directory behind (no stale stealing) and blocks later mutations.
 - `captureToolCalls` without `callId` cannot correlate start/end; such calls are recorded as instantaneous.

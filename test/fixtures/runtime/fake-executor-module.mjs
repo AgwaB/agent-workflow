@@ -11,6 +11,8 @@
 //   stepDelayMs delay between script steps
 //   sessionBound  capability flag (default false)
 //   reconcile   "log" (default: from the effect log) | "found" (report found for logged effects)
+// WP2c: `submit` entries carry envSha256 / mcpEnvSha256 (SHA-256 of each env value, never the value).
+import { createHash } from "node:crypto";
 import { appendFileSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createFakeExecutor } from "@agwab/agent-workflow/sdk/testing";
@@ -64,6 +66,16 @@ export function readEffectLog(path) {
 	}
 }
 
+function digestValues(env) {
+	if (env === undefined) return null;
+	return Object.fromEntries(
+		Object.entries(env).map(([key, value]) => [
+			key,
+			createHash("sha256").update(value).digest("hex"),
+		]),
+	);
+}
+
 function log(path, entry) {
 	appendFileSync(
 		path,
@@ -108,6 +120,11 @@ export function createExecutor(config) {
 				prompt: req.prompt,
 				artifactsDir: req.artifactsDir ?? null,
 				envKeys: Object.keys(req.env ?? {}),
+				// WP2c: proves the values arrived without writing them anywhere.
+				envSha256: digestValues(req.env),
+				mcpEnvSha256: (req.mcpServers ?? []).map((server) =>
+					digestValues(server.env),
+				),
 			});
 			const authority = {
 				attemptKey: req.authority.attemptKey,

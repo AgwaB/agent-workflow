@@ -2,6 +2,8 @@
 // built from it, and the execution-plan digest a durable worker reports in barrier READY.
 // Replaces pi-subagent's Pi-specific request fields (agent, backend, extensions, noExtensions,
 // thinking, …) with an `ExecutorDescriptor` plus SDK `SubmitRequest` fields.
+// WP2c: the execution plan carries `sha256:<hex>` per env / mcpServers[].env key instead of the
+// value (no secret in the plan object; the digest still changes when only a value changes).
 import {
 	type ApprovalPolicy,
 	defaultApprovalPolicy,
@@ -24,6 +26,7 @@ import {
 import { validateResolveInput } from "../core/validation.js";
 import { durableLaunchBarrierDigest } from "../durable-launch-barrier.js";
 import { DURABLE_WORKER_BINDING_ENV } from "../workers/durable-worker-binding.js";
+import { digestEnvValues } from "./env-values.js";
 
 /** Legacy Pi child env name that carries the same binding (WP6 Pi adapter). */
 export const LEGACY_PI_DURABLE_WORKER_BINDING_ENV =
@@ -398,6 +401,7 @@ export interface ExecutionPlan {
 	schema: typeof EXECUTION_PLAN_SCHEMA;
 	/** Executor id (= `executor.id`); kept under the pi-subagent field name. */
 	backend: string;
+	/** Env values appear as `sha256:<hex>` (see buildExecutionPlan). */
 	executor: ExecutorDescriptor;
 	runId: string;
 	attemptId: string;
@@ -415,6 +419,10 @@ export interface ExecutionPlan {
  * systemPrompt, model, effort, tools, readOnly, mcpServers incl. env, sessionId,
  * resumeSessionId, deadlineMs, env, isolation, approvalPolicy, artifactsDir). Digest:
  * SHA-256 over canonical JSON (sorted keys, undefined dropped) — `durableLaunchBarrierDigest`.
+ *
+ * WP2c: env and mcpServers[].env values are replaced by `sha256:<hex of the UTF-8 value>` per key,
+ * so the plan object never holds a credential while the digest still changes when only a value
+ * changes.
  */
 export function buildExecutionPlan(options: {
 	executor: ExecutorDescriptor;
@@ -431,7 +439,15 @@ export function buildExecutionPlan(options: {
 		attemptId: options.attemptId,
 		cwd: options.request.cwd,
 		workspace: options.workspace,
-		request: options.request,
+		request: {
+			...options.request,
+			env: digestEnvValues(options.request.env),
+			mcpServers: options.request.mcpServers.map((server) =>
+				server.env === undefined
+					? server
+					: { ...server, env: digestEnvValues(server.env) },
+			),
+		},
 	};
 }
 

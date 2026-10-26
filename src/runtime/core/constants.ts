@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/core/constants.ts. MIT, same author. Changes: inline/headless/tmux backend enums replaced by generic executor ids, DEFAULT_RUNS_DIR=".agent-workflow/runs" added, sandboxAllowedDomains (srt hook) removed, Pi wording dropped from comments; WP2a-2 adds executor failure kinds (transient, rate_limit, executor_*, not_started, needs_decision).
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/core/constants.ts. MIT, same author. Changes: inline/headless/tmux backend enums replaced by generic executor ids, DEFAULT_RUNS_DIR=".agent-workflow/runs" added, sandboxAllowedDomains (srt hook) removed, Pi wording dropped from comments; WP2a-2 adds executor failure kinds (transient, rate_limit, executor_*, not_started, needs_decision); WP2c adds failure kind "revoked" (engine revoke before release).
 import type {
 	DurableLaunchBarrierDescriptor,
 	DurableLaunchBarrierV2Descriptor,
@@ -58,6 +58,9 @@ export const FAILURE_KINDS = [
 	"not_started",
 	/** Reconcile: the executor cannot prove either way (`unknown`, B3). Stop and ask a person. */
 	"needs_decision",
+	// WP2c.
+	/** The engine revoked the launch authority (barrier revoke) before release; nothing ran. Status `cancelled`. */
+	"revoked",
 ] as const;
 export const EXECUTION_MODES = ["single", "parallel"] as const;
 export const ASYNC_DEPENDENCIES = [

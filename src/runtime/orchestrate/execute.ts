@@ -287,7 +287,8 @@ function notStarted(
 		return new ExecutionNotStartedError(
 			`execution authority was revoked: ${decision.reason}`,
 			{
-				failureKind: "user_cancelled",
+				// WP2c: an engine revoke is not a user interrupt (a stop signal is handled above).
+				failureKind: "revoked",
 				status: "cancelled",
 				authority,
 				cause: error,
