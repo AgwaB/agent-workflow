@@ -36,6 +36,10 @@
       "types": "./dist/sdk/testing/index.d.ts",
       "default": "./dist/sdk/testing/index.js"
     },
+    "./sdk/conformance": {
+      "types": "./dist/sdk/conformance/index.d.ts",
+      "default": "./dist/sdk/conformance/index.js"
+    },
     "./runtime": {
       "types": "./dist/runtime/index.d.ts",
       "default": "./dist/runtime/index.js"
