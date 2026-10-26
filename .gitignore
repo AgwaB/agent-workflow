@@ -17,3 +17,6 @@ dist/
 AGENTS.md
 CHANGELOG.md
 /internal/
+
+# Local Pi/subagent run records
+/.pi/
