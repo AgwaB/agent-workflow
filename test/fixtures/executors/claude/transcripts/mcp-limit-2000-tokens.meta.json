@@ -1,0 +1,40 @@
+{
+	"argv": [
+		"-p",
+		"--input-format",
+		"stream-json",
+		"--output-format",
+		"stream-json",
+		"--verbose",
+		"--model",
+		"haiku",
+		"--effort",
+		"low",
+		"--setting-sources",
+		"",
+		"--settings",
+		"{\"autoMemoryEnabled\":false}",
+		"--strict-mcp-config",
+		"--mcp-config",
+		"<RUN>/mcp.json",
+		"--disable-slash-commands",
+		"--permission-mode",
+		"default",
+		"--permission-prompt-tool",
+		"stdio",
+		"--tools",
+		"",
+		"--allowedTools",
+		"mcp__workflow_artifact__big,mcp__workflow_artifact__slow",
+		"--no-session-persistence"
+	],
+	"prompt": "Make exactly three tool calls, one at a time, then stop: 1) mcp__workflow_artifact__big with chars=3000 2) mcp__workflow_artifact__big with chars=12000 3) mcp__workflow_artifact__slow with ms=6000. Do not retry failures. Then reply with one line per call: the number of characters you received, or the error text you got (first 100 chars).",
+	"env": ["MAX_MCP_OUTPUT_TOKENS", "MCP_TOOL_TIMEOUT"],
+	"exit": {
+		"code": 0,
+		"signal": null,
+		"ms": 11241,
+		"interrupted": false
+	},
+	"stderr": ""
+}

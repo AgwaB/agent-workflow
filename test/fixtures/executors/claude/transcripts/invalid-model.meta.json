@@ -1,0 +1,36 @@
+{
+	"argv": [
+		"-p",
+		"--input-format",
+		"stream-json",
+		"--output-format",
+		"stream-json",
+		"--verbose",
+		"--model",
+		"claude-nonexistent-model-0",
+		"--effort",
+		"low",
+		"--setting-sources",
+		"",
+		"--settings",
+		"{\"autoMemoryEnabled\":false}",
+		"--strict-mcp-config",
+		"--disable-slash-commands",
+		"--permission-mode",
+		"default",
+		"--permission-prompt-tool",
+		"stdio",
+		"--tools",
+		"",
+		"--no-session-persistence"
+	],
+	"prompt": "Reply OK.",
+	"env": [],
+	"exit": {
+		"code": 1,
+		"signal": null,
+		"ms": 2417,
+		"interrupted": false
+	},
+	"stderr": "[claude-code:unrecognized_model] {\"model\":\"claude-nonexistent-model-0\",\"query_source\":\"sdk\"}\n"
+}
