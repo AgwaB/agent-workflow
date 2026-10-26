@@ -713,6 +713,114 @@ direct-dynamic spec (WP4a note: changing that spec needs a new `DIRECT_DYNAMIC_R
    directory, for appends and for reads (required reads then fail closed), and creates it `0600`.
 2. `handleWorkflowArtifactToolCall` has an optional third `options` argument (ledger hook).
 
+## WP4d — capability negotiation before launch
+
+B4 negotiation (`src/sdk/requirements.ts`) was implemented in WP3 but nothing in `src/core` called it:
+any executor ran any stage with no refusal, degradation record or preview. WP4d wires it into the engine
+(`src/core/capability-negotiation.ts`, called from `runLoadedWorkflowSpecInNativeHostScope` in
+`engine.ts` and from `launchSubagentTask` in `task-backend.ts`).
+
+### Where it runs
+
+1. **Probe once per run (no model turn).** After executor selection (B2) and compile, before the run
+   record exists: `loadExecutor(descriptor)` → `capabilities()` + `probe()`, bounded by
+   `executorProbeTimeoutMs` (default 30 s), then `mergeProbedCapabilities`. Not installed →
+   `EXECUTOR_NOT_INSTALLED`; auth `missing`/`expired` → `EXECUTOR_AUTH_NOT_READY` naming the CLI login
+   command (`codex login`, `claude auth login`, `pi` + `/login`); timeout or load error →
+   `EXECUTOR_PROBE_FAILED`. `auth: "unknown"` proceeds and is recorded (Pi cannot report auth without
+   `config.authCheckModel`). Injectable with run option `executorProber`.
+2. **Per-stage negotiation.** Every compiled executor task (not support helpers, loop placeholders or
+   dynamic controllers) plus loop child/exhaustion templates. `workflowTaskRequirementContext` mirrors the
+   SubmitRequest: `readOnly` = `safety.capability === "read-only"`; `tools` = `runtime.tools`;
+   `hasRequiredReads` = `artifactGraph.requiredReads`; `mcpInjection` also required for artifact access
+   or an MCP tool provider; B5 `inherit` = `inheritProjectContext || inheritSkills`; web tools inferred
+   from the tool list; `partialStream` for partial-output stages; `sameSessionRepair` for artifact-graph
+   tasks; `fastTier` when `fast: on`; `wantsCost` always; `allowReadOnlyDowngrade`, `allowUnverified`,
+   `strict`, `interactive` from the run policy below. No tool mapping is passed (the contract has no
+   mapping accessor; adapters refuse unmapped tools at submit).
+3. **Refusal** (any stage) → `WorkflowCapabilityError` `CAPABILITY_REFUSED` before any run record or
+   launch. The message lists stage (compiled task id), capability, code, what the executor has, and how
+   to opt in: `allowUnverifiedCapabilities` for `CAPABILITY_UNVERIFIED`, spec `allowReadOnlyDowngrade`
+   for `toolAllowlist.fine`/unmapped tools, the profile's `strictCapabilities` for `CAPABILITY_STRICT`,
+   B5 `inherit` for `contextIsolation`; otherwise "no opt-in exists".
+4. **Degradations** → preview + record. Run option `interactive: true` makes the report
+   `needsConfirmation`; the engine then calls `confirmDegradations(preview)` once. Anything but `true`
+   → `CAPABILITY_DEGRADATION_DECLINED`; an interactive run without the hook →
+   `CAPABILITY_CONFIRMATION_REQUIRED` (fail closed). Non-interactive (default) never calls the hook,
+   records `confirmation: "non-interactive"` and proceeds.
+5. **Record.** `run.capabilityNegotiation` (schema `agent-workflow-capability-negotiation-v1`):
+   executor id/version, contract version, probe summary (`installed`, `cliVersion`, `auth` enum, notes,
+   `probedAt`; no secrets), effective capabilities, policy, confirmation, per-stage `NegotiationReport`s,
+   degradations, `forcedReadOnly` stages and the `buildCapabilityPreview` text. The run-start API
+   (`runWorkflowSpec`/`runDynamicTask`) returns the record, so hosts read
+   `run.capabilityNegotiation.preview`.
+6. **Launch.** `launchSubagentTask` calls `workflowTaskCapabilityLaunch(run, compiledTask)` before any
+   effect: it re-derives the report from the recorded capabilities and policy (non-interactive), so a
+   refusal is a fatal task result before launch and `forcedReadOnly` sets `SubmitRequest.readOnly` and
+   removes mutating kinds from the approval policy. Runtime-generated tasks (foreach items, dynamic
+   workers) not negotiated before launch are appended with `negotiatedAt: "launch"`. Records without
+   `capabilityNegotiation` (created before WP4d, or directly through the store) are not checked.
+7. **Nested runs** reuse the parent's probe (`reusedFromRunId`), `allowUnverified` and `strict`, and are
+   never interactive.
+
+### Run options and spec fields (new)
+
+| Name | Kind | Meaning |
+|---|---|---|
+| `interactive` | run option | host can ask the user (default false) |
+| `confirmDegradations(preview)` | run option | B4 confirmation hook; only when interactive and degraded |
+| `allowUnverifiedCapabilities: string[]` | run option | user opt-in for `unverified` rows (never a spec field) |
+| `executorProber`, `executorProbeTimeoutMs` | run options | probe seam and bound |
+| `allowReadOnlyDowngrade: boolean` | spec, top level | B4: no precise allowlist / unmapped tool → run readOnly instead of refusing |
+| `executionProfileStrictCapabilities: { <declared profile>: [<capability>] }` | spec, top level | profile strictness for declared profiles |
+| `strictCapabilities: string[]` | saved user profile (`WorkflowCapturedExecutionProfile`) | profile strictness for user profiles |
+
+**Profile strictness.** A profile's `strictCapabilities` (capability names, optionally `name.detail`)
+is passed as `ctx.strict`: a listed capability that the stage requires but would only get `emulated` or
+`degraded` is refused with `CAPABILITY_STRICT:<key>`. A name covers its qualified keys
+(`toolAllowlist` covers `toolAllowlist.fine`). Unknown names fail spec validation (declared) or the run
+start (saved profile). Example: `"executionProfileStrictCapabilities": { "audit": ["readOnly",
+"contextIsolation"] }` refuses Codex for `audit` when `~/.codex/rules` has allow rules or a global
+`AGENTS.md` exists.
+
+### SDK additions (additive, own commit)
+
+- `Level.warning?: string` (validated as a string). An outcome satisfied only at `emulated` whose
+  observed level carries a non-empty warning is a degradation `CAPABILITY_WARNING:<key>` with the warning
+  as note (`needsConfirmation` when interactive). Emulated without a warning stays silent (Pi's
+  allowlist-based readOnly). `observed.warning` is copied into the entry.
+- `StageRequirementContext.strict` (above).
+- `buildCapabilityPreview(stages, {executor, header})` → `{accepted, needsConfirmation, refusals,
+  degradations, forcedReadOnly, text}` with stage-labelled codes.
+
+### WP4d change log (behavior-relevant)
+
+1. Every new run probes its executor once before it is created (version/auth/status commands only) and
+   fails before launch when the CLI is missing, logged out, or the probe hangs.
+2. A stage the executor cannot honor (B4/B5 defaults, unverified without opt-in, strict) refuses the
+   whole run before any run record or launch.
+3. Degraded runs record `run.capabilityNegotiation` and a preview; interactive hosts must confirm.
+4. `forcedReadOnly` stages launch with `readOnly: true` and no mutating approval kinds.
+5. Spec fields `allowReadOnlyDowngrade`, `executionProfileStrictCapabilities`; profile field
+   `strictCapabilities`; run options in the table above.
+6. A runtime-generated task the executor cannot honor fails before its launch (fatal task result).
+
+### WP4d tests
+
+- `sdk-negotiation-warnings.test.mjs` (8): warning validation/merge, warning → degradation and
+  `needsConfirmation`, silent emulated, native/empty warning, strict (emulated, warning, engine-emulated,
+  readOnly downgrade, unknown key, non-required key), `buildCapabilityPreview`.
+- `core-wp4d-capability-negotiation.test.mjs` (11): engine-level with the fixture executor (capability
+  table and probe now configurable through descriptor config `capabilities`/`probe`): refusal before
+  launch (missing, unverified without/with opt-in, strict via declared and saved profile), spec
+  validation, warning degradation + preview with a hook that is never called non-interactively, silent
+  emulated on an interactive host, interactive accept/decline/missing hook, forcedReadOnly reaching the
+  SubmitRequest (and the refusal without the spec flag), probe failures (not installed, expired, codex
+  `missing` naming `codex login` via `executorProber`, timeout), probed rows recorded, launch-time check.
+- `executor-codex-environment.test.mjs` (6): see `docs/executors/codex.md`.
+- Existing suites unchanged: no existing fake needed a new capability (the `pi` fixture is the SDK fake,
+  native for every row the ported tests require; no ported engine test runs web tools).
+
 ## Tests (WP4a)
 
 `npm run validate` runs these new or ported files:

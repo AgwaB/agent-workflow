@@ -187,6 +187,19 @@ export type {
 	RunExecutorSelectionInput,
 	WorkflowExecutorRegistration,
 } from "./executor-registry.js";
+export {
+	DEFAULT_EXECUTOR_PROBE_TIMEOUT_MS,
+	negotiateWorkflowRun,
+	probeWorkflowExecutor,
+	WorkflowCapabilityError,
+	workflowTaskCapabilityLaunch,
+	workflowTaskRequirementContext,
+} from "./capability-negotiation.js";
+export type {
+	WorkflowCapabilityErrorCode,
+	WorkflowCapabilityPolicy,
+	WorkflowExecutorProber,
+} from "./capability-negotiation.js";
 export type {
 	WorkflowRunExecutorSelection,
 	WorkflowRunExecutorSource,

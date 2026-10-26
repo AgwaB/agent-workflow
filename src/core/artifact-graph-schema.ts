@@ -1,6 +1,7 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/artifact-graph-schema.ts. MIT, same author. Changes: new optional top-level executionProfileExecutors (WP4c, B2: executor id per declared profile).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/artifact-graph-schema.ts. MIT, same author. Changes: new optional top-level executionProfileExecutors (WP4c, B2: executor id per declared profile); WP4d: optional top-level executionProfileStrictCapabilities and allowReadOnlyDowngrade (B4 capability negotiation).
 import { isAbsolute } from "node:path";
 
+import { LEVEL_CAPABILITY_NAMES } from "../sdk/capabilities.js";
 import { DYNAMIC_OUTPUT_PROFILES } from "./dynamic-profiles.js";
 import { isModelTaskMaxRuntimeMs } from "./model-task-runtime.js";
 import { compactStrings } from "./strings.js";
@@ -19,6 +20,20 @@ import {
 	type WorkflowArtifactKind,
 } from "./types.js";
 
+/** Problem with a `strictCapabilities` list, or undefined when valid (WP4d). */
+export function strictCapabilityKeysProblem(keys: unknown): string | undefined {
+	if (!Array.isArray(keys)) return "must be an array of capability names";
+	for (const key of keys) {
+		const name = typeof key === "string" ? key.split(".", 1)[0] : undefined;
+		if (
+			name === undefined ||
+			!(LEVEL_CAPABILITY_NAMES as readonly string[]).includes(name)
+		)
+			return `unknown capability ${JSON.stringify(key)}; known: ${LEVEL_CAPABILITY_NAMES.join(", ")}`;
+	}
+	return undefined;
+}
+
 const TOP_LEVEL_KEYS = new Set([
 	"schemaVersion",
 	"name",
@@ -30,6 +45,8 @@ const TOP_LEVEL_KEYS = new Set([
 	"executionProfiles",
 	"defaultExecutionProfile",
 	"executionProfileExecutors",
+	"executionProfileStrictCapabilities",
+	"allowReadOnlyDowngrade",
 	"artifactGraph",
 ]);
 // Profile names are display/selection labels, not filesystem identifiers.
@@ -346,6 +363,51 @@ function validateArtifactGraphTopLevel(
 		spec.executionProfiles,
 		issues,
 	);
+	validateExecutionProfileStrictCapabilities(
+		spec.executionProfileStrictCapabilities,
+		spec.executionProfiles,
+		issues,
+	);
+	if (
+		spec.allowReadOnlyDowngrade !== undefined &&
+		typeof spec.allowReadOnlyDowngrade !== "boolean"
+	)
+		issues.push({
+			path: "$.allowReadOnlyDowngrade",
+			message: "must be a boolean",
+		});
+}
+
+/**
+ * agent-workflow (WP4d): `executionProfileStrictCapabilities: { <declared profile>: [<capability>] }`
+ * — capability keys (optionally `name.detail`) that must be `native` under that profile.
+ */
+function validateExecutionProfileStrictCapabilities(
+	value: unknown,
+	profiles: unknown,
+	issues: ValidationIssue[],
+): void {
+	if (value === undefined) return;
+	const path = "$.executionProfileStrictCapabilities";
+	const map = recordAt(value, path, issues);
+	if (!map) return;
+	const declared =
+		profiles !== null &&
+		typeof profiles === "object" &&
+		!Array.isArray(profiles)
+			? (profiles as Record<string, unknown>)
+			: {};
+	for (const [name, keys] of Object.entries(map)) {
+		const entryPath = `${path}.${jsonKey(name)}`;
+		if (!Object.hasOwn(declared, name))
+			issues.push({
+				path: entryPath,
+				message: `unknown execution profile "${name}"`,
+			});
+		const problem = strictCapabilityKeysProblem(keys);
+		if (problem !== undefined)
+			issues.push({ path: entryPath, message: problem });
+	}
 }
 
 /** agent-workflow (WP4c, B2): `executionProfileExecutors: { <declared profile>: <executor id> }`. */

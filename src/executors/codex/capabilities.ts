@@ -58,6 +58,7 @@ export function codexCapabilities(): ExecutorCapabilities {
 		nativeSchema: level("none"),
 		// Project AGENTS.md, skills, plugins/apps, hooks, memories and the user's MCP servers are
 		// switched off per run; $CODEX_HOME/AGENTS.md and ~/.codex/rules cannot be (documented).
+		// probe() overrides readOnly/contextIsolation per machine (environment.ts, WP4d).
 		contextIsolation: probed("emulated"),
 		fastTier: level("none"),
 		toolResultBudget: level("none"),
