@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/artifacts/store.ts. MIT, same author. Changes: default runs dir is DEFAULT_RUNS_DIR (".agent-workflow/runs") from core/constants.
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/artifacts/store.ts. MIT, same author. Changes: default runs dir is DEFAULT_RUNS_DIR (".agent-workflow/runs") from core/constants; WP2a-2 adds exec-events.jsonl.
 import { randomBytes } from "node:crypto";
 import { appendFile, mkdir, rename, stat, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -24,6 +24,7 @@ const ARTIFACT_FILENAMES: Record<ArtifactType, string> = {
 	"worktree-diff": "worktree.diff.patch",
 	"tool-calls": "tool-calls.jsonl",
 	"tool-calls-summary": "tool-calls-summary.json",
+	"exec-events": "exec-events.jsonl",
 };
 
 export type LogArtifactType = Exclude<ArtifactType, "result" | "worker">;

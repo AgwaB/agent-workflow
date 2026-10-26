@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/artifacts/result.ts. MIT, same author. Changes: none (relative import extensions .ts -> .js only).
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/artifacts/result.ts. MIT, same author. Changes: WP2a-2 adds the "exec-events" artifact type (normalized executor events) and ResultMetadata.executor.
 import type {
 	FailureKind,
 	ResolvedBackend,
@@ -16,6 +16,8 @@ export const ARTIFACT_TYPES = [
 	"worktree-diff",
 	"tool-calls",
 	"tool-calls-summary",
+	/** Normalized executor events (`ExecEvent` JSONL), WP2a-2. */
+	"exec-events",
 ] as const;
 export const WORKSPACE_MODES = ["shared", "worktree", "auto"] as const;
 
@@ -135,6 +137,42 @@ export interface ResultMetadata {
 	nonFatalStreamErrors?: string[];
 	recoveredStreamErrors?: string[];
 	parseErrors?: string[];
+	/** WP2a-2: executor-seam facts (ref, failure class, fencing/termination notes). */
+	executor?: ResultExecutorMetadata;
+}
+
+/** What the runtime recorded about the SDK executor that ran (or refused) the attempt. */
+export interface ResultExecutorMetadata {
+	id: string;
+	version?: string;
+	/** `ExecRef` returned by `submit`, when one was returned. */
+	ref?: {
+		executorId: string;
+		attemptKey: string;
+		handle: string;
+		sessionId?: string;
+	};
+	attemptKey?: string;
+	/** `failed.class` of the terminal event (or reconcile outcome) behind the failure. */
+	failureClass?: string;
+	/** Authority outcome as seen by the runtime fence. */
+	authority?: "unconsumed" | "released" | "revoked" | "failed";
+	/** Why the runtime fence failed the attempt (guard_failure), when it did. */
+	fenceViolation?: string;
+	/** Result of the runtime's own cancel request (an ACK is not termination evidence). */
+	cancelResult?: string;
+	/** "confirmed" when a terminal event arrived; "unconfirmed" when the runtime gave up waiting. */
+	termination?: "confirmed" | "unconfirmed";
+	/** Outcome of `executor.reconcile(attemptKey)` when the runtime asked. */
+	reconcile?: "found" | "absent" | "unknown" | "error";
+	reconcileReason?: string;
+	/** Approval requests the runtime answered on the engine's behalf. */
+	approvals?: Array<{
+		requestId: string;
+		kind: string;
+		decision: string;
+		response: string;
+	}>;
 }
 
 export interface ResultEnvelopeInput {
@@ -281,6 +319,7 @@ function normalizeMetadata(input: ResultEnvelopeInput): ResultMetadata {
 		...(metadata.parseErrors === undefined
 			? {}
 			: { parseErrors: metadata.parseErrors }),
+		...(metadata.executor === undefined ? {} : { executor: metadata.executor }),
 	};
 }
 

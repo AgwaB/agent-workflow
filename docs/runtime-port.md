@@ -1,4 +1,4 @@
-# Runtime port (WP2a-1)
+# Runtime port (WP2a-1, WP2a-2)
 
 Source: `@agwab/pi-subagent` 0.7.2, repository `pi-subagent-engine` at `ab91a74` (MIT, same author).
 Destination: `src/runtime/` (entry point `@agwab/agent-workflow/runtime`, compiled to `dist/runtime/`).
@@ -42,7 +42,7 @@ Neither changes behavior. The headers do not repeat them.
 | Source (`pi-subagent-engine/…`) | Destination | Status | Reason / note |
 |---|---|---|---|
 | `src/durable-launch-barrier.ts` | `src/runtime/durable-launch-barrier.ts` | ported | Two doc comments say "the runtime" instead of "pi-subagent". Schema ids unchanged |
-| `src/durable-worker-payload.ts` | `src/runtime/durable-worker-payload.ts` | ported-adapted | Payload `backend` must be a resolved executor id |
+| `src/durable-worker-payload.ts` | `src/runtime/durable-worker-payload.ts` | ported-adapted | Payload `backend` must be a resolved executor id; WP2a-2: optional `executor` descriptor (validated, `id` = `backend`) |
 | `src/process-identity.ts` | `src/runtime/process-identity.ts` | ported | Helper resolved next to the compiled file |
 | `src/native/darwin-process-identity` (+ `.c`, `.manifest.json`) | `src/runtime/native/…` (+ copied to `dist/runtime/native/`) | ported | Byte-identical; see above |
 | `scripts/build-darwin-process-identity.mjs` | `tools/release/build-darwin-process-identity.mjs` | ported-adapted | Paths moved to `src/runtime/native` |
@@ -50,7 +50,7 @@ Neither changes behavior. The headers do not repeat them.
 | `src/core/constants.ts` | `src/runtime/core/constants.ts` | ported-adapted | Generic backends, `DEFAULT_RUNS_DIR`, srt helper removed |
 | `src/core/validation.ts` | `src/runtime/core/validation.ts` | ported-adapted | Backend rules generalized; tmux and inline rules removed |
 | `src/core/text-width.ts` | — | dropped | Used only by `panel.ts` and `index.ts`, which are not ported |
-| `src/core/resolver.ts` | — | deferred-WP2a-2 | Pi backend selection; becomes executor selection |
+| `src/core/resolver.ts` | — | dropped (WP2a-2) | Picked inline/headless/tmux from `auto`. The runtime no longer selects: the caller names the executor with an `ExecutorDescriptor`; role → executor selection (B2) belongs to the core (WP4) |
 | `src/workspace/intent.ts` | `src/runtime/workspace/intent.ts` | ported | |
 | `src/workspace/worktree.ts` | `src/runtime/workspace/worktree.ts` | ported-adapted | Worktree parent dir and diff excludes |
 | `src/artifacts/index.ts` | `src/runtime/artifacts/index.ts` | ported | |
@@ -62,24 +62,28 @@ Neither changes behavior. The headers do not repeat them.
 | `src/orchestrate/status.ts` | `src/runtime/orchestrate/status.ts` | ported-adapted | Generic backend check; missing backend reported as `"unknown"` |
 | `src/orchestrate/prune.ts` | `src/runtime/orchestrate/prune.ts` | ported-adapted | Default runs dir in the locator ownership check |
 | `src/orchestrate/interrupt.ts` | `src/runtime/orchestrate/interrupt.ts` | ported | Comment wording only |
-| `src/orchestrate/index.ts` | `src/runtime/orchestrate/index.ts` | ported-adapted | `run.ts` / `reconcile.ts` re-exports cut |
-| `src/orchestrate/run.ts` | — | deferred-WP2a-2 | Imports the headless, inline and tmux runners; rewired onto SDK executors |
-| `src/orchestrate/async.ts` | — | deferred-WP2a-2 | Imports the inline runner |
-| `src/orchestrate/reconcile.ts` | — | deferred-WP2a-2 | Imports `tmux-control` |
+| `src/orchestrate/index.ts` | `src/runtime/orchestrate/index.ts` | ported-adapted | Re-exports run/async/reconcile again (WP2a-2) plus the new modules |
+| `src/orchestrate/run.ts` | `src/runtime/orchestrate/run.ts` | ported-adapted (WP2a-2) | Agent loading removed; descriptor instead of `resolveBackend`; runners replaced by `executeAttempt`; workspace/worktree logic kept |
+| `src/orchestrate/async.ts` | `src/runtime/orchestrate/async.ts` | ported-adapted (WP2a-2) | Inline hooks removed; payload carries the descriptor and an explicit `attemptKey` |
+| `src/orchestrate/reconcile.ts` | `src/runtime/orchestrate/reconcile.ts` | ported-adapted (WP2a-2) | tmux ownership removed; orphaned attempts ask `executor.reconcile` (see below) |
 | `src/workers/process-gate.mjs` | `src/runtime/workers/process-gate.ts` → `dist/runtime/workers/process-gate.js` | ported-adapted | TypeScript conversion only |
 | `src/workers/durable-worker-binding.mjs` | `src/runtime/workers/durable-worker-binding.ts` → `dist/…/durable-worker-binding.js` | ported-adapted | TypeScript; env name; default runs dir |
-| `src/workers/durable-worker.mjs` | — | deferred-WP2a-2 | Reaches the Pi runners through `run.ts` |
-| `src/workers/terminal-finalizer.mjs` | — | deferred-WP2a-2 | Out of WP2a-1 scope (paired with `durable-worker.mjs`) |
+| `src/workers/durable-worker.mjs` | `src/runtime/workers/durable-worker.ts` → `dist/runtime/workers/durable-worker.js` | ported-adapted (WP2a-2) | `loadExecutor` + durable authority; see below |
+| `src/workers/terminal-finalizer.mjs` | `src/runtime/workers/terminal-finalizer.ts` → `dist/…/terminal-finalizer.js` | ported (WP2a-2) | TypeScript conversion only |
 | `src/runners/headless-model.ts` | — | deferred-WP6 | `buildPiArgv` and the JSON parser go to `executors/pi/` (plan §3.4) |
-| `src/runners/tool-call-telemetry.ts` | — | deferred-WP2a-2 | Plan §3.4: event parsing to be generalized into `runtime/` |
+| `src/runners/tool-call-telemetry.ts` | `src/runtime/telemetry/tool-call-telemetry.ts` | ported-adapted (WP2a-2) | Collector unchanged; new `processExecToolCall` feeds it normalized `tool_call` events (`captureToolCalls`) |
 | `src/runners/tool-result-budget.ts`, `tool-result-budget-extension.ts` | — | deferred-WP6 | Plan §3.4: goes to `executors/pi/` |
 | `src/runners/inline.ts` | — | dropped | Plan §3.4 "not taken" (Pi SDK in-process) |
 | `src/runners/tmux.ts`, `tmux-control.ts` | — | dropped | Plan §3.4 "not taken" |
 | `src/sandbox/srt.ts` | — | deferred-WP6 | Pi path allow-list; generalize if needed (plan §3.4) |
 | `src/agents.ts` | — | dropped | Pi agent discovery; duplicates core `agents.ts` (plan §3.4) |
-| `src/api.ts`, `api.mjs` | — | deferred-WP2a-2 | Façade over run/async/status |
+| `src/api.ts`, `api.mjs` | `src/runtime/api.ts` (exported from `./runtime`) | ported-adapted (WP2a-2) | See "SubagentApi → runtime API". `api.mjs` (jiti shim) dropped |
 | `src/index.ts` | — | dropped | Pi extension entry point (Pi host = `hosts/pi`) |
 | `src/panel.ts` | — | dropped | TUI |
+| — | `src/runtime/durable-authority.ts` | new (WP2a-2) | Durable `ExecutionAuthority` (launch barrier behind `consume()`) |
+| — | `src/runtime/orchestrate/request.ts` | new (WP2a-2) | Runtime run input, validation, SubmitRequest fields, execution plan digest |
+| — | `src/runtime/orchestrate/execute.ts` | new (WP2a-2) | `executeAttempt` / `observeAttempt`: submit/observe under the runtime fence, artifacts |
+| — | `src/runtime/orchestrate/executor-record.ts` | new (WP2a-2) | Per-attempt `executor.json` (descriptor + attemptKey) for reconcile |
 
 `src/runtime/index.ts` exports a curated surface:
 
@@ -87,7 +91,10 @@ Neither changes behavior. The headers do not repeat them.
 - `artifacts/result.ts` without its duplicate `WORKSPACE_MODES`/`WorkspaceMode`, which are identical to the
   `core/constants` ones;
 - `run-ref.ts` without its `…ForTests` seams;
-- `MODULE`, `RUNTIME_WORKERS` and `runtimeWorkerPath`.
+- `MODULE`, `RUNTIME_WORKERS` and `runtimeWorkerPath`;
+- WP2a-2: run/async/reconcile, request/execute/executor-record, the durable authority, the tool-call
+  telemetry collector and the runtime API (`api.ts`). `RUNTIME_WORKERS` adds `durable-worker` and
+  `terminal-finalizer`.
 
 `dir-lock.ts` is internal: it is not exported from the entry point.
 
@@ -100,34 +107,34 @@ imports from `dist/`.
 | Source | Status | Destination / reason |
 |---|---|---|
 | `checks/agents.mjs` | deferred-WP6 | `agents.ts` and `buildPiArgv` (Pi agent discovery and argv) |
-| `checks/answer-preview.mjs` | partial | → `runtime-answer-preview.test.mjs`. The store and preview unit half is kept (16 of 39 assertions). The extension-tool half (fake `pi`; sync, wait, status, parallel, async/notify responses) is deferred to WP2a-2 |
-| `checks/api.mjs` | deferred-WP2a-2 | `api.ts` and `orchestrate/async.ts` |
+| `checks/answer-preview.mjs` | partial | → `runtime-answer-preview.test.mjs` (store and preview unit half, 16 of 39). WP2a-2: the preview over an executor run (completed = final, failed = partial/truncated) → `runtime-api.test.mjs`. Dropped: the extension-tool half (fake `pi`; Pi tool sync/wait/status/parallel/notify response formatting) — it tests the Pi tool host (`src/index.ts`), not the runtime; it belongs to `hosts/pi` |
+| `checks/api.mjs` | ported (WP2a-2) | → `runtime-api.test.mjs`. Dropped: `pkg.exports["./api"]` and `supportsExplicitExtensionIsolation` assertions (no `./api` export; Pi-only probe). `runSubagent({backend:"inline"})` validation now asserts missing task / missing executor |
 | `checks/artifacts.mjs` | ported | → `runtime-artifacts.test.mjs` (26/26; path `.agent-workflow/runs`) |
 | `checks/contracts.mjs` | partial | → `runtime-contracts.test.mjs` (74 of 81). Dropped: 5 `parsePiJsonLines`/`detectContextLengthExceeded` assertions (deferred-WP6, headless-model) and 2 "inline backend cannot provide" assertions (rule removed with the inline backend) |
 | `checks/darwin-process-identity-helper.mjs` | ported | → `runtime-darwin-process-identity-helper.test.mjs` (31/31, plus 2 for the dist copy) |
 | `checks/durable-launch-barrier.mjs` | ported | → `runtime-durable-launch-barrier.test.mjs` (53/53, plus 1). The jiti `lstat` instrumentation is replaced by a temp copy of the compiled `.js` with the `node:fs/promises` import rewritten. Fixtures: `durable-launch-barrier-worker.mjs`, `barrier-temp-alias-race.mjs` (10/10) |
 | `checks/durable-worker-binding.mjs` | ported | → `runtime-durable-worker-binding.test.mjs` (11/11; runs-dir digest now over `.agent-workflow/runs`) |
-| `checks/durable-worker-payload.mjs` | partial | → `runtime-durable-worker-payload.test.mjs`. Sections 1–5 (writer, resolver, legacy, task-only, tamper; 32 assertions) are kept verbatim, plus new `assertDurableWorkerPayloadShape` cases. Sections 5b–6 (45 assertions) are deferred to WP2a-2: they spawn `durable-worker.mjs` and `terminal-finalizer.mjs` through `async.ts`/`api.mjs` |
+| `checks/durable-worker-payload.mjs` | ported | → `runtime-durable-worker-payload.test.mjs` (sections 1–5, WP2a-1) and `runtime-durable-worker-lifecycle.test.mjs` (5b–7, WP2a-2). Sections 6–7 run provider-free with the fake executor fixture instead of a live model; 5d gains "no executor", "executor/backend mismatch" and "relative executor module" cases |
 | `checks/durable-worker-preflight.mjs` | ported | → `runtime-durable-worker-preflight.test.mjs` (6/6; fixture `durable-worker-preflight-invalid.mjs`) |
 | `checks/extension-isolation.mjs` | deferred-WP6 | `api.ts` and `runners/inline.ts` (also not wired into pi-subagent's `check:static`) |
-| `checks/fail-fast.mjs` | deferred-WP2a-2 | `orchestrate/run.ts` and `async.ts` |
+| `checks/fail-fast.mjs` | ported (WP2a-2) | → `runtime-api.test.mjs` "fail-fast". Failures come from a scripted `failed` event (the agent tools-ceiling error no longer exists), so the failed run records `attempt.started` instead of the synthesized `run.started`; the async prevalidation case uses an invalid per-task executor instead of an invalid backend |
 | `checks/headless-streaming.mjs` | deferred-WP6 | `runners/headless-model.ts` |
 | `checks/host-peer-dependencies.mjs` | partial | → `runtime-packed-install.test.mjs` ("not a runtime dependency / not bundled", now "zero dependencies"). Dropped: the wildcard-peer, devDependency and lockfile-drift assertions; agent-workflow's Pi peers are optional and its lock drift is checked by `check:scripts` |
 | `checks/inline-extension-providers.mjs` | deferred-WP6 | Inline runner |
 | `checks/inline-host-sdk.mjs` | deferred-WP6 | Inline runner |
 | `checks/inline-metadata.mjs` | deferred-WP6 | Inline runner |
 | `checks/inline-sdk-compat.mjs` | deferred-WP6 | Inline runner |
-| `checks/lifecycle.mjs` | deferred-WP2a-2 | `run.ts`, `async.ts`, `terminal-finalizer.mjs` |
+| `checks/lifecycle.mjs` | ported (WP2a-2) | → `runtime-durable-worker-lifecycle.test.mjs`. Dropped: the stubborn headless-Pi interrupt (fake `pi` with an orphaned child group): executors own their processes; the runtime's equivalent (SIGTERM → `cancel(owned)`) is in `runtime-durable-worker.test.mjs` "interrupt", the Pi child group goes to the WP6 adapter |
 | `checks/no-chain.mjs` | ported | → `runtime-validation.test.mjs` "no-chain" (4/4) |
-| `checks/output-recovery.mjs` | partial | → `runtime-validation.test.mjs`. Kept: the envelope `outputPartial` assertion. The headless and tmux runner assertions are deferred to WP6 |
+| `checks/output-recovery.mjs` | partial | → `runtime-validation.test.mjs` (envelope `outputPartial`). WP2a-2 → `runtime-execute.test.mjs`: completed output is the final text only (stale progress never promoted), timeout keeps partial deltas with `outputPartial: true`, a deadline before release launches nothing and sets no partial marker. The headless/tmux runner assertions stay deferred-WP6 / dropped with tmux |
 | `checks/panel-session-scope.mjs` | ported | → `runtime-panel-session-scope.test.mjs` (4/4) |
 | `checks/panel.mjs` | dropped | `panel.ts` (TUI) is not ported |
 | `checks/parent-session.mjs` | ported | → `runtime-parent-session.test.mjs` (4/4) |
 | `checks/prune.mjs` | partial | → `runtime-prune.test.mjs` (53 of 68). See the prune note below |
-| `checks/reconcile.mjs` | deferred-WP2a-2 | `orchestrate/reconcile.ts` |
+| `checks/reconcile.mjs` | ported (WP2a-2) | → `runtime-reconcile.test.mjs`. tmux cases converted (stale worktree attempt; unrelated process via a worker identity mismatch). Dropped: the orphaned headless-Pi child group (WP6) and the Pi tool `reconcile` action (`src/index.ts`) |
 | `checks/release-version.mjs` | dropped | pi-subagent release tooling (agent-workflow has `tools/release/`) |
 | `checks/release-workflow.mjs` | dropped | Same |
-| `checks/resolver.mjs` | deferred-WP2a-2 | `core/resolver.ts` |
+| `checks/resolver.mjs` | dropped (WP2a-2) | `core/resolver.ts` is dropped (no backend selection in the runtime) |
 | `checks/run-locator-sweep.mjs` | ported | → `runtime-run-locator-sweep.test.mjs` (8/8; `AGENT_WORKFLOW_RUN_*` env names) |
 | `checks/run-lock.mjs` | ported | → `runtime-run-lock.test.mjs` (13/13). The live holder is now taken with `acquireDirectoryLock` instead of `proper-lockfile` |
 | `checks/sandbox-agent-locks.mjs` | deferred-WP6 | `sandbox/srt.ts` |
@@ -135,13 +142,13 @@ imports from `dist/`.
 | `checks/thinking-levels.mjs` | partial | → `runtime-validation.test.mjs`. Kept: the `THINKING_LEVELS` assertion and the validation assertions. Deferred to WP6: tool schema, agent frontmatter, `buildPiArgv`, inline runner |
 | `checks/tmux-ownership.mjs` | deferred-WP6 | tmux runner and srt |
 | `checks/tool-result-budget.mjs` | partial | → `runtime-validation.test.mjs`. Kept: the validation passthrough assertions. The enforcer and extension assertions are deferred to WP6 |
-| `checks/usage-accumulation.mjs` | deferred-WP6 | Headless and inline runners |
+| `checks/usage-accumulation.mjs` | partial (WP2a-2) | The runtime half → `runtime-execute.test.mjs` "usage": sums across `usage` events, null stays null, source kept, no usage → absent, invalid numbers rejected by event validation. The Pi JSON parsing half (`message_end`/`turn_end` dedup, `cacheRead`/`cacheWrite`) stays deferred-WP6; the inline half is dropped with the inline runner |
 | `checks/workspace-policy.mjs` | ported | → `runtime-workspace-policy.test.mjs` (7/7) |
 | `checks/worktree-cleanup.mjs` | ported | → `runtime-worktree-cleanup.test.mjs`. Paths moved to `.agent-workflow`, plus an `.agent-workflow/runs` exclusion assertion |
 | `integration/confirmed-fixes.mjs` | deferred-WP6 | Live model run through `api.mjs` |
 | `integration/headless-model.mjs` | deferred-WP6 | Live headless Pi |
 | `integration/inline-model.mjs` | deferred-WP6 | Live inline Pi (inline is dropped; re-evaluate with the Pi executor) |
-| `integration/parent-session-e2e.mjs` | deferred-WP2a-2 | `orchestrate/run.ts` |
+| `integration/parent-session-e2e.mjs` | ported (WP2a-2) | → `runtime-api.test.mjs` "parent session id" (provider-free with the fake executor) |
 | `integration/tmux-model.mjs` | deferred-WP6 | Live tmux Pi |
 
 **Prune note** (`runtime-prune.test.mjs`):
@@ -161,6 +168,185 @@ New agent-workflow tests (no pi-subagent counterpart):
 | `runtime-workers.test.mjs` | process-gate exit 125/127, exit code and signal passthrough, `--file` mode |
 | `runtime-packed-install.test.mjs` | `npm pack` → install in a Pi-free temp project → import `./runtime`, spawn both workers; helper mode bits. Skips with a message when npm or the network is unavailable |
 | `runtime-validation.test.mjs` "generic backends" | The generic backend behavior |
+| `runtime-durable-worker.test.mjs` (WP2a-2) | Fencing trio end to end through real worker processes; happy path with a released V2 barrier (READY digests, binding seen by the adapter, usage with `cost: null`); rediscovery refusals (wrong id, version mismatch, missing module) before any effect; resubmitting a terminal attempt; SIGTERM → `cancel(owned)` |
+| `runtime-durable-authority.test.mjs` (WP2a-2) | Single use in-process and across instances; abort → revoked; V2 release/revoke; binding only after release; typed guard errors |
+| `runtime-execute.test.mjs` (WP2a-2) | `failed.class` table; invalid events/sequences; post-release submit failure → reconcile; timeouts; approval answers; usage; output recovery; idempotent resubmission; input validation; plan digest; `captureToolCalls` |
+| `runtime-packed-install.test.mjs` (WP2a-2 addition) | The installed `durable-worker.js` runs the fake executor fixture end to end (offline) |
+
+Test fixture: `test/fixtures/runtime/fake-executor-module.mjs` — an executor module (`createExecutor(config)`)
+that wraps the SDK fake executor and appends `submit` / `consume` (with outcome and the binding schema the
+adapter saw) / `effect` (`authorized` = a released consume preceded it) / `ref` / `cancel` / `reconcile`
+entries to an effect log file, so a test observes effects that happened in another process. Modes:
+`normal`, `hang-after-effect`, `skip-consume`, `crash-after-consume`; `reconcile: "found"` and `sessionBound`
+drive the reconcile outcomes. Its `reconcile` reads the effect log when the attempt ran in another process
+(effect or released consume → `unknown`, nothing → `absent`).
+
+Test-only fix in a WP2a-1 file: `runtime-workers.test.mjs` "--file" now publishes the payload atomically
+(write + rename). The non-atomic write raced the gate's poll and failed under the heavier WP2a-2 test load.
+
+## WP2a-2 executor seam
+
+### Durable LaunchAuthority (`src/runtime/durable-authority.ts`)
+
+`createDurableLaunchAuthority(options)` implements the SDK `ExecutionAuthority` for one attempt. Construction
+runs the binding preflight (`prepareDurableWorkerBinding`), so a malformed payload or digest fails before
+`submit`. `consume()` is single use and does, in order:
+
+1. abort check → `revoked`;
+2. create `authority.json` in the attempt directory with `O_EXCL` (the cross-process single-use record;
+   an existing record → `AUTHORITY_ALREADY_CONSUMED`);
+3. barrier await — V2: write READY (with `launchPayloadSha256` and `executionPlanSha256`), wait for the
+   engine decision, write ACK (V1 descriptors still use READY/RELEASE/ACK); a revoked decision or an abort
+   during the wait → `revoked`;
+4. `installDurableWorkerBinding`;
+5. abort check → `revoked`;
+6. `assertDurableLaunchBarrierV2ExecutionAuthorized` (V2);
+7. abort check → `revoked`;
+8. `released` (`grantId` = V2 decision digest, V1 release digest, or a digest of the record without a barrier).
+
+`authority.json` is rewritten with the final phase (`released` / `revoked`). `revoked` is returned, never
+thrown; guard and integrity failures throw (`DurableAuthorityError`, `DurableLaunchBarrierError`,
+`DurableWorkerGuardError`; `isDurableAuthorityError` covers all three). A second `consume()` rejects with
+`AUTHORITY_ALREADY_CONSUMED`; after `revoked` it returns `revoked` again. Without a barrier the authority is
+local: abort check + single-use record.
+
+After `released`, `binding()` returns the installed worker binding. Adapters get it through
+`durableWorkerBindingEnv(req.authority)` → `{ AGENT_WORKFLOW_DURABLE_WORKER_BINDING_JSON: … }` (the runtime's
+fence forwards `binding()`). **WP6:** the Pi adapter must also set the legacy
+`PI_SUBAGENT_DURABLE_WORKER_BINDING_JSON` (`LEGACY_PI_DURABLE_WORKER_BINDING_ENV`) for Pi children. Both
+names are stripped from the durable worker's environment and from `SubmitRequest.env`.
+
+### Execution plan digest (`buildExecutionPlan`, `executionPlanDigest`)
+
+Computed by the worker in `prepareSubagentExecution`, before `submit`, and reported in READY. SHA-256 over
+canonical JSON (keys sorted, `undefined` dropped; `durableLaunchBarrierDigest`) of:
+
+- `schema: "agent-workflow-durable-execution-plan-v1"`, `backend` (= executor id);
+- `executor`: the full descriptor (`id`, `version`, `contractVersion`, `module`, `config`);
+- `runId`, `attemptId`;
+- `cwd`: the execution cwd (the worktree path in worktree mode);
+- `workspace`: `{ mode, cwd (base), worktreePath }`;
+- `request`: every `SubmitRequest` field except `authority` — `attemptKey`, `cwd`, `prompt`, `systemPrompt`,
+  `model`, `effort`, `tools`, `readOnly`, `mcpServers` (including their `env`), `sessionId`,
+  `resumeSessionId`, `deadlineMs`, `env`, `isolation`, `approvalPolicy`, `artifactsDir`.
+
+`deadlineMs` = payload `startedAt` + `timeoutMs`, or `NO_DEADLINE_MS` (8.64e15, the largest `Date`) when no
+timeout is set, so the digest is deterministic. The launch payload digest (`launchPayloadSha256`) still binds
+the exact `worker.json` bytes, which now include the descriptor.
+
+### Runtime-enforced fencing (`executeAttempt`)
+
+The adapter receives a fence around the durable authority. The runtime fails the attempt with
+`guard_failure`, calls `cancel(ref, "owned")` and records the reason in `metadata.executor.fenceViolation`
+when `submit` resolves with a ref, or an event arrives, while the authority is unconsumed, revoked or failed.
+Every event goes through `validateExecEvent` and the SDK order rules (started first and once, unique approval
+ids, nothing after the terminal event; `validateEventSequence` once more at the end); a violation or a stream
+that ends without a terminal event is `guard_failure`. Other rules:
+
+- `submit` throws before release → no effect (`ExecutionNotStartedError`; the worktree stays discardable):
+  revoked → `cancelled/user_cancelled`; stop → `user_cancelled`/`abort`/`timeout`; authority guard →
+  `guard_failure`; adapter refusal → `validation` (INVALID_REQUEST / CAPABILITY_*), `guard_failure`
+  (claims an authority state the runtime never produced) or `spawn`.
+- `submit` throws after release → `executor.reconcile(attemptKey)`: `found` → observe that ref; `absent` →
+  `failed/spawn`; `unknown`/error → `failed/needs_decision`.
+- Stop (SIGTERM → `user_cancelled`, abort, `timeoutMs` → `timeout`): `cancel(ref, "owned")`, then wait
+  `AGENT_WORKFLOW_CANCEL_GRACE_MS` (default 10 s) for a terminal event. Without one the attempt ends with the
+  stop kind and `metadata.executor.termination: "unconfirmed"` (an ACK is never termination evidence).
+- `approval_request` is answered through `executor.respond` with `decideApproval`; `ask` is answered `deny`
+  (no interactive channel until WP2b).
+
+### Attempt artifacts
+
+- `exec-events.jsonl` (new artifact type `exec-events`): every accepted normalized event, appended as it
+  arrives.
+- `output.log`: `completed.finalText` for a completed attempt; otherwise the concatenated `message_delta`
+  text with `metadata.outputPartial: true` (same contract as the ported answer preview).
+- `stderr.log`: runtime diagnostics (empty on a clean completion).
+- `executor.json`: descriptor, attemptKey, readOnly, approval policy, plan digest (read by reconcile).
+- `authority.json`: the consumption record (above). `SubmitRequest.artifactsDir` = the attempt directory.
+- `tool-calls.jsonl` / `tool-calls-summary.json` when `captureToolCalls` is set (ported collector).
+- `result.json`: `metadata.usage` = sum of `usage` events — `{ input, output, cached, cost, source, events }`;
+  a field is `null` when any event reported it `null` (never 0), `source` is `unknown` if any event was,
+  else `estimated` if any was, else `reported`; absent when no usage event arrived. `metadata.executor`
+  records id, version, attemptKey, ref, authority outcome, failure class, fence violation, cancel result,
+  termination, reconcile outcome and approvals. `metadata.sessionId` comes from `started.sessionId`.
+
+### Failure kinds (new in `FAILURE_KINDS`)
+
+| `failed.class` / outcome | status | failureKind | Auto-retry by the core |
+|---|---|---|---|
+| `cancelled` | `cancelled` | `cancelled` (or the stop kind when the runtime asked) | no |
+| `transient` | `failed` | `transient` | allowed |
+| `rate_limit` | `failed` | `rate_limit` | allowed (after backoff) |
+| `auth` | `failed` | `executor_auth` | no |
+| `config` | `failed` | `executor_config` | no |
+| `permanent` | `failed` | `executor_permanent` | no |
+| `unknown` | `failed` | `executor_unknown` | no |
+| reconcile `absent` | `failed` | `not_started` | relaunch with a new attempt is safe |
+| reconcile `unknown` / unprovable | `failed` | `needs_decision` | **never**: stop and ask a person (B3) |
+
+`executor_unknown` (the adapter could not classify a failure) is different from `needs_decision` (nobody can
+prove whether the attempt launched). Rediscovery refusals (missing module, id/version/contract mismatch) are
+`guard_failure`.
+
+### Reconcile outcomes
+
+When the owner process is gone, no terminal result exists, the attempt was not interrupted and it has an
+`executor.json` (or a durable `worker.json` with `executor`), `reconcileSubagentRun` loads the executor from
+the persisted descriptor and calls `executor.reconcile(attemptKey)` once, appending a
+`reconcile.executor_outcome` event and returning `executorReconcile`:
+
+| Outcome | Reconcile status | Record |
+|---|---|---|
+| `found`, executor not `sessionBound`, `adoptTimeoutMs > 0` (default 5000) | `adopted-result` | observe the ref here (no cancel), write artifacts, commit its terminal status |
+| … adoption window ends first | `running` | unchanged; a later reconcile observes again |
+| `found`, `sessionBound` or adoption disabled | `marked-needs-decision` | `failed/needs_decision`, ref recorded |
+| `absent` | `marked-not-started` | `failed/not_started` |
+| `unknown`, reconcile threw, descriptor unloadable/invalid | `marked-needs-decision` | `failed/needs_decision` |
+
+Attempts without a persisted descriptor keep the pi-subagent result (`marked-stale`, `failed/stale`);
+interrupted attempts keep `marked-cancelled`. The runtime never relaunches.
+
+### Durable worker (`dist/runtime/workers/durable-worker.js`)
+
+Same sequence as pi-subagent (payload read/shape/location checks → ownership → heartbeat → prepare → run →
+terminal result → finalizer), with: `loadExecutor(payload.executor)` before prepare (refusals →
+`guard_failure` before READY or any effect); the barrier handled by the authority inside `submit`;
+`ExecutionNotStartedError` keeping its status/failureKind; an explicit `process.exit` after the terminal
+write (adapters may hold handles). The payload is `{ input, cwd, backend: executor.id, executor, runId,
+attemptId, startedAt }`; `input` is the validated runtime input without `executor` and with `attemptKey`.
+
+### SDK change
+
+`SubmitRequest.artifactsDir?: string` (absolute; adapters may write raw CLI logs there).
+`validateSubmitRequest` rejects a relative value. Test: `sdk-contract.test.mjs`.
+
+## SubagentApi → runtime API (for WP4)
+
+The engine (`pi-subagent-flow` `src/subagent-backend.ts`) calls `@agwab/pi-subagent/api` through the
+`SubagentApi` interface. WP4 switches it to `@agwab/agent-workflow/runtime`:
+
+| SubagentApi member / option | Runtime API | Note |
+|---|---|---|
+| `runSubagent(options)` | `runSubagent(options)` | Same modes (single/parallel, sync/async/detach/notify), same result shapes |
+| option `backend: "headless"` | `executor: ExecutorDescriptor` | Required. The descriptor is persisted in `worker.json` / `executor.json` |
+| option `task` | `task` | Becomes `SubmitRequest.prompt` |
+| option `systemPrompt`, `model`, `tools`, `sessionId`, `timeoutMs` | same names | `model` is passed verbatim (no Pi `provider/model` parsing); `tools` are Pi tool names the adapter maps; default `[]` |
+| option `thinking` | `effort` | Passed verbatim |
+| option `agent`, `agentScope`, `confirmProjectAgents`, `roleContext`, `skills` | — | Refused: the core resolves agents and supplies prompt/system prompt/model/tools |
+| option `extensions`, `noExtensions` | `mcpServers`, `isolation`, executor `config` | Refused. The workflow-artifact extension becomes an MCP server (`mcpServers`) |
+| option `toolResultBudget`, `visible` | — | Refused (Pi/tmux-only; Pi budget goes to the WP6 adapter config) |
+| — | `readOnly`, `env`, `approvalPolicy`, `resumeSessionId`, `attemptKey` | New SubmitRequest fields. `attemptKey` default `<runId>:<attemptId>`; the engine should pass its own (B3) |
+| options `async`, `onComplete`, `asyncDependency`, `workspace`, `worktree`, `worktreePolicy`, `cwd`, `runsDir`, `correlationId`, `durableLaunchBarrier`, `mode`, `tasks`, `concurrency`, `failFast`, `cancelSiblingsOnFailure`, `sandbox`, `captureToolCalls` | same | `tasks[i]` may override `executor`. `parentSessionId` is now accepted from code callers |
+| `supportsExplicitExtensionIsolation()` | — | Dropped; WP4 removes `assertSubagentExtensionsLoadable` / the extension preflight |
+| `getSubagentStatus`, `getSubagentLogs`, `waitForSubagent`, `interruptSubagent`, `recordSubagentChildEvent` | same | Unchanged shapes |
+| `reconcileSubagentRun(options)` | same | New options `registry`, `adoptTimeoutMs`; new statuses `adopted-result`, `marked-not-started`, `marked-needs-decision` and field `executorReconcile` — WP4 must stop and ask on `needs_decision` |
+| `pruneSubagentRuns`, `formatPruneSubagentRunsSummary` | same | |
+| `SubagentValidationError` | same | |
+| barrier: `createDurableLaunchBarrierV2`, `durableLaunchBarrierDigest`, `waitForDurableLaunchBarrierV2Ready`, `resolveDurableLaunchBarrierV2Release`, `revokeDurableLaunchBarrierV2`, `readDurableLaunchBarrierV2State`, `waitForDurableLaunchBarrierV2Ack` | same names | **The engine side keeps using exactly these** (plus `assertDurableLaunchBarrierV2ExecutionAuthorized`, `isDurableLaunchBarrier(Revoked)Error`). Schema ids are unchanged, so READY validation in `subagent-backend.ts` (~3315–3460) keeps working; `executionPlanSha256` now has the agent-workflow plan schema |
+| V1 barrier functions | same names | Still exported and still accepted by the worker |
+
+Run results, statuses and `RunStatusSnapshot` keep their shapes; `backend` is the executor id.
 
 ## Change log (behavior-relevant)
 
@@ -224,3 +410,62 @@ New agent-workflow tests (no pi-subagent counterpart):
       tmux code behind it.
     - The ResolveInput fields `agentScope`, `confirmProjectAgents`, `extensions`, `noExtensions`, `skills`,
       `toolResultBudget` and `sessionId`: still validated as before.
+11. **WP2a-2 executor seam** (behavior changes against pi-subagent; everything else in run/async/reconcile/
+    durable worker/finalizer/api is ported as is):
+    - **Runners → executors.** `run.ts` calls `executeAttempt` (SDK `submit`/`observe`) instead of the
+      headless/inline/tmux runners; no Pi agent loading and no agent tools ceiling (the core supplies
+      prompt/system prompt/model/tools). `backend` in records is the executor id.
+    - **Barrier position.** The barrier wait moved from "between prepare and run" into `authority.consume()`,
+      i.e. after the attempt is upserted `running` and the executor is loaded. Ownership stays `prepared`
+      (discardable worktree) until the authority releases, so revoke/abort before release still discards the
+      worktree as before. The binding preflight still runs before the barrier.
+    - **Plan schema.** `pi-subagent-durable-execution-plan-v1` (backend, agent, tools, …) is replaced by
+      `agent-workflow-durable-execution-plan-v1` (descriptor + full request); see above.
+    - **Single use across processes.** New `authority.json` record: a second consume for the same attempt
+      directory is `AUTHORITY_ALREADY_CONSUMED` (pi-subagent relied on the barrier's exclusive READY only).
+    - **Pre-effect results in sync runs.** `runSubagentTask` writes a terminal result for
+      `ExecutionNotStartedError` (revoked/abort/timeout/refusal before launch) instead of rethrowing.
+    - **Timeout.** `timeoutMs` is enforced by the runtime (cancel(owned) + grace) and recorded as
+      `failed/timeout`; a deadline before release launches nothing. Without `timeoutMs`, `deadlineMs` is
+      `NO_DEADLINE_MS`.
+    - **Output.** `output.log` is `finalText` (completed) or the streamed deltas (partial); usage is the
+      normalized summary above instead of Pi's `{ input, output, cacheRead, cacheWrite, cost: {…} }`.
+    - **Failure kinds.** New kinds (table above). Rediscovery refusals are `guard_failure`. Executor
+      `failed.class` maps as in the table instead of Pi's `model`/`provider_error`/`exit` kinds.
+    - **Reconcile.** Orphaned attempts with a persisted descriptor ask `executor.reconcile` (`adopted-result`,
+      `marked-not-started`, `marked-needs-decision`) instead of always `marked-stale`. tmux ownership
+      cleanup is gone (tmux metadata stays readable). Missing backend in a stale result is `"unknown"`
+      (was `"headless"`).
+    - **Durable worker.** Loads the executor from the payload descriptor; a payload without `executor`, or
+      with `executor.id !== backend`, is a `guard_failure`. Unreadable-payload fallback backend is
+      `"unknown"` (was `"headless"`). Env names `AGENT_WORKFLOW_HEARTBEAT_MS`,
+      `AGENT_WORKFLOW_DURABLE_WORKER_START_DELAY_MS`, `AGENT_WORKFLOW_DURABLE_WORKER_TERMINAL_WRITE_DELAY_MS`
+      (were `PI_SUBAGENT_*`); new `AGENT_WORKFLOW_CANCEL_GRACE_MS`. The worker calls `process.exit` after its
+      terminal write. Worker process metadata `command` is `"agent-workflow durable-worker"`.
+    - **API.** Pi-specific options are refused with a validation error; `parentSessionId` is accepted from
+      code callers (pi-subagent's validation dropped it); project-agent approval and
+      `supportsExplicitExtensionIsolation` are gone. `reconcileSubagentRun` is re-exported directly.
+    - **Async parallel.** Per-task executors are validated before any spawn (was per-task backend resolution).
+    - **Results/registry.** New artifact type `exec-events`, `ResultMetadata.executor`, run event types
+      `attempt.executor_submitted` and `reconcile.executor_outcome`.
+
+## Open problems (WP2a-2 → later packages)
+
+- **WP2b:** approval requests are answered by policy only (`ask` → deny); an interactive channel and a
+  re-attachable observer for a still-running adopted ref (today reconcile observes for `adoptTimeoutMs` and
+  otherwise leaves the attempt `running`) belong to the broker. Adoption restarts `exec-events.jsonl`
+  (observe replays from the start for the fake; real adapters must define replay semantics).
+- **WP2b/WP4:** `env` and `mcpServers[].env` are persisted in `worker.json` (and hashed into the plan) —
+  secrets there need a permission-restricted side file before real adapters use them.
+- **WP4:** map `needs_decision` to "stop and ask", `not_started` to "safe to relaunch with a new attempt",
+  `transient`/`rate_limit` to the retry policy; pass an engine-issued `attemptKey`; replace the Pi extension
+  preflight with `mcpServers`; READY validation is unchanged but the plan digest schema changed.
+- **WP6:** the Pi adapter must hand the binding to Pi children under both env names, map Pi JSON events
+  (tool-call telemetry, usage with cache read/write) to normalized events, and own the Pi child process group
+  (the dropped "stubborn interrupt" and "orphaned headless child" checks).
+- **Inherited quirks (unchanged from pi-subagent):** a guard failure after `prepare` but before release is
+  recorded by `discardSubagentExecution` as `cancelled/user_cancelled` and the later terminal write is skipped
+  (statuses differ), so `result.json` can stay `running` in that path; a revoked attempt keeps
+  `activeAttemptId` set (no finalizer is spawned for the duplicate-result backfill); a worker SIGKILLed while
+  holding the run lock leaves the lock directory behind (no stale stealing) and blocks later mutations.
+- `captureToolCalls` without `callId` cannot correlate start/end; such calls are recorded as instantaneous.

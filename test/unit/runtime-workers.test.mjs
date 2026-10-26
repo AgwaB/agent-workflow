@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -92,10 +92,13 @@ test("process-gate: --file payload is read once and removed", async () => {
 		const pending = runGate(["--file", path], "");
 		// The gate waits for a payload file that appears later.
 		await new Promise((resolveSleep) => setTimeout(resolveSleep, 50));
+		// Atomic publish (write + rename): the gate may poll between a non-atomic
+		// create and its first write and read an empty payload under load.
 		await writeFile(
-			path,
+			`${path}.tmp`,
 			payload([process.execPath, "-e", "console.log('file')"]),
 		);
+		await rename(`${path}.tmp`, path);
 		const result = await pending;
 		assert.deepEqual([result.code, result.signal], [0, null], result.stderr);
 		assert.equal(result.stdout, "file\n");
