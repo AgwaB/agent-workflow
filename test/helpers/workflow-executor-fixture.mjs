@@ -171,6 +171,7 @@ export function createExecutor(config) {
 				readOnly: req.readOnly,
 				isolation: req.isolation,
 				approvalAllowKinds: req.approvalPolicy?.allowKinds ?? null,
+				permissionMode: req.permissionMode ?? null,
 				mcpServers: (req.mcpServers ?? []).map((server) => server.name),
 				envKeys: Object.keys(req.env ?? {}).sort(),
 				hasSystemPrompt: typeof req.systemPrompt === "string",

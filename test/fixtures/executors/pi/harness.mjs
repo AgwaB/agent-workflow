@@ -214,10 +214,20 @@ function counters(cli, stateDir) {
 	};
 }
 
+/** Documented argv per permission mode (docs/executors/pi.md, WP4e): the same in both modes. */
+export const PI_PERMISSION_MODE_SETTINGS = {
+	free: ["--tools\nread,bash\n"],
+	safe: ["--tools\nread,bash\n"],
+	readOnly: ["--tools\nread\n"],
+	equivalent:
+		"Pi has no approval prompts and no sandbox: both modes run every requested tool; readOnly drops mutating tools from --tools",
+};
+
 export function createPiStubHarness() {
 	return {
 		name: "pi-executor-stub-cli",
 		scenarios: PI_STUB_SCENARIOS,
+		permissionModes: PI_PERMISSION_MODE_SETTINGS,
 		async open(scenario) {
 			const dir = await mkdtemp(join(tmpdir(), "aw-pi-stub-"));
 			const cli = await stagePiCli(scenario, join(dir, "cli"));

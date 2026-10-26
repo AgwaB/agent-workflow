@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/artifact-graph-schema.ts. MIT, same author. Changes: new optional top-level executionProfileExecutors (WP4c, B2: executor id per declared profile); WP4d: optional top-level executionProfileStrictCapabilities and allowReadOnlyDowngrade (B4 capability negotiation).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/artifact-graph-schema.ts. MIT, same author. Changes: new optional top-level executionProfileExecutors (WP4c, B2: executor id per declared profile); WP4d: optional top-level executionProfileStrictCapabilities and allowReadOnlyDowngrade (B4 capability negotiation). WP4e: optional top-level executionProfilePermissionModes.
 import { isAbsolute } from "node:path";
 
 import { LEVEL_CAPABILITY_NAMES } from "../sdk/capabilities.js";
@@ -46,6 +46,7 @@ const TOP_LEVEL_KEYS = new Set([
 	"defaultExecutionProfile",
 	"executionProfileExecutors",
 	"executionProfileStrictCapabilities",
+	"executionProfilePermissionModes",
 	"allowReadOnlyDowngrade",
 	"artifactGraph",
 ]);
@@ -368,6 +369,11 @@ function validateArtifactGraphTopLevel(
 		spec.executionProfiles,
 		issues,
 	);
+	validateExecutionProfilePermissionModes(
+		spec.executionProfilePermissionModes,
+		spec.executionProfiles,
+		issues,
+	);
 	if (
 		spec.allowReadOnlyDowngrade !== undefined &&
 		typeof spec.allowReadOnlyDowngrade !== "boolean"
@@ -407,6 +413,37 @@ function validateExecutionProfileStrictCapabilities(
 		const problem = strictCapabilityKeysProblem(keys);
 		if (problem !== undefined)
 			issues.push({ path: entryPath, message: problem });
+	}
+}
+
+/**
+ * agent-workflow (WP4e, D2 revised): `executionProfilePermissionModes: { <declared profile>: "free" |
+ * "safe" }` — the permission mode a declared execution profile selects.
+ */
+function validateExecutionProfilePermissionModes(
+	value: unknown,
+	profiles: unknown,
+	issues: ValidationIssue[],
+): void {
+	if (value === undefined) return;
+	const path = "$.executionProfilePermissionModes";
+	const map = recordAt(value, path, issues);
+	if (!map) return;
+	const declared =
+		profiles !== null &&
+		typeof profiles === "object" &&
+		!Array.isArray(profiles)
+			? (profiles as Record<string, unknown>)
+			: {};
+	for (const [name, mode] of Object.entries(map)) {
+		const entryPath = `${path}.${jsonKey(name)}`;
+		if (!Object.hasOwn(declared, name))
+			issues.push({
+				path: entryPath,
+				message: `unknown execution profile "${name}"`,
+			});
+		if (mode !== "free" && mode !== "safe")
+			issues.push({ path: entryPath, message: 'must be "free" or "safe"' });
 	}
 }
 

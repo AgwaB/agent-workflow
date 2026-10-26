@@ -429,6 +429,45 @@ test("submit: argv/tools/readOnly, prompt on stdin, extension per run, secrets o
 	assert.match(extension, /"envKeys":\["ART_TOKEN"\]/u);
 });
 
+test("permission mode (WP4e): Pi has no approvals or sandbox, so free and safe launch the same argv; readOnly drops mutating tools in both", async () => {
+	const launched = [];
+	for (const [permissionMode, readOnly] of [
+		["free", false],
+		["safe", false],
+		[undefined, false],
+		["free", true],
+		["safe", true],
+	]) {
+		const { cli, executor, dir } = await stage(await completeSteps());
+		const { req } = request({
+			tools: ["read", "bash", "edit"],
+			readOnly,
+			...(permissionMode === undefined ? {} : { permissionMode }),
+			artifactsDir: join(dir, "attempt"),
+		});
+		const ref = await executor.submit(req);
+		assert.equal((await drain(executor, ref)).at(-1).type, "completed");
+		const [launch] = (await cli.invocations()).filter((entry) => entry.effect);
+		// The per-run extension path differs by attempt dir; compare everything else.
+		const argv = launch.argv.map((arg) =>
+			arg.startsWith(dir) ? "<attempt>" : arg,
+		);
+		launched.push({ readOnly, argv });
+	}
+	const writable = launched.filter((entry) => !entry.readOnly);
+	for (const entry of writable) assert.deepEqual(entry.argv, writable[0].argv);
+	assert.equal(
+		writable[0].argv[writable[0].argv.indexOf("--tools") + 1],
+		"read,bash,edit",
+	);
+	const readOnly = launched.filter((entry) => entry.readOnly);
+	assert.deepEqual(readOnly[0].argv, readOnly[1].argv);
+	assert.equal(
+		readOnly[0].argv[readOnly[0].argv.indexOf("--tools") + 1],
+		"read",
+	);
+});
+
 test("submit: refusals happen before consume (no effect); session ids validated", async () => {
 	const { executor, cli } = await stage(await completeSteps());
 	const cases = [

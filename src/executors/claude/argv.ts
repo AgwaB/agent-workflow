@@ -14,14 +14,19 @@
  * {"autoMemoryEnabled":false}` (no auto-memory). Login survives (claude.ai OAuth, verified live).
  * `--bare` is never used: it refuses OAuth ("Not logged in") and still loads user plugins.
  *
- * Permissions (D2): always `--permission-mode default` (user settings may say `auto`); never a
- * bypass/auto-accept mode. Mutating tools are removed for readOnly; otherwise they go through the
- * approval channel. Only web tools the stage asked for and tools of engine-injected MCP servers are
- * pre-allowed.
+ * Permissions (D2 revised, WP4e). `safe` (and any request without `permissionMode`):
+ * `--permission-mode default` (user settings may say `auto`); never a bypass/auto-accept mode;
+ * mutating tools go through the approval channel. `free` on a stage that is not readOnly:
+ * `--permission-mode bypassPermissions` (the documented `--permission-mode` choice in 2.1.310; the
+ * `--dangerously-skip-permissions` alias is not used). A readOnly stage gets the same argv in both
+ * modes: `--permission-mode default`, mutating tools removed from `--tools` and listed in
+ * `--disallowedTools`. Only web tools the stage asked for and tools of engine-injected MCP servers
+ * are pre-allowed.
  */
 import { createHash } from "node:crypto";
 import type { McpServerSpec, SubmitRequest } from "../../sdk/contract.js";
 import { SdkError } from "../../sdk/errors.js";
+import { isUnrestricted } from "../../sdk/permission.js";
 import { mapTools } from "../../sdk/tools.js";
 import type { ClaudeExecutorConfig } from "./config.js";
 import {
@@ -133,6 +138,18 @@ export interface ClaudeInvocationPlan {
 	readonly builtinTools: readonly string[];
 	readonly allowedTools: readonly string[];
 	readonly effort: string | null;
+	/** `--permission-mode` value: `bypassPermissions` (free, not readOnly) or `default`. */
+	readonly permissionMode: ClaudePermissionMode;
+}
+
+/** `--permission-mode` values this adapter uses (D2 revised, WP4e). */
+export type ClaudePermissionMode = "default" | "bypassPermissions";
+
+/** `--permission-mode` for a request: bypass only for `free` on a stage that is not readOnly. */
+export function claudePermissionMode(
+	req: Pick<SubmitRequest, "permissionMode" | "readOnly">,
+): ClaudePermissionMode {
+	return isUnrestricted(req) ? "bypassPermissions" : "default";
 }
 
 export function resolveEffort(effort: string | undefined): string | null {
@@ -188,6 +205,7 @@ export function buildClaudeInvocation(
 		// Engine-injected servers (artifact server, …): the engine chose to expose them.
 		...req.mcpServers.map((server) => `mcp__${server.name}`),
 	];
+	const permissionMode = claudePermissionMode(req);
 	const argv = [
 		"-p",
 		"--input-format",
@@ -197,7 +215,7 @@ export function buildClaudeInvocation(
 		"--verbose",
 		"--include-partial-messages",
 		"--permission-mode",
-		"default",
+		permissionMode,
 		"--permission-prompt-tool",
 		"stdio",
 		"--tools",
@@ -264,6 +282,7 @@ export function buildClaudeInvocation(
 		builtinTools,
 		allowedTools,
 		effort,
+		permissionMode,
 	};
 }
 

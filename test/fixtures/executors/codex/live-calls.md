@@ -50,3 +50,25 @@ a model turn (`--version`, `login status`, `debug models`, `debug prompt-input`,
 - Cost: **not reported** by Codex for any call (ChatGPT plan; `cost: null`, `source: "unknown"`).
 - Models: `gpt-5.6-luna` (17 calls), `gpt-nope-0` (1 deliberate invalid model).
 - Web: 1 call (#6).
+
+## WP4e — permission mode `free` (1 call)
+
+Date 2026-10-26, codex-cli 0.159.2, same login. Purpose: prove that the free-mode `thread/start` params
+are accepted by the real app-server (D2 revised). Key names and values were first checked against
+`codex app-server generate-json-schema` (`ThreadStartParams.approvalPolicy: AskForApproval =
+"untrusted" | "on-request" | "never" | {granular}`, `ThreadStartParams.sandbox: SandboxMode = "read-only" |
+"workspace-write" | "danger-full-access"`). Driver: a throwaway script calling `createExecutor().submit()`
+(not tracked), cwd a fresh `/tmp/aw-live-wp4e-codex-*` with one file `NOTES.md`. Request:
+`permissionMode: "free"`, `readOnly: false`, tools `read, bash`, isolation on.
+
+Exact params (raw transcript): argv `codex -c log_dir="<state>/attempts/<digest>.log" app-server`;
+`thread/start {cwd, model: "gpt-5.6-luna", approvalPolicy: "never", approvalsReviewer: "user", sandbox:
+"danger-full-access", serviceTier: null, ephemeral: true, config: {…isolation, web_search: "disabled",
+tool_output_token_limit…}}`; `turn/start {threadId, input, model: "gpt-5.6-luna", effort: "low"}`. The
+`thread/start` result echoed `approvalPolicy: "never"`, `sandbox: {type: "dangerFullAccess"}`.
+
+| # | Purpose | Model | Duration | Tokens in/out/cached | Cost | Outcome |
+|---|---|---|---|---|---|---|
+| 19 | Free mode accepted (non-readOnly, no write) | gpt-5.6-luna low | 8420 ms (wall) | 17201/91/15232 | not reported | completed `WP4E-LIVE-MARKER first line`; `head -n 1 NOTES.md` ran as a shell read; no approval request; no file created |
+
+Totals now 19 live calls (WP7: 18, WP4e: 1). The temp dirs were removed.

@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/artifact-graph-runtime.ts. MIT, same author. Changes: artifact access writes artifact-access.json and binds workflow_artifact to the MCP server spec instead of generating a Pi extension wrapper; native tool policy → tool-policy (run.inheritHostTools).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/artifact-graph-runtime.ts. MIT, same author. Changes: artifact access writes artifact-access.json and binds workflow_artifact to the MCP server spec instead of generating a Pi extension wrapper; native tool policy → tool-policy (run.inheritHostTools). WP4e: tool policy gets the run permission mode.
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
@@ -45,6 +45,7 @@ import {
 	isWorkflowStopRequestedError,
 	throwIfWorkflowStopRequested,
 } from "./workflow-stop.js";
+import { workflowRunPermissionMode } from "./permission-mode.js";
 import type {
 	ArtifactGraphRequiredRead,
 	CompiledTask,
@@ -1078,6 +1079,7 @@ export async function prepareDagTask(
 		{
 			inheritHostTools: run.inheritHostTools === true,
 			allowSharedCheckoutWrites: run.allowSharedCheckoutWrites === true,
+			permissionMode: workflowRunPermissionMode(run),
 		},
 	);
 	const task = run.tasks[index]!;

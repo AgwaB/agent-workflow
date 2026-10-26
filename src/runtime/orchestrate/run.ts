@@ -386,6 +386,9 @@ export async function prepareSubagentExecution(
 		attemptKey: request.attemptKey,
 		readOnly: request.readOnly,
 		approvalPolicy: request.approvalPolicy,
+		...(request.permissionMode === undefined
+			? {}
+			: { permissionMode: request.permissionMode }),
 		executionPlanSha256,
 	});
 	return {

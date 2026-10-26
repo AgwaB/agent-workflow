@@ -176,7 +176,7 @@ export interface ResultExecutorMetadata {
 		requestId: string;
 		kind: string;
 		decision: string;
-		/** WP2b: who decided — engine-policy | host | default-timeout (audit: approvals.jsonl). */
+		/** WP2b: who decided — engine-policy | engine-policy:free (WP4e) | host | default-timeout (audit: approvals.jsonl). */
 		by?: string;
 		response: string;
 	}>;

@@ -4,8 +4,11 @@
  * is spawned. Everything the worker gets — sandbox, approval routing, isolation (B5), injected
  * MCP servers including their env values — travels as `thread/start` parameters over stdin, so
  * argv carries no secret (prior-art §3 #8). Approval requests become `approval_request` events
- * answered through `respond()`; nothing is auto-approved (D2). Threads are ephemeral unless the
- * request asks to keep a session (D3).
+ * answered through `respond()`; the adapter auto-approves nothing (D2). Permission mode (WP4e):
+ * `free` on a non-readOnly stage starts the thread with `sandbox: "danger-full-access"` and
+ * `approvalPolicy: "never"`; `safe` (or absent) and every readOnly stage keep the mapped sandbox and
+ * `approvalPolicy: "on-request"`. Threads are ephemeral unless the request asks to keep a session
+ * (D3).
  */
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { mkdirSync, appendFileSync } from "node:fs";
@@ -726,11 +729,12 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 						cwd: req.cwd,
 					}),
 				);
-			const plan = planCodexTools(req.tools, req.readOnly);
+			const plan = planCodexTools(req.tools, req.readOnly, req.permissionMode);
 			const threadParams = {
 				cwd: req.cwd,
 				...(req.model === undefined ? {} : { model: req.model }),
-				approvalPolicy: "on-request",
+				// WP4e: "never" + danger-full-access only for free mode on a non-readOnly stage.
+				approvalPolicy: plan.approvalPolicy,
 				approvalsReviewer: "user",
 				sandbox: plan.sandbox,
 				// fastTier is not offered: run on the standard tier whatever the user's config says.

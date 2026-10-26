@@ -253,6 +253,8 @@ export function createClaudeExecutor(options: {
 					keepSession: plan.keepSession,
 					builtinTools: plan.builtinTools,
 					allowedTools: plan.allowedTools,
+					requestPermissionMode: req.permissionMode ?? null,
+					permissionMode: plan.permissionMode,
 				},
 				null,
 				2,

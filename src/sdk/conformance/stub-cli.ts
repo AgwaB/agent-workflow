@@ -249,6 +249,7 @@ export async function createStubCli(options: StubCliOptions): Promise<StubCli> {
 				argv: invocation.argv,
 				envKeys: invocation.envKeys,
 				cwd: invocation.cwd,
+				stdin: invocation.stdin,
 			}));
 		},
 		effectCount: async (filter) => (await effects(filter)).length,

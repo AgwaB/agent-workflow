@@ -12,6 +12,7 @@ import type {
 import { LEVEL_CAPABILITY_NAMES } from "./capabilities.js";
 import { EXECUTOR_CONTRACT_VERSION } from "./contract.js";
 import { SdkError } from "./errors.js";
+import type { PermissionMode } from "./permission.js";
 import { mapTools, type ToolMapping } from "./tools.js";
 
 export type Need = "required" | "preferred" | "optional";
@@ -76,6 +77,12 @@ export interface StageRequirementContext {
 	readonly strict?: readonly RequirementKey[];
 	/** Interactive host: degradations need user confirmation (B4). Non-interactive: record only. */
 	readonly interactive?: boolean;
+	/**
+	 * D2 revised (WP4e). `free`: a missing precise tool allowlist (`toolAllowlist.fine`, e.g. Codex
+	 * `coarse`) and environment warnings (`CAPABILITY_WARNING`) are recorded degradations that are
+	 * never refused (not even by `strict`) and never need confirmation. Default `safe`: B4 as before.
+	 */
+	readonly permissionMode?: PermissionMode;
 }
 
 export type NegotiationOutcome = "native" | "emulated" | "degraded" | "refused";
@@ -97,6 +104,8 @@ export interface NegotiationEntry {
 	/** Named code for any gap, e.g. `CAPABILITY_MISSING:toolAllowlist.fine`. */
 	readonly code?: string;
 	readonly note?: string;
+	/** `free` permission mode accepted this degradation: no refusal, no confirmation (WP4e). */
+	readonly acceptedByFreeMode?: true;
 }
 
 export interface NegotiationReport {
@@ -111,6 +120,8 @@ export interface NegotiationReport {
 	readonly entries: readonly NegotiationEntry[];
 	readonly refusals: readonly string[];
 	readonly degradations: readonly string[];
+	/** Permission mode the stage was negotiated under, when the caller set one (WP4e). */
+	readonly permissionMode?: PermissionMode;
 }
 
 const DETAIL_RANK: Partial<Record<CapabilityName, readonly string[]>> = {
@@ -216,6 +227,7 @@ export function negotiateCapabilities(
 	const unverifiedOptIn = new Set<string>(ctx.allowUnverified ?? []);
 	const strictKeys = new Set<string>(ctx.strict ?? []);
 	for (const key of strictKeys) splitKey(key);
+	const free = ctx.permissionMode === "free";
 	let forcedReadOnly = false;
 
 	const readOnlyDowngrade = (
@@ -329,6 +341,15 @@ export function negotiateCapabilities(
 						note: DEGRADE_NOTES[name] ?? "no engine emulation available",
 					};
 				}
+			} else if (name === "toolAllowlist" && free) {
+				// WP4e: free mode accepts a coarse allowlist for every stage (recorded, never refused).
+				entry = {
+					...base,
+					outcome: "degraded",
+					code,
+					note: "free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list",
+					acceptedByFreeMode: true,
+				};
 			} else if (name === "toolAllowlist") {
 				entry = readOnlyDowngrade(
 					key,
@@ -356,7 +377,14 @@ export function negotiateCapabilities(
 			}
 		}
 		if (
+			free &&
+			entry.outcome === "degraded" &&
+			entry.code?.startsWith("CAPABILITY_WARNING:") === true
+		)
+			entry = { ...entry, acceptedByFreeMode: true };
+		if (
 			(entry.outcome === "emulated" || entry.outcome === "degraded") &&
+			entry.acceptedByFreeMode !== true &&
 			(strictKeys.has(key) || strictKeys.has(name))
 		) {
 			entry = {
@@ -399,6 +427,10 @@ export function negotiateCapabilities(
 	const degradations = entries
 		.filter((entry) => entry.outcome === "degraded")
 		.map((entry) => entry.code ?? entry.key);
+	const confirmable = entries.filter(
+		(entry) =>
+			entry.outcome === "degraded" && entry.acceptedByFreeMode !== true,
+	).length;
 	return {
 		contractVersion: EXECUTOR_CONTRACT_VERSION,
 		executorId: executor.id,
@@ -406,12 +438,13 @@ export function negotiateCapabilities(
 		accepted: refusals.length === 0,
 		forcedReadOnly,
 		needsConfirmation:
-			refusals.length === 0 &&
-			degradations.length > 0 &&
-			(ctx.interactive ?? false),
+			refusals.length === 0 && confirmable > 0 && (ctx.interactive ?? false),
 		entries,
 		refusals,
 		degradations,
+		...(ctx.permissionMode === undefined
+			? {}
+			: { permissionMode: ctx.permissionMode }),
 	};
 }
 
@@ -450,8 +483,10 @@ export function formatNegotiationPreview(
 		const by = entry.emulatedBy === undefined ? "" : ` by ${entry.emulatedBy}`;
 		const code = entry.code === undefined ? "" : ` [${entry.code}]`;
 		const note = entry.note === undefined ? "" : ` — ${entry.note}`;
+		const free =
+			entry.acceptedByFreeMode === true ? " (accepted: free mode)" : "";
 		lines.push(
-			`  ${entry.key}: ${entry.outcome}${by} (${entry.need}, ${observed})${code}${note}`,
+			`  ${entry.key}: ${entry.outcome}${by}${free} (${entry.need}, ${observed})${code}${note}`,
 		);
 	}
 	return lines;
@@ -487,6 +522,8 @@ export function buildCapabilityPreview(
 	options: {
 		readonly executor?: { readonly id: string; readonly version: string };
 		readonly header?: readonly string[];
+		/** Effective run permission mode, shown on the first line (WP4e). */
+		readonly permissionMode?: PermissionMode;
 	} = {},
 ): CapabilityPreview {
 	const refusals: string[] = [];
@@ -505,7 +542,11 @@ export function buildCapabilityPreview(
 		options.executor === undefined
 			? (stages[0]?.report.executorId ?? "executor")
 			: `${options.executor.id}@${options.executor.version}`;
-	const summary = `Capability check (${executor}, ${stages.length} stage${stages.length === 1 ? "" : "s"}): ${
+	const mode =
+		options.permissionMode === undefined
+			? ""
+			: `, permission mode: ${options.permissionMode}`;
+	const summary = `Capability check (${executor}, ${stages.length} stage${stages.length === 1 ? "" : "s"}${mode}): ${
 		accepted
 			? degradations.length > 0
 				? `accepted with ${degradations.length} degradation${degradations.length === 1 ? "" : "s"}`

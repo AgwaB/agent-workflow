@@ -432,6 +432,7 @@ test("approval requests are answered by policy: readOnly + mutating kind → den
 		task: "try an edit",
 		readOnly: true,
 		approvalPolicy: { allowKinds: ["edit"] },
+		permissionMode: "safe",
 		registry,
 	});
 	assert.equal(result.status, "completed");

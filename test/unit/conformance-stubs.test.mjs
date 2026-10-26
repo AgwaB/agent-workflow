@@ -139,6 +139,8 @@ test("stub CLI replays scripts and records invocations", async () => {
 			argv: ["run", "--attempt", "a1"],
 			envKeys: launch.envKeys,
 			cwd: launch.cwd,
+			// WP4e: stdin lines too (settings sent over a stdio protocol).
+			stdin: launch.stdin,
 		},
 	]);
 	await cli.reset();

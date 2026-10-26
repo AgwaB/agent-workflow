@@ -200,9 +200,17 @@ export type {
 	WorkflowCapabilityPolicy,
 	WorkflowExecutorProber,
 } from "./capability-negotiation.js";
+export {
+	resolveRunPermissionMode,
+	workflowDeclaredProfilePermissionMode,
+	workflowRunPermissionMode,
+} from "./permission-mode.js";
+export type { RunPermissionModeInput } from "./permission-mode.js";
 export type {
 	WorkflowRunExecutorSelection,
 	WorkflowRunExecutorSource,
+	WorkflowRunPermissionMode,
+	WorkflowRunPermissionModeSource,
 	WorkflowRunRecord,
 	WorkflowTaskRunRecord,
 } from "./types.js";

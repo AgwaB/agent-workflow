@@ -105,11 +105,19 @@ export function codexConfig(codexPath, stateDir, scenario) {
 	};
 }
 
+/** Documented `thread/start` params per permission mode (docs/executors/codex.md, WP4e). */
+export const CODEX_PERMISSION_MODE_SETTINGS = {
+	free: ['"approvalPolicy":"never"', '"sandbox":"danger-full-access"'],
+	safe: ['"approvalPolicy":"on-request"', '"sandbox":"workspace-write"'],
+	readOnly: ['"approvalPolicy":"on-request"', '"sandbox":"read-only"'],
+};
+
 export function createCodexStubHarness(options = {}) {
 	const scenarios = options.scenarios ?? OFFLINE_SCENARIOS;
 	return {
 		name: "codex-stub-app-server",
 		scenarios,
+		permissionModes: CODEX_PERMISSION_MODE_SETTINGS,
 		async open(scenario) {
 			const dir = await mkdtemp(join(tmpdir(), "aw-codex-stub-"));
 			const { cli, codexPath } = await stageCli(dir, scenario);

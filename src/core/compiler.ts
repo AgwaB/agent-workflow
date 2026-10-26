@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/compiler.ts. MIT, same author. Changes: R#5/D2 write-capable tasks require a worktree even under spec worktreePolicy "off" (warning; only the run option allowSharedCheckoutWrites waives it); fast mode from fast-tier.ts; native host → inheritHostTools compile option (tool-policy.ts).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/compiler.ts. MIT, same author. Changes: R#5/D2 write-capable tasks require a worktree even under spec worktreePolicy "off" (warning; only the run option allowSharedCheckoutWrites waives it); fast mode from fast-tier.ts; native host → inheritHostTools compile option (tool-policy.ts). WP4e: compile option permissionMode — R#5 only in "safe"; "free" honors worktreePolicy as written (pi-workflow).
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
@@ -95,6 +95,13 @@ export interface CompileOptions {
 	 * A spec cannot set this; without it a spec "off" is ignored with a warning.
 	 */
 	allowSharedCheckoutWrites?: boolean;
+	/**
+	 * WP4e (D2 revised): the run's permission mode. R#5 (a write-capable task
+	 * needs a worktree even under a spec "off") applies only in `safe`; in
+	 * `free` the spec's worktreePolicy is honored as written (pi-workflow
+	 * behavior). Absent = `safe`; the engine always passes the run's mode.
+	 */
+	permissionMode?: "free" | "safe";
 	/** Bounded routing preflight injects frontmatter-only agent metadata. */
 	agentLoader?: (
 		name: string,
@@ -674,6 +681,7 @@ function classifySafety(
 	options: {
 		inheritHostTools?: boolean;
 		allowSharedCheckoutWrites?: boolean;
+		permissionMode?: "free" | "safe";
 	} = {},
 ): CompiledTaskSafety {
 	// Inherited host tools (Pi only) are mutation-capable whatever the task's own list says.
@@ -692,8 +700,26 @@ function classifySafety(
 					effectiveToolClassification(tool, toolProviders) === "read-only",
 			),
 	);
-	// D2/R#5: a task that can write needs a worktree. A spec-level "off" no
-	// longer waives it; only the executing user's allowSharedCheckoutWrites does.
+	// WP4e: free mode honors the spec's worktreePolicy as written (pi-workflow).
+	if (options.permissionMode === "free")
+		return {
+			readOnlyDeclared,
+			capability,
+			sharedCwdSafe,
+			worktreePolicy,
+			requiresWorktree:
+				worktreePolicy === "on" ||
+				(worktreePolicy === "auto" && !sharedCwdSafe),
+			permission: permissionPreview(
+				tools,
+				toolProviders,
+				capability,
+				approvalMode,
+			),
+		};
+	// D2/R#5 (safe mode): a task that can write needs a worktree. A spec-level
+	// "off" no longer waives it; only the executing user's
+	// allowSharedCheckoutWrites does.
 	const sharedCheckoutWritesAllowed =
 		worktreePolicy === "off" &&
 		!sharedCwdSafe &&
@@ -1795,12 +1821,16 @@ async function compileArtifactGraphPlan(
 			{
 				inheritHostTools: runtime.inheritHostTools === true,
 				allowSharedCheckoutWrites: options.allowSharedCheckoutWrites === true,
+				...(options.permissionMode === undefined
+					? {}
+					: { permissionMode: options.permissionMode }),
 			},
 		);
-		// D2/R#5: a spec-level worktreePolicy "off" cannot put a write-capable
-		// task on the shared checkout; say so instead of silently overriding it.
+		// D2/R#5 (safe mode): a spec-level worktreePolicy "off" cannot put a
+		// write-capable task on the shared checkout; say so instead of silently
+		// overriding it.
 		if (worktreePolicy === "off" && safety.requiresWorktree) {
-			const warning = `stage "${stage.id}" sets worktreePolicy: "off" but can write (${safety.capability}); a worktree is still required (D2). Only the executing user's allowSharedCheckoutWrites run option can disable it.`;
+			const warning = `stage "${stage.id}" sets worktreePolicy: "off" but can write (${safety.capability}); a worktree is still required (D2, safe permission mode). Only the executing user's allowSharedCheckoutWrites run option or the free permission mode can disable it.`;
 			if (!warnings.includes(warning)) warnings.push(warning);
 		}
 		// Warn when a stage declares readOnly: true but its effective tools are
@@ -2162,6 +2192,9 @@ async function compileArtifactGraphPlan(
 		...(options.allowSharedCheckoutWrites === true
 			? { allowSharedCheckoutWrites: true }
 			: {}),
+		...(options.permissionMode === undefined
+			? {}
+			: { permissionMode: options.permissionMode }),
 		budget: {
 			models: budgetModelRows(tasks),
 			unratedModels: [],

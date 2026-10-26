@@ -7,7 +7,7 @@ fencing at the effect boundary, honest events and costs, the approval channel, c
 error classes, MCP injection, and rediscovery. It was built before the adapters (WP6–WP8) so they can
 be developed against it. WP9b runs the three adapters through it.
 
-Kit version `CONFORMANCE_KIT_VERSION = 0.2.0` (WP2b: runtime tier implemented; `runtime.broker_relay` renamed `runtime.control_relay` — it was a never-run placeholder), SDK contract `0.1.0`.
+Kit version `CONFORMANCE_KIT_VERSION = 0.3.0` (WP4e: offline check `permission.mode_mapping`, area `permission`, harness `permissionModes`, `LaunchRecord.stdin`; 0.2.0 WP2b: runtime tier implemented; `runtime.broker_relay` renamed `runtime.control_relay` — it was a never-run placeholder), SDK contract `0.1.0`.
 
 ## Tiers
 
@@ -60,6 +60,11 @@ interface ConformanceHarness {
   descriptor?(): Promise<{ descriptor; registry? }>; // R#15 reload check
   live?: boolean;
   runtime?(scenario, { workDir }): Promise<RuntimeStage>; // runtime tier (WP2b)
+  permissionModes?: {                      // WP4e: documented launch settings per permission mode
+    free: string[]; safe: string[];        // substrings of argv.join("\n") + stdin lines
+    readOnly?: string[];                   // a free + readOnly launch must carry these, and no free-only one
+    equivalent?: string;                   // reason, when both modes map to the same settings
+  };
 }
 interface RuntimeStage {
   descriptor: ExecutorDescriptor;            // loadable by loadExecutor in a FRESH process (absolute module / package specifier, JSON config, no secrets)
@@ -70,7 +75,7 @@ interface RuntimeStage {
 interface HarnessSession {
   executor: WorkflowExecutor;
   effectCount(attemptKey?): Promise<number>;     // launches seen (probes excluded)
-  launches?(attemptKey): Promise<LaunchRecord[]>; // argv/env keys, for the argv-secret check
+  launches?(attemptKey): Promise<LaunchRecord[]>; // argv/env keys (+ stdin lines), for argv/permission checks
   restart?(): Promise<WorkflowExecutor>;          // new instance, same durable state
   dispose?(): Promise<void>;
 }
@@ -94,7 +99,7 @@ For process adapters, count from the stub CLI invocation log, not from adapter s
 | `fail_transient` … `fail_permanent` | fail with CLI error text that the adapter's table maps to that class |
 | `fail_unknown` | fail with unrecognized error text. The class must be `unknown` |
 
-## Catalog (34 offline, 5 live, 3 runtime)
+## Catalog (35 offline, 5 live, 3 runtime)
 
 | Id | Tier | Asserts | Scenarios | Refs |
 |---|---|---|---|---|
@@ -120,6 +125,7 @@ For process adapters, count from the stub CLI invocation log, not from adapter s
 | `approval.deny` | offline | respond(deny) ⇒ requested kind never completes | approval | R#4, D2 |
 | `approval.respond_unknown` | offline | unknown id ⇒ `unknown_request`; answered id ⇒ `too_late` | approval | R#4 |
 | `approval.timeout_fail_closed` | offline | no answer + non-interactive policy ⇒ deny | approval | R#4, D2 |
+| `permission.mode_mapping` | offline | `free` and `safe` (tools `read, bash`) launch with the harness's documented settings; the two differ unless `equivalent` names a reason; a `free` + `readOnly` launch carries no free-only setting (skips without `harness.permissionModes` or `launches`) | complete | D2 revised, WP4e |
 | `cancel.active` | offline | cancel(turn) settles in time; `cancelled` ⇒ failed class `cancelled`; `uncertain` ⇒ reconcile not absent | slow | prior-art §3 #4 |
 | `cancel.declared_matches` | offline | cancel level `none` ⇔ `unsupported`, both scopes, within callMs | slow (or complete) | §2.2 |
 | `cancel.inactive` | offline | after terminal ⇒ too_late/no_active; unknown attempt ⇒ no_active | complete | §2.1 |
@@ -184,6 +190,7 @@ For process adapters, count from the stub CLI invocation log, not from adapter s
 | `probe()` consumes a stored authority | `probe.side_effect_free` |
 | reconcile reports `absent` after a consume-crash | `reconcile.unknown` |
 | approval auto-allowed without an answer | `approval.deny`, `approval.timeout_fail_closed` |
+| adapter ignores `permissionMode`; free mode unlocks a readOnly stage | `permission.mode_mapping` |
 | runtime stage launches without `consume()` (`runtime.faults.complete.skipConsume`) | `runtime.durable_authority` |
 | runtime stage reconciles `absent` after an effect (`reconcileAbsent`) | `runtime.durable_authority` |
 | runtime stage answers every approval `allow` (`ignoreDeny`) | `runtime.control_relay` |

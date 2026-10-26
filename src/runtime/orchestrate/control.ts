@@ -57,7 +57,12 @@ export function controlPollMs(): number {
 	return Number.isFinite(raw) && raw >= 5 ? raw : DEFAULT_CONTROL_POLL_MS;
 }
 
-export type ApprovalDecider = "engine-policy" | "host" | "default-timeout";
+/** `engine-policy:free`: answered by the `free` permission mode policy (WP4e). */
+export type ApprovalDecider =
+	| "engine-policy"
+	| "engine-policy:free"
+	| "host"
+	| "default-timeout";
 
 export interface ControlRequest {
 	schema: typeof CONTROL_REQUEST_SCHEMA;

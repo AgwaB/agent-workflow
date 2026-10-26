@@ -6,6 +6,8 @@
 // At launch the task backend re-derives the same decision from the recorded capabilities, so a
 // runtime-generated task (foreach item, loop child, dynamic worker) is checked the same way and
 // `forcedReadOnly` reaches the SubmitRequest.
+// WP4e: the run permission mode reaches every stage context (free: coarse allowlist and environment
+// warnings are recorded degradations, never refusals or confirmations) and the preview's first line.
 import {
 	type ExecutorCapabilities,
 	mergeProbedCapabilities,
@@ -237,6 +239,12 @@ export interface WorkflowCapabilityPolicy {
 	allowUnverified: string[];
 	strict: string[];
 	allowReadOnlyDowngrade: boolean;
+	/**
+	 * WP4e (D2 revised). `free`: coarse tool allowlists and environment
+	 * warnings are recorded degradations, never refusals or confirmations.
+	 * Absent (records created before WP4e) = `safe`.
+	 */
+	permissionMode?: "free" | "safe";
 }
 
 /** B5: a task inherits the user's context files/skills only when the stage or agent opts in. */
@@ -289,6 +297,7 @@ export function workflowTaskRequirementContext(
 		allowUnverified: policy.allowUnverified as RequirementKey[],
 		strict: policy.strict as RequirementKey[],
 		interactive: policy.interactive,
+		permissionMode: policy.permissionMode ?? "safe",
 	};
 }
 
@@ -326,7 +335,7 @@ function optInHint(code: string, policy: WorkflowCapabilityPolicy): string {
 		(key.startsWith("toolAllowlist") || key.startsWith("tool.")) &&
 		!policy.allowReadOnlyDowngrade
 	)
-		return 'opt in with spec "allowReadOnlyDowngrade": true (the stage then runs with readOnly enforced)';
+		return 'opt in with spec "allowReadOnlyDowngrade": true (the stage then runs with readOnly enforced), or run with permissionMode "free" (coarse tool limits accepted)';
 	return "no opt-in exists; choose another executor";
 }
 
@@ -426,6 +435,7 @@ export async function negotiateWorkflowRun(
 	const preview = buildCapabilityPreview(stages, {
 		executor,
 		header: probeHeader(probed.summary),
+		permissionMode: policy.permissionMode ?? "safe",
 	});
 	if (!preview.accepted)
 		throw new WorkflowCapabilityError(
@@ -440,7 +450,12 @@ export async function negotiateWorkflowRun(
 	let confirmation: WorkflowRunCapabilityNegotiation["confirmation"] =
 		"not-needed";
 	if (preview.degradations.length > 0)
-		confirmation = policy.interactive ? "confirmed" : "non-interactive";
+		confirmation = preview.needsConfirmation
+			? "confirmed"
+			: policy.interactive
+				? // WP4e: only free-mode-accepted degradations; nothing to confirm.
+					"not-needed"
+				: "non-interactive";
 	if (preview.needsConfirmation) {
 		if (input.confirmDegradations === undefined)
 			throw new WorkflowCapabilityError(
@@ -470,6 +485,7 @@ export async function negotiateWorkflowRun(
 			allowUnverified: [...policy.allowUnverified],
 			strict: [...policy.strict],
 			allowReadOnlyDowngrade: policy.allowReadOnlyDowngrade,
+			permissionMode: policy.permissionMode ?? "safe",
 		},
 		confirmation,
 		stages,

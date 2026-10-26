@@ -66,3 +66,22 @@ loaded by `-e`. These runs make no model call and are not counted. They covered:
 - the tool-result budget;
 - SIGTERM exit 143;
 - the error transcripts `fail-config-model-not-found`, `fail-auth-no-api-key` and `fail-unknown-flag-conflict`.
+
+## WP4e — permission mode `free` (1 call)
+
+Date 2026-10-26, Pi 1.1.0. Purpose: show that a `free` request runs through the adapter unchanged (Pi
+has no approval prompts and no sandbox, so free and safe produce the same argv; D2 revised). Driver: a
+throwaway script calling `createExecutor().submit()` (not tracked), cwd a fresh `/tmp/aw-live-wp4e-pi-*`
+with one file `NOTES.md`. Request: `permissionMode: "free"`, `readOnly: false`, tools `read, bash`,
+isolation on.
+
+Exact argv: `pi --mode json --print --no-session --exclude-tools subagent --no-context-files
+--no-extensions --no-skills --no-prompt-templates --no-themes --no-approve --model
+google/gemini-3.1-flash-lite --thinking minimal --tools read,bash -e <attempt>/pi-extension.mjs`; prompt on
+stdin.
+
+| # | Purpose | argv | Model | Duration | Tokens in/out/cached | Cost (Pi, estimated) | Outcome |
+|---|---|---|---|---|---|---|---|
+| 19 | Free mode (non-readOnly, no write) | above | google/gemini-3.1-flash-lite | 7.2 s (wall) | 1991/35/0 (2 turns) | $0.00055 | completed `WP4E-LIVE-MARKER first line`; `bash` `head -n 1 NOTES.md`; no file created |
+
+Totals now 19 invocations that reached a model (WP6: 18, WP4e: 1). The temp dir was removed.

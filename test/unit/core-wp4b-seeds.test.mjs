@@ -211,6 +211,8 @@ test("tool-policy: host tools are an explicit flag; core never adds Pi-native to
 	assert.equal(prepareWorkflowTaskToolPolicy(task), task);
 	const prepared = prepareWorkflowTaskToolPolicy(task, {
 		inheritHostTools: true,
+		// WP4e: R#5 (worktree despite spec "off") is safe-mode behavior.
+		permissionMode: "safe",
 	});
 	assert.deepEqual(prepared.runtime.tools, ["read"]);
 	assert.equal(prepared.runtime.inheritHostTools, true);
@@ -250,7 +252,7 @@ test("R#5: readOnly task with worktreePolicy off runs without a worktree", async
 	await writeAgent(join(cwd, ".agent-workflow", "agents"), "scout");
 	const compiled = await compileWorkflow(
 		spec({ worktreePolicy: "off" }, { readOnly: true, tools: ["read"] }),
-		{ cwd },
+		{ cwd, permissionMode: "safe" },
 	);
 	const { safety } = compiled.tasks[0];
 	assert.equal(safety.worktreePolicy, "off");
@@ -272,7 +274,7 @@ test("R#5: write-capable task with spec worktreePolicy off still requires a work
 	);
 	const compiled = await compileWorkflow(
 		spec({ worktreePolicy: "off" }, { tools: ["read", "edit"] }),
-		{ cwd },
+		{ cwd, permissionMode: "safe" },
 	);
 	const { safety } = compiled.tasks[0];
 	assert.equal(safety.worktreePolicy, "off");
@@ -293,7 +295,7 @@ test("R#5: write-capable task with spec worktreePolicy off still requires a work
 			...spec({ worktreePolicy: "off" }, { tools: ["read", "edit"] }),
 			allowSharedCheckoutWrites: true,
 		},
-		{ cwd },
+		{ cwd, permissionMode: "safe" },
 	).then(
 		(value) => value.tasks[0].safety.requiresWorktree,
 		() => "rejected",
@@ -310,7 +312,7 @@ test("R#5: the executing user's allowSharedCheckoutWrites option waives it and i
 	);
 	const compiled = await compileWorkflow(
 		spec({ worktreePolicy: "off" }, { tools: ["read", "edit"] }),
-		{ cwd, allowSharedCheckoutWrites: true },
+		{ cwd, allowSharedCheckoutWrites: true, permissionMode: "safe" },
 	);
 	const { safety } = compiled.tasks[0];
 	assert.equal(safety.requiresWorktree, false);
@@ -331,6 +333,7 @@ test("R#5: the executing user's allowSharedCheckoutWrites option waives it and i
 	const auto = await compileWorkflow(spec({}, { tools: ["read", "edit"] }), {
 		cwd,
 		allowSharedCheckoutWrites: true,
+		permissionMode: "safe",
 	});
 	assert.equal(auto.tasks[0].safety.requiresWorktree, true);
 	assert.equal(

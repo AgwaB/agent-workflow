@@ -1,4 +1,4 @@
-# Core port (WP4a, WP4b, WP4c-1, WP4c-2)
+# Core port (WP4a, WP4b, WP4c-1, WP4c-2, WP4d, WP4e)
 
 Source: `@agwab/pi-workflow` 0.16.4, commit `b83cc4f` (MIT, same author).
 Destination: `src/core/` (flat, same file names), compiled to `dist/core/`.
@@ -820,6 +820,81 @@ start (saved profile). Example: `"executionProfileStrictCapabilities": { "audit"
 - `executor-codex-environment.test.mjs` (6): see `docs/executors/codex.md`.
 - Existing suites unchanged: no existing fake needed a new capability (the `pi` fixture is the SDK fake,
   native for every row the ported tests require; no ported engine test runs web tools).
+
+## WP4e — permission modes (`free` default, `safe` opt-in)
+
+Owner decision "D2 개정 — 권한 모드" (2026-10-26). Full description: [`permissions.md`](permissions.md).
+
+### Resolution (`src/core/permission-mode.ts`)
+
+`resolveRunPermissionMode` uses the B2 precedence: run option `permissionMode` > the selected
+workflow-declared profile's `executionProfilePermissionModes[<profile>]` > the saved user profile's
+`permissionMode` > default `free`. An invalid value from any source throws before the compile, probe or
+run record (naming the source); spec values are also checked by `validateArtifactGraphWorkflowSpec`
+(`must be "free" or "safe"`, unknown profile). Nested runs take the parent's recorded mode
+(`source: "parent-run"`). `workflowRunPermissionMode(run)` treats a record without a mode (created
+before WP4e, or directly through the store) as `safe`.
+
+### Where it applies
+
+| Place | `free` | `safe` |
+|---|---|---|
+| `compileWorkflow` option `permissionMode` (absent = `safe`; the engine always passes it) → `classifySafety` | `requiresWorktree = on \|\| (auto && !sharedCwdSafe)` (pi-workflow); no R#5 warning; `allowSharedCheckoutWrites` ignored | R#5 as in WP4b |
+| `inheritedHostToolSafety` / `prepareWorkflowTaskToolPolicy` (engine foreach eligibility, artifact-graph preparation pass `workflowRunPermissionMode(run)`) | `requiresWorktree = worktreePolicy !== "off"` (pi-workflow) | R#5 |
+| `assertWorktreeEnforced` (backend gate) | unchanged: follows the compiled safety | unchanged |
+| B4 negotiation (`policy.permissionMode` → `StageRequirementContext.permissionMode`) | `toolAllowlist.fine` gap and `CAPABILITY_WARNING:*` → degradation with `acceptedByFreeMode`, never refused (also not by `strictCapabilities`), no confirmation | WP4d |
+| Launch (`launchSubagentTask`) | `SubmitRequest.permissionMode = workflowRunPermissionMode(run)`; readOnly still from the compiled capability / forcedReadOnly | same |
+| Runtime approvals | `allow` except mutating kinds on readOnly; audited `engine-policy:free` | WP2b |
+
+`readOnly` stages, B5 isolation and every other B4 rule are the same in both modes. A one-shot router
+comparison call (`runOneShotSubagentCall`) is readOnly and sets `permissionMode: "free"` unless the
+caller passes one.
+
+### Record and preview
+
+- `run.permissionMode = { mode, source, profile? }` (`WorkflowRunPermissionMode`), set with
+  `run.executor` before the record is written.
+- `run.capabilityNegotiation.policy.permissionMode`; preview first line `Capability check (<id>@<v>, <n>
+  stages, permission mode: <mode>): …`; free-accepted entries show `(accepted: free mode)`.
+- `confirmation` is `not-needed` (instead of `confirmed`) when an interactive run has only
+  free-accepted degradations (no hook call).
+- `compiled.permissionMode` when the compile option is set.
+
+### WP4e change log (behavior-relevant)
+
+1. **New runs default to `free`.** Write-capable stages with spec `worktreePolicy: "off"` run in the
+   shared checkout; Claude workers get `--permission-mode bypassPermissions`, Codex workers
+   `danger-full-access` + approvals `never` (non-readOnly stages only); approval requests that still
+   arrive are allowed (`engine-policy:free`).
+2. Codex (`toolAllowlist: coarse`) runs stages with tool lists without `allowReadOnlyDowngrade`; the gap
+   is recorded. Codex environment warnings no longer need interactive confirmation or trip
+   `strictCapabilities` in free mode.
+3. Choose `safe` (run option, declared profile map `executionProfilePermissionModes`, saved profile
+   `permissionMode`) for exactly the previous behavior. Records created before WP4e resume as `safe`.
+4. Spec top-level field `executionProfilePermissionModes`; saved-profile field `permissionMode`; run
+   option `permissionMode`.
+5. SDK (additive): `SubmitRequest.permissionMode?` (absent = `safe`), `permission.ts`
+   (`effectivePermissionMode`, `isUnrestricted`, defaults), `decideApproval` stage `permissionMode`,
+   `StageRequirementContext.permissionMode`, `NegotiationEntry.acceptedByFreeMode`,
+   `NegotiationReport.permissionMode`, `buildCapabilityPreview` option `permissionMode`. Conformance kit
+   0.3.0: `permission.mode_mapping`, `harness.permissionModes`, `LaunchRecord.stdin`; the SDK fake
+   records synthetic launch settings (`FAKE_PERMISSION_MODE_SETTINGS`).
+6. Runtime: run input `permissionMode` (validated, plan/`executor.json`), `ApprovalDecider`
+   `engine-policy:free`.
+
+### WP4e tests
+
+- New: `core-wp4e-permission-mode.test.mjs` (7: default free on record/preview/SubmitRequest, precedence
+  over all four sources, invalid values before any run, free coarse-allowlist + warning degradation with
+  no hook call and shared-checkout `off`, compile R#5 only in safe, free approvals audited
+  `engine-policy:free` vs safe, runtime input validation), `sdk-permission-mode.test.mjs` (6), conformance
+  negative (adapter ignoring the mode; free unlocking readOnly).
+- Existing tests now set `permissionMode: "safe"` explicitly where they pin safe behavior (no assertion
+  weakened): `core-wp4b-seeds` (R#5 compile tests, inherited host tools), `core-wp4d-capability-negotiation`
+  (warning degradation preview — first line now ends `, permission mode: safe)` —, interactive
+  confirmation, forcedReadOnly/coarse refusal), `runtime-execute` (readOnly policy deny),
+  `runtime-control-channel` (host/default-timeout/engine-policy approvals), `executor-claude-argv`,
+  `executor-codex-config` (safe and absent). `conformance-stubs`: launches include stdin.
 
 ## Tests (WP4a)
 

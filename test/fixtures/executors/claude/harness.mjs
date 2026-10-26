@@ -309,12 +309,20 @@ async function killLeftovers(cli) {
 			}
 }
 
+/** Documented argv per permission mode (docs/executors/claude.md, WP4e). */
+export const CLAUDE_PERMISSION_MODE_SETTINGS = {
+	free: ["--permission-mode\nbypassPermissions"],
+	safe: ["--permission-mode\ndefault"],
+	readOnly: ["--permission-mode\ndefault", "--disallowedTools"],
+};
+
 /** Offline conformance harness (stub CLI replaying recorded transcripts). */
 export function createClaudeStubHarness(options = {}) {
 	const scenarios = options.scenarios ?? STUB_SCENARIO_NAMES;
 	return {
 		name: "claude-stub-cli",
 		scenarios,
+		permissionModes: CLAUDE_PERMISSION_MODE_SETTINGS,
 		async open(scenario) {
 			const dir = await mkdtemp(join(tmpdir(), "aw-claude-stub-"));
 			const cli =

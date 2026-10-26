@@ -505,6 +505,9 @@ export async function executeAttempt(
 			grace,
 			approvalPolicy: request.approvalPolicy,
 			readOnly: request.readOnly,
+			...(request.permissionMode === undefined
+				? {}
+				: { permissionMode: request.permissionMode }),
 			meta,
 			...(options.control === undefined ? {} : { control: options.control }),
 			unauthorized: () =>
@@ -550,6 +553,8 @@ export interface ObserveAttemptOptions {
 	grace: number;
 	approvalPolicy: SubmitRequestFields["approvalPolicy"];
 	readOnly: boolean;
+	/** WP4e: `free` answers every request `allow` except mutating kinds on a readOnly stage. */
+	permissionMode?: SubmitRequestFields["permissionMode"];
 	meta: ResultExecutorMetadata;
 	/** Returns the authority state when it is not `released` (an event then is a fence fault). */
 	unauthorized(): string | undefined;
@@ -569,9 +574,12 @@ function policyReason(
 	kind: Parameters<typeof isMutatingKind>[0],
 	readOnly: boolean,
 	decision: ApprovalDecision | "ask",
+	free = false,
 ): string {
 	if (readOnly && isMutatingKind(kind))
 		return `readOnly stage denies mutating kind ${kind}`;
+	if (decision === "allow" && free)
+		return `free permission mode allows ${kind} (D2 revised)`;
 	if (decision === "allow") return `approvalPolicy.allowKinds includes ${kind}`;
 	if (decision === "ask") return "interactive policy";
 	return `${kind} is not in approvalPolicy.allowKinds and no interactive host (fail-closed, D2)`;
@@ -657,6 +665,9 @@ export async function observeAttempt(
 			valid.type === "approval_request"
 				? decideApproval(options.approvalPolicy, valid, {
 						readOnly: options.readOnly,
+						...(options.permissionMode === undefined
+							? {}
+							: { permissionMode: options.permissionMode }),
 					})
 				: undefined;
 		// The waiter exists before the request is visible on disk, so an early answer finds it.
@@ -686,9 +697,10 @@ export async function observeAttempt(
 			let reason: string;
 			let seq: number | undefined;
 			if (asked !== "ask") {
+				const free = options.permissionMode === "free";
 				decision = asked;
-				by = "engine-policy";
-				reason = policyReason(valid.kind, options.readOnly, asked);
+				by = free ? "engine-policy:free" : "engine-policy";
+				reason = policyReason(valid.kind, options.readOnly, asked, free);
 				options.control?.markDecided(valid.requestId);
 			} else if (options.control === undefined) {
 				// No control channel in this process (e.g. reconcile adoption): fail closed (D2).

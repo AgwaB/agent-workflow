@@ -9,6 +9,7 @@ import type { ExecutionAuthority } from "./authority.js";
 import type { ExecutorCapabilities } from "./capabilities.js";
 import { SdkError } from "./errors.js";
 import type { ExecEvent } from "./events.js";
+import { isPermissionMode, type PermissionMode } from "./permission.js";
 
 /**
  * Contract version. Compatibility: for 0.x, same major+minor; from 1.0, same major (semver).
@@ -64,6 +65,12 @@ export interface SubmitRequest {
 	readonly env: Readonly<Record<string, string>>;
 	readonly isolation: IsolationPolicy;
 	readonly approvalPolicy: ApprovalPolicy;
+	/**
+	 * D2 revised (WP4e): `free` = no approval prompts and no sandbox restrictions unless `readOnly`;
+	 * `safe` = no bypass/auto-accept settings. Absent → `safe` (`effectivePermissionMode`). The engine
+	 * always sets it. Adapter obligations per mode: docs/permissions.md.
+	 */
+	readonly permissionMode?: PermissionMode;
 	/**
 	 * Absolute attempt artifact directory owned by the runtime. Adapters may write raw CLI logs
 	 * here (D3: normalized events are a view over raw output). Absent for callers without a run
@@ -269,6 +276,8 @@ export function validateSubmitRequest(req: SubmitRequest): string[] {
 	)
 		problems.push("artifactsDir must be an absolute path when provided");
 	if (!Array.isArray(req.tools)) problems.push("tools must be an array");
+	if (req.permissionMode !== undefined && !isPermissionMode(req.permissionMode))
+		problems.push('permissionMode must be "free" or "safe" when provided');
 	if (!Number.isFinite(req.deadlineMs))
 		problems.push("deadlineMs must be a finite number");
 	for (const server of req.mcpServers ?? [])

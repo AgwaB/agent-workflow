@@ -136,6 +136,8 @@ async function startApprovalRun(label, policy) {
 		task: "needs approval",
 		async: true,
 		approvalPolicy: policy,
+		// WP4e: policy/host approvals are safe-mode behavior (free auto-allows).
+		permissionMode: "safe",
 	});
 	return {
 		cwd,

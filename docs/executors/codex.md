@@ -50,8 +50,8 @@ carry the thread id of a kept session.
 
 | Setting | Value | Why |
 |---|---|---|
-| `sandbox` | `read-only` when `readOnly` or only read tools; `workspace-write` when a write/exec tool is requested or `tools` is empty on a writable stage | coarse tool mapping (below); never `danger-full-access` (D2). The user's config here defaults to `danger-full-access` + `never`, so the override is required |
-| `approvalPolicy` | `on-request` | escalations reach the engine as approval requests (R#4) |
+| `sandbox` | `safe` (or no `permissionMode`): `read-only` when `readOnly` or only read tools; `workspace-write` when a write/exec tool is requested or `tools` is empty on a writable stage. `free` (WP4e) on a non-readOnly stage: `danger-full-access`. readOnly is `read-only` in both modes | coarse tool mapping (below); never `danger-full-access` in safe mode (D2). The user's config here defaults to `danger-full-access` + `never`, so the override is required |
+| `approvalPolicy` | `on-request`; `never` for `free` on a non-readOnly stage (WP4e) | escalations reach the engine as approval requests (R#4). Key and values checked against `codex app-server generate-json-schema` 0.159.2 (`AskForApproval`, `SandboxMode`); live #19 echoed `approvalPolicy: "never"`, `sandbox: {type: "dangerFullAccess"}` |
 | `approvalsReviewer` | `user` | the user's config may route approvals to `auto_review`/guardian, which would auto-decide (D2) |
 | `serviceTier` | `null` (standard) | `fastTier` is not offered; the user's config here selects `priority` |
 | `ephemeral` | true unless `sessionId`/`resumeSessionId` | D3: no rollout on disk by default |
@@ -305,6 +305,15 @@ budget are not confirmed. `fetch_content` (open_page) not observed.
   profiles refuse).
 
 ## Change log
+
+- **WP4e (2026-10-26):** permission modes (D2 revised, [`../permissions.md`](../permissions.md)).
+  `planCodexTools(tools, readOnly, permissionMode)` returns `sandbox` and `approvalPolicy`: `free` on a
+  non-readOnly request → `danger-full-access` + `never`; `safe`/absent and every readOnly request keep
+  the mapped sandbox + `on-request`. The coarse tool list is accepted in free mode (engine records
+  `CAPABILITY_MISSING:toolAllowlist.fine` as a degradation, never a refusal); environment warnings are
+  recorded without strict refusal or confirmation in free mode. Conformance harness documents the
+  `thread/start` params (`CODEX_PERMISSION_MODE_SETTINGS`; the stub CLI's launches now carry stdin).
+  Tests: `executor-codex-config.test.mjs`. Live #19 (1 call).
 
 - **WP4d (2026-10-26):** `probe()` returns `capabilities.readOnly` (emulated + warning when
   `$CODEX_HOME/rules/*.rules` has `allow` rules) and `capabilities.contextIsolation` (native without a
