@@ -164,6 +164,7 @@ New agent-workflow tests (no pi-subagent counterpart):
 | Test file | Covers |
 |---|---|
 | `runtime-dir-lock.test.mjs` | Lock exclusivity, `ELOCKED`, release, and cleanup on exit and on SIGTERM |
+| `runtime-dir-lock-owner.test.mjs` (WP2c) | Owner-aware stealing: a SIGKILLed real holder's run lock is stolen and a later reconcile completes; a live holder survives 8 in-process + 6 cross-process contenders; 8 in-process and 6 cross-process stealers of one stale lock → exactly one winner; garbage / no-birth-identity / other-host / token-mismatch / missing owner records are never stolen; a live pid with a different birth identity (pid reuse) is stolen; `process.exit` during an acquisition never leaves an ownerless lock |
 | `runtime-status-interrupt.test.mjs` | Status snapshots and wait; interrupt of an identity-verified process; a forged identity is refused |
 | `runtime-workers.test.mjs` | process-gate exit 125/127, exit code and signal passthrough, `--file` mode |
 | `runtime-packed-install.test.mjs` | `npm pack` → install in a Pi-free temp project → import `./runtime`, spawn both workers; helper mode bits. Skips with a message when npm or the network is unavailable |
@@ -403,6 +404,24 @@ Run results, statuses and `RunStatusSnapshot` keep their shapes; `backend` is th
      - the "compromised" uncaught throw when the lock directory disappears while held.
 
      Both matter only when stale stealing is on.
+   - **WP2c: owner-aware stealing** (supersedes "no stale stealing" above; elapsed time still never
+     steals). The holder records `owner-<token>.json` = `{ schema: "agent-workflow-dir-lock-owner-v1", token,
+     pid, birthIdentity, host, acquiredAt }` inside the lock directory (staged beside it, renamed in right
+     after `mkdir`). On contention the record is inspected and the lock is stolen only when the owner is
+     provably dead: same host, a recorded birth identity, and `inspectProcessIdentity` says the pid is gone
+     or has a different birth identity (pid reused). No record, an unreadable/ambiguous record, a token that
+     does not match its file name (a steal in progress), another host, no birth identity or an `unknown`
+     liveness answer → not stolen; the reason is appended to the ELOCKED message
+     (`Lock file is already being held (<reason>)`, `error.reason`). The steal renames the dead owner's
+     uniquely named record to the stealer's name inside the same directory (one atomic rename; tokens are
+     never reused, so exactly one concurrent stealer wins and the losers retry normally); the directory is
+     never removed during a steal, so no fresh `mkdir` can create a second owner. Create, claim and release
+     use synchronous fs calls back to back so a `process.exit` cannot land between `mkdir` and the record
+     (with async calls an exit during an in-flight `mkdir` left an ownerless, never-stealable directory —
+     the durable worker exits while a heartbeat may be acquiring). "Alive" answers are reused for 500 ms per
+     acquisition (the Darwin helper is an exec). Residual: a SIGKILL between `mkdir` and the record rename
+     (adjacent syscalls) leaves an ownerless lock that needs operator removal. Release removes our record,
+     then the directory; a directory that lost our record raises `ECOMPROMISED` instead of being removed.
 9. **Barrier, binding and helper schema ids are unchanged** (`pi-subagent-durable-launch-barrier-v1/v2`, `…-worker-binding-…`,
    `pi-subagent-darwin-process-identity-helper-v1`). They are wire and data identifiers, and keeping them keeps
    barrier compatibility with existing pi-workflow callers. Renaming them would be a protocol change, which is
@@ -468,6 +487,7 @@ Run results, statuses and `RunStatusSnapshot` keep their shapes; `backend` is th
       is unchanged (`user_cancelled`, barrier wire compatibility); the runtime maps it to `revoked`.
     - `discardSubagentExecution` (in-process callers) now clears `activeAttemptId` when it cancels the active
       attempt (`onlyIfActive` still spares a successor).
+    - **Owner-aware run lock** (a SIGKILLed holder no longer blocks reconcile forever): see item 8.
 
 ## Open problems (WP2a-2 → later packages)
 
@@ -483,6 +503,4 @@ Run results, statuses and `RunStatusSnapshot` keep their shapes; `backend` is th
 - **WP6:** the Pi adapter must hand the binding to Pi children under both env names, map Pi JSON events
   (tool-call telemetry, usage with cache read/write) to normalized events, and own the Pi child process group
   (the dropped "stubborn interrupt" and "orphaned headless child" checks).
-- **Inherited quirk (unchanged from pi-subagent):** a worker SIGKILLed while holding the run lock leaves the
-  lock directory behind (no stale stealing) and blocks later mutations.
 - `captureToolCalls` without `callId` cannot correlate start/end; such calls are recorded as instantaneous.

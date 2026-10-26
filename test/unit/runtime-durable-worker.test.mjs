@@ -315,8 +315,8 @@ test("fencing (b): worker killed after consume â†’ reconcile asks the executor â
 	const { cwd, effectLog, barrierDir } = fresh("killed");
 	await mkdirp(cwd);
 	const descriptor = await barrier(barrierDir);
-	// SIGKILL while the worker holds the run lock (a heartbeat write) would leave the lock
-	// directory behind (no stale stealing, inherited); keep heartbeats out of the kill window.
+	// Keep heartbeats out of the kill window so the test stays about executor reconcile. (Since
+	// WP2c a lock left by a SIGKILLed holder is stolen; see runtime-dir-lock-owner.test.mjs.)
 	process.env.AGENT_WORKFLOW_HEARTBEAT_MS = "600000";
 	let run;
 	try {

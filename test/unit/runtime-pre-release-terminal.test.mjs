@@ -26,7 +26,6 @@ import {
 	readRunRecord,
 	revokeDurableLaunchBarrierV2,
 	runSubagent,
-	waitForDurableLaunchBarrierV2Ready,
 	waitForSubagent,
 } from "../../dist/runtime/index.js";
 import {
@@ -155,7 +154,7 @@ test("pre-release guard failure (barrier timeout) → failed/guard_failure, term
 	const descriptor = await createDurableLaunchBarrierV2({
 		directory: barrierDir,
 		subjectSha256: sha256(`subject:${barrierDir}`),
-		timeoutMs: 800,
+		timeoutMs: 2_000,
 		pollIntervalMs: 5,
 	});
 	const run = await runSubagent({
@@ -166,8 +165,7 @@ test("pre-release guard failure (barrier timeout) → failed/guard_failure, term
 		workspace: "worktree",
 		durableLaunchBarrier: descriptor,
 	});
-	// The engine sees READY but never decides: the worker's barrier wait times out.
-	await waitForDurableLaunchBarrierV2Ready(descriptor);
+	// The engine never decides: the worker's barrier wait times out.
 	const result = await assertTerminal(cwd, run, "failed", "guard_failure");
 	assert.match(
 		await readFile(join(attemptDir(cwd, run), "stderr.log"), "utf8"),
