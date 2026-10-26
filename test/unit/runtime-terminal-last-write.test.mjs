@@ -20,6 +20,7 @@ import {
 	createDurableLaunchBarrierV2,
 	interruptSubagent,
 	readRunEvents,
+	requestCancel,
 	resolveDurableLaunchBarrierV2Release,
 	revokeDurableLaunchBarrierV2,
 	runSubagent,
@@ -315,6 +316,30 @@ const SCENARIOS = {
 					escalateAfterMs: 10_000,
 					killAfterMs: 20_000,
 				});
+			},
+		};
+	},
+	async mailboxCancel() {
+		const { cwd, effectLog } = fresh("mailbox-cancel");
+		await mkdir(cwd, { recursive: true });
+		const run = await runSubagent({
+			cwd,
+			executor: fixtureDescriptor({ effectLog, stepDelayMs: 300 }),
+			task: "slow",
+			async: true,
+		});
+		return {
+			cwd,
+			run,
+			effectLog,
+			expect: "cancelled",
+			async act() {
+				await waitForEvent(attemptDir(cwd, run), "started");
+				await requestCancel(
+					{ cwd, runId: run.runId, attemptId: run.attemptId },
+					"owned",
+					{ ackTimeoutMs: 20_000 },
+				);
 			},
 		};
 	},

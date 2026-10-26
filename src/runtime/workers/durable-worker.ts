@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/workers/durable-worker.mjs. MIT, same author. Changes: converted to TypeScript (compiled to dist/runtime/workers/durable-worker.js); runtime TypeScript loader imports replaced by static imports of the compiled modules; the payload carries an ExecutorDescriptor (`executor`) plus serializable request fields instead of Pi agent/backend options — the worker reloads the executor with loadExecutor (a missing module, id or version mismatch fails closed with guard_failure before any effect); the launch barrier sequence (READY/decision/ACK → binding → abort → execution-authorized → abort) moved into the durable LaunchAuthority that the adapter consumes inside submit; execution plan schema "agent-workflow-durable-execution-plan-v1" (see orchestrate/request.ts); a pre-effect ExecutionNotStartedError keeps its status/failureKind; env names PI_SUBAGENT_HEARTBEAT_MS / _DURABLE_WORKER_START_DELAY_MS / _DURABLE_WORKER_TERMINAL_WRITE_DELAY_MS -> AGENT_WORKFLOW_*; fallback backend for unreadable payloads is "unknown" instead of "headless". WP2c: a failure or revoke before release no longer marks the attempt cancelled/user_cancelled in the registry (which skipped the terminal write, left result.json "running" and kept the attempt active); the worker discards the pristine workspace, writes the terminal result (guard/integrity failure → failed/guard_failure, engine revoke → cancelled/revoked) and spawns the terminal finalizer, which drains ownership. WP2c: env / mcpServers[].env values arrive in the spawn environment (AGENT_WORKFLOW_DURABLE_WORKER_REQUEST_ENV_JSON, removed from process.env at startup) and are merged into the persisted keys; a missing or mismatching channel is a guard_failure before any effect.
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/workers/durable-worker.mjs. MIT, same author. Changes: converted to TypeScript (compiled to dist/runtime/workers/durable-worker.js); runtime TypeScript loader imports replaced by static imports of the compiled modules; the payload carries an ExecutorDescriptor (`executor`) plus serializable request fields instead of Pi agent/backend options — the worker reloads the executor with loadExecutor (a missing module, id or version mismatch fails closed with guard_failure before any effect); the launch barrier sequence (READY/decision/ACK → binding → abort → execution-authorized → abort) moved into the durable LaunchAuthority that the adapter consumes inside submit; execution plan schema "agent-workflow-durable-execution-plan-v1" (see orchestrate/request.ts); a pre-effect ExecutionNotStartedError keeps its status/failureKind; env names PI_SUBAGENT_HEARTBEAT_MS / _DURABLE_WORKER_START_DELAY_MS / _DURABLE_WORKER_TERMINAL_WRITE_DELAY_MS -> AGENT_WORKFLOW_*; fallback backend for unreadable payloads is "unknown" instead of "headless". WP2c: a failure or revoke before release no longer marks the attempt cancelled/user_cancelled in the registry (which skipped the terminal write, left result.json "running" and kept the attempt active); the worker discards the pristine workspace, writes the terminal result (guard/integrity failure → failed/guard_failure, engine revoke → cancelled/revoked) and spawns the terminal finalizer, which drains ownership. WP2c: env / mcpServers[].env values arrive in the spawn environment (AGENT_WORKFLOW_DURABLE_WORKER_REQUEST_ENV_JSON, removed from process.env at startup) and are merged into the persisted keys; a missing or mismatching channel is a guard_failure before any effect. WP2b: terminal-last-write — the pre-release terminal paths write output.log and close the control mailbox (every request acked) before result.json; at most one heartbeat in flight; the control mailbox itself is served by runPreparedSubagentExecution (orchestrate/control.ts).
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFile, realpath, stat, writeFile } from "node:fs/promises";
+import { readFile, realpath } from "node:fs/promises";
 import {
 	basename,
 	dirname,
@@ -42,6 +42,7 @@ import {
 	type DurableWorkerPayload,
 	resolveDurableWorkerPayload,
 } from "../durable-worker-payload.js";
+import { closeControlMailbox } from "../orchestrate/control.js";
 import { restoreEnvValues, takeEnvChannel } from "../orchestrate/env-values.js";
 import { isExecutionNotStartedError } from "../orchestrate/execute.js";
 import type { RuntimeRunInput } from "../orchestrate/request.js";
@@ -153,22 +154,6 @@ async function referenceFromPayloadPath(
 
 const TERMINAL_STATUSES = new Set<string>(["completed", "failed", "cancelled"]);
 
-/**
- * WP2b terminal-last-write: output.log exists before result.json turns terminal. Created empty
- * when missing (nothing ran); never clobbers output an execution already wrote.
- */
-async function ensureOutputArtifact(
-	store: Awaited<ReturnType<typeof createAttemptArtifactStore>>,
-): Promise<ReturnType<typeof store.refFor>> {
-	const path = store.pathFor("output");
-	try {
-		await writeFile(path, "", { flag: "wx" });
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException)?.code !== "EEXIST") throw error;
-	}
-	return store.refFor("output", (await stat(path)).size);
-}
-
 function spawnTerminalFinalizer(options: {
 	ref: { cwd: string; runId: string; runsDir?: string };
 	attemptId: string;
@@ -270,8 +255,10 @@ async function failUnresolvedPayload(
 			runsDir,
 		});
 		const stderr = await store.writeTextArtifact("stderr", `${message}\n`);
-		// WP2b terminal-last-write: every attempt artifact exists before result.json turns terminal.
-		const output = await ensureOutputArtifact(store);
+		// WP2b terminal-last-write: every attempt artifact exists (and every control request is
+		// acked) before result.json turns terminal.
+		const output = await store.ensureTextArtifact("output");
+		await closeControlMailbox(store.attemptDir).catch(() => undefined);
 		const status = executionAbort.signal.aborted ? "cancelled" : "failed";
 		const backend = isResolvedBackend(rawFields.backend)
 			? rawFields.backend
@@ -471,8 +458,10 @@ async function writeTerminalResultOnce(options: {
 			runsDir: input?.runsDir,
 		});
 		const stderr = await store.writeTextArtifact("stderr", `${message}\n`);
-		// WP2b terminal-last-write: output.log exists (empty: nothing ran) before the terminal result.
-		const output = await ensureOutputArtifact(store);
+		// WP2b terminal-last-write: output.log exists (empty: nothing ran) and the control mailbox
+		// is closed (every request acked) before the terminal result.
+		const output = await store.ensureTextArtifact("output");
+		await closeControlMailbox(store.attemptDir).catch(() => undefined);
 		const worker = store.refFor("worker");
 		const preparedWorkspace = preparedExecution?.workspaceResult;
 		const retainedWorkspace =

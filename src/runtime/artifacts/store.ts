@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/artifacts/store.ts. MIT, same author. Changes: default runs dir is DEFAULT_RUNS_DIR (".agent-workflow/runs") from core/constants; WP2a-2 adds exec-events.jsonl. WP2b (terminal-last-write): writeResult fsyncs the temp file (and, for a terminal result, every listed artifact) before the rename and the directory after it; buildResult returns the envelope writeResult would write without writing it.
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/artifacts/store.ts. MIT, same author. Changes: default runs dir is DEFAULT_RUNS_DIR (".agent-workflow/runs") from core/constants; WP2a-2 adds exec-events.jsonl. WP2b (terminal-last-write): writeResult fsyncs the temp file (and, for a terminal result, every listed artifact) before the rename and the directory after it; buildResult returns the envelope writeResult would write without writing it; ensureTextArtifact creates a missing artifact empty.
 import { randomBytes } from "node:crypto";
 import {
 	appendFile,
@@ -69,6 +69,8 @@ export interface AttemptArtifactStore {
 		type: LogArtifactType,
 		content: string | Uint8Array,
 	): Promise<ArtifactRef>;
+	/** Create the artifact empty when it does not exist (never clobbers); WP2b terminal-last-write. */
+	ensureTextArtifact(type: LogArtifactType): Promise<ArtifactRef>;
 	writeResult(input: StoreResultEnvelopeInput): Promise<ResultEnvelope>;
 	/** The envelope `writeResult` would write, not written (WP2b: finalize before the terminal write). */
 	buildResult(input: StoreResultEnvelopeInput): ResultEnvelope;
@@ -191,6 +193,17 @@ export async function createAttemptArtifactStore(
 		return refFor(type, byteLength(content));
 	}
 
+	async function ensureTextArtifact(
+		type: LogArtifactType,
+	): Promise<ArtifactRef> {
+		try {
+			await writeFile(pathFor(type), "", { flag: "wx" });
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException)?.code !== "EEXIST") throw error;
+		}
+		return refFor(type, await fileSize(pathFor(type)));
+	}
+
 	async function appendTextArtifact(
 		type: LogArtifactType,
 		content: string | Uint8Array,
@@ -245,6 +258,7 @@ export async function createAttemptArtifactStore(
 		refFor,
 		writeTextArtifact,
 		appendTextArtifact,
+		ensureTextArtifact,
 		writeResult,
 		buildResult,
 		taskId: attemptId,

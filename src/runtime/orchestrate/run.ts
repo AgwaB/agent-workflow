@@ -20,6 +20,7 @@ import {
 	type FailureKind,
 	type ResolveInput,
 	type ResolvedBackend,
+	userCancelledAbortReason,
 } from "../core/constants.js";
 import { createDurableLaunchAuthority } from "../durable-authority.js";
 import type { ExecutionAuthority } from "../../sdk/authority.js";
@@ -35,6 +36,11 @@ import {
 	type ExecutionNotStartedError,
 	isExecutionNotStartedError,
 } from "./execute.js";
+import {
+	AttemptControl,
+	type ControlServer,
+	startControlServer,
+} from "./control.js";
 import { writeAttemptExecutorRecord } from "./executor-record.js";
 import { cleanupInactiveAttemptOwnership } from "./reconcile.js";
 import {
@@ -547,7 +553,7 @@ export interface RunPreparedOptions {
 function linkedStop(
 	signal: AbortSignal | undefined,
 	timeoutMs: number | undefined,
-): { signal: AbortSignal; dispose(): void } {
+): { signal: AbortSignal; abort(reason: unknown): void; dispose(): void } {
 	const controller = new AbortController();
 	const forward = () => controller.abort(signal?.reason);
 	if (signal?.aborted) forward();
@@ -570,6 +576,9 @@ function linkedStop(
 	timer?.unref?.();
 	return {
 		signal: controller.signal,
+		abort(reason) {
+			if (!controller.signal.aborted) controller.abort(reason);
+		},
 		dispose() {
 			if (timer !== undefined) clearTimeout(timer);
 			signal?.removeEventListener("abort", forward);
@@ -636,6 +645,17 @@ export async function runPreparedSubagentExecution(
 	}).catch(() => undefined);
 
 	const stop = linkedStop(options.signal, input.timeoutMs);
+	// WP2b: the durable control channel. Served while the attempt executes; closed (every request
+	// acked) before the terminal result is written.
+	const control = new AttemptControl({
+		attemptDir: prepared.attemptDir,
+		requestStop: (reason) => stop.abort(userCancelledAbortReason(reason)),
+	});
+	let controlServer: ControlServer | undefined;
+	const closeControl = async () => {
+		control.finish();
+		await controlServer?.close().catch(() => undefined);
+	};
 	try {
 		await appendRunEvent(
 			{ ...runRef },
@@ -659,12 +679,17 @@ export async function runPreparedSubagentExecution(
 				attemptDir: prepared.attemptDir,
 				signal: stop.signal,
 			});
+		controlServer = await startControlServer({
+			attemptDir: prepared.attemptDir,
+			handlers: control.handlers,
+		});
 		const report = await executeAttempt({
 			executor,
 			request: prepared.request,
 			authority,
 			store,
 			stopSignal: stop.signal,
+			control,
 			...(input.captureToolCalls === true ? { captureToolCalls: true } : {}),
 			onReleased() {
 				// Before release the worktree is still pristine and discardable.
@@ -679,7 +704,7 @@ export async function runPreparedSubagentExecution(
 					data: { ref: { ...ref } },
 				}).catch(() => undefined);
 			},
-		});
+		}).finally(closeControl);
 		const stderr = await store.writeTextArtifact(
 			"stderr",
 			report.message.length === 0 ? "" : `${report.message}\n`,
@@ -778,6 +803,7 @@ export async function runPreparedSubagentExecution(
 		);
 		return result;
 	} catch (error) {
+		await closeControl();
 		if (prepared.ownership.state !== "prepared")
 			await retainOwnedWorkspace(workspace).catch(() => undefined);
 		// The owning entry point commits the fallback result after this method

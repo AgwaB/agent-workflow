@@ -2,7 +2,11 @@
 // runtime-enforced fence and turns the normalized event stream into attempt artifacts.
 // Replaces the Pi runner call in pi-subagent's src/orchestrate/run.ts (runHeadlessModel /
 // runInlineModel / runTmuxModel) and the output/usage parsing those runners did.
-import { decideApproval } from "../../sdk/approval.js";
+// WP2b: approval requests under an interactive policy wait for a host answer through the durable
+// control mailbox (orchestrate/control.ts) up to approvalPolicy.timeoutMs, then deny
+// (default-timeout); every decision is audited in approvals.jsonl with who decided it; a mailbox
+// cancel(owned) takes the stop path, cancel(turn) is forwarded to the executor.
+import { type ApprovalDecision, decideApproval } from "../../sdk/approval.js";
 import type {
 	AuthorityDecision,
 	ExecutionAuthority,
@@ -42,6 +46,12 @@ import {
 	processExecToolCall,
 	ToolCallTelemetryCollector,
 } from "../telemetry/tool-call-telemetry.js";
+import { isMutatingKind } from "../../sdk/tools.js";
+import {
+	type ApprovalDecider,
+	type AttemptControl,
+	appendApprovalAudit,
+} from "./control.js";
 import type { SubmitRequestFields } from "./request.js";
 
 /** How long the runtime waits for a terminal event after it asked the executor to stop. */
@@ -377,6 +387,8 @@ export interface ExecuteAttemptOptions {
 	cancelGraceMs?: number;
 	/** Write tool-calls.jsonl / tool-calls-summary.json from normalized tool_call events. */
 	captureToolCalls?: boolean;
+	/** WP2b: the attempt's control mailbox state (interactive approvals, cancel relay). */
+	control?: AttemptControl;
 }
 
 /**
@@ -482,6 +494,7 @@ export async function executeAttempt(
 		});
 	}
 	await options.onSubmitted?.(ref);
+	options.control?.bind(executor, ref);
 
 	return finish(
 		await observeAttempt({
@@ -493,6 +506,7 @@ export async function executeAttempt(
 			approvalPolicy: request.approvalPolicy,
 			readOnly: request.readOnly,
 			meta,
+			...(options.control === undefined ? {} : { control: options.control }),
 			unauthorized: () =>
 				fence.state() === "released" ? undefined : fence.state(),
 			cancelOnStop: true,
@@ -546,6 +560,21 @@ export interface ObserveAttemptOptions {
 	cancelOnStop: boolean;
 	/** Called for every accepted (valid, authorized) event, in order. */
 	onEvent?(event: ExecEvent, index: number): void;
+	/** WP2b: interactive approvals wait for a mailbox answer; owned cancels are reported to it. */
+	control?: AttemptControl;
+}
+
+/** Why the policy decided (audit text), mirroring `decideApproval`. */
+function policyReason(
+	kind: Parameters<typeof isMutatingKind>[0],
+	readOnly: boolean,
+	decision: ApprovalDecision | "ask",
+): string {
+	if (readOnly && isMutatingKind(kind))
+		return `readOnly stage denies mutating kind ${kind}`;
+	if (decision === "allow") return `approvalPolicy.allowKinds includes ${kind}`;
+	if (decision === "ask") return "interactive policy";
+	return `${kind} is not in approvalPolicy.allowKinds and no interactive host (fail-closed, D2)`;
 }
 
 /** Observe one ExecRef to its terminal event, validating every event and the sequence. */
@@ -586,7 +615,9 @@ export async function observeAttempt(
 				break;
 			}
 			stopHandled = true;
-			meta.cancelResult = await cancelSafely(executor, ref);
+			const cancelResult = await cancelSafely(executor, ref);
+			meta.cancelResult = cancelResult;
+			options.control?.noteOwnedCancel(cancelResult);
 			gracePromise = graceAfter(grace);
 			continue;
 		}
@@ -622,22 +653,80 @@ export async function observeAttempt(
 		}
 		events.push(valid);
 		options.onEvent?.(valid, events.length - 1);
+		const asked =
+			valid.type === "approval_request"
+				? decideApproval(options.approvalPolicy, valid, {
+						readOnly: options.readOnly,
+					})
+				: undefined;
+		// The waiter exists before the request is visible on disk, so an early answer finds it.
+		if (valid.type === "approval_request" && asked === "ask")
+			options.control?.expectApproval(valid.requestId);
 		await store.appendTextArtifact("exec-events", `${JSON.stringify(valid)}\n`);
 		if (valid.type === "started" && valid.sessionId !== null)
 			sessionId = valid.sessionId;
 		if (valid.type === "message_delta") deltas += valid.text;
-		if (valid.type === "approval_request") {
-			const decided = decideApproval(options.approvalPolicy, valid, {
-				readOnly: options.readOnly,
-			});
-			// No interactive channel yet (WP2b): "ask" is answered deny (fail-closed, D2).
-			const decision = decided === "allow" ? "allow" : "deny";
+		if (valid.type === "approval_request" && asked !== undefined) {
+			const requestedAt = new Date();
+			const waits = asked === "ask" && options.control !== undefined;
+			await appendApprovalAudit(store.attemptDir, {
+				phase: "requested",
+				requestId: valid.requestId,
+				kind: valid.kind,
+				...(valid.detail === undefined ? {} : { detail: valid.detail }),
+				at: requestedAt.toISOString(),
+				deadlineAt: waits
+					? new Date(
+							requestedAt.getTime() + options.approvalPolicy.timeoutMs,
+						).toISOString()
+					: null,
+			}).catch(() => undefined);
+			let decision: ApprovalDecision;
+			let by: ApprovalDecider;
+			let reason: string;
+			let seq: number | undefined;
+			if (asked !== "ask") {
+				decision = asked;
+				by = "engine-policy";
+				reason = policyReason(valid.kind, options.readOnly, asked);
+				options.control?.markDecided(valid.requestId);
+			} else if (options.control === undefined) {
+				// No control channel in this process (e.g. reconcile adoption): fail closed (D2).
+				decision = "deny";
+				by = "engine-policy";
+				reason =
+					"interactive policy but no control channel in this process (fail-closed, D2)";
+			} else {
+				({ decision, by, reason, seq } = await options.control.awaitApproval(
+					valid.requestId,
+					options.approvalPolicy.timeoutMs,
+					stopPromise,
+				));
+			}
 			const response = await executor
 				.respond(ref, valid.requestId, decision)
 				.catch((error: unknown) => `error: ${errorMessage(error)}`);
+			options.control?.settleApproval(valid.requestId, response);
+			await appendApprovalAudit(store.attemptDir, {
+				phase: "decided",
+				requestId: valid.requestId,
+				kind: valid.kind,
+				decision,
+				by,
+				reason,
+				response,
+				...(seq === undefined ? {} : { seq }),
+				at: new Date().toISOString(),
+			}).catch(() => undefined);
 			meta.approvals = [
 				...(meta.approvals ?? []),
-				{ requestId: valid.requestId, kind: valid.kind, decision, response },
+				{
+					requestId: valid.requestId,
+					kind: valid.kind,
+					decision,
+					by,
+					response,
+				},
 			];
 		}
 		if (isTerminalEvent(valid)) {

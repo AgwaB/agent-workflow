@@ -84,6 +84,7 @@ Neither changes behavior. The headers do not repeat them.
 | — | `src/runtime/orchestrate/request.ts` | new (WP2a-2) | Runtime run input, validation, SubmitRequest fields, execution plan digest |
 | — | `src/runtime/orchestrate/execute.ts` | new (WP2a-2) | `executeAttempt` / `observeAttempt`: submit/observe under the runtime fence, artifacts |
 | — | `src/runtime/orchestrate/executor-record.ts` | new (WP2a-2) | Per-attempt `executor.json` (descriptor + attemptKey) for reconcile |
+| — | `src/runtime/orchestrate/control.ts` | new (WP2b) | Durable control channel: file mailbox, approval waiters/audit, cancel relay |
 | — | `src/runtime/orchestrate/env-values.ts` | new (WP2c) | Env values off disk: split into persisted keys + spawn-env channel, restore in the worker, plan-digest form |
 
 `src/runtime/index.ts` exports a curated surface:
@@ -174,7 +175,8 @@ New agent-workflow tests (no pi-subagent counterpart):
 | `runtime-durable-authority.test.mjs` (WP2a-2) | Single use in-process and across instances; abort → revoked; V2 release/revoke; binding only after release; typed guard errors |
 | `runtime-pre-release-terminal.test.mjs` (WP2c) | Barrier timeout before release (worktree) → `failed/guard_failure`, terminal `result.json`, attempt inactive, finalizer events, worktree removed; engine revoke → `cancelled/revoked`, same terminal checks |
 | `runtime-env-at-rest.test.mjs` (WP2c) | Async run with a released V2 barrier and `env: { SECRET_TOKEN }` + an MCP server env value: every file under the run cwd, the barrier dir and the run index is scanned → zero hits; `worker.json` has keys only; the fixture executor received the values (it logs their SHA-256); a sync run writes no value either; the plan object holds `sha256:` digests and its digest changes when only a value changes; a worker without the env channel fails closed with `guard_failure` naming the key |
-| `runtime-terminal-last-write.test.mjs` (WP2b) | Stress: 3 rounds × every durable terminal path (completed, released barrier, revoke, barrier timeout, rediscovery refusal, fence violation, SIGTERM, worktree) observed by a tight poller that checks every artifact the moment `result.json` turns terminal (and that `run.json` never turns terminal first), with one busy child per core; zero misses |
+| `runtime-control-channel.test.mjs` (WP2b) | Through real detached workers: approval allow/deny answered by a host (acked `accepted`, second answer `too_late`, audit `by: host` with the seq, mailbox closed with every request acked); timeout → deny `default-timeout`, late answer `too_late` by the requester; non-interactive policy → `engine-policy`; an answer from a fresh process after the launching process exited; `cancel(turn)` forwarded (executor outcome `cancelled`) vs `cancel(owned)` (runtime stop → `user_cancelled`, `cancel(owned)` sent once); seq 3 after 5 → `out_of_order` (not applied), two requests on one seq → `duplicate_seq` (ack or `rejected.jsonl`), unknown type, invalid body; requests to a never-served terminal attempt → `no_active`/`too_late`; no ack in time → SIGTERM fallback, the closing sweep acks the request |
+| `runtime-terminal-last-write.test.mjs` (WP2b) | Stress: 3 rounds × every durable terminal path (completed, released barrier, revoke, barrier timeout, rediscovery refusal, fence violation, SIGTERM, mailbox cancel, worktree) observed by a tight poller that checks every artifact the moment `result.json` turns terminal (and that `run.json` never turns terminal first), with one busy child per core; zero misses |
 | `runtime-execute.test.mjs` (WP2a-2) | `failed.class` table; invalid events/sequences; post-release submit failure → reconcile; timeouts; approval answers; usage; output recovery; idempotent resubmission; input validation; plan digest; `captureToolCalls` |
 | `runtime-packed-install.test.mjs` (WP2a-2 addition) | The installed `durable-worker.js` runs the fake executor fixture end to end (offline) |
 
@@ -263,7 +265,8 @@ that ends without a terminal event is `guard_failure`. Other rules:
   `AGENT_WORKFLOW_CANCEL_GRACE_MS` (default 10 s) for a terminal event. Without one the attempt ends with the
   stop kind and `metadata.executor.termination: "unconfirmed"` (an ACK is never termination evidence).
 - `approval_request` is answered through `executor.respond` with `decideApproval`; `ask` is answered `deny`
-  (no interactive channel until WP2b).
+  (no interactive channel until WP2b). **WP2b:** under an interactive policy `ask` waits for a host
+  answer through the durable control channel (below) up to `approvalPolicy.timeoutMs`, then denies.
 
 ### Attempt artifacts
 
@@ -274,6 +277,8 @@ that ends without a terminal event is `guard_failure`. Other rules:
 - `stderr.log`: runtime diagnostics (empty on a clean completion).
 - `executor.json`: descriptor, attemptKey, readOnly, approval policy, plan digest (read by reconcile).
 - `authority.json`: the consumption record (above). `SubmitRequest.artifactsDir` = the attempt directory.
+- WP2b: `control/` (the durable control mailbox) and `approvals.jsonl` (approval audit); see "WP2b durable
+  control channel".
 - `tool-calls.jsonl` / `tool-calls-summary.json` when `captureToolCalls` is set (ported collector).
 - `result.json`: `metadata.usage` = sum of `usage` events — `{ input, output, cached, cost, source, events }`;
   a field is `null` when any event reported it `null` (never 0), `source` is `unknown` if any event was,
@@ -345,6 +350,72 @@ the caller already holds. A fresh-process reconcile never relaunches, so it neve
 `SubmitRequest.artifactsDir?: string` (absolute; adapters may write raw CLI logs there).
 `validateSubmitRequest` rejects a relative value. Test: `sdk-contract.test.mjs`.
 
+## WP2b durable control channel
+
+A channel **into** the process that executes an attempt (the durable worker, or the caller of a sync
+run), for approval answers and cancel requests. It is a file mailbox in the attempt directory, so it
+survives the launching host exiting and a supervisor restarting; any process that can read the run
+directory can use it (`listPendingApprovals` / `respondApproval` / `requestCancel` in `api.ts`). Module:
+`src/runtime/orchestrate/control.ts`. Decision: file mailbox, not a socket (the adapter already owns its
+CLI's stdin/stdout inside the worker; what was missing is the path from the engine to the worker).
+
+**Files** in `<attemptDir>/control/` (`seq` zero-padded to 6 digits):
+
+| File | Writer | Content |
+|---|---|---|
+| `<seq>.seq` | requester | reservation, created `O_EXCL` (concurrent requesters never share a seq) |
+| `<seq>-<type>.json` | requester | `{ schema: "agent-workflow-control-request-v1", seq, type, requestedAt, requester: {pid, host}, … }`, written atomically (temp + rename). Types: `approval_response {requestId, decision}`, `cancel {scope: "turn" \| "owned"}` |
+| `<seq>.ack.json` | server, closing sweep, or requester | `{ schema: "agent-workflow-control-ack-v1", seq, type, request, ok, result?, error?, detail?, by: "worker" \| "closed" \| "requester", ackedAt }`; created exclusively (temp + `link`), so there is exactly one ack per seq |
+| `closed.json` | server / any terminal writer | `{ closedAt, lastSeq, pid }`: nothing applies requests any more |
+| `rejected.jsonl` | server | rejections that cannot get their own ack (a duplicate of an already acked seq, a reserved seq that never got a request) |
+
+**Ordering and exactly once.** The server (`startControlServer`, polled every
+`AGENT_WORKFLOW_CONTROL_POLL_MS`, default 50 ms) processes unacked requests in ascending seq; a request
+is applied only when its seq is above the last applied one, and the ack (written after the handler
+returns) marks it applied, also across a restart (the last applied seq is recovered from the acks). A
+reserved lower seq without its request file holds later seqs back for up to 2 s (`CONTROL_GAP_WAIT_MS`),
+then is recorded as a gap. Rejections (`ok: false`): `out_of_order` (seq at or below the last applied
+one; not applied), `duplicate_seq` (two request files for one seq: both rejected, or — when one was
+already applied — the other recorded in `rejected.jsonl`), `unknown_type`, `invalid_request` (schema,
+seq/type mismatch, bad decision/scope). A requester whose ack names a different request file lost a
+duplicate seq.
+
+**Handlers.**
+- `approval_response`: answers a waiting interactive approval → the runtime calls
+  `executor.respond(ref, requestId, decision)` and the ack carries its result (`accepted`); an id that
+  was already decided (policy, timeout, another answer) → `too_late`; an id the attempt never asked →
+  `unknown_request`. A host answer that loses the race against the timeout is `too_late`.
+- `cancel turn`: forwarded to `executor.cancel(ref, "turn")` (`no_active` before the executor accepted
+  the attempt); the runtime does not stop the attempt itself, so the terminal status is whatever the
+  executor reports.
+- `cancel owned`: the runtime stop path, as SIGTERM: abort with `user_cancelled` → `cancel(ref,
+  "owned")` → grace → terminal `cancelled/user_cancelled`. The ack carries the `CancelResult` the
+  runtime got (before launch: `cancelled`, nothing ran; terminal already reached: `too_late`). An ACK is
+  never termination evidence.
+
+**Terminal.** The serving process settles waiting handlers, then closes the mailbox before it writes
+the terminal `result.json`: `closed.json` first (from then on requesters answer themselves), then a
+sweep acks every unacked request (`approval_response` → `too_late`, `cancel` → `no_active`, `by:
+"closed"`), then `closed.json` records `lastSeq`. Every other writer of a terminal result (the worker's
+pre-serve failure paths, reconcile) closes the mailbox the same way (`closeControlMailbox`). A requester
+that finds `closed.json` or a terminal `result.json` writes the terminal answer itself (`by:
+"requester"`; exclusive with a late sweep).
+
+**Timeouts and fallback.** `respondApproval` / `requestCancel` wait `ackTimeoutMs` (default 10 s).
+Without an ack, `requestCancel(…, "owned")` falls back to the identity-verified SIGTERM interrupt
+(`interruptRun`, `via: "signal"`; disable with `signalFallback: false`); approvals report `timeout`.
+
+**Approvals and audit (D2).** `decideApproval` decides first: `allow`/`deny` by policy are applied at
+once (`by: "engine-policy"`); `ask` (interactive policy) registers a waiter before the request is
+visible, then waits for a mailbox answer up to `approvalPolicy.timeoutMs` and otherwise denies (`by:
+"default-timeout"`, fail-closed). A stop while waiting denies (`engine-policy`, reason "stopped"); a
+process without a control channel (reconcile adoption) denies at once. Every decision is appended
+(fsynced) to `<attemptDir>/approvals.jsonl`: `{ phase: "requested", requestId, kind, detail, at,
+deadlineAt }` (deadline `null` when policy decided) and `{ phase: "decided", requestId, kind, decision,
+by: "engine-policy" | "host" | "default-timeout", reason, response, seq?, at }`; `result.json`
+`metadata.executor.approvals[]` gains `by`. `listPendingApprovals` = requested with a deadline, not
+decided, attempt not terminal.
+
 ## SubagentApi → runtime API (for WP4)
 
 The engine (`pi-subagent-flow` `src/subagent-backend.ts`) calls `@agwab/pi-subagent/api` through the
@@ -364,6 +435,7 @@ The engine (`pi-subagent-flow` `src/subagent-backend.ts`) calls `@agwab/pi-subag
 | options `async`, `onComplete`, `asyncDependency`, `workspace`, `worktree`, `worktreePolicy`, `cwd`, `runsDir`, `correlationId`, `durableLaunchBarrier`, `mode`, `tasks`, `concurrency`, `failFast`, `cancelSiblingsOnFailure`, `sandbox`, `captureToolCalls` | same | `tasks[i]` may override `executor`. `parentSessionId` is now accepted from code callers |
 | `supportsExplicitExtensionIsolation()` | — | Dropped; WP4 removes `assertSubagentExtensionsLoadable` / the extension preflight |
 | `getSubagentStatus`, `getSubagentLogs`, `waitForSubagent`, `interruptSubagent`, `recordSubagentChildEvent` | same | Unchanged shapes |
+| — (approval/cancel over Pi's tool host) | `listPendingApprovals(ref)`, `respondApproval(ref, requestId, decision, { ackTimeoutMs })`, `requestCancel(ref, scope, { ackTimeoutMs, signalFallback })` | WP2b durable control channel; work from any process (the launcher may be gone) |
 | `reconcileSubagentRun(options)` | same | New options `registry`, `adoptTimeoutMs`; new statuses `adopted-result`, `marked-not-started`, `marked-needs-decision` and field `executorReconcile` — WP4 must stop and ask on `needs_decision` |
 | `pruneSubagentRuns`, `formatPruneSubagentRunsSummary` | same | |
 | `SubagentValidationError` | same | |
@@ -517,7 +589,8 @@ Run results, statuses and `RunStatusSnapshot` keep their shapes; `backend` is th
 13. **WP2b terminal-last-write invariant.** Once an attempt's `result.json` is terminal, every attempt
     artifact is complete and present: `stderr.log`, `output.log`, `exec-events.jsonl` (when a ref
     exists), a decided `authority.json` (when consume ran), every artifact the result lists (at its
-    recorded size), and the worktree finalization. The registry (`run.json`) only commits from the terminal result (finalizer), never
+    recorded size), the worktree finalization, and an ack for every control request written before the
+    mailbox closed (WP2b control channel). The registry (`run.json`) only commits from the terminal result (finalizer), never
     ahead of it. Fixes:
     - the durable worker's pre-release terminal paths (guard failure, revoke, unresolved payload) also
       write `output.log` (empty when nothing ran; never clobbering existing output) before the result;
@@ -556,6 +629,14 @@ Run results, statuses and `RunStatusSnapshot` keep their shapes; `backend` is th
     run is refused before anything is written. Secrets go through `SubmitRequest.env` /
     `McpServerSpec.env`, which WP2c keeps off disk. Test: `sdk-descriptor-secrets.test.mjs`.
 
+15. **WP2b durable control channel** (see the section above): new `orchestrate/control.ts`, served by
+    `runPreparedSubagentExecution` while `executeAttempt` runs and closed before the terminal result;
+    `executeAttempt`/`observeAttempt` take an optional `control`; interactive approvals wait for a host
+    answer instead of being denied at once; `approvals.jsonl` audit and `approvals[].by`; API helpers
+    `listPendingApprovals`, `respondApproval`, `requestCancel` (SIGTERM fallback); reconcile and the
+    worker's pre-serve paths close the mailbox before writing a terminal result. Store gains
+    `ensureTextArtifact`; reconcile's stale/needs-decision results now also list `output.log`.
+
 ## Inherited from pi-subagent 0.7.2
 
 The WP2c defects as they exist in `pi-subagent-engine` at `ab91a74` (read-only check; paths relative to that
@@ -572,10 +653,17 @@ repository), so its owner can decide whether to fix pi-subagent too.
 
 ## Open problems (WP2a-2 → later packages)
 
-- **WP2b:** approval requests are answered by policy only (`ask` → deny); an interactive channel and a
-  re-attachable observer for a still-running adopted ref (today reconcile observes for `adoptTimeoutMs` and
-  otherwise leaves the attempt `running`) belong to the broker. Adoption restarts `exec-events.jsonl`
-  (observe replays from the start for the fake; real adapters must define replay semantics).
+- **Adopted refs (was WP2b):** a re-attachable observer for a still-running adopted ref (today reconcile
+  observes for `adoptTimeoutMs` and otherwise leaves the attempt `running`) is still open; the reconcile
+  process does not serve the control mailbox (interactive approvals there are denied at once). Adoption
+  restarts `exec-events.jsonl` (observe replays from the start for the fake; real adapters must define
+  replay semantics).
+- **Control channel limits (WP2b):** the mailbox is polled (50 ms), not watched; a crash between applying
+  a request and writing its ack re-applies it after a restart (handlers are idempotent for approvals, a
+  second cancel is harmless); a requester that crashes between reserving a seq and writing the request
+  delays later requests by up to 2 s. A sync run whose preparation fails before execution still marks
+  the registry `cancelled` without a `result.json` (`discardSubagentExecution`); no observer waits on it
+  (no `resultPath`), but it is outside the terminal-last-write invariant.
 - **WP4:** map `needs_decision` to "stop and ask", `not_started` to "safe to relaunch with a new attempt",
   `transient`/`rate_limit` to the retry policy; pass an engine-issued `attemptKey`; replace the Pi extension
   preflight with `mcpServers`; READY validation is unchanged but the plan digest schema changed.
