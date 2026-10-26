@@ -1,0 +1,19 @@
+# Dependencies and package outputs
+node_modules/
+dist/
+*.tgz
+.tmp/
+
+# Local environment and OS/editor noise
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# Project-local agent-workflow run records
+.agent-workflow/
+
+# Local-only maintenance surfaces (checked by tools/release/check-public-surface.mjs)
+AGENTS.md
+CHANGELOG.md
+/internal/

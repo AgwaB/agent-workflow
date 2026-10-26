@@ -1,0 +1,20 @@
+@agwab/agent-workflow
+Copyright (c) 2026 Toby
+Licensed under the MIT License (see LICENSE).
+
+Third-party notices
+===================
+
+This file lists Apache-2.0 licensed sources whose code is reused (copied or
+adapted) in this package, as required by Section 4(d) of the Apache License,
+Version 2.0. Each reused file also carries a header comment naming its origin.
+
+GPL, AGPL, and FSL licensed code is not reused in this package.
+
+Entries
+-------
+
+# No entries yet. Work packages that port Apache-2.0 code add entries here:
+#   - WP2b: codex-plugin-cc (app-server broker / broker endpoint)
+#   - WP7:  codex-plugin-cc (app-server client), ACP SDK (event vocabulary)
+#   - WP8:  vibe-kanban (claude executor parsing)
