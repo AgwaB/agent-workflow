@@ -4,10 +4,12 @@
  */
 import { type ConformanceCheck, CORE_CHECKS } from "./checks-core.js";
 import { LIVE_CHECKS, RUNTIME_CHECKS } from "./checks-live.js";
+import { MCP_CHECKS } from "./checks-mcp.js";
 import type { ConformanceCheckInfo, ConformanceTier } from "./types.js";
 
 export const CONFORMANCE_CATALOG: readonly ConformanceCheck[] = [
 	...CORE_CHECKS,
+	...MCP_CHECKS,
 	...LIVE_CHECKS,
 	...RUNTIME_CHECKS,
 ];

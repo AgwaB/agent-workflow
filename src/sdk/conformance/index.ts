@@ -15,6 +15,14 @@ export {
 	type FenceProbe,
 	withTimeout,
 } from "./context.js";
+export {
+	MCP_NONCE_PATTERN,
+	MCP_SECRET_ENV,
+	mcpToolPrompt,
+} from "./checks-mcp.js";
 export * from "./harness-fake.js";
+export * from "./mcp-client.js";
 export * from "./runner.js";
+export * from "./stub-cli.js";
+export * from "./stub-mcp.js";
 export * from "./types.js";

@@ -5,6 +5,8 @@
  */
 import {
 	EXECUTOR_CONTRACT_VERSION,
+	type ExecRef,
+	type SubmitRequest,
 	type WorkflowExecutor,
 } from "../contract.js";
 import { createExecutorRegistry } from "../descriptor.js";
@@ -19,6 +21,9 @@ import {
 	type FakeExecutorStore,
 	type FakeStep,
 } from "../testing/fake-executor.js";
+import { MCP_NONCE_PATTERN } from "./checks-mcp.js";
+import { callMcpTool } from "./mcp-client.js";
+import { STUB_MCP_SERVER_NAME } from "./stub-mcp.js";
 import {
 	CONFORMANCE_SCENARIOS,
 	type ConformanceHarness,
@@ -55,6 +60,11 @@ export interface FakeHarnessOptions {
 	) => WorkflowExecutor;
 	/** Expose a registry-backed descriptor for `descriptor.reload`. Default true. */
 	readonly descriptor?: boolean;
+	/**
+	 * MCP output limit the fake "CLI" enforces and reports from probe(). Default 4096; null = unknown.
+	 * Ignored when `executor.probe` is given (its value is used instead).
+	 */
+	readonly mcpOutputLimitChars?: number | null;
 }
 
 const usage = (cost: number | null): ExecEvent =>
@@ -175,14 +185,111 @@ function stopRuns(store: FakeExecutorStore): void {
 	}
 }
 
+interface McpCalls {
+	readonly requests: Map<string, SubmitRequest>;
+	readonly results: Map<string, Promise<ExecEvent[]>>;
+}
+
+async function fakeMcpCall(
+	req: SubmitRequest | undefined,
+	limit: number | null,
+): Promise<ExecEvent[]> {
+	const spec =
+		req?.mcpServers.find((server) => server.name === STUB_MCP_SERVER_NAME) ??
+		req?.mcpServers[0];
+	const nonce = MCP_NONCE_PATTERN.exec(req?.prompt ?? "")?.[1];
+	if (req === undefined || spec === undefined || nonce === undefined) return [];
+	const name = `mcp__${spec.name}__echo`;
+	try {
+		const result = await callMcpTool(
+			spec,
+			"echo",
+			{ text: nonce },
+			{ cwd: req.cwd },
+		);
+		const output = limit === null ? result.text : result.text.slice(0, limit);
+		return [
+			{
+				type: "tool_call",
+				name,
+				kind: "other",
+				status: result.isError ? "failed" : "completed",
+				callId: "mcp-1",
+				input: { text: nonce },
+				output,
+			},
+		];
+	} catch (error) {
+		return [
+			{
+				type: "tool_call",
+				name,
+				kind: "other",
+				status: "failed",
+				callId: "mcp-1",
+				output: error instanceof Error ? error.message : String(error),
+			},
+		];
+	}
+}
+
+/**
+ * `mcp_tool` stand-in for a CLI that calls injected MCP tools: after `started`, the fake acts as the
+ * MCP client for the request's `conformance` server (only after a released submit, i.e. after the
+ * effect) and reports the echo result, truncated to the fake CLI's output limit.
+ */
+function withFakeMcpCalls(
+	fake: FakeExecutor,
+	calls: McpCalls,
+	limit: number | null,
+): WorkflowExecutor {
+	const resultFor = (ref: ExecRef) => {
+		let result = calls.results.get(ref.attemptKey);
+		if (result === undefined) {
+			result = fakeMcpCall(calls.requests.get(ref.attemptKey), limit);
+			calls.results.set(ref.attemptKey, result);
+		}
+		return result;
+	};
+	return {
+		...fake,
+		async submit(req) {
+			const ref = await fake.submit(req);
+			if (!calls.requests.has(req.attemptKey))
+				calls.requests.set(req.attemptKey, req);
+			return ref;
+		},
+		async *observe(ref) {
+			for await (const event of fake.observe(ref)) {
+				yield event;
+				if (event.type === "started") yield* await resultFor(ref);
+			}
+		},
+	};
+}
+
 export function createFakeHarness(
 	options: FakeHarnessOptions = {},
 ): ConformanceHarness {
-	const base = options.executor ?? {};
+	const limit =
+		options.mcpOutputLimitChars === undefined
+			? 4096
+			: options.mcpOutputLimitChars;
+	const base = {
+		...options.executor,
+		probe: options.executor?.probe ?? {
+			installed: true,
+			cliVersion: "fake-cli 1.0.0",
+			auth: "ok" as const,
+			mcpOutputLimitChars: limit,
+		},
+	};
+	const effectiveLimit = base.probe.mcpOutputLimitChars ?? null;
 	const build = (
 		scenario: ConformanceScenario,
 		store: FakeExecutorStore,
 		generation: number,
+		calls: McpCalls,
 	): WorkflowExecutor => {
 		const faults = {
 			...DEFAULT_FAULTS[scenario],
@@ -196,7 +303,11 @@ export function createFakeHarness(
 			faults,
 			...(stepDelayMs === undefined ? {} : { stepDelayMs }),
 		});
-		return options.wrap?.(fake, { scenario, store, generation }) ?? fake;
+		const staged =
+			scenario === "mcp_tool"
+				? (withFakeMcpCalls(fake, calls, effectiveLimit) as FakeExecutor)
+				: fake;
+		return options.wrap?.(staged, { scenario, store, generation }) ?? staged;
 	};
 	const effects = (store: FakeExecutorStore, attemptKey?: string) =>
 		store.trace.filter(
@@ -210,13 +321,14 @@ export function createFakeHarness(
 		scenarios: options.scenarios ?? CONFORMANCE_SCENARIOS,
 		async open(scenario): Promise<HarnessSession> {
 			const store = createFakeStore();
+			const calls: McpCalls = { requests: new Map(), results: new Map() };
 			let generation = 0;
 			return {
-				executor: build(scenario, store, generation),
+				executor: build(scenario, store, generation, calls),
 				effectCount: async (attemptKey) => effects(store, attemptKey),
 				restart: async () => {
 					generation += 1;
-					return build(scenario, store, generation);
+					return build(scenario, store, generation, calls);
 				},
 				dispose: async () => stopRuns(store),
 			};
