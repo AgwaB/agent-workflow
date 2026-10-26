@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-audit.ts. MIT, same author. Changes: type imports from types.ts/dynamic-decision.ts now come from ./types-bridge.js.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-audit.ts. MIT, same author. Changes: none.
 // Deterministic claim-support audit for direct dynamic runs.
 //
 // Mirrors the counting semantics of the static deep-research audit helpers
@@ -9,7 +9,7 @@
 // generated-task ref id or by URL). This is fail-open accounting, not a gate:
 // callers must never fail a run on audit results or audit errors.
 
-import type { WorkflowDynamicRunAudit } from "./types-bridge.js";
+import type { WorkflowDynamicRunAudit } from "./types.js";
 
 /**
  * Claim-bearing top-level arrays counted from the synthesis control JSON, in

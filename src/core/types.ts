@@ -1,15 +1,11 @@
-// New in agent-workflow (WP4a). Type-only bridge: verbatim copies of the type declarations that the WP4a
-// core modules import from pi-workflow 0.16.4 (b83cc4f) src/types.ts, src/dynamic-decision.ts,
-// src/workflow-runtime.ts, src/workflow-raw-contract.ts and src/workflow-native-host-context.ts (with
-// their transitive type closure). Changes vs. the source declarations: every declaration is exported;
-// value constants used only through `typeof` (THINKING_LEVELS, FAST_MODES, ...) became non-exported
-// `declare const` with the same literal tuple types, so this module emits no runtime code; inline
-// `import("./x.js").T` type references point at the local copy. WP4b ports those source modules and
-// deletes this file (each importer switches back to `./types.js` / `./dynamic-decision.js`).
-import type { Stats } from "node:fs";
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/types.ts. MIT, same author. Changes: run.nativeHost→run.hostContext (HostContext); runtime.nativeToolsEnabled→runtime.inheritHostTools; added allowSharedCheckoutWrites (R#5), inheritHostTools run/compile flags, agent legacySource; artifact provenance digests config + MCP server spec instead of extension wrapper bytes.
+import type {
+	WorkflowModelInfo,
+	WorkflowRuntimeDefaults,
+	WorkflowRuntimeThinkingResolution,
+} from "./workflow-runtime.js";
 
-// --- from src/types.ts ---
-declare const THINKING_LEVELS: readonly [
+export const THINKING_LEVELS = [
 	"off",
 	"minimal",
 	"low",
@@ -17,42 +13,30 @@ declare const THINKING_LEVELS: readonly [
 	"high",
 	"xhigh",
 	"max",
-];
-
-declare const FAST_MODES: readonly ["inherit", "off", "on"];
-
-declare const WORKFLOW_PROFILE_ROLES: readonly [
+] as const;
+export const FAST_MODES = ["inherit", "off", "on"] as const;
+export const WORKFLOW_PROFILE_ROLES = [
 	"planning",
 	"research-execution",
 	"synthesis",
 	"verification",
 	"final-judgment",
-];
-
-declare const APPROVAL_MODES: readonly ["non-interactive", "on-request"];
-
-declare const WORKTREE_POLICIES: readonly ["auto", "on", "off"];
-
-declare const TOOL_CLASSIFICATIONS: readonly [
+] as const;
+export const APPROVAL_MODES = ["non-interactive", "on-request"] as const;
+export const WORKTREE_POLICIES = ["auto", "on", "off"] as const;
+export const TOOL_CLASSIFICATIONS = [
 	"read-only",
 	"write-capable",
 	"mutation-capable",
-];
-
-declare const WORKFLOW_RUN_TYPE: "artifact-graph";
+] as const;
+export const WORKFLOW_RUN_TYPE = "artifact-graph" as const;
 
 export type ThinkingLevel = (typeof THINKING_LEVELS)[number];
-
 export type FastMode = (typeof FAST_MODES)[number];
-
 export type WorkflowProfileRole = (typeof WORKFLOW_PROFILE_ROLES)[number];
-
 export type ApprovalMode = (typeof APPROVAL_MODES)[number];
-
 export type WorktreePolicy = (typeof WORKTREE_POLICIES)[number];
-
 export type ToolClassification = (typeof TOOL_CLASSIFICATIONS)[number];
-
 export type WorkflowRunType = typeof WORKFLOW_RUN_TYPE;
 
 export interface BackendOptions {
@@ -76,10 +60,17 @@ export interface WorkflowToolObjectSpec {
 export type WorkflowToolSpec = string | WorkflowToolObjectSpec;
 
 export interface CompiledToolProvider {
+	/** Pi executor only (WP6): Pi extension files that provide the tool. */
 	extensions?: string[];
 	classification?: ToolClassification;
 	optional?: boolean;
 	fallbackTools?: string[];
+	/**
+	 * Engine-provided stdio MCP server that serves the tool (set at launch
+	 * preparation, e.g. workflow_artifact; never authored). Executors pass it
+	 * through `SubmitRequest.mcpServers`.
+	 */
+	mcpServer?: { name: string; command: string; args: string[] };
 }
 
 export interface WorkflowDefaults {
@@ -121,7 +112,7 @@ export interface WorkflowFailurePolicy {
 	cancelDescendantsOnParentFailure?: boolean;
 }
 
-export interface RequiredWorkflowArtifactReadPolicyBase {
+interface RequiredWorkflowArtifactReadPolicyBase {
 	source: string;
 	artifact: WorkflowArtifactKind;
 	mustNotTruncate?: boolean;
@@ -293,7 +284,6 @@ export interface ArtifactGraphRequiredReadSpec {
 }
 
 export type ArtifactGraphRequiredRead = string | ArtifactGraphRequiredReadSpec;
-
 export interface ArtifactGraphForeachSpec {
 	prompt: string;
 	agent?: string;
@@ -371,6 +361,21 @@ export interface ArtifactGraphStageSpec {
 	onExhausted?: ArtifactGraphStageSpec;
 }
 
+export interface ValidationIssue {
+	path: string;
+	message: string;
+}
+
+export class WorkflowValidationError extends Error {
+	readonly issues: ValidationIssue[];
+
+	constructor(issues: ValidationIssue[]) {
+		super(issues.map((issue) => `${issue.path}: ${issue.message}`).join("\n"));
+		this.name = "WorkflowValidationError";
+		this.issues = issues;
+	}
+}
+
 export interface AgentDefinition {
 	name: string;
 	displayName: string;
@@ -379,6 +384,8 @@ export interface AgentDefinition {
 	aliases: string[];
 	sourcePath: string;
 	scope: "project" | "user" | "bundled";
+	/** Found in a legacy Pi location (`.pi/agents`, `~/.pi/agent/agents`), read-only (F5). */
+	legacySource?: "pi";
 	frontmatter: Record<string, unknown>;
 	body: string;
 	model?: string;
@@ -421,8 +428,13 @@ export interface CompiledTaskRuntime {
 	approvalMode: ApprovalMode;
 	tools?: string[];
 	toolProviders?: Record<string, CompiledToolProvider>;
-	/** Native host tools were deliberately enabled (or explicitly disabled). */
-	nativeToolsEnabled?: boolean;
+	/**
+	 * Host-tool inheritance was deliberately enabled (or explicitly disabled).
+	 * Pi executor only (WP6): when `true` the Pi adapter adds the launching
+	 * host's own tools (codemode, `mcp__*`, MCP resources). Core already
+	 * classifies such a task as mutation-capable.
+	 */
+	inheritHostTools?: boolean;
 	maxRuntimeMs?: number;
 }
 
@@ -432,6 +444,12 @@ export interface CompiledTaskSafety {
 	sharedCwdSafe: boolean;
 	worktreePolicy: WorktreePolicy;
 	requiresWorktree: boolean;
+	/**
+	 * D2/R#5: present only when the executing user's run option
+	 * `allowSharedCheckoutWrites` waived the worktree a write-capable task
+	 * would otherwise require under `worktreePolicy: "off"`.
+	 */
+	allowSharedCheckoutWrites?: true;
 	permission: PermissionPreview;
 }
 
@@ -732,7 +750,6 @@ export type TaskRunStatus =
 	| "failed"
 	| "skipped"
 	| "interrupted";
-
 export type WorkflowRunStatus =
 	| "running"
 	| "blocked"
@@ -900,13 +917,20 @@ export interface LaunchBootstrapProvenanceRecordBase {
 	sessionId?: string;
 	backend: { id: string; type: string; mode: string };
 	prompt: { sha256: string; bytes: number };
+	/**
+	 * Artifact access binding. `configSha256` covers the canonical JSON of the
+	 * ArtifactAccessConfig, `serverSpecSha256` the canonical JSON of the
+	 * workflow_artifact MCP server launch spec (replaces the Pi extension
+	 * wrapper bytes digest).
+	 */
 	artifacts?: {
 		manifestSha256: string;
-		wrapperSha256: string;
 		configSha256: string;
+		serverSpecSha256: string;
 	};
 	effectiveLaunch: {
 		noExtensions?: true;
+		/** Pi executor only (WP6): Pi extension paths and generated wrappers. */
 		extensions: Array<{
 			pathSha256: string;
 			generated?: {
@@ -920,12 +944,15 @@ export interface LaunchBootstrapProvenanceRecordBase {
 		artifactBinding?: {
 			manifestPathSha256: string;
 			manifestBytesSha256: string;
-			wrapperPathSha256: string;
-			wrapperBytesSha256: string;
+			configPathSha256: string;
+			configBytesSha256: string;
+			serverSpecSha256: string;
 		};
 	};
 	effectivePolicy: {
 		tools: string[];
+		/** The executor may add inherited host tools (Pi only). */
+		inheritHostTools?: true;
 		toolProvidersSha256: string;
 		externalLaunchGrantSha256?: string;
 		model?: string;
@@ -1284,7 +1311,7 @@ export interface WorkflowTaskRunRecord {
 	};
 	backendFiles?: Record<string, string>;
 	/** Host-owned raw byte integrity for the current materialized generation. */
-	rawArtifactIntegrity?: RawIntegrity;
+	rawArtifactIntegrity?: import("./workflow-raw-contract.js").RawIntegrity;
 	lastMessage?: string;
 	outputRetry?: {
 		attempts: number;
@@ -1340,6 +1367,22 @@ export interface TaskSummary {
 	total: number;
 }
 
+/**
+ * Shape of `.agent-workflow/workflows/<runId>/supervisor.json` written by the run-lease
+ * heartbeat. `lastTaskTransitionAt`/`taskStatusCounts` are progress signals:
+ * `updatedAt` proves the supervisor process is alive, while
+ * `lastTaskTransitionAt` proves the run is actually making task progress.
+ */
+export interface WorkflowSupervisorRecord {
+	schemaVersion?: number;
+	ownerId?: string;
+	pid?: number;
+	updatedAt?: string;
+	lockFile?: string;
+	lastTaskTransitionAt?: string;
+	taskStatusCounts?: TaskSummary;
+}
+
 export interface WorkflowTaskResumeEvent {
 	at: string;
 	fromStatus: TaskRunStatus;
@@ -1355,7 +1398,6 @@ export interface WorkflowTaskResumeEvent {
 }
 
 export type WorkflowRouteDecision = "direct" | "dynamic" | "workflow";
-
 export type WorkflowRouteDepth = "quick" | "standard" | "max";
 
 /** Effective declared or user-saved profile frozen into a new run. */
@@ -1366,6 +1408,18 @@ export interface WorkflowRunExecutionProfile {
 	definitionFingerprint?: string;
 	/** Canonical stage-id → captured profile overrides applied at compile time. */
 	stageOverrides: Record<string, ExecutionProfileStageOverride>;
+}
+
+/** A user profile resolved against one exact authored definition before launch. */
+export interface WorkflowCapturedExecutionProfile
+	extends WorkflowRunExecutionProfile {
+	definitionFingerprint: string;
+}
+
+/** Launch-time profile choice: declared spec id or a captured user profile. */
+export interface WorkflowExecutionProfileSelection {
+	executionProfile?: string;
+	executionProfileOverride?: WorkflowCapturedExecutionProfile;
 }
 
 /** Legacy routing audit retained for historical run records; new explicit launches omit it. */
@@ -1395,6 +1449,11 @@ export interface WorkflowRunProvenance {
 export type WorkflowRunLaunchV1Source =
 	| { kind: "slash-command"; action: "run" | "dynamic" }
 	| { kind: "tool"; name: "workflow_run" | "workflow_dynamic" };
+
+/** Includes `auto` for consumers that render either launch-provenance generation. */
+export type WorkflowRunLaunchSource =
+	| WorkflowRunLaunchV1Source
+	| { kind: "slash-command"; action: "auto" };
 
 export type WorkflowRunLaunchProfile =
 	| { kind: "named"; name: string }
@@ -1460,6 +1519,28 @@ export type WorkflowRunLaunchMetadata =
 	| WorkflowRunLaunchMetadataV1
 	| WorkflowRunLaunchMetadataV2;
 
+export type WorkflowRunLaunchCaptureV1 = Omit<
+	WorkflowRunLaunchMetadataV1,
+	"command"
+> & {
+	command:
+		| { state: "captured"; text: string }
+		| { state: "unavailable"; reason: "not-a-command" };
+};
+
+export type WorkflowRunLaunchCaptureV2 = Omit<
+	WorkflowRunLaunchMetadataV2,
+	"command"
+> & {
+	/** An auto launch is slash-command initiated and always retains its sidecar. */
+	command: { state: "captured"; text: string };
+};
+
+/** Non-persisted launch input carried from a launch surface to the engine. */
+export type WorkflowRunLaunchCapture =
+	| WorkflowRunLaunchCaptureV1
+	| WorkflowRunLaunchCaptureV2;
+
 /**
  * Deterministic claim-support accounting computed after a direct dynamic
  * run's synthesis completes. Fail-open: audit computation errors are recorded
@@ -1496,8 +1577,12 @@ export interface WorkflowRunDegradation {
 
 export interface WorkflowRunRecord {
 	schemaVersion: 1;
-	/** Parent native MCP discovery references, fixed for this run and its children. */
-	nativeHost?: WorkflowNativeHostContext;
+	/** Launching host's references, fixed for this run and its children. */
+	hostContext?: import("./host-context.js").HostContext;
+	/** Host-level opt-in to host-tool inheritance (Pi executor only, WP6). */
+	inheritHostTools?: true;
+	/** D2/R#5: the executing user allowed shared-checkout writes for this run. */
+	allowSharedCheckoutWrites?: true;
 	runId: string;
 	name?: string;
 	description?: string;
@@ -1557,6 +1642,42 @@ export interface WorkflowRunUsageRollup extends WorkflowTaskUsageValues {
 	tasksReporting: number;
 }
 
+export interface WorkflowIndexRecord {
+	schemaVersion: 1;
+	updatedAt: string;
+	runs: Array<{
+		runId: string;
+		name?: string;
+		type: WorkflowRunType;
+		artifactGraph?: { enabled: true };
+		status: WorkflowRunStatus;
+		degradation?: WorkflowRunDegradation;
+		taskSummary: TaskSummary;
+		createdAt: string;
+		updatedAt: string;
+		runJson: string;
+		parentRunId?: string;
+		rootRunId?: string;
+		round?: number;
+		fanout?: unknown[];
+		/**
+		 * Deprecated compatibility projection. New index writes omit task rows;
+		 * consumers that need task-level details should load runJson/run.json.
+		 */
+		tasks?: Array<{
+			taskId: string;
+			displayName: string;
+			agent: string;
+			status: TaskRunStatus;
+			statusDetail: string;
+			lastMessage?: string;
+			kind?: string;
+			stageId?: string;
+			backendHandle?: WorkflowBackendHandle;
+		}>;
+	}>;
+}
+
 export interface WorktreeSnapshotRecord {
 	files?: string[];
 	hash?: string;
@@ -1578,137 +1699,8 @@ export interface CompiledWorkflow {
 	stages?: Array<Record<string, unknown> | CompiledLoopStageRecord>;
 	warnings: string[];
 	artifactGraph?: { enabled: true };
-}
-
-// --- from src/dynamic-decision.ts ---
-declare const DYNAMIC_DECISION_SCHEMA: "dynamic-decision-v1";
-
-export type DynamicDecisionPhase = "orientation" | "round" | "final";
-
-export type DynamicDecisionStatus =
-	| "continue"
-	| "synthesize"
-	| "stop"
-	| "blocked";
-
-declare const DYNAMIC_DECISION_ARTIFACT_NAMES: readonly [
-	"control",
-	"analysis",
-	"refs",
-	"raw",
-];
-
-export type DynamicDecisionArtifactName =
-	(typeof DYNAMIC_DECISION_ARTIFACT_NAMES)[number];
-
-export interface DynamicDecisionArtifactRef {
-	kind: "workflow-artifact-ref";
-	taskId: string;
-	artifact?: DynamicDecisionArtifactName;
-	digest?: string;
-}
-
-export interface DynamicDecisionAddWorkItemAction {
-	type: "add_work_item";
-	actionId: string;
-	workItemId: string;
-	agent?: string;
-	prompt: string;
-	tools?: string[];
-	outputProfile?: string;
-	dependsOn?: string[];
-	inputRefs?: DynamicDecisionArtifactRef[];
-}
-
-export interface DynamicDecisionVerifyAction {
-	type: "verify";
-	actionId: string;
-	targetFindingId: string;
-	prompt: string;
-	tools?: string[];
-	outputProfile?: string;
-	inputRefs?: DynamicDecisionArtifactRef[];
-}
-
-export interface DynamicDecisionSynthesizeAction {
-	type: "synthesize";
-	actionId: string;
-	prompt?: string;
-	outputProfile?: string;
-	inputRefs?: DynamicDecisionArtifactRef[];
-}
-
-export interface DynamicDecisionStopAction {
-	type: "stop";
-	actionId: string;
-	reason: string;
-	caveats?: string[];
-}
-
-export type DynamicDecisionAction =
-	| DynamicDecisionAddWorkItemAction
-	| DynamicDecisionVerifyAction
-	| DynamicDecisionSynthesizeAction
-	| DynamicDecisionStopAction;
-
-export interface NormalizedDynamicDecision {
-	schema: typeof DYNAMIC_DECISION_SCHEMA;
-	decisionId: string;
-	round: number;
-	phase: DynamicDecisionPhase;
-	status: DynamicDecisionStatus;
-	nextActions: DynamicDecisionAction[];
-}
-
-// --- from src/workflow-runtime.ts ---
-export type WorkflowModelThinkingLevelMap = Partial<
-	Record<ThinkingLevel, string | null>
->;
-
-export interface WorkflowModelInfo {
-	provider: string;
-	id: string;
-	fullId: string;
-	api?: string;
-	reasoning?: boolean;
-	thinkingLevelMap?: WorkflowModelThinkingLevelMap;
-}
-
-export interface WorkflowRuntimeDefaults {
-	model?: string;
-	thinking?: ThinkingLevel;
-	fast?: FastMode;
-}
-
-export interface WorkflowRuntimeThinkingResolution {
-	requested?: ThinkingLevel;
-	resolved?: ThinkingLevel;
-	reason?: string;
-}
-
-// --- from src/workflow-raw-contract.ts ---
-// Host run records are the authority boundary. These hashes detect corruption;
-// they are NOT signatures, nor proof of historical byte authorship.
-export interface RawIntegrity {
-	version: 1;
-	sha256: string;
-	bytes: number;
-	owner: string;
-	/** Host-captured terminal identity; avoids rereading an unchanged raw-bearing mirror result. */
-	terminal?: Record<string, unknown>;
-	terminalVersion?: RawFileVersion;
-}
-
-export type RawFileVersion = Pick<
-	Stats,
-	"dev" | "ino" | "size" | "nlink" | "mtimeMs" | "ctimeMs"
->;
-
-// --- from src/workflow-native-host-context.ts ---
-/** References only: never persist resolved MCP configuration or credentials. */
-export interface WorkflowNativeHostContext {
-	version: 1;
-	cwd: string;
-	agentDir: string;
-	projectTrusted: boolean;
+	/** Compiled with the host's `inheritHostTools` option (Pi only, WP6). */
+	inheritHostTools?: true;
+	/** D2/R#5: compiled with the executing user's `allowSharedCheckoutWrites`. */
+	allowSharedCheckoutWrites?: true;
 }

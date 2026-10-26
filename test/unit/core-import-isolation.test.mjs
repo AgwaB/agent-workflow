@@ -1,4 +1,4 @@
-// New in agent-workflow (WP4a acceptance): every compiled core module imports
+// New in agent-workflow (WP4a acceptance, extended in WP4b): every compiled core module imports
 // with plain node from a temp copy of dist/ that has no node_modules anywhere on
 // its resolution path, so src/core carries no hidden runtime dependency.
 import assert from "node:assert/strict";
@@ -22,13 +22,19 @@ function coreModules() {
 		.sort();
 }
 
-test("dist/core contains the WP4a modules and the type bridge", () => {
+test("dist/core has exactly one module per src/core/*.ts and no type bridge", () => {
+	// WP4b: the WP4a hard-coded count became the src/core listing, so the
+	// isolation checks below cover every ported and replacement module.
+	const expected = readdirSync(join(root, "src", "core"))
+		.filter((name) => name.endsWith(".ts"))
+		.map((name) => name.replace(/\.ts$/, ".js"))
+		.sort();
 	const modules = coreModules();
-	// 30 ported modules + types-bridge + index stub.
-	assert.equal(modules.length, 32, modules.join(", "));
+	assert.deepEqual(modules, expected);
 	assert.ok(modules.includes("index.js"));
-	assert.ok(modules.includes("types-bridge.js"));
 	assert.ok(modules.includes("dynamic-runtime-bundle.js"));
+	assert.equal(modules.includes("types-bridge.js"), false);
+	assert.equal(existsSync(join(root, "src", "core", "types-bridge.ts")), false);
 });
 
 test("dist/core modules import only node builtins and sibling core modules", () => {
@@ -93,7 +99,7 @@ test("every dist/core/*.js imports in a child process from a temp dist/ copy wit
 			modules,
 		);
 		// Type-only modules compile to empty ES modules.
-		const typeOnly = new Set(["types-bridge.js", "dynamic-loop-types.js"]);
+		const typeOnly = new Set(["dynamic-loop-types.js"]);
 		for (const [name, exportCount] of loaded) {
 			if (typeOnly.has(name)) assert.equal(exportCount, 0, name);
 			else assert.ok(exportCount > 0, `${name} has no runtime exports`);

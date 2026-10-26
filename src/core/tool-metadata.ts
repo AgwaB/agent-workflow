@@ -1,10 +1,10 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/tool-metadata.ts. MIT, same author. Changes: type imports from types.ts/dynamic-decision.ts now come from ./types-bridge.js.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/tool-metadata.ts. MIT, same author. Changes: none.
 import type {
 	CompiledToolProvider,
 	TaskCapability,
 	WorkflowToolObjectSpec,
 	WorkflowToolSpec,
-} from "./types-bridge.js";
+} from "./types.js";
 
 export const TOOL_NAME_PATTERN = /^[A-Za-z0-9_.:/-]+$/;
 

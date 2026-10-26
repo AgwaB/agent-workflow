@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/foreach-batch-runtime.ts. MIT, same author. Changes: type imports from types.ts/dynamic-decision.ts now come from ./types-bridge.js.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/foreach-batch-runtime.ts. MIT, same author. Changes: none.
 import { createHash } from "node:crypto";
 
 import type {
@@ -6,7 +6,7 @@ import type {
 	WorkflowForeachBatchRecord,
 	WorkflowRunRecord,
 	WorkflowTaskRunRecord,
-} from "./types-bridge.js";
+} from "./types.js";
 import { resolveWorkflowResourcePolicy } from "./resource-inheritance.js";
 
 export const FOREACH_BATCH_PROTOCOL_SCHEMA =

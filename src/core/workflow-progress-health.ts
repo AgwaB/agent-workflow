@@ -1,10 +1,10 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-progress-health.ts. MIT, same author. Changes: type imports from types.ts/dynamic-decision.ts now come from ./types-bridge.js.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-progress-health.ts. MIT, same author. Changes: none.
 import type {
 	TaskRunStatus,
 	WorkflowRunRecord,
 	WorkflowRunStatus,
 	WorkflowTaskRunRecord,
-} from "./types-bridge.js";
+} from "./types.js";
 
 export type WorkflowHealthState =
 	| "completed"

@@ -1,10 +1,10 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-loop-prompts.ts. MIT, same author. Changes: type imports from types.ts/dynamic-decision.ts now come from ./types-bridge.js.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-loop-prompts.ts. MIT, same author. Changes: none.
 import type {
 	DynamicDecisionAddWorkItemAction,
 	DynamicDecisionArtifactRef,
 	DynamicDecisionSynthesizeAction,
 	DynamicDecisionVerifyAction,
-} from "./types-bridge.js";
+} from "./dynamic-decision.js";
 import type { DynamicPlannerPromptInput } from "./dynamic-loop-types.js";
 
 const DYNAMIC_WORKER_OBJECTIVE_MAX_CHARS = 1200;

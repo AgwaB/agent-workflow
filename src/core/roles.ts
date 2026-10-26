@@ -1,10 +1,6 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/roles.ts. MIT, same author. Changes: type imports from types.ts/dynamic-decision.ts now come from ./types-bridge.js.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/roles.ts. MIT, same author. Changes: none.
 import { compactStrings } from "./strings.js";
-import type {
-	AgentDefinition,
-	CompiledRole,
-	RoleSpec,
-} from "./types-bridge.js";
+import type { AgentDefinition, CompiledRole, RoleSpec } from "./types.js";
 
 export const DEFAULT_SAFE_SECTIONS = [
 	"Core Principles",
