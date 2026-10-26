@@ -91,18 +91,34 @@ test("mcp.delivery_bound: output served at 2x the declared limit is delivered wi
 		join(fixture.producerDir, "analysis.md"),
 		"z".repeat(limit * 2),
 	);
+	await writeFile(
+		join(fixture.producerDir, "control.json"),
+		JSON.stringify({ claims: ["w".repeat(limit * 2)] }),
+	);
 	const spec = artifactMcpServerSpecWithOutputLimit(fixture.config, limit);
-	const result = await callMcpTool(spec, "workflow_artifact", {
+	// A whole read is paged (WP5b): the first page fits and is verified, not cut.
+	const page = await callMcpTool(spec, "workflow_artifact", {
 		action: "read",
 		source: "producer",
 		artifact: "analysis",
 	});
-	assert.ok(result.text.length <= limit, `delivered ${result.text.length}`);
-	const [row] = (await readFile(fixture.ledgerPath, "utf8"))
+	assert.ok(page.text.length <= limit, `delivered ${page.text.length}`);
+	// A projection that does not fit is cut and flagged.
+	const cut = await callMcpTool(spec, "workflow_artifact", {
+		action: "read",
+		source: "producer",
+		artifact: "control",
+		path: "$.claims",
+	});
+	assert.ok(cut.text.length <= limit, `delivered ${cut.text.length}`);
+	const [pageRow, cutRow] = (await readFile(fixture.ledgerPath, "utf8"))
 		.trim()
 		.split("\n")
 		.map((line) => JSON.parse(line));
-	assert.equal(row.bytes, limit * 2);
-	assert.equal(row.truncated, true);
-	assert.equal(row.deliveryUnverified, true);
+	assert.equal(pageRow.bytes, limit * 2);
+	assert.equal(pageRow.truncated, true);
+	assert.equal(pageRow.deliveryUnverified, false);
+	assert.equal(pageRow.rangeStart, 0);
+	assert.equal(cutRow.truncated, true);
+	assert.equal(cutRow.deliveryUnverified, true);
 });

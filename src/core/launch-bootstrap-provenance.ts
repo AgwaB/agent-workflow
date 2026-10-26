@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/launch-bootstrap-provenance.ts. MIT, same author. Changes: artifact provenance digests the canonical ArtifactAccessConfig + workflow_artifact MCP server spec instead of the Pi extension wrapper; native host check → HostContext/inheritHostTools; env PI_WORKFLOW_{EXTERNAL_LAUNCH_GRANT_SHA256,REQUIRE_EXTERNAL_LAUNCH_GRANT}→AGENT_WORKFLOW_*.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/launch-bootstrap-provenance.ts. MIT, same author. Changes: artifact provenance digests the canonical ArtifactAccessConfig + workflow_artifact MCP server spec instead of the Pi extension wrapper (WP5b: the server spec as launched, with the run's --max-output-chars); native host check → HostContext/inheritHostTools; env PI_WORKFLOW_{EXTERNAL_LAUNCH_GRANT_SHA256,REQUIRE_EXTERNAL_LAUNCH_GRANT}→AGENT_WORKFLOW_*.
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -8,6 +8,8 @@ import {
 	artifactAccessConfigBytes,
 	artifactAccessConfigPath,
 	artifactMcpServerSpec,
+	artifactServerOutputLimitForRun,
+	withArtifactMcpOutputLimit,
 } from "./artifact-access.js";
 import type { PreparedWorkflowTaskLaunch } from "./task-launch.js";
 import {
@@ -852,7 +854,14 @@ async function artifactIdentity(
 	return {
 		manifestSha256: sha256Canonical(manifest),
 		configSha256: sha256Canonical(config),
-		serverSpecSha256: sha256Canonical(artifactMcpServerSpec(config)),
+		// WP5b: the spec as launched, including the --max-output-chars limit derived from the
+		// run's recorded probe (task-backend preparedMcpServers uses the same derivation).
+		serverSpecSha256: sha256Canonical(
+			withArtifactMcpOutputLimit(
+				artifactMcpServerSpec(config),
+				artifactServerOutputLimitForRun(run),
+			),
+		),
 	};
 }
 

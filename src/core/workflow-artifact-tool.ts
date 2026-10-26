@@ -1,4 +1,5 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-artifact-tool.ts. MIT, same author. Changes: read-ledger rows keep deliveryUnverified: true (R#9 groundwork, WP4c); the read ledger is appended and read without following links (O_NOFOLLOW + lstat/fstat same-file check; symlinked parent directory, hard-linked or non-regular ledger refused; mode 0600; one write per row) (WP4c-2); handleWorkflowArtifactToolCall takes `{onLedgerRecord, appendLedger}` so a caller receives the ledger row and can persist it itself (WP4c-2, for the MCP server).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-artifact-tool.ts. MIT, same author. Changes: read-ledger rows keep deliveryUnverified: true (R#9 groundwork, WP4c); the read ledger is appended and read without following links (O_NOFOLLOW + lstat/fstat same-file check; symlinked parent directory, hard-linked or non-regular ledger refused; mode 0600; one write per row) (WP4c-2); handleWorkflowArtifactToolCall takes `{onLedgerRecord, appendLedger}` so a caller receives the ledger row and can persist it itself (WP4c-2, for the MCP server). WP5b: paged whole-artifact reads (`offset` input, `pageLimitChars` option; a whole read that does not fit the page limit is served as its first page), page rows carry rangeStart/rangeEnd/totalChars/contentSha256 and an explicit deliveryUnverified: false.
+import { createHash } from "node:crypto";
 import { constants as fsConstants, type Stats } from "node:fs";
 import {
 	lstat,
@@ -28,6 +29,11 @@ import {
 	EXPERIMENTAL_TOOL_DEDUP_ENV,
 	workflowExperimentalFlagEnabled,
 } from "./experimental-speed-flags.js";
+import {
+	cutToDeliveryBudget,
+	fitsDeliveryLimit,
+	MCP_OUTPUT_LIMIT_DEFAULT_CHARS,
+} from "../sdk/mcp-delivery.js";
 import { stringifyPromptJson } from "./prompt-json.js";
 import { isSimpleJsonPath, readSimpleJsonPath } from "./workflow-runtime.js";
 
@@ -117,10 +123,21 @@ export interface WorkflowArtifactReadLedgerRecord {
 	maxItems?: number;
 	maxChars?: number;
 	/**
-	 * R#9 (agent-workflow): the MCP server could not verify that the full result reached the
-	 * worker (the client's output cap may truncate it). Such rows never satisfy a required read.
+	 * R#9 (agent-workflow): `true` — the MCP server could not verify that the full result reached
+	 * the worker (the client's output cap may truncate it); such rows never satisfy a required
+	 * read. `false` (WP5b page rows only) — the page was delivered whole within the output limit.
 	 */
-	deliveryUnverified?: true;
+	deliveryUnverified?: boolean;
+	/**
+	 * WP5b paged whole-artifact read: the row covers UTF-16 chars `[rangeStart, rangeEnd)` of the
+	 * artifact text (`totalChars` long, the UTF-8 decoding of the file whose bytes hash to
+	 * `contentSha256`). All four are present together or not at all, never with `path`.
+	 * `truncated` is true unless the page covers the whole artifact.
+	 */
+	rangeStart?: number;
+	rangeEnd?: number;
+	totalChars?: number;
+	contentSha256?: string;
 }
 
 export interface WorkflowArtifactToolConfig {
@@ -175,6 +192,8 @@ export interface WorkflowArtifactReadResult {
 	truncated: boolean;
 	mediaType?: string;
 	projection?: WorkflowArtifactProjectionMetadata;
+	/** WP5b: sha256 (hex) of the whole file, set by `whole` reads only. */
+	contentSha256?: string;
 }
 
 export interface WorkflowArtifactToolResult {
@@ -196,6 +215,12 @@ export interface WorkflowArtifactToolCallOptions {
 	onLedgerRecord?: (
 		record: WorkflowArtifactReadLedgerRecord,
 	) => void | Promise<void>;
+	/**
+	 * WP5b: per-result output limit (UTF-16 chars and UTF-8 bytes) for paged whole-artifact
+	 * reads. When set, a whole read (no path, no offset) whose response does not fit is served as
+	 * its first page instead. Reads with `offset` are always paged, with this limit or 8192.
+	 */
+	pageLimitChars?: number;
 }
 
 type JsonRecord = Record<string, unknown>;
@@ -214,6 +239,8 @@ const completedWorkflowArtifactReadCache = new Map<
 >();
 const COMPLETED_ARTIFACT_READ_CACHE_MAX = 128;
 const DEFAULT_MAX_BYTES = 50 * 1024;
+/** WP5b: largest artifact a paged read loads (it is read whole on every page). */
+export const WORKFLOW_ARTIFACT_PAGED_READ_MAX_BYTES = 64 * 1024 * 1024;
 const DEFAULT_MAX_LINES = 2000;
 const SOURCE_NAME_PATTERN = /^[A-Za-z0-9_.:-]+$/;
 let artifactValidatedHookForTests: (() => void | Promise<void>) | undefined;
@@ -484,6 +511,11 @@ export async function readWorkflowArtifact(
 		path?: string;
 		maxItems?: number;
 		maxChars?: number;
+		/**
+		 * WP5b: read the whole file (no maxBytes/maxLines truncation, no projection) and set
+		 * `contentSha256`. Used by paged reads; files over 64 MiB are refused.
+		 */
+		whole?: boolean;
 	} = {},
 ): Promise<WorkflowArtifactReadResult> {
 	const resolved = resolveWorkflowArtifact(
@@ -525,6 +557,26 @@ export async function readWorkflowArtifact(
 		}
 		if (options.maxItems !== undefined || options.maxChars !== undefined) {
 			throw new Error("workflow_artifact maxItems/maxChars require path");
+		}
+		if (options.whole === true) {
+			if (opened.fileStat.size > WORKFLOW_ARTIFACT_PAGED_READ_MAX_BYTES)
+				throw new Error(
+					`workflow artifact is too large to page (${opened.fileStat.size} bytes; limit ${WORKFLOW_ARTIFACT_PAGED_READ_MAX_BYTES}): ${sourceName}.${artifact}`,
+				);
+			const fullBytes = await opened.file.readFile();
+			if (artifact === "raw") fullRawBytes = fullBytes;
+			const content = fullBytes.toString("utf8");
+			return {
+				source: resolved.source.source,
+				artifact: resolved.artifact,
+				content,
+				bytes: opened.fileStat.size,
+				returnedBytes: Buffer.byteLength(content, "utf8"),
+				truncated: false,
+				mediaType: resolved.ref.mediaType,
+				contentSha256: createHash("sha256").update(fullBytes).digest("hex"),
+				...(opened.rawAssurance ? { rawAssurance: opened.rawAssurance } : {}),
+			};
 		}
 		const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
 		const maxLines = options.maxLines ?? DEFAULT_MAX_LINES;
@@ -1104,6 +1156,22 @@ export async function handleWorkflowArtifactToolCall(
 	if (!input.source) throw new Error("workflow_artifact read requires source");
 	if (!input.artifact)
 		throw new Error("workflow_artifact read requires artifact");
+	const pageLimitChars =
+		options.pageLimitChars ?? MCP_OUTPUT_LIMIT_DEFAULT_CHARS;
+	const servePage = (offset: number) =>
+		serveWorkflowArtifactPage({
+			manifest,
+			config,
+			accessMode,
+			runDir,
+			source: input.source as string,
+			artifact: input.artifact as string,
+			offset,
+			limit: pageLimitChars,
+			recordRead,
+		});
+	// WP5b: paged reads never use the duplicate-read or completed-read caches.
+	if (input.offset !== undefined) return await servePage(input.offset);
 	const dedupKey = workflowArtifactReadDedupKey(config, accessMode, input);
 	const cachedRead =
 		input.artifact !== "raw" &&
@@ -1188,6 +1256,15 @@ export async function handleWorkflowArtifactToolCall(
 		if (completedCacheKey !== undefined)
 			rememberCompletedArtifactRead(completedCacheKey, read);
 	}
+	const text = workflowArtifactReadText(read);
+	// WP5b: a whole read that does not fit the caller's output limit becomes its first page, so
+	// the worker can page on instead of receiving a cut (deliveryUnverified) response.
+	if (
+		options.pageLimitChars !== undefined &&
+		read.projection === undefined &&
+		!fitsDeliveryLimit(text, options.pageLimitChars)
+	)
+		return await servePage(0);
 	await recordRead({
 		schema: WORKFLOW_ARTIFACT_READ_SCHEMA,
 		runId: config.runId,
@@ -1212,19 +1289,8 @@ export async function handleWorkflowArtifactToolCall(
 	if (workflowExperimentalFlagEnabled(EXPERIMENTAL_TOOL_DEDUP_ENV)) {
 		workflowArtifactReadDedupCache.set(dedupKey, read);
 	}
-	const projectionLabel = read.projection
-		? ` path=${read.projection.path}`
-		: "";
-	const truncation = read.truncated
-		? `\n\n[workflow_artifact output truncated: returned ${read.returnedBytes} bytes from ${read.bytes} artifact bytes.]`
-		: "";
 	return {
-		content: [
-			{
-				type: "text",
-				text: `# workflow_artifact: ${read.source}.${read.artifact}${projectionLabel}\n\n${read.content}${truncation}${read.rawAssurance ? `\n\n[raw assurance: ${read.rawAssurance.kind}; original bytes: ${read.rawAssurance.originalBytes}]` : ""}`,
-			},
-		],
+		content: [{ type: "text", text }],
 		details: {
 			action: "read",
 			runId: config.runId,
@@ -1236,6 +1302,153 @@ export async function handleWorkflowArtifactToolCall(
 			truncated: read.truncated,
 			mediaType: read.mediaType,
 			projection: read.projection,
+			...(read.rawAssurance ? { rawAssurance: read.rawAssurance } : {}),
+		},
+	};
+}
+
+function workflowArtifactReadText(read: WorkflowArtifactReadResult): string {
+	const projectionLabel = read.projection
+		? ` path=${read.projection.path}`
+		: "";
+	const truncation = read.truncated
+		? `\n\n[workflow_artifact output truncated: returned ${read.returnedBytes} bytes from ${read.bytes} artifact bytes.]`
+		: "";
+	return `# workflow_artifact: ${read.source}.${read.artifact}${projectionLabel}\n\n${read.content}${truncation}${rawAssuranceLine(read.rawAssurance)}`;
+}
+
+function rawAssuranceLine(rawAssurance: RawAssurance | undefined): string {
+	return rawAssurance
+		? `\n\n[raw assurance: ${rawAssurance.kind}; original bytes: ${rawAssurance.originalBytes}]`
+		: "";
+}
+
+function workflowArtifactPageFooter(
+	start: number,
+	end: number,
+	total: number,
+): string {
+	return end < total
+		? `\n\n[workflow_artifact page: chars ${start}–${end} of ${total}; call again with offset=${end} to continue]`
+		: `\n\n[workflow_artifact page: chars ${start}–${end} of ${total}; end of artifact]`;
+}
+
+/**
+ * WP5b: one page `[start, end)` of a whole artifact (UTF-16 offsets into its UTF-8 decoding).
+ * The response — header, page, raw-assurance line and footer — fits `limit` in UTF-16 chars and in
+ * UTF-8 bytes. A page never starts or ends inside a surrogate pair: an `offset` that points at the
+ * second half of a pair starts one char earlier. `offset` must be below the length (0 for an
+ * empty artifact).
+ */
+export function workflowArtifactPage(options: {
+	source: string;
+	artifact: string;
+	content: string;
+	offset: number;
+	limit: number;
+	rawAssurance?: RawAssurance;
+}): { text: string; start: number; end: number; total: number } {
+	const { content, limit } = options;
+	const total = content.length;
+	if (
+		!Number.isSafeInteger(options.offset) ||
+		options.offset < 0 ||
+		(total === 0 ? options.offset !== 0 : options.offset >= total)
+	)
+		throw new Error(
+			`workflow_artifact offset ${options.offset} is past the end of ${options.source}.${options.artifact} (${total} chars); use an offset below ${Math.max(total, 1)}`,
+		);
+	let start = options.offset;
+	const code = content.charCodeAt(start);
+	const before = start > 0 ? content.charCodeAt(start - 1) : 0;
+	if (code >= 0xdc00 && code <= 0xdfff && before >= 0xd800 && before <= 0xdbff)
+		start -= 1;
+	const header = `# workflow_artifact: ${options.source}.${options.artifact}\n\n`;
+	const raw = rawAssuranceLine(options.rawAssurance);
+	// Worst-case footer: the continuation form with the widest end offset.
+	const fixed =
+		header + raw + workflowArtifactPageFooter(start, total, total + 1);
+	const budget = limit - Buffer.byteLength(fixed, "utf8");
+	const page = cutToDeliveryBudget(content.slice(start), budget);
+	if (page.length === 0 && start < total)
+		throw new Error(
+			`workflow_artifact output limit ${limit} is too small to page ${options.source}.${options.artifact}`,
+		);
+	const end = start + page.length;
+	const text = `${header}${page}${raw}${workflowArtifactPageFooter(start, end, total)}`;
+	if (!fitsDeliveryLimit(text, limit))
+		throw new Error(
+			`workflow_artifact page does not fit the output limit ${limit}`,
+		);
+	return { text, start, end, total };
+}
+
+async function serveWorkflowArtifactPage(options: {
+	manifest: WorkflowSourceManifest;
+	config: WorkflowArtifactToolConfig;
+	accessMode: WorkflowArtifactAccessMode;
+	runDir: string;
+	source: string;
+	artifact: string;
+	offset: number;
+	limit: number;
+	recordRead: (record: WorkflowArtifactReadLedgerRecord) => Promise<void>;
+}): Promise<WorkflowArtifactToolResult> {
+	const read = await readWorkflowArtifact(
+		options.manifest,
+		options.source,
+		options.artifact,
+		{ accessMode: options.accessMode, runDir: options.runDir, whole: true },
+	);
+	const contentSha256 = read.contentSha256 as string;
+	const page = workflowArtifactPage({
+		source: read.source,
+		artifact: read.artifact,
+		content: read.content,
+		offset: options.offset,
+		limit: options.limit,
+		rawAssurance: read.rawAssurance,
+	});
+	const returnedBytes = Buffer.byteLength(
+		read.content.slice(page.start, page.end),
+		"utf8",
+	);
+	const truncated = !(page.start === 0 && page.end === page.total);
+	await options.recordRead({
+		schema: WORKFLOW_ARTIFACT_READ_SCHEMA,
+		runId: options.config.runId,
+		taskId: options.config.taskId,
+		source: read.source,
+		artifact: read.artifact,
+		at: new Date().toISOString(),
+		bytes: read.bytes,
+		returnedBytes,
+		truncated,
+		...(read.rawAssurance ? { rawAssurance: read.rawAssurance } : {}),
+		rangeStart: page.start,
+		rangeEnd: page.end,
+		totalChars: page.total,
+		contentSha256,
+		deliveryUnverified: false,
+	});
+	return {
+		content: [{ type: "text", text: page.text }],
+		details: {
+			action: "read",
+			runId: options.config.runId,
+			taskId: options.config.taskId,
+			source: read.source,
+			artifact: read.artifact,
+			bytes: read.bytes,
+			returnedBytes,
+			truncated,
+			mediaType: read.mediaType,
+			page: {
+				rangeStart: page.start,
+				rangeEnd: page.end,
+				totalChars: page.total,
+				contentSha256,
+			},
 			...(read.rawAssurance ? { rawAssurance: read.rawAssurance } : {}),
 		},
 	};
@@ -1288,6 +1501,7 @@ function normalizeReadLedgerRecord(
 		throw new Error(
 			`read ledger line ${lineNumber}.deliveryUnverified must be a boolean`,
 		);
+	const range = normalizeReadLedgerRange(value, lineNumber, path);
 	return {
 		schema: WORKFLOW_ARTIFACT_READ_SCHEMA,
 		runId,
@@ -1301,12 +1515,57 @@ function normalizeReadLedgerRecord(
 		...(path === undefined ? {} : { path }),
 		...(maxItems === undefined ? {} : { maxItems }),
 		...(maxChars === undefined ? {} : { maxChars }),
-		...(value.deliveryUnverified === true
-			? { deliveryUnverified: true as const }
+		...(typeof value.deliveryUnverified === "boolean"
+			? { deliveryUnverified: value.deliveryUnverified }
 			: {}),
+		...range,
 		...(value.rawAssurance === undefined
 			? {}
 			: { rawAssurance: normalizeRawAssurance(value.rawAssurance) }),
+	};
+}
+
+/** WP5b page fields: all four or none, consistent, never with a projection path. */
+function normalizeReadLedgerRange(
+	value: JsonRecord,
+	lineNumber: number,
+	path: string | undefined,
+): Pick<
+	WorkflowArtifactReadLedgerRecord,
+	"rangeStart" | "rangeEnd" | "totalChars" | "contentSha256"
+> {
+	const keys = ["rangeStart", "rangeEnd", "totalChars", "contentSha256"];
+	const present = keys.filter((key) => value[key] !== undefined);
+	if (present.length === 0) return {};
+	const invalid = () =>
+		new Error(
+			`read ledger line ${lineNumber} has invalid page range fields (${keys.join(", ")})`,
+		);
+	if (present.length !== keys.length || path !== undefined) throw invalid();
+	const rangeStart = optionalNonNegativeInteger(
+		value.rangeStart,
+		`line ${lineNumber}.rangeStart`,
+	) as number;
+	const rangeEnd = optionalNonNegativeInteger(
+		value.rangeEnd,
+		`line ${lineNumber}.rangeEnd`,
+	) as number;
+	const totalChars = optionalNonNegativeInteger(
+		value.totalChars,
+		`line ${lineNumber}.totalChars`,
+	) as number;
+	if (
+		rangeStart > rangeEnd ||
+		rangeEnd > totalChars ||
+		typeof value.contentSha256 !== "string" ||
+		!/^[0-9a-f]{64}$/u.test(value.contentSha256)
+	)
+		throw invalid();
+	return {
+		rangeStart,
+		rangeEnd,
+		totalChars,
+		contentSha256: value.contentSha256,
 	};
 }
 
@@ -1341,6 +1600,7 @@ function normalizeToolInput(value: unknown):
 			path?: string;
 			maxItems?: number;
 			maxChars?: number;
+			offset?: number;
 	  } {
 	if (!isRecord(value))
 		throw new Error("workflow_artifact input must be an object");
@@ -1355,7 +1615,23 @@ function normalizeToolInput(value: unknown):
 	if (source !== undefined) validateSourceName(source, "source");
 	if (artifact !== undefined) assertArtifactKind(artifact, "artifact");
 	if (action === "list") return { action, source, artifact };
-	return { action, source, artifact, path, maxItems, maxChars };
+	const offset = optionalNonNegativeInteger(value.offset, "offset");
+	if (
+		offset !== undefined &&
+		(path !== undefined || maxItems !== undefined || maxChars !== undefined)
+	)
+		throw new Error(
+			"workflow_artifact offset pages a whole-artifact read; it cannot be combined with path, maxItems or maxChars",
+		);
+	return {
+		action,
+		source,
+		artifact,
+		path,
+		maxItems,
+		maxChars,
+		...(offset === undefined ? {} : { offset }),
+	};
 }
 
 function normalizeProjectionPath(value: unknown): string | undefined {

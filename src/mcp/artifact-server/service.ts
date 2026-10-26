@@ -1,6 +1,8 @@
 // New in agent-workflow (WP5): the workflow_artifact tool behind the stdio MCP server. Wraps the
 // core tool (src/core/workflow-artifact-tool.ts) without changing it: config loading and
 // validation, path containment checks, the delivery bound (R#9) and the read-ledger write.
+// WP5b: the server passes its output limit to the core as `pageLimitChars`, so whole-artifact
+// reads are paged (`offset`) within the limit instead of being cut.
 import { constants as fsConstants } from "node:fs";
 import {
 	lstat,
@@ -34,11 +36,11 @@ import {
 	readCutNotice,
 } from "./delivery.js";
 
-/** Ledger row written by this server: the core record plus the R#9 delivery flag. */
-export type ArtifactMcpLedgerRecord = WorkflowArtifactReadLedgerRecord & {
-	/** Present (always `true`) when the server cut the response to fit the delivery bound. */
-	deliveryUnverified?: true;
-};
+/**
+ * Ledger row written by this server: the core record. `deliveryUnverified` is `true` when the
+ * server cut the response to fit the delivery bound, `false` on page rows (WP5b) delivered whole.
+ */
+export type ArtifactMcpLedgerRecord = WorkflowArtifactReadLedgerRecord;
 
 export interface ArtifactToolCallResult {
 	content: Array<{ type: "text"; text: string }>;
@@ -152,7 +154,9 @@ export async function createArtifactToolService(options: {
 		await writeFile(scratchLedger, "", { mode: 0o600 });
 		let result: Awaited<ReturnType<typeof handleWorkflowArtifactToolCall>>;
 		try {
-			result = await handleWorkflowArtifactToolCall(args, coreConfig);
+			result = await handleWorkflowArtifactToolCall(args, coreConfig, {
+				pageLimitChars: outputLimit,
+			});
 		} catch (error) {
 			return failure(error);
 		}
@@ -167,6 +171,7 @@ export async function createArtifactToolService(options: {
 			args.path,
 			args.maxItems,
 			args.maxChars,
+			args.offset,
 		]);
 		let text = fullText;
 		let cut = false;

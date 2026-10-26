@@ -1,6 +1,7 @@
 // New in agent-workflow (WP5, R#9): the delivery bound. Responses never exceed the client's MCP
 // output limit; a cut read is recorded `truncated: true` + `deliveryUnverified: true`, so it can
-// never satisfy a required read.
+// never satisfy a required read. WP5b: an oversized whole-artifact read is served as its first
+// page (test/unit/mcp-artifact-paging.test.mjs); projections and lists are still cut.
 import assert from "node:assert/strict";
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -72,16 +73,25 @@ test("delivery helpers count UTF-16 chars and UTF-8 bytes, never split surrogate
 	assert.equal(cutToDeliveryBudget("short", 100), "short");
 });
 
-test("a client limit cuts the read, flags the ledger row and never satisfies a required read", async (t) => {
+const BIG_CLAIMS = JSON.stringify({
+	claims: Array.from({ length: 200 }, (_, index) => ({
+		id: `c${index}`,
+		text: `claim ${index} ${"y".repeat(30)}`,
+	})),
+});
+
+test("a client limit cuts a projection, flags the ledger row and never satisfies a required read", async (t) => {
 	const limit = 1000;
 	const { server, rows, fixture } = await setup(t, [
 		"--max-output-chars",
 		String(limit),
 	]);
+	await writeFile(join(fixture.producerDir, "control.json"), BIG_CLAIMS);
 	const result = await server.callTool({
 		action: "read",
 		source: "producer",
-		artifact: "analysis",
+		artifact: "control",
+		path: "$.claims",
 	});
 	const text = resultText(result);
 	assert.equal(result.isError, false);
@@ -89,7 +99,7 @@ test("a client limit cuts the read, flags the ledger row and never satisfies a r
 	assert.ok(Buffer.byteLength(text) <= limit);
 	assert.match(
 		text,
-		/^# workflow_artifact: producer\.analysis\n\nanalysis line 0/,
+		/^# workflow_artifact: producer\.control path=\$\.claims\n\n/,
 	);
 	assert.match(
 		text,
@@ -99,8 +109,8 @@ test("a client limit cuts the read, flags the ledger row and never satisfies a r
 	const [row] = await rows();
 	assert.equal(row.truncated, true);
 	assert.equal(row.deliveryUnverified, true);
-	assert.equal(row.bytes, Buffer.byteLength(BIG_ANALYSIS));
-	const header = "# workflow_artifact: producer.analysis\n\n";
+	assert.equal(row.bytes, Buffer.byteLength(BIG_CLAIMS));
+	const header = "# workflow_artifact: producer.control path=$.claims\n\n";
 	const notice = text.slice(
 		text.indexOf("\n\n[workflow_artifact delivery bound"),
 	);
@@ -109,7 +119,7 @@ test("a client limit cuts the read, flags the ledger row and never satisfies a r
 		Buffer.byteLength(text.slice(header.length, text.length - notice.length)),
 	);
 	assert.equal(
-		satisfiesRequiredRead(await rows(), "producer", "analysis"),
+		satisfiesRequiredRead(await rows(), "producer", "control"),
 		false,
 	);
 
@@ -130,7 +140,7 @@ test("a client limit cuts the read, flags the ledger row and never satisfies a r
 	);
 });
 
-test("without a client limit the conservative default applies", async (t) => {
+test("without a client limit the conservative default applies (first page of a whole read)", async (t) => {
 	assert.equal(DEFAULT_MCP_OUTPUT_LIMIT_CHARS, 8192);
 	const { server, rows } = await setup(t, []);
 	const text = resultText(
@@ -141,10 +151,13 @@ test("without a client limit the conservative default applies", async (t) => {
 		}),
 	);
 	assert.ok(text.length <= DEFAULT_MCP_OUTPUT_LIMIT_CHARS);
-	assert.match(text, /cut to the default limit of 8192 chars/);
+	assert.match(text, /call again with offset=\d+ to continue\]$/);
 	const [row] = await rows();
-	assert.equal(row.deliveryUnverified, true);
+	assert.equal(row.deliveryUnverified, false);
 	assert.equal(row.truncated, true);
+	assert.equal(row.rangeStart, 0);
+	assert.ok(row.rangeEnd > 7000 && row.rangeEnd < BIG_ANALYSIS.length);
+	assert.equal(row.totalChars, BIG_ANALYSIS.length);
 });
 
 test("multi-byte content is bounded in bytes as well as chars", async (t) => {
@@ -161,7 +174,13 @@ test("multi-byte content is bounded in bytes as well as chars", async (t) => {
 	);
 	assert.ok(Buffer.byteLength(text) <= 600, `${Buffer.byteLength(text)} bytes`);
 	assert.doesNotMatch(text, /\uFFFD/);
-	assert.equal((await rows())[0].deliveryUnverified, true);
+	const [row] = await rows();
+	assert.equal(row.deliveryUnverified, false);
+	assert.equal(row.truncated, true);
+	assert.equal(
+		row.returnedBytes,
+		Buffer.byteLength(analysis.slice(row.rangeStart, row.rangeEnd)),
+	);
 });
 
 test("projected reads that fit are clean; oversized projections are cut and flagged", async (t) => {
@@ -199,10 +218,20 @@ test("projected reads that fit are clean; oversized projections are cut and flag
 });
 
 test("a duplicate-suppressed re-read of a cut read stays deliveryUnverified", async (t) => {
-	const { server, rows } = await setup(t, ["--max-output-chars", "1000"], {
-		env: { [EXPERIMENTAL_TOOL_DEDUP_ENV]: "1" },
-	});
-	const args = { action: "read", source: "producer", artifact: "analysis" };
+	const { server, rows, fixture } = await setup(
+		t,
+		["--max-output-chars", "1000"],
+		{
+			env: { [EXPERIMENTAL_TOOL_DEDUP_ENV]: "1" },
+		},
+	);
+	await writeFile(join(fixture.producerDir, "control.json"), BIG_CLAIMS);
+	const args = {
+		action: "read",
+		source: "producer",
+		artifact: "control",
+		path: "$.claims",
+	};
 	await server.callTool(args);
 	const duplicate = resultText(await server.callTool(args));
 	assert.match(duplicate, /duplicate read suppressed/);
@@ -212,7 +241,7 @@ test("a duplicate-suppressed re-read of a cut read stays deliveryUnverified", as
 	assert.equal(second.truncated, true);
 	assert.equal(second.deliveryUnverified, true);
 	assert.equal(
-		satisfiesRequiredRead(await rows(), "producer", "analysis"),
+		satisfiesRequiredRead(await rows(), "producer", "control"),
 		false,
 	);
 });

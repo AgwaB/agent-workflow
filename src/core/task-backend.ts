@@ -9,9 +9,12 @@ import {
 } from "./capability-negotiation.js";
 import {
 	ARTIFACT_ACCESS_CONFIG_FILE,
+	ARTIFACT_MCP_SERVER_NAME,
 	artifactAccessConfigPath,
 	artifactMcpServerSpec,
+	artifactServerOutputLimitForRun,
 	readArtifactAccessConfig,
+	withArtifactMcpOutputLimit,
 } from "./artifact-access.js";
 import { DEFAULT_WORKER_TOOLS } from "./tool-policy.js";
 import { WORKFLOW_TASK_BACKEND_ID } from "./task-artifacts.js";
@@ -506,7 +509,9 @@ export async function launchSubagentTask(
 					effectiveLaunchTools === undefined
 						? [...DEFAULT_WORKER_TOOLS]
 						: [...effectiveLaunchTools];
-				subagentOptions.mcpServers = preparedMcpServers(sealedLaunch);
+				subagentOptions.mcpServers = preparedMcpServers(sealedLaunch, {
+					artifactOutputLimitChars: artifactServerOutputLimitForRun(run),
+				});
 				if (sealedLaunch.captureToolCalls)
 					subagentOptions.captureToolCalls = true;
 				// Tool-result budgets are enforced by the Pi executor only (C1, WP6); the
@@ -1374,12 +1379,18 @@ export function workflowTaskApprovalPolicy(
 	return { allowKinds, interactive: false };
 }
 
-/** `toolProviders[*].mcpServer` (WP4b, e.g. workflow_artifact) → `SubmitRequest.mcpServers`. */
+/**
+ * `toolProviders[*].mcpServer` (WP4b, e.g. workflow_artifact) → `SubmitRequest.mcpServers`.
+ * WP5b: the workflow_artifact server gets `--max-output-chars <artifactOutputLimitChars>` when the
+ * run recorded an executor MCP output limit (`artifactServerOutputLimitForRun`); launch provenance
+ * digests the same limited spec (launch-bootstrap-provenance `artifactIdentity`).
+ */
 export function preparedMcpServers(
 	preparedLaunch: Pick<
 		PreparedWorkflowTaskLaunch,
 		"toolProviders" | "artifactBinding"
 	>,
+	options: { artifactOutputLimitChars?: number | null } = {},
 ): Array<{ name: string; command: string; args: string[] }> {
 	const servers = new Map<
 		string,
@@ -1415,6 +1426,18 @@ export function preparedMcpServers(
 				"workflow_artifact MCP server drifted from the sealed artifact binding",
 			);
 	}
+	const artifactServer = servers.get(ARTIFACT_MCP_SERVER_NAME);
+	if (artifactServer !== undefined)
+		servers.set(ARTIFACT_MCP_SERVER_NAME, {
+			name: artifactServer.name,
+			command: artifactServer.command,
+			args: [
+				...withArtifactMcpOutputLimit(
+					artifactServer,
+					options.artifactOutputLimitChars,
+				).args,
+			],
+		});
 	return [...servers.values()].sort((left, right) =>
 		left.name.localeCompare(right.name),
 	);

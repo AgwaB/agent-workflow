@@ -8,6 +8,8 @@
 // `forcedReadOnly` reaches the SubmitRequest.
 // WP4e: the run permission mode reaches every stage context (free: coarse allowlist and environment
 // warnings are recorded degradations, never refusals or confirmations) and the preview's first line.
+// WP5b: the probe summary keeps the executor's declared MCP output limit (mcpOutputLimitChars,
+// mcpOutputNoticeChars) so the artifact server is launched with a measured limit.
 import {
 	type ExecutorCapabilities,
 	mergeProbedCapabilities,
@@ -129,8 +131,18 @@ function probeSummary(probe: ExecutorProbe): WorkflowExecutorProbeSummary {
 						.map((note) => note.slice(0, 500)),
 				}
 			: {}),
+		...(positiveInteger(probe.mcpOutputLimitChars)
+			? { mcpOutputLimitChars: probe.mcpOutputLimitChars }
+			: {}),
+		...(positiveInteger(probe.mcpOutputNoticeChars)
+			? { mcpOutputNoticeChars: probe.mcpOutputNoticeChars }
+			: {}),
 		probedAt: new Date().toISOString(),
 	};
+}
+
+function positiveInteger(value: unknown): value is number {
+	return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
 }
 
 /**

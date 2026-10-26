@@ -9,6 +9,7 @@ export * from "./descriptor.js";
 export * from "./errors.js";
 export * from "./events.js";
 export * from "./json.js";
+export * from "./mcp-delivery.js";
 export * from "./permission.js";
 export * from "./record.js";
 export * from "./requirements.js";

@@ -151,7 +151,7 @@ function unreproducible(fixtureDir, summary) {
 	];
 	if (summary.readsOverDefaultDeliveryBound.length > 0)
 		items.push(
-			`Artifact delivery bound: ${summary.readsOverDefaultDeliveryBound.length} recorded read(s) returned more than 8192 chars. The replay starts the artifact MCP server with --max-output-chars ${16 * 1024 * 1024} so these rows reproduce the recorded ledger (the recorded Pi worker received them whole). The stage-1 Pi adapter passes no limit, so the server default (8192) would cut them and mark the rows deliveryUnverified (docs/mcp.md "Delivery bound", R#9); a model would then re-read with a projection, which a replay cannot reproduce.`,
+			`Artifact delivery bound: ${summary.readsOverDefaultDeliveryBound.length} recorded read(s) returned more than 8192 chars. The replay starts the artifact MCP server with --max-output-chars ${16 * 1024 * 1024} so these rows reproduce the recorded ledger (the recorded Pi worker received them whole). A live Pi run launches the server with --max-output-chars 18432 (WP5b: Pi's declared 20480 minus its 1024 notice allowance and a 1024 margin), so ${summary.readsOverDefaultDeliveryBound.filter((read) => read.returnedBytes > 18432).length} of them would be served as a first page; a model would then page on with offset (docs/mcp.md "Paged reads"), and those page calls and rows are not in the recording, so a replay cannot reproduce them.`,
 		);
 	if (existsSync(join(fixtureDir, "worker-snapshots")))
 		items.push(
