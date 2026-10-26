@@ -206,8 +206,14 @@ async function runApproval(answer, policy) {
 	const results = [];
 	for await (const event of executor.observe(ref)) {
 		events.push(event);
-		if (event.type === "approval_request" && answer !== "none")
+		if (event.type === "approval_request" && answer !== "none") {
 			results.push(await executor.respond(ref, event.requestId, answer));
+			// An immediate second answer to the same request is too late, not accepted.
+			assert.equal(
+				await executor.respond(ref, event.requestId, answer),
+				"too_late",
+			);
+		}
 	}
 	results.push(
 		await executor.respond(ref, "req-1", "allow"),

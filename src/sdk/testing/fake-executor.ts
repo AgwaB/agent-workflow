@@ -391,6 +391,9 @@ export function createFakeExecutor(
 			const run = findRun(ref);
 			const resolve = run.pendingApprovals.get(requestId);
 			if (resolve !== undefined) {
+				// Settle synchronously so a second respond for the same request is `too_late`.
+				run.pendingApprovals.delete(requestId);
+				run.answeredApprovals.add(requestId);
 				resolve(decision);
 				return "accepted";
 			}

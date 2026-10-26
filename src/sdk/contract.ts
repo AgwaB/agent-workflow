@@ -126,6 +126,13 @@ export interface WorkflowExecutor {
 	readonly contractVersion: string;
 	probe(): Promise<ExecutorProbe>;
 	capabilities(): ExecutorCapabilities;
+	/**
+	 * Start (or, for a known `attemptKey`, return) an attempt. The adapter must call
+	 * `req.authority.consume()` immediately before its first side effect (R#1). When that
+	 * resolves `"revoked"`, the adapter makes no effect and `submit` rejects with an
+	 * `SdkError` coded `AUTHORITY_REVOKED`; it must not resolve with a ref (the runtime treats a
+	 * ref or any event without a released authority as a fence violation).
+	 */
 	submit(req: SubmitRequest): Promise<ExecRef>;
 	observe(ref: ExecRef): AsyncIterable<ExecEvent>;
 	cancel(ref: ExecRef, scope: CancelScope): Promise<CancelResult>;
