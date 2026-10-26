@@ -7,7 +7,7 @@ fencing at the effect boundary, honest events and costs, the approval channel, c
 error classes, MCP injection, and rediscovery. It was built before the adapters (WP6–WP8) so they can
 be developed against it. WP9b runs the three adapters through it.
 
-Kit version `CONFORMANCE_KIT_VERSION = 0.1.0`, SDK contract `0.1.0`.
+Kit version `CONFORMANCE_KIT_VERSION = 0.2.0` (WP2b: runtime tier implemented; `runtime.broker_relay` renamed `runtime.control_relay` — it was a never-run placeholder), SDK contract `0.1.0`.
 
 ## Tiers
 
@@ -15,7 +15,7 @@ Kit version `CONFORMANCE_KIT_VERSION = 0.1.0`, SDK contract `0.1.0`.
 |---|---|---|
 | `offline` | A harness with stubs or fakes. No model calls. | on (CI) |
 | `live` | `harness.live === true` and a real CLI. May cost money. | off. Opt in with `tiers: ["offline", "live"]` |
-| `runtime` | The durable launch barrier and durable worker (WP2a-2) | always skipped as `pending` for now |
+| `runtime` | `harness.runtime(scenario)`: an executor descriptor the durable runtime can reload in a fresh process, and cross-process effect counts. The checks drive the real runtime (launch barrier, detached durable worker, reconcile, control mailbox, WP2b) | off. Opt in with `tiers: ["runtime"]`; offline with a fake/stub stage |
 
 A check is never passed silently. If the tier was not requested, the scenario is unsupported, or the
 capability is declared `none`, the check is reported as `skip` with a reason.
@@ -59,6 +59,13 @@ interface ConformanceHarness {
   request?(base, scenario): SubmitRequest; // e.g. set model/env; keep attemptKey/authority
   descriptor?(): Promise<{ descriptor; registry? }>; // R#15 reload check
   live?: boolean;
+  runtime?(scenario, { workDir }): Promise<RuntimeStage>; // runtime tier (WP2b)
+}
+interface RuntimeStage {
+  descriptor: ExecutorDescriptor;            // loadable by loadExecutor in a FRESH process (absolute module / package specifier, JSON config, no secrets)
+  effectCount(attemptKey?): Promise<number>; // effects seen by any process (file-backed log)
+  runInput?: Record<string, JsonValue>;      // extra run input (model, env, tools, …)
+  dispose?(): Promise<void>;
 }
 interface HarnessSession {
   executor: WorkflowExecutor;
@@ -130,9 +137,9 @@ For process adapters, count from the stub CLI invocation log, not from adapter s
 | `live.isolation` | live | `inherit: false` ignores AGENTS.md/CLAUDE.md in cwd | complete | B5, R#6 |
 | `live.session_ownership` | live | requested sessionId ⇒ terminal `ownedSession` | complete | R#10, D3 |
 | `live.resume` | live | resumeSessionId recalls the earlier turn | complete | R#10 |
-| `runtime.durable_authority` | runtime | fencing 3 cases across processes via the durable barrier | — | R#1 (pending WP2a-2) |
-| `runtime.detach_rediscovery` | runtime | detach with an external adapter, resume in a new process | — | R#15 (pending WP2a-2) |
-| `runtime.broker_relay` | runtime | approvals/cancel through the durable worker | — | R#2, R#4 (pending WP2a-2/WP2b) |
+| `runtime.durable_authority` | runtime | through a real detached worker: 0 effects while the V2 barrier holds `consume`, then completed with exactly 1 effect and `authority.json` released; barrier revoked before consume ⇒ `cancelled/revoked`, 0 effects; worker SIGKILLed after its effect ⇒ `executor.reconcile` never `absent`, `marked-needs-decision` (adoption off), second reconcile `already-terminal`, still 1 effect | complete, slow | R#1, B3 |
+| `runtime.detach_rediscovery` | runtime | launched from a process that exits; the worker reloads the adapter from the descriptor and completes (1 effect); `executor.json` holds the descriptor and attemptKey; a fresh process reloads it; an incompatible recorded version ⇒ `failed/guard_failure`, 0 effects | complete | R#15 |
+| `runtime.control_relay` | runtime | launched from a process that exits (interactive policy, `readOnly: false`): the pending approval is listed and a relayed deny/allow is acked `accepted`, applied (deny ⇒ no completed execute tool; allow ⇒ completed) and recorded `by: host`; `cancel(owned)` through the mailbox ⇒ acked `CancelResult`, `cancelled/user_cancelled` with a confirmed terminal event; after terminal ⇒ `no_active` | approval, slow | R#2, R#4, D2 |
 
 ## Building blocks
 
@@ -177,11 +184,20 @@ For process adapters, count from the stub CLI invocation log, not from adapter s
 | `probe()` consumes a stored authority | `probe.side_effect_free` |
 | reconcile reports `absent` after a consume-crash | `reconcile.unknown` |
 | approval auto-allowed without an answer | `approval.deny`, `approval.timeout_fail_closed` |
+| runtime stage launches without `consume()` (`runtime.faults.complete.skipConsume`) | `runtime.durable_authority` |
+| runtime stage reconciles `absent` after an effect (`reconcileAbsent`) | `runtime.durable_authority` |
+| runtime stage answers every approval `allow` (`ignoreDeny`) | `runtime.control_relay` |
 
 ## Known gaps
 
-- **Runtime tier.** All runtime checks are placeholders until WP2a-2 provides the durable barrier and
-  worker API. The offline fencing and rediscovery checks use in-process restarts only.
+- **Runtime tier (WP2b).** Implemented against the real runtime (imported lazily by
+  `checks-runtime.ts`). `createFakeHarness` stages it through `runtime-fake-module.js` (`runtime:
+  false` disables it; `runtime.faults` injects bugs). The stub-CLI example adapter has no runtime stage:
+  its attempt store is in memory, so a fresh-process reconcile could not answer; WP6–WP8 adapters must
+  keep durable launch evidence and provide `runtime()`. The checks write run locators to the run index
+  (`AGENT_WORKFLOW_RUN_INDEX_DIR`, default under the home directory); the locator sweep prunes them.
+  The `cancel(owned)` half waits up to `AGENT_WORKFLOW_CANCEL_GRACE_MS` (default 10 s) for an adapter
+  that ignores the cancel.
 - **Fake `respond` race.** The fake executor removes a pending approval only after its script resumes.
   A second `respond` issued immediately after the first therefore returns `accepted`. The kit checks
   `too_late` after the run has terminated.
@@ -189,8 +205,9 @@ For process adapters, count from the stub CLI invocation log, not from adapter s
   through the store structure.
 - **Revoked submit.** The contract does not say how `submit` ends after a revoked consume. The kit
   requires a rejection; the fake throws `AUTHORITY_REVOKED`.
-- **Approval timeout owner.** The plan routes this through the durable worker (WP2b). Until then,
-  `approval.timeout_fail_closed` expects the adapter to apply `approvalPolicy.timeoutMs`.
+- **Approval timeout owner.** Since WP2b the runtime applies `approvalPolicy.timeoutMs` for interactive
+  policies (deny by `default-timeout`, see docs/runtime-port.md); `approval.timeout_fail_closed` still
+  expects the adapter to fail closed on its own when driven directly.
 - **Delivery bound.** `mcp.delivery_bound` only checks a declared limit against delivered output.
   Recording `deliveryUnverified` in the ledger belongs to the WP5 artifact server.
 - **Live checks.** These are implemented but have not been run against a real CLI; WP9b does that. The

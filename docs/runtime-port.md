@@ -617,6 +617,20 @@ Run results, statuses and `RunStatusSnapshot` keep their shapes; `backend` is th
       `runtime-env-at-rest.test.mjs` "no channel" polled for `stderr.log` after terminal (same
       assumption) and removed its fixture while the finalizer was still committing (`ENOTEMPTY` in
       `after()`); it now reads `stderr.log` directly and waits for `run.failed` (test-only fix).
+    Found while measuring (two full suites concurrently):
+    - **SIGTERM during worker start-up** ("lifecycle: … a delayed worker is interruptible" under load):
+      the WP2a-2 port turned the worker's runtime imports into static ESM imports, which run before the
+      "first statement" early signal handlers; a SIGTERM during module loading killed the worker by
+      default and left the attempt `running`. The worker now installs the early handlers, then imports
+      the runtime dynamically and replays a remembered signal (product fix). A signal delivered before
+      node runs any JavaScript still kills it (no process can handle that); the lifecycle test and the
+      control-channel fallback test now wait for the worker's own registry write (heartbeat moves past
+      the launcher's) instead of a fixed 250 ms (test fix).
+    - `runtime-packed-install.test.mjs` removed its project right after `waitForSubagent` while the
+      finalizer was still publishing (`ENOTEMPTY`): it now waits for the run event (test fix).
+    - `runtime-dir-lock-owner.test.mjs` "a live holder is never stolen": the holder's 3 s hold expired
+      under load before the cross-process contenders started, so one legitimately won after the normal
+      release; the holder now holds until the test kills it (test fix).
 
 14. **WP2b: no secrets in `ExecutorDescriptor.config`.** The descriptor is persisted as is
     (`worker.json`, `executor.json`). `validateExecutorDescriptor` (SDK) now refuses config values that
@@ -636,6 +650,15 @@ Run results, statuses and `RunStatusSnapshot` keep their shapes; `backend` is th
     `listPendingApprovals`, `respondApproval`, `requestCancel` (SIGTERM fallback); reconcile and the
     worker's pre-serve paths close the mailbox before writing a terminal result. Store gains
     `ensureTextArtifact`; reconcile's stale/needs-decision results now also list `output.log`.
+
+16. **WP2b runtime-tier conformance checks** (`src/sdk/conformance/checks-runtime.ts`, see
+    docs/conformance.md): `runtime.durable_authority`, `runtime.detach_rediscovery` and
+    `runtime.control_relay` (renamed from the placeholder `runtime.broker_relay`) drive this runtime
+    (barrier, detached durable worker, reconcile, control mailbox) against a harness's
+    `runtime(scenario)` stage (`RuntimeStage`: a descriptor loadable in a fresh process + cross-process
+    effect counts). The runtime is imported lazily, so `sdk/` keeps no static dependency on
+    `runtime/`. The SDK fake passes all three through `runtime-fake-module.js`; negative tests inject
+    launch-without-consume, reconcile-absent-after-effect and ignore-deny. Kit version 0.2.0.
 
 ## Inherited from pi-subagent 0.7.2
 
@@ -658,6 +681,10 @@ repository), so its owner can decide whether to fix pi-subagent too.
   process does not serve the control mailbox (interactive approvals there are denied at once). Adoption
   restarts `exec-events.jsonl` (observe replays from the start for the fake; real adapters must define
   replay semantics).
+- **Residual load flake (WP2b measurement):** `runtime-packed-install.test.mjs` asserts that the freshly
+  installed Darwin helper answers `alive`; its first exec after install can exceed the 2 s
+  `PROCESS_IDENTITY_TIMEOUT_MS` under heavy load (1 of 10 suite runs with two full suites in parallel).
+  Not changed: raising the product timeout slows every liveness check.
 - **Control channel limits (WP2b):** the mailbox is polled (50 ms), not watched; a crash between applying
   a request and writing its ack re-applies it after a restart (handlers are idempotent for approvals, a
   second cancel is harmless); a requester that crashes between reserving a seq and writing the request

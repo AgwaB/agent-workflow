@@ -972,8 +972,10 @@ test("lifecycle: terminal publication waits for the worker to exit; a delayed wo
 		process.env.AGENT_WORKFLOW_DURABLE_WORKER_START_DELAY_MS;
 	const previousTerminalDelay =
 		process.env.AGENT_WORKFLOW_DURABLE_WORKER_TERMINAL_WRITE_DELAY_MS;
+	const previousHeartbeat = process.env.AGENT_WORKFLOW_HEARTBEAT_MS;
 	process.env.AGENT_WORKFLOW_DURABLE_WORKER_START_DELAY_MS = "3000";
 	process.env.AGENT_WORKFLOW_DURABLE_WORKER_TERMINAL_WRITE_DELAY_MS = "250";
+	process.env.AGENT_WORKFLOW_HEARTBEAT_MS = "50";
 	try {
 		const before = readEffectLog(effectLog).length;
 		const interruptible = await startAsyncSubagentRun({
@@ -984,7 +986,19 @@ test("lifecycle: terminal publication waits for the worker to exit; a delayed wo
 				onComplete: "detach",
 			},
 		});
-		await new Promise((resolve) => setTimeout(resolve, 250));
+		// WP2b: interrupt once the worker runs JavaScript (its own registry write moves
+		// heartbeatAt past the launcher's). A fixed 250 ms raced node's own startup under load: a
+		// SIGTERM delivered before the worker's first statement kills it by default, and nothing
+		// writes a terminal result until a later reconcile.
+		const launched = (await readRunRecord({ cwd, runId: interruptible.runId }))
+			?.attempts[0]?.heartbeatAt;
+		const startedBy = Date.now() + 20_000;
+		while (
+			Date.now() < startedBy &&
+			(await readRunRecord({ cwd, runId: interruptible.runId }))?.attempts[0]
+				?.heartbeatAt === launched
+		)
+			await new Promise((resolve) => setTimeout(resolve, 20));
 		const interrupted = await interruptSubagent({
 			cwd,
 			runId: interruptible.runId,
@@ -1027,6 +1041,9 @@ test("lifecycle: terminal publication waits for the worker to exit; a delayed wo
 		else
 			process.env.AGENT_WORKFLOW_DURABLE_WORKER_TERMINAL_WRITE_DELAY_MS =
 				previousTerminalDelay;
+		if (previousHeartbeat === undefined)
+			delete process.env.AGENT_WORKFLOW_HEARTBEAT_MS;
+		else process.env.AGENT_WORKFLOW_HEARTBEAT_MS = previousHeartbeat;
 	}
 });
 

@@ -229,3 +229,52 @@ test("approval allowed without asking fails approval.deny", async () => {
 	);
 	assertFails(results["approval.timeout_fail_closed"], /still completed/);
 });
+
+// WP2b runtime tier: the same bugs, injected into the module a durable worker reloads in a fresh
+// process (createFakeHarness({ runtime: { faults } })).
+async function runRuntime(faults, only) {
+	const report = await runConformance(
+		createFakeHarness({ runtime: { faults } }),
+		{
+			tiers: ["runtime"],
+			only,
+		},
+	);
+	return Object.fromEntries(
+		report.results.map((result) => [result.id, result]),
+	);
+}
+
+test("runtime: launch without consume through a real worker fails runtime.durable_authority", async () => {
+	const results = await runRuntime({ complete: { skipConsume: true } }, [
+		"runtime.durable_authority",
+	]);
+	assertFails(
+		results["runtime.durable_authority"],
+		/effect\(s\) while the launch barrier still held the authority/,
+	);
+	assertFails(
+		results["runtime.durable_authority"],
+		/revoked attempt caused 1 effect/,
+	);
+});
+
+test("runtime: reconcile absent after an effect (worker killed) fails runtime.durable_authority", async () => {
+	const results = await runRuntime({ slow: { reconcileAbsent: true } }, [
+		"runtime.durable_authority",
+	]);
+	assertFails(
+		results["runtime.durable_authority"],
+		/returned absent after an effect/,
+	);
+});
+
+test("runtime: an adapter that ignores a relayed deny fails runtime.control_relay", async () => {
+	const results = await runRuntime({ approval: { ignoreDeny: true } }, [
+		"runtime.control_relay",
+	]);
+	assertFails(
+		results["runtime.control_relay"],
+		/denied execute tool still completed/,
+	);
+});

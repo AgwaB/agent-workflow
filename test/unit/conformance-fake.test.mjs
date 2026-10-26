@@ -35,8 +35,19 @@ test("catalog: unique ids, every tier present, JSON description", () => {
 	assert.equal(counts.runtime, 3);
 	const described = describeCatalog();
 	assert.deepEqual(JSON.parse(JSON.stringify(described)), described);
+	// WP2b: the runtime tier is implemented (no placeholders left).
 	for (const check of described.filter((entry) => entry.tier === "runtime"))
-		assert.match(check.pending, /WP2a-2/);
+		assert.equal(check.pending, undefined, check.id);
+	assert.deepEqual(
+		described
+			.filter((entry) => entry.tier === "runtime")
+			.map((entry) => entry.id),
+		[
+			"runtime.durable_authority",
+			"runtime.detach_rediscovery",
+			"runtime.control_relay",
+		],
+	);
 	for (const required of [
 		"submit.idempotent_sequential",
 		"fencing.consume_before_effect",
@@ -146,6 +157,50 @@ test("delivery bound skips when the probe reports no MCP output limit", async ()
 	);
 	assert.equal(report.results[0].status, "skip");
 	assert.match(report.results[0].reason, /deliveryUnverified/);
+});
+
+test("runtime tier: the fake executor passes every runtime check through real durable workers", async () => {
+	const report = await runConformance(createFakeHarness(), {
+		tiers: ["runtime"],
+		only: ["runtime."],
+	});
+	assert.deepEqual(
+		report.results.map((result) => [
+			result.id,
+			result.status,
+			result.violations,
+		]),
+		[
+			["runtime.durable_authority", "pass", []],
+			["runtime.detach_rediscovery", "pass", []],
+			["runtime.control_relay", "pass", []],
+		],
+	);
+	const byId = Object.fromEntries(report.results.map((r) => [r.id, r]));
+	assert.deepEqual(byId["runtime.durable_authority"].details, {
+		release: "completed/null",
+		revoke: "cancelled/revoked",
+		kill: "marked-needs-decision/unknown",
+	});
+	assert.equal(
+		byId["runtime.detach_rediscovery"].details.mismatch,
+		"failed/guard_failure",
+	);
+	assert.equal(
+		byId["runtime.control_relay"].details.cancel,
+		"cancelled → cancelled/user_cancelled",
+	);
+});
+
+test("runtime tier skips honestly without a runtime stage", async () => {
+	const report = await runConformance(createFakeHarness({ runtime: false }), {
+		tiers: ["runtime"],
+		only: ["runtime."],
+	});
+	for (const result of report.results) {
+		assert.equal(result.status, "skip", result.id);
+		assert.match(result.reason, /no runtime stage/u);
+	}
 });
 
 registerConformanceTests({

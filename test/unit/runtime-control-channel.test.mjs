@@ -541,15 +541,17 @@ test("SIGTERM fallback: a worker that does not ack in time is interrupted", asyn
 		delete process.env.AGENT_WORKFLOW_DURABLE_WORKER_START_DELAY_MS;
 	}
 	const ref = { cwd, runId: run.runId, attemptId: run.attemptId };
-	await waitFor(async () => {
-		const record = JSON.parse(
+	// Signal only once the worker runs JavaScript: its own registry writes move heartbeatAt past
+	// the launcher's (a SIGTERM before node runs the first statement kills it by default).
+	const heartbeat = async () =>
+		JSON.parse(
 			await readFile(
 				join(cwd, ".agent-workflow/runs", run.runId, "run.json"),
 				"utf8",
 			),
-		);
-		return record.attempts[0]?.heartbeatAt !== undefined;
-	});
+		).attempts[0]?.heartbeatAt;
+	const launched = await heartbeat();
+	await waitFor(async () => (await heartbeat()) !== launched);
 	const cancelled = await requestCancel(ref, "owned", {
 		ackTimeoutMs: 300,
 		escalateAfterMs: 10_000,

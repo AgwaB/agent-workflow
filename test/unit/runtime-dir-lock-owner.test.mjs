@@ -152,7 +152,9 @@ test("a lock left by a SIGKILLed holder is stolen: a later reconcile acquires it
 test("a live holder is never stolen (long hold, many contenders)", async () => {
 	const lockPath = join(freshDir("live"), "run.lock");
 	await mkdir(join(lockPath, ".."), { recursive: true });
-	const holder = contender(lockPath, { holdMs: 3_000 });
+	// WP2b: hold until killed (finally). A 3 s hold expired under load before the cross-process
+	// contenders started, and the holder's normal release let one legitimately win.
+	const holder = contender(lockPath);
 	assert.equal(await holder.firstLine, "won");
 	try {
 		const inProcess = await Promise.allSettled(
