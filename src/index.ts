@@ -1,2 +1,3 @@
-// Stub entry point. Filled by WP3 (SDK exports) and WP4 (core exports).
+// Package entry point: the core engine API (WP4c). Subpaths expose the SDK, runtime, executors and hosts.
+export * from "./core/index.js";
 export const MODULE = "src";
