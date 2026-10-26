@@ -1,0 +1,10 @@
+{
+	"summary": "Producer findings for the WP5 artifact MCP fixture.",
+	"claims": [
+		{ "id": "c1", "text": "The server speaks newline-delimited JSON-RPC." },
+		{ "id": "c2", "text": "Every read is recorded in the read ledger." },
+		{ "id": "c3", "text": "Cut responses are marked deliveryUnverified." },
+		{ "id": "c4", "text": "Paths never escape the run directory." }
+	],
+	"researchQuestions": ["Which protocol versions are supported?"]
+}

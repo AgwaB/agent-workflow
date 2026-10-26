@@ -106,6 +106,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.3",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@types/node": "^24.0.0",
     "typescript": "^5.0.0",
     "yaml": "^2.9.0"
