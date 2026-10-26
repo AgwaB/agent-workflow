@@ -545,6 +545,17 @@ Run results, statuses and `RunStatusSnapshot` keep their shapes; `backend` is th
       assumption) and removed its fixture while the finalizer was still committing (`ENOTEMPTY` in
       `after()`); it now reads `stderr.log` directly and waits for `run.failed` (test-only fix).
 
+14. **WP2b: no secrets in `ExecutorDescriptor.config`.** The descriptor is persisted as is
+    (`worker.json`, `executor.json`). `validateExecutorDescriptor` (SDK) now refuses config values that
+    look like tokens — `sk-…` (OpenAI/Anthropic), `gh?_…`/`github_pat_…`, `glpat-…`, `xox?-…`, AWS
+    access key ids, Google API keys, private key blocks, JWTs, and long hex (≥ 32) or mixed-case base64
+    (≥ 24) values under a key-like name (`secret`, `token`, `password`, `apiKey`, `accessKey`,
+    `privateKey`, `credential`, `bearer`, …) — with `DESCRIPTOR_INVALID` naming the config path, never
+    the value (`findSecretLikeConfigValues`). Because every runtime entry point validates the
+    descriptor (`runSubagent`, async/parallel prevalidation, payload and executor-record reads), such a
+    run is refused before anything is written. Secrets go through `SubmitRequest.env` /
+    `McpServerSpec.env`, which WP2c keeps off disk. Test: `sdk-descriptor-secrets.test.mjs`.
+
 ## Inherited from pi-subagent 0.7.2
 
 The WP2c defects as they exist in `pi-subagent-engine` at `ab91a74` (read-only check; paths relative to that
