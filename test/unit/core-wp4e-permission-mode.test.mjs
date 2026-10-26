@@ -49,7 +49,13 @@ before(async () => {
 });
 after(async () => {
 	for (const undo of unregister.splice(0)) undo();
-	await rm(root, { recursive: true, force: true });
+	// WP11a: detached finalizers may still publish into a run directory under load (ENOTEMPTY).
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 5,
+		retryDelay: 50,
+	});
 });
 
 let counter = 0;
