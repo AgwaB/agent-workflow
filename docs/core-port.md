@@ -1,4 +1,4 @@
-# Core port (WP4a, WP4b, WP4c-1)
+# Core port (WP4a, WP4b, WP4c-1, WP4c-2)
 
 Source: `@agwab/pi-workflow` 0.16.4, commit `b83cc4f` (MIT, same author).
 Destination: `src/core/` (flat, same file names), compiled to `dist/core/`.
@@ -617,6 +617,54 @@ literal), `artifact-graph-schema.ts`, `store.ts` (resumable `executor_needs_deci
   `setExecutorAuthKindProbe`; implement `deleteOwnedSession` for kept sessions; honor
   `runtime.inheritHostTools` with the native-host wrapper (provenance requires it).
 - **WP11a/WP11b:** expose `--executor`; move `WORKFLOW_HELP` into the Pi host.
+
+## WP4c-2 — test harness, deferred engine tests, ledger no-follow
+
+### Read-ledger no-follow (security fix, own commit)
+
+WP5 found that `appendWorkflowArtifactReadLedger` (`src/core/workflow-artifact-tool.ts`) used
+`mkdir -p` + `appendFile` on the ledger path, so a planted symlink at `<task dir>/read-ledger.jsonl`
+redirected every evidence row to a file outside the run directory (and a dangling link created it).
+
+- Red (before the fix, `dist/` of `2bfb744`): a symlink `read-ledger.jsonl → <tmp>/victim.txt` and one
+  `handleWorkflowArtifactToolCall` read returned normally and `victim.txt` became
+  `"original\n{"schema":"workflow-artifact-read-v1",…}\n"`. All 8 tests of
+  `core-workflow-artifact-ledger-nofollow.test.mjs` failed (missing rejections, mode `0644`, no hook).
+- Green: the same call rejects with `read ledger must not be a symlink` and `victim.txt` stays
+  `"original\n"`; 8/8 pass.
+
+The fix (`openReadLedger`):
+
+- `lstat` the parent directory (refused when it is a symlink or not a directory) and the ledger
+  (refused when it is a symlink, not a regular file, or hard-linked `nlink > 1`).
+- `open` with `O_NOFOLLOW | O_NONBLOCK` where the platform has them (`ELOOP`/`EMLINK` → symlink error,
+  `ENXIO` from a FIFO → not a regular file), mode `0600` on create.
+- After the open, `fstat` the handle and `lstat` the path and parent again: same `dev`/`ino` for the file
+  and the parent, else `read ledger changed while it was opened`.
+- One `O_APPEND` write per row (the loop only continues a short write), so concurrent appends keep rows
+  whole.
+- `readWorkflowArtifactReadLedger` uses the same open (read-only): a symlinked ledger is never read as
+  required-read evidence; a missing ledger or task directory is still `[]`.
+
+Other write paths in the file: none. The manifest and artifacts are only read (artifacts already open
+with `O_NOFOLLOW` and a raw-owner check), and the dedup/completed-read caches are in-memory `Map`s with no
+projection or cache file. Residual: the parent check cannot use `openat` from Node, so a parent swapped
+to a symlink and back between the two `lstat`s is only caught when the inode differs; the ancestors above
+the task directory are not checked (the MCP server's `assertLedgerTarget` checks run-dir containment).
+
+**Hook for the MCP server.** `handleWorkflowArtifactToolCall(params, config, options?)` takes
+`{onLedgerRecord?(row), appendLedger?: boolean}`. `onLedgerRecord` receives each read row (after the
+append by default); `appendLedger: false` skips the append so the host persists the row itself. The
+result shape is unchanged. **Follow-up (WP5, not done here; `src/mcp/**` untouched):** replace the
+server's scratch ledger (`service.ts` `scratchLedger` + re-read) with
+`{appendLedger: false, onLedgerRecord}` and append the (possibly `deliveryUnverified`) row with
+`appendWorkflowArtifactReadLedger`.
+
+### WP4c-2 change log (behavior-relevant)
+
+1. The core read ledger refuses a symlinked/hard-linked/non-regular ledger or a symlinked ledger
+   directory, for appends and for reads (required reads then fail closed), and creates it `0600`.
+2. `handleWorkflowArtifactToolCall` has an optional third `options` argument (ledger hook).
 
 ## Tests (WP4a)
 
