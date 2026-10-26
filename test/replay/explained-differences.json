@@ -148,8 +148,8 @@
 		},
 		{
 			"id": "original-helper-legacy-sidecar",
-			"citation": "docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows → .agent-workflow/workflows)",
-			"reason": "The original bundled report helpers (deep-review, impact-review, spec-review, deep-research) write their sidecars with join(cwd, \".pi\", \"workflows\", runId, \"tasks\", taskId, …). Under agent-workflow they land at the legacy path outside the run directory; the comparison found each one there, byte-identical to the recording (legacyIdentical). The sidecars are not ledger input (the helpers say so) and no task output depends on them.",
+			"citation": "docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows \u2192 .agent-workflow/workflows)",
+			"reason": "The original bundled report helpers (deep-review, impact-review, spec-review, deep-research) write their sidecars with join(cwd, \".pi\", \"workflows\", runId, \"tasks\", taskId, \u2026). Under agent-workflow they land at the legacy path outside the run directory; the comparison found each one there, byte-identical to the recording (legacyIdentical). The sidecars are not ledger input (the helpers say so) and no task output depends on them.",
 			"differences": [
 				{
 					"file": "^tasks/[^/]+/(?:final-report\\.md|review\\.md|source-ledger\\.json|audit\\.md|executive\\.md)$",
@@ -160,7 +160,7 @@
 		},
 		{
 			"id": "original-spec-review-legacy-state-read",
-			"citation": "docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows → .agent-workflow/workflows, no fallback)",
+			"citation": "docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows \u2192 .agent-workflow/workflows, no fallback)",
 			"divergence": true,
 			"fixtures": ["spec-review"],
 			"variants": ["original"],
@@ -232,6 +232,18 @@
 				},
 				{
 					"file": ".*"
+				}
+			]
+		},
+		{
+			"id": "run-capability-negotiation",
+			"citation": "docs/core-port.md \"WP4d \u2014 capability negotiation before launch\"",
+			"reason": "WP4d records the pre-launch executor probe and per-stage B4 negotiation (effective capabilities, reports, degradations, preview) on the run as run.capabilityNegotiation; pi-workflow had no capability negotiation. The field is added only; no recorded content changes.",
+			"differences": [
+				{
+					"file": "^run\\.json$",
+					"path": "^capabilityNegotiation(\\..*)?$",
+					"kind": "added"
 				}
 			]
 		}

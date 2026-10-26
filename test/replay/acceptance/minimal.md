@@ -15,7 +15,7 @@ Original spec, Pi adapter request checks.
 | Worker launches served / recorded | 1 / 1 |
 | Artifact reads re-issued / recorded | 0 / 0 |
 | Differences: allowed | 76 |
-| Differences: explained | 45 |
+| Differences: explained | 46 |
 | Differences: unexplained | 0 |
 | Exact-match violations | 0 |
 
@@ -27,6 +27,7 @@ Original spec, Pi adapter request checks.
 | explained | `executor-exit-code` | 2 | docs/core-port.md WP1b change log 1 |
 | explained | `executor-usage-contract` | 24 | docs/core-port.md WP1b change log 2 |
 | explained | `owned-sessions` | 1 | docs/core-port.md WP4c-1 "R#9, R#10, R#12, R#5" (R#10) and change log 8 |
+| explained | `run-capability-negotiation` | 1 | docs/core-port.md "WP4d — capability negotiation before launch" |
 | explained | `run-executor-record` | 1 | docs/core-port.md WP4c-1 "Executor selection" and change log 11 |
 | explained | `runtime-cost-rounding` | 4 | docs/core-port.md WP1b change log 3 |
 | explained | `runtime-stderr` | 2 | docs/runtime-port.md "Attempt artifacts" (stderr.log: runtime diagnostics, empty on a clean completion) |
@@ -45,11 +46,11 @@ Original spec, Pi adapter request checks.
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | f992a2fac44d74aeb2ff27342b811ae50544694d7edb12a7fd7d1bc9c35aa515 |
+| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | fc8fbc0a14d8476dcbf0485cb700c0b4fe4dd4ba379cb6853bc4e7d05fe142b4 |
 | run.json | tasks[0].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | a25d9d0ffad76dcd1929cf3a932be7a38410da1095b27308fc4be62c61d68f95 |  |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 6c4b37d714a68b63d3d64a32768b201fe35ce588514446c6d448c4fe77c71356 |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 0ac613b461a79e98d79dfef5d67ef2dbc989688603f97fd809bb472b789e86b8 |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | f992a2fac44d74aeb2ff27342b811ae50544694d7edb12a7fd7d1bc9c35aa515 |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 5e3a32b2c4e1178230a6dae8361d9f30cfa484d815909cc0d07c0d830e3b6d18 |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | e13b810be13596b347c303f4a9115a47ad1811b83a7694200e3112a6c694a334 |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | fc8fbc0a14d8476dcbf0485cb700c0b4fe4dd4ba379cb6853bc4e7d05fe142b4 |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | a25d9d0ffad76dcd1929cf3a932be7a38410da1095b27308fc4be62c61d68f95 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 1c571feaba54d772deca047a1a5a89af80dae392002c11a3c85612d924ab22f4 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"1c571feaba54d772deca047a1a5a89af80dae392002c11a3c85612d924ab22f4"} |  |
@@ -107,11 +108,19 @@ Original spec, Pi adapter request checks.
 
 </details>
 
+<details><summary>explained run-capability-negotiation (1)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | capabilityNegotiation | added |  | {"capabilities":{"cancel":{"detail":"interrupt","level":"native","source":"declared"},"context":"agent","contextIsolation":{"level":"native","source":"declared"},"effortLevels":["low","medium","high"],"fastTier":{"level":"none","source":"de… (3001 chars, sha256 14d02d6ebd3a) |
+
+</details>
+
 <details><summary>explained run-executor-record (1)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/minimal","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-minimal-original-55828/work/replay-trace.jsonl"},"contractVersion":… (355 chars, sha256 673838a871b4) |
+| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/minimal","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-minimal-original-79984/work/replay-trace.jsonl"},"contractVersion":… (355 chars, sha256 b6e65d0f4331) |
 
 </details>
 

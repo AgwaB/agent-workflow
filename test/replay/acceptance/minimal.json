@@ -39,7 +39,7 @@
 			],
 			"counts": {
 				"allowed": 76,
-				"explained": 45,
+				"explained": 46,
 				"unexplained": 0
 			},
 			"differences": [
@@ -637,12 +637,21 @@
 				},
 				{
 					"class": "explained",
+					"rule": "run-capability-negotiation",
+					"citation": "docs/core-port.md \"WP4d — capability negotiation before launch\"",
+					"file": "run.json",
+					"kind": "added",
+					"path": "capabilityNegotiation",
+					"replayed": "{\"capabilities\":{\"cancel\":{\"detail\":\"interrupt\",\"level\":\"native\",\"source\":\"declared\"},\"context\":\"agent\",\"contextIsolation\":{\"level\":\"native\",\"source\":\"declared\"},\"effortLevels\":[\"low\",\"medium\",\"high\"],\"fastTier\":{\"level\":\"none\",\"source\":\"de… (3001 chars, sha256 14d02d6ebd3a)"
+				},
+				{
+					"class": "explained",
 					"rule": "run-executor-record",
 					"citation": "docs/core-port.md WP4c-1 \"Executor selection\" and change log 11",
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/minimal\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-minimal-original-55828/work/replay-trace.jsonl\"},\"contractVersion\":… (355 chars, sha256 673838a871b4)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/minimal\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-minimal-original-79984/work/replay-trace.jsonl\"},\"contractVersion\":… (355 chars, sha256 b6e65d0f4331)"
 				},
 				{
 					"class": "explained",
@@ -652,7 +661,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "f992a2fac44d74aeb2ff27342b811ae50544694d7edb12a7fd7d1bc9c35aa515"
+					"replayed": "fc8fbc0a14d8476dcbf0485cb700c0b4fe4dd4ba379cb6853bc4e7d05fe142b4"
 				},
 				{
 					"class": "explained",
@@ -672,7 +681,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-1",
-					"replayed": "6c4b37d714a68b63d3d64a32768b201fe35ce588514446c6d448c4fe77c71356"
+					"replayed": "5e3a32b2c4e1178230a6dae8361d9f30cfa484d815909cc0d07c0d830e3b6d18"
 				},
 				{
 					"class": "explained",
@@ -682,7 +691,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-1",
-					"replayed": "0ac613b461a79e98d79dfef5d67ef2dbc989688603f97fd809bb472b789e86b8"
+					"replayed": "e13b810be13596b347c303f4a9115a47ad1811b83a7694200e3112a6c694a334"
 				},
 				{
 					"class": "explained",
@@ -692,7 +701,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "f992a2fac44d74aeb2ff27342b811ae50544694d7edb12a7fd7d1bc9c35aa515"
+					"replayed": "fc8fbc0a14d8476dcbf0485cb700c0b4fe4dd4ba379cb6853bc4e7d05fe142b4"
 				},
 				{
 					"class": "explained",

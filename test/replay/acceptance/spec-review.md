@@ -15,7 +15,7 @@ Original spec, Pi adapter request checks.
 | Worker launches served / recorded | 5 / 6 |
 | Artifact reads re-issued / recorded | 43 / 57 |
 | Differences: allowed | 295 |
-| Differences: explained | 484 |
+| Differences: explained | 485 |
 | Differences: unexplained | 0 |
 | Exact-match violations | 0 |
 
@@ -29,7 +29,7 @@ Tasks not completed:
 
 | Task | Spec | Status | Detail | Message |
 |---|---|---|---|---|
-| task-7 | report.main | failed | launch_failed | provisional worker run_mvpdgpe0_b6c446/attempt_mvpdgpe0_a95050 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: replay miss for task-7: no |
+| task-7 | report.main | failed | launch_failed | provisional worker run_mvpe7kt0_875794/attempt_mvpe7kt0_e4b0a6 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: replay miss for task-7: no |
 | task-8 | final.main | failed | support_declared_failed | support declared failed |
 
 ### Differences by rule
@@ -41,6 +41,7 @@ Tasks not completed:
 | explained | `executor-usage-contract` | 107 | docs/core-port.md WP1b change log 2 |
 | explained | `original-spec-review-legacy-state-read` | 274 | docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows → .agent-workflow/workflows, no fallback) |
 | explained | `owned-sessions` | 5 | docs/core-port.md WP4c-1 "R#9, R#10, R#12, R#5" (R#10) and change log 8 |
+| explained | `run-capability-negotiation` | 1 | docs/core-port.md "WP4d — capability negotiation before launch" |
 | explained | `run-executor-record` | 1 | docs/core-port.md WP4c-1 "Executor selection" and change log 11 |
 | explained | `runtime-cost-rounding` | 6 | docs/core-port.md WP1b change log 3 |
 | explained | `runtime-stderr` | 11 | docs/runtime-port.md "Attempt artifacts" (stderr.log: runtime diagnostics, empty on a clean completion) |
@@ -62,56 +63,56 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | ec4cdc713b81729d4045a5650e5a16e9183db8c32e920682f6b271f9a6d2a452 |
+| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | b856d1671ad9fbf5ee69cc5445c7743c77879dee4a35365bbd1b253bec1af862 |
 | run.json | tasks[0].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 3163c8c1a6958a85d1ffea20981ad153ebbc5b5663cf2fce670fb8c70b4ef147 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 354fefa25a57fb946be450048081bd100e0474fc6e153a62cb705ed82ded3cab |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | e6513ec5616d127eef91aeebc643bb483996217f82a5046e1ea20282aeb02007 |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | ec4cdc713b81729d4045a5650e5a16e9183db8c32e920682f6b271f9a6d2a452 |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | b856d1671ad9fbf5ee69cc5445c7743c77879dee4a35365bbd1b253bec1af862 |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 3163c8c1a6958a85d1ffea20981ad153ebbc5b5663cf2fce670fb8c70b4ef147 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 0c592ab09eacb1a9192cf61a0ef83a542c40fe976c7d331da88f7278ba5d7c80 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"0c592ab09eacb1a9192cf61a0ef83a542c40fe976c7d331da88f7278ba5d7c80"} |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[1].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | c1938c566328a722448e3f74f5f783c889ae0cceb06744de90d2ddc3a6b97229 |
+| run.json | tasks[1].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 797c6e5c7381207c9d487b2b712b0a99d9e3231cff86fb5a4548abbf4f100719 |
 | run.json | tasks[1].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 827e2409e9234744123a4a323d47bf65490bb77eb5b7a738a6cd0d821571613f |  |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 16080f4aedc2ec71f5ab113b0a893c6ea5a6731f5b5d8c2429162257972dfe49 |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 059c65ce6e605dcdd7b8215840f52fb917cf73df701ce7ca68ea1a52c4938f20 |
-| run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | c1938c566328a722448e3f74f5f783c889ae0cceb06744de90d2ddc3a6b97229 |
+| run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 797c6e5c7381207c9d487b2b712b0a99d9e3231cff86fb5a4548abbf4f100719 |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 827e2409e9234744123a4a323d47bf65490bb77eb5b7a738a6cd0d821571613f |  |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | c5dfb4f11a0e86157b86404b74b975797c2e8e1a4d21f5fc369b2b591d3338e4 |  |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"c5dfb4f11a0e86157b86404b74b975797c2e8e1a4d21f5fc369b2b591d3338e4"} |  |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | d172e2e6f410ed7abdb8521d2e8cee9967524fd20b244feabd7be944575a540a |
+| run.json | tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 2b725fb8d2f7487fbd2c3c92f444eeda0e091df346f5f9f4c91a9a8edf1ce230 |
 | run.json | tasks[2].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 297cff1d90bbac6821fec29a40ccf97df1939a22712c006c0ac9bed9737792ff |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | ed287e384b93a7ea2ecec43f30a696d57177da4f682f150d4a03016b80d33f80 |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | e671a884da72376f5ad63d8081f28b49c14040fbd154ca97e0f30d00cddac2da |
-| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | d172e2e6f410ed7abdb8521d2e8cee9967524fd20b244feabd7be944575a540a |
+| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 2b725fb8d2f7487fbd2c3c92f444eeda0e091df346f5f9f4c91a9a8edf1ce230 |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 297cff1d90bbac6821fec29a40ccf97df1939a22712c006c0ac9bed9737792ff |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 0c1a3d38b00626f022a66ec7b752fab369cff7ce7d3560594c6418d102b029eb |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"0c1a3d38b00626f022a66ec7b752fab369cff7ce7d3560594c6418d102b029eb"} |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 3b614e930a422bec50de6a9764c3212cb95a9a2fe8e34e083ca0bc2d5d24b68f |
+| run.json | tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 9b60c7ede8e75dae8b7a9961a5807c69746b1b76bbaa32b460c89bfabda28954 |
 | run.json | tasks[3].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | d9ae2e0264f17db1d2e3af6a73f869771b6fdad5bec7db004011b68a26f0bc9c |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | c1352eeb1220cdeff2ba7960991019a308f0cc007c228619d5fe06585c0dc3c5 |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 4bdbcf6a35b72c6d9c90caa972ae2ba5327442635f6afeae1ac624c92908bc27 |
-| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 3b614e930a422bec50de6a9764c3212cb95a9a2fe8e34e083ca0bc2d5d24b68f |
+| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 9b60c7ede8e75dae8b7a9961a5807c69746b1b76bbaa32b460c89bfabda28954 |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | d9ae2e0264f17db1d2e3af6a73f869771b6fdad5bec7db004011b68a26f0bc9c |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | baae71b79a98bc720f6d5946452bb5d5bb85b5b6c20c71674ab4cbb1d68bc653 |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"baae71b79a98bc720f6d5946452bb5d5bb85b5b6c20c71674ab4cbb1d68bc653"} |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[5].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 717ad7f31f4b263e7fbd411fe2cfbad5e85bc072ab85a27f043a3209211e8a75 |
+| run.json | tasks[5].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | f9f67b0dec686beb70ed10ce436ec95ea66cd34577c7d19cd62cd59aac4dbf37 |
 | run.json | tasks[5].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 61048a8941e0b033dcb05be2e607073386264ef76a5a31dc7ab72601286ecdb7 |  |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 5d26cade7f7d4444f7ff51b2ff07b44a22a37948528f3fc27875fdfebea24fc0 |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | a62682174558e128eb7ac5be32215ef68b23a76a0f721c7726cb94bf089f6b44 |
-| run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 717ad7f31f4b263e7fbd411fe2cfbad5e85bc072ab85a27f043a3209211e8a75 |
+| run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | f9f67b0dec686beb70ed10ce436ec95ea66cd34577c7d19cd62cd59aac4dbf37 |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 61048a8941e0b033dcb05be2e607073386264ef76a5a31dc7ab72601286ecdb7 |  |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | d17c1ebc4747d79b2386337f1d4b59143d12b944a9999247eaa48d7c0f7ce131 |  |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"d17c1ebc4747d79b2386337f1d4b59143d12b944a9999247eaa48d7c0f7ce131"} |  |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[7].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | cdd1eb0cc3ad2d2bfb68ceb7465f0721ef0bc129421e425028fbc1f33ec75536 |
+| run.json | tasks[7].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | ea0e87ae71270c5c547fa2f26d8ccdde7227e67f74b41baf2b2f469db516652a |
 | run.json | tasks[7].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 991b37c16f4a613f74ae82c305c55a5643555bc1a20969ac73720c5042d7606e |  |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 2146a4ccf7345542b39def2d698905be3fd7ce75e6e471201b7d8c9d3a2b7c73 |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | c3e76dd364522be8fb7bd591355193859988c9479fd57e801006568f2c817808 |
-| run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | cdd1eb0cc3ad2d2bfb68ceb7465f0721ef0bc129421e425028fbc1f33ec75536 |
+| run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | ea0e87ae71270c5c547fa2f26d8ccdde7227e67f74b41baf2b2f469db516652a |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 991b37c16f4a613f74ae82c305c55a5643555bc1a20969ac73720c5042d7606e |  |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | f81b792abbeb2c6a7f87e7d82101a768637c2e5fc4ccbe9263c2d7519540def6 |  |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"f81b792abbeb2c6a7f87e7d82101a768637c2e5fc4ccbe9263c2d7519540def6"} |  |
@@ -325,11 +326,19 @@ Tasks not completed:
 
 </details>
 
+<details><summary>explained run-capability-negotiation (1)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | capabilityNegotiation | added |  | {"capabilities":{"cancel":{"detail":"interrupt","level":"native","source":"declared"},"context":"agent","contextIsolation":{"level":"native","source":"declared"},"effortLevels":["low","medium","high"],"fastTier":{"level":"none","source":"de… (11347 chars, sha256 8462d2dc80e2) |
+
+</details>
+
 <details><summary>explained run-executor-record (1)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/spec-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-spec-review-original-56020/work/replay-trace.jsonl"},"c… (371 chars, sha256 a9c03ef1877e) |
+| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/spec-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-spec-review-original-80006/work/replay-trace.jsonl"},"c… (371 chars, sha256 6f374ebba556) |
 
 </details>
 
@@ -458,7 +467,7 @@ Tasks not completed:
 |---|---|---|---|---|
 | compiled.json |  | digest-bound ×0 | 2886f2b5cb57a627755b3c276ca380ffdd9d384a2ceb4c4f0fa44170c3ed93d5 | 22961ffeff66e8fb08bee9cd02d07bfe6bb1565065c0ad5e72aa74854450a8b3 |
 | tasks/task-1/system-prompt.md |  | digest-bound ×0 | bc43880ab75f7e70f406c8a08510d37b81ea9ebd2211d3e30cc674d896efdbc5 | f79ad541187db3324948739a8ba33d865ed24d48fac69835f3d79c082341f7b1 |
-| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | 75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211 | d3330a5e646a0963d412014115cb0304626c3fdfab435e1a4e3b01770ae927c4 |
+| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | 75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211 | e6a6c904a36e6f56157c70cc2590d960e02cdb6e3de590000e41017c89758a77 |
 | tasks/task-4/source-manifest.json |  | digest-bound ×1 | c6928c7fe350ccb2447669f1a224de19f40b070f5446d6cc7db139a822385195 | 4a9c7feffedc4ef4c74af4159a306c4fb9e2401acc887c5c5ffb9098e0b6459a |
 | tasks/task-6/source-manifest.json |  | digest-bound ×0 | 64f0c2b8a1da0e1a9357bad71aa07d02e9b5ce125c5ac54c94c9decd70fe4b43 | 2b163098c0bd775ba13cfceb2533f7ef4174afada1a4f45d57c156128c00af42 |
 | tasks/task-7/system-prompt.md |  | digest-bound ×0 | 6ffda8d58368377403ffdce6d5d681766367ecef88d6ff92adbb32fc443d1461 | c0a5bada21993ed7bfae15d2cb28619d1bef750863e1cb0880d5cbec1569840d |
@@ -723,8 +732,8 @@ Tasks not completed:
 | tasks/task-4/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
 | tasks/task-6/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-6/source-manifest.json | .agent-workflow/workflows | literal-renamed ×8 |  |  |
-| tasks/task-7/.launch-barrier-be8d82f2a55f8f73-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
-| tasks/task-7/.launch-barrier-be8d82f2a55f8f73-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-7/.launch-barrier-710c29bf295b9b8f-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-7/.launch-barrier-710c29bf295b9b8f-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
 | tasks/task-7/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-7/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
 | tasks/task-7/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
@@ -746,8 +755,8 @@ The original helpers read upstream engine state from the hard-coded `.pi/workflo
 | Replayed status | failed |
 | Worker launches served / recorded | 6 / 6 |
 | Artifact reads re-issued / recorded | 57 / 57 |
-| Differences: allowed | 338 |
-| Differences: explained | 237 |
+| Differences: allowed | 337 |
+| Differences: explained | 238 |
 | Differences: unexplained | 0 |
 | Exact-match violations | 0 |
 
@@ -766,6 +775,7 @@ Tasks not completed:
 | explained | `executor-usage-contract` | 128 | docs/core-port.md WP1b change log 2 |
 | explained | `original-helper-legacy-sidecar` | 2 | docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows → .agent-workflow/workflows) |
 | explained | `owned-sessions` | 6 | docs/core-port.md WP4c-1 "R#9, R#10, R#12, R#5" (R#10) and change log 8 |
+| explained | `run-capability-negotiation` | 1 | docs/core-port.md "WP4d — capability negotiation before launch" |
 | explained | `run-executor-record` | 1 | docs/core-port.md WP4c-1 "Executor selection" and change log 11 |
 | explained | `runtime-cost-rounding` | 6 | docs/core-port.md WP1b change log 3 |
 | explained | `runtime-stderr` | 12 | docs/runtime-port.md "Attempt artifacts" (stderr.log: runtime diagnostics, empty on a clean completion) |
@@ -774,10 +784,9 @@ Tasks not completed:
 | allowed | `host-path-digest` | 4 | allowed-differences.json (WP1a) |
 | allowed | `host-path-file-size` | 7 | allowed-differences.json (WP1a) |
 | allowed | `host-path-manifest-digest` | 1 | allowed-differences.json (WP1a) |
-| allowed | `renamed-literal-digest-binding` | 19 | allowed-differences.json (WP1b) |
+| allowed | `renamed-literal-digest-binding` | 20 | allowed-differences.json (WP1b) |
 | allowed | `runtime-launch-barrier-identity` | 225 | allowed-differences.json (WP1b) |
 | allowed | `state-root-identity` | 1 | allowed-differences.json (WP1a) |
-| allowed | `supervisor-progress-snapshot` | 2 | allowed-differences.json (WP1a) |
 | allowed | `timestamp-derived-digest` | 9 | allowed-differences.json (WP1a) |
 | allowed | `wp4-renamed-literals` | 25 | allowed-differences.json (WP1b) |
 
@@ -787,56 +796,56 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | ec4cdc713b81729d4045a5650e5a16e9183db8c32e920682f6b271f9a6d2a452 |
+| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | b856d1671ad9fbf5ee69cc5445c7743c77879dee4a35365bbd1b253bec1af862 |
 | run.json | tasks[0].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 3163c8c1a6958a85d1ffea20981ad153ebbc5b5663cf2fce670fb8c70b4ef147 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 354fefa25a57fb946be450048081bd100e0474fc6e153a62cb705ed82ded3cab |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | e6513ec5616d127eef91aeebc643bb483996217f82a5046e1ea20282aeb02007 |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | ec4cdc713b81729d4045a5650e5a16e9183db8c32e920682f6b271f9a6d2a452 |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | b856d1671ad9fbf5ee69cc5445c7743c77879dee4a35365bbd1b253bec1af862 |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 3163c8c1a6958a85d1ffea20981ad153ebbc5b5663cf2fce670fb8c70b4ef147 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 0c592ab09eacb1a9192cf61a0ef83a542c40fe976c7d331da88f7278ba5d7c80 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"0c592ab09eacb1a9192cf61a0ef83a542c40fe976c7d331da88f7278ba5d7c80"} |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[1].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | c1938c566328a722448e3f74f5f783c889ae0cceb06744de90d2ddc3a6b97229 |
+| run.json | tasks[1].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 797c6e5c7381207c9d487b2b712b0a99d9e3231cff86fb5a4548abbf4f100719 |
 | run.json | tasks[1].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 827e2409e9234744123a4a323d47bf65490bb77eb5b7a738a6cd0d821571613f |  |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 16080f4aedc2ec71f5ab113b0a893c6ea5a6731f5b5d8c2429162257972dfe49 |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 059c65ce6e605dcdd7b8215840f52fb917cf73df701ce7ca68ea1a52c4938f20 |
-| run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | c1938c566328a722448e3f74f5f783c889ae0cceb06744de90d2ddc3a6b97229 |
+| run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 797c6e5c7381207c9d487b2b712b0a99d9e3231cff86fb5a4548abbf4f100719 |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 827e2409e9234744123a4a323d47bf65490bb77eb5b7a738a6cd0d821571613f |  |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | c5dfb4f11a0e86157b86404b74b975797c2e8e1a4d21f5fc369b2b591d3338e4 |  |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"c5dfb4f11a0e86157b86404b74b975797c2e8e1a4d21f5fc369b2b591d3338e4"} |  |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | d172e2e6f410ed7abdb8521d2e8cee9967524fd20b244feabd7be944575a540a |
+| run.json | tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 2b725fb8d2f7487fbd2c3c92f444eeda0e091df346f5f9f4c91a9a8edf1ce230 |
 | run.json | tasks[2].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 297cff1d90bbac6821fec29a40ccf97df1939a22712c006c0ac9bed9737792ff |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | ed287e384b93a7ea2ecec43f30a696d57177da4f682f150d4a03016b80d33f80 |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | e671a884da72376f5ad63d8081f28b49c14040fbd154ca97e0f30d00cddac2da |
-| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | d172e2e6f410ed7abdb8521d2e8cee9967524fd20b244feabd7be944575a540a |
+| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 2b725fb8d2f7487fbd2c3c92f444eeda0e091df346f5f9f4c91a9a8edf1ce230 |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 297cff1d90bbac6821fec29a40ccf97df1939a22712c006c0ac9bed9737792ff |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 0c1a3d38b00626f022a66ec7b752fab369cff7ce7d3560594c6418d102b029eb |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"0c1a3d38b00626f022a66ec7b752fab369cff7ce7d3560594c6418d102b029eb"} |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 3b614e930a422bec50de6a9764c3212cb95a9a2fe8e34e083ca0bc2d5d24b68f |
+| run.json | tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 9b60c7ede8e75dae8b7a9961a5807c69746b1b76bbaa32b460c89bfabda28954 |
 | run.json | tasks[3].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | d9ae2e0264f17db1d2e3af6a73f869771b6fdad5bec7db004011b68a26f0bc9c |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | c1352eeb1220cdeff2ba7960991019a308f0cc007c228619d5fe06585c0dc3c5 |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 4bdbcf6a35b72c6d9c90caa972ae2ba5327442635f6afeae1ac624c92908bc27 |
-| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 3b614e930a422bec50de6a9764c3212cb95a9a2fe8e34e083ca0bc2d5d24b68f |
+| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 9b60c7ede8e75dae8b7a9961a5807c69746b1b76bbaa32b460c89bfabda28954 |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | d9ae2e0264f17db1d2e3af6a73f869771b6fdad5bec7db004011b68a26f0bc9c |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | baae71b79a98bc720f6d5946452bb5d5bb85b5b6c20c71674ab4cbb1d68bc653 |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"baae71b79a98bc720f6d5946452bb5d5bb85b5b6c20c71674ab4cbb1d68bc653"} |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[5].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 717ad7f31f4b263e7fbd411fe2cfbad5e85bc072ab85a27f043a3209211e8a75 |
+| run.json | tasks[5].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | f9f67b0dec686beb70ed10ce436ec95ea66cd34577c7d19cd62cd59aac4dbf37 |
 | run.json | tasks[5].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 61048a8941e0b033dcb05be2e607073386264ef76a5a31dc7ab72601286ecdb7 |  |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 5d26cade7f7d4444f7ff51b2ff07b44a22a37948528f3fc27875fdfebea24fc0 |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | a62682174558e128eb7ac5be32215ef68b23a76a0f721c7726cb94bf089f6b44 |
-| run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 717ad7f31f4b263e7fbd411fe2cfbad5e85bc072ab85a27f043a3209211e8a75 |
+| run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | f9f67b0dec686beb70ed10ce436ec95ea66cd34577c7d19cd62cd59aac4dbf37 |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 61048a8941e0b033dcb05be2e607073386264ef76a5a31dc7ab72601286ecdb7 |  |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | d17c1ebc4747d79b2386337f1d4b59143d12b944a9999247eaa48d7c0f7ce131 |  |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"d17c1ebc4747d79b2386337f1d4b59143d12b944a9999247eaa48d7c0f7ce131"} |  |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[7].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | cdd1eb0cc3ad2d2bfb68ceb7465f0721ef0bc129421e425028fbc1f33ec75536 |
+| run.json | tasks[7].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | ea0e87ae71270c5c547fa2f26d8ccdde7227e67f74b41baf2b2f469db516652a |
 | run.json | tasks[7].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 991b37c16f4a613f74ae82c305c55a5643555bc1a20969ac73720c5042d7606e |  |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 2146a4ccf7345542b39def2d698905be3fd7ce75e6e471201b7d8c9d3a2b7c73 |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | c3e76dd364522be8fb7bd591355193859988c9479fd57e801006568f2c817808 |
-| run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | cdd1eb0cc3ad2d2bfb68ceb7465f0721ef0bc129421e425028fbc1f33ec75536 |
+| run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | ea0e87ae71270c5c547fa2f26d8ccdde7227e67f74b41baf2b2f469db516652a |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 991b37c16f4a613f74ae82c305c55a5643555bc1a20969ac73720c5042d7606e |  |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | f81b792abbeb2c6a7f87e7d82101a768637c2e5fc4ccbe9263c2d7519540def6 |  |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"f81b792abbeb2c6a7f87e7d82101a768637c2e5fc4ccbe9263c2d7519540def6"} |  |
@@ -1036,11 +1045,19 @@ Tasks not completed:
 
 </details>
 
+<details><summary>explained run-capability-negotiation (1)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | capabilityNegotiation | added |  | {"capabilities":{"cancel":{"detail":"interrupt","level":"native","source":"declared"},"context":"agent","contextIsolation":{"level":"native","source":"declared"},"effortLevels":["low","medium","high"],"fastTier":{"level":"none","source":"de… (11347 chars, sha256 8462d2dc80e2) |
+
+</details>
+
 <details><summary>explained run-executor-record (1)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/spec-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-spec-review-state-path-migrated-57768/work/replay-trace… (382 chars, sha256 099433f8a207) |
+| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/spec-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-spec-review-state-path-migrated-80612/work/replay-trace… (382 chars, sha256 478216c0aca9) |
 
 </details>
 
@@ -1168,19 +1185,20 @@ Tasks not completed:
 
 </details>
 
-<details><summary>allowed renamed-literal-digest-binding (19)</summary>
+<details><summary>allowed renamed-literal-digest-binding (20)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
 | bundle/helpers/spec-requirement-source.mjs |  | digest-bound ×0 | 4ba1f11a7c20ee7123e3186947eafc53215258127e5d5f4c1e78f3e1919f52cc | aa08cbcfc46aafc03ad0b11682bbeb94f3a92f737de66b78ebfccba56281c1af |
 | compiled.json |  | digest-bound ×0 | 2886f2b5cb57a627755b3c276ca380ffdd9d384a2ceb4c4f0fa44170c3ed93d5 | 22961ffeff66e8fb08bee9cd02d07bfe6bb1565065c0ad5e72aa74854450a8b3 |
+| supervisor.json |  | digest-bound ×0 | 1fef8f8ffa8b1b69fbdbc6f8ae12adb138834eae70eca6f505d2aecaa5a9d933 | ec80782e69f6f3ea9011eb9b2358b1f25d301df86dc5d37a6a8b18c85e3198d4 |
 | tasks/task-1/system-prompt.md |  | digest-bound ×0 | bc43880ab75f7e70f406c8a08510d37b81ea9ebd2211d3e30cc674d896efdbc5 | f79ad541187db3324948739a8ba33d865ed24d48fac69835f3d79c082341f7b1 |
-| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | 75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211 | 39ee2bf7343fc24554db691d3dba368bc6e25ee8f5ef92fd864ce3ab7cc14ae4 |
+| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | 75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211 | 426f8ef934e54e5e74979187c33ccea7c317fe9675c427723adcabd911a84d94 |
 | tasks/task-4/source-manifest.json |  | digest-bound ×13 | c6928c7fe350ccb2447669f1a224de19f40b070f5446d6cc7db139a822385195 | 4a9c7feffedc4ef4c74af4159a306c4fb9e2401acc887c5c5ffb9098e0b6459a |
 | tasks/task-6/control.json |  | digest-bound ×7 | acf75c059c93b7c057b49aa724cc80d8cc4ed3809180b2cbae1a47896bbae45e | 9127a68c323fa5e9fad787bcd014a4205f636f82ba1dfc40b780a28dcc87f9e9 |
 | tasks/task-6/output.log |  | digest-bound ×2 | e7c89a29dca27f39474a7f296eec2ce9a41896c25948141c9d97a31bec4d4207 | df02f3943fb9ec7d6a64031b73acf94cc53decfc72cab2ae140c12c306913c48 |
 | tasks/task-6/source-manifest.json |  | digest-bound ×0 | 64f0c2b8a1da0e1a9357bad71aa07d02e9b5ce125c5ac54c94c9decd70fe4b43 | 2b163098c0bd775ba13cfceb2533f7ef4174afada1a4f45d57c156128c00af42 |
-| tasks/task-7/read-ledger.jsonl |  | digest-bound ×0 | 6180e80979172dcb3d65c14be3ff0396fcc6a38122fc1e4dab35f11d4a9b1db6 | d4f3944f121b52e2bba341703b231e78add3eef9e24e2a1bf738882137d0191c |
+| tasks/task-7/read-ledger.jsonl |  | digest-bound ×0 | 6180e80979172dcb3d65c14be3ff0396fcc6a38122fc1e4dab35f11d4a9b1db6 | 9f6c24648fe562d8acfc0328f253f7a55f8a7709a8dc3516d98a55b7fff323bd |
 | tasks/task-7/source-manifest.json |  | digest-bound ×1 | 759ac21880be41ee26b96f761ff5f5c5d4e3a6bd4e7654afbe8e26a11629bac7 | 1007c448acc1975e1a7a681813235449f26763ccae6fb55b006bffdf118e8f50 |
 | tasks/task-7/system-prompt.md |  | digest-bound ×0 | 6ffda8d58368377403ffdce6d5d681766367ecef88d6ff92adbb32fc443d1461 | c0a5bada21993ed7bfae15d2cb28619d1bef750863e1cb0880d5cbec1569840d |
 | tasks/task-7/task.md |  | digest-bound ×1 | f128bee8ba8bdda0621e4304fc4056b26b7e51fd9e9a463f3d1fc762487fd4a5 | 95bd63534e09aa3954080a028e54362b3e65b99e9886880754d6b4af3c0008d2 |
@@ -1431,15 +1449,6 @@ Tasks not completed:
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
 | run.json | tasks[].launchBootstrap.records[].effectivePolicy.stateRootSha256 | digest-renamed ×6 |  |  |
-
-</details>
-
-<details><summary>allowed supervisor-progress-snapshot (2)</summary>
-
-| File | Path / line | Kind | Recorded | Replayed |
-|---|---|---|---|---|
-| supervisor.json | taskStatusCounts.completed | digest-renamed ×1 |  |  |
-| supervisor.json | taskStatusCounts.running | digest-renamed ×1 |  |  |
 
 </details>
 

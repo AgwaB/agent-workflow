@@ -141,7 +141,7 @@
 			],
 			"counts": {
 				"allowed": 587,
-				"explained": 359,
+				"explained": 360,
 				"unexplained": 0
 			},
 			"differences": [
@@ -4651,12 +4651,21 @@
 				},
 				{
 					"class": "explained",
+					"rule": "run-capability-negotiation",
+					"citation": "docs/core-port.md \"WP4d — capability negotiation before launch\"",
+					"file": "run.json",
+					"kind": "added",
+					"path": "capabilityNegotiation",
+					"replayed": "{\"capabilities\":{\"cancel\":{\"detail\":\"interrupt\",\"level\":\"native\",\"source\":\"declared\"},\"context\":\"agent\",\"contextIsolation\":{\"level\":\"native\",\"source\":\"declared\"},\"effortLevels\":[\"low\",\"medium\",\"high\"],\"fastTier\":{\"level\":\"none\",\"source\":\"de… (16527 chars, sha256 9675917446cc)"
+				},
+				{
+					"class": "explained",
 					"rule": "run-executor-record",
 					"citation": "docs/core-port.md WP4c-1 \"Executor selection\" and change log 11",
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-review-original-52906/work/replay-trace.jsonl\"},\"c… (371 chars, sha256 84190a2ff77a)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-review-original-78207/work/replay-trace.jsonl\"},\"c… (371 chars, sha256 bc31352232ad)"
 				},
 				{
 					"class": "explained",
@@ -7768,7 +7777,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "82819b757c624978a681a0c791b5169db4b99a8dad6c0f54fe9a3134fe06a3b7"
+					"replayed": "cad4b1152ff620b352d4bbff11a1772119fbcb5d66aab125d0136e53fbb88191"
 				},
 				{
 					"class": "explained",
@@ -7788,7 +7797,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-7",
-					"replayed": "1007be09e99700db536104be6667e0be7a5dd6dd1cb21f4855a97debba8eacf3"
+					"replayed": "78a19d1ec76aa02ec786bc039d85d46ddfb8a4a5f4cb6d8bd8ff71dda1d5d45d"
 				},
 				{
 					"class": "explained",
@@ -7798,7 +7807,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-7",
-					"replayed": "06db63b9d2f4da23f66168997c27cc65e7cad7162174398c2b034160aa2647a7"
+					"replayed": "e073daf6df3c9537fee3d081ed925017246a88d4d293740831b9fe2848c70109"
 				},
 				{
 					"class": "explained",
@@ -7808,7 +7817,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "82819b757c624978a681a0c791b5169db4b99a8dad6c0f54fe9a3134fe06a3b7"
+					"replayed": "cad4b1152ff620b352d4bbff11a1772119fbcb5d66aab125d0136e53fbb88191"
 				},
 				{
 					"class": "explained",
