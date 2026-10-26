@@ -17,6 +17,7 @@ import {
 	type ApprovalResponseResult,
 	type CancelResult,
 	type CancelScope,
+	type DeleteOwnedSessionResult,
 	EXECUTOR_CONTRACT_VERSION,
 	type ExecRef,
 	type ExecutorProbe,
@@ -50,8 +51,9 @@ import {
 } from "./state.js";
 import { planCodexTools } from "./tools.js";
 
-export const CODEX_EXECUTOR_ID = "codex";
-export const CODEX_ADAPTER_VERSION = "0.1.0";
+import { CODEX_ADAPTER_VERSION, CODEX_EXECUTOR_ID } from "./version.js";
+
+export { CODEX_ADAPTER_VERSION, CODEX_EXECUTOR_ID };
 export const CODEX_OWNED_SESSION_KIND = "codex-thread";
 /** Raw app-server transcript written under `SubmitRequest.artifactsDir` (D3). */
 export const CODEX_RAW_TRANSCRIPT = "codex-app-server.jsonl";
@@ -457,9 +459,7 @@ export function parseLoginStatus(result: {
 
 export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 	listModels(): Promise<string[]>;
-	deleteOwnedSession(
-		session: OwnedSession,
-	): Promise<"deleted" | "not_found" | "failed">;
+	deleteOwnedSession(session: OwnedSession): Promise<DeleteOwnedSessionResult>;
 } {
 	const config = parseConfig(rawConfig);
 	const codexPath = config.codexPath ?? "codex";
@@ -1201,8 +1201,9 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 		/** D3/R#10: delete a thread this adapter kept (`thread/delete`, no model turn). */
 		async deleteOwnedSession(
 			session: OwnedSession,
-		): Promise<"deleted" | "not_found" | "failed"> {
-			if (session.kind !== CODEX_OWNED_SESSION_KIND) return "not_found";
+		): Promise<DeleteOwnedSessionResult> {
+			// Not a thread this adapter kept: never touch it.
+			if (session.kind !== CODEX_OWNED_SESSION_KIND) return "refused";
 			const child = spawn(codexPath, ["app-server"], {
 				stdio: ["pipe", "pipe", "pipe"],
 			});

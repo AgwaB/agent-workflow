@@ -443,12 +443,8 @@ test("an unknown or unavailable executor fails the run before any launch", async
 			error instanceof core.WorkflowExecutorUnavailableError &&
 			/executor "nope" from run flag is unknown/.test(error.message),
 	);
-	// A built-in executor without an adapter yet is refused, never substituted. (pi became
-	// available with WP6; codex stays unavailable until WP7.)
-	await assert.rejects(
-		engine.runWorkflowSpec(specPath, cwd, { task: "t", executor: "codex" }),
-		/executor "codex" from run flag is unavailable: .*WP7/,
-	);
+	// All built-in adapters (pi, codex, claude) exist since WP6–WP8; the unknown-id refusal above
+	// is the remaining no-substitution case reachable from a run flag.
 	assert.equal(
 		existsSync(join(cwd, ".agent-workflow", "workflows")) &&
 			(await import("node:fs")).readdirSync(
@@ -502,10 +498,10 @@ test("executor precedence: run flag > workflow profile > user profile > default"
 		() =>
 			core.resolveRunExecutorSelection({
 				workflowProfileName: "fast",
-				workflowProfileExecutor: "codex",
+				workflowProfileExecutor: "missing-adapter",
 				defaultExecutor: "wf-a",
 			}),
-		/executor "codex" from workflow execution profile "fast" is unavailable/,
+		/executor "missing-adapter" from workflow execution profile "fast" is unknown/,
 	);
 
 	// Declared profile executors come from the spec and are recorded on the run.

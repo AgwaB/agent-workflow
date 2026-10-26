@@ -751,7 +751,9 @@ export async function deleteRunOwnedSessions(
 		else if (outcome === "not_found") result.notFound += 1;
 		else
 			throw new Error(
-				`executor ${descriptor.id} refused to delete owned session ${session.kind}:${session.locator}`,
+				outcome === "failed"
+					? `executor ${descriptor.id} failed to delete owned session ${session.kind}:${session.locator}`
+					: `executor ${descriptor.id} refused to delete owned session ${session.kind}:${session.locator}`,
 			);
 	}
 	return result;

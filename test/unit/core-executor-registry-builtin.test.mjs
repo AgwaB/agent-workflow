@@ -6,11 +6,13 @@ import { test } from "node:test";
 
 import { workflowExecutorRegistration } from "../../dist/core/executor-registry.js";
 import { CLAUDE_ADAPTER_VERSION } from "../../dist/executors/claude/version.js";
+import { CODEX_ADAPTER_VERSION } from "../../dist/executors/codex/version.js";
 import { PI_EXECUTOR_VERSION } from "../../dist/executors/pi/version.js";
 
 const BUILTINS = [
 	["pi", PI_EXECUTOR_VERSION],
 	["claude", CLAUDE_ADAPTER_VERSION],
+	["codex", CODEX_ADAPTER_VERSION],
 ];
 
 for (const [id, version] of BUILTINS) {
@@ -38,8 +40,6 @@ process.stdout.write(JSON.stringify({ id: executor.id, version: executor.version
 	});
 }
 
-test("codex stays unavailable until its adapter lands", () => {
-	const registration = workflowExecutorRegistration("codex");
-	assert.equal(registration?.descriptor, undefined);
-	assert.match(registration?.unavailableReason ?? "", /not implemented yet/u);
+test("an unknown executor id has no registration", () => {
+	assert.equal(workflowExecutorRegistration("nope"), undefined);
 });

@@ -165,7 +165,15 @@ export interface OwnedSessionLocator {
 	readonly locator: string;
 }
 
-export type DeleteOwnedSessionResult = "deleted" | "not_found" | "refused";
+/**
+ * `refused`: the locator is not a session this adapter owns (never deleted). `failed`: the deletion
+ * was attempted but did not complete (e.g. the CLI errored). Retention keeps the run for both.
+ */
+export type DeleteOwnedSessionResult =
+	| "deleted"
+	| "not_found"
+	| "refused"
+	| "failed";
 
 function parseVersion(version: string): [number, number, number] | null {
 	const match = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/.exec(version);

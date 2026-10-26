@@ -7,6 +7,10 @@ import {
 	CLAUDE_EXECUTOR_ID,
 } from "../executors/claude/version.js";
 import {
+	CODEX_ADAPTER_VERSION,
+	CODEX_EXECUTOR_ID,
+} from "../executors/codex/version.js";
+import {
 	PI_EXECUTOR_ID,
 	PI_EXECUTOR_VERSION,
 } from "../executors/pi/version.js";
@@ -36,9 +40,7 @@ export interface WorkflowExecutorRegistration {
 	readonly unavailableReason?: string;
 }
 
-const BUILTIN_UNAVAILABLE: Readonly<Record<string, string>> = {
-	codex: "the Codex executor adapter is not implemented yet (WP7)",
-};
+const BUILTIN_UNAVAILABLE: Readonly<Record<string, string>> = {};
 
 /**
  * Built-in adapters that exist. The descriptor module is the adapter entry as a `file:` URL so a
@@ -59,6 +61,13 @@ const BUILTIN_DESCRIPTORS: Readonly<Record<string, () => ExecutorDescriptor>> =
 			version: CLAUDE_ADAPTER_VERSION,
 			contractVersion: EXECUTOR_CONTRACT_VERSION,
 			module: new URL("../executors/claude/index.js", import.meta.url).href,
+			config: null,
+		}),
+		[CODEX_EXECUTOR_ID]: () => ({
+			id: CODEX_EXECUTOR_ID,
+			version: CODEX_ADAPTER_VERSION,
+			contractVersion: EXECUTOR_CONTRACT_VERSION,
+			module: new URL("../executors/codex/index.js", import.meta.url).href,
 			config: null,
 		}),
 	};
