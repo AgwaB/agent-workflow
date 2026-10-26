@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-router.ts. MIT, same author. Changes: the one-shot comparison call goes through the core task backend (runtime API, executor selected by request.executor or the default; `backend: "headless"` removed); auto-router runs dir .pi/workflows/auto-router-runs→.agent-workflow/workflows/auto-router-runs; system prompt says "workflow" instead of "pi-workflow". Schema ids (pi-workflow-auto-*) unchanged.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-router.ts. MIT, same author. Changes: the one-shot comparison call goes through the core task backend (runtime API, executor selected by request.executor or the default; `backend: "headless"` removed); auto-router runs dir .pi/workflows/auto-router-runs→.agent-workflow/workflows/auto-router-runs; system prompt says "workflow" instead of "pi-workflow". Schema ids (pi-workflow-auto-*) unchanged. WP10 (C2): the direct-dynamic catalog facts list web_search/fetch_content (was workflow_web_*), matching the v5 runtime bundle.
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { lstat, open, realpath } from "node:fs/promises";
@@ -459,15 +459,7 @@ function createWorkflowAutoCandidates(
 			stageCount: 1,
 			stageTypes: ["dynamic"],
 			agents: ["researcher"],
-			tools: [
-				"read",
-				"grep",
-				"find",
-				"ls",
-				"workflow_web_search",
-				"workflow_web_fetch_source",
-				"workflow_web_source_read",
-			],
+			tools: ["read", "grep", "find", "ls", "web_search", "fetch_content"],
 			readOnly: true,
 			hasSupport: true,
 			hasDynamic: true,

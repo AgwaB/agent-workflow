@@ -150,7 +150,7 @@
 			],
 			"counts": {
 				"allowed": 597,
-				"explained": 466,
+				"explained": 478,
 				"unexplained": 0
 			},
 			"differences": [
@@ -4763,7 +4763,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/impact-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-impact-review-original-47230/work/replay-trace.jsonl\"},\"contr… (367 chars, sha256 d7396c134884)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/impact-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-impact-review-original-68866/work/replay-trace.jsonl\"},\"contr… (367 chars, sha256 84fd7bd4ca17)"
 				},
 				{
 					"class": "explained",
@@ -4782,7 +4782,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "e55eb4a8ff796c5ca6d0105b97a2327955a19a6f59291f8a45c9601c1ce738c0"
+					"replayed": "90be0270cf33737cd2ad4dccab26bcce8155c49957da26a26c807bc51727246e"
 				},
 				{
 					"class": "explained",
@@ -4802,7 +4802,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-1",
-					"replayed": "24e0e4069e5c36fe213f67ef6f825bcc75c881590702b15b9cadf77960072165"
+					"replayed": "221a0856db72bbd43322185fed5667ba760a9205117d8f78e34c512da24c261e"
 				},
 				{
 					"class": "explained",
@@ -4812,7 +4812,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-1",
-					"replayed": "da6c939f35f990dfb070172f259ef4cf883a5f319e30958d1e0d9d229e523ac9"
+					"replayed": "fcd0c2c9b50e36f770854cc1328e814d9f84990bebc1e99cb684dbe617c75a98"
 				},
 				{
 					"class": "explained",
@@ -4822,7 +4822,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "e55eb4a8ff796c5ca6d0105b97a2327955a19a6f59291f8a45c9601c1ce738c0"
+					"replayed": "90be0270cf33737cd2ad4dccab26bcce8155c49957da26a26c807bc51727246e"
 				},
 				{
 					"class": "explained",
@@ -5135,7 +5135,7 @@
 					"kind": "added",
 					"path": "tasks[1].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-2",
-					"replayed": "429a66947fcab4324313fd7f4747b6ab362c0110f605df3fb059847dd2d77ec0"
+					"replayed": "294d8c99b1e19f636240e0e939f5669318f5dc72e414e4db47bafff06f64e2a4"
 				},
 				{
 					"class": "explained",
@@ -5155,7 +5155,7 @@
 					"kind": "added",
 					"path": "tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-2",
-					"replayed": "0d7c8d21db0212ae1ebe12b0fa617d0c1183d8eaa2dc2a54ef4d08a4957baab5"
+					"replayed": "45ca26182d42f747cbdbd43c9884c73be86522c95f6118e9fea81d91986f5931"
 				},
 				{
 					"class": "explained",
@@ -5165,7 +5165,7 @@
 					"kind": "added",
 					"path": "tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-2",
-					"replayed": "7ab52eeefc7b5277d54eb7bba065b5e0b65feeb47b20dc37c4e920b75c6c2fd4"
+					"replayed": "17ad7336476be5db713a290f05a428e16d1070e2b585b2ba7cf92023b39c5071"
 				},
 				{
 					"class": "explained",
@@ -5175,7 +5175,7 @@
 					"kind": "added",
 					"path": "tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-2",
-					"replayed": "429a66947fcab4324313fd7f4747b6ab362c0110f605df3fb059847dd2d77ec0"
+					"replayed": "294d8c99b1e19f636240e0e939f5669318f5dc72e414e4db47bafff06f64e2a4"
 				},
 				{
 					"class": "explained",
@@ -5488,7 +5488,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-3",
-					"replayed": "378a87f89f347eb850a99be50aa7d40fba7abff2ed21762b432e24e2d822ee3f"
+					"replayed": "7354f425875e03515f44bbd12a8f94e1a070397991d6819255c0688f00a7b56b"
 				},
 				{
 					"class": "explained",
@@ -5508,7 +5508,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-3",
-					"replayed": "e031d2fed96419aace079d0c46504332949573a8f55d425e2d528d9a86e8b2f2"
+					"replayed": "f4973fc8bcff174d58db3cecb638e4447bd16a7cdf1c1b016fe55f9e9cc2f482"
 				},
 				{
 					"class": "explained",
@@ -5518,7 +5518,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-3",
-					"replayed": "aa18e3b636cd7f67497b9cc565193be4a9395a5ffcc2a44e290723a9087413cc"
+					"replayed": "d5d13f7c624ffb066bba5832e36ef910ba079509b05b1d58e01c95650543492a"
 				},
 				{
 					"class": "explained",
@@ -5528,7 +5528,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-3",
-					"replayed": "378a87f89f347eb850a99be50aa7d40fba7abff2ed21762b432e24e2d822ee3f"
+					"replayed": "7354f425875e03515f44bbd12a8f94e1a070397991d6819255c0688f00a7b56b"
 				},
 				{
 					"class": "explained",
@@ -5874,7 +5874,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-4",
-					"replayed": "2db843940d45f446a89e7f8c8caf7ee1712d2e8f533bc62cd6c0f6b1a6777ea2"
+					"replayed": "1274b9ececfe562d3fadf0896c7489271bc9529153fa718ef00f3b2e565af4ac"
 				},
 				{
 					"class": "explained",
@@ -5894,7 +5894,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-4",
-					"replayed": "374fe8f838d41a3539ddb73ee295575d3c4338226b2c7b44931d5912b088d6ba"
+					"replayed": "4d7623559321ca47222ff2f348cde1c82d5142b3d17a0f04968122810c614b22"
 				},
 				{
 					"class": "explained",
@@ -5904,7 +5904,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-4",
-					"replayed": "b2d71ac52f8b03d9d7a90a10e730d9cf27b9b0c13df3631f239aa0ccb79b66a5"
+					"replayed": "ea4a7d63e123f5ad2f5f7a965db7575b9caefbfe2cce9c2fa79962be2408f537"
 				},
 				{
 					"class": "explained",
@@ -5914,7 +5914,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-4",
-					"replayed": "2db843940d45f446a89e7f8c8caf7ee1712d2e8f533bc62cd6c0f6b1a6777ea2"
+					"replayed": "1274b9ececfe562d3fadf0896c7489271bc9529153fa718ef00f3b2e565af4ac"
 				},
 				{
 					"class": "explained",
@@ -6227,7 +6227,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-5",
-					"replayed": "e8efb2fbd804f81f1e39e6a57d2198bfc937dca4fd98dafb2f338e83ca7d35d5"
+					"replayed": "23e10e07a4b084d63b60bd4aa82950f14b090bef539b4f9401f44ea7042f9876"
 				},
 				{
 					"class": "explained",
@@ -6247,7 +6247,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-5",
-					"replayed": "ed2dfc132e2c4973a8de2d919519ea75b4daa2c0d5484a62a41645f508a46518"
+					"replayed": "1a975cf3eeda76a17b4c2ec298d9ae71d5074fd4b45896ccc697840bca548c70"
 				},
 				{
 					"class": "explained",
@@ -6257,7 +6257,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-5",
-					"replayed": "a5b2a476c03def418d98cfcbb137b64db658a19e98e5138121da44f6530a5c35"
+					"replayed": "dbdc4bf16036e8f96673230cf8c2d4915efe26af4e22b5ce3acf6ba357d53634"
 				},
 				{
 					"class": "explained",
@@ -6267,7 +6267,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-5",
-					"replayed": "e8efb2fbd804f81f1e39e6a57d2198bfc937dca4fd98dafb2f338e83ca7d35d5"
+					"replayed": "23e10e07a4b084d63b60bd4aa82950f14b090bef539b4f9401f44ea7042f9876"
 				},
 				{
 					"class": "explained",
@@ -6580,7 +6580,7 @@
 					"kind": "added",
 					"path": "tasks[5].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-6",
-					"replayed": "18d43cbc6c26058193158e947a985ae5fc179d1fad57945f77e6810aaba30d55"
+					"replayed": "2889db27e0708d4e1442516075ae12b7a01cbb3c5686eb3101ce690bac1047d9"
 				},
 				{
 					"class": "explained",
@@ -6600,7 +6600,7 @@
 					"kind": "added",
 					"path": "tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-6",
-					"replayed": "faa94f41529544128c48b0a5857704746e1dff8b51b963f80d613da3cff5fec9"
+					"replayed": "924e04d6ece997407249864de584eeef9e131817e7403286814f28ae50bb59d2"
 				},
 				{
 					"class": "explained",
@@ -6610,7 +6610,7 @@
 					"kind": "added",
 					"path": "tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-6",
-					"replayed": "eb3d4144c2bfdb910f8785bdaf3c74590533af18bed184526a567bb798b8809b"
+					"replayed": "33cb6be484011b5eb75db6dcf720d2b64e658a33172a07d230eb98c7c0b72267"
 				},
 				{
 					"class": "explained",
@@ -6620,7 +6620,7 @@
 					"kind": "added",
 					"path": "tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-6",
-					"replayed": "18d43cbc6c26058193158e947a985ae5fc179d1fad57945f77e6810aaba30d55"
+					"replayed": "2889db27e0708d4e1442516075ae12b7a01cbb3c5686eb3101ce690bac1047d9"
 				},
 				{
 					"class": "explained",
@@ -6933,7 +6933,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "1d493aafaa5db21f9297c5486f30f29bf156f037cf8392fe32c6f03216ae1d69"
+					"replayed": "293fe834593cf33d30685c1a7cdc3d564ffd0fd099033caf3b94c83a16ea1601"
 				},
 				{
 					"class": "explained",
@@ -6953,7 +6953,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-7",
-					"replayed": "203035b456a5f660d20ee6a4731069c63c901875bb61427c7adab80587425a5b"
+					"replayed": "183d0271f2b502c023a40684d2ab1c87134dfd459ef550822f1cf1a144eb4c66"
 				},
 				{
 					"class": "explained",
@@ -6963,7 +6963,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-7",
-					"replayed": "418f8a71e8e95fc5283046085e8aaee22cfba22a85dda4b0e72b89ea802a66f6"
+					"replayed": "f651eace24454dab3eaaf5ca47e72eca506c74d8c8e34b2a6e5daf2d22b7833e"
 				},
 				{
 					"class": "explained",
@@ -6973,7 +6973,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "1d493aafaa5db21f9297c5486f30f29bf156f037cf8392fe32c6f03216ae1d69"
+					"replayed": "293fe834593cf33d30685c1a7cdc3d564ffd0fd099033caf3b94c83a16ea1601"
 				},
 				{
 					"class": "explained",
@@ -7319,7 +7319,7 @@
 					"kind": "added",
 					"path": "tasks[7].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-8",
-					"replayed": "7639e8b9f06fc08b88a0156cbc523c4de056dfae7813fd8d237ae8b4fa5a4d32"
+					"replayed": "2f47e3d15b226b30adb9396a9ef6d4f6a1155fdb91b26104aaddb9aab071f4ce"
 				},
 				{
 					"class": "explained",
@@ -7339,7 +7339,7 @@
 					"kind": "added",
 					"path": "tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-8",
-					"replayed": "acc01e4f291b4de2ba8aa0edcf973c222536ff746e2c14c2d354d86e4937a66f"
+					"replayed": "dab948cab8b4cff943c78a9fb431839f2ee055647bbc38aa278f7f9a07234e15"
 				},
 				{
 					"class": "explained",
@@ -7349,7 +7349,7 @@
 					"kind": "added",
 					"path": "tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-8",
-					"replayed": "81fcae1b31d4cc7777280cbfa5c1ae6d39392276a0328312d39da94dfa84b0a4"
+					"replayed": "35481b5508ccf3b35d6b484649eba9fbbe586e40429c51ae9e13d9ff60df861f"
 				},
 				{
 					"class": "explained",
@@ -7359,7 +7359,7 @@
 					"kind": "added",
 					"path": "tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-8",
-					"replayed": "7639e8b9f06fc08b88a0156cbc523c4de056dfae7813fd8d237ae8b4fa5a4d32"
+					"replayed": "2f47e3d15b226b30adb9396a9ef6d4f6a1155fdb91b26104aaddb9aab071f4ce"
 				},
 				{
 					"class": "explained",
@@ -7672,7 +7672,7 @@
 					"kind": "added",
 					"path": "tasks[8].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-9",
-					"replayed": "9f50db1ca73a1bb1e1e8aa2bd44c2b98c0298729454f9fd8a00e33969631b3c9"
+					"replayed": "77a2bd53331423c1e565af3d750536653a960f205a08b281116bcf454f97b3d2"
 				},
 				{
 					"class": "explained",
@@ -7692,7 +7692,7 @@
 					"kind": "added",
 					"path": "tasks[8].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-9",
-					"replayed": "2be8c57f93ce96b451fec207f1d8ff67d6ec5df7a0f58c2b87feac8ded69f76e"
+					"replayed": "8f3a3800b866e2e26979e09679f52fdae8c9db807773a69727b24f46a9d7fc0e"
 				},
 				{
 					"class": "explained",
@@ -7702,7 +7702,7 @@
 					"kind": "added",
 					"path": "tasks[8].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-9",
-					"replayed": "518851ae39603ed970d2c7b7a6e42d22766eac539baa1ca77fe2ed9690e7d2fd"
+					"replayed": "c6667b9e81e07de13cf56c1bd19d75680263ec9dc9d3c64201bde9d123ee6b24"
 				},
 				{
 					"class": "explained",
@@ -7712,7 +7712,7 @@
 					"kind": "added",
 					"path": "tasks[8].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-9",
-					"replayed": "9f50db1ca73a1bb1e1e8aa2bd44c2b98c0298729454f9fd8a00e33969631b3c9"
+					"replayed": "77a2bd53331423c1e565af3d750536653a960f205a08b281116bcf454f97b3d2"
 				},
 				{
 					"class": "explained",
@@ -8058,7 +8058,7 @@
 					"kind": "added",
 					"path": "tasks[9].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-10",
-					"replayed": "e7e9ce622c710061d9945a57646c9a10a73069d60d44c004c7c0adf44f688138"
+					"replayed": "9c9d89d46301915a8eb8099dc49fa8f13cec42590f35ca2361e43d764f99e47a"
 				},
 				{
 					"class": "explained",
@@ -8078,7 +8078,7 @@
 					"kind": "added",
 					"path": "tasks[9].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-10",
-					"replayed": "b573d9a8831e2290a356016d71f5bdd082fd5296665fbd4a17fae8f6b966e10e"
+					"replayed": "e02bcf07a0423c91d9c44be2496a56e6695bdfe9e0b6e8276a19305e70729c34"
 				},
 				{
 					"class": "explained",
@@ -8088,7 +8088,7 @@
 					"kind": "added",
 					"path": "tasks[9].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-10",
-					"replayed": "ac30f7bbad1ea26233df2ddb3a27f7382045b814ec97f63823975199d002c9fe"
+					"replayed": "c480479cfb11ae60a7b5b056c290014a48d8dfc8a23560ffc5c53d830e491d18"
 				},
 				{
 					"class": "explained",
@@ -8098,7 +8098,7 @@
 					"kind": "added",
 					"path": "tasks[9].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-10",
-					"replayed": "e7e9ce622c710061d9945a57646c9a10a73069d60d44c004c7c0adf44f688138"
+					"replayed": "9c9d89d46301915a8eb8099dc49fa8f13cec42590f35ca2361e43d764f99e47a"
 				},
 				{
 					"class": "explained",
@@ -8444,7 +8444,7 @@
 					"kind": "added",
 					"path": "tasks[10].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-11",
-					"replayed": "3c8a0077c55e1d89d2f9dc8d442114b4a75bec09f6f1965b4f9e5c8e06fec989"
+					"replayed": "2798f1e7ab2bf69ddeff99772118a05785ed512d3b5dbe28be0d7125fe142806"
 				},
 				{
 					"class": "explained",
@@ -8464,7 +8464,7 @@
 					"kind": "added",
 					"path": "tasks[10].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-11",
-					"replayed": "dff68858e1b03546dc1a75b31ab1686e235097ecccd33e7e4da1de1ecff3a396"
+					"replayed": "a39b747d24bd6ef8cb929027854ff34d9c6043c96b4d6231ce134aa85342b526"
 				},
 				{
 					"class": "explained",
@@ -8474,7 +8474,7 @@
 					"kind": "added",
 					"path": "tasks[10].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-11",
-					"replayed": "d736ec4db457b48a070412531acec50fbc9cc54713717671699766edc785dedf"
+					"replayed": "60a190f7fba49f0eb4375794e8345bc334e92c22f96dc5032da29686e2b281bb"
 				},
 				{
 					"class": "explained",
@@ -8484,7 +8484,7 @@
 					"kind": "added",
 					"path": "tasks[10].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-11",
-					"replayed": "3c8a0077c55e1d89d2f9dc8d442114b4a75bec09f6f1965b4f9e5c8e06fec989"
+					"replayed": "2798f1e7ab2bf69ddeff99772118a05785ed512d3b5dbe28be0d7125fe142806"
 				},
 				{
 					"class": "explained",
@@ -8797,7 +8797,7 @@
 					"kind": "added",
 					"path": "tasks[11].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-12",
-					"replayed": "db35999c1cc028d15e0eb4a86acc8fee2982a5cd7aca4cd33015267eff8acbad"
+					"replayed": "6b979e1d127f1416d837386feb7d28c707def6471f4d08c0f40a9cf8b135129f"
 				},
 				{
 					"class": "explained",
@@ -8817,7 +8817,7 @@
 					"kind": "added",
 					"path": "tasks[11].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-12",
-					"replayed": "1444a767b772623613375965866c9b7967f9724db10bbc485507880da4db152a"
+					"replayed": "25a6735445789716a0f8271ec35abd125a440c39aac56d33f6b2512cf313f472"
 				},
 				{
 					"class": "explained",
@@ -8827,7 +8827,7 @@
 					"kind": "added",
 					"path": "tasks[11].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-12",
-					"replayed": "6fd2e1660be00aa72e8a41555babaecb85252d15eccf895d4eb3a95994a128f1"
+					"replayed": "6c043b56c205326ce231e3bc38fad044b4bcbd6163e4b3ed26747d46134bced4"
 				},
 				{
 					"class": "explained",
@@ -8837,7 +8837,7 @@
 					"kind": "added",
 					"path": "tasks[11].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-12",
-					"replayed": "db35999c1cc028d15e0eb4a86acc8fee2982a5cd7aca4cd33015267eff8acbad"
+					"replayed": "6b979e1d127f1416d837386feb7d28c707def6471f4d08c0f40a9cf8b135129f"
 				},
 				{
 					"class": "explained",
@@ -9191,6 +9191,16 @@
 				},
 				{
 					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-1/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+				},
+				{
+					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "tasks/task-1/workflow-artifact-extension.ts",
@@ -9222,6 +9232,16 @@
 					"line": 1,
 					"recorded": "Warning: No project session found with id 'pi-workflow.<WF_RUN_1>.task-10'; creating a new session with that id.",
 					"replayed": ""
+				},
+				{
+					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-10/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
 				},
 				{
 					"class": "explained",
@@ -9259,6 +9279,16 @@
 				},
 				{
 					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-11/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+				},
+				{
+					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "tasks/task-11/workflow-artifact-extension.ts",
@@ -9290,6 +9320,16 @@
 					"line": 1,
 					"recorded": "Warning: No project session found with id 'pi-workflow.<WF_RUN_1>.task-12'; creating a new session with that id.",
 					"replayed": ""
+				},
+				{
+					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-12/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
 				},
 				{
 					"class": "explained",
@@ -9363,6 +9403,16 @@
 				},
 				{
 					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-2/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+				},
+				{
+					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "tasks/task-2/workflow-artifact-extension.ts",
@@ -9394,6 +9444,16 @@
 					"line": 1,
 					"recorded": "Warning: No project session found with id 'pi-workflow.<WF_RUN_1>.task-3'; creating a new session with that id.",
 					"replayed": ""
+				},
+				{
+					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-3/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
 				},
 				{
 					"class": "explained",
@@ -9431,6 +9491,16 @@
 				},
 				{
 					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-4/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+				},
+				{
+					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "tasks/task-4/workflow-artifact-extension.ts",
@@ -9462,6 +9532,16 @@
 					"line": 1,
 					"recorded": "Warning: No project session found with id 'pi-workflow.<WF_RUN_1>.task-5'; creating a new session with that id.",
 					"replayed": ""
+				},
+				{
+					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-5/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
 				},
 				{
 					"class": "explained",
@@ -9499,6 +9579,16 @@
 				},
 				{
 					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-6/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+				},
+				{
+					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "tasks/task-6/workflow-artifact-extension.ts",
@@ -9530,6 +9620,16 @@
 					"line": 1,
 					"recorded": "Warning: No project session found with id 'pi-workflow.<WF_RUN_1>.task-7'; creating a new session with that id.",
 					"replayed": ""
+				},
+				{
+					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-7/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
 				},
 				{
 					"class": "explained",
@@ -9567,6 +9667,16 @@
 				},
 				{
 					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-8/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+				},
+				{
+					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "tasks/task-8/workflow-artifact-extension.ts",
@@ -9598,6 +9708,16 @@
 					"line": 1,
 					"recorded": "Warning: No project session found with id 'pi-workflow.<WF_RUN_1>.task-9'; creating a new session with that id.",
 					"replayed": ""
+				},
+				{
+					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-9/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
 				},
 				{
 					"class": "explained",

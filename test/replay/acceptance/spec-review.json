@@ -59,7 +59,7 @@
 					"specId": "report.main",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvpejtxc_edc1db/attempt_mvpejtxc_1267e2 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: replay miss for task-7: no recorded launch has this prompt; closest recorded task-7 seq 11143, first difference at line 64: recorded \"[{\\\"source\\\":\\\"partition-findings\\\",\\\"taskId\\\":\\\"task-6\\\",\\\"specId\\\":\\\"partition-findings.main\\\",\\\"stageId\\\":\\\"partition-findings\\\",\\\"status\\\":\\\"completed\\\",\\\"statusDetail\\\":\\\"support_completed\\\",\\\"lastMessage\\\":\\\"support completed\\\",\\\"digest\\\":\\\"sha256:acf75c059c93b7c057b49aa724cc80d8cc4ed3809180b2cbae1a47896bbae45e\\\",\\\"availableArtifacts\\\":[\\\"control\\\",\\\"analysis\\\",\\\"refs\\\",\\\"raw\\\"]}]\" replay \"[{\\\"source\\\":\\\"partition-findings\\\",\\\"taskId\\\":\\\"task-6\\\",\\\"specId\\\":\\\"partition-findings.main\\\",\\\"stageId\\\":\\\"partition-findings\\\",\\\"status\\\":\\\"completed\\\",\\\"statusDetail\\\":\\\"support_completed\\\",\\\"lastMessage\\\":\\\"support completed\\\",\\\"digest\\\":\\\"sha256:be93034874343d4b75a94c7baffffd5bf22f4614eae88df1193f6be2624ac814\\\",\\\"availableArtifacts\\\":[\\\"control\\\",\\\"analysis\\\",\\\"refs\\\",\\\"raw\\\"]}]\""
+					"lastMessage": "provisional worker run_mvpg7ljk_a93711/attempt_mvpg7ljk_760ef5 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: replay miss for task-7: no recorded launch has this prompt; closest recorded task-7 seq 11143, first difference at line 64: recorded \"[{\\\"source\\\":\\\"partition-findings\\\",\\\"taskId\\\":\\\"task-6\\\",\\\"specId\\\":\\\"partition-findings.main\\\",\\\"stageId\\\":\\\"partition-findings\\\",\\\"status\\\":\\\"completed\\\",\\\"statusDetail\\\":\\\"support_completed\\\",\\\"lastMessage\\\":\\\"support completed\\\",\\\"digest\\\":\\\"sha256:acf75c059c93b7c057b49aa724cc80d8cc4ed3809180b2cbae1a47896bbae45e\\\",\\\"availableArtifacts\\\":[\\\"control\\\",\\\"analysis\\\",\\\"refs\\\",\\\"raw\\\"]}]\" replay \"[{\\\"source\\\":\\\"partition-findings\\\",\\\"taskId\\\":\\\"task-6\\\",\\\"specId\\\":\\\"partition-findings.main\\\",\\\"stageId\\\":\\\"partition-findings\\\",\\\"status\\\":\\\"completed\\\",\\\"statusDetail\\\":\\\"support_completed\\\",\\\"lastMessage\\\":\\\"support completed\\\",\\\"digest\\\":\\\"sha256:be93034874343d4b75a94c7baffffd5bf22f4614eae88df1193f6be2624ac814\\\",\\\"availableArtifacts\\\":[\\\"control\\\",\\\"analysis\\\",\\\"refs\\\",\\\"raw\\\"]}]\""
 				},
 				{
 					"taskId": "task-8",
@@ -93,7 +93,7 @@
 							}
 						},
 						"digestBindings": {
-							"proven": 6,
+							"proven": 4,
 							"usedInPrompt": 0
 						}
 					}
@@ -138,8 +138,8 @@
 				"Artifact delivery bound: 4 recorded read(s) returned more than 8192 chars. The replay starts the artifact MCP server with --max-output-chars 16777216 so these rows reproduce the recorded ledger (the recorded Pi worker received them whole). The stage-1 Pi adapter passes no limit, so the server default (8192) would cut them and mark the rows deliveryUnverified (docs/mcp.md \"Delivery bound\", R#9); a model would then re-read with a projection, which a replay cannot reproduce."
 			],
 			"counts": {
-				"allowed": 294,
-				"explained": 487,
+				"allowed": 292,
+				"explained": 493,
 				"unexplained": 0
 			},
 			"differences": [
@@ -282,7 +282,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-7/.launch-barrier-3856b0320429f97a-<RAND16>/decision-v2.json",
+					"file": "tasks/task-7/.launch-barrier-f201c7b4b34c3311-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -290,7 +290,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-7/.launch-barrier-3856b0320429f97a-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-7/.launch-barrier-f201c7b4b34c3311-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -362,21 +362,11 @@
 				{
 					"class": "allowed",
 					"rule": "renamed-literal-digest-binding",
-					"file": "tasks/task-1/system-prompt.md",
-					"kind": "digest-bound",
-					"proof": "file",
-					"recorded": "bc43880ab75f7e70f406c8a08510d37b81ea9ebd2211d3e30cc674d896efdbc5",
-					"replayed": "f79ad541187db3324948739a8ba33d865ed24d48fac69835f3d79c082341f7b1",
-					"count": 0
-				},
-				{
-					"class": "allowed",
-					"rule": "renamed-literal-digest-binding",
 					"file": "tasks/task-4/read-ledger.jsonl",
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211",
-					"replayed": "b2db26d69d5af6468937e1f5dbe258c5f0b169e08fa78277bd6133c4b413d479",
+					"replayed": "7af4d6597a4ad5dddd88b98421ac7b17b44c4f421aaed72084a2b72ffb7fedcd",
 					"count": 0
 				},
 				{
@@ -397,16 +387,6 @@
 					"proof": "file",
 					"recorded": "64f0c2b8a1da0e1a9357bad71aa07d02e9b5ce125c5ac54c94c9decd70fe4b43",
 					"replayed": "2b163098c0bd775ba13cfceb2533f7ef4174afada1a4f45d57c156128c00af42",
-					"count": 0
-				},
-				{
-					"class": "allowed",
-					"rule": "renamed-literal-digest-binding",
-					"file": "tasks/task-7/system-prompt.md",
-					"kind": "digest-bound",
-					"proof": "file",
-					"recorded": "6ffda8d58368377403ffdce6d5d681766367ecef88d6ff92adbb32fc443d1461",
-					"replayed": "c0a5bada21993ed7bfae15d2cb28619d1bef750863e1cb0880d5cbec1569840d",
 					"count": 0
 				},
 				{
@@ -2452,7 +2432,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/spec-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-spec-review-original-50389/work/replay-trace.jsonl\"},\"c… (371 chars, sha256 4ab769b225b8)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/spec-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-spec-review-original-69480/work/replay-trace.jsonl\"},\"c… (371 chars, sha256 c06d2334137e)"
 				},
 				{
 					"class": "explained",
@@ -4463,6 +4443,16 @@
 				},
 				{
 					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-1/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+				},
+				{
+					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "tasks/task-1/workflow-artifact-extension.ts",
@@ -4494,6 +4484,16 @@
 					"line": 1,
 					"recorded": "Warning: No project session found with id 'pi-workflow.<WF_RUN_1>.task-2'; creating a new session with that id.",
 					"replayed": ""
+				},
+				{
+					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-2/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
 				},
 				{
 					"class": "explained",
@@ -4531,6 +4531,16 @@
 				},
 				{
 					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-3/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+				},
+				{
+					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "tasks/task-3/workflow-artifact-extension.ts",
@@ -4562,6 +4572,16 @@
 					"line": 1,
 					"recorded": "Warning: No project session found with id 'pi-workflow.<WF_RUN_1>.task-4'; creating a new session with that id.",
 					"replayed": ""
+				},
+				{
+					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-4/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
 				},
 				{
 					"class": "explained",
@@ -4845,6 +4865,16 @@
 					"class": "explained",
 					"rule": "original-spec-review-legacy-state-read",
 					"citation": "docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows → .agent-workflow/workflows, no fallback)",
+					"file": "tasks/task-7/system-prompt.md",
+					"kind": "changed",
+					"summarized": true,
+					"count": 1,
+					"exactMatch": []
+				},
+				{
+					"class": "explained",
+					"rule": "original-spec-review-legacy-state-read",
+					"citation": "docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows → .agent-workflow/workflows, no fallback)",
 					"file": "tasks/task-7/task.md",
 					"kind": "changed",
 					"summarized": true,
@@ -5021,6 +5051,16 @@
 				},
 				{
 					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-9/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+				},
+				{
+					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "tasks/task-9/workflow-artifact-extension.ts",
@@ -5145,8 +5185,8 @@
 				"Artifact delivery bound: 4 recorded read(s) returned more than 8192 chars. The replay starts the artifact MCP server with --max-output-chars 16777216 so these rows reproduce the recorded ledger (the recorded Pi worker received them whole). The stage-1 Pi adapter passes no limit, so the server default (8192) would cut them and mark the rows deliveryUnverified (docs/mcp.md \"Delivery bound\", R#9); a model would then re-read with a projection, which a replay cannot reproduce."
 			],
 			"counts": {
-				"allowed": 336,
-				"explained": 240,
+				"allowed": 334,
+				"explained": 246,
 				"unexplained": 0
 			},
 			"differences": [
@@ -5367,17 +5407,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "1fef8f8ffa8b1b69fbdbc6f8ae12adb138834eae70eca6f505d2aecaa5a9d933",
-					"replayed": "199f698f1c1487428a242cd31a91ddafcea0816d4b7f4590fbf33832afc173e6",
-					"count": 0
-				},
-				{
-					"class": "allowed",
-					"rule": "renamed-literal-digest-binding",
-					"file": "tasks/task-1/system-prompt.md",
-					"kind": "digest-bound",
-					"proof": "file",
-					"recorded": "bc43880ab75f7e70f406c8a08510d37b81ea9ebd2211d3e30cc674d896efdbc5",
-					"replayed": "f79ad541187db3324948739a8ba33d865ed24d48fac69835f3d79c082341f7b1",
+					"replayed": "d7c1df91dddfad01485b46936c364599901a1308fbcf7cc6bf6458cf387deb41",
 					"count": 0
 				},
 				{
@@ -5387,7 +5417,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211",
-					"replayed": "a1022d28f640d67f804aeea8bcb5077bd2c0e6b3d9ed03ad1945b6cc10d90943",
+					"replayed": "2faf60f0636f0f989a54e817c3cfed8aa5ae88c81ab6d1c30ba24e4df2a781ae",
 					"count": 0
 				},
 				{
@@ -5437,7 +5467,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "6180e80979172dcb3d65c14be3ff0396fcc6a38122fc1e4dab35f11d4a9b1db6",
-					"replayed": "175470062ca31d7345181f11b44171479f3699f28bf63ac87f705099d2aee724",
+					"replayed": "1c80b35f0f221ef8608794f908712399f7c6aed15c65d262fe7678e643f89e33",
 					"count": 0
 				},
 				{
@@ -5449,16 +5479,6 @@
 					"recorded": "759ac21880be41ee26b96f761ff5f5c5d4e3a6bd4e7654afbe8e26a11629bac7",
 					"replayed": "1007c448acc1975e1a7a681813235449f26763ccae6fb55b006bffdf118e8f50",
 					"count": 1
-				},
-				{
-					"class": "allowed",
-					"rule": "renamed-literal-digest-binding",
-					"file": "tasks/task-7/system-prompt.md",
-					"kind": "digest-bound",
-					"proof": "file",
-					"recorded": "6ffda8d58368377403ffdce6d5d681766367ecef88d6ff92adbb32fc443d1461",
-					"replayed": "c0a5bada21993ed7bfae15d2cb28619d1bef750863e1cb0880d5cbec1569840d",
-					"count": 0
 				},
 				{
 					"class": "allowed",
@@ -7805,7 +7825,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/spec-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-spec-review-state-path-migrated-54999/work/replay-trace… (382 chars, sha256 c9b547981c5a)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/spec-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-spec-review-state-path-migrated-69622/work/replay-trace… (382 chars, sha256 d487c5ff8531)"
 				},
 				{
 					"class": "explained",
@@ -10049,6 +10069,16 @@
 				},
 				{
 					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-1/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+				},
+				{
+					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "tasks/task-1/workflow-artifact-extension.ts",
@@ -10080,6 +10110,16 @@
 					"line": 1,
 					"recorded": "Warning: No project session found with id 'pi-workflow.<WF_RUN_1>.task-2'; creating a new session with that id.",
 					"replayed": ""
+				},
+				{
+					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-2/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
 				},
 				{
 					"class": "explained",
@@ -10117,6 +10157,16 @@
 				},
 				{
 					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-3/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+				},
+				{
+					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "tasks/task-3/workflow-artifact-extension.ts",
@@ -10148,6 +10198,16 @@
 					"line": 1,
 					"recorded": "Warning: No project session found with id 'pi-workflow.<WF_RUN_1>.task-4'; creating a new session with that id.",
 					"replayed": ""
+				},
+				{
+					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-4/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
 				},
 				{
 					"class": "explained",
@@ -10196,6 +10256,16 @@
 					"line": 1,
 					"recorded": "Warning: No project session found with id 'pi-workflow.<WF_RUN_1>.task-7'; creating a new session with that id.",
 					"replayed": ""
+				},
+				{
+					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-7/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
 				},
 				{
 					"class": "explained",
@@ -10266,6 +10336,16 @@
 					"line": 1,
 					"recorded": "Warning: No project session found with id 'pi-workflow.<WF_RUN_1>.task-9'; creating a new session with that id.",
 					"replayed": ""
+				},
+				{
+					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-9/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
 				},
 				{
 					"class": "explained",

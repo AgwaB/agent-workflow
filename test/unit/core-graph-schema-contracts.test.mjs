@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/graph-schema-contracts.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); harness from test/helpers/unit-test-support.mjs; setSubagentApiForTests→setTaskRuntimeApiForTests; paths .pi/{workflows,agents,workflow-subagents}→.agent-workflow/…, env PI_WORKFLOW_*→AGENT_WORKFLOW_*; 1 assertion changed: the bundled-schema walk visits test/fixtures/core/workflow-guide-scaffolds (7 schemas, count >= 7) instead of workflows/ + skills/.../scaffolds (count > 20); the bundled workflows/ half is deferred-WP10.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/graph-schema-contracts.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); harness from test/helpers/unit-test-support.mjs; setSubagentApiForTests→setTaskRuntimeApiForTests; paths .pi/{workflows,agents,workflow-subagents}→.agent-workflow/…, env PI_WORKFLOW_*→AGENT_WORKFLOW_*; the bundled-schema walk visits workflows/ + skills/workflow-guide/scaffolds (count > 20, as the original; restored in WP10) and also the WP4b fixture copy test/fixtures/core/workflow-guide-scaffolds.
 import assert from "node:assert/strict";
 import {
 	mkdirSync,
@@ -401,10 +401,12 @@ test("supported valid constraints and every bundled schema retain compatibility"
 			}
 		}
 	}
-	// agent-workflow: bundled workflows/ arrive in WP10 (that half is deferred-WP10); the workflow-guide
-	// scaffolds are the verbatim copy under test/fixtures/core/. Was: visit("workflows"); visit("skills/…"); count > 20.
+	// WP10: the bundled workflows/ and skills/workflow-guide/scaffolds are ported, so the original
+	// walk is restored (the WP4c-2 fixture-copy walk stays as an extra check).
+	visit("workflows");
+	visit("skills/workflow-guide/scaffolds");
+	assert.ok(count > 20);
 	visit("test/fixtures/core/workflow-guide-scaffolds");
-	assert.ok(count >= 7);
 });
 
 function loopSpec(until) {

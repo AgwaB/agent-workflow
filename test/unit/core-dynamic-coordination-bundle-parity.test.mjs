@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/dynamic-coordination-bundle-parity.test.mjs. MIT, same author. Changes: imports point at dist/core/ instead of .tmp/unit/.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/dynamic-coordination-bundle-parity.test.mjs. MIT, same author. Changes: imports point at dist/core/ instead of .tmp/unit/. WP10: the version-label test expects v5 (was v4).
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -295,8 +295,10 @@ test("direct-dynamic v4 controller opts into final synthesis reservation", async
 	}
 });
 
-test("direct-dynamic runtime bundle version label is bumped to v4", () => {
-	assert.equal(DIRECT_DYNAMIC_RUNTIME_VERSION, "direct-dynamic-runtime-v4");
-	assert.match(DIRECT_DYNAMIC_RUNTIME_VERSION, /-v4$/);
-	assert.equal(DIRECT_DYNAMIC_RUNTIME_VERSION.includes("v3"), false);
+// WP10: the bundled direct-dynamic spec dropped the workflow_web_* tools (C2), so the immutable
+// bundle moved to v5 (a changed payload needs a new version). Was: v4 (and "not v3").
+test("direct-dynamic runtime bundle version label is bumped to v5", () => {
+	assert.equal(DIRECT_DYNAMIC_RUNTIME_VERSION, "direct-dynamic-runtime-v5");
+	assert.match(DIRECT_DYNAMIC_RUNTIME_VERSION, /-v5$/);
+	assert.equal(DIRECT_DYNAMIC_RUNTIME_VERSION.includes("v4"), false);
 });

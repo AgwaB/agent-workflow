@@ -1,4 +1,4 @@
-// New in agent-workflow (WP5): visible tool-name mapping for WP6–WP8 adapters and prompt rendering.
+// New in agent-workflow (WP5): visible tool-name mapping for WP6–WP8 adapters and prompt rendering. WP10: rows are verified (live WP6–WP8 evidence).
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -9,7 +9,7 @@ import {
 	mcpPrefixedToolName,
 } from "../../dist/mcp/artifact-server/index.js";
 
-test("each executor surfaces workflow_artifact as mcp__workflow_artifact__workflow_artifact (unverified)", () => {
+test("each executor surfaces workflow_artifact as mcp__workflow_artifact__workflow_artifact (verified live)", () => {
 	for (const id of ["claude", "codex", "pi"]) {
 		assert.equal(
 			artifactToolVisibleName(id),
@@ -17,11 +17,9 @@ test("each executor surfaces workflow_artifact as mcp__workflow_artifact__workfl
 		);
 		const mapping = artifactToolNameMapping(id);
 		assert.equal(mapping.executorId, id);
-		assert.equal(
-			mapping.verified,
-			false,
-			`${id} stays unverified until WP6–WP8`,
-		);
+		// WP10: verified by the WP6–WP8 live runs (Pi #4, Codex #2, Claude #10). Was: false.
+		assert.equal(mapping.verified, true, `${id} was verified live in WP6–WP8`);
+		assert.match(mapping.evidence, /live/);
 	}
 	assert.deepEqual(Object.keys(ARTIFACT_TOOL_NAME_MAPPINGS).sort(), [
 		"claude",

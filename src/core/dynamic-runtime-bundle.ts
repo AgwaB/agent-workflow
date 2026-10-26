@@ -1,19 +1,18 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-runtime-bundle.ts. MIT, same author. Changes: project bundle dir .pi/workflow-runtime/ → .agent-workflow/workflow-runtime/.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-runtime-bundle.ts. MIT, same author. Changes: project bundle dir .pi/workflow-runtime/ → .agent-workflow/workflow-runtime/; WP10 (C2): the spec tools drop workflow_web_* for the CLI web tools web_search/fetch_content, so the bundle version is v5.
 import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { ArtifactGraphWorkflowSpec } from "./types.js";
 
-export const DIRECT_DYNAMIC_RUNTIME_VERSION = "direct-dynamic-runtime-v4";
+export const DIRECT_DYNAMIC_RUNTIME_VERSION = "direct-dynamic-runtime-v5";
 const DIRECT_DYNAMIC_RUNTIME_MAX_RUNTIME_MS = 7_200_000;
 const DIRECT_DYNAMIC_RUNTIME_TOOLS = [
 	"read",
 	"grep",
 	"find",
 	"ls",
-	"workflow_web_search",
-	"workflow_web_fetch_source",
-	"workflow_web_source_read",
+	"web_search",
+	"fetch_content",
 ];
 
 export async function ensureDirectDynamicRuntimeBundle(
@@ -32,7 +31,7 @@ export async function ensureDirectDynamicRuntimeBundle(
 	const specPath = join(bundleDir, "spec.json");
 	// The direct runtime is a versioned immutable input. Rewriting it on every
 	// launch leaves a selection-to-dispatch race and can corrupt an in-flight
-	// auto binding. A changed v4 payload must be introduced under a new runtime
+	// auto binding. A changed payload must be introduced under a new runtime
 	// version, not silently replaced in an existing project runtime directory.
 	await ensureImmutableRuntimeFile(
 		join(bundleDir, "controller.mjs"),

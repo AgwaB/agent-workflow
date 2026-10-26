@@ -15,7 +15,7 @@ Original spec, Pi adapter request checks.
 | Worker launches served / recorded | 12 / 12 |
 | Artifact reads re-issued / recorded | 1 / 1 |
 | Differences: allowed | 587 |
-| Differences: explained | 362 |
+| Differences: explained | 363 |
 | Differences: unexplained | 0 |
 | Exact-match violations | 0 |
 
@@ -33,6 +33,7 @@ Original spec, Pi adapter request checks.
 | explained | `run-permission-mode` | 2 | docs/core-port.md WP4e permission modes; docs/permissions.md |
 | explained | `runtime-cost-rounding` | 12 | docs/core-port.md WP1b change log 3 |
 | explained | `runtime-stderr` | 24 | docs/runtime-port.md "Attempt artifacts" (stderr.log: runtime diagnostics, empty on a clean completion) |
+| explained | `wp10-artifact-tool-guidelines` | 1 | docs/core-port.md WP10 change log 2 |
 | allowed | `derived-launch-identity` | 57 | allowed-differences.json (WP1a) |
 | allowed | `executor-record-source` | 24 | allowed-differences.json (WP1b) |
 | allowed | `host-path-digest` | 5 | allowed-differences.json (WP1a) |
@@ -60,11 +61,11 @@ Original spec, Pi adapter request checks.
 | run.json | tasks[11].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
 | run.json | tasks[12].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
 | run.json | tasks[13].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[16].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | ec79c6d303d56a1fa352ab9855cfd522ab732c3116e4b4be717668326e5c70c7 |
+| run.json | tasks[16].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 06d25b15ee55b9a8dba606cc1511c3c6995d7116409e8e015660c5a0be57fb1e |
 | run.json | tasks[16].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | aed1c777bbf252885f408571ecdcae176f79d864f50e8e326066798ace53e9d3 |  |
-| run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 7ef731cc174f945fb6c860692da176852db6b668a51538a56a2c11bb455530b2 |
-| run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 09741fad320716c4957b182daadc7260334e8faa723ac504661975e3cd658c42 |
-| run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | ec79c6d303d56a1fa352ab9855cfd522ab732c3116e4b4be717668326e5c70c7 |
+| run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 09b4213fe3ce04c06a1a433399effa3319c973b4e5e67e877e5ed73969b231f4 |
+| run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 4ebd5e164936253b32f799390f6ae0d118b112a28f04888513f09a4c82ff343a |
+| run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 06d25b15ee55b9a8dba606cc1511c3c6995d7116409e8e015660c5a0be57fb1e |
 | run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | aed1c777bbf252885f408571ecdcae176f79d864f50e8e326066798ace53e9d3 |  |
 | run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 1878129e5a9ca6e89f6e45d1cecbefc8515ce6e9ae0bbf1ba5959caee8c53304 |  |
 | run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"1878129e5a9ca6e89f6e45d1cecbefc8515ce6e9ae0bbf1ba5959caee8c53304"} |  |
@@ -414,7 +415,7 @@ Original spec, Pi adapter request checks.
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/deep-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-deep-review-original-45403/work/replay-trace.jsonl"},"c… (371 chars, sha256 dbd18052d972) |
+| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/deep-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-deep-review-original-67932/work/replay-trace.jsonl"},"c… (371 chars, sha256 36744f328d16) |
 
 </details>
 
@@ -474,6 +475,14 @@ Original spec, Pi adapter request checks.
 | tasks/task-18/stderr.log | 1 | changed | Warning: No project session found with id 'pi-workflow.&lt;WF_RUN_1&gt;.task-18'; creating a new session with that id. |  |
 | tasks/task-7/stderr.log | 1 | changed | Warning: No project session found with id 'pi-workflow.&lt;WF_RUN_1&gt;.task-7'; creating a new session with that id. |  |
 | tasks/task-9/stderr.log | 1 | changed | Warning: No project session found with id 'pi-workflow.&lt;WF_RUN_1&gt;.task-9'; creating a new session with that id. |  |
+
+</details>
+
+<details><summary>explained wp10-artifact-tool-guidelines (1)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| tasks/task-7/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
 
 </details>
 

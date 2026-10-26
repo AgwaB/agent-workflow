@@ -236,6 +236,31 @@
 			]
 		},
 		{
+			"id": "wp10-artifact-tool-guidelines",
+			"citation": "docs/core-port.md WP10 change log 2",
+			"reason": "The task backend adds the workflow_artifact tool guidelines (WORKFLOW_ARTIFACT_TOOL_GUIDELINES, the MCP server instructions) to the system prompt of every task that has the artifact server, because not every MCP client shows server instructions to the model (Pi 1.1 does not). pi-workflow's Pi extension registered them as tool guidelines instead.",
+			"differences": [
+				{
+					"file": "^tasks/[^/]+/system-prompt\\.md$",
+					"kind": "changed",
+					"replayed": "^# Workflow Artifact Tool\\n- Use workflow_artifact to inspect upstream workflow artifacts"
+				}
+			]
+		},
+		{
+			"id": "wp10-web-source-hint-removed",
+			"citation": "docs/core-port.md WP10 change log 3 (C2)",
+			"reason": "The system-prompt hint for the workflow_web_* source-card tools is gone with those tools (C2). The original deep-research spec still lists them, so its recorded system prompts carry the hint and the replayed ones do not.",
+			"fixtures": ["deep-research"],
+			"differences": [
+				{
+					"file": "^tasks/[^/]+/system-prompt\\.md$",
+					"kind": "changed",
+					"recorded": "^Workflow web-source tools return compact source cards\\."
+				}
+			]
+		},
+		{
 			"id": "run-capability-negotiation",
 			"citation": "docs/core-port.md \"WP4d \u2014 capability negotiation before launch\"",
 			"reason": "WP4d records the pre-launch executor probe and per-stage B4 negotiation (effective capabilities, reports, degradations, preview) on the run as run.capabilityNegotiation; pi-workflow had no capability negotiation. The field is added only; no recorded content changes.",

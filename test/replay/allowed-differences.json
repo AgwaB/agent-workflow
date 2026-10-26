@@ -96,6 +96,15 @@
 			]
 		},
 		{
+			"id": "wp10-artifact-tool-visible-name",
+			"introducedBy": "WP10",
+			"decision": "WP10 worker prompt rendering (docs/core-port.md \"WP10\" change log 1, docs/bundled-workflows.md): the task backend renders the logical tool name workflow_artifact to the executor's visible name artifactToolVisibleName(executorId) in the task and system prompts",
+			"reason": "The replay registers its executor as \"pi\", whose MCP client shows the artifact tool as mcp__workflow_artifact__workflow_artifact (verified live, docs/executors/pi.md #4). pi-workflow's Pi extension registered the tool under the bare name workflow_artifact. Every tool mention in task.md, system-prompt.md and the launch prompt is renamed back literal by literal; each hit is listed in the report. Evidence locators (workflow_artifact:<id>) are never rendered.",
+			"renames": [
+				["mcp__workflow_artifact__workflow_artifact", "workflow_artifact"]
+			]
+		},
+		{
 			"id": "executor-record-source",
 			"introducedBy": "WP1b",
 			"decision": "WP4c-1 literal rename: usage/budget record source \"pi-subagent\" → \"executor\" (docs/core-port.md \"Paths, env and literals\")",

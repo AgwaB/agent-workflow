@@ -14,8 +14,8 @@ Original spec, Pi adapter request checks.
 | Replayed status | failed |
 | Worker launches served / recorded | 5 / 6 |
 | Artifact reads re-issued / recorded | 43 / 57 |
-| Differences: allowed | 294 |
-| Differences: explained | 487 |
+| Differences: allowed | 292 |
+| Differences: explained | 493 |
 | Differences: unexplained | 0 |
 | Exact-match violations | 0 |
 
@@ -29,7 +29,7 @@ Tasks not completed:
 
 | Task | Spec | Status | Detail | Message |
 |---|---|---|---|---|
-| task-7 | report.main | failed | launch_failed | provisional worker run_mvpejtxc_edc1db/attempt_mvpejtxc_1267e2 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: replay miss for task-7: no |
+| task-7 | report.main | failed | launch_failed | provisional worker run_mvpg7ljk_a93711/attempt_mvpg7ljk_760ef5 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: replay miss for task-7: no |
 | task-8 | final.main | failed | support_declared_failed | support declared failed |
 
 ### Differences by rule
@@ -39,19 +39,20 @@ Tasks not completed:
 | explained | `artifact-mcp-provenance` | 70 | docs/core-port.md WP4b change log 4 and "What launch provenance digests now"; WP4c-1 "Pi executor (WP6)" table (extension isolation, generated extension wrappers) |
 | explained | `executor-exit-code` | 10 | docs/core-port.md WP1b change log 1 |
 | explained | `executor-usage-contract` | 107 | docs/core-port.md WP1b change log 2 |
-| explained | `original-spec-review-legacy-state-read` | 274 | docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows → .agent-workflow/workflows, no fallback) |
+| explained | `original-spec-review-legacy-state-read` | 275 | docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows → .agent-workflow/workflows, no fallback) |
 | explained | `owned-sessions` | 5 | docs/core-port.md WP4c-1 "R#9, R#10, R#12, R#5" (R#10) and change log 8 |
 | explained | `run-capability-negotiation` | 1 | docs/core-port.md "WP4d — capability negotiation before launch" |
 | explained | `run-executor-record` | 1 | docs/core-port.md WP4c-1 "Executor selection" and change log 11 |
 | explained | `run-permission-mode` | 2 | docs/core-port.md WP4e permission modes; docs/permissions.md |
 | explained | `runtime-cost-rounding` | 6 | docs/core-port.md WP1b change log 3 |
 | explained | `runtime-stderr` | 11 | docs/runtime-port.md "Attempt artifacts" (stderr.log: runtime diagnostics, empty on a clean completion) |
+| explained | `wp10-artifact-tool-guidelines` | 5 | docs/core-port.md WP10 change log 2 |
 | allowed | `derived-launch-identity` | 31 | allowed-differences.json (WP1a) |
 | allowed | `executor-record-source` | 10 | allowed-differences.json (WP1b) |
 | allowed | `host-path-digest` | 4 | allowed-differences.json (WP1a) |
 | allowed | `host-path-file-size` | 6 | allowed-differences.json (WP1a) |
 | allowed | `host-path-manifest-digest` | 2 | allowed-differences.json (WP1a) |
-| allowed | `renamed-literal-digest-binding` | 6 | allowed-differences.json (WP1b) |
+| allowed | `renamed-literal-digest-binding` | 4 | allowed-differences.json (WP1b) |
 | allowed | `runtime-launch-barrier-identity` | 197 | allowed-differences.json (WP1b) |
 | allowed | `state-root-identity` | 1 | allowed-differences.json (WP1a) |
 | allowed | `supervisor-progress-snapshot` | 2 | allowed-differences.json (WP1a) |
@@ -268,7 +269,7 @@ Tasks not completed:
 
 </details>
 
-<details><summary>explained original-spec-review-legacy-state-read (274)</summary>
+<details><summary>explained original-spec-review-legacy-state-read (275)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
@@ -299,6 +300,7 @@ Tasks not completed:
 | tasks/task-7/refs.json |  | only-recorded ×1 |  |  |
 | tasks/task-7/result.json |  | only-recorded ×1 |  |  |
 | tasks/task-7/source-manifest.json |  | changed ×1 |  |  |
+| tasks/task-7/system-prompt.md |  | changed ×1 |  |  |
 | tasks/task-7/task.md |  | changed ×1 |  |  |
 | tasks/task-8/analysis.md |  | changed ×8 |  |  |
 | tasks/task-8/control.json |  | changed ×8 |  |  |
@@ -339,7 +341,7 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/spec-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-spec-review-original-50389/work/replay-trace.jsonl"},"c… (371 chars, sha256 4ab769b225b8) |
+| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/spec-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-spec-review-original-69480/work/replay-trace.jsonl"},"c… (371 chars, sha256 c06d2334137e) |
 
 </details>
 
@@ -380,6 +382,18 @@ Tasks not completed:
 | tasks/task-4/stderr.log | 1 | changed | Warning: No project session found with id 'pi-workflow.&lt;WF_RUN_1&gt;.task-4'; creating a new session with that id. |  |
 | tasks/task-7/stderr.log | 1 | changed | Warning: No project session found with id 'pi-workflow.&lt;WF_RUN_1&gt;.task-7'; creating a new session with that id. |  |
 | tasks/task-9/stderr.log | 1 | changed | Warning: No project session found with id 'pi-workflow.&lt;WF_RUN_1&gt;.task-9'; creating a new session with that id. |  |
+
+</details>
+
+<details><summary>explained wp10-artifact-tool-guidelines (5)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| tasks/task-1/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
+| tasks/task-2/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
+| tasks/task-3/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
+| tasks/task-4/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
+| tasks/task-9/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
 
 </details>
 
@@ -471,15 +485,13 @@ Tasks not completed:
 
 </details>
 
-<details><summary>allowed renamed-literal-digest-binding (6)</summary>
+<details><summary>allowed renamed-literal-digest-binding (4)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| tasks/task-1/system-prompt.md |  | digest-bound ×0 | bc43880ab75f7e70f406c8a08510d37b81ea9ebd2211d3e30cc674d896efdbc5 | f79ad541187db3324948739a8ba33d865ed24d48fac69835f3d79c082341f7b1 |
-| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | 75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211 | b2db26d69d5af6468937e1f5dbe258c5f0b169e08fa78277bd6133c4b413d479 |
+| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | 75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211 | 7af4d6597a4ad5dddd88b98421ac7b17b44c4f421aaed72084a2b72ffb7fedcd |
 | tasks/task-4/source-manifest.json |  | digest-bound ×1 | c6928c7fe350ccb2447669f1a224de19f40b070f5446d6cc7db139a822385195 | 4a9c7feffedc4ef4c74af4159a306c4fb9e2401acc887c5c5ffb9098e0b6459a |
 | tasks/task-6/source-manifest.json |  | digest-bound ×0 | 64f0c2b8a1da0e1a9357bad71aa07d02e9b5ce125c5ac54c94c9decd70fe4b43 | 2b163098c0bd775ba13cfceb2533f7ef4174afada1a4f45d57c156128c00af42 |
-| tasks/task-7/system-prompt.md |  | digest-bound ×0 | 6ffda8d58368377403ffdce6d5d681766367ecef88d6ff92adbb32fc443d1461 | c0a5bada21993ed7bfae15d2cb28619d1bef750863e1cb0880d5cbec1569840d |
 | tasks/task-9/source-manifest.json |  | digest-bound ×1 | a8009e9a04b113c262e2c57936fe7c1cb10e0f968941e0604f7221433cee5088 | 675283e0429ff8fcef6305de40f197b10241f5741246430464b49e9a86fdb078 |
 
 </details>
@@ -741,8 +753,8 @@ Tasks not completed:
 | tasks/task-4/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
 | tasks/task-6/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-6/source-manifest.json | .agent-workflow/workflows | literal-renamed ×8 |  |  |
-| tasks/task-7/.launch-barrier-3856b0320429f97a-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
-| tasks/task-7/.launch-barrier-3856b0320429f97a-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-7/.launch-barrier-f201c7b4b34c3311-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-7/.launch-barrier-f201c7b4b34c3311-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
 | tasks/task-7/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-7/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
 | tasks/task-7/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
@@ -764,8 +776,8 @@ The original helpers read upstream engine state from the hard-coded `.pi/workflo
 | Replayed status | failed |
 | Worker launches served / recorded | 6 / 6 |
 | Artifact reads re-issued / recorded | 57 / 57 |
-| Differences: allowed | 336 |
-| Differences: explained | 240 |
+| Differences: allowed | 334 |
+| Differences: explained | 246 |
 | Differences: unexplained | 0 |
 | Exact-match violations | 0 |
 
@@ -789,12 +801,13 @@ Tasks not completed:
 | explained | `run-permission-mode` | 2 | docs/core-port.md WP4e permission modes; docs/permissions.md |
 | explained | `runtime-cost-rounding` | 6 | docs/core-port.md WP1b change log 3 |
 | explained | `runtime-stderr` | 12 | docs/runtime-port.md "Attempt artifacts" (stderr.log: runtime diagnostics, empty on a clean completion) |
+| explained | `wp10-artifact-tool-guidelines` | 6 | docs/core-port.md WP10 change log 2 |
 | allowed | `derived-launch-identity` | 33 | allowed-differences.json (WP1a) |
 | allowed | `executor-record-source` | 12 | allowed-differences.json (WP1b) |
 | allowed | `host-path-digest` | 4 | allowed-differences.json (WP1a) |
 | allowed | `host-path-file-size` | 7 | allowed-differences.json (WP1a) |
 | allowed | `host-path-manifest-digest` | 1 | allowed-differences.json (WP1a) |
-| allowed | `renamed-literal-digest-binding` | 19 | allowed-differences.json (WP1b) |
+| allowed | `renamed-literal-digest-binding` | 17 | allowed-differences.json (WP1b) |
 | allowed | `runtime-launch-barrier-identity` | 225 | allowed-differences.json (WP1b) |
 | allowed | `state-root-identity` | 1 | allowed-differences.json (WP1a) |
 | allowed | `timestamp-derived-digest` | 9 | allowed-differences.json (WP1a) |
@@ -1067,7 +1080,7 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/spec-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-spec-review-state-path-migrated-54999/work/replay-trace… (382 chars, sha256 c9b547981c5a) |
+| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/spec-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-spec-review-state-path-migrated-69622/work/replay-trace… (382 chars, sha256 d487c5ff8531) |
 
 </details>
 
@@ -1109,6 +1122,19 @@ Tasks not completed:
 | tasks/task-4/stderr.log | 1 | changed | Warning: No project session found with id 'pi-workflow.&lt;WF_RUN_1&gt;.task-4'; creating a new session with that id. |  |
 | tasks/task-7/stderr.log | 1 | changed | Warning: No project session found with id 'pi-workflow.&lt;WF_RUN_1&gt;.task-7'; creating a new session with that id. |  |
 | tasks/task-9/stderr.log | 1 | changed | Warning: No project session found with id 'pi-workflow.&lt;WF_RUN_1&gt;.task-9'; creating a new session with that id. |  |
+
+</details>
+
+<details><summary>explained wp10-artifact-tool-guidelines (6)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| tasks/task-1/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
+| tasks/task-2/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
+| tasks/task-3/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
+| tasks/task-4/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
+| tasks/task-7/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
+| tasks/task-9/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
 
 </details>
 
@@ -1204,21 +1230,19 @@ Tasks not completed:
 
 </details>
 
-<details><summary>allowed renamed-literal-digest-binding (19)</summary>
+<details><summary>allowed renamed-literal-digest-binding (17)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
 | bundle/helpers/spec-requirement-source.mjs |  | digest-bound ×0 | 4ba1f11a7c20ee7123e3186947eafc53215258127e5d5f4c1e78f3e1919f52cc | aa08cbcfc46aafc03ad0b11682bbeb94f3a92f737de66b78ebfccba56281c1af |
-| supervisor.json |  | digest-bound ×0 | 1fef8f8ffa8b1b69fbdbc6f8ae12adb138834eae70eca6f505d2aecaa5a9d933 | 199f698f1c1487428a242cd31a91ddafcea0816d4b7f4590fbf33832afc173e6 |
-| tasks/task-1/system-prompt.md |  | digest-bound ×0 | bc43880ab75f7e70f406c8a08510d37b81ea9ebd2211d3e30cc674d896efdbc5 | f79ad541187db3324948739a8ba33d865ed24d48fac69835f3d79c082341f7b1 |
-| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | 75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211 | a1022d28f640d67f804aeea8bcb5077bd2c0e6b3d9ed03ad1945b6cc10d90943 |
+| supervisor.json |  | digest-bound ×0 | 1fef8f8ffa8b1b69fbdbc6f8ae12adb138834eae70eca6f505d2aecaa5a9d933 | d7c1df91dddfad01485b46936c364599901a1308fbcf7cc6bf6458cf387deb41 |
+| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | 75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211 | 2faf60f0636f0f989a54e817c3cfed8aa5ae88c81ab6d1c30ba24e4df2a781ae |
 | tasks/task-4/source-manifest.json |  | digest-bound ×13 | c6928c7fe350ccb2447669f1a224de19f40b070f5446d6cc7db139a822385195 | 4a9c7feffedc4ef4c74af4159a306c4fb9e2401acc887c5c5ffb9098e0b6459a |
 | tasks/task-6/control.json |  | digest-bound ×7 | acf75c059c93b7c057b49aa724cc80d8cc4ed3809180b2cbae1a47896bbae45e | 9127a68c323fa5e9fad787bcd014a4205f636f82ba1dfc40b780a28dcc87f9e9 |
 | tasks/task-6/output.log |  | digest-bound ×2 | e7c89a29dca27f39474a7f296eec2ce9a41896c25948141c9d97a31bec4d4207 | df02f3943fb9ec7d6a64031b73acf94cc53decfc72cab2ae140c12c306913c48 |
 | tasks/task-6/source-manifest.json |  | digest-bound ×0 | 64f0c2b8a1da0e1a9357bad71aa07d02e9b5ce125c5ac54c94c9decd70fe4b43 | 2b163098c0bd775ba13cfceb2533f7ef4174afada1a4f45d57c156128c00af42 |
-| tasks/task-7/read-ledger.jsonl |  | digest-bound ×0 | 6180e80979172dcb3d65c14be3ff0396fcc6a38122fc1e4dab35f11d4a9b1db6 | 175470062ca31d7345181f11b44171479f3699f28bf63ac87f705099d2aee724 |
+| tasks/task-7/read-ledger.jsonl |  | digest-bound ×0 | 6180e80979172dcb3d65c14be3ff0396fcc6a38122fc1e4dab35f11d4a9b1db6 | 1c80b35f0f221ef8608794f908712399f7c6aed15c65d262fe7678e643f89e33 |
 | tasks/task-7/source-manifest.json |  | digest-bound ×1 | 759ac21880be41ee26b96f761ff5f5c5d4e3a6bd4e7654afbe8e26a11629bac7 | 1007c448acc1975e1a7a681813235449f26763ccae6fb55b006bffdf118e8f50 |
-| tasks/task-7/system-prompt.md |  | digest-bound ×0 | 6ffda8d58368377403ffdce6d5d681766367ecef88d6ff92adbb32fc443d1461 | c0a5bada21993ed7bfae15d2cb28619d1bef750863e1cb0880d5cbec1569840d |
 | tasks/task-7/task.md |  | digest-bound ×1 | f128bee8ba8bdda0621e4304fc4056b26b7e51fd9e9a463f3d1fc762487fd4a5 | 95bd63534e09aa3954080a028e54362b3e65b99e9886880754d6b4af3c0008d2 |
 | tasks/task-8/analysis.md |  | digest-bound ×0 | aa719bac7e208986b72732f6752f821991d0278fe3f1062690009a5f64e13bf6 | 513fc6ba9b9176b15234b99a4ccc91365b4b437e474fdacd4273f20152a3e435 |
 | tasks/task-8/control.json |  | digest-bound ×4 | b37a9ffe40f52c10cc7f46675b3b8cd7402b62e8bdeb6c92d82dd04bf090c745 | 42219b80487feee53321c7b904c5e21f75a899b1d623c942b1611bf7ac938da5 |

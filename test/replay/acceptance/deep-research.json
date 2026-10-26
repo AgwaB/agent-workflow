@@ -29,21 +29,21 @@
 					"specId": "research-questions.rq-001",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvpeiuxk_fe37cc/attempt_mvpeiuxk_92b200 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvpg6xyi_4bd884/attempt_mvpg6xyi_d84d8c ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-12",
 					"specId": "research-questions.rq-002",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvpeiv7b_02e2ad/attempt_mvpeiv7b_28f3fe ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvpg6y6w_cb38e1/attempt_mvpg6y6w_33e4ad ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-13",
 					"specId": "research-questions.rq-003",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvpeivgu_646fea/attempt_mvpeivgu_f20f74 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvpg6yf4_9ec3b2/attempt_mvpg6yf4_decd98 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-3",
@@ -56,7 +56,7 @@
 					"specId": "normalize-claims.main",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvpeivt1_550298/attempt_mvpeivt1_b0bcf6 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvpg6ynn_03204e/attempt_mvpg6ynn_97402f ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-5",
@@ -87,7 +87,7 @@
 					"specId": "final-audit.main",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvpeiw3q_59aa70/attempt_mvpeiw3q_40cca8 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvpg6yxf_f0785b/attempt_mvpg6yxf_88e374 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-10",
@@ -198,8 +198,8 @@
 				"Worker-filled web-source cache (worker-snapshots/<run>/web-source-cache): written by the removed workflow_web_* tools (C2); not restored."
 			],
 			"counts": {
-				"allowed": 176,
-				"explained": 2202,
+				"allowed": 175,
+				"explained": 2208,
 				"unexplained": 0
 			},
 			"differences": [
@@ -286,7 +286,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-11/.launch-barrier-5d067e679487813d-<RAND16>/decision-v2.json",
+					"file": "tasks/task-11/.launch-barrier-d14620077efbeb74-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -294,7 +294,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-11/.launch-barrier-5d067e679487813d-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-11/.launch-barrier-d14620077efbeb74-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -326,7 +326,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-12/.launch-barrier-aec05d81aa388e95-<RAND16>/decision-v2.json",
+					"file": "tasks/task-12/.launch-barrier-6f149b3d13326aad-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -334,7 +334,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-12/.launch-barrier-aec05d81aa388e95-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-12/.launch-barrier-6f149b3d13326aad-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -366,7 +366,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-13/.launch-barrier-c945be16e4071055-<RAND16>/decision-v2.json",
+					"file": "tasks/task-13/.launch-barrier-39f4d10297e726ed-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -374,7 +374,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-13/.launch-barrier-c945be16e4071055-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-13/.launch-barrier-39f4d10297e726ed-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -422,7 +422,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-4/.launch-barrier-057cb7614b3fc936-<RAND16>/decision-v2.json",
+					"file": "tasks/task-4/.launch-barrier-16ef7b0881712160-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -430,7 +430,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-4/.launch-barrier-057cb7614b3fc936-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-4/.launch-barrier-16ef7b0881712160-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -510,7 +510,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-9/.launch-barrier-0b8c880c9dbc0989-<RAND16>/decision-v2.json",
+					"file": "tasks/task-9/.launch-barrier-113d6038795ac869-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -518,7 +518,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-9/.launch-barrier-0b8c880c9dbc0989-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-9/.launch-barrier-113d6038795ac869-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -550,32 +550,12 @@
 				{
 					"class": "allowed",
 					"rule": "renamed-literal-digest-binding",
-					"file": "tasks/task-1/system-prompt.md",
-					"kind": "digest-bound",
-					"proof": "file",
-					"recorded": "45745b476ecef18d3057a8a830318e49590045a42f77666920519f4ef40ec8f3",
-					"replayed": "0d79c1cd4cbf82b49c4da9aa111c5f332ace0e97cfe26d5d977a50782a5a505e",
-					"count": 0
-				},
-				{
-					"class": "allowed",
-					"rule": "renamed-literal-digest-binding",
 					"file": "tasks/task-11/source-manifest.json",
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "034cd5578ef03a2890cb33ad906d9cd6bb74ed9ce42527002d650b15c28edf14",
 					"replayed": "3bf5c2521b4a2d2eff0b22616018b4477ee00d721d938015b5b13f69c72b286c",
 					"count": 1
-				},
-				{
-					"class": "allowed",
-					"rule": "renamed-literal-digest-binding",
-					"file": "tasks/task-11/system-prompt.md",
-					"kind": "digest-bound",
-					"proof": "file",
-					"recorded": "75a9fb7afcc2bf35fa5443d4fbfebe94be8203f0609bae103ca94e6c39c9fae5",
-					"replayed": "b27d1b191f3a8f47b4a2bddb23e3a1b211c91e9cd647b0ace21827e508c762c6",
-					"count": 0
 				},
 				{
 					"class": "allowed",
@@ -826,6 +806,14 @@
 					"rule": "supervisor-progress-snapshot",
 					"file": "supervisor.json",
 					"path": "taskStatusCounts.pending",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "supervisor-progress-snapshot",
+					"file": "supervisor.json",
+					"path": "taskStatusCounts.running",
 					"kind": "digest-renamed",
 					"count": 1
 				},
@@ -1712,7 +1700,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-original-42933/work/replay-trace.jsonl\"… (375 chars, sha256 829390b6ad37)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-original-66855/work/replay-trace.jsonl\"… (375 chars, sha256 2f782dccf375)"
 				},
 				{
 					"class": "explained",
@@ -2609,6 +2597,16 @@
 				},
 				{
 					"class": "explained",
+					"rule": "c2-original-deep-research-refused",
+					"citation": "docs/core-port.md WP1b change log 7 (C2/WP10) and change log 5 (executor refusal before READY fails the launch at once)",
+					"file": "tasks/task-1/system-prompt.md",
+					"kind": "changed",
+					"summarized": true,
+					"count": 1,
+					"exactMatch": []
+				},
+				{
+					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "tasks/task-1/workflow-artifact-extension.ts",
@@ -2947,6 +2945,16 @@
 				},
 				{
 					"class": "explained",
+					"rule": "c2-original-deep-research-refused",
+					"citation": "docs/core-port.md WP1b change log 7 (C2/WP10) and change log 5 (executor refusal before READY fails the launch at once)",
+					"file": "tasks/task-11/system-prompt.md",
+					"kind": "changed",
+					"summarized": true,
+					"count": 1,
+					"exactMatch": []
+				},
+				{
+					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "tasks/task-11/workflow-artifact-extension.ts",
@@ -3138,6 +3146,16 @@
 				},
 				{
 					"class": "explained",
+					"rule": "c2-original-deep-research-refused",
+					"citation": "docs/core-port.md WP1b change log 7 (C2/WP10) and change log 5 (executor refusal before READY fails the launch at once)",
+					"file": "tasks/task-12/system-prompt.md",
+					"kind": "changed",
+					"summarized": true,
+					"count": 1,
+					"exactMatch": []
+				},
+				{
+					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "tasks/task-12/workflow-artifact-extension.ts",
@@ -3326,6 +3344,16 @@
 					"line": 1,
 					"recorded": "Warning: No project session found with id 'pi-workflow.<WF_RUN_1>.task-13'; creating a new session with that id.",
 					"replayed": ""
+				},
+				{
+					"class": "explained",
+					"rule": "c2-original-deep-research-refused",
+					"citation": "docs/core-port.md WP1b change log 7 (C2/WP10) and change log 5 (executor refusal before READY fails the launch at once)",
+					"file": "tasks/task-13/system-prompt.md",
+					"kind": "changed",
+					"summarized": true,
+					"count": 1,
+					"exactMatch": []
 				},
 				{
 					"class": "explained",
@@ -4661,6 +4689,16 @@
 					"class": "explained",
 					"rule": "c2-original-deep-research-refused",
 					"citation": "docs/core-port.md WP1b change log 7 (C2/WP10) and change log 5 (executor refusal before READY fails the launch at once)",
+					"file": "tasks/task-4/system-prompt.md",
+					"kind": "changed",
+					"summarized": true,
+					"count": 1,
+					"exactMatch": []
+				},
+				{
+					"class": "explained",
+					"rule": "c2-original-deep-research-refused",
+					"citation": "docs/core-port.md WP1b change log 7 (C2/WP10) and change log 5 (executor refusal before READY fails the launch at once)",
 					"file": "tasks/task-4/task.md",
 					"kind": "changed",
 					"summarized": true,
@@ -5184,6 +5222,16 @@
 					"class": "explained",
 					"rule": "c2-original-deep-research-refused",
 					"citation": "docs/core-port.md WP1b change log 7 (C2/WP10) and change log 5 (executor refusal before READY fails the launch at once)",
+					"file": "tasks/task-9/system-prompt.md",
+					"kind": "changed",
+					"summarized": true,
+					"count": 1,
+					"exactMatch": []
+				},
+				{
+					"class": "explained",
+					"rule": "c2-original-deep-research-refused",
+					"citation": "docs/core-port.md WP1b change log 7 (C2/WP10) and change log 5 (executor refusal before READY fails the launch at once)",
 					"file": "tasks/task-9/task.md",
 					"kind": "changed",
 					"summarized": true,
@@ -5560,8 +5608,8 @@
 				"Worker-filled web-source cache (worker-snapshots/<run>/web-source-cache): written by the removed workflow_web_* tools (C2); not restored."
 			],
 			"counts": {
-				"allowed": 582,
-				"explained": 506,
+				"allowed": 578,
+				"explained": 517,
 				"unexplained": 0
 			},
 			"differences": [
@@ -5868,17 +5916,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "d675d7c5f0ad9cae409776fb7c97439ffb8fd288bde0a6a478350e0671f3f0a0",
-					"replayed": "74b4f5599d05a8df00ebf6d5e6e46b110f7aecdfb7201930eba0e151ad4480cc",
-					"count": 0
-				},
-				{
-					"class": "allowed",
-					"rule": "renamed-literal-digest-binding",
-					"file": "tasks/task-1/system-prompt.md",
-					"kind": "digest-bound",
-					"proof": "file",
-					"recorded": "45745b476ecef18d3057a8a830318e49590045a42f77666920519f4ef40ec8f3",
-					"replayed": "0d79c1cd4cbf82b49c4da9aa111c5f332ace0e97cfe26d5d977a50782a5a505e",
+					"replayed": "4ebedac5851ab6e4d05d627235c188e85ef79a77263b3c6f5d0815ba3b93c974",
 					"count": 0
 				},
 				{
@@ -5904,16 +5942,6 @@
 				{
 					"class": "allowed",
 					"rule": "renamed-literal-digest-binding",
-					"file": "tasks/task-11/system-prompt.md",
-					"kind": "digest-bound",
-					"proof": "file",
-					"recorded": "75a9fb7afcc2bf35fa5443d4fbfebe94be8203f0609bae103ca94e6c39c9fae5",
-					"replayed": "b27d1b191f3a8f47b4a2bddb23e3a1b211c91e9cd647b0ace21827e508c762c6",
-					"count": 0
-				},
-				{
-					"class": "allowed",
-					"rule": "renamed-literal-digest-binding",
 					"file": "tasks/task-12/source-manifest.json",
 					"kind": "digest-bound",
 					"proof": "file",
@@ -5934,26 +5962,6 @@
 				{
 					"class": "allowed",
 					"rule": "renamed-literal-digest-binding",
-					"file": "tasks/task-14/system-prompt.md",
-					"kind": "digest-bound",
-					"proof": "file",
-					"recorded": "a5cb9fce974fc3f833998fcc67d37e05f1ae289282e29ff97f81ee003175382d",
-					"replayed": "fcfc8fab310b20e44136b1ee5f5cbab627732f1908cb1836623cae077f985402",
-					"count": 0
-				},
-				{
-					"class": "allowed",
-					"rule": "renamed-literal-digest-binding",
-					"file": "tasks/task-16/system-prompt.md",
-					"kind": "digest-bound",
-					"proof": "file",
-					"recorded": "a94f666e3efbc969124db90abba59f949db378a3c4de5bab617edd6960600441",
-					"replayed": "c34e1ca4d28858fb6580bcfa599064a7c33c782cfd2c020de198ed187b9a51d9",
-					"count": 0
-				},
-				{
-					"class": "allowed",
-					"rule": "renamed-literal-digest-binding",
 					"file": "tasks/task-3/source-manifest.json",
 					"kind": "digest-bound",
 					"proof": "file",
@@ -5968,7 +5976,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "f32560de6fc74ed1d1e79d9740fc557f9d31407f68bac9b8ea4e319ddd67372c",
-					"replayed": "f6e3d3409372385e3bec9b7c7eb825cfb91f43c0e016def62c0af17a005c1df0",
+					"replayed": "4d3d4f524ab8036d1453afc24cd683342c41810af8936b1332ee186101340952",
 					"count": 0
 				},
 				{
@@ -6018,7 +6026,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "5a500e80efc6560f6a32af4a6a330a05eea49c2134df67fde7800f35b2e36488",
-					"replayed": "88948c1f6103ec54ff27c0de3995dd99861936c445fb94da3035e7e24b3c1530",
+					"replayed": "e7367951dbba74a667d97392517611294835d7d80d02315e15926147a72d8311",
 					"count": 0
 				},
 				{
@@ -10110,7 +10118,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"adapterChecks\":false,\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-engine-only-44171… (400 chars, sha256 0e45d88676b7)"
+					"replayed": "{\"descriptor\":{\"config\":{\"adapterChecks\":false,\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-engine-only-67160… (400 chars, sha256 628e581caaa5)"
 				},
 				{
 					"class": "allowed",
@@ -14588,6 +14596,16 @@
 				},
 				{
 					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-1/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+				},
+				{
+					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "tasks/task-1/workflow-artifact-extension.ts",
@@ -14669,6 +14687,16 @@
 				},
 				{
 					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-11/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352)",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+				},
+				{
+					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "tasks/task-11/workflow-artifact-extension.ts",
@@ -14707,6 +14735,16 @@
 					"line": 1,
 					"recorded": "Warning: No project session found with id 'pi-workflow.<WF_RUN_1>.task-12'; creating a new session with that id.",
 					"replayed": ""
+				},
+				{
+					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-12/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352)",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
 				},
 				{
 					"class": "explained",
@@ -14751,6 +14789,16 @@
 				},
 				{
 					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-13/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352)",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+				},
+				{
+					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "tasks/task-13/workflow-artifact-extension.ts",
@@ -14785,6 +14833,16 @@
 				},
 				{
 					"class": "explained",
+					"rule": "wp10-web-source-hint-removed",
+					"citation": "docs/core-port.md WP10 change log 3 (C2)",
+					"file": "tasks/task-14/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352)",
+					"replayed": ""
+				},
+				{
+					"class": "explained",
 					"rule": "c2-web-tools-removed",
 					"citation": "docs/core-port.md WP1b change log 7 (C2/WP10: workflow_web_* tools and the web-source cache removed)",
 					"file": "tasks/task-14/workflow-web-source-extension.ts",
@@ -14812,6 +14870,16 @@
 				},
 				{
 					"class": "explained",
+					"rule": "wp10-web-source-hint-removed",
+					"citation": "docs/core-port.md WP10 change log 3 (C2)",
+					"file": "tasks/task-15/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352)",
+					"replayed": ""
+				},
+				{
+					"class": "explained",
 					"rule": "c2-web-tools-removed",
 					"citation": "docs/core-port.md WP1b change log 7 (C2/WP10: workflow_web_* tools and the web-source cache removed)",
 					"file": "tasks/task-15/workflow-web-source-extension.ts",
@@ -14835,6 +14903,16 @@
 					"kind": "changed",
 					"line": 1,
 					"recorded": "Warning: No project session found with id 'pi-workflow.<WF_RUN_1>.task-16'; creating a new session with that id.",
+					"replayed": ""
+				},
+				{
+					"class": "explained",
+					"rule": "wp10-web-source-hint-removed",
+					"citation": "docs/core-port.md WP10 change log 3 (C2)",
+					"file": "tasks/task-16/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352)",
 					"replayed": ""
 				},
 				{
@@ -14876,6 +14954,16 @@
 				},
 				{
 					"class": "explained",
+					"rule": "wp10-web-source-hint-removed",
+					"citation": "docs/core-port.md WP10 change log 3 (C2)",
+					"file": "tasks/task-18/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352)",
+					"replayed": ""
+				},
+				{
+					"class": "explained",
 					"rule": "c2-web-tools-removed",
 					"citation": "docs/core-port.md WP1b change log 7 (C2/WP10: workflow_web_* tools and the web-source cache removed)",
 					"file": "tasks/task-18/workflow-web-source-extension.ts",
@@ -14909,6 +14997,16 @@
 					"kind": "changed",
 					"line": 1,
 					"recorded": "Warning: No project session found with id 'pi-workflow.<WF_RUN_1>.task-20'; creating a new session with that id.",
+					"replayed": ""
+				},
+				{
+					"class": "explained",
+					"rule": "wp10-web-source-hint-removed",
+					"citation": "docs/core-port.md WP10 change log 3 (C2)",
+					"file": "tasks/task-20/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352)",
 					"replayed": ""
 				},
 				{
@@ -14968,6 +15066,16 @@
 					"line": 1,
 					"recorded": "Warning: No project session found with id 'pi-workflow.<WF_RUN_1>.task-4'; creating a new session with that id.",
 					"replayed": ""
+				},
+				{
+					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-4/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352)",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
 				},
 				{
 					"class": "explained",
@@ -15051,6 +15159,16 @@
 					"line": 1,
 					"recorded": "Warning: No project session found with id 'pi-workflow.<WF_RUN_1>.task-9'; creating a new session with that id.",
 					"replayed": ""
+				},
+				{
+					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-9/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352)",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
 				},
 				{
 					"class": "explained",

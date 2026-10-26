@@ -335,8 +335,8 @@ export function normalizeTreeEntries(srcDir, baseCtx) {
 // ---------------------------------------------------------------- allowed differences
 
 /**
- * Entries of allowed-differences.json. By default only the WP1a normalization policy (entries not
- * introduced by WP1b), which produced the committed normalized/ trees; `{ replay: true }` adds the
+ * Entries of allowed-differences.json. By default only the WP1a normalization policy (entries
+ * introduced by WP1a), which produced the committed normalized/ trees; `{ replay: true }` adds the
  * WP1b entries (literal renames, difference patterns, runtime-only digests) used by the WP1b
  * comparison (compare.mjs) and the replay executor.
  */
@@ -366,7 +366,9 @@ export function loadAllowedDifferences(
 	const entries = parsed.entries ?? [];
 	return options.replay === true
 		? entries
-		: entries.filter((entry) => entry.introducedBy !== "WP1b");
+		: // The WP1a policy is exactly the WP1a entries; later replay-only entries (WP1b, WP10) are
+			// applied by the comparison and the replay executor only.
+			entries.filter((entry) => entry.introducedBy === "WP1a");
 }
 
 /**
