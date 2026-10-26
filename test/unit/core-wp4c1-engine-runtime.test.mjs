@@ -443,10 +443,11 @@ test("an unknown or unavailable executor fails the run before any launch", async
 			error instanceof core.WorkflowExecutorUnavailableError &&
 			/executor "nope" from run flag is unknown/.test(error.message),
 	);
-	// The default executor (pi) has no adapter yet: it is refused, never substituted.
+	// A built-in executor without an adapter yet is refused, never substituted. (pi became
+	// available with WP6; codex stays unavailable until WP7.)
 	await assert.rejects(
-		engine.runWorkflowSpec(specPath, cwd, { task: "t" }),
-		/executor "pi" from default is unavailable: .*WP6/,
+		engine.runWorkflowSpec(specPath, cwd, { task: "t", executor: "codex" }),
+		/executor "codex" from run flag is unavailable: .*WP7/,
 	);
 	assert.equal(
 		existsSync(join(cwd, ".agent-workflow", "workflows")) &&

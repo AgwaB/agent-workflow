@@ -69,8 +69,9 @@ import {
 } from "./state.js";
 import { TOOL_RESULT_BUDGET_STATE_FILENAME } from "./tool-result-budget.js";
 
-export const PI_EXECUTOR_ID = "pi";
-export const PI_EXECUTOR_VERSION = "0.1.0";
+import { PI_EXECUTOR_ID, PI_EXECUTOR_VERSION } from "./version.js";
+
+export { PI_EXECUTOR_ID, PI_EXECUTOR_VERSION };
 /** Pi version the adapter was built and verified against (A2-4 native MCP needs 1.1). */
 export const PI_MIN_CLI_VERSION = "1.1.0";
 /** Pi 1.1 cuts MCP text results above 20 KiB (`MCP_OUTPUT_MAX_BYTES`, measured live, docs/executors/pi.md). */

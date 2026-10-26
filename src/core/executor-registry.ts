@@ -3,6 +3,11 @@
 // executor (pi-subagent headless Pi); here the run records which executor it uses, and an unknown or
 // unavailable executor fails the run before any launch (never a silent fallback).
 import {
+	PI_EXECUTOR_ID,
+	PI_EXECUTOR_VERSION,
+} from "../executors/pi/version.js";
+import { EXECUTOR_CONTRACT_VERSION } from "../sdk/contract.js";
+import {
 	type ExecutorDescriptor,
 	validateExecutorDescriptor,
 } from "../sdk/descriptor.js";
@@ -28,10 +33,25 @@ export interface WorkflowExecutorRegistration {
 }
 
 const BUILTIN_UNAVAILABLE: Readonly<Record<string, string>> = {
-	pi: "the Pi executor adapter is not implemented yet (WP6)",
 	codex: "the Codex executor adapter is not implemented yet (WP7)",
 	claude: "the Claude executor adapter is not implemented yet (WP8)",
 };
+
+/**
+ * Built-in adapters that exist. The descriptor module is the adapter entry as a `file:` URL so a
+ * fresh durable worker can reload it (R#15); only the adapter's dependency-free `version.js` is
+ * imported here, never the adapter itself.
+ */
+const BUILTIN_DESCRIPTORS: Readonly<Record<string, () => ExecutorDescriptor>> =
+	{
+		[PI_EXECUTOR_ID]: () => ({
+			id: PI_EXECUTOR_ID,
+			version: PI_EXECUTOR_VERSION,
+			contractVersion: EXECUTOR_CONTRACT_VERSION,
+			module: new URL("../executors/pi/index.js", import.meta.url).href,
+			config: null,
+		}),
+	};
 
 const registrations = new Map<string, WorkflowExecutorRegistration>();
 
@@ -82,6 +102,8 @@ export function workflowExecutorRegistration(
 ): WorkflowExecutorRegistration | undefined {
 	const registered = registrations.get(id);
 	if (registered !== undefined) return registered;
+	const builtin = BUILTIN_DESCRIPTORS[id];
+	if (builtin !== undefined) return { id, descriptor: builtin() };
 	const builtinReason = BUILTIN_UNAVAILABLE[id];
 	return builtinReason === undefined
 		? undefined

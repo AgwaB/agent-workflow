@@ -54,7 +54,9 @@ test("dist/core modules import only node builtins and sibling core modules", () 
 			assert.ok(
 				specifier.startsWith("node:") ||
 					/^\.\/[a-z0-9-]+\.js$/.test(specifier) ||
-					/^\.\.\/(sdk|runtime)\/[a-z0-9/-]+\.js$/.test(specifier),
+					/^\.\.\/(sdk|runtime)\/[a-z0-9/-]+\.js$/.test(specifier) ||
+					// Built-in executor identity only (never the adapter itself).
+					/^\.\.\/executors\/[a-z0-9-]+\/version\.js$/.test(specifier),
 				`${name} imports ${specifier}`,
 			);
 		}
