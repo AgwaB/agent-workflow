@@ -17,6 +17,12 @@ export interface Level {
 	readonly source: CapabilitySource;
 	/** e.g. "codex-cli 0.159.2, conformance 2026-10-26". */
 	readonly verifiedWith?: string;
+	/**
+	 * Environment warning (WP4d): something on this machine weakens the capability (e.g. Codex
+	 * `allow` rules weaken readOnly). An `emulated` level with a warning negotiates as a
+	 * degradation instead of a silent pass. Never contains secrets or user patterns.
+	 */
+	readonly warning?: string;
 }
 
 export type ToolAllowlistDetail = "fine" | "coarse" | "none";
@@ -151,6 +157,8 @@ export function validateCapabilities(value: unknown): string[] {
 			typeof entry.verifiedWith !== "string"
 		)
 			problems.push(`${name}.verifiedWith must be a string`);
+		if (entry.warning !== undefined && typeof entry.warning !== "string")
+			problems.push(`${name}.warning must be a string`);
 		const details = DETAIL_VALUES[name];
 		if (details !== undefined && !details.includes(entry.detail as string))
 			problems.push(`${name}.detail is invalid`);
