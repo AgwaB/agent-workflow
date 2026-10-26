@@ -3,11 +3,13 @@
 // plain node, the shipped runtime workers spawn from the installed copy, and the
 // Darwin process-identity helper keeps its exec bit in the tarball. Also carries
 // the still-applicable half of pi-subagent test/checks/host-peer-dependencies.mjs.
+// WP2a-2: the installed durable worker also runs the fake executor fixture end to end.
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
 import { once } from "node:events";
 import { existsSync, readFileSync } from "node:fs";
 import {
+	copyFile,
 	mkdir,
 	mkdtemp,
 	readdir,
@@ -114,6 +116,8 @@ test("packed tarball installs Pi-free and runs the runtime from dist", async (t)
 			"dist/runtime/index.js",
 			"dist/runtime/workers/process-gate.js",
 			"dist/runtime/workers/durable-worker-binding.js",
+			"dist/runtime/workers/durable-worker.js",
+			"dist/runtime/workers/terminal-finalizer.js",
 			"dist/runtime/native/darwin-process-identity.manifest.json",
 			"src/runtime/native/darwin-process-identity.c",
 		])
@@ -241,6 +245,44 @@ try { m.prepareDurableWorkerBinding({ payload: {} }); } catch (error) {
 			guard: true,
 			kind: "guard_failure",
 		});
+
+		// WP2a-2: the installed durable worker reloads an executor from its descriptor in a
+		// fresh process (the fake executor fixture, resolved against the installed SDK).
+		const fixture = join(project, "fake-executor-module.mjs");
+		await copyFile(
+			join(root, "test", "fixtures", "runtime", "fake-executor-module.mjs"),
+			fixture,
+		);
+		const durable = await run(
+			process.execPath,
+			[
+				"--input-type=module",
+				"-e",
+				`const runtime = await import("@agwab/agent-workflow/runtime");
+const { fixtureDescriptor, readEffectLog } = await import(${JSON.stringify(new URL(`file://${fixture}`).href)});
+const effectLog = ${JSON.stringify(join(project, "effects.jsonl"))};
+const run = await runtime.runSubagent({ cwd: process.cwd(), executor: fixtureDescriptor({ effectLog }), task: "packed", async: true });
+const waited = await runtime.waitForSubagent({ cwd: process.cwd(), runId: run.runId, attemptId: run.attemptId, timeoutMs: 20000, pollIntervalMs: 50 });
+console.log(JSON.stringify({
+  status: waited.snapshot?.status,
+  failureKind: waited.snapshot?.failureKind,
+  worker: runtime.runtimeWorkerPath("durable-worker"),
+  effects: readEffectLog(effectLog).filter((entry) => entry.type === "effect").map((entry) => ({ authorized: entry.authorized, other: entry.pid !== process.pid })),
+}));`,
+			],
+			{ cwd: project },
+		);
+		assert.equal(durable.code, 0, durable.stderr);
+		const durableReport = JSON.parse(durable.stdout);
+		assert.equal(durableReport.status, "completed", durable.stdout);
+		assert.equal(durableReport.failureKind, null);
+		assert.ok(
+			durableReport.worker.startsWith(await realpath(installed)),
+			durableReport.worker,
+		);
+		assert.deepEqual(durableReport.effects, [
+			{ authorized: true, other: true },
+		]);
 	} finally {
 		await rm(work, { recursive: true, force: true });
 	}
