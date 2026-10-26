@@ -15,7 +15,7 @@ Original spec, Pi adapter request checks.
 | Worker launches served / recorded | 1 / 11 |
 | Artifact reads re-issued / recorded | 0 / 10 |
 | Differences: allowed | 176 |
-| Differences: explained | 2200 |
+| Differences: explained | 2202 |
 | Differences: unexplained | 0 |
 | Exact-match violations | 0 |
 
@@ -33,11 +33,11 @@ Tasks not completed:
 
 | Task | Spec | Status | Detail | Message |
 |---|---|---|---|---|
-| task-11 | research-questions.rq-001 | failed | launch_failed | provisional worker run_mvpe6jqx_2a109e/attempt_mvpe6jqx_349e08 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
-| task-12 | research-questions.rq-002 | failed | launch_failed | provisional worker run_mvpe6k16_13d464/attempt_mvpe6k16_46df4a ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
-| task-13 | research-questions.rq-003 | failed | launch_failed | provisional worker run_mvpe6ke8_7f62fc/attempt_mvpe6ke8_424fc7 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
-| task-4 | normalize-claims.main | failed | launch_failed | provisional worker run_mvpe6kol_e2460b/attempt_mvpe6kol_6a02e9 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
-| task-9 | final-audit.main | failed | launch_failed | provisional worker run_mvpe6l8q_4e4fe4/attempt_mvpe6l8q_7c431f ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
+| task-11 | research-questions.rq-001 | failed | launch_failed | provisional worker run_mvpeiuxk_fe37cc/attempt_mvpeiuxk_92b200 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
+| task-12 | research-questions.rq-002 | failed | launch_failed | provisional worker run_mvpeiv7b_02e2ad/attempt_mvpeiv7b_28f3fe ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
+| task-13 | research-questions.rq-003 | failed | launch_failed | provisional worker run_mvpeivgu_646fea/attempt_mvpeivgu_f20f74 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
+| task-4 | normalize-claims.main | failed | launch_failed | provisional worker run_mvpeivt1_550298/attempt_mvpeivt1_b0bcf6 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
+| task-9 | final-audit.main | failed | launch_failed | provisional worker run_mvpeiw3q_59aa70/attempt_mvpeiw3q_40cca8 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
 | task-10 | final.main | blocked | support_declared_blocked | support declared blocked |
 
 ### Differences by rule
@@ -45,7 +45,7 @@ Tasks not completed:
 | Class | Rule | Rows | Source |
 |---|---|---|---|
 | explained | `artifact-mcp-provenance` | 69 | docs/core-port.md WP4b change log 4 and "What launch provenance digests now"; WP4c-1 "Pi executor (WP6)" table (extension isolation, generated extension wrappers) |
-| explained | `c2-original-deep-research-refused` | 2067 | docs/core-port.md WP1b change log 7 (C2/WP10) and change log 5 (executor refusal before READY fails the launch at once) |
+| explained | `c2-original-deep-research-refused` | 2069 | docs/core-port.md WP1b change log 7 (C2/WP10) and change log 5 (executor refusal before READY fails the launch at once) |
 | explained | `c2-web-tools-removed` | 29 | docs/core-port.md WP1b change log 7 (C2/WP10: workflow_web_* tools and the web-source cache removed) |
 | explained | `executor-exit-code` | 2 | docs/core-port.md WP1b change log 1 |
 | explained | `executor-usage-contract` | 21 | docs/core-port.md WP1b change log 2 |
@@ -143,20 +143,20 @@ Tasks not completed:
 
 </details>
 
-<details><summary>explained c2-original-deep-research-refused (2067)</summary>
+<details><summary>explained c2-original-deep-research-refused (2069)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
+| compiled.json |  | added ×22 |  |  |
 | compiled.json |  | changed ×76 |  |  |
 | compiled.json |  | removed ×39 |  |  |
-| compiled.json |  | added ×21 |  |  |
 | foreach-batches/1d78f2b12f8565f3deb733b86b7b6b915ccba8561b49cb1cda25e989860bd807/raw-attempt-1.md |  | only-recorded ×1 |  |  |
 | foreach-batches/1d78f2b12f8565f3deb733b86b7b6b915ccba8561b49cb1cda25e989860bd807/receipt-attempt-1.json |  | only-recorded ×1 |  |  |
 | foreach-batches/61c590d1b170c5a09beb0f353f7d2f2602ea24719bbd70743b264e082dd7663e/raw-attempt-1.md |  | only-recorded ×1 |  |  |
 | foreach-batches/61c590d1b170c5a09beb0f353f7d2f2602ea24719bbd70743b264e082dd7663e/receipt-attempt-1.json |  | only-recorded ×1 |  |  |
 | foreach-batches/6b860cff79c4cca9e27da39e80371564c233ef74d52878a29a4b583e109a95f6/raw-attempt-1.md |  | only-recorded ×1 |  |  |
 | foreach-batches/6b860cff79c4cca9e27da39e80371564c233ef74d52878a29a4b583e109a95f6/receipt-attempt-1.json |  | only-recorded ×1 |  |  |
-| run.json |  | added ×46 |  |  |
+| run.json |  | added ×47 |  |  |
 | run.json |  | removed ×196 |  |  |
 | run.json |  | changed ×159 |  |  |
 | supervisor.json |  | changed ×1 |  |  |
@@ -493,7 +493,7 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/deep-research","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-deep-research-original-76771/work/replay-trace.jsonl"… (375 chars, sha256 8979d9cdb83e) |
+| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/deep-research","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-deep-research-original-42933/work/replay-trace.jsonl"… (375 chars, sha256 829390b6ad37) |
 
 </details>
 
@@ -738,25 +738,25 @@ Tasks not completed:
 | tasks/task-1/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
 | tasks/task-10/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-10/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
-| tasks/task-11/.launch-barrier-4d75ef6cadfa9628-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
-| tasks/task-11/.launch-barrier-4d75ef6cadfa9628-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-5d067e679487813d-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-5d067e679487813d-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
 | tasks/task-11/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-11/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
 | tasks/task-11/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
-| tasks/task-12/.launch-barrier-0d94a8f918d17213-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
-| tasks/task-12/.launch-barrier-0d94a8f918d17213-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-aec05d81aa388e95-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-aec05d81aa388e95-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
 | tasks/task-12/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-12/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
 | tasks/task-12/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
-| tasks/task-13/.launch-barrier-6cdafcfef621dfaa-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
-| tasks/task-13/.launch-barrier-6cdafcfef621dfaa-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-c945be16e4071055-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-c945be16e4071055-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
 | tasks/task-13/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-13/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
 | tasks/task-13/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
 | tasks/task-3/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-3/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
-| tasks/task-4/.launch-barrier-48fcb751600d0b1e-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
-| tasks/task-4/.launch-barrier-48fcb751600d0b1e-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-057cb7614b3fc936-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-057cb7614b3fc936-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
 | tasks/task-4/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-4/source-manifest.json | .agent-workflow/workflows | literal-renamed ×8 |  |  |
 | tasks/task-4/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
@@ -766,8 +766,8 @@ Tasks not completed:
 | tasks/task-7/source-manifest.json | .agent-workflow/workflows | literal-renamed ×12 |  |  |
 | tasks/task-8/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-8/source-manifest.json | .agent-workflow/workflows | literal-renamed ×16 |  |  |
-| tasks/task-9/.launch-barrier-5a37fa552e154923-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
-| tasks/task-9/.launch-barrier-5a37fa552e154923-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-0b8c880c9dbc0989-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-0b8c880c9dbc0989-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
 | tasks/task-9/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-9/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
 | tasks/task-9/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
@@ -784,8 +784,8 @@ The replay executor skips the Pi adapter's tool-mapping check, so the recorded w
 | Replayed status | completed |
 | Worker launches served / recorded | 11 / 11 |
 | Artifact reads re-issued / recorded | 10 / 10 |
-| Differences: allowed | 583 |
-| Differences: explained | 504 |
+| Differences: allowed | 582 |
+| Differences: explained | 506 |
 | Differences: unexplained | 0 |
 | Exact-match violations | 0 |
 
@@ -801,6 +801,7 @@ The replay executor skips the Pi adapter's tool-mapping check, so the recorded w
 | explained | `owned-sessions` | 11 | docs/core-port.md WP4c-1 "R#9, R#10, R#12, R#5" (R#10) and change log 8 |
 | explained | `run-capability-negotiation` | 1 | docs/core-port.md "WP4d — capability negotiation before launch" |
 | explained | `run-executor-record` | 1 | docs/core-port.md WP4c-1 "Executor selection" and change log 11 |
+| explained | `run-permission-mode` | 2 | docs/core-port.md WP4e permission modes; docs/permissions.md |
 | explained | `runtime-backend-executor-id` | 3 | docs/runtime-port.md change log 1 (Backends: a resolved backend is the executor id) |
 | explained | `runtime-cost-rounding` | 18 | docs/core-port.md WP1b change log 3 |
 | explained | `runtime-stderr` | 25 | docs/runtime-port.md "Attempt artifacts" (stderr.log: runtime diagnostics, empty on a clean completion) |
@@ -811,7 +812,7 @@ The replay executor skips the Pi adapter's tool-mapping check, so the recorded w
 | allowed | `host-path-digest` | 4 | allowed-differences.json (WP1a) |
 | allowed | `host-path-file-size` | 15 | allowed-differences.json (WP1a) |
 | allowed | `host-path-manifest-digest` | 1 | allowed-differences.json (WP1a) |
-| allowed | `renamed-literal-digest-binding` | 18 | allowed-differences.json (WP1b) |
+| allowed | `renamed-literal-digest-binding` | 17 | allowed-differences.json (WP1b) |
 | allowed | `runtime-launch-barrier-identity` | 406 | allowed-differences.json (WP1b) |
 | allowed | `state-root-identity` | 2 | allowed-differences.json (WP1a) |
 | allowed | `timestamp-derived-digest` | 20 | allowed-differences.json (WP1a) |
@@ -1321,7 +1322,7 @@ The replay executor skips the Pi adapter's tool-mapping check, so the recorded w
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | capabilityNegotiation | added |  | {"capabilities":{"cancel":{"detail":"interrupt","level":"native","source":"declared"},"context":"agent","contextIsolation":{"level":"native","source":"declared"},"effortLevels":["low","medium","high"],"fastTier":{"level":"none","source":"de… (17015 chars, sha256 d1759ecce081) |
+| run.json | capabilityNegotiation | added |  | {"capabilities":{"cancel":{"detail":"interrupt","level":"native","source":"declared"},"context":"agent","contextIsolation":{"level":"native","source":"declared"},"effortLevels":["low","medium","high"],"fastTier":{"level":"none","source":"de… (17374 chars, sha256 ce6a5f8af2b1) |
 
 </details>
 
@@ -1329,7 +1330,16 @@ The replay executor skips the Pi adapter's tool-mapping check, so the recorded w
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"adapterChecks":false,"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/deep-research","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-deep-research-engine-only-77051… (400 chars, sha256 dec0db662ba2) |
+| run.json | executor | added |  | {"descriptor":{"config":{"adapterChecks":false,"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/deep-research","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-deep-research-engine-only-44171… (400 chars, sha256 0e45d88676b7) |
+
+</details>
+
+<details><summary>explained run-permission-mode (2)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| compiled.json | permissionMode | added |  | free |
+| run.json | permissionMode | added |  | {"mode":"free","source":"default"} |
 
 </details>
 
@@ -1549,12 +1559,11 @@ The replay executor skips the Pi adapter's tool-mapping check, so the recorded w
 
 </details>
 
-<details><summary>allowed renamed-literal-digest-binding (18)</summary>
+<details><summary>allowed renamed-literal-digest-binding (17)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| compiled.json |  | digest-bound ×0 | 29421b1323de82a5ae5884c9d0be420354f2b82377722c6876a5e1f5cfd6e3af | 64b98596bf18e4b9b612e2cbfbe89ebe05a0bfa3b0af0e211192dbcf5b3e02c4 |
-| supervisor.json |  | digest-bound ×0 | d675d7c5f0ad9cae409776fb7c97439ffb8fd288bde0a6a478350e0671f3f0a0 | 078e141d57ded96eaa4a03782b950a84f2e0b0a6e80cc331f9505a33ce3be39b |
+| supervisor.json |  | digest-bound ×0 | d675d7c5f0ad9cae409776fb7c97439ffb8fd288bde0a6a478350e0671f3f0a0 | 74b4f5599d05a8df00ebf6d5e6e46b110f7aecdfb7201930eba0e151ad4480cc |
 | tasks/task-1/system-prompt.md |  | digest-bound ×0 | 45745b476ecef18d3057a8a830318e49590045a42f77666920519f4ef40ec8f3 | 0d79c1cd4cbf82b49c4da9aa111c5f332ace0e97cfe26d5d977a50782a5a505e |
 | tasks/task-10/source-manifest.json |  | digest-bound ×0 | e6567207bf00961535171ce2a7f54ffbe3c29a4f89c68939fd1b085bb5749434 | c327e1c57fa92bebc762f51774f529f21237c041344c2d54b525c6fb83c7b55a |
 | tasks/task-11/source-manifest.json |  | digest-bound ×1 | 034cd5578ef03a2890cb33ad906d9cd6bb74ed9ce42527002d650b15c28edf14 | 3bf5c2521b4a2d2eff0b22616018b4477ee00d721d938015b5b13f69c72b286c |
@@ -1564,12 +1573,12 @@ The replay executor skips the Pi adapter's tool-mapping check, so the recorded w
 | tasks/task-14/system-prompt.md |  | digest-bound ×0 | a5cb9fce974fc3f833998fcc67d37e05f1ae289282e29ff97f81ee003175382d | fcfc8fab310b20e44136b1ee5f5cbab627732f1908cb1836623cae077f985402 |
 | tasks/task-16/system-prompt.md |  | digest-bound ×0 | a94f666e3efbc969124db90abba59f949db378a3c4de5bab617edd6960600441 | c34e1ca4d28858fb6580bcfa599064a7c33c782cfd2c020de198ed187b9a51d9 |
 | tasks/task-3/source-manifest.json |  | digest-bound ×0 | 780bc0dc99e7fa6faac85ebf68cdfdba2deb99ea02cb8fd433edd5debe8da854 | 95624abeae95cbb79fcf420bd0d816b2d5807f618552e97e6ac2c21e6c08a9fe |
-| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | f32560de6fc74ed1d1e79d9740fc557f9d31407f68bac9b8ea4e319ddd67372c | 6c057f5764aa79f28709ebb89627652dcc9888c9f6d404f8999be4bb231ba332 |
+| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | f32560de6fc74ed1d1e79d9740fc557f9d31407f68bac9b8ea4e319ddd67372c | f6e3d3409372385e3bec9b7c7eb825cfb91f43c0e016def62c0af17a005c1df0 |
 | tasks/task-4/source-manifest.json |  | digest-bound ×1 | de8b7353750ecbed11f8b71bb29ec35f5d83e7ae2ac47c569c947aa85155f5c6 | 7af02ad948062a7504fe9f27fcd3105918559bbd2860488d4d83f56f2ae88047 |
 | tasks/task-5/source-manifest.json |  | digest-bound ×0 | c7f29f184462046ea4396ead7f75966ec311946169b712e917def6b2e3262f7c | d672a86530ddabf16af53613afaf2666a655b0394ee5faad098e99456ea7440c |
 | tasks/task-7/source-manifest.json |  | digest-bound ×0 | 6d0bc9271a3ba0b5c29d94373951ad926112f28ab9b956c18662084483fa1705 | 54d95121986f0174337f29ad35b2a0a0ae7506f0678d76ca9606e96d313c21cb |
 | tasks/task-8/source-manifest.json |  | digest-bound ×0 | 1d29d6b75bdb2497abb9d7bddbc566c84cfb175563e4ea4e91c545a150eb6cca | 64b22e0949c452a42fc4fa5e8769d05313842c1a1d03a2a4f7dc465316bb6cb8 |
-| tasks/task-9/read-ledger.jsonl |  | digest-bound ×0 | 5a500e80efc6560f6a32af4a6a330a05eea49c2134df67fde7800f35b2e36488 | cd1c683d9c3be64ebe316d86e0ea6fb744ea6346b5b2a736f48a147a686dfa59 |
+| tasks/task-9/read-ledger.jsonl |  | digest-bound ×0 | 5a500e80efc6560f6a32af4a6a330a05eea49c2134df67fde7800f35b2e36488 | 88948c1f6103ec54ff27c0de3995dd99861936c445fb94da3035e7e24b3c1530 |
 | tasks/task-9/source-manifest.json |  | digest-bound ×1 | 23b88df0e11ca89c416cf9c64fc4dd5ef4a9375c0451abce85cf1311e796d69f | 77cdd5864150c96b8e251171ca6651e36298eadfffdfc8c559b0a9aa873f79b5 |
 
 </details>

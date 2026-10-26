@@ -181,12 +181,19 @@ test("packed tarball installs Pi-free and runs the runtime from dist", async (t)
 				"--input-type=module",
 				"-e",
 				`const runtime = await import("@agwab/agent-workflow/runtime");
-const identity = await runtime.inspectProcessIdentity(process.pid);
+// The first runs of a freshly installed native helper can exceed its 2 s timeout under load
+// (macOS first-execution scan), answering \"unknown\"; retry before judging the install.
+let identity = await runtime.inspectProcessIdentity(process.pid);
+for (let i = 0; i < 6 && identity.state !== \"alive\"; i += 1) {
+  await new Promise((r) => setTimeout(r, 500));
+  identity = await runtime.inspectProcessIdentity(process.pid);
+}
 console.log(JSON.stringify({
   module: runtime.MODULE,
   runsDir: runtime.DEFAULT_RUNS_DIR,
   validate: runtime.validateResolveInput({ backend: "codex", task: "t" }).ok,
   identity: identity.state,
+  identityReason: identity.reason ?? null,
   gate: runtime.runtimeWorkerPath("process-gate"),
   binding: runtime.runtimeWorkerPath("durable-worker-binding"),
 }));`,
@@ -203,7 +210,7 @@ console.log(JSON.stringify({
 			assert.equal(
 				report.identity,
 				"alive",
-				"process identity works from the install",
+				`process identity works from the install (${report.identityReason ?? "no reason"})`,
 			);
 
 		// process-gate: documented usage error (125) without a payload ...

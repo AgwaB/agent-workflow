@@ -14,8 +14,8 @@ Original spec, Pi adapter request checks.
 | Replayed status | failed |
 | Worker launches served / recorded | 5 / 6 |
 | Artifact reads re-issued / recorded | 43 / 57 |
-| Differences: allowed | 295 |
-| Differences: explained | 485 |
+| Differences: allowed | 294 |
+| Differences: explained | 487 |
 | Differences: unexplained | 0 |
 | Exact-match violations | 0 |
 
@@ -29,7 +29,7 @@ Tasks not completed:
 
 | Task | Spec | Status | Detail | Message |
 |---|---|---|---|---|
-| task-7 | report.main | failed | launch_failed | provisional worker run_mvpe7kt0_875794/attempt_mvpe7kt0_e4b0a6 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: replay miss for task-7: no |
+| task-7 | report.main | failed | launch_failed | provisional worker run_mvpejtxc_edc1db/attempt_mvpejtxc_1267e2 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: replay miss for task-7: no |
 | task-8 | final.main | failed | support_declared_failed | support declared failed |
 
 ### Differences by rule
@@ -43,6 +43,7 @@ Tasks not completed:
 | explained | `owned-sessions` | 5 | docs/core-port.md WP4c-1 "R#9, R#10, R#12, R#5" (R#10) and change log 8 |
 | explained | `run-capability-negotiation` | 1 | docs/core-port.md "WP4d — capability negotiation before launch" |
 | explained | `run-executor-record` | 1 | docs/core-port.md WP4c-1 "Executor selection" and change log 11 |
+| explained | `run-permission-mode` | 2 | docs/core-port.md WP4e permission modes; docs/permissions.md |
 | explained | `runtime-cost-rounding` | 6 | docs/core-port.md WP1b change log 3 |
 | explained | `runtime-stderr` | 11 | docs/runtime-port.md "Attempt artifacts" (stderr.log: runtime diagnostics, empty on a clean completion) |
 | allowed | `derived-launch-identity` | 31 | allowed-differences.json (WP1a) |
@@ -50,7 +51,7 @@ Tasks not completed:
 | allowed | `host-path-digest` | 4 | allowed-differences.json (WP1a) |
 | allowed | `host-path-file-size` | 6 | allowed-differences.json (WP1a) |
 | allowed | `host-path-manifest-digest` | 2 | allowed-differences.json (WP1a) |
-| allowed | `renamed-literal-digest-binding` | 7 | allowed-differences.json (WP1b) |
+| allowed | `renamed-literal-digest-binding` | 6 | allowed-differences.json (WP1b) |
 | allowed | `runtime-launch-barrier-identity` | 197 | allowed-differences.json (WP1b) |
 | allowed | `state-root-identity` | 1 | allowed-differences.json (WP1a) |
 | allowed | `supervisor-progress-snapshot` | 2 | allowed-differences.json (WP1a) |
@@ -330,7 +331,7 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | capabilityNegotiation | added |  | {"capabilities":{"cancel":{"detail":"interrupt","level":"native","source":"declared"},"context":"agent","contextIsolation":{"level":"native","source":"declared"},"effortLevels":["low","medium","high"],"fastTier":{"level":"none","source":"de… (11347 chars, sha256 8462d2dc80e2) |
+| run.json | capabilityNegotiation | added |  | {"capabilities":{"cancel":{"detail":"interrupt","level":"native","source":"declared"},"context":"agent","contextIsolation":{"level":"native","source":"declared"},"effortLevels":["low","medium","high"],"fastTier":{"level":"none","source":"de… (11562 chars, sha256 1a141136e129) |
 
 </details>
 
@@ -338,7 +339,16 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/spec-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-spec-review-original-80006/work/replay-trace.jsonl"},"c… (371 chars, sha256 6f374ebba556) |
+| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/spec-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-spec-review-original-50389/work/replay-trace.jsonl"},"c… (371 chars, sha256 4ab769b225b8) |
+
+</details>
+
+<details><summary>explained run-permission-mode (2)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| compiled.json | permissionMode | added |  | free |
+| run.json | permissionMode | added |  | {"mode":"free","source":"default"} |
 
 </details>
 
@@ -461,13 +471,12 @@ Tasks not completed:
 
 </details>
 
-<details><summary>allowed renamed-literal-digest-binding (7)</summary>
+<details><summary>allowed renamed-literal-digest-binding (6)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| compiled.json |  | digest-bound ×0 | 2886f2b5cb57a627755b3c276ca380ffdd9d384a2ceb4c4f0fa44170c3ed93d5 | 22961ffeff66e8fb08bee9cd02d07bfe6bb1565065c0ad5e72aa74854450a8b3 |
 | tasks/task-1/system-prompt.md |  | digest-bound ×0 | bc43880ab75f7e70f406c8a08510d37b81ea9ebd2211d3e30cc674d896efdbc5 | f79ad541187db3324948739a8ba33d865ed24d48fac69835f3d79c082341f7b1 |
-| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | 75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211 | e6a6c904a36e6f56157c70cc2590d960e02cdb6e3de590000e41017c89758a77 |
+| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | 75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211 | b2db26d69d5af6468937e1f5dbe258c5f0b169e08fa78277bd6133c4b413d479 |
 | tasks/task-4/source-manifest.json |  | digest-bound ×1 | c6928c7fe350ccb2447669f1a224de19f40b070f5446d6cc7db139a822385195 | 4a9c7feffedc4ef4c74af4159a306c4fb9e2401acc887c5c5ffb9098e0b6459a |
 | tasks/task-6/source-manifest.json |  | digest-bound ×0 | 64f0c2b8a1da0e1a9357bad71aa07d02e9b5ce125c5ac54c94c9decd70fe4b43 | 2b163098c0bd775ba13cfceb2533f7ef4174afada1a4f45d57c156128c00af42 |
 | tasks/task-7/system-prompt.md |  | digest-bound ×0 | 6ffda8d58368377403ffdce6d5d681766367ecef88d6ff92adbb32fc443d1461 | c0a5bada21993ed7bfae15d2cb28619d1bef750863e1cb0880d5cbec1569840d |
@@ -732,8 +741,8 @@ Tasks not completed:
 | tasks/task-4/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
 | tasks/task-6/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-6/source-manifest.json | .agent-workflow/workflows | literal-renamed ×8 |  |  |
-| tasks/task-7/.launch-barrier-710c29bf295b9b8f-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
-| tasks/task-7/.launch-barrier-710c29bf295b9b8f-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-7/.launch-barrier-3856b0320429f97a-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-7/.launch-barrier-3856b0320429f97a-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
 | tasks/task-7/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-7/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
 | tasks/task-7/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
@@ -755,8 +764,8 @@ The original helpers read upstream engine state from the hard-coded `.pi/workflo
 | Replayed status | failed |
 | Worker launches served / recorded | 6 / 6 |
 | Artifact reads re-issued / recorded | 57 / 57 |
-| Differences: allowed | 337 |
-| Differences: explained | 238 |
+| Differences: allowed | 336 |
+| Differences: explained | 240 |
 | Differences: unexplained | 0 |
 | Exact-match violations | 0 |
 
@@ -777,6 +786,7 @@ Tasks not completed:
 | explained | `owned-sessions` | 6 | docs/core-port.md WP4c-1 "R#9, R#10, R#12, R#5" (R#10) and change log 8 |
 | explained | `run-capability-negotiation` | 1 | docs/core-port.md "WP4d — capability negotiation before launch" |
 | explained | `run-executor-record` | 1 | docs/core-port.md WP4c-1 "Executor selection" and change log 11 |
+| explained | `run-permission-mode` | 2 | docs/core-port.md WP4e permission modes; docs/permissions.md |
 | explained | `runtime-cost-rounding` | 6 | docs/core-port.md WP1b change log 3 |
 | explained | `runtime-stderr` | 12 | docs/runtime-port.md "Attempt artifacts" (stderr.log: runtime diagnostics, empty on a clean completion) |
 | allowed | `derived-launch-identity` | 33 | allowed-differences.json (WP1a) |
@@ -784,7 +794,7 @@ Tasks not completed:
 | allowed | `host-path-digest` | 4 | allowed-differences.json (WP1a) |
 | allowed | `host-path-file-size` | 7 | allowed-differences.json (WP1a) |
 | allowed | `host-path-manifest-digest` | 1 | allowed-differences.json (WP1a) |
-| allowed | `renamed-literal-digest-binding` | 20 | allowed-differences.json (WP1b) |
+| allowed | `renamed-literal-digest-binding` | 19 | allowed-differences.json (WP1b) |
 | allowed | `runtime-launch-barrier-identity` | 225 | allowed-differences.json (WP1b) |
 | allowed | `state-root-identity` | 1 | allowed-differences.json (WP1a) |
 | allowed | `timestamp-derived-digest` | 9 | allowed-differences.json (WP1a) |
@@ -1049,7 +1059,7 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | capabilityNegotiation | added |  | {"capabilities":{"cancel":{"detail":"interrupt","level":"native","source":"declared"},"context":"agent","contextIsolation":{"level":"native","source":"declared"},"effortLevels":["low","medium","high"],"fastTier":{"level":"none","source":"de… (11347 chars, sha256 8462d2dc80e2) |
+| run.json | capabilityNegotiation | added |  | {"capabilities":{"cancel":{"detail":"interrupt","level":"native","source":"declared"},"context":"agent","contextIsolation":{"level":"native","source":"declared"},"effortLevels":["low","medium","high"],"fastTier":{"level":"none","source":"de… (11562 chars, sha256 1a141136e129) |
 
 </details>
 
@@ -1057,7 +1067,16 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/spec-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-spec-review-state-path-migrated-80612/work/replay-trace… (382 chars, sha256 478216c0aca9) |
+| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/spec-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-spec-review-state-path-migrated-54999/work/replay-trace… (382 chars, sha256 c9b547981c5a) |
+
+</details>
+
+<details><summary>explained run-permission-mode (2)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| compiled.json | permissionMode | added |  | free |
+| run.json | permissionMode | added |  | {"mode":"free","source":"default"} |
 
 </details>
 
@@ -1185,20 +1204,19 @@ Tasks not completed:
 
 </details>
 
-<details><summary>allowed renamed-literal-digest-binding (20)</summary>
+<details><summary>allowed renamed-literal-digest-binding (19)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
 | bundle/helpers/spec-requirement-source.mjs |  | digest-bound ×0 | 4ba1f11a7c20ee7123e3186947eafc53215258127e5d5f4c1e78f3e1919f52cc | aa08cbcfc46aafc03ad0b11682bbeb94f3a92f737de66b78ebfccba56281c1af |
-| compiled.json |  | digest-bound ×0 | 2886f2b5cb57a627755b3c276ca380ffdd9d384a2ceb4c4f0fa44170c3ed93d5 | 22961ffeff66e8fb08bee9cd02d07bfe6bb1565065c0ad5e72aa74854450a8b3 |
-| supervisor.json |  | digest-bound ×0 | 1fef8f8ffa8b1b69fbdbc6f8ae12adb138834eae70eca6f505d2aecaa5a9d933 | ec80782e69f6f3ea9011eb9b2358b1f25d301df86dc5d37a6a8b18c85e3198d4 |
+| supervisor.json |  | digest-bound ×0 | 1fef8f8ffa8b1b69fbdbc6f8ae12adb138834eae70eca6f505d2aecaa5a9d933 | 199f698f1c1487428a242cd31a91ddafcea0816d4b7f4590fbf33832afc173e6 |
 | tasks/task-1/system-prompt.md |  | digest-bound ×0 | bc43880ab75f7e70f406c8a08510d37b81ea9ebd2211d3e30cc674d896efdbc5 | f79ad541187db3324948739a8ba33d865ed24d48fac69835f3d79c082341f7b1 |
-| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | 75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211 | 426f8ef934e54e5e74979187c33ccea7c317fe9675c427723adcabd911a84d94 |
+| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | 75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211 | a1022d28f640d67f804aeea8bcb5077bd2c0e6b3d9ed03ad1945b6cc10d90943 |
 | tasks/task-4/source-manifest.json |  | digest-bound ×13 | c6928c7fe350ccb2447669f1a224de19f40b070f5446d6cc7db139a822385195 | 4a9c7feffedc4ef4c74af4159a306c4fb9e2401acc887c5c5ffb9098e0b6459a |
 | tasks/task-6/control.json |  | digest-bound ×7 | acf75c059c93b7c057b49aa724cc80d8cc4ed3809180b2cbae1a47896bbae45e | 9127a68c323fa5e9fad787bcd014a4205f636f82ba1dfc40b780a28dcc87f9e9 |
 | tasks/task-6/output.log |  | digest-bound ×2 | e7c89a29dca27f39474a7f296eec2ce9a41896c25948141c9d97a31bec4d4207 | df02f3943fb9ec7d6a64031b73acf94cc53decfc72cab2ae140c12c306913c48 |
 | tasks/task-6/source-manifest.json |  | digest-bound ×0 | 64f0c2b8a1da0e1a9357bad71aa07d02e9b5ce125c5ac54c94c9decd70fe4b43 | 2b163098c0bd775ba13cfceb2533f7ef4174afada1a4f45d57c156128c00af42 |
-| tasks/task-7/read-ledger.jsonl |  | digest-bound ×0 | 6180e80979172dcb3d65c14be3ff0396fcc6a38122fc1e4dab35f11d4a9b1db6 | 9f6c24648fe562d8acfc0328f253f7a55f8a7709a8dc3516d98a55b7fff323bd |
+| tasks/task-7/read-ledger.jsonl |  | digest-bound ×0 | 6180e80979172dcb3d65c14be3ff0396fcc6a38122fc1e4dab35f11d4a9b1db6 | 175470062ca31d7345181f11b44171479f3699f28bf63ac87f705099d2aee724 |
 | tasks/task-7/source-manifest.json |  | digest-bound ×1 | 759ac21880be41ee26b96f761ff5f5c5d4e3a6bd4e7654afbe8e26a11629bac7 | 1007c448acc1975e1a7a681813235449f26763ccae6fb55b006bffdf118e8f50 |
 | tasks/task-7/system-prompt.md |  | digest-bound ×0 | 6ffda8d58368377403ffdce6d5d681766367ecef88d6ff92adbb32fc443d1461 | c0a5bada21993ed7bfae15d2cb28619d1bef750863e1cb0880d5cbec1569840d |
 | tasks/task-7/task.md |  | digest-bound ×1 | f128bee8ba8bdda0621e4304fc4056b26b7e51fd9e9a463f3d1fc762487fd4a5 | 95bd63534e09aa3954080a028e54362b3e65b99e9886880754d6b4af3c0008d2 |

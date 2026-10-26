@@ -29,21 +29,21 @@
 					"specId": "research-questions.rq-001",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvpe6jqx_2a109e/attempt_mvpe6jqx_349e08 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvpeiuxk_fe37cc/attempt_mvpeiuxk_92b200 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-12",
 					"specId": "research-questions.rq-002",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvpe6k16_13d464/attempt_mvpe6k16_46df4a ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvpeiv7b_02e2ad/attempt_mvpeiv7b_28f3fe ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-13",
 					"specId": "research-questions.rq-003",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvpe6ke8_7f62fc/attempt_mvpe6ke8_424fc7 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvpeivgu_646fea/attempt_mvpeivgu_f20f74 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-3",
@@ -56,7 +56,7 @@
 					"specId": "normalize-claims.main",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvpe6kol_e2460b/attempt_mvpe6kol_6a02e9 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvpeivt1_550298/attempt_mvpeivt1_b0bcf6 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-5",
@@ -87,7 +87,7 @@
 					"specId": "final-audit.main",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvpe6l8q_4e4fe4/attempt_mvpe6l8q_7c431f ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvpeiw3q_59aa70/attempt_mvpeiw3q_40cca8 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-10",
@@ -199,7 +199,7 @@
 			],
 			"counts": {
 				"allowed": 176,
-				"explained": 2200,
+				"explained": 2202,
 				"unexplained": 0
 			},
 			"differences": [
@@ -286,7 +286,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-11/.launch-barrier-4d75ef6cadfa9628-<RAND16>/decision-v2.json",
+					"file": "tasks/task-11/.launch-barrier-5d067e679487813d-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -294,7 +294,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-11/.launch-barrier-4d75ef6cadfa9628-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-11/.launch-barrier-5d067e679487813d-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -326,7 +326,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-12/.launch-barrier-0d94a8f918d17213-<RAND16>/decision-v2.json",
+					"file": "tasks/task-12/.launch-barrier-aec05d81aa388e95-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -334,7 +334,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-12/.launch-barrier-0d94a8f918d17213-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-12/.launch-barrier-aec05d81aa388e95-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -366,7 +366,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-13/.launch-barrier-6cdafcfef621dfaa-<RAND16>/decision-v2.json",
+					"file": "tasks/task-13/.launch-barrier-c945be16e4071055-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -374,7 +374,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-13/.launch-barrier-6cdafcfef621dfaa-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-13/.launch-barrier-c945be16e4071055-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -422,7 +422,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-4/.launch-barrier-48fcb751600d0b1e-<RAND16>/decision-v2.json",
+					"file": "tasks/task-4/.launch-barrier-057cb7614b3fc936-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -430,7 +430,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-4/.launch-barrier-48fcb751600d0b1e-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-4/.launch-barrier-057cb7614b3fc936-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -510,7 +510,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-9/.launch-barrier-5a37fa552e154923-<RAND16>/decision-v2.json",
+					"file": "tasks/task-9/.launch-barrier-0b8c880c9dbc0989-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -518,7 +518,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-9/.launch-barrier-5a37fa552e154923-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-9/.launch-barrier-0b8c880c9dbc0989-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -1610,6 +1610,16 @@
 					"rule": "c2-original-deep-research-refused",
 					"citation": "docs/core-port.md WP1b change log 7 (C2/WP10) and change log 5 (executor refusal before READY fails the launch at once)",
 					"file": "compiled.json",
+					"kind": "added",
+					"summarized": true,
+					"count": 22,
+					"exactMatch": []
+				},
+				{
+					"class": "explained",
+					"rule": "c2-original-deep-research-refused",
+					"citation": "docs/core-port.md WP1b change log 7 (C2/WP10) and change log 5 (executor refusal before READY fails the launch at once)",
+					"file": "compiled.json",
 					"kind": "changed",
 					"summarized": true,
 					"count": 76,
@@ -1623,16 +1633,6 @@
 					"kind": "removed",
 					"summarized": true,
 					"count": 39,
-					"exactMatch": []
-				},
-				{
-					"class": "explained",
-					"rule": "c2-original-deep-research-refused",
-					"citation": "docs/core-port.md WP1b change log 7 (C2/WP10) and change log 5 (executor refusal before READY fails the launch at once)",
-					"file": "compiled.json",
-					"kind": "added",
-					"summarized": true,
-					"count": 21,
 					"exactMatch": []
 				},
 				{
@@ -1702,7 +1702,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"summarized": true,
-					"count": 46,
+					"count": 47,
 					"exactMatch": ["required-read-verdict"]
 				},
 				{
@@ -1712,7 +1712,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-original-76771/work/replay-trace.jsonl\"… (375 chars, sha256 8979d9cdb83e)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-original-42933/work/replay-trace.jsonl\"… (375 chars, sha256 829390b6ad37)"
 				},
 				{
 					"class": "explained",
@@ -5560,8 +5560,8 @@
 				"Worker-filled web-source cache (worker-snapshots/<run>/web-source-cache): written by the removed workflow_web_* tools (C2); not restored."
 			],
 			"counts": {
-				"allowed": 583,
-				"explained": 504,
+				"allowed": 582,
+				"explained": 506,
 				"unexplained": 0
 			},
 			"differences": [
@@ -5864,21 +5864,11 @@
 				{
 					"class": "allowed",
 					"rule": "renamed-literal-digest-binding",
-					"file": "compiled.json",
-					"kind": "digest-bound",
-					"proof": "file",
-					"recorded": "29421b1323de82a5ae5884c9d0be420354f2b82377722c6876a5e1f5cfd6e3af",
-					"replayed": "64b98596bf18e4b9b612e2cbfbe89ebe05a0bfa3b0af0e211192dbcf5b3e02c4",
-					"count": 0
-				},
-				{
-					"class": "allowed",
-					"rule": "renamed-literal-digest-binding",
 					"file": "supervisor.json",
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "d675d7c5f0ad9cae409776fb7c97439ffb8fd288bde0a6a478350e0671f3f0a0",
-					"replayed": "078e141d57ded96eaa4a03782b950a84f2e0b0a6e80cc331f9505a33ce3be39b",
+					"replayed": "74b4f5599d05a8df00ebf6d5e6e46b110f7aecdfb7201930eba0e151ad4480cc",
 					"count": 0
 				},
 				{
@@ -5978,7 +5968,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "f32560de6fc74ed1d1e79d9740fc557f9d31407f68bac9b8ea4e319ddd67372c",
-					"replayed": "6c057f5764aa79f28709ebb89627652dcc9888c9f6d404f8999be4bb231ba332",
+					"replayed": "f6e3d3409372385e3bec9b7c7eb825cfb91f43c0e016def62c0af17a005c1df0",
 					"count": 0
 				},
 				{
@@ -6028,7 +6018,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "5a500e80efc6560f6a32af4a6a330a05eea49c2134df67fde7800f35b2e36488",
-					"replayed": "cd1c683d9c3be64ebe316d86e0ea6fb744ea6346b5b2a736f48a147a686dfa59",
+					"replayed": "88948c1f6103ec54ff27c0de3995dd99861936c445fb94da3035e7e24b3c1530",
 					"count": 0
 				},
 				{
@@ -10067,6 +10057,15 @@
 				},
 				{
 					"class": "explained",
+					"rule": "run-permission-mode",
+					"citation": "docs/core-port.md WP4e permission modes; docs/permissions.md",
+					"file": "compiled.json",
+					"kind": "added",
+					"path": "permissionMode",
+					"replayed": "free"
+				},
+				{
+					"class": "explained",
 					"rule": "runtime-backend-executor-id",
 					"citation": "docs/runtime-port.md change log 1 (Backends: a resolved backend is the executor id)",
 					"file": "foreach-batches/1d78f2b12f8565f3deb733b86b7b6b915ccba8561b49cb1cda25e989860bd807/receipt-attempt-1.json",
@@ -10102,7 +10101,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "capabilityNegotiation",
-					"replayed": "{\"capabilities\":{\"cancel\":{\"detail\":\"interrupt\",\"level\":\"native\",\"source\":\"declared\"},\"context\":\"agent\",\"contextIsolation\":{\"level\":\"native\",\"source\":\"declared\"},\"effortLevels\":[\"low\",\"medium\",\"high\"],\"fastTier\":{\"level\":\"none\",\"source\":\"de… (17015 chars, sha256 d1759ecce081)"
+					"replayed": "{\"capabilities\":{\"cancel\":{\"detail\":\"interrupt\",\"level\":\"native\",\"source\":\"declared\"},\"context\":\"agent\",\"contextIsolation\":{\"level\":\"native\",\"source\":\"declared\"},\"effortLevels\":[\"low\",\"medium\",\"high\"],\"fastTier\":{\"level\":\"none\",\"source\":\"de… (17374 chars, sha256 ce6a5f8af2b1)"
 				},
 				{
 					"class": "explained",
@@ -10111,7 +10110,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"adapterChecks\":false,\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-engine-only-77051… (400 chars, sha256 dec0db662ba2)"
+					"replayed": "{\"descriptor\":{\"config\":{\"adapterChecks\":false,\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-engine-only-44171… (400 chars, sha256 0e45d88676b7)"
 				},
 				{
 					"class": "allowed",
@@ -10799,6 +10798,15 @@
 					"kind": "removed",
 					"path": "foreachBatches[2].physicalExecution.usage.totalTokens",
 					"recorded": "27385"
+				},
+				{
+					"class": "explained",
+					"rule": "run-permission-mode",
+					"citation": "docs/core-port.md WP4e permission modes; docs/permissions.md",
+					"file": "run.json",
+					"kind": "added",
+					"path": "permissionMode",
+					"replayed": "{\"mode\":\"free\",\"source\":\"default\"}"
 				},
 				{
 					"class": "explained",

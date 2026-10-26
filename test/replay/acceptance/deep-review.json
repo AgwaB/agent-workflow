@@ -141,7 +141,7 @@
 			],
 			"counts": {
 				"allowed": 587,
-				"explained": 360,
+				"explained": 362,
 				"unexplained": 0
 			},
 			"differences": [
@@ -4651,12 +4651,21 @@
 				},
 				{
 					"class": "explained",
+					"rule": "run-permission-mode",
+					"citation": "docs/core-port.md WP4e permission modes; docs/permissions.md",
+					"file": "compiled.json",
+					"kind": "added",
+					"path": "permissionMode",
+					"replayed": "free"
+				},
+				{
+					"class": "explained",
 					"rule": "run-capability-negotiation",
 					"citation": "docs/core-port.md \"WP4d — capability negotiation before launch\"",
 					"file": "run.json",
 					"kind": "added",
 					"path": "capabilityNegotiation",
-					"replayed": "{\"capabilities\":{\"cancel\":{\"detail\":\"interrupt\",\"level\":\"native\",\"source\":\"declared\"},\"context\":\"agent\",\"contextIsolation\":{\"level\":\"native\",\"source\":\"declared\"},\"effortLevels\":[\"low\",\"medium\",\"high\"],\"fastTier\":{\"level\":\"none\",\"source\":\"de… (16527 chars, sha256 9675917446cc)"
+					"replayed": "{\"capabilities\":{\"cancel\":{\"detail\":\"interrupt\",\"level\":\"native\",\"source\":\"declared\"},\"context\":\"agent\",\"contextIsolation\":{\"level\":\"native\",\"source\":\"declared\"},\"effortLevels\":[\"low\",\"medium\",\"high\"],\"fastTier\":{\"level\":\"none\",\"source\":\"de… (16910 chars, sha256 53367dfc7e6b)"
 				},
 				{
 					"class": "explained",
@@ -4665,7 +4674,16 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-review-original-78207/work/replay-trace.jsonl\"},\"c… (371 chars, sha256 bc31352232ad)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-review-original-45403/work/replay-trace.jsonl\"},\"c… (371 chars, sha256 dbd18052d972)"
+				},
+				{
+					"class": "explained",
+					"rule": "run-permission-mode",
+					"citation": "docs/core-port.md WP4e permission modes; docs/permissions.md",
+					"file": "run.json",
+					"kind": "added",
+					"path": "permissionMode",
+					"replayed": "{\"mode\":\"free\",\"source\":\"default\"}"
 				},
 				{
 					"class": "explained",
@@ -7777,7 +7795,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "cad4b1152ff620b352d4bbff11a1772119fbcb5d66aab125d0136e53fbb88191"
+					"replayed": "ec79c6d303d56a1fa352ab9855cfd522ab732c3116e4b4be717668326e5c70c7"
 				},
 				{
 					"class": "explained",
@@ -7797,7 +7815,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-7",
-					"replayed": "78a19d1ec76aa02ec786bc039d85d46ddfb8a4a5f4cb6d8bd8ff71dda1d5d45d"
+					"replayed": "7ef731cc174f945fb6c860692da176852db6b668a51538a56a2c11bb455530b2"
 				},
 				{
 					"class": "explained",
@@ -7807,7 +7825,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-7",
-					"replayed": "e073daf6df3c9537fee3d081ed925017246a88d4d293740831b9fe2848c70109"
+					"replayed": "09741fad320716c4957b182daadc7260334e8faa723ac504661975e3cd658c42"
 				},
 				{
 					"class": "explained",
@@ -7817,7 +7835,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "cad4b1152ff620b352d4bbff11a1772119fbcb5d66aab125d0136e53fbb88191"
+					"replayed": "ec79c6d303d56a1fa352ab9855cfd522ab732c3116e4b4be717668326e5c70c7"
 				},
 				{
 					"class": "explained",

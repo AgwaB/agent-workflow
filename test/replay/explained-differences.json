@@ -246,6 +246,18 @@
 					"kind": "added"
 				}
 			]
+		},
+		{
+			"id": "run-permission-mode",
+			"citation": "docs/core-port.md WP4e permission modes; docs/permissions.md",
+			"reason": "WP4e (owner decision D2 revised) records the effective permission mode (free default / safe) on the compiled workflow and the run; pi-workflow had no permission mode. Added only; free mode honors the spec worktreePolicy as pi-workflow did, so no recorded behavior changes.",
+			"differences": [
+				{
+					"file": "^(run|compiled)\\.json$",
+					"path": "^permissionMode$",
+					"kind": "added"
+				}
+			]
 		}
 	]
 }
