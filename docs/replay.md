@@ -139,13 +139,13 @@ its cause separately.
 
 | Fixture:variant | Recorded → replayed | Allowed / explained / unexplained | Workers served, reads re-issued |
 |---|---|---|---|
-| minimal:original | completed → completed | 76 / 45 / 0 | 1/1, 0/0 |
-| deep-review:original | completed → completed | 587 / 359 / 0 | 12/12, 1/1 |
-| impact-review:original | failed → failed | 597 / 463 / 0 | 12/12, 31/31 |
-| spec-review:original | failed → failed (divergent) | 295 / 484 / 0 | 5/6, 43/57 |
-| spec-review:state-path-migrated | failed → failed | 338 / 237 / 0 | 6/6, 57/57 |
-| deep-research:original | completed → blocked (expected refusal) | 176 / 2199 / 0 | 1/11, 0/10 |
-| deep-research:engine-only | completed → completed | 583 / 503 / 0 | 11/11, 10/10 |
+| minimal:original | completed → completed | 76 / 47 / 0 | 1/1, 0/0 |
+| deep-review:original | completed → completed | 587 / 361 / 0 | 12/12, 1/1 |
+| impact-review:original | failed → failed | 597 / 476 / 0 | 12/12, 31/31 |
+| spec-review:original | failed → failed (divergent) | 293 / 491 / 0 | 5/6, 43/57 |
+| spec-review:state-path-migrated | failed → failed | 335 / 244 / 0 | 6/6, 57/57 |
+| deep-research:original | completed → blocked (expected refusal) | 175 / 2206 / 0 | 1/11, 0/10 |
+| deep-research:engine-only | completed → completed | 579 / 515 / 0 | 11/11, 10/10 |
 
 The `allowed` counts vary by a few rows from run to run. Supervisor progress snapshots depend on
 timing, and the digest bindings of timestamped files (read ledgers) show up only when the run's
@@ -168,7 +168,7 @@ divergent variants:
   With it, every task output matches; only C2 artifacts (wrapper files, web-source cache) and foreach
   batch telemetry differ, all classified.
 
-Main explained changes: the executor record and owned sessions; artifact MCP provenance instead of
+Main explained changes: the executor record and owned sessions; the WP10 worker-prompt rendering (the SubmitRequest names the artifact tool `mcp__workflow_artifact__workflow_artifact` for the `pi` replay executor, renamed back by the `wp10-artifact-tool-visible-name` literal rename; `system-prompt.md` gains the artifact tool guidelines section; the original deep-research system prompts lose the removed web-source hint); artifact MCP provenance instead of
 the Pi extension wrapper; runtime stderr; executor exit code `null`; the executor usage contract (no
 reasoning/total/cache-write tokens); cost rounding to 12 decimals; original helpers' sidecars written
 to the legacy `.pi/workflows` path (byte-identical); and the resolved backend as an executor id.

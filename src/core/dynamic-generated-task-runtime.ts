@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-generated-task-runtime.ts. MIT, same author. Changes: fast-mode config from fast-tier.ts; native-host tool expansion → tool-policy inheritHostTools flag from run.inheritHostTools (task still classified mutation-capable).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-generated-task-runtime.ts. MIT, same author. Changes: fast-mode config from fast-tier.ts; native-host tool expansion → tool-policy inheritHostTools flag from run.inheritHostTools (task still classified mutation-capable). WP10 (C2): the web budget section applies to the CLI web tools web_search/fetch_content (was workflow_web_*).
 import { loadAgentByName } from "./agents.js";
 import { readArtifactGraphControl } from "./artifact-graph-runtime.js";
 import { DynamicControllerBudgetBlocked } from "./dynamic-controller-errors.js";
@@ -50,11 +50,8 @@ const DYNAMIC_DELEGATION_TOOLS = new Set([
 	"/workflow",
 ]);
 export const DYNAMIC_WEB_SEARCH_BUDGET = 3;
-const DYNAMIC_WEB_TOOLS = new Set([
-	"workflow_web_search",
-	"workflow_web_fetch_source",
-	"workflow_web_source_read",
-]);
+// C2/WP10: the CLI web tools (Pi vocabulary; adapters map them per executor).
+const DYNAMIC_WEB_TOOLS = new Set(["web_search", "fetch_content"]);
 
 export interface DynamicArtifactInput {
 	kind: "workflow-artifact-ref";
@@ -409,7 +406,7 @@ function dynamicWebToolBudgetSection(
 	tools: string[] | undefined,
 ): string | undefined {
 	if (!tools?.some((tool) => DYNAMIC_WEB_TOOLS.has(tool))) return undefined;
-	return `# Web Tool Budget\n\nSearch budget: use at most ${DYNAMIC_WEB_SEARCH_BUDGET} workflow_web_search calls for this task; prefer one batched workflow_web_search call with multiple queries. Do not compensate with broad extra fetches; fetch/read only promising URLs discovered within this budget or already-known sourceRefs/URLs. If evidence remains insufficient after the budget, stop discovery and record the gap in your output instead of expanding the search.`;
+	return `# Web Tool Budget\n\nSearch budget: use at most ${DYNAMIC_WEB_SEARCH_BUDGET} web_search calls for this task; prefer one web_search call that covers several queries. Do not compensate with broad extra fetches; fetch only promising URLs discovered within this budget or already-known URLs. If evidence remains insufficient after the budget, stop discovery and record the gap in your output instead of expanding the search.`;
 }
 
 function dynamicGeneratedTaskRefsMinItems(input: {

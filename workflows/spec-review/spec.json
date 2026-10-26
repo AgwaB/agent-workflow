@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "name": "spec-review",
   "description": "Read-only spec conformance review: extract requirements from a referenced spec, map implementation and tests in parallel, verify candidate gaps, and produce an evidence-backed report without editing files.",
+  "allowReadOnlyDowngrade": true,
   "routing": {
     "useWhen": [
       "A named specification, API contract, or acceptance criteria must be mapped to implementation and tests.",

@@ -25,9 +25,8 @@
     "fetchToolUsed": {
       "type": "string",
       "enum": [
-        "workflow_web_fetch_source",
-        "workflow_web_source_read",
         "fetch_content",
+        "web_search",
         "none"
       ]
     },

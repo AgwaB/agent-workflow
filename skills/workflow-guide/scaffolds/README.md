@@ -1,6 +1,6 @@
 # workflow-guide scaffolds
 
-Validated starter bundles for `workflow-guide` authoring. Copy and adapt the closest scaffold, or use a scaffold's documented provider-free initializer when the caller has already fixed the supported inputs. Then run `/workflow validate` before use.
+Validated starter bundles for `workflow-guide` authoring. Copy and adapt the closest scaffold, or use a scaffold's documented provider-free initializer when the caller has already fixed the supported inputs. Then run `agent-workflow validate` (or the host's `/workflow validate`) before use.
 
 These scaffolds are skill resources, not bundled starter workflows. Do not run them directly as product workflows without adapting or initializing the runtime contract and reviewing its prompts, schemas, agents, and tool policy.
 
@@ -36,16 +36,16 @@ Create a JSON binding:
 Then initialize a fresh or empty bundle directory without any model/provider call:
 
 ```bash
-node skills/workflow-guide/scaffolds/fixed-inventory/initialize.mjs binding.json .pi/workflows/proposal-questions
+node skills/workflow-guide/scaffolds/fixed-inventory/initialize.mjs binding.json .agent-workflow/workflows/proposal-questions
 ```
 
-The initializer accepts only `name`, optional `description`, and 1–8 exact `{id,path}` rows; rejects unknown fields, duplicate/unsafe IDs, absolute or escaping paths, a symlink binding file or destination entry, and nonempty destinations; and uses exclusive file creation. Item `path` values are resolved later from the workflow run's working directory, not from the binding file or generated bundle. Within one installed scaffold revision, identical bindings produce byte-identical bundle files. It does not execute the generated workflow, inspect document contents, choose stakeholders, or establish that model output is correct. Review the binding and generated `spec.json`, confirm the `scout` agent and `read` tool ceiling fit, then run `/workflow validate .pi/workflows/proposal-questions/spec.json`. Use a model planning/discovery stage instead when the inventory is unknown or must be inferred. These checks are no-clobber hygiene, not an OS sandbox against a concurrently racing same-user process.
+The initializer accepts only `name`, optional `description`, and 1–8 exact `{id,path}` rows; rejects unknown fields, duplicate/unsafe IDs, absolute or escaping paths, a symlink binding file or destination entry, and nonempty destinations; and uses exclusive file creation. Item `path` values are resolved later from the workflow run's working directory, not from the binding file or generated bundle. Within one installed scaffold revision, identical bindings produce byte-identical bundle files. It does not execute the generated workflow, inspect document contents, choose stakeholders, or establish that model output is correct. Review the binding and generated `spec.json`, confirm the `scout` agent and `read` tool ceiling fit, then run `agent-workflow validate .agent-workflow/workflows/proposal-questions/spec.json`. Use a model planning/discovery stage instead when the inventory is unknown or must be inferred. These checks are no-clobber hygiene, not an OS sandbox against a concurrently racing same-user process.
 
 ## Copy pattern
 
 ```bash
-mkdir -p .pi/workflows/my-workflow
-cp -R skills/workflow-guide/scaffolds/foreach-reduce/* .pi/workflows/my-workflow/
+mkdir -p .agent-workflow/workflows/my-workflow
+cp -R skills/workflow-guide/scaffolds/foreach-reduce/* .agent-workflow/workflows/my-workflow/
 ```
 
 Then edit:
@@ -57,7 +57,7 @@ Then edit:
 Validate:
 
 ```text
-/workflow validate .pi/workflows/my-workflow/spec.json
+agent-workflow validate .agent-workflow/workflows/my-workflow/spec.json
 ```
 
 Resolve every error and warning before running or handing off.

@@ -1069,3 +1069,40 @@ differences in `test/replay/explained-differences.json` cite these entries.
    the final render blocks, so the run ends `blocked` (recorded: `completed`). That refusal is the expected
    result; the web tools are not added back. With the adapter check off (replay variant `engine-only`)
    every task output of the recording is reproduced.
+
+## WP10 — bundled workflows, worker prompt rendering, C2 web tools
+
+WP10 ports the bundled workflows, skills and scaffolds and migrates them (docs/bundled-workflows.md).
+The core changes it needed:
+
+### WP10 change log (behavior-relevant)
+
+1. **Worker prompts are rendered per executor.** `launchSubagentTask` sends
+   `renderWorkerPromptToolNames(prompt, executor.id)` (`src/core/artifact-tool-names.ts`) as the
+   SubmitRequest task and system prompt: the placeholder `{{workflow_artifact}}` and every bare
+   `workflow_artifact` tool mention become `artifactToolVisibleName(executor.id)`
+   (`mcp__workflow_artifact__workflow_artifact` for pi, codex, claude). `workflow_artifact:<id>`
+   evidence locators and longer identifiers are unchanged. `task.md`, `system-prompt.md` and the launch
+   provenance (`prompt.sha256`) keep the canonical text. The mapping moved from
+   `src/mcp/visible-names.ts` into core (re-exported there unchanged) and all three rows are
+   `verified: true` (live WP6 #4, WP7 #2, WP8 #10).
+2. **Artifact tool guidelines in the system prompt.** A task with the artifact server (sealed binding,
+   MCP provider or `workflow_artifact` tool) gets `# Workflow Artifact Tool` with
+   `WORKFLOW_ARTIFACT_TOOL_GUIDELINES`, because Pi 1.1 does not show MCP server instructions.
+3. **C2 in the engine's own text.** The system-prompt hint for the `workflow_web_*` source-card tools is
+   removed; the `refsUrlValidation` hint says "Use the available web tools to open the URL" (was
+   "workflow web tools to fetch/cache"). The dynamic generated-task web budget applies to
+   `web_search`/`fetch_content` (was `workflow_web_*`) and says "at most 3 web_search calls".
+4. **Direct-dynamic runtime bundle v5.** `DIRECT_DYNAMIC_RUNTIME_VERSION` is `direct-dynamic-runtime-v5`;
+   its spec tools are `read, grep, find, ls, web_search, fetch_content` (was the three
+   `workflow_web_*` tools). The module refuses to rewrite an existing versioned bundle, so the changed
+   payload needed the new version; existing v4 directories are left in place and no longer used. The
+   router's direct-dynamic catalog facts list the same tools.
+5. **B4 now sees web tools.** `workflow_web_*` were never inferred as web tools; `web_search` /
+   `fetch_content` are, so web stages negotiate `webTools` (degraded `safetyPolicy: unknown`, or
+   refused where the executor has none / only unverified rows). The unit harness' default `pi`
+   fixture executor declares `webTools` native/search+fetch (`test/helpers/register-default-executor.mjs`).
+
+Left as is: `tool-metadata.ts` keeps the read-only/network classification of the three legacy
+`workflow_web_*` names (a user spec that still lists them compiles and is refused by the adapters
+before any effect, as the WP1b deep-research replay shows).

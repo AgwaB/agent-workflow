@@ -16,5 +16,17 @@ export const unregisterDefaultExecutor = registerWorkflowExecutor(
 	workflowFixtureDescriptor({
 		id: "pi",
 		effectLog: DEFAULT_EXECUTOR_EFFECT_LOG,
+		// WP10 (C2): the bundled and direct-dynamic specs request the CLI web tools
+		// (web_search/fetch_content), which B4 negotiation now recognizes. The default "pi" fixture
+		// declares them like the Pi adapter with pi-web-access (safetyPolicy unknown → degraded,
+		// recorded, accepted non-interactively).
+		capabilities: {
+			webTools: {
+				level: "native",
+				source: "declared",
+				detail: "search+fetch",
+				safetyPolicy: "unknown",
+			},
+		},
 	}),
 );

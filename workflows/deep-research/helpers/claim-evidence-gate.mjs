@@ -1,6 +1,4 @@
 // Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) workflows/deep-research/helpers/claim-evidence-gate.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import localQuoteGate, {
 	isConservativeLocalLocator,
 	isLocalLocator,
@@ -202,27 +200,9 @@ function addUrlSourceRef(urlToSourceRef, url, sourceRef) {
 	}
 }
 
-async function addWebSourceCacheSourceRefs(urlToSourceRef, context) {
-	const cwd = typeof context?.cwd === "string" ? context.cwd.trim() : "";
-	const runId = typeof context?.runId === "string" ? context.runId.trim() : "";
-	if (!cwd || !runId) return;
-	let parsed;
-	try {
-		parsed = JSON.parse(
-			await readFile(
-				join(cwd, ".pi", "workflows", runId, "web-source-cache", "index.json"),
-				"utf8",
-			),
-		);
-	} catch {
-		return;
-	}
-	for (const source of asArray(parsed?.sources)) {
-		if (!source || typeof source !== "object") continue;
-		addUrlSourceRef(urlToSourceRef, source.url, source.sourceRef);
-		addUrlSourceRef(urlToSourceRef, source.redactedUrl, source.sourceRef);
-	}
-}
+// C2 (agent-workflow WP10): the workflow web-source cache (wsrc_* source cards under the run
+// directory) no longer exists; web tools are the CLI's own and their results are model-reported.
+// URL → sourceRef joins use only the source cards the research stage reported.
 
 async function buildUrlSourceRefLookup(normalizeInputPacket, context) {
 	const urlToSourceRef = new Map();
@@ -247,7 +227,6 @@ async function buildUrlSourceRefLookup(normalizeInputPacket, context) {
 		for (const [index, url] of urls.entries())
 			addUrlSourceRef(urlToSourceRef, url, refs[index] ?? refs[0]);
 	}
-	await addWebSourceCacheSourceRefs(urlToSourceRef, context);
 	return urlToSourceRef;
 }
 
@@ -1817,31 +1796,9 @@ export default async function claimEvidenceGate({
 				[...(next.sourceRefs ?? []), ...workflowSourceRefs],
 				Infinity,
 			);
-		const httpSourceUrls = [
-			...new Set([
-				...sourceUrlArray(candidate?.sourceUrls).filter((ref) =>
-					/^https?:\/\//i.test(ref),
-				),
-				...evidenceRefs.filter((ref) => /^https?:\/\//i.test(ref)),
-			]),
-		];
-		if (
-			claimId &&
-			candidate &&
-			workflowSourceRefs.size === 0 &&
-			localEvidenceRefs.size === 0 &&
-			httpSourceUrls.length > 0
-		) {
-			const failure = {
-				claimId,
-				evidenceState: "source_ref_not_available",
-				sourceUrls: httpSourceUrls,
-				nextStep:
-					"Preserve sourceRefs from workflow_web_fetch_source through research and normalization when available.",
-			};
-			sourceRefJoinFailures.push(failure);
-			gateSummary.sourceRefJoinFailures += 1;
-		}
+		// C2 (WP10): a web claim without a workflow sourceRef is no longer a join failure. The
+		// CLI web tools issue no sourceRefs; web evidence is model-reported (URL + quote rows).
+		// sourceRefJoinFailures stays in the output (always empty) for the packet schema.
 
 		const verdict = verdictOf(next);
 		const exactQuantitativeForGate =

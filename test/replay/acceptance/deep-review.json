@@ -141,7 +141,7 @@
 			],
 			"counts": {
 				"allowed": 587,
-				"explained": 360,
+				"explained": 361,
 				"unexplained": 0
 			},
 			"differences": [
@@ -4665,7 +4665,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-review-original-78207/work/replay-trace.jsonl\"},\"c… (371 chars, sha256 bc31352232ad)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-review-original-64623/work/replay-trace.jsonl\"},\"c… (371 chars, sha256 723ccbf3aaa4)"
 				},
 				{
 					"class": "explained",
@@ -7777,7 +7777,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "cad4b1152ff620b352d4bbff11a1772119fbcb5d66aab125d0136e53fbb88191"
+					"replayed": "d50024299b00e68d5eb31e71691a7978f49f4e7ce876c8ab695bcad91108ba81"
 				},
 				{
 					"class": "explained",
@@ -7797,7 +7797,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-7",
-					"replayed": "78a19d1ec76aa02ec786bc039d85d46ddfb8a4a5f4cb6d8bd8ff71dda1d5d45d"
+					"replayed": "4d0aa51e822aba9b34d72707fd50644cdd86a362c72c17a8d5db466ead0a8c32"
 				},
 				{
 					"class": "explained",
@@ -7807,7 +7807,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-7",
-					"replayed": "e073daf6df3c9537fee3d081ed925017246a88d4d293740831b9fe2848c70109"
+					"replayed": "5f896c4f6739be6f050eb1ce37c794406ac3b75d3f7cc7b6e7aacb775291fc7e"
 				},
 				{
 					"class": "explained",
@@ -7817,7 +7817,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "cad4b1152ff620b352d4bbff11a1772119fbcb5d66aab125d0136e53fbb88191"
+					"replayed": "d50024299b00e68d5eb31e71691a7978f49f4e7ce876c8ab695bcad91108ba81"
 				},
 				{
 					"class": "explained",
@@ -8443,6 +8443,16 @@
 					"line": 1,
 					"recorded": "Warning: No project session found with id 'pi-workflow.<WF_RUN_1>.task-7'; creating a new session with that id.",
 					"replayed": ""
+				},
+				{
+					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-7/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
 				},
 				{
 					"class": "explained",

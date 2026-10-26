@@ -68,7 +68,7 @@ node dist/mcp/artifact-server/server.js --config <task>/artifact-access.json [--
   - `path`: a simple JSON path.
   - `maxItems` and `maxChars`: integers ≥ 0. They require `path`.
 - `annotations`: `readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: false` (each read appends a ledger row), `openWorldHint: false`.
-- **Guidelines:** `WORKFLOW_ARTIFACT_TOOL_GUIDELINES` are sent as the server `instructions`, one `-` bullet per line. Not every client puts server instructions into the model context (Pi 1.1 does not), so prompt rendering (WP6–WP8) should include the guidelines as well.
+- **Guidelines:** `WORKFLOW_ARTIFACT_TOOL_GUIDELINES` are sent as the server `instructions`, one `-` bullet per line. Not every client puts server instructions into the model context (Pi 1.1 does not), so the task backend also puts the guidelines into the worker system prompt (WP10).
 - **Results:**
   - The result is a single `content` text item. Its text is identical to the core tool's text whenever it fits the delivery bound.
   - Tool-level failures return `isError: true` and the core failure payload (`status: "blocked"`, `code: "artifact_read_failed"`, …).
@@ -152,17 +152,17 @@ A CLI may cut an MCP result again after the server returns it. The server theref
 
 ## Visible tool names
 
-`artifactToolVisibleName(executorId)` and `ARTIFACT_TOOL_NAME_MAPPINGS` are in `src/mcp/visible-names.ts`.
-They are re-exported from `dist/mcp/artifact-server/index.js`. MCP server name: `workflow_artifact`.
+`artifactToolVisibleName(executorId)` and `ARTIFACT_TOOL_NAME_MAPPINGS` live in `src/core/artifact-tool-names.ts` since WP10
+(the core prompt renderer uses them); `src/mcp/visible-names.ts` and `dist/mcp/artifact-server/index.js` re-export them. MCP server name: `workflow_artifact`.
 
 | Executor | Visible name | Rule / evidence | verified |
 |---|---|---|---|
-| `claude` | `mcp__workflow_artifact__workflow_artifact` | `mcp__<server>__<tool>`. Claude Code MCP docs and permission rules | `false` |
-| `codex` | `mcp__workflow_artifact__workflow_artifact` | `mcp__<server>__<tool>` unless the `non_prefixed_mcp_tool_names` feature is on. codex-cli 0.159 build strings | `false` |
-| `pi` | `mcp__workflow_artifact__workflow_artifact` | `mcp__<server>__<tool>`, chars outside `[A-Za-z0-9_]` → `_`, hash suffix on collision. Pi 1.1 `docs/mcp.md` | `false` |
+| `claude` | `mcp__workflow_artifact__workflow_artifact` | `mcp__<server>__<tool>`. Claude Code MCP docs and permission rules; live WP8 #10 | `true` |
+| `codex` | `mcp__workflow_artifact__workflow_artifact` | `mcp__<server>__<tool>` unless the `non_prefixed_mcp_tool_names` feature is on. codex-cli 0.159 build strings; live WP7 #2 | `true` |
+| `pi` | `mcp__workflow_artifact__workflow_artifact` | `mcp__<server>__<tool>`, chars outside `[A-Za-z0-9_]` → `_`, hash suffix on collision. Pi 1.1 `docs/mcp.md`; live WP6 #4 | `true` |
 | other | `mcp__workflow_artifact__workflow_artifact` | common convention, fallback | — |
 
-WP6–WP8 flip `verified` after a live call by that name.
+WP10 flipped `verified` with the WP6–WP8 live evidence. The task backend renders worker prompts with this name (`renderWorkerPromptToolNames`, docs/core-port.md WP10 change log 1) and puts the tool guidelines (see "Guidelines" above) into the system prompt of every task with the artifact server.
 
 ## Core changes wanted (not made here; `src/core` belongs to WP4c-1)
 

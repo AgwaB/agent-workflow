@@ -1875,6 +1875,13 @@ function readerEvidenceLimits(report, claimSummary, slots, korean) {
 	return limits;
 }
 
+// C2 (agent-workflow WP10): the user-facing source-verification statement. Plan wording (Korean):
+// "출처 검증: 모델 보고" = "source verification: model-reported". The CLI web tools are used as-is,
+// so the URLs and quotes of web evidence are what the model reported; nothing re-reads source
+// bytes. (Local repository quotes are still checked against the files by local-quote-gate.)
+export const SOURCE_VERIFICATION_STATEMENT =
+	"Source verification: model-reported (byte-level source verification is not performed).";
+
 function renderCompletionSummary(report, claimSummary, slots, fallback) {
 	const summary = summaryText(report, fallback);
 	// Fixed presentation labels follow Korean prose when present; other prose is
@@ -1913,6 +1920,7 @@ function renderCompletionSummary(report, claimSummary, slots, fallback) {
 	if (limits.length) {
 		out.push("## Limits to keep in mind", "", ...limits.map(text => `- ${completionText(text)}`), "");
 	}
+	out.push(SOURCE_VERIFICATION_STATEMENT, "");
 	return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
@@ -2259,6 +2267,8 @@ function renderAuditMarkdown(control, packetSource, rendered) {
 		"",
 		"This artifact preserves the detailed claim/gap/source ledger behind `final-report.md`.",
 		"",
+		SOURCE_VERIFICATION_STATEMENT,
+		"",
 		renderEvidenceAuditSummary(rendered.report, rendered.claimSummary, rendered.factSlotSummary),
 		"",
 		"## Synthesis caveats",
@@ -2485,7 +2495,7 @@ export default async function renderExecutive({
 		if (context.cwd && context.runId && context.taskId) {
 			const taskDir = join(
 				context.cwd,
-				".pi",
+				".agent-workflow",
 				"workflows",
 				context.runId,
 				"tasks",

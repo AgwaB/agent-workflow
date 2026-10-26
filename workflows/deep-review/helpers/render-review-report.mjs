@@ -2155,7 +2155,7 @@ export default async function renderReviewReport({ sources, context = {} }) {
 		if (sidecarsRequested) {
 			const taskDir = join(
 				context.cwd,
-				".pi",
+				".agent-workflow",
 				"workflows",
 				context.runId,
 				"tasks",

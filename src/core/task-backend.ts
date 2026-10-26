@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 535-558, 2868-3609, 3821-4245, 6401-6701, 6756-6774, 7371-end, and src/backend.ts (the backend object and its fatal-error wrapper). MIT, same author. Changes: implements the WorkflowBackend on the runtime API (executor descriptor recorded on the run, engine-issued attemptKey, SubmitRequest fields readOnly/isolation/approvalPolicy/env/mcpServers); Pi argv/extension preflight/noExtensions/skills/toolResultBudget/worker-role process env not ported (Pi executor, WP6); R#5 worktree gate before launch; registered for local-pi/headless run records. WP4d: launch-time capability decision from the run's recorded B4 negotiation (refusal → fatal before any effect; forcedReadOnly → SubmitRequest.readOnly and approval policy).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 535-558, 2868-3609, 3821-4245, 6401-6701, 6756-6774, 7371-end, and src/backend.ts (the backend object and its fatal-error wrapper). MIT, same author. Changes: implements the WorkflowBackend on the runtime API (executor descriptor recorded on the run, engine-issued attemptKey, SubmitRequest fields readOnly/isolation/approvalPolicy/env/mcpServers); Pi argv/extension preflight/noExtensions/skills/toolResultBudget/worker-role process env not ported (Pi executor, WP6); R#5 worktree gate before launch; registered for local-pi/headless run records. WP4d: launch-time capability decision from the run's recorded B4 negotiation (refusal → fatal before any effect; forcedReadOnly → SubmitRequest.readOnly and approval policy). WP10: the system and task prompts are rendered per executor (artifact tool visible name, artifact tool guidelines section); the workflow_web_* source-card hint is removed (C2) and the refs URL hint names the CLI web tools.
 import type { ExecutorDescriptor } from "../sdk/descriptor.js";
 import type { ToolKind } from "../sdk/events.js";
 import { isMutatingKind, PI_TOOL_KINDS } from "../sdk/tools.js";
@@ -12,7 +12,13 @@ import {
 	artifactAccessConfigPath,
 	artifactMcpServerSpec,
 	readArtifactAccessConfig,
+	ARTIFACT_MCP_SERVER_NAME,
+	WORKFLOW_ARTIFACT_TOOL_NAME,
 } from "./artifact-access.js";
+import {
+	renderWorkerPromptToolNames,
+	workflowArtifactToolGuidelinesSection,
+} from "./artifact-tool-names.js";
 import { DEFAULT_WORKER_TOOLS } from "./tool-policy.js";
 import { WORKFLOW_TASK_BACKEND_ID } from "./task-artifacts.js";
 import {
@@ -310,7 +316,21 @@ export async function launchSubagentTask(
 		sealedLaunch.hostContext === undefined
 			? undefined
 			: [...launchBootstrap.effectivePolicy.tools];
-	const systemPrompt = buildSystemPrompt(compiledTask, effectiveLaunchTools);
+	// WP10: tasks with the artifact server get its guidelines (not every MCP client shows server
+	// instructions). The prompt files keep the engine's canonical text (logical tool names; the
+	// launch provenance digests compiledPrompt = task.md); the SubmitRequest carries the text
+	// rendered for the executor (artifact tool by its visible name).
+	const systemPrompt = buildSystemPrompt(compiledTask, effectiveLaunchTools, {
+		artifactTool: launchHasArtifactTool(sealedLaunch, effectiveLaunchTools),
+	});
+	const renderedSystemPrompt = renderWorkerPromptToolNames(
+		systemPrompt,
+		executor.id,
+	);
+	const renderedTaskPrompt = renderWorkerPromptToolNames(
+		compiledTask.compiledPrompt,
+		executor.id,
+	);
 	let releaseLiveModelWorkerSlot: (() => void) | undefined;
 	let launchApi: SubagentApi | undefined;
 	let durableBarrierDescriptor: DurableLaunchBarrierDescriptor | undefined;
@@ -422,8 +442,8 @@ export async function launchSubagentTask(
 			cwd: task.cwd,
 			executor,
 			attemptKey: workflowExecutorAttemptKey(run, task, launchAuthority),
-			task: compiledTask.compiledPrompt,
-			systemPrompt,
+			task: renderedTaskPrompt,
+			systemPrompt: renderedSystemPrompt,
 			...(compiledTask.runtime.model === undefined
 				? {}
 				: { model: compiledTask.runtime.model }),
@@ -1233,9 +1253,27 @@ function clonePreparedToolProviders(
 	);
 }
 
+/** The task launches with the workflow_artifact MCP server (sealed binding, provider, or tool). */
+function launchHasArtifactTool(
+	preparedLaunch: Pick<
+		PreparedWorkflowTaskLaunch,
+		"toolProviders" | "artifactBinding"
+	>,
+	effectiveLaunchTools: readonly string[] | undefined,
+): boolean {
+	return (
+		preparedLaunch.artifactBinding !== undefined ||
+		Object.values(preparedLaunch.toolProviders ?? {}).some(
+			(provider) => provider.mcpServer?.name === ARTIFACT_MCP_SERVER_NAME,
+		) ||
+		(effectiveLaunchTools ?? []).includes(WORKFLOW_ARTIFACT_TOOL_NAME)
+	);
+}
+
 function buildSystemPrompt(
 	task: CompiledTask,
 	effectiveLaunchTools: readonly string[] | undefined,
+	options: { artifactTool?: boolean } = {},
 ): string {
 	const workflowMaxDigestChars = task.artifactGraph?.output.maxDigestChars;
 	const workflowRefsMinItems = task.artifactGraph?.output.refsMinItems;
@@ -1268,7 +1306,7 @@ function buildSystemPrompt(
 							: []),
 						...(workflowRefsUrlValidation
 							? [
-									"External URLs in <refs> are validated before completion. Use available workflow web tools to fetch/cache the URL and read exact evidence before citing it; replace stale or unreachable URLs with working canonical URLs or omit them.",
+									"External URLs in <refs> are validated before completion. Use the available web tools to open the URL and check the evidence before citing it; replace stale or unreachable URLs with working canonical URLs or omit them.",
 								]
 							: []),
 					]
@@ -1289,14 +1327,12 @@ function buildSystemPrompt(
 		enabledTools.includes("mcp__*")
 			? "mcp__* includes matching active MCP tools, not a literal callable name. Discover them through tool_search or codemode; trust, exposure and permission checks still apply."
 			: undefined,
-		enabledTools.includes("workflow_web_fetch_source") ||
-		enabledTools.includes("workflow_web_source_read")
-			? "Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with queries:[...] or reads:[...] instead of making repeated calls. If the exact quote is unknown, pass claim plus 2-6 distinctive terms to harvest a candidate source window and preserve its match metadata. Do not read workflow cache files directly."
-			: !enabledTools.includes("get_search_content") &&
-					(enabledTools.includes("web_search") ||
-						enabledTools.includes("fetch_content"))
-				? "Full cached search-content hydration is unavailable here. Use web_search/fetch_content results and report evidence gaps instead of broad raw document retrieval."
-				: undefined,
+		// C2/WP10: the workflow_web_* source-card tools are gone; web tools are the CLI's own.
+		!enabledTools.includes("get_search_content") &&
+		(enabledTools.includes("web_search") ||
+			enabledTools.includes("fetch_content"))
+			? "Full cached search-content hydration is unavailable here. Use web_search/fetch_content results and report evidence gaps instead of broad raw document retrieval."
+			: undefined,
 	].filter((line): line is string => typeof line === "string");
 	return [
 		`You are workflow subagent '${task.agent}'.`,
@@ -1304,6 +1340,7 @@ function buildSystemPrompt(
 		"Do not assume parent conversation history.",
 		"Do not launch other agents or orchestration workflows unless explicitly instructed.",
 		...toolPolicy,
+		...(options.artifactTool ? workflowArtifactToolGuidelinesSection() : []),
 		...workflowOutputContract,
 		"",
 		"# Agent Definition",

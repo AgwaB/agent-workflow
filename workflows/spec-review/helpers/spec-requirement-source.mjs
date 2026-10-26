@@ -37,7 +37,7 @@ function candidateUniverse(control, proof) {
 }
 const taskPath = (context, taskId, file) => {
   if (!safeId(context.runId) || !safeId(taskId)) throw new Error("unsafe runtime source identity");
-  return `.pi/workflows/${context.runId}/tasks/${taskId}/${file}`;
+  return `.agent-workflow/workflows/${context.runId}/tasks/${taskId}/${file}`;
 };
 async function readManifest(context, taskId) {
   const text = await readLocalText(context.cwd, taskPath(context, taskId, "source-manifest.json"), context.signal);

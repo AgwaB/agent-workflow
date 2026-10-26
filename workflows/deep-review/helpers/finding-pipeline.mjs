@@ -732,7 +732,7 @@ function nonBlankStringArray(value) {
 
 const USABLE_SOURCE_COVERAGE = new Set(["read", "ocr-extracted"]);
 const OCR_BINDING_SCHEMA = "deep-review-ocr-binding-v1";
-const TRUSTED_OCR_ARTIFACT_ROOT = ".pi/ocr-artifacts/";
+const TRUSTED_OCR_ARTIFACT_ROOT = ".agent-workflow/ocr-artifacts/";
 const MAX_SOURCE_COVERAGE_FILE_BYTES = 20_000_000;
 const MAX_OCR_BINDING_FILE_BYTES = 20_000;
 

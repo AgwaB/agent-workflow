@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "name": "impact-review",
   "description": "Read-only DAG impact review: map a proposed or applied change, analyze contract, state/data, validation, docs/release, and security/performance impact in parallel, then join those lenses into ship-risk and action-plan synthesis without editing files.",
+  "allowReadOnlyDowngrade": true,
   "routing": {
     "useWhen": [
       "A proposed or applied change needs an impact map across contracts, validation, release, and risk surfaces.",

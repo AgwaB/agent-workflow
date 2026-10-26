@@ -1120,7 +1120,7 @@ export default async function renderImpactReport({ sources, context = {} }) {
 		if (sidecarRequired) {
 			const taskDir = join(
 				context.cwd,
-				".pi",
+				".agent-workflow",
 				"workflows",
 				context.runId,
 				"tasks",

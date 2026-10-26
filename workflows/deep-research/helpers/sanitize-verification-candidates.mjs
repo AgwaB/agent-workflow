@@ -331,27 +331,8 @@ function addUrlSourceRef(lookup, url, sourceRef) {
 	if (key && !lookup.has(key)) lookup.set(key, ref);
 }
 
-async function addWebSourceCacheSourceRefs(lookup, context) {
-	const cwd = stringOf(context?.cwd);
-	const runId = stringOf(context?.runId);
-	if (!cwd || !runId) return;
-	let parsed;
-	try {
-		parsed = JSON.parse(
-			await readFile(
-				join(cwd, ".pi", "workflows", runId, "web-source-cache", "index.json"),
-				"utf8",
-			),
-		);
-	} catch {
-		return;
-	}
-	for (const source of asArray(parsed?.sources)) {
-		const ref = stringOf(source?.sourceRef);
-		addUrlSourceRef(lookup, source?.url, ref);
-		addUrlSourceRef(lookup, source?.redactedUrl, ref);
-	}
-}
+// C2 (agent-workflow WP10): the workflow web-source cache index is gone; the URL → sourceRef
+// lookup uses only the source cards the research stage reported.
 
 async function buildUrlSourceRefLookup(normalizeInputPacket, context) {
 	const lookup = new Map();
@@ -363,7 +344,6 @@ async function buildUrlSourceRefLookup(normalizeInputPacket, context) {
 		for (const [index, url] of urls.entries())
 			addUrlSourceRef(lookup, url, refs[index] ?? refs[0]);
 	}
-	await addWebSourceCacheSourceRefs(lookup, context);
 	return lookup;
 }
 
@@ -803,105 +783,14 @@ export default async function sanitizeVerificationCandidates({
 		}
 	}
 
-	// Web URL-only candidates cannot rejoin the wsrc ledger at audit time
-	// (observed as sourceRefJoinFailures on never-fetched URLs), so route them
-	// to backlog and refill the pool from source-backed preserved claims.
+	// C2 (agent-workflow WP10): URL-only web candidates are no longer demoted to backlog (and no
+	// preserved claim is promoted in their place). The workflow web-source ledger (wsrc_*
+	// sourceRefs) is gone and the CLI web tools issue no sourceRefs, so a sourceUrls-only
+	// candidate is the normal web case. The diagnostics keep their counters (always 0).
 	const webUrlOnlyDemotedIds = [];
 	const promotedCandidateIds = [];
 	const promotedBySlot = new Map();
 	const promotedPreservedClaims = new Set();
-	const retainedCandidates = [];
-	for (const [index, candidate] of keptCandidates.entries()) {
-		const hasRefs = sourceRefs(candidate).length > 0;
-		const hasLocal = localEvidenceRefs(candidate).length > 0;
-		if (hasRefs || hasLocal || sourceUrls(candidate).length === 0) {
-			retainedCandidates.push(candidate);
-			continue;
-		}
-		const id = candidateId(candidate) || `index-${index}`;
-		const reasons = ["web_url_without_source_ref_after_backfill"];
-		demotionReasonCounts[reasons[0]] =
-			(demotionReasonCounts[reasons[0]] ?? 0) + 1;
-		webUrlOnlyDemotedIds.push(id);
-		demotedCandidateIds.push(id);
-		preservedClaims.push({
-			...preservedClaim(candidate, reasons, index),
-			status: "preserved_missing_source_ref",
-		});
-		coverageGaps.push({
-			...demotionGap(candidate, reasons),
-			nextStep:
-				"Reacquire this claim's source with workflow_web_fetch_source so a wsrc_* sourceRef exists, or keep it as an explicit final-report gap.",
-		});
-		for (const slotId of compactStrings(candidate?.factSlotIds, 12)) {
-			const list = demotedBySlot.get(slotId) ?? [];
-			list.push(id);
-			demotedBySlot.set(slotId, list);
-		}
-	}
-	keptCandidates.length = 0;
-	keptCandidates.push(...retainedCandidates);
-
-	if (webUrlOnlyDemotedIds.length > 0) {
-		const takenIds = new Set(
-			keptCandidates.map((candidate) => candidateId(candidate)),
-		);
-		const promotable = [];
-		for (const [index, preserved] of asArray(
-			claimInventory.preservedClaims,
-		).entries()) {
-			const claim = claimText(preserved);
-			if (!claim) continue;
-			const id =
-				candidateId(preserved) || `promoted-${String(index + 1).padStart(3, "0")}`;
-			if (takenIds.has(id)) continue;
-			const hints = evidenceHintsForCandidate(preserved, evidenceHintRows);
-			const refs = backfillSourceRefs(preserved, hints, urlToSourceRef);
-			if (refs.length === 0) continue;
-			if (!hints.some((hint) => stringOf(hint.quote))) continue;
-			if (
-				classifyCandidate({ ...preserved, id }, new Set(), hints, options).length >
-				0
-			) {
-				continue;
-			}
-			const slots = compactStrings(preserved?.factSlotIds, 12);
-			if (slots.length === 0) continue;
-			const rescuesSlot = slots.some(
-				(slotId) => (demotedBySlot.get(slotId) ?? []).length > 0,
-			);
-			promotable.push({ preserved, id, hints, refs, slots, rescuesSlot });
-		}
-		promotable.sort(
-			(left, right) => Number(right.rescuesSlot) - Number(left.rescuesSlot),
-		);
-		for (const entry of promotable.slice(0, webUrlOnlyDemotedIds.length)) {
-			takenIds.add(entry.id);
-			promotedCandidateIds.push(entry.id);
-			promotedPreservedClaims.add(entry.preserved);
-			for (const slotId of entry.slots) {
-				const list = promotedBySlot.get(slotId) ?? [];
-				list.push(entry.id);
-				promotedBySlot.set(slotId, list);
-			}
-			keptCandidates.push(
-				sanitizedCandidate(
-					{
-						...entry.preserved,
-						id: entry.id,
-						sourceRefs: entry.refs,
-						verificationNeed: stringOf(entry.preserved?.verificationNeed) || "useful",
-						reasonToVerify:
-							stringOf(entry.preserved?.reasonToVerify) ||
-							stringOf(entry.preserved?.whyItMatters) ||
-							"Promoted source-backed preserved claim to replace a URL-only candidate.",
-					},
-					entry.hints,
-					urlToSourceRef,
-				),
-			);
-		}
-	}
 
 	const keptIds = new Set(keptCandidates.map((candidate) => candidate.id));
 	const factSlotCoverageRows = adjustFactSlotCoverage(

@@ -1,7 +1,7 @@
 ---
 name: researcher
 description: Read-only source-backed research agent.
-tools: read, grep, find, ls, workflow_web_search, workflow_web_fetch_source, workflow_web_source_read, web_search, fetch_content
+tools: read, grep, find, ls, web_search, fetch_content
 readOnly: true
 ---
 
@@ -28,23 +28,14 @@ evidence beyond the repository's immediate code.
 
 - Use `read`, `grep`, `find`, and `ls` for local files, vendored docs,
   package metadata, and downloaded/reference material already on disk.
-- Prefer `workflow_web_search` to discover candidate sources across papers,
-  docs, articles, issues, and community discussions.
-- Prefer `workflow_web_fetch_source` to cache URLs and return compact source
-  cards, then use `workflow_web_source_read` for exact evidence snippets. Preserve
-  `sourceRef` values in structured outputs. When several source cards are needed,
-  batch fetches with `urls: [...]` or `sources: [...]`; when several snippets are
-  needed from one `sourceRef`, batch them with `queries: [...]` or `reads: [...]`
-  instead of making repeated source-read calls. If the exact quote text is not
-  known, pass `claim` plus 2-6 distinctive `terms` so the tool can harvest a
-  candidate source window before trying another source. Treat term/claim matches
-  as candidate evidence; preserve `matchType`, `matchedTerms`, `missingTerms`,
-  `coverageRatio`, and `candidateOnly` when citing them.
-- Do not read workflow web-source cache files directly; use source refs and
-  `workflow_web_source_read` instead.
-- Legacy `web_search` and `fetch_content` may be available during migration;
-  use them only when normalized workflow web tools are unavailable.
-- If network access, credentials, provider quota, or the web extension is
+- Use `web_search` to discover candidate sources across papers, docs,
+  articles, issues, and community discussions, and `fetch_content` to read a
+  promising URL. Your executor may show these web tools under its own names.
+- Source verification is model-reported: no workflow tool re-reads the source
+  bytes. Quote only text you actually saw in fetched content, keep the exact
+  source URL with every quote, and never reconstruct a quote from memory. If the
+  exact quote is not in the fetched text, report the gap instead.
+- If network access, credentials, provider quota, or the web tools are
   unavailable, report that limitation instead of guessing.
 
 ## Research Rules
