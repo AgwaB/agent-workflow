@@ -907,6 +907,20 @@ differences in `test/replay/explained-differences.json` cite these entries.
 
 ### WP1b change log (behavior-relevant)
 
+1. **Executor exit code.** An executor attempt has no process exit code (the executor contract ends with a
+   terminal event), so the runtime `result.json` records `exitCode: null` and the raw-artifact integrity
+   stamp (`rawIntegrity.terminal`, `tasks[].rawArtifactIntegrity.terminal`) copies it. pi-workflow copied
+   the Pi CLI exit code (`0`). The task's own `exitCode` is still derived from the task status.
+2. **Executor usage contract.** Usage arrives as SDK `UsageEvent`s (`input`, `output`, `cached`, `cost`,
+   `source`), summed by the runtime into `result.json` `metadata.usage` (docs/runtime-port.md "Attempt
+   artifacts"). Reasoning, cache-write and total token counts and the provider/model of the attempt are
+   not part of the executor event contract v0, so task usage records no longer carry `reasoningTokens`,
+   `totalTokens`, `cacheCreationInputTokens`, `provider` or `model`, and `usage.attempts[].raw` is the
+   runtime summary instead of Pi's usage object. The run rollup then reports those three token fields as
+   absent (no task reports them) or `0` (support tasks contribute zero usage, as before). Input, output,
+   cache-read tokens and cost are unchanged (with fix 4).
+3. **Cost rounding.** The runtime rounds summed usage cost to 12 decimals (`summarizeUsage` in
+   `src/runtime/orchestrate/execute.ts`), so a recorded `0.013680000000000001` is stored as `0.01368`.
 4. **Fix: runtime usage aliases** (`src/core/task-observability.ts` `USAGE_FIELD_ALIASES`). The task usage
    reader only knew Pi's usage object (`cacheRead`, `cost.total`); the runtime summary's `cached`
    (cache-read input tokens) and `cost` (USD) were dropped, so cache-read tokens and cost vanished from task
@@ -926,3 +940,24 @@ differences in `test/replay/explained-differences.json` cite these entries.
    READY: <worker stderr>` (the barrier is revoked and the worker interruption acknowledged, as for any
    barrier failure). A worker that wrote READY and then ended is still settled by the READY path. Test:
    `core-launch-barrier-worker-ended.test.mjs`.
+6. **Original bundled helpers and the renamed state path.** The run state moved from `.pi/workflows/` to
+   `.agent-workflow/workflows/` (WP4b change log 1) with no fallback. The original pi-workflow helpers
+   hard-code the old path: deep-review, impact-review, spec-review and deep-research write their report
+   sidecars (`final-report.md`, `review.md`, `source-ledger.json`, `executive.md`, `audit.md`) to
+   `<cwd>/.pi/workflows/<run>/tasks/<task>/`, and
+   spec-review's `spec-requirement-source.mjs` reads upstream `source-manifest.json` / `control.json`
+   from there. Under agent-workflow the sidecars land in that legacy directory (byte-identical to the
+   recording, outside the run directory) and spec-review's evidence gate cannot read its requirement source
+   (`missing_requirement_source_proof`), so the original spec-review diverges from task 6 on. Bundled
+   workflows must replace the literal when they are ported (WP10). The replay shows the rest of
+   spec-review matches with the one literal migrated (variant `state-path-migrated`).
+7. **Original deep-research and the removed web tools (C2).** The original deep-research spec gives its
+   research tasks `workflow_web_search`, `workflow_web_fetch_source` and `workflow_web_source_read`, which
+   C2/WP10 removed. The spec still compiles and its plan stage runs; the Pi executor refuses tasks 11, 12,
+   13 (research-questions items), 4 (normalize-claims) and 9 (final-audit) before any effect
+   (`CAPABILITY_MISSING: Pi executor has no mapping for tools: workflow_web_search,
+   workflow_web_fetch_source, workflow_web_source_read`), each failing at once with `launch_failed` (fix 5).
+   The support stages continue with what they have, the verify-claims foreach materializes no items and
+   the final render blocks, so the run ends `blocked` (recorded: `completed`). That refusal is the expected
+   result; the web tools are not added back. With the adapter check off (replay variant `engine-only`)
+   every task output of the recording is reproduced.

@@ -58,8 +58,11 @@ function pathVariants(path) {
 export function createContext(roots = {}, options = {}) {
 	const pairs = [];
 	for (const token of ["ROOT", "PKG", "HOME", "TMP"]) {
-		for (const variant of pathVariants(roots[token]))
-			pairs.push([variant, `<${token}>`]);
+		// WP1b: a root may be a list of paths (e.g. the replay's package checkout and the directory
+		// holding the original bundled workflow both stand for <PKG>).
+		for (const path of [roots[token]].flat())
+			for (const variant of pathVariants(path))
+				pairs.push([variant, `<${token}>`]);
 	}
 	pairs.sort((left, right) => right[0].length - left[0].length);
 	const seen = new Set();
@@ -99,9 +102,32 @@ export function portablePaths(text, ctx) {
 export function restorePaths(text, roots) {
 	let out = text;
 	for (const token of ["ROOT", "PKG", "HOME", "TMP"]) {
-		if (roots[token]) out = out.split(`<${token}>`).join(resolve(roots[token]));
+		// With a list of paths the first one is the canonical restore target.
+		const root = [roots[token]].flat()[0];
+		if (root) out = out.split(`<${token}>`).join(resolve(root));
 	}
 	return out;
+}
+
+/**
+ * WP1b: literal renames (allowed-differences.json `renames` entries, agent-workflow literal →
+ * pi-workflow literal) applied to already-normalized replay text, longest literal first. Returns
+ * the renamed text and the number of replacements per literal, so every rename is reported.
+ */
+export function applyLiteralRenames(text, renames) {
+	const ordered = [...renames].sort(
+		(left, right) => right[0].length - left[0].length,
+	);
+	const hits = new Map();
+	let out = text;
+	for (const [from, to] of ordered) {
+		const parts = out.split(from);
+		if (parts.length > 1) {
+			hits.set(from, (hits.get(from) ?? 0) + parts.length - 1);
+			out = parts.join(to);
+		}
+	}
+	return { text: out, hits };
 }
 
 // ---------------------------------------------------------------- text rules
@@ -308,21 +334,39 @@ export function normalizeTreeEntries(srcDir, baseCtx) {
 
 // ---------------------------------------------------------------- allowed differences
 
-export function loadAllowedDifferences(file = DEFAULT_ALLOWED_FILE) {
+/**
+ * Entries of allowed-differences.json. By default only the WP1a normalization policy (entries not
+ * introduced by WP1b), which produced the committed normalized/ trees; `{ replay: true }` adds the
+ * WP1b entries (literal renames, difference patterns, runtime-only digests) used by the WP1b
+ * comparison (compare.mjs) and the replay executor.
+ */
+export function loadAllowedDifferences(
+	file = DEFAULT_ALLOWED_FILE,
+	options = {},
+) {
 	if (!file || !existsSync(file)) return [];
 	const parsed = JSON.parse(readFileSync(file, "utf8"));
 	for (const entry of parsed.entries ?? []) {
+		// WP1b entries may carry `renames` ([agent-workflow literal, pi-workflow literal] pairs) or
+		// `differences` (classified report patterns) instead of digest `keys`.
+		const hasKeys = Array.isArray(entry.keys) && entry.keys.length > 0;
+		const hasRenames = Array.isArray(entry.renames) && entry.renames.length > 0;
+		const hasDifferences =
+			Array.isArray(entry.differences) && entry.differences.length > 0;
+		const hasBindings = entry.digestBindings === true;
 		if (
 			!entry.id ||
 			!entry.reason ||
-			!Array.isArray(entry.keys) ||
-			entry.keys.length === 0
+			!(hasKeys || hasRenames || hasDifferences || hasBindings)
 		)
 			throw new Error(
 				`allowed-difference entry needs id, reason and keys: ${JSON.stringify(entry)}`,
 			);
 	}
-	return parsed.entries ?? [];
+	const entries = parsed.entries ?? [];
+	return options.replay === true
+		? entries
+		: entries.filter((entry) => entry.introducedBy !== "WP1b");
 }
 
 /**
@@ -417,6 +461,9 @@ function replaceValues(value, replacements) {
  * compare equal only if the digests play the same roles in both.
  */
 export function applyAllowedDifferences(entries, allowed) {
+	allowed = allowed.filter(
+		(rule) => Array.isArray(rule.keys) && rule.keys.length > 0,
+	);
 	if (allowed.length === 0) return entries;
 	const replacements = [];
 	for (const rule of allowed) {
