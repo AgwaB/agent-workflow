@@ -695,6 +695,9 @@ async function reconcileThroughExecutor(context: {
 			grace: 0,
 			approvalPolicy: persisted.approvalPolicy,
 			readOnly: persisted.readOnly,
+			...(persisted.permissionMode === undefined
+				? {}
+				: { permissionMode: persisted.permissionMode }),
 			meta,
 			unauthorized: () => undefined,
 			cancelOnStop: false,

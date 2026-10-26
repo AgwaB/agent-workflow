@@ -21,6 +21,7 @@ import {
 	createFakeExecutor,
 	createFakeExecutorModule,
 	createFakeStore,
+	FAKE_PERMISSION_MODE_SETTINGS,
 	type FakeExecutor,
 	type FakeExecutorOptions,
 	type FakeExecutorStore,
@@ -348,6 +349,7 @@ export function createFakeHarness(
 	} = {
 		name: options.name ?? "fake",
 		scenarios: options.scenarios ?? CONFORMANCE_SCENARIOS,
+		permissionModes: FAKE_PERMISSION_MODE_SETTINGS,
 		async open(scenario): Promise<HarnessSession> {
 			const store = createFakeStore();
 			const calls: McpCalls = { requests: new Map(), results: new Map() };
@@ -355,6 +357,10 @@ export function createFakeHarness(
 			return {
 				executor: build(scenario, store, generation, calls),
 				effectCount: async (attemptKey) => effects(store, attemptKey),
+				launches: async (attemptKey) =>
+					(store.launches ?? [])
+						.filter((launch) => launch.attemptKey === attemptKey)
+						.map((launch) => ({ argv: launch.argv, envKeys: [] })),
 				restart: async () => {
 					generation += 1;
 					return build(scenario, store, generation, calls);

@@ -276,6 +276,19 @@ is used. The 4th–5th parallel run and long runs are untested.
   (live #1). The engine should pass exact `provider/id`.
 - Pi's free-tier/subscription billing is not reflected: cost is a catalog estimate.
 
+## Permission mode (WP4e)
+
+Pi has no approval prompts in `--mode json --print` and no sandbox, so `free` and `safe` produce the
+same argv: every requested tool (D2 revised, [`../permissions.md`](../permissions.md)). A readOnly
+request drops mutating tools from `--tools` in both modes. The conformance harness documents this as
+`equivalent` (`PI_PERMISSION_MODE_SETTINGS`, check `permission.mode_mapping`).
+
+## Change log
+
+- **WP4e (2026-10-26):** no adapter code change; `free` and `safe` map to the same invocation, readOnly
+  unchanged. Tests: `executor-pi-adapter.test.mjs` (argv equal across free/safe/absent, readOnly drops
+  mutating tools in free), conformance `permission.mode_mapping`. Live #19 (1 call, free mode).
+
 ## What later work packages need
 
 - **WP9b:**

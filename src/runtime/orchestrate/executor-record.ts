@@ -9,6 +9,7 @@ import {
 	validateExecutorDescriptor,
 } from "../../sdk/descriptor.js";
 import { isPlainObject } from "../../sdk/json.js";
+import { isPermissionMode, type PermissionMode } from "../../sdk/permission.js";
 
 export const EXECUTOR_RECORD_FILE = "executor.json";
 export const EXECUTOR_RECORD_SCHEMA = "agent-workflow-attempt-executor-v1";
@@ -19,6 +20,8 @@ export interface AttemptExecutorRecord {
 	attemptKey: string;
 	readOnly: boolean;
 	approvalPolicy: ApprovalPolicy;
+	/** WP4e: the request's permission mode; absent on older records and for callers that omit it (= safe). */
+	permissionMode?: PermissionMode;
 	/** SHA-256 of the execution plan the attempt was prepared with. */
 	executionPlanSha256: string;
 }
@@ -72,6 +75,9 @@ export async function readAttemptExecutorRecord(
 						: `${runId}:${attemptId}`,
 				readOnly: input.readOnly === true,
 				approvalPolicy: input.approvalPolicy,
+				...(isPermissionMode(input.permissionMode)
+					? { permissionMode: input.permissionMode }
+					: {}),
 				executionPlanSha256: "",
 			};
 		} catch {
@@ -101,6 +107,9 @@ export async function readAttemptExecutorRecord(
 			timeoutMs:
 				typeof policy.timeoutMs === "number" ? policy.timeoutMs : 60_000,
 		},
+		...(isPermissionMode(raw.permissionMode)
+			? { permissionMode: raw.permissionMode }
+			: {}),
 		executionPlanSha256:
 			typeof raw.executionPlanSha256 === "string"
 				? raw.executionPlanSha256

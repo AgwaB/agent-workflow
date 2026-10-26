@@ -33,6 +33,7 @@ import type {
 	ConformanceCheckInfo,
 	ConformanceScenario,
 	HarnessSession,
+	LaunchRecord,
 } from "./types.js";
 
 /** Body of a check: violations (empty = pass) plus optional JSON details. */
@@ -63,6 +64,10 @@ const jsonRoundTrips = (value: unknown) => {
 		return false;
 	}
 };
+
+/** argv lines then stdin lines of one launch (permission settings may travel on either). */
+const invocationText = (launch: LaunchRecord) =>
+	[...launch.argv, ...(launch.stdin ?? [])].join("\n");
 
 const sameRef = (a: ExecRef, b: ExecRef) =>
 	a.executorId === b.executorId &&
@@ -817,6 +822,82 @@ export const CORE_CHECKS: readonly ConformanceCheck[] = [
 				violations.push("kit policy should deny this request (kit bug)");
 			violations.push(...deniedActionViolations(run.events));
 			return body(violations);
+		},
+	},
+	{
+		id: "permission.mode_mapping",
+		tier: "offline",
+		area: "permission",
+		title:
+			"free and safe map to distinct documented launch settings; a readOnly stage gets no free-mode setting",
+		refs: ["D2 revised", "WP4e"],
+		scenarios: ["complete"],
+		async run(ctx) {
+			const documented = ctx.harness.permissionModes;
+			if (documented === undefined)
+				return ctx.skip(
+					"harness documents no permission-mode settings (harness.permissionModes)",
+				);
+			const runs: Record<string, string> = {};
+			const violations: string[] = [];
+			for (const [label, overrides] of [
+				["free", { permissionMode: "free", readOnly: false }],
+				["safe", { permissionMode: "safe", readOnly: false }],
+				["free-readOnly", { permissionMode: "free", readOnly: true }],
+			] as const) {
+				const run = await runScenario(ctx, "complete", {
+					request: { ...overrides, tools: ["read", "bash"] },
+				});
+				violations.push(...streamProblems(run).map((p) => `${label}: ${p}`));
+				if (run.session.launches === undefined)
+					return ctx.skip("harness records no launches (session.launches)");
+				const launches = await run.session.launches(run.req.attemptKey);
+				if (launches.length === 0)
+					violations.push(`${label}: no launch recorded`);
+				runs[label] = launches.map(invocationText).join("\n---\n");
+			}
+			const free = new Set(documented.free);
+			const safe = new Set(documented.safe);
+			const freeOnly = [...free].filter((setting) => !safe.has(setting));
+			const safeOnly = [...safe].filter((setting) => !free.has(setting));
+			const same = freeOnly.length === 0 && safeOnly.length === 0;
+			if (same && documented.equivalent === undefined)
+				violations.push(
+					"free and safe document the same settings; set harness.permissionModes.equivalent with the documented reason",
+				);
+			if (!same && documented.equivalent !== undefined)
+				violations.push(
+					"permissionModes.equivalent is set but free and safe document different settings",
+				);
+			const missing = (label: string, settings: Iterable<string>) => {
+				for (const setting of settings)
+					if (!(runs[label] ?? "").includes(setting))
+						violations.push(
+							`${label} launch lacks documented setting ${JSON.stringify(setting)}`,
+						);
+			};
+			const present = (label: string, settings: Iterable<string>) => {
+				for (const setting of settings)
+					if ((runs[label] ?? "").includes(setting))
+						violations.push(
+							`${label} launch has setting ${JSON.stringify(setting)} of the other mode`,
+						);
+			};
+			missing("free", free);
+			missing("safe", safe);
+			present("free", safeOnly);
+			present("safe", freeOnly);
+			// readOnly stays read-only in free mode: none of the free-only settings.
+			present("free-readOnly", freeOnly);
+			missing("free-readOnly", documented.readOnly ?? []);
+			return body(violations, {
+				free: [...free],
+				safe: [...safe],
+				readOnly: [...(documented.readOnly ?? [])],
+				...(documented.equivalent === undefined
+					? {}
+					: { equivalent: documented.equivalent }),
+			});
 		},
 	},
 	{

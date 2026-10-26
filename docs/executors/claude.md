@@ -27,7 +27,7 @@ Unknown keys are refused (`DESCRIPTOR_INVALID`).
 
 ```
 claude -p --input-format stream-json --output-format stream-json --verbose --include-partial-messages
-  --permission-mode default --permission-prompt-tool stdio
+  --permission-mode (default | bypassPermissions) --permission-prompt-tool stdio
   --tools <mapped built-ins> [--allowedTools <web tools>,mcp__<server>…] [--disallowedTools Bash,Edit,Write,NotebookEdit]
   [--setting-sources "" --settings {"autoMemoryEnabled":false} --strict-mcp-config --disable-slash-commands]
   [--mcp-config <artifactsDir>/claude-mcp-config.json] [--model M] [--effort E]
@@ -43,7 +43,8 @@ control protocol and ends it after the `result` line, so the CLI exits.
 | `-p --output-format stream-json --verbose` | `stream-json` requires `--verbose` with `-p` |
 | `--input-format stream-json` | Enables the control protocol on stdin/stdout: `can_use_tool` approvals and `interrupt` |
 | `--include-partial-messages` | `stream_event` text deltas → `message_delta` (#1, #4) |
-| `--permission-mode default` | **Always passed.** The user's `settings.json` on the test machine says `defaultMode: auto`; without the flag, the `initialize` probe reported `current_permission_mode: auto`. Bypass, `acceptEdits`, `auto`, `dontAsk`, `--dangerously-*` and `--bare` are never used (D2) |
+| `--permission-mode default` | **`safe` mode (or no `permissionMode`) and every readOnly stage.** The user's `settings.json` on the test machine says `defaultMode: auto`; without the flag, the `initialize` probe reported `current_permission_mode: auto`. Bypass, `acceptEdits`, `auto`, `dontAsk`, `--dangerously-*` and `--bare` are never used in safe mode (D2) |
+| `--permission-mode bypassPermissions` | **`free` mode on a stage that is not readOnly** (WP4e, D2 revised). The documented `--permission-mode` choice in `claude --help` 2.1.310 (choices `acceptEdits, auto, bypassPermissions, manual, dontAsk, plan`); the `--dangerously-skip-permissions` alias is not used. Live #23: `system/init.permissionMode: bypassPermissions`, Bash ran without a `can_use_tool` request. `--permission-prompt-tool stdio` stays, so a request that still arrives reaches the engine (free → `allow`) |
 | `--permission-prompt-tool stdio` | Without it, a write needing approval is denied by the CLI with `system/permission_denied` and the host is never asked (#2). With it, the CLI sends `control_request can_use_tool` and waits (#3) |
 | `--tools` | Restricts the built-in tool set. This enforces readOnly: the kit's `live.readonly_enforced` and `live.tool_allowlist` checks pass |
 | `--allowedTools` | Pre-allows only the stage's web tools and tools of engine-injected MCP servers (`mcp__<server>`; verified with `mcp__workflow_artifact`, #10). Read, Grep and Glob inside the cwd need no rule. Everything else goes through the approval channel |
@@ -102,6 +103,11 @@ own permission allow rules then apply (the user's choice).
 - readOnly removes `Bash`, `Edit`, `Write` and `NotebookEdit`.
 
 ## Approvals (R#4, D2)
+
+Permission mode (WP4e, see [`../permissions.md`](../permissions.md)): in `free` mode a non-readOnly
+stage runs with `bypassPermissions`, so the CLI asks nothing; the engine answers anything that still
+arrives with `allow` (audited `engine-policy:free`). A readOnly stage gets the same argv in both modes.
+The rest of this section describes the channel itself (used in `safe` mode).
 
 - `control_request can_use_tool` → `approval_request{requestId: request_id, kind, detail: "<Tool>: <command|path|url…>"}`.
 - `respond(allow)` → `control_response {behavior: allow, updatedInput: <original input>}`. `respond(deny)` → `{behavior: deny, message}`.
@@ -268,6 +274,15 @@ standard`) and `WebFetch` (`url`, `prompt`) both completed. The answer cited sou
   - `MCP_TIMEOUT`
   - `deadlineMs`. The adapter does not enforce it; the runtime enforces timeouts.
 - **Probe cost.** `probe()` with `listModels` spawns one `claude -p` for the `initialize` exchange (about 1–2 s, no model turn).
+
+## Change log
+
+- **WP4e (2026-10-26):** permission modes. `buildClaudeInvocation` returns `permissionMode`
+  (`claudePermissionMode(req)`): `bypassPermissions` for `free` on a non-readOnly request, otherwise
+  `default`; readOnly argv is identical in both modes. `claude-invocation.json` records
+  `requestPermissionMode` and `permissionMode`. Conformance harness documents the mapping
+  (`CLAUDE_PERMISSION_MODE_SETTINGS`, check `permission.mode_mapping`). Tests:
+  `executor-claude-argv.test.mjs` (free/safe/absent, readOnly in free). Live #23 (1 call).
 
 ## What later work packages need
 

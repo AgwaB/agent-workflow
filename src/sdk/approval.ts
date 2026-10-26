@@ -1,9 +1,12 @@
 /**
  * Engine-side answer policy for `approval_request` events (stage-1 plan §2.1 [R#4], owner decision D2).
- * Never auto-allows by default. readOnly stages deny mutating kinds. Without an interactive host,
- * anything not explicitly allowed is denied (fail-closed), including on timeout.
+ * `safe` mode (and any request without `permissionMode`): never auto-allows by default. readOnly
+ * stages deny mutating kinds. Without an interactive host, anything not explicitly allowed is denied
+ * (fail-closed), including on timeout. `free` mode (D2 revised, WP4e): everything is allowed except
+ * mutating kinds on a readOnly stage.
  */
 import type { ApprovalRequestEvent, ToolKind } from "./events.js";
+import { effectivePermissionMode, type PermissionMode } from "./permission.js";
 import { isMutatingKind } from "./tools.js";
 
 export type ApprovalDecision = "allow" | "deny";
@@ -32,16 +35,20 @@ export function defaultApprovalPolicy(
 
 /**
  * Decide how to answer an approval request.
- * - `deny`: readOnly stage + mutating kind, or not allowed and nobody to ask.
- * - `allow`: kind is in `allowKinds` (and not blocked by readOnly).
- * - `ask`: interactive host must ask a person; on timeout the answer is `deny`.
+ * - `deny`: readOnly stage + mutating kind (both modes), or (safe) not allowed and nobody to ask.
+ * - `allow`: `free` mode, or kind is in `allowKinds` (and not blocked by readOnly).
+ * - `ask`: (safe) interactive host must ask a person; on timeout the answer is `deny`.
  */
 export function decideApproval(
 	policy: ApprovalPolicy,
 	request: Pick<ApprovalRequestEvent, "kind">,
-	stage: { readonly readOnly: boolean },
+	stage: {
+		readonly readOnly: boolean;
+		readonly permissionMode?: PermissionMode;
+	},
 ): ApprovalDecision | "ask" {
 	if (stage.readOnly && isMutatingKind(request.kind)) return "deny";
+	if (effectivePermissionMode(stage) === "free") return "allow";
 	if (policy.allowKinds.includes(request.kind)) return "allow";
 	return policy.interactive ? "ask" : "deny";
 }

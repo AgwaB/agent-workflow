@@ -19,6 +19,7 @@ import {
 	level,
 	noneCapabilities,
 } from "../capabilities.js";
+import { isUnrestricted } from "../permission.js";
 import {
 	type ApprovalResponseResult,
 	type CancelResult,
@@ -76,10 +77,38 @@ interface FakeAttempt {
 export interface FakeExecutorStore {
 	readonly attempts: Map<string, FakeAttempt>;
 	readonly trace: FenceTraceEntry[];
+	/**
+	 * Synthetic launch settings per effect (WP4e): what a CLI adapter would put on argv for the
+	 * request's permission mode. Documented in `FAKE_PERMISSION_MODE_SETTINGS`.
+	 */
+	readonly launches?: Array<{ attemptKey: string; argv: string[] }>;
 }
 
 export function createFakeStore(): FakeExecutorStore {
-	return { attempts: new Map(), trace: [] };
+	return { attempts: new Map(), trace: [], launches: [] };
+}
+
+/** The fake's synthetic invocation settings per permission mode (`permission.mode_mapping`). */
+export const FAKE_PERMISSION_MODE_SETTINGS = {
+	free: ["--sandbox=off", "--approvals=never"],
+	safe: ["--sandbox=workspace", "--approvals=policy"],
+	readOnly: ["--sandbox=read-only", "--approvals=policy"],
+} as const;
+
+/** Synthetic argv for a request (free + not readOnly ⇒ no sandbox, no approvals). */
+export function fakeLaunchArgv(
+	req: Pick<SubmitRequest, "permissionMode" | "readOnly">,
+): string[] {
+	const unrestricted = isUnrestricted(req);
+	return [
+		"fake-exec",
+		unrestricted
+			? "--sandbox=off"
+			: req.readOnly
+				? "--sandbox=read-only"
+				: "--sandbox=workspace",
+		unrestricted ? "--approvals=never" : "--approvals=policy",
+	];
 }
 
 /** Authority gate whose consume/revoke decisions are appended to the store trace. */
@@ -292,6 +321,10 @@ export function createFakeExecutor(
 			type: "effect",
 			attemptKey: req.attemptKey,
 			executorId: id,
+		});
+		store.launches?.push({
+			attemptKey: req.attemptKey,
+			argv: fakeLaunchArgv(req),
 		});
 		store.attempts.set(req.attemptKey, { state: "spawned", run });
 		void drive(run, script, req).then(() => {

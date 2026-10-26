@@ -18,6 +18,7 @@ import {
 	validateExecutorDescriptor,
 } from "../../sdk/descriptor.js";
 import { TOOL_KINDS } from "../../sdk/events.js";
+import { isPermissionMode } from "../../sdk/permission.js";
 import {
 	type ResolveInput,
 	type ResolveValidationFailure,
@@ -58,6 +59,11 @@ export interface ExecutorRequestFields {
 	env?: Record<string, string>;
 	isolation?: IsolationPolicy;
 	approvalPolicy?: Partial<ApprovalPolicy>;
+	/**
+	 * D2 revised (WP4e): `free` | `safe`. Passed to the SubmitRequest only when set (absent = the SDK
+	 * default `safe`); the engine always sets it.
+	 */
+	permissionMode?: SubmitRequest["permissionMode"];
 	/** Engine-issued idempotency key (B3). Default: `<runId>:<attemptId>`. */
 	attemptKey?: string;
 }
@@ -174,6 +180,11 @@ function validateRequestFields(
 		)
 			return `${label}isolation must be { inherit: boolean }.`;
 	}
+	if (
+		value.permissionMode !== undefined &&
+		!isPermissionMode(value.permissionMode)
+	)
+		return `${label}permissionMode must be "free" or "safe" when provided.`;
 	if (value.approvalPolicy !== undefined) {
 		const policy = value.approvalPolicy;
 		if (!isRecord(policy)) return `${label}approvalPolicy must be an object.`;
@@ -236,6 +247,7 @@ const REQUEST_ONLY_KEYS = [
 	"env",
 	"isolation",
 	"approvalPolicy",
+	"permissionMode",
 	"attemptKey",
 	"parentSessionId",
 ] as const;
@@ -389,6 +401,9 @@ export function buildSubmitRequestFields(options: {
 		env: sanitizedEnv(input.env),
 		isolation: { inherit: input.isolation?.inherit ?? false },
 		approvalPolicy: defaultApprovalPolicy(input.approvalPolicy ?? {}),
+		...(input.permissionMode === undefined
+			? {}
+			: { permissionMode: input.permissionMode }),
 		...(options.artifactsDir === undefined
 			? {}
 			: { artifactsDir: options.artifactsDir }),
@@ -417,7 +432,7 @@ export interface ExecutionPlan {
  * config), run and attempt ids, the execution cwd, the workspace (mode, base cwd, worktree path),
  * and every SubmitRequest field except the authority object (attemptKey, cwd, prompt,
  * systemPrompt, model, effort, tools, readOnly, mcpServers incl. env, sessionId,
- * resumeSessionId, deadlineMs, env, isolation, approvalPolicy, artifactsDir). Digest:
+ * resumeSessionId, deadlineMs, env, isolation, approvalPolicy, permissionMode, artifactsDir). Digest:
  * SHA-256 over canonical JSON (sorted keys, undefined dropped) — `durableLaunchBarrierDigest`.
  *
  * WP2c: env and mcpServers[].env values are replaced by `sha256:<hex of the UTF-8 value>` per key,

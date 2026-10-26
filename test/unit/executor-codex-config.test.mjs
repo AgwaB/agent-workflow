@@ -132,13 +132,32 @@ test("tool mapping: coarse sandbox, readOnly always wins, web → live web_searc
 			.entry,
 		{ type: "mcp", server: "workflow_artifact", tool: "workflow_artifact" },
 	);
-	// Never danger-full-access.
-	for (const readOnly of [true, false])
-		for (const tools of [[], ["bash"], ["edit", "write", "web_search"]])
-			assert.notEqual(
-				planCodexTools(tools, readOnly).sandbox,
-				"danger-full-access",
-			);
+	// Safe (explicit or absent, WP4e): never danger-full-access, approvals on-request.
+	for (const mode of ["safe", undefined])
+		for (const readOnly of [true, false])
+			for (const tools of [[], ["bash"], ["edit", "write", "web_search"]]) {
+				const planned = planCodexTools(tools, readOnly, mode);
+				assert.notEqual(planned.sandbox, "danger-full-access");
+				assert.equal(planned.approvalPolicy, "on-request");
+			}
+});
+
+test("permission mode (WP4e): free → danger-full-access + approvals never; readOnly stays read-only/on-request", () => {
+	for (const tools of [
+		[],
+		["read"],
+		["read", "bash"],
+		["edit", "web_search"],
+	]) {
+		const free = planCodexTools(tools, false, "free");
+		assert.equal(free.sandbox, "danger-full-access", tools.join());
+		assert.equal(free.approvalPolicy, "never");
+		const readOnly = planCodexTools(tools, true, "free");
+		assert.equal(readOnly.sandbox, "read-only");
+		assert.equal(readOnly.approvalPolicy, "on-request");
+		assert.deepEqual(readOnly, planCodexTools(tools, true, "safe"));
+	}
+	assert.equal(planCodexTools(["web_search"], false, "free").webSearch, "live");
 });
 
 test("isolation thread config switches off user context and keeps injected MCP env off argv", () => {

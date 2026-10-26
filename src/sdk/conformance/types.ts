@@ -8,7 +8,7 @@ import type { SubmitRequest, WorkflowExecutor } from "../contract.js";
 import type { JsonValue } from "../json.js";
 
 /** Version of the check catalog. Bumped when checks are added or their meaning changes. */
-export const CONFORMANCE_KIT_VERSION = "0.2.0";
+export const CONFORMANCE_KIT_VERSION = "0.3.0";
 
 /**
  * - `offline`: no model calls; runs against stubs/fakes (CI default).
@@ -28,6 +28,7 @@ export const CONFORMANCE_AREAS = [
 	"events",
 	"usage",
 	"approval",
+	"permission",
 	"cancel",
 	"reconcile",
 	"errors",
@@ -70,6 +71,28 @@ export interface LaunchRecord {
 	readonly argv: readonly string[];
 	readonly envKeys: readonly string[];
 	readonly cwd?: string;
+	/** stdin lines the launch received, when recorded (settings sent over a stdio protocol). */
+	readonly stdin?: readonly string[];
+}
+
+/**
+ * Documented launch settings per permission mode (WP4e, `permission.mode_mapping`). Each entry is a
+ * substring of the launch invocation text: argv joined by newlines, then stdin lines (e.g.
+ * `"--permission-mode\nbypassPermissions"` or `"\"approvalPolicy\":\"never\""`). The check submits
+ * `tools: ["read", "bash"]` in `free`, `safe`, and `free` + `readOnly`.
+ */
+export interface PermissionModeSettings {
+	/** Settings a `free`, non-readOnly launch must carry. */
+	readonly free: readonly string[];
+	/** Settings a `safe`, non-readOnly launch must carry. */
+	readonly safe: readonly string[];
+	/** Settings a `free` + `readOnly` launch must carry (it must carry no free-only setting). */
+	readonly readOnly?: readonly string[];
+	/**
+	 * Documented reason when the adapter maps both modes to the same settings (e.g. a CLI with no
+	 * approval prompts and no sandbox). Required when `free` and `safe` list the same settings.
+	 */
+	readonly equivalent?: string;
 }
 
 /** One executor instance (plus its observable side effects) for one check. */
@@ -117,6 +140,8 @@ export interface ConformanceHarness {
 	}>;
 	/** True when sessions drive a real CLI/model; required for the `live` tier. */
 	readonly live?: boolean;
+	/** Documented launch settings per permission mode (`permission.mode_mapping`, WP4e). */
+	readonly permissionModes?: PermissionModeSettings;
 	/**
 	 * Stage `scenario` for the runtime tier (WP2b). `workDir` is a fresh directory owned by the
 	 * check. Omit when the adapter cannot be reloaded in a fresh process: runtime checks then skip.

@@ -10,6 +10,7 @@ import {
 	WORKFLOW_ARTIFACT_TOOL_NAME,
 } from "../../core/artifact-access.js";
 import type { ToolKind } from "../../sdk/events.js";
+import { isUnrestricted, type PermissionMode } from "../../sdk/permission.js";
 import {
 	mapTools,
 	type SandboxMode,
@@ -122,33 +123,50 @@ export const CODEX_TOOL_MAPPING: ToolMapping = {
 	),
 };
 
+/** `thread/start` `sandbox`: the mapping's modes plus `danger-full-access` (free mode only). */
+export type CodexSandboxMode = SandboxMode | "danger-full-access";
+
+/** `thread/start` `approvalPolicy` values this adapter uses (`AskForApproval` in 0.159.2). */
+export type CodexApprovalPolicy = "on-request" | "never";
+
 export interface CodexToolPlan {
-	readonly sandbox: SandboxMode;
+	readonly sandbox: CodexSandboxMode;
+	readonly approvalPolicy: CodexApprovalPolicy;
 	readonly webSearch: "live" | "disabled";
 	readonly unmapped: readonly string[];
 	readonly kinds: Readonly<Record<string, ToolKind>>;
 }
 
 /**
- * Sandbox + web mode for a request. readOnly always wins (B4/D2). An empty tool list means "no
- * explicit restriction": workspace-write for writable stages, read-only otherwise. The adapter
- * never selects `danger-full-access`.
+ * Sandbox, approval policy and web mode for a request. readOnly always wins (B4/D2) in both
+ * permission modes: `read-only` sandbox, `on-request` approvals. `free` (D2 revised, WP4e) on a
+ * stage that is not readOnly: `danger-full-access` + approvals `never` (the coarse tool list is
+ * accepted, not enforced). `safe` (default when absent): an empty tool list means "no explicit
+ * restriction" = workspace-write; otherwise the mapped sandbox; approvals `on-request`;
+ * `danger-full-access` is never selected.
  */
 export function planCodexTools(
 	tools: readonly string[],
 	readOnly: boolean,
+	permissionMode?: PermissionMode,
 ): CodexToolPlan {
 	const mapped = mapTools(tools, CODEX_TOOL_MAPPING);
 	const webSearch =
 		tools.includes("web_search") || tools.includes("fetch_content")
 			? "live"
 			: "disabled";
-	let sandbox: SandboxMode;
+	const unrestricted = isUnrestricted({
+		readOnly,
+		...(permissionMode === undefined ? {} : { permissionMode }),
+	});
+	let sandbox: CodexSandboxMode;
 	if (readOnly) sandbox = "read-only";
+	else if (unrestricted) sandbox = "danger-full-access";
 	else if (tools.length === 0) sandbox = "workspace-write";
 	else sandbox = mapped.sandbox ?? "read-only";
 	return {
 		sandbox,
+		approvalPolicy: unrestricted ? "never" : "on-request",
 		webSearch,
 		unmapped: mapped.unmapped,
 		kinds: mapped.kinds,

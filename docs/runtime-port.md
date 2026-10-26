@@ -416,6 +416,12 @@ by: "engine-policy" | "host" | "default-timeout", reason, response, seq?, at }`;
 `metadata.executor.approvals[]` gains `by`. `listPendingApprovals` = requested with a deadline, not
 decided, attempt not terminal.
 
+**Permission mode (WP4e).** Run input `permissionMode: "free" | "safe"` (validated; passed to the
+SubmitRequest, the execution plan and `executor.json` only when set; absent = SDK default `safe`). With
+`free`, `decideApproval` allows every request except mutating kinds on a readOnly attempt, and the
+decision is recorded `by: "engine-policy:free"` (reason "free permission mode allows <kind>"). Reconcile
+adoption uses the mode recorded in `executor.json`. See `docs/permissions.md`.
+
 ## SubagentApi → runtime API (for WP4)
 
 The engine (`pi-subagent-flow` `src/subagent-backend.ts`) calls `@agwab/pi-subagent/api` through the

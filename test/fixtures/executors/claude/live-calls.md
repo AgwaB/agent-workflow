@@ -65,3 +65,24 @@ unknown. 3 calls are unused.
 number 1, 8 and 9 left `~/.claude/projects/-private-tmp-aw-live-claude-{e1,e8a,e8b}-cwd/`: an empty `memory/` dir
 from #1 and spilled `tool-results/` from #8 and #9. These were removed by hand. Adapter runs leave
 nothing there: no persistence, auto-memory off, and the spill dir is removed after exit.
+
+## WP4e — permission mode `free` (1 call)
+
+Date 2026-10-26, `claude` 2.1.310, same login. Purpose: prove that the free-mode flag is accepted by the
+real CLI (D2 revised). Driver: a throwaway script calling `createExecutor().submit()` (not tracked), cwd
+a fresh `/tmp/aw-live-wp4e-claude-*` with one file `NOTES.md`. Request: `permissionMode: "free"`,
+`readOnly: false`, tools `read, bash`, model `haiku`, effort `low`, isolation on. Prompt: print the first
+line of NOTES.md with a shell command, change nothing.
+
+Exact argv (`claude-invocation.json`): `claude -p --input-format stream-json --output-format stream-json
+--verbose --include-partial-messages --permission-mode bypassPermissions --permission-prompt-tool stdio
+--tools Read,Bash --setting-sources "" --settings {"autoMemoryEnabled":false} --strict-mcp-config
+--disable-slash-commands --model haiku --effort low --session-id <uuid> --no-session-persistence`.
+`--permission-mode bypassPermissions` is the documented `--permission-mode` choice in `claude --help`
+2.1.310; the `--dangerously-skip-permissions` / `--allow-dangerously-skip-permissions` aliases were not used.
+
+| # | Purpose | Model | Duration | Tokens in / out | Cost (reported) | Outcome |
+|---|---|---|---|---|---|---|
+| 23 | Free mode accepted (non-readOnly, no write) | claude-haiku-5-5 | 8.4 s (CLI) | 10768 (8270 cached) / 107 | $0.0006354 | completed `WP4E-LIVE-MARKER first line`. `system/init.permissionMode: bypassPermissions`. Bash `head -n 1 NOTES.md` ran, no `can_use_tool` request, no file created |
+
+Totals now 23 calls (WP8: 22, WP4e: 1). Nothing was left under `~/.claude/projects`; the temp dir was removed.

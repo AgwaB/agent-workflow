@@ -278,3 +278,37 @@ test("runtime: an adapter that ignores a relayed deny fails runtime.control_rela
 		/denied execute tool still completed/,
 	);
 });
+
+test("an adapter that ignores permissionMode fails permission.mode_mapping (WP4e)", async () => {
+	const ignoring = await run(
+		{
+			wrap: (fake) => ({
+				...fake,
+				// Bug: always launches with the safe settings.
+				submit: (req) => fake.submit({ ...req, permissionMode: "safe" }),
+			}),
+		},
+		["permission.mode_mapping"],
+	);
+	assertFails(
+		ignoring["permission.mode_mapping"],
+		/free launch lacks documented setting "--sandbox=off"/,
+	);
+	const bypassReadOnly = await run(
+		{
+			wrap: (fake) => ({
+				...fake,
+				// Bug: free mode also unlocks readOnly stages.
+				submit: (req) =>
+					fake.submit(
+						req.permissionMode === "free" ? { ...req, readOnly: false } : req,
+					),
+			}),
+		},
+		["permission.mode_mapping"],
+	);
+	assertFails(
+		bypassReadOnly["permission.mode_mapping"],
+		/free-readOnly launch has setting "--sandbox=off"/,
+	);
+});

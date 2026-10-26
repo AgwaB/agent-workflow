@@ -49,8 +49,18 @@ const plan = (overrides, options = { mcpConfigPath: "/tmp/mcp.json" }) =>
 	buildClaudeInvocation(req(overrides), config, options);
 const flagValue = (argv, flag) => argv[argv.indexOf(flag) + 1];
 
-test("transport and permission flags are always present; no bypass/auto modes", () => {
-	const { argv } = plan({ readOnly: false, tools: ["bash", "edit"] });
+test("transport and permission flags are always present; safe (explicit or absent): no bypass/auto modes", () => {
+	// WP4e: explicit safe and an absent permissionMode (SDK default) give the same argv.
+	assert.deepEqual(
+		plan({ readOnly: false, tools: ["bash", "edit"], permissionMode: "safe" })
+			.argv,
+		plan({ readOnly: false, tools: ["bash", "edit"] }).argv,
+	);
+	const { argv } = plan({
+		readOnly: false,
+		tools: ["bash", "edit"],
+		permissionMode: "safe",
+	});
 	for (const flag of [
 		"-p",
 		"--verbose",
@@ -75,6 +85,43 @@ test("transport and permission flags are always present; no bypass/auto modes", 
 	// Mutating tools are offered but never pre-allowed: they go through the approval channel.
 	assert.equal(flagValue(argv, "--tools"), "Bash,Edit");
 	assert.ok(!argv.includes("--allowedTools"));
+});
+
+test("permission mode (WP4e): free → bypassPermissions; a readOnly stage gets the safe argv in free mode", () => {
+	const free = plan({
+		readOnly: false,
+		tools: ["bash", "edit"],
+		permissionMode: "free",
+	});
+	assert.equal(flagValue(free.argv, "--permission-mode"), "bypassPermissions");
+	assert.equal(free.permissionMode, "bypassPermissions");
+	assert.ok(!free.argv.join(" ").includes("dangerously"));
+	// The prompt tool stays: a request that still arrives reaches the engine (free → allow).
+	assert.equal(flagValue(free.argv, "--permission-prompt-tool"), "stdio");
+	assert.equal(flagValue(free.argv, "--tools"), "Bash,Edit");
+	// B5 isolation is unchanged by the mode.
+	assert.equal(flagValue(free.argv, "--setting-sources"), "");
+	assert.ok(free.argv.includes("--strict-mcp-config"));
+	const readOnly = (mode) =>
+		plan({
+			readOnly: true,
+			tools: ["read", "bash", "edit"],
+			permissionMode: mode,
+		});
+	assert.deepEqual(readOnly("free").argv, readOnly("safe").argv);
+	assert.equal(
+		flagValue(readOnly("free").argv, "--permission-mode"),
+		"default",
+	);
+	assert.equal(flagValue(readOnly("free").argv, "--tools"), "Read");
+	assert.ok(readOnly("free").argv.includes("--disallowedTools"));
+	assert.equal(
+		flagValue(
+			plan({ readOnly: false, permissionMode: "safe" }).argv,
+			"--permission-mode",
+		),
+		"default",
+	);
 });
 
 test("isolation (inherit: false) uses the verified combination; inherit drops it", () => {
