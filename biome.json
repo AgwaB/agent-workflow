@@ -7,6 +7,7 @@
 			"tools/**",
 			"!**/*.md",
 			"!test/replay/fixtures/**",
+			"!src/runtime/native/**",
 			"!dist/**",
 			"!node_modules/**"
 		]
