@@ -1,0 +1,59 @@
+{
+  "cwd": "<ROOT>",
+  "backend": "headless",
+  "runId": "run_mvoqx833_71021b",
+  "attemptId": "attempt_mvoqx833_258ff4",
+  "startedAt": "2026-10-26T04:17:50.895Z",
+  "input": {
+    "backend": "headless",
+    "workspace": "shared",
+    "worktreePolicy": "never",
+    "cwd": "<ROOT>",
+    "runsDir": ".pi/workflow-subagents/workflow_mvoqx6tt_607c8f/task-1",
+    "correlationId": "workflow_mvoqx6tt_607c8f:task-1",
+    "sessionId": "pi-workflow.workflow_mvoqx6tt_607c8f.task-1",
+    "async": true,
+    "durableLaunchBarrier": {
+      "schema": "pi-subagent-durable-launch-barrier-v2",
+      "directory": "<ROOT>/.pi/workflows/workflow_mvoqx6tt_607c8f/tasks/task-1/.launch-barrier-dd16f517cb3504ca-b9f310e68992e882",
+      "readyPath": "<ROOT>/.pi/workflows/workflow_mvoqx6tt_607c8f/tasks/task-1/.launch-barrier-dd16f517cb3504ca-b9f310e68992e882/ready-v2.json",
+      "decisionPath": "<ROOT>/.pi/workflows/workflow_mvoqx6tt_607c8f/tasks/task-1/.launch-barrier-dd16f517cb3504ca-b9f310e68992e882/decision-v2.json",
+      "ackPath": "<ROOT>/.pi/workflows/workflow_mvoqx6tt_607c8f/tasks/task-1/.launch-barrier-dd16f517cb3504ca-b9f310e68992e882/ack-v2.json",
+      "challenge": "d146c81b8af9a383c6e583b0f1113827537331e5def288d16a897d3a5ee508fc",
+      "decisionNonce": "6dc675b00e28509ec42d4672014b24be1b2728e21ad9730b5ec1d64326efdcfd",
+      "subjectSha256": "dd16f517cb3504ca3e936ce98a89caa2b0bbfc8b3dd8d6495d75d67ba8be6285",
+      "directoryIdentity": {
+        "device": 16777229,
+        "inode": 586247360,
+        "uid": 501
+      },
+      "timeoutMs": 120000,
+      "pollIntervalMs": 10,
+      "identitySha256": "7ffb846cad510b8686fbbf90d4e1a04838249ef2de715c4f3edb1cab73f5b603"
+    },
+    "onComplete": "detach",
+    "asyncDependency": "needed-before-final",
+    "timeoutMs": 1800000,
+    "tools": [
+      "read",
+      "grep",
+      "find",
+      "ls",
+      "workflow_artifact"
+    ],
+    "extensions": [
+      "<ROOT>/.pi/workflows/workflow_mvoqx6tt_607c8f/tasks/task-1/workflow-artifact-extension.ts"
+    ],
+    "noExtensions": true,
+    "taskRef": {
+      "path": "task.md",
+      "bytes": 1802,
+      "sha256": "0f6b5e35ddcff8f3485027157b0e960018ecdee235c8d4d201500b8da69d2b70"
+    },
+    "systemPromptRef": {
+      "path": "system-prompt.md",
+      "bytes": 1466,
+      "sha256": "2a8274fb1a1aa1f9d031a492bb701b3069f8f28352c6aed297421453188fd4e6"
+    }
+  }
+}

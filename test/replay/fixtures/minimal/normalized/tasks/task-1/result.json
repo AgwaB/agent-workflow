@@ -1,0 +1,43 @@
+{
+  "artifacts": {
+    "analysis": "analysis.md",
+    "control": "control.json",
+    "raw": "raw.md",
+    "refs": "refs.json",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "completedAt": "<TS>",
+  "controlDigest": "First heading: Replay Fixture Notes",
+  "exitCode": 0,
+  "outputValidation": {
+    "issues": [],
+    "valid": true
+  },
+  "protocol": "workflow-output-sections-v1",
+  "rawIntegrity": {
+    "bytes": 200,
+    "owner": "<ALLOWED:timestamp-derived-digest#1>",
+    "sha256": "2142923c0c1e229ea459eae479739968bb2da77c39e1adbee140fc76eab31a2f",
+    "terminal": {
+      "attemptId": "<SA_ATTEMPT_1>",
+      "completedAt": "<TS>",
+      "exitCode": 0,
+      "runId": "<SA_RUN_1>",
+      "startedAt": "<TS>",
+      "status": "completed"
+    },
+    "terminalVersion": {
+      "ctimeMs": "<EPOCH_MS>",
+      "dev": "<FS_DEV>",
+      "ino": "<FS_INO>",
+      "mtimeMs": "<EPOCH_MS>",
+      "nlink": 1,
+      "size": "<ALLOWED:host-path-file-size>"
+    },
+    "version": 1
+  },
+  "schema": "workflow-task-result-v1",
+  "startedAt": "<TS>",
+  "status": "completed"
+}

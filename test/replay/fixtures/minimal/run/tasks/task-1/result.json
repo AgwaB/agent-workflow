@@ -1,0 +1,43 @@
+{
+  "schema": "workflow-task-result-v1",
+  "protocol": "workflow-output-sections-v1",
+  "status": "completed",
+  "artifacts": {
+    "control": "control.json",
+    "analysis": "analysis.md",
+    "refs": "refs.json",
+    "raw": "raw.md",
+    "result": "result.json",
+    "stderr": "stderr.log"
+  },
+  "controlDigest": "First heading: Replay Fixture Notes",
+  "startedAt": "2026-10-26T04:17:52.075Z",
+  "completedAt": "2026-10-26T04:18:01.372Z",
+  "exitCode": 0,
+  "outputValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "rawIntegrity": {
+    "version": 1,
+    "owner": "d994b1cdc3557803b05c285ad5d273bc31fb7f2516fe6ae3c401fd62800b2c05",
+    "bytes": 200,
+    "sha256": "2142923c0c1e229ea459eae479739968bb2da77c39e1adbee140fc76eab31a2f",
+    "terminal": {
+      "runId": "run_mvoqx833_71021b",
+      "attemptId": "attempt_mvoqx833_258ff4",
+      "status": "completed",
+      "startedAt": "2026-10-26T04:17:52.075Z",
+      "completedAt": "2026-10-26T04:18:01.372Z",
+      "exitCode": 0
+    },
+    "terminalVersion": {
+      "dev": 16777229,
+      "ino": 586249880,
+      "size": 1934,
+      "nlink": 1,
+      "mtimeMs": 1792988281372.927,
+      "ctimeMs": 1792988281373.0776
+    }
+  }
+}

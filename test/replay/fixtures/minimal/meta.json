@@ -1,0 +1,54 @@
+{
+  "schema": "agent-workflow-replay-fixture-meta-v1",
+  "fixture": "minimal",
+  "recordedAt": "2026-10-26T04:17:49Z",
+  "piWorkflow": {
+    "package": "@agwab/pi-workflow",
+    "version": "0.16.4",
+    "baseCommit": "b83cc4f297eca6df9e684d0a17fcd4475ee53ae9",
+    "seamBranch": "work/wp1a-recording-seam-20261026",
+    "seamCommit": "7e813aa5394b5b5eb7a9081b0072aee8c48951d3",
+    "note": "The recording ran on the seam working tree before the seam was committed; the seam commit adds only the recorder (unchanged except api-surface.json output, generated offline for this fixture from the same @agwab/pi-subagent 0.7.2), the replay API, and tests."
+  },
+  "piVersion": "1.1.0",
+  "piSubagentVersion": "0.7.2",
+  "node": "v24.16.0",
+  "platform": "darwin",
+  "model": {
+    "provider": "openai-codex",
+    "id": "gpt-6.1-sol",
+    "source": "Pi default (settings.json defaultProvider/defaultModel); workflow and launch passed no model/thinking override",
+    "settingsDefaultThinkingLevel": "xhigh"
+  },
+  "workflow": {
+    "spec": "project/workflow.json",
+    "agent": "project/agents/wp1a-reader.md (installed as <ROOT>/.pi/agents/wp1a-reader.md)",
+    "input": "project/NOTES.md",
+    "task": "Read NOTES.md and report its first heading.",
+    "stages": 1,
+    "workerTools": ["read", "grep", "find", "ls", "workflow_artifact"]
+  },
+  "run": {
+    "workflowRunId": "workflow_mvoqx6tt_607c8f",
+    "subagentRunId": "run_mvoqx833_71021b",
+    "subagentAttemptId": "attempt_mvoqx833_258ff4",
+    "status": "completed",
+    "result": "First heading: Replay Fixture Notes",
+    "recordedCalls": 156,
+    "wallMs": 13070
+  },
+  "usage": {
+    "source": "run/run.json tasks[0].usage (pi-subagent result metadata)",
+    "inputTokens": 6315,
+    "outputTokens": 105,
+    "reasoningTokens": 24,
+    "cacheReadInputTokens": 0,
+    "cacheCreationInputTokens": 0,
+    "totalTokens": 6420,
+    "costUsd": 0.01368
+  },
+  "liveAttempts": { "used": 1, "budget": 3 },
+  "launch": "PI_WORKFLOW_RECORD_DIR set by internal/record/run-minimal.mjs; node internal/record/run-minimal.mjs internal/record/project-minimal internal/record/rec-attempt1 (from the pi-workflow seam worktree after npm run build)",
+  "pathForm": "calls.jsonl, run/, subagent-runs/ are the raw capture with absolute host roots rewritten to <ROOT> (project), <PKG> (pi-workflow checkout), <HOME>, <TMP> by tools/make-portable.mjs; nothing else changed. Required by tools/release/check-public-surface.mjs (no macOS home paths in tracked files) and by replay on another host.",
+  "normalized": "normalized/ = node test/replay/normalize.mjs fixtures/minimal/run fixtures/minimal/normalized (policy agent-workflow-replay-normalization-v1 with allowed-differences.json)"
+}

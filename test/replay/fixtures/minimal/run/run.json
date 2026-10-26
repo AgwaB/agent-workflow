@@ -1,0 +1,367 @@
+{
+  "schemaVersion": 1,
+  "runId": "workflow_mvoqx6tt_607c8f",
+  "name": "wp1a-minimal-first-heading",
+  "description": "WP1a self-replay fixture: read one local Markdown file and report its first heading. Read-only, single stage.",
+  "type": "artifact-graph",
+  "artifactGraph": {
+    "enabled": true
+  },
+  "status": "completed",
+  "taskSummary": {
+    "total": 1,
+    "pending": 0,
+    "running": 0,
+    "blocked": 0,
+    "completed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "interrupted": 0
+  },
+  "cwd": "<ROOT>",
+  "backend": {
+    "type": "local-pi",
+    "mode": "headless"
+  },
+  "createdAt": "2026-10-26T04:17:49.266Z",
+  "updatedAt": "2026-10-26T04:18:01.749Z",
+  "specPath": "<ROOT>/workflow.json",
+  "tasks": [
+    {
+      "taskId": "task-1",
+      "specId": "first-heading.main",
+      "displayName": "first-heading.main",
+      "agent": "wp1a-reader",
+      "agentDescription": "Read-only file reader for the WP1a replay fixture.",
+      "agentFile": "<ROOT>/.pi/agents/wp1a-reader.md",
+      "roles": [],
+      "status": "completed",
+      "statusDetail": "completed",
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "cwd": "<ROOT>",
+      "worktree": {
+        "enabled": false,
+        "path": null,
+        "branch": null,
+        "baseCwd": null,
+        "warning": null
+      },
+      "backendTaskId": "run_mvoqx833_71021b",
+      "kind": "single",
+      "stageId": "first-heading",
+      "dependsOn": [],
+      "artifactGraph": {
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "refsRequired": true,
+          "maxDigestChars": 300
+        },
+        "requiredReads": [],
+        "artifactAccess": "enabled"
+      },
+      "files": {
+        "systemPrompt": ".pi/workflows/workflow_mvoqx6tt_607c8f/tasks/task-1/system-prompt.md",
+        "taskPrompt": ".pi/workflows/workflow_mvoqx6tt_607c8f/tasks/task-1/task.md",
+        "output": ".pi/workflows/workflow_mvoqx6tt_607c8f/tasks/task-1/output.log",
+        "stderr": ".pi/workflows/workflow_mvoqx6tt_607c8f/tasks/task-1/stderr.log",
+        "result": ".pi/workflows/workflow_mvoqx6tt_607c8f/tasks/task-1/result.json"
+      },
+      "launchBootstrap": {
+        "version": 1,
+        "records": [
+          {
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "workflow": {
+              "type": "artifact-graph",
+              "specPathSha256": "9a0745eb3d82475238115ee760cbdb6f23dde63c2e70c516934d8d57dcb40f3a"
+            },
+            "runId": "workflow_mvoqx6tt_607c8f",
+            "task": {
+              "taskId": "task-1",
+              "specId": "first-heading.main"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvoqx6tt_607c8f.task-1",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "sessionId": "pi-workflow.workflow_mvoqx6tt_607c8f.task-1",
+            "backend": {
+              "id": "pi-subagent/headless",
+              "type": "local-pi",
+              "mode": "headless"
+            },
+            "prompt": {
+              "sha256": "0f6b5e35ddcff8f3485027157b0e960018ecdee235c8d4d201500b8da69d2b70",
+              "bytes": 1802
+            },
+            "artifacts": {
+              "manifestSha256": "56fcca143a113f0027c3650e81ac04e1b9180637d120c45bc820752b1278e7b9",
+              "wrapperSha256": "a25d9d0ffad76dcd1929cf3a932be7a38410da1095b27308fc4be62c61d68f95",
+              "configSha256": "77ad6adac94efbc9ff369028b3350fa12e99973150f6d8c5d45a29fc77f815d7"
+            },
+            "effectiveLaunch": {
+              "noExtensions": true,
+              "extensions": [
+                {
+                  "pathSha256": "1c571feaba54d772deca047a1a5a89af80dae392002c11a3c85612d924ab22f4"
+                }
+              ],
+              "captureToolCalls": false,
+              "artifactBinding": {
+                "manifestPathSha256": "73629df71177195612429532a7b6c2888e7d0e1712fd3181a86746cd862aada0",
+                "manifestBytesSha256": "e1c90e554e491463d56c31dc46dd404933a676fea18d0fa5adda2684282a9802",
+                "wrapperPathSha256": "1c571feaba54d772deca047a1a5a89af80dae392002c11a3c85612d924ab22f4",
+                "wrapperBytesSha256": "a25d9d0ffad76dcd1929cf3a932be7a38410da1095b27308fc4be62c61d68f95"
+              }
+            },
+            "effectivePolicy": {
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "toolProvidersSha256": "cf957ba82178f7d71f288cf6b8bc8d0a9675615eb5af8460e5438395fdccfeb8",
+              "approvalMode": "non-interactive",
+              "maxRuntimeMs": 1800000,
+              "cwdSha256": "f20afe2b74167de011c8f62ad8af71a466e5c65f70127678210fb9246c542870",
+              "stateRootSha256": "1caa4b5b708538350ac68bb86d4199512a27f42580841ddc084e5bb6ab399720",
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "sourceDependencies": {
+              "contextDependsOn": [],
+              "requiredReads": [],
+              "artifactAccess": "enabled"
+            },
+            "resourcePolicy": {
+              "version": 1,
+              "skillDiscovery": "ambient",
+              "contextFiles": "disabled"
+            },
+            "identitySha256": "93b543080d669574298a9ec9a88c03920b7146d8df3d8822eec5ca7fb76f5fa9"
+          }
+        ]
+      },
+      "launchAuthority": {
+        "version": 1,
+        "records": [
+          {
+            "grant": {
+              "schema": "pi-workflow-launch-authority-v1",
+              "issuer": "pi-workflow-engine",
+              "operation": "launch-task",
+              "runId": "workflow_mvoqx6tt_607c8f",
+              "task": {
+                "taskId": "task-1",
+                "specId": "first-heading.main"
+              },
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvoqx6tt_607c8f.task-1",
+              "backendId": "pi-subagent/headless",
+              "launchBootstrapSha256": "93b543080d669574298a9ec9a88c03920b7146d8df3d8822eec5ca7fb76f5fa9",
+              "identitySha256": "dd16f517cb3504ca3e936ce98a89caa2b0bbfc8b3dd8d6495d75d67ba8be6285"
+            },
+            "state": {
+              "phase": "consumed",
+              "backendRunId": "run_mvoqx833_71021b",
+              "backendAttemptId": "attempt_mvoqx833_258ff4"
+            }
+          }
+        ]
+      },
+      "startedAt": "2026-10-26T04:17:50.136Z",
+      "lastMessage": "completed",
+      "durableLaunchBarrier": {
+        "version": 2,
+        "records": [
+          {
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.workflow_mvoqx6tt_607c8f.task-1",
+            "launchAuthoritySha256": "dd16f517cb3504ca3e936ce98a89caa2b0bbfc8b3dd8d6495d75d67ba8be6285",
+            "descriptor": {
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "directory": "<ROOT>/.pi/workflows/workflow_mvoqx6tt_607c8f/tasks/task-1/.launch-barrier-dd16f517cb3504ca-b9f310e68992e882",
+              "readyPath": "<ROOT>/.pi/workflows/workflow_mvoqx6tt_607c8f/tasks/task-1/.launch-barrier-dd16f517cb3504ca-b9f310e68992e882/ready-v2.json",
+              "decisionPath": "<ROOT>/.pi/workflows/workflow_mvoqx6tt_607c8f/tasks/task-1/.launch-barrier-dd16f517cb3504ca-b9f310e68992e882/decision-v2.json",
+              "ackPath": "<ROOT>/.pi/workflows/workflow_mvoqx6tt_607c8f/tasks/task-1/.launch-barrier-dd16f517cb3504ca-b9f310e68992e882/ack-v2.json",
+              "challenge": "d146c81b8af9a383c6e583b0f1113827537331e5def288d16a897d3a5ee508fc",
+              "decisionNonce": "6dc675b00e28509ec42d4672014b24be1b2728e21ad9730b5ec1d64326efdcfd",
+              "subjectSha256": "dd16f517cb3504ca3e936ce98a89caa2b0bbfc8b3dd8d6495d75d67ba8be6285",
+              "directoryIdentity": {
+                "device": 16777229,
+                "inode": 586247360,
+                "uid": 501
+              },
+              "timeoutMs": 120000,
+              "pollIntervalMs": 10,
+              "identitySha256": "7ffb846cad510b8686fbbf90d4e1a04838249ef2de715c4f3edb1cab73f5b603"
+            },
+            "phase": "acknowledged",
+            "readySha256": "8c8ffebfbb7719ec11741fe258ceb7b26649eb4a58d9179aa481b07435842014",
+            "launchPayloadSha256": "d963ffa473338bb395f0536c19787cdb816cdb7f202d1427716d825ff42e16cc",
+            "executionPlanSha256": "cedeadc3ab886d57822d73a3105d7a57a5dce98aa6837aa1275b435ad0cd467c",
+            "backendRunId": "run_mvoqx833_71021b",
+            "backendAttemptId": "attempt_mvoqx833_258ff4",
+            "releasePayloadSha256": "55201da34cbb45a4319803f7fb89578d15c69e85f6e5ea803b00c8913bec35f1",
+            "decisionSha256": "9985fbd203c3a2fb0b8cafcc33e4aa3a94c115cbb488f11eb3350059be744f30",
+            "releaseWinner": true,
+            "ackSha256": "9f468e98ce05789cb0417b6c007e293efa3b907087a2801b1e0ad454bacbb8bf"
+          }
+        ]
+      },
+      "timing": {
+        "source": "pi-workflow",
+        "capturedAt": "2026-10-26T04:18:01.748Z",
+        "launchQueuedAt": "2026-10-26T04:17:50.155Z",
+        "launchStartedAt": "2026-10-26T04:17:50.157Z",
+        "launchCompletedAt": "2026-10-26T04:17:51.598Z",
+        "launchWaitMs": 2,
+        "launchDurationMs": 1441,
+        "launchSlotReleaseDelayMs": 3000,
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": 8,
+        "refreshStatusPollMs": 1,
+        "terminalOutputCopyMs": 0,
+        "terminalStderrCopyMs": 0,
+        "terminalOutputBytes": 200,
+        "terminalStderrBytes": 126,
+        "executionStartedAt": "2026-10-26T04:17:52.075Z",
+        "executionCompletedAt": "2026-10-26T04:18:01.372Z",
+        "executionMs": 9297,
+        "totalMs": 11236,
+        "aggregate": {
+          "attempts": 1,
+          "launchWaitMs": 2,
+          "launchDurationMs": 1441,
+          "executionMs": 9297,
+          "totalMs": 11236
+        },
+        "attempts": [
+          {
+            "source": "pi-subagent",
+            "capturedAt": "2026-10-26T04:18:01.733Z",
+            "backendRunId": "run_mvoqx833_71021b",
+            "backendAttemptId": "attempt_mvoqx833_258ff4",
+            "launchQueuedAt": "2026-10-26T04:17:50.155Z",
+            "launchStartedAt": "2026-10-26T04:17:50.157Z",
+            "launchCompletedAt": "2026-10-26T04:17:51.598Z",
+            "launchWaitMs": 2,
+            "launchDurationMs": 1441,
+            "executionStartedAt": "2026-10-26T04:17:52.075Z",
+            "executionCompletedAt": "2026-10-26T04:18:01.372Z",
+            "executionMs": 9297,
+            "totalMs": 11236
+          }
+        ],
+        "terminalArtifactBundleWriteMs": 12,
+        "terminalArtifactMaterializeMs": 14
+      },
+      "pid": 75107,
+      "usage": {
+        "source": "pi-subagent",
+        "capturedAt": "2026-10-26T04:18:01.733Z",
+        "provider": "openai-codex",
+        "model": "gpt-6.1-sol",
+        "inputTokens": 6315,
+        "outputTokens": 105,
+        "totalTokens": 6420,
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "reasoningTokens": 24,
+        "costUsd": 0.013680000000000001,
+        "aggregate": {
+          "attempts": 1,
+          "inputTokens": 6315,
+          "outputTokens": 105,
+          "totalTokens": 6420,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 0,
+          "reasoningTokens": 24,
+          "costUsd": 0.013680000000000001
+        },
+        "attempts": [
+          {
+            "source": "subagent-result-metadata",
+            "capturedAt": "2026-10-26T04:18:01.733Z",
+            "backendRunId": "run_mvoqx833_71021b",
+            "backendAttemptId": "attempt_mvoqx833_258ff4",
+            "provider": "openai-codex",
+            "model": "gpt-6.1-sol",
+            "raw": {
+              "input": 6315,
+              "output": 105,
+              "cacheRead": 0,
+              "cacheWrite": 0,
+              "reasoning": 24,
+              "totalTokens": 6420,
+              "cost": {
+                "input": 0.012629999999999999,
+                "output": 0.0010500000000000002,
+                "cacheRead": 0,
+                "cacheWrite": 0,
+                "total": 0.013680000000000001
+              }
+            },
+            "inputTokens": 6315,
+            "outputTokens": 105,
+            "totalTokens": 6420,
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 0,
+            "reasoningTokens": 24,
+            "costUsd": 0.013680000000000001
+          }
+        ]
+      },
+      "rawArtifactIntegrity": {
+        "version": 1,
+        "owner": "d994b1cdc3557803b05c285ad5d273bc31fb7f2516fe6ae3c401fd62800b2c05",
+        "bytes": 200,
+        "sha256": "2142923c0c1e229ea459eae479739968bb2da77c39e1adbee140fc76eab31a2f",
+        "terminal": {
+          "runId": "run_mvoqx833_71021b",
+          "attemptId": "attempt_mvoqx833_258ff4",
+          "status": "completed",
+          "startedAt": "2026-10-26T04:17:52.075Z",
+          "completedAt": "2026-10-26T04:18:01.372Z",
+          "exitCode": 0
+        },
+        "terminalVersion": {
+          "dev": 16777229,
+          "ino": 586249880,
+          "size": 1934,
+          "nlink": 1,
+          "mtimeMs": 1792988281372.927,
+          "ctimeMs": 1792988281373.0776
+        }
+      },
+      "completedAt": "2026-10-26T04:18:01.372Z",
+      "exitCode": 0
+    }
+  ],
+  "usage": {
+    "source": "task-rollup",
+    "capturedAt": "2026-10-26T04:18:01.749Z",
+    "taskCount": 1,
+    "tasksReporting": 1,
+    "inputTokens": 6315,
+    "outputTokens": 105,
+    "totalTokens": 6420,
+    "cacheCreationInputTokens": 0,
+    "cacheReadInputTokens": 0,
+    "reasoningTokens": 24,
+    "costUsd": 0.013680000000000001
+  }
+}

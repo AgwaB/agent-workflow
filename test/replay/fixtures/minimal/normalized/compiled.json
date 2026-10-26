@@ -1,0 +1,83 @@
+{
+  "artifactGraph": {
+    "enabled": true
+  },
+  "backend": {
+    "mode": "headless",
+    "type": "local-pi"
+  },
+  "budget": {
+    "models": [],
+    "unratedModels": []
+  },
+  "cwd": "<ROOT>",
+  "description": "WP1a self-replay fixture: read one local Markdown file and report its first heading. Read-only, single stage.",
+  "maxConcurrency": 16,
+  "name": "wp1a-minimal-first-heading",
+  "roles": [],
+  "schemaVersion": 1,
+  "stages": [
+    {
+      "id": "first-heading",
+      "sourcePolicy": "require-success",
+      "type": "single"
+    }
+  ],
+  "task": "Read NOTES.md and report its first heading.",
+  "tasks": [
+    {
+      "agent": "wp1a-reader",
+      "agentDescription": "Read-only file reader for the WP1a replay fixture.",
+      "agentPath": "<ROOT>/.pi/agents/wp1a-reader.md",
+      "agentSystemPrompt": "# wp1a-reader\n\nRead only the file you are asked to read. Do not edit files. Answer briefly.\n",
+      "artifactGraph": {
+        "artifactAccess": "enabled",
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "maxDigestChars": 300,
+          "refsRequired": true
+        },
+        "requiredReads": []
+      },
+      "compiledPrompt": "# Task\n\nRead NOTES.md and report its first heading.\n\n# Workflow Stage\n\nstage=first-heading\ntype=single\n\n# Instructions\n\nUse the read tool once to read the file named in the runtime task (a path relative to the current working directory). Do not modify files and do not read any other file. Report the text of the first Markdown heading in that file. Respond with exactly three sections and no prose outside them: <control>{\"schema\":\"stage-control-v1\",\"digest\":\"First heading: <heading text>\"}</control> then <analysis>one short sentence</analysis> then <refs>[\"<the file path>\"]</refs>.\n\n# Workflow Output Protocol\n\nReturn your final answer exactly as these three sections, in this order, with no prose outside the tags:\n\n<control>{...}</control>\n\n<analysis>...</analysis>\n\n<refs>[]</refs>\n\nThe <control> section must be valid JSON object data for the workflow control plane.\n\nThe control object must include a non-empty string `schema` and a concise non-empty string `digest`.\n\nUse schema `stage-control-v1` unless the workflow asks for a more specific control schema.\n\nPut detailed prose, reasoning, and evidence discussion in <analysis> only.\n\nPut structured evidence pointers in <refs> as a JSON array; use [] if none.",
+      "contextDependsOn": [],
+      "cwd": "<ROOT>",
+      "dependsOn": [],
+      "explicitCwd": false,
+      "explicitWorktreePolicy": false,
+      "id": "first-heading.main",
+      "injectTask": true,
+      "key": "first-heading.main",
+      "kind": "single",
+      "resourcePolicyVersion": 1,
+      "roleNames": [],
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000,
+        "tools": [
+          "read",
+          "grep",
+          "find",
+          "ls"
+        ]
+      },
+      "safety": {
+        "capability": "read-only",
+        "permission": {
+          "status": "pending"
+        },
+        "readOnlyDeclared": true,
+        "requiresWorktree": false,
+        "sharedCwdSafe": true,
+        "worktreePolicy": "auto"
+      },
+      "specId": "first-heading.main",
+      "stageId": "first-heading",
+      "task": "Use the read tool once to read the file named in the runtime task (a path relative to the current working directory). Do not modify files and do not read any other file. Report the text of the first Markdown heading in that file. Respond with exactly three sections and no prose outside them: <control>{\"schema\":\"stage-control-v1\",\"digest\":\"First heading: <heading text>\"}</control> then <analysis>one short sentence</analysis> then <refs>[\"<the file path>\"]</refs>.\n\n# Workflow Output Protocol\n\nReturn your final answer exactly as these three sections, in this order, with no prose outside the tags:\n\n<control>{...}</control>\n\n<analysis>...</analysis>\n\n<refs>[]</refs>\n\nThe <control> section must be valid JSON object data for the workflow control plane.\n\nThe control object must include a non-empty string `schema` and a concise non-empty string `digest`.\n\nUse schema `stage-control-v1` unless the workflow asks for a more specific control schema.\n\nPut detailed prose, reasoning, and evidence discussion in <analysis> only.\n\nPut structured evidence pointers in <refs> as a JSON array; use [] if none.",
+      "taskId": "main"
+    }
+  ],
+  "type": "artifact-graph",
+  "warnings": []
+}

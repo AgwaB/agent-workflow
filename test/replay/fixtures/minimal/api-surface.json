@@ -1,0 +1,34 @@
+{
+  "methods": [
+    "assertDurableLaunchBarrierV2ExecutionAuthorized",
+    "createDurableLaunchBarrier",
+    "createDurableLaunchBarrierV2",
+    "durableLaunchBarrierDigest",
+    "formatPruneSubagentRunsSummary",
+    "getSubagentLogs",
+    "getSubagentStatus",
+    "interruptSubagent",
+    "isDurableLaunchBarrierError",
+    "isDurableLaunchBarrierRevokedError",
+    "pruneSubagentRuns",
+    "readDurableLaunchBarrierV2State",
+    "reconcileSubagentRun",
+    "recordSubagentChildEvent",
+    "releaseDurableLaunchBarrier",
+    "resolveDurableLaunchBarrierV2Release",
+    "revokeDurableLaunchBarrierV2",
+    "runSubagent",
+    "supportsExplicitExtensionIsolation",
+    "waitForDurableLaunchBarrierAck",
+    "waitForDurableLaunchBarrierReady",
+    "waitForDurableLaunchBarrierV2Ack",
+    "waitForDurableLaunchBarrierV2Ready",
+    "waitForSubagent"
+  ],
+  "constructors": [
+    "DurableLaunchBarrierError",
+    "DurableLaunchBarrierRevokedError",
+    "SubagentValidationError"
+  ],
+  "values": []
+}

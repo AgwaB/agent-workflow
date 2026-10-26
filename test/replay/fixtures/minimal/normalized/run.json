@@ -1,0 +1,367 @@
+{
+  "artifactGraph": {
+    "enabled": true
+  },
+  "backend": {
+    "mode": "headless",
+    "type": "local-pi"
+  },
+  "createdAt": "<TS>",
+  "cwd": "<ROOT>",
+  "description": "WP1a self-replay fixture: read one local Markdown file and report its first heading. Read-only, single stage.",
+  "name": "wp1a-minimal-first-heading",
+  "runId": "<WF_RUN_1>",
+  "schemaVersion": 1,
+  "specPath": "<ROOT>/workflow.json",
+  "status": "completed",
+  "taskSummary": {
+    "blocked": 0,
+    "completed": 1,
+    "failed": 0,
+    "interrupted": 0,
+    "pending": 0,
+    "running": 0,
+    "skipped": 0,
+    "total": 1
+  },
+  "tasks": [
+    {
+      "agent": "wp1a-reader",
+      "agentDescription": "Read-only file reader for the WP1a replay fixture.",
+      "agentFile": "<ROOT>/.pi/agents/wp1a-reader.md",
+      "artifactGraph": {
+        "artifactAccess": "enabled",
+        "enabled": true,
+        "output": {
+          "analysisRequired": true,
+          "maxDigestChars": 300,
+          "refsRequired": true
+        },
+        "requiredReads": []
+      },
+      "backendTaskId": "<SA_RUN_1>",
+      "completedAt": "<TS>",
+      "cwd": "<ROOT>",
+      "dependsOn": [],
+      "displayName": "first-heading.main",
+      "durableLaunchBarrier": {
+        "records": [
+          {
+            "ackSha256": "9f468e98ce05789cb0417b6c007e293efa3b907087a2801b1e0ad454bacbb8bf",
+            "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-1",
+            "backendAttemptId": "<SA_ATTEMPT_1>",
+            "backendRunId": "<SA_RUN_1>",
+            "decisionSha256": "9985fbd203c3a2fb0b8cafcc33e4aa3a94c115cbb488f11eb3350059be744f30",
+            "descriptor": {
+              "ackPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#1:16>-<RAND16>/ack-v2.json",
+              "challenge": "d146c81b8af9a383c6e583b0f1113827537331e5def288d16a897d3a5ee508fc",
+              "decisionNonce": "6dc675b00e28509ec42d4672014b24be1b2728e21ad9730b5ec1d64326efdcfd",
+              "decisionPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#1:16>-<RAND16>/decision-v2.json",
+              "directory": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#1:16>-<RAND16>",
+              "directoryIdentity": {
+                "device": "<FS_DEV>",
+                "inode": "<FS_INO>",
+                "uid": "<UID>"
+              },
+              "identitySha256": "7ffb846cad510b8686fbbf90d4e1a04838249ef2de715c4f3edb1cab73f5b603",
+              "pollIntervalMs": 10,
+              "readyPath": "<ROOT>/.pi/workflows/<WF_RUN_1>/tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#1:16>-<RAND16>/ready-v2.json",
+              "schema": "pi-subagent-durable-launch-barrier-v2",
+              "subjectSha256": "<ALLOWED:derived-launch-identity#1>",
+              "timeoutMs": 120000
+            },
+            "executionPlanSha256": "cedeadc3ab886d57822d73a3105d7a57a5dce98aa6837aa1275b435ad0cd467c",
+            "launchAuthoritySha256": "<ALLOWED:derived-launch-identity#1>",
+            "launchPayloadSha256": "d963ffa473338bb395f0536c19787cdb816cdb7f202d1427716d825ff42e16cc",
+            "phase": "acknowledged",
+            "readySha256": "8c8ffebfbb7719ec11741fe258ceb7b26649eb4a58d9179aa481b07435842014",
+            "releasePayloadSha256": "55201da34cbb45a4319803f7fb89578d15c69e85f6e5ea803b00c8913bec35f1",
+            "releaseWinner": true
+          }
+        ],
+        "version": 2
+      },
+      "exitCode": 0,
+      "files": {
+        "output": ".pi/workflows/<WF_RUN_1>/tasks/task-1/output.log",
+        "result": ".pi/workflows/<WF_RUN_1>/tasks/task-1/result.json",
+        "stderr": ".pi/workflows/<WF_RUN_1>/tasks/task-1/stderr.log",
+        "systemPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-1/system-prompt.md",
+        "taskPrompt": ".pi/workflows/<WF_RUN_1>/tasks/task-1/task.md"
+      },
+      "kind": "single",
+      "lastMessage": "completed",
+      "launchAuthority": {
+        "records": [
+          {
+            "grant": {
+              "attemptKey": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-1",
+              "backendId": "pi-subagent/headless",
+              "identitySha256": "<ALLOWED:derived-launch-identity#1>",
+              "issuer": "pi-workflow-engine",
+              "launchBootstrapSha256": "<ALLOWED:derived-launch-identity#2>",
+              "operation": "launch-task",
+              "runId": "<WF_RUN_1>",
+              "schema": "pi-workflow-launch-authority-v1",
+              "task": {
+                "specId": "first-heading.main",
+                "taskId": "task-1"
+              }
+            },
+            "state": {
+              "backendAttemptId": "<SA_ATTEMPT_1>",
+              "backendRunId": "<SA_RUN_1>",
+              "phase": "consumed"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "launchBootstrap": {
+        "records": [
+          {
+            "artifacts": {
+              "configSha256": "<ALLOWED:host-path-digest#1>",
+              "manifestSha256": "56fcca143a113f0027c3650e81ac04e1b9180637d120c45bc820752b1278e7b9",
+              "wrapperSha256": "<ALLOWED:host-path-digest#2>"
+            },
+            "attempt": {
+              "key": "launch-retry:0;output-retry:0;resume:0;session:pi-workflow.<WF_RUN_1>.task-1",
+              "launchRetry": 0,
+              "outputRetry": 0,
+              "resume": 0
+            },
+            "backend": {
+              "id": "pi-subagent/headless",
+              "mode": "headless",
+              "type": "local-pi"
+            },
+            "effectiveLaunch": {
+              "artifactBinding": {
+                "manifestBytesSha256": "e1c90e554e491463d56c31dc46dd404933a676fea18d0fa5adda2684282a9802",
+                "manifestPathSha256": "<ALLOWED:host-path-digest#3>",
+                "wrapperBytesSha256": "<ALLOWED:host-path-digest#2>",
+                "wrapperPathSha256": "<ALLOWED:host-path-digest#4>"
+              },
+              "captureToolCalls": false,
+              "extensions": [
+                {
+                  "pathSha256": "<ALLOWED:host-path-digest#4>"
+                }
+              ],
+              "noExtensions": true
+            },
+            "effectivePolicy": {
+              "approvalMode": "non-interactive",
+              "cwdSha256": "<ALLOWED:host-path-digest#5>",
+              "maxRuntimeMs": 1800000,
+              "stateRootSha256": "<ALLOWED:state-root-identity#1>",
+              "toolProvidersSha256": "<ALLOWED:host-path-digest#6>",
+              "tools": [
+                "read",
+                "grep",
+                "find",
+                "ls",
+                "workflow_artifact"
+              ],
+              "worktree": {
+                "enabled": false
+              }
+            },
+            "identitySha256": "<ALLOWED:derived-launch-identity#2>",
+            "prompt": {
+              "bytes": 1802,
+              "sha256": "0f6b5e35ddcff8f3485027157b0e960018ecdee235c8d4d201500b8da69d2b70"
+            },
+            "resourcePolicy": {
+              "contextFiles": "disabled",
+              "skillDiscovery": "ambient",
+              "version": 1
+            },
+            "runId": "<WF_RUN_1>",
+            "schema": "pi-workflow-launch-bootstrap-provenance-v2",
+            "sessionId": "pi-workflow.<WF_RUN_1>.task-1",
+            "sourceDependencies": {
+              "artifactAccess": "enabled",
+              "contextDependsOn": [],
+              "requiredReads": []
+            },
+            "task": {
+              "specId": "first-heading.main",
+              "taskId": "task-1"
+            },
+            "workflow": {
+              "specPathSha256": "<ALLOWED:host-path-digest#7>",
+              "type": "artifact-graph"
+            }
+          }
+        ],
+        "version": 1
+      },
+      "pid": "<PID>",
+      "rawArtifactIntegrity": {
+        "bytes": 200,
+        "owner": "<ALLOWED:timestamp-derived-digest#1>",
+        "sha256": "2142923c0c1e229ea459eae479739968bb2da77c39e1adbee140fc76eab31a2f",
+        "terminal": {
+          "attemptId": "<SA_ATTEMPT_1>",
+          "completedAt": "<TS>",
+          "exitCode": 0,
+          "runId": "<SA_RUN_1>",
+          "startedAt": "<TS>",
+          "status": "completed"
+        },
+        "terminalVersion": {
+          "ctimeMs": "<EPOCH_MS>",
+          "dev": "<FS_DEV>",
+          "ino": "<FS_INO>",
+          "mtimeMs": "<EPOCH_MS>",
+          "nlink": 1,
+          "size": "<ALLOWED:host-path-file-size>"
+        },
+        "version": 1
+      },
+      "roles": [],
+      "runtime": {
+        "approvalMode": "non-interactive",
+        "maxRuntimeMs": 1800000
+      },
+      "specId": "first-heading.main",
+      "stageId": "first-heading",
+      "startedAt": "<TS>",
+      "status": "completed",
+      "statusDetail": "completed",
+      "taskId": "task-1",
+      "timing": {
+        "aggregate": {
+          "attempts": 1,
+          "executionMs": "<DURATION_MS>",
+          "launchDurationMs": "<DURATION_MS>",
+          "launchWaitMs": "<DURATION_MS>",
+          "totalMs": "<DURATION_MS>"
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_1>",
+            "backendRunId": "<SA_RUN_1>",
+            "capturedAt": "<TS>",
+            "executionCompletedAt": "<TS>",
+            "executionMs": "<DURATION_MS>",
+            "executionStartedAt": "<TS>",
+            "launchCompletedAt": "<TS>",
+            "launchDurationMs": "<DURATION_MS>",
+            "launchQueuedAt": "<TS>",
+            "launchStartedAt": "<TS>",
+            "launchWaitMs": "<DURATION_MS>",
+            "source": "pi-subagent",
+            "totalMs": "<DURATION_MS>"
+          }
+        ],
+        "capturedAt": "<TS>",
+        "executionCompletedAt": "<TS>",
+        "executionMs": "<DURATION_MS>",
+        "executionStartedAt": "<TS>",
+        "launchCompletedAt": "<TS>",
+        "launchDurationMs": "<DURATION_MS>",
+        "launchQueuedAt": "<TS>",
+        "launchSlotReleaseDelayMs": 3000,
+        "launchStartedAt": "<TS>",
+        "launchWaitMs": "<DURATION_MS>",
+        "maxConcurrentLaunches": 6,
+        "refreshReconcileMs": "<DURATION_MS>",
+        "refreshStatusPollMs": "<DURATION_MS>",
+        "source": "pi-workflow",
+        "terminalArtifactBundleWriteMs": "<DURATION_MS>",
+        "terminalArtifactMaterializeMs": "<DURATION_MS>",
+        "terminalOutputBytes": 200,
+        "terminalOutputCopyMs": "<DURATION_MS>",
+        "terminalStderrBytes": 126,
+        "terminalStderrCopyMs": "<DURATION_MS>",
+        "totalMs": "<DURATION_MS>"
+      },
+      "tools": [
+        "read",
+        "grep",
+        "find",
+        "ls"
+      ],
+      "usage": {
+        "aggregate": {
+          "attempts": 1,
+          "cacheCreationInputTokens": 0,
+          "cacheReadInputTokens": 0,
+          "costUsd": 0.013680000000000001,
+          "inputTokens": 6315,
+          "outputTokens": 105,
+          "reasoningTokens": 24,
+          "totalTokens": 6420
+        },
+        "attempts": [
+          {
+            "backendAttemptId": "<SA_ATTEMPT_1>",
+            "backendRunId": "<SA_RUN_1>",
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 0,
+            "capturedAt": "<TS>",
+            "costUsd": 0.013680000000000001,
+            "inputTokens": 6315,
+            "model": "gpt-6.1-sol",
+            "outputTokens": 105,
+            "provider": "openai-codex",
+            "raw": {
+              "cacheRead": 0,
+              "cacheWrite": 0,
+              "cost": {
+                "cacheRead": 0,
+                "cacheWrite": 0,
+                "input": 0.012629999999999999,
+                "output": 0.0010500000000000002,
+                "total": 0.013680000000000001
+              },
+              "input": 6315,
+              "output": 105,
+              "reasoning": 24,
+              "totalTokens": 6420
+            },
+            "reasoningTokens": 24,
+            "source": "subagent-result-metadata",
+            "totalTokens": 6420
+          }
+        ],
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "capturedAt": "<TS>",
+        "costUsd": 0.013680000000000001,
+        "inputTokens": 6315,
+        "model": "gpt-6.1-sol",
+        "outputTokens": 105,
+        "provider": "openai-codex",
+        "reasoningTokens": 24,
+        "source": "pi-subagent",
+        "totalTokens": 6420
+      },
+      "worktree": {
+        "baseCwd": null,
+        "branch": null,
+        "enabled": false,
+        "path": null,
+        "warning": null
+      }
+    }
+  ],
+  "type": "artifact-graph",
+  "updatedAt": "<TS>",
+  "usage": {
+    "cacheCreationInputTokens": 0,
+    "cacheReadInputTokens": 0,
+    "capturedAt": "<TS>",
+    "costUsd": 0.013680000000000001,
+    "inputTokens": 6315,
+    "outputTokens": 105,
+    "reasoningTokens": 24,
+    "source": "task-rollup",
+    "taskCount": 1,
+    "tasksReporting": 1,
+    "totalTokens": 6420
+  }
+}

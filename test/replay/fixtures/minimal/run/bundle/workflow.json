@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "name": "wp1a-minimal-first-heading",
+  "description": "WP1a self-replay fixture: read one local Markdown file and report its first heading. Read-only, single stage.",
+  "defaults": {
+    "agent": "wp1a-reader",
+    "readOnly": true,
+    "tools": ["read", "grep", "find", "ls"]
+  },
+  "artifactGraph": {
+    "stages": [
+      {
+        "id": "first-heading",
+        "type": "single",
+        "after": [],
+        "output": {
+          "analysis": { "required": true },
+          "refs": { "required": true },
+          "maxDigestChars": 300
+        },
+        "prompt": "Use the read tool once to read the file named in the runtime task (a path relative to the current working directory). Do not modify files and do not read any other file. Report the text of the first Markdown heading in that file. Respond with exactly three sections and no prose outside them: <control>{\"schema\":\"stage-control-v1\",\"digest\":\"First heading: <heading text>\"}</control> then <analysis>one short sentence</analysis> then <refs>[\"<the file path>\"]</refs>."
+      }
+    ]
+  }
+}
