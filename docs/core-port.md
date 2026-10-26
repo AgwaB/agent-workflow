@@ -1005,3 +1005,67 @@ deferred-WP5+ 53, dropped 33 (140). No file is left at a `deferred-WP4c*` status
 
 - `task-cancellation.ts` `interruptSubagentTask`: an interrupt result `unsupported` (runtime found no live process to signal) is no longer an immediate error when the exact attempt then reaches a terminal state within the interrupt deadline (race: a worker that saw a barrier revoke exits by itself; since WP2b the runtime skips dead cached targets). WB-004 is preserved: `unsupported` is never an acknowledgement by itself, fails exactly as before when no status API exists or the attempt does not terminate, and `unsupported` for another attempt is rejected. `interruptStatus` gains `"unsupported"`. Regression test `core-task-cancellation-unsupported.test.mjs`.
 - `core-wp4c1-engine-runtime.test.mjs`: the prune step waits for the in-process supervisor to release before ageing the lease (test-only race, ~1 in 3).
+
+## WP1b — replay acceptance against the pi-workflow recordings
+
+WP1b replays the five WP1a recordings (`test/replay/fixtures/`) through the agent-workflow engine with the
+original pi-workflow specs and compares the run records (docs/replay.md). The comparison found two product
+bugs (fixed below, each with a regression test) and the intentional changes listed here; the explained
+differences in `test/replay/explained-differences.json` cite these entries.
+
+### WP1b change log (behavior-relevant)
+
+1. **Executor exit code.** An executor attempt has no process exit code (the executor contract ends with a
+   terminal event), so the runtime `result.json` records `exitCode: null` and the raw-artifact integrity
+   stamp (`rawIntegrity.terminal`, `tasks[].rawArtifactIntegrity.terminal`) copies it. pi-workflow copied
+   the Pi CLI exit code (`0`). The task's own `exitCode` is still derived from the task status.
+2. **Executor usage contract.** Usage arrives as SDK `UsageEvent`s (`input`, `output`, `cached`, `cost`,
+   `source`), summed by the runtime into `result.json` `metadata.usage` (docs/runtime-port.md "Attempt
+   artifacts"). Reasoning, cache-write and total token counts and the provider/model of the attempt are
+   not part of the executor event contract v0, so task usage records no longer carry `reasoningTokens`,
+   `totalTokens`, `cacheCreationInputTokens`, `provider` or `model`, and `usage.attempts[].raw` is the
+   runtime summary instead of Pi's usage object. The run rollup then reports those three token fields as
+   absent (no task reports them) or `0` (support tasks contribute zero usage, as before). Input, output,
+   cache-read tokens and cost are unchanged (with fix 4).
+3. **Cost rounding.** The runtime rounds summed usage cost to 12 decimals (`summarizeUsage` in
+   `src/runtime/orchestrate/execute.ts`), so a recorded `0.013680000000000001` is stored as `0.01368`.
+4. **Fix: runtime usage aliases** (`src/core/task-observability.ts` `USAGE_FIELD_ALIASES`). The task usage
+   reader only knew Pi's usage object (`cacheRead`, `cost.total`); the runtime summary's `cached`
+   (cache-read input tokens) and `cost` (USD) were dropped, so cache-read tokens and cost vanished from task
+   and run usage for every executor. `cached` → `cacheReadInputTokens` and a numeric `cost` → `costUsd` are
+   now read after the existing aliases (a Pi `cost` object still resolves through `cost.total`). Test:
+   `core-usage-runtime-summary.test.mjs`.
+5. **Fix: READY wait stops when the provisional worker ended** (`src/core/launch-barrier-engine.ts`
+   `waitForReadyUnlessWorkerEnded`; additive runtime option `waitForDurableLaunchBarrierV2Ready(descriptor,
+   {signal})`). In the runtime the durable worker writes READY inside `authority.consume()`, which the
+   executor calls from `submit`. An executor that refuses the request before consuming (INVALID_REQUEST,
+   CAPABILITY_MISSING — no effect) ends the worker with a terminal not-started result and never writes
+   READY. pi-subagent wrote READY before it started Pi, so pi-workflow never had this case; the engine kept
+   waiting for READY until the barrier timeout (30–120 s per attempt) and then reported "durable launch
+   barrier timed out", losing the refusal. The engine now polls the provisional attempt's status every
+   200 ms while it waits; a terminal attempt without READY fails the launch at once with
+   `provisional worker <run>/<attempt> ended (<status>/<failureKind>) before the durable launch barrier
+   READY: <worker stderr>` (the barrier is revoked and the worker interruption acknowledged, as for any
+   barrier failure). A worker that wrote READY and then ended is still settled by the READY path. Test:
+   `core-launch-barrier-worker-ended.test.mjs`.
+6. **Original bundled helpers and the renamed state path.** The run state moved from `.pi/workflows/` to
+   `.agent-workflow/workflows/` (WP4b change log 1) with no fallback. The original pi-workflow helpers
+   hard-code the old path: deep-review, impact-review, spec-review and deep-research write their report
+   sidecars (`final-report.md`, `review.md`, `source-ledger.json`, `executive.md`, `audit.md`) to
+   `<cwd>/.pi/workflows/<run>/tasks/<task>/`, and
+   spec-review's `spec-requirement-source.mjs` reads upstream `source-manifest.json` / `control.json`
+   from there. Under agent-workflow the sidecars land in that legacy directory (byte-identical to the
+   recording, outside the run directory) and spec-review's evidence gate cannot read its requirement source
+   (`missing_requirement_source_proof`), so the original spec-review diverges from task 6 on. Bundled
+   workflows must replace the literal when they are ported (WP10). The replay shows the rest of
+   spec-review matches with the one literal migrated (variant `state-path-migrated`).
+7. **Original deep-research and the removed web tools (C2).** The original deep-research spec gives its
+   research tasks `workflow_web_search`, `workflow_web_fetch_source` and `workflow_web_source_read`, which
+   C2/WP10 removed. The spec still compiles and its plan stage runs; the Pi executor refuses tasks 11, 12,
+   13 (research-questions items), 4 (normalize-claims) and 9 (final-audit) before any effect
+   (`CAPABILITY_MISSING: Pi executor has no mapping for tools: workflow_web_search,
+   workflow_web_fetch_source, workflow_web_source_read`), each failing at once with `launch_failed` (fix 5).
+   The support stages continue with what they have, the verify-claims foreach materializes no items and
+   the final render blocks, so the run ends `blocked` (recorded: `completed`). That refusal is the expected
+   result; the web tools are not added back. With the adapter check off (replay variant `engine-only`)
+   every task output of the recording is reproduced.

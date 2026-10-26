@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 205-207, 1689-2679, 6123-6145 (usage, timing and tool-result-budget telemetry on task records). MIT, same author. Changes: env PI_WORKFLOW_DYNAMIC_TOOL_RESULT_BUDGET_CHARS→AGENT_WORKFLOW_DYNAMIC_TOOL_RESULT_BUDGET_CHARS; record source "pi-subagent"→"executor".
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 205-207, 1689-2679, 6123-6145 (usage, timing and tool-result-budget telemetry on task records). MIT, same author. Changes: env PI_WORKFLOW_DYNAMIC_TOOL_RESULT_BUDGET_CHARS→AGENT_WORKFLOW_DYNAMIC_TOOL_RESULT_BUDGET_CHARS; record source "pi-subagent"→"executor"; WP1b: usage aliases `cached`/`cost` for the runtime UsageSummary.
 import { type SubagentRunStatusSnapshot } from "./runtime-port.js";
 import {
 	normalizedToolResultBudgetValues,
@@ -81,6 +81,9 @@ const USAGE_FIELD_ALIASES: Record<
 		["cache_read_input_tokens"],
 		["cacheRead"],
 		["cache_read"],
+		// Runtime UsageSummary (`metadata.usage` of an executor attempt): `cached` is the summed
+		// SDK UsageEvent.cached, the cache-read input tokens (WP1b fix).
+		["cached"],
 	],
 	reasoningTokens: [
 		["reasoningTokens"],
@@ -99,6 +102,8 @@ const USAGE_FIELD_ALIASES: Record<
 		["cost", "total"],
 		["cost", "totalUsd"],
 		["cost", "total_usd"],
+		// Runtime UsageSummary: `cost` is the summed SDK UsageEvent.cost in USD (WP1b fix).
+		["cost"],
 	],
 };
 

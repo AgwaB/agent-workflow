@@ -1,10 +1,13 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 531-533, 1328-1467, 3087-3144, 3322-3573, 3610-3820 (engine side of the durable launch barrier V2: create/resume, READY validation, consume, release vs revoke on stop/lease loss, ACK, cancellation decision, restart reconcile). MIT, same author. Changes: the create and settle blocks of launchSubagentTask became createOrResumeDurableLaunchBarrier / settleDurableLaunchBarrier (same order and checks); barrier functions come from the runtime API.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 531-533, 1328-1467, 3087-3144, 3322-3573, 3610-3820 (engine side of the durable launch barrier V2: create/resume, READY validation, consume, release vs revoke on stop/lease loss, ACK, cancellation decision, restart reconcile). MIT, same author. Changes: the create and settle blocks of launchSubagentTask became createOrResumeDurableLaunchBarrier / settleDurableLaunchBarrier (same order and checks); barrier functions come from the runtime API. WP1b fix: the READY wait stops (DurableLaunchWorkerEndedError, with the worker stderr) when the provisional worker attempt is terminal without READY — an executor refusal before consume — instead of waiting for the barrier timeout.
 import {
 	type CompiledTask,
 	type WorkflowForeachBatchRecord,
 	type WorkflowLaunchAuthorityGrant,
 } from "./types.js";
-import { type SubagentApi } from "./runtime-port.js";
+import {
+	type SubagentApi,
+	type SubagentRunStatusSnapshot,
+} from "./runtime-port.js";
 import { type SubagentBackendHandle } from "./task-artifacts.js";
 import {
 	abortSignalError,
@@ -22,7 +25,8 @@ import {
 } from "./launch-slots.js";
 import { consumeWorkflowLaunchAuthority } from "./launch-authority.js";
 import { isWorkflowStopRequestedError } from "./workflow-stop.js";
-import { join } from "node:path";
+import { readFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { randomBytes } from "node:crypto";
 import { workflowRunDir } from "./store.js";
 import {
@@ -37,7 +41,9 @@ import { consumeRegisteredWorkflowLaunchAuthority } from "./launch-authority.js"
 import { workflowTaskSessionId } from "./launch-session.js";
 import { nowIso, writeRunRecordDurable } from "./store.js";
 import {
+	findLog,
 	getSubagentHandle,
+	safeArtifactPath,
 	makeSubagentHandle,
 	subagentRunsDir,
 	timestampMs,
@@ -496,6 +502,112 @@ export async function createOrResumeDurableLaunchBarrier(options: {
 	return { descriptor: durableBarrierDescriptor, record: durableBarrierRecord };
 }
 
+/** Poll interval of the provisional worker's attempt status while waiting for READY. */
+export const PRE_READY_WORKER_POLL_MS = 200;
+
+/** The provisional worker recorded a terminal attempt result before it wrote READY. */
+export class DurableLaunchWorkerEndedError extends Error {
+	constructor(
+		message: string,
+		readonly attemptStatus: string,
+		readonly failureKind: string | null,
+	) {
+		super(message);
+		this.name = "DurableLaunchWorkerEndedError";
+	}
+}
+
+function abortableSleep(ms: number, signal: AbortSignal): Promise<void> {
+	return new Promise((resolveSleep) => {
+		if (signal.aborted) return resolveSleep();
+		const timer = setTimeout(done, ms);
+		function done() {
+			clearTimeout(timer);
+			signal.removeEventListener("abort", done);
+			resolveSleep();
+		}
+		signal.addEventListener("abort", done, { once: true });
+	});
+}
+
+async function attemptStderrExcerpt(
+	snapshot: SubagentRunStatusSnapshot,
+	handle: SubagentBackendHandle,
+): Promise<string> {
+	const log = findLog(snapshot, "stderr");
+	if (log === undefined) return "";
+	try {
+		const path = safeArtifactPath(
+			snapshot,
+			log,
+			resolve(handle.cwd, handle.runsDir),
+		);
+		const text = await readFile(path, "utf8");
+		return text.trim().slice(0, 2_000);
+	} catch {
+		return "";
+	}
+}
+
+/**
+ * WP1b fix: wait for READY, but stop as soon as the provisional worker's attempt is terminal
+ * without READY. In the runtime the worker writes READY inside `authority.consume()`, which the
+ * executor calls from `submit`; an executor that refuses the request before consuming
+ * (INVALID_REQUEST, CAPABILITY_MISSING: no effect) ends the worker with a terminal not-started
+ * result and no READY. pi-subagent wrote READY before it started Pi, so pi-workflow never had this
+ * case; the plain wait then ran into the barrier timeout (up to 120 s per attempt) and reported
+ * "durable launch barrier timed out" instead of the executor's refusal.
+ */
+async function waitForReadyUnlessWorkerEnded(
+	launchApi: SubagentApi & DurableLaunchBarrierApi,
+	descriptor: DurableLaunchBarrierDescriptor,
+	handle: SubagentBackendHandle,
+	launched: { runId: string; attemptId: string },
+): Promise<DurableLaunchBarrierReady> {
+	const stop = new AbortController();
+	const ready = launchApi.waitForDurableLaunchBarrierV2Ready(descriptor, {
+		signal: stop.signal,
+	});
+	// The READY wait is abandoned (and rejects) once the worker is known to have ended.
+	ready.catch(() => undefined);
+	const ended = (async (): Promise<void> => {
+		while (!stop.signal.aborted) {
+			await abortableSleep(PRE_READY_WORKER_POLL_MS, stop.signal);
+			if (stop.signal.aborted) return;
+			const snapshot = await launchApi
+				.getSubagentStatus({
+					cwd: handle.cwd,
+					runsDir: handle.runsDir,
+					runId: launched.runId,
+					attemptId: launched.attemptId,
+				})
+				.catch(() => null);
+			if (
+				snapshot === null ||
+				snapshot.attemptId !== launched.attemptId ||
+				!["completed", "failed", "cancelled"].includes(snapshot.status)
+			)
+				continue;
+			// A worker that wrote READY and then ended is settled by the READY path.
+			const state = await launchApi
+				.readDurableLaunchBarrierV2State(descriptor)
+				.catch(() => undefined);
+			if (state?.ready !== undefined) return;
+			const reason = await attemptStderrExcerpt(snapshot, handle);
+			throw new DurableLaunchWorkerEndedError(
+				`provisional worker ${launched.runId}/${launched.attemptId} ended (${snapshot.status}${snapshot.failureKind ? `/${snapshot.failureKind}` : ""}) before the durable launch barrier READY${reason ? `: ${reason}` : ""}`,
+				snapshot.status,
+				snapshot.failureKind ?? null,
+			);
+		}
+	})();
+	try {
+		return await Promise.race([ready, ended.then(() => ready)]);
+	} finally {
+		stop.abort();
+	}
+}
+
 /**
  * Engine side of the durable launch barrier V2, step 2 (subagent-backend.ts 3322-3573): after the
  * runtime returned the provisional worker handle, wait for READY, validate it against the
@@ -548,7 +660,12 @@ export async function settleDurableLaunchBarrier(options: {
 		}
 		const ready = await awaitSubagentOperation(
 			() =>
-				launchApi.waitForDurableLaunchBarrierV2Ready(durableBarrierDescriptor),
+				waitForReadyUnlessWorkerEnded(
+					launchApi,
+					durableBarrierDescriptor,
+					handle,
+					launched,
+				),
 			{
 				operation: "durable launch barrier READY",
 				context: `workflow run ${run.runId} task ${task.taskId} (${task.specId})`,
