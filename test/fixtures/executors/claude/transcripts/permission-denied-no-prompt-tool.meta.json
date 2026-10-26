@@ -1,0 +1,36 @@
+{
+	"argv": [
+		"-p",
+		"--input-format",
+		"stream-json",
+		"--output-format",
+		"stream-json",
+		"--verbose",
+		"--model",
+		"haiku",
+		"--effort",
+		"low",
+		"--setting-sources",
+		"",
+		"--settings",
+		"{\"autoMemoryEnabled\":false}",
+		"--strict-mcp-config",
+		"--disable-slash-commands",
+		"--permission-mode",
+		"default",
+		"--tools",
+		"Read,Bash",
+		"--allowedTools",
+		"Read",
+		"--no-session-persistence"
+	],
+	"prompt": "Run exactly this shell command with the Bash tool: touch e2-marker.txt . If it is denied, do not retry; reply DENIED. Otherwise reply DONE.",
+	"env": [],
+	"exit": {
+		"code": 0,
+		"signal": null,
+		"ms": 4128,
+		"interrupted": false
+	},
+	"stderr": ""
+}

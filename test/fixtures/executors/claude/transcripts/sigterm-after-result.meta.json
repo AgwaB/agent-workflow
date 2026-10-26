@@ -1,0 +1,36 @@
+{
+	"argv": [
+		"-p",
+		"--input-format",
+		"stream-json",
+		"--output-format",
+		"stream-json",
+		"--verbose",
+		"--model",
+		"haiku",
+		"--effort",
+		"low",
+		"--setting-sources",
+		"",
+		"--settings",
+		"{\"autoMemoryEnabled\":false}",
+		"--strict-mcp-config",
+		"--disable-slash-commands",
+		"--permission-mode",
+		"default",
+		"--permission-prompt-tool",
+		"stdio",
+		"--tools",
+		"",
+		"--no-session-persistence"
+	],
+	"prompt": "Count from 1 to 600, one number per line, no other text.",
+	"env": [],
+	"exit": {
+		"code": 143,
+		"signal": null,
+		"ms": 5682,
+		"interrupted": false
+	},
+	"stderr": ""
+}

@@ -1,0 +1,32 @@
+{
+	"argv": [
+		"-p",
+		"--bare",
+		"--input-format",
+		"stream-json",
+		"--output-format",
+		"stream-json",
+		"--verbose",
+		"--model",
+		"haiku",
+		"--effort",
+		"low",
+		"--strict-mcp-config",
+		"--permission-mode",
+		"default",
+		"--permission-prompt-tool",
+		"stdio",
+		"--tools",
+		"",
+		"--no-session-persistence"
+	],
+	"prompt": "Reply OK.",
+	"env": [],
+	"exit": {
+		"code": 1,
+		"signal": null,
+		"ms": 1282,
+		"interrupted": false
+	},
+	"stderr": ""
+}
