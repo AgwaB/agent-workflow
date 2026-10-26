@@ -1,0 +1,11 @@
+{
+	"schema": "agent-workflow-pi-transcript-v1",
+	"name": "fail-unknown-flag-conflict",
+	"source": "offline (conflicting Pi flags; text not in the error table)",
+	"piVersion": "1.1.0",
+	"model": null,
+	"exitCode": 1,
+	"signal": null,
+	"stdout": [],
+	"stderr": "Error: --session-id cannot be combined with --continue\n"
+}

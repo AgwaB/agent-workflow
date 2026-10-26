@@ -1,0 +1,903 @@
+// New in agent-workflow (WP6): the Pi executor (`pi --mode json --print`, owner decision A2-3).
+// The argv logic and JSON parsing are ported from pi-subagent (see argv.ts, parse.ts); the process
+// handling follows pi-subagent `runners/headless-model.ts` (own process group, SIGTERM then SIGKILL)
+// on top of the SDK contract: authority consumed immediately before the spawn (R#1), idempotent per
+// attemptKey with durable launch evidence (B3, state.ts), raw stream saved under `artifactsDir` (D3).
+import { type ChildProcess, execFile, spawn } from "node:child_process";
+import { createWriteStream, type WriteStream } from "node:fs";
+import {
+	chmod,
+	mkdir,
+	readdir,
+	readFile,
+	rm,
+	writeFile,
+} from "node:fs/promises";
+import { join, relative, resolve, sep } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { resolveWorkflowFastModeConfig } from "../../core/fast-tier.js";
+import { agentWorkflowHome } from "../../core/home-dir.js";
+import { durableWorkerBindingEnv } from "../../runtime/durable-authority.js";
+import { LEGACY_PI_DURABLE_WORKER_BINDING_ENV } from "../../runtime/orchestrate/request.js";
+import {
+	captureProcessIdentity,
+	verifyProcessIdentity,
+} from "../../runtime/process-identity.js";
+import { DURABLE_WORKER_BINDING_ENV } from "../../runtime/workers/durable-worker-binding.js";
+import { requireReleased } from "../../sdk/authority.js";
+import { type ExecutorCapabilities, level } from "../../sdk/capabilities.js";
+import {
+	type ApprovalResponseResult,
+	type CancelResult,
+	type CancelScope,
+	EXECUTOR_CONTRACT_VERSION,
+	type ExecRef,
+	type ExecutorProbe,
+	type ReconcileResult,
+	type SubmitRequest,
+	validateSubmitRequest,
+	type WorkflowExecutor,
+} from "../../sdk/contract.js";
+import { SdkError } from "../../sdk/errors.js";
+import type { ExecEvent, OwnedSession } from "../../sdk/events.js";
+import type { JsonValue } from "../../sdk/json.js";
+import { mapTools } from "../../sdk/tools.js";
+import {
+	buildPiArgv,
+	INHERITED_HOST_TOOLS,
+	PI_EFFORT_LEVELS,
+	PI_EXECUTOR_TOOL_MAPPING,
+	PI_WEB_TOOLS,
+	piMcpServerPattern,
+	readOnlyTools,
+} from "./argv.js";
+import { type PiExecutorConfig, parsePiExecutorConfig } from "./config.js";
+import { PiEventNormalizer, PiJsonlSplitter } from "./parse.js";
+import {
+	PI_PARENT_WATCH_FD,
+	PI_RUN_SECRETS_ENV,
+	type PiRunConfig,
+	piRunExtensionSource,
+} from "./run-extension.js";
+import {
+	attemptDigest,
+	type PiAttemptExit,
+	type PiAttemptRecord,
+	PiAttemptStore,
+} from "./state.js";
+import { TOOL_RESULT_BUDGET_STATE_FILENAME } from "./tool-result-budget.js";
+
+export const PI_EXECUTOR_ID = "pi";
+export const PI_EXECUTOR_VERSION = "0.1.0";
+/** Pi version the adapter was built and verified against (A2-4 native MCP needs 1.1). */
+export const PI_MIN_CLI_VERSION = "1.1.0";
+/** Pi 1.1 cuts MCP text results above 20 KiB (`MCP_OUTPUT_MAX_BYTES`, measured live, docs/executors/pi.md). */
+export const PI_MCP_OUTPUT_LIMIT_CHARS = 20 * 1024;
+/**
+ * Upper bound of what Pi adds around a cut MCP result: "Warning: truncated output (…)" header,
+ * `…N chars truncated…` marker and "[Full output: <temp file> (read it with offset/limit)]" footer
+ * (≈ 220 chars measured, plus the temp path length).
+ */
+export const PI_MCP_OUTPUT_NOTICE_CHARS = 1024;
+/** Evidence string for capability rows proven against a live Pi (live-calls.md). */
+export const PI_VERIFIED_WITH = "pi 1.1.0, WP6 live runs 2026-10-26";
+/** Rows proven offline with the real Pi CLI and a scripted (faux) provider: no model turn. */
+export const PI_VERIFIED_OFFLINE =
+	"pi 1.1.0, faux provider (no model call), WP6 2026-10-26";
+
+export const PI_RAW_STDOUT = "pi-stdout.jsonl";
+export const PI_RAW_STDERR = "pi-stderr.log";
+export const PI_EXTENSION_FILE = "pi-extension.mjs";
+export const PI_SYSTEM_PROMPT_FILE = "pi-system-prompt.md";
+export const PI_MCP_LOG_FILE = "pi-mcp.log";
+export const PI_SESSION_KIND = "pi-session-dir";
+
+const SESSION_ID = /^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$/u;
+const STDERR_LIMIT = 256 * 1024;
+const PROBE_TIMEOUT_MS = 4_000;
+const REDACT_MIN_CHARS = 6;
+
+export interface PiExecutorProbe extends ExecutorProbe {
+	/** `provider/id` from `pi --list-models` (no model turn); null when not listable. */
+	readonly models: readonly string[] | null;
+	/** `pi-web-access` package found through `pi list` (C2), or null. */
+	readonly webAccessExtension: string | null;
+}
+
+/** Declared capability table (docs/executors/pi.md lists the evidence for every row). */
+export function piCapabilities(): ExecutorCapabilities {
+	const live = (name: "native" | "emulated") =>
+		level(name, "probed", PI_VERIFIED_WITH);
+	return {
+		toolLoop: "agent",
+		context: "agent",
+		// The attempt is bound to the process that owns Pi's stdout pipe: a fresh process can
+		// reconcile it (`found`) but cannot attach to a still-running Pi.
+		sessionBound: true,
+		mcpInjection: live("native"),
+		// Pi has no sandbox; readOnly = an allowlist without mutating tools (bash/edit/write).
+		readOnly: live("emulated"),
+		toolAllowlist: { ...live("native"), detail: "fine" },
+		systemPrompt: {
+			...level("native", "probed", PI_VERIFIED_OFFLINE),
+			detail: "replace",
+		},
+		modelSelect: live("native"),
+		effortLevels: [...PI_EFFORT_LEVELS],
+		resume: { ...live("native"), detail: "native" },
+		partialStream: live("native"),
+		usage: { ...live("native"), detail: "cost" },
+		toolTelemetry: live("native"),
+		cancel: { ...live("native"), detail: "kill" },
+		nativeSchema: level("none"),
+		contextIsolation: live("native"),
+		fastTier: level("native", "unverified"),
+		toolResultBudget: level("native", "probed", PI_VERIFIED_OFFLINE),
+		webTools: {
+			...level("native", "unverified"),
+			detail: "search+fetch",
+			safetyPolicy: "unknown",
+		},
+	};
+}
+
+interface LiveRun {
+	readonly ref: ExecRef;
+	readonly log: ExecEvent[];
+	done: boolean;
+	readonly waiters: (() => void)[];
+	readonly child: ChildProcess;
+	cancelled: boolean;
+	killTimer?: ReturnType<typeof setTimeout>;
+}
+
+/** Process-global: a restarted executor instance in the same process sees the running attempt. */
+const LIVE_RUNS = new Map<string, LiveRun>();
+const INFLIGHT = new Map<string, Promise<ExecRef>>();
+
+function sdkInvalid(message: string): never {
+	throw new SdkError("INVALID_REQUEST", message);
+}
+
+function versionAtLeast(actual: string, minimum: string): boolean {
+	const parse = (value: string) =>
+		/^(\d+)\.(\d+)\.(\d+)/u.exec(value)?.slice(1).map(Number);
+	const a = parse(actual);
+	const b = parse(minimum);
+	if (a === undefined || b === undefined) return false;
+	for (let index = 0; index < 3; index += 1)
+		if ((a[index] ?? 0) !== (b[index] ?? 0))
+			return (a[index] ?? 0) > (b[index] ?? 0);
+	return true;
+}
+
+function runCli(
+	command: string,
+	args: readonly string[],
+	timeoutMs = PROBE_TIMEOUT_MS,
+): Promise<{ code: number | null; stdout: string; stderr: string }> {
+	return new Promise((resolvePromise) => {
+		execFile(
+			command,
+			[...args],
+			{
+				timeout: timeoutMs,
+				maxBuffer: 8 * 1024 * 1024,
+				env: { ...process.env, PI_SKIP_VERSION_CHECK: "1" },
+			},
+			(error, stdout, stderr) => {
+				const code =
+					error === null
+						? 0
+						: typeof (error as { code?: unknown }).code === "number"
+							? ((error as { code: number }).code as number)
+							: null;
+				resolvePromise({
+					code,
+					stdout: String(stdout),
+					stderr: String(stderr),
+				});
+			},
+		);
+	});
+}
+
+/** Parse `pi --list-models` (table: provider, model, …). */
+export function parsePiModelList(text: string): string[] {
+	const models: string[] = [];
+	for (const line of text.split("\n")) {
+		const [provider, model] = line.trim().split(/\s+/u);
+		if (!provider || !model || provider === "provider") continue;
+		models.push(`${provider}/${model}`);
+	}
+	return models;
+}
+
+/** Path of the `pi-web-access` package in `pi list` output (line after the source). */
+export function parsePiWebAccessPath(text: string): string | null {
+	const lines = text.split("\n");
+	for (let index = 0; index < lines.length; index += 1)
+		if (/(?:^|[:/\s])pi-web-access(?:@|\s|$)/u.test(lines[index] ?? "")) {
+			const path = lines[index + 1]?.trim();
+			if (path?.startsWith("/")) return path;
+		}
+	return null;
+}
+
+function killGroup(pid: number | undefined, signal: NodeJS.Signals): void {
+	if (pid === undefined) return;
+	try {
+		process.kill(-pid, signal);
+	} catch {
+		try {
+			process.kill(pid, signal);
+		} catch {
+			// already gone
+		}
+	}
+}
+
+function createRedactor(values: readonly string[]): (text: string) => string {
+	const secrets = [
+		...new Set(values.filter((v) => v.length >= REDACT_MIN_CHARS)),
+	].sort((a, b) => b.length - a.length);
+	if (secrets.length === 0) return (text) => text;
+	return (text) => {
+		let out = text;
+		for (const secret of secrets)
+			if (out.includes(secret)) out = out.split(secret).join("[redacted]");
+		return out;
+	};
+}
+
+interface LaunchPlan {
+	readonly argv: [string, ...string[]];
+	readonly isolated: boolean;
+	readonly session?: {
+		readonly dir: string;
+		readonly id: string;
+		readonly resumePath?: string;
+	};
+	readonly ownedSession?: OwnedSession;
+	readonly runConfig: Omit<PiRunConfig, "mcpLogPath" | "toolResultBudget"> & {
+		readonly toolResultBudget?: { readonly maxTotalChars: number };
+	};
+	readonly extensionsBefore: readonly string[];
+	readonly extensionsAfter: readonly string[];
+	readonly tools: readonly string[];
+	readonly notes: readonly string[];
+}
+
+export interface PiExecutor extends WorkflowExecutor {
+	probe(): Promise<PiExecutorProbe>;
+	/** Delete a worker session this adapter kept (D3, R#10). Only paths under its own state dir. */
+	deleteOwnedSession(session: OwnedSession): Promise<boolean>;
+	readonly config: PiExecutorConfig;
+	readonly stateDir: string;
+}
+
+export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
+	const config = parsePiExecutorConfig(rawConfig);
+	const stateDir = resolve(
+		config.stateDir ?? join(agentWorkflowHome(), "executors", "pi"),
+	);
+	const store = new PiAttemptStore(stateDir);
+	const sessionsRoot = join(stateDir, "sessions");
+	const runExtensionUrl = pathToFileURL(
+		fileURLToPath(new URL("./run-extension.js", import.meta.url)),
+	).href;
+	const liveKey = (attemptKey: string) => `${stateDir}\0${attemptKey}`;
+	let discoveredWebAccess: Promise<string | null> | undefined;
+
+	const discoverWebAccess = (): Promise<string | null> => {
+		if (config.webAccessExtension !== undefined)
+			return Promise.resolve(config.webAccessExtension);
+		discoveredWebAccess ??= runCli(config.piCommand, ["list"]).then((result) =>
+			result.code === 0 ? parsePiWebAccessPath(result.stdout) : null,
+		);
+		return discoveredWebAccess;
+	};
+
+	async function plan(req: SubmitRequest): Promise<LaunchPlan> {
+		const notes: string[] = [];
+		const isolated = req.isolation?.inherit !== true;
+		if (
+			req.effort !== undefined &&
+			!(PI_EFFORT_LEVELS as readonly string[]).includes(req.effort)
+		)
+			sdkInvalid(
+				`effort ${req.effort} is not a Pi thinking level (${PI_EFFORT_LEVELS.join(", ")})`,
+			);
+		const mapped = mapTools(req.tools, PI_EXECUTOR_TOOL_MAPPING);
+		if (mapped.unmapped.length > 0)
+			throw new SdkError(
+				"CAPABILITY_MISSING",
+				`Pi executor has no mapping for tools: ${mapped.unmapped.join(", ")}`,
+				{ subject: "toolAllowlist" },
+			);
+		const serverNames = new Set(req.mcpServers.map((server) => server.name));
+		for (const tool of mapped.mcpTools)
+			if (!serverNames.has(tool.server))
+				throw new SdkError(
+					"CAPABILITY_MISSING",
+					`tool ${tool.tool} needs the MCP server ${tool.server}, which the request does not inject`,
+					{ subject: "mcpInjection" },
+				);
+		for (const server of req.mcpServers)
+			if (!/^[A-Za-z0-9_-]+$/u.test(server.name))
+				sdkInvalid(
+					`MCP server name ${server.name} is not valid for Pi (letters, digits, _ and -)`,
+				);
+		let tools = [...mapped.executorTools];
+		if (req.readOnly) {
+			const { kept, dropped } = readOnlyTools(tools);
+			tools = kept;
+			if (dropped.length > 0)
+				notes.push(`readOnly: dropped mutating tools ${dropped.join(", ")}`);
+		}
+		const inheritHost = config.inheritHostTools === true && !req.readOnly;
+		if (config.inheritHostTools === true && req.readOnly)
+			notes.push("inheritHostTools ignored for a readOnly request");
+		if (inheritHost) tools = [...new Set([...tools, ...INHERITED_HOST_TOOLS])];
+		else
+			for (const server of req.mcpServers)
+				tools.push(piMcpServerPattern(server.name));
+		const extensionsBefore: string[] = [];
+		const extensionsAfter: string[] = [];
+		if (isolated && inheritHost)
+			extensionsAfter.push(
+				"builtin:mcp",
+				"builtin:codemode",
+				"builtin:tool-search",
+			);
+		if (
+			isolated &&
+			tools.some((tool) => (PI_WEB_TOOLS as readonly string[]).includes(tool))
+		) {
+			const webAccess = await discoverWebAccess();
+			if (webAccess === null)
+				throw new SdkError(
+					"CAPABILITY_MISSING",
+					"web tools need the pi-web-access extension, which `pi list` does not show",
+					{ subject: "webTools" },
+				);
+			extensionsAfter.push(webAccess);
+		}
+		const sessionId = req.resumeSessionId ?? req.sessionId;
+		if (
+			req.resumeSessionId !== undefined &&
+			req.sessionId !== undefined &&
+			req.resumeSessionId !== req.sessionId
+		)
+			sdkInvalid(
+				"Pi resumes a kept session under its own id; sessionId must equal resumeSessionId",
+			);
+		if (sessionId !== undefined && !SESSION_ID.test(sessionId))
+			sdkInvalid(`session id ${sessionId} is not a valid Pi session id`);
+		let session: LaunchPlan["session"];
+		if (sessionId !== undefined) {
+			const dir = join(sessionsRoot, sessionId);
+			if (req.resumeSessionId !== undefined) {
+				const files = (await readdir(dir).catch(() => [] as string[]))
+					.filter((name) => name.endsWith(".jsonl"))
+					.sort();
+				const latest = files.at(-1);
+				if (latest === undefined)
+					sdkInvalid(
+						`no kept Pi session ${sessionId} to resume (D3: only sessions this adapter kept)`,
+					);
+				session = { dir, id: sessionId, resumePath: join(dir, latest) };
+			} else session = { dir, id: sessionId };
+		}
+		let fastTier: PiRunConfig["fastTier"];
+		if (config.fast === "on") {
+			try {
+				fastTier = resolveWorkflowFastModeConfig({
+					fast: "on",
+					...(req.model === undefined ? {} : { model: req.model }),
+					...(config.fastApi === undefined ? {} : { api: config.fastApi }),
+				});
+			} catch (error) {
+				sdkInvalid(error instanceof Error ? error.message : String(error));
+			}
+		}
+		const argv = buildPiArgv({
+			piCommand: config.piCommand,
+			isolated,
+			...(session === undefined ? {} : { session }),
+			...(req.systemPrompt === undefined
+				? {}
+				: { systemPromptPath: "<system-prompt>" }),
+			...(req.model === undefined ? {} : { model: req.model }),
+			...(req.effort === undefined ? {} : { thinking: req.effort }),
+			tools,
+			extensions: [],
+		});
+		return {
+			argv,
+			isolated,
+			...(session === undefined ? {} : { session }),
+			...(session === undefined
+				? {}
+				: { ownedSession: { kind: PI_SESSION_KIND, locator: session.dir } }),
+			runConfig: {
+				schema: "agent-workflow-pi-run-v1",
+				privateMcp: isolated && !inheritHost,
+				mcpServers: req.mcpServers.map((server) => ({
+					name: server.name,
+					command: server.command,
+					args: [...server.args],
+					envKeys: Object.keys(server.env ?? {}).sort(),
+				})),
+				...(config.toolResultBudget === undefined
+					? {}
+					: { toolResultBudget: config.toolResultBudget }),
+				...(fastTier === undefined ? {} : { fastTier }),
+				parentWatch: true,
+			},
+			extensionsBefore,
+			extensionsAfter,
+			tools,
+			notes,
+		};
+	}
+
+	const emit = (run: LiveRun, event: ExecEvent) => {
+		if (run.done) return;
+		run.log.push(event);
+		if (event.type === "completed" || event.type === "failed") run.done = true;
+		for (const wake of run.waiters.splice(0)) wake();
+	};
+
+	async function launch(
+		req: SubmitRequest,
+		launchPlan: LaunchPlan,
+	): Promise<ExecRef> {
+		const key = req.attemptKey;
+		const known = await store.read(key);
+		const fromRecord = (record: PiAttemptRecord): ExecRef => {
+			if (
+				(record.phase === "spawned" || record.phase === "exited") &&
+				record.ref
+			)
+				return record.ref;
+			if (record.phase === "revoked")
+				throw new SdkError("AUTHORITY_REVOKED", `attempt ${key} was revoked`, {
+					subject: key,
+				});
+			throw new SdkError(
+				"AUTHORITY_ALREADY_CONSUMED",
+				`attempt ${key} consumed its authority without launch evidence (reconcile: unknown)`,
+				{ subject: key },
+			);
+		};
+		if (known !== undefined) return fromRecord(known);
+		const runDir =
+			req.artifactsDir ?? join(stateDir, "runs", attemptDigest(key));
+		if (!(await store.create({ attemptKey: key, phase: "pending", runDir }))) {
+			const raced = await store.read(key);
+			if (raced === undefined)
+				throw new SdkError(
+					"INVALID_REQUEST",
+					`attempt ${key} record is unreadable`,
+				);
+			return fromRecord(raced);
+		}
+		// R#1: consume immediately before the first effect (the spawn below).
+		const decision = await req.authority.consume();
+		if (decision.kind === "revoked")
+			await store.write({ attemptKey: key, phase: "revoked", runDir });
+		requireReleased(decision);
+		await store.write({ attemptKey: key, phase: "consumed", runDir });
+
+		await mkdir(runDir, { recursive: true, mode: 0o700 });
+		const extensionPath = join(runDir, PI_EXTENSION_FILE);
+		const { toolResultBudget: budget, ...baseRunConfig } = launchPlan.runConfig;
+		const runConfig: PiRunConfig = {
+			...baseRunConfig,
+			mcpLogPath: join(runDir, PI_MCP_LOG_FILE),
+			...(budget === undefined
+				? {}
+				: {
+						toolResultBudget: {
+							maxTotalChars: budget.maxTotalChars,
+							statePath: join(runDir, TOOL_RESULT_BUDGET_STATE_FILENAME),
+						},
+					}),
+		};
+		await writeFile(
+			extensionPath,
+			piRunExtensionSource({ runExtensionUrl, config: runConfig }),
+			{ mode: 0o600 },
+		);
+		await chmod(extensionPath, 0o600);
+		const argv = [...launchPlan.argv];
+		if (req.systemPrompt !== undefined) {
+			const promptPath = join(runDir, PI_SYSTEM_PROMPT_FILE);
+			await writeFile(promptPath, req.systemPrompt, { mode: 0o600 });
+			argv[argv.indexOf("<system-prompt>")] = promptPath;
+		}
+		argv.push(
+			"-e",
+			extensionPath,
+			...launchPlan.extensionsAfter.flatMap((extension) => ["-e", extension]),
+		);
+		if (launchPlan.session !== undefined)
+			await mkdir(launchPlan.session.dir, { recursive: true, mode: 0o700 });
+
+		const env: NodeJS.ProcessEnv = { ...process.env };
+		delete env[DURABLE_WORKER_BINDING_ENV];
+		delete env[LEGACY_PI_DURABLE_WORKER_BINDING_ENV];
+		delete env.AGENT_WORKFLOW_DURABLE_WORKER_REQUEST_ENV_JSON;
+		Object.assign(env, req.env);
+		const binding = durableWorkerBindingEnv(req.authority);
+		Object.assign(env, binding);
+		const bindingValue = binding[DURABLE_WORKER_BINDING_ENV];
+		// Only a Pi child that loads the user's extensions (inherit) can run pi-subagent, the one
+		// reader of the legacy name (docs/executors/pi.md).
+		if (!launchPlan.isolated && bindingValue !== undefined)
+			env[LEGACY_PI_DURABLE_WORKER_BINDING_ENV] = bindingValue;
+		env[PI_RUN_SECRETS_ENV] = JSON.stringify({
+			mcpEnv: req.mcpServers.map((server) => server.env ?? null),
+		});
+		env.PI_SKIP_VERSION_CHECK = "1";
+		const redact = createRedactor([
+			...Object.values(req.env),
+			...req.mcpServers.flatMap((server) => Object.values(server.env ?? {})),
+		]);
+
+		const child = spawn(argv[0] as string, argv.slice(1), {
+			cwd: req.cwd,
+			env,
+			stdio: ["pipe", "pipe", "pipe", "pipe"],
+			detached: process.platform !== "win32",
+		});
+		try {
+			await new Promise<void>((resolveSpawn, rejectSpawn) => {
+				child.once("spawn", () => resolveSpawn());
+				child.once("error", rejectSpawn);
+			});
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			await store.write({
+				attemptKey: key,
+				phase: "consumed",
+				runDir,
+				spawnError: message,
+			});
+			throw new SdkError("INVALID_REQUEST", `pi failed to start: ${message}`, {
+				cause: error,
+			});
+		}
+		const pid = child.pid as number;
+		const ref: ExecRef = {
+			executorId: PI_EXECUTOR_ID,
+			attemptKey: key,
+			handle: `pid:${pid}`,
+			...(launchPlan.session === undefined
+				? {}
+				: { sessionId: launchPlan.session.id }),
+		};
+		const run: LiveRun = {
+			ref,
+			log: [],
+			done: false,
+			waiters: [],
+			child,
+			cancelled: false,
+		};
+		LIVE_RUNS.set(liveKey(key), run);
+		const normalizer = new PiEventNormalizer({
+			sessionId: launchPlan.session?.id ?? null,
+			...(launchPlan.ownedSession === undefined
+				? {}
+				: { ownedSession: launchPlan.ownedSession }),
+		});
+		emit(run, normalizer.started());
+		const spawnedRecord = {
+			attemptKey: key,
+			phase: "spawned" as const,
+			runDir,
+			ref,
+			pid,
+			processGroupId: pid,
+			sessionId: launchPlan.session?.id ?? null,
+			...(launchPlan.ownedSession === undefined
+				? {}
+				: { ownedSession: launchPlan.ownedSession }),
+		};
+		await store.write({ ...spawnedRecord, identity: null });
+		void captureProcessIdentity(pid).then(
+			(identity) =>
+				run.done
+					? undefined
+					: store.write({ ...spawnedRecord, identity }).catch(() => {}),
+			() => {},
+		);
+
+		child.stdin?.on("error", () => {});
+		child.stdin?.end(req.prompt);
+		const watch = child.stdio[PI_PARENT_WATCH_FD];
+		const rawOut: WriteStream = createWriteStream(join(runDir, PI_RAW_STDOUT), {
+			flags: "a",
+			mode: 0o600,
+		});
+		const rawErr: WriteStream = createWriteStream(join(runDir, PI_RAW_STDERR), {
+			flags: "a",
+			mode: 0o600,
+		});
+		rawOut.on("error", () => {});
+		rawErr.on("error", () => {});
+		const splitter = new PiJsonlSplitter();
+		const handleLines = (lines: string[]) => {
+			for (const line of lines) {
+				const clean = redact(line);
+				rawOut.write(`${clean}\n`);
+				for (const event of normalizer.line(clean)) emit(run, event);
+			}
+		};
+		child.stdout?.on("data", (chunk: Buffer) =>
+			handleLines(splitter.push(chunk)),
+		);
+		let stderr = "";
+		child.stderr?.on("data", (chunk: Buffer) => {
+			const text = redact(chunk.toString("utf8"));
+			rawErr.write(text);
+			if (stderr.length < STDERR_LIMIT)
+				stderr = (stderr + text).slice(0, STDERR_LIMIT);
+		});
+		child.once("close", (code, signal) => {
+			void (async () => {
+				handleLines(splitter.finish());
+				if (run.killTimer !== undefined) clearTimeout(run.killTimer);
+				(watch as { destroy?: () => void } | null)?.destroy?.();
+				await Promise.all([
+					new Promise((done) => rawOut.end(done)),
+					new Promise((done) => rawErr.end(done)),
+				]);
+				const exit: PiAttemptExit = {
+					exitCode: code,
+					signal,
+					cancelled: run.cancelled,
+				};
+				await store
+					.write({ ...spawnedRecord, phase: "exited", exit })
+					.catch(() => {});
+				emit(run, normalizer.finish({ ...exit, stderr }));
+			})();
+		});
+		return ref;
+	}
+
+	/** Re-derive the events of an exited attempt from its raw stream (fresh process, D3). */
+	async function replay(record: PiAttemptRecord): Promise<ExecEvent[]> {
+		const runDir = record.runDir as string;
+		const normalizer = new PiEventNormalizer({
+			sessionId: record.sessionId ?? null,
+			...(record.ownedSession === undefined
+				? {}
+				: { ownedSession: record.ownedSession }),
+		});
+		const events: ExecEvent[] = [normalizer.started()];
+		const splitter = new PiJsonlSplitter();
+		const text = await readFile(join(runDir, PI_RAW_STDOUT), "utf8").catch(
+			() => "",
+		);
+		for (const line of [...splitter.push(text), ...splitter.finish()])
+			events.push(...normalizer.line(line));
+		const stderr = await readFile(join(runDir, PI_RAW_STDERR), "utf8").catch(
+			() => "",
+		);
+		events.push(
+			normalizer.finish({
+				...(record.exit ?? { exitCode: null, signal: null, cancelled: false }),
+				stderr,
+			}),
+		);
+		return events;
+	}
+
+	const executor: PiExecutor = {
+		id: PI_EXECUTOR_ID,
+		version: PI_EXECUTOR_VERSION,
+		contractVersion: EXECUTOR_CONTRACT_VERSION,
+		config,
+		stateDir,
+
+		async probe(): Promise<PiExecutorProbe> {
+			const [version, models, auth, list] = await Promise.all([
+				runCli(config.piCommand, ["--version"]),
+				runCli(config.piCommand, ["--list-models"]),
+				config.authCheckModel === undefined
+					? Promise.resolve(undefined)
+					: runCli(config.piCommand, [
+							"auth",
+							"check",
+							"--model",
+							config.authCheckModel,
+							"--json",
+							"--no-refresh",
+						]),
+				config.webAccessExtension === undefined
+					? runCli(config.piCommand, ["list"])
+					: Promise.resolve(undefined),
+			]);
+			const cliVersion =
+				version.code === 0
+					? (version.stdout.trim().split(/\s+/u).at(-1) ?? null)
+					: null;
+			const installed = cliVersion !== null && cliVersion !== "";
+			const notes: string[] = [];
+			let authStatus: ExecutorProbe["auth"] = "unknown";
+			if (auth === undefined)
+				notes.push(
+					"auth: unknown (set config.authCheckModel to run `pi auth check`)",
+				);
+			else {
+				const status = /"status"\s*:\s*"(\w+)"/u.exec(auth.stdout)?.[1];
+				authStatus =
+					status === "ready"
+						? "ok"
+						: status === "not_ready"
+							? "missing"
+							: "unknown";
+				notes.push(
+					`auth: pi auth check ${status ?? "failed"} (credentials present, not validated by a request)`,
+				);
+			}
+			const webAccess =
+				config.webAccessExtension ??
+				(list?.code === 0 ? parsePiWebAccessPath(list.stdout) : null);
+			if (
+				installed &&
+				!versionAtLeast(cliVersion as string, PI_MIN_CLI_VERSION)
+			)
+				notes.push(
+					`pi ${cliVersion} is older than ${PI_MIN_CLI_VERSION} (native MCP needs 1.1)`,
+				);
+			const modern =
+				installed && versionAtLeast(cliVersion as string, PI_MIN_CLI_VERSION);
+			return {
+				installed,
+				cliVersion: installed ? cliVersion : null,
+				auth: authStatus,
+				mcpOutputLimitChars: modern ? PI_MCP_OUTPUT_LIMIT_CHARS : null,
+				mcpOutputNoticeChars: modern ? PI_MCP_OUTPUT_NOTICE_CHARS : null,
+				models: models.code === 0 ? parsePiModelList(models.stdout) : null,
+				webAccessExtension: webAccess,
+				capabilities: {
+					...(modern ? {} : { mcpInjection: level("none", "probed") }),
+					webTools:
+						webAccess === null
+							? {
+									...level("none", "probed"),
+									detail: "none",
+									safetyPolicy: "unknown",
+								}
+							: {
+									...level("native", "probed", `pi-web-access via pi list`),
+									detail: "search+fetch",
+									safetyPolicy: "unknown",
+								},
+				},
+				notes,
+			};
+		},
+
+		capabilities: piCapabilities,
+
+		async submit(req: SubmitRequest): Promise<ExecRef> {
+			const problems = validateSubmitRequest(req);
+			if (problems.length > 0) sdkInvalid(problems.join("; "));
+			const key = liveKey(req.attemptKey);
+			const pending = INFLIGHT.get(key);
+			if (pending !== undefined) return pending;
+			const launching = plan(req).then((launchPlan) => launch(req, launchPlan));
+			INFLIGHT.set(key, launching);
+			try {
+				return await launching;
+			} finally {
+				INFLIGHT.delete(key);
+			}
+		},
+
+		async *observe(ref: ExecRef): AsyncIterable<ExecEvent> {
+			const run = LIVE_RUNS.get(liveKey(ref.attemptKey));
+			if (run !== undefined) {
+				if (run.ref.handle !== ref.handle)
+					throw new SdkError(
+						"UNKNOWN_EXEC_REF",
+						`unknown exec ref ${ref.attemptKey}/${ref.handle}`,
+					);
+				let index = 0;
+				for (;;) {
+					while (index < run.log.length) yield run.log[index++] as ExecEvent;
+					if (run.done) return;
+					await new Promise<void>((wake) => run.waiters.push(wake));
+				}
+			}
+			const record = await store.read(ref.attemptKey);
+			if (record?.ref === undefined || record.ref.handle !== ref.handle)
+				throw new SdkError(
+					"UNKNOWN_EXEC_REF",
+					`unknown exec ref ${ref.attemptKey}/${ref.handle}`,
+				);
+			if (record.phase !== "exited")
+				throw new SdkError(
+					"UNKNOWN_EXEC_REF",
+					`attempt ${ref.attemptKey} runs in another process (Pi attempts are session-bound); reconcile instead`,
+				);
+			yield* await replay(record);
+		},
+
+		async cancel(ref: ExecRef, _scope: CancelScope): Promise<CancelResult> {
+			const run = LIVE_RUNS.get(liveKey(ref.attemptKey));
+			if (run !== undefined && run.ref.handle === ref.handle) {
+				if (run.done) return "too_late";
+				if (!run.cancelled) {
+					run.cancelled = true;
+					// Pi print mode has no turn-level interrupt: both scopes stop the process group.
+					killGroup(run.child.pid, "SIGTERM");
+					run.killTimer = setTimeout(
+						() => killGroup(run.child.pid, "SIGKILL"),
+						config.killGraceMs ?? 3_000,
+					);
+					run.killTimer.unref();
+				}
+				return "cancelled";
+			}
+			const record = await store.read(ref.attemptKey);
+			if (record?.ref === undefined || record.ref.handle !== ref.handle)
+				return "no_active";
+			if (record.phase === "exited") return "too_late";
+			if (record.identity === undefined || record.identity === null)
+				return "uncertain";
+			const state = await verifyProcessIdentity(record.identity);
+			if (state === "dead" || state === "mismatch") return "no_active";
+			if (state === "unknown") return "uncertain";
+			killGroup(record.identity.processGroupId, "SIGTERM");
+			return "uncertain";
+		},
+
+		async reconcile(attemptKey: string): Promise<ReconcileResult> {
+			const record = await store.read(attemptKey);
+			if (record === undefined || record.phase === "revoked")
+				return { absent: true };
+			if (
+				(record.phase === "spawned" || record.phase === "exited") &&
+				record.ref
+			)
+				return { found: record.ref };
+			return {
+				unknown: true,
+				reason:
+					record.spawnError === undefined
+						? "authority consumed (or being consumed) without launch evidence"
+						: `authority consumed; pi failed to start: ${record.spawnError}`,
+			};
+		},
+
+		async respond(ref: ExecRef): Promise<ApprovalResponseResult> {
+			const run = LIVE_RUNS.get(liveKey(ref.attemptKey));
+			const record =
+				run === undefined ? await store.read(ref.attemptKey) : undefined;
+			if (run === undefined && record?.ref?.handle !== ref.handle)
+				throw new SdkError(
+					"UNKNOWN_EXEC_REF",
+					`unknown exec ref ${ref.attemptKey}/${ref.handle}`,
+				);
+			// Pi never asks: tools outside the allowlist do not exist for the worker (D2).
+			return "unknown_request";
+		},
+
+		async deleteOwnedSession(session: OwnedSession): Promise<boolean> {
+			if (session.kind !== PI_SESSION_KIND) return false;
+			const target = resolve(session.locator);
+			const rel = relative(sessionsRoot, target);
+			if (rel === "" || rel.startsWith("..") || rel.includes(sep)) return false;
+			await rm(target, { recursive: true, force: true });
+			return true;
+		},
+	};
+	return executor;
+}

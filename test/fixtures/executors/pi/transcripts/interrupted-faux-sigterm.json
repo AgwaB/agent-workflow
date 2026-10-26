@@ -1,0 +1,19 @@
+{
+	"schema": "agent-workflow-pi-transcript-v1",
+	"name": "interrupted-faux-sigterm",
+	"source": "offline (real Pi CLI, isolated, faux provider waiting; process group SIGTERM → exit 143)",
+	"piVersion": "1.1.0",
+	"model": "faux/faux-1",
+	"exitCode": null,
+	"signal": "SIGTERM",
+	"stdout": [
+		"{\"type\":\"session\",\"version\":3,\"id\":\"01a17818-5b8a-71cc-9abd-5aaca526357b\",\"timestamp\":\"2026-10-26T12:03:44.650Z\",\"cwd\":\"<TMP>/faux\"}",
+		"{\"type\":\"agent_start\"}",
+		"{\"type\":\"turn_start\"}",
+		"{\"type\":\"message_start\",\"message\":{\"role\":\"system\",\"content\":\"\",\"sections\":{\"preamble\":\"You are an expert coding assistant operating inside pi, a coding agent harness. You help users by reading files, executing commands, editing code, and writing n…[scrubbed: 9 chars]\",\"tools\":\"<tools>\\n(none)\\n\\nIn addition to the tools above, you may have access to other custom tools depending on the project.\\n</tools>\",\"rules\":\"<rules>\\n- Be concise in your responses\\n- Show file paths clearly when working with files\\n</rules>\",\"docs\":\"<docs>\\nPi documentation (read only when the user asks about pi itself, its SDK, extensions, themes, skills, or TUI):\\n- Main documentation: <HOME>/.nvm/versions/…[scrubbed: 1231 chars]\",\"cwd\":\"<cwd>\\n<TMP>/faux\\n</cwd>\"},\"timestamp\":1793016224750}}",
+		"{\"type\":\"message_end\",\"message\":{\"role\":\"system\",\"content\":\"\",\"sections\":{\"preamble\":\"You are an expert coding assistant operating inside pi, a coding agent harness. You help users by reading files, executing commands, editing code, and writing n…[scrubbed: 9 chars]\",\"tools\":\"<tools>\\n(none)\\n\\nIn addition to the tools above, you may have access to other custom tools depending on the project.\\n</tools>\",\"rules\":\"<rules>\\n- Be concise in your responses\\n- Show file paths clearly when working with files\\n</rules>\",\"docs\":\"<docs>\\nPi documentation (read only when the user asks about pi itself, its SDK, extensions, themes, skills, or TUI):\\n- Main documentation: <HOME>/.nvm/versions/…[scrubbed: 1231 chars]\",\"cwd\":\"<cwd>\\n<TMP>/faux\\n</cwd>\"},\"timestamp\":1793016224750}}",
+		"{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"wait\"}],\"timestamp\":1793016224750}}",
+		"{\"type\":\"message_end\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"wait\"}],\"timestamp\":1793016224750}}"
+	],
+	"stderr": ""
+}
