@@ -83,6 +83,12 @@ export interface ExecutorProbe {
 	readonly capabilities?: Partial<ExecutorCapabilities>;
 	/** Max characters the CLI delivers from one MCP tool result, if known (R#9). */
 	readonly mcpOutputLimitChars?: number | null;
+	/**
+	 * Max characters the CLI itself adds around a result it cut (truncation header, marker, footer),
+	 * if any. Results up to `mcpOutputLimitChars` pass unchanged; a cut result may be this much
+	 * longer. Example: Pi 1.1 cuts text over 20 KiB and wraps the kept head/tail in a notice.
+	 */
+	readonly mcpOutputNoticeChars?: number | null;
 	readonly notes?: readonly string[];
 }
 

@@ -131,7 +131,7 @@ For process adapters, count from the stub CLI invocation log, not from adapter s
 | `descriptor.reload` | offline | `loadExecutor(descriptor)` ⇒ same id, compatible version | complete | R#15 |
 | `mcp.injection` | offline | stub MCP server started with its env, echo called, result reported | mcp_tool | R#9 |
 | `mcp.argv_no_secrets` | offline | MCP env secret absent from every argv (CLI launches + server) | mcp_tool | prior-art §3 #8 |
-| `mcp.delivery_bound` | offline | delivered tool output ≤ `probe().mcpOutputLimitChars` (served at 2×) | mcp_tool | R#9 |
+| `mcp.delivery_bound` | offline | delivered tool output ≤ `probe().mcpOutputLimitChars` + `probe().mcpOutputNoticeChars` (the CLI's own truncation notice, default 0; served at 2×) | mcp_tool | R#9 |
 | `live.readonly_enforced` | live | readOnly run cannot create a requested file | complete | B4, R#4 |
 | `live.tool_allowlist` | live | `tools: ["read"]` ⇒ shell command does not run | complete | §2.4, B4 |
 | `live.isolation` | live | `inherit: false` ignores AGENTS.md/CLAUDE.md in cwd | complete | B5, R#6 |
@@ -208,7 +208,10 @@ For process adapters, count from the stub CLI invocation log, not from adapter s
 - **Approval timeout owner.** Since WP2b the runtime applies `approvalPolicy.timeoutMs` for interactive
   policies (deny by `default-timeout`, see docs/runtime-port.md); `approval.timeout_fail_closed` still
   expects the adapter to fail closed on its own when driven directly.
-- **Delivery bound.** `mcp.delivery_bound` only checks a declared limit against delivered output.
+- **Delivery bound.** `mcp.delivery_bound` only checks a declared limit against delivered output. A CLI
+  that wraps a cut result in its own notice declares that allowance as `probe().mcpOutputNoticeChars`
+  (WP6: Pi 1.1 keeps 20 KiB of the result plus a header, a `…N chars truncated…` marker and a footer
+  naming the full-output file).
   Recording `deliveryUnverified` in the ledger belongs to the WP5 artifact server.
 - **Live checks.** These are implemented but have not been run against a real CLI; WP9b does that. The
   isolation check covers project-level instruction files only.

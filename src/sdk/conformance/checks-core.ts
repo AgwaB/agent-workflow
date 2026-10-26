@@ -158,6 +158,15 @@ function probeShapeProblems(probe: ExecutorProbe): string[] {
 		problems.push(
 			"probe.mcpOutputLimitChars must be a positive integer, null or absent",
 		);
+	const notice = probe.mcpOutputNoticeChars;
+	if (
+		notice !== undefined &&
+		notice !== null &&
+		!(Number.isInteger(notice) && notice >= 0)
+	)
+		problems.push(
+			"probe.mcpOutputNoticeChars must be a non-negative integer, null or absent",
+		);
 	if (
 		probe.notes !== undefined &&
 		!(
