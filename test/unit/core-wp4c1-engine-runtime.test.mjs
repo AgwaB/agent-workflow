@@ -203,22 +203,33 @@ test("two-stage workflow runs end to end: engine → task backend → durable wo
 	// R#10: owned worker sessions are recorded and pruning deletes exactly those.
 	const owned = persisted.tasks.flatMap((task) => task.ownedSessions ?? []);
 	assert.equal(owned.length, 2);
-	// The in-process supervisor's lease heartbeat is still fresh; age it out.
-	for (const name of ["supervisor.json", "supervisor-lease.json"]) {
-		const file = join(cwd, ".agent-workflow", "workflows", run.runId, name);
-		if (!existsSync(file)) continue;
-		const record = JSON.parse(await readFile(file, "utf8"));
-		const stale = new Date(Date.now() - 3_600_000).toISOString();
-		await writeFile(
-			file,
-			JSON.stringify({ ...record, heartbeatAt: stale, updatedAt: stale }),
-		);
+	// The in-process supervisor (same pid as this test) may still be finishing after the run
+	// is terminal and can refresh its lease heartbeat. Prune correctly refuses a run whose
+	// supervisor looks alive, so wait for the supervisor lock to clear, age the lease records,
+	// and retry while the supervisor's last heartbeat races the ageing (test-only race).
+	const runDir = join(cwd, ".agent-workflow", "workflows", run.runId);
+	let summary;
+	let pruned;
+	for (let attempt = 0; attempt < 50; attempt += 1) {
+		if (existsSync(join(runDir, "supervisor.lock"))) {
+			await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+			continue;
+		}
+		for (const name of ["supervisor.json", "supervisor-lease.json"]) {
+			const file = join(runDir, name);
+			if (!existsSync(file)) continue;
+			const record = JSON.parse(await readFile(file, "utf8"));
+			const stale = new Date(Date.now() - 3_600_000).toISOString();
+			await writeFile(
+				file,
+				JSON.stringify({ ...record, heartbeatAt: stale, updatedAt: stale }),
+			);
+		}
+		summary = await retention.pruneWorkflowRuns(cwd, { keep: 0, yes: true });
+		pruned = summary.runs.find((entry) => entry.runId === run.runId);
+		if (pruned?.error !== "supervisor lease acquired concurrently") break;
+		await new Promise((resolveWait) => setTimeout(resolveWait, 100));
 	}
-	const summary = await retention.pruneWorkflowRuns(cwd, {
-		keep: 0,
-		yes: true,
-	});
-	const pruned = summary.runs.find((entry) => entry.runId === run.runId);
 	assert.equal(pruned.deleted, true, JSON.stringify(summary));
 	assert.deepEqual(pruned.ownedSessions, {
 		deleted: 2,

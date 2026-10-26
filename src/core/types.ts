@@ -1057,7 +1057,7 @@ export interface WorkflowDurableLaunchBarrierCancellationRecord {
 	requestedAt: string;
 	reasonSha256: string;
 	decision: "revoked" | "released";
-	interruptStatus?: "interrupt-requested" | "already-terminal";
+	interruptStatus?: "interrupt-requested" | "already-terminal" | "unsupported";
 	terminalAttemptId?: string;
 	terminalStatus?: "cancelled" | "completed" | "failed";
 	terminalObservedAt?: string;

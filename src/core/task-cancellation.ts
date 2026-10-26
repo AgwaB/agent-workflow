@@ -88,7 +88,7 @@ interface SubagentCancellationAcknowledgement {
 	attemptId: string;
 	status: "cancelled" | "completed" | "failed";
 	observedAt: string;
-	interruptStatus: "interrupt-requested" | "already-terminal";
+	interruptStatus: "interrupt-requested" | "already-terminal" | "unsupported";
 }
 
 const TERMINAL_SUBAGENT_ATTEMPT_STATUSES = new Set([
@@ -136,13 +136,32 @@ export async function interruptSubagentTask(
 		throw new Error(
 			`subagent interruption result run ${result?.runId ?? "missing"} does not match ${handle.runId}`,
 		);
+	// `unsupported` means the runtime found no live process to signal for the attempt, e.g. a
+	// worker that is already exiting by itself after a launch-barrier revoke. It is accepted only
+	// if the exact attempt then reaches a terminal state within the deadline below; otherwise the
+	// same "did not reach a terminal state" error is raised. A cancellation is never claimed for an
+	// attempt that did not terminate.
 	if (
 		result.status !== "interrupt-requested" &&
-		result.status !== "already-terminal"
+		result.status !== "already-terminal" &&
+		result.status !== "unsupported"
 	)
 		throw new Error(
 			`subagent interruption was not acknowledged for exact attempt ${handle.attemptId}: ${result?.status ?? "invalid-result"}`,
 		);
+	const notAcknowledged = () =>
+		new Error(
+			`subagent interruption was not acknowledged for exact attempt ${handle.attemptId}: ${result.status}`,
+		);
+	if (result.status === "unsupported") {
+		if (!result.unsupportedAttempts?.includes(handle.attemptId))
+			throw new Error(
+				`subagent interruption reported unsupported for a different attempt instead of ${handle.attemptId}`,
+			);
+		// WB-004: unsupported is never an acknowledgement by itself; without a status API there
+		// is no way to observe termination, so fail exactly as before.
+		if (typeof api.getSubagentStatus !== "function") throw notAcknowledged();
+	}
 	if (
 		result.status === "interrupt-requested" &&
 		!result.interruptedAttempts?.includes(handle.attemptId)
@@ -179,10 +198,12 @@ export async function interruptSubagentTask(
 		if (terminalStatus === undefined)
 			await sleep(Math.min(50, Math.max(1, deadline - Date.now())));
 	}
-	if (terminalStatus === undefined)
+	if (terminalStatus === undefined) {
+		if (result.status === "unsupported") throw notAcknowledged();
 		throw new Error(
 			`subagent exact attempt ${handle.attemptId} did not reach a terminal state after interruption`,
 		);
+	}
 	return {
 		attemptId: handle.attemptId,
 		status: terminalStatus,

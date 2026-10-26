@@ -795,3 +795,9 @@ dropped 33 (140).
 | workflow-user-profiles.test.mjs | deferred-WP5+ | bundled workflows (WP10); Pi host/extension modules: extension,workflow-profile-ui,workflow-profile-tui |
 | workflow-view.test.mjs | dropped | INVENTORY: drop(Pi TUI) / port-adapted if board moves to CLI |
 | workflow-wait-tool.test.mjs | deferred-WP5+ | Pi host/extension modules: extension |
+
+
+## Post-merge fixes (parent, 2026-10-26)
+
+- `task-cancellation.ts` `interruptSubagentTask`: an interrupt result `unsupported` (runtime found no live process to signal) is no longer an immediate error when the exact attempt then reaches a terminal state within the interrupt deadline (race: a worker that saw a barrier revoke exits by itself; since WP2b the runtime skips dead cached targets). WB-004 is preserved: `unsupported` is never an acknowledgement by itself, fails exactly as before when no status API exists or the attempt does not terminate, and `unsupported` for another attempt is rejected. `interruptStatus` gains `"unsupported"`. Regression test `core-task-cancellation-unsupported.test.mjs`.
+- `core-wp4c1-engine-runtime.test.mjs`: the prune step waits for the in-process supervisor to release before ageing the lease (test-only race, ~1 in 3).
