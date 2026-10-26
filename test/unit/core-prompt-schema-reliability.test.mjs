@@ -1,5 +1,6 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/prompt-schema-reliability.test.mjs. MIT, same author. Changes: imports from dist/core/; env AGENT_WORKFLOW_STRICT_PROMPT_SCHEMA; 1 engine.ts source test dropped (WP4c).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/prompt-schema-reliability.test.mjs. MIT, same author. Changes: imports from dist/core/; env AGENT_WORKFLOW_STRICT_PROMPT_SCHEMA; the engine.ts source test (restored in WP4c-1) reads src/core/engine.ts.
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { validateJsonSchema } from "../../dist/core/json-schema.js";
@@ -58,8 +59,23 @@ test("diagnostics applicability is an explicit named-workflow policy", () => {
 	assert.equal(promptSchemaDiagnosticsApply("excluded-direct-dynamic"), false);
 });
 
-// Dropped here (deferred to WP4c): "resume consumes the frozen compiled artifact
-// without recompiling or resurfacing named diagnostics" reads src/engine.ts.
+test("resume consumes the frozen compiled artifact without recompiling or resurfacing named diagnostics", () => {
+	const engineSource = readFileSync(
+		new URL("../../src/core/engine.ts", import.meta.url),
+		"utf8",
+	);
+	const resumeStart = engineSource.indexOf("export async function resumeRun(");
+	const resumeEnd = engineSource.indexOf("\nexport ", resumeStart + 1);
+	const resumeSource = engineSource.slice(
+		resumeStart,
+		resumeEnd === -1 ? undefined : resumeEnd,
+	);
+	assert.match(resumeSource, /readCompiledWorkflow\(cwd, run\.runId\)/);
+	assert.doesNotMatch(
+		resumeSource,
+		/compileWorkflow|workflowPromptSchemaDiagnostics|DIAGNOSTIC_SINK/,
+	);
+});
 
 test("strict prompt/schema mode is explicit and rejects only actionable diagnostics", () => {
 	const diagnostics = workflowPromptSchemaDiagnostics({

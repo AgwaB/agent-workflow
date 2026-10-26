@@ -1,4 +1,5 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/types.ts. MIT, same author. Changes: run.nativeHost→run.hostContext (HostContext); runtime.nativeToolsEnabled→runtime.inheritHostTools; added allowSharedCheckoutWrites (R#5), inheritHostTools run/compile flags, agent legacySource; artifact provenance digests config + MCP server spec instead of extension wrapper bytes.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/types.ts. MIT, same author. Changes: run.nativeHost→run.hostContext (HostContext); runtime.nativeToolsEnabled→runtime.inheritHostTools; added allowSharedCheckoutWrites (R#5), inheritHostTools run/compile flags, agent legacySource; artifact provenance digests config + MCP server spec instead of extension wrapper bytes. WP4c: run.executor (executor selection), spec executionProfileExecutors, WorkflowRunExecutionProfile.executor, task.ownedSessions, usage/budget record source "executor".
+import type { ExecutorDescriptor } from "../sdk/descriptor.js";
 import type {
 	WorkflowModelInfo,
 	WorkflowRuntimeDefaults,
@@ -181,6 +182,8 @@ export interface ArtifactGraphWorkflowSpec {
 	>;
 	/** Omitted profile selection uses this declared profile when present. */
 	defaultExecutionProfile?: string;
+	/** agent-workflow (B2): executor id per declared execution profile name. */
+	executionProfileExecutors?: Record<string, string>;
 	artifactGraph: WorkflowFailurePolicy & {
 		stages: ArtifactGraphStageSpec[];
 		maxConcurrency?: number;
@@ -788,7 +791,8 @@ export interface WorkflowTaskUsageAggregateRecord
 }
 
 export interface WorkflowTaskUsageRecord extends WorkflowTaskUsageValues {
-	source: "pi-subagent";
+	/** "executor" (agent-workflow); "pi-subagent" on records written by pi-workflow. */
+	source: "executor" | "pi-subagent";
 	capturedAt: string;
 	provider?: string;
 	model?: string;
@@ -867,7 +871,8 @@ export interface WorkflowTaskToolResultBudgetAggregateRecord {
 }
 
 export interface WorkflowTaskToolResultBudgetRecord {
-	source: "pi-subagent";
+	/** "executor" (agent-workflow); "pi-subagent" on records written by pi-workflow. */
+	source: "executor" | "pi-subagent";
 	capturedAt: string;
 	incomplete?: boolean;
 	pendingConfiguration?: WorkflowTaskToolResultBudgetConfigurationRecord;
@@ -1224,7 +1229,19 @@ export interface WorkflowForeachBatchRecord {
 	};
 }
 
+/** Worker CLI session an executor kept for this task (R#10, D3); retention deletes only these. */
+export interface WorkflowTaskOwnedSessionRecord {
+	executorId: string;
+	kind: string;
+	locator: string;
+	backendRunId: string;
+	backendAttemptId: string;
+	recordedAt: string;
+}
+
 export interface WorkflowTaskRunRecord {
+	/** Engine-owned worker sessions reported by the executor (R#10). */
+	ownedSessions?: WorkflowTaskOwnedSessionRecord[];
 	taskId: string;
 	specId: string;
 	displayName: string;
@@ -1400,10 +1417,28 @@ export interface WorkflowTaskResumeEvent {
 export type WorkflowRouteDecision = "direct" | "dynamic" | "workflow";
 export type WorkflowRouteDepth = "quick" | "standard" | "max";
 
+/** Where a run's executor came from (B2: run flag > workflow profile > user profile > default). */
+export type WorkflowRunExecutorSource =
+	| "run-flag"
+	| "workflow-profile"
+	| "user-profile"
+	| "default";
+
+/** Executor chosen for a run, frozen at creation (agent-workflow WP4c). */
+export interface WorkflowRunExecutorSelection {
+	id: string;
+	source: WorkflowRunExecutorSource;
+	/** Profile name when the source is a profile. */
+	profile?: string;
+	descriptor: ExecutorDescriptor;
+}
+
 /** Effective declared or user-saved profile frozen into a new run. */
 export interface WorkflowRunExecutionProfile {
 	/** Selected declared or user-saved profile name. */
 	name: string;
+	/** Executor id a saved user profile selects (B2); declared profiles use the spec's executionProfileExecutors. */
+	executor?: string;
 	/** Definition identity captured with a user-saved profile before launch. */
 	definitionFingerprint?: string;
 	/** Canonical stage-id → captured profile overrides applied at compile time. */
@@ -1621,6 +1656,8 @@ export interface WorkflowRunRecord {
 	provenance?: WorkflowRunProvenance;
 	routing?: WorkflowRunRouting;
 	executionProfile?: WorkflowRunExecutionProfile;
+	/** Executor selection frozen at creation; absent on legacy pi-workflow records. */
+	executor?: WorkflowRunExecutorSelection;
 	launch?: WorkflowRunLaunchMetadata;
 	/** Durable transparent foreach batch journals, including terminal receipts. */
 	foreachBatches?: WorkflowForeachBatchRecord[];

@@ -166,6 +166,11 @@ export interface ResultExecutorMetadata {
 	/** Outcome of `executor.reconcile(attemptKey)` when the runtime asked. */
 	reconcile?: "found" | "absent" | "unknown" | "error";
 	reconcileReason?: string;
+	/**
+	 * Worker session the adapter kept and reported on the terminal event (R#10, D3). Only these
+	 * locators may be deleted by retention; nothing else is engine-owned.
+	 */
+	ownedSession?: { kind: string; locator: string };
 	/** Approval requests the runtime answered on the engine's behalf. */
 	approvals?: Array<{
 		requestId: string;

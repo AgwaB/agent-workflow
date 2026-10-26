@@ -1,5 +1,6 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/wb-016-scheduler-performance.test.mjs. MIT, same author. Changes: imports from dist/core/; 1 engine.ts/subagent-backend.ts source test dropped (WP4c).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/wb-016-scheduler-performance.test.mjs. MIT, same author. Changes: imports from dist/core/; the engine/backend source test (restored in WP4c-1) reads src/core/engine.ts and src/core/task-backend.ts (refreshRunFromSubagentArtifacts moved there).
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -59,5 +60,31 @@ test("WB-016 scheduler retains fixed poll for absent, expired, or non-pending de
 	);
 });
 
-// Dropped here (deferred to WP4c): "WB-016 wait loop uses deadline selector while
-// refresh remains single-write coalesced" reads src/engine.ts and src/subagent-backend.ts.
+test("WB-016 wait loop uses deadline selector while refresh remains single-write coalesced", async () => {
+	const [engine, backend] = await Promise.all([
+		readFile(new URL("../../src/core/engine.ts", import.meta.url), "utf8"),
+		readFile(
+			new URL("../../src/core/task-backend.ts", import.meta.url),
+			"utf8",
+		),
+	]);
+	assert.match(
+		engine,
+		/await awaitWithinWorkflowWaitBoundary\(\s*sleep\(schedulerPollDelayMs\(run, remaining\)\)/,
+	);
+	const refreshBody = backend.slice(
+		backend.indexOf("export async function refreshRunFromSubagentArtifacts"),
+		backend.indexOf("async function pollSubagentForRefresh"),
+	);
+	// Ordinary refresh remains coalesced. A newly consumed recovery owner is
+	// the one required exception: raw publication cannot precede durable authority.
+	assert.equal((refreshBody.match(/writeRunRecord\(/g) ?? []).length, 2);
+	assert.match(
+		refreshBody,
+		/consumeRegisteredWorkflowLaunchAuthority\([\s\S]*?await writeRunRecord\(cwd, run\);/,
+	);
+	assert.match(
+		refreshBody,
+		/if \(changed \|\| telemetryChanged\) await writeRunRecord\(cwd, run\)/,
+	);
+});

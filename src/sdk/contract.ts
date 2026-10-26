@@ -143,7 +143,23 @@ export interface WorkflowExecutor {
 		requestId: string,
 		decision: ApprovalDecision,
 	): Promise<ApprovalResponseResult>;
+	/**
+	 * Optional (R#10, D3): delete a worker CLI session this adapter kept and reported as
+	 * `ownedSession` on a terminal event. Run retention calls it only with locators recorded as
+	 * owned; adapters must refuse anything else. `not_found` is not an error.
+	 */
+	deleteOwnedSession?(
+		session: OwnedSessionLocator,
+	): Promise<DeleteOwnedSessionResult>;
 }
+
+/** `ownedSession` as reported on `completed` / `failed` events. */
+export interface OwnedSessionLocator {
+	readonly kind: string;
+	readonly locator: string;
+}
+
+export type DeleteOwnedSessionResult = "deleted" | "not_found" | "refused";
 
 function parseVersion(version: string): [number, number, number] | null {
 	const match = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/.exec(version);

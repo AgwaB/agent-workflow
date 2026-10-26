@@ -825,6 +825,9 @@ export async function buildExecutionReport(
 ): Promise<ExecutionReport> {
 	if (outcome.termination !== undefined) meta.termination = outcome.termination;
 	else if (meta.ref !== undefined) meta.termination = "confirmed";
+	// R#10 (WP4c, additive): persist the adapter-reported owned session for retention.
+	if (outcome.ownedSession !== undefined)
+		meta.ownedSession = { ...outcome.ownedSession };
 	const completed = outcome.status === "completed";
 	// Completed: the final answer only (stale progress is never promoted to an answer).
 	// Otherwise: streamed text as partial recovery output.

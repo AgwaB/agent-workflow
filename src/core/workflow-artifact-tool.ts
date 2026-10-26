@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-artifact-tool.ts. MIT, same author. Changes: none.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-artifact-tool.ts. MIT, same author. Changes: read-ledger rows keep deliveryUnverified: true (R#9 groundwork, WP4c).
 import { constants as fsConstants, type Stats } from "node:fs";
 import {
 	appendFile,
@@ -117,6 +117,11 @@ export interface WorkflowArtifactReadLedgerRecord {
 	path?: string;
 	maxItems?: number;
 	maxChars?: number;
+	/**
+	 * R#9 (agent-workflow): the MCP server could not verify that the full result reached the
+	 * worker (the client's output cap may truncate it). Such rows never satisfy a required read.
+	 */
+	deliveryUnverified?: true;
 }
 
 export interface WorkflowArtifactToolConfig {
@@ -1149,6 +1154,13 @@ function normalizeReadLedgerRecord(
 		value.maxChars,
 		`line ${lineNumber}.maxChars`,
 	);
+	if (
+		value.deliveryUnverified !== undefined &&
+		typeof value.deliveryUnverified !== "boolean"
+	)
+		throw new Error(
+			`read ledger line ${lineNumber}.deliveryUnverified must be a boolean`,
+		);
 	return {
 		schema: WORKFLOW_ARTIFACT_READ_SCHEMA,
 		runId,
@@ -1162,6 +1174,9 @@ function normalizeReadLedgerRecord(
 		...(path === undefined ? {} : { path }),
 		...(maxItems === undefined ? {} : { maxItems }),
 		...(maxChars === undefined ? {} : { maxChars }),
+		...(value.deliveryUnverified === true
+			? { deliveryUnverified: true as const }
+			: {}),
 		...(value.rawAssurance === undefined
 			? {}
 			: { rawAssurance: normalizeRawAssurance(value.rawAssurance) }),

@@ -1,4 +1,4 @@
-// New in agent-workflow (WP4a acceptance, extended in WP4b): every compiled core module imports
+// New in agent-workflow (WP4a acceptance, extended in WP4b and WP4c): every compiled core module imports
 // with plain node from a temp copy of dist/ that has no node_modules anywhere on
 // its resolution path, so src/core carries no hidden runtime dependency.
 import assert from "node:assert/strict";
@@ -49,8 +49,12 @@ test("dist/core modules import only node builtins and sibling core modules", () 
 			/(?:^|\n)\s*(?:import|export)\b[^;]*?\bfrom\s*["']([^"']+)["']|\bimport\(\s*["']([^"']+)["']\s*\)/g,
 		)) {
 			const specifier = match[1] ?? match[2];
+			// WP4c: core also imports the in-repo SDK and runtime (both Pi-free and
+			// part of the same dist/ tree; the temp-copy import below covers them).
 			assert.ok(
-				specifier.startsWith("node:") || /^\.\/[a-z0-9-]+\.js$/.test(specifier),
+				specifier.startsWith("node:") ||
+					/^\.\/[a-z0-9-]+\.js$/.test(specifier) ||
+					/^\.\.\/(sdk|runtime)\/[a-z0-9/-]+\.js$/.test(specifier),
 				`${name} imports ${specifier}`,
 			);
 		}

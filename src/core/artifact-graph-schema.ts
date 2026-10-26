@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/artifact-graph-schema.ts. MIT, same author. Changes: none.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/artifact-graph-schema.ts. MIT, same author. Changes: new optional top-level executionProfileExecutors (WP4c, B2: executor id per declared profile).
 import { isAbsolute } from "node:path";
 
 import { DYNAMIC_OUTPUT_PROFILES } from "./dynamic-profiles.js";
@@ -29,6 +29,7 @@ const TOP_LEVEL_KEYS = new Set([
 	"roles",
 	"executionProfiles",
 	"defaultExecutionProfile",
+	"executionProfileExecutors",
 	"artifactGraph",
 ]);
 // Profile names are display/selection labels, not filesystem identifiers.
@@ -340,6 +341,45 @@ function validateArtifactGraphTopLevel(
 		spec.executionProfiles,
 		issues,
 	);
+	validateExecutionProfileExecutors(
+		spec.executionProfileExecutors,
+		spec.executionProfiles,
+		issues,
+	);
+}
+
+/** agent-workflow (WP4c, B2): `executionProfileExecutors: { <declared profile>: <executor id> }`. */
+function validateExecutionProfileExecutors(
+	value: unknown,
+	profiles: unknown,
+	issues: ValidationIssue[],
+): void {
+	if (value === undefined) return;
+	const path = "$.executionProfileExecutors";
+	const map = recordAt(value, path, issues);
+	if (!map) return;
+	const declared =
+		profiles !== null &&
+		typeof profiles === "object" &&
+		!Array.isArray(profiles)
+			? (profiles as Record<string, unknown>)
+			: {};
+	for (const [name, executor] of Object.entries(map)) {
+		const entryPath = `${path}.${jsonKey(name)}`;
+		if (!Object.hasOwn(declared, name))
+			issues.push({
+				path: entryPath,
+				message: `unknown execution profile "${name}"`,
+			});
+		if (
+			typeof executor !== "string" ||
+			!/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(executor)
+		)
+			issues.push({
+				path: entryPath,
+				message: "must be an executor id (letters, digits, . _ : -)",
+			});
+	}
 }
 
 type DeclaredProfileStages = {
