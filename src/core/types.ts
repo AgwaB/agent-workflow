@@ -1,5 +1,8 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/types.ts. MIT, same author. Changes: run.nativeHost→run.hostContext (HostContext); runtime.nativeToolsEnabled→runtime.inheritHostTools; added allowSharedCheckoutWrites (R#5), inheritHostTools run/compile flags, agent legacySource; artifact provenance digests config + MCP server spec instead of extension wrapper bytes. WP4c: run.executor (executor selection), spec executionProfileExecutors, WorkflowRunExecutionProfile.executor, task.ownedSessions, usage/budget record source "executor".
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/types.ts. MIT, same author. Changes: run.nativeHost→run.hostContext (HostContext); runtime.nativeToolsEnabled→runtime.inheritHostTools; added allowSharedCheckoutWrites (R#5), inheritHostTools run/compile flags, agent legacySource; artifact provenance digests config + MCP server spec instead of extension wrapper bytes. WP4c: run.executor (executor selection), spec executionProfileExecutors, WorkflowRunExecutionProfile.executor, task.ownedSessions, usage/budget record source "executor". WP4d: run.capabilityNegotiation (B4), spec allowReadOnlyDowngrade/executionProfileStrictCapabilities, WorkflowRunExecutionProfile.strictCapabilities.
+import type { ExecutorCapabilities } from "../sdk/capabilities.js";
+import type { AuthStatus } from "../sdk/contract.js";
 import type { ExecutorDescriptor } from "../sdk/descriptor.js";
+import type { NegotiationReport } from "../sdk/requirements.js";
 import type {
 	WorkflowModelInfo,
 	WorkflowRuntimeDefaults,
@@ -184,6 +187,17 @@ export interface ArtifactGraphWorkflowSpec {
 	defaultExecutionProfile?: string;
 	/** agent-workflow (B2): executor id per declared execution profile name. */
 	executionProfileExecutors?: Record<string, string>;
+	/**
+	 * agent-workflow (WP4d): capability keys that must be `native` when a declared
+	 * execution profile is selected (`ctx.strict` in B4 negotiation).
+	 */
+	executionProfileStrictCapabilities?: Record<string, string[]>;
+	/**
+	 * agent-workflow (WP4d, B4): when an executor has no precise tool allowlist
+	 * (or cannot map a tool), run the stage with readOnly enforced instead of
+	 * refusing it. Recorded as a degradation.
+	 */
+	allowReadOnlyDowngrade?: boolean;
 	artifactGraph: WorkflowFailurePolicy & {
 		stages: ArtifactGraphStageSpec[];
 		maxConcurrency?: number;
@@ -1433,12 +1447,64 @@ export interface WorkflowRunExecutorSelection {
 	descriptor: ExecutorDescriptor;
 }
 
+/** Executor readiness from `probe()` (no model turn, no secrets), recorded per run (WP4d). */
+export interface WorkflowExecutorProbeSummary {
+	installed: boolean;
+	cliVersion: string | null;
+	auth: AuthStatus;
+	notes?: string[];
+	probedAt: string;
+	/** Nested runs reuse the parent's probe instead of probing again. */
+	reusedFromRunId?: string;
+}
+
+/** One negotiated stage (compiled task template) of a run (WP4d). */
+export interface WorkflowStageCapabilityNegotiation {
+	/** Compiled task id (spec id) the report belongs to. */
+	label: string;
+	stageId?: string;
+	/** `launch`: a runtime-generated task first negotiated at its launch. */
+	negotiatedAt: "pre-launch" | "launch";
+	report: NegotiationReport;
+}
+
+/** B4 negotiation record (design §8.3, owner decisions B4/B5). */
+export interface WorkflowRunCapabilityNegotiation {
+	schema: "agent-workflow-capability-negotiation-v1";
+	executorId: string;
+	executorVersion: string;
+	contractVersion: string;
+	probe: WorkflowExecutorProbeSummary;
+	/** Declared capabilities merged with the probe's rows (`mergeProbedCapabilities`). */
+	capabilities: ExecutorCapabilities;
+	policy: {
+		interactive: boolean;
+		allowUnverified: string[];
+		strict: string[];
+		allowReadOnlyDowngrade: boolean;
+	};
+	/** `confirmed`: an interactive host accepted the degradations before launch. */
+	confirmation: "not-needed" | "confirmed" | "non-interactive";
+	stages: WorkflowStageCapabilityNegotiation[];
+	/** `<stage>: <code>` for every degraded entry. */
+	degradations: string[];
+	/** Stages launched with readOnly enforced (B4 readOnly downgrade). */
+	forcedReadOnly: string[];
+	/** Pre-start preview text shown to hosts. */
+	preview: string;
+}
+
 /** Effective declared or user-saved profile frozen into a new run. */
 export interface WorkflowRunExecutionProfile {
 	/** Selected declared or user-saved profile name. */
 	name: string;
 	/** Executor id a saved user profile selects (B2); declared profiles use the spec's executionProfileExecutors. */
 	executor?: string;
+	/**
+	 * Capability keys that must be `native` for this profile (WP4d `ctx.strict`);
+	 * declared profiles use the spec's executionProfileStrictCapabilities.
+	 */
+	strictCapabilities?: string[];
 	/** Definition identity captured with a user-saved profile before launch. */
 	definitionFingerprint?: string;
 	/** Canonical stage-id → captured profile overrides applied at compile time. */
@@ -1658,6 +1724,12 @@ export interface WorkflowRunRecord {
 	executionProfile?: WorkflowRunExecutionProfile;
 	/** Executor selection frozen at creation; absent on legacy pi-workflow records. */
 	executor?: WorkflowRunExecutorSelection;
+	/**
+	 * B4 capability negotiation done before the first launch (WP4d): executor
+	 * probe summary, effective capabilities, per-stage reports and the preview.
+	 * Absent on records created before WP4d (launch-time checks are skipped).
+	 */
+	capabilityNegotiation?: WorkflowRunCapabilityNegotiation;
 	launch?: WorkflowRunLaunchMetadata;
 	/** Durable transparent foreach batch journals, including terminal receipts. */
 	foreachBatches?: WorkflowForeachBatchRecord[];

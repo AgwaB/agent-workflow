@@ -1,8 +1,12 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 535-558, 2868-3609, 3821-4245, 6401-6701, 6756-6774, 7371-end, and src/backend.ts (the backend object and its fatal-error wrapper). MIT, same author. Changes: implements the WorkflowBackend on the runtime API (executor descriptor recorded on the run, engine-issued attemptKey, SubmitRequest fields readOnly/isolation/approvalPolicy/env/mcpServers); Pi argv/extension preflight/noExtensions/skills/toolResultBudget/worker-role process env not ported (Pi executor, WP6); R#5 worktree gate before launch; registered for local-pi/headless run records.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 535-558, 2868-3609, 3821-4245, 6401-6701, 6756-6774, 7371-end, and src/backend.ts (the backend object and its fatal-error wrapper). MIT, same author. Changes: implements the WorkflowBackend on the runtime API (executor descriptor recorded on the run, engine-issued attemptKey, SubmitRequest fields readOnly/isolation/approvalPolicy/env/mcpServers); Pi argv/extension preflight/noExtensions/skills/toolResultBudget/worker-role process env not ported (Pi executor, WP6); R#5 worktree gate before launch; registered for local-pi/headless run records. WP4d: launch-time capability decision from the run's recorded B4 negotiation (refusal → fatal before any effect; forcedReadOnly → SubmitRequest.readOnly and approval policy).
 import type { ExecutorDescriptor } from "../sdk/descriptor.js";
 import type { ToolKind } from "../sdk/events.js";
 import { isMutatingKind, PI_TOOL_KINDS } from "../sdk/tools.js";
 import { AGENT_WORKFLOW_ROLE_ENV } from "./process-role.js";
+import {
+	workflowTaskCapabilityLaunch,
+	workflowTaskInheritsContext,
+} from "./capability-negotiation.js";
 import {
 	ARTIFACT_ACCESS_CONFIG_FILE,
 	artifactAccessConfigPath,
@@ -164,6 +168,9 @@ export async function launchSubagentTask(
 	// B2: the executor recorded at run creation; a missing or invalid one is fatal before any
 	// effect (no fallback executor).
 	let executor: ExecutorDescriptor;
+	// WP4d (B4): the recorded capability negotiation decides refusal and forced readOnly for this
+	// task before any effect; runs recorded before WP4d carry none and are not checked.
+	let capabilityLaunch: { forcedReadOnly: boolean };
 	try {
 		// Runs created directly through the store (or imported records) carry no selection yet:
 		// they get the B2 default tier, which must itself be available (never a substitute).
@@ -172,6 +179,7 @@ export async function launchSubagentTask(
 			await writeRunRecord(cwd, run);
 		}
 		executor = recordedRunExecutorDescriptor(run);
+		capabilityLaunch = workflowTaskCapabilityLaunch(run, compiledTask);
 	} catch (error) {
 		return {
 			kind: "fatal",
@@ -422,9 +430,14 @@ export async function launchSubagentTask(
 			...(compiledTask.runtime.thinking === undefined
 				? {}
 				: { effort: compiledTask.runtime.thinking }),
-			readOnly: compiledTask.safety.capability === "read-only",
+			readOnly:
+				compiledTask.safety.capability === "read-only" ||
+				capabilityLaunch.forcedReadOnly,
 			isolation: workflowTaskIsolation(compiledTask),
-			approvalPolicy: workflowTaskApprovalPolicy(compiledTask),
+			approvalPolicy: workflowTaskApprovalPolicy(
+				compiledTask,
+				capabilityLaunch.forcedReadOnly,
+			),
 			env: { [AGENT_WORKFLOW_ROLE_ENV]: "worker" },
 			async: true,
 			onComplete: "detach",
@@ -1329,11 +1342,7 @@ export function workflowExecutorAttemptKey(
 export function workflowTaskIsolation(compiledTask: CompiledTask): {
 	inherit: boolean;
 } {
-	return {
-		inherit:
-			compiledTask.inheritProjectContext === true ||
-			compiledTask.inheritSkills === true,
-	};
+	return { inherit: workflowTaskInheritsContext(compiledTask) };
 }
 
 /**
@@ -1341,7 +1350,10 @@ export function workflowTaskIsolation(compiledTask: CompiledTask): {
  * mutating kinds are never allowed for a read-only task; everything else is denied (there is no
  * interactive channel for workflow workers yet, WP2b).
  */
-export function workflowTaskApprovalPolicy(compiledTask: CompiledTask): {
+export function workflowTaskApprovalPolicy(
+	compiledTask: CompiledTask,
+	forcedReadOnly = false,
+): {
 	allowKinds: ToolKind[];
 	interactive: false;
 } {
@@ -1351,7 +1363,8 @@ export function workflowTaskApprovalPolicy(compiledTask: CompiledTask): {
 		const kind = (PI_TOOL_KINDS as Record<string, ToolKind | undefined>)[tool];
 		if (kind !== undefined) kinds.add(kind);
 	}
-	const readOnly = compiledTask.safety.capability === "read-only";
+	const readOnly =
+		compiledTask.safety.capability === "read-only" || forcedReadOnly;
 	const allowKinds = [...kinds]
 		.filter((kind) => !(readOnly && isMutatingKind(kind)))
 		.sort();

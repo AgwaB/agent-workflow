@@ -12,6 +12,8 @@
 //                 carries the workflow_artifact MCP server (stands in for the WP5 MCP server)
 //   ownSessions   true: the terminal event reports ownedSession {kind: "wf-fake-session", locator}
 //   stepDelayMs   delay between script steps
+//   capabilities  partial capability table over the SDK fake's (WP4d negotiation tests)
+//   probe         probe() result (default: installed, auth ok)
 import { appendFileSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createFakeExecutor } from "@agwab/agent-workflow/sdk/testing";
@@ -144,7 +146,14 @@ export function createExecutor(config) {
 		}
 		return inner;
 	};
-	const probeInner = createFakeExecutor({ id, version: "0.1.0" });
+	const probeInner = createFakeExecutor({
+		id,
+		version: "0.1.0",
+		...(config.capabilities === undefined
+			? {}
+			: { capabilities: config.capabilities }),
+		...(config.probe === undefined ? {} : { probe: config.probe }),
+	});
 	return {
 		id,
 		version: "0.1.0",

@@ -68,6 +68,12 @@ export interface StageRequirementContext {
 	>;
 	/** User opt-in to treat these `unverified` capabilities as available (B4: default refuse). */
 	readonly allowUnverified?: readonly RequirementKey[];
+	/**
+	 * Capabilities that must be `native` (profile `strictCapabilities`, WP4d). A strict key whose
+	 * outcome would be `emulated` or `degraded` is refused with `CAPABILITY_STRICT:<key>`. A name
+	 * also covers its qualified keys (`toolAllowlist` covers `toolAllowlist.fine`).
+	 */
+	readonly strict?: readonly RequirementKey[];
 	/** Interactive host: degradations need user confirmation (B4). Non-interactive: record only. */
 	readonly interactive?: boolean;
 }
@@ -82,6 +88,8 @@ export interface NegotiationEntry {
 		readonly level: Level["level"];
 		readonly source: Level["source"];
 		readonly detail?: string;
+		/** Environment warning carried by the observed level (WP4d). */
+		readonly warning?: string;
 	} | null;
 	readonly outcome: NegotiationOutcome;
 	/** Who provides an `emulated` outcome. */
@@ -206,6 +214,8 @@ export function negotiateCapabilities(
 ): NegotiationReport {
 	const entries: NegotiationEntry[] = [];
 	const unverifiedOptIn = new Set<string>(ctx.allowUnverified ?? []);
+	const strictKeys = new Set<string>(ctx.strict ?? []);
+	for (const key of strictKeys) splitKey(key);
 	let forcedReadOnly = false;
 
 	const readOnlyDowngrade = (
@@ -232,10 +242,15 @@ export function negotiateCapabilities(
 		const { name, detail } = splitKey(key);
 		const observedLevel = caps[name];
 		const observedDetail = detailOf(observedLevel);
+		const observedWarning =
+			typeof observedLevel.warning === "string" && observedLevel.warning !== ""
+				? observedLevel.warning
+				: undefined;
 		const observed = {
 			level: observedLevel.level,
 			source: observedLevel.source,
 			...(observedDetail === undefined ? {} : { detail: observedDetail }),
+			...(observedWarning === undefined ? {} : { warning: observedWarning }),
 		};
 		const optIn = unverifiedOptIn.has(key) || unverifiedOptIn.has(name);
 		const detailOk = detailSatisfies(name, observedDetail, detail);
@@ -259,11 +274,27 @@ export function negotiateCapabilities(
 					? { note: "unverified capability used by user opt-in" }
 					: {}),
 			};
+			if (observedLevel.level === "emulated" && observedWarning !== undefined) {
+				// Environment-weakened capability (WP4d): never a silent pass.
+				entry = {
+					...entry,
+					outcome: "degraded",
+					code: `CAPABILITY_WARNING:${key}`,
+					note:
+						entry.note === undefined
+							? observedWarning
+							: `${observedWarning}; ${entry.note}`,
+				};
+			}
 			if (name === "webTools" && caps.webTools.safetyPolicy !== "engine") {
 				entry = {
 					...entry,
 					outcome: "degraded",
-					note: `webTools.safetyPolicy: ${caps.webTools.safetyPolicy}; ${DEGRADE_NOTES.webTools}`,
+					note: `webTools.safetyPolicy: ${caps.webTools.safetyPolicy}; ${DEGRADE_NOTES.webTools}${
+						entry.outcome === "degraded" && entry.note !== undefined
+							? `; ${entry.note}`
+							: ""
+					}`,
 				};
 			}
 		} else {
@@ -323,6 +354,19 @@ export function negotiateCapabilities(
 					note: DEGRADE_NOTES[name] ?? "capability unavailable; recorded",
 				};
 			}
+		}
+		if (
+			(entry.outcome === "emulated" || entry.outcome === "degraded") &&
+			(strictKeys.has(key) || strictKeys.has(name))
+		) {
+			entry = {
+				...entry,
+				outcome: "refused",
+				code: `CAPABILITY_STRICT:${key}`,
+				note: `strict: ${key} must be native (was ${entry.outcome}${
+					entry.note === undefined ? "" : `: ${entry.note}`
+				})`,
+			};
 		}
 		entries.push(entry);
 	}
@@ -411,4 +455,72 @@ export function formatNegotiationPreview(
 		);
 	}
 	return lines;
+}
+
+/** One stage's negotiation, labelled for the run-level preview. */
+export interface StageNegotiation {
+	readonly label: string;
+	readonly report: NegotiationReport;
+}
+
+export interface CapabilityPreview {
+	/** Every stage accepted (no refusal). */
+	readonly accepted: boolean;
+	/** At least one stage needs interactive confirmation (B4). */
+	readonly needsConfirmation: boolean;
+	/** `<label>: <code>` for every refused entry. */
+	readonly refusals: readonly string[];
+	/** `<label>: <code>` for every degraded entry. */
+	readonly degradations: readonly string[];
+	/** Labels of stages that run with readOnly enforced. */
+	readonly forcedReadOnly: readonly string[];
+	/** Human-readable pre-start preview (design §8.3). */
+	readonly text: string;
+}
+
+/**
+ * Run-level pre-start preview (design §8.3): one block per stage from `formatNegotiationPreview`,
+ * headed by a summary line and optional executor readiness lines (probe summary, no secrets).
+ */
+export function buildCapabilityPreview(
+	stages: readonly StageNegotiation[],
+	options: {
+		readonly executor?: { readonly id: string; readonly version: string };
+		readonly header?: readonly string[];
+	} = {},
+): CapabilityPreview {
+	const refusals: string[] = [];
+	const degradations: string[] = [];
+	const forcedReadOnly: string[] = [];
+	let needsConfirmation = false;
+	for (const { label, report } of stages) {
+		for (const code of report.refusals) refusals.push(`${label}: ${code}`);
+		for (const code of report.degradations)
+			degradations.push(`${label}: ${code}`);
+		if (report.forcedReadOnly) forcedReadOnly.push(label);
+		if (report.needsConfirmation) needsConfirmation = true;
+	}
+	const accepted = refusals.length === 0;
+	const executor =
+		options.executor === undefined
+			? (stages[0]?.report.executorId ?? "executor")
+			: `${options.executor.id}@${options.executor.version}`;
+	const summary = `Capability check (${executor}, ${stages.length} stage${stages.length === 1 ? "" : "s"}): ${
+		accepted
+			? degradations.length > 0
+				? `accepted with ${degradations.length} degradation${degradations.length === 1 ? "" : "s"}`
+				: "accepted"
+			: `REFUSED (${refusals.length})`
+	}${forcedReadOnly.length > 0 ? `; forced readOnly: ${forcedReadOnly.join(", ")}` : ""}`;
+	const lines = [summary, ...(options.header ?? [])];
+	for (const { label, report } of stages)
+		lines.push(...formatNegotiationPreview(report, label));
+	return {
+		accepted,
+		needsConfirmation: accepted && needsConfirmation,
+		refusals,
+		degradations,
+		forcedReadOnly,
+		text: lines.join("\n"),
+	};
 }

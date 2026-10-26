@@ -17,6 +17,14 @@ export {
 	codexCapabilities,
 } from "./capabilities.js";
 export {
+	type CodexEnvironmentFindings,
+	codexEnvironmentCapabilities,
+	codexEnvironmentNotes,
+	codexHomeDir,
+	countCodexAllowRules,
+	inspectCodexEnvironment,
+} from "./environment.js";
+export {
 	CODEX_ERROR_INFO_CLASSES,
 	CODEX_ERROR_RULES,
 	classifyCodexFailure,

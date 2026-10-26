@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine.ts. MIT, same author. Changes: the backend comes from the task-launch registry and the core task backend registers itself (was hard-wired pi-subagent); acknowledgeSubagentTaskInterrupted from task-cancellation.ts; run options executor/defaultExecutor (B2 executor selection before the run record exists, frozen as run.executor; nested runs copy the parent's) and inheritHostTools/allowSharedCheckoutWrites passed into compileWorkflow (nested runs follow the parent record); native host context → withHostContext(resolveHostContext()); foreach batch eligibility uses prepareWorkflowTaskToolPolicy with the run's host-tool and shared-checkout decisions (R#5); messages say agent-workflow.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine.ts. MIT, same author. Changes: the backend comes from the task-launch registry and the core task backend registers itself (was hard-wired pi-subagent); acknowledgeSubagentTaskInterrupted from task-cancellation.ts; run options executor/defaultExecutor (B2 executor selection before the run record exists, frozen as run.executor; nested runs copy the parent's) and inheritHostTools/allowSharedCheckoutWrites passed into compileWorkflow (nested runs follow the parent record); native host context → withHostContext(resolveHostContext()); foreach batch eligibility uses prepareWorkflowTaskToolPolicy with the run's host-tool and shared-checkout decisions (R#5); messages say agent-workflow. WP4d: B4 capability negotiation after executor selection and compile, before the run record (probe once, refuse/degrade/confirm, record run.capabilityNegotiation; run options interactive/confirmDegradations/allowUnverifiedCapabilities/executorProber/executorProbeTimeoutMs).
 import { createHash } from "node:crypto";
 import {
 	appendFile,
@@ -228,6 +228,12 @@ import {
 } from "./executor-registry.js";
 import { resolveHostContext, withHostContext } from "./host-context.js";
 import {
+	negotiateWorkflowRun,
+	type WorkflowExecutorProber,
+	workflowProfileStrictCapabilities,
+} from "./capability-negotiation.js";
+import type { CapabilityPreview } from "../sdk/requirements.js";
+import {
 	applyWorkflowExecutionProfile,
 	workflowDefinitionFingerprint,
 } from "./execution-profile.js";
@@ -385,6 +391,22 @@ export interface WorkflowRunOptions {
 	inheritHostTools?: boolean;
 	/** D2/R#5 run option of the executing user (never a spec field). */
 	allowSharedCheckoutWrites?: boolean;
+	/**
+	 * B4 (WP4d): the host can ask the user. Degradations then need
+	 * `confirmDegradations`; non-interactive runs (default) record and proceed.
+	 */
+	interactive?: boolean;
+	/**
+	 * B4 (WP4d): called before launch only when `interactive` and a stage
+	 * degrades. Resolving anything but `true` fails the run before launch.
+	 */
+	confirmDegradations?: (preview: CapabilityPreview) => Promise<boolean>;
+	/** B4 (WP4d) user opt-in: treat these `unverified` capabilities as available. */
+	allowUnverifiedCapabilities?: string[];
+	/** WP4d test/host seam: replaces `loadExecutor(descriptor)` + `probe()`. */
+	executorProber?: WorkflowExecutorProber;
+	/** Bound for the executor probe (default 30 s). */
+	executorProbeTimeoutMs?: number;
 }
 
 interface WorkflowScheduleOptions {
@@ -650,6 +672,45 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 		runtimeDefaults: options.runtimeDefaults,
 		availableModels: options.availableModels,
 	});
+	// B4 (WP4d): probe the executor once and negotiate every stage before any
+	// run record or launch exists. Nested runs reuse the parent's probe and
+	// opt-ins and never prompt.
+	const capabilityNegotiation = await negotiateWorkflowRun({
+		descriptor: executor.descriptor,
+		compiled,
+		policy: {
+			interactive: parentRun ? false : options.interactive === true,
+			allowUnverified: parentRun
+				? [...(parentRun.capabilityNegotiation?.policy.allowUnverified ?? [])]
+				: [...(options.allowUnverifiedCapabilities ?? [])],
+			strict: parentRun
+				? [...(parentRun.capabilityNegotiation?.policy.strict ?? [])]
+				: workflowProfileStrictCapabilities(
+						spec,
+						options.executionProfile,
+						options.executionProfileOverride,
+					),
+			allowReadOnlyDowngrade:
+				(spec as { allowReadOnlyDowngrade?: unknown })
+					.allowReadOnlyDowngrade === true,
+		},
+		...(parentRun?.capabilityNegotiation === undefined
+			? {}
+			: {
+					recorded: parentRun.capabilityNegotiation,
+					recordedFromRunId: parentRun.runId,
+				}),
+		...(options.executorProber === undefined
+			? {}
+			: { prober: options.executorProber }),
+		...(options.executorProbeTimeoutMs === undefined
+			? {}
+			: { probeTimeoutMs: options.executorProbeTimeoutMs }),
+		...(options.confirmDegradations === undefined
+			? {}
+			: { confirmDegradations: options.confirmDegradations }),
+	});
+	options.launchSignal?.throwIfAborted();
 	if (options.autoLaunchBinding)
 		options.autoLaunchBinding = sealWorkflowAutoLaunchBindingCompiled(
 			options.autoLaunchBinding,
@@ -695,6 +756,7 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 	if (options.routing) run.routing = options.routing;
 	if (appliedProfile.record) run.executionProfile = appliedProfile.record;
 	run.executor = executor;
+	run.capabilityNegotiation = capabilityNegotiation;
 	let initialized: WorkflowRunRecord | undefined;
 	try {
 		if (launchCapture?.command.state === "captured")

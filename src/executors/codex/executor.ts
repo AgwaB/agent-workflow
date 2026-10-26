@@ -40,6 +40,11 @@ import {
 	CODEX_VERIFIED_CLI_VERSION,
 	codexCapabilities,
 } from "./capabilities.js";
+import {
+	codexEnvironmentCapabilities,
+	codexEnvironmentNotes,
+	inspectCodexEnvironment,
+} from "./environment.js";
 import { classifyCodexFailure } from "./errors.js";
 import { CodexTurnNormalizer, failureEvent } from "./normalize.js";
 import { AppServerConnection, type RpcId, type RpcMessage } from "./rpc.js";
@@ -992,10 +997,14 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 					? `models: ${models.join(", ")}`
 					: "models: not listable",
 			);
+			// WP4d: allow rules weaken readOnly; a global AGENTS.md weakens isolation (warnings).
+			const environment = inspectCodexEnvironment(process.env);
+			notes.push(...codexEnvironmentNotes(environment));
 			return {
 				installed: true,
 				cliVersion: match[1],
 				auth,
+				capabilities: codexEnvironmentCapabilities(environment),
 				mcpOutputLimitChars: CODEX_MCP_OUTPUT_LIMIT_CHARS,
 				notes,
 			};

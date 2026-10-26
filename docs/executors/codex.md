@@ -95,6 +95,29 @@ Residuals (why `contextIsolation` is `emulated`, not `native`):
    approval request. This is a **D2 gap** for workers; open problem below.
 3. Codex's built-in collaboration/multi-agent role blocks remain (product prompt, not user context).
 
+## Environment probe (WP4d)
+
+`probe()` also inspects `$CODEX_HOME` (default `~/.codex`; `src/executors/codex/environment.ts`). It
+opens only `rules/*.rules` and `AGENTS.md`, never `auth.json` or other credential files (D1).
+
+| Finding | Probe capability row | Negotiation |
+|---|---|---|
+| `rules/*.rules` with N > 0 `decision = "allow"` rules | `readOnly = { level: "emulated", source: "probed", warning: "N allow rules in <CODEX_HOME>/rules let matching commands run without approval" }` | readOnly stages degrade (`CAPABILITY_WARNING:readOnly`); interactive → confirm; strict `readOnly` → refuse |
+| no allow rules | (row not returned; declared `readOnly: native` stays) | native |
+| `AGENTS.md` exists and is non-empty | `contextIsolation = { level: "emulated", source: "probed", warning: "global <CODEX_HOME>/AGENTS.md is loaded into every Codex worker" }` | every non-`inherit` stage degrades (`CAPABILITY_WARNING:contextIsolation`); strict → refuse |
+| `AGENTS.md` absent or whitespace-only | `contextIsolation = { level: "native", source: "probed" }` | native |
+
+- Owner decisions "Codex allow 규칙" (run but warn; strict refuses) and "Codex 전역 AGENTS.md" (show only
+  when the file exists).
+- Rules are counted with a small Starlark tokenizer: `decision = "allow"` / `'allow'` / `r"allow"`
+  keyword arguments only; comments, other decisions and strings that merely contain `decision="allow"`
+  are not counted. Only the count and paths are recorded, never rule patterns or file contents. Probe
+  notes: `exec-policy rules: N allow rules in F files under <path>`, `global instructions: <path>
+  present|absent|empty`, and unreadable paths if any.
+- This machine (2026-10-26, codex-cli 0.159.2): 151 allow rules in 1 file; global `AGENTS.md` present.
+  So Codex readOnly stages and every isolated stage run degraded (recorded; confirmed on interactive
+  hosts) unless a strict profile refuses them.
+
 ## Tool mapping (Pi name → Codex)
 
 | Pi tool | Mapping | Codex tool | Verified live |
@@ -186,7 +209,7 @@ under the attempt log dir when no `artifactsDir` is given. Redacted there: MCP e
 | toolLoop / context | agent / agent | — | Codex runs its own loop |
 | sessionBound | true | — | one stdio connection owns the thread |
 | mcpInjection | native | probed | #2, offline fake app-server check |
-| readOnly | native | probed | #11, #12 |
+| readOnly | native | probed | #11, #12. `probe()` lowers it to emulated + warning when `allow` rules exist (WP4d) |
 | toolAllowlist | native, coarse | probed | #12 (`tools: [read]` → read-only sandbox; `touch` denied) |
 | systemPrompt | native, append | declared | #17 (`developerInstructions` honored) |
 | modelSelect | native | probed | all calls (`x-codex-turn-metadata` model) |
@@ -197,7 +220,7 @@ under the attempt log dir when no `artifactsDir` is given. Redacted there: MCP e
 | toolTelemetry | native | probed | #1, #2, #12, #18 |
 | cancel | native, interrupt | probed | #5 |
 | nativeSchema | none | declared | `turn/start.outputSchema` exists, SDK v0 `SubmitRequest` has no schema field |
-| contextIsolation | emulated | probed | see Isolation; global `AGENTS.md` and exec-policy rules remain |
+| contextIsolation | emulated | probed | see Isolation; global `AGENTS.md` and exec-policy rules remain. `probe()` overrides it per machine (WP4d: native without a global `AGENTS.md`, emulated + warning with one) |
 | fastTier | none | declared | standard tier forced (Pi-only feature, A2-4) |
 | toolResultBudget | none | declared | C1 |
 | webTools | native, search, safetyPolicy **unknown** | probed | #6; hosted search, credential-URL/redaction/budget controls unconfirmed (C2, plan §6.5) |
@@ -255,7 +278,8 @@ budget are not confirmed. `fetch_content` (open_page) not observed.
 
 ## Known limits
 
-- Global `$CODEX_HOME/AGENTS.md` and `~/.codex/rules` cannot be disabled per run (see Isolation).
+- Global `$CODEX_HOME/AGENTS.md` and `~/.codex/rules` cannot be disabled per run (see Isolation); since
+  WP4d the probe reports them as warnings and negotiation records the degradation.
 - `effort` falls back to the user's config when the request has none.
 - Input tokens include cached tokens; output includes reasoning tokens.
 - A user MCP server with the same name as an injected one merges keys (e.g. `url` + `command` →
@@ -277,5 +301,15 @@ budget are not confirmed. `fetch_content` (open_page) not observed.
 - **WP11 / WP4c**: launch the artifact server with `probe().mcpOutputLimitChars` (32000); always
   pass `effort`; keep secrets in `SubmitRequest.env`/`McpServerSpec.env`, never in descriptor
   config; prune should call `deleteOwnedSession` for `codex-thread` sessions (R#10) and sweep
-  `stateDir`; decide the exec-policy-rules gap (refuse codex workers when `~/.codex/rules` has
-  `allow` rules, or accept and record it).
+  `stateDir`. The exec-policy-rules gap is decided (WP4d: accept and record with a warning; strict
+  profiles refuse).
+
+## Change log
+
+- **WP4d (2026-10-26):** `probe()` returns `capabilities.readOnly` (emulated + warning when
+  `$CODEX_HOME/rules/*.rules` has `allow` rules) and `capabilities.contextIsolation` (native without a
+  global `AGENTS.md`, emulated + warning with a non-empty one), plus count/path notes; credential files
+  are never read. Engine B4 negotiation turns these warnings into recorded degradations (see
+  `docs/core-port.md` "WP4d"). Tests: `executor-codex-environment.test.mjs` (rule counting, temp
+  `CODEX_HOME` with rules/`AGENTS.md` present/absent/empty and an unreadable `auth.json`, `probe()` over
+  the stub CLI, engine `probeWorkflowExecutor` merge).
