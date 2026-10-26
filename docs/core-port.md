@@ -155,7 +155,7 @@ Left unchanged on purpose (not paths or env vars; flagged for later WPs):
   (WP4c/WP6).
 - The bundled direct-dynamic spec in `dynamic-runtime-bundle.ts` still lists the `workflow_web_*` tools
   that WP10 removes. Changing it would need a new `DIRECT_DYNAMIC_RUNTIME_VERSION`, because the module
-  refuses to rewrite an existing versioned bundle.
+  refuses to rewrite an existing versioned bundle. (Done in WP10: v5 with `web_search`/`fetch_content`, see "WP10" below.)
 - typebox: none of the 30 modules uses it, so no replacement was needed.
 
 ## WP4b — seed replacements and hub-coupled modules
@@ -705,7 +705,7 @@ Tests not ported (marked in place with a comment), all from unit-dynamic-runtime
   prompt-visible paths" (Pi wrapper; core uses `artifact-access.json` + the WP5 MCP server).
 
 Observed: "spec-less direct dynamic run …" still asserts the `workflow_web_*` tools of the bundled
-direct-dynamic spec (WP4a note: changing that spec needs a new `DIRECT_DYNAMIC_RUNTIME_VERSION`, WP10).
+direct-dynamic spec (WP4a note: changing that spec needs a new `DIRECT_DYNAMIC_RUNTIME_VERSION`, WP10). WP10 did that (v5); the assertion now expects `web_search`/`fetch_content`.
 
 ### WP4c-2 change log (behavior-relevant)
 
@@ -865,19 +865,19 @@ deferred-WP5+ 53, dropped 33 (140). No file is left at a `deferred-WP4c*` status
 | built-engine-frozen-bundle-regression.test.mjs | deferred-WP6 | Pi extension tool providers in the launch options |
 | code-search-compat.test.mjs | dropped | INVENTORY: drop(Pi extension tool compat shim) |
 | dag-hardening.test.mjs | ported-WP4c2 (`test/unit/core-dag-hardening.test.mjs`) | WP4c-2 harness |
-| deep-research-completion-output.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
-| deep-research-integrity-regressions.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
-| deep-research-live-correction.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
-| deep-research-optional-string-guidance.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
-| deep-research-reader-output.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
-| deep-research-runtime-constraints.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
-| deep-research-sanitizer-followup.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
-| deep-research-static-floor.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
-| deep-research-synthesis-pages.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
-| deep-research-verifier-identity.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
-| deep-review-d01-d10.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
-| deep-review-ledger-corrective.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
-| deep-review-source-scope.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
+| deep-research-completion-output.test.mjs | ported-WP10 (`test/unit/core-deep-research-completion-output.test.mjs`) | WP10 bundled workflows; fixture copied to test/fixtures/deep-research; 5 of 5 tests |
+| deep-research-integrity-regressions.test.mjs | ported-WP10 (`test/unit/core-deep-research-integrity-regressions.test.mjs`) | WP10 bundled workflows; 14 of 14 tests |
+| deep-research-live-correction.test.mjs | ported-WP10 (`test/unit/core-deep-research-live-correction.test.mjs`) | WP10 bundled workflows; 1 of 1 tests |
+| deep-research-optional-string-guidance.test.mjs | ported-WP10 (`test/unit/core-deep-research-optional-string-guidance.test.mjs`) | WP10 bundled workflows; 1 of 1 tests |
+| deep-research-reader-output.test.mjs | ported-WP10 (`test/unit/core-deep-research-reader-output.test.mjs`) | WP10 bundled workflows; 8 of 8 tests |
+| deep-research-runtime-constraints.test.mjs | ported-WP10 (`test/unit/core-deep-research-runtime-constraints.test.mjs`) | WP10 bundled workflows; 1 of 1 tests |
+| deep-research-sanitizer-followup.test.mjs | ported-WP10 (`test/unit/core-deep-research-sanitizer-followup.test.mjs`) | WP10 bundled workflows; 1 of 1 tests |
+| deep-research-static-floor.test.mjs | ported-WP10 (`test/unit/core-deep-research-static-floor.test.mjs`) | WP10 bundled workflows; 3 of 3 tests |
+| deep-research-synthesis-pages.test.mjs | ported-WP10 (`test/unit/core-deep-research-synthesis-pages.test.mjs`) | WP10 bundled workflows; 6 of 6 tests |
+| deep-research-verifier-identity.test.mjs | ported-WP10 (`test/unit/core-deep-research-verifier-identity.test.mjs`) | WP10 bundled workflows; 3 of 3 tests |
+| deep-review-d01-d10.test.mjs | ported-WP10 (`test/unit/core-deep-review-d01-d10.test.mjs`) | WP10 bundled workflows; 1 assertion changed (D09 blocks the `.agent-workflow` sidecar root); 12 of 12 tests |
+| deep-review-ledger-corrective.test.mjs | ported-WP10 (`test/unit/core-deep-review-ledger-corrective.test.mjs`) | WP10 bundled workflows; OCR root `.agent-workflow/ocr-artifacts`; 7 of 7 tests |
+| deep-review-source-scope.test.mjs | ported-WP10 (`test/unit/core-deep-review-source-scope.test.mjs`) | WP10 bundled workflows; 2 of 2 tests |
 | dependency-lock-consistency.test.mjs | dropped | INVENTORY: drop(pi-workflow release tooling; agent-workflow has its own tools/release) |
 | dynamic-audit.test.mjs | ported-WP4c1 (`test/unit/core-dynamic-audit.test.mjs`) | WP4c-1; setTaskRuntimeApiForTests, default executor fixture |
 | dynamic-controller-regressions.test.mjs | ported-WP4c2 (`test/unit/core-dynamic-controller-regressions.test.mjs`) | WP4c-2 harness |
@@ -888,15 +888,15 @@ deferred-WP5+ 53, dropped 33 (140). No file is left at a `deferred-WP4c*` status
 | dynamic-tool-result-budget.test.mjs | ported-WP4c2 (`test/unit/core-dynamic-tool-result-budget.test.mjs`) | WP4c-2 harness |
 | engine-output-retry-dispatch.test.mjs | ported-WP4c1 (`test/unit/core-engine-output-retry-dispatch.test.mjs`) | WP4c-1; setTaskRuntimeApiForTests, default executor fixture |
 | engine-refresh.test.mjs | ported-WP4c2 (`test/unit/core-engine-refresh.test.mjs`) | WP4c-2 harness |
-| execution-profiles.test.mjs | deferred-WP5+ | bundled workflows (WP10); Pi host/extension modules: extension |
+| execution-profiles.test.mjs | ported-WP10 (`test/unit/core-execution-profiles.test.mjs`) | WP10 bundled workflows; 2 deferred-WP11 (Pi host arg parsing/profile selection); launch capture reads `effort`; default fixture executor registered; 6 of 8 tests |
 | fast-mode.test.mjs | deferred-WP5+ | Pi host/extension modules: workflow-fast-mode-extension; Pi/pi-subagent package |
 | foreach-batch-runtime.test.mjs | deferred-WP5+ | Pi/pi-subagent package |
-| graph-schema-contracts.test.mjs | ported-WP4c2 (`test/unit/core-graph-schema-contracts.test.mjs`) | WP4c-2 harness; bundled `workflows/` schema walk deferred-WP10 (1 assertion changed) |
-| helper-grounding-integrity.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
+| graph-schema-contracts.test.mjs | ported-WP4c2 (`test/unit/core-graph-schema-contracts.test.mjs`) | WP4c-2 harness; WP10 restored the bundled `workflows/` + scaffolds schema walk (`count > 20`, as the original) |
+| helper-grounding-integrity.test.mjs | ported-WP10 (`test/unit/core-helper-grounding-integrity.test.mjs`) | WP10 bundled workflows; 7 of 7 tests |
 | host-package-policy.test.mjs | deferred-WP5+ | Pi/pi-subagent package |
 | host-sdk-compat.test.mjs | dropped | INVENTORY: drop(Pi host package policy) |
-| impact-review-enum-control-guidance.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
-| impact-review-impact-fixes.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
+| impact-review-enum-control-guidance.test.mjs | ported-WP10 (`test/unit/core-impact-review-enum-control-guidance.test.mjs`) | WP10 bundled workflows; 1 of 1 tests |
+| impact-review-impact-fixes.test.mjs | ported-WP10 (`test/unit/core-impact-review-impact-fixes.test.mjs`) | WP10 bundled workflows; 18 of 18 tests |
 | launch-slot-observer.test.mjs | ported-WP4c2 (`test/unit/core-launch-slot-observer.test.mjs`) | WP4c-2 harness |
 | metrics-estimate-contracts.test.mjs | ported-WP4b (`test/unit/core-metrics-estimate-contracts.test.mjs`) | WP4b; run root path |
 | nested-workflow-depth-behavior.test.mjs | ported-WP4c2 (`test/unit/core-nested-workflow-depth-behavior.test.mjs`) | WP4c-2 harness |
@@ -914,8 +914,8 @@ deferred-WP5+ 53, dropped 33 (140). No file is left at a `deferred-WP4c*` status
 | release-provenance.test.mjs | dropped | INVENTORY: drop(pi-workflow release tooling; agent-workflow has its own) |
 | required-artifact-read-completeness.test.mjs | ported-WP4c1 (`test/unit/core-required-artifact-read-completeness.test.mjs`) | WP4c-1 |
 | review-core-fixes.test.mjs | deferred-WP5+ | cli.mjs (WP11a); Pi host/extension modules: extension |
-| review-helper-byte-gates.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
-| review-helper-materialized.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
+| review-helper-byte-gates.test.mjs | ported-WP10 (`test/unit/core-review-helper-byte-gates.test.mjs`) | WP10 bundled workflows; 16 of 16 tests |
+| review-helper-materialized.test.mjs | ported-WP10 (`test/unit/core-review-helper-materialized.test.mjs`) | WP10 bundled workflows; 2 of 2 tests |
 | review-runtime-refs-dns.test.mjs | dropped | INVENTORY: drop(refs URL probing is web-tool coupled) / unknown |
 | review-runtime-retention-depth.test.mjs | ported-WP4b (`test/unit/core-review-runtime-retention-depth.test.mjs`) | WP4b; 1 of 15 dropped (spawns cli.mjs → WP11a) |
 | run-estimates.test.mjs | deferred-WP5+ | Pi host/extension modules: extension |
@@ -924,8 +924,8 @@ deferred-WP5+ 53, dropped 33 (140). No file is left at a `deferred-WP4c*` status
 | runtime-refs-transport-boundary.test.mjs | dropped | INVENTORY: drop(web-coupled) / unknown |
 | runtime-storage-boundaries.test.mjs | ported-WP4c1 (`test/unit/core-runtime-storage-boundaries.test.mjs`) | WP4c-1; state paths |
 | runtime-transport-boundaries.test.mjs | dropped | INVENTORY: drop(web transport removed in WP10) |
-| spec-requirement-coverage.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
-| spec-review-live-spec-correction.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
+| spec-requirement-coverage.test.mjs | ported-WP10 (`test/unit/core-spec-requirement-coverage.test.mjs`) | WP10 bundled workflows; 1 setup changed (sidecar-failure blocks `.agent-workflow`); 2 of 2 tests |
+| spec-review-live-spec-correction.test.mjs | ported-WP10 (`test/unit/core-spec-review-live-spec-correction.test.mjs`) | WP10 bundled workflows; 2 of 2 tests |
 | store-final-review-regression.test.mjs | ported-WP4c2 (`test/unit/core-store-final-review-regression.test.mjs`) | WP4c-2 harness |
 | store-lease-contention.test.mjs | ported-WP4c1 (`test/unit/core-store-lease-contention.test.mjs`) | WP4c-1; fixture in test/fixtures/core/lease-handoff |
 | store-lease-handoff.test.mjs | ported-WP4b (`test/unit/core-store-lease-handoff.test.mjs`) | WP4b |
@@ -936,11 +936,11 @@ deferred-WP5+ 53, dropped 33 (140). No file is left at a `deferred-WP4c*` status
 | surface-rpc-readiness.test.mjs | dropped | INVENTORY: drop(Pi RPC host) |
 | surface-rpc.test.mjs | dropped | INVENTORY: drop(Pi RPC host; hosts/pi e2e) |
 | thinking-max.test.mjs | deferred-WP5+ | Pi host/extension modules: extension |
-| unit-artifact-web.test.mjs | deferred-WP5+ | bundled workflows (WP10); Pi/pi-subagent package |
-| unit-authoring-interface.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
-| unit-core-runtime.test.mjs | deferred-WP5+ | bundled workflows (WP10); Pi/pi-subagent package |
-| unit-dynamic-runtime.test.mjs | ported-WP4c2 (`test/unit/core-unit-dynamic-runtime.test.mjs`) | WP4c-2 harness; 139 of 143 (2 dropped C2/WP10, 2 deferred-WP6), 3 assertions changed |
-| unit-engine-store.test.mjs | deferred-WP5+ | bundled workflows (WP10); Pi/pi-subagent package |
+| unit-artifact-web.test.mjs | ported-WP10 (`test/unit/core-unit-artifact-web.test.mjs`) | WP10 bundled workflows; 15 Pi-only (web-source/fetch-cache extensions, artifact extension, TUI) + 4 C2/WP10 drops; session-id and backend-handle renames; 104 of 123 tests |
+| unit-authoring-interface.test.mjs | ported-WP10 (`test/unit/core-unit-authoring-interface.test.mjs`) | WP10 bundled workflows; 16 Pi host/TUI (deferred-WP11/dropped); 3 assertions changed (C2 prompt, researcher tools, agent path); 57 of 73 tests |
+| unit-core-runtime.test.mjs | ported-WP10 (`test/unit/core-unit-core-runtime.test.mjs`) | WP10 bundled workflows; 2 Pi TUI; 3 C2 assertions changed (sanitizer, claim gate ×2), R#12 backoff, backend handle; 109 of 111 tests |
+| unit-dynamic-runtime.test.mjs | ported-WP4c2 (`test/unit/core-unit-dynamic-runtime.test.mjs`) | WP4c-2 harness; 139 of 143 (2 dropped C2/WP10, 2 deferred-WP6), 3 assertions changed; WP10 changed the web budget, direct-dynamic v5 and launched system-prompt assertions |
+| unit-engine-store.test.mjs | ported-WP10 (`test/unit/core-unit-engine-store.test.mjs`) | WP10 bundled workflows; 3 Pi host/TUI, 4 deferred-WP6/WP11 Pi extension options, 3 WP4b wrapper tamper tests; WP4c-1 literal/backoff renames; 74 of 84 tests |
 | unit-model-task-runtime.test.mjs | ported-WP4c2 (`test/unit/core-unit-model-task-runtime.test.mjs`) | WP4c-2 harness |
 | unit-nested-backend-refresh.test.mjs | ported-WP4c2 (`test/unit/core-unit-nested-backend-refresh.test.mjs`) | WP4c-2 harness |
 | unit-resource-inheritance-compiler.test.mjs | ported-WP4b (`test/unit/core-unit-resource-inheritance-compiler.test.mjs`) | WP4b; .pi→.agent-workflow paths |
@@ -951,7 +951,7 @@ deferred-WP5+ 53, dropped 33 (140). No file is left at a `deferred-WP4c*` status
 | unit-test-cleanup.test.mjs | deferred-WP5+ | no core module; port-adapted (test harness) |
 | unit-unlimited-loop.test.mjs | ported-WP4c2 (`test/unit/core-unit-unlimited-loop.test.mjs`) | WP4c-2 harness |
 | unlimited-supervisor.test.mjs | deferred-WP5+ | cli.mjs (WP11a) |
-| verification-ontology-parity.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
+| verification-ontology-parity.test.mjs | ported-WP10 (`test/unit/core-verification-ontology-parity.test.mjs`) | WP10 bundled workflows; 2 of 2 tests |
 | wb-001-web-provider-compat.test.mjs | dropped | INVENTORY: drop(workflow_web_* removed in WP10) |
 | wb-002-json-path-hardening.test.mjs | ported-WP4b (`test/unit/core-wb-002-json-path-hardening.test.mjs`) | WP4b |
 | wb-002-normalized-web-contract.test.mjs | dropped | INVENTORY: drop(workflow_web_* removed in WP10) |
@@ -963,7 +963,7 @@ deferred-WP5+ 53, dropped 33 (140). No file is left at a `deferred-WP4c*` status
 | wb-007-dynamic-recovery.test.mjs | ported-WP4b (`test/unit/core-wb-007-dynamic-recovery.test.mjs`) | WP4b |
 | wb-008-filesystem-security.test.mjs | ported-WP4b (`test/unit/core-wb-008-filesystem-security.test.mjs`) | WP4b |
 | wb-009-workflow-policy.test.mjs | dropped | INVENTORY: drop(pi-workflow release tooling) |
-| wb-012-public-contracts.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
+| wb-012-public-contracts.test.mjs | ported-WP10 (`test/unit/core-wb-012-public-contracts.test.mjs`) | WP10 bundled workflows; 2 + half of a third deferred-WP11 (docs/usage.md); root and router assertions changed; 2 of 4 tests |
 | wb-014-platform-package.test.mjs | dropped | INVENTORY: drop(pi-workflow package CI) |
 | wb-016-scheduler-performance.test.mjs | ported-WP4b (`test/unit/core-wb-016-scheduler-performance.test.mjs`) | WP4b; source-scan test restored in WP4c-1 |
 | wb-017-artifact-index-performance.test.mjs | ported-WP4b (`test/unit/core-wb-017-artifact-index-performance.test.mjs`) | WP4b; run root path |
@@ -976,7 +976,7 @@ deferred-WP5+ 53, dropped 33 (140). No file is left at a `deferred-WP4c*` status
 | workflow-auto-binding.test.mjs | ported-WP4b (`test/unit/core-workflow-auto-binding.test.mjs`) | WP4b; .pi→.agent-workflow paths |
 | workflow-auto-negative-boundaries.test.mjs | ported-WP4c1 (`test/unit/core-workflow-auto-negative-boundaries.test.mjs`) | WP4c-1; setTaskRuntimeApiForTests, default executor fixture |
 | workflow-command-actions.test.mjs | dropped | INVENTORY: drop(Pi slash command; hosts/pi) |
-| workflow-contract-findings-006-008.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
+| workflow-contract-findings-006-008.test.mjs | ported-WP10 (`test/unit/core-workflow-contract-findings-006-008.test.mjs`) | WP10 bundled workflows; fixture helper moved to test/helpers/impact-review-fixtures.mjs; 17 of 17 tests |
 | workflow-extension-isolation.test.mjs | deferred-WP5+ | Pi/pi-subagent package |
 | workflow-fixture-lifecycle.test.mjs | ported-WP4c2 (`test/unit/core-workflow-fixture-lifecycle.test.mjs`) | WP4c-2 harness |
 | workflow-guide-fixed-inventory.test.mjs | ported-WP4b (`test/unit/core-workflow-guide-fixed-inventory.test.mjs`) | WP4b; scaffold copied to test/fixtures/core/ |
@@ -995,9 +995,9 @@ deferred-WP5+ 53, dropped 33 (140). No file is left at a `deferred-WP4c*` status
 | workflow-parent-usage.test.mjs | dropped | INVENTORY: drop(Pi parent session usage) |
 | workflow-profile-routing-compat.test.mjs | ported-WP4b (`test/unit/core-workflow-profile-routing-compat.test.mjs`) | WP4b; AGENT_WORKFLOW_HOME |
 | workflow-profile-tui.test.mjs | dropped | INVENTORY: drop(Pi TUI) |
-| workflow-report-contracts.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
-| workflow-router.test.mjs | deferred-WP5+ | bundled workflows (WP10); Pi host/extension modules: extension; Pi/pi-subagent package |
-| workflow-user-profiles.test.mjs | deferred-WP5+ | bundled workflows (WP10); Pi host/extension modules: extension,workflow-profile-ui,workflow-profile-tui |
+| workflow-report-contracts.test.mjs | ported-WP10 (`test/unit/core-workflow-report-contracts.test.mjs`) | WP10 bundled workflows; 7 of 7 tests |
+| workflow-router.test.mjs | ported-WP10 (`test/unit/core-workflow-router.test.mjs`) | WP10 bundled workflows; 8 deferred-WP11 (Pi extension: slash capture, arg parsing, TUI); no Pi theme init; 23 of 31 tests |
+| workflow-user-profiles.test.mjs | ported-WP10 (`test/unit/core-workflow-user-profiles.test.mjs`) | WP10 bundled workflows; 17 Pi host profile UI/TUI (deferred-WP11 or dropped); settings home AGENT_WORKFLOW_HOME; 10 of 27 tests |
 | workflow-view.test.mjs | dropped | INVENTORY: drop(Pi TUI) / port-adapted if board moves to CLI |
 | workflow-wait-tool.test.mjs | deferred-WP5+ | Pi host/extension modules: extension |
 
@@ -1106,3 +1106,56 @@ The core changes it needed:
 Left as is: `tool-metadata.ts` keeps the read-only/network classification of the three legacy
 `workflow_web_*` names (a user spec that still lists them compiles and is refused by the adapters
 before any effect, as the WP1b deep-research replay shows).
+
+### WP10 tests
+
+All 31 `deferred-WP5+ | bundled workflows (WP10)` files are ported as `test/unit/core-<name>.test.mjs`
+(table above: ported-WP10). Mechanical changes as in WP4c-2 (dist/core imports, the harness in
+`test/helpers/`, `setSubagentApiForTests`→`setTaskRuntimeApiForTests`, `.pi/…`→`.agent-workflow/…`,
+`PI_WORKFLOW_*`→`AGENT_WORKFLOW_*`); fixtures `test/fixtures/deep-research/*` and
+`test/helpers/impact-review-fixtures.mjs` are copied unchanged. Assertions changed (each marked in
+place; M* = docs/bundled-workflows.md change log):
+
+- deep-review-d01-d10 D09: blocks `.agent-workflow` (was `.pi`) to force the sidecar write failure (M2)
+- deep-review-ledger-corrective: OCR artifacts under `.agent-workflow/ocr-artifacts` (was `.pi/ocr-artifacts`) (M3)
+- spec-requirement-coverage IRCF-01 sidecar-failure: blocks `.agent-workflow` (was `.pi`) (M1/M2)
+- wb-012-public-contracts name resolution: user/global spec under `$AGENT_WORKFLOW_HOME/workflows` (was `~/.pi/agent/workflows`; agent-workflow root rule, WP4b)
+- wb-012-public-contracts router: "…, `/workflow auto`, or the matching `agent-workflow` CLI commands" (was "…, or `/workflow auto`") (M13)
+- wb-012-public-contracts root order: bundled README global root `~/.agent-workflow/workflows/` (was `~/.pi/agent/workflows/`); docs/usage.md half dropped (deferred-WP11)
+- wb-012-public-contracts: "public command and troubleshooting docs mirror runtime help" and "packaged docs have self-contained speed guardrails" not ported (deferred-WP11: docs/usage.md)
+- unit-core-runtime "deep-research sanitizer demotes url-only candidates…" → "…keeps url-only web candidates and promotes nothing (C2)": no demotion/promotion, claim-001 kept, slot-001 → ["claim-001"] (M8)
+- unit-core-runtime "claim-evidence-gate does not backfill near-miss source URLs": sourceRefJoinFailures 0 / [] (was 1 / ["claim-001"]) (M7)
+- unit-core-runtime "claim-evidence-gate canonicalizes candidate ids…": no `source_ref_join_failures` blocker (M7)
+- unit-core-runtime / unit-engine-store rate-limit backoff: 900_000 / 3_600_000 (was 60_000 / 240_000; WP4c-1 R#12 unknown auth kind → OAuth backoff)
+- unit-core-runtime, unit-engine-store, unit-artifact-web: backend handle `{engine: "agent-workflow", backend: "runtime"}`, backend id `agent-workflow/runtime` (WP4c-1 literal rename)
+- unit-engine-store: messages "launched via the pi executor", "executor run failed: …", "stale executor launch claim reset", "global executor worker slot" (WP4c-1 literal renames); shared backoff file under `$AGENT_WORKFLOW_HOME` (WP4c-1); launch option `effort` (was `thinking`, runtime-port)
+- unit-artifact-web: worker session ids `agent-workflow.<run>.<task>` (was `pi-workflow.`; WP4c-1)
+- unit-authoring-interface "bundled deep-research compacts audit packets…": verify prompt matches "cannot find an exact supporting quote in fetched content, do not mark the claim verified" and "Source verification is model-reported" (was /candidateOnly=true cannot verify/) (M6)
+- unit-authoring-interface "bundled workflows compile warning-free…": researcher agent tools `read, grep, find, ls, web_search, fetch_content` (was the three workflow_web_* tools) (M12)
+- unit-authoring-interface "bundled common agents are fallback…": project agent path `.agent-workflow/agents/scout.md` (was `.pi/agents`; WP4b)
+- execution-profiles: launch capture reads `effort` (was `thinking`; runtime-port mapping); registers the default fixture executor
+- graph-schema-contracts: the bundled schema walk is `workflows/` + `skills/workflow-guide/scaffolds`
+  with `count > 20` again (as the original); the WP4b fixture copy is walked as well.
+- Existing suites: `core-unit-dynamic-runtime` (web budget names `web_search`; direct-dynamic bundle
+  v5 and its `web_search`/`fetch_content` tools; launched system prompt shows the rendered artifact
+  name and the CLI web-tool hint), `core-dynamic-coordination-bundle-parity` (v5), `mcp-visible-names`
+  (`verified: true`), `test/helpers/register-default-executor.mjs` (fixture declares `webTools`).
+
+Not ported (marked in place with the reason): Pi host extension / TUI / profile UI tests
+(deferred-WP11 or dropped with the Pi TUI: 16 authoring-interface, 2 unit-core-runtime, 3 + 4
+unit-engine-store, 8 workflow-router, 17 workflow-user-profiles, 2 execution-profiles, 15
+unit-artifact-web); WP4b generated-wrapper tamper tests (3, unit-engine-store); C2/WP10 drops (4,
+unit-artifact-web: web-source cache sourceRef backfill ×2, fetch cache / normalized fetch ×2);
+docs/usage.md (2 + half of one, wb-012, deferred-WP11).
+
+New tests: `bundled-workflows.test.mjs` (bundled specs and scaffolds compile warning-free with the
+bundled agents; no `workflow_web_`, `.pi/workflows`, `.pi/ocr-artifacts`, `PI_WORKFLOW_`,
+`web-source-cache` or `mcp__workflow_artifact__` in `workflows/`, `skills/`, `agents/`; no Pi-only
+capability and `allowReadOnlyDowngrade` in every bundled spec; the deep-research completion summary,
+report and audit carry `SOURCE_VERIFICATION_STATEMENT`; the committed support table matches
+`test/helpers/bundled-support-table.mjs`), `core-worker-prompt-render.test.mjs` (renderer per
+executor, locators untouched, idempotent; the task backend sends rendered prompts with the
+guidelines section and keeps canonical prompt files).
+
+Counts after WP10: ported 1, ported-WP4b 23, ported-WP4c1 14, ported-WP4c2 15, ported-WP10 31,
+deferred-WP6 1, deferred-WP5+ 22, dropped 33 (140).
