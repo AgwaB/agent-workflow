@@ -1,4 +1,4 @@
-# Runtime port (WP2a-1, WP2a-2, WP2c)
+# Runtime port (WP2a-1, WP2a-2, WP2c, WP2b)
 
 Source: `@agwab/pi-subagent` 0.7.2, repository `pi-subagent-engine` at `ab91a74` (MIT, same author).
 Destination: `src/runtime/` (entry point `@agwab/agent-workflow/runtime`, compiled to `dist/runtime/`).
@@ -164,7 +164,7 @@ New agent-workflow tests (no pi-subagent counterpart):
 
 | Test file | Covers |
 |---|---|
-| `runtime-dir-lock.test.mjs` | Lock exclusivity, `ELOCKED`, release, and cleanup on exit and on SIGTERM |
+| `runtime-dir-lock.test.mjs` | Lock exclusivity, `ELOCKED`, release, and cleanup on exit and on SIGTERM; WP2b: release after an external removal is not `ECOMPROMISED`, a replaced owner record is |
 | `runtime-dir-lock-owner.test.mjs` (WP2c) | Owner-aware stealing: a SIGKILLed real holder's run lock is stolen and a later reconcile completes; a live holder survives 8 in-process + 6 cross-process contenders; 8 in-process and 6 cross-process stealers of one stale lock → exactly one winner; garbage / no-birth-identity / other-host / token-mismatch / missing owner records are never stolen; a live pid with a different birth identity (pid reuse) is stolen; `process.exit` during an acquisition never leaves an ownerless lock |
 | `runtime-status-interrupt.test.mjs` | Status snapshots and wait; interrupt of an identity-verified process; a forged identity is refused |
 | `runtime-workers.test.mjs` | process-gate exit 125/127, exit code and signal passthrough, `--file` mode |
@@ -174,6 +174,7 @@ New agent-workflow tests (no pi-subagent counterpart):
 | `runtime-durable-authority.test.mjs` (WP2a-2) | Single use in-process and across instances; abort → revoked; V2 release/revoke; binding only after release; typed guard errors |
 | `runtime-pre-release-terminal.test.mjs` (WP2c) | Barrier timeout before release (worktree) → `failed/guard_failure`, terminal `result.json`, attempt inactive, finalizer events, worktree removed; engine revoke → `cancelled/revoked`, same terminal checks |
 | `runtime-env-at-rest.test.mjs` (WP2c) | Async run with a released V2 barrier and `env: { SECRET_TOKEN }` + an MCP server env value: every file under the run cwd, the barrier dir and the run index is scanned → zero hits; `worker.json` has keys only; the fixture executor received the values (it logs their SHA-256); a sync run writes no value either; the plan object holds `sha256:` digests and its digest changes when only a value changes; a worker without the env channel fails closed with `guard_failure` naming the key |
+| `runtime-terminal-last-write.test.mjs` (WP2b) | Stress: 3 rounds × every durable terminal path (completed, released barrier, revoke, barrier timeout, rediscovery refusal, fence violation, SIGTERM, worktree) observed by a tight poller that checks every artifact the moment `result.json` turns terminal (and that `run.json` never turns terminal first), with one busy child per core; zero misses |
 | `runtime-execute.test.mjs` (WP2a-2) | `failed.class` table; invalid events/sequences; post-release submit failure → reconcile; timeouts; approval answers; usage; output recovery; idempotent resubmission; input validation; plan digest; `captureToolCalls` |
 | `runtime-packed-install.test.mjs` (WP2a-2 addition) | The installed `durable-worker.js` runs the fake executor fixture end to end (offline) |
 
@@ -512,6 +513,37 @@ Run results, statuses and `RunStatusSnapshot` keep their shapes; `backend` is th
       environment, the plan digest hashes each value (see "Env values at rest" and "Execution plan digest").
       Adapters must still keep values out of their own logs and `artifactsDir` files (the runtime cannot
       redact what an executor writes).
+
+13. **WP2b terminal-last-write invariant.** Once an attempt's `result.json` is terminal, every attempt
+    artifact is complete and present: `stderr.log`, `output.log`, `exec-events.jsonl` (when a ref
+    exists), a decided `authority.json` (when consume ran), every artifact the result lists (at its
+    recorded size), and the worktree finalization. The registry (`run.json`) only commits from the terminal result (finalizer), never
+    ahead of it. Fixes:
+    - the durable worker's pre-release terminal paths (guard failure, revoke, unresolved payload) also
+      write `output.log` (empty when nothing ran; never clobbering existing output) before the result;
+    - a `consume()` that throws rewrites `authority.json` to phase `failed` (was left `consuming`);
+    - worktree mode writes the terminal `result.json` once, after the status/diff artifacts and the
+      cleanup (`store.buildResult` + `finalizeWorktreeResult`); it used to be written terminal with
+      cleanup `execution-owned`, then rewritten;
+    - `writeResult` fsyncs the listed artifacts and the temp file before the rename, and the directory
+      after it (crash consistency of the commit point);
+    - the durable worker keeps at most one heartbeat in flight (a `setInterval` heartbeat that waited on
+      the run lock piled up under load and starved the attempt's own registry mutations);
+    - `dir-lock` release treats a lock directory without any owner record as removed from outside
+      (`gone`) instead of `ECOMPROMISED`; only a replaced owner record (a steal) is a compromise.
+    Flake root causes:
+    - **`5b` (finalizer exit 1):** the test removes the run's cwd as soon as the finalizer's terminal
+      events are visible; the finalizer appends them inside the run lock and releases it right after.
+      `rm -r` unlinked the owner record before removing the lock directory, so the release saw "our
+      record gone, directory still there" and raised `ECOMPROMISED` (uncaught → exit 1). Product fix
+      above (release semantics); the test's premise — published events permit cleanup — now holds.
+    - **`fencing (a)` (`stderr.log` ENOENT after terminal `cancelled`):** in WP2a-2 the worker's
+      pre-release path marked the attempt `cancelled` in `run.json` (`discardSubagentExecution`) before
+      it wrote `stderr.log`/`result.json`, so an observer of the registry saw terminal first. WP2c
+      removed that call from the worker; WP2b closes the remaining gaps above and adds the stress test.
+      `runtime-env-at-rest.test.mjs` "no channel" polled for `stderr.log` after terminal (same
+      assumption) and removed its fixture while the finalizer was still committing (`ENOTEMPTY` in
+      `after()`); it now reads `stderr.log` directly and waits for `run.failed` (test-only fix).
 
 ## Inherited from pi-subagent 0.7.2
 

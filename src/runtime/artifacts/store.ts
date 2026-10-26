@@ -1,6 +1,13 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/artifacts/store.ts. MIT, same author. Changes: default runs dir is DEFAULT_RUNS_DIR (".agent-workflow/runs") from core/constants; WP2a-2 adds exec-events.jsonl.
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/artifacts/store.ts. MIT, same author. Changes: default runs dir is DEFAULT_RUNS_DIR (".agent-workflow/runs") from core/constants; WP2a-2 adds exec-events.jsonl. WP2b (terminal-last-write): writeResult fsyncs the temp file (and, for a terminal result, every listed artifact) before the rename and the directory after it; buildResult returns the envelope writeResult would write without writing it.
 import { randomBytes } from "node:crypto";
-import { appendFile, mkdir, rename, stat, writeFile } from "node:fs/promises";
+import {
+	appendFile,
+	mkdir,
+	open,
+	rename,
+	stat,
+	writeFile,
+} from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import {
 	createResultEnvelope,
@@ -63,6 +70,8 @@ export interface AttemptArtifactStore {
 		content: string | Uint8Array,
 	): Promise<ArtifactRef>;
 	writeResult(input: StoreResultEnvelopeInput): Promise<ResultEnvelope>;
+	/** The envelope `writeResult` would write, not written (WP2b: finalize before the terminal write). */
+	buildResult(input: StoreResultEnvelopeInput): ResultEnvelope;
 	/** @deprecated v1 compatibility only. */
 	taskId: string;
 	/** @deprecated v1 compatibility only. */
@@ -111,6 +120,25 @@ function byteLength(content: string | Uint8Array): number {
 async function fileSize(path: string): Promise<number> {
 	const info = await stat(path);
 	return info.size;
+}
+
+function isTerminalResultStatus(status: string): boolean {
+	return (
+		status === "completed" || status === "failed" || status === "cancelled"
+	);
+}
+
+/** fsync a file or directory; a missing path or a platform without directory fsync is ignored. */
+async function syncFile(path: string): Promise<void> {
+	let handle: Awaited<ReturnType<typeof open>> | undefined;
+	try {
+		handle = await open(path, "r");
+		await handle.sync();
+	} catch {
+		// Missing artifact (reported by its reader) or EISDIR/EPERM for directory fsync.
+	} finally {
+		await handle?.close().catch(() => undefined);
+	}
 }
 
 export function createRunId(now: Date = new Date()): string {
@@ -171,19 +199,37 @@ export async function createAttemptArtifactStore(
 		return refFor(type, await fileSize(pathFor(type)));
 	}
 
-	async function writeResult(
-		input: StoreResultEnvelopeInput,
-	): Promise<ResultEnvelope> {
-		const result = createResultEnvelope({
+	function buildResult(input: StoreResultEnvelopeInput): ResultEnvelope {
+		return createResultEnvelope({
 			...input,
 			runId: input.runId ?? runId,
 			attemptId: input.attemptId ?? attemptId,
 			artifacts: mergeArtifactRefs(input.artifacts ?? [], [refFor("result")]),
 		});
+	}
+
+	async function writeResult(
+		input: StoreResultEnvelopeInput,
+	): Promise<ResultEnvelope> {
+		const result = buildResult(input);
 		const resultPath = pathFor("result");
 		const tempPath = `${resultPath}.${process.pid}.${Date.now()}.tmp`;
-		await writeFile(tempPath, `${JSON.stringify(result, null, 2)}\n`);
+		// WP2b terminal-last-write: a terminal result.json is the commit point observers and
+		// reconcile trust, so the artifacts it lists reach disk before it does (rename after fsync,
+		// then the directory entry).
+		if (isTerminalResultStatus(result.status))
+			for (const artifact of result.artifacts)
+				if (artifact.type !== "result")
+					await syncFile(resolve(cwd, artifact.path.split("/").join(sep)));
+		const handle = await open(tempPath, "w");
+		try {
+			await handle.writeFile(`${JSON.stringify(result, null, 2)}\n`);
+			await handle.sync();
+		} finally {
+			await handle.close();
+		}
 		await rename(tempPath, resultPath);
+		await syncFile(attemptDir);
 		return result;
 	}
 
@@ -200,6 +246,7 @@ export async function createAttemptArtifactStore(
 		writeTextArtifact,
 		appendTextArtifact,
 		writeResult,
+		buildResult,
 		taskId: attemptId,
 		taskDir: attemptDir,
 	};

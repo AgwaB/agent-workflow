@@ -46,6 +46,10 @@
 // Residual: a holder SIGKILLed between `mkdir` and the record rename (two
 // adjacent syscalls) leaves a lock with no owner record, which is never stolen
 // (operator removal, as before WP2c).
+//
+// WP2b: release raises ECOMPROMISED only when another owner record replaced ours (a steal). A
+// lock directory with no owner record at all is being removed from outside; release treats it
+// as gone instead of failing (see releaseHeldLockSync).
 import { randomBytes } from "node:crypto";
 import {
 	mkdirSync,
@@ -106,6 +110,14 @@ function ownBirthIdentity(): Promise<string | null> {
  * Remove a lock this process holds: our record first, then the directory. A directory that no
  * longer holds our record is not ours any more and is left alone. Synchronous on purpose (see
  * the header).
+ *
+ * WP2b: our record missing is "not-ours" (a steal) only when another owner record is in the
+ * directory — a steal always renames a record in, never leaves the directory without one. A
+ * directory without any owner record is being removed from outside (prune, a test fixture
+ * cleanup `rm -r` of the runs dir) or was just re-created by a new holder that has not renamed
+ * its record in yet: either way nothing of ours is left to release ("gone"), and it is left
+ * alone. Before WP2b this raised ECOMPROMISED, so a finalizer that had already published its
+ * terminal events exited 1 when its run directory was removed concurrently.
  */
 function releaseHeldLockSync(
 	path: string,
@@ -115,13 +127,16 @@ function releaseHeldLockSync(
 		unlinkSync(join(path, ownerFile));
 	} catch (error) {
 		if (errorCode(error) !== "ENOENT") throw error;
+		let entries: string[];
 		try {
-			readdirSync(path);
+			entries = readdirSync(path);
 		} catch (readError) {
 			if (errorCode(readError) === "ENOENT") return "gone";
 			throw readError;
 		}
-		return "not-ours";
+		return entries.some((entry) => OWNER_FILE.test(entry))
+			? "not-ours"
+			: "gone";
 	}
 	rmSync(path, { recursive: true, force: true });
 	return "released";

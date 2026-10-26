@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/orchestrate/run.ts. MIT, same author. Changes: Pi agent loading (loadAgentByName, agent tools ceiling) removed — the core supplies prompt/system prompt/model/tools in the request; resolveBackend replaced by the run's ExecutorDescriptor (backend = executor id); the headless/inline/tmux runners replaced by executeAttempt (SDK submit/observe under the durable authority); tmux metadata plumbing and the inline-binding guard removed; a pre-effect ExecutionNotStartedError is written as a terminal result instead of thrown from runSubagentTask; the durable worker binding is handed out by the authority, not by childEnv. WP2c: discardPreparedExecutionWorkspace (workspace-only discard for callers that write their own terminal result); discardSubagentExecution clears activeAttemptId (pi-subagent left the cancelled attempt active).
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/orchestrate/run.ts. MIT, same author. Changes: Pi agent loading (loadAgentByName, agent tools ceiling) removed — the core supplies prompt/system prompt/model/tools in the request; resolveBackend replaced by the run's ExecutorDescriptor (backend = executor id); the headless/inline/tmux runners replaced by executeAttempt (SDK submit/observe under the durable authority); tmux metadata plumbing and the inline-binding guard removed; a pre-effect ExecutionNotStartedError is written as a terminal result instead of thrown from runSubagentTask; the durable worker binding is handed out by the authority, not by childEnv. WP2c: discardPreparedExecutionWorkspace (workspace-only discard for callers that write their own terminal result); discardSubagentExecution clears activeAttemptId (pi-subagent left the cancelled attempt active). WP2b: in worktree mode the terminal result.json is written once, after the worktree finalization; the durable control mailbox (orchestrate/control.ts) is served during execution and closed before the terminal result.
 import { resolve } from "node:path";
 import type { WorkflowExecutor } from "../../sdk/contract.js";
 import { type ExecutorRegistry, loadExecutor } from "../../sdk/descriptor.js";
@@ -13,6 +13,7 @@ import {
 	upsertRunAttempt,
 	type ResultEnvelope,
 	type RunRef,
+	type StoreResultEnvelopeInput,
 } from "../artifacts/index.js";
 import {
 	isFailureKind,
@@ -684,7 +685,7 @@ export async function runPreparedSubagentExecution(
 			report.message.length === 0 ? "" : `${report.message}\n`,
 		);
 		const output = await store.writeTextArtifact("output", report.outputText);
-		let result = await store.writeResult({
+		const resultInput: StoreResultEnvelopeInput = {
 			backend,
 			status: report.status,
 			failureKind: report.failureKind,
@@ -716,8 +717,18 @@ export async function runPreparedSubagentExecution(
 					: { parentSessionId: input.parentSessionId }),
 				executor: report.executor,
 			},
-		});
-		result = await finalizeWorktreeResult(workspace, result, input.runsDir);
+		};
+		// WP2b terminal-last-write: in worktree mode the terminal result.json is written once, by
+		// the worktree finalization, after its status/diff artifacts (it used to be written
+		// terminal first with cleanup "execution-owned", then rewritten).
+		const result =
+			workspace.mode === "worktree" && workspace.worktreePath !== null
+				? await finalizeWorktreeResult(
+						workspace,
+						store.buildResult(resultInput),
+						input.runsDir,
+					)
+				: await store.writeResult(resultInput);
 		prepared.ownership.state = "finalized";
 		const terminalCleanupStatus = result.workspace.worktreeCleanupStatus;
 		prepared.ownership.cleanupStatus =
