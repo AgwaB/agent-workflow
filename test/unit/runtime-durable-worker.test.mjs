@@ -490,7 +490,7 @@ test("interrupt: SIGTERM mid-run → cancel(owned) → terminal cancelled/user_c
 	const { interruptSubagent } = await import("../../dist/runtime/index.js");
 	const run = await runSubagent({
 		cwd,
-		executor: fixtureDescriptor({ effectLog, stepDelayMs: 400 }),
+		executor: fixtureDescriptor({ effectLog, stepDelayMs: 1000 }),
 		task: "slow",
 		async: true,
 	});

@@ -48,6 +48,7 @@ export * from "./orchestrate/request.js";
 export * from "./orchestrate/execute.js";
 export * from "./orchestrate/executor-record.js";
 export * from "./durable-authority.js";
+export * from "./telemetry/tool-call-telemetry.js";
 export * from "./api.js";
 export {
 	DEFAULT_RUN_INDEX_DIR_SEGMENTS,

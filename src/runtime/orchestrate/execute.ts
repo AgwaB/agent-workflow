@@ -37,6 +37,11 @@ import {
 	type DurableLaunchAuthority,
 	isDurableAuthorityError,
 } from "../durable-authority.js";
+import {
+	flushToolCallTelemetry,
+	processExecToolCall,
+	ToolCallTelemetryCollector,
+} from "../telemetry/tool-call-telemetry.js";
 import type { SubmitRequestFields } from "./request.js";
 
 /** How long the runtime waits for a terminal event after it asked the executor to stop. */
@@ -369,6 +374,8 @@ export interface ExecuteAttemptOptions {
 	/** Called once with the ExecRef the runtime is going to observe. */
 	onSubmitted?(ref: ExecRef): Promise<void> | void;
 	cancelGraceMs?: number;
+	/** Write tool-calls.jsonl / tool-calls-summary.json from normalized tool_call events. */
+	captureToolCalls?: boolean;
 }
 
 /**
@@ -392,6 +399,10 @@ export async function executeAttempt(
 		attemptKey: request.attemptKey,
 	};
 	const notes: string[] = [];
+	const toolCalls =
+		options.captureToolCalls === true
+			? new ToolCallTelemetryCollector()
+			: undefined;
 	let releasedNotified = false;
 	const noteReleased = () => {
 		if (!releasedNotified && fence.state() === "released") {
@@ -484,12 +495,20 @@ export async function executeAttempt(
 			unauthorized: () =>
 				fence.state() === "released" ? undefined : fence.state(),
 			cancelOnStop: true,
+			...(toolCalls === undefined
+				? {}
+				: {
+						onEvent: (event: ExecEvent, index: number) =>
+							processExecToolCall(toolCalls, event, index),
+					}),
 		}),
 	);
 
-	function finish(outcome: AttemptOutcome): Promise<ExecutionReport> {
+	async function finish(outcome: AttemptOutcome): Promise<ExecutionReport> {
 		meta.authority = authorityLabel(fence.state());
-		return buildExecutionReport(store, meta, notes, outcome);
+		const report = await buildExecutionReport(store, meta, notes, outcome);
+		report.artifacts.push(...(await flushToolCallTelemetry(toolCalls, store)));
+		return report;
 	}
 }
 
@@ -524,6 +543,8 @@ export interface ObserveAttemptOptions {
 	 * false (adoption by reconcile): a stop just abandons observation, leaving the attempt alone.
 	 */
 	cancelOnStop: boolean;
+	/** Called for every accepted (valid, authorized) event, in order. */
+	onEvent?(event: ExecEvent, index: number): void;
 }
 
 /** Observe one ExecRef to its terminal event, validating every event and the sequence. */
@@ -599,6 +620,7 @@ export async function observeAttempt(
 			break;
 		}
 		events.push(valid);
+		options.onEvent?.(valid, events.length - 1);
 		await store.appendTextArtifact("exec-events", `${JSON.stringify(valid)}\n`);
 		if (valid.type === "started" && valid.sessionId !== null)
 			sessionId = valid.sessionId;

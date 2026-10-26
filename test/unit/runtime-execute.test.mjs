@@ -353,12 +353,30 @@ test("post-release submit failure asks executor.reconcile: unknown → needs_dec
 test("timeout after release cancels (owned) and records timeout with partial output", async () => {
 	const module = "inline:slow";
 	const registry = createExecutorRegistry();
-	registry.register(module, createFakeExecutorModule({ stepDelayMs: 150 }));
+	// Text arrives early; the terminal event only after ~3 s, well past the timeout even under load.
+	const padding = Array.from({ length: 30 }, () => ({
+		type: "tool_call",
+		name: "read",
+		kind: "read",
+		status: "completed",
+	}));
+	registry.register(
+		module,
+		createFakeExecutorModule({
+			stepDelayMs: 100,
+			script: [
+				{ type: "started", sessionId: null },
+				{ type: "message_delta", text: "fake output" },
+				...padding,
+				{ type: "completed", finalText: "too late" },
+			],
+		}),
+	);
 	const result = await runSubagent({
 		cwd: await cwd(),
 		executor: descriptorFor(module),
 		task: "slow",
-		timeoutMs: 400,
+		timeoutMs: 1_000,
 		registry,
 	});
 	assert.equal(result.status, "failed");
@@ -633,5 +651,82 @@ test("execution plan digest covers the descriptor and every request field but no
 		withBinding.env,
 		{ KEEP: "1" },
 		"the binding never comes from the caller",
+	);
+});
+
+test("captureToolCalls: normalized tool_call events produce the ported telemetry artifacts", async () => {
+	const module = "inline:telemetry";
+	const registry = createExecutorRegistry();
+	registry.register(
+		module,
+		createFakeExecutorModule({
+			script: [
+				{ type: "started", sessionId: null },
+				{
+					type: "tool_call",
+					name: "read",
+					kind: "read",
+					status: "running",
+					callId: "c1",
+					input: { path: "a.md" },
+				},
+				{
+					type: "tool_call",
+					name: "read",
+					kind: "read",
+					status: "completed",
+					callId: "c1",
+					output: "ok",
+				},
+				{
+					type: "tool_call",
+					name: "bash",
+					kind: "execute",
+					status: "failed",
+					input: { command: "ls", token: "sk-secret" },
+				},
+				{ type: "completed", finalText: "done" },
+			],
+		}),
+	);
+	const result = await runSubagent({
+		cwd: await cwd(),
+		executor: descriptorFor(module),
+		task: "use tools",
+		captureToolCalls: true,
+		registry,
+	});
+	assert.equal(result.status, "completed");
+	const path = (type) =>
+		join(result.cwd, result.artifacts.find((a) => a.type === type).path);
+	const records = (await readFile(path("tool-calls"), "utf8"))
+		.trim()
+		.split("\n")
+		.map((line) => JSON.parse(line));
+	assert.deepEqual(
+		records.map((record) => [record.toolName, record.status, record.category]),
+		[
+			["read", "completed", "filesystem"],
+			["bash", "failed", "shell"],
+		],
+	);
+	assert.equal(records[1].failedArgs.value.token, "[REDACTED]");
+	const summary = JSON.parse(
+		await readFile(path("tool-calls-summary"), "utf8"),
+	);
+	assert.deepEqual(summary.statusCounts, {
+		completed: 1,
+		failed: 1,
+		incomplete: 0,
+	});
+	const plain = await runSubagent({
+		cwd: await cwd(),
+		executor: descriptorFor(module),
+		task: "no capture",
+		registry,
+	});
+	assert.equal(
+		plain.artifacts.some((a) => a.type === "tool-calls"),
+		false,
 	);
 });

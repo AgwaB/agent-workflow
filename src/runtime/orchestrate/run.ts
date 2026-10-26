@@ -649,6 +649,7 @@ export async function runPreparedSubagentExecution(
 			authority,
 			store,
 			stopSignal: stop.signal,
+			...(input.captureToolCalls === true ? { captureToolCalls: true } : {}),
 			onReleased() {
 				// Before release the worktree is still pristine and discardable.
 				prepared.ownership.state = "execution-owned";
