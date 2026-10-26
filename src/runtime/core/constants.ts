@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/core/constants.ts. MIT, same author. Changes: inline/headless/tmux backend enums replaced by generic executor ids, DEFAULT_RUNS_DIR=".agent-workflow/runs" added, sandboxAllowedDomains (srt hook) removed, Pi wording dropped from comments.
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/core/constants.ts. MIT, same author. Changes: inline/headless/tmux backend enums replaced by generic executor ids, DEFAULT_RUNS_DIR=".agent-workflow/runs" added, sandboxAllowedDomains (srt hook) removed, Pi wording dropped from comments; WP2a-2 adds executor failure kinds (transient, rate_limit, executor_*, not_started, needs_decision).
 import type {
 	DurableLaunchBarrierDescriptor,
 	DurableLaunchBarrierV2Descriptor,
@@ -41,6 +41,23 @@ export const FAILURE_KINDS = [
 	"parse",
 	"internal",
 	"stale",
+	// WP2a-2 executor seam (see docs/runtime-port.md "Failure kinds").
+	/** Executor `failed.class: "transient"`; the core may retry automatically. */
+	"transient",
+	/** Executor `failed.class: "rate_limit"`; the core may retry after backoff. */
+	"rate_limit",
+	/** Executor `failed.class: "auth"`: login/credentials. Never retried automatically. */
+	"executor_auth",
+	/** Executor `failed.class: "config"`: CLI/profile misconfiguration. Never retried automatically. */
+	"executor_config",
+	/** Executor `failed.class: "permanent"`. Never retried automatically. */
+	"executor_permanent",
+	/** Executor `failed.class: "unknown"`: the adapter could not classify the failure. Never retried automatically. */
+	"executor_unknown",
+	/** Reconcile: the executor proved the attempt never launched (`absent`). Safe to relaunch. */
+	"not_started",
+	/** Reconcile: the executor cannot prove either way (`unknown`, B3). Stop and ask a person. */
+	"needs_decision",
 ] as const;
 export const EXECUTION_MODES = ["single", "parallel"] as const;
 export const ASYNC_DEPENDENCIES = [

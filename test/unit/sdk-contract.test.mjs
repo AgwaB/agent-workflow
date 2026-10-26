@@ -114,6 +114,24 @@ test("validateSubmitRequest enforces attempt identity, explicit cwd, and no secr
 	);
 });
 
+test("validateSubmitRequest accepts an absolute artifactsDir and rejects a relative one", () => {
+	const gate = sdk.createAuthorityGate({ attemptKey: "a-3" });
+	assert.deepEqual(
+		sdk.validateSubmitRequest(
+			testing.fakeSubmitRequest(gate, { artifactsDir: root }),
+		),
+		[],
+	);
+	assert.match(
+		sdk
+			.validateSubmitRequest(
+				testing.fakeSubmitRequest(gate, { artifactsDir: "runs/attempt" }),
+			)
+			.join(),
+		/artifactsDir must be an absolute path/,
+	);
+});
+
 test("reconcile helpers distinguish unknown from absent", () => {
 	assert.ok(sdk.isReconcileUnknown({ unknown: true }));
 	assert.ok(!sdk.isReconcileUnknown({ absent: true }));

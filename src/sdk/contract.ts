@@ -3,6 +3,7 @@
  * Semantics follow gajae-code's session CLI (idempotency keys, reconcile, `unknown` ≠ not run,
  * wait-timeout ≠ cancel) and gjc/vibe-kanban cancel scopes/results.
  */
+import { isAbsolute } from "node:path";
 import type { ApprovalDecision, ApprovalPolicy } from "./approval.js";
 import type { ExecutionAuthority } from "./authority.js";
 import type { ExecutorCapabilities } from "./capabilities.js";
@@ -63,6 +64,12 @@ export interface SubmitRequest {
 	readonly env: Readonly<Record<string, string>>;
 	readonly isolation: IsolationPolicy;
 	readonly approvalPolicy: ApprovalPolicy;
+	/**
+	 * Absolute attempt artifact directory owned by the runtime. Adapters may write raw CLI logs
+	 * here (D3: normalized events are a view over raw output). Absent for callers without a run
+	 * directory; adapters must not assume it exists.
+	 */
+	readonly artifactsDir?: string;
 }
 
 export type AuthStatus = "ok" | "missing" | "expired" | "unknown";
@@ -219,6 +226,11 @@ export function validateSubmitRequest(req: SubmitRequest): string[] {
 		problems.push("authority.attemptKey must equal attemptKey");
 	if (typeof req.cwd !== "string" || req.cwd === "")
 		problems.push("cwd must be explicit (desktop hosts may lack one)");
+	if (
+		req.artifactsDir !== undefined &&
+		(typeof req.artifactsDir !== "string" || !isAbsolute(req.artifactsDir))
+	)
+		problems.push("artifactsDir must be an absolute path when provided");
 	if (!Array.isArray(req.tools)) problems.push("tools must be an array");
 	if (!Number.isFinite(req.deadlineMs))
 		problems.push("deadlineMs must be a finite number");

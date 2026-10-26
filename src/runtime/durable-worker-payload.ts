@@ -1,7 +1,11 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/durable-worker-payload.ts. MIT, same author. Changes: payload backend must be a resolved executor id instead of one of inline/headless/tmux.
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/durable-worker-payload.ts. MIT, same author. Changes: payload backend must be a resolved executor id instead of one of inline/headless/tmux; WP2a-2 adds the optional `executor` descriptor field (validated, id must equal backend).
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
+import {
+	type ExecutorDescriptor,
+	validateExecutorDescriptor,
+} from "../sdk/descriptor.js";
 import { isResolvedBackend } from "./core/constants.js";
 
 /**
@@ -36,10 +40,13 @@ export interface DurableWorkerTextRef {
 export interface DurableWorkerPayload {
 	input: object;
 	cwd: string;
+	/** Executor id; equals `executor.id` when an executor descriptor is present. */
 	backend: string;
 	runId: string;
 	attemptId: string;
 	startedAt: string;
+	/** WP2a-2: the executor to reload in the worker process (`loadExecutor`). */
+	executor?: ExecutorDescriptor;
 }
 
 export interface WriteDurableWorkerPayloadOptions extends DurableWorkerPayload {
@@ -191,6 +198,17 @@ export function assertDurableWorkerPayloadShape(
 		);
 	if (!isAbsolute(cwd))
 		throw new Error("durable worker payload cwd must be absolute");
+	if (payload.executor !== undefined) {
+		const problems = validateExecutorDescriptor(payload.executor);
+		if (problems.length > 0)
+			throw new Error(
+				`durable worker payload executor is invalid: ${problems.join("; ")}`,
+			);
+		if ((payload.executor as ExecutorDescriptor).id !== backend)
+			throw new Error(
+				`durable worker payload backend ${JSON.stringify(backend)} does not match executor id ${JSON.stringify((payload.executor as ExecutorDescriptor).id)}`,
+			);
+	}
 }
 
 export async function resolveDurableWorkerPayload<
