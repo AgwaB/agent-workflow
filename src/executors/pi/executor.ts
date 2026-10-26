@@ -11,6 +11,7 @@ import {
 	readdir,
 	readFile,
 	rm,
+	stat,
 	writeFile,
 } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
@@ -30,6 +31,7 @@ import {
 	type ApprovalResponseResult,
 	type CancelResult,
 	type CancelScope,
+	type DeleteOwnedSessionResult,
 	EXECUTOR_CONTRACT_VERSION,
 	type ExecRef,
 	type ExecutorProbe,
@@ -271,7 +273,7 @@ interface LaunchPlan {
 export interface PiExecutor extends WorkflowExecutor {
 	probe(): Promise<PiExecutorProbe>;
 	/** Delete a worker session this adapter kept (D3, R#10). Only paths under its own state dir. */
-	deleteOwnedSession(session: OwnedSession): Promise<boolean>;
+	deleteOwnedSession(session: OwnedSession): Promise<DeleteOwnedSessionResult>;
 	readonly config: PiExecutorConfig;
 	readonly stateDir: string;
 }
@@ -890,13 +892,22 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 			return "unknown_request";
 		},
 
-		async deleteOwnedSession(session: OwnedSession): Promise<boolean> {
-			if (session.kind !== PI_SESSION_KIND) return false;
+		async deleteOwnedSession(
+			session: OwnedSession,
+		): Promise<DeleteOwnedSessionResult> {
+			// Only session dirs this adapter created directly under its own state dir.
+			if (session.kind !== PI_SESSION_KIND) return "refused";
 			const target = resolve(session.locator);
 			const rel = relative(sessionsRoot, target);
-			if (rel === "" || rel.startsWith("..") || rel.includes(sep)) return false;
+			if (rel === "" || rel.startsWith("..") || rel.includes(sep))
+				return "refused";
+			const existed = await stat(target).then(
+				() => true,
+				() => false,
+			);
+			if (!existed) return "not_found";
 			await rm(target, { recursive: true, force: true });
-			return true;
+			return "deleted";
 		},
 	};
 	return executor;

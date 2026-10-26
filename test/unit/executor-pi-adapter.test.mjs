@@ -572,17 +572,18 @@ test("sessions (D3): kept only on request, reported as ownedSession, deletable o
 			kind: "pi-session-dir",
 			locator: "/etc",
 		}),
-		false,
+		"refused",
 	);
 	assert.equal(
 		await executor.deleteOwnedSession({
 			kind: "other",
 			locator: owned.locator,
 		}),
-		false,
+		"refused",
 	);
-	assert.equal(await executor.deleteOwnedSession(owned), true);
+	assert.equal(await executor.deleteOwnedSession(owned), "deleted");
 	assert.equal(existsSync(owned.locator), false);
+	assert.equal(await executor.deleteOwnedSession(owned), "not_found");
 	const { req: plain } = request();
 	const plainEvents = await drain(executor, await executor.submit(plain));
 	assert.equal(plainEvents.at(-1).ownedSession, undefined);
