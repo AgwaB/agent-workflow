@@ -1,7 +1,6 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-artifact-tool.ts. MIT, same author. Changes: read-ledger rows keep deliveryUnverified: true (R#9 groundwork, WP4c).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-artifact-tool.ts. MIT, same author. Changes: read-ledger rows keep deliveryUnverified: true (R#9 groundwork, WP4c); the read ledger is appended and read without following links (O_NOFOLLOW + lstat/fstat same-file check; symlinked parent directory, hard-linked or non-regular ledger refused; mode 0600; one write per row) (WP4c-2); handleWorkflowArtifactToolCall takes `{onLedgerRecord, appendLedger}` so a caller receives the ledger row and can persist it itself (WP4c-2, for the MCP server).
 import { constants as fsConstants, type Stats } from "node:fs";
 import {
-	appendFile,
 	lstat,
 	mkdir,
 	open,
@@ -181,6 +180,22 @@ export interface WorkflowArtifactReadResult {
 export interface WorkflowArtifactToolResult {
 	content: Array<{ type: "text"; text: string }>;
 	details: Record<string, unknown>;
+}
+
+/**
+ * agent-workflow (WP4c-2): ledger hook for hosts that persist read evidence themselves (the MCP
+ * server decides delivery first). The result shape is unchanged.
+ */
+export interface WorkflowArtifactToolCallOptions {
+	/**
+	 * Default true: append each read row to `config.ledgerPath`. false: do not touch the ledger;
+	 * the caller must persist the row it receives through `onLedgerRecord`.
+	 */
+	appendLedger?: boolean;
+	/** Called once per read with the ledger row (after the append when `appendLedger` is true). */
+	onLedgerRecord?: (
+		record: WorkflowArtifactReadLedgerRecord,
+	) => void | Promise<void>;
 }
 
 type JsonRecord = Record<string, unknown>;
@@ -847,23 +862,126 @@ function jsonValueType(value: unknown): string {
 	return typeof value;
 }
 
+// O_NOFOLLOW / O_NONBLOCK are absent on some platforms (Windows); the lstat + fstat same-file
+// checks below still refuse a link or a non-regular file there.
+const LEDGER_NOFOLLOW = fsConstants.O_NOFOLLOW ?? 0;
+const LEDGER_NONBLOCK = fsConstants.O_NONBLOCK ?? 0;
+
+async function lstatIfPresent(path: string): Promise<Stats | undefined> {
+	try {
+		return await lstat(path);
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+		throw error;
+	}
+}
+
+function assertLedgerFileStat(stats: Stats): void {
+	if (stats.isSymbolicLink())
+		throw new Error("read ledger must not be a symlink");
+	if (!stats.isFile()) throw new Error("read ledger is not a regular file");
+	if (stats.nlink > 1) throw new Error("read ledger must not be hard-linked");
+}
+
+async function assertLedgerDirectory(ledgerFile: string): Promise<Stats> {
+	const dir = await lstat(dirname(ledgerFile));
+	if (dir.isSymbolicLink())
+		throw new Error("read ledger directory must not be a symlink");
+	if (!dir.isDirectory())
+		throw new Error("read ledger directory is not a directory");
+	return dir;
+}
+
+function sameFile(left: Stats, right: Stats): boolean {
+	return left.dev === right.dev && left.ino === right.ino;
+}
+
+/**
+ * Open the read ledger without following links: a planted symlink (final component or parent
+ * directory), a hard link or a non-regular file at the ledger path is refused, so evidence rows can
+ * never be redirected outside the task directory. The opened file must be the one at the path
+ * (same dev/inode before and after the open).
+ */
+async function openReadLedger(
+	ledgerFile: string,
+	flags: number,
+): Promise<FileHandle | undefined> {
+	const dirBefore = await assertLedgerDirectory(ledgerFile);
+	const before = await lstatIfPresent(ledgerFile);
+	if (before !== undefined) assertLedgerFileStat(before);
+	let handle: FileHandle;
+	try {
+		handle = await open(
+			ledgerFile,
+			flags | LEDGER_NOFOLLOW | LEDGER_NONBLOCK,
+			0o600,
+		);
+	} catch (error) {
+		const code = (error as NodeJS.ErrnoException).code;
+		if (code === "ENOENT" && (flags & fsConstants.O_CREAT) === 0)
+			return undefined;
+		// O_NOFOLLOW on a symlink: ELOOP (Linux/macOS) or EMLINK (FreeBSD); FIFO without reader: ENXIO.
+		if (code === "ELOOP" || code === "EMLINK")
+			throw new Error("read ledger must not be a symlink");
+		if (code === "ENXIO") throw new Error("read ledger is not a regular file");
+		throw error;
+	}
+	try {
+		const opened = await handle.stat();
+		assertLedgerFileStat(opened);
+		const after = await lstat(ledgerFile);
+		assertLedgerFileStat(after);
+		const dirAfter = await assertLedgerDirectory(ledgerFile);
+		if (!sameFile(opened, after) || !sameFile(dirBefore, dirAfter))
+			throw new Error("read ledger changed while it was opened");
+		return handle;
+	} catch (error) {
+		await handle.close();
+		throw error;
+	}
+}
+
 export async function appendWorkflowArtifactReadLedger(
 	ledgerPath: string,
 	record: WorkflowArtifactReadLedgerRecord,
 ): Promise<void> {
-	await mkdir(dirname(resolve(ledgerPath)), { recursive: true });
-	await appendFile(resolve(ledgerPath), `${JSON.stringify(record)}\n`, "utf8");
+	const ledgerFile = resolve(ledgerPath);
+	await mkdir(dirname(ledgerFile), { recursive: true });
+	const handle = await openReadLedger(
+		ledgerFile,
+		fsConstants.O_WRONLY | fsConstants.O_APPEND | fsConstants.O_CREAT,
+	);
+	if (handle === undefined) throw new Error("read ledger could not be opened");
+	try {
+		// One O_APPEND write per row keeps rows whole when several calls append concurrently.
+		const line = Buffer.from(`${JSON.stringify(record)}\n`, "utf8");
+		let offset = 0;
+		while (offset < line.length) {
+			const { bytesWritten } = await handle.write(
+				line,
+				offset,
+				line.length - offset,
+			);
+			if (bytesWritten <= 0) throw new Error("read ledger write failed");
+			offset += bytesWritten;
+		}
+	} finally {
+		await handle.close();
+	}
 }
 
 export async function readWorkflowArtifactReadLedger(
 	ledgerPath: string,
 ): Promise<WorkflowArtifactReadLedgerRecord[]> {
+	const ledgerFile = resolve(ledgerPath);
+	if ((await lstatIfPresent(dirname(ledgerFile))) === undefined) return [];
+	const handle = await openReadLedger(ledgerFile, fsConstants.O_RDONLY);
+	if (handle === undefined) return [];
 	let text: string;
 	try {
-		text = await readFile(resolve(ledgerPath), "utf8");
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
-		throw error;
+		text = await handle.readFile("utf8");
+	} finally {
+		await handle.close();
 	}
 	return text
 		.split(/\r?\n/)
@@ -938,7 +1056,16 @@ function workflowArtifactReadDedupKey(
 export async function handleWorkflowArtifactToolCall(
 	params: unknown,
 	config: WorkflowArtifactToolConfig,
+	options: WorkflowArtifactToolCallOptions = {},
 ): Promise<WorkflowArtifactToolResult> {
+	const appendLedger = options.appendLedger ?? true;
+	const recordRead = async (
+		record: WorkflowArtifactReadLedgerRecord,
+	): Promise<void> => {
+		if (appendLedger)
+			await appendWorkflowArtifactReadLedger(config.ledgerPath, record);
+		await options.onLedgerRecord?.(record);
+	};
 	const input = normalizeToolInput(params);
 	const runDir = resolve(
 		config.runDir ?? inferRunDirFromManifestPath(resolve(config.manifestPath)),
@@ -984,7 +1111,7 @@ export async function handleWorkflowArtifactToolCall(
 			? workflowArtifactReadDedupCache.get(dedupKey)
 			: undefined;
 	if (cachedRead !== undefined) {
-		await appendWorkflowArtifactReadLedger(config.ledgerPath, {
+		await recordRead({
 			schema: WORKFLOW_ARTIFACT_READ_SCHEMA,
 			runId: config.runId,
 			taskId: config.taskId,
@@ -1061,7 +1188,7 @@ export async function handleWorkflowArtifactToolCall(
 		if (completedCacheKey !== undefined)
 			rememberCompletedArtifactRead(completedCacheKey, read);
 	}
-	await appendWorkflowArtifactReadLedger(config.ledgerPath, {
+	await recordRead({
 		schema: WORKFLOW_ARTIFACT_READ_SCHEMA,
 		runId: config.runId,
 		taskId: config.taskId,
