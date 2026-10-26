@@ -1,5 +1,5 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-source-alias.ts. MIT, same author. Changes: type imports from types.ts/dynamic-decision.ts now come from ./types-bridge.js.
-import type { WorkflowTaskRunRecord } from "./types-bridge.js";
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-source-alias.ts. MIT, same author. Changes: none.
+import type { WorkflowTaskRunRecord } from "./types.js";
 
 /** Shared by manifest emission and bounded raw selection. */
 export function sourceNameForTask(

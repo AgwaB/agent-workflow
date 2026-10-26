@@ -1,8 +1,8 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-runtime-bundle.ts. MIT, same author. Changes: type imports from types.ts/dynamic-decision.ts now come from ./types-bridge.js; project bundle dir .pi/workflow-runtime/ → .agent-workflow/workflow-runtime/.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-runtime-bundle.ts. MIT, same author. Changes: project bundle dir .pi/workflow-runtime/ → .agent-workflow/workflow-runtime/.
 import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import type { ArtifactGraphWorkflowSpec } from "./types-bridge.js";
+import type { ArtifactGraphWorkflowSpec } from "./types.js";
 
 export const DIRECT_DYNAMIC_RUNTIME_VERSION = "direct-dynamic-runtime-v4";
 const DIRECT_DYNAMIC_RUNTIME_MAX_RUNTIME_MS = 7_200_000;

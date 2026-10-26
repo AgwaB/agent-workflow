@@ -1,9 +1,9 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/resource-inheritance.ts. MIT, same author. Changes: type imports from types.ts/dynamic-decision.ts now come from ./types-bridge.js.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/resource-inheritance.ts. MIT, same author. Changes: none.
 import type {
 	AgentDefinition,
 	CompiledTask,
 	WorkflowResourcePolicy,
-} from "./types-bridge.js";
+} from "./types.js";
 
 /**
  * Marks compiled tasks that use the explicit, sealed resource-policy contract.
@@ -12,7 +12,7 @@ import type {
  */
 export const WORKFLOW_RESOURCE_POLICY_VERSION = 1 as const;
 
-export type { WorkflowResourcePolicy } from "./types-bridge.js";
+export type { WorkflowResourcePolicy } from "./types.js";
 
 /**
  * Resolve the one resource policy that is allowed to affect a workflow launch.

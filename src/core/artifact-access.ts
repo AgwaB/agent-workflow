@@ -1,0 +1,261 @@
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-artifact-extension.ts. MIT, same author. Changes: instead of generating a Pi extension wrapper that registers workflow_artifact, core writes a serializable ArtifactAccessConfig and describes the stdio MCP server (WP5) that serves it; Pi registerTool/activation code dropped.
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, isAbsolute, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import type { McpServerSpec } from "../sdk/contract.js";
+import type { WorkflowArtifactAccessMode } from "./workflow-artifact-tool.js";
+
+export const WORKFLOW_ARTIFACT_TOOL_NAME = "workflow_artifact" as const;
+/** MCP server name; executors expose its single tool as `workflow_artifact`. */
+export const ARTIFACT_MCP_SERVER_NAME = "workflow_artifact" as const;
+/** Written next to `source-manifest.json` in the task directory. */
+export const ARTIFACT_ACCESS_CONFIG_FILE = "artifact-access.json" as const;
+/** Package-relative entry of the WP5 artifact MCP server (built file). */
+export const ARTIFACT_MCP_SERVER_ENTRY =
+	"mcp/artifact-server/server.js" as const;
+
+/**
+ * Everything the workflow_artifact server needs for one task attempt. It is
+ * JSON-serializable and written as canonical JSON, so its bytes are stable
+ * and launch provenance can digest them.
+ */
+export interface ArtifactAccessConfig {
+	version: 1;
+	runId: string;
+	taskId: string;
+	manifestPath: string;
+	ledgerPath: string;
+	accessMode: WorkflowArtifactAccessMode;
+	runDir: string;
+	maxBytes?: number;
+	maxLines?: number;
+}
+
+export type ArtifactMcpServerSpec = McpServerSpec & {
+	readonly name: typeof ARTIFACT_MCP_SERVER_NAME;
+	readonly args: readonly [string, "--config", string];
+};
+
+/** Tool input schema (JSON Schema) the MCP server advertises. */
+export const WORKFLOW_ARTIFACT_TOOL_PARAMETERS = {
+	type: "object",
+	additionalProperties: false,
+	properties: {
+		action: {
+			type: "string",
+			enum: ["list", "read"],
+			description: "List visible workflow artifacts or read one artifact.",
+		},
+		source: {
+			type: "string",
+			description: "Canonical source name from workflow_artifact list.",
+		},
+		artifact: {
+			type: "string",
+			enum: [
+				"control",
+				"analysis",
+				"refs",
+				"raw",
+				"prompt",
+				"system-prompt",
+				"stderr",
+				"result",
+			],
+			description: "Artifact kind to read when action is read.",
+		},
+		path: {
+			type: "string",
+			description:
+				"Optional simple JSON path for projected reads, for example $.claims or $.claimIndex.items. Required when maxItems or maxChars is provided. Supported only for JSON artifacts.",
+		},
+		maxItems: {
+			type: "integer",
+			minimum: 0,
+			description:
+				"Optional head-N array limit for projected reads. Requires path resolving to an array; this is not semantic top-k.",
+		},
+		maxChars: {
+			type: "integer",
+			minimum: 0,
+			description:
+				"Optional character limit for the projected JSON value after maxItems is applied. Requires path; omit maxChars for whole-artifact reads.",
+		},
+	},
+	required: ["action"],
+} as const;
+
+export const WORKFLOW_ARTIFACT_TOOL_DESCRIPTION =
+	"List or read artifacts produced by upstream workflow stages. Reads are recorded for workflow required-read enforcement.";
+
+export const WORKFLOW_ARTIFACT_TOOL_GUIDELINES = [
+	"Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.",
+	"Call workflow_artifact with action=list to see visible source names before reading an artifact if unsure.",
+	"When using maxItems or maxChars, include a JSON path such as $.claims; for whole-artifact reads, omit maxItems/maxChars.",
+	"Do not use repository read for workflow artifacts; workflow_artifact records required-read evidence.",
+] as const;
+
+/** Failure payload the server returns instead of throwing (unchanged wording). */
+export function workflowArtifactFailureResult(
+	error: unknown,
+	config: Pick<ArtifactAccessConfig, "runId" | "taskId">,
+) {
+	const message = error instanceof Error ? error.message : "unknown failure";
+	return {
+		content: [
+			{
+				type: "text" as const,
+				text: JSON.stringify(
+					{
+						status: "blocked",
+						code: "artifact_read_failed",
+						message,
+						next: "Call workflow_artifact with action=list, then retry with a listed source/artifact and a path that exists in that JSON artifact.",
+					},
+					null,
+					2,
+				),
+			},
+		],
+		details: {
+			action: "error",
+			runId: config.runId,
+			taskId: config.taskId,
+			code: "artifact_read_failed",
+		},
+	};
+}
+
+export function assertArtifactAccessConfig(
+	value: unknown,
+): asserts value is ArtifactAccessConfig {
+	const allowed = new Set([
+		"version",
+		"runId",
+		"taskId",
+		"manifestPath",
+		"ledgerPath",
+		"accessMode",
+		"runDir",
+		"maxBytes",
+		"maxLines",
+	]);
+	const record = value as Record<string, unknown> | null;
+	const ok =
+		record !== null &&
+		typeof record === "object" &&
+		!Array.isArray(record) &&
+		Object.keys(record).every((key) => allowed.has(key)) &&
+		record.version === 1 &&
+		nonEmptyString(record.runId) &&
+		nonEmptyString(record.taskId) &&
+		absolutePath(record.manifestPath) &&
+		absolutePath(record.ledgerPath) &&
+		absolutePath(record.runDir) &&
+		(record.accessMode === "workflow-task" ||
+			record.accessMode === "human-debug") &&
+		optionalLimit(record.maxBytes) &&
+		optionalLimit(record.maxLines);
+	if (!ok) throw new Error("Invalid workflow artifact access config");
+}
+
+/** The config file lives next to the task's source manifest. */
+export function artifactAccessConfigPath(
+	config: Pick<ArtifactAccessConfig, "manifestPath">,
+): string {
+	return join(dirname(config.manifestPath), ARTIFACT_ACCESS_CONFIG_FILE);
+}
+
+/** Absolute path of the built WP5 server entry inside this package. */
+export function artifactMcpServerEntryPath(): string {
+	// dist/core/artifact-access.js → dist/mcp/artifact-server/server.js
+	return fileURLToPath(
+		new URL(`../${ARTIFACT_MCP_SERVER_ENTRY}`, import.meta.url),
+	);
+}
+
+/**
+ * stdio MCP server launch spec for one task's artifact access. Executors put it
+ * into `SubmitRequest.mcpServers`. The server itself is WP5; only its path is
+ * referenced here.
+ */
+export function artifactMcpServerSpec(
+	config: ArtifactAccessConfig,
+): ArtifactMcpServerSpec {
+	assertArtifactAccessConfig(config);
+	return {
+		name: ARTIFACT_MCP_SERVER_NAME,
+		command: process.execPath,
+		args: [
+			artifactMcpServerEntryPath(),
+			"--config",
+			artifactAccessConfigPath(config),
+		],
+	};
+}
+
+/** Canonical JSON (sorted keys, undefined dropped) used for bytes and digests. */
+export function canonicalArtifactAccessJson(value: unknown): string {
+	return JSON.stringify(normalizeCanonical(value));
+}
+
+/** Exact file bytes written for `config`. */
+export function artifactAccessConfigBytes(
+	config: ArtifactAccessConfig,
+): string {
+	assertArtifactAccessConfig(config);
+	return `${canonicalArtifactAccessJson(config)}\n`;
+}
+
+export async function writeArtifactAccessConfig(
+	config: ArtifactAccessConfig,
+): Promise<{ path: string; bytes: string }> {
+	const path = artifactAccessConfigPath(config);
+	const bytes = artifactAccessConfigBytes(config);
+	await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+	await writeFile(path, bytes, { encoding: "utf8", mode: 0o600 });
+	return { path, bytes };
+}
+
+export async function readArtifactAccessConfig(
+	path: string,
+): Promise<{ config: ArtifactAccessConfig; bytes: string }> {
+	const bytes = await readFile(path, "utf8");
+	let config: unknown;
+	try {
+		config = JSON.parse(bytes);
+	} catch {
+		throw new Error("Invalid workflow artifact access config");
+	}
+	assertArtifactAccessConfig(config);
+	return { config, bytes };
+}
+
+function normalizeCanonical(value: unknown): unknown {
+	if (Array.isArray(value)) return value.map(normalizeCanonical);
+	if (value && typeof value === "object") {
+		return Object.fromEntries(
+			Object.entries(value as Record<string, unknown>)
+				.filter(([, entry]) => entry !== undefined)
+				.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+				.map(([key, entry]) => [key, normalizeCanonical(entry)]),
+		);
+	}
+	return value;
+}
+
+function nonEmptyString(value: unknown): boolean {
+	return typeof value === "string" && value.length > 0;
+}
+
+function absolutePath(value: unknown): boolean {
+	return typeof value === "string" && isAbsolute(value);
+}
+
+function optionalLimit(value: unknown): boolean {
+	return (
+		value === undefined ||
+		(typeof value === "number" && Number.isSafeInteger(value) && value >= 0)
+	);
+}

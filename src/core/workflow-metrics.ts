@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-metrics.ts. MIT, same author. Changes: type imports from types.ts/dynamic-decision.ts now come from ./types-bridge.js.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-metrics.ts. MIT, same author. Changes: none.
 import type {
 	TaskRunStatus,
 	WorkflowRunRecord,
@@ -6,7 +6,7 @@ import type {
 	WorkflowRunType,
 	WorkflowTaskRunRecord,
 	WorkflowTaskUsageValues,
-} from "./types-bridge.js";
+} from "./types.js";
 
 export const WORKFLOW_METRICS_SCHEMA_VERSION = 1;
 export const WORKFLOW_METRICS_PRICING_MODEL_VERSION = "provider-reported-v1";

@@ -1,7 +1,7 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/prompt-schema-diagnostics.ts. MIT, same author. Changes: type imports from types.ts/dynamic-decision.ts now come from ./types-bridge.js; env PI_WORKFLOW_STRICT_PROMPT_SCHEMA→AGENT_WORKFLOW_STRICT_PROMPT_SCHEMA.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/prompt-schema-diagnostics.ts. MIT, same author. Changes: env PI_WORKFLOW_STRICT_PROMPT_SCHEMA→AGENT_WORKFLOW_STRICT_PROMPT_SCHEMA.
 import { createHash } from "node:crypto";
 
-import type { CompiledWorkflow } from "./types-bridge.js";
+import type { CompiledWorkflow } from "./types.js";
 
 export const STRICT_PROMPT_SCHEMA_ENV = "AGENT_WORKFLOW_STRICT_PROMPT_SCHEMA";
 
