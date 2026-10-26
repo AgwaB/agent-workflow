@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/durable-launch-barrier.ts. MIT, same author. Changes: none (two doc comments say "the runtime" instead of "pi-subagent"; schema ids unchanged).
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/durable-launch-barrier.ts. MIT, same author. Changes: two doc comments say "the runtime" instead of "pi-subagent"; schema ids unchanged; WP1b: waitForDurableLaunchBarrierV2Ready takes an optional abort signal (the engine stops waiting when the provisional worker ended before READY).
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { link, lstat, mkdir, open, readdir, rm } from "node:fs/promises";
@@ -1334,6 +1334,7 @@ async function persistV2Decision(
 
 export async function waitForDurableLaunchBarrierV2Ready(
 	descriptor: DurableLaunchBarrierV2Descriptor,
+	options: { signal?: AbortSignal } = {},
 ): Promise<DurableLaunchBarrierV2Ready> {
 	assertDurableLaunchBarrierV2Descriptor(descriptor);
 	await assertOwnerOnlyDirectory(
@@ -1342,7 +1343,7 @@ export async function waitForDurableLaunchBarrierV2Ready(
 	);
 	return assertReadyV2(
 		descriptor,
-		await waitForFile(descriptor, descriptor.readyPath),
+		await waitForFile(descriptor, descriptor.readyPath, options.signal),
 	);
 }
 

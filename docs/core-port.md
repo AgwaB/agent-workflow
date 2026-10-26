@@ -913,3 +913,16 @@ differences in `test/replay/explained-differences.json` cite these entries.
    and run usage for every executor. `cached` → `cacheReadInputTokens` and a numeric `cost` → `costUsd` are
    now read after the existing aliases (a Pi `cost` object still resolves through `cost.total`). Test:
    `core-usage-runtime-summary.test.mjs`.
+5. **Fix: READY wait stops when the provisional worker ended** (`src/core/launch-barrier-engine.ts`
+   `waitForReadyUnlessWorkerEnded`; additive runtime option `waitForDurableLaunchBarrierV2Ready(descriptor,
+   {signal})`). In the runtime the durable worker writes READY inside `authority.consume()`, which the
+   executor calls from `submit`. An executor that refuses the request before consuming (INVALID_REQUEST,
+   CAPABILITY_MISSING — no effect) ends the worker with a terminal not-started result and never writes
+   READY. pi-subagent wrote READY before it started Pi, so pi-workflow never had this case; the engine kept
+   waiting for READY until the barrier timeout (30–120 s per attempt) and then reported "durable launch
+   barrier timed out", losing the refusal. The engine now polls the provisional attempt's status every
+   200 ms while it waits; a terminal attempt without READY fails the launch at once with
+   `provisional worker <run>/<attempt> ended (<status>/<failureKind>) before the durable launch barrier
+   READY: <worker stderr>` (the barrier is revoked and the worker interruption acknowledged, as for any
+   barrier failure). A worker that wrote READY and then ended is still settled by the READY path. Test:
+   `core-launch-barrier-worker-ended.test.mjs`.

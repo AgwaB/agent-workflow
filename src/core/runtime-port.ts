@@ -159,6 +159,7 @@ export interface SubagentApi {
 	durableLaunchBarrierDigest?(value: unknown): string;
 	waitForDurableLaunchBarrierV2Ready?(
 		descriptor: DurableLaunchBarrierDescriptor,
+		options?: { signal?: AbortSignal },
 	): Promise<DurableLaunchBarrierReady>;
 	resolveDurableLaunchBarrierV2Release?(
 		descriptor: DurableLaunchBarrierDescriptor,

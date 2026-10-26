@@ -660,6 +660,11 @@ Run results, statuses and `RunStatusSnapshot` keep their shapes; `backend` is th
     `runtime/`. The SDK fake passes all three through `runtime-fake-module.js`; negative tests inject
     launch-without-consume, reconcile-absent-after-effect and ignore-deny. Kit version 0.2.0.
 
+17. **WP1b: abortable READY wait.** `waitForDurableLaunchBarrierV2Ready(descriptor, { signal })` takes an
+    optional abort signal (passed to the existing file wait, which already honoured one). Additive; the
+    engine aborts the wait when the provisional worker's attempt is terminal without READY (an executor
+    refusal before `consume()`), see docs/core-port.md WP1b change log 5.
+
 ## Inherited from pi-subagent 0.7.2
 
 The WP2c defects as they exist in `pi-subagent-engine` at `ab91a74` (read-only check; paths relative to that
