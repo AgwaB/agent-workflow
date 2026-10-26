@@ -215,7 +215,7 @@ export function createFakeExecutor(
 			if (run.cancelled) {
 				emit(run, {
 					type: "failed",
-					class: "permanent",
+					class: "cancelled",
 					message: "cancelled by request",
 					raw: null,
 				});

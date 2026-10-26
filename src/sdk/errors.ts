@@ -10,6 +10,8 @@ export const FAILURE_CLASSES = [
 	"auth",
 	"config",
 	"permanent",
+	/** Terminated by an engine/user cancel request; never auto-retried and not an adapter fault. */
+	"cancelled",
 	"unknown",
 ] as const;
 export type FailureClass = (typeof FAILURE_CLASSES)[number];

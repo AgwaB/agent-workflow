@@ -246,6 +246,12 @@ test("cancel results: cancelled, too_late, no_active, unsupported, forced", asyn
 		"failed",
 		"the ACK is not termination evidence; the stream is",
 	);
+	assert.equal(
+		events.at(-1).class,
+		"cancelled",
+		"cancellation is distinguishable from adapter failure",
+	);
+	assert.ok(!sdk.isAutoRetryable("cancelled"));
 	assert.equal(await slow.cancel(ref, "turn"), "too_late");
 	assert.equal(
 		await slow.cancel({ ...ref, attemptKey: "nope" }, "owned"),
