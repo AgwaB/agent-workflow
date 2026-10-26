@@ -199,7 +199,9 @@ test("approval policy never auto-allows, denies mutations in readOnly, and fails
 		"deny",
 	);
 	assert.equal(
-		await sdk.awaitApprovalAnswer(Promise.resolve("allow"), { timeoutMs: 1000 }),
+		await sdk.awaitApprovalAnswer(Promise.resolve("allow"), {
+			timeoutMs: 1000,
+		}),
 		"allow",
 	);
 });

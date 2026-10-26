@@ -13,7 +13,9 @@ import { join, resolve } from "node:path";
 
 function usage(message) {
 	if (message) process.stderr.write(`${message}\n`);
-	process.stderr.write("usage: capture-run.mjs <runId> <recordDir> [--cwd <projectDir>]\n");
+	process.stderr.write(
+		"usage: capture-run.mjs <runId> <recordDir> [--cwd <projectDir>]\n",
+	);
 	process.exit(2);
 }
 
@@ -21,7 +23,8 @@ const args = process.argv.slice(2);
 let cwd = process.cwd();
 const positional = [];
 for (let index = 0; index < args.length; index += 1) {
-	if (args[index] === "--cwd") cwd = args[++index] ?? usage("--cwd needs a value");
+	if (args[index] === "--cwd")
+		cwd = args[++index] ?? usage("--cwd needs a value");
 	else positional.push(args[index]);
 }
 const [runId, recordDir] = positional;
@@ -31,8 +34,16 @@ if (!/^[A-Za-z0-9_.-]+$/.test(runId) || runId === "." || runId === "..")
 
 const projectDir = resolve(cwd);
 const sources = [
-	[join(projectDir, ".pi", "workflows", runId), join(resolve(recordDir), "run"), true],
-	[join(projectDir, ".pi", "workflow-subagents", runId), join(resolve(recordDir), "subagent-runs"), false],
+	[
+		join(projectDir, ".pi", "workflows", runId),
+		join(resolve(recordDir), "run"),
+		true,
+	],
+	[
+		join(projectDir, ".pi", "workflow-subagents", runId),
+		join(resolve(recordDir), "subagent-runs"),
+		false,
+	],
 ];
 for (const [source, target, required] of sources) {
 	if (!existsSync(source) || !statSync(source).isDirectory()) {
@@ -40,6 +51,10 @@ for (const [source, target, required] of sources) {
 		continue;
 	}
 	rmSync(target, { recursive: true, force: true });
-	cpSync(source, target, { recursive: true, verbatimSymlinks: true, errorOnExist: false });
+	cpSync(source, target, {
+		recursive: true,
+		verbatimSymlinks: true,
+		errorOnExist: false,
+	});
 	process.stdout.write(`captured ${source} -> ${target}\n`);
 }

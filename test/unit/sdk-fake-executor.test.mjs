@@ -34,7 +34,8 @@ test("authority gate: single decision, one-time consume", async () => {
 		reason: "lease lost",
 	});
 	assert.throws(
-		() => sdk.requireReleased({ kind: "revoked", attemptKey: "r", reason: "x" }),
+		() =>
+			sdk.requireReleased({ kind: "revoked", attemptKey: "r", reason: "x" }),
 		(error) => sdk.isSdkError(error, "AUTHORITY_REVOKED"),
 	);
 	assert.throws(
@@ -66,7 +67,10 @@ test("fencing 2/3: crash after consume → reconcile unknown, restart never laun
 		faults: { crashAfterConsume: true },
 	});
 	const gate = createTracedAuthorityGate(store, "crash");
-	await assert.rejects(crashing.submit(fakeSubmitRequest(gate)), FakeCrashError);
+	await assert.rejects(
+		crashing.submit(fakeSubmitRequest(gate)),
+		FakeCrashError,
+	);
 	assert.equal(
 		gate.revoke("stop"),
 		"too_late",
@@ -83,8 +87,9 @@ test("fencing 2/3: crash after consume → reconcile unknown, restart never laun
 		sdk.isSdkError(error, "AUTHORITY_ALREADY_CONSUMED"),
 	);
 	const freshGate = createTracedAuthorityGate(store, "crash");
-	await assert.rejects(restarted.submit(fakeSubmitRequest(freshGate)), (error) =>
-		sdk.isSdkError(error, "AUTHORITY_ALREADY_CONSUMED"),
+	await assert.rejects(
+		restarted.submit(fakeSubmitRequest(freshGate)),
+		(error) => sdk.isSdkError(error, "AUTHORITY_ALREADY_CONSUMED"),
 	);
 	assert.equal(restarted.effectCount("crash"), 0);
 	assert.deepEqual(verifyFencing(store.trace), []);
@@ -214,7 +219,11 @@ async function runApproval(answer, policy) {
 test("approval channel: allow, deny, and fail-closed timeout", async () => {
 	const allowed = await runApproval("allow", sdk.defaultApprovalPolicy());
 	assert.equal(allowed.events.at(-1).finalText, "ran");
-	assert.deepEqual(allowed.results, ["accepted", "too_late", "unknown_request"]);
+	assert.deepEqual(allowed.results, [
+		"accepted",
+		"too_late",
+		"unknown_request",
+	]);
 	const denied = await runApproval("deny", sdk.defaultApprovalPolicy());
 	assert.equal(denied.events.at(-2).status, "denied");
 	const timedOut = await runApproval(

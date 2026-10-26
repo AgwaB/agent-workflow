@@ -31,17 +31,31 @@ for (const [path, expected] of entries) {
 
 test("package exports resolve to built entry points", async () => {
 	const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
-	const subpaths = [".", "./sdk", "./runtime", "./executors/pi", "./executors/codex", "./executors/claude", "./hosts/cli", "./hosts/pi"];
+	const subpaths = [
+		".",
+		"./sdk",
+		"./runtime",
+		"./executors/pi",
+		"./executors/codex",
+		"./executors/claude",
+		"./hosts/cli",
+		"./hosts/pi",
+	];
 	for (const subpath of subpaths) {
 		const target = pkg.exports[subpath]?.default;
 		assert.ok(target, `missing export ${subpath}`);
-		const mod = await import(new URL(`../../${target.replace(/^\.\//, "")}`, import.meta.url).href);
+		const mod = await import(
+			new URL(`../../${target.replace(/^\.\//, "")}`, import.meta.url).href
+		);
 		assert.equal(typeof mod.MODULE, "string", subpath);
 	}
 });
 
 test("built Pi-free entry points do not reference the Pi package scope", () => {
-	const piScoped = [join(dist, "executors", "pi") + sep, join(dist, "hosts", "pi") + sep];
+	const piScoped = [
+		join(dist, "executors", "pi") + sep,
+		join(dist, "hosts", "pi") + sep,
+	];
 	const offenders = listFiles(dist)
 		.filter((file) => !piScoped.some((prefix) => file.startsWith(prefix)))
 		.filter((file) => readFileSync(file, "utf8").includes(PI_SCOPE))

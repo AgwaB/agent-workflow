@@ -40,7 +40,9 @@ for (const path of tracked) {
 				violations.push(`${path}: contains a local macOS home path`);
 			}
 		} catch (error) {
-			violations.push(`${path}: could not inspect tracked text (${errorMessage(error)})`);
+			violations.push(
+				`${path}: could not inspect tracked text (${errorMessage(error)})`,
+			);
 		}
 	}
 }
@@ -72,7 +74,9 @@ for (const path of packageJson.files ?? []) {
 }
 
 if (violations.length > 0) {
-	console.error(`Public surface check failed:\n${violations.map((item) => `- ${item}`).join("\n")}`);
+	console.error(
+		`Public surface check failed:\n${violations.map((item) => `- ${item}`).join("\n")}`,
+	);
 	process.exit(1);
 }
 

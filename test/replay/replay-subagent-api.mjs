@@ -41,10 +41,22 @@
 //     run-bundled.mjs --snapshot-web-cache when the engine first saw R terminal),
 //     its files are written over <ROOT>/.pi/workflows/<workflowRunId>/web-source-cache.
 //     Workers fill that shared cache during their run; support helpers read it.
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	readFileSync,
+	statSync,
+	writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 
-import { createContext, firstLineDiff, replayKey, restorePaths } from "./normalize.mjs";
+import {
+	createContext,
+	firstLineDiff,
+	replayKey,
+	restorePaths,
+} from "./normalize.mjs";
 
 const OBSERVATION_METHODS = new Set([
 	"getSubagentStatus",
@@ -67,14 +79,23 @@ const KNOWN_SYNC_METHODS = new Set([
 // Files the worker (through the generated workflow_artifact extension) writes
 // into <ROOT>/.pi/workflows/<workflowRunId>/tasks/<taskId>/ during its run.
 const WORKER_WRITTEN_TASK_FILES = ["read-ledger.jsonl"];
-const TERMINAL = new Set(["completed", "failed", "cancelled", "interrupted", "timed_out", "timeout"]);
+const TERMINAL = new Set([
+	"completed",
+	"failed",
+	"cancelled",
+	"interrupted",
+	"timed_out",
+	"timeout",
+]);
 
 const SUBAGENT_IDS = /\b(?:run|attempt)_[0-9a-z]{6,12}_[0-9a-f]{6}\b/g;
 
 /** Queue identity of a call: method, replay key, and literal subagent run/attempt ids in the args. */
 export function replayQueueId(method, args, ctx, allowed = []) {
 	const { key, canonical } = replayKey(method, args, ctx, allowed);
-	const ids = [...new Set(JSON.stringify(args ?? null).match(SUBAGENT_IDS) ?? [])].sort();
+	const ids = [
+		...new Set(JSON.stringify(args ?? null).match(SUBAGENT_IDS) ?? []),
+	].sort();
 	return { id: `${method}\0${key}\0${ids.join(",")}`, key, canonical };
 }
 
@@ -94,18 +115,30 @@ function rebind(text, echoes) {
 
 function collectEchoes(recorded, replay, echoes) {
 	if (typeof recorded === "string" && typeof replay === "string") {
-		if (recorded !== replay && recorded.length >= 8 && !echoes.some(([from]) => from === recorded)) {
+		if (
+			recorded !== replay &&
+			recorded.length >= 8 &&
+			!echoes.some(([from]) => from === recorded)
+		) {
 			echoes.push([recorded, replay]);
 			echoes.sort((left, right) => right[0].length - left[0].length);
 		}
 		return;
 	}
 	if (Array.isArray(recorded) && Array.isArray(replay)) {
-		recorded.forEach((entry, index) => collectEchoes(entry, replay[index], echoes));
+		recorded.forEach((entry, index) =>
+			collectEchoes(entry, replay[index], echoes),
+		);
 		return;
 	}
-	if (recorded && replay && typeof recorded === "object" && typeof replay === "object") {
-		for (const key of Object.keys(recorded)) collectEchoes(recorded[key], replay[key], echoes);
+	if (
+		recorded &&
+		replay &&
+		typeof recorded === "object" &&
+		typeof replay === "object"
+	) {
+		for (const key of Object.keys(recorded))
+			collectEchoes(recorded[key], replay[key], echoes);
 	}
 }
 
@@ -116,7 +149,10 @@ function writeTreeRestored(fromDir, toDir, roots, echoes) {
 		if (entry.isDirectory()) writeTreeRestored(source, target, roots, echoes);
 		else {
 			mkdirSync(dirname(target), { recursive: true });
-			writeFileSync(target, rebind(restorePaths(readFileSync(source, "utf8"), roots), echoes));
+			writeFileSync(
+				target,
+				rebind(restorePaths(readFileSync(source, "utf8"), roots), echoes),
+			);
 		}
 	}
 }
@@ -136,17 +172,34 @@ export function createReplaySubagentApi(options) {
 	const queues = new Map();
 	const byMethod = new Map();
 	for (const call of calls) {
-		const { id, canonical } = replayQueueId(call.method, call.args, recordedCtx, allowed);
-		if (!queues.has(id)) queues.set(id, { method: call.method, canonical, entries: [], served: 0 });
+		const { id, canonical } = replayQueueId(
+			call.method,
+			call.args,
+			recordedCtx,
+			allowed,
+		);
+		if (!queues.has(id))
+			queues.set(id, {
+				method: call.method,
+				canonical,
+				entries: [],
+				served: 0,
+			});
 		const queue = queues.get(id);
 		if (OBSERVATION_METHODS.has(call.method)) {
 			const last = queue.entries.at(-1);
-			const normalized = replayKey("result", [call.result ?? null, call.error ?? null], recordedCtx, allowed).key;
+			const normalized = replayKey(
+				"result",
+				[call.result ?? null, call.error ?? null],
+				recordedCtx,
+				allowed,
+			).key;
 			if (last && last.normalized === normalized) continue;
 			queue.entries.push({ ...call, normalized });
 		} else queue.entries.push(call);
 		if (!byMethod.has(call.method)) byMethod.set(call.method, []);
-		if (!byMethod.get(call.method).includes(id)) byMethod.get(call.method).push(id);
+		if (!byMethod.get(call.method).includes(id))
+			byMethod.get(call.method).push(id);
 	}
 	const log = [];
 	const materialized = new Set();
@@ -160,7 +213,12 @@ export function createReplaySubagentApi(options) {
 		const [, ...rest] = portableDir.slice(marker.length).split("/");
 		const source = join(fixtureDir, "run", ...rest);
 		if (!existsSync(source)) return;
-		writeTreeRestored(source, rebind(restorePaths(portableDir, roots), echoes), roots, echoes);
+		writeTreeRestored(
+			source,
+			rebind(restorePaths(portableDir, roots), echoes),
+			roots,
+			echoes,
+		);
 	}
 
 	function materializeSubagentRuns(args) {
@@ -173,14 +231,26 @@ export function createReplaySubagentApi(options) {
 		// runsDir = .pi/workflow-subagents/<workflowRunId>/<taskId>; the fixture keeps <taskId>/...
 		const taskDir = runsDir.split("/").at(-1);
 		const from = join(source, taskDir);
-		if (existsSync(from) && statSync(from).isDirectory()) writeTreeRestored(from, join(cwd, runsDir), roots, echoes);
+		if (existsSync(from) && statSync(from).isDirectory())
+			writeTreeRestored(from, join(cwd, runsDir), roots, echoes);
 		const workflowRunId = runsDir.split("/").at(-2);
 		for (const file of WORKER_WRITTEN_TASK_FILES) {
 			const recorded = join(fixtureDir, "run", "tasks", taskDir, file);
 			if (!existsSync(recorded)) continue;
-			const target = join(cwd, ".pi", "workflows", workflowRunId, "tasks", taskDir, file);
+			const target = join(
+				cwd,
+				".pi",
+				"workflows",
+				workflowRunId,
+				"tasks",
+				taskDir,
+				file,
+			);
 			mkdirSync(dirname(target), { recursive: true });
-			writeFileSync(target, rebind(restorePaths(readFileSync(recorded, "utf8"), roots), echoes));
+			writeFileSync(
+				target,
+				rebind(restorePaths(readFileSync(recorded, "utf8"), roots), echoes),
+			);
 		}
 	}
 
@@ -188,23 +258,46 @@ export function createReplaySubagentApi(options) {
 		const runsDir = args?.[0]?.runsDir;
 		const cwd = args?.[0]?.cwd;
 		const runId = result?.runId ?? args?.[0]?.runId;
-		if (!fixtureDir || !runsDir || !cwd || !runId || materialized.has(`snapshot:${runId}`)) return;
+		if (
+			!fixtureDir ||
+			!runsDir ||
+			!cwd ||
+			!runId ||
+			materialized.has(`snapshot:${runId}`)
+		)
+			return;
 		materialized.add(`snapshot:${runId}`);
-		const source = join(fixtureDir, "worker-snapshots", runId, "web-source-cache");
+		const source = join(
+			fixtureDir,
+			"worker-snapshots",
+			runId,
+			"web-source-cache",
+		);
 		if (!existsSync(source)) return;
 		const workflowRunId = runsDir.split("/").at(-2);
-		writeTreeRestored(source, join(cwd, ".pi", "workflows", workflowRunId, "web-source-cache"), roots, echoes);
+		writeTreeRestored(
+			source,
+			join(cwd, ".pi", "workflows", workflowRunId, "web-source-cache"),
+			roots,
+			echoes,
+		);
 	}
 
 	function miss(method, canonical) {
 		const candidates = (byMethod.get(method) ?? []).map((id) => queues.get(id));
-		if (candidates.length === 0) return new Error(`replay miss: no recorded calls for method ${method}`);
+		if (candidates.length === 0)
+			return new Error(`replay miss: no recorded calls for method ${method}`);
 		let best;
 		let bestScore = -1;
 		for (const candidate of candidates) {
 			const a = candidate.canonical;
 			let score = 0;
-			while (score < a.length && score < canonical.length && a[score] === canonical[score]) score += 1;
+			while (
+				score < a.length &&
+				score < canonical.length &&
+				a[score] === canonical[score]
+			)
+				score += 1;
 			if (score > bestScore) {
 				best = candidate;
 				bestScore = score;
@@ -221,24 +314,40 @@ export function createReplaySubagentApi(options) {
 		const { id, canonical } = replayQueueId(method, args, replayCtx, allowed);
 		const queue = queues.get(id);
 		if (process.env.PI_WORKFLOW_REPLAY_TRACE)
-			process.stderr.write(`replay ${method} ${queue ? `queue ${queue.served}/${queue.entries.length}` : "MISS"} ${canonical.slice(0, process.env.PI_WORKFLOW_REPLAY_TRACE === "full" ? undefined : 160)}\n`);
+			process.stderr.write(
+				`replay ${method} ${queue ? `queue ${queue.served}/${queue.entries.length}` : "MISS"} ${canonical.slice(0, process.env.PI_WORKFLOW_REPLAY_TRACE === "full" ? undefined : 160)}\n`,
+			);
 		if (!queue) throw miss(method, canonical);
 		let entry;
-		if (queue.served < queue.entries.length) entry = queue.entries[queue.served++];
+		if (queue.served < queue.entries.length)
+			entry = queue.entries[queue.served++];
 		else if (OBSERVATION_METHODS.has(method)) entry = queue.entries.at(-1);
-		else throw new Error(`replay exhausted: ${method} was called more often than recorded (${queue.entries.length})`);
+		else
+			throw new Error(
+				`replay exhausted: ${method} was called more often than recorded (${queue.entries.length})`,
+			);
 		log.push({ seq: entry.seq, method });
-		collectEchoes(JSON.parse(restorePaths(JSON.stringify(entry.args), roots)), JSON.parse(JSON.stringify(args)), echoes);
+		collectEchoes(
+			JSON.parse(restorePaths(JSON.stringify(entry.args), roots)),
+			JSON.parse(JSON.stringify(args)),
+			echoes,
+		);
 		if (entry.error !== undefined) {
 			const error = new Error(entry.error.message ?? "recorded error");
 			if (entry.error.name) error.name = entry.error.name;
 			if (entry.error.code !== undefined) error.code = entry.error.code;
-			if (entry.error.failureKind !== undefined) error.failureKind = entry.error.failureKind;
+			if (entry.error.failureKind !== undefined)
+				error.failureKind = entry.error.failureKind;
 			throw error;
 		}
 		const result =
-			entry.result === undefined ? undefined : JSON.parse(rebind(restorePaths(JSON.stringify(entry.result), roots), echoes));
-		if (method === "createDurableLaunchBarrierV2") materializeBarrier(entry.result);
+			entry.result === undefined
+				? undefined
+				: JSON.parse(
+						rebind(restorePaths(JSON.stringify(entry.result), roots), echoes),
+					);
+		if (method === "createDurableLaunchBarrierV2")
+			materializeBarrier(entry.result);
 		if (method === "getSubagentStatus" && TERMINAL.has(result?.status)) {
 			materializeSubagentRuns(args);
 			materializeWorkerSnapshot(args, result);
@@ -248,8 +357,11 @@ export function createReplaySubagentApi(options) {
 
 	const api = {};
 	const syncMethods = new Set(KNOWN_SYNC_METHODS);
-	for (const call of calls) if (call.sync === true) syncMethods.add(call.method);
-	for (const method of surface?.methods ?? [...new Set(calls.map((call) => call.method))]) {
+	for (const call of calls)
+		if (call.sync === true) syncMethods.add(call.method);
+	for (const method of surface?.methods ?? [
+		...new Set(calls.map((call) => call.method)),
+	]) {
 		api[method] = syncMethods.has(method)
 			? (...args) => serve(method, args)
 			: async (...args) => serve(method, args);
@@ -259,8 +371,15 @@ export function createReplaySubagentApi(options) {
 		enumerable: false,
 		value: () =>
 			[...queues.values()]
-				.filter((queue) => !OBSERVATION_METHODS.has(queue.method) && queue.served < queue.entries.length)
-				.map((queue) => ({ method: queue.method, remaining: queue.entries.length - queue.served })),
+				.filter(
+					(queue) =>
+						!OBSERVATION_METHODS.has(queue.method) &&
+						queue.served < queue.entries.length,
+				)
+				.map((queue) => ({
+					method: queue.method,
+					remaining: queue.entries.length - queue.served,
+				})),
 	});
 	return api;
 }

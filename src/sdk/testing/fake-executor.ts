@@ -235,7 +235,11 @@ export function createFakeExecutor(
 			);
 			run.pendingApprovals.delete(step.approval.requestId);
 			run.answeredApprovals.add(step.approval.requestId);
-			await drive(run, decision === "allow" ? step.ifAllowed : step.ifDenied, req);
+			await drive(
+				run,
+				decision === "allow" ? step.ifAllowed : step.ifDenied,
+				req,
+			);
 		}
 	}
 
@@ -264,7 +268,9 @@ export function createFakeExecutor(
 			requireReleased(decision); // throws AUTHORITY_REVOKED: exit without any effect
 			store.attempts.set(req.attemptKey, { state: "consumed" });
 			if (options.faults?.crashAfterConsume)
-				throw new FakeCrashError(`fake crash after consume for ${req.attemptKey}`);
+				throw new FakeCrashError(
+					`fake crash after consume for ${req.attemptKey}`,
+				);
 		}
 		handleCounter += 1;
 		const ref: ExecRef = {
@@ -388,7 +394,9 @@ export function createFakeExecutor(
 				resolve(decision);
 				return "accepted";
 			}
-			return run.answeredApprovals.has(requestId) ? "too_late" : "unknown_request";
+			return run.answeredApprovals.has(requestId)
+				? "too_late"
+				: "unknown_request";
 		},
 	};
 	return executor;
@@ -407,7 +415,9 @@ export function verifyFencing(trace: readonly FenceTraceEntry[]): string[] {
 			released.add(entry.attemptKey);
 		if (entry.type !== "effect") continue;
 		if (!released.has(entry.attemptKey))
-			violations.push(`effect for ${entry.attemptKey} without released authority`);
+			violations.push(
+				`effect for ${entry.attemptKey} without released authority`,
+			);
 		const count = (effects.get(entry.attemptKey) ?? 0) + 1;
 		effects.set(entry.attemptKey, count);
 		if (count > 1) violations.push(`duplicate effect for ${entry.attemptKey}`);

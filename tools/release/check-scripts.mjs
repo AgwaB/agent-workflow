@@ -77,7 +77,10 @@ function checkDependencyLock() {
 				`cannot read ${path}/package.json; run an exact npm ci (${error.message})`,
 			);
 		}
-		if (typeof entry.version !== "string" || installed.version !== entry.version)
+		if (
+			typeof entry.version !== "string" ||
+			installed.version !== entry.version
+		)
 			throw new Error(
 				`${path}: installed ${installed.version}, locked ${entry.version}; run an exact npm ci`,
 			);

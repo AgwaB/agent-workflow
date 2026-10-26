@@ -1,85 +1,78 @@
 {
-  "schema": "agent-workflow-replay-allowed-differences-v1",
-  "note": "Each entry alpha-renames the sha256 values found at the listed keys to <ALLOWED:id#n> (first-appearance order) and renames every other occurrence of the same value (and its 16-hex prefix in generated file names) identically; non-digest scalars at the listed keys become <ALLOWED:id>. Values may differ between runs; the equality structure (which fields share a digest) must still match. Keys are bare field names or dotted key suffixes (array levels skipped). Add entries only with a written reason proven by a failing replay.",
-  "entries": [
-    {
-      "id": "host-path-digest",
-      "reason": "sha256 of an absolute host path, or of bytes/canonical JSON that embed absolute host paths (generated worker extension wrapper and its config embed manifestPath/ledgerPath/runDir; tool-provider descriptors embed extension paths). The paths themselves are normalized to <ROOT>/<PKG>/<HOME>/<TMP> and compared; their digests cannot be.",
-      "keys": [
-        "workflow.specPathSha256",
-        "effectivePolicy.cwdSha256",
-        "effectivePolicy.toolProvidersSha256",
-        "extensions.pathSha256",
-        "artifactBinding.wrapperPathSha256",
-        "artifactBinding.manifestPathSha256",
-        "artifactBinding.wrapperBytesSha256",
-        "artifacts.wrapperSha256",
-        "artifacts.configSha256"
-      ]
-    },
-    {
-      "id": "state-root-identity",
-      "reason": "Digest of the private workflow state root identity (src/workflow-state-root.ts): canonical path, device, inode, uid, mode and a random per-root nonce file. Host- and install-specific by design; cannot be reproduced in another directory.",
-      "keys": [
-        "effectivePolicy.stateRootSha256"
-      ]
-    },
-    {
-      "id": "derived-launch-identity",
-      "reason": "Canonical self-digests of launch provenance records that include host-path-digest and state-root-identity values (launch bootstrap provenance identity, launch authority grant identity) and every field that references them (launchBootstrapSha256, launchAuthoritySha256, durable barrier subjectSha256, generated .launch-barrier-<16hex> directory prefix).",
-      "keys": [
-        "records.identitySha256",
-        "grant.identitySha256",
-        "grant.launchBootstrapSha256",
-        "launchBootstrapSha256",
-        "launchAuthoritySha256",
-        "subjectSha256"
-      ]
-    },
-    {
-      "id": "timestamp-derived-digest",
-      "reason": "Raw-artifact owner identity is sha256 over JSON that includes the workflow run createdAt timestamp (src/workflow-raw-contract.ts). Timestamps are normalized to <TS>; a digest over one cannot be.",
-      "keys": [
-        "rawIntegrity.owner",
-        "rawArtifactIntegrity.owner"
-      ]
-    },
-    {
-      "id": "host-path-file-size",
-      "reason": "terminalVersion.size is the byte size of the pi-subagent attempt result.json, a file that embeds absolute host paths (cwd, artifactCwd); its length changes with the project path length. dev/ino/mtimeMs/ctimeMs of the same stamp are already policy placeholders.",
-      "keys": [
-        "terminalVersion.size"
-      ]
-    },
-    {
-      "id": "host-path-manifest-digest",
-      "reason": "Digests of the task's source-manifest.json, whose artifact entries embed absolute <ROOT> paths, so the values change with the project path: launchBootstrap records[].artifacts.manifestSha256 = sha256 over its canonical JSON and effectiveLaunch.artifactBinding.manifestBytesSha256 = sha256 over its bytes (src/launch-bootstrap-provenance.ts). They occur only for stages with upstream artifact access (first seen in fixtures/deep-review task-7; minimal's manifest has no paths, so its digest happened to match). Content stays pinned: the manifest file itself is compared after path normalization, the self-replay test asserts both replayed digests equal the digests of the replayed source-manifest.json, and the fixture build verified the same binding on the raw recording.",
-      "keys": [
-        "artifacts.manifestSha256",
-        "artifactBinding.manifestBytesSha256"
-      ]
-    },
-    {
-      "id": "foreach-batch-capability-identity",
-      "reason": "Profile-only foreach batching (deep-research low/medium verify-claims, max 2 items) records run.json foreachBatches[] with stateRootSha256 (the same host-specific state-root identity as effectivePolicy.stateRootSha256, so its run.json occurrences are already renamed by equality) and capabilitySubjectSha256 = sha256 over canonical JSON of the batch record including that stateRootSha256 and the preparedAt timestamp (src/foreach-batch-capability.ts). The engine also passes both values to durableLaunchBarrierDigest (reservation payload schema workflow-foreach-batch-dispatch-reservation-v1), where no effectivePolicy key renames the state root inside that single call's replay key. The prompt content stays compared: foreachBatches[].batchPromptSha256 and members[].preparedPromptSha256 are not masked.",
-      "keys": [
-        "foreachBatches.capabilitySubjectSha256",
-        "args.capabilitySubjectSha256",
-        "args.stateRootSha256"
-      ]
-    },
-    {
-      "id": "supervisor-progress-snapshot",
-      "reason": "supervisor.json is the supervisor heartbeat file; taskStatusCounts is the progress snapshot taken at its last write (src/store.ts run progress), which races the final task transitions. Observed in fixtures/deep-research: recording completed=20/pending=1, replay completed=19 in 3 of 3 replays (the minimal, deep-review, spec-review and impact-review fixtures happened to match). Final per-task statuses stay compared through run.json tasks[] and taskSummary; taskStatusCounts.total is not masked.",
-      "keys": [
-        "taskStatusCounts.blocked",
-        "taskStatusCounts.completed",
-        "taskStatusCounts.failed",
-        "taskStatusCounts.interrupted",
-        "taskStatusCounts.pending",
-        "taskStatusCounts.running",
-        "taskStatusCounts.skipped"
-      ]
-    }
-  ]
+	"schema": "agent-workflow-replay-allowed-differences-v1",
+	"note": "Each entry alpha-renames the sha256 values found at the listed keys to <ALLOWED:id#n> (first-appearance order) and renames every other occurrence of the same value (and its 16-hex prefix in generated file names) identically; non-digest scalars at the listed keys become <ALLOWED:id>. Values may differ between runs; the equality structure (which fields share a digest) must still match. Keys are bare field names or dotted key suffixes (array levels skipped). Add entries only with a written reason proven by a failing replay.",
+	"entries": [
+		{
+			"id": "host-path-digest",
+			"reason": "sha256 of an absolute host path, or of bytes/canonical JSON that embed absolute host paths (generated worker extension wrapper and its config embed manifestPath/ledgerPath/runDir; tool-provider descriptors embed extension paths). The paths themselves are normalized to <ROOT>/<PKG>/<HOME>/<TMP> and compared; their digests cannot be.",
+			"keys": [
+				"workflow.specPathSha256",
+				"effectivePolicy.cwdSha256",
+				"effectivePolicy.toolProvidersSha256",
+				"extensions.pathSha256",
+				"artifactBinding.wrapperPathSha256",
+				"artifactBinding.manifestPathSha256",
+				"artifactBinding.wrapperBytesSha256",
+				"artifacts.wrapperSha256",
+				"artifacts.configSha256"
+			]
+		},
+		{
+			"id": "state-root-identity",
+			"reason": "Digest of the private workflow state root identity (src/workflow-state-root.ts): canonical path, device, inode, uid, mode and a random per-root nonce file. Host- and install-specific by design; cannot be reproduced in another directory.",
+			"keys": ["effectivePolicy.stateRootSha256"]
+		},
+		{
+			"id": "derived-launch-identity",
+			"reason": "Canonical self-digests of launch provenance records that include host-path-digest and state-root-identity values (launch bootstrap provenance identity, launch authority grant identity) and every field that references them (launchBootstrapSha256, launchAuthoritySha256, durable barrier subjectSha256, generated .launch-barrier-<16hex> directory prefix).",
+			"keys": [
+				"records.identitySha256",
+				"grant.identitySha256",
+				"grant.launchBootstrapSha256",
+				"launchBootstrapSha256",
+				"launchAuthoritySha256",
+				"subjectSha256"
+			]
+		},
+		{
+			"id": "timestamp-derived-digest",
+			"reason": "Raw-artifact owner identity is sha256 over JSON that includes the workflow run createdAt timestamp (src/workflow-raw-contract.ts). Timestamps are normalized to <TS>; a digest over one cannot be.",
+			"keys": ["rawIntegrity.owner", "rawArtifactIntegrity.owner"]
+		},
+		{
+			"id": "host-path-file-size",
+			"reason": "terminalVersion.size is the byte size of the pi-subagent attempt result.json, a file that embeds absolute host paths (cwd, artifactCwd); its length changes with the project path length. dev/ino/mtimeMs/ctimeMs of the same stamp are already policy placeholders.",
+			"keys": ["terminalVersion.size"]
+		},
+		{
+			"id": "host-path-manifest-digest",
+			"reason": "Digests of the task's source-manifest.json, whose artifact entries embed absolute <ROOT> paths, so the values change with the project path: launchBootstrap records[].artifacts.manifestSha256 = sha256 over its canonical JSON and effectiveLaunch.artifactBinding.manifestBytesSha256 = sha256 over its bytes (src/launch-bootstrap-provenance.ts). They occur only for stages with upstream artifact access (first seen in fixtures/deep-review task-7; minimal's manifest has no paths, so its digest happened to match). Content stays pinned: the manifest file itself is compared after path normalization, the self-replay test asserts both replayed digests equal the digests of the replayed source-manifest.json, and the fixture build verified the same binding on the raw recording.",
+			"keys": [
+				"artifacts.manifestSha256",
+				"artifactBinding.manifestBytesSha256"
+			]
+		},
+		{
+			"id": "foreach-batch-capability-identity",
+			"reason": "Profile-only foreach batching (deep-research low/medium verify-claims, max 2 items) records run.json foreachBatches[] with stateRootSha256 (the same host-specific state-root identity as effectivePolicy.stateRootSha256, so its run.json occurrences are already renamed by equality) and capabilitySubjectSha256 = sha256 over canonical JSON of the batch record including that stateRootSha256 and the preparedAt timestamp (src/foreach-batch-capability.ts). The engine also passes both values to durableLaunchBarrierDigest (reservation payload schema workflow-foreach-batch-dispatch-reservation-v1), where no effectivePolicy key renames the state root inside that single call's replay key. The prompt content stays compared: foreachBatches[].batchPromptSha256 and members[].preparedPromptSha256 are not masked.",
+			"keys": [
+				"foreachBatches.capabilitySubjectSha256",
+				"args.capabilitySubjectSha256",
+				"args.stateRootSha256"
+			]
+		},
+		{
+			"id": "supervisor-progress-snapshot",
+			"reason": "supervisor.json is the supervisor heartbeat file; taskStatusCounts is the progress snapshot taken at its last write (src/store.ts run progress), which races the final task transitions. Observed in fixtures/deep-research: recording completed=20/pending=1, replay completed=19 in 3 of 3 replays (the minimal, deep-review, spec-review and impact-review fixtures happened to match). Final per-task statuses stay compared through run.json tasks[] and taskSummary; taskStatusCounts.total is not masked.",
+			"keys": [
+				"taskStatusCounts.blocked",
+				"taskStatusCounts.completed",
+				"taskStatusCounts.failed",
+				"taskStatusCounts.interrupted",
+				"taskStatusCounts.pending",
+				"taskStatusCounts.running",
+				"taskStatusCounts.skipped"
+			]
+		}
+	]
 }

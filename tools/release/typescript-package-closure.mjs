@@ -1,5 +1,12 @@
 import { readFileSync, realpathSync, statSync } from "node:fs";
-import { dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
+import {
+	dirname,
+	extname,
+	isAbsolute,
+	relative,
+	resolve,
+	sep,
+} from "node:path";
 import ts from "typescript";
 
 const RESOLUTION_EXTENSIONS = [
@@ -67,7 +74,10 @@ export function assertPackedTypeScriptClosure({
 		);
 		const references = collectLocalModuleReferences(sourceFile);
 		for (const reference of references) {
-			const unresolvedPath = resolve(dirname(importerPath), reference.specifier);
+			const unresolvedPath = resolve(
+				dirname(importerPath),
+				reference.specifier,
+			);
 			if (!isWithinRoot(root, unresolvedPath)) {
 				failures.push(
 					`${importer} -> ${JSON.stringify(reference.specifier)}: package root escape`,
@@ -188,8 +198,8 @@ function resolutionCandidates(basePath) {
 	}
 	return [
 		basePath,
-		...RESOLUTION_EXTENSIONS.map((candidateExtension) =>
-			`${basePath}${candidateExtension}`,
+		...RESOLUTION_EXTENSIONS.map(
+			(candidateExtension) => `${basePath}${candidateExtension}`,
 		),
 		...RESOLUTION_EXTENSIONS.map((candidateExtension) =>
 			resolve(basePath, `index${candidateExtension}`),
@@ -198,7 +208,12 @@ function resolutionCandidates(basePath) {
 }
 
 function isRelativeSpecifier(specifier) {
-	return specifier === "." || specifier === ".." || specifier.startsWith("./") || specifier.startsWith("../");
+	return (
+		specifier === "." ||
+		specifier === ".." ||
+		specifier.startsWith("./") ||
+		specifier.startsWith("../")
+	);
 }
 
 function isWithinRoot(root, target) {

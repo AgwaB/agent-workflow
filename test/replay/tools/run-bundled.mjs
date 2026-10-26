@@ -81,7 +81,11 @@ if (fake) {
 	let polls = 0;
 	const api = {
 		async runSubagent() {
-			return { runId: "fake_run", attemptId: "fake_attempt", status: "running" };
+			return {
+				runId: "fake_run",
+				attemptId: "fake_attempt",
+				status: "running",
+			};
 		},
 		async reconcileSubagentRun() {
 			return { status: "noop" };
@@ -93,22 +97,47 @@ if (fake) {
 				status: polls < 2 ? "running" : "failed",
 				failureKind: "fake",
 				cwd: options.cwd,
-				attempts: [{ attemptId: "fake_attempt", status: polls < 2 ? "running" : "failed" }],
+				attempts: [
+					{
+						attemptId: "fake_attempt",
+						status: polls < 2 ? "running" : "failed",
+					},
+				],
 				logs: [],
 			};
 		},
 		async interruptSubagent() {
-			return { status: "already-terminal", runId: "fake_run", interruptedAttempts: [], unsupportedAttempts: [] };
+			return {
+				status: "already-terminal",
+				runId: "fake_run",
+				interruptedAttempts: [],
+				unsupportedAttempts: [],
+			};
 		},
 	};
-	backend.setSubagentApiForTests(recorder.createRecordingSubagentApi(api, recordDir));
+	backend.setSubagentApiForTests(
+		recorder.createRecordingSubagentApi(api, recordDir),
+	);
 } else if (snapshotWebCache) {
 	const { cpSync } = await import("node:fs");
 	const { createRequire } = await import("node:module");
 	const backend = await import(dist("subagent-backend.js"));
 	const recorder = await import(dist("subagent-api-recorder.js"));
-	const real = await import(pathToFileURL(createRequire(join(pkgRoot, "package.json")).resolve("@agwab/pi-subagent/api")).href);
-	const terminal = new Set(["completed", "failed", "cancelled", "interrupted", "timed_out", "timeout"]);
+	const real = await import(
+		pathToFileURL(
+			createRequire(join(pkgRoot, "package.json")).resolve(
+				"@agwab/pi-subagent/api",
+			),
+		).href
+	);
+	const terminal = new Set([
+		"completed",
+		"failed",
+		"cancelled",
+		"interrupted",
+		"timed_out",
+		"timeout",
+	]);
 	const snapshotted = new Set();
 	const api = { ...real };
 	api.runSubagent = async (options, ...rest) => {
@@ -118,22 +147,41 @@ if (fake) {
 	api.getSubagentStatus = async (options, ...rest) => {
 		const result = await real.getSubagentStatus(options, ...rest);
 		const runId = result?.runId ?? options?.runId;
-		if (terminal.has(result?.status) && runId && !snapshotted.has(runId) && options?.runsDir && options?.cwd) {
+		if (
+			terminal.has(result?.status) &&
+			runId &&
+			!snapshotted.has(runId) &&
+			options?.runsDir &&
+			options?.cwd
+		) {
 			snapshotted.add(runId);
 			const workflowRunId = options.runsDir.split("/").at(-2);
-			const cache = join(options.cwd, ".pi", "workflows", workflowRunId, "web-source-cache");
+			const cache = join(
+				options.cwd,
+				".pi",
+				"workflows",
+				workflowRunId,
+				"web-source-cache",
+			);
 			if (existsSync(cache))
-				cpSync(cache, join(recordDir, "worker-snapshots", runId, "web-source-cache"), { recursive: true, verbatimSymlinks: true });
+				cpSync(
+					cache,
+					join(recordDir, "worker-snapshots", runId, "web-source-cache"),
+					{ recursive: true, verbatimSymlinks: true },
+				);
 		}
 		return result;
 	};
 	delete process.env.PI_WORKFLOW_RECORD_DIR;
-	backend.setSubagentApiForTests(recorder.createRecordingSubagentApi(api, recordDir));
+	backend.setSubagentApiForTests(
+		recorder.createRecordingSubagentApi(api, recordDir),
+	);
 }
 
 const options = { task };
 if (profile) options.executionProfile = profile;
-if (Object.keys(inputOverrides).length > 0) options.inputOverrides = inputOverrides;
+if (Object.keys(inputOverrides).length > 0)
+	options.inputOverrides = inputOverrides;
 const startedAt = new Date();
 const run = await engine.runWorkflow(specPath, projectDir, options);
 process.stdout.write(`run ${run.runId} started (${run.status})\n`);
@@ -151,10 +199,13 @@ while (final.status === "running" && Date.now() < deadline) {
 		}
 	}
 	const counts = {};
-	for (const entry of final.tasks ?? []) counts[entry.status] = (counts[entry.status] ?? 0) + 1;
+	for (const entry of final.tasks ?? [])
+		counts[entry.status] = (counts[entry.status] ?? 0) + 1;
 	const summary = JSON.stringify(counts);
 	if (summary !== lastSummary) {
-		process.stdout.write(`${new Date().toISOString()} ${final.status} ${summary}\n`);
+		process.stdout.write(
+			`${new Date().toISOString()} ${final.status} ${summary}\n`,
+		);
 		lastSummary = summary;
 	}
 }
@@ -184,7 +235,10 @@ writeFileSync(
 			task,
 			executionProfile: profile ?? null,
 			inputOverrides,
-			env: { PI_WORKFLOW_MAX_CONCURRENT_LAUNCHES: process.env.PI_WORKFLOW_MAX_CONCURRENT_LAUNCHES },
+			env: {
+				PI_WORKFLOW_MAX_CONCURRENT_LAUNCHES:
+					process.env.PI_WORKFLOW_MAX_CONCURRENT_LAUNCHES,
+			},
 			fake,
 			startedAt: startedAt.toISOString(),
 			endedAt: endedAt.toISOString(),

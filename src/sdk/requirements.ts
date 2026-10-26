@@ -63,7 +63,9 @@ export interface StageRequirementContext {
 	/** Stage uses web tools (also inferred from `web_search`/`fetch_content` in tools). */
 	readonly webTools?: boolean;
 	/** Explicit `requires` / profile overrides; also adds capabilities beyond the defaults. */
-	readonly requirements?: Readonly<Partial<Record<RequirementKey, Requirement>>>;
+	readonly requirements?: Readonly<
+		Partial<Record<RequirementKey, Requirement>>
+	>;
 	/** User opt-in to treat these `unverified` capabilities as available (B4: default refuse). */
 	readonly allowUnverified?: readonly RequirementKey[];
 	/** Interactive host: degradations need user confirmation (B4). Non-interactive: record only. */
@@ -212,7 +214,8 @@ export function negotiateCapabilities(
 		note: string,
 	): NegotiationEntry | null => {
 		if (!(ctx.allowReadOnlyDowngrade ?? false)) return null;
-		if (!isAvailable(caps.readOnly, unverifiedOptIn.has("readOnly"))) return null;
+		if (!isAvailable(caps.readOnly, unverifiedOptIn.has("readOnly")))
+			return null;
 		forcedReadOnly = true;
 		return {
 			key,
@@ -252,7 +255,9 @@ export function negotiateCapabilities(
 				...(observedLevel.level === "emulated"
 					? { emulatedBy: "executor" as const }
 					: {}),
-				...(viaOptIn ? { note: "unverified capability used by user opt-in" } : {}),
+				...(viaOptIn
+					? { note: "unverified capability used by user opt-in" }
+					: {}),
 			};
 			if (name === "webTools" && caps.webTools.safetyPolicy !== "engine") {
 				entry = {

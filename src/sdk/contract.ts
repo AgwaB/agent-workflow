@@ -210,7 +210,10 @@ export function validateSubmitRequest(req: SubmitRequest): string[] {
 	const problems: string[] = [];
 	if (typeof req.attemptKey !== "string" || req.attemptKey === "")
 		problems.push("attemptKey must be a non-empty string");
-	if (req.authority === undefined || typeof req.authority.consume !== "function")
+	if (
+		req.authority === undefined ||
+		typeof req.authority.consume !== "function"
+	)
 		problems.push("authority is required");
 	else if (req.authority.attemptKey !== req.attemptKey)
 		problems.push("authority.attemptKey must equal attemptKey");

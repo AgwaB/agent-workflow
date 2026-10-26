@@ -137,7 +137,9 @@ function checkOwnedSession(value: unknown, problems: string[]): void {
 		typeof value.locator !== "string" ||
 		value.locator === ""
 	)
-		problems.push("ownedSession must be {kind, locator} with non-empty strings");
+		problems.push(
+			"ownedSession must be {kind, locator} with non-empty strings",
+		);
 }
 
 /** Validate one event. Returns problems (empty = valid). */
@@ -246,17 +248,23 @@ export function validateEventSequence(
 			problems.push(`#${index}: event after terminal event #${terminalAt}`);
 		if (event.type === "started") {
 			started += 1;
-			if (index !== 0) problems.push(`#${index}: started must be the first event`);
+			if (index !== 0)
+				problems.push(`#${index}: started must be the first event`);
 		} else if (index === 0) problems.push("#0: first event must be started");
 		if (
 			event.type === "approval_request" &&
 			typeof event.requestId === "string"
 		) {
 			if (approvals.has(event.requestId))
-				problems.push(`#${index}: duplicate approval requestId ${event.requestId}`);
+				problems.push(
+					`#${index}: duplicate approval requestId ${event.requestId}`,
+				);
 			approvals.add(event.requestId);
 		}
-		if ((event.type === "completed" || event.type === "failed") && terminalAt < 0)
+		if (
+			(event.type === "completed" || event.type === "failed") &&
+			terminalAt < 0
+		)
 			terminalAt = index;
 	});
 	if (started > 1) problems.push("started emitted more than once");

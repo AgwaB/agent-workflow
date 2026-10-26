@@ -44,7 +44,8 @@ function pathVariants(path) {
 	}
 	for (const value of [...out]) {
 		if (value.startsWith("/private/")) out.add(value.slice("/private".length));
-		else if (/^\/(var|tmp|etc)\//.test(`${value}/`)) out.add(`/private${value}`);
+		else if (/^\/(var|tmp|etc)\//.test(`${value}/`))
+			out.add(`/private${value}`);
 	}
 	return [...out].filter((value) => value.length > 1);
 }
@@ -62,8 +63,16 @@ export function createContext(roots = {}, options = {}) {
 	}
 	pairs.sort((left, right) => right[0].length - left[0].length);
 	const seen = new Set();
-	const rootPairs = pairs.filter(([path]) => (seen.has(path) ? false : seen.add(path)));
-	const hosts = [...new Set([...(options.hostnames ?? [hostname()])].filter((h) => h && h.length >= 3))];
+	const rootPairs = pairs.filter(([path]) =>
+		seen.has(path) ? false : seen.add(path),
+	);
+	const hosts = [
+		...new Set(
+			[...(options.hostnames ?? [hostname()])].filter(
+				(h) => h && h.length >= 3,
+			),
+		),
+	];
 	return { roots: { ...roots }, rootPairs, hosts };
 }
 
@@ -75,7 +84,13 @@ function escapeRegExp(value) {
 export function portablePaths(text, ctx) {
 	let out = text;
 	for (const [path, token] of ctx.rootPairs) {
-		out = out.replace(new RegExp(`${escapeRegExp(path)}(?=$|[/\\\\"'\\s:;,)\\]}>]|\\.(?![A-Za-z0-9]))`, "g"), token);
+		out = out.replace(
+			new RegExp(
+				`${escapeRegExp(path)}(?=$|[/\\\\"'\\s:;,)\\]}>]|\\.(?![A-Za-z0-9]))`,
+				"g",
+			),
+			token,
+		);
 	}
 	return out;
 }
@@ -91,7 +106,8 @@ export function restorePaths(text, roots) {
 
 // ---------------------------------------------------------------- text rules
 
-const ISO_TS = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})\b/g;
+const ISO_TS =
+	/\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})\b/g;
 const ID_RULES = [
 	["WF_RUN", /\bworkflow_[0-9a-z]{6,12}_[0-9a-f]{6}\b/g],
 	["SA_RUN", /\brun_[0-9a-z]{6,12}_[0-9a-f]{6}\b/g],
@@ -125,7 +141,15 @@ export function normalizeText(text, ctx) {
 
 // ---------------------------------------------------------------- JSON rules
 
-const PID_KEYS = new Set(["pid", "workerPid", "processGroupId", "workerProcessGroupId", "ppid", "ownerPid", "parentPid"]);
+const PID_KEYS = new Set([
+	"pid",
+	"workerPid",
+	"processGroupId",
+	"workerProcessGroupId",
+	"ppid",
+	"ownerPid",
+	"parentPid",
+]);
 const FS_KEYS = new Map([
 	["device", "<FS_DEV>"],
 	["dev", "<FS_DEV>"],
@@ -152,7 +176,12 @@ function numberPlaceholder(key, value) {
 	if (key === undefined) return value;
 	if (PID_KEYS.has(key) || /[a-z]Pid$/.test(key)) return "<PID>";
 	if (FS_KEYS.has(key)) return FS_KEYS.get(key);
-	if (EPOCH_KEYS.has(key) || (value >= 1e12 && value < 1e13 && /(At|Time|Timestamp|Epoch)(Ms)?$/.test(key)))
+	if (
+		EPOCH_KEYS.has(key) ||
+		(value >= 1e12 &&
+			value < 1e13 &&
+			/(At|Time|Timestamp|Epoch)(Ms)?$/.test(key))
+	)
 		return "<EPOCH_MS>";
 	if (/Ms$/.test(key) && !CONFIG_MS_KEYS.has(key)) return "<DURATION_MS>";
 	return value;
@@ -165,11 +194,16 @@ export function normalizeJson(value, ctx, key) {
 		return normalizeText(value, ctx);
 	}
 	if (typeof value === "number") return numberPlaceholder(key, value);
-	if (Array.isArray(value)) return value.map((entry) => normalizeJson(entry, ctx, undefined));
+	if (Array.isArray(value))
+		return value.map((entry) => normalizeJson(entry, ctx, undefined));
 	if (typeof value === "object") {
 		const out = {};
 		for (const childKey of Object.keys(value).sort())
-			out[normalizeText(childKey, ctx)] = normalizeJson(value[childKey], ctx, childKey);
+			out[normalizeText(childKey, ctx)] = normalizeJson(
+				value[childKey],
+				ctx,
+				childKey,
+			);
 		return sortKeysDeep(out);
 	}
 	return value;
@@ -179,7 +213,8 @@ function sortKeysDeep(value) {
 	if (Array.isArray(value)) return value.map(sortKeysDeep);
 	if (value && typeof value === "object") {
 		const out = {};
-		for (const key of Object.keys(value).sort()) out[key] = sortKeysDeep(value[key]);
+		for (const key of Object.keys(value).sort())
+			out[key] = sortKeysDeep(value[key]);
 		return out;
 	}
 	return value;
@@ -199,7 +234,10 @@ function listFiles(root) {
 	walk(root);
 	// Order by id-insensitive relative path so placeholder numbering is stable.
 	const generic = (path) =>
-		ID_RULES.reduce((acc, [kind, pattern]) => acc.replace(pattern, `<${kind}>`), relative(root, path).split(sep).join("/"));
+		ID_RULES.reduce(
+			(acc, [kind, pattern]) => acc.replace(pattern, `<${kind}>`),
+			relative(root, path).split(sep).join("/"),
+		);
 	return out.sort((left, right) => {
 		const a = generic(left);
 		const b = generic(right);
@@ -217,7 +255,10 @@ function parseJsonLines(text) {
 export function normalizeFileText(name, text, ctx) {
 	if (/\.jsonl$/.test(name)) {
 		try {
-			return { kind: "jsonl", value: parseJsonLines(text).map((entry) => normalizeJson(entry, ctx)) };
+			return {
+				kind: "jsonl",
+				value: parseJsonLines(text).map((entry) => normalizeJson(entry, ctx)),
+			};
 		} catch {
 			/* fall through to text */
 		}
@@ -233,7 +274,11 @@ export function normalizeFileText(name, text, ctx) {
 }
 
 function serialize(entry) {
-	if (entry.kind === "jsonl") return entry.value.map((line) => JSON.stringify(line)).join("\n") + (entry.value.length ? "\n" : "");
+	if (entry.kind === "jsonl")
+		return (
+			entry.value.map((line) => JSON.stringify(line)).join("\n") +
+			(entry.value.length ? "\n" : "")
+		);
 	if (entry.kind === "json") return `${JSON.stringify(entry.value, null, 2)}\n`;
 	return entry.text;
 }
@@ -251,7 +296,10 @@ export function normalizeTreeEntries(srcDir, baseCtx) {
 		const text = bytes.toString("utf8");
 		const entry = Buffer.from(text, "utf8").equals(bytes)
 			? normalizeFileText(rel, text, ctx)
-			: { kind: "text", text: `<BINARY sha256=${createHash("sha256").update(bytes).digest("hex")}>\n` };
+			: {
+					kind: "text",
+					text: `<BINARY sha256=${createHash("sha256").update(bytes).digest("hex")}>\n`,
+				};
 		if (entries.has(rel)) throw new Error(`normalized path collision: ${rel}`);
 		entries.set(rel, entry);
 	}
@@ -264,8 +312,15 @@ export function loadAllowedDifferences(file = DEFAULT_ALLOWED_FILE) {
 	if (!file || !existsSync(file)) return [];
 	const parsed = JSON.parse(readFileSync(file, "utf8"));
 	for (const entry of parsed.entries ?? []) {
-		if (!entry.id || !entry.reason || !Array.isArray(entry.keys) || entry.keys.length === 0)
-			throw new Error(`allowed-difference entry needs id, reason and keys: ${JSON.stringify(entry)}`);
+		if (
+			!entry.id ||
+			!entry.reason ||
+			!Array.isArray(entry.keys) ||
+			entry.keys.length === 0
+		)
+			throw new Error(
+				`allowed-difference entry needs id, reason and keys: ${JSON.stringify(entry)}`,
+			);
 	}
 	return parsed.entries ?? [];
 }
@@ -278,36 +333,59 @@ function keyMatches(rules, keyPath) {
 	for (const rule of rules) {
 		const parts = rule.split(".");
 		if (parts.length > keyPath.length) continue;
-		if (parts.every((part, index) => keyPath[keyPath.length - parts.length + index] === part)) return true;
+		if (
+			parts.every(
+				(part, index) =>
+					keyPath[keyPath.length - parts.length + index] === part,
+			)
+		)
+			return true;
 	}
 	return false;
 }
 
 function collectAllowedValues(value, rules, found, keyPath = []) {
 	if (Array.isArray(value)) {
-		for (const entry of value) collectAllowedValues(entry, rules, found, keyPath);
+		for (const entry of value)
+			collectAllowedValues(entry, rules, found, keyPath);
 		return;
 	}
 	if (value && typeof value === "object") {
 		for (const childKey of Object.keys(value).sort())
-			collectAllowedValues(value[childKey], rules, found, [...keyPath, childKey]);
+			collectAllowedValues(value[childKey], rules, found, [
+				...keyPath,
+				childKey,
+			]);
 		return;
 	}
-	if (keyPath.length > 0 && typeof value === "string" && /^[0-9a-f]{64}$/.test(value) && !found.includes(value) && keyMatches(rules, keyPath))
+	if (
+		keyPath.length > 0 &&
+		typeof value === "string" &&
+		/^[0-9a-f]{64}$/.test(value) &&
+		!found.includes(value) &&
+		keyMatches(rules, keyPath)
+	)
 		found.push(value);
 }
 
 /** Non-digest scalars (numbers, non-sha256 strings) at rule keys become <ALLOWED:id>. */
 function maskScalars(value, allowed, keyPath = []) {
-	if (Array.isArray(value)) return value.map((entry) => maskScalars(entry, allowed, keyPath));
+	if (Array.isArray(value))
+		return value.map((entry) => maskScalars(entry, allowed, keyPath));
 	if (value && typeof value === "object") {
 		const out = {};
-		for (const key of Object.keys(value)) out[key] = maskScalars(value[key], allowed, [...keyPath, key]);
+		for (const key of Object.keys(value))
+			out[key] = maskScalars(value[key], allowed, [...keyPath, key]);
 		return out;
 	}
 	if (keyPath.length === 0 || value === null) return value;
-	if (typeof value === "string" && (/^[0-9a-f]{64}$/.test(value) || value.startsWith("<ALLOWED:"))) return value;
-	for (const rule of allowed) if (keyMatches(rule.keys, keyPath)) return `<ALLOWED:${rule.id}>`;
+	if (
+		typeof value === "string" &&
+		(/^[0-9a-f]{64}$/.test(value) || value.startsWith("<ALLOWED:"))
+	)
+		return value;
+	for (const rule of allowed)
+		if (keyMatches(rule.keys, keyPath)) return `<ALLOWED:${rule.id}>`;
 	return value;
 }
 
@@ -317,10 +395,15 @@ function replaceValues(value, replacements) {
 		for (const [from, to] of replacements) out = out.split(from).join(to);
 		return out;
 	}
-	if (Array.isArray(value)) return value.map((entry) => replaceValues(entry, replacements));
+	if (Array.isArray(value))
+		return value.map((entry) => replaceValues(entry, replacements));
 	if (value && typeof value === "object") {
 		const out = {};
-		for (const key of Object.keys(value).sort()) out[replaceValues(key, replacements)] = replaceValues(value[key], replacements);
+		for (const key of Object.keys(value).sort())
+			out[replaceValues(key, replacements)] = replaceValues(
+				value[key],
+				replacements,
+			);
 		return out;
 	}
 	return value;
@@ -338,14 +421,22 @@ export function applyAllowedDifferences(entries, allowed) {
 	const replacements = [];
 	for (const rule of allowed) {
 		const found = [];
-		for (const [, entry] of [...entries].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
-			if (entry.kind === "json") collectAllowedValues(entry.value, rule.keys, found);
-			else if (entry.kind === "jsonl") for (const line of entry.value) collectAllowedValues(line, rule.keys, found);
+		for (const [, entry] of [...entries].sort(([a], [b]) =>
+			a < b ? -1 : a > b ? 1 : 0,
+		)) {
+			if (entry.kind === "json")
+				collectAllowedValues(entry.value, rule.keys, found);
+			else if (entry.kind === "jsonl")
+				for (const line of entry.value)
+					collectAllowedValues(line, rule.keys, found);
 		}
 		found.forEach((value, index) => {
 			if (replacements.some(([from]) => from === value)) return;
 			replacements.push([value, `<ALLOWED:${rule.id}#${index + 1}>`]);
-			replacements.push([value.slice(0, 16), `<ALLOWED:${rule.id}#${index + 1}:16>`]);
+			replacements.push([
+				value.slice(0, 16),
+				`<ALLOWED:${rule.id}#${index + 1}:16>`,
+			]);
 		});
 	}
 	// Full digests before prefixes.
@@ -353,11 +444,23 @@ export function applyAllowedDifferences(entries, allowed) {
 	const out = new Map();
 	for (const [rel, entry] of entries) {
 		const name = replaceValues(rel, replacements);
-		if (entry.kind === "text") out.set(name, { kind: "text", text: replaceValues(entry.text, replacements) });
+		if (entry.kind === "text")
+			out.set(name, {
+				kind: "text",
+				text: replaceValues(entry.text, replacements),
+			});
 		else if (entry.kind === "json")
-			out.set(name, { kind: "json", value: maskScalars(replaceValues(entry.value, replacements), allowed) });
+			out.set(name, {
+				kind: "json",
+				value: maskScalars(replaceValues(entry.value, replacements), allowed),
+			});
 		else
-			out.set(name, { kind: "jsonl", value: entry.value.map((line) => maskScalars(replaceValues(line, replacements), allowed)) });
+			out.set(name, {
+				kind: "jsonl",
+				value: entry.value.map((line) =>
+					maskScalars(replaceValues(line, replacements), allowed),
+				),
+			});
 	}
 	return out;
 }
@@ -366,11 +469,26 @@ export function applyAllowedDifferences(entries, allowed) {
 
 export function normalizeTree(srcDir, outDir, ctx, options = {}) {
 	const allowed = options.allowed ?? [];
-	const entries = applyAllowedDifferences(normalizeTreeEntries(srcDir, ctx), allowed);
+	const entries = applyAllowedDifferences(
+		normalizeTreeEntries(srcDir, ctx),
+		allowed,
+	);
 	if (outDir) {
 		rmSync(outDir, { recursive: true, force: true });
-		for (const [rel, entry] of [...entries].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
-			const target = join(outDir, ...rel.split("/").map((part) => part.replace(/[<>:]/g, (c) => ({ "<": "{", ">": "}", ":": "~" })[c])));
+		for (const [rel, entry] of [...entries].sort(([a], [b]) =>
+			a < b ? -1 : a > b ? 1 : 0,
+		)) {
+			const target = join(
+				outDir,
+				...rel
+					.split("/")
+					.map((part) =>
+						part.replace(
+							/[<>:]/g,
+							(c) => ({ "<": "{", ">": "}", ":": "~" })[c],
+						),
+					),
+			);
 			mkdirSync(dirname(target), { recursive: true });
 			writeFileSync(target, serialize(entry));
 		}
@@ -380,7 +498,11 @@ export function normalizeTree(srcDir, outDir, ctx, options = {}) {
 
 function readTree(dir) {
 	const out = new Map();
-	for (const file of listFiles(dir)) out.set(relative(dir, file).split(sep).join("/"), readFileSync(file, "utf8"));
+	for (const file of listFiles(dir))
+		out.set(
+			relative(dir, file).split(sep).join("/"),
+			readFileSync(file, "utf8"),
+		);
 	return out;
 }
 
@@ -392,7 +514,12 @@ export function compareTrees(dirA, dirB) {
 	for (const name of [...new Set([...a.keys(), ...b.keys()])].sort()) {
 		if (!a.has(name)) diffs.push({ file: name, kind: "only-in-b" });
 		else if (!b.has(name)) diffs.push({ file: name, kind: "only-in-a" });
-		else if (a.get(name) !== b.get(name)) diffs.push({ file: name, kind: "content", detail: firstLineDiff(a.get(name), b.get(name)) });
+		else if (a.get(name) !== b.get(name))
+			diffs.push({
+				file: name,
+				kind: "content",
+				detail: firstLineDiff(a.get(name), b.get(name)),
+			});
 	}
 	return diffs;
 }
@@ -401,7 +528,8 @@ export function firstLineDiff(left, right) {
 	const a = left.split("\n");
 	const b = right.split("\n");
 	for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
-		if (a[index] !== b[index]) return { line: index + 1, a: a[index], b: b[index] };
+		if (a[index] !== b[index])
+			return { line: index + 1, a: a[index], b: b[index] };
 	}
 	return undefined;
 }
@@ -416,15 +544,24 @@ export function firstLineDiff(left, right) {
 export function replayKey(method, args, ctx, allowed = []) {
 	const local = { ...ctx, ids: new Map(), idCounts: new Map() };
 	const normalized = normalizeJson({ method, args }, local);
-	const [entry] = applyAllowedDifferences(new Map([["call", { kind: "json", value: normalized }]]), allowed).values();
+	const [entry] = applyAllowedDifferences(
+		new Map([["call", { kind: "json", value: normalized }]]),
+		allowed,
+	).values();
 	const canonical = JSON.stringify(entry.value);
-	return { key: createHash("sha256").update(canonical).digest("hex"), canonical };
+	return {
+		key: createHash("sha256").update(canonical).digest("hex"),
+		canonical,
+	};
 }
 
 // ---------------------------------------------------------------- CLI
 
 function detectRoot(dir) {
-	for (const candidate of [join(dir, "run.json"), join(dir, "run", "run.json")]) {
+	for (const candidate of [
+		join(dir, "run.json"),
+		join(dir, "run", "run.json"),
+	]) {
 		if (existsSync(candidate)) {
 			try {
 				const cwd = JSON.parse(readFileSync(candidate, "utf8")).cwd;
@@ -441,7 +578,9 @@ async function main(argv) {
 	if (argv[0] === "--compare") {
 		const diffs = compareTrees(resolve(argv[1]), resolve(argv[2]));
 		for (const diff of diffs) process.stdout.write(`${JSON.stringify(diff)}\n`);
-		process.stdout.write(diffs.length === 0 ? "identical\n" : `${diffs.length} difference(s)\n`);
+		process.stdout.write(
+			diffs.length === 0 ? "identical\n" : `${diffs.length} difference(s)\n`,
+		);
 		return diffs.length === 0 ? 0 : 1;
 	}
 	const positional = [];
@@ -459,20 +598,30 @@ async function main(argv) {
 	}
 	const [src, out] = positional;
 	if (!src || !out) {
-		process.stderr.write("usage: normalize.mjs <runDir> <outDir> [--root P] [--pkg P] [--home P] [--tmp P] [--allowed FILE|--no-allowed]\n       normalize.mjs --compare <dirA> <dirB>\n");
+		process.stderr.write(
+			"usage: normalize.mjs <runDir> <outDir> [--root P] [--pkg P] [--home P] [--tmp P] [--allowed FILE|--no-allowed]\n       normalize.mjs --compare <dirA> <dirB>\n",
+		);
 		return 2;
 	}
 	const srcDir = resolve(src);
-	if (!statSync(srcDir).isDirectory()) throw new Error(`not a directory: ${srcDir}`);
+	if (!statSync(srcDir).isDirectory())
+		throw new Error(`not a directory: ${srcDir}`);
 	roots.ROOT ??= detectRoot(srcDir);
 	roots.HOME ??= homedir();
 	roots.TMP ??= tmpdir();
 	const ctx = createContext(roots);
-	const entries = normalizeTree(srcDir, resolve(out), ctx, { allowed: loadAllowedDifferences(allowedFile) });
-	process.stdout.write(`normalized ${entries.size} file(s) -> ${resolve(out)} (${POLICY_VERSION})\n`);
+	const entries = normalizeTree(srcDir, resolve(out), ctx, {
+		allowed: loadAllowedDifferences(allowedFile),
+	});
+	process.stdout.write(
+		`normalized ${entries.size} file(s) -> ${resolve(out)} (${POLICY_VERSION})\n`,
+	);
 	return 0;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+	process.argv[1] &&
+	resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
 	process.exitCode = await main(process.argv.slice(2));
 }

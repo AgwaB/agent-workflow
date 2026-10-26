@@ -18,7 +18,11 @@ test("capability tables validate structure and the agent-owned tool loop rule", 
 		sdk
 			.validateCapabilities({
 				...sdk.noneCapabilities(),
-				toolAllowlist: { level: "native", source: "declared", detail: "medium" },
+				toolAllowlist: {
+					level: "native",
+					source: "declared",
+					detail: "medium",
+				},
 			})
 			.join(),
 		/toolAllowlist\.detail/,
@@ -92,7 +96,9 @@ test("refuse path (B5/R#6): contextIsolation unverified or none is refused unles
 		readOnly: false,
 		hasRequiredReads: false,
 	});
-	assert.deepEqual(refused.refusals, ["CAPABILITY_UNVERIFIED:contextIsolation"]);
+	assert.deepEqual(refused.refusals, [
+		"CAPABILITY_UNVERIFIED:contextIsolation",
+	]);
 	assert.throws(
 		() => sdk.assertAccepted(refused),
 		(error) => sdk.isSdkError(error, "CAPABILITY_UNVERIFIED"),
@@ -214,7 +220,9 @@ test("emulate path: cost from tokens by the engine; usage none degrades, never z
 		{
 			readOnly: false,
 			hasRequiredReads: false,
-			requirements: { "usage.cost": { need: "required", onMissing: "emulate" } },
+			requirements: {
+				"usage.cost": { need: "required", onMissing: "emulate" },
+			},
 		},
 	);
 	assert.equal(required.accepted, false);
@@ -227,7 +235,10 @@ test("emulate path: cost from tokens by the engine; usage none degrades, never z
 			requirements: { nativeSchema: { need: "required", onMissing: "refuse" } },
 		},
 	);
-	assert.equal(outcome(executorEmulated, "nativeSchema").emulatedBy, "executor");
+	assert.equal(
+		outcome(executorEmulated, "nativeSchema").emulatedBy,
+		"executor",
+	);
 });
 
 test("webTools (C2, plan §6.5): missing refuses, non-engine safety policy is recorded as degraded", () => {

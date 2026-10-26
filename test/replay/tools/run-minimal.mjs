@@ -16,7 +16,9 @@ const args = process.argv.slice(2);
 const fake = args.includes("--fake");
 const [projectArg, recordArg] = args.filter((arg) => !arg.startsWith("--"));
 if (!projectArg || !recordArg) {
-	process.stderr.write("usage: run-minimal.mjs <projectDir> <recordDir> [--fake]\n");
+	process.stderr.write(
+		"usage: run-minimal.mjs <projectDir> <recordDir> [--fake]\n",
+	);
 	process.exit(2);
 }
 const projectDir = resolve(projectArg);
@@ -33,7 +35,11 @@ if (fake) {
 	let polls = 0;
 	const api = {
 		async runSubagent() {
-			return { runId: "fake_run", attemptId: "fake_attempt", status: "running" };
+			return {
+				runId: "fake_run",
+				attemptId: "fake_attempt",
+				status: "running",
+			};
 		},
 		async reconcileSubagentRun() {
 			return { status: "noop" };
@@ -45,20 +51,36 @@ if (fake) {
 				status: polls < 2 ? "running" : "failed",
 				failureKind: "fake",
 				cwd: options.cwd,
-				attempts: [{ attemptId: "fake_attempt", status: polls < 2 ? "running" : "failed" }],
+				attempts: [
+					{
+						attemptId: "fake_attempt",
+						status: polls < 2 ? "running" : "failed",
+					},
+				],
 				logs: [],
 			};
 		},
 		async interruptSubagent() {
-			return { status: "already-terminal", runId: "fake_run", interruptedAttempts: [], unsupportedAttempts: [] };
+			return {
+				status: "already-terminal",
+				runId: "fake_run",
+				interruptedAttempts: [],
+				unsupportedAttempts: [],
+			};
 		},
 	};
-	backend.setSubagentApiForTests(recorder.createRecordingSubagentApi(api, recordDir));
+	backend.setSubagentApiForTests(
+		recorder.createRecordingSubagentApi(api, recordDir),
+	);
 }
 
 const startedAt = new Date();
 const task = "Read NOTES.md and report its first heading.";
-const run = await engine.runWorkflow(join(projectDir, "workflow.json"), projectDir, { task });
+const run = await engine.runWorkflow(
+	join(projectDir, "workflow.json"),
+	projectDir,
+	{ task },
+);
 process.stdout.write(`run ${run.runId} started (${run.status})\n`);
 let final = run;
 const deadline = Date.now() + 20 * 60_000;
