@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/orchestrate/run.ts. MIT, same author. Changes: Pi agent loading (loadAgentByName, agent tools ceiling) removed — the core supplies prompt/system prompt/model/tools in the request; resolveBackend replaced by the run's ExecutorDescriptor (backend = executor id); the headless/inline/tmux runners replaced by executeAttempt (SDK submit/observe under the durable authority); tmux metadata plumbing and the inline-binding guard removed; a pre-effect ExecutionNotStartedError is written as a terminal result instead of thrown from runSubagentTask; the durable worker binding is handed out by the authority, not by childEnv.
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/orchestrate/run.ts. MIT, same author. Changes: Pi agent loading (loadAgentByName, agent tools ceiling) removed — the core supplies prompt/system prompt/model/tools in the request; resolveBackend replaced by the run's ExecutorDescriptor (backend = executor id); the headless/inline/tmux runners replaced by executeAttempt (SDK submit/observe under the durable authority); tmux metadata plumbing and the inline-binding guard removed; a pre-effect ExecutionNotStartedError is written as a terminal result instead of thrown from runSubagentTask; the durable worker binding is handed out by the authority, not by childEnv. WP2c: discardPreparedExecutionWorkspace (workspace-only discard for callers that write their own terminal result); discardSubagentExecution clears activeAttemptId (pi-subagent left the cancelled attempt active).
 import { resolve } from "node:path";
 import type { WorkflowExecutor } from "../../sdk/contract.js";
 import { type ExecutorRegistry, loadExecutor } from "../../sdk/descriptor.js";
@@ -398,14 +398,26 @@ export async function prepareSubagentExecution(
 	};
 }
 
-export async function discardSubagentExecution(
+/**
+ * Discard the still-pristine workspace of an attempt that never released (nothing executed),
+ * without touching the registry: the caller writes the terminal result itself (the durable
+ * worker writes result.json and hands the commit to the terminal finalizer).
+ */
+export async function discardPreparedExecutionWorkspace(
 	prepared: PreparedSubagentExecution,
-): Promise<void> {
-	if (prepared.ownership.state !== "prepared") return;
+): Promise<boolean> {
+	if (prepared.ownership.state !== "prepared") return false;
 	await discardPreparedWorkspace(prepared.workspace);
 	prepared.ownership.state = "finalized";
 	prepared.ownership.cleanupStatus =
 		prepared.workspace.mode === "worktree" ? "removed" : "not-needed";
+	return true;
+}
+
+export async function discardSubagentExecution(
+	prepared: PreparedSubagentExecution,
+): Promise<void> {
+	if (!(await discardPreparedExecutionWorkspace(prepared))) return;
 	await upsertRunAttempt({
 		cwd: prepared.baseCwd,
 		runId: prepared.runId,
@@ -420,7 +432,9 @@ export async function discardSubagentExecution(
 			worktreeCleanupStatus:
 				prepared.workspace.mode === "worktree" ? "removed" : "not-needed",
 		},
-		activate: false,
+		// WP2c: a terminal upsert of the active attempt clears activeAttemptId (pi-subagent passed
+		// activate: false, which kept the cancelled attempt active). onlyIfActive still spares a
+		// successor.
 		mustExist: true,
 		onlyIfActive: true,
 	}).catch(() => undefined);
@@ -447,6 +461,7 @@ async function writeOwnedExecutionFailure(
 		notStarted?.status ??
 		(failureKind === "abort" ||
 		failureKind === "cancelled" ||
+		failureKind === "revoked" ||
 		failureKind === "user_cancelled"
 			? "cancelled"
 			: "failed");

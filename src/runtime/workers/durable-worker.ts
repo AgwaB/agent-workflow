@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/workers/durable-worker.mjs. MIT, same author. Changes: converted to TypeScript (compiled to dist/runtime/workers/durable-worker.js); runtime TypeScript loader imports replaced by static imports of the compiled modules; the payload carries an ExecutorDescriptor (`executor`) plus serializable request fields instead of Pi agent/backend options — the worker reloads the executor with loadExecutor (a missing module, id or version mismatch fails closed with guard_failure before any effect); the launch barrier sequence (READY/decision/ACK → binding → abort → execution-authorized → abort) moved into the durable LaunchAuthority that the adapter consumes inside submit; execution plan schema "agent-workflow-durable-execution-plan-v1" (see orchestrate/request.ts); a pre-effect ExecutionNotStartedError keeps its status/failureKind; env names PI_SUBAGENT_HEARTBEAT_MS / _DURABLE_WORKER_START_DELAY_MS / _DURABLE_WORKER_TERMINAL_WRITE_DELAY_MS -> AGENT_WORKFLOW_*; fallback backend for unreadable payloads is "unknown" instead of "headless".
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/workers/durable-worker.mjs. MIT, same author. Changes: converted to TypeScript (compiled to dist/runtime/workers/durable-worker.js); runtime TypeScript loader imports replaced by static imports of the compiled modules; the payload carries an ExecutorDescriptor (`executor`) plus serializable request fields instead of Pi agent/backend options — the worker reloads the executor with loadExecutor (a missing module, id or version mismatch fails closed with guard_failure before any effect); the launch barrier sequence (READY/decision/ACK → binding → abort → execution-authorized → abort) moved into the durable LaunchAuthority that the adapter consumes inside submit; execution plan schema "agent-workflow-durable-execution-plan-v1" (see orchestrate/request.ts); a pre-effect ExecutionNotStartedError keeps its status/failureKind; env names PI_SUBAGENT_HEARTBEAT_MS / _DURABLE_WORKER_START_DELAY_MS / _DURABLE_WORKER_TERMINAL_WRITE_DELAY_MS -> AGENT_WORKFLOW_*; fallback backend for unreadable payloads is "unknown" instead of "headless". WP2c: a failure or revoke before release no longer marks the attempt cancelled/user_cancelled in the registry (which skipped the terminal write, left result.json "running" and kept the attempt active); the worker discards the pristine workspace, writes the terminal result (guard/integrity failure → failed/guard_failure, engine revoke → cancelled/revoked) and spawns the terminal finalizer, which drains ownership.
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile, realpath } from "node:fs/promises";
@@ -45,7 +45,7 @@ import {
 import { isExecutionNotStartedError } from "../orchestrate/execute.js";
 import type { RuntimeRunInput } from "../orchestrate/request.js";
 import {
-	discardSubagentExecution,
+	discardPreparedExecutionWorkspace,
 	type PreparedSubagentExecution,
 	prepareSubagentExecution,
 	runPreparedSubagentExecution,
@@ -656,24 +656,31 @@ try {
 		console.error(error instanceof Error ? error.message : String(error));
 		process.exitCode = 1;
 	} else {
+		// Nothing was released: discard the pristine workspace only. The registry is left to
+		// the terminal result below and the finalizer (pi-subagent marked the attempt
+		// cancelled/user_cancelled here, which made the terminal write a no-op).
 		if (preparedExecution?.ownership?.state === "prepared")
-			await discardSubagentExecution(preparedExecution).catch(() => undefined);
+			await discardPreparedExecutionWorkspace(preparedExecution).catch(
+				() => undefined,
+			);
 		const message = error instanceof Error ? error.message : String(error);
-		const cancelled =
-			executionAbort.signal.aborted ||
-			isDurableLaunchBarrierRevokedError(error);
+		const userCancelled = executionAbort.signal.aborted;
+		const revoked = !userCancelled && isDurableLaunchBarrierRevokedError(error);
 		const status: Status = isExecutionNotStartedError(error)
 			? error.status
-			: cancelled
+			: userCancelled || revoked
 				? "cancelled"
 				: "failed";
 		const failureKind: FailureKind = isExecutionNotStartedError(error)
 			? error.failureKind
-			: cancelled
+			: userCancelled
 				? "user_cancelled"
-				: isDurableWorkerGuardError(error) || isDurableLaunchBarrierError(error)
-					? "guard_failure"
-					: failureKindFromError(error);
+				: revoked
+					? "revoked"
+					: isDurableWorkerGuardError(error) ||
+							isDurableLaunchBarrierError(error)
+						? "guard_failure"
+						: failureKindFromError(error);
 		terminalResult = await writeTerminalResult({
 			status,
 			failureKind,

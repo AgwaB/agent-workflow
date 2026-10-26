@@ -1,4 +1,4 @@
-# Runtime port (WP2a-1, WP2a-2)
+# Runtime port (WP2a-1, WP2a-2, WP2c)
 
 Source: `@agwab/pi-subagent` 0.7.2, repository `pi-subagent-engine` at `ab91a74` (MIT, same author).
 Destination: `src/runtime/` (entry point `@agwab/agent-workflow/runtime`, compiled to `dist/runtime/`).
@@ -170,6 +170,7 @@ New agent-workflow tests (no pi-subagent counterpart):
 | `runtime-validation.test.mjs` "generic backends" | The generic backend behavior |
 | `runtime-durable-worker.test.mjs` (WP2a-2) | Fencing trio end to end through real worker processes; happy path with a released V2 barrier (READY digests, binding seen by the adapter, usage with `cost: null`); rediscovery refusals (wrong id, version mismatch, missing module) before any effect; resubmitting a terminal attempt; SIGTERM → `cancel(owned)` |
 | `runtime-durable-authority.test.mjs` (WP2a-2) | Single use in-process and across instances; abort → revoked; V2 release/revoke; binding only after release; typed guard errors |
+| `runtime-pre-release-terminal.test.mjs` (WP2c) | Barrier timeout before release (worktree) → `failed/guard_failure`, terminal `result.json`, attempt inactive, finalizer events, worktree removed; engine revoke → `cancelled/revoked`, same terminal checks |
 | `runtime-execute.test.mjs` (WP2a-2) | `failed.class` table; invalid events/sequences; post-release submit failure → reconcile; timeouts; approval answers; usage; output recovery; idempotent resubmission; input validation; plan digest; `captureToolCalls` |
 | `runtime-packed-install.test.mjs` (WP2a-2 addition) | The installed `durable-worker.js` runs the fake executor fixture end to end (offline) |
 
@@ -244,7 +245,7 @@ ids, nothing after the terminal event; `validateEventSequence` once more at the 
 that ends without a terminal event is `guard_failure`. Other rules:
 
 - `submit` throws before release → no effect (`ExecutionNotStartedError`; the worktree stays discardable):
-  revoked → `cancelled/user_cancelled`; stop → `user_cancelled`/`abort`/`timeout`; authority guard →
+  revoked → `cancelled/revoked` (WP2c; was `user_cancelled`); stop → `user_cancelled`/`abort`/`timeout`; authority guard →
   `guard_failure`; adapter refusal → `validation` (INVALID_REQUEST / CAPABILITY_*), `guard_failure`
   (claims an authority state the runtime never produced) or `spawn`.
 - `submit` throws after release → `executor.reconcile(attemptKey)`: `found` → observe that ref; `absent` →
@@ -276,6 +277,7 @@ that ends without a terminal event is `guard_failure`. Other rules:
 | `failed.class` / outcome | status | failureKind | Auto-retry by the core |
 |---|---|---|---|
 | `cancelled` | `cancelled` | `cancelled` (or the stop kind when the runtime asked) | no |
+| engine revoke before release (WP2c) | `cancelled` | `revoked` | no (the engine decided) |
 | `transient` | `failed` | `transient` | allowed |
 | `rate_limit` | `failed` | `rate_limit` | allowed (after backoff) |
 | `auth` | `failed` | `executor_auth` | no |
@@ -449,6 +451,24 @@ Run results, statuses and `RunStatusSnapshot` keep their shapes; `backend` is th
     - **Results/registry.** New artifact type `exec-events`, `ResultMetadata.executor`, run event types
       `attempt.executor_submitted` and `reconcile.executor_outcome`.
 
+12. **WP2c runtime hardening** (fixes for defects inherited from pi-subagent 0.7.2; see "Inherited from
+    pi-subagent 0.7.2"):
+    - **Pre-release failures are terminal.** The durable worker no longer calls
+      `discardSubagentExecution` before writing its terminal result. That call marked the attempt
+      `cancelled/user_cancelled` in `run.json` (with `activate: false`, so `activeAttemptId` stayed set),
+      after which the worker's terminal write saw a terminal attempt with a different status and skipped
+      `result.json` (left `running`) and the finalizer. Now the worker discards only the pristine
+      workspace (`discardPreparedExecutionWorkspace`, worktree `removed`), writes `result.json`, and spawns
+      the terminal finalizer, which drains ownership and commits through the normal path. A guard or
+      integrity failure before release (barrier timeout, barrier/binding/authority errors, rediscovery
+      refusals) is `failed/guard_failure` with the reason in `stderr.log`.
+    - **Engine revoke = new failure kind `revoked`** (status `cancelled`). Chosen over `user_cancelled` so
+      the core can tell "the engine withdrew the launch" (barrier revoke, nothing ran) from "an operator
+      interrupted the worker" (SIGINT/SIGTERM → `user_cancelled`). `DurableLaunchBarrierRevokedError.failureKind`
+      is unchanged (`user_cancelled`, barrier wire compatibility); the runtime maps it to `revoked`.
+    - `discardSubagentExecution` (in-process callers) now clears `activeAttemptId` when it cancels the active
+      attempt (`onlyIfActive` still spares a successor).
+
 ## Open problems (WP2a-2 → later packages)
 
 - **WP2b:** approval requests are answered by policy only (`ask` → deny); an interactive channel and a
@@ -463,9 +483,6 @@ Run results, statuses and `RunStatusSnapshot` keep their shapes; `backend` is th
 - **WP6:** the Pi adapter must hand the binding to Pi children under both env names, map Pi JSON events
   (tool-call telemetry, usage with cache read/write) to normalized events, and own the Pi child process group
   (the dropped "stubborn interrupt" and "orphaned headless child" checks).
-- **Inherited quirks (unchanged from pi-subagent):** a guard failure after `prepare` but before release is
-  recorded by `discardSubagentExecution` as `cancelled/user_cancelled` and the later terminal write is skipped
-  (statuses differ), so `result.json` can stay `running` in that path; a revoked attempt keeps
-  `activeAttemptId` set (no finalizer is spawned for the duplicate-result backfill); a worker SIGKILLed while
-  holding the run lock leaves the lock directory behind (no stale stealing) and blocks later mutations.
+- **Inherited quirk (unchanged from pi-subagent):** a worker SIGKILLed while holding the run lock leaves the
+  lock directory behind (no stale stealing) and blocks later mutations.
 - `captureToolCalls` without `callId` cannot correlate start/end; such calls are recorded as instantaneous.

@@ -290,7 +290,8 @@ test("fencing (a): engine revokes before consume → no effect, terminal cancell
 	});
 	const snapshot = await waitTerminal(cwd, run);
 	assert.equal(snapshot.status, "cancelled", JSON.stringify(snapshot));
-	assert.equal(snapshot.failureKind, "user_cancelled");
+	// WP2c: an engine revoke is "revoked", not a user interrupt.
+	assert.equal(snapshot.failureKind, "revoked");
 	const effects = readEffectLog(effectLog);
 	assert.deepEqual(
 		effects.map((entry) => [entry.type, entry.outcome]),
