@@ -19,6 +19,7 @@ tags are in `INVENTORY.md`.
 | `tools/run-minimal.mjs` | Recording driver used for `fixtures/minimal` |
 | `tools/run-bundled.mjs` | Recording driver for bundled workflows (`<workflow> <project> <recordDir> --task …`) |
 | `tools/compact-calls.mjs` | Drops observation polls that replay collapses anyway (see POLICY.md, Known limits) |
+| `tools/build-fixture.mjs` | Builds a fixture (portable paths, compacted calls, `normalized/`) from a raw capture. Set `PI_WORKFLOW_ROOT` to the seam checkout; `AGENT_WORKFLOW_ROOT` defaults to this repo |
 | `tools/make-portable.mjs` | Rewrites absolute host roots to `<ROOT>/<PKG>/<HOME>/<TMP>` |
 
 `tools/` sits under `test/replay/`, not at the top-level `tools/`, because
