@@ -1,7 +1,8 @@
 // `@agwab/agent-workflow/runtime`: Pi-free runtime modules ported from
 // @agwab/pi-subagent 0.7.2 (WP2a-1/WP2a-2; see docs/runtime-port.md). WP2a-2 adds the
 // executor seam: durable LaunchAuthority, executor-backed run/async/reconcile, the durable
-// worker and the runtime API. The protocol broker (WP2b) comes later.
+// worker and the runtime API. WP2b adds the durable control channel (orchestrate/control.ts:
+// file mailbox for approval answers and cancel requests).
 import { fileURLToPath } from "node:url";
 
 export const MODULE = "src/runtime";
@@ -47,6 +48,7 @@ export * from "./orchestrate/reconcile.js";
 export * from "./orchestrate/request.js";
 export * from "./orchestrate/execute.js";
 export * from "./orchestrate/executor-record.js";
+export * from "./orchestrate/control.js";
 export * from "./durable-authority.js";
 export * from "./telemetry/tool-call-telemetry.js";
 export * from "./api.js";

@@ -3,8 +3,9 @@
  * evidence (`capabilities.*.verifiedWith`), so never reuse an id for a different meaning.
  */
 import { type ConformanceCheck, CORE_CHECKS } from "./checks-core.js";
-import { LIVE_CHECKS, RUNTIME_CHECKS } from "./checks-live.js";
+import { LIVE_CHECKS } from "./checks-live.js";
 import { MCP_CHECKS } from "./checks-mcp.js";
+import { RUNTIME_CHECKS } from "./checks-runtime.js";
 import type { ConformanceCheckInfo, ConformanceTier } from "./types.js";
 
 export const CONFORMANCE_CATALOG: readonly ConformanceCheck[] = [

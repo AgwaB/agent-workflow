@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/workers/durable-worker.mjs. MIT, same author. Changes: converted to TypeScript (compiled to dist/runtime/workers/durable-worker.js); runtime TypeScript loader imports replaced by static imports of the compiled modules; the payload carries an ExecutorDescriptor (`executor`) plus serializable request fields instead of Pi agent/backend options — the worker reloads the executor with loadExecutor (a missing module, id or version mismatch fails closed with guard_failure before any effect); the launch barrier sequence (READY/decision/ACK → binding → abort → execution-authorized → abort) moved into the durable LaunchAuthority that the adapter consumes inside submit; execution plan schema "agent-workflow-durable-execution-plan-v1" (see orchestrate/request.ts); a pre-effect ExecutionNotStartedError keeps its status/failureKind; env names PI_SUBAGENT_HEARTBEAT_MS / _DURABLE_WORKER_START_DELAY_MS / _DURABLE_WORKER_TERMINAL_WRITE_DELAY_MS -> AGENT_WORKFLOW_*; fallback backend for unreadable payloads is "unknown" instead of "headless". WP2c: a failure or revoke before release no longer marks the attempt cancelled/user_cancelled in the registry (which skipped the terminal write, left result.json "running" and kept the attempt active); the worker discards the pristine workspace, writes the terminal result (guard/integrity failure → failed/guard_failure, engine revoke → cancelled/revoked) and spawns the terminal finalizer, which drains ownership. WP2c: env / mcpServers[].env values arrive in the spawn environment (AGENT_WORKFLOW_DURABLE_WORKER_REQUEST_ENV_JSON, removed from process.env at startup) and are merged into the persisted keys; a missing or mismatching channel is a guard_failure before any effect.
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/workers/durable-worker.mjs. MIT, same author. Changes: converted to TypeScript (compiled to dist/runtime/workers/durable-worker.js); runtime TypeScript loader imports replaced by static imports of the compiled modules; the payload carries an ExecutorDescriptor (`executor`) plus serializable request fields instead of Pi agent/backend options — the worker reloads the executor with loadExecutor (a missing module, id or version mismatch fails closed with guard_failure before any effect); the launch barrier sequence (READY/decision/ACK → binding → abort → execution-authorized → abort) moved into the durable LaunchAuthority that the adapter consumes inside submit; execution plan schema "agent-workflow-durable-execution-plan-v1" (see orchestrate/request.ts); a pre-effect ExecutionNotStartedError keeps its status/failureKind; env names PI_SUBAGENT_HEARTBEAT_MS / _DURABLE_WORKER_START_DELAY_MS / _DURABLE_WORKER_TERMINAL_WRITE_DELAY_MS -> AGENT_WORKFLOW_*; fallback backend for unreadable payloads is "unknown" instead of "headless". WP2c: a failure or revoke before release no longer marks the attempt cancelled/user_cancelled in the registry (which skipped the terminal write, left result.json "running" and kept the attempt active); the worker discards the pristine workspace, writes the terminal result (guard/integrity failure → failed/guard_failure, engine revoke → cancelled/revoked) and spawns the terminal finalizer, which drains ownership. WP2c: env / mcpServers[].env values arrive in the spawn environment (AGENT_WORKFLOW_DURABLE_WORKER_REQUEST_ENV_JSON, removed from process.env at startup) and are merged into the persisted keys; a missing or mismatching channel is a guard_failure before any effect. WP2b: terminal-last-write — the pre-release terminal paths write output.log and close the control mailbox (every request acked) before result.json; at most one heartbeat in flight; runtime modules are imported dynamically after the early signal handlers (a SIGTERM during module loading no longer kills the worker before it can record a terminal result); the control mailbox itself is served by runPreparedSubagentExecution (orchestrate/control.ts).
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile, realpath } from "node:fs/promises";
@@ -12,71 +12,26 @@ import {
 	resolve,
 } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadExecutor } from "../../sdk/descriptor.js";
-import { isSdkError } from "../../sdk/errors.js";
 import type { WorkflowExecutor } from "../../sdk/contract.js";
-import {
-	createAttemptArtifactStore,
-	readRunRecord,
-	recordAttemptHeartbeat,
-	refreshTerminalAttemptResultIfCurrent,
-	updateAttemptWorkerProcess,
-	type ResultEnvelope,
-	type RunRecord,
-} from "../artifacts/index.js";
-import {
-	DEFAULT_RUNS_DIR,
-	type FailureKind,
-	isFailureKind,
-	isResolvedBackend,
-	type Status,
-	userCancelledAbortReason,
-} from "../core/constants.js";
-import { createDurableLaunchAuthority } from "../durable-authority.js";
-import {
-	isDurableLaunchBarrierError,
-	isDurableLaunchBarrierRevokedError,
-} from "../durable-launch-barrier.js";
-import {
-	assertDurableWorkerPayloadShape,
-	type DurableWorkerPayload,
-	resolveDurableWorkerPayload,
-} from "../durable-worker-payload.js";
-import { restoreEnvValues, takeEnvChannel } from "../orchestrate/env-values.js";
-import { isExecutionNotStartedError } from "../orchestrate/execute.js";
+import type { ResultEnvelope, RunRecord } from "../artifacts/index.js";
+import type { FailureKind, Status } from "../core/constants.js";
+import type { DurableWorkerPayload } from "../durable-worker-payload.js";
+import { takeEnvChannel } from "../orchestrate/env-values.js";
 import type { RuntimeRunInput } from "../orchestrate/request.js";
-import {
-	discardPreparedExecutionWorkspace,
-	type PreparedSubagentExecution,
-	prepareSubagentExecution,
-	runPreparedSubagentExecution,
-} from "../orchestrate/run.js";
-import { UNKNOWN_BACKEND } from "../orchestrate/status.js";
-import {
-	captureProcessIdentity,
-	type ProcessIdentity,
-} from "../process-identity.js";
-import {
-	type DurableWorkerBindingPayload,
-	executionInputAfterDurableLaunch,
-	isDurableWorkerGuardError,
-	prepareDurableWorkerBinding,
-} from "./durable-worker-binding.js";
+import type { PreparedSubagentExecution } from "../orchestrate/run.js";
+import type { ProcessIdentity } from "../process-identity.js";
+import type { DurableWorkerBindingPayload } from "./durable-worker-binding.js";
 
 // D1 (WP2c): take the env values off process.env before anything else runs, so no child, log or
 // diagnostic inherits them; they are merged into the request after the payload is verified.
 const envChannel = takeEnvChannel(process.env);
 
-const payloadPath = process.argv[2];
-if (!payloadPath) {
-	console.error("durable worker missing payload path");
-	process.exit(2);
-}
-
-// Primitive signal handling from the very first statement: a stop that lands
-// while the runtime is still starting is remembered and replayed once the real
-// cancellation path exists, instead of killing the worker before it can
-// record anything.
+// Primitive signal handling before the runtime modules load: a stop that lands while the runtime
+// is still starting is remembered and replayed once the real cancellation path exists, instead of
+// killing the worker before it can record anything. WP2b: the runtime modules are imported
+// dynamically below, after these handlers. The WP2a-2 port had turned them into static imports,
+// which ESM evaluates before the first statement, so a SIGTERM during module loading (slow under
+// load) killed the worker by default and left the attempt `running` with no terminal result.
 let earlySignal: NodeJS.Signals | undefined;
 const rememberEarlySignal = (signal: NodeJS.Signals) => {
 	earlySignal ??= signal;
@@ -84,11 +39,70 @@ const rememberEarlySignal = (signal: NodeJS.Signals) => {
 process.on("SIGINT", () => rememberEarlySignal("SIGINT"));
 process.on("SIGTERM", () => rememberEarlySignal("SIGTERM"));
 
+const payloadPath = process.argv[2];
+if (!payloadPath) {
+	console.error("durable worker missing payload path");
+	process.exit(2);
+}
+
+const [
+	{ loadExecutor },
+	{ isSdkError },
+	{
+		createAttemptArtifactStore,
+		readRunRecord,
+		recordAttemptHeartbeat,
+		refreshTerminalAttemptResultIfCurrent,
+		updateAttemptWorkerProcess,
+	},
+	{ DEFAULT_RUNS_DIR, isFailureKind, isResolvedBackend },
+	{ createDurableLaunchAuthority },
+	{ isDurableLaunchBarrierError, isDurableLaunchBarrierRevokedError },
+	payloadModule,
+	{ closeControlMailbox },
+	{ restoreEnvValues },
+	{ isExecutionNotStartedError },
+	{
+		discardPreparedExecutionWorkspace,
+		prepareSubagentExecution,
+		runPreparedSubagentExecution,
+	},
+	{ UNKNOWN_BACKEND },
+	{ captureProcessIdentity },
+	{
+		executionInputAfterDurableLaunch,
+		isDurableWorkerGuardError,
+		prepareDurableWorkerBinding,
+	},
+] = await Promise.all([
+	import("../../sdk/descriptor.js"),
+	import("../../sdk/errors.js"),
+	import("../artifacts/index.js"),
+	import("../core/constants.js"),
+	import("../durable-authority.js"),
+	import("../durable-launch-barrier.js"),
+	import("../durable-worker-payload.js"),
+	import("../orchestrate/control.js"),
+	import("../orchestrate/env-values.js"),
+	import("../orchestrate/execute.js"),
+	import("../orchestrate/run.js"),
+	import("../orchestrate/status.js"),
+	import("../process-identity.js"),
+	import("./durable-worker-binding.js"),
+]);
+
+// Assertion functions need an explicitly typed binding.
+const assertDurableWorkerPayloadShape: typeof payloadModule.assertDurableWorkerPayloadShape =
+	payloadModule.assertDurableWorkerPayloadShape;
+const { resolveDurableWorkerPayload } = payloadModule;
+
 const executionAbort = new AbortController();
 
 function requestCancel(signal: NodeJS.Signals): void {
 	executionAbort.abort(
-		userCancelledAbortReason(`durable worker received ${signal}`),
+		Object.assign(new Error(`durable worker received ${signal}`), {
+			failureKind: "user_cancelled" as const,
+		}),
 	);
 	process.exitCode = 130;
 }
@@ -254,6 +268,10 @@ async function failUnresolvedPayload(
 			runsDir,
 		});
 		const stderr = await store.writeTextArtifact("stderr", `${message}\n`);
+		// WP2b terminal-last-write: every attempt artifact exists (and every control request is
+		// acked) before result.json turns terminal.
+		const output = await store.ensureTextArtifact("output");
+		await closeControlMailbox(store.attemptDir).catch(() => undefined);
 		const status = executionAbort.signal.aborted ? "cancelled" : "failed";
 		const backend = isResolvedBackend(rawFields.backend)
 			? rawFields.backend
@@ -276,7 +294,7 @@ async function failUnresolvedPayload(
 			sandbox: { enabled: Boolean(rawInput.sandbox) },
 			exitCode: null,
 			signal: null,
-			artifacts: [store.refFor("worker"), stderr],
+			artifacts: [store.refFor("worker"), stderr, output],
 			correlationId:
 				typeof rawInput.correlationId === "string"
 					? rawInput.correlationId
@@ -453,6 +471,10 @@ async function writeTerminalResultOnce(options: {
 			runsDir: input?.runsDir,
 		});
 		const stderr = await store.writeTextArtifact("stderr", `${message}\n`);
+		// WP2b terminal-last-write: output.log exists (empty: nothing ran) and the control mailbox
+		// is closed (every request acked) before the terminal result.
+		const output = await store.ensureTextArtifact("output");
+		await closeControlMailbox(store.attemptDir).catch(() => undefined);
 		const worker = store.refFor("worker");
 		const preparedWorkspace = preparedExecution?.workspaceResult;
 		const retainedWorkspace =
@@ -474,7 +496,7 @@ async function writeTerminalResultOnce(options: {
 			sandbox: { enabled: Boolean(input?.sandbox) },
 			exitCode: options.exitCode ?? null,
 			signal: options.signal ?? null,
-			artifacts: [worker, stderr],
+			artifacts: [worker, stderr, output],
 			correlationId: input?.correlationId,
 			metadata: {
 				contextLengthExceeded: false,
@@ -585,8 +607,18 @@ try {
 } catch (error) {
 	await failUnresolvedPayload(rawPayload, error);
 }
+// WP2b: at most one heartbeat in flight. setInterval kept firing while a heartbeat waited for the
+// run lock, so under load heartbeats piled up on the lock and starved the attempt's own registry
+// mutations (prepare, running, terminal) until they failed ELOCKED.
+let heartbeatInFlight = false;
 heartbeat = setInterval(() => {
-	void recordAttemptHeartbeat({ ...runRef, attemptId }).catch(() => undefined);
+	if (heartbeatInFlight) return;
+	heartbeatInFlight = true;
+	void recordAttemptHeartbeat({ ...runRef, attemptId })
+		.catch(() => undefined)
+		.finally(() => {
+			heartbeatInFlight = false;
+		});
 }, heartbeatMs);
 heartbeat.unref?.();
 try {

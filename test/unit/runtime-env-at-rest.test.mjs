@@ -16,6 +16,7 @@ import {
 	createAttemptArtifactStore,
 	createDurableLaunchBarrierV2,
 	executionPlanDigest,
+	readRunEvents,
 	resolveDurableLaunchBarrierV2Release,
 	runSubagent,
 	runtimeWorkerPath,
@@ -337,14 +338,16 @@ test("a worker started without the env channel fails closed with guard_failure, 
 	const snapshot = await waitTerminal(cwd, { runId, attemptId });
 	assert.equal(snapshot.status, "failed", JSON.stringify(snapshot));
 	assert.equal(snapshot.failureKind, "guard_failure");
-	await waitFor(async () => {
-		try {
-			return /SECRET_TOKEN/u.test(
-				await readFile(join(store.attemptDir, "stderr.log"), "utf8"),
-			);
-		} catch {
-			return false;
-		}
-	});
+	// WP2b terminal-last-write: stderr.log is complete once the result is terminal (no polling).
+	assert.match(
+		await readFile(join(store.attemptDir, "stderr.log"), "utf8"),
+		/SECRET_TOKEN/u,
+	);
 	assert.deepEqual(readEffectLog(effectLog), [], "nothing was submitted");
+	// WP2b: the terminal finalizer is still committing/publishing after the registry turned
+	// terminal; removing the fixture under it (after()) raced it (ENOTEMPTY on rm).
+	await waitFor(async () => {
+		const events = await readRunEvents({ cwd, runId }, Infinity);
+		return events.some((event) => event.type === "run.failed");
+	});
 });

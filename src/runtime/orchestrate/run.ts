@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/orchestrate/run.ts. MIT, same author. Changes: Pi agent loading (loadAgentByName, agent tools ceiling) removed — the core supplies prompt/system prompt/model/tools in the request; resolveBackend replaced by the run's ExecutorDescriptor (backend = executor id); the headless/inline/tmux runners replaced by executeAttempt (SDK submit/observe under the durable authority); tmux metadata plumbing and the inline-binding guard removed; a pre-effect ExecutionNotStartedError is written as a terminal result instead of thrown from runSubagentTask; the durable worker binding is handed out by the authority, not by childEnv. WP2c: discardPreparedExecutionWorkspace (workspace-only discard for callers that write their own terminal result); discardSubagentExecution clears activeAttemptId (pi-subagent left the cancelled attempt active).
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/orchestrate/run.ts. MIT, same author. Changes: Pi agent loading (loadAgentByName, agent tools ceiling) removed — the core supplies prompt/system prompt/model/tools in the request; resolveBackend replaced by the run's ExecutorDescriptor (backend = executor id); the headless/inline/tmux runners replaced by executeAttempt (SDK submit/observe under the durable authority); tmux metadata plumbing and the inline-binding guard removed; a pre-effect ExecutionNotStartedError is written as a terminal result instead of thrown from runSubagentTask; the durable worker binding is handed out by the authority, not by childEnv. WP2c: discardPreparedExecutionWorkspace (workspace-only discard for callers that write their own terminal result); discardSubagentExecution clears activeAttemptId (pi-subagent left the cancelled attempt active). WP2b: in worktree mode the terminal result.json is written once, after the worktree finalization; the durable control mailbox (orchestrate/control.ts) is served during execution and closed before the terminal result.
 import { resolve } from "node:path";
 import type { WorkflowExecutor } from "../../sdk/contract.js";
 import { type ExecutorRegistry, loadExecutor } from "../../sdk/descriptor.js";
@@ -13,12 +13,14 @@ import {
 	upsertRunAttempt,
 	type ResultEnvelope,
 	type RunRef,
+	type StoreResultEnvelopeInput,
 } from "../artifacts/index.js";
 import {
 	isFailureKind,
 	type FailureKind,
 	type ResolveInput,
 	type ResolvedBackend,
+	userCancelledAbortReason,
 } from "../core/constants.js";
 import { createDurableLaunchAuthority } from "../durable-authority.js";
 import type { ExecutionAuthority } from "../../sdk/authority.js";
@@ -34,6 +36,11 @@ import {
 	type ExecutionNotStartedError,
 	isExecutionNotStartedError,
 } from "./execute.js";
+import {
+	AttemptControl,
+	type ControlServer,
+	startControlServer,
+} from "./control.js";
 import { writeAttemptExecutorRecord } from "./executor-record.js";
 import { cleanupInactiveAttemptOwnership } from "./reconcile.js";
 import {
@@ -546,7 +553,7 @@ export interface RunPreparedOptions {
 function linkedStop(
 	signal: AbortSignal | undefined,
 	timeoutMs: number | undefined,
-): { signal: AbortSignal; dispose(): void } {
+): { signal: AbortSignal; abort(reason: unknown): void; dispose(): void } {
 	const controller = new AbortController();
 	const forward = () => controller.abort(signal?.reason);
 	if (signal?.aborted) forward();
@@ -569,6 +576,9 @@ function linkedStop(
 	timer?.unref?.();
 	return {
 		signal: controller.signal,
+		abort(reason) {
+			if (!controller.signal.aborted) controller.abort(reason);
+		},
 		dispose() {
 			if (timer !== undefined) clearTimeout(timer);
 			signal?.removeEventListener("abort", forward);
@@ -635,6 +645,17 @@ export async function runPreparedSubagentExecution(
 	}).catch(() => undefined);
 
 	const stop = linkedStop(options.signal, input.timeoutMs);
+	// WP2b: the durable control channel. Served while the attempt executes; closed (every request
+	// acked) before the terminal result is written.
+	const control = new AttemptControl({
+		attemptDir: prepared.attemptDir,
+		requestStop: (reason) => stop.abort(userCancelledAbortReason(reason)),
+	});
+	let controlServer: ControlServer | undefined;
+	const closeControl = async () => {
+		control.finish();
+		await controlServer?.close().catch(() => undefined);
+	};
 	try {
 		await appendRunEvent(
 			{ ...runRef },
@@ -658,12 +679,17 @@ export async function runPreparedSubagentExecution(
 				attemptDir: prepared.attemptDir,
 				signal: stop.signal,
 			});
+		controlServer = await startControlServer({
+			attemptDir: prepared.attemptDir,
+			handlers: control.handlers,
+		});
 		const report = await executeAttempt({
 			executor,
 			request: prepared.request,
 			authority,
 			store,
 			stopSignal: stop.signal,
+			control,
 			...(input.captureToolCalls === true ? { captureToolCalls: true } : {}),
 			onReleased() {
 				// Before release the worktree is still pristine and discardable.
@@ -678,13 +704,13 @@ export async function runPreparedSubagentExecution(
 					data: { ref: { ...ref } },
 				}).catch(() => undefined);
 			},
-		});
+		}).finally(closeControl);
 		const stderr = await store.writeTextArtifact(
 			"stderr",
 			report.message.length === 0 ? "" : `${report.message}\n`,
 		);
 		const output = await store.writeTextArtifact("output", report.outputText);
-		let result = await store.writeResult({
+		const resultInput: StoreResultEnvelopeInput = {
 			backend,
 			status: report.status,
 			failureKind: report.failureKind,
@@ -716,8 +742,18 @@ export async function runPreparedSubagentExecution(
 					: { parentSessionId: input.parentSessionId }),
 				executor: report.executor,
 			},
-		});
-		result = await finalizeWorktreeResult(workspace, result, input.runsDir);
+		};
+		// WP2b terminal-last-write: in worktree mode the terminal result.json is written once, by
+		// the worktree finalization, after its status/diff artifacts (it used to be written
+		// terminal first with cleanup "execution-owned", then rewritten).
+		const result =
+			workspace.mode === "worktree" && workspace.worktreePath !== null
+				? await finalizeWorktreeResult(
+						workspace,
+						store.buildResult(resultInput),
+						input.runsDir,
+					)
+				: await store.writeResult(resultInput);
 		prepared.ownership.state = "finalized";
 		const terminalCleanupStatus = result.workspace.worktreeCleanupStatus;
 		prepared.ownership.cleanupStatus =
@@ -767,6 +803,7 @@ export async function runPreparedSubagentExecution(
 		);
 		return result;
 	} catch (error) {
+		await closeControl();
 		if (prepared.ownership.state !== "prepared")
 			await retainOwnedWorkspace(workspace).catch(() => undefined);
 		// The owning entry point commits the fallback result after this method

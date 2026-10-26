@@ -2,6 +2,8 @@
  * Conformance harness over the SDK fake executor. Proves the offline catalog end to end and is the
  * template for adapter harnesses: map each scenario to a staged executor, count effects, restart.
  * `wrap` lets tests inject adapter bugs (the kit's negative tests use it).
+ * WP2b: `runtime(scenario)` stages the same scripts for the runtime tier through
+ * `runtime-fake-module.js` (reloadable in a fresh process, effects in a JSONL log).
  */
 import {
 	EXECUTOR_CONTRACT_VERSION,
@@ -9,6 +11,9 @@ import {
 	type SubmitRequest,
 	type WorkflowExecutor,
 } from "../contract.js";
+import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createExecutorRegistry } from "../descriptor.js";
 import type { FailureClass } from "../errors.js";
 import type { ExecEvent } from "../events.js";
@@ -22,6 +27,10 @@ import {
 	type FakeStep,
 } from "../testing/fake-executor.js";
 import { MCP_NONCE_PATTERN } from "./checks-mcp.js";
+import {
+	readRuntimeFakeLog,
+	type RuntimeFakeFaults,
+} from "./runtime-fake-module.js";
 import { callMcpTool } from "./mcp-client.js";
 import { STUB_MCP_SERVER_NAME } from "./stub-mcp.js";
 import {
@@ -65,7 +74,24 @@ export interface FakeHarnessOptions {
 	 * Ignored when `executor.probe` is given (its value is used instead).
 	 */
 	readonly mcpOutputLimitChars?: number | null;
+	/**
+	 * Runtime tier (WP2b): stage scenarios in `runtime-fake-module.js`, which a durable worker
+	 * reloads in a fresh process; effects are counted from its JSONL effect log. `false` disables
+	 * the runtime stage. `faults` inject adapter bugs per scenario (negative tests).
+	 */
+	readonly runtime?:
+		| false
+		| {
+				readonly faults?: Partial<
+					Record<ConformanceScenario, RuntimeFakeFaults>
+				>;
+		  };
 }
+
+/** Absolute path of the compiled runtime fake module (what runtime-tier descriptors name). */
+export const RUNTIME_FAKE_MODULE = fileURLToPath(
+	new URL("./runtime-fake-module.js", import.meta.url),
+);
 
 const usage = (cost: number | null): ExecEvent =>
 	cost === null
@@ -316,7 +342,10 @@ export function createFakeHarness(
 				(attemptKey === undefined || entry.attemptKey === attemptKey),
 		).length;
 
-	const harness: ConformanceHarness = {
+	// Not readonly: the runtime stage is attached below unless disabled.
+	const harness: {
+		-readonly [K in keyof ConformanceHarness]: ConformanceHarness[K];
+	} = {
 		name: options.name ?? "fake",
 		scenarios: options.scenarios ?? CONFORMANCE_SCENARIOS,
 		async open(scenario): Promise<HarnessSession> {
@@ -334,6 +363,35 @@ export function createFakeHarness(
 			};
 		},
 	};
+	if (options.runtime !== false) {
+		const runtimeFaults =
+			options.runtime === undefined ? undefined : options.runtime.faults;
+		harness.runtime = async (scenario, { workDir }) => {
+			await mkdir(workDir, { recursive: true });
+			const effectLog = join(workDir, "effects.jsonl");
+			return {
+				descriptor: {
+					id: base.id ?? "fake",
+					version: base.version ?? "0.1.0",
+					contractVersion: base.contractVersion ?? EXECUTOR_CONTRACT_VERSION,
+					module: RUNTIME_FAKE_MODULE,
+					config: {
+						effectLog,
+						scenario,
+						...(base.id === undefined ? {} : { id: base.id }),
+						...(base.version === undefined ? {} : { version: base.version }),
+						faults: { ...runtimeFaults?.[scenario] },
+					},
+				},
+				effectCount: async (attemptKey) =>
+					readRuntimeFakeLog(effectLog).filter(
+						(entry) =>
+							entry.type === "effect" &&
+							(attemptKey === undefined || entry.attemptKey === attemptKey),
+					).length,
+			};
+		};
+	}
 	if (options.descriptor === false) return harness;
 	return {
 		...harness,

@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, rm, stat } from "node:fs/promises";
+import { mkdtemp, readdir, rename, rm, stat, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -60,6 +60,56 @@ test("dir-lock: exclusive, fails closed with ELOCKED, releases once", async () =
 			}),
 			(error) => error.code === "ENOENT",
 		);
+	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+// WP2b (5b flake root cause): a fixture cleanup `rm -r` of the runs directory can unlink the
+// holder's owner record and leave the lock directory momentarily empty while the holder (the
+// terminal finalizer, after publishing its events) releases. That is an external removal, not a
+// steal: release must not raise ECOMPROMISED. A real steal (another owner record replaced ours)
+// still does.
+test("dir-lock: release after an external removal is not a compromise; a replaced record is", async () => {
+	const root = await mkdtemp(join(tmpdir(), "aw-dir-lock-release-"));
+	try {
+		const lockPath = join(root, "run.lock");
+		const release = await acquireDirectoryLock(lockPath, {
+			retries: 0,
+			retryMs: 5,
+		});
+		const [record] = await readdir(lockPath);
+		assert.match(record, /^owner-.+\.json$/u);
+		// Mid-way through `rm -r`: our record is gone, the directory is still there and empty.
+		await unlink(join(lockPath, record));
+		await release();
+		assert.equal(
+			await exists(lockPath),
+			true,
+			"an empty foreign directory is left alone",
+		);
+		await rm(lockPath, { recursive: true, force: true });
+
+		// The whole lock directory already removed: nothing to release.
+		const second = await acquireDirectoryLock(lockPath, {
+			retries: 0,
+			retryMs: 5,
+		});
+		await rm(lockPath, { recursive: true, force: true });
+		await second();
+
+		// Our record replaced by another owner's: compromised.
+		const third = await acquireDirectoryLock(lockPath, {
+			retries: 0,
+			retryMs: 5,
+		});
+		const [ours] = await readdir(lockPath);
+		await rename(
+			join(lockPath, ours),
+			join(lockPath, "owner-someoneelse.json"),
+		);
+		await assert.rejects(third(), (error) => error.code === "ECOMPROMISED");
+		assert.equal(await exists(join(lockPath, "owner-someoneelse.json")), true);
 	} finally {
 		await rm(root, { recursive: true, force: true });
 	}

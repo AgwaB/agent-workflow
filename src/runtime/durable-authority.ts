@@ -3,6 +3,7 @@
 // ab91a74: barrier await → installDurableWorkerBinding → abort check →
 // assertDurableLaunchBarrierV2ExecutionAuthorized → abort check) behind `consume()`, so an
 // adapter calls it immediately before its first effect (stage-1 plan §2.1 R#1, design §8.6).
+// WP2b: a consume that throws rewrites authority.json to phase "failed" (was left "consuming").
 import { constants } from "node:fs";
 import { open, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -202,6 +203,7 @@ export function createDurableLaunchAuthority(
 	let installed: Readonly<DurableWorkerBinding> | undefined;
 	let lastDecision: AuthorityDecision | undefined;
 	let lastFailure: Error | undefined;
+	let recordCreated = false;
 	const baseRecord = {
 		schema: AUTHORITY_RECORD_SCHEMA,
 		attemptKey,
@@ -239,6 +241,7 @@ export function createDurableLaunchAuthority(
 			phase: "consuming",
 			consumedAt: new Date().toISOString(),
 		});
+		recordCreated = true;
 		let grantId: string;
 		if (barrier === undefined) {
 			grantId = durableLaunchBarrierDigest({ ...baseRecord, local: true });
@@ -329,6 +332,17 @@ export function createDurableLaunchAuthority(
 			} catch (error) {
 				state = "failed";
 				lastFailure = error instanceof Error ? error : new Error(String(error));
+				// WP2b terminal-last-write: a consume that throws (barrier timeout/integrity, guard) leaves
+				// a decided record instead of "consuming", before the attempt's terminal result is
+				// written. Only when this consume created the record (a second consumer must not
+				// overwrite the first one's).
+				if (recordCreated)
+					await updateConsumptionRecord(recordPath, {
+						...baseRecord,
+						phase: "failed",
+						reason: lastFailure.message,
+						decidedAt: new Date().toISOString(),
+					}).catch(() => undefined);
 				throw error;
 			}
 		},

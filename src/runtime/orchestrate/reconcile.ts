@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/orchestrate/reconcile.ts. MIT, same author. Changes: tmux ownership (terminatePrivateTmuxServer, launch identities) removed; when the owner process is gone and no terminal result exists, a non-interrupted attempt with a persisted executor descriptor is reconciled through executor.reconcile(attemptKey) — found (adopt when the executor is not sessionBound, else needs_decision), absent (failed/not_started), unknown (failed/needs_decision, B3) — instead of being marked stale; the runtime never relaunches.
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/orchestrate/reconcile.ts. MIT, same author. Changes: tmux ownership (terminatePrivateTmuxServer, launch identities) removed; when the owner process is gone and no terminal result exists, a non-interrupted attempt with a persisted executor descriptor is reconciled through executor.reconcile(attemptKey) — found (adopt when the executor is not sessionBound, else needs_decision), absent (failed/not_started), unknown (failed/needs_decision, B3) — instead of being marked stale; the runtime never relaunches. WP2b: every terminal result written here is preceded by output.log and the control mailbox close (terminal-last-write).
 import { readFile } from "node:fs/promises";
 import { isAbsolute, join, resolve, sep } from "node:path";
 import {
@@ -28,6 +28,7 @@ import {
 	observeAttempt,
 	reconcileSafely,
 } from "./execute.js";
+import { closeControlMailbox } from "./control.js";
 import { readAttemptExecutorRecord } from "./executor-record.js";
 
 export interface ReconcileSubagentRunOptions extends RunRef {
@@ -529,6 +530,10 @@ export async function reconcileSubagentRun(
 			? "interrupted attempt exited without a result; marked cancelled\n"
 			: "active attempt is stale/orphaned\n",
 	);
+	// WP2b terminal-last-write: output.log present and the control mailbox closed (every request
+	// acked) before the terminal result.
+	const output = await store.ensureTextArtifact("output");
+	await closeControlMailbox(store.attemptDir).catch(() => undefined);
 	const terminalResult = await store.writeResult({
 		backend: attempt.backend ?? record.backend ?? UNKNOWN_BACKEND,
 		status: interrupted ? "cancelled" : "failed",
@@ -547,7 +552,7 @@ export async function reconcileSubagentRun(
 		sandbox: result?.sandbox ?? { enabled: false },
 		exitCode: null,
 		signal: interrupted ? (record.interrupt?.signal ?? null) : null,
-		artifacts: [...(result?.artifacts ?? []), stderr],
+		artifacts: [...(result?.artifacts ?? []), stderr, output],
 		...(attempt.tmux === undefined ? {} : { tmux: attempt.tmux }),
 		metadata: result?.metadata ?? { contextLengthExceeded: false },
 	});
@@ -713,6 +718,7 @@ async function reconcileThroughExecutor(context: {
 			`${report.message}\n`,
 		);
 		const output = await store.writeTextArtifact("output", report.outputText);
+		await closeControlMailbox(store.attemptDir).catch(() => undefined);
 		const adoptedResult = await store.writeResult({
 			backend: attempt.backend ?? record.backend ?? meta.id,
 			status: report.status,
@@ -768,6 +774,8 @@ async function reconcileThroughExecutor(context: {
 			? `worker exited without a result; the executor still holds the attempt (${outcome.ref?.handle ?? "?"}) but cannot be observed from here; needs an owner decision (B3)`
 			: `worker exited without a result; the executor cannot tell whether the attempt launched (${outcome.outcome}${outcome.reason === undefined ? "" : `: ${outcome.reason}`}); needs an owner decision, no automatic retry (B3)`;
 	const stderr = await store.writeTextArtifact("stderr", `${message}\n`);
+	const output = await store.ensureTextArtifact("output");
+	await closeControlMailbox(store.attemptDir).catch(() => undefined);
 	const terminalResult = await store.writeResult({
 		backend: attempt.backend ?? record.backend ?? meta.id,
 		status: "failed",
@@ -779,7 +787,7 @@ async function reconcileThroughExecutor(context: {
 		sandbox: result?.sandbox ?? { enabled: false },
 		exitCode: null,
 		signal: null,
-		artifacts: [...(result?.artifacts ?? []), stderr],
+		artifacts: [...(result?.artifacts ?? []), stderr, output],
 		metadata: {
 			...(result?.metadata ?? { contextLengthExceeded: false }),
 			executor: meta,

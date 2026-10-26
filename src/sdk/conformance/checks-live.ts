@@ -1,6 +1,6 @@
 /**
- * Live-tier checks (real CLI + model; opt in with `tiers: ["live"]` and a `live: true` harness) and
- * runtime-tier placeholders that need the durable runtime from WP2a-2.
+ * Live-tier checks (real CLI + model; opt in with `tiers: ["live"]` and a `live: true` harness).
+ * The runtime-tier checks moved to checks-runtime.ts in WP2b.
  */
 import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
@@ -208,44 +208,5 @@ export const LIVE_CHECKS: readonly ConformanceCheck[] = [
 				violations.push("resumed session did not recall the earlier turn");
 			return body(violations);
 		},
-	},
-];
-
-const PENDING_RUNTIME =
-	"pending WP2a-2: needs the durable launch barrier / durable worker runtime API";
-
-export const RUNTIME_CHECKS: readonly ConformanceCheck[] = [
-	{
-		id: "runtime.durable_authority",
-		tier: "runtime",
-		area: "runtime",
-		title:
-			"Durable launch barrier: stop before consume / crash after consume / spawn without consume across processes",
-		refs: ["plan §2.1", "R#1", "WP2a-2"],
-		scenarios: [],
-		pending: PENDING_RUNTIME,
-		run: async (ctx) => ctx.skip(PENDING_RUNTIME),
-	},
-	{
-		id: "runtime.detach_rediscovery",
-		tier: "runtime",
-		area: "runtime",
-		title:
-			"Detach with an external adapter, then resume from its descriptor in a new process",
-		refs: ["plan §2.1", "R#15", "WP2a-2"],
-		scenarios: [],
-		pending: PENDING_RUNTIME,
-		run: async (ctx) => ctx.skip(PENDING_RUNTIME),
-	},
-	{
-		id: "runtime.broker_relay",
-		tier: "runtime",
-		area: "runtime",
-		title:
-			"Approvals and cancel relay through the durable worker after the starting host exits",
-		refs: ["R#2", "R#4", "WP2b", "WP2a-2"],
-		scenarios: [],
-		pending: PENDING_RUNTIME,
-		run: async (ctx) => ctx.skip(PENDING_RUNTIME),
 	},
 ];

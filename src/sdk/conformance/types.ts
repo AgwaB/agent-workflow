@@ -8,12 +8,13 @@ import type { SubmitRequest, WorkflowExecutor } from "../contract.js";
 import type { JsonValue } from "../json.js";
 
 /** Version of the check catalog. Bumped when checks are added or their meaning changes. */
-export const CONFORMANCE_KIT_VERSION = "0.1.0";
+export const CONFORMANCE_KIT_VERSION = "0.2.0";
 
 /**
  * - `offline`: no model calls; runs against stubs/fakes (CI default).
  * - `live`: talks to a real CLI and may spend money; opt in per run.
- * - `runtime`: needs the durable runtime (launch barrier, durable worker); placeholders until WP2a-2.
+ * - `runtime`: drives the real durable runtime (launch barrier, detached durable worker, control
+ *   mailbox) through `harness.runtime(scenario)`; no model calls with an offline stage (WP2b).
  */
 export const CONFORMANCE_TIERS = ["offline", "live", "runtime"] as const;
 export type ConformanceTier = (typeof CONFORMANCE_TIERS)[number];
@@ -86,6 +87,22 @@ export interface HarnessSession {
 	dispose?(): Promise<void>;
 }
 
+/**
+ * Runtime tier (WP2b): an executor the durable runtime can reload in a fresh process. The runtime
+ * checks launch real detached durable workers with `descriptor`, so the descriptor must be loadable
+ * by `loadExecutor` in another process (absolute module path or package specifier, JSON config, no
+ * secrets) and effects must be observable across processes (file-backed, e.g. the stub CLI
+ * invocation log).
+ */
+export interface RuntimeStage {
+	readonly descriptor: ExecutorDescriptor;
+	/** Effects for the attempt (or all) seen by any process; probes are not effects. */
+	effectCount(attemptKey?: string): Promise<number>;
+	/** Extra runtime run input (model, effort, env, mcpServers, tools, …) merged into the run. */
+	readonly runInput?: Readonly<Record<string, JsonValue>>;
+	dispose?(): Promise<void>;
+}
+
 export interface ConformanceHarness {
 	readonly name: string;
 	readonly scenarios: readonly ConformanceScenario[];
@@ -100,6 +117,14 @@ export interface ConformanceHarness {
 	}>;
 	/** True when sessions drive a real CLI/model; required for the `live` tier. */
 	readonly live?: boolean;
+	/**
+	 * Stage `scenario` for the runtime tier (WP2b). `workDir` is a fresh directory owned by the
+	 * check. Omit when the adapter cannot be reloaded in a fresh process: runtime checks then skip.
+	 */
+	runtime?(
+		scenario: ConformanceScenario,
+		options: { readonly workDir: string },
+	): Promise<RuntimeStage>;
 }
 
 export type CheckStatus = "pass" | "fail" | "skip";

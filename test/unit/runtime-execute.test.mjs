@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { after, before, test } from "node:test";
 import {
 	buildExecutionPlan,
@@ -441,9 +441,38 @@ test("approval requests are answered by policy: readOnly + mutating kind → den
 			requestId: "edit-1",
 			kind: "edit",
 			decision: "deny",
+			// WP2b: who decided (audit in approvals.jsonl).
+			by: "engine-policy",
 			response: "accepted",
 		},
 	]);
+	const audit = (
+		await readFile(
+			join(
+				result.cwd,
+				dirname(result.artifacts.find((a) => a.type === "result").path),
+				"approvals.jsonl",
+			),
+			"utf8",
+		)
+	)
+		.trim()
+		.split("\n")
+		.map((line) => JSON.parse(line));
+	assert.deepEqual(
+		audit.map((record) => [
+			record.phase,
+			record.requestId,
+			record.decision ?? null,
+			record.by ?? null,
+			record.deadlineAt ?? null,
+		]),
+		[
+			["requested", "edit-1", null, null, null],
+			["decided", "edit-1", "deny", "engine-policy", null],
+		],
+	);
+	assert.match(audit[1].reason, /readOnly stage denies mutating kind edit/u);
 });
 
 test("resubmitting the same attempt from a fresh executor instance produces no second effect", async () => {

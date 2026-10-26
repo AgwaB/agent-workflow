@@ -263,6 +263,9 @@ const { fixtureDescriptor, readEffectLog } = await import(${JSON.stringify(new U
 const effectLog = ${JSON.stringify(join(project, "effects.jsonl"))};
 const run = await runtime.runSubagent({ cwd: process.cwd(), executor: fixtureDescriptor({ effectLog }), task: "packed", async: true });
 const waited = await runtime.waitForSubagent({ cwd: process.cwd(), runId: run.runId, attemptId: run.attemptId, timeoutMs: 20000, pollIntervalMs: 50 });
+// WP2b: the detached finalizer still publishes after the registry turns terminal; the fixture is
+// removed right after this script, so wait for its run event (it raced rm with ENOTEMPTY).
+for (let i = 0; i < 400 && !(await runtime.readRunEvents({ cwd: process.cwd(), runId: run.runId }, Infinity)).some((event) => event.type === "run." + waited.snapshot?.status); i += 1) await new Promise((r) => setTimeout(r, 50));
 console.log(JSON.stringify({
   status: waited.snapshot?.status,
   failureKind: waited.snapshot?.failureKind,
