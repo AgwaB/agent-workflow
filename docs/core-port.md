@@ -897,3 +897,19 @@ deferred-WP5+ 53, dropped 33 (140). No file is left at a `deferred-WP4c*` status
 
 - `task-cancellation.ts` `interruptSubagentTask`: an interrupt result `unsupported` (runtime found no live process to signal) is no longer an immediate error when the exact attempt then reaches a terminal state within the interrupt deadline (race: a worker that saw a barrier revoke exits by itself; since WP2b the runtime skips dead cached targets). WB-004 is preserved: `unsupported` is never an acknowledgement by itself, fails exactly as before when no status API exists or the attempt does not terminate, and `unsupported` for another attempt is rejected. `interruptStatus` gains `"unsupported"`. Regression test `core-task-cancellation-unsupported.test.mjs`.
 - `core-wp4c1-engine-runtime.test.mjs`: the prune step waits for the in-process supervisor to release before ageing the lease (test-only race, ~1 in 3).
+
+## WP1b — replay acceptance against the pi-workflow recordings
+
+WP1b replays the five WP1a recordings (`test/replay/fixtures/`) through the agent-workflow engine with the
+original pi-workflow specs and compares the run records (docs/replay.md). The comparison found two product
+bugs (fixed below, each with a regression test) and the intentional changes listed here; the explained
+differences in `test/replay/explained-differences.json` cite these entries.
+
+### WP1b change log (behavior-relevant)
+
+4. **Fix: runtime usage aliases** (`src/core/task-observability.ts` `USAGE_FIELD_ALIASES`). The task usage
+   reader only knew Pi's usage object (`cacheRead`, `cost.total`); the runtime summary's `cached`
+   (cache-read input tokens) and `cost` (USD) were dropped, so cache-read tokens and cost vanished from task
+   and run usage for every executor. `cached` → `cacheReadInputTokens` and a numeric `cost` → `costUsd` are
+   now read after the existing aliases (a Pi `cost` object still resolves through `cost.total`). Test:
+   `core-usage-runtime-summary.test.mjs`.
