@@ -1,0 +1,13 @@
+{
+	"schema": "agent-workflow-pi-transcript-v1",
+	"name": "fail-auth-no-api-key",
+	"source": "offline (provider without credentials: exits before any request)",
+	"piVersion": "1.1.0",
+	"model": "mistral/mistral-small-latest",
+	"exitCode": 1,
+	"signal": null,
+	"stdout": [
+		"{\"type\":\"session\",\"version\":3,\"id\":\"01a1780a-d4cd-7590-be6b-5147a551a7d0\",\"timestamp\":\"2026-10-26T11:48:58.190Z\",\"cwd\":\"<TMP>/faux\"}"
+	],
+	"stderr": "No API key found for mistral.\n\nUse /login to log into a provider via OAuth or API key. See:\n  <HOME>/.nvm/versions/node/v24.16.0/lib/node_modules/@earendil-works/pi-coding-agent/docs/providers.md\n  <HOME>/.nvm/versions/node/v24.16.0/lib/node_modules/@earendil-works/pi-coding-agent/docs/models.md\n"
+}

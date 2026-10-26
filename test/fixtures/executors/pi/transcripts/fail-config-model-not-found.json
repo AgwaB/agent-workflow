@@ -1,0 +1,11 @@
+{
+	"schema": "agent-workflow-pi-transcript-v1",
+	"name": "fail-config-model-not-found",
+	"source": "offline (pi --model <unknown>: exits before any request)",
+	"piVersion": "1.1.0",
+	"model": null,
+	"exitCode": 1,
+	"signal": null,
+	"stdout": [],
+	"stderr": "Error: Model \"nonexistent-model-zzz\" not found. Use --list-models to see available models.\n"
+}

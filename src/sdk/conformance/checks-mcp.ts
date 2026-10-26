@@ -139,11 +139,18 @@ export const MCP_CHECKS: readonly ConformanceCheck[] = [
 					"no tool_call output to measure (toolTelemetry absent)",
 				);
 			const delivered = outputText(event.output)?.length ?? 0;
-			if (delivered > limit)
+			// A CLI may wrap a cut result in its own notice (probe().mcpOutputNoticeChars).
+			const notice = probe.mcpOutputNoticeChars ?? 0;
+			if (delivered > limit + notice)
 				run.violations.push(
-					`delivered ${delivered} chars > declared mcpOutputLimitChars ${limit}: the declared limit is wrong`,
+					`delivered ${delivered} chars > declared mcpOutputLimitChars ${limit}${notice > 0 ? ` + mcpOutputNoticeChars ${notice}` : ""}: the declared limit is wrong`,
 				);
-			return body(run.violations, { limit, served, delivered });
+			return body(run.violations, {
+				limit,
+				...(notice > 0 ? { notice } : {}),
+				served,
+				delivered,
+			});
 		},
 	},
 ];
