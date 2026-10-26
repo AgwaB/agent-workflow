@@ -587,6 +587,23 @@ literal), `artifact-graph-schema.ts`, `store.ts` (resumable `executor_needs_deci
 10. Renames in the table above (paths, env, ids, session ids, worktree branch, messages).
 11. Spec field `executionProfileExecutors` and run option `executor` / `defaultExecutor` are new.
 
+### WP4c-1 tests
+
+- `core-wp4c1-engine-runtime.test.mjs` (9 tests): end-to-end two-stage run (stage `b` requires
+  `a.control`; the fixture executor performs the read through the task's `artifact-access.json`, standing
+  in for the WP5 server) through engine → task backend → runtime durable worker → fixture executor, ending
+  with a completed `run.json` under `.agent-workflow/workflows/`, then pruning deletes exactly the owned
+  sessions; stop during stage 1 revokes the barrier (worker consume → `revoked`, no effect);
+  `needs_decision` blocks run and task with a notice and no retry; `not_started` retries with a new key;
+  unknown/unavailable executor fails before launch; precedence; `deliveryUnverified`; attemptKey; request
+  mapping and the R#5 gate.
+- Helpers: `test/helpers/workflow-executor-fixture.mjs` (descriptor module over the SDK fake executor,
+  JSONL effect log), `register-default-executor.mjs` (registers that fixture as `pi` for ported tests that
+  start runs without naming an executor), `workflow-artifact-fixture.mjs`, `raw-host-fixture.mjs` (ported).
+- Ported pi-workflow tests: see the decision table (`ported-WP4c1`). Header changes are listed in each file.
+- `core-prompt-schema-reliability` and `core-wb-016-scheduler-performance` got back the source-scan test
+  WP4b dropped; it now reads `src/core/engine.ts` / `src/core/task-backend.ts`.
+
 ### For later WPs
 
 - **WP4c-2:** port `unit-test-support.mjs` (its fake SubagentApi plugs into `setTaskRuntimeApiForTests`;
@@ -632,14 +649,17 @@ Counts after WP4a: ported 1, deferred-WP4b 20, deferred-WP4c 32, deferred-WP5+ 5
 Counts after WP4b: ported 1, ported-WP4b 23 (the 20 deferred-WP4b files plus prompt-schema-reliability,
 wb-016-scheduler-performance and review-runtime-retention-depth, each minus the one test that needs
 engine.ts or cli.mjs), deferred-WP4c 30, deferred-WP5+ 53, dropped 33.
+Counts after WP4c-1: ported 1, ported-WP4b 23 (prompt-schema-reliability and wb-016 complete again),
+ported-WP4c1 14, deferred-WP4c-2 15 (the `unit-test-support.mjs` harness), deferred-WP6 1, deferred-WP5+ 53,
+dropped 33 (140).
 
 | pi-workflow test | Decision | Reason |
 |---|---|---|
 | artifact-sidecar-settlement.test.mjs | ported-WP4b (`test/unit/core-artifact-sidecar-settlement.test.mjs`) | WP4b |
-| bounded-raw-link-contract.test.mjs | deferred-WP4c | needs subagent-backend,engine |
-| built-engine-frozen-bundle-regression.test.mjs | deferred-WP4c | needs engine,subagent-backend |
+| bounded-raw-link-contract.test.mjs | ported-WP4c1 (`test/unit/core-bounded-raw-link-contract.test.mjs`) | WP4c-1; paths, default executor fixture |
+| built-engine-frozen-bundle-regression.test.mjs | deferred-WP6 | Pi extension tool providers in the launch options |
 | code-search-compat.test.mjs | dropped | INVENTORY: drop(Pi extension tool compat shim) |
-| dag-hardening.test.mjs | deferred-WP4c | needs engine,subagent-backend (+unit-test-support harness: fake SubagentApi/engine) |
+| dag-hardening.test.mjs | deferred-WP4c-2 | unit-test-support harness |
 | deep-research-completion-output.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | deep-research-integrity-regressions.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | deep-research-live-correction.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
@@ -654,40 +674,40 @@ engine.ts or cli.mjs), deferred-WP4c 30, deferred-WP5+ 53, dropped 33.
 | deep-review-ledger-corrective.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | deep-review-source-scope.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | dependency-lock-consistency.test.mjs | dropped | INVENTORY: drop(pi-workflow release tooling; agent-workflow has its own tools/release) |
-| dynamic-audit.test.mjs | deferred-WP4c | needs engine,subagent-backend |
-| dynamic-controller-regressions.test.mjs | deferred-WP4c | needs  (+unit-test-support harness: fake SubagentApi/engine) |
+| dynamic-audit.test.mjs | ported-WP4c1 (`test/unit/core-dynamic-audit.test.mjs`) | WP4c-1; setTaskRuntimeApiForTests, default executor fixture |
+| dynamic-controller-regressions.test.mjs | deferred-WP4c-2 | unit-test-support harness |
 | dynamic-coordination-bundle-parity.test.mjs | ported (`test/unit/core-dynamic-coordination-bundle-parity.test.mjs`) | all imports in the WP4a set |
-| dynamic-coordination-projection.test.mjs | deferred-WP4c | needs  (+unit-test-support harness: fake SubagentApi/engine) |
-| dynamic-coordination-replay.test.mjs | deferred-WP4c | needs engine (+unit-test-support harness: fake SubagentApi/engine) |
+| dynamic-coordination-projection.test.mjs | deferred-WP4c-2 | unit-test-support harness |
+| dynamic-coordination-replay.test.mjs | deferred-WP4c-2 | unit-test-support harness |
 | dynamic-fanout-requestid.test.mjs | ported-WP4b (`test/unit/core-dynamic-fanout-requestid.test.mjs`) | WP4b |
-| dynamic-tool-result-budget.test.mjs | deferred-WP4c | needs engine (+unit-test-support harness: fake SubagentApi/engine) |
-| engine-output-retry-dispatch.test.mjs | deferred-WP4c | needs engine,subagent-backend |
-| engine-refresh.test.mjs | deferred-WP4c | needs engine,subagent-backend (+unit-test-support harness: fake SubagentApi/engine) |
+| dynamic-tool-result-budget.test.mjs | deferred-WP4c-2 | unit-test-support harness |
+| engine-output-retry-dispatch.test.mjs | ported-WP4c1 (`test/unit/core-engine-output-retry-dispatch.test.mjs`) | WP4c-1; setTaskRuntimeApiForTests, default executor fixture |
+| engine-refresh.test.mjs | deferred-WP4c-2 | unit-test-support harness |
 | execution-profiles.test.mjs | deferred-WP5+ | bundled workflows (WP10); Pi host/extension modules: extension |
 | fast-mode.test.mjs | deferred-WP5+ | Pi host/extension modules: workflow-fast-mode-extension; Pi/pi-subagent package |
 | foreach-batch-runtime.test.mjs | deferred-WP5+ | Pi/pi-subagent package |
-| graph-schema-contracts.test.mjs | deferred-WP4c | needs  (+unit-test-support harness: fake SubagentApi/engine) |
+| graph-schema-contracts.test.mjs | deferred-WP4c-2 | unit-test-support harness |
 | helper-grounding-integrity.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | host-package-policy.test.mjs | deferred-WP5+ | Pi/pi-subagent package |
 | host-sdk-compat.test.mjs | dropped | INVENTORY: drop(Pi host package policy) |
 | impact-review-enum-control-guidance.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | impact-review-impact-fixes.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
-| launch-slot-observer.test.mjs | deferred-WP4c | needs subagent-backend (+unit-test-support harness: fake SubagentApi/engine) |
+| launch-slot-observer.test.mjs | deferred-WP4c-2 | unit-test-support harness |
 | metrics-estimate-contracts.test.mjs | ported-WP4b (`test/unit/core-metrics-estimate-contracts.test.mjs`) | WP4b; run root path |
-| nested-workflow-depth-behavior.test.mjs | deferred-WP4c | needs engine (+unit-test-support harness: fake SubagentApi/engine) |
+| nested-workflow-depth-behavior.test.mjs | deferred-WP4c-2 | unit-test-support harness |
 | no-send-controls.test.mjs | deferred-WP5+ | Pi/pi-subagent package |
 | normalized-provider-corrective.test.mjs | dropped | INVENTORY: drop(workflow_web_* removed in WP10) |
 | optional-output-sections.test.mjs | ported-WP4b (`test/unit/core-optional-output-sections.test.mjs`) | WP4b; run root path |
-| parent-usage-retention.test.mjs | deferred-WP4c | needs workflow-parent-usage |
+| parent-usage-retention.test.mjs | ported-WP4c1 (`test/unit/core-parent-usage-retention.test.mjs`) | WP4c-1; run root path |
 | partial-output-literal-preservation.test.mjs | ported-WP4b (`test/unit/core-partial-output-literal-preservation.test.mjs`) | WP4b |
 | pi-agent-dir.test.mjs | dropped | INVENTORY: drop(Pi config dir; hosts/pi only) |
 | product-corrective-11.test.mjs | dropped | INVENTORY: drop(web fetch cache removed in WP10) |
 | product-corrective-12.test.mjs | dropped | INVENTORY: drop(web provider removed in WP10) |
-| prompt-schema-reliability.test.mjs | ported-WP4b (`test/unit/core-prompt-schema-reliability.test.mjs`) | WP4b; 1 of 6 dropped (reads src/engine.ts → WP4c) |
-| raw-artifact-read-roundtrip.test.mjs | deferred-WP4c | needs subagent-backend |
+| prompt-schema-reliability.test.mjs | ported-WP4b (`test/unit/core-prompt-schema-reliability.test.mjs`) | WP4b; source-scan test restored in WP4c-1 |
+| raw-artifact-read-roundtrip.test.mjs | ported-WP4c1 (`test/unit/core-raw-artifact-read-roundtrip.test.mjs`) | WP4c-1 |
 | release-gates.test.mjs | dropped | INVENTORY: drop(pi-workflow release tooling) |
 | release-provenance.test.mjs | dropped | INVENTORY: drop(pi-workflow release tooling; agent-workflow has its own) |
-| required-artifact-read-completeness.test.mjs | deferred-WP4c | needs subagent-backend |
+| required-artifact-read-completeness.test.mjs | ported-WP4c1 (`test/unit/core-required-artifact-read-completeness.test.mjs`) | WP4c-1 |
 | review-core-fixes.test.mjs | deferred-WP5+ | cli.mjs (WP11a); Pi host/extension modules: extension |
 | review-helper-byte-gates.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | review-helper-materialized.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
@@ -697,12 +717,12 @@ engine.ts or cli.mjs), deferred-WP4c 30, deferred-WP5+ 53, dropped 33.
 | run-usage-rollup.test.mjs | ported-WP4b (`test/unit/core-run-usage-rollup.test.mjs`) | WP4b |
 | runtime-bundled-api-boundary.test.mjs | dropped | INVENTORY: drop(pi-subagent bundling) |
 | runtime-refs-transport-boundary.test.mjs | dropped | INVENTORY: drop(web-coupled) / unknown |
-| runtime-storage-boundaries.test.mjs | deferred-WP4c | needs subagent-backend |
+| runtime-storage-boundaries.test.mjs | ported-WP4c1 (`test/unit/core-runtime-storage-boundaries.test.mjs`) | WP4c-1; state paths |
 | runtime-transport-boundaries.test.mjs | dropped | INVENTORY: drop(web transport removed in WP10) |
 | spec-requirement-coverage.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | spec-review-live-spec-correction.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
-| store-final-review-regression.test.mjs | deferred-WP4c | needs  (+unit-test-support harness: fake SubagentApi/engine) |
-| store-lease-contention.test.mjs | deferred-WP4c | needs workflow-parent-usage |
+| store-final-review-regression.test.mjs | deferred-WP4c-2 | unit-test-support harness |
+| store-lease-contention.test.mjs | ported-WP4c1 (`test/unit/core-store-lease-contention.test.mjs`) | WP4c-1; fixture in test/fixtures/core/lease-handoff |
 | store-lease-handoff.test.mjs | ported-WP4b (`test/unit/core-store-lease-handoff.test.mjs`) | WP4b |
 | store-lock-corrective.test.mjs | ported-WP4b (`test/unit/core-store-lock-corrective.test.mjs`) | WP4b |
 | subagent-extension-preflight.test.mjs | deferred-WP5+ | Pi/pi-subagent package |
@@ -714,17 +734,17 @@ engine.ts or cli.mjs), deferred-WP4c 30, deferred-WP5+ 53, dropped 33.
 | unit-artifact-web.test.mjs | deferred-WP5+ | bundled workflows (WP10); Pi/pi-subagent package |
 | unit-authoring-interface.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | unit-core-runtime.test.mjs | deferred-WP5+ | bundled workflows (WP10); Pi/pi-subagent package |
-| unit-dynamic-runtime.test.mjs | deferred-WP4c | needs engine,subagent-backend (+unit-test-support harness: fake SubagentApi/engine) |
+| unit-dynamic-runtime.test.mjs | deferred-WP4c-2 | unit-test-support harness |
 | unit-engine-store.test.mjs | deferred-WP5+ | bundled workflows (WP10); Pi/pi-subagent package |
-| unit-model-task-runtime.test.mjs | deferred-WP4c | needs engine,subagent-backend (+unit-test-support harness: fake SubagentApi/engine) |
-| unit-nested-backend-refresh.test.mjs | deferred-WP4c | needs subagent-backend (+unit-test-support harness: fake SubagentApi/engine) |
+| unit-model-task-runtime.test.mjs | deferred-WP4c-2 | unit-test-support harness |
+| unit-nested-backend-refresh.test.mjs | deferred-WP4c-2 | unit-test-support harness |
 | unit-resource-inheritance-compiler.test.mjs | ported-WP4b (`test/unit/core-unit-resource-inheritance-compiler.test.mjs`) | WP4b; .pi→.agent-workflow paths |
-| unit-resource-inheritance-recovery.test.mjs | deferred-WP4c | needs engine |
+| unit-resource-inheritance-recovery.test.mjs | ported-WP4c1 (`test/unit/core-unit-resource-inheritance-recovery.test.mjs`) | WP4c-1; agents path |
 | unit-resource-inheritance-runtime.test.mjs | deferred-WP5+ | Pi/pi-subagent package |
 | unit-resource-inheritance-sdk.test.mjs | deferred-WP5+ | Pi/pi-subagent package |
 | unit-split-contract.test.mjs | dropped | INVENTORY: drop(pi-workflow test bookkeeping) |
 | unit-test-cleanup.test.mjs | deferred-WP5+ | no core module; port-adapted (test harness) |
-| unit-unlimited-loop.test.mjs | deferred-WP4c | needs  (+unit-test-support harness: fake SubagentApi/engine) |
+| unit-unlimited-loop.test.mjs | deferred-WP4c-2 | unit-test-support harness |
 | unlimited-supervisor.test.mjs | deferred-WP5+ | cli.mjs (WP11a) |
 | verification-ontology-parity.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | wb-001-web-provider-compat.test.mjs | dropped | INVENTORY: drop(workflow_web_* removed in WP10) |
@@ -732,15 +752,15 @@ engine.ts or cli.mjs), deferred-WP4c 30, deferred-WP5+ 53, dropped 33.
 | wb-002-normalized-web-contract.test.mjs | dropped | INVENTORY: drop(workflow_web_* removed in WP10) |
 | wb-003-package-closure.test.mjs | deferred-WP5+ | no core module; port-adapted (release tooling exists in agent-workflow) |
 | wb-003-web-security.test.mjs | dropped | INVENTORY: drop(workflow_web_* removed in WP10) |
-| wb-004-backend-lifecycle.test.mjs | deferred-WP4c | needs subagent-backend |
-| wb-005-index-durability.test.mjs | deferred-WP4c | needs engine |
-| wb-006-rate-limit-lock.test.mjs | deferred-WP4c | needs subagent-backend |
+| wb-004-backend-lifecycle.test.mjs | ported-WP4c1 (`test/unit/core-wb-004-backend-lifecycle.test.mjs`) | WP4c-1; handle literal, setTaskRuntimeApiForTests |
+| wb-005-index-durability.test.mjs | ported-WP4c1 (`test/unit/core-wb-005-index-durability.test.mjs`) | WP4c-1; run root path |
+| wb-006-rate-limit-lock.test.mjs | ported-WP4c1 (`test/unit/core-wb-006-rate-limit-lock.test.mjs`) | WP4c-1; backoff file under AGENT_WORKFLOW_HOME |
 | wb-007-dynamic-recovery.test.mjs | ported-WP4b (`test/unit/core-wb-007-dynamic-recovery.test.mjs`) | WP4b |
 | wb-008-filesystem-security.test.mjs | ported-WP4b (`test/unit/core-wb-008-filesystem-security.test.mjs`) | WP4b |
 | wb-009-workflow-policy.test.mjs | dropped | INVENTORY: drop(pi-workflow release tooling) |
 | wb-012-public-contracts.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | wb-014-platform-package.test.mjs | dropped | INVENTORY: drop(pi-workflow package CI) |
-| wb-016-scheduler-performance.test.mjs | ported-WP4b (`test/unit/core-wb-016-scheduler-performance.test.mjs`) | WP4b; 1 of 3 dropped (reads engine/subagent-backend source → WP4c) |
+| wb-016-scheduler-performance.test.mjs | ported-WP4b (`test/unit/core-wb-016-scheduler-performance.test.mjs`) | WP4b; source-scan test restored in WP4c-1 |
 | wb-017-artifact-index-performance.test.mjs | ported-WP4b (`test/unit/core-wb-017-artifact-index-performance.test.mjs`) | WP4b; run root path |
 | wb-018-dynamic-tail-performance.test.mjs | deferred-WP5+ | Pi host/extension modules: workflow-view |
 | worker-role.test.mjs | deferred-WP5+ | Pi host/extension modules: extension |
@@ -749,14 +769,14 @@ engine.ts or cli.mjs), deferred-WP4c 30, deferred-WP5+ 53, dropped 33.
 | workflow-authoring-corrective.test.mjs | ported-WP4b (`test/unit/core-workflow-authoring-corrective.test.mjs`) | WP4b; agent path |
 | workflow-authoring-gates.test.mjs | ported-WP4b (`test/unit/core-workflow-authoring-gates.test.mjs`) | WP4b; 2 of 7 dropped (cli.mjs inspect → WP11a) |
 | workflow-auto-binding.test.mjs | ported-WP4b (`test/unit/core-workflow-auto-binding.test.mjs`) | WP4b; .pi→.agent-workflow paths |
-| workflow-auto-negative-boundaries.test.mjs | deferred-WP4c | needs workflow-router,subagent-backend |
+| workflow-auto-negative-boundaries.test.mjs | ported-WP4c1 (`test/unit/core-workflow-auto-negative-boundaries.test.mjs`) | WP4c-1; setTaskRuntimeApiForTests, default executor fixture |
 | workflow-command-actions.test.mjs | dropped | INVENTORY: drop(Pi slash command; hosts/pi) |
 | workflow-contract-findings-006-008.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | workflow-extension-isolation.test.mjs | deferred-WP5+ | Pi/pi-subagent package |
-| workflow-fixture-lifecycle.test.mjs | deferred-WP4c | needs engine (+unit-test-support harness: fake SubagentApi/engine) |
+| workflow-fixture-lifecycle.test.mjs | deferred-WP4c-2 | unit-test-support harness |
 | workflow-guide-fixed-inventory.test.mjs | ported-WP4b (`test/unit/core-workflow-guide-fixed-inventory.test.mjs`) | WP4b; scaffold copied to test/fixtures/core/ |
 | workflow-launch-cancellation.test.mjs | deferred-WP5+ | Pi host/extension modules: extension; Pi/pi-subagent package |
-| workflow-launch-metadata.test.mjs | deferred-WP4c | needs engine |
+| workflow-launch-metadata.test.mjs | ported-WP4c1 (`test/unit/core-workflow-launch-metadata.test.mjs`) | WP4c-1; paths, default executor fixture |
 | workflow-mtbyqwu0-security.test.mjs | ported-WP4b (`test/unit/core-workflow-mtbyqwu0-security.test.mjs`) | WP4b |
 | workflow-native-boundary.test.mjs | dropped | INVENTORY: drop(Pi native host context) |
 | workflow-native-cli.test.mjs | dropped | INVENTORY: drop(Pi native host) |
