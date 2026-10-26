@@ -14,6 +14,16 @@ Pre-alpha skeleton (WP0). Every entry point is a stub; do not depend on it yet.
 The design, decisions, and stage-1 plan live in the owner's analysis workspace
 and will be summarized in `docs/` as work packages land.
 
+## Permission mode
+
+The default permission mode is **`free`**: workers run without approval prompts and without
+sandbox restrictions, except on stages the workflow declares `readOnly` (those stay read-only), and
+workers still do not load your personal settings, instructions, hooks or skills unless a stage opts in.
+To get the conservative behavior (no bypass flags, policy-based approvals, a worktree for every
+write-capable stage), choose **`safe`**: run option `permissionMode: "safe"`, a declared profile in
+`executionProfilePermissionModes`, or `permissionMode` on a saved profile. Details:
+[`docs/permissions.md`](docs/permissions.md).
+
 ## Planned entry points
 
 - `@agwab/agent-workflow` — core engine and SDK re-exports

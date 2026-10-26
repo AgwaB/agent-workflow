@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine.ts. MIT, same author. Changes: the backend comes from the task-launch registry and the core task backend registers itself (was hard-wired pi-subagent); acknowledgeSubagentTaskInterrupted from task-cancellation.ts; run options executor/defaultExecutor (B2 executor selection before the run record exists, frozen as run.executor; nested runs copy the parent's) and inheritHostTools/allowSharedCheckoutWrites passed into compileWorkflow (nested runs follow the parent record); native host context → withHostContext(resolveHostContext()); foreach batch eligibility uses prepareWorkflowTaskToolPolicy with the run's host-tool and shared-checkout decisions (R#5); messages say agent-workflow. WP4d: B4 capability negotiation after executor selection and compile, before the run record (probe once, refuse/degrade/confirm, record run.capabilityNegotiation; run options interactive/confirmDegradations/allowUnverifiedCapabilities/executorProber/executorProbeTimeoutMs).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine.ts. MIT, same author. Changes: the backend comes from the task-launch registry and the core task backend registers itself (was hard-wired pi-subagent); acknowledgeSubagentTaskInterrupted from task-cancellation.ts; run options executor/defaultExecutor (B2 executor selection before the run record exists, frozen as run.executor; nested runs copy the parent's) and inheritHostTools/allowSharedCheckoutWrites passed into compileWorkflow (nested runs follow the parent record); native host context → withHostContext(resolveHostContext()); foreach batch eligibility uses prepareWorkflowTaskToolPolicy with the run's host-tool and shared-checkout decisions (R#5); messages say agent-workflow. WP4d: B4 capability negotiation after executor selection and compile, before the run record (probe once, refuse/degrade/confirm, record run.capabilityNegotiation; run options interactive/confirmDegradations/allowUnverifiedCapabilities/executorProber/executorProbeTimeoutMs). WP4e: run option permissionMode resolved with B2 precedence (permission-mode.ts), passed to compile and negotiation, recorded as run.permissionMode (nested runs follow the parent).
 import { createHash } from "node:crypto";
 import {
 	appendFile,
@@ -228,6 +228,11 @@ import {
 } from "./executor-registry.js";
 import { resolveHostContext, withHostContext } from "./host-context.js";
 import {
+	resolveRunPermissionMode,
+	workflowDeclaredProfilePermissionMode,
+	workflowRunPermissionMode,
+} from "./permission-mode.js";
+import {
 	negotiateWorkflowRun,
 	type WorkflowExecutorProber,
 	workflowProfileStrictCapabilities,
@@ -391,6 +396,13 @@ export interface WorkflowRunOptions {
 	inheritHostTools?: boolean;
 	/** D2/R#5 run option of the executing user (never a spec field). */
 	allowSharedCheckoutWrites?: boolean;
+	/**
+	 * WP4e (D2 revised) run flag: "free" (default) or "safe". Precedence: run
+	 * flag > workflow-declared profile (spec executionProfilePermissionModes) >
+	 * saved user profile (permissionMode) > default "free". Nested runs follow
+	 * the parent run's recorded mode.
+	 */
+	permissionMode?: "free" | "safe";
 	/**
 	 * B4 (WP4d): the host can ask the user. Degradations then need
 	 * `confirmDegradations`; non-interactive runs (default) record and proceed.
@@ -644,6 +656,26 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 	const allowSharedCheckoutWrites = parentRun
 		? parentRun.allowSharedCheckoutWrites === true
 		: options.allowSharedCheckoutWrites === true;
+	// WP4e: permission mode (B2 precedence); nested runs follow the parent.
+	const permissionMode = parentRun
+		? {
+				mode: workflowRunPermissionMode(parentRun),
+				source: "parent-run" as const,
+			}
+		: resolveRunPermissionMode({
+				runFlag: options.permissionMode,
+				workflowProfileName: options.executionProfile,
+				workflowProfileMode: workflowDeclaredProfilePermissionMode(
+					spec,
+					options.executionProfile,
+				),
+				userProfileName: options.executionProfile
+					? undefined
+					: options.executionProfileOverride?.name,
+				userProfileMode: options.executionProfile
+					? undefined
+					: options.executionProfileOverride?.permissionMode,
+			});
 	// Executor selection (B2) fails before any run record or launch exists.
 	const executor = parentRun?.executor
 		? { ...parentRun.executor }
@@ -668,6 +700,7 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 		task: options.task,
 		...(inheritHostTools ? { inheritHostTools: true } : {}),
 		...(allowSharedCheckoutWrites ? { allowSharedCheckoutWrites: true } : {}),
+		permissionMode: permissionMode.mode,
 		runtimeOverrides: options.runtimeOverrides,
 		runtimeDefaults: options.runtimeDefaults,
 		availableModels: options.availableModels,
@@ -693,6 +726,7 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 			allowReadOnlyDowngrade:
 				(spec as { allowReadOnlyDowngrade?: unknown })
 					.allowReadOnlyDowngrade === true,
+			permissionMode: permissionMode.mode,
 		},
 		...(parentRun?.capabilityNegotiation === undefined
 			? {}
@@ -756,6 +790,7 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 	if (options.routing) run.routing = options.routing;
 	if (appliedProfile.record) run.executionProfile = appliedProfile.record;
 	run.executor = executor;
+	run.permissionMode = permissionMode;
 	run.capabilityNegotiation = capabilityNegotiation;
 	let initialized: WorkflowRunRecord | undefined;
 	try {
@@ -3004,7 +3039,7 @@ function eligibleForeachBatchChild(
 	compiledTask: CompiledTask,
 	run: Pick<
 		WorkflowRunRecord,
-		"inheritHostTools" | "allowSharedCheckoutWrites"
+		"inheritHostTools" | "allowSharedCheckoutWrites" | "permissionMode"
 	>,
 ): boolean {
 	const grouping = compiledTask.foreachGenerated?.batch;
@@ -3013,6 +3048,7 @@ function eligibleForeachBatchChild(
 	const safety = prepareWorkflowTaskToolPolicy(compiledTask, {
 		inheritHostTools: run.inheritHostTools === true,
 		allowSharedCheckoutWrites: run.allowSharedCheckoutWrites === true,
+		permissionMode: workflowRunPermissionMode(run),
 	}).safety;
 	return Boolean(
 		task.status === "pending" &&

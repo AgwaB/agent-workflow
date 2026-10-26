@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/types.ts. MIT, same author. Changes: run.nativeHost→run.hostContext (HostContext); runtime.nativeToolsEnabled→runtime.inheritHostTools; added allowSharedCheckoutWrites (R#5), inheritHostTools run/compile flags, agent legacySource; artifact provenance digests config + MCP server spec instead of extension wrapper bytes. WP4c: run.executor (executor selection), spec executionProfileExecutors, WorkflowRunExecutionProfile.executor, task.ownedSessions, usage/budget record source "executor". WP4d: run.capabilityNegotiation (B4), spec allowReadOnlyDowngrade/executionProfileStrictCapabilities, WorkflowRunExecutionProfile.strictCapabilities.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/types.ts. MIT, same author. Changes: run.nativeHost→run.hostContext (HostContext); runtime.nativeToolsEnabled→runtime.inheritHostTools; added allowSharedCheckoutWrites (R#5), inheritHostTools run/compile flags, agent legacySource; artifact provenance digests config + MCP server spec instead of extension wrapper bytes. WP4c: run.executor (executor selection), spec executionProfileExecutors, WorkflowRunExecutionProfile.executor, task.ownedSessions, usage/budget record source "executor". WP4d: run.capabilityNegotiation (B4), spec allowReadOnlyDowngrade/executionProfileStrictCapabilities, WorkflowRunExecutionProfile.strictCapabilities. WP4e: run.permissionMode (WorkflowRunPermissionMode), spec executionProfilePermissionModes, WorkflowRunExecutionProfile.permissionMode, compiled.permissionMode, negotiation policy.permissionMode.
 import type { ExecutorCapabilities } from "../sdk/capabilities.js";
 import type { AuthStatus } from "../sdk/contract.js";
 import type { ExecutorDescriptor } from "../sdk/descriptor.js";
@@ -192,6 +192,11 @@ export interface ArtifactGraphWorkflowSpec {
 	 * execution profile is selected (`ctx.strict` in B4 negotiation).
 	 */
 	executionProfileStrictCapabilities?: Record<string, string[]>;
+	/**
+	 * agent-workflow (WP4e, D2 revised): permission mode ("free" | "safe") a
+	 * declared execution profile selects.
+	 */
+	executionProfilePermissionModes?: Record<string, "free" | "safe">;
 	/**
 	 * agent-workflow (WP4d, B4): when an executor has no precise tool allowlist
 	 * (or cannot map a tool), run the stage with readOnly enforced instead of
@@ -1469,6 +1474,22 @@ export interface WorkflowStageCapabilityNegotiation {
 }
 
 /** B4 negotiation record (design §8.3, owner decisions B4/B5). */
+/** Where a run's permission mode came from (WP4e; B2 precedence). */
+export type WorkflowRunPermissionModeSource =
+	| "run-flag"
+	| "workflow-profile"
+	| "user-profile"
+	| "default"
+	| "parent-run";
+
+/** Effective permission mode frozen at run creation (WP4e, D2 revised). */
+export interface WorkflowRunPermissionMode {
+	mode: "free" | "safe";
+	source: WorkflowRunPermissionModeSource;
+	/** Profile name when the source is a profile. */
+	profile?: string;
+}
+
 export interface WorkflowRunCapabilityNegotiation {
 	schema: "agent-workflow-capability-negotiation-v1";
 	executorId: string;
@@ -1482,6 +1503,8 @@ export interface WorkflowRunCapabilityNegotiation {
 		allowUnverified: string[];
 		strict: string[];
 		allowReadOnlyDowngrade: boolean;
+		/** WP4e; absent on records created before WP4e (= safe). */
+		permissionMode?: "free" | "safe";
 	};
 	/** `confirmed`: an interactive host accepted the degradations before launch. */
 	confirmation: "not-needed" | "confirmed" | "non-interactive";
@@ -1505,6 +1528,11 @@ export interface WorkflowRunExecutionProfile {
 	 * declared profiles use the spec's executionProfileStrictCapabilities.
 	 */
 	strictCapabilities?: string[];
+	/**
+	 * Permission mode a saved user profile selects (WP4e); declared profiles
+	 * use the spec's executionProfilePermissionModes.
+	 */
+	permissionMode?: "free" | "safe";
 	/** Definition identity captured with a user-saved profile before launch. */
 	definitionFingerprint?: string;
 	/** Canonical stage-id → captured profile overrides applied at compile time. */
@@ -1684,6 +1712,11 @@ export interface WorkflowRunRecord {
 	inheritHostTools?: true;
 	/** D2/R#5: the executing user allowed shared-checkout writes for this run. */
 	allowSharedCheckoutWrites?: true;
+	/**
+	 * WP4e (D2 revised): effective permission mode and where it came from.
+	 * Absent on records created before WP4e; those run as `safe`.
+	 */
+	permissionMode?: WorkflowRunPermissionMode;
 	runId: string;
 	name?: string;
 	description?: string;
@@ -1812,4 +1845,6 @@ export interface CompiledWorkflow {
 	inheritHostTools?: true;
 	/** D2/R#5: compiled with the executing user's `allowSharedCheckoutWrites`. */
 	allowSharedCheckoutWrites?: true;
+	/** WP4e: permission mode the workflow was compiled under (R#5 applies only in `safe`). */
+	permissionMode?: "free" | "safe";
 }

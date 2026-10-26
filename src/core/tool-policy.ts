@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-native-tool-policy.ts. MIT, same author. Changes: the native-host expansion (codemode, tool_search, mcp__*, MCP resource tools) is no longer added here; it becomes the task flag runtime.inheritHostTools that only the Pi executor honors (WP6), and core keeps the conservative mutation-capable safety it implied.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-native-tool-policy.ts. MIT, same author. Changes: the native-host expansion (codemode, tool_search, mcp__*, MCP resource tools) is no longer added here; it becomes the task flag runtime.inheritHostTools that only the Pi executor honors (WP6), and core keeps the conservative mutation-capable safety it implied. WP4e: inheritedHostToolSafety/prepareWorkflowTaskToolPolicy take permissionMode (R#5 only in safe).
 import type {
 	CompiledTask,
 	CompiledTaskSafety,
@@ -80,18 +80,24 @@ export function applyWorkflowToolPolicy(
 export function inheritedHostToolSafety(
 	safety: CompiledTaskSafety,
 	approvalMode: string,
-	options: { allowSharedCheckoutWrites?: boolean } = {},
+	options: {
+		allowSharedCheckoutWrites?: boolean;
+		permissionMode?: "free" | "safe";
+	} = {},
 ): CompiledTaskSafety {
+	const free = options.permissionMode === "free";
 	const allowShared =
+		!free &&
 		options.allowSharedCheckoutWrites === true &&
 		safety.worktreePolicy === "off";
 	return {
 		...safety,
 		capability: INHERITED_HOST_TOOLS_CLASSIFICATION,
 		sharedCwdSafe: false,
-		// D2/R#5: a write-capable task needs a worktree even under a spec-level
-		// "off"; only the executing user's run option can waive it.
-		requiresWorktree: !allowShared,
+		// D2/R#5 (safe mode): a write-capable task needs a worktree even under a
+		// spec-level "off"; only the executing user's run option can waive it.
+		// WP4e free mode: the spec's worktreePolicy as written (pi-workflow).
+		requiresWorktree: free ? safety.worktreePolicy !== "off" : !allowShared,
 		...(allowShared ? { allowSharedCheckoutWrites: true as const } : {}),
 		permission:
 			approvalMode === "on-request"
@@ -110,6 +116,8 @@ export function prepareWorkflowTaskToolPolicy(
 	task: CompiledTask,
 	options: WorkflowToolPolicyOptions & {
 		allowSharedCheckoutWrites?: boolean;
+		/** WP4e: the run's permission mode (R#5 only in `safe`). */
+		permissionMode?: "free" | "safe";
 	} = {},
 ): CompiledTask {
 	if (

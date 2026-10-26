@@ -270,6 +270,8 @@ test("degradation (environment warning) is recorded with a preview; non-interact
 	const started = await engine.runWorkflowSpec(specPath, cwd, {
 		task: "t",
 		executor: id,
+		// WP4e: B4 confirmation/strict rules for environment warnings are safe-mode behavior.
+		permissionMode: "safe",
 		confirmDegradations: async () => {
 			calls += 1;
 			return false;
@@ -283,7 +285,7 @@ test("degradation (environment warning) is recorded with a preview; non-interact
 	]);
 	assert.match(
 		negotiation.preview,
-		/^Capability check \(wf-wp4d-\d+@0\.1\.0, 1 stage\): accepted with 1 degradation/,
+		/^Capability check \(wf-wp4d-\d+@0\.1\.0, 1 stage, permission mode: safe\): accepted with 1 degradation/,
 	);
 	assert.match(negotiation.preview, /readOnly: degraded.*3 allow rules/);
 	assert.equal(negotiation.probe.installed, true);
@@ -331,6 +333,7 @@ test("interactive confirmation: accepted proceeds, declined and missing hook fai
 		engine.runWorkflowSpec(specPath, cwd, {
 			task: "t",
 			executor: id,
+			permissionMode: "safe",
 			interactive: true,
 			confirmDegradations: async () => false,
 		}),
@@ -343,6 +346,7 @@ test("interactive confirmation: accepted proceeds, declined and missing hook fai
 		engine.runWorkflowSpec(specPath, cwd, {
 			task: "t",
 			executor: id,
+			permissionMode: "safe",
 			interactive: true,
 		}),
 		capabilityError("CAPABILITY_CONFIRMATION_REQUIRED"),
@@ -353,6 +357,7 @@ test("interactive confirmation: accepted proceeds, declined and missing hook fai
 	const started = await engine.runWorkflowSpec(specPath, cwd, {
 		task: "t",
 		executor: id,
+		permissionMode: "safe",
 		interactive: true,
 		confirmDegradations: async (preview) => {
 			seen.push(preview);
@@ -390,6 +395,8 @@ test("forcedReadOnly: coarse allowlist + spec allowReadOnlyDowngrade launches re
 		engine.runWorkflowSpec(refusedPath, cwd, {
 			task: "t",
 			executor: id,
+			// WP4e: the B4 coarse-allowlist refusal is safe-mode behavior.
+			permissionMode: "safe",
 			allowSharedCheckoutWrites: true,
 		}),
 		capabilityError(
@@ -406,6 +413,7 @@ test("forcedReadOnly: coarse allowlist + spec allowReadOnlyDowngrade launches re
 	const started = await engine.runWorkflowSpec(specPath, cwd, {
 		task: "t",
 		executor: id,
+		permissionMode: "safe",
 		allowSharedCheckoutWrites: true,
 	});
 	assert.deepEqual(started.capabilityNegotiation.forcedReadOnly, ["a.main"]);

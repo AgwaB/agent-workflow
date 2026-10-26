@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 535-558, 2868-3609, 3821-4245, 6401-6701, 6756-6774, 7371-end, and src/backend.ts (the backend object and its fatal-error wrapper). MIT, same author. Changes: implements the WorkflowBackend on the runtime API (executor descriptor recorded on the run, engine-issued attemptKey, SubmitRequest fields readOnly/isolation/approvalPolicy/env/mcpServers); Pi argv/extension preflight/noExtensions/skills/toolResultBudget/worker-role process env not ported (Pi executor, WP6); R#5 worktree gate before launch; registered for local-pi/headless run records. WP4d: launch-time capability decision from the run's recorded B4 negotiation (refusal → fatal before any effect; forcedReadOnly → SubmitRequest.readOnly and approval policy).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 535-558, 2868-3609, 3821-4245, 6401-6701, 6756-6774, 7371-end, and src/backend.ts (the backend object and its fatal-error wrapper). MIT, same author. Changes: implements the WorkflowBackend on the runtime API (executor descriptor recorded on the run, engine-issued attemptKey, SubmitRequest fields readOnly/isolation/approvalPolicy/env/mcpServers); Pi argv/extension preflight/noExtensions/skills/toolResultBudget/worker-role process env not ported (Pi executor, WP6); R#5 worktree gate before launch; registered for local-pi/headless run records. WP4d: launch-time capability decision from the run's recorded B4 negotiation (refusal → fatal before any effect; forcedReadOnly → SubmitRequest.readOnly and approval policy). WP4e: SubmitRequest.permissionMode from the run record (absent = safe).
 import type { ExecutorDescriptor } from "../sdk/descriptor.js";
 import type { ToolKind } from "../sdk/events.js";
 import { isMutatingKind, PI_TOOL_KINDS } from "../sdk/tools.js";
@@ -27,6 +27,7 @@ import {
 	settleDurableLaunchBarrier,
 } from "./launch-barrier-engine.js";
 import { isTaskRuntimeApiInjected } from "./runtime-port.js";
+import { workflowRunPermissionMode } from "./permission-mode.js";
 import {
 	recordedRunExecutorDescriptor,
 	resolveRunExecutorSelection,
@@ -438,6 +439,8 @@ export async function launchSubagentTask(
 				compiledTask,
 				capabilityLaunch.forcedReadOnly,
 			),
+			// WP4e: always explicit (records created before WP4e run as safe).
+			permissionMode: workflowRunPermissionMode(run),
 			env: { [AGENT_WORKFLOW_ROLE_ENV]: "worker" },
 			async: true,
 			onComplete: "detach",
@@ -1463,6 +1466,8 @@ export async function runOneShotSubagentCall(
 		...(typeof executorId === "string" ? { runFlag: executorId } : {}),
 	});
 	return (await api.runSubagent({
+		// WP4e: engine calls always set the mode (engine default free; readOnly either way).
+		permissionMode: "free",
 		...rest,
 		executor: selection.descriptor,
 		...(typeof thinking === "string" ? { effort: thinking } : {}),
