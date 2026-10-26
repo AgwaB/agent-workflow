@@ -14,6 +14,7 @@ import {
 	attemptDigest,
 	createExecutor,
 } from "../../../../dist/executors/codex/index.js";
+import { TOOL_OUTPUT_EVENT_LIMIT } from "../../../../dist/executors/codex/normalize.js";
 import { stepsFromTranscript } from "./replay.mjs";
 import { scenarioTranscript, SYNTHETIC } from "./scenarios.mjs";
 
@@ -118,6 +119,8 @@ export function createCodexStubHarness(options = {}) {
 		name: "codex-stub-app-server",
 		scenarios,
 		permissionModes: CODEX_PERMISSION_MODE_SETTINGS,
+		// The adapter clips normalized tool output (docs/executors/codex.md); WP5b mcp.paged_read.
+		toolOutputEventLimitChars: TOOL_OUTPUT_EVENT_LIMIT,
 		async open(scenario) {
 			const dir = await mkdtemp(join(tmpdir(), "aw-codex-stub-"));
 			const { cli, codexPath } = await stageCli(dir, scenario);

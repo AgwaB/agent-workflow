@@ -83,9 +83,11 @@ On a hit the executor consumes the authority, then reproduces what the engine ca
 - Pi session files, timing, process ids, and the provider/model metadata of an attempt.
 - **Artifact delivery bound.** The recorded Pi worker received large reads whole (impact-review: 6
   reads over 8192 chars, spec-review: 4, deep-research: 2). The replay starts the server with
-  `--max-output-chars 16777216` so the ledger rows match. The stage-1 Pi adapter passes no limit, so
-  the server default of 8192 would cut those reads and mark them `deliveryUnverified` (docs/mcp.md).
-  A live model would then re-read with a projection, which a replay cannot reproduce.
+  `--max-output-chars 16777216` so the ledger rows match. A live Pi run launches the server with
+  `--max-output-chars 18432` (WP5b, docs/mcp.md "Measured limits"): larger whole reads are served as
+  a first page and a live model pages on with `offset`. Those page calls and rows are not in the
+  recording, so a replay cannot reproduce them. (The committed reports still carry the pre-WP5b
+  wording until the next `acceptance.mjs --write`.)
 - The web-source cache that the removed web tools filled (deep-research, C2).
 
 ## Comparison (`test/replay/compare.mjs`, `digest-binding.mjs`)

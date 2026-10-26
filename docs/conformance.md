@@ -138,6 +138,7 @@ For process adapters, count from the stub CLI invocation log, not from adapter s
 | `mcp.injection` | offline | stub MCP server started with its env, echo called, result reported | mcp_tool | R#9 |
 | `mcp.argv_no_secrets` | offline | MCP env secret absent from every argv (CLI launches + server) | mcp_tool | prior-art §3 #8 |
 | `mcp.delivery_bound` | offline | delivered tool output ≤ `probe().mcpOutputLimitChars` + `probe().mcpOutputNoticeChars` (the CLI's own truncation notice, default 0; served at 2×) | mcp_tool | R#9 |
+| `mcp.paged_read` | offline | a result of exactly the artifact server's page size for the probe (`artifactServerOutputLimit(probe)`, ASCII, the worst case) arrives whole; skips without a declared limit, or when the harness declares `toolOutputEventLimitChars` below the page size | mcp_tool | R#9, WP5b |
 | `live.readonly_enforced` | live | readOnly run cannot create a requested file | complete | B4, R#4 |
 | `live.tool_allowlist` | live | `tools: ["read"]` ⇒ shell command does not run | complete | §2.4, B4 |
 | `live.isolation` | live | `inherit: false` ignores AGENTS.md/CLAUDE.md in cwd | complete | B5, R#6 |
@@ -154,6 +155,8 @@ For process adapters, count from the stub CLI invocation log, not from adapter s
   - Options: `executor` (base fake options), `scripts` / `faults` per scenario, `scenarios` (restrict),
     `wrap(executor, {scenario, store, generation})` (bug injection), `descriptor`, and
     `mcpOutputLimitChars` (default 4096, `null` = unknown).
+  - A harness whose adapter clips normalized `tool_call.output` declares `toolOutputEventLimitChars`
+    (WP5b; codex: 16,384).
   - For `mcp_tool`, the fake acts as the MCP client for the injected server. It truncates the result to
     the declared limit.
 - **`createStubCli({dir, name?, scripts})`** writes an executable: a POSIX `sh` launcher that `exec`s
@@ -220,5 +223,10 @@ For process adapters, count from the stub CLI invocation log, not from adapter s
   (WP6: Pi 1.1 keeps 20 KiB of the result plus a header, a `…N chars truncated…` marker and a footer
   naming the full-output file).
   Recording `deliveryUnverified` in the ledger belongs to the WP5 artifact server.
+- **Paged reads (WP5b).** `mcp.paged_read` proves the CLI half: one page of the size the engine
+  launches the artifact server with arrives whole. The server half — every page fits that size in
+  chars and bytes and the pages tile the artifact — is unit-tested against the real server
+  (`mcp-artifact-paging.test.mjs`, `mcp-artifact-conformance.test.mjs`). Together they show a large
+  artifact is delivered completely through paging.
 - **Live checks.** These are implemented but have not been run against a real CLI; WP9b does that. The
   isolation check covers project-level instruction files only.

@@ -115,6 +115,13 @@ test("fake executor passes every offline check; live/runtime are skipped with re
 		served: 8192,
 		delivered: 4096,
 	});
+	// WP5b: the artifact server page for 4096 is 4096 − max(256, 5 %) = 3840 chars; it arrives whole.
+	assert.equal(byId["mcp.paged_read"].status, "pass");
+	assert.deepEqual(byId["mcp.paged_read"].details, {
+		limit: 4096,
+		pageLimit: 3840,
+		delivered: 3840,
+	});
 });
 
 test("filters, live tier on a non-live harness, and unsupported scenarios skip honestly", async () => {
@@ -207,4 +214,30 @@ registerConformanceTests({
 	test,
 	harness: createFakeHarness({ name: "fake-registered" }),
 	only: ["identity.", "submit.", "approval.", "runtime."],
+});
+
+test("mcp.paged_read: an overstated limit cuts pages and fails; no limit skips", async () => {
+	// The fake CLI cuts at 4096 but the probe claims 8192: the 7782-char page is cut.
+	const overstated = createFakeHarness({
+		wrap: (executor) => ({
+			...executor,
+			async probe() {
+				return { ...(await executor.probe()), mcpOutputLimitChars: 8192 };
+			},
+		}),
+	});
+	const failed = await runConformance(overstated, {
+		only: ["mcp.paged_read"],
+	});
+	assert.equal(failed.results[0].status, "fail");
+	assert.match(
+		failed.results[0].violations[0],
+		/a 7782-char result \(the artifact server page size for mcpOutputLimitChars 8192\) did not arrive whole \(4096 chars delivered\)/,
+	);
+	const skipped = await runConformance(
+		createFakeHarness({ mcpOutputLimitChars: null }),
+		{ only: ["mcp.paged_read"] },
+	);
+	assert.equal(skipped.results[0].status, "skip");
+	assert.match(skipped.results[0].reason, /8192-char default/);
 });
