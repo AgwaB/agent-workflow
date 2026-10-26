@@ -143,6 +143,12 @@ export interface ConformanceHarness {
 	/** Documented launch settings per permission mode (`permission.mode_mapping`, WP4e). */
 	readonly permissionModes?: PermissionModeSettings;
 	/**
+	 * Max chars the adapter keeps in a normalized `tool_call.output` (its event view clips longer
+	 * results; the raw transcript keeps them), if it clips at all. `mcp.paged_read` cannot measure
+	 * a page above this from events and skips instead of failing (WP5b).
+	 */
+	readonly toolOutputEventLimitChars?: number;
+	/**
 	 * Stage `scenario` for the runtime tier (WP2b). `workDir` is a fresh directory owned by the
 	 * check. Omit when the adapter cannot be reloaded in a fresh process: runtime checks then skip.
 	 */

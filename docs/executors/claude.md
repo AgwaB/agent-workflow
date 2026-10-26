@@ -129,7 +129,7 @@ The rest of this section describes the channel itself (used in `safe` mode).
   - At 2,000 tokens, 3,000 chars arrived inline and 12,000 chars spilled (#8).
   - At the default 25,000 tokens, 22,500 and 45,000 chars arrived inline and 90,000 chars spilled (#9).
   - **Over-limit results are not truncated.** They are replaced by a notice ("exceeds maximum allowed tokens. Output has been saved to `~/.claude/projects/<cwd>/<session>/tool-results/…`") and written to that file, even with `--no-session-persistence`.
-  - The adapter sets `MAX_MCP_OUTPUT_TOKENS` itself (default 25,000) and declares `probe().mcpOutputLimitChars = floor(0.9 × tokens) = 22,500`. A token covers at least one UTF-8 byte, and the artifact server bounds UTF-8 bytes, so results under that limit are always inline. Pass it to `artifactMcpServerSpecWithOutputLimit`.
+  - The adapter sets `MAX_MCP_OUTPUT_TOKENS` itself (default 25,000) and declares `probe().mcpOutputLimitChars = floor(0.9 × tokens) = 22,500`. A token covers at least one UTF-8 byte, and the artifact server bounds UTF-8 bytes, so results under that limit are always inline. Since WP5b the engine launches the artifact server with `--max-output-chars 21375` (22,500 − 5 % margin; docs/mcp.md "Measured limits"), and larger whole reads are paged.
 - **Timeouts:**
   - `MCP_TOOL_TIMEOUT` is honoured: `is_error` "MCP server "x" tool "slow" timed out after 3s" (#8).
   - `MCP_TIMEOUT` (startup) was not measured.
@@ -303,4 +303,4 @@ standard`) and `WebFetch` (`url`, `prompt`) both completed. The answer cited sou
   - Module `@agwab/agent-workflow/executors/claude` with the config above.
   - Live checks need the real HOME (the CLI owns the login).
   - Show `probe().auth` and the version note.
-  - Pass `probe().mcpOutputLimitChars` to the artifact server spec.
+  - Pass `probe().mcpOutputLimitChars` to the artifact server spec (done by the engine since WP5b).

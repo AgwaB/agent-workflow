@@ -53,6 +53,9 @@ test("pi executor conformance: no failures, only justified skips", () => {
 		delivered: byId["mcp.delivery_bound"].details.delivered,
 	});
 	assert.ok(byId["mcp.delivery_bound"].details.delivered > 20480);
+	// WP5b: a page of the artifact server's size for Pi (20480 − 1024 − 1024) arrives whole.
+	assert.equal(byId["mcp.paged_read"].status, "pass");
+	assert.deepEqual(byId["mcp.paged_read"].details.pageLimit, 18432);
 	assert.deepEqual(byId["fencing.consume_before_effect"].details, {
 		effects: 1,
 		consumes: ["released"],

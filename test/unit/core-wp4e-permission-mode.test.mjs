@@ -49,7 +49,13 @@ before(async () => {
 });
 after(async () => {
 	for (const undo of unregister.splice(0)) undo();
-	await rm(root, { recursive: true, force: true });
+	// An in-process supervisor can still be finishing a write when teardown starts (ENOTEMPTY).
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 let counter = 0;

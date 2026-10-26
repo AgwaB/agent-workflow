@@ -144,7 +144,9 @@ Secret env values reach the server only through the deleted-at-load env channel.
     the notice).
   - Live (#4): the artifact server with `--max-output-chars 20480` and a 50,000-char artifact delivered
     exactly 20,480 chars with no Pi cut. The ledger row had `truncated: true, deliveryUnverified: true`.
-  - `probe().mcpOutputLimitChars = 20480`. Pass it to `artifactMcpServerSpecWithOutputLimit`.
+  - `probe().mcpOutputLimitChars = 20480`. Since WP5b the engine launches the artifact server with
+    `--max-output-chars 18432` (20480 − 1024 notice − 1024 margin; docs/mcp.md "Measured limits") and
+    larger whole reads are paged.
   - `probe().mcpOutputNoticeChars = 1024`. This is a new optional SDK field (own commit), sized to the
     notice Pi adds around a cut result. The kit's `mcp.delivery_bound` check allows it.
 - Pi does not put MCP server `instructions` into the model context. Prompt rendering must include the
@@ -308,6 +310,6 @@ request drops mutating tools from `--tools` in both modes. The conformance harne
   - Never pass secrets in config.
   - Retention should call `deleteOwnedSession(ownedSession)`, which deletes only under `<stateDir>/sessions`.
 - **WP4c:**
-  - Pass `probe().mcpOutputLimitChars` (20480) into `artifactMcpServerSpecWithOutputLimit`.
+  - Done in WP5b: the engine derives the artifact server limit (18432) from the recorded probe.
   - Use exact `provider/id` models.
   - Expect `failed.class` per the table above, and `cancelled` for engine cancels.

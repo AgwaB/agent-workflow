@@ -4,6 +4,12 @@ import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { McpServerSpec } from "../sdk/contract.js";
+import {
+	artifactServerOutputLimit,
+	MCP_OUTPUT_LIMIT_MAX_CHARS,
+	MCP_OUTPUT_LIMIT_MIN_CHARS,
+} from "../sdk/mcp-delivery.js";
+import type { WorkflowRunRecord } from "./types.js";
 import type { WorkflowArtifactAccessMode } from "./workflow-artifact-tool.js";
 
 export const WORKFLOW_ARTIFACT_TOOL_NAME = "workflow_artifact" as const;
@@ -82,17 +88,24 @@ export const WORKFLOW_ARTIFACT_TOOL_PARAMETERS = {
 			description:
 				"Optional character limit for the projected JSON value after maxItems is applied. Requires path; omit maxChars for whole-artifact reads.",
 		},
+		offset: {
+			type: "integer",
+			minimum: 0,
+			description:
+				"Optional character offset for a paged whole-artifact read (not with path, maxItems or maxChars). A large artifact is returned one page at a time; continue with the offset the page footer names.",
+		},
 	},
 	required: ["action"],
 } as const;
 
 export const WORKFLOW_ARTIFACT_TOOL_DESCRIPTION =
-	"List or read artifacts produced by upstream workflow stages. Reads are recorded for workflow required-read enforcement.";
+	"List or read artifacts produced by upstream workflow stages. Reads are recorded for workflow required-read enforcement. Large whole-artifact reads are paged: call again with the offset each page names.";
 
 export const WORKFLOW_ARTIFACT_TOOL_GUIDELINES = [
 	"Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.",
 	"Call workflow_artifact with action=list to see visible source names before reading an artifact if unsure.",
 	"When using maxItems or maxChars, include a JSON path such as $.claims; for whole-artifact reads, omit maxItems/maxChars.",
+	"A whole-artifact read ending in 'call again with offset=N' is one page: read on with offset=N until a page says 'end of artifact'. A required read counts only once every page was read.",
 	"Do not use repository read for workflow artifacts; workflow_artifact records required-read evidence.",
 ] as const;
 
@@ -193,6 +206,53 @@ export function artifactMcpServerSpec(
 			artifactAccessConfigPath(config),
 		],
 	};
+}
+
+/** Server flag carrying the per-result output limit (WP5, R#9). Not a config key: see docs/mcp.md. */
+export const ARTIFACT_MCP_OUTPUT_LIMIT_FLAG = "--max-output-chars" as const;
+
+/**
+ * `spec` plus `--max-output-chars <limit>` (WP5b). `null`/`undefined` → a copy of `spec`
+ * unchanged, so the server keeps its conservative default.
+ */
+export function withArtifactMcpOutputLimit(
+	spec: McpServerSpec,
+	outputLimitChars: number | null | undefined,
+): McpServerSpec {
+	const copy = {
+		...spec,
+		args: [...spec.args],
+		...(spec.env === undefined ? {} : { env: { ...spec.env } }),
+	};
+	if (outputLimitChars === null || outputLimitChars === undefined) return copy;
+	if (
+		!Number.isSafeInteger(outputLimitChars) ||
+		outputLimitChars < MCP_OUTPUT_LIMIT_MIN_CHARS ||
+		outputLimitChars > MCP_OUTPUT_LIMIT_MAX_CHARS
+	)
+		throw new Error(
+			`MCP output limit must be an integer between ${MCP_OUTPUT_LIMIT_MIN_CHARS} and ${MCP_OUTPUT_LIMIT_MAX_CHARS}`,
+		);
+	return {
+		...copy,
+		args: [
+			...copy.args,
+			ARTIFACT_MCP_OUTPUT_LIMIT_FLAG,
+			String(outputLimitChars),
+		],
+	};
+}
+
+/**
+ * WP5b: the artifact server's output limit for a run, derived only from the probe recorded in
+ * `run.capabilityNegotiation` (WP4d) — `artifactServerOutputLimit` (sdk/mcp-delivery.ts). `null`
+ * for runs without a recorded limit (server default). The task backend launches the server with
+ * this value and launch provenance digests the same spec, so the digest binds the limit used.
+ */
+export function artifactServerOutputLimitForRun(
+	run: Pick<WorkflowRunRecord, "capabilityNegotiation">,
+): number | null {
+	return artifactServerOutputLimit(run.capabilityNegotiation?.probe);
 }
 
 /** Canonical JSON (sorted keys, undefined dropped) used for bytes and digests. */

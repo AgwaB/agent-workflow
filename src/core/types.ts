@@ -1458,6 +1458,13 @@ export interface WorkflowExecutorProbeSummary {
 	cliVersion: string | null;
 	auth: AuthStatus;
 	notes?: string[];
+	/**
+	 * WP5b: the probe's declared MCP output limit (R#9), present only when the probe reports one.
+	 * The task backend derives the artifact server's `--max-output-chars` from it.
+	 */
+	mcpOutputLimitChars?: number;
+	/** WP5b: what the CLI adds around a result it cut, present only when the probe reports it. */
+	mcpOutputNoticeChars?: number;
 	probedAt: string;
 	/** Nested runs reuse the parent's probe instead of probing again. */
 	reusedFromRunId?: string;

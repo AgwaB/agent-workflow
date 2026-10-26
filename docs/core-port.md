@@ -1234,3 +1234,61 @@ guidelines section and keeps canonical prompt files).
 
 Counts after WP10: ported 1, ported-WP4b 23, ported-WP4c1 14, ported-WP4c2 15, ported-WP10 31,
 deferred-WP6 1, deferred-WP5+ 22, dropped 33 (140).
+
+## WP5b — paged artifact reads, coverage-based required reads, measured limits
+
+Required reads accepted only whole, uncut, delivery-verified reads (R#9), and the artifact tool had no
+paging, so an artifact larger than the worker CLI's MCP output limit could never satisfy one. The core
+also launched the artifact server without a limit (server default 8192 for every executor). Contract
+details: docs/mcp.md "Paged reads" and "Measured limits".
+
+### WP5b change log (behavior-relevant)
+
+1. **`workflow-artifact-tool.ts`: paged whole-artifact reads.** Tool input `offset` (integer ≥ 0, not
+   with `path`/`maxItems`/`maxChars`); option `pageLimitChars` on `handleWorkflowArtifactToolCall`. A
+   read with `offset` is served as one page `[offset, end)` with a footer naming the next offset (or
+   `end of artifact`); the response fits the limit in UTF-16 chars and UTF-8 bytes and never splits a
+   surrogate pair. With `pageLimitChars` set (the MCP server sets its output limit), a whole read whose
+   response does not fit is served as its first page. Paged reads load the whole file
+   (`readWorkflowArtifact(..., {whole: true})`, ≤ 64 MiB, `contentSha256`), ignore `maxBytes`/`maxLines`
+   and bypass both read caches. Direct core callers without `pageLimitChars` see no change unless they
+   pass `offset` (pages of 8192 then).
+2. **Read-ledger page rows.** `rangeStart`, `rangeEnd`, `totalChars`, `contentSha256` (all or none,
+   never with `path`, validated by `readWorkflowArtifactReadLedger`), `deliveryUnverified: false`,
+   `truncated: true` unless the page is the whole artifact. `deliveryUnverified` is now
+   `boolean` in `WorkflowArtifactReadLedgerRecord` (`false` is kept by the reader). Old rows stay valid.
+3. **`required-reads.ts`: coverage rule.** A whole-artifact required read is also satisfied by verified
+   page rows of one `contentSha256`/`totalChars` covering `[0, totalChars)` (any order, overlaps
+   allowed; one complete set counts as one read for `count`). Unverified/cut rows and mixed versions
+   never count; projected requirements and `requiredReadPolicy` are unchanged. New
+   `RequiredArtifactReadCheckResult.incompleteCoverage` (absent when empty) names the missing ranges,
+   and `formatRequiredReadFailureMessage` appends them, so the retry instruction tells the worker which
+   offsets to read.
+4. **Measured limits.** `WorkflowExecutorProbeSummary` gains optional `mcpOutputLimitChars` /
+   `mcpOutputNoticeChars` (copied from the probe when it reports them; nested runs reuse the parent's).
+   `artifactServerOutputLimitForRun(run)` (artifact-access.ts) = sdk `artifactServerOutputLimit`:
+   `limit − notice − max(256, ⌈5 %⌉)` → Pi 18,432, Claude 21,375, Codex 30,400, unknown → none (8192).
+   `preparedMcpServers(launch, {artifactOutputLimitChars})` appends `--max-output-chars` to the
+   `workflow_artifact` server (task-backend change limited to that function and its call site).
+5. **Provenance.** `artifacts.serverSpecSha256` digests the spec with the same flag
+   (`withArtifactMcpOutputLimit(artifactMcpServerSpec(config), artifactServerOutputLimitForRun(run))`),
+   so the recorded digest binds the limit actually launched. Without a recorded limit the digest is
+   unchanged.
+6. **Tool text** (`artifact-access.ts`): `offset` in `WORKFLOW_ARTIFACT_TOOL_PARAMETERS`, one sentence in
+   the description, one guideline line about paging. Prompt rendering of the guidelines is WP10's.
+7. **SDK.** `src/sdk/mcp-delivery.ts` (exported from `./sdk`): `artifactServerOutputLimit`, the
+   8192/512/16 MiB constants, `fitsDeliveryLimit`, `cutToDeliveryBudget`; the conformance kit adds
+   `mcp.paged_read` and the optional harness field `toolOutputEventLimitChars`.
+
+### WP5b tests
+
+- `mcp-artifact-paging.test.mjs`: ASCII, multibyte and surrogate-pair paging through the real server,
+  exact-boundary sizes, offset past the end / negative / with a projection, empty artifact, no dedup,
+  artifact changed between pages, page arithmetic with a raw-assurance line.
+- `core-wp5b-required-read-coverage.test.mjs`: page row shapes (round-trip, old shapes, inconsistent
+  fields refused); coverage in order / out of order / overlapping / one whole page; gap, unverified
+  page, cut page, mixed versions; scope (other artifacts, projected requirements, policies, `count`).
+- `core-wp5b-artifact-output-limit.test.mjs`: the three executors' declared limits → server limits;
+  probe summary → run → `preparedMcpServers`; provenance digest equals the launched spec's digest.
+- Updated: `mcp-artifact-delivery.test.mjs` and `mcp-artifact-conformance.test.mjs` (whole reads page,
+  projections still cut), conformance kit tests (fake, Pi, Codex justified skip).

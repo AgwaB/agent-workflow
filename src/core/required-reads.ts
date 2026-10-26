@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 5443-5725 (required artifact reads against the read ledger). MIT, same author. Changes: ledger rows marked deliveryUnverified: true (R#9, written by the WP5 MCP server) never satisfy a required read or projection policy.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 5443-5725 (required artifact reads against the read ledger). MIT, same author. Changes: ledger rows marked deliveryUnverified: true (R#9, written by the WP5 MCP server) never satisfy a required read or projection policy. WP5b: a whole-artifact required read is also satisfied when verified page rows (deliveryUnverified: false) of one artifact version (contentSha256) cover [0, totalChars); incomplete coverage is reported with the missing char ranges.
 import { join } from "node:path";
 import {
 	type ArtifactGraphRequiredRead,
@@ -13,6 +13,12 @@ export interface RequiredArtifactReadCheckResult {
 	missing: string[];
 	projectionFailures: string[];
 	ledgerError?: string;
+	/**
+	 * WP5b: for missing whole-artifact reads that were paged but not completely, one line each
+	 * naming the missing char ranges (`<source>.<artifact>: paged read incomplete, missing chars …`).
+	 * Absent when empty.
+	 */
+	incompleteCoverage?: string[];
 }
 
 export async function checkRequiredArtifactReads(
@@ -52,11 +58,15 @@ export async function checkRequiredArtifactReads(
 				return Number.isFinite(readAt) && readAt >= attemptStartedAt;
 			})
 		: deliveredLedger;
-	const missing = requiredReads
-		.filter(
-			(required) => !requiredArtifactReadSatisfied(required, attemptLedger),
-		)
-		.map(formatRequiredArtifactRead);
+	const missing: string[] = [];
+	const incompleteCoverage: string[] = [];
+	for (const required of requiredReads) {
+		const status = requiredArtifactReadStatus(required, attemptLedger);
+		if (status.satisfied) continue;
+		missing.push(formatRequiredArtifactRead(required));
+		if (status.coverageGap !== undefined)
+			incompleteCoverage.push(status.coverageGap);
+	}
 	const projectionFailures: string[] = [];
 	for (const policy of requiredReadPolicy) {
 		const name = `${policy.source}.${policy.artifact}`;
@@ -76,15 +86,19 @@ export async function checkRequiredArtifactReads(
 			projectionFailures.push(formatRequiredReadPolicyName(policy));
 		}
 	}
-	return { missing, projectionFailures };
+	return {
+		missing,
+		projectionFailures,
+		...(incompleteCoverage.length === 0 ? {} : { incompleteCoverage }),
+	};
 }
 
-function requiredArtifactReadSatisfied(
+function requiredArtifactReadStatus(
 	required: ArtifactGraphRequiredRead,
 	ledger: readonly WorkflowArtifactReadLedgerRecord[],
-): boolean {
+): { satisfied: boolean; coverageGap?: string } {
 	const normalized = normalizeRequiredArtifactRead(required);
-	if (!normalized) return false;
+	if (!normalized) return { satisfied: false };
 	const matches = ledger.filter(
 		(entry) =>
 			!entry.truncated &&
@@ -96,9 +110,98 @@ function requiredArtifactReadSatisfied(
 			(normalized.maxItems === undefined ||
 				entry.maxItems === normalized.maxItems),
 	);
-	return normalized.count === undefined
-		? matches.length > 0
-		: matches.length === normalized.count;
+	// WP5b: page coverage applies to whole-artifact requirements only (pages carry no path).
+	const coverage =
+		normalized.path === undefined &&
+		normalized.maxChars === undefined &&
+		normalized.maxItems === undefined
+			? pagedReadCoverage(normalized.source, normalized.artifact, ledger)
+			: { complete: 0, gap: undefined };
+	const reads = matches.length + coverage.complete;
+	const satisfied =
+		normalized.count === undefined ? reads > 0 : reads === normalized.count;
+	return satisfied || coverage.gap === undefined || coverage.complete > 0
+		? { satisfied }
+		: { satisfied, coverageGap: coverage.gap };
+}
+
+/**
+ * WP5b coverage rule. Verified partial page rows (`deliveryUnverified: false`, page range fields,
+ * `truncated: true`) are grouped by artifact version (`contentSha256` + `totalChars`); a group whose
+ * ranges cover `[0, totalChars)` (any order, overlaps allowed) counts as one whole read. A single
+ * page covering the whole artifact has `truncated: false` and already counts as a whole-read row.
+ * Unverified, cut or projected rows never count, and pages of different versions never combine.
+ */
+function pagedReadCoverage(
+	source: string,
+	artifact: string,
+	ledger: readonly WorkflowArtifactReadLedgerRecord[],
+): { complete: number; gap?: string } {
+	const groups = new Map<
+		string,
+		{ total: number; ranges: Array<[number, number]> }
+	>();
+	for (const entry of ledger) {
+		if (
+			entry.source !== source ||
+			entry.artifact !== artifact ||
+			entry.deliveryUnverified !== false ||
+			entry.truncated !== true ||
+			entry.path !== undefined ||
+			entry.rangeStart === undefined ||
+			entry.rangeEnd === undefined ||
+			entry.totalChars === undefined ||
+			entry.contentSha256 === undefined
+		)
+			continue;
+		const key = `${entry.contentSha256}:${entry.totalChars}`;
+		const group = groups.get(key) ?? { total: entry.totalChars, ranges: [] };
+		group.ranges.push([entry.rangeStart, entry.rangeEnd]);
+		groups.set(key, group);
+	}
+	let complete = 0;
+	let best: { covered: number; gaps: Array<[number, number]>; total: number } =
+		{ covered: -1, gaps: [], total: 0 };
+	for (const group of groups.values()) {
+		const gaps = coverageGaps(group.ranges, group.total);
+		if (gaps.length === 0) {
+			complete += 1;
+			continue;
+		}
+		const covered =
+			group.total - gaps.reduce((sum, [start, end]) => sum + end - start, 0);
+		if (covered > best.covered) best = { covered, gaps, total: group.total };
+	}
+	if (complete > 0 || best.covered < 0) return { complete };
+	const versions =
+		groups.size > 1
+			? ` (pages of ${groups.size} artifact versions; pages of different versions do not combine)`
+			: "";
+	return {
+		complete,
+		gap: `${source}.${artifact}: paged read incomplete, missing chars ${best.gaps
+			.map(([start, end]) => `${start}–${end}`)
+			.join(", ")} of ${best.total}${versions}`,
+	};
+}
+
+/** Uncovered sub-ranges of `[0, total)` given half-open `ranges`. */
+function coverageGaps(
+	ranges: ReadonlyArray<readonly [number, number]>,
+	total: number,
+): Array<[number, number]> {
+	const sorted = [...ranges]
+		.filter(([start, end]) => end > start)
+		.sort((left, right) => left[0] - right[0] || left[1] - right[1]);
+	const gaps: Array<[number, number]> = [];
+	let covered = 0;
+	for (const [start, end] of sorted) {
+		if (start > covered) gaps.push([covered, Math.min(start, total)]);
+		covered = Math.max(covered, end);
+		if (covered >= total) break;
+	}
+	if (covered < total) gaps.push([covered, total]);
+	return gaps;
 }
 
 function requiredArtifactReadPathSatisfied(
@@ -291,6 +394,14 @@ export function formatRequiredReadFailureMessage(
 	if (check.missing.length > 0) {
 		parts.push(
 			`missing required workflow artifact reads: ${check.missing.join(", ")}`,
+		);
+	}
+	if (
+		check.incompleteCoverage !== undefined &&
+		check.incompleteCoverage.length > 0
+	) {
+		parts.push(
+			`incomplete paged reads (read the missing ranges with offset): ${check.incompleteCoverage.join("; ")}`,
 		);
 	}
 	if (check.projectionFailures.length > 0) {

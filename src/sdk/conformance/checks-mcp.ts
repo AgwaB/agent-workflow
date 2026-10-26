@@ -1,8 +1,10 @@
 /**
  * MCP checks (R#9, prior-art §3 #8): injected stdio servers are reachable, secrets travel via env
- * (never argv), and the declared MCP output limit matches what the CLI actually delivers.
+ * (never argv), the declared MCP output limit matches what the CLI actually delivers, and (WP5b) a
+ * page of the size the workflow_artifact server uses for that limit arrives whole.
  */
 import { randomBytes } from "node:crypto";
+import { artifactServerOutputLimit } from "../mcp-delivery.js";
 import { body, type ConformanceCheck, runScenario } from "./checks-core.js";
 import type { CheckContext } from "./context.js";
 import { createStubMcpServer, STUB_MCP_SERVER_NAME } from "./stub-mcp.js";
@@ -150,6 +152,57 @@ export const MCP_CHECKS: readonly ConformanceCheck[] = [
 				...(notice > 0 ? { notice } : {}),
 				served,
 				delivered,
+			});
+		},
+	},
+	{
+		id: "mcp.paged_read",
+		tier: "offline",
+		area: "mcp",
+		title:
+			"A result of the artifact server's page size for probe() limits is delivered whole (paged reads deliver a large artifact completely)",
+		refs: ["R#9", "WP5b"],
+		scenarios: ["mcp_tool"],
+		async run(ctx) {
+			const session = await ctx.open("mcp_tool");
+			const probe = await ctx.call(session.executor.probe(), "probe");
+			// The core launches the workflow_artifact server with exactly this limit; every page it
+			// serves (header + page + footer) fits it in UTF-16 chars and UTF-8 bytes, and pages tile
+			// [0, totalChars). So if a response of this size arrives whole, every page does, and the
+			// worker can read any artifact completely by paging. An ASCII response is the worst case
+			// (chars = bytes = the limit).
+			const pageLimit = artifactServerOutputLimit(probe);
+			if (pageLimit === null)
+				return ctx.skip(
+					"probe reports no MCP output limit (the artifact server keeps its 8192-char default)",
+				);
+			const run = await mcpRun(ctx, pageLimit);
+			const event = run.toolEvent;
+			if (event?.type !== "tool_call")
+				return ctx.skip(
+					"no tool_call output to measure (toolTelemetry absent)",
+				);
+			const output = outputText(event.output) ?? "";
+			// The stub's echo result: the nonce, a space and "x" padding up to `pageLimit` chars.
+			const page = `${run.nonce} ${"x".repeat(pageLimit - run.nonce.length - 1)}`;
+			const eventLimit = ctx.harness.toolOutputEventLimitChars;
+			if (
+				!output.includes(page) &&
+				eventLimit !== undefined &&
+				eventLimit < pageLimit &&
+				output.startsWith(page.slice(0, eventLimit))
+			)
+				return ctx.skip(
+					`the adapter's normalized tool_call.output keeps at most ${eventLimit} chars (< page size ${pageLimit}); the event view cannot prove page delivery — verify live`,
+				);
+			if (!output.includes(page))
+				run.violations.push(
+					`a ${pageLimit}-char result (the artifact server page size for mcpOutputLimitChars ${probe.mcpOutputLimitChars}) did not arrive whole (${output.length} chars delivered): paged artifact reads would be cut`,
+				);
+			return body(run.violations, {
+				limit: probe.mcpOutputLimitChars ?? null,
+				pageLimit,
+				delivered: output.length,
 			});
 		},
 	},

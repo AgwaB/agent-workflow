@@ -149,14 +149,17 @@ opens only `rules/*.rules` and `AGENTS.md`, never `auth.json` or other credentia
   per token. Live #2: a 60,008-char result was cut with `Warning: truncated output (original token
   count: 15002)` (= 60,008 / 4) and head and tail kept, so the delivered bound is about 40,000
   bytes at the pinned 10,000-token limit. `probe().mcpOutputLimitChars = 32000` (20 % headroom;
-  the WP5 server checks UTF-16 length and UTF-8 bytes). Hosts should launch the artifact server
-  with `artifactMcpServerSpecWithOutputLimit(config, probe.mcpOutputLimitChars)`.
+  the WP5 server checks UTF-16 length and UTF-8 bytes). Since WP5b the engine launches the artifact
+  server with `--max-output-chars 30400` (32,000 − 5 % margin; docs/mcp.md "Measured limits"), and
+  larger whole reads are paged.
 - Tool timeout: `tool_timeout_sec` per server is honored (2 s → "timed out awaiting tools/call
   after 2s", measured offline with `mcpServer/tool/call`); with no value, a direct call did not time
   out within 200 s. The adapter sets 300 s.
 - Normalized `tool_call.output` is clipped at 16,384 chars with a note; the raw transcript keeps the
   full result. The kit's `mcp.delivery_bound` therefore passes on the event view; the real model
-  bound is the one above.
+  bound is the one above. For the same reason `mcp.paged_read` (WP5b) is skipped, justified: a
+  30,400-char page cannot show whole in a 16,384-char event (the harness declares
+  `toolOutputEventLimitChars`); 30,400 is below the ~40,000 bytes measured live (#2).
 
 ## Events
 
@@ -298,7 +301,8 @@ budget are not confirmed. `fetch_content` (open_page) not observed.
 - **WP10**: Codex's web tool is `web_search` (request `tools: ["web_search"]`); prompts name the
   artifact tool `mcp__workflow_artifact__workflow_artifact`; precise tool lists degrade to the
   coarse sandbox (B4 `toolAllowlist.fine` → readOnly downgrade where allowed).
-- **WP11 / WP4c**: launch the artifact server with `probe().mcpOutputLimitChars` (32000); always
+- **WP11 / WP4c**: launch the artifact server with `probe().mcpOutputLimitChars` (done by the engine
+  since WP5b: `--max-output-chars 30400`); always
   pass `effort`; keep secrets in `SubmitRequest.env`/`McpServerSpec.env`, never in descriptor
   config; prune should call `deleteOwnedSession` for `codex-thread` sessions (R#10) and sweep
   `stateDir`. The exec-policy-rules gap is decided (WP4d: accept and record with a warning; strict
