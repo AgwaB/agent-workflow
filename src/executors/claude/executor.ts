@@ -27,6 +27,7 @@ import {
 	EXECUTOR_CONTRACT_VERSION,
 	type ExecRef,
 	type ExecutorProbe,
+	type DeleteOwnedSessionResult,
 	type ReconcileResult,
 	type SubmitRequest,
 	validateSubmitRequest,
@@ -58,8 +59,6 @@ export const RAW_STREAM_FILE = "claude-stream.jsonl";
 export const RAW_STDERR_FILE = "claude-stderr.log";
 export const MCP_CONFIG_FILE = "claude-mcp-config.json";
 export const INVOCATION_FILE = "claude-invocation.json";
-
-export type DeleteOwnedSessionResult = "deleted" | "absent" | "refused";
 
 export interface ClaudeWorkflowExecutor extends WorkflowExecutor {
 	/** Delete a worker session this adapter kept (`ownedSession` of a terminal event). */
@@ -616,7 +615,7 @@ export function createClaudeExecutor(options: {
 				{ transcript: true },
 			);
 			await store.forgetSession(session.locator);
-			return removed > 0 ? "deleted" : "absent";
+			return removed > 0 ? "deleted" : "not_found";
 		},
 	};
 }

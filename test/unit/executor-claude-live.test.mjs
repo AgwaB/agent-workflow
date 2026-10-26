@@ -316,5 +316,5 @@ test("live conformance checks (kit live tier)", {
 			`session ${locator} deleted`,
 		);
 	for (const entry of summary.sessionCleanup)
-		assert.ok(["deleted", "absent"].includes(entry.result), entry.result);
+		assert.ok(["deleted", "not_found"].includes(entry.result), entry.result);
 });

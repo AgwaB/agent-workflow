@@ -7,8 +7,9 @@ import { isAbsolute, join } from "node:path";
 import { SdkError } from "../../sdk/errors.js";
 import type { JsonValue } from "../../sdk/json.js";
 
-export const CLAUDE_EXECUTOR_ID = "claude";
-export const CLAUDE_ADAPTER_VERSION = "0.1.0";
+import { CLAUDE_ADAPTER_VERSION, CLAUDE_EXECUTOR_ID } from "./version.js";
+
+export { CLAUDE_ADAPTER_VERSION, CLAUDE_EXECUTOR_ID };
 /** CLI version every `probed` capability row was verified with (live, 2026-10-26). */
 export const CLAUDE_VERIFIED_CLI_VERSION = "2.1.310";
 export const CLAUDE_VERIFIED_WITH = `claude-code ${CLAUDE_VERIFIED_CLI_VERSION}, WP8 live 2026-10-26`;

@@ -3,6 +3,10 @@
 // executor (pi-subagent headless Pi); here the run records which executor it uses, and an unknown or
 // unavailable executor fails the run before any launch (never a silent fallback).
 import {
+	CLAUDE_ADAPTER_VERSION,
+	CLAUDE_EXECUTOR_ID,
+} from "../executors/claude/version.js";
+import {
 	PI_EXECUTOR_ID,
 	PI_EXECUTOR_VERSION,
 } from "../executors/pi/version.js";
@@ -34,7 +38,6 @@ export interface WorkflowExecutorRegistration {
 
 const BUILTIN_UNAVAILABLE: Readonly<Record<string, string>> = {
 	codex: "the Codex executor adapter is not implemented yet (WP7)",
-	claude: "the Claude executor adapter is not implemented yet (WP8)",
 };
 
 /**
@@ -49,6 +52,13 @@ const BUILTIN_DESCRIPTORS: Readonly<Record<string, () => ExecutorDescriptor>> =
 			version: PI_EXECUTOR_VERSION,
 			contractVersion: EXECUTOR_CONTRACT_VERSION,
 			module: new URL("../executors/pi/index.js", import.meta.url).href,
+			config: null,
+		}),
+		[CLAUDE_EXECUTOR_ID]: () => ({
+			id: CLAUDE_EXECUTOR_ID,
+			version: CLAUDE_ADAPTER_VERSION,
+			contractVersion: EXECUTOR_CONTRACT_VERSION,
+			module: new URL("../executors/claude/index.js", import.meta.url).href,
 			config: null,
 		}),
 	};
