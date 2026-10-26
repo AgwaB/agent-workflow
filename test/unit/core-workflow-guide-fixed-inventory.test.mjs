@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-guide-fixed-inventory.test.mjs. MIT, same author. Changes: imports from dist/core/.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-guide-fixed-inventory.test.mjs. MIT, same author. Changes: imports from dist/core/; skills/workflow-guide scaffold copied to test/fixtures/core/workflow-guide-scaffolds/.
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import {

@@ -1,4 +1,4 @@
-# Core port (WP4a)
+# Core port (WP4a, WP4b)
 
 Source: `@agwab/pi-workflow` 0.16.4, commit `b83cc4f` (MIT, same author).
 Destination: `src/core/` (flat, same file names), compiled to `dist/core/`.
@@ -49,7 +49,7 @@ WP4b/WP4c split:
 | `src/dynamic-state-projection.ts` | `src/core/dynamic-state-projection.ts` | ported |
 | `src/dynamic-tool-result-budget-metrics.ts` | `src/core/dynamic-tool-result-budget-metrics.ts` | ported — type bridge |
 | `src/experimental-speed-flags.ts` | `src/core/experimental-speed-flags.ts` | ported-adapted — env PI_WORKFLOW_EXPERIMENTAL_TOOL_DEDUP→AGENT_WORKFLOW_EXPERIMENTAL_TOOL_DEDUP, PI_WORKFLOW_EXPERIMENTAL_CACHE_STABLE_FOREACH→AGENT_WORKFLOW_EXPERIMENTAL_CACHE_STABLE_FOREACH, PI_WORKFLOW_EXPERIMENTAL_LAUNCH_RAMP→AGENT_WORKFLOW_EXPERIMENTAL_LAUNCH_RAMP, PI_WORKFLOW_CACHE_SHAPE_METRICS→AGENT_WORKFLOW_CACHE_SHAPE_METRICS, PI_WORKFLOW_EXPERIMENTAL_DEPTH_ROUTER→AGENT_WORKFLOW_EXPERIMENTAL_DEPTH_ROUTER, PI_WORKFLOW_EXPERIMENTAL_SAME_SESSION_REPAIR→AGENT_WORKFLOW_EXPERIMENTAL_SAME_SESSION_REPAIR, PI_WORKFLOW_PER_ITEM_DISPATCH→AGENT_WORKFLOW_PER_ITEM_DISPATCH |
-| `src/foreach-batch-capability.ts` | — | blocked (value-imports `workflow-state-root.js` (`assertWorkflowStateRootCapability`, ...), which is blocked (below)) |
+| `src/foreach-batch-capability.ts` | `src/core/foreach-batch-capability.ts` (WP4b) | blocked in WP4a, ported in WP4b (value-imports `workflow-state-root.js` (`assertWorkflowStateRootCapability`, ...), which is blocked (below)) |
 | `src/foreach-batch-runtime.ts` | `src/core/foreach-batch-runtime.ts` | ported — type bridge |
 | `src/json-schema.ts` | `src/core/json-schema.ts` | ported |
 | `src/launch-session.ts` | `src/core/launch-session.ts` | ported — type bridge |
@@ -63,27 +63,27 @@ WP4b/WP4c split:
 | `src/strings.ts` | `src/core/strings.ts` | ported |
 | `src/tool-metadata.ts` | `src/core/tool-metadata.ts` | ported — type bridge |
 | `src/verification-ontology.ts` | `src/core/verification-ontology.ts` | ported |
-| `src/workflow-artifact-tool.ts` | — | blocked (value-imports `workflow-raw-contract.js` (`checkRawLinks`, `establishRawOwner`, `rawDigest`, ...; raw-contract reaches `store`/`launch-bootstrap-provenance`/`artifact-graph-runtime`) and `workflow-runtime.js` (blocked)) |
+| `src/workflow-artifact-tool.ts` | `src/core/workflow-artifact-tool.ts` (WP4b) | blocked in WP4a, ported in WP4b (value-imports `workflow-raw-contract.js` (`checkRawLinks`, `establishRawOwner`, `rawDigest`, ...; raw-contract reaches `store`/`launch-bootstrap-provenance`/`artifact-graph-runtime`) and `workflow-runtime.js` (blocked)) |
 | `src/workflow-artifacts.ts` | `src/core/workflow-artifacts.ts` | ported — type bridge |
 | `src/workflow-cancellation.ts` | `src/core/workflow-cancellation.ts` | ported |
-| `src/workflow-helpers.ts` | — | blocked (value-imports `types.js` (`WorkflowValidationError` class)) |
+| `src/workflow-helpers.ts` | `src/core/workflow-helpers.ts` (WP4b) | blocked in WP4a, ported in WP4b (value-imports `types.js` (`WorkflowValidationError` class)) |
 | `src/workflow-metrics.ts` | `src/core/workflow-metrics.ts` | ported — type bridge |
 | `src/workflow-network-policy.ts` | `src/core/workflow-network-policy.ts` | ported |
-| `src/workflow-output-artifacts.ts` | — | blocked (value-imports `workflow-raw-contract.js` (`assertSafeRawTaskDirectory`, `checkRawLinks`, `rawDigest`, ...) and `workflow-partial-output.js` (blocked)) |
-| `src/workflow-partial-output.ts` | — | blocked (value-imports `store.js` (`readJson`, `writeJsonAtomic`) and `dynamic-events.js` (`hashDynamicRequest`; dynamic-events itself value-imports store)) |
+| `src/workflow-output-artifacts.ts` | `src/core/workflow-output-artifacts.ts` (WP4b) | blocked in WP4a, ported in WP4b (value-imports `workflow-raw-contract.js` (`assertSafeRawTaskDirectory`, `checkRawLinks`, `rawDigest`, ...) and `workflow-partial-output.js` (blocked)) |
+| `src/workflow-partial-output.ts` | `src/core/workflow-partial-output.ts` (WP4b) | blocked in WP4a, ported in WP4b (value-imports `store.js` (`readJson`, `writeJsonAtomic`) and `dynamic-events.js` (`hashDynamicRequest`; dynamic-events itself value-imports store)) |
 | `src/workflow-progress-health.ts` | `src/core/workflow-progress-health.ts` | ported — type bridge |
 | `src/workflow-provider-callback.ts` | `src/core/workflow-provider-callback.ts` | ported |
-| `src/workflow-runtime.ts` | — | blocked (value-imports `types.js` (`THINKING_LEVELS` const)) |
+| `src/workflow-runtime.ts` | `src/core/workflow-runtime.ts` (WP4b) | blocked in WP4a, ported in WP4b (value-imports `types.js` (`THINKING_LEVELS` const)) |
 | `src/workflow-sensitive-query.ts` | `src/core/workflow-sensitive-query.ts` | ported |
 | `src/workflow-source-alias.ts` | `src/core/workflow-source-alias.ts` | ported — type bridge |
-| `src/workflow-source-context-runtime.ts` | — | blocked (value-imports `store.js` (`fromProjectPath`, `readJson`, `workflowRunDir`) and `dynamic-events.js` (`hashDynamicRequest`)) |
-| `src/workflow-state-root.ts` | — | blocked (value-imports `store.js` (`syncFileAndDirectory`, `workflowsRoot`)) |
-| `src/workflow-stop.ts` | — | blocked (value-imports `store.js` (`readWorkflowStopIntent`, `workflowRunPath`)) |
+| `src/workflow-source-context-runtime.ts` | `src/core/workflow-source-context-runtime.ts` (WP4b) | blocked in WP4a, ported in WP4b (value-imports `store.js` (`fromProjectPath`, `readJson`, `workflowRunDir`) and `dynamic-events.js` (`hashDynamicRequest`)) |
+| `src/workflow-state-root.ts` | `src/core/workflow-state-root.ts` (WP4b) | blocked in WP4a, ported in WP4b (value-imports `store.js` (`syncFileAndDirectory`, `workflowsRoot`)) |
+| `src/workflow-stop.ts` | `src/core/workflow-stop.ts` (WP4b) | blocked in WP4a, ported in WP4b (value-imports `store.js` (`readWorkflowStopIntent`, `workflowRunPath`)) |
 
 Totals: 30 ported (26 `ported`, 4 `ported-adapted`) and 9 `blocked`. `src/core/index.ts` is still the stub
 entry point (`MODULE = "src/core"`). WP4a adds no public `exports` entry.
 
-## Type bridge (`src/core/types-bridge.ts`)
+## Type bridge (`src/core/types-bridge.ts`) — deleted in WP4b
 
 Ported modules type-import 27 names from modules outside the set. None of them is a value import. Those
 imports now point at `./types-bridge.js`:
@@ -158,7 +158,216 @@ Left unchanged on purpose (not paths or env vars; flagged for later WPs):
   refuses to rewrite an existing versioned bundle.
 - typebox: none of the 30 modules uses it, so no replacement was needed.
 
-## Tests
+## WP4b — seed replacements and hub-coupled modules
+
+WP4b ports 45 more modules (the 9 WP4a `blocked` files included) and replaces the six Pi "seed" modules
+they reached Pi through. `src/core/` now has 82 files: 30 WP4a + 45 WP4b + 6 seed replacements + the
+`index.ts` stub. `types-bridge.ts` is deleted; every WP4a importer points at `./types.js` or
+`./dynamic-decision.js` again. No module uses typebox or jiti, and none imports `@earendil-works`.
+
+### Seed replacements
+
+| Pi seed (b83cc4f) | Core module | Kept | Dropped → where |
+|---|---|---|---|
+| `pi-agent-dir.ts` | `home-dir.ts` | `agentWorkflowHome(env)` = `AGENT_WORKFLOW_HOME` or `~/.agent-workflow`; `legacyPiAgentDir(env)` (`PI_CODING_AGENT_DIR` or `~/.pi/agent`) for read-only discovery only; `PROJECT_STATE_DIRECTORY` = `.agent-workflow`, `LEGACY_PROJECT_PI_DIRECTORY` = `.pi` | `piAgentDir` as a write location |
+| `workflow-native-host-context.ts` | `host-context.ts` | `HostContext {version: 1, cwd, homeDir, projectTrusted}`, `assertHostContext`, `createHostContext`, `withHostContext(ctx \| null, op)` (AsyncLocalStorage), `resolveHostContext()` with env fallback `AGENT_WORKFLOW_HOST_CONTEXT` | Pi `ExtensionContext` session tracking (`captureWorkflowNativeHostContext`, `withWorkflowNativeHostContext`), `buildWorkflowNativeHostExtensionWrapper`, `workflowNativeLaunchTools` → WP6 Pi adapter |
+| `workflow-native-tool-policy.ts` | `tool-policy.ts` | `applyWorkflowToolPolicy(tools, providers, {inheritHostTools})`, `prepareWorkflowTaskToolPolicy`, `inheritedHostToolSafety`, `DEFAULT_WORKER_TOOLS` (Pi tool names; the SDK maps them) | The `codemode`/`tool_search`/`mcp__*`/MCP-resource names and their classifications → WP6 |
+| `workflow-artifact-extension.ts` | `artifact-access.ts` | `ArtifactAccessConfig`, canonical bytes, `artifactMcpServerSpec(config)`, tool name, JSON input schema, description, failure payload | `registerWorkflowArtifactTool`, tool activation hooks, wrapper writers → WP5 MCP server |
+| `workflow-fast-mode-extension.ts` | `fast-tier.ts` | `WORKFLOW_FAST_SERVICE_TIER`, eligible models, `resolveWorkflowFastModeConfig` (capability `fastTier`) | Provider-stream guard, `before_provider_request` hook, payload helpers, wrapper writers → WP6 |
+| `backend.ts` | `task-launch.ts` | `PreparedWorkflowTaskLaunch`, `WorkflowBackend`, `BackendLaunchResult`; `registerWorkflowBackend` / `resolveWorkflowBackend` | The hard-wired `pi-subagent/headless` backend and its error→`fatal` wrapper → WP4c registers a runtime-API backend |
+
+**home-dir.** Every user-scoped location (user workflows, user agents, profile settings) is under
+`agentWorkflowHome()`. The Pi directory is read only by spec and agent discovery. That reader follows
+`PI_CODING_AGENT_DIR` because that is where Pi itself keeps those files.
+
+**host-context.** The host that launches a run (CLI, MCP, Pi) records a `HostContext` in
+`run.hostContext`. It can bind it around the launch with `withHostContext`, or headless children can
+inherit it through `AGENT_WORKFLOW_HOST_CONTEXT`. Child runs copy the parent's value. Like
+`nativeHost` before it, the field is immutable after publication. The record holds references only.
+It no longer decides tool expansion: under pi-workflow the presence of `nativeHost` meant "add
+codemode/MCP tools". Under agent-workflow every host records a context, so that decision became a
+separate flag (next item).
+
+**tool-policy and `inheritHostTools` (A2-4: Pi executor only).** Host-tool inheritance is an explicit
+host-level option: the compile option `inheritHostTools`, recorded as `compiled.inheritHostTools` and
+`run.inheritHostTools` and inherited by child runs. Workflow specs cannot set it, and the default is off
+(B5). When it is on, a task gets `runtime.inheritHostTools: true`; an unspecified tool list becomes
+`read, bash, edit, write`, and `[]` stays tool-free with `inheritHostTools: false`. Core then classifies
+the task as mutation-capable: `sharedCwdSafe: false`, a worktree is required, and on-request approval is
+blocked as pending. That is the safety the Pi tool names used to imply. **WP6 hook:** the Pi adapter adds
+`codemode`, `tool_search`, `mcp__*`, `list_mcp_resources`, `list_mcp_resource_templates` and
+`read_mcp_resource` only when `runtime.inheritHostTools === true`. Other executors ignore the flag.
+Launch provenance (below) then fails closed, because it still expects exactly one Pi `native-host`
+wrapper for such a task.
+
+**artifact-access.** `prepareDagTask` writes `<task dir>/artifact-access.json` with mode 0600. The file
+is canonical JSON (sorted keys) of `{version: 1, runId, taskId, manifestPath, ledgerPath,
+accessMode: "workflow-task", runDir}`; `maxBytes`/`maxLines` are optional. The task's
+`toolProviders.workflow_artifact` becomes `{classification: "read-only", mcpServer: {name:
+"workflow_artifact", command: process.execPath, args: [<package>/dist/mcp/artifact-server/server.js,
+"--config", <config path>]}}`. The `mcpServer` field is new on `CompiledToolProvider`. WP4c copies it into
+`SubmitRequest.mcpServers`. The server entry is WP5; this WP only references its path.
+`workflow-artifact-extension.ts` is no longer generated.
+
+**fast-tier / task-launch.** These are pure resolution and types. `PreparedWorkflowTaskLaunch` marks
+`extensions`, `noExtensions` and `generatedExtensions` as Pi executor only (WP6). `nativeHost` became
+`hostContext`, set only when the task inherits host tools. `artifactBinding` is now
+`{manifestPath, expectedManifestBytes, configPath, expectedConfigBytes, serverSpec}`.
+
+### What launch provenance digests now
+
+`launch-bootstrap-provenance.ts` used to check `workflow-artifact-extension.ts` against the expected
+wrapper bytes and record `wrapperSha256`. It now does the following:
+
+- `artifacts` = `{manifestSha256, configSha256, serverSpecSha256}`:
+  - `configSha256` is SHA-256 of the canonical JSON of the `ArtifactAccessConfig` derived from the run.
+  - `serverSpecSha256` is SHA-256 of the canonical JSON of `artifactMcpServerSpec(config)`. That covers the
+    node binary path, the server entry path and the config path.
+  - Before recording, it reads `artifact-access.json` and requires it to be byte-identical to
+    `artifactAccessConfigBytes(config)`. A tampered or missing file throws (`… artifact access binding is
+    invalid` / `… is unavailable`).
+- `effectiveLaunch.artifactBinding` = SHA-256 of `manifestPath`, manifest bytes, `configPath`, config
+  bytes, and the canonical server spec. The wrapper path and bytes are gone.
+- `effectivePolicy.tools` = `runtime.tools ?? []`. pi-workflow recorded the Pi-expanded list here.
+  `effectivePolicy.inheritHostTools: true` is added when the task inherits host tools, so that decision is
+  covered by `identitySha256`.
+- The native-host check compares `preparedLaunch.hostContext` with `run.hostContext` when the task inherits
+  host tools; otherwise both must be absent.
+
+The schema ids (`pi-workflow-launch-bootstrap-provenance-v1/v2`) are unchanged. The record shape under
+them changed (`wrapperSha256` → `serverSpecSha256`), so pi-workflow records fail validation (closed).
+Renaming the Pi-flavoured literals in `types.ts` stays open (WP4c/WP6).
+
+### Legacy read (F5)
+
+Discovery order (lower wins; ties are ambiguous as before):
+
+- **Workflow specs:** `<project>/workflows` (0), `<project>/.agent-workflow/workflows` (1),
+  `~/.agent-workflow/workflows` (2), legacy `<project>/.pi/workflows` (3), legacy `~/.pi/agent/workflows`
+  (4), package `workflows/` (5).
+- **Agents:** `<project>/.agent-workflow/agents`, `~/.agent-workflow/agents`, legacy `<project>/.pi/agents`,
+  legacy `~/.pi/agent/agents`, then bundled agents.
+
+The legacy paths were confirmed from b83cc4f (`workflow-specs.ts:625-629`, `agents.ts:237-238`). Hits from
+legacy roots carry `legacySource: "pi"` on `ResolvedWorkflowSpecRef`, `WorkflowSpecRecord` /
+routing records and `AgentDefinition`. They keep their normal `scope` (`project-private`/`user`,
+`project`/`user`), so the project symlink protections still apply. Nothing writes to legacy locations: runs,
+bundles, notices, worktrees and profile settings all use `.agent-workflow`. The package workflow root is
+now resolved two levels up from `dist/core/` (pi-workflow's dist was flat).
+
+### R#5 (D2): write stages require a worktree
+
+In `compiler.ts` `classifySafety`, `requiresWorktree` = `worktreePolicy === "on"` or (not
+`sharedCwdSafe` and not waived). The waiver exists only when the spec says `off` **and** the compile
+option `allowSharedCheckoutWrites: true` is set. That option belongs to the executing user; a spec cannot
+set it. A spec-level `off` on a write-capable task now compiles with `requiresWorktree: true` and the
+warning `stage "<id>" sets worktreePolicy: "off" but can write (<capability>); a worktree is still
+required (D2). Only the executing user's allowSharedCheckoutWrites run option can disable it.`
+
+When the waiver applies:
+
+- The task records `safety.allowSharedCheckoutWrites: true`.
+- `compiled.allowSharedCheckoutWrites` and `run.allowSharedCheckoutWrites` record the option, and
+  `createRunRecord` copies it.
+- Read-only tasks with `off` are unchanged (no worktree, no warning).
+- Dynamic generated tasks already required a worktree whenever they were not read-only.
+
+Not changed: support helpers and dynamic controllers keep their hard-coded `off`/no worktree, because they
+are engine-side code and not executor workers. Loop placeholders are read-only.
+
+Tests (`core-wp4b-seeds.test.mjs`): readOnly + off → no worktree, no warning; write + off → worktree
+required + warning; write + off + option → no worktree, recorded in compiled, task safety and run.json, and
+the option does not weaken `auto`.
+
+### WP4b modules
+
+All 45 are `ported`. Those with changes beyond the header and the bridge repoint are listed in each file's
+header line:
+
+- `agents`, `workflow-specs`: new/legacy roots.
+- `store`, `workflow-state-root`, `workflow-notices`, `workflow-auto-binding`, `workflow-raw-contract`,
+  `dynamic-controller-policy`, `run-retention`, `worktree`: paths/env.
+- `workflow-profile-settings`: settings root.
+- `compiler`: R#5, fast-tier, `inheritHostTools`.
+- `dynamic-generated-task-runtime`, `artifact-graph-runtime`, `launch-bootstrap-provenance`: seeds.
+- `engine-wait`: backend registry.
+- `types`: fields.
+
+The other 31 have `Changes: none.`
+
+### WP4b env / path renames
+
+| Before | After | File |
+|---|---|---|
+| `<project>/.pi/workflows/` (run state, bundles, notices, worktrees, raw contract) | `<project>/.agent-workflow/workflows/` | store, workflow-state-root, workflow-notices, workflow-auto-binding, workflow-raw-contract, dynamic-controller-policy, worktree |
+| `<project>/.pi/workflow-subagents/` (worker mirrors) | `<project>/.agent-workflow/workflow-subagents/` | run-retention, workflow-raw-contract (WP4c must write the same path) |
+| `<project>/.pi/workflows` / `.pi/agents` discovery | `.agent-workflow/…` first, `.pi/…` read-only after | workflow-specs, agents |
+| `~/.pi/agent/workflows`, `~/.pi/agent/agents` | `~/.agent-workflow/…` first, Pi dir read-only after | workflow-specs, agents |
+| `~/.pi/agent/workflow-profiles/v1` | `~/.agent-workflow/workflow-profiles/v1` | workflow-profile-settings |
+| `PI_CODING_AGENT_DIR` (user dir) | `AGENT_WORKFLOW_HOME` (`PI_CODING_AGENT_DIR` only locates the legacy Pi dir) | home-dir |
+| `PI_WORKFLOW_NATIVE_HOST_CONTEXT` | `AGENT_WORKFLOW_HOST_CONTEXT` | host-context |
+| `PI_WORKFLOW_ROLE` (store lease checks) | `AGENT_WORKFLOW_ROLE` | store |
+| `PI_WORKFLOW_EXTERNAL_LAUNCH_GRANT_SHA256`, `PI_WORKFLOW_REQUIRE_EXTERNAL_LAUNCH_GRANT` | `AGENT_WORKFLOW_…` | launch-bootstrap-provenance |
+| `PI_WORKFLOW_PRIVATE_RUNTIME_ARTIFACT_NAMES`, `PI_WORKFLOW_CLONE_RUNTIME_ARTIFACT_DIRS`, `PI_WORKFLOW_ALLOW_FULL_RUNTIME_ARTIFACT_COPY` | `AGENT_WORKFLOW_…` | worktree |
+
+No old `PI_WORKFLOW_*` name is read as a fallback. The worktree artifact scan skips both `.agent-workflow`
+and the legacy `.pi` directory.
+
+### WP4b change log (behavior-relevant)
+
+1. The paths and env vars in the table above are renamed. Legacy Pi spec/agent locations are read-only
+   fallbacks tagged `legacySource: "pi"`.
+2. `run.nativeHost` → `run.hostContext` (`agentDir` → `homeDir`). `runtime.nativeToolsEnabled` →
+   `runtime.inheritHostTools`. Host-tool inheritance is an explicit `inheritHostTools` option and is no
+   longer implied by a host context. The compile option `nativeHost` was removed.
+3. R#5: spec `worktreePolicy: "off"` no longer exempts write-capable tasks; `allowSharedCheckoutWrites`
+   (run option) does.
+4. Artifact access: `artifact-access.json` + MCP server spec replace the generated Pi extension wrapper.
+   The provenance fields changed as described above.
+5. `resolveWorkflowBackend` throws for every backend until one is registered (WP4c).
+6. The package workflow root resolves from `dist/core/` to `<package>/workflows`.
+
+### WP4b tests
+
+`npm run validate` runs 27 `core-*` files (168 node:test tests, subtests included):
+
+- The 23 ported pi-workflow files in the table below. Assertions are unchanged except for the
+  path/env renames named in each header. Five tests were dropped and deferred: 2 `cli.mjs inspect` in
+  workflow-authoring-gates (WP11a), 1 `cli.mjs prune` in review-runtime-retention-depth (WP11a),
+  1 `engine.ts` source scan in prompt-schema-reliability (WP4c), and 1 `engine.ts` +
+  `subagent-backend.ts` source scan in wb-016 (WP4c).
+- `core-wp4b-seeds.test.mjs`: new, 13 tests.
+- `core-import-isolation.test.mjs`: now derives the expected module list from `src/core/*.ts`. It still
+  imports every `dist/core/*.js` (82) with no `node_modules` on the path.
+- `test/fixtures/core/workflow-guide-scaffolds/`: a verbatim copy (biome-formatted) of pi-workflow's
+  `skills/workflow-guide/scaffolds/{fixed-inventory,support-partition}`. The fixed-inventory and
+  authoring-gates tests exercise these with the core runtime. The skill itself is not ported here.
+
+### Discoveries for later WPs
+
+- **WP4c:**
+  - Register the backend (`registerWorkflowBackend({type: "local-pi", mode: "headless"}, …)`) and
+    re-create the source wrapper that turned non-abort launch errors into `{kind: "fatal"}`.
+  - Copy `toolProviders[*].mcpServer` into `SubmitRequest.mcpServers`, and fill
+    `PreparedWorkflowTaskLaunch.artifactBinding` with the config path/bytes and server spec.
+  - `subagent-backend` must use `.agent-workflow/workflow-subagents`.
+  - `engine.ts:2860` / `:5418` read `requiresWorktree` and `explicitWorktreePolicy`; check them against R#5.
+  - Pass `allowSharedCheckoutWrites` and `inheritHostTools` from the host into `compileWorkflow`.
+  - Decide the `pi-workflow-*` schema literals and `backend: {type: "local-pi"}` (F5 warning).
+- **WP5:**
+  - The server entry must be `dist/mcp/artifact-server/server.js` taking `--config <artifact-access.json>`.
+  - The config is `ArtifactAccessConfig`; validate it with `assertArtifactAccessConfig`.
+  - Serve `WORKFLOW_ARTIFACT_TOOL_PARAMETERS` and return `workflowArtifactFailureResult` on errors.
+  - `handleWorkflowArtifactToolCall` (workflow-artifact-tool) takes the config minus `version`.
+- **WP6:**
+  - Honor `runtime.inheritHostTools` (native tool list above) and emit exactly one `native-host` wrapper
+    bound to `run.hostContext`.
+  - Re-home the fast-mode provider guard on `fast-tier.ts` config.
+  - Map `HostContext` from the Pi `ExtensionContext` (`isProjectTrusted`) at launch.
+- `serverSpecSha256` includes `process.execPath`. A node upgrade between recording and re-checking the same
+  attempt's provenance fails closed. The old wrapper digest already pinned the package path.
+
+## Tests (WP4a)
 
 `npm run validate` runs these new or ported files:
 
@@ -185,11 +394,14 @@ bundled workflows or Pi packages, and on the WP1a `test/replay/INVENTORY.md` dro
    SubagentApi + engine).
 5. Everything else is `deferred-WP4b`.
 
-Counts: ported 1, deferred-WP4b 20, deferred-WP4c 32, deferred-WP5+ 54, dropped 33.
+Counts after WP4a: ported 1, deferred-WP4b 20, deferred-WP4c 32, deferred-WP5+ 54, dropped 33.
+Counts after WP4b: ported 1, ported-WP4b 23 (the 20 deferred-WP4b files plus prompt-schema-reliability,
+wb-016-scheduler-performance and review-runtime-retention-depth, each minus the one test that needs
+engine.ts or cli.mjs), deferred-WP4c 30, deferred-WP5+ 53, dropped 33.
 
 | pi-workflow test | Decision | Reason |
 |---|---|---|
-| artifact-sidecar-settlement.test.mjs | deferred-WP4b | needs workflow-output-artifacts |
+| artifact-sidecar-settlement.test.mjs | ported-WP4b (`test/unit/core-artifact-sidecar-settlement.test.mjs`) | WP4b |
 | bounded-raw-link-contract.test.mjs | deferred-WP4c | needs subagent-backend,engine |
 | built-engine-frozen-bundle-regression.test.mjs | deferred-WP4c | needs engine,subagent-backend |
 | code-search-compat.test.mjs | dropped | INVENTORY: drop(Pi extension tool compat shim) |
@@ -213,7 +425,7 @@ Counts: ported 1, deferred-WP4b 20, deferred-WP4c 32, deferred-WP5+ 54, dropped 
 | dynamic-coordination-bundle-parity.test.mjs | ported (`test/unit/core-dynamic-coordination-bundle-parity.test.mjs`) | all imports in the WP4a set |
 | dynamic-coordination-projection.test.mjs | deferred-WP4c | needs  (+unit-test-support harness: fake SubagentApi/engine) |
 | dynamic-coordination-replay.test.mjs | deferred-WP4c | needs engine (+unit-test-support harness: fake SubagentApi/engine) |
-| dynamic-fanout-requestid.test.mjs | deferred-WP4b | needs dynamic-loop-actions,dynamic-control-ops,engine-run-graph |
+| dynamic-fanout-requestid.test.mjs | ported-WP4b (`test/unit/core-dynamic-fanout-requestid.test.mjs`) | WP4b |
 | dynamic-tool-result-budget.test.mjs | deferred-WP4c | needs engine (+unit-test-support harness: fake SubagentApi/engine) |
 | engine-output-retry-dispatch.test.mjs | deferred-WP4c | needs engine,subagent-backend |
 | engine-refresh.test.mjs | deferred-WP4c | needs engine,subagent-backend (+unit-test-support harness: fake SubagentApi/engine) |
@@ -227,17 +439,17 @@ Counts: ported 1, deferred-WP4b 20, deferred-WP4c 32, deferred-WP5+ 54, dropped 
 | impact-review-enum-control-guidance.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | impact-review-impact-fixes.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | launch-slot-observer.test.mjs | deferred-WP4c | needs subagent-backend (+unit-test-support harness: fake SubagentApi/engine) |
-| metrics-estimate-contracts.test.mjs | deferred-WP4b | needs run-estimates |
+| metrics-estimate-contracts.test.mjs | ported-WP4b (`test/unit/core-metrics-estimate-contracts.test.mjs`) | WP4b; run root path |
 | nested-workflow-depth-behavior.test.mjs | deferred-WP4c | needs engine (+unit-test-support harness: fake SubagentApi/engine) |
 | no-send-controls.test.mjs | deferred-WP5+ | Pi/pi-subagent package |
 | normalized-provider-corrective.test.mjs | dropped | INVENTORY: drop(workflow_web_* removed in WP10) |
-| optional-output-sections.test.mjs | deferred-WP4b | needs workflow-output-artifacts,artifact-graph-runtime,compiler,schema |
+| optional-output-sections.test.mjs | ported-WP4b (`test/unit/core-optional-output-sections.test.mjs`) | WP4b; run root path |
 | parent-usage-retention.test.mjs | deferred-WP4c | needs workflow-parent-usage |
-| partial-output-literal-preservation.test.mjs | deferred-WP4b | needs workflow-output-artifacts,workflow-partial-output |
+| partial-output-literal-preservation.test.mjs | ported-WP4b (`test/unit/core-partial-output-literal-preservation.test.mjs`) | WP4b |
 | pi-agent-dir.test.mjs | dropped | INVENTORY: drop(Pi config dir; hosts/pi only) |
 | product-corrective-11.test.mjs | dropped | INVENTORY: drop(web fetch cache removed in WP10) |
 | product-corrective-12.test.mjs | dropped | INVENTORY: drop(web provider removed in WP10) |
-| prompt-schema-reliability.test.mjs | deferred-WP4c | needs engine |
+| prompt-schema-reliability.test.mjs | ported-WP4b (`test/unit/core-prompt-schema-reliability.test.mjs`) | WP4b; 1 of 6 dropped (reads src/engine.ts → WP4c) |
 | raw-artifact-read-roundtrip.test.mjs | deferred-WP4c | needs subagent-backend |
 | release-gates.test.mjs | dropped | INVENTORY: drop(pi-workflow release tooling) |
 | release-provenance.test.mjs | dropped | INVENTORY: drop(pi-workflow release tooling; agent-workflow has its own) |
@@ -246,9 +458,9 @@ Counts: ported 1, deferred-WP4b 20, deferred-WP4c 32, deferred-WP5+ 54, dropped 
 | review-helper-byte-gates.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | review-helper-materialized.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | review-runtime-refs-dns.test.mjs | dropped | INVENTORY: drop(refs URL probing is web-tool coupled) / unknown |
-| review-runtime-retention-depth.test.mjs | deferred-WP5+ | cli.mjs (WP11a) |
+| review-runtime-retention-depth.test.mjs | ported-WP4b (`test/unit/core-review-runtime-retention-depth.test.mjs`) | WP4b; 1 of 15 dropped (spawns cli.mjs → WP11a) |
 | run-estimates.test.mjs | deferred-WP5+ | Pi host/extension modules: extension |
-| run-usage-rollup.test.mjs | deferred-WP4b | needs store |
+| run-usage-rollup.test.mjs | ported-WP4b (`test/unit/core-run-usage-rollup.test.mjs`) | WP4b |
 | runtime-bundled-api-boundary.test.mjs | dropped | INVENTORY: drop(pi-subagent bundling) |
 | runtime-refs-transport-boundary.test.mjs | dropped | INVENTORY: drop(web-coupled) / unknown |
 | runtime-storage-boundaries.test.mjs | deferred-WP4c | needs subagent-backend |
@@ -257,8 +469,8 @@ Counts: ported 1, deferred-WP4b 20, deferred-WP4c 32, deferred-WP5+ 54, dropped 
 | spec-review-live-spec-correction.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | store-final-review-regression.test.mjs | deferred-WP4c | needs  (+unit-test-support harness: fake SubagentApi/engine) |
 | store-lease-contention.test.mjs | deferred-WP4c | needs workflow-parent-usage |
-| store-lease-handoff.test.mjs | deferred-WP4b | needs store |
-| store-lock-corrective.test.mjs | deferred-WP4b | needs store |
+| store-lease-handoff.test.mjs | ported-WP4b (`test/unit/core-store-lease-handoff.test.mjs`) | WP4b |
+| store-lock-corrective.test.mjs | ported-WP4b (`test/unit/core-store-lock-corrective.test.mjs`) | WP4b |
 | subagent-extension-preflight.test.mjs | deferred-WP5+ | Pi/pi-subagent package |
 | subagent-partial-output.test.mjs | deferred-WP5+ | Pi/pi-subagent package |
 | surface-regressions.test.mjs | deferred-WP5+ | cli.mjs (WP11a); Pi host/extension modules: workflow-view,extension |
@@ -272,7 +484,7 @@ Counts: ported 1, deferred-WP4b 20, deferred-WP4c 32, deferred-WP5+ 54, dropped 
 | unit-engine-store.test.mjs | deferred-WP5+ | bundled workflows (WP10); Pi/pi-subagent package |
 | unit-model-task-runtime.test.mjs | deferred-WP4c | needs engine,subagent-backend (+unit-test-support harness: fake SubagentApi/engine) |
 | unit-nested-backend-refresh.test.mjs | deferred-WP4c | needs subagent-backend (+unit-test-support harness: fake SubagentApi/engine) |
-| unit-resource-inheritance-compiler.test.mjs | deferred-WP4b | needs agents,compiler,dynamic-generated-task-runtime,engine-run-graph,loop-runtime,store |
+| unit-resource-inheritance-compiler.test.mjs | ported-WP4b (`test/unit/core-unit-resource-inheritance-compiler.test.mjs`) | WP4b; .pi→.agent-workflow paths |
 | unit-resource-inheritance-recovery.test.mjs | deferred-WP4c | needs engine |
 | unit-resource-inheritance-runtime.test.mjs | deferred-WP5+ | Pi/pi-subagent package |
 | unit-resource-inheritance-sdk.test.mjs | deferred-WP5+ | Pi/pi-subagent package |
@@ -282,36 +494,36 @@ Counts: ported 1, deferred-WP4b 20, deferred-WP4c 32, deferred-WP5+ 54, dropped 
 | unlimited-supervisor.test.mjs | deferred-WP5+ | cli.mjs (WP11a) |
 | verification-ontology-parity.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | wb-001-web-provider-compat.test.mjs | dropped | INVENTORY: drop(workflow_web_* removed in WP10) |
-| wb-002-json-path-hardening.test.mjs | deferred-WP4b | needs artifact-graph-runtime,workflow-runtime |
+| wb-002-json-path-hardening.test.mjs | ported-WP4b (`test/unit/core-wb-002-json-path-hardening.test.mjs`) | WP4b |
 | wb-002-normalized-web-contract.test.mjs | dropped | INVENTORY: drop(workflow_web_* removed in WP10) |
 | wb-003-package-closure.test.mjs | deferred-WP5+ | no core module; port-adapted (release tooling exists in agent-workflow) |
 | wb-003-web-security.test.mjs | dropped | INVENTORY: drop(workflow_web_* removed in WP10) |
 | wb-004-backend-lifecycle.test.mjs | deferred-WP4c | needs subagent-backend |
 | wb-005-index-durability.test.mjs | deferred-WP4c | needs engine |
 | wb-006-rate-limit-lock.test.mjs | deferred-WP4c | needs subagent-backend |
-| wb-007-dynamic-recovery.test.mjs | deferred-WP4b | needs engine-run-graph |
-| wb-008-filesystem-security.test.mjs | deferred-WP4b | needs workflow-artifact-tool |
+| wb-007-dynamic-recovery.test.mjs | ported-WP4b (`test/unit/core-wb-007-dynamic-recovery.test.mjs`) | WP4b |
+| wb-008-filesystem-security.test.mjs | ported-WP4b (`test/unit/core-wb-008-filesystem-security.test.mjs`) | WP4b |
 | wb-009-workflow-policy.test.mjs | dropped | INVENTORY: drop(pi-workflow release tooling) |
 | wb-012-public-contracts.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | wb-014-platform-package.test.mjs | dropped | INVENTORY: drop(pi-workflow package CI) |
-| wb-016-scheduler-performance.test.mjs | deferred-WP4c | needs engine-wait,engine,subagent-backend |
-| wb-017-artifact-index-performance.test.mjs | deferred-WP4b | needs workflow-artifact-tool,store |
+| wb-016-scheduler-performance.test.mjs | ported-WP4b (`test/unit/core-wb-016-scheduler-performance.test.mjs`) | WP4b; 1 of 3 dropped (reads engine/subagent-backend source → WP4c) |
+| wb-017-artifact-index-performance.test.mjs | ported-WP4b (`test/unit/core-wb-017-artifact-index-performance.test.mjs`) | WP4b; run root path |
 | wb-018-dynamic-tail-performance.test.mjs | deferred-WP5+ | Pi host/extension modules: workflow-view |
 | worker-role.test.mjs | deferred-WP5+ | Pi host/extension modules: extension |
 | workflow-active-ui.test.mjs | dropped | INVENTORY: drop(Pi TUI) |
-| workflow-artifact-footprint.test.mjs | deferred-WP4b | needs workflow-output-artifacts,run-retention,store |
-| workflow-authoring-corrective.test.mjs | deferred-WP4b | needs engine-run-graph,compiler,artifact-graph-schema,types,workflow-specs |
-| workflow-authoring-gates.test.mjs | deferred-WP4b | needs compiler,engine-format,schema,workflow-specs |
-| workflow-auto-binding.test.mjs | deferred-WP4b | needs workflow-auto-binding |
+| workflow-artifact-footprint.test.mjs | ported-WP4b (`test/unit/core-workflow-artifact-footprint.test.mjs`) | WP4b; .pi→.agent-workflow paths |
+| workflow-authoring-corrective.test.mjs | ported-WP4b (`test/unit/core-workflow-authoring-corrective.test.mjs`) | WP4b; agent path |
+| workflow-authoring-gates.test.mjs | ported-WP4b (`test/unit/core-workflow-authoring-gates.test.mjs`) | WP4b; 2 of 7 dropped (cli.mjs inspect → WP11a) |
+| workflow-auto-binding.test.mjs | ported-WP4b (`test/unit/core-workflow-auto-binding.test.mjs`) | WP4b; .pi→.agent-workflow paths |
 | workflow-auto-negative-boundaries.test.mjs | deferred-WP4c | needs workflow-router,subagent-backend |
 | workflow-command-actions.test.mjs | dropped | INVENTORY: drop(Pi slash command; hosts/pi) |
 | workflow-contract-findings-006-008.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | workflow-extension-isolation.test.mjs | deferred-WP5+ | Pi/pi-subagent package |
 | workflow-fixture-lifecycle.test.mjs | deferred-WP4c | needs engine (+unit-test-support harness: fake SubagentApi/engine) |
-| workflow-guide-fixed-inventory.test.mjs | deferred-WP4b | needs artifact-graph-runtime,compiler,engine-run-graph,schema,store,workflow-output-artifacts |
+| workflow-guide-fixed-inventory.test.mjs | ported-WP4b (`test/unit/core-workflow-guide-fixed-inventory.test.mjs`) | WP4b; scaffold copied to test/fixtures/core/ |
 | workflow-launch-cancellation.test.mjs | deferred-WP5+ | Pi host/extension modules: extension; Pi/pi-subagent package |
 | workflow-launch-metadata.test.mjs | deferred-WP4c | needs engine |
-| workflow-mtbyqwu0-security.test.mjs | deferred-WP4b | needs workflow-output-artifacts |
+| workflow-mtbyqwu0-security.test.mjs | ported-WP4b (`test/unit/core-workflow-mtbyqwu0-security.test.mjs`) | WP4b |
 | workflow-native-boundary.test.mjs | dropped | INVENTORY: drop(Pi native host context) |
 | workflow-native-cli.test.mjs | dropped | INVENTORY: drop(Pi native host) |
 | workflow-native-host.test.mjs | dropped | INVENTORY: drop(Pi native host) / unknown (MCP part may map to WP9) |
@@ -322,7 +534,7 @@ Counts: ported 1, deferred-WP4b 20, deferred-WP4c 32, deferred-WP5+ 54, dropped 
 | workflow-notice-acknowledgements.test.mjs | deferred-WP5+ | cli.mjs (WP11a); Pi host/extension modules: extension |
 | workflow-parent-usage-topology-retry.test.mjs | dropped | INVENTORY: drop(Pi parent session usage) / unknown |
 | workflow-parent-usage.test.mjs | dropped | INVENTORY: drop(Pi parent session usage) |
-| workflow-profile-routing-compat.test.mjs | deferred-WP4b | needs execution-profile,workflow-profile-settings |
+| workflow-profile-routing-compat.test.mjs | ported-WP4b (`test/unit/core-workflow-profile-routing-compat.test.mjs`) | WP4b; AGENT_WORKFLOW_HOME |
 | workflow-profile-tui.test.mjs | dropped | INVENTORY: drop(Pi TUI) |
 | workflow-report-contracts.test.mjs | deferred-WP5+ | bundled workflows (WP10) |
 | workflow-router.test.mjs | deferred-WP5+ | bundled workflows (WP10); Pi host/extension modules: extension; Pi/pi-subagent package |

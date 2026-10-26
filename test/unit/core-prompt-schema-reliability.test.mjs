@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/prompt-schema-reliability.test.mjs. MIT, same author. Changes: imports from dist/core/.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/prompt-schema-reliability.test.mjs. MIT, same author. Changes: imports from dist/core/; env AGENT_WORKFLOW_STRICT_PROMPT_SCHEMA; 1 engine.ts source test dropped (WP4c).
 import assert from "node:assert/strict";
 import test from "node:test";
 

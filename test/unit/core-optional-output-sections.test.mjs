@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/optional-output-sections.test.mjs. MIT, same author. Changes: imports from dist/core/.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/optional-output-sections.test.mjs. MIT, same author. Changes: imports from dist/core/; run root .pi/workflows→.agent-workflow/workflows.
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
