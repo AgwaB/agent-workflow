@@ -500,7 +500,7 @@ test("run: interactive confirmation (accept, decline, missing hook) and non-inte
 		await settle(ctx, launched.data.runId);
 });
 
-test("run: duplicate-launch guard refuses an identical active run unless forceNew or detach", async () => {
+test("run: duplicate-launch guard returns the identical active run (WP16 outcome existing) unless forceNew", async () => {
 	const { ctx } = await project();
 	const { id } = fixture({ stepDelayMs: 300 });
 	const first = await api.runWorkflowAction(ctx, {
@@ -513,8 +513,10 @@ test("run: duplicate-launch guard refuses an identical active run unless forceNe
 		task: "same task",
 		executor: id,
 	});
-	assertResult(second, "run", "refused");
+	assertResult(second, "run", "existing");
+	assert.equal(second.ok, true);
 	assert.equal(second.data.duplicateOf, first.data.runId);
+	assert.equal(second.data.runId, first.data.runId);
 	assert.match(second.text, /Duplicate launch guard/);
 	const forced = await api.runWorkflowAction(ctx, {
 		workflow: "wf.json",

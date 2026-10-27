@@ -61,7 +61,10 @@ Launch options (same as the CLI flags and Pi's `aw_run`): `executor`, `profile`,
 inputs), `forceNew`, and `detach`, which **defaults to true** here: MCP calls are time-limited, so a
 standalone supervisor (`agent-workflow supervise`, log `<run dir>/supervise.log`) keeps the run going
 between calls and after the server exits. `detach: false` keeps the run in the server process only.
-Note: the host API skips the duplicate-launch guard for detached launches.
+A retried identical launch (same workflow, task, inputs and options) while the first run is still
+active returns that run with `outcome: "existing"` instead of starting another (WP16 duplicate guard,
+`host-api.md`); `forceNew: true` starts a new run. A `workflow_logs` tool is not exposed yet (WP13
+follow-up); `agent-workflow logs` and Pi's `/aw logs` call the `logs` handler.
 
 Annotations: `list`, `status`, `inspect`, `validate` are read-only; `run`, `dynamic`, `stop` are
 destructive; `wait` drives scheduling (not read-only, not destructive). `title` is sent from
@@ -76,7 +79,7 @@ destructive; `wait` drives scheduling (not read-only, not destructive). `title` 
 - `structuredContent` (from `2025-06-18`): `{action, ok, outcome, data, text, next?}`; `data` equals
   the host API's (and the CLI `--json`) `data`, except for the inspect projection above.
 - `isError: true` for a refused launch (`outcome: "refused"`: capability refusal, unavailable
-  executor, declined confirmation, duplicate guard) and for handler errors:
+  executor, declined confirmation, an identical launch still starting) and for handler errors:
   `structuredContent: {ok: false, outcome: kind, error: {kind, message}}` with `kind` `usage`
   (`HostUsageError`, text prefixed `Usage error:`), `validation` (invalid spec) or `error` (for
   example an unknown run). Tool-level errors let the model correct the call (MCP guidance).

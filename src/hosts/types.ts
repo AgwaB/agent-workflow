@@ -41,13 +41,16 @@ export type HostAction =
 	| "prune"
 	| "notices"
 	| "supervise"
-	| "doctor";
+	| "doctor"
+	| "logs";
 
 /**
  * `success`: a query/mutation completed. Run states: `running` (launched or still running after a
  * bounded wait), `completed`, `failed`, `blocked` (action required), `interrupted`. `refused`: a
- * launch was not started (capability refusal, unavailable executor, declined confirmation,
- * duplicate guard). `timeout`: supervise gave up at its deadline.
+ * launch was not started (capability refusal, unavailable executor, declined confirmation, an
+ * identical launch still starting). `existing` (WP16): the duplicate-launch guard returned the
+ * active run of an identical launch instead of starting another one. `timeout`: supervise gave up
+ * at its deadline.
  */
 export type HostOutcome =
 	| "success"
@@ -57,11 +60,12 @@ export type HostOutcome =
 	| "blocked"
 	| "interrupted"
 	| "refused"
+	| "existing"
 	| "timeout";
 
 export interface HostResult<T> {
 	action: HostAction;
-	/** True when a CLI would exit 0 (success, launched/running, terminal completed). */
+	/** True when a CLI would exit 0 (success, launched/running, existing, terminal completed). */
 	ok: boolean;
 	outcome: HostOutcome;
 	data: T;
@@ -116,7 +120,10 @@ export function result<T>(
 	return {
 		action,
 		ok:
-			outcome === "success" || outcome === "running" || outcome === "completed",
+			outcome === "success" ||
+			outcome === "running" ||
+			outcome === "existing" ||
+			outcome === "completed",
 		outcome,
 		data,
 		text,

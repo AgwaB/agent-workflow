@@ -9,6 +9,8 @@ export interface PiUiContext {
 	notify(message: string, type?: PiNotifyLevel): void;
 	confirm(title: string, message: string): Promise<boolean>;
 	select(title: string, options: string[]): Promise<string | undefined>;
+	/** Footer status entry; `undefined` clears it (WP16). Fire-and-forget in RPC mode. */
+	setStatus?(key: string, text: string | undefined): void;
 }
 
 export interface PiModelLike {
@@ -29,6 +31,16 @@ export interface PiExtensionContext {
 	cwd: string;
 	model?: PiModelLike | undefined;
 	modelRegistry?: { getAvailable?: () => PiModelLike[] } | undefined;
+	/** WP16: the session id is the audience of completion delivery. */
+	sessionManager?: { getSessionId?: () => string } | undefined;
+}
+
+/** `pi.sendMessage` custom message (WP16 completion delivery). */
+export interface PiCustomMessage {
+	customType: string;
+	content: string;
+	display: boolean;
+	details?: Record<string, unknown>;
 }
 
 export interface PiToolResult {
@@ -86,4 +98,11 @@ export interface PiExtensionApi {
 		handler: (event: unknown, ctx: PiExtensionContext) => void | Promise<void>,
 	): () => void;
 	getThinkingLevel?: () => string | undefined;
+	sendMessage?(
+		message: PiCustomMessage,
+		options?: {
+			triggerTurn?: boolean;
+			deliverAs?: "steer" | "followUp" | "nextTurn";
+		},
+	): void | Promise<void>;
 }

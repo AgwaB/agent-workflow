@@ -769,11 +769,16 @@ test("piHostText: core /workflow hints become /aw hints", () => {
 		piHostText(
 			"Open: /workflow workflow_ab_12\nResume: /workflow resume workflow_ab_12\nLogs: /workflow logs workflow_ab_12 <task-or-spec-id>\n(/workflow status)",
 		),
-		"Open: /aw status workflow_ab_12\nResume: /aw resume workflow_ab_12\nLogs: /aw inspect workflow_ab_12 --results\n(/aw status)",
+		"Open: /aw status workflow_ab_12\nResume: /aw resume workflow_ab_12\nLogs: /aw logs workflow_ab_12\n(/aw status)",
 	);
+	// WP16: /aw logs exists; a named task becomes --task.
 	assert.equal(
 		piHostText("inspect /workflow logs workflow_x)"),
-		"inspect /aw inspect workflow_x --results)",
+		"inspect /aw logs workflow_x)",
+	);
+	assert.equal(
+		piHostText("see /workflow logs workflow_x task-2"),
+		"see /aw logs workflow_x --task task-2",
 	);
 	assert.equal(
 		piHostText("Run /workflow auto again."),

@@ -24,6 +24,7 @@ npx agent-workflow --help
 | `dynamic <task…>` | Start a spec-less direct dynamic run; same options as `run`. |
 | `status [run]` | All top-level runs, or one run. |
 | `inspect <run> [--failures] [--results]` | Reliability summary and task listing. `--failures` lists failed/blocked/interrupted tasks; `--results` prints task results (with `--failures` on a clean run: every result). |
+| `logs <run> [--task <id>] [--lines N] [--stream output\|stderr\|events\|all]` | Bounded tail of task output, stderr and executor events (the latest attempt's `exec-events.jsonl`); every started task by default (at most 6). Lines per stream 1-400 (default 20), lines cut at 400 characters, the text at 48 000. Credentials, bearer tokens, URL secrets, home paths and values of sensitive environment variables are redacted. |
 | `wait <run> [--timeout D]` | Drive and wait until the run is terminal or needs action. |
 | `resume <run> [--detach] [--timeout D]` | Reset failed, interrupted and resumable blocked tasks, then continue in the foreground or detached. |
 | `stop <run>` | Stop a non-terminal run (durable stop intent; workers are cancelled). Waits up to 15 s for confirmation (below). |
@@ -47,7 +48,7 @@ A run argument accepts the run id or an unambiguous prefix.
 | `--effort <level>` | Effort override: `off minimal low medium high xhigh max` (`--thinking`/`--reasoning` are aliases). |
 | `--input <key=value>` | Set a workflow input the spec declares (repeatable; `--input=key=value` also works). Typed like the declared default: string as is, number, `true`/`false`, JSON for arrays, objects and `null`. An undeclared key, a wrong type, a repeated key or a missing `=` is a usage error (exit 2, nothing starts). Example: `--input depth=quick`. |
 | `--detach` | Start a background supervisor (`agent-workflow supervise <id>`, log in `<run dir>/supervise.log`) and return the run id at once. |
-| `--force-new` | Skip the duplicate-launch guard (an identical active run started in the last 10 minutes). |
+| `--force-new` | Start a new run although an identical launch (same workflow, task, inputs and options) is still active; without it, the guard prints that run (`outcome: "existing"`, exit 0) and, in the foreground, waits for it. Applies to `--detach` too. |
 | `--yes` | Never ask: record capability degradations and proceed. |
 | `--timeout <d>` | Stop waiting after `d` (`30000`, `30s`, `5m`, `1h`). The run continues. Not with `--detach`. |
 | `--json` | Print one JSON object `{action, ok, outcome, data}` (for `run`/`resume` without `--detach`, `data.wait` holds the final wait result). |

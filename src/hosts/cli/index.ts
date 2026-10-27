@@ -4,7 +4,7 @@
 // completed run, 1 failed/blocked/interrupted/refused/still running at --timeout, 2 usage error.
 // Replaces pi-workflow's src/cli.mjs (inspect/prune/notices/supervise), whose prune path imported
 // the Pi extension (R#14).
-// WP17: passes host "cli" (installed-default executor) and adds `doctor`.
+// WP17: passes host "cli" (installed-default executor) and adds `doctor`. WP16: `logs`.
 import { readFileSync } from "node:fs";
 import { addWorkflowInputAssignment } from "../args.js";
 import { createInterface } from "node:readline";
@@ -20,6 +20,8 @@ import {
 	inspectAction,
 	listAgentsAction,
 	listWorkflowsAction,
+	logsAction,
+	type LogsRequest,
 	noticesAction,
 	type ProfileRequest,
 	parseCapabilityList,
@@ -512,6 +514,18 @@ async function dispatch(
 				}),
 			);
 		}
+		case "logs": {
+			const parsed = parseCommandArgs(argv, {
+				flags: ["--json"],
+				values: ["--task", "--lines", "--stream"],
+			});
+			const [runId] = only(
+				parsed,
+				1,
+				"logs <run-id-or-prefix> [--task <id>] [--lines N] [--stream output|stderr|events|all]",
+			);
+			return emit(await logsAction(ctx, logsRequest(runId!, parsed.values)));
+		}
 		case "wait": {
 			const parsed = parseCommandArgs(argv, {
 				flags: ["--json"],
@@ -603,6 +617,23 @@ async function dispatch(
 				`Unknown command "${command}". Run agent-workflow help.`,
 			);
 	}
+}
+
+/** `logs` options shared by the CLI and `/aw logs`. */
+export function logsRequest(
+	runId: string,
+	values: ReadonlyMap<string, string>,
+): LogsRequest {
+	const lines = intValue(values.get("--lines"), "--lines");
+	const stream = values.get("--stream");
+	return {
+		runId,
+		...(values.has("--task") ? { task: values.get("--task")! } : {}),
+		...(lines === undefined ? {} : { lines }),
+		...(stream === undefined
+			? {}
+			: { stream: stream as NonNullable<LogsRequest["stream"]> }),
+	};
 }
 
 /** Run one CLI invocation; resolves with the process exit code. */

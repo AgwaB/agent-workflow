@@ -1,10 +1,12 @@
 // New in agent-workflow (WP11b): the minimal Pi host extension. Registers the `/aw` command, the
 // `aw_list`/`aw_run`/`aw_dynamic`/`aw_wait` tools and the session-start unfinished-run notice, all
-// over the host API (../api.ts). Stage 1 has no board, widgets, completion-feedback delivery or
-// TUI profile picker. This module only has type-level Pi dependencies (./pi-types.ts); the package
-// entry `./hosts/pi` (index.ts) adds the Pi presence check.
+// over the host API (../api.ts). WP16: the status line and completion delivery of runs this session
+// launched (feedback.ts), restored at session start and stopped at shutdown. No board or widgets.
+// This module only has type-level Pi dependencies (./pi-types.ts); the package entry `./hosts/pi`
+// (index.ts) adds the Pi presence check.
 import { isWorkflowSupervisorEnabled } from "../../core/process-role.js";
 import { awArgumentCompletions, handleAwCommand } from "./command.js";
+import type { PiRunFeedback } from "./feedback.js";
 import { createPiHostDeps, hostContext, type PiHostOptions } from "./host.js";
 import { AW_COMMAND } from "./names.js";
 import { unfinishedRunNotice } from "./notices.js";
@@ -19,6 +21,7 @@ export function createAgentWorkflowPiExtension(
 ): (pi: PiExtensionApi) => void {
 	return (pi) => {
 		const deps = createPiHostDeps(pi, options);
+		feedbackByPi.set(pi, deps.feedback);
 		// Worker or disabled processes (AGENT_WORKFLOW_ROLE) get no agent tools and no notices, so a
 		// Pi worker that loads this package cannot start nested workflows; `/aw help` and
 		// `/aw validate` stay available (the host API enforces the role per action).
@@ -28,6 +31,7 @@ export function createAgentWorkflowPiExtension(
 
 		pi.on("session_start", (_event, ctx) => {
 			session += 1;
+			deps.feedback.stop();
 			if (!supervisor) return;
 			const current = session;
 			// Not awaited: the notice never delays Pi startup.
@@ -44,11 +48,16 @@ export function createAgentWorkflowPiExtension(
 				} catch {
 					// Notices are advisory; unreadable run state never breaks a session.
 				}
+				// WP16: keep tracking this session's active runs and deliver the ones that
+				// settled while it was not running (receipts prevent a second delivery).
+				if (current === session)
+					await deps.feedback.restore(ctx).catch(() => undefined);
 			})();
 			noticeSettled.set(pi, () => lastNotice);
 		});
 		pi.on("session_shutdown", () => {
 			session += 1;
+			deps.feedback.stop();
 		});
 
 		if (supervisor) registerAwTools(pi, deps);
@@ -63,8 +72,16 @@ export function createAgentWorkflowPiExtension(
 }
 
 const noticeSettled = new WeakMap<PiExtensionApi, () => Promise<void>>();
+const feedbackByPi = new WeakMap<PiExtensionApi, PiRunFeedback>();
 
-/** Tests: resolves when the session-start notice of this extension instance has finished. */
+/** Tests: the status-line/completion-delivery tracker of this extension instance. */
+export function piRunFeedbackForTests(
+	pi: PiExtensionApi,
+): PiRunFeedback | undefined {
+	return feedbackByPi.get(pi);
+}
+
+/** Tests: resolves when the session-start notice (and feedback restore) of this instance finished. */
 export function unfinishedNoticeSettledForTests(
 	pi: PiExtensionApi,
 ): Promise<void> {

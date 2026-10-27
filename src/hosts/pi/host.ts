@@ -4,10 +4,13 @@
 // consulted) and Pi's current model/thinking level as the lowest-precedence runtime defaults.
 // Interactive launches use Pi's extension UI (`ctx.ui.confirm` / `ctx.ui.select`) when the session
 // has a dialog-capable UI (TUI or RPC); otherwise launches are non-interactive (degradations are
-// recorded and the run proceeds, as in the CLI with --yes).
+// recorded and the run proceeds, as in the CLI with --yes). WP16: without a dialog UI, a declared
+// profile choice falls back to text (the headless choice is made and the choices are listed with
+// `--profile`), and `deps.feedback` carries the status line and completion delivery (feedback.ts).
 import * as hostApi from "../api.js";
 import type { HostApiContext, HostOutcome, LaunchRequestBase } from "../api.js";
 import { toWorkflowModelInfo } from "../../core/workflow-runtime.js";
+import { PiRunFeedback } from "./feedback.js";
 import type {
 	PiExtensionApi,
 	PiExtensionContext,
@@ -33,6 +36,7 @@ export type PiHostApi = Pick<
 	| "stopAction"
 	| "pruneAction"
 	| "noticesAction"
+	| "logsAction"
 	| "registerTestExecutorFromEnv"
 >;
 
@@ -43,6 +47,8 @@ export interface PiHostOptions {
 	env?: NodeJS.ProcessEnv;
 	/** Clock for unfinished-run notices (tests). */
 	now?: () => number;
+	/** Status-line/delivery poll interval (tests; capped at 1 s). */
+	feedbackPollMs?: number;
 }
 
 export interface PiHostDeps {
@@ -52,6 +58,8 @@ export interface PiHostDeps {
 	/** Resolves once the guarded test-executor hook ran (a no-op unless its env is set). */
 	ready: () => Promise<void>;
 	pi: PiExtensionApi;
+	/** WP16: status line and completion delivery of runs this session launched. */
+	feedback: PiRunFeedback;
 }
 
 export function createPiHostDeps(
@@ -61,11 +69,16 @@ export function createPiHostDeps(
 	const api = options.api ?? hostApi;
 	const env = options.env ?? process.env;
 	let registration: Promise<void> | undefined;
+	const now = options.now ?? Date.now;
 	return {
 		api,
 		env,
-		now: options.now ?? Date.now,
+		now,
 		pi,
+		feedback: new PiRunFeedback(pi, {
+			now,
+			...(options.feedbackPollMs ? { pollMs: options.feedbackPollMs } : {}),
+		}),
 		// AGENT_WORKFLOW_TEST_EXECUTOR_MODULE + ACK=test-only (WP11a hook): registers a `test-*`
 		// executor that a run must still select with `--executor`. Never set in production.
 		ready: () => {
@@ -138,25 +151,69 @@ export function hostContext(
 export const DEGRADATION_CONFIRM_TITLE =
 	"Proceed with these executor capability degradations?";
 
-/** WP4d confirmation and the declared-profile chooser through Pi's extension UI, when present. */
-export function interactiveLaunchHooks(
-	ctx: PiExtensionContext,
-): Pick<
-	LaunchRequestBase,
-	"interactive" | "confirmDegradations" | "selectProfile"
-> {
-	if (!ctx.hasUI) return {};
+export const PROFILE_TEXT_FALLBACK_NOTE = "Execution profile (no dialog UI):";
+
+export interface PiLaunchHooks {
+	hooks: Pick<
+		LaunchRequestBase,
+		"interactive" | "confirmDegradations" | "selectProfile"
+	>;
+	/** Text-fallback note after a launch without a dialog UI that offered a profile choice. */
+	note(): string | undefined;
+}
+
+/**
+ * WP4d confirmation and the declared-profile chooser through Pi's extension UI, when present
+ * (`ctx.ui.select`). Without a dialog UI (print/JSON mode) the chooser falls back to text: the
+ * headless choice (the declared default, else the base spec) is made and the launch output lists
+ * every choice with the `--profile` value that selects it.
+ */
+export function launchHooks(ctx: PiExtensionContext): PiLaunchHooks {
+	if (ctx.hasUI)
+		return {
+			hooks: {
+				interactive: true,
+				confirmDegradations: async (preview) =>
+					(await ctx.ui.confirm(DEGRADATION_CONFIRM_TITLE, preview.text)) ===
+					true,
+				selectProfile: (title, options) => ctx.ui.select(title, options),
+			},
+			note: () => undefined,
+		};
+	let offered: { options: string[]; chosen: string } | undefined;
 	return {
-		interactive: true,
-		confirmDegradations: async (preview) =>
-			(await ctx.ui.confirm(DEGRADATION_CONFIRM_TITLE, preview.text)) === true,
-		selectProfile: (title, options) => ctx.ui.select(title, options),
+		hooks: {
+			selectProfile: async (_title, options, meta) => {
+				const chosen = meta?.headlessOption ?? options[0]!;
+				offered = { options, chosen };
+				return chosen;
+			},
+		},
+		note: () => {
+			if (!offered) return undefined;
+			const choices = offered.options.map((option) => {
+				const name = option.startsWith("Profile: ")
+					? option.slice("Profile: ".length)
+					: undefined;
+				const marker = option === offered!.chosen ? " (used)" : "";
+				return name ? `  --profile ${name}${marker}` : `  ${option}${marker}`;
+			});
+			return [
+				`${PROFILE_TEXT_FALLBACK_NOTE} the workflow declares execution profiles; this launch used "${offered.chosen}". Choose another with:`,
+				...choices,
+			].join("\n");
+		},
 	};
 }
 
 export function levelForOutcome(outcome: HostOutcome): PiNotifyLevel {
 	if (outcome === "success" || outcome === "completed") return "info";
-	if (outcome === "running" || outcome === "blocked" || outcome === "refused")
+	if (
+		outcome === "running" ||
+		outcome === "blocked" ||
+		outcome === "refused" ||
+		outcome === "existing"
+	)
 		return "warning";
 	return "error";
 }
@@ -172,18 +229,19 @@ function printMode(ctx: PiExtensionContext): boolean {
 /**
  * Core formatters (ported from pi-workflow) print `/workflow …` hints. In Pi, `/workflow` is
  * pi-workflow's command (its own run store), so the Pi host points them at `/aw`; there is no board,
- * so `/workflow <run>` becomes `/aw status <run>` and `/workflow logs <run> …` becomes
- * `/aw inspect <run> --results`. Everything else in the handler text is unchanged.
+ * so `/workflow <run>` becomes `/aw status <run>` and `/workflow logs <run> [task]` becomes
+ * `/aw logs <run> [--task <task>]` (WP16). Everything else in the handler text is unchanged.
  */
 export function piHostText(text: string): string {
 	return text
 		.replace(
-			/\/workflow logs ([A-Za-z0-9_-]+)(?: <task-or-spec-id>| [\w.:-]+)?/g,
-			"/aw inspect $1 --results",
+			/\/workflow logs ([A-Za-z0-9_-]+)(?: <task-or-spec-id>| ([\w.:-]+))?/g,
+			(_match, runId: string, task: string | undefined) =>
+				task ? `/aw logs ${runId} --task ${task}` : `/aw logs ${runId}`,
 		)
 		.replace(/\/workflow (workflow_[A-Za-z0-9_-]+)/g, "/aw status $1")
 		.replace(
-			/\/workflow (help|list|validate|roles|agents|profile|run|dynamic|status|show|inspect|wait|resume|stop|prune|notices)\b/g,
+			/\/workflow (help|list|validate|roles|agents|profile|run|dynamic|status|show|inspect|logs|wait|resume|stop|prune|notices)\b/g,
 			"/aw $1",
 		);
 }
