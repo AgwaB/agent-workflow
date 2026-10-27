@@ -98,6 +98,11 @@ interface Run {
 	readonly pending: Map<string, PendingApproval>;
 	readonly answered: Set<string>;
 	readonly timers: ReturnType<typeof setTimeout>[];
+	/**
+	 * Terminal event of an ephemeral attempt, held until the CLI exited and its session files are
+	 * removed (D3; live bundle 4). The durable worker exits right after the terminal event.
+	 */
+	heldTerminal: ExecEvent | undefined;
 }
 
 /** Replace request env values (≥ 8 chars) with `<redacted:KEY>` before anything is written. */
@@ -335,7 +340,16 @@ export function createClaudeExecutor(options: {
 		let runRef: Run | undefined;
 		const parser = new ClaudeStreamParser(
 			(event) => {
-				if (runRef !== undefined) push(runRef, event);
+				if (runRef === undefined) return;
+				if (
+					!plan.keepSession &&
+					!runRef.exited &&
+					(event.type === "completed" || event.type === "failed")
+				) {
+					runRef.heldTerminal = event;
+					return;
+				}
+				push(runRef, event);
 			},
 			{
 				cancelRequested: () => runRef?.cancelRequested === true,
@@ -356,6 +370,7 @@ export function createClaudeExecutor(options: {
 			pending: new Map(),
 			answered: new Set(),
 			timers: [],
+			heldTerminal: undefined,
 		};
 		runRef = run;
 		runs.set(req.attemptKey, run);
@@ -431,7 +446,22 @@ export function createClaudeExecutor(options: {
 			run.exited = true;
 			run.stdinOpen = false;
 			for (const timer of run.timers) clearTimeout(timer);
-			const finish = () => {
+			const finish = async () => {
+				// D3: remove an ephemeral attempt's spilled tool results before the terminal event
+				// (held since the `result` line). The durable worker calls process.exit right after
+				// that event, which cut a removal started afterwards (live bundle 4: leftovers after
+				// 3 of 3 concurrent runs).
+				if (!plan.keepSession)
+					await removeClaudeSessionFiles(
+						config.claudeConfigDir,
+						plan.sessionId,
+						{
+							transcript: false,
+						},
+					).catch(() => 0);
+				const held = run.heldTerminal;
+				run.heldTerminal = undefined;
+				if (held !== undefined) push(run, held);
 				onStderr(stderrRedact.flush());
 				parser.finish({
 					exitCode: code,
@@ -443,18 +473,10 @@ export function createClaudeExecutor(options: {
 				});
 				rawStream.end();
 				stderrStream.end();
-				if (!plan.keepSession)
-					void removeClaudeSessionFiles(
-						config.claudeConfigDir,
-						plan.sessionId,
-						{
-							transcript: false,
-						},
-					).catch(() => {});
 			};
 			// Let readline flush the last stdout lines before deciding the terminal event.
-			if (lines !== null) setImmediate(finish);
-			else finish();
+			if (lines !== null) setImmediate(() => void finish());
+			else void finish();
 		});
 		if (child.pid !== undefined)
 			child.stdin?.write(`${userMessageLine(req.prompt)}\n`);
