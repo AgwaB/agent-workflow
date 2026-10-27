@@ -38,7 +38,8 @@ passed through unchanged for the stage-2 default-executor rule, WP17).
 | `data` | Structured, JSON-serializable payload (per handler below). |
 | `text` | Plain-text rendering for humans (CLI stdout, MCP text content). |
 
-**Errors.** Caller mistakes throw `HostUsageError` (CLI exit 2; MCP: invalid params). Spec errors
+**Errors.** Caller mistakes throw `HostUsageError` (CLI exit 2; host MCP server: a tool result
+with `isError` and `error.kind: "usage"`, see `host-mcp.md`). Spec errors
 throw `WorkflowValidationError`; `formatHostError(error)` renders any error. Launch refusals are
 *results*, not errors (`outcome: "refused"`). Every handler first checks the process role
 (`AGENT_WORKFLOW_ROLE`): `worker`/`disabled` processes may only `validate` and `help`.
@@ -222,10 +223,9 @@ The original files carry `Moved (WP11a)` markers at the former deferral comments
   Core formatters still print `/workflow …` hints (status/show/stop texts); the CLI shows them as is.
 - **Launch capture:** `WorkflowRunLaunchCapture` has no CLI/MCP source kind; runs launched through
   the host API record no launch metadata until core gains a host-neutral source.
-- **Stage 2 (WP13 MCP host):** map `HostUsageError` to invalid params; call `waitAction` repeatedly
-  (≤45 s each); in-process watchers keep runs going while the server lives, so `detach` is only
-  needed for runs that must outlive it; interactive confirmation needs an MCP elicitation path
-  (until then MCP launches are non-interactive).
+- **Stage 2 (WP13 MCP host):** done — `docs/host-mcp.md` (`HostUsageError` → `isError` tool
+  result, repeated bounded `waitAction` calls, `detach` default true, degradation confirmation
+  through MCP elicitation when the client supports it, else non-interactive).
 - A workflow-declared profile replaces a saved user profile entirely (engine B2), so a default user
   profile's executor does not apply to workflows that declare `defaultExecutionProfile`.
 - `run` without `--detach` in the CLI ties progress to the foreground process; a killed CLI leaves
