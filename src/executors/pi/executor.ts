@@ -69,6 +69,11 @@ import {
 	PiAttemptStore,
 } from "./state.js";
 import { TOOL_RESULT_BUDGET_STATE_FILENAME } from "./tool-result-budget.js";
+import {
+	createSecretRedactor,
+	requestSecrets,
+	type SecretRedactor,
+} from "../redact.js";
 
 import { PI_EXECUTOR_ID, PI_EXECUTOR_VERSION } from "./version.js";
 
@@ -241,17 +246,11 @@ function killGroup(pid: number | undefined, signal: NodeJS.Signals): void {
 	}
 }
 
-function createRedactor(values: readonly string[]): (text: string) => string {
-	const secrets = [
-		...new Set(values.filter((v) => v.length >= REDACT_MIN_CHARS)),
-	].sort((a, b) => b.length - a.length);
-	if (secrets.length === 0) return (text) => text;
-	return (text) => {
-		let out = text;
-		for (const secret of secrets)
-			if (out.includes(secret)) out = out.split(secret).join("[redacted]");
-		return out;
-	};
+function createRedactor(req: SubmitRequest): SecretRedactor {
+	return createSecretRedactor(requestSecrets(req), {
+		minLength: REDACT_MIN_CHARS,
+		replacement: () => "[redacted]",
+	});
 }
 
 interface LaunchPlan {
@@ -558,10 +557,8 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 			mcpEnv: req.mcpServers.map((server) => server.env ?? null),
 		});
 		env.PI_SKIP_VERSION_CHECK = "1";
-		const redact = createRedactor([
-			...Object.values(req.env),
-			...req.mcpServers.flatMap((server) => Object.values(server.env ?? {})),
-		]);
+		const secrets = createRedactor(req);
+		const redact = secrets.text;
 
 		const child = spawn(argv[0] as string, argv.slice(1), {
 			cwd: req.cwd,
@@ -657,15 +654,22 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 			handleLines(splitter.push(chunk)),
 		);
 		let stderr = "";
-		child.stderr?.on("data", (chunk: Buffer) => {
-			const text = redact(chunk.toString("utf8"));
+		// A value split across stderr chunks is held back until it can be redacted (review #5).
+		const stderrRedact = secrets.stream();
+		const onStderr = (text: string) => {
+			if (text === "") return;
 			rawErr.write(text);
 			if (stderr.length < STDERR_LIMIT)
 				stderr = (stderr + text).slice(0, STDERR_LIMIT);
-		});
+		};
+		child.stderr?.on("data", (chunk: Buffer) =>
+			onStderr(stderrRedact.push(chunk.toString("utf8"))),
+		);
+		child.stderr?.on("end", () => onStderr(stderrRedact.flush()));
 		child.once("close", (code, signal) => {
 			void (async () => {
 				handleLines(splitter.finish());
+				onStderr(stderrRedact.flush());
 				if (run.killTimer !== undefined) clearTimeout(run.killTimer);
 				(watch as { destroy?: () => void } | null)?.destroy?.();
 				await Promise.all([

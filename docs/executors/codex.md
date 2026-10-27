@@ -310,6 +310,16 @@ budget are not confirmed. `fetch_content` (open_page) not observed.
 
 ## Change log
 
+- **WP12d-2 review #5:** request secrets echoed by the worker are no longer persisted. Every value of
+  `SubmitRequest.env` and of injected MCP server `env` (≥ 8 chars) is replaced by
+  `<redacted:KEY>` / `<redacted:server.KEY>` (shared `src/executors/redact.ts`) in every raw
+  transcript line (`codex-app-server.jsonl`, both directions), in stderr (a value split across stderr
+  chunks is held back until it can be redacted) and in every normalized event before it enters the
+  run log, the durable `*.events.jsonl` log or a failure message. Messages sent to the app-server
+  (thread/start config, approval answers) are unchanged. Test: `executor-wp12d2-secret-echo.test.mjs`
+  (fake app-server `fake-echo-app-server.mjs` echoes both kinds of value through a command item, an
+  agent message and split stderr).
+
 - **WP12d-2 review #3:** unreadable launch evidence is no longer proven absence. `AttemptStore.lookup` returns `missing` only on
   ENOENT; a record that cannot be read, does not parse, has the wrong schema/phase or names another
   attemptKey is `unreadable`: `reconcile` answers `unknown` (the runtime records

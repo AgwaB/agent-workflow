@@ -278,6 +278,12 @@ standard`) and `WebFetch` (`url`, `prompt`) both completed. The answer cited sou
 
 ## Change log
 
+- **WP12d-2 review #5:** same exposure checked: stdout lines, argv and events were already redacted,
+  but stderr was redacted per chunk, so a value split across two chunks was written in full to
+  `claude-stderr.log` and the failure text. stderr now goes through the shared stream redactor
+  (`src/executors/redact.ts`; a possible value prefix is held back until the next chunk or stream
+  end). Test: `executor-wp12d2-secret-echo.test.mjs`.
+
 - **WP12d-2 review #3:** unreadable launch evidence is no longer proven absence. `ClaudeStateStore.lookupAttempt` returns `missing` only on
   ENOENT; a record that cannot be read, does not parse, has the wrong schema/phase or names another
   attemptKey is `unreadable`: `reconcile` answers `unknown` (the runtime records

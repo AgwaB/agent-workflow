@@ -58,6 +58,12 @@ import {
 	processAlive,
 } from "./state.js";
 import { planCodexTools } from "./tools.js";
+import {
+	createSecretRedactor,
+	requestSecrets,
+	type SecretRedactor,
+	type StreamRedactor,
+} from "../redact.js";
 
 import { CODEX_ADAPTER_VERSION, CODEX_EXECUTOR_ID } from "./version.js";
 
@@ -136,6 +142,9 @@ interface Run {
 	readonly rawPath: string | undefined;
 	readonly methodsById: Map<RpcId, string>;
 	stderr: string;
+	/** Request env / MCP env values: never persisted (review #5). */
+	readonly redact: SecretRedactor;
+	readonly stderrRedact: StreamRedactor;
 }
 
 /** The engine's artifact tool is a read (A2-4); other MCP tools use their readOnlyHint. */
@@ -481,7 +490,7 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 		try {
 			appendFileSync(
 				run.rawPath,
-				`${JSON.stringify({ at: Date.now(), dir: direction, msg: message })}\n`,
+				`${JSON.stringify({ at: Date.now(), dir: direction, msg: run.redact.value(message) })}\n`,
 				{ mode: 0o600 },
 			);
 		} catch {
@@ -489,8 +498,10 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 		}
 	};
 
-	const emit = (run: Run, event: ExecEvent) => {
+	const emit = (run: Run, rawEvent: ExecEvent) => {
 		if (run.done) return;
+		// Events are persisted by this store and by the runtime: no request secret (review #5).
+		const event = run.redact.value(rawEvent);
 		run.log.push(event);
 		try {
 			store.appendEvent(run.attemptKey, event);
@@ -902,6 +913,10 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			},
 		);
 		const digest = attemptDigest(req.attemptKey);
+		const redact = createSecretRedactor(requestSecrets(req), {
+			minLength: 8,
+			replacement: (label) => `<redacted:${label}>`,
+		});
 		const ref: ExecRef = {
 			executorId: CODEX_EXECUTOR_ID,
 			attemptKey: req.attemptKey,
@@ -923,6 +938,8 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			rawPath,
 			methodsById: new Map(),
 			stderr: "",
+			redact,
+			stderrRedact: redact.stream(),
 		};
 		runs.set(req.attemptKey, run);
 		store.write({
@@ -937,11 +954,16 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			envKeys: Object.keys(req.env).sort(),
 			pid: child.pid ?? null,
 		});
-		child.stderr.on("data", (chunk: Buffer) => {
-			const text = chunk.toString();
+		const onStderr = (text: string) => {
+			if (text === "") return;
 			run.stderr = (run.stderr + text).slice(-16_384);
 			raw(run, "stderr", text);
-		});
+		};
+		// A value split across stderr chunks is held back until it can be redacted (review #5).
+		child.stderr.on("data", (chunk: Buffer) =>
+			onStderr(run.stderrRedact.push(chunk.toString())),
+		);
+		child.stderr.on("end", () => onStderr(run.stderrRedact.flush()));
 		run.conn = new AppServerConnection(child, {
 			onLine: (direction, message) => {
 				if (

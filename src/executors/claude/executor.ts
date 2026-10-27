@@ -57,6 +57,11 @@ import {
 	ClaudeStateStore,
 } from "./state.js";
 import { ClaudeStreamParser, parseClaudeStream } from "./stream.js";
+import {
+	createSecretRedactor,
+	requestSecrets,
+	type SecretRedactor,
+} from "../redact.js";
 
 export const CLAUDE_SESSION_KIND = "claude-session";
 export const RAW_STREAM_FILE = "claude-stream.jsonl";
@@ -96,21 +101,11 @@ interface Run {
 }
 
 /** Replace request env values (≥ 8 chars) with `<redacted:KEY>` before anything is written. */
-function redactor(req: SubmitRequest): (text: string) => string {
-	const secrets: [string, string][] = [];
-	for (const [key, value] of Object.entries(req.env))
-		if (value.length >= 8) secrets.push([value, key]);
-	for (const server of req.mcpServers)
-		for (const [key, value] of Object.entries(server.env ?? {}))
-			if (value.length >= 8) secrets.push([value, `${server.name}.${key}`]);
-	secrets.sort((a, b) => b[0].length - a[0].length);
-	if (secrets.length === 0) return (text) => text;
-	return (text) => {
-		let out = text;
-		for (const [value, key] of secrets)
-			if (out.includes(value)) out = out.split(value).join(`<redacted:${key}>`);
-		return out;
-	};
+function redactor(req: SubmitRequest): SecretRedactor {
+	return createSecretRedactor(requestSecrets(req), {
+		minLength: 8,
+		replacement: (label) => `<redacted:${label}>`,
+	});
 }
 
 export function createClaudeExecutor(options: {
@@ -239,7 +234,8 @@ export function createClaudeExecutor(options: {
 			req.mcpServers.length > 0 ? join(filesDir, MCP_CONFIG_FILE) : null;
 		// Everything that can refuse the request runs before consume (no effect on refusal).
 		const plan = buildClaudeInvocation(req, config, { mcpConfigPath });
-		const redact = redactor(req);
+		const secrets = redactor(req);
+		const redact = secrets.text;
 
 		const decision = await req.authority.consume(); // immediately before the first effect (R#1)
 		if (decision.kind === "revoked")
@@ -376,11 +372,17 @@ export function createClaudeExecutor(options: {
 		child.on("error", (error) => {
 			spawnError = error.message;
 		});
-		child.stderr?.on("data", (chunk: Buffer) => {
-			const text = redact(chunk.toString("utf8"));
+		// A value split across stderr chunks is held back until it can be redacted (review #5).
+		const stderrRedact = secrets.stream();
+		const onStderr = (text: string) => {
+			if (text === "") return;
 			stderrStream.write(text);
 			stderr = (stderr + text).slice(-65_536);
-		});
+		};
+		child.stderr?.on("data", (chunk: Buffer) =>
+			onStderr(stderrRedact.push(chunk.toString("utf8"))),
+		);
+		child.stderr?.on("end", () => onStderr(stderrRedact.flush()));
 		const lines = child.stdout
 			? createInterface({
 					input: child.stdout,
@@ -433,11 +435,14 @@ export function createClaudeExecutor(options: {
 			run.stdinOpen = false;
 			for (const timer of run.timers) clearTimeout(timer);
 			const finish = () => {
+				onStderr(stderrRedact.flush());
 				parser.finish({
 					exitCode: code,
 					signal,
 					stderr,
-					...(spawnError === undefined ? {} : { spawnError }),
+					...(spawnError === undefined
+						? {}
+						: { spawnError: redact(spawnError) }),
 				});
 				rawStream.end();
 				stderrStream.end();

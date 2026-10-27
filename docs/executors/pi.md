@@ -287,6 +287,12 @@ request drops mutating tools from `--tools` in both modes. The conformance harne
 
 ## Change log
 
+- **WP12d-2 review #5:** same exposure checked: stdout lines were redacted per line, but stderr per
+  chunk, so a value split across two chunks reached `pi-stderr.log` and the failure text. stderr now
+  goes through the shared stream redactor (`src/executors/redact.ts`). Residual: `pi-mcp.log` is
+  written by Pi's own MCP extension inside the child and is not post-processed. Test:
+  `executor-wp12d2-secret-echo.test.mjs`.
+
 - **WP12d-2 review #3:** unreadable launch evidence is no longer proven absence. `PiAttemptStore.lookup` returns `missing` only on
   ENOENT; a record that cannot be read, does not parse, has the wrong schema/phase or names another
   attemptKey is `unreadable`: `reconcile` answers `unknown` (the runtime records
