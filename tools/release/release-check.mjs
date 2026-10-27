@@ -11,7 +11,11 @@ import { tmpdir } from "node:os";
 import { join, posix } from "node:path";
 
 import { isRegistryFreeValidationOnly } from "./release-policy.mjs";
-import { findSecretValues, secretScanSelfTest } from "./secret-scan.mjs";
+import {
+	findSecretValues,
+	LOCAL_PATH_PATTERN,
+	secretScanSelfTest,
+} from "./secret-scan.mjs";
 
 // Bundled workflow/scaffold specs are added by WP10.
 const BUNDLE_SPEC_FILES = [];
@@ -48,10 +52,6 @@ const FORBIDDEN_PACKAGE_PREFIXES = [
 	"internal/",
 	"test/",
 ];
-
-// Local machine paths and desktop artifacts that must never ship.
-const LOCAL_PATH_PATTERN =
-	/\/Users\/toby|\/var\/folders|Desktop|clipboard|Screenshot/;
 
 // WP12c: secrets are matched by value (secret-scan.mjs), not by words such as API_KEY or SECRET,
 // which name environment variables and constants in src/, dist/ and docs/. Refuse to run with a

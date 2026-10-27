@@ -9,6 +9,10 @@
 // token-shaped literal) and benign mentions; release-check refuses to run with a scanner that
 // misses a planted secret or flags a benign mention.
 
+/** Local machine paths and desktop artifacts that must never ship (unchanged from WP0). */
+export const LOCAL_PATH_PATTERN =
+	/\/Users\/toby|\/var\/folders|Desktop|clipboard|Screenshot/;
+
 /** Token shapes that are secrets wherever they appear. */
 const TOKEN_RULES = [
 	{

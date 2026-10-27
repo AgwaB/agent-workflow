@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import {
 	findSecretValues,
 	isHighEntropySecretValue,
+	LOCAL_PATH_PATTERN,
 	secretScanSelfTest,
 	secretScanSelfTestCases,
 } from "../../tools/release/secret-scan.mjs";
@@ -97,7 +98,7 @@ function filesUnder(path) {
 	);
 }
 
-test("shipped text (src, dist, docs, skills, workflows, agents, README) has no secret values", () => {
+test("shipped text (src, dist, docs, skills, workflows, agents, README) has no secret values or local paths", () => {
 	const files = [
 		"src",
 		"dist",
@@ -117,6 +118,13 @@ test("shipped text (src, dist, docs, skills, workflows, agents, README) has no s
 		),
 	);
 	assert.deepEqual(findings, []);
+	// release-check also refuses local machine paths and desktop artifact names.
+	assert.deepEqual(
+		files.filter((path) =>
+			LOCAL_PATH_PATTERN.test(readFileSync(join(repo, path), "utf8")),
+		),
+		[],
+	);
 	// The words the earlier pattern rejected are still in the shipped docs and sources.
 	const docs = readFileSync(join(repo, "docs/environment.md"), "utf8");
 	assert.match(docs, /ANTHROPIC_API_KEY/);

@@ -284,7 +284,7 @@ budget are not confirmed. `fetch_content` (open_page) not observed.
 - Global `$CODEX_HOME/AGENTS.md` and `~/.codex/rules` cannot be disabled per run (see Isolation); since
   WP4d the probe reports them as warnings and negotiation records the degradation.
 - `effort` falls back to the user's config when the request has none.
-- Input tokens include cached tokens; output includes reasoning tokens.
+- Output includes reasoning tokens. (Since WP12a the adapter subtracts cached and cache-write tokens from Codex's `inputTokens`, so `input` excludes them like every executor.)
 - A user MCP server with the same name as an injected one merges keys (e.g. `url` + `command` →
   config failure).
 - Attempt records and logs under `stateDir` are never pruned yet.

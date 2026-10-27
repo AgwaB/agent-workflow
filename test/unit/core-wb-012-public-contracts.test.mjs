@@ -98,13 +98,16 @@ test("workflow-guide owns authoring detail while execution-router permits bounde
 	assert.match(guide, /`single\.from`/);
 	assert.match(guide, /`after` is order-only/);
 	assert.match(router, /bounded read-only discovery/i);
-	assert.match(router, /`workflow_list`/);
+	// WP12c: agent-workflow's own names (Pi `aw_list`, `/aw …`). Was: `workflow_list`.
+	assert.match(router, /`aw_list`/);
 	// WP10: the router also names the agent-workflow CLI. Was: "…, `/workflow dynamic`, or
-	// `/workflow auto`".
+	// `/workflow auto`". WP12c: `aw_run`/`aw_dynamic`/`/aw …` instead of pi-workflow's
+	// `workflow_run`/`workflow_dynamic`/`/workflow …` (agent-workflow has no `auto`).
 	assert.match(
 		router,
-		/Never invoke `workflow_run`, `workflow_dynamic`, `\/workflow run`, `\/workflow dynamic`, `\/workflow auto`, or the matching `agent-workflow` CLI commands/,
+		/Never invoke `aw_run`, `aw_dynamic`, `\/aw run`, `\/aw dynamic`, `\/aw resume`, or the matching `agent-workflow` CLI commands/,
 	);
+	assert.doesNotMatch(router, /\/workflow\b|workflow_(list|run|dynamic)/);
 	assert.match(router, /separate authoring needed/i);
 	assert.doesNotMatch(router, /project-private/);
 	assert.match(

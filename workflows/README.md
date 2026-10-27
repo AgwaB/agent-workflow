@@ -2,17 +2,19 @@
 
 These are the official bundled workflow starters shipped with agent-workflow (ported from pi-workflow 0.16.4; see `docs/bundled-workflows.md` for the changes and the per-executor support table). A workflow defines structure and role prompts; the concrete task is supplied at runtime.
 
-Run them from the project root by exact workflow name, for example with the Pi host's `/workflow` command (the `agent-workflow` CLI has the same subcommands):
+Run them from the project root by exact workflow name with the `agent-workflow` CLI, or with the same actions as `/aw …` in Pi (and the `aw_list` / `aw_run` / `aw_wait` agent tools):
 
-```text
-/workflow list
-/workflow show deep-research
-/workflow validate deep-research
-/workflow profile deep-research
-/workflow run deep-research "Research the current project architecture and verify the key claims. Use max depth."
+```sh
+agent-workflow list
+agent-workflow show deep-research
+agent-workflow validate deep-research
+agent-workflow run deep-research "Research the current project architecture and verify the key claims." --input depth=max
+agent-workflow run deep-research "Compare the two storage designs." --profile high --executor claude
 ```
 
-For spec-less direct dynamic execution, use `/workflow dynamic "<task>"`; it does not select one of the bundled workflow specs below.
+In Pi: `/aw list`, `/aw show deep-research`, `/aw validate deep-research`, `/aw run deep-research "<task>" --input depth=max`, then `/aw wait <run>`.
+
+For spec-less direct dynamic execution, use `agent-workflow dynamic "<task>"` (Pi: `/aw dynamic "<task>"`); it does not select one of the bundled workflow specs below.
 
 ## Official bundled workflows
 
@@ -23,9 +25,9 @@ For spec-less direct dynamic execution, use `/workflow dynamic "<task>"`; it doe
 | `spec-review` | `scout` | Use when you want to check whether requirements, an API spec, or a contract are reflected in the implementation and tests. |
 | `impact-review` | `scout` | Use before merging or releasing a change to check affected areas, risks, missing tests, and missing docs. |
 
-All four bundled workflows declare semantic `profileRole` values for every model-backed stage, so `/workflow profile <name>` offers Codex, Codex High, Claude, Mixed, and Custom with an exact stage preview. The private selection is reused for the same workflow definition across projects and applies to subsequent interactive, headless, and tool launches; an explicit declared `--profile` still wins. Missing model/capability combinations and stale definitions block rather than silently substitute or clamp.
+All four bundled workflows declare semantic `profileRole` values for every model-backed stage (`planning`, `research-execution`, `synthesis`, `verification`, `final-judgment`). agent-workflow has no per-workflow role picker yet; choose the executor, model and effort with `--executor`, `--model`, `--effort` or a saved user profile (`agent-workflow profile set <name> …`, `/aw profile set <name> …`). The Pi host still honors a per-workflow preference saved under `$AGENT_WORKFLOW_HOME/workflow-profiles/v1/` when no profile is named; missing model/capability combinations and stale definitions block rather than silently substitute or clamp.
 
-Separately, `deep-research` declares workflow-owned `low`, `medium`, and `high` execution profiles and defaults to `medium`. With no saved user profile, interactive launches offer those declared profiles plus Base and headless omission uses `medium`. `low` is an explicit faster/cheaper quality trade-off, `low` and `medium` use profile-only max-2 batching for compatible `verify-claims` items, and `high` spends more reasoning while retaining singleton verification. Pass `--profile <name>` to choose one explicitly. A saved user profile overlays model/thinking on the `medium` default and therefore preserves its batching. Declared names are workflow-defined rather than reserved; see `docs/usage.md` for both profile layers and fallback guarantees.
+Separately, `deep-research` declares workflow-owned `low`, `medium`, and `high` execution profiles and defaults to `medium`. With no saved user profile, interactive Pi launches (`/aw run`, `aw_run` with a UI) offer those declared profiles plus Base, and the CLI and headless launches use `medium`. `low` is an explicit faster/cheaper quality trade-off, `low` and `medium` use profile-only max-2 batching for compatible `verify-claims` items, and `high` spends more reasoning while retaining singleton verification. Pass `--profile <name>` to choose one explicitly. A saved user profile overlays model/thinking on the `medium` default and therefore preserves its batching. Declared names are workflow-defined rather than reserved; see `docs/usage.md` for both profile layers and fallback guarantees.
 
 The bundled workflows run on any supported executor (Pi, Codex, Claude); prompts name the artifact tool `workflow_artifact` and the engine renders the name each executor shows its model.
 
@@ -62,7 +64,7 @@ workflows/name/
     support-helper.mjs
 ```
 
-Bundle names resolve from the directory name (`/workflow run name ...`). Name priority is project-shared `<cwd>/workflows/`, then project-private `<cwd>/.agent-workflow/workflows/`, then user/global `~/.agent-workflow/workflows/` (`$AGENT_WORKFLOW_HOME`), then the legacy pi-workflow locations (read-only), then this bundled package root. A higher-priority match shadows lower roots. Multiple matching forms at the winning priority fail closed as ambiguous.
+Bundle names resolve from the directory name (`agent-workflow run name ...`, `/aw run name ...`). Name priority is project-shared `<cwd>/workflows/`, then project-private `<cwd>/.agent-workflow/workflows/`, then user/global `~/.agent-workflow/workflows/` (`$AGENT_WORKFLOW_HOME`), then the legacy pi-workflow locations (read-only), then this bundled package root. A higher-priority match shadows lower roots. Multiple matching forms at the winning priority fail closed as ambiguous.
 
 `output.controlSchema` in a bundle is resolved relative to the workflow spec file, for example `./schemas/final-control.schema.json`.
 
