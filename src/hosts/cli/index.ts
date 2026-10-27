@@ -5,6 +5,7 @@
 // Replaces pi-workflow's src/cli.mjs (inspect/prune/notices/supervise), whose prune path imported
 // the Pi extension (R#14).
 import { readFileSync } from "node:fs";
+import { addWorkflowInputAssignment } from "../args.js";
 import { createInterface } from "node:readline";
 
 import {
@@ -91,6 +92,8 @@ interface OptionSpec {
 	flags?: readonly string[];
 	/** Options taking one value. */
 	values?: readonly string[];
+	/** Options taking one value that may be given more than once (WP12a: `--input`). */
+	repeatable?: readonly string[];
 	/** Option aliases → canonical name. */
 	aliases?: Readonly<Record<string, string>>;
 }
@@ -99,6 +102,7 @@ interface ParsedArgs {
 	positionals: string[];
 	flags: Set<string>;
 	values: Map<string, string>;
+	lists: Map<string, string[]>;
 }
 
 /** Strict argv parser: `--name value`, `--name=value`, `--` ends options, duplicates rejected. */
@@ -108,8 +112,13 @@ export function parseCommandArgs(
 ): ParsedArgs {
 	const flags = new Set<string>();
 	const values = new Map<string, string>();
+	const lists = new Map<string, string[]>();
 	const positionals: string[] = [];
-	const known = new Set([...(spec.flags ?? []), ...(spec.values ?? [])]);
+	const known = new Set([
+		...(spec.flags ?? []),
+		...(spec.values ?? []),
+		...(spec.repeatable ?? []),
+	]);
 	for (let index = 0; index < argv.length; index += 1) {
 		const arg = argv[index]!;
 		if (arg === "--") {
@@ -138,10 +147,14 @@ export function parseCommandArgs(
 			(eq < 0 && value.startsWith("--"))
 		)
 			throw new HostUsageError(`${name} requires a value`);
+		if (spec.repeatable?.includes(name)) {
+			lists.set(name, [...(lists.get(name) ?? []), value]);
+			continue;
+		}
 		if (values.has(name)) throw new HostUsageError(`Duplicate option ${name}`);
 		values.set(name, value);
 	}
-	return { positionals, flags, values };
+	return { positionals, flags, values, lists };
 }
 
 function packageVersion(): string {
@@ -181,6 +194,7 @@ const LAUNCH_SPEC: OptionSpec = {
 		"--effort",
 		"--timeout",
 	],
+	repeatable: ["--input"],
 	aliases: { "--thinking": "--effort", "--reasoning": "--effort" },
 };
 
@@ -265,8 +279,14 @@ async function launchCommand(
 	const permission = parsed.values.get("--permission-mode");
 	const allow = parsed.values.get("--allow-unverified");
 	const effort = parsed.values.get("--effort");
+	// WP12a: --input key=value (repeatable); typed against the spec's declared inputs at launch.
+	const assignments = parsed.lists.get("--input") ?? [];
+	const inputs: Record<string, string> = {};
+	for (const assignment of assignments)
+		addWorkflowInputAssignment(inputs, assignment);
 	const request = {
 		task,
+		...(assignments.length > 0 ? { inputOverrides: inputs } : {}),
 		...(parsed.values.has("--executor")
 			? { executor: parsed.values.get("--executor")! }
 			: {}),

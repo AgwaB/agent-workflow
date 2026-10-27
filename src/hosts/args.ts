@@ -4,7 +4,8 @@
 // host-neutral host API so every host (CLI, host MCP server, Pi host) parses the same way; no Pi
 // imports; errors are HostUsageError; `/workflow dynamic` now accepts `--profile` (saved user
 // profiles apply to dynamic runs too); new run options `--executor`, `--permission-mode`,
-// `--allow-unverified`, `--effort` (`--thinking`/`--reasoning` stay as aliases).
+// `--allow-unverified`, `--effort` (`--thinking`/`--reasoning` stay as aliases). WP12a: repeatable
+// `--input key=value`.
 import { THINKING_LEVELS, type ThinkingLevel } from "../core/types.js";
 
 /** A caller mistake (bad flag, missing argument). CLI exit code 2; MCP hosts map it to invalid params. */
@@ -31,6 +32,8 @@ export interface WorkflowRunParsedOptions {
 	executor?: string;
 	permissionMode?: "free" | "safe";
 	allowUnverifiedCapabilities?: string[];
+	/** WP12a: `--input key=value` (repeatable), raw strings; typed against the spec at launch. */
+	inputs?: Record<string, string>;
 }
 
 export interface ParsedWorkflowRunArgs extends WorkflowRunParsedOptions {
@@ -139,6 +142,26 @@ export function tokenizeWorkflowArgs(input: string): WorkflowArgToken[] {
 	return tokens;
 }
 
+/**
+ * WP12a: one `--input key=value` assignment into `inputs` (raw string; the host API types it
+ * against the spec's declared input). The key is everything before the first `=`.
+ */
+export function addWorkflowInputAssignment(
+	inputs: Record<string, string>,
+	assignment: string,
+	option = "--input",
+): void {
+	const eq = assignment.indexOf("=");
+	const key = eq < 0 ? "" : assignment.slice(0, eq).trim();
+	if (eq < 0 || key === "")
+		throw new HostUsageError(
+			`${option} expects key=value (for example ${option} depth=quick); got ${JSON.stringify(assignment)}`,
+		);
+	if (Object.hasOwn(inputs, key))
+		throw new HostUsageError(`${option} ${key} given more than once`);
+	inputs[key] = assignment.slice(eq + 1);
+}
+
 /** Options that take a value, and the parsed field each one sets. */
 const RUN_SCALAR_OPTIONS: Readonly<
 	Record<
@@ -161,6 +184,8 @@ const RUN_SCALAR_OPTIONS: Readonly<
 	"--allow-unverified": "allowUnverifiedCapabilities",
 };
 const RUN_SCALAR_OPTION_NAMES = Object.keys(RUN_SCALAR_OPTIONS);
+/** Value-taking options: the scalars plus the repeatable `--input`. */
+const RUN_VALUE_OPTION_NAMES = [...RUN_SCALAR_OPTION_NAMES, "--input"];
 
 /** Shared by both ends of run/dynamic input: duplicates never depend on scan order. */
 function consumeLeadingRunOptionTokens(
@@ -182,6 +207,15 @@ function consumeLeadingRunOptionTokens(
 		throw new HostUsageError(
 			`${token.text} is no longer supported: run and dynamic execute exactly what you selected. Use /workflow auto "<task>" for a recommendation.`,
 		);
+	}
+	{
+		const inline = optionValueFromEquals(token.text, "--input");
+		if (inline !== undefined || token.text === "--input") {
+			const value = inline ?? requiredOptionValue(tokens[index + 1], "--input");
+			parsed.inputs ??= {};
+			addWorkflowInputAssignment(parsed.inputs, value);
+			return inline === undefined ? 2 : 1;
+		}
 	}
 	for (const option of RUN_SCALAR_OPTION_NAMES) {
 		const inline = optionValueFromEquals(token.text, option);
@@ -208,7 +242,7 @@ function consumeTrailingRunOptionTokens(
 ): number {
 	const last = tokens[end - 1];
 	if (!last) return end;
-	if (!last.quoted && RUN_SCALAR_OPTION_NAMES.includes(last.text))
+	if (!last.quoted && RUN_VALUE_OPTION_NAMES.includes(last.text))
 		throw new HostUsageError(
 			`Workflow run option ${last.text} requires a value`,
 		);
@@ -216,7 +250,7 @@ function consumeTrailingRunOptionTokens(
 	if (
 		option &&
 		!option.quoted &&
-		RUN_SCALAR_OPTION_NAMES.includes(option.text)
+		RUN_VALUE_OPTION_NAMES.includes(option.text)
 	) {
 		consumeLeadingRunOptionTokens(tokens.slice(0, end), end - 2, parsed);
 		return end - 2;

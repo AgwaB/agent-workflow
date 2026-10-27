@@ -1377,6 +1377,17 @@ problems 1–6, 10).
    <WF_RUN_n>/bundle/schemas/` → `control schema file: ./schemas/`, the WP10 tool-name precedent);
    no other difference; 0 unexplained. Test: `core-wp12a-control-schema-path.test.mjs` (the prompt
    path is absolute and exists; task.md unchanged).
+5. **Workflow inputs from the CLI and `/aw` (live open problem 1).** `agent-workflow run|dynamic`
+   and Pi `/aw run|dynamic` accept `--input key=value`, repeatable (CLI `parseCommandArgs` gains
+   `repeatable` options; `hosts/args.ts` `addWorkflowInputAssignment`, also used by
+   `parseWorkflowRunArgs`/`parseWorkflowDynamicArgs`, leading or trailing). The raw strings go to the
+   host API's `inputOverrides`, which `typedWorkflowInputOverrides` (hosts/launch.ts) types against
+   the spec's declared `input` defaults before anything starts: string stays string, number must be
+   finite, boolean is `true`/`false`, arrays/objects/`null` defaults take JSON; a non-string value
+   must already have the declared type. An undeclared key is now a usage error listing the declared
+   keys (the engine used to drop it silently); a key given twice is a usage error. Help texts list
+   the option. Test: `host-wp12a-input.test.mjs` (CLI typed inputs reach the compiled
+   "# Workflow Input", usage errors exit 2 with no run, host API typing, `/aw` parsing).
 6. **Flakes under load: stop and blocked runs (live open problem 10).** Two product races, both
    reproduced with a stress script (6 parallel loops of the host-cli stop scenario, 24 busy-loop
    processes on 12 cores): 4 of 30 stops failed before, 0 of 30 after.

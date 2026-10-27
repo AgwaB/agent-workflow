@@ -9,6 +9,8 @@ const LAUNCH_FLAGS = `  --executor <id>              executor for this run (pi, 
   --allow-unverified <a,b>     accept these unverified executor capabilities (B4 opt-in)
   --model <id>                 model override for every stage
   --effort <level>             effort override: off, minimal, low, medium, high, xhigh, max
+  --input <key=value>          set a workflow input the spec declares (repeatable; typed like
+                               the declared default, e.g. --input depth=quick)
   --detach                     start a background supervisor and return immediately
   --force-new                  skip the duplicate-launch guard
   --yes                        do not ask: record capability degradations and proceed
