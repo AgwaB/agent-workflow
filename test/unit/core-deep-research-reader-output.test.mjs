@@ -276,7 +276,7 @@ test("both research prompts separate plain reader notes from audit bookkeeping",
 		assert.equal(
 			spec.artifactGraph.stages.find((stage) => stage.id === "final-audit")
 				.inputPolicy.requiredReads.length,
-			9,
+			17, // header + 16 synthesis pages (M16)
 		);
 	}
 });

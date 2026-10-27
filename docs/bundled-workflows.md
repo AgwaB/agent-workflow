@@ -91,6 +91,21 @@ Agents and skills:
 - **M15.** `workflows/README.md`: agent-workflow wording, paths, the CLI web tools and the source-verification
   statement; the web-source cache / `fetch_content` cache paragraphs are removed.
 
+Live bundle 3 (stage-1 acceptance, `docs/live-acceptance-stage1.md`):
+
+- **M16.** deep-research synthesis pages: `synthesis-pages.mjs` uses 16 pages of 16,000 (was 8 of 24,000)
+  and measures a page as max(UTF-16 units, UTF-8 bytes). Both specs require the header plus
+  `pages[0]`…`pages[15]` at `maxChars: 16000` (prompt: "Read all sixteen indexed pages"); the
+  final-audit-packet schema pins `pageCount` 16 / `maxChars` 16000. Why: one projected page read
+  must fit the smallest workflow_artifact delivery limit (Pi 1.1 server `--max-output-chars`
+  18,432, both units; `docs/mcp.md` "Measured limits") with the read header and projection envelope.
+  A 23,301-unit page 0 was cut by the server (`deliveryUnverified`), so `final-audit` failed
+  `required_reads_missing_exhausted` and the live Pi run ended `blocked` (Claude's 21,375 limit has
+  the same problem). The bank grows from 192k to 256k (the 48-claim max fixture needs 13 pages).
+  Regression test: `core-deep-research-synthesis-pages.test.mjs` "every synthesis read fits each
+  stage-1 executor's workflow_artifact delivery limit" (real artifact reads of the max fixture and
+  of a full multi-byte page against the Pi, Claude and Codex server limits).
+
 ## Worker prompt rendering (core)
 
 Workers see the artifact tool under an executor-specific name (`mcp__workflow_artifact__workflow_artifact`

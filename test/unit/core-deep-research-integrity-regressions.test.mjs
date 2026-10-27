@@ -167,7 +167,7 @@ async function actualSynthesisRead(t, packet) {
 	const paths = [
 		"$.packet.synthesisInput.header",
 		...Array.from(
-			{ length: 8 },
+			{ length: 16 },
 			(_, i) => `$.packet.synthesisInput.pages[${i}]`,
 		),
 	];
@@ -178,7 +178,7 @@ async function actualSynthesisRead(t, packet) {
 				manifest,
 				"final-audit-packet",
 				"control",
-				{ runDir: cwd, path, maxChars: 24000 },
+				{ runDir: cwd, path, maxChars: 16000 },
 			),
 		})),
 	);
@@ -506,7 +506,7 @@ test("deep-research hostile synthesis identities produce an explicit budget bloc
 	});
 	assert(
 		packet.packet.synthesisInput.pages.every(
-			(page) => JSON.stringify(page).length <= 24000,
+			(page) => JSON.stringify(page).length <= 16000,
 		),
 	);
 	assert.equal(
@@ -726,7 +726,7 @@ test("deep-research final packet bounds the required synthesis read and rejects 
 	const packet = await finalPacket({ sources });
 	assert(
 		packet.packet.synthesisInput.pages.every(
-			(page) => JSON.stringify(page).length <= 24000,
+			(page) => JSON.stringify(page).length <= 16000,
 		),
 	);
 	assert.equal(
@@ -909,7 +909,7 @@ test("deep-research actual synthesis reads use UTF-16 budget telemetry and prese
 			t,
 			packet,
 		)) {
-			assert(encoded.length <= 24000);
+			assert(encoded.length <= 16000);
 			assert.equal(projection.projection.charsTruncated, false);
 			assert.equal(projection.projection.originalChars, encoded.length);
 		}

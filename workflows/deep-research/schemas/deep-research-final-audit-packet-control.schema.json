@@ -53,10 +53,10 @@
                   "const": "deep-research-synthesis-pages-v1"
                 },
                 "pageCount": {
-                  "const": 8
+                  "const": 16
                 },
                 "maxChars": {
-                  "const": 24000
+                  "const": 16000
                 },
                 "fields": {
                   "type": "array",
@@ -91,8 +91,8 @@
                     "type": "integer",
                     "minimum": 0
                   },
-                  "minItems": 8,
-                  "maxItems": 8
+                  "minItems": 16,
+                  "maxItems": 16
                 },
                 "budgetBlock": {
                   "type": "object",
@@ -133,7 +133,7 @@
                   "index": {
                     "type": "integer",
                     "minimum": 0,
-                    "maximum": 7
+                    "maximum": 15
                   },
                   "entries": {
                     "type": "array",
@@ -159,8 +159,8 @@
                 },
                 "additionalProperties": false
               },
-              "minItems": 8,
-              "maxItems": 8
+              "minItems": 16,
+              "maxItems": 16
             }
           },
           "additionalProperties": false

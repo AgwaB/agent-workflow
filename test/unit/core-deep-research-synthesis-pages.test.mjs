@@ -7,11 +7,26 @@ import { validateJsonSchema } from "../../dist/core/json-schema.js";
 import finalPacket from "../../workflows/deep-research/helpers/final-audit-packet.mjs";
 import render from "../../workflows/deep-research/helpers/render-executive.mjs";
 import {
+	SYNTHESIS_PAGE_COUNT as PAGES,
+	SYNTHESIS_READ_MAX_CHARS as MAX,
 	buildSynthesisPages,
 	canonicalSynthesisData,
 	reconstructSynthesisPages,
 	validateSynthesisPages,
 } from "../../workflows/deep-research/helpers/synthesis-pages.mjs";
+import {
+	DEFAULT_MCP_OUTPUT_TOKENS,
+	mcpOutputLimitChars,
+} from "../../dist/executors/claude/config.js";
+import { CODEX_MCP_OUTPUT_LIMIT_CHARS } from "../../dist/executors/codex/index.js";
+import {
+	PI_MCP_OUTPUT_LIMIT_CHARS,
+	PI_MCP_OUTPUT_NOTICE_CHARS,
+} from "../../dist/executors/pi/index.js";
+import {
+	artifactServerOutputLimit,
+	fitsDeliveryLimit,
+} from "../../dist/sdk/mcp-delivery.js";
 import { artifactReadFixture } from "../helpers/workflow-artifact-fixture.mjs";
 
 const fixture = JSON.parse(
@@ -34,13 +49,18 @@ const schema = JSON.parse(
 );
 const paths = [
 	"$.packet.synthesisInput.header",
-	...Array.from({ length: 8 }, (_, i) => `$.packet.synthesisInput.pages[${i}]`),
+	...Array.from(
+		{ length: PAGES },
+		(_, i) => `$.packet.synthesisInput.pages[${i}]`,
+	),
 ];
+// Index of the last page read in `required` (index 0 is the header).
+const LAST = PAGES;
 const required = paths.map((path) => ({
 	source: "final-audit-packet",
 	artifact: "control",
 	path,
-	maxChars: 24000,
+	maxChars: MAX,
 	count: 1,
 }));
 const overlay = {
@@ -89,7 +109,8 @@ async function readBank(t, control) {
 			result.details.projection.originalChars,
 			JSON.stringify(value).length,
 		);
-		assert(JSON.stringify(value).length <= 24000);
+		assert(JSON.stringify(value).length <= MAX);
+		assert(Buffer.byteLength(JSON.stringify(value), "utf8") <= MAX);
 		delivered.push(value);
 	}
 	assert.deepEqual(await checkRequiredArtifactReads(f.consumer, required), {
@@ -99,7 +120,7 @@ async function readBank(t, control) {
 	return { f, input: { header: delivered[0], pages: delivered.slice(1) } };
 }
 
-test("both research specs require the exact header and all eight indexed pages", async () => {
+test("both research specs require the exact header and all sixteen indexed pages", async () => {
 	for (const filename of ["spec.json", "tiered-verification.spec.json"]) {
 		const spec = JSON.parse(
 			await readFile(
@@ -134,7 +155,7 @@ test("48 evidence-bearing claims, 56 slots, 22 questions reach actual synthesis 
 	const packet = control.packet;
 	assert.equal(validateJsonSchema(control, schema).valid, true);
 	assert.equal(packet.synthesisInput.header.budgetBlock, undefined);
-	assert(JSON.stringify(packet.synthesisInput).length > 24000);
+	assert(JSON.stringify(packet.synthesisInput).length > 8 * MAX);
 	const { input } = await readBank(t, control);
 	const decoded = reconstructSynthesisPages(input);
 	assert.deepEqual(decoded, canonicalSynthesisData(packet));
@@ -208,7 +229,7 @@ test("real read gate rejects missing tail, wrong root, truncation, and duplicate
 	await f.read({ path: "$.packet", maxChars: 1000000 });
 	assert.equal(
 		(await checkRequiredArtifactReads(f.consumer, required)).missing.length,
-		9,
+		required.length,
 	);
 	for (const req of required.slice(0, -1)) await f.read(req);
 	assert.equal(
@@ -216,24 +237,24 @@ test("real read gate rejects missing tail, wrong root, truncation, and duplicate
 		1,
 	);
 	const damaged = structuredClone(control);
-	damaged.packet.synthesisInput.pages[7].entries.push({
+	damaged.packet.synthesisInput.pages[PAGES - 1].entries.push({
 		field: "hostile",
-		value: "😀".repeat(24000),
+		value: "😀".repeat(MAX),
 	});
 	await writeFile(f.bundle.files.control, JSON.stringify(damaged));
-	const clipped = await f.read(required[8]);
+	const clipped = await f.read(required[LAST]);
 	assert.equal(clipped.details.truncated, true);
 	assert.equal(
 		(await checkRequiredArtifactReads(f.consumer, required)).missing.length,
 		1,
 	);
 	await writeFile(f.bundle.files.control, JSON.stringify(control));
-	await f.read(required[8]);
+	await f.read(required[LAST]);
 	assert.deepEqual(await checkRequiredArtifactReads(f.consumer, required), {
 		missing: [],
 		projectionFailures: [],
 	});
-	await f.read(required[8]);
+	await f.read(required[LAST]);
 	assert.equal(
 		(await checkRequiredArtifactReads(f.consumer, required)).missing.length,
 		1,
@@ -258,10 +279,10 @@ test("missing, duplicate, extra, tampered and hidden omitted canonical page data
 				p.synthesisInput.pages[1].entries.length;
 		},
 		(p) => {
-			p.synthesisInput.pages.push({ index: 8, entries: [] });
+			p.synthesisInput.pages.push({ index: PAGES, entries: [] });
 		},
 		(p) => {
-			p.synthesisInput.header.pageCount = 7;
+			p.synthesisInput.header.pageCount = PAGES - 1;
 		},
 		(p) => {
 			p.synthesisInput.header.pageEntryCounts[0] += 1;
@@ -322,18 +343,19 @@ test("missing, duplicate, extra, tampered and hidden omitted canonical page data
 	}
 });
 
-test("UTF-16 exact boundary includes JSON escaping but excludes tool envelope; no surrogate clipping", async (t) => {
+test("exact boundary counts UTF-8 bytes and JSON escaping but excludes tool envelope; no surrogate clipping", async (t) => {
 	const canonical = {
 		claimVerdictLedger: [
 			{ id: "claim-astral-😀", claim: '😀 " \\ \n \t \u0000' },
 		],
 	};
 	let input = buildSynthesisPages(canonical);
-	const padding = 24000 - JSON.stringify(input.pages[0]).length;
+	const padding =
+		MAX - Buffer.byteLength(JSON.stringify(input.pages[0]), "utf8");
 	canonical.claimVerdictLedger[0].claim += "x".repeat(padding);
 	input = buildSynthesisPages(canonical);
-	assert.equal(JSON.stringify(input.pages[0]).length, 24000);
-	assert([...JSON.stringify(input.pages[0])].length < 24000);
+	assert.equal(Buffer.byteLength(JSON.stringify(input.pages[0]), "utf8"), MAX);
+	assert(JSON.stringify(input.pages[0]).length < MAX);
 	const { f, input: delivered } = await readBank(t, {
 		schema: "test",
 		digest: "boundary",
@@ -342,7 +364,7 @@ test("UTF-16 exact boundary includes JSON escaping but excludes tool envelope; n
 	assert.deepEqual(reconstructSynthesisPages(delivered), canonical);
 	const response = await f.read(required[1]);
 	assert(
-		response.content[0].text.length > 24000,
+		response.content[0].text.length > MAX,
 		"envelope is outside the selected-value cap",
 	);
 	canonical.claimVerdictLedger[0].claim += "😀";
@@ -381,8 +403,8 @@ test("empty collections require empty tails; hostile row, metadata and exhausted
 			.length,
 		1,
 	);
-	assert.deepEqual(deliveredValue(await missingTail.read(required[8])), {
-		index: 7,
+	assert.deepEqual(deliveredValue(await missingTail.read(required[LAST])), {
+		index: PAGES - 1,
 		entries: [],
 	});
 	assert.deepEqual(
@@ -421,9 +443,9 @@ test("empty collections require empty tails; hostile row, metadata and exhausted
 		],
 		[
 			{
-				claimVerdictLedger: Array.from({ length: 9 }, (_, index) => ({
+				claimVerdictLedger: Array.from({ length: PAGES + 1 }, (_, index) => ({
 					id: `claim-${index}`,
-					support: "x".repeat(23000),
+					support: "x".repeat(MAX - 500),
 				})),
 			},
 			"page_bank_exhausted",
@@ -444,7 +466,7 @@ test("empty collections require empty tails; hostile row, metadata and exhausted
 	}
 	const exhausted = await finalPacket({ sources: fixture.sources });
 	for (const claim of exhausted.packet.claimVerdictLedger.slice(0, 10))
-		claim.support = "x".repeat(20000);
+		claim.support = "x".repeat(10000);
 	const before = canonicalSynthesisData(exhausted.packet);
 	exhausted.packet.synthesisInput = buildSynthesisPages(exhausted.packet);
 	assert.equal(
@@ -459,4 +481,51 @@ test("empty collections require empty tails; hostile row, metadata and exhausted
 			"synthesis input budget block is present",
 		),
 	);
+});
+
+// Live bundle 3 (M16): Pi's artifact server limit is 18,432 (UTF-16 units and UTF-8 bytes); 24,000-unit
+// pages were cut by the server, marked deliveryUnverified and failed final-audit's required reads.
+test("every synthesis read fits each stage-1 executor's workflow_artifact delivery limit", async (t) => {
+	const limits = {
+		pi: artifactServerOutputLimit({
+			mcpOutputLimitChars: PI_MCP_OUTPUT_LIMIT_CHARS,
+			mcpOutputNoticeChars: PI_MCP_OUTPUT_NOTICE_CHARS,
+		}),
+		claude: artifactServerOutputLimit({
+			mcpOutputLimitChars: mcpOutputLimitChars(DEFAULT_MCP_OUTPUT_TOKENS),
+		}),
+		codex: artifactServerOutputLimit({
+			mcpOutputLimitChars: CODEX_MCP_OUTPUT_LIMIT_CHARS,
+		}),
+	};
+	assert.equal(limits.pi, 18432);
+	const smallest = Math.min(...Object.values(limits));
+	// A full page of multi-byte text: at the byte cap, far below the UTF-16 cap.
+	const korean = { claimVerdictLedger: [{ id: "claim-ko", claim: "" }] };
+	let page = buildSynthesisPages(korean).pages[0];
+	korean.claimVerdictLedger[0].claim = "가".repeat(
+		Math.floor((MAX - Buffer.byteLength(JSON.stringify(page), "utf8")) / 3),
+	);
+	page = buildSynthesisPages(korean).pages[0];
+	assert(Buffer.byteLength(JSON.stringify(page), "utf8") > MAX - 3);
+	assert.equal(page.entries.length, 1);
+	for (const control of [
+		await finalPacket({ sources: fixture.sources }),
+		{
+			schema: "test",
+			digest: "multi-byte",
+			packet: { ...korean, synthesisInput: buildSynthesisPages(korean) },
+		},
+	]) {
+		const f = await artifactReadFixture(t, control, "final-audit-packet");
+		for (const requirement of required) {
+			const result = await f.read(requirement);
+			const text = result.content.map((part) => part.text).join("");
+			assert.equal(result.details.truncated, false, requirement.path);
+			assert(
+				fitsDeliveryLimit(text, smallest),
+				`${requirement.path}: ${text.length} units / ${Buffer.byteLength(text, "utf8")} bytes > ${smallest}`,
+			);
+		}
+	}
 });

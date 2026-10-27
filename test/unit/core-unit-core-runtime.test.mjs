@@ -2772,7 +2772,7 @@ test("deep-research P3 final-audit replay fixture preserves guardrail floors", a
 		...packet.synthesisInput.pages,
 	]) {
 		assert.ok(
-			JSON.stringify(value).length <= 24000,
+			JSON.stringify(value).length <= 16000,
 			"each required projection fits the UTF-16 read cap",
 		);
 	}

@@ -3,11 +3,17 @@
 // empty tail) has a static requiredRead in BOTH research specs.
 import { isDeepStrictEqual } from "node:util";
 
-// A modest 192k aggregate page bank for realistic near-max research ledgers
+// A modest aggregate page bank for realistic near-max research ledgers
 // (48 claims; plan ceilings: 64 slots, 24 questions). Unbounded schema text and
 // indivisible metadata mean cardinality alone cannot guarantee a fit.
-export const SYNTHESIS_PAGE_COUNT = 8;
-export const SYNTHESIS_READ_MAX_CHARS = 24000;
+// M16 (live bundle 3): one page read must fit the smallest workflow_artifact
+// delivery limit of a stage-1 executor (Pi 1.1: server --max-output-chars 18,432,
+// counted in UTF-16 units AND UTF-8 bytes) together with the read header and the
+// projection envelope; a cut read never satisfies its requiredRead.
+// 16 pages x 16,000 = 256k (was 8 x 24,000 = 192k; the 48-claim max fixture
+// needs 13 pages of 16,000 because rows are indivisible).
+export const SYNTHESIS_PAGE_COUNT = 16;
+export const SYNTHESIS_READ_MAX_CHARS = 16000;
 const SCHEMA = "deep-research-synthesis-pages-v1";
 // Match the persisted JSON boundary (in-memory helper rows may have undefined
 // optional properties). Serialization failures are blockers, never lossy fallbacks.
@@ -20,7 +26,11 @@ function json(value) {
 		});
 	}
 }
-const size = (value) => JSON.stringify(value).length; // actual reader: UTF-16
+// Delivery limits count UTF-16 units and UTF-8 bytes; a page must fit both.
+const size = (value) => {
+	const text = JSON.stringify(value);
+	return Math.max(text.length, Buffer.byteLength(text, "utf8"));
+};
 
 // Preserve the complete serialized canonical packet, not a second digest of it.
 // Array rows are indivisible; non-array fields are indivisible metadata rows.

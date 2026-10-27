@@ -570,14 +570,14 @@ test("bundled deep-research compacts audit packets before executive final", asyn
 		[
 			"$.packet.synthesisInput.header",
 			...Array.from(
-				{ length: 8 },
+				{ length: 16 },
 				(_, i) => `$.packet.synthesisInput.pages[${i}]`,
 			),
 		].map((path) => ({
 			source: "final-audit-packet",
 			artifact: "control",
 			path,
-			maxChars: 24000,
+			maxChars: 16000,
 			count: 1,
 		})),
 	);
