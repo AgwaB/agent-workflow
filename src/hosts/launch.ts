@@ -24,11 +24,7 @@ import {
 } from "../core/engine.js";
 import { workflowDefinitionFingerprint } from "../core/execution-profile.js";
 import { WorkflowExecutorUnavailableError } from "../core/executor-registry.js";
-import {
-	type DuplicateRunTarget,
-	findDuplicateActiveRun,
-	formatApproxDuration,
-} from "../core/run-estimates.js";
+import { formatApproxDuration } from "../core/run-estimates.js";
 import { type LoadedWorkflowSpec, loadWorkflowSpec } from "../core/schema.js";
 import { workflowRunDir } from "../core/store.js";
 import type {
@@ -56,6 +52,11 @@ import {
 	toDisplayPath,
 } from "./types.js";
 import {
+	claimLaunch,
+	launchFingerprint,
+	recordForcedLaunch,
+} from "./launch-guard.js";
+import {
 	readUserProfiles,
 	type UserProfile,
 	userProfileFromFile,
@@ -64,6 +65,8 @@ import {
 export type WorkflowProfileSelector = (
 	title: string,
 	options: string[],
+	/** WP16: the option a headless launch picks (the declared default, else the base spec). */
+	meta?: { headlessOption: string },
 ) => Promise<string | undefined>;
 
 export interface LaunchRequestBase {
@@ -169,6 +172,7 @@ export async function selectWorkflowExecutionProfile(
 	const selected = await select(
 		`Choose execution profile for ${loaded.spec.name ?? workflow}`,
 		options,
+		{ headlessOption: defaultProfile ? labels[0]! : "Base (no profile)" },
 	);
 	if (selected === undefined)
 		throw new Error("Workflow run cancelled before profile selection.");
@@ -419,27 +423,21 @@ function validateLaunchRequest(
 		);
 }
 
-async function duplicateRunGuardNotice(
-	cwd: string,
-	target: DuplicateRunTarget,
-	task: string,
-): Promise<{ runId: string; text: string } | undefined> {
-	const existing = await findDuplicateActiveRun(cwd, target, task.trim()).catch(
-		() => undefined,
-	);
-	if (!existing) return undefined;
-	const startedAgoMs = Date.now() - Date.parse(existing.createdAt);
+function existingRunText(
+	action: "run" | "dynamic",
+	run: WorkflowRunRecord,
+	now = Date.now(),
+): string {
+	const startedAgoMs = now - Date.parse(run.createdAt);
 	const startedAgo = Number.isFinite(startedAgoMs)
-		? ` (started ${formatApproxDuration(startedAgoMs)} ago)`
+		? `, started ${formatApproxDuration(startedAgoMs)} ago`
 		: "";
-	const what = target.kind === "dynamic" ? "dynamic task" : "workflow and task";
-	return {
-		runId: existing.runId,
-		text: [
-			`Duplicate launch guard: run ${existing.runId} is already active with the same ${what}${startedAgo}.`,
-			`Not starting a new run. Check status ${existing.runId}, or launch again with --force-new to really start another run.`,
-		].join("\n"),
-	};
+	const what = action === "dynamic" ? "dynamic task" : "workflow, task";
+	return [
+		`Duplicate launch guard: run ${run.runId} is already active with the same ${what}, inputs and options (${run.status}${startedAgo}).`,
+		`Not starting a new run; returning the existing run ${run.runId}. Check status ${run.runId} or wait for it; launch again with --force-new to really start another run.`,
+		formatHumanRunLaunch(run),
+	].join("\n");
 }
 
 /**
@@ -652,20 +650,80 @@ async function launch(
 		loaded.spec,
 		request.inputOverrides,
 	);
-	if (!request.detach && !request.forceNew) {
-		const target: DuplicateRunTarget =
-			action === "dynamic"
-				? { kind: "dynamic" }
-				: { kind: "spec", name: loaded.spec.name };
-		const duplicate = await duplicateRunGuardNotice(ctx.cwd, target, task);
-		if (duplicate)
+	// WP16: one guard for attached and detached launches (see launch-guard.ts).
+	const fingerprint = launchFingerprint({
+		kind: action,
+		cwd: ctx.cwd,
+		specPath: loaded.specPath,
+		...(loaded.spec.name ? { specName: loaded.spec.name } : {}),
+		task,
+		...(inputOverrides ? { inputs: inputOverrides } : {}),
+		...(request.executor ? { executor: request.executor } : {}),
+		...(request.profile ? { profile: request.profile } : {}),
+		...(request.permissionMode
+			? { permissionMode: request.permissionMode }
+			: {}),
+		...(request.allowUnverifiedCapabilities?.length
+			? { allowUnverifiedCapabilities: request.allowUnverifiedCapabilities }
+			: {}),
+		...(request.model ? { model: request.model } : {}),
+		...(request.effort ? { effort: request.effort } : {}),
+	});
+	let guard: Extract<
+		Awaited<ReturnType<typeof claimLaunch>>,
+		{ kind: "claimed" }
+	> | null = null;
+	if (!request.forceNew) {
+		const decision = await claimLaunch(ctx.cwd, fingerprint);
+		if (decision.kind === "existing") {
+			const data = launchData(ctx, decision.run, mode, undefined);
+			data.duplicateOf = decision.run.runId;
+			return result(
+				action,
+				"existing",
+				data,
+				existingRunText(action, decision.run),
+			);
+		}
+		if (decision.kind === "in-flight")
 			return result(
 				action,
 				"refused",
-				{ mode, duplicateOf: duplicate.runId },
-				duplicate.text,
+				{ mode, refusal: { code: "DUPLICATE_LAUNCH_IN_PROGRESS" } },
+				`Duplicate launch guard: an identical launch started at ${decision.claimedAt} is still starting. Not starting a new run; check status in a moment, or launch again with --force-new to really start another run.`,
 			);
+		guard = decision;
 	}
+	try {
+		return await launchClaimed(ctx, action, request, loaded, start, {
+			mode,
+			task,
+			inputOverrides,
+			onStarted: async (runId) => {
+				if (guard) await guard.record(runId);
+				else await recordForcedLaunch(ctx.cwd, fingerprint, runId);
+			},
+		});
+	} finally {
+		// No-op once the run id is recorded; frees the claim when nothing started.
+		await guard?.release().catch(() => undefined);
+	}
+}
+
+async function launchClaimed(
+	ctx: HostApiContext,
+	action: "run" | "dynamic",
+	request: LaunchRequestBase,
+	loaded: LoadedWorkflowSpec,
+	start: (options: WorkflowRunOptions) => Promise<WorkflowRunRecord>,
+	launch: {
+		mode: LaunchData["mode"];
+		task: string;
+		inputOverrides: Record<string, unknown> | undefined;
+		onStarted: (runId: string) => Promise<void>;
+	},
+): Promise<HostResult<LaunchData>> {
+	const { mode, task, inputOverrides } = launch;
 	const profile = await resolveLaunchProfile(ctx, loaded, request);
 	let promptSchemaNotice = "";
 	let promptSchemaDigest: string | undefined;
@@ -718,6 +776,7 @@ async function launch(
 			);
 		throw error;
 	}
+	await launch.onStarted(run.runId).catch(() => undefined);
 	const data = launchData(ctx, run, mode, profile.info);
 	if (promptSchemaNotice) data.promptSchemaNotice = promptSchemaNotice;
 	let detachNote = "";

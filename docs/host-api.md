@@ -15,8 +15,9 @@ do waited = await waitAction({ cwd }, { runId: launched.data.runId! });
 while (waited.data.stillRunning);
 ```
 
-Sources: `src/hosts/api.ts` (exports), `types.ts`, `args.ts`, `catalog.ts`, `launch.ts`, `runs.ts`,
-`result-presentation.ts`, `user-profiles.ts`, `help.ts`, `test-executor.ts`.
+Sources: `src/hosts/api.ts` (exports), `types.ts`, `args.ts`, `catalog.ts`, `launch.ts`,
+`launch-guard.ts` (WP16), `runs.ts`, `logs.ts` (WP16), `result-presentation.ts`, `user-profiles.ts`,
+`help.ts`, `test-executor.ts`.
 
 ## Common contract
 
@@ -35,8 +36,8 @@ passed through unchanged for the stage-2 default-executor rule, WP17).
 | Field | Meaning |
 |---|---|
 | `action` | The handler (`list`, `run`, `wait`, …). |
-| `outcome` | `success`, `running`, `completed`, `failed`, `blocked`, `interrupted`, `refused`, `timeout`. |
-| `ok` | `outcome` is `success`, `running` or `completed`. |
+| `outcome` | `success`, `running`, `completed`, `failed`, `blocked`, `interrupted`, `refused`, `existing` (WP16: the duplicate guard returned an identical active run), `timeout`. |
+| `ok` | `outcome` is `success`, `running`, `existing` or `completed`. |
 | `data` | Structured, JSON-serializable payload (per handler below). |
 | `text` | Plain-text rendering for humans (CLI stdout, MCP text content). |
 
@@ -60,10 +61,11 @@ throw `WorkflowValidationError`; `formatHostError(error)` renders any error. Lau
 | `listAgentsAction` | — | `{agents: [{name, displayName, description?, scope, legacySource?, model?, effort?, tools?, readOnly?, sourcePath}]}` | success |
 | `showAction` | `{ref, raw?}`: a run (`raw`, or `workflow_…`) else a workflow | `{kind: "run", run}` or `{kind: "workflow", specPath, spec}` | success |
 | `profileAction` | `{op: "list"} \| {op: "show", name?} \| {op: "set", name, values?, unset?, makeDefault?} \| {op: "delete", name} \| {op: "default", name \| null}` | `{op, path, default?, profiles?, profile?, deleted?}` | success |
-| `runWorkflowAction` | `RunWorkflowRequest` (below) | `LaunchData` | running, completed, failed, blocked, refused |
+| `runWorkflowAction` | `RunWorkflowRequest` (below) | `LaunchData` | running, completed, failed, blocked, refused, existing |
 | `runDynamicAction` | `RunDynamicRequest` (no `workflow`) | `LaunchData` (`mode: "direct-dynamic"`) | same |
 | `statusAction` | `{runId?}` | `{run: RunSummary & {tasks}}` or `{runs: RunSummary[]}` (top-level, newest first) | success |
 | `inspectAction` | `{runId, failures?, results?}` | `{run, reliability: {health, outputRetries, launchRetries, resumeEvents, contextLimitFailures}, listed}` | success |
+| `logsAction` (WP16) | `{runId, task?, lines?, stream?}` (below) | `LogsData`: `{runId, name?, status, lines, streams, tasks: [{taskId, specId, status, statusDetail, streams: [{kind, path, lines, truncated}]}], omittedTasks, truncated}` | success |
 | `waitAction` | `WaitRequest` (below) | `WaitData` | running, completed, failed, interrupted, blocked |
 | `resumeAction` | `{runId, detach?}` | `{runId, status, resetTaskIds, taskSummary, detached?}` | run status |
 | `stopAction` | `{runId, timeoutMs?}` | `{runId, status, interruptedTaskIds, pending}` | success, or running when `pending` |
@@ -88,9 +90,9 @@ permissionMode?, taskSummary}`.
 | `allowUnverifiedCapabilities` | B4 opt-in keys. |
 | `model`, `effort` | Run overrides of every stage (`runtimeOverrides`). |
 | `detach` | Spawn `agent-workflow supervise <runId>` detached (log `<run dir>/supervise.log`); `data.detached = {pid, logPath}`. |
-| `forceNew` | Skip the duplicate guard. |
+| `forceNew` | Skip the duplicate guard (the started run becomes the one later identical launches find). |
 | `interactive`, `confirmDegradations(preview)` | WP4d. `interactive: true` requires the callback; it is called only when a stage needs confirmation; anything but `true` refuses (`CAPABILITY_DEGRADATION_DECLINED`). Without `interactive`, degradations are recorded (`non-interactive`) and the run proceeds. |
-| `selectProfile(title, options)` | Interactive chooser between declared profiles when none is named (Pi host). |
+| `selectProfile(title, options, meta?)` | Chooser between declared profiles when none is named (Pi host). `meta.headlessOption` (WP16) is the option a headless launch would pick (the declared default, else `Base (no profile)`), so a host without a dialog can make that choice and list the others as text. |
 | `inputOverrides` | Values for declared spec inputs. |
 
 Profile resolution when `profile` is omitted: (host with `availableModels`: the saved per-workflow
@@ -102,7 +104,7 @@ overrides) plus run defaults `model`/`effort`; the engine then applies B2 preced
 graph the executor and permission mode are passed as run options instead (strictCapabilities then
 refuses).
 
-`LaunchData`: `{mode, runId?, status?, name?, specPath?, executor?: {id, source, profile?},
+`LaunchData`: `{mode, runId?, status?, name?, specPath?, executor?: {id, source, profile?, host?},
 permissionMode?: {mode, source, profile?}, profile?: {name, kind: declared | user |
 workflow-preference, source}, capability?: {preview, confirmation, degradations, forcedReadOnly},
 taskSummary?, detached?, promptSchemaNotice?, duplicateOf?, refusal?: {code, executorId?,
@@ -111,12 +113,45 @@ preview?}}`. `text` starts with the capability preview, then the launch card.
 Refusals (`outcome: "refused"`, nothing launched, no run record): `WorkflowCapabilityError` codes
 (`EXECUTOR_PROBE_FAILED`, `EXECUTOR_NOT_INSTALLED`, `EXECUTOR_AUTH_NOT_READY`, `CAPABILITY_REFUSED`,
 `CAPABILITY_CONFIRMATION_REQUIRED`, `CAPABILITY_DEGRADATION_DECLINED`), `EXECUTOR_UNAVAILABLE`
-(unknown or unavailable executor id), and the duplicate guard (`duplicateOf`; an identical active
-top-level run from the last 10 minutes; not applied with `detach` or `forceNew`).
+(unknown or unavailable executor id), and `DUPLICATE_LAUNCH_IN_PROGRESS` (an identical launch is
+still starting after a 15 s wait).
+
+**Duplicate-launch guard (WP16, `launch-guard.ts`).** Attached and detached launches, from every
+host (CLI, Pi `/aw` and `aw_*`, host MCP server), go through one guard, so a model that retries
+`workflow_run`/`aw_run` after a tool timeout gets the first run back. A launch's identity is a
+SHA-256 over: kind (`run`/`dynamic`), cwd, resolved spec path and spec name, trimmed task, typed
+`inputOverrides`, and the requested `executor`, `profile`, `permissionMode`,
+`allowUnverifiedCapabilities` (sorted), `model`, `effort`. `detach` and the interactive hooks are not
+part of it. An identical launch while the run it recorded is non-terminal (`running`, `pending`,
+`blocked`) and was created within the last 10 minutes (`DUPLICATE_RUN_WINDOW_MS`) returns that run:
+`outcome: "existing"` (`ok`), `data` is that run's `LaunchData` plus `duplicateOf`, no new supervisor
+is spawned, and the text starts `Duplicate launch guard:` and names `--force-new`. A terminal,
+pruned or older run, different inputs or options, or `forceNew: true` start a new run. State: one
+claim file per identity in `<cwd>/.agent-workflow/host-launches/<sha256>.json`, created exclusively
+before the run starts and given the run id afterwards, so concurrent identical launches also yield
+one run (the later ones wait up to 15 s for the first run id; a claim of a dead process or older
+than 60 s without a run id is taken over). Runs launched outside the host API (the SDK) are not
+guarded. Before WP16 the guard applied to attached launches only, matched spec name + task, and
+refused (`outcome: "refused"`).
 
 The handler returns once the run is launched (usually `running`). The engine keeps an in-process
 watcher (unref'd timer) for long-lived hosts; short-lived hosts either `wait` in the foreground or
 `detach`.
+
+### `logs` (WP16)
+
+`LogsRequest`: `{runId, task?, lines?, stream?}`. A bounded tail per task of `output`
+(`task.files.output`), `stderr` (the task's stderr log, else the latest attempt's executor stderr)
+and `events` (the latest attempt's `exec-events.jsonl` under
+`.agent-workflow/workflow-subagents/<run>/<task>/`). `task` is a task id or spec id (unknown →
+`HostUsageError`); without it every started task, at most 6 (the most recently started), with
+`omittedTasks` counting the rest. `lines` per stream 1-400 (default 20); each line is cut at 400
+characters (`… [N more chars]`); the text and the lines kept in `data` stop at 48 000 characters
+(`truncated: true`). Every line and path goes through `redactSensitiveWorkflowText` (credential
+assignments, `Authorization`/cookie headers, bearer tokens, URL secrets and credentials, home paths)
+and the values (8+ characters) of host environment variables with sensitive names (`*_KEY`,
+`*TOKEN*`, `*SECRET*`, `*PASSWORD*`, …) become `[REDACTED:<NAME>]`. The run is refreshed first, like
+`status`. Port in spirit of pi-workflow's `/workflow logs <run> [task] [lines]` (one task's output).
 
 ### `wait`
 
@@ -188,10 +223,10 @@ path is absolute and the id starts with `test-`. Otherwise it throws `TestExecut
 
 ## Not in the host API
 
-Pi-session behavior stays with the Pi host (WP11b): completion feedback delivery and its
-presentation lease/receipts (`workflow_wait` ownership checks), parent-session usage tracking,
-unfinished-run notices at session start (`notifyUnfinishedRuns`), the board/TUI, `/workflow auto`,
-`/workflow logs`, and the Pi profile picker UI. Launches record no launch-capture metadata (the v1
+Pi-session behavior stays with the Pi host (WP11b, WP16 `docs/pi-host.md`): completion feedback
+delivery, its audience and receipts, the status line, parent-session usage tracking, unfinished-run
+notices at session start (`notifyUnfinishedRuns`), the board/TUI, `/workflow auto`, and the Pi
+profile picker UI. Launches record no launch-capture metadata (the v1
 capture schema only knows Pi slash commands and Pi tools).
 
 ## Ported pi-workflow tests (WP11a decisions)
@@ -206,7 +241,7 @@ in the host API or the CLI:
 | unlimited-supervisor (4) | ported → `host-ported-cli-args` via `superviseAction` with an injected clock/scheduler (was a copied cli.mjs over fake dist modules) |
 | surface-regressions: slash options; actual CLI options; supervise failed/blocked/batches; workflow_list bounds | ported → `host-ported-cli-args`. Changed: `dynamic --profile` is accepted; usage errors exit 2 (was 1); blocked supervise exits 1 (was 2), the structured result keeps blocked and the failure precedence |
 | surface-regressions: parent usage ownership/replay (2), owner usage/feedback audience (2), catch-up delivery caps (2), board/RPC fallback, board identity, hidden artifact views, skipped dependent stage view, 8 MiB preview bound, preview disposal | not ported: Pi host session/board behavior (WP11b) |
-| surface-regressions: formatLogs bounded tail IO | not ported: `logs` is not a host action (core-only; candidate for the core suite) |
+| surface-regressions: formatLogs bounded tail IO | not ported (core `formatLogs`); WP16's `logsAction` has its own bounds tests (`host-wp16-logs`) |
 | review-core-fixes: IR1-08 parsers; IR1-08 CLI/RPC launch controls (CLI half); IR1-08 slash/CLI prune (slash half → `pruneAction`); IR1-09 catalog paging (→ `listWorkflowsAction`) | ported → `host-ported-cli-args` (exit 2 for usage errors) |
 | review-core-fixes: IR1-03 parent usage (4), IR1-04/IR1-05 schema tests | not ported here: parent usage is Pi host (WP11b); IR1-04/05 are core json-schema tests outside WP11a's scope |
 | execution-profiles: `--profile` parsing; profile selection | ported → `host-ported-cli-args` |
@@ -228,7 +263,12 @@ The original files carry `Moved (WP11a)` markers at the former deferral comments
   the host API record no launch metadata until core gains a host-neutral source.
 - **Stage 2 (WP13 MCP host):** done — `docs/host-mcp.md` (`HostUsageError` → `isError` tool
   result, repeated bounded `waitAction` calls, `detach` default true, degradation confirmation
-  through MCP elicitation when the client supports it, else non-interactive).
+  through MCP elicitation when the client supports it, else non-interactive). Follow-up: a
+  `workflow_logs` tool over `logsAction` (WP16 left the MCP tool list unchanged).
+- **Duplicate guard (WP16):** an `existing` run returned to a launch that asked for `detach` may be an
+  attached run whose host process is gone (it stays `running` until `wait`, `resume` or `supervise`
+  drives it); `forceNew` or `resume` then. The claim files are not pruned with runs (one small
+  file per distinct launch identity).
 - A workflow-declared profile replaces a saved user profile entirely (engine B2), so a default user
   profile's executor does not apply to workflows that declare `defaultExecutionProfile`.
 - `run` without `--detach` in the CLI ties progress to the foreground process; a killed CLI leaves

@@ -1,8 +1,8 @@
 // New in agent-workflow (WP11b): the `/aw <action> …` slash command. Each action parses its
 // arguments and calls exactly one host API handler; the output is the handler's `text`. Ported in
 // spirit from pi-workflow 0.16.4 (b83cc4f) `handleWorkflowCommand` (the `/workflow` actions), without
-// the board, `auto`, `logs` and the TUI profile picker (stage 2). The command is `/aw`, never
-// `/workflow`, so it can run next to pi-workflow (A2-1).
+// the board, `auto` and the TUI profile picker (stage 2). The command is `/aw`, never `/workflow`, so
+// it can run next to pi-workflow (A2-1). WP16: `/aw logs`.
 import {
 	COMMAND_HELP,
 	HOST_WAIT_MAX_TIMEOUT_MS,
@@ -18,7 +18,7 @@ import {
 	parseWorkflowRunArgs,
 	tokenizeWorkflowArgs,
 } from "../api.js";
-import { parseCommandArgs } from "../cli/index.js";
+import { logsRequest, parseCommandArgs } from "../cli/index.js";
 import {
 	emit,
 	hostContext,
@@ -42,6 +42,7 @@ export const AW_ACTIONS = [
 	"status",
 	"show",
 	"inspect",
+	"logs",
 	"wait",
 	"resume",
 	"stop",
@@ -68,6 +69,7 @@ Runs:
   /aw status [run]                      show runs
   /aw show <run> [--raw]                show run details
   /aw inspect <run> [--failures] [--results]
+  /aw logs <run> [--task <id>] [--lines N] [--stream output|stderr|events|all]
   /aw wait <run> [--timeout <duration>] one bounded wait (at most 45 s); repeat while running
   /aw resume <run> [--detach]           resume a failed, interrupted or blocked run
   /aw stop <run>                        stop a run
@@ -296,6 +298,17 @@ async function dispatch(
 				failures: parsed.flags.has("--failures"),
 				results: parsed.flags.has("--results"),
 			});
+		}
+		case "logs": {
+			const parsed = parseCommandArgs(rest, {
+				values: ["--task", "--lines", "--stream"],
+			});
+			const [runId] = only(
+				parsed.positionals,
+				1,
+				"logs <run-id-or-prefix> [--task <id>] [--lines N] [--stream output|stderr|events|all]",
+			);
+			return api.logsAction(host(), logsRequest(runId!, parsed.values));
 		}
 		case "wait": {
 			const parsed = parseCommandArgs(rest, { values: ["--timeout"] });

@@ -13,7 +13,8 @@ const LAUNCH_FLAGS = `  --executor <id>              executor for this run (pi, 
   --input <key=value>          set a workflow input the spec declares (repeatable; typed like
                                the declared default, e.g. --input depth=quick)
   --detach                     start a background supervisor and return immediately
-  --force-new                  skip the duplicate-launch guard
+  --force-new                  start a new run even if an identical launch is still active
+                               (otherwise the active run is returned)
   --yes                        do not ask: record capability degradations and proceed
   --timeout <duration>         stop waiting after this long (30000, 30s, 5m, 1h); the run continues
   --json                       print one JSON result object`;
@@ -74,6 +75,13 @@ Show run details (--raw: full record view) or a workflow spec. Arguments that st
 
 Reliability summary and task listing. --failures lists only failed/blocked/interrupted tasks;
 --results prints task results (with --failures on a clean run: every result).`,
+	logs: `Usage: agent-workflow logs <run-id-or-prefix> [--task <task-id>] [--lines N]
+                          [--stream output|stderr|events|all] [--json]
+
+Bounded tail of task output, stderr and executor events (the latest attempt's exec-events.jsonl).
+Without --task: every started task (at most 6, most recent). --lines: lines per stream (1-400,
+default 20). Lines are cut at 400 characters and the text at 48 000; credentials, bearer tokens,
+URL secrets, home paths and values of sensitive environment variables are redacted.`,
 	wait: `Usage: agent-workflow wait <run-id-or-prefix> [--timeout <duration>] [--json]
 
 Drive and wait for a run until it is terminal or needs action. Without --timeout it waits until
@@ -130,6 +138,7 @@ Runs:
   status [run]               show runs
   show <run>                 show run details
   inspect <run>              reliability summary and task results
+  logs <run>                 bounded, redacted tail of task output, stderr and events
   wait <run>                 wait until a run is terminal or needs action
   resume <run>               resume a failed, interrupted or blocked run
   stop <run>                 stop a run

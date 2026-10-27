@@ -3,6 +3,8 @@
 // host (WP11b) all call these instead of re-implementing command logic. No Pi imports. Contracts:
 // docs/host-api.md. Logic ported from pi-workflow 0.16.4 (b83cc4f) src/extension.ts and src/cli.mjs
 // (see each module's header). WP17: `doctor` (doctor.ts) and the optional HostApiContext.host.
+// WP16: the duplicate-launch guard covers detached launches (launch-guard.ts, outcome `existing`)
+// and the `logs` action (logs.ts).
 import { showWorkflowSpecAction } from "./catalog.js";
 import { showRunAction } from "./runs.js";
 import type { HostApiContext, HostResult } from "./types.js";
@@ -62,6 +64,17 @@ export {
 	spawnDetachedSupervisor,
 	type WorkflowProfileSelector,
 } from "./launch.js";
+export {
+	LOG_STREAMS,
+	type LogStream,
+	type LogStreamKind,
+	type LogsData,
+	type LogsRequest,
+	type LogsTask,
+	LOGS_DEFAULT_LINES,
+	LOGS_MAX_LINES,
+	logsAction,
+} from "./logs.js";
 export {
 	formatWorkflowResultPresentation,
 	readWorkflowResultPresentation,

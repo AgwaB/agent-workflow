@@ -33,6 +33,7 @@ export type PiHostApi = Pick<
 	| "stopAction"
 	| "pruneAction"
 	| "noticesAction"
+	| "logsAction"
 	| "registerTestExecutorFromEnv"
 >;
 
@@ -156,7 +157,12 @@ export function interactiveLaunchHooks(
 
 export function levelForOutcome(outcome: HostOutcome): PiNotifyLevel {
 	if (outcome === "success" || outcome === "completed") return "info";
-	if (outcome === "running" || outcome === "blocked" || outcome === "refused")
+	if (
+		outcome === "running" ||
+		outcome === "blocked" ||
+		outcome === "refused" ||
+		outcome === "existing"
+	)
 		return "warning";
 	return "error";
 }
@@ -172,18 +178,19 @@ function printMode(ctx: PiExtensionContext): boolean {
 /**
  * Core formatters (ported from pi-workflow) print `/workflow …` hints. In Pi, `/workflow` is
  * pi-workflow's command (its own run store), so the Pi host points them at `/aw`; there is no board,
- * so `/workflow <run>` becomes `/aw status <run>` and `/workflow logs <run> …` becomes
- * `/aw inspect <run> --results`. Everything else in the handler text is unchanged.
+ * so `/workflow <run>` becomes `/aw status <run>` and `/workflow logs <run> [task]` becomes
+ * `/aw logs <run> [--task <task>]` (WP16). Everything else in the handler text is unchanged.
  */
 export function piHostText(text: string): string {
 	return text
 		.replace(
-			/\/workflow logs ([A-Za-z0-9_-]+)(?: <task-or-spec-id>| [\w.:-]+)?/g,
-			"/aw inspect $1 --results",
+			/\/workflow logs ([A-Za-z0-9_-]+)(?: <task-or-spec-id>| ([\w.:-]+))?/g,
+			(_match, runId: string, task: string | undefined) =>
+				task ? `/aw logs ${runId} --task ${task}` : `/aw logs ${runId}`,
 		)
 		.replace(/\/workflow (workflow_[A-Za-z0-9_-]+)/g, "/aw status $1")
 		.replace(
-			/\/workflow (help|list|validate|roles|agents|profile|run|dynamic|status|show|inspect|wait|resume|stop|prune|notices)\b/g,
+			/\/workflow (help|list|validate|roles|agents|profile|run|dynamic|status|show|inspect|logs|wait|resume|stop|prune|notices)\b/g,
 			"/aw $1",
 		);
 }
