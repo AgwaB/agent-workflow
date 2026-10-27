@@ -30,6 +30,7 @@ export {
 	type PiHostApi,
 	type PiHostOptions,
 } from "./extension.js";
+export { AW_COMPLETION_MESSAGE_TYPE, AW_STATUS_KEY } from "./feedback.js";
 export {
 	AW_COMMAND,
 	AW_DYNAMIC_TOOL,

@@ -4,8 +4,10 @@
 // workflow workers run on the selected executor (default pi). Each tool calls one host API handler.
 // Differences from pi-workflow: no `awaitTerminal` on run/dynamic and `aw_wait` waits at most 45 s
 // per call (the host API bound), so the agent calls `aw_wait` again while `stillRunning` is true;
-// no completion-feedback delivery or presentation lease (stage 2). WP12c: `inputs` on run/dynamic
-// (the tool form of --input; typed by the host API like the CLI's strings).
+// no presentation lease. WP12c: `inputs` on run/dynamic (the tool form of --input; typed by the host
+// API like the CLI's strings). WP16: launched runs are tracked for the status line and completion
+// delivery into this session (feedback.ts; a tool launch triggers a follow-up turn when it settles);
+// an identical launch while the first run is active returns that run (`outcome: "existing"`).
 import {
 	formatHostError,
 	HOST_WAIT_MAX_TIMEOUT_MS,
@@ -18,9 +20,10 @@ import {
 	parseThinkingLevel,
 } from "../api.js";
 import { THINKING_LEVELS } from "../../core/types.js";
+import { trackLaunched } from "./command.js";
 import {
 	hostContext,
-	interactiveLaunchHooks,
+	launchHooks,
 	type PiHostDeps,
 	piHostText,
 } from "./host.js";
@@ -266,9 +269,11 @@ export function launchRequestFromToolParams(params: Record<string, unknown>) {
 function toolResult<T>(
 	outcome: HostResult<T>,
 	details: Record<string, unknown>,
+	note?: string,
 ): PiToolResult {
+	const text = note ? `${outcome.text}\n${note}` : outcome.text;
 	return {
-		content: [{ type: "text", text: piHostText(outcome.text) }],
+		content: [{ type: "text", text: piHostText(text) }],
 		details: { ...details, outcome: outcome.outcome, ok: outcome.ok },
 		...(outcome.outcome === "refused" ? { isError: true } : {}),
 	};
@@ -358,15 +363,17 @@ export function registerAwTools(pi: PiExtensionApi, deps: PiHostDeps): void {
 				const input = record(params);
 				rejectUnknown(input, new Set([...LAUNCH_KEYS, "workflow"]));
 				const request = launchRequestFromToolParams(input);
+				const hooks = launchHooks(ctx);
 				const launched = await deps.api.runWorkflowAction(
 					hostContext(deps, ctx, { executor: request.executor }),
 					{
 						workflow: requiredString(input, "workflow"),
 						...request,
-						...interactiveLaunchHooks(ctx),
+						...hooks.hooks,
 					},
 				);
-				return toolResult(launched, launchDetails(launched.data));
+				await trackLaunched(deps, ctx, "run", launched.data, "tool");
+				return toolResult(launched, launchDetails(launched.data), hooks.note());
 			});
 		},
 	});
@@ -393,11 +400,13 @@ export function registerAwTools(pi: PiExtensionApi, deps: PiHostDeps): void {
 				const input = record(params);
 				rejectUnknown(input, LAUNCH_KEYS);
 				const request = launchRequestFromToolParams(input);
+				const hooks = launchHooks(ctx);
 				const launched = await deps.api.runDynamicAction(
 					hostContext(deps, ctx, { executor: request.executor }),
-					{ ...request, ...interactiveLaunchHooks(ctx) },
+					{ ...request, ...hooks.hooks },
 				);
-				return toolResult(launched, launchDetails(launched.data));
+				await trackLaunched(deps, ctx, "dynamic", launched.data, "tool");
+				return toolResult(launched, launchDetails(launched.data), hooks.note());
 			});
 		},
 	});

@@ -1,8 +1,10 @@
 // New in agent-workflow (WP11b): the `/aw <action> …` slash command. Each action parses its
 // arguments and calls exactly one host API handler; the output is the handler's `text`. Ported in
 // spirit from pi-workflow 0.16.4 (b83cc4f) `handleWorkflowCommand` (the `/workflow` actions), without
-// the board, `auto` and the TUI profile picker (stage 2). The command is `/aw`, never `/workflow`, so
-// it can run next to pi-workflow (A2-1). WP16: `/aw logs`.
+// the board, `auto` and the TUI profile picker. The command is `/aw`, never `/workflow`, so it can
+// run next to pi-workflow (A2-1). WP16: `/aw logs`; launches and resumes from this session are
+// tracked for the status line and completion delivery (feedback.ts); without a dialog UI the
+// declared-profile choice falls back to text (host.ts `launchHooks`).
 import {
 	COMMAND_HELP,
 	HOST_WAIT_MAX_TIMEOUT_MS,
@@ -22,7 +24,7 @@ import { logsRequest, parseCommandArgs } from "../cli/index.js";
 import {
 	emit,
 	hostContext,
-	interactiveLaunchHooks,
+	launchHooks,
 	levelForOutcome,
 	type PiHostDeps,
 } from "./host.js";
@@ -77,7 +79,7 @@ Runs:
   /aw notices list | acknowledge <run> --state <sha256> --reason <text> | clear <run>
 
 Run options: ${RUN_OPTIONS}
-With a Pi UI, capability degradations that need confirmation are asked; without one they are recorded and the run proceeds.
+With a Pi UI, capability degradations that need confirmation are asked and a declared execution profile is chosen in a dialog; without one degradations are recorded, the default profile is used and the choices are listed. Runs launched here show their progress in the status line and report back into this session when they finish or need action.
 Agent tools: ${AW_TOOL_NAMES.join(", ")}. /aw help <action> shows the agent-workflow help of one action.`;
 
 function only(positionals: string[], count: number, usage: string): string[] {
@@ -185,11 +187,15 @@ function helpText(deps: PiHostDeps, topic: string | undefined): string {
 	return `${deps.api.helpAction(topic).text.replaceAll("agent-workflow ", `/${AW_COMMAND} `)}\n\nIn Pi: --json, --yes and --timeout on run/resume are CLI-only; /${AW_COMMAND} run returns once the run is launched and /${AW_COMMAND} wait waits at most 45 s per call.`;
 }
 
+type Dispatched =
+	| (HostResult<unknown> & { note?: string | undefined })
+	| { text: string };
+
 async function dispatch(
 	deps: PiHostDeps,
 	args: string,
 	ctx: PiExtensionContext,
-): Promise<HostResult<unknown> | { text: string }> {
+): Promise<Dispatched> {
 	const tokens = tokenizeWorkflowArgs(args).map((token) => token.text);
 	const [action = "help", ...rest] = tokens;
 	if (action === "help" || action === "--help" || action === "-h") {
@@ -245,14 +251,16 @@ async function dispatch(
 				throw new HostUsageError(
 					`Missing task. Usage: /${AW_COMMAND} run ${parsed.specPath} "<task>"`,
 				);
-			return api.runWorkflowAction(
+			const hooks = launchHooks(ctx);
+			const launched = await api.runWorkflowAction(
 				hostContext(deps, ctx, { executor: parsed.executor }),
 				{
 					workflow: parsed.specPath,
 					...launchRequest(parsed),
-					...interactiveLaunchHooks(ctx),
+					...hooks.hooks,
 				},
 			);
+			return { ...launched, note: hooks.note() };
 		}
 		case "dynamic": {
 			const parsed = parseWorkflowDynamicArgs(args);
@@ -260,10 +268,12 @@ async function dispatch(
 				throw new HostUsageError(
 					`Missing task. Usage: /${AW_COMMAND} dynamic "<task>" [options]`,
 				);
-			return api.runDynamicAction(
+			const hooks = launchHooks(ctx);
+			const launched = await api.runDynamicAction(
 				hostContext(deps, ctx, { executor: parsed.executor }),
-				{ ...launchRequest(parsed), ...interactiveLaunchHooks(ctx) },
+				{ ...launchRequest(parsed), ...hooks.hooks },
 			);
+			return { ...launched, note: hooks.note() };
 		}
 		case "status": {
 			const { positionals } = parseCommandArgs(rest, {});
@@ -398,10 +408,13 @@ export async function handleAwCommand(
 			emit(ctx, outcome.text, "info");
 			return;
 		}
-		const data = outcome.data as { stillRunning?: unknown } | undefined;
+		const data = outcome.data as
+			| { stillRunning?: unknown; runId?: unknown; status?: unknown }
+			| undefined;
+		await trackLaunched(deps, ctx, outcome.action, data, "command");
 		emit(
 			ctx,
-			outcome.text,
+			outcome.note ? `${outcome.text}\n${outcome.note}` : outcome.text,
 			data?.stillRunning === true
 				? "warning"
 				: levelForOutcome(outcome.outcome),
@@ -411,6 +424,23 @@ export async function handleAwCommand(
 		emit(ctx, formatHostError(error), "error");
 		if (!ctx.hasUI) process.exitCode = 1;
 	}
+}
+
+/**
+ * WP16: a run launched (or resumed, or returned by the duplicate guard) from this session is
+ * tracked for the status line and completion delivery. Never throws.
+ */
+export async function trackLaunched(
+	deps: PiHostDeps,
+	ctx: PiExtensionContext,
+	action: string,
+	data: { runId?: unknown; status?: unknown } | undefined,
+	launchedBy: "command" | "tool",
+): Promise<void> {
+	if (action !== "run" && action !== "dynamic" && action !== "resume") return;
+	if (typeof data?.runId !== "string") return;
+	if (data.status !== "running" && data.status !== "pending") return;
+	await deps.feedback.track(ctx, data.runId, launchedBy).catch(() => undefined);
 }
 
 export function awArgumentCompletions(
