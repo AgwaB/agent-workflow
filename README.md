@@ -68,10 +68,22 @@ pi-workflow's `/workflow`. See [`docs/pi-host.md`](docs/pi-host.md).
 
 ### Codex and Claude Code as hosts
 
-Codex and Claude Code are supported **executors** today (they run the workers). To run workflows
-*from inside* them, register the host MCP server `agent-workflow-mcp` (stage 2, WP13; plugins
-follow), for example `claude mcp add agent-workflow -- agent-workflow-mcp --host claude-code`. Its
-`workflow_*` tools launch a run, wait in bounded 45 s calls and return the report. See
+Codex and Claude Code are supported **executors** (they run the workers). To run workflows *from
+inside* them, install the `agent-workflow` plugin: it registers the host MCP server
+`agent-workflow-mcp` with the right `--host` and adds the `agent-workflow`, `workflow-guide` and
+`execution-router` skills.
+
+```sh
+claude plugin marketplace add AgwaB/agent-workflow && claude plugin install agent-workflow@agent-workflow
+codex plugin marketplace add AgwaB/agent-workflow && codex plugin add agent-workflow@agent-workflow
+```
+
+Alternative without the plugin (server only):
+`claude mcp add agent-workflow -- npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow-mcp --host claude-code`
+or `codex mcp add agent-workflow -- npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow-mcp --host codex`.
+Then ask for a workflow in the conversation: the agent launches it with `workflow_run`, waits in
+bounded 45 s `workflow_wait` calls and quotes the result and report paths. Local development
+(`--plugin-dir`), timeouts and tool names: [`docs/plugins.md`](docs/plugins.md); the server:
 [`docs/host-mcp.md`](docs/host-mcp.md).
 
 ## Executors
