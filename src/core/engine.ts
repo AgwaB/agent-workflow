@@ -1,4 +1,5 @@
 // Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine.ts. MIT, same author. Changes: the backend comes from the task-launch registry and the core task backend registers itself (was hard-wired pi-subagent); acknowledgeSubagentTaskInterrupted from task-cancellation.ts; run options executor/defaultExecutor (B2 executor selection before the run record exists, frozen as run.executor; nested runs copy the parent's) and inheritHostTools/allowSharedCheckoutWrites passed into compileWorkflow (nested runs follow the parent record); native host context → withHostContext(resolveHostContext()); foreach batch eligibility uses prepareWorkflowTaskToolPolicy with the run's host-tool and shared-checkout decisions (R#5); messages say agent-workflow. WP4d: B4 capability negotiation after executor selection and compile, before the run record (probe once, refuse/degrade/confirm, record run.capabilityNegotiation; run options interactive/confirmDegradations/allowUnverifiedCapabilities/executorProber/executorProbeTimeoutMs). WP4e: run option permissionMode resolved with B2 precedence (permission-mode.ts), passed to compile and negotiation, recorded as run.permissionMode (nested runs follow the parent).
+import { releaseUnneededOwnedSessions } from "./owned-session-release.js";
 import { createHash } from "node:crypto";
 import {
 	appendFile,
@@ -2950,6 +2951,8 @@ export async function scheduleRun(
 			await recordSupervisorError(cwd, run.runId, error);
 		}
 		if (isTerminalWorkflowStatus(run.status)) {
+			if (await releaseUnneededOwnedSessions(run))
+				await writeRunRecord(cwd, run, leaseSignal);
 			await clearTerminalWorkflowStopIntentIfPresent(cwd, run);
 			return run;
 		}
@@ -2973,6 +2976,9 @@ export async function scheduleRun(
 		assertScheduleLeaseActive(leaseSignal);
 
 		run = await readRunRecord(cwd, run.runId);
+		// D3 (WP12a): support tasks can end the run here; release its worker sessions.
+		if (await releaseUnneededOwnedSessions(run))
+			await writeRunRecord(cwd, run, leaseSignal);
 		return run;
 	});
 }

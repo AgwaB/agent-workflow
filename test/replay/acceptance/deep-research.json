@@ -29,21 +29,21 @@
 					"specId": "research-questions.rq-001",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvpg6xyi_4bd884/attempt_mvpg6xyi_d84d8c ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvqelegu_6221b2/attempt_mvqelegu_92839b ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-12",
 					"specId": "research-questions.rq-002",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvpg6y6w_cb38e1/attempt_mvpg6y6w_33e4ad ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvqelf22_6c9c92/attempt_mvqelf22_1e5008 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-13",
 					"specId": "research-questions.rq-003",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvpg6yf4_9ec3b2/attempt_mvpg6yf4_decd98 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvqelff1_0f1754/attempt_mvqelff1_db241b ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-3",
@@ -56,7 +56,7 @@
 					"specId": "normalize-claims.main",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvpg6ynn_03204e/attempt_mvpg6ynn_97402f ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvqelfzr_8f5e63/attempt_mvqelfzr_3d9c6f ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-5",
@@ -87,7 +87,7 @@
 					"specId": "final-audit.main",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvpg6yxf_f0785b/attempt_mvpg6yxf_88e374 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvqelgeo_11d2a6/attempt_mvqelgeo_5c298a ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-10",
@@ -194,12 +194,12 @@
 				"Worker tool calls other than workflow_artifact reads (read/grep/find/ls on project files, web tools): they only shaped the recorded final text, which is replayed verbatim.",
 				"Pi session files: the replay reports the ownedSession locator the Pi adapter would report but creates no session directory.",
 				"Timing, poll counts, process ids and the Pi provider/model metadata of the recorded attempt (not part of the executor event contract).",
-				"Artifact delivery bound: 2 recorded read(s) returned more than 8192 chars. The replay starts the artifact MCP server with --max-output-chars 16777216 so these rows reproduce the recorded ledger (the recorded Pi worker received them whole). The stage-1 Pi adapter passes no limit, so the server default (8192) would cut them and mark the rows deliveryUnverified (docs/mcp.md \"Delivery bound\", R#9); a model would then re-read with a projection, which a replay cannot reproduce.",
+				"Artifact delivery bound: 2 recorded read(s) returned more than 8192 chars. The replay starts the artifact MCP server with --max-output-chars 16777216 so these rows reproduce the recorded ledger (the recorded Pi worker received them whole). A live Pi run launches the server with --max-output-chars 18432 (WP5b: Pi's declared 20480 minus its 1024 notice allowance and a 1024 margin), so 2 of them would be served as a first page; a model would then page on with offset (docs/mcp.md \"Paged reads\"), and those page calls and rows are not in the recording, so a replay cannot reproduce them.",
 				"Worker-filled web-source cache (worker-snapshots/<run>/web-source-cache): written by the removed workflow_web_* tools (C2); not restored."
 			],
 			"counts": {
-				"allowed": 175,
-				"explained": 2208,
+				"allowed": 174,
+				"explained": 2207,
 				"unexplained": 0
 			},
 			"differences": [
@@ -225,7 +225,7 @@
 					"file": "run.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
-					"count": 40
+					"count": 39
 				},
 				{
 					"class": "allowed",
@@ -286,7 +286,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-11/.launch-barrier-d14620077efbeb74-<RAND16>/decision-v2.json",
+					"file": "tasks/task-11/.launch-barrier-ec44115ac9ed8ed5-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -294,7 +294,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-11/.launch-barrier-d14620077efbeb74-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-11/.launch-barrier-ec44115ac9ed8ed5-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -326,7 +326,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-12/.launch-barrier-6f149b3d13326aad-<RAND16>/decision-v2.json",
+					"file": "tasks/task-12/.launch-barrier-43259a21770ca47e-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -334,7 +334,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-12/.launch-barrier-6f149b3d13326aad-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-12/.launch-barrier-43259a21770ca47e-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -366,7 +366,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-13/.launch-barrier-39f4d10297e726ed-<RAND16>/decision-v2.json",
+					"file": "tasks/task-13/.launch-barrier-7077503b0d331267-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -374,7 +374,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-13/.launch-barrier-39f4d10297e726ed-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-13/.launch-barrier-7077503b0d331267-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -422,7 +422,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-4/.launch-barrier-16ef7b0881712160-<RAND16>/decision-v2.json",
+					"file": "tasks/task-4/.launch-barrier-21844302770fdd90-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -430,7 +430,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-4/.launch-barrier-16ef7b0881712160-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-4/.launch-barrier-21844302770fdd90-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -510,7 +510,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-9/.launch-barrier-113d6038795ac869-<RAND16>/decision-v2.json",
+					"file": "tasks/task-9/.launch-barrier-bbde7820e54f990b-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -518,7 +518,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-9/.launch-barrier-113d6038795ac869-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-9/.launch-barrier-bbde7820e54f990b-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -806,14 +806,6 @@
 					"rule": "supervisor-progress-snapshot",
 					"file": "supervisor.json",
 					"path": "taskStatusCounts.pending",
-					"kind": "digest-renamed",
-					"count": 1
-				},
-				{
-					"class": "allowed",
-					"rule": "supervisor-progress-snapshot",
-					"file": "supervisor.json",
-					"path": "taskStatusCounts.running",
 					"kind": "digest-renamed",
 					"count": 1
 				},
@@ -1700,7 +1692,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-original-66855/work/replay-trace.jsonl\"… (375 chars, sha256 2f782dccf375)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-original-22150/work/replay-trace.jsonl\"… (375 chars, sha256 07d53f626b90)"
 				},
 				{
 					"class": "explained",
@@ -1730,7 +1722,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "580edd7675ddf244079926015b4af70456975f9ca1e3bb88f20b1415fede2d39"
+					"replayed": "85021b334662e8f2a8ad6bce55671fcbee9afb7387b0d242edad6e9230c8f0ac"
 				},
 				{
 					"class": "explained",
@@ -1770,7 +1762,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "580edd7675ddf244079926015b4af70456975f9ca1e3bb88f20b1415fede2d39"
+					"replayed": "85021b334662e8f2a8ad6bce55671fcbee9afb7387b0d242edad6e9230c8f0ac"
 				},
 				{
 					"class": "explained",
@@ -1811,16 +1803,6 @@
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-1",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[0].ownedSessions",
-					"taskId": "task-1",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_1>\",\"backendRunId\":\"<SA_RUN_1>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-1\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -2116,7 +2098,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-11",
-					"replayed": "120be8f2d3187ac769395921ab08d9b3013380b00e2e0be9db1ce7ed3ebf659c"
+					"replayed": "af4b834e0757fd5224c9718d80e3e1fe0a82fb06c5b0fd7e7854c9d7cf9331a8"
 				},
 				{
 					"class": "explained",
@@ -2156,7 +2138,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-11",
-					"replayed": "120be8f2d3187ac769395921ab08d9b3013380b00e2e0be9db1ce7ed3ebf659c"
+					"replayed": "af4b834e0757fd5224c9718d80e3e1fe0a82fb06c5b0fd7e7854c9d7cf9331a8"
 				},
 				{
 					"class": "explained",
@@ -2206,7 +2188,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-12",
-					"replayed": "61211066d8f5c959c0170e5e0cd159dbc0f1bba6bb2a2e457ae83a970ba706b1"
+					"replayed": "cc8a96d5677295ec2640a8ec63a278efc943b092603ec48a02e1e3ff423b0913"
 				},
 				{
 					"class": "explained",
@@ -2246,7 +2228,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-12",
-					"replayed": "61211066d8f5c959c0170e5e0cd159dbc0f1bba6bb2a2e457ae83a970ba706b1"
+					"replayed": "cc8a96d5677295ec2640a8ec63a278efc943b092603ec48a02e1e3ff423b0913"
 				},
 				{
 					"class": "explained",
@@ -2296,7 +2278,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-13",
-					"replayed": "9e637f971f22418e5f5178e0b4a73d5869c7e1947c64fd68f48adfa02fb20027"
+					"replayed": "aaf8939a1eb69aed148b352e4ff89e1d5e5115b24c812e5c6cfd550409c0a8da"
 				},
 				{
 					"class": "explained",
@@ -2336,7 +2318,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-13",
-					"replayed": "9e637f971f22418e5f5178e0b4a73d5869c7e1947c64fd68f48adfa02fb20027"
+					"replayed": "aaf8939a1eb69aed148b352e4ff89e1d5e5115b24c812e5c6cfd550409c0a8da"
 				},
 				{
 					"class": "explained",
@@ -2386,7 +2368,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-4",
-					"replayed": "8aa8823d578701d61bbdf08f4d4c2e71303053876e64417c37959aa443262bc0"
+					"replayed": "d0302071a8d26fdda534332d81867e335264fadb5aff32a07f3982b423de9b1f"
 				},
 				{
 					"class": "explained",
@@ -2426,7 +2408,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-4",
-					"replayed": "8aa8823d578701d61bbdf08f4d4c2e71303053876e64417c37959aa443262bc0"
+					"replayed": "d0302071a8d26fdda534332d81867e335264fadb5aff32a07f3982b423de9b1f"
 				},
 				{
 					"class": "explained",
@@ -5604,12 +5586,12 @@
 				"Worker tool calls other than workflow_artifact reads (read/grep/find/ls on project files, web tools): they only shaped the recorded final text, which is replayed verbatim.",
 				"Pi session files: the replay reports the ownedSession locator the Pi adapter would report but creates no session directory.",
 				"Timing, poll counts, process ids and the Pi provider/model metadata of the recorded attempt (not part of the executor event contract).",
-				"Artifact delivery bound: 2 recorded read(s) returned more than 8192 chars. The replay starts the artifact MCP server with --max-output-chars 16777216 so these rows reproduce the recorded ledger (the recorded Pi worker received them whole). The stage-1 Pi adapter passes no limit, so the server default (8192) would cut them and mark the rows deliveryUnverified (docs/mcp.md \"Delivery bound\", R#9); a model would then re-read with a projection, which a replay cannot reproduce.",
+				"Artifact delivery bound: 2 recorded read(s) returned more than 8192 chars. The replay starts the artifact MCP server with --max-output-chars 16777216 so these rows reproduce the recorded ledger (the recorded Pi worker received them whole). A live Pi run launches the server with --max-output-chars 18432 (WP5b: Pi's declared 20480 minus its 1024 notice allowance and a 1024 margin), so 2 of them would be served as a first page; a model would then page on with offset (docs/mcp.md \"Paged reads\"), and those page calls and rows are not in the recording, so a replay cannot reproduce them.",
 				"Worker-filled web-source cache (worker-snapshots/<run>/web-source-cache): written by the removed workflow_web_* tools (C2); not restored."
 			],
 			"counts": {
 				"allowed": 578,
-				"explained": 517,
+				"explained": 506,
 				"unexplained": 0
 			},
 			"differences": [
@@ -5627,7 +5609,7 @@
 					"file": "run.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
-					"count": 58
+					"count": 47
 				},
 				{
 					"class": "allowed",
@@ -5916,7 +5898,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "d675d7c5f0ad9cae409776fb7c97439ffb8fd288bde0a6a478350e0671f3f0a0",
-					"replayed": "4ebedac5851ab6e4d05d627235c188e85ef79a77263b3c6f5d0815ba3b93c974",
+					"replayed": "387b21715042422ee9d00bc728eda3061f60b42a6d369737c4410c2288f8fe7f",
 					"count": 0
 				},
 				{
@@ -5976,7 +5958,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "f32560de6fc74ed1d1e79d9740fc557f9d31407f68bac9b8ea4e319ddd67372c",
-					"replayed": "4d3d4f524ab8036d1453afc24cd683342c41810af8936b1332ee186101340952",
+					"replayed": "793836ce26b771f045e5d2c79ceadbe26db28a6ba8abc04b5db7ea2fe9677c30",
 					"count": 0
 				},
 				{
@@ -6026,7 +6008,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "5a500e80efc6560f6a32af4a6a330a05eea49c2134df67fde7800f35b2e36488",
-					"replayed": "e7367951dbba74a667d97392517611294835d7d80d02315e15926147a72d8311",
+					"replayed": "537ae77272996ba9ad894b9bb20d3f17127db05c3a669beed23807db9bc7f6eb",
 					"count": 0
 				},
 				{
@@ -10118,7 +10100,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"adapterChecks\":false,\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-engine-only-67160… (400 chars, sha256 628e581caaa5)"
+					"replayed": "{\"descriptor\":{\"config\":{\"adapterChecks\":false,\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-engine-only-23146… (400 chars, sha256 be7c98a75bc1)"
 				},
 				{
 					"class": "allowed",
@@ -10824,7 +10806,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "580edd7675ddf244079926015b4af70456975f9ca1e3bb88f20b1415fede2d39"
+					"replayed": "85021b334662e8f2a8ad6bce55671fcbee9afb7387b0d242edad6e9230c8f0ac"
 				},
 				{
 					"class": "explained",
@@ -10864,7 +10846,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "580edd7675ddf244079926015b4af70456975f9ca1e3bb88f20b1415fede2d39"
+					"replayed": "85021b334662e8f2a8ad6bce55671fcbee9afb7387b0d242edad6e9230c8f0ac"
 				},
 				{
 					"class": "explained",
@@ -10905,16 +10887,6 @@
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-1",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[0].ownedSessions",
-					"taskId": "task-1",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_4>\",\"backendRunId\":\"<SA_RUN_4>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-1\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -11210,7 +11182,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-11",
-					"replayed": "120be8f2d3187ac769395921ab08d9b3013380b00e2e0be9db1ce7ed3ebf659c"
+					"replayed": "af4b834e0757fd5224c9718d80e3e1fe0a82fb06c5b0fd7e7854c9d7cf9331a8"
 				},
 				{
 					"class": "explained",
@@ -11250,7 +11222,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-11",
-					"replayed": "120be8f2d3187ac769395921ab08d9b3013380b00e2e0be9db1ce7ed3ebf659c"
+					"replayed": "af4b834e0757fd5224c9718d80e3e1fe0a82fb06c5b0fd7e7854c9d7cf9331a8"
 				},
 				{
 					"class": "explained",
@@ -11291,16 +11263,6 @@
 					"path": "tasks[2].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-11",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[2].ownedSessions",
-					"taskId": "task-11",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_5>\",\"backendRunId\":\"<SA_RUN_5>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-11\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -11563,7 +11525,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-12",
-					"replayed": "61211066d8f5c959c0170e5e0cd159dbc0f1bba6bb2a2e457ae83a970ba706b1"
+					"replayed": "cc8a96d5677295ec2640a8ec63a278efc943b092603ec48a02e1e3ff423b0913"
 				},
 				{
 					"class": "explained",
@@ -11603,7 +11565,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-12",
-					"replayed": "61211066d8f5c959c0170e5e0cd159dbc0f1bba6bb2a2e457ae83a970ba706b1"
+					"replayed": "cc8a96d5677295ec2640a8ec63a278efc943b092603ec48a02e1e3ff423b0913"
 				},
 				{
 					"class": "explained",
@@ -11644,16 +11606,6 @@
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-12",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[3].ownedSessions",
-					"taskId": "task-12",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_6>\",\"backendRunId\":\"<SA_RUN_6>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-12\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -11949,7 +11901,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-13",
-					"replayed": "9e637f971f22418e5f5178e0b4a73d5869c7e1947c64fd68f48adfa02fb20027"
+					"replayed": "aaf8939a1eb69aed148b352e4ff89e1d5e5115b24c812e5c6cfd550409c0a8da"
 				},
 				{
 					"class": "explained",
@@ -11989,7 +11941,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-13",
-					"replayed": "9e637f971f22418e5f5178e0b4a73d5869c7e1947c64fd68f48adfa02fb20027"
+					"replayed": "aaf8939a1eb69aed148b352e4ff89e1d5e5115b24c812e5c6cfd550409c0a8da"
 				},
 				{
 					"class": "explained",
@@ -12030,16 +11982,6 @@
 					"path": "tasks[4].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-13",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[4].ownedSessions",
-					"taskId": "task-13",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_7>\",\"backendRunId\":\"<SA_RUN_7>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-13\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -12335,7 +12277,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-4",
-					"replayed": "8aa8823d578701d61bbdf08f4d4c2e71303053876e64417c37959aa443262bc0"
+					"replayed": "d0302071a8d26fdda534332d81867e335264fadb5aff32a07f3982b423de9b1f"
 				},
 				{
 					"class": "explained",
@@ -12375,7 +12317,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-4",
-					"replayed": "8aa8823d578701d61bbdf08f4d4c2e71303053876e64417c37959aa443262bc0"
+					"replayed": "d0302071a8d26fdda534332d81867e335264fadb5aff32a07f3982b423de9b1f"
 				},
 				{
 					"class": "explained",
@@ -12416,16 +12358,6 @@
 					"path": "tasks[6].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-4",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[6].ownedSessions",
-					"taskId": "task-4",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_8>\",\"backendRunId\":\"<SA_RUN_8>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-4\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -12735,16 +12667,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[9].ownedSessions",
-					"taskId": "task-14",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_9>\",\"backendRunId\":\"<SA_RUN_9>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-14\",\"recordedAt\":\"<TS>\"}]"
-				},
-				{
-					"class": "explained",
 					"rule": "executor-exit-code",
 					"citation": "docs/core-port.md WP1b change log 1",
 					"file": "run.json",
@@ -13018,16 +12940,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[10].ownedSessions",
-					"taskId": "task-15",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_10>\",\"backendRunId\":\"<SA_RUN_10>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-15\",\"recordedAt\":\"<TS>\"}]"
-				},
-				{
-					"class": "explained",
 					"rule": "executor-exit-code",
 					"citation": "docs/core-port.md WP1b change log 1",
 					"file": "run.json",
@@ -13298,16 +13210,6 @@
 					"path": "tasks[11].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-16",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[11].ownedSessions",
-					"taskId": "task-16",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_2>\",\"backendRunId\":\"<SA_RUN_2>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-16\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -13595,16 +13497,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[13].ownedSessions",
-					"taskId": "task-18",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_1>\",\"backendRunId\":\"<SA_RUN_1>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-18\",\"recordedAt\":\"<TS>\"}]"
-				},
-				{
-					"class": "explained",
 					"rule": "executor-exit-code",
 					"citation": "docs/core-port.md WP1b change log 1",
 					"file": "run.json",
@@ -13886,16 +13778,6 @@
 					"path": "tasks[15].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-20",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[15].ownedSessions",
-					"taskId": "task-20",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_3>\",\"backendRunId\":\"<SA_RUN_3>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-20\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -14202,7 +14084,7 @@
 					"kind": "added",
 					"path": "tasks[19].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-9",
-					"replayed": "a0ce226c54d04976f62595c8fa018e2f17f8baf67f7632f538c4ac4f5945e463"
+					"replayed": "85573d7270df1fdf7966cb7d253dd2ab0b098d740957fd2670509f38ab078d06"
 				},
 				{
 					"class": "explained",
@@ -14242,7 +14124,7 @@
 					"kind": "added",
 					"path": "tasks[19].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-9",
-					"replayed": "a0ce226c54d04976f62595c8fa018e2f17f8baf67f7632f538c4ac4f5945e463"
+					"replayed": "85573d7270df1fdf7966cb7d253dd2ab0b098d740957fd2670509f38ab078d06"
 				},
 				{
 					"class": "explained",
@@ -14283,16 +14165,6 @@
 					"path": "tasks[19].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-9",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[19].ownedSessions",
-					"taskId": "task-9",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_11>\",\"backendRunId\":\"<SA_RUN_11>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-9\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -14602,7 +14474,7 @@
 					"kind": "changed",
 					"line": 8,
 					"recorded": "",
-					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
 				},
 				{
 					"class": "explained",
@@ -14693,7 +14565,7 @@
 					"kind": "changed",
 					"line": 8,
 					"recorded": "Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352)",
-					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
 				},
 				{
 					"class": "explained",
@@ -14744,7 +14616,7 @@
 					"kind": "changed",
 					"line": 8,
 					"recorded": "Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352)",
-					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
 				},
 				{
 					"class": "explained",
@@ -14795,7 +14667,7 @@
 					"kind": "changed",
 					"line": 8,
 					"recorded": "Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352)",
-					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
 				},
 				{
 					"class": "explained",
@@ -15075,7 +14947,7 @@
 					"kind": "changed",
 					"line": 8,
 					"recorded": "Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352)",
-					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
 				},
 				{
 					"class": "explained",
@@ -15168,7 +15040,7 @@
 					"kind": "changed",
 					"line": 8,
 					"recorded": "Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352)",
-					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
 				},
 				{
 					"class": "explained",

@@ -15,7 +15,7 @@ Original spec, Pi adapter request checks.
 | Worker launches served / recorded | 1 / 1 |
 | Artifact reads re-issued / recorded | 0 / 0 |
 | Differences: allowed | 76 |
-| Differences: explained | 49 |
+| Differences: explained | 48 |
 | Differences: unexplained | 0 |
 | Exact-match violations | 0 |
 
@@ -26,7 +26,6 @@ Original spec, Pi adapter request checks.
 | explained | `artifact-mcp-provenance` | 11 | docs/core-port.md WP4b change log 4 and "What launch provenance digests now"; WP4c-1 "Pi executor (WP6)" table (extension isolation, generated extension wrappers) |
 | explained | `executor-exit-code` | 2 | docs/core-port.md WP1b change log 1 |
 | explained | `executor-usage-contract` | 24 | docs/core-port.md WP1b change log 2 |
-| explained | `owned-sessions` | 1 | docs/core-port.md WP4c-1 "R#9, R#10, R#12, R#5" (R#10) and change log 8 |
 | explained | `run-capability-negotiation` | 1 | docs/core-port.md "WP4d — capability negotiation before launch" |
 | explained | `run-executor-record` | 1 | docs/core-port.md WP4c-1 "Executor selection" and change log 11 |
 | explained | `run-permission-mode` | 2 | docs/core-port.md WP4e permission modes; docs/permissions.md |
@@ -48,11 +47,11 @@ Original spec, Pi adapter request checks.
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 7aeb5d6695596995b9fda9c35f5ba36b4d0824dd821329d5883a032d04c2f4e4 |
+| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | ea76b3de16da36b6f5f6737a14f2f7f630d3792d42ea59eca5e46211798cc27d |
 | run.json | tasks[0].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | a25d9d0ffad76dcd1929cf3a932be7a38410da1095b27308fc4be62c61d68f95 |  |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 86edfa8303cb1608cad27159f5f3cfa0c3b6801e37c1aef6dd3d27bf46538cec |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 426f2ee367200ce5f5689699adabb1aba9106b57ab5279706d9ecf9f8719476f |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 7aeb5d6695596995b9fda9c35f5ba36b4d0824dd821329d5883a032d04c2f4e4 |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 3be0e9fe5086e42c9ca8dc73723ed4ed2d3286b5220ecb640a3d6d9734479e83 |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 12e2ccbe8646f29f5bbb16edc3aa5305efe752a431e29b464c3e6f65261a1fde |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | ea76b3de16da36b6f5f6737a14f2f7f630d3792d42ea59eca5e46211798cc27d |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | a25d9d0ffad76dcd1929cf3a932be7a38410da1095b27308fc4be62c61d68f95 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 1c571feaba54d772deca047a1a5a89af80dae392002c11a3c85612d924ab22f4 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"1c571feaba54d772deca047a1a5a89af80dae392002c11a3c85612d924ab22f4"} |  |
@@ -102,14 +101,6 @@ Original spec, Pi adapter request checks.
 
 </details>
 
-<details><summary>explained owned-sessions (1)</summary>
-
-| File | Path / line | Kind | Recorded | Replayed |
-|---|---|---|---|---|
-| run.json | tasks[0].ownedSessions | added |  | [{"backendAttemptId":"&lt;SA_ATTEMPT_1&gt;","backendRunId":"&lt;SA_RUN_1&gt;","executorId":"pi","kind":"pi-session-dir","locator":"&lt;HOME&gt;/.agent-workflow/executors/pi/sessions/pi-workflow.&lt;WF_RUN_1&gt;.task-1","recordedAt":"&lt;TS&gt;"}] |
-
-</details>
-
 <details><summary>explained run-capability-negotiation (1)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
@@ -122,7 +113,7 @@ Original spec, Pi adapter request checks.
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/minimal","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-minimal-original-69363/work/replay-trace.jsonl"},"contractVersion":… (355 chars, sha256 1d7f0c1d2254) |
+| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/minimal","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-minimal-original-30337/work/replay-trace.jsonl"},"contractVersion":… (355 chars, sha256 f69cfba5d7fc) |
 
 </details>
 
@@ -159,7 +150,7 @@ Original spec, Pi adapter request checks.
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| tasks/task-1/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
+| tasks/task-1/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe) |
 
 </details>
 
@@ -286,7 +277,7 @@ Original spec, Pi adapter request checks.
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×5 |  |  |
+| run.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×4 |  |  |
 | run.json | .agent-workflow/workflows | literal-renamed ×9 |  |  |
 | run.json | agent-workflow/runtime | literal-renamed ×2 |  |  |
 | supervisor.json | .agent-workflow/workflows | literal-renamed ×1 |  |  |

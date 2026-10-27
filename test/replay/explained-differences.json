@@ -17,7 +17,7 @@
 		{
 			"id": "owned-sessions",
 			"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-			"reason": "The terminal mapping records the session the executor kept (ownedSession on the terminal event) as tasks[].ownedSessions so retention can delete exactly those sessions. The Pi adapter reports a kept session for every requested session id; pi-workflow kept Pi sessions without recording them.",
+			"reason": "The terminal mapping records the session the executor kept (ownedSession on the terminal event) as tasks[].ownedSessions so retention can delete exactly those sessions. The Pi adapter reports a kept session for every requested session id; pi-workflow kept Pi sessions without recording them. Since WP12a (docs/core-port.md WP12a change log 1) the engine requests a kept session only with experimental same-session repair, so default replays show no such difference.",
 			"differences": [
 				{
 					"file": "^run\\.json$",

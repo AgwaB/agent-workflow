@@ -3979,11 +3979,14 @@ test("subagent launch retries rotate artifact-graph session ids", async () => {
 			await writeRunRecord(cwd, run);
 			await launchSubagentTask(cwd, run, task, compiled.tasks[0]);
 			assert.equal(launches.length, 1);
-			assert.match(launches[0].sessionId, /\.launch-retry-1$/);
-			assert.ok(launches[0].sessionId.length <= 64);
-			assert.match(launches[0].sessionId, /^[A-Za-z0-9._-]+$/);
-			assert.equal(task.backendHandle.sessionId, launches[0].sessionId);
-			assert.equal(task.backendFiles.sessionId, launches[0].sessionId);
+			// WP12a (D3): the rotated engine session id is the attempt identity; no CLI session is
+			// requested without experimental same-session repair.
+			assert.equal(launches[0].sessionId, undefined);
+			const sessionId = task.backendHandle.sessionId;
+			assert.match(sessionId, /\.launch-retry-1$/);
+			assert.ok(sessionId.length <= 64);
+			assert.match(sessionId, /^[A-Za-z0-9._-]+$/);
+			assert.equal(task.backendFiles.sessionId, sessionId);
 		} finally {
 			setTaskRuntimeApiForTests(undefined);
 		}
@@ -5959,8 +5962,9 @@ test("artifact graph output retry defaults to new session when same-session flag
 		assert.equal(launched.length, 2);
 		const baseSessionId = `agent-workflow.${started.runId}.task-1`;
 		const retrySessionId = `${baseSessionId}.retry-1`;
-		assert.equal(launched[0].sessionId, baseSessionId);
-		assert.equal(launched[1].sessionId, retrySessionId);
+		// WP12a (D3): without same-session repair no attempt asks to keep a CLI session.
+		assert.equal(launched[0].sessionId, undefined);
+		assert.equal(launched[1].sessionId, undefined);
 		const task = taskBySpec(completed, "main.main");
 		assert.equal(task.outputRetry.maxAttempts, 2);
 		assert.equal(task.outputRetry.repairMode, "new_session");

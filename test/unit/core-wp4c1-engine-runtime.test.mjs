@@ -113,7 +113,7 @@ test("two-stage workflow runs end to end: engine → task backend → durable wo
 		id: "wf-fake",
 		effectLog,
 		reads: [{ source: "a", artifact: "control" }],
-		ownSessions: true,
+		ownSessions: "always",
 	});
 	const specPath = await writeSpec(cwd, TWO_STAGE);
 	const started = await engine.runWorkflowSpec(specPath, cwd, {
@@ -200,9 +200,14 @@ test("two-stage workflow runs end to end: engine → task backend → durable wo
 	const bSubmitIndex = entries.indexOf(bSubmit);
 	assert.ok(aEffect >= 0 && aEffect < bSubmitIndex);
 
-	// R#10: owned worker sessions are recorded and pruning deletes exactly those.
+	// R#10: owned worker sessions are recorded; D3 (WP12a): the completed run already released
+	// them through deleteOwnedSession, so pruning has nothing left to delete.
 	const owned = persisted.tasks.flatMap((task) => task.ownedSessions ?? []);
 	assert.equal(owned.length, 2);
+	assert.deepEqual(
+		owned.map((entry) => entry.release?.outcome),
+		["deleted", "deleted"],
+	);
 	// The in-process supervisor (same pid as this test) may still be finishing after the run
 	// is terminal and can refresh its lease heartbeat. Prune correctly refuses a run whose
 	// supervisor looks alive, so wait for the supervisor lock to clear, age the lease records,
@@ -232,7 +237,7 @@ test("two-stage workflow runs end to end: engine → task backend → durable wo
 	}
 	assert.equal(pruned.deleted, true, JSON.stringify(summary));
 	assert.deepEqual(pruned.ownedSessions, {
-		deleted: 2,
+		deleted: 0,
 		notFound: 0,
 		unsupported: 0,
 	});

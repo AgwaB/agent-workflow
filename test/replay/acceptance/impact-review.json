@@ -146,11 +146,11 @@
 				"Worker tool calls other than workflow_artifact reads (read/grep/find/ls on project files, web tools): they only shaped the recorded final text, which is replayed verbatim.",
 				"Pi session files: the replay reports the ownedSession locator the Pi adapter would report but creates no session directory.",
 				"Timing, poll counts, process ids and the Pi provider/model metadata of the recorded attempt (not part of the executor event contract).",
-				"Artifact delivery bound: 6 recorded read(s) returned more than 8192 chars. The replay starts the artifact MCP server with --max-output-chars 16777216 so these rows reproduce the recorded ledger (the recorded Pi worker received them whole). The stage-1 Pi adapter passes no limit, so the server default (8192) would cut them and mark the rows deliveryUnverified (docs/mcp.md \"Delivery bound\", R#9); a model would then re-read with a projection, which a replay cannot reproduce."
+				"Artifact delivery bound: 6 recorded read(s) returned more than 8192 chars. The replay starts the artifact MCP server with --max-output-chars 16777216 so these rows reproduce the recorded ledger (the recorded Pi worker received them whole). A live Pi run launches the server with --max-output-chars 18432 (WP5b: Pi's declared 20480 minus its 1024 notice allowance and a 1024 margin), so 0 of them would be served as a first page; a model would then page on with offset (docs/mcp.md \"Paged reads\"), and those page calls and rows are not in the recording, so a replay cannot reproduce them."
 			],
 			"counts": {
 				"allowed": 597,
-				"explained": 478,
+				"explained": 466,
 				"unexplained": 0
 			},
 			"differences": [
@@ -176,7 +176,7 @@
 					"file": "run.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
-					"count": 60
+					"count": 48
 				},
 				{
 					"class": "allowed",
@@ -4763,7 +4763,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/impact-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-impact-review-original-68866/work/replay-trace.jsonl\"},\"contr… (367 chars, sha256 84fd7bd4ca17)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/impact-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-impact-review-original-26598/work/replay-trace.jsonl\"},\"contr… (367 chars, sha256 a80229bb1f51)"
 				},
 				{
 					"class": "explained",
@@ -4782,7 +4782,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "90be0270cf33737cd2ad4dccab26bcce8155c49957da26a26c807bc51727246e"
+					"replayed": "2244019f990642371709c398ea67d007be87cfa3115235c64917f1f41b5c8d8e"
 				},
 				{
 					"class": "explained",
@@ -4802,7 +4802,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-1",
-					"replayed": "221a0856db72bbd43322185fed5667ba760a9205117d8f78e34c512da24c261e"
+					"replayed": "2840e9e00b695c6e5e87048dfde6044f431c7f85dce08300a688fb7dd91d6dd7"
 				},
 				{
 					"class": "explained",
@@ -4812,7 +4812,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-1",
-					"replayed": "fcd0c2c9b50e36f770854cc1328e814d9f84990bebc1e99cb684dbe617c75a98"
+					"replayed": "98fdcc34761895a84bd4405bb6ed98c6d7e4a6965709956132242a6e61867a2b"
 				},
 				{
 					"class": "explained",
@@ -4822,7 +4822,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "90be0270cf33737cd2ad4dccab26bcce8155c49957da26a26c807bc51727246e"
+					"replayed": "2244019f990642371709c398ea67d007be87cfa3115235c64917f1f41b5c8d8e"
 				},
 				{
 					"class": "explained",
@@ -4863,16 +4863,6 @@
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-1",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[0].ownedSessions",
-					"taskId": "task-1",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_1>\",\"backendRunId\":\"<SA_RUN_1>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-1\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -5135,7 +5125,7 @@
 					"kind": "added",
 					"path": "tasks[1].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-2",
-					"replayed": "294d8c99b1e19f636240e0e939f5669318f5dc72e414e4db47bafff06f64e2a4"
+					"replayed": "97af895ca9e6ff9d108d4254dd3ccdbee4f9a8ac1078d2a1f1c28021e6ed729d"
 				},
 				{
 					"class": "explained",
@@ -5155,7 +5145,7 @@
 					"kind": "added",
 					"path": "tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-2",
-					"replayed": "45ca26182d42f747cbdbd43c9884c73be86522c95f6118e9fea81d91986f5931"
+					"replayed": "73feeb7abb4367e7cd4eeb5a3bf6c81cffdc70467c92c187a56d8ad50c7265c5"
 				},
 				{
 					"class": "explained",
@@ -5165,7 +5155,7 @@
 					"kind": "added",
 					"path": "tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-2",
-					"replayed": "17ad7336476be5db713a290f05a428e16d1070e2b585b2ba7cf92023b39c5071"
+					"replayed": "c7ae96d8e234bf4311af0f78a246e5c29f12250dba8b35350c4b98769937e020"
 				},
 				{
 					"class": "explained",
@@ -5175,7 +5165,7 @@
 					"kind": "added",
 					"path": "tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-2",
-					"replayed": "294d8c99b1e19f636240e0e939f5669318f5dc72e414e4db47bafff06f64e2a4"
+					"replayed": "97af895ca9e6ff9d108d4254dd3ccdbee4f9a8ac1078d2a1f1c28021e6ed729d"
 				},
 				{
 					"class": "explained",
@@ -5216,16 +5206,6 @@
 					"path": "tasks[1].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-2",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[1].ownedSessions",
-					"taskId": "task-2",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_2>\",\"backendRunId\":\"<SA_RUN_2>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-2\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -5488,7 +5468,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-3",
-					"replayed": "7354f425875e03515f44bbd12a8f94e1a070397991d6819255c0688f00a7b56b"
+					"replayed": "51106994a2cdf27e1f9feae52307e4c9f5cad58525be3741f06bf2edbd1083c8"
 				},
 				{
 					"class": "explained",
@@ -5508,7 +5488,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-3",
-					"replayed": "f4973fc8bcff174d58db3cecb638e4447bd16a7cdf1c1b016fe55f9e9cc2f482"
+					"replayed": "f91425bdf9535056f698ae5a357435c38b0652a6cb75fe583cd55ae81fbe65f1"
 				},
 				{
 					"class": "explained",
@@ -5518,7 +5498,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-3",
-					"replayed": "d5d13f7c624ffb066bba5832e36ef910ba079509b05b1d58e01c95650543492a"
+					"replayed": "7d24846b949c9c601951934667130cc87399bac27a188687c33523183e244b2f"
 				},
 				{
 					"class": "explained",
@@ -5528,7 +5508,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-3",
-					"replayed": "7354f425875e03515f44bbd12a8f94e1a070397991d6819255c0688f00a7b56b"
+					"replayed": "51106994a2cdf27e1f9feae52307e4c9f5cad58525be3741f06bf2edbd1083c8"
 				},
 				{
 					"class": "explained",
@@ -5569,16 +5549,6 @@
 					"path": "tasks[2].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-3",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[2].ownedSessions",
-					"taskId": "task-3",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_3>\",\"backendRunId\":\"<SA_RUN_3>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-3\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -5874,7 +5844,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-4",
-					"replayed": "1274b9ececfe562d3fadf0896c7489271bc9529153fa718ef00f3b2e565af4ac"
+					"replayed": "c415fda75c35986b6a1d06e4aaef3415b0215000a9da01316f87845df7b01e01"
 				},
 				{
 					"class": "explained",
@@ -5894,7 +5864,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-4",
-					"replayed": "4d7623559321ca47222ff2f348cde1c82d5142b3d17a0f04968122810c614b22"
+					"replayed": "fe30c3bfdfcf8f0d9e4e019eeb72e62d12baa79914684b82553cd64c9e1ff87c"
 				},
 				{
 					"class": "explained",
@@ -5904,7 +5874,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-4",
-					"replayed": "ea4a7d63e123f5ad2f5f7a965db7575b9caefbfe2cce9c2fa79962be2408f537"
+					"replayed": "615e8e2dcd53871086d1161d63c48af25cc26c0051d4559e50e29fc246cc2493"
 				},
 				{
 					"class": "explained",
@@ -5914,7 +5884,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-4",
-					"replayed": "1274b9ececfe562d3fadf0896c7489271bc9529153fa718ef00f3b2e565af4ac"
+					"replayed": "c415fda75c35986b6a1d06e4aaef3415b0215000a9da01316f87845df7b01e01"
 				},
 				{
 					"class": "explained",
@@ -5955,16 +5925,6 @@
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-4",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[3].ownedSessions",
-					"taskId": "task-4",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_4>\",\"backendRunId\":\"<SA_RUN_4>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-4\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -6227,7 +6187,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-5",
-					"replayed": "23e10e07a4b084d63b60bd4aa82950f14b090bef539b4f9401f44ea7042f9876"
+					"replayed": "94f152ac954773ad6c4e268a8b6641b5c68f01ea40071e4dd0bc27630aa2d07b"
 				},
 				{
 					"class": "explained",
@@ -6247,7 +6207,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-5",
-					"replayed": "1a975cf3eeda76a17b4c2ec298d9ae71d5074fd4b45896ccc697840bca548c70"
+					"replayed": "83f5d39da2d2135dba196e64d254b3729bc52ec67fed2c9fd56d48e41df1b42f"
 				},
 				{
 					"class": "explained",
@@ -6257,7 +6217,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-5",
-					"replayed": "dbdc4bf16036e8f96673230cf8c2d4915efe26af4e22b5ce3acf6ba357d53634"
+					"replayed": "1df98725ec964a25af888079d499b5b5b868babff0cd7c57a614d40dc1242815"
 				},
 				{
 					"class": "explained",
@@ -6267,7 +6227,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-5",
-					"replayed": "23e10e07a4b084d63b60bd4aa82950f14b090bef539b4f9401f44ea7042f9876"
+					"replayed": "94f152ac954773ad6c4e268a8b6641b5c68f01ea40071e4dd0bc27630aa2d07b"
 				},
 				{
 					"class": "explained",
@@ -6308,16 +6268,6 @@
 					"path": "tasks[4].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-5",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[4].ownedSessions",
-					"taskId": "task-5",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_5>\",\"backendRunId\":\"<SA_RUN_5>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-5\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -6580,7 +6530,7 @@
 					"kind": "added",
 					"path": "tasks[5].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-6",
-					"replayed": "2889db27e0708d4e1442516075ae12b7a01cbb3c5686eb3101ce690bac1047d9"
+					"replayed": "d1547a2bb5d4b7ffa7e865d4e479a1f30ad65deefe9e61fb4a90f460d0bc7620"
 				},
 				{
 					"class": "explained",
@@ -6600,7 +6550,7 @@
 					"kind": "added",
 					"path": "tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-6",
-					"replayed": "924e04d6ece997407249864de584eeef9e131817e7403286814f28ae50bb59d2"
+					"replayed": "ce9bb6c1fc953d971782a90ab6ab4c158ac488d2923ace560f22be53fedcf73b"
 				},
 				{
 					"class": "explained",
@@ -6610,7 +6560,7 @@
 					"kind": "added",
 					"path": "tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-6",
-					"replayed": "33cb6be484011b5eb75db6dcf720d2b64e658a33172a07d230eb98c7c0b72267"
+					"replayed": "3e5ce8fecef616010e70bc2c1006f7d92407db61f7e57531bacc79bd9238ec93"
 				},
 				{
 					"class": "explained",
@@ -6620,7 +6570,7 @@
 					"kind": "added",
 					"path": "tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-6",
-					"replayed": "2889db27e0708d4e1442516075ae12b7a01cbb3c5686eb3101ce690bac1047d9"
+					"replayed": "d1547a2bb5d4b7ffa7e865d4e479a1f30ad65deefe9e61fb4a90f460d0bc7620"
 				},
 				{
 					"class": "explained",
@@ -6661,16 +6611,6 @@
 					"path": "tasks[5].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-6",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[5].ownedSessions",
-					"taskId": "task-6",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_6>\",\"backendRunId\":\"<SA_RUN_6>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-6\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -6933,7 +6873,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "293fe834593cf33d30685c1a7cdc3d564ffd0fd099033caf3b94c83a16ea1601"
+					"replayed": "a9a8d31e539c89d3826ec9905890a28ec93f656a0c059a98b863810b06e49bfb"
 				},
 				{
 					"class": "explained",
@@ -6953,7 +6893,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-7",
-					"replayed": "183d0271f2b502c023a40684d2ab1c87134dfd459ef550822f1cf1a144eb4c66"
+					"replayed": "154fcd89ff70e5fe1ae3c79903d97e921a575dc6418e824df64f4c9c8a13dd83"
 				},
 				{
 					"class": "explained",
@@ -6963,7 +6903,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-7",
-					"replayed": "f651eace24454dab3eaaf5ca47e72eca506c74d8c8e34b2a6e5daf2d22b7833e"
+					"replayed": "bde2db17ca347aec90e115c5069a955adefcb8fed57d613967386e63ff895d70"
 				},
 				{
 					"class": "explained",
@@ -6973,7 +6913,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "293fe834593cf33d30685c1a7cdc3d564ffd0fd099033caf3b94c83a16ea1601"
+					"replayed": "a9a8d31e539c89d3826ec9905890a28ec93f656a0c059a98b863810b06e49bfb"
 				},
 				{
 					"class": "explained",
@@ -7014,16 +6954,6 @@
 					"path": "tasks[6].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-7",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[6].ownedSessions",
-					"taskId": "task-7",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_7>\",\"backendRunId\":\"<SA_RUN_7>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-7\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -7319,7 +7249,7 @@
 					"kind": "added",
 					"path": "tasks[7].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-8",
-					"replayed": "2f47e3d15b226b30adb9396a9ef6d4f6a1155fdb91b26104aaddb9aab071f4ce"
+					"replayed": "d08e52726d94bc547c13587fb64aadfe108a3ba1e4c478c232c5afdea19196c5"
 				},
 				{
 					"class": "explained",
@@ -7339,7 +7269,7 @@
 					"kind": "added",
 					"path": "tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-8",
-					"replayed": "dab948cab8b4cff943c78a9fb431839f2ee055647bbc38aa278f7f9a07234e15"
+					"replayed": "623c6b76fefd14b1ef86436e4ea81ca7f3c6eaf58e454b8829e2740cc5f833d3"
 				},
 				{
 					"class": "explained",
@@ -7349,7 +7279,7 @@
 					"kind": "added",
 					"path": "tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-8",
-					"replayed": "35481b5508ccf3b35d6b484649eba9fbbe586e40429c51ae9e13d9ff60df861f"
+					"replayed": "bae574c1a9e2ee4cac45b956bbe63c91904c00239f489df10d09435af16173ec"
 				},
 				{
 					"class": "explained",
@@ -7359,7 +7289,7 @@
 					"kind": "added",
 					"path": "tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-8",
-					"replayed": "2f47e3d15b226b30adb9396a9ef6d4f6a1155fdb91b26104aaddb9aab071f4ce"
+					"replayed": "d08e52726d94bc547c13587fb64aadfe108a3ba1e4c478c232c5afdea19196c5"
 				},
 				{
 					"class": "explained",
@@ -7400,16 +7330,6 @@
 					"path": "tasks[7].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-8",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[7].ownedSessions",
-					"taskId": "task-8",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_8>\",\"backendRunId\":\"<SA_RUN_8>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-8\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -7672,7 +7592,7 @@
 					"kind": "added",
 					"path": "tasks[8].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-9",
-					"replayed": "77a2bd53331423c1e565af3d750536653a960f205a08b281116bcf454f97b3d2"
+					"replayed": "5ef690d159df567d01af1088130ce476ce77c6efcb1f5d78ab176cc25866cb84"
 				},
 				{
 					"class": "explained",
@@ -7692,7 +7612,7 @@
 					"kind": "added",
 					"path": "tasks[8].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-9",
-					"replayed": "8f3a3800b866e2e26979e09679f52fdae8c9db807773a69727b24f46a9d7fc0e"
+					"replayed": "216e01203e4b0e3d3ae20aecdb6ea350d60360cfad7bd6d9ecbf665c62a93f83"
 				},
 				{
 					"class": "explained",
@@ -7702,7 +7622,7 @@
 					"kind": "added",
 					"path": "tasks[8].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-9",
-					"replayed": "c6667b9e81e07de13cf56c1bd19d75680263ec9dc9d3c64201bde9d123ee6b24"
+					"replayed": "f9c5687dafa6d00900856deafd2cbc78d6e9470e9df373f2a0cf999f0f4dbb0b"
 				},
 				{
 					"class": "explained",
@@ -7712,7 +7632,7 @@
 					"kind": "added",
 					"path": "tasks[8].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-9",
-					"replayed": "77a2bd53331423c1e565af3d750536653a960f205a08b281116bcf454f97b3d2"
+					"replayed": "5ef690d159df567d01af1088130ce476ce77c6efcb1f5d78ab176cc25866cb84"
 				},
 				{
 					"class": "explained",
@@ -7753,16 +7673,6 @@
 					"path": "tasks[8].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-9",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[8].ownedSessions",
-					"taskId": "task-9",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_9>\",\"backendRunId\":\"<SA_RUN_9>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-9\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -8058,7 +7968,7 @@
 					"kind": "added",
 					"path": "tasks[9].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-10",
-					"replayed": "9c9d89d46301915a8eb8099dc49fa8f13cec42590f35ca2361e43d764f99e47a"
+					"replayed": "180d6789d0892272714b00954162cdcf272a0b9b0af25bc3f79f2a6305505346"
 				},
 				{
 					"class": "explained",
@@ -8078,7 +7988,7 @@
 					"kind": "added",
 					"path": "tasks[9].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-10",
-					"replayed": "e02bcf07a0423c91d9c44be2496a56e6695bdfe9e0b6e8276a19305e70729c34"
+					"replayed": "f5e3087219fd75c9e6f6025b0fc567d39eb655ae2b7d1b0ad2738299fb16d79c"
 				},
 				{
 					"class": "explained",
@@ -8088,7 +7998,7 @@
 					"kind": "added",
 					"path": "tasks[9].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-10",
-					"replayed": "c480479cfb11ae60a7b5b056c290014a48d8dfc8a23560ffc5c53d830e491d18"
+					"replayed": "a185223a6402ef6210d2569d1d920e271a955dcd805aabc660a961914fafa370"
 				},
 				{
 					"class": "explained",
@@ -8098,7 +8008,7 @@
 					"kind": "added",
 					"path": "tasks[9].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-10",
-					"replayed": "9c9d89d46301915a8eb8099dc49fa8f13cec42590f35ca2361e43d764f99e47a"
+					"replayed": "180d6789d0892272714b00954162cdcf272a0b9b0af25bc3f79f2a6305505346"
 				},
 				{
 					"class": "explained",
@@ -8139,16 +8049,6 @@
 					"path": "tasks[9].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-10",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[9].ownedSessions",
-					"taskId": "task-10",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_10>\",\"backendRunId\":\"<SA_RUN_10>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-10\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -8444,7 +8344,7 @@
 					"kind": "added",
 					"path": "tasks[10].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-11",
-					"replayed": "2798f1e7ab2bf69ddeff99772118a05785ed512d3b5dbe28be0d7125fe142806"
+					"replayed": "80f76c65acbf22e98f43d194a6d73476cdfb7db6fbc5689bc82479df9a160f00"
 				},
 				{
 					"class": "explained",
@@ -8464,7 +8364,7 @@
 					"kind": "added",
 					"path": "tasks[10].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-11",
-					"replayed": "a39b747d24bd6ef8cb929027854ff34d9c6043c96b4d6231ce134aa85342b526"
+					"replayed": "9e6ef9a8e5fc567d54ca29f3582cf3faaa6d5a2e9d6e0b208b5c5960201058e2"
 				},
 				{
 					"class": "explained",
@@ -8474,7 +8374,7 @@
 					"kind": "added",
 					"path": "tasks[10].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-11",
-					"replayed": "60a190f7fba49f0eb4375794e8345bc334e92c22f96dc5032da29686e2b281bb"
+					"replayed": "a603253268d0ad276713adb9d66de74da610d37aa060dd404215e79ff53fb4dc"
 				},
 				{
 					"class": "explained",
@@ -8484,7 +8384,7 @@
 					"kind": "added",
 					"path": "tasks[10].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-11",
-					"replayed": "2798f1e7ab2bf69ddeff99772118a05785ed512d3b5dbe28be0d7125fe142806"
+					"replayed": "80f76c65acbf22e98f43d194a6d73476cdfb7db6fbc5689bc82479df9a160f00"
 				},
 				{
 					"class": "explained",
@@ -8525,16 +8425,6 @@
 					"path": "tasks[10].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-11",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[10].ownedSessions",
-					"taskId": "task-11",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_11>\",\"backendRunId\":\"<SA_RUN_11>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-11\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -8797,7 +8687,7 @@
 					"kind": "added",
 					"path": "tasks[11].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-12",
-					"replayed": "6b979e1d127f1416d837386feb7d28c707def6471f4d08c0f40a9cf8b135129f"
+					"replayed": "a48baa1f8e247ec9dc880a70bc48d20c45c0b67cfaf157a4e5c773a9f2de530f"
 				},
 				{
 					"class": "explained",
@@ -8817,7 +8707,7 @@
 					"kind": "added",
 					"path": "tasks[11].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-12",
-					"replayed": "25a6735445789716a0f8271ec35abd125a440c39aac56d33f6b2512cf313f472"
+					"replayed": "92cc35648409a2f069641b20dfea9293800b5b330053ebdbcd18ba06ee5f9125"
 				},
 				{
 					"class": "explained",
@@ -8827,7 +8717,7 @@
 					"kind": "added",
 					"path": "tasks[11].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-12",
-					"replayed": "6c043b56c205326ce231e3bc38fad044b4bcbd6163e4b3ed26747d46134bced4"
+					"replayed": "4ffd1e9a48909c243ab06f806d5db7c5d1cff44ec944ce186bcd44ef7838f23c"
 				},
 				{
 					"class": "explained",
@@ -8837,7 +8727,7 @@
 					"kind": "added",
 					"path": "tasks[11].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-12",
-					"replayed": "6b979e1d127f1416d837386feb7d28c707def6471f4d08c0f40a9cf8b135129f"
+					"replayed": "a48baa1f8e247ec9dc880a70bc48d20c45c0b67cfaf157a4e5c773a9f2de530f"
 				},
 				{
 					"class": "explained",
@@ -8878,16 +8768,6 @@
 					"path": "tasks[11].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-12",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[11].ownedSessions",
-					"taskId": "task-12",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_12>\",\"backendRunId\":\"<SA_RUN_12>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-12\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -9197,7 +9077,7 @@
 					"kind": "changed",
 					"line": 8,
 					"recorded": "",
-					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
 				},
 				{
 					"class": "explained",
@@ -9241,7 +9121,7 @@
 					"kind": "changed",
 					"line": 8,
 					"recorded": "",
-					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
 				},
 				{
 					"class": "explained",
@@ -9285,7 +9165,7 @@
 					"kind": "changed",
 					"line": 8,
 					"recorded": "",
-					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
 				},
 				{
 					"class": "explained",
@@ -9329,7 +9209,7 @@
 					"kind": "changed",
 					"line": 8,
 					"recorded": "",
-					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
 				},
 				{
 					"class": "explained",
@@ -9409,7 +9289,7 @@
 					"kind": "changed",
 					"line": 8,
 					"recorded": "",
-					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
 				},
 				{
 					"class": "explained",
@@ -9453,7 +9333,7 @@
 					"kind": "changed",
 					"line": 8,
 					"recorded": "",
-					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
 				},
 				{
 					"class": "explained",
@@ -9497,7 +9377,7 @@
 					"kind": "changed",
 					"line": 8,
 					"recorded": "",
-					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
 				},
 				{
 					"class": "explained",
@@ -9541,7 +9421,7 @@
 					"kind": "changed",
 					"line": 8,
 					"recorded": "",
-					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
 				},
 				{
 					"class": "explained",
@@ -9585,7 +9465,7 @@
 					"kind": "changed",
 					"line": 8,
 					"recorded": "",
-					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
 				},
 				{
 					"class": "explained",
@@ -9629,7 +9509,7 @@
 					"kind": "changed",
 					"line": 8,
 					"recorded": "",
-					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
 				},
 				{
 					"class": "explained",
@@ -9673,7 +9553,7 @@
 					"kind": "changed",
 					"line": 8,
 					"recorded": "",
-					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
 				},
 				{
 					"class": "explained",
@@ -9717,7 +9597,7 @@
 					"kind": "changed",
 					"line": 8,
 					"recorded": "",
-					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
 				},
 				{
 					"class": "explained",

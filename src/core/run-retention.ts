@@ -23,6 +23,7 @@ import {
 	workflowsRoot,
 } from "./store.js";
 import { type ExecutorRegistry, loadExecutor } from "../sdk/descriptor.js";
+import { ownedSessionReleased } from "./owned-session-release.js";
 import type { WorkflowRunRecord, WorkflowRunStatus } from "./types.js";
 
 export interface WorkflowPruneOptions {
@@ -722,7 +723,10 @@ export async function deleteRunOwnedSessions(
 	registry?: ExecutorRegistry,
 ): Promise<NonNullable<WorkflowPruneRun["ownedSessions"]>> {
 	const result = { deleted: 0, notFound: 0, unsupported: 0 };
-	const sessions = run.tasks.flatMap((task) => task.ownedSessions ?? []);
+	// WP12a: sessions the engine already released (deleted or found absent) are not retried.
+	const sessions = run.tasks
+		.flatMap((task) => task.ownedSessions ?? [])
+		.filter((session) => !ownedSessionReleased(session));
 	if (sessions.length === 0) return result;
 	const descriptor = run.executor?.descriptor;
 	if (descriptor === undefined)

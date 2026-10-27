@@ -1292,3 +1292,32 @@ details: docs/mcp.md "Paged reads" and "Measured limits".
   probe summary → run → `preparedMcpServers`; provenance digest equals the launched spec's digest.
 - Updated: `mcp-artifact-delivery.test.mjs` and `mcp-artifact-conformance.test.mjs` (whole reads page,
   projections still cut), conformance kit tests (fake, Pi, Codex justified skip).
+
+## WP12a — stage-1 closure fixes
+
+Fixes for owner-decision violations and live bundle 3 findings (docs/live-acceptance-stage1.md, open
+problems 1–6, 10).
+
+### WP12a change log (behavior-relevant)
+
+1. **Worker sessions are not kept by default (D3, R#10).** `task-backend.ts` still derives the engine
+   session id (`agent-workflow.<run>.<task>…`, launch provenance and `backendFiles`), but passes it to
+   the executor as `SubmitRequest.sessionId` only when `workflowTaskKeepsSession(task)`
+   (`owned-session-release.ts`): artifact-graph task with experimental same-session repair on
+   (`AGENT_WORKFLOW_EXPERIMENTAL_SAME_SESSION_REPAIR`, the only path that continues a kept session;
+   with it on, attempts keep sessions as in pi-workflow). Without it no attempt keeps one: output
+   repairs, launch retries and resumes always start fresh sessions (`.retry-N`, `.launch-retry-N`,
+   `.resume-N` stay the attempt identities). Without a session id the adapters run without session
+   persistence (Claude `--no-session-persistence`, Codex `ephemeral: true`, Pi `--no-session`), so they
+   report no `ownedSession`. `releaseUnneededOwnedSessions(run)` runs at the end of every refresh and
+   schedule pass (under the run lease) and deletes, through the run executor's `deleteOwnedSession`,
+   exactly the `task.ownedSessions` entries of completed/skipped tasks, and every remaining entry once
+   the run is completed or failed. Blocked and interrupted runs keep the sessions of their
+   failed/blocked/interrupted tasks until resolved or pruned. Each handled entry gets
+   `release: {at, outcome: deleted | not_found | unsupported | refused | failed, error?}`; a session
+   recorded for another executor id is `refused` and never passed on. `prune` skips entries already
+   `deleted`/`not_found` and retries the rest. Replay: `owned-sessions` differences disappear (no
+   session is requested); the explained entry stays for runs with same-session repair on.
+   Tests: `core-wp12a-worker-sessions.test.mjs`; pi-workflow-ported tests that asserted a session id
+   on every runtime launch (`core-unit-artifact-web`, `core-unit-engine-store`) now assert none
+   without the flag and the rotated identity on `backendFiles`/`backendHandle`.

@@ -1256,6 +1256,16 @@ export interface WorkflowTaskOwnedSessionRecord {
 	backendRunId: string;
 	backendAttemptId: string;
 	recordedAt: string;
+	/**
+	 * WP12a (D3): the engine released this session once no attempt could use it again (task
+	 * completed/skipped, or run completed/failed). `deleted`/`not_found`: gone; `unsupported`: the
+	 * executor has no deleteOwnedSession; `refused`/`failed`: kept, prune retries.
+	 */
+	release?: {
+		at: string;
+		outcome: "deleted" | "not_found" | "unsupported" | "refused" | "failed";
+		error?: string;
+	};
 }
 
 export interface WorkflowTaskRunRecord {

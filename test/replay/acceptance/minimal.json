@@ -39,7 +39,7 @@
 			],
 			"counts": {
 				"allowed": 76,
-				"explained": 49,
+				"explained": 48,
 				"unexplained": 0
 			},
 			"differences": [
@@ -49,7 +49,7 @@
 					"file": "run.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
-					"count": 5
+					"count": 4
 				},
 				{
 					"class": "allowed",
@@ -660,7 +660,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/minimal\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-minimal-original-69363/work/replay-trace.jsonl\"},\"contractVersion\":… (355 chars, sha256 1d7f0c1d2254)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/minimal\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-minimal-original-30337/work/replay-trace.jsonl\"},\"contractVersion\":… (355 chars, sha256 f69cfba5d7fc)"
 				},
 				{
 					"class": "explained",
@@ -679,7 +679,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "7aeb5d6695596995b9fda9c35f5ba36b4d0824dd821329d5883a032d04c2f4e4"
+					"replayed": "ea76b3de16da36b6f5f6737a14f2f7f630d3792d42ea59eca5e46211798cc27d"
 				},
 				{
 					"class": "explained",
@@ -699,7 +699,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-1",
-					"replayed": "86edfa8303cb1608cad27159f5f3cfa0c3b6801e37c1aef6dd3d27bf46538cec"
+					"replayed": "3be0e9fe5086e42c9ca8dc73723ed4ed2d3286b5220ecb640a3d6d9734479e83"
 				},
 				{
 					"class": "explained",
@@ -709,7 +709,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-1",
-					"replayed": "426f2ee367200ce5f5689699adabb1aba9106b57ab5279706d9ecf9f8719476f"
+					"replayed": "12e2ccbe8646f29f5bbb16edc3aa5305efe752a431e29b464c3e6f65261a1fde"
 				},
 				{
 					"class": "explained",
@@ -719,7 +719,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "7aeb5d6695596995b9fda9c35f5ba36b4d0824dd821329d5883a032d04c2f4e4"
+					"replayed": "ea76b3de16da36b6f5f6737a14f2f7f630d3792d42ea59eca5e46211798cc27d"
 				},
 				{
 					"class": "explained",
@@ -760,16 +760,6 @@
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-1",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[0].ownedSessions",
-					"taskId": "task-1",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_1>\",\"backendRunId\":\"<SA_RUN_1>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-1\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -1129,7 +1119,7 @@
 					"kind": "changed",
 					"line": 8,
 					"recorded": "",
-					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
 				},
 				{
 					"class": "explained",

@@ -140,8 +140,8 @@
 				"Timing, poll counts, process ids and the Pi provider/model metadata of the recorded attempt (not part of the executor event contract)."
 			],
 			"counts": {
-				"allowed": 587,
-				"explained": 363,
+				"allowed": 589,
+				"explained": 351,
 				"unexplained": 0
 			},
 			"differences": [
@@ -167,7 +167,7 @@
 					"file": "run.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
-					"count": 60
+					"count": 48
 				},
 				{
 					"class": "allowed",
@@ -582,6 +582,22 @@
 					"rule": "host-path-digest",
 					"file": "run.json",
 					"path": "tasks[].launchBootstrap.records[].effectivePolicy.toolProvidersSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "supervisor-progress-snapshot",
+					"file": "supervisor.json",
+					"path": "taskStatusCounts.completed",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "supervisor-progress-snapshot",
+					"file": "supervisor.json",
+					"path": "taskStatusCounts.running",
 					"kind": "digest-renamed",
 					"count": 1
 				},
@@ -4674,7 +4690,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-review-original-67932/work/replay-trace.jsonl\"},\"c… (371 chars, sha256 36744f328d16)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-review-original-24701/work/replay-trace.jsonl\"},\"c… (371 chars, sha256 602c88220d9d)"
 				},
 				{
 					"class": "explained",
@@ -4694,16 +4710,6 @@
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-1",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[0].ownedSessions",
-					"taskId": "task-1",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_1>\",\"backendRunId\":\"<SA_RUN_1>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-1\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -4970,16 +4976,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[2].ownedSessions",
-					"taskId": "task-9",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_2>\",\"backendRunId\":\"<SA_RUN_2>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-9\",\"recordedAt\":\"<TS>\"}]"
-				},
-				{
-					"class": "explained",
 					"rule": "executor-exit-code",
 					"citation": "docs/core-port.md WP1b change log 1",
 					"file": "run.json",
@@ -5240,16 +5236,6 @@
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-10",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[3].ownedSessions",
-					"taskId": "task-10",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_3>\",\"backendRunId\":\"<SA_RUN_3>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-10\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -5549,16 +5535,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[4].ownedSessions",
-					"taskId": "task-11",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_4>\",\"backendRunId\":\"<SA_RUN_4>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-11\",\"recordedAt\":\"<TS>\"}]"
-				},
-				{
-					"class": "explained",
 					"rule": "executor-exit-code",
 					"citation": "docs/core-port.md WP1b change log 1",
 					"file": "run.json",
@@ -5822,16 +5798,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[7].ownedSessions",
-					"taskId": "task-12",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_5>\",\"backendRunId\":\"<SA_RUN_5>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-12\",\"recordedAt\":\"<TS>\"}]"
-				},
-				{
-					"class": "explained",
 					"rule": "executor-exit-code",
 					"citation": "docs/core-port.md WP1b change log 1",
 					"file": "run.json",
@@ -6092,16 +6058,6 @@
 					"path": "tasks[8].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-13",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[8].ownedSessions",
-					"taskId": "task-13",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_6>\",\"backendRunId\":\"<SA_RUN_6>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-13\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -6401,16 +6357,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[9].ownedSessions",
-					"taskId": "task-14",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_7>\",\"backendRunId\":\"<SA_RUN_7>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-14\",\"recordedAt\":\"<TS>\"}]"
-				},
-				{
-					"class": "explained",
 					"rule": "executor-exit-code",
 					"citation": "docs/core-port.md WP1b change log 1",
 					"file": "run.json",
@@ -6671,16 +6617,6 @@
 					"path": "tasks[10].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-15",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[10].ownedSessions",
-					"taskId": "task-15",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_8>\",\"backendRunId\":\"<SA_RUN_8>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-15\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -6947,16 +6883,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[11].ownedSessions",
-					"taskId": "task-16",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_9>\",\"backendRunId\":\"<SA_RUN_9>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-16\",\"recordedAt\":\"<TS>\"}]"
-				},
-				{
-					"class": "explained",
 					"rule": "executor-exit-code",
 					"citation": "docs/core-port.md WP1b change log 1",
 					"file": "run.json",
@@ -7220,16 +7146,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[12].ownedSessions",
-					"taskId": "task-17",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_10>\",\"backendRunId\":\"<SA_RUN_10>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-17\",\"recordedAt\":\"<TS>\"}]"
-				},
-				{
-					"class": "explained",
 					"rule": "executor-exit-code",
 					"citation": "docs/core-port.md WP1b change log 1",
 					"file": "run.json",
@@ -7490,16 +7406,6 @@
 					"path": "tasks[13].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-18",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[13].ownedSessions",
-					"taskId": "task-18",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_11>\",\"backendRunId\":\"<SA_RUN_11>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-18\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -7795,7 +7701,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "06d25b15ee55b9a8dba606cc1511c3c6995d7116409e8e015660c5a0be57fb1e"
+					"replayed": "6941c7da6309569c16d738d8e5513dd0935a2ab774b83f349194294dc891ee2b"
 				},
 				{
 					"class": "explained",
@@ -7815,7 +7721,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-7",
-					"replayed": "09b4213fe3ce04c06a1a433399effa3319c973b4e5e67e877e5ed73969b231f4"
+					"replayed": "213093ef4562dda99ce3063c93533c88ff59a7789639148b97b03c05355a0e25"
 				},
 				{
 					"class": "explained",
@@ -7825,7 +7731,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-7",
-					"replayed": "4ebd5e164936253b32f799390f6ae0d118b112a28f04888513f09a4c82ff343a"
+					"replayed": "60fe9aa844921e87c3c3dbfc49c5dac566a8a57647d2ef6e3e4898d0b38a4623"
 				},
 				{
 					"class": "explained",
@@ -7835,7 +7741,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "06d25b15ee55b9a8dba606cc1511c3c6995d7116409e8e015660c5a0be57fb1e"
+					"replayed": "6941c7da6309569c16d738d8e5513dd0935a2ab774b83f349194294dc891ee2b"
 				},
 				{
 					"class": "explained",
@@ -7876,16 +7782,6 @@
 					"path": "tasks[16].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-7",
 					"recorded": "true"
-				},
-				{
-					"class": "explained",
-					"rule": "owned-sessions",
-					"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-					"file": "run.json",
-					"kind": "added",
-					"path": "tasks[16].ownedSessions",
-					"taskId": "task-7",
-					"replayed": "[{\"backendAttemptId\":\"<SA_ATTEMPT_12>\",\"backendRunId\":\"<SA_RUN_12>\",\"executorId\":\"pi\",\"kind\":\"pi-session-dir\",\"locator\":\"<HOME>/.agent-workflow/executors/pi/sessions/pi-workflow.<WF_RUN_1>.task-7\",\"recordedAt\":\"<TS>\"}]"
 				},
 				{
 					"class": "explained",
@@ -8470,7 +8366,7 @@
 					"kind": "changed",
 					"line": 8,
 					"recorded": "",
-					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e)"
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
 				},
 				{
 					"class": "explained",

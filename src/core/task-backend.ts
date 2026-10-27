@@ -91,6 +91,10 @@ import {
 } from "./launch-operations.js";
 import { workflowTaskSessionId } from "./launch-session.js";
 import {
+	releaseUnneededOwnedSessions,
+	workflowTaskKeepsSession,
+} from "./owned-session-release.js";
+import {
 	afterLaunchAuthorityRegisteredHookForTests,
 	beforeRunSubagentHookForTests,
 	isLaunchGateSaturated,
@@ -472,7 +476,12 @@ export async function launchSubagentTask(
 			...(taskTimeoutMs === undefined ? {} : { timeoutMs: taskTimeoutMs }),
 			runsDir,
 			correlationId,
-			...(sessionId === undefined ? {} : { sessionId }),
+			// D3 (WP12a): the engine session id stays the attempt identity (backendFiles, launch
+			// provenance); the executor is asked to keep a CLI session only when a same-session
+			// repair may continue it. Otherwise adapters run without session persistence.
+			...(sessionId === undefined || !workflowTaskKeepsSession(task)
+				? {}
+				: { sessionId }),
 			...(durableBarrierDescriptor === undefined
 				? {}
 				: { durableLaunchBarrier: durableBarrierDescriptor }),
@@ -949,6 +958,8 @@ export async function refreshRunFromSubagentArtifacts(
 		}
 	}
 
+	// D3 (WP12a): delete worker sessions no attempt can use again.
+	if (await releaseUnneededOwnedSessions(run)) changed = true;
 	if (changed || telemetryChanged) await writeRunRecord(cwd, run);
 	if (refreshErrors.length > 0) {
 		throw new AggregateError(
