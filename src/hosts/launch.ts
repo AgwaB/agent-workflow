@@ -125,6 +125,8 @@ export interface LaunchData {
 		confirmation: string;
 		degradations: string[];
 		forcedReadOnly: string[];
+		/** WP12a: one-line notices (legacy agents shadowing bundled agents). */
+		notices?: string[];
 	};
 	taskSummary?: WorkflowRunRecord["taskSummary"];
 	detached?: { pid?: number; logPath: string };
@@ -624,6 +626,9 @@ function launchData(
 						confirmation: negotiation.confirmation,
 						degradations: [...negotiation.degradations],
 						forcedReadOnly: [...negotiation.forcedReadOnly],
+						...(negotiation.notices
+							? { notices: [...negotiation.notices] }
+							: {}),
 					},
 				}
 			: {}),

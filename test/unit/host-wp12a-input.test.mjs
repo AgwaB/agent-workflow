@@ -21,6 +21,7 @@ const cli = await import("../../dist/hosts/cli/index.js");
 const api = await import("../../dist/hosts/api.js");
 const args = await import("../../dist/hosts/args.js");
 const core = await import("../../dist/core/index.js");
+const engine = await import("../../dist/core/engine.js");
 const slots = await import("../../dist/core/launch-slots.js");
 
 let root;
@@ -37,7 +38,12 @@ before(async () => {
 after(async () => {
 	for (const undo of unregister.splice(0)) undo();
 	slots.setSubagentLaunchControlsForTests({});
-	await rm(root, { recursive: true, force: true });
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 async function project() {
@@ -169,6 +175,7 @@ test("host API: string inputs are typed by the declared default; typed values pa
 		},
 	);
 	assert.equal(launched.ok, true, launched.text);
+	await engine.waitForRun(cwd, launched.data.runId, 60_000);
 	assert.deepEqual(await compiledInput(cwd, launched.data.runId), {
 		depth: "max",
 		count: 7,

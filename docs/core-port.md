@@ -1413,3 +1413,15 @@ problems 1–6, 10).
    `core-wp4c1-engine-runtime` waits up to 20 s (was 5 s) for the in-process supervisor before
    pruning; `core-dag-hardening` "stop during dynamic helper" waits up to 10 s (was 1.5 s) for the
    helper to start.
+7. **Legacy agents shadowing bundled agents are announced (live open problem 2).** The search order
+   stays (F5: agent-workflow locations, then legacy Pi `.pi/agents` / `~/.pi/agent/agents`, then
+   bundled). `agents.ts`: a legacy user agent (`~/.pi/agent/agents`) whose name also exists among
+   the bundled agents records `shadowsBundledAgent` (bundled path); a project's legacy `.pi/agents`
+   override is left alone (the project's explicit choice; the WP1a recordings ship one). `compiler.ts` turns it into one line, also a compile warning:
+   `agent "<name>": legacy <path> shadows the bundled agent of the same name (legacy agents take
+   precedence); rename or remove it to use the bundled agent`, collected in
+   `CompiledWorkflow.agentNotices`. `capability-negotiation.ts` records them as
+   `run.capabilityNegotiation.notices` and appends `Notice: …` lines to the preview text that hosts
+   print at launch (host API `data.capability.notices`). Test:
+   `core-wp12a-legacy-agent-shadow.test.mjs` (no legacy file → no notice; legacy `scout.md` → still
+   resolves first, one-line notice in record and preview).
