@@ -1,0 +1,173 @@
+{
+	"host": "claude-code",
+	"init": {
+		"cwd": "/tmp/aw-live4/c1-claude-claude",
+		"model": "claude-haiku-5-5",
+		"permissionMode": "default",
+		"claude_code_version": "2.1.310",
+		"workflowTools": [
+			"mcp__plugin_agent-workflow_agent-workflow__workflow_dynamic",
+			"mcp__plugin_agent-workflow_agent-workflow__workflow_inspect",
+			"mcp__plugin_agent-workflow_agent-workflow__workflow_list",
+			"mcp__plugin_agent-workflow_agent-workflow__workflow_run",
+			"mcp__plugin_agent-workflow_agent-workflow__workflow_status",
+			"mcp__plugin_agent-workflow_agent-workflow__workflow_stop",
+			"mcp__plugin_agent-workflow_agent-workflow__workflow_validate",
+			"mcp__plugin_agent-workflow_agent-workflow__workflow_wait"
+		],
+		"mcpServer": {
+			"name": "plugin:agent-workflow:agent-workflow",
+			"status": "connected",
+			"source": "plugin"
+		},
+		"pluginSkills": [
+			"agent-workflow:agent-workflow",
+			"agent-workflow:execution-router",
+			"agent-workflow:workflow-guide"
+		]
+	},
+	"calls": [
+		{
+			"name": "ToolSearch",
+			"input": {
+				"query": "select:mcp__plugin_agent-workflow_agent-workflow__workflow_run,mcp__plugin_agent-workflow_agent-workflow__workflow_wait",
+				"max_results": 2
+			},
+			"modelSaw": "text",
+			"isError": false,
+			"result": "[{\"type\":\"tool_reference\",\"tool_name\":\"mcp__plugin_agent-workflow_agent-workflow__workflow_run\"},{\"type\":\"tool_reference\",\"tool_name\":\"mcp__plugin_agent-workflow_agent-workflow__workflow_wait\"}]"
+		},
+		{
+			"name": "mcp__plugin_agent-workflow_agent-workflow__workflow_run",
+			"input": {
+				"workflow": "deep-review",
+				"task": "Review src/workflow-stop.ts, src/workflow-cancellation.ts and src/workflow-terminal.ts for correctness and reliability defects in stop/cancel handling.",
+				"model": "haiku"
+			},
+			"modelSaw": "structuredContent (serialized JSON)",
+			"isError": false,
+			"result": {
+				"action": "run",
+				"ok": true,
+				"outcome": "running",
+				"data": {
+					"runId": "workflow_mvquw71p_ebc65b",
+					"status": "running",
+					"executor": {
+						"id": "claude",
+						"source": "host-default",
+						"host": "claude-code"
+					},
+					"permissionMode": {
+						"mode": "free",
+						"source": "default"
+					},
+					"taskSummary": {
+						"total": 8,
+						"pending": 7,
+						"running": 1,
+						"blocked": 0,
+						"completed": 0,
+						"failed": 0,
+						"skipped": 0,
+						"interrupted": 0
+					}
+				},
+				"next": "Next: call workflow_wait {\"runId\":\"workflow_mvquw71p_ebc65b\"} and repeat while stillRunning is true."
+			}
+		},
+		{
+			"name": "mcp__plugin_agent-workflow_agent-workflow__workflow_wait",
+			"input": {
+				"runId": "workflow_mvquw71p_ebc65b"
+			},
+			"modelSaw": "structuredContent (serialized JSON)",
+			"isError": false,
+			"result": {
+				"action": "wait",
+				"ok": true,
+				"outcome": "running",
+				"data": {
+					"runId": "workflow_mvquw71p_ebc65b",
+					"status": "running",
+					"terminal": false,
+					"stillRunning": true,
+					"semanticStatus": "running",
+					"reportArtifacts": [],
+					"taskSummary": {
+						"total": 13,
+						"pending": 5,
+						"running": 2,
+						"blocked": 0,
+						"completed": 6,
+						"failed": 0,
+						"skipped": 0,
+						"interrupted": 0
+					}
+				},
+				"next": "[workflow_wait] runId=workflow_mvquw71p_ebc65b status=running terminal=false actionRequired=false stillRunning=true\nNext: call workflow_wait {\"runId\":\"workflow_mvquw71p_ebc65b\"} again."
+			}
+		},
+		{
+			"name": "mcp__plugin_agent-workflow_agent-workflow__workflow_wait",
+			"input": {
+				"runId": "workflow_mvquw71p_ebc65b"
+			},
+			"modelSaw": "structuredContent (serialized JSON)",
+			"isError": false,
+			"result": {
+				"action": "wait",
+				"ok": true,
+				"outcome": "completed",
+				"data": {
+					"runId": "workflow_mvquw71p_ebc65b",
+					"status": "completed",
+					"terminal": true,
+					"stillRunning": false,
+					"semanticStatus": "completed",
+					"reportArtifacts": [
+						{
+							"kind": "final-report",
+							"label": "Final report",
+							"path": ".agent-workflow/workflows/workflow_mvquw71p_ebc65b/tasks/task-8/final-report.md"
+						}
+					],
+					"taskSummary": {
+						"total": 13,
+						"pending": 0,
+						"running": 0,
+						"blocked": 0,
+						"completed": 13,
+						"failed": 0,
+						"skipped": 0,
+						"interrupted": 0
+					}
+				},
+				"next": "[workflow_wait] runId=workflow_mvquw71p_ebc65b status=completed terminal=true actionRequired=false stillRunning=false\nFinal report: .agent-workflow/workflows/workflow_mvquw71p_ebc65b/tasks/task-8/final-report.md\nQuote the result preview and the report paths; do not paraphrase the report."
+			}
+		}
+	],
+	"finalText": "The deep-review run finished (`workflow_mvquw71p_ebc65b`, status completed, 13/13 tasks, `model: \"haiku\"`, no other launch options).\n\n**Verdict (verbatim):** NEEDS_WORK\n\n**Result preview (verbatim):**\n\n```\n## Core conclusion\n\nVerdict: **NEEDS_WORK**. The deterministic ledger contains 3 kept or weakened findings and 0 needs-human items.\n\n## Key findings\n\n- **medium / WEAKEN:** Duplicate launch-signal binding is removed by the first dispose\n- **medium / WEAKEN:** Unreadable controller \\[artifact omitted\\] silently erases a stopped dynamic status\n- **low / WEAKEN:** Cancellation classifier accepts loose shapes despite its 'deliberately exact' contract\n\n## Evidence level\n\n- Canonical rows: 3 kept or weakened findings, 0 needs-human items, and 0 supporting observations.\n- Coverage: complete according to source-status accounting.\n\n## Important limitations\n\n- Evidence and quotes are bound to the reviewed snapshot available to the partition stage; final rendering does not re-read repository files and therefore does not attest current-tree bytes.\n```\n\n**Report path (verbatim):**\n`.agent-workflow/workflows/workflow_mvquw71p_ebc65b/tasks/task-8/final-report.md`\n\nI did not read or edit any files myself. The report file has the details behind the three findings. Per the limitations note, the findings reflect the snapshot the run reviewed, not the current working tree.",
+	"result": {
+		"duration_ms": 85639,
+		"num_turns": 5,
+		"total_cost_usd": 0.00714839,
+		"usage": {
+			"input_tokens": 10,
+			"cache_creation_input_tokens": 25506,
+			"cache_read_input_tokens": 145569,
+			"output_tokens": 1181
+		},
+		"permission_denials": [],
+		"terminal_reason": "completed",
+		"is_error": false
+	},
+	"duplicateGuardProbe": {
+		"via": "direct stdio MCP client (no model), --host claude-code, identical arguments while the run was active",
+		"isError": false,
+		"outcome": "existing",
+		"runId": "workflow_mvquw71p_ebc65b",
+		"duplicateOf": "workflow_mvquw71p_ebc65b",
+		"textHead": "Duplicate launch guard: run workflow_mvquw71p_ebc65b is already active with the same workflow, task, inputs and options (running, started 50s ago)."
+	}
+}

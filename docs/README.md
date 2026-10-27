@@ -11,7 +11,7 @@
 | [`plugins.md`](plugins.md) | Claude Code and Codex plugin: install, `mcp add` alternative, local dev plugin, timeouts, tool names, validation evidence |
 | [`pi-host.md`](pi-host.md) | Pi host: `/aw` command, `aw_*` tools, install, confirmation, session-start notices |
 | [`permissions.md`](permissions.md) | Permission modes `free` (default) and `safe`: behavior, selection, per-adapter mapping |
-| [`support.md`](support.md) | Support matrix (live and offline), verified CLI versions, known limits per executor |
+| [`support.md`](support.md) | Support matrix (live and offline), verified CLI versions, hosts, known limits per executor |
 | [`environment.md`](environment.md) | Every `AGENT_WORKFLOW_*` environment variable |
 | [`bundled-workflows.md`](bundled-workflows.md) | Bundled workflows, skills and agents: provenance, migration changes, generated offline support table |
 | [`../workflows/README.md`](../workflows/README.md) | The bundled workflows in detail |
@@ -44,6 +44,7 @@ How the code was ported from pi-workflow and pi-subagent, and how stage 1 was ac
 | [`runtime-port.md`](runtime-port.md) | Runtime port from pi-subagent 0.7.2: executor seam, durable worker, control channel |
 | [`replay.md`](replay.md) | Replay acceptance of recorded pi-workflow runs |
 | [`live-acceptance-stage1.md`](live-acceptance-stage1.md) | Live stage-1 acceptance: bundled workflows × executors, evidence, failures and fixes, open problems |
+| [`live-acceptance-stage2.md`](live-acceptance-stage2.md) | Live stage-2 host acceptance: Claude Code, Codex and Pi as hosts, nesting, concurrency, D3 check, ledger, open problems |
 
 ## Tests
 

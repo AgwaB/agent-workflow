@@ -1,0 +1,20 @@
+runId: workflow_mvquw71p_ebc65b
+name: deep-review
+type: artifact-graph
+status: completed
+tasks: 13
+completion: clean
+retries: output=0, launch=0, resumes=0, contextLimitFailures=0
+- task-1: completed/completed — completed
+- task-2: completed/foreach_materialized — foreach produced 2 item(s)
+- task-9: completed/completed — completed
+- task-10: completed/completed — completed
+- task-3: completed/support_completed — support completed
+- task-4: completed/foreach_materialized — foreach produced 3 item(s)
+- task-11: completed/completed — completed
+- task-12: completed/completed — completed
+- task-13: completed/completed — completed
+- task-5: completed/support_completed — support completed
+- task-6: completed/support_completed — support completed
+- task-7: completed/completed — completed
+- task-8: completed/support_completed — support completed

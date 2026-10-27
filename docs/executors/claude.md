@@ -138,7 +138,7 @@ The rest of this section describes the channel itself (used in `safe` mode).
 ## Sessions (D3, R#10)
 
 - **Default:** `--session-id <attempt uuid> --no-session-persistence`. No transcript is written.
-  - After exit, the adapter removes `<claudeConfigDir>/projects/*/<that uuid>/` (spilled tool results), and the project dir too if it is then empty.
+  - After exit, the adapter removes `<claudeConfigDir>/projects/*/<that uuid>/` (spilled tool results), and the project dir too if it is then empty. The terminal event of such an attempt is held until the CLI exited and the removal finished (live bundle 4), because the durable worker exits right after it.
   - It never touches other names.
 - **`sessionId`:** the session is kept (`--session-id`, persistence on) and recorded under `stateDir/sessions/`. Terminal events carry `ownedSession {kind: "claude-session", locator: <uuid>}` (kit `live.session_ownership`).
   - A UUID is used as is. Any other id (the engine's logical `agent-workflow.<run>.<task>`) maps to a deterministic UUID, `claudeSessionUuid(id)` (v4 layout over SHA-256). Until live bundle 3 a non-UUID id was refused (`INVALID_REQUEST`), which stopped every Claude workflow run before launch.
@@ -277,6 +277,17 @@ standard`) and `WebFetch` (`url`, `prompt`) both completed. The answer cited sou
 - **Probe cost.** `probe()` with `listModels` spawns one `claude -p` for the `initialize` exchange (about 1–2 s, no model turn).
 
 ## Change log
+
+- **Live bundle 4 (2026-10-27):** an ephemeral attempt's spilled tool results
+  (`<claudeConfigDir>/projects/<cwd slug>/<uuid>/tool-results/`) are removed **before** the terminal
+  event. The terminal event is emitted at the stream's `result` line, and the durable worker commits
+  it and calls `process.exit`; the removal ran fire-and-forget in the child's `close` handler, so it
+  was cut. Measured: after three concurrent CLI deep-review runs on haiku, 7 worker session
+  directories (each `tool-results/toolu_*.txt`) were left in three `~/.claude/projects` entries. Now
+  a `completed`/`failed` event of a non-kept session is held until `close`, the removal is awaited,
+  then the event is delivered (at most `killGraceMs` later: stdin is closed at `result` and the CLI
+  is reaped). Kept sessions are unchanged. Test: `executor-claude-sessions.test.mjs` "… gone before
+  the terminal event (D3, live 4)" (40 unrelated project dirs; no polling after the terminal event).
 
 - **WP12d-2 review #10:** child handlers (`error`, `close`, stdin, stdout, stderr) are attached
   synchronously right after `spawn`, before any await; the durable `spawned` record is written after

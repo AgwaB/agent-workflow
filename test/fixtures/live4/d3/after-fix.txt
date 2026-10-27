@@ -1,0 +1,9 @@
+# D3 check after the fix 91dc66a (run workflow_mvqw6utn_5f5573, CLI, --executor claude --model haiku)
+# Worker streams that report a spilled tool result (claude-stream.jsonl mentions .../tool-results/...): 2
+#   projects/-tmp-aw-live4-c6-cli-claude-d3-retry/38a3795a-a341-425f-a2a6-86b9a3a3d61f/tool-results/toolu_01SUf4G4eSiRGD5hZzNGc3MB.txt
+#   projects/-tmp-aw-live4-c6-cli-claude-d3-retry/6c2393a1-77e8-473b-8d82-5dc76e5a7c60/tool-results/toolu_01727Xt1DkkGGHufTvdQnxoj.txt
+# <HOME>/.claude/projects entries for /tmp/aw-live4 after the run (ls | grep aw-live4):
+-private-tmp-aw-live4-c1-claude-claude
+-private-tmp-aw-live4-c4a-claude-codex
+# -> no -private-tmp-aw-live4-c6-cli-claude-d3-retry entry: both spills were removed before the terminal event.
+# Before the fix: c5 runs had 2 + 3 + 2 spills, all 7 left behind (claude-projects-before-fix.txt). Case 1 had 0 spills.

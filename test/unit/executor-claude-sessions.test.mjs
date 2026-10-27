@@ -163,6 +163,33 @@ test("an ephemeral attempt's spilled tool results are removed after exit (D3)", 
 	assert.deepEqual(left, []);
 });
 
+// Live bundle 4: the durable worker calls process.exit right after the terminal event, so a removal
+// that starts after the event is cut (3 of 3 concurrent CLI runs left `<uuid>/tool-results/`).
+// The spill must be gone when the terminal event is delivered, without polling.
+test("an ephemeral attempt's spilled tool results are gone before the terminal event (D3, live 4)", async (t) => {
+	const { dir, claudeConfigDir, executor } = await setup(t);
+	const cwd = await mkdtemp(join(dir, "cwd-"));
+	const attemptKey = "ephemeral-before-terminal";
+	const projects = join(claudeConfigDir, "projects");
+	// Unrelated project dirs make the removal take several fs round trips, like a real config dir.
+	for (let i = 0; i < 40; i++)
+		await mkdir(join(projects, `-tmp-other-${i}`), { recursive: true });
+	const spill = join(
+		projects,
+		"-tmp-z",
+		attemptSessionId(attemptKey),
+		"tool-results",
+	);
+	await mkdir(spill, { recursive: true });
+	await writeFile(join(spill, "toolu_x.txt"), "spilled");
+	const ref = await executor.submit(request(cwd, { attemptKey }));
+	const { terminal } = await drain(executor, ref, { timeoutMs: 15_000 });
+	assert.equal(terminal.type, "completed");
+	const left = await readdir(projects);
+	assert.ok(!left.includes("-tmp-z"), `spill left at terminal: ${left.length}`);
+	assert.equal(left.length, 40, "unrelated project dirs are kept");
+});
+
 test("raw stream, stderr and invocation files are kept in artifactsDir without env values", async (t) => {
 	const { dir, executor } = await setup(t);
 	const cwd = await mkdtemp(join(dir, "cwd-"));
