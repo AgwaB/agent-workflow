@@ -639,14 +639,16 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 				? {}
 				: { ownedSession: launchPlan.ownedSession }),
 		};
-		await store.write({ ...spawnedRecord, identity: null });
-		void captureProcessIdentity(pid).then(
-			(identity) =>
-				run.done
-					? undefined
-					: store.write({ ...spawnedRecord, identity }).catch(() => {}),
-			() => {},
-		);
+		// Review #10: the handlers below are attached before any await, so an early exit is never
+		// missed. Record writes are serialized: the `exited` record always lands after the
+		// `spawned` one, and a late identity write never overwrites `exited`.
+		const spawnedWrite = store.write({ ...spawnedRecord, identity: null });
+		let exitRecorded = false;
+		let recordQueue: Promise<void> = spawnedWrite.catch(() => {});
+		const queueRecord = (write: () => Promise<void>) => {
+			recordQueue = recordQueue.then(write).catch(() => {});
+			return recordQueue;
+		};
 
 		child.stdin?.on("error", () => {});
 		child.stdin?.end(req.prompt);
@@ -700,12 +702,22 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 					signal,
 					cancelled: run.cancelled,
 				};
-				await store
-					.write({ ...spawnedRecord, phase: "exited", exit })
-					.catch(() => {});
+				exitRecorded = true;
+				await queueRecord(() =>
+					store.write({ ...spawnedRecord, phase: "exited", exit }),
+				);
 				emit(run, normalizer.finish({ ...exit, stderr }));
 			})();
 		});
+		await spawnedWrite;
+		void captureProcessIdentity(pid).then(
+			(identity) =>
+				queueRecord(async () => {
+					if (!exitRecorded && !run.done)
+						await store.write({ ...spawnedRecord, identity });
+				}),
+			() => {},
+		);
 		return ref;
 	}
 

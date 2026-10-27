@@ -287,6 +287,12 @@ request drops mutating tools from `--tools` in both modes. The conformance harne
 
 ## Change log
 
+- **WP12d-2 review #10:** same ordering checked: the `spawn` wait had its `error` listener, but the
+  stdout/stderr/`close` handlers were attached after the awaited `spawned` record write, so a Pi that
+  exited during that write was never observed (drain hung). Handlers are now attached before any
+  await; record writes are serialized so `exited` lands after `spawned` and a late identity write
+  never overwrites `exited`. Test: `executor-wp12d2-spawn-handlers.test.mjs`.
+
 - **WP12d-2 review #9 (checked, no change):** Pi ownership is by location: sessions are created only
   under the adapter's private `<stateDir>/sessions/`, resume accepts only a session found there, and
   `deleteOwnedSession` refuses any path outside it, so a user session can neither be resumed as owned

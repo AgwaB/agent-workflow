@@ -278,6 +278,14 @@ standard`) and `WebFetch` (`url`, `prompt`) both completed. The answer cited sou
 
 ## Change log
 
+- **WP12d-2 review #10:** child handlers (`error`, `close`, stdin, stdout, stderr) are attached
+  synchronously right after `spawn`, before any await; the durable `spawned` record is written after
+  them, and the session ownership record before the spawn. Before, an immediate spawn error (ENOENT)
+  had no listener and became an uncaught exception, and a CLI that exited during the `spawned` write
+  lost its `close` and output (measured: a child's `close` is not replayed to listeners attached after
+  it fired). Test: `executor-wp12d2-spawn-handlers.test.mjs` (missing CLI → `failed` event; exit during
+  a delayed `spawned` write → terminal event with the stderr text).
+
 - **WP12d-2 review #9:** same pattern checked: `deleteOwnedSession` already required a session
   record, but resuming any session UUID recorded it and reported it as `ownedSession`. A resumed
   session is now owned only when the adapter recorded it earlier; a foreign one is kept (not removed

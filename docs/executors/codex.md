@@ -310,6 +310,10 @@ budget are not confirmed. `fetch_content` (open_page) not observed.
 
 ## Change log
 
+- **WP12d-2 review #10 (checked, no change):** `launch`, `deleteOwnedSession` and `runCli` attach
+  every child handler (`AppServerConnection` installs `error`/`close`/stdout/stdin listeners)
+  synchronously after `spawn`; the only writes in between are synchronous.
+
 - **WP12d-2 review #9:** session deletion requires ownership evidence. A kept thread the adapter
   creates with `thread/start` gets a durable record under `<stateDir>/sessions/`
   (`ThreadOwnershipStore`); `deleteOwnedSession` refuses any thread without one (no app-server is

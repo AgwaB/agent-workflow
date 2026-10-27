@@ -311,6 +311,13 @@ export function createClaudeExecutor(options: {
 		rawStream.on("error", () => {});
 		stderrStream.on("error", () => {});
 
+		// Ownership evidence is durable before the session can exist (review #9/#10).
+		if (plan.keepSession && req.resumeSessionId === undefined)
+			await store.recordSession({
+				sessionId: plan.sessionId,
+				attemptKey: req.attemptKey,
+				cwd: req.cwd,
+			});
 		const child = spawn(config.claudePath, plan.argv, {
 			cwd: req.cwd,
 			env: { ...process.env, ...plan.env },
@@ -352,24 +359,8 @@ export function createClaudeExecutor(options: {
 		};
 		runRef = run;
 		runs.set(req.attemptKey, run);
-		await store.writeAttempt({
-			attemptKey: req.attemptKey,
-			phase: "spawned",
-			sessionId: plan.sessionId,
-			keepSession: plan.keepSession,
-			ref,
-			pid: child.pid ?? null,
-			cwd: req.cwd,
-			rawPath,
-			stderrPath,
-		});
-		if (plan.keepSession && req.resumeSessionId === undefined)
-			await store.recordSession({
-				sessionId: plan.sessionId,
-				attemptKey: req.attemptKey,
-				cwd: req.cwd,
-			});
-
+		// Review #10: every child handler is attached synchronously after spawn, before any await,
+		// so an immediate spawn error or exit is never missed (nor an uncaught exception).
 		child.stdin?.on("error", () => {
 			run.stdinOpen = false;
 		});
@@ -467,6 +458,17 @@ export function createClaudeExecutor(options: {
 		});
 		if (child.pid !== undefined)
 			child.stdin?.write(`${userMessageLine(req.prompt)}\n`);
+		await store.writeAttempt({
+			attemptKey: req.attemptKey,
+			phase: "spawned",
+			sessionId: plan.sessionId,
+			keepSession: plan.keepSession,
+			ref,
+			pid: child.pid ?? null,
+			cwd: req.cwd,
+			rawPath,
+			stderrPath,
+		});
 		return ref;
 	}
 
