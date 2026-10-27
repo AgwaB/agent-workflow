@@ -1321,6 +1321,23 @@ problems 1–6, 10).
    Tests: `core-wp12a-worker-sessions.test.mjs`; pi-workflow-ported tests that asserted a session id
    on every runtime launch (`core-unit-artifact-web`, `core-unit-engine-store`) now assert none
    without the flag and the rotated identity on `backendFiles`/`backendHandle`.
+2. **Unknown cost is `null`, never 0 (live open problem 4).** `workflow-metrics.ts`: a support task
+   (no model call) observes nothing — its `observed` values are `null` instead of `0`, and the observed
+   run sums read `task.usage.observed`; before, a run whose model tasks all reported `costUsd: null`
+   (every Codex attempt) summed the support tasks' zeros into `costUsd: 0` (likewise
+   `totalTokens`/`cachedInputTokens`). `store.ts` run rollup (`run.usage`) always carries `costUsd`
+   (`null` when no task reported a cost). Host text: the usage line of `formatHumanRunOutcome` /
+   details says `cost unknown` or `cost $<usd>`; `formatRun` adds `cost=unknown|<usd>`. SDK
+   `negotiateCapabilities`: `usage.cost` is no longer `emulated by engine` ("cost = tokens × model price
+   table" — no price table exists); a preferred `usage.cost` the executor cannot report is `degraded`
+   (`CAPABILITY_MISSING:usage.cost`, note "cost recorded as unknown…") with the new
+   `NegotiationEntry.recordOnly: true`, which never needs an interactive confirmation (`strict`
+   still refuses it). A required `usage.cost` is still refused. Tests:
+   `core-wp12a-usage-cost.test.mjs` (Codex/Pi/Claude recorded transcripts → runtime summary → task →
+   rollup → text; negotiation), `sdk-capabilities.test.mjs` updated. Replay: new explained rule
+   `run-usage-unknown-not-zero` (run rollup token classes no task reported are absent, not 0).
+   The generated offline support table (`docs/bundled-workflows.md`) now lists
+   `CAPABILITY_MISSING:usage.cost` for Codex (regenerated with `bundled-support-table.mjs --write`).
 6. **Flakes under load: stop and blocked runs (live open problem 10).** Two product races, both
    reproduced with a stress script (6 parallel loops of the host-cli stop scenario, 24 busy-loop
    processes on 12 cores): 4 of 30 stops failed before, 0 of 30 after.

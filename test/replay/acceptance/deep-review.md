@@ -14,8 +14,8 @@ Original spec, Pi adapter request checks.
 | Replayed status | completed |
 | Worker launches served / recorded | 12 / 12 |
 | Artifact reads re-issued / recorded | 1 / 1 |
-| Differences: allowed | 589 |
-| Differences: explained | 351 |
+| Differences: allowed | 587 |
+| Differences: explained | 353 |
 | Differences: unexplained | 0 |
 | Exact-match violations | 0 |
 
@@ -25,11 +25,12 @@ Original spec, Pi adapter request checks.
 |---|---|---|---|
 | explained | `artifact-mcp-provenance` | 30 | docs/core-port.md WP4b change log 4 and "What launch provenance digests now"; WP4c-1 "Pi executor (WP6)" table (extension isolation, generated extension wrappers) |
 | explained | `executor-exit-code` | 24 | docs/core-port.md WP1b change log 1 |
-| explained | `executor-usage-contract` | 254 | docs/core-port.md WP1b change log 2 |
+| explained | `executor-usage-contract` | 252 | docs/core-port.md WP1b change log 2 |
 | explained | `original-helper-legacy-sidecar` | 2 | docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows → .agent-workflow/workflows) |
 | explained | `run-capability-negotiation` | 1 | docs/core-port.md "WP4d — capability negotiation before launch" |
 | explained | `run-executor-record` | 1 | docs/core-port.md WP4c-1 "Executor selection" and change log 11 |
 | explained | `run-permission-mode` | 2 | docs/core-port.md WP4e permission modes; docs/permissions.md |
+| explained | `run-usage-unknown-not-zero` | 4 | docs/core-port.md WP12a change log 2 |
 | explained | `runtime-cost-rounding` | 12 | docs/core-port.md WP1b change log 3 |
 | explained | `runtime-stderr` | 24 | docs/runtime-port.md "Attempt artifacts" (stderr.log: runtime diagnostics, empty on a clean completion) |
 | explained | `wp10-artifact-tool-guidelines` | 1 | docs/core-port.md WP10 change log 2 |
@@ -40,7 +41,6 @@ Original spec, Pi adapter request checks.
 | allowed | `host-path-manifest-digest` | 2 | allowed-differences.json (WP1a) |
 | allowed | `runtime-launch-barrier-identity` | 441 | allowed-differences.json (WP1b) |
 | allowed | `state-root-identity` | 1 | allowed-differences.json (WP1a) |
-| allowed | `supervisor-progress-snapshot` | 2 | allowed-differences.json (WP1a) |
 | allowed | `timestamp-derived-digest` | 17 | allowed-differences.json (WP1a) |
 | allowed | `wp4-renamed-literals` | 27 | allowed-differences.json (WP1b) |
 
@@ -61,11 +61,11 @@ Original spec, Pi adapter request checks.
 | run.json | tasks[11].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
 | run.json | tasks[12].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
 | run.json | tasks[13].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[16].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 6941c7da6309569c16d738d8e5513dd0935a2ab774b83f349194294dc891ee2b |
+| run.json | tasks[16].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 6294b926a1aac32156d1aecff5c76ad2e8768461d21aa5b71bd2d21dd247a0b5 |
 | run.json | tasks[16].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | aed1c777bbf252885f408571ecdcae176f79d864f50e8e326066798ace53e9d3 |  |
-| run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 213093ef4562dda99ce3063c93533c88ff59a7789639148b97b03c05355a0e25 |
-| run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 60fe9aa844921e87c3c3dbfc49c5dac566a8a57647d2ef6e3e4898d0b38a4623 |
-| run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 6941c7da6309569c16d738d8e5513dd0935a2ab774b83f349194294dc891ee2b |
+| run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 1327921178af61aea0ad5907738ebd3a7fc921b94cc3db8307f2e25b39c0337a |
+| run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | e4b248c1c8976fa42a934a8adf69866e7c4cc97b64d1085bc83e902d62174727 |
+| run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 6294b926a1aac32156d1aecff5c76ad2e8768461d21aa5b71bd2d21dd247a0b5 |
 | run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | aed1c777bbf252885f408571ecdcae176f79d864f50e8e326066798ace53e9d3 |  |
 | run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 1878129e5a9ca6e89f6e45d1cecbefc8515ce6e9ae0bbf1ba5959caee8c53304 |  |
 | run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"1878129e5a9ca6e89f6e45d1cecbefc8515ce6e9ae0bbf1ba5959caee8c53304"} |  |
@@ -114,7 +114,7 @@ Original spec, Pi adapter request checks.
 
 </details>
 
-<details><summary>explained executor-usage-contract (254)</summary>
+<details><summary>explained executor-usage-contract (252)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
@@ -370,8 +370,6 @@ Original spec, Pi adapter request checks.
 | run.json | tasks[16].usage.provider | removed | openai-codex |  |
 | run.json | tasks[16].usage.reasoningTokens | removed | 923 |  |
 | run.json | tasks[16].usage.totalTokens | removed | 5390 |  |
-| run.json | usage.reasoningTokens | changed | 17488 | 0 |
-| run.json | usage.totalTokens | changed | 1032672 | 0 |
 
 </details>
 
@@ -396,7 +394,7 @@ Original spec, Pi adapter request checks.
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/deep-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-deep-review-original-24701/work/replay-trace.jsonl"},"c… (371 chars, sha256 602c88220d9d) |
+| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/deep-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-deep-review-original-12683/work/replay-trace.jsonl"},"c… (371 chars, sha256 4606624133aa) |
 
 </details>
 
@@ -406,6 +404,17 @@ Original spec, Pi adapter request checks.
 |---|---|---|---|---|
 | compiled.json | permissionMode | added |  | free |
 | run.json | permissionMode | added |  | {"mode":"free","source":"default"} |
+
+</details>
+
+<details><summary>explained run-usage-unknown-not-zero (4)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | usage.cacheCreationInputTokens | removed | 0 |  |
+| run.json | usage.cachedInputTokens | removed | 0 |  |
+| run.json | usage.reasoningTokens | removed | 17488 |  |
+| run.json | usage.totalTokens | removed | 1032672 |  |
 
 </details>
 
@@ -1056,15 +1065,6 @@ Original spec, Pi adapter request checks.
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
 | run.json | tasks[].launchBootstrap.records[].effectivePolicy.stateRootSha256 | digest-renamed ×12 |  |  |
-
-</details>
-
-<details><summary>allowed supervisor-progress-snapshot (2)</summary>
-
-| File | Path / line | Kind | Recorded | Replayed |
-|---|---|---|---|---|
-| supervisor.json | taskStatusCounts.completed | digest-renamed ×1 |  |  |
-| supervisor.json | taskStatusCounts.running | digest-renamed ×1 |  |  |
 
 </details>
 

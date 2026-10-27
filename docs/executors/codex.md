@@ -310,6 +310,11 @@ budget are not confirmed. `fetch_content` (open_page) not observed.
 
 ## Change log
 
+- **WP12a (2026-10-27):** no adapter change for cost: usage events keep `cost: null`,
+  `source: "unknown"`. The engine no longer negotiates `usage.cost` as "emulated by engine" (it has no
+  price table); the preview records `usage.cost: degraded … cost recorded as unknown`, and run rollups
+  and host text show the cost as `null` / `unknown` instead of 0 (docs/core-port.md WP12a change log 2).
+
 - **WP4e (2026-10-26):** permission modes (D2 revised, [`../permissions.md`](../permissions.md)).
   `planCodexTools(tools, readOnly, permissionMode)` returns `sandbox` and `approvalPolicy`: `free` on a
   non-readOnly request → `danger-full-access` + `never`; `safe`/absent and every readOnly request keep

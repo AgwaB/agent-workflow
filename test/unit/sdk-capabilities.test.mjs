@@ -192,7 +192,7 @@ test("degrade path: unmapped tools follow the same B4 rule", () => {
 	assert.deepEqual(degraded.degradations, ["CAPABILITY_MISSING:tool.bash"]);
 });
 
-test("emulate path: cost from tokens by the engine; usage none degrades, never zero-filled", () => {
+test("usage.cost: tokens-only is recorded as unknown (no engine price table, WP12a); usage none degrades, never zero-filled", () => {
 	const tokens = fakeCapabilities({
 		usage: { level: "native", source: "declared", detail: "tokens" },
 	});
@@ -201,8 +201,9 @@ test("emulate path: cost from tokens by the engine; usage none degrades, never z
 		hasRequiredReads: false,
 	});
 	const cost = outcome(report, "usage.cost");
-	assert.equal(cost.outcome, "emulated");
-	assert.equal(cost.emulatedBy, "engine");
+	assert.equal(cost.outcome, "degraded");
+	assert.equal(cost.emulatedBy, undefined);
+	assert.equal(cost.recordOnly, true);
 	assert.equal(report.accepted, true);
 	const none = sdk.negotiateCapabilities(
 		executor,

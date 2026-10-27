@@ -217,8 +217,10 @@ test("probe() reports the environment rows and B4 negotiation degrades (or refus
 		{ readOnly: true, hasRequiredReads: false, interactive: true },
 	);
 	assert.equal(report.accepted, true);
+	// WP12a: Codex reports no cost; it is recorded as unknown (record-only, no confirmation).
 	assert.deepEqual(report.degradations, [
 		"CAPABILITY_WARNING:readOnly",
+		"CAPABILITY_MISSING:usage.cost",
 		"CAPABILITY_WARNING:contextIsolation",
 	]);
 	assert.equal(report.needsConfirmation, true);

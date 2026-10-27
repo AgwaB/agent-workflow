@@ -99,6 +99,18 @@
 			]
 		},
 		{
+			"id": "run-usage-unknown-not-zero",
+			"citation": "docs/core-port.md WP12a change log 2",
+			"reason": "Run usage rollups sum only what model tasks observed: support tasks (no model call) no longer contribute zeros, so a token class no task reported is absent (unknown) instead of 0. Recorded pi-workflow rollups carried 0 or a provider total for reasoning/cache-creation/total tokens.",
+			"differences": [
+				{
+					"file": "^run\\.json$",
+					"path": "^usage\\.(?:reasoningTokens|totalTokens|cacheCreationInputTokens|cachedInputTokens)$",
+					"kind": "removed"
+				}
+			]
+		},
+		{
 			"id": "executor-usage-contract",
 			"citation": "docs/core-port.md WP1b change log 2",
 			"reason": "Executor usage arrives as SDK UsageEvents (input, output, cached, cost, source), summed by the runtime into result.json metadata.usage. Reasoning, cache-write and total token counts and the provider/model of the attempt are not part of the executor event contract v0, so task and run usage records no longer carry reasoningTokens, totalTokens, cacheCreationInputTokens, provider or model, and usage.attempts[].raw is the runtime summary instead of Pi's usage object. Input, output, cache-read tokens and cost still match (exact-match rule run-usage-totals). The run rollup then reports reasoning/total/cache-write tokens as absent, or as 0 when a support task contributes its zero usage. The same applies to the usage a foreach batch leader records for its physical execution (foreachBatches[].physicalExecution.usage).",

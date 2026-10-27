@@ -15,7 +15,7 @@ Original spec, Pi adapter request checks.
 | Worker launches served / recorded | 5 / 6 |
 | Artifact reads re-issued / recorded | 43 / 57 |
 | Differences: allowed | 292 |
-| Differences: explained | 488 |
+| Differences: explained | 490 |
 | Differences: unexplained | 0 |
 | Exact-match violations | 0 |
 
@@ -29,7 +29,7 @@ Tasks not completed:
 
 | Task | Spec | Status | Detail | Message |
 |---|---|---|---|---|
-| task-7 | report.main | failed | launch_failed | provisional worker run_mvqemzkm_17ae59/attempt_mvqemzkm_c43919 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: replay miss for task-7: no |
+| task-7 | report.main | failed | launch_failed | provisional worker run_mvqghkbp_d3d4ef/attempt_mvqghkbp_684163 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: replay miss for task-7: no |
 | task-8 | final.main | failed | support_declared_failed | support declared failed |
 
 ### Differences by rule
@@ -38,11 +38,12 @@ Tasks not completed:
 |---|---|---|---|
 | explained | `artifact-mcp-provenance` | 70 | docs/core-port.md WP4b change log 4 and "What launch provenance digests now"; WP4c-1 "Pi executor (WP6)" table (extension isolation, generated extension wrappers) |
 | explained | `executor-exit-code` | 10 | docs/core-port.md WP1b change log 1 |
-| explained | `executor-usage-contract` | 107 | docs/core-port.md WP1b change log 2 |
+| explained | `executor-usage-contract` | 105 | docs/core-port.md WP1b change log 2 |
 | explained | `original-spec-review-legacy-state-read` | 275 | docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows → .agent-workflow/workflows, no fallback) |
 | explained | `run-capability-negotiation` | 1 | docs/core-port.md "WP4d — capability negotiation before launch" |
 | explained | `run-executor-record` | 1 | docs/core-port.md WP4c-1 "Executor selection" and change log 11 |
 | explained | `run-permission-mode` | 2 | docs/core-port.md WP4e permission modes; docs/permissions.md |
+| explained | `run-usage-unknown-not-zero` | 4 | docs/core-port.md WP12a change log 2 |
 | explained | `runtime-cost-rounding` | 6 | docs/core-port.md WP1b change log 3 |
 | explained | `runtime-stderr` | 11 | docs/runtime-port.md "Attempt artifacts" (stderr.log: runtime diagnostics, empty on a clean completion) |
 | explained | `wp10-artifact-tool-guidelines` | 5 | docs/core-port.md WP10 change log 2 |
@@ -154,7 +155,7 @@ Tasks not completed:
 
 </details>
 
-<details><summary>explained executor-usage-contract (107)</summary>
+<details><summary>explained executor-usage-contract (105)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
@@ -263,8 +264,6 @@ Tasks not completed:
 | run.json | tasks[5].usage.provider | removed | openai-codex |  |
 | run.json | tasks[5].usage.reasoningTokens | removed | 1943 |  |
 | run.json | tasks[5].usage.totalTokens | removed | 81993 |  |
-| run.json | usage.reasoningTokens | changed | 12536 | 0 |
-| run.json | usage.totalTokens | changed | 1782448 | 0 |
 
 </details>
 
@@ -328,7 +327,7 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/spec-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-spec-review-original-30732/work/replay-trace.jsonl"},"c… (371 chars, sha256 34eb022578a5) |
+| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/spec-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-spec-review-original-14186/work/replay-trace.jsonl"},"c… (371 chars, sha256 9e3f22979939) |
 
 </details>
 
@@ -338,6 +337,17 @@ Tasks not completed:
 |---|---|---|---|---|
 | compiled.json | permissionMode | added |  | free |
 | run.json | permissionMode | added |  | {"mode":"free","source":"default"} |
+
+</details>
+
+<details><summary>explained run-usage-unknown-not-zero (4)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | usage.cacheCreationInputTokens | removed | 0 |  |
+| run.json | usage.cachedInputTokens | removed | 0 |  |
+| run.json | usage.reasoningTokens | removed | 12536 |  |
+| run.json | usage.totalTokens | removed | 1782448 |  |
 
 </details>
 
@@ -476,7 +486,7 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | 75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211 | e6ac34a8caa15e7a7b543d6a9c761be3d929f3243330dde38efcf111ff88e55d |
+| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | 75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211 | 419559e82458f01114b9e4b8f6bcdb687245b774a4b0a526fd731e3423ab24d2 |
 | tasks/task-4/source-manifest.json |  | digest-bound ×1 | c6928c7fe350ccb2447669f1a224de19f40b070f5446d6cc7db139a822385195 | 4a9c7feffedc4ef4c74af4159a306c4fb9e2401acc887c5c5ffb9098e0b6459a |
 | tasks/task-6/source-manifest.json |  | digest-bound ×0 | 64f0c2b8a1da0e1a9357bad71aa07d02e9b5ce125c5ac54c94c9decd70fe4b43 | 2b163098c0bd775ba13cfceb2533f7ef4174afada1a4f45d57c156128c00af42 |
 | tasks/task-9/source-manifest.json |  | digest-bound ×1 | a8009e9a04b113c262e2c57936fe7c1cb10e0f968941e0604f7221433cee5088 | 675283e0429ff8fcef6305de40f197b10241f5741246430464b49e9a86fdb078 |
@@ -740,8 +750,8 @@ Tasks not completed:
 | tasks/task-4/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
 | tasks/task-6/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-6/source-manifest.json | .agent-workflow/workflows | literal-renamed ×8 |  |  |
-| tasks/task-7/.launch-barrier-247b9bca94d11af2-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
-| tasks/task-7/.launch-barrier-247b9bca94d11af2-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-7/.launch-barrier-47cf3e3694eef7ba-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-7/.launch-barrier-47cf3e3694eef7ba-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
 | tasks/task-7/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-7/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
 | tasks/task-7/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
@@ -764,7 +774,7 @@ The original helpers read upstream engine state from the hard-coded `.pi/workflo
 | Worker launches served / recorded | 6 / 6 |
 | Artifact reads re-issued / recorded | 57 / 57 |
 | Differences: allowed | 334 |
-| Differences: explained | 240 |
+| Differences: explained | 242 |
 | Differences: unexplained | 0 |
 | Exact-match violations | 0 |
 
@@ -780,11 +790,12 @@ Tasks not completed:
 |---|---|---|---|
 | explained | `artifact-mcp-provenance` | 70 | docs/core-port.md WP4b change log 4 and "What launch provenance digests now"; WP4c-1 "Pi executor (WP6)" table (extension isolation, generated extension wrappers) |
 | explained | `executor-exit-code` | 12 | docs/core-port.md WP1b change log 1 |
-| explained | `executor-usage-contract` | 128 | docs/core-port.md WP1b change log 2 |
+| explained | `executor-usage-contract` | 126 | docs/core-port.md WP1b change log 2 |
 | explained | `original-helper-legacy-sidecar` | 2 | docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows → .agent-workflow/workflows) |
 | explained | `run-capability-negotiation` | 1 | docs/core-port.md "WP4d — capability negotiation before launch" |
 | explained | `run-executor-record` | 1 | docs/core-port.md WP4c-1 "Executor selection" and change log 11 |
 | explained | `run-permission-mode` | 2 | docs/core-port.md WP4e permission modes; docs/permissions.md |
+| explained | `run-usage-unknown-not-zero` | 4 | docs/core-port.md WP12a change log 2 |
 | explained | `runtime-cost-rounding` | 6 | docs/core-port.md WP1b change log 3 |
 | explained | `runtime-stderr` | 12 | docs/runtime-port.md "Attempt artifacts" (stderr.log: runtime diagnostics, empty on a clean completion) |
 | explained | `wp10-artifact-tool-guidelines` | 6 | docs/core-port.md WP10 change log 2 |
@@ -897,7 +908,7 @@ Tasks not completed:
 
 </details>
 
-<details><summary>explained executor-usage-contract (128)</summary>
+<details><summary>explained executor-usage-contract (126)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
@@ -1027,8 +1038,6 @@ Tasks not completed:
 | run.json | tasks[7].usage.provider | removed | openai-codex |  |
 | run.json | tasks[7].usage.reasoningTokens | removed | 2013 |  |
 | run.json | tasks[7].usage.totalTokens | removed | 239092 |  |
-| run.json | usage.reasoningTokens | changed | 12536 | 0 |
-| run.json | usage.totalTokens | changed | 1782448 | 0 |
 
 </details>
 
@@ -1053,7 +1062,7 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/spec-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-spec-review-state-path-migrated-32090/work/replay-trace… (382 chars, sha256 5a346e7c017a) |
+| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/spec-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-spec-review-state-path-migrated-14610/work/replay-trace… (382 chars, sha256 d77857ac78a1) |
 
 </details>
 
@@ -1063,6 +1072,17 @@ Tasks not completed:
 |---|---|---|---|---|
 | compiled.json | permissionMode | added |  | free |
 | run.json | permissionMode | added |  | {"mode":"free","source":"default"} |
+
+</details>
+
+<details><summary>explained run-usage-unknown-not-zero (4)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | usage.cacheCreationInputTokens | removed | 0 |  |
+| run.json | usage.cachedInputTokens | removed | 0 |  |
+| run.json | usage.reasoningTokens | removed | 12536 |  |
+| run.json | usage.totalTokens | removed | 1782448 |  |
 
 </details>
 
@@ -1208,13 +1228,13 @@ Tasks not completed:
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
 | bundle/helpers/spec-requirement-source.mjs |  | digest-bound ×0 | 4ba1f11a7c20ee7123e3186947eafc53215258127e5d5f4c1e78f3e1919f52cc | aa08cbcfc46aafc03ad0b11682bbeb94f3a92f737de66b78ebfccba56281c1af |
-| supervisor.json |  | digest-bound ×0 | 1fef8f8ffa8b1b69fbdbc6f8ae12adb138834eae70eca6f505d2aecaa5a9d933 | e1b96ab433e7d86addeefaf7640c70a426c12a65ff627c0db3f71cf8215fa30e |
-| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | 75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211 | fdf3bf23e22840733ebc3919f749e2a8e554118ae488bc408405a0e1d77c6355 |
+| supervisor.json |  | digest-bound ×0 | 1fef8f8ffa8b1b69fbdbc6f8ae12adb138834eae70eca6f505d2aecaa5a9d933 | 382cee00b9f34655ef0dc717c45deec1ad8922ab315b981af98051a2ace0402a |
+| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | 75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211 | f56f0f85251a0ccae9d14b051fba418c8750644c94bf33fb0098015ba7bddff4 |
 | tasks/task-4/source-manifest.json |  | digest-bound ×13 | c6928c7fe350ccb2447669f1a224de19f40b070f5446d6cc7db139a822385195 | 4a9c7feffedc4ef4c74af4159a306c4fb9e2401acc887c5c5ffb9098e0b6459a |
 | tasks/task-6/control.json |  | digest-bound ×7 | acf75c059c93b7c057b49aa724cc80d8cc4ed3809180b2cbae1a47896bbae45e | 9127a68c323fa5e9fad787bcd014a4205f636f82ba1dfc40b780a28dcc87f9e9 |
 | tasks/task-6/output.log |  | digest-bound ×2 | e7c89a29dca27f39474a7f296eec2ce9a41896c25948141c9d97a31bec4d4207 | df02f3943fb9ec7d6a64031b73acf94cc53decfc72cab2ae140c12c306913c48 |
 | tasks/task-6/source-manifest.json |  | digest-bound ×0 | 64f0c2b8a1da0e1a9357bad71aa07d02e9b5ce125c5ac54c94c9decd70fe4b43 | 2b163098c0bd775ba13cfceb2533f7ef4174afada1a4f45d57c156128c00af42 |
-| tasks/task-7/read-ledger.jsonl |  | digest-bound ×0 | 6180e80979172dcb3d65c14be3ff0396fcc6a38122fc1e4dab35f11d4a9b1db6 | aeb3e73f681bd4988afa292aa5ee0a0379ded4e61fb3047f43dac6e95d2a68a0 |
+| tasks/task-7/read-ledger.jsonl |  | digest-bound ×0 | 6180e80979172dcb3d65c14be3ff0396fcc6a38122fc1e4dab35f11d4a9b1db6 | f3e24b67cb2dd50dddfc10d397a9800282e483cecaaf1968da2df4f7c8a15651 |
 | tasks/task-7/source-manifest.json |  | digest-bound ×1 | 759ac21880be41ee26b96f761ff5f5c5d4e3a6bd4e7654afbe8e26a11629bac7 | 1007c448acc1975e1a7a681813235449f26763ccae6fb55b006bffdf118e8f50 |
 | tasks/task-7/task.md |  | digest-bound ×1 | f128bee8ba8bdda0621e4304fc4056b26b7e51fd9e9a463f3d1fc762487fd4a5 | 95bd63534e09aa3954080a028e54362b3e65b99e9886880754d6b4af3c0008d2 |
 | tasks/task-8/analysis.md |  | digest-bound ×0 | aa719bac7e208986b72732f6752f821991d0278fe3f1062690009a5f64e13bf6 | 513fc6ba9b9176b15234b99a4ccc91365b4b437e474fdacd4273f20152a3e435 |

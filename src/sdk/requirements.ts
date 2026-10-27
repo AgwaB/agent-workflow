@@ -106,6 +106,11 @@ export interface NegotiationEntry {
 	readonly note?: string;
 	/** `free` permission mode accepted this degradation: no refusal, no confirmation (WP4e). */
 	readonly acceptedByFreeMode?: true;
+	/**
+	 * Recorded degradation that changes nothing about how the worker runs (WP12a: unknown cost);
+	 * it never needs a confirmation. `strict` still refuses it.
+	 */
+	readonly recordOnly?: true;
 }
 
 export interface NegotiationReport {
@@ -319,17 +324,18 @@ export function negotiateCapabilities(
 			if (requirement.onMissing === "refuse") {
 				entry = refused;
 			} else if (requirement.onMissing === "emulate") {
-				if (
-					key === "usage.cost" &&
-					isAvailable(caps.usage, optIn) &&
-					detailSatisfies("usage", caps.usage.detail, "tokens")
-				) {
+				// WP12a: the engine has no model price table, so it cannot emulate a missing cost.
+				// A preferred `usage.cost` is recorded as unknown (`null`, never 0); this changes
+				// nothing about the worker, so it never needs a confirmation (`recordOnly`).
+				if (key === "usage.cost" && requirement.need !== "required") {
 					entry = {
 						...base,
-						outcome: "emulated",
-						emulatedBy: "engine",
+						outcome: "degraded",
 						code,
-						note: "cost = tokens × model price table",
+						note: isAvailable(caps.usage, optIn)
+							? "cost recorded as unknown: the executor reports tokens only and the engine has no model prices"
+							: DEGRADE_NOTES.usage,
+						recordOnly: true,
 					};
 				} else if (requirement.need === "required") {
 					entry = { ...refused, note: "no engine emulation available" };
@@ -387,8 +393,9 @@ export function negotiateCapabilities(
 			entry.acceptedByFreeMode !== true &&
 			(strictKeys.has(key) || strictKeys.has(name))
 		) {
+			const { recordOnly: _recordOnly, ...unstrict } = entry;
 			entry = {
-				...entry,
+				...unstrict,
 				outcome: "refused",
 				code: `CAPABILITY_STRICT:${key}`,
 				note: `strict: ${key} must be native (was ${entry.outcome}${
@@ -429,7 +436,9 @@ export function negotiateCapabilities(
 		.map((entry) => entry.code ?? entry.key);
 	const confirmable = entries.filter(
 		(entry) =>
-			entry.outcome === "degraded" && entry.acceptedByFreeMode !== true,
+			entry.outcome === "degraded" &&
+			entry.acceptedByFreeMode !== true &&
+			entry.recordOnly !== true,
 	).length;
 	return {
 		contractVersion: EXECUTOR_CONTRACT_VERSION,

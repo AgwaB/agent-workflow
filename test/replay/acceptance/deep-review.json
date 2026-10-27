@@ -140,8 +140,8 @@
 				"Timing, poll counts, process ids and the Pi provider/model metadata of the recorded attempt (not part of the executor event contract)."
 			],
 			"counts": {
-				"allowed": 589,
-				"explained": 351,
+				"allowed": 587,
+				"explained": 353,
 				"unexplained": 0
 			},
 			"differences": [
@@ -582,22 +582,6 @@
 					"rule": "host-path-digest",
 					"file": "run.json",
 					"path": "tasks[].launchBootstrap.records[].effectivePolicy.toolProvidersSha256",
-					"kind": "digest-renamed",
-					"count": 1
-				},
-				{
-					"class": "allowed",
-					"rule": "supervisor-progress-snapshot",
-					"file": "supervisor.json",
-					"path": "taskStatusCounts.completed",
-					"kind": "digest-renamed",
-					"count": 1
-				},
-				{
-					"class": "allowed",
-					"rule": "supervisor-progress-snapshot",
-					"file": "supervisor.json",
-					"path": "taskStatusCounts.running",
 					"kind": "digest-renamed",
 					"count": 1
 				},
@@ -4690,7 +4674,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-review-original-24701/work/replay-trace.jsonl\"},\"c… (371 chars, sha256 602c88220d9d)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-review-original-12683/work/replay-trace.jsonl\"},\"c… (371 chars, sha256 4606624133aa)"
 				},
 				{
 					"class": "explained",
@@ -7701,7 +7685,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "6941c7da6309569c16d738d8e5513dd0935a2ab774b83f349194294dc891ee2b"
+					"replayed": "6294b926a1aac32156d1aecff5c76ad2e8768461d21aa5b71bd2d21dd247a0b5"
 				},
 				{
 					"class": "explained",
@@ -7721,7 +7705,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-7",
-					"replayed": "213093ef4562dda99ce3063c93533c88ff59a7789639148b97b03c05355a0e25"
+					"replayed": "1327921178af61aea0ad5907738ebd3a7fc921b94cc3db8307f2e25b39c0337a"
 				},
 				{
 					"class": "explained",
@@ -7731,7 +7715,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-7",
-					"replayed": "60fe9aa844921e87c3c3dbfc49c5dac566a8a57647d2ef6e3e4898d0b38a4623"
+					"replayed": "e4b248c1c8976fa42a934a8adf69866e7c4cc97b64d1085bc83e902d62174727"
 				},
 				{
 					"class": "explained",
@@ -7741,7 +7725,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "6941c7da6309569c16d738d8e5513dd0935a2ab774b83f349194294dc891ee2b"
+					"replayed": "6294b926a1aac32156d1aecff5c76ad2e8768461d21aa5b71bd2d21dd247a0b5"
 				},
 				{
 					"class": "explained",
@@ -8071,23 +8055,39 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
+					"rule": "run-usage-unknown-not-zero",
+					"citation": "docs/core-port.md WP12a change log 2",
 					"file": "run.json",
-					"kind": "changed",
-					"path": "usage.reasoningTokens",
-					"recorded": "17488",
-					"replayed": "0"
+					"kind": "removed",
+					"path": "usage.cacheCreationInputTokens",
+					"recorded": "0"
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
+					"rule": "run-usage-unknown-not-zero",
+					"citation": "docs/core-port.md WP12a change log 2",
 					"file": "run.json",
-					"kind": "changed",
+					"kind": "removed",
+					"path": "usage.cachedInputTokens",
+					"recorded": "0"
+				},
+				{
+					"class": "explained",
+					"rule": "run-usage-unknown-not-zero",
+					"citation": "docs/core-port.md WP12a change log 2",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "usage.reasoningTokens",
+					"recorded": "17488"
+				},
+				{
+					"class": "explained",
+					"rule": "run-usage-unknown-not-zero",
+					"citation": "docs/core-port.md WP12a change log 2",
+					"file": "run.json",
+					"kind": "removed",
 					"path": "usage.totalTokens",
-					"recorded": "1032672",
-					"replayed": "0"
+					"recorded": "1032672"
 				},
 				{
 					"class": "explained",

@@ -59,7 +59,7 @@
 					"specId": "report.main",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvqemzkm_17ae59/attempt_mvqemzkm_c43919 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: replay miss for task-7: no recorded launch has this prompt; closest recorded task-7 seq 11143, first difference at line 64: recorded \"[{\\\"source\\\":\\\"partition-findings\\\",\\\"taskId\\\":\\\"task-6\\\",\\\"specId\\\":\\\"partition-findings.main\\\",\\\"stageId\\\":\\\"partition-findings\\\",\\\"status\\\":\\\"completed\\\",\\\"statusDetail\\\":\\\"support_completed\\\",\\\"lastMessage\\\":\\\"support completed\\\",\\\"digest\\\":\\\"sha256:acf75c059c93b7c057b49aa724cc80d8cc4ed3809180b2cbae1a47896bbae45e\\\",\\\"availableArtifacts\\\":[\\\"control\\\",\\\"analysis\\\",\\\"refs\\\",\\\"raw\\\"]}]\" replay \"[{\\\"source\\\":\\\"partition-findings\\\",\\\"taskId\\\":\\\"task-6\\\",\\\"specId\\\":\\\"partition-findings.main\\\",\\\"stageId\\\":\\\"partition-findings\\\",\\\"status\\\":\\\"completed\\\",\\\"statusDetail\\\":\\\"support_completed\\\",\\\"lastMessage\\\":\\\"support completed\\\",\\\"digest\\\":\\\"sha256:be93034874343d4b75a94c7baffffd5bf22f4614eae88df1193f6be2624ac814\\\",\\\"availableArtifacts\\\":[\\\"control\\\",\\\"analysis\\\",\\\"refs\\\",\\\"raw\\\"]}]\""
+					"lastMessage": "provisional worker run_mvqghkbp_d3d4ef/attempt_mvqghkbp_684163 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: replay miss for task-7: no recorded launch has this prompt; closest recorded task-7 seq 11143, first difference at line 64: recorded \"[{\\\"source\\\":\\\"partition-findings\\\",\\\"taskId\\\":\\\"task-6\\\",\\\"specId\\\":\\\"partition-findings.main\\\",\\\"stageId\\\":\\\"partition-findings\\\",\\\"status\\\":\\\"completed\\\",\\\"statusDetail\\\":\\\"support_completed\\\",\\\"lastMessage\\\":\\\"support completed\\\",\\\"digest\\\":\\\"sha256:acf75c059c93b7c057b49aa724cc80d8cc4ed3809180b2cbae1a47896bbae45e\\\",\\\"availableArtifacts\\\":[\\\"control\\\",\\\"analysis\\\",\\\"refs\\\",\\\"raw\\\"]}]\" replay \"[{\\\"source\\\":\\\"partition-findings\\\",\\\"taskId\\\":\\\"task-6\\\",\\\"specId\\\":\\\"partition-findings.main\\\",\\\"stageId\\\":\\\"partition-findings\\\",\\\"status\\\":\\\"completed\\\",\\\"statusDetail\\\":\\\"support_completed\\\",\\\"lastMessage\\\":\\\"support completed\\\",\\\"digest\\\":\\\"sha256:be93034874343d4b75a94c7baffffd5bf22f4614eae88df1193f6be2624ac814\\\",\\\"availableArtifacts\\\":[\\\"control\\\",\\\"analysis\\\",\\\"refs\\\",\\\"raw\\\"]}]\""
 				},
 				{
 					"taskId": "task-8",
@@ -139,7 +139,7 @@
 			],
 			"counts": {
 				"allowed": 292,
-				"explained": 488,
+				"explained": 490,
 				"unexplained": 0
 			},
 			"differences": [
@@ -282,7 +282,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-7/.launch-barrier-247b9bca94d11af2-<RAND16>/decision-v2.json",
+					"file": "tasks/task-7/.launch-barrier-47cf3e3694eef7ba-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -290,7 +290,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-7/.launch-barrier-247b9bca94d11af2-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-7/.launch-barrier-47cf3e3694eef7ba-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -366,7 +366,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211",
-					"replayed": "e6ac34a8caa15e7a7b543d6a9c761be3d929f3243330dde38efcf111ff88e55d",
+					"replayed": "419559e82458f01114b9e4b8f6bcdb687245b774a4b0a526fd731e3423ab24d2",
 					"count": 0
 				},
 				{
@@ -2432,7 +2432,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/spec-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-spec-review-original-30732/work/replay-trace.jsonl\"},\"c… (371 chars, sha256 34eb022578a5)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/spec-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-spec-review-original-14186/work/replay-trace.jsonl\"},\"c… (371 chars, sha256 9e3f22979939)"
 				},
 				{
 					"class": "explained",
@@ -4346,23 +4346,39 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
+					"rule": "run-usage-unknown-not-zero",
+					"citation": "docs/core-port.md WP12a change log 2",
 					"file": "run.json",
-					"kind": "changed",
-					"path": "usage.reasoningTokens",
-					"recorded": "12536",
-					"replayed": "0"
+					"kind": "removed",
+					"path": "usage.cacheCreationInputTokens",
+					"recorded": "0"
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
+					"rule": "run-usage-unknown-not-zero",
+					"citation": "docs/core-port.md WP12a change log 2",
 					"file": "run.json",
-					"kind": "changed",
+					"kind": "removed",
+					"path": "usage.cachedInputTokens",
+					"recorded": "0"
+				},
+				{
+					"class": "explained",
+					"rule": "run-usage-unknown-not-zero",
+					"citation": "docs/core-port.md WP12a change log 2",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "usage.reasoningTokens",
+					"recorded": "12536"
+				},
+				{
+					"class": "explained",
+					"rule": "run-usage-unknown-not-zero",
+					"citation": "docs/core-port.md WP12a change log 2",
+					"file": "run.json",
+					"kind": "removed",
 					"path": "usage.totalTokens",
-					"recorded": "1782448",
-					"replayed": "0"
+					"recorded": "1782448"
 				},
 				{
 					"class": "explained",
@@ -5136,7 +5152,7 @@
 			],
 			"counts": {
 				"allowed": 334,
-				"explained": 240,
+				"explained": 242,
 				"unexplained": 0
 			},
 			"differences": [
@@ -5357,7 +5373,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "1fef8f8ffa8b1b69fbdbc6f8ae12adb138834eae70eca6f505d2aecaa5a9d933",
-					"replayed": "e1b96ab433e7d86addeefaf7640c70a426c12a65ff627c0db3f71cf8215fa30e",
+					"replayed": "382cee00b9f34655ef0dc717c45deec1ad8922ab315b981af98051a2ace0402a",
 					"count": 0
 				},
 				{
@@ -5367,7 +5383,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211",
-					"replayed": "fdf3bf23e22840733ebc3919f749e2a8e554118ae488bc408405a0e1d77c6355",
+					"replayed": "f56f0f85251a0ccae9d14b051fba418c8750644c94bf33fb0098015ba7bddff4",
 					"count": 0
 				},
 				{
@@ -5417,7 +5433,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "6180e80979172dcb3d65c14be3ff0396fcc6a38122fc1e4dab35f11d4a9b1db6",
-					"replayed": "aeb3e73f681bd4988afa292aa5ee0a0379ded4e61fb3047f43dac6e95d2a68a0",
+					"replayed": "f3e24b67cb2dd50dddfc10d397a9800282e483cecaaf1968da2df4f7c8a15651",
 					"count": 0
 				},
 				{
@@ -7775,7 +7791,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/spec-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-spec-review-state-path-migrated-32090/work/replay-trace… (382 chars, sha256 5a346e7c017a)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/spec-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-spec-review-state-path-migrated-14610/work/replay-trace… (382 chars, sha256 d77857ac78a1)"
 				},
 				{
 					"class": "explained",
@@ -9912,23 +9928,39 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
+					"rule": "run-usage-unknown-not-zero",
+					"citation": "docs/core-port.md WP12a change log 2",
 					"file": "run.json",
-					"kind": "changed",
-					"path": "usage.reasoningTokens",
-					"recorded": "12536",
-					"replayed": "0"
+					"kind": "removed",
+					"path": "usage.cacheCreationInputTokens",
+					"recorded": "0"
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
+					"rule": "run-usage-unknown-not-zero",
+					"citation": "docs/core-port.md WP12a change log 2",
 					"file": "run.json",
-					"kind": "changed",
+					"kind": "removed",
+					"path": "usage.cachedInputTokens",
+					"recorded": "0"
+				},
+				{
+					"class": "explained",
+					"rule": "run-usage-unknown-not-zero",
+					"citation": "docs/core-port.md WP12a change log 2",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "usage.reasoningTokens",
+					"recorded": "12536"
+				},
+				{
+					"class": "explained",
+					"rule": "run-usage-unknown-not-zero",
+					"citation": "docs/core-port.md WP12a change log 2",
+					"file": "run.json",
+					"kind": "removed",
 					"path": "usage.totalTokens",
-					"recorded": "1782448",
-					"replayed": "0"
+					"recorded": "1782448"
 				},
 				{
 					"class": "explained",

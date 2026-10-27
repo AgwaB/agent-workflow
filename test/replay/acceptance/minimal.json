@@ -660,7 +660,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/minimal\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-minimal-original-30337/work/replay-trace.jsonl\"},\"contractVersion\":… (355 chars, sha256 f69cfba5d7fc)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/minimal\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-minimal-original-14159/work/replay-trace.jsonl\"},\"contractVersion\":… (355 chars, sha256 e1d63432131c)"
 				},
 				{
 					"class": "explained",
@@ -679,7 +679,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "ea76b3de16da36b6f5f6737a14f2f7f630d3792d42ea59eca5e46211798cc27d"
+					"replayed": "cfeb1c894e37d306311399e99418e09fb5b6d19c123736a590f89a7bf05caefe"
 				},
 				{
 					"class": "explained",
@@ -699,7 +699,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-1",
-					"replayed": "3be0e9fe5086e42c9ca8dc73723ed4ed2d3286b5220ecb640a3d6d9734479e83"
+					"replayed": "dd68f3f86dfb72c4c73628aba77d55fee3468e62595c4ec7c4a8fe3d38f4127d"
 				},
 				{
 					"class": "explained",
@@ -709,7 +709,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-1",
-					"replayed": "12e2ccbe8646f29f5bbb16edc3aa5305efe752a431e29b464c3e6f65261a1fde"
+					"replayed": "d3a27fcac8e5376da6ff15577278f8b6ca80be6f55c14ccd3308d27ce9045ed9"
 				},
 				{
 					"class": "explained",
@@ -719,7 +719,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "ea76b3de16da36b6f5f6737a14f2f7f630d3792d42ea59eca5e46211798cc27d"
+					"replayed": "cfeb1c894e37d306311399e99418e09fb5b6d19c123736a590f89a7bf05caefe"
 				},
 				{
 					"class": "explained",
@@ -1049,8 +1049,8 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
+					"rule": "run-usage-unknown-not-zero",
+					"citation": "docs/core-port.md WP12a change log 2",
 					"file": "run.json",
 					"kind": "removed",
 					"path": "usage.cacheCreationInputTokens",
@@ -1068,8 +1068,8 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
+					"rule": "run-usage-unknown-not-zero",
+					"citation": "docs/core-port.md WP12a change log 2",
 					"file": "run.json",
 					"kind": "removed",
 					"path": "usage.reasoningTokens",
@@ -1077,8 +1077,8 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
+					"rule": "run-usage-unknown-not-zero",
+					"citation": "docs/core-port.md WP12a change log 2",
 					"file": "run.json",
 					"kind": "removed",
 					"path": "usage.totalTokens",

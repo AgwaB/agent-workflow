@@ -2063,7 +2063,8 @@ function runUsageRollup(run: WorkflowRunRecord): WorkflowRunUsageRollup {
 		...(observed.reasoningTokens === null
 			? {}
 			: { reasoningTokens: observed.reasoningTokens }),
-		...(observed.costUsd === null ? {} : { costUsd: observed.costUsd }),
+		// WP12a: unknown cost is null, never omitted or 0 (no task reported a cost).
+		costUsd: observed.costUsd,
 	};
 }
 
