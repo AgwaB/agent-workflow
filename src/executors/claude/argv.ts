@@ -66,6 +66,24 @@ export function attemptSessionId(attemptKey: string): string {
 	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
+/**
+ * Claude session id for a requested `SubmitRequest.sessionId`. Claude's `--session-id` takes only
+ * a UUID; the engine names kept sessions logically (`agent-workflow.<run>.<task>`, live bundle 3:
+ * every Claude workflow run was refused before launch). A UUID passes through; any other id maps
+ * to a deterministic UUID (v4 layout over SHA-256), so the same logical id always names the same
+ * Claude session and distinct ids stay distinct.
+ */
+export function claudeSessionUuid(sessionId: string): string {
+	if (isUuid(sessionId)) return sessionId;
+	const hex = createHash("sha256")
+		.update(`agent-workflow-claude-session:${sessionId}`)
+		.digest("hex");
+	const variant = ((Number.parseInt(hex[16] ?? "0", 16) & 0x3) | 0x8).toString(
+		16,
+	);
+	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
 /** Env var that carries `mcpServers[index].env[key]` into the CLI (expanded from `${VAR}`). */
 export function mcpEnvVarName(index: number, key: string): string {
 	return `AW_CLAUDE_MCP_${index}_${key.replace(/[^A-Za-z0-9_]/gu, "_")}`;
@@ -188,11 +206,8 @@ export function buildClaudeInvocation(
 			"INVALID_REQUEST",
 			"resumeSessionId must be a Claude session UUID",
 		);
-	if (req.sessionId !== undefined && !isUuid(req.sessionId))
-		throw new SdkError(
-			"INVALID_REQUEST",
-			"sessionId must be a UUID (claude --session-id)",
-		);
+	if (req.sessionId !== undefined && req.sessionId.trim() === "")
+		throw new SdkError("INVALID_REQUEST", "sessionId must not be empty");
 	const effort = resolveEffort(req.effort);
 	const mutating = new Set<string>(CLAUDE_MUTATING_TOOLS);
 	const builtinTools = mapped.executorTools.filter(
@@ -258,9 +273,9 @@ export function buildClaudeInvocation(
 		keepSession = true;
 		argv.push("--resume", req.resumeSessionId);
 	} else if (req.sessionId !== undefined) {
-		sessionId = req.sessionId;
+		sessionId = claudeSessionUuid(req.sessionId);
 		keepSession = true;
-		argv.push("--session-id", req.sessionId);
+		argv.push("--session-id", sessionId);
 	} else {
 		sessionId = attemptSessionId(req.attemptKey);
 		keepSession = false;

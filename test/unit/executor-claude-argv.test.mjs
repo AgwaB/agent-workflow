@@ -6,6 +6,7 @@ import { test } from "node:test";
 import {
 	attemptSessionId,
 	buildClaudeInvocation,
+	claudeSessionUuid,
 	buildMcpConfig,
 	CLAUDE_TOOL_MAPPING,
 	claudeCapabilities,
@@ -207,7 +208,7 @@ test("refusals happen before any effect", () => {
 		code: "INVALID_REQUEST",
 	});
 	assert.throws(() => plan({ effort: "turbo" }), { code: "INVALID_REQUEST" });
-	assert.throws(() => plan({ sessionId: "not-a-uuid" }), {
+	assert.throws(() => plan({ sessionId: " " }), {
 		code: "INVALID_REQUEST",
 	});
 	assert.throws(() => plan({ resumeSessionId: "../x" }), {
@@ -253,6 +254,33 @@ test("sessions (D3): ephemeral by default, kept only on request, resume continue
 	const resumed = plan({ resumeSessionId: id });
 	assert.equal(flagValue(resumed.argv, "--resume"), id);
 	assert.ok(!resumed.argv.includes("--session-id"));
+});
+
+// Live bundle 3: the engine keeps every artifact-graph task's session under a logical id
+// (`agent-workflow.<run>.<task>`); Claude's --session-id takes only a UUID, and the old refusal
+// stopped every Claude workflow run before launch.
+test("a logical engine session id maps to a deterministic Claude session UUID", () => {
+	const logical = "agent-workflow.workflow_mvqcmxfu_938ff6.task-1";
+	const kept = plan({ sessionId: logical });
+	const uuid = claudeSessionUuid(logical);
+	assert.match(
+		uuid,
+		/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+	);
+	assert.equal(kept.sessionId, uuid);
+	assert.equal(kept.keepSession, true);
+	assert.equal(flagValue(kept.argv, "--session-id"), uuid);
+	assert.ok(!kept.argv.includes(logical));
+	assert.ok(!kept.argv.includes("--no-session-persistence"));
+	assert.equal(claudeSessionUuid(logical), uuid);
+	assert.notEqual(
+		claudeSessionUuid(`${logical}.launch-retry-1`),
+		uuid,
+		"retry sessions stay distinct",
+	);
+	assert.notEqual(uuid, attemptSessionId(logical));
+	const id = "6c5135b7-3668-4f3a-b3d2-a2fb0ec7a40a";
+	assert.equal(claudeSessionUuid(id), id);
 });
 
 test("MAX_MCP_OUTPUT_TOKENS is set by the adapter and drives the probe limit", () => {
