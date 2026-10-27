@@ -28,7 +28,7 @@ import {
 	type StageRequirementContext,
 } from "../sdk/requirements.js";
 import { strictCapabilityKeysProblem } from "./artifact-graph-schema.js";
-import { executorSetupHints } from "./executor-default.js";
+import { executorSetupHints, installText } from "./executor-default.js";
 import { workflowTaskReadOnly } from "./tool-policy.js";
 import type {
 	CompiledLoopStageRecord,
@@ -89,7 +89,7 @@ function hintsFor(executorId: string): {
 		install: `\`${hints.check}\``,
 		login: hints.login,
 		// WP17 first-run guidance: the exact install command and where it is documented.
-		setup: `install it with \`${hints.install}\` (see ${hints.installDoc}) or choose another executor with --executor <id>`,
+		setup: `install it: ${installText(hints)}; or choose another executor with --executor <id>`,
 	};
 }
 

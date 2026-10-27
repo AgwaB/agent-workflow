@@ -10,9 +10,6 @@
 // Probe results that are usable are cached per process for a short time (EXECUTOR_PROBE_CACHE_TTL_MS)
 // so the selection probe and the capability negotiation probe of the same run share one CLI probe;
 // unusable results and probe failures are never cached (a fresh login is seen on the next run).
-import { CLAUDE_INSTALL_COMMAND } from "../executors/claude/version.js";
-import { CODEX_INSTALL_COMMAND } from "../executors/codex/version.js";
-import { PI_INSTALL_COMMAND } from "../executors/pi/version.js";
 import type { ExecutorCapabilities } from "../sdk/capabilities.js";
 import type { AuthStatus, ExecutorProbe } from "../sdk/contract.js";
 import { type ExecutorDescriptor, loadExecutor } from "../sdk/descriptor.js";
@@ -69,8 +66,11 @@ export function isWorkflowHostId(value: unknown): value is WorkflowHostId {
 export interface ExecutorSetupHints {
 	/** CLI name. */
 	cli: string;
-	/** Command that installs the CLI. */
-	install: string;
+	/**
+	 * Command that installs the CLI; null when only the install doc is named (Pi: its package scope
+	 * must not appear in Pi-free code, so the command lives in docs/usage.md).
+	 */
+	install: string | null;
 	/** Where the install is documented (placeholder until the public install docs exist). */
 	installDoc: string;
 	/** How to log the CLI in, as a phrase (D1: the CLI owns its login). */
@@ -82,21 +82,21 @@ export interface ExecutorSetupHints {
 const SETUP_HINTS: Readonly<Record<string, ExecutorSetupHints>> = {
 	pi: {
 		cli: "pi",
-		install: PI_INSTALL_COMMAND,
+		install: null,
 		installDoc: "docs/usage.md#executors",
 		login: "run `pi`, then `/login`",
 		check: "pi --version",
 	},
 	claude: {
 		cli: "claude",
-		install: CLAUDE_INSTALL_COMMAND,
+		install: "npm i -g @anthropic-ai/claude-code",
 		installDoc: "docs/usage.md#executors",
 		login: "run `claude auth login`",
 		check: "claude --version",
 	},
 	codex: {
 		cli: "codex",
-		install: CODEX_INSTALL_COMMAND,
+		install: "npm i -g @openai/codex",
 		installDoc: "docs/usage.md#executors",
 		login: "run `codex login`",
 		check: "codex --version",
@@ -108,7 +108,7 @@ export function executorSetupHints(executorId: string): ExecutorSetupHints {
 	return (
 		SETUP_HINTS[executorId] ?? {
 			cli: executorId,
-			install: `install the ${executorId} CLI`,
+			install: null,
 			installDoc: "docs/usage.md#executors",
 			login: `log in with the ${executorId} CLI`,
 			check: `the ${executorId} CLI's version command`,
@@ -152,9 +152,16 @@ export function readinessFixHint(readiness: {
 }): string {
 	const hints = executorSetupHints(readiness.id);
 	if (readiness.state === "not-installed" || readiness.state === "probe-failed")
-		return `install: \`${hints.install}\` (see ${hints.installDoc}), check with \`${hints.check}\``;
+		return `install: ${installText(hints)}, check with \`${hints.check}\``;
 	if (readiness.state === "logged-out") return `log in: ${hints.login}`;
 	return "";
+}
+
+/** "`npm i -g …` (see doc)" or, without a known command, "see doc". */
+export function installText(hints: ExecutorSetupHints): string {
+	return hints.install === null
+		? `see ${hints.installDoc}`
+		: `\`${hints.install}\` (see ${hints.installDoc})`;
 }
 
 interface CacheEntry {

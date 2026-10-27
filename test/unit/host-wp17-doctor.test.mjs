@@ -34,7 +34,13 @@ afterEach(() => {
 	core.resetExecutorProbeCacheForTests();
 });
 after(async () => {
-	await rm(root, { recursive: true, force: true });
+	// Detached finalizers of completed runs may still be releasing files.
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 const READY = { installed: true, cliVersion: "2.1.310", auth: "ok" };
@@ -135,7 +141,7 @@ test("doctorAction: executors, default and why, verified versions, fix commands 
 	assert.equal(byId.pi.state, "not-installed");
 	assert.match(
 		byId.pi.fix,
-		/^install: `npm i -g [^`]+` \(see docs\/usage\.md#executors\)/,
+		/^install: see docs\/usage\.md#executors, check with `pi --version`$/,
 	);
 	assert.equal(byId.claude.usable, true);
 	assert.equal(byId.claude.verifiedVersion, "2.1.310");
@@ -392,8 +398,14 @@ test("CLI run without an executor: nothing usable is refused before any run reco
 	);
 	assert.equal(code, 1);
 	assert.match(result.out(), /^Not started: no executor is usable/);
-	assert.match(result.out(), /- pi: not installed; install: `npm i -g /);
-	assert.match(result.out(), /- claude: not installed; install: `npm i -g /);
+	assert.match(
+		result.out(),
+		/- pi: not installed; install: see docs\/usage\.md#executors/,
+	);
+	assert.match(
+		result.out(),
+		/- claude: not installed; install: `npm i -g @anthropic-ai\/claude-code`/,
+	);
 	assert.match(
 		result.out(),
 		/- codex: not installed; install: `npm i -g @openai\/codex`/,

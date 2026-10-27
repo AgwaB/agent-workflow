@@ -52,7 +52,13 @@ afterEach(() => {
 	core.resetExecutorProbeCacheForTests();
 });
 after(async () => {
-	await rm(root, { recursive: true, force: true });
+	// Detached finalizers of completed runs may still be releasing files.
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 const READY = { installed: true, cliVersion: "1.0.0", auth: "ok" };
@@ -270,7 +276,10 @@ test("a probe that throws or hangs counts as not usable", async () => {
 		},
 	});
 	assert.equal(readiness.state, "probe-failed");
-	assert.match(core.readinessFixHint(readiness), /install: `npm i -g /);
+	assert.equal(
+		core.readinessFixHint(readiness),
+		"install: see docs/usage.md#executors, check with `pi --version`",
+	);
 });
 
 test("nothing usable: the run fails before any record, naming each CLI's state and the fix commands", async () => {
@@ -292,7 +301,10 @@ test("nothing usable: the run fails before any record, naming each CLI's state a
 	);
 	assert.match(message, /^no executor is usable/);
 	assert.match(message, /The run was not started\./);
-	assert.match(message, /- pi: not installed; install: `npm i -g [^`]+`/);
+	assert.match(
+		message,
+		/- pi: not installed; install: see docs\/usage\.md#executors, check with `pi --version`/,
+	);
 	assert.match(
 		message,
 		/- claude: installed \(1\.0\.0\), not logged in \(auth missing\); log in: run `claude auth login`/,
@@ -321,7 +333,9 @@ test("the chosen host CLI not installed: negotiation names the install command (
 			error instanceof core.WorkflowCapabilityError &&
 			error.code === "EXECUTOR_NOT_INSTALLED" &&
 			/executor "claude" is not installed/.test(error.message) &&
-			/install it with `npm i -g [^`]+claude-code`/.test(error.message),
+			/install it: `npm i -g @anthropic-ai\/claude-code` \(see docs\/usage\.md#executors\)/.test(
+				error.message,
+			),
 	);
 	assert.equal(existsSync(join(cwd, ".agent-workflow", "workflows")), false);
 });

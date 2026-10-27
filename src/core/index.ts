@@ -194,6 +194,7 @@ export {
 	executorSetupHints,
 	HOST_DEFAULT_EXECUTORS,
 	INSTALLED_DEFAULT_ORDER,
+	installText,
 	isWorkflowHostId,
 	noUsableExecutorMessage,
 	probeExecutorReadiness,

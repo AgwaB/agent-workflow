@@ -18,6 +18,7 @@ export const PI_FREE_CODE_PREFIXES = Object.freeze([
 	"dist/hosts/api.",
 	"dist/hosts/args.",
 	"dist/hosts/catalog.",
+	"dist/hosts/doctor.",
 	"dist/hosts/help.",
 	"dist/hosts/launch.",
 	"dist/hosts/result-presentation.",

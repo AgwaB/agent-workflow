@@ -21,8 +21,10 @@ Sources: `src/hosts/api.ts` (exports), `types.ts`, `args.ts`, `catalog.ts`, `lau
 ## Common contract
 
 **Context** `HostApiContext`: `cwd` (project; runs live under `<cwd>/.agent-workflow/`), optional
-`env` (role checks and the user home; default `process.env`), `defaultExecutor` (lowest B2
-precedence; engine default `pi`), `runtimeDefaults` (the host's current model/effort), and
+`env` (role checks and the user home; default `process.env`), `host` (WP17: `"claude-code" |
+"codex" | "pi" | "cli"`; the default executor is the host's own CLI, `cli` or absent = first
+installed and logged-in of pi → claude → codex), `defaultExecutor` (explicit host override of that
+default, below the saved user profile), `runtimeDefaults` (the host's current model/effort), and
 `availableModels` (the host's model registry; when present, the per-workflow Pi profile preferences
 of `/workflow profile` are consulted at launch; the CLI and MCP hosts leave it unset).
 
@@ -64,6 +66,7 @@ throw `WorkflowValidationError`; `formatHostError(error)` renders any error. Lau
 | `stopAction` | `{runId, timeoutMs?}` | `{runId, status, interruptedTaskIds, pending}` | success, or running when `pending` |
 | `pruneAction` | `{keep?, olderThanDays?, yes?}` or `{argv}` | `WorkflowPruneSummary` (core) | success, failed (`summary.error`) |
 | `noticesAction` | `{argv}` (`list [--json]`, `acknowledge <id> --state <sha> --reason <text>`, `clear <id> [--json]`) | list: `{notices, acknowledgements, warnings}`; else `{action, runId, notificationOnly}` | success |
+| `doctorAction` (WP17) | `{prober?, probeTimeoutMs?, nodeVersion?}` (test seams) | `DoctorData`: `{host, executors[], defaultExecutor, permissionMode, node, home, warnings, runIndex, usable}` (no model call, nothing written) | success (an executor is usable), failed |
 | `superviseAction` | `{runId? \| all, pollMs?, maxRuntimeMs?, onLog?, signal?, testHooks?}` | `{runIds, maxRuntimeMs, runs, result: completed \| failed \| blocked \| timeout}` | completed, failed, blocked, timeout |
 
 `RunSummary` = `{runId, name?, status, type, createdAt, updatedAt, parentRunId?, executor?,
