@@ -1,0 +1,130 @@
+// New in agent-workflow (WP11a): the host API layer (`@agwab/agent-workflow/hosts/api`). One typed,
+// host-neutral handler per action; the `agent-workflow` CLI, the stage-2 host MCP server and the Pi
+// host (WP11b) all call these instead of re-implementing command logic. No Pi imports. Contracts:
+// docs/host-api.md. Logic ported from pi-workflow 0.16.4 (b83cc4f) src/extension.ts and src/cli.mjs
+// (see each module's header).
+import { showWorkflowSpecAction } from "./catalog.js";
+import { showRunAction } from "./runs.js";
+import type { HostApiContext, HostResult } from "./types.js";
+
+export {
+	HostUsageError,
+	isThinkingLevel,
+	type ParsedSuperviseArgs,
+	type ParsedWorkflowDynamicArgs,
+	type ParsedWorkflowPruneArgs,
+	type ParsedWorkflowRunArgs,
+	parseCapabilityList,
+	parseDuration,
+	parsePermissionMode,
+	parseSuperviseArgs,
+	parseThinkingLevel,
+	parseWorkflowDynamicArgs,
+	parseWorkflowPruneArgs,
+	parseWorkflowRunArgs,
+	tokenizeWorkflowArgs,
+	type WorkflowArgToken,
+} from "./args.js";
+export {
+	type AgentSummary,
+	type ListData,
+	type ListRequest,
+	listAgentsAction,
+	listWorkflowsAction,
+	type ProfileData,
+	type ProfileRequest,
+	profileAction,
+	type RolesData,
+	showWorkflowSpecAction,
+	type ValidateData,
+	validateWorkflowAction,
+	type WorkflowListSummary,
+	workflowRolesAction,
+} from "./catalog.js";
+export { COMMAND_HELP, GENERAL_HELP, helpAction } from "./help.js";
+export {
+	agentWorkflowCliPath,
+	type LaunchData,
+	type LaunchProfileInfo,
+	type LaunchRequestBase,
+	type RunDynamicRequest,
+	type RunWorkflowRequest,
+	resolveWorkflowExecutionProfileForLaunch,
+	runDynamicAction,
+	runWorkflowAction,
+	selectWorkflowExecutionProfile,
+	spawnDetachedSupervisor,
+	type WorkflowProfileSelector,
+} from "./launch.js";
+export {
+	formatWorkflowResultPresentation,
+	readWorkflowResultPresentation,
+	type WorkflowResultArtifact,
+	type WorkflowResultPresentation,
+} from "./result-presentation.js";
+export {
+	boundedWaitTimeout,
+	type InspectData,
+	inspectAction,
+	noticesAction,
+	pruneAction,
+	type ResumeData,
+	type RunSummary,
+	resumeAction,
+	type StatusData,
+	type StopData,
+	HOST_STOP_CONFIRM_TIMEOUT_MS,
+	type SuperviseData,
+	type SuperviseRequest,
+	showRunAction,
+	statusAction,
+	stopAction,
+	summarizeRun,
+	superviseAction,
+	type WaitData,
+	type WaitRequest,
+	waitAction,
+} from "./runs.js";
+export {
+	registerTestExecutorFromEnv,
+	TEST_EXECUTOR_ACK_ENV,
+	TEST_EXECUTOR_ACK_VALUE,
+	TEST_EXECUTOR_MODULE_ENV,
+	TestExecutorHookError,
+} from "./test-executor.js";
+export {
+	formatHostError,
+	HOST_API_VERSION,
+	HOST_WAIT_MAX_TIMEOUT_MS,
+	HOST_WAIT_MIN_TIMEOUT_MS,
+	type HostAction,
+	type HostApiContext,
+	type HostOutcome,
+	type HostResult,
+	MODULE,
+	outcomeForRunStatus,
+} from "./types.js";
+export {
+	type UserProfile,
+	type UserProfileValues,
+	USER_PROFILE_FIELDS,
+	userProfilesPath,
+} from "./user-profiles.js";
+
+/** `show <ref> [raw]`: a run (`--raw`, or a `workflow_…` id) or else a workflow spec. */
+export async function showAction(
+	ctx: HostApiContext,
+	request: { ref: string; raw?: boolean },
+): Promise<
+	HostResult<
+		| Awaited<ReturnType<typeof showRunAction>>["data"]
+		| Awaited<ReturnType<typeof showWorkflowSpecAction>>["data"]
+	>
+> {
+	if (request.raw || request.ref.startsWith("workflow_"))
+		return showRunAction(ctx, {
+			runId: request.ref,
+			...(request.raw ? { raw: true } : {}),
+		});
+	return showWorkflowSpecAction(ctx, { workflow: request.ref });
+}

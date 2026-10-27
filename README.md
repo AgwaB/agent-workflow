@@ -32,7 +32,8 @@ write-capable stage), choose **`safe`**: run option `permissionMode: "safe"`, a 
 - `@agwab/agent-workflow/executors/pi` — `pi --mode json` executor (optional Pi peers)
 - `@agwab/agent-workflow/executors/codex` — `codex app-server` executor
 - `@agwab/agent-workflow/executors/claude` — `claude -p` stream-json executor
-- `@agwab/agent-workflow/hosts/cli` — host-neutral `agent-workflow` CLI
+- `@agwab/agent-workflow/hosts/api` — host API handlers shared by every host ([`docs/host-api.md`](docs/host-api.md))
+- `@agwab/agent-workflow/hosts/cli` — host-neutral `agent-workflow` CLI ([`docs/cli.md`](docs/cli.md))
 - `@agwab/agent-workflow/hosts/pi` — Pi extension host (optional Pi peers)
 
 ## License

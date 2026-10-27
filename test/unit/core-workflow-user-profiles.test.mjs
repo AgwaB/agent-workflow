@@ -574,7 +574,7 @@ test("Custom settings preserve stage ids that overlap object prototype names", a
 	assert.equal(built.stageOverrides.other.thinking, "high");
 });
 
-// Not ported (Pi host extension (WP11): resolveWorkflowExecutionProfileForLaunch; see docs/core-port.md WP10): test("invalid, corrupt, and simultaneous writes preserve complete unrelated settings").
+// Moved (WP11a, host API resolveWorkflowExecutionProfileForLaunch): test("invalid, corrupt, and simultaneous writes preserve complete unrelated settings") → test/unit/host-ported-cli-args.test.mjs.
 
 test("unsafe settings lock evidence is rejected and never reclaimed", async () => {
 	const { workflowPath } = setup("unsafe-settings-lock");
@@ -656,4 +656,4 @@ test("preference reads and writes reject a symlinked settings ancestor", async (
 
 // Not ported (Pi host extension (WP11): workflowExtension; see docs/core-port.md WP10): test("actual profile command returns to workflow picker on Back and exits only at entry screen").
 
-// Not ported (Pi host extension (WP11): resolveWorkflowExecutionProfileForLaunch; see docs/core-port.md WP10): test("launch precedence is explicit, then saved, then the legacy declared selector").
+// Moved (WP11a, host API resolveWorkflowExecutionProfileForLaunch): test("launch precedence is explicit, then saved, then the legacy declared selector") → test/unit/host-ported-cli-args.test.mjs.
