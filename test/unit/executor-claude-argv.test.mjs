@@ -167,7 +167,7 @@ test("web tools and injected MCP servers are pre-allowed", () => {
 	});
 	assert.equal(
 		flagValue(argv, "--allowedTools"),
-		"WebSearch,WebFetch,mcp__workflow_artifact",
+		"WebSearch,WebFetch,mcp__workflow_artifact__workflow_artifact",
 	);
 	assert.equal(flagValue(argv, "--mcp-config"), "/tmp/mcp.json");
 });

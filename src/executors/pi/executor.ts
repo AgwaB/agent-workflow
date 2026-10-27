@@ -45,12 +45,14 @@ import type { ExecEvent, OwnedSession } from "../../sdk/events.js";
 import type { JsonValue } from "../../sdk/json.js";
 import { mapTools } from "../../sdk/tools.js";
 import {
+	ARTIFACT_SERVER,
 	buildPiArgv,
 	INHERITED_HOST_TOOLS,
 	PI_EFFORT_LEVELS,
 	PI_EXECUTOR_TOOL_MAPPING,
 	PI_WEB_TOOLS,
 	piMcpServerPattern,
+	piMcpToolName,
 	readOnlyTools,
 } from "./argv.js";
 import { type PiExecutorConfig, parsePiExecutorConfig } from "./config.js";
@@ -64,10 +66,16 @@ import {
 import {
 	attemptDigest,
 	type PiAttemptExit,
+	type PiAttemptLookup,
 	type PiAttemptRecord,
 	PiAttemptStore,
 } from "./state.js";
 import { TOOL_RESULT_BUDGET_STATE_FILENAME } from "./tool-result-budget.js";
+import {
+	createSecretRedactor,
+	requestSecrets,
+	type SecretRedactor,
+} from "../redact.js";
 
 import { PI_EXECUTOR_ID, PI_EXECUTOR_VERSION } from "./version.js";
 
@@ -240,17 +248,11 @@ function killGroup(pid: number | undefined, signal: NodeJS.Signals): void {
 	}
 }
 
-function createRedactor(values: readonly string[]): (text: string) => string {
-	const secrets = [
-		...new Set(values.filter((v) => v.length >= REDACT_MIN_CHARS)),
-	].sort((a, b) => b.length - a.length);
-	if (secrets.length === 0) return (text) => text;
-	return (text) => {
-		let out = text;
-		for (const secret of secrets)
-			if (out.includes(secret)) out = out.split(secret).join("[redacted]");
-		return out;
-	};
+function createRedactor(req: SubmitRequest): SecretRedactor {
+	return createSecretRedactor(requestSecrets(req), {
+		minLength: REDACT_MIN_CHARS,
+		replacement: () => "[redacted]",
+	});
 }
 
 interface LaunchPlan {
@@ -341,10 +343,27 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 		const inheritHost = config.inheritHostTools === true && !req.readOnly;
 		if (config.inheritHostTools === true && req.readOnly)
 			notes.push("inheritHostTools ignored for a readOnly request");
+		// Review #6: the engine's artifact server is declared by its one read-only tool name, never
+		// server-wide. Pi has no approval gate, so a readOnly request that injects any other server
+		// (whose tools may mutate) is refused before any effect.
+		const foreignServers = req.mcpServers
+			.map((server) => server.name)
+			.filter((name) => name !== ARTIFACT_SERVER);
+		if (req.readOnly && foreignServers.length > 0)
+			throw new SdkError(
+				"CAPABILITY_MISSING",
+				`readOnly request injects MCP servers whose tools may mutate (${foreignServers.join(", ")}); the Pi executor cannot enforce readOnly on them`,
+				{ subject: "readOnly" },
+			);
 		if (inheritHost) tools = [...new Set([...tools, ...INHERITED_HOST_TOOLS])];
 		else
 			for (const server of req.mcpServers)
-				tools.push(piMcpServerPattern(server.name));
+				tools.push(
+					server.name === ARTIFACT_SERVER
+						? piMcpToolName(ARTIFACT_SERVER, "workflow_artifact")
+						: // non-readOnly only: the caller injected it into a mutation-capable stage.
+							piMcpServerPattern(server.name),
+				);
 		const extensionsBefore: string[] = [];
 		const extensionsAfter: string[] = [];
 		if (isolated && inheritHost)
@@ -457,7 +476,19 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 		launchPlan: LaunchPlan,
 	): Promise<ExecRef> {
 		const key = req.attemptKey;
-		const known = await store.read(key);
+		const fromLookup = (
+			lookup: PiAttemptLookup,
+		): PiAttemptRecord | undefined => {
+			if (lookup.status === "unreadable")
+				// Unreadable evidence may hide a launch: refuse before consuming (review #3).
+				throw new SdkError(
+					"AUTHORITY_ALREADY_CONSUMED",
+					`attempt ${key} has launch evidence that cannot be trusted (${lookup.reason}); reconcile reports unknown`,
+					{ subject: key },
+				);
+			return lookup.status === "found" ? lookup.record : undefined;
+		};
+		const known = fromLookup(await store.lookup(key));
 		const fromRecord = (record: PiAttemptRecord): ExecRef => {
 			if (
 				(record.phase === "spawned" || record.phase === "exited") &&
@@ -478,11 +509,12 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 		const runDir =
 			req.artifactsDir ?? join(stateDir, "runs", attemptDigest(key));
 		if (!(await store.create({ attemptKey: key, phase: "pending", runDir }))) {
-			const raced = await store.read(key);
+			const raced = fromLookup(await store.lookup(key));
 			if (raced === undefined)
 				throw new SdkError(
-					"INVALID_REQUEST",
-					`attempt ${key} record is unreadable`,
+					"AUTHORITY_ALREADY_CONSUMED",
+					`attempt ${key} is claimed by another submit`,
+					{ subject: key },
 				);
 			return fromRecord(raced);
 		}
@@ -544,10 +576,8 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 			mcpEnv: req.mcpServers.map((server) => server.env ?? null),
 		});
 		env.PI_SKIP_VERSION_CHECK = "1";
-		const redact = createRedactor([
-			...Object.values(req.env),
-			...req.mcpServers.flatMap((server) => Object.values(server.env ?? {})),
-		]);
+		const secrets = createRedactor(req);
+		const redact = secrets.text;
 
 		const child = spawn(argv[0] as string, argv.slice(1), {
 			cwd: req.cwd,
@@ -609,14 +639,16 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 				? {}
 				: { ownedSession: launchPlan.ownedSession }),
 		};
-		await store.write({ ...spawnedRecord, identity: null });
-		void captureProcessIdentity(pid).then(
-			(identity) =>
-				run.done
-					? undefined
-					: store.write({ ...spawnedRecord, identity }).catch(() => {}),
-			() => {},
-		);
+		// Review #10: the handlers below are attached before any await, so an early exit is never
+		// missed. Record writes are serialized: the `exited` record always lands after the
+		// `spawned` one, and a late identity write never overwrites `exited`.
+		const spawnedWrite = store.write({ ...spawnedRecord, identity: null });
+		let exitRecorded = false;
+		let recordQueue: Promise<void> = spawnedWrite.catch(() => {});
+		const queueRecord = (write: () => Promise<void>) => {
+			recordQueue = recordQueue.then(write).catch(() => {});
+			return recordQueue;
+		};
 
 		child.stdin?.on("error", () => {});
 		child.stdin?.end(req.prompt);
@@ -643,15 +675,22 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 			handleLines(splitter.push(chunk)),
 		);
 		let stderr = "";
-		child.stderr?.on("data", (chunk: Buffer) => {
-			const text = redact(chunk.toString("utf8"));
+		// A value split across stderr chunks is held back until it can be redacted (review #5).
+		const stderrRedact = secrets.stream();
+		const onStderr = (text: string) => {
+			if (text === "") return;
 			rawErr.write(text);
 			if (stderr.length < STDERR_LIMIT)
 				stderr = (stderr + text).slice(0, STDERR_LIMIT);
-		});
+		};
+		child.stderr?.on("data", (chunk: Buffer) =>
+			onStderr(stderrRedact.push(chunk.toString("utf8"))),
+		);
+		child.stderr?.on("end", () => onStderr(stderrRedact.flush()));
 		child.once("close", (code, signal) => {
 			void (async () => {
 				handleLines(splitter.finish());
+				onStderr(stderrRedact.flush());
 				if (run.killTimer !== undefined) clearTimeout(run.killTimer);
 				(watch as { destroy?: () => void } | null)?.destroy?.();
 				await Promise.all([
@@ -663,12 +702,22 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 					signal,
 					cancelled: run.cancelled,
 				};
-				await store
-					.write({ ...spawnedRecord, phase: "exited", exit })
-					.catch(() => {});
+				exitRecorded = true;
+				await queueRecord(() =>
+					store.write({ ...spawnedRecord, phase: "exited", exit }),
+				);
 				emit(run, normalizer.finish({ ...exit, stderr }));
 			})();
 		});
+		await spawnedWrite;
+		void captureProcessIdentity(pid).then(
+			(identity) =>
+				queueRecord(async () => {
+					if (!exitRecorded && !run.done)
+						await store.write({ ...spawnedRecord, identity });
+				}),
+			() => {},
+		);
 		return ref;
 	}
 
@@ -849,7 +898,10 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 				}
 				return "cancelled";
 			}
-			const record = await store.read(ref.attemptKey);
+			const lookup = await store.lookup(ref.attemptKey);
+			// Unreadable evidence cannot prove nothing runs (review #3).
+			if (lookup.status === "unreadable") return "uncertain";
+			const record = lookup.status === "found" ? lookup.record : undefined;
 			if (record?.ref === undefined || record.ref.handle !== ref.handle)
 				return "no_active";
 			if (record.phase === "exited") return "too_late";
@@ -863,9 +915,13 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 		},
 
 		async reconcile(attemptKey: string): Promise<ReconcileResult> {
-			const record = await store.read(attemptKey);
-			if (record === undefined || record.phase === "revoked")
-				return { absent: true };
+			const lookup = await store.lookup(attemptKey);
+			// Only a missing record proves absence; unreadable evidence is ambiguous (review #3).
+			if (lookup.status === "missing") return { absent: true };
+			if (lookup.status === "unreadable")
+				return { unknown: true, reason: lookup.reason };
+			const record = lookup.record;
+			if (record.phase === "revoked") return { absent: true };
 			if (
 				(record.phase === "spawned" || record.phase === "exited") &&
 				record.ref
