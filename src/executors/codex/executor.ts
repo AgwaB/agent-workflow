@@ -844,7 +844,15 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 	};
 
 	const launch = async (req: SubmitRequest): Promise<ExecRef> => {
-		const known = store.read(req.attemptKey);
+		const lookup = store.lookup(req.attemptKey);
+		// Unreadable evidence may hide a launch: refuse before consuming (review #3).
+		if (lookup.status === "unreadable")
+			throw new SdkError(
+				"AUTHORITY_ALREADY_CONSUMED",
+				`codex attempt ${req.attemptKey} has launch evidence that cannot be trusted (${lookup.reason}); reconcile reports unknown`,
+				{ subject: req.attemptKey },
+			);
+		const known = lookup.status === "found" ? lookup.record : undefined;
 		if (known?.ref !== undefined) return known.ref;
 		if (known?.phase === "consumed")
 			throw new SdkError(
@@ -1118,7 +1126,10 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 		async cancel(ref: ExecRef, scope: CancelScope): Promise<CancelResult> {
 			const run = findRun(ref);
 			if (run === undefined) {
-				const record = store.read(ref.attemptKey);
+				const lookup = store.lookup(ref.attemptKey);
+				// Unreadable evidence cannot prove nothing runs (review #3).
+				if (lookup.status === "unreadable") return "uncertain";
+				const record = lookup.status === "found" ? lookup.record : undefined;
 				if (record === undefined || record.ref === undefined)
 					return "no_active";
 				if (record.phase === "terminal") return "too_late";
@@ -1183,9 +1194,13 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 		async reconcile(attemptKey: string): Promise<ReconcileResult> {
 			const run = runs.get(attemptKey);
 			if (run !== undefined) return { found: run.ref };
-			const record = store.read(attemptKey);
-			if (record === undefined || record.phase === "revoked")
-				return { absent: true };
+			const lookup = store.lookup(attemptKey);
+			// Only a missing record proves absence; unreadable evidence is ambiguous (review #3).
+			if (lookup.status === "missing") return { absent: true };
+			if (lookup.status === "unreadable")
+				return { unknown: true, reason: lookup.reason };
+			const record = lookup.record;
+			if (record.phase === "revoked") return { absent: true };
 			if (record.ref !== undefined) return { found: record.ref };
 			return {
 				unknown: true,

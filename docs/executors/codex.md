@@ -310,6 +310,14 @@ budget are not confirmed. `fetch_content` (open_page) not observed.
 
 ## Change log
 
+- **WP12d-2 review #3:** unreadable launch evidence is no longer proven absence. `AttemptStore.lookup` returns `missing` only on
+  ENOENT; a record that cannot be read, does not parse, has the wrong schema/phase or names another
+  attemptKey is `unreadable`: `reconcile` answers `unknown` (the runtime records
+  `failed/needs_decision`, `src/runtime/orchestrate/reconcile.ts` already maps every non-`absent`
+  outcome there and is unchanged), `submit` refuses with `AUTHORITY_ALREADY_CONSUMED` before consuming
+  the authority, and `cancel` answers `uncertain`. The first record is now created by hard-linking a fully written temp file (no half-written claim is visible). Test: `executor-wp12d2-evidence.test.mjs`
+  (malformed, empty, directory and mismatched records for all three adapters).
+
 - **WP12a (2026-10-27):** usage is normalized (docs/core-port.md WP12a change log 3): `input` =
   `inputTokens − cachedInputTokens − cacheWriteInputTokens` (Codex counts cached input inside
   `inputTokens`), `cached` = `cachedInputTokens`, `cacheWrite` = `cacheWriteInputTokens`, `model` =

@@ -51,7 +51,11 @@ import {
 	runCommand,
 } from "./probe.js";
 import { removeClaudeSessionFiles } from "./sessions.js";
-import { type AttemptRecord, ClaudeStateStore } from "./state.js";
+import {
+	type AttemptLookup,
+	type AttemptRecord,
+	ClaudeStateStore,
+} from "./state.js";
 import { ClaudeStreamParser, parseClaudeStream } from "./stream.js";
 
 export const CLAUDE_SESSION_KIND = "claude-session";
@@ -208,11 +212,28 @@ export function createClaudeExecutor(options: {
 		);
 	};
 
+	/** Existing evidence wins; unreadable evidence refuses before consume (review #3). */
+	const fromLookup = (
+		attemptKey: string,
+		lookup: AttemptLookup,
+	): ExecRef | undefined => {
+		if (lookup.status === "missing") return undefined;
+		if (lookup.status === "found") return fromRecord(attemptKey, lookup.record);
+		throw new SdkError(
+			"AUTHORITY_ALREADY_CONSUMED",
+			`attempt ${attemptKey} has launch evidence that cannot be trusted (${lookup.reason}); reconcile reports unknown`,
+			{ subject: attemptKey },
+		);
+	};
+
 	async function launch(req: SubmitRequest): Promise<ExecRef> {
 		const known = runs.get(req.attemptKey);
 		if (known !== undefined) return known.ref;
-		const record = await store.readAttempt(req.attemptKey);
-		if (record !== undefined) return fromRecord(req.attemptKey, record);
+		const existingRef = fromLookup(
+			req.attemptKey,
+			await store.lookupAttempt(req.attemptKey),
+		);
+		if (existingRef !== undefined) return existingRef;
 		const filesDir = req.artifactsDir ?? store.attemptFilesDir(req.attemptKey);
 		const mcpConfigPath =
 			req.mcpServers.length > 0 ? join(filesDir, MCP_CONFIG_FILE) : null;
@@ -239,8 +260,11 @@ export function createClaudeExecutor(options: {
 			cwd: req.cwd,
 		});
 		if (!claimed) {
-			const existing = await store.readAttempt(req.attemptKey);
-			if (existing !== undefined) return fromRecord(req.attemptKey, existing);
+			const existing = fromLookup(
+				req.attemptKey,
+				await store.lookupAttempt(req.attemptKey),
+			);
+			if (existing !== undefined) return existing;
 			throw new SdkError(
 				"AUTHORITY_ALREADY_CONSUMED",
 				`attempt ${req.attemptKey} is claimed by another executor instance`,
@@ -576,9 +600,13 @@ export function createClaudeExecutor(options: {
 		async cancel(ref: ExecRef, scope: CancelScope): Promise<CancelResult> {
 			const run = runs.get(ref.attemptKey);
 			if (run === undefined || run.ref.handle !== ref.handle) {
-				const record = await store.readAttempt(ref.attemptKey);
+				const lookup = await store.lookupAttempt(ref.attemptKey);
 				// Launched by a process that is gone or elsewhere: this instance cannot reach it.
-				return record?.phase === "spawned" ? "uncertain" : "no_active";
+				// Unreadable evidence cannot prove nothing runs (review #3).
+				if (lookup.status === "unreadable") return "uncertain";
+				return lookup.status === "found" && lookup.record.phase === "spawned"
+					? "uncertain"
+					: "no_active";
 			}
 			if (run.done) return "too_late";
 			run.cancelRequested = true;
@@ -602,9 +630,13 @@ export function createClaudeExecutor(options: {
 		async reconcile(attemptKey: string): Promise<ReconcileResult> {
 			const run = runs.get(attemptKey);
 			if (run !== undefined) return { found: run.ref };
-			const record = await store.readAttempt(attemptKey);
-			if (record === undefined || record.phase === "revoked")
-				return { absent: true };
+			const lookup = await store.lookupAttempt(attemptKey);
+			// Only a missing record proves absence; unreadable evidence is ambiguous (review #3).
+			if (lookup.status === "missing") return { absent: true };
+			if (lookup.status === "unreadable")
+				return { unknown: true, reason: lookup.reason };
+			const record = lookup.record;
+			if (record.phase === "revoked") return { absent: true };
 			if (record.phase === "spawned" && record.ref !== undefined)
 				return { found: record.ref };
 			return {

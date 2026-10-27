@@ -64,6 +64,7 @@ import {
 import {
 	attemptDigest,
 	type PiAttemptExit,
+	type PiAttemptLookup,
 	type PiAttemptRecord,
 	PiAttemptStore,
 } from "./state.js";
@@ -457,7 +458,19 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 		launchPlan: LaunchPlan,
 	): Promise<ExecRef> {
 		const key = req.attemptKey;
-		const known = await store.read(key);
+		const fromLookup = (
+			lookup: PiAttemptLookup,
+		): PiAttemptRecord | undefined => {
+			if (lookup.status === "unreadable")
+				// Unreadable evidence may hide a launch: refuse before consuming (review #3).
+				throw new SdkError(
+					"AUTHORITY_ALREADY_CONSUMED",
+					`attempt ${key} has launch evidence that cannot be trusted (${lookup.reason}); reconcile reports unknown`,
+					{ subject: key },
+				);
+			return lookup.status === "found" ? lookup.record : undefined;
+		};
+		const known = fromLookup(await store.lookup(key));
 		const fromRecord = (record: PiAttemptRecord): ExecRef => {
 			if (
 				(record.phase === "spawned" || record.phase === "exited") &&
@@ -478,11 +491,12 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 		const runDir =
 			req.artifactsDir ?? join(stateDir, "runs", attemptDigest(key));
 		if (!(await store.create({ attemptKey: key, phase: "pending", runDir }))) {
-			const raced = await store.read(key);
+			const raced = fromLookup(await store.lookup(key));
 			if (raced === undefined)
 				throw new SdkError(
-					"INVALID_REQUEST",
-					`attempt ${key} record is unreadable`,
+					"AUTHORITY_ALREADY_CONSUMED",
+					`attempt ${key} is claimed by another submit`,
+					{ subject: key },
 				);
 			return fromRecord(raced);
 		}
@@ -849,7 +863,10 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 				}
 				return "cancelled";
 			}
-			const record = await store.read(ref.attemptKey);
+			const lookup = await store.lookup(ref.attemptKey);
+			// Unreadable evidence cannot prove nothing runs (review #3).
+			if (lookup.status === "unreadable") return "uncertain";
+			const record = lookup.status === "found" ? lookup.record : undefined;
 			if (record?.ref === undefined || record.ref.handle !== ref.handle)
 				return "no_active";
 			if (record.phase === "exited") return "too_late";
@@ -863,9 +880,13 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 		},
 
 		async reconcile(attemptKey: string): Promise<ReconcileResult> {
-			const record = await store.read(attemptKey);
-			if (record === undefined || record.phase === "revoked")
-				return { absent: true };
+			const lookup = await store.lookup(attemptKey);
+			// Only a missing record proves absence; unreadable evidence is ambiguous (review #3).
+			if (lookup.status === "missing") return { absent: true };
+			if (lookup.status === "unreadable")
+				return { unknown: true, reason: lookup.reason };
+			const record = lookup.record;
+			if (record.phase === "revoked") return { absent: true };
 			if (
 				(record.phase === "spawned" || record.phase === "exited") &&
 				record.ref

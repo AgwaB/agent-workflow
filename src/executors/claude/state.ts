@@ -33,6 +33,17 @@ export interface SessionRecord {
 	readonly createdAt: string;
 }
 
+export type AttemptLookup =
+	| { readonly status: "missing" }
+	| { readonly status: "found"; readonly record: AttemptRecord }
+	| { readonly status: "unreadable"; readonly reason: string };
+
+const ATTEMPT_PHASES: ReadonlySet<unknown> = new Set([
+	"consumed",
+	"spawned",
+	"revoked",
+]);
+
 const keyHash = (attemptKey: string) =>
 	createHash("sha256").update(attemptKey).digest("hex").slice(0, 40);
 
@@ -70,11 +81,51 @@ export class ClaudeStateStore {
 		return join(this.attemptsDir(), keyHash(attemptKey));
 	}
 
+	/**
+	 * Durable evidence of an attempt (review #3): `missing` only when the record does not exist
+	 * (ENOENT); a record that cannot be read, parsed or matched to the attemptKey is `unreadable`,
+	 * which callers must treat as ambiguous (reconcile `unknown`, no launch), never as absence.
+	 */
+	async lookupAttempt(attemptKey: string): Promise<AttemptLookup> {
+		let text: string;
+		try {
+			text = await readFile(
+				join(this.attemptsDir(), `${keyHash(attemptKey)}.json`),
+				"utf8",
+			);
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code === "ENOENT")
+				return { status: "missing" };
+			return {
+				status: "unreadable",
+				reason: `attempt record unreadable (${(error as NodeJS.ErrnoException).code ?? String(error)})`,
+			};
+		}
+		let record: AttemptRecord;
+		try {
+			record = JSON.parse(text) as AttemptRecord;
+		} catch {
+			return { status: "unreadable", reason: "attempt record is malformed" };
+		}
+		if (
+			record === null ||
+			typeof record !== "object" ||
+			record.schema !== "agent-workflow-claude-attempt-v1" ||
+			!ATTEMPT_PHASES.has(record.phase)
+		)
+			return { status: "unreadable", reason: "attempt record is malformed" };
+		if (record.attemptKey !== attemptKey)
+			return {
+				status: "unreadable",
+				reason: "attempt record belongs to another attemptKey",
+			};
+		return { status: "found", record };
+	}
+
+	/** The record when it is readable; `undefined` when missing or unreadable (observe paths only). */
 	async readAttempt(attemptKey: string): Promise<AttemptRecord | undefined> {
-		const record = await readJson<AttemptRecord>(
-			join(this.attemptsDir(), `${keyHash(attemptKey)}.json`),
-		);
-		return record?.attemptKey === attemptKey ? record : undefined;
+		const lookup = await this.lookupAttempt(attemptKey);
+		return lookup.status === "found" ? lookup.record : undefined;
 	}
 
 	/**

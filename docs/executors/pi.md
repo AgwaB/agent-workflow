@@ -287,6 +287,14 @@ request drops mutating tools from `--tools` in both modes. The conformance harne
 
 ## Change log
 
+- **WP12d-2 review #3:** unreadable launch evidence is no longer proven absence. `PiAttemptStore.lookup` returns `missing` only on
+  ENOENT; a record that cannot be read, does not parse, has the wrong schema/phase or names another
+  attemptKey is `unreadable`: `reconcile` answers `unknown` (the runtime records
+  `failed/needs_decision`, `src/runtime/orchestrate/reconcile.ts` already maps every non-`absent`
+  outcome there and is unchanged), `submit` refuses with `AUTHORITY_ALREADY_CONSUMED` before consuming
+  the authority, and `cancel` answers `uncertain`. The first (`pending`) record is now created by hard-linking a fully written temp file; a lost claim race answers `AUTHORITY_ALREADY_CONSUMED` (was `INVALID_REQUEST`). Test: `executor-wp12d2-evidence.test.mjs`
+  (malformed, empty, directory and mismatched records for all three adapters).
+
 - **WP12a (2026-10-27):** usage events carry `cacheWrite` (Pi `usage.cacheWrite`) and `model` (the
   assistant message's model), so Pi tasks record their model; Pi's `input` already excludes cache
   reads and writes (docs/core-port.md WP12a change log 3). Tests: `executor-pi-parse.test.mjs`,
