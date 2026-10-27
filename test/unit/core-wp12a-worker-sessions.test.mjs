@@ -145,7 +145,19 @@ test("experimental same-session repair: the attempt asks to keep its session; th
 		assert.equal(sent.length, 2);
 		for (const entry of sent)
 			assert.match(entry.sessionId ?? "", /^agent-workflow\./);
-		const owned = ownedOf(await store.readRunRecord(cwd, run.runId));
+		// Engine-owned sessions are released just after the run turns terminal (deleting a CLI
+		// session can be slow); under load the second release may still be in flight.
+		let owned = [];
+		for (let i = 0; i < 100; i += 1) {
+			owned = ownedOf(await store.readRunRecord(cwd, run.runId));
+			if (
+				owned.length === 2 &&
+				owned.every((entry) => entry.release?.outcome === "deleted") &&
+				deletions(effectLog).length === 2
+			)
+				break;
+			await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+		}
 		assert.equal(owned.length, 2);
 		for (const entry of owned) assert.equal(entry.release?.outcome, "deleted");
 		assert.equal(deletions(effectLog).length, 2);
