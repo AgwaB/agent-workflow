@@ -46,7 +46,8 @@ executor and negotiates every stage's requirements against the executor's capabi
 (`free`/`safe`, [`permissions.md`](permissions.md)) is part of that policy and of every submit request.
 
 Executor selection and permission mode follow one precedence: run flag > workflow-declared profile >
-saved user profile > default (`pi`, `free`). The run record keeps the executor descriptor, so a
+saved user profile > default (executor: the host's own CLI, in the terminal CLI the first installed
+and logged-in of pi → claude → codex, WP17; mode `free`). The run record keeps the executor descriptor, so a
 detached supervisor or a resumed run reloads the same adapter (R#15).
 
 **Usage.** Adapters emit one normalized `usage` event shape (input excluding cache reads and writes,

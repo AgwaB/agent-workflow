@@ -30,6 +30,7 @@ npx agent-workflow --help
 | `prune [--keep N] [--older-than DAYS] [--yes]` | Delete terminal runs beyond the filters; a dry run without `--yes`. |
 | `notices list [--json] \| acknowledge <run> --state <sha256> --reason <text> \| clear <run> [--json]` | Notification-only acknowledgements of unfinished runs. |
 | `supervise <run> \| --all [--poll-ms N] [--max-runtime-ms N]` | Drive scheduling from this process until the run(s) are terminal. |
+| `doctor [--json]` | Check this machine without a model call: executors (installed, version vs verified, login), the default executor here and why, permission-mode default, Node, `AGENT_WORKFLOW_HOME`, Codex environment warnings, stale run-index entries. Exit 0 when at least one executor is usable. Below. |
 | `help [command]`, `<command> --help`, `--version` | Help and version. |
 
 A run argument accepts the run id or an unambiguous prefix.
@@ -57,9 +58,30 @@ The task is every remaining positional word. Put `--` before task text that star
 ### Precedence
 
 Executor and permission mode: **run flag > workflow-declared profile > saved user profile >
-default** (executor `pi`, mode `free`). Without `--profile` a launch uses the workflow's
+default** (mode `free`; executor: below). Without `--profile` a launch uses the workflow's
 `defaultExecutionProfile` if it declares one, else the default saved user profile. A
 workflow-declared profile replaces the saved user profile as a whole (B2).
+
+**Default executor (WP17).** When nothing above selects one, the CLI uses the **first installed and
+logged-in** of `pi` → `claude` → `codex`. Each candidate is checked with its adapter's probe (version
+and login status commands, no model call): it must be installed and its login not `missing` or
+`expired`; an `unknown` login (Pi cannot report it without a model call) counts as usable and is
+recorded. The run records `executor.source: "installed-default"`, `executor.host: "cli"` and the
+probed candidates. Hosts with their own CLI default to it instead (`host-default`): the Pi host →
+`pi`, Claude Code → `claude`, Codex → `codex`. An explicit choice is never second-guessed. When
+nothing is usable the launch is refused before any run record:
+
+```text
+Not started: no executor is usable: agent-workflow needs one of pi, claude, codex installed and logged in (checked in this order). The run was not started.
+  - pi: not installed; install: see docs/usage.md#executors, check with `pi --version`
+  - claude: installed (2.1.310), not logged in (auth missing); log in: run `claude auth login`
+  - codex: installed (0.159.2), not logged in (auth missing); log in: run `codex login`
+Then start the run again, or choose one explicitly with --executor <id>. `agent-workflow doctor` shows the details.
+```
+
+A chosen executor that is not installed or not logged in is refused the same way
+(`EXECUTOR_NOT_INSTALLED` names the install command, `EXECUTOR_AUTH_NOT_READY` the login command).
+Probe results that are usable are reused within one process for 60 s.
 
 ### Capability preview and confirmation (B4)
 
@@ -109,6 +131,25 @@ Fields: `executor`, `model`, `effort`, `permissionMode`, `strictCapabilities` (c
 that must be `native`). Stored in `$AGENT_WORKFLOW_HOME/user-profiles/v1/profiles.json` (default
 `~/.agent-workflow`, private file). `model`/`effort` are run defaults (stage and agent settings
 still win; `--model`/`--effort` override everything).
+
+## `doctor`
+
+`agent-workflow doctor [--json]` checks the machine without calling a model and writes nothing:
+
+- per executor (`pi`, `claude`, `codex`): installed, CLI version against the version the adapter's
+  capabilities were verified with, login state (`ok`/`missing`/`expired`/`unknown`, never a
+  credential), and the install or login command when it is not usable;
+- the executor a run here uses when no `--executor` or workflow-declared profile selects one, and
+  why (saved default profile, host default, or the installed-default order);
+- the permission-mode default (`free`, or the default saved profile's mode);
+- the Node version (requires `>=22`); `AGENT_WORKFLOW_HOME` and whether it is writable;
+- warnings: Codex allow rules under `$CODEX_HOME/rules` and a global `$CODEX_HOME/AGENTS.md`
+  (counts and paths only, never rule contents), CLI versions that differ from the verified ones;
+- run-index entries in this project whose `run.json` is gone or that `prune` would remove, with a
+  hint to run `agent-workflow prune`.
+
+Exit 0 when at least one executor is usable, 1 otherwise. `--json` prints `{action: "doctor", ok,
+outcome, data}`.
 
 ## Exit codes
 

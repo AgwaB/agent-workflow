@@ -1,9 +1,10 @@
 // New in agent-workflow (WP11a): command help shared by the `agent-workflow` CLI and the host API
-// `help` action (stage-2 hosts reuse the same text).
+// `help` action (stage-2 hosts reuse the same text). WP17: `doctor` and the default-executor line.
 import { HostUsageError } from "./args.js";
 import { type HostResult, result } from "./types.js";
 
-const LAUNCH_FLAGS = `  --executor <id>              executor for this run (pi, codex, claude; run flag beats profiles)
+const LAUNCH_FLAGS = `  --executor <id>              executor for this run (pi, codex, claude; run flag beats profiles;
+                               default: first installed and logged-in of pi, claude, codex)
   --profile <name>             workflow-declared execution profile, else a saved user profile
   --permission-mode free|safe  approvals/sandbox mode (default free; see docs/permissions.md)
   --allow-unverified <a,b>     accept these unverified executor capabilities (B4 opt-in)
@@ -100,6 +101,14 @@ Drive scheduling from this process until the run(s) are terminal. The run lease 
 any other supervisor. --all includes only runs observed running; failure takes precedence over
 blocked; an empty batch succeeds. --max-runtime-ms 0 disables the deadline; by default a single
 run with an unlimited loop has none and other runs stop after 4 hours.`,
+	doctor: `Usage: agent-workflow doctor [--json]
+
+Check this machine without calling a model: for pi, claude and codex whether the CLI is installed,
+its version against the verified one, its login state (and the install/login command when it is
+not usable); which executor a run here uses by default and why; the permission-mode default; the
+Node version; AGENT_WORKFLOW_HOME and whether it is writable; Codex environment warnings (allow
+rules, global AGENTS.md; counts only); stale run-index entries. Exit 0 when at least one executor is
+usable, 1 otherwise.`,
 	help: `Usage: agent-workflow help [<command>]`,
 };
 
@@ -127,6 +136,9 @@ Runs:
   prune                      delete old terminal runs (dry run without --yes)
   notices ...                acknowledge unfinished-run notices
   supervise <run>|--all      drive runs from a standalone process
+
+Setup:
+  doctor                     check executors, logins and the default executor (no model calls)
 
 Common options: --json (one JSON result object), -h/--help (command help), --version.
 Exit codes: 0 success or completed run, 1 failed/blocked/refused/timed out, 2 usage error.

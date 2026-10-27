@@ -128,6 +128,8 @@ export function hostContext(
 	return {
 		cwd: ctx.cwd,
 		env: deps.env,
+		// WP17: the Pi host's own CLI (`pi`) is the default executor when nothing selects one.
+		host: "pi",
 		...(models ? { availableModels: models } : {}),
 		...(runtimeDefaults ? { runtimeDefaults } : {}),
 	};

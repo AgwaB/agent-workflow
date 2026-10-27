@@ -29,8 +29,8 @@ engine (src/core) → core task backend → runtime durable worker (fresh proces
   `minimal` uses the recorded `project/workflow.json`. The driver passes the same task, execution
   profile and input overrides as the recording, and maps the env pins `PI_WORKFLOW_*` to their
   `AGENT_WORKFLOW_*` renames.
-- **Executor.** The replay descriptor is registered explicitly as executor `pi` (the default executor)
-  for that run only. The real Pi adapter is never loaded.
+- **Executor.** The replay descriptor is registered explicitly as executor `pi` (the first candidate of
+  the installed-default order, WP17) for that run only. The real Pi adapter is never loaded.
 - **Process.** Each variant runs in its own Node process. Two variants of one fixture use the same run
   id at the same pinned path, so in one process the ESM cache would hand the second variant the
   first variant's bundled helper modules.

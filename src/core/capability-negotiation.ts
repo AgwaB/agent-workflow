@@ -10,6 +10,7 @@
 // warnings are recorded degradations, never refusals or confirmations) and the preview's first line.
 // WP5b: the probe summary keeps the executor's declared MCP output limit (mcpOutputLimitChars,
 // mcpOutputNoticeChars) so the artifact server is launched with a measured limit.
+// WP17: install/login hints come from executor-default.ts (first-run guidance names the install command).
 import {
 	type ExecutorCapabilities,
 	mergeProbedCapabilities,
@@ -27,6 +28,7 @@ import {
 	type StageRequirementContext,
 } from "../sdk/requirements.js";
 import { strictCapabilityKeysProblem } from "./artifact-graph-schema.js";
+import { executorSetupHints, installText } from "./executor-default.js";
 import { workflowTaskReadOnly } from "./tool-policy.js";
 import type {
 	CompiledLoopStageRecord,
@@ -77,24 +79,18 @@ export class WorkflowCapabilityError extends Error {
 }
 
 /** CLI commands to name when an executor is missing or logged out (D1: each CLI owns its login). */
-const EXECUTOR_HINTS: Readonly<
-	Record<string, { install: string; login: string }>
-> = {
-	pi: {
-		install: "`pi --version`",
-		login: "run `pi` and use `/login` (check with `pi auth check`)",
-	},
-	codex: { install: "`codex --version`", login: "run `codex login`" },
-	claude: { install: "`claude --version`", login: "run `claude auth login`" },
-};
-
-function hintsFor(executorId: string): { install: string; login: string } {
-	return (
-		EXECUTOR_HINTS[executorId] ?? {
-			install: `the ${executorId} CLI's version command`,
-			login: `log in with the ${executorId} CLI`,
-		}
-	);
+function hintsFor(executorId: string): {
+	install: string;
+	login: string;
+	setup: string;
+} {
+	const hints = executorSetupHints(executorId);
+	return {
+		install: `\`${hints.check}\``,
+		login: hints.login,
+		// WP17 first-run guidance: the exact install command and where it is documented.
+		setup: `install it: ${installText(hints)}; or choose another executor with --executor <id>`,
+	};
 }
 
 const defaultProber: WorkflowExecutorProber = async (descriptor) => {
@@ -186,7 +182,7 @@ export async function probeWorkflowExecutor(
 			"EXECUTOR_NOT_INSTALLED",
 			`executor "${id}" is not installed or not runnable (${hintsFor(id).install} failed${
 				summary.notes?.[0] === undefined ? "" : `: ${summary.notes[0]}`
-			}). The run was not started.`,
+			}); ${hintsFor(id).setup}. The run was not started.`,
 			id,
 		);
 	if (summary.auth === "missing" || summary.auth === "expired")

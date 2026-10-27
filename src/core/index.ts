@@ -177,7 +177,7 @@ export type {
 } from "./workflow-metrics.js";
 export {
 	BUILTIN_EXECUTOR_IDS,
-	DEFAULT_WORKFLOW_EXECUTOR_ID,
+	LEGACY_RECORD_EXECUTOR_ID,
 	registerWorkflowExecutor,
 	resolveRunExecutorSelection,
 	workflowExecutorRegistration,
@@ -187,6 +187,32 @@ export type {
 	RunExecutorSelectionInput,
 	WorkflowExecutorRegistration,
 } from "./executor-registry.js";
+export {
+	cachedExecutorProber,
+	DEFAULT_READINESS_PROBE_TIMEOUT_MS,
+	EXECUTOR_PROBE_CACHE_TTL_MS,
+	executorSetupHints,
+	HOST_DEFAULT_EXECUTORS,
+	INSTALLED_DEFAULT_ORDER,
+	installText,
+	isWorkflowHostId,
+	noUsableExecutorMessage,
+	probeExecutorReadiness,
+	probeIsUsable,
+	readinessFixHint,
+	resetExecutorProbeCacheForTests,
+	resolveHostDefaultExecutor,
+	resolveRunExecutorForHost,
+	WORKFLOW_HOST_IDS,
+} from "./executor-default.js";
+export type {
+	ExecutorReadiness,
+	ExecutorReadinessProber,
+	ExecutorReadinessState,
+	ExecutorSetupHints,
+	HostDefaultExecutor,
+	ResolveRunExecutorInput,
+} from "./executor-default.js";
 export {
 	DEFAULT_EXECUTOR_PROBE_TIMEOUT_MS,
 	negotiateWorkflowRun,
@@ -207,6 +233,8 @@ export {
 } from "./permission-mode.js";
 export type { RunPermissionModeInput } from "./permission-mode.js";
 export type {
+	WorkflowHostId,
+	WorkflowRunExecutorCandidate,
 	WorkflowRunExecutorSelection,
 	WorkflowRunExecutorSource,
 	WorkflowRunPermissionMode,

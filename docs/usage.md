@@ -127,14 +127,27 @@ exits 1; the intent stays durable and is applied when the supervisor next runs.
 
 | Executor | CLI | Notes |
 |---|---|---|
-| `pi` (default) | `pi --mode json` | Pi 1.1+. deep-research needs the `pi-web-access` extension. |
+| `pi` | `pi --mode json` | Pi 1.1+. deep-research needs the `pi-web-access` extension. |
 | `codex` | `codex app-server` | codex-cli 0.159+. Coarse tool allowlist (a sandbox mode). |
 | `claude` | `claude -p` (stream-json) | Claude Code 2.1+. |
 
 Each executor uses its own CLI login (agent-workflow never handles credentials). Choose with
 `--executor <id>`, a profile, or a saved default profile. Precedence for both the executor and the
-permission mode: **run flag > workflow-declared profile > saved user profile > default** (`pi`,
+permission mode: **run flag > workflow-declared profile > saved user profile > default** (mode
 `free`). The run records which layer chose (`run.executor.source`, `run.permissionMode.source`).
+
+**Default executor.** Without a choice, a run uses the host's own CLI (`host-default`): `pi` in the
+Pi host, `claude` in Claude Code, `codex` in Codex. The terminal CLI uses the first installed and
+logged-in of `pi` → `claude` → `codex` (`installed-default`; an `unknown` login counts as usable and
+is recorded in `run.executor.candidates`). `run.executor.host` names the host. Nested runs keep their
+parent's executor. If nothing is usable, nothing starts and the message lists each CLI's state and
+the command to fix it. `agent-workflow doctor` shows the same check without starting a run.
+
+| Executor | Install | Log in |
+|---|---|---|
+| `pi` | `npm i -g @earendil-works/pi-coding-agent` | run `pi`, then `/login` |
+| `claude` | `npm i -g @anthropic-ai/claude-code` | `claude auth login` |
+| `codex` | `npm i -g @openai/codex` | `codex login` |
 
 ### Profiles
 
@@ -461,7 +474,8 @@ still recorded as owned (where the adapter supports `deleteOwnedSession`; alread
 
 | Symptom | Cause and fix |
 |---|---|
-| `Not started: … EXECUTOR_NOT_INSTALLED` / `EXECUTOR_AUTH_NOT_READY` | The executor CLI is missing or not logged in. Install it / log in with the CLI itself (`pi`, `codex login`, `claude`), or pick another `--executor`. |
+| `Not started: no executor is usable` | No `--executor`/profile chose one and none of `pi`, `claude`, `codex` is installed and logged in. The message lists each CLI's state and its install or login command; `agent-workflow doctor` shows the same. |
+| `Not started: … EXECUTOR_NOT_INSTALLED` / `EXECUTOR_AUTH_NOT_READY` | The executor CLI is missing or not logged in. The message names the install command or the login command (`pi` then `/login`, `codex login`, `claude auth login`); or pick another `--executor`. |
 | `Not started: … CAPABILITY_REFUSED` | A stage needs something the executor cannot do. The message lists each refusal and its opt-in, if any (`--allow-unverified`, `allowReadOnlyDowngrade`, `--permission-mode free`). |
 | deep-research refused on Pi with `webTools` | Install the `pi-web-access` Pi extension, or use `--executor claude`/`codex`. |
 | Codex runs show `readOnly`/`contextIsolation` warnings | Your `~/.codex/rules` has allow rules or a global `~/.codex/AGENTS.md` exists. Recorded only; remove them for a clean run. |

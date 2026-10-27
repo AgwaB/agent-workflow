@@ -20,6 +20,8 @@ import {
 	validateExecutorDescriptor,
 } from "../sdk/descriptor.js";
 import type {
+	WorkflowHostId,
+	WorkflowRunExecutorCandidate,
 	WorkflowRunExecutorSelection,
 	WorkflowRunExecutorSource,
 } from "./types.js";
@@ -27,8 +29,12 @@ import type {
 /** Built-in executor ids. Their adapters land in WP6 (pi), WP7 (codex) and WP8 (claude). */
 export const BUILTIN_EXECUTOR_IDS = ["pi", "codex", "claude"] as const;
 
-/** Lowest-precedence executor when nothing else selects one. */
-export const DEFAULT_WORKFLOW_EXECUTOR_ID = "pi";
+/**
+ * Executor of a run record that carries no selection (created directly through the store, or a
+ * pi-workflow import: those ran on Pi). New runs never use it: their default is the host's own CLI
+ * (WP17, executor-default.ts).
+ */
+export const LEGACY_RECORD_EXECUTOR_ID = "pi";
 
 const EXECUTOR_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 
@@ -138,8 +144,17 @@ export interface RunExecutorSelectionInput {
 	/** Name of the saved user profile captured for the run. */
 	userProfileName?: string;
 	userProfileExecutor?: string;
-	/** Host default; DEFAULT_WORKFLOW_EXECUTOR_ID when absent. */
+	/** Lowest-precedence default (host override, host default or legacy record default). */
 	defaultExecutor?: string;
+	/** Which rule produced `defaultExecutor` (WP17); `default` when absent. */
+	defaultSource?: Extract<
+		WorkflowRunExecutorSource,
+		"default" | "host-default" | "installed-default"
+	>;
+	/** Host whose rule chose the default (recorded with `host-default`/`installed-default`). */
+	host?: WorkflowHostId;
+	/** Candidates the `installed-default` rule probed (recorded). */
+	candidates?: WorkflowRunExecutorCandidate[];
 }
 
 function describeSource(
@@ -150,11 +165,15 @@ function describeSource(
 	if (source === "workflow-profile")
 		return `workflow execution profile "${profile}"`;
 	if (source === "user-profile") return `saved user profile "${profile}"`;
+	if (source === "host-default") return "host default";
+	if (source === "installed-default") return "installed default";
 	return "default";
 }
 
 /**
- * B2 precedence: run flag > workflow-declared profile > saved user profile > default.
+ * B2 precedence: run flag > workflow-declared profile > saved user profile > default. The default
+ * must be passed in (`defaultExecutor`); new runs compute it with resolveRunExecutorForHost
+ * (executor-default.ts, WP17).
  * Throws WorkflowExecutorUnavailableError (naming the executor and where it came from) when the
  * selected id is unknown or its adapter is unavailable. Lower-precedence sources are never tried
  * as a fallback.
@@ -179,8 +198,8 @@ export function resolveRunExecutorSelection(
 			profile: input.userProfileName,
 		},
 		{
-			id: input.defaultExecutor ?? DEFAULT_WORKFLOW_EXECUTOR_ID,
-			source: "default",
+			id: input.defaultExecutor,
+			source: input.defaultSource ?? "default",
 		},
 	];
 	const selected = candidates.find(
@@ -216,10 +235,17 @@ export function resolveRunExecutorSelection(
 			selected.id,
 			selected.source,
 		);
+	const defaulted =
+		selected.source === "host-default" ||
+		selected.source === "installed-default";
 	return {
 		id: selected.id,
 		source: selected.source,
 		...(selected.profile === undefined ? {} : { profile: selected.profile }),
+		...(defaulted && input.host !== undefined ? { host: input.host } : {}),
+		...(defaulted && input.candidates !== undefined
+			? { candidates: input.candidates.map((candidate) => ({ ...candidate })) }
+			: {}),
 		descriptor: { ...registration.descriptor },
 	};
 }
