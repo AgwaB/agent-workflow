@@ -293,13 +293,19 @@ and must not change in the final control. Downstream reducers still wait for eve
 
 ```js
 export default async function helper({ sources, options, context }) {
-  // sources: upstream control.json values keyed by stable source names
-  return { schema: "helper-output-v1", digest: "...", value: { /* control data */ } };
+  // sources: upstream control.json values keyed by stable source names (foreach items as
+  // "<stage>.<item id>"); context: specPath, runId, taskId, stageId, cwd, signal, sourceStatuses
+  return { schema: "my-merge-control-v1", digest: "merged 3 reviews", items: [/* … */] };
 }
 ```
 
-The result becomes the support node's artifact bundle (`value` is its `control.json`). Async helpers
-get `context.signal` for cooperative stop. Helper refs must start with `./`, end in `.mjs` and stay
+In an artifact-graph workflow the returned object is the support node's `control.json` (a missing
+`schema` becomes `stage-control-v1`, a missing `digest` a fixed text) and is validated against the
+stage's `controlSchema` like a worker's control. A string `analysis` (or `markdown`) field becomes
+`analysis.md`, an array `refs` field `refs.json`. A control with `status: "failed"` or `"blocked"`,
+or `gates.passed: false`, ends the task as declared (`support_declared_failed` /
+`support_declared_blocked`); the bundled final renders use this for verdicts such as
+`PARTIAL_REVIEW`. Async helpers get `context.signal` for cooperative stop. Helper refs must start with `./`, end in `.mjs` and stay
 inside the bundle. That is path containment, not a sandbox: helpers run in the engine process with
 its permissions and are not limited by tool allowlists, so bundle only trusted code. A read-only
 workflow's helpers must not cause undeclared side effects.
