@@ -1,0 +1,80 @@
+{
+	"action": "run",
+	"ok": true,
+	"outcome": "completed",
+	"data": {
+		"mode": "named-workflow",
+		"runId": "workflow_mvqvrcgf_b9b768",
+		"status": "running",
+		"name": "deep-review",
+		"specPath": "<HOME>/agent-workflow-live4/workflows/deep-review/spec.json",
+		"executor": {
+			"id": "claude",
+			"source": "run-flag"
+		},
+		"permissionMode": {
+			"mode": "free",
+			"source": "default"
+		},
+		"capability": {
+			"preview": "Capability check (claude@0.1.0, 4 stages, permission mode: free): accepted\n  probe: installed, cli 2.1.310, auth ok\ntriage.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nreviewers.item: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\ndevil-advocate.item: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nreport.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)",
+			"confirmation": "not-needed",
+			"degradations": [],
+			"forcedReadOnly": []
+		},
+		"taskSummary": {
+			"total": 8,
+			"pending": 7,
+			"running": 1,
+			"blocked": 0,
+			"completed": 0,
+			"failed": 0,
+			"skipped": 0,
+			"interrupted": 0
+		},
+		"wait": {
+			"runId": "workflow_mvqvrcgf_b9b768",
+			"status": "completed",
+			"semanticStatus": "completed",
+			"terminal": true,
+			"actionRequired": false,
+			"stillRunning": false,
+			"timeoutMs": 45000,
+			"blockedTaskIds": [],
+			"taskSummary": {
+				"total": 16,
+				"pending": 0,
+				"running": 0,
+				"blocked": 0,
+				"completed": 16,
+				"failed": 0,
+				"skipped": 0,
+				"interrupted": 0
+			},
+			"outputTaskIds": ["final.main"],
+			"outputRetryAttempts": 0,
+			"launchRetryAttempts": 0,
+			"artifactRoot": ".agent-workflow/workflows/workflow_mvqvrcgf_b9b768",
+			"preview": "## Core conclusion\n\nVerdict: **NEEDS_WORK**. The deterministic ledger contains 5 kept or weakened findings and 0 needs-human items.\n\n## Key findings\n\n- **high / WEAKEN:** Direct-dynamic terminal summary discards engine status (interrupted/failed) and reports synthesized or completed\\_without\\_semantic\\_result when \\[artifact omitted\\] is missing or unreadable\n- **high / WEAKEN:** Stop-intent read errors are swallowed on the polling path but propagated on the throw path\n- **medium / WEAKEN:** Shared Set registration collapses duplicate signals, so one unbind removes another binding's fence\n- **medium / WEAKEN:** Generic provider fields are promoted to cancellation, contrary to the documented exact-match intent\n- **low / WEAKEN:** Stop classification relies on a message prefix, so unrelated errors can be classified as stop requests\n\n## Evidence level\n\n- Canonical rows: 5 kept or weakened findings, 0 needs-human items, and 0 supporting observations.\n- Coverage: complete according to source-status accounting.\n\n## Important limitations\n\n- Evidence and quotes are bound to the reviewed snapshot available to the partition stage; final rendering does not re-read repository files and therefore does not attest current-tree bytes.",
+			"reportArtifacts": [
+				{
+					"kind": "final-report",
+					"label": "Final report",
+					"path": ".agent-workflow/workflows/workflow_mvqvrcgf_b9b768/tasks/task-8/final-report.md"
+				}
+			],
+			"usage": {
+				"source": "task-rollup",
+				"capturedAt": "2026-10-27T16:10:53.800Z",
+				"taskCount": 16,
+				"tasksReporting": 10,
+				"inputTokens": 72,
+				"outputTokens": 41585,
+				"totalTokens": 460800,
+				"cacheCreationInputTokens": 90932,
+				"cacheReadInputTokens": 328211,
+				"costUsd": 0.042268209999999994
+			}
+		}
+	}
+}

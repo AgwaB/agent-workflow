@@ -1,0 +1,16 @@
+# Case 4a, run workflow_mvqv0cco_0f069a, task-12 devil-advocate.finding-002
+# attempt 1 (run_mvqv14ns_44334d): completed 15:48:41Z, control rejected by schema
+#   ($.evidenceUnavailableReason: string length must be >= 1) -> output retry (new session)
+# attempt 2 (run_mvqv1il6_43874e), 15:48:42Z-15:48:43Z, codex app-server notification:
+{"method":"error","params":{"error":{"message":"exceeded retry limit, last status: 429 Too Many Requests","codexErrorInfo":{"responseTooManyFailedAttempts":{"httpStatusCode":429}}},"willRetry":false}}
+# stderr.log: rate_limit: exceeded retry limit, last status: 429 Too Many Requests
+# engine: launchRetry {"attempts":1,"maxAttempts":5,"reason":"model_rate_limit","message":"executor run failed: rate_limit","nextEligibleAt":"2026-10-27T16:03:44.462Z","retryAfterMs":900000}
+# attempt 3 at 16:03:44Z completed; report.main completed; final.main rendered PARTIAL_REVIEW at 16:04:09Z.
+#
+# Account state read without a model call (codex app-server account/rateLimits/read, 15:57Z and 16:05Z-16:10Z;
+# account id and credit numbers omitted):
+#   ordinaryUsageAllowed: false, rateLimitReachedType: rate_limit_reached
+#   primary window 10080 min (7 days): usedPercent 100, resets 2026-11-02T06:10:16Z
+#   credits: hasCredits true; the balance decreased between readings, also while no live-4 run used OpenAI
+# => from 15:48Z every further Codex model call of this account draws on credits (attempt 3 above ran after the limit was reached).
+#    Cases 2, 4b and the Codex concurrency case were not run: paid credit use was not part of the approval.

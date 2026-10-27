@@ -1,0 +1,424 @@
+{
+	"case": "c3-pi-host-pi-workers",
+	"hostKind": "pi",
+	"runId": "workflow_mvqvdiwl_0a0742",
+	"name": "deep-review",
+	"status": "completed",
+	"cwd": "/tmp/aw-live4/c3-pi-pi",
+	"createdAt": "2026-10-27T15:58:02.230Z",
+	"updatedAt": "2026-10-27T16:06:08.838Z",
+	"wallS": 487,
+	"executor": {
+		"id": "pi",
+		"source": "host-default",
+		"host": "pi"
+	},
+	"permissionMode": {
+		"mode": "free",
+		"source": "default"
+	},
+	"taskSummary": {
+		"total": 18,
+		"pending": 0,
+		"running": 0,
+		"blocked": 0,
+		"completed": 18,
+		"failed": 0,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"capability": {
+		"confirmation": "not-needed",
+		"degradations": []
+	},
+	"usage": {
+		"source": "task-rollup",
+		"capturedAt": "2026-10-27T16:06:08.839Z",
+		"taskCount": 18,
+		"tasksReporting": 12,
+		"inputTokens": 244503,
+		"outputTokens": 33464,
+		"totalTokens": 1039567,
+		"cacheCreationInputTokens": 0,
+		"cacheReadInputTokens": 761600,
+		"costUsd": 0.8998059999999999
+	},
+	"failedTasks": [],
+	"finalTasks": [
+		{
+			"taskId": "task-8",
+			"specId": "final.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"controlStatus": "passed",
+			"verdict": "NEEDS_WORK",
+			"digest": "Rendered 7 findings: high=2, medium=5."
+		}
+	],
+	"perTaskUsage": [
+		{
+			"taskId": "task-1",
+			"specId": "triage.main",
+			"status": "completed",
+			"model": "gpt-6.1-sol",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 10386,
+				"outputTokens": 2248,
+				"totalTokens": 46170,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 33536,
+				"costUsd": 0.0466056
+			}
+		},
+		{
+			"taskId": "task-9",
+			"specId": "reviewers.stop-propagation",
+			"status": "completed",
+			"model": "gpt-6.1-sol",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 16583,
+				"outputTokens": 8598,
+				"totalTokens": 39133,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 13952,
+				"costUsd": 0.1205412
+			}
+		},
+		{
+			"taskId": "task-10",
+			"specId": "reviewers.cancellation-classification",
+			"status": "completed",
+			"model": "gpt-6.1-sol",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 30536,
+				"outputTokens": 5522,
+				"totalTokens": 189274,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 153216,
+				"costUsd": 0.1316136
+			}
+		},
+		{
+			"taskId": "task-11",
+			"specId": "reviewers.terminal-precedence",
+			"status": "completed",
+			"model": "gpt-6.1-sol",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 10722,
+				"outputTokens": 2630,
+				"totalTokens": 64808,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 51456,
+				"costUsd": 0.0528896
+			}
+		},
+		{
+			"taskId": "task-12",
+			"specId": "devil-advocate.finding-001",
+			"status": "completed",
+			"model": "gpt-6.1-sol",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 24349,
+				"outputTokens": 2302,
+				"totalTokens": 52763,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 26112,
+				"costUsd": 0.0743292
+			}
+		},
+		{
+			"taskId": "task-13",
+			"specId": "devil-advocate.finding-002",
+			"status": "completed",
+			"model": "gpt-6.1-sol",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 22644,
+				"outputTokens": 1691,
+				"totalTokens": 52879,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 28544,
+				"costUsd": 0.0650524
+			}
+		},
+		{
+			"taskId": "task-14",
+			"specId": "devil-advocate.finding-003",
+			"status": "completed",
+			"model": "gpt-6.1-sol",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 28289,
+				"outputTokens": 1772,
+				"totalTokens": 136045,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 105984,
+				"costUsd": 0.0848964
+			}
+		},
+		{
+			"taskId": "task-15",
+			"specId": "devil-advocate.finding-004",
+			"status": "completed",
+			"model": "gpt-6.1-sol",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 25044,
+				"outputTokens": 1756,
+				"totalTokens": 113072,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 86272,
+				"costUsd": 0.0762752
+			}
+		},
+		{
+			"taskId": "task-16",
+			"specId": "devil-advocate.finding-005",
+			"status": "completed",
+			"model": "gpt-6.1-sol",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 28238,
+				"outputTokens": 1850,
+				"totalTokens": 170120,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 140032,
+				"costUsd": 0.0889792
+			}
+		},
+		{
+			"taskId": "task-17",
+			"specId": "devil-advocate.finding-006",
+			"status": "completed",
+			"model": "gpt-6.1-sol",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 27089,
+				"outputTokens": 1692,
+				"totalTokens": 126061,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 97280,
+				"costUsd": 0.080826
+			}
+		},
+		{
+			"taskId": "task-18",
+			"specId": "devil-advocate.finding-007",
+			"status": "completed",
+			"model": "gpt-6.1-sol",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 17855,
+				"outputTokens": 2363,
+				"totalTokens": 43386,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 23168,
+				"costUsd": 0.0616568
+			}
+		},
+		{
+			"taskId": "task-7",
+			"specId": "report.main",
+			"status": "completed",
+			"model": "gpt-6.1-sol",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 2768,
+				"outputTokens": 1040,
+				"totalTokens": 5856,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 2048,
+				"costUsd": 0.0161408
+			}
+		}
+	],
+	"workers": {
+		"task-1": {
+			"files": [
+				"task-1/run_mvqvdiyn_b6fcba/attempts/attempt_mvqvdiyn_93b83b/exec-events.jsonl",
+				"task-1/run_mvqvdiyn_b6fcba/attempts/attempt_mvqvdiyn_93b83b/pi-stdout.jsonl",
+				"task-1/run_mvqvdiyn_b6fcba/events.jsonl"
+			],
+			"models": {
+				"gpt-6.1-sol": 11
+			},
+			"tools": {
+				"read": 6,
+				"grep": 2,
+				"ls": 2
+			}
+		},
+		"task-10": {
+			"files": [
+				"task-10/run_mvqvfg2g_a349a0/attempts/attempt_mvqvfg2g_fddb45/exec-events.jsonl",
+				"task-10/run_mvqvfg2g_a349a0/attempts/attempt_mvqvfg2g_fddb45/pi-stdout.jsonl",
+				"task-10/run_mvqvfg2g_a349a0/events.jsonl"
+			],
+			"models": {
+				"gpt-6.1-sol": 12
+			},
+			"tools": {
+				"read": 6,
+				"grep": 3,
+				"ls": 2
+			}
+		},
+		"task-11": {
+			"files": [
+				"task-11/run_mvqvfg8w_06aeb8/attempts/attempt_mvqvfg8w_8302d8/exec-events.jsonl",
+				"task-11/run_mvqvfg8w_06aeb8/attempts/attempt_mvqvfg8w_8302d8/pi-stdout.jsonl",
+				"task-11/run_mvqvfg8w_06aeb8/events.jsonl"
+			],
+			"models": {
+				"gpt-6.1-sol": 11
+			},
+			"tools": {
+				"read": 5,
+				"ls": 2,
+				"grep": 3
+			}
+		},
+		"task-12": {
+			"files": [
+				"task-12/run_mvqvl3qo_ca0b98/attempts/attempt_mvqvl3qo_b92de5/exec-events.jsonl",
+				"task-12/run_mvqvl3qo_ca0b98/attempts/attempt_mvqvl3qo_b92de5/pi-stdout.jsonl",
+				"task-12/run_mvqvl3qo_ca0b98/events.jsonl"
+			],
+			"models": {
+				"gpt-6.1-sol": 4
+			},
+			"tools": {
+				"read": 5,
+				"ls": 2,
+				"grep": 2,
+				"find": 3
+			}
+		},
+		"task-13": {
+			"files": [
+				"task-13/run_mvqvl3xg_62d4bb/attempts/attempt_mvqvl3xg_e54e63/exec-events.jsonl",
+				"task-13/run_mvqvl3xg_62d4bb/attempts/attempt_mvqvl3xg_e54e63/pi-stdout.jsonl",
+				"task-13/run_mvqvl3xg_62d4bb/events.jsonl"
+			],
+			"models": {
+				"gpt-6.1-sol": 4
+			},
+			"tools": {
+				"read": 5,
+				"grep": 3,
+				"find": 1,
+				"ls": 2
+			}
+		},
+		"task-14": {
+			"files": [
+				"task-14/run_mvqvl44a_a08419/attempts/attempt_mvqvl44a_26bc71/exec-events.jsonl",
+				"task-14/run_mvqvl44a_a08419/attempts/attempt_mvqvl44a_26bc71/pi-stdout.jsonl",
+				"task-14/run_mvqvl44a_a08419/events.jsonl"
+			],
+			"models": {
+				"gpt-6.1-sol": 11
+			},
+			"tools": {
+				"read": 5,
+				"grep": 3,
+				"ls": 2
+			}
+		},
+		"task-15": {
+			"files": [
+				"task-15/run_mvqvl4cd_e294a6/attempts/attempt_mvqvl4cd_46a446/exec-events.jsonl",
+				"task-15/run_mvqvl4cd_e294a6/attempts/attempt_mvqvl4cd_46a446/pi-stdout.jsonl",
+				"task-15/run_mvqvl4cd_e294a6/events.jsonl"
+			],
+			"models": {
+				"gpt-6.1-sol": 9
+			},
+			"tools": {
+				"read": 5,
+				"grep": 2,
+				"ls": 1
+			}
+		},
+		"task-16": {
+			"files": [
+				"task-16/run_mvqvl4jd_04d8af/attempts/attempt_mvqvl4jd_d35d3f/exec-events.jsonl",
+				"task-16/run_mvqvl4jd_04d8af/attempts/attempt_mvqvl4jd_d35d3f/pi-stdout.jsonl",
+				"task-16/run_mvqvl4jd_04d8af/events.jsonl"
+			],
+			"models": {
+				"gpt-6.1-sol": 11
+			},
+			"tools": {
+				"read": 5,
+				"grep": 3,
+				"ls": 2
+			}
+		},
+		"task-17": {
+			"files": [
+				"task-17/run_mvqvl4qi_765cd0/attempts/attempt_mvqvl4qi_fa04b6/exec-events.jsonl",
+				"task-17/run_mvqvl4qi_765cd0/attempts/attempt_mvqvl4qi_fa04b6/pi-stdout.jsonl",
+				"task-17/run_mvqvl4qi_765cd0/events.jsonl"
+			],
+			"models": {
+				"gpt-6.1-sol": 10
+			},
+			"tools": {
+				"read": 5,
+				"grep": 2,
+				"ls": 2
+			}
+		},
+		"task-18": {
+			"files": [
+				"task-18/run_mvqvl633_769053/attempts/attempt_mvqvl633_52a439/exec-events.jsonl",
+				"task-18/run_mvqvl633_769053/attempts/attempt_mvqvl633_52a439/pi-stdout.jsonl",
+				"task-18/run_mvqvl633_769053/events.jsonl"
+			],
+			"models": {
+				"gpt-6.1-sol": 4
+			},
+			"tools": {
+				"read": 5,
+				"grep": 4,
+				"find": 1,
+				"ls": 2
+			}
+		},
+		"task-7": {
+			"files": [
+				"task-7/run_mvqvn52u_68f3cd/attempts/attempt_mvqvn52u_10f5dc/exec-events.jsonl",
+				"task-7/run_mvqvn52u_68f3cd/attempts/attempt_mvqvn52u_10f5dc/pi-stdout.jsonl",
+				"task-7/run_mvqvn52u_68f3cd/events.jsonl"
+			],
+			"models": {
+				"gpt-6.1-sol": 2
+			},
+			"tools": {
+				"mcp__workflow_artifact__workflow_artifact": 1
+			}
+		},
+		"task-9": {
+			"files": [
+				"task-9/run_mvqvffvt_b21bc2/attempts/attempt_mvqvffvt_16f4c3/exec-events.jsonl",
+				"task-9/run_mvqvffvt_b21bc2/attempts/attempt_mvqvffvt_16f4c3/pi-stdout.jsonl",
+				"task-9/run_mvqvffvt_b21bc2/events.jsonl"
+			],
+			"models": {
+				"gpt-6.1-sol": 5
+			},
+			"tools": {
+				"read": 6,
+				"ls": 2,
+				"find": 1,
+				"grep": 3
+			}
+		}
+	}
+}

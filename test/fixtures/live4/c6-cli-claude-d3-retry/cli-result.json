@@ -1,0 +1,80 @@
+{
+	"action": "run",
+	"ok": true,
+	"outcome": "completed",
+	"data": {
+		"mode": "named-workflow",
+		"runId": "workflow_mvqw6utn_5f5573",
+		"status": "running",
+		"name": "deep-review",
+		"specPath": "<HOME>/agent-workflow-live4/workflows/deep-review/spec.json",
+		"executor": {
+			"id": "claude",
+			"source": "run-flag"
+		},
+		"permissionMode": {
+			"mode": "free",
+			"source": "default"
+		},
+		"capability": {
+			"preview": "Capability check (claude@0.1.0, 4 stages, permission mode: free): accepted\n  probe: installed, cli 2.1.310, auth ok\ntriage.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nreviewers.item: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\ndevil-advocate.item: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nreport.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)",
+			"confirmation": "not-needed",
+			"degradations": [],
+			"forcedReadOnly": []
+		},
+		"taskSummary": {
+			"total": 8,
+			"pending": 7,
+			"running": 1,
+			"blocked": 0,
+			"completed": 0,
+			"failed": 0,
+			"skipped": 0,
+			"interrupted": 0
+		},
+		"wait": {
+			"runId": "workflow_mvqw6utn_5f5573",
+			"status": "completed",
+			"semanticStatus": "completed",
+			"terminal": true,
+			"actionRequired": false,
+			"stillRunning": false,
+			"timeoutMs": 45000,
+			"blockedTaskIds": [],
+			"taskSummary": {
+				"total": 17,
+				"pending": 0,
+				"running": 0,
+				"blocked": 0,
+				"completed": 17,
+				"failed": 0,
+				"skipped": 0,
+				"interrupted": 0
+			},
+			"outputTaskIds": ["final.main"],
+			"outputRetryAttempts": 1,
+			"launchRetryAttempts": 0,
+			"artifactRoot": ".agent-workflow/workflows/workflow_mvqw6utn_5f5573",
+			"preview": "## Core conclusion\n\nVerdict: **NEEDS_WORK**. The deterministic ledger contains 6 kept or weakened findings and 0 needs-human items.\n\n## Key findings\n\n- **high / WEAKEN:** check() treats every intent read failure as 'no stop' and keeps polling silently\n- **medium / WEAKEN:** dispose() only clears the interval; an in-flight check() can still abort the signal afterward\n- **medium / WEAKEN:** Returned-value cancellation check promotes generic cancelled/error/reason fields\n- **medium / KEEP:** Direct-dynamic \\[artifact omitted\\] overrides engine failed/interrupted status\n- **low / WEAKEN:** Launch-signal fence can be lost if the launch owner unbinds during the durable read\n- **low / WEAKEN:** Stop-requested classification matches an error-message prefix\n\n## Evidence level\n\n- Canonical rows: 6 kept or weakened findings, 0 needs-human items, and 0 supporting observations.\n- Coverage: complete according to source-status accounting.\n\n## Important limitations\n\n- Evidence and quotes are bound to the reviewed snapshot available to the partition stage; final rendering does not re-read repository files and therefore does not attest current-tree bytes.",
+			"reportArtifacts": [
+				{
+					"kind": "final-report",
+					"label": "Final report",
+					"path": ".agent-workflow/workflows/workflow_mvqw6utn_5f5573/tasks/task-8/final-report.md"
+				}
+			],
+			"usage": {
+				"source": "task-rollup",
+				"capturedAt": "2026-10-27T16:22:48.205Z",
+				"taskCount": 17,
+				"tasksReporting": 11,
+				"inputTokens": 82,
+				"outputTokens": 44455,
+				"totalTokens": 503084,
+				"cacheCreationInputTokens": 98958,
+				"cacheReadInputTokens": 359589,
+				"costUsd": 0.045623189999999994
+			}
+		}
+	}
+}

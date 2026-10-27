@@ -1,0 +1,385 @@
+{
+	"case": "c6-cli-claude-d3-retry",
+	"hostKind": "cli",
+	"runId": "workflow_mvqw6utn_5f5573",
+	"name": "deep-review",
+	"status": "completed",
+	"cwd": "/tmp/aw-live4/c6-cli-claude-d3-retry",
+	"createdAt": "2026-10-27T16:20:50.700Z",
+	"updatedAt": "2026-10-27T16:22:48.204Z",
+	"wallS": 118,
+	"executor": {
+		"id": "claude",
+		"source": "run-flag"
+	},
+	"permissionMode": {
+		"mode": "free",
+		"source": "default"
+	},
+	"taskSummary": {
+		"total": 17,
+		"pending": 0,
+		"running": 0,
+		"blocked": 0,
+		"completed": 17,
+		"failed": 0,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"capability": {
+		"confirmation": "not-needed",
+		"degradations": []
+	},
+	"usage": {
+		"source": "task-rollup",
+		"capturedAt": "2026-10-27T16:22:48.205Z",
+		"taskCount": 17,
+		"tasksReporting": 11,
+		"inputTokens": 82,
+		"outputTokens": 44455,
+		"totalTokens": 503084,
+		"cacheCreationInputTokens": 98958,
+		"cacheReadInputTokens": 359589,
+		"costUsd": 0.045623189999999994
+	},
+	"failedTasks": [],
+	"finalTasks": [
+		{
+			"taskId": "task-8",
+			"specId": "final.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"controlStatus": "passed",
+			"verdict": "NEEDS_WORK",
+			"digest": "Rendered 6 findings: high=1, medium=3, low=2."
+		}
+	],
+	"perTaskUsage": [
+		{
+			"taskId": "task-1",
+			"specId": "triage.main",
+			"status": "completed",
+			"model": "claude-haiku-5-5",
+			"usage": {
+				"attempts": 2,
+				"inputTokens": 16,
+				"outputTokens": 8916,
+				"totalTokens": 105876,
+				"cacheCreationInputTokens": 16682,
+				"cacheReadInputTokens": 80262,
+				"costUsd": 0.008598620000000001
+			}
+		},
+		{
+			"taskId": "task-9",
+			"specId": "reviewers.runtime-stop-race",
+			"status": "completed",
+			"model": "claude-haiku-5-5",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 8,
+				"outputTokens": 8019,
+				"totalTokens": 52671,
+				"cacheCreationInputTokens": 8070,
+				"cacheReadInputTokens": 36574,
+				"costUsd": 0.00599004
+			}
+		},
+		{
+			"taskId": "task-10",
+			"specId": "reviewers.cancellation-classification",
+			"status": "completed",
+			"model": "claude-haiku-5-5",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 6,
+				"outputTokens": 6022,
+				"totalTokens": 43040,
+				"cacheCreationInputTokens": 12251,
+				"cacheReadInputTokens": 24761,
+				"costUsd": 0.00570941
+			}
+		},
+		{
+			"taskId": "task-11",
+			"specId": "reviewers.terminal-status-mapping",
+			"status": "completed",
+			"model": "claude-haiku-5-5",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 8,
+				"outputTokens": 4613,
+				"totalTokens": 48501,
+				"cacheCreationInputTokens": 8880,
+				"cacheReadInputTokens": 35000,
+				"costUsd": 0.0044333
+			}
+		},
+		{
+			"taskId": "task-12",
+			"specId": "devil-advocate.finding-001",
+			"status": "completed",
+			"model": "claude-haiku-5-5",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 10,
+				"outputTokens": 3621,
+				"totalTokens": 61219,
+				"cacheCreationInputTokens": 8558,
+				"cacheReadInputTokens": 49030,
+				"costUsd": 0.0040134
+			}
+		},
+		{
+			"taskId": "task-13",
+			"specId": "devil-advocate.finding-002",
+			"status": "completed",
+			"model": "claude-haiku-5-5",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 6,
+				"outputTokens": 1960,
+				"totalTokens": 39113,
+				"cacheCreationInputTokens": 12881,
+				"cacheReadInputTokens": 24266,
+				"costUsd": 0.00379946
+			}
+		},
+		{
+			"taskId": "task-14",
+			"specId": "devil-advocate.finding-003",
+			"status": "completed",
+			"model": "claude-haiku-5-5",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 6,
+				"outputTokens": 2631,
+				"totalTokens": 33338,
+				"cacheCreationInputTokens": 6152,
+				"cacheReadInputTokens": 24549,
+				"costUsd": 0.00279199
+			}
+		},
+		{
+			"taskId": "task-15",
+			"specId": "devil-advocate.finding-004",
+			"status": "completed",
+			"model": "claude-haiku-5-5",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 6,
+				"outputTokens": 2367,
+				"totalTokens": 34463,
+				"cacheCreationInputTokens": 8430,
+				"cacheReadInputTokens": 23660,
+				"costUsd": 0.0031067
+			}
+		},
+		{
+			"taskId": "task-16",
+			"specId": "devil-advocate.finding-005",
+			"status": "completed",
+			"model": "claude-haiku-5-5",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 6,
+				"outputTokens": 2523,
+				"totalTokens": 34251,
+				"cacheCreationInputTokens": 6618,
+				"cacheReadInputTokens": 25104,
+				"costUsd": 0.00283674
+			}
+		},
+		{
+			"taskId": "task-17",
+			"specId": "devil-advocate.finding-006",
+			"status": "completed",
+			"model": "claude-haiku-5-5",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 6,
+				"outputTokens": 2208,
+				"totalTokens": 33526,
+				"cacheCreationInputTokens": 6021,
+				"cacheReadInputTokens": 25291,
+				"costUsd": 0.00256171
+			}
+		},
+		{
+			"taskId": "task-7",
+			"specId": "report.main",
+			"status": "completed",
+			"model": "claude-haiku-5-5",
+			"usage": {
+				"attempts": 1,
+				"inputTokens": 4,
+				"outputTokens": 1575,
+				"totalTokens": 17086,
+				"cacheCreationInputTokens": 4415,
+				"cacheReadInputTokens": 11092,
+				"costUsd": 0.00178182
+			}
+		}
+	],
+	"workers": {
+		"task-1": {
+			"files": [
+				"task-1/run_mvqw6v0b_b10f9a/attempts/attempt_mvqw6v0b_5750d1/claude-stream.jsonl",
+				"task-1/run_mvqw6v0b_b10f9a/attempts/attempt_mvqw6v0b_5750d1/exec-events.jsonl",
+				"task-1/run_mvqw6v0b_b10f9a/events.jsonl",
+				"task-1/run_mvqw7dy2_5f72bb/attempts/attempt_mvqw7dy2_1af884/claude-stream.jsonl",
+				"task-1/run_mvqw7dy2_5f72bb/attempts/attempt_mvqw7dy2_1af884/exec-events.jsonl",
+				"task-1/run_mvqw7dy2_5f72bb/events.jsonl"
+			],
+			"models": {
+				"claude-haiku-5-5": 21
+			},
+			"tools": {
+				"Glob": 4,
+				"Grep": 1,
+				"Read": 7
+			}
+		},
+		"task-10": {
+			"files": [
+				"task-10/run_mvqw7wn2_67e7f6/attempts/attempt_mvqw7wn2_208e17/claude-stream.jsonl",
+				"task-10/run_mvqw7wn2_67e7f6/attempts/attempt_mvqw7wn2_208e17/exec-events.jsonl",
+				"task-10/run_mvqw7wn2_67e7f6/events.jsonl"
+			],
+			"models": {
+				"claude-haiku-5-5": 7
+			},
+			"tools": {
+				"Read": 3,
+				"Grep": 1
+			}
+		},
+		"task-11": {
+			"files": [
+				"task-11/run_mvqw7wsp_9f7817/attempts/attempt_mvqw7wsp_f07818/claude-stream.jsonl",
+				"task-11/run_mvqw7wsp_9f7817/attempts/attempt_mvqw7wsp_f07818/exec-events.jsonl",
+				"task-11/run_mvqw7wsp_9f7817/events.jsonl"
+			],
+			"models": {
+				"claude-haiku-5-5": 6
+			},
+			"tools": {
+				"Read": 1,
+				"Grep": 2
+			}
+		},
+		"task-12": {
+			"files": [
+				"task-12/run_mvqw8pvj_3b289b/attempts/attempt_mvqw8pvj_934ecc/claude-stream.jsonl",
+				"task-12/run_mvqw8pvj_3b289b/attempts/attempt_mvqw8pvj_934ecc/exec-events.jsonl",
+				"task-12/run_mvqw8pvj_3b289b/events.jsonl"
+			],
+			"models": {
+				"claude-haiku-5-5": 12
+			},
+			"tools": {
+				"Read": 1,
+				"Grep": 4,
+				"Glob": 2
+			}
+		},
+		"task-13": {
+			"files": [
+				"task-13/run_mvqw8q2o_b0b7d1/attempts/attempt_mvqw8q2o_311561/claude-stream.jsonl",
+				"task-13/run_mvqw8q2o_b0b7d1/attempts/attempt_mvqw8q2o_311561/exec-events.jsonl",
+				"task-13/run_mvqw8q2o_b0b7d1/events.jsonl"
+			],
+			"models": {
+				"claude-haiku-5-5": 6
+			},
+			"tools": {
+				"Read": 1,
+				"Grep": 2
+			}
+		},
+		"task-14": {
+			"files": [
+				"task-14/run_mvqw8qbo_fbc421/attempts/attempt_mvqw8qbo_a0dd89/claude-stream.jsonl",
+				"task-14/run_mvqw8qbo_fbc421/attempts/attempt_mvqw8qbo_a0dd89/exec-events.jsonl",
+				"task-14/run_mvqw8qbo_fbc421/events.jsonl"
+			],
+			"models": {
+				"claude-haiku-5-5": 6
+			},
+			"tools": {
+				"Read": 2,
+				"Grep": 1
+			}
+		},
+		"task-15": {
+			"files": [
+				"task-15/run_mvqw8qkp_1e1440/attempts/attempt_mvqw8qkp_c36f1d/claude-stream.jsonl",
+				"task-15/run_mvqw8qkp_1e1440/attempts/attempt_mvqw8qkp_c36f1d/exec-events.jsonl",
+				"task-15/run_mvqw8qkp_1e1440/events.jsonl"
+			],
+			"models": {
+				"claude-haiku-5-5": 5
+			},
+			"tools": {
+				"Read": 1,
+				"Grep": 1
+			}
+		},
+		"task-16": {
+			"files": [
+				"task-16/run_mvqw8qxg_660490/attempts/attempt_mvqw8qxg_c29d3d/claude-stream.jsonl",
+				"task-16/run_mvqw8qxg_660490/attempts/attempt_mvqw8qxg_c29d3d/exec-events.jsonl",
+				"task-16/run_mvqw8qxg_660490/events.jsonl"
+			],
+			"models": {
+				"claude-haiku-5-5": 7
+			},
+			"tools": {
+				"Read": 1,
+				"Grep": 3
+			}
+		},
+		"task-17": {
+			"files": [
+				"task-17/run_mvqw8r87_291265/attempts/attempt_mvqw8r87_e0558d/claude-stream.jsonl",
+				"task-17/run_mvqw8r87_291265/attempts/attempt_mvqw8r87_e0558d/exec-events.jsonl",
+				"task-17/run_mvqw8r87_291265/events.jsonl"
+			],
+			"models": {
+				"claude-haiku-5-5": 6
+			},
+			"tools": {
+				"Read": 1,
+				"Grep": 2
+			}
+		},
+		"task-7": {
+			"files": [
+				"task-7/run_mvqw95bt_f68eeb/attempts/attempt_mvqw95bt_620ecb/claude-stream.jsonl",
+				"task-7/run_mvqw95bt_f68eeb/attempts/attempt_mvqw95bt_620ecb/exec-events.jsonl",
+				"task-7/run_mvqw95bt_f68eeb/events.jsonl"
+			],
+			"models": {
+				"claude-haiku-5-5": 3
+			},
+			"tools": {
+				"mcp__workflow_artifact__workflow_artifact": 1
+			}
+		},
+		"task-9": {
+			"files": [
+				"task-9/run_mvqw7whe_ae619a/attempts/attempt_mvqw7whe_651eca/claude-stream.jsonl",
+				"task-9/run_mvqw7whe_ae619a/attempts/attempt_mvqw7whe_651eca/exec-events.jsonl",
+				"task-9/run_mvqw7whe_ae619a/events.jsonl"
+			],
+			"models": {
+				"claude-haiku-5-5": 9
+			},
+			"tools": {
+				"Read": 1,
+				"Glob": 1,
+				"Grep": 3
+			}
+		}
+	}
+}

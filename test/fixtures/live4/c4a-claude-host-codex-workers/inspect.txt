@@ -1,0 +1,19 @@
+runId: workflow_mvqv0cco_0f069a
+name: deep-review
+type: artifact-graph
+status: failed
+tasks: 12
+completion: incomplete
+retries: output=1, launch=1, resumes=0, contextLimitFailures=0
+- task-1: completed/completed — completed
+- task-2: completed/foreach_materialized — foreach produced 2 item(s)
+- task-9: completed/completed — completed
+- task-10: completed/completed — completed
+- task-3: completed/support_completed — support completed
+- task-4: completed/foreach_materialized — foreach produced 2 item(s)
+- task-11: completed/completed — completed
+- task-12: completed/completed — completed
+- task-5: completed/support_completed — support completed
+- task-6: completed/support_completed — support completed
+- task-7: completed/completed — completed
+- task-8: failed/support_declared_failed — support declared failed
