@@ -87,7 +87,12 @@ function currentRuntimeDefaults(
 		? rawThinking
 		: undefined;
 	if (!model && !thinking) return undefined;
-	return { ...(model ? { model } : {}), ...(thinking ? { thinking } : {}) };
+	// Tagged so the engine applies them only when the run's executor is pi (profiles may pick another).
+	return {
+		...(model ? { model } : {}),
+		...(thinking ? { thinking } : {}),
+		executor: "pi",
+	};
 }
 
 function availableModels(

@@ -348,9 +348,11 @@ test("/aw catalog actions delegate to the host API and show the handler text", a
 	assert.equal(list.args[0].cwd, cwd);
 	assert.equal(list.args[0].env, env);
 	assert.deepEqual(list.args[0].availableModels, []);
+	// Tagged as Pi defaults: the engine applies them only when the run's executor is pi.
 	assert.deepEqual(list.args[0].runtimeDefaults, {
 		model: "anthropic/claude-test",
 		thinking: "medium",
+		executor: "pi",
 	});
 	assert.deepEqual(list.args[1], { query: "deep", limit: 2 });
 	const listed = await realApi.listWorkflowsAction(
