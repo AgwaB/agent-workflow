@@ -1484,6 +1484,17 @@ order). Each fix has a regression test that failed before it.
    artifact server now writes its rows through this writer with the run directory (docs/mcp.md
    WP12d-1 change log 1). Workers that append through the tool itself are unchanged.
 
+Other WP12d-1 fixes, logged in their own docs: review #4 (handled signals keep directory locks
+held) in docs/runtime-port.md change log 18, review #8 (MCP ledger race) in docs/mcp.md WP12d-1
+change log, review #11 (replay exact-match paths) in docs/replay.md WP12d-1 change log. Findings
+#2, #3, #5, #6, #9 and #10 (executors) are WP12d-2.
+
+### WP12d-1 validation
+
+`npm run validate` (twice) and `npm run e2e` exit 0 on the final commit; replay acceptance has 0
+unexplained differences in every variant. Every new test that spawns a process kills it in
+`finally` (`runtime-dir-lock.test.mjs`).
+
 ## WP12c — stage-1 doc sync, `aw_run` inputs, release secret scan
 
 1. **Docs synced with WP12a.** `docs/usage.md` (`--input` typing and errors, legacy-agent notice,
