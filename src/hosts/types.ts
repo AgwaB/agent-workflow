@@ -83,6 +83,12 @@ export interface HostApiContext {
 	 * (`/workflow profile`) are consulted at launch; hosts without a registry (CLI, MCP) skip them.
 	 */
 	availableModels?: WorkflowModelInfo[];
+	/**
+	 * Identity of the calling host, for example "claude-code" or "codex" (the host MCP server's
+	 * `--host`), "pi" or "cli". Additive (WP13): the handlers pass it through unchanged; the
+	 * stage-2 default-executor rule (WP17) reads it.
+	 */
+	host?: string;
 }
 
 export function hostEnv(ctx: HostApiContext): NodeJS.ProcessEnv {

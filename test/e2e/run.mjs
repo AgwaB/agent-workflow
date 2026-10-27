@@ -6,8 +6,8 @@
 // package, and every case runs against that packed artifact (pi-workflow ran most checks against
 // its compiled test build). Cases: forbidden-term scan of the packed files (plus a scanner
 // self-test), packed install, a bundled-style workflow through the packed CLI against the E2E test
-// executor, the durable launch barrier v2 through the packed runtime, and the no-external-actions
-// audit. Dropped: packed-web-loader (pi-workflow's workflow web-source tools and pi-web-access
+// executor, the same workflow through the packed `agent-workflow-mcp` host MCP server (WP13), the
+// durable launch barrier v2 through the packed runtime, and the no-external-actions audit. Dropped: packed-web-loader (pi-workflow's workflow web-source tools and pi-web-access
 // wrappers do not exist in agent-workflow: deep-research uses each executor's own web tools, C2),
 // the Pi-session registry/parse/run-boundary evals (covered by the unit suite) and the legacy
 // recipe/flow term scan.
@@ -221,13 +221,14 @@ function packAndUnpack() {
 	renameSync(join(packDir, "package"), packageRoot);
 	const binDir = join(consumer, "node_modules", ".bin");
 	mkdirSync(binDir, { recursive: true });
-	const binTarget = join(packageRoot, "src", "hosts", "cli", "cli.mjs");
-	chmodSync(binTarget, 0o755);
-	symlinkSync(
-		relative(binDir, binTarget),
-		join(binDir, "agent-workflow"),
-		"file",
-	);
+	for (const [name, target] of [
+		["agent-workflow", ["src", "hosts", "cli", "cli.mjs"]],
+		["agent-workflow-mcp", ["src", "mcp", "host-server", "bin.mjs"]],
+	]) {
+		const binTarget = join(packageRoot, ...target);
+		chmodSync(binTarget, 0o755);
+		symlinkSync(relative(binDir, binTarget), join(binDir, name), "file");
+	}
 	writeFileSync(
 		join(consumer, "package.json"),
 		`${JSON.stringify({ name: "agent-workflow-e2e-consumer", private: true, type: "module" }, null, 2)}\n`,
@@ -313,6 +314,12 @@ function main() {
 				join(e2eDir, "cases", "packed-cli-run.mjs"),
 				[packageRoot, consumer],
 				{ cwd: consumer, timeoutMs: 600_000 },
+			);
+			nodeScript(
+				"packed-mcp-host",
+				join(e2eDir, "cases", "packed-mcp-host.mjs"),
+				[packageRoot, consumer],
+				{ cwd: consumer, timeoutMs: 300_000 },
 			);
 			nodeScript(
 				"packed-durable-barrier-v2",

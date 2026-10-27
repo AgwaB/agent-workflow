@@ -68,9 +68,11 @@ pi-workflow's `/workflow`. See [`docs/pi-host.md`](docs/pi-host.md).
 
 ### Codex and Claude Code as hosts
 
-Codex and Claude Code are supported **executors** today (they run the workers). Running workflows
-*from inside* Codex or Claude Code through host plugins is **stage 2** and not available yet; use the
-CLI from those tools' shells meanwhile.
+Codex and Claude Code are supported **executors** today (they run the workers). To run workflows
+*from inside* them, register the host MCP server `agent-workflow-mcp` (stage 2, WP13; plugins
+follow), for example `claude mcp add agent-workflow -- agent-workflow-mcp --host claude-code`. Its
+`workflow_*` tools launch a run, wait in bounded 45 s calls and return the report. See
+[`docs/host-mcp.md`](docs/host-mcp.md).
 
 ## Executors
 

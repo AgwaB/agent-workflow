@@ -73,7 +73,8 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "agent-workflow": "src/hosts/cli/cli.mjs"
+    "agent-workflow": "src/hosts/cli/cli.mjs",
+    "agent-workflow-mcp": "src/mcp/host-server/bin.mjs"
   },
   "pi": {
     "extensions": [

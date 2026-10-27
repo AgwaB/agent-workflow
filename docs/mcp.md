@@ -43,7 +43,9 @@ node dist/mcp/artifact-server/server.js --config <task>/artifact-access.json [--
     - `capabilities: {tools: {listChanged: false}}`
     - `serverInfo: {name: "agent-workflow-artifact", version}`
     - `instructions`: the tool guidelines
-  - `notifications/initialized` and other notifications are accepted and get no response.
+  - `notifications/initialized` and other notifications are accepted and get no response. A
+    `notifications/cancelled` for a request still in flight suppresses that request's response
+    (MCP cancellation rule).
   - `ping` → `{}`.
   - `tools/list` and `tools/call` need a completed `initialize`. The server does not wait for `notifications/initialized`, because some clients pipeline requests.
 - **Errors:**
@@ -58,6 +60,9 @@ node dist/mcp/artifact-server/server.js --config <task>/artifact-access.json [--
 
   Invalid tool *arguments* are not protocol errors. They return a tool result with `isError: true`, so the model can correct itself (2025-11-25 guidance).
 - **Interop proof:** the official SDK `Client` + `StdioClientTransport` connects, lists tools, calls the tool, pings and closes (`test/unit/mcp-artifact-sdk-interop.test.mjs`). The server's responses for every supported version validate against the SDK's result schemas. The SDK is a **devDependency only**.
+- **Shared layer (WP13):** the transport and method dispatch live in `src/mcp/stdio-server.ts`,
+  shared with the host MCP server ([`host-mcp.md`](host-mcp.md)); this server supplies its tool,
+  instructions and call handler (`src/mcp/artifact-server/stdio.ts`).
 
 ## Tool contract
 
