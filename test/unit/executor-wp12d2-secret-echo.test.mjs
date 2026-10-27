@@ -101,6 +101,7 @@ test("review #5 (codex): echoed env and MCP env values are redacted everywhere",
 	const ref = await executor.submit(
 		request(dir, "codex-echo-1", {
 			artifactsDir,
+			readOnly: false,
 			mcpServers: [
 				{
 					name: "echo_mcp",

@@ -310,6 +310,12 @@ budget are not confirmed. `fetch_content` (open_page) not observed.
 
 ## Change log
 
+- **WP12d-2 review #6:** injected MCP servers run outside the Codex sandbox, so readOnly cannot be
+  enforced on their tools. A readOnly request that injects any server other than the engine's
+  artifact server (one read-only tool) is refused in `submit` before consume with
+  `CAPABILITY_MISSING:readOnly`; non-readOnly requests are unchanged. The conformance kit's
+  `mcp_tool` requests are now non-readOnly. Test: `executor-wp12d2-mcp-readonly.test.mjs`.
+
 - **WP12d-2 review #5:** request secrets echoed by the worker are no longer persisted. Every value of
   `SubmitRequest.env` and of injected MCP server `env` (≥ 8 chars) is replaced by
   `<redacted:KEY>` / `<redacted:server.KEY>` (shared `src/executors/redact.ts`) in every raw

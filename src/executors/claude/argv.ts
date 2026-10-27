@@ -30,9 +30,12 @@ import { isUnrestricted } from "../../sdk/permission.js";
 import { mapTools } from "../../sdk/tools.js";
 import type { ClaudeExecutorConfig } from "./config.js";
 import {
+	ARTIFACT_MCP_SERVER,
+	ARTIFACT_MCP_TOOL,
 	CLAUDE_MUTATING_TOOLS,
 	CLAUDE_TOOL_MAPPING,
 	CLAUDE_WEB_TOOLS,
+	claudeMcpToolName,
 } from "./tools.js";
 
 export const CLAUDE_EFFORT_LEVELS = [
@@ -213,12 +216,34 @@ export function buildClaudeInvocation(
 	const builtinTools = mapped.executorTools.filter(
 		(name) => !(req.readOnly && mutating.has(name)),
 	);
+	// Review #6: the engine's artifact server is pre-allowed by its one read-only tool name, never
+	// server-wide. Any other injected server may expose mutating tools the adapter cannot tell
+	// apart, so a readOnly request that injects one is refused before any effect.
+	const artifactTool = claudeMcpToolName(
+		ARTIFACT_MCP_SERVER,
+		ARTIFACT_MCP_TOOL,
+	);
+	const foreignServers = req.mcpServers
+		.map((server) => server.name)
+		.filter((name) => name !== ARTIFACT_MCP_SERVER);
+	if (req.readOnly && foreignServers.length > 0)
+		throw new SdkError(
+			"CAPABILITY_MISSING",
+			`readOnly request injects MCP servers whose tools may mutate (${foreignServers.join(", ")}); the claude executor cannot enforce readOnly on them`,
+			{ subject: "readOnly" },
+		);
 	const allowedTools = [
-		...builtinTools.filter((name) =>
-			(CLAUDE_WEB_TOOLS as readonly string[]).includes(name),
-		),
-		// Engine-injected servers (artifact server, …): the engine chose to expose them.
-		...req.mcpServers.map((server) => `mcp__${server.name}`),
+		...new Set([
+			...builtinTools.filter((name) =>
+				(CLAUDE_WEB_TOOLS as readonly string[]).includes(name),
+			),
+			...req.mcpServers.map((server) =>
+				server.name === ARTIFACT_MCP_SERVER
+					? artifactTool
+					: // non-readOnly only: the caller injected it into a mutation-capable stage.
+						`mcp__${server.name}`,
+			),
+		]),
 	];
 	const permissionMode = claudePermissionMode(req);
 	const argv = [

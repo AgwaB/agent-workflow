@@ -278,6 +278,15 @@ standard`) and `WebFetch` (`url`, `prompt`) both completed. The answer cited sou
 
 ## Change log
 
+- **WP12d-2 review #6:** injected MCP servers no longer bypass readOnly. `--allowedTools` pre-allows
+  the engine's artifact server by its one read-only tool (`mcp__workflow_artifact__workflow_artifact`,
+  exact-tool rule; the server-wide `mcp__workflow_artifact` rule was the live-verified form, #10),
+  never server-wide. A readOnly request that injects any other server is refused before consume with
+  `CAPABILITY_MISSING:readOnly` (its tools may mutate and the adapter cannot tell them apart). On
+  non-readOnly requests a caller-injected server keeps its server-wide rule. The conformance kit's
+  `mcp_tool` requests are now non-readOnly (`src/sdk/conformance/checks-mcp.ts`). Tests:
+  `executor-wp12d2-mcp-readonly.test.mjs`, `executor-claude-argv.test.mjs`.
+
 - **WP12d-2 review #5:** same exposure checked: stdout lines, argv and events were already redacted,
   but stderr was redacted per chunk, so a value split across two chunks was written in full to
   `claude-stderr.log` and the failure text. stderr now goes through the shared stream redactor

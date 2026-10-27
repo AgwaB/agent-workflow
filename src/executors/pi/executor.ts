@@ -45,12 +45,14 @@ import type { ExecEvent, OwnedSession } from "../../sdk/events.js";
 import type { JsonValue } from "../../sdk/json.js";
 import { mapTools } from "../../sdk/tools.js";
 import {
+	ARTIFACT_SERVER,
 	buildPiArgv,
 	INHERITED_HOST_TOOLS,
 	PI_EFFORT_LEVELS,
 	PI_EXECUTOR_TOOL_MAPPING,
 	PI_WEB_TOOLS,
 	piMcpServerPattern,
+	piMcpToolName,
 	readOnlyTools,
 } from "./argv.js";
 import { type PiExecutorConfig, parsePiExecutorConfig } from "./config.js";
@@ -341,10 +343,27 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 		const inheritHost = config.inheritHostTools === true && !req.readOnly;
 		if (config.inheritHostTools === true && req.readOnly)
 			notes.push("inheritHostTools ignored for a readOnly request");
+		// Review #6: the engine's artifact server is declared by its one read-only tool name, never
+		// server-wide. Pi has no approval gate, so a readOnly request that injects any other server
+		// (whose tools may mutate) is refused before any effect.
+		const foreignServers = req.mcpServers
+			.map((server) => server.name)
+			.filter((name) => name !== ARTIFACT_SERVER);
+		if (req.readOnly && foreignServers.length > 0)
+			throw new SdkError(
+				"CAPABILITY_MISSING",
+				`readOnly request injects MCP servers whose tools may mutate (${foreignServers.join(", ")}); the Pi executor cannot enforce readOnly on them`,
+				{ subject: "readOnly" },
+			);
 		if (inheritHost) tools = [...new Set([...tools, ...INHERITED_HOST_TOOLS])];
 		else
 			for (const server of req.mcpServers)
-				tools.push(piMcpServerPattern(server.name));
+				tools.push(
+					server.name === ARTIFACT_SERVER
+						? piMcpToolName(ARTIFACT_SERVER, "workflow_artifact")
+						: // non-readOnly only: the caller injected it into a mutation-capable stage.
+							piMcpServerPattern(server.name),
+				);
 		const extensionsBefore: string[] = [];
 		const extensionsAfter: string[] = [];
 		if (isolated && inheritHost)

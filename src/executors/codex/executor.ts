@@ -1092,6 +1092,17 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 					);
 			if (problems.length > 0)
 				throw new SdkError("INVALID_REQUEST", problems.join("; "));
+			// Review #6: MCP servers run outside the Codex sandbox. Only the engine's artifact server
+			// (one read-only tool) is trusted on a readOnly request; any other server may mutate.
+			const foreignServers = (req.mcpServers ?? [])
+				.map((server) => server.name)
+				.filter((name) => name !== ARTIFACT_MCP_SERVER_NAME);
+			if (req.readOnly === true && foreignServers.length > 0)
+				throw new SdkError(
+					"CAPABILITY_MISSING",
+					`readOnly request injects MCP servers whose tools may mutate (${foreignServers.join(", ")}); the codex executor cannot enforce readOnly on them`,
+					{ subject: "readOnly" },
+				);
 			const pending = inflight.get(req.attemptKey);
 			if (pending !== undefined) return pending;
 			const launching = launch(req);

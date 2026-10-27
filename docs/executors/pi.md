@@ -287,6 +287,14 @@ request drops mutating tools from `--tools` in both modes. The conformance harne
 
 ## Change log
 
+- **WP12d-2 review #6:** injected MCP servers no longer bypass readOnly. `--tools` declares the
+  engine's artifact server by its one read-only tool (`mcp__workflow_artifact__workflow_artifact`)
+  instead of `mcp__workflow_artifact__*`. Pi has no approval gate, so a readOnly request that injects
+  any other server is refused before consume with `CAPABILITY_MISSING:readOnly`; on non-readOnly
+  requests a caller-injected server keeps `mcp__<server>__*`. The conformance kit's `mcp_tool`
+  requests are now non-readOnly. Tests: `executor-wp12d2-mcp-readonly.test.mjs`,
+  `executor-pi-adapter.test.mjs`.
+
 - **WP12d-2 review #5:** same exposure checked: stdout lines were redacted per line, but stderr per
   chunk, so a value split across two chunks reached `pi-stderr.log` and the failure text. stderr now
   goes through the shared stream redactor (`src/executors/redact.ts`). Residual: `pi-mcp.log` is
