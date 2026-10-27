@@ -201,21 +201,33 @@ test("deep-research report and audit state that source verification is model-rep
 
 test("the committed support table matches the offline B4 negotiation", async () => {
 	const rows = await computeBundledSupportRows();
-	assert.equal(rows.length, BUNDLED_SPEC_FILES.length * 3);
+	assert.equal(rows.length, BUNDLED_SPEC_FILES.length * 3 * 2);
 	const { text, start, end } = await readCommittedSupportTable();
 	assert.equal(
 		text.slice(start, end),
 		renderBundledSupportTable(rows),
 		"docs/bundled-workflows.md is stale: run `npm run build && node test/helpers/bundled-support-table.mjs --write`",
 	);
-	// The table is honest about the bundled shape: nothing refuses on Claude, Codex degrades the
-	// precise tool lists to readOnly (spec opt-in), web stages record the unknown safety policy.
+	// The table is honest about the bundled shape: nothing refuses on Claude; Codex records the
+	// coarse tool allowlist in both modes, and only `safe` degrades the precise tool lists to
+	// readOnly (spec opt-in) while `free` (the default) accepts them; web stages record the unknown
+	// safety policy. Every pair appears in both permission modes.
 	for (const row of rows) {
+		assert.ok(["free", "safe"].includes(row.permissionMode), row.workflow);
 		if (row.executor === "claude")
 			assert.notEqual(row.declared.status, "refuse");
 		if (row.executor === "codex") {
-			assert.equal(row.declared.status, "degrade", row.workflow);
-			assert.ok(row.declared.detail.includes("forcedReadOnly"), row.workflow);
+			const where = `${row.workflow} (${row.permissionMode})`;
+			assert.equal(row.declared.status, "degrade", where);
+			assert.ok(
+				row.declared.detail.includes("CAPABILITY_MISSING:toolAllowlist.fine"),
+				where,
+			);
+			assert.equal(
+				row.declared.detail.includes("forcedReadOnly"),
+				row.permissionMode === "safe",
+				where,
+			);
 		}
 		if (row.workflow.startsWith("deep-research/"))
 			assert.ok(

@@ -1,0 +1,11 @@
+{
+	"type": "object",
+	"required": ["schema", "digest", "reviewerCount", "lensIds"],
+	"properties": {
+		"schema": { "const": "e2e-merge-control-v1" },
+		"digest": { "type": "string", "minLength": 1 },
+		"reviewerCount": { "type": "integer", "minimum": 0 },
+		"lensIds": { "type": "array", "items": { "type": "string" } }
+	},
+	"additionalProperties": false
+}

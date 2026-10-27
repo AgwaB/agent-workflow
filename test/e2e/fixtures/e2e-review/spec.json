@@ -1,0 +1,85 @@
+{
+	"schemaVersion": 1,
+	"name": "e2e-review",
+	"description": "E2E bundled-style workflow: triage -> foreach reviewers -> support merge -> report reduce with a required read.",
+	"allowReadOnlyDowngrade": true,
+	"defaults": {
+		"agent": "scout",
+		"readOnly": true,
+		"tools": ["read", "grep", "find", "ls"]
+	},
+	"artifactGraph": {
+		"stages": [
+			{
+				"id": "triage",
+				"type": "single",
+				"profileRole": "planning",
+				"inputPolicy": { "artifactAccess": "none" },
+				"output": {
+					"analysis": { "required": true },
+					"refs": { "required": true },
+					"maxDigestChars": 1200,
+					"controlSchema": "./schemas/triage-control.schema.json"
+				},
+				"prompt": "Plan review lenses for the runtime task. Do not modify files. Example control: <control>{\"schema\":\"e2e-triage-control-v1\",\"digest\":\"two lenses\",\"lenses\":[{\"id\":\"correctness\",\"focus\":\"logic errors\"}]}</control>."
+			},
+			{
+				"id": "reviewers",
+				"type": "foreach",
+				"profileRole": "research-execution",
+				"injectRuntimeTask": true,
+				"inputPolicy": { "artifactAccess": "none" },
+				"from": { "source": "triage", "path": "$.lenses" },
+				"output": {
+					"analysis": { "required": true },
+					"refs": { "required": true },
+					"maxDigestChars": 1200,
+					"controlSchema": "./schemas/reviewer-control.schema.json"
+				},
+				"each": {
+					"itemIdentityPath": "$.id",
+					"prompt": "Apply this review lens to the runtime task: ${item}. Example control: <control>{\"schema\":\"e2e-reviewer-control-v1\",\"digest\":\"lens reviewed\",\"findings\": []}</control>."
+				}
+			},
+			{
+				"id": "merge",
+				"from": ["triage", "reviewers"],
+				"sourcePolicy": "partial",
+				"output": {
+					"analysis": { "required": true },
+					"refs": { "required": true },
+					"maxDigestChars": 1200,
+					"controlSchema": "./schemas/merge-control.schema.json"
+				},
+				"support": { "uses": "./helpers/merge.mjs" }
+			},
+			{
+				"id": "report",
+				"type": "reduce",
+				"profileRole": "final-judgment",
+				"injectRuntimeTask": true,
+				"tools": [],
+				"from": ["merge"],
+				"inputPolicy": {
+					"requiredReads": [
+						{
+							"source": "merge",
+							"artifact": "control",
+							"path": "$",
+							"maxChars": 15000,
+							"count": 1
+						}
+					],
+					"enforcement": "fail"
+				},
+				"output": {
+					"analysis": { "required": true },
+					"refs": { "required": true },
+					"maxDigestChars": 1200,
+					"controlSchema": "./schemas/report-control.schema.json"
+				},
+				"prompt": "Write the final review report from the merge control artifact. Example control: <control>{\"schema\":\"e2e-report-control-v1\",\"digest\":\"report written\",\"verdict\":\"PASS\"}</control>."
+			}
+		]
+	}
+}
