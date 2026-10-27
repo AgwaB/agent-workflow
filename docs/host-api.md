@@ -24,7 +24,9 @@ Sources: `src/hosts/api.ts` (exports), `types.ts`, `args.ts`, `catalog.ts`, `lau
 `env` (role checks and the user home; default `process.env`), `defaultExecutor` (lowest B2
 precedence; engine default `pi`), `runtimeDefaults` (the host's current model/effort), and
 `availableModels` (the host's model registry; when present, the per-workflow Pi profile preferences
-of `/workflow profile` are consulted at launch; the CLI and MCP hosts leave it unset).
+of `/workflow profile` are consulted at launch; the CLI and MCP hosts leave it unset), and `host`
+(the calling host's identity, for example `claude-code`/`codex` from the host MCP server's `--host`;
+passed through unchanged for the stage-2 default-executor rule, WP17).
 
 **Result** `HostResult<T>`:
 
