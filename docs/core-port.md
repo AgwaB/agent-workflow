@@ -1436,3 +1436,32 @@ regenerated with `node test/replay/acceptance.mjs --write`. The new WP12a test f
 temp roots with retries (a durable worker or finalizer can still close files right after a run
 ends). `test/unit/host-cli.test.mjs` ran 10 times
 in a row with 24 busy-loop processes on 12 cores (load average up to ~95): 10/10 passed.
+
+## WP12d-1 — stage-1 review fixes (core, runtime, MCP, replay)
+
+Fixes for findings of the stage-1 cross-model review of main `2b745d3` (findings numbered in review
+order). Each fix has a regression test that failed before it.
+
+### WP12d-1 change log (behavior-relevant)
+
+1. **Review #1: a declared readOnly stage stays read-only in both permission modes.** Before, a
+   stage with `readOnly: true` and a mutation-capable tool (e.g. `tools: [read, bash]`) compiled as
+   `mutation-capable`, negotiated `readOnly: false` and launched with `SubmitRequest.readOnly:
+   false`, so `free` mode selected Claude `bypassPermissions` and Codex `danger-full-access` +
+   `never`. Now `compiler.ts` removes every tool whose effective classification is not
+   `read-only` (write-capable, mutation-capable, unclassified; the non-downgradable floors still
+   apply) from a declared-readOnly stage, with the warning `stage "<id>" declares readOnly: true;
+   removed tools that are not read-only (<tools>) so the stage stays read-only in every permission
+   mode` (diagnostic code unchanged, `tools.read_only_capability_advisory`). When an authored
+   non-empty list keeps no read-only tool the stage is refused (`WorkflowValidationError`, `…no
+   read-only tool remains after removing …`). An unspecified list stays unspecified. The authored
+   contract also wins over the classification at launch: `tool-policy.ts` `workflowTaskReadOnly`
+   (`capability === "read-only" || safety.readOnlyDeclared`) feeds negotiation
+   (`StageRequirementContext.readOnly`), the engine approval policy and `SubmitRequest.readOnly`,
+   so inherited host tools (Pi) and records compiled before this fix still launch read-only.
+   Test: `core-wp12d1-readonly-contract.test.mjs` (free and safe: compiled tools, negotiation,
+   submit, Claude/Codex/Pi settings; refusal; inherited-host and legacy records). Changed
+   assertions: `core-unit-authoring-interface` (readOnly + bash now filtered; three metadata tests
+   declare `readOnly: false` to keep testing metadata), `core-workflow-router` (readOnly stages with
+   only bash/unknown tools are refused at compile, so their auto cards have no effective facts and
+   stay blocked).

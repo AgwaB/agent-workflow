@@ -649,6 +649,45 @@ function filterToolSelection(selection: ToolSelection): ToolSelection {
 	};
 }
 
+/**
+ * WP12d-1 (review #1): keep only read-only tools on a stage that declares readOnly. Removed tools
+ * produce a warning; an authored non-empty list with no read-only tool left is a compile issue.
+ * An unspecified list stays unspecified (the executor gets `readOnly: true` and filters its own
+ * defaults).
+ */
+function filterReadOnlyToolSelection(
+	selection: ToolSelection,
+	stageId: string,
+	path: string,
+	issues: ValidationIssue[],
+	warnings: string[],
+): ToolSelection {
+	if (!selection.tools) return selection;
+	const removed = selection.tools.filter(
+		(tool) =>
+			effectiveToolClassification(tool, selection.toolProviders) !==
+			"read-only",
+	);
+	if (removed.length === 0) return selection;
+	const tools = selection.tools.filter((tool) => !removed.includes(tool));
+	if (tools.length === 0) {
+		issues.push({
+			path,
+			message: `stage "${stageId}" declares readOnly: true but no read-only tool remains after removing ${removed.join(", ")}; remove readOnly or select read-only tools`,
+		});
+		return selection;
+	}
+	const warning = `stage "${stageId}" declares readOnly: true; removed tools that are not read-only (${removed.join(", ")}) so the stage stays read-only in every permission mode`;
+	if (!warnings.includes(warning)) warnings.push(warning);
+	return {
+		tools,
+		toolProviders: providersForSelectedTools(
+			tools,
+			new Map(Object.entries(selection.toolProviders ?? {})),
+		),
+	};
+}
+
 function validateDelegationBoundary(
 	tools: string[] | undefined,
 	issues: ValidationIssue[],
@@ -1763,7 +1802,24 @@ async function compileArtifactGraphPlan(
 					: `$.artifactGraph.stages.${jsonKey(stage.id)}.agent`;
 		validateToolSubset(toolSelection.tools, stageAgent, issues, toolPath);
 		validateDelegationBoundary(toolSelection.tools, issues, toolPath);
-		const filteredToolSelection = filterToolSelection(toolSelection);
+		const readOnlyDeclared =
+			each?.readOnly ??
+			stage.readOnly ??
+			spec.defaults?.readOnly ??
+			spec.readOnly ??
+			stageAgent.readOnly ??
+			false;
+		// WP12d-1 (review #1): a declared readOnly stage stays read-only in both permission modes.
+		// Tools that are not read-only are removed (warning); when none remains the stage is refused.
+		const filteredToolSelection = readOnlyDeclared
+			? filterReadOnlyToolSelection(
+					filterToolSelection(toolSelection),
+					stage.id,
+					toolPath,
+					issues,
+					warnings,
+				)
+			: filterToolSelection(toolSelection);
 		const effectiveToolPolicy = applyWorkflowToolPolicy(
 			filteredToolSelection.tools,
 			filteredToolSelection.toolProviders,
@@ -1807,13 +1863,6 @@ async function compileArtifactGraphPlan(
 				spec.defaults?.maxRuntimeMs ??
 				DEFAULT_MAX_RUNTIME_MS,
 		};
-		const readOnlyDeclared =
-			each?.readOnly ??
-			stage.readOnly ??
-			spec.defaults?.readOnly ??
-			spec.readOnly ??
-			stageAgent.readOnly ??
-			false;
 		const worktreePolicy =
 			each?.worktreePolicy ??
 			stage.worktreePolicy ??
@@ -1840,19 +1889,6 @@ async function compileArtifactGraphPlan(
 		if (worktreePolicy === "off" && safety.requiresWorktree) {
 			const warning = `stage "${stage.id}" sets worktreePolicy: "off" but can write (${safety.capability}); a worktree is still required (D2, safe permission mode). Only the executing user's allowSharedCheckoutWrites run option or the free permission mode can disable it.`;
 			if (!warnings.includes(warning)) warnings.push(warning);
-		}
-		// Warn when a stage declares readOnly: true but its effective tools are
-		// still mutation/write-capable (e.g. bash). readOnly only filters tools;
-		// it does not isolate the filesystem, so such a stage can still mutate.
-		if (readOnlyDeclared && safety.capability !== "read-only") {
-			const mutatingTools = (runtime.tools ?? []).filter(
-				(tool: string) =>
-					effectiveToolClassification(tool, runtime.toolProviders) !==
-					"read-only",
-			);
-			warnings.push(
-				`stage "${stage.id}" declares readOnly: true but has ${safety.capability} tools (${mutatingTools.join(", ") || "unknown"}); readOnly filters tools but does not prevent these from mutating. Remove the tool or rely on worktree isolation.`,
-			);
 		}
 		const itemIdentityPath =
 			typeof stage.each?.itemIdentityPath === "string"

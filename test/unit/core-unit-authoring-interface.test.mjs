@@ -1220,6 +1220,7 @@ test("artifact graph opt-ins reject malformed or misplaced authoring fields", ()
 	);
 });
 
+// WP12d-1 (review #1): the mutation-capable tool is removed (warning) instead of kept.
 test("compiler warns when readOnly stage keeps mutation-capable tools", async () => {
 	const cwd = makeProject();
 	try {
@@ -1239,7 +1240,8 @@ test("compiler warns when readOnly stage keeps mutation-capable tools", async ()
 		});
 		const compiled = await compileWorkflow(spec, { cwd, task: "Check" });
 		assert.equal(compiled.tasks[0].safety.readOnlyDeclared, true);
-		assert.equal(compiled.tasks[0].safety.capability, "mutation-capable");
+		assert.equal(compiled.tasks[0].safety.capability, "read-only");
+		assert.deepEqual(compiled.tasks[0].runtime.tools, ["read"]);
 		assert.ok(
 			compiled.warnings.some(
 				(w) =>
@@ -2364,6 +2366,8 @@ test("compiler keeps unclassified custom tools blocked for explicit review", asy
 		writeAgent(cwd, "unit-scout", "read, custom_external_tool");
 		const compiled = await compileWorkflow(
 			workflowSpec("unit-scout", {
+				// WP12d-1: a readOnly stage drops unclassified tools; this checks a writable one.
+				readOnly: false,
 				tools: ["read", "custom_external_tool"],
 			}),
 			{ cwd, task: "Check custom tool" },
@@ -2418,6 +2422,8 @@ test("narrow tool scopes inherit metadata for strings and override it for object
 		writeAgent(cwd, "unit-scout", "read, scrapling_fetch");
 		const compiled = await compileWorkflow(
 			workflowSpec("unit-scout", {
+				// WP12d-1: a readOnly stage drops mutation-capable tools; metadata inheritance only.
+				readOnly: false,
 				tools: [
 					"read",
 					{
@@ -2487,6 +2493,7 @@ test("tool metadata cannot downgrade known mutating tools", async () => {
 		writeAgent(cwd, "unit-scout", "read, bash");
 		const compiled = await compileWorkflow(
 			workflowSpec("unit-scout", {
+				readOnly: false,
 				tools: ["read", { name: "bash", classification: "read-only" }],
 			}),
 			{ cwd, task: "Inspect" },
@@ -2494,6 +2501,15 @@ test("tool metadata cannot downgrade known mutating tools", async () => {
 
 		assert.equal(compiled.tasks[0].safety.capability, "mutation-capable");
 		assert.equal(compiled.tasks[0].safety.permission.reason, undefined);
+		// WP12d-1: on a readOnly stage the floor still applies, so the "read-only" bash is removed.
+		const readOnly = await compileWorkflow(
+			workflowSpec("unit-scout", {
+				tools: ["read", { name: "bash", classification: "read-only" }],
+			}),
+			{ cwd, task: "Inspect" },
+		);
+		assert.deepEqual(readOnly.tasks[0].runtime.tools, ["read"]);
+		assert.equal(readOnly.tasks[0].safety.capability, "read-only");
 	} finally {
 		rmSync(cwd, {
 			recursive: true,

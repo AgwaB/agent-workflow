@@ -27,6 +27,7 @@ import {
 	type StageRequirementContext,
 } from "../sdk/requirements.js";
 import { strictCapabilityKeysProblem } from "./artifact-graph-schema.js";
+import { workflowTaskReadOnly } from "./tool-policy.js";
 import type {
 	CompiledLoopStageRecord,
 	CompiledTask,
@@ -278,7 +279,7 @@ function isExecutorTask(task: CompiledTask): boolean {
 
 /**
  * StageRequirementContext of one compiled task (B4/B5, plan §6.5). Mirrors what the task backend
- * puts on the SubmitRequest: readOnly from the task's safety capability, the Pi tool list, B5
+ * puts on the SubmitRequest: readOnly from the task's safety capability or its authored readOnly (WP12d-1), the Pi tool list, B5
  * `inherit` (same rule as `workflowTaskIsolation`), MCP injection for required reads, artifact access or an
  * MCP tool provider, same-session repair for artifact-graph tasks, fast tier when on.
  */
@@ -294,7 +295,7 @@ export function workflowTaskRequirementContext(
 		requiredReads.length === 0 &&
 		(task.artifactGraph?.artifactAccess === "enabled" || mcpProvider);
 	return {
-		readOnly: task.safety.capability === "read-only",
+		readOnly: workflowTaskReadOnly(task),
 		hasRequiredReads: requiredReads.length > 0,
 		...(task.runtime.tools === undefined ? {} : { tools: task.runtime.tools }),
 		allowReadOnlyDowngrade: policy.allowReadOnlyDowngrade,
