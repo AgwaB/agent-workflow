@@ -1,0 +1,41 @@
+{
+  "name": "agent-workflow",
+  "version": "0.1.0",
+  "description": "Run agent-workflow multi-agent workflows (deep-review, deep-research, spec-review, impact-review, dynamic) from the conversation: launch, wait, inspect and stop runs through the agent-workflow MCP server.",
+  "author": {
+    "name": "AgwaB",
+    "url": "https://github.com/AgwaB"
+  },
+  "homepage": "https://github.com/AgwaB/agent-workflow#readme",
+  "repository": "https://github.com/AgwaB/agent-workflow",
+  "license": "MIT",
+  "keywords": [
+    "workflow",
+    "agents",
+    "mcp",
+    "review",
+    "research"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "agent-workflow": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "--package=@agwab/agent-workflow@0.1.0",
+        "agent-workflow-mcp",
+        "--host",
+        "codex"
+      ],
+      "startup_timeout_sec": 120,
+      "tool_timeout_sec": 120
+    }
+  },
+  "interface": {
+    "displayName": "agent-workflow",
+    "shortDescription": "Run multi-agent workflows (review, research) and report their results",
+    "developerName": "AgwaB",
+    "category": "Coding",
+    "websiteURL": "https://github.com/AgwaB/agent-workflow"
+  }
+}

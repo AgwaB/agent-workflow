@@ -18,7 +18,7 @@ node <package>/dist/mcp/host-server/server.js --host <claude-code|codex|generic>
   `HostApiContext.host`; the stage-2 default-executor rule (host's own CLI, WP17) reads it.
 - **Project = working directory.** The server's working directory (resolved through symlinks) is its
   project root. Register the server so the host starts it in the project.
-- Registration without a plugin (the plugins are WP14/WP15):
+- Registration without a plugin (the plugins are WP14/WP15, [plugins.md](plugins.md)):
   `claude mcp add agent-workflow -- agent-workflow-mcp --host claude-code`,
   `codex mcp add agent-workflow -- agent-workflow-mcp --host codex`.
 - Exit codes: `2` usage (missing/unknown `--host`, unknown flag), `1` refused to start (a misconfigured
@@ -123,8 +123,8 @@ run → wait loop → inspect).
 
 ## Open items
 
-- WP14/WP15: plugin manifests (`.claude-plugin/plugin.json`, `.codex-plugin/`) register
-  `agent-workflow-mcp --host claude-code|codex`; confirm the working directory each host gives the
-  server, the exact tool permission names (`mcp__agent-workflow__workflow_run` etc.), whether each
+- WP14/WP15 ([plugins.md](plugins.md)): the plugin manifests register
+  `agent-workflow-mcp --host claude-code|codex`. Offline checks: both hosts start the plugin
+  server in the project directory. Still live-only: the exact tool permission names, whether each
   host shows `content` or `structuredContent` to the model, and elicitation support in practice.
 - WP17: default executor from `ctx.host`; until then an omitted `executor` uses the engine default.

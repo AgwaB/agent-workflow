@@ -1,0 +1,21 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "agent-workflow",
+  "owner": {
+    "name": "AgwaB",
+    "url": "https://github.com/AgwaB"
+  },
+  "metadata": {
+    "description": "agent-workflow plugin for Claude Code"
+  },
+  "plugins": [
+    {
+      "name": "agent-workflow",
+      "source": "./plugins/agent-workflow",
+      "description": "Run agent-workflow multi-agent workflows (deep-review, deep-research, spec-review, impact-review, dynamic) from the conversation: launch, wait, inspect and stop runs through the agent-workflow MCP server.",
+      "category": "development",
+      "homepage": "https://github.com/AgwaB/agent-workflow#readme",
+      "license": "MIT"
+    }
+  ]
+}

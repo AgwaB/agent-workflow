@@ -20,6 +20,11 @@ The port commit copies every file byte-for-byte except the added `.mjs` header l
 `workflows/`, `skills/` and `agents/` are not reformatted (biome covers `src/`, `test/`, `tools/` only).
 `test/fixtures/core/workflow-guide-scaffolds/` (WP4b) stays a separate, formatted fixture copy.
 
+`skills/agent-workflow/SKILL.md` is new in agent-workflow (WP14/WP15): the MCP tool call protocol
+for the Claude Code and Codex plugin. The plugin's copies of the skills (`plugins/agent-workflow/`)
+are generated from `skills/` with the Pi names replaced by the MCP tool names
+([plugins.md](plugins.md)).
+
 ## Change log (migration)
 
 Paths and env:
