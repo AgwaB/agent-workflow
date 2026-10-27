@@ -4674,7 +4674,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-review-original-92233/work/replay-trace.jsonl\"},\"c… (371 chars, sha256 11658120765d)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-review-original-12449/work/replay-trace.jsonl\"},\"c… (371 chars, sha256 038282b74978)"
 				},
 				{
 					"class": "explained",
@@ -7025,7 +7025,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "3deddbee97e70b438ff210c7b8d853037b7db9d14491c00e6970f7570ba4fcff"
+					"replayed": "dc90aaf8fe41d3c719150b67eb00cd37d850fe4e509e18d92f58c15672c20fa6"
 				},
 				{
 					"class": "explained",
@@ -7045,7 +7045,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-7",
-					"replayed": "61d9e8e2993c2fef767087d930b845512c3b0e5791d4a41f361da4f86025b588"
+					"replayed": "be8486d606b363f3e0a9b816d484482bab6f8a16647ae9e476453dd4c380b1c1"
 				},
 				{
 					"class": "explained",
@@ -7055,7 +7055,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-7",
-					"replayed": "39fcd56685bdbe2c8596f45bd0cc8c946a561621e01c20ea74ed4f284d7cf2cd"
+					"replayed": "339f4cac41641b6642fdcfbc4d6849b6072f02ae974ccaa1b67da12420f14ace"
 				},
 				{
 					"class": "explained",
@@ -7065,7 +7065,7 @@
 					"kind": "added",
 					"path": "tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "3deddbee97e70b438ff210c7b8d853037b7db9d14491c00e6970f7570ba4fcff"
+					"replayed": "dc90aaf8fe41d3c719150b67eb00cd37d850fe4e509e18d92f58c15672c20fa6"
 				},
 				{
 					"class": "explained",

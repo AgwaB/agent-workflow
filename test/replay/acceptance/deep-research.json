@@ -29,21 +29,21 @@
 					"specId": "research-questions.rq-001",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvqhr693_5cf9a8/attempt_mvqhr693_9a65f8 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvqq2jwi_0f0a33/attempt_mvqq2jwi_5641c4 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-12",
 					"specId": "research-questions.rq-002",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvqhr6i9_91b6ae/attempt_mvqhr6i9_4734e0 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvqq2k7t_2b0a83/attempt_mvqq2k7t_a8d2f5 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-13",
 					"specId": "research-questions.rq-003",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvqhr6ra_24c430/attempt_mvqhr6ra_05a687 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvqq2ko6_c03aae/attempt_mvqq2ko6_ecb1c4 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-3",
@@ -56,7 +56,7 @@
 					"specId": "normalize-claims.main",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvqhr70h_995db0/attempt_mvqhr70h_b9a7e9 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvqq2kze_a9fc7e/attempt_mvqq2kze_57893f ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-5",
@@ -87,7 +87,7 @@
 					"specId": "final-audit.main",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvqhr7at_b4b300/attempt_mvqhr7at_055627 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvqq2liz_367e65/attempt_mvqq2liz_1a33d2 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-10",
@@ -198,7 +198,7 @@
 				"Worker-filled web-source cache (worker-snapshots/<run>/web-source-cache): written by the removed workflow_web_* tools (C2); not restored."
 			],
 			"counts": {
-				"allowed": 175,
+				"allowed": 174,
 				"explained": 2209,
 				"unexplained": 0
 			},
@@ -286,7 +286,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-11/.launch-barrier-999d6053f33da1a4-<RAND16>/decision-v2.json",
+					"file": "tasks/task-11/.launch-barrier-65558a081e2b3ff6-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -294,7 +294,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-11/.launch-barrier-999d6053f33da1a4-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-11/.launch-barrier-65558a081e2b3ff6-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -326,7 +326,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-12/.launch-barrier-5e50b709eb70ec2d-<RAND16>/decision-v2.json",
+					"file": "tasks/task-12/.launch-barrier-43092c80d328e338-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -334,7 +334,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-12/.launch-barrier-5e50b709eb70ec2d-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-12/.launch-barrier-43092c80d328e338-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -366,7 +366,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-13/.launch-barrier-5058b2b0bbc78dc1-<RAND16>/decision-v2.json",
+					"file": "tasks/task-13/.launch-barrier-54bb1df5a450d536-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -374,7 +374,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-13/.launch-barrier-5058b2b0bbc78dc1-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-13/.launch-barrier-54bb1df5a450d536-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -422,7 +422,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-4/.launch-barrier-3ce18655d8e94c0a-<RAND16>/decision-v2.json",
+					"file": "tasks/task-4/.launch-barrier-eba8e2757c7c3319-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -430,7 +430,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-4/.launch-barrier-3ce18655d8e94c0a-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-4/.launch-barrier-eba8e2757c7c3319-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -510,7 +510,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-9/.launch-barrier-9fd01055e0f323df-<RAND16>/decision-v2.json",
+					"file": "tasks/task-9/.launch-barrier-6817f16c6f28b4d3-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -518,7 +518,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-9/.launch-barrier-9fd01055e0f323df-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-9/.launch-barrier-6817f16c6f28b4d3-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -806,14 +806,6 @@
 					"rule": "supervisor-progress-snapshot",
 					"file": "supervisor.json",
 					"path": "taskStatusCounts.pending",
-					"kind": "digest-renamed",
-					"count": 1
-				},
-				{
-					"class": "allowed",
-					"rule": "supervisor-progress-snapshot",
-					"file": "supervisor.json",
-					"path": "taskStatusCounts.running",
 					"kind": "digest-renamed",
 					"count": 1
 				},
@@ -1700,7 +1692,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-original-91514/work/replay-trace.jsonl\"… (375 chars, sha256 7093b97b47bf)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-original-9257/work/replay-trace.jsonl\"}… (374 chars, sha256 b99431347937)"
 				},
 				{
 					"class": "explained",
@@ -1720,7 +1712,12 @@
 					"kind": "changed",
 					"summarized": true,
 					"count": 166,
-					"exactMatch": ["run-status", "task-status-order", "run-usage-totals"]
+					"exactMatch": [
+						"run-status",
+						"task-status-order",
+						"task-prompt-digest",
+						"run-usage-totals"
+					]
 				},
 				{
 					"class": "explained",
@@ -1730,7 +1727,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "85021b334662e8f2a8ad6bce55671fcbee9afb7387b0d242edad6e9230c8f0ac"
+					"replayed": "2eed6d30fc399f2722421f29cdef6b73549e9cbd17795f664fff35a79949e5d6"
 				},
 				{
 					"class": "explained",
@@ -1770,7 +1767,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "85021b334662e8f2a8ad6bce55671fcbee9afb7387b0d242edad6e9230c8f0ac"
+					"replayed": "2eed6d30fc399f2722421f29cdef6b73549e9cbd17795f664fff35a79949e5d6"
 				},
 				{
 					"class": "explained",
@@ -2046,7 +2043,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-11",
-					"replayed": "af4b834e0757fd5224c9718d80e3e1fe0a82fb06c5b0fd7e7854c9d7cf9331a8"
+					"replayed": "b7d6c04b4f7c10481cb3dedd5d25c0bb7f111c0b244172d5ca965c88fe5ffd18"
 				},
 				{
 					"class": "explained",
@@ -2086,7 +2083,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-11",
-					"replayed": "af4b834e0757fd5224c9718d80e3e1fe0a82fb06c5b0fd7e7854c9d7cf9331a8"
+					"replayed": "b7d6c04b4f7c10481cb3dedd5d25c0bb7f111c0b244172d5ca965c88fe5ffd18"
 				},
 				{
 					"class": "explained",
@@ -2136,7 +2133,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-12",
-					"replayed": "cc8a96d5677295ec2640a8ec63a278efc943b092603ec48a02e1e3ff423b0913"
+					"replayed": "a1b08d7aa543326de7cb19fc2042775ea1a3d89cd8c2b203ab662be176148414"
 				},
 				{
 					"class": "explained",
@@ -2176,7 +2173,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-12",
-					"replayed": "cc8a96d5677295ec2640a8ec63a278efc943b092603ec48a02e1e3ff423b0913"
+					"replayed": "a1b08d7aa543326de7cb19fc2042775ea1a3d89cd8c2b203ab662be176148414"
 				},
 				{
 					"class": "explained",
@@ -2226,7 +2223,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-13",
-					"replayed": "aaf8939a1eb69aed148b352e4ff89e1d5e5115b24c812e5c6cfd550409c0a8da"
+					"replayed": "9bda1a10c388d463d418e6ba6d9215bdd8267e5498d95ff786590d4febdf2b8a"
 				},
 				{
 					"class": "explained",
@@ -2266,7 +2263,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-13",
-					"replayed": "aaf8939a1eb69aed148b352e4ff89e1d5e5115b24c812e5c6cfd550409c0a8da"
+					"replayed": "9bda1a10c388d463d418e6ba6d9215bdd8267e5498d95ff786590d4febdf2b8a"
 				},
 				{
 					"class": "explained",
@@ -2316,7 +2313,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-4",
-					"replayed": "d0302071a8d26fdda534332d81867e335264fadb5aff32a07f3982b423de9b1f"
+					"replayed": "3e8e2d659f08e6f90e022d49b1365f7654a9409856ad3481df6e5d0b216b462d"
 				},
 				{
 					"class": "explained",
@@ -2356,7 +2353,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-4",
-					"replayed": "d0302071a8d26fdda534332d81867e335264fadb5aff32a07f3982b423de9b1f"
+					"replayed": "3e8e2d659f08e6f90e022d49b1365f7654a9409856ad3481df6e5d0b216b462d"
 				},
 				{
 					"class": "explained",
@@ -5385,7 +5382,7 @@
 				}
 			],
 			"exactMatchViolations": [],
-			"exactMatchDivergences": 1271
+			"exactMatchDivergences": 1306
 		},
 		{
 			"fixture": "deep-research",
@@ -5864,7 +5861,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "d675d7c5f0ad9cae409776fb7c97439ffb8fd288bde0a6a478350e0671f3f0a0",
-					"replayed": "1be6761c80ddf8d80679e70293af5e5a1a7436cfb1ed67dcf87b2edddbdc7cd2",
+					"replayed": "aed6e1e3bf498022f8e7ce7ad23c3044bff0730a98d05008dcad780942a905a6",
 					"count": 0
 				},
 				{
@@ -5924,7 +5921,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "f32560de6fc74ed1d1e79d9740fc557f9d31407f68bac9b8ea4e319ddd67372c",
-					"replayed": "b4e584515bfe402dcbde40d5e794cbd85cee8f42208a03ea62d2d00dc54a7e78",
+					"replayed": "7a7d145d5a36a6da02c17dc52b292716bd96e71db3f88a4e7a32742e44bd6255",
 					"count": 0
 				},
 				{
@@ -5974,7 +5971,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "5a500e80efc6560f6a32af4a6a330a05eea49c2134df67fde7800f35b2e36488",
-					"replayed": "9bde6507fd9df84988a49889122fe4305e55c9f5a0eb5521b58035edd15b2004",
+					"replayed": "5837fadbca360f57614d3f70ffb27b622eeb3af03b0594acbf37c18d18c64756",
 					"count": 0
 				},
 				{
@@ -10066,7 +10063,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"adapterChecks\":false,\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-engine-only-91723… (400 chars, sha256 8a74ef9a6640)"
+					"replayed": "{\"descriptor\":{\"config\":{\"adapterChecks\":false,\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-engine-only-10190… (400 chars, sha256 89a8b5ad96f8)"
 				},
 				{
 					"class": "allowed",
@@ -10610,7 +10607,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "85021b334662e8f2a8ad6bce55671fcbee9afb7387b0d242edad6e9230c8f0ac"
+					"replayed": "2eed6d30fc399f2722421f29cdef6b73549e9cbd17795f664fff35a79949e5d6"
 				},
 				{
 					"class": "explained",
@@ -10650,7 +10647,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "85021b334662e8f2a8ad6bce55671fcbee9afb7387b0d242edad6e9230c8f0ac"
+					"replayed": "2eed6d30fc399f2722421f29cdef6b73549e9cbd17795f664fff35a79949e5d6"
 				},
 				{
 					"class": "explained",
@@ -10926,7 +10923,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-11",
-					"replayed": "af4b834e0757fd5224c9718d80e3e1fe0a82fb06c5b0fd7e7854c9d7cf9331a8"
+					"replayed": "b7d6c04b4f7c10481cb3dedd5d25c0bb7f111c0b244172d5ca965c88fe5ffd18"
 				},
 				{
 					"class": "explained",
@@ -10966,7 +10963,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-11",
-					"replayed": "af4b834e0757fd5224c9718d80e3e1fe0a82fb06c5b0fd7e7854c9d7cf9331a8"
+					"replayed": "b7d6c04b4f7c10481cb3dedd5d25c0bb7f111c0b244172d5ca965c88fe5ffd18"
 				},
 				{
 					"class": "explained",
@@ -11209,7 +11206,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-12",
-					"replayed": "cc8a96d5677295ec2640a8ec63a278efc943b092603ec48a02e1e3ff423b0913"
+					"replayed": "a1b08d7aa543326de7cb19fc2042775ea1a3d89cd8c2b203ab662be176148414"
 				},
 				{
 					"class": "explained",
@@ -11249,7 +11246,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-12",
-					"replayed": "cc8a96d5677295ec2640a8ec63a278efc943b092603ec48a02e1e3ff423b0913"
+					"replayed": "a1b08d7aa543326de7cb19fc2042775ea1a3d89cd8c2b203ab662be176148414"
 				},
 				{
 					"class": "explained",
@@ -11525,7 +11522,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-13",
-					"replayed": "aaf8939a1eb69aed148b352e4ff89e1d5e5115b24c812e5c6cfd550409c0a8da"
+					"replayed": "9bda1a10c388d463d418e6ba6d9215bdd8267e5498d95ff786590d4febdf2b8a"
 				},
 				{
 					"class": "explained",
@@ -11565,7 +11562,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-13",
-					"replayed": "aaf8939a1eb69aed148b352e4ff89e1d5e5115b24c812e5c6cfd550409c0a8da"
+					"replayed": "9bda1a10c388d463d418e6ba6d9215bdd8267e5498d95ff786590d4febdf2b8a"
 				},
 				{
 					"class": "explained",
@@ -11841,7 +11838,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-4",
-					"replayed": "d0302071a8d26fdda534332d81867e335264fadb5aff32a07f3982b423de9b1f"
+					"replayed": "3e8e2d659f08e6f90e022d49b1365f7654a9409856ad3481df6e5d0b216b462d"
 				},
 				{
 					"class": "explained",
@@ -11881,7 +11878,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-4",
-					"replayed": "d0302071a8d26fdda534332d81867e335264fadb5aff32a07f3982b423de9b1f"
+					"replayed": "3e8e2d659f08e6f90e022d49b1365f7654a9409856ad3481df6e5d0b216b462d"
 				},
 				{
 					"class": "explained",
@@ -13288,7 +13285,7 @@
 					"kind": "added",
 					"path": "tasks[19].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-9",
-					"replayed": "85573d7270df1fdf7966cb7d253dd2ab0b098d740957fd2670509f38ab078d06"
+					"replayed": "90e93620ec1e15fbb1d23d7791735eec053402c9f50480b90a386dc37578b9f4"
 				},
 				{
 					"class": "explained",
@@ -13328,7 +13325,7 @@
 					"kind": "added",
 					"path": "tasks[19].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-9",
-					"replayed": "85573d7270df1fdf7966cb7d253dd2ab0b098d740957fd2670509f38ab078d06"
+					"replayed": "90e93620ec1e15fbb1d23d7791735eec053402c9f50480b90a386dc37578b9f4"
 				},
 				{
 					"class": "explained",

@@ -133,6 +133,10 @@ cover it (`EXACT_MATCH` in compare.mjs):
 - the final run status;
 - run usage totals (input/output/cache-read tokens, cost, task counts).
 
+The rules match the index-free JSON path of a leaf difference (`tasks[0].status` is checked as
+`tasks[].status`, `[3].returnedBytes` in a read ledger as `[].returnedBytes`), like the difference
+patterns do (WP12d-1).
+
 The only exception is an entry marked `divergence: true`. Such an entry must be scoped to a fixture
 and a variant. It describes a variant whose expected outcome differs, and the acceptance test asserts
 its cause separately.
@@ -180,3 +184,22 @@ Bugs the replay found and fixed (core-port WP1b change log 4 and 5):
 - Runtime usage `cached`/`cost` were dropped from task usage (`core-usage-runtime-summary.test.mjs`).
 - An executor refusal before consume waited for the full barrier timeout and lost the reason
   (`core-launch-barrier-worker-ended.test.mjs`).
+
+## WP12d-1 change log
+
+1. **Review #11: exact-match rules see generic paths.** `exactMatchRule` tested its index-free path
+   regexes (`tasks[].status`, `[].returnedBytes`) against the indexed leaf-diff path
+   (`tasks[0].status`), so it never matched indexed rows: task ids/specs/stages/statuses, retry
+   counts, launch prompt digests and read-ledger evidence could be covered by an ordinary
+   `allowed`/`explained` pattern. It now applies `genericPath` first. Test:
+   `replay-wp12d1-exact-match.test.mjs` (indexed paths for every indexed rule; mutated task status,
+   retry count and ledger rows of real recorded run records stay `unexplained` under a catch-all
+   allowance). Acceptance re-run (`node test/replay/acceptance.mjs --write`): 0 unexplained in every
+   variant. Re-classifying the same replays with the old and the new rule: no `allowed` difference
+   moved; 38 leaf differences that were already `explained` by the scoped divergence entries now also
+   count as exact-match divergences (deep-research:original 35 — task ids/specs/stages/kinds, statuses
+   and status details, launch prompt digests of the refused tasks, rule
+   `c2-original-deep-research-refused`; spec-review:original 3 — task 7 status, status detail and
+   prompt digest, rule `original-spec-review-legacy-state-read`). Both are the documented divergent
+   outcomes above. The committed reports were regenerated (`allowed` row counts vary by run, see
+   above).

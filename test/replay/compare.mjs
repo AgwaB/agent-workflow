@@ -104,11 +104,13 @@ export const EXACT_MATCH = [
 ];
 
 export function exactMatchRule(diff) {
+	// WP12d-1 (review #11): rules are written over index-free paths, leaf diffs carry indexes
+	// (`tasks[0].status`); match the generic path, as the difference patterns do.
+	const path = diff.path === undefined ? undefined : genericPath(diff.path);
 	return EXACT_MATCH.find(
 		(rule) =>
 			rule.file.test(diff.file) &&
-			(rule.path === undefined ||
-				(diff.path !== undefined && rule.path.test(diff.path))),
+			(rule.path === undefined || (path !== undefined && rule.path.test(path))),
 	);
 }
 
