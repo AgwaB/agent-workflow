@@ -1,0 +1,86 @@
+Capability check (codex@0.1.0, 12 stages, permission mode: free): accepted with 36 degradations
+  probe: installed, cli 0.159.2, auth ok
+impact-analysis.change-scope.main: codex@0.1.0 — accepted with degradation
+  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval
+  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list
+  usage.cost: emulated by engine (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost = tokens × model price table
+  resume: native (preferred, native/probed/native)
+  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker
+  mcpInjection: native (required, native/probed)
+impact-analysis.implementation-map.main: codex@0.1.0 — accepted with degradation
+  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval
+  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list
+  usage.cost: emulated by engine (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost = tokens × model price table
+  resume: native (preferred, native/probed/native)
+  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker
+  mcpInjection: native (required, native/probed)
+impact-analysis.validation-map.main: codex@0.1.0 — accepted with degradation
+  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval
+  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list
+  usage.cost: emulated by engine (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost = tokens × model price table
+  resume: native (preferred, native/probed/native)
+  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker
+  mcpInjection: native (required, native/probed)
+impact-analysis.api-contract-impact.main: codex@0.1.0 — accepted with degradation
+  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval
+  mcpInjection: native (required, native/probed)
+  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list
+  usage.cost: emulated by engine (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost = tokens × model price table
+  resume: native (preferred, native/probed/native)
+  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker
+impact-analysis.state-data-impact.main: codex@0.1.0 — accepted with degradation
+  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval
+  mcpInjection: native (required, native/probed)
+  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list
+  usage.cost: emulated by engine (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost = tokens × model price table
+  resume: native (preferred, native/probed/native)
+  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker
+impact-analysis.validation-impact.main: codex@0.1.0 — accepted with degradation
+  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval
+  mcpInjection: native (required, native/probed)
+  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list
+  usage.cost: emulated by engine (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost = tokens × model price table
+  resume: native (preferred, native/probed/native)
+  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker
+impact-analysis.docs-release-impact.main: codex@0.1.0 — accepted with degradation
+  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval
+  mcpInjection: native (required, native/probed)
+  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list
+  usage.cost: emulated by engine (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost = tokens × model price table
+  resume: native (preferred, native/probed/native)
+  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker
+impact-analysis.security-performance-impact.main: codex@0.1.0 — accepted with degradation
+  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval
+  mcpInjection: native (required, native/probed)
+  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list
+  usage.cost: emulated by engine (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost = tokens × model price table
+  resume: native (preferred, native/probed/native)
+  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker
+impact-analysis.contract-consistency.main: codex@0.1.0 — accepted with degradation
+  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval
+  mcpInjection: native (required, native/probed)
+  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list
+  usage.cost: emulated by engine (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost = tokens × model price table
+  resume: native (preferred, native/probed/native)
+  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker
+impact-analysis.regression-risk.main: codex@0.1.0 — accepted with degradation
+  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval
+  mcpInjection: native (required, native/probed)
+  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list
+  usage.cost: emulated by engine (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost = tokens × model price table
+  resume: native (preferred, native/probed/native)
+  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker
+impact-analysis.ship-readiness.main: codex@0.1.0 — accepted with degradation
+  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval
+  mcpInjection: native (required, native/probed)
+  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list
+  usage.cost: emulated by engine (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost = tokens × model price table
+  resume: native (preferred, native/probed/native)
+  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker
+impact-analysis.impact-synthesis.main: codex@0.1.0 — accepted with degradation
+  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval
+  mcpInjection: native (required, native/probed)
+  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list
+  usage.cost: emulated by engine (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost = tokens × model price table
+  resume: native (preferred, native/probed/native)
+  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker

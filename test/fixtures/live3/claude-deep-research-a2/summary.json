@@ -1,0 +1,71 @@
+{
+	"executor": "claude",
+	"workflow": "deep-research",
+	"attempt": "a2",
+	"args": "--executor claude --json --model haiku --profile low",
+	"runId": "workflow_mvqd63jg_b70faf",
+	"exit": 0,
+	"wallS": 390,
+	"start": "2026-10-27T07:28:21Z",
+	"outcome": "completed",
+	"status": "completed",
+	"semanticStatus": "completed",
+	"taskSummary": {
+		"total": 30,
+		"pending": 0,
+		"running": 0,
+		"blocked": 0,
+		"completed": 30,
+		"failed": 0,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"capability": {
+		"confirmation": "non-interactive",
+		"degradations": [
+			"research-questions.item: webTools",
+			"normalize-claims.main: webTools",
+			"verify-claims.item: webTools",
+			"final-audit.main: webTools"
+		],
+		"forcedReadOnly": []
+	},
+	"usage": {
+		"source": "task-rollup",
+		"capturedAt": "2026-10-27T07:34:50.661Z",
+		"taskCount": 30,
+		"tasksReporting": 22,
+		"inputTokens": 1308605,
+		"outputTokens": 158837,
+		"totalTokens": 0,
+		"cachedInputTokens": 0,
+		"cacheCreationInputTokens": 0,
+		"cacheReadInputTokens": 916908,
+		"reasoningTokens": 0,
+		"costUsd": 0.27298598
+	},
+	"final": [
+		{
+			"taskId": "task-10",
+			"specId": "final.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"controlStatus": "passed",
+			"verdict": null,
+			"digest": "## Executive summary ### Core conclusion Over stdio, MCP messages are JSON-RPC messages written one per line. Each message is a single request, notification, or response, delimited by newlines, and must not contain embedded newlines. The server must not write anything to stdout except valid…"
+		}
+	],
+	"failedTasks": [],
+	"modelTasks": 30,
+	"usageFromRunRecord": {
+		"tasksReporting": 22,
+		"inputTokens": 1308605,
+		"outputTokens": 158837,
+		"cacheReadInputTokens": 916908,
+		"cacheCreationInputTokens": 0,
+		"costUsd": 0.272986
+	},
+	"modelsInRawStreams": {
+		"claude-haiku-5-5": 23
+	}
+}

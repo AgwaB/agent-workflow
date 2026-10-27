@@ -1,0 +1,36 @@
+{
+	"action": "run",
+	"ok": false,
+	"outcome": "failed",
+	"data": {
+		"mode": "named-workflow",
+		"runId": "workflow_mvqcmxfu_938ff6",
+		"status": "failed",
+		"name": "deep-review",
+		"specPath": "<HOME>/agent-workflow-live3/workflows/deep-review/spec.json",
+		"executor": {
+			"id": "claude",
+			"source": "run-flag"
+		},
+		"permissionMode": {
+			"mode": "free",
+			"source": "default"
+		},
+		"capability": {
+			"preview": "Capability check (claude@0.1.0, 4 stages, permission mode: free): accepted\n  probe: installed, cli 2.1.310, auth ok\ntriage.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nreviewers.item: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\ndevil-advocate.item: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nreport.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)",
+			"confirmation": "not-needed",
+			"degradations": [],
+			"forcedReadOnly": []
+		},
+		"taskSummary": {
+			"total": 8,
+			"pending": 0,
+			"running": 0,
+			"blocked": 0,
+			"completed": 4,
+			"failed": 3,
+			"skipped": 1,
+			"interrupted": 0
+		}
+	}
+}

@@ -1,0 +1,72 @@
+{
+	"executor": "pi",
+	"workflow": "deep-research",
+	"attempt": "a1",
+	"args": "--executor pi --json --profile low",
+	"runId": "workflow_mvqaysdz_29eda7",
+	"exit": 1,
+	"wallS": 540,
+	"start": "2026-10-27T06:26:39Z",
+	"outcome": "blocked",
+	"status": "blocked",
+	"semanticStatus": "blocked",
+	"taskSummary": {
+		"total": 32,
+		"pending": 0,
+		"running": 0,
+		"blocked": 1,
+		"completed": 30,
+		"failed": 1,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"capability": {
+		"confirmation": "non-interactive",
+		"degradations": [
+			"research-questions.item: webTools",
+			"normalize-claims.main: webTools",
+			"verify-claims.item: webTools",
+			"final-audit.main: webTools"
+		],
+		"forcedReadOnly": []
+	},
+	"final": [
+		{
+			"taskId": "task-10",
+			"specId": "final.main",
+			"status": "blocked",
+			"statusDetail": "support_declared_blocked",
+			"controlStatus": "blocked",
+			"verdict": null,
+			"digest": "Research report rendering failed: missing final-audit control source."
+		}
+	],
+	"failedTasks": [
+		{
+			"taskId": "task-9",
+			"specId": "final-audit.main",
+			"status": "failed",
+			"statusDetail": "required_reads_missing_exhausted",
+			"lastMessage": "missing required workflow artifact reads: final-audit-packet.control path=$.packet.synthesisInput.pages[0] maxChars=24000 count=1"
+		},
+		{
+			"taskId": "task-10",
+			"specId": "final.main",
+			"status": "blocked",
+			"statusDetail": "support_declared_blocked",
+			"lastMessage": "support declared blocked"
+		}
+	],
+	"modelTasks": 32,
+	"usageFromRunRecord": {
+		"tasksReporting": 20,
+		"inputTokens": 314534,
+		"outputTokens": 29287,
+		"cacheReadInputTokens": 699392,
+		"cacheCreationInputTokens": 0,
+		"costUsd": 0.991877
+	},
+	"modelsInRawStreams": {
+		"gpt-6.1-sol": 22
+	}
+}

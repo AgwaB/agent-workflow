@@ -1,0 +1,36 @@
+{
+	"action": "run",
+	"ok": false,
+	"outcome": "blocked",
+	"data": {
+		"mode": "named-workflow",
+		"runId": "workflow_mvqcn1kn_529acf",
+		"status": "blocked",
+		"name": "impact-review",
+		"specPath": "<HOME>/agent-workflow-live3/workflows/impact-review/spec.json",
+		"executor": {
+			"id": "claude",
+			"source": "run-flag"
+		},
+		"permissionMode": {
+			"mode": "free",
+			"source": "default"
+		},
+		"capability": {
+			"preview": "Capability check (claude@0.1.0, 12 stages, permission mode: free): accepted\n  probe: installed, cli 2.1.310, auth ok\nimpact-analysis.change-scope.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\nimpact-analysis.implementation-map.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\nimpact-analysis.validation-map.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\nimpact-analysis.api-contract-impact.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nimpact-analysis.state-data-impact.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nimpact-analysis.validation-impact.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nimpact-analysis.docs-release-impact.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nimpact-analysis.security-performance-impact.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nimpact-analysis.contract-consistency.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nimpact-analysis.regression-risk.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nimpact-analysis.ship-readiness.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nimpact-analysis.impact-synthesis.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)",
+			"confirmation": "not-needed",
+			"degradations": [],
+			"forcedReadOnly": []
+		},
+		"taskSummary": {
+			"total": 13,
+			"pending": 0,
+			"running": 0,
+			"blocked": 1,
+			"completed": 0,
+			"failed": 3,
+			"skipped": 9,
+			"interrupted": 0
+		}
+	}
+}

@@ -1,0 +1,85 @@
+{
+	"executor": "codex",
+	"workflow": "deep-research",
+	"attempt": "a1",
+	"args": "--executor codex --json --model gpt-5.6-luna --profile low",
+	"runId": "workflow_mvqbxql6_3aa772",
+	"exit": 0,
+	"wallS": 168,
+	"start": "2026-10-27T06:53:51Z",
+	"outcome": "completed",
+	"status": "completed",
+	"semanticStatus": "completed",
+	"taskSummary": {
+		"total": 28,
+		"pending": 0,
+		"running": 0,
+		"blocked": 0,
+		"completed": 28,
+		"failed": 0,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"capability": {
+		"confirmation": "non-interactive",
+		"degradations": [
+			"plan.main: CAPABILITY_WARNING:readOnly",
+			"plan.main: CAPABILITY_WARNING:contextIsolation",
+			"research-questions.item: CAPABILITY_WARNING:readOnly",
+			"research-questions.item: CAPABILITY_MISSING:toolAllowlist.fine",
+			"research-questions.item: CAPABILITY_WARNING:contextIsolation",
+			"research-questions.item: webTools",
+			"normalize-claims.main: CAPABILITY_WARNING:readOnly",
+			"normalize-claims.main: CAPABILITY_MISSING:toolAllowlist.fine",
+			"normalize-claims.main: CAPABILITY_WARNING:contextIsolation",
+			"normalize-claims.main: webTools",
+			"verify-claims.item: CAPABILITY_WARNING:readOnly",
+			"verify-claims.item: CAPABILITY_MISSING:toolAllowlist.fine",
+			"verify-claims.item: CAPABILITY_WARNING:contextIsolation",
+			"verify-claims.item: webTools",
+			"final-audit.main: CAPABILITY_WARNING:readOnly",
+			"final-audit.main: CAPABILITY_MISSING:toolAllowlist.fine",
+			"final-audit.main: CAPABILITY_WARNING:contextIsolation",
+			"final-audit.main: webTools"
+		],
+		"forcedReadOnly": []
+	},
+	"usage": {
+		"source": "task-rollup",
+		"capturedAt": "2026-10-27T06:56:38.645Z",
+		"taskCount": 28,
+		"tasksReporting": 19,
+		"inputTokens": 1671953,
+		"outputTokens": 29723,
+		"totalTokens": 0,
+		"cachedInputTokens": 0,
+		"cacheCreationInputTokens": 0,
+		"cacheReadInputTokens": 1184128,
+		"reasoningTokens": 0,
+		"costUsd": 0
+	},
+	"final": [
+		{
+			"taskId": "task-10",
+			"specId": "final.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"controlStatus": "passed",
+			"verdict": null,
+			"digest": "## Executive summary ### Core conclusion MCP stdio frames one JSON-RPC request, notification, or response per line over a reliable bidirectional byte stream. Newlines delimit messages, and embedded newlines are forbidden. Servers must write only valid MCP messages to stdout; informational, debug, and error logs…"
+		}
+	],
+	"failedTasks": [],
+	"modelTasks": 28,
+	"usageFromRunRecord": {
+		"tasksReporting": 19,
+		"inputTokens": 1671953,
+		"outputTokens": 29723,
+		"cacheReadInputTokens": 1184128,
+		"cacheCreationInputTokens": 0,
+		"costUsd": 0
+	},
+	"modelsInRawStreams": {
+		"gpt-5.6-luna": 20
+	}
+}

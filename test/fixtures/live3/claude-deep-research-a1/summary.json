@@ -1,0 +1,73 @@
+{
+	"executor": "claude",
+	"workflow": "deep-research",
+	"attempt": "a1",
+	"args": "--executor claude --json --model haiku --profile low",
+	"runId": "workflow_mvqcn3lj_4843bf",
+	"exit": 1,
+	"wallS": 3,
+	"start": "2026-10-27T07:13:35Z",
+	"outcome": "blocked",
+	"status": "blocked",
+	"taskSummary": {
+		"total": 10,
+		"pending": 0,
+		"running": 0,
+		"blocked": 1,
+		"completed": 5,
+		"failed": 3,
+		"skipped": 1,
+		"interrupted": 0
+	},
+	"capability": {
+		"confirmation": "non-interactive",
+		"degradations": [
+			"research-questions.item: webTools",
+			"normalize-claims.main: webTools",
+			"verify-claims.item: webTools",
+			"final-audit.main: webTools"
+		],
+		"forcedReadOnly": []
+	},
+	"final": [],
+	"failedTasks": [
+		{
+			"taskId": "task-1",
+			"specId": "plan.main",
+			"status": "failed",
+			"statusDetail": "launch_failed",
+			"lastMessage": "provisional worker run_mvqcn44e_672674/attempt_mvqcn44e_d3b24d ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: sessionId must be a UUID (claude --session-id)"
+		},
+		{
+			"taskId": "task-4",
+			"specId": "normalize-claims.main",
+			"status": "failed",
+			"statusDetail": "launch_failed",
+			"lastMessage": "provisional worker run_mvqcn4e8_7776e1/attempt_mvqcn4e8_90fd7c ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: sessionId must be a UUID (claude --session-id)"
+		},
+		{
+			"taskId": "task-9",
+			"specId": "final-audit.main",
+			"status": "failed",
+			"statusDetail": "launch_failed",
+			"lastMessage": "provisional worker run_mvqcn4ui_ee289a/attempt_mvqcn4ui_cf9c98 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: sessionId must be a UUID (claude --session-id)"
+		},
+		{
+			"taskId": "task-10",
+			"specId": "final.main",
+			"status": "blocked",
+			"statusDetail": "support_declared_blocked",
+			"lastMessage": "support declared blocked"
+		}
+	],
+	"modelTasks": 10,
+	"usageFromRunRecord": {
+		"tasksReporting": 0,
+		"inputTokens": 0,
+		"outputTokens": 0,
+		"cacheReadInputTokens": 0,
+		"cacheCreationInputTokens": 0,
+		"costUsd": 0
+	},
+	"modelsInRawStreams": {}
+}

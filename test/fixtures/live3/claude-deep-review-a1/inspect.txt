@@ -1,0 +1,15 @@
+runId: workflow_mvqcmxfu_938ff6
+name: deep-review
+type: artifact-graph
+status: failed
+tasks: 8
+completion: incomplete
+retries: output=0, launch=0, resumes=0, contextLimitFailures=0
+- task-1: failed/launch_failed — provisional worker run_mvqcmxq1_3f67d2/attempt_mvqcmxq1_bd794d ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: sessionId must be a UUID (claude --session-id)
+- task-2: skipped/skipped_after_dependency_failure — skipped because dependency triage.main did not complete
+- task-3: completed/support_completed — support completed
+- task-4: completed/foreach_empty — foreach produced 0 item(s)
+- task-5: completed/support_completed — support completed
+- task-6: completed/support_completed — support completed
+- task-7: failed/launch_failed — provisional worker run_mvqcmy2o_d44b71/attempt_mvqcmy2o_7fe7c5 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: sessionId must be a UUID (claude --session-id)
+- task-8: failed/support_declared_failed — support declared failed
