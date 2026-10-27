@@ -39,7 +39,13 @@ before(async () => {
 after(async () => {
 	for (const undo of unregister.splice(0)) undo();
 	slots.setSubagentLaunchControlsForTests({});
-	await rm(root, { recursive: true, force: true });
+	// Durable workers/finalizers may still be closing files: retry like host-cli.test.mjs.
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 test("the executor prompt names the control schema by a path that resolves from the worker cwd", async () => {

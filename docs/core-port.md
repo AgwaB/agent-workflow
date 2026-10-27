@@ -1425,3 +1425,14 @@ problems 1–6, 10).
    print at launch (host API `data.capability.notices`). Test:
    `core-wp12a-legacy-agent-shadow.test.mjs` (no legacy file → no notice; legacy `scout.md` → still
    resolves first, one-line notice in record and preview).
+
+### WP12a validation
+
+`npm run validate` passes (twice in a row at the final commit; unit 1,872 pass, 22 skipped, 0 fail;
+main had 1,844). Replay acceptance: 0 unexplained in every fixture/variant; new classifications are
+`run-usage-unknown-not-zero` (change log 2), the extended `original-spec-review-legacy-state-read`
+divergence (change log 3) and the literal rename `wp12a-control-schema-path` (change log 4); reports
+regenerated with `node test/replay/acceptance.mjs --write`. The new WP12a test files remove their
+temp roots with retries (a durable worker or finalizer can still close files right after a run
+ends). `test/unit/host-cli.test.mjs` ran 10 times
+in a row with 24 busy-loop processes on 12 cores (load average up to ~95): 10/10 passed.

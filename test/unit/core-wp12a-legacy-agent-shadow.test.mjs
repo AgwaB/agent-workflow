@@ -29,7 +29,13 @@ after(async () => {
 	for (const undo of unregister.splice(0)) undo();
 	slots.setSubagentLaunchControlsForTests({});
 	await rm(join(legacyAgentsDir, "scout.md"), { force: true });
-	await rm(root, { recursive: true, force: true });
+	// Durable workers/finalizers may still be closing files: retry like host-cli.test.mjs.
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 async function runWithScout(name) {
