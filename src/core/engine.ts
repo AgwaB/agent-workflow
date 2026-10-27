@@ -75,6 +75,7 @@ import {
 } from "./workflow-source-context-runtime.js";
 import {
 	readSimpleJsonPath,
+	runtimeDefaultsForExecutor,
 	type WorkflowModelInfo,
 	type WorkflowRuntimeDefaults,
 } from "./workflow-runtime.js";
@@ -702,7 +703,11 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 		...(allowSharedCheckoutWrites ? { allowSharedCheckoutWrites: true } : {}),
 		permissionMode: permissionMode.mode,
 		runtimeOverrides: options.runtimeOverrides,
-		runtimeDefaults: options.runtimeDefaults,
+		// Host model/thinking defaults apply only to the executor they belong to.
+		runtimeDefaults: runtimeDefaultsForExecutor(
+			options.runtimeDefaults,
+			executor.id,
+		),
 		availableModels: options.availableModels,
 	});
 	// B4 (WP4d): probe the executor once and negotiate every stage before any

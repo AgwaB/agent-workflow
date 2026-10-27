@@ -18,6 +18,22 @@ export interface WorkflowRuntimeDefaults {
 	model?: string;
 	thinking?: ThinkingLevel;
 	fast?: FastMode;
+	/**
+	 * Executor these defaults belong to (e.g. a Pi host passes Pi's current model as `pi`). When the
+	 * run selects a different executor, `model` and `thinking` are not applied to its workers.
+	 */
+	executor?: string;
+}
+
+/** Drop host model/thinking defaults that belong to a different executor than the run's. */
+export function runtimeDefaultsForExecutor(
+	defaults: WorkflowRuntimeDefaults | undefined,
+	executorId: string,
+): WorkflowRuntimeDefaults | undefined {
+	if (defaults?.executor === undefined || defaults.executor === executorId)
+		return defaults;
+	const { model: _model, thinking: _thinking, ...rest } = defaults;
+	return Object.keys(rest).length > 0 ? rest : undefined;
 }
 
 export interface WorkflowRuntimeThinkingResolution {

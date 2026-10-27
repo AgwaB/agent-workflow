@@ -22,8 +22,25 @@ const entries = [
 	["dist/hosts/pi/index.js", "src/hosts/pi"],
 ];
 
+// WP11b: `./hosts/pi` is a Pi extension; without the optional Pi peer its import fails with
+// PiHostUnavailableError by design (covered in host-pi-extension.test.mjs).
+const piAvailable = await import(
+	["@earendil-works", "pi-coding-agent"].join("/")
+).then(
+	() => true,
+	() => false,
+);
+const needsPi = (path) => path.includes("hosts/pi/");
+
 for (const [path, expected] of entries) {
 	test(`${path} exports MODULE = ${expected}`, async () => {
+		if (needsPi(path) && !piAvailable) {
+			await assert.rejects(
+				import(new URL(`../../${path}`, import.meta.url).href),
+				{ name: "PiHostUnavailableError" },
+			);
+			return;
+		}
 		const mod = await import(new URL(`../../${path}`, import.meta.url).href);
 		assert.equal(mod.MODULE, expected);
 	});
@@ -44,6 +61,7 @@ test("package exports resolve to built entry points", async () => {
 	for (const subpath of subpaths) {
 		const target = pkg.exports[subpath]?.default;
 		assert.ok(target, `missing export ${subpath}`);
+		if (needsPi(target) && !piAvailable) continue;
 		const mod = await import(
 			new URL(`../../${target.replace(/^\.\//, "")}`, import.meta.url).href
 		);
