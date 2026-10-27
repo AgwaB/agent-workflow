@@ -4763,7 +4763,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/impact-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-impact-review-original-78651/work/replay-trace.jsonl\"},\"contr… (367 chars, sha256 ab2afedc247f)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/impact-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-impact-review-original-76391/work/replay-trace.jsonl\"},\"contr… (367 chars, sha256 6e39cbfc083f)"
 				},
 				{
 					"class": "explained",
@@ -4782,7 +4782,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "89f40d889a2ce396ebc89843d3c2194ee7536ac0d0a35248d0b58b425f3eb214"
+					"replayed": "e6d1024187ebb3010c0e3c2a796d2db97e7614608a45b4c315177334c687bf23"
 				},
 				{
 					"class": "explained",
@@ -4802,7 +4802,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-1",
-					"replayed": "d62017ab77891be2515b962498d1954c785ee1a6f02dd6b923f74106b72be817"
+					"replayed": "4a863a66160d3826ee8e712aff401b5c1f9d780825be9c6684b879bd5016607c"
 				},
 				{
 					"class": "explained",
@@ -4812,7 +4812,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-1",
-					"replayed": "3d6d5dded2dd31efcc7b6026cb9d38513fef10e828898303a2e1534478ec1540"
+					"replayed": "33136ba0002249b30a3138f816b996b82aacb40a3fde00dbeb596d5b4ad50f4e"
 				},
 				{
 					"class": "explained",
@@ -4822,7 +4822,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "89f40d889a2ce396ebc89843d3c2194ee7536ac0d0a35248d0b58b425f3eb214"
+					"replayed": "e6d1024187ebb3010c0e3c2a796d2db97e7614608a45b4c315177334c687bf23"
 				},
 				{
 					"class": "explained",
@@ -5065,7 +5065,7 @@
 					"kind": "added",
 					"path": "tasks[1].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-2",
-					"replayed": "585e73278ca505ac6c0af87a17205cf659a50de87f3809d738aa8522d08931b9"
+					"replayed": "d0a8d33a003543afa054315f91f12804e55881362aa8f106605d1de0c7e88ab0"
 				},
 				{
 					"class": "explained",
@@ -5085,7 +5085,7 @@
 					"kind": "added",
 					"path": "tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-2",
-					"replayed": "53499fdf2faa1471acfa33d6589c2afe2f4c6db7430c563d1a2abb7490f146ba"
+					"replayed": "06f70a2267695912321afc62548ab9c1212262a07963e5a0956f87527d871d2c"
 				},
 				{
 					"class": "explained",
@@ -5095,7 +5095,7 @@
 					"kind": "added",
 					"path": "tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-2",
-					"replayed": "e2798b607d2ed1ceece897ae0bff0303a8a6853f146af1cb47d23f29656ad671"
+					"replayed": "0ae236fde06ddbf0eef80006d8509c131abb877367c7080d57fc2b575720acca"
 				},
 				{
 					"class": "explained",
@@ -5105,7 +5105,7 @@
 					"kind": "added",
 					"path": "tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-2",
-					"replayed": "585e73278ca505ac6c0af87a17205cf659a50de87f3809d738aa8522d08931b9"
+					"replayed": "d0a8d33a003543afa054315f91f12804e55881362aa8f106605d1de0c7e88ab0"
 				},
 				{
 					"class": "explained",
@@ -5348,7 +5348,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-3",
-					"replayed": "bdfaa0fe7f308eb66cc348276e5fc104cd77a7451d900677a6f5554dc4d7759b"
+					"replayed": "97c37f689138d7c9b28c46b0bdb7ee899e6602f2378ab30031e401fb7da45dc6"
 				},
 				{
 					"class": "explained",
@@ -5368,7 +5368,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-3",
-					"replayed": "e567d0f9254c224cee45a2308b5c75a21ed9d01e53ee47c432bdd80941c3d777"
+					"replayed": "56cda11628a4eed5a00806e89dd3fe0359b0e7644c434d44caffc852adfeab83"
 				},
 				{
 					"class": "explained",
@@ -5378,7 +5378,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-3",
-					"replayed": "f8c67386c796c03267b0137324e1d1405225e93114a25e5a570403828bb6de8a"
+					"replayed": "34a2a539e39442e3852a6b7f8bd2b9e78229500313992d0d73351b8d342b422c"
 				},
 				{
 					"class": "explained",
@@ -5388,7 +5388,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-3",
-					"replayed": "bdfaa0fe7f308eb66cc348276e5fc104cd77a7451d900677a6f5554dc4d7759b"
+					"replayed": "97c37f689138d7c9b28c46b0bdb7ee899e6602f2378ab30031e401fb7da45dc6"
 				},
 				{
 					"class": "explained",
@@ -5664,7 +5664,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-4",
-					"replayed": "a99817ee990bf994152eb68d7567cfe542aea2509555945048f3e59864a5b9f5"
+					"replayed": "9250560ec541505ac1908978ef87f259cf38c1a47c4c7829ab1aeba4aa34a0ac"
 				},
 				{
 					"class": "explained",
@@ -5684,7 +5684,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-4",
-					"replayed": "4764134749e6bf7f0af6d0fb940710e3d79fa38ea4e1ca45e433147913c7cbfa"
+					"replayed": "8f0b70805d23fcc0a70ace4a9835e99665da446c9aa0bb9e50f880c5ff909919"
 				},
 				{
 					"class": "explained",
@@ -5694,7 +5694,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-4",
-					"replayed": "cab5886eeab8e31792e4f1c8a69e822cdd0d834e5bd5a37b09acd52931cc6814"
+					"replayed": "1b4038aa8032116dd787ffe4e5f32de0b53697628383d31dfab0bf07a2d14bfb"
 				},
 				{
 					"class": "explained",
@@ -5704,7 +5704,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-4",
-					"replayed": "a99817ee990bf994152eb68d7567cfe542aea2509555945048f3e59864a5b9f5"
+					"replayed": "9250560ec541505ac1908978ef87f259cf38c1a47c4c7829ab1aeba4aa34a0ac"
 				},
 				{
 					"class": "explained",
@@ -5947,7 +5947,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-5",
-					"replayed": "59d5ca87a7d0ff0bd1cd6e23c8f5228074d272f36b38140ca704a2d68e7bd140"
+					"replayed": "1418994d8465e4302a706b83ba81cbd368c8f7d184e31144562b53c288946250"
 				},
 				{
 					"class": "explained",
@@ -5967,7 +5967,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-5",
-					"replayed": "c110f8e327af9f83d8792cde7a7765bccb094a5b66ec0ce6c40fa57114437dcd"
+					"replayed": "6d3b932d369f8092ca1241cf6426ecf2456c9d74c7c01a984de0bb25c15405ce"
 				},
 				{
 					"class": "explained",
@@ -5977,7 +5977,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-5",
-					"replayed": "07f8bed440ceb350328abd8e6e2ae3f66420c0a2f60527dad959c0361ef10d87"
+					"replayed": "1ea50081326c7cca360d868c3b24916880943daae382872d7cfb5b2b3f3bf739"
 				},
 				{
 					"class": "explained",
@@ -5987,7 +5987,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-5",
-					"replayed": "59d5ca87a7d0ff0bd1cd6e23c8f5228074d272f36b38140ca704a2d68e7bd140"
+					"replayed": "1418994d8465e4302a706b83ba81cbd368c8f7d184e31144562b53c288946250"
 				},
 				{
 					"class": "explained",
@@ -6230,7 +6230,7 @@
 					"kind": "added",
 					"path": "tasks[5].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-6",
-					"replayed": "9e16f307a4c85794da977a52b7af1abd201c5794dbaddefef495586a5944ab58"
+					"replayed": "7d2bf781b06ffb4cb5cbce308e5421bc73eb236cac6e76aeeea3d418ee1c3ed9"
 				},
 				{
 					"class": "explained",
@@ -6250,7 +6250,7 @@
 					"kind": "added",
 					"path": "tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-6",
-					"replayed": "bfc20ccc10523259d58ad08aef22ef8bfbad345ff15ace8056f60fb4c594d484"
+					"replayed": "7181d3435bb1898723889c523681a5b66f579ed1ed0bfdbe279c914cbcc45d77"
 				},
 				{
 					"class": "explained",
@@ -6260,7 +6260,7 @@
 					"kind": "added",
 					"path": "tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-6",
-					"replayed": "93deb7d862c21988c8523d1b6461b116c8bbbb08e246cc70aaae6955de63aa40"
+					"replayed": "6cfc55919972cbc81408eaf821091845855d0e9ab4aee3cd9231b697698103b4"
 				},
 				{
 					"class": "explained",
@@ -6270,7 +6270,7 @@
 					"kind": "added",
 					"path": "tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-6",
-					"replayed": "9e16f307a4c85794da977a52b7af1abd201c5794dbaddefef495586a5944ab58"
+					"replayed": "7d2bf781b06ffb4cb5cbce308e5421bc73eb236cac6e76aeeea3d418ee1c3ed9"
 				},
 				{
 					"class": "explained",
@@ -6513,7 +6513,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "cd4cd088d8dd439a24d4e4b0c2996038523bf3628161c8cc99af3bedf82b5a14"
+					"replayed": "ae8506308cdaadbd84dbf54853552899f9bbe77b94885e8bf15682e19d886817"
 				},
 				{
 					"class": "explained",
@@ -6533,7 +6533,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-7",
-					"replayed": "c558eb8d0389574149be5cfd3f85f5a820f4fc607424c9363dcecac0b39dcf51"
+					"replayed": "639b5a0135c35de5dab7c54acc6a991900fda33a7f1f6f610a93377552b25bce"
 				},
 				{
 					"class": "explained",
@@ -6543,7 +6543,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-7",
-					"replayed": "43d1c9e73c359e337dee1a72fcfbb616e5fe27235a46d3f06b38663c8bbc7e60"
+					"replayed": "9c06f1f6b6a206cf603b793f2a0456e944948105d1eaef97bf9bbffe3ce3827e"
 				},
 				{
 					"class": "explained",
@@ -6553,7 +6553,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "cd4cd088d8dd439a24d4e4b0c2996038523bf3628161c8cc99af3bedf82b5a14"
+					"replayed": "ae8506308cdaadbd84dbf54853552899f9bbe77b94885e8bf15682e19d886817"
 				},
 				{
 					"class": "explained",
@@ -6829,7 +6829,7 @@
 					"kind": "added",
 					"path": "tasks[7].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-8",
-					"replayed": "bf354b0b70a729835480ff36c5489eee197b914319d26ed132b7886dc1bf2827"
+					"replayed": "97a74fe55317393c5ac10767c81da0b47e60d3ad2c1e4c8a5b70d352092baa18"
 				},
 				{
 					"class": "explained",
@@ -6849,7 +6849,7 @@
 					"kind": "added",
 					"path": "tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-8",
-					"replayed": "43fade4f5262e5692dcb00a68ebb1410d0f6d9fc974e6571296f6d8c804be82e"
+					"replayed": "f66573fab456e2d6c09e7d068ffd456489cdc739c64d7fee029c5affba236252"
 				},
 				{
 					"class": "explained",
@@ -6859,7 +6859,7 @@
 					"kind": "added",
 					"path": "tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-8",
-					"replayed": "2c4ecd30e10560c373ac82a92c4a1f379dd8f76ef2081958d54728278a042e26"
+					"replayed": "beabb8035d4938bd0c7a7b85459a306832d7b93f29f63cd4ec6be8d276cd5714"
 				},
 				{
 					"class": "explained",
@@ -6869,7 +6869,7 @@
 					"kind": "added",
 					"path": "tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-8",
-					"replayed": "bf354b0b70a729835480ff36c5489eee197b914319d26ed132b7886dc1bf2827"
+					"replayed": "97a74fe55317393c5ac10767c81da0b47e60d3ad2c1e4c8a5b70d352092baa18"
 				},
 				{
 					"class": "explained",
@@ -7112,7 +7112,7 @@
 					"kind": "added",
 					"path": "tasks[8].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-9",
-					"replayed": "0321e87f685ed22697fa9c7ef49507bf698f50e7c37fa0eb35fe03377c680f4e"
+					"replayed": "8defacb93263af66e271e71f3b52c5b4cb5e719e2dc72f28531d1c3bbe21479a"
 				},
 				{
 					"class": "explained",
@@ -7132,7 +7132,7 @@
 					"kind": "added",
 					"path": "tasks[8].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-9",
-					"replayed": "d01d68e7a058b6e02b37611daffa92c9695322c3f1ab5d85a9b34233b0702bdc"
+					"replayed": "f13c022ace48b9fa4cb80093c473f79d4685be0af58204426c47ea8dd17ecbb8"
 				},
 				{
 					"class": "explained",
@@ -7142,7 +7142,7 @@
 					"kind": "added",
 					"path": "tasks[8].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-9",
-					"replayed": "ab7feb632f1b55d3e2d4a7e4c036ee6b749b335b87e9ea3067e90e49d425ddaa"
+					"replayed": "153fd0f86fd1ac1dd0df73e3eae03d94af8d1abe64ace53384917d0917d64508"
 				},
 				{
 					"class": "explained",
@@ -7152,7 +7152,7 @@
 					"kind": "added",
 					"path": "tasks[8].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-9",
-					"replayed": "0321e87f685ed22697fa9c7ef49507bf698f50e7c37fa0eb35fe03377c680f4e"
+					"replayed": "8defacb93263af66e271e71f3b52c5b4cb5e719e2dc72f28531d1c3bbe21479a"
 				},
 				{
 					"class": "explained",
@@ -7428,7 +7428,7 @@
 					"kind": "added",
 					"path": "tasks[9].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-10",
-					"replayed": "56bcc171abab2b5bd8bfcb89dc6a9fe922181b68e2b2496c03408c8f54489a28"
+					"replayed": "644a89a78bcd95a4cfd18be9ca1e12d816de2e65cc6b6c094e35c5c7097a8c25"
 				},
 				{
 					"class": "explained",
@@ -7448,7 +7448,7 @@
 					"kind": "added",
 					"path": "tasks[9].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-10",
-					"replayed": "fbcefffcf2e85d3362e4842f783d5426a66f9b842159efeb2ab69bb11651d47b"
+					"replayed": "31b2497ff93e340e07a382a01d028d1e73f50a9f47b8ae451219b942c0efe1d9"
 				},
 				{
 					"class": "explained",
@@ -7458,7 +7458,7 @@
 					"kind": "added",
 					"path": "tasks[9].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-10",
-					"replayed": "419fb2363c08345f366c9911f0f77a085458c69dc1a35125955ca7b4b62057e5"
+					"replayed": "1ff2320d3ea7c39af41b559902a4d5715249b46f3412d2c85799e4f3e1c59a12"
 				},
 				{
 					"class": "explained",
@@ -7468,7 +7468,7 @@
 					"kind": "added",
 					"path": "tasks[9].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-10",
-					"replayed": "56bcc171abab2b5bd8bfcb89dc6a9fe922181b68e2b2496c03408c8f54489a28"
+					"replayed": "644a89a78bcd95a4cfd18be9ca1e12d816de2e65cc6b6c094e35c5c7097a8c25"
 				},
 				{
 					"class": "explained",
@@ -7744,7 +7744,7 @@
 					"kind": "added",
 					"path": "tasks[10].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-11",
-					"replayed": "a27471b451547628f8a7148b32834898ad03d0d0eb0c440dd84f91c16ea73838"
+					"replayed": "04b14334e85438881da79fe2ea6028177edbcecd495b7cd82823eb556d604299"
 				},
 				{
 					"class": "explained",
@@ -7764,7 +7764,7 @@
 					"kind": "added",
 					"path": "tasks[10].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-11",
-					"replayed": "05e5a8275a271096ff035b485c7c0879829cb7983ea66256ba82d993feabeea6"
+					"replayed": "af08f9f886be615c2e3624dfcb5a5fb6b9c284d78d3cbe374c1213ca74af14a3"
 				},
 				{
 					"class": "explained",
@@ -7774,7 +7774,7 @@
 					"kind": "added",
 					"path": "tasks[10].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-11",
-					"replayed": "ad44656fe46aed1d37923b65a8b397f4f583fb813b6dee7cc77baf24a53441bf"
+					"replayed": "b1af7a446b1be2aa1d78a4fa24204a7de496770e2a8bc8eea5eaa23f525981f1"
 				},
 				{
 					"class": "explained",
@@ -7784,7 +7784,7 @@
 					"kind": "added",
 					"path": "tasks[10].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-11",
-					"replayed": "a27471b451547628f8a7148b32834898ad03d0d0eb0c440dd84f91c16ea73838"
+					"replayed": "04b14334e85438881da79fe2ea6028177edbcecd495b7cd82823eb556d604299"
 				},
 				{
 					"class": "explained",
@@ -8027,7 +8027,7 @@
 					"kind": "added",
 					"path": "tasks[11].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-12",
-					"replayed": "27a6b307ba0dc90aa4dce7059e54237e96d4aff2429b0a378f12e6ccaee0cfcf"
+					"replayed": "5f1ca7c32e64078b21762b115b15cd9c9e75a70176dd0523c61e7576430b1daa"
 				},
 				{
 					"class": "explained",
@@ -8047,7 +8047,7 @@
 					"kind": "added",
 					"path": "tasks[11].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-12",
-					"replayed": "298ea1e36d2fd1aa2b84317e94311e3ce9893f1b03c1ba03855f4e815b7f6f8b"
+					"replayed": "501d8aca3763db6b23052850dd86ee2fe0a756be2479e375ef6349bd7f75fadb"
 				},
 				{
 					"class": "explained",
@@ -8057,7 +8057,7 @@
 					"kind": "added",
 					"path": "tasks[11].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-12",
-					"replayed": "47cac202e84df701b210ed2ae2b1bc81ccb773eb471e3568a1dec002a66ceb9d"
+					"replayed": "2bb3bcb40300cf50e583b82008b130f06f848a5d8bb06b82a8557de871c11a17"
 				},
 				{
 					"class": "explained",
@@ -8067,7 +8067,7 @@
 					"kind": "added",
 					"path": "tasks[11].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-12",
-					"replayed": "27a6b307ba0dc90aa4dce7059e54237e96d4aff2429b0a378f12e6ccaee0cfcf"
+					"replayed": "5f1ca7c32e64078b21762b115b15cd9c9e75a70176dd0523c61e7576430b1daa"
 				},
 				{
 					"class": "explained",

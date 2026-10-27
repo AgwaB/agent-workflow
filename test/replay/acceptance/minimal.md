@@ -48,11 +48,11 @@ Original spec, Pi adapter request checks.
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 9628f56cabdcd4c13933725590f5c4a8fbfd9cb6e81acd163ed9712be42bdc56 |
+| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 481e1d90d7e4b9e361df85a69e8fffef6b558af127f77bdfa02e74c18147a912 |
 | run.json | tasks[0].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | a25d9d0ffad76dcd1929cf3a932be7a38410da1095b27308fc4be62c61d68f95 |  |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 5a2696580070ce8991aee5e9c6d8caeced35467d63f9941599525153cff59a4e |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | a14a71bcbef1496ace5d24512d2ef232c08905dd9ab0c1b7f801fb4272d2104e |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 9628f56cabdcd4c13933725590f5c4a8fbfd9cb6e81acd163ed9712be42bdc56 |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 47f7081d8d1470194884353708802d95e87df4195774700308c362b3920f073d |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | b2791414a34b83fbb7f56e0d0dd5dd531e50b084e3878ae90be1a7e567b1f89b |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 481e1d90d7e4b9e361df85a69e8fffef6b558af127f77bdfa02e74c18147a912 |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | a25d9d0ffad76dcd1929cf3a932be7a38410da1095b27308fc4be62c61d68f95 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 1c571feaba54d772deca047a1a5a89af80dae392002c11a3c85612d924ab22f4 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"1c571feaba54d772deca047a1a5a89af80dae392002c11a3c85612d924ab22f4"} |  |
@@ -105,7 +105,7 @@ Original spec, Pi adapter request checks.
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/minimal","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-minimal-original-79877/work/replay-trace.jsonl"},"contractVersion":… (355 chars, sha256 0770834119a2) |
+| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/minimal","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-minimal-original-77410/work/replay-trace.jsonl"},"contractVersion":… (355 chars, sha256 6a89886081c0) |
 
 </details>
 

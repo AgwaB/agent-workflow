@@ -1362,6 +1362,21 @@ problems 1–6, 10).
    `totalTokens`/`cacheCreationInputTokens` now reproduce the recording (fewer `executor-usage-contract`
    rows); the `original-spec-review-legacy-state-read` divergence also covers run
    `usage.totalTokens`/`usage.cacheCreationInputTokens`.
+4. **Control-schema path in worker prompts (live open problem 3).** The compiled output protocol
+   says "Validate the control object against the workflow-local control schema file: ./schemas/…",
+   relative to the workflow bundle; the worker's cwd is the project, so Pi and Codex spec-review
+   workers got ENOENT and reported it as a needsHuman row (which sets the renderer gate
+   `actionableEvidenceComplete: false`). The engine does enforce the schema after the attempt, but
+   the instruction is kept so workers can self-check: `task-backend.ts` `renderControlSchemaPath`
+   replaces the bundle-relative path in the prompt sent to the executor with the run's own copy
+   (`task.artifactGraph.output.controlSchemaPath`, absolute, `<run>/bundle/schemas/<file>`, readable
+   from any cwd including a worktree). `task.md` (digested by launch provenance) keeps the compiled
+   text, so prompt files and provenance are unchanged. Replay: the launch prompt (match key) is
+   renamed back by the new literal rename `wp12a-control-schema-path` in
+   `test/replay/allowed-differences.json` (`control schema file: <ROOT>/.agent-workflow/workflows/
+   <WF_RUN_n>/bundle/schemas/` → `control schema file: ./schemas/`, the WP10 tool-name precedent);
+   no other difference; 0 unexplained. Test: `core-wp12a-control-schema-path.test.mjs` (the prompt
+   path is absolute and exists; task.md unchanged).
 6. **Flakes under load: stop and blocked runs (live open problem 10).** Two product races, both
    reproduced with a stress script (6 parallel loops of the host-cli stop scenario, 24 busy-loop
    processes on 12 cores): 4 of 30 stops failed before, 0 of 30 after.

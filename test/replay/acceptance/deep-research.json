@@ -29,21 +29,21 @@
 					"specId": "research-questions.rq-001",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvqgrlqo_d86262/attempt_mvqgrlqo_81fb1f ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvqh7vpm_3cadaf/attempt_mvqh7vpm_49f4a6 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-12",
 					"specId": "research-questions.rq-002",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvqgrm1l_e70276/attempt_mvqgrm1l_b9f08a ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvqh7vym_1fa43b/attempt_mvqh7vym_efbbd8 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-13",
 					"specId": "research-questions.rq-003",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvqgrmc0_d1ac4b/attempt_mvqgrmc0_7ba085 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvqh7w7o_76b4b2/attempt_mvqh7w7o_65c5a5 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-3",
@@ -56,7 +56,7 @@
 					"specId": "normalize-claims.main",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvqgrmpx_c29672/attempt_mvqgrmpx_c771c0 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvqh7wgr_e74f3f/attempt_mvqh7wgr_1d97e9 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-5",
@@ -87,7 +87,7 @@
 					"specId": "final-audit.main",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvqgrn36_3a0f01/attempt_mvqgrn36_479fca ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvqh7wqn_672439/attempt_mvqh7wqn_d473d9 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-10",
@@ -198,7 +198,7 @@
 				"Worker-filled web-source cache (worker-snapshots/<run>/web-source-cache): written by the removed workflow_web_* tools (C2); not restored."
 			],
 			"counts": {
-				"allowed": 174,
+				"allowed": 175,
 				"explained": 2209,
 				"unexplained": 0
 			},
@@ -286,7 +286,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-11/.launch-barrier-6746db950f4462a4-<RAND16>/decision-v2.json",
+					"file": "tasks/task-11/.launch-barrier-73c2ce9eb8f1dec7-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -294,7 +294,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-11/.launch-barrier-6746db950f4462a4-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-11/.launch-barrier-73c2ce9eb8f1dec7-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -326,7 +326,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-12/.launch-barrier-9d0b96bcca7f737e-<RAND16>/decision-v2.json",
+					"file": "tasks/task-12/.launch-barrier-928fa6698d01fa2f-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -334,7 +334,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-12/.launch-barrier-9d0b96bcca7f737e-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-12/.launch-barrier-928fa6698d01fa2f-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -366,7 +366,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-13/.launch-barrier-611165dff4108fc1-<RAND16>/decision-v2.json",
+					"file": "tasks/task-13/.launch-barrier-1543bb21d0f01a59-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -374,7 +374,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-13/.launch-barrier-611165dff4108fc1-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-13/.launch-barrier-1543bb21d0f01a59-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -422,7 +422,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-4/.launch-barrier-6f4046d45279c521-<RAND16>/decision-v2.json",
+					"file": "tasks/task-4/.launch-barrier-16a06f269a86e7b3-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -430,7 +430,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-4/.launch-barrier-6f4046d45279c521-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-4/.launch-barrier-16a06f269a86e7b3-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -510,7 +510,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-9/.launch-barrier-bac1e63ec0b41ab4-<RAND16>/decision-v2.json",
+					"file": "tasks/task-9/.launch-barrier-c9b1bb11db2123c5-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -518,7 +518,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-9/.launch-barrier-bac1e63ec0b41ab4-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-9/.launch-barrier-c9b1bb11db2123c5-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -806,6 +806,14 @@
 					"rule": "supervisor-progress-snapshot",
 					"file": "supervisor.json",
 					"path": "taskStatusCounts.pending",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "supervisor-progress-snapshot",
+					"file": "supervisor.json",
+					"path": "taskStatusCounts.running",
 					"kind": "digest-renamed",
 					"count": 1
 				},
@@ -1692,7 +1700,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-original-75931/work/replay-trace.jsonl\"… (375 chars, sha256 a755f1f12d24)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-original-74435/work/replay-trace.jsonl\"… (375 chars, sha256 7cbd7e5ee5a9)"
 				},
 				{
 					"class": "explained",
@@ -5856,7 +5864,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "d675d7c5f0ad9cae409776fb7c97439ffb8fd288bde0a6a478350e0671f3f0a0",
-					"replayed": "3f5f47a92326b4135ab4988335bf14846c788f1a98d00617ffa88bd637726f43",
+					"replayed": "025894463200f0e1b1733afe46320aa3864797ff4aff0027681c50263f9d1b33",
 					"count": 0
 				},
 				{
@@ -5916,7 +5924,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "f32560de6fc74ed1d1e79d9740fc557f9d31407f68bac9b8ea4e319ddd67372c",
-					"replayed": "2378f6a270d09eaf7a06021ff499d719bb6cde70d4835c2adde7ba7d3a869cd5",
+					"replayed": "632eb339a08cd7386dea0888b5b0d4bb896027132b87280235df9be96ca57586",
 					"count": 0
 				},
 				{
@@ -5966,7 +5974,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "5a500e80efc6560f6a32af4a6a330a05eea49c2134df67fde7800f35b2e36488",
-					"replayed": "5a85ab00510b235c882e46345b1642e71025a8166ebb90590f20e880d3cd77fd",
+					"replayed": "af1c4d2bb3dcdc9f39f7637cf9f582ca0ccc6cefdddd822b47723f338c8355a2",
 					"count": 0
 				},
 				{
@@ -10058,7 +10066,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"adapterChecks\":false,\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-engine-only-76334… (400 chars, sha256 d558df16c202)"
+					"replayed": "{\"descriptor\":{\"config\":{\"adapterChecks\":false,\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-engine-only-74673… (400 chars, sha256 b217c1ac474e)"
 				},
 				{
 					"class": "allowed",

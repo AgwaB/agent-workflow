@@ -59,7 +59,7 @@
 					"specId": "report.main",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvqgsqio_89b3d0/attempt_mvqgsqio_f53abb ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: replay miss for task-7: no recorded launch has this prompt; closest recorded task-7 seq 11143, first difference at line 64: recorded \"[{\\\"source\\\":\\\"partition-findings\\\",\\\"taskId\\\":\\\"task-6\\\",\\\"specId\\\":\\\"partition-findings.main\\\",\\\"stageId\\\":\\\"partition-findings\\\",\\\"status\\\":\\\"completed\\\",\\\"statusDetail\\\":\\\"support_completed\\\",\\\"lastMessage\\\":\\\"support completed\\\",\\\"digest\\\":\\\"sha256:acf75c059c93b7c057b49aa724cc80d8cc4ed3809180b2cbae1a47896bbae45e\\\",\\\"availableArtifacts\\\":[\\\"control\\\",\\\"analysis\\\",\\\"refs\\\",\\\"raw\\\"]}]\" replay \"[{\\\"source\\\":\\\"partition-findings\\\",\\\"taskId\\\":\\\"task-6\\\",\\\"specId\\\":\\\"partition-findings.main\\\",\\\"stageId\\\":\\\"partition-findings\\\",\\\"status\\\":\\\"completed\\\",\\\"statusDetail\\\":\\\"support_completed\\\",\\\"lastMessage\\\":\\\"support completed\\\",\\\"digest\\\":\\\"sha256:be93034874343d4b75a94c7baffffd5bf22f4614eae88df1193f6be2624ac814\\\",\\\"availableArtifacts\\\":[\\\"control\\\",\\\"analysis\\\",\\\"refs\\\",\\\"raw\\\"]}]\""
+					"lastMessage": "provisional worker run_mvqh8lvs_d28718/attempt_mvqh8lvs_cddd2f ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: replay miss for task-7: no recorded launch has this prompt; closest recorded task-7 seq 11143, first difference at line 64: recorded \"[{\\\"source\\\":\\\"partition-findings\\\",\\\"taskId\\\":\\\"task-6\\\",\\\"specId\\\":\\\"partition-findings.main\\\",\\\"stageId\\\":\\\"partition-findings\\\",\\\"status\\\":\\\"completed\\\",\\\"statusDetail\\\":\\\"support_completed\\\",\\\"lastMessage\\\":\\\"support completed\\\",\\\"digest\\\":\\\"sha256:acf75c059c93b7c057b49aa724cc80d8cc4ed3809180b2cbae1a47896bbae45e\\\",\\\"availableArtifacts\\\":[\\\"control\\\",\\\"analysis\\\",\\\"refs\\\",\\\"raw\\\"]}]\" replay \"[{\\\"source\\\":\\\"partition-findings\\\",\\\"taskId\\\":\\\"task-6\\\",\\\"specId\\\":\\\"partition-findings.main\\\",\\\"stageId\\\":\\\"partition-findings\\\",\\\"status\\\":\\\"completed\\\",\\\"statusDetail\\\":\\\"support_completed\\\",\\\"lastMessage\\\":\\\"support completed\\\",\\\"digest\\\":\\\"sha256:be93034874343d4b75a94c7baffffd5bf22f4614eae88df1193f6be2624ac814\\\",\\\"availableArtifacts\\\":[\\\"control\\\",\\\"analysis\\\",\\\"refs\\\",\\\"raw\\\"]}]\""
 				},
 				{
 					"taskId": "task-8",
@@ -282,7 +282,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-7/.launch-barrier-9660a26389682338-<RAND16>/decision-v2.json",
+					"file": "tasks/task-7/.launch-barrier-ba87453377847ff3-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -290,7 +290,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-7/.launch-barrier-9660a26389682338-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-7/.launch-barrier-ba87453377847ff3-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -366,7 +366,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211",
-					"replayed": "c4e8759e9a9933f8fd9021b46ae90b6486f8599da747ef15382b4f2103f42b3d",
+					"replayed": "950726d4e39d4d3e6196eb3e6ed946ee88dcd55a3058a4f44ad4c1c836fb0085",
 					"count": 0
 				},
 				{
@@ -2432,7 +2432,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/spec-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-spec-review-original-79911/work/replay-trace.jsonl\"},\"c… (371 chars, sha256 332f8cda495c)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/spec-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-spec-review-original-77446/work/replay-trace.jsonl\"},\"c… (371 chars, sha256 eedfc7e18a4d)"
 				},
 				{
 					"class": "explained",
@@ -5055,7 +5055,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "1fef8f8ffa8b1b69fbdbc6f8ae12adb138834eae70eca6f505d2aecaa5a9d933",
-					"replayed": "5794b32a836fdaea5a923084f1c1c0f7a2a3bcc36d79e91e4ebb37a9cd6eb7a2",
+					"replayed": "43598b1a1afc5371ee4b61fe9038c88875af91cdc78583e0ad5159c4d4cea52c",
 					"count": 0
 				},
 				{
@@ -5065,7 +5065,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211",
-					"replayed": "dfef18ad269fa5dd28995a98cbe1c8f0042d4dc9f11965832295ad19cb215de3",
+					"replayed": "1804c2b4635b624b956f79a8e1daceb25240158b5687634baa3c5797062cb8e6",
 					"count": 0
 				},
 				{
@@ -5115,7 +5115,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "6180e80979172dcb3d65c14be3ff0396fcc6a38122fc1e4dab35f11d4a9b1db6",
-					"replayed": "9ec87785d7ed0c548e1c9f1125268e733aa52a30cddb62233bfd5e9050c9c7e8",
+					"replayed": "08e52b79ed7770306180adba07e0cd4aedab3fdabeee138f92422c040d563d00",
 					"count": 0
 				},
 				{
@@ -7473,7 +7473,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/spec-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-spec-review-state-path-migrated-80880/work/replay-trace… (382 chars, sha256 95c5bbec1f2b)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/spec-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-spec-review-state-path-migrated-77813/work/replay-trace… (382 chars, sha256 022ea9f94a84)"
 				},
 				{
 					"class": "explained",

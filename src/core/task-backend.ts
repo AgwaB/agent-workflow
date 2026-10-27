@@ -51,7 +51,7 @@ import {
 
 import { existsSync } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import {
 	activeForeachBatchRecordForTask,
 	foreachBatchTasks,
@@ -334,9 +334,9 @@ export async function launchSubagentTask(
 		systemPrompt,
 		executor.id,
 	);
-	const renderedTaskPrompt = renderWorkerPromptToolNames(
-		compiledTask.compiledPrompt,
-		executor.id,
+	const renderedTaskPrompt = renderControlSchemaPath(
+		renderWorkerPromptToolNames(compiledTask.compiledPrompt, executor.id),
+		task,
 	);
 	let releaseLiveModelWorkerSlot: (() => void) | undefined;
 	let launchApi: SubagentApi | undefined;
@@ -1394,6 +1394,26 @@ export function workflowExecutorAttemptKey(
 }
 
 /** B5: inherit the user's context files/skills only when the stage or agent opts in. */
+/**
+ * WP12a (live bundle 3 open problem 3): the compiled output protocol names the control schema
+ * relative to the workflow bundle (`./schemas/…`), which does not resolve from the worker's cwd.
+ * The prompt sent to the executor names the run's own copy of the schema
+ * (`artifactGraph.output.controlSchemaPath`, absolute, under the run's `bundle/`) instead, so a
+ * worker can read it from any cwd (also a worktree). The canonical task.md keeps the compiled text.
+ */
+export function renderControlSchemaPath(
+	prompt: string,
+	task: Pick<WorkflowTaskRunRecord, "artifactGraph">,
+): string {
+	const output = task.artifactGraph?.output;
+	const relative = output?.controlSchema;
+	const absolute = output?.controlSchemaPath;
+	if (!relative || !absolute || !isAbsolute(absolute) || relative === absolute)
+		return prompt;
+	const marker = "workflow-local control schema file: ";
+	return prompt.split(`${marker}${relative}`).join(`${marker}${absolute}`);
+}
+
 export function workflowTaskIsolation(compiledTask: CompiledTask): {
 	inherit: boolean;
 } {

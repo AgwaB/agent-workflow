@@ -14,6 +14,7 @@
 //                 {kind: "wf-fake-session", locator} only when the request asks to keep a session
 //                 (sessionId / resumeSessionId); "always": for every attempt (an adapter that keeps
 //                 sessions regardless, to test the engine's release)
+//   logPrompt     true: the submit log entry carries the task prompt sent to the executor
 //   deleteResult  deleteOwnedSession result (default "deleted"); "missing": no deleteOwnedSession
 //   stepDelayMs   delay between script steps
 //   capabilities  partial capability table over the SDK fake's (WP4d negotiation tests)
@@ -184,6 +185,7 @@ export function createExecutor(config) {
 				artifactsDir: req.artifactsDir ?? null,
 				sessionId: req.sessionId ?? null,
 				resumeSessionId: req.resumeSessionId ?? null,
+				...(config.logPrompt === true ? { prompt: req.prompt } : {}),
 			});
 			const inner = innerFor(req);
 			const authority = {
