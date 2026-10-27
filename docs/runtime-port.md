@@ -671,6 +671,17 @@ Run results, statuses and `RunStatusSnapshot` keep their shapes; `backend` is th
     engine aborts the wait when the provisional worker's attempt is terminal without READY (an executor
     refusal before `consume()`), see docs/core-port.md WP1b change log 5.
 
+18. **WP12d-1 (stage-1 review #4): a handled signal keeps directory locks held.** `dir-lock.ts`
+    removed every held lock on SIGINT/SIGTERM/SIGHUP even when another listener handled the signal
+    and kept the process alive (the durable worker's graceful cancellation), so a second writer could
+    acquire the lock while the first critical section was still running, and the first release then
+    failed `ECOMPROMISED`. Now signal-time cleanup runs only when no other listener handles the signal
+    (the process terminates: locks removed, default disposition restored, signal re-raised). With
+    other handlers the locks stay held until an explicit release or the real `exit` (the exit hook
+    still removes them). Test: `runtime-dir-lock.test.mjs` (handled SIGTERM → lock held, a second
+    acquisition is `ELOCKED`, the later explicit release succeeds; a handled SIGTERM followed by
+    `process.exit` still removes the lock).
+
 ## Inherited from pi-subagent 0.7.2
 
 The WP2c defects as they exist in `pi-subagent-engine` at `ab91a74` (read-only check; paths relative to that
