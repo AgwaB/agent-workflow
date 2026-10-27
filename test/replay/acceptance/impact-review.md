@@ -15,7 +15,7 @@ Original spec, Pi adapter request checks.
 | Worker launches served / recorded | 12 / 12 |
 | Artifact reads re-issued / recorded | 31 / 31 |
 | Differences: allowed | 597 |
-| Differences: explained | 468 |
+| Differences: explained | 394 |
 | Differences: unexplained | 0 |
 | Exact-match violations | 0 |
 
@@ -31,12 +31,12 @@ Tasks not completed:
 |---|---|---|---|
 | explained | `artifact-mcp-provenance` | 134 | docs/core-port.md WP4b change log 4 and "What launch provenance digests now"; WP4c-1 "Pi executor (WP6)" table (extension isolation, generated extension wrappers) |
 | explained | `executor-exit-code` | 24 | docs/core-port.md WP1b change log 1 |
-| explained | `executor-usage-contract` | 252 | docs/core-port.md WP1b change log 2 |
+| explained | `executor-usage-contract` | 180 | docs/core-port.md WP1b change log 2 |
 | explained | `original-helper-legacy-sidecar` | 2 | docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows → .agent-workflow/workflows) |
 | explained | `run-capability-negotiation` | 1 | docs/core-port.md "WP4d — capability negotiation before launch" |
 | explained | `run-executor-record` | 1 | docs/core-port.md WP4c-1 "Executor selection" and change log 11 |
 | explained | `run-permission-mode` | 2 | docs/core-port.md WP4e permission modes; docs/permissions.md |
-| explained | `run-usage-unknown-not-zero` | 4 | docs/core-port.md WP12a change log 2 |
+| explained | `run-usage-unknown-not-zero` | 2 | docs/core-port.md WP12a change log 2 |
 | explained | `runtime-cost-rounding` | 12 | docs/core-port.md WP1b change log 3 |
 | explained | `runtime-stderr` | 24 | docs/runtime-port.md "Attempt artifacts" (stderr.log: runtime diagnostics, empty on a clean completion) |
 | explained | `wp10-artifact-tool-guidelines` | 12 | docs/core-port.md WP10 change log 2 |
@@ -56,110 +56,110 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 0f39788ee847f8f5b198bae33fd5f31f4260556b832747b69784171ce675a52c |
+| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 89f40d889a2ce396ebc89843d3c2194ee7536ac0d0a35248d0b58b425f3eb214 |
 | run.json | tasks[0].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 2986a6dc53c35ec23c6df2bb7591f6326db2f3769bd4b9175ba6262c45d70d5b |  |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | a58a7e2806ed821063032f343d1e607da7844ae5fe7f5790683fc9c80a92987f |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 05cf83e570b80d5cbb8dd0e63328c946282625f0180aa3e0fffa927987e02c7d |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 0f39788ee847f8f5b198bae33fd5f31f4260556b832747b69784171ce675a52c |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | d62017ab77891be2515b962498d1954c785ee1a6f02dd6b923f74106b72be817 |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 3d6d5dded2dd31efcc7b6026cb9d38513fef10e828898303a2e1534478ec1540 |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 89f40d889a2ce396ebc89843d3c2194ee7536ac0d0a35248d0b58b425f3eb214 |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 2986a6dc53c35ec23c6df2bb7591f6326db2f3769bd4b9175ba6262c45d70d5b |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 432836964b9b1b2405aa0fe0ec3ddda81ec835b8e822a06d7085adede0982036 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"432836964b9b1b2405aa0fe0ec3ddda81ec835b8e822a06d7085adede0982036"} |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[1].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | eeeb864618a428352bf679d39a5b047f7e2f19a73e5000e47be9af9c5f120b04 |
+| run.json | tasks[1].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 585e73278ca505ac6c0af87a17205cf659a50de87f3809d738aa8522d08931b9 |
 | run.json | tasks[1].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 1b9193a09e6fc532d865d5718a470ba7bfe600d1988f785edde985486ead823f |  |
-| run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 8a604f3db3d4ba115be4e4ad87c65e5bca699c0fa92b5ebe6a301c0ad317f34d |
-| run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | bfa1c24c629333cf13025de7ddd82923e96f3759dc97741a486d81bbb08ffc77 |
-| run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | eeeb864618a428352bf679d39a5b047f7e2f19a73e5000e47be9af9c5f120b04 |
+| run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 53499fdf2faa1471acfa33d6589c2afe2f4c6db7430c563d1a2abb7490f146ba |
+| run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | e2798b607d2ed1ceece897ae0bff0303a8a6853f146af1cb47d23f29656ad671 |
+| run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 585e73278ca505ac6c0af87a17205cf659a50de87f3809d738aa8522d08931b9 |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 1b9193a09e6fc532d865d5718a470ba7bfe600d1988f785edde985486ead823f |  |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 38d1fdd111ee3538105f10b5afd34e627f5ebd70e11512e8e7b0cd1cd9dc04e1 |  |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"38d1fdd111ee3538105f10b5afd34e627f5ebd70e11512e8e7b0cd1cd9dc04e1"} |  |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 139232ce3e951d8d4f7d2982b9d3cb6ec93aecca024ab12d69aedcb9bbfa1427 |
+| run.json | tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | bdfaa0fe7f308eb66cc348276e5fc104cd77a7451d900677a6f5554dc4d7759b |
 | run.json | tasks[2].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 30bf6fd125498208bc133c3252207afafcafed11a1b96740b713be499bcf4450 |  |
-| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | d3f709be8cae1910b647eec17c311b9514006d1586e3e626f97fb68c3f72da7c |
-| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | f7f46234207a872f820c70134ea1e7044b32435427ec8f09ae522029c3ee3952 |
-| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 139232ce3e951d8d4f7d2982b9d3cb6ec93aecca024ab12d69aedcb9bbfa1427 |
+| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | e567d0f9254c224cee45a2308b5c75a21ed9d01e53ee47c432bdd80941c3d777 |
+| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | f8c67386c796c03267b0137324e1d1405225e93114a25e5a570403828bb6de8a |
+| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | bdfaa0fe7f308eb66cc348276e5fc104cd77a7451d900677a6f5554dc4d7759b |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 30bf6fd125498208bc133c3252207afafcafed11a1b96740b713be499bcf4450 |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 29d46e17400de23d369058aa730b3950fe753c29a13f588fa1603c262d1bc080 |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"29d46e17400de23d369058aa730b3950fe753c29a13f588fa1603c262d1bc080"} |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 7e41eee6fa5b2533d3214fb3d9c6dd1b3c41d64b200fb03eb918ea180189894d |
+| run.json | tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | a99817ee990bf994152eb68d7567cfe542aea2509555945048f3e59864a5b9f5 |
 | run.json | tasks[3].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 0ebde38ae70fdbac3a04c2173d64bcdad55a56fc3654538ae7d481120e5684ce |  |
-| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 438a3ebfb0a1857f4751e69f1b2d33258b1d3bc1414ef6c5226370f4b2c27d1b |
-| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 73a0389bceef5d5f5b16fdfe9868dfd829477c2f2285bd2bc48379f87798d88f |
-| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 7e41eee6fa5b2533d3214fb3d9c6dd1b3c41d64b200fb03eb918ea180189894d |
+| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 4764134749e6bf7f0af6d0fb940710e3d79fa38ea4e1ca45e433147913c7cbfa |
+| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | cab5886eeab8e31792e4f1c8a69e822cdd0d834e5bd5a37b09acd52931cc6814 |
+| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | a99817ee990bf994152eb68d7567cfe542aea2509555945048f3e59864a5b9f5 |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 0ebde38ae70fdbac3a04c2173d64bcdad55a56fc3654538ae7d481120e5684ce |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 3f0540e84c7caa8fed3d8fadad6ec905b9a970596a430bdb5469f71cdd66a840 |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"3f0540e84c7caa8fed3d8fadad6ec905b9a970596a430bdb5469f71cdd66a840"} |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[4].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 0cc751fefb69029178e4710afb0fb5af26c96059cadb1e91b3b1ae7f8a5fb886 |
+| run.json | tasks[4].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 59d5ca87a7d0ff0bd1cd6e23c8f5228074d272f36b38140ca704a2d68e7bd140 |
 | run.json | tasks[4].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | fdb2434144db9ed2fd5b0faa6e757a777f45abf24152f3213cb3484498164546 |  |
-| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | a2f4af04f8b0e73b21b4edf1fff3ba689a3add01d6ec101e18c12656857cd18c |
-| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | bbefa818965e444736ae40558fb5899b04de7e1d0ecf5685f860779b410b8a20 |
-| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 0cc751fefb69029178e4710afb0fb5af26c96059cadb1e91b3b1ae7f8a5fb886 |
+| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | c110f8e327af9f83d8792cde7a7765bccb094a5b66ec0ce6c40fa57114437dcd |
+| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 07f8bed440ceb350328abd8e6e2ae3f66420c0a2f60527dad959c0361ef10d87 |
+| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 59d5ca87a7d0ff0bd1cd6e23c8f5228074d272f36b38140ca704a2d68e7bd140 |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | fdb2434144db9ed2fd5b0faa6e757a777f45abf24152f3213cb3484498164546 |  |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 58bb056a267e57606022ed780480fe1bb54f923db613a90e84609a8f280dac78 |  |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"58bb056a267e57606022ed780480fe1bb54f923db613a90e84609a8f280dac78"} |  |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[5].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 858a0550de059aa3f6819c15d397075522d65321bb6e625f19db48480a269bea |
+| run.json | tasks[5].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 9e16f307a4c85794da977a52b7af1abd201c5794dbaddefef495586a5944ab58 |
 | run.json | tasks[5].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 5425b5bc60592ba30e6f8c236598a1c584b634086d0d1d6d4a811aae5f89f3ad |  |
-| run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 5c74c82e80efe2940d703be60491ed70009c31088dc53ad0d7eb3ebde45ed75b |
-| run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 5bc6fcaaff42eef82a22e00c6c804d95eef9241be3164de1923a256c6dad9b39 |
-| run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 858a0550de059aa3f6819c15d397075522d65321bb6e625f19db48480a269bea |
+| run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | bfc20ccc10523259d58ad08aef22ef8bfbad345ff15ace8056f60fb4c594d484 |
+| run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 93deb7d862c21988c8523d1b6461b116c8bbbb08e246cc70aaae6955de63aa40 |
+| run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 9e16f307a4c85794da977a52b7af1abd201c5794dbaddefef495586a5944ab58 |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 5425b5bc60592ba30e6f8c236598a1c584b634086d0d1d6d4a811aae5f89f3ad |  |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | e45ffd5c095c57628247b8b323fa23babf11d10b891ce06f4d887c27d8880fbd |  |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"e45ffd5c095c57628247b8b323fa23babf11d10b891ce06f4d887c27d8880fbd"} |  |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[6].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 49cddaac5b49d1773beb9428c014c4c57db2f0070f209f0849d07bc299d98ba4 |
+| run.json | tasks[6].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | cd4cd088d8dd439a24d4e4b0c2996038523bf3628161c8cc99af3bedf82b5a14 |
 | run.json | tasks[6].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | d60c41aca42e521036f95a3c6e3f08dbe7dc0d00f31e24fe5e45acea800b6150 |  |
-| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | f756c6dd300fa90667a5457ed92f9000afe78dce1efa818a5db1c1ad71f1c313 |
-| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 6740b94f3d9e5abb0b5e88b368df074bbdf1d452e8226988487f1e9f50b97e27 |
-| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 49cddaac5b49d1773beb9428c014c4c57db2f0070f209f0849d07bc299d98ba4 |
+| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | c558eb8d0389574149be5cfd3f85f5a820f4fc607424c9363dcecac0b39dcf51 |
+| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 43d1c9e73c359e337dee1a72fcfbb616e5fe27235a46d3f06b38663c8bbc7e60 |
+| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | cd4cd088d8dd439a24d4e4b0c2996038523bf3628161c8cc99af3bedf82b5a14 |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | d60c41aca42e521036f95a3c6e3f08dbe7dc0d00f31e24fe5e45acea800b6150 |  |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 69e71ba72a3ff05d8f4d129f2fd87bb6505a8f6751a2d0c67266531a8299b532 |  |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"69e71ba72a3ff05d8f4d129f2fd87bb6505a8f6751a2d0c67266531a8299b532"} |  |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[7].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | f2f719bd9fe6238a9f2590c4a49102999bcc9020dcd2ecc1901567882f7c236d |
+| run.json | tasks[7].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | bf354b0b70a729835480ff36c5489eee197b914319d26ed132b7886dc1bf2827 |
 | run.json | tasks[7].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 3f3a97f4621f96877097d2b548b8876befa78c9cfc4f0e5eeabf9fe32169bc44 |  |
-| run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | bf2536445567b8ced7fa8efc3ccb4a23a2d539264bca82008c0ff2abd3248e2a |
-| run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | c78c6e6cc9eb96c1c8581f8bd94c43f6dccffce7ed4f5629465138ab5d999436 |
-| run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | f2f719bd9fe6238a9f2590c4a49102999bcc9020dcd2ecc1901567882f7c236d |
+| run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 43fade4f5262e5692dcb00a68ebb1410d0f6d9fc974e6571296f6d8c804be82e |
+| run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 2c4ecd30e10560c373ac82a92c4a1f379dd8f76ef2081958d54728278a042e26 |
+| run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | bf354b0b70a729835480ff36c5489eee197b914319d26ed132b7886dc1bf2827 |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 3f3a97f4621f96877097d2b548b8876befa78c9cfc4f0e5eeabf9fe32169bc44 |  |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 264e0aeb487395ac899c1e6f6b274ee219e9377793b5a115479d545674ac6052 |  |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"264e0aeb487395ac899c1e6f6b274ee219e9377793b5a115479d545674ac6052"} |  |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[8].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 8e54648b704f96749c3a86f78dfea41e8fec2416ac2d40590978d00ab6bdcd6c |
+| run.json | tasks[8].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 0321e87f685ed22697fa9c7ef49507bf698f50e7c37fa0eb35fe03377c680f4e |
 | run.json | tasks[8].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 33a7747420c431acc7a3289909747f91c84798c255e8586a326e62487a0974d8 |  |
-| run.json | tasks[8].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 0483dc0528bfaeec1c199c33eb18635316fb427e3c379cff86bf856f992b1b16 |
-| run.json | tasks[8].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 9ae45c023d6d129aaca1bce3c150c7926146832d91a8e0deaa6f110a7ce0562f |
-| run.json | tasks[8].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 8e54648b704f96749c3a86f78dfea41e8fec2416ac2d40590978d00ab6bdcd6c |
+| run.json | tasks[8].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | d01d68e7a058b6e02b37611daffa92c9695322c3f1ab5d85a9b34233b0702bdc |
+| run.json | tasks[8].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | ab7feb632f1b55d3e2d4a7e4c036ee6b749b335b87e9ea3067e90e49d425ddaa |
+| run.json | tasks[8].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 0321e87f685ed22697fa9c7ef49507bf698f50e7c37fa0eb35fe03377c680f4e |
 | run.json | tasks[8].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 33a7747420c431acc7a3289909747f91c84798c255e8586a326e62487a0974d8 |  |
 | run.json | tasks[8].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 3c23dcc22291d29a8b0ab5fcf68b683e75d4c539a4c5d097d26027fa6ce88e03 |  |
 | run.json | tasks[8].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"3c23dcc22291d29a8b0ab5fcf68b683e75d4c539a4c5d097d26027fa6ce88e03"} |  |
 | run.json | tasks[8].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[9].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 7a13183d5315c64d0fef281ee0ba762338c63114add4787e00bcb60bb671a6fa |
+| run.json | tasks[9].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 56bcc171abab2b5bd8bfcb89dc6a9fe922181b68e2b2496c03408c8f54489a28 |
 | run.json | tasks[9].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | be351f61ac90cec2b0279e6876132c829d501c2f171b988344c7d33777d92b22 |  |
-| run.json | tasks[9].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 04bda1e38ff43c976f78c9df5aa3d9994afd2e605dd0f562b27b2ce2c45b4e51 |
-| run.json | tasks[9].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 71f8d9adfb2a66369b262b5d878408387611ebdf221be05abf673bb7f47d1acb |
-| run.json | tasks[9].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 7a13183d5315c64d0fef281ee0ba762338c63114add4787e00bcb60bb671a6fa |
+| run.json | tasks[9].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | fbcefffcf2e85d3362e4842f783d5426a66f9b842159efeb2ab69bb11651d47b |
+| run.json | tasks[9].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 419fb2363c08345f366c9911f0f77a085458c69dc1a35125955ca7b4b62057e5 |
+| run.json | tasks[9].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 56bcc171abab2b5bd8bfcb89dc6a9fe922181b68e2b2496c03408c8f54489a28 |
 | run.json | tasks[9].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | be351f61ac90cec2b0279e6876132c829d501c2f171b988344c7d33777d92b22 |  |
 | run.json | tasks[9].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | b24280678fc8095dd1ae2772b7a6e9a62a51b4e9fba0fd20b4ec695034bb50d8 |  |
 | run.json | tasks[9].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"b24280678fc8095dd1ae2772b7a6e9a62a51b4e9fba0fd20b4ec695034bb50d8"} |  |
 | run.json | tasks[9].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[10].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 0c476faa13081daf77d9f9c4f727341632068be15438f7321dc97d15ad45c61c |
+| run.json | tasks[10].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | a27471b451547628f8a7148b32834898ad03d0d0eb0c440dd84f91c16ea73838 |
 | run.json | tasks[10].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | d423d4b3af16599a0309cd603bbf90f50435efa08efe32542988a76326176818 |  |
-| run.json | tasks[10].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 083af58eb255b95c8fc398b8574e55db701b5a7c69745573e7e842b51a6b35a4 |
-| run.json | tasks[10].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 645b7550885ce70ac93cc925b637abf33b4a2f2b87f8087e68a7b009948cb70a |
-| run.json | tasks[10].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 0c476faa13081daf77d9f9c4f727341632068be15438f7321dc97d15ad45c61c |
+| run.json | tasks[10].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 05e5a8275a271096ff035b485c7c0879829cb7983ea66256ba82d993feabeea6 |
+| run.json | tasks[10].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | ad44656fe46aed1d37923b65a8b397f4f583fb813b6dee7cc77baf24a53441bf |
+| run.json | tasks[10].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | a27471b451547628f8a7148b32834898ad03d0d0eb0c440dd84f91c16ea73838 |
 | run.json | tasks[10].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | d423d4b3af16599a0309cd603bbf90f50435efa08efe32542988a76326176818 |  |
 | run.json | tasks[10].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | eec42b9856d4454b7bb2a13fa908080b678fa8c268fdaeb073eec5d658db7ce7 |  |
 | run.json | tasks[10].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"eec42b9856d4454b7bb2a13fa908080b678fa8c268fdaeb073eec5d658db7ce7"} |  |
 | run.json | tasks[10].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[11].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 75d32860c6c094722fc2e8216d331da705d2d2ce025a4c9c2e38e8a079057b59 |
+| run.json | tasks[11].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 27a6b307ba0dc90aa4dce7059e54237e96d4aff2429b0a378f12e6ccaee0cfcf |
 | run.json | tasks[11].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 79498bae3471c27cbfbfae2fc8f9b9df99e21fc644769e2a920ca339a4c03d2f |  |
-| run.json | tasks[11].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 6023c5475587f1ab5d1fe97b49a020e54e2af3a9300f38e05c76d7c475e349a6 |
-| run.json | tasks[11].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | d270abad592a0bf0bda68f55fa4db952d8cbf45b717c43bf9143c6b563698fdf |
-| run.json | tasks[11].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 75d32860c6c094722fc2e8216d331da705d2d2ce025a4c9c2e38e8a079057b59 |
+| run.json | tasks[11].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 298ea1e36d2fd1aa2b84317e94311e3ce9893f1b03c1ba03855f4e815b7f6f8b |
+| run.json | tasks[11].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 47cac202e84df701b210ed2ae2b1bc81ccb773eb471e3568a1dec002a66ceb9d |
+| run.json | tasks[11].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 27a6b307ba0dc90aa4dce7059e54237e96d4aff2429b0a378f12e6ccaee0cfcf |
 | run.json | tasks[11].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 79498bae3471c27cbfbfae2fc8f9b9df99e21fc644769e2a920ca339a4c03d2f |  |
 | run.json | tasks[11].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | df821b9e616f74acc8b380c5fa29313612eca06514c85b7e2561eea93544d249 |  |
 | run.json | tasks[11].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"df821b9e616f74acc8b380c5fa29313612eca06514c85b7e2561eea93544d249"} |  |
@@ -224,262 +224,190 @@ Tasks not completed:
 
 </details>
 
-<details><summary>explained executor-usage-contract (252)</summary>
+<details><summary>explained executor-usage-contract (180)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | tasks[0].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[0].usage.aggregate.reasoningTokens | removed | 1333 |  |
-| run.json | tasks[0].usage.aggregate.totalTokens | removed | 167663 |  |
-| run.json | tasks[0].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[0].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[0].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[0].usage.attempts[0].raw.cacheRead | removed | 126976 |  |
-| run.json | tasks[0].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[0].usage.attempts[0].raw.cached | added |  | 126976 |
 | run.json | tasks[0].usage.attempts[0].raw.cost | changed | {"cacheRead":0.012697600000000002,"cacheWrite":0,"input":0.07071000000000001,"output":0.053320000000000006,"total":0.1367276} | 0.1367276 |
 | run.json | tasks[0].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[0].usage.attempts[0].raw.reasoning | removed | 1333 |  |
 | run.json | tasks[0].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[0].usage.attempts[0].raw.total | added |  | 167663 |
 | run.json | tasks[0].usage.attempts[0].raw.totalTokens | removed | 167663 |  |
 | run.json | tasks[0].usage.attempts[0].reasoningTokens | removed | 1333 |  |
-| run.json | tasks[0].usage.attempts[0].totalTokens | removed | 167663 |  |
-| run.json | tasks[0].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[0].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[0].usage.provider | removed | openai-codex |  |
 | run.json | tasks[0].usage.reasoningTokens | removed | 1333 |  |
-| run.json | tasks[0].usage.totalTokens | removed | 167663 |  |
-| run.json | tasks[1].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[1].usage.aggregate.reasoningTokens | removed | 1401 |  |
-| run.json | tasks[1].usage.aggregate.totalTokens | removed | 1382393 |  |
-| run.json | tasks[1].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[1].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[1].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[1].usage.attempts[0].raw.cacheRead | removed | 1275008 |  |
-| run.json | tasks[1].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[1].usage.attempts[0].raw.cached | added |  | 1275008 |
 | run.json | tasks[1].usage.attempts[0].raw.cost | changed | {"cacheRead":0.12750080000000003,"cacheWrite":0,"input":0.20108999999999996,"output":0.0684,"total":0.3969908} | 0.3969908 |
 | run.json | tasks[1].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[1].usage.attempts[0].raw.reasoning | removed | 1401 |  |
 | run.json | tasks[1].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[1].usage.attempts[0].raw.total | added |  | 1382393 |
 | run.json | tasks[1].usage.attempts[0].raw.totalTokens | removed | 1382393 |  |
 | run.json | tasks[1].usage.attempts[0].reasoningTokens | removed | 1401 |  |
-| run.json | tasks[1].usage.attempts[0].totalTokens | removed | 1382393 |  |
-| run.json | tasks[1].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[1].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[1].usage.provider | removed | openai-codex |  |
 | run.json | tasks[1].usage.reasoningTokens | removed | 1401 |  |
-| run.json | tasks[1].usage.totalTokens | removed | 1382393 |  |
-| run.json | tasks[2].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[2].usage.aggregate.reasoningTokens | removed | 2060 |  |
-| run.json | tasks[2].usage.aggregate.totalTokens | removed | 312350 |  |
-| run.json | tasks[2].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[2].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[2].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[2].usage.attempts[0].raw.cacheRead | removed | 248192 |  |
-| run.json | tasks[2].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[2].usage.attempts[0].raw.cached | added |  | 248192 |
 | run.json | tasks[2].usage.attempts[0].raw.cost | changed | {"cacheRead":0.024819200000000003,"cacheWrite":0,"input":0.112618,"output":0.07849,"total":0.21592719999999999} | 0.2159272 |
 | run.json | tasks[2].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[2].usage.attempts[0].raw.reasoning | removed | 2060 |  |
 | run.json | tasks[2].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[2].usage.attempts[0].raw.total | added |  | 312350 |
 | run.json | tasks[2].usage.attempts[0].raw.totalTokens | removed | 312350 |  |
 | run.json | tasks[2].usage.attempts[0].reasoningTokens | removed | 2060 |  |
-| run.json | tasks[2].usage.attempts[0].totalTokens | removed | 312350 |  |
-| run.json | tasks[2].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[2].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[2].usage.provider | removed | openai-codex |  |
 | run.json | tasks[2].usage.reasoningTokens | removed | 2060 |  |
-| run.json | tasks[2].usage.totalTokens | removed | 312350 |  |
-| run.json | tasks[3].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[3].usage.aggregate.reasoningTokens | removed | 2941 |  |
-| run.json | tasks[3].usage.aggregate.totalTokens | removed | 517474 |  |
-| run.json | tasks[3].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[3].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[3].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[3].usage.attempts[0].raw.cacheRead | removed | 469504 |  |
-| run.json | tasks[3].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[3].usage.attempts[0].raw.cached | added |  | 469504 |
 | run.json | tasks[3].usage.attempts[0].raw.cost | changed | {"cacheRead":0.046950399999999996,"cacheWrite":0,"input":0.08619799999999997,"output":0.04871,"total":0.1818584} | 0.1818584 |
 | run.json | tasks[3].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[3].usage.attempts[0].raw.reasoning | removed | 2941 |  |
 | run.json | tasks[3].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[3].usage.attempts[0].raw.total | added |  | 517474 |
 | run.json | tasks[3].usage.attempts[0].raw.totalTokens | removed | 517474 |  |
 | run.json | tasks[3].usage.attempts[0].reasoningTokens | removed | 2941 |  |
-| run.json | tasks[3].usage.attempts[0].totalTokens | removed | 517474 |  |
-| run.json | tasks[3].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[3].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[3].usage.provider | removed | openai-codex |  |
 | run.json | tasks[3].usage.reasoningTokens | removed | 2941 |  |
-| run.json | tasks[3].usage.totalTokens | removed | 517474 |  |
-| run.json | tasks[4].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[4].usage.aggregate.reasoningTokens | removed | 3113 |  |
-| run.json | tasks[4].usage.aggregate.totalTokens | removed | 608215 |  |
-| run.json | tasks[4].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[4].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[4].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[4].usage.attempts[0].raw.cacheRead | removed | 532608 |  |
-| run.json | tasks[4].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[4].usage.attempts[0].raw.cached | added |  | 532608 |
 | run.json | tasks[4].usage.attempts[0].raw.cost | changed | {"cacheRead":0.053260800000000004,"cacheWrite":0,"input":0.139156,"output":0.06029,"total":0.2527068} | 0.2527068 |
 | run.json | tasks[4].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[4].usage.attempts[0].raw.reasoning | removed | 3113 |  |
 | run.json | tasks[4].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[4].usage.attempts[0].raw.total | added |  | 608215 |
 | run.json | tasks[4].usage.attempts[0].raw.totalTokens | removed | 608215 |  |
 | run.json | tasks[4].usage.attempts[0].reasoningTokens | removed | 3113 |  |
-| run.json | tasks[4].usage.attempts[0].totalTokens | removed | 608215 |  |
-| run.json | tasks[4].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[4].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[4].usage.provider | removed | openai-codex |  |
 | run.json | tasks[4].usage.reasoningTokens | removed | 3113 |  |
-| run.json | tasks[4].usage.totalTokens | removed | 608215 |  |
-| run.json | tasks[5].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[5].usage.aggregate.reasoningTokens | removed | 2662 |  |
-| run.json | tasks[5].usage.aggregate.totalTokens | removed | 155086 |  |
-| run.json | tasks[5].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[5].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[5].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[5].usage.attempts[0].raw.cacheRead | removed | 116096 |  |
-| run.json | tasks[5].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[5].usage.attempts[0].raw.cached | added |  | 116096 |
 | run.json | tasks[5].usage.attempts[0].raw.cost | changed | {"cacheRead":0.011609600000000001,"cacheWrite":0,"input":0.066468,"output":0.05756000000000001,"total":0.1356376} | 0.1356376 |
 | run.json | tasks[5].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[5].usage.attempts[0].raw.reasoning | removed | 2662 |  |
 | run.json | tasks[5].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[5].usage.attempts[0].raw.total | added |  | 155086 |
 | run.json | tasks[5].usage.attempts[0].raw.totalTokens | removed | 155086 |  |
 | run.json | tasks[5].usage.attempts[0].reasoningTokens | removed | 2662 |  |
-| run.json | tasks[5].usage.attempts[0].totalTokens | removed | 155086 |  |
-| run.json | tasks[5].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[5].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[5].usage.provider | removed | openai-codex |  |
 | run.json | tasks[5].usage.reasoningTokens | removed | 2662 |  |
-| run.json | tasks[5].usage.totalTokens | removed | 155086 |  |
-| run.json | tasks[6].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[6].usage.aggregate.reasoningTokens | removed | 1756 |  |
-| run.json | tasks[6].usage.aggregate.totalTokens | removed | 1100278 |  |
-| run.json | tasks[6].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[6].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[6].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[6].usage.attempts[0].raw.cacheRead | removed | 1036800 |  |
-| run.json | tasks[6].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[6].usage.attempts[0].raw.cached | added |  | 1036800 |
 | run.json | tasks[6].usage.attempts[0].raw.cost | changed | {"cacheRead":0.10368000000000002,"cacheWrite":0,"input":0.11690799999999998,"output":0.05024000000000001,"total":0.27082800000000007} | 0.270828 |
 | run.json | tasks[6].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[6].usage.attempts[0].raw.reasoning | removed | 1756 |  |
 | run.json | tasks[6].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[6].usage.attempts[0].raw.total | added |  | 1100278 |
 | run.json | tasks[6].usage.attempts[0].raw.totalTokens | removed | 1100278 |  |
 | run.json | tasks[6].usage.attempts[0].reasoningTokens | removed | 1756 |  |
-| run.json | tasks[6].usage.attempts[0].totalTokens | removed | 1100278 |  |
-| run.json | tasks[6].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[6].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[6].usage.provider | removed | openai-codex |  |
 | run.json | tasks[6].usage.reasoningTokens | removed | 1756 |  |
-| run.json | tasks[6].usage.totalTokens | removed | 1100278 |  |
-| run.json | tasks[7].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[7].usage.aggregate.reasoningTokens | removed | 3536 |  |
-| run.json | tasks[7].usage.aggregate.totalTokens | removed | 240526 |  |
-| run.json | tasks[7].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[7].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[7].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[7].usage.attempts[0].raw.cacheRead | removed | 191744 |  |
-| run.json | tasks[7].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[7].usage.attempts[0].raw.cached | added |  | 191744 |
 | run.json | tasks[7].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0191744,"cacheWrite":0,"input":0.08406,"output":0.06752,"total":0.1707544} | 0.1707544 |
 | run.json | tasks[7].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[7].usage.attempts[0].raw.reasoning | removed | 3536 |  |
 | run.json | tasks[7].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[7].usage.attempts[0].raw.total | added |  | 240526 |
 | run.json | tasks[7].usage.attempts[0].raw.totalTokens | removed | 240526 |  |
 | run.json | tasks[7].usage.attempts[0].reasoningTokens | removed | 3536 |  |
-| run.json | tasks[7].usage.attempts[0].totalTokens | removed | 240526 |  |
-| run.json | tasks[7].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[7].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[7].usage.provider | removed | openai-codex |  |
 | run.json | tasks[7].usage.reasoningTokens | removed | 3536 |  |
-| run.json | tasks[7].usage.totalTokens | removed | 240526 |  |
-| run.json | tasks[8].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[8].usage.aggregate.reasoningTokens | removed | 2759 |  |
-| run.json | tasks[8].usage.aggregate.totalTokens | removed | 378965 |  |
-| run.json | tasks[8].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[8].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[8].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[8].usage.attempts[0].raw.cacheRead | removed | 329216 |  |
-| run.json | tasks[8].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[8].usage.attempts[0].raw.cached | added |  | 329216 |
 | run.json | tasks[8].usage.attempts[0].raw.cost | changed | {"cacheRead":0.032921599999999995,"cacheWrite":0,"input":0.09013999999999998,"output":0.046790000000000005,"total":0.16985160000000002} | 0.1698516 |
 | run.json | tasks[8].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[8].usage.attempts[0].raw.reasoning | removed | 2759 |  |
 | run.json | tasks[8].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[8].usage.attempts[0].raw.total | added |  | 378965 |
 | run.json | tasks[8].usage.attempts[0].raw.totalTokens | removed | 378965 |  |
 | run.json | tasks[8].usage.attempts[0].reasoningTokens | removed | 2759 |  |
-| run.json | tasks[8].usage.attempts[0].totalTokens | removed | 378965 |  |
-| run.json | tasks[8].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[8].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[8].usage.provider | removed | openai-codex |  |
 | run.json | tasks[8].usage.reasoningTokens | removed | 2759 |  |
-| run.json | tasks[8].usage.totalTokens | removed | 378965 |  |
-| run.json | tasks[9].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[9].usage.aggregate.reasoningTokens | removed | 1345 |  |
-| run.json | tasks[9].usage.aggregate.totalTokens | removed | 255397 |  |
-| run.json | tasks[9].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[9].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[9].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[9].usage.attempts[0].raw.cacheRead | removed | 223360 |  |
-| run.json | tasks[9].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[9].usage.attempts[0].raw.cached | added |  | 223360 |
 | run.json | tasks[9].usage.attempts[0].raw.cost | changed | {"cacheRead":0.022336000000000005,"cacheWrite":0,"input":0.057553999999999994,"output":0.032600000000000004,"total":0.11248999999999999} | 0.11249 |
 | run.json | tasks[9].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[9].usage.attempts[0].raw.reasoning | removed | 1345 |  |
 | run.json | tasks[9].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[9].usage.attempts[0].raw.total | added |  | 255397 |
 | run.json | tasks[9].usage.attempts[0].raw.totalTokens | removed | 255397 |  |
 | run.json | tasks[9].usage.attempts[0].reasoningTokens | removed | 1345 |  |
-| run.json | tasks[9].usage.attempts[0].totalTokens | removed | 255397 |  |
-| run.json | tasks[9].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[9].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[9].usage.provider | removed | openai-codex |  |
 | run.json | tasks[9].usage.reasoningTokens | removed | 1345 |  |
-| run.json | tasks[9].usage.totalTokens | removed | 255397 |  |
-| run.json | tasks[10].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[10].usage.aggregate.reasoningTokens | removed | 1903 |  |
-| run.json | tasks[10].usage.aggregate.totalTokens | removed | 268771 |  |
-| run.json | tasks[10].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[10].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[10].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[10].usage.attempts[0].raw.cacheRead | removed | 221056 |  |
-| run.json | tasks[10].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[10].usage.attempts[0].raw.cached | added |  | 221056 |
 | run.json | tasks[10].usage.attempts[0].raw.cost | changed | {"cacheRead":0.022105600000000006,"cacheWrite":0,"input":0.08665800000000001,"output":0.04386,"total":0.1526236} | 0.1526236 |
 | run.json | tasks[10].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[10].usage.attempts[0].raw.reasoning | removed | 1903 |  |
 | run.json | tasks[10].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[10].usage.attempts[0].raw.total | added |  | 268771 |
 | run.json | tasks[10].usage.attempts[0].raw.totalTokens | removed | 268771 |  |
 | run.json | tasks[10].usage.attempts[0].reasoningTokens | removed | 1903 |  |
-| run.json | tasks[10].usage.attempts[0].totalTokens | removed | 268771 |  |
-| run.json | tasks[10].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[10].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[10].usage.provider | removed | openai-codex |  |
 | run.json | tasks[10].usage.reasoningTokens | removed | 1903 |  |
-| run.json | tasks[10].usage.totalTokens | removed | 268771 |  |
-| run.json | tasks[11].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[11].usage.aggregate.reasoningTokens | removed | 1768 |  |
-| run.json | tasks[11].usage.aggregate.totalTokens | removed | 233721 |  |
-| run.json | tasks[11].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[11].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[11].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[11].usage.attempts[0].raw.cacheRead | removed | 186624 |  |
-| run.json | tasks[11].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[11].usage.attempts[0].raw.cached | added |  | 186624 |
 | run.json | tasks[11].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0186624,"cacheWrite":0,"input":0.08641800000000001,"output":0.03888,"total":0.1439604} | 0.1439604 |
 | run.json | tasks[11].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[11].usage.attempts[0].raw.reasoning | removed | 1768 |  |
 | run.json | tasks[11].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[11].usage.attempts[0].raw.total | added |  | 233721 |
 | run.json | tasks[11].usage.attempts[0].raw.totalTokens | removed | 233721 |  |
 | run.json | tasks[11].usage.attempts[0].reasoningTokens | removed | 1768 |  |
-| run.json | tasks[11].usage.attempts[0].totalTokens | removed | 233721 |  |
-| run.json | tasks[11].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[11].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[11].usage.provider | removed | openai-codex |  |
 | run.json | tasks[11].usage.reasoningTokens | removed | 1768 |  |
-| run.json | tasks[11].usage.totalTokens | removed | 233721 |  |
 
 </details>
 
@@ -504,7 +432,7 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/impact-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-impact-review-original-13734/work/replay-trace.jsonl"},"contr… (367 chars, sha256 e26969a91bc2) |
+| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/impact-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-impact-review-original-78651/work/replay-trace.jsonl"},"contr… (367 chars, sha256 ab2afedc247f) |
 
 </details>
 
@@ -517,14 +445,12 @@ Tasks not completed:
 
 </details>
 
-<details><summary>explained run-usage-unknown-not-zero (4)</summary>
+<details><summary>explained run-usage-unknown-not-zero (2)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | usage.cachedInputTokens | removed | 0 |  |
 | run.json | usage.reasoningTokens | removed | 26577 |  |
-| run.json | usage.totalTokens | removed | 5620839 |  |
 
 </details>
 

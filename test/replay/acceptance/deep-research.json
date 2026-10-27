@@ -29,21 +29,21 @@
 					"specId": "research-questions.rq-001",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvqggv3e_c46dbc/attempt_mvqggv3e_b91bc9 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvqgrlqo_d86262/attempt_mvqgrlqo_81fb1f ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-12",
 					"specId": "research-questions.rq-002",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvqggvcw_298a73/attempt_mvqggvcw_928f3f ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvqgrm1l_e70276/attempt_mvqgrm1l_b9f08a ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-13",
 					"specId": "research-questions.rq-003",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvqggvma_6bdf66/attempt_mvqggvma_900d6d ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvqgrmc0_d1ac4b/attempt_mvqgrmc0_7ba085 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-3",
@@ -56,7 +56,7 @@
 					"specId": "normalize-claims.main",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvqggvvt_0d6b84/attempt_mvqggvvt_f34aa1 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvqgrmpx_c29672/attempt_mvqgrmpx_c771c0 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-5",
@@ -87,7 +87,7 @@
 					"specId": "final-audit.main",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvqggw5u_f6a2f8/attempt_mvqggw5u_4d2df6 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
+					"lastMessage": "provisional worker run_mvqgrn36_3a0f01/attempt_mvqgrn36_479fca ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read"
 				},
 				{
 					"taskId": "task-10",
@@ -198,8 +198,8 @@
 				"Worker-filled web-source cache (worker-snapshots/<run>/web-source-cache): written by the removed workflow_web_* tools (C2); not restored."
 			],
 			"counts": {
-				"allowed": 175,
-				"explained": 2207,
+				"allowed": 174,
+				"explained": 2209,
 				"unexplained": 0
 			},
 			"differences": [
@@ -286,7 +286,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-11/.launch-barrier-18e9e98fdd243bd5-<RAND16>/decision-v2.json",
+					"file": "tasks/task-11/.launch-barrier-6746db950f4462a4-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -294,7 +294,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-11/.launch-barrier-18e9e98fdd243bd5-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-11/.launch-barrier-6746db950f4462a4-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -326,7 +326,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-12/.launch-barrier-f8972daab9b00cd2-<RAND16>/decision-v2.json",
+					"file": "tasks/task-12/.launch-barrier-9d0b96bcca7f737e-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -334,7 +334,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-12/.launch-barrier-f8972daab9b00cd2-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-12/.launch-barrier-9d0b96bcca7f737e-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -366,7 +366,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-13/.launch-barrier-759df9ad59f54a6e-<RAND16>/decision-v2.json",
+					"file": "tasks/task-13/.launch-barrier-611165dff4108fc1-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -374,7 +374,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-13/.launch-barrier-759df9ad59f54a6e-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-13/.launch-barrier-611165dff4108fc1-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -422,7 +422,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-4/.launch-barrier-38024fc26b83fe47-<RAND16>/decision-v2.json",
+					"file": "tasks/task-4/.launch-barrier-6f4046d45279c521-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -430,7 +430,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-4/.launch-barrier-38024fc26b83fe47-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-4/.launch-barrier-6f4046d45279c521-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -510,7 +510,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-9/.launch-barrier-0d84ae31a650c1f0-<RAND16>/decision-v2.json",
+					"file": "tasks/task-9/.launch-barrier-bac1e63ec0b41ab4-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -518,7 +518,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-9/.launch-barrier-0d84ae31a650c1f0-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-9/.launch-barrier-bac1e63ec0b41ab4-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -806,14 +806,6 @@
 					"rule": "supervisor-progress-snapshot",
 					"file": "supervisor.json",
 					"path": "taskStatusCounts.pending",
-					"kind": "digest-renamed",
-					"count": 1
-				},
-				{
-					"class": "allowed",
-					"rule": "supervisor-progress-snapshot",
-					"file": "supervisor.json",
-					"path": "taskStatusCounts.running",
 					"kind": "digest-renamed",
 					"count": 1
 				},
@@ -1700,7 +1692,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-original-11460/work/replay-trace.jsonl\"… (375 chars, sha256 d953b32381b4)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-original-75931/work/replay-trace.jsonl\"… (375 chars, sha256 a755f1f12d24)"
 				},
 				{
 					"class": "explained",
@@ -1709,7 +1701,7 @@
 					"file": "run.json",
 					"kind": "removed",
 					"summarized": true,
-					"count": 196,
+					"count": 195,
 					"exactMatch": []
 				},
 				{
@@ -1719,8 +1711,8 @@
 					"file": "run.json",
 					"kind": "changed",
 					"summarized": true,
-					"count": 159,
-					"exactMatch": ["run-status", "task-status-order"]
+					"count": 166,
+					"exactMatch": ["run-status", "task-status-order", "run-usage-totals"]
 				},
 				{
 					"class": "explained",
@@ -1846,16 +1838,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[0].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-1",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
 					"rule": "runtime-cost-rounding",
 					"citation": "docs/core-port.md WP1b change log 3",
 					"file": "run.json",
@@ -1874,26 +1856,6 @@
 					"path": "tasks[0].usage.aggregate.reasoningTokens",
 					"taskId": "task-1",
 					"recorded": "190"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[0].usage.aggregate.totalTokens",
-					"taskId": "task-1",
-					"recorded": "5316"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[0].usage.attempts[0].cacheCreationInputTokens",
-					"taskId": "task-1",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -1933,16 +1895,6 @@
 					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[0].usage.attempts[0].raw.cacheRead",
-					"taskId": "task-1",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[0].usage.attempts[0].raw.cacheWrite",
 					"taskId": "task-1",
 					"recorded": "0"
 				},
@@ -2002,6 +1954,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[0].usage.attempts[0].raw.total",
+					"taskId": "task-1",
+					"replayed": "5316"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[0].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-1",
@@ -2016,26 +1978,6 @@
 					"path": "tasks[0].usage.attempts[0].reasoningTokens",
 					"taskId": "task-1",
 					"recorded": "190"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[0].usage.attempts[0].totalTokens",
-					"taskId": "task-1",
-					"recorded": "5316"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[0].usage.cacheCreationInputTokens",
-					"taskId": "task-1",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -2087,16 +2029,6 @@
 					"taskId": "task-1",
 					"recorded": "pi-subagent",
 					"replayed": "executor"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[0].usage.totalTokens",
-					"taskId": "task-1",
-					"recorded": "5316"
 				},
 				{
 					"class": "explained",
@@ -2477,6 +2409,24 @@
 					"path": "tasks[11].launchBootstrap.records[0].effectiveLaunch.noExtensions",
 					"taskId": "task-16",
 					"recorded": "true"
+				},
+				{
+					"class": "explained",
+					"rule": "run-usage-unknown-not-zero",
+					"citation": "docs/core-port.md WP12a change log 2",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "usage.cachedInputTokens",
+					"recorded": "0"
+				},
+				{
+					"class": "explained",
+					"rule": "run-usage-unknown-not-zero",
+					"citation": "docs/core-port.md WP12a change log 2",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "usage.reasoningTokens",
+					"recorded": "814"
 				},
 				{
 					"class": "explained",
@@ -5427,7 +5377,7 @@
 				}
 			],
 			"exactMatchViolations": [],
-			"exactMatchDivergences": 1265
+			"exactMatchDivergences": 1271
 		},
 		{
 			"fixture": "deep-research",
@@ -5599,7 +5549,7 @@
 			],
 			"counts": {
 				"allowed": 578,
-				"explained": 508,
+				"explained": 422,
 				"unexplained": 0
 			},
 			"differences": [
@@ -5906,7 +5856,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "d675d7c5f0ad9cae409776fb7c97439ffb8fd288bde0a6a478350e0671f3f0a0",
-					"replayed": "85a0e078d98e485013405ec9e086b147a71393f6c06cca5b355dee809c8d670c",
+					"replayed": "3f5f47a92326b4135ab4988335bf14846c788f1a98d00617ffa88bd637726f43",
 					"count": 0
 				},
 				{
@@ -5966,7 +5916,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "f32560de6fc74ed1d1e79d9740fc557f9d31407f68bac9b8ea4e319ddd67372c",
-					"replayed": "a5ecdc17a0a6df57ef7e51bf7e07cb1b1c4eda38e8786856c3accef1f09e23fc",
+					"replayed": "2378f6a270d09eaf7a06021ff499d719bb6cde70d4835c2adde7ba7d3a869cd5",
 					"count": 0
 				},
 				{
@@ -6016,7 +5966,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "5a500e80efc6560f6a32af4a6a330a05eea49c2134df67fde7800f35b2e36488",
-					"replayed": "80aba189b65148af4443a96a872c73a208b650f9db0771aa188664c1f4c1ee42",
+					"replayed": "5a85ab00510b235c882e46345b1642e71025a8166ebb90590f20e880d3cd77fd",
 					"count": 0
 				},
 				{
@@ -10108,7 +10058,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"adapterChecks\":false,\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-engine-only-11886… (400 chars, sha256 f60ce2f17979)"
+					"replayed": "{\"descriptor\":{\"config\":{\"adapterChecks\":false,\"fixtureDir\":\"<PKG>/test/replay/fixtures/deep-research\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-deep-research-engine-only-76334… (400 chars, sha256 d558df16c202)"
 				},
 				{
 					"class": "allowed",
@@ -10135,34 +10085,7 @@
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
 					"kind": "removed",
-					"path": "foreachBatches[0].physicalExecution.usage.aggregate.cacheCreationInputTokens",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
 					"path": "foreachBatches[0].physicalExecution.usage.aggregate.reasoningTokens",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "foreachBatches[0].physicalExecution.usage.aggregate.totalTokens",
-					"recorded": "25949"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "foreachBatches[0].physicalExecution.usage.attempts[0].cacheCreationInputTokens",
 					"recorded": "0"
 				},
 				{
@@ -10191,15 +10114,6 @@
 					"kind": "removed",
 					"path": "foreachBatches[0].physicalExecution.usage.attempts[0].raw.cacheRead",
 					"recorded": "7680"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "foreachBatches[0].physicalExecution.usage.attempts[0].raw.cacheWrite",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -10252,6 +10166,15 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "foreachBatches[0].physicalExecution.usage.attempts[0].raw.total",
+					"replayed": "25949"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "foreachBatches[0].physicalExecution.usage.attempts[0].raw.totalTokens",
 					"recorded": "25949"
@@ -10263,24 +10186,6 @@
 					"file": "run.json",
 					"kind": "removed",
 					"path": "foreachBatches[0].physicalExecution.usage.attempts[0].reasoningTokens",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "foreachBatches[0].physicalExecution.usage.attempts[0].totalTokens",
-					"recorded": "25949"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "foreachBatches[0].physicalExecution.usage.cacheCreationInputTokens",
 					"recorded": "0"
 				},
 				{
@@ -10321,15 +10226,6 @@
 					"replayed": "executor"
 				},
 				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "foreachBatches[0].physicalExecution.usage.totalTokens",
-					"recorded": "25949"
-				},
-				{
 					"class": "allowed",
 					"rule": "executor-record-source",
 					"file": "run.json",
@@ -10354,34 +10250,7 @@
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
 					"kind": "removed",
-					"path": "foreachBatches[1].physicalExecution.usage.aggregate.cacheCreationInputTokens",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
 					"path": "foreachBatches[1].physicalExecution.usage.aggregate.reasoningTokens",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "foreachBatches[1].physicalExecution.usage.aggregate.totalTokens",
-					"recorded": "45676"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "foreachBatches[1].physicalExecution.usage.attempts[0].cacheCreationInputTokens",
 					"recorded": "0"
 				},
 				{
@@ -10410,15 +10279,6 @@
 					"kind": "removed",
 					"path": "foreachBatches[1].physicalExecution.usage.attempts[0].raw.cacheRead",
 					"recorded": "34816"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "foreachBatches[1].physicalExecution.usage.attempts[0].raw.cacheWrite",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -10471,6 +10331,15 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "foreachBatches[1].physicalExecution.usage.attempts[0].raw.total",
+					"replayed": "45676"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "foreachBatches[1].physicalExecution.usage.attempts[0].raw.totalTokens",
 					"recorded": "45676"
@@ -10482,24 +10351,6 @@
 					"file": "run.json",
 					"kind": "removed",
 					"path": "foreachBatches[1].physicalExecution.usage.attempts[0].reasoningTokens",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "foreachBatches[1].physicalExecution.usage.attempts[0].totalTokens",
-					"recorded": "45676"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "foreachBatches[1].physicalExecution.usage.cacheCreationInputTokens",
 					"recorded": "0"
 				},
 				{
@@ -10540,15 +10391,6 @@
 					"replayed": "executor"
 				},
 				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "foreachBatches[1].physicalExecution.usage.totalTokens",
-					"recorded": "45676"
-				},
-				{
 					"class": "allowed",
 					"rule": "executor-record-source",
 					"file": "run.json",
@@ -10569,15 +10411,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "foreachBatches[2].physicalExecution.usage.aggregate.cacheCreationInputTokens",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
 					"rule": "runtime-cost-rounding",
 					"citation": "docs/core-port.md WP1b change log 3",
 					"file": "run.json",
@@ -10593,24 +10426,6 @@
 					"file": "run.json",
 					"kind": "removed",
 					"path": "foreachBatches[2].physicalExecution.usage.aggregate.reasoningTokens",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "foreachBatches[2].physicalExecution.usage.aggregate.totalTokens",
-					"recorded": "27385"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "foreachBatches[2].physicalExecution.usage.attempts[0].cacheCreationInputTokens",
 					"recorded": "0"
 				},
 				{
@@ -10649,15 +10464,6 @@
 					"kind": "removed",
 					"path": "foreachBatches[2].physicalExecution.usage.attempts[0].raw.cacheRead",
 					"recorded": "8320"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "foreachBatches[2].physicalExecution.usage.attempts[0].raw.cacheWrite",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -10710,6 +10516,15 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "foreachBatches[2].physicalExecution.usage.attempts[0].raw.total",
+					"replayed": "27385"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "foreachBatches[2].physicalExecution.usage.attempts[0].raw.totalTokens",
 					"recorded": "27385"
@@ -10721,24 +10536,6 @@
 					"file": "run.json",
 					"kind": "removed",
 					"path": "foreachBatches[2].physicalExecution.usage.attempts[0].reasoningTokens",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "foreachBatches[2].physicalExecution.usage.attempts[0].totalTokens",
-					"recorded": "27385"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "foreachBatches[2].physicalExecution.usage.cacheCreationInputTokens",
 					"recorded": "0"
 				},
 				{
@@ -10787,15 +10584,6 @@
 					"path": "foreachBatches[2].physicalExecution.usage.source",
 					"recorded": "pi-subagent",
 					"replayed": "executor"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "foreachBatches[2].physicalExecution.usage.totalTokens",
-					"recorded": "27385"
 				},
 				{
 					"class": "explained",
@@ -10930,16 +10718,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[0].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-1",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
 					"rule": "runtime-cost-rounding",
 					"citation": "docs/core-port.md WP1b change log 3",
 					"file": "run.json",
@@ -10958,26 +10736,6 @@
 					"path": "tasks[0].usage.aggregate.reasoningTokens",
 					"taskId": "task-1",
 					"recorded": "190"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[0].usage.aggregate.totalTokens",
-					"taskId": "task-1",
-					"recorded": "5316"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[0].usage.attempts[0].cacheCreationInputTokens",
-					"taskId": "task-1",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -11017,16 +10775,6 @@
 					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[0].usage.attempts[0].raw.cacheRead",
-					"taskId": "task-1",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[0].usage.attempts[0].raw.cacheWrite",
 					"taskId": "task-1",
 					"recorded": "0"
 				},
@@ -11086,6 +10834,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[0].usage.attempts[0].raw.total",
+					"taskId": "task-1",
+					"replayed": "5316"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[0].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-1",
@@ -11100,26 +10858,6 @@
 					"path": "tasks[0].usage.attempts[0].reasoningTokens",
 					"taskId": "task-1",
 					"recorded": "190"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[0].usage.attempts[0].totalTokens",
-					"taskId": "task-1",
-					"recorded": "5316"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[0].usage.cacheCreationInputTokens",
-					"taskId": "task-1",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -11171,16 +10909,6 @@
 					"taskId": "task-1",
 					"recorded": "pi-subagent",
 					"replayed": "executor"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[0].usage.totalTokens",
-					"taskId": "task-1",
-					"recorded": "5316"
 				},
 				{
 					"class": "explained",
@@ -11310,37 +11038,7 @@
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
 					"kind": "removed",
-					"path": "tasks[2].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-11",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
 					"path": "tasks[2].usage.aggregate.reasoningTokens",
-					"taskId": "task-11",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[2].usage.aggregate.totalTokens",
-					"taskId": "task-11",
-					"recorded": "66919"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[2].usage.attempts[0].cacheCreationInputTokens",
 					"taskId": "task-11",
 					"recorded": "0"
 				},
@@ -11373,16 +11071,6 @@
 					"path": "tasks[2].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-11",
 					"recorded": "44160"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[2].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-11",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -11440,6 +11128,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[2].usage.attempts[0].raw.total",
+					"taskId": "task-11",
+					"replayed": "66919"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[2].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-11",
@@ -11452,26 +11150,6 @@
 					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[2].usage.attempts[0].reasoningTokens",
-					"taskId": "task-11",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[2].usage.attempts[0].totalTokens",
-					"taskId": "task-11",
-					"recorded": "66919"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[2].usage.cacheCreationInputTokens",
 					"taskId": "task-11",
 					"recorded": "0"
 				},
@@ -11514,16 +11192,6 @@
 					"taskId": "task-11",
 					"recorded": "pi-subagent",
 					"replayed": "executor"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[2].usage.totalTokens",
-					"taskId": "task-11",
-					"recorded": "66919"
 				},
 				{
 					"class": "explained",
@@ -11649,16 +11317,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[3].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-12",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
 					"rule": "runtime-cost-rounding",
 					"citation": "docs/core-port.md WP1b change log 3",
 					"file": "run.json",
@@ -11677,26 +11335,6 @@
 					"path": "tasks[3].usage.aggregate.reasoningTokens",
 					"taskId": "task-12",
 					"recorded": "32"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[3].usage.aggregate.totalTokens",
-					"taskId": "task-12",
-					"recorded": "50176"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[3].usage.attempts[0].cacheCreationInputTokens",
-					"taskId": "task-12",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -11738,16 +11376,6 @@
 					"path": "tasks[3].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-12",
 					"recorded": "30976"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[3].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-12",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -11805,6 +11433,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[3].usage.attempts[0].raw.total",
+					"taskId": "task-12",
+					"replayed": "50176"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[3].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-12",
@@ -11819,26 +11457,6 @@
 					"path": "tasks[3].usage.attempts[0].reasoningTokens",
 					"taskId": "task-12",
 					"recorded": "32"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[3].usage.attempts[0].totalTokens",
-					"taskId": "task-12",
-					"recorded": "50176"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[3].usage.cacheCreationInputTokens",
-					"taskId": "task-12",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -11890,16 +11508,6 @@
 					"taskId": "task-12",
 					"recorded": "pi-subagent",
 					"replayed": "executor"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[3].usage.totalTokens",
-					"taskId": "task-12",
-					"recorded": "50176"
 				},
 				{
 					"class": "explained",
@@ -12025,16 +11633,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[4].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-13",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
 					"rule": "runtime-cost-rounding",
 					"citation": "docs/core-port.md WP1b change log 3",
 					"file": "run.json",
@@ -12053,26 +11651,6 @@
 					"path": "tasks[4].usage.aggregate.reasoningTokens",
 					"taskId": "task-13",
 					"recorded": "9"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[4].usage.aggregate.totalTokens",
-					"taskId": "task-13",
-					"recorded": "78794"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[4].usage.attempts[0].cacheCreationInputTokens",
-					"taskId": "task-13",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -12114,16 +11692,6 @@
 					"path": "tasks[4].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-13",
 					"recorded": "64000"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[4].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-13",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -12181,6 +11749,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[4].usage.attempts[0].raw.total",
+					"taskId": "task-13",
+					"replayed": "78794"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[4].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-13",
@@ -12195,26 +11773,6 @@
 					"path": "tasks[4].usage.attempts[0].reasoningTokens",
 					"taskId": "task-13",
 					"recorded": "9"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[4].usage.attempts[0].totalTokens",
-					"taskId": "task-13",
-					"recorded": "78794"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[4].usage.cacheCreationInputTokens",
-					"taskId": "task-13",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -12266,16 +11824,6 @@
 					"taskId": "task-13",
 					"recorded": "pi-subagent",
 					"replayed": "executor"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[4].usage.totalTokens",
-					"taskId": "task-13",
-					"recorded": "78794"
 				},
 				{
 					"class": "explained",
@@ -12401,16 +11949,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[6].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-4",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
 					"rule": "runtime-cost-rounding",
 					"citation": "docs/core-port.md WP1b change log 3",
 					"file": "run.json",
@@ -12429,26 +11967,6 @@
 					"path": "tasks[6].usage.aggregate.reasoningTokens",
 					"taskId": "task-4",
 					"recorded": "161"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[6].usage.aggregate.totalTokens",
-					"taskId": "task-4",
-					"recorded": "61836"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[6].usage.attempts[0].cacheCreationInputTokens",
-					"taskId": "task-4",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -12490,16 +12008,6 @@
 					"path": "tasks[6].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-4",
 					"recorded": "43264"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[6].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-4",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -12557,6 +12065,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[6].usage.attempts[0].raw.total",
+					"taskId": "task-4",
+					"replayed": "61836"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[6].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-4",
@@ -12571,26 +12089,6 @@
 					"path": "tasks[6].usage.attempts[0].reasoningTokens",
 					"taskId": "task-4",
 					"recorded": "161"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[6].usage.attempts[0].totalTokens",
-					"taskId": "task-4",
-					"recorded": "61836"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[6].usage.cacheCreationInputTokens",
-					"taskId": "task-4",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -12642,16 +12140,6 @@
 					"taskId": "task-4",
 					"recorded": "pi-subagent",
 					"replayed": "executor"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[6].usage.totalTokens",
-					"taskId": "task-4",
-					"recorded": "61836"
 				},
 				{
 					"class": "explained",
@@ -12711,37 +12199,7 @@
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
 					"kind": "removed",
-					"path": "tasks[9].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-14",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
 					"path": "tasks[9].usage.aggregate.reasoningTokens",
-					"taskId": "task-14",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[9].usage.aggregate.totalTokens",
-					"taskId": "task-14",
-					"recorded": "11325"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[9].usage.attempts[0].cacheCreationInputTokens",
 					"taskId": "task-14",
 					"recorded": "0"
 				},
@@ -12774,16 +12232,6 @@
 					"path": "tasks[9].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-14",
 					"recorded": "5120"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[9].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-14",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -12841,6 +12289,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[9].usage.attempts[0].raw.total",
+					"taskId": "task-14",
+					"replayed": "11325"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[9].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-14",
@@ -12853,26 +12311,6 @@
 					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[9].usage.attempts[0].reasoningTokens",
-					"taskId": "task-14",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[9].usage.attempts[0].totalTokens",
-					"taskId": "task-14",
-					"recorded": "11325"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[9].usage.cacheCreationInputTokens",
 					"taskId": "task-14",
 					"recorded": "0"
 				},
@@ -12915,16 +12353,6 @@
 					"taskId": "task-14",
 					"recorded": "pi-subagent",
 					"replayed": "executor"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[9].usage.totalTokens",
-					"taskId": "task-14",
-					"recorded": "11325"
 				},
 				{
 					"class": "explained",
@@ -12984,37 +12412,7 @@
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
 					"kind": "removed",
-					"path": "tasks[10].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-15",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
 					"path": "tasks[10].usage.aggregate.reasoningTokens",
-					"taskId": "task-15",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[10].usage.aggregate.totalTokens",
-					"taskId": "task-15",
-					"recorded": "17740"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[10].usage.attempts[0].cacheCreationInputTokens",
 					"taskId": "task-15",
 					"recorded": "0"
 				},
@@ -13047,16 +12445,6 @@
 					"path": "tasks[10].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-15",
 					"recorded": "11008"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[10].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-15",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -13114,6 +12502,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[10].usage.attempts[0].raw.total",
+					"taskId": "task-15",
+					"replayed": "17740"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[10].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-15",
@@ -13126,26 +12524,6 @@
 					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[10].usage.attempts[0].reasoningTokens",
-					"taskId": "task-15",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[10].usage.attempts[0].totalTokens",
-					"taskId": "task-15",
-					"recorded": "17740"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[10].usage.cacheCreationInputTokens",
 					"taskId": "task-15",
 					"recorded": "0"
 				},
@@ -13188,16 +12566,6 @@
 					"taskId": "task-15",
 					"recorded": "pi-subagent",
 					"replayed": "executor"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[10].usage.totalTokens",
-					"taskId": "task-15",
-					"recorded": "17740"
 				},
 				{
 					"class": "explained",
@@ -13257,37 +12625,7 @@
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
 					"kind": "removed",
-					"path": "tasks[11].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-16",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
 					"path": "tasks[11].usage.aggregate.reasoningTokens",
-					"taskId": "task-16",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[11].usage.aggregate.totalTokens",
-					"taskId": "task-16",
-					"recorded": "25949"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[11].usage.attempts[0].cacheCreationInputTokens",
 					"taskId": "task-16",
 					"recorded": "0"
 				},
@@ -13320,16 +12658,6 @@
 					"path": "tasks[11].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-16",
 					"recorded": "7680"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[11].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-16",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -13387,6 +12715,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[11].usage.attempts[0].raw.total",
+					"taskId": "task-16",
+					"replayed": "25949"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[11].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-16",
@@ -13399,26 +12737,6 @@
 					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[11].usage.attempts[0].reasoningTokens",
-					"taskId": "task-16",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[11].usage.attempts[0].totalTokens",
-					"taskId": "task-16",
-					"recorded": "25949"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[11].usage.cacheCreationInputTokens",
 					"taskId": "task-16",
 					"recorded": "0"
 				},
@@ -13461,16 +12779,6 @@
 					"taskId": "task-16",
 					"recorded": "pi-subagent",
 					"replayed": "executor"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[11].usage.totalTokens",
-					"taskId": "task-16",
-					"recorded": "25949"
 				},
 				{
 					"class": "explained",
@@ -13541,37 +12849,7 @@
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
 					"kind": "removed",
-					"path": "tasks[13].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-18",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
 					"path": "tasks[13].usage.aggregate.reasoningTokens",
-					"taskId": "task-18",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[13].usage.aggregate.totalTokens",
-					"taskId": "task-18",
-					"recorded": "45676"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[13].usage.attempts[0].cacheCreationInputTokens",
 					"taskId": "task-18",
 					"recorded": "0"
 				},
@@ -13604,16 +12882,6 @@
 					"path": "tasks[13].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-18",
 					"recorded": "34816"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[13].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-18",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -13671,6 +12939,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[13].usage.attempts[0].raw.total",
+					"taskId": "task-18",
+					"replayed": "45676"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[13].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-18",
@@ -13683,26 +12961,6 @@
 					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[13].usage.attempts[0].reasoningTokens",
-					"taskId": "task-18",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[13].usage.attempts[0].totalTokens",
-					"taskId": "task-18",
-					"recorded": "45676"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[13].usage.cacheCreationInputTokens",
 					"taskId": "task-18",
 					"recorded": "0"
 				},
@@ -13745,16 +13003,6 @@
 					"taskId": "task-18",
 					"recorded": "pi-subagent",
 					"replayed": "executor"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[13].usage.totalTokens",
-					"taskId": "task-18",
-					"recorded": "45676"
 				},
 				{
 					"class": "explained",
@@ -13821,16 +13069,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[15].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-20",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
 					"rule": "runtime-cost-rounding",
 					"citation": "docs/core-port.md WP1b change log 3",
 					"file": "run.json",
@@ -13847,26 +13085,6 @@
 					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[15].usage.aggregate.reasoningTokens",
-					"taskId": "task-20",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[15].usage.aggregate.totalTokens",
-					"taskId": "task-20",
-					"recorded": "27385"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[15].usage.attempts[0].cacheCreationInputTokens",
 					"taskId": "task-20",
 					"recorded": "0"
 				},
@@ -13910,16 +13128,6 @@
 					"path": "tasks[15].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-20",
 					"recorded": "8320"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[15].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-20",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -13977,6 +13185,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[15].usage.attempts[0].raw.total",
+					"taskId": "task-20",
+					"replayed": "27385"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[15].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-20",
@@ -13989,26 +13207,6 @@
 					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[15].usage.attempts[0].reasoningTokens",
-					"taskId": "task-20",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[15].usage.attempts[0].totalTokens",
-					"taskId": "task-20",
-					"recorded": "27385"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[15].usage.cacheCreationInputTokens",
 					"taskId": "task-20",
 					"recorded": "0"
 				},
@@ -14062,16 +13260,6 @@
 					"taskId": "task-20",
 					"recorded": "pi-subagent",
 					"replayed": "executor"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[15].usage.totalTokens",
-					"taskId": "task-20",
-					"recorded": "27385"
 				},
 				{
 					"class": "explained",
@@ -14212,39 +13400,9 @@
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
 					"kind": "removed",
-					"path": "tasks[19].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-9",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
 					"path": "tasks[19].usage.aggregate.reasoningTokens",
 					"taskId": "task-9",
 					"recorded": "422"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[19].usage.aggregate.totalTokens",
-					"taskId": "task-9",
-					"recorded": "120597"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[19].usage.attempts[0].cacheCreationInputTokens",
-					"taskId": "task-9",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -14275,16 +13433,6 @@
 					"path": "tasks[19].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-9",
 					"recorded": "92032"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[19].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-9",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -14342,6 +13490,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[19].usage.attempts[0].raw.total",
+					"taskId": "task-9",
+					"replayed": "120597"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[19].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-9",
@@ -14356,26 +13514,6 @@
 					"path": "tasks[19].usage.attempts[0].reasoningTokens",
 					"taskId": "task-9",
 					"recorded": "422"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[19].usage.attempts[0].totalTokens",
-					"taskId": "task-9",
-					"recorded": "120597"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[19].usage.cacheCreationInputTokens",
-					"taskId": "task-9",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -14419,25 +13557,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[19].usage.totalTokens",
-					"taskId": "task-9",
-					"recorded": "120597"
-				},
-				{
-					"class": "explained",
-					"rule": "run-usage-unknown-not-zero",
-					"citation": "docs/core-port.md WP12a change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "usage.cacheCreationInputTokens",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
 					"rule": "run-usage-unknown-not-zero",
 					"citation": "docs/core-port.md WP12a change log 2",
 					"file": "run.json",
@@ -14453,15 +13572,6 @@
 					"kind": "removed",
 					"path": "usage.reasoningTokens",
 					"recorded": "814"
-				},
-				{
-					"class": "explained",
-					"rule": "run-usage-unknown-not-zero",
-					"citation": "docs/core-port.md WP12a change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "usage.totalTokens",
-					"recorded": "511713"
 				},
 				{
 					"class": "explained",

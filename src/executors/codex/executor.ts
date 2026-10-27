@@ -765,6 +765,13 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			const thread = isRecord(started.thread) ? started.thread : {};
 			const threadId = typeof thread.id === "string" ? thread.id : undefined;
 			run.threadId = threadId;
+			// WP12a: usage names the model the server resolved for the thread.
+			run.normalizer.model =
+				typeof started.model === "string" && started.model !== ""
+					? started.model
+					: req.model !== undefined && req.model !== ""
+						? req.model
+						: undefined;
 			if (keep && threadId !== undefined) {
 				run.ownedSession = {
 					kind: CODEX_OWNED_SESSION_KIND,

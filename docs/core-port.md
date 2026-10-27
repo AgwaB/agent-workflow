@@ -1338,6 +1338,30 @@ problems 1–6, 10).
    `run-usage-unknown-not-zero` (run rollup token classes no task reported are absent, not 0).
    The generated offline support table (`docs/bundled-workflows.md`) now lists
    `CAPABILITY_MISSING:usage.cost` for Codex (regenerated with `bundled-support-table.mjs --write`).
+3. **One normalized usage shape (live open problem 5).** SDK `UsageEvent` (src/sdk/events.ts, the
+   usage event docs): `input` = input tokens EXCLUDING cache reads and writes, `cached` = cache-read
+   input tokens, new optional `cacheWrite` (cache-creation input tokens; absent = none) and `model`
+   (the model that served the request, resolved name), `output` (reasoning included), `cost` or
+   `null` + `source`; total = input + cached + cacheWrite + output. `validateExecEvent` checks the two
+   new fields when present (contract stays 0.1.0: additive). Adapters: Pi `usageFromPi(usage, model)`
+   (Pi's `input` already excludes cache; `cacheWrite`; the assistant message's `model`); Codex
+   `CodexTurnNormalizer` subtracts `cachedInputTokens` (and `cacheWriteInputTokens`) from
+   `inputTokens`, reports `cacheWrite`, and names the model from the `thread/start`/`thread/resume`
+   response (else the request model); Claude reports `input_tokens` as is (it excluded cache already;
+   the adapter used to add cache reads and writes), `cache_creation_input_tokens` as `cacheWrite`, and
+   the resolved model (`result.modelUsage`, else the last assistant message). Runtime
+   `summarizeUsage` adds `cacheWrite`, `total` and `model`; the core maps them to
+   `totalTokens` / `cacheCreationInputTokens` and takes the attempt `model` from the usage summary
+   before request metadata (Claude no longer records the alias `haiku`; Pi tasks record their
+   model). Run rollups are also written for `blocked` runs (`store.ts`), so wait results of blocked
+   runs carry the usage of the attempts that ran. Live bundle 3's `totalTokens: 0` came from the
+   missing total plus the support-task zeros (change log 2). Tests:
+   `core-wp12a-usage-normalized.test.mjs` (recorded Pi/Codex/Claude transcripts → events → summary →
+   task → rollup, blocked run); adapter parser and runtime summary tests updated to the normalized
+   input and the new `cacheWrite`/`total` summary fields (a `null` part makes `total` `null`). Replay: task
+   `totalTokens`/`cacheCreationInputTokens` now reproduce the recording (fewer `executor-usage-contract`
+   rows); the `original-spec-review-legacy-state-read` divergence also covers run
+   `usage.totalTokens`/`usage.cacheCreationInputTokens`.
 6. **Flakes under load: stop and blocked runs (live open problem 10).** Two product races, both
    reproduced with a stress script (6 parallel loops of the host-cli stop scenario, 24 busy-loop
    processes on 12 cores): 4 of 30 stops failed before, 0 of 30 after.

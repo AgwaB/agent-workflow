@@ -23,6 +23,7 @@ interface TokenBreakdown {
 	readonly totalTokens?: number;
 	readonly inputTokens?: number;
 	readonly cachedInputTokens?: number;
+	readonly cacheWriteInputTokens?: number;
 	readonly outputTokens?: number;
 }
 
@@ -327,16 +328,35 @@ export class CodexTurnNormalizer {
 		}
 	}
 
-	/** Usage for a turn (delta over the thread total), or undefined when none was reported. */
+	/** Model that serves the thread (`thread/start` / `thread/resume` response), when known. */
+	model: string | undefined;
+
+	/**
+	 * Usage for a turn (delta over the thread total), or undefined when none was reported.
+	 * WP12a: Codex `inputTokens` includes `cachedInputTokens` (and cache writes); the SDK `input`
+	 * excludes them, so they are subtracted.
+	 */
 	usage(turnId?: string): UsageEvent | undefined {
 		const entry = this.usageByTurn.get(turnId ?? this.lastUsageTurn ?? "");
 		if (entry === undefined) return undefined;
 		const turn = subtract(entry.latest, entry.baseline);
+		const reported = count(turn.inputTokens);
+		const cached = count(turn.cachedInputTokens);
+		const cacheWrite =
+			turn.cacheWriteInputTokens === undefined
+				? undefined
+				: count(turn.cacheWriteInputTokens);
+		const input =
+			reported === null || cached === null
+				? null
+				: Math.max(0, reported - cached - (cacheWrite ?? 0));
 		return {
 			type: "usage",
-			input: count(turn.inputTokens),
+			input,
 			output: count(turn.outputTokens),
-			cached: count(turn.cachedInputTokens),
+			cached,
+			...(cacheWrite === undefined ? {} : { cacheWrite }),
+			...(this.model === undefined ? {} : { model: this.model }),
 			cost: null,
 			source: "unknown",
 		};
@@ -413,6 +433,10 @@ function subtract(
 		totalTokens: diff(a.totalTokens, b.totalTokens),
 		inputTokens: diff(a.inputTokens, b.inputTokens),
 		cachedInputTokens: diff(a.cachedInputTokens, b.cachedInputTokens),
+		cacheWriteInputTokens: diff(
+			a.cacheWriteInputTokens,
+			b.cacheWriteInputTokens,
+		),
 		outputTokens: diff(a.outputTokens, b.outputTokens),
 	};
 }

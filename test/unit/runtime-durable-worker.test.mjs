@@ -185,6 +185,9 @@ test("happy path: barrier release → events → completed result with usage (co
 		input: 12,
 		output: 8,
 		cached: null,
+		// WP12a: an unknown part makes the total unknown (null, never a partial sum).
+		cacheWrite: 0,
+		total: null,
 		cost: null,
 		source: "unknown",
 		events: 2,

@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 205-207, 1689-2679, 6123-6145 (usage, timing and tool-result-budget telemetry on task records). MIT, same author. Changes: env PI_WORKFLOW_DYNAMIC_TOOL_RESULT_BUDGET_CHARS→AGENT_WORKFLOW_DYNAMIC_TOOL_RESULT_BUDGET_CHARS; record source "pi-subagent"→"executor"; WP1b: usage aliases `cached`/`cost` for the runtime UsageSummary.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 205-207, 1689-2679, 6123-6145 (usage, timing and tool-result-budget telemetry on task records). MIT, same author. Changes: env PI_WORKFLOW_DYNAMIC_TOOL_RESULT_BUDGET_CHARS→AGENT_WORKFLOW_DYNAMIC_TOOL_RESULT_BUDGET_CHARS; record source "pi-subagent"→"executor"; WP1b: usage aliases `cached`/`cost` for the runtime UsageSummary. WP12a: the usage summary's `model` is the attempt model.
 import { type SubagentRunStatusSnapshot } from "./runtime-port.js";
 import {
 	normalizedToolResultBudgetValues,
@@ -261,8 +261,13 @@ function buildTaskUsageAttempt(options: {
 	const raw = observed?.raw;
 	const unavailable = !observed || raw === null || raw === undefined;
 	const provider = firstStringValue(records, ["provider"]);
+	// WP12a: the model the executor's usage events named (resolved, e.g. Pi's model or Claude's
+	// `claude-haiku-…` for the alias `haiku`) wins over request metadata and the task runtime.
 	const model =
-		firstStringValue(records, ["model"]) ?? options.task.runtime.model;
+		firstStringValue(
+			[isPlainRecord(raw) ? raw : undefined, ...records],
+			["model"],
+		) ?? options.task.runtime.model;
 	const thinking =
 		firstStringValue(records, [
 			"thinking",

@@ -150,7 +150,7 @@
 			],
 			"counts": {
 				"allowed": 597,
-				"explained": 468,
+				"explained": 394,
 				"unexplained": 0
 			},
 			"differences": [
@@ -4763,7 +4763,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/impact-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-impact-review-original-13734/work/replay-trace.jsonl\"},\"contr… (367 chars, sha256 e26969a91bc2)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/impact-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-impact-review-original-78651/work/replay-trace.jsonl\"},\"contr… (367 chars, sha256 ab2afedc247f)"
 				},
 				{
 					"class": "explained",
@@ -4782,7 +4782,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "0f39788ee847f8f5b198bae33fd5f31f4260556b832747b69784171ce675a52c"
+					"replayed": "89f40d889a2ce396ebc89843d3c2194ee7536ac0d0a35248d0b58b425f3eb214"
 				},
 				{
 					"class": "explained",
@@ -4802,7 +4802,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-1",
-					"replayed": "a58a7e2806ed821063032f343d1e607da7844ae5fe7f5790683fc9c80a92987f"
+					"replayed": "d62017ab77891be2515b962498d1954c785ee1a6f02dd6b923f74106b72be817"
 				},
 				{
 					"class": "explained",
@@ -4812,7 +4812,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-1",
-					"replayed": "05cf83e570b80d5cbb8dd0e63328c946282625f0180aa3e0fffa927987e02c7d"
+					"replayed": "3d6d5dded2dd31efcc7b6026cb9d38513fef10e828898303a2e1534478ec1540"
 				},
 				{
 					"class": "explained",
@@ -4822,7 +4822,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "0f39788ee847f8f5b198bae33fd5f31f4260556b832747b69784171ce675a52c"
+					"replayed": "89f40d889a2ce396ebc89843d3c2194ee7536ac0d0a35248d0b58b425f3eb214"
 				},
 				{
 					"class": "explained",
@@ -4902,39 +4902,9 @@
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
 					"kind": "removed",
-					"path": "tasks[0].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-1",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
 					"path": "tasks[0].usage.aggregate.reasoningTokens",
 					"taskId": "task-1",
 					"recorded": "1333"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[0].usage.aggregate.totalTokens",
-					"taskId": "task-1",
-					"recorded": "167663"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[0].usage.attempts[0].cacheCreationInputTokens",
-					"taskId": "task-1",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -4965,16 +4935,6 @@
 					"path": "tasks[0].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-1",
 					"recorded": "126976"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[0].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-1",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -5032,6 +4992,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[0].usage.attempts[0].raw.total",
+					"taskId": "task-1",
+					"replayed": "167663"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[0].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-1",
@@ -5046,26 +5016,6 @@
 					"path": "tasks[0].usage.attempts[0].reasoningTokens",
 					"taskId": "task-1",
 					"recorded": "1333"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[0].usage.attempts[0].totalTokens",
-					"taskId": "task-1",
-					"recorded": "167663"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[0].usage.cacheCreationInputTokens",
-					"taskId": "task-1",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -5109,23 +5059,13 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[0].usage.totalTokens",
-					"taskId": "task-1",
-					"recorded": "167663"
-				},
-				{
-					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "run.json",
 					"kind": "added",
 					"path": "tasks[1].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-2",
-					"replayed": "eeeb864618a428352bf679d39a5b047f7e2f19a73e5000e47be9af9c5f120b04"
+					"replayed": "585e73278ca505ac6c0af87a17205cf659a50de87f3809d738aa8522d08931b9"
 				},
 				{
 					"class": "explained",
@@ -5145,7 +5085,7 @@
 					"kind": "added",
 					"path": "tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-2",
-					"replayed": "8a604f3db3d4ba115be4e4ad87c65e5bca699c0fa92b5ebe6a301c0ad317f34d"
+					"replayed": "53499fdf2faa1471acfa33d6589c2afe2f4c6db7430c563d1a2abb7490f146ba"
 				},
 				{
 					"class": "explained",
@@ -5155,7 +5095,7 @@
 					"kind": "added",
 					"path": "tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-2",
-					"replayed": "bfa1c24c629333cf13025de7ddd82923e96f3759dc97741a486d81bbb08ffc77"
+					"replayed": "e2798b607d2ed1ceece897ae0bff0303a8a6853f146af1cb47d23f29656ad671"
 				},
 				{
 					"class": "explained",
@@ -5165,7 +5105,7 @@
 					"kind": "added",
 					"path": "tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-2",
-					"replayed": "eeeb864618a428352bf679d39a5b047f7e2f19a73e5000e47be9af9c5f120b04"
+					"replayed": "585e73278ca505ac6c0af87a17205cf659a50de87f3809d738aa8522d08931b9"
 				},
 				{
 					"class": "explained",
@@ -5245,39 +5185,9 @@
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
 					"kind": "removed",
-					"path": "tasks[1].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-2",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
 					"path": "tasks[1].usage.aggregate.reasoningTokens",
 					"taskId": "task-2",
 					"recorded": "1401"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[1].usage.aggregate.totalTokens",
-					"taskId": "task-2",
-					"recorded": "1382393"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[1].usage.attempts[0].cacheCreationInputTokens",
-					"taskId": "task-2",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -5308,16 +5218,6 @@
 					"path": "tasks[1].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-2",
 					"recorded": "1275008"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[1].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-2",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -5375,6 +5275,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[1].usage.attempts[0].raw.total",
+					"taskId": "task-2",
+					"replayed": "1382393"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[1].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-2",
@@ -5389,26 +5299,6 @@
 					"path": "tasks[1].usage.attempts[0].reasoningTokens",
 					"taskId": "task-2",
 					"recorded": "1401"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[1].usage.attempts[0].totalTokens",
-					"taskId": "task-2",
-					"recorded": "1382393"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[1].usage.cacheCreationInputTokens",
-					"taskId": "task-2",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -5452,23 +5342,13 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[1].usage.totalTokens",
-					"taskId": "task-2",
-					"recorded": "1382393"
-				},
-				{
-					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "run.json",
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-3",
-					"replayed": "139232ce3e951d8d4f7d2982b9d3cb6ec93aecca024ab12d69aedcb9bbfa1427"
+					"replayed": "bdfaa0fe7f308eb66cc348276e5fc104cd77a7451d900677a6f5554dc4d7759b"
 				},
 				{
 					"class": "explained",
@@ -5488,7 +5368,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-3",
-					"replayed": "d3f709be8cae1910b647eec17c311b9514006d1586e3e626f97fb68c3f72da7c"
+					"replayed": "e567d0f9254c224cee45a2308b5c75a21ed9d01e53ee47c432bdd80941c3d777"
 				},
 				{
 					"class": "explained",
@@ -5498,7 +5378,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-3",
-					"replayed": "f7f46234207a872f820c70134ea1e7044b32435427ec8f09ae522029c3ee3952"
+					"replayed": "f8c67386c796c03267b0137324e1d1405225e93114a25e5a570403828bb6de8a"
 				},
 				{
 					"class": "explained",
@@ -5508,7 +5388,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-3",
-					"replayed": "139232ce3e951d8d4f7d2982b9d3cb6ec93aecca024ab12d69aedcb9bbfa1427"
+					"replayed": "bdfaa0fe7f308eb66cc348276e5fc104cd77a7451d900677a6f5554dc4d7759b"
 				},
 				{
 					"class": "explained",
@@ -5584,16 +5464,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[2].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-3",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
 					"rule": "runtime-cost-rounding",
 					"citation": "docs/core-port.md WP1b change log 3",
 					"file": "run.json",
@@ -5612,26 +5482,6 @@
 					"path": "tasks[2].usage.aggregate.reasoningTokens",
 					"taskId": "task-3",
 					"recorded": "2060"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[2].usage.aggregate.totalTokens",
-					"taskId": "task-3",
-					"recorded": "312350"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[2].usage.attempts[0].cacheCreationInputTokens",
-					"taskId": "task-3",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -5673,16 +5523,6 @@
 					"path": "tasks[2].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-3",
 					"recorded": "248192"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[2].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-3",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -5740,6 +5580,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[2].usage.attempts[0].raw.total",
+					"taskId": "task-3",
+					"replayed": "312350"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[2].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-3",
@@ -5754,26 +5604,6 @@
 					"path": "tasks[2].usage.attempts[0].reasoningTokens",
 					"taskId": "task-3",
 					"recorded": "2060"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[2].usage.attempts[0].totalTokens",
-					"taskId": "task-3",
-					"recorded": "312350"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[2].usage.cacheCreationInputTokens",
-					"taskId": "task-3",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -5828,23 +5658,13 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[2].usage.totalTokens",
-					"taskId": "task-3",
-					"recorded": "312350"
-				},
-				{
-					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "run.json",
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-4",
-					"replayed": "7e41eee6fa5b2533d3214fb3d9c6dd1b3c41d64b200fb03eb918ea180189894d"
+					"replayed": "a99817ee990bf994152eb68d7567cfe542aea2509555945048f3e59864a5b9f5"
 				},
 				{
 					"class": "explained",
@@ -5864,7 +5684,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-4",
-					"replayed": "438a3ebfb0a1857f4751e69f1b2d33258b1d3bc1414ef6c5226370f4b2c27d1b"
+					"replayed": "4764134749e6bf7f0af6d0fb940710e3d79fa38ea4e1ca45e433147913c7cbfa"
 				},
 				{
 					"class": "explained",
@@ -5874,7 +5694,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-4",
-					"replayed": "73a0389bceef5d5f5b16fdfe9868dfd829477c2f2285bd2bc48379f87798d88f"
+					"replayed": "cab5886eeab8e31792e4f1c8a69e822cdd0d834e5bd5a37b09acd52931cc6814"
 				},
 				{
 					"class": "explained",
@@ -5884,7 +5704,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-4",
-					"replayed": "7e41eee6fa5b2533d3214fb3d9c6dd1b3c41d64b200fb03eb918ea180189894d"
+					"replayed": "a99817ee990bf994152eb68d7567cfe542aea2509555945048f3e59864a5b9f5"
 				},
 				{
 					"class": "explained",
@@ -5964,39 +5784,9 @@
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
 					"kind": "removed",
-					"path": "tasks[3].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-4",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
 					"path": "tasks[3].usage.aggregate.reasoningTokens",
 					"taskId": "task-4",
 					"recorded": "2941"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[3].usage.aggregate.totalTokens",
-					"taskId": "task-4",
-					"recorded": "517474"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[3].usage.attempts[0].cacheCreationInputTokens",
-					"taskId": "task-4",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -6027,16 +5817,6 @@
 					"path": "tasks[3].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-4",
 					"recorded": "469504"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[3].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-4",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -6094,6 +5874,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[3].usage.attempts[0].raw.total",
+					"taskId": "task-4",
+					"replayed": "517474"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[3].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-4",
@@ -6108,26 +5898,6 @@
 					"path": "tasks[3].usage.attempts[0].reasoningTokens",
 					"taskId": "task-4",
 					"recorded": "2941"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[3].usage.attempts[0].totalTokens",
-					"taskId": "task-4",
-					"recorded": "517474"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[3].usage.cacheCreationInputTokens",
-					"taskId": "task-4",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -6171,23 +5941,13 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[3].usage.totalTokens",
-					"taskId": "task-4",
-					"recorded": "517474"
-				},
-				{
-					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "run.json",
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-5",
-					"replayed": "0cc751fefb69029178e4710afb0fb5af26c96059cadb1e91b3b1ae7f8a5fb886"
+					"replayed": "59d5ca87a7d0ff0bd1cd6e23c8f5228074d272f36b38140ca704a2d68e7bd140"
 				},
 				{
 					"class": "explained",
@@ -6207,7 +5967,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-5",
-					"replayed": "a2f4af04f8b0e73b21b4edf1fff3ba689a3add01d6ec101e18c12656857cd18c"
+					"replayed": "c110f8e327af9f83d8792cde7a7765bccb094a5b66ec0ce6c40fa57114437dcd"
 				},
 				{
 					"class": "explained",
@@ -6217,7 +5977,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-5",
-					"replayed": "bbefa818965e444736ae40558fb5899b04de7e1d0ecf5685f860779b410b8a20"
+					"replayed": "07f8bed440ceb350328abd8e6e2ae3f66420c0a2f60527dad959c0361ef10d87"
 				},
 				{
 					"class": "explained",
@@ -6227,7 +5987,7 @@
 					"kind": "added",
 					"path": "tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-5",
-					"replayed": "0cc751fefb69029178e4710afb0fb5af26c96059cadb1e91b3b1ae7f8a5fb886"
+					"replayed": "59d5ca87a7d0ff0bd1cd6e23c8f5228074d272f36b38140ca704a2d68e7bd140"
 				},
 				{
 					"class": "explained",
@@ -6307,39 +6067,9 @@
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
 					"kind": "removed",
-					"path": "tasks[4].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-5",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
 					"path": "tasks[4].usage.aggregate.reasoningTokens",
 					"taskId": "task-5",
 					"recorded": "3113"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[4].usage.aggregate.totalTokens",
-					"taskId": "task-5",
-					"recorded": "608215"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[4].usage.attempts[0].cacheCreationInputTokens",
-					"taskId": "task-5",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -6370,16 +6100,6 @@
 					"path": "tasks[4].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-5",
 					"recorded": "532608"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[4].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-5",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -6437,6 +6157,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[4].usage.attempts[0].raw.total",
+					"taskId": "task-5",
+					"replayed": "608215"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[4].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-5",
@@ -6451,26 +6181,6 @@
 					"path": "tasks[4].usage.attempts[0].reasoningTokens",
 					"taskId": "task-5",
 					"recorded": "3113"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[4].usage.attempts[0].totalTokens",
-					"taskId": "task-5",
-					"recorded": "608215"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[4].usage.cacheCreationInputTokens",
-					"taskId": "task-5",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -6514,23 +6224,13 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[4].usage.totalTokens",
-					"taskId": "task-5",
-					"recorded": "608215"
-				},
-				{
-					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "run.json",
 					"kind": "added",
 					"path": "tasks[5].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-6",
-					"replayed": "858a0550de059aa3f6819c15d397075522d65321bb6e625f19db48480a269bea"
+					"replayed": "9e16f307a4c85794da977a52b7af1abd201c5794dbaddefef495586a5944ab58"
 				},
 				{
 					"class": "explained",
@@ -6550,7 +6250,7 @@
 					"kind": "added",
 					"path": "tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-6",
-					"replayed": "5c74c82e80efe2940d703be60491ed70009c31088dc53ad0d7eb3ebde45ed75b"
+					"replayed": "bfc20ccc10523259d58ad08aef22ef8bfbad345ff15ace8056f60fb4c594d484"
 				},
 				{
 					"class": "explained",
@@ -6560,7 +6260,7 @@
 					"kind": "added",
 					"path": "tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-6",
-					"replayed": "5bc6fcaaff42eef82a22e00c6c804d95eef9241be3164de1923a256c6dad9b39"
+					"replayed": "93deb7d862c21988c8523d1b6461b116c8bbbb08e246cc70aaae6955de63aa40"
 				},
 				{
 					"class": "explained",
@@ -6570,7 +6270,7 @@
 					"kind": "added",
 					"path": "tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-6",
-					"replayed": "858a0550de059aa3f6819c15d397075522d65321bb6e625f19db48480a269bea"
+					"replayed": "9e16f307a4c85794da977a52b7af1abd201c5794dbaddefef495586a5944ab58"
 				},
 				{
 					"class": "explained",
@@ -6650,39 +6350,9 @@
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
 					"kind": "removed",
-					"path": "tasks[5].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-6",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
 					"path": "tasks[5].usage.aggregate.reasoningTokens",
 					"taskId": "task-6",
 					"recorded": "2662"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[5].usage.aggregate.totalTokens",
-					"taskId": "task-6",
-					"recorded": "155086"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[5].usage.attempts[0].cacheCreationInputTokens",
-					"taskId": "task-6",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -6713,16 +6383,6 @@
 					"path": "tasks[5].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-6",
 					"recorded": "116096"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[5].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-6",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -6780,6 +6440,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[5].usage.attempts[0].raw.total",
+					"taskId": "task-6",
+					"replayed": "155086"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[5].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-6",
@@ -6794,26 +6464,6 @@
 					"path": "tasks[5].usage.attempts[0].reasoningTokens",
 					"taskId": "task-6",
 					"recorded": "2662"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[5].usage.attempts[0].totalTokens",
-					"taskId": "task-6",
-					"recorded": "155086"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[5].usage.cacheCreationInputTokens",
-					"taskId": "task-6",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -6857,23 +6507,13 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[5].usage.totalTokens",
-					"taskId": "task-6",
-					"recorded": "155086"
-				},
-				{
-					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "run.json",
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "49cddaac5b49d1773beb9428c014c4c57db2f0070f209f0849d07bc299d98ba4"
+					"replayed": "cd4cd088d8dd439a24d4e4b0c2996038523bf3628161c8cc99af3bedf82b5a14"
 				},
 				{
 					"class": "explained",
@@ -6893,7 +6533,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-7",
-					"replayed": "f756c6dd300fa90667a5457ed92f9000afe78dce1efa818a5db1c1ad71f1c313"
+					"replayed": "c558eb8d0389574149be5cfd3f85f5a820f4fc607424c9363dcecac0b39dcf51"
 				},
 				{
 					"class": "explained",
@@ -6903,7 +6543,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-7",
-					"replayed": "6740b94f3d9e5abb0b5e88b368df074bbdf1d452e8226988487f1e9f50b97e27"
+					"replayed": "43d1c9e73c359e337dee1a72fcfbb616e5fe27235a46d3f06b38663c8bbc7e60"
 				},
 				{
 					"class": "explained",
@@ -6913,7 +6553,7 @@
 					"kind": "added",
 					"path": "tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "49cddaac5b49d1773beb9428c014c4c57db2f0070f209f0849d07bc299d98ba4"
+					"replayed": "cd4cd088d8dd439a24d4e4b0c2996038523bf3628161c8cc99af3bedf82b5a14"
 				},
 				{
 					"class": "explained",
@@ -6989,16 +6629,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[6].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-7",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
 					"rule": "runtime-cost-rounding",
 					"citation": "docs/core-port.md WP1b change log 3",
 					"file": "run.json",
@@ -7017,26 +6647,6 @@
 					"path": "tasks[6].usage.aggregate.reasoningTokens",
 					"taskId": "task-7",
 					"recorded": "1756"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[6].usage.aggregate.totalTokens",
-					"taskId": "task-7",
-					"recorded": "1100278"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[6].usage.attempts[0].cacheCreationInputTokens",
-					"taskId": "task-7",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -7078,16 +6688,6 @@
 					"path": "tasks[6].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-7",
 					"recorded": "1036800"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[6].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-7",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -7145,6 +6745,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[6].usage.attempts[0].raw.total",
+					"taskId": "task-7",
+					"replayed": "1100278"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[6].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-7",
@@ -7159,26 +6769,6 @@
 					"path": "tasks[6].usage.attempts[0].reasoningTokens",
 					"taskId": "task-7",
 					"recorded": "1756"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[6].usage.attempts[0].totalTokens",
-					"taskId": "task-7",
-					"recorded": "1100278"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[6].usage.cacheCreationInputTokens",
-					"taskId": "task-7",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -7233,23 +6823,13 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[6].usage.totalTokens",
-					"taskId": "task-7",
-					"recorded": "1100278"
-				},
-				{
-					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "run.json",
 					"kind": "added",
 					"path": "tasks[7].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-8",
-					"replayed": "f2f719bd9fe6238a9f2590c4a49102999bcc9020dcd2ecc1901567882f7c236d"
+					"replayed": "bf354b0b70a729835480ff36c5489eee197b914319d26ed132b7886dc1bf2827"
 				},
 				{
 					"class": "explained",
@@ -7269,7 +6849,7 @@
 					"kind": "added",
 					"path": "tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-8",
-					"replayed": "bf2536445567b8ced7fa8efc3ccb4a23a2d539264bca82008c0ff2abd3248e2a"
+					"replayed": "43fade4f5262e5692dcb00a68ebb1410d0f6d9fc974e6571296f6d8c804be82e"
 				},
 				{
 					"class": "explained",
@@ -7279,7 +6859,7 @@
 					"kind": "added",
 					"path": "tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-8",
-					"replayed": "c78c6e6cc9eb96c1c8581f8bd94c43f6dccffce7ed4f5629465138ab5d999436"
+					"replayed": "2c4ecd30e10560c373ac82a92c4a1f379dd8f76ef2081958d54728278a042e26"
 				},
 				{
 					"class": "explained",
@@ -7289,7 +6869,7 @@
 					"kind": "added",
 					"path": "tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-8",
-					"replayed": "f2f719bd9fe6238a9f2590c4a49102999bcc9020dcd2ecc1901567882f7c236d"
+					"replayed": "bf354b0b70a729835480ff36c5489eee197b914319d26ed132b7886dc1bf2827"
 				},
 				{
 					"class": "explained",
@@ -7369,39 +6949,9 @@
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
 					"kind": "removed",
-					"path": "tasks[7].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-8",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
 					"path": "tasks[7].usage.aggregate.reasoningTokens",
 					"taskId": "task-8",
 					"recorded": "3536"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[7].usage.aggregate.totalTokens",
-					"taskId": "task-8",
-					"recorded": "240526"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[7].usage.attempts[0].cacheCreationInputTokens",
-					"taskId": "task-8",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -7432,16 +6982,6 @@
 					"path": "tasks[7].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-8",
 					"recorded": "191744"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[7].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-8",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -7499,6 +7039,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[7].usage.attempts[0].raw.total",
+					"taskId": "task-8",
+					"replayed": "240526"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[7].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-8",
@@ -7513,26 +7063,6 @@
 					"path": "tasks[7].usage.attempts[0].reasoningTokens",
 					"taskId": "task-8",
 					"recorded": "3536"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[7].usage.attempts[0].totalTokens",
-					"taskId": "task-8",
-					"recorded": "240526"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[7].usage.cacheCreationInputTokens",
-					"taskId": "task-8",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -7576,23 +7106,13 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[7].usage.totalTokens",
-					"taskId": "task-8",
-					"recorded": "240526"
-				},
-				{
-					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "run.json",
 					"kind": "added",
 					"path": "tasks[8].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-9",
-					"replayed": "8e54648b704f96749c3a86f78dfea41e8fec2416ac2d40590978d00ab6bdcd6c"
+					"replayed": "0321e87f685ed22697fa9c7ef49507bf698f50e7c37fa0eb35fe03377c680f4e"
 				},
 				{
 					"class": "explained",
@@ -7612,7 +7132,7 @@
 					"kind": "added",
 					"path": "tasks[8].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-9",
-					"replayed": "0483dc0528bfaeec1c199c33eb18635316fb427e3c379cff86bf856f992b1b16"
+					"replayed": "d01d68e7a058b6e02b37611daffa92c9695322c3f1ab5d85a9b34233b0702bdc"
 				},
 				{
 					"class": "explained",
@@ -7622,7 +7142,7 @@
 					"kind": "added",
 					"path": "tasks[8].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-9",
-					"replayed": "9ae45c023d6d129aaca1bce3c150c7926146832d91a8e0deaa6f110a7ce0562f"
+					"replayed": "ab7feb632f1b55d3e2d4a7e4c036ee6b749b335b87e9ea3067e90e49d425ddaa"
 				},
 				{
 					"class": "explained",
@@ -7632,7 +7152,7 @@
 					"kind": "added",
 					"path": "tasks[8].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-9",
-					"replayed": "8e54648b704f96749c3a86f78dfea41e8fec2416ac2d40590978d00ab6bdcd6c"
+					"replayed": "0321e87f685ed22697fa9c7ef49507bf698f50e7c37fa0eb35fe03377c680f4e"
 				},
 				{
 					"class": "explained",
@@ -7708,16 +7228,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[8].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-9",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
 					"rule": "runtime-cost-rounding",
 					"citation": "docs/core-port.md WP1b change log 3",
 					"file": "run.json",
@@ -7736,26 +7246,6 @@
 					"path": "tasks[8].usage.aggregate.reasoningTokens",
 					"taskId": "task-9",
 					"recorded": "2759"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[8].usage.aggregate.totalTokens",
-					"taskId": "task-9",
-					"recorded": "378965"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[8].usage.attempts[0].cacheCreationInputTokens",
-					"taskId": "task-9",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -7797,16 +7287,6 @@
 					"path": "tasks[8].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-9",
 					"recorded": "329216"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[8].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-9",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -7864,6 +7344,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[8].usage.attempts[0].raw.total",
+					"taskId": "task-9",
+					"replayed": "378965"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[8].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-9",
@@ -7878,26 +7368,6 @@
 					"path": "tasks[8].usage.attempts[0].reasoningTokens",
 					"taskId": "task-9",
 					"recorded": "2759"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[8].usage.attempts[0].totalTokens",
-					"taskId": "task-9",
-					"recorded": "378965"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[8].usage.cacheCreationInputTokens",
-					"taskId": "task-9",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -7952,23 +7422,13 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[8].usage.totalTokens",
-					"taskId": "task-9",
-					"recorded": "378965"
-				},
-				{
-					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "run.json",
 					"kind": "added",
 					"path": "tasks[9].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-10",
-					"replayed": "7a13183d5315c64d0fef281ee0ba762338c63114add4787e00bcb60bb671a6fa"
+					"replayed": "56bcc171abab2b5bd8bfcb89dc6a9fe922181b68e2b2496c03408c8f54489a28"
 				},
 				{
 					"class": "explained",
@@ -7988,7 +7448,7 @@
 					"kind": "added",
 					"path": "tasks[9].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-10",
-					"replayed": "04bda1e38ff43c976f78c9df5aa3d9994afd2e605dd0f562b27b2ce2c45b4e51"
+					"replayed": "fbcefffcf2e85d3362e4842f783d5426a66f9b842159efeb2ab69bb11651d47b"
 				},
 				{
 					"class": "explained",
@@ -7998,7 +7458,7 @@
 					"kind": "added",
 					"path": "tasks[9].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-10",
-					"replayed": "71f8d9adfb2a66369b262b5d878408387611ebdf221be05abf673bb7f47d1acb"
+					"replayed": "419fb2363c08345f366c9911f0f77a085458c69dc1a35125955ca7b4b62057e5"
 				},
 				{
 					"class": "explained",
@@ -8008,7 +7468,7 @@
 					"kind": "added",
 					"path": "tasks[9].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-10",
-					"replayed": "7a13183d5315c64d0fef281ee0ba762338c63114add4787e00bcb60bb671a6fa"
+					"replayed": "56bcc171abab2b5bd8bfcb89dc6a9fe922181b68e2b2496c03408c8f54489a28"
 				},
 				{
 					"class": "explained",
@@ -8084,16 +7544,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[9].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-10",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
 					"rule": "runtime-cost-rounding",
 					"citation": "docs/core-port.md WP1b change log 3",
 					"file": "run.json",
@@ -8112,26 +7562,6 @@
 					"path": "tasks[9].usage.aggregate.reasoningTokens",
 					"taskId": "task-10",
 					"recorded": "1345"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[9].usage.aggregate.totalTokens",
-					"taskId": "task-10",
-					"recorded": "255397"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[9].usage.attempts[0].cacheCreationInputTokens",
-					"taskId": "task-10",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -8173,16 +7603,6 @@
 					"path": "tasks[9].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-10",
 					"recorded": "223360"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[9].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-10",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -8240,6 +7660,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[9].usage.attempts[0].raw.total",
+					"taskId": "task-10",
+					"replayed": "255397"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[9].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-10",
@@ -8254,26 +7684,6 @@
 					"path": "tasks[9].usage.attempts[0].reasoningTokens",
 					"taskId": "task-10",
 					"recorded": "1345"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[9].usage.attempts[0].totalTokens",
-					"taskId": "task-10",
-					"recorded": "255397"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[9].usage.cacheCreationInputTokens",
-					"taskId": "task-10",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -8328,23 +7738,13 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[9].usage.totalTokens",
-					"taskId": "task-10",
-					"recorded": "255397"
-				},
-				{
-					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "run.json",
 					"kind": "added",
 					"path": "tasks[10].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-11",
-					"replayed": "0c476faa13081daf77d9f9c4f727341632068be15438f7321dc97d15ad45c61c"
+					"replayed": "a27471b451547628f8a7148b32834898ad03d0d0eb0c440dd84f91c16ea73838"
 				},
 				{
 					"class": "explained",
@@ -8364,7 +7764,7 @@
 					"kind": "added",
 					"path": "tasks[10].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-11",
-					"replayed": "083af58eb255b95c8fc398b8574e55db701b5a7c69745573e7e842b51a6b35a4"
+					"replayed": "05e5a8275a271096ff035b485c7c0879829cb7983ea66256ba82d993feabeea6"
 				},
 				{
 					"class": "explained",
@@ -8374,7 +7774,7 @@
 					"kind": "added",
 					"path": "tasks[10].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-11",
-					"replayed": "645b7550885ce70ac93cc925b637abf33b4a2f2b87f8087e68a7b009948cb70a"
+					"replayed": "ad44656fe46aed1d37923b65a8b397f4f583fb813b6dee7cc77baf24a53441bf"
 				},
 				{
 					"class": "explained",
@@ -8384,7 +7784,7 @@
 					"kind": "added",
 					"path": "tasks[10].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-11",
-					"replayed": "0c476faa13081daf77d9f9c4f727341632068be15438f7321dc97d15ad45c61c"
+					"replayed": "a27471b451547628f8a7148b32834898ad03d0d0eb0c440dd84f91c16ea73838"
 				},
 				{
 					"class": "explained",
@@ -8464,39 +7864,9 @@
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
 					"kind": "removed",
-					"path": "tasks[10].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-11",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
 					"path": "tasks[10].usage.aggregate.reasoningTokens",
 					"taskId": "task-11",
 					"recorded": "1903"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[10].usage.aggregate.totalTokens",
-					"taskId": "task-11",
-					"recorded": "268771"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[10].usage.attempts[0].cacheCreationInputTokens",
-					"taskId": "task-11",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -8527,16 +7897,6 @@
 					"path": "tasks[10].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-11",
 					"recorded": "221056"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[10].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-11",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -8594,6 +7954,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[10].usage.attempts[0].raw.total",
+					"taskId": "task-11",
+					"replayed": "268771"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[10].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-11",
@@ -8608,26 +7978,6 @@
 					"path": "tasks[10].usage.attempts[0].reasoningTokens",
 					"taskId": "task-11",
 					"recorded": "1903"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[10].usage.attempts[0].totalTokens",
-					"taskId": "task-11",
-					"recorded": "268771"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[10].usage.cacheCreationInputTokens",
-					"taskId": "task-11",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -8671,23 +8021,13 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[10].usage.totalTokens",
-					"taskId": "task-11",
-					"recorded": "268771"
-				},
-				{
-					"class": "explained",
 					"rule": "artifact-mcp-provenance",
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "run.json",
 					"kind": "added",
 					"path": "tasks[11].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-12",
-					"replayed": "75d32860c6c094722fc2e8216d331da705d2d2ce025a4c9c2e38e8a079057b59"
+					"replayed": "27a6b307ba0dc90aa4dce7059e54237e96d4aff2429b0a378f12e6ccaee0cfcf"
 				},
 				{
 					"class": "explained",
@@ -8707,7 +8047,7 @@
 					"kind": "added",
 					"path": "tasks[11].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-12",
-					"replayed": "6023c5475587f1ab5d1fe97b49a020e54e2af3a9300f38e05c76d7c475e349a6"
+					"replayed": "298ea1e36d2fd1aa2b84317e94311e3ce9893f1b03c1ba03855f4e815b7f6f8b"
 				},
 				{
 					"class": "explained",
@@ -8717,7 +8057,7 @@
 					"kind": "added",
 					"path": "tasks[11].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-12",
-					"replayed": "d270abad592a0bf0bda68f55fa4db952d8cbf45b717c43bf9143c6b563698fdf"
+					"replayed": "47cac202e84df701b210ed2ae2b1bc81ccb773eb471e3568a1dec002a66ceb9d"
 				},
 				{
 					"class": "explained",
@@ -8727,7 +8067,7 @@
 					"kind": "added",
 					"path": "tasks[11].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-12",
-					"replayed": "75d32860c6c094722fc2e8216d331da705d2d2ce025a4c9c2e38e8a079057b59"
+					"replayed": "27a6b307ba0dc90aa4dce7059e54237e96d4aff2429b0a378f12e6ccaee0cfcf"
 				},
 				{
 					"class": "explained",
@@ -8807,39 +8147,9 @@
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
 					"kind": "removed",
-					"path": "tasks[11].usage.aggregate.cacheCreationInputTokens",
-					"taskId": "task-12",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
 					"path": "tasks[11].usage.aggregate.reasoningTokens",
 					"taskId": "task-12",
 					"recorded": "1768"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[11].usage.aggregate.totalTokens",
-					"taskId": "task-12",
-					"recorded": "233721"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[11].usage.attempts[0].cacheCreationInputTokens",
-					"taskId": "task-12",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -8870,16 +8180,6 @@
 					"path": "tasks[11].usage.attempts[0].raw.cacheRead",
 					"taskId": "task-12",
 					"recorded": "186624"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[11].usage.attempts[0].raw.cacheWrite",
-					"taskId": "task-12",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -8937,6 +8237,16 @@
 					"rule": "executor-usage-contract",
 					"citation": "docs/core-port.md WP1b change log 2",
 					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[11].usage.attempts[0].raw.total",
+					"taskId": "task-12",
+					"replayed": "233721"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
 					"kind": "removed",
 					"path": "tasks[11].usage.attempts[0].raw.totalTokens",
 					"taskId": "task-12",
@@ -8951,26 +8261,6 @@
 					"path": "tasks[11].usage.attempts[0].reasoningTokens",
 					"taskId": "task-12",
 					"recorded": "1768"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[11].usage.attempts[0].totalTokens",
-					"taskId": "task-12",
-					"recorded": "233721"
-				},
-				{
-					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[11].usage.cacheCreationInputTokens",
-					"taskId": "task-12",
-					"recorded": "0"
 				},
 				{
 					"class": "explained",
@@ -9014,25 +8304,6 @@
 				},
 				{
 					"class": "explained",
-					"rule": "executor-usage-contract",
-					"citation": "docs/core-port.md WP1b change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "tasks[11].usage.totalTokens",
-					"taskId": "task-12",
-					"recorded": "233721"
-				},
-				{
-					"class": "explained",
-					"rule": "run-usage-unknown-not-zero",
-					"citation": "docs/core-port.md WP12a change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "usage.cacheCreationInputTokens",
-					"recorded": "0"
-				},
-				{
-					"class": "explained",
 					"rule": "run-usage-unknown-not-zero",
 					"citation": "docs/core-port.md WP12a change log 2",
 					"file": "run.json",
@@ -9048,15 +8319,6 @@
 					"kind": "removed",
 					"path": "usage.reasoningTokens",
 					"recorded": "26577"
-				},
-				{
-					"class": "explained",
-					"rule": "run-usage-unknown-not-zero",
-					"citation": "docs/core-port.md WP12a change log 2",
-					"file": "run.json",
-					"kind": "removed",
-					"path": "usage.totalTokens",
-					"recorded": "5620839"
 				},
 				{
 					"class": "explained",

@@ -310,6 +310,12 @@ budget are not confirmed. `fetch_content` (open_page) not observed.
 
 ## Change log
 
+- **WP12a (2026-10-27):** usage is normalized (docs/core-port.md WP12a change log 3): `input` =
+  `inputTokens − cachedInputTokens − cacheWriteInputTokens` (Codex counts cached input inside
+  `inputTokens`), `cached` = `cachedInputTokens`, `cacheWrite` = `cacheWriteInputTokens`, `model` =
+  the `thread/start` / `thread/resume` response model (else the request model). Cost stays `null`.
+  Tests: `executor-codex-parser.test.mjs`, `core-wp12a-usage-normalized.test.mjs`.
+
 - **WP12a (2026-10-27):** no adapter change for cost: usage events keep `cost: null`,
   `source: "unknown"`. The engine no longer negotiates `usage.cost` as "emulated by engine" (it has no
   price table); the preview records `usage.cost: degraded … cost recorded as unknown`, and run rollups

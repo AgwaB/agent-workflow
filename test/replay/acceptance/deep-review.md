@@ -15,7 +15,7 @@ Original spec, Pi adapter request checks.
 | Worker launches served / recorded | 12 / 12 |
 | Artifact reads re-issued / recorded | 1 / 1 |
 | Differences: allowed | 587 |
-| Differences: explained | 353 |
+| Differences: explained | 279 |
 | Differences: unexplained | 0 |
 | Exact-match violations | 0 |
 
@@ -25,12 +25,12 @@ Original spec, Pi adapter request checks.
 |---|---|---|---|
 | explained | `artifact-mcp-provenance` | 30 | docs/core-port.md WP4b change log 4 and "What launch provenance digests now"; WP4c-1 "Pi executor (WP6)" table (extension isolation, generated extension wrappers) |
 | explained | `executor-exit-code` | 24 | docs/core-port.md WP1b change log 1 |
-| explained | `executor-usage-contract` | 252 | docs/core-port.md WP1b change log 2 |
+| explained | `executor-usage-contract` | 180 | docs/core-port.md WP1b change log 2 |
 | explained | `original-helper-legacy-sidecar` | 2 | docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows → .agent-workflow/workflows) |
 | explained | `run-capability-negotiation` | 1 | docs/core-port.md "WP4d — capability negotiation before launch" |
 | explained | `run-executor-record` | 1 | docs/core-port.md WP4c-1 "Executor selection" and change log 11 |
 | explained | `run-permission-mode` | 2 | docs/core-port.md WP4e permission modes; docs/permissions.md |
-| explained | `run-usage-unknown-not-zero` | 4 | docs/core-port.md WP12a change log 2 |
+| explained | `run-usage-unknown-not-zero` | 2 | docs/core-port.md WP12a change log 2 |
 | explained | `runtime-cost-rounding` | 12 | docs/core-port.md WP1b change log 3 |
 | explained | `runtime-stderr` | 24 | docs/runtime-port.md "Attempt artifacts" (stderr.log: runtime diagnostics, empty on a clean completion) |
 | explained | `wp10-artifact-tool-guidelines` | 1 | docs/core-port.md WP10 change log 2 |
@@ -61,11 +61,11 @@ Original spec, Pi adapter request checks.
 | run.json | tasks[11].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
 | run.json | tasks[12].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
 | run.json | tasks[13].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[16].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 6294b926a1aac32156d1aecff5c76ad2e8768461d21aa5b71bd2d21dd247a0b5 |
+| run.json | tasks[16].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 26d728e97d781b9a5b00ea8cb3759dbb89fa5e8615cf90aeb412e6368f36f48a |
 | run.json | tasks[16].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | aed1c777bbf252885f408571ecdcae176f79d864f50e8e326066798ace53e9d3 |  |
-| run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 1327921178af61aea0ad5907738ebd3a7fc921b94cc3db8307f2e25b39c0337a |
-| run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | e4b248c1c8976fa42a934a8adf69866e7c4cc97b64d1085bc83e902d62174727 |
-| run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 6294b926a1aac32156d1aecff5c76ad2e8768461d21aa5b71bd2d21dd247a0b5 |
+| run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 170dc14d1e8be2c40038f8528705696e68d71238153311c32ccb87f71f7db846 |
+| run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 47e6db9f28b198ef203234e3ae83e5049eb6442a6fda3451f60e7721dc9ea2f3 |
+| run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 26d728e97d781b9a5b00ea8cb3759dbb89fa5e8615cf90aeb412e6368f36f48a |
 | run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | aed1c777bbf252885f408571ecdcae176f79d864f50e8e326066798ace53e9d3 |  |
 | run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 1878129e5a9ca6e89f6e45d1cecbefc8515ce6e9ae0bbf1ba5959caee8c53304 |  |
 | run.json | tasks[16].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"1878129e5a9ca6e89f6e45d1cecbefc8515ce6e9ae0bbf1ba5959caee8c53304"} |  |
@@ -114,262 +114,190 @@ Original spec, Pi adapter request checks.
 
 </details>
 
-<details><summary>explained executor-usage-contract (252)</summary>
+<details><summary>explained executor-usage-contract (180)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | tasks[0].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[0].usage.aggregate.reasoningTokens | removed | 1078 |  |
-| run.json | tasks[0].usage.aggregate.totalTokens | removed | 106230 |  |
-| run.json | tasks[0].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[0].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[0].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[0].usage.attempts[0].raw.cacheRead | removed | 91264 |  |
-| run.json | tasks[0].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[0].usage.attempts[0].raw.cached | added |  | 91264 |
 | run.json | tasks[0].usage.attempts[0].raw.cost | changed | {"cacheRead":0.009126400000000002,"cacheWrite":0,"input":0.02497,"output":0.02481,"total":0.0589064} | 0.0589064 |
 | run.json | tasks[0].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[0].usage.attempts[0].raw.reasoning | removed | 1078 |  |
 | run.json | tasks[0].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[0].usage.attempts[0].raw.total | added |  | 106230 |
 | run.json | tasks[0].usage.attempts[0].raw.totalTokens | removed | 106230 |  |
 | run.json | tasks[0].usage.attempts[0].reasoningTokens | removed | 1078 |  |
-| run.json | tasks[0].usage.attempts[0].totalTokens | removed | 106230 |  |
-| run.json | tasks[0].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[0].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[0].usage.provider | removed | openai-codex |  |
 | run.json | tasks[0].usage.reasoningTokens | removed | 1078 |  |
-| run.json | tasks[0].usage.totalTokens | removed | 106230 |  |
-| run.json | tasks[2].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[2].usage.aggregate.reasoningTokens | removed | 3783 |  |
-| run.json | tasks[2].usage.aggregate.totalTokens | removed | 89317 |  |
-| run.json | tasks[2].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[2].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[2].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[2].usage.attempts[0].raw.cacheRead | removed | 48512 |  |
-| run.json | tasks[2].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[2].usage.attempts[0].raw.cached | added |  | 48512 |
 | run.json | tasks[2].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0048512,"cacheWrite":0,"input":0.06877599999999999,"output":0.06417,"total":0.1377972} | 0.1377972 |
 | run.json | tasks[2].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[2].usage.attempts[0].raw.reasoning | removed | 3783 |  |
 | run.json | tasks[2].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[2].usage.attempts[0].raw.total | added |  | 89317 |
 | run.json | tasks[2].usage.attempts[0].raw.totalTokens | removed | 89317 |  |
 | run.json | tasks[2].usage.attempts[0].reasoningTokens | removed | 3783 |  |
-| run.json | tasks[2].usage.attempts[0].totalTokens | removed | 89317 |  |
-| run.json | tasks[2].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[2].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[2].usage.provider | removed | openai-codex |  |
 | run.json | tasks[2].usage.reasoningTokens | removed | 3783 |  |
-| run.json | tasks[2].usage.totalTokens | removed | 89317 |  |
-| run.json | tasks[3].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[3].usage.aggregate.reasoningTokens | removed | 3620 |  |
-| run.json | tasks[3].usage.aggregate.totalTokens | removed | 162166 |  |
-| run.json | tasks[3].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[3].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[3].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[3].usage.attempts[0].raw.cacheRead | removed | 134016 |  |
-| run.json | tasks[3].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[3].usage.attempts[0].raw.cached | added |  | 134016 |
 | run.json | tasks[3].usage.attempts[0].raw.cost | changed | {"cacheRead":0.013401600000000001,"cacheWrite":0,"input":0.04597999999999999,"output":0.05160000000000001,"total":0.11098160000000001} | 0.1109816 |
 | run.json | tasks[3].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[3].usage.attempts[0].raw.reasoning | removed | 3620 |  |
 | run.json | tasks[3].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[3].usage.attempts[0].raw.total | added |  | 162166 |
 | run.json | tasks[3].usage.attempts[0].raw.totalTokens | removed | 162166 |  |
 | run.json | tasks[3].usage.attempts[0].reasoningTokens | removed | 3620 |  |
-| run.json | tasks[3].usage.attempts[0].totalTokens | removed | 162166 |  |
-| run.json | tasks[3].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[3].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[3].usage.provider | removed | openai-codex |  |
 | run.json | tasks[3].usage.reasoningTokens | removed | 3620 |  |
-| run.json | tasks[3].usage.totalTokens | removed | 162166 |  |
-| run.json | tasks[4].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[4].usage.aggregate.reasoningTokens | removed | 1273 |  |
-| run.json | tasks[4].usage.aggregate.totalTokens | removed | 203384 |  |
-| run.json | tasks[4].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[4].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[4].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[4].usage.attempts[0].raw.cacheRead | removed | 178304 |  |
-| run.json | tasks[4].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[4].usage.attempts[0].raw.cached | added |  | 178304 |
 | run.json | tasks[4].usage.attempts[0].raw.cost | changed | {"cacheRead":0.017830400000000003,"cacheWrite":0,"input":0.044655999999999994,"output":0.027520000000000003,"total":0.0900064} | 0.0900064 |
 | run.json | tasks[4].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[4].usage.attempts[0].raw.reasoning | removed | 1273 |  |
 | run.json | tasks[4].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[4].usage.attempts[0].raw.total | added |  | 203384 |
 | run.json | tasks[4].usage.attempts[0].raw.totalTokens | removed | 203384 |  |
 | run.json | tasks[4].usage.attempts[0].reasoningTokens | removed | 1273 |  |
-| run.json | tasks[4].usage.attempts[0].totalTokens | removed | 203384 |  |
-| run.json | tasks[4].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[4].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[4].usage.provider | removed | openai-codex |  |
 | run.json | tasks[4].usage.reasoningTokens | removed | 1273 |  |
-| run.json | tasks[4].usage.totalTokens | removed | 203384 |  |
-| run.json | tasks[7].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[7].usage.aggregate.reasoningTokens | removed | 1644 |  |
-| run.json | tasks[7].usage.aggregate.totalTokens | removed | 35839 |  |
-| run.json | tasks[7].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[7].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[7].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[7].usage.attempts[0].raw.cacheRead | removed | 12288 |  |
-| run.json | tasks[7].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[7].usage.attempts[0].raw.cached | added |  | 12288 |
 | run.json | tasks[7].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0012288,"cacheWrite":0,"input":0.041412,"output":0.028450000000000003,"total":0.0710908} | 0.0710908 |
 | run.json | tasks[7].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[7].usage.attempts[0].raw.reasoning | removed | 1644 |  |
 | run.json | tasks[7].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[7].usage.attempts[0].raw.total | added |  | 35839 |
 | run.json | tasks[7].usage.attempts[0].raw.totalTokens | removed | 35839 |  |
 | run.json | tasks[7].usage.attempts[0].reasoningTokens | removed | 1644 |  |
-| run.json | tasks[7].usage.attempts[0].totalTokens | removed | 35839 |  |
-| run.json | tasks[7].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[7].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[7].usage.provider | removed | openai-codex |  |
 | run.json | tasks[7].usage.reasoningTokens | removed | 1644 |  |
-| run.json | tasks[7].usage.totalTokens | removed | 35839 |  |
-| run.json | tasks[8].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[8].usage.aggregate.reasoningTokens | removed | 673 |  |
-| run.json | tasks[8].usage.aggregate.totalTokens | removed | 56058 |  |
-| run.json | tasks[8].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[8].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[8].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[8].usage.attempts[0].raw.cacheRead | removed | 38912 |  |
-| run.json | tasks[8].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[8].usage.attempts[0].raw.cached | added |  | 38912 |
 | run.json | tasks[8].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0038912,"cacheWrite":0,"input":0.030522,"output":0.018850000000000002,"total":0.053263200000000004} | 0.0532632 |
 | run.json | tasks[8].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[8].usage.attempts[0].raw.reasoning | removed | 673 |  |
 | run.json | tasks[8].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[8].usage.attempts[0].raw.total | added |  | 56058 |
 | run.json | tasks[8].usage.attempts[0].raw.totalTokens | removed | 56058 |  |
 | run.json | tasks[8].usage.attempts[0].reasoningTokens | removed | 673 |  |
-| run.json | tasks[8].usage.attempts[0].totalTokens | removed | 56058 |  |
-| run.json | tasks[8].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[8].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[8].usage.provider | removed | openai-codex |  |
 | run.json | tasks[8].usage.reasoningTokens | removed | 673 |  |
-| run.json | tasks[8].usage.totalTokens | removed | 56058 |  |
-| run.json | tasks[9].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[9].usage.aggregate.reasoningTokens | removed | 911 |  |
-| run.json | tasks[9].usage.aggregate.totalTokens | removed | 46909 |  |
-| run.json | tasks[9].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[9].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[9].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[9].usage.attempts[0].raw.cacheRead | removed | 22656 |  |
-| run.json | tasks[9].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[9].usage.attempts[0].raw.cached | added |  | 22656 |
 | run.json | tasks[9].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0022656000000000004,"cacheWrite":0,"input":0.04442,"output":0.02043,"total":0.0671156} | 0.0671156 |
 | run.json | tasks[9].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[9].usage.attempts[0].raw.reasoning | removed | 911 |  |
 | run.json | tasks[9].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[9].usage.attempts[0].raw.total | added |  | 46909 |
 | run.json | tasks[9].usage.attempts[0].raw.totalTokens | removed | 46909 |  |
 | run.json | tasks[9].usage.attempts[0].reasoningTokens | removed | 911 |  |
-| run.json | tasks[9].usage.attempts[0].totalTokens | removed | 46909 |  |
-| run.json | tasks[9].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[9].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[9].usage.provider | removed | openai-codex |  |
 | run.json | tasks[9].usage.reasoningTokens | removed | 911 |  |
-| run.json | tasks[9].usage.totalTokens | removed | 46909 |  |
-| run.json | tasks[10].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[10].usage.aggregate.reasoningTokens | removed | 541 |  |
-| run.json | tasks[10].usage.aggregate.totalTokens | removed | 66174 |  |
-| run.json | tasks[10].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[10].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[10].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[10].usage.attempts[0].raw.cacheRead | removed | 34304 |  |
-| run.json | tasks[10].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[10].usage.attempts[0].raw.cached | added |  | 34304 |
 | run.json | tasks[10].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0034304,"cacheWrite":0,"input":0.06003999999999999,"output":0.018500000000000003,"total":0.0819704} | 0.0819704 |
 | run.json | tasks[10].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[10].usage.attempts[0].raw.reasoning | removed | 541 |  |
 | run.json | tasks[10].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[10].usage.attempts[0].raw.total | added |  | 66174 |
 | run.json | tasks[10].usage.attempts[0].raw.totalTokens | removed | 66174 |  |
 | run.json | tasks[10].usage.attempts[0].reasoningTokens | removed | 541 |  |
-| run.json | tasks[10].usage.attempts[0].totalTokens | removed | 66174 |  |
-| run.json | tasks[10].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[10].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[10].usage.provider | removed | openai-codex |  |
 | run.json | tasks[10].usage.reasoningTokens | removed | 541 |  |
-| run.json | tasks[10].usage.totalTokens | removed | 66174 |  |
-| run.json | tasks[11].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[11].usage.aggregate.reasoningTokens | removed | 1062 |  |
-| run.json | tasks[11].usage.aggregate.totalTokens | removed | 35176 |  |
-| run.json | tasks[11].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[11].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[11].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[11].usage.attempts[0].raw.cacheRead | removed | 13568 |  |
-| run.json | tasks[11].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[11].usage.attempts[0].raw.cached | added |  | 13568 |
 | run.json | tasks[11].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0013568,"cacheWrite":0,"input":0.039286,"output":0.01965,"total":0.0602928} | 0.0602928 |
 | run.json | tasks[11].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[11].usage.attempts[0].raw.reasoning | removed | 1062 |  |
 | run.json | tasks[11].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[11].usage.attempts[0].raw.total | added |  | 35176 |
 | run.json | tasks[11].usage.attempts[0].raw.totalTokens | removed | 35176 |  |
 | run.json | tasks[11].usage.attempts[0].reasoningTokens | removed | 1062 |  |
-| run.json | tasks[11].usage.attempts[0].totalTokens | removed | 35176 |  |
-| run.json | tasks[11].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[11].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[11].usage.provider | removed | openai-codex |  |
 | run.json | tasks[11].usage.reasoningTokens | removed | 1062 |  |
-| run.json | tasks[11].usage.totalTokens | removed | 35176 |  |
-| run.json | tasks[12].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[12].usage.aggregate.reasoningTokens | removed | 1137 |  |
-| run.json | tasks[12].usage.aggregate.totalTokens | removed | 62351 |  |
-| run.json | tasks[12].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[12].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[12].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[12].usage.attempts[0].raw.cacheRead | removed | 36096 |  |
-| run.json | tasks[12].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[12].usage.attempts[0].raw.cached | added |  | 36096 |
 | run.json | tasks[12].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0036096000000000006,"cacheWrite":0,"input":0.048257999999999995,"output":0.02126,"total":0.0731276} | 0.0731276 |
 | run.json | tasks[12].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[12].usage.attempts[0].raw.reasoning | removed | 1137 |  |
 | run.json | tasks[12].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[12].usage.attempts[0].raw.total | added |  | 62351 |
 | run.json | tasks[12].usage.attempts[0].raw.totalTokens | removed | 62351 |  |
 | run.json | tasks[12].usage.attempts[0].reasoningTokens | removed | 1137 |  |
-| run.json | tasks[12].usage.attempts[0].totalTokens | removed | 62351 |  |
-| run.json | tasks[12].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[12].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[12].usage.provider | removed | openai-codex |  |
 | run.json | tasks[12].usage.reasoningTokens | removed | 1137 |  |
-| run.json | tasks[12].usage.totalTokens | removed | 62351 |  |
-| run.json | tasks[13].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[13].usage.aggregate.reasoningTokens | removed | 843 |  |
-| run.json | tasks[13].usage.aggregate.totalTokens | removed | 163678 |  |
-| run.json | tasks[13].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[13].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[13].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[13].usage.attempts[0].raw.cacheRead | removed | 128896 |  |
-| run.json | tasks[13].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[13].usage.attempts[0].raw.cached | added |  | 128896 |
 | run.json | tasks[13].usage.attempts[0].raw.cost | changed | {"cacheRead":0.012889600000000003,"cacheWrite":0,"input":0.065636,"output":0.01964,"total":0.09816559999999999} | 0.0981656 |
 | run.json | tasks[13].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[13].usage.attempts[0].raw.reasoning | removed | 843 |  |
 | run.json | tasks[13].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[13].usage.attempts[0].raw.total | added |  | 163678 |
 | run.json | tasks[13].usage.attempts[0].raw.totalTokens | removed | 163678 |  |
 | run.json | tasks[13].usage.attempts[0].reasoningTokens | removed | 843 |  |
-| run.json | tasks[13].usage.attempts[0].totalTokens | removed | 163678 |  |
-| run.json | tasks[13].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[13].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[13].usage.provider | removed | openai-codex |  |
 | run.json | tasks[13].usage.reasoningTokens | removed | 843 |  |
-| run.json | tasks[13].usage.totalTokens | removed | 163678 |  |
-| run.json | tasks[16].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[16].usage.aggregate.reasoningTokens | removed | 923 |  |
-| run.json | tasks[16].usage.aggregate.totalTokens | removed | 5390 |  |
-| run.json | tasks[16].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[16].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[16].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[16].usage.attempts[0].raw.cacheRead | removed | 1664 |  |
-| run.json | tasks[16].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[16].usage.attempts[0].raw.cached | added |  | 1664 |
 | run.json | tasks[16].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0001664,"cacheWrite":0,"input":0.005012,"output":0.0122,"total":0.017378400000000002} | 0.0173784 |
 | run.json | tasks[16].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[16].usage.attempts[0].raw.reasoning | removed | 923 |  |
 | run.json | tasks[16].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[16].usage.attempts[0].raw.total | added |  | 5390 |
 | run.json | tasks[16].usage.attempts[0].raw.totalTokens | removed | 5390 |  |
 | run.json | tasks[16].usage.attempts[0].reasoningTokens | removed | 923 |  |
-| run.json | tasks[16].usage.attempts[0].totalTokens | removed | 5390 |  |
-| run.json | tasks[16].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[16].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[16].usage.provider | removed | openai-codex |  |
 | run.json | tasks[16].usage.reasoningTokens | removed | 923 |  |
-| run.json | tasks[16].usage.totalTokens | removed | 5390 |  |
 
 </details>
 
@@ -394,7 +322,7 @@ Original spec, Pi adapter request checks.
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/deep-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-deep-review-original-12683/work/replay-trace.jsonl"},"c… (371 chars, sha256 4606624133aa) |
+| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/deep-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-deep-review-original-77267/work/replay-trace.jsonl"},"c… (371 chars, sha256 7cd34e981243) |
 
 </details>
 
@@ -407,14 +335,12 @@ Original spec, Pi adapter request checks.
 
 </details>
 
-<details><summary>explained run-usage-unknown-not-zero (4)</summary>
+<details><summary>explained run-usage-unknown-not-zero (2)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | usage.cachedInputTokens | removed | 0 |  |
 | run.json | usage.reasoningTokens | removed | 17488 |  |
-| run.json | usage.totalTokens | removed | 1032672 |  |
 
 </details>
 

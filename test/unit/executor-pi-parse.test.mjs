@@ -123,6 +123,7 @@ test("usage: zero cost is unknown (null, never 0); zero-token requests emit no u
 			input: 5,
 			output: 2,
 			cached: 3,
+			cacheWrite: 1,
 			cost: 0.25,
 			source: "estimated",
 		},

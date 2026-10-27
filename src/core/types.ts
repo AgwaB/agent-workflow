@@ -1783,7 +1783,7 @@ export interface WorkflowRunRecord {
 	launch?: WorkflowRunLaunchMetadata;
 	/** Durable transparent foreach batch journals, including terminal receipts. */
 	foreachBatches?: WorkflowForeachBatchRecord[];
-	/** Task-usage rollup persisted when the run reaches a terminal status. */
+	/** Task-usage rollup persisted when the run reaches a terminal status or blocks (WP12a). */
 	usage?: WorkflowRunUsageRollup;
 	tasks: WorkflowTaskRunRecord[];
 }
