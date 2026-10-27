@@ -238,13 +238,24 @@ function signalOwnedProcess(
 	}
 }
 
+/**
+ * WP12a: `unknown` (the identity inspection failed, e.g. the Darwin helper timed out under load)
+ * is not proof the owner is gone. Treating it as dead let reconcile SIGTERM a healthy durable
+ * worker on the next (successful) inspection and then ask the executor, which could only answer
+ * `unknown` → needs_decision: runs turned `blocked` under load. An `unknown` is re-inspected
+ * twice; if it stays unknown the attempt is kept running and looked at again on the next poll.
+ */
 async function ownerProcessAlive(attempt: RunAttemptRecord): Promise<boolean> {
 	const { identities } = ownedProcessIdentities(attempt);
 	const ownerPid = attempt.process?.workerPid ?? attempt.process?.pid;
 	const owner = identities.find((identity) => identity.pid === ownerPid);
-	return (
-		owner !== undefined && (await verifyProcessIdentity(owner)) === "alive"
-	);
+	if (owner === undefined) return false;
+	let status = await verifyProcessIdentity(owner);
+	for (let retry = 0; status === "unknown" && retry < 2; retry += 1) {
+		await new Promise((resolveSleep) => setTimeout(resolveSleep, 100));
+		status = await verifyProcessIdentity(owner);
+	}
+	return status === "alive" || status === "unknown";
 }
 
 async function terminateOwnedProcesses(

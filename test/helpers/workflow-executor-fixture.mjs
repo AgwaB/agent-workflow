@@ -10,7 +10,12 @@
 //   mode          "normal" | "crash-after-consume" (reconcile then says unknown → needs_decision)
 //   reads         [{source, artifact}] read through the workflow_artifact config when the request
 //                 carries the workflow_artifact MCP server (stands in for the WP5 MCP server)
-//   ownSessions   true: the terminal event reports ownedSession {kind: "wf-fake-session", locator}
+//   ownSessions   true: like the real adapters, the terminal event reports ownedSession
+//                 {kind: "wf-fake-session", locator} only when the request asks to keep a session
+//                 (sessionId / resumeSessionId); "always": for every attempt (an adapter that keeps
+//                 sessions regardless, to test the engine's release)
+//   logPrompt     true: the submit log entry carries the task prompt sent to the executor
+//   deleteResult  deleteOwnedSession result (default "deleted"); "missing": no deleteOwnedSession
 //   stepDelayMs   delay between script steps
 //   capabilities  partial capability table over the SDK fake's (WP4d negotiation tests)
 //   probe         probe() result (default: installed, auth ok)
@@ -82,7 +87,9 @@ function scriptFor(req, config) {
 		{
 			type: "completed",
 			finalText,
-			...(config.ownSessions === true
+			...(config.ownSessions === "always" ||
+			(config.ownSessions === true &&
+				(req.sessionId !== undefined || req.resumeSessionId !== undefined))
 				? {
 						ownedSession: {
 							kind: "wf-fake-session",
@@ -176,6 +183,9 @@ export function createExecutor(config) {
 				envKeys: Object.keys(req.env ?? {}).sort(),
 				hasSystemPrompt: typeof req.systemPrompt === "string",
 				artifactsDir: req.artifactsDir ?? null,
+				sessionId: req.sessionId ?? null,
+				resumeSessionId: req.resumeSessionId ?? null,
+				...(config.logPrompt === true ? { prompt: req.prompt } : {}),
 			});
 			const inner = innerFor(req);
 			const authority = {
@@ -219,9 +229,13 @@ export function createExecutor(config) {
 		},
 		respond: (ref, requestId, decision) =>
 			inners.get(ref.attemptKey).respond(ref, requestId, decision),
-		async deleteOwnedSession(session) {
-			log(effectLog, { type: "delete-owned-session", ...session });
-			return "deleted";
-		},
+		...(config.deleteResult === "missing"
+			? {}
+			: {
+					async deleteOwnedSession(session) {
+						log(effectLog, { type: "delete-owned-session", ...session });
+						return config.deleteResult ?? "deleted";
+					},
+				}),
 	};
 }

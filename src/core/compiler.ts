@@ -1549,6 +1549,7 @@ async function compileArtifactGraphPlan(
 	const stageRecords: any[] = [];
 	const issues: ValidationIssue[] = [];
 	const warnings: string[] = [];
+	const agentNotices: string[] = [];
 	const validatedAgentPaths = new Set<string>();
 	validateToolSpecs(spec.defaults?.tools, issues, "$.defaults.tools");
 	let previousStageTaskKeys: string[] = [];
@@ -1689,6 +1690,13 @@ async function compileArtifactGraphPlan(
 				`$.artifactGraph.stages.${jsonKey(stage.id)}.${each?.agent !== undefined ? "each.agent" : "agent"}`,
 			);
 			warnings.push(...resourceInheritanceWarnings(stageAgent));
+			// WP12a: F5 precedence stays, but a legacy Pi agent that shadows a bundled agent of
+			// the same name is announced (capability preview, run record, validate).
+			if (stageAgent.legacySource === "pi" && stageAgent.shadowsBundledAgent) {
+				const notice = `agent "${stageAgent.name}": legacy ${stageAgent.sourcePath} shadows the bundled agent of the same name (legacy agents take precedence); rename or remove it to use the bundled agent`;
+				if (!agentNotices.includes(notice)) agentNotices.push(notice);
+				if (!warnings.includes(notice)) warnings.push(notice);
+			}
 			validatedAgentPaths.add(stageAgent.sourcePath);
 		}
 		const selectedRoles = selectRoles(
@@ -2188,6 +2196,7 @@ async function compileArtifactGraphPlan(
 		stages: stageRecords,
 		tasks,
 		warnings,
+		...(agentNotices.length > 0 ? { agentNotices } : {}),
 		...(options.inheritHostTools === true ? { inheritHostTools: true } : {}),
 		...(options.allowSharedCheckoutWrites === true
 			? { allowSharedCheckoutWrites: true }

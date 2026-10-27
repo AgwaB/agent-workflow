@@ -153,9 +153,12 @@ test("result → usage with reported cost, then completed", () => {
 	const usage = ofType(events, "usage")[0];
 	assert.equal(usage.source, "reported");
 	assert.equal(usage.cost, 0.0018570600000000002);
-	assert.equal(usage.input, 4 + 8258 + 7906);
+	// WP12a: input excludes cache reads/writes; cache creation is cacheWrite; resolved model.
+	assert.equal(usage.input, 4);
 	assert.equal(usage.output, 252);
 	assert.equal(usage.cached, 7906);
+	assert.equal(usage.cacheWrite, 8258);
+	assert.equal(usage.model, "claude-haiku-5-5");
 	assert.equal(events.at(-2).type, "usage");
 });
 

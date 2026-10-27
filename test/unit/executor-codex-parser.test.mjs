@@ -62,11 +62,13 @@ test("recorded complete: read tool, deltas, per-turn usage without cost, final t
 	);
 	assert.match(JSON.stringify(tools[0].input), /cat a\.txt/);
 	assert.ok(events.some((event) => event.type === "message_delta"));
+	// WP12a: SDK input excludes cache reads (Codex reports 22076 including 17664 cached).
 	assert.deepEqual(events.at(-2), {
 		type: "usage",
-		input: 22076,
+		input: 22076 - 17664,
 		output: 110,
 		cached: 17664,
+		cacheWrite: 0,
 		cost: null,
 		source: "unknown",
 	});
@@ -118,7 +120,11 @@ test("recorded write: apply_patch is an edit tool call", () => {
 test("recorded resume: replayed usage of the earlier turn is not billed to the new turn", () => {
 	const events = normalize(recorded("parser-resume"));
 	const usage = events.find((event) => event.type === "usage");
-	assert.equal(usage.input, 22244 - 11019);
+	// WP12a: input + cached (+ cacheWrite) is Codex's input delta of the new turn.
+	assert.equal(
+		usage.input + usage.cached + (usage.cacheWrite ?? 0),
+		22244 - 11019,
+	);
 	assert.equal(events.at(-1).type, "completed");
 });
 

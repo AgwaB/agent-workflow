@@ -173,19 +173,19 @@ generator has no mode input yet; add one per mode when WP4e merges.
 | Workflow | Executor | Stages | Declared table | Probed, clean environment |
 |---|---|---|---|---|
 | `deep-research/spec.json` | pi | 5 | refuse: `CAPABILITY_UNVERIFIED:webTools` | degrade: `webTools.safetyPolicy:unknown` |
-| `deep-research/spec.json` | codex | 5 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `forcedReadOnly`, `webTools.safetyPolicy:unknown` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `forcedReadOnly`, `webTools.safetyPolicy:unknown` |
+| `deep-research/spec.json` | codex | 5 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly`, `webTools.safetyPolicy:unknown` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly`, `webTools.safetyPolicy:unknown` |
 | `deep-research/spec.json` | claude | 5 | degrade: `webTools.safetyPolicy:unknown` | degrade: `webTools.safetyPolicy:unknown` |
 | `deep-research/tiered-verification.spec.json` | pi | 6 | refuse: `CAPABILITY_UNVERIFIED:webTools` | degrade: `webTools.safetyPolicy:unknown` |
-| `deep-research/tiered-verification.spec.json` | codex | 6 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `forcedReadOnly`, `webTools.safetyPolicy:unknown` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `forcedReadOnly`, `webTools.safetyPolicy:unknown` |
+| `deep-research/tiered-verification.spec.json` | codex | 6 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly`, `webTools.safetyPolicy:unknown` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly`, `webTools.safetyPolicy:unknown` |
 | `deep-research/tiered-verification.spec.json` | claude | 6 | degrade: `webTools.safetyPolicy:unknown` | degrade: `webTools.safetyPolicy:unknown` |
 | `deep-review/spec.json` | pi | 4 | accept | accept |
-| `deep-review/spec.json` | codex | 4 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `forcedReadOnly` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `forcedReadOnly` |
+| `deep-review/spec.json` | codex | 4 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly` |
 | `deep-review/spec.json` | claude | 4 | accept | accept |
 | `impact-review/spec.json` | pi | 12 | accept | accept |
-| `impact-review/spec.json` | codex | 12 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `forcedReadOnly` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `forcedReadOnly` |
+| `impact-review/spec.json` | codex | 12 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly` |
 | `impact-review/spec.json` | claude | 12 | accept | accept |
 | `spec-review/spec.json` | pi | 6 | accept | accept |
-| `spec-review/spec.json` | codex | 6 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `forcedReadOnly` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `forcedReadOnly` |
+| `spec-review/spec.json` | codex | 6 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly` |
 | `spec-review/spec.json` | claude | 6 | accept | accept |
 
 <!-- bundled-support-table:end -->

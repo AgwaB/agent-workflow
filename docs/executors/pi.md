@@ -287,6 +287,11 @@ request drops mutating tools from `--tools` in both modes. The conformance harne
 
 ## Change log
 
+- **WP12a (2026-10-27):** usage events carry `cacheWrite` (Pi `usage.cacheWrite`) and `model` (the
+  assistant message's model), so Pi tasks record their model; Pi's `input` already excludes cache
+  reads and writes (docs/core-port.md WP12a change log 3). Tests: `executor-pi-parse.test.mjs`,
+  `core-wp12a-usage-normalized.test.mjs`.
+
 - **WP4e (2026-10-26):** no adapter code change; `free` and `safe` map to the same invocation, readOnly
   unchanged. Tests: `executor-pi-adapter.test.mjs` (argv equal across free/safe/absent, readOnly drops
   mutating tools in free), conformance `permission.mode_mapping`. Live #19 (1 call, free mode).

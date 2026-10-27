@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/process-identity.ts. MIT, same author. Changes: none.
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/process-identity.ts. MIT, same author. Changes: WP12a test seam `setProcessIdentityInspectorForTests` (simulates an inspection that times out under load).
 import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { promisify } from "node:util";
@@ -151,7 +151,29 @@ async function inspectDarwinProcessIdentity(
 	}
 }
 
+type ProcessIdentityInspector = (
+	pid: number,
+	inspect: (pid: number) => Promise<ProcessIdentityStatus>,
+) => Promise<ProcessIdentityStatus>;
+
+let inspectorForTests: ProcessIdentityInspector | undefined;
+
+/** Tests only: wrap process-identity inspection (e.g. one `unknown` like a helper timeout). */
+export function setProcessIdentityInspectorForTests(
+	inspector: ProcessIdentityInspector | undefined,
+): void {
+	inspectorForTests = inspector;
+}
+
 export async function inspectProcessIdentity(
+	pid: number,
+): Promise<ProcessIdentityStatus> {
+	if (inspectorForTests !== undefined)
+		return await inspectorForTests(pid, inspectProcessIdentityDirect);
+	return await inspectProcessIdentityDirect(pid);
+}
+
+async function inspectProcessIdentityDirect(
 	pid: number,
 ): Promise<ProcessIdentityStatus> {
 	if (!Number.isSafeInteger(pid) || pid <= 0)

@@ -3649,9 +3649,13 @@ test("resumeRun resets failed and skipped tasks, preserves completed work, and r
 			assert.equal(taskBySpec(resumed, "two.main").status, "running");
 			assert.equal(taskBySpec(resumed, "three.main").status, "pending");
 			assert.equal(launchedTasks.length, 1);
-			assert.match(launchOptions[0].sessionId, /\.resume-1$/);
-			assert.ok(launchOptions[0].sessionId.length <= 64);
-			assert.match(launchOptions[0].sessionId, /^[A-Za-z0-9._-]+$/);
+			// WP12a (D3): the resume attempt identity rotates; no CLI session is requested.
+			assert.equal(launchOptions[0].sessionId, undefined);
+			const resumedSessionId = taskBySpec(resumed, "two.main").backendFiles
+				?.sessionId;
+			assert.match(resumedSessionId, /\.resume-1$/);
+			assert.ok(resumedSessionId.length <= 64);
+			assert.match(resumedSessionId, /^[A-Za-z0-9._-]+$/);
 			assert.equal(interrupted.length, 0);
 		} finally {
 			setTaskRuntimeApiForTests(undefined);

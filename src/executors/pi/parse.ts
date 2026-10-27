@@ -6,7 +6,7 @@
 // original `message_end` accumulation), and the process exit → exactly one terminal event. Pi's
 // usage cost is computed by Pi from its model catalog, so it is reported as `estimated`; a zero
 // cost is reported as unknown (`cost: null`, never 0), because Pi cannot tell a free model from an
-// unpriced one.
+// unpriced one. WP12a: usage carries `cacheWrite` and the assistant message's `model`.
 import { StringDecoder } from "node:string_decoder";
 import type { FailureClass } from "../../sdk/errors.js";
 import type {
@@ -107,14 +107,24 @@ function count(value: unknown): number | null {
 		: null;
 }
 
-/** One `usage` event for one assistant request. Exported for tests. */
-export function usageFromPi(usage: unknown): UsageEvent | undefined {
+/**
+ * One `usage` event for one assistant request. Exported for tests. Pi's `input` already excludes
+ * cache reads and writes (pi-ai normalizes every provider), so it is the SDK `input` as is;
+ * `cacheRead` → `cached`, `cacheWrite` → `cacheWrite`; `model` is the assistant message's model.
+ */
+export function usageFromPi(
+	usage: unknown,
+	model?: unknown,
+): UsageEvent | undefined {
 	if (!isRecord(usage)) return undefined;
 	const input = count(usage.input);
 	const output = count(usage.output);
 	const cached = count(usage.cacheRead);
+	const cacheWrite =
+		usage.cacheWrite === undefined ? undefined : count(usage.cacheWrite);
 	const total =
-		count(usage.totalTokens) ?? (input ?? 0) + (output ?? 0) + (cached ?? 0);
+		count(usage.totalTokens) ??
+		(input ?? 0) + (output ?? 0) + (cached ?? 0) + (cacheWrite ?? 0);
 	const costTotal = isRecord(usage.cost) ? usage.cost.total : undefined;
 	if (total === 0) return undefined;
 	const cost =
@@ -126,6 +136,8 @@ export function usageFromPi(usage: unknown): UsageEvent | undefined {
 		input,
 		output,
 		cached,
+		...(cacheWrite === undefined ? {} : { cacheWrite }),
+		...(typeof model === "string" && model.trim() !== "" ? { model } : {}),
 		cost,
 		source: cost === null ? "unknown" : "estimated",
 	};
@@ -228,7 +240,7 @@ export class PiEventNormalizer {
 							errorText(message.error) ??
 							"assistant stopped with an error",
 					);
-				const usage = usageFromPi(message.usage);
+				const usage = usageFromPi(message.usage, message.model);
 				return usage === undefined ? [] : [usage];
 			}
 			case "agent_end": {

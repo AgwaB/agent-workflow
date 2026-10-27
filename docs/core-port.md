@@ -1292,3 +1292,147 @@ details: docs/mcp.md "Paged reads" and "Measured limits".
   probe summary → run → `preparedMcpServers`; provenance digest equals the launched spec's digest.
 - Updated: `mcp-artifact-delivery.test.mjs` and `mcp-artifact-conformance.test.mjs` (whole reads page,
   projections still cut), conformance kit tests (fake, Pi, Codex justified skip).
+
+## WP12a — stage-1 closure fixes
+
+Fixes for owner-decision violations and live bundle 3 findings (docs/live-acceptance-stage1.md, open
+problems 1–6, 10).
+
+### WP12a change log (behavior-relevant)
+
+1. **Worker sessions are not kept by default (D3, R#10).** `task-backend.ts` still derives the engine
+   session id (`agent-workflow.<run>.<task>…`, launch provenance and `backendFiles`), but passes it to
+   the executor as `SubmitRequest.sessionId` only when `workflowTaskKeepsSession(task)`
+   (`owned-session-release.ts`): artifact-graph task with experimental same-session repair on
+   (`AGENT_WORKFLOW_EXPERIMENTAL_SAME_SESSION_REPAIR`, the only path that continues a kept session;
+   with it on, attempts keep sessions as in pi-workflow). Without it no attempt keeps one: output
+   repairs, launch retries and resumes always start fresh sessions (`.retry-N`, `.launch-retry-N`,
+   `.resume-N` stay the attempt identities). Without a session id the adapters run without session
+   persistence (Claude `--no-session-persistence`, Codex `ephemeral: true`, Pi `--no-session`), so they
+   report no `ownedSession`. `releaseUnneededOwnedSessions(run)` runs at the end of every refresh and
+   schedule pass (under the run lease) and deletes, through the run executor's `deleteOwnedSession`,
+   exactly the `task.ownedSessions` entries of completed/skipped tasks, and every remaining entry once
+   the run is completed or failed. Blocked and interrupted runs keep the sessions of their
+   failed/blocked/interrupted tasks until resolved or pruned. Each handled entry gets
+   `release: {at, outcome: deleted | not_found | unsupported | refused | failed, error?}`; a session
+   recorded for another executor id is `refused` and never passed on. `prune` skips entries already
+   `deleted`/`not_found` and retries the rest. Replay: `owned-sessions` differences disappear (no
+   session is requested); the explained entry stays for runs with same-session repair on.
+   Tests: `core-wp12a-worker-sessions.test.mjs`; pi-workflow-ported tests that asserted a session id
+   on every runtime launch (`core-unit-artifact-web`, `core-unit-engine-store`) now assert none
+   without the flag and the rotated identity on `backendFiles`/`backendHandle`.
+2. **Unknown cost is `null`, never 0 (live open problem 4).** `workflow-metrics.ts`: a support task
+   (no model call) observes nothing — its `observed` values are `null` instead of `0`, and the observed
+   run sums read `task.usage.observed`; before, a run whose model tasks all reported `costUsd: null`
+   (every Codex attempt) summed the support tasks' zeros into `costUsd: 0` (likewise
+   `totalTokens`/`cachedInputTokens`). `store.ts` run rollup (`run.usage`) always carries `costUsd`
+   (`null` when no task reported a cost). Host text: the usage line of `formatHumanRunOutcome` /
+   details says `cost unknown` or `cost $<usd>`; `formatRun` adds `cost=unknown|<usd>`. SDK
+   `negotiateCapabilities`: `usage.cost` is no longer `emulated by engine` ("cost = tokens × model price
+   table" — no price table exists); a preferred `usage.cost` the executor cannot report is `degraded`
+   (`CAPABILITY_MISSING:usage.cost`, note "cost recorded as unknown…") with the new
+   `NegotiationEntry.recordOnly: true`, which never needs an interactive confirmation (`strict`
+   still refuses it). A required `usage.cost` is still refused. Tests:
+   `core-wp12a-usage-cost.test.mjs` (Codex/Pi/Claude recorded transcripts → runtime summary → task →
+   rollup → text; negotiation), `sdk-capabilities.test.mjs` updated. Replay: new explained rule
+   `run-usage-unknown-not-zero` (run rollup token classes no task reported are absent, not 0).
+   The generated offline support table (`docs/bundled-workflows.md`) now lists
+   `CAPABILITY_MISSING:usage.cost` for Codex (regenerated with `bundled-support-table.mjs --write`).
+3. **One normalized usage shape (live open problem 5).** SDK `UsageEvent` (src/sdk/events.ts, the
+   usage event docs): `input` = input tokens EXCLUDING cache reads and writes, `cached` = cache-read
+   input tokens, new optional `cacheWrite` (cache-creation input tokens; absent = none) and `model`
+   (the model that served the request, resolved name), `output` (reasoning included), `cost` or
+   `null` + `source`; total = input + cached + cacheWrite + output. `validateExecEvent` checks the two
+   new fields when present (contract stays 0.1.0: additive). Adapters: Pi `usageFromPi(usage, model)`
+   (Pi's `input` already excludes cache; `cacheWrite`; the assistant message's `model`); Codex
+   `CodexTurnNormalizer` subtracts `cachedInputTokens` (and `cacheWriteInputTokens`) from
+   `inputTokens`, reports `cacheWrite`, and names the model from the `thread/start`/`thread/resume`
+   response (else the request model); Claude reports `input_tokens` as is (it excluded cache already;
+   the adapter used to add cache reads and writes), `cache_creation_input_tokens` as `cacheWrite`, and
+   the resolved model (`result.modelUsage`, else the last assistant message). Runtime
+   `summarizeUsage` adds `cacheWrite`, `total` and `model`; the core maps them to
+   `totalTokens` / `cacheCreationInputTokens` and takes the attempt `model` from the usage summary
+   before request metadata (Claude no longer records the alias `haiku`; Pi tasks record their
+   model). Run rollups are also written for `blocked` runs (`store.ts`), so wait results of blocked
+   runs carry the usage of the attempts that ran. Live bundle 3's `totalTokens: 0` came from the
+   missing total plus the support-task zeros (change log 2). Tests:
+   `core-wp12a-usage-normalized.test.mjs` (recorded Pi/Codex/Claude transcripts → events → summary →
+   task → rollup, blocked run); adapter parser and runtime summary tests updated to the normalized
+   input and the new `cacheWrite`/`total` summary fields (a `null` part makes `total` `null`). Replay: task
+   `totalTokens`/`cacheCreationInputTokens` now reproduce the recording (fewer `executor-usage-contract`
+   rows); the `original-spec-review-legacy-state-read` divergence also covers run
+   `usage.totalTokens`/`usage.cacheCreationInputTokens`.
+4. **Control-schema path in worker prompts (live open problem 3).** The compiled output protocol
+   says "Validate the control object against the workflow-local control schema file: ./schemas/…",
+   relative to the workflow bundle; the worker's cwd is the project, so Pi and Codex spec-review
+   workers got ENOENT and reported it as a needsHuman row (which sets the renderer gate
+   `actionableEvidenceComplete: false`). The engine does enforce the schema after the attempt, but
+   the instruction is kept so workers can self-check: `task-backend.ts` `renderControlSchemaPath`
+   replaces the bundle-relative path in the prompt sent to the executor with the run's own copy
+   (`task.artifactGraph.output.controlSchemaPath`, absolute, `<run>/bundle/schemas/<file>`, readable
+   from any cwd including a worktree). `task.md` (digested by launch provenance) keeps the compiled
+   text, so prompt files and provenance are unchanged. Replay: the launch prompt (match key) is
+   renamed back by the new literal rename `wp12a-control-schema-path` in
+   `test/replay/allowed-differences.json` (`control schema file: <ROOT>/.agent-workflow/workflows/
+   <WF_RUN_n>/bundle/schemas/` → `control schema file: ./schemas/`, the WP10 tool-name precedent);
+   no other difference; 0 unexplained. Test: `core-wp12a-control-schema-path.test.mjs` (the prompt
+   path is absolute and exists; task.md unchanged).
+5. **Workflow inputs from the CLI and `/aw` (live open problem 1).** `agent-workflow run|dynamic`
+   and Pi `/aw run|dynamic` accept `--input key=value`, repeatable (CLI `parseCommandArgs` gains
+   `repeatable` options; `hosts/args.ts` `addWorkflowInputAssignment`, also used by
+   `parseWorkflowRunArgs`/`parseWorkflowDynamicArgs`, leading or trailing). The raw strings go to the
+   host API's `inputOverrides`, which `typedWorkflowInputOverrides` (hosts/launch.ts) types against
+   the spec's declared `input` defaults before anything starts: string stays string, number must be
+   finite, boolean is `true`/`false`, arrays/objects/`null` defaults take JSON; a non-string value
+   must already have the declared type. An undeclared key is now a usage error listing the declared
+   keys (the engine used to drop it silently); a key given twice is a usage error. Help texts list
+   the option. Test: `host-wp12a-input.test.mjs` (CLI typed inputs reach the compiled
+   "# Workflow Input", usage errors exit 2 with no run, host API typing, `/aw` parsing).
+6. **Flakes under load: stop and blocked runs (live open problem 10).** Two product races, both
+   reproduced with a stress script (6 parallel loops of the host-cli stop scenario, 24 busy-loop
+   processes on 12 cores): 4 of 30 stops failed before, 0 of 30 after.
+   - *Stop.* `hosts/runs.ts` `stopAction` retried `stopRun` after a stop-pending error. Under load
+     the first call could not confirm within `STOP_RUN_LEASE_WAIT_MS` (the detached supervisor held
+     the lease); meanwhile the supervisor applied the stop and cleared the stop intent, so the retry
+     refused the now-interrupted run ("stop requires a non-terminal run") and `agent-workflow stop`
+     exited 1 although the stop had succeeded. Retries now call the new `confirmRunStop` (engine):
+     a run that is terminal with no stop intent left is the confirmation; otherwise it confirms the
+     durable intent without requesting it again.
+   - *Blocked.* `runtime/orchestrate/reconcile.ts` `ownerProcessAlive` read an `unknown` identity
+     check (the Darwin helper times out after 2 s under load) as "owner gone". Reconcile then ran
+     `terminateAttemptOwnership`, whose next inspection succeeded, SIGTERMed the healthy durable
+     worker and asked the executor, which could only answer `unknown` → `needs_decision`: the task
+     and run turned `blocked` (host-cli "foreground run" flake; also one replay-acceptance failure
+     in this WP: impact-review task-8 `executor_needs_decision`). An `unknown` is now re-inspected
+     twice and, if it stays unknown, the attempt is kept running (unknown is not dead); `dead` and
+     `mismatch` are handled as before. Test seam: `setProcessIdentityInspectorForTests`
+     (`runtime/process-identity.ts`).
+   Tests: `runtime-wp12a-reconcile-unknown-owner.test.mjs`, `host-wp12a-stop-confirm.test.mjs`;
+   `replay-acceptance.test.mjs` now prints the unexplained rows when it fails.
+   Test-only load margins (same machine load, load average 26–41 on 12 cores during this WP):
+   `core-wp4c1-engine-runtime` waits up to 20 s (was 5 s) for the in-process supervisor before
+   pruning; `core-dag-hardening` "stop during dynamic helper" waits up to 10 s (was 1.5 s) for the
+   helper to start.
+7. **Legacy agents shadowing bundled agents are announced (live open problem 2).** The search order
+   stays (F5: agent-workflow locations, then legacy Pi `.pi/agents` / `~/.pi/agent/agents`, then
+   bundled). `agents.ts`: a legacy user agent (`~/.pi/agent/agents`) whose name also exists among
+   the bundled agents records `shadowsBundledAgent` (bundled path); a project's legacy `.pi/agents`
+   override is left alone (the project's explicit choice; the WP1a recordings ship one). `compiler.ts` turns it into one line, also a compile warning:
+   `agent "<name>": legacy <path> shadows the bundled agent of the same name (legacy agents take
+   precedence); rename or remove it to use the bundled agent`, collected in
+   `CompiledWorkflow.agentNotices`. `capability-negotiation.ts` records them as
+   `run.capabilityNegotiation.notices` and appends `Notice: …` lines to the preview text that hosts
+   print at launch (host API `data.capability.notices`). Test:
+   `core-wp12a-legacy-agent-shadow.test.mjs` (no legacy file → no notice; legacy `scout.md` → still
+   resolves first, one-line notice in record and preview).
+
+### WP12a validation
+
+`npm run validate` passes (twice in a row at the final commit; unit 1,872 pass, 22 skipped, 0 fail;
+main had 1,844). Replay acceptance: 0 unexplained in every fixture/variant; new classifications are
+`run-usage-unknown-not-zero` (change log 2), the extended `original-spec-review-legacy-state-read`
+divergence (change log 3) and the literal rename `wp12a-control-schema-path` (change log 4); reports
+regenerated with `node test/replay/acceptance.mjs --write`. The new WP12a test files remove their
+temp roots with retries (a durable worker or finalizer can still close files right after a run
+ends). `test/unit/host-cli.test.mjs` ran 10 times
+in a row with 24 busy-loop processes on 12 cores (load average up to ~95): 10/10 passed.

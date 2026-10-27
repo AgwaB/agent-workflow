@@ -404,7 +404,7 @@ function probeHeader(summary: WorkflowExecutorProbeSummary): string[] {
 
 export interface NegotiateWorkflowRunInput {
 	descriptor: ExecutorDescriptor;
-	compiled: Pick<CompiledWorkflow, "tasks" | "stages">;
+	compiled: Pick<CompiledWorkflow, "tasks" | "stages" | "agentNotices">;
 	policy: WorkflowCapabilityPolicy;
 	/** Reuse a recorded probe (nested runs) instead of probing again. */
 	recorded?: Pick<WorkflowRunCapabilityNegotiation, "probe" | "capabilities">;
@@ -444,6 +444,7 @@ export async function negotiateWorkflowRun(
 	const stages = workflowNegotiationTargets(input.compiled).map((task) =>
 		negotiateTask(executor, probed.capabilities, task, policy, "pre-launch"),
 	);
+	const notices = [...(input.compiled.agentNotices ?? [])];
 	const preview = buildCapabilityPreview(stages, {
 		executor,
 		header: probeHeader(probed.summary),
@@ -503,7 +504,14 @@ export async function negotiateWorkflowRun(
 		stages,
 		degradations: [...preview.degradations],
 		forcedReadOnly: [...preview.forcedReadOnly],
-		preview: preview.text,
+		// WP12a: one-line notices (legacy agents shadowing bundled agents) shown with the preview.
+		preview:
+			notices.length === 0
+				? preview.text
+				: [preview.text, ...notices.map((notice) => `Notice: ${notice}`)].join(
+						"\n",
+					),
+		...(notices.length === 0 ? {} : { notices }),
 	};
 }
 

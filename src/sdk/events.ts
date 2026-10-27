@@ -57,12 +57,27 @@ export interface ToolCallEvent {
 	readonly input?: JsonValue;
 	readonly output?: JsonValue;
 }
+/**
+ * One normalized usage report (WP12a). The same meaning for every executor, whatever the CLI
+ * reports:
+ * - `input`: input tokens EXCLUDING cache reads and cache writes (Codex/Claude report input
+ *   including cache reads; the adapter subtracts them);
+ * - `cached`: cache-read input tokens;
+ * - `cacheWrite`: cache-creation input tokens (absent = the CLI reports none; counted as 0);
+ * - `output`: output tokens, reasoning included;
+ * - total = input + cached + cacheWrite + output (the runtime sums it; adapters do not send it);
+ * - `model`: the model that served the request, as the CLI reports it, when known (the resolved
+ *   name, not an alias the request used);
+ * - `cost` in USD or `null` when unknown — never 0 for unknown — with its `source`.
+ * Token counts: `null` means unknown, which is different from 0.
+ */
 export interface UsageEvent {
 	readonly type: "usage";
-	/** Token counts; `null` means unknown, which is different from 0. */
 	readonly input: number | null;
 	readonly output: number | null;
 	readonly cached: number | null;
+	readonly cacheWrite?: number | null;
+	readonly model?: string;
 	readonly cost: number | null;
 	readonly source: UsageSource;
 }
@@ -173,6 +188,15 @@ export function validateExecEvent(value: unknown): string[] {
 			for (const key of ["input", "output", "cached"] as const)
 				if (!isCount(value[key]))
 					problems.push(`usage.${key} must be a non-negative integer or null`);
+			if (value.cacheWrite !== undefined && !isCount(value.cacheWrite))
+				problems.push(
+					"usage.cacheWrite must be a non-negative integer or null when present",
+				);
+			if (
+				value.model !== undefined &&
+				(typeof value.model !== "string" || value.model.trim() === "")
+			)
+				problems.push("usage.model must be a non-empty string when present");
 			if (!includes(USAGE_SOURCES, value.source))
 				problems.push("usage.source is invalid");
 			if (

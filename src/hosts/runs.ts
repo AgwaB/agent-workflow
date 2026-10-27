@@ -21,6 +21,7 @@ import {
 	resumeRun,
 	scheduleRun,
 	stopRun,
+	confirmRunStop,
 	waitForRun,
 } from "../core/engine.js";
 import { hasActiveSchedulerWork } from "../core/engine-wait.js";
@@ -522,9 +523,16 @@ export async function stopAction(
 	const ref = requireRunRef(request.runId, "stop");
 	const deadline =
 		Date.now() + (request.timeoutMs ?? HOST_STOP_CONFIRM_TIMEOUT_MS);
+	// WP12a: after the first attempt recorded the durable stop intent, retries only confirm it.
+	// Re-running stopRun refused a run whose supervisor had meanwhile applied the stop and cleared
+	// the intent ("stop requires a non-terminal run; … is interrupted"), so a successful stop
+	// exited 1 under load (host-cli "stop" flake).
+	let requested = false;
 	while (true) {
 		try {
-			const { run, interruptedTaskIds } = await stopRun(ctx.cwd, ref);
+			const { run, interruptedTaskIds } = requested
+				? await confirmRunStop(ctx.cwd, ref)
+				: await stopRun(ctx.cwd, ref);
 			return result(
 				"stop",
 				"success",
@@ -538,6 +546,7 @@ export async function stopAction(
 			);
 		} catch (error) {
 			if (!isWorkflowStopPendingError(error)) throw error;
+			requested = true;
 			if (Date.now() >= deadline) {
 				const run = await readRunRecord(ctx.cwd, ref);
 				return result(

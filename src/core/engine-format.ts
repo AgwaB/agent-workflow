@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine-format.ts. MIT, same author. Changes: none.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine-format.ts. MIT, same author. Changes: WP12a usage lines show the run cost, `unknown` when no task reported one (never $0).
 import { lstat } from "node:fs/promises";
 import { readFileLinesBounded } from "./workflow-preview.js";
 
@@ -660,6 +660,12 @@ function formatHumanUsageLine(run: WorkflowRunRecord): string | undefined {
 		parts.push(
 			`cache r/w ${usage.cacheReadInputTokens ?? "n/a"} / ${usage.cacheCreationInputTokens ?? "n/a"}`,
 		);
+	// WP12a: an unknown cost is "unknown", never $0.
+	parts.push(
+		usage.costUsd === null
+			? "cost unknown"
+			: `cost ${formatUsd(usage.costUsd)}`,
+	);
 	parts.push(
 		`${usage.contributingTaskIds.length}/${run.tasks.length} tasks reporting`,
 	);
@@ -815,9 +821,20 @@ function formatRunUsageLine(run: WorkflowRunRecord): string | undefined {
 		parts.push(`cacheWrite=${observed.cacheCreationInputTokens ?? "n/a"}`);
 	}
 	parts.push(
+		`cost=${observed.costUsd === null ? "unknown" : roundUsd(observed.costUsd)}`,
+	);
+	parts.push(
 		`tasksReporting=${observed.contributingTaskIds.length}/${run.tasks.length}`,
 	);
 	return `usage=${parts.join(", ")}`;
+}
+
+function roundUsd(value: number): number {
+	return Math.round(value * 1e6) / 1e6;
+}
+
+function formatUsd(value: number): string {
+	return `$${roundUsd(value)}`;
 }
 
 async function reconcileActiveRuns(cwd: string): Promise<WorkflowRunRecord[]> {

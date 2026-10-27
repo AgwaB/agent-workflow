@@ -105,6 +105,26 @@
 			]
 		},
 		{
+			"id": "wp12a-control-schema-path",
+			"introducedBy": "WP12a",
+			"decision": "WP12a control schema path in executor prompts (docs/core-port.md \"WP12a\" change log 4)",
+			"reason": "The compiled output protocol names the control schema relative to the workflow bundle (./schemas/<file>), which does not resolve from the worker's cwd (live bundle 3 open problem 3). The task backend renders the run's own copy (<run>/bundle/schemas/<file>, absolute) into the prompt sent to the executor; task.md keeps the compiled text. The launch prompt is renamed back literal by literal for the replay match key; each hit is listed in the report.",
+			"renames": [
+				[
+					"control schema file: <ROOT>/.agent-workflow/workflows/<WF_RUN_1>/bundle/schemas/",
+					"control schema file: ./schemas/"
+				],
+				[
+					"control schema file: <ROOT>/.agent-workflow/workflows/<WF_RUN_2>/bundle/schemas/",
+					"control schema file: ./schemas/"
+				],
+				[
+					"control schema file: <ROOT>/.agent-workflow/workflows/<WF_RUN_3>/bundle/schemas/",
+					"control schema file: ./schemas/"
+				]
+			]
+		},
+		{
 			"id": "executor-record-source",
 			"introducedBy": "WP1b",
 			"decision": "WP4c-1 literal rename: usage/budget record source \"pi-subagent\" → \"executor\" (docs/core-port.md \"Paths, env and literals\")",

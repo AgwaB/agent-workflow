@@ -65,11 +65,19 @@ export function cancelGraceMs(): number {
 	return Number.isFinite(raw) && raw >= 0 ? raw : DEFAULT_CANCEL_GRACE_MS;
 }
 
-/** Summed `usage` events. A field is null when any event reported it unknown (never 0). */
+/**
+ * Summed `usage` events (normalized meaning: SDK `UsageEvent`). A field is null when any event
+ * reported it unknown (never 0). WP12a: `cacheWrite` (absent on every event = 0), `total` =
+ * input + cached + cacheWrite + output (null when any part is unknown), `model` = the last model an
+ * event named.
+ */
 export interface UsageSummary {
 	input: number | null;
 	output: number | null;
 	cached: number | null;
+	cacheWrite: number | null;
+	total: number | null;
+	model?: string;
 	cost: number | null;
 	source: UsageSource;
 	events: number;
@@ -87,6 +95,9 @@ export function summarizeUsage(
 		usage.some((event) => event[key] === null)
 			? null
 			: usage.reduce((total, event) => total + (event[key] ?? 0), 0);
+	const cacheWrite = usage.some((event) => event.cacheWrite === null)
+		? null
+		: usage.reduce((total, event) => total + (event.cacheWrite ?? 0), 0);
 	const sources = new Set(usage.map((event) => event.source));
 	const source: UsageSource = sources.has("unknown")
 		? "unknown"
@@ -94,10 +105,24 @@ export function summarizeUsage(
 			? "estimated"
 			: "reported";
 	const cost = sum("cost");
+	const input = sum("input");
+	const output = sum("output");
+	const cached = sum("cached");
+	const total =
+		input === null || output === null || cached === null || cacheWrite === null
+			? null
+			: input + output + cached + cacheWrite;
+	const model = usage
+		.map((event) => event.model)
+		.filter((name): name is string => typeof name === "string" && name !== "")
+		.at(-1);
 	return {
-		input: sum("input"),
-		output: sum("output"),
-		cached: sum("cached"),
+		input,
+		output,
+		cached,
+		cacheWrite,
+		total,
+		...(model === undefined ? {} : { model }),
 		// Floating sums are rounded to 12 decimals so 0.1 + 0.2 does not leak into records.
 		cost: cost === null ? null : Math.round(cost * 1e12) / 1e12,
 		source,

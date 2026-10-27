@@ -15,7 +15,7 @@ Original spec, Pi adapter request checks.
 | Worker launches served / recorded | 5 / 6 |
 | Artifact reads re-issued / recorded | 43 / 57 |
 | Differences: allowed | 292 |
-| Differences: explained | 493 |
+| Differences: explained | 459 |
 | Differences: unexplained | 0 |
 | Exact-match violations | 0 |
 
@@ -29,7 +29,7 @@ Tasks not completed:
 
 | Task | Spec | Status | Detail | Message |
 |---|---|---|---|---|
-| task-7 | report.main | failed | launch_failed | provisional worker run_mvpg7ljk_a93711/attempt_mvpg7ljk_760ef5 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: replay miss for task-7: no |
+| task-7 | report.main | failed | launch_failed | provisional worker run_mvqhsc8e_3637a8/attempt_mvqhsc8e_df8f6c ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: replay miss for task-7: no |
 | task-8 | final.main | failed | support_declared_failed | support declared failed |
 
 ### Differences by rule
@@ -38,12 +38,12 @@ Tasks not completed:
 |---|---|---|---|
 | explained | `artifact-mcp-provenance` | 70 | docs/core-port.md WP4b change log 4 and "What launch provenance digests now"; WP4c-1 "Pi executor (WP6)" table (extension isolation, generated extension wrappers) |
 | explained | `executor-exit-code` | 10 | docs/core-port.md WP1b change log 1 |
-| explained | `executor-usage-contract` | 107 | docs/core-port.md WP1b change log 2 |
-| explained | `original-spec-review-legacy-state-read` | 275 | docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows → .agent-workflow/workflows, no fallback) |
-| explained | `owned-sessions` | 5 | docs/core-port.md WP4c-1 "R#9, R#10, R#12, R#5" (R#10) and change log 8 |
+| explained | `executor-usage-contract` | 75 | docs/core-port.md WP1b change log 2 |
+| explained | `original-spec-review-legacy-state-read` | 276 | docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows → .agent-workflow/workflows, no fallback) |
 | explained | `run-capability-negotiation` | 1 | docs/core-port.md "WP4d — capability negotiation before launch" |
 | explained | `run-executor-record` | 1 | docs/core-port.md WP4c-1 "Executor selection" and change log 11 |
 | explained | `run-permission-mode` | 2 | docs/core-port.md WP4e permission modes; docs/permissions.md |
+| explained | `run-usage-unknown-not-zero` | 2 | docs/core-port.md WP12a change log 2 |
 | explained | `runtime-cost-rounding` | 6 | docs/core-port.md WP1b change log 3 |
 | explained | `runtime-stderr` | 11 | docs/runtime-port.md "Attempt artifacts" (stderr.log: runtime diagnostics, empty on a clean completion) |
 | explained | `wp10-artifact-tool-guidelines` | 5 | docs/core-port.md WP10 change log 2 |
@@ -65,56 +65,56 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | b856d1671ad9fbf5ee69cc5445c7743c77879dee4a35365bbd1b253bec1af862 |
+| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 21df9f6122f65311e25655db009df866888cbc8194bb12d33bc8c5bb5e2866d6 |
 | run.json | tasks[0].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 3163c8c1a6958a85d1ffea20981ad153ebbc5b5663cf2fce670fb8c70b4ef147 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 354fefa25a57fb946be450048081bd100e0474fc6e153a62cb705ed82ded3cab |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | e6513ec5616d127eef91aeebc643bb483996217f82a5046e1ea20282aeb02007 |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | b856d1671ad9fbf5ee69cc5445c7743c77879dee4a35365bbd1b253bec1af862 |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 21df9f6122f65311e25655db009df866888cbc8194bb12d33bc8c5bb5e2866d6 |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 3163c8c1a6958a85d1ffea20981ad153ebbc5b5663cf2fce670fb8c70b4ef147 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 0c592ab09eacb1a9192cf61a0ef83a542c40fe976c7d331da88f7278ba5d7c80 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"0c592ab09eacb1a9192cf61a0ef83a542c40fe976c7d331da88f7278ba5d7c80"} |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[1].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 797c6e5c7381207c9d487b2b712b0a99d9e3231cff86fb5a4548abbf4f100719 |
+| run.json | tasks[1].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | bf5dfef6f129337046f3abf954c4a82dbc55e1e4f4e587410e5aec299090d1f3 |
 | run.json | tasks[1].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 827e2409e9234744123a4a323d47bf65490bb77eb5b7a738a6cd0d821571613f |  |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 16080f4aedc2ec71f5ab113b0a893c6ea5a6731f5b5d8c2429162257972dfe49 |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 059c65ce6e605dcdd7b8215840f52fb917cf73df701ce7ca68ea1a52c4938f20 |
-| run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 797c6e5c7381207c9d487b2b712b0a99d9e3231cff86fb5a4548abbf4f100719 |
+| run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | bf5dfef6f129337046f3abf954c4a82dbc55e1e4f4e587410e5aec299090d1f3 |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 827e2409e9234744123a4a323d47bf65490bb77eb5b7a738a6cd0d821571613f |  |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | c5dfb4f11a0e86157b86404b74b975797c2e8e1a4d21f5fc369b2b591d3338e4 |  |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"c5dfb4f11a0e86157b86404b74b975797c2e8e1a4d21f5fc369b2b591d3338e4"} |  |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 2b725fb8d2f7487fbd2c3c92f444eeda0e091df346f5f9f4c91a9a8edf1ce230 |
+| run.json | tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | ef888a1f6371a7617a2e12e1ee8ffd80413c952bb5eee9ff5e69c34958e76033 |
 | run.json | tasks[2].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 297cff1d90bbac6821fec29a40ccf97df1939a22712c006c0ac9bed9737792ff |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | ed287e384b93a7ea2ecec43f30a696d57177da4f682f150d4a03016b80d33f80 |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | e671a884da72376f5ad63d8081f28b49c14040fbd154ca97e0f30d00cddac2da |
-| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 2b725fb8d2f7487fbd2c3c92f444eeda0e091df346f5f9f4c91a9a8edf1ce230 |
+| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | ef888a1f6371a7617a2e12e1ee8ffd80413c952bb5eee9ff5e69c34958e76033 |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 297cff1d90bbac6821fec29a40ccf97df1939a22712c006c0ac9bed9737792ff |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 0c1a3d38b00626f022a66ec7b752fab369cff7ce7d3560594c6418d102b029eb |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"0c1a3d38b00626f022a66ec7b752fab369cff7ce7d3560594c6418d102b029eb"} |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 9b60c7ede8e75dae8b7a9961a5807c69746b1b76bbaa32b460c89bfabda28954 |
+| run.json | tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 28d14534da12208f5f981b7e3cef72e543df6ce6a5a3e06ffd362a10de0b8ec9 |
 | run.json | tasks[3].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | d9ae2e0264f17db1d2e3af6a73f869771b6fdad5bec7db004011b68a26f0bc9c |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | c1352eeb1220cdeff2ba7960991019a308f0cc007c228619d5fe06585c0dc3c5 |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 4bdbcf6a35b72c6d9c90caa972ae2ba5327442635f6afeae1ac624c92908bc27 |
-| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 9b60c7ede8e75dae8b7a9961a5807c69746b1b76bbaa32b460c89bfabda28954 |
+| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 28d14534da12208f5f981b7e3cef72e543df6ce6a5a3e06ffd362a10de0b8ec9 |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | d9ae2e0264f17db1d2e3af6a73f869771b6fdad5bec7db004011b68a26f0bc9c |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | baae71b79a98bc720f6d5946452bb5d5bb85b5b6c20c71674ab4cbb1d68bc653 |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"baae71b79a98bc720f6d5946452bb5d5bb85b5b6c20c71674ab4cbb1d68bc653"} |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[5].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | f9f67b0dec686beb70ed10ce436ec95ea66cd34577c7d19cd62cd59aac4dbf37 |
+| run.json | tasks[5].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | f857ce400df7a5216bc5c35cc2da94edb1b3fa6a0cf81e1a6aa5611e5ca75cd8 |
 | run.json | tasks[5].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 61048a8941e0b033dcb05be2e607073386264ef76a5a31dc7ab72601286ecdb7 |  |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 5d26cade7f7d4444f7ff51b2ff07b44a22a37948528f3fc27875fdfebea24fc0 |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | a62682174558e128eb7ac5be32215ef68b23a76a0f721c7726cb94bf089f6b44 |
-| run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | f9f67b0dec686beb70ed10ce436ec95ea66cd34577c7d19cd62cd59aac4dbf37 |
+| run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | f857ce400df7a5216bc5c35cc2da94edb1b3fa6a0cf81e1a6aa5611e5ca75cd8 |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 61048a8941e0b033dcb05be2e607073386264ef76a5a31dc7ab72601286ecdb7 |  |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | d17c1ebc4747d79b2386337f1d4b59143d12b944a9999247eaa48d7c0f7ce131 |  |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"d17c1ebc4747d79b2386337f1d4b59143d12b944a9999247eaa48d7c0f7ce131"} |  |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[7].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | ea0e87ae71270c5c547fa2f26d8ccdde7227e67f74b41baf2b2f469db516652a |
+| run.json | tasks[7].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 71517eb02ddb872bfbeca92645361f1d3c44c325d07b057272b09eed8a46ed9b |
 | run.json | tasks[7].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 991b37c16f4a613f74ae82c305c55a5643555bc1a20969ac73720c5042d7606e |  |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 2146a4ccf7345542b39def2d698905be3fd7ce75e6e471201b7d8c9d3a2b7c73 |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | c3e76dd364522be8fb7bd591355193859988c9479fd57e801006568f2c817808 |
-| run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | ea0e87ae71270c5c547fa2f26d8ccdde7227e67f74b41baf2b2f469db516652a |
+| run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 71517eb02ddb872bfbeca92645361f1d3c44c325d07b057272b09eed8a46ed9b |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 991b37c16f4a613f74ae82c305c55a5643555bc1a20969ac73720c5042d7606e |  |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | f81b792abbeb2c6a7f87e7d82101a768637c2e5fc4ccbe9263c2d7519540def6 |  |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"f81b792abbeb2c6a7f87e7d82101a768637c2e5fc4ccbe9263c2d7519540def6"} |  |
@@ -155,125 +155,93 @@ Tasks not completed:
 
 </details>
 
-<details><summary>explained executor-usage-contract (107)</summary>
+<details><summary>explained executor-usage-contract (75)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | tasks[0].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[0].usage.aggregate.reasoningTokens | removed | 2683 |  |
-| run.json | tasks[0].usage.aggregate.totalTokens | removed | 40217 |  |
-| run.json | tasks[0].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[0].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[0].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[0].usage.attempts[0].raw.cacheRead | removed | 21888 |  |
-| run.json | tasks[0].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[0].usage.attempts[0].raw.cached | added |  | 21888 |
 | run.json | tasks[0].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0021888000000000003,"cacheWrite":0,"input":0.021924,"output":0.07367000000000001,"total":0.0977828} | 0.0977828 |
 | run.json | tasks[0].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[0].usage.attempts[0].raw.reasoning | removed | 2683 |  |
 | run.json | tasks[0].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[0].usage.attempts[0].raw.total | added |  | 40217 |
 | run.json | tasks[0].usage.attempts[0].raw.totalTokens | removed | 40217 |  |
 | run.json | tasks[0].usage.attempts[0].reasoningTokens | removed | 2683 |  |
-| run.json | tasks[0].usage.attempts[0].totalTokens | removed | 40217 |  |
-| run.json | tasks[0].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[0].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[0].usage.provider | removed | openai-codex |  |
 | run.json | tasks[0].usage.reasoningTokens | removed | 2683 |  |
-| run.json | tasks[0].usage.totalTokens | removed | 40217 |  |
-| run.json | tasks[1].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[1].usage.aggregate.reasoningTokens | removed | 1102 |  |
-| run.json | tasks[1].usage.aggregate.totalTokens | removed | 96860 |  |
-| run.json | tasks[1].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[1].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[1].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[1].usage.attempts[0].raw.cacheRead | removed | 75264 |  |
-| run.json | tasks[1].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[1].usage.attempts[0].raw.cached | added |  | 75264 |
 | run.json | tasks[1].usage.attempts[0].raw.cost | changed | {"cacheRead":0.007526400000000001,"cacheWrite":0,"input":0.034910000000000004,"output":0.04141,"total":0.08384640000000002} | 0.0838464 |
 | run.json | tasks[1].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[1].usage.attempts[0].raw.reasoning | removed | 1102 |  |
 | run.json | tasks[1].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[1].usage.attempts[0].raw.total | added |  | 96860 |
 | run.json | tasks[1].usage.attempts[0].raw.totalTokens | removed | 96860 |  |
 | run.json | tasks[1].usage.attempts[0].reasoningTokens | removed | 1102 |  |
-| run.json | tasks[1].usage.attempts[0].totalTokens | removed | 96860 |  |
-| run.json | tasks[1].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[1].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[1].usage.provider | removed | openai-codex |  |
 | run.json | tasks[1].usage.reasoningTokens | removed | 1102 |  |
-| run.json | tasks[1].usage.totalTokens | removed | 96860 |  |
-| run.json | tasks[2].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[2].usage.aggregate.reasoningTokens | removed | 1094 |  |
-| run.json | tasks[2].usage.aggregate.totalTokens | removed | 123741 |  |
-| run.json | tasks[2].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[2].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[2].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[2].usage.attempts[0].raw.cacheRead | removed | 100224 |  |
-| run.json | tasks[2].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[2].usage.attempts[0].raw.cached | added |  | 100224 |
 | run.json | tasks[2].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0100224,"cacheWrite":0,"input":0.04237,"output":0.02332,"total":0.0757124} | 0.0757124 |
 | run.json | tasks[2].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[2].usage.attempts[0].raw.reasoning | removed | 1094 |  |
 | run.json | tasks[2].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[2].usage.attempts[0].raw.total | added |  | 123741 |
 | run.json | tasks[2].usage.attempts[0].raw.totalTokens | removed | 123741 |  |
 | run.json | tasks[2].usage.attempts[0].reasoningTokens | removed | 1094 |  |
-| run.json | tasks[2].usage.attempts[0].totalTokens | removed | 123741 |  |
-| run.json | tasks[2].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[2].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[2].usage.provider | removed | openai-codex |  |
 | run.json | tasks[2].usage.reasoningTokens | removed | 1094 |  |
-| run.json | tasks[2].usage.totalTokens | removed | 123741 |  |
-| run.json | tasks[3].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[3].usage.aggregate.reasoningTokens | removed | 3701 |  |
-| run.json | tasks[3].usage.aggregate.totalTokens | removed | 1200545 |  |
-| run.json | tasks[3].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[3].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[3].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[3].usage.attempts[0].raw.cacheRead | removed | 1116544 |  |
-| run.json | tasks[3].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[3].usage.attempts[0].raw.cached | added |  | 1116544 |
 | run.json | tasks[3].usage.attempts[0].raw.cost | changed | {"cacheRead":0.11165440000000001,"cacheWrite":0,"input":0.14481,"output":0.11596000000000004,"total":0.3724244} | 0.3724244 |
 | run.json | tasks[3].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[3].usage.attempts[0].raw.reasoning | removed | 3701 |  |
 | run.json | tasks[3].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[3].usage.attempts[0].raw.total | added |  | 1200545 |
 | run.json | tasks[3].usage.attempts[0].raw.totalTokens | removed | 1200545 |  |
 | run.json | tasks[3].usage.attempts[0].reasoningTokens | removed | 3701 |  |
-| run.json | tasks[3].usage.attempts[0].totalTokens | removed | 1200545 |  |
-| run.json | tasks[3].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[3].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[3].usage.provider | removed | openai-codex |  |
 | run.json | tasks[3].usage.reasoningTokens | removed | 3701 |  |
-| run.json | tasks[3].usage.totalTokens | removed | 1200545 |  |
-| run.json | tasks[5].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[5].usage.aggregate.reasoningTokens | removed | 1943 |  |
-| run.json | tasks[5].usage.aggregate.totalTokens | removed | 81993 |  |
-| run.json | tasks[5].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[5].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[5].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[5].usage.attempts[0].raw.cacheRead | removed | 55552 |  |
-| run.json | tasks[5].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[5].usage.attempts[0].raw.cached | added |  | 55552 |
 | run.json | tasks[5].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0055552,"cacheWrite":0,"input":0.045899999999999996,"output":0.03491,"total":0.08636519999999999} | 0.0863652 |
 | run.json | tasks[5].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[5].usage.attempts[0].raw.reasoning | removed | 1943 |  |
 | run.json | tasks[5].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[5].usage.attempts[0].raw.total | added |  | 81993 |
 | run.json | tasks[5].usage.attempts[0].raw.totalTokens | removed | 81993 |  |
 | run.json | tasks[5].usage.attempts[0].reasoningTokens | removed | 1943 |  |
-| run.json | tasks[5].usage.attempts[0].totalTokens | removed | 81993 |  |
-| run.json | tasks[5].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[5].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[5].usage.provider | removed | openai-codex |  |
 | run.json | tasks[5].usage.reasoningTokens | removed | 1943 |  |
-| run.json | tasks[5].usage.totalTokens | removed | 81993 |  |
-| run.json | usage.reasoningTokens | changed | 12536 | 0 |
-| run.json | usage.totalTokens | changed | 1782448 | 0 |
 
 </details>
 
-<details><summary>explained original-spec-review-legacy-state-read (275)</summary>
+<details><summary>explained original-spec-review-legacy-state-read (276)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json |  | changed ×18 |  |  |
+| run.json |  | changed ×19 |  |  |
 | run.json |  | added ×3 |  |  |
 | run.json |  | removed ×27 |  |  |
 | tasks/task-6/control.json |  | changed ×9 |  |  |
@@ -317,18 +285,6 @@ Tasks not completed:
 
 </details>
 
-<details><summary>explained owned-sessions (5)</summary>
-
-| File | Path / line | Kind | Recorded | Replayed |
-|---|---|---|---|---|
-| run.json | tasks[0].ownedSessions | added |  | [{"backendAttemptId":"&lt;SA_ATTEMPT_1&gt;","backendRunId":"&lt;SA_RUN_1&gt;","executorId":"pi","kind":"pi-session-dir","locator":"&lt;HOME&gt;/.agent-workflow/executors/pi/sessions/pi-workflow.&lt;WF_RUN_1&gt;.task-1","recordedAt":"&lt;TS&gt;"}] |
-| run.json | tasks[1].ownedSessions | added |  | [{"backendAttemptId":"&lt;SA_ATTEMPT_2&gt;","backendRunId":"&lt;SA_RUN_2&gt;","executorId":"pi","kind":"pi-session-dir","locator":"&lt;HOME&gt;/.agent-workflow/executors/pi/sessions/pi-workflow.&lt;WF_RUN_1&gt;.task-2","recordedAt":"&lt;TS&gt;"}] |
-| run.json | tasks[2].ownedSessions | added |  | [{"backendAttemptId":"&lt;SA_ATTEMPT_3&gt;","backendRunId":"&lt;SA_RUN_3&gt;","executorId":"pi","kind":"pi-session-dir","locator":"&lt;HOME&gt;/.agent-workflow/executors/pi/sessions/pi-workflow.&lt;WF_RUN_1&gt;.task-3","recordedAt":"&lt;TS&gt;"}] |
-| run.json | tasks[3].ownedSessions | added |  | [{"backendAttemptId":"&lt;SA_ATTEMPT_4&gt;","backendRunId":"&lt;SA_RUN_4&gt;","executorId":"pi","kind":"pi-session-dir","locator":"&lt;HOME&gt;/.agent-workflow/executors/pi/sessions/pi-workflow.&lt;WF_RUN_1&gt;.task-4","recordedAt":"&lt;TS&gt;"}] |
-| run.json | tasks[5].ownedSessions | added |  | [{"backendAttemptId":"&lt;SA_ATTEMPT_5&gt;","backendRunId":"&lt;SA_RUN_5&gt;","executorId":"pi","kind":"pi-session-dir","locator":"&lt;HOME&gt;/.agent-workflow/executors/pi/sessions/pi-workflow.&lt;WF_RUN_1&gt;.task-9","recordedAt":"&lt;TS&gt;"}] |
-
-</details>
-
 <details><summary>explained run-capability-negotiation (1)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
@@ -341,7 +297,7 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/spec-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-spec-review-original-69480/work/replay-trace.jsonl"},"c… (371 chars, sha256 c06d2334137e) |
+| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/spec-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-spec-review-original-95279/work/replay-trace.jsonl"},"c… (371 chars, sha256 9087bd6e142a) |
 
 </details>
 
@@ -351,6 +307,15 @@ Tasks not completed:
 |---|---|---|---|---|
 | compiled.json | permissionMode | added |  | free |
 | run.json | permissionMode | added |  | {"mode":"free","source":"default"} |
+
+</details>
+
+<details><summary>explained run-usage-unknown-not-zero (2)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | usage.cachedInputTokens | removed | 0 |  |
+| run.json | usage.reasoningTokens | removed | 12536 |  |
 
 </details>
 
@@ -389,11 +354,11 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| tasks/task-1/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
-| tasks/task-2/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
-| tasks/task-3/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
-| tasks/task-4/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
-| tasks/task-9/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
+| tasks/task-1/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe) |
+| tasks/task-2/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe) |
+| tasks/task-3/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe) |
+| tasks/task-4/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe) |
+| tasks/task-9/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe) |
 
 </details>
 
@@ -489,7 +454,7 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | 75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211 | 7af4d6597a4ad5dddd88b98421ac7b17b44c4f421aaed72084a2b72ffb7fedcd |
+| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | 75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211 | 595739c910770da9b682e7a46e94276027955a30e62dba503e2abbd350deec3b |
 | tasks/task-4/source-manifest.json |  | digest-bound ×1 | c6928c7fe350ccb2447669f1a224de19f40b070f5446d6cc7db139a822385195 | 4a9c7feffedc4ef4c74af4159a306c4fb9e2401acc887c5c5ffb9098e0b6459a |
 | tasks/task-6/source-manifest.json |  | digest-bound ×0 | 64f0c2b8a1da0e1a9357bad71aa07d02e9b5ce125c5ac54c94c9decd70fe4b43 | 2b163098c0bd775ba13cfceb2533f7ef4174afada1a4f45d57c156128c00af42 |
 | tasks/task-9/source-manifest.json |  | digest-bound ×1 | a8009e9a04b113c262e2c57936fe7c1cb10e0f968941e0604f7221433cee5088 | 675283e0429ff8fcef6305de40f197b10241f5741246430464b49e9a86fdb078 |
@@ -738,7 +703,7 @@ Tasks not completed:
 |---|---|---|---|---|
 | compiled.json | .agent-workflow/workflows | literal-renamed ×11 |  |  |
 | run.json | .agent-workflow/workflows | literal-renamed ×80 |  |  |
-| run.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×32 |  |  |
+| run.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×27 |  |  |
 | run.json | agent-workflow/runtime | literal-renamed ×13 |  |  |
 | run.json | .agent-workflow/workflow-subagents | literal-renamed ×2 |  |  |
 | supervisor.json | .agent-workflow/workflows | literal-renamed ×1 |  |  |
@@ -753,8 +718,8 @@ Tasks not completed:
 | tasks/task-4/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
 | tasks/task-6/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-6/source-manifest.json | .agent-workflow/workflows | literal-renamed ×8 |  |  |
-| tasks/task-7/.launch-barrier-f201c7b4b34c3311-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
-| tasks/task-7/.launch-barrier-f201c7b4b34c3311-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-7/.launch-barrier-31c16ed63e5cba69-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-7/.launch-barrier-31c16ed63e5cba69-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
 | tasks/task-7/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-7/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
 | tasks/task-7/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
@@ -777,7 +742,7 @@ The original helpers read upstream engine state from the hard-coded `.pi/workflo
 | Worker launches served / recorded | 6 / 6 |
 | Artifact reads re-issued / recorded | 57 / 57 |
 | Differences: allowed | 334 |
-| Differences: explained | 246 |
+| Differences: explained | 204 |
 | Differences: unexplained | 0 |
 | Exact-match violations | 0 |
 
@@ -793,12 +758,12 @@ Tasks not completed:
 |---|---|---|---|
 | explained | `artifact-mcp-provenance` | 70 | docs/core-port.md WP4b change log 4 and "What launch provenance digests now"; WP4c-1 "Pi executor (WP6)" table (extension isolation, generated extension wrappers) |
 | explained | `executor-exit-code` | 12 | docs/core-port.md WP1b change log 1 |
-| explained | `executor-usage-contract` | 128 | docs/core-port.md WP1b change log 2 |
+| explained | `executor-usage-contract` | 90 | docs/core-port.md WP1b change log 2 |
 | explained | `original-helper-legacy-sidecar` | 2 | docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows → .agent-workflow/workflows) |
-| explained | `owned-sessions` | 6 | docs/core-port.md WP4c-1 "R#9, R#10, R#12, R#5" (R#10) and change log 8 |
 | explained | `run-capability-negotiation` | 1 | docs/core-port.md "WP4d — capability negotiation before launch" |
 | explained | `run-executor-record` | 1 | docs/core-port.md WP4c-1 "Executor selection" and change log 11 |
 | explained | `run-permission-mode` | 2 | docs/core-port.md WP4e permission modes; docs/permissions.md |
+| explained | `run-usage-unknown-not-zero` | 2 | docs/core-port.md WP12a change log 2 |
 | explained | `runtime-cost-rounding` | 6 | docs/core-port.md WP1b change log 3 |
 | explained | `runtime-stderr` | 12 | docs/runtime-port.md "Attempt artifacts" (stderr.log: runtime diagnostics, empty on a clean completion) |
 | explained | `wp10-artifact-tool-guidelines` | 6 | docs/core-port.md WP10 change log 2 |
@@ -819,56 +784,56 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | b856d1671ad9fbf5ee69cc5445c7743c77879dee4a35365bbd1b253bec1af862 |
+| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 21df9f6122f65311e25655db009df866888cbc8194bb12d33bc8c5bb5e2866d6 |
 | run.json | tasks[0].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 3163c8c1a6958a85d1ffea20981ad153ebbc5b5663cf2fce670fb8c70b4ef147 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 354fefa25a57fb946be450048081bd100e0474fc6e153a62cb705ed82ded3cab |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | e6513ec5616d127eef91aeebc643bb483996217f82a5046e1ea20282aeb02007 |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | b856d1671ad9fbf5ee69cc5445c7743c77879dee4a35365bbd1b253bec1af862 |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 21df9f6122f65311e25655db009df866888cbc8194bb12d33bc8c5bb5e2866d6 |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 3163c8c1a6958a85d1ffea20981ad153ebbc5b5663cf2fce670fb8c70b4ef147 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 0c592ab09eacb1a9192cf61a0ef83a542c40fe976c7d331da88f7278ba5d7c80 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"0c592ab09eacb1a9192cf61a0ef83a542c40fe976c7d331da88f7278ba5d7c80"} |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[1].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 797c6e5c7381207c9d487b2b712b0a99d9e3231cff86fb5a4548abbf4f100719 |
+| run.json | tasks[1].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | bf5dfef6f129337046f3abf954c4a82dbc55e1e4f4e587410e5aec299090d1f3 |
 | run.json | tasks[1].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 827e2409e9234744123a4a323d47bf65490bb77eb5b7a738a6cd0d821571613f |  |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 16080f4aedc2ec71f5ab113b0a893c6ea5a6731f5b5d8c2429162257972dfe49 |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 059c65ce6e605dcdd7b8215840f52fb917cf73df701ce7ca68ea1a52c4938f20 |
-| run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 797c6e5c7381207c9d487b2b712b0a99d9e3231cff86fb5a4548abbf4f100719 |
+| run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | bf5dfef6f129337046f3abf954c4a82dbc55e1e4f4e587410e5aec299090d1f3 |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 827e2409e9234744123a4a323d47bf65490bb77eb5b7a738a6cd0d821571613f |  |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | c5dfb4f11a0e86157b86404b74b975797c2e8e1a4d21f5fc369b2b591d3338e4 |  |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"c5dfb4f11a0e86157b86404b74b975797c2e8e1a4d21f5fc369b2b591d3338e4"} |  |
 | run.json | tasks[1].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 2b725fb8d2f7487fbd2c3c92f444eeda0e091df346f5f9f4c91a9a8edf1ce230 |
+| run.json | tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | ef888a1f6371a7617a2e12e1ee8ffd80413c952bb5eee9ff5e69c34958e76033 |
 | run.json | tasks[2].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 297cff1d90bbac6821fec29a40ccf97df1939a22712c006c0ac9bed9737792ff |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | ed287e384b93a7ea2ecec43f30a696d57177da4f682f150d4a03016b80d33f80 |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | e671a884da72376f5ad63d8081f28b49c14040fbd154ca97e0f30d00cddac2da |
-| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 2b725fb8d2f7487fbd2c3c92f444eeda0e091df346f5f9f4c91a9a8edf1ce230 |
+| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | ef888a1f6371a7617a2e12e1ee8ffd80413c952bb5eee9ff5e69c34958e76033 |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 297cff1d90bbac6821fec29a40ccf97df1939a22712c006c0ac9bed9737792ff |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 0c1a3d38b00626f022a66ec7b752fab369cff7ce7d3560594c6418d102b029eb |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"0c1a3d38b00626f022a66ec7b752fab369cff7ce7d3560594c6418d102b029eb"} |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 9b60c7ede8e75dae8b7a9961a5807c69746b1b76bbaa32b460c89bfabda28954 |
+| run.json | tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 28d14534da12208f5f981b7e3cef72e543df6ce6a5a3e06ffd362a10de0b8ec9 |
 | run.json | tasks[3].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | d9ae2e0264f17db1d2e3af6a73f869771b6fdad5bec7db004011b68a26f0bc9c |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | c1352eeb1220cdeff2ba7960991019a308f0cc007c228619d5fe06585c0dc3c5 |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 4bdbcf6a35b72c6d9c90caa972ae2ba5327442635f6afeae1ac624c92908bc27 |
-| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 9b60c7ede8e75dae8b7a9961a5807c69746b1b76bbaa32b460c89bfabda28954 |
+| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 28d14534da12208f5f981b7e3cef72e543df6ce6a5a3e06ffd362a10de0b8ec9 |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | d9ae2e0264f17db1d2e3af6a73f869771b6fdad5bec7db004011b68a26f0bc9c |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | baae71b79a98bc720f6d5946452bb5d5bb85b5b6c20c71674ab4cbb1d68bc653 |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"baae71b79a98bc720f6d5946452bb5d5bb85b5b6c20c71674ab4cbb1d68bc653"} |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[5].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | f9f67b0dec686beb70ed10ce436ec95ea66cd34577c7d19cd62cd59aac4dbf37 |
+| run.json | tasks[5].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | f857ce400df7a5216bc5c35cc2da94edb1b3fa6a0cf81e1a6aa5611e5ca75cd8 |
 | run.json | tasks[5].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 61048a8941e0b033dcb05be2e607073386264ef76a5a31dc7ab72601286ecdb7 |  |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 5d26cade7f7d4444f7ff51b2ff07b44a22a37948528f3fc27875fdfebea24fc0 |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | a62682174558e128eb7ac5be32215ef68b23a76a0f721c7726cb94bf089f6b44 |
-| run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | f9f67b0dec686beb70ed10ce436ec95ea66cd34577c7d19cd62cd59aac4dbf37 |
+| run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | f857ce400df7a5216bc5c35cc2da94edb1b3fa6a0cf81e1a6aa5611e5ca75cd8 |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 61048a8941e0b033dcb05be2e607073386264ef76a5a31dc7ab72601286ecdb7 |  |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | d17c1ebc4747d79b2386337f1d4b59143d12b944a9999247eaa48d7c0f7ce131 |  |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"d17c1ebc4747d79b2386337f1d4b59143d12b944a9999247eaa48d7c0f7ce131"} |  |
 | run.json | tasks[5].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[7].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | ea0e87ae71270c5c547fa2f26d8ccdde7227e67f74b41baf2b2f469db516652a |
+| run.json | tasks[7].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 71517eb02ddb872bfbeca92645361f1d3c44c325d07b057272b09eed8a46ed9b |
 | run.json | tasks[7].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 991b37c16f4a613f74ae82c305c55a5643555bc1a20969ac73720c5042d7606e |  |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 2146a4ccf7345542b39def2d698905be3fd7ce75e6e471201b7d8c9d3a2b7c73 |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | c3e76dd364522be8fb7bd591355193859988c9479fd57e801006568f2c817808 |
-| run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | ea0e87ae71270c5c547fa2f26d8ccdde7227e67f74b41baf2b2f469db516652a |
+| run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 71517eb02ddb872bfbeca92645361f1d3c44c325d07b057272b09eed8a46ed9b |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 991b37c16f4a613f74ae82c305c55a5643555bc1a20969ac73720c5042d7606e |  |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | f81b792abbeb2c6a7f87e7d82101a768637c2e5fc4ccbe9263c2d7519540def6 |  |
 | run.json | tasks[7].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"f81b792abbeb2c6a7f87e7d82101a768637c2e5fc4ccbe9263c2d7519540def6"} |  |
@@ -911,138 +876,100 @@ Tasks not completed:
 
 </details>
 
-<details><summary>explained executor-usage-contract (128)</summary>
+<details><summary>explained executor-usage-contract (90)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | tasks[0].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[0].usage.aggregate.reasoningTokens | removed | 2683 |  |
-| run.json | tasks[0].usage.aggregate.totalTokens | removed | 40217 |  |
-| run.json | tasks[0].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[0].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[0].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[0].usage.attempts[0].raw.cacheRead | removed | 21888 |  |
-| run.json | tasks[0].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[0].usage.attempts[0].raw.cached | added |  | 21888 |
 | run.json | tasks[0].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0021888000000000003,"cacheWrite":0,"input":0.021924,"output":0.07367000000000001,"total":0.0977828} | 0.0977828 |
 | run.json | tasks[0].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[0].usage.attempts[0].raw.reasoning | removed | 2683 |  |
 | run.json | tasks[0].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[0].usage.attempts[0].raw.total | added |  | 40217 |
 | run.json | tasks[0].usage.attempts[0].raw.totalTokens | removed | 40217 |  |
 | run.json | tasks[0].usage.attempts[0].reasoningTokens | removed | 2683 |  |
-| run.json | tasks[0].usage.attempts[0].totalTokens | removed | 40217 |  |
-| run.json | tasks[0].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[0].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[0].usage.provider | removed | openai-codex |  |
 | run.json | tasks[0].usage.reasoningTokens | removed | 2683 |  |
-| run.json | tasks[0].usage.totalTokens | removed | 40217 |  |
-| run.json | tasks[1].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[1].usage.aggregate.reasoningTokens | removed | 1102 |  |
-| run.json | tasks[1].usage.aggregate.totalTokens | removed | 96860 |  |
-| run.json | tasks[1].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[1].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[1].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[1].usage.attempts[0].raw.cacheRead | removed | 75264 |  |
-| run.json | tasks[1].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[1].usage.attempts[0].raw.cached | added |  | 75264 |
 | run.json | tasks[1].usage.attempts[0].raw.cost | changed | {"cacheRead":0.007526400000000001,"cacheWrite":0,"input":0.034910000000000004,"output":0.04141,"total":0.08384640000000002} | 0.0838464 |
 | run.json | tasks[1].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[1].usage.attempts[0].raw.reasoning | removed | 1102 |  |
 | run.json | tasks[1].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[1].usage.attempts[0].raw.total | added |  | 96860 |
 | run.json | tasks[1].usage.attempts[0].raw.totalTokens | removed | 96860 |  |
 | run.json | tasks[1].usage.attempts[0].reasoningTokens | removed | 1102 |  |
-| run.json | tasks[1].usage.attempts[0].totalTokens | removed | 96860 |  |
-| run.json | tasks[1].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[1].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[1].usage.provider | removed | openai-codex |  |
 | run.json | tasks[1].usage.reasoningTokens | removed | 1102 |  |
-| run.json | tasks[1].usage.totalTokens | removed | 96860 |  |
-| run.json | tasks[2].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[2].usage.aggregate.reasoningTokens | removed | 1094 |  |
-| run.json | tasks[2].usage.aggregate.totalTokens | removed | 123741 |  |
-| run.json | tasks[2].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[2].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[2].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[2].usage.attempts[0].raw.cacheRead | removed | 100224 |  |
-| run.json | tasks[2].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[2].usage.attempts[0].raw.cached | added |  | 100224 |
 | run.json | tasks[2].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0100224,"cacheWrite":0,"input":0.04237,"output":0.02332,"total":0.0757124} | 0.0757124 |
 | run.json | tasks[2].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[2].usage.attempts[0].raw.reasoning | removed | 1094 |  |
 | run.json | tasks[2].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[2].usage.attempts[0].raw.total | added |  | 123741 |
 | run.json | tasks[2].usage.attempts[0].raw.totalTokens | removed | 123741 |  |
 | run.json | tasks[2].usage.attempts[0].reasoningTokens | removed | 1094 |  |
-| run.json | tasks[2].usage.attempts[0].totalTokens | removed | 123741 |  |
-| run.json | tasks[2].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[2].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[2].usage.provider | removed | openai-codex |  |
 | run.json | tasks[2].usage.reasoningTokens | removed | 1094 |  |
-| run.json | tasks[2].usage.totalTokens | removed | 123741 |  |
-| run.json | tasks[3].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[3].usage.aggregate.reasoningTokens | removed | 3701 |  |
-| run.json | tasks[3].usage.aggregate.totalTokens | removed | 1200545 |  |
-| run.json | tasks[3].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[3].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[3].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[3].usage.attempts[0].raw.cacheRead | removed | 1116544 |  |
-| run.json | tasks[3].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[3].usage.attempts[0].raw.cached | added |  | 1116544 |
 | run.json | tasks[3].usage.attempts[0].raw.cost | changed | {"cacheRead":0.11165440000000001,"cacheWrite":0,"input":0.14481,"output":0.11596000000000004,"total":0.3724244} | 0.3724244 |
 | run.json | tasks[3].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[3].usage.attempts[0].raw.reasoning | removed | 3701 |  |
 | run.json | tasks[3].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[3].usage.attempts[0].raw.total | added |  | 1200545 |
 | run.json | tasks[3].usage.attempts[0].raw.totalTokens | removed | 1200545 |  |
 | run.json | tasks[3].usage.attempts[0].reasoningTokens | removed | 3701 |  |
-| run.json | tasks[3].usage.attempts[0].totalTokens | removed | 1200545 |  |
-| run.json | tasks[3].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[3].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[3].usage.provider | removed | openai-codex |  |
 | run.json | tasks[3].usage.reasoningTokens | removed | 3701 |  |
-| run.json | tasks[3].usage.totalTokens | removed | 1200545 |  |
-| run.json | tasks[5].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[5].usage.aggregate.reasoningTokens | removed | 1943 |  |
-| run.json | tasks[5].usage.aggregate.totalTokens | removed | 81993 |  |
-| run.json | tasks[5].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[5].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[5].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[5].usage.attempts[0].raw.cacheRead | removed | 55552 |  |
-| run.json | tasks[5].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[5].usage.attempts[0].raw.cached | added |  | 55552 |
 | run.json | tasks[5].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0055552,"cacheWrite":0,"input":0.045899999999999996,"output":0.03491,"total":0.08636519999999999} | 0.0863652 |
 | run.json | tasks[5].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[5].usage.attempts[0].raw.reasoning | removed | 1943 |  |
 | run.json | tasks[5].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[5].usage.attempts[0].raw.total | added |  | 81993 |
 | run.json | tasks[5].usage.attempts[0].raw.totalTokens | removed | 81993 |  |
 | run.json | tasks[5].usage.attempts[0].reasoningTokens | removed | 1943 |  |
-| run.json | tasks[5].usage.attempts[0].totalTokens | removed | 81993 |  |
-| run.json | tasks[5].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[5].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[5].usage.provider | removed | openai-codex |  |
 | run.json | tasks[5].usage.reasoningTokens | removed | 1943 |  |
-| run.json | tasks[5].usage.totalTokens | removed | 81993 |  |
-| run.json | tasks[7].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[7].usage.aggregate.reasoningTokens | removed | 2013 |  |
-| run.json | tasks[7].usage.aggregate.totalTokens | removed | 239092 |  |
-| run.json | tasks[7].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[7].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[7].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[7].usage.attempts[0].raw.cacheRead | removed | 193408 |  |
-| run.json | tasks[7].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[7].usage.attempts[0].raw.cached | added |  | 193408 |
 | run.json | tasks[7].usage.attempts[0].raw.cost | changed | {"cacheRead":0.019340800000000002,"cacheWrite":0,"input":0.084338,"output":0.03515,"total":0.1388288} | 0.1388288 |
 | run.json | tasks[7].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[7].usage.attempts[0].raw.reasoning | removed | 2013 |  |
 | run.json | tasks[7].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[7].usage.attempts[0].raw.total | added |  | 239092 |
 | run.json | tasks[7].usage.attempts[0].raw.totalTokens | removed | 239092 |  |
 | run.json | tasks[7].usage.attempts[0].reasoningTokens | removed | 2013 |  |
-| run.json | tasks[7].usage.attempts[0].totalTokens | removed | 239092 |  |
-| run.json | tasks[7].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[7].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[7].usage.provider | removed | openai-codex |  |
 | run.json | tasks[7].usage.reasoningTokens | removed | 2013 |  |
-| run.json | tasks[7].usage.totalTokens | removed | 239092 |  |
-| run.json | usage.reasoningTokens | changed | 12536 | 0 |
-| run.json | usage.totalTokens | changed | 1782448 | 0 |
 
 </details>
 
@@ -1052,19 +979,6 @@ Tasks not completed:
 |---|---|---|---|---|
 | tasks/task-8/final-report.md |  | only-recorded |  |  |
 | tasks/task-8/source-ledger.json |  | only-recorded |  |  |
-
-</details>
-
-<details><summary>explained owned-sessions (6)</summary>
-
-| File | Path / line | Kind | Recorded | Replayed |
-|---|---|---|---|---|
-| run.json | tasks[0].ownedSessions | added |  | [{"backendAttemptId":"&lt;SA_ATTEMPT_1&gt;","backendRunId":"&lt;SA_RUN_1&gt;","executorId":"pi","kind":"pi-session-dir","locator":"&lt;HOME&gt;/.agent-workflow/executors/pi/sessions/pi-workflow.&lt;WF_RUN_1&gt;.task-1","recordedAt":"&lt;TS&gt;"}] |
-| run.json | tasks[1].ownedSessions | added |  | [{"backendAttemptId":"&lt;SA_ATTEMPT_2&gt;","backendRunId":"&lt;SA_RUN_2&gt;","executorId":"pi","kind":"pi-session-dir","locator":"&lt;HOME&gt;/.agent-workflow/executors/pi/sessions/pi-workflow.&lt;WF_RUN_1&gt;.task-2","recordedAt":"&lt;TS&gt;"}] |
-| run.json | tasks[2].ownedSessions | added |  | [{"backendAttemptId":"&lt;SA_ATTEMPT_3&gt;","backendRunId":"&lt;SA_RUN_3&gt;","executorId":"pi","kind":"pi-session-dir","locator":"&lt;HOME&gt;/.agent-workflow/executors/pi/sessions/pi-workflow.&lt;WF_RUN_1&gt;.task-3","recordedAt":"&lt;TS&gt;"}] |
-| run.json | tasks[3].ownedSessions | added |  | [{"backendAttemptId":"&lt;SA_ATTEMPT_4&gt;","backendRunId":"&lt;SA_RUN_4&gt;","executorId":"pi","kind":"pi-session-dir","locator":"&lt;HOME&gt;/.agent-workflow/executors/pi/sessions/pi-workflow.&lt;WF_RUN_1&gt;.task-4","recordedAt":"&lt;TS&gt;"}] |
-| run.json | tasks[5].ownedSessions | added |  | [{"backendAttemptId":"&lt;SA_ATTEMPT_5&gt;","backendRunId":"&lt;SA_RUN_5&gt;","executorId":"pi","kind":"pi-session-dir","locator":"&lt;HOME&gt;/.agent-workflow/executors/pi/sessions/pi-workflow.&lt;WF_RUN_1&gt;.task-9","recordedAt":"&lt;TS&gt;"}] |
-| run.json | tasks[7].ownedSessions | added |  | [{"backendAttemptId":"&lt;SA_ATTEMPT_6&gt;","backendRunId":"&lt;SA_RUN_6&gt;","executorId":"pi","kind":"pi-session-dir","locator":"&lt;HOME&gt;/.agent-workflow/executors/pi/sessions/pi-workflow.&lt;WF_RUN_1&gt;.task-7","recordedAt":"&lt;TS&gt;"}] |
 
 </details>
 
@@ -1080,7 +994,7 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/spec-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-spec-review-state-path-migrated-69622/work/replay-trace… (382 chars, sha256 d487c5ff8531) |
+| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/spec-review","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-spec-review-state-path-migrated-96757/work/replay-trace… (382 chars, sha256 d6d77bf732ab) |
 
 </details>
 
@@ -1090,6 +1004,15 @@ Tasks not completed:
 |---|---|---|---|---|
 | compiled.json | permissionMode | added |  | free |
 | run.json | permissionMode | added |  | {"mode":"free","source":"default"} |
+
+</details>
+
+<details><summary>explained run-usage-unknown-not-zero (2)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | usage.cachedInputTokens | removed | 0 |  |
+| run.json | usage.reasoningTokens | removed | 12536 |  |
 
 </details>
 
@@ -1129,12 +1052,12 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| tasks/task-1/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
-| tasks/task-2/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
-| tasks/task-3/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
-| tasks/task-4/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
-| tasks/task-7/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
-| tasks/task-9/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
+| tasks/task-1/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe) |
+| tasks/task-2/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe) |
+| tasks/task-3/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe) |
+| tasks/task-4/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe) |
+| tasks/task-7/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe) |
+| tasks/task-9/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe) |
 
 </details>
 
@@ -1235,13 +1158,13 @@ Tasks not completed:
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
 | bundle/helpers/spec-requirement-source.mjs |  | digest-bound ×0 | 4ba1f11a7c20ee7123e3186947eafc53215258127e5d5f4c1e78f3e1919f52cc | aa08cbcfc46aafc03ad0b11682bbeb94f3a92f737de66b78ebfccba56281c1af |
-| supervisor.json |  | digest-bound ×0 | 1fef8f8ffa8b1b69fbdbc6f8ae12adb138834eae70eca6f505d2aecaa5a9d933 | d7c1df91dddfad01485b46936c364599901a1308fbcf7cc6bf6458cf387deb41 |
-| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | 75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211 | 2faf60f0636f0f989a54e817c3cfed8aa5ae88c81ab6d1c30ba24e4df2a781ae |
+| supervisor.json |  | digest-bound ×0 | 1fef8f8ffa8b1b69fbdbc6f8ae12adb138834eae70eca6f505d2aecaa5a9d933 | fc4a77a8ada996969364e7c6bac8b1af23f1fdafd1afe0bd8805f51cead70374 |
+| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | 75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211 | 44bf5b8aede3328d4d8483cb3d0926bb8f3dae962067aa4b08b56f038bef97cf |
 | tasks/task-4/source-manifest.json |  | digest-bound ×13 | c6928c7fe350ccb2447669f1a224de19f40b070f5446d6cc7db139a822385195 | 4a9c7feffedc4ef4c74af4159a306c4fb9e2401acc887c5c5ffb9098e0b6459a |
 | tasks/task-6/control.json |  | digest-bound ×7 | acf75c059c93b7c057b49aa724cc80d8cc4ed3809180b2cbae1a47896bbae45e | 9127a68c323fa5e9fad787bcd014a4205f636f82ba1dfc40b780a28dcc87f9e9 |
 | tasks/task-6/output.log |  | digest-bound ×2 | e7c89a29dca27f39474a7f296eec2ce9a41896c25948141c9d97a31bec4d4207 | df02f3943fb9ec7d6a64031b73acf94cc53decfc72cab2ae140c12c306913c48 |
 | tasks/task-6/source-manifest.json |  | digest-bound ×0 | 64f0c2b8a1da0e1a9357bad71aa07d02e9b5ce125c5ac54c94c9decd70fe4b43 | 2b163098c0bd775ba13cfceb2533f7ef4174afada1a4f45d57c156128c00af42 |
-| tasks/task-7/read-ledger.jsonl |  | digest-bound ×0 | 6180e80979172dcb3d65c14be3ff0396fcc6a38122fc1e4dab35f11d4a9b1db6 | 1c80b35f0f221ef8608794f908712399f7c6aed15c65d262fe7678e643f89e33 |
+| tasks/task-7/read-ledger.jsonl |  | digest-bound ×0 | 6180e80979172dcb3d65c14be3ff0396fcc6a38122fc1e4dab35f11d4a9b1db6 | 4c0ab144a1c756ff19fd46aa7ed51f47303670da4abaae4b643aa92eaaf9f9a2 |
 | tasks/task-7/source-manifest.json |  | digest-bound ×1 | 759ac21880be41ee26b96f761ff5f5c5d4e3a6bd4e7654afbe8e26a11629bac7 | 1007c448acc1975e1a7a681813235449f26763ccae6fb55b006bffdf118e8f50 |
 | tasks/task-7/task.md |  | digest-bound ×1 | f128bee8ba8bdda0621e4304fc4056b26b7e51fd9e9a463f3d1fc762487fd4a5 | 95bd63534e09aa3954080a028e54362b3e65b99e9886880754d6b4af3c0008d2 |
 | tasks/task-8/analysis.md |  | digest-bound ×0 | aa719bac7e208986b72732f6752f821991d0278fe3f1062690009a5f64e13bf6 | 513fc6ba9b9176b15234b99a4ccc91365b4b437e474fdacd4273f20152a3e435 |
@@ -1517,7 +1440,7 @@ Tasks not completed:
 | bundle/helpers/spec-requirement-source.mjs | .agent-workflow/workflows | literal-renamed ×1 |  |  |
 | compiled.json | .agent-workflow/workflows | literal-renamed ×11 |  |  |
 | run.json | .agent-workflow/workflows | literal-renamed ×80 |  |  |
-| run.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×30 |  |  |
+| run.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×24 |  |  |
 | run.json | agent-workflow/runtime | literal-renamed ×12 |  |  |
 | supervisor.json | .agent-workflow/workflows | literal-renamed ×1 |  |  |
 | tasks/task-1/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
@@ -1548,5 +1471,5 @@ Tasks not completed:
 - Worker tool calls other than workflow_artifact reads (read/grep/find/ls on project files, web tools): they only shaped the recorded final text, which is replayed verbatim.
 - Pi session files: the replay reports the ownedSession locator the Pi adapter would report but creates no session directory.
 - Timing, poll counts, process ids and the Pi provider/model metadata of the recorded attempt (not part of the executor event contract).
-- Artifact delivery bound: 4 recorded read(s) returned more than 8192 chars. The replay starts the artifact MCP server with --max-output-chars 16777216 so these rows reproduce the recorded ledger (the recorded Pi worker received them whole). The stage-1 Pi adapter passes no limit, so the server default (8192) would cut them and mark the rows deliveryUnverified (docs/mcp.md "Delivery bound", R#9); a model would then re-read with a projection, which a replay cannot reproduce.
+- Artifact delivery bound: 4 recorded read(s) returned more than 8192 chars. The replay starts the artifact MCP server with --max-output-chars 16777216 so these rows reproduce the recorded ledger (the recorded Pi worker received them whole). A live Pi run launches the server with --max-output-chars 18432 (WP5b: Pi's declared 20480 minus its 1024 notice allowance and a 1024 margin), so 2 of them would be served as a first page; a model would then page on with offset (docs/mcp.md "Paged reads"), and those page calls and rows are not in the recording, so a replay cannot reproduce them.
 

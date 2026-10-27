@@ -272,6 +272,13 @@ export class ClaudeStreamParser {
 		const body = message.message;
 		if (!isObject(body) || !Array.isArray(body.content)) return;
 		if (body.model === "<synthetic>") return;
+		// WP12a: the model that answered (resolved name, e.g. `claude-haiku-…` for `haiku`).
+		if (
+			typeof body.model === "string" &&
+			body.model !== "" &&
+			!message.parent_tool_use_id
+		)
+			this.model = body.model;
 		const streamed =
 			typeof body.id === "string" && this.streamedMessages.has(body.id);
 		for (const block of body.content) {
@@ -380,6 +387,15 @@ export class ClaudeStreamParser {
 		];
 	}
 
+	/** The single model of `result.modelUsage`, else the last assistant / init model. */
+	private resultModel(message: Json): string | null {
+		const models = isObject(message.modelUsage)
+			? Object.keys(message.modelUsage).filter((name) => name !== "")
+			: [];
+		if (models.length === 1) return models[0] ?? null;
+		return this.model;
+	}
+
 	private result(message: Json): void {
 		const isError = message.is_error === true || message.subtype !== "success";
 		const usage = isObject(message.usage) ? message.usage : {};
@@ -390,15 +406,16 @@ export class ClaudeStreamParser {
 				? message.total_cost_usd
 				: null;
 		if (!isError) {
-			const input =
-				count(usage.input_tokens) +
-				count(usage.cache_creation_input_tokens) +
-				count(usage.cache_read_input_tokens);
+			// WP12a: Claude's `input_tokens` already excludes cache reads and writes (the SDK
+			// meaning); cache reads → `cached`, cache creation → `cacheWrite`.
+			const model = this.resultModel(message);
 			this.out({
 				type: "usage",
-				input,
+				input: count(usage.input_tokens),
 				output: count(usage.output_tokens),
 				cached: count(usage.cache_read_input_tokens),
+				cacheWrite: count(usage.cache_creation_input_tokens),
+				...(model === null ? {} : { model }),
 				cost,
 				source: cost === null ? "unknown" : "reported",
 			});

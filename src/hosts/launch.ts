@@ -125,6 +125,8 @@ export interface LaunchData {
 		confirmation: string;
 		degradations: string[];
 		forcedReadOnly: string[];
+		/** WP12a: one-line notices (legacy agents shadowing bundled agents). */
+		notices?: string[];
 	};
 	taskSummary?: WorkflowRunRecord["taskSummary"];
 	detached?: { pid?: number; logPath: string };
@@ -438,6 +440,92 @@ async function duplicateRunGuardNotice(
 	};
 }
 
+/**
+ * WP12a: type input overrides against the spec's declared `input` defaults. Every key must be
+ * declared (an undeclared key used to be dropped silently). A string value (`--input key=value`)
+ * becomes the declared default's type: number (finite), boolean (`true`/`false`), JSON for objects,
+ * arrays and `null` defaults; a string default keeps the string. A non-string value must already
+ * have the declared type.
+ */
+export function typedWorkflowInputOverrides(
+	spec: unknown,
+	overrides: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+	if (overrides === undefined) return undefined;
+	if (
+		typeof overrides !== "object" ||
+		overrides === null ||
+		Array.isArray(overrides)
+	)
+		throw new HostUsageError("inputOverrides must be an object");
+	const keys = Object.keys(overrides);
+	if (keys.length === 0) return undefined;
+	const declared = (spec as { input?: unknown } | undefined)?.input;
+	const input =
+		declared && typeof declared === "object" && !Array.isArray(declared)
+			? (declared as Record<string, unknown>)
+			: {};
+	const names = Object.keys(input);
+	const typed: Record<string, unknown> = {};
+	for (const key of keys) {
+		if (!Object.hasOwn(input, key))
+			throw new HostUsageError(
+				names.length === 0
+					? `input ${key} is not declared: this workflow declares no inputs`
+					: `input ${key} is not declared by this workflow (declared: ${names.join(", ")})`,
+			);
+		typed[key] = typedInputValue(key, input[key], overrides[key]);
+	}
+	return typed;
+}
+
+function inputKind(value: unknown): string {
+	if (value === null) return "null";
+	if (Array.isArray(value)) return "array";
+	return typeof value;
+}
+
+function typedInputValue(
+	key: string,
+	declared: unknown,
+	value: unknown,
+): unknown {
+	const kind = inputKind(declared);
+	if (typeof value === "string" && kind !== "string") {
+		if (kind === "number") {
+			const number = value.trim() === "" ? Number.NaN : Number(value);
+			if (!Number.isFinite(number))
+				throw new HostUsageError(
+					`input ${key} must be a number; got ${JSON.stringify(value)}`,
+				);
+			return number;
+		}
+		if (kind === "boolean") {
+			if (value === "true") return true;
+			if (value === "false") return false;
+			throw new HostUsageError(
+				`input ${key} must be true or false; got ${JSON.stringify(value)}`,
+			);
+		}
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(value);
+		} catch {
+			throw new HostUsageError(
+				`input ${key} must be JSON (${kind}); got ${JSON.stringify(value)}`,
+			);
+		}
+		if (kind !== "null" && inputKind(parsed) !== kind)
+			throw new HostUsageError(`input ${key} must be a JSON ${kind}`);
+		return parsed;
+	}
+	if (kind !== "null" && inputKind(value) !== kind)
+		throw new HostUsageError(
+			`input ${key} must be a ${kind}; got ${inputKind(value)}`,
+		);
+	return value;
+}
+
 /** Path of the `agent-workflow` bin shipped with this package (src/hosts/cli/cli.mjs). */
 export function agentWorkflowCliPath(): string {
 	return fileURLToPath(new URL("../../src/hosts/cli/cli.mjs", import.meta.url));
@@ -538,6 +626,9 @@ function launchData(
 						confirmation: negotiation.confirmation,
 						degradations: [...negotiation.degradations],
 						forcedReadOnly: [...negotiation.forcedReadOnly],
+						...(negotiation.notices
+							? { notices: [...negotiation.notices] }
+							: {}),
 					},
 				}
 			: {}),
@@ -554,6 +645,10 @@ async function launch(
 ): Promise<HostResult<LaunchData>> {
 	const mode = action === "run" ? "named-workflow" : "direct-dynamic";
 	const task = request.task.trim();
+	const inputOverrides = typedWorkflowInputOverrides(
+		loaded.spec,
+		request.inputOverrides,
+	);
 	if (!request.detach && !request.forceNew) {
 		const target: DuplicateRunTarget =
 			action === "dynamic"
@@ -599,9 +694,7 @@ async function launch(
 		...(overrides ? { runtimeOverrides: overrides } : {}),
 		...(runtimeDefaults ? { runtimeDefaults } : {}),
 		...(ctx.availableModels ? { availableModels: ctx.availableModels } : {}),
-		...(request.inputOverrides
-			? { inputOverrides: request.inputOverrides }
-			: {}),
+		...(inputOverrides ? { inputOverrides } : {}),
 		[WORKFLOW_PROMPT_SCHEMA_DIAGNOSTIC_SINK]: (notice, digest) => {
 			if (digest === promptSchemaDigest) return;
 			promptSchemaDigest = digest;

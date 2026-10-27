@@ -50,7 +50,7 @@ export const AW_ACTIONS = [
 ] as const;
 
 const RUN_OPTIONS =
-	"--executor <id> --profile <name> --permission-mode free|safe --allow-unverified <a,b> --model <id> --effort <level> --detach --force-new";
+	"--executor <id> --profile <name> --permission-mode free|safe --allow-unverified <a,b> --model <id> --effort <level> --input <key=value> --detach --force-new";
 
 export const AW_HELP = `/aw — agent-workflow in Pi. Workers run on the selected executor (default pi; --executor codex or claude).
 
@@ -354,9 +354,11 @@ function launchRequest(parsed: {
 	executor?: string;
 	permissionMode?: "free" | "safe";
 	allowUnverifiedCapabilities?: string[];
+	inputs?: Record<string, string>;
 }) {
 	return {
 		task: parsed.task,
+		...(parsed.inputs ? { inputOverrides: parsed.inputs } : {}),
 		...(parsed.executor ? { executor: parsed.executor } : {}),
 		...(parsed.profile ? { profile: parsed.profile } : {}),
 		...(parsed.permissionMode ? { permissionMode: parsed.permissionMode } : {}),

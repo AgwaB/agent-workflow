@@ -408,6 +408,8 @@ export interface AgentDefinition {
 	scope: "project" | "user" | "bundled";
 	/** Found in a legacy Pi location (`.pi/agents`, `~/.pi/agent/agents`), read-only (F5). */
 	legacySource?: "pi";
+	/** WP12a: path of the bundled agent of the same name this legacy agent shadows (F5 precedence). */
+	shadowsBundledAgent?: string;
 	frontmatter: Record<string, unknown>;
 	body: string;
 	model?: string;
@@ -1256,6 +1258,16 @@ export interface WorkflowTaskOwnedSessionRecord {
 	backendRunId: string;
 	backendAttemptId: string;
 	recordedAt: string;
+	/**
+	 * WP12a (D3): the engine released this session once no attempt could use it again (task
+	 * completed/skipped, or run completed/failed). `deleted`/`not_found`: gone; `unsupported`: the
+	 * executor has no deleteOwnedSession; `refused`/`failed`: kept, prune retries.
+	 */
+	release?: {
+		at: string;
+		outcome: "deleted" | "not_found" | "unsupported" | "refused" | "failed";
+		error?: string;
+	};
 }
 
 export interface WorkflowTaskRunRecord {
@@ -1522,6 +1534,8 @@ export interface WorkflowRunCapabilityNegotiation {
 	forcedReadOnly: string[];
 	/** Pre-start preview text shown to hosts. */
 	preview: string;
+	/** WP12a: one-line notices (legacy agents shadowing bundled agents), also in `preview`. */
+	notices?: string[];
 }
 
 /** Effective declared or user-saved profile frozen into a new run. */
@@ -1773,7 +1787,7 @@ export interface WorkflowRunRecord {
 	launch?: WorkflowRunLaunchMetadata;
 	/** Durable transparent foreach batch journals, including terminal receipts. */
 	foreachBatches?: WorkflowForeachBatchRecord[];
-	/** Task-usage rollup persisted when the run reaches a terminal status. */
+	/** Task-usage rollup persisted when the run reaches a terminal status or blocks (WP12a). */
 	usage?: WorkflowRunUsageRollup;
 	tasks: WorkflowTaskRunRecord[];
 }
@@ -1847,6 +1861,8 @@ export interface CompiledWorkflow {
 	tasks: CompiledTask[];
 	stages?: Array<Record<string, unknown> | CompiledLoopStageRecord>;
 	warnings: string[];
+	/** WP12a: one-line notices for the capability preview and run record (legacy agent shadows). */
+	agentNotices?: string[];
 	artifactGraph?: { enabled: true };
 	/** Compiled with the host's `inheritHostTools` option (Pi only, WP6). */
 	inheritHostTools?: true;

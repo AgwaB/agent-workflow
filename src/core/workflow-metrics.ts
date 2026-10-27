@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-metrics.ts. MIT, same author. Changes: none.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-metrics.ts. MIT, same author. Changes: WP12a support tasks observe no usage (observed values null, not 0).
 import type {
 	TaskRunStatus,
 	WorkflowRunRecord,
@@ -279,27 +279,29 @@ function observedUsageForTasks(
 	);
 	return {
 		inputTokens: sumObservedMetricValues(
-			tasks.map((task) => task.usage.inputTokens),
+			tasks.map((task) => task.usage.observed.inputTokens),
 		),
 		outputTokens: sumObservedMetricValues(
-			tasks.map((task) => task.usage.outputTokens),
+			tasks.map((task) => task.usage.observed.outputTokens),
 		),
 		totalTokens: sumObservedMetricValues(
-			tasks.map((task) => task.usage.totalTokens),
+			tasks.map((task) => task.usage.observed.totalTokens),
 		),
 		cachedInputTokens: sumObservedMetricValues(
-			tasks.map((task) => task.usage.cachedInputTokens),
+			tasks.map((task) => task.usage.observed.cachedInputTokens),
 		),
 		cacheCreationInputTokens: sumObservedMetricValues(
-			tasks.map((task) => task.usage.cacheCreationInputTokens),
+			tasks.map((task) => task.usage.observed.cacheCreationInputTokens),
 		),
 		cacheReadInputTokens: sumObservedMetricValues(
-			tasks.map((task) => task.usage.cacheReadInputTokens),
+			tasks.map((task) => task.usage.observed.cacheReadInputTokens),
 		),
 		reasoningTokens: sumObservedMetricValues(
-			tasks.map((task) => task.usage.reasoningTokens),
+			tasks.map((task) => task.usage.observed.reasoningTokens),
 		),
-		costUsd: sumObservedMetricValues(tasks.map((task) => task.usage.costUsd)),
+		costUsd: sumObservedMetricValues(
+			tasks.map((task) => task.usage.observed.costUsd),
+		),
 		contributingTaskIds,
 		omittedTaskIds,
 	};
@@ -349,15 +351,17 @@ function zeroProviderUsageMetrics(): WorkflowUsageMetrics {
 		cacheReadInputTokens: 0,
 		reasoningTokens: 0,
 		costUsd: 0,
+		// WP12a: a support task makes no model call, so it observes nothing. Observed sums cover
+		// reporting model tasks only; a 0 here turned an unknown run cost into 0.
 		observed: {
-			inputTokens: 0,
-			outputTokens: 0,
-			totalTokens: 0,
-			cachedInputTokens: 0,
-			cacheCreationInputTokens: 0,
-			cacheReadInputTokens: 0,
-			reasoningTokens: 0,
-			costUsd: 0,
+			inputTokens: null,
+			outputTokens: null,
+			totalTokens: null,
+			cachedInputTokens: null,
+			cacheCreationInputTokens: null,
+			cacheReadInputTokens: null,
+			reasoningTokens: null,
+			costUsd: null,
 			contributingTaskIds: [],
 			omittedTaskIds: [],
 		},

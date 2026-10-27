@@ -2063,7 +2063,8 @@ function runUsageRollup(run: WorkflowRunRecord): WorkflowRunUsageRollup {
 		...(observed.reasoningTokens === null
 			? {}
 			: { reasoningTokens: observed.reasoningTokens }),
-		...(observed.costUsd === null ? {} : { costUsd: observed.costUsd }),
+		// WP12a: unknown cost is null, never omitted or 0 (no task reported a cost).
+		costUsd: observed.costUsd,
 	};
 }
 
@@ -2086,7 +2087,10 @@ export async function writeRunRecord(
 	run.updatedAt = nowIso();
 	const derived = deriveRunStatus(run);
 	Object.assign(run, derived);
-	if (isTerminalWorkflowStatus(run.status)) run.usage = runUsageRollup(run);
+	// WP12a: a blocked run (waiting for an owner decision) also carries the usage of the
+	// attempts that ran before it blocked; hosts report it in wait results.
+	if (isTerminalWorkflowStatus(run.status) || run.status === "blocked")
+		run.usage = runUsageRollup(run);
 	if (firstWrite) {
 		const topology = await acquireWorkflowTopologyLease(
 			cwd,

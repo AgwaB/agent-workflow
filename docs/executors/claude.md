@@ -278,6 +278,12 @@ standard`) and `WebFetch` (`url`, `prompt`) both completed. The answer cited sou
 
 ## Change log
 
+- **WP12a (2026-10-27):** usage is normalized (docs/core-port.md WP12a change log 3): `input` is
+  `input_tokens` as reported (no longer plus cache reads and cache creation), `cached` =
+  `cache_read_input_tokens`, `cacheWrite` = `cache_creation_input_tokens`, and `model` is the resolved
+  model (`result.modelUsage`, else the last assistant message), not the request alias. Tests:
+  `executor-claude-stream.test.mjs`, `core-wp12a-usage-normalized.test.mjs`.
+
 - **Live bundle 3 (2026-10-27):** a requested `sessionId` that is not a UUID maps to
   `claudeSessionUuid(sessionId)` instead of being refused (the engine names kept sessions
   `agent-workflow.<run>.<task>`; all four Claude bundled-workflow runs failed `launch_failed`

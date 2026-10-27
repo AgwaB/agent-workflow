@@ -15,7 +15,7 @@ Original spec, Pi adapter request checks.
 | Worker launches served / recorded | 1 / 1 |
 | Artifact reads re-issued / recorded | 0 / 0 |
 | Differences: allowed | 76 |
-| Differences: explained | 49 |
+| Differences: explained | 40 |
 | Differences: unexplained | 0 |
 | Exact-match violations | 0 |
 
@@ -25,11 +25,11 @@ Original spec, Pi adapter request checks.
 |---|---|---|---|
 | explained | `artifact-mcp-provenance` | 11 | docs/core-port.md WP4b change log 4 and "What launch provenance digests now"; WP4c-1 "Pi executor (WP6)" table (extension isolation, generated extension wrappers) |
 | explained | `executor-exit-code` | 2 | docs/core-port.md WP1b change log 1 |
-| explained | `executor-usage-contract` | 24 | docs/core-port.md WP1b change log 2 |
-| explained | `owned-sessions` | 1 | docs/core-port.md WP4c-1 "R#9, R#10, R#12, R#5" (R#10) and change log 8 |
+| explained | `executor-usage-contract` | 15 | docs/core-port.md WP1b change log 2 |
 | explained | `run-capability-negotiation` | 1 | docs/core-port.md "WP4d — capability negotiation before launch" |
 | explained | `run-executor-record` | 1 | docs/core-port.md WP4c-1 "Executor selection" and change log 11 |
 | explained | `run-permission-mode` | 2 | docs/core-port.md WP4e permission modes; docs/permissions.md |
+| explained | `run-usage-unknown-not-zero` | 1 | docs/core-port.md WP12a change log 2 |
 | explained | `runtime-cost-rounding` | 4 | docs/core-port.md WP1b change log 3 |
 | explained | `runtime-stderr` | 2 | docs/runtime-port.md "Attempt artifacts" (stderr.log: runtime diagnostics, empty on a clean completion) |
 | explained | `wp10-artifact-tool-guidelines` | 1 | docs/core-port.md WP10 change log 2 |
@@ -48,11 +48,11 @@ Original spec, Pi adapter request checks.
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 7aeb5d6695596995b9fda9c35f5ba36b4d0824dd821329d5883a032d04c2f4e4 |
+| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | c3b99ca66ec7284418d32b6f55ad4ed1227b0e334580220994b03f1327c4fba8 |
 | run.json | tasks[0].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | a25d9d0ffad76dcd1929cf3a932be7a38410da1095b27308fc4be62c61d68f95 |  |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 86edfa8303cb1608cad27159f5f3cfa0c3b6801e37c1aef6dd3d27bf46538cec |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 426f2ee367200ce5f5689699adabb1aba9106b57ab5279706d9ecf9f8719476f |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 7aeb5d6695596995b9fda9c35f5ba36b4d0824dd821329d5883a032d04c2f4e4 |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 3bc6dd929c3ebab82dec218273102807b83e5a4f4fec2487013dfcca5fb4ab00 |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 0b67c745d8247ac2e58793437523d1cf3baff21979316513831a08bffb7cbd47 |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | c3b99ca66ec7284418d32b6f55ad4ed1227b0e334580220994b03f1327c4fba8 |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | a25d9d0ffad76dcd1929cf3a932be7a38410da1095b27308fc4be62c61d68f95 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 1c571feaba54d772deca047a1a5a89af80dae392002c11a3c85612d924ab22f4 |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"1c571feaba54d772deca047a1a5a89af80dae392002c11a3c85612d924ab22f4"} |  |
@@ -71,42 +71,25 @@ Original spec, Pi adapter request checks.
 
 </details>
 
-<details><summary>explained executor-usage-contract (24)</summary>
+<details><summary>explained executor-usage-contract (15)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | tasks[0].usage.aggregate.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[0].usage.aggregate.reasoningTokens | removed | 24 |  |
-| run.json | tasks[0].usage.aggregate.totalTokens | removed | 6420 |  |
-| run.json | tasks[0].usage.attempts[0].cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[0].usage.attempts[0].model | removed | gpt-6.1-sol |  |
 | run.json | tasks[0].usage.attempts[0].provider | removed | openai-codex |  |
 | run.json | tasks[0].usage.attempts[0].raw.cacheRead | removed | 0 |  |
-| run.json | tasks[0].usage.attempts[0].raw.cacheWrite | removed | 0 |  |
 | run.json | tasks[0].usage.attempts[0].raw.cached | added |  | 0 |
 | run.json | tasks[0].usage.attempts[0].raw.cost | changed | {"cacheRead":0,"cacheWrite":0,"input":0.012629999999999999,"output":0.0010500000000000002,"total":0.013680000000000001} | 0.01368 |
 | run.json | tasks[0].usage.attempts[0].raw.events | added |  | 1 |
 | run.json | tasks[0].usage.attempts[0].raw.reasoning | removed | 24 |  |
 | run.json | tasks[0].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[0].usage.attempts[0].raw.total | added |  | 6420 |
 | run.json | tasks[0].usage.attempts[0].raw.totalTokens | removed | 6420 |  |
 | run.json | tasks[0].usage.attempts[0].reasoningTokens | removed | 24 |  |
-| run.json | tasks[0].usage.attempts[0].totalTokens | removed | 6420 |  |
-| run.json | tasks[0].usage.cacheCreationInputTokens | removed | 0 |  |
 | run.json | tasks[0].usage.model | removed | gpt-6.1-sol |  |
 | run.json | tasks[0].usage.provider | removed | openai-codex |  |
 | run.json | tasks[0].usage.reasoningTokens | removed | 24 |  |
-| run.json | tasks[0].usage.totalTokens | removed | 6420 |  |
-| run.json | usage.cacheCreationInputTokens | removed | 0 |  |
-| run.json | usage.reasoningTokens | removed | 24 |  |
-| run.json | usage.totalTokens | removed | 6420 |  |
-
-</details>
-
-<details><summary>explained owned-sessions (1)</summary>
-
-| File | Path / line | Kind | Recorded | Replayed |
-|---|---|---|---|---|
-| run.json | tasks[0].ownedSessions | added |  | [{"backendAttemptId":"&lt;SA_ATTEMPT_1&gt;","backendRunId":"&lt;SA_RUN_1&gt;","executorId":"pi","kind":"pi-session-dir","locator":"&lt;HOME&gt;/.agent-workflow/executors/pi/sessions/pi-workflow.&lt;WF_RUN_1&gt;.task-1","recordedAt":"&lt;TS&gt;"}] |
 
 </details>
 
@@ -122,7 +105,7 @@ Original spec, Pi adapter request checks.
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/minimal","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-minimal-original-69363/work/replay-trace.jsonl"},"contractVersion":… (355 chars, sha256 1d7f0c1d2254) |
+| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/minimal","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-minimal-original-94772/work/replay-trace.jsonl"},"contractVersion":… (355 chars, sha256 f5b599f41698) |
 
 </details>
 
@@ -132,6 +115,14 @@ Original spec, Pi adapter request checks.
 |---|---|---|---|---|
 | compiled.json | permissionMode | added |  | free |
 | run.json | permissionMode | added |  | {"mode":"free","source":"default"} |
+
+</details>
+
+<details><summary>explained run-usage-unknown-not-zero (1)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | usage.reasoningTokens | removed | 24 |  |
 
 </details>
 
@@ -159,7 +150,7 @@ Original spec, Pi adapter request checks.
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| tasks/task-1/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (489 chars, sha256 9398856eb94e) |
+| tasks/task-1/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe) |
 
 </details>
 
@@ -286,7 +277,7 @@ Original spec, Pi adapter request checks.
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×5 |  |  |
+| run.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×4 |  |  |
 | run.json | .agent-workflow/workflows | literal-renamed ×9 |  |  |
 | run.json | agent-workflow/runtime | literal-renamed ×2 |  |  |
 | supervisor.json | .agent-workflow/workflows | literal-renamed ×1 |  |  |

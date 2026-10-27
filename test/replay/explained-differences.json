@@ -17,7 +17,7 @@
 		{
 			"id": "owned-sessions",
 			"citation": "docs/core-port.md WP4c-1 \"R#9, R#10, R#12, R#5\" (R#10) and change log 8",
-			"reason": "The terminal mapping records the session the executor kept (ownedSession on the terminal event) as tasks[].ownedSessions so retention can delete exactly those sessions. The Pi adapter reports a kept session for every requested session id; pi-workflow kept Pi sessions without recording them.",
+			"reason": "The terminal mapping records the session the executor kept (ownedSession on the terminal event) as tasks[].ownedSessions so retention can delete exactly those sessions. The Pi adapter reports a kept session for every requested session id; pi-workflow kept Pi sessions without recording them. Since WP12a (docs/core-port.md WP12a change log 1) the engine requests a kept session only with experimental same-session repair, so default replays show no such difference.",
 			"differences": [
 				{
 					"file": "^run\\.json$",
@@ -99,6 +99,18 @@
 			]
 		},
 		{
+			"id": "run-usage-unknown-not-zero",
+			"citation": "docs/core-port.md WP12a change log 2",
+			"reason": "Run usage rollups sum only what model tasks observed: support tasks (no model call) no longer contribute zeros, so a token class no task reported is absent (unknown) instead of 0. Recorded pi-workflow rollups carried 0 or a provider total for reasoning/cache-creation/total tokens.",
+			"differences": [
+				{
+					"file": "^run\\.json$",
+					"path": "^usage\\.(?:reasoningTokens|totalTokens|cacheCreationInputTokens|cachedInputTokens)$",
+					"kind": "removed"
+				}
+			]
+		},
+		{
 			"id": "executor-usage-contract",
 			"citation": "docs/core-port.md WP1b change log 2",
 			"reason": "Executor usage arrives as SDK UsageEvents (input, output, cached, cost, source), summed by the runtime into result.json metadata.usage. Reasoning, cache-write and total token counts and the provider/model of the attempt are not part of the executor event contract v0, so task and run usage records no longer carry reasoningTokens, totalTokens, cacheCreationInputTokens, provider or model, and usage.attempts[].raw is the runtime summary instead of Pi's usage object. Input, output, cache-read tokens and cost still match (exact-match rule run-usage-totals). The run rollup then reports reasoning/total/cache-write tokens as absent, or as 0 when a support task contributes its zero usage. The same applies to the usage a foreach batch leader records for its physical execution (foreachBatches[].physicalExecution.usage).",
@@ -164,7 +176,7 @@
 			"divergence": true,
 			"fixtures": ["spec-review"],
 			"variants": ["original"],
-			"reason": "The original spec-review helper spec-requirement-source.mjs reads upstream source-manifest.json / control.json from the hard-coded `.pi/workflows/<run>/tasks/<task>/`, which agent-workflow no longer writes. Its evidence gate then reports missing_requirement_source_proof / absent_or_invalid_requirement_scope, so the task-6 partition control differs; task 7 (verify) gets a prompt with that different control digest, which no recording has, so the replay executor refuses it before consume (replay miss) and task 7 fails; task 8 (render) renders the degraded partition. Exactly these three tasks and the run aggregates over them diverge. The acceptance test asserts the cause (the task-6 issues and the task-7 miss at the task-6 digest line) and that the state-path-migrated variant, which migrates only that literal, has no unexplained difference.",
+			"reason": "The original spec-review helper spec-requirement-source.mjs reads upstream source-manifest.json / control.json from the hard-coded `.pi/workflows/<run>/tasks/<task>/`, which agent-workflow no longer writes. Its evidence gate then reports missing_requirement_source_proof / absent_or_invalid_requirement_scope, so the task-6 partition control differs; task 7 (verify) gets a prompt with that different control digest, which no recording has, so the replay executor refuses it before consume (replay miss) and task 7 fails; task 8 (render) renders the degraded partition. Exactly these three tasks and the run aggregates over them diverge (since docs/core-port.md WP12a change log 3 the aggregates include usage.totalTokens and usage.cacheCreationInputTokens, which the runtime now sums). The acceptance test asserts the cause (the task-6 issues and the task-7 miss at the task-6 digest line) and that the state-path-migrated variant, which migrates only that literal, has no unexplained difference.",
 			"differences": [
 				{
 					"file": "^tasks/task-[678]/",
@@ -184,7 +196,7 @@
 				},
 				{
 					"file": "^run\\.json$",
-					"path": "^usage\\.(?:inputTokens|outputTokens|cacheReadInputTokens|costUsd|tasksReporting)$"
+					"path": "^usage\\.(?:inputTokens|outputTokens|cacheReadInputTokens|costUsd|tasksReporting|totalTokens|cacheCreationInputTokens)$"
 				}
 			]
 		},

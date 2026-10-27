@@ -18,7 +18,13 @@ const DIVERGENT = new Set(["spec-review:original", "deep-research:original"]);
 
 function assertFullReplay(name, report) {
 	const label = `${name}:${report.variant}`;
-	assert.equal(report.counts.unexplained, 0, label);
+	assert.equal(
+		report.counts.unexplained,
+		0,
+		`${label}: ${JSON.stringify(
+			report.differences.filter((row) => row.class === "unexplained"),
+		).slice(0, 4000)}`,
+	);
 	assert.deepEqual(report.exactMatchViolations, [], label);
 	assert.deepEqual(report.exactMatchDivergences, [], label);
 	assert.equal(report.replayedStatus, report.recordedStatus, label);

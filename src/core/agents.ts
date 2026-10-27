@@ -1,5 +1,5 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/agents.ts. MIT, same author. Changes: agent roots .pi/agents→.agent-workflow/agents and ~/.pi/agent/agents→~/.agent-workflow/agents, legacy Pi roots searched read-only after them and tagged legacySource "pi" (F5).
-import type { Dirent } from "node:fs";
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/agents.ts. MIT, same author. Changes: agent roots .pi/agents→.agent-workflow/agents and ~/.pi/agent/agents→~/.agent-workflow/agents, legacy Pi roots searched read-only after them and tagged legacySource "pi" (F5). WP12a: a legacy user agent (~/.pi/agent/agents) that shadows a bundled agent of the same name records shadowsBundledAgent.
+import { type Dirent, existsSync } from "node:fs";
 import {
 	lstat,
 	open,
@@ -103,6 +103,7 @@ export async function loadAgentByName(
 			return withLegacySource(
 				await readAgentFile(candidate.file, candidate.root, candidate.scope),
 				candidate.legacy,
+				name,
 			);
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
@@ -154,7 +155,7 @@ export async function loadAgentMetadataByName(
 			maxBytes,
 		);
 		return candidate.legacy
-			? { ...metadata, agent: withLegacySource(metadata.agent, true) }
+			? { ...metadata, agent: withLegacySource(metadata.agent, true, name) }
 			: metadata;
 	};
 	for (const candidate of candidateAgentPaths(name, cwd)) {
@@ -280,8 +281,41 @@ function agentRoots(
 function withLegacySource(
 	agent: AgentDefinition,
 	legacy: true | undefined,
+	lookupName?: string,
 ): AgentDefinition {
-	return legacy ? { ...agent, legacySource: "pi" } : agent;
+	if (!legacy) return agent;
+	// Only the legacy user directory (`~/.pi/agent/agents`) is checked: a project's own legacy
+	// `.pi/agents` override is the project's explicit choice (bundled recordings ship one).
+	const shadowed =
+		agent.scope === "user"
+			? bundledAgentShadowedBy(agent, lookupName)
+			: undefined;
+	return {
+		...agent,
+		legacySource: "pi",
+		...(shadowed === undefined ? {} : { shadowsBundledAgent: shadowed }),
+	};
+}
+
+/**
+ * WP12a: the bundled agent a legacy Pi user agent shadows (same name; legacy roots come first, F5).
+ * Precedence is unchanged; the compiler turns this into a notice.
+ */
+function bundledAgentShadowedBy(
+	agent: AgentDefinition,
+	lookupName: string | undefined,
+): string | undefined {
+	const names = uniqueStrings([lookupName, agent.name]).filter(isSafeAgentName);
+	for (const root of bundledAgentRoots())
+		for (const name of names)
+			for (const relativePath of uniqueStrings([
+				`${name.replaceAll(".", sep)}.md`,
+				`${name}.md`,
+			])) {
+				const file = resolve(root, relativePath);
+				if (isPathInside(resolve(root), file) && existsSync(file)) return file;
+			}
+	return undefined;
 }
 
 function bundledAgentRoots(): string[] {
