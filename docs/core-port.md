@@ -1465,6 +1465,18 @@ order). Each fix has a regression test that failed before it.
    declare `readOnly: false` to keep testing metadata), `core-workflow-router` (readOnly stages with
    only bash/unknown tools are refused at compile, so their auto cards have no effective facts and
    stay blocked).
+2. **Review #7 (`src/sdk/requirements.ts`): a forced readOnly downgrade negotiates `readOnly`.**
+   Before, `allowReadOnlyDowngrade` only checked that `readOnly` was available, so a writable stage
+   downgraded on a coarse allowlist or an unmapped tool was accepted with an emulated readOnly even
+   under `strict: [readOnly]`, and an environment warning on readOnly (e.g. Claude allow rules) was
+   never recorded. Now, when the downgrade is taken and the stage has no `readOnly` entry yet,
+   `negotiateCapabilities` adds one negotiated with the default `readOnly` requirement through the
+   same per-key rules: `CAPABILITY_STRICT:readOnly` for an emulated/warned level under strict,
+   `CAPABILITY_WARNING:readOnly` degradation (confirmation when interactive, `acceptedByFreeMode`
+   in free mode) for a warned one. Test: `sdk-wp12d1-forced-readonly.test.mjs` (coarse and unmapped
+   paths, strict, warning, native, no duplicate entry). Changed assertion:
+   `sdk-negotiation-warnings` preview (the forced "write" stage now also lists its readOnly warning:
+   3 degradations instead of 2).
 
 ## WP12c — stage-1 doc sync, `aw_run` inputs, release secret scan
 

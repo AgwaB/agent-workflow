@@ -121,7 +121,9 @@ How the engine reads a row (B4, `negotiateCapabilities`):
   stage-1 CLI: URL, private-network and redaction controls are the CLI's).
 - **`toolAllowlist`** below `fine` on a stage with a precise `tools` list: `free` mode records it
   (`acceptedByFreeMode`); `safe` mode refuses unless the spec sets `allowReadOnlyDowngrade` (then the
-  stage runs with readOnly enforced, `forcedReadOnly`).
+  stage runs with readOnly enforced, `forcedReadOnly`). The forced `readOnly` is then negotiated
+  like an authored readOnly stage: `strict` readOnly refuses an emulated one, and an environment
+  warning is recorded as `CAPABILITY_WARNING:readOnly` (and needs confirmation when interactive).
 
 Stage requirements come from the spec (readOnly, required reads → `mcpInjection`, tools, web tools,
 partial output, same-session repair, B5 `inherit`). The run records the negotiation; the user sees

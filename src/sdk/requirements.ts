@@ -255,7 +255,10 @@ export function negotiateCapabilities(
 		};
 	};
 
-	for (const [key, requirement] of stageRequirements(ctx)) {
+	const negotiateKey = (
+		key: string,
+		requirement: Requirement,
+	): NegotiationEntry => {
 		const { name, detail } = splitKey(key);
 		const observedLevel = caps[name];
 		const observedDetail = detailOf(observedLevel);
@@ -403,8 +406,11 @@ export function negotiateCapabilities(
 				})`,
 			};
 		}
-		entries.push(entry);
-	}
+		return entry;
+	};
+
+	for (const [key, requirement] of stageRequirements(ctx))
+		entries.push(negotiateKey(key, requirement));
 
 	if (ctx.tools !== undefined && ctx.toolMapping !== undefined) {
 		for (const tool of mapTools(ctx.tools, ctx.toolMapping).unmapped) {
@@ -427,6 +433,11 @@ export function negotiateCapabilities(
 			);
 		}
 	}
+
+	// WP12d-1 (review #7): a forced downgrade makes `readOnly` a requirement of this stage, so it is
+	// negotiated like an authored readOnly stage (strictness, environment warning, confirmation).
+	if (forcedReadOnly && !entries.some((entry) => entry.key === "readOnly"))
+		entries.push(negotiateKey("readOnly", DEFAULT_REQUIREMENTS.readOnly));
 
 	const refusals = entries
 		.filter((entry) => entry.outcome === "refused")

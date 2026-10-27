@@ -211,12 +211,14 @@ test("buildCapabilityPreview aggregates stages with labels", () => {
 	assert.deepEqual(preview.degradations, [
 		"review: CAPABILITY_WARNING:readOnly",
 		"write: CAPABILITY_MISSING:toolAllowlist.fine",
+		// WP12d-1 (review #7): the forced readOnly is negotiated, so its warning is recorded too.
+		"write: CAPABILITY_WARNING:readOnly",
 	]);
 	assert.deepEqual(preview.forcedReadOnly, ["write"]);
 	const lines = preview.text.split("\n");
 	assert.match(
 		lines[0],
-		/^Capability check \(fake@0\.1\.0, 2 stages\): accepted with 2 degradations; forced readOnly: write$/,
+		/^Capability check \(fake@0\.1\.0, 2 stages\): accepted with 3 degradations; forced readOnly: write$/,
 	);
 	assert.equal(lines[1], "  probe: fake-cli 1.0.0, auth ok");
 	assert.ok(
