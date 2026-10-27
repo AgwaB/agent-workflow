@@ -196,7 +196,7 @@ test("live research correction reconciles canonical slots and preserves blocked/
 	assert.equal(validateJsonSchema(packet, packetSchema).valid, true);
 	assert(
 		packet.packet.synthesisInput.pages.every(
-			(page) => JSON.stringify(page).length <= 24000,
+			(page) => JSON.stringify(page).length <= 16000,
 		),
 	);
 	const slots = packet.packet.factSlotCoverage;

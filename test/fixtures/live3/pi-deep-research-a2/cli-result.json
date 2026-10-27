@@ -1,0 +1,97 @@
+{
+	"action": "run",
+	"ok": true,
+	"outcome": "completed",
+	"data": {
+		"mode": "named-workflow",
+		"runId": "workflow_mvqccbmv_0fa746",
+		"status": "running",
+		"name": "deep-research",
+		"specPath": "<HOME>/agent-workflow-live3/workflows/deep-research/spec.json",
+		"executor": {
+			"id": "pi",
+			"source": "run-flag"
+		},
+		"permissionMode": {
+			"mode": "free",
+			"source": "default"
+		},
+		"profile": {
+			"name": "low",
+			"kind": "declared",
+			"source": "request"
+		},
+		"capability": {
+			"preview": "Capability check (pi@0.1.0, 5 stages, permission mode: free): accepted with 4 degradations\n  probe: installed, cli 1.1.0, auth unknown\nplan.main: pi@0.1.0 — accepted\n  readOnly: emulated by executor (required, emulated/probed)\n  usage.cost: native (preferred, native/probed/cost)\n  partialStream: native (optional, native/probed)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\nresearch-questions.item: pi@0.1.0 — accepted with degradation\n  readOnly: emulated by executor (required, emulated/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  webTools: degraded (required, native/probed/search+fetch) — webTools.safetyPolicy: unknown; web safety controls are not engine-enforced (C2, plan §6.5)\n  mcpInjection: native (required, native/probed)\nnormalize-claims.main: pi@0.1.0 — accepted with degradation\n  readOnly: emulated by executor (required, emulated/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  webTools: degraded (required, native/probed/search+fetch) — webTools.safetyPolicy: unknown; web safety controls are not engine-enforced (C2, plan §6.5)\n  mcpInjection: native (required, native/probed)\nverify-claims.item: pi@0.1.0 — accepted with degradation\n  readOnly: emulated by executor (required, emulated/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  webTools: degraded (required, native/probed/search+fetch) — webTools.safetyPolicy: unknown; web safety controls are not engine-enforced (C2, plan §6.5)\nfinal-audit.main: pi@0.1.0 — accepted with degradation\n  readOnly: emulated by executor (required, emulated/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  webTools: degraded (required, native/probed/search+fetch) — webTools.safetyPolicy: unknown; web safety controls are not engine-enforced (C2, plan §6.5)",
+			"confirmation": "non-interactive",
+			"degradations": [
+				"research-questions.item: webTools",
+				"normalize-claims.main: webTools",
+				"verify-claims.item: webTools",
+				"final-audit.main: webTools"
+			],
+			"forcedReadOnly": []
+		},
+		"taskSummary": {
+			"total": 10,
+			"pending": 9,
+			"running": 1,
+			"blocked": 0,
+			"completed": 0,
+			"failed": 0,
+			"skipped": 0,
+			"interrupted": 0
+		},
+		"wait": {
+			"runId": "workflow_mvqccbmv_0fa746",
+			"status": "completed",
+			"semanticStatus": "completed",
+			"terminal": true,
+			"actionRequired": false,
+			"stillRunning": false,
+			"timeoutMs": 45000,
+			"blockedTaskIds": [],
+			"taskSummary": {
+				"total": 31,
+				"pending": 0,
+				"running": 0,
+				"blocked": 0,
+				"completed": 31,
+				"failed": 0,
+				"skipped": 0,
+				"interrupted": 0
+			},
+			"outputTaskIds": ["final.main"],
+			"outputRetryAttempts": 0,
+			"launchRetryAttempts": 0,
+			"artifactRoot": ".agent-workflow/workflows/workflow_mvqccbmv_0fa746",
+			"preview": "## Core conclusion\n\nThe current specification (2026-07-28) frames stdio as one UTF-8 JSON-RPC message per line: messages are newline-delimited and MUST NOT contain embedded newlines. Servers read stdin and write protocol messages to stdout. Servers MUST NOT write non-MCP content or JSON-RPC requests to stdout. Servers MAY write UTF-8 logging strings to stderr, including informational, debug, and error messages. Clients MAY capture, forward, or ignore stderr and SHOULD NOT assume stderr output indicates an error.\n\n## Main recommendations\n\nThese recommendations are proposals based on the research, not validated outcomes.\n\n- Keep banners, debug prints, and other logs off stdout; send logging to stderr instead.\n\n## Limits to keep in mind\n\n- The prohibition on server JSON-RPC requests applies to the cited current revision; do not automatically apply it to older protocol versions.\n\nSource verification: model-reported (byte-level source verification is not performed).",
+			"reportArtifacts": [
+				{
+					"kind": "final-report",
+					"label": "Final report",
+					"path": ".agent-workflow/workflows/workflow_mvqccbmv_0fa746/tasks/task-10/final-report.md"
+				},
+				{
+					"kind": "evidence-audit",
+					"label": "Evidence audit",
+					"path": ".agent-workflow/workflows/workflow_mvqccbmv_0fa746/tasks/task-10/audit.md"
+				}
+			],
+			"usage": {
+				"source": "task-rollup",
+				"capturedAt": "2026-10-27T07:11:55.323Z",
+				"taskCount": 31,
+				"tasksReporting": 21,
+				"inputTokens": 257288,
+				"outputTokens": 25454,
+				"totalTokens": 0,
+				"cachedInputTokens": 0,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 631552,
+				"reasoningTokens": 0,
+				"costUsd": 0.8322712000000001
+			}
+		}
+	}
+}

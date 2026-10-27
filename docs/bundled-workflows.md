@@ -91,6 +91,21 @@ Agents and skills:
 - **M15.** `workflows/README.md`: agent-workflow wording, paths, the CLI web tools and the source-verification
   statement; the web-source cache / `fetch_content` cache paragraphs are removed.
 
+Live bundle 3 (stage-1 acceptance, `docs/live-acceptance-stage1.md`):
+
+- **M16.** deep-research synthesis pages: `synthesis-pages.mjs` uses 16 pages of 16,000 (was 8 of 24,000)
+  and measures a page as max(UTF-16 units, UTF-8 bytes). Both specs require the header plus
+  `pages[0]`…`pages[15]` at `maxChars: 16000` (prompt: "Read all sixteen indexed pages"); the
+  final-audit-packet schema pins `pageCount` 16 / `maxChars` 16000. Why: one projected page read
+  must fit the smallest workflow_artifact delivery limit (Pi 1.1 server `--max-output-chars`
+  18,432, both units; `docs/mcp.md` "Measured limits") with the read header and projection envelope.
+  A 23,301-unit page 0 was cut by the server (`deliveryUnverified`), so `final-audit` failed
+  `required_reads_missing_exhausted` and the live Pi run ended `blocked` (Claude's 21,375 limit has
+  the same problem). The bank grows from 192k to 256k (the 48-claim max fixture needs 13 pages).
+  Regression test: `core-deep-research-synthesis-pages.test.mjs` "every synthesis read fits each
+  stage-1 executor's workflow_artifact delivery limit" (real artifact reads of the max fixture and
+  of a full multi-byte page against the Pi, Claude and Codex server limits).
+
 ## Worker prompt rendering (core)
 
 Workers see the artifact tool under an executor-specific name (`mcp__workflow_artifact__workflow_artifact`
@@ -108,6 +123,17 @@ text name it by the logical name `workflow_artifact` (or the placeholder `{{work
 - Tasks that have the artifact server get a `# Workflow Artifact Tool` section with
   `WORKFLOW_ARTIFACT_TOOL_GUIDELINES` in the system prompt (MCP server instructions are not shown by
   every client; Pi 1.1 does not show them).
+- **Live bundle 3 (M17):** `renderWorkerPromptToolNames` also adds, right after the system prompt's
+  `Only these tools are enabled for this workflow task: …` line, a note naming how the enabled
+  logical tools surface on the executor (`WORKER_TOOL_NAME_MAPPINGS`, from the adapters' tool
+  mapping tables): Codex `read`/`grep`/`find`/`ls` → the shell tool with read-only commands,
+  `web_search`/`fetch_content` → the hosted `web_search`; Claude `read` → `Read`, `grep` → `Grep`,
+  `find`/`ls` → `Glob`, `web_search` → `WebSearch`, `fetch_content` → `WebFetch`. Pi keeps the
+  logical names (no note). Why: the live Codex spec-review `extract-spec` worker, told that only
+  `read, grep, find, ls` were enabled, ran no command and reported SPEC.md "unavailable" (domain
+  verdict INCONCLUSIVE); Codex impact-review workers likewise never read the code. Regression test:
+  `core-worker-prompt-render.test.mjs` "the renderer maps the enabled logical tool names for Codex
+  and Claude, not for Pi".
 
 ## Support table
 
@@ -177,7 +203,8 @@ generator has no mode input yet; add one per mode when WP4e merges.
 
 - Web tool names in prompts: prompts and the system prompt's tool list name `web_search` /
   `fetch_content` (Pi vocabulary). Claude shows `WebSearch`/`WebFetch`, Codex one hosted
-  `web_search`; only the artifact tool name is rendered per executor. Check that workers find them.
+  `web_search`. Since M17 (live bundle 3) the system prompt maps the enabled names per executor;
+  task prompts still use the logical names.
 - Quality of model-reported web evidence (no byte check) and of the URL-only verification pool is
   unmeasured (plan §7: stage 1 checks completion and format only).
 - Pi needs `pi-web-access` for deep-research (refused otherwise); Codex runs every bundled stage with

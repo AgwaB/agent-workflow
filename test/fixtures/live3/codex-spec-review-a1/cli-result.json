@@ -1,0 +1,93 @@
+{
+	"action": "run",
+	"ok": false,
+	"outcome": "failed",
+	"data": {
+		"mode": "named-workflow",
+		"runId": "workflow_mvqbkm1o_f725e0",
+		"status": "running",
+		"name": "spec-review",
+		"specPath": "<HOME>/agent-workflow-live3/workflows/spec-review/spec.json",
+		"executor": {
+			"id": "codex",
+			"source": "run-flag"
+		},
+		"permissionMode": {
+			"mode": "free",
+			"source": "default"
+		},
+		"capability": {
+			"preview": "Capability check (codex@0.1.0, 6 stages, permission mode: free): accepted with 17 degradations\n  probe: installed, cli 0.159.2, auth ok\nextract-spec.main: codex@0.1.0 — accepted with degradation\n  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval\n  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list\n  usage.cost: emulated by engine (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost = tokens × model price table\n  resume: native (preferred, native/probed/native)\n  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker\n  mcpInjection: native (required, native/probed)\nmap-implementation.main: codex@0.1.0 — accepted with degradation\n  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval\n  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list\n  usage.cost: emulated by engine (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost = tokens × model price table\n  resume: native (preferred, native/probed/native)\n  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker\n  mcpInjection: native (required, native/probed)\ninspect-tests.main: codex@0.1.0 — accepted with degradation\n  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval\n  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list\n  usage.cost: emulated by engine (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost = tokens × model price table\n  resume: native (preferred, native/probed/native)\n  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker\n  mcpInjection: native (required, native/probed)\ncandidate-findings.main: codex@0.1.0 — accepted with degradation\n  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list\n  usage.cost: emulated by engine (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost = tokens × model price table\n  resume: native (preferred, native/probed/native)\n  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker\nverify-findings.item: codex@0.1.0 — accepted with degradation\n  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval\n  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list\n  usage.cost: emulated by engine (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost = tokens × model price table\n  resume: native (preferred, native/probed/native)\n  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker\n  mcpInjection: native (required, native/probed)\nreport.main: codex@0.1.0 — accepted with degradation\n  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval\n  mcpInjection: native (required, native/probed)\n  usage.cost: emulated by engine (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost = tokens × model price table\n  resume: native (preferred, native/probed/native)\n  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker",
+			"confirmation": "non-interactive",
+			"degradations": [
+				"extract-spec.main: CAPABILITY_WARNING:readOnly",
+				"extract-spec.main: CAPABILITY_MISSING:toolAllowlist.fine",
+				"extract-spec.main: CAPABILITY_WARNING:contextIsolation",
+				"map-implementation.main: CAPABILITY_WARNING:readOnly",
+				"map-implementation.main: CAPABILITY_MISSING:toolAllowlist.fine",
+				"map-implementation.main: CAPABILITY_WARNING:contextIsolation",
+				"inspect-tests.main: CAPABILITY_WARNING:readOnly",
+				"inspect-tests.main: CAPABILITY_MISSING:toolAllowlist.fine",
+				"inspect-tests.main: CAPABILITY_WARNING:contextIsolation",
+				"candidate-findings.main: CAPABILITY_WARNING:readOnly",
+				"candidate-findings.main: CAPABILITY_MISSING:toolAllowlist.fine",
+				"candidate-findings.main: CAPABILITY_WARNING:contextIsolation",
+				"verify-findings.item: CAPABILITY_WARNING:readOnly",
+				"verify-findings.item: CAPABILITY_MISSING:toolAllowlist.fine",
+				"verify-findings.item: CAPABILITY_WARNING:contextIsolation",
+				"report.main: CAPABILITY_WARNING:readOnly",
+				"report.main: CAPABILITY_WARNING:contextIsolation"
+			],
+			"forcedReadOnly": []
+		},
+		"taskSummary": {
+			"total": 8,
+			"pending": 5,
+			"running": 3,
+			"blocked": 0,
+			"completed": 0,
+			"failed": 0,
+			"skipped": 0,
+			"interrupted": 0
+		},
+		"wait": {
+			"runId": "workflow_mvqbkm1o_f725e0",
+			"status": "failed",
+			"semanticStatus": "failed",
+			"terminal": true,
+			"actionRequired": false,
+			"stillRunning": false,
+			"timeoutMs": 45000,
+			"blockedTaskIds": [],
+			"taskSummary": {
+				"total": 9,
+				"pending": 0,
+				"running": 0,
+				"blocked": 0,
+				"completed": 8,
+				"failed": 1,
+				"skipped": 0,
+				"interrupted": 0
+			},
+			"outputTaskIds": ["final.main"],
+			"outputRetryAttempts": 1,
+			"launchRetryAttempts": 0,
+			"artifactRoot": ".agent-workflow/workflows/workflow_mvqbkm1o_f725e0",
+			"reportArtifacts": [],
+			"usage": {
+				"source": "task-rollup",
+				"capturedAt": "2026-10-27T06:45:56.036Z",
+				"taskCount": 9,
+				"tasksReporting": 6,
+				"inputTokens": 701477,
+				"outputTokens": 19419,
+				"totalTokens": 0,
+				"cachedInputTokens": 0,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 483072,
+				"reasoningTokens": 0,
+				"costUsd": 0
+			}
+		}
+	}
+}

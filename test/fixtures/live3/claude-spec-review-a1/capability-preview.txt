@@ -1,0 +1,43 @@
+Capability check (claude@0.1.0, 6 stages, permission mode: free): accepted
+  probe: installed, cli 2.1.310, auth ok
+extract-spec.main: claude@0.1.0 — accepted
+  readOnly: native (required, native/probed)
+  toolAllowlist.fine: native (preferred, native/probed/fine)
+  usage.cost: native (preferred, native/probed/cost)
+  resume: native (preferred, native/probed/native)
+  contextIsolation: native (required, native/probed)
+  mcpInjection: native (required, native/probed)
+map-implementation.main: claude@0.1.0 — accepted
+  readOnly: native (required, native/probed)
+  toolAllowlist.fine: native (preferred, native/probed/fine)
+  usage.cost: native (preferred, native/probed/cost)
+  resume: native (preferred, native/probed/native)
+  contextIsolation: native (required, native/probed)
+  mcpInjection: native (required, native/probed)
+inspect-tests.main: claude@0.1.0 — accepted
+  readOnly: native (required, native/probed)
+  toolAllowlist.fine: native (preferred, native/probed/fine)
+  usage.cost: native (preferred, native/probed/cost)
+  resume: native (preferred, native/probed/native)
+  contextIsolation: native (required, native/probed)
+  mcpInjection: native (required, native/probed)
+candidate-findings.main: claude@0.1.0 — accepted
+  readOnly: native (required, native/probed)
+  mcpInjection: native (required, native/probed)
+  toolAllowlist.fine: native (preferred, native/probed/fine)
+  usage.cost: native (preferred, native/probed/cost)
+  resume: native (preferred, native/probed/native)
+  contextIsolation: native (required, native/probed)
+verify-findings.item: claude@0.1.0 — accepted
+  readOnly: native (required, native/probed)
+  toolAllowlist.fine: native (preferred, native/probed/fine)
+  usage.cost: native (preferred, native/probed/cost)
+  resume: native (preferred, native/probed/native)
+  contextIsolation: native (required, native/probed)
+  mcpInjection: native (required, native/probed)
+report.main: claude@0.1.0 — accepted
+  readOnly: native (required, native/probed)
+  mcpInjection: native (required, native/probed)
+  usage.cost: native (preferred, native/probed/cost)
+  resume: native (preferred, native/probed/native)
+  contextIsolation: native (required, native/probed)

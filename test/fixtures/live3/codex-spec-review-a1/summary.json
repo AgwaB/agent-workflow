@@ -1,0 +1,92 @@
+{
+	"executor": "codex",
+	"workflow": "spec-review",
+	"attempt": "a1",
+	"args": "--executor codex --json --model gpt-5.6-luna",
+	"runId": "workflow_mvqbkm1o_f725e0",
+	"exit": 1,
+	"wallS": 136,
+	"start": "2026-10-27T06:43:40Z",
+	"outcome": "failed",
+	"status": "failed",
+	"semanticStatus": "failed",
+	"taskSummary": {
+		"total": 9,
+		"pending": 0,
+		"running": 0,
+		"blocked": 0,
+		"completed": 8,
+		"failed": 1,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"capability": {
+		"confirmation": "non-interactive",
+		"degradations": [
+			"extract-spec.main: CAPABILITY_WARNING:readOnly",
+			"extract-spec.main: CAPABILITY_MISSING:toolAllowlist.fine",
+			"extract-spec.main: CAPABILITY_WARNING:contextIsolation",
+			"map-implementation.main: CAPABILITY_WARNING:readOnly",
+			"map-implementation.main: CAPABILITY_MISSING:toolAllowlist.fine",
+			"map-implementation.main: CAPABILITY_WARNING:contextIsolation",
+			"inspect-tests.main: CAPABILITY_WARNING:readOnly",
+			"inspect-tests.main: CAPABILITY_MISSING:toolAllowlist.fine",
+			"inspect-tests.main: CAPABILITY_WARNING:contextIsolation",
+			"candidate-findings.main: CAPABILITY_WARNING:readOnly",
+			"candidate-findings.main: CAPABILITY_MISSING:toolAllowlist.fine",
+			"candidate-findings.main: CAPABILITY_WARNING:contextIsolation",
+			"verify-findings.item: CAPABILITY_WARNING:readOnly",
+			"verify-findings.item: CAPABILITY_MISSING:toolAllowlist.fine",
+			"verify-findings.item: CAPABILITY_WARNING:contextIsolation",
+			"report.main: CAPABILITY_WARNING:readOnly",
+			"report.main: CAPABILITY_WARNING:contextIsolation"
+		],
+		"forcedReadOnly": []
+	},
+	"usage": {
+		"source": "task-rollup",
+		"capturedAt": "2026-10-27T06:45:56.036Z",
+		"taskCount": 9,
+		"tasksReporting": 6,
+		"inputTokens": 701477,
+		"outputTokens": 19419,
+		"totalTokens": 0,
+		"cachedInputTokens": 0,
+		"cacheCreationInputTokens": 0,
+		"cacheReadInputTokens": 483072,
+		"reasoningTokens": 0,
+		"costUsd": 0
+	},
+	"final": [
+		{
+			"taskId": "task-8",
+			"specId": "final.main",
+			"status": "failed",
+			"statusDetail": "support_declared_failed",
+			"controlStatus": "failed",
+			"verdict": "INCONCLUSIVE",
+			"digest": "sha256:c5ceef982cfd85960366a226499299856e39b8838a208e65ba6ab41585c5188d"
+		}
+	],
+	"failedTasks": [
+		{
+			"taskId": "task-8",
+			"specId": "final.main",
+			"status": "failed",
+			"statusDetail": "support_declared_failed",
+			"lastMessage": "support declared failed"
+		}
+	],
+	"modelTasks": 9,
+	"usageFromRunRecord": {
+		"tasksReporting": 6,
+		"inputTokens": 701477,
+		"outputTokens": 19419,
+		"cacheReadInputTokens": 483072,
+		"cacheCreationInputTokens": 0,
+		"costUsd": 0
+	},
+	"modelsInRawStreams": {
+		"gpt-5.6-luna": 7
+	}
+}

@@ -1,0 +1,97 @@
+{
+	"action": "run",
+	"ok": true,
+	"outcome": "completed",
+	"data": {
+		"mode": "named-workflow",
+		"runId": "workflow_mvqd63jg_b70faf",
+		"status": "running",
+		"name": "deep-research",
+		"specPath": "<HOME>/agent-workflow-live3/workflows/deep-research/spec.json",
+		"executor": {
+			"id": "claude",
+			"source": "run-flag"
+		},
+		"permissionMode": {
+			"mode": "free",
+			"source": "default"
+		},
+		"profile": {
+			"name": "low",
+			"kind": "declared",
+			"source": "request"
+		},
+		"capability": {
+			"preview": "Capability check (claude@0.1.0, 5 stages, permission mode: free): accepted with 4 degradations\n  probe: installed, cli 2.1.310, auth ok\nplan.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  usage.cost: native (preferred, native/probed/cost)\n  partialStream: native (optional, native/probed)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\nresearch-questions.item: claude@0.1.0 — accepted with degradation\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  webTools: degraded (required, native/probed/search+fetch) — webTools.safetyPolicy: unknown; web safety controls are not engine-enforced (C2, plan §6.5)\n  mcpInjection: native (required, native/probed)\nnormalize-claims.main: claude@0.1.0 — accepted with degradation\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  webTools: degraded (required, native/probed/search+fetch) — webTools.safetyPolicy: unknown; web safety controls are not engine-enforced (C2, plan §6.5)\n  mcpInjection: native (required, native/probed)\nverify-claims.item: claude@0.1.0 — accepted with degradation\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  webTools: degraded (required, native/probed/search+fetch) — webTools.safetyPolicy: unknown; web safety controls are not engine-enforced (C2, plan §6.5)\nfinal-audit.main: claude@0.1.0 — accepted with degradation\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  webTools: degraded (required, native/probed/search+fetch) — webTools.safetyPolicy: unknown; web safety controls are not engine-enforced (C2, plan §6.5)",
+			"confirmation": "non-interactive",
+			"degradations": [
+				"research-questions.item: webTools",
+				"normalize-claims.main: webTools",
+				"verify-claims.item: webTools",
+				"final-audit.main: webTools"
+			],
+			"forcedReadOnly": []
+		},
+		"taskSummary": {
+			"total": 10,
+			"pending": 9,
+			"running": 1,
+			"blocked": 0,
+			"completed": 0,
+			"failed": 0,
+			"skipped": 0,
+			"interrupted": 0
+		},
+		"wait": {
+			"runId": "workflow_mvqd63jg_b70faf",
+			"status": "completed",
+			"semanticStatus": "completed",
+			"terminal": true,
+			"actionRequired": false,
+			"stillRunning": false,
+			"timeoutMs": 45000,
+			"blockedTaskIds": [],
+			"taskSummary": {
+				"total": 30,
+				"pending": 0,
+				"running": 0,
+				"blocked": 0,
+				"completed": 30,
+				"failed": 0,
+				"skipped": 0,
+				"interrupted": 0
+			},
+			"outputTaskIds": ["final.main"],
+			"outputRetryAttempts": 1,
+			"launchRetryAttempts": 0,
+			"artifactRoot": ".agent-workflow/workflows/workflow_mvqd63jg_b70faf",
+			"preview": "## Core conclusion\n\nOver stdio, MCP messages are JSON-RPC messages written one per line. Each message is a single request, notification, or response, delimited by newlines, and must not contain embedded newlines. The server must not write anything to stdout except valid MCP messages, and it may write UTF-8 log text to stderr for informational, debug, or error logging. The client may capture, forward, or ignore the server's stderr and should not read stderr output as a sign of errors. The client must not write JSON-RPC responses to the server's stdin. These rules are verified against the 2026-07-28 revision of the stdio transport page. That revision name comes from the page address, no publication date was found, and the UTF-8 encoding requirement for messages appears only in the earlier 2025-11-25 Transports text, so its status in the current revision is not confirmed.\n\n## Main recommendations\n\nThese recommendations are proposals based on the research, not validated outcomes.\n\n- Keep stdout reserved for protocol messages. A stdio server should write only complete, valid MCP messages to stdout, and send diagnostics elsewhere.\n- Send diagnostic and logging output to stderr instead of stdout, since the spec permits UTF-8 log text there. (Only partly supported by the available sources)\n- Frame each message as exactly one JSON-RPC request, notification, or response on its own line, with no embedded newlines.\n- Client implementations should not send JSON-RPC responses to a server's stdin.\n- Client implementations may capture, forward, or ignore server stderr, and should base error handling on protocol responses rather than on stderr output.\n- Custom transports built on byte streams should reuse the same newline framing, as the specification recommends.\n\n## Limits to keep in mind\n\n- Some evidence could not be fully checked. Do not treat those statements as established facts.\n- Questions remain unanswered. Verifying some facts does not establish the whole conclusion.\n- The revision name comes from the page address, not a stated publication date. Cite it as the 2026-07-28 revision and do not state a release date.\n- The requirement that messages be UTF-8 is confirmed only for the earlier 2025-11-25 revision. Whether the current stdio spec still states it is unconfirmed, so do not present it as current without checking.\n- The stderr guidance is confirmed in the current stdio text, but when it was introduced is unresolved. Avoid describing it as a recent change.\n- SDK behavior is secondary evidence and not a protocol requirement. A server should follow the spec's stdout rule rather than rely on an SDK redirecting stray output.\n\nSource verification: model-reported (byte-level source verification is not performed).",
+			"reportArtifacts": [
+				{
+					"kind": "final-report",
+					"label": "Final report",
+					"path": ".agent-workflow/workflows/workflow_mvqd63jg_b70faf/tasks/task-10/final-report.md"
+				},
+				{
+					"kind": "evidence-audit",
+					"label": "Evidence audit",
+					"path": ".agent-workflow/workflows/workflow_mvqd63jg_b70faf/tasks/task-10/audit.md"
+				}
+			],
+			"usage": {
+				"source": "task-rollup",
+				"capturedAt": "2026-10-27T07:34:50.661Z",
+				"taskCount": 30,
+				"tasksReporting": 22,
+				"inputTokens": 1308605,
+				"outputTokens": 158837,
+				"totalTokens": 0,
+				"cachedInputTokens": 0,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 916908,
+				"reasoningTokens": 0,
+				"costUsd": 0.27298598
+			}
+		}
+	}
+}

@@ -1,0 +1,15 @@
+runId: workflow_mvqcmzg2_209480
+name: spec-review
+type: artifact-graph
+status: failed
+tasks: 8
+completion: incomplete
+retries: output=0, launch=0, resumes=0, contextLimitFailures=0
+- task-1: failed/launch_failed — provisional worker run_mvqcmzo6_60fb42/attempt_mvqcmzo6_8cbc5e ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: sessionId must be a UUID (claude --session-id)
+- task-2: failed/launch_failed — provisional worker run_mvqcn04n_4e5638/attempt_mvqcn04n_fbf37a ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: sessionId must be a UUID (claude --session-id)
+- task-3: failed/launch_failed — provisional worker run_mvqcn0ds_8df907/attempt_mvqcn0ds_1ddace ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: sessionId must be a UUID (claude --session-id)
+- task-4: failed/prepare_failed — required workflow artifact read is not available in the runtime source manifest: extract-spec.control, map-implementation.control, inspect-tests.control. Add the source to from/input context; after is ordering-only.
+- task-5: skipped/skipped_after_dependency_failure — skipped because dependency candidate-findings.main did not complete
+- task-6: completed/support_completed — support completed
+- task-7: failed/launch_failed — provisional worker run_mvqcn0n5_f7b0ba/attempt_mvqcn0n5_bd13de ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: sessionId must be a UUID (claude --session-id)
+- task-8: failed/support_declared_failed — support declared failed

@@ -1,0 +1,74 @@
+{
+	"executor": "claude",
+	"workflow": "impact-review",
+	"attempt": "a2",
+	"args": "--executor claude --json --model haiku",
+	"runId": "workflow_mvqd2nya_61dafd",
+	"exit": 1,
+	"wallS": 160,
+	"start": "2026-10-27T07:25:41Z",
+	"outcome": "failed",
+	"status": "failed",
+	"semanticStatus": "failed",
+	"taskSummary": {
+		"total": 13,
+		"pending": 0,
+		"running": 0,
+		"blocked": 0,
+		"completed": 12,
+		"failed": 1,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"capability": {
+		"confirmation": "not-needed",
+		"degradations": [],
+		"forcedReadOnly": []
+	},
+	"usage": {
+		"source": "task-rollup",
+		"capturedAt": "2026-10-27T07:28:20.803Z",
+		"taskCount": 13,
+		"tasksReporting": 12,
+		"inputTokens": 932627,
+		"outputTokens": 82404,
+		"totalTokens": 0,
+		"cachedInputTokens": 0,
+		"cacheCreationInputTokens": 0,
+		"cacheReadInputTokens": 733840,
+		"reasoningTokens": 0,
+		"costUsd": 0.0882882
+	},
+	"final": [
+		{
+			"taskId": "task-13",
+			"specId": "impact-analysis.final.main",
+			"status": "failed",
+			"statusDetail": "support_declared_failed",
+			"controlStatus": "failed",
+			"verdict": "BLOCKED",
+			"digest": "sha256:06b43d2e54199abf697193c32e56550cd219df9ac331100624aa465048e97e31"
+		}
+	],
+	"failedTasks": [
+		{
+			"taskId": "task-13",
+			"specId": "impact-analysis.final.main",
+			"status": "failed",
+			"statusDetail": "support_declared_failed",
+			"lastMessage": "support declared failed"
+		}
+	],
+	"modelTasks": 13,
+	"usageFromRunRecord": {
+		"tasksReporting": 12,
+		"inputTokens": 932627,
+		"outputTokens": 82404,
+		"cacheReadInputTokens": 733840,
+		"cacheCreationInputTokens": 0,
+		"costUsd": 0.088288
+	},
+	"modelsInRawStreams": {
+		"claude-haiku-5-5": 12
+	}
+}

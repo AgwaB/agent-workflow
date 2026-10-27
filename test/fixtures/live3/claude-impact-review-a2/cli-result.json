@@ -1,0 +1,75 @@
+{
+	"action": "run",
+	"ok": false,
+	"outcome": "failed",
+	"data": {
+		"mode": "named-workflow",
+		"runId": "workflow_mvqd2nya_61dafd",
+		"status": "running",
+		"name": "impact-review",
+		"specPath": "<HOME>/agent-workflow-live3/workflows/impact-review/spec.json",
+		"executor": {
+			"id": "claude",
+			"source": "run-flag"
+		},
+		"permissionMode": {
+			"mode": "free",
+			"source": "default"
+		},
+		"capability": {
+			"preview": "Capability check (claude@0.1.0, 12 stages, permission mode: free): accepted\n  probe: installed, cli 2.1.310, auth ok\nimpact-analysis.change-scope.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\nimpact-analysis.implementation-map.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\nimpact-analysis.validation-map.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\nimpact-analysis.api-contract-impact.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nimpact-analysis.state-data-impact.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nimpact-analysis.validation-impact.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nimpact-analysis.docs-release-impact.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nimpact-analysis.security-performance-impact.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nimpact-analysis.contract-consistency.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nimpact-analysis.regression-risk.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nimpact-analysis.ship-readiness.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nimpact-analysis.impact-synthesis.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)",
+			"confirmation": "not-needed",
+			"degradations": [],
+			"forcedReadOnly": []
+		},
+		"taskSummary": {
+			"total": 13,
+			"pending": 10,
+			"running": 3,
+			"blocked": 0,
+			"completed": 0,
+			"failed": 0,
+			"skipped": 0,
+			"interrupted": 0
+		},
+		"wait": {
+			"runId": "workflow_mvqd2nya_61dafd",
+			"status": "failed",
+			"semanticStatus": "failed",
+			"terminal": true,
+			"actionRequired": false,
+			"stillRunning": false,
+			"timeoutMs": 45000,
+			"blockedTaskIds": [],
+			"taskSummary": {
+				"total": 13,
+				"pending": 0,
+				"running": 0,
+				"blocked": 0,
+				"completed": 12,
+				"failed": 1,
+				"skipped": 0,
+				"interrupted": 0
+			},
+			"outputTaskIds": ["impact-analysis.final.main"],
+			"outputRetryAttempts": 0,
+			"launchRetryAttempts": 0,
+			"artifactRoot": ".agent-workflow/workflows/workflow_mvqd2nya_61dafd",
+			"reportArtifacts": [],
+			"usage": {
+				"source": "task-rollup",
+				"capturedAt": "2026-10-27T07:28:20.803Z",
+				"taskCount": 13,
+				"tasksReporting": 12,
+				"inputTokens": 932627,
+				"outputTokens": 82404,
+				"totalTokens": 0,
+				"cachedInputTokens": 0,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 733840,
+				"reasoningTokens": 0,
+				"costUsd": 0.0882882
+			}
+		}
+	}
+}

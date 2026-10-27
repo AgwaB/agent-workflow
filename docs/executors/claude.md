@@ -141,6 +141,7 @@ The rest of this section describes the channel itself (used in `safe` mode).
   - After exit, the adapter removes `<claudeConfigDir>/projects/*/<that uuid>/` (spilled tool results), and the project dir too if it is then empty.
   - It never touches other names.
 - **`sessionId`:** the session is kept (`--session-id`, persistence on) and recorded under `stateDir/sessions/`. Terminal events carry `ownedSession {kind: "claude-session", locator: <uuid>}` (kit `live.session_ownership`).
+  - A UUID is used as is. Any other id (the engine's logical `agent-workflow.<run>.<task>`) maps to a deterministic UUID, `claudeSessionUuid(id)` (v4 layout over SHA-256). Until live bundle 3 a non-UUID id was refused (`INVALID_REQUEST`), which stopped every Claude workflow run before launch.
 - **`resumeSessionId`:** `--resume <id>` (kit `live.resume`: the codeword was recalled). Claude resumes only from the directory the session was created in, so same-session repair must reuse the attempt cwd. The live harness does this.
 - **`deleteOwnedSession({kind, locator})`:** an adapter extension, not in the SDK interface yet.
   - Only for sessions in `stateDir/sessions/` (otherwise `refused`).
@@ -277,6 +278,11 @@ standard`) and `WebFetch` (`url`, `prompt`) both completed. The answer cited sou
 
 ## Change log
 
+- **Live bundle 3 (2026-10-27):** a requested `sessionId` that is not a UUID maps to
+  `claudeSessionUuid(sessionId)` instead of being refused (the engine names kept sessions
+  `agent-workflow.<run>.<task>`; all four Claude bundled-workflow runs failed `launch_failed`
+  "sessionId must be a UUID"). An empty id is still refused. Test: `executor-claude-argv.test.mjs`
+  "a logical engine session id maps to a deterministic Claude session UUID".
 - **WP4e (2026-10-26):** permission modes. `buildClaudeInvocation` returns `permissionMode`
   (`claudePermissionMode(req)`): `bypassPermissions` for `free` on a non-readOnly request, otherwise
   `default`; readOnly argv is identical in both modes. `claude-invocation.json` records

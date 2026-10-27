@@ -1,0 +1,46 @@
+{
+	"action": "run",
+	"ok": false,
+	"outcome": "blocked",
+	"data": {
+		"mode": "named-workflow",
+		"runId": "workflow_mvqcn3lj_4843bf",
+		"status": "blocked",
+		"name": "deep-research",
+		"specPath": "<HOME>/agent-workflow-live3/workflows/deep-research/spec.json",
+		"executor": {
+			"id": "claude",
+			"source": "run-flag"
+		},
+		"permissionMode": {
+			"mode": "free",
+			"source": "default"
+		},
+		"profile": {
+			"name": "low",
+			"kind": "declared",
+			"source": "request"
+		},
+		"capability": {
+			"preview": "Capability check (claude@0.1.0, 5 stages, permission mode: free): accepted with 4 degradations\n  probe: installed, cli 2.1.310, auth ok\nplan.main: claude@0.1.0 — accepted\n  readOnly: native (required, native/probed)\n  usage.cost: native (preferred, native/probed/cost)\n  partialStream: native (optional, native/probed)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\nresearch-questions.item: claude@0.1.0 — accepted with degradation\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  webTools: degraded (required, native/probed/search+fetch) — webTools.safetyPolicy: unknown; web safety controls are not engine-enforced (C2, plan §6.5)\n  mcpInjection: native (required, native/probed)\nnormalize-claims.main: claude@0.1.0 — accepted with degradation\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  webTools: degraded (required, native/probed/search+fetch) — webTools.safetyPolicy: unknown; web safety controls are not engine-enforced (C2, plan §6.5)\n  mcpInjection: native (required, native/probed)\nverify-claims.item: claude@0.1.0 — accepted with degradation\n  readOnly: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  webTools: degraded (required, native/probed/search+fetch) — webTools.safetyPolicy: unknown; web safety controls are not engine-enforced (C2, plan §6.5)\nfinal-audit.main: claude@0.1.0 — accepted with degradation\n  readOnly: native (required, native/probed)\n  mcpInjection: native (required, native/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\n  webTools: degraded (required, native/probed/search+fetch) — webTools.safetyPolicy: unknown; web safety controls are not engine-enforced (C2, plan §6.5)",
+			"confirmation": "non-interactive",
+			"degradations": [
+				"research-questions.item: webTools",
+				"normalize-claims.main: webTools",
+				"verify-claims.item: webTools",
+				"final-audit.main: webTools"
+			],
+			"forcedReadOnly": []
+		},
+		"taskSummary": {
+			"total": 10,
+			"pending": 0,
+			"running": 0,
+			"blocked": 1,
+			"completed": 5,
+			"failed": 3,
+			"skipped": 1,
+			"interrupted": 0
+		}
+	}
+}

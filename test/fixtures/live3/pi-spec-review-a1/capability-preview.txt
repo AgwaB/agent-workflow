@@ -1,0 +1,43 @@
+Capability check (pi@0.1.0, 6 stages, permission mode: free): accepted
+  probe: installed, cli 1.1.0, auth unknown
+extract-spec.main: pi@0.1.0 — accepted
+  readOnly: emulated by executor (required, emulated/probed)
+  toolAllowlist.fine: native (preferred, native/probed/fine)
+  usage.cost: native (preferred, native/probed/cost)
+  resume: native (preferred, native/probed/native)
+  contextIsolation: native (required, native/probed)
+  mcpInjection: native (required, native/probed)
+map-implementation.main: pi@0.1.0 — accepted
+  readOnly: emulated by executor (required, emulated/probed)
+  toolAllowlist.fine: native (preferred, native/probed/fine)
+  usage.cost: native (preferred, native/probed/cost)
+  resume: native (preferred, native/probed/native)
+  contextIsolation: native (required, native/probed)
+  mcpInjection: native (required, native/probed)
+inspect-tests.main: pi@0.1.0 — accepted
+  readOnly: emulated by executor (required, emulated/probed)
+  toolAllowlist.fine: native (preferred, native/probed/fine)
+  usage.cost: native (preferred, native/probed/cost)
+  resume: native (preferred, native/probed/native)
+  contextIsolation: native (required, native/probed)
+  mcpInjection: native (required, native/probed)
+candidate-findings.main: pi@0.1.0 — accepted
+  readOnly: emulated by executor (required, emulated/probed)
+  mcpInjection: native (required, native/probed)
+  toolAllowlist.fine: native (preferred, native/probed/fine)
+  usage.cost: native (preferred, native/probed/cost)
+  resume: native (preferred, native/probed/native)
+  contextIsolation: native (required, native/probed)
+verify-findings.item: pi@0.1.0 — accepted
+  readOnly: emulated by executor (required, emulated/probed)
+  toolAllowlist.fine: native (preferred, native/probed/fine)
+  usage.cost: native (preferred, native/probed/cost)
+  resume: native (preferred, native/probed/native)
+  contextIsolation: native (required, native/probed)
+  mcpInjection: native (required, native/probed)
+report.main: pi@0.1.0 — accepted
+  readOnly: emulated by executor (required, emulated/probed)
+  mcpInjection: native (required, native/probed)
+  usage.cost: native (preferred, native/probed/cost)
+  resume: native (preferred, native/probed/native)
+  contextIsolation: native (required, native/probed)

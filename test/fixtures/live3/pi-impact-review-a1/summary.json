@@ -1,0 +1,74 @@
+{
+	"executor": "pi",
+	"workflow": "impact-review",
+	"attempt": "a1",
+	"args": "--executor pi --json",
+	"runId": "workflow_mvqafci8_152f26",
+	"exit": 1,
+	"wallS": 907,
+	"start": "2026-10-27T06:11:32Z",
+	"outcome": "failed",
+	"status": "failed",
+	"semanticStatus": "failed",
+	"taskSummary": {
+		"total": 13,
+		"pending": 0,
+		"running": 0,
+		"blocked": 0,
+		"completed": 12,
+		"failed": 1,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"capability": {
+		"confirmation": "not-needed",
+		"degradations": [],
+		"forcedReadOnly": []
+	},
+	"usage": {
+		"source": "task-rollup",
+		"capturedAt": "2026-10-27T06:26:38.938Z",
+		"taskCount": 13,
+		"tasksReporting": 12,
+		"inputTokens": 352757,
+		"outputTokens": 58776,
+		"totalTokens": 0,
+		"cachedInputTokens": 0,
+		"cacheCreationInputTokens": 0,
+		"cacheReadInputTokens": 1276288,
+		"reasoningTokens": 0,
+		"costUsd": 1.4209028
+	},
+	"final": [
+		{
+			"taskId": "task-13",
+			"specId": "impact-analysis.final.main",
+			"status": "failed",
+			"statusDetail": "support_declared_failed",
+			"controlStatus": "failed",
+			"verdict": "UNKNOWN",
+			"digest": "sha256:da701960403feb4511562e8ad1c15644c97bd8948237308fc961cdab177b76da"
+		}
+	],
+	"failedTasks": [
+		{
+			"taskId": "task-13",
+			"specId": "impact-analysis.final.main",
+			"status": "failed",
+			"statusDetail": "support_declared_failed",
+			"lastMessage": "support declared failed"
+		}
+	],
+	"modelTasks": 13,
+	"usageFromRunRecord": {
+		"tasksReporting": 12,
+		"inputTokens": 352757,
+		"outputTokens": 58776,
+		"cacheReadInputTokens": 1276288,
+		"cacheCreationInputTokens": 0,
+		"costUsd": 1.420903
+	},
+	"modelsInRawStreams": {
+		"gpt-6.1-sol": 12
+	}
+}

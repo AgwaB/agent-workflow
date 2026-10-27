@@ -1,0 +1,20 @@
+runId: workflow_mvqcn1kn_529acf
+name: impact-review
+type: artifact-graph
+status: blocked
+tasks: 13
+completion: incomplete
+retries: output=0, launch=0, resumes=0, contextLimitFailures=0
+- task-1: failed/launch_failed — provisional worker run_mvqcn1v0_95548b/attempt_mvqcn1v0_3ac8d7 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: sessionId must be a UUID (claude --session-id)
+- task-2: failed/launch_failed — provisional worker run_mvqcn2bu_599150/attempt_mvqcn2bu_1cd910 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: sessionId must be a UUID (claude --session-id)
+- task-3: failed/launch_failed — provisional worker run_mvqcn2kj_e086ab/attempt_mvqcn2kj_4d8df6 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: sessionId must be a UUID (claude --session-id)
+- task-4: skipped/skipped_after_dependency_failure — skipped because dependency impact-analysis.change-scope.main did not complete
+- task-5: skipped/skipped_after_dependency_failure — skipped because dependency impact-analysis.change-scope.main did not complete
+- task-6: skipped/skipped_after_dependency_failure — skipped because dependency impact-analysis.change-scope.main did not complete
+- task-7: skipped/skipped_after_dependency_failure — skipped because dependency impact-analysis.change-scope.main did not complete
+- task-8: skipped/skipped_after_dependency_failure — skipped because dependency impact-analysis.change-scope.main did not complete
+- task-9: skipped/skipped_after_dependency_failure — skipped because dependency impact-analysis.api-contract-impact.main did not complete
+- task-10: skipped/skipped_after_dependency_failure — skipped because dependency impact-analysis.api-contract-impact.main did not complete
+- task-11: skipped/skipped_after_dependency_failure — skipped because dependency impact-analysis.validation-impact.main did not complete
+- task-12: skipped/skipped_after_dependency_failure — skipped because dependency impact-analysis.change-scope.main did not complete
+- task-13: blocked/support_declared_blocked — support declared blocked

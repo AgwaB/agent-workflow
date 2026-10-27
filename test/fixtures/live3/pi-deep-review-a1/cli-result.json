@@ -1,0 +1,75 @@
+{
+	"action": "run",
+	"ok": false,
+	"outcome": "failed",
+	"data": {
+		"mode": "named-workflow",
+		"runId": "workflow_mvq9jsuz_49ad93",
+		"status": "running",
+		"name": "deep-review",
+		"specPath": "<HOME>/agent-workflow-live3/workflows/deep-review/spec.json",
+		"executor": {
+			"id": "pi",
+			"source": "run-flag"
+		},
+		"permissionMode": {
+			"mode": "free",
+			"source": "default"
+		},
+		"capability": {
+			"preview": "Capability check (pi@0.1.0, 4 stages, permission mode: free): accepted\n  probe: installed, cli 1.1.0, auth unknown\ntriage.main: pi@0.1.0 — accepted\n  readOnly: emulated by executor (required, emulated/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nreviewers.item: pi@0.1.0 — accepted\n  readOnly: emulated by executor (required, emulated/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\ndevil-advocate.item: pi@0.1.0 — accepted\n  readOnly: emulated by executor (required, emulated/probed)\n  toolAllowlist.fine: native (preferred, native/probed/fine)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)\nreport.main: pi@0.1.0 — accepted\n  readOnly: emulated by executor (required, emulated/probed)\n  mcpInjection: native (required, native/probed)\n  usage.cost: native (preferred, native/probed/cost)\n  resume: native (preferred, native/probed/native)\n  contextIsolation: native (required, native/probed)",
+			"confirmation": "not-needed",
+			"degradations": [],
+			"forcedReadOnly": []
+		},
+		"taskSummary": {
+			"total": 8,
+			"pending": 7,
+			"running": 1,
+			"blocked": 0,
+			"completed": 0,
+			"failed": 0,
+			"skipped": 0,
+			"interrupted": 0
+		},
+		"wait": {
+			"runId": "workflow_mvq9jsuz_49ad93",
+			"status": "failed",
+			"semanticStatus": "failed",
+			"terminal": true,
+			"actionRequired": false,
+			"stillRunning": false,
+			"timeoutMs": 45000,
+			"blockedTaskIds": [],
+			"taskSummary": {
+				"total": 18,
+				"pending": 0,
+				"running": 0,
+				"blocked": 0,
+				"completed": 17,
+				"failed": 1,
+				"skipped": 0,
+				"interrupted": 0
+			},
+			"outputTaskIds": ["final.main"],
+			"outputRetryAttempts": 0,
+			"launchRetryAttempts": 0,
+			"artifactRoot": ".agent-workflow/workflows/workflow_mvq9jsuz_49ad93",
+			"reportArtifacts": [],
+			"usage": {
+				"source": "task-rollup",
+				"capturedAt": "2026-10-27T05:55:14.124Z",
+				"taskCount": 18,
+				"tasksReporting": 12,
+				"inputTokens": 233335,
+				"outputTokens": 31692,
+				"totalTokens": 0,
+				"cachedInputTokens": 0,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 501760,
+				"reasoningTokens": 0,
+				"costUsd": 0.833766
+			}
+		}
+	}
+}
