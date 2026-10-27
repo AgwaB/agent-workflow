@@ -169,7 +169,7 @@ live or offline with the real CLI.
 | effortLevels | off…max | — | `--thinking` |
 | resume | native / native | probed | live #9–#11 (`live.session_ownership`, `live.resume`) |
 | partialStream | native | probed | `text_delta` → `message_delta` |
-| usage | native / cost | probed | per assistant request. `cost` is Pi's **catalog estimate** → `source: estimated`. A cost of 0 → `null`/`unknown` (Pi cannot tell free from unpriced). `cached` = `cacheRead` (cacheWrite not represented) |
+| usage | native / cost | probed | per assistant request. `cost` is Pi's **catalog estimate** → `source: estimated`. A cost of 0 → `null`/`unknown` (Pi cannot tell free from unpriced). `cached` = `cacheRead`, `cacheWrite` = `cacheWrite` (since WP12a), `model` = the assistant message's model |
 | toolTelemetry | native | probed | `tool_execution_start/end` → `tool_call` running/completed/failed |
 | cancel | native / kill | probed | SIGTERM to Pi's process group, then SIGKILL after `killGraceMs` (3 s). Live #16: exit 143 → `failed/cancelled`. `turn` and `owned` both stop the run: print mode has no turn interrupt |
 | nativeSchema | none | declared | Pi has no structured-output flag |
@@ -273,7 +273,6 @@ is used. The 4th–5th parallel run and long runs are untested.
 - **`sessionBound`:** no live re-attach after the owning process dies. The orphan guard stops Pi instead.
 - **Settings residue:** non-overridable user settings apply under isolation (see Isolation).
 - **Fast tier is unverified.** Neither the provider-stream guard nor a live check was done.
-- `cacheWrite` tokens are not represented in `usage`.
 - Model matching: Pi's `--model` accepts fuzzy matches. An unknown `provider/id:suffix` is sent as a custom id
   (live #1). The engine should pass exact `provider/id`.
 - Pi's free-tier/subscription billing is not reflected: cost is a catalog estimate.

@@ -36,7 +36,9 @@ the verified one; rerun the conformance kit then ([`conformance.md`](conformance
 No cell was refused. The Codex `readOnly` and `contextIsolation` warnings come from the test machine
 (allow rules in `~/.codex/rules`, a global `~/.codex/AGENTS.md`); a clean Codex home shows neither.
 Three product bugs found during the runs were fixed before the final attempts (synthesis page size,
-per-executor tool names in the worker prompt, Claude session ids); see the acceptance document.
+per-executor tool names in the worker prompt, Claude session ids); see the acceptance document. The
+cells record the acceptance runs; open problems 1–6 and 10 found there were fixed afterwards (WP12a),
+since then Codex costs are recorded as unknown instead of `0` and no worker sessions are kept.
 
 The bundled workflows were not run live in `safe` mode. Its offline negotiation differs only for Codex: the precise tool lists
 degrade to `forcedReadOnly` (the bundled specs opt in with `allowReadOnlyDowngrade`), and environment
@@ -61,8 +63,8 @@ Each adapter document has the full list under "Known limits".
 - No approvals and no sandbox: `free` and `safe` give the same argv; readOnly drops mutating tools.
 - `sessionBound`: no re-attach to a running Pi after its owning process dies.
 - deep-research needs the `pi-web-access` extension (refused otherwise).
-- Cost is Pi's catalog estimate (`source: estimated`), also on a subscription; `cacheWrite` tokens are
-  not represented; input tokens exclude cache reads.
+- Cost is Pi's catalog estimate (`source: estimated`), also on a subscription. (Fixed in WP12a: usage
+  now carries cache-write tokens and the serving model, so Pi tasks record their model.)
 - Fast tier unverified.
 
 **Codex** ([`executors/codex.md`](executors/codex.md#known-limits))
@@ -71,7 +73,10 @@ Each adapter document has the full list under "Known limits".
   (`free` records it, `safe` runs readOnly when the spec allows, else refuses).
 - A global `$CODEX_HOME/AGENTS.md` and `~/.codex/rules` cannot be disabled per run; the probe reports
   them as warnings (recorded degradations).
-- No cost reported (tokens only); input tokens include cached tokens, output includes reasoning tokens.
+- No cost reported (tokens only): the cost is recorded as unknown (`null`, `cost unknown`), never `0`,
+  and the preview records `usage.cost` as a record-only degradation. Output includes reasoning
+  tokens. (Fixed in WP12a: the run roll-up showed `0`, and input tokens included cached tokens; input
+  is now normalized to exclude cache reads and writes.)
 - Hosted `web_search` only (no separate fetch); `fetch_content`, `grep`, `find`, `ls` mappings and
   token-refresh contention are unverified.
 - Attempt records and logs under the adapter state directory are not pruned yet.
@@ -81,8 +86,8 @@ Each adapter document has the full list under "Known limits".
 - `sessionBound`: a worker that dies loses the CLI's stdio; reconcile needs a decision.
 - The CLI auto-allows reads inside the cwd and read-only Bash commands (visible only as `tool_call`).
 - The CLI inherits the full environment: a set `ANTHROPIC_API_KEY` switches it to API-key billing.
-- Cost is `total_cost_usd`, notional on a subscription; the run records the model alias, not the
-  resolved model.
+- Cost is `total_cost_usd`, notional on a subscription. (Fixed in WP12a: the run records the resolved
+  model, not the alias such as `haiku`, and input tokens no longer add cache reads and writes.)
 - `deadlineMs` is not enforced by the adapter (the runtime enforces timeouts).
 
 **All executors**
@@ -90,6 +95,16 @@ Each adapter document has the full list under "Known limits".
 - Web tools are the CLI's own: URL, private-network and redaction controls are not engine-enforced
   (`webTools.safetyPolicy: unknown`), and web evidence is model-reported.
 - Task prompts name tools with Pi names; the system prompt maps them per executor.
-- Open problems from the live runs (CLI input overrides, legacy agents shadowing bundled agents,
-  control-schema paths in prompts, Codex cost, usage rollup, kept sessions, domain verdict vs run
-  failure): [`live-acceptance-stage1.md` "Open problems for stage 2"](live-acceptance-stage1.md#open-problems-for-stage-2).
+- Usage has one normalized shape on every executor (input excluding cache reads and writes, cache
+  read, cache write, output, total, model); an unknown cost is `null`, never `0` (WP12a).
+- No worker keeps a CLI session by default (D3); sessions the engine requests (experimental
+  same-session repair only) are released at task/run end, blocked and interrupted runs keep theirs
+  until resolved or pruned (WP12a).
+- Still open from the live runs: a domain verdict (`PARTIAL_REVIEW`, `INCONCLUSIVE`, …) fails the run
+  (`support_declared_failed`) although the workflow worked; task prompts are not rendered per
+  executor (the system prompt maps tool names); Codex environment warnings on machines with allow
+  rules or a global `AGENTS.md`. Fixed after the acceptance (WP12a): CLI/`/aw` input overrides
+  (`--input`), the legacy-agent shadow notice, control-schema paths in worker prompts, Codex cost
+  shown as `0`, the usage roll-up and token semantics, kept sessions, the load flakes of `stop` and
+  reconcile. Details:
+  [`live-acceptance-stage1.md`](live-acceptance-stage1.md#fixed-after-acceptance-wp12a).

@@ -199,3 +199,23 @@ Totals per executor (tokens processed = input + output, plus cache reads for Pi)
    never refuses them. The offline support table in `docs/bundled-workflows.md` predates WP4e and
    still shows `forcedReadOnly` for Codex.
 10. **Flaky CLI stop test** under load (see above).
+
+## Fixed after acceptance (WP12a)
+
+The results above are the recorded acceptance and are not rewritten. These open problems were fixed
+afterwards on `main` (WP12a, merge `11a1969`; details in [`core-port.md`](core-port.md) "WP12a"):
+
+| Open problem | Fix | Commit |
+|---|---|---|
+| 1. No input overrides on the CLI | `agent-workflow run\|dynamic` and `/aw run\|dynamic` accept `--input key=value` (repeatable), typed by the spec's declared defaults; undeclared keys and wrong types are usage errors. The Pi tools `aw_run`/`aw_dynamic` gained an `inputs` object later (WP12c). | `5809d9e` |
+| 2. Legacy agents shadow bundled agents | Search order kept (F5); a legacy `~/.pi/agent/agents` agent that shadows a bundled agent is announced as a `Notice:` line in the preview, a compile warning and `run.capabilityNegotiation.notices`. | `e30286e` |
+| 3. Control-schema path in worker prompts | The prompt sent to the executor names the run's own schema copy by an absolute path (`<run>/bundle/schemas/…`); `task.md` and provenance unchanged. | `848889e` |
+| 4. Codex cost | Unknown cost is `null` / `cost unknown`, never `0`; support tasks report nothing instead of zeros; `usage.cost` is no longer "emulated by engine" but a record-only degradation. | `4b70a7d` |
+| 5. Usage rollup | One normalized usage shape (input excluding cache reads and writes, `cacheWrite`, total, resolved `model`) on all three adapters; blocked runs carry a roll-up. | `d9e7414` |
+| 6. Kept sessions for every task | D3: no worker session is requested by default (only the experimental same-session repair); engine-owned sessions are released through `deleteOwnedSession` at task/run end; blocked/interrupted runs keep theirs until resolved or pruned. | `250e637` |
+| 10. Flaky CLI stop test | `stop` retries confirm instead of re-requesting the stop; reconcile treats an `unknown` owner identity as not dead (re-inspected, attempt kept). | `1bcdae3` |
+
+Final WP12a commit (test temp-root retries, regenerated replay reports): `f393705`. Problem 9's
+offline support table was regenerated per permission mode in WP12b (`4baf08b`); the Codex environment
+warnings themselves depend on the machine. Problems 7 (domain verdict vs run failure) and 8 (tool names
+in task prompts) remain open.
