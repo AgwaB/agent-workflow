@@ -123,6 +123,17 @@ text name it by the logical name `workflow_artifact` (or the placeholder `{{work
 - Tasks that have the artifact server get a `# Workflow Artifact Tool` section with
   `WORKFLOW_ARTIFACT_TOOL_GUIDELINES` in the system prompt (MCP server instructions are not shown by
   every client; Pi 1.1 does not show them).
+- **Live bundle 3 (M17):** `renderWorkerPromptToolNames` also adds, right after the system prompt's
+  `Only these tools are enabled for this workflow task: …` line, a note naming how the enabled
+  logical tools surface on the executor (`WORKER_TOOL_NAME_MAPPINGS`, from the adapters' tool
+  mapping tables): Codex `read`/`grep`/`find`/`ls` → the shell tool with read-only commands,
+  `web_search`/`fetch_content` → the hosted `web_search`; Claude `read` → `Read`, `grep` → `Grep`,
+  `find`/`ls` → `Glob`, `web_search` → `WebSearch`, `fetch_content` → `WebFetch`. Pi keeps the
+  logical names (no note). Why: the live Codex spec-review `extract-spec` worker, told that only
+  `read, grep, find, ls` were enabled, ran no command and reported SPEC.md "unavailable" (domain
+  verdict INCONCLUSIVE); Codex impact-review workers likewise never read the code. Regression test:
+  `core-worker-prompt-render.test.mjs` "the renderer maps the enabled logical tool names for Codex
+  and Claude, not for Pi".
 
 ## Support table
 
@@ -192,7 +203,8 @@ generator has no mode input yet; add one per mode when WP4e merges.
 
 - Web tool names in prompts: prompts and the system prompt's tool list name `web_search` /
   `fetch_content` (Pi vocabulary). Claude shows `WebSearch`/`WebFetch`, Codex one hosted
-  `web_search`; only the artifact tool name is rendered per executor. Check that workers find them.
+  `web_search`. Since M17 (live bundle 3) the system prompt maps the enabled names per executor;
+  task prompts still use the logical names.
 - Quality of model-reported web evidence (no byte check) and of the URL-only verification pool is
   unmeasured (plan §7: stage 1 checks completion and format only).
 - Pi needs `pi-web-access` for deep-research (refused otherwise); Codex runs every bundled stage with
