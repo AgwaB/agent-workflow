@@ -287,6 +287,11 @@ request drops mutating tools from `--tools` in both modes. The conformance harne
 
 ## Change log
 
+- **WP12d-2 review #9 (checked, no change):** Pi ownership is by location: sessions are created only
+  under the adapter's private `<stateDir>/sessions/`, resume accepts only a session found there, and
+  `deleteOwnedSession` refuses any path outside it, so a user session can neither be resumed as owned
+  nor deleted.
+
 - **WP12d-2 review #6:** injected MCP servers no longer bypass readOnly. `--tools` declares the
   engine's artifact server by its one read-only tool (`mcp__workflow_artifact__workflow_artifact`)
   instead of `mcp__workflow_artifact__*`. Pi has no approval gate, so a readOnly request that injects

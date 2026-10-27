@@ -278,6 +278,12 @@ standard`) and `WebFetch` (`url`, `prompt`) both completed. The answer cited sou
 
 ## Change log
 
+- **WP12d-2 review #9:** same pattern checked: `deleteOwnedSession` already required a session
+  record, but resuming any session UUID recorded it and reported it as `ownedSession`. A resumed
+  session is now owned only when the adapter recorded it earlier; a foreign one is kept (not removed
+  after the run) but never recorded or reported as owned, also on replay. Test:
+  `executor-wp12d2-session-ownership.test.mjs`.
+
 - **WP12d-2 review #6:** injected MCP servers no longer bypass readOnly. `--allowedTools` pre-allows
   the engine's artifact server by its one read-only tool (`mcp__workflow_artifact__workflow_artifact`,
   exact-tool rule; the server-wide `mcp__workflow_artifact` rule was the live-verified form, #10),

@@ -56,6 +56,7 @@ import {
 	attemptDigest,
 	defaultStateDir,
 	processAlive,
+	ThreadOwnershipStore,
 } from "./state.js";
 import { planCodexTools } from "./tools.js";
 import {
@@ -480,7 +481,9 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 } {
 	const config = parseConfig(rawConfig);
 	const codexPath = config.codexPath ?? "codex";
-	const store = new AttemptStore(config.stateDir ?? defaultStateDir());
+	const stateDir = config.stateDir ?? defaultStateDir();
+	const store = new AttemptStore(stateDir);
+	const threads = new ThreadOwnershipStore(stateDir);
 	const runs = new Map<string, Run>();
 	const inflight = new Map<string, Promise<ExecRef>>();
 	const capabilities: ExecutorCapabilities = codexCapabilities();
@@ -784,10 +787,15 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 						? req.model
 						: undefined;
 			if (keep && threadId !== undefined) {
-				run.ownedSession = {
-					kind: CODEX_OWNED_SESSION_KIND,
-					locator: threadId,
-				};
+				// Review #9: a thread is owned only when this adapter created it (durable record
+				// written here) or resumes one it recorded earlier; a resumed foreign thread is not.
+				if (req.resumeSessionId === undefined)
+					threads.record(threadId, run.attemptKey);
+				if (threads.owns(threadId))
+					run.ownedSession = {
+						kind: CODEX_OWNED_SESSION_KIND,
+						locator: threadId,
+					};
 				run.ref = { ...run.ref, sessionId: threadId };
 				store.write({
 					attemptKey: run.attemptKey,
@@ -1270,8 +1278,9 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 		async deleteOwnedSession(
 			session: OwnedSession,
 		): Promise<DeleteOwnedSessionResult> {
-			// Not a thread this adapter kept: never touch it.
+			// Not a thread this adapter created and recorded: never touch it (review #9).
 			if (session.kind !== CODEX_OWNED_SESSION_KIND) return "refused";
+			if (!threads.owns(session.locator)) return "refused";
 			const child = spawn(codexPath, ["app-server"], {
 				stdio: ["pipe", "pipe", "pipe"],
 			});
@@ -1295,11 +1304,13 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 				});
 				conn.notify("initialized");
 				await conn.request("thread/delete", { threadId: session.locator });
+				threads.forget(session.locator);
 				return "deleted";
 			} catch (error) {
-				return /not found|no rollout|unknown thread/i.test(String(error))
-					? "not_found"
-					: "failed";
+				if (!/not found|no rollout|unknown thread/i.test(String(error)))
+					return "failed";
+				threads.forget(session.locator);
+				return "not_found";
 			} finally {
 				conn.end();
 				await withTimeout(done, 3_000);

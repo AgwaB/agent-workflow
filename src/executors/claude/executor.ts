@@ -234,6 +234,12 @@ export function createClaudeExecutor(options: {
 			req.mcpServers.length > 0 ? join(filesDir, MCP_CONFIG_FILE) : null;
 		// Everything that can refuse the request runs before consume (no effect on refusal).
 		const plan = buildClaudeInvocation(req, config, { mcpConfigPath });
+		// Review #9: a kept session is owned only when this adapter created it, or when it resumes
+		// a session it recorded earlier; a resumed foreign session is kept but never owned.
+		const ownsSession =
+			plan.keepSession &&
+			(req.resumeSessionId === undefined ||
+				(await store.readSession(req.resumeSessionId)) !== undefined);
 		const secrets = redactor(req);
 		const redact = secrets.text;
 
@@ -316,7 +322,7 @@ export function createClaudeExecutor(options: {
 			handle: `claude-session:${plan.sessionId}`,
 			sessionId: plan.sessionId,
 		};
-		const ownedSession: OwnedSession | undefined = plan.keepSession
+		const ownedSession: OwnedSession | undefined = ownsSession
 			? { kind: CLAUDE_SESSION_KIND, locator: plan.sessionId }
 			: undefined;
 		let runRef: Run | undefined;
@@ -357,7 +363,7 @@ export function createClaudeExecutor(options: {
 			rawPath,
 			stderrPath,
 		});
-		if (plan.keepSession)
+		if (plan.keepSession && req.resumeSessionId === undefined)
 			await store.recordSession({
 				sessionId: plan.sessionId,
 				attemptKey: req.attemptKey,
@@ -492,7 +498,9 @@ export function createClaudeExecutor(options: {
 			// no raw stream recorded yet: replay what exists (nothing)
 		}
 		const owned: OwnedSession | undefined =
-			record.keepSession && record.sessionId !== null
+			record.keepSession &&
+			record.sessionId !== null &&
+			(await store.readSession(record.sessionId)) !== undefined
 				? { kind: CLAUDE_SESSION_KIND, locator: record.sessionId }
 				: undefined;
 		const events = parseClaudeStream(text.split("\n"), {

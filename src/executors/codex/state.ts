@@ -193,3 +193,64 @@ export function processAlive(pid: number | undefined): boolean {
 		return (error as NodeJS.ErrnoException).code === "EPERM";
 	}
 }
+
+export interface ThreadOwnershipRecord {
+	readonly schema: "agent-workflow-codex-thread-v1";
+	readonly threadId: string;
+	readonly attemptKey: string;
+	readonly createdAt: number;
+}
+
+/**
+ * Durable ownership evidence for kept Codex threads (D3, R#10, review #9): one record per thread
+ * this adapter created with `thread/start`, under `<stateDir>/sessions/`. `deleteOwnedSession`
+ * and the `ownedSession` of a resumed thread require it; a thread the adapter did not create
+ * (user thread, resumed foreign thread) never gets one.
+ */
+export class ThreadOwnershipStore {
+	readonly dir: string;
+
+	constructor(stateDir: string) {
+		this.dir = join(stateDir, "sessions");
+	}
+
+	private path(threadId: string): string {
+		return join(
+			this.dir,
+			`${createHash("sha256").update(threadId).digest("hex").slice(0, 40)}.json`,
+		);
+	}
+
+	record(threadId: string, attemptKey: string): void {
+		mkdirSync(this.dir, { recursive: true, mode: 0o700 });
+		const path = this.path(threadId);
+		const temp = `${path}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`;
+		const record: ThreadOwnershipRecord = {
+			schema: "agent-workflow-codex-thread-v1",
+			threadId,
+			attemptKey,
+			createdAt: Date.now(),
+		};
+		writeFileSync(temp, JSON.stringify(record), { mode: 0o600 });
+		renameSync(temp, path);
+	}
+
+	/** True only for a readable record naming exactly this thread. */
+	owns(threadId: string): boolean {
+		try {
+			const record = JSON.parse(
+				readFileSync(this.path(threadId), "utf8"),
+			) as Partial<ThreadOwnershipRecord> | null;
+			return (
+				record?.schema === "agent-workflow-codex-thread-v1" &&
+				record.threadId === threadId
+			);
+		} catch {
+			return false;
+		}
+	}
+
+	forget(threadId: string): void {
+		rmSync(this.path(threadId), { force: true });
+	}
+}

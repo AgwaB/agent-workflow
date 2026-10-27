@@ -310,6 +310,13 @@ budget are not confirmed. `fetch_content` (open_page) not observed.
 
 ## Change log
 
+- **WP12d-2 review #9:** session deletion requires ownership evidence. A kept thread the adapter
+  creates with `thread/start` gets a durable record under `<stateDir>/sessions/`
+  (`ThreadOwnershipStore`); `deleteOwnedSession` refuses any thread without one (no app-server is
+  started) and drops the record after `deleted` / `not_found`. Resuming a thread reports
+  `ownedSession` only when that thread is recorded, so a resumed user thread is never marked owned
+  (retention cannot delete it). Test: `executor-wp12d2-session-ownership.test.mjs`.
+
 - **WP12d-2 review #6:** injected MCP servers run outside the Codex sandbox, so readOnly cannot be
   enforced on their tools. A readOnly request that injects any server other than the engine's
   artifact server (one read-only tool) is refused in `submit` before consume with
