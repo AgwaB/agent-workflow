@@ -215,7 +215,7 @@ test("two-stage workflow runs end to end: engine → task backend → durable wo
 	const runDir = join(cwd, ".agent-workflow", "workflows", run.runId);
 	let summary;
 	let pruned;
-	for (let attempt = 0; attempt < 50; attempt += 1) {
+	for (let attempt = 0; attempt < 200; attempt += 1) {
 		if (existsSync(join(runDir, "supervisor.lock"))) {
 			await new Promise((resolveWait) => setTimeout(resolveWait, 100));
 			continue;

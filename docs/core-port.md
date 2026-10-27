@@ -1321,3 +1321,28 @@ problems 1–6, 10).
    Tests: `core-wp12a-worker-sessions.test.mjs`; pi-workflow-ported tests that asserted a session id
    on every runtime launch (`core-unit-artifact-web`, `core-unit-engine-store`) now assert none
    without the flag and the rotated identity on `backendFiles`/`backendHandle`.
+6. **Flakes under load: stop and blocked runs (live open problem 10).** Two product races, both
+   reproduced with a stress script (6 parallel loops of the host-cli stop scenario, 24 busy-loop
+   processes on 12 cores): 4 of 30 stops failed before, 0 of 30 after.
+   - *Stop.* `hosts/runs.ts` `stopAction` retried `stopRun` after a stop-pending error. Under load
+     the first call could not confirm within `STOP_RUN_LEASE_WAIT_MS` (the detached supervisor held
+     the lease); meanwhile the supervisor applied the stop and cleared the stop intent, so the retry
+     refused the now-interrupted run ("stop requires a non-terminal run") and `agent-workflow stop`
+     exited 1 although the stop had succeeded. Retries now call the new `confirmRunStop` (engine):
+     a run that is terminal with no stop intent left is the confirmation; otherwise it confirms the
+     durable intent without requesting it again.
+   - *Blocked.* `runtime/orchestrate/reconcile.ts` `ownerProcessAlive` read an `unknown` identity
+     check (the Darwin helper times out after 2 s under load) as "owner gone". Reconcile then ran
+     `terminateAttemptOwnership`, whose next inspection succeeded, SIGTERMed the healthy durable
+     worker and asked the executor, which could only answer `unknown` → `needs_decision`: the task
+     and run turned `blocked` (host-cli "foreground run" flake; also one replay-acceptance failure
+     in this WP: impact-review task-8 `executor_needs_decision`). An `unknown` is now re-inspected
+     twice and, if it stays unknown, the attempt is kept running (unknown is not dead); `dead` and
+     `mismatch` are handled as before. Test seam: `setProcessIdentityInspectorForTests`
+     (`runtime/process-identity.ts`).
+   Tests: `runtime-wp12a-reconcile-unknown-owner.test.mjs`, `host-wp12a-stop-confirm.test.mjs`;
+   `replay-acceptance.test.mjs` now prints the unexplained rows when it fails.
+   Test-only load margins (same machine load, load average 26–41 on 12 cores during this WP):
+   `core-wp4c1-engine-runtime` waits up to 20 s (was 5 s) for the in-process supervisor before
+   pruning; `core-dag-hardening` "stop during dynamic helper" waits up to 10 s (was 1.5 s) for the
+   helper to start.

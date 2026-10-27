@@ -818,7 +818,8 @@ test("stop during dynamic helper terminates helper worker before delayed side ef
 		scheduling = scheduleRun(cwd, run.runId);
 		await eventually(
 			() => assert.equal(existsSync(join(cwd, "dynamic-helper-started")), true),
-			1500,
+			// WP12a: 1.5 s timed out under machine load (helper start only; the stop is checked below).
+			10_000,
 		);
 		await stopRun(cwd, run.runId);
 		await scheduling;

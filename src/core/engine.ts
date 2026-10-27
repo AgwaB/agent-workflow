@@ -1193,6 +1193,29 @@ export async function stopRun(
 	return confirmRequestedWorkflowStop(cwd, current.runId, current);
 }
 
+/**
+ * WP12a: confirm a stop this caller already requested (`stopRun` threw a stop-pending error)
+ * without requesting it again. A run that reached a terminal status after the request counts as
+ * stopped even when its supervisor already cleared the stop intent — calling `stopRun` again
+ * would refuse it as "stop requires a non-terminal run" although the stop succeeded. Still
+ * pending: throws the stop-pending error again.
+ */
+export async function confirmRunStop(
+	cwd: string,
+	runIdOrPrefix: string,
+): Promise<StopRunSummary> {
+	const current = await readRunRecord(cwd, runIdOrPrefix);
+	if (
+		isTerminalWorkflowStatus(current.status) &&
+		!(await readWorkflowStopIntent(cwd, current.runId))
+	)
+		return {
+			run: current,
+			interruptedTaskIds: workflowStoppedTaskIds(current),
+		};
+	return confirmRequestedWorkflowStop(cwd, current.runId, current);
+}
+
 /** Confirm an already-durable exact-run request, including terminal cleanup. */
 async function confirmRequestedWorkflowStop(
 	cwd: string,
