@@ -278,6 +278,13 @@ standard`) and `WebFetch` (`url`, `prompt`) both completed. The answer cited sou
 
 ## Change log
 
+- **WP12d-2 review #2:** attempt claims are exclusive across executor instances and processes.
+  After the authority is consumed, the first attempt record (`consumed`, or `revoked`) is created
+  with an exclusive hard link (`ClaudeStateStore.claimAttempt`); a submit that loses the claim
+  resolves the existing record (spawned ⇒ same ref, otherwise `AUTHORITY_ALREADY_CONSUMED` /
+  `AUTHORITY_REVOKED`) and never overwrites it or spawns. Test:
+  `executor-wp12d2-claude-claim.test.mjs` (two instances, one stateDir/key: one launch).
+
 - **WP12a (2026-10-27):** usage is normalized (docs/core-port.md WP12a change log 3): `input` is
   `input_tokens` as reported (no longer plus cache reads and cache creation), `cached` =
   `cache_read_input_tokens`, `cacheWrite` = `cache_creation_input_tokens`, and `model` is the resolved

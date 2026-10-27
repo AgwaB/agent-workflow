@@ -51,7 +51,7 @@ import {
 	runCommand,
 } from "./probe.js";
 import { removeClaudeSessionFiles } from "./sessions.js";
-import { ClaudeStateStore } from "./state.js";
+import { type AttemptRecord, ClaudeStateStore } from "./state.js";
 import { ClaudeStreamParser, parseClaudeStream } from "./stream.js";
 
 export const CLAUDE_SESSION_KIND = "claude-session";
@@ -189,24 +189,30 @@ export function createClaudeExecutor(options: {
 		return "accepted";
 	};
 
+	/** Answer for an attempt that already has a durable record (never overwrite it, review #2). */
+	const fromRecord = (attemptKey: string, record: AttemptRecord): ExecRef => {
+		if (record.phase === "spawned" && record.ref !== undefined)
+			return record.ref;
+		if (record.phase === "revoked")
+			throw new SdkError(
+				"AUTHORITY_REVOKED",
+				`attempt ${attemptKey} was revoked`,
+				{
+					subject: attemptKey,
+				},
+			);
+		throw new SdkError(
+			"AUTHORITY_ALREADY_CONSUMED",
+			`attempt ${attemptKey} consumed its authority without launch evidence; reconcile reports unknown`,
+			{ subject: attemptKey },
+		);
+	};
+
 	async function launch(req: SubmitRequest): Promise<ExecRef> {
 		const known = runs.get(req.attemptKey);
 		if (known !== undefined) return known.ref;
 		const record = await store.readAttempt(req.attemptKey);
-		if (record?.phase === "spawned" && record.ref !== undefined)
-			return record.ref;
-		if (record?.phase === "consumed")
-			throw new SdkError(
-				"AUTHORITY_ALREADY_CONSUMED",
-				`attempt ${req.attemptKey} consumed its authority without launch evidence; reconcile reports unknown`,
-				{ subject: req.attemptKey },
-			);
-		if (record?.phase === "revoked")
-			throw new SdkError(
-				"AUTHORITY_REVOKED",
-				`attempt ${req.attemptKey} was revoked`,
-				{ subject: req.attemptKey },
-			);
+		if (record !== undefined) return fromRecord(req.attemptKey, record);
 		const filesDir = req.artifactsDir ?? store.attemptFilesDir(req.attemptKey);
 		const mcpConfigPath =
 			req.mcpServers.length > 0 ? join(filesDir, MCP_CONFIG_FILE) : null;
@@ -216,20 +222,31 @@ export function createClaudeExecutor(options: {
 
 		const decision = await req.authority.consume(); // immediately before the first effect (R#1)
 		if (decision.kind === "revoked")
-			await store.writeAttempt({
+			await store.claimAttempt({
 				attemptKey: req.attemptKey,
 				phase: "revoked",
 				sessionId: null,
 				keepSession: false,
 			});
 		requireReleased(decision);
-		await store.writeAttempt({
+		// Exclusive claim (review #2): another instance or process that claimed the attemptKey first
+		// owns the launch; resolve its record instead of overwriting it.
+		const claimed = await store.claimAttempt({
 			attemptKey: req.attemptKey,
 			phase: "consumed",
 			sessionId: plan.sessionId,
 			keepSession: plan.keepSession,
 			cwd: req.cwd,
 		});
+		if (!claimed) {
+			const existing = await store.readAttempt(req.attemptKey);
+			if (existing !== undefined) return fromRecord(req.attemptKey, existing);
+			throw new SdkError(
+				"AUTHORITY_ALREADY_CONSUMED",
+				`attempt ${req.attemptKey} is claimed by another executor instance`,
+				{ subject: req.attemptKey },
+			);
+		}
 		if (options.faults?.crashAfterConsume === true)
 			throw new Error("injected fault: crash after consume, before launch");
 

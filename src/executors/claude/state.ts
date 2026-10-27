@@ -1,11 +1,12 @@
 /**
  * Durable adapter state (B3, R#1, R#10): one record per attempt and one per kept worker session,
  * under `config.stateDir`. Reconcile in a fresh process reads these records: `revoked` or no record
- * ⇒ `absent`; `consumed` without launch evidence ⇒ `unknown`; `spawned` ⇒ `found`.
+ * ⇒ `absent`; `consumed` without launch evidence ⇒ `unknown`; `spawned` ⇒ `found`. The first
+ * record of an attempt is claimed exclusively (review #2).
  * Records hold no env values and no prompt text.
  */
 import { createHash, randomBytes } from "node:crypto";
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { link, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ExecRef } from "../../sdk/contract.js";
 
@@ -76,6 +77,39 @@ export class ClaudeStateStore {
 		return record?.attemptKey === attemptKey ? record : undefined;
 	}
 
+	/**
+	 * Claim the attempt with an exclusive create (`O_EXCL`, review #2): two executor instances or
+	 * processes racing on one attemptKey cannot both claim it. The record is written to a temp file
+	 * and hard-linked into place, so a reader never sees a half-written claim. Returns false when a
+	 * record already exists (the caller resolves it instead of overwriting it).
+	 */
+	async claimAttempt(
+		record: Omit<AttemptRecord, "schema" | "updatedAt">,
+	): Promise<boolean> {
+		await mkdir(this.attemptsDir(), { recursive: true, mode: 0o700 });
+		const path = join(this.attemptsDir(), `${keyHash(record.attemptKey)}.json`);
+		const tmp = `${path}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`;
+		await writeFile(
+			tmp,
+			`${JSON.stringify({
+				schema: "agent-workflow-claude-attempt-v1",
+				...record,
+				updatedAt: new Date().toISOString(),
+			})}\n`,
+			{ mode: 0o600 },
+		);
+		try {
+			await link(tmp, path);
+			return true;
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code === "EEXIST") return false;
+			throw error;
+		} finally {
+			await rm(tmp, { force: true });
+		}
+	}
+
+	/** Replace this instance's own claimed record (after `claimAttempt` succeeded). */
 	async writeAttempt(
 		record: Omit<AttemptRecord, "schema" | "updatedAt">,
 	): Promise<void> {
