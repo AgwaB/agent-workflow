@@ -4,7 +4,8 @@
 // workflow workers run on the selected executor (default pi). Each tool calls one host API handler.
 // Differences from pi-workflow: no `awaitTerminal` on run/dynamic and `aw_wait` waits at most 45 s
 // per call (the host API bound), so the agent calls `aw_wait` again while `stillRunning` is true;
-// no completion-feedback delivery or presentation lease (stage 2).
+// no completion-feedback delivery or presentation lease (stage 2). WP12c: `inputs` on run/dynamic
+// (the tool form of --input; typed by the host API like the CLI's strings).
 import {
 	formatHostError,
 	HOST_WAIT_MAX_TIMEOUT_MS,
@@ -73,6 +74,15 @@ const LAUNCH_OPTION_PROPERTIES = {
 		type: "boolean",
 		description:
 			"Optional. Skip the duplicate-launch guard (an identical active run from the last 10 minutes).",
+	},
+	// WP12c: the tool form of --input key=value. Values are typed by the spec's declared input
+	// defaults (host API `typedWorkflowInputOverrides`): a string is parsed for a number/boolean/JSON
+	// default, any other value must already have the declared type; undeclared keys are refused.
+	inputs: {
+		type: "object",
+		additionalProperties: true,
+		description:
+			'Optional workflow inputs the workflow declares (same as --input key=value), for example {"depth":"quick"}. Values must match the declared input types; strings are converted for number, boolean and JSON inputs. Undeclared keys are refused.',
 	},
 } as const;
 
@@ -225,6 +235,16 @@ export function launchRequestFromToolParams(params: Record<string, unknown>) {
 		Array.isArray(allow) && allow.length
 			? parseCapabilityList(allow.join(","), "allowUnverified")
 			: undefined;
+	const inputs = params.inputs;
+	if (
+		inputs !== undefined &&
+		(inputs === null || typeof inputs !== "object" || Array.isArray(inputs))
+	)
+		throw new HostUsageError("inputs must be an object");
+	const inputOverrides =
+		inputs && Object.keys(inputs).length > 0
+			? { ...(inputs as Record<string, unknown>) }
+			: undefined;
 	return {
 		task: requiredString(params, "task"),
 		...(executor ? { executor } : {}),
@@ -239,6 +259,7 @@ export function launchRequestFromToolParams(params: Record<string, unknown>) {
 		...(effort ? { effort: parseThinkingLevel(effort) } : {}),
 		...(optionalBoolean(params, "detach") ? { detach: true } : {}),
 		...(optionalBoolean(params, "forceNew") ? { forceNew: true } : {}),
+		...(inputOverrides ? { inputOverrides } : {}),
 	};
 }
 
@@ -326,6 +347,7 @@ export function registerAwTools(pi: PiExtensionApi, deps: PiHostDeps): void {
 			`Do not use ${AW_RUN_TOOL} for ordinary research, review, or coding requests unless the user asks to use a workflow.`,
 			`Do not call ${AW_RUN_TOOL} unless both an exact workflow name/path and a concrete task are known; ask a clarifying question if either is missing.`,
 			`Set ${AW_RUN_TOOL}.executor, profile or permissionMode only when the user asks for them (for example "run it on codex"); use detach=true only for explicit background execution.`,
+			`Set ${AW_RUN_TOOL}.inputs only for inputs the workflow declares and the user asked for (for example {"depth":"quick"}); otherwise the spec defaults apply.`,
 			`After ${AW_RUN_TOOL} returns a running run whose result the task needs, call ${AW_WAIT_TOOL}.`,
 			`Preserve the user's task language, file references, constraints, and requested depth in ${AW_RUN_TOOL}.task; do not reduce it to 'run the workflow'.`,
 		],
