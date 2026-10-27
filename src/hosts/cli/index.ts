@@ -4,11 +4,13 @@
 // completed run, 1 failed/blocked/interrupted/refused/still running at --timeout, 2 usage error.
 // Replaces pi-workflow's src/cli.mjs (inspect/prune/notices/supervise), whose prune path imported
 // the Pi extension (R#14).
+// WP17: passes host "cli" (installed-default executor) and adds `doctor`.
 import { readFileSync } from "node:fs";
 import { addWorkflowInputAssignment } from "../args.js";
 import { createInterface } from "node:readline";
 
 import {
+	doctorAction,
 	formatHostError,
 	HOST_WAIT_MAX_TIMEOUT_MS,
 	type HostApiContext,
@@ -579,6 +581,9 @@ async function dispatch(
 			);
 		case "notices":
 			return emit(await noticesAction(ctx, { argv: [...argv] }), undefined);
+		case "doctor":
+			only(parseCommandArgs(argv, jsonOnly), 0, "doctor [--json]");
+			return emit(await doctorAction(ctx));
 		case "supervise": {
 			const options = parseSuperviseArgs(argv);
 			const supervised = await superviseAction(ctx, {
@@ -631,7 +636,9 @@ export async function runAgentWorkflowCli(
 			io.stderr(
 				`agent-workflow: test executor "${testExecutor}" registered from AGENT_WORKFLOW_TEST_EXECUTOR_MODULE (tests only)\n`,
 			);
-		const ctx: HostApiContext = { cwd: io.cwd, env: io.env };
+		// WP17: the terminal CLI's default executor is the first installed and logged-in of
+		// pi → claude → codex (host "cli").
+		const ctx: HostApiContext = { cwd: io.cwd, env: io.env, host: "cli" };
 		// notices prints its own JSON form (`notices list --json`).
 		const emit: Emit = (result, exitCode) => {
 			if (json && result.action !== "notices")

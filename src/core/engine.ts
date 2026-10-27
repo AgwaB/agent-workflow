@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine.ts. MIT, same author. Changes: the backend comes from the task-launch registry and the core task backend registers itself (was hard-wired pi-subagent); acknowledgeSubagentTaskInterrupted from task-cancellation.ts; run options executor/defaultExecutor (B2 executor selection before the run record exists, frozen as run.executor; nested runs copy the parent's) and inheritHostTools/allowSharedCheckoutWrites passed into compileWorkflow (nested runs follow the parent record); native host context → withHostContext(resolveHostContext()); foreach batch eligibility uses prepareWorkflowTaskToolPolicy with the run's host-tool and shared-checkout decisions (R#5); messages say agent-workflow. WP4d: B4 capability negotiation after executor selection and compile, before the run record (probe once, refuse/degrade/confirm, record run.capabilityNegotiation; run options interactive/confirmDegradations/allowUnverifiedCapabilities/executorProber/executorProbeTimeoutMs). WP4e: run option permissionMode resolved with B2 precedence (permission-mode.ts), passed to compile and negotiation, recorded as run.permissionMode (nested runs follow the parent).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine.ts. MIT, same author. Changes: the backend comes from the task-launch registry and the core task backend registers itself (was hard-wired pi-subagent); acknowledgeSubagentTaskInterrupted from task-cancellation.ts; run options executor/defaultExecutor (B2 executor selection before the run record exists, frozen as run.executor; nested runs copy the parent's) and inheritHostTools/allowSharedCheckoutWrites passed into compileWorkflow (nested runs follow the parent record); native host context → withHostContext(resolveHostContext()); foreach batch eligibility uses prepareWorkflowTaskToolPolicy with the run's host-tool and shared-checkout decisions (R#5); messages say agent-workflow. WP4d: B4 capability negotiation after executor selection and compile, before the run record (probe once, refuse/degrade/confirm, record run.capabilityNegotiation; run options interactive/confirmDegradations/allowUnverifiedCapabilities/executorProber/executorProbeTimeoutMs). WP4e: run option permissionMode resolved with B2 precedence (permission-mode.ts), passed to compile and negotiation, recorded as run.permissionMode (nested runs follow the parent). WP17: run option host; with no explicit executor the default is the host's own CLI (terminal: first usable of pi → claude → codex via cached probes, executor-default.ts), recorded as run.executor.source host-default/installed-default with the host; the cached prober is shared with negotiation.
 import { releaseUnneededOwnedSessions } from "./owned-session-release.js";
 import { createHash } from "node:crypto";
 import {
@@ -224,10 +224,11 @@ import {
 } from "./foreach-batch-capability.js";
 import { workflowStateRootIdentity } from "./workflow-state-root.js";
 import { prepareWorkflowTaskToolPolicy } from "./tool-policy.js";
+import { workflowDeclaredProfileExecutor } from "./executor-registry.js";
 import {
-	resolveRunExecutorSelection,
-	workflowDeclaredProfileExecutor,
-} from "./executor-registry.js";
+	cachedExecutorProber,
+	resolveRunExecutorForHost,
+} from "./executor-default.js";
 import { resolveHostContext, withHostContext } from "./host-context.js";
 import {
 	resolveRunPermissionMode,
@@ -249,6 +250,7 @@ import {
 	type CompiledTask,
 	type CompiledWorkflow,
 	type WorkflowForeachBatchRecord,
+	type WorkflowHostId,
 	WORKFLOW_RUN_TYPE,
 	type WorkflowRunLaunchCapture,
 	type WorkflowRunLaunchMetadata,
@@ -392,8 +394,16 @@ export interface WorkflowRunOptions {
 	 * executors fail before any launch.
 	 */
 	executor?: string;
-	/** Host default executor id (lowest precedence); default "pi". */
+	/**
+	 * Explicit host override of the default executor (below the saved user profile). Without it
+	 * the default is the host's own CLI (WP17, `host`).
+	 */
 	defaultExecutor?: string;
+	/**
+	 * WP17 host identity: `claude-code` → claude, `codex` → codex, `pi` → pi; `cli` (or absent)
+	 * → the first installed and logged-in of pi → claude → codex. Recorded on run.executor.
+	 */
+	host?: WorkflowHostId;
 	/** Host-level opt-in to host-tool inheritance (Pi executor only, WP6). */
 	inheritHostTools?: boolean;
 	/** D2/R#5 run option of the executing user (never a spec field). */
@@ -678,10 +688,13 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 					? undefined
 					: options.executionProfileOverride?.permissionMode,
 			});
-	// Executor selection (B2) fails before any run record or launch exists.
+	// Executor selection (B2) fails before any run record or launch exists. WP17: with no
+	// explicit choice the host's own CLI is the default (terminal CLI: first usable of
+	// pi → claude → codex, probed). Nested runs keep the parent's executor.
+	const executorProber = options.executorProber ?? cachedExecutorProber;
 	const executor = parentRun?.executor
 		? { ...parentRun.executor }
-		: resolveRunExecutorSelection({
+		: await resolveRunExecutorForHost({
 				runFlag: options.executor,
 				workflowProfileName: options.executionProfile,
 				workflowProfileExecutor: workflowDeclaredProfileExecutor(
@@ -695,6 +708,11 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 					? undefined
 					: options.executionProfileOverride?.executor,
 				defaultExecutor: options.defaultExecutor,
+				...(options.host === undefined ? {} : { host: options.host }),
+				prober: executorProber,
+				...(options.executorProbeTimeoutMs === undefined
+					? {}
+					: { probeTimeoutMs: options.executorProbeTimeoutMs }),
 			});
 	const compiled = await compileWorkflow(spec, {
 		cwd,
@@ -740,9 +758,7 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 					recorded: parentRun.capabilityNegotiation,
 					recordedFromRunId: parentRun.runId,
 				}),
-		...(options.executorProber === undefined
-			? {}
-			: { prober: options.executorProber }),
+		prober: executorProber,
 		...(options.executorProbeTimeoutMs === undefined
 			? {}
 			: { probeTimeoutMs: options.executorProbeTimeoutMs }),

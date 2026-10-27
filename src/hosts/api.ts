@@ -2,7 +2,7 @@
 // host-neutral handler per action; the `agent-workflow` CLI, the stage-2 host MCP server and the Pi
 // host (WP11b) all call these instead of re-implementing command logic. No Pi imports. Contracts:
 // docs/host-api.md. Logic ported from pi-workflow 0.16.4 (b83cc4f) src/extension.ts and src/cli.mjs
-// (see each module's header).
+// (see each module's header). WP17: `doctor` (doctor.ts) and the optional HostApiContext.host.
 import { showWorkflowSpecAction } from "./catalog.js";
 import { showRunAction } from "./runs.js";
 import type { HostApiContext, HostResult } from "./types.js";
@@ -41,6 +41,12 @@ export {
 	type WorkflowListSummary,
 	workflowRolesAction,
 } from "./catalog.js";
+export {
+	type DoctorData,
+	type DoctorExecutorReport,
+	type DoctorRequest,
+	doctorAction,
+} from "./doctor.js";
 export { COMMAND_HELP, GENERAL_HELP, helpAction } from "./help.js";
 export {
 	agentWorkflowCliPath,

@@ -7,6 +7,7 @@
 // duplicate guard return `refused` results instead of throwing; no launch-capture record (the
 // v1 capture schema only knows Pi slash commands and Pi tools); the detached supervisor is the
 // `agent-workflow supervise` CLI and logs to `<run dir>/supervise.log`.
+// WP17: HostApiContext.host reaches the engine (host-default executor) and launch data shows it.
 import { spawn } from "node:child_process";
 import { closeSync, openSync } from "node:fs";
 import { join } from "node:path";
@@ -117,7 +118,8 @@ export interface LaunchData {
 	status?: WorkflowRunRecord["status"];
 	name?: string;
 	specPath?: string;
-	executor?: { id: string; source: string; profile?: string };
+	/** WP17: `host` is set when the host's default rule chose the executor. */
+	executor?: { id: string; source: string; profile?: string; host?: string };
 	permissionMode?: { mode: string; source: string; profile?: string };
 	profile?: LaunchProfileInfo;
 	capability?: {
@@ -612,6 +614,7 @@ function launchData(
 						id: run.executor.id,
 						source: run.executor.source,
 						...(run.executor.profile ? { profile: run.executor.profile } : {}),
+						...(run.executor.host ? { host: run.executor.host } : {}),
 					},
 				}
 			: {}),
@@ -681,6 +684,7 @@ async function launch(
 		...profile.selection,
 		...(executor ? { executor } : {}),
 		...(ctx.defaultExecutor ? { defaultExecutor: ctx.defaultExecutor } : {}),
+		...(ctx.host ? { host: ctx.host } : {}),
 		...(permissionMode ? { permissionMode } : {}),
 		...(request.allowUnverifiedCapabilities?.length
 			? {

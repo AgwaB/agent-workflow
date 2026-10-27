@@ -38,6 +38,7 @@ import { isTaskRuntimeApiInjected } from "./runtime-port.js";
 import { workflowRunPermissionMode } from "./permission-mode.js";
 import {
 	recordedRunExecutorDescriptor,
+	LEGACY_RECORD_EXECUTOR_ID,
 	resolveRunExecutorSelection,
 } from "./executor-registry.js";
 import {
@@ -186,9 +187,12 @@ export async function launchSubagentTask(
 	let capabilityLaunch: { forcedReadOnly: boolean };
 	try {
 		// Runs created directly through the store (or imported records) carry no selection yet:
-		// they get the B2 default tier, which must itself be available (never a substitute).
+		// they get the legacy record executor (pi-workflow records ran on Pi), which must itself be
+		// available (never a substitute). New runs always record a selection (WP17 host default).
 		if (run.executor === undefined) {
-			run.executor = resolveRunExecutorSelection({});
+			run.executor = resolveRunExecutorSelection({
+				defaultExecutor: LEGACY_RECORD_EXECUTOR_ID,
+			});
 			await writeRunRecord(cwd, run);
 		}
 		executor = recordedRunExecutorDescriptor(run);
@@ -1552,6 +1556,7 @@ export async function runOneShotSubagentCall(
 	} = options;
 	const selection = resolveRunExecutorSelection({
 		...(typeof executorId === "string" ? { runFlag: executorId } : {}),
+		defaultExecutor: LEGACY_RECORD_EXECUTOR_ID,
 	});
 	return (await api.runSubagent({
 		// WP4e: engine calls always set the mode (engine default free; readOnly either way).

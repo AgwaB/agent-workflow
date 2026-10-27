@@ -1453,7 +1453,25 @@ export type WorkflowRunExecutorSource =
 	| "run-flag"
 	| "workflow-profile"
 	| "user-profile"
-	| "default";
+	/** Explicit host override (`defaultExecutor`) or a legacy record without a selection. */
+	| "default"
+	/** WP17: the host's own CLI (Claude Code → claude, Codex → codex, Pi → pi). */
+	| "host-default"
+	/** WP17: terminal CLI, first installed and logged-in of pi → claude → codex. */
+	| "installed-default";
+
+/** WP17: host identity a host passes to the engine (`--host` of the MCP server, Pi host, CLI). */
+export type WorkflowHostId = "claude-code" | "codex" | "pi" | "cli";
+
+/** WP17: non-secret probe state of one candidate the `installed-default` rule looked at. */
+export interface WorkflowRunExecutorCandidate {
+	id: string;
+	installed: boolean;
+	cliVersion: string | null;
+	auth: AuthStatus;
+	/** installed and auth not missing/expired (`unknown` counts as usable). */
+	usable: boolean;
+}
 
 /** Executor chosen for a run, frozen at creation (agent-workflow WP4c). */
 export interface WorkflowRunExecutorSelection {
@@ -1461,6 +1479,10 @@ export interface WorkflowRunExecutorSelection {
 	source: WorkflowRunExecutorSource;
 	/** Profile name when the source is a profile. */
 	profile?: string;
+	/** WP17: the host whose rule chose the default (`host-default`/`installed-default`). */
+	host?: WorkflowHostId;
+	/** WP17: candidates probed by the `installed-default` rule, in order. */
+	candidates?: WorkflowRunExecutorCandidate[];
 	descriptor: ExecutorDescriptor;
 }
 

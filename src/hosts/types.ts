@@ -4,7 +4,7 @@
 import { relative } from "node:path";
 
 import { assertWorkflowActionAllowedForRole } from "../core/process-role.js";
-import { WorkflowValidationError } from "../core/types.js";
+import { type WorkflowHostId, WorkflowValidationError } from "../core/types.js";
 import type {
 	WorkflowModelInfo,
 	WorkflowRuntimeDefaults,
@@ -40,7 +40,8 @@ export type HostAction =
 	| "stop"
 	| "prune"
 	| "notices"
-	| "supervise";
+	| "supervise"
+	| "doctor";
 
 /**
  * `success`: a query/mutation completed. Run states: `running` (launched or still running after a
@@ -74,8 +75,17 @@ export interface HostApiContext {
 	cwd: string;
 	/** Environment for role checks and the user home (defaults to process.env). */
 	env?: NodeJS.ProcessEnv;
-	/** Host default executor (lowest B2 precedence); engine default "pi" when absent. */
+	/**
+	 * Explicit host override of the default executor (below the saved user profile). Normally
+	 * unset: the default is the host's own CLI, chosen from `host` (WP17).
+	 */
 	defaultExecutor?: string;
+	/**
+	 * WP17 host identity. `claude-code` → claude, `codex` → codex, `pi` → pi (the host's own CLI);
+	 * `cli` (or absent) → the first installed and logged-in of pi → claude → codex. The Pi host
+	 * passes `pi`, the CLI `cli`, the host MCP server the value of its `--host` flag.
+	 */
+	host?: WorkflowHostId;
 	/** The host's current model/effort (Pi host); lowest-precedence runtime defaults. */
 	runtimeDefaults?: WorkflowRuntimeDefaults;
 	/**
