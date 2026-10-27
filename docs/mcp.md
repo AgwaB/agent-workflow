@@ -98,9 +98,10 @@ JSON object per line:
 | `deliveryUnverified` | **new, WP5.** `true` when the server cut the response to fit the delivery bound. `false` (WP5b) on page rows: the page was delivered whole within the limit. Absent otherwise |
 | `rangeStart`, `rangeEnd`, `totalChars`, `contentSha256` | **new, WP5b, page rows only.** The row covers UTF-16 chars `[rangeStart, rangeEnd)` of the artifact text (`totalChars` long). `contentSha256` is the sha256 (hex) of the whole artifact file *version* that was paged. All four are present together, never with `path` |
 
-**Parity.** The core tool appends its row to a server-private scratch ledger (a `mkdtemp` directory,
-removed on exit). The server then copies that row to the real ledger byte-for-byte, or with
-`truncated`/`returnedBytes`/`deliveryUnverified` adjusted if the response was cut. Unit tests
+**Parity.** The core tool hands its row to the server (`appendLedger: false` + `onLedgerRecord`;
+WP12d-1, before that a server-private scratch ledger). The server then appends that row to the real
+ledger unchanged, or with `truncated`/`returnedBytes`/`deliveryUnverified` adjusted if the response
+was cut, through the core writer `appendWorkflowArtifactReadLedger`. Unit tests
 compare text and rows against direct core calls on the same fixture run, ignoring `at`. They cover
 whole reads, projections, core `maxBytes` truncation, raw reads, failures, the completed-read cache
 and duplicate suppression.
@@ -224,8 +225,8 @@ A CLI may cut an MCP result again after the server returns it. The server theref
   - a manifest that fails core validation (for example an artifact path outside `runDir`);
   - a manifest `runId`/`taskId` that differs from the config.
 - **Per call:** the tool accepts no filesystem paths. Sources must match `^[A-Za-z0-9_.:-]+$` without `..`, so traversal, absolute paths, `/` and NUL are rejected. Artifacts must be one of the enum kinds. The core then refuses symlinked or hard-linked artifacts, artifacts whose real path leaves the run dir (including through symlinked directories), and files that change during validation. The file is opened with `O_NOFOLLOW`.
-- **Ledger writes:** the ledger is opened with `O_APPEND|O_CREAT|O_NOFOLLOW`, mode `0600`. Before each write the server re-checks that the ledger is a single-link regular file inside the run dir.
-- **Reads:** the server reads only the config, the manifest, the artifacts the manifest lists inside `runDir`, and its own scratch ledger.
+- **Ledger writes:** the server re-checks that the ledger is a single-link regular file inside the run dir, then appends with the core writer (WP12d-1): `O_APPEND|O_CREAT|O_NOFOLLOW`, mode `0600`; the opened descriptor must be a single-link regular file, the same file as the path (dev/inode) with an unchanged, non-symlinked parent directory, and its fully resolved path must be inside the real run dir. A hard link or a symlinked directory swapped in between the check and the open is refused (`isError`) and nothing is written through it (a swapped ancestor can leave an empty file created by `O_CREAT` in the swapped-in directory).
+- **Reads:** the server reads only the config, the manifest, the artifacts the manifest lists inside `runDir`, and its ledger.
 - **Debug artifacts:** `prompt`, `system-prompt`, `stderr` and `result` are readable only when the *config* says `accessMode: "human-debug"`. The manifest `policy` cannot raise access, because the config `accessMode` always wins.
 - **Secrets:** env values never appear in logs, results or the ledger. The spec argv carries only the entry, the config path and the limit.
 
@@ -245,8 +246,8 @@ WP10 flipped `verified` with the WP6–WP8 live evidence. The task backend rende
 
 ## Core changes wanted (not made here; `src/core` belongs to WP4c-1)
 
-Items 1 and 4 are done (WP4c and WP5b); item 2 exists as `onLedgerRecord`/`appendLedger` (WP4c-2)
-but the server still uses its scratch ledger.
+Items 1 and 4 are done (WP4c and WP5b); items 2 and 3 exist as `onLedgerRecord`/`appendLedger` and
+the no-follow writer (WP4c-2), and the server uses them since WP12d-1 (no scratch ledger).
 
 1. **Keep `deliveryUnverified` in the core reader.** `readWorkflowArtifactReadLedger` (`normalizeReadLedgerRecord`) currently drops it. Add it to `WorkflowArtifactReadLedgerRecord`. The required-read and projection-policy checks should reject `deliveryUnverified` rows explicitly.
 2. **Add a ledger-row hook to `handleWorkflowArtifactToolCall`.** An option such as `recordRead(record) => Promise<void>`, or returning the record, would let the server decide delivery without the scratch ledger.
@@ -273,3 +274,18 @@ but the server still uses its scratch ledger.
    moved to `src/sdk/mcp-delivery.ts` (re-exported here unchanged) so the core and the conformance kit
    use the same arithmetic.
 7. **Conformance.** New kit check `mcp.paged_read` (docs/conformance.md).
+
+## WP12d-1 change log (behavior-relevant)
+
+1. **Review #8: ledger check/open race.** The server checked the ledger, then opened it with
+   `O_NOFOLLOW`, which protects only the last path component, and never validated the opened
+   descriptor: a hard link or a symlinked (parent or ancestor) directory swapped in between the
+   check and the open redirected the evidence row outside the run directory. Now the core tool
+   hands rows over (`appendLedger: false` + `onLedgerRecord`; the scratch ledger and its temp
+   directory are gone) and the server appends them with `appendWorkflowArtifactReadLedger(...,
+   { insideDir: realRunDir })`: the core descriptor checks (type, link count, file and parent
+   identity) plus, new, the opened file's resolved path must be inside the real run dir and be the
+   opened file. Row content and order are unchanged. Test: `mcp-wp12d1-ledger-race.test.mjs`
+   (hard-link swap and parent-directory symlink swap right before the open, ancestor symlink swap
+   right after the server check; each fails closed and writes nothing outside; a clean call still
+   writes the row with mode 0600).

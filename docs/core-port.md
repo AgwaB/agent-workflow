@@ -1477,6 +1477,12 @@ order). Each fix has a regression test that failed before it.
    paths, strict, warning, native, no duplicate entry). Changed assertion:
    `sdk-negotiation-warnings` preview (the forced "write" stage now also lists its readOnly warning:
    3 degradations instead of 2).
+3. **Review #8 (core part): `appendWorkflowArtifactReadLedger(path, record, { insideDir })`.** New
+   optional argument (additive). When set, after the existing no-follow open and descriptor checks,
+   the opened ledger's resolved path must be inside `insideDir` (a real directory) and be the opened
+   file (dev/inode), so an ancestor directory swapped for a symlink cannot redirect the row. The MCP
+   artifact server now writes its rows through this writer with the run directory (docs/mcp.md
+   WP12d-1 change log 1). Workers that append through the tool itself are unchanged.
 
 ## WP12c — stage-1 doc sync, `aw_run` inputs, release secret scan
 
