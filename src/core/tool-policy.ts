@@ -111,6 +111,20 @@ export function inheritedHostToolSafety(
 	};
 }
 
+/**
+ * WP12d-1 (review #1): whether a task launches read-only. The authored readOnly contract wins over
+ * the tool classification (inherited host tools, records compiled before the compile-time filter),
+ * in both permission modes.
+ */
+export function workflowTaskReadOnly(
+	task: Pick<CompiledTask, "safety">,
+): boolean {
+	return (
+		task.safety.capability === "read-only" ||
+		task.safety.readOnlyDeclared === true
+	);
+}
+
 /** Apply the run's host-tool decision to a task compiled without one. */
 export function prepareWorkflowTaskToolPolicy(
 	task: CompiledTask,

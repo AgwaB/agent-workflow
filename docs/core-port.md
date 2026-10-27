@@ -1437,6 +1437,64 @@ temp roots with retries (a durable worker or finalizer can still close files rig
 ends). `test/unit/host-cli.test.mjs` ran 10 times
 in a row with 24 busy-loop processes on 12 cores (load average up to ~95): 10/10 passed.
 
+## WP12d-1 — stage-1 review fixes (core, runtime, MCP, replay)
+
+Fixes for findings of the stage-1 cross-model review of main `2b745d3` (findings numbered in review
+order). Each fix has a regression test that failed before it.
+
+### WP12d-1 change log (behavior-relevant)
+
+1. **Review #1: a declared readOnly stage stays read-only in both permission modes.** Before, a
+   stage with `readOnly: true` and a mutation-capable tool (e.g. `tools: [read, bash]`) compiled as
+   `mutation-capable`, negotiated `readOnly: false` and launched with `SubmitRequest.readOnly:
+   false`, so `free` mode selected Claude `bypassPermissions` and Codex `danger-full-access` +
+   `never`. Now `compiler.ts` removes every tool whose effective classification is not
+   `read-only` (write-capable, mutation-capable, unclassified; the non-downgradable floors still
+   apply) from a declared-readOnly stage, with the warning `stage "<id>" declares readOnly: true;
+   removed tools that are not read-only (<tools>) so the stage stays read-only in every permission
+   mode` (diagnostic code unchanged, `tools.read_only_capability_advisory`). When an authored
+   non-empty list keeps no read-only tool the stage is refused (`WorkflowValidationError`, `…no
+   read-only tool remains after removing …`). An unspecified list stays unspecified. The authored
+   contract also wins over the classification at launch: `tool-policy.ts` `workflowTaskReadOnly`
+   (`capability === "read-only" || safety.readOnlyDeclared`) feeds negotiation
+   (`StageRequirementContext.readOnly`), the engine approval policy and `SubmitRequest.readOnly`,
+   so inherited host tools (Pi) and records compiled before this fix still launch read-only.
+   Test: `core-wp12d1-readonly-contract.test.mjs` (free and safe: compiled tools, negotiation,
+   submit, Claude/Codex/Pi settings; refusal; inherited-host and legacy records). Changed
+   assertions: `core-unit-authoring-interface` (readOnly + bash now filtered; three metadata tests
+   declare `readOnly: false` to keep testing metadata), `core-workflow-router` (readOnly stages with
+   only bash/unknown tools are refused at compile, so their auto cards have no effective facts and
+   stay blocked).
+2. **Review #7 (`src/sdk/requirements.ts`): a forced readOnly downgrade negotiates `readOnly`.**
+   Before, `allowReadOnlyDowngrade` only checked that `readOnly` was available, so a writable stage
+   downgraded on a coarse allowlist or an unmapped tool was accepted with an emulated readOnly even
+   under `strict: [readOnly]`, and an environment warning on readOnly (e.g. Claude allow rules) was
+   never recorded. Now, when the downgrade is taken and the stage has no `readOnly` entry yet,
+   `negotiateCapabilities` adds one negotiated with the default `readOnly` requirement through the
+   same per-key rules: `CAPABILITY_STRICT:readOnly` for an emulated/warned level under strict,
+   `CAPABILITY_WARNING:readOnly` degradation (confirmation when interactive, `acceptedByFreeMode`
+   in free mode) for a warned one. Test: `sdk-wp12d1-forced-readonly.test.mjs` (coarse and unmapped
+   paths, strict, warning, native, no duplicate entry). Changed assertion:
+   `sdk-negotiation-warnings` preview (the forced "write" stage now also lists its readOnly warning:
+   3 degradations instead of 2).
+3. **Review #8 (core part): `appendWorkflowArtifactReadLedger(path, record, { insideDir })`.** New
+   optional argument (additive). When set, after the existing no-follow open and descriptor checks,
+   the opened ledger's resolved path must be inside `insideDir` (a real directory) and be the opened
+   file (dev/inode), so an ancestor directory swapped for a symlink cannot redirect the row. The MCP
+   artifact server now writes its rows through this writer with the run directory (docs/mcp.md
+   WP12d-1 change log 1). Workers that append through the tool itself are unchanged.
+
+Other WP12d-1 fixes, logged in their own docs: review #4 (handled signals keep directory locks
+held) in docs/runtime-port.md change log 18, review #8 (MCP ledger race) in docs/mcp.md WP12d-1
+change log, review #11 (replay exact-match paths) in docs/replay.md WP12d-1 change log. Findings
+#2, #3, #5, #6, #9 and #10 (executors) are WP12d-2.
+
+### WP12d-1 validation
+
+`npm run validate` (twice) and `npm run e2e` exit 0 on the final commit; replay acceptance has 0
+unexplained differences in every variant. Every new test that spawns a process kills it in
+`finally` (`runtime-dir-lock.test.mjs`).
+
 ## WP12c — stage-1 doc sync, `aw_run` inputs, release secret scan
 
 1. **Docs synced with WP12a.** `docs/usage.md` (`--input` typing and errors, legacy-agent notice,

@@ -3,19 +3,12 @@
 // validation, path containment checks, the delivery bound (R#9) and the read-ledger write.
 // WP5b: the server passes its output limit to the core as `pageLimitChars`, so whole-artifact
 // reads are paged (`offset`) within the limit instead of being cut.
-import { constants as fsConstants } from "node:fs";
-import {
-	lstat,
-	mkdir,
-	mkdtemp,
-	open,
-	readFile,
-	realpath,
-	rm,
-	writeFile,
-} from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+// WP12d-1 (review #8): the server no longer writes rows itself. The core tool hands each row over
+// (`appendLedger: false` + `onLedgerRecord`, no scratch ledger), and the server persists it with
+// the core's hardened writer (`appendWorkflowArtifactReadLedger`: no-follow open, descriptor
+// type/link-count/identity checks) plus a descriptor containment check against the run directory.
+import { lstat, realpath } from "node:fs/promises";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 
 import {
 	type ArtifactAccessConfig,
@@ -24,6 +17,7 @@ import {
 	workflowArtifactFailureResult,
 } from "../../core/artifact-access.js";
 import {
+	appendWorkflowArtifactReadLedger,
 	handleWorkflowArtifactToolCall,
 	loadWorkflowSourceManifest,
 	type WorkflowArtifactReadLedgerRecord,
@@ -129,15 +123,13 @@ export async function createArtifactToolService(options: {
 	const outputLimit = options.outputLimit ?? DEFAULT_MCP_OUTPUT_LIMIT_CHARS;
 	const outputLimitSource =
 		options.outputLimit === undefined ? "default" : "client";
-	// Server-private scratch ledger: the core tool appends its row here first, so the server can
-	// decide delivery before the row reaches the real ledger. Never an artifact source.
-	const scratchDir = await mkdtemp(join(tmpdir(), "aw-artifact-mcp-"));
-	const scratchLedger = join(scratchDir, "read-ledger.jsonl");
+	// The core tool does not append (`appendLedger: false`): it hands each row to the server,
+	// which decides delivery before the row reaches the real ledger.
 	const coreConfig = {
 		runId: config.runId,
 		taskId: config.taskId,
 		manifestPath: config.manifestPath,
-		ledgerPath: scratchLedger,
+		ledgerPath: config.ledgerPath,
 		accessMode: config.accessMode,
 		runDir: config.runDir,
 		...(config.maxBytes === undefined ? {} : { maxBytes: config.maxBytes }),
@@ -151,18 +143,19 @@ export async function createArtifactToolService(options: {
 	const callOnce = async (
 		args: Record<string, unknown>,
 	): Promise<ArtifactToolCallResult> => {
-		await writeFile(scratchLedger, "", { mode: 0o600 });
+		const rows: ArtifactMcpLedgerRecord[] = [];
 		let result: Awaited<ReturnType<typeof handleWorkflowArtifactToolCall>>;
 		try {
 			result = await handleWorkflowArtifactToolCall(args, coreConfig, {
 				pageLimitChars: outputLimit,
+				appendLedger: false,
+				onLedgerRecord: (record) => {
+					rows.push(record);
+				},
 			});
 		} catch (error) {
 			return failure(error);
 		}
-		const rows = (await readFile(scratchLedger, "utf8"))
-			.split("\n")
-			.filter((line) => line.trim() !== "");
 		const fullText = result.content.map((part) => part.text).join("");
 		const details = result.details;
 		const readKey = JSON.stringify([
@@ -208,10 +201,11 @@ export async function createArtifactToolService(options: {
 		if (details.action === "read" && cut) cutReads.add(readKey);
 		try {
 			await assertLedgerTarget(config.ledgerPath, realRunDir);
-			for (const line of rows)
-				await appendLedgerLine(
+			for (const row of rows)
+				await appendWorkflowArtifactReadLedger(
 					config.ledgerPath,
-					markRows ? markDeliveryUnverified(line, deliveredBytes) : line,
+					markRows ? markDeliveryUnverified(row, deliveredBytes) : row,
+					{ insideDir: realRunDir },
 				);
 		} catch (error) {
 			return failure(error);
@@ -234,14 +228,13 @@ export async function createArtifactToolService(options: {
 		outputLimit,
 		outputLimitSource,
 		call(args) {
-			// Serialized: one scratch ledger, and ledger rows keep call order.
+			// Serialized: ledger rows keep call order.
 			const next = queue.then(() => callOnce(args));
 			queue = next.catch(() => undefined);
 			return next;
 		},
 		async close() {
 			await queue;
-			await rm(scratchDir, { recursive: true, force: true });
 		},
 	};
 }
@@ -254,16 +247,10 @@ function readHeader(details: Record<string, unknown>): string {
 }
 
 function markDeliveryUnverified(
-	line: string,
+	record: ArtifactMcpLedgerRecord,
 	deliveredBytes: number | undefined,
-): string {
-	let record: ArtifactMcpLedgerRecord;
-	try {
-		record = JSON.parse(line) as ArtifactMcpLedgerRecord;
-	} catch {
-		throw new Error("core read-ledger row is not valid JSON");
-	}
-	return JSON.stringify({
+): ArtifactMcpLedgerRecord {
+	return {
 		...record,
 		returnedBytes:
 			deliveredBytes === undefined
@@ -271,28 +258,7 @@ function markDeliveryUnverified(
 				: Math.min(record.returnedBytes, deliveredBytes),
 		truncated: true,
 		deliveryUnverified: true,
-	});
-}
-
-/** Append one JSONL row without following a symlinked ledger. */
-async function appendLedgerLine(
-	ledgerPath: string,
-	line: string,
-): Promise<void> {
-	await mkdir(dirname(resolve(ledgerPath)), { recursive: true, mode: 0o700 });
-	const handle = await open(
-		resolve(ledgerPath),
-		fsConstants.O_WRONLY |
-			fsConstants.O_APPEND |
-			fsConstants.O_CREAT |
-			fsConstants.O_NOFOLLOW,
-		0o600,
-	);
-	try {
-		await handle.writeFile(`${line}\n`, "utf8");
-	} finally {
-		await handle.close();
-	}
+	};
 }
 
 /** The ledger may be absent; if present it must be a single-link regular file inside the run dir. */

@@ -14,7 +14,7 @@ Original spec, Pi adapter request checks.
 | Replayed status | blocked |
 | Worker launches served / recorded | 1 / 11 |
 | Artifact reads re-issued / recorded | 0 / 10 |
-| Differences: allowed | 175 |
+| Differences: allowed | 174 |
 | Differences: explained | 2209 |
 | Differences: unexplained | 0 |
 | Exact-match violations | 0 |
@@ -33,11 +33,11 @@ Tasks not completed:
 
 | Task | Spec | Status | Detail | Message |
 |---|---|---|---|---|
-| task-11 | research-questions.rq-001 | failed | launch_failed | provisional worker run_mvqhr693_5cf9a8/attempt_mvqhr693_9a65f8 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
-| task-12 | research-questions.rq-002 | failed | launch_failed | provisional worker run_mvqhr6i9_91b6ae/attempt_mvqhr6i9_4734e0 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
-| task-13 | research-questions.rq-003 | failed | launch_failed | provisional worker run_mvqhr6ra_24c430/attempt_mvqhr6ra_05a687 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
-| task-4 | normalize-claims.main | failed | launch_failed | provisional worker run_mvqhr70h_995db0/attempt_mvqhr70h_b9a7e9 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
-| task-9 | final-audit.main | failed | launch_failed | provisional worker run_mvqhr7at_b4b300/attempt_mvqhr7at_055627 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
+| task-11 | research-questions.rq-001 | failed | launch_failed | provisional worker run_mvqq2jwi_0f0a33/attempt_mvqq2jwi_5641c4 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
+| task-12 | research-questions.rq-002 | failed | launch_failed | provisional worker run_mvqq2k7t_2b0a83/attempt_mvqq2k7t_a8d2f5 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
+| task-13 | research-questions.rq-003 | failed | launch_failed | provisional worker run_mvqq2ko6_c03aae/attempt_mvqq2ko6_ecb1c4 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
+| task-4 | normalize-claims.main | failed | launch_failed | provisional worker run_mvqq2kze_a9fc7e/attempt_mvqq2kze_57893f ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
+| task-9 | final-audit.main | failed | launch_failed | provisional worker run_mvqq2liz_367e65/attempt_mvqq2liz_1a33d2 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
 | task-10 | final.main | blocked | support_declared_blocked | support declared blocked |
 
 ### Differences by rule
@@ -61,7 +61,7 @@ Tasks not completed:
 | allowed | `renamed-literal-digest-binding` | 3 | allowed-differences.json (WP1b) |
 | allowed | `runtime-launch-barrier-identity` | 85 | allowed-differences.json (WP1b) |
 | allowed | `state-root-identity` | 1 | allowed-differences.json (WP1a) |
-| allowed | `supervisor-progress-snapshot` | 3 | allowed-differences.json (WP1a) |
+| allowed | `supervisor-progress-snapshot` | 2 | allowed-differences.json (WP1a) |
 | allowed | `timestamp-derived-digest` | 7 | allowed-differences.json (WP1a) |
 | allowed | `wp4-renamed-literals` | 43 | allowed-differences.json (WP1b) |
 
@@ -71,47 +71,47 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 85021b334662e8f2a8ad6bce55671fcbee9afb7387b0d242edad6e9230c8f0ac |
+| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 2eed6d30fc399f2722421f29cdef6b73549e9cbd17795f664fff35a79949e5d6 |
 | run.json | tasks[0].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 9611f82c500a884b21a76e72abc793506d1acace28925d474f131ffd490e37bf |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 66dd0e0e8bdf1c8626fa6b974acc0ad0aa602ee0baf083cd5cac6bec5feebfea |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 329bc68c17c4c484541b62acde7053f5379abd377973465e2d658cc4efaadc10 |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 85021b334662e8f2a8ad6bce55671fcbee9afb7387b0d242edad6e9230c8f0ac |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 2eed6d30fc399f2722421f29cdef6b73549e9cbd17795f664fff35a79949e5d6 |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 9611f82c500a884b21a76e72abc793506d1acace28925d474f131ffd490e37bf |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | a93ecdc53afaef94b274f8cf3520bbe659b14eee5129df6559b75b63289c02ae |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"a93ecdc53afaef94b274f8cf3520bbe659b14eee5129df6559b75b63289c02ae"} |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | af4b834e0757fd5224c9718d80e3e1fe0a82fb06c5b0fd7e7854c9d7cf9331a8 |
+| run.json | tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | b7d6c04b4f7c10481cb3dedd5d25c0bb7f111c0b244172d5ca965c88fe5ffd18 |
 | run.json | tasks[2].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | a6ad10a1b2900e855ceb07e51c185f4131e829ad2eceeb74c184e67abf70472a |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 4ea6698859587f55d558b0a0be9276ef6449dd1336080f71e716c41720e69a1f |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 7ade023a9260ae0613779d6c0d6ca065b6f234757f2770d96bd2e9e9371cda78 |
-| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | af4b834e0757fd5224c9718d80e3e1fe0a82fb06c5b0fd7e7854c9d7cf9331a8 |
+| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | b7d6c04b4f7c10481cb3dedd5d25c0bb7f111c0b244172d5ca965c88fe5ffd18 |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | a6ad10a1b2900e855ceb07e51c185f4131e829ad2eceeb74c184e67abf70472a |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | ef7fec5e2d0def1f69e96f9b7dc9e1e6cb935c57b4abc1cb984b76c459e5a4bd |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"1e89fcd2a584ead735c8e355518291f41aebdaff87ae32cec13b131d606d9bd0","kind":"web-source","wrapperSha256":"01aea9b201797e43ba0ef58679cc902365ceb65b7f9e87aae64bb7fae81df983"},"pathSha256":"00e5fed1b911cfea8856c961e7… (280 chars, sha256 eaabdd328af6) |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | cc8a96d5677295ec2640a8ec63a278efc943b092603ec48a02e1e3ff423b0913 |
+| run.json | tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | a1b08d7aa543326de7cb19fc2042775ea1a3d89cd8c2b203ab662be176148414 |
 | run.json | tasks[3].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 8e967285a8b5c8d18d45f4e4f807fd533faea105ef366a110fdb0bb9a1d116c0 |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 9eb17f738db0a207c192cc155ceed318e113ea767981bdd800d023a211cb90ad |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | d232ab6acc876747f4541003005f8d8d54560b4ee506781deeb1f47f3af94424 |
-| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | cc8a96d5677295ec2640a8ec63a278efc943b092603ec48a02e1e3ff423b0913 |
+| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | a1b08d7aa543326de7cb19fc2042775ea1a3d89cd8c2b203ab662be176148414 |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 8e967285a8b5c8d18d45f4e4f807fd533faea105ef366a110fdb0bb9a1d116c0 |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 6780ed10756d08fccbf1c5a1cda458618dd737576803d0712a2e7718925a63b3 |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"9175157e424cbbfe80dfbff41e52f8a2304776c093479dffe5c8ecea5deb3c0e","kind":"web-source","wrapperSha256":"84ec521aad474c6c1c9221c19a1921241fe130a5ceef1103fba48217c18f94f2"},"pathSha256":"5d5a3c3416344a2a799af43879… (280 chars, sha256 71bcda01530f) |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[4].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | aaf8939a1eb69aed148b352e4ff89e1d5e5115b24c812e5c6cfd550409c0a8da |
+| run.json | tasks[4].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 9bda1a10c388d463d418e6ba6d9215bdd8267e5498d95ff786590d4febdf2b8a |
 | run.json | tasks[4].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 4e9dd8f26a02539a96936ddfe57ddab82fc26e93d1fc5c98669ebbd0772a2e25 |  |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 6b608d755705539bf33bb872e72b946cecbd731c29edaa0a3c961303a91cf882 |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 6c9570c44dd36469f4d742495d6fe9f14d1f53bb922b62288eedb4ad54245256 |
-| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | aaf8939a1eb69aed148b352e4ff89e1d5e5115b24c812e5c6cfd550409c0a8da |
+| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 9bda1a10c388d463d418e6ba6d9215bdd8267e5498d95ff786590d4febdf2b8a |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 4e9dd8f26a02539a96936ddfe57ddab82fc26e93d1fc5c98669ebbd0772a2e25 |  |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 71a8d6ec9ab66b67985831685452c4a7d3def053534d2569883c5e34197e6f07 |  |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"a3761bc57d0660f9dceb48e1c002bc18b33308e96f50bf269da5c3a45248597a","kind":"web-source","wrapperSha256":"ae843e35195d04808f31bd72448a8bba9f0ced50a109c4c5086d3ad23f869cc8"},"pathSha256":"4ea3b291cc1831ccf00a448330… (280 chars, sha256 a8772083de56) |  |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[6].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | d0302071a8d26fdda534332d81867e335264fadb5aff32a07f3982b423de9b1f |
+| run.json | tasks[6].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 3e8e2d659f08e6f90e022d49b1365f7654a9409856ad3481df6e5d0b216b462d |
 | run.json | tasks[6].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 79aa375848399580b81c7347f34241237039ed5d534c77db9623c93d50eb38fd |  |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 99c0cd2dfe6a3a6b9229bd75ff233115cc55bcc0e8e440839d36b96f9153e7a4 |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 01bf6d75fb5520f21b9d66cc3508d5d7e7046c77d8724d2cb22372c15e669aaa |
-| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | d0302071a8d26fdda534332d81867e335264fadb5aff32a07f3982b423de9b1f |
+| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 3e8e2d659f08e6f90e022d49b1365f7654a9409856ad3481df6e5d0b216b462d |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 79aa375848399580b81c7347f34241237039ed5d534c77db9623c93d50eb38fd |  |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 2b4008b71fd05242a2426ee885d15ad32e2ec7428bb52fad4ce05e9034982df6 |  |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"da3bd58ef5ff661e8aa764bd2996ddebc12cc993e285724615fba73fdf9b8af2","kind":"web-source","wrapperSha256":"4f54ddd4b26a0d9d0cafa9e0fac4bc41d9b492c2ed67c7bc710eedde9127ce28"},"pathSha256":"7edeea00a469fc0809fe43d484… (280 chars, sha256 27c71ee21909) |  |
@@ -485,7 +485,7 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/deep-research","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-deep-research-original-91514/work/replay-trace.jsonl"… (375 chars, sha256 7093b97b47bf) |
+| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/deep-research","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-deep-research-original-9257/work/replay-trace.jsonl"}… (374 chars, sha256 b99431347937) |
 
 </details>
 
@@ -700,13 +700,12 @@ Tasks not completed:
 
 </details>
 
-<details><summary>allowed supervisor-progress-snapshot (3)</summary>
+<details><summary>allowed supervisor-progress-snapshot (2)</summary>
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
 | supervisor.json | taskStatusCounts.completed | digest-renamed ×1 |  |  |
 | supervisor.json | taskStatusCounts.pending | digest-renamed ×1 |  |  |
-| supervisor.json | taskStatusCounts.running | digest-renamed ×1 |  |  |
 
 </details>
 
@@ -738,25 +737,25 @@ Tasks not completed:
 | tasks/task-1/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
 | tasks/task-10/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-10/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
-| tasks/task-11/.launch-barrier-999d6053f33da1a4-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
-| tasks/task-11/.launch-barrier-999d6053f33da1a4-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-65558a081e2b3ff6-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-65558a081e2b3ff6-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
 | tasks/task-11/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-11/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
 | tasks/task-11/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
-| tasks/task-12/.launch-barrier-5e50b709eb70ec2d-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
-| tasks/task-12/.launch-barrier-5e50b709eb70ec2d-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-43092c80d328e338-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-43092c80d328e338-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
 | tasks/task-12/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-12/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
 | tasks/task-12/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
-| tasks/task-13/.launch-barrier-5058b2b0bbc78dc1-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
-| tasks/task-13/.launch-barrier-5058b2b0bbc78dc1-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-54bb1df5a450d536-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-54bb1df5a450d536-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
 | tasks/task-13/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-13/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
 | tasks/task-13/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
 | tasks/task-3/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-3/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
-| tasks/task-4/.launch-barrier-3ce18655d8e94c0a-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
-| tasks/task-4/.launch-barrier-3ce18655d8e94c0a-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-eba8e2757c7c3319-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-eba8e2757c7c3319-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
 | tasks/task-4/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-4/source-manifest.json | .agent-workflow/workflows | literal-renamed ×8 |  |  |
 | tasks/task-4/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
@@ -766,8 +765,8 @@ Tasks not completed:
 | tasks/task-7/source-manifest.json | .agent-workflow/workflows | literal-renamed ×12 |  |  |
 | tasks/task-8/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-8/source-manifest.json | .agent-workflow/workflows | literal-renamed ×16 |  |  |
-| tasks/task-9/.launch-barrier-9fd01055e0f323df-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
-| tasks/task-9/.launch-barrier-9fd01055e0f323df-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-6817f16c6f28b4d3-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-6817f16c6f28b4d3-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
 | tasks/task-9/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-9/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
 | tasks/task-9/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
@@ -826,47 +825,47 @@ The replay executor skips the Pi adapter's tool-mapping check, so the recorded w
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 85021b334662e8f2a8ad6bce55671fcbee9afb7387b0d242edad6e9230c8f0ac |
+| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 2eed6d30fc399f2722421f29cdef6b73549e9cbd17795f664fff35a79949e5d6 |
 | run.json | tasks[0].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 9611f82c500a884b21a76e72abc793506d1acace28925d474f131ffd490e37bf |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 66dd0e0e8bdf1c8626fa6b974acc0ad0aa602ee0baf083cd5cac6bec5feebfea |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 329bc68c17c4c484541b62acde7053f5379abd377973465e2d658cc4efaadc10 |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 85021b334662e8f2a8ad6bce55671fcbee9afb7387b0d242edad6e9230c8f0ac |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 2eed6d30fc399f2722421f29cdef6b73549e9cbd17795f664fff35a79949e5d6 |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 9611f82c500a884b21a76e72abc793506d1acace28925d474f131ffd490e37bf |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | a93ecdc53afaef94b274f8cf3520bbe659b14eee5129df6559b75b63289c02ae |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"a93ecdc53afaef94b274f8cf3520bbe659b14eee5129df6559b75b63289c02ae"} |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | af4b834e0757fd5224c9718d80e3e1fe0a82fb06c5b0fd7e7854c9d7cf9331a8 |
+| run.json | tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | b7d6c04b4f7c10481cb3dedd5d25c0bb7f111c0b244172d5ca965c88fe5ffd18 |
 | run.json | tasks[2].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | a6ad10a1b2900e855ceb07e51c185f4131e829ad2eceeb74c184e67abf70472a |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 4ea6698859587f55d558b0a0be9276ef6449dd1336080f71e716c41720e69a1f |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 7ade023a9260ae0613779d6c0d6ca065b6f234757f2770d96bd2e9e9371cda78 |
-| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | af4b834e0757fd5224c9718d80e3e1fe0a82fb06c5b0fd7e7854c9d7cf9331a8 |
+| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | b7d6c04b4f7c10481cb3dedd5d25c0bb7f111c0b244172d5ca965c88fe5ffd18 |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | a6ad10a1b2900e855ceb07e51c185f4131e829ad2eceeb74c184e67abf70472a |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | ef7fec5e2d0def1f69e96f9b7dc9e1e6cb935c57b4abc1cb984b76c459e5a4bd |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"1e89fcd2a584ead735c8e355518291f41aebdaff87ae32cec13b131d606d9bd0","kind":"web-source","wrapperSha256":"01aea9b201797e43ba0ef58679cc902365ceb65b7f9e87aae64bb7fae81df983"},"pathSha256":"00e5fed1b911cfea8856c961e7… (280 chars, sha256 eaabdd328af6) |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | cc8a96d5677295ec2640a8ec63a278efc943b092603ec48a02e1e3ff423b0913 |
+| run.json | tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | a1b08d7aa543326de7cb19fc2042775ea1a3d89cd8c2b203ab662be176148414 |
 | run.json | tasks[3].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 8e967285a8b5c8d18d45f4e4f807fd533faea105ef366a110fdb0bb9a1d116c0 |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 9eb17f738db0a207c192cc155ceed318e113ea767981bdd800d023a211cb90ad |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | d232ab6acc876747f4541003005f8d8d54560b4ee506781deeb1f47f3af94424 |
-| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | cc8a96d5677295ec2640a8ec63a278efc943b092603ec48a02e1e3ff423b0913 |
+| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | a1b08d7aa543326de7cb19fc2042775ea1a3d89cd8c2b203ab662be176148414 |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 8e967285a8b5c8d18d45f4e4f807fd533faea105ef366a110fdb0bb9a1d116c0 |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 6780ed10756d08fccbf1c5a1cda458618dd737576803d0712a2e7718925a63b3 |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"9175157e424cbbfe80dfbff41e52f8a2304776c093479dffe5c8ecea5deb3c0e","kind":"web-source","wrapperSha256":"84ec521aad474c6c1c9221c19a1921241fe130a5ceef1103fba48217c18f94f2"},"pathSha256":"5d5a3c3416344a2a799af43879… (280 chars, sha256 71bcda01530f) |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[4].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | aaf8939a1eb69aed148b352e4ff89e1d5e5115b24c812e5c6cfd550409c0a8da |
+| run.json | tasks[4].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 9bda1a10c388d463d418e6ba6d9215bdd8267e5498d95ff786590d4febdf2b8a |
 | run.json | tasks[4].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 4e9dd8f26a02539a96936ddfe57ddab82fc26e93d1fc5c98669ebbd0772a2e25 |  |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 6b608d755705539bf33bb872e72b946cecbd731c29edaa0a3c961303a91cf882 |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 6c9570c44dd36469f4d742495d6fe9f14d1f53bb922b62288eedb4ad54245256 |
-| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | aaf8939a1eb69aed148b352e4ff89e1d5e5115b24c812e5c6cfd550409c0a8da |
+| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 9bda1a10c388d463d418e6ba6d9215bdd8267e5498d95ff786590d4febdf2b8a |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 4e9dd8f26a02539a96936ddfe57ddab82fc26e93d1fc5c98669ebbd0772a2e25 |  |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 71a8d6ec9ab66b67985831685452c4a7d3def053534d2569883c5e34197e6f07 |  |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"a3761bc57d0660f9dceb48e1c002bc18b33308e96f50bf269da5c3a45248597a","kind":"web-source","wrapperSha256":"ae843e35195d04808f31bd72448a8bba9f0ced50a109c4c5086d3ad23f869cc8"},"pathSha256":"4ea3b291cc1831ccf00a448330… (280 chars, sha256 a8772083de56) |  |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[6].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | d0302071a8d26fdda534332d81867e335264fadb5aff32a07f3982b423de9b1f |
+| run.json | tasks[6].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 3e8e2d659f08e6f90e022d49b1365f7654a9409856ad3481df6e5d0b216b462d |
 | run.json | tasks[6].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 79aa375848399580b81c7347f34241237039ed5d534c77db9623c93d50eb38fd |  |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 99c0cd2dfe6a3a6b9229bd75ff233115cc55bcc0e8e440839d36b96f9153e7a4 |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 01bf6d75fb5520f21b9d66cc3508d5d7e7046c77d8724d2cb22372c15e669aaa |
-| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | d0302071a8d26fdda534332d81867e335264fadb5aff32a07f3982b423de9b1f |
+| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 3e8e2d659f08e6f90e022d49b1365f7654a9409856ad3481df6e5d0b216b462d |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 79aa375848399580b81c7347f34241237039ed5d534c77db9623c93d50eb38fd |  |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 2b4008b71fd05242a2426ee885d15ad32e2ec7428bb52fad4ce05e9034982df6 |  |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"da3bd58ef5ff661e8aa764bd2996ddebc12cc993e285724615fba73fdf9b8af2","kind":"web-source","wrapperSha256":"4f54ddd4b26a0d9d0cafa9e0fac4bc41d9b492c2ed67c7bc710eedde9127ce28"},"pathSha256":"7edeea00a469fc0809fe43d484… (280 chars, sha256 27c71ee21909) |  |
@@ -881,11 +880,11 @@ The replay executor skips the Pi adapter's tool-mapping check, so the recorded w
 | run.json | tasks[13].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
 | run.json | tasks[15].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"623fbc6be4a11e0841e6a889f15bc2a232c3d51ec83f00dee2504d529ca43512","kind":"web-source","wrapperSha256":"625320d738412fa9422346db58e35224c7b1e44115ffac7f0c341cb2b03d945d"},"pathSha256":"d3bd0190880b06a444fc683a66… (280 chars, sha256 77a21d570b11) |  |
 | run.json | tasks[15].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[19].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 85573d7270df1fdf7966cb7d253dd2ab0b098d740957fd2670509f38ab078d06 |
+| run.json | tasks[19].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 90e93620ec1e15fbb1d23d7791735eec053402c9f50480b90a386dc37578b9f4 |
 | run.json | tasks[19].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 8fbe606e9303402adc5db3cd340ee35ac2fcf3ea0831217360013d2c08f780f1 |  |
 | run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | cfc6a6eb783d107e429b16eb33fdcc0c50c160e2edfb4f5e3c9d2694a1cdd36b |
 | run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | f7108b0aded17e5b5d8670352edbc7647d505a32bea6421ca5511c3fd85396da |
-| run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 85573d7270df1fdf7966cb7d253dd2ab0b098d740957fd2670509f38ab078d06 |
+| run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 90e93620ec1e15fbb1d23d7791735eec053402c9f50480b90a386dc37578b9f4 |
 | run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 8fbe606e9303402adc5db3cd340ee35ac2fcf3ea0831217360013d2c08f780f1 |  |
 | run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 9d78c9287d44d0dabcb9d95e1232cba94209b5a9410885446921f8b14c28b084 |  |
 | run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"e8cbd9f4af28f1f97e181814f191ec1b2dbfed13dcd9881683b2354be8b23040","kind":"web-source","wrapperSha256":"0efd5a302a233904f6d3cff7a22d320bcf406f648d336088ad5667c7beeb5902"},"pathSha256":"7ca901aa9bee9faffae5e60349… (280 chars, sha256 872413e3d6cf) |  |
@@ -1228,7 +1227,7 @@ The replay executor skips the Pi adapter's tool-mapping check, so the recorded w
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"adapterChecks":false,"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/deep-research","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-deep-research-engine-only-91723… (400 chars, sha256 8a74ef9a6640) |
+| run.json | executor | added |  | {"descriptor":{"config":{"adapterChecks":false,"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/deep-research","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-deep-research-engine-only-10190… (400 chars, sha256 89a8b5ad96f8) |
 
 </details>
 
@@ -1495,18 +1494,18 @@ The replay executor skips the Pi adapter's tool-mapping check, so the recorded w
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| supervisor.json |  | digest-bound ×0 | d675d7c5f0ad9cae409776fb7c97439ffb8fd288bde0a6a478350e0671f3f0a0 | 1be6761c80ddf8d80679e70293af5e5a1a7436cfb1ed67dcf87b2edddbdc7cd2 |
+| supervisor.json |  | digest-bound ×0 | d675d7c5f0ad9cae409776fb7c97439ffb8fd288bde0a6a478350e0671f3f0a0 | aed6e1e3bf498022f8e7ce7ad23c3044bff0730a98d05008dcad780942a905a6 |
 | tasks/task-10/source-manifest.json |  | digest-bound ×0 | e6567207bf00961535171ce2a7f54ffbe3c29a4f89c68939fd1b085bb5749434 | c327e1c57fa92bebc762f51774f529f21237c041344c2d54b525c6fb83c7b55a |
 | tasks/task-11/source-manifest.json |  | digest-bound ×1 | 034cd5578ef03a2890cb33ad906d9cd6bb74ed9ce42527002d650b15c28edf14 | 3bf5c2521b4a2d2eff0b22616018b4477ee00d721d938015b5b13f69c72b286c |
 | tasks/task-12/source-manifest.json |  | digest-bound ×1 | 924db728e4c448bc5b37b9a887e522012805e04dc3b362de18d94c33981d8166 | 2f0643a5029a7544221c640d0d442cc129fb08155ddcbcdf8ae0291ebd95e83e |
 | tasks/task-13/source-manifest.json |  | digest-bound ×1 | fae9ca4ee9c47f0a55fe7b40387e3f9d885c388b2ea3bc3bccd1520222c53012 | 0fd6bcbafdd0c9d4433ef150315da8e45c4165093eedfa1e603cfc3a3d0eda65 |
 | tasks/task-3/source-manifest.json |  | digest-bound ×0 | 780bc0dc99e7fa6faac85ebf68cdfdba2deb99ea02cb8fd433edd5debe8da854 | 95624abeae95cbb79fcf420bd0d816b2d5807f618552e97e6ac2c21e6c08a9fe |
-| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | f32560de6fc74ed1d1e79d9740fc557f9d31407f68bac9b8ea4e319ddd67372c | b4e584515bfe402dcbde40d5e794cbd85cee8f42208a03ea62d2d00dc54a7e78 |
+| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | f32560de6fc74ed1d1e79d9740fc557f9d31407f68bac9b8ea4e319ddd67372c | 7a7d145d5a36a6da02c17dc52b292716bd96e71db3f88a4e7a32742e44bd6255 |
 | tasks/task-4/source-manifest.json |  | digest-bound ×1 | de8b7353750ecbed11f8b71bb29ec35f5d83e7ae2ac47c569c947aa85155f5c6 | 7af02ad948062a7504fe9f27fcd3105918559bbd2860488d4d83f56f2ae88047 |
 | tasks/task-5/source-manifest.json |  | digest-bound ×0 | c7f29f184462046ea4396ead7f75966ec311946169b712e917def6b2e3262f7c | d672a86530ddabf16af53613afaf2666a655b0394ee5faad098e99456ea7440c |
 | tasks/task-7/source-manifest.json |  | digest-bound ×0 | 6d0bc9271a3ba0b5c29d94373951ad926112f28ab9b956c18662084483fa1705 | 54d95121986f0174337f29ad35b2a0a0ae7506f0678d76ca9606e96d313c21cb |
 | tasks/task-8/source-manifest.json |  | digest-bound ×0 | 1d29d6b75bdb2497abb9d7bddbc566c84cfb175563e4ea4e91c545a150eb6cca | 64b22e0949c452a42fc4fa5e8769d05313842c1a1d03a2a4f7dc465316bb6cb8 |
-| tasks/task-9/read-ledger.jsonl |  | digest-bound ×0 | 5a500e80efc6560f6a32af4a6a330a05eea49c2134df67fde7800f35b2e36488 | 9bde6507fd9df84988a49889122fe4305e55c9f5a0eb5521b58035edd15b2004 |
+| tasks/task-9/read-ledger.jsonl |  | digest-bound ×0 | 5a500e80efc6560f6a32af4a6a330a05eea49c2134df67fde7800f35b2e36488 | 5837fadbca360f57614d3f70ffb27b622eeb3af03b0594acbf37c18d18c64756 |
 | tasks/task-9/source-manifest.json |  | digest-bound ×1 | 23b88df0e11ca89c416cf9c64fc4dd5ef4a9375c0451abce85cf1311e796d69f | 77cdd5864150c96b8e251171ca6651e36298eadfffdfc8c559b0a9aa873f79b5 |
 
 </details>

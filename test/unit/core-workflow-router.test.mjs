@@ -571,8 +571,12 @@ test("auto derives mutation-capable bash facts despite an authored readOnly decl
 	const card = result.candidates.find(
 		(candidate) => candidate.label === "unsafe-effective-tools",
 	);
-	assert.equal(card?.facts.effective?.capability, "mutation-capable");
-	assert.equal(card?.facts.effective?.network, "network");
+	// WP12d-1 (review #1): a readOnly stage with no read-only tool is refused at compile, so the
+	// candidate has no effective facts and stays blocked (it was mutation-capable before).
+	assert.equal(card?.facts.effective, undefined);
+	assert.ok(
+		card?.readiness.cautions.some((c) => /metadata validation/.test(c)),
+	);
 	assert.equal(card?.readiness.startAllowed, false);
 	assert.equal(card?.readiness.status, "blocked");
 	assert.match(
@@ -607,15 +611,13 @@ test("auto derives inherited bash and unknown custom tools before local safety-b
 		availableAgentNames: ["inherited-bash", "unknown-custom"],
 	});
 	assert.equal(calls, 1);
-	for (const [label, capability, network] of [
-		["inherits-bash", "mutation-capable", "network"],
-		["unknown-custom-tool", "unknown", "unknown"],
-	]) {
+	// WP12d-1 (review #1): both readOnly stages keep no read-only tool and are refused at compile
+	// (no effective facts; were mutation-capable/network and unknown/unknown).
+	for (const label of ["inherits-bash", "unknown-custom-tool"]) {
 		const card = result.candidates.find(
 			(candidate) => candidate.label === label,
 		);
-		assert.equal(card?.facts.effective?.capability, capability, label);
-		assert.equal(card?.facts.effective?.network, network, label);
+		assert.equal(card?.facts.effective, undefined, label);
 		assert.equal(card?.readiness.startAllowed, false, label);
 		assert.equal(card?.readiness.status, "blocked", label);
 	}

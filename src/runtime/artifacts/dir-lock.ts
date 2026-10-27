@@ -12,7 +12,10 @@
 //   (`code: "ELOCKED"`), the same message/code proper-lockfile produced;
 // - release removes the directory (ENOENT ignored);
 // - locks still held when the process exits, or is terminated by SIGINT,
-//   SIGTERM or SIGHUP, are removed (proper-lockfile used `signal-exit`).
+//   SIGTERM or SIGHUP, are removed (proper-lockfile used `signal-exit`). WP12d-1
+//   (review #4): a signal is only cleanup time when it terminates the process, i.e.
+//   no other listener handles it; a handled signal leaves the locks held until an
+//   explicit release or the eventual `exit`.
 //
 // Not kept: the 1 s mtime refresh and the "compromised lock" crash.
 //
@@ -167,13 +170,16 @@ function installCleanup(): void {
 	process.once("exit", removeHeldLocksSync);
 	for (const signal of CLEANUP_SIGNALS) {
 		const onSignal = (): void => {
+			// WP12d-1 (review #4): another handler means the signal does not terminate the
+			// process (e.g. the durable worker's graceful cancellation), so a critical section
+			// may still be running under these locks. Keep them until an explicit release or
+			// the real exit (the `exit` hook above removes whatever is still held).
+			if (process.listeners(signal).length > 1) return;
+			// Like signal-exit: nobody else handles the signal, so the process terminates now.
+			// Remove the locks, restore the default disposition and re-raise the signal.
 			removeHeldLocksSync();
-			// Like signal-exit: when nobody else handles the signal, restore the
-			// default disposition and re-raise it so the process still terminates.
-			if (process.listeners(signal).length === 1) {
-				process.removeListener(signal, onSignal);
-				process.kill(process.pid, signal);
-			}
+			process.removeListener(signal, onSignal);
+			process.kill(process.pid, signal);
 		};
 		process.on(signal, onSignal);
 	}

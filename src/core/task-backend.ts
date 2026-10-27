@@ -21,7 +21,7 @@ import {
 	renderWorkerPromptToolNames,
 	workflowArtifactToolGuidelinesSection,
 } from "./artifact-tool-names.js";
-import { DEFAULT_WORKER_TOOLS } from "./tool-policy.js";
+import { DEFAULT_WORKER_TOOLS, workflowTaskReadOnly } from "./tool-policy.js";
 import { WORKFLOW_TASK_BACKEND_ID } from "./task-artifacts.js";
 import {
 	type WorkflowBackend,
@@ -458,8 +458,7 @@ export async function launchSubagentTask(
 				? {}
 				: { effort: compiledTask.runtime.thinking }),
 			readOnly:
-				compiledTask.safety.capability === "read-only" ||
-				capabilityLaunch.forcedReadOnly,
+				workflowTaskReadOnly(compiledTask) || capabilityLaunch.forcedReadOnly,
 			isolation: workflowTaskIsolation(compiledTask),
 			approvalPolicy: workflowTaskApprovalPolicy(
 				compiledTask,
@@ -1438,8 +1437,7 @@ export function workflowTaskApprovalPolicy(
 		const kind = (PI_TOOL_KINDS as Record<string, ToolKind | undefined>)[tool];
 		if (kind !== undefined) kinds.add(kind);
 	}
-	const readOnly =
-		compiledTask.safety.capability === "read-only" || forcedReadOnly;
+	const readOnly = workflowTaskReadOnly(compiledTask) || forcedReadOnly;
 	const allowKinds = [...kinds]
 		.filter((kind) => !(readOnly && isMutatingKind(kind)))
 		.sort();

@@ -660,7 +660,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/minimal\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-minimal-original-94772/work/replay-trace.jsonl\"},\"contractVersion\":… (355 chars, sha256 f5b599f41698)"
+					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/minimal\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-minimal-original-15937/work/replay-trace.jsonl\"},\"contractVersion\":… (355 chars, sha256 60b34a534e8a)"
 				},
 				{
 					"class": "explained",
@@ -679,7 +679,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "c3b99ca66ec7284418d32b6f55ad4ed1227b0e334580220994b03f1327c4fba8"
+					"replayed": "b0c128810f168814e517e772c26461afcf1ff177370ceda82dac8cf7e4ddd9ca"
 				},
 				{
 					"class": "explained",
@@ -699,7 +699,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-1",
-					"replayed": "3bc6dd929c3ebab82dec218273102807b83e5a4f4fec2487013dfcca5fb4ab00"
+					"replayed": "83521d179ce57e3ae4607a2ff9a8a381d1edd65f1613a44ceec91e2b1dacc7cb"
 				},
 				{
 					"class": "explained",
@@ -709,7 +709,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-1",
-					"replayed": "0b67c745d8247ac2e58793437523d1cf3baff21979316513831a08bffb7cbd47"
+					"replayed": "6a7350fdb20128f5ef3b965596de7f21ce735421eff7411801b9916766f03960"
 				},
 				{
 					"class": "explained",
@@ -719,7 +719,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "c3b99ca66ec7284418d32b6f55ad4ed1227b0e334580220994b03f1327c4fba8"
+					"replayed": "b0c128810f168814e517e772c26461afcf1ff177370ceda82dac8cf7e4ddd9ca"
 				},
 				{
 					"class": "explained",

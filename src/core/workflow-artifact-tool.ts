@@ -957,6 +957,7 @@ function sameFile(left: Stats, right: Stats): boolean {
 async function openReadLedger(
 	ledgerFile: string,
 	flags: number,
+	insideDir?: string,
 ): Promise<FileHandle | undefined> {
 	const dirBefore = await assertLedgerDirectory(ledgerFile);
 	const before = await lstatIfPresent(ledgerFile);
@@ -986,6 +987,18 @@ async function openReadLedger(
 		const dirAfter = await assertLedgerDirectory(ledgerFile);
 		if (!sameFile(opened, after) || !sameFile(dirBefore, dirAfter))
 			throw new Error("read ledger changed while it was opened");
+		if (insideDir !== undefined) {
+			// WP12d-1 (review #8): an ancestor directory swapped for a symlink before the checks
+			// above would pass them. The opened file has exactly one name (nlink 1); require that
+			// name, fully resolved, to be inside `insideDir` and to be the opened file.
+			const real = await realpath(ledgerFile);
+			if (!isInsidePath(insideDir, real))
+				throw new Error(
+					"read ledger must stay inside the workflow run directory",
+				);
+			if (!sameFile(opened, await lstat(real)))
+				throw new Error("read ledger changed while it was opened");
+		}
 		return handle;
 	} catch (error) {
 		await handle.close();
@@ -993,15 +1006,22 @@ async function openReadLedger(
 	}
 }
 
+/**
+ * Append one read-ledger row (no-follow open, descriptor checks above). `insideDir` (WP12d-1): a
+ * real (symlink-free) directory the opened ledger must resolve inside, checked on the descriptor
+ * after the open; the MCP server passes the workflow run directory.
+ */
 export async function appendWorkflowArtifactReadLedger(
 	ledgerPath: string,
 	record: WorkflowArtifactReadLedgerRecord,
+	options: { insideDir?: string } = {},
 ): Promise<void> {
 	const ledgerFile = resolve(ledgerPath);
 	await mkdir(dirname(ledgerFile), { recursive: true });
 	const handle = await openReadLedger(
 		ledgerFile,
 		fsConstants.O_WRONLY | fsConstants.O_APPEND | fsConstants.O_CREAT,
+		options.insideDir,
 	);
 	if (handle === undefined) throw new Error("read ledger could not be opened");
 	try {

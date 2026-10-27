@@ -148,3 +148,125 @@ ${script}`,
 		}
 	});
 }
+
+// WP12d-1 (stage-1 review #4): a handled signal does not terminate the process, so a critical
+// section can still be running. The lock stays held until an explicit release or a real exit.
+// Every spawned child is killed in `finally`, so a failing assertion can never leave the test
+// waiting on a child that waits on stdin.
+function killChild(child) {
+	if (child && child.exitCode === null && child.signalCode === null) {
+		try {
+			child.kill("SIGKILL");
+		} catch {
+			// Already gone.
+		}
+	}
+}
+
+function exited(child) {
+	return child.exitCode !== null || child.signalCode !== null
+		? Promise.resolve([child.exitCode, child.signalCode])
+		: once(child, "exit");
+}
+
+test("dir-lock: a signal another handler keeps the process alive through keeps the lock held", async () => {
+	const root = await mkdtemp(join(tmpdir(), "aw-dir-lock-handled-"));
+	let child;
+	try {
+		const lockPath = join(root, "held.lock");
+		child = spawn(
+			process.execPath,
+			[
+				"--input-type=module",
+				"-e",
+				`const { acquireDirectoryLock } = await import(${JSON.stringify(lockModule)});
+const release = await acquireDirectoryLock(${JSON.stringify(lockPath)}, { retries: 0, retryMs: 5 });
+// A graceful handler (like the durable worker's cancellation handler): finish the critical
+// section first, then release and exit.
+process.on("SIGTERM", () => process.stdout.write("signaled\\n"));
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", async () => {
+	try {
+		await release();
+		process.stdout.write("released\\n");
+		process.exit(0);
+	} catch (error) {
+		process.stdout.write(\`release failed: \${error.code}\\n\`);
+		process.exit(4);
+	}
+});
+setTimeout(() => process.exit(9), 60000).unref();
+process.stdout.write("ready\\n");`,
+			],
+			{ stdio: ["pipe", "pipe", "inherit"] },
+		);
+		child.stdout.setEncoding("utf8");
+		let out = "";
+		const exit = exited(child);
+		child.stdout.on("data", (chunk) => {
+			out += chunk;
+		});
+		const waitFor = async (line) => {
+			const deadline = Date.now() + 20000;
+			while (!out.includes(`${line}\n`)) {
+				if (child.exitCode !== null || child.signalCode !== null)
+					assert.fail(`child exited before "${line}": ${JSON.stringify(out)}`);
+				if (Date.now() > deadline)
+					assert.fail(
+						`timed out waiting for "${line}": ${JSON.stringify(out)}`,
+					);
+				await new Promise((resolveWait) => setTimeout(resolveWait, 10));
+			}
+		};
+		await waitFor("ready");
+		child.kill("SIGTERM");
+		await waitFor("signaled");
+		assert.equal(await exists(lockPath), true, "lock still held after SIGTERM");
+		await assert.rejects(
+			acquireDirectoryLock(lockPath, { retries: 0, retryMs: 5 }),
+			(error) => error.code === "ELOCKED",
+		);
+		child.stdin.write("release\n");
+		const [code, signal] = await exit;
+		assert.equal(signal, null);
+		assert.equal(
+			code,
+			0,
+			`explicit release succeeded (no ECOMPROMISED): ${out}`,
+		);
+		assert.match(out, /released/);
+		assert.equal(await exists(lockPath), false, "released lock removed");
+	} finally {
+		killChild(child);
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+test("dir-lock: a handled signal followed by process.exit still removes the lock at exit", async () => {
+	const root = await mkdtemp(join(tmpdir(), "aw-dir-lock-handled-exit-"));
+	let child;
+	try {
+		const lockPath = join(root, "held.lock");
+		child = spawn(
+			process.execPath,
+			[
+				"--input-type=module",
+				"-e",
+				`const { acquireDirectoryLock } = await import(${JSON.stringify(lockModule)});
+await acquireDirectoryLock(${JSON.stringify(lockPath)}, { retries: 0, retryMs: 5 });
+process.on("SIGTERM", () => setTimeout(() => process.exit(3), 20));
+setInterval(() => {}, 1000);
+setTimeout(() => process.exit(9), 60000).unref();
+process.kill(process.pid, "SIGTERM");`,
+			],
+			{ stdio: "ignore" },
+		);
+		const [code, signal] = await exited(child);
+		assert.equal(signal, null);
+		assert.equal(code, 3);
+		assert.equal(await exists(lockPath), false, "lock directory removed");
+	} finally {
+		killChild(child);
+		await rm(root, { recursive: true, force: true });
+	}
+});
