@@ -278,6 +278,50 @@ standard`) and `WebFetch` (`url`, `prompt`) both completed. The answer cited sou
 
 ## Change log
 
+- **WP12d-2 review #10:** child handlers (`error`, `close`, stdin, stdout, stderr) are attached
+  synchronously right after `spawn`, before any await; the durable `spawned` record is written after
+  them, and the session ownership record before the spawn. Before, an immediate spawn error (ENOENT)
+  had no listener and became an uncaught exception, and a CLI that exited during the `spawned` write
+  lost its `close` and output (measured: a child's `close` is not replayed to listeners attached after
+  it fired). Test: `executor-wp12d2-spawn-handlers.test.mjs` (missing CLI → `failed` event; exit during
+  a delayed `spawned` write → terminal event with the stderr text).
+
+- **WP12d-2 review #9:** same pattern checked: `deleteOwnedSession` already required a session
+  record, but resuming any session UUID recorded it and reported it as `ownedSession`. A resumed
+  session is now owned only when the adapter recorded it earlier; a foreign one is kept (not removed
+  after the run) but never recorded or reported as owned, also on replay. Test:
+  `executor-wp12d2-session-ownership.test.mjs`.
+
+- **WP12d-2 review #6:** injected MCP servers no longer bypass readOnly. `--allowedTools` pre-allows
+  the engine's artifact server by its one read-only tool (`mcp__workflow_artifact__workflow_artifact`,
+  exact-tool rule; the server-wide `mcp__workflow_artifact` rule was the live-verified form, #10),
+  never server-wide. A readOnly request that injects any other server is refused before consume with
+  `CAPABILITY_MISSING:readOnly` (its tools may mutate and the adapter cannot tell them apart). On
+  non-readOnly requests a caller-injected server keeps its server-wide rule. The conformance kit's
+  `mcp_tool` requests are now non-readOnly (`src/sdk/conformance/checks-mcp.ts`). Tests:
+  `executor-wp12d2-mcp-readonly.test.mjs`, `executor-claude-argv.test.mjs`.
+
+- **WP12d-2 review #5:** same exposure checked: stdout lines, argv and events were already redacted,
+  but stderr was redacted per chunk, so a value split across two chunks was written in full to
+  `claude-stderr.log` and the failure text. stderr now goes through the shared stream redactor
+  (`src/executors/redact.ts`; a possible value prefix is held back until the next chunk or stream
+  end). Test: `executor-wp12d2-secret-echo.test.mjs`.
+
+- **WP12d-2 review #3:** unreadable launch evidence is no longer proven absence. `ClaudeStateStore.lookupAttempt` returns `missing` only on
+  ENOENT; a record that cannot be read, does not parse, has the wrong schema/phase or names another
+  attemptKey is `unreadable`: `reconcile` answers `unknown` (the runtime records
+  `failed/needs_decision`, `src/runtime/orchestrate/reconcile.ts` already maps every non-`absent`
+  outcome there and is unchanged), `submit` refuses with `AUTHORITY_ALREADY_CONSUMED` before consuming
+  the authority, and `cancel` answers `uncertain`. Test: `executor-wp12d2-evidence.test.mjs`
+  (malformed, empty, directory and mismatched records for all three adapters).
+
+- **WP12d-2 review #2:** attempt claims are exclusive across executor instances and processes.
+  After the authority is consumed, the first attempt record (`consumed`, or `revoked`) is created
+  with an exclusive hard link (`ClaudeStateStore.claimAttempt`); a submit that loses the claim
+  resolves the existing record (spawned ⇒ same ref, otherwise `AUTHORITY_ALREADY_CONSUMED` /
+  `AUTHORITY_REVOKED`) and never overwrites it or spawns. Test:
+  `executor-wp12d2-claude-claim.test.mjs` (two instances, one stateDir/key: one launch).
+
 - **WP12a (2026-10-27):** usage is normalized (docs/core-port.md WP12a change log 3): `input` is
   `input_tokens` as reported (no longer plus cache reads and cache creation), `cached` =
   `cache_read_input_tokens`, `cacheWrite` = `cache_creation_input_tokens`, and `model` is the resolved

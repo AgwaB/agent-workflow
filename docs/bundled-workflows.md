@@ -106,6 +106,17 @@ Live bundle 3 (stage-1 acceptance, `docs/live-acceptance-stage1.md`):
   stage-1 executor's workflow_artifact delivery limit" (real artifact reads of the max fixture and
   of a full multi-byte page against the Pi, Claude and Codex server limits).
 
+WP12c (stage-1 doc sync):
+
+- **M18.** `skills/workflow-guide/SKILL.md`, `skills/workflow-guide/scaffolds/README.md`,
+  `skills/execution-router/SKILL.md` and `workflows/README.md`: pi-workflow's `/workflow …` commands
+  and `workflow_list`/`workflow_run` tool names are replaced by the `agent-workflow …` CLI and the Pi
+  host's `/aw …` / `aw_*` equivalents (the router forbids launching through `aw_run`, `aw_dynamic`,
+  `/aw run|dynamic|resume`, the matching CLI commands and other hosts' launch commands; there is no
+  `auto` action, so a dynamic run is suggested instead). The workflows README drops pi-workflow's
+  profile-picker text (`/workflow profile`, Codex / Codex High / Claude / Mixed / Custom) and shows
+  `--input depth=…` instead of "Use max depth." in the task.
+
 ## Worker prompt rendering (core)
 
 Workers see the artifact tool under an executor-specific name (`mcp__workflow_artifact__workflow_artifact`

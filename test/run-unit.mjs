@@ -37,6 +37,14 @@ const files =
 				.map((name) => join("test/unit", name));
 const live = process.env.AGENT_WORKFLOW_LIVE === "1";
 const keep = process.env.AGENT_WORKFLOW_KEEP_TEST_HOME === "1";
+// Hang protection: a per-test timeout unless the caller sets one, and a hard per-file kill so a
+// stuck test (e.g. a leaked child process keeping the event loop alive) fails loudly.
+const testTimeoutFlag = flags.some((flag) => flag.startsWith("--test-timeout"))
+	? []
+	: ["--test-timeout=300000"];
+const fileTimeoutMs =
+	Number.parseInt(process.env.AGENT_WORKFLOW_TEST_FILE_TIMEOUT_MS ?? "", 10) ||
+	15 * 60 * 1000;
 const concurrency = Math.max(
 	1,
 	Number.parseInt(process.env.AGENT_WORKFLOW_TEST_CONCURRENCY ?? "", 10) ||
@@ -85,21 +93,46 @@ const shimUses = [];
 function runFile(file) {
 	return new Promise((resolveRun) => {
 		const home = mkdtempSync(join(tmpdir(), "aw-unit-home-"));
-		const child = spawn(process.execPath, ["--test", ...flags, file], {
-			env: isolatedEnv(home),
-			stdio: ["ignore", "pipe", "pipe"],
-		});
+		const child = spawn(
+			process.execPath,
+			["--test", ...testTimeoutFlag, ...flags, file],
+			{
+				env: isolatedEnv(home),
+				stdio: ["ignore", "pipe", "pipe"],
+				detached: process.platform !== "win32",
+			},
+		);
+		let timedOut = false;
+		const killer = setTimeout(() => {
+			timedOut = true;
+			try {
+				// Kill the whole process group: leaked grandchildren keep pipes open.
+				process.kill(-child.pid, "SIGKILL");
+			} catch {
+				child.kill("SIGKILL");
+			}
+		}, fileTimeoutMs);
 		const chunks = [];
 		child.stdout.on("data", (chunk) => chunks.push(chunk));
 		child.stderr.on("data", (chunk) => chunks.push(chunk));
 		child.on("close", (code, signal) => {
+			clearTimeout(killer);
+			if (timedOut)
+				chunks.push(
+					Buffer.from(
+						`\n✖ ${file}: killed after ${fileTimeoutMs} ms (file timeout; a test or its child process hung)\n`,
+					),
+				);
 			const output = Buffer.concat(chunks).toString("utf8");
 			process.stdout.write(output);
 			for (const key of SUMMARY_KEYS) {
 				const match = new RegExp(`^ℹ ${key} (\\d+)$`, "mu").exec(output);
 				if (match) totals[key] += Number(match[1]);
 			}
-			if (code !== 0) failedFiles.push(`${file} (exit ${code ?? signal})`);
+			if (code !== 0 || timedOut)
+				failedFiles.push(
+					`${file} (${timedOut ? "file timeout" : `exit ${code ?? signal}`})`,
+				);
 			const shimLog = join(home, "agent-cli-shims.log");
 			if (existsSync(shimLog))
 				shimUses.push(`${file}:\n${readFileSync(shimLog, "utf8")}`);

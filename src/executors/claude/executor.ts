@@ -51,8 +51,17 @@ import {
 	runCommand,
 } from "./probe.js";
 import { removeClaudeSessionFiles } from "./sessions.js";
-import { ClaudeStateStore } from "./state.js";
+import {
+	type AttemptLookup,
+	type AttemptRecord,
+	ClaudeStateStore,
+} from "./state.js";
 import { ClaudeStreamParser, parseClaudeStream } from "./stream.js";
+import {
+	createSecretRedactor,
+	requestSecrets,
+	type SecretRedactor,
+} from "../redact.js";
 
 export const CLAUDE_SESSION_KIND = "claude-session";
 export const RAW_STREAM_FILE = "claude-stream.jsonl";
@@ -92,21 +101,11 @@ interface Run {
 }
 
 /** Replace request env values (≥ 8 chars) with `<redacted:KEY>` before anything is written. */
-function redactor(req: SubmitRequest): (text: string) => string {
-	const secrets: [string, string][] = [];
-	for (const [key, value] of Object.entries(req.env))
-		if (value.length >= 8) secrets.push([value, key]);
-	for (const server of req.mcpServers)
-		for (const [key, value] of Object.entries(server.env ?? {}))
-			if (value.length >= 8) secrets.push([value, `${server.name}.${key}`]);
-	secrets.sort((a, b) => b[0].length - a[0].length);
-	if (secrets.length === 0) return (text) => text;
-	return (text) => {
-		let out = text;
-		for (const [value, key] of secrets)
-			if (out.includes(value)) out = out.split(value).join(`<redacted:${key}>`);
-		return out;
-	};
+function redactor(req: SubmitRequest): SecretRedactor {
+	return createSecretRedactor(requestSecrets(req), {
+		minLength: 8,
+		replacement: (label) => `<redacted:${label}>`,
+	});
 }
 
 export function createClaudeExecutor(options: {
@@ -189,47 +188,91 @@ export function createClaudeExecutor(options: {
 		return "accepted";
 	};
 
+	/** Answer for an attempt that already has a durable record (never overwrite it, review #2). */
+	const fromRecord = (attemptKey: string, record: AttemptRecord): ExecRef => {
+		if (record.phase === "spawned" && record.ref !== undefined)
+			return record.ref;
+		if (record.phase === "revoked")
+			throw new SdkError(
+				"AUTHORITY_REVOKED",
+				`attempt ${attemptKey} was revoked`,
+				{
+					subject: attemptKey,
+				},
+			);
+		throw new SdkError(
+			"AUTHORITY_ALREADY_CONSUMED",
+			`attempt ${attemptKey} consumed its authority without launch evidence; reconcile reports unknown`,
+			{ subject: attemptKey },
+		);
+	};
+
+	/** Existing evidence wins; unreadable evidence refuses before consume (review #3). */
+	const fromLookup = (
+		attemptKey: string,
+		lookup: AttemptLookup,
+	): ExecRef | undefined => {
+		if (lookup.status === "missing") return undefined;
+		if (lookup.status === "found") return fromRecord(attemptKey, lookup.record);
+		throw new SdkError(
+			"AUTHORITY_ALREADY_CONSUMED",
+			`attempt ${attemptKey} has launch evidence that cannot be trusted (${lookup.reason}); reconcile reports unknown`,
+			{ subject: attemptKey },
+		);
+	};
+
 	async function launch(req: SubmitRequest): Promise<ExecRef> {
 		const known = runs.get(req.attemptKey);
 		if (known !== undefined) return known.ref;
-		const record = await store.readAttempt(req.attemptKey);
-		if (record?.phase === "spawned" && record.ref !== undefined)
-			return record.ref;
-		if (record?.phase === "consumed")
-			throw new SdkError(
-				"AUTHORITY_ALREADY_CONSUMED",
-				`attempt ${req.attemptKey} consumed its authority without launch evidence; reconcile reports unknown`,
-				{ subject: req.attemptKey },
-			);
-		if (record?.phase === "revoked")
-			throw new SdkError(
-				"AUTHORITY_REVOKED",
-				`attempt ${req.attemptKey} was revoked`,
-				{ subject: req.attemptKey },
-			);
+		const existingRef = fromLookup(
+			req.attemptKey,
+			await store.lookupAttempt(req.attemptKey),
+		);
+		if (existingRef !== undefined) return existingRef;
 		const filesDir = req.artifactsDir ?? store.attemptFilesDir(req.attemptKey);
 		const mcpConfigPath =
 			req.mcpServers.length > 0 ? join(filesDir, MCP_CONFIG_FILE) : null;
 		// Everything that can refuse the request runs before consume (no effect on refusal).
 		const plan = buildClaudeInvocation(req, config, { mcpConfigPath });
-		const redact = redactor(req);
+		// Review #9: a kept session is owned only when this adapter created it, or when it resumes
+		// a session it recorded earlier; a resumed foreign session is kept but never owned.
+		const ownsSession =
+			plan.keepSession &&
+			(req.resumeSessionId === undefined ||
+				(await store.readSession(req.resumeSessionId)) !== undefined);
+		const secrets = redactor(req);
+		const redact = secrets.text;
 
 		const decision = await req.authority.consume(); // immediately before the first effect (R#1)
 		if (decision.kind === "revoked")
-			await store.writeAttempt({
+			await store.claimAttempt({
 				attemptKey: req.attemptKey,
 				phase: "revoked",
 				sessionId: null,
 				keepSession: false,
 			});
 		requireReleased(decision);
-		await store.writeAttempt({
+		// Exclusive claim (review #2): another instance or process that claimed the attemptKey first
+		// owns the launch; resolve its record instead of overwriting it.
+		const claimed = await store.claimAttempt({
 			attemptKey: req.attemptKey,
 			phase: "consumed",
 			sessionId: plan.sessionId,
 			keepSession: plan.keepSession,
 			cwd: req.cwd,
 		});
+		if (!claimed) {
+			const existing = fromLookup(
+				req.attemptKey,
+				await store.lookupAttempt(req.attemptKey),
+			);
+			if (existing !== undefined) return existing;
+			throw new SdkError(
+				"AUTHORITY_ALREADY_CONSUMED",
+				`attempt ${req.attemptKey} is claimed by another executor instance`,
+				{ subject: req.attemptKey },
+			);
+		}
 		if (options.faults?.crashAfterConsume === true)
 			throw new Error("injected fault: crash after consume, before launch");
 
@@ -268,6 +311,13 @@ export function createClaudeExecutor(options: {
 		rawStream.on("error", () => {});
 		stderrStream.on("error", () => {});
 
+		// Ownership evidence is durable before the session can exist (review #9/#10).
+		if (plan.keepSession && req.resumeSessionId === undefined)
+			await store.recordSession({
+				sessionId: plan.sessionId,
+				attemptKey: req.attemptKey,
+				cwd: req.cwd,
+			});
 		const child = spawn(config.claudePath, plan.argv, {
 			cwd: req.cwd,
 			env: { ...process.env, ...plan.env },
@@ -279,7 +329,7 @@ export function createClaudeExecutor(options: {
 			handle: `claude-session:${plan.sessionId}`,
 			sessionId: plan.sessionId,
 		};
-		const ownedSession: OwnedSession | undefined = plan.keepSession
+		const ownedSession: OwnedSession | undefined = ownsSession
 			? { kind: CLAUDE_SESSION_KIND, locator: plan.sessionId }
 			: undefined;
 		let runRef: Run | undefined;
@@ -309,24 +359,8 @@ export function createClaudeExecutor(options: {
 		};
 		runRef = run;
 		runs.set(req.attemptKey, run);
-		await store.writeAttempt({
-			attemptKey: req.attemptKey,
-			phase: "spawned",
-			sessionId: plan.sessionId,
-			keepSession: plan.keepSession,
-			ref,
-			pid: child.pid ?? null,
-			cwd: req.cwd,
-			rawPath,
-			stderrPath,
-		});
-		if (plan.keepSession)
-			await store.recordSession({
-				sessionId: plan.sessionId,
-				attemptKey: req.attemptKey,
-				cwd: req.cwd,
-			});
-
+		// Review #10: every child handler is attached synchronously after spawn, before any await,
+		// so an immediate spawn error or exit is never missed (nor an uncaught exception).
 		child.stdin?.on("error", () => {
 			run.stdinOpen = false;
 		});
@@ -335,11 +369,17 @@ export function createClaudeExecutor(options: {
 		child.on("error", (error) => {
 			spawnError = error.message;
 		});
-		child.stderr?.on("data", (chunk: Buffer) => {
-			const text = redact(chunk.toString("utf8"));
+		// A value split across stderr chunks is held back until it can be redacted (review #5).
+		const stderrRedact = secrets.stream();
+		const onStderr = (text: string) => {
+			if (text === "") return;
 			stderrStream.write(text);
 			stderr = (stderr + text).slice(-65_536);
-		});
+		};
+		child.stderr?.on("data", (chunk: Buffer) =>
+			onStderr(stderrRedact.push(chunk.toString("utf8"))),
+		);
+		child.stderr?.on("end", () => onStderr(stderrRedact.flush()));
 		const lines = child.stdout
 			? createInterface({
 					input: child.stdout,
@@ -392,11 +432,14 @@ export function createClaudeExecutor(options: {
 			run.stdinOpen = false;
 			for (const timer of run.timers) clearTimeout(timer);
 			const finish = () => {
+				onStderr(stderrRedact.flush());
 				parser.finish({
 					exitCode: code,
 					signal,
 					stderr,
-					...(spawnError === undefined ? {} : { spawnError }),
+					...(spawnError === undefined
+						? {}
+						: { spawnError: redact(spawnError) }),
 				});
 				rawStream.end();
 				stderrStream.end();
@@ -415,6 +458,17 @@ export function createClaudeExecutor(options: {
 		});
 		if (child.pid !== undefined)
 			child.stdin?.write(`${userMessageLine(req.prompt)}\n`);
+		await store.writeAttempt({
+			attemptKey: req.attemptKey,
+			phase: "spawned",
+			sessionId: plan.sessionId,
+			keepSession: plan.keepSession,
+			ref,
+			pid: child.pid ?? null,
+			cwd: req.cwd,
+			rawPath,
+			stderrPath,
+		});
 		return ref;
 	}
 
@@ -446,7 +500,9 @@ export function createClaudeExecutor(options: {
 			// no raw stream recorded yet: replay what exists (nothing)
 		}
 		const owned: OwnedSession | undefined =
-			record.keepSession && record.sessionId !== null
+			record.keepSession &&
+			record.sessionId !== null &&
+			(await store.readSession(record.sessionId)) !== undefined
 				? { kind: CLAUDE_SESSION_KIND, locator: record.sessionId }
 				: undefined;
 		const events = parseClaudeStream(text.split("\n"), {
@@ -559,9 +615,13 @@ export function createClaudeExecutor(options: {
 		async cancel(ref: ExecRef, scope: CancelScope): Promise<CancelResult> {
 			const run = runs.get(ref.attemptKey);
 			if (run === undefined || run.ref.handle !== ref.handle) {
-				const record = await store.readAttempt(ref.attemptKey);
+				const lookup = await store.lookupAttempt(ref.attemptKey);
 				// Launched by a process that is gone or elsewhere: this instance cannot reach it.
-				return record?.phase === "spawned" ? "uncertain" : "no_active";
+				// Unreadable evidence cannot prove nothing runs (review #3).
+				if (lookup.status === "unreadable") return "uncertain";
+				return lookup.status === "found" && lookup.record.phase === "spawned"
+					? "uncertain"
+					: "no_active";
 			}
 			if (run.done) return "too_late";
 			run.cancelRequested = true;
@@ -585,9 +645,13 @@ export function createClaudeExecutor(options: {
 		async reconcile(attemptKey: string): Promise<ReconcileResult> {
 			const run = runs.get(attemptKey);
 			if (run !== undefined) return { found: run.ref };
-			const record = await store.readAttempt(attemptKey);
-			if (record === undefined || record.phase === "revoked")
-				return { absent: true };
+			const lookup = await store.lookupAttempt(attemptKey);
+			// Only a missing record proves absence; unreadable evidence is ambiguous (review #3).
+			if (lookup.status === "missing") return { absent: true };
+			if (lookup.status === "unreadable")
+				return { unknown: true, reason: lookup.reason };
+			const record = lookup.record;
+			if (record.phase === "revoked") return { absent: true };
 			if (record.phase === "spawned" && record.ref !== undefined)
 				return { found: record.ref };
 			return {

@@ -284,7 +284,7 @@ budget are not confirmed. `fetch_content` (open_page) not observed.
 - Global `$CODEX_HOME/AGENTS.md` and `~/.codex/rules` cannot be disabled per run (see Isolation); since
   WP4d the probe reports them as warnings and negotiation records the degradation.
 - `effort` falls back to the user's config when the request has none.
-- Input tokens include cached tokens; output includes reasoning tokens.
+- Output includes reasoning tokens. (Since WP12a the adapter subtracts cached and cache-write tokens from Codex's `inputTokens`, so `input` excludes them like every executor.)
 - A user MCP server with the same name as an injected one merges keys (e.g. `url` + `command` →
   config failure).
 - Attempt records and logs under `stateDir` are never pruned yet.
@@ -309,6 +309,41 @@ budget are not confirmed. `fetch_content` (open_page) not observed.
   profiles refuse).
 
 ## Change log
+
+- **WP12d-2 review #10 (checked, no change):** `launch`, `deleteOwnedSession` and `runCli` attach
+  every child handler (`AppServerConnection` installs `error`/`close`/stdout/stdin listeners)
+  synchronously after `spawn`; the only writes in between are synchronous.
+
+- **WP12d-2 review #9:** session deletion requires ownership evidence. A kept thread the adapter
+  creates with `thread/start` gets a durable record under `<stateDir>/sessions/`
+  (`ThreadOwnershipStore`); `deleteOwnedSession` refuses any thread without one (no app-server is
+  started) and drops the record after `deleted` / `not_found`. Resuming a thread reports
+  `ownedSession` only when that thread is recorded, so a resumed user thread is never marked owned
+  (retention cannot delete it). Test: `executor-wp12d2-session-ownership.test.mjs`.
+
+- **WP12d-2 review #6:** injected MCP servers run outside the Codex sandbox, so readOnly cannot be
+  enforced on their tools. A readOnly request that injects any server other than the engine's
+  artifact server (one read-only tool) is refused in `submit` before consume with
+  `CAPABILITY_MISSING:readOnly`; non-readOnly requests are unchanged. The conformance kit's
+  `mcp_tool` requests are now non-readOnly. Test: `executor-wp12d2-mcp-readonly.test.mjs`.
+
+- **WP12d-2 review #5:** request secrets echoed by the worker are no longer persisted. Every value of
+  `SubmitRequest.env` and of injected MCP server `env` (≥ 8 chars) is replaced by
+  `<redacted:KEY>` / `<redacted:server.KEY>` (shared `src/executors/redact.ts`) in every raw
+  transcript line (`codex-app-server.jsonl`, both directions), in stderr (a value split across stderr
+  chunks is held back until it can be redacted) and in every normalized event before it enters the
+  run log, the durable `*.events.jsonl` log or a failure message. Messages sent to the app-server
+  (thread/start config, approval answers) are unchanged. Test: `executor-wp12d2-secret-echo.test.mjs`
+  (fake app-server `fake-echo-app-server.mjs` echoes both kinds of value through a command item, an
+  agent message and split stderr).
+
+- **WP12d-2 review #3:** unreadable launch evidence is no longer proven absence. `AttemptStore.lookup` returns `missing` only on
+  ENOENT; a record that cannot be read, does not parse, has the wrong schema/phase or names another
+  attemptKey is `unreadable`: `reconcile` answers `unknown` (the runtime records
+  `failed/needs_decision`, `src/runtime/orchestrate/reconcile.ts` already maps every non-`absent`
+  outcome there and is unchanged), `submit` refuses with `AUTHORITY_ALREADY_CONSUMED` before consuming
+  the authority, and `cancel` answers `uncertain`. The first record is now created by hard-linking a fully written temp file (no half-written claim is visible). Test: `executor-wp12d2-evidence.test.mjs`
+  (malformed, empty, directory and mismatched records for all three adapters).
 
 - **WP12a (2026-10-27):** usage is normalized (docs/core-port.md WP12a change log 3): `input` =
   `inputTokens − cachedInputTokens − cacheWriteInputTokens` (Codex counts cached input inside

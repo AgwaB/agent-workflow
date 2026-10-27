@@ -1,6 +1,6 @@
 # workflow-guide scaffolds
 
-Validated starter bundles for `workflow-guide` authoring. Copy and adapt the closest scaffold, or use a scaffold's documented provider-free initializer when the caller has already fixed the supported inputs. Then run `agent-workflow validate` (or the host's `/workflow validate`) before use.
+Validated starter bundles for `workflow-guide` authoring. Copy and adapt the closest scaffold, or use a scaffold's documented provider-free initializer when the caller has already fixed the supported inputs. Then run `agent-workflow validate` (or `/aw validate` in Pi) before use.
 
 These scaffolds are skill resources, not bundled starter workflows. Do not run them directly as product workflows without adapting or initializing the runtime contract and reviewing its prompts, schemas, agents, and tool policy.
 

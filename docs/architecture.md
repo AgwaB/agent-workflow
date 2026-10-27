@@ -49,6 +49,20 @@ Executor selection and permission mode follow one precedence: run flag > workflo
 saved user profile > default (`pi`, `free`). The run record keeps the executor descriptor, so a
 detached supervisor or a resumed run reloads the same adapter (R#15).
 
+**Usage.** Adapters emit one normalized `usage` event shape (input excluding cache reads and writes,
+`cached`, `cacheWrite`, output, `model`, `cost` or `null` with its `source`); the runtime sums it per
+attempt with a total, the core records it on the task (with the serving model) and rolls it up on
+terminal and blocked runs. An unknown cost stays `null` (`cost unknown` in host text), never `0`;
+support helpers report nothing.
+
+**Worker sessions (D3).** The engine requests a kept CLI session (`SubmitRequest.sessionId`) only for
+the experimental same-session repair; otherwise workers run without session persistence and repairs,
+retries and resumes start fresh attempts. Sessions an adapter reports as `ownedSession` are recorded
+on the task and released through the executor's `deleteOwnedSession` at the end of each refresh and
+schedule pass (`owned-session-release.ts`, under the run lease): completed/skipped tasks at once,
+every remaining entry once the run completes or fails. Blocked and interrupted runs keep theirs until
+resolved or pruned; `prune` retries entries not yet `deleted`/`not_found`.
+
 ## Runtime: durable worker, launch barrier, control mailbox
 
 The runtime is ported from pi-subagent 0.7.2 ([`runtime-port.md`](runtime-port.md)). Each task
@@ -112,7 +126,7 @@ Project (`<cwd>/.agent-workflow/`, created on first run, never shared with pi-wo
 
 User (`$AGENT_WORKFLOW_HOME`, default `~/.agent-workflow/`): `workflows/`, `agents/`,
 `user-profiles/v1/profiles.json`, `workflow-profiles/v1/`, `run-index/` (run locators),
-`executors/<id>/` (adapter state, kept sessions).
+`executors/<id>/` (adapter state; session records only for sessions the engine asked to keep).
 
 Read-only legacy roots (F5): `<cwd>/.pi/workflows`, `~/.pi/agent/workflows`, `<cwd>/.pi/agents`,
 `~/.pi/agent/agents` are searched after the agent-workflow roots and never written.

@@ -169,7 +169,7 @@ live or offline with the real CLI.
 | effortLevels | off…max | — | `--thinking` |
 | resume | native / native | probed | live #9–#11 (`live.session_ownership`, `live.resume`) |
 | partialStream | native | probed | `text_delta` → `message_delta` |
-| usage | native / cost | probed | per assistant request. `cost` is Pi's **catalog estimate** → `source: estimated`. A cost of 0 → `null`/`unknown` (Pi cannot tell free from unpriced). `cached` = `cacheRead` (cacheWrite not represented) |
+| usage | native / cost | probed | per assistant request. `cost` is Pi's **catalog estimate** → `source: estimated`. A cost of 0 → `null`/`unknown` (Pi cannot tell free from unpriced). `cached` = `cacheRead`, `cacheWrite` = `cacheWrite` (since WP12a), `model` = the assistant message's model |
 | toolTelemetry | native | probed | `tool_execution_start/end` → `tool_call` running/completed/failed |
 | cancel | native / kill | probed | SIGTERM to Pi's process group, then SIGKILL after `killGraceMs` (3 s). Live #16: exit 143 → `failed/cancelled`. `turn` and `owned` both stop the run: print mode has no turn interrupt |
 | nativeSchema | none | declared | Pi has no structured-output flag |
@@ -273,7 +273,6 @@ is used. The 4th–5th parallel run and long runs are untested.
 - **`sessionBound`:** no live re-attach after the owning process dies. The orphan guard stops Pi instead.
 - **Settings residue:** non-overridable user settings apply under isolation (see Isolation).
 - **Fast tier is unverified.** Neither the provider-stream guard nor a live check was done.
-- `cacheWrite` tokens are not represented in `usage`.
 - Model matching: Pi's `--model` accepts fuzzy matches. An unknown `provider/id:suffix` is sent as a custom id
   (live #1). The engine should pass exact `provider/id`.
 - Pi's free-tier/subscription billing is not reflected: cost is a catalog estimate.
@@ -286,6 +285,39 @@ request drops mutating tools from `--tools` in both modes. The conformance harne
 `equivalent` (`PI_PERMISSION_MODE_SETTINGS`, check `permission.mode_mapping`).
 
 ## Change log
+
+- **WP12d-2 review #10:** same ordering checked: the `spawn` wait had its `error` listener, but the
+  stdout/stderr/`close` handlers were attached after the awaited `spawned` record write, so a Pi that
+  exited during that write was never observed (drain hung). Handlers are now attached before any
+  await; record writes are serialized so `exited` lands after `spawned` and a late identity write
+  never overwrites `exited`. Test: `executor-wp12d2-spawn-handlers.test.mjs`.
+
+- **WP12d-2 review #9 (checked, no change):** Pi ownership is by location: sessions are created only
+  under the adapter's private `<stateDir>/sessions/`, resume accepts only a session found there, and
+  `deleteOwnedSession` refuses any path outside it, so a user session can neither be resumed as owned
+  nor deleted.
+
+- **WP12d-2 review #6:** injected MCP servers no longer bypass readOnly. `--tools` declares the
+  engine's artifact server by its one read-only tool (`mcp__workflow_artifact__workflow_artifact`)
+  instead of `mcp__workflow_artifact__*`. Pi has no approval gate, so a readOnly request that injects
+  any other server is refused before consume with `CAPABILITY_MISSING:readOnly`; on non-readOnly
+  requests a caller-injected server keeps `mcp__<server>__*`. The conformance kit's `mcp_tool`
+  requests are now non-readOnly. Tests: `executor-wp12d2-mcp-readonly.test.mjs`,
+  `executor-pi-adapter.test.mjs`.
+
+- **WP12d-2 review #5:** same exposure checked: stdout lines were redacted per line, but stderr per
+  chunk, so a value split across two chunks reached `pi-stderr.log` and the failure text. stderr now
+  goes through the shared stream redactor (`src/executors/redact.ts`). Residual: `pi-mcp.log` is
+  written by Pi's own MCP extension inside the child and is not post-processed. Test:
+  `executor-wp12d2-secret-echo.test.mjs`.
+
+- **WP12d-2 review #3:** unreadable launch evidence is no longer proven absence. `PiAttemptStore.lookup` returns `missing` only on
+  ENOENT; a record that cannot be read, does not parse, has the wrong schema/phase or names another
+  attemptKey is `unreadable`: `reconcile` answers `unknown` (the runtime records
+  `failed/needs_decision`, `src/runtime/orchestrate/reconcile.ts` already maps every non-`absent`
+  outcome there and is unchanged), `submit` refuses with `AUTHORITY_ALREADY_CONSUMED` before consuming
+  the authority, and `cancel` answers `uncertain`. The first (`pending`) record is now created by hard-linking a fully written temp file; a lost claim race answers `AUTHORITY_ALREADY_CONSUMED` (was `INVALID_REQUEST`). Test: `executor-wp12d2-evidence.test.mjs`
+  (malformed, empty, directory and mismatched records for all three adapters).
 
 - **WP12a (2026-10-27):** usage events carry `cacheWrite` (Pi `usage.cacheWrite`) and `model` (the
   assistant message's model), so Pi tasks record their model; Pi's `input` already excludes cache

@@ -58,7 +58,8 @@ mode); errors are error notifications.
 
 Run options (leading or trailing, quoted text is literal; the host API parser
 `parseWorkflowRunArgs`): `--executor <id> --profile <name> --permission-mode free|safe
---allow-unverified <a,b> --model <id> --effort <level> --detach --force-new`.
+--allow-unverified <a,b> --model <id> --effort <level> --input <key=value> (repeatable) --detach
+--force-new`.
 
 `/aw run` returns once the run is launched. The engine's in-process watcher keeps driving it while
 the Pi session lives; `/aw wait`, `/aw status` or `aw_wait` show progress, `--detach` hands it to a
@@ -76,7 +77,7 @@ Schemas, descriptions and prompt guidelines are adapted from pi-workflow's
 | Tool | Parameters | Handler |
 |---|---|---|
 | `aw_list` | `query?`, `offset?`, `limit?` (1-20, default 20) | `listWorkflowsAction` |
-| `aw_run` | `workflow`, `task`, `executor?`, `profile?`, `permissionMode?` (`free`/`safe`), `allowUnverified?` (string[]), `model?`, `effort?`, `detach?`, `forceNew?` | `runWorkflowAction` |
+| `aw_run` | `workflow`, `task`, `executor?`, `profile?`, `permissionMode?` (`free`/`safe`), `allowUnverified?` (string[]), `model?`, `effort?`, `detach?`, `forceNew?`, `inputs?` (object) | `runWorkflowAction` |
 | `aw_dynamic` | `task` and the same options | `runDynamicAction` |
 | `aw_wait` | `runId`, `timeoutMs?` (1000-45000) | `waitAction` |
 
@@ -88,8 +89,13 @@ through `onUpdate`. Each call waits at most 45 s (the host API cap); the guideli
 call it again while `stillRunning` is true. Cancelling a tool call cancels only the wait. Unlike
 pi-workflow, `aw_run`/`aw_dynamic` have no `awaitTerminal`.
 
-Usage errors (unknown parameter, bad permission mode, unknown run) throw, so Pi reports a failed
-tool result with the host API message.
+`inputs` (WP12c) is the tool form of `--input`: an object of declared workflow inputs, passed to the
+host API as `inputOverrides` and typed there like the CLI's strings (a string is converted for a
+number, boolean or JSON default; any other value must already have the declared type; an undeclared
+key is refused before anything starts; [`usage.md`](usage.md#workflow-inputs---input-keyvalue)).
+
+Usage errors (unknown parameter, bad permission mode, undeclared or mistyped input, unknown run)
+throw, so Pi reports a failed tool result with the host API message.
 
 ## Confirmation and profile choice
 

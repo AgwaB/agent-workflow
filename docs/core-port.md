@@ -1465,3 +1465,35 @@ order). Each fix has a regression test that failed before it.
    declare `readOnly: false` to keep testing metadata), `core-workflow-router` (readOnly stages with
    only bash/unknown tools are refused at compile, so their auto cards have no effective facts and
    stay blocked).
+
+## WP12c — stage-1 doc sync, `aw_run` inputs, release secret scan
+
+1. **Docs synced with WP12a.** `docs/usage.md` (`--input` typing and errors, legacy-agent notice,
+   normalized usage and `cost unknown`, worker sessions D3, stop confirmation), `docs/cli.md`
+   (`--input`, stop confirmation), `docs/support.md` (WP12a-fixed limits marked; remaining open
+   problems 7–9), `docs/sdk.md` / `docs/architecture.md` (usage `cacheWrite`/`model`, `usage.cost`
+   record-only, session retention), `docs/environment.md` (same-session repair is the only kept-session
+   setting; no `AGENT_WORKFLOW_*` variable was added since WP12b), `docs/pi-host.md` (`inputs`),
+   `docs/executors/{pi,codex}.md` known limits, `docs/live-acceptance-stage1.md` "Fixed after
+   acceptance (WP12a)". Shipped skills and `workflows/README.md` use `agent-workflow …` / `/aw …` /
+   `aw_*` instead of pi-workflow's `/workflow …` / `workflow_*` (docs/bundled-workflows.md M18);
+   `core-wb-012-public-contracts.test.mjs` asserts the router's new wording.
+2. **`aw_run` / `aw_dynamic` `inputs`.** An optional object, the tool form of `--input`, passed as
+   `inputOverrides` and typed by `typedWorkflowInputOverrides` (strings converted for number/boolean/
+   JSON defaults, other values must have the declared type, undeclared keys refused before anything
+   starts); not an object → usage error; `{}` → spec defaults. Test:
+   `host-wp12c-tool-inputs.test.mjs`.
+3. **Release secret scan by value.** `tools/release/release-check.mjs` rejected the package on the
+   words `API_KEY`, `SECRET`, `PASSWORD`, `PRIVATE KEY` (env var names and constants in `src/`,
+   `dist/`, `docs/`). `tools/release/secret-scan.mjs` `findSecretValues` flags token shapes (`sk-…`,
+   `gh?_…`, `github_pat_…`, `glpat-…`, `xox?-…`, `xapp-…`, `npm_…`, AWS key ids, Google API keys and
+   OAuth client secrets, Stripe live keys), private-key blocks followed by key material, JWTs whose
+   header decodes to JSON, and long high-entropy values (mixed classes, entropy ≥ 3.5 bits/char, hex
+   ≥ 3.0, UUIDs) assigned to key-like names (quoted, or unquoted on env/ini/`.npmrc` lines); findings
+   report file, line and rule, never the value. The local-path pattern (the maintainer's home
+   directory, macOS temporary folders, desktop and screenshot file names) is unchanged; it moved to
+   `secret-scan.mjs` (`LOCAL_PATH_PATTERN`) so the unit test checks the shipped text with it too. `secretScanSelfTest()` (22 planted
+   secrets assembled at run time, 20 benign mentions) runs first in release-check, which exits 1 if
+   the scanner misses or over-flags. Test: `release-secret-scan.test.mjs` (self-test, rule names,
+   unquoted code expressions, the shipped `src`/`dist`/`docs`/`skills`/`workflows`/`agents` text has
+   no finding).

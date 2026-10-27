@@ -40,7 +40,7 @@ Copy their proven conventions (see "Quality design patterns"), not just their st
 - Put already-known, caller-authorized inventory, canonical task binding, IDs, schemas, joins, counts, escaping, and rendering in static code instead of asking a model to restate or transform them. Keep models for requirements, topology, unknown discovery, domain semantics, and substantive judgment. Never substitute a fixed inventory when the workflow must discover the inventory.
 - For iteration, use `loop` with fixed child stages, `maxRounds`, and deterministic `until`. A positive `maxRounds` bounds rounds; explicit `maxRounds: null` removes the round cap. For unlimited loops, omit `progressPath` to terminate only by `until`, blocking failure, or explicit stop; an explicit `progressPath` opts into no-progress stopping. Model-task time limits are separate (`maxRuntimeMs: 0` disables them). Loop children are `single`/`reduce` only, run serially, and must not declare `from`/`after`: each child implicitly sources the earlier children of its round (for example `<loop>.r01.compare`), and the first child of every later round sources the previous round plus a `# Loop Carry-Forward Context` block. `until` must target the final child (`{ "stage": "<final-child>", "path": "$.field", "equals": true }`, or `all`/`any` combinators; predicates `equals`, `notEquals`, `lengthEquals`, `exists`), and that path must exist in the final child's control schema and few-shot example. Loops cannot be resumed; start a fresh run after changing the spec. See "Loop behavior" in `docs/usage.md` for the exact contract.
 - Agent-declared tools are the authority ceiling; workflow `tools` can only narrow them.
-- To reuse agent knowledge across stages, declare top-level `roles` (`fromAgent` extracts safe agent sections; `prompt` appends literal text). Compiled role text is injected as a `# Role Context` block; check the result with `/workflow roles <workflow>`. See "Roles" in `docs/usage.md`.
+- To reuse agent knowledge across stages, declare top-level `roles` (`fromAgent` extracts safe agent sections; `prompt` appends literal text). Compiled role text is injected as a `# Role Context` block; check the result with `agent-workflow roles <workflow>` (Pi: `/aw roles <workflow>`). See "Roles" in `docs/usage.md`.
 - Independently classify every model-backed stage with `profileRole`: `planning`, `research-execution`, `synthesis`, `verification`, or `final-judgment`. This is required for Codex/Codex High/Claude/Mixed/Custom user profile coverage and must reflect the work's semantic purpose, never a stage-name guess. Put it on `single`/`foreach`/`reduce`/`dynamic` stages, nested DAG/loop children, and model-backed `onExhausted`; a dynamic stage's role classifies its generated-agent runtime defaults, and each present decision-loop `planner`/`workerDefaults`/`verifier`/`synthesis` profile object also needs its own role. Do not put it on support or DAG/loop containers. `profileRole` is not the agent-context `role` field.
 - Keep review/research workflows read-only unless the workflow explicitly documents managed-worktree mutation.
 - Write-capable workflows need explicit worktree policy, validation/check stages, and protected-path awareness.
@@ -48,8 +48,8 @@ Copy their proven conventions (see "Quality design patterns"), not just their st
 - Choose one of three user workflow scopes: project-private `.agent-workflow/workflows/<name>/spec.json`, project-shared/tracked `workflows/<name>/spec.json`, or user/global `~/.agent-workflow/workflows/<name>/spec.json` (`$AGENT_WORKFLOW_HOME/workflows/`). Flat `<name>.json` is fine only when no local schemas/helpers are needed.
 - Name priority is project-shared `workflows/`, project-private `.agent-workflow/workflows/`, user/global, then the legacy pi-workflow locations (read-only), then the installed package bundle; higher roots shadow lower ones and ambiguity is fail-closed only within the winning priority.
 - If the user asks to create a workflow but does not specify storage scope, ask them to choose project-private, project-shared/tracked, or user/global before writing. Treat changes to agent-workflow's official package `workflows/` as a separate promotion step requiring an explicit package-distribution request.
-- For natural-language execution of existing workflows, prefer the host's workflow list/run tools (for example `workflow_list` and `workflow_run`) when they are available; use the host's `/workflow ...` command or the `agent-workflow` CLI as the deterministic manual fallback.
-- Always validate the workflow (`agent-workflow validate <workflow-or-file>`, or the host's `/workflow validate <workflow-or-file>`) before handing off or running a reusable workflow. There is no validate tool, so from an agent/tool context run the CLI non-interactively from the project directory; it prints the summary and `Warnings:` list and exits non-zero on an invalid spec.
+- For natural-language execution of existing workflows, prefer the host's workflow list/run tools (in Pi: `aw_list`, `aw_run`, then `aw_wait`) when they are available; use the `agent-workflow` CLI (or `/aw ...` in Pi) as the deterministic manual fallback.
+- Always validate the workflow (`agent-workflow validate <workflow-or-file>`, or `/aw validate <workflow-or-file>` in Pi) before handing off or running a reusable workflow. There is no validate tool, so from an agent/tool context run the CLI non-interactively from the project directory; it prints the summary and `Warnings:` list and exits non-zero on an invalid spec.
 
 ## Authoring intake
 
@@ -92,7 +92,7 @@ When creating or changing a workflow:
    descriptions. For required nested arrays/objects, the prompt must show
    the container type literally, for example:
    `"points": []`, `"evidence": []`, `"coverageGaps": {}`.
-10. Validate with `agent-workflow validate <workflow-or-file>` (or the host's `/workflow validate <workflow-or-file>`), run from the project directory.
+10. Validate with `agent-workflow validate <workflow-or-file>` (or `/aw validate <workflow-or-file>` in Pi), run from the project directory.
 11. Do not ignore validation warnings. Treat a `foreach` path warning
     (the path's top-level key is not a property of the source stage's
     control schema) as a likely typo that would fan out over nothing at
@@ -109,15 +109,15 @@ When creating or changing a workflow:
 
 ## Runtime acceptance dry run
 
-`/workflow validate` checks form, not behavior. Before treating a new or materially changed workflow as trustworthy, run a bounded representative task and prove the workflow's runtime invariants. Do not turn one observed workflow's values into universal constants; declare the expected counts, identities, and completion rules for the workflow being authored.
+`agent-workflow validate` checks form, not behavior. Before treating a new or materially changed workflow as trustworthy, run a bounded representative task and prove the workflow's runtime invariants. Do not turn one observed workflow's values into universal constants; declare the expected counts, identities, and completion rules for the workflow being authored.
 
 1. **Declare acceptance invariants before launch.** Record the expected fan-out count and stable item ids, permitted resolved agents/models/tools, required evidence shape, planned fan-in counts, tolerated failure policy, and final status/verdict rule. Static validation does not prove provider credentials, quota, model availability, or model output conformance; classify those separately from graph/helper defects.
-2. **Inspect materialization, not only the plan.** Use `/workflow` or `agent-workflow inspect <run-id> --results`, then inspect `run.json`, the plan `control.json`, and relevant `source-manifest.json` files. Reconcile planned items against materialized task `specId`/`displayName` values and against the stable identity echoed in each worker control. Treat manifest `source` names and in-memory source-map keys as routing aliases, not business identity; an alias may be a bare stage name and need not equal the foreach item id. Never derive assignment identity from alias shape, object enumeration order, title text, or array position. Prefer `each.itemIdentityPath` plus an explicit id in the item and worker output.
+2. **Inspect materialization, not only the plan.** Use `agent-workflow inspect <run-id> --results` (Pi: `/aw inspect <run-id> --results`), then inspect `run.json`, the plan `control.json`, and relevant `source-manifest.json` files. Reconcile planned items against materialized task `specId`/`displayName` values and against the stable identity echoed in each worker control. Treat manifest `source` names and in-memory source-map keys as routing aliases, not business identity; an alias may be a bare stage name and need not equal the foreach item id. Never derive assignment identity from alias shape, object enumeration order, title text, or array position. Prefer `each.itemIdentityPath` plus an explicit id in the item and worker output.
 3. **Reconcile every fan-in boundary.** Mechanically compare the applicable planned ids -> materialized task ids -> valid worker controls -> decision/verifier ids -> final/output ids, omitting only stages the graph does not contain. Missing, duplicate, extra, malformed, or completed-but-mismatched rows are integrity failures, not empty success. Preserve those failures in source-status accounting and choose a conservative partial/blocked result.
 4. **Inspect evidence and provenance.** For KEEP/WEAKEN and positive coverage, require structured repository or source evidence rather than free-form strings; DROP needs verified counter-evidence before removal too. For local evidence, mechanically verify every cited path/range and quote against the source bytes (including diff markers and whitespace when applicable), and account for every planned required source; unreadable, metadata-only, missing, or unverifiable sources must force the workflow's conservative partial/blocked path. Confirm every final row retains its producer/origin and verifier lineage through every transform actually present, for example dedup, partition, merge, packet, and render stages.
 5. **Exercise degradation and finality.** On a cheap fixture, make one worker absent/invalid or synthesize an empty slice when practical. Confirm `terminalBarrier`, `sourcePolicy`, missing-row handling, and final status agree. A missing or inconsistent narrative/report stage must not emit a machine verdict that claims complete success merely because the canonical ledger is otherwise clean.
 6. **Audit deterministic helpers and side effects.** For the helper behaviors actually present, run fixtures for source reordering, duplicate-like-but-distinct rows, true duplicates, nested merges, missing decisions, and untrusted render text. A read-only workflow's support helpers must also avoid undeclared filesystem, process, or network side effects; `readOnly` tool narrowing does not sandbox support code.
-7. Tune prompts, schemas, and helpers from the evidence, re-run focused regression tests, then re-run `/workflow validate`. Repeat the full provider-backed run only when the fix affects model prompts, stage topology, runtime materialization, or another invariant that focused deterministic tests cannot cover. A run executes its copied bundle snapshot, so after changing a spec, schema, or helper, start a fresh acceptance run rather than resuming a historical run and expecting new bundle bytes. State clearly whether the final state is validation-only, helper-tested after a prior dry run, or dry-run on the exact final revision.
+7. Tune prompts, schemas, and helpers from the evidence, re-run focused regression tests, then re-run `agent-workflow validate`. Repeat the full provider-backed run only when the fix affects model prompts, stage topology, runtime materialization, or another invariant that focused deterministic tests cannot cover. A run executes its copied bundle snapshot, so after changing a spec, schema, or helper, start a fresh acceptance run rather than resuming a historical run and expecting new bundle bytes. State clearly whether the final state is validation-only, helper-tested after a prior dry run, or dry-run on the exact final revision.
 
 ## Scaffold usage
 
@@ -137,8 +137,8 @@ Scaffold rules:
 2. For initialized `fixed-inventory` bundles, change the binding and regenerate into a fresh or empty destination rather than hand-editing generated inventory/identity/join fields. If its editorial job does not fit, treat it as a normal copied adaptation and update the workflow name, stage ids, schema files, prompts, and control fields together. Do the same coordinated rename for every other copied scaffold.
 3. Keep every data dependency explicit after renaming.
    Scaffolds carry stated enum values, stated schema caps, injection-defense lines, and schema-valid `Example control excerpt` few-shot blocks in their prompts; when you rename or reshape control fields, update those statements and examples in the same edit so prompt and schema never drift. Dropping the example from a stage whose schema has required nested object fields reintroduces the highest-measured retry class.
-4. Delete any scaffold schema/helper files the adapted spec no longer references. `/workflow validate` only checks referenced files, so orphaned `schemas/*.json` or `helpers/*.mjs` left over from the scaffold pass validation silently and become confusing dead assets. After adapting, confirm every file under `schemas/` and `helpers/` is referenced by the spec (`controlSchema`, `support.uses`, `dynamic.uses`) or a reachable bundle-local helper import, and remove the rest.
-5. Re-run `/workflow validate <copied-spec>` after adaptation and resolve every warning.
+4. Delete any scaffold schema/helper files the adapted spec no longer references. `agent-workflow validate` only checks referenced files, so orphaned `schemas/*.json` or `helpers/*.mjs` left over from the scaffold pass validation silently and become confusing dead assets. After adapting, confirm every file under `schemas/` and `helpers/` is referenced by the spec (`controlSchema`, `support.uses`, `dynamic.uses`) or a reachable bundle-local helper import, and remove the rest.
+5. Re-run `agent-workflow validate <copied-spec>` after adaptation and resolve every warning.
 6. Adaptation self-check — after editing, verify mechanically (grep) for every model stage, including fields you added that the scaffold never had:
    - every model-backed stage and dynamic decision-loop profile has exactly one valid semantic `profileRole`; support and DAG/loop container nodes have none,
    - every enum field's allowed values appear verbatim in that stage's prompt (`must be exactly one of: ...`); a paraphrase of the values does not count,
@@ -186,7 +186,7 @@ Validation passing means the spec is well-formed, not that it is good. These pat
     show the literal JSON container: `"field": []` for arrays and
     `"field": {}` for objects. Keep examples short and obviously
     illustrative, but schema-valid.
-12. **Compiler warnings are design feedback.** `/workflow validate` may warn
+12. **Compiler warnings are design feedback.** `agent-workflow validate` may warn
     about prompt/schema drift (`array with reason` vs `string[]`), fragile
     required item keys without a JSON skeleton (`mechanism`, `decision`),
     missing nested array/object shapes (`"points": []`,
@@ -265,7 +265,7 @@ Prioritize issues that can break scheduling, drop upstream data, bypass evidence
 
 Before handing off or recommending a reusable workflow run, verify or report as a blocker:
 
-- `/workflow validate <workflow-or-file>` result and all warnings.
+- `agent-workflow validate <workflow-or-file>` result and all warnings.
 - Required agents exist and their declared tool ceilings allow the workflow tools.
 - `readOnly` and tool lists match the intended side-effect policy.
 - Every `single.from`, `foreach.from`, `reduce.from`, support `from`, and `dag.outputFrom` reference resolves.
@@ -292,7 +292,7 @@ For a workflow promoted from a private experiment to a shared or official packag
 - When the target is agent-workflow's official installed bundle, require an explicit package-distribution request, prefer a new project-scoped fork name while experimenting, and only then update the official package bundle.
 - Update `workflows/README.md` and `docs/usage.md`; update `README.md` if the workflow is user-facing.
 - Add or update tests when the bundled workflow list, package contents, schema behavior, helper behavior, or docs examples are expected to remain stable.
-- Run at least `/workflow validate <name-or-path>` and the relevant project checks (`npm test`, `npm run typecheck`, `npm run e2e`, or `npm run pack:dry`) when package surface changes require them.
+- Run at least `agent-workflow validate <name-or-path>` and the relevant project checks (`npm test`, `npm run typecheck`, `npm run e2e`, or `npm run pack:dry`) when package surface changes require them.
 
 ## Response expectations
 

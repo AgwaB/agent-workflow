@@ -380,7 +380,7 @@ test("submit: argv/tools/readOnly, prompt on stdin, extension per run, secrets o
 	const argv = launch.argv;
 	assert.equal(
 		argv[argv.indexOf("--tools") + 1],
-		"read,mcp__workflow_artifact__*",
+		"read,mcp__workflow_artifact__workflow_artifact",
 	);
 	assert.equal(argv[argv.indexOf("--thinking") + 1], "low");
 	assert.equal(

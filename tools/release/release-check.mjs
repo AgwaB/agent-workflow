@@ -11,6 +11,11 @@ import { tmpdir } from "node:os";
 import { join, posix } from "node:path";
 
 import { isRegistryFreeValidationOnly } from "./release-policy.mjs";
+import {
+	findSecretValues,
+	LOCAL_PATH_PATTERN,
+	secretScanSelfTest,
+} from "./secret-scan.mjs";
 
 // Bundled workflow/scaffold specs are added by WP10.
 const BUNDLE_SPEC_FILES = [];
@@ -48,8 +53,16 @@ const FORBIDDEN_PACKAGE_PREFIXES = [
 	"test/",
 ];
 
-const SECRET_PATTERN =
-	/\/Users\/toby|\/var\/folders|Desktop|clipboard|Screenshot|API[_-]?KEY|SECRET|PASSWORD|PRIVATE KEY|BEGIN [A-Z ]*PRIVATE KEY|npm_[A-Za-z0-9]{20,}|(^|[^a-zA-Z])sk-[A-Za-z0-9]{20,}/;
+// WP12c: secrets are matched by value (secret-scan.mjs), not by words such as API_KEY or SECRET,
+// which name environment variables and constants in src/, dist/ and docs/. Refuse to run with a
+// scanner that misses a planted secret or flags a benign mention.
+const secretScanProblems = secretScanSelfTest();
+if (secretScanProblems.length > 0) {
+	console.error(
+		`secret scan self-test failed:\n${secretScanProblems.join("\n")}`,
+	);
+	process.exit(1);
+}
 
 const NPM_REGISTRY = "https://registry.npmjs.org";
 const NPM_DIST_TAG = "latest";
@@ -264,15 +277,25 @@ const ownTextFiles = files.filter(
 		!path.match(/\.(png|jpg|jpeg|gif|webp|svg)$/i) &&
 		existsSync(path),
 );
+const secretFindings = [];
 for (const path of ownTextFiles) {
 	const text = readFileSync(path, "utf8");
-	if (SECRET_PATTERN.test(text)) {
-		console.error(
-			`Package file contains local path or secret-like text: ${path}`,
-		);
+	if (LOCAL_PATH_PATTERN.test(text)) {
+		console.error(`Package file contains a local path or artifact: ${path}`);
 		process.exit(1);
 	}
+	for (const finding of findSecretValues(text))
+		secretFindings.push(`${path}:${finding.line}: ${finding.rule}`);
 }
+if (secretFindings.length > 0) {
+	console.error(
+		`Package files contain secret values (values not shown):\n${secretFindings.join("\n")}`,
+	);
+	process.exit(1);
+}
+console.log(
+	`Secret scan: ${ownTextFiles.length} packed text files, no secret values.`,
+);
 
 console.log(
 	JSON.stringify(

@@ -45,11 +45,12 @@ every method).
 | `respond(ref, id, decision)` | Answer an `approval_request` the stream emitted (R#4). |
 | `cancel(ref, scope)` | `turn` interrupts the current turn; `owned` stops everything the attempt owns. The result is not evidence of termination: `observe`/`reconcile` decide that. Waiting past a deadline is never a cancel. |
 | `reconcile(attemptKey)` | After a crash: `found` (the attempt exists), `absent` (proven never launched) or `unknown` (cannot prove either way). `unknown` is not `absent`: the engine stops and asks a person instead of retrying (B3). |
-| `deleteOwnedSession(session)` | Optional (D3, R#10). Delete a CLI session the adapter kept and reported as `ownedSession` on a terminal event. Run retention calls it only with locators recorded as owned; refuse anything else (`refused`). `not_found` is not an error. |
+| `deleteOwnedSession(session)` | Optional (D3, R#10). Delete a CLI session the adapter kept and reported as `ownedSession` on a terminal event. The engine calls it only with locators recorded as owned by this executor id: when the task completes or is skipped, when the run completes or fails, and on `prune` (below). Refuse anything else (`refused`). `not_found` is not an error; `failed` means the deletion did not complete (retried on prune). Without the method the engine records `unsupported`. |
 
 `SubmitRequest` carries `attemptKey`, `authority`, `cwd` (always explicit), `prompt`, optional
 `systemPrompt`, `model`, `effort`, `tools` (Pi tool names), `readOnly`, `mcpServers`, optional
-`sessionId` / `resumeSessionId`, `deadlineMs` (absolute epoch ms), `env` (secrets; never persisted),
+`sessionId` / `resumeSessionId` (only when the engine wants a kept session, below), `deadlineMs`
+(absolute epoch ms), `env` (secrets; never persisted),
 `isolation: {inherit}`, `approvalPolicy`, `permissionMode`, and `artifactsDir` (absolute directory
 owned by the runtime, where the adapter may keep raw CLI logs; may be absent). The engine validates
 it with `validateSubmitRequest` (for example: an MCP server env value that also appears on its argv
@@ -112,6 +113,10 @@ How the engine reads a row (B4, `negotiateCapabilities`):
   interactive host asks and a profile's `strictCapabilities` refuses.
 - **Details** are ranked (`toolAllowlist`: none < coarse < fine; `usage`: none < tokens < cost;
   `webTools`: none < search < search+fetch).
+- **`usage.cost`** below `cost` (an adapter that reports tokens only): the engine has no price table
+  and does not emulate cost. A preferred `usage.cost` degrades with `recordOnly: true` (the cost is
+  recorded as unknown, `null`, never `0`; no confirmation needed, `strict` still refuses it); a
+  required one is refused.
 - **`webTools.safetyPolicy`** other than `engine` always records a degradation (`unknown` for every
   stage-1 CLI: URL, private-network and redaction controls are the CLI's).
 - **`toolAllowlist`** below `fine` on a stage with a precise `tools` list: `free` mode records it
@@ -140,16 +145,38 @@ kinds (`edit`, `delete`, `move`, `execute`) are denied on readOnly stages.
 | `started` | `sessionId: string \| null` |
 | `message_delta` | `text` |
 | `tool_call` | `name`, `kind` (ACP kind), `status` (`pending`, `approval_pending`, `running`, `completed`, `failed`, `denied`, `timed_out`), optional `callId`, `input`, `output` |
-| `usage` | `input`, `output`, `cached` (integers or `null`), `cost` (number or `null`), `source` (`reported`, `estimated`, `unknown`) |
+| `usage` | `input`, `output`, `cached` (integers or `null`), optional `cacheWrite` (integer or `null`) and `model` (string), `cost` (number or `null`), `source` (`reported`, `estimated`, `unknown`) |
 | `approval_request` | `requestId` (unique per stream), `kind`, `detail` |
 | `completed` | `finalText`, optional `ownedSession` |
 | `failed` | `class` (below), `message`, `raw` (JSON or `null`), optional `ownedSession` |
+
+Usage shape (WP12a, the same for every adapter whatever its CLI reports): `input` = input tokens
+**excluding** cache reads and cache writes (subtract them when the CLI counts them inside its input),
+`cached` = cache-read input tokens, `cacheWrite` = cache-creation input tokens (absent = none),
+`output` = output tokens with reasoning included, `model` = the model that served the request (the
+resolved name, not a request alias such as `haiku`). Do not send a total: the runtime computes
+input + cached + cacheWrite + output (`null` when a part is `null`) and the engine records it with the
+model on the task. `validateExecEvent` checks `cacheWrite` and `model` when present (additive;
+contract 0.1.0).
 
 Usage rules: `null` means unknown and is different from `0`. `source: "unknown"` always pairs with
 `cost: null`, and `cost: null` always with `source: "unknown"`; never invent a cost. `estimated`
 marks a cost you computed (for example from the CLI's price catalog). The runtime sums usage events
 per attempt; a field is `null` when any event reported it unknown. Keep raw CLI output in
 `artifactsDir`; events are a view over it (D3).
+
+### Sessions and retention
+
+Workers keep no CLI session by default (D3, WP12a). The engine sets `SubmitRequest.sessionId` only
+when a task needs a kept session (today: the experimental same-session repair,
+`AGENT_WORKFLOW_EXPERIMENTAL_SAME_SESSION_REPAIR`). Without a `sessionId` run the CLI without session
+persistence (the stage-1 adapters use Claude `--no-session-persistence`, Codex `ephemeral: true`, Pi
+`--no-session`) and report no `ownedSession`. With one, report the kept session as `ownedSession` on
+the terminal event; the engine records it on the task and later passes exactly that locator to
+`deleteOwnedSession`: at once for a completed or skipped task, for every remaining entry when the run
+completes or fails, and on `prune` for entries not yet `deleted`/`not_found`. Blocked and interrupted
+runs keep the sessions of their failed, blocked and interrupted tasks until resolved or pruned. A
+locator recorded for another executor id is `refused` by the engine and never passed on.
 
 ## Errors and classification
 

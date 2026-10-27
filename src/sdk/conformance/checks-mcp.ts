@@ -38,7 +38,13 @@ async function mcpRun(ctx: CheckContext, padChars = 0) {
 	});
 	const run = await runScenario(ctx, "mcp_tool", {
 		session,
-		request: { prompt: mcpToolPrompt(nonce), mcpServers: [server.spec] },
+		// A caller-injected server's tools may mutate: adapters refuse it on readOnly requests
+		// (WP12d-2 review #6), so the injection checks run on a mutation-capable request.
+		request: {
+			prompt: mcpToolPrompt(nonce),
+			mcpServers: [server.spec],
+			readOnly: false,
+		},
 	});
 	const violations: string[] = [];
 	if (run.timedOut) violations.push("mcp_tool run did not terminate in time");

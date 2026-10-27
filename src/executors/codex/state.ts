@@ -5,16 +5,15 @@
  * Records hold no prompt, env value or credential: attemptKey digest, phase, ExecRef, pid, thread
  * id. The event log holds the normalized events (the same view the runtime persists).
  */
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import {
 	appendFileSync,
-	closeSync,
+	linkSync,
 	mkdirSync,
-	openSync,
 	readFileSync,
 	renameSync,
+	rmSync,
 	writeFileSync,
-	writeSync,
 } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -33,6 +32,18 @@ export interface AttemptRecord {
 	readonly threadId?: string;
 	readonly terminal?: "completed" | "failed";
 }
+
+export type AttemptLookup =
+	| { readonly status: "missing" }
+	| { readonly status: "found"; readonly record: AttemptRecord }
+	| { readonly status: "unreadable"; readonly reason: string };
+
+const ATTEMPT_PHASES: ReadonlySet<unknown> = new Set([
+	"revoked",
+	"consumed",
+	"spawned",
+	"terminal",
+]);
 
 export function attemptDigest(attemptKey: string): string {
 	return createHash("sha256").update(attemptKey).digest("hex").slice(0, 32);
@@ -59,36 +70,69 @@ export class AttemptStore {
 		return `${this.base(attemptKey)}.log`;
 	}
 
-	read(attemptKey: string): AttemptRecord | undefined {
+	/**
+	 * Durable evidence of an attempt (review #3): `missing` only on ENOENT; a record that cannot be
+	 * read, parsed or matched to the attemptKey is `unreadable` and must be treated as ambiguous
+	 * (reconcile `unknown`, no launch), never as absence.
+	 */
+	lookup(attemptKey: string): AttemptLookup {
+		let text: string;
 		try {
-			const record = JSON.parse(
-				readFileSync(`${this.base(attemptKey)}.json`, "utf8"),
-			) as AttemptRecord;
-			return record.attemptKey === attemptKey ? record : undefined;
-		} catch {
-			return undefined;
+			text = readFileSync(`${this.base(attemptKey)}.json`, "utf8");
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code === "ENOENT")
+				return { status: "missing" };
+			return {
+				status: "unreadable",
+				reason: `attempt record unreadable (${(error as NodeJS.ErrnoException).code ?? String(error)})`,
+			};
 		}
+		let record: AttemptRecord;
+		try {
+			record = JSON.parse(text) as AttemptRecord;
+		} catch {
+			return { status: "unreadable", reason: "attempt record is malformed" };
+		}
+		if (
+			record === null ||
+			typeof record !== "object" ||
+			record.schema !== "agent-workflow-codex-attempt-v1" ||
+			!ATTEMPT_PHASES.has(record.phase)
+		)
+			return { status: "unreadable", reason: "attempt record is malformed" };
+		if (record.attemptKey !== attemptKey)
+			return {
+				status: "unreadable",
+				reason: "attempt record belongs to another attemptKey",
+			};
+		return { status: "found", record };
+	}
+
+	/** The record when readable; `undefined` when missing or unreadable (observe paths only). */
+	read(attemptKey: string): AttemptRecord | undefined {
+		const lookup = this.lookup(attemptKey);
+		return lookup.status === "found" ? lookup.record : undefined;
 	}
 
 	/**
-	 * Create the first record exclusively (`O_EXCL`): two processes racing on one attemptKey
-	 * cannot both claim it. Returns false when a record already exists.
+	 * Create the first record exclusively: two processes racing on one attemptKey cannot both
+	 * claim it. The record is written to a temp file and hard-linked into place (`link` fails with
+	 * EEXIST), so a reader never sees a half-written claim. Returns false when a record exists.
 	 */
 	create(record: Omit<AttemptRecord, "schema" | "updatedAt">): boolean {
 		mkdirSync(this.dir, { recursive: true, mode: 0o700 });
-		let fd: number;
+		const path = `${this.base(record.attemptKey)}.json`;
+		const temp = `${path}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`;
+		writeFileSync(temp, JSON.stringify(this.full(record)), { mode: 0o600 });
 		try {
-			fd = openSync(`${this.base(record.attemptKey)}.json`, "wx", 0o600);
+			linkSync(temp, path);
+			return true;
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code === "EEXIST") return false;
 			throw error;
-		}
-		try {
-			writeSync(fd, JSON.stringify(this.full(record)));
 		} finally {
-			closeSync(fd);
+			rmSync(temp, { force: true });
 		}
-		return true;
 	}
 
 	write(record: Omit<AttemptRecord, "schema" | "updatedAt">): void {
@@ -147,5 +191,66 @@ export function processAlive(pid: number | undefined): boolean {
 		return true;
 	} catch (error) {
 		return (error as NodeJS.ErrnoException).code === "EPERM";
+	}
+}
+
+export interface ThreadOwnershipRecord {
+	readonly schema: "agent-workflow-codex-thread-v1";
+	readonly threadId: string;
+	readonly attemptKey: string;
+	readonly createdAt: number;
+}
+
+/**
+ * Durable ownership evidence for kept Codex threads (D3, R#10, review #9): one record per thread
+ * this adapter created with `thread/start`, under `<stateDir>/sessions/`. `deleteOwnedSession`
+ * and the `ownedSession` of a resumed thread require it; a thread the adapter did not create
+ * (user thread, resumed foreign thread) never gets one.
+ */
+export class ThreadOwnershipStore {
+	readonly dir: string;
+
+	constructor(stateDir: string) {
+		this.dir = join(stateDir, "sessions");
+	}
+
+	private path(threadId: string): string {
+		return join(
+			this.dir,
+			`${createHash("sha256").update(threadId).digest("hex").slice(0, 40)}.json`,
+		);
+	}
+
+	record(threadId: string, attemptKey: string): void {
+		mkdirSync(this.dir, { recursive: true, mode: 0o700 });
+		const path = this.path(threadId);
+		const temp = `${path}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`;
+		const record: ThreadOwnershipRecord = {
+			schema: "agent-workflow-codex-thread-v1",
+			threadId,
+			attemptKey,
+			createdAt: Date.now(),
+		};
+		writeFileSync(temp, JSON.stringify(record), { mode: 0o600 });
+		renameSync(temp, path);
+	}
+
+	/** True only for a readable record naming exactly this thread. */
+	owns(threadId: string): boolean {
+		try {
+			const record = JSON.parse(
+				readFileSync(this.path(threadId), "utf8"),
+			) as Partial<ThreadOwnershipRecord> | null;
+			return (
+				record?.schema === "agent-workflow-codex-thread-v1" &&
+				record.threadId === threadId
+			);
+		} catch {
+			return false;
+		}
+	}
+
+	forget(threadId: string): void {
+		rmSync(this.path(threadId), { force: true });
 	}
 }

@@ -1,11 +1,12 @@
 /**
  * Durable adapter state (B3, R#1, R#10): one record per attempt and one per kept worker session,
  * under `config.stateDir`. Reconcile in a fresh process reads these records: `revoked` or no record
- * ⇒ `absent`; `consumed` without launch evidence ⇒ `unknown`; `spawned` ⇒ `found`.
+ * ⇒ `absent`; `consumed` without launch evidence ⇒ `unknown`; `spawned` ⇒ `found`. The first
+ * record of an attempt is claimed exclusively (review #2).
  * Records hold no env values and no prompt text.
  */
 import { createHash, randomBytes } from "node:crypto";
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { link, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ExecRef } from "../../sdk/contract.js";
 
@@ -31,6 +32,17 @@ export interface SessionRecord {
 	readonly cwd: string;
 	readonly createdAt: string;
 }
+
+export type AttemptLookup =
+	| { readonly status: "missing" }
+	| { readonly status: "found"; readonly record: AttemptRecord }
+	| { readonly status: "unreadable"; readonly reason: string };
+
+const ATTEMPT_PHASES: ReadonlySet<unknown> = new Set([
+	"consumed",
+	"spawned",
+	"revoked",
+]);
 
 const keyHash = (attemptKey: string) =>
 	createHash("sha256").update(attemptKey).digest("hex").slice(0, 40);
@@ -69,13 +81,86 @@ export class ClaudeStateStore {
 		return join(this.attemptsDir(), keyHash(attemptKey));
 	}
 
-	async readAttempt(attemptKey: string): Promise<AttemptRecord | undefined> {
-		const record = await readJson<AttemptRecord>(
-			join(this.attemptsDir(), `${keyHash(attemptKey)}.json`),
-		);
-		return record?.attemptKey === attemptKey ? record : undefined;
+	/**
+	 * Durable evidence of an attempt (review #3): `missing` only when the record does not exist
+	 * (ENOENT); a record that cannot be read, parsed or matched to the attemptKey is `unreadable`,
+	 * which callers must treat as ambiguous (reconcile `unknown`, no launch), never as absence.
+	 */
+	async lookupAttempt(attemptKey: string): Promise<AttemptLookup> {
+		let text: string;
+		try {
+			text = await readFile(
+				join(this.attemptsDir(), `${keyHash(attemptKey)}.json`),
+				"utf8",
+			);
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code === "ENOENT")
+				return { status: "missing" };
+			return {
+				status: "unreadable",
+				reason: `attempt record unreadable (${(error as NodeJS.ErrnoException).code ?? String(error)})`,
+			};
+		}
+		let record: AttemptRecord;
+		try {
+			record = JSON.parse(text) as AttemptRecord;
+		} catch {
+			return { status: "unreadable", reason: "attempt record is malformed" };
+		}
+		if (
+			record === null ||
+			typeof record !== "object" ||
+			record.schema !== "agent-workflow-claude-attempt-v1" ||
+			!ATTEMPT_PHASES.has(record.phase)
+		)
+			return { status: "unreadable", reason: "attempt record is malformed" };
+		if (record.attemptKey !== attemptKey)
+			return {
+				status: "unreadable",
+				reason: "attempt record belongs to another attemptKey",
+			};
+		return { status: "found", record };
 	}
 
+	/** The record when it is readable; `undefined` when missing or unreadable (observe paths only). */
+	async readAttempt(attemptKey: string): Promise<AttemptRecord | undefined> {
+		const lookup = await this.lookupAttempt(attemptKey);
+		return lookup.status === "found" ? lookup.record : undefined;
+	}
+
+	/**
+	 * Claim the attempt with an exclusive create (`O_EXCL`, review #2): two executor instances or
+	 * processes racing on one attemptKey cannot both claim it. The record is written to a temp file
+	 * and hard-linked into place, so a reader never sees a half-written claim. Returns false when a
+	 * record already exists (the caller resolves it instead of overwriting it).
+	 */
+	async claimAttempt(
+		record: Omit<AttemptRecord, "schema" | "updatedAt">,
+	): Promise<boolean> {
+		await mkdir(this.attemptsDir(), { recursive: true, mode: 0o700 });
+		const path = join(this.attemptsDir(), `${keyHash(record.attemptKey)}.json`);
+		const tmp = `${path}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`;
+		await writeFile(
+			tmp,
+			`${JSON.stringify({
+				schema: "agent-workflow-claude-attempt-v1",
+				...record,
+				updatedAt: new Date().toISOString(),
+			})}\n`,
+			{ mode: 0o600 },
+		);
+		try {
+			await link(tmp, path);
+			return true;
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code === "EEXIST") return false;
+			throw error;
+		} finally {
+			await rm(tmp, { force: true });
+		}
+	}
+
+	/** Replace this instance's own claimed record (after `claimAttempt` succeeded). */
 	async writeAttempt(
 		record: Omit<AttemptRecord, "schema" | "updatedAt">,
 	): Promise<void> {

@@ -6,8 +6,8 @@ reference: [`cli.md`](cli.md) (CLI) and [`pi-host.md`](pi-host.md) (Pi `/aw`). I
 start: [`../README.md`](../README.md).
 
 Examples use the CLI. In Pi, the same actions are `/aw <action> …` (and the `aw_list`, `aw_run`,
-`aw_dynamic`, `aw_wait` tools); the bundled skills and workflow README also show pi-workflow's
-`/workflow …` spelling, which maps to `/aw …` in the Pi host and to `agent-workflow …` on the CLI.
+`aw_dynamic`, `aw_wait` tools). pi-workflow's `/workflow …` commands belong to pi-workflow and its own
+run store; they do not drive agent-workflow runs.
 
 ## Workflows and specs
 
@@ -37,7 +37,8 @@ running anything.
 Agents (`agent:` in a spec) resolve the same way: `<cwd>/.agent-workflow/agents/`,
 `$AGENT_WORKFLOW_HOME/agents/`, legacy `<cwd>/.pi/agents/` and `~/.pi/agent/agents/` (read-only),
 then the bundled `scout` and `researcher`. A legacy user agent with a bundled agent's name therefore
-replaces the bundled one; put a copy of the bundled agent in `.agent-workflow/agents/` to pin it.
+replaces the bundled one; the capability preview announces it with a `Notice:` line. Put a copy of
+the bundled agent in `.agent-workflow/agents/` to pin it.
 `agent-workflow agents` lists what resolves and from where.
 
 agent-workflow never writes to the legacy locations; its runs and settings live under
@@ -73,9 +74,24 @@ result. Ctrl-C stops waiting, not the run. Use `--detach` to hand the run to a b
 started in the last 10 minutes is not started twice (`--force-new` overrides). Options:
 [`cli.md` "Launch options"](cli.md#launch-options-run-dynamic).
 
-The CLI has no input overrides yet: a workflow's declared `input` values (for example
-`deep-research`'s `depth`) take their spec defaults from the CLI; host API callers pass
-`inputOverrides`.
+### Workflow inputs (`--input key=value`)
+
+A spec may declare `input` values with defaults (for example `deep-research`'s
+`"input": {"depth": "standard"}`). Override them per run with `--input key=value`, repeatable,
+before or after the task (`/aw run|dynamic` take the same option; the `aw_run`/`aw_dynamic` tools take
+an `inputs` object; host API callers pass `inputOverrides`):
+
+```sh
+agent-workflow run deep-research "State of X" --input depth=quick
+```
+
+The value is typed by the declared default: a string default keeps the text as is; a number default
+needs a finite number (`--input count=3`); a boolean default needs `true` or `false`; an array, object
+or `null` default takes JSON (`--input 'tags=["a","b"]'`). In the `inputs` object a string is
+converted the same way and any other value must already have the declared type. Usage errors (exit 2,
+nothing starts): a key the spec does not declare (the message lists the declared keys), a value of the
+wrong type, a key given twice, an assignment without `key=`. Undeclared inputs are never dropped
+silently.
 
 ## Waiting, inspecting, resuming, stopping
 
@@ -103,7 +119,9 @@ up changed workflow code. Loop workflows cannot be resumed; start a fresh run.
 
 `stop` records a durable stop intent. A worker that had not started yet never starts (its launch is
 revoked); a running worker is cancelled. If another supervisor owns the run, the stop is applied by
-it (`pending` until then).
+it: `stop` waits up to 15 s for that confirmation, and a run the supervisor has already stopped counts
+as confirmed (exit 0). If no confirmation arrives in time, `stop` reports the stop as pending and
+exits 1; the intent stays durable and is applied when the supervisor next runs.
 
 ## Executors
 
@@ -413,16 +431,31 @@ Everything a run writes is under the project's `.agent-workflow/`:
 Bundled workflows end with a `completionSummaryMarkdown` (printed as the run result) and a
 `final-report.md` in the final task directory; `inspect --results` lists the report paths.
 
-**Usage.** Each task records its executor-reported usage (`tasks[].usage`); a terminal run records a
-roll-up with `tasksReporting`/`taskCount`. Token meanings differ by executor (Pi reports input without
-cache reads, Codex and Claude include them) and cost may be reported, estimated or unknown
-(`null`, never `0`): see [`support.md`](support.md).
+**Usage.** Each task records its executor-reported usage (`tasks[].usage`) and the model that served
+it; a terminal or blocked run records a roll-up with `tasksReporting`/`taskCount`. Every executor
+reports the same shape: input tokens **excluding** cache reads and writes, cache-read tokens,
+cache-write (cache-creation) tokens, output tokens (reasoning included), and a total that is the sum
+of all four. Support helpers make no model call and report nothing (not zeros). Cost is
+reported, estimated or **unknown**: an unknown cost is `null` in the records and `cost unknown` in the
+host text (`cost=unknown` in the detailed run view), never `0` or `$0`; the run roll-up's `costUsd` is `null` when no
+task reported a cost. Codex reports no cost; Pi's is an estimate; Claude's is notional on a
+subscription: see [`support.md`](support.md).
 
-**Retention.** Nothing is deleted automatically. `agent-workflow prune` previews terminal runs beyond
-the newest 50 (`--keep N`, `--older-than DAYS`); `--yes` deletes them. Live supervisors and runs with
-retained children are protected. Pruning a run also deletes the worker CLI sessions its adapter kept
-and reported as owned (where the adapter supports `deleteOwnedSession`); a run whose session
-deletion fails is kept.
+**Worker sessions.** By default no worker keeps a CLI session (D3): workers run without session
+persistence (Claude `--no-session-persistence`, Codex ephemeral threads, Pi `--no-session`), and output
+repairs, launch retries and resumes start fresh attempts. Only the experimental same-session repair
+(`AGENT_WORKFLOW_EXPERIMENTAL_SAME_SESSION_REPAIR`) requests kept sessions. Sessions the engine did
+request are released through the executor's `deleteOwnedSession`: a completed or skipped task's at
+once, every remaining one when the run completes or fails. A blocked or interrupted run keeps the
+sessions of its failed, blocked and interrupted tasks until it is resolved or pruned. Each released
+session is recorded on the task (`ownedSessions[].release.outcome`: `deleted`, `not_found`,
+`unsupported`, `refused`, `failed`).
+
+**Retention.** Run directories are not deleted automatically. `agent-workflow prune` previews terminal
+runs beyond the newest 50 (`--keep N`, `--older-than DAYS`); `--yes` deletes them. Live supervisors
+and runs with retained children are protected. Pruning a run also deletes the worker CLI sessions
+still recorded as owned (where the adapter supports `deleteOwnedSession`; already `deleted` or
+`not_found` entries are skipped, the rest retried); a run whose session deletion fails is kept.
 
 ## Troubleshooting
 
@@ -432,12 +465,14 @@ deletion fails is kept.
 | `Not started: … CAPABILITY_REFUSED` | A stage needs something the executor cannot do. The message lists each refusal and its opt-in, if any (`--allow-unverified`, `allowReadOnlyDowngrade`, `--permission-mode free`). |
 | deep-research refused on Pi with `webTools` | Install the `pi-web-access` Pi extension, or use `--executor claude`/`codex`. |
 | Codex runs show `readOnly`/`contextIsolation` warnings | Your `~/.codex/rules` has allow rules or a global `~/.codex/AGENTS.md` exists. Recorded only; remove them for a clean run. |
-| A bundled workflow uses a strange agent | A legacy user agent (`~/.pi/agent/agents/scout.md`, …) shadows the bundled one. Copy the bundled agent into `.agent-workflow/agents/`. |
+| `Notice: agent "scout": legacy … shadows the bundled agent of the same name` in the preview | A legacy user agent (`~/.pi/agent/agents/scout.md`, …) takes precedence over the bundled one; the notice is also a compile warning and is recorded in `run.capabilityNegotiation.notices`. Rename or remove the legacy file, or copy the bundled agent into `.agent-workflow/agents/` to pin it. A project's own `.pi/agents/` override is not announced. |
+| `input <key> is not declared by this workflow (declared: …)`, `input <key> must be a number` (exit 2) | `--input` / `inputs` names a key the spec does not declare or a value of the wrong type. Use a declared key (`agent-workflow show <workflow>` shows `input`) and a value of the default's type. |
+| Usage shows `cost unknown` | The executor reported no cost (Codex always; any task without a cost). Token counts are still recorded; nothing is estimated. |
 | The run is `failed` but the report looks fine | Final renders mark verdicts such as `PARTIAL_REVIEW`, `INCONCLUSIVE`, `GAPS_FOUND`, `BLOCKED` as declared failures (`support_declared_failed`): the workflow worked and reported a finding about the target. Read `final-report.md`. |
 | A task failed with `required_reads_missing_exhausted` | The worker did not read every required artifact (or only part of a paged one). `inspect <run> --failures --results` shows which; `resume` retries. |
 | A task is `blocked` with `executor_needs_decision` | After a crash the executor could not prove whether the attempt ran. Nothing retries automatically. Check the CLI's own state, then `resume` (new attempt) or `stop`. |
 | `wait` returns `stillRunning` | The bounded wait ended; call `wait` again, or use `--detach` and check later. |
-| `stop` says pending | Another supervisor owns the run; it applies the durable stop intent. |
+| `stop` says pending (exit 1) | Another supervisor owns the run and did not confirm within 15 s; it applies the durable stop intent. Check with `agent-workflow status <run>`. |
 | The CLI prints a test-executor warning or exits 2 on every command | `AGENT_WORKFLOW_TEST_EXECUTOR_MODULE` is set; unset it (test-only hook). |
 | Changed a bundled workflow but the run still uses the old one | Runs execute their copied `bundle/`; start a new run. |
 

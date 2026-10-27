@@ -56,8 +56,15 @@ import {
 	attemptDigest,
 	defaultStateDir,
 	processAlive,
+	ThreadOwnershipStore,
 } from "./state.js";
 import { planCodexTools } from "./tools.js";
+import {
+	createSecretRedactor,
+	requestSecrets,
+	type SecretRedactor,
+	type StreamRedactor,
+} from "../redact.js";
 
 import { CODEX_ADAPTER_VERSION, CODEX_EXECUTOR_ID } from "./version.js";
 
@@ -136,6 +143,9 @@ interface Run {
 	readonly rawPath: string | undefined;
 	readonly methodsById: Map<RpcId, string>;
 	stderr: string;
+	/** Request env / MCP env values: never persisted (review #5). */
+	readonly redact: SecretRedactor;
+	readonly stderrRedact: StreamRedactor;
 }
 
 /** The engine's artifact tool is a read (A2-4); other MCP tools use their readOnlyHint. */
@@ -471,7 +481,9 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 } {
 	const config = parseConfig(rawConfig);
 	const codexPath = config.codexPath ?? "codex";
-	const store = new AttemptStore(config.stateDir ?? defaultStateDir());
+	const stateDir = config.stateDir ?? defaultStateDir();
+	const store = new AttemptStore(stateDir);
+	const threads = new ThreadOwnershipStore(stateDir);
 	const runs = new Map<string, Run>();
 	const inflight = new Map<string, Promise<ExecRef>>();
 	const capabilities: ExecutorCapabilities = codexCapabilities();
@@ -481,7 +493,7 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 		try {
 			appendFileSync(
 				run.rawPath,
-				`${JSON.stringify({ at: Date.now(), dir: direction, msg: message })}\n`,
+				`${JSON.stringify({ at: Date.now(), dir: direction, msg: run.redact.value(message) })}\n`,
 				{ mode: 0o600 },
 			);
 		} catch {
@@ -489,8 +501,10 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 		}
 	};
 
-	const emit = (run: Run, event: ExecEvent) => {
+	const emit = (run: Run, rawEvent: ExecEvent) => {
 		if (run.done) return;
+		// Events are persisted by this store and by the runtime: no request secret (review #5).
+		const event = run.redact.value(rawEvent);
 		run.log.push(event);
 		try {
 			store.appendEvent(run.attemptKey, event);
@@ -773,10 +787,15 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 						? req.model
 						: undefined;
 			if (keep && threadId !== undefined) {
-				run.ownedSession = {
-					kind: CODEX_OWNED_SESSION_KIND,
-					locator: threadId,
-				};
+				// Review #9: a thread is owned only when this adapter created it (durable record
+				// written here) or resumes one it recorded earlier; a resumed foreign thread is not.
+				if (req.resumeSessionId === undefined)
+					threads.record(threadId, run.attemptKey);
+				if (threads.owns(threadId))
+					run.ownedSession = {
+						kind: CODEX_OWNED_SESSION_KIND,
+						locator: threadId,
+					};
 				run.ref = { ...run.ref, sessionId: threadId };
 				store.write({
 					attemptKey: run.attemptKey,
@@ -844,7 +863,15 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 	};
 
 	const launch = async (req: SubmitRequest): Promise<ExecRef> => {
-		const known = store.read(req.attemptKey);
+		const lookup = store.lookup(req.attemptKey);
+		// Unreadable evidence may hide a launch: refuse before consuming (review #3).
+		if (lookup.status === "unreadable")
+			throw new SdkError(
+				"AUTHORITY_ALREADY_CONSUMED",
+				`codex attempt ${req.attemptKey} has launch evidence that cannot be trusted (${lookup.reason}); reconcile reports unknown`,
+				{ subject: req.attemptKey },
+			);
+		const known = lookup.status === "found" ? lookup.record : undefined;
 		if (known?.ref !== undefined) return known.ref;
 		if (known?.phase === "consumed")
 			throw new SdkError(
@@ -894,6 +921,10 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			},
 		);
 		const digest = attemptDigest(req.attemptKey);
+		const redact = createSecretRedactor(requestSecrets(req), {
+			minLength: 8,
+			replacement: (label) => `<redacted:${label}>`,
+		});
 		const ref: ExecRef = {
 			executorId: CODEX_EXECUTOR_ID,
 			attemptKey: req.attemptKey,
@@ -915,6 +946,8 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			rawPath,
 			methodsById: new Map(),
 			stderr: "",
+			redact,
+			stderrRedact: redact.stream(),
 		};
 		runs.set(req.attemptKey, run);
 		store.write({
@@ -929,11 +962,16 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			envKeys: Object.keys(req.env).sort(),
 			pid: child.pid ?? null,
 		});
-		child.stderr.on("data", (chunk: Buffer) => {
-			const text = chunk.toString();
+		const onStderr = (text: string) => {
+			if (text === "") return;
 			run.stderr = (run.stderr + text).slice(-16_384);
 			raw(run, "stderr", text);
-		});
+		};
+		// A value split across stderr chunks is held back until it can be redacted (review #5).
+		child.stderr.on("data", (chunk: Buffer) =>
+			onStderr(run.stderrRedact.push(chunk.toString())),
+		);
+		child.stderr.on("end", () => onStderr(run.stderrRedact.flush()));
 		run.conn = new AppServerConnection(child, {
 			onLine: (direction, message) => {
 				if (
@@ -1062,6 +1100,17 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 					);
 			if (problems.length > 0)
 				throw new SdkError("INVALID_REQUEST", problems.join("; "));
+			// Review #6: MCP servers run outside the Codex sandbox. Only the engine's artifact server
+			// (one read-only tool) is trusted on a readOnly request; any other server may mutate.
+			const foreignServers = (req.mcpServers ?? [])
+				.map((server) => server.name)
+				.filter((name) => name !== ARTIFACT_MCP_SERVER_NAME);
+			if (req.readOnly === true && foreignServers.length > 0)
+				throw new SdkError(
+					"CAPABILITY_MISSING",
+					`readOnly request injects MCP servers whose tools may mutate (${foreignServers.join(", ")}); the codex executor cannot enforce readOnly on them`,
+					{ subject: "readOnly" },
+				);
 			const pending = inflight.get(req.attemptKey);
 			if (pending !== undefined) return pending;
 			const launching = launch(req);
@@ -1118,7 +1167,10 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 		async cancel(ref: ExecRef, scope: CancelScope): Promise<CancelResult> {
 			const run = findRun(ref);
 			if (run === undefined) {
-				const record = store.read(ref.attemptKey);
+				const lookup = store.lookup(ref.attemptKey);
+				// Unreadable evidence cannot prove nothing runs (review #3).
+				if (lookup.status === "unreadable") return "uncertain";
+				const record = lookup.status === "found" ? lookup.record : undefined;
 				if (record === undefined || record.ref === undefined)
 					return "no_active";
 				if (record.phase === "terminal") return "too_late";
@@ -1183,9 +1235,13 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 		async reconcile(attemptKey: string): Promise<ReconcileResult> {
 			const run = runs.get(attemptKey);
 			if (run !== undefined) return { found: run.ref };
-			const record = store.read(attemptKey);
-			if (record === undefined || record.phase === "revoked")
-				return { absent: true };
+			const lookup = store.lookup(attemptKey);
+			// Only a missing record proves absence; unreadable evidence is ambiguous (review #3).
+			if (lookup.status === "missing") return { absent: true };
+			if (lookup.status === "unreadable")
+				return { unknown: true, reason: lookup.reason };
+			const record = lookup.record;
+			if (record.phase === "revoked") return { absent: true };
 			if (record.ref !== undefined) return { found: record.ref };
 			return {
 				unknown: true,
@@ -1222,8 +1278,9 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 		async deleteOwnedSession(
 			session: OwnedSession,
 		): Promise<DeleteOwnedSessionResult> {
-			// Not a thread this adapter kept: never touch it.
+			// Not a thread this adapter created and recorded: never touch it (review #9).
 			if (session.kind !== CODEX_OWNED_SESSION_KIND) return "refused";
+			if (!threads.owns(session.locator)) return "refused";
 			const child = spawn(codexPath, ["app-server"], {
 				stdio: ["pipe", "pipe", "pipe"],
 			});
@@ -1247,11 +1304,13 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 				});
 				conn.notify("initialized");
 				await conn.request("thread/delete", { threadId: session.locator });
+				threads.forget(session.locator);
 				return "deleted";
 			} catch (error) {
-				return /not found|no rollout|unknown thread/i.test(String(error))
-					? "not_found"
-					: "failed";
+				if (!/not found|no rollout|unknown thread/i.test(String(error)))
+					return "failed";
+				threads.forget(session.locator);
+				return "not_found";
 			} finally {
 				conn.end();
 				await withTimeout(done, 3_000);
