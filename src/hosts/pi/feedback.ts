@@ -389,8 +389,8 @@ interface SentDelivery {
 	sessionId: string;
 	sentAtMs: number;
 	/**
-	 * WP19 round 4 (F1): the queue lifetime it was enqueued into. Absent only in entries a round-3
-	 * module of this process left on `globalThis` (suppressing, as in round 3).
+	 * WP19 round 4 (F1): the queue lifetime it was enqueued into. WP19 round 5: an entry without
+	 * one never suppresses (see `enqueuedInto`).
 	 */
 	lifetime?: string;
 	/** WP19 round 4 (F4): its `sent` receipt (with `queueLifetime`) is on disk. */
@@ -416,6 +416,8 @@ interface SentDelivery {
  * (which carry the queue lifetime) and the session history are the source of truth after eviction.
  */
 interface FeedbackProcessState {
+	/** WP19 round 5: PROCESS_STATE_SCHEMA; any other value is never reused. */
+	schema: number;
 	processId: string;
 	/** Reservations this process is sending right now (receipt path → token). */
 	inFlight: Map<string, string>;
@@ -429,33 +431,51 @@ interface FeedbackProcessState {
 	lifetimes: WeakMap<object, string>;
 }
 
+/**
+ * WP19 round 5: the process state is versioned. Rule (state left on `globalThis` by another
+ * version of this module, e.g. before a hot `/reload` upgrade): **it may cause at most one
+ * duplicate, never a loss.** It is never reused for suppression: a module only adopts state whose
+ * key *and* `schema` match its own; anything else (an older key, an older shape, a mismatched
+ * schema) is left alone and a fresh state (with a new sender identity) is used, so the epochs the
+ * older module enqueued are reconciled against the session history (present = confirmed, absent =
+ * sent again; unreadable history: the receipt's bounded attempt budget). Bump
+ * PROCESS_STATE_SCHEMA (and the key) on any incompatible change to FeedbackProcessState or
+ * SentDelivery; never migrate older state into suppressing entries.
+ */
+const PROCESS_STATE_SCHEMA = 2;
 const PROCESS_STATE_KEY = Symbol.for(
-	"agent-workflow.pi-feedback.process-state.v1",
+	`agent-workflow.pi-feedback.process-state.v${PROCESS_STATE_SCHEMA}`,
 );
+
+function freshProcessState(): FeedbackProcessState {
+	return {
+		schema: PROCESS_STATE_SCHEMA,
+		processId: randomBytes(12).toString("hex"),
+		inFlight: new Map(),
+		enqueued: new Map(),
+		watch: new Map(),
+		receiptQueues: new Map(),
+		lifetimes: new WeakMap(),
+	};
+}
 
 function processState(): FeedbackProcessState {
 	const holder = globalThis as { [PROCESS_STATE_KEY]?: FeedbackProcessState };
 	let state = holder[PROCESS_STATE_KEY];
 	if (
 		!state ||
+		state.schema !== PROCESS_STATE_SCHEMA ||
 		typeof state.processId !== "string" ||
 		!(state.inFlight instanceof Map) ||
 		!(state.enqueued instanceof Map) ||
-		!(state.receiptQueues instanceof Map)
+		!(state.watch instanceof Map) ||
+		!(state.receiptQueues instanceof Map) ||
+		!(state.lifetimes instanceof WeakMap)
 	) {
-		state = {
-			processId: randomBytes(12).toString("hex"),
-			inFlight: new Map(),
-			enqueued: new Map(),
-			watch: new Map(),
-			receiptQueues: new Map(),
-			lifetimes: new WeakMap(),
-		};
+		// Another schema (or a damaged shape): never reused, only replaced (see above).
+		state = freshProcessState();
 		holder[PROCESS_STATE_KEY] = state;
 	}
-	// WP19 round 4: a reload from a round-3 module keeps its state and gains the new fields.
-	if (!(state.watch instanceof Map)) state.watch = new Map();
-	if (!(state.lifetimes instanceof WeakMap)) state.lifetimes = new WeakMap();
 	return state;
 }
 
@@ -478,12 +498,20 @@ function queueLifetime(
 	return token;
 }
 
-/** WP19 round 4 (F1): an in-memory entry still describes a message queued in `lifetime`. */
+/**
+ * WP19 round 4 (F1): an in-memory entry still describes a message queued in `lifetime`. WP19 round
+ * 5: only an entry naming that concrete lifetime does; one without a lifetime (written by an older
+ * module) never counts as enqueued into any queue: the history reconciles it.
+ */
 function enqueuedInto(
 	entry: SentDelivery,
 	lifetime: string | undefined,
 ): boolean {
-	return entry.lifetime === undefined || entry.lifetime === lifetime;
+	return (
+		typeof entry.lifetime === "string" &&
+		lifetime !== undefined &&
+		entry.lifetime === lifetime
+	);
 }
 
 /** WP19 round 4 (F4): bounds of the in-memory delivery state. */

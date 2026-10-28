@@ -22,7 +22,7 @@ import { fakeCtx, fakePi } from "../helpers/pi-host-fake.mjs";
 
 const feedback = await import("../../dist/hosts/pi/feedback.js");
 const { readRunRecord } = await import("../../dist/core/store.js");
-const STATE_KEY = Symbol.for("agent-workflow.pi-feedback.process-state.v1");
+const STATE_KEY = Symbol.for("agent-workflow.pi-feedback.process-state.v2");
 const state = () => globalThis[STATE_KEY];
 const memory = () => ({
 	enqueued: state()?.enqueued?.size ?? 0,
