@@ -33,6 +33,7 @@ export type PiHostApi = Pick<
 	| "listAgentsAction"
 	| "profileAction"
 	| "workflowPreferenceAction"
+	| "executorModelsAction"
 	| "runWorkflowAction"
 	| "runDynamicAction"
 	| "statusAction"
@@ -223,15 +224,26 @@ export interface PiLaunchHooks {
 	>;
 	/** Text-fallback note after a launch without a dialog UI that offered a profile choice. */
 	note(): string | undefined;
+	/** WP34: the user chose "Custom…" in the declared-profile chooser (the launch was cancelled). */
+	customRequested(): boolean;
 }
+
+/** WP34: the extra choice of the declared-profile chooser that opens the profile picker (TUI). */
+export const CUSTOM_PROFILE_OPTION = "Custom… (open the profile picker)";
 
 /**
  * WP4d confirmation and the declared-profile chooser through Pi's extension UI, when present
  * (`ctx.ui.select`). Without a dialog UI (print/JSON mode) the chooser falls back to text: the
  * headless choice (the declared default, else the base spec) is made and the launch output lists
- * every choice with the `--profile` value that selects it.
+ * every choice with the `--profile` value that selects it. WP34: with `customProfile` the chooser
+ * also offers CUSTOM_PROFILE_OPTION; choosing it cancels this launch (nothing starts) and
+ * `customRequested()` tells the caller to open the profile picker.
  */
-export function launchHooks(ctx: PiExtensionContext): PiLaunchHooks {
+export function launchHooks(
+	ctx: PiExtensionContext,
+	options: { customProfile?: boolean } = {},
+): PiLaunchHooks {
+	let custom = false;
 	if (ctx.hasUI)
 		return {
 			hooks: {
@@ -239,9 +251,18 @@ export function launchHooks(ctx: PiExtensionContext): PiLaunchHooks {
 				confirmDegradations: async (preview) =>
 					(await ctx.ui.confirm(DEGRADATION_CONFIRM_TITLE, preview.text)) ===
 					true,
-				selectProfile: (title, options) => ctx.ui.select(title, options),
+				selectProfile: async (title, choices) => {
+					const offered = options.customProfile
+						? [...choices, CUSTOM_PROFILE_OPTION]
+						: choices;
+					const chosen = await ctx.ui.select(title, offered);
+					if (chosen !== CUSTOM_PROFILE_OPTION) return chosen;
+					custom = true;
+					return undefined;
+				},
 			},
 			note: () => undefined,
+			customRequested: () => custom,
 		};
 	let offered: { options: string[]; chosen: string } | undefined;
 	return {
@@ -266,6 +287,7 @@ export function launchHooks(ctx: PiExtensionContext): PiLaunchHooks {
 				...choices,
 			].join("\n");
 		},
+		customRequested: () => false,
 	};
 }
 

@@ -14,6 +14,8 @@ export interface PiUiContext {
 		options?: { timeout?: number; signal?: AbortSignal },
 	): Promise<boolean>;
 	select(title: string, options: string[]): Promise<string | undefined>;
+	/** WP34: Pi 1.1 text input dialog (the profile picker's profile name). */
+	input?(title: string, placeholder?: string): Promise<string | undefined>;
 	/** Footer status entry; `undefined` clears it (WP16). Fire-and-forget in RPC mode. */
 	setStatus?(key: string, text: string | undefined): void;
 	/**

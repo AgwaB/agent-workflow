@@ -1,7 +1,7 @@
 // New in agent-workflow (WP11b): the `/aw <action> …` slash command. Each action parses its
 // arguments and calls exactly one host API handler; the output is the handler's `text`. Ported in
 // spirit from pi-workflow 0.16.4 (b83cc4f) `handleWorkflowCommand` (the `/workflow` actions), without
-// the board, `auto` and the TUI profile picker. The command is `/aw`, never `/workflow`, so it can
+// `auto` (WP34 adds the board and the TUI profile picker). The command is `/aw`, never `/workflow`, so it can
 // run next to pi-workflow (A2-1). WP16: `/aw logs`; launches and resumes from this session are
 // tracked for the status line and completion delivery (feedback.ts); without a dialog UI the
 // declared-profile choice falls back to text (host.ts `launchHooks`). WP28 (Q9): `/aw wait <run>
@@ -9,6 +9,8 @@
 // `/workflow wait <run> [timeout-ms]`: default 60 s, max 4 h; the host API `longWait`).
 // WP31: `/aw profile set --preset/--role`, `/aw profile presets`, `/aw profile workflow …`.
 // WP29: `/aw approve <run>` answers a dynamic-controller approval through ctx.ui.confirm.
+// WP34: in the TUI, `/aw` with no arguments and `/aw <run>` open the board (board.ts); other modes
+// keep the text behavior (`/aw` = help, `/aw <run>` = unknown action).
 import {
 	COMMAND_HELP,
 	HOST_LONG_WAIT_MAX_TIMEOUT_MS,
@@ -31,6 +33,10 @@ import {
 	workflowPreferenceRequest,
 } from "../cli/index.js";
 import { FOREGROUND_CANCELLED, withForegroundLoader } from "./active-ui.js";
+import { boardAvailable, showAwBoard } from "./board.js";
+import { piBoardSource } from "./board-source.js";
+import { runProfilePicker } from "./profile-picker.js";
+import { piProfilePickerUi } from "./profile-tui.js";
 import { beginRunParentUsage } from "./parent-usage.js";
 import {
 	emit,
@@ -39,6 +45,7 @@ import {
 	launchHooks,
 	levelForOutcome,
 	type PiHostDeps,
+	type PiLaunchHooks,
 } from "./host.js";
 import { AW_COMMAND, AW_TOOL_NAMES } from "./names.js";
 import type { PiExtensionContext } from "./pi-types.js";
@@ -79,10 +86,12 @@ Workflows:
   /aw roles <workflow>                                 show compiled role context
   /aw agents                                           list agent definitions
   /aw show <workflow>                                  print a workflow spec
+  /aw profile                                          (TUI) the profile picker: presets, saved, Custom
   /aw profile list|show|set|delete|default|presets …   manage saved user profiles (roles, presets)
   /aw profile workflow list|show|set|clear …           saved per-workflow preferences
 
 Runs:
+  /aw [<run>]                           open the run board (TUI only; r refresh, v launch, c copy, s stop, u resume, a approve, q close)
   /aw run <workflow> <task> [options]   start a workflow; returns once it is launched
   /aw dynamic <task> [options]          start a spec-less dynamic workflow
   /aw status [run]                      show runs
@@ -269,6 +278,20 @@ async function dispatch(
 			only(parseCommandArgs(rest, {}).positionals, 0, "agents");
 			return api.listAgentsAction(host());
 		case "profile":
+			// WP34: `/aw profile` alone opens the picker in the TUI (the text operations stay).
+			if (rest.length === 0 && boardAvailable(ctx)) {
+				const picked = await runProfilePicker(
+					piProfilePickerUi(ctx),
+					api,
+					host(),
+				);
+				return {
+					text:
+						picked.status === "saved"
+							? picked.text
+							: "Profile picker closed; nothing saved.",
+				};
+			}
 			// WP31: `/aw profile workflow …` manages saved per-workflow preferences.
 			if (rest[0] === "workflow")
 				return api.workflowPreferenceAction(
@@ -286,21 +309,43 @@ async function dispatch(
 				throw new HostUsageError(
 					`Missing task. Usage: /${AW_COMMAND} run ${parsed.specPath} "<task>"`,
 				);
-			const hooks = launchHooks(ctx);
-			const launched = await api.runWorkflowAction(
-				hostContext(deps, ctx, { executor: parsed.executor }),
+			// WP34: in the TUI the declared-profile chooser also offers "Custom…" (the picker).
+			const hooks = launchHooks(ctx, { customProfile: boardAvailable(ctx) });
+			const launch = (with_: PiLaunchHooks) =>
+				api.runWorkflowAction(
+					hostContext(deps, ctx, { executor: parsed.executor }),
+					{
+						workflow: parsed.specPath!,
+						...launchRequest(parsed),
+						// WP33: launch capture (redacted by the host API): the command as typed.
+						launchOrigin: {
+							kind: "command",
+							text: `/${AW_COMMAND} ${args.trim()}`,
+						},
+						...with_.hooks,
+					},
+				);
+			try {
+				const launched = await launch(hooks);
+				return { ...launched, note: hooks.note() };
+			} catch (error) {
+				if (!hooks.customRequested()) throw error;
+			}
+			// "Custom…": nothing started. Save a per-workflow preference, then launch with it.
+			const picked = await runProfilePicker(
+				piProfilePickerUi(ctx),
+				api,
+				host(),
 				{
 					workflow: parsed.specPath,
-					...launchRequest(parsed),
-					// WP33: launch capture (redacted by the host API): the command as typed.
-					launchOrigin: {
-						kind: "command",
-						text: `/${AW_COMMAND} ${args.trim()}`,
-					},
-					...hooks.hooks,
 				},
 			);
-			return { ...launched, note: hooks.note() };
+			if (picked.status !== "saved")
+				return {
+					text: "Launch cancelled: the profile picker was closed without saving; nothing started.",
+				};
+			const relaunched = await launch(launchHooks(ctx));
+			return { ...relaunched, note: picked.text };
 		}
 		case "dynamic": {
 			const parsed = parseWorkflowDynamicArgs(args);
@@ -505,6 +550,7 @@ export async function handleAwCommand(
 ): Promise<void> {
 	try {
 		await deps.ready();
+		if (await openBoardFor(deps, args, ctx)) return;
 		const outcome = await dispatch(deps, args, ctx);
 		if (!("action" in outcome)) {
 			emit(ctx, outcome.text, "info");
@@ -526,6 +572,41 @@ export async function handleAwCommand(
 		emit(ctx, formatHostError(error), "error");
 		if (!ctx.hasUI) process.exitCode = 1;
 	}
+}
+
+/**
+ * WP34: `/aw` (no arguments) and `/aw <run-id-or-prefix>` open the board in the TUI. Returns false
+ * (the text command runs) outside the TUI, for an action name, and for a token that is no run.
+ */
+async function openBoardFor(
+	deps: PiHostDeps,
+	args: string,
+	ctx: PiExtensionContext,
+): Promise<boolean> {
+	if (!boardAvailable(ctx)) return false;
+	const tokens = tokenizeWorkflowArgs(args).map((token) => token.text);
+	let runId: string | undefined;
+	if (tokens.length === 1) {
+		const token = tokens[0]!;
+		if (
+			(AW_ACTIONS as readonly string[]).includes(token) ||
+			token.startsWith("-")
+		)
+			return false;
+		try {
+			runId = (
+				await deps.api.statusAction(hostContext(deps, ctx), { runId: token })
+			).data.run?.runId;
+		} catch {
+			return false;
+		}
+		if (!runId) return false;
+	} else if (tokens.length > 1) return false;
+	const source = piBoardSource(deps, ctx, (action, data) =>
+		trackLaunched(deps, ctx, action, data, "command"),
+	);
+	await showAwBoard(ctx, source, runId ? { initialRunId: runId } : {});
+	return true;
 }
 
 /**

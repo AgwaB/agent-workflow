@@ -2,7 +2,8 @@
 
 WP11b, WP16. A Pi extension over the host API (`docs/host-api.md`): the `/aw` command, four agent
 tools (`aw_list`, `aw_run`, `aw_dynamic`, `aw_wait`), an unfinished-run notice at session start and
-(WP16) a footer status line plus completion delivery into the session for runs it launched.
+(WP16) a footer status line plus completion delivery into the session for runs it launched, and
+(WP34) in the TUI a run board (`/aw`, `/aw <run>`) and a profile picker (`/aw profile`).
 The parent agent is Pi; the workflow **workers** run on whichever executor is selected (`--executor`,
 a profile, or the default `pi`). Every action calls one host API handler, so the Pi host, the
 `agent-workflow` CLI (`docs/cli.md`) and the stage-2 MCP host behave the same.
@@ -10,7 +11,9 @@ a profile, or the default `pi`). Every action calls one host API handler, so the
 Sources: `src/hosts/pi/` — `index.ts` (package entry and Pi presence check), `extension.ts`
 (registration), `command.ts` (`/aw`), `tools.ts` (`aw_*`), `notices.ts` (session start),
 `feedback.ts` (WP16 status line and completion delivery), `host.ts` (host context, confirmation,
-profile choice, output), `names.ts`, `pi-types.ts` (the Pi API subset used).
+profile choice, output), `names.ts`, `pi-types.ts` (the Pi API subset used); WP34: `board.ts`,
+`board-source.ts`, `board-format.ts` (the board), `profile-picker.ts`, `profile-tui.ts` (the
+picker), `tui-kit.ts` (keys, widths, boxes, theme helpers shared by both).
 
 ## Install
 
@@ -49,10 +52,12 @@ mode); errors are error notifications.
 
 | `/aw …` | Host API handler |
 |---|---|
+| (none) / `<run-id-or-prefix>` | TUI: the board ([below](#board-wp34)); otherwise `/aw` is `help` and `/aw <run>` an unknown action, as before |
 | `help [action]` | `helpAction` (one action); the action list is Pi-specific |
 | `list [--query T] [--offset N] [--limit N]` | `listWorkflowsAction` |
 | `validate <workflow>`, `roles <workflow>` | `validateWorkflowAction`, `workflowRolesAction` |
 | `agents` | `listAgentsAction` |
+| `profile` (no operation) | TUI: the profile picker ([below](#profile-picker-wp34)); otherwise `profileAction` `list`, as before |
 | `profile list \| show [name] \| set <name> … [--default] \| delete <name> \| default <name> \| default --clear \| presets` | `profileAction` (saved user profiles; same options as the CLI, WP31: `--preset`, `--role`) |
 | `profile workflow list \| show <workflow> \| set <workflow> … \| clear <workflow>` | `workflowPreferenceAction` (WP31: saved per-workflow preferences; every host's launch applies them) |
 | `run <workflow> <task> [options]` | `runWorkflowAction` |
@@ -147,11 +152,98 @@ Execution profile (no dialog UI): the workflow declares execution profiles; this
 (the host API passes the headless option as `selectProfile(title, options, {headlessOption})`). A
 saved per-workflow Pi preference or `--profile` skips the choice, as before.
 
+Custom (WP34): in the TUI, the chooser of `/aw run` also offers `Custom… (open the profile picker)`.
+Choosing it cancels that launch attempt before anything starts (the duplicate-launch claim is
+released), opens the [profile picker](#profile-picker-wp34) for that workflow, and when the picker
+saves a per-workflow preference, launches again: the saved preference now resolves before the
+chooser, so it is not asked again, and the launch output ends with the picker's save text. Closing
+the picker without saving reports `Launch cancelled: …; nothing started.` RPC mode and the agent
+tools keep the plain chooser.
+
 Host context per call: `cwd` = Pi's cwd; `availableModels` = Pi's model registry (so saved
 per-workflow Pi profile preferences apply; WP19 round 2: the preference, resolved once with its stage
 overrides, is part of the duplicate-launch identity and the run is launched from that same
 resolution, so changing it starts a new run); `runtimeDefaults` = Pi's current model and thinking level,
 only when no executor or `pi` is selected — a `--executor codex` run does not inherit Pi's model.
+
+## Board (WP34)
+
+Port of pi-workflow's `/workflow` board (`src/workflow-view.ts`; owner decision Q1, parity row 22).
+`/aw` without arguments opens it on the run list; `/aw <run-id-or-prefix>` opens that run's stages (a
+child run the list omits is pinned first). Only in the TUI (`ctx.mode === "tui"` with
+`ctx.ui.custom`); RPC, print and JSON mode keep the text behavior. The board is Pi's custom
+component for the editor area; the command returns when it closes.
+
+Levels: runs → stages → tasks → task detail. The run list shows each top-level run with status,
+progress and its executors (`claude+codex` for a WP31 mixed run). The side pane shows the selected
+run: run id, start, elapsed, executor(s), the domain verdict, report paths (`Final report`,
+`Evidence audit`), pending dynamic-controller approvals (WP29), the parent-session usage (WP33) and
+the launch capture (source, entry, profile, task size, whether the command is available). Tasks
+list problem tasks first, each with its `executor model effort`. The task detail shows stage,
+agent, elapsed, executor/model/effort, the status detail, the last message, the run verdict, the
+`/aw logs` command and the task's logs (output, stderr, events; up to 400 lines each).
+
+| Key | Where | Action |
+|---|---|---|
+| ↑/↓, `k`/`j`, `[`/`]`, `p`/`n` | lists | move (wraps) |
+| Enter, →, `l` | lists | drill down (runs → stages → tasks → detail) |
+| Esc, ←, `h`, `b`, Backspace | lists, detail | back one level; on the run list Esc closes |
+| `q`, Ctrl+C, Ctrl+D | anywhere | close |
+| `r` | anywhere | refresh now (it also refreshes every 2 s) |
+| `v` | runs, stages, tasks | open the launch command viewer (WP33 capture; redacted at capture, control and bidi characters escaped) |
+| `c` | launch viewer, runs, stages, tasks | copy the exact launch command (Pi's `copyToClipboard`) |
+| ↑/↓ | launch viewer | scroll; `b`/Esc back |
+| ←/→ | task detail | switch output / stderr / events |
+| ↑/↓ | task detail | scroll the log |
+| `[`/`]`, `p`/`n` | task detail | previous / next task of the stage |
+| `s` | anywhere | stop the selected run (`stopAction`), after `y` |
+| `u` | anywhere | resume the selected failed, interrupted or blocked run (`resumeAction`, attached; tracked for the status line and completion delivery like `/aw resume`), after `y` |
+| `a` | anywhere | answer the run's first pending approval (`approveAction`): `y` approves (and resumes), `x` rejects (never asked again), Esc cancels |
+| `y` / `n` / Esc | confirmation | yes / no / cancel |
+
+Reads go through the host API only: `statusAction` (run list; one run with per-task runtime,
+verdict, report paths, pending approvals, parent usage), `showAction` (the run record for stages,
+task names, agents and timestamps, and the launch capture) and `logsAction` (the task's bounded,
+redacted tails). Changes from pi-workflow: no direct run-store reads; logs instead of the raw output
+and prompt files; stop/resume/approve keys; `c` also works without opening the viewer; a 2 s refresh
+(pi-workflow: 1 s; each tick is up to two host API reads).
+
+## Profile picker (WP34)
+
+Port of pi-workflow's `/workflow profile` picker (`src/workflow-profile-ui.ts`,
+`src/workflow-profile-tui.ts`; parity row 24) over WP31 role profiles. `/aw profile` alone opens it
+in the TUI; the text operations (`/aw profile list|show|set|…|workflow …`) are unchanged, and
+outside the TUI `/aw profile` still lists.
+
+1. Scope: `Every workflow: a saved user profile` or `One workflow: its saved preference…` (then the
+   workflow, from `listWorkflowsAction`). The launch chooser's `Custom…` skips this step.
+2. Profile: the built-in presets `Codex`, `Claude`, `Pi`, `Mixed` (with their descriptions), each
+   saved user profile (`Saved: <name>`), and `Custom…`. The current choice is marked `(default)` or
+   `(saved for this workflow)`. `Custom…` starts from the current choice (else `Pi`) and opens the
+   role editor.
+3. Preview: a colour table, one row per role (`default`, `planning`, `research-execution`,
+   `synthesis`, `verification`, `final-judgment`, then `agent:<name>` roles) with EXECUTOR, MODEL
+   and EFFORT. Executors have their own colour (pi `accent`, codex `mdLink`, claude `mdHeading`); a
+   role without an entry of its own is dimmed (the default role applies). Warnings follow a row: an
+   executor that is not installed or logged out, a model missing from the executor's probe list
+   (complete list: refused at launch; partial: only noted). Then one note per executor in use with
+   its probe's `modelListComplete` meaning. Actions: Save, Edit a role…, Back to profiles (↑/↓,
+   Enter, Esc = back). Below 66 columns the table stacks two lines per role.
+4. Edit a role: pick the role (or `Add an agent role (agent:<name>)…`), then Executor (pi, claude,
+   codex, with their probe state; changing it clears the model, which belongs to the executor),
+   Model (`(executor default)`, the models of that executor's probe — `executorModelsAction`, no
+   model call — or `Other model id…`), Effort (`(default)` or a thinking level), or remove the
+   role. Nothing is written while editing.
+5. Save. User scope: an unedited saved profile only asks whether to make it the default
+   (`profileAction` `default`); otherwise `Update saved profile "<name>"` or `Save as a new
+   profile…` (name via `ctx.ui.input`), then "Make it the default?"; an unedited preset is saved
+   with `preset: <id>`, an edited one with its full role table (`profileAction` `set`). Workflow
+   scope: `workflowPreferenceAction` `set` with the base profile and only the roles that differ
+   from it (earlier overrides are replaced); a preference cannot remove a role of its base profile
+   (the picker warns and keeps it).
+
+Back and cancel write nothing. Workflow-declared execution profiles are not listed in the picker
+(they stay in the launch chooser).
 
 ## Dynamic-controller approval (WP29)
 
@@ -433,6 +525,15 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
 
 ## Verification
 
+- WP34: `host-wp34-pi-board.test.mjs` (fake source: navigation, mixed-run executor/model/effort,
+  verdict, report path, pending approvals, launch viewer escaping and copy, stop/resume/approve
+  confirmed in the board; through the Pi host with a fake TUI: `/aw` and `/aw <prefix>` open the
+  board over `statusAction`/`showAction`/`logsAction` only, `s`/`u` stop and resume a real fixture
+  run, RPC and print/JSON keep the text behavior) and `host-wp34-pi-profile-picker.test.mjs`
+  (`executorModelsAction` with a fake prober, preview rows and renderer, the scripted flow: Back and
+  cancel write nothing, a preset saved as the default, Custom role editing saved as a user profile, a
+  per-workflow preference; `/aw profile` with the preview component; the launch chooser's `Custom…`
+  saves a preference and launches once, closing without saving starts nothing).
 - WP33: `host-wp33-pi-owned-wait.test.mjs` (aw_wait presents the result of this session's run, no
   completion message follows; another session is refused; unowned runs; a timed-out wait leaves
   delivery to the tracker; already-delivered note; awaited duplicate launch; restart with and
@@ -484,15 +585,17 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
 
 ## Limits
 
-- No board or `/aw` with a bare run id (pi-workflow's board TUI is out of scope); the session's
-  runs show in one footer entry and the active-workflows widget (WP33).
+- The board (WP34) lists top-level runs of this project (not only this session's); its task detail
+  shows logs, not the task prompt (the host API exposes no prompt read). A dynamic-controller
+  approval asked while the board is open (an attached run of this session) replaces the board with
+  Pi's dialog, as with the `/aw wait` loader.
 - The `/aw wait` loader shares Pi's editor slot with dialogs: a dynamic-controller approval asked
   during the wait (WP29) replaces the loader; the wait continues after the answer, without the
   loader (cancel it with a new `/aw wait` … Escape, or let it finish).
 - A context without a session id gets no status line or delivery (Pi 1.1 has one in TUI and RPC,
   also with `--no-session`).
-- No `/aw auto` or TUI profile picker (`/workflow profile`); `/aw profile` manages saved user
-  profiles only.
+- No `/aw auto`. The profile picker (WP34) edits WP31 role profiles, not pi-workflow's per-stage Pi
+  model/thinking settings, and does not list workflow-declared execution profiles.
 - Runs left running by a gone process are re-driven at session start (WP28) only while Pi runs;
   for a run that should outlive every session use `--detach` (or `agent-workflow supervise`).
 - Host tools (WP35) are file-configuration inheritance, as in pi-workflow: workers read the user's
@@ -500,6 +603,10 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
   session are not transferred. Under isolation (`--no-approve`) a trusted project's `.pi/mcp.json`
   is not loaded by the worker (pi-workflow loaded it); the recorded project trust is not yet used.
   Not live-verified (live bundle 5).
+- WP34 is verified with fake Pi UI objects (`ctx.ui.custom` with a fake TUI and theme), not in a live
+  Pi TUI (live bundle 5): rendering in a real terminal (widths, colours, the full repaint on close),
+  key input through Pi's input parser, `copyToClipboard`, `ctx.ui.input`, and the chooser's
+  `Custom…` → picker → relaunch.
 - WP33 is verified with fake Pi UI/session objects and the real Pi 1.1 session runtime only, not in
   a live Pi session (live bundle 5): the `aw_wait` tool result as the presentation (no follow-up
   message, history confirmation after `/resume`), the widget and the `/aw wait` loader in the TUI
