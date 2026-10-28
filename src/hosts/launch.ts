@@ -287,26 +287,43 @@ function applyUserProfile(
 }
 
 /**
+ * WP19 round 2 (N5): the launch profile, resolved once from one read of the settings (saved user
+ * profiles and the saved per-workflow preference with its stage overrides). The duplicate guard
+ * fingerprints this snapshot and the launch runs from it; nothing re-reads settings in between.
+ * Only the interactive declared-profile chooser runs later (after the guard claimed the launch,
+ * so a duplicate never prompts); it picks from the snapshot.
+ */
+interface LaunchProfileSnapshot {
+	/** Final profile (no interactive choice needed). */
+	resolved?: LaunchProfile;
+	/** The workflow declares profiles: the declared selector decides after the guard. */
+	declaredChoice?: { userDefault?: UserProfile; userProfilesError?: unknown };
+}
+
+/**
  * Profile for one launch. Named: a declared spec profile wins over a saved user profile of the
  * same name. Not named: (host with a model registry: saved per-workflow Pi preference) > declared
  * default (or the interactive declared chooser) > default saved user profile > none.
  */
-async function resolveLaunchProfile(
+async function snapshotLaunchProfile(
 	ctx: HostApiContext,
 	loaded: LoadedWorkflowSpec,
 	request: LaunchRequestBase,
-): Promise<LaunchProfile> {
+): Promise<LaunchProfileSnapshot> {
 	const env = hostEnv(ctx);
 	const declared = loaded.spec.executionProfiles ?? {};
 	if (request.profile !== undefined) {
 		if (Object.hasOwn(declared, request.profile))
 			return {
-				selection: { executionProfile: request.profile },
-				info: { name: request.profile, kind: "declared", source: "request" },
+				resolved: {
+					selection: { executionProfile: request.profile },
+					info: { name: request.profile, kind: "declared", source: "request" },
+				},
 			};
 		const file = await readUserProfiles(env);
 		const user = userProfileFromFile(file, request.profile);
-		if (user) return applyUserProfile(ctx, loaded, user, "request");
+		if (user)
+			return { resolved: applyUserProfile(ctx, loaded, user, "request") };
 		const declaredNames = Object.keys(declared).sort();
 		const userNames = Object.keys(file.profiles).sort();
 		throw new HostUsageError(
@@ -314,60 +331,105 @@ async function resolveLaunchProfile(
 		);
 	}
 	if (ctx.availableModels !== undefined) {
-		const selection = await resolveWorkflowExecutionProfileForLaunch(
-			loaded.specPath,
-			ctx.cwd,
-			undefined,
-			{
-				loadedWorkflow: loaded,
-				availableModels: ctx.availableModels,
-				currentRuntime: ctx.runtimeDefaults ?? {},
-				...(request.selectProfile ? { select: request.selectProfile } : {}),
-				runtimeOverrides: runtimeOverrides(request),
-			},
-		);
-		if (selection.executionProfileOverride)
+		const saved = await resolveSavedWorkflowExecutionProfile({
+			spec: loaded.spec,
+			specPath: loaded.specPath,
+			availableModels: ctx.availableModels,
+			currentRuntime: ctx.runtimeDefaults ?? {},
+			runtimeOverrides: runtimeOverrides(request),
+		});
+		if (saved)
 			return {
-				selection,
-				info: {
-					name: selection.executionProfileOverride.name,
-					kind: "workflow-preference",
-					source: "workflow-preference",
+				resolved: {
+					selection: { executionProfileOverride: saved },
+					info: {
+						name: saved.name,
+						kind: "workflow-preference",
+						source: "workflow-preference",
+					},
 				},
 			};
-		if (selection.executionProfile)
-			return {
-				selection,
-				info: {
-					name: selection.executionProfile,
-					kind: "declared",
-					source: "workflow-default",
-				},
-			};
-	} else {
-		const executionProfile = await selectWorkflowExecutionProfile(
-			loaded.specPath,
-			ctx.cwd,
-			undefined,
-			request.selectProfile,
-			loaded,
-		);
-		if (executionProfile)
-			return {
-				selection: { executionProfile },
-				info: {
-					name: executionProfile,
-					kind: "declared",
-					source: "workflow-default",
-				},
-			};
+	}
+	if (Object.keys(declared).length > 0) {
+		// The saved user profiles only matter when the chooser picks no declared profile: an
+		// unreadable file fails the launch only then (as before).
+		try {
+			const file = await readUserProfiles(env);
+			const userDefault = file.default
+				? userProfileFromFile(file, file.default)
+				: undefined;
+			return { declaredChoice: userDefault ? { userDefault } : {} };
+		} catch (error) {
+			return { declaredChoice: { userProfilesError: error } };
+		}
 	}
 	const file = await readUserProfiles(env);
-	if (file.default) {
-		const user = userProfileFromFile(file, file.default);
-		if (user) return applyUserProfile(ctx, loaded, user, "user-default");
-	}
+	const userDefault = file.default
+		? userProfileFromFile(file, file.default)
+		: undefined;
+	if (userDefault)
+		return {
+			resolved: applyUserProfile(ctx, loaded, userDefault, "user-default"),
+		};
+	return { resolved: { selection: {} } };
+}
+
+/** The final launch profile from the snapshot (runs the declared chooser when needed). */
+async function finishLaunchProfile(
+	ctx: HostApiContext,
+	loaded: LoadedWorkflowSpec,
+	request: LaunchRequestBase,
+	snapshot: LaunchProfileSnapshot,
+): Promise<LaunchProfile> {
+	if (snapshot.resolved) return snapshot.resolved;
+	const executionProfile = await selectWorkflowExecutionProfile(
+		loaded.specPath,
+		ctx.cwd,
+		undefined,
+		request.selectProfile,
+		loaded,
+	);
+	if (executionProfile)
+		return {
+			selection: { executionProfile },
+			info: {
+				name: executionProfile,
+				kind: "declared",
+				source: "workflow-default",
+			},
+		};
+	if (snapshot.declaredChoice?.userProfilesError !== undefined)
+		throw snapshot.declaredChoice.userProfilesError;
+	const userDefault = snapshot.declaredChoice?.userDefault;
+	if (userDefault)
+		return applyUserProfile(ctx, loaded, userDefault, "user-default");
 	return { selection: {} };
+}
+
+/** What the snapshot means for the fingerprint (timestamps dropped). */
+function snapshotIdentity(
+	snapshot: LaunchProfileSnapshot,
+): Record<string, unknown> {
+	if (snapshot.resolved) {
+		const { selection, runtimeDefaults, fallback, info } = snapshot.resolved;
+		return {
+			resolved: {
+				info: info ?? null,
+				executionProfile: selection.executionProfile ?? null,
+				executionProfileOverride: selection.executionProfileOverride ?? null,
+				runtimeDefaults: runtimeDefaults ?? null,
+				fallback: fallback ?? null,
+			},
+		};
+	}
+	const userDefault = snapshot.declaredChoice?.userDefault;
+	return {
+		declaredChoice: {
+			userDefault: userDefault
+				? { ...userDefault, updatedAt: undefined }
+				: null,
+		},
+	};
 }
 
 function runtimeOverrides(
@@ -647,52 +709,71 @@ function launchData(
 /**
  * WP19 (review #8): what this launch will actually run with, resolved without prompting or probing:
  * the host, the executor that applies and where it comes from (request flag, saved user profile
- * named by the request or the default one, the workflow's declared profiles, the host override,
- * the host's own CLI or the terminal's installed-default order), the contents of the saved user
- * profile that applies, the host's inherited model/effort, and a digest of the workflow definition
- * (which also covers its declared profiles and defaults). Two identical requests from different
- * hosts, or after a profile or workflow change, are different launches.
+ * named by the request or the default one, the saved per-workflow preference, the workflow's
+ * declared profiles, the host override, the host's own CLI or the terminal's installed-default
+ * order), the resolved launch profile snapshot (WP19 round 2, N5: user profile contents, the saved
+ * per-workflow preference with its stage overrides), the host's inherited model/effort, and a digest
+ * of the workflow definition (which also covers its declared profiles and defaults). Two identical
+ * requests from different hosts, or after a profile, preference or workflow change, are different
+ * launches.
  */
-async function launchExecutionIdentity(
+function launchExecutionIdentity(
 	ctx: HostApiContext,
 	loaded: LoadedWorkflowSpec,
 	request: LaunchRequestBase,
-): Promise<Record<string, unknown>> {
+	snapshot: LaunchProfileSnapshot,
+): Record<string, unknown> {
 	const host = ctx.host ?? "cli";
-	const declared = loaded.spec.executionProfiles ?? {};
-	const users = await readUserProfiles(hostEnv(ctx)).catch(() => undefined);
-	const requestedUser =
-		request.profile !== undefined && !Object.hasOwn(declared, request.profile)
-			? users && userProfileFromFile(users, request.profile)
-			: undefined;
-	const defaultUser =
-		request.profile === undefined && users?.default
-			? userProfileFromFile(users, users.default)
-			: undefined;
-	const userProfile = requestedUser ?? defaultUser;
+	const resolved = snapshot.resolved;
+	const override = resolved?.selection.executionProfileOverride;
+	const userKind = resolved?.info?.kind === "user";
+	const profileExecutor = userKind
+		? (override?.executor ?? resolved?.fallback?.executor)
+		: undefined;
+	const userDefault = snapshot.declaredChoice?.userDefault;
 	const hostDefault =
 		host === "cli" || host === "generic"
 			? { id: INSTALLED_DEFAULT_ORDER.join(">"), source: "installed-default" }
 			: { id: HOST_DEFAULT_EXECUTORS[host], source: "host-default" };
 	const executor = request.executor
 		? { id: request.executor, source: "request" }
-		: userProfile?.executor
+		: profileExecutor
 			? {
-					id: userProfile.executor,
-					source: requestedUser ? "user-profile" : "user-default",
+					id: profileExecutor,
+					source:
+						resolved?.info?.source === "request"
+							? "user-profile"
+							: "user-default",
 				}
-			: Object.keys(declared).length > 0
-				? { id: "", source: "workflow-profile", fallback: hostDefault }
-				: ctx.defaultExecutor
-					? { id: ctx.defaultExecutor, source: "default" }
-					: hostDefault;
+			: resolved?.info?.kind === "workflow-preference"
+				? {
+						id: override?.executor ?? "",
+						source: "workflow-preference",
+						fallback: hostDefault,
+					}
+				: resolved?.info?.kind === "declared" || snapshot.declaredChoice
+					? {
+							id: "",
+							source: "workflow-profile",
+							...(userDefault?.executor
+								? { userDefault: userDefault.executor }
+								: {}),
+							fallback: hostDefault,
+						}
+					: ctx.defaultExecutor
+						? { id: ctx.defaultExecutor, source: "default" }
+						: hostDefault;
 	return {
 		host,
 		executor,
 		defaultExecutor: ctx.defaultExecutor ?? "",
-		userProfile: userProfile ? { ...userProfile, updatedAt: undefined } : null,
+		profile: snapshotIdentity(snapshot),
 		runtimeDefaults: ctx.runtimeDefaults ?? null,
-		permissionMode: request.permissionMode ?? userProfile?.permissionMode ?? "",
+		permissionMode:
+			request.permissionMode ??
+			override?.permissionMode ??
+			resolved?.fallback?.permissionMode ??
+			"",
 		workflowDefinition: workflowDefinitionFingerprint(loaded.spec),
 	};
 }
@@ -712,7 +793,9 @@ async function launch(
 	);
 	// WP16: one guard for attached and detached launches (see launch-guard.ts).
 	// WP19 (review #8): the identity is the resolved execution identity, not only the request.
-	const execution = await launchExecutionIdentity(ctx, loaded, request);
+	// WP19 round 2 (N5): resolved once; the launch below runs from the same snapshot.
+	const snapshot = await snapshotLaunchProfile(ctx, loaded, request);
+	const execution = launchExecutionIdentity(ctx, loaded, request, snapshot);
 	const fingerprint = launchFingerprint({
 		execution,
 		kind: action,
@@ -767,6 +850,7 @@ async function launch(
 		return await launchClaimed(ctx, action, request, loaded, start, {
 			mode,
 			task,
+			snapshot,
 			inputOverrides,
 			// WP19 round 2 (N1): the ownership fence right before `start()`. A launch whose claim
 			// was taken over meanwhile starts nothing.
@@ -795,6 +879,7 @@ async function launchClaimed(
 	launch: {
 		mode: LaunchData["mode"];
 		task: string;
+		snapshot: LaunchProfileSnapshot;
 		inputOverrides: Record<string, unknown> | undefined;
 		/** WP19 round 2 (N1): a result here means "do not start" (displaced launch). */
 		beforeStart: () => Promise<HostResult<LaunchData> | undefined>;
@@ -802,7 +887,12 @@ async function launchClaimed(
 	},
 ): Promise<HostResult<LaunchData>> {
 	const { mode, task, inputOverrides } = launch;
-	const profile = await resolveLaunchProfile(ctx, loaded, request);
+	const profile = await finishLaunchProfile(
+		ctx,
+		loaded,
+		request,
+		launch.snapshot,
+	);
 	let promptSchemaNotice = "";
 	let promptSchemaDigest: string | undefined;
 	const executor = request.executor ?? profile.fallback?.executor;

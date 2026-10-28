@@ -138,7 +138,14 @@ the host's own CLI, or the terminal's `pi>claude>codex` installed-default order)
 saved user profile that applies, the host's inherited model/effort (`runtimeDefaults`), the effective
 permission mode, and `workflowDefinitionFingerprint` of the loaded spec (covering declared profiles
 and defaults). So the same request from Claude Code and Codex, or after a workflow or saved-profile
-change, starts a new run. Residual: for `cli`/`generic` the installed-default choice is probed after
+change, starts a new run. WP19 round 2 (N5): the launch profile is resolved once, before the guard,
+from one read of the settings (the requested declared or saved user profile, the saved per-workflow
+preference with its resolved stage overrides on hosts with a model registry, the default saved user
+profile); the fingerprint covers that snapshot and the launch runs from the same snapshot (no second
+settings read). Only the interactive declared-profile chooser runs after the guard claimed the launch
+(a duplicate never prompts); it picks from the snapshot. So changing the saved per-workflow
+preference (e.g. Codex → Claude) between two identical requests starts a new run with the new
+preference. Residual: for `cli`/`generic` the installed-default choice is probed after
 the guard, so a login change between two identical launches within the window is not seen.
 `detach` and the interactive hooks are not part of it. An identical launch while the run it recorded is non-terminal (`running`, `pending`,
 `blocked`) and was created within the last 10 minutes (`DUPLICATE_RUN_WINDOW_MS`) returns that run:

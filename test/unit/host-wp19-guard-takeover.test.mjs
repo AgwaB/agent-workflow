@@ -14,7 +14,7 @@ const guard = await import("../../dist/hosts/launch-guard.js");
 const roots = [];
 after(async () => {
 	for (const dir of roots.splice(0))
-		await rm(dir, { recursive: true, force: true });
+		await rm(dir, { recursive: true, force: true, maxRetries: 5 });
 });
 
 async function project() {

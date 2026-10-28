@@ -128,7 +128,9 @@ Execution profile (no dialog UI): the workflow declares execution profiles; this
 saved per-workflow Pi preference or `--profile` skips the choice, as before.
 
 Host context per call: `cwd` = Pi's cwd; `availableModels` = Pi's model registry (so saved
-per-workflow Pi profile preferences apply); `runtimeDefaults` = Pi's current model and thinking level,
+per-workflow Pi profile preferences apply; WP19 round 2: the preference, resolved once with its stage
+overrides, is part of the duplicate-launch identity and the run is launched from that same
+resolution, so changing it starts a new run); `runtimeDefaults` = Pi's current model and thinking level,
 only when no executor or `pi` is selected — a `--executor codex` run does not inherit Pi's model.
 
 ## Session start
