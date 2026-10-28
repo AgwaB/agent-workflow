@@ -1,0 +1,12 @@
+   roles:
+     default  pi:openai-codex/gpt-5.6-luna:low
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Choose execution profile for live5-profiles
+ → Profile: careful
+   Profile: quick
+   Base (no profile)
+   Custom… (open the profile picker)
+ ↑↓ navigate  enter select  escape/ctrl+c cancel
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[gpt-5.6-luna] | dir …/tmp/aw-live5/d-pi | git master · 3 untracked · wt: d-pi
+ctx [▏░░░░░░░░░] 0% | fast off | effort low | phase ready | session 01a1838a | last: 10/29 02:24

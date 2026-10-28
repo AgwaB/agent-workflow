@@ -1,0 +1,50 @@
+
+To recommend a workflow, agent-workflow sends one request to a classifier model. Nothing is sent and nothing starts unless you agree.
+Classifier: claude (run-flag), model haiku
+Sent: your task (151 characters) and the bounded descriptions of 9 candidate workflows: Dynamic workflow, spec-review, deep-review, impact-review, deep-research
+, deep-review-matrix, content-mining, dependency-audit, repo-analysis.
+Task:
+  Review src/workflow-stop.ts, src/workflow-cancellation.ts and src/workflow-terminal.ts for correctness and reliability defects in stop/cancel handling.
+After the comparison you choose the workflow (or nothing) before anything starts.
+Send this task to claude to compare workflows? [y/N] y
+
+Compared on claude (run-flag), model haiku (consent: prompt).
+Recommended: deep-review (confidence medium)
+Reason: The task is a code review of three source files for stop/cancel defects, and the final artifact is a review report. deep-review's routing matches this,
+and its triage, false-positive challenge, and report stages fit it. Confidence is medium because its metadata reports mutation-capable capability and unknown ne
+twork posture, though the task only needs reading.
+Candidates:
+  1. deep-review · recommended [named-workflow, package] fit complete
+     Matches a code review needing several evidence-grounded lenses, a false-positive challenge step, and a review report as the final artifact. Readiness is re
+ady with no blockers.
+     agent-workflow run deep-review "<task>"
+  2. Dynamic workflow [direct-dynamic, built-in] fit partial
+     Dynamic controller can coordinate review or verification, but a complete named review workflow with a defined report output already fits the task, so the a
+daptive controller adds overhead without a clear gain.
+     agent-workflow dynamic "<task>"
+  3. deep-review-matrix [named-workflow, user] fit partial
+     deep-review-matrix is a read-only two-model review that would suit the task, but it needs both OpenAI and Anthropic reviewers and its routing metadata is e
+mpty, so fit cannot be confirmed from the supplied data.
+     agent-workflow run deep-review-matrix "<task>"
+  4. spec-review [named-workflow, package] fit not-fit
+     spec-review requires a named specification or acceptance criteria to map to implementation, and none is referenced. Its avoidWhen excludes ordinary review.
+     agent-workflow run spec-review "<task>"
+  5. impact-review [named-workflow, package] fit not-fit
+     impact-review maps the impact of a proposed or applied change across contracts and release surfaces. The task is a defect review of existing stop/cancel co
+de, not a change-risk report.
+     agent-workflow run impact-review "<task>"
+  6. deep-research [named-workflow, package] fit not-fit
+     deep-research targets broad source gathering and claim verification with a research report output. The task is a code-level defect review, and the research
+ workflow would add network use without serving it.
+     agent-workflow run deep-research "<task>"
+  7. content-mining [named-workflow, user] fit not-fit
+     content-mining turns a repo-analysis dossier into writing material such as article candidates and outlines. It does not review code for defects.
+     agent-workflow run content-mining "<task>"
+Start which workflow? [1-7, Enter = 1, n = cancel]
+
+
+
+
+
+
+

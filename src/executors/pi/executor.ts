@@ -109,7 +109,11 @@ export const PI_SESSION_KIND = "pi-session-dir";
 
 const SESSION_ID = /^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$/u;
 const STDERR_LIMIT = 256 * 1024;
-const PROBE_TIMEOUT_MS = 4_000;
+// Live bundle 5 (WP39): `pi --list-models` took 4.2–5.4 s and a cold `pi list` 4.1 s on a loaded
+// machine (Pi 1.1.0 with the user's packages); the former 4 s bound turned both into failures
+// (auth "unknown", pi-web-access "could not check" → web stages refused). These are read-only
+// commands without a model call, so the bound only stops a hung CLI.
+const PROBE_TIMEOUT_MS = 15_000;
 const REDACT_MIN_CHARS = 6;
 
 export interface PiExecutorProbe extends ExecutorProbe {
@@ -384,10 +388,17 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 	const discoverWebAccess = (): Promise<string | null> => {
 		if (config.webAccessExtension !== undefined)
 			return Promise.resolve(config.webAccessExtension);
-		discoveredWebAccess ??= runCli(config.piCommand, ["list"]).then((result) =>
-			result.code === 0 ? parsePiWebAccessPath(result.stdout) : null,
-		);
-		return discoveredWebAccess;
+		// Live bundle 5: a failed `pi list` (for example a timeout under load) is not cached, so a
+		// later submit asks again instead of refusing web stages for the life of this executor.
+		const pending =
+			discoveredWebAccess ??
+			runCli(config.piCommand, ["list"]).then((result) => {
+				if (result.code === 0) return parsePiWebAccessPath(result.stdout);
+				if (discoveredWebAccess === pending) discoveredWebAccess = undefined;
+				return null;
+			});
+		discoveredWebAccess = pending;
+		return pending;
 	};
 
 	async function plan(req: SubmitRequest): Promise<LaunchPlan> {

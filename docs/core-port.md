@@ -148,6 +148,19 @@ apply yet.
 3. `process-role.ts` exports `AGENT_WORKFLOW_ROLE_ENV` instead of `PI_WORKFLOW_ROLE_ENV`. The error texts
    follow it (`… when AGENT_WORKFLOW_ROLE=<role>`).
 4. Type-only: type imports go through `types-bridge.ts`. There is no runtime effect.
+5. Live bundle 5 (WP39), a fix of the ported engine (pi-workflow 0.16.4 has the same code): when
+   `resume` applies a dependency invalidation (a resumed task feeds a stage with
+   `inputPolicy.invalidateOnDependencyResume`, for example deep-review's reviewers →
+   `dedup-findings`), each affected task whose generation changes now also drops its
+   launch-bootstrap provenance history (`task.launchBootstrap`) and its launch authority history
+   (`task.launchAuthority`). Both histories accept records of one task identity only (taskId,
+   specId, generation). Before, a task that had launched before `stop` kept its generation-0
+   records, and its generation-1 relaunch failed at once with `launch-bootstrap provenance is
+   malformed` (`failed/launch_failed`); with only the provenance history dropped, with `workflow
+   launch authority history is malformed`. The run then finished without that task's output. The
+   superseded generation's artifacts are quarantined as before. Regression tests:
+   `test/unit/core-wp39-resume-generation-provenance.test.mjs` (record level, and stop/resume end to
+   end on the workflow executor fixture; both fail on the old code).
 
 Left unchanged on purpose (not paths or env vars; flagged for later WPs):
 

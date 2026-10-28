@@ -1,0 +1,21 @@
+agent-workflow doctor (host: cli)
+
+Executors:
+  pi      usable      installed 1.1.0 (verified 1.1.0), logged in
+          web tools: pi-web-access <HOME>/.pi/agent/npm/node_modules/pi-web-access (web_search, fetch_content)
+  claude  usable      installed 2.1.312 (verified 2.1.310, differs), logged in
+  codex   usable      installed 0.159.2 (verified 0.159.2), logged in
+
+Default executor here: pi (installed-default): the terminal CLI uses the first installed and logged-in of pi → claude → codex, preferring a verified login over unknown auth.
+  A run flag (--executor) or a workflow-declared profile still wins.
+Permission mode default: free (default)
+Node: v24.16.0 (requires >=22)
+AGENT_WORKFLOW_HOME: <HOME>/.agent-workflow; exists, writable
+Run index: .agent-workflow/workflows/index.json: 0 entries, 0 stale (0 missing run.json, 0 terminal beyond the newest 50)
+
+Warnings:
+  - codex: 151 allow rules in 1 file under <HOME>/.codex/rules let matching commands run without approval (readOnly is emulated for Codex workers)
+  - codex: global instructions <HOME>/.codex/AGENTS.md (1 file) are loaded into every Codex worker (context isolation is emulated)
+  - claude: installed 2.1.312 differs from the verified 2.1.310; capability rows marked probed may not hold
+
+OK: 3 of 3 executors usable.

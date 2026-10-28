@@ -86,6 +86,10 @@ Evidence sources (no session was started; `~/.claude` and `~/.codex` were not ch
 
 ## Live checks for bundle 5 (one host turn each, temporary projects and config)
 
+Results ([live-acceptance-features.md](live-acceptance-features.md), 2026-10-28): L1, L2, L5 and L6
+verified; L3 verified once (an idle Claude Code 2.1.312 session started a turn on the monitor line);
+L4 and `asyncRewake` not tried.
+
 Prepare: `npm run build`; `node tools/release/plugins.mjs dev <tmp>/market`; a temporary project
 `<tmp>/proj` (git init); a synthetic run, for example a finished run record written by
 `test/unit/host-wp36-progress.test.mjs`'s `writeRun` shape (or a real detached run of the fixture

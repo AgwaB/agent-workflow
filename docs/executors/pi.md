@@ -346,6 +346,14 @@ request drops mutating tools from `--tools` in both modes. The conformance harne
 
 ## Change log
 
+- **Live bundle 5 (WP39): probe bound 4 s → 15 s; a failed `pi list` is not cached.** On a loaded
+  machine `pi --list-models` took 4.2–5.4 s and a cold `pi list` 4.1 s (Pi 1.1.0 with the user's
+  packages), so the probe reported auth `unknown` and "could not check for pi-web-access (`pi list`
+  failed)" although pi-web-access was installed, and `agent-workflow doctor` showed both. Web stages
+  would have been refused, and a failed `pi list` stayed cached for the executor's life. The probe
+  commands (`--version`, `--list-models`, `list`, `auth check`) make no model call; the 15 s bound
+  only stops a hung CLI. Test: `executor-wp39-pi-probe-timeout.test.mjs` (both cases fail on the old
+  code).
 - **WP35 (2026-10-28, feature-parity rows 39, 40, 57; offline only, no model call):**
   - Host tools: the Pi host lends native codemode/MCP; the engine honors `inheritHostTools` only on
     this executor; readOnly stages never inherit; per-task descriptor config `inheritHostTools`;

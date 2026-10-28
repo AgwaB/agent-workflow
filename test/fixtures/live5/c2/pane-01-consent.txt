@@ -1,0 +1,50 @@
+
+To recommend a workflow, agent-workflow sends one request to a classifier model. Nothing is sent and nothing starts unless you agree.
+Classifier: claude (run-flag), model haiku
+Sent: your task (151 characters) and the bounded descriptions of 9 candidate workflows: Dynamic workflow, spec-review, deep-review, impact-review, deep-research
+, deep-review-matrix, content-mining, dependency-audit, repo-analysis.
+Task:
+  Review src/workflow-stop.ts, src/workflow-cancellation.ts and src/workflow-terminal.ts for correctness and reliability defects in stop/cancel handling.
+After the comparison you choose the workflow (or nothing) before anything starts.
+Send this task to claude to compare workflows? [y/N]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

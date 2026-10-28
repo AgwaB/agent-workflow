@@ -12,6 +12,7 @@
 // RPC, print and JSON modes run the operation without a loader, as pi-workflow does.
 import type { WorkflowRunRecord } from "../../core/types.js";
 import type { PiExtensionContext } from "./pi-types.js";
+import { loadPiRuntimeModule } from "./pi-runtime.js";
 
 export const AW_ACTIVE_WIDGET_KEY = "agent-workflow-active";
 const ACTIVE_WORKFLOW_LIMIT = 5;
@@ -96,15 +97,12 @@ export const FOREGROUND_CANCELLED: unique symbol = Symbol(
 	"agent-workflow-foreground-cancelled",
 );
 
-// Not a string literal on purpose: the package builds without the optional Pi peer.
-const PI_PACKAGE: string = ["@earendil-works", "pi-coding-agent"].join("/");
-
 /** Pi's `BorderedLoader` (Pi 1.1 exports it); undefined when it cannot be loaded. */
 export async function piBorderedLoaderFactory(): Promise<
 	ForegroundLoaderFactory | undefined
 > {
 	try {
-		const pi = (await import(PI_PACKAGE)) as {
+		const pi = (await loadPiRuntimeModule()) as {
 			BorderedLoader?: new (
 				tui: unknown,
 				theme: unknown,

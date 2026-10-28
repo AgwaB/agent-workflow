@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"name": "live5-approval",
+	"description": "Live bundle 5: one short read stage, then a dynamic controller that asks for approval.",
+	"defaults": { "agent": "reader", "readOnly": true, "tools": ["read"] },
+	"artifactGraph": {
+		"stages": [
+			{
+				"id": "prep",
+				"type": "single",
+				"prompt": "Read package.json and state the package name in one sentence. Do not read other files."
+			},
+			{
+				"id": "adaptive",
+				"type": "dynamic",
+				"dynamic": {
+					"uses": "./helpers/controller.mjs",
+					"permissions": { "approval": "ask" }
+				}
+			}
+		]
+	}
+}

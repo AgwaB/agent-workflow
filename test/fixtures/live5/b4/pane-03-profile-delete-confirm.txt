@@ -1,0 +1,50 @@
+› agent-workflow: workflow test finished — reply OK
+• OK
+
+  Worked for 1s • 1:45 AM
+
+
+› Use the agent-workflow MCP tools, in this order, one call each: (1) workflow_show with ref "workflow_mvscgd9b_d9ba85"; (2) workflow_doctor; (3) workflow_profile with op "set", name "live5-b4-test",
+  executor "codex", model "gpt-5.6-luna", effort "low"; (4) workflow_profile with op "show", name "live5-b4-test"; (5) workflow_profile with op "delete", name "live5-b4-test". After each call print
+  the first 3 lines of its text result.
+
+
+• I’ll call the five requested agent-workflow tools in the specified order, printing only the first three text-result lines after each call.
+
+• Called agent-workflow.workflow_show
+  └ Launch: mcp:codex · tool workflow_auto · named-workflow, base profile, task 151 chars/1 line
+    Auto selection: deep-review (no recommendation; 7 candidates; classifier codex gpt-5.6-luna; consent elicitation)
+    Launch command: workflow_auto {"task":"Review src/workflow-stop.ts, src/workflow-cancellation.ts and src/workflow-terminal.ts for correctness and reliability defects in stop/cancel handling.","mo…
+    + Show details
+
+• Called agent-workflow.workflow_doctor
+  └   - claude: installed 2.1.312 differs from the verified 2.1.310; capability rows marked probed may not hold
+
+    OK: 3 of 3 executors usable.
+    + Show details
+
+• Called agent-workflow.workflow_profile
+  └   executor: codex
+      model: gpt-5.6-luna
+      effort: low
+    + Show details
+
+• Called agent-workflow.workflow_profile
+  └   executor: codex
+      model: gpt-5.6-luna
+      effort: low
+    + Show details
+
+• Calling agent-workflow.workflow_profile
+    + Show details
+
+
+  Field 1/1
+  Delete the agent-workflow user profile "live5-b4-test"?
+
+  Saved user profiles apply to every project of this user.
+  › 1. Allow   Allow this request and continue
+    2. Deny    Decline this request and continue
+    3. Cancel  Cancel this request
+  enter to submit | esc to cancel
+

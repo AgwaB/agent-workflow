@@ -15,6 +15,7 @@ import type {
 import type { PiHostDeps } from "./host.js";
 import { hostContext, levelForOutcome } from "./host.js";
 import type { PiExtensionContext, PiNotifyLevel } from "./pi-types.js";
+import { loadPiRuntimeModule } from "./pi-runtime.js";
 
 export type BoardRun = NonNullable<StatusData["run"]>;
 export type BoardRunRecord = Awaited<
@@ -56,12 +57,9 @@ export interface AwBoardSource {
 /** Task log lines shown in the detail view (the host API maximum). */
 export const BOARD_LOG_LINES = 400;
 
-// Not a string literal on purpose: the package builds without the optional Pi peer.
-const PI_PACKAGE: string = ["@earendil-works", "pi-coding-agent"].join("/");
-
 /** Pi 1.1's `copyToClipboard` (OSC 52, else the platform's copy command). */
 export async function piCopyToClipboard(text: string): Promise<void> {
-	const pi = (await import(PI_PACKAGE)) as {
+	const pi = (await loadPiRuntimeModule()) as {
 		copyToClipboard?: (text: string) => Promise<void>;
 	};
 	if (typeof pi.copyToClipboard !== "function")

@@ -1,0 +1,50 @@
+
+ ▐▛███▛█   Claude Code v2.1.312
+▝▜██████▀  Haiku 5.5 · Claude Team
+ ▝▝   ▝▝   /tmp/aw-live5/a5-monitor
+
+  Get to finished work sooner with Opus 5.5. Switch anytime with /model.
+
+⏺ Monitor event: agent-workflow: workflow "live5-approval" (run workflow_mvsda7m2_20ff5b) finished — status completed. Details: workflow_status {"runId":"workflow_mvsda7m2_20ff5b"} · agent-workflow r…
+
+⏺ The background workflow live5-approval (run workflow_mvsda7m2_20ff5b) reports that it completed. I don't have your earlier conversation in this session, so I don't know what the workflow was meant
+  to do or what its output should be. I haven't taken any action on it.
+
+  What would you like me to do next? If you want me to check the results, tell me where they are or what to look for.
+
+✻ Brewed for 3s · done 2:33 AM · 1 monitor still running
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ check the workflow results
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  ⏸ manual mode on · 1 monitor · ← 1 agent

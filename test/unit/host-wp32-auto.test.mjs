@@ -709,6 +709,47 @@ test("Pi /aw auto: consent dialog, ranked select, final confirm; the run is laun
 	);
 });
 
+// Live bundle 5 (WP39): `/aw auto "<task>"` sent `auto "<task>"` (action word and quotes) to the
+// classifier and launched it as the run's task: the command used the dynamic parser, which strips
+// only a leading `dynamic`. A task that starts with "dynamic" keeps that word.
+test("Pi /aw auto: the task is the text after `auto`, without the action word or the quotes", async () => {
+	const { cwd, env } = await project();
+	shadow({ pi: READY, claude: READY, codex: READY });
+	for (const task of [
+		"Review the parser module for error handling",
+		"dynamic programming helpers: review them for off-by-one errors",
+	]) {
+		const { pi, ctx, confirms } = piSession(cwd, env, {
+			confirms: [true, true],
+		});
+		await pi.commands.get("aw").handler(`auto "${task}" --force-new`, ctx);
+		assert.equal(confirms.length, 2, JSON.stringify(ctx.notes));
+		assert.ok(
+			confirms[0].message.includes(`Task:\n  ${task}\n`),
+			confirms[0].message,
+		);
+		assert.ok(
+			confirms[0].message.includes(`your task (${task.length} characters)`),
+			confirms[0].message,
+		);
+		const runs = (await api.statusAction({ cwd, env })).data.runs;
+		const compiled = JSON.parse(
+			await readFile(
+				join(
+					cwd,
+					".agent-workflow",
+					"workflows",
+					runs[0].runId,
+					"compiled.json",
+				),
+				"utf8",
+			),
+		);
+		assert.equal(compiled.task, task);
+		await settle(cwd, env, runs[0].runId);
+	}
+});
+
 test("Pi /aw auto: declining consent or the final confirmation starts nothing", async () => {
 	const { cwd, env } = await project();
 	const logs = shadow({ pi: READY, claude: READY, codex: READY });

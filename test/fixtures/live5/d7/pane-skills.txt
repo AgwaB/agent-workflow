@@ -1,0 +1,55 @@
+
+ ▀▀█  v1.1.0
+ █▀ █ escape interrupt · ctrl+c/ctrl+d clear/exit · / commands · ! bash · ctrl+o more
+ Press ctrl+o to show full startup help and loaded resources.
+
+ Pi can explain its own features and look up its docs. Ask it how to use or extend Pi.
+
+
+[Context]
+  <HOME>/.pi/agent/AGENTS.md
+
+[Skills]
+  agent-creator, aw-execution-router, aw-workflow-guide, backend-expert, diagram-design, eli5, execution-router, frontend-expert, grill-with-docs, pi-doctor, pi-lens-ast-grep, pi-lens-lsp-navigation,
+pi-lens-write-ast-grep-rule, pi-lens-write-tree-sitter-rule, playback-notes, subagent-dispatch, tightened-slide, workflow-guide
+
+[Prompts]
+  /doctor, /export-diagram, /import-excalidraw, /import-mermaid, /profile
+
+[Extensions]
+  @agwab/pi-subagent@0.7.2:src, @agwab/pi-workflow@0.16.4:src/extension.ts, @cortexkit/pi-anthropic-auth@1.23.0:dist, compaction-at-70.ts, harness, herdr-agent-state.ts, herdr-ui-prompt-blocked.ts,
+mermaid-renderer, orca-agent-status.ts, orca-prefill.ts, orca-titlebar-spinner.ts, pi, pi-lens:dist, pi-openai-fast-mode, pi-remote.ts, pi-web-access@0.44.0:dist, question.ts, read-dedup, src,
+tools.ts, warm-ui
+
+
+ Warning: tmux extended-keys is off. Modified Enter keys may not work. Add `set -g extended-keys on` to <HOME>/.tmux.conf and restart tmux.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Package Updates Available
+ Package updates are available. Run pi update --extensions
+ Packages:
+ - pi-lens
+ - github.com/cathrynlavery/diagram-design
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Update Available
+ New version 1.4.0 is available. Run pi update
+ Changelog: https://pi.dev/changelog
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                                                                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+[gpt-5.6-luna] | dir …/tmp/aw-live5/d-pi | git master · wt: d-pi
+ctx [░░░░░░░░░░] 0% | fast off | effort low | phase ready | session 01a1837f | last: 10/29 02:12

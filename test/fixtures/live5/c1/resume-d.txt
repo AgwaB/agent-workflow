@@ -1,0 +1,11 @@
+Workflow resumed: deep-review
+Run: workflow_mvsd0auj_e30fed
+
+Reset 9 task(s) and scheduled remaining work.
+Progress: 6/11 completed · 1 running · 1 queued · 3 failed
+
+Now:
+  • report.main — scout · claude · haiku · reasoning unknown
+
+Open: agent-workflow status workflow_mvsd0auj_e30fed
+Detached supervisor: pid 72316

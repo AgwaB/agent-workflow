@@ -1,0 +1,55 @@
+ Packages:
+ - pi-lens
+ - github.com/cathrynlavery/diagram-design
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+ Choose the workflow to start
+ Compared on pi (host-default), model openai-codex/gpt-5.6-luna, effort low (consent: prompt).
+ No recommendation (routing-unavailable: routing-unavailable: classifier output failed host validation; no path was selected or launched.). Choose a workflow yourself, or nothing.
+ Candidates:
+   1. Dynamic workflow [direct-dynamic, built-in]
+      /aw dynamic "<task>"
+   2. spec-review [named-workflow, package]
+      /aw run spec-review "<task>"
+   3. deep-review [named-workflow, package]
+      /aw run deep-review "<task>"
+   4. impact-review [named-workflow, package]
+      /aw run impact-review "<task>"
+   5. deep-research [named-workflow, package]
+      /aw run deep-research "<task>"
+   6. deep-review-matrix [named-workflow, user]
+      /aw run deep-review-matrix "<task>"
+   7. content-mining [named-workflow, user]
+      /aw run content-mining "<task>"
+   8. live5-approval [named-workflow, project-shared]
+      /aw run live5-approval "<task>"
+   9. live5-hosttools [named-workflow, project-shared]
+      /aw run live5-hosttools "<task>"
+   10. live5-profiles [named-workflow, project-shared]
+      /aw run live5-profiles "<task>"
+
+ → 1. Dynamic workflow — Plans the steps as the task progresses.
+   2. spec-review — Read-only spec conformance review: extract requirements from a referenced spec, map implementation and tests in parallel, verify candidate gaps, and produce an evidence-backed
+ report without editing files.
+   3. deep-review — Planner-gated deep review workflow: cheap triage selects review lenses, reviewers produce findings, deterministic dedup collapses duplicates, devil's advocate challenges findings,
+ deterministic partition applies verdicts, bounded packet is…
+   4. impact-review — Read-only DAG impact review: map a proposed or applied change, analyze contract, state/data, validation, docs/release, and security/performance impact in parallel, then join
+ those lenses into ship-risk and action-plan synthesis without edi…
+   5. deep-research — Planner-driven deep research workflow: plan research questions by depth, fan out question research, normalize/rank claims, verify selected claims, preserve a full audit final,
+ and render a compact executive handoff.
+   6. deep-review-matrix — Read-only two-model deep review: triage contextualizes six fixed perspectives, a deterministic full cross-product assigns every perspective to both OpenAI and Anthropic,
+ reviewers produce evidence-backed findings, deterministic dedup prese…
+   7. content-mining — Turn a repo-analysis dossier (or any local analysis document) into writing material: a detailed catalog of concepts, article/content candidates, and keywords, plus
+ per-candidate outlines and hooks. Read-only. Designed to run repeatedly aga…
+   8. live5-approval — Live bundle 5: one short read stage, then a dynamic controller that asks for approval.
+   9. live5-hosttools — Live bundle 5: a mutation-capable stage that may use host tools, then a readOnly stage.
+   10. live5-profiles — Live bundle 5: one short read stage; declares two execution profiles for the launch chooser.
+   Cancel (start nothing)
+
+ ↑↓ navigate  enter select  escape/ctrl+c cancel
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[gpt-5.6-luna] | dir …/tmp/aw-live5/d-pi | git master · wt: d-pi
+ctx [░░░░░░░░░░] 0% | fast off | effort low | phase ready | session 01a18384 | last: 10/29 02:17

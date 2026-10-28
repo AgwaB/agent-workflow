@@ -1,0 +1,30 @@
+   usage.cost: native (preferred, native/probed/cost)
+   resume: native (preferred, native/probed/native)
+   contextIsolation: native (required, native/probed)
+   host tools: not inherited (readOnly stage)
+ Notice: host tools: the Pi host's codemode, tool_search, MCP tools (mcp__*) and MCP resource tools are inherited by no stage (mutation-capable: worktree and approval rules apply); not by readOnly
+ stages triage.main, reviewers.item, devil-advocate.item, report.main
+ Workflow started: deep-review
+ Run: workflow_mvsdonwy_a638a5
+ Progress: 0/8 completed · 1 running · 7 queued
+ Now:
+   • triage.main — scout · openai-codex/gpt-5.6-luna · low reasoning
+╭─ ✦ agent-workflow board ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ● mode runs  ● running 1  ● blocked 0  ● failed 0  ● done 0  · aw                                                                                                                                  │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Selected ───────────────────────────╮ ╭─ Runs ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ↻ deep-review RUNNING                │ │ › ↻ deep-review                                                                                                   RUNNING     ▰▱▱▱▱  1/ 8 pi              │
+│ ▰▱▱▱▱▱▱▱  1/ 8 · running 1           │ ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+│ run: workflow_mvsdonwy_a638a5        │
+│ started: 10/29 02:18 · elapsed: 14s  │
+│ executor: pi                         │
+│                                      │
+│ Launch                               │
+│ source: pi · command auto            │
+│ command: available · v view · c copy │
+╰──────────────────────────────────────╯
+Enter/→ stages · ↑/↓ move · r refresh · v launch · c copy · s stop · u resume · a approve · q/Esc close
+ Active workflows
+ ● deep-review 1/8 running · 14s
+[gpt-5.6-luna] | dir …/tmp/aw-live5/d-pi | git master · wt: d-pi
+ctx [░░░░░░░░░░] 0% | fast off | effort low | phase ready | session 01a18384 | last: 10/29 02:17
