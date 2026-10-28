@@ -601,7 +601,9 @@ test("/aw <run prefix> opens the run's stages; an unknown token stays an unknown
 });
 
 test("s and u in the board stop and resume a real run through the host API (resume is tracked)", async () => {
-	const { cwd, env, executor } = await project(3_000);
+	// Long steps: the resumed run must still be running when the 1 s status line refresh looks
+	// (under load a 3 s step could finish first).
+	const { cwd, env, executor } = await project(8_000);
 	const { command, calls } = install(env);
 	const ctx = fakeCtx(cwd, { mode: "tui", custom: true });
 	await command.handler(
