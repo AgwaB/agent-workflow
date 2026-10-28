@@ -2,7 +2,9 @@
 // against the official MCP TypeScript SDK client (@modelcontextprotocol/sdk, devDependency) over a
 // real stdio transport, with the guarded WP11a test-executor hook (registers `test-fixture`; no model
 // or agent-CLI calls): list → run (detached by default) → wait loop → inspect/status → stop, and
-// degradation confirmation through the SDK's elicitation handler (accept and decline).
+// degradation confirmation through the SDK's elicitation handler (accept and decline). WP28: the
+// confirmed changes through the SDK's elicitation handler (accept, decline, no elicitation) and
+// workflow_supervise picking up a run whose attached server process died.
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -91,7 +93,7 @@ async function sdkClient(t, { cwd, config, capabilities, onElicit, command }) {
 		const pid = transport.pid;
 		if (pid) killPid(pid);
 	});
-	return { client, stderr: () => stderr };
+	return { client, stderr: () => stderr, pid: () => transport.pid };
 }
 
 async function call(client, name, args) {
@@ -255,6 +257,104 @@ test("official SDK client: elicitation accept and decline for a degraded safe-mo
 		"non-interactive",
 	);
 	await waitUntilSettled(headless.client, quiet.structuredContent.data.runId);
+});
+
+test("WP28 official SDK client: confirmed profile changes (accept, decline, no elicitation), dry-run prune asks nothing", async (t) => {
+	const cwd = await project();
+	const asked = [];
+	let action = "accept";
+	const { client } = await sdkClient(t, {
+		cwd,
+		capabilities: { elicitation: {} },
+		onElicit: async (request) => {
+			asked.push(request.params);
+			return { action };
+		},
+	});
+	const set = await call(client, "workflow_profile", {
+		op: "set",
+		name: "fast",
+		executor: "codex",
+		effort: "low",
+	});
+	assert.equal(set.isError, false, set.content[0].text);
+	assert.equal(asked.length, 1);
+	assert.match(
+		asked[0].message,
+		/^Save the agent-workflow user profile "fast"\?/,
+	);
+	const listed = await call(client, "workflow_profile", { op: "list" });
+	assert.deepEqual(
+		listed.structuredContent.data.profiles.map((profile) => profile.name),
+		["fast"],
+	);
+	assert.equal(asked.length, 1, "list asks nothing");
+
+	action = "decline";
+	const declined = await call(client, "workflow_profile", {
+		op: "delete",
+		name: "fast",
+	});
+	assert.equal(declined.isError, true);
+	assert.equal(declined.structuredContent.data.confirmation, "declined");
+	assert.equal(asked.length, 2);
+	const still = await call(client, "workflow_profile", {
+		op: "show",
+		name: "fast",
+	});
+	assert.equal(still.structuredContent.data.profile.name, "fast");
+
+	const dry = await call(client, "workflow_prune", {});
+	assert.equal(dry.isError, false, dry.content[0].text);
+	assert.equal(dry.structuredContent.data.dryRun, true);
+	assert.equal(asked.length, 2, "a dry run asks nothing");
+
+	const headless = await sdkClient(t, { cwd });
+	const refused = await call(headless.client, "workflow_profile", {
+		op: "delete",
+		name: "fast",
+	});
+	assert.equal(refused.isError, true);
+	assert.match(
+		refused.content[0].text,
+		/does not support confirmation dialogs[\s\S]*agent-workflow profile delete fast/,
+	);
+	const kept = await call(headless.client, "workflow_profile", {});
+	assert.equal(kept.structuredContent.data.profiles.length, 1);
+});
+
+test("WP28 official SDK client: workflow_supervise drives a run whose attached server died", async (t) => {
+	const cwd = await project();
+	const first = await sdkClient(t, { cwd, config: { stepDelayMs: 1_500 } });
+	const launched = await call(first.client, "workflow_run", {
+		workflow: "wf.json",
+		task: "orphaned attached run",
+		executor: "test-fixture",
+		detach: false,
+	});
+	assert.equal(launched.isError, false, launched.content[0].text);
+	const runId = launched.structuredContent.data.runId;
+	assert.equal(launched.structuredContent.data.detached, undefined);
+	// The server that drove the run dies.
+	killPid(first.pid());
+	await new Promise((resolve) => setTimeout(resolve, 300));
+
+	const second = await sdkClient(t, { cwd, config: { stepDelayMs: 1_500 } });
+	const supervised = await call(second.client, "workflow_supervise", { runId });
+	assert.equal(supervised.isError, false, supervised.content[0].text);
+	const data = supervised.structuredContent.data;
+	if (data.started) detachedPids.push(data.detached.pid);
+	assert.equal(data.started, true, supervised.content[0].text);
+	assert.equal(typeof data.detached.pid, "number");
+	assert.match(supervised.content[0].text, /Detached supervisor started/);
+	const final = await waitUntilSettled(second.client, runId);
+	assert.equal(
+		final.structuredContent.outcome,
+		"completed",
+		final.content[0].text,
+	);
+	const again = await call(second.client, "workflow_supervise", { runId });
+	assert.equal(again.structuredContent.data.reason, "not-running");
 });
 
 test("the agent-workflow-mcp bin launcher serves the same server", async (t) => {

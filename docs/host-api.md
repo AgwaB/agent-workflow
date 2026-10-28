@@ -45,8 +45,8 @@ passed through unchanged for the stage-2 default-executor rule, WP17).
 stall warnings, the detached-launch and blocked-wait lines). Handlers choose them from `ctx.host`
 (`src/hosts/hints.ts`): `cli` or unset → `agent-workflow status|resume|logs … <run>`, `pi` →
 `/aw …`, `claude-code`/`codex`/`generic` → MCP tool calls (`workflow_status {"runId":…}`,
-`workflow_logs`, `workflow_inspect`, `workflow_stop`; resume has no tool, so it names
-`agent-workflow resume <run>`). Hosts print `text` unchanged; no host rewrites handler text for
+`workflow_logs`, `workflow_inspect`, `workflow_stop`, WP28: `workflow_resume` and
+`workflow_show {"ref":…,"raw":true}`). Hosts print `text` unchanged; no host rewrites handler text for
 hints. The core formatters keep pi-workflow's `/workflow …` form only as their default for direct
 (ported) core callers.
 
@@ -82,6 +82,7 @@ throw `WorkflowValidationError`; `formatHostError(error)` renders any error. Lau
 | `noticesAction` | `{argv}` (`list [--json]`, `acknowledge <id> --state <sha> --reason <text>`, `clear <id> [--json]`) | list: `{notices, acknowledgements, warnings}`; else `{action, runId, notificationOnly}` | success |
 | `doctorAction` (WP17) | `{prober?, probeTimeoutMs?, nodeVersion?}` (test seams) | `DoctorData`: `{host, executors[], defaultExecutor, permissionMode, node, home, warnings, runIndex, usable}` (no model call, nothing written) | success (an executor is usable), failed |
 | `superviseAction` | `{runId? \| all, pollMs?, maxRuntimeMs?, onLog?, signal?, testHooks?}` | `{runIds, maxRuntimeMs, runs, result: completed \| failed \| blocked \| timeout}` | completed, failed, blocked, timeout |
+| `superviseDetachedAction` (WP28) | `{runId}` | `{runId, status, started, reason?: "not-running" \| "live-supervisor", detached?: {pid, logPath}}`: spawns the standalone `agent-workflow supervise <run>` and returns at once (MCP `workflow_supervise`); nothing for a run without scheduler work or one a live process drives (`isWorkflowRunLeaseLive`: a held run lease or a `supervisor.json` heartbeat < 30 s from a live pid) | running, or the run status when not running |
 
 `RunSummary` = `{runId, name?, status, type, createdAt, updatedAt, parentRunId?, executor?,
 permissionMode?, taskSummary}`.

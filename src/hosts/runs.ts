@@ -33,6 +33,7 @@ import {
 } from "../core/run-retention.js";
 import {
 	compiledWorkflowPath,
+	isWorkflowRunLeaseLive,
 	listRunRecords,
 	readRunRecord,
 } from "../core/store.js";
@@ -814,6 +815,66 @@ function parseJsonText(text: string): JsonObject {
 	if (!value || typeof value !== "object" || Array.isArray(value))
 		throw new Error("unexpected JSON output: not an object");
 	return value as JsonObject;
+}
+
+export interface SuperviseDetachedData {
+	runId: string;
+	status: WorkflowRunRecord["status"];
+	/** A standalone supervisor was spawned by this call. */
+	started: boolean;
+	/** Why nothing was spawned: the run is not running, or a live supervisor already drives it. */
+	reason?: "not-running" | "live-supervisor";
+	detached?: { pid?: number; logPath: string };
+}
+
+/**
+ * WP28: `supervise <run>` for hosts whose calls are time-limited (the host MCP server): spawn the
+ * standalone `agent-workflow supervise <run>` (as a detached launch does) and return at once.
+ * Nothing is spawned for a run that is not running or that a live supervisor already drives (a
+ * fresh run lease or `supervisor.json` heartbeat of a live process); the run lease would arbitrate
+ * a second supervisor anyway, this only avoids an idle one.
+ */
+export async function superviseDetachedAction(
+	ctx: HostApiContext,
+	request: { runId: string },
+): Promise<HostResult<SuperviseDetachedData>> {
+	assertActionAllowed(ctx, "supervise");
+	const run = await readRunRecord(
+		ctx.cwd,
+		requireRunRef(request.runId, "supervise"),
+	);
+	const hints = hostCommandHints(ctx.host);
+	if (!hasActiveSchedulerWork(run))
+		return result(
+			"supervise",
+			outcomeForRunStatus(run.status),
+			{
+				runId: run.runId,
+				status: run.status,
+				started: false,
+				reason: "not-running",
+			},
+			`Nothing to supervise: ${run.runId} is ${run.status}. Open: ${hints.status(run.runId)}`,
+		);
+	if (await isWorkflowRunLeaseLive(ctx.cwd, run.runId))
+		return result(
+			"supervise",
+			"running",
+			{
+				runId: run.runId,
+				status: run.status,
+				started: false,
+				reason: "live-supervisor",
+			},
+			`A live supervisor already drives ${run.runId}; no second one was started. Wait for the result: ${hints.wait(run.runId)}`,
+		);
+	const detached = spawnDetachedSupervisor(ctx.cwd, run.runId, hostEnv(ctx));
+	return result(
+		"supervise",
+		"running",
+		{ runId: run.runId, status: run.status, started: true, detached },
+		`Detached supervisor started for ${run.runId}: pid ${detached.pid ?? "unknown"}, log ${toDisplayPath(detached.logPath, ctx.cwd)}\nWait for the result: ${hints.wait(run.runId)}`,
+	);
 }
 
 export interface SuperviseRequest {

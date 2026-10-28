@@ -2,7 +2,8 @@
 // New in agent-workflow (WP13): the installed `agent-workflow-mcp` bin (host MCP server) over stdio
 // with a raw JSON-RPC client, the way Claude Code / Codex would start it: initialize → tools/list →
 // workflow_list → workflow_run (bundled-style e2e-review workflow, E2E test executor through the
-// guarded hook, detached by default) → workflow_wait loop → workflow_inspect. No model or agent CLI.
+// guarded hook, detached by default) → workflow_wait loop → workflow_inspect → workflow_show (WP28:
+// a CLI-command tool). No model or agent CLI.
 //
 //   node test/e2e/cases/packed-mcp-host.mjs <installed-package-root> <consumer-project>
 import assert from "node:assert/strict";
@@ -122,6 +123,15 @@ try {
 		"workflow_inspect",
 		"workflow_logs",
 		"workflow_validate",
+		"workflow_resume",
+		"workflow_show",
+		"workflow_roles",
+		"workflow_agents",
+		"workflow_notices",
+		"workflow_doctor",
+		"workflow_prune",
+		"workflow_profile",
+		"workflow_supervise",
 	]);
 
 	const listed = await call("workflow_list", { query: "e2e-review" });
@@ -173,6 +183,16 @@ try {
 				entry.type === "submit" && entry.attemptKey.includes(launch.runId),
 		);
 	assert.equal(submits.length, 4, "triage, two reviewers, report");
+
+	// WP28: the CLI commands are tools too (read-only show of the finished run).
+	const shown = await call("workflow_show", { ref: launch.runId });
+	assert.equal(shown.isError, false, shown.content[0].text);
+	assert.equal(shown.structuredContent.data.kind, "run");
+	assert.equal(shown.structuredContent.data.run.status, "completed");
+	assert.equal(
+		shown.structuredContent.data.run.tasks.length,
+		inspected.structuredContent.data.run.tasks.length,
+	);
 	await waitForSupervisorDone(launch.detached.logPath, launch.runId);
 
 	child.stdin.end();

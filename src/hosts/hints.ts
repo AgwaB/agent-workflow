@@ -2,8 +2,8 @@
 // run texts (`Open: …`, `Resume: …`, `Logs: …`, stall warnings). Handlers pick the hints from
 // `ctx.host`, so every host gets its own commands from the same host API call and no host rewrites
 // handler text: the CLI (and an unknown host) `agent-workflow …`, the Pi host `/aw …`, host MCP
-// clients (Claude Code, Codex, generic) the `workflow_*` tool calls. Actions without an MCP tool
-// (resume, show --raw) name the CLI command the user runs.
+// clients (Claude Code, Codex, generic) the `workflow_*` tool calls. WP28: every CLI command has an
+// MCP tool, so resume and the raw run view name `workflow_resume` and `workflow_show`.
 import {
 	commandLineHints,
 	type WorkflowCommandHints,
@@ -24,10 +24,10 @@ function toolCall(tool: string, args: Record<string, unknown>): string {
 export const MCP_COMMAND_HINTS: WorkflowCommandHints = {
 	status: (runId) => toolCall("workflow_status", { runId }),
 	wait: (runId) => toolCall("workflow_wait", { runId }),
-	resume: (runId) => `agent-workflow resume ${runId} (CLI; no MCP tool)`,
+	resume: (runId) => toolCall("workflow_resume", { runId }),
 	logs: (runId, task) =>
 		toolCall("workflow_logs", task ? { runId, task } : { runId }),
-	raw: (runId) => toolCall("workflow_inspect", { runId, results: true }),
+	raw: (runId) => toolCall("workflow_show", { ref: runId, raw: true }),
 	inspectFailures: (runId) =>
 		toolCall("workflow_inspect", { runId, failures: true }),
 	stop: (runId) => toolCall("workflow_stop", { runId }),
