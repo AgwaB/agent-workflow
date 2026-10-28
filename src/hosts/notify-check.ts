@@ -11,7 +11,8 @@
 // state, `<runId>.<epoch>.json`, created with O_EXCL so two concurrent checks never print the same
 // state twice. The epoch is a digest of the run status and its task states, so a resumed run that
 // settles again is reported again. `wait` (CLI, MCP `workflow_wait`, Pi) marks a settled state it
-// returned as seen when the directory exists, so a result the host already showed is not repeated.
+// returned as seen (creating the directory and baseline when needed, WP39b), so a result the host
+// already showed is not repeated.
 // No model call, no lease; markers of pruned runs are removed.
 import { createHash } from "node:crypto";
 import { access, readdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -115,7 +116,9 @@ async function claimMarker(
 
 /**
  * `wait` returned this settled run to a user or host: mark it seen so notify-check does not repeat
- * it. Only when notify-check is in use in this project (its directory exists). Best effort.
+ * it. WP39b (O5): also in a fresh project: the receipts directory and the baseline are created
+ * when missing (as the first notify-check would), so the hook's first check does not announce a run
+ * the host already showed. Best effort.
  */
 export async function markRunNotifySeen(
 	cwd: string,
@@ -123,8 +126,9 @@ export async function markRunNotifySeen(
 	now = Date.now(),
 ): Promise<void> {
 	if (run.parentRunId || !isSettledRun(run)) return;
-	const dir = await containedProjectStateDir(cwd, NOTIFY_CHECK_DIR, false);
+	const dir = await containedProjectStateDir(cwd, NOTIFY_CHECK_DIR, true);
 	if (!dir) return;
+	await readBaseline(dir, now).catch(() => undefined);
 	await claimMarker(dir, run, "wait", now).catch(() => false);
 }
 

@@ -315,11 +315,14 @@ agent-workflow: workflow "deep-review" (run workflow_…) finished — verdict N
 
 and nothing otherwise (exit 0). Blocked runs name the approval (`approve`) or the
 inspect/resume commands; `--host claude-code|codex|generic` words the follow-ups as MCP tool calls.
-Receipts: `.agent-workflow/notify-check/` (created by the first check in a project that has runs)
+Receipts: `.agent-workflow/notify-check/` (created by the first check in a project that has runs,
+or by the first `wait` that returns a settled state)
 holds `baseline.json` (the first check also reports runs that settled in the hour before it) and one
 marker per reported state, created exclusively so concurrent checks print a state once. A resumed
 run that settles again is reported again. `wait` (CLI, MCP `workflow_wait`, Pi) marks the state it
-returned, so a result the host already showed is not repeated. At most 5 runs per check (the rest
+returned, so a result the host already showed is not repeated; since WP39b also in a fresh project
+(it creates the directory and the baseline; before, the first run of a project was announced once
+more by the hook). At most 5 runs per check (the rest
 next time); markers of pruned runs are removed. `--json` prints `{action, ok, outcome, data:
 {notifications, deferred}}`. `--follow` checks every 5 s (`--interval` 1-60) and prints new lines as
 they appear (a long-lived feed, for example a Claude Code plugin monitor). Hook setup:
