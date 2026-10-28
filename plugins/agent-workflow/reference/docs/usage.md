@@ -138,8 +138,10 @@ permission mode: **run flag > workflow-declared profile > saved user profile > d
 
 **Default executor.** Without a choice, a run uses the host's own CLI (`host-default`): `pi` in the
 Pi host, `claude` in Claude Code, `codex` in Codex. The terminal CLI uses the first installed and
-logged-in of `pi` → `claude` → `codex` (`installed-default`; an `unknown` login counts as usable and
-is recorded in `run.executor.candidates`). `run.executor.host` names the host. Nested runs keep their
+logged-in of `pi` → `claude` → `codex` (`installed-default`; since WP19 a verified login wins over
+an earlier `unknown` one, and an `unknown` login is used only when none is verified, with a note in
+the launch text and in `doctor`; recorded in `run.executor.candidates`). Pi counts as logged in
+when `pi --list-models` lists at least one model (Pi lists only models whose provider has auth). `run.executor.host` names the host. Nested runs keep their
 parent's executor. If nothing is usable, nothing starts and the message lists each CLI's state and
 the command to fix it. `agent-workflow doctor` shows the same check without starting a run.
 

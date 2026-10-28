@@ -16,6 +16,7 @@ import {
 	executorSetupHints,
 	HOST_DEFAULT_EXECUTORS,
 	INSTALLED_DEFAULT_ORDER,
+	unverifiedDefaultGuidance,
 	probeExecutorReadiness,
 	readinessFixHint,
 } from "../core/executor-default.js";
@@ -403,15 +404,24 @@ export async function doctorAction(
 			reason: `the ${host} host uses its own CLI (${executorSetupHints(id).cli}).`,
 		};
 	} else {
-		const first = INSTALLED_DEFAULT_ORDER.find(isUsable);
+		// WP19 (review #9): a verified login wins over an earlier unknown-auth candidate.
+		const readyIds = new Set(
+			executors
+				.filter((entry) => entry.usable && entry.auth === "ok")
+				.map((entry) => entry.id),
+		);
+		const verified = INSTALLED_DEFAULT_ORDER.find((id) => readyIds.has(id));
+		const first = verified ?? INSTALLED_DEFAULT_ORDER.find(isUsable);
 		defaultExecutor = {
 			id: first ?? null,
 			source: "installed-default",
 			usable: first !== undefined,
-			reason: `the terminal CLI uses the first installed and logged-in of ${INSTALLED_DEFAULT_ORDER.join(" → ")}${
+			reason: `the terminal CLI uses the first installed and logged-in of ${INSTALLED_DEFAULT_ORDER.join(" → ")}, preferring a verified login over unknown auth${
 				first === undefined ? "; none is usable" : ""
 			}.`,
 		};
+		if (first !== undefined && verified === undefined)
+			warnings.push(unverifiedDefaultGuidance(first));
 	}
 
 	const nodeVersion = request.nodeVersion ?? process.versions.node;

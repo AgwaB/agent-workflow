@@ -26,6 +26,7 @@ import { workflowDefinitionFingerprint } from "../core/execution-profile.js";
 import {
 	HOST_DEFAULT_EXECUTORS,
 	INSTALLED_DEFAULT_ORDER,
+	unverifiedDefaultGuidance,
 } from "../core/executor-default.js";
 import { WorkflowExecutorUnavailableError } from "../core/executor-registry.js";
 import { formatApproxDuration } from "../core/run-estimates.js";
@@ -859,9 +860,21 @@ async function launchClaimed(
 		action === "dynamic"
 			? `Dynamic workflow ${verb}`
 			: `Workflow ${verb}: ${run.name ?? "workflow"}`;
+	// WP19 (review #9): the terminal default fell back to a CLI whose login is not verified.
+	const chosenCandidate =
+		run.executor?.source === "installed-default"
+			? run.executor.candidates?.find(
+					(candidate) => candidate.id === run.executor?.id,
+				)
+			: undefined;
+	const unverifiedNote =
+		chosenCandidate?.auth === "unknown"
+			? unverifiedDefaultGuidance(chosenCandidate.id)
+			: undefined;
 	const text = [
 		promptSchemaNotice || undefined,
 		data.capability?.preview,
+		unverifiedNote,
 		heading,
 		formatHumanRunLaunch(run, { hints: hostCommandHints(ctx.host) }),
 	]

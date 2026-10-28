@@ -215,12 +215,20 @@ function runCli(
 	});
 }
 
-/** Parse `pi --list-models` (table: provider, model, …). */
+/**
+ * Parse `pi --list-models` (table: provider, model, …). WP19: only rows after the header count, so
+ * Pi's "No models available. …" text is an empty list, not a model.
+ */
 export function parsePiModelList(text: string): string[] {
 	const models: string[] = [];
+	let header = false;
 	for (const line of text.split("\n")) {
 		const [provider, model] = line.trim().split(/\s+/u);
-		if (!provider || !model || provider === "provider") continue;
+		if (provider === "provider" && model === "model") {
+			header = true;
+			continue;
+		}
+		if (!header || !provider || !model) continue;
 		models.push(`${provider}/${model}`);
 	}
 	return models;
@@ -788,11 +796,25 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 			const installed = cliVersion !== null && cliVersion !== "";
 			const notes: string[] = [];
 			let authStatus: ExecutorProbe["auth"] = "unknown";
-			if (auth === undefined)
-				notes.push(
-					"auth: unknown (set config.authCheckModel to run `pi auth check`)",
-				);
-			else {
+			if (auth === undefined) {
+				// WP19 (review #9): `pi --list-models` lists only models whose provider has
+				// configured auth in Pi (pi-ai ModelRuntime.getAvailable → authenticated
+				// providers). Pi reads its own credentials; the engine reads none and no model is
+				// called. A non-empty list = logged in to at least one provider; an empty list =
+				// not logged in anywhere.
+				if (installed && models.code === 0) {
+					const listed = parsePiModelList(models.stdout);
+					authStatus = listed.length > 0 ? "ok" : "missing";
+					notes.push(
+						listed.length > 0
+							? `auth: ok (pi --list-models lists ${listed.length} model(s) whose provider has configured auth; not validated by a request)`
+							: "auth: missing (pi --list-models lists no model with configured auth; run `pi` and /login, or set a provider API key)",
+					);
+				} else
+					notes.push(
+						"auth: unknown (pi --list-models failed; set config.authCheckModel to run `pi auth check`)",
+					);
+			} else {
 				const status = /"status"\s*:\s*"(\w+)"/u.exec(auth.stdout)?.[1];
 				authStatus =
 					status === "ready"

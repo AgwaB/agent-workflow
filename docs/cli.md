@@ -66,8 +66,13 @@ workflow-declared profile replaces the saved user profile as a whole (B2).
 **Default executor (WP17).** When nothing above selects one, the CLI uses the **first installed and
 logged-in** of `pi` → `claude` → `codex`. Each candidate is checked with its adapter's probe (version
 and login status commands, no model call): it must be installed and its login not `missing` or
-`expired`; an `unknown` login (Pi cannot report it without a model call) counts as usable and is
-recorded. The run records `executor.source: "installed-default"`, `executor.host: "cli"` and the
+`expired`. WP19 (review #9): a candidate with a *verified* login (auth `ok`) wins over an earlier
+one whose login is `unknown`, so the order is walked until the first verified one (Pi with unknown
+auth + Claude logged in → Claude). Only when none is verified does the first usable `unknown`
+candidate win; the launch text and `doctor` then say its login could not be verified and how to log
+in or pick `--executor`. Pi's readiness signal needs no model call and no credential read by the
+engine: `pi --list-models` lists only models whose provider has configured auth in Pi (non-empty →
+`ok`, empty → `missing`). The run records `executor.source: "installed-default"`, `executor.host: "cli"` and the
 probed candidates. Hosts with their own CLI default to it instead (`host-default`): the Pi host →
 `pi`, Claude Code → `claude`, Codex → `codex`. An explicit choice is never second-guessed. When
 nothing is usable the launch is refused before any run record:

@@ -232,10 +232,19 @@ test("terminal CLI: first installed and logged-in of pi → claude → codex; un
 			probed: ["pi", "claude", "codex"],
 		},
 		{
-			name: "pi auth unknown",
+			// WP19 (review #9): a verified login wins over an earlier unknown-auth candidate.
+			name: "pi auth unknown, claude logged in",
 			probes: { pi: UNKNOWN, claude: READY, codex: READY },
+			expect: "claude",
+			probed: ["pi", "claude"],
+		},
+		{
+			// WP19: no verified candidate: the first unknown-auth one, after probing all.
+			name: "nothing verified",
+			probes: { pi: UNKNOWN, claude: UNKNOWN, codex: MISSING_AUTH },
 			expect: "pi",
-			probed: ["pi"],
+			probed: ["pi", "claude", "codex"],
+			first: true,
 		},
 	];
 	for (const item of cases)
@@ -254,11 +263,16 @@ test("terminal CLI: first installed and logged-in of pi → claude → codex; un
 					selection.candidates.map((candidate) => candidate.id),
 					item.probed,
 				);
-				const chosen = selection.candidates.at(-1);
+				const chosen = item.first
+					? selection.candidates[0]
+					: selection.candidates.at(-1);
+				assert.equal(chosen.id, item.expect);
 				assert.equal(chosen.usable, true);
 				assert.equal(chosen.auth, item.probes[item.expect].auth);
-				for (const skipped of selection.candidates.slice(0, -1))
-					assert.equal(skipped.usable, false);
+				// WP19: skipped candidates were not verified ready (unknown auth may be usable).
+				if (!item.first)
+					for (const skipped of selection.candidates.slice(0, -1))
+						assert.equal(skipped.usable && skipped.auth === "ok", false);
 			} finally {
 				for (const undo of unregister.splice(0).reverse()) undo();
 				core.resetExecutorProbeCacheForTests();
@@ -375,7 +389,8 @@ test("engine records the rule and host; nested runs keep the parent's executor",
 		task: "t",
 		host: "cli",
 	});
-	assert.equal(started.executor.id, "claude");
+	// WP19 (review #9): codex's verified login wins over claude's unknown auth.
+	assert.equal(started.executor.id, "codex");
 	assert.equal(started.executor.source, "installed-default");
 	assert.equal(started.executor.host, "cli");
 	assert.deepEqual(
@@ -388,9 +403,10 @@ test("engine records the rule and host; nested runs keep the parent's executor",
 		[
 			["pi", false, "unknown", false],
 			["claude", true, "unknown", true],
+			["codex", true, "ok", true],
 		],
 	);
-	assert.equal(started.capabilityNegotiation.probe.auth, "unknown");
+	assert.equal(started.capabilityNegotiation.probe.auth, "ok");
 	const parent = await engine.waitForRun(cwd, started.runId, 60_000);
 	assert.equal(parent.status, "completed", JSON.stringify(parent.tasks));
 
@@ -411,7 +427,7 @@ test("engine records the rule and host; nested runs keep the parent's executor",
 		parentRunId: parent.runId,
 		host: "codex",
 	});
-	assert.equal(child.executor.id, "claude");
+	assert.equal(child.executor.id, "codex");
 	assert.equal(child.executor.source, "installed-default");
 	assert.equal(child.executor.host, "cli");
 	await engine.waitForRun(cwd, child.runId, 60_000);

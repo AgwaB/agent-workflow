@@ -186,6 +186,12 @@ live or offline with the real CLI.
 - optionally `pi auth check --model <config.authCheckModel> --json --no-refresh`.
 
 Auth is a non-secret enum: `ready`→`ok`, `not_ready`→`missing`, else `unknown`. Never `--credentials`.
+WP19 (review #9): without `config.authCheckModel` the auth comes from `pi --list-models`, which lists
+only models whose provider has configured auth in Pi (pi-ai `ModelRuntime.getAvailable` →
+authenticated providers; Pi resolves its own credentials, the engine reads none, no model call): at
+least one listed model → `ok` ("logged in to at least one provider", not validated by a request),
+Pi's "No models available" → `missing`, a failing command → `unknown`. Rows count only after the
+`provider model …` header.
 Note: `ready` only means "credentials present". Live #1 got a 401 on a key that `auth check` called ready.
 
 ## Errors (`PI_ERROR_RULES`; first match wins, else `unknown`)
