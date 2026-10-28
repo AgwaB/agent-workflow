@@ -7,10 +7,11 @@
 // acknowledgement became stale since the last notice, or 6 hours passed (per-run state in
 // `.agent-workflow/workflows/unfinished-notices.json`, pruned on write). Hints point at `/aw`.
 // WP38: a malformed acknowledgement sidecar no longer hides every notice (it suppresses none, as in
-// pi-workflow).
+// pi-workflow); each line names the workflow and marks a degraded failed run (final rendered).
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { readRunRecord } from "../../core/store.js";
 import { listUnfinishedNoticesIgnoringInvalidAcknowledgements } from "../../core/workflow-notices.js";
 import type { HostApiContext } from "../api.js";
 import type { PiHostApi } from "./host.js";
@@ -166,12 +167,20 @@ export async function unfinishedRunNotice(
 	await writeFile(temp, `${JSON.stringify({ notices: state }, null, 2)}\n`);
 	await rename(temp, file);
 
-	const lines = needing
-		.slice(0, MAX_RUNS)
-		.map(
-			(run) =>
-				`- ${run.runId}: ${run.status} (updated ${run.updatedAt}) — /${AW_COMMAND} resume ${run.runId}`,
-		);
+	// pi-workflow parity: the line names the workflow and marks a failed run whose final output
+	// was rendered as degraded (read from the run record; a record that cannot be read adds nothing).
+	const lines = await Promise.all(
+		needing.slice(0, MAX_RUNS).map(async (run) => {
+			const record = await readRunRecord(ctx.cwd, run.runId).catch(
+				() => undefined,
+			);
+			const name = record?.name ? `${record.name} ` : "";
+			const status = record?.degradation?.finalOutputRendered
+				? `${run.status} (final rendered — degraded)`
+				: run.status;
+			return `- ${name}${run.runId}: ${status} (updated ${run.updatedAt}) — /${AW_COMMAND} resume ${run.runId}`;
+		}),
+	);
 	if (needing.length > MAX_RUNS)
 		lines.push(
 			`- … and ${needing.length - MAX_RUNS} more (/${AW_COMMAND} notices list)`,
