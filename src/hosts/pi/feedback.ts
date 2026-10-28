@@ -30,12 +30,17 @@
 // `ctx.sessionManager` object) that holds it is alive; `session_shutdown` with `new`/`resume`/
 // `fork`/`quit` ends it (`reload` keeps it). Unreadable-history resends count orphaned pending
 // reservations too. The in-memory delivery state is bounded.
+// WP19 round 5: process state of another module version never suppresses (versioned key and
+// schema; at most one duplicate, never a loss); queue ends are durable tombstones, a delivery left
+// to another live owner is `deferred` and retried; a dropped reservation keeps the attempt history.
 import { createHash, randomBytes } from "node:crypto";
 import {
 	mkdir,
 	open,
+	readdir,
 	readFile,
 	rename,
+	stat,
 	unlink,
 	writeFile,
 } from "node:fs/promises";
@@ -48,6 +53,7 @@ import {
 	workflowRunDir,
 } from "../../core/store.js";
 import type { WorkflowRunRecord } from "../../core/types.js";
+import { PROJECT_STATE_DIRECTORY } from "../../core/home-dir.js";
 import { acquireDirectoryLock } from "../../runtime/artifacts/dir-lock.js";
 import { summarizeWorkflowTerminal } from "../../core/workflow-terminal.js";
 import {
@@ -64,8 +70,11 @@ export const AW_STATUS_KEY = "agent-workflow";
 export const AW_COMPLETION_MESSAGE_TYPE = "agent-workflow-completion";
 export const FEEDBACK_AUDIENCE_FILE = "pi-feedback-audience.json";
 export const FEEDBACK_RECEIPTS_DIR = "pi-feedback-receipts";
+/** WP19 round 5: `<cwd>/.agent-workflow/<this>/<queue lifetime>.json`, see writeQueueEndTombstone. */
+export const FEEDBACK_QUEUE_ENDS_DIR = "pi-feedback-queue-ends";
 const AUDIENCE_SCHEMA = "agent-workflow-pi-feedback-audience-v1";
 const RECEIPT_SCHEMA = "agent-workflow-pi-feedback-receipt-v1";
+const QUEUE_END_SCHEMA = "agent-workflow-pi-feedback-queue-end-v1";
 export const FEEDBACK_POLL_MS = 1_000;
 const MAX_DELIVERY_ATTEMPTS = 4;
 const CATCH_UP_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -89,7 +98,12 @@ export type DeliveryOutcome =
 	/** WP19: another delivery of this process (or a live one) is sending it right now. */
 	| "in-flight"
 	/** WP19: the current session changed during delivery; nothing was sent. */
-	| "session-changed";
+	| "session-changed"
+	/**
+	 * WP19 round 5: another live Pi process queued it and its queue is (still) alive: nothing
+	 * sent now; the tracker retries until that queue ends, the history shows it or the window ends.
+	 */
+	| "deferred";
 
 export function piSessionId(ctx: PiExtensionContext): string | undefined {
 	try {
@@ -389,8 +403,8 @@ interface SentDelivery {
 	sessionId: string;
 	sentAtMs: number;
 	/**
-	 * WP19 round 4 (F1): the queue lifetime it was enqueued into. Absent only in entries a round-3
-	 * module of this process left on `globalThis` (suppressing, as in round 3).
+	 * WP19 round 4 (F1): the queue lifetime it was enqueued into. WP19 round 5: an entry without
+	 * one never suppresses (see `enqueuedInto`).
 	 */
 	lifetime?: string;
 	/** WP19 round 4 (F4): its `sent` receipt (with `queueLifetime`) is on disk. */
@@ -416,6 +430,8 @@ interface SentDelivery {
  * (which carry the queue lifetime) and the session history are the source of truth after eviction.
  */
 interface FeedbackProcessState {
+	/** WP19 round 5: PROCESS_STATE_SCHEMA; any other value is never reused. */
+	schema: number;
 	processId: string;
 	/** Reservations this process is sending right now (receipt path → token). */
 	inFlight: Map<string, string>;
@@ -429,33 +445,51 @@ interface FeedbackProcessState {
 	lifetimes: WeakMap<object, string>;
 }
 
+/**
+ * WP19 round 5: the process state is versioned. Rule (state left on `globalThis` by another
+ * version of this module, e.g. before a hot `/reload` upgrade): **it may cause at most one
+ * duplicate, never a loss.** It is never reused for suppression: a module only adopts state whose
+ * key *and* `schema` match its own; anything else (an older key, an older shape, a mismatched
+ * schema) is left alone and a fresh state (with a new sender identity) is used, so the epochs the
+ * older module enqueued are reconciled against the session history (present = confirmed, absent =
+ * sent again; unreadable history: the receipt's bounded attempt budget). Bump
+ * PROCESS_STATE_SCHEMA (and the key) on any incompatible change to FeedbackProcessState or
+ * SentDelivery; never migrate older state into suppressing entries.
+ */
+const PROCESS_STATE_SCHEMA = 2;
 const PROCESS_STATE_KEY = Symbol.for(
-	"agent-workflow.pi-feedback.process-state.v1",
+	`agent-workflow.pi-feedback.process-state.v${PROCESS_STATE_SCHEMA}`,
 );
+
+function freshProcessState(): FeedbackProcessState {
+	return {
+		schema: PROCESS_STATE_SCHEMA,
+		processId: randomBytes(12).toString("hex"),
+		inFlight: new Map(),
+		enqueued: new Map(),
+		watch: new Map(),
+		receiptQueues: new Map(),
+		lifetimes: new WeakMap(),
+	};
+}
 
 function processState(): FeedbackProcessState {
 	const holder = globalThis as { [PROCESS_STATE_KEY]?: FeedbackProcessState };
 	let state = holder[PROCESS_STATE_KEY];
 	if (
 		!state ||
+		state.schema !== PROCESS_STATE_SCHEMA ||
 		typeof state.processId !== "string" ||
 		!(state.inFlight instanceof Map) ||
 		!(state.enqueued instanceof Map) ||
-		!(state.receiptQueues instanceof Map)
+		!(state.watch instanceof Map) ||
+		!(state.receiptQueues instanceof Map) ||
+		!(state.lifetimes instanceof WeakMap)
 	) {
-		state = {
-			processId: randomBytes(12).toString("hex"),
-			inFlight: new Map(),
-			enqueued: new Map(),
-			watch: new Map(),
-			receiptQueues: new Map(),
-			lifetimes: new WeakMap(),
-		};
+		// Another schema (or a damaged shape): never reused, only replaced (see above).
+		state = freshProcessState();
 		holder[PROCESS_STATE_KEY] = state;
 	}
-	// WP19 round 4: a reload from a round-3 module keeps its state and gains the new fields.
-	if (!(state.watch instanceof Map)) state.watch = new Map();
-	if (!(state.lifetimes instanceof WeakMap)) state.lifetimes = new WeakMap();
 	return state;
 }
 
@@ -478,12 +512,20 @@ function queueLifetime(
 	return token;
 }
 
-/** WP19 round 4 (F1): an in-memory entry still describes a message queued in `lifetime`. */
+/**
+ * WP19 round 4 (F1): an in-memory entry still describes a message queued in `lifetime`. WP19 round
+ * 5: only an entry naming that concrete lifetime does; one without a lifetime (written by an older
+ * module) never counts as enqueued into any queue: the history reconciles it.
+ */
 function enqueuedInto(
 	entry: SentDelivery,
 	lifetime: string | undefined,
 ): boolean {
-	return entry.lifetime === undefined || entry.lifetime === lifetime;
+	return (
+		typeof entry.lifetime === "string" &&
+		lifetime !== undefined &&
+		entry.lifetime === lifetime
+	);
 }
 
 /** WP19 round 4 (F4): bounds of the in-memory delivery state. */
@@ -541,6 +583,15 @@ export async function endFeedbackQueueLifetime(
 	if (!lifetime) return 0;
 	// A stale ctx of the disposed runtime never matches the ended lifetime again.
 	state.lifetimes.set(owner, randomBytes(12).toString("hex"));
+	// WP19 round 5: the durable queue end, independent of the bounded in-memory maps below.
+	const cwd = typeof ctx?.cwd === "string" && ctx.cwd ? ctx.cwd : undefined;
+	if (cwd)
+		await writeQueueEndTombstone(
+			cwd,
+			ctx ? piSessionId(ctx) : undefined,
+			lifetime,
+			nowMs,
+		).catch(() => undefined);
 	const ended = new Map<string, SentDelivery>();
 	for (const map of [state.enqueued, state.watch])
 		for (const [file, entry] of map)
@@ -650,16 +701,145 @@ function sentByOtherLiveProcess(receipt: FeedbackReceipt): boolean {
  * only when the receipt names one (`queueLifetime`), the owner has not marked it ended
  * (`queueEndedAt`, written at `session_shutdown`) and it was sent within CONFIRM_WATCH_MS (a queued
  * follow-up reaches the history within one agent turn; an owner that lost its queue without
- * marking it is not waited for forever).
+ * marking it is not waited for forever). WP19 round 5: nor has the owner published a queue-end
+ * tombstone for that lifetime (written at `session_shutdown` whatever its in-memory maps hold).
  */
-function ownerQueueAlive(receipt: FeedbackReceipt, nowMs: number): boolean {
+async function ownerQueueAlive(
+	cwd: string,
+	receipt: FeedbackReceipt,
+	nowMs: number,
+): Promise<boolean> {
 	const sentAt = Date.parse(receipt.sentAt ?? "");
 	return (
 		typeof receipt.queueLifetime === "string" &&
 		receipt.queueEndedAt === undefined &&
 		Number.isFinite(sentAt) &&
-		nowMs - sentAt < CONFIRM_WATCH_MS
+		nowMs - sentAt < CONFIRM_WATCH_MS &&
+		!(await queueEndTombstoneExists(cwd, receipt.queueLifetime))
 	);
+}
+
+/**
+ * WP19 round 5 (finding 2): queue-end tombstones. `session_shutdown` (`new`/`resume`/`fork`/`quit`)
+ * writes one small file per ended queue lifetime under the session's project
+ * (`<cwd>/.agent-workflow/pi-feedback-queue-ends/<lifetime>.json`, where that session's receipts
+ * live), so every receipt naming that lifetime reads as "queue ended" whether or not this process
+ * still had it in its bounded in-memory maps. A tombstone only matters while a receipt naming it
+ * can still count as alive (sent less than CONFIRM_WATCH_MS ago, and it was sent before the queue
+ * ended), so tombstones older than QUEUE_END_RETAIN_MS are pruned at every write, and at most
+ * MAX_QUEUE_END_TOMBSTONES are kept (a pruned one only delays reconciliation to the window end).
+ */
+const QUEUE_END_RETAIN_MS = 2 * CONFIRM_WATCH_MS;
+const MAX_QUEUE_END_TOMBSTONES = 1024;
+const SAFE_LIFETIME = /^[A-Za-z0-9_-]{1,128}$/u;
+
+function queueEndsDir(cwd: string): string {
+	return join(cwd, PROJECT_STATE_DIRECTORY, FEEDBACK_QUEUE_ENDS_DIR);
+}
+
+/** The tombstone of `lifetime` (a receipt field: validated before it becomes a path). */
+export function feedbackQueueEndPath(
+	cwd: string,
+	lifetime: string,
+): string | undefined {
+	return SAFE_LIFETIME.test(lifetime)
+		? join(queueEndsDir(cwd), `${lifetime}.json`)
+		: undefined;
+}
+
+async function queueEndTombstoneExists(
+	cwd: string,
+	lifetime: string,
+): Promise<boolean> {
+	const file = feedbackQueueEndPath(cwd, lifetime);
+	if (!file) return false;
+	try {
+		const value = JSON.parse(await readFile(file, "utf8")) as {
+			schema?: unknown;
+			queueLifetime?: unknown;
+		};
+		return (
+			value?.schema === QUEUE_END_SCHEMA && value.queueLifetime === lifetime
+		);
+	} catch (error) {
+		// Present but unreadable (e.g. torn): an ended queue is the safe reading (reconcile).
+		return (error as NodeJS.ErrnoException).code !== "ENOENT";
+	}
+}
+
+async function writeQueueEndTombstone(
+	cwd: string,
+	sessionId: string | undefined,
+	lifetime: string,
+	nowMs: number,
+): Promise<void> {
+	const file = feedbackQueueEndPath(cwd, lifetime);
+	if (!file) return;
+	const dir = queueEndsDir(cwd);
+	await mkdir(dir, { recursive: true });
+	const temp = `${file}.${process.pid}.${randomBytes(6).toString("hex")}.tmp`;
+	await writeFile(
+		temp,
+		`${JSON.stringify({
+			schema: QUEUE_END_SCHEMA,
+			queueLifetime: lifetime,
+			...(sessionId ? { sessionId } : {}),
+			pid: process.pid,
+			processId: processState().processId,
+			host: hostname(),
+			endedAt: new Date(nowMs).toISOString(),
+		})}\n`,
+		{ mode: 0o600 },
+	);
+	try {
+		await rename(temp, file);
+	} catch (error) {
+		await unlink(temp).catch(() => undefined);
+		throw error;
+	}
+	await pruneQueueEndTombstones(dir, file, nowMs).catch(() => undefined);
+}
+
+async function pruneQueueEndTombstones(
+	dir: string,
+	keep: string,
+	nowMs: number,
+): Promise<void> {
+	const kept: { file: string; endedAtMs: number }[] = [];
+	for (const name of await readdir(dir)) {
+		const file = join(dir, name);
+		if (file === keep) continue;
+		if (!name.endsWith(".json")) {
+			// A temp file left by a crashed writer (a concurrent writer's is recent).
+			if (name.endsWith(".tmp")) {
+				const modifiedMs = await stat(file)
+					.then((info) => info.mtimeMs)
+					.catch(() => Number.NaN);
+				if (nowMs - modifiedMs > QUEUE_END_RETAIN_MS)
+					await unlink(file).catch(() => undefined);
+			}
+			continue;
+		}
+		let endedAtMs = Number.NaN;
+		try {
+			const value = JSON.parse(await readFile(file, "utf8")) as {
+				endedAt?: unknown;
+			};
+			if (typeof value?.endedAt === "string")
+				endedAtMs = Date.parse(value.endedAt);
+		} catch {
+			// Unreadable or torn (tombstones are renamed into place): pruned below.
+		}
+		if (!Number.isFinite(endedAtMs) || nowMs - endedAtMs > QUEUE_END_RETAIN_MS)
+			await unlink(file).catch(() => undefined);
+		else kept.push({ file, endedAtMs });
+	}
+	kept.sort((left, right) => left.endedAtMs - right.endedAtMs);
+	for (const { file } of kept.slice(
+		0,
+		Math.max(0, kept.length - (MAX_QUEUE_END_TOMBSTONES - 1)),
+	))
+		await unlink(file).catch(() => undefined);
 }
 
 /**
@@ -817,10 +997,12 @@ export async function confirmSentDeliveries(
  *   (again). A `confirmed` receipt of another process does not overrule explicit absence (Pi 1.1's
  *   in-memory history can show a message whose append to the session file failed). A `sent`
  *   receipt of another live Pi process on this host is left to that process only while its queue
- *   lifetime is confirmed alive (`ownerQueueAlive`); otherwise it is reconciled like any other.
+ *   lifetime is confirmed alive (`ownerQueueAlive`, round 5: no queue-end tombstone either) and
+ *   the outcome is `deferred` (the tracker retries); otherwise it is reconciled like any other.
  * - Without readable history: a `confirmed` receipt is final, a `sent` one of another live process
- *   is left to it; otherwise sent again, bounded: at most MAX_UNVERIFIABLE_SENDS reservations
- *   (enqueue attempts) per epoch, counting orphaned pending ones (F3).
+ *   is deferred to it under the same rule (round 5); otherwise sent again, bounded: at most
+ *   MAX_UNVERIFIABLE_SENDS reservations (enqueue attempts) per epoch, counting orphaned pending
+ *   ones (F3).
  * - A pending reservation whose owner is gone is resolved the same way. An empty, corrupt or
  *   foreign receipt is never proof of delivery.
  * - The tracker confirms sent messages opportunistically on later ticks (`confirmSentDeliveries`).
@@ -896,9 +1078,13 @@ export async function deliverCompletion(
 		host: hostname(),
 	};
 	let attempts = 1;
+	/** WP19 round 5 (finding 3): the receipt this reservation replaced (its attempt history). */
+	let previous: FeedbackReceipt | undefined;
 	const decision = await withReceiptLock(
 		receipt,
-		async (): Promise<"send" | "already-delivered" | "in-flight"> => {
+		async (): Promise<
+			"send" | "already-delivered" | "in-flight" | "deferred"
+		> => {
 			// Re-check under the lock: a concurrent delivery of this process may have finished.
 			if (state.inFlight.has(receipt)) return "in-flight";
 			if (isEnqueued()) return "already-delivered";
@@ -943,14 +1129,15 @@ export async function deliverCompletion(
 			const sent =
 				existing?.state === "sent" || existing?.state === "delivered";
 			// Another live Pi process on this host queued it and its queue is (confirmed) alive.
-			// WP19 round 4 (F1): with readable history lacking the message, a live owner alone is
-			// not proof; without history the owner keeps it (nothing to reconcile against).
+			// WP19 round 4 (F1): a live owner alone is not proof. WP19 round 5: also without readable
+			// history (the same lifetime/tombstone rule), and the delivery is deferred (retried by
+			// the tracker), not settled: once that queue ends it is reconciled here.
 			if (
 				sent &&
 				sentByOtherLiveProcess(existing) &&
-				(history === undefined || ownerQueueAlive(existing, nowMs))
+				(await ownerQueueAlive(cwd, existing, nowMs))
 			)
-				return "already-delivered";
+				return "deferred";
 			if (history === undefined) {
 				// No history to resolve it against: a confirmation is final; otherwise at least
 				// once, but bounded. WP19 round 4 (F3): every reservation counts, also an
@@ -961,6 +1148,7 @@ export async function deliverCompletion(
 			}
 			// WP19 round 3 (R2): readable history without the message overrules any receipt.
 			attempts = (existing?.attempts ?? (existing ? 1 : 0)) + 1;
+			previous = existing;
 			await writeReceipt(receipt, {
 				...base,
 				...owner,
@@ -974,12 +1162,17 @@ export async function deliverCompletion(
 		},
 	);
 	if (decision !== "send") return decision;
+	// The reservation provably sent nothing (the fence stopped it, or `sendMessage` threw before
+	// returning): refund only this attempt. WP19 round 5 (finding 3): the receipt it replaced is
+	// restored as it was, with its attempt history (deleting it reset the two-attempt budget);
+	// without one the reservation is removed.
 	const dropReservation = async () => {
 		try {
 			await withReceiptLock(receipt, async () => {
 				const current = await readReceipt(receipt);
-				if (current?.token === token && current.state === "pending")
-					await unlink(receipt).catch(() => undefined);
+				if (current?.token !== token || current.state !== "pending") return;
+				if (previous) await writeReceipt(receipt, previous);
+				else await unlink(receipt).catch(() => undefined);
 			});
 		} finally {
 			state.inFlight.delete(receipt);
@@ -1063,6 +1256,8 @@ interface TrackedRun {
 	cwd: string;
 	launchedBy: LaunchedBy;
 	failures: number;
+	/** WP19 round 5: a catch-up delivery retried by the tracker (never starts a turn). */
+	catchUp?: boolean;
 }
 
 function statusLine(runs: WorkflowRunRecord[]): string | undefined {
@@ -1189,6 +1384,20 @@ export class PiRunFeedback {
 				fence: () => generation === this.generation && this.ctx === ctx,
 			}).catch(() => undefined);
 			if (outcome === "delivered") delivered += 1;
+			// WP19 round 5: deferred to another live owner (or being sent elsewhere): retried by the
+			// tracker until that queue ends, the history shows it or the owner's window passes.
+			if (
+				(outcome === "deferred" || outcome === "in-flight") &&
+				generation === this.generation &&
+				this.ctx === ctx
+			)
+				this.runs.set(`${ctx.cwd}\0${run.runId}`, {
+					runId: run.runId,
+					cwd: ctx.cwd,
+					launchedBy: audience.launchedBy,
+					failures: 0,
+					catchUp: true,
+				});
 		}
 		if (generation !== this.generation || this.ctx !== ctx) return;
 		// WP19 round 2 (N2): also keep polling while a catch-up message awaits confirmation.
@@ -1279,13 +1488,19 @@ export class PiRunFeedback {
 			}
 			try {
 				const outcome = await deliverCompletion(this.pi, ctx, run, {
-					triggerTurn: tracked.launchedBy === "tool",
+					triggerTurn: !tracked.catchUp && tracked.launchedBy === "tool",
 					now: this.now(),
 					cwd: tracked.cwd,
 					// WP19 (review #6): the session generation is re-checked right before sending.
 					fence: () => generation === this.generation && this.ctx === ctx,
 				});
-				if (outcome === "session-changed" || outcome === "in-flight") continue;
+				// WP19 round 5: `deferred` stays tracked, so a later tick reconciles it.
+				if (
+					outcome === "session-changed" ||
+					outcome === "in-flight" ||
+					outcome === "deferred"
+				)
+					continue;
 				this.runs.delete(key);
 			} catch (error) {
 				tracked.failures += 1;

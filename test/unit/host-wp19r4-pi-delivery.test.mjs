@@ -22,7 +22,7 @@ import { fakeCtx, fakePi } from "../helpers/pi-host-fake.mjs";
 
 const feedback = await import("../../dist/hosts/pi/feedback.js");
 const { readRunRecord } = await import("../../dist/core/store.js");
-const STATE_KEY = Symbol.for("agent-workflow.pi-feedback.process-state.v1");
+const STATE_KEY = Symbol.for("agent-workflow.pi-feedback.process-state.v2");
 const state = () => globalThis[STATE_KEY];
 const memory = () => ({
 	enqueued: state()?.enqueued?.size ?? 0,
@@ -135,6 +135,8 @@ test("F1 residual: a live owner's `sent` receipt is reconciled when its queue li
 });
 
 test("F1 residual: a live owner whose queue lifetime is alive keeps it; unreadable history defers to the owner", async (t) => {
+	// WP19 round 5: such a delivery is `deferred` (the tracker retries it), and unreadable history
+	// applies the same lifetime rule: a receipt naming no queue lifetime is not deferred to.
 	const cwd = await project(t);
 	const alive = await synthetic(cwd);
 	await foreignSent(cwd, alive, { queueLifetime: "q1" });
@@ -146,10 +148,10 @@ test("F1 residual: a live owner whose queue lifetime is alive keeps it; unreadab
 			alive,
 			{ triggerTurn: false },
 		),
-		"already-delivered",
+		"deferred",
 	);
 	const unreadable = await synthetic(cwd);
-	await foreignSent(cwd, unreadable, {});
+	await foreignSent(cwd, unreadable, { queueLifetime: "q2" });
 	assert.equal(
 		await feedback.deliverCompletion(
 			pi,
@@ -159,9 +161,24 @@ test("F1 residual: a live owner whose queue lifetime is alive keeps it; unreadab
 				triggerTurn: false,
 			},
 		),
-		"already-delivered",
+		"deferred",
 	);
 	assert.equal(pi.messages.length, 0);
+	const unnamed = await synthetic(cwd);
+	await foreignSent(cwd, unnamed, {});
+	const ctx = fakeCtx(cwd, { sessionId: "A" });
+	assert.equal(
+		await feedback.deliverCompletion(pi, ctx, unnamed, { triggerTurn: false }),
+		"delivered",
+		"no named queue lifetime: one bounded resend",
+	);
+	feedback.resetFeedbackDeliveryStateForTests();
+	assert.equal(
+		await feedback.deliverCompletion(pi, ctx, unnamed, { triggerTurn: false }),
+		"already-delivered",
+		"the two-attempt budget",
+	);
+	assert.equal(pi.messages.length, 1);
 });
 
 // ---------------------------------------------------------------------------------------------

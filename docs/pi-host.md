@@ -186,10 +186,11 @@ status entry, without the board widget or the presentation lease. Only with a UI
   later tick. Every receipt records its sender: pid, host and a random per-process id (WP19 round
   3). A pending reservation whose owner is gone (a crash between reservation and send) is resolved
   like a `sent` receipt. A throwing send drops the reservation (retried on the next poll, at most 4
-  attempts, then an error notification). An empty or corrupt receipt is never proof of delivery.
+  attempts, then an error notification); WP19 round 5: only that unsent attempt is refunded, the
+  receipt it replaced is restored with its attempt history (deleting it reset the budget below). An empty or corrupt receipt is never proof of delivery.
   Round-1 `"delivered"` receipts are read as `sent`; receipts written before WP19 count as
   delivered when the history holds the run's message or the history is unreadable.
-- **Delivery decision (WP19 round 3 R2/R3, round 4 F1/F3/F4) — the exact guarantee.** On every
+- **Delivery decision (WP19 round 3 R2/R3, round 4 F1/F3/F4, round 5) — the exact guarantee.** On every
   delivery attempt, whatever the receipt says, in this order:
   1. *This OS process enqueued the epoch into the still-live queue of the current session
      runtime* → never sent again. Pi 1.1 keeps queued messages per session runtime
@@ -197,11 +198,13 @@ status entry, without the board widget or the presentation lease. Only with a UI
      runtime and its queue; `/new`, `/resume`, `/fork` and quit abort and dispose it
      (`AgentSessionRuntime.teardownCurrent`), dropping what is still queued. The queue lifetime is
      identified by the runtime's `ctx.sessionManager` object (assigned once per `AgentSession`;
-     a WeakMap on `globalThis`, `Symbol.for("agent-workflow.pi-feedback.process-state.v1")`, so it
+     a WeakMap on `globalThis`, `Symbol.for("agent-workflow.pi-feedback.process-state.v2")`, so it
      survives an extension reload and holds no strong reference), and `session_shutdown` with
      `reason` `new`/`resume`/`fork`/`quit` ends it eagerly: that session's epochs become
-     "unconfirmed, reconcile against the history", their receipts are published as `sent` with
-     `queueEndedAt`, and their in-memory entries are dropped. `reload` (and an unknown reason)
+     "unconfirmed, reconcile against the history", a durable queue-end tombstone is written
+     (round 5: `.agent-workflow/pi-feedback-queue-ends/<lifetime>.json` under the session's cwd,
+     whatever the bounded in-memory maps still hold), the receipts still in memory are published as
+     `sent` with `queueEndedAt`, and their in-memory entries are dropped. `reload` (and an unknown reason)
      keeps them. The identity check also covers a replaced runtime whose shutdown event we missed.
      Suppression is in memory and in the receipt (`queueLifetime` + this process's id), so it
      survives eviction of the in-memory entry.
@@ -211,22 +214,42 @@ status entry, without the board widget or the presentation lease. Only with a UI
      "seen" and confirmed, yet the restarted session lacks it). Exception: a `sent` (unconfirmed)
      receipt of another *live* Pi process on this host is left to that process only while its
      queue lifetime is confirmed alive: the receipt names a `queueLifetime`, the owner has not
-     marked it ended (`queueEndedAt`) and it was sent less than 10 min ago. Otherwise it is
-     reconciled like any other receipt (round 4; round 3 trusted any live owner).
+     marked it ended (`queueEndedAt`) nor published a queue-end tombstone for it (round 5) and it
+     was sent less than 10 min ago. Such a delivery is `deferred`, not settled: the tracker keeps
+     it (also a catch-up one, which never starts a turn) and retries every poll until that queue
+     ends, the history shows it or the 10 min pass. Otherwise it is reconciled like any other
+     receipt (round 4; round 3 trusted any live owner).
   3. *Otherwise (history unreadable: no `getEntries`, or it throws)*: a `confirmed` receipt is
-     final and another live process's `sent` receipt is left to it; otherwise the epoch is sent
-     again, but every reservation counts (`attempts`), including an orphaned `pending` one
-     (sent, then the `sent` publication was lost): at most 2 enqueue attempts per epoch (round 4,
-     F3). Consequence: two consecutive crashes between reservation and `sendMessage` exhaust the
+     final and another live process's `sent` receipt is deferred to it under the same queue
+     lifetime/tombstone/10 min rule (round 5; round 4 deferred unconditionally); otherwise the
+     epoch is sent again, but every reservation counts (`attempts`), including an orphaned
+     `pending` one (sent, then the `sent` publication was lost): at most 2 enqueue attempts per
+     epoch (round 4, F3). A reservation whose send provably did not happen (fence, or
+     `sendMessage` threw) is refunded without erasing earlier attempts (round 5). Consequence: two consecutive crashes between reservation and `sendMessage` exhaust the
      budget without a message (at-least-once does not hold in that double-crash case).
 
   | Situation | Messages per epoch |
   |---|---|
   | Normal (one process; queued while streaming, then persisted) | exactly 1 |
   | `/reload` (module re-imported; Pi keeps the runtime and its queue) or tracker stop/restore | exactly 1 (never resent into the live queue) |
+  | `/reload` that upgrades the module across a process-state schema (round 5) | at least 1, at most 1 duplicate (older state is only reconciled against the history) |
   | `/new`, `/resume`, `/fork` (queue disposed), session active again in this or a later process | exactly 1 in its history: present → nothing sent; absent (queue dropped) → sent once into the resumed session |
+  | Another live Pi process queued it (same session) | deferred and retried while its queue lifetime is alive (≤ 10 min after its send, no tombstone); then reconciled: exactly 1 with readable history |
   | Crash/restart, history readable | 1 if the durable history has it; otherwise 1 more on restart (also after a `confirmed` receipt) |
-  | Crash/restart, history unreadable | at most 2 enqueue attempts (pending reservations count); at least 1 unless two attempts crashed before `sendMessage` |
+  | Crash/restart, history unreadable | at most 2 successful enqueue attempts (pending reservations count; a refunded failed send does not erase earlier ones); at least 1 unless two attempts crashed before `sendMessage` |
+
+  Upgrades (round 5): the process state is versioned (the `globalThis` key ends in `.v<schema>`
+  and the state records `schema`). Rule: state left by another version of this module may cause
+  at most one duplicate, never a loss. A module never reuses state of another key or schema for
+  suppression (it starts a fresh state with a new sender id), and an in-memory entry without a
+  concrete queue lifetime never counts as "enqueued into this queue": what the older module
+  enqueued is reconciled against the history (present → confirmed, absent → sent again;
+  unreadable → the receipt's attempt budget). Any incompatible change to the process state must
+  bump the schema; older state is only ever downgraded to "reconcile against the history".
+
+  Queue-end tombstones (round 5) are pruned at every write: older than 20 min (a receipt counts as
+  queued in a live queue only within 10 min of its send, which precedes the queue end) or beyond
+  1024 files (the oldest; a missing one only delays reconciliation to the 10 min window end).
 
   Memory (round 4, F4): the confirmation watch (sent, not yet in the history, < 10 min, at most 64
   entries) is separate from the dedup map (epochs enqueued into live queues, at most 256; durable
