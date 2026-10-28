@@ -673,6 +673,24 @@ comparison) follow the same rules (terminal only, the newest `--keep` kept, `--o
 only with `--yes`) and are listed separately as "Classifier requests"; they are never shown as runs
 and never hold back the pruning of runs (WP39b).
 
+What prune removes and what it keeps (WP42):
+
+- Nothing is listed or deleted when `.agent-workflow` or `.agent-workflow/workflows` is a symlink
+  or otherwise not a real directory inside the project; prune reports `unsafe retention root`.
+- A classifier request is removed only when its directory is reached through real directories
+  (no symlinked `.agent-workflow`, `workflows` or `auto-router-runs`) and its `run.json` is the
+  runtime's run record of the router's comparison call: schema 2, correlation id
+  `workflow-auto-compare-v1`, `runsDir` `.agent-workflow/workflows/auto-router-runs`, and a
+  runtime-generated id (`run_<base36>_<6 hex>`) equal to the directory name. Anything else there
+  (other directories or files, foreign or malformed records, leftovers of an interrupted prune) is
+  kept, whatever its age, and listed under "Kept in auto-router-runs (not identified as classifier
+  requests)". Each deletion rechecks the directory chain, the directory's identity and its record
+  under the runtime's lock for that run right before it is removed.
+- A classifier request whose caller has not read its result yet is kept: an `auto` recommendation
+  pins its requests (`auto-router-runs/.pins/`) from launch until the output is consumed, and prune
+  lists records updated since a live pin as `protected`. Pins of processes that are gone are
+  ignored and removed.
+
 **Worktrees.** A write-capable stage that runs in a managed worktree
 (`.agent-workflow/workflows/<run>/worktrees/<task>`, branch `agent-workflow/<run>-<task>`) leaves it
 in place after the run, as pi-workflow does: there is no auto-merge, the worktree and its branch
@@ -682,10 +700,17 @@ The run's attempt state stays in the project's own `.agent-workflow/`, and the p
 `git worktree remove <path>` (add `--force` to discard uncommitted changes) and
 `git branch -D agent-workflow/<run>-<task>`. `agent-workflow prune` includes them: the dry run lists
 each worktree of a run it would delete with its branch, `uncommitted changes` and the number of
-commits not in your checkout's HEAD; `--yes` removes them (`git worktree remove --force`, so
-uncommitted changes in them are discarded only with `--yes`) and deletes a branch only when it has
-no such commits (`git branch -d`); an unmerged branch is kept and named. A run whose worktree
-cannot be removed is kept.
+commits on the branch that your checkout's HEAD does not contain; `--yes` removes them
+(`git worktree remove --force`, so uncommitted changes in them are discarded only with `--yes`).
+Prune touches a worktree only when agent-workflow created it for that task or loop (WP42): the
+recorded branch is the managed `agent-workflow/<run>-<task>`; every directory from the project down
+to `<run>/worktrees/<task>` is a real directory (no symlinked parent); and your repository's
+`git worktree list` registers that path checked out on that branch (the recorded `baseCwd` is not
+trusted). A missing worktree's stale registration is removed for that path only. The managed branch
+is deleted only when `git merge-base --is-ancestor <branch tip> HEAD` holds in your checkout,
+whatever its upstream, and it still points at that tip; otherwise it is kept and named, also when
+its worktree directory is gone. A worktree that is not identified this way, or whose state is
+unknown, is kept with its branch and its run, and the reason is listed.
 
 Executor adapters keep one attempt record per worker attempt under
 `~/.agent-workflow/executors/{claude,codex,pi}/attempts/`. Since WP18b, terminal attempt records

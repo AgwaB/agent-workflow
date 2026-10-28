@@ -294,6 +294,41 @@ Validation (final commit): `npm run validate` exit 0 twice at the default concur
 acceptance 0 unexplained in every fixture and variant; `node tools/release/plugins.mjs check`
 passes.
 
+## WP42 WP39b-review fixes
+
+Branch `wp42-review-fixes-wp39b` from main `3ebf279`; no model or agent-CLI call. The read-only
+review of `505fc78..3ebf279` (3 major, 2 minor) found the new WP39b deleters in `prune` unsafe. Each
+fix has its regression test written first and run against `3ebf279`'s `dist` before the fix (all
+failed there; the controls named below passed). The review's seven defect probes now fail (the
+defects are gone) and its three compatibility controls still pass. Deletion needs physical
+containment (real directories from the canonical project root down) and positive identification;
+on doubt the item is kept and reported.
+
+| Finding | Fix | Commit | Test | Pre-fix failure confirmed |
+|---|---|---|---|---|
+| 1 (major) auto-router pruning escapes through symlinked ancestors | An unsafe retention root (`.agent-workflow`/`workflows` a symlink) fails closed for the dry run and `--yes` (`unsafe retention root`); the classifier sweep validates `.agent-workflow/workflows/auto-router-runs` as real directories (new `physical-paths.ts`), and each deletion rechecks chain, directory identity and record under the runtime's run lock, then detaches into a `.prune-*` container | `3656eb4` | `core-wp42-f1-symlinked-ancestors.test.mjs` | yes (external classifier dir deleted via `.agent-workflow` and `workflows` symlinks; no recheck when swapped after selection); the `auto-router-runs` symlink case was already refused (control) |
+| 3 (major) classifier records not positively identified | Deleted only when `run.json` is the runtime's schema-2 record with correlation `workflow-auto-compare-v1`, `runsDir` `.agent-workflow/workflows/auto-router-runs`, single mode, and a runtime-generated id `run_<base36>_<6 hex>` equal to its directory (`auto-router-runs.ts`, shared with the router); everything else is kept and listed ("Kept in auto-router-runs") | `10a7cd2` | `core-wp42-f3-classifier-identity.test.mjs` (+ WP39b fixture ids now runtime-format) | yes (foreign record, non-runtime id, other correlation and other `runsDir` all deleted) |
+| 2 (major) worktree deletion without containment/ownership | A recorded worktree is touched only when its recorded branch is the managed `agent-workflow/<run>-<task>`, the chain down to `<run>/worktrees/<task>` has no symlink, and this repository's `git worktree list --porcelain` (run in the project, not the recorded `baseCwd`) registers that path on that branch; rechecked right before `git worktree remove`; a missing directory's stale registration is removed for that path only (no repository-wide `git worktree prune`); otherwise worktree, branch and run are kept | `1bdaa1f` | `core-wp42-f2-worktree-ownership.test.mjs` | yes (outside worktree through a symlinked `worktrees/`, another repository's worktree via `baseCwd`, a user branch checked out at the managed path, and a user branch named by metadata of a missing worktree were all removed/deleted) |
+| 4 (minor) missing worktree bypasses unmerged-branch protection | The managed branch's tip is resolved also when its worktree is missing and counted against the checkout's HEAD; deletion needs `git merge-base --is-ancestor <tip> HEAD`, no worktree on it, and `git update-ref -d refs/heads/<branch> <tip>`; upstream configuration is irrelevant; unknown state keeps the branch | `bababf4` | `core-wp42-f4-missing-worktree-branch.test.mjs` | yes (preview said 0 commits, branch deleted through its upstream); merged-branch control passed before and after |
+| 5 (minor) prune can remove a classifier result its caller still needs | `workflow-router` pins each comparison request (`auto-router-runs/.pins/<pid>-<random>.json`) from before launch until `readOneShotOutput` returns; prune keeps (`protected`) records updated since a live pin, treats a malformed pin as pinning all, drops pins of dead processes, and rechecks pins, terminal status and identity under the run lock right before detaching | `98edd3b` | `core-wp42-f5-classifier-pin.test.mjs` | yes (result deleted between terminal publication and consumption, then `routing-unavailable`; no recheck of a record no longer terminal); dead-pin control passed before and after |
+| docs | `usage.md` "Retention"/"Worktrees": what prune removes and keeps; plugins rebuilt | final commit | `node tools/release/plugins.mjs check` | — |
+
+Validation (final commit): `npm run validate` exit 0 twice in a row with
+`AGENT_WORKFLOW_TEST_CONCURRENCY=4` (2497 pass, 0 fail). Two earlier full runs each had one load
+flake in a test that does not touch retention: at the default concurrency (11) replay acceptance
+impact-review captured a transient `supervisor.lock.release-*` file of the core supervisor lease
+(the file alone then passed with 0 unexplained), and one concurrency-4 run had
+`host-wp29-cli-approval` "no progress line is printed while the approval question is open" fail on a progress line printed before the
+run completed. `npm run e2e` exit 0; `node test/replay/acceptance.mjs`
+0 unexplained in every fixture and variant; `node tools/release/plugins.mjs check` passes.
+
+Residual risk: removal still goes through `git worktree remove --force <path>` after the last
+recheck (a swap in that window is limited to worktrees git itself has registered for this
+repository); a classifier call whose pin cannot be created (state directory not a chain of real
+directories, which prune never deletes through) runs unpinned; a pin protects every classifier
+record updated since it was taken (over-retention, not loss) and a reused pid of a dead pinning
+process keeps records until that process exits.
+
 ## Live-call ledger (18 workflow runs of ≤ 20)
 
 Usage = the run's task roll-up (input excludes cache reads/writes). Claude costs are
