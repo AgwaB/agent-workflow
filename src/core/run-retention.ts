@@ -2,6 +2,7 @@
 import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import {
 	lstat,
+	mkdir,
 	mkdtemp,
 	readFile,
 	readdir,
@@ -25,6 +26,9 @@ import {
 	workflowsRoot,
 } from "./store.js";
 import { type ExecutorRegistry, loadExecutor } from "../sdk/descriptor.js";
+import { acquireDirectoryLock } from "../runtime/artifacts/dir-lock.js";
+import { RUN_LOCKS_DIR } from "../runtime/artifacts/registry.js";
+import { physicalDirectoryChain } from "./physical-paths.js";
 import {
 	ownedSessionReleased,
 	runExecutorSelectionFor,
@@ -156,10 +160,26 @@ export async function pruneWorkflowRuns(
 	)
 		throw new Error("--older-than requires a non-negative number of days");
 
+	// WP42 (WP39b review, finding 1): an unsafe retention root (a symlinked `.agent-workflow` or
+	// `workflows`) fails closed before anything is listed or deleted; a missing one has nothing.
+	const rootState = await physicalRetentionRoot(workflowsRoot(cwd)).then(
+		() => "safe" as const,
+		(error: unknown) =>
+			(error as NodeJS.ErrnoException).code === "ENOENT"
+				? ("missing" as const)
+				: new Error(`unsafe retention root: ${errorMessage(error)}`),
+	);
+	if (rootState instanceof Error)
+		return emptySummary(
+			!options.yes,
+			keep,
+			olderThanDays,
+			`${rootState.message}; nothing was ${options.yes ? "deleted" : "listed"}`,
+		);
+	if (rootState === "missing")
+		return emptySummary(!options.yes, keep, olderThanDays);
 	// No topology lock (or any filesystem writes) for a preview.
 	if (!options.yes) return prunePlan(cwd, options, keep, olderThanDays);
-	if (!(await physicalRetentionRoot(workflowsRoot(cwd)).catch(() => undefined)))
-		return prunePlan(cwd, options, keep, olderThanDays);
 	const topology = await acquireWorkflowTopologyLease(cwd);
 	if (!topology)
 		return {
@@ -184,6 +204,25 @@ export async function pruneWorkflowRuns(
 	} finally {
 		await topology.release();
 	}
+}
+
+function emptySummary(
+	dryRun: boolean,
+	keep: number,
+	olderThanDays: number | undefined,
+	error?: string,
+): WorkflowPruneSummary {
+	return {
+		dryRun,
+		keep,
+		...(olderThanDays === undefined ? {} : { olderThanDays }),
+		runs: [],
+		autoRouterRuns: [],
+		totalBytes: 0,
+		deletedBytes: 0,
+		indexUpdated: false,
+		...(error === undefined ? {} : { error }),
+	};
 }
 
 interface RetentionPlan {
@@ -999,10 +1038,72 @@ async function removeRunWorktrees(
 /** `workflows/auto-router-runs/`: the auto classifier's one-shot runtime runs (workflow-router). */
 const AUTO_ROUTER_RUNS_DIR_NAME = "auto-router-runs";
 const AUTO_ROUTER_TERMINAL = new Set(["completed", "failed", "cancelled"]);
+/** The runtime's run-lock wait (registry LOCK_TIMEOUT_MS / LOCK_RETRY_MS). */
+const AUTO_ROUTER_LOCK_RETRY_MS = 25;
+const AUTO_ROUTER_LOCK_RETRIES = 200;
+
+let beforeClassifierDeleteForTests: (() => void | Promise<void>) | undefined;
+export function setWorkflowPruneBeforeClassifierDeleteForTests(
+	hook?: () => void | Promise<void>,
+): void {
+	beforeClassifierDeleteForTests = hook;
+}
+
+interface ClassifierCandidate extends WorkflowPruneClassifierRun {
+	dir: string;
+	identity: { dev: number; ino: number };
+}
+
+/** The auto-router directory's physical path; throws unless the whole chain is real directories. */
+async function physicalAutoRouterRoot(cwd: string): Promise<string> {
+	const chain = await physicalDirectoryChain(cwd, [
+		PROJECT_STATE_DIRECTORY,
+		"workflows",
+		AUTO_ROUTER_RUNS_DIR_NAME,
+	]);
+	if (!chain.exists)
+		throw Object.assign(new Error("auto-router-runs is missing"), {
+			code: "ENOENT",
+		});
+	return chain.path;
+}
+
+/** A classifier record that may be deleted: terminal, with a parseable `updatedAt`. */
+function deletableClassifierRecord(
+	record: unknown,
+	name: string,
+): { status: string; updatedAt: string } | undefined {
+	if (typeof record !== "object" || record === null) return undefined;
+	const value = record as {
+		runId?: unknown;
+		status?: unknown;
+		updatedAt?: unknown;
+	};
+	if (
+		value.runId !== name ||
+		typeof value.status !== "string" ||
+		!AUTO_ROUTER_TERMINAL.has(value.status) ||
+		typeof value.updatedAt !== "string" ||
+		!Number.isFinite(Date.parse(value.updatedAt))
+	)
+		return undefined;
+	return { status: value.status, updatedAt: value.updatedAt };
+}
+
+async function readClassifierRecord(dir: string): Promise<unknown> {
+	const file = join(dir, "run.json");
+	const info = await lstat(file);
+	if (!info.isFile() || info.isSymbolicLink() || info.nlink !== 1)
+		throw new Error("unsafe classifier record");
+	return JSON.parse(await readFile(file, "utf8")) as unknown;
+}
 
 /**
  * WP39b (live bundle 5, O16): classifier requests beyond the filters. Only `run_*` directories
  * (no symlinks) with a readable terminal `run.json` are candidates; with `yes` each is removed.
+ * WP42 (WP39b review, finding 1): only when `.agent-workflow/workflows/auto-router-runs` is a chain
+ * of real directories inside the project; each deletion rechecks that chain, the directory's
+ * identity and its record under the runtime's run lock, then detaches it before removing it.
  */
 async function pruneAutoRouterRuns(
 	cwd: string,
@@ -1010,39 +1111,33 @@ async function pruneAutoRouterRuns(
 	cutoff: number | undefined,
 	yes: boolean,
 ): Promise<WorkflowPruneClassifierRun[]> {
-	const root = join(workflowsRoot(cwd), AUTO_ROUTER_RUNS_DIR_NAME);
-	const rootInfo = await lstat(root).catch(() => undefined);
-	if (!rootInfo?.isDirectory() || rootInfo.isSymbolicLink()) return [];
+	let root: string;
+	try {
+		root = await physicalAutoRouterRoot(cwd);
+	} catch {
+		return [];
+	}
 	const entries = await readdir(root, { withFileTypes: true }).catch(() => []);
-	const candidates: Array<WorkflowPruneClassifierRun & { dir: string }> = [];
+	const candidates: ClassifierCandidate[] = [];
 	for (const entry of entries) {
 		if (!entry.isDirectory() || !/^run_[A-Za-z0-9_-]+$/u.test(entry.name))
 			continue;
 		const dir = join(root, entry.name);
 		try {
-			const file = join(dir, "run.json");
-			const info = await lstat(file);
-			if (!info.isFile() || info.isSymbolicLink()) continue;
-			const record = JSON.parse(await readFile(file, "utf8")) as {
-				runId?: unknown;
-				status?: unknown;
-				updatedAt?: unknown;
-			};
-			if (
-				record.runId !== entry.name ||
-				typeof record.status !== "string" ||
-				!AUTO_ROUTER_TERMINAL.has(record.status) ||
-				typeof record.updatedAt !== "string" ||
-				!Number.isFinite(Date.parse(record.updatedAt))
-			)
-				continue;
+			const identity = await lstat(dir);
+			if (!identity.isDirectory() || identity.isSymbolicLink()) continue;
+			const record = deletableClassifierRecord(
+				await readClassifierRecord(dir),
+				entry.name,
+			);
+			if (!record) continue;
 			candidates.push({
 				runId: entry.name,
-				status: record.status,
-				updatedAt: record.updatedAt,
+				...record,
 				bytes: await directoryBytes(dir),
 				deleted: false,
 				dir,
+				identity,
 			});
 		} catch {
 			// Unreadable: never selected.
@@ -1057,10 +1152,11 @@ async function pruneAutoRouterRuns(
 			(cutoff === undefined || Date.parse(candidate.updatedAt) < cutoff),
 	);
 	const results: WorkflowPruneClassifierRun[] = [];
-	for (const { dir, ...entry } of selected) {
+	for (const { dir, identity, ...entry } of selected) {
 		if (yes)
 			try {
-				await rm(dir, { recursive: true, force: true });
+				await beforeClassifierDeleteForTests?.();
+				await deleteClassifierRun(cwd, root, { ...entry, dir, identity });
 				entry.deleted = true;
 			} catch (error) {
 				entry.error = errorMessage(error);
@@ -1068,4 +1164,63 @@ async function pruneAutoRouterRuns(
 		results.push(entry);
 	}
 	return results;
+}
+
+/**
+ * Delete one selected classifier request. Under the runtime's lock for that run (the one its
+ * writers hold), recheck the physical chain, the directory's identity and its record, then rename
+ * it into a fresh `.prune-*` container in the same directory and remove that container.
+ */
+async function deleteClassifierRun(
+	cwd: string,
+	root: string,
+	candidate: ClassifierCandidate,
+): Promise<void> {
+	const recheck = async () => {
+		if ((await physicalAutoRouterRoot(cwd)) !== root)
+			throw new Error("auto-router-runs changed since selection");
+		const info = await lstat(candidate.dir);
+		if (
+			!info.isDirectory() ||
+			info.isSymbolicLink() ||
+			info.dev !== candidate.identity.dev ||
+			info.ino !== candidate.identity.ino
+		)
+			throw new Error("classifier request changed since selection");
+		const record = deletableClassifierRecord(
+			await readClassifierRecord(candidate.dir),
+			candidate.runId,
+		);
+		if (record?.updatedAt !== candidate.updatedAt)
+			throw new Error("classifier request changed since selection");
+	};
+	await recheck();
+	// The runtime's lock directory (created like the runtime does, but never through a symlink).
+	await mkdir(join(root, RUN_LOCKS_DIR)).catch((error: unknown) => {
+		if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+	});
+	const locks = await physicalDirectoryChain(root, [RUN_LOCKS_DIR]).catch(
+		() => undefined,
+	);
+	if (!locks?.exists) throw new Error("unsafe classifier lock directory");
+	const release = await acquireDirectoryLock(
+		join(locks.path, `${candidate.runId}.lock`),
+		{ retries: AUTO_ROUTER_LOCK_RETRIES, retryMs: AUTO_ROUTER_LOCK_RETRY_MS },
+	);
+	try {
+		await recheck();
+		const container = await mkdtemp(join(root, ".prune-"));
+		try {
+			await recheck();
+			await rename(candidate.dir, join(container, "run"));
+		} catch (error) {
+			await rm(container, { recursive: true, force: true }).catch(
+				() => undefined,
+			);
+			throw error;
+		}
+		await rm(container, { recursive: true, force: true });
+	} finally {
+		await release().catch(() => undefined);
+	}
 }
