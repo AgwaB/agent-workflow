@@ -395,13 +395,24 @@ async function dispatch(
 						? {
 								consent: {
 									source: "prompt" as const,
-									confirm: async (title: string, message: string) => {
-										const agreed =
-											(await ctx.ui.confirm(title, message)) === true;
-										if (agreed)
-											ctx.ui.notify("Comparing workflow candidates…", "info");
-										return agreed;
-									},
+									confirm: async (title: string, message: string) =>
+										(await ctx.ui.confirm(title, message)) === true,
+								},
+								// WP38b: pi-workflow's comparison loader (TUI; Escape aborts the request).
+								compare: async <T>(
+									operation: (signal: AbortSignal | undefined) => Promise<T>,
+								): Promise<T | undefined> => {
+									if (ctx.mode !== "tui" || typeof ctx.ui.custom !== "function")
+										ctx.ui.notify("Comparing workflow candidates…", "info");
+									const compared = await withForegroundLoader(
+										ctx,
+										AUTO_COMPARE_LOADER_LABEL,
+										operation,
+										deps.foregroundLoader,
+									);
+									return compared === FOREGROUND_CANCELLED
+										? undefined
+										: compared;
 								},
 								choose: (prompt: AutoChoicePrompt) => piAutoChoice(ctx, prompt),
 							}
@@ -558,6 +569,8 @@ async function dispatch(
 }
 
 export const AUTO_CANCEL_CHOICE = "Cancel (start nothing)";
+export const AUTO_COMPARE_LOADER_LABEL =
+	"Comparing workflow candidates… (Esc cancels; nothing starts)";
 export const AUTO_LAUNCH_CONFIRM_TITLE = "Confirm selected workflow launch";
 
 /**

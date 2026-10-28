@@ -21,7 +21,9 @@
 //      (`agent-workflow-run-launch-v2`: candidates, recommendation, choice, classifier executor and
 //      model, consent source; the task only as a SHA-256, never classifier prose or secrets).
 // Cancelling any step starts nothing; there is no hidden fallback and no current-conversation
-// choice. Changes from pi-workflow: one action for every host (CLI, Pi, MCP) instead of a TUI-only
+// choice. WP38b: a host may run the comparison behind a cancellable loader (`compare`; Pi in the
+// TUI): cancelling it aborts the in-flight classifier request and starts nothing, and `signal`
+// (Pi: the session ended) cancels every step before the launch. Changes from pi-workflow: one action for every host (CLI, Pi, MCP) instead of a TUI-only
 // slash command; the consent prompt names the classifier executor/model and shows the task; the
 // final choice is a single host dialog (Pi adds a separate confirmation); the selected workflow's
 // launch-binding capture (workflow-auto-binding.ts) is not applied, a stale named spec (changed
@@ -132,6 +134,15 @@ export interface AutoRequest
 	consent?: AutoConsent;
 	/** The final choice; resolves with a candidateId or undefined (start nothing). */
 	choose?: (prompt: AutoChoicePrompt) => Promise<string | undefined>;
+	/**
+	 * WP38b: the host's foreground wrapper of the one classifier call (Pi: a cancellable loader).
+	 * It runs `operation`, whose signal aborts the in-flight request (the executor's cancel), and
+	 * resolves undefined when the user cancelled: nothing starts.
+	 */
+	compare?: (
+		operation: (signal: AbortSignal | undefined) => Promise<WorkflowAutoResult>,
+	) => Promise<WorkflowAutoResult | undefined>;
+	/** Cancels the whole action (Pi: the session ended); checked at every step before the launch. */
 	signal?: AbortSignal;
 }
 
@@ -573,24 +584,79 @@ export async function autoAction(
 			return noCall("consent-declined");
 	}
 	const consent: WorkflowAutoConsentSource = request.consent.source;
-	// 4. Exactly one classifier call on the resolved executor.
-	const compared = await recommendWorkflowAuto({
-		cwd: ctx.cwd,
-		task,
-		transmissionPolicy: "allowed",
-		executor: target.executor,
-		...(target.model || target.effort
-			? {
-					runtimeOverrides: {
-						...(target.model ? { model: target.model } : {}),
-						...(target.effort ? { thinking: target.effort } : {}),
-					},
-				}
-			: {}),
-		...(ctx.availableModels ? { availableModels: ctx.availableModels } : {}),
-		...(agents ? { availableAgentNames: agents } : {}),
-		...(request.signal ? { signal: request.signal } : {}),
-	});
+	// 4. Exactly one classifier call on the resolved executor (behind the host's loader, if any).
+	let pending: Promise<WorkflowAutoResult> | undefined;
+	const compareOnce = (
+		signal: AbortSignal | undefined,
+	): Promise<WorkflowAutoResult> => {
+		const signals = [request.signal, signal].filter(
+			(item): item is AbortSignal => item !== undefined,
+		);
+		const combined = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
+		pending = recommendWorkflowAuto({
+			cwd: ctx.cwd,
+			task,
+			transmissionPolicy: "allowed",
+			executor: target.executor,
+			...(target.model || target.effort
+				? {
+						runtimeOverrides: {
+							...(target.model ? { model: target.model } : {}),
+							...(target.effort ? { thinking: target.effort } : {}),
+						},
+					}
+				: {}),
+			...(ctx.availableModels ? { availableModels: ctx.availableModels } : {}),
+			...(agents ? { availableAgentNames: agents } : {}),
+			...(combined ? { signal: combined } : {}),
+		});
+		return pending;
+	};
+	let comparedOrCancelled: WorkflowAutoResult | undefined;
+	try {
+		comparedOrCancelled = request.compare
+			? await request.compare(compareOnce)
+			: await compareOnce(undefined);
+	} catch (error) {
+		if (!request.signal?.aborted) throw error;
+	}
+	if (!comparedOrCancelled || request.signal?.aborted) {
+		// Cancelled during the comparison: the aborted request settles quickly when the executor
+		// supports cancel; it was sent unless it stopped before dispatch.
+		const settled = pending
+			? await Promise.race([
+					pending.catch(() => undefined),
+					new Promise<"pending">((resolve) =>
+						setTimeout(() => resolve("pending"), 2_000).unref(),
+					),
+				])
+			: undefined;
+		const sent =
+			pending !== undefined &&
+			(settled === "pending" ||
+				settled === undefined ||
+				!/^input-too-large|cancelled before provider dispatch|External model transmission/.test(
+					settled.reason ?? "",
+				));
+		return result(
+			"auto",
+			"refused",
+			{
+				phase: "cancelled",
+				classifierCalled: sent,
+				classifier: target,
+				consent,
+				shortlist,
+			},
+			[
+				header,
+				sent
+					? "Comparison cancelled; its request was aborted and any answer is discarded. No workflow has been started."
+					: "Comparison cancelled before anything was sent. No workflow has been started.",
+			].join("\n"),
+		);
+	}
+	const compared = comparedOrCancelled;
 	// The core sends nothing when the task's own wording forbids transmission or it is too large.
 	const classifierCalled =
 		compared.transmission === "allowed" &&
@@ -702,6 +768,7 @@ export async function autoAction(
 	const {
 		consent: _consent,
 		choose: _choose,
+		compare: _compare,
 		signal: _signal,
 		...launchOptions
 	} = request;
