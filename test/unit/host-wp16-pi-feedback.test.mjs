@@ -73,8 +73,8 @@ async function project(spec = SPEC) {
 	return { cwd, env, executor: id, ctx: { cwd, env } };
 }
 
-function install(env) {
-	const pi = fakePi();
+function install(env, history) {
+	const pi = fakePi({ history });
 	ext.createAgentWorkflowPiExtension({ env, feedbackPollMs: 50 })(pi);
 	const tracker = ext.piRunFeedbackForTests(pi);
 	instances.push({ pi });
@@ -178,8 +178,11 @@ test("status line while a /aw run is active, cleared when it completes; one comp
 
 test("restart: receipts prevent a second delivery; a run that settled while the session was gone is caught up once", async () => {
 	const { cwd, env, executor, ctx: hostCtx } = await project();
-	const first = install(env);
-	const ctxA = fakeCtx(cwd, { sessionId: "session-a" });
+	// WP19 round 2 (N2): Pi's session history (sent messages land in it) is what makes a delivery
+	// final across restarts; without readable history a restart resends (at least once).
+	const history = [];
+	const first = install(env, history);
+	const ctxA = fakeCtx(cwd, { sessionId: "session-a", history });
 	await startSession(first.pi, ctxA);
 	await first.command.handler(
 		`run wf.json "delivered task" --executor ${executor}`,
@@ -206,8 +209,8 @@ test("restart: receipts prevent a second delivery; a run that settled while the 
 	assert.equal(completions(first.pi).length, 1, "nothing after shutdown");
 
 	// Restart (a new extension instance, same session): only the missed run is delivered, no turn.
-	const second = install(env);
-	const ctxA2 = fakeCtx(cwd, { sessionId: "session-a" });
+	const second = install(env, history);
+	const ctxA2 = fakeCtx(cwd, { sessionId: "session-a", history });
 	await startSession(second.pi, ctxA2);
 	const caughtUp = completions(second.pi);
 	assert.equal(caughtUp.length, 1);
@@ -217,8 +220,11 @@ test("restart: receipts prevent a second delivery; a run that settled while the 
 	assert.equal(receipts(cwd, missed).length, 1);
 
 	// Another restart: nothing left to deliver.
-	const third = install(env);
-	await startSession(third.pi, fakeCtx(cwd, { sessionId: "session-a" }));
+	const third = install(env, history);
+	await startSession(
+		third.pi,
+		fakeCtx(cwd, { sessionId: "session-a", history }),
+	);
 	assert.equal(completions(third.pi).length, 0);
 });
 

@@ -2,8 +2,12 @@
 // need the WP16 surfaces: `pi.sendMessage` (recorded), `ctx.ui.setStatus` (recorded, with the
 // current footer state) and `ctx.sessionManager.getSessionId()`.
 
-/** Fake ExtensionAPI: commands, tools, event handlers and sent custom messages. */
-export function fakePi() {
+/**
+ * Fake ExtensionAPI: commands, tools, event handlers and sent custom messages. WP19 round 2:
+ * `history` (shared with `fakeCtx`) makes sent custom messages appear in the session history, as a
+ * message Pi processed and persisted does.
+ */
+export function fakePi({ history } = {}) {
 	const commands = new Map();
 	const tools = new Map();
 	const handlers = new Map();
@@ -35,14 +39,22 @@ export function fakePi() {
 				throw new Error("sendMessage failed (test)");
 			}
 			messages.push({ message, options });
+			history?.push({
+				type: "custom_message",
+				customType: message.customType,
+				details: message.details,
+			});
 		},
 	};
 }
 
-/** Fake ExtensionContext with a dialog UI (rpc) or none (json), a session id and a footer. */
+/**
+ * Fake ExtensionContext with a dialog UI (rpc) or none (json), a session id and a footer. With
+ * `history`, `sessionManager.getEntries()` returns it (WP19 round 2).
+ */
 export function fakeCtx(
 	cwd,
-	{ hasUI = true, sessionId = "session-a", select, mode } = {},
+	{ hasUI = true, sessionId = "session-a", select, mode, history } = {},
 ) {
 	const notes = [];
 	const statuses = [];
@@ -55,7 +67,12 @@ export function fakeCtx(
 		model: { provider: "anthropic", id: "claude-test" },
 		modelRegistry: { getAvailable: () => [] },
 		sessionManager:
-			sessionId === undefined ? undefined : { getSessionId: () => sessionId },
+			sessionId === undefined
+				? undefined
+				: {
+						getSessionId: () => sessionId,
+						...(history ? { getEntries: () => history } : {}),
+					},
 		notes,
 		statuses,
 		selects,

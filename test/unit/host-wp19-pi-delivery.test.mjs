@@ -149,13 +149,13 @@ test("review #5: crash after the reservation, before send → the restart delive
 		customType: sent.message.customType,
 		details: sent.message.details,
 	});
-	// Another restart: delivered, nothing more.
-	const second = await restart(env, fakeCtx(cwd, { sessionId: "session-a" }));
+	// Another restart: the session history holds it, nothing more (WP19 round 2: `confirmed`).
+	const second = await restart(env, ctx);
 	assert.equal(completions(second).length, 0);
 	const receipt = JSON.parse(
 		await readFile(feedback.feedbackReceiptPath(cwd, runId, epoch), "utf8"),
 	);
-	assert.equal(receipt.state, "delivered");
+	assert.equal(receipt.state, "confirmed");
 });
 
 test("review #5: crash after send, before the acknowledgement → resolved from session history, no duplicate", async () => {
@@ -189,7 +189,7 @@ test("review #5: crash after send, before the acknowledgement → resolved from 
 	const receipt = JSON.parse(
 		await readFile(feedback.feedbackReceiptPath(cwd, runId, epoch), "utf8"),
 	);
-	assert.equal(receipt.state, "delivered");
+	assert.equal(receipt.state, "confirmed");
 });
 
 test("review #5: an empty receipt file is not proof of delivery", async () => {
@@ -232,7 +232,10 @@ test("review #6: a session switch A → B during delivery sends nothing to B; A'
 		const receipt = JSON.parse(
 			await readFile(join(receiptsDir(cwd, runId), name), "utf8"),
 		);
-		assert.notEqual(receipt.state, "delivered");
+		assert.ok(
+			!["delivered", "sent", "confirmed"].includes(receipt.state),
+			receipt.state,
+		);
 	}
 	// Back in session A: delivered once.
 	const again = await feedback.deliverCompletion(
