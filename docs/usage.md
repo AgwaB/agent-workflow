@@ -43,7 +43,10 @@ the bundled agent in `.agent-workflow/agents/` to pin it.
 
 agent-workflow never writes to the legacy locations; its runs and settings live under
 `.agent-workflow/` and `$AGENT_WORKFLOW_HOME`. pi-workflow can stay installed next to it; each only
-sees its own runs.
+sees its own runs. Legacy discovery covers specs and agents only: pi-workflow runs under
+`.pi/workflows/` are never listed, and `logs`/`inspect` read only files inside `.agent-workflow/`, so
+a pi-workflow run copied into `.agent-workflow/workflows/` (its record still points at `.pi/…`)
+shows those files as `(not read: path is outside the project's artifact root …)`.
 
 ### Bundled workflows
 

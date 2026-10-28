@@ -451,3 +451,48 @@ Notes:
   #5/#6 docs/pi-host.md, #9 docs/cli.md, usage.md and executors/pi.md, #10 docs/host-api.md,
   host-mcp.md, cli.md and support.md, #2/#3 the executor docs.
 - None of the fixes was rerun live.
+
+## WP19 round 2
+
+Branch `wp19-fixes-2` from `e9a038c`, no model or agent-CLI calls. Input: the re-review
+(gpt-6-astra max, "Request changes", N1–N5 major, N6–N7 minor); its reproduction probes are the
+basis of the regression tests. Every listed test was run against a temporary build of `e9a038c`
+(`git archive e9a038c`, `npm run build`, the new test files and the updated
+`test/helpers/pi-host-fake.mjs` copied in) and fails there with an assertion that reproduces the
+reviewer's scenario; all pass after the fix.
+
+| # | Finding | Commit | Regression test | Fails on `e9a038c` |
+|---|---|---|---|---|
+| N1 | Lease fenced the claim, not the execution: a displaced launch still started a run | `30472e7` | `test/unit/host-wp19r2-launch-fence.test.mjs` | yes (`running/running: two runs`; displaced launch started a run) |
+| N5 | Saved per-workflow preference missing from the fingerprint | `56d799c` | `test/unit/host-wp19r2-profile-snapshot.test.mjs` | yes (`existing` for the old Codex run) |
+| N2 | Pi queue return treated as a durable acknowledgement | `c68b60f` | `test/unit/host-wp19r2-pi-delivery.test.mjs` (N2 cases) | yes (0 resends after restart; receipt never `sent`/`confirmed`) |
+| N3 | Concurrent delivery sent twice without a crash | `c68b60f` | `test/unit/host-wp19r2-pi-delivery.test.mjs` (N3 case) | yes (2 messages) |
+| N7 | `stop()` during `restore()` resurrected polling | `f0ae459` | `test/unit/host-wp19r2-pi-restore-stop.test.mjs` | yes (`polling resurrected after stop`) |
+| N4 | Escaped quotes leaked structured credentials | `75a541b` | `test/unit/host-wp19r2-redaction-escapes.test.mjs` | yes (cookie secret and password tail kept) |
+| N6 | Redactor over-redacted report prose | `4a0dab5` | `test/unit/host-wp19r2-redaction-prose.test.mjs` | yes (`Exit code:REDACTED`) |
+
+Notes:
+
+- Kept round-1 deviations: #1 conservative refusal (now also for an expired lease whose owner is
+  alive or on another host, bounded by `LAUNCH_CLAIM_ABANDON_MS` = 1 h), #2 tombstone → `unknown`,
+  #3 threat boundary, #8 guard window, #9 `pi --list-models`.
+- N1: two layers. An alive-or-uncertain owner is never taken over (fail closed), and `begin()`, the
+  ownership fence right before `start()`, makes a launch whose claim was taken over anyway (owner
+  believed dead) return the new owner's run or refuse, without effects. The round-1 test "record/
+  release of a taken-over claim" now advances the clock past the abandon bound instead of 120 s.
+- N5: `snapshotLaunchProfile` reads the settings once before the guard; the fingerprint covers it
+  and `launchClaimed` runs from it. Only the interactive declared-profile chooser runs after the
+  claim (a duplicate never prompts); it picks from the snapshot.
+- N2/N3: receipt states `pending` → `sent` → `confirmed`. Two round-1 tests now expect `confirmed`
+  (and the second restart in "crash after the reservation" uses the context whose history holds the
+  message); the WP16 restart test gives its fake Pi a session history (`fakePi({history})`,
+  `fakeCtx(cwd, {history})`), because without readable history a restart now resends (at least
+  once, at most two sends per epoch while the history stays unreadable).
+- N6: the round-1 redaction cases still pass unchanged.
+- Legacy runs: legacy discovery is for specs and agents only; runs are only listed from
+  `.agent-workflow/workflows/`, so `.pi/workflows/…` runs are never listed. The log/inspect
+  allowlist rejecting `.pi/…` paths (only reachable for a pi-workflow run record copied in by hand)
+  is kept and now documented in docs/usage.md and docs/host-api.md.
+- Docs: docs/host-api.md (N1, N4, N5, N6, legacy paths), docs/pi-host.md (N2, N3, N5, N7),
+  docs/usage.md (legacy paths).
+- None of the fixes was rerun live.

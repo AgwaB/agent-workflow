@@ -72,7 +72,11 @@ standalone supervisor (`agent-workflow supervise`, log `<run dir>/supervise.log`
 between calls and after the server exits. `detach: false` keeps the run in the server process only.
 A retried identical launch (same workflow, task, inputs and options) while the first run is still
 active returns that run with `outcome: "existing"` instead of starting another (WP16 duplicate guard,
-`host-api.md`); `forceNew: true` starts a new run. `workflow_logs` (WP18b), `agent-workflow logs` and Pi's
+`host-api.md`; WP19 round 2: a retry that arrives while the first launch is still starting is
+refused as `DUPLICATE_LAUNCH_IN_PROGRESS` even if the first launch's lease expired, and a changed saved
+user profile is a new launch); `forceNew: true` starts a new run. The text and
+logs redaction keeps report prose such as `Exit code: 1` and redacts escaped-quote credentials
+(WP19 round 2, `host-api.md`). `workflow_logs` (WP18b), `agent-workflow logs` and Pi's
 `/aw logs` call the same `logs` handler.
 
 Annotations: `list`, `status`, `inspect`, `logs`, `validate` are read-only; `run`, `dynamic`, `stop` are

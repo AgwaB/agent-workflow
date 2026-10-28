@@ -200,6 +200,10 @@ canonically (symlinks followed) inside the project's artifact root `<cwd>/.agent
 path, traversal, outside the artifact root, symlink escape) and the text says `(not read: …)`.
 `inspect --results` applies the same check to `task.files.result`, and the wait/status result
 presentation requires the output task dir inside the artifact root (not only the project).
+Legacy `.pi/workflows/…` paths are refused too, by design: runs are only ever listed from
+`.agent-workflow/workflows/` (legacy discovery is for specs and agents; pi-workflow and
+agent-workflow each see their own runs, docs/usage.md), so only a pi-workflow run record copied in by
+hand can name them.
 WP19 (review #7): one redactor (`hosts/redaction.ts`) covers all host text that can carry worker
 output: `logs`, the text of `status <run>`, `show`, `inspect`, `wait` (and `data.preview`), and the Pi
 completion message. Beyond the rules above it redacts quoted structured credentials, whitespace
