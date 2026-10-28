@@ -202,6 +202,12 @@ apply yet.
    each is negotiated when generated, permission mode: …)` instead of `0 stages`
    (`buildCapabilityPreview` option `stagesLabel`). Test: `core-wp39b-dynamic-preview.test.mjs`
    (fails on the old code).
+10. WP39b (live bundle 5, O16): `prune` also handles the auto classifier's one-shot runs under
+    `workflows/auto-router-runs/` (`run_*` with a terminal runtime `run.json`, the run filters,
+    summary field `autoRouterRuns`). Before, that directory, which has no `run.json` of its own,
+    made the retention plan "uncertain", so every selected run was protected ("uncertain run
+    references") once a project had used `auto`. Test: `core-wp39b-auto-router-retention.test.mjs`
+    (fails on the old code).
 
 Left unchanged on purpose (not paths or env vars; flagged for later WPs):
 

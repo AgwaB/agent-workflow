@@ -668,6 +668,10 @@ runs beyond the newest 50 (`--keep N`, `--older-than DAYS`); `--yes` deletes the
 and runs with retained children are protected. Pruning a run also deletes the worker CLI sessions
 still recorded as owned (where the adapter supports `deleteOwnedSession`; already `deleted` or
 `not_found` entries are skipped, the rest retried); a run whose session deletion fails is kept.
+The `auto` classifier's requests (`.agent-workflow/workflows/auto-router-runs/run_*`, one per
+comparison) follow the same rules (terminal only, the newest `--keep` kept, `--older-than`, deleted
+only with `--yes`) and are listed separately as "Classifier requests"; they are never shown as runs
+and never hold back the pruning of runs (WP39b).
 
 **Worktrees.** A write-capable stage that runs in a managed worktree
 (`.agent-workflow/workflows/<run>/worktrees/<task>`, branch `agent-workflow/<run>-<task>`) leaves it

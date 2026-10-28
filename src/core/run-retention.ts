@@ -90,11 +90,26 @@ export interface WorkflowPruneWorktree {
 	error?: string;
 }
 
+/**
+ * WP39b (live bundle 5, O16): one auto-classifier request (`workflows/auto-router-runs/run_*`),
+ * pruned with the run rules: terminal only, newest `keep` kept, `olderThanDays`, `--yes`.
+ */
+export interface WorkflowPruneClassifierRun {
+	runId: string;
+	status: string;
+	updatedAt: string;
+	bytes: number;
+	deleted: boolean;
+	error?: string;
+}
+
 export interface WorkflowPruneSummary {
 	dryRun: boolean;
 	keep: number;
 	olderThanDays?: number;
 	runs: WorkflowPruneRun[];
+	/** WP39b (O16): auto-classifier requests beyond the same filters. */
+	autoRouterRuns: WorkflowPruneClassifierRun[];
 	totalBytes: number;
 	deletedBytes: number;
 	indexUpdated: boolean;
@@ -152,6 +167,7 @@ export async function pruneWorkflowRuns(
 			keep,
 			olderThanDays,
 			runs: [],
+			autoRouterRuns: [],
 			totalBytes: 0,
 			deletedBytes: 0,
 			indexUpdated: false,
@@ -260,6 +276,12 @@ async function prunePlan(
 		summaryRuns.push(entry);
 	}
 
+	const autoRouterRuns = await pruneAutoRouterRuns(
+		cwd,
+		keep,
+		cutoff,
+		options.yes === true,
+	);
 	let indexUpdated = false;
 	const failures = summaryRuns.filter((run) => !run.protected && run.error);
 	let error =
@@ -279,14 +301,21 @@ async function prunePlan(
 		keep,
 		...(olderThanDays === undefined ? {} : { olderThanDays }),
 		runs: summaryRuns,
-		totalBytes: summaryRuns.reduce(
-			(total, run) => total + (run.protected ? 0 : run.bytes),
-			0,
-		),
-		deletedBytes: summaryRuns.reduce(
-			(total, run) => total + (run.deleted ? run.bytes : 0),
-			0,
-		),
+		autoRouterRuns,
+		totalBytes:
+			summaryRuns.reduce(
+				(total, run) => total + (run.protected ? 0 : run.bytes),
+				0,
+			) + autoRouterRuns.reduce((total, run) => total + run.bytes, 0),
+		deletedBytes:
+			summaryRuns.reduce(
+				(total, run) => total + (run.deleted ? run.bytes : 0),
+				0,
+			) +
+			autoRouterRuns.reduce(
+				(total, run) => total + (run.deleted ? run.bytes : 0),
+				0,
+			),
 		indexUpdated,
 		...(error === undefined ? {} : { error }),
 	};
@@ -334,6 +363,17 @@ export function formatWorkflowPruneSummary(
 				lines.push(`  Retained mirror evidence: ${run.retainedMirrorPath}`);
 		}
 	}
+	if (summary.autoRouterRuns?.length) {
+		lines.push(
+			summary.dryRun
+				? "Classifier requests that would be deleted:"
+				: "Classifier requests selected for deletion:",
+		);
+		for (const run of summary.autoRouterRuns)
+			lines.push(
+				`- ${run.runId} ${run.status} ${run.updatedAt} ${run.bytes} bytes${run.error ? ` — ${run.error}` : run.deleted ? " — deleted" : ""}`,
+			);
+	}
 	lines.push(
 		`Total bytes: ${summary.totalBytes} (logical file bytes; hard links counted once, so du may report more)`,
 	);
@@ -353,6 +393,8 @@ async function findRetentionPlan(cwd: string): Promise<RetentionPlan> {
 	if (!rootReal) return plan;
 	const entries = await readdir(root, { withFileTypes: true });
 	for (const entry of entries) {
+		// WP39b (O16): the classifier requests' directory is not a run (pruned separately below).
+		if (entry.name === AUTO_ROUTER_RUNS_DIR_NAME) continue;
 		const quarantine = entry.name.startsWith(".prune-");
 		if (!quarantine && !isSafeRunId(entry.name)) continue;
 		// Ordinary root metadata (index, lock) is not a run directory.
@@ -949,6 +991,80 @@ async function removeRunWorktrees(
 				(await gitText(gitCwd, ["branch", "-d", entry.branch])
 					.then(() => true)
 					.catch(() => false));
+		results.push(entry);
+	}
+	return results;
+}
+
+/** `workflows/auto-router-runs/`: the auto classifier's one-shot runtime runs (workflow-router). */
+const AUTO_ROUTER_RUNS_DIR_NAME = "auto-router-runs";
+const AUTO_ROUTER_TERMINAL = new Set(["completed", "failed", "cancelled"]);
+
+/**
+ * WP39b (live bundle 5, O16): classifier requests beyond the filters. Only `run_*` directories
+ * (no symlinks) with a readable terminal `run.json` are candidates; with `yes` each is removed.
+ */
+async function pruneAutoRouterRuns(
+	cwd: string,
+	keep: number,
+	cutoff: number | undefined,
+	yes: boolean,
+): Promise<WorkflowPruneClassifierRun[]> {
+	const root = join(workflowsRoot(cwd), AUTO_ROUTER_RUNS_DIR_NAME);
+	const rootInfo = await lstat(root).catch(() => undefined);
+	if (!rootInfo?.isDirectory() || rootInfo.isSymbolicLink()) return [];
+	const entries = await readdir(root, { withFileTypes: true }).catch(() => []);
+	const candidates: Array<WorkflowPruneClassifierRun & { dir: string }> = [];
+	for (const entry of entries) {
+		if (!entry.isDirectory() || !/^run_[A-Za-z0-9_-]+$/u.test(entry.name))
+			continue;
+		const dir = join(root, entry.name);
+		try {
+			const file = join(dir, "run.json");
+			const info = await lstat(file);
+			if (!info.isFile() || info.isSymbolicLink()) continue;
+			const record = JSON.parse(await readFile(file, "utf8")) as {
+				runId?: unknown;
+				status?: unknown;
+				updatedAt?: unknown;
+			};
+			if (
+				record.runId !== entry.name ||
+				typeof record.status !== "string" ||
+				!AUTO_ROUTER_TERMINAL.has(record.status) ||
+				typeof record.updatedAt !== "string" ||
+				!Number.isFinite(Date.parse(record.updatedAt))
+			)
+				continue;
+			candidates.push({
+				runId: entry.name,
+				status: record.status,
+				updatedAt: record.updatedAt,
+				bytes: await directoryBytes(dir),
+				deleted: false,
+				dir,
+			});
+		} catch {
+			// Unreadable: never selected.
+		}
+	}
+	candidates.sort(
+		(left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt),
+	);
+	const selected = candidates.filter(
+		(candidate, index) =>
+			index >= keep &&
+			(cutoff === undefined || Date.parse(candidate.updatedAt) < cutoff),
+	);
+	const results: WorkflowPruneClassifierRun[] = [];
+	for (const { dir, ...entry } of selected) {
+		if (yes)
+			try {
+				await rm(dir, { recursive: true, force: true });
+				entry.deleted = true;
+			} catch (error) {
+				entry.error = errorMessage(error);
+			}
 		results.push(entry);
 	}
 	return results;
