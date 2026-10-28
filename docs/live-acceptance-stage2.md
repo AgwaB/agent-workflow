@@ -233,6 +233,8 @@ input 30, cache read 567,411, cache write 34,077, output 2,922. No `codex exec` 
    [host-api.md](host-api.md#common-contract)).
 5. **False stall warning during a scheduled retry.** `status` showed "⚠ no task progress for 14m
    (heartbeat alive — possible stall)" while the only open task was waiting for its retry time.
+   WP18b: a run whose only startable work waits for a future retry time shows "⏳ waiting for
+   scheduled retry at <time> (<reason>; <task>)" instead (`scheduledRetryWait`, core).
 6. **Pi completion message "Verdict: completed"** is the run's semantic status; the report verdict
    (`NEEDS_WORK`) appears only in the preview below it.
 7. **Codex `thread/start` trusts the project in the user config.** The documented app-server probe

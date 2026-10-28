@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine-format.ts. MIT, same author. Changes: WP12a usage lines show the run cost, `unknown` when no task reported one (never $0); WP18b next-step hints (`Open:`, `Resume:`, `Logs:`, stall warnings) come from the caller's `WorkflowCommandHints` (default pi-workflow's `/workflow …`).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine-format.ts. MIT, same author. Changes: WP12a usage lines show the run cost, `unknown` when no task reported one (never $0); WP18b next-step hints (`Open:`, `Resume:`, `Logs:`, stall warnings) come from the caller's `WorkflowCommandHints` (default pi-workflow's `/workflow …`); a run that only waits for a scheduled retry says "waiting for scheduled retry at <time>" instead of the no-progress stall warning.
 import { lstat } from "node:fs/promises";
 import {
 	PI_WORKFLOW_COMMAND_HINTS,
@@ -80,8 +80,83 @@ export function detectRunStall(
 	return { kind: "no-progress", ageMs };
 }
 
+/** WP18b: a running run that only waits for the scheduled retry of one or more tasks. */
+export interface WorkflowScheduledRetryWait {
+	/** Earliest `launchRetry.nextEligibleAt` (ISO) of the waiting tasks. */
+	at: string;
+	retryAfterMs: number;
+	/** `launchRetry.reason`/`message` of the task retried first. */
+	reason?: string;
+	message?: string;
+	taskIds: string[];
+}
+
+/**
+ * WP18b (live 4, open problem 5): the run is `running`, no task is running, and every pending task
+ * whose dependencies completed waits for a future `launchRetry.nextEligibleAt` (for example a
+ * 15-minute rate-limit backoff). No task progress is then expected until that time, so it is not a
+ * stall. Undefined when any task runs or could start now.
+ */
+export function scheduledRetryWait(
+	run: Pick<WorkflowRunRecord, "status"> & {
+		tasks?: readonly Pick<
+			WorkflowTaskRunRecord,
+			"taskId" | "specId" | "status" | "dependsOn" | "launchRetry"
+		>[];
+	},
+	nowMs = Date.now(),
+): WorkflowScheduledRetryWait | undefined {
+	if (run.status !== "running" || !Array.isArray(run.tasks)) return undefined;
+	if (run.tasks.some((task) => task.status === "running")) return undefined;
+	const completed = new Set(
+		run.tasks
+			.filter((task) => task.status === "completed")
+			.map((task) => task.specId),
+	);
+	const waiting: Array<{
+		task: (typeof run.tasks)[number];
+		atMs: number;
+		at: string;
+	}> = [];
+	for (const task of run.tasks) {
+		if (task.status !== "pending") continue;
+		const at = task.launchRetry?.nextEligibleAt;
+		const atMs = parseIsoTimeMs(at);
+		if (at && atMs !== undefined && atMs > nowMs) {
+			waiting.push({ task, atMs, at });
+			continue;
+		}
+		if ((task.dependsOn ?? []).every((dep: string) => completed.has(dep)))
+			return undefined;
+	}
+	if (waiting.length === 0) return undefined;
+	waiting.sort((a, b) => a.atMs - b.atMs);
+	const first = waiting[0]!;
+	return {
+		at: first.at,
+		retryAfterMs: first.atMs - nowMs,
+		...(first.task.launchRetry?.reason
+			? { reason: first.task.launchRetry.reason }
+			: {}),
+		...(first.task.launchRetry?.message
+			? { message: first.task.launchRetry.message }
+			: {}),
+		taskIds: waiting.map((entry) => entry.task.taskId),
+	};
+}
+
+/** `waiting for scheduled retry at <time> (<reason>; task-2)`. */
+export function formatScheduledRetryWait(
+	wait: WorkflowScheduledRetryWait,
+): string {
+	const why = [wait.reason, wait.taskIds.join(", ")].filter(Boolean).join("; ");
+	return `waiting for scheduled retry at ${friendlyTimestamp(wait.at)} (${why})`;
+}
+
 export function formatRunStallWarning(
-	run: Pick<WorkflowRunRecord, "runId" | "status" | "createdAt">,
+	run: Pick<WorkflowRunRecord, "runId" | "status" | "createdAt"> & {
+		tasks?: WorkflowRunRecord["tasks"];
+	},
 	supervisor: WorkflowSupervisorRecord | undefined,
 	nowMs = Date.now(),
 	hints: WorkflowCommandHints = PI_WORKFLOW_COMMAND_HINTS,
@@ -90,6 +165,9 @@ export function formatRunStallWarning(
 	if (!stall) return undefined;
 	if (stall.kind === "heartbeat-lost")
 		return `⚠ supervisor heartbeat lost (last heartbeat ${formatStallAge(stall.ageMs)} ago while run says running; inspect ${hints.logs(run.runId)})`;
+	const retry = scheduledRetryWait(run, nowMs);
+	if (retry)
+		return `⏳ ${formatScheduledRetryWait(retry)}; no task progress for ${formatStallAge(stall.ageMs)} is expected until then`;
 	return `⚠ no task progress for ${formatStallAge(stall.ageMs)} (heartbeat alive — possible stall; inspect ${hints.logs(run.runId)})`;
 }
 
@@ -539,6 +617,10 @@ function formatWarnings(
 		options.hints,
 	);
 	if (stall) lines.push(stall);
+	else {
+		const retry = scheduledRetryWait(run, options.nowMs ?? Date.now());
+		if (retry) lines.push(`⏳ ${formatScheduledRetryWait(retry)}`);
+	}
 	return lines.length > 0 ? ["", ...lines] : [];
 }
 

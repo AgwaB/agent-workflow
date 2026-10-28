@@ -158,3 +158,100 @@ test("status/show/stop/resume/wait texts carry the calling host's hints, never /
 		stopped.text,
 	);
 });
+
+// --- item 3: a scheduled retry is not a stall ---
+
+const engine = await import("../../dist/core/engine.js");
+
+function retryRun(nowMs, { otherRunning = false } = {}) {
+	const nextEligibleAt = new Date(nowMs + 9 * 60_000).toISOString();
+	return {
+		runId: "workflow_retry_wait",
+		status: "running",
+		createdAt: new Date(nowMs - 20 * 60_000).toISOString(),
+		tasks: [
+			{
+				taskId: "task-1",
+				specId: "a",
+				status: "completed",
+				statusDetail: "completed",
+			},
+			{
+				taskId: "task-2",
+				specId: "b",
+				status: "pending",
+				statusDetail: "retry_model_failure",
+				launchRetry: {
+					attempts: 1,
+					maxAttempts: 3,
+					reason: "model_rate_limit",
+					message: "429 Too Many Requests",
+					nextEligibleAt,
+					retryAfterMs: 900_000,
+				},
+			},
+			...(otherRunning
+				? [
+						{
+							taskId: "task-3",
+							specId: "c",
+							status: "running",
+							statusDetail: "running",
+						},
+					]
+				: []),
+		],
+	};
+}
+
+function aliveSupervisor(nowMs) {
+	return {
+		schemaVersion: 1,
+		ownerId: "1-a",
+		pid: 1,
+		updatedAt: new Date(nowMs - 5_000).toISOString(),
+		lockFile: "x",
+		lastTaskTransitionAt: new Date(nowMs - 14 * 60_000).toISOString(),
+		taskStatusCounts: { pending: 1, running: 0, completed: 1, total: 2 },
+	};
+}
+
+test("stall warning: a run whose only open task waits for a scheduled retry says so instead", () => {
+	const nowMs = Date.now();
+	const run = retryRun(nowMs);
+	const at = run.tasks[1].launchRetry.nextEligibleAt;
+	const wait = engine.scheduledRetryWait(run, nowMs);
+	assert.deepEqual(wait, {
+		at,
+		retryAfterMs: 9 * 60_000,
+		reason: "model_rate_limit",
+		message: "429 Too Many Requests",
+		taskIds: ["task-2"],
+	});
+	const text = engine.formatRunStallWarning(
+		run,
+		aliveSupervisor(nowMs),
+		nowMs,
+		hints.CLI_COMMAND_HINTS,
+	);
+	assert.doesNotMatch(text, /possible stall/);
+	assert.match(
+		text,
+		new RegExp(
+			`waiting for scheduled retry at ${at.slice(0, 16).replace("T", " ")}Z \\(model_rate_limit`,
+		),
+	);
+	// Another task still running, or a retry time already passed: the warning stays.
+	const busy = retryRun(nowMs, { otherRunning: true });
+	assert.equal(engine.scheduledRetryWait(busy, nowMs), undefined);
+	assert.match(
+		engine.formatRunStallWarning(
+			busy,
+			aliveSupervisor(nowMs),
+			nowMs,
+			hints.CLI_COMMAND_HINTS,
+		),
+		/possible stall; inspect agent-workflow logs workflow_retry_wait/,
+	);
+	assert.equal(engine.scheduledRetryWait(run, nowMs + 10 * 60_000), undefined);
+});

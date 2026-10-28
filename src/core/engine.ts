@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine.ts. MIT, same author. Changes: the backend comes from the task-launch registry and the core task backend registers itself (was hard-wired pi-subagent); acknowledgeSubagentTaskInterrupted from task-cancellation.ts; run options executor/defaultExecutor (B2 executor selection before the run record exists, frozen as run.executor; nested runs copy the parent's) and inheritHostTools/allowSharedCheckoutWrites passed into compileWorkflow (nested runs follow the parent record); native host context → withHostContext(resolveHostContext()); foreach batch eligibility uses prepareWorkflowTaskToolPolicy with the run's host-tool and shared-checkout decisions (R#5); messages say agent-workflow. WP4d: B4 capability negotiation after executor selection and compile, before the run record (probe once, refuse/degrade/confirm, record run.capabilityNegotiation; run options interactive/confirmDegradations/allowUnverifiedCapabilities/executorProber/executorProbeTimeoutMs). WP4e: run option permissionMode resolved with B2 precedence (permission-mode.ts), passed to compile and negotiation, recorded as run.permissionMode (nested runs follow the parent). WP17: run option host; with no explicit executor the default is the host's own CLI (terminal: first usable of pi → claude → codex via cached probes, executor-default.ts), recorded as run.executor.source host-default/installed-default with the host; the cached prober is shared with negotiation.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine.ts. MIT, same author. Changes: the backend comes from the task-launch registry and the core task backend registers itself (was hard-wired pi-subagent); acknowledgeSubagentTaskInterrupted from task-cancellation.ts; run options executor/defaultExecutor (B2 executor selection before the run record exists, frozen as run.executor; nested runs copy the parent's) and inheritHostTools/allowSharedCheckoutWrites passed into compileWorkflow (nested runs follow the parent record); native host context → withHostContext(resolveHostContext()); foreach batch eligibility uses prepareWorkflowTaskToolPolicy with the run's host-tool and shared-checkout decisions (R#5); messages say agent-workflow. WP4d: B4 capability negotiation after executor selection and compile, before the run record (probe once, refuse/degrade/confirm, record run.capabilityNegotiation; run options interactive/confirmDegradations/allowUnverifiedCapabilities/executorProber/executorProbeTimeoutMs). WP4e: run option permissionMode resolved with B2 precedence (permission-mode.ts), passed to compile and negotiation, recorded as run.permissionMode (nested runs follow the parent). WP17: run option host; with no explicit executor the default is the host's own CLI (terminal: first usable of pi → claude → codex via cached probes, executor-default.ts), recorded as run.executor.source host-default/installed-default with the host; the cached prober is shared with negotiation. WP18b: re-exports scheduledRetryWait/formatScheduledRetryWait.
 import { releaseUnneededOwnedSessions } from "./owned-session-release.js";
 import { createHash } from "node:crypto";
 import {
@@ -289,10 +289,15 @@ export {
 	formatRawRunDetails,
 	formatRunStallWarning,
 	formatRunStatus,
+	formatScheduledRetryWait,
 	formatStatus,
+	scheduledRetryWait,
 	TASK_PROGRESS_STALL_MS,
 } from "./engine-format.js";
-export type { WorkflowRunStallInfo } from "./engine-format.js";
+export type {
+	WorkflowRunStallInfo,
+	WorkflowScheduledRetryWait,
+} from "./engine-format.js";
 
 // pi-workflow hard-wired the pi-subagent backend; the core task backend registers itself.
 ensureWorkflowTaskBackendRegistered();
