@@ -213,7 +213,7 @@ again only when its status/updatedAt changed, its acknowledgement became stale, 
 
 Port of pi-workflow's feedback delivery (`bindWorkflowFeedbackAudience`, `watchWorkflowFeedback`,
 `deliverWorkflowFeedback`, `deliverMissedWorkflowFeedback`, per-epoch receipts) and of its active-run
-status entry, without the board widget or the presentation lease. Only with a UI (TUI or RPC;
+status entry, without the board widget (WP33 adds the presentation lease, below). Only with a UI (TUI or RPC;
 `ctx.hasUI`, not print/JSON mode).
 
 - **Audience.** A run launched (or resumed, or returned as `existing`) by `/aw run|dynamic|resume`,
@@ -333,6 +333,23 @@ status entry, without the board widget or the presentation lease. Only with a UI
   truth after eviction. Residual: evicting a *non-durable* entry (its `sent` publication failed)
   of a still-live queue, i.e. more than 256 such entries, falls back to the receipt rules.
 
+- **Session-owned waits (WP33, parity row 20; pi-workflow `workflow_wait` session binding).** The
+  session that owns a run (its audience) presents its completion. `aw_wait` refuses a run another
+  Pi session owns (`run … is owned by another Pi session`; a context without a session id owns
+  nothing); a run no session owns (CLI, MCP, print mode) can be waited on and nothing is recorded.
+  While an agent of the owning session waits (`aw_wait`, or `aw_run`/`aw_dynamic` with
+  `awaitTerminal`, which now track the run before waiting), the tracker holds an in-process
+  *presentation lease* for that run: it keeps the status line but does not send the completion. A
+  wait that returns the settled run is its presentation: the receipt of that epoch is written as
+  `sent` with `channel: "tool-result"` and `presentedBy`, the run is no longer tracked and the tool
+  result's `details.feedbackEpoch` lets the session history confirm it (an `aw_*` `toolResult`
+  entry with that `runId` and epoch counts like the completion message). So every WP19 rule above
+  applies unchanged: no completion message into the same live queue; after a crash or a disposed
+  queue, a history without that tool result gets the message once. A wait that ends first
+  (timeout, cancel) releases the lease and the tracker delivers as before. When the message reached
+  the session before the wait returned, the result says so (`details.completionAlreadyDelivered`,
+  "The completion message of this result was already delivered to this session."). `/aw wait` (a
+  user command) does not present: the message still follows.
 - **Concurrent deliveries (WP19 round 2, N3).** A delivery keeps in-process ownership of its
   reservation through its final `sent` transition; a concurrent delivery of the same epoch in this
   process returns `in-flight` without sending. Every receipt transition (reserve, drop, sent,
@@ -366,6 +383,10 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
 
 ## Verification
 
+- WP33: `host-wp33-pi-owned-wait.test.mjs` (aw_wait presents the result of this session's run, no
+  completion message follows; another session is refused; unowned runs; a timed-out wait leaves
+  delivery to the tracker; already-delivered note; awaited duplicate launch; restart with and
+  without the tool result in the history).
 - WP28: `host-wp28-pi-waits.test.mjs` (long `aw_wait`, `awaitTerminal` on `aw_run`/`aw_dynamic`,
   cancel = only the wait, no second delivery of an awaited result, `/aw wait <run> [timeout]`),
   `host-wp28-pi-redrive.test.mjs` (a child process launches an attached run and exits; session start
@@ -405,9 +426,6 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
 
 - No board, widgets or `/aw` with a bare run id (pi-workflow's board TUI is out of scope); the
   status line is one footer entry.
-- No presentation lease or parent-usage tracking. `aw_wait` does not check delivery ownership: an
-  agent that waited for the result still gets the completion message (for tool launches, a
-  follow-up turn).
 - A context without a session id gets no status line or delivery (Pi 1.1 has one in TUI and RPC,
   also with `--no-session`).
 - No `/aw auto` or TUI profile picker (`/workflow profile`); `/aw profile` manages saved user

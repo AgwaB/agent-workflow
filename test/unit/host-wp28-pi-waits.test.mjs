@@ -229,18 +229,15 @@ test("cancelling aw_wait or an awaited launch cancels only the wait", async () =
 		"running",
 	);
 
-	const done = await tool("aw_wait").execute(
-		"w2",
-		{ runId, timeoutMs: 120_000 },
-		undefined,
-		undefined,
-		ctx,
-	);
-	assert.equal(done.details.terminal, true, done.content[0].text);
-	assert.equal(done.details.outcome, "completed");
+	// WP33: the cancelled waits leave the run tracked: it reports back by itself (an aw_wait
+	// that received the settled result would be its presentation instead, see WP33 tests).
 	await eventually(
 		() => completionMessages(pi, runId).length === 1,
 		"the cancelled awaited launch still reports back",
+	);
+	assert.equal(
+		(await api.statusAction(apiCtx, { runId })).data.run.status,
+		"completed",
 	);
 });
 
