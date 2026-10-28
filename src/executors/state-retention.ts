@@ -166,6 +166,14 @@ async function mtimeMs(path: string): Promise<number | undefined> {
 }
 
 /**
+ * WP19 round 7: a file or directory an adapter writes under `attempts/` — the attemptKey digest
+ * (hex: Claude 40, Codex 32, Pi 64 characters) alone (per-attempt directory) or with a companion
+ * suffix (`.events.jsonl`, `.log`) or an atomic-write temp suffix (`.json.<pid>[.<hex>].tmp`).
+ */
+const ADAPTER_ATTEMPT_FILE =
+	/^[0-9a-f]{32,64}(?:\.events\.jsonl|\.log|\.json\.\d+(?:\.[0-9a-f]+)?\.tmp)?$/u;
+
+/**
  * Remove terminal attempt records older than the retention window, with their companion files
  * and dirs, and stale orphans (companions or temp files without a record, older than the window).
  */
@@ -313,9 +321,12 @@ export async function pruneAdapterAttemptState(
 		}
 		await remove(recordPath);
 	}
-	// Orphans: companions of an already removed record, interrupted temp files.
+	// Orphans: companions of an already removed record, interrupted temp files. WP19 round 7:
+	// only names an adapter writes (hex attemptKey digest + a known suffix) are candidates;
+	// anything else in `attempts/` (notes, other tools' files, directories) is never touched.
 	for (const name of entries) {
 		if (name.endsWith(".json")) continue;
+		if (!ADAPTER_ATTEMPT_FILE.test(name)) continue;
 		const base = name
 			.replace(/\.events\.jsonl$/, "")
 			.replace(/\.log$/, "")
