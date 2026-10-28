@@ -50,6 +50,7 @@ import type {
 	ThinkingLevel,
 	WorkflowCapturedExecutionProfile,
 	WorkflowExecutionProfileSelection,
+	WorkflowRunHostAutoSelectionMetadata,
 	WorkflowRunRecord,
 } from "../core/types.js";
 import { resolveSavedWorkflowExecutionProfile } from "../core/workflow-profile-settings.js";
@@ -122,6 +123,11 @@ export interface LaunchRequestBase {
 	inputOverrides?: Record<string, unknown>;
 	/** WP33: how the host was asked (launch capture); absent → synthesized from the request. */
 	launchOrigin?: LaunchOrigin;
+	/**
+	 * WP32: set by the `auto` action only: the selection facts of a confirmed auto launch (launch
+	 * capture `agent-workflow-run-launch-v2`).
+	 */
+	autoSelection?: WorkflowRunHostAutoSelectionMetadata;
 }
 
 export interface RunWorkflowRequest extends LaunchRequestBase {
@@ -1148,6 +1154,7 @@ async function launchClaimed(
 			action,
 			request,
 			request.launchOrigin,
+			request.autoSelection,
 		),
 		[WORKFLOW_PROMPT_SCHEMA_DIAGNOSTIC_SINK]: (notice, digest) => {
 			if (digest === promptSchemaDigest) return;

@@ -1,0 +1,519 @@
+// New in agent-workflow (WP32, owner decision Q5, parity row 21): the host API `auto` action.
+// pi-workflow's `/workflow auto` consent semantics on every host: a local routing-only shortlist
+// without any model call; one classifier call only after explicit consent, on the run's default
+// executor (Claude Code → claude, Codex → codex, Pi → pi, the terminal CLI → the first installed and
+// logged-in of pi → claude → codex); the user's final choice starts the workflow through the normal
+// launch path, and the launch capture (`agent-workflow-run-launch-v2`) records the selection.
+// Fakes only: the built-in executor ids are shadowed by the workflow executor fixture, whose
+// `autoRecommend` answers the classifier call (no agent CLI, no model call).
+import assert from "node:assert/strict";
+import {
+	mkdir,
+	mkdtemp,
+	readFile,
+	realpath,
+	rm,
+	writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { after, afterEach, before, test } from "node:test";
+
+import {
+	readFixtureLog,
+	workflowFixtureDescriptor,
+} from "../helpers/workflow-executor-fixture.mjs";
+
+const api = await import("../../dist/hosts/api.js");
+const core = await import("../../dist/core/index.js");
+const store = await import("../../dist/core/store.js");
+const slots = await import("../../dist/core/launch-slots.js");
+
+let root;
+let counter = 0;
+const unregister = [];
+const SECRET = "supersecretvalue123";
+const READY = { installed: true, cliVersion: "1.0.0", auth: "ok" };
+const NOT_INSTALLED = { installed: false, cliVersion: null, auth: "unknown" };
+
+before(async () => {
+	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp32-auto-")));
+	slots.setSubagentLaunchControlsForTests({
+		releaseDelayMs: 0,
+		retryJitterMs: 0,
+	});
+});
+afterEach(() => {
+	for (const undo of unregister.splice(0).reverse()) undo();
+	core.resetExecutorProbeCacheForTests();
+});
+after(async () => {
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
+});
+
+function spec(name, useWhen) {
+	return {
+		schemaVersion: 1,
+		name,
+		description: `${name} reviews code`,
+		routing: { useWhen: [useWhen], outputs: ["A review report."] },
+		defaults: { agent: "reader", readOnly: true, tools: ["read"] },
+		artifactGraph: {
+			stages: [{ id: "a", type: "single", prompt: "Collect facts." }],
+		},
+	};
+}
+
+async function project() {
+	counter += 1;
+	const cwd = join(root, `p${counter}`);
+	await mkdir(join(cwd, ".agent-workflow", "agents"), { recursive: true });
+	await writeFile(
+		join(cwd, ".agent-workflow", "agents", "reader.md"),
+		"---\nname: reader\ndescription: reads and reports\ntools: read\n---\nYou read and report.\n",
+	);
+	for (const [name, useWhen] of [
+		["wp32-alpha", "Use for a careful code review of a module."],
+		["wp32-beta", "Use for a quick lint-style review."],
+	]) {
+		await mkdir(join(cwd, "workflows", name), { recursive: true });
+		await writeFile(
+			join(cwd, "workflows", name, "spec.json"),
+			`${JSON.stringify(spec(name, useWhen))}\n`,
+		);
+	}
+	const env = {
+		...process.env,
+		HOME: join(root, `home${counter}`),
+		AGENT_WORKFLOW_HOME: join(cwd, "aw-home"),
+		MY_API_KEY: SECRET,
+	};
+	return { cwd, env };
+}
+
+/** Shadow the built-in executors with fixtures; returns id → effect log path. */
+function shadow(probes, recommend = "wp32-alpha") {
+	const logs = {};
+	for (const [id, probe] of Object.entries(probes)) {
+		counter += 1;
+		logs[id] = join(root, `${id}-${counter}.jsonl`);
+		unregister.push(
+			core.registerWorkflowExecutor(
+				workflowFixtureDescriptor({
+					id,
+					effectLog: logs[id],
+					autoRecommend: recommend,
+					stepDelayMs: 20,
+					probe,
+				}),
+			),
+		);
+	}
+	return logs;
+}
+
+function classifierSubmits(log) {
+	return readFixtureLog(log).filter(
+		(entry) => entry.type === "submit" && entry.autoClassifier === true,
+	);
+}
+
+function allClassifierSubmits(logs) {
+	return Object.fromEntries(
+		Object.entries(logs).map(([id, log]) => [
+			id,
+			classifierSubmits(log).length,
+		]),
+	);
+}
+
+async function settle(cwd, env, runId) {
+	let waited;
+	do waited = await api.waitAction({ cwd, env }, { runId, timeoutMs: 10_000 });
+	while (waited.data.stillRunning);
+	return waited;
+}
+
+/** Runs created in the project (the rebuilt index counts run directories). */
+async function runCount(cwd) {
+	const index = await store.readFreshIndex(cwd);
+	return Object.keys(index?.runs ?? {}).length;
+}
+
+const TASK = `Do a careful code review of the parser module (token ${SECRET})`;
+
+test("no consent hook: local routing-only shortlist, no classifier call, nothing started", async () => {
+	const { cwd, env } = await project();
+	const logs = shadow({ pi: READY, claude: READY, codex: READY });
+	const out = await api.autoAction(
+		{ cwd, env, host: "claude-code" },
+		{ task: TASK },
+	);
+	assert.equal(out.action, "auto");
+	assert.equal(out.outcome, "refused");
+	assert.equal(out.data.phase, "consent-unavailable");
+	assert.equal(out.data.classifierCalled, false);
+	assert.deepEqual(allClassifierSubmits(logs), { pi: 0, claude: 0, codex: 0 });
+	const labels = out.data.shortlist.map((candidate) => candidate.label);
+	assert.equal(labels[0], "Dynamic workflow");
+	// The routing hints rank the careful-review workflow above the lint one.
+	assert.ok(labels.indexOf("wp32-alpha") < labels.indexOf("wp32-beta"));
+	assert.match(out.text, /could not ask for your consent/);
+	assert.match(
+		out.text,
+		/workflow_run \{"workflow":"wp32-alpha","task":"<task>"\}/,
+	);
+	assert.match(out.text, /claude \(host-default\)/);
+	assert.doesNotMatch(out.text, new RegExp(SECRET), "the task is not echoed");
+	assert.equal(await runCount(cwd), 0);
+});
+
+test("consent declined: zero classifier submits; the preview shows task, candidates and executor/model", async () => {
+	const { cwd, env } = await project();
+	const logs = shadow({ pi: READY, claude: READY, codex: READY });
+	let seen;
+	const out = await api.autoAction(
+		{ cwd, env, host: "codex" },
+		{
+			task: TASK,
+			model: "gpt-test-mini",
+			consent: {
+				source: "prompt",
+				confirm: async (title, message, preview) => {
+					seen = { title, message, preview };
+					return false;
+				},
+			},
+		},
+	);
+	assert.equal(out.data.phase, "consent-declined");
+	assert.equal(out.data.classifierCalled, false);
+	assert.deepEqual(allClassifierSubmits(logs), { pi: 0, claude: 0, codex: 0 });
+	assert.match(seen.title, /Send this task to codex/);
+	assert.match(seen.message, /codex \(host-default\), model gpt-test-mini/);
+	assert.ok(seen.message.includes(TASK), "the preview shows the task text");
+	assert.match(seen.message, /wp32-alpha/);
+	assert.equal(seen.preview.classifier.executor, "codex");
+	assert.equal(seen.preview.taskCharacters, Array.from(TASK).length);
+	assert.match(out.text, /did not agree/);
+});
+
+test("consent accepted: exactly one classifier submit on the host's default executor", async (t) => {
+	const cases = [
+		{
+			host: "claude-code",
+			probes: { pi: READY, claude: READY, codex: READY },
+			expect: "claude",
+		},
+		{
+			host: "codex",
+			probes: { pi: READY, claude: READY, codex: READY },
+			expect: "codex",
+		},
+		{
+			host: "pi",
+			probes: { pi: READY, claude: READY, codex: READY },
+			expect: "pi",
+		},
+		// The terminal CLI: the first installed and logged-in of pi → claude → codex.
+		{
+			host: "cli",
+			probes: { pi: NOT_INSTALLED, claude: READY, codex: READY },
+			expect: "claude",
+		},
+	];
+	for (const item of cases)
+		await t.test(item.host, async () => {
+			const { cwd, env } = await project();
+			const logs = shadow(item.probes);
+			try {
+				const out = await api.autoAction(
+					{ cwd, env, host: item.host },
+					{
+						task: TASK,
+						consent: { source: "prompt", confirm: async () => true },
+					},
+				);
+				assert.equal(out.data.phase, "ranked", out.text);
+				assert.equal(out.outcome, "success");
+				assert.equal(out.data.classifierCalled, true);
+				assert.equal(out.data.classifier.executor, item.expect);
+				const submits = allClassifierSubmits(logs);
+				for (const id of Object.keys(submits))
+					assert.equal(
+						submits[id],
+						id === item.expect ? 1 : 0,
+						`${item.host}: ${JSON.stringify(submits)}`,
+					);
+				const [submit] = classifierSubmits(logs[item.expect]);
+				assert.deepEqual(submit.tools, []);
+				assert.equal(submit.readOnly, true);
+				assert.equal(out.data.recommendation?.label, "wp32-alpha");
+				assert.equal(out.data.ranked[0].label, "wp32-alpha");
+				assert.equal(out.data.ranked[0].recommended, true);
+				assert.match(out.text, /Recommended: wp32-alpha/);
+				assert.match(out.text, /Reason: wp32-alpha fits the supplied task\./);
+				assert.match(out.text, /No workflow has been started\./);
+			} finally {
+				for (const undo of unregister.splice(0).reverse()) undo();
+				core.resetExecutorProbeCacheForTests();
+			}
+		});
+});
+
+test("a run flag and a saved user profile select the classifier executor (Q5: the run's rule)", async () => {
+	const { cwd, env } = await project();
+	const logs = shadow({ pi: READY, claude: READY, codex: READY });
+	const flagged = await api.resolveAutoClassifier(
+		{ cwd, env, host: "pi", runtimeDefaults: { model: "p/m", executor: "pi" } },
+		{ executor: "codex" },
+	);
+	assert.deepEqual(
+		[flagged.executor, flagged.source, flagged.model],
+		["codex", "run-flag", null],
+		"the Pi model belongs to pi only",
+	);
+	const pi = await api.resolveAutoClassifier(
+		{
+			cwd,
+			env,
+			host: "pi",
+			runtimeDefaults: { model: "p/m", thinking: "low", executor: "pi" },
+		},
+		{},
+	);
+	assert.deepEqual([pi.executor, pi.model, pi.effort], ["pi", "p/m", "low"]);
+	await api.profileAction(
+		{ cwd, env },
+		{
+			op: "set",
+			name: "mine",
+			values: { executor: "codex", model: "gpt-x" },
+			makeDefault: true,
+		},
+	);
+	const profiled = await api.resolveAutoClassifier(
+		{ cwd, env, host: "claude-code" },
+		{},
+	);
+	assert.deepEqual(
+		[profiled.executor, profiled.source, profiled.model],
+		["codex", "user-profile", "gpt-x"],
+	);
+	assert.deepEqual(allClassifierSubmits(logs), { pi: 0, claude: 0, codex: 0 });
+});
+
+test("the final choice launches the selected workflow and the launch capture records the selection", async () => {
+	const { cwd, env } = await project();
+	const logs = shadow({ pi: READY, claude: READY, codex: READY });
+	let prompt;
+	const out = await api.autoAction(
+		{ cwd, env, host: "claude-code" },
+		{
+			task: TASK,
+			consent: { source: "elicitation", confirm: async () => true },
+			choose: async (shown) => {
+				prompt = shown;
+				// Not the recommendation: a manual choice among the ranked candidates.
+				return shown.choices.find((choice) => choice.label === "wp32-beta")
+					.candidateId;
+			},
+			launchOrigin: {
+				kind: "tool",
+				name: "workflow_auto",
+				arguments: { task: TASK },
+			},
+		},
+	);
+	assert.equal(out.data.phase, "launched", out.text);
+	assert.equal(out.outcome, "running");
+	assert.equal(prompt.recommendedId, out.data.recommendation.candidateId);
+	assert.equal(prompt.choices[0].label, "wp32-alpha");
+	assert.equal(classifierSubmits(logs.claude).length, 1);
+	const runId = out.data.launch.runId;
+	assert.ok(runId);
+	assert.equal(out.data.launch.executor.id, "claude");
+	await settle(cwd, env, runId);
+	const run = JSON.parse(
+		await readFile(
+			join(cwd, ".agent-workflow", "workflows", runId, "run.json"),
+			"utf8",
+		),
+	);
+	assert.equal(run.name, "wp32-beta");
+	const launch = run.launch;
+	assert.equal(launch.schema, "agent-workflow-run-launch-v2");
+	assert.equal(launch.source, "mcp:claude-code");
+	assert.deepEqual(launch.entry, { kind: "tool", name: "workflow_auto" });
+	assert.equal(launch.routingMode, "auto-confirmed");
+	assert.equal(launch.requestKind, "named-workflow");
+	const selection = launch.selection;
+	assert.equal(selection.selected.label, "wp32-beta");
+	assert.equal(selection.choseRecommendation, false);
+	assert.equal(
+		selection.candidates.find(
+			(c) => c.candidateId === selection.recommendation.candidateId,
+		).label,
+		"wp32-alpha",
+	);
+	assert.deepEqual(selection.classifier, { executor: "claude", model: null });
+	assert.equal(selection.consent, "elicitation");
+	assert.match(selection.taskSha256, /^[0-9a-f]{64}$/);
+	assert.ok(store.isWorkflowRunLaunchMetadata(launch));
+	const runJson = JSON.stringify(run.launch);
+	assert.doesNotMatch(runJson, new RegExp(SECRET));
+	assert.ok(
+		!runJson.includes("parser module"),
+		"no task text in the selection",
+	);
+	const command = await readFile(
+		join(cwd, ".agent-workflow", "workflows", runId, "launch-command.txt"),
+		"utf8",
+	);
+	assert.match(command, /^workflow_auto /);
+	assert.doesNotMatch(command, new RegExp(SECRET), "credentials are redacted");
+	const shown = await api.showAction(
+		{ cwd, env, host: "claude-code" },
+		{ ref: runId },
+	);
+	assert.match(
+		shown.text,
+		/Auto selection: wp32-beta \(recommended was wp32-alpha; \d+ candidates; classifier claude; consent elicitation\)/,
+	);
+});
+
+test("choosing the recommendation records it; cancelling the choice starts nothing", async () => {
+	const { cwd, env } = await project();
+	const logs = shadow({ pi: READY, claude: READY, codex: READY });
+	const cancelled = await api.autoAction(
+		{ cwd, env, host: "pi" },
+		{
+			task: TASK,
+			consent: { source: "prompt", confirm: async () => true },
+			choose: async () => undefined,
+		},
+	);
+	assert.equal(cancelled.data.phase, "cancelled");
+	assert.equal(cancelled.outcome, "refused");
+	assert.equal(await runCount(cwd), 0);
+	const out = await api.autoAction(
+		{ cwd, env, host: "pi" },
+		{
+			task: TASK,
+			consent: { source: "prompt", confirm: async () => true },
+			choose: async (shown) => shown.recommendedId,
+			launchOrigin: { kind: "command", text: `/aw auto ${TASK}` },
+		},
+	);
+	assert.equal(out.data.phase, "launched", out.text);
+	assert.equal(classifierSubmits(logs.pi).length, 2);
+	await settle(cwd, env, out.data.launch.runId);
+	const record = await store.readRunRecord(cwd, out.data.launch.runId);
+	assert.equal(record.launch.source, "pi");
+	assert.deepEqual(record.launch.entry, { kind: "command", action: "auto" });
+	assert.equal(record.launch.selection.choseRecommendation, true);
+	assert.equal(record.launch.selection.selected.label, "wp32-alpha");
+	assert.equal(record.launch.selection.consent, "prompt");
+});
+
+test("a workflow changed after the comparison is refused as stale; nothing starts", async () => {
+	const { cwd, env } = await project();
+	shadow({ pi: READY, claude: READY, codex: READY });
+	const out = await api.autoAction(
+		{ cwd, env, host: "codex" },
+		{
+			task: TASK,
+			consent: { source: "flag" },
+			choose: async (shown) => {
+				const changed = spec("wp32-alpha", "Use for something else entirely.");
+				await writeFile(
+					join(cwd, "workflows", "wp32-alpha", "spec.json"),
+					`${JSON.stringify(changed)}\n`,
+				);
+				return shown.recommendedId;
+			},
+		},
+	);
+	assert.equal(out.data.phase, "stale");
+	assert.equal(out.data.consent, "flag");
+	assert.equal(await runCount(cwd), 0);
+});
+
+test("launch metadata v2 validation rejects a selection outside the offered candidates", () => {
+	const valid = {
+		schema: "agent-workflow-run-launch-v2",
+		source: "cli",
+		entry: { kind: "command", action: "auto" },
+		requestKind: "named-workflow",
+		routingMode: "auto-confirmed",
+		profile: { kind: "base" },
+		task: { characters: 3, lines: 1 },
+		selection: {
+			candidates: [
+				{ candidateId: "a1", kind: "named-workflow", label: "alpha" },
+				{
+					candidateId: "d1",
+					kind: "direct-dynamic",
+					label: "Dynamic workflow",
+				},
+			],
+			recommendation: { candidateId: "a1", confidence: "high" },
+			selected: { candidateId: "a1", kind: "named-workflow", label: "alpha" },
+			choseRecommendation: true,
+			classifier: { executor: "claude", model: null },
+			consent: "prompt",
+			taskSha256: "0".repeat(64),
+			confirmed: true,
+		},
+		command: {
+			state: "captured",
+			artifact: "launch-command.txt",
+			encoding: "utf-8",
+			bytes: 10,
+			sha256: "0".repeat(64),
+			fidelity: "agent-workflow-host-command-v1",
+			sensitivity: "user-input",
+			disclosure: "explicit-only",
+		},
+	};
+	assert.equal(store.isWorkflowRunLaunchMetadata(valid), true);
+	const variants = [
+		{ selected: { candidateId: "zz", kind: "named-workflow", label: "x" } },
+		{
+			selected: {
+				candidateId: "d1",
+				kind: "direct-dynamic",
+				label: "Dynamic workflow",
+			},
+		},
+		{ choseRecommendation: false },
+		{ consent: "implicit" },
+		{ classifier: { executor: "claude", model: null, apiKey: "x" } },
+		{ taskText: "leak" },
+	];
+	for (const change of variants)
+		assert.equal(
+			store.isWorkflowRunLaunchMetadata({
+				...valid,
+				selection: { ...valid.selection, ...change },
+			}),
+			false,
+			JSON.stringify(change),
+		);
+	assert.equal(
+		store.isWorkflowRunLaunchMetadata({ ...valid, routingMode: "off" }),
+		false,
+	);
+	assert.equal(
+		store.isWorkflowRunLaunchMetadata({
+			...valid,
+			entry: { kind: "command", action: "run" },
+		}),
+		false,
+	);
+});

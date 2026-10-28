@@ -102,6 +102,18 @@ export interface LaunchSummary {
 				error?: string;
 		  }
 		| { state: "unavailable"; reason: string };
+	/**
+	 * WP32: a confirmed `auto` launch: the chosen workflow, how many candidates were offered, the
+	 * classifier executor/model and how consent was given.
+	 */
+	auto?: {
+		selected: string;
+		candidates: number;
+		recommended: string | null;
+		choseRecommendation: boolean;
+		classifier: { executor: string; model: string | null };
+		consent: string;
+	};
 }
 
 const MAX_SHOWN_COMMAND_CHARS = 4000;
@@ -121,7 +133,10 @@ export async function launchSummary(
 				: "no profile";
 	let source: string;
 	let entry: string;
-	if (launch.schema === "agent-workflow-run-launch-v1") {
+	if (
+		launch.schema === "agent-workflow-run-launch-v1" ||
+		launch.schema === "agent-workflow-run-launch-v2"
+	) {
 		source = launch.source;
 		entry =
 			launch.entry.kind === "tool"
@@ -147,6 +162,24 @@ export async function launchSummary(
 			command.error = error instanceof Error ? error.message : String(error);
 		}
 	} else command = { state: "unavailable", reason: launch.command.reason };
+	let auto: LaunchSummary["auto"];
+	if (launch.schema === "agent-workflow-run-launch-v2") {
+		const selection = launch.selection;
+		const recommended = selection.recommendation
+			? (selection.candidates.find(
+					(candidate) =>
+						candidate.candidateId === selection.recommendation?.candidateId,
+				)?.label ?? null)
+			: null;
+		auto = {
+			selected: selection.selected.label,
+			candidates: selection.candidates.length,
+			recommended,
+			choseRecommendation: selection.choseRecommendation,
+			classifier: selection.classifier,
+			consent: selection.consent,
+		};
+	}
 	return {
 		schema: launch.schema,
 		source,
@@ -155,6 +188,7 @@ export async function launchSummary(
 		profile,
 		task: launch.task,
 		command,
+		...(auto ? { auto } : {}),
 	};
 }
 
@@ -163,6 +197,12 @@ export function formatLaunch(summary: LaunchSummary): string[] {
 	const lines = [
 		`Launch: ${summary.source} · ${summary.entry} · ${summary.requestKind}, ${summary.profile}, task ${summary.task.characters} chars/${summary.task.lines} line${summary.task.lines === 1 ? "" : "s"}`,
 	];
+	if (summary.auto) {
+		const auto = summary.auto;
+		lines.push(
+			`Auto selection: ${auto.selected} (${auto.choseRecommendation ? "recommended" : auto.recommended ? `recommended was ${auto.recommended}` : "no recommendation"}; ${auto.candidates} candidate${auto.candidates === 1 ? "" : "s"}; classifier ${auto.classifier.executor}${auto.classifier.model ? ` ${auto.classifier.model}` : ""}; consent ${auto.consent})`,
+		);
+	}
 	const command = summary.command;
 	if (command.state === "unavailable")
 		lines.push(`Launch command: unavailable (${command.reason})`);

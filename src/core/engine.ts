@@ -1192,7 +1192,8 @@ async function persistWorkflowRunLaunch(
 					cwd,
 					runId,
 					capture.command.text,
-					capture.schema !== "agent-workflow-run-launch-v1"
+					capture.schema !== "agent-workflow-run-launch-v1" &&
+						capture.schema !== "agent-workflow-run-launch-v2"
 						? "pi-extension-command-v1"
 						: capture.entry.kind === "tool"
 							? "agent-workflow-tool-call-v1"
@@ -1209,6 +1210,20 @@ async function persistWorkflowRunLaunch(
 			routingMode: capture.routingMode,
 			profile: capture.profile,
 			task: capture.task,
+			command,
+		};
+	}
+	// WP32: a confirmed host `auto` launch (selection facts, no task text).
+	if (capture.schema === "agent-workflow-run-launch-v2") {
+		return {
+			schema: capture.schema,
+			source: capture.source,
+			entry: capture.entry,
+			requestKind: capture.requestKind,
+			routingMode: capture.routingMode,
+			profile: capture.profile,
+			task: capture.task,
+			selection: capture.selection,
 			command,
 		};
 	}

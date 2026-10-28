@@ -53,7 +53,8 @@ export type HostAction =
 	| "supervise"
 	| "doctor"
 	| "logs"
-	| "approve";
+	| "approve"
+	| "auto";
 
 /**
  * `success`: a query/mutation completed. Run states: `running` (launched or still running after a

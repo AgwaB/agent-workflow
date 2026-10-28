@@ -10,7 +10,9 @@ import { homedir } from "node:os";
 
 import type {
 	WorkflowHostId,
+	WorkflowRunHostAutoSelectionMetadata,
 	WorkflowRunLaunchCaptureHostV1,
+	WorkflowRunLaunchCaptureHostV2,
 	WorkflowRunLaunchHostSource,
 } from "../core/types.js";
 import { hostTextRedactor } from "./redaction.js";
@@ -114,14 +116,41 @@ export function redactLaunchCommand(
 	return hostTextRedactor(env)(out);
 }
 
-/** The engine's launch capture of one host API launch (schema `agent-workflow-run-launch-v1`). */
+/**
+ * The engine's launch capture of one host API launch (schema `agent-workflow-run-launch-v1`).
+ * WP32: a confirmed `auto` launch passes its selection facts and gets `agent-workflow-run-launch-v2`
+ * (entry `command auto` or the tool, routing mode `auto-confirmed`, `selection`).
+ */
 export function hostLaunchCapture(
 	host: WorkflowHostId | undefined,
 	env: NodeJS.ProcessEnv,
 	action: "run" | "dynamic",
 	request: CaptureRequest,
 	origin: LaunchOrigin | undefined,
-): WorkflowRunLaunchCaptureHostV1 {
+	autoSelection?: WorkflowRunHostAutoSelectionMetadata,
+): WorkflowRunLaunchCaptureHostV1 | WorkflowRunLaunchCaptureHostV2 {
+	if (autoSelection) {
+		const text =
+			origin?.kind === "command"
+				? origin.text
+				: origin?.kind === "tool"
+					? `${origin.name} ${JSON.stringify(origin.arguments)}`
+					: ["agent-workflow", "auto", request.task].map(quoteArg).join(" ");
+		return {
+			schema: "agent-workflow-run-launch-v2",
+			source: launchHostSource(host),
+			entry:
+				origin?.kind === "tool"
+					? { kind: "tool", name: origin.name }
+					: { kind: "command", action: "auto" },
+			requestKind: action === "run" ? "named-workflow" : "direct-dynamic",
+			routingMode: "auto-confirmed",
+			profile: action === "run" ? { kind: "base" } : { kind: "not-applicable" },
+			task: { characters: 0, lines: 0 },
+			selection: autoSelection,
+			command: { state: "captured", text: redactLaunchCommand(text, env) },
+		};
+	}
 	const text =
 		origin?.kind === "command"
 			? origin.text
