@@ -1,4 +1,5 @@
 // Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-sensitive-query.ts. MIT, same author. Changes: WP19 (stage-2 review #7) `redactSensitiveWorkflowText` also redacts quoted structured credentials (JSON/header fields such as `"Authorization":"Basic …"`, `"refresh_token":"…"`, also inside escaped JSON), `Proxy-Authorization`/`x-api-key` header lines, and Linux (`/home/<user>`) and Windows (`C:\\Users\\<user>`) home paths besides macOS.
+// WP19 round 2: escape-aware structured values (N4); prose such as `Exit code: 1` or `Authorization: missing …` is kept, credential header values and tokens are not (N6).
 const SENSITIVE_QUERY_TOKENS = new Set([
 	"access",
 	"auth",
@@ -116,17 +117,35 @@ export function redactSensitiveWorkflowText(value: string): string {
 	// WP19: a value never starts with a backslash, so the escaped-JSON form (`\"key\":\"v\"`,
 	// handled by redactStructuredCredentials first) is not split at its escape.
 	const assignment =
-		/(["']?)([^\s"'=:,;{}]+)\1\s*([=:])\s*(["']?)([^\s"'&,;}\\][^\s"'&,;}]*)\4/gu;
+		/(["']?)([^\s"'=:,;{}]+)\1\s*([=:])(\s*)(["']?)([^\s"'&,;}\\][^\s"'&,;}]*)\5/gu;
 	const redactedAssignments = redactStructuredCredentials(
 		withFragments,
-	).replace(assignment, (whole, quote, key, delimiter, valueQuote) => {
-		if (!isSensitiveWorkflowQueryKey(String(key))) return whole;
-		return `${quote}${key}${quote}${delimiter}${valueQuote}REDACTED${valueQuote}`;
-	});
+	).replace(
+		assignment,
+		(whole, quote, key, delimiter, space, valueQuote, assigned) => {
+			if (!isSensitiveWorkflowQueryKey(String(key))) return whole;
+			// WP19 round 2 (N6): `Label: value` with a space is how prose and reports read
+			// (`Exit code: 1`, `HTTP status code: 403`). There only a credential key (password,
+			// token, secret, …) or a token-shaped value is redacted; header names go to the header
+			// rule below, which looks at the value's shape.
+			if (delimiter === ":" && space) {
+				if (isCredentialHeaderName(String(key))) return whole;
+				if (
+					!isStructuredSecretKey(String(key)) &&
+					!looksLikeSecretToken(String(assigned))
+				)
+					return whole;
+			}
+			return `${quote}${key}${quote}${delimiter}${space}${valueQuote}REDACTED${valueQuote}`;
+		},
+	);
 	return redactedAssignments
 		.replace(
-			/(authorization|cookie|set-cookie|x-api-key)\s*:\s*[^\n\r]+/gi,
-			"$1: REDACTED",
+			/(authorization|cookie|set-cookie|x-api-key)\s*:\s*([^\n\r]+)/gi,
+			(whole, name, headerValue) =>
+				credentialHeaderValue(String(name), String(headerValue))
+					? `${name}: REDACTED`
+					: whole,
 		)
 		.replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer REDACTED")
 		.replace(/\/Users\/[^\s:'")]+/g, "/Users/REDACTED")
@@ -164,6 +183,49 @@ const STRUCTURED_SECRET_KEYS = new Set([
 	"passphrase",
 	"credentials",
 ]);
+
+const CREDENTIAL_HEADER_NAMES = new Set([
+	"authorization",
+	"proxyauthorization",
+	"cookie",
+	"setcookie",
+	"xapikey",
+]);
+
+function isCredentialHeaderName(key: string): boolean {
+	return CREDENTIAL_HEADER_NAMES.has(
+		key.toLowerCase().replace(/[^a-z0-9]/g, ""),
+	);
+}
+
+/**
+ * WP19 round 2 (N6): a single word that looks like a credential (API key, token, session id) and
+ * not like prose or a status number: at least 8 characters with a digit or a token character
+ * (`+/=_.~`), or at least 24 characters.
+ */
+function looksLikeSecretToken(word: string): boolean {
+	const value = word.replace(/^["'`<(]+|["'`>).,;:!?]+$/gu, "");
+	if (value.length >= 24 && /^\S+$/u.test(value)) return true;
+	return value.length >= 8 && /[0-9+/=_.~]/u.test(value);
+}
+
+/** Authorization schemes (RFC 7235 registry and common vendor schemes). */
+const AUTH_SCHEME =
+	/^["'`]?(basic|bearer|digest|token|negotiate|ntlm|kerberos|hoba|mutual|vapid|scram-sha-1|scram-sha-256|aws4-hmac-sha256|gnap|dpop|privatetoken|concealed|apikey|api-key|key|oauth|jwt|sharedkey|sharedkeylite|ssws|sso-key|hmac|signature|splunk|otp)\s+\S/iu;
+
+/**
+ * WP19 round 2 (N6): a header line's value is a credential (an auth scheme with its parameters, a
+ * cookie list, a token), not prose such as `Authorization: missing on the delete endpoint`.
+ */
+function credentialHeaderValue(name: string, value: string): boolean {
+	const trimmed = value.trim();
+	if (!trimmed || trimmed === "REDACTED") return false;
+	if (AUTH_SCHEME.test(trimmed)) return true;
+	if (/cookie/iu.test(name) && /^["'`]?[^\s=;,"'`]+=/u.test(trimmed))
+		return true;
+	const first = trimmed.split(/\s+/u)[0] ?? "";
+	return looksLikeSecretToken(first);
+}
 
 function isStructuredSecretKey(key: string): boolean {
 	const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, "");

@@ -209,7 +209,14 @@ JSON fields such as `token`, `access_token`, `refresh_token`, `api_key`/`apiKey`
 and Windows `C:\Users\<user>` home paths as well as macOS `/Users/<user>`. WP19 round 2 (N4): the end
 of a structured value is found by an escape-aware scanner (JSON string escapes at every nesting
 level of escaped JSON), so an escaped quote inside the value (`"Cookie":"sid=\"…\"; path=/"`, a
-password containing `\"`) no longer ends it early.
+password containing `\"`) no longer ends it early. WP19 round 2 (N6): prose is told apart from
+credentials. In the `Label: value` form (colon and a space) only a credential key (`password`,
+`token`, `secret`, `*_token`, `*_secret`, `*apikey`, …) or a token-shaped value (≥ 8 characters with a
+digit or `+/=_.~`, or ≥ 24 characters) is redacted, so `Exit code: 1` and `HTTP status code: 403`
+stay; `key=value` and `key:value` assignments are redacted as before. An `Authorization`,
+`Proxy-Authorization`, `Cookie`, `Set-Cookie` or `x-api-key` line is redacted when its value is an
+auth scheme with parameters (`Basic …`, `Bearer …`, `Digest …`, …), a cookie list (`name=…`) or a
+token, not when it is prose (`Authorization: missing on the delete endpoint; …`).
 
 ### `wait`
 
