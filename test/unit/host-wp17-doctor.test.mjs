@@ -154,7 +154,7 @@ test("doctorAction: executors, default and why, verified versions, fix commands 
 		source: "installed-default",
 		usable: true,
 		reason:
-			"the terminal CLI uses the first installed and logged-in of pi → claude → codex.",
+			"the terminal CLI uses the first installed and logged-in of pi → claude → codex, preferring a verified login over unknown auth.",
 	});
 	assert.deepEqual(result.data.permissionMode, {
 		mode: "free",

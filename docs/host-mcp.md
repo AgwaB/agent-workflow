@@ -38,6 +38,8 @@ node <package>/dist/mcp/host-server/server.js --host <claude-code|codex|generic>
 4. When finished, quote the result preview and give the report paths verbatim; do not paraphrase.
    A result headed `Workflow finished — verdict: X (report ready)` (`verdictGate: true`, footer
    `verdict=X`) is the workflow's result with a non-passing verdict, not a workflow failure (WP18b).
+   WP19: `verdictGate` is set only with a declared domain verdict and a report file inside the run
+   directory; every other failed run is a real failure and is reported as one.
 5. No completion push (WP18b): a run reports only through `workflow_wait`/`workflow_status`. If it is
    still running when the host stops waiting (for example a 15-minute rate-limit backoff; the wait
    result's `nextRetry` and the footer's `nextRetryAt=` give the retry time and reason), the host
@@ -60,7 +62,7 @@ Every tool takes an optional `cwd` (see below). Unknown parameters are refused.
 | `workflow_wait` | `runId`, `timeoutMs?` (1 000-45 000) | `waitAction` | `WaitData` (`terminal`, `actionRequired`, `stillRunning`, `status`, `preview`, `reportArtifacts`, …) |
 | `workflow_stop` | `runId` | `stopAction` | `StopData` (`pending` when another supervisor applies it) |
 | `workflow_inspect` | `runId`, `failures?`, `results?` | `inspectAction` | `{run, reliability, listed}`; `run` is the run summary plus brief task rows instead of the full run record |
-| `workflow_logs` (WP18b) | `runId`, `task?`, `lines?` (1-400, default 20), `stream?` (`output`/`stderr`/`events`/`all`) | `logsAction` | `LogsData` (bounded, redacted tails per task) |
+| `workflow_logs` (WP18b) | `runId`, `task?`, `lines?` (1-400, default 20), `stream?` (`output`/`stderr`/`events`/`all`) | `logsAction` | `LogsData` (bounded, redacted tails per task; WP19: only files inside `.agent-workflow/`, tampered or symlinked paths are refused with a reason; structured credentials and Linux/Windows/macOS home paths redacted, also in `workflow_wait`/`workflow_status` text and previews) |
 | `workflow_validate` | `workflow` | `validateWorkflowAction` | `ValidateData` |
 
 Launch options (same as the CLI flags and Pi's `aw_run`): `executor`, `profile`, `permissionMode`

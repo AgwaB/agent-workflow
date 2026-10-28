@@ -9,6 +9,7 @@ import {
 	mkdir,
 	mkdtemp,
 	readdir,
+	readFile,
 	realpath,
 	rm,
 	utimes,
@@ -95,14 +96,21 @@ test("codex: old terminal attempts go with their event log and log dir; active, 
 	assert.equal(done.records, 6);
 	assert.equal(done.prunedRecords, 2);
 	assert.equal(done.keptActive, 3);
+	// WP19: the launched (terminal) attempt stays as a tombstone; the revoked one goes.
+	assert.equal(done.tombstoned, 1);
 	assert.deepEqual((await readdir(a)).sort(), [
 		"broken.json",
 		"consumed.json",
+		"done.json",
 		"fresh-orphan.log",
 		"live.json",
 		"live.log",
 		"recent.json",
 	]);
+	assert.equal(
+		JSON.parse(await readFile(join(a, "done.json"), "utf8")).schema,
+		"agent-workflow-attempt-tombstone-v1",
+	);
 });
 
 test("claude: revoked and dead-process attempts go with their files dir; pi: only its own runs/ dir goes", async () => {
@@ -130,6 +138,7 @@ test("claude: revoked and dead-process attempts go with their files dir; pi: onl
 	assert.equal(c.prunedRecords, 2);
 	assert.deepEqual((await readdir(ca)).sort(), [
 		"consumed.json",
+		"gone.json",
 		"running.json",
 	]);
 
@@ -155,7 +164,11 @@ test("claude: revoked and dead-process attempts go with their files dir; pi: onl
 		classify: (record) => piState.classifyPiAttemptRecord(piDir, record),
 	});
 	assert.equal(p.prunedRecords, 2);
-	assert.deepEqual(await readdir(pa), ["pending.json"]);
+	assert.deepEqual((await readdir(pa)).sort(), [
+		"foreign.json",
+		"own.json",
+		"pending.json",
+	]);
 	assert.equal(existsSync(own), false, "the adapter's own run dir goes");
 	assert.equal(
 		existsSync(foreign),
@@ -189,7 +202,11 @@ test("prune action: dry run lists executor state, --yes removes it under AGENT_W
 	assert.ok(existsSync(join(codexDir, "attempts", "old.json")));
 	const done = await api.pruneAction(ctx, { yes: true });
 	assert.match(done.text, /codex: 1 of 2 record\(s\) removed/);
-	assert.deepEqual(await readdir(join(codexDir, "attempts")), ["active.json"]);
+	assert.match(done.text, /1 launched attempt\(s\) kept as tombstones/);
+	assert.deepEqual((await readdir(join(codexDir, "attempts"))).sort(), [
+		"active.json",
+		"old.json",
+	]);
 });
 
 test("periodic prune on submit: at most once per interval per state dir", async () => {
@@ -198,15 +215,19 @@ test("periodic prune on submit: at most once per interval per state dir", async 
 	await put(join(a, "one.json"), codexRecord("one", "terminal"));
 	const classify = codexState.classifyCodexAttemptRecord;
 	retention.schedulePeriodicAdapterStatePrune({ stateDir, classify });
-	for (let i = 0; i < 100 && existsSync(join(a, "one.json")); i += 1)
+	const tombstoned = async (name) =>
+		JSON.parse(await readFile(join(a, name), "utf8")).schema ===
+		"agent-workflow-attempt-tombstone-v1";
+	for (let i = 0; i < 100 && !(await tombstoned("one.json")); i += 1)
 		await new Promise((done) => setTimeout(done, 20));
-	assert.equal(existsSync(join(a, "one.json")), false);
+	assert.equal(await tombstoned("one.json"), true);
 	assert.ok(existsSync(join(stateDir, ".prune-stamp")));
 	await put(join(a, "two.json"), codexRecord("two", "terminal"));
 	retention.schedulePeriodicAdapterStatePrune({ stateDir, classify });
 	await new Promise((done) => setTimeout(done, 200));
-	assert.ok(
-		existsSync(join(a, "two.json")),
+	assert.equal(
+		await tombstoned("two.json"),
+		false,
 		"within the interval nothing is pruned",
 	);
 });

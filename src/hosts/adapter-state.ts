@@ -71,7 +71,7 @@ export function formatExecutorStatePrune(
 	];
 	for (const result of results)
 		lines.push(
-			`- ${result.executor}: ${result.prunedRecords} of ${result.records} record(s) ${dryRun ? "would be removed" : "removed"} (${result.removedPaths.length} path(s)); ${result.keptActive} active or unreadable kept${result.errors.length ? `; errors: ${result.errors.join("; ")}` : ""}`,
+			`- ${result.executor}: ${result.prunedRecords} of ${result.records} record(s) ${dryRun ? "would be removed" : "removed"} (${result.removedPaths.length} path(s)${result.tombstoned ? `; ${result.tombstoned} launched attempt(s) ${dryRun ? "would be kept" : "kept"} as tombstones` : ""}); ${result.keptActive} active or unreadable kept${result.tombstones ? `; ${result.tombstones} tombstone(s) kept` : ""}${result.errors.length ? `; errors: ${result.errors.join("; ")}` : ""}`,
 		);
 	return lines.join("\n");
 }

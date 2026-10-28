@@ -10,7 +10,13 @@ import { createHash, randomBytes } from "node:crypto";
 import { link, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ExecRef } from "../../sdk/contract.js";
-import { type AttemptRecordClass, processAlive } from "../state-retention.js";
+import {
+	type AttemptRecordClass,
+	type AttemptTombstone,
+	attemptTombstoneReason,
+	parseAttemptTombstone,
+	processAlive,
+} from "../state-retention.js";
 
 export interface AttemptRecord {
 	readonly schema: "agent-workflow-claude-attempt-v1";
@@ -38,7 +44,12 @@ export interface SessionRecord {
 export type AttemptLookup =
 	| { readonly status: "missing" }
 	| { readonly status: "found"; readonly record: AttemptRecord }
-	| { readonly status: "unreadable"; readonly reason: string };
+	| {
+			readonly status: "unreadable";
+			readonly reason: string;
+			/** WP19: the record was replaced by a retention tombstone. */
+			readonly pruned?: AttemptTombstone;
+	  };
 
 const ATTEMPT_PHASES: ReadonlySet<unknown> = new Set([
 	"consumed",
@@ -109,6 +120,14 @@ export class ClaudeStateStore {
 		} catch {
 			return { status: "unreadable", reason: "attempt record is malformed" };
 		}
+		// WP19: a pruned launched attempt is ambiguous (launched, outcome kept), never missing.
+		const tombstone = parseAttemptTombstone(record);
+		if (tombstone)
+			return {
+				status: "unreadable",
+				reason: attemptTombstoneReason(tombstone),
+				pruned: tombstone,
+			};
 		if (
 			record === null ||
 			typeof record !== "object" ||
@@ -213,6 +232,8 @@ export function classifyClaudeAttemptRecord(
 		terminal:
 			value.phase === "revoked" ||
 			(value.phase === "spawned" && !processAlive(value.pid)),
+		// WP19: a spawned attempt leaves a tombstone (the adapter records no outcome).
+		launched: value.phase === "spawned",
 		...(Number.isFinite(updatedAtMs) ? { updatedAtMs } : {}),
 	};
 }

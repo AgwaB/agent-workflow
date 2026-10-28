@@ -7,7 +7,6 @@
 // feedback) is not part of the host API; `inspect` reads runs through the store (prefixes,
 // `.agent-workflow/workflows`); supervise is a handler with an optional log sink.
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
 
 import {
 	formatHumanRunOutcome,
@@ -61,6 +60,8 @@ import {
 	type HostLaunchClaimPrune,
 	pruneHostLaunchClaims,
 } from "./launch-guard.js";
+import { hostTextRedactor } from "./redaction.js";
+import { resolveContainedRunFile } from "./run-files.js";
 import {
 	formatVerdictGateHeadline,
 	formatWorkflowResultPresentation,
@@ -208,7 +209,8 @@ export async function statusAction(
 				})),
 			},
 		},
-		text,
+		// WP19 (review #7): the card carries worker messages.
+		hostTextRedactor(hostEnv(ctx))(text),
 	);
 }
 
@@ -223,7 +225,12 @@ export async function showRunAction(
 		? await formatRawRunDetails(ctx.cwd, ref, hostCommandHints(ctx.host))
 		: await formatRunDetails(ctx.cwd, ref, hostCommandHints(ctx.host));
 	const run = await readRunRecord(ctx.cwd, ref);
-	return result("show", "success", { kind: "run", run }, text);
+	return result(
+		"show",
+		"success",
+		{ kind: "run", run },
+		hostTextRedactor(hostEnv(ctx))(text),
+	);
 }
 
 function positiveCount(value: unknown): number {
@@ -351,9 +358,16 @@ export async function inspectAction(
 		);
 		const resultFile = (task.files as { result?: string } | undefined)?.result;
 		if (request.results && resultFile) {
-			const text = await readFile(resolve(ctx.cwd, resultFile), "utf8").catch(
-				() => "",
-			);
+			// WP19 (review #4): a metadata path is read only inside the artifact root.
+			const contained = await resolveContainedRunFile(ctx.cwd, resultFile);
+			if (contained.kind === "refused") {
+				lines.push(`    (result not read: ${contained.reason})`);
+				continue;
+			}
+			const text =
+				contained.kind === "ok"
+					? await readFile(contained.path, "utf8").catch(() => "")
+					: "";
 			if (text)
 				lines.push(
 					text
@@ -368,7 +382,8 @@ export async function inspectAction(
 		"inspect",
 		"success",
 		{ run, reliability, listed: selected.map((task) => task.taskId) },
-		lines.join("\n"),
+		// WP19 (review #7): task messages and results are worker output.
+		hostTextRedactor(hostEnv(ctx))(lines.join("\n")),
 	);
 }
 
@@ -484,7 +499,13 @@ export async function waitAction(
 				terminal.outputTaskIds,
 			).catch(() => undefined)
 		: undefined;
-	const preview = presentation?.preview;
+	// WP19 (review #7): the result preview is worker output; redact it like logs.
+	const redact = hostTextRedactor(hostEnv(ctx));
+	const preview =
+		presentation?.preview === undefined
+			? undefined
+			: redact(presentation.preview);
+	if (presentation && preview !== undefined) presentation.preview = preview;
 	const artifacts = presentation?.artifacts ?? [];
 	const blockedTaskIds = run.tasks
 		.filter((task) => task.status === "blocked")
@@ -550,7 +571,7 @@ export async function waitAction(
 		"wait",
 		stillRunning ? "running" : outcomeForRunStatus(run.status),
 		data,
-		text,
+		redact(text),
 	);
 }
 

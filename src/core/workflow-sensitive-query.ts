@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-sensitive-query.ts. MIT, same author. Changes: none.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-sensitive-query.ts. MIT, same author. Changes: WP19 (stage-2 review #7) `redactSensitiveWorkflowText` also redacts quoted structured credentials (JSON/header fields such as `"Authorization":"Basic …"`, `"refresh_token":"…"`, also inside escaped JSON), `Proxy-Authorization`/`x-api-key` header lines, and Linux (`/home/<user>`) and Windows (`C:\\Users\\<user>`) home paths besides macOS.
 const SENSITIVE_QUERY_TOKENS = new Set([
 	"access",
 	"auth",
@@ -113,22 +113,80 @@ export function redactSensitiveWorkflowText(value: string): string {
 		(_whole, prefix, fragment) =>
 			`${prefix}${redactSensitiveWorkflowFragment(`#${fragment}`)}`,
 	);
+	// WP19: a value never starts with a backslash, so the escaped-JSON form (`\"key\":\"v\"`,
+	// handled by redactStructuredCredentials first) is not split at its escape.
 	const assignment =
-		/(["']?)([^\s"'=:,;{}]+)\1\s*([=:])\s*(["']?)([^\s"'&,;}]+)\4/gu;
-	const redactedAssignments = withFragments.replace(
-		assignment,
-		(whole, quote, key, delimiter, valueQuote) => {
-			if (!isSensitiveWorkflowQueryKey(String(key))) return whole;
-			return `${quote}${key}${quote}${delimiter}${valueQuote}REDACTED${valueQuote}`;
-		},
-	);
+		/(["']?)([^\s"'=:,;{}]+)\1\s*([=:])\s*(["']?)([^\s"'&,;}\\][^\s"'&,;}]*)\4/gu;
+	const redactedAssignments = redactStructuredCredentials(
+		withFragments,
+	).replace(assignment, (whole, quote, key, delimiter, valueQuote) => {
+		if (!isSensitiveWorkflowQueryKey(String(key))) return whole;
+		return `${quote}${key}${quote}${delimiter}${valueQuote}REDACTED${valueQuote}`;
+	});
 	return redactedAssignments
 		.replace(
-			/(authorization|cookie|set-cookie)\s*:\s*[^\n\r]+/gi,
+			/(authorization|cookie|set-cookie|x-api-key)\s*:\s*[^\n\r]+/gi,
 			"$1: REDACTED",
 		)
 		.replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer REDACTED")
-		.replace(/\/Users\/[^\s:'")]+/g, "/Users/REDACTED");
+		.replace(/\/Users\/[^\s:'")]+/g, "/Users/REDACTED")
+		.replace(/\/home\/[^\s:'")]+/g, "/home/REDACTED")
+		.replace(
+			/\b([A-Za-z]):((?:\\){1,2})Users\2[^\s:'")]+/g,
+			"$1:$2Users$2REDACTED",
+		);
+}
+
+/**
+ * WP19: field names whose quoted value is a credential even when it contains whitespace
+ * (`Basic <b64>`, `Bearer <jwt>`, cookie lists). Compared lowercase without separators.
+ */
+const STRUCTURED_SECRET_KEYS = new Set([
+	"authorization",
+	"proxyauthorization",
+	"cookie",
+	"setcookie",
+	"xapikey",
+	"apikey",
+	"token",
+	"accesstoken",
+	"refreshtoken",
+	"idtoken",
+	"authtoken",
+	"sessiontoken",
+	"bearertoken",
+	"secret",
+	"clientsecret",
+	"secretkey",
+	"privatekey",
+	"password",
+	"passwd",
+	"passphrase",
+	"credentials",
+]);
+
+function isStructuredSecretKey(key: string): boolean {
+	const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+	return (
+		STRUCTURED_SECRET_KEYS.has(normalized) ||
+		/(token|secret|password|apikey)$/.test(normalized)
+	);
+}
+
+/**
+ * WP19: `"key": "value"` (and `'key': 'value'`, and the backslash-escaped form inside a JSON string,
+ * e.g. an event line carrying a request) with a secret-looking key: the whole quoted value goes,
+ * whitespace included. The generic assignment rule above stops at the first space, so
+ * `{"Authorization":"Basic dXNlcjpw..."}` used to pass through.
+ */
+function redactStructuredCredentials(value: string): string {
+	return value.replace(
+		/(\\*)(["'])([A-Za-z0-9_.-]{1,64})\1\2(\s*:\s*)(\\*)(["'])((?:(?!\5\6)[^\n\r])*)\5\6/gu,
+		(whole, keyEscape, keyQuote, key, delimiter, valueEscape, valueQuote) => {
+			if (!isStructuredSecretKey(String(key))) return whole;
+			return `${keyEscape}${keyQuote}${key}${keyEscape}${keyQuote}${delimiter}${valueEscape}${valueQuote}REDACTED${valueEscape}${valueQuote}`;
+		},
+	);
 }
 
 /**

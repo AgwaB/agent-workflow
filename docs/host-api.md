@@ -130,16 +130,31 @@ host (CLI, Pi `/aw` and `aw_*`, host MCP server), go through one guard, so a mod
 `workflow_run`/`aw_run` after a tool timeout gets the first run back. A launch's identity is a
 SHA-256 over: kind (`run`/`dynamic`), cwd, resolved spec path and spec name, trimmed task, typed
 `inputOverrides`, and the requested `executor`, `profile`, `permissionMode`,
-`allowUnverifiedCapabilities` (sorted), `model`, `effort`. `detach` and the interactive hooks are not
-part of it. An identical launch while the run it recorded is non-terminal (`running`, `pending`,
+`allowUnverifiedCapabilities` (sorted), `model`, `effort`. WP19 (review #8): plus the resolved
+execution identity (`launchExecutionIdentity`, resolved without prompting or probing): the host
+(`ctx.host`, default `cli`), the executor that applies and its source (request flag, the saved user
+profile the request names or the default one, the workflow's declared profiles, `ctx.defaultExecutor`,
+the host's own CLI, or the terminal's `pi>claude>codex` installed-default order), the contents of the
+saved user profile that applies, the host's inherited model/effort (`runtimeDefaults`), the effective
+permission mode, and `workflowDefinitionFingerprint` of the loaded spec (covering declared profiles
+and defaults). So the same request from Claude Code and Codex, or after a workflow or saved-profile
+change, starts a new run. Residual: for `cli`/`generic` the installed-default choice is probed after
+the guard, so a login change between two identical launches within the window is not seen.
+`detach` and the interactive hooks are not part of it. An identical launch while the run it recorded is non-terminal (`running`, `pending`,
 `blocked`) and was created within the last 10 minutes (`DUPLICATE_RUN_WINDOW_MS`) returns that run:
 `outcome: "existing"` (`ok`), `data` is that run's `LaunchData` plus `duplicateOf`, no new supervisor
 is spawned, and the text starts `Duplicate launch guard:` and names `--force-new`. A terminal,
 pruned or older run, different inputs or options, or `forceNew: true` start a new run. State: one
 claim file per identity in `<cwd>/.agent-workflow/host-launches/<sha256>.json`, created exclusively
 before the run starts and given the run id afterwards, so concurrent identical launches also yield
-one run (the later ones wait up to 15 s for the first run id; a claim of a dead process or older
-than 60 s without a run id is taken over). WP18b: claim files older than 1 h that do not name a
+one run (the later ones wait up to 15 s for the first run id). WP19 (review #1): every claim carries
+a unique owner token and a renewable lease (`leaseExpiresAt`, 60 s, renewed every 15 s while the
+launch is in flight, e.g. waiting for a user confirmation). Publishing, stale takeover, renewal,
+`record`, `release` and pruning all run under a per-identity mutex (`<sha256>.lock`, an atomically
+created lock directory with owner-aware stealing, the same `dir-lock` the artifact registry uses), so
+two launches that find the same stale claim serialize and exactly one is `claimed`; a pending claim
+is taken over only when its lease expired or its owner process (same host) is dead; record, release
+and prune leave a claim with another owner token alone. WP18b: claim files older than 1 h that do not name a
 still-active run are stale; every launch removes them in the background and `prune` removes them
 with the runs (same dry-run rule; `data.hostLaunchClaims`). Runs launched outside the host API (the
 SDK) are not guarded. Before WP16 the guard applied to attached launches only, matched spec name + task, and
@@ -164,6 +179,21 @@ and the values (8+ characters) of host environment variables with sensitive name
 `*TOKEN*`, `*SECRET*`, `*PASSWORD*`, …) become `[REDACTED:<NAME>]`. The run is refreshed first, like
 `status`. Port in spirit of pi-workflow's `/workflow logs <run> [task] [lines]` (one task's output).
 
+WP19 (review #4): run records live in the workspace and can be tampered with, so every path read
+from them (`task.files.*`, the attempt dirs) must be project-relative, without `..`, and resolve
+canonically (symlinks followed) inside the project's artifact root `<cwd>/.agent-workflow`
+(`hosts/run-files.ts`). Anything else is not read: the stream has `refused: "<reason>"` (absolute
+path, traversal, outside the artifact root, symlink escape) and the text says `(not read: …)`.
+`inspect --results` applies the same check to `task.files.result`, and the wait/status result
+presentation requires the output task dir inside the artifact root (not only the project).
+WP19 (review #7): one redactor (`hosts/redaction.ts`) covers all host text that can carry worker
+output: `logs`, the text of `status <run>`, `show`, `inspect`, `wait` (and `data.preview`), and the Pi
+completion message. Beyond the rules above it redacts quoted structured credentials, whitespace
+included (`"Authorization":"Basic …"`, `Proxy-Authorization`, `Cookie`/`Set-Cookie`, `x-api-key`,
+JSON fields such as `token`, `access_token`, `refresh_token`, `api_key`/`apiKey`, `secret`,
+`client_secret`, `password`, also backslash-escaped inside JSON strings), and Linux `/home/<user>`
+and Windows `C:\Users\<user>` home paths as well as macOS `/Users/<user>`.
+
 ### `wait`
 
 `WaitRequest`: `{runId, timeoutMs?, signal?, onProgress?(RunSummary)}`. One call drives scheduling
@@ -182,6 +212,11 @@ gate (`isVerdictGateFailure`: run `failed`, every task completed or skipped exce
 task (before WP18b only a *completed* output task was read, so these runs had no preview and no
 report), and `text` leads with `Workflow finished — verdict: X (report ready)` and keeps the run
 status on its own line. Presentation only: `status` and the outcome stay `failed` (CLI exit 1).
+WP19 (review #10): that structural shape is only the precondition. `verdictGate` also needs
+explicit evidence: a non-empty domain verdict in the output task's control *and* an existing
+final-report artifact whose task dir resolves inside the run's own directory. A generic support
+failure without them (for example a control with only `status: "failed"` and "required evidence
+missing") is presented as an ordinary failure: no `verdictGate`, no preview from that task.
 `statusAction` for one terminal run adds the same headline, `Verdict:` and report lines, and
 `data.run.{verdict?, verdictGate?, reportArtifacts}`. `nextRetry` (WP18b) is set while a
 still-running run only waits for a scheduled task retry (no task running, every startable task in a

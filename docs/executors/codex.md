@@ -291,6 +291,7 @@ budget are not confirmed. `fetch_content` (open_page) not observed.
   (or `spawned` with its app-server process gone) older than 7 days is pruned with its
   `.events.jsonl` and `.log/` dir (`src/executors/state-retention.ts`; on submit at most every 6 h,
   and by `agent-workflow prune`).
+  WP19 (review #2): a launched attempt's record (`spawned` or `terminal`) is not deleted but replaced by a compact tombstone (`agent-workflow-attempt-tombstone-v1`: attemptKey, the `terminal` outcome, finishedAt, prunedAt); reconcile reads it as `unknown` ("launched, record pruned"), never `absent`, and submit refuses that attemptKey, so an orphaned workflow never retries an attempt that already ran. Tombstones are never pruned; only `revoked` (never-launched) records are removed.
 - `probe()` lists models with `codex debug models` (a debug subcommand; app-server `model/list`
   would need a second app-server spawn).
 - `fetch_content`, `grep`, `find`, `ls` mappings and token-refresh contention are unverified.

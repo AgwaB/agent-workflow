@@ -6,6 +6,10 @@
 // each adapter's `probe()` (no model call): installed and auth not `missing`/`expired`; `unknown`
 // counts as usable and stays visible on the run record. Nothing usable fails before any run record
 // with each CLI's state and the exact install/login command (first-run guidance).
+// WP19 (review #9): a positively verified candidate (installed, auth `ok`) wins over an earlier one
+// whose auth is `unknown`: the order is walked until the first verified-ready candidate; only when
+// none is verified does the first usable unknown-auth candidate win (`authUnverified`, with
+// guidance in the launch text and in `doctor`).
 //
 // Probe results that are usable are cached per process for a short time (EXECUTOR_PROBE_CACHE_TTL_MS)
 // so the selection probe and the capability negotiation probe of the same run share one CLI probe;
@@ -326,6 +330,8 @@ export interface HostDefaultExecutor {
 	candidates?: WorkflowRunExecutorCandidate[];
 	/** Full readiness of each probed candidate (doctor output; not recorded). */
 	readiness?: ExecutorReadiness[];
+	/** WP19: no candidate had a verified login; the chosen one's auth is `unknown`. */
+	authUnverified?: true;
 }
 
 /**
@@ -347,9 +353,11 @@ export async function resolveHostDefaultExecutor(
 	if (host !== undefined && host !== "cli" && host !== "generic")
 		return { id: HOST_DEFAULT_EXECUTORS[host], source: "host-default", host };
 	const readiness: ExecutorReadiness[] = [];
-	let chosen: ExecutorReadiness | undefined;
+	let ready: ExecutorReadiness | undefined;
+	let firstUsable: ExecutorReadiness | undefined;
 	for (const id of INSTALLED_DEFAULT_ORDER) {
-		if (chosen !== undefined && input.probeAll !== true) break;
+		// WP19: keep probing past an unknown-auth candidate until one is verified ready.
+		if (ready !== undefined && input.probeAll !== true) break;
 		const probed = await probeExecutorReadiness(id, {
 			...(input.prober === undefined ? {} : { prober: input.prober }),
 			...(input.probeTimeoutMs === undefined
@@ -357,8 +365,10 @@ export async function resolveHostDefaultExecutor(
 				: { timeoutMs: input.probeTimeoutMs }),
 		});
 		readiness.push(probed);
-		if (chosen === undefined && probed.usable) chosen = probed;
+		if (ready === undefined && probed.state === "ready") ready = probed;
+		if (firstUsable === undefined && probed.usable) firstUsable = probed;
 	}
+	const chosen = ready ?? firstUsable;
 	const candidates = readiness.map(candidateSummary);
 	if (chosen === undefined)
 		throw new WorkflowExecutorUnavailableError(
@@ -372,7 +382,17 @@ export async function resolveHostDefaultExecutor(
 		...(host === undefined ? {} : { host }),
 		candidates,
 		readiness,
+		...(ready === undefined ? { authUnverified: true as const } : {}),
 	};
+}
+
+/**
+ * WP19: guidance when the installed default had to fall back to an unknown-auth candidate (no
+ * installed CLI reported a verified login).
+ */
+export function unverifiedDefaultGuidance(executorId: string): string {
+	const hints = executorSetupHints(executorId);
+	return `Note: ${executorId} was chosen as the default executor although its login could not be verified (no installed CLI of ${INSTALLED_DEFAULT_ORDER.join(" → ")} reported a verified login). If the run fails to authenticate, log in (${hints.login}) or choose an executor with --executor <id>; \`agent-workflow doctor\` shows each CLI's state.`;
 }
 
 function candidateSummary(

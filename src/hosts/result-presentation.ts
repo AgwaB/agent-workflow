@@ -3,6 +3,10 @@
 // (WP11a): moved into the host API; the truncation notice no longer names the Pi `/workflow` board.
 // WP18b: the presentation carries the output task's domain `verdict`; a run that failed only at its
 // final verdict gate presents the declared-failed output task (`isVerdictGateFailure`).
+// WP19 (review #10): `isVerdictGateFailure` is only the structural precondition; a run is presented
+// as a verdict gate only with explicit evidence: a non-empty domain verdict in the output task's
+// control AND an existing final-report artifact inside the run's directory. A generic support
+// failure without them (e.g. "required evidence missing") stays a failure.
 import { realpath, readFile } from "node:fs/promises";
 import {
 	dirname,
@@ -13,8 +17,9 @@ import {
 	win32,
 } from "node:path";
 
-import { fromProjectPath } from "../core/store.js";
+import { fromProjectPath, workflowRunDir } from "../core/store.js";
 import type { WorkflowRunRecord } from "../core/types.js";
+import { projectArtifactRoot } from "./run-files.js";
 
 export interface WorkflowResultArtifact {
 	kind: "final-report" | "evidence-audit";
@@ -264,8 +269,8 @@ export async function readWorkflowResultPresentation(
 	let task = outputTasks.find((candidate) => candidate?.status === "completed");
 	// WP18b: a run that failed only at its final verdict gate still has its report (the
 	// declared-failed output task wrote it); present that task's result.
-	const verdictGate = !task && isVerdictGateFailure(run, outputTaskIds);
-	if (verdictGate)
+	const gateCandidate = !task && isVerdictGateFailure(run, outputTaskIds);
+	if (gateCandidate)
 		task = outputTasks.find(
 			(candidate) =>
 				candidate?.status === "failed" &&
@@ -273,7 +278,9 @@ export async function readWorkflowResultPresentation(
 		);
 	if (!task) return undefined;
 
-	const projectDir = resolvePath(cwd);
+	// WP19 (review #4): the task dir comes from persisted metadata; it must resolve inside the
+	// project's artifact root (`.agent-workflow/`), not merely inside the project.
+	const projectDir = projectArtifactRoot(cwd);
 	const taskDir = dirname(fromProjectPath(cwd, task.files.output));
 	const lexicalEscape = relative(projectDir, resolvePath(taskDir));
 	if (
@@ -302,6 +309,13 @@ export async function readWorkflowResultPresentation(
 	const control = controlText ? parseJsonRecord(controlText) : undefined;
 	const artifacts = await collectWorkflowResultArtifacts(cwd, taskDir, control);
 	const verdict = domainVerdict(control?.verdict);
+	// WP19 (review #10): explicit verdict-gate evidence, else this is a real failure.
+	const verdictGate =
+		gateCandidate &&
+		verdict !== undefined &&
+		artifacts.some((artifact) => artifact.kind === "final-report") &&
+		(await insideRunDir(cwd, run.runId, taskDir));
+	if (gateCandidate && !verdictGate) return undefined;
 	const presentation = (
 		preview: string | undefined,
 		preserveExact = false,
@@ -370,6 +384,27 @@ export async function readWorkflowResultPresentation(
 		if (text) return presentation(text);
 	}
 	return presentation(undefined);
+}
+
+/** The task dir resolves canonically inside the run's own directory. */
+async function insideRunDir(
+	cwd: string,
+	runId: string,
+	taskDir: string,
+): Promise<boolean> {
+	try {
+		const runDir = await realpath(workflowRunDir(cwd, runId));
+		const target = await realpath(taskDir);
+		const rel = relative(runDir, target);
+		return (
+			rel !== "" &&
+			rel !== ".." &&
+			!rel.startsWith(`..${sep}`) &&
+			!isAbsolutePath(rel)
+		);
+	} catch {
+		return false;
+	}
 }
 
 function parseJsonRecord(text: string): Record<string, unknown> | undefined {

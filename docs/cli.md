@@ -24,11 +24,11 @@ npx agent-workflow --help
 | `dynamic <task…>` | Start a spec-less direct dynamic run; same options as `run`. |
 | `status [run]` | All top-level runs, or one run. |
 | `inspect <run> [--failures] [--results]` | Reliability summary and task listing. `--failures` lists failed/blocked/interrupted tasks; `--results` prints task results (with `--failures` on a clean run: every result). |
-| `logs <run> [--task <id>] [--lines N] [--stream output\|stderr\|events\|all]` | Bounded tail of task output, stderr and executor events (the latest attempt's `exec-events.jsonl`); every started task by default (at most 6). Lines per stream 1-400 (default 20), lines cut at 400 characters, the text at 48 000. Credentials, bearer tokens, URL secrets, home paths and values of sensitive environment variables are redacted. |
+| `logs <run> [--task <id>] [--lines N] [--stream output\|stderr\|events\|all]` | Bounded tail of task output, stderr and executor events (the latest attempt's `exec-events.jsonl`); every started task by default (at most 6). Lines per stream 1-400 (default 20), lines cut at 400 characters, the text at 48 000. Credentials (WP19: also quoted structured fields such as `"Authorization":"Basic …"` and `"refresh_token":"…"`), bearer tokens, URL secrets, macOS/Linux/Windows home paths and values of sensitive environment variables are redacted, here and in `status`/`show`/`inspect`/`wait` text. WP19: only files inside the project's `.agent-workflow/` are read; a tampered absolute, `..` or symlink-escaping path is refused and the reason shown. |
 | `wait <run> [--timeout D]` | Drive and wait until the run is terminal or needs action. |
 | `resume <run> [--detach] [--timeout D]` | Reset failed, interrupted and resumable blocked tasks, then continue in the foreground or detached. |
 | `stop <run>` | Stop a non-terminal run (durable stop intent; workers are cancelled). Waits up to 15 s for confirmation (below). |
-| `prune [--keep N] [--older-than DAYS] [--yes]` | Delete terminal runs beyond the filters, and (WP18b) terminal executor attempt records older than 7 days (or `--older-than`) under `~/.agent-workflow/executors/`, and stale host launch claims (`.agent-workflow/host-launches/`, older than 1 h); a dry run without `--yes`. |
+| `prune [--keep N] [--older-than DAYS] [--yes]` | Delete terminal runs beyond the filters, and (WP18b) terminal executor attempt records older than 7 days (or `--older-than`) under `~/.agent-workflow/executors/` (WP19: a launched attempt's record becomes a compact tombstone that is never pruned, so reconcile never reports it absent; containment is physical: a symlinked `attempts/`, Pi `runs/` or other ancestor is refused and reported, never followed), and stale host launch claims (`.agent-workflow/host-launches/`, older than 1 h); a dry run without `--yes`. |
 | `notices list [--json] \| acknowledge <run> --state <sha256> --reason <text> \| clear <run> [--json]` | Notification-only acknowledgements of unfinished runs. |
 | `supervise <run> \| --all [--poll-ms N] [--max-runtime-ms N]` | Drive scheduling from this process until the run(s) are terminal. |
 | `doctor [--json]` | Check this machine without a model call: executors (installed, version vs verified, login), the default executor here and why, permission-mode default, Node, `AGENT_WORKFLOW_HOME`, Codex environment warnings, stale run-index entries. Exit 0 when at least one executor is usable. Below. |
@@ -66,8 +66,13 @@ workflow-declared profile replaces the saved user profile as a whole (B2).
 **Default executor (WP17).** When nothing above selects one, the CLI uses the **first installed and
 logged-in** of `pi` → `claude` → `codex`. Each candidate is checked with its adapter's probe (version
 and login status commands, no model call): it must be installed and its login not `missing` or
-`expired`; an `unknown` login (Pi cannot report it without a model call) counts as usable and is
-recorded. The run records `executor.source: "installed-default"`, `executor.host: "cli"` and the
+`expired`. WP19 (review #9): a candidate with a *verified* login (auth `ok`) wins over an earlier
+one whose login is `unknown`, so the order is walked until the first verified one (Pi with unknown
+auth + Claude logged in → Claude). Only when none is verified does the first usable `unknown`
+candidate win; the launch text and `doctor` then say its login could not be verified and how to log
+in or pick `--executor`. Pi's readiness signal needs no model call and no credential read by the
+engine: `pi --list-models` lists only models whose provider has configured auth in Pi (non-empty →
+`ok`, empty → `missing`). The run records `executor.source: "installed-default"`, `executor.host: "cli"` and the
 probed candidates. Hosts with their own CLI default to it instead (`host-default`): the Pi host →
 `pi`, Claude Code → `claude`, Codex → `codex`. An explicit choice is never second-guessed. When
 nothing is usable the launch is refused before any run record:
@@ -168,7 +173,9 @@ non-passing verdict as `failed` (for example deep-review's `PARTIAL_REVIEW`, sta
 `support_declared_failed`) leaves the run `failed`, so `run`/`wait` exit 1 and a CI job fails. The
 text still presents it as a finished run, not as a crash: `Workflow finished — verdict: PARTIAL_REVIEW
 (report ready)`, the run status on its own line, the result preview and the report path; `--json`
-has `data.verdict` and `data.verdictGate: true`. Passing verdicts (for example `NEEDS_WORK` and
+has `data.verdict` and `data.verdictGate: true`. WP19: only when the output task declared a
+domain verdict *and* wrote its report inside the run directory; any other support failure is shown
+as a failure. Passing verdicts (for example `NEEDS_WORK` and
 `REVIEW_COMPLETE` in deep-review) complete the run and exit 0.
 
 ## Environment

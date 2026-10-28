@@ -186,6 +186,12 @@ live or offline with the real CLI.
 - optionally `pi auth check --model <config.authCheckModel> --json --no-refresh`.
 
 Auth is a non-secret enum: `ready`→`ok`, `not_ready`→`missing`, else `unknown`. Never `--credentials`.
+WP19 (review #9): without `config.authCheckModel` the auth comes from `pi --list-models`, which lists
+only models whose provider has configured auth in Pi (pi-ai `ModelRuntime.getAvailable` →
+authenticated providers; Pi resolves its own credentials, the engine reads none, no model call): at
+least one listed model → `ok` ("logged in to at least one provider", not validated by a request),
+Pi's "No models available" → `missing`, a failing command → `unknown`. Rows count only after the
+`provider model …` header.
 Note: `ready` only means "credentials present". Live #1 got a 401 on a key that `auth check` called ready.
 
 ## Errors (`PI_ERROR_RULES`; first match wins, else `unknown`)
@@ -222,7 +228,7 @@ Other terminal cases:
 Attempt records (`<stateDir>/attempts/<sha256(attemptKey)>.json`, default `~/.agent-workflow/executors/pi`;
 WP18b: `exited`/`revoked` records, or `spawned` ones whose process is gone, older than 7 days are
 pruned with the adapter's own `<stateDir>/runs/<h>/`, on submit at most every 6 h and by
-`agent-workflow prune`):
+`agent-workflow prune`; WP19 (review #2): a launched attempt's record (`spawned` or `exited`) is not deleted but replaced by a compact tombstone (`agent-workflow-attempt-tombstone-v1`: attemptKey, the exit as outcome, finishedAt, prunedAt); reconcile reads it as `unknown` ("launched, record pruned"), never `absent`, and submit refuses that attemptKey, so an orphaned workflow never retries an attempt that already ran. Tombstones are never pruned; only `revoked` (never-launched) records are removed. WP19 (review #3): the adapter's `runs/<h>/` dir is removed only when `runs/` and every other ancestor up to the state dir is a real directory and the parent resolves inside the state dir's real path; a symlinked ancestor is refused.):
 
 1. `pending` is written exclusively **before** `consume()`.
 2. Then `revoked`, or `consumed`.
