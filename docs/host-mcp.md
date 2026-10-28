@@ -46,6 +46,10 @@ node <package>/dist/mcp/host-server/server.js --host <claude-code|codex|generic>
    tells the user the `runId`, what the run waits for, and that they can ask again.
 6. WP28: the other CLI commands are tools. `workflow_resume` and `workflow_supervise` start model
    calls (cost), so only on request; the changing calls below ask the user first.
+7. WP29: a run blocked on a dynamic-controller approval has `pendingApprovals` (the question and its
+   `requestId`) in `workflow_wait`/`workflow_status`. The host shows the user the question; only
+   after the user decides it calls `workflow_approve {runId, requestId, decision}`, which asks the
+   user again in a dialog.
 
 Permission mode is `free` by default ([permissions.md](permissions.md)); `safe` only on request.
 Executor: omit it to use the workflow profile or the host default; set `executor`/`profile` only
@@ -75,6 +79,7 @@ Every tool takes an optional `cwd` (see below). Unknown parameters are refused.
 | `workflow_prune` (WP28) | `keep?`, `olderThanDays?`, `dryRun?` (default true) | `pruneAction` | the prune summary; **`dryRun: false` confirms** (the dialog shows the dry run first) |
 | `workflow_profile` (WP28, WP31) | `op?` (`list` default, `show`, `set`, `delete`, `default`, `clear-default`, `presets`, `workflow-list`, `workflow-show`, `workflow-set`, `workflow-clear`), `name?`, set: `executor?`, `model?`, `effort?`, `permissionMode?`, `strictCapabilities?`, `preset?`, `roles?` (role → `{executor?, model?, effort?}`), `unset?` (also `roles.<role>`), `makeDefault?`; workflow-*: `workflow`, workflow-set: `profile?`, `roles?`, `unset?` | `profileAction`, `workflowPreferenceAction` | `ProfileData` / `WorkflowPreferenceData`; **set/delete/default/clear-default/workflow-set/workflow-clear confirm** |
 | `workflow_supervise` (WP28) | `runId` | `superviseDetachedAction` | `{runId, status, started, reason?: not-running \| live-supervisor, detached?}`: spawns `agent-workflow supervise <run>` for a running run no live process drives (the CLI's foreground `supervise` would outlast a tool call) |
+| `workflow_approve` (WP29) | `runId`, `requestId`, `decision` (`approve`/`reject`), `detach?` (default true) | `approveAction` | `ApproveData` (`decision: approved \| rejected \| unanswered`, `resumed?`, `otherBlockers?`); **always confirms** (below) |
 
 Launch options (same as the CLI flags and Pi's `aw_run`): `executor`, `profile`, `permissionMode`
 (`free`/`safe`), `allowUnverified` (capability keys), `model`, `effort`, `inputs` (declared workflow
@@ -92,7 +97,7 @@ logs redaction keeps report prose such as `Exit code: 1` and redacts escaped-quo
 `/aw logs` call the same `logs` handler.
 
 Annotations: `list`, `status`, `inspect`, `logs`, `validate`, `show`, `roles`, `agents`, `doctor` are
-read-only; `run`, `dynamic`, `stop`, `resume`, `prune`, `profile` are destructive; `wait`, `notices` and
+read-only; `run`, `dynamic`, `stop`, `resume`, `prune`, `profile`, `approve` are destructive; `wait`, `notices` and
 `supervise` are neither. `title` is sent from
 `2025-06-18`, `annotations` from `2025-03-26` (same gating as the artifact server).
 
@@ -159,6 +164,35 @@ Read-only calls, `workflow_prune` dry runs, `workflow_resume` and `workflow_supe
 Hints (WP18b) now name `workflow_resume {"runId":…}` for resume and `workflow_show {"ref":…,"raw":true}`
 for the raw run view; a blocked `workflow_wait` footer offers `workflow_resume` after the user agrees.
 
+## Dynamic-controller approval (WP29)
+
+A dynamic stage whose controller declares `dynamic.permissions.approval: "ask"` runs only after the
+user's approval ([usage.md](usage.md#dynamic-approval)). The server can ask its user only inside a
+tool call, so it never approves while it drives a run (it passes no `dynamicUi`): such a run blocks
+as `dynamic_ui_unavailable`, and the design is ask-on-answer:
+
+1. **Surface.** `workflow_wait` (with `actionRequired: true`) and `workflow_status {runId}` return
+   `pendingApprovals: [{requestId, controllerSpecId, taskId, title, message, requestedAt}]`; the text
+   adds an `Awaiting approval` block with the question and the `workflow_approve` calls for approve
+   and reject, and the footer says to show the user the question and call `workflow_approve` only
+   after the user decided.
+2. **Answer.** `workflow_approve {runId, requestId, decision}` sends one `elicitation/create` through
+   `elicitConfirmation` with `Run dynamic workflow controller?` (or `Reject dynamic workflow
+   controller?`) and the approval scope. For `approve`: `accept` records the approval and resumes the
+   run (detached by default; completed tasks are not relaunched); `decline` is pi-workflow's "no" and
+   rejects the controller for this run (`dynamic_approval_rejected`, never asked again). For
+   `reject`: `accept` rejects; `decline` changes nothing. `cancel`, an error response or a failed
+   request record nothing (`decision: "unanswered"`, `isError`, `outcome: "refused"`).
+3. **No elicitation.** A client without form elicitation is refused before anything is read or
+   recorded (`confirmation: "unsupported"`) with the terminal command, for example
+   `agent-workflow approve <run> --request <requestId>` (`--reject` for a rejection).
+
+Why this design: the elicitation is tied to the user's explicit decision in one short tool call
+instead of a dialog popping up inside a 45 s `workflow_wait`; the model can never approve on its
+own (the user confirms in the dialog), a stale request id cannot approve a changed scope (the
+request id is the approval digest), and the decision is recorded on the run
+(`decidedBy: {host: "<--host>", via: "approve"}`).
+
 ## `cwd`
 
 Optional on every tool. Relative paths resolve against the root. After resolving symlinks the target
@@ -183,7 +217,9 @@ against the host API and CLI `--json`, confirmation refused without elicitation,
 error change nothing, accept acts, dry-run prune and read-only calls never ask, usage errors before
 any dialog), SDK cases in `mcp-host-sdk-interop.test.mjs` (confirmed profile changes, dry-run prune,
 `workflow_supervise` driving a run whose attached server was killed), and the E2E case
-`packed-mcp-host` (packed bin: list → run → wait loop → inspect → show).
+`packed-mcp-host` (packed bin: list → run → wait loop → inspect → show). WP29:
+`mcp-host-wp29-approve.test.mjs` (pending approvals in wait/status, `workflow_approve` refused
+without elicitation, accept continues, decline rejects, cancel/error record nothing, reject).
 
 ## Open items
 

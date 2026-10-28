@@ -105,6 +105,7 @@ agent-workflow wait <run> --timeout 30m       # drive and wait (exit 1 if still 
 agent-workflow inspect <run> --failures --results
 agent-workflow show <run> --raw               # the run record
 agent-workflow resume <run> [--detach]        # reset failed/interrupted/resumable blocked tasks, continue
+agent-workflow approve <run> [--reject]       # answer a dynamic-controller approval the run waits on
 agent-workflow stop <run>                     # durable stop intent; workers are cancelled
 agent-workflow prune --keep 20 --yes          # delete old terminal runs (dry run without --yes)
 ```
@@ -122,6 +123,39 @@ package version does not change a running workflow's schemas or helpers; start a
 up changed workflow code. Loop workflows cannot be resumed; start a fresh run. Right after `stop`,
 `resume` waits up to 10 s for the stopped supervisor to let go of the run; if it has not by then,
 `resume` changes nothing and says to try again in a few seconds.
+
+### Dynamic approval
+
+A dynamic stage whose controller declares `dynamic.permissions.approval: "ask"` runs its trusted
+helper code only after the user approved it. The question is "Run dynamic workflow controller?" with
+the scope: the run and controller, the bundle spec, an approval digest, the task preview and digest,
+the controller helper, whether generated agents may request dynamic roles/tools, the budget and the
+declared helpers and nested workflows. Yes runs the controller (its generated agents do not ask
+again); **no rejects it for this run**: the task stays blocked as `dynamic_approval_rejected` and is
+never asked again (start a new run to approve later). An unanswered question (5 minutes, or no
+answer) leaves the run blocked as `dynamic_approval_timeout`, still open.
+
+Who asks:
+
+- **Pi with a dialog UI** asks through Pi's confirm dialog while the session drives the run (attached
+  `/aw run|dynamic`, `aw_run`/`aw_dynamic` with `awaitTerminal`, `/aw wait`, `aw_wait`, `/aw resume`).
+- **The CLI on a terminal** asks `y/n` for foreground `run`, `dynamic`, `wait` and `resume` (`y`
+  approves, `n` rejects, an empty answer leaves it open).
+- **Nothing asks** in Pi print/JSON mode, without a terminal, for `--detach` runs and resumes (their
+  supervisor has no UI) and over MCP (the server can ask only inside a tool call). The run blocks as
+  `dynamic_ui_unavailable`; `status`/`wait` show the open approval (question and request id) and the
+  approve command.
+
+Answer an open approval later from any host: `agent-workflow approve <run>` (asks `y/n` on a
+terminal; `--yes` without one, `--reject` to reject, `--request <id>` when several are open), Pi
+`/aw approve <run>` (confirm dialog), or the MCP tool `workflow_approve {runId, requestId, decision}`
+(asks the user through an MCP dialog; refused on clients without dialogs). An approval resumes the
+run; completed tasks are not relaunched. A run that also has failed, interrupted or
+undecided-executor tasks is not resumed automatically: the decision is recorded and `resume` is
+named. Every decision is recorded on the run (`dynamic/events.jsonl`, `approval.resolved` with
+`decidedBy: {host, via}`, for example `{"host": "cli", "via": "approve"}`), never with secrets. A
+nested workflow that waits for its own approval is approved with its own run id, then the parent run
+is resumed.
 
 `stop` records a durable stop intent. A worker that had not started yet never starts (its launch is
 revoked); a running worker is cancelled. If another supervisor owns the run, the stop is applied by

@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-controller-policy.ts. MIT, same author. Changes: run bundle path in approval text .pi/workflows→.agent-workflow/workflows; approval messages name `/aw resume` (WP18b), not pi-workflow's `/workflow resume`.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-controller-policy.ts. MIT, same author. Changes: run bundle path in approval text .pi/workflows→.agent-workflow/workflows; approval messages name `/aw resume` (WP18b), not pi-workflow's `/workflow resume`. WP29: the no-UI and timeout messages name every approve path (`agent-workflow approve`, `/aw approve`, MCP `workflow_approve`; dynamic-approval.ts); `DynamicWorkflowUi.host` records the answering host on `approval.resolved` (`decidedBy`); title/timeout/rejection text shared with dynamic-approval.ts.
 import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import { basename, relative } from "node:path";
 
@@ -10,6 +10,12 @@ import {
 } from "./dynamic-state.js";
 import { DynamicControllerBudgetBlocked } from "./dynamic-controller-errors.js";
 import {
+	DYNAMIC_APPROVAL_REJECTED_MESSAGE,
+	DYNAMIC_APPROVAL_TIMEOUT_MS,
+	DYNAMIC_APPROVAL_TITLE,
+	persistedApproveHint,
+} from "./dynamic-approval.js";
+import {
 	workflowBundleFingerprint,
 	workflowBundleSpecPath,
 } from "./workflow-source-context-runtime.js";
@@ -19,10 +25,10 @@ import type {
 	WorkflowTaskRunRecord,
 } from "./types.js";
 
-const DYNAMIC_APPROVAL_TIMEOUT_MS = 5 * 60_000;
-
 export interface DynamicWorkflowUi {
 	hasUI?: boolean;
+	/** WP29: host id recorded on the decision (`decidedBy`); never a secret. */
+	host?: string;
 	confirm?: (
 		title: string,
 		message: string,
@@ -79,8 +85,7 @@ export async function ensureDynamicControllerApproval(input: {
 	);
 	if (resolved) {
 		if (resolved.payload.approved === true) return { allowed: true };
-		const message =
-			"dynamic controller approval was rejected; this run will not re-prompt on resume. Start a new workflow run if you want to approve it later.";
+		const message = DYNAMIC_APPROVAL_REJECTED_MESSAGE;
 		await recordDynamicControllerStatus(input.cwd, input.run.runId, {
 			controllerSpecId: input.task.specId,
 			status: "policy_blocked",
@@ -105,7 +110,7 @@ export async function ensureDynamicControllerApproval(input: {
 				},
 			});
 		}
-		const message = `dynamic approval mode "ask" requires an interactive Pi UI; this scheduler has no approval UI. Open an interactive Pi session and run /aw resume ${input.run.runId} to approve or reject.`;
+		const message = `dynamic approval mode "ask" needs the user's approval and this scheduler has no approval UI. Approve or reject it with ${persistedApproveHint(input.run.runId)}.`;
 		await recordDynamicControllerStatus(input.cwd, input.run.runId, {
 			controllerSpecId: input.task.specId,
 			status: "awaiting_ui_unavailable",
@@ -136,7 +141,7 @@ export async function ensureDynamicControllerApproval(input: {
 			approvalMessage,
 		);
 	} catch {
-		const message = `dynamic controller approval timed out or was unavailable. Open an interactive Pi session and run /aw resume ${input.run.runId} to approve or reject.`;
+		const message = `dynamic controller approval timed out or was unavailable. Approve or reject it with ${persistedApproveHint(input.run.runId)}.`;
 		await recordDynamicControllerStatus(input.cwd, input.run.runId, {
 			controllerSpecId: input.task.specId,
 			status: "awaiting_ui_unavailable",
@@ -153,11 +158,16 @@ export async function ensureDynamicControllerApproval(input: {
 		type: "approval.resolved",
 		opId,
 		requestHash,
-		payload: { approved, approvalScope: approvalRequest },
+		payload: {
+			approved,
+			approvalScope: approvalRequest,
+			...(input.ui.host
+				? { decidedBy: { host: input.ui.host, via: "prompt" } }
+				: {}),
+		},
 	});
 	if (!approved) {
-		const message =
-			"dynamic controller approval was rejected; this run will not re-prompt on resume. Start a new workflow run if you want to approve it later.";
+		const message = DYNAMIC_APPROVAL_REJECTED_MESSAGE;
 		await recordDynamicControllerStatus(input.cwd, input.run.runId, {
 			controllerSpecId: input.task.specId,
 			status: "policy_blocked",
@@ -238,7 +248,7 @@ async function confirmDynamicControllerApproval(
 		}, DYNAMIC_APPROVAL_TIMEOUT_MS);
 	});
 	const confirmPromise = Promise.resolve(
-		ui.confirm!("Run dynamic workflow controller?", message, {
+		ui.confirm!(DYNAMIC_APPROVAL_TITLE, message, {
 			timeout: DYNAMIC_APPROVAL_TIMEOUT_MS,
 			signal: controller.signal,
 		}),

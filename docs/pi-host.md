@@ -56,6 +56,7 @@ mode); errors are error notifications.
 | `logs <run> [--task <id>] [--lines N] [--stream output\|stderr\|events\|all]` | `logsAction` (WP16): bounded, redacted tail of task output, stderr and executor events (WP19: contained to `.agent-workflow/`, structured credentials redacted; the completion message is redacted the same way) |
 | `wait <run> [timeout \| --timeout D]` | `waitAction` with `longWait` (WP28): until the run is terminal or needs action, or the timeout passes; default 60 s (pi-workflow `/workflow wait`), max 4 h; a bare number is milliseconds |
 | `resume <run> [--detach]` | `resumeAction` |
+| `approve <run> [--request <id>] [--reject] [--detach] [--yes]` | `approveAction` (WP29): answers a dynamic-controller approval the run waits on through `ctx.ui.confirm`; without a dialog UI `--yes` is required |
 | `stop <run>` | `stopAction` |
 | `prune [--keep N] [--older-than DAYS] [--yes]` | `pruneAction` |
 | `notices list \| acknowledge <run> --state <sha256> --reason <text> \| clear <run>` | `noticesAction` |
@@ -144,6 +145,26 @@ per-workflow Pi profile preferences apply; WP19 round 2: the preference, resolve
 overrides, is part of the duplicate-launch identity and the run is launched from that same
 resolution, so changing it starts a new run); `runtimeDefaults` = Pi's current model and thinking level,
 only when no executor or `pi` is selected — a `--executor codex` run does not inherit Pi's model.
+
+## Dynamic-controller approval (WP29)
+
+pi-workflow's `dynamicUiFromContext` ported: when the session has a dialog UI (`ctx.hasUI`, not
+print/JSON mode), the host context carries `dynamicUi` (`host.ts` `piDynamicUi`), so a dynamic stage
+whose controller declares `dynamic.permissions.approval: "ask"` is asked while this session drives
+the run: attached `/aw run|dynamic`, `aw_run`/`aw_dynamic` (with `awaitTerminal`), `aw_wait`,
+`/aw wait`, `/aw resume` and the session-start re-drive. The dialog is
+`ctx.ui.confirm("Run dynamic workflow controller?", <scope>, {timeout: 300000, signal})`: yes runs
+the controller (recorded as `decidedBy: {host: "pi", via: "prompt"}`), no rejects it for this run
+(`dynamic_approval_rejected`, never asked again), a timeout leaves it blocked and resumable
+(`dynamic_approval_timeout`). `--detach` launches and resumes never ask (their supervisor has no UI),
+and print/JSON mode keeps `dynamic_ui_unavailable`; the blocked message, `/aw status` and `/aw wait`
+name `/aw approve <run> --request <id>` (and `--reject`).
+
+`/aw approve <run>` answers an open approval later (also one a detached run, the CLI or an MCP
+client left): the same confirm dialog; yes approves and resumes the run (tracked for the status line
+and completion delivery like `/aw resume`; completed tasks are not relaunched), no rejects. Without a
+dialog UI it needs `--yes`, and the flags are the decision. Agents get no `aw_approve` tool: an
+approval is the user's decision.
 
 ## Host tools for Pi workers (WP35)
 
@@ -356,6 +377,9 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
   `host-wp28-pi-redrive.test.mjs` (a child process launches an attached run and exits; session start
   re-drives it, B3 decision instead of a relaunch after a killed worker, audience kept, live drivers
   skipped), `host-wp28-pi-exposure.test.mjs` (deferred tool exposure).
+- WP29: `host-wp29-pi-approval.test.mjs` (confirm yes runs the controller, no rejects it, json mode
+  blocks with the approve commands, `/aw resume` asks the open approval), `host-wp29-approve-later.test.mjs`
+  (`/aw approve` through the dialog, `--yes` without one).
 - WP35: `test/unit/executor-wp35-host-tools.test.mjs` (fake native Pi host → `hostTools`; Pi host +
   pi executor → per-task `inheritHostTools`, readOnly stage excluded, preview notice; Pi executor
   argv with/without readOnly; non-Pi host and non-pi executor unchanged; provenance fails closed for

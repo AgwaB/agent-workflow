@@ -8,6 +8,7 @@
 // [timeout]` waits until the run is terminal or needs action, or the timeout passes (pi-workflow
 // `/workflow wait <run> [timeout-ms]`: default 60 s, max 4 h; the host API `longWait`).
 // WP31: `/aw profile set --preset/--role`, `/aw profile presets`, `/aw profile workflow …`.
+// WP29: `/aw approve <run>` answers a dynamic-controller approval through ctx.ui.confirm.
 import {
 	COMMAND_HELP,
 	HOST_LONG_WAIT_MAX_TIMEOUT_MS,
@@ -31,6 +32,7 @@ import {
 } from "../cli/index.js";
 import {
 	emit,
+	hasDialogUi,
 	hostContext,
 	launchHooks,
 	levelForOutcome,
@@ -55,6 +57,7 @@ export const AW_ACTIONS = [
 	"logs",
 	"wait",
 	"resume",
+	"approve",
 	"stop",
 	"prune",
 	"notices",
@@ -86,12 +89,14 @@ Runs:
   /aw logs <run> [--task <id>] [--lines N] [--stream output|stderr|events|all]
   /aw wait <run> [timeout]             wait until finished or the timeout (default 60s, max 4h)
   /aw resume <run> [--detach]           resume a failed, interrupted or blocked run
+  /aw approve <run> [--request <id>] [--reject] [--detach] [--yes]
+                                        approve or reject a dynamic controller the run waits on
   /aw stop <run>                        stop a run
   /aw prune [--keep N] [--older-than DAYS] [--yes]
   /aw notices list | acknowledge <run> --state <sha256> --reason <text> | clear <run>
 
 Run options: ${RUN_OPTIONS}
-With a Pi UI, capability degradations that need confirmation are asked and a declared execution profile is chosen in a dialog; without one degradations are recorded, the default profile is used and the choices are listed. Runs launched here show their progress in the status line and report back into this session when they finish or need action.
+With a Pi UI, dynamic controllers that need approval are asked ("Run dynamic workflow controller?": yes runs it, no rejects it for the run) while this session drives the run; detached runs wait for /aw approve. With a Pi UI, capability degradations that need confirmation are asked and a declared execution profile is chosen in a dialog; without one degradations are recorded, the default profile is used and the choices are listed. Runs launched here show their progress in the status line and report back into this session when they finish or need action.
 Agent tools: ${AW_TOOL_NAMES.join(", ")}. /aw help <action> shows the agent-workflow help of one action.`;
 
 function only(positionals: string[], count: number, usage: string): string[] {
@@ -386,6 +391,37 @@ async function dispatch(
 				...(parsed.flags.has("--detach") ? { detach: true } : {}),
 			});
 		}
+		case "approve": {
+			const parsed = parseCommandArgs(rest, {
+				flags: ["--reject", "--yes", "--detach"],
+				values: ["--request"],
+			});
+			const [runId] = only(
+				parsed.positionals,
+				1,
+				"approve <run-id-or-prefix> [--request <id>] [--reject] [--detach] [--yes]",
+			);
+			const dialog = hasDialogUi(ctx) && !parsed.flags.has("--yes");
+			if (!dialog && !parsed.flags.has("--yes"))
+				throw new HostUsageError(
+					`/${AW_COMMAND} approve without a dialog UI needs --yes (review the approval first: /${AW_COMMAND} status ${runId})`,
+				);
+			return api.approveAction(host(), {
+				runId: runId!,
+				decision: parsed.flags.has("--reject") ? "reject" : "approve",
+				...(parsed.values.has("--request")
+					? { requestId: parsed.values.get("--request")! }
+					: {}),
+				...(parsed.flags.has("--detach") ? { detach: true } : {}),
+				// pi-workflow's dialog: yes = as decided, no on the approval question = reject.
+				...(dialog
+					? {
+							confirm: async (title: string, message: string) =>
+								(await ctx.ui.confirm(title, message)) === true,
+						}
+					: {}),
+			});
+		}
 		case "stop": {
 			const [runId] = only(
 				parseCommandArgs(rest, {}).positionals,
@@ -475,7 +511,13 @@ export async function trackLaunched(
 	data: { runId?: unknown; status?: unknown } | undefined,
 	launchedBy: "command" | "tool",
 ): Promise<void> {
-	if (action !== "run" && action !== "dynamic" && action !== "resume") return;
+	if (
+		action !== "run" &&
+		action !== "dynamic" &&
+		action !== "resume" &&
+		action !== "approve"
+	)
+		return;
 	if (typeof data?.runId !== "string") return;
 	if (data.status !== "running" && data.status !== "pending") return;
 	await deps.feedback.track(ctx, data.runId, launchedBy).catch(() => undefined);

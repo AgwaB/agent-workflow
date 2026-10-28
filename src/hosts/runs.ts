@@ -47,6 +47,10 @@ import {
 import type { WorkflowRunRecord } from "../core/types.js";
 import { isWorkflowStopPendingError } from "../core/workflow-stop.js";
 import {
+	type PendingDynamicApproval,
+	pendingDynamicApprovals,
+} from "../core/dynamic-approval.js";
+import {
 	executeWorkflowNoticesCommand,
 	parseWorkflowNoticesArgs,
 } from "../core/workflow-notices.js";
@@ -62,7 +66,11 @@ import {
 	formatExecutorStatePrune,
 	pruneExecutorAdapterState,
 } from "./adapter-state.js";
-import { hostCommandHints, type WorkflowCommandHints } from "./hints.js";
+import {
+	hostCommandHints,
+	pendingApprovalLines,
+	type WorkflowCommandHints,
+} from "./hints.js";
 import { spawnDetachedSupervisor } from "./launch.js";
 import {
 	type HostLaunchClaimPrune,
@@ -151,6 +159,11 @@ export interface StatusData {
 			model?: string;
 			effort?: string;
 		}>;
+		/**
+		 * WP29: dynamic controllers the run is blocked on until the user approves or rejects them
+		 * (the question, its request id; answer with `approve`).
+		 */
+		pendingApprovals?: PendingDynamicApproval[];
 	};
 	runs?: RunSummary[];
 }
@@ -189,7 +202,13 @@ export async function statusAction(
 	// WP18b: a terminal run shows its domain verdict and report; a verdict-gate run leads with
 	// "finished — verdict: X (report ready)".
 	const presentation = await terminalPresentation(ctx.cwd, run);
-	const text = presentation
+	const pendingApprovals = await pendingDynamicApprovals(ctx.cwd, run);
+	const approvalText = pendingApprovalLines(
+		ctx.host,
+		run.runId,
+		pendingApprovals,
+	).join("\n");
+	const statusText = presentation
 		? [
 				...(presentation.verdictGate
 					? [
@@ -211,6 +230,7 @@ export async function statusAction(
 					: []),
 			].join("\n")
 		: card;
+	const text = approvalText ? `${statusText}\n${approvalText}` : statusText;
 	return result(
 		"status",
 		"success",
@@ -235,6 +255,7 @@ export async function statusAction(
 							}
 						: {}),
 				})),
+				...(pendingApprovals.length ? { pendingApprovals } : {}),
 			},
 		},
 		// WP19 (review #7): the card carries worker messages.
@@ -477,6 +498,12 @@ export interface WaitData {
 	reportArtifacts: WorkflowResultArtifact[];
 	usage?: WorkflowRunRecord["usage"];
 	degradation?: WorkflowRunRecord["degradation"];
+	/**
+	 * WP29: dynamic controllers the blocked run waits on (the question and its request id). The
+	 * user answers with `approve` (CLI `agent-workflow approve`, Pi `/aw approve`, MCP
+	 * `workflow_approve`); a host with an approval UI asks while it drives the run instead.
+	 */
+	pendingApprovals?: PendingDynamicApproval[];
 }
 
 export function boundedWaitTimeout(
@@ -518,6 +545,7 @@ export async function waitAction(
 	try {
 		run = await waitForRun(ctx.cwd, resolved.runId, timeoutMs, {
 			...(ctx.availableModels ? { availableModels: ctx.availableModels } : {}),
+			...(ctx.dynamicUi ? { dynamicUi: ctx.dynamicUi } : {}),
 			...(request.signal ? { waitSignal: request.signal } : {}),
 			...(request.onProgress
 				? {
@@ -559,6 +587,9 @@ export async function waitAction(
 		.filter((task) => task.status === "blocked")
 		.map((task) => task.specId);
 	const actionRequired = !terminal.terminal && !stillRunning;
+	const pendingApprovals = actionRequired
+		? await pendingDynamicApprovals(ctx.cwd, run)
+		: [];
 	const nextRetry = stillRunning ? scheduledRetryWait(run) : undefined;
 	const data: WaitData = {
 		runId: run.runId,
@@ -581,6 +612,7 @@ export async function waitAction(
 		reportArtifacts: artifacts,
 		...(run.usage ? { usage: run.usage } : {}),
 		...(run.degradation ? { degradation: run.degradation } : {}),
+		...(pendingApprovals.length ? { pendingApprovals } : {}),
 	};
 	const hints = hostCommandHints(ctx.host);
 	let text: string;
@@ -613,6 +645,7 @@ export async function waitAction(
 					? `Final result preview:\n${formatWorkflowResultPresentation(preview, artifacts)}`
 					: "Final result preview: unavailable"
 				: `Blocked tasks: ${blockedTaskIds.join(", ") || "unknown"}; inspect with: ${hints.inspectFailures(run.runId)}; resume with: ${hints.resume(run.runId)}`,
+			...pendingApprovalLines(ctx.host, run.runId, pendingApprovals),
 		].join("\n");
 	}
 	return result(
@@ -667,7 +700,11 @@ export async function resumeAction(
 	const { run, resetTaskIds } = await resumeRun(
 		ctx.cwd,
 		requireRunRef(request.runId, "resume"),
-		ctx.availableModels ? { availableModels: ctx.availableModels } : {},
+		{
+			...(ctx.availableModels ? { availableModels: ctx.availableModels } : {}),
+			// WP29: an attached resume re-asks an open dynamic-controller approval.
+			...(ctx.dynamicUi && !request.detach ? { dynamicUi: ctx.dynamicUi } : {}),
+		},
 	);
 	const data: ResumeData = {
 		runId: run.runId,
@@ -976,9 +1013,10 @@ export async function redriveRunsAction(
 	ctx: HostApiContext,
 ): Promise<HostResult<RedriveData>> {
 	assertActionAllowed(ctx, "supervise");
-	const options = ctx.availableModels
-		? { availableModels: ctx.availableModels }
-		: {};
+	const options = {
+		...(ctx.availableModels ? { availableModels: ctx.availableModels } : {}),
+		...(ctx.dynamicUi ? { dynamicUi: ctx.dynamicUi } : {}),
+	};
 	const data: RedriveData = { redriven: [], skipped: [], errors: [] };
 	for (const run of await listRunRecords(ctx.cwd)) {
 		if (!hasActiveSchedulerWork(run)) continue;
