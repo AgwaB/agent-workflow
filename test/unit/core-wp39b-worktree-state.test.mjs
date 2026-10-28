@@ -107,7 +107,17 @@ async function runWithWorktrees(cwd, runId, taskIds) {
 		const task = {
 			taskId,
 			specId: taskId,
+			displayName: taskId,
 			status: "completed",
+			statusDetail: "completed",
+			runtime: {},
+			files: {
+				systemPrompt: "",
+				taskPrompt: "",
+				output: "",
+				stderr: "",
+				result: "",
+			},
 			cwd,
 			worktree: {
 				enabled: false,
@@ -217,4 +227,32 @@ test("prune: managed worktrees are listed in the dry run and removed with --yes;
 		"unmerged result branch kept",
 	);
 	assert.match(formatWorkflowPruneSummary(done), /removed, branch kept/);
+});
+
+test("status, show and inspect name a worktree task's worktree path and branch", async () => {
+	const cwd = await repo();
+	writeFileSync(join(cwd, ".gitignore"), ".agent-workflow/\n");
+	git(cwd, ["add", ".gitignore"]);
+	git(cwd, ["commit", "-q", "--no-gpg-sign", "--no-verify", "-m", "ignore"]);
+	await runWithWorktrees(cwd, "workflow_wtshow", ["task-1"]);
+	const format = await import("../../dist/core/engine-format.js");
+	const store = await import("../../dist/core/store.js");
+	const run = await store.readRunRecord(cwd, "workflow_wtshow");
+	const expected =
+		/Worktree: \.agent-workflow\/workflows\/workflow_wtshow\/worktrees\/task-1 \(branch agent-workflow\/workflow_wtshow-task-1\)/;
+	for (const text of [
+		format.formatHumanRunStatus(run),
+		format.formatHumanRunDetails(run),
+		format.formatHumanRunOutcome(run),
+	])
+		assert.match(text, expected);
+	const api = await import("../../dist/hosts/api.js");
+	const inspected = await api.inspectAction(
+		{ cwd, env: process.env, host: "cli" },
+		{ runId: "workflow_wtshow" },
+	);
+	assert.match(
+		inspected.text,
+		/- task-1: completed\/.*\n {4}worktree: \.agent-workflow\/workflows\/workflow_wtshow\/worktrees\/task-1 \(branch agent-workflow\/workflow_wtshow-task-1\)/,
+	);
 });

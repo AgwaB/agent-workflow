@@ -28,11 +28,7 @@ import {
 	resolve,
 } from "node:path";
 
-import {
-	workflowRunDir,
-	managedWorktreePath,
-	toProjectPath,
-} from "./store.js";
+import { workflowRunDir, managedWorktreePath, toProjectPath } from "./store.js";
 import type {
 	CompiledTask,
 	WorkflowRunRecord,
