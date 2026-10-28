@@ -3,7 +3,9 @@
 // spec name and task matched an active run and skipped detached launches, so a model that retried
 // `workflow_run`/`aw_run` after a tool timeout started a second detached run. Here a launch has a
 // fingerprint (kind, spec path and name, task, typed inputs, executor, profile, permission mode,
-// unverified-capability opt-ins, model, effort, cwd); an identical launch while the run it started is
+// unverified-capability opt-ins, model, effort, cwd; WP19 review #8: plus the resolved execution
+// identity from launch.ts: host, applying executor and its source, saved-profile contents, inherited
+// runtime defaults and a digest of the workflow definition); an identical launch while the run it started is
 // still non-terminal (running, pending, blocked) and was created within the guard window returns
 // that run (`outcome: "existing"`) instead of starting another one. `forceNew` bypasses the guard.
 //
@@ -78,6 +80,8 @@ export interface LaunchFingerprintInput {
 	allowUnverifiedCapabilities?: string[];
 	model?: string;
 	effort?: string;
+	/** WP19 (review #8): the resolved execution identity (see launch.ts). */
+	execution?: Record<string, unknown>;
 }
 
 interface LaunchClaim {
@@ -125,7 +129,8 @@ function canonical(value: unknown): CanonicalJson {
 
 export function launchFingerprint(input: LaunchFingerprintInput): string {
 	const identity = {
-		v: 1,
+		v: 2,
+		execution: input.execution ?? null,
 		kind: input.kind,
 		cwd: resolve(input.cwd),
 		specPath: input.kind === "dynamic" ? "" : resolve(input.specPath),

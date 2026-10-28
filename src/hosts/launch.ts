@@ -23,6 +23,10 @@ import {
 	type WorkflowRunOptions,
 } from "../core/engine.js";
 import { workflowDefinitionFingerprint } from "../core/execution-profile.js";
+import {
+	HOST_DEFAULT_EXECUTORS,
+	INSTALLED_DEFAULT_ORDER,
+} from "../core/executor-default.js";
 import { WorkflowExecutorUnavailableError } from "../core/executor-registry.js";
 import { formatApproxDuration } from "../core/run-estimates.js";
 import { type LoadedWorkflowSpec, loadWorkflowSpec } from "../core/schema.js";
@@ -639,6 +643,59 @@ function launchData(
 	};
 }
 
+/**
+ * WP19 (review #8): what this launch will actually run with, resolved without prompting or probing:
+ * the host, the executor that applies and where it comes from (request flag, saved user profile
+ * named by the request or the default one, the workflow's declared profiles, the host override,
+ * the host's own CLI or the terminal's installed-default order), the contents of the saved user
+ * profile that applies, the host's inherited model/effort, and a digest of the workflow definition
+ * (which also covers its declared profiles and defaults). Two identical requests from different
+ * hosts, or after a profile or workflow change, are different launches.
+ */
+async function launchExecutionIdentity(
+	ctx: HostApiContext,
+	loaded: LoadedWorkflowSpec,
+	request: LaunchRequestBase,
+): Promise<Record<string, unknown>> {
+	const host = ctx.host ?? "cli";
+	const declared = loaded.spec.executionProfiles ?? {};
+	const users = await readUserProfiles(hostEnv(ctx)).catch(() => undefined);
+	const requestedUser =
+		request.profile !== undefined && !Object.hasOwn(declared, request.profile)
+			? users && userProfileFromFile(users, request.profile)
+			: undefined;
+	const defaultUser =
+		request.profile === undefined && users?.default
+			? userProfileFromFile(users, users.default)
+			: undefined;
+	const userProfile = requestedUser ?? defaultUser;
+	const hostDefault =
+		host === "cli" || host === "generic"
+			? { id: INSTALLED_DEFAULT_ORDER.join(">"), source: "installed-default" }
+			: { id: HOST_DEFAULT_EXECUTORS[host], source: "host-default" };
+	const executor = request.executor
+		? { id: request.executor, source: "request" }
+		: userProfile?.executor
+			? {
+					id: userProfile.executor,
+					source: requestedUser ? "user-profile" : "user-default",
+				}
+			: Object.keys(declared).length > 0
+				? { id: "", source: "workflow-profile", fallback: hostDefault }
+				: ctx.defaultExecutor
+					? { id: ctx.defaultExecutor, source: "default" }
+					: hostDefault;
+	return {
+		host,
+		executor,
+		defaultExecutor: ctx.defaultExecutor ?? "",
+		userProfile: userProfile ? { ...userProfile, updatedAt: undefined } : null,
+		runtimeDefaults: ctx.runtimeDefaults ?? null,
+		permissionMode: request.permissionMode ?? userProfile?.permissionMode ?? "",
+		workflowDefinition: workflowDefinitionFingerprint(loaded.spec),
+	};
+}
+
 async function launch(
 	ctx: HostApiContext,
 	action: "run" | "dynamic",
@@ -653,7 +710,10 @@ async function launch(
 		request.inputOverrides,
 	);
 	// WP16: one guard for attached and detached launches (see launch-guard.ts).
+	// WP19 (review #8): the identity is the resolved execution identity, not only the request.
+	const execution = await launchExecutionIdentity(ctx, loaded, request);
 	const fingerprint = launchFingerprint({
+		execution,
 		kind: action,
 		cwd: ctx.cwd,
 		specPath: loaded.specPath,

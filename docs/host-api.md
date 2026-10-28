@@ -130,8 +130,17 @@ host (CLI, Pi `/aw` and `aw_*`, host MCP server), go through one guard, so a mod
 `workflow_run`/`aw_run` after a tool timeout gets the first run back. A launch's identity is a
 SHA-256 over: kind (`run`/`dynamic`), cwd, resolved spec path and spec name, trimmed task, typed
 `inputOverrides`, and the requested `executor`, `profile`, `permissionMode`,
-`allowUnverifiedCapabilities` (sorted), `model`, `effort`. `detach` and the interactive hooks are not
-part of it. An identical launch while the run it recorded is non-terminal (`running`, `pending`,
+`allowUnverifiedCapabilities` (sorted), `model`, `effort`. WP19 (review #8): plus the resolved
+execution identity (`launchExecutionIdentity`, resolved without prompting or probing): the host
+(`ctx.host`, default `cli`), the executor that applies and its source (request flag, the saved user
+profile the request names or the default one, the workflow's declared profiles, `ctx.defaultExecutor`,
+the host's own CLI, or the terminal's `pi>claude>codex` installed-default order), the contents of the
+saved user profile that applies, the host's inherited model/effort (`runtimeDefaults`), the effective
+permission mode, and `workflowDefinitionFingerprint` of the loaded spec (covering declared profiles
+and defaults). So the same request from Claude Code and Codex, or after a workflow or saved-profile
+change, starts a new run. Residual: for `cli`/`generic` the installed-default choice is probed after
+the guard, so a login change between two identical launches within the window is not seen.
+`detach` and the interactive hooks are not part of it. An identical launch while the run it recorded is non-terminal (`running`, `pending`,
 `blocked`) and was created within the last 10 minutes (`DUPLICATE_RUN_WINDOW_MS`) returns that run:
 `outcome: "existing"` (`ok`), `data` is that run's `LaunchData` plus `duplicateOf`, no new supervisor
 is spawned, and the text starts `Duplicate launch guard:` and names `--force-new`. A terminal,
