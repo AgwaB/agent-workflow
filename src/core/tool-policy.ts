@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-native-tool-policy.ts. MIT, same author. Changes: the native-host expansion (codemode, tool_search, mcp__*, MCP resource tools) is no longer added here; it becomes the task flag runtime.inheritHostTools that only the Pi executor honors (WP6), and core keeps the conservative mutation-capable safety it implied. WP4e: inheritedHostToolSafety/prepareWorkflowTaskToolPolicy take permissionMode (R#5 only in safe).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-native-tool-policy.ts. MIT, same author. Changes: the native-host expansion (codemode, tool_search, mcp__*, MCP resource tools) is no longer added here; it becomes the task flag runtime.inheritHostTools that only the Pi executor honors (WP6), and core keeps the conservative mutation-capable safety it implied. WP4e: inheritedHostToolSafety/prepareWorkflowTaskToolPolicy take permissionMode (R#5 only in safe). WP35: applyWorkflowToolPolicy readOnlyDeclared (readOnly stages never inherit host tools).
 import type {
 	CompiledTask,
 	CompiledTaskSafety,
@@ -46,8 +46,21 @@ export interface WorkflowToolPolicy {
 export function applyWorkflowToolPolicy(
 	tools: readonly string[] | undefined,
 	toolProviders: Record<string, CompiledToolProvider> | undefined,
-	options: WorkflowToolPolicyOptions = {},
+	options: WorkflowToolPolicyOptions & {
+		/**
+		 * WP35: the stage declares readOnly. Inherited host tools are mutation-capable, so a
+		 * readOnly stage never inherits them (decided `false`, like an explicitly tool-free task).
+		 */
+		readOnlyDeclared?: boolean;
+	} = {},
 ): WorkflowToolPolicy {
+	if (options.inheritHostTools === true && options.readOnlyDeclared === true) {
+		const readOnlyPolicy: WorkflowToolPolicy = { inheritHostTools: false };
+		if (tools !== undefined) readOnlyPolicy.tools = [...tools];
+		if (toolProviders !== undefined)
+			readOnlyPolicy.toolProviders = cloneToolProviders(toolProviders);
+		return readOnlyPolicy;
+	}
 	if (options.inheritHostTools !== true) {
 		const legacyPolicy: WorkflowToolPolicy = {};
 		if (tools !== undefined) legacyPolicy.tools = [...tools];

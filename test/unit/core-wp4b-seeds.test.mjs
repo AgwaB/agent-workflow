@@ -234,7 +234,7 @@ test("compile: inheritHostTools is a host option that makes the task mutation-ca
 	);
 	assert.equal(plain.tasks[0].safety.capability, "read-only");
 	const inherited = await compileWorkflow(
-		spec({}, { readOnly: true, tools: ["read"] }),
+		spec({}, { readOnly: false, tools: ["read"] }),
 		{
 			cwd,
 			inheritHostTools: true,
@@ -245,6 +245,13 @@ test("compile: inheritHostTools is a host option that makes the task mutation-ca
 	assert.equal(inherited.tasks[0].runtime.inheritHostTools, true);
 	assert.equal(inherited.tasks[0].safety.capability, "mutation-capable");
 	assert.equal(inherited.tasks[0].safety.requiresWorktree, true);
+	// WP35: a declared readOnly stage never inherits the mutation-capable host tools.
+	const readOnly = await compileWorkflow(
+		spec({}, { readOnly: true, tools: ["read"] }),
+		{ cwd, inheritHostTools: true },
+	);
+	assert.equal(readOnly.tasks[0].runtime.inheritHostTools, false);
+	assert.equal(readOnly.tasks[0].safety.capability, "read-only");
 });
 
 test("R#5: readOnly task with worktreePolicy off runs without a worktree", async (t) => {

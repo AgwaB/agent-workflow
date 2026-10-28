@@ -31,6 +31,8 @@ export interface PiExtensionContext {
 	cwd: string;
 	model?: PiModelLike | undefined;
 	modelRegistry?: { getAvailable?: () => PiModelLike[] } | undefined;
+	/** WP35: Pi 1.1 project trust (present with native MCP); host-tool inheritance records it. */
+	isProjectTrusted?: () => boolean;
 	/** WP16: the session id is the audience of completion delivery. */
 	sessionManager?:
 		| {
@@ -107,6 +109,8 @@ export interface PiExtensionApi {
 		handler: (event: unknown, ctx: PiExtensionContext) => void | Promise<void>,
 	): () => void;
 	getThinkingLevel?: () => string | undefined;
+	/** WP35: Pi 1.1 native MCP (its presence marks a native codemode/MCP host). */
+	getMcpServers?: () => unknown;
 	sendMessage?(
 		message: PiCustomMessage,
 		options?: {

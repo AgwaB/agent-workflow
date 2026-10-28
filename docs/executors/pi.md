@@ -121,6 +121,13 @@ The table is `PI_EXECUTOR_TOOL_MAPPING`.
   - Under isolation it also loads `builtin:mcp`, `builtin:codemode` and `builtin:tool-search`. These read the
     user's `mcp.json`: that is the point of inheriting host tools.
   - It is **ignored for readOnly requests**, because codemode can reach mutating tools.
+  - **WP35: who sets it.** The Pi host (`docs/pi-host.md` "Host tools for Pi workers") offers it when its
+    session has Pi 1.1 native codemode/MCP; the engine honors it only for runs on this executor and
+    compiles readOnly stages without it. The task backend then passes `inheritHostTools: true` as
+    **per-task descriptor config** (`workflowTaskExecutorDescriptor`, `src/core/task-backend.ts`) for each
+    inheriting task; the run's descriptor stays unchanged. Launch provenance requires the run's
+    executor to be `pi` for such a task (other executors fail closed). The capability preview records
+    a `host tools: …` notice. Verified offline (`executor-wp35-host-tools.test.mjs`), not live.
 
 ## MCP injection (A2-4)
 
@@ -352,7 +359,8 @@ request drops mutating tools from `--tools` in both modes. The conformance harne
   - Results are model-reported (`safetyPolicy: unknown`).
 - **WP11 (hosts):**
   - Pass `inheritHostTools`, `fast`/`fastApi` (from `resolveWorkflowFastModeConfig`) and `toolResultBudget`
-    as **per-task descriptor config**. The descriptor is digested into the execution plan.
+    as **per-task descriptor config**. The descriptor is digested into the execution plan. (WP35:
+    `inheritHostTools` done.)
   - Never pass secrets in config.
   - Retention should call `deleteOwnedSession(ownedSession)`, which deletes only under `<stateDir>/sessions`.
 - **WP4c:**

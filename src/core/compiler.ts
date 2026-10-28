@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/compiler.ts. MIT, same author. Changes: R#5/D2 write-capable tasks require a worktree even under spec worktreePolicy "off" (warning; only the run option allowSharedCheckoutWrites waives it); fast mode from fast-tier.ts; native host → inheritHostTools compile option (tool-policy.ts). WP4e: compile option permissionMode — R#5 only in "safe"; "free" honors worktreePolicy as written (pi-workflow).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/compiler.ts. MIT, same author. Changes: R#5/D2 write-capable tasks require a worktree even under spec worktreePolicy "off" (warning; only the run option allowSharedCheckoutWrites waives it); fast mode from fast-tier.ts; native host → inheritHostTools compile option (tool-policy.ts). WP4e: compile option permissionMode — R#5 only in "safe"; "free" honors worktreePolicy as written (pi-workflow). WP35: a declared readOnly stage never inherits host tools.
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
@@ -1820,10 +1820,11 @@ async function compileArtifactGraphPlan(
 					warnings,
 				)
 			: filterToolSelection(toolSelection);
+		// WP35: a declared readOnly stage never inherits host tools (they are mutation-capable).
 		const effectiveToolPolicy = applyWorkflowToolPolicy(
 			filteredToolSelection.tools,
 			filteredToolSelection.toolProviders,
-			toolPolicyOptions,
+			{ ...toolPolicyOptions, readOnlyDeclared },
 		);
 		const requestedRuntime = selectWorkflowRuntime(
 			runtimeOverrides,

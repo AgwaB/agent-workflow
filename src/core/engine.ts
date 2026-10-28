@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine.ts. MIT, same author. Changes: the backend comes from the task-launch registry and the core task backend registers itself (was hard-wired pi-subagent); acknowledgeSubagentTaskInterrupted from task-cancellation.ts; run options executor/defaultExecutor (B2 executor selection before the run record exists, frozen as run.executor; nested runs copy the parent's) and inheritHostTools/allowSharedCheckoutWrites passed into compileWorkflow (nested runs follow the parent record); native host context → withHostContext(resolveHostContext()); foreach batch eligibility uses prepareWorkflowTaskToolPolicy with the run's host-tool and shared-checkout decisions (R#5); messages say agent-workflow. WP4d: B4 capability negotiation after executor selection and compile, before the run record (probe once, refuse/degrade/confirm, record run.capabilityNegotiation; run options interactive/confirmDegradations/allowUnverifiedCapabilities/executorProber/executorProbeTimeoutMs). WP4e: run option permissionMode resolved with B2 precedence (permission-mode.ts), passed to compile and negotiation, recorded as run.permissionMode (nested runs follow the parent). WP17: run option host; with no explicit executor the default is the host's own CLI (terminal: first usable of pi → claude → codex via cached probes, executor-default.ts), recorded as run.executor.source host-default/installed-default with the host; the cached prober is shared with negotiation. WP18b: re-exports scheduledRetryWait/formatScheduledRetryWait.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine.ts. MIT, same author. Changes: the backend comes from the task-launch registry and the core task backend registers itself (was hard-wired pi-subagent); acknowledgeSubagentTaskInterrupted from task-cancellation.ts; run options executor/defaultExecutor (B2 executor selection before the run record exists, frozen as run.executor; nested runs copy the parent's) and inheritHostTools/allowSharedCheckoutWrites passed into compileWorkflow (nested runs follow the parent record); native host context → withHostContext(resolveHostContext()); foreach batch eligibility uses prepareWorkflowTaskToolPolicy with the run's host-tool and shared-checkout decisions (R#5); messages say agent-workflow. WP4d: B4 capability negotiation after executor selection and compile, before the run record (probe once, refuse/degrade/confirm, record run.capabilityNegotiation; run options interactive/confirmDegradations/allowUnverifiedCapabilities/executorProber/executorProbeTimeoutMs). WP4e: run option permissionMode resolved with B2 precedence (permission-mode.ts), passed to compile and negotiation, recorded as run.permissionMode (nested runs follow the parent). WP17: run option host; with no explicit executor the default is the host's own CLI (terminal: first usable of pi → claude → codex via cached probes, executor-default.ts), recorded as run.executor.source host-default/installed-default with the host; the cached prober is shared with negotiation. WP18b: re-exports scheduledRetryWait/formatScheduledRetryWait. WP35: the inheritHostTools run option takes effect only when the run's executor is pi.
 import { releaseUnneededOwnedSessions } from "./owned-session-release.js";
 import { createHash } from "node:crypto";
 import {
@@ -230,6 +230,7 @@ import {
 	resolveRunExecutorForHost,
 } from "./executor-default.js";
 import { resolveHostContext, withHostContext } from "./host-context.js";
+import { PI_EXECUTOR_ID } from "../executors/pi/version.js";
 import {
 	resolveRunPermissionMode,
 	workflowDeclaredProfilePermissionMode,
@@ -409,7 +410,10 @@ export interface WorkflowRunOptions {
 	 * → the first installed and logged-in of pi → claude → codex. Recorded on run.executor.
 	 */
 	host?: WorkflowHostId;
-	/** Host-level opt-in to host-tool inheritance (Pi executor only, WP6). */
+	/**
+	 * Host-level opt-in to host-tool inheritance (Pi executor only, WP6). WP35: the Pi host sets it
+	 * when its session has Pi's native codemode/MCP; ignored unless the run's executor is pi.
+	 */
 	inheritHostTools?: boolean;
 	/** D2/R#5 run option of the executing user (never a spec field). */
 	allowSharedCheckoutWrites?: boolean;
@@ -754,11 +758,16 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 					? {}
 					: { probeTimeoutMs: options.executorProbeTimeoutMs }),
 			});
+	// WP35: host-tool inheritance is honored only by the Pi executor; any other executor runs
+	// as if the host had not offered it (Codex/Claude user-MCP inheritance is a separate opt-in).
+	const inheritsHostTools =
+		inheritHostTools &&
+		(parentRun !== undefined || executor.id === PI_EXECUTOR_ID);
 	const compiled = await compileWorkflow(spec, {
 		cwd,
 		specPath,
 		task: options.task,
-		...(inheritHostTools ? { inheritHostTools: true } : {}),
+		...(inheritsHostTools ? { inheritHostTools: true } : {}),
 		...(allowSharedCheckoutWrites ? { allowSharedCheckoutWrites: true } : {}),
 		permissionMode: permissionMode.mode,
 		runtimeOverrides: options.runtimeOverrides,

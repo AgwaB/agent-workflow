@@ -84,6 +84,10 @@ Each adapter document has the full list under "Known limits".
 - No approvals and no sandbox: `free` and `safe` give the same argv; readOnly drops mutating tools.
 - `sessionBound`: no re-attach to a running Pi after its owning process dies.
 - deep-research needs the `pi-web-access` extension (refused otherwise).
+- Host tools (WP35): from a Pi 1.1 host with native codemode/MCP, non-readOnly Pi workers inherit
+  `codemode`, `tool_search`, `mcp__*` and the MCP resource tools (mutation-capable; readOnly stages never
+  inherit; recorded as a preview notice). Other hosts and other executors are unchanged; Codex/Claude
+  user-MCP inheritance is a separate opt-in (B6). Offline only; live check pending (live bundle 5).
 - Cost is Pi's catalog estimate (`source: estimated`), also on a subscription. (Fixed in WP12a: usage
   now carries cache-write tokens and the serving model, so Pi tasks record their model.)
 - Fast tier unverified.

@@ -133,6 +133,28 @@ overrides, is part of the duplicate-launch identity and the run is launched from
 resolution, so changing it starts a new run); `runtimeDefaults` = Pi's current model and thinking level,
 only when no executor or `pi` is selected — a `--executor codex` run does not inherit Pi's model.
 
+## Host tools for Pi workers (WP35)
+
+A Pi 1.1 session with native MCP (`pi.getMcpServers`) and project trust (`ctx.isProjectTrusted`) — the
+same check as pi-workflow's native host context — lends its native tools to Pi workers:
+
+- `hostContext()` adds `hostTools: { projectTrusted }` (`piNativeHostTools`, `src/hosts/pi/host.ts`).
+- The host API launch then sets the run option `inheritHostTools` and records the run's host context
+  (`run.hostContext`: cwd, agent-workflow home, project trust; references only, never MCP
+  configuration or credentials).
+- The engine honors it only when the run's executor is `pi`; a `--executor codex|claude` run (or a
+  profile that selects one) is unchanged. Codex/Claude user-MCP inheritance is a separate opt-in
+  (B6), not this flag.
+- Each non-readOnly Pi worker gets `codemode`, `tool_search`, `mcp__*`, `list_mcp_resources`,
+  `list_mcp_resource_templates` and `read_mcp_resource` (Pi executor, `docs/executors/pi.md`).
+  These are mutation-capable: the stage is classified so, and the worktree/approval rules of the
+  permission mode apply.
+- A stage that declares `readOnly` never inherits them (compile records `inheritHostTools: false`);
+  a stage forced readOnly by negotiation gets none either (the Pi executor drops them).
+- The capability preview and `run.capabilityNegotiation.notices` record a `host tools: …` notice
+  naming the inheriting stages and the readOnly stages that do not inherit.
+- Older Pi hosts (no native MCP) and the CLI/MCP hosts launch exactly as before.
+
 ## Session start
 
 On `session_start` (not awaited, never delays startup) the host calls
@@ -301,6 +323,10 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
 
 ## Verification
 
+- WP35: `test/unit/executor-wp35-host-tools.test.mjs` (fake native Pi host → `hostTools`; Pi host +
+  pi executor → per-task `inheritHostTools`, readOnly stage excluded, preview notice; Pi executor
+  argv with/without readOnly; non-Pi host and non-pi executor unchanged; provenance fails closed for
+  other executors).
 - `test/unit/host-pi-extension.test.mjs`: fake `ExtensionAPI`; every action and tool delegates to the
   right handler with the right arguments (a recording wrapper over the real host API); runs use the
   WP11a guarded test-executor hook; confirmation (decline, accept, no UI); session-start notices
@@ -338,5 +364,10 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
 - Runs left running by an earlier Pi session are not resumed at session start (only their status
   line and delivery are restored); attached runs of a gone Pi process need `/aw wait`, `/aw resume`
   or `agent-workflow supervise`.
+- Host tools (WP35) are file-configuration inheritance, as in pi-workflow: workers read the user's
+  `mcp.json` themselves; live MCP connections and `registerMcpServer()` registrations of the parent
+  session are not transferred. Under isolation (`--no-approve`) a trusted project's `.pi/mcp.json`
+  is not loaded by the worker (pi-workflow loaded it); the recorded project trust is not yet used.
+  Not live-verified (live bundle 5).
 - `runtimeDefaults` follow the explicit executor only: a profile that selects a non-Pi executor still
   receives Pi's current model as the lowest-precedence default.

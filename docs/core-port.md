@@ -198,7 +198,10 @@ blocked as pending. That is the safety the Pi tool names used to imply. **WP6 ho
 `codemode`, `tool_search`, `mcp__*`, `list_mcp_resources`, `list_mcp_resource_templates` and
 `read_mcp_resource` only when `runtime.inheritHostTools === true`. Other executors ignore the flag.
 Launch provenance (below) then fails closed, because it still expects exactly one Pi `native-host`
-wrapper for such a task.
+wrapper for such a task. **WP35:** the Pi host sets the option (`docs/pi-host.md`); the engine honors it
+only when the run's executor is `pi`; readOnly stages compile with `inheritHostTools: false`; provenance
+requires the run's `pi` executor instead of the wrapper, and the task backend passes the flag to the Pi
+executor as per-task descriptor config.
 
 **artifact-access.** `prepareDagTask` writes `<task dir>/artifact-access.json` with mode 0600. The file
 is canonical JSON (sorted keys) of `{version: 1, runId, taskId, manifestPath, ledgerPath,
