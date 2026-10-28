@@ -54,6 +54,7 @@ Every tool takes an optional `cwd` (see below). Unknown parameters are refused.
 | `workflow_wait` | `runId`, `timeoutMs?` (1 000-45 000) | `waitAction` | `WaitData` (`terminal`, `actionRequired`, `stillRunning`, `status`, `preview`, `reportArtifacts`, …) |
 | `workflow_stop` | `runId` | `stopAction` | `StopData` (`pending` when another supervisor applies it) |
 | `workflow_inspect` | `runId`, `failures?`, `results?` | `inspectAction` | `{run, reliability, listed}`; `run` is the run summary plus brief task rows instead of the full run record |
+| `workflow_logs` (WP18b) | `runId`, `task?`, `lines?` (1-400, default 20), `stream?` (`output`/`stderr`/`events`/`all`) | `logsAction` | `LogsData` (bounded, redacted tails per task) |
 | `workflow_validate` | `workflow` | `validateWorkflowAction` | `ValidateData` |
 
 Launch options (same as the CLI flags and Pi's `aw_run`): `executor`, `profile`, `permissionMode`
@@ -63,10 +64,10 @@ standalone supervisor (`agent-workflow supervise`, log `<run dir>/supervise.log`
 between calls and after the server exits. `detach: false` keeps the run in the server process only.
 A retried identical launch (same workflow, task, inputs and options) while the first run is still
 active returns that run with `outcome: "existing"` instead of starting another (WP16 duplicate guard,
-`host-api.md`); `forceNew: true` starts a new run. A `workflow_logs` tool is not exposed yet (WP13
-follow-up); `agent-workflow logs` and Pi's `/aw logs` call the `logs` handler.
+`host-api.md`); `forceNew: true` starts a new run. `workflow_logs` (WP18b), `agent-workflow logs` and Pi's
+`/aw logs` call the same `logs` handler.
 
-Annotations: `list`, `status`, `inspect`, `validate` are read-only; `run`, `dynamic`, `stop` are
+Annotations: `list`, `status`, `inspect`, `logs`, `validate` are read-only; `run`, `dynamic`, `stop` are
 destructive; `wait` drives scheduling (not read-only, not destructive). `title` is sent from
 `2025-06-18`, `annotations` from `2025-03-26` (same gating as the artifact server).
 

@@ -263,8 +263,8 @@ The original files carry `Moved (WP11a)` markers at the former deferral comments
   the host API record no launch metadata until core gains a host-neutral source.
 - **Stage 2 (WP13 MCP host):** done — `docs/host-mcp.md` (`HostUsageError` → `isError` tool
   result, repeated bounded `waitAction` calls, `detach` default true, degradation confirmation
-  through MCP elicitation when the client supports it, else non-interactive). Follow-up: a
-  `workflow_logs` tool over `logsAction` (WP16 left the MCP tool list unchanged).
+  through MCP elicitation when the client supports it, else non-interactive). WP18b added
+  the `workflow_logs` tool over `logsAction`.
 - **Duplicate guard (WP16):** an `existing` run returned to a launch that asked for `detach` may be an
   attached run whose host process is gone (it stays `running` until `wait`, `resume` or `supervise`
   drives it); `forceNew` or `resume` then. The claim files are not pruned with runs (one small

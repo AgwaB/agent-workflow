@@ -12,7 +12,7 @@ The agent calls `workflow_list` if the name is unclear, `workflow_run` (returns 
 the run is detached), then `workflow_wait` in calls of at most 45 s until the run is finished, and
 finally quotes the result preview and report paths. Permission mode is `free` unless the user asks
 for `safe`; the executor is the workflow profile or the host default unless the user names one.
-`workflow_status`, `workflow_inspect` and `workflow_stop` manage runs, `workflow_validate` checks a
+`workflow_status`, `workflow_inspect`, `workflow_logs` and `workflow_stop` manage runs, `workflow_validate` checks a
 spec. Details: [host-mcp.md](host-mcp.md).
 
 ## Layout
@@ -66,6 +66,8 @@ $ npx -y --package=<dir>/agwab-agent-workflow-0.1.0.tgz agent-workflow-mcp --hos
 serverInfo: {"name":"agent-workflow","version":"0.1.0"}
 tools: workflow_list,workflow_run,workflow_dynamic,workflow_status,workflow_wait,workflow_stop,workflow_inspect,workflow_validate
 ```
+
+(Recorded before WP18b added `workflow_logs`; the server now lists nine tools.)
 
 ## Install (plugin)
 

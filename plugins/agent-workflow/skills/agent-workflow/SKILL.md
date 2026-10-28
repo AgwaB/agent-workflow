@@ -20,6 +20,7 @@ say the same.
 | `workflow_wait` | Wait for a run, **at most 45 s per call** (`runId`, `timeoutMs?` 1000-45000). |
 | `workflow_status` | List runs, or one run with `runId`. |
 | `workflow_inspect` | Details of a run: `failures: true` for failed tasks, `results: true` for task results. |
+| `workflow_logs` | Bounded, redacted tail of task output, stderr and executor events (`runId`, `task?`, `lines?`, `stream?`). |
 | `workflow_stop` | Stop a run (`runId`). Cancelling a wait call does not stop the run. |
 | `workflow_validate` | Check a workflow spec (`workflow`: name or spec path). |
 
@@ -78,6 +79,6 @@ session ends. `workflow_status` finds them again later.
 
 ## Without the MCP tools
 
-The same operations exist in the CLI (`agent-workflow list|run|dynamic|wait|status|inspect|stop|
+The same operations exist in the CLI (`agent-workflow list|run|dynamic|wait|status|inspect|logs|stop|
 validate|resume`). If the CLI is not installed, run it through npx:
 `npx -y --package=@agwab/agent-workflow agent-workflow <command>`.

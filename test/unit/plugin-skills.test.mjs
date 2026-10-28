@@ -63,6 +63,7 @@ test("skill tool names are the host MCP server's tools", () => {
 		"workflow_dynamic",
 		"workflow_inspect",
 		"workflow_list",
+		"workflow_logs",
 		"workflow_run",
 		"workflow_status",
 		"workflow_stop",
