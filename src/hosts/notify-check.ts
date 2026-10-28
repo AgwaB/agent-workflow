@@ -14,8 +14,20 @@
 // returned as seen (creating the directory and baseline when needed, WP39b), so a result the host
 // already showed is not repeated.
 // No model call, no lease; markers of pruned runs are removed.
-import { createHash } from "node:crypto";
-import { access, readdir, readFile, rm, writeFile } from "node:fs/promises";
+// WP42 (review round 1, finding 4): the plugin's prompt hook only reads in shell (a `find -newer`
+// against its stamp); the stamp itself (`hook-<host>.stamp`) is written here (`--stamp <name>`),
+// through the same contained directory as the receipts, after a successful check, with the check's
+// start time as its mtime (a `run.json` changed during the check is looked at again next time).
+import { createHash, randomBytes } from "node:crypto";
+import {
+	access,
+	open,
+	readdir,
+	readFile,
+	rename,
+	rm,
+	writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
 
 import { pendingDynamicApprovals } from "../core/dynamic-approval.js";
@@ -180,6 +192,45 @@ async function pruneMarkers(cwd: string, dir: string): Promise<void> {
 	}
 }
 
+const STAMP_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/u;
+
+/** WP42: a valid `--stamp` name (the hook passes `hook-<host>`); the file is `<name>.stamp`. */
+export function assertNotifyStampName(name: string): void {
+	if (!STAMP_NAME_PATTERN.test(name))
+		throw new Error(
+			`invalid notify-check stamp name ${JSON.stringify(name)}: use 1-64 characters [A-Za-z0-9_-], starting with a letter or digit`,
+		);
+}
+
+/**
+ * WP42: replace `<dir>/<name>.stamp` with an empty file whose mtime is `at`: created exclusively
+ * (O_EXCL never follows a symlink), timed through its own handle, renamed into the contained
+ * directory (a rename replaces a symlink at the stamp path, never its target).
+ */
+async function writeStamp(
+	dir: string,
+	name: string,
+	at: number,
+): Promise<void> {
+	const temporary = join(
+		dir,
+		`.${name}.stamp.${process.pid}.${randomBytes(6).toString("hex")}.tmp`,
+	);
+	try {
+		const handle = await open(temporary, "wx", 0o600);
+		try {
+			const time = new Date(at);
+			await handle.utimes(time, time);
+		} finally {
+			await handle.close();
+		}
+		await rename(temporary, join(dir, `${name}.stamp`));
+	} catch (error) {
+		await rm(temporary, { force: true }).catch(() => undefined);
+		throw error;
+	}
+}
+
 function quote(name: string | undefined): string {
 	return name ? `"${name}" ` : "";
 }
@@ -240,7 +291,8 @@ async function describe(
 
 /**
  * `notify-check`: report the runs of `cwd` that settled since the last check, each settled state
- * once. Empty when the project has no runs (nothing is written then).
+ * once. Empty when the project has no runs (nothing is written then, except the `stamp`).
+ * WP42: `stamp` (the prompt hook's `--stamp hook-<host>`) is written after the check succeeded.
  */
 export async function notifyCheck(
 	cwd: string,
@@ -248,7 +300,23 @@ export async function notifyCheck(
 		host?: WorkflowHostId;
 		now?: number;
 		env?: NodeJS.ProcessEnv;
+		stamp?: string;
 	} = {},
+): Promise<{ data: NotifyCheckData; text: string }> {
+	if (options.stamp !== undefined) assertNotifyStampName(options.stamp);
+	// The stamp's mtime: the wall clock when the check started (the hook compares run.json mtimes).
+	const startedAt = Date.now();
+	const checked = await checkOnce(cwd, options);
+	if (options.stamp !== undefined) {
+		const dir = await containedProjectStateDir(cwd, NOTIFY_CHECK_DIR, true);
+		if (dir) await writeStamp(dir, options.stamp, startedAt);
+	}
+	return checked;
+}
+
+async function checkOnce(
+	cwd: string,
+	options: { host?: WorkflowHostId; now?: number; env?: NodeJS.ProcessEnv },
 ): Promise<{ data: NotifyCheckData; text: string }> {
 	const now = options.now ?? Date.now();
 	const host = options.host ?? "cli";

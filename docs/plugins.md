@@ -174,10 +174,13 @@ context: at the user's next message, each run that finished since the last check
   `tools/release/plugins.mjs`). The hook runs on every prompt, so it starts the CLI only when it has
   something to check: in a project without runs it is a directory test, and after a successful check
   it keeps a stamp (`.agent-workflow/notify-check/hook-claude-code.stamp`) and exits at once unless a
-  `run.json` changed since (one `find`; no `npx` start while nothing changed). The stamp is touched
-  before the check starts and kept only when the check succeeded, so a change during a check or a
-  failed check is looked at again on the next prompt. It never blocks a prompt and prints nothing on
-  errors. Claude Code adds the plain stdout of `UserPromptSubmit` hooks to the
+  `run.json` changed since (one `find`; no `npx` start while nothing changed). The shell only reads
+  (WP42 review round 1: no `mkdir`, `touch` or `mv` on workspace paths, which a symlinked
+  `.agent-workflow` or `notify-check/` could redirect outside the project): the stamp is written by
+  the check itself (`notify-check --stamp hook-claude-code`), through the same contained writer as
+  the receipts, only after the check succeeded, and timed to the check's start, so a change during a
+  check or a failed check is looked at again on the next prompt. It never blocks a prompt and prints
+  nothing on errors. Claude Code adds the plain stdout of `UserPromptSubmit` hooks to the
   context, prefixed `UserPromptSubmit hook success: ` (live bundle 5), so the server instructions and
   the skill speak of a line *containing* `agent-workflow:`, not one starting with it (WP39b). There is no `hooks/hooks.json` (Claude Code loads that file by default, and Codex would
   read it too). The dev plugin runs the checkout's CLI instead of `npx`.

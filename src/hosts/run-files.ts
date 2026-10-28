@@ -28,12 +28,30 @@ export function projectArtifactRoot(cwd: string): string {
 	return join(resolve(cwd), PROJECT_STATE_DIRECTORY);
 }
 
+/** WP42: `path` is a real directory (not a symlink); `create` makes it (one level) when missing. */
+async function realDirectory(path: string, create: boolean): Promise<boolean> {
+	if (create) {
+		try {
+			// Not recursive: mkdir never follows a symlink at `path` (EEXIST) and creates nothing
+			// below an ancestor that was not checked first.
+			await mkdir(path);
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+		}
+	}
+	const info = await lstat(path);
+	return !info.isSymbolicLink() && info.isDirectory();
+}
+
 /**
  * WP19 round 6: a host-owned state directory `<cwd>/.agent-workflow/<name>` that is physically
  * where it claims to be — `.agent-workflow` and `<name>` are real directories (not symlinks) and
  * the real path equals `<real cwd>/.agent-workflow/<name>`. Returns the directory, or `undefined`
  * when it is missing (and `create` is off) or not contained; callers then neither write nor prune
  * there. `create` makes missing directories first; an existing symlinked component still fails.
+ * WP42 (review round 1, finding 4): `create` checks each level before creating the next one
+ * (`.agent-workflow` is a real directory, or is created as one, before `<name>` is created in it),
+ * so nothing is ever created through a symlinked ancestor; the leaf is re-checked afterwards.
  */
 export async function containedProjectStateDir(
 	cwd: string,
@@ -43,7 +61,13 @@ export async function containedProjectStateDir(
 	const stateDir = projectArtifactRoot(cwd);
 	const dir = join(stateDir, name);
 	try {
-		if (create) await mkdir(dir, { recursive: true });
+		if (create) {
+			if (!(await realDirectory(stateDir, true))) return undefined;
+			const cwdReal = await realpath(resolve(cwd));
+			if ((await realpath(stateDir)) !== join(cwdReal, PROJECT_STATE_DIRECTORY))
+				return undefined;
+			if (!(await realDirectory(dir, true))) return undefined;
+		}
 		for (const component of [stateDir, dir]) {
 			const info = await lstat(component);
 			if (info.isSymbolicLink() || !info.isDirectory()) return undefined;

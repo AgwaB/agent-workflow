@@ -179,7 +179,7 @@ One line about this project's active runs, for a status bar such as Claude Code'
 JSON Claude Code passes on stdin (workspace.project_dir, workspace.current_dir, cwd) to find the
 project, else the working directory. Read-only, no model call, never fails loudly (always exit 0).
 Blocked runs show for a day as "needs action" or "awaiting approval".`,
-	"notify-check": `Usage: agent-workflow notify-check [--host cli|claude-code|codex|generic] [--json]
+	"notify-check": `Usage: agent-workflow notify-check [--host cli|claude-code|codex|generic] [--json] [--stamp <name>]
        agent-workflow notify-check --follow [--interval <seconds>] [--host …]
 
 Print one line per run of this project that finished (or now needs the user) since the last check,
@@ -189,7 +189,9 @@ check also reports runs that settled in the hour before; a state that \`wait\` a
 is not repeated). --host picks the follow-up hints (MCP tool calls for claude-code/codex/generic).
 Meant for host hooks that add their output to the conversation (Claude Code plugin: a
 UserPromptSubmit hook); no model call. Exit 0. --follow keeps checking every 5 s (--interval 1-60)
-and prints each new line as it appears, for a long-lived feed such as a Claude Code plugin monitor.`,
+and prints each new line as it appears, for a long-lived feed such as a Claude Code plugin monitor.
+--stamp <name> (for a prompt hook's idle test) writes .agent-workflow/notify-check/<name>.stamp
+after a successful check, timed to the check's start.`,
 	help: `Usage: agent-workflow help [<command>]`,
 };
 
