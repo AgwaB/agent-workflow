@@ -53,6 +53,7 @@ test("review #3: Pi prune through a symlinked <stateDir>/runs keeps the outside 
 	const summary = await pruneAdapterAttemptState({
 		stateDir,
 		classify: (value) => classifyPiAttemptRecord(stateDir, value),
+		attemptDigestLength: 64,
 	});
 	assert.equal(existsSync(sentinel), true, "outside sentinel was deleted");
 	assert.ok(
@@ -86,6 +87,7 @@ test("review #3: a symlinked <stateDir>/attempts is refused (outside records sur
 	const summary = await pruneAdapterAttemptState({
 		stateDir,
 		classify: classifyCodexAttemptRecord,
+		attemptDigestLength: 32,
 	});
 	assert.equal(existsSync(record), true, "outside record was deleted");
 	assert.equal(existsSync(companion), true, "outside companion was deleted");

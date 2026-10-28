@@ -31,8 +31,8 @@ async function oldFile(path, text) {
 	await fs.utimes(path, OLD, OLD);
 }
 
-/** Unrelated content plus genuine adapter orphans (old, no record). */
-async function fixtures(stateDir) {
+/** Unrelated content plus genuine orphans of an adapter whose digest is `length` hex (old). */
+async function fixtures(stateDir, length = 32) {
 	const dir = join(stateDir, "attempts");
 	await fs.mkdir(join(dir, "manual-evidence"), { recursive: true });
 	await oldFile(
@@ -46,13 +46,24 @@ async function fixtures(stateDir) {
 		JSON.stringify({ schema: "other-tool", keep: true }),
 	);
 	await oldFile(join(dir, "notes.log"), "not an adapter log\n");
-	// Genuine orphans an adapter left behind.
-	await oldFile(join(dir, `${"a".repeat(32)}.events.jsonl`), "{}\n");
-	await oldFile(join(dir, `${"b".repeat(40)}.log`), "log\n");
-	await oldFile(join(dir, `${"c".repeat(64)}.json.123.0a1b2c3d.tmp`), "{");
-	await fs.mkdir(join(dir, "d".repeat(40)));
-	await fs.utimes(join(dir, "d".repeat(40)), OLD, OLD);
+	// Genuine orphans this adapter left behind.
+	for (const name of orphanNames(length)) {
+		if (name === "d".repeat(length)) {
+			await fs.mkdir(join(dir, name));
+			await fs.utimes(join(dir, name), OLD, OLD);
+		} else await oldFile(join(dir, name), "{}\n");
+	}
 	return dir;
+}
+
+function orphanNames(length) {
+	return [
+		`${"a".repeat(length)}.events.jsonl`,
+		`${"b".repeat(length)}.log`,
+		`${"c".repeat(length)}.json.123.0a1b2c3d.tmp`,
+		`${"c".repeat(length)}.json.123.tmp`,
+		"d".repeat(length),
+	];
 }
 
 const KEPT = [
@@ -64,8 +75,9 @@ const KEPT = [
 
 test("prune keeps unidentified old files and directories, removes genuine orphans", async (t) => {
 	const home = await temp(t);
-	for (const id of ["claude", "codex", "pi"])
-		await fixtures(join(home, "executors", id));
+	const lengths = { claude: 40, codex: 32, pi: 64 };
+	for (const [id, length] of Object.entries(lengths))
+		await fixtures(join(home, "executors", id), length);
 	const env = { ...process.env, AGENT_WORKFLOW_HOME: home };
 	await pruneExecutorAdapterState({ env, dryRun: false });
 	for (const id of ["claude", "codex", "pi"]) {
@@ -92,22 +104,52 @@ test("prune keeps unidentified old files and directories, removes genuine orphan
 
 test("background retention never removes unrelated old content", async (t) => {
 	const stateDir = await temp(t);
-	const dir = await fixtures(stateDir);
+	const dir = await fixtures(stateDir, 32);
 	schedulePeriodicAdapterStatePrune({
 		stateDir,
 		classify: classifyCodexAttemptRecord,
+		attemptDigestLength: 32,
 	});
-	// The background pass removes the orphans one by one: wait until all four are gone.
-	const orphans = [
-		`${"a".repeat(32)}.events.jsonl`,
-		`${"b".repeat(40)}.log`,
-		`${"c".repeat(64)}.json.123.0a1b2c3d.tmp`,
-		"d".repeat(40),
-	];
+	// The background pass removes the orphans one by one: wait until all are gone.
+	const orphans = orphanNames(32);
 	for (let i = 0; i < 300; i += 1) {
 		const names = await fs.readdir(dir);
 		if (!orphans.some((name) => names.includes(name))) break;
 		await new Promise((resolve) => setTimeout(resolve, 50));
 	}
 	assert.deepEqual((await fs.readdir(dir)).sort(), KEPT);
+});
+
+test("round 8: only the adapter's exact digest length is an orphan (a 56-hex SHA-224 name is kept)", async (t) => {
+	const home = await temp(t);
+	const lengths = { claude: 40, codex: 32, pi: 64 };
+	for (const [id, length] of Object.entries(lengths)) {
+		const dir = join(home, "executors", id, "attempts");
+		await fs.mkdir(join(dir, "e".repeat(56)), { recursive: true });
+		await fs.writeFile(join(dir, "e".repeat(56), "valuable.json"), "keep\n");
+		await fs.utimes(join(dir, "e".repeat(56)), OLD, OLD);
+		await oldFile(join(dir, `${"f".repeat(56)}.log`), "keep\n");
+		// Another adapter's digest length is not this adapter's orphan either.
+		const other = length === 32 ? 40 : 32;
+		await oldFile(join(dir, `${"1".repeat(other)}.log`), "keep\n");
+		// This adapter's own length is.
+		await oldFile(join(dir, `${"2".repeat(length)}.log`), "orphan\n");
+	}
+	const env = { ...process.env, AGENT_WORKFLOW_HOME: home };
+	await pruneExecutorAdapterState({ env, dryRun: false });
+	for (const [id, length] of Object.entries(lengths)) {
+		const other = length === 32 ? 40 : 32;
+		const names = (
+			await fs.readdir(join(home, "executors", id, "attempts"))
+		).sort();
+		assert.deepEqual(
+			names,
+			[
+				`${"1".repeat(other)}.log`,
+				"e".repeat(56),
+				`${"f".repeat(56)}.log`,
+			].sort(),
+			`${id}: ${names.join(",")}`,
+		);
+	}
 });

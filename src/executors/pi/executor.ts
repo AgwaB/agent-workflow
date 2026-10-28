@@ -520,6 +520,7 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 		schedulePeriodicAdapterStatePrune({
 			stateDir,
 			classify: (record) => classifyPiAttemptRecord(stateDir, record),
+			attemptDigestLength: 64,
 		});
 		const runDir =
 			req.artifactsDir ?? join(stateDir, "runs", attemptDigest(key));
