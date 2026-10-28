@@ -107,6 +107,9 @@ agent-workflow show <run> --raw               # the run record
 agent-workflow resume <run> [--detach]        # reset failed/interrupted/resumable blocked tasks, continue
 agent-workflow approve <run> [--reject]       # answer a dynamic-controller approval the run waits on
 agent-workflow stop <run>                     # durable stop intent; workers are cancelled
+agent-workflow watch [<run>]                  # live terminal view (read-only), e.g. next to Codex
+agent-workflow statusline                     # one-line status, e.g. Claude Code's statusLine.command
+agent-workflow notify-check                   # runs that finished since the last check (host hooks)
 agent-workflow prune --keep 20 --yes          # delete old terminal runs (dry run without --yes)
 ```
 

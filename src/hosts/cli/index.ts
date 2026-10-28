@@ -52,6 +52,9 @@ import {
 	workflowPreferenceAction,
 	workflowRolesAction,
 } from "../api.js";
+import { notifyCheck } from "../notify-check.js";
+import { runWatch, WATCH_DEFAULT_INTERVAL_MS } from "../watch.js";
+import { runStatusLine } from "./statusline.js";
 
 export const MODULE = "src/hosts/cli";
 
@@ -70,6 +73,12 @@ export interface CliIo {
 	signal?: AbortSignal;
 	/** Bound of each underlying wait call (default and cap 45 s; tests use less). */
 	waitSliceMs?: number;
+	/** WP36: terminal height for `watch` (bounds the task rows). */
+	rows?: number;
+	/** WP36: `watch` sleeps between frames (tests pass a fake). */
+	sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
+	/** WP36: clock of `watch`, `statusline` and `notify-check` (tests pass a fake). */
+	now?: () => number;
 }
 
 export const EXIT_OK = 0;
@@ -138,6 +147,7 @@ export function processCliIo(): CliIo {
 		stderr: (text) => process.stderr.write(text),
 		isTTY: Boolean(process.stdin.isTTY && process.stdout.isTTY),
 		prompt: defaultPrompt,
+		...(process.stdout.rows ? { rows: process.stdout.rows } : {}),
 	};
 }
 
@@ -805,6 +815,113 @@ async function dispatch(
 		case "doctor":
 			only(parseCommandArgs(argv, jsonOnly), 0, "doctor [--json]");
 			return emit(await doctorAction(ctx));
+		case "statusline":
+			// Never fails loudly (the bin takes a faster path to the same function).
+			return runStatusLine({
+				cwd: io.cwd,
+				stdout: io.stdout,
+				...(io.now ? { now: io.now } : {}),
+			});
+		case "watch": {
+			const parsed = parseCommandArgs(argv, {
+				flags: ["--follow", "--once", "--bell"],
+				values: ["--interval"],
+			});
+			if (parsed.positionals.length > 1)
+				throw new HostUsageError(
+					"Usage: watch [<run-id-or-prefix>] [--follow] [--once] [--interval <seconds>] [--bell]",
+				);
+			const interval = parsed.values.get("--interval");
+			let intervalMs = WATCH_DEFAULT_INTERVAL_MS;
+			if (interval !== undefined) {
+				const seconds = Number(interval);
+				if (!/^\d+(\.\d+)?$/.test(interval) || seconds < 1 || seconds > 10)
+					throw new HostUsageError("--interval takes seconds between 1 and 10");
+				intervalMs = Math.round(seconds * 1000);
+			}
+			const [runRef] = parsed.positionals;
+			return runWatch({
+				cwd: io.cwd,
+				...(runRef ? { runRef } : {}),
+				follow: parsed.flags.has("--follow"),
+				once: parsed.flags.has("--once"),
+				bell: parsed.flags.has("--bell"),
+				intervalMs,
+				isTTY: io.isTTY,
+				color: io.isTTY && !io.env.NO_COLOR,
+				...(io.rows ? { rows: io.rows } : {}),
+				env: io.env,
+				write: io.stdout,
+				...(io.now ? { now: io.now } : {}),
+				...(io.sleep ? { sleep: io.sleep } : {}),
+				...(io.signal ? { signal: io.signal } : {}),
+			});
+		}
+		case "notify-check": {
+			const parsed = parseCommandArgs(argv, {
+				flags: ["--json", "--follow"],
+				values: ["--host", "--interval"],
+			});
+			only(
+				parsed,
+				0,
+				"notify-check [--host cli|claude-code|codex|generic] [--json] [--follow [--interval <seconds>]]",
+			);
+			const host = parsed.values.get("--host") ?? "cli";
+			if (!["cli", "claude-code", "codex", "generic", "pi"].includes(host))
+				throw new HostUsageError(
+					`Unknown --host "${host}" (cli, claude-code, codex, generic, pi)`,
+				);
+			const follow = parsed.flags.has("--follow");
+			if (follow && parsed.flags.has("--json"))
+				throw new HostUsageError("--follow cannot be combined with --json");
+			const interval = parsed.values.get("--interval");
+			if (interval !== undefined && !follow)
+				throw new HostUsageError("--interval needs --follow");
+			const seconds = interval === undefined ? 5 : Number(interval);
+			if (!/^\d+$/.test(interval ?? "5") || seconds < 1 || seconds > 60)
+				throw new HostUsageError(
+					"--interval takes whole seconds between 1 and 60",
+				);
+			const check = () =>
+				notifyCheck(io.cwd, {
+					host: host as NonNullable<HostApiContext["host"]>,
+					env: io.env,
+					...(io.now ? { now: io.now() } : {}),
+				});
+			if (follow) {
+				// WP36: a long-lived feed (for example a Claude Code plugin monitor, whose output lines
+				// reach the session as notifications): one line per newly settled run.
+				const sleep =
+					io.sleep ??
+					((ms: number, signal?: AbortSignal) =>
+						new Promise<void>((done) => {
+							const timer = setTimeout(done, ms);
+							signal?.addEventListener(
+								"abort",
+								() => {
+									clearTimeout(timer);
+									done();
+								},
+								{ once: true },
+							);
+						}));
+				while (!io.signal?.aborted) {
+					const checked = await check().catch(() => undefined);
+					if (checked?.text) io.stdout(`${checked.text}\n`);
+					await sleep(seconds * 1000, io.signal);
+				}
+				return EXIT_OK;
+			}
+			const checked = await check();
+			if (parsed.flags.has("--json"))
+				io.stdout(
+					`${JSON.stringify({ action: "notify-check", ok: true, outcome: "success", data: checked.data }, null, 2)}\n`,
+				);
+			// Nothing to report prints nothing (a hook adds stdout to the model's context).
+			else if (checked.text) io.stdout(`${checked.text}\n`);
+			return EXIT_OK;
+		}
 		case "supervise": {
 			const options = parseSuperviseArgs(argv);
 			const supervised = await superviseAction(ctx, {

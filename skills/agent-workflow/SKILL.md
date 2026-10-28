@@ -59,8 +59,12 @@ Use whichever form your tool list shows.
    You get **no completion push**: the run reports only through `workflow_wait`/`workflow_status`.
    If it is still running when you stop waiting (for example a long rate-limit backoff: the wait
    result then has `nextRetry` with the retry time and reason), tell the user the `runId`, what the
-   run is waiting for (the retry time and reason, or its running tasks), and that they can ask you
-   again later for the result.
+   run is waiting for (the retry time and reason, or its running tasks), that they can ask you
+   again later for the result, and that they can follow it live in a terminal with
+   `agent-workflow watch <runId>` (in Claude Code, `agent-workflow statusline` as the `statusLine`
+   command shows active runs). A line `agent-workflow: workflow … finished — …` at the start of a
+   later turn comes from the completion check (`agent-workflow notify-check`, run by the Claude
+   Code plugin's prompt hook): tell the user, with the verdict and report path it names.
 4. `terminal: true`: the run finished. Quote the result preview and give the report paths verbatim
    (the `reportArtifacts`/paths the tool prints). Do not paraphrase or re-summarize the report; read
    the report file only if the user wants details.

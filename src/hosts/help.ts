@@ -1,6 +1,7 @@
 // New in agent-workflow (WP11a): command help shared by the `agent-workflow` CLI and the host API
 // `help` action (stage-2 hosts reuse the same text). WP17: `doctor` and the default-executor line.
 // WP31: profile roles, presets and per-workflow preferences.
+// WP36: statusline, watch, notify-check.
 import { HostUsageError } from "./args.js";
 import { type HostResult, result } from "./types.js";
 
@@ -142,6 +143,33 @@ not usable); which executor a run here uses by default and why; the permission-m
 Node version; AGENT_WORKFLOW_HOME and whether it is writable; Codex environment warnings (allow
 rules, global AGENTS.md; counts only); stale run-index entries. Exit 0 when at least one executor is
 usable, 1 otherwise.`,
+	watch: `Usage: agent-workflow watch [<run-id-or-prefix>] [--follow] [--once] [--interval <seconds>]
+                              [--bell]
+
+Live view of this project's active runs, or of one run, in a terminal (for example a pane next to
+Codex or Claude Code): tasks, status, elapsed time, pending approvals and, when the run is done, the
+verdict and report paths. Redraws every 2 s (--interval 1-10). Read-only: it never drives a run; a
+run without a live supervisor is flagged with the \`supervise\` command. Exits when the run (or every
+watched run) finished or needs action; --follow keeps watching, --once prints one frame, --bell
+rings the terminal bell at the end. Exit code with a run: 0 when it completed, 1 otherwise.`,
+	statusline: `Usage: agent-workflow statusline
+
+One line about this project's active runs, for a status bar such as Claude Code's
+\`statusLine.command\`: "aw: deep-review 5/13 running 12m · +1 more"; nothing when idle. Reads the
+JSON Claude Code passes on stdin (workspace.project_dir, workspace.current_dir, cwd) to find the
+project, else the working directory. Read-only, no model call, never fails loudly (always exit 0).
+Blocked runs show for a day as "needs action" or "awaiting approval".`,
+	"notify-check": `Usage: agent-workflow notify-check [--host cli|claude-code|codex|generic] [--json]
+       agent-workflow notify-check --follow [--interval <seconds>] [--host …]
+
+Print one line per run of this project that finished (or now needs the user) since the last check,
+for example "workflow \"deep-review\" (run …) finished — verdict NEEDS_WORK, report …"; nothing
+otherwise. Each settled state is printed once (receipts in .agent-workflow/notify-check/; the first
+check also reports runs that settled in the hour before; a state that \`wait\` already returned
+is not repeated). --host picks the follow-up hints (MCP tool calls for claude-code/codex/generic).
+Meant for host hooks that add their output to the conversation (Claude Code plugin: a
+UserPromptSubmit hook); no model call. Exit 0. --follow keeps checking every 5 s (--interval 1-60)
+and prints each new line as it appears, for a long-lived feed such as a Claude Code plugin monitor.`,
 	help: `Usage: agent-workflow help [<command>]`,
 };
 
@@ -171,6 +199,9 @@ Runs:
   prune                      delete old terminal runs (dry run without --yes)
   notices ...                acknowledge unfinished-run notices
   supervise <run>|--all      drive runs from a standalone process
+  watch [run]                live terminal view of active runs (read-only)
+  statusline                 one-line run status for a status bar (Claude Code statusLine)
+  notify-check               report runs that finished since the last check (host hooks)
 
 Setup:
   doctor                     check executors, logins and the default executor (no model calls)

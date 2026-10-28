@@ -40,10 +40,13 @@ node <package>/dist/mcp/host-server/server.js --host <claude-code|codex|generic>
    `verdict=X`) is the workflow's result with a non-passing verdict, not a workflow failure (WP18b).
    WP19: `verdictGate` is set only with a declared domain verdict and a report file inside the run
    directory; every other failed run is a real failure and is reported as one.
-5. No completion push (WP18b): a run reports only through `workflow_wait`/`workflow_status`. If it is
-   still running when the host stops waiting (for example a 15-minute rate-limit backoff; the wait
-   result's `nextRetry` and the footer's `nextRetryAt=` give the retry time and reason), the host
-   tells the user the `runId`, what the run waits for, and that they can ask again.
+5. No completion push (WP18b; WP36 below): a run reports only through `workflow_wait`/`workflow_status`.
+   If it is still running when the host stops waiting (for example a 15-minute rate-limit backoff;
+   the wait result's `nextRetry` and the footer's `nextRetryAt=` give the retry time and reason), the
+   host tells the user the `runId`, what the run waits for, that they can ask again, and (WP36) that
+   they can follow it with `agent-workflow watch <runId>` in a terminal or Claude Code's
+   `agent-workflow statusline`. A later `agent-workflow: workflow … finished — …` line in the
+   conversation comes from the completion check; the host relays it.
 6. WP28: the other CLI commands are tools. `workflow_resume` and `workflow_supervise` start model
    calls (cost), so only on request; the changing calls below ask the user first.
 7. WP29: a run blocked on a dynamic-controller approval has `pendingApprovals` (the question and its
@@ -206,6 +209,32 @@ in that directory's run store (`<cwd>/.agent-workflow/`), so later calls must pa
 run) and no response is sent. A `workflow_wait` call with `_meta.progressToken` gets
 `notifications/progress` (`progress` counts updates, `message` = completed/total/running).
 
+## Completion delivery (WP36)
+
+Investigation with the installed Claude Code 2.1.310 and Codex 0.159.2, evidence per mechanism:
+[host-ux-investigation.md](host-ux-investigation.md). Summary:
+
+- **The server cannot push.** Claude Code shows no server `notifications/message` or resource
+  updates to the model, and MCP progress (sent by `workflow_wait` for a `progressToken`) only
+  updates a backgrounded call's `/tasks` entry. Claude Code's MCP tasks (beta from 2.1.304) need
+  protocol `2026-07-28`; this server speaks up to `2025-11-25`. Codex 0.159.2 has MCP `2026-07-28`
+  behind an off feature flag. Claude Code moves a tool call that runs past 2 minutes to the
+  background and delivers its result as a task notification, but `workflow_wait` returns within
+  45 s by design.
+- **Common mechanism (E2): `agent-workflow notify-check`** prints one line per run that settled
+  since the last check, each state once (receipts in `.agent-workflow/notify-check/`; a state that
+  `workflow_wait` returned is marked seen and not repeated). The Claude Code plugin runs it from a
+  `UserPromptSubmit` hook, whose stdout Claude Code adds to the context: the result reaches the
+  conversation at the user's next message. Codex: the same hook as user configuration
+  ([plugins.md](plugins.md#completion-check-hook)).
+- **Progress display (E1):** `agent-workflow statusline` as Claude Code's `statusLine.command` (user
+  setting; plugins cannot set it) and `agent-workflow watch [runId]` in a terminal next to either host
+  ([cli.md](cli.md#statusline-watch-notify-check)).
+- **Push candidates needing live checks (bundle 5):** a Claude Code plugin monitor running
+  `notify-check --follow`, an `asyncRewake` hook, a long `workflow_wait` that Claude Code
+  backgrounds, the MCP tasks extension, and `codex queue` (one model turn per delivery). None is
+  enabled until verified (owner decision Q6).
+
 ## Tests
 
 `test/unit/mcp-host-tools.test.mjs` (fake client, in-process: every tool, equality with the host API
@@ -230,3 +259,5 @@ without elicitation, accept continues, decline rejects, cancel/error record noth
   live-only: Codex's tool names in a model turn, whether Codex shows `content` or
   `structuredContent`, and elicitation support in practice.
 - WP17: default executor from `ctx.host`; until then an omitted `executor` uses the engine default.
+- WP36: live checks L1-L6 of [host-ux-investigation.md](host-ux-investigation.md) decide which
+  push mechanism, if any, is added per host.

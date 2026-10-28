@@ -28,5 +28,18 @@
         "claude-code"
       ]
     }
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"${CLAUDE_PROJECT_DIR:-.}\"; [ -d \"$d/.agent-workflow/workflows\" ] || exit 0; cd \"$d\" && npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow notify-check --host claude-code 2>/dev/null; exit 0",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
   }
 }
