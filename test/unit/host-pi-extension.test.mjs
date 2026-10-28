@@ -455,6 +455,11 @@ test("/aw run, status, show, inspect, wait, resume, stop: delegation with launch
 		effort: "low",
 		forceNew: true,
 		interactive: true,
+		// WP33: launch capture (the host API redacts it before writing).
+		launchOrigin: {
+			kind: "command",
+			text: `/aw run --executor ${HOOK_EXECUTOR} wf.json "collect the facts --literal" --permission-mode free --effort low --force-new`,
+		},
 	});
 	assert.equal(typeof confirmDegradations, "function");
 	assert.equal(typeof selectProfile, "function");
@@ -568,6 +573,19 @@ test("tools: aw_list, aw_run, aw_wait (long wait, semantic fields, preview) and 
 		allowUnverifiedCapabilities: ["contextIsolation"],
 		model: "m-1",
 		interactive: true,
+		// WP33: launch capture: the tool call's arguments.
+		launchOrigin: {
+			kind: "tool",
+			name: "aw_run",
+			arguments: {
+				workflow: "wf.json",
+				task: "tool task",
+				executor: HOOK_EXECUTOR,
+				permissionMode: "free",
+				model: "m-1",
+				allowUnverified: ["contextIsolation"],
+			},
+		},
 	});
 	assert.equal(started.details.outcome, "running");
 	assert.equal(started.details.status, "running");
@@ -897,7 +915,14 @@ test("./hosts/pi entry: clear error without Pi; nothing else imports the Pi host
 		piAvailable = false;
 	}
 	const pkg = JSON.parse(readFileSync(join(repo, "package.json"), "utf8"));
-	assert.deepEqual(pkg.pi, { extensions: ["./dist/hosts/pi/index.js"] });
+	// WP33: plus the aw- named Pi skills (host-wp33-pi-skills.test.mjs).
+	assert.deepEqual(pkg.pi, {
+		extensions: ["./dist/hosts/pi/index.js"],
+		skills: [
+			"./plugins/pi/skills/aw-workflow-guide",
+			"./plugins/pi/skills/aw-execution-router",
+		],
+	});
 	assert.equal(pkg.exports["./hosts/pi"].default, "./dist/hosts/pi/index.js");
 	for (const peer of [
 		"@earendil-works/pi-coding-agent",

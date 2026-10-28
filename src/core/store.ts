@@ -41,6 +41,7 @@ import {
 	type WorkflowIndexRecord,
 	type WorkflowRunDegradation,
 	type WorkflowRunLaunchCapture,
+	type WorkflowRunLaunchCommandFidelity,
 	type WorkflowRunLaunchCommandMetadata,
 	type WorkflowRunLaunchMetadata,
 	type WorkflowRunProvenance,
@@ -432,6 +433,7 @@ export async function writeWorkflowLaunchCommandArtifact(
 	cwd: string,
 	runId: string,
 	text: string,
+	fidelity: WorkflowRunLaunchCommandFidelity = "pi-extension-command-v1",
 ): Promise<Extract<WorkflowRunLaunchCommandMetadata, { state: "captured" }>> {
 	assertSafeRunId(runId);
 	if (typeof text !== "string")
@@ -526,7 +528,7 @@ export async function writeWorkflowLaunchCommandArtifact(
 			encoding: "utf-8",
 			bytes: bytes.byteLength,
 			sha256: createHash("sha256").update(bytes).digest("hex"),
-			fidelity: "pi-extension-command-v1",
+			fidelity,
 			sensitivity: "user-input",
 			disclosure: "explicit-only",
 		};
@@ -634,7 +636,77 @@ export function isWorkflowRunLaunchMetadata(
 	value: unknown,
 ): value is WorkflowRunLaunchMetadata {
 	return (
-		isWorkflowRunLaunchMetadataV1(value) || isWorkflowRunLaunchMetadataV2(value)
+		isWorkflowRunLaunchMetadataV1(value) ||
+		isWorkflowRunLaunchMetadataV2(value) ||
+		isWorkflowRunLaunchMetadataHostV1(value)
+	);
+}
+
+/** WP33: the host-neutral launch metadata (`agent-workflow-run-launch-v1`). */
+function isWorkflowRunLaunchMetadataHostV1(value: unknown): boolean {
+	if (
+		!isPlainRecordWithKeys(value, [
+			"schema",
+			"source",
+			"entry",
+			"requestKind",
+			"routingMode",
+			"profile",
+			"task",
+			"command",
+		])
+	)
+		return false;
+	if (value.schema !== "agent-workflow-run-launch-v1") return false;
+	if (!isWorkflowLaunchHostSource(value.source)) return false;
+	const entry = value.entry;
+	const command = value.command;
+	let fidelity: WorkflowRunLaunchCommandFidelity;
+	if (isPlainRecordWithKeys(entry, ["kind", "action"])) {
+		if (
+			entry.kind !== "command" ||
+			(entry.action !== "run" && entry.action !== "dynamic")
+		)
+			return false;
+		if ((entry.action === "run") !== (value.requestKind === "named-workflow"))
+			return false;
+		fidelity = "agent-workflow-host-command-v1";
+	} else if (isPlainRecordWithKeys(entry, ["kind", "name"])) {
+		if (
+			entry.kind !== "tool" ||
+			typeof entry.name !== "string" ||
+			!/^[A-Za-z0-9_.:-]{1,128}$/.test(entry.name)
+		)
+			return false;
+		fidelity = "agent-workflow-tool-call-v1";
+	} else return false;
+	if (
+		value.requestKind !== "named-workflow" &&
+		value.requestKind !== "direct-dynamic"
+	)
+		return false;
+	if (value.routingMode !== "off") return false;
+	if (
+		!isWorkflowLaunchProfile(value.profile) ||
+		!isWorkflowLaunchTask(value.task)
+	)
+		return false;
+	const profile = value.profile as Record<string, unknown>;
+	if (
+		value.requestKind === "direct-dynamic"
+			? profile.kind !== "not-applicable"
+			: profile.kind === "not-applicable"
+	)
+		return false;
+	if (!isWorkflowLaunchMetadataCommand(command, [fidelity])) return false;
+	return (command as Record<string, unknown>).state === "captured";
+}
+
+function isWorkflowLaunchHostSource(value: unknown): boolean {
+	return (
+		value === "cli" ||
+		value === "pi" ||
+		(typeof value === "string" && /^mcp:[a-z0-9][a-z0-9-]{0,63}$/.test(value))
 	);
 }
 
@@ -759,6 +831,32 @@ function isWorkflowRunLaunchCapture(
 			command: captureCommandAsMetadata(command),
 		});
 	}
+	if (record.schema === "agent-workflow-run-launch-v1") {
+		if (
+			!isPlainRecordWithKeys(record, [
+				"schema",
+				"source",
+				"entry",
+				"requestKind",
+				"routingMode",
+				"profile",
+				"task",
+				"command",
+			]) ||
+			command.state !== "captured"
+		)
+			return false;
+		const entry = record.entry as Record<string, unknown> | undefined;
+		return isWorkflowRunLaunchMetadataHostV1({
+			...record,
+			command: captureCommandAsMetadata(
+				command,
+				entry?.kind === "tool"
+					? "agent-workflow-tool-call-v1"
+					: "agent-workflow-host-command-v1",
+			),
+		});
+	}
 	if (record.schema === "pi-workflow-run-launch-v2") {
 		if (
 			!isPlainRecordWithKeys(record, [
@@ -789,6 +887,7 @@ function isWorkflowRunLaunchCapture(
 /* Capture validation needs semantic fields but must not persist/reveal the raw command. */
 function captureCommandAsMetadata(
 	command: Record<string, unknown>,
+	fidelity: WorkflowRunLaunchCommandFidelity = "pi-extension-command-v1",
 ): Record<string, unknown> {
 	if (command.state === "captured") {
 		const text = command.text;
@@ -798,7 +897,7 @@ function captureCommandAsMetadata(
 			encoding: "utf-8",
 			bytes: typeof text === "string" ? Buffer.byteLength(text, "utf8") : -1,
 			sha256: "0".repeat(64),
-			fidelity: "pi-extension-command-v1",
+			fidelity,
 			sensitivity: "user-input",
 			disclosure: "explicit-only",
 		};
@@ -928,7 +1027,12 @@ function isWorkflowAutoSelection(value: unknown): boolean {
 	);
 }
 
-function isWorkflowLaunchMetadataCommand(value: unknown): value is
+function isWorkflowLaunchMetadataCommand(
+	value: unknown,
+	fidelities: readonly WorkflowRunLaunchCommandFidelity[] = [
+		"pi-extension-command-v1",
+	],
+): value is
 	| { state: "unavailable"; reason: "not-a-command" }
 	| {
 			state: "captured";
@@ -936,7 +1040,7 @@ function isWorkflowLaunchMetadataCommand(value: unknown): value is
 			encoding: "utf-8";
 			bytes: number;
 			sha256: string;
-			fidelity: "pi-extension-command-v1";
+			fidelity: WorkflowRunLaunchCommandFidelity;
 			sensitivity: "user-input";
 			disclosure: "explicit-only";
 	  } {
@@ -959,7 +1063,7 @@ function isWorkflowLaunchMetadataCommand(value: unknown): value is
 		isNonNegativeSafeInteger(value.bytes) &&
 		typeof value.sha256 === "string" &&
 		/^[0-9a-f]{64}$/.test(value.sha256) &&
-		value.fidelity === "pi-extension-command-v1" &&
+		fidelities.includes(value.fidelity as WorkflowRunLaunchCommandFidelity) &&
 		value.sensitivity === "user-input" &&
 		value.disclosure === "explicit-only"
 	);

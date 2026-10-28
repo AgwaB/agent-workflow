@@ -532,9 +532,34 @@ test("host identity, detach default true, launch options and cwd reach the host 
 		detach: true,
 		forceNew: true,
 		inputOverrides: { depth: "quick" },
+		// WP33: launch capture: the tool call's arguments (redacted by the host API).
+		launchOrigin: {
+			kind: "tool",
+			name: "workflow_run",
+			arguments: {
+				workflow: "deep-review",
+				task: "review this",
+				executor: "codex",
+				profile: "fast",
+				permissionMode: "safe",
+				allowUnverified: ["mcp.stdio"],
+				model: "m",
+				effort: "high",
+				forceNew: true,
+				inputs: { depth: "quick" },
+				cwd: "sub",
+			},
+		},
 	});
 	assert.equal(dynamic.ctx.host, "claude-code");
-	assert.deepEqual(dynamic.request, { task: "explore" });
+	assert.deepEqual(dynamic.request, {
+		task: "explore",
+		launchOrigin: {
+			kind: "tool",
+			name: "workflow_dynamic",
+			arguments: { task: "explore", detach: false },
+		},
+	});
 	assert.equal(list.ctx.cwd, cwd);
 	assert.equal(list.ctx.host, "claude-code");
 });

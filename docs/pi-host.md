@@ -26,8 +26,15 @@ pi -e npm:@agwab/agent-workflow
 pi install npm:@agwab/agent-workflow        # personal; add -l for the project
 ```
 
-The package manifest declares only the extension. The bundled `skills/` are not exposed through Pi:
-their names (`workflow-guide`, `execution-router`) equal pi-workflow's skills.
+The package manifest declares the extension and (WP33, owner decision Q10) two Pi skills with the
+`aw-` prefix: `aw-workflow-guide` (workflow authoring, scaffolds) and `aw-execution-router` (route
+recommendation). Pi resolves a skill by its frontmatter `name` (not the directory) and keeps the first
+skill of a name, and pi-workflow ships `workflow-guide` and `execution-router`, so the Pi copies are
+renamed: `node tools/release/plugins.mjs build` generates `plugins/pi/skills/aw-*/SKILL.md` from
+`skills/` (the source of truth; only the name, the relative paths into the package and the skill
+cross-reference change; `check` fails on drift) and package.json `pi.skills` lists them. The
+`agent-workflow` skill (the MCP tool protocol) is not exposed in Pi: the `aw_*` tools carry their own
+prompt guidelines. Use them with `/skill:aw-workflow-guide` or `/skill:aw-execution-router`.
 
 Importing `@agwab/agent-workflow/hosts/pi` outside Pi without the peer fails with
 `PiHostUnavailableError` ("… is a Pi extension and needs the Pi coding agent …") instead of a bare
@@ -219,7 +226,7 @@ again only when its status/updatedAt changed, its acknowledgement became stale, 
 
 Port of pi-workflow's feedback delivery (`bindWorkflowFeedbackAudience`, `watchWorkflowFeedback`,
 `deliverWorkflowFeedback`, `deliverMissedWorkflowFeedback`, per-epoch receipts) and of its active-run
-status entry, without the board widget or the presentation lease. Only with a UI (TUI or RPC;
+status entry, without the board widget (WP33 adds the presentation lease, below). Only with a UI (TUI or RPC;
 `ctx.hasUI`, not print/JSON mode).
 
 - **Audience.** A run launched (or resumed, or returned as `existing`) by `/aw run|dynamic|resume`,
@@ -339,6 +346,23 @@ status entry, without the board widget or the presentation lease. Only with a UI
   truth after eviction. Residual: evicting a *non-durable* entry (its `sent` publication failed)
   of a still-live queue, i.e. more than 256 such entries, falls back to the receipt rules.
 
+- **Session-owned waits (WP33, parity row 20; pi-workflow `workflow_wait` session binding).** The
+  session that owns a run (its audience) presents its completion. `aw_wait` refuses a run another
+  Pi session owns (`run … is owned by another Pi session`; a context without a session id owns
+  nothing); a run no session owns (CLI, MCP, print mode) can be waited on and nothing is recorded.
+  While an agent of the owning session waits (`aw_wait`, or `aw_run`/`aw_dynamic` with
+  `awaitTerminal`, which now track the run before waiting), the tracker holds an in-process
+  *presentation lease* for that run: it keeps the status line but does not send the completion. A
+  wait that returns the settled run is its presentation: the receipt of that epoch is written as
+  `sent` with `channel: "tool-result"` and `presentedBy`, the run is no longer tracked and the tool
+  result's `details.feedbackEpoch` lets the session history confirm it (an `aw_*` `toolResult`
+  entry with that `runId` and epoch counts like the completion message). So every WP19 rule above
+  applies unchanged: no completion message into the same live queue; after a crash or a disposed
+  queue, a history without that tool result gets the message once. A wait that ends first
+  (timeout, cancel) releases the lease and the tracker delivers as before. When the message reached
+  the session before the wait returned, the result says so (`details.completionAlreadyDelivered`,
+  "The completion message of this result was already delivered to this session."). `/aw wait` (a
+  user command) does not present: the message still follows.
 - **Concurrent deliveries (WP19 round 2, N3).** A delivery keeps in-process ownership of its
   reservation through its final `sent` transition; a concurrent delivery of the same epoch in this
   process returns `in-flight` without sending. Every receipt transition (reserve, drop, sent,
@@ -356,6 +380,43 @@ status entry, without the board widget or the presentation lease. Only with a UI
   re-checks the session generation and context after each await and right before scheduling, so it
   tracks nothing and starts no timer; a poll that finds no session context clears the timer.
 
+## Active workflows widget and foreground loader (WP33)
+
+Port of pi-workflow's `src/workflow-active-ui.ts` (parity row 23), with a UI only (TUI or RPC; print
+and JSON mode show nothing):
+
+- **Widget.** Next to the WP16 footer entry (kept as is) the tracker sets the widget
+  `agent-workflow-active` (`ctx.ui.setWidget`, placement `belowEditor`; pi-workflow's is
+  `pi-workflow-active`, so both can show): `Active workflows`, then one line per active run of this
+  session (`● <name> <completed+running>/<total> <status> · <elapsed>`, newest first, at most 5,
+  then `… and N more`). It lists only the runs this session tracks (its audience), not every
+  running run of the project as pi-workflow did, is rewritten only when its text changes, and is
+  cleared when no tracked run is active and at session shutdown.
+- **Loader.** `/aw wait <run>` blocks the session, so in the TUI (`ctx.mode === "tui"`) it runs
+  behind Pi's cancellable `BorderedLoader` (`ctx.ui.custom`; "Waiting for <run> (Esc stops
+  waiting; the run continues)…"). Escape cancels only the wait (WP28): the command reports
+  `Stopped waiting for <run>; the run continues …` and the run keeps going (tracked runs still
+  report back). RPC mode has no `ctx.ui.custom` and runs the wait as before. `/aw run`, `dynamic`,
+  `resume` and `approve` return once started, so they need no loader; the agent's `aw_wait` and
+  awaited launches are tool calls (Pi shows their progress; aborting the turn cancels the wait).
+
+## Parent-session usage (WP33)
+
+Port of pi-workflow's `parent-usage.json` (`src/workflow-parent-usage.ts`, ported as
+`src/core/workflow-parent-usage.ts`; parity row 33). A run that `/aw run|dynamic|resume|approve`,
+`aw_run` or `aw_dynamic` started (or returned as `existing`) in this session is tracked under the Pi
+session id; every parent assistant message (`message_end` with `usage`) while the run is active adds
+its usage (input, output, total, cache read/write, reasoning tokens, cost) to
+`<run dir>/parent-usage.json`, and the first assistant message after the run settled is counted once
+as the wrap-up (`completedAt`). `session_start` resumes counting for this session's running runs,
+`session_shutdown` flushes and detaches. The core module's rules apply (one writer under the run's
+lease, replay receipts, a run owned by another session — its `pi-feedback-audience.json` — is never
+written). The sidecar holds only numbers, timestamps, the session id and message hashes, never message
+content. It needs a session id, not a UI (print mode counts too). `status <run>` and `inspect <run>`
+(every host) show `Parent session usage: <total> tokens (in …, out …, cache read/write …/…), $<cost>,
+<n> assistant messages` (`(counting)` while open) and return it as `parentUsage` (totals only). Other
+hosts record none: an MCP server cannot see its host's usage.
+
 ## Process roles
 
 With `AGENT_WORKFLOW_ROLE=worker` or `disabled` (a Pi worker that loads this package) the tools are not
@@ -372,6 +433,18 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
 
 ## Verification
 
+- WP33: `host-wp33-pi-owned-wait.test.mjs` (aw_wait presents the result of this session's run, no
+  completion message follows; another session is refused; unowned runs; a timed-out wait leaves
+  delivery to the tracker; already-delivered note; awaited duplicate launch; restart with and
+  without the tool result in the history).
+- WP33: `host-wp33-pi-active-ui.test.mjs` (widget lines, this session only, footer kept, cleared;
+  no UI shows nothing; `/aw wait` loader in the TUI, Escape cancels only the wait; no loader in RPC).
+- WP33: `host-wp33-pi-parent-usage.test.mjs` (totals of this session's assistant messages while the
+  run is active, not other sessions', not content; wrap-up counted once; status/inspect line; CLI
+  runs record nothing; print mode counts).
+- WP33: `host-wp33-launch-capture.test.mjs` (launch capture from the CLI, `/aw`, `aw_dynamic` and
+  MCP; redaction; show/inspect) and `host-wp33-pi-skills.test.mjs` (`pi.skills`, `aw-` names, no
+  collision with pi-workflow's skills, generated copies in sync, relative paths resolve).
 - WP28: `host-wp28-pi-waits.test.mjs` (long `aw_wait`, `awaitTerminal` on `aw_run`/`aw_dynamic`,
   cancel = only the wait, no second delivery of an awaited result, `/aw wait <run> [timeout]`),
   `host-wp28-pi-redrive.test.mjs` (a child process launches an attached run and exits; session start
@@ -411,11 +484,11 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
 
 ## Limits
 
-- No board, widgets or `/aw` with a bare run id (pi-workflow's board TUI is out of scope); the
-  status line is one footer entry.
-- No presentation lease or parent-usage tracking. `aw_wait` does not check delivery ownership: an
-  agent that waited for the result still gets the completion message (for tool launches, a
-  follow-up turn).
+- No board or `/aw` with a bare run id (pi-workflow's board TUI is out of scope); the session's
+  runs show in one footer entry and the active-workflows widget (WP33).
+- The `/aw wait` loader shares Pi's editor slot with dialogs: a dynamic-controller approval asked
+  during the wait (WP29) replaces the loader; the wait continues after the answer, without the
+  loader (cancel it with a new `/aw wait` … Escape, or let it finish).
 - A context without a session id gets no status line or delivery (Pi 1.1 has one in TUI and RPC,
   also with `--no-session`).
 - No `/aw auto` or TUI profile picker (`/workflow profile`); `/aw profile` manages saved user
@@ -427,5 +500,10 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
   session are not transferred. Under isolation (`--no-approve`) a trusted project's `.pi/mcp.json`
   is not loaded by the worker (pi-workflow loaded it); the recorded project trust is not yet used.
   Not live-verified (live bundle 5).
+- WP33 is verified with fake Pi UI/session objects and the real Pi 1.1 session runtime only, not in
+  a live Pi session (live bundle 5): the `aw_wait` tool result as the presentation (no follow-up
+  message, history confirmation after `/resume`), the widget and the `/aw wait` loader in the TUI
+  (Escape), `message_end` usage totals against Pi's own session usage, and `/skill:aw-workflow-guide`
+  next to pi-workflow's `workflow-guide`.
 - `runtimeDefaults` follow the explicit executor only: a profile that selects a non-Pi executor still
   receives Pi's current model as the lowest-precedence default.

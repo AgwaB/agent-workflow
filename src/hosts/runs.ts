@@ -73,6 +73,14 @@ import {
 } from "./hints.js";
 import { spawnDetachedSupervisor } from "./launch.js";
 import {
+	formatLaunch,
+	formatParentUsage,
+	type LaunchSummary,
+	launchSummary,
+	type ParentUsageSummary,
+	parentUsageSummary,
+} from "./run-provenance.js";
+import {
 	type HostLaunchClaimPrune,
 	pruneHostLaunchClaims,
 } from "./launch-guard.js";
@@ -164,6 +172,8 @@ export interface StatusData {
 		 * (the question, its request id; answer with `approve`).
 		 */
 		pendingApprovals?: PendingDynamicApproval[];
+		/** WP33: the host session's own model usage while it drove the run (Pi host). */
+		parentUsage?: ParentUsageSummary;
 	};
 	runs?: RunSummary[];
 }
@@ -230,7 +240,12 @@ export async function statusAction(
 					: []),
 			].join("\n")
 		: card;
-	const text = approvalText ? `${statusText}\n${approvalText}` : statusText;
+	const parentUsage = await parentUsageSummary(ctx.cwd, run.runId);
+	const text = [
+		statusText,
+		...(parentUsage ? [formatParentUsage(parentUsage)] : []),
+		...(approvalText ? [approvalText] : []),
+	].join("\n");
 	return result(
 		"status",
 		"success",
@@ -256,6 +271,7 @@ export async function statusAction(
 						: {}),
 				})),
 				...(pendingApprovals.length ? { pendingApprovals } : {}),
+				...(parentUsage ? { parentUsage } : {}),
 			},
 		},
 		// WP19 (review #7): the card carries worker messages.
@@ -267,17 +283,25 @@ export async function statusAction(
 export async function showRunAction(
 	ctx: HostApiContext,
 	request: { runId: string; raw?: boolean },
-): Promise<HostResult<{ kind: "run"; run: WorkflowRunRecord }>> {
+): Promise<
+	HostResult<{ kind: "run"; run: WorkflowRunRecord; launch?: LaunchSummary }>
+> {
 	assertActionAllowed(ctx, "show");
 	const ref = requireRunRef(request.runId, "show");
-	const text = request.raw
+	const details = request.raw
 		? await formatRawRunDetails(ctx.cwd, ref, hostCommandHints(ctx.host))
 		: await formatRunDetails(ctx.cwd, ref, hostCommandHints(ctx.host));
 	const run = await readRunRecord(ctx.cwd, ref);
+	// WP33: launch provenance (source host, entry, redacted command) after the details.
+	const launch = await launchSummary(ctx.cwd, run);
+	const text =
+		launch && !request.raw
+			? [details, "", ...formatLaunch(launch)].join("\n")
+			: details;
 	return result(
 		"show",
 		"success",
-		{ kind: "run", run },
+		{ kind: "run", run, ...(launch ? { launch } : {}) },
 		hostTextRedactor(hostEnv(ctx))(text),
 	);
 }
@@ -324,6 +348,10 @@ export interface InspectData {
 		contextLimitFailures: number;
 	};
 	listed: string[];
+	/** WP33: the host session's own model usage while it drove the run (Pi host). */
+	parentUsage?: ParentUsageSummary;
+	/** WP33: launch provenance (host, entry, redacted command). */
+	launch?: LaunchSummary;
 }
 
 function summarizeReliability(
@@ -400,6 +428,10 @@ export async function inspectAction(
 		`completion: ${reliability.health}`,
 		`retries: output=${reliability.outputRetries}, launch=${reliability.launchRetries}, resumes=${reliability.resumeEvents}, contextLimitFailures=${reliability.contextLimitFailures}`,
 	];
+	const parentUsage = await parentUsageSummary(ctx.cwd, run.runId);
+	if (parentUsage) lines.push(formatParentUsage(parentUsage));
+	const launch = await launchSummary(ctx.cwd, run);
+	if (launch) lines.push(...formatLaunch(launch));
 	if (showAllResults) lines.push("failures: none (showing every task result)");
 	for (const task of selected) {
 		// WP31: a role-profile run shows each task's executor/model/effort.
@@ -434,7 +466,13 @@ export async function inspectAction(
 	return result(
 		"inspect",
 		"success",
-		{ run, reliability, listed: selected.map((task) => task.taskId) },
+		{
+			run,
+			reliability,
+			listed: selected.map((task) => task.taskId),
+			...(parentUsage ? { parentUsage } : {}),
+			...(launch ? { launch } : {}),
+		},
 		// WP19 (review #7): task messages and results are worker output.
 		hostTextRedactor(hostEnv(ctx))(lines.join("\n")),
 	);

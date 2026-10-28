@@ -64,7 +64,16 @@ import {
 	readWorkflowResultPresentation,
 } from "../result-presentation.js";
 import { hostTextRedactor } from "../redaction.js";
-import { AW_COMMAND } from "./names.js";
+import {
+	formatActiveWorkflowLines,
+	setActiveWorkflowWidget,
+} from "./active-ui.js";
+import {
+	AW_COMMAND,
+	AW_DYNAMIC_TOOL,
+	AW_RUN_TOOL,
+	AW_WAIT_TOOL,
+} from "./names.js";
 import type { PiExtensionApi, PiExtensionContext } from "./pi-types.js";
 
 export const AW_STATUS_KEY = "agent-workflow";
@@ -374,6 +383,14 @@ interface FeedbackReceipt {
 	confirmedAt?: string;
 	/** Pre-WP19 receipts and round-1 acknowledgements. */
 	deliveredAt?: string;
+	/**
+	 * WP33: how the epoch reached the session. Absent: the completion message (`sendMessage`).
+	 * `tool-result`: an agent's `aw_wait` (or awaited launch) returned the settled result in its
+	 * tool result (`presentedBy`); the receipt then follows the `sent` rules, and the session history
+	 * confirms it through that tool result (`details.runId` + `details.feedbackEpoch`).
+	 */
+	channel?: "tool-result";
+	presentedBy?: string;
 }
 
 async function readReceipt(file: string): Promise<FeedbackReceipt | undefined> {
@@ -945,14 +962,140 @@ export function sessionHasCompletion(
 			type?: unknown;
 			customType?: unknown;
 			details?: { runId?: unknown; feedbackEpoch?: unknown };
+			message?: {
+				role?: unknown;
+				toolName?: unknown;
+				details?: { runId?: unknown; feedbackEpoch?: unknown };
+			};
 		};
-		return (
+		if (
 			value?.type === "custom_message" &&
 			value.customType === AW_COMPLETION_MESSAGE_TYPE &&
 			value.details?.runId === runId &&
 			(epoch === undefined || value.details?.feedbackEpoch === epoch)
+		)
+			return true;
+		// WP33: an `aw_wait`/awaited launch tool result that presented this epoch.
+		const message = value?.type === "message" ? value.message : undefined;
+		return (
+			message?.role === "toolResult" &&
+			typeof message.toolName === "string" &&
+			PRESENTING_TOOLS.has(message.toolName) &&
+			message.details?.runId === runId &&
+			typeof message.details.feedbackEpoch === "string" &&
+			(epoch === undefined || message.details.feedbackEpoch === epoch)
 		);
 	});
+}
+
+/** WP33: tools whose result can present a settled run (aw_wait, awaited aw_run/aw_dynamic). */
+const PRESENTING_TOOLS = new Set<string>([
+	AW_RUN_TOOL,
+	AW_DYNAMIC_TOOL,
+	AW_WAIT_TOOL,
+]);
+
+export type PresentationOutcome =
+	/** This tool result is the run's presentation for this epoch: no completion message follows. */
+	| "presented"
+	/** The epoch already reached (or is queued into) this session: the message is not sent again. */
+	| "already-delivered"
+	/** No session or not this session's run (no audience): nothing is recorded. */
+	| "not-owner";
+
+/**
+ * WP33 (parity row 20, pi-workflow `workflowTerminalToolResult` + `claimWorkflowFeedbackDelivery`):
+ * an agent in the run's owning session waited and receives the settled result in its tool result.
+ * That result is the delivery of this epoch: the receipt is written as `sent` with `channel:
+ * "tool-result"` (and the in-memory "enqueued into this queue" entry), so every WP19 rule applies
+ * unchanged: this process never sends the completion message into the same live queue, the
+ * history confirms it through the tool result (`details.feedbackEpoch`), and after a crash or a
+ * disposed queue a history without that tool result gets the message (at least once). The caller
+ * holds the tracker's presentation lease while it waits, so the tracker cannot send the message
+ * between the run settling and this call.
+ */
+export async function presentCompletion(
+	ctx: PiExtensionContext,
+	run: WorkflowRunRecord,
+	options: { tool: string; now?: number; cwd?: string },
+): Promise<{ outcome: PresentationOutcome; epoch?: string }> {
+	const cwd = options.cwd ?? ctx.cwd;
+	const state = processState();
+	const sessionId = piSessionId(ctx);
+	const audience = await readFeedbackAudience(cwd, run.runId);
+	if (!sessionId || audience?.sessionId !== sessionId)
+		return { outcome: "not-owner" };
+	const epoch = feedbackEpoch(run);
+	const receipt = feedbackReceiptPath(cwd, run.runId, epoch);
+	const lifetime = queueLifetime(ctx);
+	const nowMs = options.now ?? Date.now();
+	const enqueued = state.enqueued.get(receipt);
+	if (enqueued && enqueuedInto(enqueued, lifetime))
+		return { outcome: "already-delivered", epoch };
+	if (state.inFlight.has(receipt))
+		return { outcome: "already-delivered", epoch };
+	await mkdir(join(workflowRunDir(cwd, run.runId), FEEDBACK_RECEIPTS_DIR), {
+		recursive: true,
+	});
+	const token = randomBytes(12).toString("hex");
+	const outcome = await withReceiptLock(
+		receipt,
+		async (): Promise<PresentationOutcome> => {
+			if (state.inFlight.has(receipt)) return "already-delivered";
+			const existing = await readReceipt(receipt);
+			const history = sessionHasCompletion(ctx, run.runId, epoch);
+			if (history === true) return "already-delivered";
+			if (existing && sentIntoLiveQueue(existing, lifetime))
+				return "already-delivered";
+			if (existing && reservationLive(receipt, existing, nowMs))
+				return "already-delivered";
+			const sent =
+				existing?.state === "sent" || existing?.state === "delivered";
+			if (
+				sent &&
+				sentByOtherLiveProcess(existing) &&
+				(await ownerQueueAlive(cwd, existing, nowMs))
+			)
+				return "already-delivered";
+			if (history === undefined && existing?.state === "confirmed")
+				return "already-delivered";
+			const at = new Date(nowMs).toISOString();
+			await writeReceipt(receipt, {
+				schema: RECEIPT_SCHEMA,
+				runId: run.runId,
+				sessionId,
+				epoch,
+				status: run.status,
+				token,
+				pid: process.pid,
+				processId: state.processId,
+				host: hostname(),
+				state: "sent",
+				channel: "tool-result",
+				presentedBy: options.tool,
+				attempts: (existing?.attempts ?? (existing ? 1 : 0)) + 1,
+				...(lifetime ? { queueLifetime: lifetime } : {}),
+				reservedAt: at,
+				sentAt: at,
+			});
+			return "presented";
+		},
+	);
+	if (outcome === "presented") {
+		const entry: SentDelivery = {
+			token,
+			runId: run.runId,
+			epoch,
+			sessionId,
+			sentAtMs: nowMs,
+			...(lifetime ? { lifetime } : {}),
+			durable: true,
+		};
+		state.enqueued.set(receipt, entry);
+		state.watch.set(receipt, entry);
+		enforceDeliveryStateBounds();
+	}
+	return { outcome, epoch };
 }
 
 /**
@@ -1309,10 +1452,14 @@ export interface PiRunFeedbackOptions {
  */
 export class PiRunFeedback {
 	private readonly runs = new Map<string, TrackedRun>();
+	/** WP33: runs an agent in this session is waiting on (presentation lease, see holdPresentation). */
+	private readonly presenting = new Map<string, number>();
 	private ctx: PiExtensionContext | undefined;
 	private timer: ReturnType<typeof setInterval> | undefined;
 	private ticking: Promise<void> | undefined;
 	private shownStatus: string | undefined;
+	/** WP33: the active-workflows widget lines last shown (joined). */
+	private shownWidget: string | undefined;
 	private generation = 0;
 	private readonly pollMs: number;
 	private readonly now: () => number;
@@ -1336,6 +1483,35 @@ export class PiRunFeedback {
 	/** A timer is scheduled (tests). */
 	isPolling(): boolean {
 		return this.timer !== undefined;
+	}
+
+	/**
+	 * WP33 (pi-workflow `feedback-presentation` lease, in process): while an agent of this session
+	 * waits on the run, the tracker keeps showing its progress but never delivers its completion;
+	 * the waiter presents it (presentCompletion) or, when the wait ends first, releases the lease and
+	 * the tracker delivers as before. Returns the release function (idempotent).
+	 */
+	holdPresentation(cwd: string, runId: string): () => void {
+		const key = `${cwd}\0${runId}`;
+		this.presenting.set(key, (this.presenting.get(key) ?? 0) + 1);
+		let released = false;
+		return () => {
+			if (released) return;
+			released = true;
+			const count = (this.presenting.get(key) ?? 1) - 1;
+			if (count > 0) this.presenting.set(key, count);
+			else this.presenting.delete(key);
+		};
+	}
+
+	/** WP33: the run was presented by a tool result: stop tracking it (no message follows). */
+	forget(cwd: string, runId: string): void {
+		this.runs.delete(`${cwd}\0${runId}`);
+	}
+
+	/** WP33: the session's tracked runs and its context (active-runs widget, parent usage). */
+	tracked(): Array<{ cwd: string; runId: string }> {
+		return [...this.runs.values()].map(({ cwd, runId }) => ({ cwd, runId }));
 	}
 
 	/** Track a run this session launched (or resumed). False when it is not this session's. */
@@ -1399,7 +1575,11 @@ export class PiRunFeedback {
 			// WP19 round 2 (N7): stopped (or switched) during the read: track nothing.
 			if (generation !== this.generation || this.ctx !== ctx) return;
 			if (audience?.sessionId !== sessionId) continue;
-			if (ACTIVE_STATUSES.has(run.status)) {
+			// WP33: a run an agent is waiting on right now is tracked, not caught up.
+			if (
+				ACTIVE_STATUSES.has(run.status) ||
+				this.presenting.has(`${ctx.cwd}\0${run.runId}`)
+			) {
 				this.runs.set(`${ctx.cwd}\0${run.runId}`, {
 					runId: run.runId,
 					cwd: ctx.cwd,
@@ -1465,6 +1645,7 @@ export class PiRunFeedback {
 		this.timer = undefined;
 		this.runs.clear();
 		this.setStatus(undefined);
+		this.setWidget(undefined);
 		this.ctx = undefined;
 	}
 
@@ -1486,6 +1667,16 @@ export class PiRunFeedback {
 		} catch {
 			// Workflow progress never depends on optional UI rendering.
 		}
+	}
+
+	/** WP33: the active-workflows widget (only when its lines change; cleared when idle). */
+	private setWidget(lines: string[] | undefined): void {
+		const key = lines?.length ? lines.join("\n") : undefined;
+		if (key === this.shownWidget) return;
+		const ctx = this.ctx;
+		this.shownWidget = key;
+		if (!ctx) return;
+		setActiveWorkflowWidget(ctx, key === undefined ? undefined : lines);
 	}
 
 	/** One poll: read tracked runs, deliver settled ones, refresh or clear the status entry. */
@@ -1520,6 +1711,8 @@ export class PiRunFeedback {
 				active.push(run);
 				continue;
 			}
+			// WP33: an agent of this session is waiting on it and presents the result itself.
+			if (this.presenting.has(key)) continue;
 			try {
 				const outcome = await deliverCompletion(this.pi, ctx, run, {
 					triggerTurn: !tracked.catchUp && tracked.launchedBy === "tool",
@@ -1554,6 +1747,7 @@ export class PiRunFeedback {
 		if (generation !== this.generation) return;
 		active.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 		this.setStatus(statusLine(active));
+		this.setWidget(formatActiveWorkflowLines(active, this.now()));
 		// WP19 round 2 (N2): confirm sent messages the session history shows by now.
 		const watching = await confirmSentDeliveries(ctx, this.now()).catch(
 			() => 0,

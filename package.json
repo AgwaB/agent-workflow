@@ -11,6 +11,7 @@
     "agents",
     "workflows",
     "skills",
+    "plugins/pi",
     "docs",
     "README.md",
     "LICENSE",
@@ -79,6 +80,10 @@
   "pi": {
     "extensions": [
       "./dist/hosts/pi/index.js"
+    ],
+    "skills": [
+      "./plugins/pi/skills/aw-workflow-guide",
+      "./plugins/pi/skills/aw-execution-router"
     ]
   },
   "scripts": {

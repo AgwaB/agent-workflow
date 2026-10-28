@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-parent-usage.ts. MIT, same author. Changes: normalizedUsageValues comes from task-observability.ts (subagent-backend decomposition); the host adapter feeds parent-session usage (Pi, Codex or Claude host).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-parent-usage.ts. MIT, same author. Changes: normalizedUsageValues comes from task-observability.ts (subagent-backend decomposition); the host adapter feeds parent-session usage (Pi, Codex or Claude host). WP33: the Pi host feeds it (src/hosts/pi/parent-usage.ts) and its audience file `pi-feedback-audience.json` is checked like pi-workflow's `feedback-audience.json`.
 import { createHash, randomUUID } from "node:crypto";
 import { lstat } from "node:fs/promises";
 import { join } from "node:path";
@@ -165,6 +165,21 @@ async function mutate(
 			(existing.schema !== PARENT_USAGE_SCHEMA ||
 				existing.runId !== entry.runId ||
 				existing.sessionId !== entry.sessionId)
+		)
+			return;
+		// WP33: the agent-workflow Pi host's audience (`pi-feedback-audience.json`, feedback.ts).
+		const piAudience = await readJson<{
+			schema?: string;
+			runId?: string;
+			sessionId?: string;
+		}>(
+			join(workflowRunDir(entry.cwd, entry.runId), "pi-feedback-audience.json"),
+		);
+		if (
+			piAudience &&
+			(piAudience.schema !== "agent-workflow-pi-feedback-audience-v1" ||
+				piAudience.runId !== entry.runId ||
+				piAudience.sessionId !== entry.sessionId)
 		)
 			return;
 		if (

@@ -1719,11 +1719,23 @@ export type WorkflowRunLaunchCommandMetadata =
 			encoding: "utf-8";
 			bytes: number;
 			sha256: string;
-			fidelity: "pi-extension-command-v1";
+			/**
+			 * `pi-extension-command-v1`: pi-workflow's verbatim slash command. WP33 (host-neutral
+			 * launch capture, schema `agent-workflow-run-launch-v1`): `agent-workflow-host-command-v1`
+			 * = the host's own command line (`agent-workflow run …`, `/aw run …`) and
+			 * `agent-workflow-tool-call-v1` = a tool call rendered as `<tool> <JSON arguments>`; both
+			 * with credentials redacted and the home directory shown as `~`.
+			 */
+			fidelity: WorkflowRunLaunchCommandFidelity;
 			sensitivity: "user-input";
 			disclosure: "explicit-only";
 	  }
 	| { state: "unavailable"; reason: "not-a-command" };
+
+export type WorkflowRunLaunchCommandFidelity =
+	| "pi-extension-command-v1"
+	| "agent-workflow-host-command-v1"
+	| "agent-workflow-tool-call-v1";
 
 export type WorkflowAutoRoute = "direct" | "named-workflow" | "direct-dynamic";
 
@@ -1766,10 +1778,35 @@ export interface WorkflowRunLaunchMetadataV2 {
 	command: WorkflowRunLaunchCommandMetadata;
 }
 
+/**
+ * WP33 (parity row 35): host-neutral launch provenance of a run launched through the host API (CLI,
+ * Pi host, host MCP server). pi-workflow's v2 field set (`schema`, `source`, `requestKind`,
+ * `routingMode`, `profile`, `task`, `command`) without the `/workflow auto`-only `selection`;
+ * `source` names the host (`cli`, `pi`, `mcp:<host>`) and `entry` how it was asked (a command line
+ * or a tool call). The command text (redacted) lives in `launch-command.txt` like v1/v2.
+ */
+export type WorkflowRunLaunchHostSource = "cli" | "pi" | `mcp:${string}`;
+
+export type WorkflowRunLaunchEntry =
+	| { kind: "command"; action: "run" | "dynamic" }
+	| { kind: "tool"; name: string };
+
+export interface WorkflowRunLaunchMetadataHostV1 {
+	schema: "agent-workflow-run-launch-v1";
+	source: WorkflowRunLaunchHostSource;
+	entry: WorkflowRunLaunchEntry;
+	requestKind: "named-workflow" | "direct-dynamic";
+	routingMode: "off";
+	profile: WorkflowRunLaunchProfile;
+	task: { characters: number; lines: number };
+	command: WorkflowRunLaunchCommandMetadata;
+}
+
 /** Structured creation-launch provenance. Exact command text lives in a private sidecar. */
 export type WorkflowRunLaunchMetadata =
 	| WorkflowRunLaunchMetadataV1
-	| WorkflowRunLaunchMetadataV2;
+	| WorkflowRunLaunchMetadataV2
+	| WorkflowRunLaunchMetadataHostV1;
 
 export type WorkflowRunLaunchCaptureV1 = Omit<
 	WorkflowRunLaunchMetadataV1,
@@ -1788,10 +1825,19 @@ export type WorkflowRunLaunchCaptureV2 = Omit<
 	command: { state: "captured"; text: string };
 };
 
+/** WP33: the host API's capture (the command text is always captured, already redacted). */
+export type WorkflowRunLaunchCaptureHostV1 = Omit<
+	WorkflowRunLaunchMetadataHostV1,
+	"command"
+> & {
+	command: { state: "captured"; text: string };
+};
+
 /** Non-persisted launch input carried from a launch surface to the engine. */
 export type WorkflowRunLaunchCapture =
 	| WorkflowRunLaunchCaptureV1
-	| WorkflowRunLaunchCaptureV2;
+	| WorkflowRunLaunchCaptureV2
+	| WorkflowRunLaunchCaptureHostV1;
 
 /**
  * Deterministic claim-support accounting computed after a direct dynamic

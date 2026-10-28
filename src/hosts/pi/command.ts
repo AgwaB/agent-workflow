@@ -30,6 +30,8 @@ import {
 	parseRoleFlags,
 	workflowPreferenceRequest,
 } from "../cli/index.js";
+import { FOREGROUND_CANCELLED, withForegroundLoader } from "./active-ui.js";
+import { beginRunParentUsage } from "./parent-usage.js";
 import {
 	emit,
 	hasDialogUi,
@@ -290,6 +292,11 @@ async function dispatch(
 				{
 					workflow: parsed.specPath,
 					...launchRequest(parsed),
+					// WP33: launch capture (redacted by the host API): the command as typed.
+					launchOrigin: {
+						kind: "command",
+						text: `/${AW_COMMAND} ${args.trim()}`,
+					},
 					...hooks.hooks,
 				},
 			);
@@ -304,7 +311,14 @@ async function dispatch(
 			const hooks = launchHooks(ctx);
 			const launched = await api.runDynamicAction(
 				hostContext(deps, ctx, { executor: parsed.executor }),
-				{ ...launchRequest(parsed), ...hooks.hooks },
+				{
+					...launchRequest(parsed),
+					launchOrigin: {
+						kind: "command",
+						text: `/${AW_COMMAND} ${args.trim()}`,
+					},
+					...hooks.hooks,
+				},
 			);
 			return { ...launched, note: hooks.note() };
 		}
@@ -373,11 +387,25 @@ async function dispatch(
 				throw new HostUsageError(
 					`timeout must be at most ${HOST_LONG_WAIT_MAX_TIMEOUT_MS}ms (4h)`,
 				);
-			return api.waitAction(host(), {
-				runId: runId!,
-				longWait: true,
-				timeoutMs,
-			});
+			// WP33: the wait blocks the session: a cancellable loader in the TUI (Escape cancels
+			// only the wait; the run continues).
+			const waited = await withForegroundLoader(
+				ctx,
+				`Waiting for ${runId} (Esc stops waiting; the run continues)…`,
+				(signal) =>
+					api.waitAction(host(), {
+						runId: runId!,
+						longWait: true,
+						timeoutMs,
+						...(signal ? { signal } : {}),
+					}),
+				deps.foregroundLoader,
+			);
+			if (waited === FOREGROUND_CANCELLED)
+				return {
+					text: `Stopped waiting for ${runId}; the run continues. Check it with /${AW_COMMAND} status ${runId} or wait again with /${AW_COMMAND} wait ${runId}.`,
+				};
+			return waited;
 		}
 		case "resume": {
 			const parsed = parseCommandArgs(rest, { flags: ["--detach"] });
@@ -521,6 +549,8 @@ export async function trackLaunched(
 	if (typeof data?.runId !== "string") return;
 	if (data.status !== "running" && data.status !== "pending") return;
 	await deps.feedback.track(ctx, data.runId, launchedBy).catch(() => undefined);
+	// WP33: count the parent session's usage while the run runs (parent-usage.json).
+	await beginRunParentUsage(ctx, data.runId);
 }
 
 export function awArgumentCompletions(

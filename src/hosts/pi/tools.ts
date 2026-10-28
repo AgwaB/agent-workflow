@@ -2,7 +2,10 @@
 // Schemas, descriptions and prompt guidelines are adapted from pi-workflow 0.16.4 (b83cc4f)
 // `workflow_list/run/dynamic/wait` with executor-neutral wording: the parent agent is Pi, the
 // workflow workers run on the selected executor (default pi). Each tool calls one host API handler.
-// Differences from pi-workflow: no presentation lease. WP28 (owner decision Q9): `awaitTerminal` +
+// WP33: pi-workflow's session-owned wait: `aw_wait` refuses a run another Pi session owns, and a
+// settled result returned to an agent of the owning session is that run's presentation (the
+// completion message is not delivered again; an in-process presentation lease keeps the tracker
+// from sending it while the agent waits). WP28 (owner decision Q9): `awaitTerminal` +
 // `timeoutMs` on run/dynamic and long `aw_wait` calls are restored with pi-workflow's bounds
 // (default 30 min, max 4 h; the host API `longWait`), cancelling the tool call cancels only the
 // wait; a launch whose awaited result is returned is not delivered again later (it is tracked for
@@ -25,8 +28,14 @@ import {
 	parsePermissionMode,
 	parseThinkingLevel,
 } from "../api.js";
+import { readRunRecord } from "../../core/store.js";
 import { THINKING_LEVELS } from "../../core/types.js";
 import { trackLaunched } from "./command.js";
+import {
+	piSessionId,
+	presentCompletion,
+	readFeedbackAudience,
+} from "./feedback.js";
 import {
 	hostContext,
 	launchHooks,
@@ -324,10 +333,85 @@ function waitDetails(data: WaitData): Record<string, unknown> {
 }
 
 /**
+ * WP33 (parity row 20, pi-workflow `workflow_wait` session binding): an agent may wait on a run
+ * that this session owns (its WP16 audience) or that no session owns (launched by the CLI, MCP or a
+ * session without UI). A run owned by another Pi session is refused: its completion is presented
+ * there. Returns the full run id (prefixes resolved) or undefined when the run cannot be read
+ * (the wait itself then reports the error).
+ */
+async function assertWaitOwnership(
+	ctx: PiExtensionContext,
+	runRef: string,
+): Promise<string | undefined> {
+	let runId: string;
+	try {
+		runId = (await readRunRecord(ctx.cwd, runRef)).runId;
+	} catch {
+		return undefined;
+	}
+	const audience = await readFeedbackAudience(ctx.cwd, runId);
+	if (audience && audience.sessionId !== piSessionId(ctx))
+		throw new HostUsageError(
+			`run ${runId} is owned by another Pi session: its completion is presented there. Check it with /${AW_COMMAND} status ${runId}.`,
+		);
+	return runId;
+}
+
+/**
+ * WP33: wait for `runId` holding the tracker's presentation lease; when the run settled, the tool
+ * result presents it (presentCompletion) and the completion message is not sent again. The
+ * details get `feedbackEpoch` (the session history confirms the presentation through it) or
+ * `completionAlreadyDelivered` when the message reached the session first.
+ */
+async function presentedWait(
+	deps: PiHostDeps,
+	ctx: PiExtensionContext,
+	tool: string,
+	runId: string | undefined,
+	wait: () => Promise<HostResult<WaitData>>,
+): Promise<{
+	waited: HostResult<WaitData>;
+	presentation: Record<string, unknown>;
+}> {
+	const release = runId
+		? deps.feedback.holdPresentation(ctx.cwd, runId)
+		: () => undefined;
+	try {
+		const waited = await wait();
+		const settled = waited.data.terminal || waited.data.actionRequired;
+		if (!settled || waited.data.stillRunning)
+			return { waited, presentation: {} };
+		const run = await readRunRecord(ctx.cwd, waited.data.runId).catch(
+			() => undefined,
+		);
+		if (!run) return { waited, presentation: {} };
+		const presented = await presentCompletion(ctx, run, {
+			tool,
+			now: deps.now(),
+		}).catch(() => ({ outcome: "not-owner" as const, epoch: undefined }));
+		if (presented.outcome === "not-owner") return { waited, presentation: {} };
+		deps.feedback.forget(ctx.cwd, run.runId);
+		return {
+			waited,
+			presentation:
+				presented.outcome === "presented"
+					? { feedbackEpoch: presented.epoch }
+					: { completionAlreadyDelivered: true },
+		};
+	} finally {
+		release();
+	}
+}
+
+const ALREADY_DELIVERED_NOTE =
+	"The completion message of this result was already delivered to this session.";
+
+/**
  * WP28: a launch tool with `awaitTerminal`: wait (long) for the launched run and return the wait
- * result plus the launch details under `launch`. The run is tracked for completion delivery only
- * when the wait ends before it settles (timeout) or is cancelled; an awaited result is not
- * delivered a second time.
+ * result plus the launch details under `launch`. WP33: the run is tracked (bound to this session)
+ * before the wait, under the presentation lease, so an awaited result is presented by the tool
+ * result and never delivered a second time; when the wait ends before the run settles (timeout)
+ * or is cancelled, the tracker reports back as for a plain launch.
  */
 async function launchResult(
 	deps: PiHostDeps,
@@ -345,28 +429,42 @@ async function launchResult(
 		await trackLaunched(deps, ctx, action, launched.data, "tool");
 		return toolResult(launched, launchDetails(launched.data), note);
 	}
-	let waited: HostResult<WaitData>;
+	// Cancelling (or a failing wait) ends only the wait: the run continues, stays tracked and
+	// reports back like a plain launch once the lease is released.
+	const release = deps.feedback.holdPresentation(ctx.cwd, runId);
+	let presented: Awaited<ReturnType<typeof presentedWait>>;
 	try {
-		waited = await deps.api.waitAction(hostContext(deps, ctx), {
+		await trackLaunched(deps, ctx, action, launched.data, "tool");
+		presented = await presentedWait(
+			deps,
+			ctx,
+			action === "run" ? AW_RUN_TOOL : AW_DYNAMIC_TOOL,
 			runId,
-			longWait: true,
-			...(awaitOptions.timeoutMs === undefined
-				? {}
-				: { timeoutMs: awaitOptions.timeoutMs }),
-			...(signal ? { signal } : {}),
-			...waitProgress(onUpdate),
-		});
-	} catch (error) {
-		// Only the wait ends: the run continues and reports back like a plain launch.
-		await trackLaunched(deps, ctx, action, launched.data, "tool");
-		throw error;
+			() =>
+				deps.api.waitAction(hostContext(deps, ctx), {
+					runId,
+					longWait: true,
+					...(awaitOptions.timeoutMs === undefined
+						? {}
+						: { timeoutMs: awaitOptions.timeoutMs }),
+					...(signal ? { signal } : {}),
+					...waitProgress(onUpdate),
+				}),
+		);
+	} finally {
+		release();
 	}
-	if (waited.data.stillRunning)
-		await trackLaunched(deps, ctx, action, launched.data, "tool");
+	const { waited, presentation } = presented;
 	return toolResult(
 		waited,
-		{ ...waitDetails(waited.data), launch: launchDetails(launched.data) },
-		note,
+		{
+			...waitDetails(waited.data),
+			...presentation,
+			launch: launchDetails(launched.data),
+		},
+		presentation.completionAlreadyDelivered
+			? [note, ALREADY_DELIVERED_NOTE].filter(Boolean).join("\n")
+			: note,
 	);
 }
 
@@ -543,6 +641,12 @@ export function registerAwTools(pi: PiExtensionApi, deps: PiHostDeps): void {
 					{
 						workflow: requiredString(input, "workflow"),
 						...request,
+						// WP33: launch capture (redacted by the host API).
+						launchOrigin: {
+							kind: "tool",
+							name: AW_RUN_TOOL,
+							arguments: { ...input },
+						},
 						...hooks.hooks,
 					},
 				);
@@ -587,7 +691,15 @@ export function registerAwTools(pi: PiExtensionApi, deps: PiHostDeps): void {
 				const hooks = launchHooks(ctx);
 				const launched = await deps.api.runDynamicAction(
 					hostContext(deps, ctx, { executor: request.executor }),
-					{ ...request, ...hooks.hooks },
+					{
+						...request,
+						launchOrigin: {
+							kind: "tool",
+							name: AW_DYNAMIC_TOOL,
+							arguments: { ...input },
+						},
+						...hooks.hooks,
+					},
 				);
 				return launchResult(
 					deps,
@@ -624,14 +736,30 @@ export function registerAwTools(pi: PiExtensionApi, deps: PiHostDeps): void {
 				const input = record(params);
 				rejectUnknown(input, new Set(["runId", "timeoutMs"]));
 				const timeoutMs = optionalWaitTimeout(input, AW_WAIT_TOOL);
-				const waited = await deps.api.waitAction(hostContext(deps, ctx), {
-					runId: requiredString(input, "runId"),
-					longWait: true,
-					...(timeoutMs === undefined ? {} : { timeoutMs }),
-					...(signal ? { signal } : {}),
-					...waitProgress(onUpdate),
-				});
-				return toolResult(waited, waitDetails(waited.data));
+				const runRef = requiredString(input, "runId");
+				// WP33: only this session's (or an unowned) run; presented by this result.
+				const runId = await assertWaitOwnership(ctx, runRef);
+				const { waited, presentation } = await presentedWait(
+					deps,
+					ctx,
+					AW_WAIT_TOOL,
+					runId,
+					() =>
+						deps.api.waitAction(hostContext(deps, ctx), {
+							runId: runRef,
+							longWait: true,
+							...(timeoutMs === undefined ? {} : { timeoutMs }),
+							...(signal ? { signal } : {}),
+							...waitProgress(onUpdate),
+						}),
+				);
+				return toolResult(
+					waited,
+					{ ...waitDetails(waited.data), ...presentation },
+					presentation.completionAlreadyDelivered
+						? ALREADY_DELIVERED_NOTE
+						: undefined,
+				);
 			});
 		},
 	});

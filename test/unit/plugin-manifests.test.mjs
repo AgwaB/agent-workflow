@@ -168,7 +168,9 @@ test("install docs pin the package version", () => {
 });
 
 test("the plugin is not part of the npm package", () => {
-	for (const path of pkg.files)
+	// WP33: `plugins/pi` (the aw- Pi package skills, package.json `pi.skills`) is published; the
+	// Claude Code/Codex plugin and the marketplaces are not.
+	for (const path of pkg.files.filter((entry) => entry !== "plugins/pi"))
 		assert.ok(
 			!["plugins", ".claude-plugin", ".agents"].some(
 				(prefix) => path === prefix || path.startsWith(`${prefix}/`),

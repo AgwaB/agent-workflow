@@ -11,6 +11,7 @@
 import { readFileSync } from "node:fs";
 import { parseRoleAssignmentText } from "../../core/role-profiles.js";
 import { addWorkflowInputAssignment } from "../args.js";
+import { cliLaunchCommand } from "../launch-capture.js";
 import { createInterface } from "node:readline";
 
 import {
@@ -362,6 +363,11 @@ async function launchCommand(
 		...(effort ? { effort: parseThinkingLevel(effort) } : {}),
 		...(detach ? { detach: true } : {}),
 		...(parsed.flags.has("--force-new") ? { forceNew: true } : {}),
+		// WP33: launch capture (redacted by the host API): the command line as typed.
+		launchOrigin: {
+			kind: "command" as const,
+			text: cliLaunchCommand([command, ...argv]),
+		},
 		...(interactive
 			? {
 					interactive: true,
