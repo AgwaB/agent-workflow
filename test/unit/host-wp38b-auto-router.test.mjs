@@ -212,7 +212,9 @@ test("headless /workflow auto fails closed without structured transmission autho
 	assert.match(text, /no workflow has been started\./);
 	assert.equal(text.includes("SECRET ORIGINAL TASK"), false);
 	const optionMessages = [];
-	await handler('auto --detach "SECRET ORIGINAL TASK"', {
+	// Live bundle 5 (WP39): `/aw auto` now strips its action word, so a leading option is a valid
+	// launch option (as for `/aw run|dynamic`); an option inside the task is still refused.
+	await handler('auto "SECRET ORIGINAL" --detach "TASK"', {
 		cwd,
 		mode: "rpc",
 		hasUI: true,

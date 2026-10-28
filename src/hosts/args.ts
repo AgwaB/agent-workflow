@@ -363,8 +363,20 @@ export function parseWorkflowRunArgs(args: string): ParsedWorkflowRunArgs {
 export function parseWorkflowDynamicArgs(
 	args: string,
 ): ParsedWorkflowDynamicArgs {
+	return parseTaskWithRunOptions(args.trim().replace(/^dynamic(?:\s+|$)/i, ""));
+}
+
+/**
+ * `auto <task> [options]` (the Pi `/aw auto` text). Live bundle 5 (WP39): `/aw auto` used the dynamic
+ * parser, which strips only a leading `dynamic`, so the task became `auto "<task>"` (the action word
+ * and the quotes were sent to the classifier and launched as the run's task).
+ */
+export function parseWorkflowAutoArgs(args: string): ParsedWorkflowDynamicArgs {
+	return parseTaskWithRunOptions(args.trim().replace(/^auto(?:\s+|$)/i, ""));
+}
+
+function parseTaskWithRunOptions(body: string): ParsedWorkflowDynamicArgs {
 	const parsed: WorkflowRunParsedOptions = { detach: false };
-	const body = args.trim().replace(/^dynamic(?:\s+|$)/i, "");
 	const tokens = tokenizeWorkflowArgs(body);
 
 	let cursor = 0;

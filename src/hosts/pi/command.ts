@@ -25,6 +25,7 @@ import {
 	parseDuration,
 	parsePermissionMode,
 	parseThinkingLevel,
+	parseWorkflowAutoArgs,
 	parseWorkflowDynamicArgs,
 	parseWorkflowRunArgs,
 	tokenizeWorkflowArgs,
@@ -374,7 +375,7 @@ async function dispatch(
 			return { ...launched, note: hooks.note() };
 		}
 		case "auto": {
-			const parsed = parseWorkflowDynamicArgs(args);
+			const parsed = parseWorkflowAutoArgs(args);
 			if (!parsed.task)
 				throw new HostUsageError(
 					`Missing task. Usage: /${AW_COMMAND} auto "<task>" [options]`,

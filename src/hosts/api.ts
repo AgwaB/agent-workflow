@@ -36,6 +36,7 @@ export {
 	parsePermissionMode,
 	parseSuperviseArgs,
 	parseThinkingLevel,
+	parseWorkflowAutoArgs,
 	parseWorkflowDynamicArgs,
 	parseWorkflowPruneArgs,
 	parseWorkflowRunArgs,

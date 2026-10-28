@@ -658,3 +658,13 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
   next to pi-workflow's `workflow-guide`.
 - `runtimeDefaults` follow the explicit executor only: a profile that selects a non-Pi executor still
   receives Pi's current model as the lowest-precedence default.
+
+## Change log
+
+- **Live bundle 5 (WP39): `/aw auto` task text.** `/aw auto "<task>"` parsed its arguments with the
+  `dynamic` parser, which strips only a leading `dynamic`, so the classifier got `auto "<task>"`
+  (the action word and the quotes; "158 characters" for a 151-character task in the consent dialog)
+  and the chosen workflow would have run with that text. It now strips `auto` and unquotes the task
+  like `/aw run|dynamic`; launch options may lead or trail it, an option inside the task is refused.
+  Tests: `host-wp32-auto.test.mjs` ("the task is the text after `auto`…", fails on the old code);
+  `host-wp38b-auto-router.test.mjs` now places the refused option inside the task.
