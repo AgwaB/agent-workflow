@@ -179,8 +179,10 @@ context: at the user's next message, each run that finished since the last check
   `.agent-workflow` or `notify-check/` could redirect outside the project): the stamp is written by
   the check itself (`notify-check --stamp hook-claude-code`), through the same contained writer as
   the receipts, only after the check succeeded, and timed to the check's start, so a change during a
-  check or a failed check is looked at again on the next prompt. It never blocks a prompt and prints
-  nothing on errors. Claude Code adds the plain stdout of `UserPromptSubmit` hooks to the
+  check or a failed check is looked at again on the next prompt. A check that left runs for later
+  (at most 5 per check) keeps no stamp, so the next prompt checks again until the backlog is drained
+  (WP42; before, the deferred runs waited for some `run.json` to change). It never blocks a prompt
+  and prints nothing on errors. Claude Code adds the plain stdout of `UserPromptSubmit` hooks to the
   context, prefixed `UserPromptSubmit hook success: ` (live bundle 5), so the server instructions and
   the skill speak of a line *containing* `agent-workflow:`, not one starting with it (WP39b). There is no `hooks/hooks.json` (Claude Code loads that file by default, and Codex would
   read it too). The dev plugin runs the checkout's CLI instead of `npx`.

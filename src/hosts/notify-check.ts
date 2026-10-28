@@ -18,6 +18,8 @@
 // against its stamp); the stamp itself (`hook-<host>.stamp`) is written here (`--stamp <name>`),
 // through the same contained directory as the receipts, after a successful check, with the check's
 // start time as its mtime (a `run.json` changed during the check is looked at again next time).
+// A check that deferred runs (the cap of five) removes the stamp instead (finding 5), so the next
+// prompt checks again until the backlog is drained.
 import { createHash, randomBytes } from "node:crypto";
 import {
 	access,
@@ -309,7 +311,12 @@ export async function notifyCheck(
 	const checked = await checkOnce(cwd, options);
 	if (options.stamp !== undefined) {
 		const dir = await containedProjectStateDir(cwd, NOTIFY_CHECK_DIR, true);
-		if (dir) await writeStamp(dir, options.stamp, startedAt);
+		// WP42 (review round 1, finding 5): runs left for later (over NOTIFY_CHECK_MAX_RUNS) keep the
+		// hook off its idle fast path: no stamp until the backlog is drained (their run.json files
+		// may never change again).
+		if (dir && checked.data.deferred > 0)
+			await rm(join(dir, `${options.stamp}.stamp`), { force: true });
+		else if (dir) await writeStamp(dir, options.stamp, startedAt);
 	}
 	return checked;
 }

@@ -327,7 +327,8 @@ next time); markers of pruned runs are removed. `--json` prints `{action, ok, ou
 {notifications, deferred}}`. `--follow` checks every 5 s (`--interval` 1-60) and prints new lines as
 they appear (a long-lived feed, for example a Claude Code plugin monitor). `--stamp <name>` (WP42,
 the plugin hook's idle test) writes `.agent-workflow/notify-check/<name>.stamp` after a successful
-check, with the check's start time as its mtime; the receipts directory is created only as a real
+check, with the check's start time as its mtime (a check that deferred runs removes it instead, so
+the hook checks again until the backlog is drained); the receipts directory is created only as a real
 directory inside a real `.agent-workflow` (a symlinked one is refused and nothing is written). Hook
 setup: [plugins.md](plugins.md#completion-check-hook).
 

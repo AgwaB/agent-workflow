@@ -163,7 +163,8 @@ export const NOTIFY_HOOK_TIMEOUT_SEC = 60;
  * WP42 (review round 1, finding 4): the shell only reads (`find -newer` writes nothing, even
  * through a symlink); the stamp is written by `notify-check --stamp hook-<host>` itself, through
  * its contained writer, after a successful check and timed to the check's start (so a change during
- * it is seen next time).
+ * it is seen next time). WP42 finding 5: a check that left runs for later (the cap of five) removes
+ * the stamp, so the next prompt checks again until the backlog is drained.
  */
 export function notifyHookCommand(cli, host) {
 	const stamp = `hook-${host}`;
