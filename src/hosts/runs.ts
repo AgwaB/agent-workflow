@@ -7,6 +7,7 @@
 // feedback) is not part of the host API; `inspect` reads runs through the store (prefixes,
 // `.agent-workflow/workflows`); supervise is a handler with an optional log sink.
 // WP31: status data/inspect lines name each task's executor/model/effort in role-profile runs.
+// WP36: `wait` marks the settled state it returns as seen for `notify-check`.
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -72,6 +73,7 @@ import {
 	type WorkflowCommandHints,
 } from "./hints.js";
 import { spawnDetachedSupervisor } from "./launch.js";
+import { markRunNotifySeen } from "./notify-check.js";
 import {
 	formatLaunch,
 	formatParentUsage,
@@ -652,6 +654,8 @@ export async function waitAction(
 		...(run.degradation ? { degradation: run.degradation } : {}),
 		...(pendingApprovals.length ? { pendingApprovals } : {}),
 	};
+	// WP36: a settled state this wait returns is not repeated by `notify-check`.
+	if (!stillRunning) await markRunNotifySeen(ctx.cwd, run).catch(() => {});
 	const hints = hostCommandHints(ctx.host);
 	let text: string;
 	if (stillRunning) {

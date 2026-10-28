@@ -57,6 +57,14 @@ workflow profile, else the host's own CLI: `host-default`). Live bundle 4, 2026-
 | **Codex** | 0.159.2 | plugin (`codex plugin marketplace add` + `plugin add`, temporary, in the real `CODEX_HOME`; host turn `codex exec`); alternative `codex mcp add` | code mode: the model calls `exec` (JavaScript cell) and inside it `tools.mcp__agent_workflow__workflow_{run,wait,inspect}` (observed; all 8 listed via `ALL_TOOLS`); the `--json` stream shows server `agent-workflow`, tool `workflow_*` | `codex`, `host-default` (observed) | completed (live 4b): codex workers and claude workers, both `PARTIAL_REVIEW` (run `failed` by `support_declared_failed`; the host saw no preview or report path) | The model printed the whole `CallToolResult`, so it saw `content` and `structuredContent`. `workflow_wait` (45 s) outlasts the 30 s code-mode yield; the model resumed with `wait`. Skills `agent-workflow:{agent-workflow,execution-router,workflow-guide}` listed; server runs in the thread cwd with `--host codex`. A new directory gets a `trust_level = "trusted"` entry in the user config unless trusted inline (`-c projects={…}`). |
 | **Pi** | 1.1.0 | extension (`pi -e <package>/dist/hosts/pi/index.js`, or `pi install`) | `/aw …` command; agent tools `aw_list`, `aw_run`, `aw_dynamic`, `aw_wait` | `pi`, `host-default` (observed) | completed: `/aw run` in RPC mode, no model turn (`NEEDS_WORK`) | Footer status `aw: <name> <done>/<total> running`, exactly one `agent-workflow-completion` message, `/aw logs` and `/aw status`. The message's "Verdict:" line is the run status, the report verdict is in the preview. |
 
+Progress and completion per host (WP36, offline; [host-ux-investigation.md](host-ux-investigation.md)):
+
+| Host | Status display | Live view | Completion delivery |
+|---|---|---|---|
+| **Claude Code** 2.1.310 | `agent-workflow statusline` as `statusLine.command` (user setting; plugins cannot set it) | `agent-workflow watch [run]` in a terminal | Pull: `workflow_wait`/`workflow_status`; plugin `UserPromptSubmit` hook runs `notify-check` (result at the next user message; offline-verified: plugin validates, hook listed). Push (monitor, `asyncRewake`, backgrounded wait, MCP tasks): not enabled, live check pending |
+| **Codex** 0.159.2 | none (`tui.status_line` has only built-in items) | `agent-workflow watch [run]` (`--bell`) | Pull: the tools; `notify-check` hook as user config (`/hooks` trust). Push via `codex queue`: live check pending; `notify` fires only on Codex turn completion |
+| **Pi** 1.1.0 | footer status (WP16) | `/aw status` | push: one completion message (WP16/WP19) |
+
 Nesting and concurrency: Claude host → Claude workers, Claude host → Codex workers, Codex host →
 Codex workers and Codex host → Claude workers showed no auth or session conflict; three concurrent
 CLI runs on Claude workers (13 worker processes at peak) and three on Codex workers (9 concurrent

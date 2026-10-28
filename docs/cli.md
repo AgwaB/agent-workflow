@@ -33,12 +33,16 @@ npx agent-workflow --help
 | `prune [--keep N] [--older-than DAYS] [--yes]` | Delete terminal runs beyond the filters, and (WP18b) terminal executor attempt records older than 7 days (or `--older-than`) under `~/.agent-workflow/executors/` (WP19: a launched attempt's record becomes a compact tombstone that is never pruned, so reconcile never reports it absent; containment is physical: a symlinked `attempts/`, Pi `runs/` or other ancestor is refused and reported, never followed; WP19 round 7/8: orphans are removed only when the name is adapter-written — the adapter's own attemptKey digest of exactly its length (Claude 40, Codex 32, Pi 64 hex) alone or with `.events.jsonl`/`.log`/an atomic-write temp suffix — so other files there are never touched), and stale host launch claims (`.agent-workflow/host-launches/`, older than 1 h); a dry run without `--yes`. |
 | `notices list [--json] \| acknowledge <run> --state <sha256> --reason <text> \| clear <run> [--json]` | Notification-only acknowledgements of unfinished runs. |
 | `supervise <run> \| --all [--poll-ms N] [--max-runtime-ms N]` | Drive scheduling from this process until the run(s) are terminal. |
+| `watch [run] [--follow] [--once] [--interval S] [--bell]` | WP36: live terminal view of the project's active runs or one run (tasks, status, elapsed, pending approvals, verdict and report at the end). Read-only. Below. |
+| `statusline` | WP36: one line about the active runs for a status bar (Claude Code `statusLine`); empty when idle; always exit 0. Below. |
+| `notify-check [--host H] [--json] [--follow [--interval S]]` | WP36: one line per run that finished (or needs the user) since the last check, each state once; for host hooks. Below. |
 | `doctor [--json]` | Check this machine without a model call: executors (installed, version vs verified, login), the default executor here and why, permission-mode default, Node, `AGENT_WORKFLOW_HOME`, Codex environment warnings, stale run-index entries. Exit 0 when at least one executor is usable. Below. |
 | `help [command]`, `<command> --help`, `--version` | Help and version. |
 
 A run argument accepts the run id or an unambiguous prefix.
 
-WP28: every command except `help`/`--version` is also a host MCP tool (`workflow_<command>`,
+WP28: every command except `help`/`--version` (and the WP36 terminal views `watch`, `statusline`,
+`notify-check`, whose data the `workflow_status`/`workflow_wait` tools already return) is also a host MCP tool (`workflow_<command>`,
 [host-mcp.md](host-mcp.md#tools)); the MCP forms of `prune --yes`, `profile set|delete|default`, `profile workflow set|clear` and
 `notices acknowledge|clear` ask the user to confirm through MCP elicitation (WP29: as does
 `workflow_approve`, the MCP form of `approve`), and a client that
@@ -231,6 +235,61 @@ and above the selected profile. Stored in
 
 Exit 0 when at least one executor is usable, 1 otherwise. `--json` prints `{action: "doctor", ok,
 outcome, data}`.
+
+## `statusline`, `watch`, `notify-check`
+
+WP36 (owner decisions E1/E2, [host-ux-investigation.md](host-ux-investigation.md)): progress and
+completion for hosts that have no session UI of their own. All three only read the project's run
+records (the run index names the candidates), never drive a run, take no lease and call no model.
+
+**`statusline`** prints `aw: deep-review 5/13 running 12m · +1 more` for the newest active
+top-level run (and how many others), or nothing when idle. States: `running`, `running (no
+supervisor)` (no live process holds the run lease: start `agent-workflow supervise <run>`),
+`awaiting approval` (WP29), `needs action` (blocked; shown for a day after its last update). It reads
+the JSON Claude Code pipes on stdin (`workspace.project_dir`, `workspace.current_dir`, `cwd`; at most
+150 ms) and shows the runs of those directories, else of the working directory. Any error prints
+nothing; the exit code is always 0. The bin loads only this command's module (typically ~50 ms).
+Claude Code setup (a user setting; plugins cannot set it):
+
+```json
+{ "statusLine": { "type": "command", "command": "agent-workflow statusline", "refreshInterval": 2 } }
+```
+
+in `~/.claude/settings.json` or the project's `.claude/settings.json`. `refreshInterval` re-runs it
+while the session is idle (Claude Code otherwise refreshes only on conversation events). Without a
+global install use `npx -y --package=@agwab/agent-workflow@<package version> agent-workflow statusline`
+(slower). With an existing status-line script, append its output: `agent-workflow statusline`
+prints a single line or nothing.
+
+**`watch [run]`** redraws every 2 s (`--interval` 1-10 s): with a run, its header (status, progress,
+elapsed), one row per task (icon, name, status, elapsed, executor/model or the failure message),
+pending approvals with the `approve` commands, and at the end `Finished: <status> — verdict X` plus
+the report paths; without a run, one line per active run of the project and, once a run ended, its
+result. It exits when the run (or every watched run) is finished or needs the user (`--follow` keeps
+going until Ctrl-C; `--once` draws one frame). Exit code with a run: 0 when it completed, 1
+otherwise; without a run: 0. On a terminal it clears and redraws (ANSI colors unless `NO_COLOR`);
+on a pipe it prints a frame only when a status changed. `--bell` rings the terminal bell when it
+ends (a desktop notification in terminals that map the bell). Ctrl-C stops watching, never the run.
+Typical use: a pane next to Codex or Claude Code, `agent-workflow watch <runId>`.
+
+**`notify-check`** prints, per top-level run that settled since the last check (finished, or blocked
+and needing the user), one line such as
+
+```text
+agent-workflow: workflow "deep-review" (run workflow_…) finished — verdict NEEDS_WORK, report .agent-workflow/workflows/workflow_…/final-report.md. Details: agent-workflow status workflow_…
+```
+
+and nothing otherwise (exit 0). Blocked runs name the approval (`approve`) or the
+inspect/resume commands; `--host claude-code|codex|generic` words the follow-ups as MCP tool calls.
+Receipts: `.agent-workflow/notify-check/` (created by the first check in a project that has runs)
+holds `baseline.json` (the first check also reports runs that settled in the hour before it) and one
+marker per reported state, created exclusively so concurrent checks print a state once. A resumed
+run that settles again is reported again. `wait` (CLI, MCP `workflow_wait`, Pi) marks the state it
+returned, so a result the host already showed is not repeated. At most 5 runs per check (the rest
+next time); markers of pruned runs are removed. `--json` prints `{action, ok, outcome, data:
+{notifications, deferred}}`. `--follow` checks every 5 s (`--interval` 1-60) and prints new lines as
+they appear (a long-lived feed, for example a Claude Code plugin monitor). Hook setup:
+[plugins.md](plugins.md#completion-check-hook).
 
 ## Exit codes
 

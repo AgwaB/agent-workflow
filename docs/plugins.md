@@ -19,13 +19,20 @@ spec. WP28: the other CLI commands are tools too (`workflow_resume`, `workflow_s
 WP29: `workflow_approve` answers a dynamic-controller approval a run waits on, also after a dialog.
 Details: [host-mcp.md](host-mcp.md).
 
+WP36: when a run outlives the host's patience, the user follows it in a terminal with
+`agent-workflow watch <runId>`, sees it in Claude Code's status line (`agent-workflow statusline`,
+user setting), and the Claude Code plugin's prompt hook adds a line such as
+`agent-workflow: workflow "deep-review" (run …) finished — verdict NEEDS_WORK, report …` to the
+conversation at the user's next message ([below](#completion-check-hook)).
+
 ## Layout
 
 ```
 .claude-plugin/marketplace.json          Claude Code marketplace (repo root)
 .agents/plugins/marketplace.json         Codex marketplace (repo root)
 plugins/agent-workflow/
-  .claude-plugin/plugin.json             Claude Code manifest: mcpServers → --host claude-code
+  .claude-plugin/plugin.json             Claude Code manifest: mcpServers → --host claude-code,
+                                         hooks → UserPromptSubmit notify-check (WP36)
   .codex-plugin/plugin.json              Codex manifest: mcpServers → --host codex, skills, timeouts
   README.md
   skills/agent-workflow/                 tool call protocol (source: skills/agent-workflow/)
@@ -131,6 +138,72 @@ With the package installed (`npm install -g @agwab/agent-workflow`), the command
   per-server `timeout` (ms) in an `.mcp.json`/`mcpServers` entry. The plugin sets none; if the first
   `npx` start is slow, start Claude Code once with `MCP_TIMEOUT=60000`.
 
+## Status line and watch
+
+WP36 ([host-ux-investigation.md](host-ux-investigation.md), [cli.md](cli.md#statusline-watch-notify-check)).
+
+- **Claude Code status line.** A plugin cannot set `statusLine` (a plugin's settings apply only
+  `agent` and `subagentStatusLine`), so the user adds it to `~/.claude/settings.json` or the
+  project's `.claude/settings.json`:
+  `{"statusLine": {"type": "command", "command": "agent-workflow statusline", "refreshInterval": 2}}`
+  (with `npx -y --package=@agwab/agent-workflow@<package version> agent-workflow statusline` when the
+  package is not installed globally). It shows `aw: deep-review 5/13 running 12m · +1 more` and
+  nothing when idle; the folder must be trusted.
+- **Codex and Claude Code: `agent-workflow watch [runId]`** in another terminal pane: tasks, status,
+  elapsed, pending approvals and the verdict and report at the end; `--bell` rings the terminal bell
+  when the run ends. Codex has no status-line command (`tui.status_line` takes only built-in items)
+  and no `watch` of its own.
+
+## Completion check hook
+
+The host MCP server cannot push a result into the conversation (no completion push on the installed
+versions: [host-ux-investigation.md](host-ux-investigation.md)). The common mechanism (owner decision
+E2) is `agent-workflow notify-check`, run from a hook whose output the host adds to the model's
+context: at the user's next message, each run that finished since the last check is announced once.
+
+- **Claude Code (shipped in the plugin).** `.claude-plugin/plugin.json` declares an inline
+  `UserPromptSubmit` command hook (timeout 60 s) that runs
+  `npx -y --package=@agwab/agent-workflow@<package version> agent-workflow notify-check --host claude-code`
+  in the project directory (`$CLAUDE_PROJECT_DIR`; exact command: `notifyHookCommand` in
+  `tools/release/plugins.mjs`). The hook runs on every prompt, so it starts the CLI only when it has
+  something to check: in a project without runs it is a directory test, and after a successful check
+  it keeps a stamp (`.agent-workflow/notify-check/hook-claude-code.stamp`) and exits at once unless a
+  `run.json` changed since (one `find`; no `npx` start while nothing changed). The stamp is touched
+  before the check starts and kept only when the check succeeded, so a change during a check or a
+  failed check is looked at again on the next prompt. It never blocks a prompt and prints nothing on
+  errors. Claude Code adds the plain stdout of `UserPromptSubmit` hooks to the
+  context. There is no `hooks/hooks.json` (Claude Code loads that file by default, and Codex would
+  read it too). The dev plugin runs the checkout's CLI instead of `npx`.
+- **Codex (manual).** The plugin ships no Codex hook: Codex skips plugin hooks until the user
+  trusts them in `/hooks`, and plugins with lifecycle hooks are not eligible for the public plugin
+  directory. Add it to `~/.codex/hooks.json` or the project's `.codex/hooks.json` (trusted projects
+  only), then trust it with `/hooks`:
+
+  ```json
+  {
+    "hooks": {
+      "UserPromptSubmit": [
+        {
+          "hooks": [
+            {
+              "type": "command",
+              "command": "[ -d .agent-workflow/workflows ] || exit 0; agent-workflow notify-check --host codex 2>/dev/null; exit 0",
+              "timeout": 60
+            }
+          ]
+        }
+      ]
+    }
+  }
+  ```
+
+  Codex runs hooks in the session directory and adds plain stdout of `UserPromptSubmit` as developer
+  context. Without a global install, use the `npx -y --package=@agwab/agent-workflow@<package version>
+  agent-workflow` form.
+- Not live-verified yet (bundle 5, checks L1 and L5 in the investigation). Push into an idle
+  session (Claude Code plugin monitors with `notify-check --follow`, `asyncRewake` hooks, a
+  backgrounded long wait; `codex queue`) needs live checks first.
+
 ## Tool names
 
 The skills use the short names (`workflow_run`, …). Hosts prefix them:
@@ -181,6 +254,11 @@ $ claude plugin details agent-workflow@agent-workflow
   Always-on: ~246 tok
 $ claude mcp list   → plugin:agent-workflow:agent-workflow: … --host claude-code - ✔ Connected
 ```
+
+WP36, same procedure with the dev plugin (throw-away `CLAUDE_CONFIG_DIR` and project):
+`claude plugin validate plugins/agent-workflow --strict` → `✔ Validation passed`;
+`claude plugin details agent-workflow@agent-workflow` → `Hooks (1)  UserPromptSubmit  (harness-only
+— no model context cost)`, `Always-on: ~267 tok`.
 
 A probe server confirmed that Claude Code starts plugin servers in the project directory
 (`CLAUDE_PROJECT_DIR` set) and expands `${CLAUDE_PLUGIN_ROOT}` (not `${PLUGIN_ROOT}`) in `args`; it
@@ -263,4 +341,6 @@ errors, the dev Codex command serving `tools/list` in a project directory).
 - The `npx` pin works only after `@agwab/agent-workflow` is published (stage 3).
 - Portable Agent Plugins layout for Codex once the server can take the project from the client
   (for example MCP roots or Codex's sandbox-state metadata) instead of its working directory.
-- Windows: `npx` resolves to `npx.cmd`; not verified.
+- Windows: `npx` resolves to `npx.cmd`; not verified. The WP36 hook command is POSIX shell (Claude
+  Code runs hooks through Git Bash on Windows; not verified).
+- WP36 live checks L1-L6 ([host-ux-investigation.md](host-ux-investigation.md#live-checks-for-bundle-5-one-host-turn-each-temporary-projects-and-config)).

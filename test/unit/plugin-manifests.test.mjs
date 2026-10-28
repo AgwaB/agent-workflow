@@ -4,9 +4,21 @@
 // package.json, the exact npx pin, the per-host `--host` value, the absence of manifests that would
 // register the server a second time or with the wrong working directory, and that both
 // marketplaces resolve to the plugin directory. docs/plugins.md.
+// WP36: the Claude Code manifest's inline UserPromptSubmit hook runs `agent-workflow notify-check`
+// from the same pinned package (guarded by the project's run directory, always exit 0); Codex has no
+// plugin hook (docs/host-ux-investigation.md).
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+import {
+	mkdirSync,
+	mkdtempSync,
+	rmSync,
+	utimesSync,
+	writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -79,6 +91,143 @@ test("each host registers the agent-workflow server through the pinned npx packa
 			codex.mcpServers["agent-workflow"],
 		),
 	);
+});
+
+test("WP36: the Claude Code manifest ships the notify-check prompt hook; Codex ships none", () => {
+	assert.deepEqual(Object.keys(claude.hooks), ["UserPromptSubmit"]);
+	const [group] = claude.hooks.UserPromptSubmit;
+	assert.equal(group.matcher, undefined);
+	const [hook] = group.hooks;
+	assert.equal(hook.type, "command");
+	assert.equal(hook.timeout, plugins.NOTIFY_HOOK_TIMEOUT_SEC);
+	assert.equal(
+		hook.command,
+		plugins.notifyHookCommand(
+			{
+				command: "npx",
+				args: ["-y", `--package=${pkg.name}@${pkg.version}`, "agent-workflow"],
+			},
+			"claude-code",
+		),
+	);
+	assert.ok(
+		hook.command.includes(
+			`npx -y --package=${pkg.name}@${pkg.version} agent-workflow notify-check --host claude-code`,
+		),
+		hook.command,
+	);
+	assert.equal(pkg.bin["agent-workflow"], "src/hosts/cli/cli.mjs");
+	assert.equal(codex.hooks, undefined);
+	assert.equal(existsSync(join(pluginDir, "hooks")), false);
+});
+
+test("WP36: the hook command is silent and exits 0 without runs, and prints the completion line with runs", () => {
+	const temp = mkdtempSync(join(tmpdir(), "aw-wp36-hook-"));
+	try {
+		const command = plugins.notifyHookCommand(
+			plugins.devCliLaunch(root),
+			"claude-code",
+		);
+		const run = (cwd, env = {}) =>
+			spawnSync("sh", ["-c", command], {
+				cwd,
+				env: { ...process.env, ...env },
+				input: '{"prompt":"hi"}',
+				encoding: "utf8",
+			});
+		const empty = run(temp, { CLAUDE_PROJECT_DIR: temp });
+		assert.deepEqual([empty.status, empty.stdout, empty.stderr], [0, "", ""]);
+		const project = join(temp, "p");
+		const runDir = join(
+			project,
+			".agent-workflow",
+			"workflows",
+			"workflow_hook",
+		);
+		mkdirSync(runDir, { recursive: true });
+		const at = new Date().toISOString();
+		writeFileSync(
+			join(runDir, "run.json"),
+			JSON.stringify({
+				runId: "workflow_hook",
+				name: "deep-review",
+				createdAt: at,
+				updatedAt: at,
+				tasks: [
+					{
+						taskId: "a-1",
+						specId: "a",
+						displayName: "a",
+						status: "completed",
+						statusDetail: "completed",
+						files: { output: "" },
+					},
+				],
+				taskSummary: {
+					total: 1,
+					completed: 1,
+					failed: 0,
+					interrupted: 0,
+					pending: 0,
+					running: 0,
+					blocked: 0,
+					skipped: 0,
+				},
+			}),
+		);
+		const shown = run(temp, { CLAUDE_PROJECT_DIR: project });
+		assert.equal(shown.status, 0, shown.stderr);
+		assert.match(
+			shown.stdout,
+			/^agent-workflow: workflow "deep-review" \(run workflow_hook\) finished — status completed\. Details: workflow_status \{"runId":"workflow_hook"\}\n$/,
+		);
+		// Idle prompts never start the CLI: nothing changed since the last successful check.
+		const stamp = join(
+			project,
+			".agent-workflow",
+			"notify-check",
+			"hook-claude-code.stamp",
+		);
+		assert.ok(existsSync(stamp), "stamp written after a successful check");
+		const marker = join(temp, "cli-started");
+		const counting = plugins.notifyHookCommand(
+			{ command: "sh", args: ["-c", `touch ${marker}; exit 0`, "x"] },
+			"claude-code",
+		);
+		const runWith = (cmd) =>
+			spawnSync("sh", ["-c", cmd], {
+				cwd: temp,
+				env: { ...process.env, CLAUDE_PROJECT_DIR: project },
+				encoding: "utf8",
+			});
+		assert.equal(runWith(counting).status, 0);
+		assert.equal(existsSync(marker), false, "CLI started without a change");
+		// A changed run.json starts it again.
+		const later = new Date(Date.now() + 5_000);
+		utimesSync(join(runDir, "run.json"), later, later);
+		assert.equal(runWith(counting).status, 0);
+		assert.equal(existsSync(marker), true, "CLI not started after a change");
+		assert.equal(run(project, { CLAUDE_PROJECT_DIR: "" }).stdout, "");
+		// A broken CLI never blocks or decorates the prompt.
+		const broken = spawnSync(
+			"sh",
+			[
+				"-c",
+				plugins.notifyHookCommand(
+					{ command: "false", args: [] },
+					"claude-code",
+				),
+			],
+			{
+				cwd: project,
+				env: { ...process.env, CLAUDE_PROJECT_DIR: project },
+				encoding: "utf8",
+			},
+		);
+		assert.deepEqual([broken.status, broken.stdout], [0, ""]);
+	} finally {
+		rmSync(temp, { recursive: true, force: true });
+	}
 });
 
 test("Codex timeouts leave room for the 45 s wait cap and the first npx download", () => {

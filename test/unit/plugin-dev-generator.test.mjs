@@ -61,6 +61,15 @@ test("dev output: manifests launch the checkout's server per host; everything el
 		assert.deepEqual(server.args.slice(1), ["--host", host]);
 	}
 	assert.equal(codex.mcpServers["agent-workflow"].tool_timeout_sec, 120);
+	// WP36: the dev completion hook runs the checkout's CLI.
+	const hook = claude.hooks.UserPromptSubmit[0].hooks[0];
+	assert.ok(
+		hook.command.includes(
+			`${process.execPath} ${join(root, "src/hosts/cli/cli.mjs")} notify-check --host claude-code`,
+		),
+		hook.command,
+	);
+	assert.equal(codex.hooks, undefined);
 
 	const committed = join(root, plugins.PLUGIN_DIR);
 	for (const path of [
@@ -92,6 +101,7 @@ test("dev output: manifests launch the checkout's server per host; everything el
 			delete server.command;
 			delete server.args;
 		}
+		delete copy.hooks;
 		return copy;
 	};
 	assert.deepEqual(

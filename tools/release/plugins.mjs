@@ -20,6 +20,8 @@
 //   plugin root, while the server takes its project from its working directory; the compatibility
 //   manifest starts the server in the session directory. So no root portable manifest is written.
 // Neither manifest set uses a `.mcp.json` file (Claude Code would load it as a second server).
+// WP36: the Claude Code manifest also declares an inline `UserPromptSubmit` hook running
+// `agent-workflow notify-check` (no `hooks/hooks.json`, which Claude Code would load by default).
 import { existsSync } from "node:fs";
 import {
 	mkdir,
@@ -125,6 +127,81 @@ export function devLaunch(checkoutRoot, host) {
 	};
 }
 
+/** WP36: the `agent-workflow` CLI of the released plugin (same pinned package as the server). */
+export function npxCliLaunch(version) {
+	return {
+		command: "npx",
+		args: ["-y", `--package=${PACKAGE_NAME}@${version}`, "agent-workflow"],
+	};
+}
+
+/** WP36: the `agent-workflow` CLI of a local checkout (dev plugin). */
+export function devCliLaunch(checkoutRoot) {
+	return {
+		command: process.execPath,
+		args: [join(resolve(checkoutRoot), "src/hosts/cli/cli.mjs")],
+	};
+}
+
+function shellWord(word) {
+	return /^[A-Za-z0-9_@%+=:,./-]+$/.test(word)
+		? word
+		: `'${word.replaceAll("'", "'\\''")}'`;
+}
+
+/** Seconds a notify-check hook may take (the first `npx` start downloads the package). */
+export const NOTIFY_HOOK_TIMEOUT_SEC = 60;
+
+/**
+ * WP36: the shell command of the completion hook: `agent-workflow notify-check` in the project
+ * directory, only when the project has runs (otherwise a directory test and nothing else); its
+ * output (one line per run that finished since the last check) is added to the conversation.
+ * Always exits 0 and prints nothing on errors, so a prompt is never blocked or decorated.
+ * The hook runs on every prompt, so the CLI (an `npx` start in the published plugin) is only
+ * started when a `run.json` changed since the last successful check: a stamp file
+ * (`.agent-workflow/notify-check/hook-<host>.stamp`, touched before the check starts so a change
+ * during it is seen next time, kept only when the check succeeded) makes the idle case a `find`.
+ */
+export function notifyHookCommand(cli, host) {
+	const run = [cli.command, ...cli.args, "notify-check", "--host", host]
+		.map(shellWord)
+		.join(" ");
+	const stamp = `hook-${host}.stamp`;
+	return [
+		`d="\${CLAUDE_PROJECT_DIR:-.}"`,
+		`w="$d/.agent-workflow/workflows"`,
+		`[ -d "$w" ] || exit 0`,
+		`n="$d/.agent-workflow/notify-check"`,
+		`s="$n/${stamp}"`,
+		`[ -f "$s" ] && [ -z "$(find "$w" -name run.json -newer "$s" 2>/dev/null | head -n 1)" ] && exit 0`,
+		`mkdir -p "$n" 2>/dev/null && touch "$s.next" 2>/dev/null`,
+		`(cd "$d" && ${run} 2>/dev/null) && mv -f "$s.next" "$s" 2>/dev/null`,
+		"exit 0",
+	].join("; ");
+}
+
+/**
+ * WP36: Claude Code plugin hooks (inline event map): `UserPromptSubmit` adds its plain stdout to
+ * the model's context (docs/host-ux-investigation.md). Codex gets no plugin hook: plugin hooks need
+ * a trust review there and make a plugin ineligible for the public directory, so the Codex hook is
+ * documented as user configuration instead (docs/plugins.md).
+ */
+export function claudePluginHooks(cli) {
+	return {
+		UserPromptSubmit: [
+			{
+				hooks: [
+					{
+						type: "command",
+						command: notifyHookCommand(cli, HOST_IDS.claude),
+						timeout: NOTIFY_HOOK_TIMEOUT_SEC,
+					},
+				],
+			},
+		],
+	};
+}
+
 export async function readPackageVersion(root = REPO_ROOT) {
 	const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
 	if (pkg.name !== PACKAGE_NAME)
@@ -138,7 +215,11 @@ function json(value) {
 	return `${JSON.stringify(value, null, 2)}\n`;
 }
 
-export function claudePluginManifest(version, launch) {
+export function claudePluginManifest(
+	version,
+	launch,
+	cli = npxCliLaunch(version),
+) {
 	return {
 		$schema: "https://anthropic.com/claude-code/plugin.schema.json",
 		name: PLUGIN_NAME,
@@ -150,6 +231,7 @@ export function claudePluginManifest(version, launch) {
 		license: "MIT",
 		keywords: [...KEYWORDS],
 		mcpServers: { [MCP_SERVER_NAME]: launch(HOST_IDS.claude) },
+		hooks: claudePluginHooks(cli),
 	};
 }
 
@@ -358,13 +440,19 @@ async function listFiles(dir, base = dir) {
 
 /**
  * Every file of the plugin directory, keyed by plugin-relative POSIX path.
- * `launch(host)` returns `{command, args}` for the MCP server entry.
+ * `launch(host)` returns `{command, args}` for the MCP server entry; `cli` is the `agent-workflow`
+ * CLI the Claude Code completion hook runs (WP36).
  */
-export async function renderPluginFiles({ root = REPO_ROOT, version, launch }) {
+export async function renderPluginFiles({
+	root = REPO_ROOT,
+	version,
+	launch,
+	cli = npxCliLaunch(version),
+}) {
 	const files = new Map();
 	files.set(
 		".claude-plugin/plugin.json",
-		json(claudePluginManifest(version, launch)),
+		json(claudePluginManifest(version, launch, cli)),
 	);
 	files.set(
 		".codex-plugin/plugin.json",
@@ -593,6 +681,7 @@ export async function buildDev(
 		root,
 		version,
 		launch: (host) => devLaunch(root, host),
+		cli: devCliLaunch(root),
 	});
 	await writeTree(join(out, PLUGIN_DIR), files);
 	await writeTree(out, renderMarketplaceFiles());

@@ -11,6 +11,8 @@
 // profile set/delete/default/clear-default, notices acknowledge/clear) act only after an MCP
 // elicitation confirmation; a client without form elicitation is refused with the terminal CLI
 // command, and a declined/cancelled/failed elicitation changes nothing.
+// WP36: the instructions and the still-running wait footer name `agent-workflow watch`, the Claude
+// Code status line and the notify-check completion line.
 // WP31: workflow_profile set takes `preset` and `roles` (role → executor/model/effort), op `presets`
 // lists the built-in executor presets.
 // WP29 (parity row 43): workflow_approve answers a dynamic-controller approval a run is blocked on.
@@ -116,7 +118,7 @@ export const HOST_MCP_INSTRUCTIONS = [
 	`2. ${WORKFLOW_RUN_TOOL} {workflow, task} (or ${WORKFLOW_DYNAMIC_TOOL} {task} for a spec-less dynamic workflow) starts a run and returns its runId at once. Runs are detached by default, so they keep going between calls and after this server stops.`,
 	`3. ${WORKFLOW_WAIT_TOOL} {runId} waits at most ${WAIT_SECONDS} s per call. While stillRunning is true, call ${WORKFLOW_WAIT_TOOL} again with the same runId. terminal=true means finished; actionRequired=true means blocked: report it and use ${WORKFLOW_INSPECT_TOOL}.`,
 	'4. When the run finished, quote the result preview and give the report paths verbatim; do not paraphrase or re-summarize the report. Read the report file for details. A result headed "Workflow finished — verdict: X (report ready)" (verdictGate=true) is the workflow\'s result with a non-passing domain verdict, not a workflow failure: report the verdict and the report.',
-	`5. You get no completion push: a run only reports through ${WORKFLOW_WAIT_TOOL}/${WORKFLOW_STATUS_TOOL}. If it is still running when you stop waiting (for example a long rate-limit backoff, nextRetry in the ${WORKFLOW_WAIT_TOOL} result), tell the user the runId, what the run is waiting for, and that they can ask you again later.`,
+	`5. You get no completion push: a run only reports through ${WORKFLOW_WAIT_TOOL}/${WORKFLOW_STATUS_TOOL}. If it is still running when you stop waiting (for example a long rate-limit backoff, nextRetry in the ${WORKFLOW_WAIT_TOOL} result), tell the user the runId, what the run is waiting for, that they can ask you again later, and that they can follow it live in a terminal with \`agent-workflow watch <runId>\` (in Claude Code, \`agent-workflow statusline\` as the statusLine command shows active runs). A line "agent-workflow: workflow … finished — …" at the start of a later turn comes from the completion check (agent-workflow notify-check): relay it to the user with the report path.`,
 	`${WORKFLOW_STATUS_TOOL} lists runs or shows one; ${WORKFLOW_LOGS_TOOL} shows a bounded, redacted tail of task output, stderr and executor events; ${WORKFLOW_STOP_TOOL} interrupts a run (cancelling ${WORKFLOW_WAIT_TOOL} only stops waiting); ${WORKFLOW_VALIDATE_TOOL} checks a workflow spec.`,
 	`More tools (the CLI commands): ${WORKFLOW_SHOW_TOOL} (a workflow spec or a run record), ${WORKFLOW_ROLES_TOOL}, ${WORKFLOW_AGENTS_TOOL}, ${WORKFLOW_DOCTOR_TOOL} (environment check) are read-only. ${WORKFLOW_RESUME_TOOL} continues a failed, interrupted or blocked run and ${WORKFLOW_SUPERVISE_TOOL} starts a background supervisor for a running run without one: both start model calls (cost), so call them only when the user asks.`,
 	`Dynamic approvals: a run whose dynamic controller needs the user's approval stops with actionRequired=true and pendingApprovals (the question and a requestId) in ${WORKFLOW_WAIT_TOOL}/${WORKFLOW_STATUS_TOOL}. Show the user the question; only when the user decides, call ${WORKFLOW_APPROVE_TOOL} {runId, requestId, decision} (it asks the user to confirm in a dialog; an approval continues the run, which starts model calls).`,
@@ -1194,7 +1196,7 @@ function waitNext(data: WaitData): string {
 		const waitingFor = data.nextRetry
 			? `a scheduled retry at ${data.nextRetry.at}${data.nextRetry.reason ? ` (${data.nextRetry.reason})` : ""}`
 			: "its running tasks";
-		return `${state}${data.nextRetry ? ` nextRetryAt=${data.nextRetry.at}` : ""}\nNext: call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} again. If you stop waiting, tell the user the run ${data.runId} is still running and waiting for ${waitingFor}, and that they can ask you again for the result: there is no completion push to this chat.`;
+		return `${state}${data.nextRetry ? ` nextRetryAt=${data.nextRetry.at}` : ""}\nNext: call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} again. If you stop waiting, tell the user the run ${data.runId} is still running and waiting for ${waitingFor}, and that they can ask you again for the result or follow it with agent-workflow watch ${data.runId} in a terminal: there is no completion push to this chat.`;
 	}
 	if (data.actionRequired)
 		return `${state}\nNext: report the blocker; ${WORKFLOW_INSPECT_TOOL} {"runId":"${data.runId}","failures":true} shows the failed tasks. When the user asks to continue, ${WORKFLOW_RESUME_TOOL} {"runId":"${data.runId}"} resumes it (new model calls; CLI: agent-workflow resume ${data.runId}).`;

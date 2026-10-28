@@ -4,6 +4,26 @@
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+// WP36: `statusline` runs on every host status refresh; it loads only its own module and never
+// fails loudly (no output and exit 0 on any error, also a missing build).
+if (
+	process.argv[2] === "statusline" &&
+	!process.argv.slice(3).some((arg) => arg === "--help" || arg === "-h")
+) {
+	let code = 0;
+	try {
+		const statusline = new URL(
+			"../../../dist/hosts/cli/statusline.js",
+			import.meta.url,
+		);
+		const { statusLineMain } = await import(statusline.href);
+		code = await statusLineMain();
+	} catch {
+		code = 0;
+	}
+	await new Promise((resolve) => process.stdout.write("", resolve));
+	process.exit(code);
+}
 const entry = new URL("../../../dist/hosts/cli/index.js", import.meta.url);
 if (!existsSync(fileURLToPath(entry))) {
 	process.stderr.write(
