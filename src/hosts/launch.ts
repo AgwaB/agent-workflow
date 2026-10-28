@@ -8,6 +8,9 @@
 // v1 capture schema only knows Pi slash commands and Pi tools); the detached supervisor is the
 // `agent-workflow supervise` CLI and logs to `<run dir>/supervise.log`.
 // WP17: HostApiContext.host reaches the engine (host-default executor) and launch data shows it.
+// WP31: built-in presets as `--profile <id>`; the saved per-workflow preference (workflow-
+// preferences.ts) applies to every host's launch (its profile when none is named, its role overrides
+// as the engine's workflowPreference layer); launch data/text show the per-stage role assignment.
 import { spawn } from "node:child_process";
 import { closeSync, openSync } from "node:fs";
 import { join } from "node:path";
@@ -32,6 +35,11 @@ import {
 	unverifiedDefaultGuidance,
 } from "../core/executor-default.js";
 import { WorkflowExecutorUnavailableError } from "../core/executor-registry.js";
+import {
+	EXECUTOR_PRESET_IDS,
+	executorPreset,
+	isExecutorPresetId,
+} from "../core/executor-presets.js";
 import { formatApproxDuration } from "../core/run-estimates.js";
 import { type LoadedWorkflowSpec, loadWorkflowSpec } from "../core/schema.js";
 import { workflowRunDir } from "../core/store.js";
@@ -70,6 +78,11 @@ import {
 	type UserProfile,
 	userProfileFromFile,
 } from "./user-profiles.js";
+import {
+	readWorkflowPreferences,
+	type WorkflowPreference,
+	workflowPreferenceFrom,
+} from "./workflow-preferences.js";
 
 export type WorkflowProfileSelector = (
 	title: string,
@@ -115,7 +128,8 @@ export type RunDynamicRequest = LaunchRequestBase;
 
 export interface LaunchProfileInfo {
 	name: string;
-	kind: "declared" | "user" | "workflow-preference";
+	/** WP31: `preset` = a built-in executor preset (executor-presets.ts). */
+	kind: "declared" | "user" | "workflow-preference" | "preset";
 	/** `request`: named by the caller; the others were picked because none was named. */
 	source:
 		| "request"
@@ -344,6 +358,28 @@ function applyUserProfile(
 	};
 }
 
+/** WP31: a built-in preset launched like a saved user profile of the same name. */
+function presetLaunchProfile(
+	ctx: HostApiContext,
+	loaded: LoadedWorkflowSpec,
+	id: string,
+	source: LaunchProfileInfo["source"],
+): LaunchProfile {
+	const preset = executorPreset(id);
+	const profile = applyUserProfile(
+		ctx,
+		loaded,
+		{
+			name: preset.id,
+			executor: preset.executor,
+			roles: preset.roles,
+			updatedAt: "",
+		},
+		source,
+	);
+	return { ...profile, info: { name: preset.id, kind: "preset", source } };
+}
+
 /**
  * WP19 round 2 (N5): the launch profile, resolved once from one read of the settings (saved user
  * profiles and the saved per-workflow preference with its stage overrides). The duplicate guard
@@ -356,6 +392,41 @@ interface LaunchProfileSnapshot {
 	resolved?: LaunchProfile;
 	/** The workflow declares profiles: the declared selector decides after the guard. */
 	declaredChoice?: { userDefault?: UserProfile; userProfilesError?: unknown };
+	/** WP31: the saved per-workflow preference of this workflow (profile and role overrides). */
+	preference?: WorkflowPreference;
+}
+
+/** WP31: the saved preference of the launched workflow (keyed by `spec.name`), if any. */
+async function workflowPreferenceForLaunch(
+	ctx: HostApiContext,
+	loaded: LoadedWorkflowSpec,
+): Promise<WorkflowPreference | undefined> {
+	const name = loaded.spec.name?.trim();
+	if (!name) return undefined;
+	return workflowPreferenceFrom(
+		await readWorkflowPreferences(hostEnv(ctx)),
+		name,
+	);
+}
+
+/**
+ * WP31: the launch profile with the saved per-workflow preference: its `profile` is used when the
+ * request names none (source `workflow-preference`); its roles reach the engine as a role layer.
+ */
+async function snapshotLaunchProfile(
+	ctx: HostApiContext,
+	loaded: LoadedWorkflowSpec,
+	request: LaunchRequestBase,
+): Promise<LaunchProfileSnapshot> {
+	const preference = await workflowPreferenceForLaunch(ctx, loaded);
+	const named =
+		request.profile !== undefined
+			? { name: request.profile, source: "request" as const }
+			: preference?.profile !== undefined
+				? { name: preference.profile, source: "workflow-preference" as const }
+				: undefined;
+	const snapshot = await snapshotProfileSelection(ctx, loaded, request, named);
+	return preference ? { ...snapshot, preference } : snapshot;
 }
 
 /**
@@ -363,32 +434,40 @@ interface LaunchProfileSnapshot {
  * same name. Not named: (host with a model registry: saved per-workflow Pi preference) > declared
  * default (or the interactive declared chooser) > default saved user profile > none.
  */
-async function snapshotLaunchProfile(
+async function snapshotProfileSelection(
 	ctx: HostApiContext,
 	loaded: LoadedWorkflowSpec,
 	request: LaunchRequestBase,
+	named:
+		| { name: string; source: "request" | "workflow-preference" }
+		| undefined,
 ): Promise<LaunchProfileSnapshot> {
 	const env = hostEnv(ctx);
 	const declared = loaded.spec.executionProfiles ?? {};
-	if (request.profile !== undefined) {
-		if (Object.hasOwn(declared, request.profile)) {
+	if (named !== undefined) {
+		if (Object.hasOwn(declared, named.name)) {
 			const savedUserProfile = await defaultUserProfileQuietly(env);
 			return {
 				resolved: {
-					selection: { executionProfile: request.profile },
-					info: { name: request.profile, kind: "declared", source: "request" },
+					selection: { executionProfile: named.name },
+					info: { name: named.name, kind: "declared", source: named.source },
 					...(savedUserProfile ? { savedUserProfile } : {}),
 				},
 			};
 		}
 		const file = await readUserProfiles(env);
-		const user = userProfileFromFile(file, request.profile);
+		const user = userProfileFromFile(file, named.name);
 		if (user)
-			return { resolved: applyUserProfile(ctx, loaded, user, "request") };
+			return { resolved: applyUserProfile(ctx, loaded, user, named.source) };
+		// WP31: a built-in executor preset when no declared or saved profile has the name.
+		if (isExecutorPresetId(named.name))
+			return {
+				resolved: presetLaunchProfile(ctx, loaded, named.name, named.source),
+			};
 		const declaredNames = Object.keys(declared).sort();
 		const userNames = Object.keys(file.profiles).sort();
 		throw new HostUsageError(
-			`unknown profile "${request.profile}": the workflow declares ${declaredNames.length ? declaredNames.join(", ") : "no execution profiles"}; saved user profiles: ${userNames.length ? userNames.join(", ") : "none"}`,
+			`unknown profile "${named.name}"${named.source === "workflow-preference" ? ` (from the saved preference of workflow ${loaded.spec.name}; change it with: agent-workflow profile workflow set ${loaded.spec.name} --profile <name>)` : ""}: the workflow declares ${declaredNames.length ? declaredNames.join(", ") : "no execution profiles"}; saved user profiles: ${userNames.length ? userNames.join(", ") : "none"}; built-in presets: ${EXECUTOR_PRESET_IDS.join(", ")}`,
 		);
 	}
 	if (ctx.availableModels !== undefined) {
@@ -830,7 +909,8 @@ function launchExecutionIdentity(
 	const host = ctx.host ?? "cli";
 	const resolved = snapshot.resolved;
 	const override = resolved?.selection.executionProfileOverride;
-	const userKind = resolved?.info?.kind === "user";
+	const userKind =
+		resolved?.info?.kind === "user" || resolved?.info?.kind === "preset";
 	const profileExecutor = userKind
 		? (override?.executor ?? resolved?.fallback?.executor)
 		: undefined;
@@ -880,6 +960,10 @@ function launchExecutionIdentity(
 			resolved?.fallback?.permissionMode ??
 			"",
 		workflowDefinition: workflowDefinitionFingerprint(loaded.spec),
+		// WP31: a changed per-workflow preference is a different launch.
+		workflowPreference: snapshot.preference
+			? { ...snapshot.preference, updatedAt: undefined }
+			: null,
 	};
 }
 
@@ -1022,6 +1106,15 @@ async function launchClaimed(
 		...profile.selection,
 		...(profile.savedUserProfile && profile.selection.executionProfile
 			? { savedUserProfile: savedUserProfileLayer(profile.savedUserProfile) }
+			: {}),
+		// WP31: the saved per-workflow preference's role overrides.
+		...(launch.snapshot.preference?.roles
+			? {
+					workflowPreference: {
+						name: launch.snapshot.preference.workflow,
+						roles: launch.snapshot.preference.roles,
+					},
+				}
 			: {}),
 		...(executor ? { executor } : {}),
 		...(ctx.defaultExecutor ? { defaultExecutor: ctx.defaultExecutor } : {}),

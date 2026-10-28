@@ -18,6 +18,7 @@ import {
 	readPrivateFileText,
 	writePrivateFileAtomic,
 } from "../core/secure-atomic-write.js";
+import { executorPreset } from "../core/executor-presets.js";
 import { workflowExecutorRegistration } from "../core/executor-registry.js";
 import {
 	formatRoleAssignment,
@@ -250,6 +251,11 @@ export interface SetUserProfileInput {
 	unset?: readonly string[];
 	/** Make this the default profile. */
 	makeDefault?: boolean;
+	/**
+	 * WP31: start from a built-in preset (executor-presets.ts): its executor and roles replace the
+	 * saved ones; `values` (and `values.roles`, role by role) still win over the preset.
+	 */
+	preset?: string;
 }
 
 /** Create or update a profile (merge); returns the saved profile and whether it is the default. */
@@ -258,7 +264,24 @@ export async function setUserProfile(
 	env: NodeJS.ProcessEnv = process.env,
 ): Promise<{ profile: UserProfile; isDefault: boolean; created: boolean }> {
 	assertUserProfileName(input.name);
-	const values = validateUserProfileValues(input.values ?? {});
+	const explicit = validateUserProfileValues(input.values ?? {});
+	let preset: ReturnType<typeof executorPreset> | undefined;
+	if (input.preset !== undefined) {
+		try {
+			preset = executorPreset(input.preset);
+		} catch (error) {
+			throw new HostUsageError(
+				error instanceof Error ? error.message : String(error),
+			);
+		}
+	}
+	const values: UserProfileValues = preset
+		? {
+				...explicit,
+				executor: explicit.executor ?? preset.executor,
+				roles: { ...preset.roles, ...(explicit.roles ?? {}) },
+			}
+		: explicit;
 	assertKnownProfileExecutors(values);
 	const unsetRoles = (input.unset ?? [])
 		.filter((field) => field.startsWith("roles."))
@@ -277,6 +300,11 @@ export async function setUserProfile(
 		...(file.profiles[input.name] ?? {}),
 	};
 	delete previous.updatedAt;
+	if (preset) {
+		// A preset replaces the saved executor and roles (it is a fresh role table).
+		delete previous.executor;
+		delete previous.roles;
+	}
 	for (const field of input.unset ?? []) delete previous[field];
 	const kept = validateUserProfileValues(previous);
 	// WP31: role entries merge role by role; `--unset roles.<role>` removes one.

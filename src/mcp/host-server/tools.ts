@@ -11,6 +11,8 @@
 // profile set/delete/default/clear-default, notices acknowledge/clear) act only after an MCP
 // elicitation confirmation; a client without form elicitation is refused with the terminal CLI
 // command, and a declined/cancelled/failed elicitation changes nothing.
+// WP31: workflow_profile set takes `preset` and `roles` (role → executor/model/effort), op `presets`
+// lists the built-in executor presets.
 import { realpath, stat } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
@@ -24,6 +26,11 @@ import type {
 	LaunchRequestBase,
 	WaitData,
 } from "../../hosts/api.js";
+import { EXECUTOR_PRESET_IDS } from "../../core/executor-presets.js";
+import {
+	formatRoleAssignment,
+	parseWorkflowRoleMap,
+} from "../../core/role-profiles.js";
 import { THINKING_LEVELS, WorkflowValidationError } from "../../core/types.js";
 import { parseWorkflowNoticesArgs } from "../../core/workflow-notices.js";
 import type { CapabilityPreview } from "../../sdk/requirements.js";
@@ -617,15 +624,28 @@ export const HOST_MCP_TOOLS: readonly HostMcpToolDefinition[] = [
 		name: WORKFLOW_PROFILE_TOOL,
 		title: "agent-workflow saved user profiles",
 		description:
-			'Saved agent-workflow user profiles (executor, model, effort, permission mode, strict capabilities) that profile= on a launch selects. op "list" (default) and "show" are read-only. "set", "delete", "default" and "clear-default" change the user\'s profiles only after the user confirms in an MCP dialog (refused when the client cannot show one). Change profiles only when the user asks.',
+			'Saved agent-workflow user profiles (executor, model, effort, permission mode, strict capabilities, roles: role → executor/model/effort) that profile= on a launch selects. op "list" (default), "show" and "presets" (built-in executor presets codex, claude, pi, mixed) are read-only; "workflow-list"/"workflow-show" read and "workflow-set"/"workflow-clear" change the saved preference of one workflow (its default profile and role overrides, applied to every launch of it). "set", "delete", "default" and "clear-default" change the user\'s profiles only after the user confirms in an MCP dialog (refused when the client cannot show one). Change profiles only when the user asks.',
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
 			properties: {
 				op: {
 					type: "string",
-					enum: ["list", "show", "set", "delete", "default", "clear-default"],
-					description: "Optional, default list.",
+					enum: [
+						"list",
+						"show",
+						"set",
+						"delete",
+						"default",
+						"clear-default",
+						"presets",
+						"workflow-list",
+						"workflow-show",
+						"workflow-set",
+						"workflow-clear",
+					],
+					description:
+						'Optional, default list. "workflow-*" ops manage the saved per-workflow preference of `workflow` (the profile a launch of it uses when none is named, and role overrides); workflow-list/workflow-show are read-only, workflow-set/workflow-clear ask for confirmation.',
 				},
 				name: {
 					type: "string",
@@ -651,6 +671,36 @@ export const HOST_MCP_TOOLS: readonly HostMcpToolDefinition[] = [
 					type: "array",
 					items: { type: "string" },
 					description: "set: capability keys that must be verified.",
+				},
+				workflow: {
+					type: "string",
+					description:
+						"workflow-show/-set/-clear: workflow name or spec path (the preference is keyed by the workflow name).",
+				},
+				profile: {
+					type: "string",
+					description:
+						"workflow-set: profile the workflow uses when a launch names none (declared, saved user profile or preset).",
+				},
+				preset: {
+					type: "string",
+					enum: [...EXECUTOR_PRESET_IDS],
+					description:
+						"set: start from a built-in executor preset (replaces the saved executor and roles; other fields here still win).",
+				},
+				roles: {
+					type: "object",
+					description:
+						'set: role → {executor?, model?, effort?}. Roles: default, planning, research-execution, synthesis, verification, final-judgment, or "agent:<name>". Merged role by role; unset "roles.<role>" removes one.',
+					additionalProperties: {
+						type: "object",
+						additionalProperties: false,
+						properties: {
+							executor: { type: "string" },
+							model: { type: "string" },
+							effort: { type: "string", enum: [...THINKING_LEVELS] },
+						},
+					},
 				},
 				unset: {
 					type: "array",
@@ -725,6 +775,7 @@ export type HostMcpApi = Pick<
 	| "doctorAction"
 	| "pruneAction"
 	| "profileAction"
+	| "workflowPreferenceAction"
 	| "superviseDetachedAction"
 >;
 
@@ -978,6 +1029,7 @@ function profileSetFromArguments(params: Record<string, unknown>): {
 	values: Record<string, unknown>;
 	unset?: string[];
 	makeDefault: boolean;
+	preset?: string;
 	describe: string[];
 	flags: string[];
 } {
@@ -1036,10 +1088,37 @@ function profileSetFromArguments(params: Record<string, unknown>): {
 	}
 	const makeDefault = optionalBoolean(params, "makeDefault") === true;
 	if (makeDefault) flags.push("--default");
+	// WP31: preset and roles.
+	const preset = optionalString(params, "preset");
+	if (preset) {
+		if (!(EXECUTOR_PRESET_IDS as readonly string[]).includes(preset))
+			throw new UsageError(
+				`preset must be one of ${EXECUTOR_PRESET_IDS.join(", ")}`,
+			);
+		describe.push(`preset: ${preset} (replaces executor and roles)`);
+		flags.push("--preset", preset);
+	}
+	if (params.roles !== undefined) {
+		let roles: ReturnType<typeof parseWorkflowRoleMap>;
+		try {
+			roles = parseWorkflowRoleMap(params.roles, "roles");
+		} catch (error) {
+			throw new UsageError(
+				error instanceof Error ? error.message : String(error),
+			);
+		}
+		values.roles = roles;
+		for (const [role, assignment] of Object.entries(roles)) {
+			const text = `${assignment.executor ?? ""}:${assignment.model ?? ""}:${assignment.effort ?? ""}`;
+			describe.push(`role ${role}: ${formatRoleAssignment(assignment)}`);
+			flags.push("--role", `${role}=${text.replace(/:+$/, "")}`);
+		}
+	}
 	return {
 		values,
 		...(unset?.length ? { unset } : {}),
 		makeDefault,
+		...(preset ? { preset } : {}),
 		describe,
 		flags,
 	};
@@ -1207,6 +1286,123 @@ export function createHostMcpService(
 				: {}),
 			isError: outcome.outcome === "refused",
 		};
+	};
+
+	/** WP31: `workflow_profile` op workflow-list|workflow-show|workflow-set|workflow-clear. */
+	const workflowPreferenceCall = async (
+		op: string,
+		args: Record<string, unknown>,
+		call: McpToolCallContext,
+	): Promise<HostMcpToolResult> => {
+		const allowed = new Set([
+			"op",
+			"workflow",
+			"profile",
+			"roles",
+			"unset",
+			"cwd",
+		]);
+		for (const key of Object.keys(args))
+			if (!allowed.has(key))
+				throw new UsageError(`${key} is not valid with op ${op}`);
+		const workflow = optionalString(args, "workflow");
+		if (op !== "workflow-list" && !workflow)
+			throw new UsageError(`workflow is required with op ${op}`);
+		if (op === "workflow-list" && workflow)
+			throw new UsageError("workflow is not valid with op workflow-list");
+		if (op !== "workflow-set")
+			for (const key of ["profile", "roles", "unset"])
+				if (args[key] !== undefined)
+					throw new UsageError(`${key} is only valid with op workflow-set`);
+		const ctx = await context(args);
+		const cli = (words: string[]) =>
+			`agent-workflow profile workflow ${words.map(shellWord).join(" ")}`;
+		let request: hostApi.WorkflowPreferenceRequest;
+		let change:
+			| { summary: string; detail?: string; command: string }
+			| undefined;
+		switch (op) {
+			case "workflow-list":
+				request = { op: "list" };
+				break;
+			case "workflow-show":
+				request = { op: "show", workflow: workflow! };
+				break;
+			case "workflow-set": {
+				const profile = optionalString(args, "profile");
+				const unsetValue = args.unset;
+				if (
+					unsetValue !== undefined &&
+					(!Array.isArray(unsetValue) ||
+						unsetValue.some((entry) => typeof entry !== "string"))
+				)
+					throw new UsageError("unset must be an array of strings");
+				const unset = unsetValue as string[] | undefined;
+				let roles: ReturnType<typeof parseWorkflowRoleMap> | undefined;
+				try {
+					roles =
+						args.roles === undefined
+							? undefined
+							: parseWorkflowRoleMap(args.roles, "roles");
+				} catch (error) {
+					throw new UsageError(
+						error instanceof Error ? error.message : String(error),
+					);
+				}
+				const words = ["set", workflow!];
+				const describe: string[] = [];
+				if (profile) {
+					words.push("--profile", profile);
+					describe.push(`profile: ${profile}`);
+				}
+				for (const [role, assignment] of Object.entries(roles ?? {})) {
+					words.push(
+						"--role",
+						`${role}=${`${assignment.executor ?? ""}:${assignment.model ?? ""}:${assignment.effort ?? ""}`.replace(/:+$/, "")}`,
+					);
+					describe.push(`role ${role}: ${formatRoleAssignment(assignment)}`);
+				}
+				if (unset?.length) {
+					words.push("--unset", unset.join(","));
+					describe.push(`remove: ${unset.join(", ")}`);
+				}
+				request = {
+					op: "set",
+					workflow: workflow!,
+					...(profile ? { profile } : {}),
+					...(roles ? { roles } : {}),
+					...(unset?.length ? { unset } : {}),
+				};
+				change = {
+					summary: `Save the agent-workflow preference of workflow ${workflow}`,
+					detail: describe.join("\n") || "(no field changes)",
+					command: cli(words),
+				};
+				break;
+			}
+			case "workflow-clear":
+				request = { op: "clear", workflow: workflow! };
+				change = {
+					summary: `Clear the agent-workflow preference of workflow ${workflow}`,
+					command: cli(["clear", workflow!]),
+				};
+				break;
+			default:
+				throw new UsageError(
+					"op must be one of workflow-list, workflow-show, workflow-set, workflow-clear",
+				);
+		}
+		if (change) {
+			const refused = await requireConfirmation(call, {
+				action: "profile",
+				...change,
+				detail: `${change.detail ? `${change.detail}\n` : ""}A saved workflow preference applies to every launch of that workflow (CLI, MCP hosts and Pi) of this user.`,
+				cwd: ctx.cwd,
+			});
+			if (refused) return refused;
+		}
+		const preference = await api.workflowPreferenceAction(ctx, request);
+		return finish(call, preference, preference.data);
 	};
 
 	const handlers: Record<
@@ -1490,6 +1686,12 @@ export function createHostMcpService(
 		},
 		[WORKFLOW_PROFILE_TOOL]: async (args, call) => {
 			const op = optionalString(args, "op") ?? "list";
+			// WP31: saved per-workflow preferences.
+			if (op.startsWith("workflow-"))
+				return workflowPreferenceCall(op, args, call);
+			for (const key of ["workflow", "profile"])
+				if (args[key] !== undefined)
+					throw new UsageError(`${key} is only valid with the workflow-* ops`);
 			const name = optionalString(args, "name");
 			const setOnly = [
 				"executor",
@@ -1499,6 +1701,8 @@ export function createHostMcpService(
 				"strictCapabilities",
 				"unset",
 				"makeDefault",
+				"preset",
+				"roles",
 			];
 			if (op !== "set")
 				for (const key of setOnly)
@@ -1507,7 +1711,7 @@ export function createHostMcpService(
 			const needsName = op === "set" || op === "delete" || op === "default";
 			if (needsName && !name)
 				throw new UsageError(`name is required with op ${op}`);
-			if ((op === "list" || op === "clear-default") && name)
+			if ((op === "list" || op === "clear-default" || op === "presets") && name)
 				throw new UsageError(`name is not valid with op ${op}`);
 			let request: hostApi.ProfileRequest;
 			let change:
@@ -1518,6 +1722,9 @@ export function createHostMcpService(
 			switch (op) {
 				case "list":
 					request = { op: "list" };
+					break;
+				case "presets":
+					request = { op: "presets" };
 					break;
 				case "show":
 					request = name ? { op: "show", name } : { op: "show" };
@@ -1530,6 +1737,7 @@ export function createHostMcpService(
 						values: set.values,
 						...(set.unset ? { unset: set.unset } : {}),
 						...(set.makeDefault ? { makeDefault: true } : {}),
+						...(set.preset ? { preset: set.preset } : {}),
 					};
 					change = {
 						summary: `Save the agent-workflow user profile "${name}"${set.makeDefault ? " and make it the default" : ""}`,
@@ -1561,7 +1769,7 @@ export function createHostMcpService(
 					break;
 				default:
 					throw new UsageError(
-						"op must be one of list, show, set, delete, default, clear-default",
+						"op must be one of list, show, set, delete, default, clear-default, presets",
 					);
 			}
 			const ctx = await context(args);
