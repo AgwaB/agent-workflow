@@ -209,7 +209,9 @@ export async function probeWorkflowExecutor(
 
 /**
  * `ctx.strict` for a run: the declared profile's `executionProfileStrictCapabilities` entry, or a
- * saved user profile's `strictCapabilities`. Unknown capability names fail before launch.
+ * saved user profile's `strictCapabilities`. WP37 (B2 field by field): a declared profile without
+ * an entry inherits `savedUnderDeclared` (the saved user profile layered under it). Unknown
+ * capability names fail before launch.
  */
 export function workflowProfileStrictCapabilities(
 	spec: unknown,
@@ -217,6 +219,7 @@ export function workflowProfileStrictCapabilities(
 	captured:
 		| Pick<WorkflowCapturedExecutionProfile, "name" | "strictCapabilities">
 		| undefined,
+	savedUnderDeclared?: { name: string; strictCapabilities?: string[] },
 ): string[] {
 	let keys: unknown;
 	let where: string;
@@ -229,6 +232,10 @@ export function workflowProfileStrictCapabilities(
 				? (map as Record<string, unknown>)[profileName]
 				: undefined;
 		where = `workflow execution profile "${profileName}"`;
+		if (keys === undefined && savedUnderDeclared !== undefined) {
+			keys = savedUnderDeclared.strictCapabilities;
+			where = `saved user profile "${savedUnderDeclared.name}"`;
+		}
 	} else {
 		keys = captured?.strictCapabilities;
 		where = `saved user profile "${captured?.name ?? ""}"`;

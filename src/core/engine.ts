@@ -258,6 +258,7 @@ import {
 	type WorkflowCapturedExecutionProfile,
 	type WorkflowRunRouting,
 	type WorkflowTaskRunRecord,
+	type ThinkingLevel,
 } from "./types.js";
 import {
 	clampTimeout,
@@ -361,6 +362,40 @@ const supervisorRunMtimes = new Map<string, number>();
 const supervisorErrorCounts = new Map<string, number>();
 const MAX_SUPERVISOR_CONSECUTIVE_ERRORS = 3;
 
+/** WP37: the saved user profile fields that sit below a declared profile (B2 precedence). */
+export interface WorkflowSavedUserProfileLayer {
+	name: string;
+	executor?: string;
+	permissionMode?: "free" | "safe";
+	strictCapabilities?: string[];
+	model?: string;
+	effort?: ThinkingLevel;
+}
+
+/**
+ * WP37: run defaults from the saved user profile under a declared profile. Host defaults keep
+ * applying only to the executor they belong to; the saved model/effort apply when the saved profile
+ * names no executor or names the run's executor.
+ */
+function runtimeDefaultsWithSavedProfile(
+	defaults: WorkflowRuntimeDefaults | undefined,
+	saved: WorkflowSavedUserProfileLayer | undefined,
+	executorId: string,
+): WorkflowRuntimeDefaults | undefined {
+	const host = runtimeDefaultsForExecutor(defaults, executorId);
+	if (
+		saved === undefined ||
+		(saved.model === undefined && saved.effort === undefined) ||
+		(saved.executor !== undefined && saved.executor !== executorId)
+	)
+		return host;
+	return {
+		...(host ?? {}),
+		...(saved.model === undefined ? {} : { model: saved.model }),
+		...(saved.effort === undefined ? {} : { thinking: saved.effort }),
+	};
+}
+
 export interface WorkflowRunOptions {
 	task?: string;
 	runtimeOverrides?: WorkflowRuntimeDefaults;
@@ -393,6 +428,14 @@ export interface WorkflowRunOptions {
 	 * A declared executionProfile takes precedence when both are supplied.
 	 */
 	executionProfileOverride?: WorkflowCapturedExecutionProfile;
+	/**
+	 * WP37 (B2, field by field): the saved user profile layered under a selected declared
+	 * `executionProfile`. Each field the declared profile does not set (executor, permission mode,
+	 * strictCapabilities) comes from here; its model/effort are run defaults when it names no
+	 * executor or the run's executor. Ignored without `executionProfile` (use
+	 * `executionProfileOverride` for a saved profile on its own).
+	 */
+	savedUserProfile?: WorkflowSavedUserProfileLayer;
 	/**
 	 * Run flag: executor id for this run (B2 precedence: run flag > workflow
 	 * declared profile > saved user profile > default). Unknown or unavailable
@@ -722,10 +765,10 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 					options.executionProfile,
 				),
 				userProfileName: options.executionProfile
-					? undefined
+					? options.savedUserProfile?.name
 					: options.executionProfileOverride?.name,
 				userProfileMode: options.executionProfile
-					? undefined
+					? options.savedUserProfile?.permissionMode
 					: options.executionProfileOverride?.permissionMode,
 			});
 	// Executor selection (B2) fails before any run record or launch exists. WP17: with no
@@ -742,10 +785,10 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 					options.executionProfile,
 				),
 				userProfileName: options.executionProfile
-					? undefined
+					? options.savedUserProfile?.name
 					: options.executionProfileOverride?.name,
 				userProfileExecutor: options.executionProfile
-					? undefined
+					? options.savedUserProfile?.executor
 					: options.executionProfileOverride?.executor,
 				defaultExecutor: options.defaultExecutor,
 				...(options.host === undefined ? {} : { host: options.host }),
@@ -762,9 +805,11 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 		...(allowSharedCheckoutWrites ? { allowSharedCheckoutWrites: true } : {}),
 		permissionMode: permissionMode.mode,
 		runtimeOverrides: options.runtimeOverrides,
-		// Host model/thinking defaults apply only to the executor they belong to.
-		runtimeDefaults: runtimeDefaultsForExecutor(
+		// Host model/thinking defaults apply only to the executor they belong to; WP37: the saved
+		// profile under a declared one adds its model/effort for its own executor.
+		runtimeDefaults: runtimeDefaultsWithSavedProfile(
 			options.runtimeDefaults,
+			options.executionProfile ? options.savedUserProfile : undefined,
 			executor.id,
 		),
 		availableModels: options.availableModels,
@@ -786,6 +831,7 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 						spec,
 						options.executionProfile,
 						options.executionProfileOverride,
+						options.savedUserProfile,
 					),
 			allowReadOnlyDowngrade:
 				(spec as { allowReadOnlyDowngrade?: unknown })

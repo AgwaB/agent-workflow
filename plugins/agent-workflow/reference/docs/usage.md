@@ -163,14 +163,22 @@ Two layers:
 1. **Workflow-declared execution profiles.** A spec may declare `executionProfiles` (stage overrides
    of `model`, `thinking`/effort and `foreachBatch`; plus an executor and permission mode per profile
    via `executionProfileExecutors` / `executionProfilePermissionModes`) and a
-   `defaultExecutionProfile`. Select one with `--profile <name>`. A declared profile replaces the
-   saved user profile as a whole.
+   `defaultExecutionProfile`. Select one with `--profile <name>`. A declared profile sits on top of
+   your default saved user profile, field by field: whatever the declared profile does not set
+   (executor, permission mode, `strictCapabilities`) comes from the default saved profile, and that
+   profile's `model`/`effort` stay run defaults when it names no executor or the run's executor.
 2. **Saved user profiles.** `agent-workflow profile set <name> --executor codex --effort high
    --permission-mode safe [--strict-capabilities readOnly,contextIsolation] [--default]`. Fields:
    `executor`, `model`, `effort`, `permissionMode`, `strictCapabilities` (capabilities that must be
    `native`, else the run is refused). Stored in `$AGENT_WORKFLOW_HOME/user-profiles/v1/profiles.json`.
    `--profile <name>` picks a declared profile first, then a saved one; without `--profile` a launch
-   uses the declared default profile, else the default saved profile.
+   uses the declared default profile (over the default saved profile, as above), else the default
+   saved profile. A saved profile named with `--profile` is used on its own.
+
+Example: the default saved profile sets `--executor codex --permission-mode safe`; a workflow's
+declared profile `high` sets only stage efforts. `--profile high` runs on `codex` in `safe` mode
+with `high`'s stage efforts; `--profile high --executor claude` runs on `claude` (run flag), still
+`safe`.
 
 `--model` and `--effort` override every stage and win over both layers. `model`/`effort` from a
 saved profile are run defaults (stage and agent settings still win).

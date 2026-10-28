@@ -1572,3 +1572,21 @@ unexplained differences in every variant. Every new test that spawns a process k
    `failed/needs_decision` with that reason and the engine blocks the task (`executor_needs_decision`),
    never relaunching it automatically. Details and tests: docs/executors/claude.md change log
    "WP37".
+4. **Saved vs declared profiles, field by field** (parity §3.2, B2 interpretation). A selected
+   workflow-declared profile used to replace the saved user profile as a whole, so the default saved
+   profile's executor (or permission mode) never applied under a declared profile that omitted it.
+   Now the precedence run flag > workflow profile > saved user profile > default holds per field.
+   New run option `savedUserProfile` (`WorkflowSavedUserProfileLayer`: name, executor, permissionMode,
+   strictCapabilities, model, effort), used only with a declared `executionProfile`: the executor and
+   permission-mode resolvers get it as their saved-user-profile tier, `workflowProfileStrictCapabilities`
+   falls back to it when the declared profile has no `executionProfileStrictCapabilities` entry (an
+   empty list is an entry), and its model/effort join the run defaults when it names no executor or
+   the run's executor (`runtimeDefaultsWithSavedProfile`; host defaults still apply only to their own
+   executor). The host launch (`src/hosts/launch.ts`) passes the default saved user profile with an
+   explicit declared profile and with the declared default/chooser choice; an unreadable profiles
+   file is ignored there, as before. A saved profile named with `--profile` and the Pi per-workflow
+   preference are unchanged. The launch fingerprint includes the inherited profile. Docs:
+   `docs/usage.md` "Profiles", `docs/cli.md` "Precedence". Test:
+   `host-wp37-profile-precedence.test.mjs` (explicit and default declared profile inherit executor,
+   mode and effort; declared executor/mode win per field; run flags win; saved effort not applied to
+   another executor; inherited and declared strictCapabilities).
