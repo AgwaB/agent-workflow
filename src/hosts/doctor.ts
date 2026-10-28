@@ -5,7 +5,8 @@
 // default, the Node version, AGENT_WORKFLOW_HOME and whether it is writable, known environment
 // warnings (Codex allow rules and the global AGENTS.md, counts only: the WP4d probe never records
 // rule contents) and stale run-index entries (with a `prune` hint). Nothing is written. `ok` (exit 0)
-// when at least one executor is usable.
+// when at least one executor is usable. WP35: the executor's web-tools probe note (Pi: whether
+// pi-web-access is installed, with the install command when it is not) is shown and warned about.
 import { constants } from "node:fs";
 import { access, stat } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
@@ -286,6 +287,10 @@ function formatDoctor(data: DoctorData, cwd: string): string {
 			`  ${entry.id.padEnd(width)}  ${entry.usable ? "usable    " : "not usable"}  ${stateText(entry)}`,
 		);
 		if (entry.fix) lines.push(`  ${" ".repeat(width)}  fix: ${entry.fix}`);
+		// WP35: executor web tools (Pi: pi-web-access, not bundled) as the probe reported them.
+		for (const note of entry.notes)
+			if (note.startsWith("web tools"))
+				lines.push(`  ${" ".repeat(width)}  ${note}`);
 	}
 	const def = data.defaultExecutor;
 	lines.push(
@@ -345,6 +350,12 @@ export async function doctorAction(
 		executorReport(entry, verified[entry.id] ?? null),
 	);
 	const warnings = codexWarnings(env);
+	// WP35 (row 57): an installed executor whose web tools are missing (Pi without pi-web-access).
+	for (const entry of executors)
+		if (entry.installed)
+			for (const note of entry.notes)
+				if (note.startsWith("web tools missing: "))
+					warnings.push(`${entry.id}: ${note}`);
 	for (const entry of executors)
 		if (entry.versionMatchesVerified === false)
 			warnings.push(

@@ -115,6 +115,15 @@ The table is `PI_EXECUTOR_TOOL_MAPPING`.
 - **Web tools:** under isolation, `pi-web-access` is loaded explicitly with `-e <package dir>`. The path comes
   from `config.webAccessExtension`, or else from `pi list` (no model turn). If it is missing,
   `CAPABILITY_MISSING:webTools` is raised before consume.
+  - **WP35 (row 57): not bundled (C2), guided instead.** `probe()` adds a note `web tools: pi-web-access
+    <path> (web_search, fetch_content)`, or `web tools missing: …` with the install command
+    `` `pi install npm:pi-web-access` `` (`PI_WEB_ACCESS_INSTALL`); when `pi list` fails the note says the
+    presence could not be checked. A missing package also sets the probed `webTools` level's
+    `warning` to the same guidance, so the capability preview entry and the B4 refusal message
+    (`CAPABILITY_MISSING:webTools … ; Install it: …`) carry it (`negotiateCapabilities` now copies an
+    observed warning into a refused entry's note). The submit-time refusal names the command too,
+    and `agent-workflow doctor` prints the note under `pi` and lists a missing package as a warning.
+    Tests: `executor-wp35-web-access.test.mjs`.
 - **`inheritHostTools`** (descriptor config, host-level opt-in; core-port WP4b):
   - It adds `codemode, tool_search, mcp__*, list_mcp_resources, list_mcp_resource_templates,
     read_mcp_resource`, exactly as pi-workflow `workflowNativeLaunchTools` did.
@@ -189,7 +198,7 @@ live or offline with the real CLI.
 
 - `pi --version`;
 - `pi --list-models` (→ `models`);
-- `pi list` (→ `webAccessExtension`);
+- `pi list` (→ `webAccessExtension`, and the WP35 `web tools` note with install guidance);
 - optionally `pi auth check --model <config.authCheckModel> --json --no-refresh`.
 
 Auth is a non-secret enum: `ready`→`ok`, `not_ready`→`missing`, else `unknown`. Never `--credentials`.
@@ -335,6 +344,19 @@ request drops mutating tools from `--tools` in both modes. The conformance harne
 
 ## Change log
 
+- **WP35 (2026-10-28, feature-parity rows 39, 40, 57; offline only, no model call):**
+  - Host tools: the Pi host lends native codemode/MCP; the engine honors `inheritHostTools` only on
+    this executor; readOnly stages never inherit; per-task descriptor config `inheritHostTools`;
+    preview notice. Test: `executor-wp35-host-tools.test.mjs`.
+  - Fast tier: provider-stream guard ported, failure → `config`, degrade → `payload-only`, state in
+    `pi-fast-tier.json`; per-task `fast`/`fastApi` only when negotiation accepted `fastTier`.
+    `fastTier` stays `unverified`. Test: `executor-wp35-fast-guard.test.mjs`.
+  - Web tools: `pi-web-access` stays unbundled; probe note/warning with the install command in the
+    preview, refusals and `doctor`. Test: `executor-wp35-web-access.test.mjs`.
+  - Live bundle 5 must check: a Pi host run whose worker calls an inherited `mcp__*`/codemode tool;
+    a `fast: on` run whose OpenAI request carries `service_tier: priority` (state `guarded`); the
+    generated wrapper's `pi-ai/compat` import loading in a real Pi.
+
 - **WP12d-2 review #10:** same ordering checked: the `spawn` wait had its `error` listener, but the
   stdout/stderr/`close` handlers were attached after the awaited `spawned` record write, so a Pi that
   exited during that write was never observed (drain hung). Handlers are now attached before any
@@ -388,7 +410,8 @@ request drops mutating tools from `--tools` in both modes. The conformance harne
   - Codex and Claude adapters probably also wrap cut MCP results. They can set `mcpOutputNoticeChars`.
 - **WP10:**
   - For Pi, deep-research web tools are `web_search` / `fetch_content` from pi-web-access. Under isolation
-    the adapter loads it with `-e`, and refuses `CAPABILITY_MISSING:webTools` when it is not installed.
+    the adapter loads it with `-e`, and refuses `CAPABILITY_MISSING:webTools` when it is not installed
+    (WP35: with the install command in the preview, the refusal and `doctor`).
   - Results are model-reported (`safetyPolicy: unknown`).
 - **WP11 (hosts):**
   - Pass `inheritHostTools`, `fast`/`fastApi` (from `resolveWorkflowFastModeConfig`) and `toolResultBudget`

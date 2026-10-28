@@ -323,7 +323,14 @@ export function negotiateCapabilities(
 				observedLevel.level !== "none" &&
 				observedLevel.source === "unverified";
 			const code = `${unverified ? "CAPABILITY_UNVERIFIED" : "CAPABILITY_MISSING"}:${key}`;
-			const refused: NegotiationEntry = { ...base, outcome: "refused", code };
+			// WP35: the executor's environment warning (e.g. how to install a missing extension)
+			// travels with a refusal, so the preview and the refusal message say what to do.
+			const refused: NegotiationEntry = {
+				...base,
+				outcome: "refused",
+				code,
+				...(observedWarning === undefined ? {} : { note: observedWarning }),
+			};
 			if (requirement.onMissing === "refuse") {
 				entry = refused;
 			} else if (requirement.onMissing === "emulate") {

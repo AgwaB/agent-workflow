@@ -149,8 +149,11 @@ still win; `--model`/`--effort` override everything).
   why (saved default profile, host default, or the installed-default order);
 - the permission-mode default (`free`, or the default saved profile's mode);
 - the Node version (requires `>=22`); `AGENT_WORKFLOW_HOME` and whether it is writable;
+- Pi's web tools (WP35): whether `pi-web-access` is installed in the user's Pi (`pi list`), shown under
+  `pi`; when it is missing, the install command `pi install npm:pi-web-access` (it is not bundled);
 - warnings: Codex allow rules under `$CODEX_HOME/rules` and a global `$CODEX_HOME/AGENTS.md`
-  (counts and paths only, never rule contents), CLI versions that differ from the verified ones;
+  (counts and paths only, never rule contents), CLI versions that differ from the verified ones, an
+  installed Pi without `pi-web-access`;
 - run-index entries in this project whose `run.json` is gone or that `prune` would remove, with a
   hint to run `agent-workflow prune`.
 

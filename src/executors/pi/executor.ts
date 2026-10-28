@@ -236,6 +236,25 @@ export function parsePiModelList(text: string): string[] {
 	return models;
 }
 
+/** Install command of Pi's web tools (C2: not bundled; the user's Pi provides them). */
+export const PI_WEB_ACCESS_INSTALL = "pi install npm:pi-web-access";
+
+/**
+ * WP35 (row 57): what to tell the user when Pi's web tools are not available. `listFailed`: `pi list`
+ * could not run, so their presence is unknown rather than known missing.
+ */
+export function piWebAccessGuidance(listFailed = false): string {
+	return `${
+		listFailed
+			? "could not check for pi-web-access (`pi list` failed)"
+			: "pi-web-access (Pi's web_search/fetch_content tools) is not installed in this Pi"
+	}; stages that use web tools (deep-research) are refused on the pi executor. Install it: \`${PI_WEB_ACCESS_INSTALL}\` (check with \`pi list\`), or run them with --executor claude or codex`;
+}
+
+/** Probe-note prefixes (doctor shows them; the missing one is also a warning). */
+export const PI_WEB_TOOLS_NOTE = "web tools: ";
+export const PI_WEB_TOOLS_MISSING_NOTE = "web tools missing: ";
+
 /** Path of the `pi-web-access` package in `pi list` output (line after the source). */
 export function parsePiWebAccessPath(text: string): string | null {
 	const lines = text.split("\n");
@@ -448,7 +467,7 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 			if (webAccess === null)
 				throw new SdkError(
 					"CAPABILITY_MISSING",
-					"web tools need the pi-web-access extension, which `pi list` does not show",
+					`web tools need the pi-web-access extension, which \`pi list\` does not show: ${piWebAccessGuidance()}`,
 					{ subject: "webTools" },
 				);
 			extensionsAfter.push(webAccess);
@@ -910,6 +929,18 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 			const webAccess =
 				config.webAccessExtension ??
 				(list?.code === 0 ? parsePiWebAccessPath(list.stdout) : null);
+			// WP35 (row 57): web tools are not bundled (C2); say whether this Pi has them and how to
+			// install them (doctor shows the note, negotiation the warning).
+			const webGuidance =
+				webAccess === null
+					? piWebAccessGuidance(list !== undefined && list.code !== 0)
+					: undefined;
+			if (installed)
+				notes.push(
+					webGuidance === undefined
+						? `${PI_WEB_TOOLS_NOTE}pi-web-access ${webAccess} (web_search, fetch_content)`
+						: `${PI_WEB_TOOLS_MISSING_NOTE}${webGuidance}`,
+				);
 			if (
 				installed &&
 				!versionAtLeast(cliVersion as string, PI_MIN_CLI_VERSION)
@@ -935,6 +966,9 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 									...level("none", "probed"),
 									detail: "none",
 									safetyPolicy: "unknown",
+									...(webGuidance === undefined
+										? {}
+										: { warning: webGuidance }),
 								}
 							: {
 									...level("native", "probed", `pi-web-access via pi list`),
