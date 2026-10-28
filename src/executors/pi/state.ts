@@ -3,11 +3,13 @@
 // `submit` (same ref, no second effect) and `reconcile` (`found` / `absent` / `unknown`).
 // Phases: pending (written before consume) → revoked | consumed → spawned → exited. A record left in
 // `pending` or `consumed` is "consumed without launch evidence" and reconciles as `unknown`.
+// WP18b: terminal records older than the retention window are pruned (`classifyPiAttemptRecord`).
 import { createHash, randomBytes } from "node:crypto";
 import { link, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import type { ExecRef } from "../../sdk/contract.js";
 import type { OwnedSession } from "../../sdk/events.js";
+import { type AttemptRecordClass, processAlive } from "../state-retention.js";
 
 export type PiAttemptPhase =
 	| "pending"
@@ -161,4 +163,35 @@ export class PiAttemptStore {
 			updatedAt: new Date().toISOString(),
 		};
 	}
+}
+
+/**
+ * WP18b retention: a Pi attempt is terminal when `exited` or `revoked`, or `spawned` with its
+ * process gone (`pending`/`consumed` without launch evidence stay). The raw-stream dir goes with
+ * the record only when it is the adapter's own `<stateDir>/runs/<h>` (no runtime artifactsDir).
+ */
+export function classifyPiAttemptRecord(
+	stateDir: string,
+	record: unknown,
+): AttemptRecordClass | undefined {
+	const value = record as Partial<PiAttemptRecord> | null;
+	if (value?.schema !== "agent-workflow-pi-attempt-v1") return undefined;
+	const updatedAtMs = Date.parse(String(value.updatedAt));
+	const runsRoot = resolve(stateDir, "runs");
+	const runDir =
+		typeof value.runDir === "string" ? resolve(value.runDir) : undefined;
+	const rel = runDir ? relative(runsRoot, runDir) : "";
+	const ownRunDir =
+		runDir !== undefined &&
+		rel !== "" &&
+		!rel.startsWith("..") &&
+		!rel.includes(sep);
+	return {
+		terminal:
+			value.phase === "exited" ||
+			value.phase === "revoked" ||
+			(value.phase === "spawned" && !processAlive(value.pid)),
+		...(Number.isFinite(updatedAtMs) ? { updatedAtMs } : {}),
+		...(ownRunDir ? { extraPaths: [runDir] } : {}),
+	};
 }

@@ -69,7 +69,9 @@ import {
 	type PiAttemptLookup,
 	type PiAttemptRecord,
 	PiAttemptStore,
+	classifyPiAttemptRecord,
 } from "./state.js";
+import { schedulePeriodicAdapterStatePrune } from "../state-retention.js";
 import { TOOL_RESULT_BUDGET_STATE_FILENAME } from "./tool-result-budget.js";
 import {
 	createSecretRedactor,
@@ -506,6 +508,11 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 			);
 		};
 		if (known !== undefined) return fromRecord(known);
+		// WP18b: old terminal attempt records are pruned in the background (at most every 6 h).
+		schedulePeriodicAdapterStatePrune({
+			stateDir,
+			classify: (record) => classifyPiAttemptRecord(stateDir, record),
+		});
 		const runDir =
 			req.artifactsDir ?? join(stateDir, "runs", attemptDigest(key));
 		if (!(await store.create({ attemptKey: key, phase: "pending", runDir }))) {

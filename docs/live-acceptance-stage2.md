@@ -397,6 +397,8 @@ sessions of live 4).
 2. **Codex adapter attempt records are not pruned** either: one `<id>.json`, `<id>.events.jsonl`
    (worker tool calls with command lines) and an empty `<id>.log/` per attempt under
    `<HOME>/.agent-workflow/executors/codex/attempts/` (354 entries after this bundle).
+   WP18b: terminal attempt records older than 7 days are pruned with their companions for Claude,
+   Codex and Pi (on submit, at most every 6 h, and by `agent-workflow prune`).
 3. **Codex code mode changes the tool names.** The model sees `tools.mcp__agent_workflow__workflow_*`
    inside `exec`, not top-level `mcp__agent-workflow__workflow_*`; long `workflow_wait` calls yield
    the cell after 30 s and continue via `wait`. It worked, but `docs/plugins.md` names the

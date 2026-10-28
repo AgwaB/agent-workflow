@@ -50,6 +50,11 @@ import {
 	SUPERVISE_DEFAULT_MAX_RUNTIME_MS,
 	SUPERVISE_DEFAULT_POLL_MS,
 } from "./args.js";
+import {
+	type ExecutorStatePruneResult,
+	formatExecutorStatePrune,
+	pruneExecutorAdapterState,
+} from "./adapter-state.js";
 import { hostCommandHints, type WorkflowCommandHints } from "./hints.js";
 import { spawnDetachedSupervisor } from "./launch.js";
 import {
@@ -690,7 +695,11 @@ export async function pruneAction(
 	request:
 		| { keep?: number; olderThanDays?: number; yes?: boolean }
 		| { argv: string[] },
-): Promise<HostResult<WorkflowPruneSummary>> {
+): Promise<
+	HostResult<
+		WorkflowPruneSummary & { adapterState: ExecutorStatePruneResult[] }
+	>
+> {
 	assertActionAllowed(ctx, "prune");
 	const options =
 		"argv" in request
@@ -706,11 +715,20 @@ export async function pruneAction(
 				]);
 	const { json: _json, ...retention } = options;
 	const summary = await pruneWorkflowRuns(ctx.cwd, retention);
+	// WP18b: the executor adapters' attempt state is pruned with the same dry-run rule; the window
+	// is `--older-than` when given, else 7 days.
+	const adapterState = await pruneExecutorAdapterState({
+		env: hostEnv(ctx),
+		dryRun: !retention.yes,
+		...(retention.olderThanDays === undefined
+			? {}
+			: { retentionMs: retention.olderThanDays * 86_400_000 }),
+	});
 	return result(
 		"prune",
 		summary.error ? "failed" : "success",
-		summary,
-		formatWorkflowPruneSummary(summary),
+		{ ...summary, adapterState },
+		`${formatWorkflowPruneSummary(summary)}\n${formatExecutorStatePrune(adapterState)}`,
 	);
 }
 

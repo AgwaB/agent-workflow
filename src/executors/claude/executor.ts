@@ -55,7 +55,9 @@ import {
 	type AttemptLookup,
 	type AttemptRecord,
 	ClaudeStateStore,
+	classifyClaudeAttemptRecord,
 } from "./state.js";
+import { schedulePeriodicAdapterStatePrune } from "../state-retention.js";
 import { ClaudeStreamParser, parseClaudeStream } from "./stream.js";
 import {
 	createSecretRedactor,
@@ -229,6 +231,11 @@ export function createClaudeExecutor(options: {
 	async function launch(req: SubmitRequest): Promise<ExecRef> {
 		const known = runs.get(req.attemptKey);
 		if (known !== undefined) return known.ref;
+		// WP18b: old terminal attempt records are pruned in the background (at most every 6 h).
+		schedulePeriodicAdapterStatePrune({
+			stateDir: config.stateDir,
+			classify: classifyClaudeAttemptRecord,
+		});
 		const existingRef = fromLookup(
 			req.attemptKey,
 			await store.lookupAttempt(req.attemptKey),
