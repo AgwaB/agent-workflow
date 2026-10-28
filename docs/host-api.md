@@ -230,7 +230,9 @@ the end of the line, whatever its length or alphabet (`x-api-key: k3y012` and `A
 too), as are the credential JSON keys above (`password: abc`). The only prose exception is an
 obvious statement after `Authorization:`/`Proxy-Authorization:`: the first word is `missing`,
 `not`, `none`, `required`, `optional`, … and no word looks like a token
-(`Authorization: missing on the delete endpoint; …` stays). When unsure, it redacts.
+(`Authorization: missing on the delete endpoint; …` stays). When unsure, it redacts. WP19 round 4
+(F2): the header separators are horizontal whitespace only; an empty header (`x-api-key:` at the
+end of a line) is left as it is and never redacts the next line (`Exit code: 1` stays).
 
 ### `wait`
 

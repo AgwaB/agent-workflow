@@ -189,28 +189,51 @@ status entry, without the board widget or the presentation lease. Only with a UI
   attempts, then an error notification). An empty or corrupt receipt is never proof of delivery.
   Round-1 `"delivered"` receipts are read as `sent`; receipts written before WP19 count as
   delivered when the history holds the run's message or the history is unreadable.
-- **Delivery decision (WP19 round 3, R2/R3) — the exact guarantee.** On every delivery attempt,
-  whatever the receipt says, in this order:
-  1. *This OS process enqueued the epoch* → never sent again. The set of enqueued epochs is
-     process-scoped: it lives on `globalThis` (`Symbol.for("agent-workflow.pi-feedback.process-state.v1")`),
-     so an extension reload (which re-imports the module but keeps Pi's pending-message queue) or
-     a tracker `session_shutdown`/`session_start` cycle never resends it.
+- **Delivery decision (WP19 round 3 R2/R3, round 4 F1/F3/F4) — the exact guarantee.** On every
+  delivery attempt, whatever the receipt says, in this order:
+  1. *This OS process enqueued the epoch into the still-live queue of the current session
+     runtime* → never sent again. Pi 1.1 keeps queued messages per session runtime
+     (`AgentSession`: the agent's follow-up queue and pending custom messages). `/reload` keeps the
+     runtime and its queue; `/new`, `/resume`, `/fork` and quit abort and dispose it
+     (`AgentSessionRuntime.teardownCurrent`), dropping what is still queued. The queue lifetime is
+     identified by the runtime's `ctx.sessionManager` object (assigned once per `AgentSession`;
+     a WeakMap on `globalThis`, `Symbol.for("agent-workflow.pi-feedback.process-state.v1")`, so it
+     survives an extension reload and holds no strong reference), and `session_shutdown` with
+     `reason` `new`/`resume`/`fork`/`quit` ends it eagerly: that session's epochs become
+     "unconfirmed, reconcile against the history", their receipts are published as `sent` with
+     `queueEndedAt`, and their in-memory entries are dropped. `reload` (and an unknown reason)
+     keeps them. The identity check also covers a replaced runtime whose shutdown event we missed.
+     Suppression is in memory and in the receipt (`queueLifetime` + this process's id), so it
+     survives eviction of the in-memory entry.
   2. *Otherwise, readable session history*: present → `confirmed`, nothing sent; absent → sent
      (again). A `confirmed` receipt written by another process does not overrule explicit absence
      (Pi 1.1's `getEntries()` is in memory: a message whose append to the session file failed was
      "seen" and confirmed, yet the restarted session lacks it). Exception: a `sent` (unconfirmed)
-     receipt of another *live* Pi process on this host is left to that process, whose queue is
-     still alive.
+     receipt of another *live* Pi process on this host is left to that process only while its
+     queue lifetime is confirmed alive: the receipt names a `queueLifetime`, the owner has not
+     marked it ended (`queueEndedAt`) and it was sent less than 10 min ago. Otherwise it is
+     reconciled like any other receipt (round 4; round 3 trusted any live owner).
   3. *Otherwise (history unreadable: no `getEntries`, or it throws)*: a `confirmed` receipt is
-     final; a `sent` or orphaned pending one is sent again, but an epoch is sent at most twice
-     (bounded at-least-once, so a Pi without history is not re-notified on every start).
+     final and another live process's `sent` receipt is left to it; otherwise the epoch is sent
+     again, but every reservation counts (`attempts`), including an orphaned `pending` one
+     (sent, then the `sent` publication was lost): at most 2 enqueue attempts per epoch (round 4,
+     F3). Consequence: two consecutive crashes between reservation and `sendMessage` exhaust the
+     budget without a message (at-least-once does not hold in that double-crash case).
 
   | Situation | Messages per epoch |
   |---|---|
   | Normal (one process; queued while streaming, then persisted) | exactly 1 |
-  | Extension reload or tracker stop/restore in the same process (queue kept) | exactly 1 (never resent by this process) |
+  | `/reload` (module re-imported; Pi keeps the runtime and its queue) or tracker stop/restore | exactly 1 (never resent into the live queue) |
+  | `/new`, `/resume`, `/fork` (queue disposed), session active again in this or a later process | exactly 1 in its history: present → nothing sent; absent (queue dropped) → sent once into the resumed session |
   | Crash/restart, history readable | 1 if the durable history has it; otherwise 1 more on restart (also after a `confirmed` receipt) |
-  | Crash/restart, history unreadable | at least 1, at most 2 (one resend after restart, never more) |
+  | Crash/restart, history unreadable | at most 2 enqueue attempts (pending reservations count); at least 1 unless two attempts crashed before `sendMessage` |
+
+  Memory (round 4, F4): the confirmation watch (sent, not yet in the history, < 10 min, at most 64
+  entries) is separate from the dedup map (epochs enqueued into live queues, at most 256; durable
+  entries are evicted first, their receipts still suppress). Confirmed entries and the entries of
+  an ended queue lifetime are dropped; durable receipts and the session history are the source of
+  truth after eviction. Residual: evicting a *non-durable* entry (its `sent` publication failed)
+  of a still-live queue, i.e. more than 256 such entries, falls back to the receipt rules.
 
 - **Concurrent deliveries (WP19 round 2, N3).** A delivery keeps in-process ownership of its
   reservation through its final `sent` transition; a concurrent delivery of the same epoch in this

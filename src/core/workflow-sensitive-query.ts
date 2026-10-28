@@ -190,9 +190,12 @@ const STRUCTURED_SECRET_KEYS = new Set([
  * (`Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie`, `x-api-key`, `api-key`,
  * `*-token`). Its value is redacted through the end of the line whatever its length or alphabet.
  * A `*-token` name starts at a word start (keeps the scan linear on long hyphenated text).
+ * WP19 round 4 (F2): the separators are horizontal whitespace only and the value starts with a
+ * non-blank character on the same line: an empty header (`x-api-key:` at the end of a line) is
+ * left as it is and never consumes (redacts) the next line.
  */
 const CREDENTIAL_HEADER_LINE =
-	/((?:proxy-)?authorization|set-cookie|cookie|x-api-key|api-key|(?<![A-Za-z0-9-])[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*-token)\s*:\s*([^\n\r]+)/gi;
+	/((?:proxy-)?authorization|set-cookie|cookie|x-api-key|api-key|(?<![A-Za-z0-9-])[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*-token)[ \t]*:[ \t]*([^ \t\n\r][^\n\r]*)/gi;
 
 /** A key the header rule (CREDENTIAL_HEADER_LINE) handles as a whole line. */
 function isCredentialHeaderName(key: string): boolean {

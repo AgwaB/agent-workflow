@@ -25,6 +25,11 @@
 // WP19 round 3 (R2, R3): suppression is process-scoped (state on `globalThis`, surviving extension
 // reloads): an epoch this OS process enqueued is never resent by it; any other delivery attempt
 // is resolved against readable session history, which overrules even a `confirmed` receipt.
+// WP19 round 4 (F1, F3, F4): suppression follows Pi's queue lifetime, not the process lifetime: an
+// epoch is suppressed only while the queue (the Pi session runtime, identified by its
+// `ctx.sessionManager` object) that holds it is alive; `session_shutdown` with `new`/`resume`/
+// `fork`/`quit` ends it (`reload` keeps it). Unreadable-history resends count orphaned pending
+// reservations too. The in-memory delivery state is bounded.
 import { createHash, randomBytes } from "node:crypto";
 import {
 	mkdir,
@@ -342,6 +347,13 @@ interface FeedbackReceipt {
 	host?: string;
 	/** WP19 round 2: how many times this epoch was sent (bounds resends without history). */
 	attempts?: number;
+	/**
+	 * WP19 round 4 (F1): the sender's queue lifetime (one Pi session runtime, see
+	 * `queueLifetime`): while it is alive the sender's Pi still holds the queued message.
+	 */
+	queueLifetime?: string;
+	/** WP19 round 4 (F1): the sender's queue lifetime ended (Pi disposed that queue). */
+	queueEndedAt?: string;
 	reservedAt?: string;
 	sentAt?: string;
 	confirmedAt?: string;
@@ -376,7 +388,13 @@ interface SentDelivery {
 	epoch: string;
 	sessionId: string;
 	sentAtMs: number;
-	confirmed: boolean;
+	/**
+	 * WP19 round 4 (F1): the queue lifetime it was enqueued into. Absent only in entries a round-3
+	 * module of this process left on `globalThis` (suppressing, as in round 3).
+	 */
+	lifetime?: string;
+	/** WP19 round 4 (F4): its `sent` receipt (with `queueLifetime`) is on disk. */
+	durable?: boolean;
 }
 
 /**
@@ -384,15 +402,31 @@ interface SentDelivery {
  * variables) because a Pi extension reload re-imports this module while Pi keeps its queue of
  * pending custom messages: an epoch this process enqueued must not be sent again by the reloaded
  * module. `processId` is this process's sender identity in receipts (random, one per process).
+ *
+ * WP19 round 4 (F1, F4): suppression is per *queue lifetime*. Pi 1.1 keeps one queue per
+ * `AgentSession` (its agent's follow-up/steering queues and pending custom messages); `/reload`
+ * keeps that object (and its `sessionManager`), while `/new`, `/resume`, `/fork` and quit abort and
+ * dispose it (`AgentSessionRuntime.teardownCurrent`), dropping whatever is still queued. An
+ * `AgentSession`'s `sessionManager` is assigned once in its constructor and is what extensions see
+ * as `ctx.sessionManager`, so `lifetimes` (a WeakMap keyed by that object, no strong references)
+ * identifies the queue: a resumed session gets a new `SessionManager`, hence a new lifetime, even
+ * if no `session_shutdown` event reached us. `session_shutdown` (`new`/`resume`/`fork`/`quit`)
+ * additionally ends it eagerly (`endFeedbackQueueLifetime`) and marks the receipts. The dedup map
+ * (`enqueued`) and the confirmation watch (`watch`) are separate and bounded; durable receipts
+ * (which carry the queue lifetime) and the session history are the source of truth after eviction.
  */
 interface FeedbackProcessState {
 	processId: string;
 	/** Reservations this process is sending right now (receipt path → token). */
 	inFlight: Map<string, string>;
-	/** Epochs this process enqueued with Pi (never sent again by this process). */
+	/** Epochs this process enqueued into a still-live Pi queue (never sent again into it). */
 	enqueued: Map<string, SentDelivery>;
+	/** WP19 round 4 (F4): sent, not yet seen in the history, sent within CONFIRM_WATCH_MS. */
+	watch: Map<string, SentDelivery>;
 	/** WP19 round 2 (N3): in-process serialization of one receipt's transitions. */
 	receiptQueues: Map<string, Promise<void>>;
+	/** WP19 round 4 (F1): queue lifetime token per Pi `sessionManager` object. */
+	lifetimes: WeakMap<object, string>;
 }
 
 const PROCESS_STATE_KEY = Symbol.for(
@@ -413,17 +447,147 @@ function processState(): FeedbackProcessState {
 			processId: randomBytes(12).toString("hex"),
 			inFlight: new Map(),
 			enqueued: new Map(),
+			watch: new Map(),
 			receiptQueues: new Map(),
+			lifetimes: new WeakMap(),
 		};
 		holder[PROCESS_STATE_KEY] = state;
 	}
+	// WP19 round 4: a reload from a round-3 module keeps its state and gains the new fields.
+	if (!(state.watch instanceof Map)) state.watch = new Map();
+	if (!(state.lifetimes instanceof WeakMap)) state.lifetimes = new WeakMap();
 	return state;
+}
+
+/**
+ * WP19 round 4 (F1): the queue lifetime of `ctx`'s Pi session runtime (see FeedbackProcessState).
+ * `undefined` without a session manager object.
+ */
+function queueLifetime(
+	ctx: PiExtensionContext | undefined,
+): string | undefined {
+	const owner = ctx?.sessionManager as unknown;
+	if (!owner || (typeof owner !== "object" && typeof owner !== "function"))
+		return undefined;
+	const { lifetimes } = processState();
+	let token = lifetimes.get(owner);
+	if (!token) {
+		token = randomBytes(12).toString("hex");
+		lifetimes.set(owner, token);
+	}
+	return token;
+}
+
+/** WP19 round 4 (F1): an in-memory entry still describes a message queued in `lifetime`. */
+function enqueuedInto(
+	entry: SentDelivery,
+	lifetime: string | undefined,
+): boolean {
+	return entry.lifetime === undefined || entry.lifetime === lifetime;
+}
+
+/** WP19 round 4 (F4): bounds of the in-memory delivery state. */
+const MAX_ENQUEUED_ENTRIES = 256;
+const MAX_WATCHED_ENTRIES = 64;
+
+/**
+ * WP19 round 4 (F4): keep the in-memory state bounded. The confirmation watch drops its oldest
+ * entries (the receipt just stays `sent`). The dedup map drops durable entries first (their `sent`
+ * receipt carries the queue lifetime, so it still suppresses), then the oldest.
+ */
+function enforceDeliveryStateBounds(): void {
+	const { enqueued, watch } = processState();
+	for (const file of watch.keys()) {
+		if (watch.size <= MAX_WATCHED_ENTRIES) break;
+		watch.delete(file);
+	}
+	for (const [file, entry] of enqueued) {
+		if (enqueued.size <= MAX_ENQUEUED_ENTRIES) break;
+		if (entry.durable) enqueued.delete(file);
+	}
+	for (const file of enqueued.keys()) {
+		if (enqueued.size <= MAX_ENQUEUED_ENTRIES) break;
+		enqueued.delete(file);
+	}
+}
+
+/**
+ * WP19 round 4 (F1, F4): Pi disposed the queue of `ctx`'s session runtime (`session_shutdown` with
+ * `new`, `resume`, `fork` or `quit`; `reload` keeps the queue and is a no-op, as is an unknown
+ * reason, where the `sessionManager` identity still tells a replaced runtime apart). Every epoch
+ * this process enqueued into that queue becomes "unconfirmed: reconcile against the history": its
+ * receipt is published as `sent` with `queueEndedAt` (so other processes do not wait for it
+ * either) and its in-memory entries are dropped. When the session is active again (resume, or
+ * after a restart) the history decides: present = confirmed, absent = sent again.
+ * Returns the number of entries released.
+ */
+export async function endFeedbackQueueLifetime(
+	ctx: PiExtensionContext | undefined,
+	reason: unknown,
+	nowMs = Date.now(),
+): Promise<number> {
+	if (
+		reason !== "new" &&
+		reason !== "resume" &&
+		reason !== "fork" &&
+		reason !== "quit"
+	)
+		return 0;
+	const owner = ctx?.sessionManager as unknown;
+	if (!owner || (typeof owner !== "object" && typeof owner !== "function"))
+		return 0;
+	const state = processState();
+	const lifetime = state.lifetimes.get(owner);
+	if (!lifetime) return 0;
+	// A stale ctx of the disposed runtime never matches the ended lifetime again.
+	state.lifetimes.set(owner, randomBytes(12).toString("hex"));
+	const ended = new Map<string, SentDelivery>();
+	for (const map of [state.enqueued, state.watch])
+		for (const [file, entry] of map)
+			if (entry.lifetime === lifetime) {
+				ended.set(file, entry);
+				map.delete(file);
+			}
+	for (const [file, entry] of ended)
+		await withReceiptLock(file, async () => {
+			const current = await readReceipt(file);
+			if (current?.token !== entry.token) return;
+			if (current.state !== "pending" && current.state !== "sent") return;
+			// Pending with our token here means sent, but the `sent` publication failed.
+			await writeReceipt(file, {
+				...current,
+				state: "sent",
+				sentAt: current.sentAt ?? new Date(entry.sentAtMs).toISOString(),
+				queueLifetime: lifetime,
+				queueEndedAt: new Date(nowMs).toISOString(),
+			});
+		}).catch(() => undefined);
+	return ended.size;
+}
+
+/** Tests: sizes of this process's in-memory delivery state. */
+export function feedbackDeliveryStateSizesForTests(): {
+	enqueued: number;
+	watch: number;
+	inFlight: number;
+	receiptQueues: number;
+} {
+	const state = processState();
+	return {
+		enqueued: state.enqueued.size,
+		watch: state.watch.size,
+		inFlight: state.inFlight.size,
+		receiptQueues: state.receiptQueues.size,
+	};
 }
 /** A pending reservation older than this whose owner is not sending any more is resolved. */
 const RESERVATION_STALE_MS = 60_000;
 /** WP19 round 2: how long the tracker keeps looking for a sent message in the session history. */
 const CONFIRM_WATCH_MS = 10 * 60_000;
-/** WP19 round 2: without readable history an epoch is sent at most this many times. */
+/**
+ * WP19 round 2: without readable history an epoch is sent at most this many times. WP19 round 4
+ * (F3): every reservation counts (`attempts`), also one orphaned before its `sent` publication.
+ */
 const MAX_UNVERIFIABLE_SENDS = 2;
 /**
  * Test hook: forget this process's delivery state, as a Pi restart (a new OS process) does: a new
@@ -434,6 +598,8 @@ export function resetFeedbackDeliveryStateForTests(): void {
 	state.processId = randomBytes(12).toString("hex");
 	state.inFlight.clear();
 	state.enqueued.clear();
+	state.watch.clear();
+	state.lifetimes = new WeakMap();
 }
 
 function processAlive(pid: unknown): boolean {
@@ -476,6 +642,40 @@ function sentByOtherLiveProcess(receipt: FeedbackReceipt): boolean {
 		receipt.pid !== process.pid &&
 		(receipt.host ?? hostname()) === hostname() &&
 		processAlive(receipt.pid)
+	);
+}
+
+/**
+ * WP19 round 4 (F1): a live owner is not unconditional proof. Its queue lifetime counts as alive
+ * only when the receipt names one (`queueLifetime`), the owner has not marked it ended
+ * (`queueEndedAt`, written at `session_shutdown`) and it was sent within CONFIRM_WATCH_MS (a queued
+ * follow-up reaches the history within one agent turn; an owner that lost its queue without
+ * marking it is not waited for forever).
+ */
+function ownerQueueAlive(receipt: FeedbackReceipt, nowMs: number): boolean {
+	const sentAt = Date.parse(receipt.sentAt ?? "");
+	return (
+		typeof receipt.queueLifetime === "string" &&
+		receipt.queueEndedAt === undefined &&
+		Number.isFinite(sentAt) &&
+		nowMs - sentAt < CONFIRM_WATCH_MS
+	);
+}
+
+/**
+ * WP19 round 4 (F1): this process enqueued the epoch into the still-live queue `lifetime` and
+ * published that durably (the dedup source after the in-memory entry was evicted).
+ */
+function sentIntoLiveQueue(
+	receipt: FeedbackReceipt,
+	lifetime: string | undefined,
+): boolean {
+	return (
+		lifetime !== undefined &&
+		receipt.processId === processState().processId &&
+		receipt.queueLifetime === lifetime &&
+		receipt.queueEndedAt === undefined &&
+		(receipt.state === "sent" || receipt.state === "confirmed")
 	);
 }
 
@@ -556,15 +756,23 @@ export async function confirmSentDeliveries(
 	ctx: PiExtensionContext,
 	nowMs = Date.now(),
 ): Promise<number> {
+	const { watch, enqueued } = processState();
+	// WP19 round 4 (F4): the watch is bounded in time for every session, not only this one.
+	for (const [file, entry] of watch)
+		if (nowMs - entry.sentAtMs >= CONFIRM_WATCH_MS) watch.delete(file);
 	const sessionId = piSessionId(ctx);
 	if (!sessionId) return 0;
 	let watching = 0;
-	for (const [file, entry] of [...processState().enqueued]) {
-		if (entry.confirmed || entry.sessionId !== sessionId) continue;
+	for (const [file, entry] of [...watch]) {
+		if (entry.sessionId !== sessionId) continue;
 		const seen = sessionHasCompletion(ctx, entry.runId, entry.epoch);
-		if (seen === undefined) continue;
+		if (seen === undefined) {
+			// No history to confirm against: nothing to watch (the dedup entry stays).
+			watch.delete(file);
+			continue;
+		}
 		if (seen === false) {
-			if (nowMs - entry.sentAtMs < CONFIRM_WATCH_MS) watching += 1;
+			watching += 1;
 			continue;
 		}
 		await withReceiptLock(file, async () => {
@@ -578,10 +786,12 @@ export async function confirmSentDeliveries(
 			});
 		})
 			.then(() => {
-				entry.confirmed = true;
+				// The history holds it now: it decides every later attempt.
+				watch.delete(file);
+				if (enqueued.get(file)?.token === entry.token) enqueued.delete(file);
 			})
 			.catch(() => {
-				if (nowMs - entry.sentAtMs < CONFIRM_WATCH_MS) watching += 1;
+				watching += 1;
 			});
 	}
 	return watching;
@@ -597,15 +807,20 @@ export async function confirmSentDeliveries(
  * in Pi's session history, `ctx.sessionManager.getEntries()`: our `custom_message` with this run id
  * and epoch). Every receipt records its sender identity (pid, host and a random per-process id).
  *
- * WP19 round 3 (R2, R3), on every delivery attempt, whatever the receipt says:
- * - This OS process enqueued the epoch (process-scoped state on `globalThis`, so it survives an
- *   extension reload and a tracker stop/restore, which keep Pi's queue): never sent again.
+ * WP19 round 3 (R2, R3) and round 4 (F1, F3), on every delivery attempt, whatever the receipt says:
+ * - This OS process enqueued the epoch into the *still-live queue* of the current Pi session
+ *   runtime (in-memory entry, or its own durable `sent` receipt naming that queue lifetime; state
+ *   on `globalThis`, so it survives an extension reload and a tracker stop/restore, which keep
+ *   Pi's queue): never sent again. A queue disposed by `/new`, `/resume`, `/fork` or quit (or a
+ *   runtime with another `sessionManager`) does not suppress: the history decides.
  * - Otherwise, with readable session history: present = confirmed, nothing sent; absent = sent
  *   (again). A `confirmed` receipt of another process does not overrule explicit absence (Pi 1.1's
  *   in-memory history can show a message whose append to the session file failed). A `sent`
- *   receipt of another live Pi process on this host is left to that process (its queue is alive).
- * - Without readable history: a `confirmed` receipt is final; a `sent` (or crashed pending) one is
- *   sent again, bounded: at most MAX_UNVERIFIABLE_SENDS sends per epoch.
+ *   receipt of another live Pi process on this host is left to that process only while its queue
+ *   lifetime is confirmed alive (`ownerQueueAlive`); otherwise it is reconciled like any other.
+ * - Without readable history: a `confirmed` receipt is final, a `sent` one of another live process
+ *   is left to it; otherwise sent again, bounded: at most MAX_UNVERIFIABLE_SENDS reservations
+ *   (enqueue attempts) per epoch, counting orphaned pending ones (F3).
  * - A pending reservation whose owner is gone is resolved the same way. An empty, corrupt or
  *   foreign receipt is never proof of delivery.
  * - The tracker confirms sent messages opportunistically on later ticks (`confirmSentDeliveries`).
@@ -645,9 +860,18 @@ export async function deliverCompletion(
 	if (!sessionId || audience?.sessionId !== sessionId) return "not-owner";
 	const epoch = feedbackEpoch(run);
 	const receipt = feedbackReceiptPath(cwd, run.runId, epoch);
-	// WP19 round 3 (R3): this process is sending it, or already enqueued it with Pi.
+	const lifetime = queueLifetime(ctx);
+	// WP19 round 3 (R3) and round 4 (F1): this process is sending it, or already enqueued it into
+	// the current Pi session runtime's queue (still alive). An entry of a disposed queue is stale.
+	const isEnqueued = () => {
+		const entry = state.enqueued.get(receipt);
+		if (!entry) return false;
+		if (enqueuedInto(entry, lifetime)) return true;
+		state.enqueued.delete(receipt);
+		return false;
+	};
 	if (state.inFlight.has(receipt)) return "in-flight";
-	if (state.enqueued.has(receipt)) return "already-delivered";
+	if (isEnqueued()) return "already-delivered";
 	const receiptsDir = join(
 		workflowRunDir(cwd, run.runId),
 		FEEDBACK_RECEIPTS_DIR,
@@ -677,7 +901,7 @@ export async function deliverCompletion(
 		async (): Promise<"send" | "already-delivered" | "in-flight"> => {
 			// Re-check under the lock: a concurrent delivery of this process may have finished.
 			if (state.inFlight.has(receipt)) return "in-flight";
-			if (state.enqueued.has(receipt)) return "already-delivered";
+			if (isEnqueued()) return "already-delivered";
 			const existing = await readReceipt(receipt);
 			const legacy =
 				existing !== undefined &&
@@ -708,19 +932,31 @@ export async function deliverCompletion(
 						attempts: existing?.attempts ?? 1,
 						confirmedAt: new Date(nowMs).toISOString(),
 					});
+				state.watch.delete(receipt);
 				return "already-delivered";
 			}
+			// WP19 round 4 (F1/F4): this process's durable receipt for the still-live queue.
+			if (existing && sentIntoLiveQueue(existing, lifetime))
+				return "already-delivered";
 			if (existing && reservationLive(receipt, existing, nowMs))
 				return "in-flight";
 			const sent =
 				existing?.state === "sent" || existing?.state === "delivered";
-			// Another live Pi process on this host queued it: its queue is alive, it owns it.
-			if (sent && sentByOtherLiveProcess(existing)) return "already-delivered";
+			// Another live Pi process on this host queued it and its queue is (confirmed) alive.
+			// WP19 round 4 (F1): with readable history lacking the message, a live owner alone is
+			// not proof; without history the owner keeps it (nothing to reconcile against).
+			if (
+				sent &&
+				sentByOtherLiveProcess(existing) &&
+				(history === undefined || ownerQueueAlive(existing, nowMs))
+			)
+				return "already-delivered";
 			if (history === undefined) {
 				// No history to resolve it against: a confirmation is final; otherwise at least
-				// once, but bounded.
+				// once, but bounded. WP19 round 4 (F3): every reservation counts, also an
+				// orphaned pending one (it may have been sent before its owner crashed).
 				if (existing?.state === "confirmed") return "already-delivered";
-				if (sent && (existing.attempts ?? 1) >= MAX_UNVERIFIABLE_SENDS)
+				if (existing && (existing.attempts ?? 1) >= MAX_UNVERIFIABLE_SENDS)
 					return "already-delivered";
 			}
 			// WP19 round 3 (R2): readable history without the message overrules any receipt.
@@ -730,6 +966,7 @@ export async function deliverCompletion(
 				...owner,
 				state: "pending",
 				attempts,
+				...(lifetime ? { queueLifetime: lifetime } : {}),
 				reservedAt: new Date(nowMs).toISOString(),
 			});
 			state.inFlight.set(receipt, token);
@@ -776,15 +1013,18 @@ export async function deliverCompletion(
 		await dropReservation().catch(() => undefined);
 		throw error;
 	}
-	// Sent (maybe only queued): never again in this OS process (WP19 round 3, R3).
-	state.enqueued.set(receipt, {
+	// Sent (maybe only queued): never again into this queue (WP19 round 3 R3, round 4 F1).
+	const entry: SentDelivery = {
 		token,
 		runId: run.runId,
 		epoch,
 		sessionId,
 		sentAtMs: Date.now(),
-		confirmed: false,
-	});
+		...(lifetime ? { lifetime } : {}),
+		durable: false,
+	};
+	state.enqueued.set(receipt, entry);
+	state.watch.set(receipt, entry);
 	try {
 		// WP19 round 2 (N3): ownership is kept (`inFlight`) through the final transition.
 		await withReceiptLock(receipt, async () => {
@@ -795,14 +1035,17 @@ export async function deliverCompletion(
 				...owner,
 				state: "sent",
 				attempts,
+				...(lifetime ? { queueLifetime: lifetime } : {}),
 				reservedAt: current.reservedAt,
 				sentAt: new Date(Date.now()).toISOString(),
 			});
+			entry.durable = true;
 		});
 	} catch {
 		// The pending reservation stays; this process's in-memory record suppresses a resend.
 	} finally {
 		state.inFlight.delete(receipt);
+		enforceDeliveryStateBounds();
 	}
 	try {
 		ctx.ui.notify(
@@ -958,6 +1201,18 @@ export class PiRunFeedback {
 			this.schedule();
 			await this.tick();
 		}
+	}
+
+	/**
+	 * WP19 round 4 (F1): `session_shutdown`. Stops the tracker; with `new`/`resume`/`fork`/`quit`
+	 * (Pi disposes the session runtime and its queue) the epochs enqueued into that queue become
+	 * "reconcile against the history" (`endFeedbackQueueLifetime`); `reload` keeps them.
+	 */
+	async shutdown(event: unknown, ctx?: PiExtensionContext): Promise<void> {
+		const target = ctx ?? this.ctx;
+		this.stop();
+		const reason = (event as { reason?: unknown } | undefined)?.reason;
+		await endFeedbackQueueLifetime(target, reason).catch(() => 0);
 	}
 
 	/** Session shutdown: stop polling and clear the status entry. */

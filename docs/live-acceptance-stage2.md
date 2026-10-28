@@ -541,3 +541,52 @@ Notes:
 - Docs: docs/pi-host.md (R2, R3), docs/host-api.md (R1, R4, R5), docs/host-mcp.md (R1).
 - Validation: `npm run validate` twice, `npm run e2e`, replay acceptance (0 unexplained),
   `node tools/release/plugins.mjs check`. None of the fixes was rerun live.
+
+## WP19 round 4
+
+Branch `wp19-fixes-4` from `da62e79`, one commit (`fix: WP19 round-4 review fixes`), no model or
+agent-CLI calls. Input: the round-4 review (gpt-6-astra, "Request changes", F1 major, F2–F4 minor)
+and its probes (`aw-wp19r4-session-replace`, `aw-wp19r4-verified`), the basis of the regression
+tests. Every listed test was run against a temporary build of `da62e79` (`git archive da62e79`,
+`npm run build`, the new test files copied in, real-runtime env var set): each defect test fails
+there with an assertion reproducing the reviewer's scenario; the positive controls (reload keeps
+the queue, a live owner with a live queue, non-empty headers, readable-history resends) pass on
+both. All pass after the fix.
+
+| # | Finding | Regression test | Fails on `da62e79` |
+|---|---|---|---|
+| F1 | Process-scoped suppression lost a completion queued in a session runtime that `/new` → `/resume` disposed | `test/unit/host-wp19r4-pi-queue-lifetime.test.mjs` (fake runtime, always on; Pi 1.1's real `AgentSessionRuntime`/`AgentSession` queue/`SessionManager`, opt-in) | yes (1 send, 0 messages in A's history; cleared queue + reopen: 1 send) |
+| F1 residual | Another live process's `sent` receipt was unconditional proof | `test/unit/host-wp19r4-pi-delivery.test.mjs` (F1 residual cases) | yes (`already-delivered` with readable history lacking the message) |
+| F2 | An empty credential header redacted the next line | `test/unit/host-wp19r4-redaction-empty-headers.test.mjs` | yes (`x-api-key: REDACTED\nFinding remains.`) |
+| F3 | Orphaned `pending` receipts bypassed the two-send cap (unreadable history) | `test/unit/host-wp19r4-pi-delivery.test.mjs` (F3 cases) | yes (3 sends) |
+| F4 | Process-wide delivery memory unbounded | `test/unit/host-wp19r4-pi-delivery.test.mjs` (F4 cases) | yes (40 entries retained; 300 with no cap) |
+
+Pi delivery guarantee after round 4 (docs/pi-host.md, "Delivery decision"):
+
+| Situation | Messages per epoch |
+|---|---|
+| Normal | exactly 1 |
+| `/reload` (queue retained) | exactly 1 |
+| `/new`, `/resume`, `/fork` (queue disposed), session active again | exactly 1 in its history (resent once if the queue dropped it) |
+| Crash, history readable | 1 if the durable history has it, else 1 more on restart |
+| Crash, history unreadable | at most 2 enqueue attempts; at least 1 unless two attempts crashed before sending |
+
+Notes:
+
+- F1: suppression is per queue lifetime: a WeakMap keyed by the Pi runtime's `ctx.sessionManager`
+  object (one per `AgentSession`, kept by `/reload`, new on `/new`/`/resume`/`/fork`) plus the
+  `session_shutdown` reason (`reload` keeps; `new`/`resume`/`fork`/`quit` end it, publish the
+  receipts as `sent` + `queueEndedAt` and drop the in-memory entries). The WeakMap covers a missed
+  shutdown event and needs no Pi internals; the event marks receipts for other processes.
+  Receipts now carry `queueLifetime`. A live owner's `sent` receipt is respected only with a named,
+  unended queue lifetime sent < 10 min ago (unreadable history still defers to it).
+- F3: weaker, precise guarantee for unreadable history: two consecutive crashes between
+  reservation and `sendMessage` deliver nothing.
+- F4: confirmation watch ≤ 64 entries and ≤ 10 min; dedup map ≤ 256 entries (durable ones evicted
+  first; the receipt still suppresses).
+- The real-runtime tests run with `AGENT_WORKFLOW_PI_CODING_AGENT_DIR=<…/@earendil-works/pi-coding-agent>`
+  (Pi 1.1.0 was used); without it they are skipped and the fake-runtime twins cover the same
+  sequences. Round 3's real-`SessionManager` test still uses `AGENT_WORKFLOW_PI_SESSION_MANAGER`.
+- Docs: docs/pi-host.md (F1, F3, F4), docs/host-api.md (F2).
+- Validation: `npm run validate` twice, `npm run e2e`, replay acceptance (0 unexplained),
+  `node tools/release/plugins.mjs check`. None of the fixes was rerun live.
