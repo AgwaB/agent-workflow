@@ -31,6 +31,7 @@ import {
 	type WorkflowRoleMap,
 } from "../core/types.js";
 import { HostUsageError } from "./args.js";
+import { withStoreLock } from "./store-lock.js";
 
 export const USER_PROFILES_SCHEMA = "agent-workflow-user-profiles-v1" as const;
 
@@ -292,42 +293,45 @@ export async function setUserProfile(
 			throw new HostUsageError(
 				`profile: cannot unset unknown field "${field}" (known: ${USER_PROFILE_FIELDS.join(", ")})`,
 			);
-	const file = await readUserProfiles(env);
-	const created = !Object.hasOwn(file.profiles, input.name);
-	if (created && Object.keys(file.profiles).length >= MAX_PROFILES)
-		throw new HostUsageError(`at most ${MAX_PROFILES} saved profiles`);
-	const previous: Record<string, unknown> = {
-		...(file.profiles[input.name] ?? {}),
-	};
-	delete previous.updatedAt;
-	if (preset) {
-		// A preset replaces the saved executor and roles (it is a fresh role table).
-		delete previous.executor;
-		delete previous.roles;
-	}
-	for (const field of input.unset ?? []) delete previous[field];
-	const kept = validateUserProfileValues(previous);
-	// WP31: role entries merge role by role; `--unset roles.<role>` removes one.
-	const roles = {
-		...(kept.roles ?? {}),
-		...(values.roles ?? {}),
-	};
-	for (const role of unsetRoles) delete roles[role];
-	const merged = {
-		...kept,
-		...values,
-		...(Object.keys(roles).length > 0 ? { roles } : {}),
-		updatedAt: new Date().toISOString(),
-	};
-	if (Object.keys(roles).length === 0) delete merged.roles;
-	file.profiles[input.name] = merged;
-	if (input.makeDefault) file.default = input.name;
-	await writeUserProfiles(file, env);
-	return {
-		profile: { name: input.name, ...merged },
-		isDefault: file.default === input.name,
-		created,
-	};
+	// WP42 (review round 1, finding 3): the whole read–modify–write under the store lock.
+	return withStoreLock(userProfilesPath(env), async () => {
+		const file = await readUserProfiles(env);
+		const created = !Object.hasOwn(file.profiles, input.name);
+		if (created && Object.keys(file.profiles).length >= MAX_PROFILES)
+			throw new HostUsageError(`at most ${MAX_PROFILES} saved profiles`);
+		const previous: Record<string, unknown> = {
+			...(file.profiles[input.name] ?? {}),
+		};
+		delete previous.updatedAt;
+		if (preset) {
+			// A preset replaces the saved executor and roles (it is a fresh role table).
+			delete previous.executor;
+			delete previous.roles;
+		}
+		for (const field of input.unset ?? []) delete previous[field];
+		const kept = validateUserProfileValues(previous);
+		// WP31: role entries merge role by role; `--unset roles.<role>` removes one.
+		const roles = {
+			...(kept.roles ?? {}),
+			...(values.roles ?? {}),
+		};
+		for (const role of unsetRoles) delete roles[role];
+		const merged = {
+			...kept,
+			...values,
+			...(Object.keys(roles).length > 0 ? { roles } : {}),
+			updatedAt: new Date().toISOString(),
+		};
+		if (Object.keys(roles).length === 0) delete merged.roles;
+		file.profiles[input.name] = merged;
+		if (input.makeDefault) file.default = input.name;
+		await writeUserProfiles(file, env);
+		return {
+			profile: { name: input.name, ...merged },
+			isDefault: file.default === input.name,
+			created,
+		};
+	});
 }
 
 export async function deleteUserProfile(
@@ -335,14 +339,16 @@ export async function deleteUserProfile(
 	env: NodeJS.ProcessEnv = process.env,
 ): Promise<{ deleted: boolean; wasDefault: boolean }> {
 	assertUserProfileName(name);
-	const file = await readUserProfiles(env);
-	if (!Object.hasOwn(file.profiles, name))
-		return { deleted: false, wasDefault: false };
-	delete file.profiles[name];
-	const wasDefault = file.default === name;
-	if (wasDefault) delete file.default;
-	await writeUserProfiles(file, env);
-	return { deleted: true, wasDefault };
+	return withStoreLock(userProfilesPath(env), async () => {
+		const file = await readUserProfiles(env);
+		if (!Object.hasOwn(file.profiles, name))
+			return { deleted: false, wasDefault: false };
+		delete file.profiles[name];
+		const wasDefault = file.default === name;
+		if (wasDefault) delete file.default;
+		await writeUserProfiles(file, env);
+		return { deleted: true, wasDefault };
+	});
 }
 
 /** Set (or with `undefined`, clear) the default profile. */
@@ -350,14 +356,16 @@ export async function setDefaultUserProfile(
 	name: string | undefined,
 	env: NodeJS.ProcessEnv = process.env,
 ): Promise<void> {
-	const file = await readUserProfiles(env);
-	if (name !== undefined) {
-		assertUserProfileName(name);
-		if (!Object.hasOwn(file.profiles, name))
-			throw new HostUsageError(`no saved profile named "${name}"`);
-		file.default = name;
-	} else delete file.default;
-	await writeUserProfiles(file, env);
+	if (name !== undefined) assertUserProfileName(name);
+	await withStoreLock(userProfilesPath(env), async () => {
+		const file = await readUserProfiles(env);
+		if (name !== undefined) {
+			if (!Object.hasOwn(file.profiles, name))
+				throw new HostUsageError(`no saved profile named "${name}"`);
+			file.default = name;
+		} else delete file.default;
+		await writeUserProfiles(file, env);
+	});
 }
 
 export function formatUserProfile(
