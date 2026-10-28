@@ -142,7 +142,7 @@ test("adapter probes declare their model lists: Claude aliases and Codex catalog
 
 	const piResult = await piProbe();
 	assert.deepEqual(piResult.probe.models, ["google/gemini-2.5-flash-lite"]);
-	assert.equal(piResult.probe.modelListComplete, true);
+	assert.equal(piResult.probe.modelListComplete, false);
 	assert.equal(await piResult.cli.effectCount(), 0);
 });
 
@@ -279,21 +279,20 @@ test("Codex: a slug outside the visible catalog is noted, not refused", async ()
 	assert.equal(submits(log).length, 1);
 });
 
-test("Pi: an exhaustive list refuses an unknown model before launch (MODEL_UNKNOWN); a listed one runs", async () => {
+test("Pi: the list is not exhaustive (Pi resolves patterns): an unknown model is noted, not refused; a listed one runs without a note", async () => {
 	const { probe } = await piProbe();
-	const log = register("pi", probe);
+	register("pi", probe);
 	const { ctx } = await project("pi", "google/gemini-9-unknown");
-	const refused = await api.runWorkflowAction(ctx, {
+	const noted = await api.runWorkflowAction(ctx, {
 		workflow: "wf.json",
 		task: "unknown pi model",
 	});
-	assert.equal(refused.outcome, "refused", refused.text);
-	assert.equal(refused.data.refusal.code, "MODEL_UNKNOWN");
+	assert.equal(noted.outcome, "running", noted.text);
 	assert.match(
-		refused.text,
-		/stage "plan": model "google\/gemini-9-unknown" is unknown to executor pi \(its probe lists: google\/gemini-2\.5-flash-lite\)/u,
+		noted.text,
+		/model "google\/gemini-9-unknown" for plan is not verified by probe/u,
 	);
-	assert.deepEqual(submits(log), []);
+	assert.equal((await settle(ctx, noted.data.runId)).outcome, "completed");
 	const listed = await project("pi", "gemini-2.5-flash-lite");
 	const ok = await api.runWorkflowAction(listed.ctx, {
 		workflow: "wf.json",

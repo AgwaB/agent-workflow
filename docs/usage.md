@@ -256,10 +256,10 @@ parent's executor.
 is saved and when a run starts. A role model is checked before launch against the model list the
 executor's probe reports (no model call: Pi `pi --list-models`, Codex `codex debug models`, Claude
 Code's model aliases `default`/`haiku`/`sonnet`/`opus`). Each probe says whether its list is
-exhaustive (`modelListComplete`). Only Pi's is: a Pi model the list does not contain refuses the
-run (`MODEL_UNKNOWN`, naming the stage and the listed models). Claude's list holds aliases only
-(full ids such as `claude-opus-4-8` are valid) and Codex's holds the visible catalog only, so a
-model missing from them is noted (`model "x" for <stages> is not verified by probe: …`) and the
+exhaustive (`modelListComplete`). None of the built-in ones is: Pi's `--model` also resolves
+patterns (`sonnet`, `provider/…`), Claude's list holds aliases only (full ids such as
+`claude-opus-4-8` are valid) and Codex's holds the visible catalog only, so a model missing from
+them is noted (`model "x" for <stages> is not verified by probe: …`) and the
 run proceeds; when a probe lists no models at all, the preview notes `model "x" for <stages> is
 not verified`.
 

@@ -462,7 +462,22 @@ test("resume after stop keeps every task on its executor", async () => {
 		Date.now() < deadline
 	)
 		await new Promise((resolve) => setTimeout(resolve, 50));
-	const stopped = await engine.stopRun(cwd, runId);
+	// Under load the stop may not be confirmed within the engine's 1.5 s window; it then says to
+	// retry (stop intent stays durable).
+	let stopped;
+	for (let attempt = 0; ; attempt += 1) {
+		try {
+			stopped = await engine.stopRun(cwd, runId);
+			break;
+		} catch (error) {
+			if (
+				attempt >= 20 ||
+				!/could not be confirmed/.test(String(error?.message))
+			)
+				throw error;
+			await new Promise((resolve) => setTimeout(resolve, 250));
+		}
+	}
 	assert.equal(stopped.run.status, "interrupted");
 	const before = {
 		claude: submits(logs.claude).length,

@@ -775,8 +775,9 @@ any executor ran any stage with no refusal, degradation record or preview. WP4d 
    `executors`), each task template is negotiated against `task.runtime.executor`, the preview's
    summary names every executor, refusals name the stage and its executor, and role models are
    checked against the probe's model list (`MODEL_UNKNOWN` only when the probe declares the list
-   exhaustive, `ExecutorProbe.modelListComplete` — Pi; a partial list (Claude aliases, Codex visible
-   catalog) or no list adds a "not verified" notice).
+   exhaustive, `ExecutorProbe.modelListComplete` — none of the built-in adapters; a partial list (Pi
+   registry with pattern resolution, Claude aliases, Codex visible catalog) or no list adds a "not
+   verified" notice).
    The record keeps the run executor's probe/capabilities at the top level and the others in
    `executors.<id>`; `workflowTaskCapabilityLaunch` uses the task's executor. Single-executor runs
    take none of these paths (record unchanged).
