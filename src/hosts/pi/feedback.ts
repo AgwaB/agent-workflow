@@ -40,7 +40,6 @@ import {
 	open,
 	readdir,
 	readFile,
-	realpath,
 	rename,
 	unlink,
 	writeFile,
@@ -56,6 +55,7 @@ import {
 import type { WorkflowRunRecord } from "../../core/types.js";
 import { PROJECT_STATE_DIRECTORY } from "../../core/home-dir.js";
 import { acquireDirectoryLock } from "../../runtime/artifacts/dir-lock.js";
+import { containedProjectStateDir } from "../run-files.js";
 import { summarizeWorkflowTerminal } from "../../core/workflow-terminal.js";
 import {
 	formatVerdictGateHeadline,
@@ -744,37 +744,15 @@ const QUEUE_END_TEMP_FILE =
 	/^[A-Za-z0-9_-]{1,128}\.json\.\d+\.[0-9a-f]{12}\.tmp$/u;
 
 /**
- * WP19 round 6: the queue-ends directory is only written or pruned when it is physically where
- * it claims to be — `.agent-workflow` and `pi-feedback-queue-ends` are real directories (no
- * symlinked ancestor below the project root) and the directory's real path is
- * `<real cwd>/.agent-workflow/pi-feedback-queue-ends`. Anything else returns `undefined`: no
+ * WP19 round 6: the queue-ends directory is only written or pruned when it is physically
+ * `<real cwd>/.agent-workflow/pi-feedback-queue-ends` (no symlinked component). Otherwise no
  * tombstone is written (recovery then waits for the owner window) and nothing is pruned.
- * `create` makes missing directories first (never through a symlink: an existing symlinked
- * component fails the checks below).
  */
-async function containedQueueEndsDir(
+function containedQueueEndsDir(
 	cwd: string,
 	create: boolean,
 ): Promise<string | undefined> {
-	const stateDir = join(cwd, PROJECT_STATE_DIRECTORY);
-	const dir = queueEndsDir(cwd);
-	try {
-		if (create) await mkdir(dir, { recursive: true });
-		for (const component of [stateDir, dir]) {
-			const info = await lstat(component);
-			if (info.isSymbolicLink() || !info.isDirectory()) return undefined;
-		}
-		const [cwdReal, dirReal] = await Promise.all([
-			realpath(cwd),
-			realpath(dir),
-		]);
-		return dirReal ===
-			join(cwdReal, PROJECT_STATE_DIRECTORY, FEEDBACK_QUEUE_ENDS_DIR)
-			? dir
-			: undefined;
-	} catch {
-		return undefined;
-	}
+	return containedProjectStateDir(cwd, FEEDBACK_QUEUE_ENDS_DIR, create);
 }
 
 /** The tombstone of `lifetime` (a receipt field: validated before it becomes a path). */

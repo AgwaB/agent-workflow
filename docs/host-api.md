@@ -174,7 +174,11 @@ ownership fence (`begin()`): under the mutex it checks that the claim still carr
 and marks it `state: "starting"`. A launch whose claim was taken over meanwhile starts nothing and
 returns the new owner's run (`existing`) or is refused (`DUPLICATE_LAUNCH_IN_PROGRESS`). WP18b: claim files older than 1 h that do not name a
 still-active run are stale; every launch removes them in the background and `prune` removes them
-with the runs (same dry-run rule; `data.hostLaunchClaims`). Runs launched outside the host API (the
+with the runs (same dry-run rule; `data.hostLaunchClaims`). WP19 round 6: pruning runs only when
+`.agent-workflow/host-launches` is physically inside the project (neither it nor `.agent-workflow`
+is a symlink; otherwise nothing is pruned and an error is reported) and removes only claim files
+(`<sha256>.json` with the claim schema and that fingerprint) and their writers' temp files; any
+other file there is left alone. Runs launched outside the host API (the
 SDK) are not guarded. Before WP16 the guard applied to attached launches only, matched spec name + task, and
 refused (`outcome: "refused"`).
 

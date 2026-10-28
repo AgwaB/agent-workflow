@@ -61,6 +61,7 @@ import { DUPLICATE_RUN_WINDOW_MS } from "../core/run-estimates.js";
 import { readRunRecord, workflowsRoot } from "../core/store.js";
 import type { WorkflowRunRecord } from "../core/types.js";
 import { acquireDirectoryLock } from "../runtime/artifacts/dir-lock.js";
+import { containedProjectStateDir } from "./run-files.js";
 
 const CLAIM_SCHEMA = "agent-workflow-host-launch-v1";
 /** A pending claim whose lease was not renewed for this long belongs to a launch that died. */
@@ -172,8 +173,13 @@ export function launchFingerprint(input: LaunchFingerprintInput): string {
 		.digest("hex");
 }
 
+const HOST_LAUNCHES_DIR = "host-launches";
+/** A claim file (`<sha256 fingerprint>.json`) and a writer's temp file of one. */
+const CLAIM_FILE = /^[0-9a-f]{64}\.json$/u;
+const CLAIM_TEMP_FILE = /^[0-9a-f]{64}\.json\.\d+\.[0-9a-f]{12}\.tmp$/u;
+
 export function launchGuardDir(cwd: string): string {
-	return join(dirname(workflowsRoot(cwd)), "host-launches");
+	return join(dirname(workflowsRoot(cwd)), HOST_LAUNCHES_DIR);
 }
 
 function claimPath(cwd: string, fingerprint: string): string {
@@ -507,6 +513,20 @@ export async function pruneHostLaunchClaims(
 		removed: [],
 		errors: [],
 	};
+	// WP19 round 6: prune only inside the physically contained directory (no symlinked
+	// `.agent-workflow` or `host-launches`), and only files that are positively ours.
+	const contained = await containedProjectStateDir(cwd, HOST_LAUNCHES_DIR);
+	if (!contained || contained !== resolve(dir)) {
+		const exists = await lstat(dir).then(
+			() => true,
+			() => false,
+		);
+		if (exists)
+			summary.errors.push(
+				`${dir}: not pruned (a symlinked or misplaced directory is never pruned)`,
+			);
+		return summary;
+	}
 	let names: string[];
 	try {
 		names = await readdir(dir);
@@ -518,16 +538,18 @@ export async function pruneHostLaunchClaims(
 	const stale = async (file: string, name: string): Promise<boolean> => {
 		const info = await lstat(file).catch(() => undefined);
 		if (!info?.isFile() || info.mtimeMs > cutoff) return false;
-		if (!name.endsWith(".json")) return true;
+		if (CLAIM_TEMP_FILE.test(name)) return true;
 		const claim = await readClaim(file);
-		if (!claim) return true;
+		// Not provably a claim (claims are renamed into place, never torn): left alone.
+		if (!claim || claim.fingerprint !== name.slice(0, -".json".length))
+			return false;
 		if (pendingClaimLive(claim, nowMs)) return false;
 		return !(await activeMatch(cwd, claim, nowMs, DUPLICATE_RUN_WINDOW_MS));
 	};
 	for (const name of names) {
-		// Mutex staging files (`.<name>.lock.owner-*.tmp`) belong to dir-lock.
-		if (name.startsWith(".")) continue;
-		if (!name.endsWith(".json") && !name.endsWith(".tmp")) continue;
+		// Only claim files and their writers' temp files; mutex staging files
+		// (`.<name>.lock.owner-*.tmp`) belong to dir-lock, anything else is not ours.
+		if (!CLAIM_FILE.test(name) && !CLAIM_TEMP_FILE.test(name)) continue;
 		const file = join(dir, name);
 		if (!(await stale(file, name))) continue;
 		if (summary.dryRun || !name.endsWith(".json")) {
