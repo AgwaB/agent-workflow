@@ -30,6 +30,11 @@ import { acquireDirectoryLock } from "../runtime/artifacts/dir-lock.js";
 import { RUN_LOCKS_DIR } from "../runtime/artifacts/registry.js";
 import { physicalDirectoryChain } from "./physical-paths.js";
 import {
+	AUTO_ROUTER_RUN_ID_PATTERN,
+	AUTO_ROUTER_RUNS_DIR_NAME,
+	unidentifiedClassifierReason,
+} from "./auto-router-runs.js";
+import {
 	ownedSessionReleased,
 	runExecutorSelectionFor,
 } from "./owned-session-release.js";
@@ -107,6 +112,15 @@ export interface WorkflowPruneClassifierRun {
 	error?: string;
 }
 
+/**
+ * WP42 (WP39b review, finding 3): an entry of `workflows/auto-router-runs/` that prune keeps because
+ * it is not positively identified as a classifier request (never deleted, whatever its age).
+ */
+export interface WorkflowPruneKeptEntry {
+	name: string;
+	reason: string;
+}
+
 export interface WorkflowPruneSummary {
 	dryRun: boolean;
 	keep: number;
@@ -114,6 +128,8 @@ export interface WorkflowPruneSummary {
 	runs: WorkflowPruneRun[];
 	/** WP39b (O16): auto-classifier requests beyond the same filters. */
 	autoRouterRuns: WorkflowPruneClassifierRun[];
+	/** WP42: entries of auto-router-runs kept because they are not identified classifier requests. */
+	autoRouterPreserved?: WorkflowPruneKeptEntry[];
 	totalBytes: number;
 	deletedBytes: number;
 	indexUpdated: boolean;
@@ -218,6 +234,7 @@ function emptySummary(
 		...(olderThanDays === undefined ? {} : { olderThanDays }),
 		runs: [],
 		autoRouterRuns: [],
+		autoRouterPreserved: [],
 		totalBytes: 0,
 		deletedBytes: 0,
 		indexUpdated: false,
@@ -315,12 +332,8 @@ async function prunePlan(
 		summaryRuns.push(entry);
 	}
 
-	const autoRouterRuns = await pruneAutoRouterRuns(
-		cwd,
-		keep,
-		cutoff,
-		options.yes === true,
-	);
+	const { runs: autoRouterRuns, preserved: autoRouterPreserved } =
+		await pruneAutoRouterRuns(cwd, keep, cutoff, options.yes === true);
 	let indexUpdated = false;
 	const failures = summaryRuns.filter((run) => !run.protected && run.error);
 	let error =
@@ -341,6 +354,7 @@ async function prunePlan(
 		...(olderThanDays === undefined ? {} : { olderThanDays }),
 		runs: summaryRuns,
 		autoRouterRuns,
+		autoRouterPreserved,
 		totalBytes:
 			summaryRuns.reduce(
 				(total, run) => total + (run.protected ? 0 : run.bytes),
@@ -412,6 +426,13 @@ export function formatWorkflowPruneSummary(
 			lines.push(
 				`- ${run.runId} ${run.status} ${run.updatedAt} ${run.bytes} bytes${run.error ? ` — ${run.error}` : run.deleted ? " — deleted" : ""}`,
 			);
+	}
+	if (summary.autoRouterPreserved?.length) {
+		lines.push(
+			"Kept in auto-router-runs (not identified as classifier requests):",
+		);
+		for (const kept of summary.autoRouterPreserved)
+			lines.push(`- ${kept.name} — ${kept.reason}`);
 	}
 	lines.push(
 		`Total bytes: ${summary.totalBytes} (logical file bytes; hard links counted once, so du may report more)`,
@@ -1036,7 +1057,6 @@ async function removeRunWorktrees(
 }
 
 /** `workflows/auto-router-runs/`: the auto classifier's one-shot runtime runs (workflow-router). */
-const AUTO_ROUTER_RUNS_DIR_NAME = "auto-router-runs";
 const AUTO_ROUTER_TERMINAL = new Set(["completed", "failed", "cancelled"]);
 /** The runtime's run-lock wait (registry LOCK_TIMEOUT_MS / LOCK_RETRY_MS). */
 const AUTO_ROUTER_LOCK_RETRY_MS = 25;
@@ -1068,25 +1088,29 @@ async function physicalAutoRouterRoot(cwd: string): Promise<string> {
 	return chain.path;
 }
 
-/** A classifier record that may be deleted: terminal, with a parseable `updatedAt`. */
+/**
+ * A classifier record that may be deleted: positively identified (WP42 finding 3: runtime schema,
+ * the router's correlation id and runs directory, a runtime-generated id equal to its directory),
+ * terminal, with a parseable `updatedAt`. `kept` explains an unidentified record; an identified
+ * record that is not (yet) terminal is neither.
+ */
 function deletableClassifierRecord(
 	record: unknown,
 	name: string,
-): { status: string; updatedAt: string } | undefined {
-	if (typeof record !== "object" || record === null) return undefined;
-	const value = record as {
-		runId?: unknown;
-		status?: unknown;
-		updatedAt?: unknown;
-	};
+): { status: string; updatedAt: string } | { kept: string } | undefined {
+	const unidentified = unidentifiedClassifierReason(record, name);
+	if (unidentified) return { kept: unidentified };
+	const value = record as { status?: unknown; updatedAt?: unknown };
 	if (
-		value.runId !== name ||
 		typeof value.status !== "string" ||
-		!AUTO_ROUTER_TERMINAL.has(value.status) ||
+		!AUTO_ROUTER_TERMINAL.has(value.status)
+	)
+		return undefined;
+	if (
 		typeof value.updatedAt !== "string" ||
 		!Number.isFinite(Date.parse(value.updatedAt))
 	)
-		return undefined;
+		return { kept: "unparseable updatedAt" };
 	return { status: value.status, updatedAt: value.updatedAt };
 }
 
@@ -1110,27 +1134,57 @@ async function pruneAutoRouterRuns(
 	keep: number,
 	cutoff: number | undefined,
 	yes: boolean,
-): Promise<WorkflowPruneClassifierRun[]> {
+): Promise<{
+	runs: WorkflowPruneClassifierRun[];
+	preserved: WorkflowPruneKeptEntry[];
+}> {
+	const preserved: WorkflowPruneKeptEntry[] = [];
 	let root: string;
 	try {
 		root = await physicalAutoRouterRoot(cwd);
-	} catch {
-		return [];
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+			preserved.push({
+				name: AUTO_ROUTER_RUNS_DIR_NAME,
+				reason: `unsafe directory: ${errorMessage(error)}`,
+			});
+		return { runs: [], preserved };
 	}
 	const entries = await readdir(root, { withFileTypes: true }).catch(() => []);
 	const candidates: ClassifierCandidate[] = [];
 	for (const entry of entries) {
-		if (!entry.isDirectory() || !/^run_[A-Za-z0-9_-]+$/u.test(entry.name))
+		// The runtime's run locks.
+		if (entry.name === RUN_LOCKS_DIR) continue;
+		const keepEntry = (reason: string) =>
+			preserved.push({ name: entry.name, reason });
+		if (entry.name.startsWith(".prune-")) {
+			keepEntry("left by an interrupted prune");
 			continue;
+		}
+		if (!entry.isDirectory()) {
+			keepEntry("not a real directory");
+			continue;
+		}
+		if (!AUTO_ROUTER_RUN_ID_PATTERN.test(entry.name)) {
+			keepEntry("not a runtime run id");
+			continue;
+		}
 		const dir = join(root, entry.name);
 		try {
 			const identity = await lstat(dir);
-			if (!identity.isDirectory() || identity.isSymbolicLink()) continue;
+			if (!identity.isDirectory() || identity.isSymbolicLink()) {
+				keepEntry("not a real directory");
+				continue;
+			}
 			const record = deletableClassifierRecord(
 				await readClassifierRecord(dir),
 				entry.name,
 			);
 			if (!record) continue;
+			if ("kept" in record) {
+				keepEntry(record.kept);
+				continue;
+			}
 			candidates.push({
 				runId: entry.name,
 				...record,
@@ -1139,8 +1193,8 @@ async function pruneAutoRouterRuns(
 				dir,
 				identity,
 			});
-		} catch {
-			// Unreadable: never selected.
+		} catch (error) {
+			keepEntry(`unreadable run record: ${errorMessage(error)}`);
 		}
 	}
 	candidates.sort(
@@ -1163,7 +1217,7 @@ async function pruneAutoRouterRuns(
 			}
 		results.push(entry);
 	}
-	return results;
+	return { runs: results, preserved };
 }
 
 /**
@@ -1191,7 +1245,7 @@ async function deleteClassifierRun(
 			await readClassifierRecord(candidate.dir),
 			candidate.runId,
 		);
-		if (record?.updatedAt !== candidate.updatedAt)
+		if (!record || "kept" in record || record.updatedAt !== candidate.updatedAt)
 			throw new Error("classifier request changed since selection");
 	};
 	await recheck();

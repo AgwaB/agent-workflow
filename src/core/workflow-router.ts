@@ -6,6 +6,10 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { TextDecoder } from "node:util";
 
 import {
+	AUTO_ROUTER_RUNS_DIR,
+	WORKFLOW_AUTO_COMPARE_CORRELATION_ID,
+} from "./auto-router-runs.js";
+import {
 	runOneShotSubagentCall,
 	type OneShotSubagentEnvelope,
 } from "./task-backend.js";
@@ -46,7 +50,8 @@ export const WORKFLOW_AUTO_MAX_MODEL_INPUT_BYTES = 49_152;
 export const WORKFLOW_AUTO_MAX_TASK_BYTES = 24_576;
 export const WORKFLOW_AUTO_MAX_CANDIDATE_CARDS = 24;
 export const WORKFLOW_AUTO_COMPARE_TIMEOUT_MS = 120_000;
-export const WORKFLOW_AUTO_COMPARE_CORRELATION_ID = "workflow-auto-compare-v1";
+// WP42: the classifier run identity lives in auto-router-runs.ts (shared with retention).
+export { WORKFLOW_AUTO_COMPARE_CORRELATION_ID };
 
 /**
  * Local preselection only reads declarative JSON/schema/frontmatter metadata.
@@ -70,7 +75,6 @@ export const WORKFLOW_AUTO_METADATA_BOUNDS = Object.freeze({
 	ioConcurrency: 1,
 });
 
-const AUTO_ROUTER_RUNS_DIR = ".agent-workflow/workflows/auto-router-runs";
 const AUTO_ROUTER_OUTPUT_MAX_BYTES = 65_536;
 const AUTO_ROUTER_SAFE_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
 const AUTO_ROUTER_SYSTEM_PROMPT = [
