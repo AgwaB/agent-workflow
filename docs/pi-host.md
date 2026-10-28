@@ -52,7 +52,7 @@ mode); errors are error notifications.
 | `status [run]` | `statusAction` |
 | `show <workflow>` / `show <run> [--raw]` | `showAction` |
 | `inspect <run> [--failures] [--results]` | `inspectAction` |
-| `logs <run> [--task <id>] [--lines N] [--stream output\|stderr\|events\|all]` | `logsAction` (WP16): bounded, redacted tail of task output, stderr and executor events |
+| `logs <run> [--task <id>] [--lines N] [--stream output\|stderr\|events\|all]` | `logsAction` (WP16): bounded, redacted tail of task output, stderr and executor events (WP19: contained to `.agent-workflow/`, structured credentials redacted; the completion message is redacted the same way) |
 | `wait <run> [--timeout D]` | `waitAction` — one call, at most 45 s |
 | `resume <run> [--detach]` | `resumeAction` |
 | `stop <run>` | `stopAction` |

@@ -170,6 +170,21 @@ and the values (8+ characters) of host environment variables with sensitive name
 `*TOKEN*`, `*SECRET*`, `*PASSWORD*`, …) become `[REDACTED:<NAME>]`. The run is refreshed first, like
 `status`. Port in spirit of pi-workflow's `/workflow logs <run> [task] [lines]` (one task's output).
 
+WP19 (review #4): run records live in the workspace and can be tampered with, so every path read
+from them (`task.files.*`, the attempt dirs) must be project-relative, without `..`, and resolve
+canonically (symlinks followed) inside the project's artifact root `<cwd>/.agent-workflow`
+(`hosts/run-files.ts`). Anything else is not read: the stream has `refused: "<reason>"` (absolute
+path, traversal, outside the artifact root, symlink escape) and the text says `(not read: …)`.
+`inspect --results` applies the same check to `task.files.result`, and the wait/status result
+presentation requires the output task dir inside the artifact root (not only the project).
+WP19 (review #7): one redactor (`hosts/redaction.ts`) covers all host text that can carry worker
+output: `logs`, the text of `status <run>`, `show`, `inspect`, `wait` (and `data.preview`), and the Pi
+completion message. Beyond the rules above it redacts quoted structured credentials, whitespace
+included (`"Authorization":"Basic …"`, `Proxy-Authorization`, `Cookie`/`Set-Cookie`, `x-api-key`,
+JSON fields such as `token`, `access_token`, `refresh_token`, `api_key`/`apiKey`, `secret`,
+`client_secret`, `password`, also backslash-escaped inside JSON strings), and Linux `/home/<user>`
+and Windows `C:\Users\<user>` home paths as well as macOS `/Users/<user>`.
+
 ### `wait`
 
 `WaitRequest`: `{runId, timeoutMs?, signal?, onProgress?(RunSummary)}`. One call drives scheduling

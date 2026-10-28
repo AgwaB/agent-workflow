@@ -6,19 +6,20 @@
 // redaction (`redactSensitiveWorkflowText`: credential assignments, bearer tokens, URL secrets, home
 // paths) and the values of sensitive host environment variables (`*_KEY`, `*TOKEN*`, `*SECRET*`, …,
 // via the executors' `createSecretRedactor`) are replaced, so a tail never echoes a secret.
+// WP19 (review #4): every path read here (task `files.*` from the persisted run record, the
+// attempt dirs under `workflow-subagents/`) must resolve canonically inside the project's artifact
+// root (`resolveContainedRunFile`); absolute paths, traversal and symlink escapes are refused and the
+// stream says why instead of showing the file.
 import { readdir, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import { refreshRun } from "../core/engine.js";
 import { readRunRecord, toProjectPath, workflowsRoot } from "../core/store.js";
 import type { WorkflowRunRecord } from "../core/types.js";
-import {
-	isSensitiveWorkflowQueryKey,
-	redactSensitiveWorkflowText,
-} from "../core/workflow-sensitive-query.js";
 import { readFileLinesBounded } from "../core/workflow-preview.js";
-import { createSecretRedactor } from "../executors/redact.js";
 import { HostUsageError } from "./args.js";
+import { hostTextRedactor } from "./redaction.js";
+import { resolveContainedRunFile } from "./run-files.js";
 import {
 	assertActionAllowed,
 	type HostApiContext,
@@ -56,6 +57,8 @@ export interface LogStream {
 	lines: string[];
 	/** The file had more lines than shown (or a line was cut). */
 	truncated: boolean;
+	/** WP19: why the path was not read (outside the artifact root, traversal, symlink escape). */
+	refused?: string;
 }
 
 export interface LogsTask {
@@ -105,17 +108,9 @@ function logStreams(value: unknown): LogStreamKind[] {
 	);
 }
 
-/** Shared redaction plus the values of sensitive host environment variables. */
+/** Shared redaction plus the values of sensitive host environment variables (WP19: redaction.ts). */
 export function logRedactor(env: NodeJS.ProcessEnv): (line: string) => string {
-	const secrets: [string, string][] = [];
-	for (const [key, value] of Object.entries(env))
-		if (typeof value === "string" && isSensitiveWorkflowQueryKey(key))
-			secrets.push([value, key]);
-	const envRedactor = createSecretRedactor(secrets, {
-		minLength: 8,
-		replacement: (label) => `[REDACTED:${label}]`,
-	});
-	return (line) => redactSensitiveWorkflowText(envRedactor.text(line));
+	return hostTextRedactor(env);
 }
 
 async function latestAttemptDir(
@@ -150,9 +145,24 @@ async function tail(
 	projectPath: string,
 	count: number,
 	redact: (line: string) => string,
-): Promise<{ lines: string[]; truncated: boolean; empty: boolean }> {
+): Promise<{
+	lines: string[];
+	truncated: boolean;
+	empty: boolean;
+	refused?: string;
+}> {
+	const contained = await resolveContainedRunFile(cwd, projectPath);
+	if (contained.kind === "refused")
+		return {
+			lines: [],
+			truncated: false,
+			empty: true,
+			refused: contained.reason,
+		};
+	if (contained.kind === "missing")
+		return { lines: [], truncated: false, empty: true };
 	// One extra line tells whether the file had more than `count` lines.
-	const raw = await readFileLinesBounded(cwd, projectPath, count + 1).catch(
+	const raw = await readFileLinesBounded(cwd, contained.path, count + 1).catch(
 		() => [] as string[],
 	);
 	while (raw.length > 0 && raw[raw.length - 1] === "") raw.pop();
@@ -195,8 +205,9 @@ async function taskStreams(
 				path: redact(path),
 				lines: read.lines,
 				truncated: read.truncated,
+				...(read.refused ? { refused: read.refused } : {}),
 			};
-			if (!read.empty) break;
+			if (!read.empty || read.refused) break;
 		}
 		if (shown) streams.push(shown);
 	}
@@ -308,6 +319,10 @@ export async function logsAction(
 				)
 			)
 				break;
+			if (stream.refused) {
+				if (!push(`(not read: ${stream.refused})`)) break;
+				continue;
+			}
 			if (stream.lines.length === 0 && !push("(empty)")) break;
 			for (const line of stream.lines) {
 				if (!push(line)) break;

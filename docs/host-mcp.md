@@ -60,7 +60,7 @@ Every tool takes an optional `cwd` (see below). Unknown parameters are refused.
 | `workflow_wait` | `runId`, `timeoutMs?` (1 000-45 000) | `waitAction` | `WaitData` (`terminal`, `actionRequired`, `stillRunning`, `status`, `preview`, `reportArtifacts`, …) |
 | `workflow_stop` | `runId` | `stopAction` | `StopData` (`pending` when another supervisor applies it) |
 | `workflow_inspect` | `runId`, `failures?`, `results?` | `inspectAction` | `{run, reliability, listed}`; `run` is the run summary plus brief task rows instead of the full run record |
-| `workflow_logs` (WP18b) | `runId`, `task?`, `lines?` (1-400, default 20), `stream?` (`output`/`stderr`/`events`/`all`) | `logsAction` | `LogsData` (bounded, redacted tails per task) |
+| `workflow_logs` (WP18b) | `runId`, `task?`, `lines?` (1-400, default 20), `stream?` (`output`/`stderr`/`events`/`all`) | `logsAction` | `LogsData` (bounded, redacted tails per task; WP19: only files inside `.agent-workflow/`, tampered or symlinked paths are refused with a reason; structured credentials and Linux/Windows/macOS home paths redacted, also in `workflow_wait`/`workflow_status` text and previews) |
 | `workflow_validate` | `workflow` | `validateWorkflowAction` | `ValidateData` |
 
 Launch options (same as the CLI flags and Pi's `aw_run`): `executor`, `profile`, `permissionMode`

@@ -34,6 +34,7 @@ import {
 	isResultOnlyWorkflowSuccess,
 	readWorkflowResultPresentation,
 } from "../result-presentation.js";
+import { hostTextRedactor } from "../redaction.js";
 import { AW_COMMAND } from "./names.js";
 import type { PiExtensionApi, PiExtensionContext } from "./pi-types.js";
 
@@ -181,6 +182,25 @@ export function feedbackReceiptPath(
 
 /** The session message for a settled run (terminal or action required). */
 export async function completionMessage(
+	cwd: string,
+	run: WorkflowRunRecord,
+	options: { instruct: boolean; env?: NodeJS.ProcessEnv },
+): Promise<{
+	content: string;
+	notice: string;
+	details: Record<string, unknown>;
+}> {
+	// WP19 (review #7): the message carries worker output (preview, task messages).
+	const redact = hostTextRedactor(options.env ?? process.env);
+	const built = await buildCompletionMessage(cwd, run, options);
+	return {
+		...built,
+		content: redact(built.content),
+		notice: redact(built.notice),
+	};
+}
+
+async function buildCompletionMessage(
 	cwd: string,
 	run: WorkflowRunRecord,
 	options: { instruct: boolean },

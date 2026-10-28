@@ -15,6 +15,7 @@ import {
 
 import { fromProjectPath } from "../core/store.js";
 import type { WorkflowRunRecord } from "../core/types.js";
+import { projectArtifactRoot } from "./run-files.js";
 
 export interface WorkflowResultArtifact {
 	kind: "final-report" | "evidence-audit";
@@ -273,7 +274,9 @@ export async function readWorkflowResultPresentation(
 		);
 	if (!task) return undefined;
 
-	const projectDir = resolvePath(cwd);
+	// WP19 (review #4): the task dir comes from persisted metadata; it must resolve inside the
+	// project's artifact root (`.agent-workflow/`), not merely inside the project.
+	const projectDir = projectArtifactRoot(cwd);
 	const taskDir = dirname(fromProjectPath(cwd, task.files.output));
 	const lexicalEscape = relative(projectDir, resolvePath(taskDir));
 	if (
