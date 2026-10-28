@@ -197,6 +197,11 @@ apply yet.
    stage's tools were enabled and "unavailable tools cannot be called", and the live worker answered
    "tool_search is not available". readOnly stages (never inheriting) keep the old text. Test:
    `executor-wp35-host-tools.test.mjs` "the Effective Tool Policy …" (fails on the old code).
+9. WP39b (live bundle 5, O13): the capability preview of a launch with no stage to negotiate up
+   front (direct dynamic) reads `Capability check (<executor>, stages are generated at run time;
+   each is negotiated when generated, permission mode: …)` instead of `0 stages`
+   (`buildCapabilityPreview` option `stagesLabel`). Test: `core-wp39b-dynamic-preview.test.mjs`
+   (fails on the old code).
 
 Left unchanged on purpose (not paths or env vars; flagged for later WPs):
 
