@@ -11,7 +11,7 @@ import {
 	rm,
 } from "node:fs/promises";
 import { execFile } from "node:child_process";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 
 import {
@@ -683,6 +683,15 @@ async function deleteCandidate(
 				};
 			await lease.assertOwner();
 		}
+		// WP42 (review round 2, N1): never detach or recursively remove a run directory that still
+		// contains a registered git worktree (one prune did not identify and remove above).
+		const registeredInside = await registeredWorktreeInside(
+			cwd,
+			candidate.runDir,
+		);
+		if (registeredInside)
+			return { ...outcome, protected: true, error: registeredInside };
+		await lease.assertOwner();
 		// No irreversible removal until BOTH generations are safely detached.
 		mirror = await quarantineContainedDirectory(
 			join(cwd, PROJECT_STATE_DIRECTORY, "workflow-subagents"),
@@ -1001,6 +1010,94 @@ async function listGitWorktrees(cwd: string): Promise<GitWorktreeListing[]> {
 	return listed;
 }
 
+/**
+ * WP42 (review round 2, N1): why a run directory must be kept because this repository's
+ * `git worktree list` registers a worktree inside it; undefined when none is (or the project is
+ * not in a git repository, or git is not installed, so nothing can be registered).
+ */
+async function registeredWorktreeInside(
+	cwd: string,
+	runDir: string,
+): Promise<string | undefined> {
+	let listed: GitWorktreeListing[];
+	try {
+		listed = await listGitWorktrees(cwd);
+	} catch (error) {
+		const failure = error as { code?: unknown; stderr?: unknown };
+		if (
+			failure.code === "ENOENT" ||
+			(typeof failure.stderr === "string" &&
+				/not a git repository/iu.test(failure.stderr))
+		)
+			return undefined;
+		return `git worktree list failed: ${errorMessage(error).split("\n")[0]}; kept`;
+	}
+	for (const worktree of listed) {
+		const path = await canonicalListedPath(worktree.path);
+		if (isInside(runDir, path))
+			return `registered git worktree inside the run directory: ${relative(cwd, path)}; kept`;
+	}
+	return undefined;
+}
+
+/**
+ * WP42 (review round 2, N1): a recorded worktree path mapped onto the canonical project root. A
+ * record may spell the project root through an alias (macOS `/tmp` → `/private/tmp`, a symlinked
+ * project parent): its `<root>/.agent-workflow/workflows/<run>/worktrees/<name>` prefix is resolved
+ * with `realpath` and must be this project. Symlinks below the project root are still rejected
+ * later (physical directory chain). Anything else is an `error`: the record keeps its run.
+ */
+async function canonicalRecordedWorktree(
+	cwd: string,
+	runId: string,
+	recorded: string,
+): Promise<{ absolutePath: string; name: string; error?: string }> {
+	const root = join(workflowsRoot(cwd), runId, "worktrees");
+	const lexical = resolve(cwd, recorded);
+	const single = (rel: string) =>
+		rel !== "" &&
+		!rel.startsWith("..") &&
+		!isAbsolute(rel) &&
+		!rel.includes("/");
+	const direct = relative(root, lexical);
+	if (single(direct)) return { absolutePath: lexical, name: direct };
+	const name = basename(lexical);
+	const projectRoot = resolve(lexical, "..", "..", "..", "..", "..");
+	if (
+		!single(name) ||
+		join(
+			projectRoot,
+			PROJECT_STATE_DIRECTORY,
+			"workflows",
+			runId,
+			"worktrees",
+			name,
+		) !== lexical
+	)
+		return {
+			absolutePath: lexical,
+			name,
+			error: "recorded worktree is not in this run's worktrees directory; kept",
+		};
+	let real: string;
+	try {
+		real = await realpath(projectRoot);
+	} catch (error) {
+		return {
+			absolutePath: lexical,
+			name,
+			error: `recorded project root cannot be resolved (${(error as NodeJS.ErrnoException).code ?? errorMessage(error)}); kept`,
+		};
+	}
+	if (real !== cwd)
+		return {
+			absolutePath: lexical,
+			name,
+			error: "recorded worktree belongs to another project root; kept",
+		};
+	return { absolutePath: join(root, name), name };
+}
+
 /** `path` with its longest existing prefix canonicalized (git may list a non-canonical path). */
 async function canonicalListedPath(path: string): Promise<string> {
 	const absolute = resolve(path);
@@ -1020,13 +1117,14 @@ async function canonicalListedPath(path: string): Promise<string> {
 /**
  * WP39b (O7): the managed worktrees a run recorded (tasks and shared loop worktrees) that lie in
  * its own `worktrees/` directory, with their state. Never throws: an unreadable or unidentified
- * worktree is reported with `error` (and keeps its run).
+ * worktree is reported with `error` (and keeps its run). WP42 (review round 2, N1): an enabled
+ * record is never silently skipped; one that cannot be mapped into the run's own `worktrees/`
+ * directory of this project is reported with `error` too.
  */
 async function inspectRunWorktrees(
 	cwd: string,
 	run: WorkflowRunRecord,
 ): Promise<RunWorktree[]> {
-	const root = join(workflowsRoot(cwd), run.runId, "worktrees");
 	const seen = new Map<string, RunWorktree>();
 	const records = [
 		...(run.tasks ?? []).map((task) => task.worktree),
@@ -1036,21 +1134,34 @@ async function inspectRunWorktrees(
 		})),
 	];
 	for (const record of records) {
-		if (!record?.enabled || typeof record.path !== "string") continue;
-		const absolutePath = resolve(cwd, record.path);
-		const rel = relative(root, absolutePath);
-		if (!rel || rel.startsWith("..") || isAbsolute(rel) || rel.includes("/"))
+		if (!record?.enabled) continue;
+		const branch = typeof record.branch === "string" ? record.branch : null;
+		if (typeof record.path !== "string" || record.path === "") {
+			if (!seen.has(""))
+				seen.set("", {
+					path: "(no recorded path)",
+					absolutePath: "",
+					branch,
+					dirty: false,
+					commits: 0,
+					error: "enabled worktree record without a path; kept",
+				});
 			continue;
+		}
+		const mapped = await canonicalRecordedWorktree(cwd, run.runId, record.path);
+		const absolutePath = mapped.absolutePath;
 		if (seen.has(absolutePath)) continue;
 		const entry: RunWorktree = {
 			path: relative(cwd, absolutePath),
 			absolutePath,
-			branch: typeof record.branch === "string" ? record.branch : null,
+			branch,
 			dirty: false,
 			commits: 0,
+			...(mapped.error === undefined ? {} : { error: mapped.error }),
 		};
 		seen.set(absolutePath, entry);
-		await identifyRunWorktree(cwd, run.runId, rel, entry);
+		if (mapped.error === undefined)
+			await identifyRunWorktree(cwd, run.runId, mapped.name, entry);
 	}
 	return [...seen.values()];
 }

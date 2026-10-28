@@ -309,16 +309,45 @@ export async function notifyCheck(
 	// The stamp's mtime: the wall clock when the check started (the hook compares run.json mtimes).
 	const startedAt = Date.now();
 	const checked = await checkOnce(cwd, options);
-	if (options.stamp !== undefined) {
-		const dir = await containedProjectStateDir(cwd, NOTIFY_CHECK_DIR, true);
-		// WP42 (review round 1, finding 5): runs left for later (over NOTIFY_CHECK_MAX_RUNS) keep the
-		// hook off its idle fast path: no stamp until the backlog is drained (their run.json files
-		// may never change again).
-		if (dir && checked.data.deferred > 0)
-			await rm(join(dir, `${options.stamp}.stamp`), { force: true });
-		else if (dir) await writeStamp(dir, options.stamp, startedAt);
-	}
+	if (options.stamp !== undefined)
+		await updateStamp(cwd, options.stamp, checked.data.deferred > 0, startedAt);
 	return checked;
+}
+
+/**
+ * The hook's stamp after a check. WP42 (review round 1, finding 5): runs left for later (over
+ * NOTIFY_CHECK_MAX_RUNS) keep the hook off its idle fast path: no stamp until the backlog is
+ * drained (their run.json files may never change again). WP42 (review round 2, N2): best effort,
+ * after the receipts were claimed, so it never discards the claimed notifications: a failed
+ * replacement removes the stamp instead (the hook's fast path needs a regular stamp file); when
+ * even that fails, a warning goes to stderr. Never a recursive removal at the stamp path.
+ */
+async function updateStamp(
+	cwd: string,
+	name: string,
+	deferred: boolean,
+	startedAt: number,
+): Promise<void> {
+	let dir: string | undefined;
+	try {
+		dir = await containedProjectStateDir(cwd, NOTIFY_CHECK_DIR, true);
+		if (!dir) return;
+		if (!deferred) {
+			await writeStamp(dir, name, startedAt);
+			return;
+		}
+	} catch {
+		// Fall through: invalidate the stamp.
+	}
+	if (!dir) return;
+	const file = join(dir, `${name}.stamp`);
+	try {
+		await rm(file, { force: true });
+	} catch (error) {
+		process.stderr.write(
+			`agent-workflow notify-check: could not update or remove the stamp ${file} (${error instanceof Error ? error.message : String(error)}); remove it so the prompt hook keeps checking\n`,
+		);
+	}
 }
 
 async function checkOnce(

@@ -689,7 +689,14 @@ What prune removes and what it keeps (WP42):
 - A classifier request whose caller has not read its result yet is kept: an `auto` recommendation
   pins its requests (`auto-router-runs/.pins/`) from launch until the output is consumed, and prune
   lists records updated since a live pin as `protected`. Pins of processes that are gone are
-  ignored and removed.
+  ignored and removed. When a pin cannot be created (for example an unwritable `.pins`), the
+  recommendation is `routing-unavailable` and no classifier is called (WP42 review round 2); only a
+  layout prune never deletes in (a symlinked or non-directory `.agent-workflow`, `workflows` or
+  `auto-router-runs`) runs without a pin.
+- A run directory is kept, with the reason listed, while it contains a worktree that your
+  repository's `git worktree list` still registers after prune removed the identified managed ones
+  (for example one created there by hand), or while one of its enabled worktree records cannot be
+  identified (below). Prune never removes a registered git worktree by deleting its run directory.
 
 **Worktrees.** A write-capable stage that runs in a managed worktree
 (`.agent-workflow/workflows/<run>/worktrees/<task>`, branch `agent-workflow/<run>-<task>`) leaves it
@@ -709,8 +716,11 @@ to `<run>/worktrees/<task>` is a real directory (no symlinked parent); and your 
 trusted). A missing worktree's stale registration is removed for that path only. The managed branch
 is deleted only when `git merge-base --is-ancestor <branch tip> HEAD` holds in your checkout,
 whatever its upstream, and it still points at that tip; otherwise it is kept and named, also when
-its worktree directory is gone. A worktree that is not identified this way, or whose state is
-unknown, is kept with its branch and its run, and the reason is listed.
+its worktree directory is gone. A recorded path that spells the project through an alias (macOS
+`/tmp` for `/private/tmp`, a symlinked project parent) is mapped onto the canonical project root
+first; a symlink below the project root is still refused. A worktree that is not identified this
+way, an enabled worktree record whose project root cannot be resolved or that points elsewhere, or
+one whose state is unknown is kept with its branch and its run, and the reason is listed.
 
 Executor adapters keep one attempt record per worker attempt under
 `~/.agent-workflow/executors/{claude,codex,pi}/attempts/`. Since WP18b, terminal attempt records

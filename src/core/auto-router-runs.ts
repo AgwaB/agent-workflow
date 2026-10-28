@@ -70,40 +70,49 @@ export interface AutoRouterPin {
  * WP42 (WP39b review, finding 5): pin the classifier requests of this process from before the
  * comparison call is launched until its output has been consumed. Retention keeps every classifier
  * record updated after a live pin was taken. The pin is a file `<pid>-<random>.json` in
- * `auto-router-runs/.pins/`, created only through a chain of real directories inside the project;
- * when that is impossible (for example a symlinked state directory, which retention never deletes
- * through either) the call runs unpinned and `undefined` is returned.
+ * `auto-router-runs/.pins/`, created only through a chain of real directories inside the project.
+ * WP42 (review round 2, N3): `undefined` (run unpinned) ONLY for a proven non-prunable layout: a
+ * component of `.agent-workflow/workflows/auto-router-runs` is a symlink or not a directory, which
+ * retention refuses to delete through. Every other failure (permissions, I/O, an unsafe `.pins`)
+ * throws: the caller must not launch the comparison unpinned.
  */
 export async function acquireAutoRouterPin(
 	cwd: string,
 ): Promise<AutoRouterPin | undefined> {
+	const base = await realpath(resolve(cwd));
+	const segments = [
+		PROJECT_STATE_DIRECTORY,
+		"workflows",
+		AUTO_ROUTER_RUNS_DIR_NAME,
+		AUTO_ROUTER_PINS_DIR,
+	];
+	let pins = "";
+	for (let index = 1; index <= segments.length; index += 1) {
+		const check = async () => {
+			try {
+				return await physicalDirectoryChain(base, segments.slice(0, index));
+			} catch (error) {
+				// The auto-router directory itself (not `.pins`) is not physical: prune never deletes there.
+				if (index < segments.length && isUnsafeChainComponent(error))
+					return undefined;
+				throw error;
+			}
+		};
+		const chain = await check();
+		if (!chain) return undefined;
+		if (!chain.exists)
+			await mkdir(chain.path).catch((error: unknown) => {
+				if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+			});
+		const checked = await check();
+		if (!checked) return undefined;
+		if (!checked.exists)
+			throw new Error(`${checked.path} disappeared while it was created`);
+		pins = checked.path;
+	}
+	const name = `${process.pid}-${randomBytes(6).toString("hex")}.json`;
+	const staged = join(pins, `.${name}.tmp`);
 	try {
-		const base = await realpath(resolve(cwd));
-		const segments = [
-			PROJECT_STATE_DIRECTORY,
-			"workflows",
-			AUTO_ROUTER_RUNS_DIR_NAME,
-			AUTO_ROUTER_PINS_DIR,
-		];
-		let pins = "";
-		for (let index = 1; index <= segments.length; index += 1) {
-			const chain = await physicalDirectoryChain(
-				base,
-				segments.slice(0, index),
-			);
-			if (!chain.exists)
-				await mkdir(chain.path).catch((error: unknown) => {
-					if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-				});
-			const checked = await physicalDirectoryChain(
-				base,
-				segments.slice(0, index),
-			);
-			if (!checked.exists) return undefined;
-			pins = checked.path;
-		}
-		const name = `${process.pid}-${randomBytes(6).toString("hex")}.json`;
-		const staged = join(pins, `.${name}.tmp`);
 		await writeFile(
 			staged,
 			`${JSON.stringify({
@@ -114,17 +123,29 @@ export async function acquireAutoRouterPin(
 			{ flag: "wx" },
 		);
 		await rename(staged, join(pins, name));
-		let released = false;
-		return {
-			async release() {
-				if (released) return;
-				released = true;
-				await rm(join(pins, name), { force: true }).catch(() => undefined);
-			},
-		};
-	} catch {
-		return undefined;
+	} catch (error) {
+		await rm(staged, { force: true }).catch(() => undefined);
+		throw error;
 	}
+	let released = false;
+	return {
+		async release() {
+			if (released) return;
+			released = true;
+			await rm(join(pins, name), { force: true }).catch(() => undefined);
+		},
+	};
+}
+
+/** physicalDirectoryChain's refusal of a symlinked or non-directory component (not an I/O error). */
+function isUnsafeChainComponent(error: unknown): boolean {
+	return (
+		error instanceof Error &&
+		(error as NodeJS.ErrnoException).code === undefined &&
+		/^unsafe path chain: .+ is (a symlink|not a directory)$/u.test(
+			error.message,
+		)
+	);
 }
 
 export interface AutoRouterPinState {
