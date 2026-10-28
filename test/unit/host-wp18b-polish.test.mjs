@@ -521,18 +521,23 @@ test("launch claims: stale claim files are pruned on launch and by prune; fresh 
 			pid: 999_999,
 			...extra,
 		});
+	// WP19 round 6: only real claim files (`<sha256>.json`, matching fingerprint) and their
+	// writers' temp files are pruned.
+	const DONE = "1".repeat(64);
+	const DEAD = "2".repeat(64);
+	const FRESH = "4".repeat(64);
 	const files = {
-		"done.json": claim("done", { runId: "workflow_gone_000000" }),
-		"dead.json": claim("dead"),
-		"x.json.1.2.tmp": "{}",
+		[`${DONE}.json`]: claim(DONE, { runId: "workflow_gone_000000" }),
+		[`${DEAD}.json`]: claim(DEAD),
+		[`${"3".repeat(64)}.json.1.0123456789ab.tmp`]: "{}",
 	};
 	for (const [name, text] of Object.entries(files)) {
 		await writeFile(join(dir, name), text);
 		await utimes(join(dir, name), old, old);
 	}
 	await writeFile(
-		join(dir, "fresh.json"),
-		claim("fresh", { claimedAt: new Date().toISOString() }),
+		join(dir, `${FRESH}.json`),
+		claim(FRESH, { claimedAt: new Date().toISOString() }),
 	);
 
 	const dry = await api.pruneAction({ cwd, env }, {});
@@ -544,15 +549,19 @@ test("launch claims: stale claim files are pruned on launch and by prune; fresh 
 	assert.equal((await readdir(dir)).length, 4);
 	const done = await api.pruneAction({ cwd, env }, { yes: true });
 	assert.match(done.text, /Host launch claims: 3 stale file\(s\) removed/);
-	assert.deepEqual(await readdir(dir), ["fresh.json"]);
+	assert.deepEqual(await readdir(dir), [`${FRESH}.json`]);
 
 	// A launch prunes stale claims of other fingerprints too.
-	await writeFile(join(dir, "dead.json"), claim("dead"));
-	await utimes(join(dir, "dead.json"), old, old);
+	await writeFile(join(dir, `${DEAD}.json`), claim(DEAD));
+	await utimes(join(dir, `${DEAD}.json`), old, old);
 	const decision = await guard.claimLaunch(cwd, "f".repeat(64));
 	assert.equal(decision.kind, "claimed");
 	await decision.release();
-	for (let i = 0; i < 50 && (await readdir(dir)).includes("dead.json"); i += 1)
+	for (
+		let i = 0;
+		i < 50 && (await readdir(dir)).includes(`${DEAD}.json`);
+		i += 1
+	)
 		await new Promise((resolve) => setTimeout(resolve, 20));
-	assert.deepEqual(await readdir(dir), ["fresh.json"]);
+	assert.deepEqual(await readdir(dir), [`${FRESH}.json`]);
 });
