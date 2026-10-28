@@ -10,6 +10,7 @@ import {
 	rename,
 	rm,
 } from "node:fs/promises";
+import type { Dirent } from "node:fs";
 import { execFile } from "node:child_process";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -968,13 +969,52 @@ export async function deleteRunOwnedSessions(
 
 const execFileAsync = promisify(execFile);
 
+/** WP42 (review round 3): a hung git (e.g. a stalled network mount) fails the check, closed. */
+const GIT_TIMEOUT_MS = 30_000;
+
 async function gitText(cwd: string, args: string[]): Promise<string> {
 	const { stdout } = await execFileAsync("git", args, {
 		cwd,
 		encoding: "utf8",
 		maxBuffer: 16 * 1024 * 1024,
+		timeout: GIT_TIMEOUT_MS,
 	});
 	return stdout;
+}
+
+/**
+ * WP42 (review round 3, N4): when git cannot list registrations (git missing, or the project is
+ * not a git repository), a git checkout inside the run directory is found on disk instead: any
+ * `.git` entry (a worktree's `.git` file or a repository's `.git` directory) below the run
+ * directory, without following symlinks and at a bounded depth. Its presence keeps the run.
+ */
+async function gitCheckoutInside(runDir: string): Promise<string | undefined> {
+	const MAX_DEPTH = 6;
+	const MAX_ENTRIES = 20_000;
+	let seen = 0;
+	const walk = async (
+		dir: string,
+		depth: number,
+	): Promise<string | undefined> => {
+		let entries: Dirent[];
+		try {
+			entries = await readdir(dir, { withFileTypes: true });
+		} catch {
+			return undefined;
+		}
+		for (const entry of entries) {
+			seen += 1;
+			if (seen > MAX_ENTRIES) return dir;
+			const path = join(dir, entry.name);
+			if (entry.name === ".git") return path;
+			if (entry.isDirectory() && depth < MAX_DEPTH) {
+				const found = await walk(path, depth + 1);
+				if (found) return found;
+			}
+		}
+		return undefined;
+	};
+	return walk(runDir, 0);
 }
 
 interface RunWorktree extends WorkflowPruneWorktree {
@@ -1028,8 +1068,14 @@ async function registeredWorktreeInside(
 			failure.code === "ENOENT" ||
 			(typeof failure.stderr === "string" &&
 				/not a git repository/iu.test(failure.stderr))
-		)
-			return undefined;
+		) {
+			// WP42 (review round 3, N4): a missing git does not remove registrations. Without a
+			// listing, any git checkout on disk inside the run directory keeps the run.
+			const checkout = await gitCheckoutInside(runDir);
+			return checkout
+				? `${failure.code === "ENOENT" ? "git is not available" : "not a git repository"} and a git checkout exists inside the run directory (${relative(cwd, checkout)}); kept`
+				: undefined;
+		}
 		return `git worktree list failed: ${errorMessage(error).split("\n")[0]}; kept`;
 	}
 	for (const worktree of listed) {
