@@ -986,6 +986,8 @@ async function launchClaimed(
 		...(overrides ? { runtimeOverrides: overrides } : {}),
 		...(runtimeDefaults ? { runtimeDefaults } : {}),
 		...(ctx.availableModels ? { availableModels: ctx.availableModels } : {}),
+		// WP29: an attached launch may ask the user to approve a dynamic controller.
+		...(ctx.dynamicUi && !request.detach ? { dynamicUi: ctx.dynamicUi } : {}),
 		...(ctx.hostTools ? { inheritHostTools: true } : {}),
 		...(inputOverrides ? { inputOverrides } : {}),
 		[WORKFLOW_PROMPT_SCHEMA_DIAGNOSTIC_SINK]: (notice, digest) => {

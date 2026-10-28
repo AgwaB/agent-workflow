@@ -495,6 +495,7 @@ export async function waitAction(
 	try {
 		run = await waitForRun(ctx.cwd, resolved.runId, timeoutMs, {
 			...(ctx.availableModels ? { availableModels: ctx.availableModels } : {}),
+			...(ctx.dynamicUi ? { dynamicUi: ctx.dynamicUi } : {}),
 			...(request.signal ? { waitSignal: request.signal } : {}),
 			...(request.onProgress
 				? {
@@ -644,7 +645,11 @@ export async function resumeAction(
 	const { run, resetTaskIds } = await resumeRun(
 		ctx.cwd,
 		requireRunRef(request.runId, "resume"),
-		ctx.availableModels ? { availableModels: ctx.availableModels } : {},
+		{
+			...(ctx.availableModels ? { availableModels: ctx.availableModels } : {}),
+			// WP29: an attached resume re-asks an open dynamic-controller approval.
+			...(ctx.dynamicUi && !request.detach ? { dynamicUi: ctx.dynamicUi } : {}),
+		},
 	);
 	const data: ResumeData = {
 		runId: run.runId,
@@ -953,9 +958,10 @@ export async function redriveRunsAction(
 	ctx: HostApiContext,
 ): Promise<HostResult<RedriveData>> {
 	assertActionAllowed(ctx, "supervise");
-	const options = ctx.availableModels
-		? { availableModels: ctx.availableModels }
-		: {};
+	const options = {
+		...(ctx.availableModels ? { availableModels: ctx.availableModels } : {}),
+		...(ctx.dynamicUi ? { dynamicUi: ctx.dynamicUi } : {}),
+	};
 	const data: RedriveData = { redriven: [], skipped: [], errors: [] };
 	for (const run of await listRunRecords(ctx.cwd)) {
 		if (!hasActiveSchedulerWork(run)) continue;
