@@ -2,6 +2,7 @@
 import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import {
 	lstat,
+	mkdir,
 	mkdtemp,
 	readFile,
 	readdir,
@@ -25,6 +26,17 @@ import {
 	workflowsRoot,
 } from "./store.js";
 import { type ExecutorRegistry, loadExecutor } from "../sdk/descriptor.js";
+import { acquireDirectoryLock } from "../runtime/artifacts/dir-lock.js";
+import { RUN_LOCKS_DIR } from "../runtime/artifacts/registry.js";
+import { physicalDirectoryChain } from "./physical-paths.js";
+import {
+	AUTO_ROUTER_PINS_DIR,
+	AUTO_ROUTER_RUN_ID_PATTERN,
+	AUTO_ROUTER_RUNS_DIR_NAME,
+	type AutoRouterPinState,
+	readAutoRouterPins,
+	unidentifiedClassifierReason,
+} from "./auto-router-runs.js";
 import {
 	ownedSessionReleased,
 	runExecutorSelectionFor,
@@ -100,7 +112,18 @@ export interface WorkflowPruneClassifierRun {
 	updatedAt: string;
 	bytes: number;
 	deleted: boolean;
+	/** WP42 (finding 5): pinned by an active classifier request; never deleted. */
+	protected?: boolean;
 	error?: string;
+}
+
+/**
+ * WP42 (WP39b review, finding 3): an entry of `workflows/auto-router-runs/` that prune keeps because
+ * it is not positively identified as a classifier request (never deleted, whatever its age).
+ */
+export interface WorkflowPruneKeptEntry {
+	name: string;
+	reason: string;
 }
 
 export interface WorkflowPruneSummary {
@@ -110,6 +133,8 @@ export interface WorkflowPruneSummary {
 	runs: WorkflowPruneRun[];
 	/** WP39b (O16): auto-classifier requests beyond the same filters. */
 	autoRouterRuns: WorkflowPruneClassifierRun[];
+	/** WP42: entries of auto-router-runs kept because they are not identified classifier requests. */
+	autoRouterPreserved?: WorkflowPruneKeptEntry[];
 	totalBytes: number;
 	deletedBytes: number;
 	indexUpdated: boolean;
@@ -156,10 +181,26 @@ export async function pruneWorkflowRuns(
 	)
 		throw new Error("--older-than requires a non-negative number of days");
 
+	// WP42 (WP39b review, finding 1): an unsafe retention root (a symlinked `.agent-workflow` or
+	// `workflows`) fails closed before anything is listed or deleted; a missing one has nothing.
+	const rootState = await physicalRetentionRoot(workflowsRoot(cwd)).then(
+		() => "safe" as const,
+		(error: unknown) =>
+			(error as NodeJS.ErrnoException).code === "ENOENT"
+				? ("missing" as const)
+				: new Error(`unsafe retention root: ${errorMessage(error)}`),
+	);
+	if (rootState instanceof Error)
+		return emptySummary(
+			!options.yes,
+			keep,
+			olderThanDays,
+			`${rootState.message}; nothing was ${options.yes ? "deleted" : "listed"}`,
+		);
+	if (rootState === "missing")
+		return emptySummary(!options.yes, keep, olderThanDays);
 	// No topology lock (or any filesystem writes) for a preview.
 	if (!options.yes) return prunePlan(cwd, options, keep, olderThanDays);
-	if (!(await physicalRetentionRoot(workflowsRoot(cwd)).catch(() => undefined)))
-		return prunePlan(cwd, options, keep, olderThanDays);
 	const topology = await acquireWorkflowTopologyLease(cwd);
 	if (!topology)
 		return {
@@ -184,6 +225,26 @@ export async function pruneWorkflowRuns(
 	} finally {
 		await topology.release();
 	}
+}
+
+function emptySummary(
+	dryRun: boolean,
+	keep: number,
+	olderThanDays: number | undefined,
+	error?: string,
+): WorkflowPruneSummary {
+	return {
+		dryRun,
+		keep,
+		...(olderThanDays === undefined ? {} : { olderThanDays }),
+		runs: [],
+		autoRouterRuns: [],
+		autoRouterPreserved: [],
+		totalBytes: 0,
+		deletedBytes: 0,
+		indexUpdated: false,
+		...(error === undefined ? {} : { error }),
+	};
 }
 
 interface RetentionPlan {
@@ -219,7 +280,15 @@ async function prunePlan(
 	);
 
 	for (const candidate of childrenFirst(selected, plan.children)) {
-		const worktrees = await inspectRunWorktrees(cwd, candidate.run);
+		// The preview lists only the public fields (no internal absolute paths).
+		const worktrees = (await inspectRunWorktrees(cwd, candidate.run)).map(
+			({
+				absolutePath: _path,
+				registered: _registered,
+				tip: _tip,
+				...worktree
+			}) => worktree,
+		);
 		const entry: WorkflowPruneRun = {
 			runId: candidate.run.runId,
 			...(candidate.run.name === undefined ? {} : { name: candidate.run.name }),
@@ -276,12 +345,8 @@ async function prunePlan(
 		summaryRuns.push(entry);
 	}
 
-	const autoRouterRuns = await pruneAutoRouterRuns(
-		cwd,
-		keep,
-		cutoff,
-		options.yes === true,
-	);
+	const { runs: autoRouterRuns, preserved: autoRouterPreserved } =
+		await pruneAutoRouterRuns(cwd, keep, cutoff, options.yes === true);
 	let indexUpdated = false;
 	const failures = summaryRuns.filter((run) => !run.protected && run.error);
 	let error =
@@ -302,11 +367,16 @@ async function prunePlan(
 		...(olderThanDays === undefined ? {} : { olderThanDays }),
 		runs: summaryRuns,
 		autoRouterRuns,
+		autoRouterPreserved,
 		totalBytes:
 			summaryRuns.reduce(
 				(total, run) => total + (run.protected ? 0 : run.bytes),
 				0,
-			) + autoRouterRuns.reduce((total, run) => total + run.bytes, 0),
+			) +
+			autoRouterRuns.reduce(
+				(total, run) => total + (run.protected ? 0 : run.bytes),
+				0,
+			),
 		deletedBytes:
 			summaryRuns.reduce(
 				(total, run) => total + (run.deleted ? run.bytes : 0),
@@ -371,8 +441,15 @@ export function formatWorkflowPruneSummary(
 		);
 		for (const run of summary.autoRouterRuns)
 			lines.push(
-				`- ${run.runId} ${run.status} ${run.updatedAt} ${run.bytes} bytes${run.error ? ` — ${run.error}` : run.deleted ? " — deleted" : ""}`,
+				`- ${run.runId} ${run.status} ${run.updatedAt} ${run.bytes} bytes${run.protected ? ` — protected: ${run.error}` : run.error ? ` — ${run.error}` : run.deleted ? " — deleted" : ""}`,
 			);
+	}
+	if (summary.autoRouterPreserved?.length) {
+		lines.push(
+			"Kept in auto-router-runs (not identified as classifier requests):",
+		);
+		for (const kept of summary.autoRouterPreserved)
+			lines.push(`- ${kept.name} — ${kept.reason}`);
 	}
 	lines.push(
 		`Total bytes: ${summary.totalBytes} (logical file bytes; hard links counted once, so du may report more)`,
@@ -592,7 +669,11 @@ async function deleteCandidate(
 		// (git keeps their registration otherwise); a failure keeps the run.
 		const worktrees = await inspectRunWorktrees(cwd, current);
 		if (worktrees.length) {
-			outcome.worktrees = await removeRunWorktrees(cwd, worktrees);
+			outcome.worktrees = await removeRunWorktrees(
+				cwd,
+				current.runId,
+				worktrees,
+			);
 			const failed = outcome.worktrees.find((worktree) => worktree.error);
 			if (failed)
 				return {
@@ -889,13 +970,57 @@ async function gitText(cwd: string, args: string[]): Promise<string> {
 
 interface RunWorktree extends WorkflowPruneWorktree {
 	absolutePath: string;
-	gitCwd: string;
+	/** The path `git worktree list` registers for it in this repository, if any. */
+	registered?: string;
+	/** The managed branch's tip commit, if the branch exists. */
+	tip?: string;
+}
+
+/** A managed worktree's directory name (its task id) under `<run>/worktrees/`. */
+const MANAGED_WORKTREE_NAME = /^[A-Za-z0-9_][A-Za-z0-9._-]*$/u;
+
+interface GitWorktreeListing {
+	path: string;
+	/** `refs/heads/<branch>`, or undefined for a detached HEAD. */
+	branch?: string;
+}
+
+/** This repository's registered worktrees (`git worktree list --porcelain`, run in the project). */
+async function listGitWorktrees(cwd: string): Promise<GitWorktreeListing[]> {
+	const listed: GitWorktreeListing[] = [];
+	let current: GitWorktreeListing | undefined;
+	for (const line of (
+		await gitText(cwd, ["worktree", "list", "--porcelain"])
+	).split("\n")) {
+		if (line.startsWith("worktree ")) {
+			current = { path: line.slice("worktree ".length) };
+			listed.push(current);
+		} else if (current && line.startsWith("branch "))
+			current.branch = line.slice("branch ".length);
+	}
+	return listed;
+}
+
+/** `path` with its longest existing prefix canonicalized (git may list a non-canonical path). */
+async function canonicalListedPath(path: string): Promise<string> {
+	const absolute = resolve(path);
+	const rest: string[] = [];
+	for (let current = absolute; ; ) {
+		try {
+			return join(await realpath(current), ...rest.reverse());
+		} catch {
+			const parent = resolve(current, "..");
+			if (parent === current) return absolute;
+			rest.push(relative(parent, current));
+			current = parent;
+		}
+	}
 }
 
 /**
  * WP39b (O7): the managed worktrees a run recorded (tasks and shared loop worktrees) that lie in
- * its own `worktrees/` directory, with their state. Never throws: an unreadable worktree is
- * reported with `error`.
+ * its own `worktrees/` directory, with their state. Never throws: an unreadable or unidentified
+ * worktree is reported with `error` (and keeps its run).
  */
 async function inspectRunWorktrees(
 	cwd: string,
@@ -920,132 +1045,377 @@ async function inspectRunWorktrees(
 		const entry: RunWorktree = {
 			path: relative(cwd, absolutePath),
 			absolutePath,
-			gitCwd:
-				typeof record.baseCwd === "string" ? resolve(cwd, record.baseCwd) : cwd,
 			branch: typeof record.branch === "string" ? record.branch : null,
 			dirty: false,
 			commits: 0,
 		};
 		seen.set(absolutePath, entry);
-		const info = await lstat(absolutePath).catch(() => undefined);
-		if (!info) {
-			entry.missing = true;
-			continue;
-		}
-		if (!info.isDirectory() || info.isSymbolicLink()) {
-			entry.error = "not a worktree directory";
-			continue;
-		}
-		try {
-			entry.dirty =
-				(await gitText(absolutePath, ["status", "--porcelain"])).trim() !== "";
-			const checkoutHead = (
-				await gitText(entry.gitCwd, ["rev-parse", "HEAD"])
-			).trim();
-			entry.commits = Number.parseInt(
-				(
-					await gitText(absolutePath, [
-						"rev-list",
-						"--count",
-						"HEAD",
-						`^${checkoutHead}`,
-					])
-				).trim(),
-				10,
-			);
-			if (!Number.isFinite(entry.commits)) entry.commits = 0;
-		} catch (error) {
-			entry.error = `git: ${errorMessage(error).split("\n")[0]}`;
-		}
+		await identifyRunWorktree(cwd, run.runId, rel, entry);
 	}
 	return [...seen.values()];
 }
 
-/** `prune --yes`: remove each worktree; delete its branch only when merged (`git branch -d`). */
+/**
+ * WP42 (WP39b review, finding 2): positively identify a recorded managed worktree before prune
+ * touches it. All of: the recorded branch is the managed `agent-workflow/<run>-<task>`; the
+ * directory chain from the project down to it is real directories (no symlinked parent); and, when
+ * the directory exists, this repository's `git worktree list` registers exactly that path checked
+ * out on that branch. A missing directory may still be registered (stale), but only on that branch.
+ * Anything else sets `error`: the worktree, its branch and the run are kept.
+ */
+async function identifyRunWorktree(
+	cwd: string,
+	runId: string,
+	name: string,
+	entry: RunWorktree,
+): Promise<void> {
+	const managed = `agent-workflow/${runId}-${name}`;
+	if (!MANAGED_WORKTREE_NAME.test(name)) {
+		entry.error = "not a managed worktree name; kept";
+		return;
+	}
+	if (entry.branch !== managed) {
+		entry.error = `recorded branch ${entry.branch ?? "(none)"} is not the managed branch ${managed}; kept`;
+		return;
+	}
+	let chain;
+	try {
+		chain = await physicalDirectoryChain(cwd, [
+			PROJECT_STATE_DIRECTORY,
+			"workflows",
+			runId,
+			"worktrees",
+			name,
+		]);
+	} catch (error) {
+		entry.error = `${errorMessage(error)}; kept`;
+		return;
+	}
+	if (chain.path !== entry.absolutePath) {
+		entry.error = "worktree path is not canonical; kept";
+		return;
+	}
+	try {
+		let registered: GitWorktreeListing | undefined;
+		for (const listed of await listGitWorktrees(cwd))
+			if ((await canonicalListedPath(listed.path)) === chain.path) {
+				registered = listed;
+				break;
+			}
+		if (!chain.exists) entry.missing = true;
+		else if (!registered) {
+			entry.error = "not registered as a worktree of this repository; kept";
+			return;
+		}
+		if (registered && registered.branch !== `refs/heads/${managed}`) {
+			entry.error = `checked out on ${registered.branch?.replace(/^refs\/heads\//u, "") ?? "a detached HEAD"}, not the managed branch ${managed}; kept`;
+			return;
+		}
+		entry.registered = registered?.path;
+		if (chain.exists)
+			entry.dirty =
+				(await gitText(chain.path, ["status", "--porcelain"])).trim() !== "";
+		// WP42 (finding 4): the managed branch's own tip against the checkout's HEAD, also when the
+		// directory is missing (its commits are not visible through a worktree then).
+		entry.tip = await managedBranchTip(cwd, managed);
+		if (entry.tip === undefined) {
+			if (chain.exists) {
+				entry.error = `managed branch ${managed} not found; kept`;
+				return;
+			}
+			return;
+		}
+		const checkoutHead = (await gitText(cwd, ["rev-parse", "HEAD"])).trim();
+		const commits = Number.parseInt(
+			(
+				await gitText(cwd, [
+					"rev-list",
+					"--count",
+					entry.tip,
+					`^${checkoutHead}`,
+				])
+			).trim(),
+			10,
+		);
+		if (!Number.isFinite(commits)) {
+			entry.error = "unknown commit state; kept";
+			return;
+		}
+		entry.commits = commits;
+	} catch (error) {
+		entry.error = `git: ${errorMessage(error).split("\n")[0]}`;
+	}
+}
+
+/** `refs/heads/<branch>`'s commit; undefined when the branch does not exist (other errors throw). */
+async function managedBranchTip(
+	cwd: string,
+	branch: string,
+): Promise<string | undefined> {
+	try {
+		return (
+			await gitText(cwd, [
+				"rev-parse",
+				"--verify",
+				"--quiet",
+				`refs/heads/${branch}^{commit}`,
+			])
+		).trim();
+	} catch (error) {
+		if ((error as { code?: unknown }).code === 1) return undefined;
+		throw error;
+	}
+}
+
+/**
+ * WP42 (finding 4): delete a managed branch only when `git merge-base --is-ancestor <tip> HEAD`
+ * holds (independent of any upstream), no worktree has it checked out, and it still points at the
+ * verified tip (`git update-ref -d <ref> <tip>`). Any unknown state keeps the branch.
+ */
+async function deleteMergedManagedBranch(
+	cwd: string,
+	branch: string,
+	tip: string,
+): Promise<boolean> {
+	try {
+		const head = (await gitText(cwd, ["rev-parse", "HEAD"])).trim();
+		await gitText(cwd, ["merge-base", "--is-ancestor", tip, head]);
+		for (const listed of await listGitWorktrees(cwd))
+			if (listed.branch === `refs/heads/${branch}`) return false;
+		await gitText(cwd, ["update-ref", "-d", `refs/heads/${branch}`, tip]);
+	} catch {
+		return false;
+	}
+	await gitText(cwd, ["config", "--remove-section", `branch.${branch}`]).catch(
+		() => "",
+	);
+	return true;
+}
+
+/** The fields that must not change between inspection and removal. */
+function sameWorktreeState(left: RunWorktree, right: RunWorktree): boolean {
+	return (
+		left.error === undefined &&
+		right.error === undefined &&
+		left.absolutePath === right.absolutePath &&
+		left.branch === right.branch &&
+		left.missing === right.missing &&
+		left.registered === right.registered &&
+		left.tip === right.tip &&
+		left.commits === right.commits
+	);
+}
+
+/**
+ * `prune --yes`: remove each identified worktree (rechecked right before git touches it) and delete
+ * its managed branch only when its tip is contained in the checkout's HEAD.
+ */
 async function removeRunWorktrees(
-	_cwd: string,
+	cwd: string,
+	runId: string,
 	worktrees: RunWorktree[],
 ): Promise<WorkflowPruneWorktree[]> {
 	const results: WorkflowPruneWorktree[] = [];
 	for (const worktree of worktrees) {
-		const { absolutePath, gitCwd, ...entry } = worktree;
+		const { absolutePath, registered, tip, ...entry } = worktree;
 		if (entry.error) {
 			results.push(entry);
 			continue;
 		}
+		const name = relative(
+			join(workflowsRoot(cwd), runId, "worktrees"),
+			absolutePath,
+		);
+		const recheck = async (): Promise<boolean> => {
+			const current: RunWorktree = {
+				path: entry.path,
+				absolutePath,
+				branch: entry.branch,
+				dirty: false,
+				commits: 0,
+			};
+			await identifyRunWorktree(cwd, runId, name, current);
+			if (sameWorktreeState(worktree, current)) return true;
+			entry.error = current.error ?? "worktree changed since inspection; kept";
+			return false;
+		};
 		try {
-			// A missing directory: only git's stale registration is left (best effort).
-			if (entry.missing)
-				await gitText(gitCwd, ["worktree", "prune"]).catch(() => "");
-			else
-				await gitText(gitCwd, ["worktree", "remove", "--force", absolutePath]);
+			if (!(await recheck())) {
+				results.push(entry);
+				continue;
+			}
+			// A missing directory: only its stale registration (identified above) is removed.
+			if (registered !== undefined)
+				await gitText(cwd, [
+					"worktree",
+					"remove",
+					"--force",
+					entry.missing ? registered : absolutePath,
+				]);
 			entry.removed = true;
 		} catch (error) {
 			entry.error = `git worktree remove: ${errorMessage(error).split("\n")[0]}`;
 			results.push(entry);
 			continue;
 		}
-		if (entry.branch)
+		if (entry.branch && tip !== undefined)
 			entry.branchDeleted =
 				entry.commits === 0 &&
-				(await gitText(gitCwd, ["branch", "-d", entry.branch])
-					.then(() => true)
-					.catch(() => false));
+				(await deleteMergedManagedBranch(cwd, entry.branch, tip));
 		results.push(entry);
 	}
 	return results;
 }
 
 /** `workflows/auto-router-runs/`: the auto classifier's one-shot runtime runs (workflow-router). */
-const AUTO_ROUTER_RUNS_DIR_NAME = "auto-router-runs";
 const AUTO_ROUTER_TERMINAL = new Set(["completed", "failed", "cancelled"]);
+/** The runtime's run-lock wait (registry LOCK_TIMEOUT_MS / LOCK_RETRY_MS). */
+const AUTO_ROUTER_LOCK_RETRY_MS = 25;
+const AUTO_ROUTER_LOCK_RETRIES = 200;
+
+const PINNED_CLASSIFIER_REASON =
+	"pinned: an active classifier request has not consumed its result yet";
+
+function isPinned(pins: AutoRouterPinState, updatedAt: string): boolean {
+	return (
+		pins.pinnedSince !== undefined && Date.parse(updatedAt) >= pins.pinnedSince
+	);
+}
+
+let beforeClassifierDeleteForTests: (() => void | Promise<void>) | undefined;
+export function setWorkflowPruneBeforeClassifierDeleteForTests(
+	hook?: () => void | Promise<void>,
+): void {
+	beforeClassifierDeleteForTests = hook;
+}
+
+interface ClassifierCandidate extends WorkflowPruneClassifierRun {
+	dir: string;
+	identity: { dev: number; ino: number };
+}
+
+/** The auto-router directory's physical path; throws unless the whole chain is real directories. */
+async function physicalAutoRouterRoot(cwd: string): Promise<string> {
+	const chain = await physicalDirectoryChain(cwd, [
+		PROJECT_STATE_DIRECTORY,
+		"workflows",
+		AUTO_ROUTER_RUNS_DIR_NAME,
+	]);
+	if (!chain.exists)
+		throw Object.assign(new Error("auto-router-runs is missing"), {
+			code: "ENOENT",
+		});
+	return chain.path;
+}
+
+/**
+ * A classifier record that may be deleted: positively identified (WP42 finding 3: runtime schema,
+ * the router's correlation id and runs directory, a runtime-generated id equal to its directory),
+ * terminal, with a parseable `updatedAt`. `kept` explains an unidentified record; an identified
+ * record that is not (yet) terminal is neither.
+ */
+function deletableClassifierRecord(
+	record: unknown,
+	name: string,
+): { status: string; updatedAt: string } | { kept: string } | undefined {
+	const unidentified = unidentifiedClassifierReason(record, name);
+	if (unidentified) return { kept: unidentified };
+	const value = record as { status?: unknown; updatedAt?: unknown };
+	if (
+		typeof value.status !== "string" ||
+		!AUTO_ROUTER_TERMINAL.has(value.status)
+	)
+		return undefined;
+	if (
+		typeof value.updatedAt !== "string" ||
+		!Number.isFinite(Date.parse(value.updatedAt))
+	)
+		return { kept: "unparseable updatedAt" };
+	return { status: value.status, updatedAt: value.updatedAt };
+}
+
+async function readClassifierRecord(dir: string): Promise<unknown> {
+	const file = join(dir, "run.json");
+	const info = await lstat(file);
+	if (!info.isFile() || info.isSymbolicLink() || info.nlink !== 1)
+		throw new Error("unsafe classifier record");
+	return JSON.parse(await readFile(file, "utf8")) as unknown;
+}
 
 /**
  * WP39b (live bundle 5, O16): classifier requests beyond the filters. Only `run_*` directories
  * (no symlinks) with a readable terminal `run.json` are candidates; with `yes` each is removed.
+ * WP42 (WP39b review, finding 1): only when `.agent-workflow/workflows/auto-router-runs` is a chain
+ * of real directories inside the project; each deletion rechecks that chain, the directory's
+ * identity and its record under the runtime's run lock, then detaches it before removing it.
  */
 async function pruneAutoRouterRuns(
 	cwd: string,
 	keep: number,
 	cutoff: number | undefined,
 	yes: boolean,
-): Promise<WorkflowPruneClassifierRun[]> {
-	const root = join(workflowsRoot(cwd), AUTO_ROUTER_RUNS_DIR_NAME);
-	const rootInfo = await lstat(root).catch(() => undefined);
-	if (!rootInfo?.isDirectory() || rootInfo.isSymbolicLink()) return [];
+): Promise<{
+	runs: WorkflowPruneClassifierRun[];
+	preserved: WorkflowPruneKeptEntry[];
+}> {
+	const preserved: WorkflowPruneKeptEntry[] = [];
+	let root: string;
+	try {
+		root = await physicalAutoRouterRoot(cwd);
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+			preserved.push({
+				name: AUTO_ROUTER_RUNS_DIR_NAME,
+				reason: `unsafe directory: ${errorMessage(error)}`,
+			});
+		return { runs: [], preserved };
+	}
 	const entries = await readdir(root, { withFileTypes: true }).catch(() => []);
-	const candidates: Array<WorkflowPruneClassifierRun & { dir: string }> = [];
+	const candidates: ClassifierCandidate[] = [];
 	for (const entry of entries) {
-		if (!entry.isDirectory() || !/^run_[A-Za-z0-9_-]+$/u.test(entry.name))
+		// The runtime's run locks; WP42 F5 classifier pins.
+		if (entry.name === RUN_LOCKS_DIR || entry.name === AUTO_ROUTER_PINS_DIR)
 			continue;
+		const keepEntry = (reason: string) =>
+			preserved.push({ name: entry.name, reason });
+		if (entry.name.startsWith(".prune-")) {
+			keepEntry("left by an interrupted prune");
+			continue;
+		}
+		if (!entry.isDirectory()) {
+			keepEntry("not a real directory");
+			continue;
+		}
+		if (!AUTO_ROUTER_RUN_ID_PATTERN.test(entry.name)) {
+			keepEntry("not a runtime run id");
+			continue;
+		}
 		const dir = join(root, entry.name);
 		try {
-			const file = join(dir, "run.json");
-			const info = await lstat(file);
-			if (!info.isFile() || info.isSymbolicLink()) continue;
-			const record = JSON.parse(await readFile(file, "utf8")) as {
-				runId?: unknown;
-				status?: unknown;
-				updatedAt?: unknown;
-			};
-			if (
-				record.runId !== entry.name ||
-				typeof record.status !== "string" ||
-				!AUTO_ROUTER_TERMINAL.has(record.status) ||
-				typeof record.updatedAt !== "string" ||
-				!Number.isFinite(Date.parse(record.updatedAt))
-			)
+			const identity = await lstat(dir);
+			if (!identity.isDirectory() || identity.isSymbolicLink()) {
+				keepEntry("not a real directory");
 				continue;
+			}
+			const record = deletableClassifierRecord(
+				await readClassifierRecord(dir),
+				entry.name,
+			);
+			if (!record) continue;
+			if ("kept" in record) {
+				keepEntry(record.kept);
+				continue;
+			}
 			candidates.push({
 				runId: entry.name,
-				status: record.status,
-				updatedAt: record.updatedAt,
+				...record,
 				bytes: await directoryBytes(dir),
 				deleted: false,
 				dir,
+				identity,
 			});
-		} catch {
-			// Unreadable: never selected.
+		} catch (error) {
+			keepEntry(`unreadable run record: ${errorMessage(error)}`);
 		}
 	}
 	candidates.sort(
@@ -1057,15 +1427,89 @@ async function pruneAutoRouterRuns(
 			(cutoff === undefined || Date.parse(candidate.updatedAt) < cutoff),
 	);
 	const results: WorkflowPruneClassifierRun[] = [];
-	for (const { dir, ...entry } of selected) {
+	// WP42 (finding 5): a live per-request pin keeps the results its caller has not consumed yet.
+	const pins = await readAutoRouterPins(root, yes);
+	for (const { dir, identity, ...entry } of selected) {
+		if (isPinned(pins, entry.updatedAt)) {
+			entry.protected = true;
+			entry.error = PINNED_CLASSIFIER_REASON;
+			results.push(entry);
+			continue;
+		}
 		if (yes)
 			try {
-				await rm(dir, { recursive: true, force: true });
+				await beforeClassifierDeleteForTests?.();
+				await deleteClassifierRun(cwd, root, { ...entry, dir, identity });
 				entry.deleted = true;
 			} catch (error) {
+				if ((error as { pinned?: unknown }).pinned === true)
+					entry.protected = true;
 				entry.error = errorMessage(error);
 			}
 		results.push(entry);
 	}
-	return results;
+	return { runs: results, preserved };
+}
+
+/**
+ * Delete one selected classifier request. Under the runtime's lock for that run (the one its
+ * writers hold), recheck the physical chain, the directory's identity and its record, then rename
+ * it into a fresh `.prune-*` container in the same directory and remove that container.
+ */
+async function deleteClassifierRun(
+	cwd: string,
+	root: string,
+	candidate: ClassifierCandidate,
+): Promise<void> {
+	const recheck = async () => {
+		if ((await physicalAutoRouterRoot(cwd)) !== root)
+			throw new Error("auto-router-runs changed since selection");
+		const info = await lstat(candidate.dir);
+		if (
+			!info.isDirectory() ||
+			info.isSymbolicLink() ||
+			info.dev !== candidate.identity.dev ||
+			info.ino !== candidate.identity.ino
+		)
+			throw new Error("classifier request changed since selection");
+		const record = deletableClassifierRecord(
+			await readClassifierRecord(candidate.dir),
+			candidate.runId,
+		);
+		if (!record || "kept" in record || record.updatedAt !== candidate.updatedAt)
+			throw new Error("classifier request changed since selection");
+		if (isPinned(await readAutoRouterPins(root), record.updatedAt))
+			throw Object.assign(new Error(PINNED_CLASSIFIER_REASON), {
+				pinned: true,
+			});
+	};
+	await recheck();
+	// The runtime's lock directory (created like the runtime does, but never through a symlink).
+	await mkdir(join(root, RUN_LOCKS_DIR)).catch((error: unknown) => {
+		if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+	});
+	const locks = await physicalDirectoryChain(root, [RUN_LOCKS_DIR]).catch(
+		() => undefined,
+	);
+	if (!locks?.exists) throw new Error("unsafe classifier lock directory");
+	const release = await acquireDirectoryLock(
+		join(locks.path, `${candidate.runId}.lock`),
+		{ retries: AUTO_ROUTER_LOCK_RETRIES, retryMs: AUTO_ROUTER_LOCK_RETRY_MS },
+	);
+	try {
+		await recheck();
+		const container = await mkdtemp(join(root, ".prune-"));
+		try {
+			await recheck();
+			await rename(candidate.dir, join(container, "run"));
+		} catch (error) {
+			await rm(container, { recursive: true, force: true }).catch(
+				() => undefined,
+			);
+			throw error;
+		}
+		await rm(container, { recursive: true, force: true });
+	} finally {
+		await release().catch(() => undefined);
+	}
 }
