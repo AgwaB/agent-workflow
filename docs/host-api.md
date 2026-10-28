@@ -87,6 +87,7 @@ throw `WorkflowValidationError`; `formatHostError(error)` renders any error. Lau
 | `pruneAction` | `{keep?, olderThanDays?, yes?}` or `{argv}` | `WorkflowPruneSummary` (core) | success, failed (`summary.error`) |
 | `noticesAction` | `{argv}` (`list [--json]`, `acknowledge <id> --state <sha> --reason <text>`, `clear <id> [--json]`) | list: `{notices, acknowledgements, warnings}`; else `{action, runId, notificationOnly}` | success |
 | `doctorAction` (WP17) | `{prober?, probeTimeoutMs?, nodeVersion?}` (test seams) | `DoctorData`: `{host, executors[], defaultExecutor, permissionMode, node, home, warnings, runIndex, usable}` (no model call, nothing written) | success (an executor is usable), failed |
+| `executorModelsAction` (WP34) | `{executors?, prober?, timeoutMs?}` (default `pi`, `claude`, `codex`; `prober` is the test seam) | `{executors: [{id, usable, state, models: string[] \| null, modelListComplete, note, error?}]}`: each executor's probed model list (no model call; the shared 60 s probe cache) and what it means for a role model (`modelListComplete`: complete → another id is refused at launch, partial → only noted). Read-only; the Pi profile picker uses it | success |
 | `superviseAction` | `{runId? \| all, pollMs?, maxRuntimeMs?, onLog?, signal?, testHooks?}` | `{runIds, maxRuntimeMs, runs, result: completed \| failed \| blocked \| timeout}` | completed, failed, blocked, timeout |
 | `redriveRunsAction` (WP28) | — | `{redriven, skipped: [{runId, reason: "live-supervisor"}], errors}`: port of pi-workflow `resumeSupervisors` for a host process that outlives a run's launcher (Pi session start): schedules once and then watches (engine `watchRun`) every run with scheduler work that no *other* live process drives; only schedules, so blocked runs stay blocked and an `unknown` reconcile becomes `executor_needs_decision` (B3); binds no delivery audience | success |
 | `superviseDetachedAction` (WP28) | `{runId}` | `{runId, status, started, reason?: "not-running" \| "live-supervisor", detached?: {pid, logPath}}`: spawns the standalone `agent-workflow supervise <run>` and returns at once (MCP `workflow_supervise`); nothing for a run without scheduler work or one a live process drives (`isWorkflowRunLeaseLive`: a held run lease or a `supervisor.json` heartbeat < 30 s from a live pid) | running, or the run status when not running |
@@ -404,13 +405,13 @@ in the host API or the CLI:
 | review-runtime-retention-depth: RR-02 actual CLI prune | ported → `host-ported-cli-args` (`--json` data wrapper) |
 | unlimited-supervisor (4) | ported → `host-ported-cli-args` via `superviseAction` with an injected clock/scheduler (was a copied cli.mjs over fake dist modules) |
 | surface-regressions: slash options; actual CLI options; supervise failed/blocked/batches; workflow_list bounds | ported → `host-ported-cli-args`. Changed: `dynamic --profile` is accepted; usage errors exit 2 (was 1); blocked supervise exits 1 (was 2), the structured result keeps blocked and the failure precedence |
-| surface-regressions: parent usage ownership/replay (2), owner usage/feedback audience (2), catch-up delivery caps (2), board/RPC fallback, board identity, hidden artifact views, skipped dependent stage view, 8 MiB preview bound, preview disposal | not ported: Pi host session/board behavior (WP11b) |
+| surface-regressions: parent usage ownership/replay (2), owner usage/feedback audience (2), catch-up delivery caps (2), board/RPC fallback, board identity, hidden artifact views, skipped dependent stage view, 8 MiB preview bound, preview disposal | not ported here: Pi host session/board behavior (WP11b). WP34: the board's RPC fallback, identity and navigation are covered by `host-wp34-pi-board`; the artifact-view and preview-bound tests do not apply (the board reads `logsAction`'s bounded tails) |
 | surface-regressions: formatLogs bounded tail IO | not ported (core `formatLogs`); WP16's `logsAction` has its own bounds tests (`host-wp16-logs`) |
 | review-core-fixes: IR1-08 parsers; IR1-08 CLI/RPC launch controls (CLI half); IR1-08 slash/CLI prune (slash half → `pruneAction`); IR1-09 catalog paging (→ `listWorkflowsAction`) | ported → `host-ported-cli-args` (exit 2 for usage errors) |
 | review-core-fixes: IR1-03 parent usage (4), IR1-04/IR1-05 schema tests | not ported here: parent usage is Pi host (WP11b); IR1-04/05 are core json-schema tests outside WP11a's scope |
 | execution-profiles: `--profile` parsing; profile selection | ported → `host-ported-cli-args` |
 | workflow-router: retired routing flags | ported → `host-ported-cli-args`; the other 7 (auto capture, TUI, foreground cancel) stay Pi host (WP11b) |
-| workflow-user-profiles: invalid/corrupt writes; launch precedence | ported → `host-ported-cli-args`; the 15 profile UI/TUI tests stay Pi host (WP11b) |
+| workflow-user-profiles: invalid/corrupt writes; launch precedence | ported → `host-ported-cli-args`; the 15 profile UI/TUI tests stay Pi host (WP11b). WP34: the picker flow (choices, Back/cancel write nothing, Custom editing, save) and the preview renderer are covered by `host-wp34-pi-profile-picker` over WP31 role profiles (pi-workflow's per-stage Pi model settings file has no counterpart) |
 | workflow-notice-acknowledgements: list/ack/clear, ineligible, concurrent CLI acks, validation, link escapes, empty list, commit fence (2), slash/standalone parity | ported → `host-ported-notices` (parity now CLI vs `noticesAction`; inspect `--json` wrapper; exit 2) |
 | workflow-notice-acknowledgements: suppression, changed-state dedup (3), malformed sidecars | not ported: need `notifyUnfinishedRuns` (Pi session start, WP11b) |
 | unit-engine-store: 4 Pi extension launch options | not ported: Pi executor/host options (WP6/WP11b) |
@@ -421,10 +422,11 @@ The original files carry `Moved (WP11a)` markers at the former deferral comments
 
 - **WP11b (Pi host):** `/workflow` slash commands should call these handlers with
   `availableModels`/`runtimeDefaults` from Pi and `selectProfile`/`confirmDegradations` from the
-  TUI; it keeps feedback delivery, parent usage, notices at session start, the board and `auto`.
+  TUI; it keeps feedback delivery, parent usage, notices at session start, the board and `auto`
+  (the board and the profile picker: WP34; `auto` is not ported).
   WP18b: run-text hints are host-aware (see *Next-step hints* above).
 - **Launch capture:** done (WP33): the host-neutral `agent-workflow-run-launch-v1` record (see
-  `run` / `dynamic`). The board's `v`/`c` keys come with WP34.
+  `run` / `dynamic`). The board's `v`/`c` keys use it (WP34, [pi-host.md](pi-host.md#board-wp34)).
 - **Stage 2 (WP13 MCP host):** done — `docs/host-mcp.md` (`HostUsageError` → `isError` tool
   result, repeated bounded `waitAction` calls, `detach` default true, degradation confirmation
   through MCP elicitation when the client supports it, else non-interactive). WP18b added

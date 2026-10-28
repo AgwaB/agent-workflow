@@ -55,7 +55,7 @@ workflow profile, else the host's own CLI: `host-default`). Live bundle 4, 2026-
 |---|---|---|---|---|---|---|
 | **Claude Code** | 2.1.310 | plugin (`--plugin-dir` dev copy; marketplace install verified offline, [plugins.md](plugins.md)); alternative `claude mcp add` | `mcp__plugin_agent-workflow_agent-workflow__workflow_{list,run,dynamic,status,wait,stop,inspect,validate}` (observed: `…workflow_run`, `…workflow_wait`, `…workflow_inspect`) | `claude`, `host-default` (observed) | completed: claude workers (`NEEDS_WORK`), codex workers (`PARTIAL_REVIEW`, finished detached after the host stopped waiting) | The model receives `structuredContent` serialized as JSON, not `content`. Tool schemas are deferred: the first call is `ToolSearch select:…`. `claude -p --permission-mode default --allowedTools <the 8 tools>` had no denials. The plugin's three skills are listed. Elicitation not exercised. |
 | **Codex** | 0.159.2 | plugin (`codex plugin marketplace add` + `plugin add`, temporary, in the real `CODEX_HOME`; host turn `codex exec`); alternative `codex mcp add` | code mode: the model calls `exec` (JavaScript cell) and inside it `tools.mcp__agent_workflow__workflow_{run,wait,inspect}` (observed; all 8 listed via `ALL_TOOLS`); the `--json` stream shows server `agent-workflow`, tool `workflow_*` | `codex`, `host-default` (observed) | completed (live 4b): codex workers and claude workers, both `PARTIAL_REVIEW` (run `failed` by `support_declared_failed`; the host saw no preview or report path) | The model printed the whole `CallToolResult`, so it saw `content` and `structuredContent`. `workflow_wait` (45 s) outlasts the 30 s code-mode yield; the model resumed with `wait`. Skills `agent-workflow:{agent-workflow,execution-router,workflow-guide}` listed; server runs in the thread cwd with `--host codex`. A new directory gets a `trust_level = "trusted"` entry in the user config unless trusted inline (`-c projects={…}`). |
-| **Pi** | 1.1.0 | extension (`pi -e <package>/dist/hosts/pi/index.js`, or `pi install`) | `/aw …` command; agent tools `aw_list`, `aw_run`, `aw_dynamic`, `aw_wait` | `pi`, `host-default` (observed) | completed: `/aw run` in RPC mode, no model turn (`NEEDS_WORK`) | Footer status `aw: <name> <done>/<total> running`, exactly one `agent-workflow-completion` message, `/aw logs` and `/aw status`. The message's "Verdict:" line is the run status, the report verdict is in the preview. |
+| **Pi** | 1.1.0 | extension (`pi -e <package>/dist/hosts/pi/index.js`, or `pi install`) | `/aw …` command; agent tools `aw_list`, `aw_run`, `aw_dynamic`, `aw_wait` | `pi`, `host-default` (observed) | completed: `/aw run` in RPC mode, no model turn (`NEEDS_WORK`) | Footer status `aw: <name> <done>/<total> running`, exactly one `agent-workflow-completion` message, `/aw logs` and `/aw status`. The message's "Verdict:" line is the run status, the report verdict is in the preview. WP34 (offline only, live bundle 5): in the TUI `/aw` and `/aw <run>` open the run board and `/aw profile` the profile picker ([pi-host.md](pi-host.md#board-wp34)); RPC, print and JSON mode keep the text commands. |
 
 Nesting and concurrency: Claude host → Claude workers, Claude host → Codex workers, Codex host →
 Codex workers and Codex host → Claude workers showed no auth or session conflict; three concurrent
@@ -175,3 +175,19 @@ WP35 features are verified offline only (fake Pi host, fake provider streams, st
 - **pi-web-access:** on a Pi without it, `agent-workflow doctor` warns with
   `pi install npm:pi-web-access` and deep-research is refused naming the same command; after the
   install, the probe note names the package path and deep-research runs.
+
+WP34 (board and profile picker) is verified with fake Pi UI objects only. In a live Pi 1.1 TUI
+(`pi -e <package>/dist/hosts/pi/index.js` in a project with at least one finished and one blocked
+run):
+
+- **Board:** `/aw` opens the board; ↑/↓ and Enter reach a task's logs, ←/→ switch
+  output/stderr/events, Esc walks back; `v` shows the launch command with escaped controls, `c`
+  copies it (paste to check), `r` refreshes, `q` closes and the editor repaints without stale rows;
+  narrow (< 92 columns) and wide terminals; `/aw <run-prefix>` opens that run's stages; on a mixed
+  run the task rows show each task's executor, model and effort; `s` + `y` stops a running run,
+  `u` + `y` resumes it (footer status line returns), `a` + `y` answers a pending dynamic approval.
+- **Picker:** `/aw profile` → `Every workflow…` → `Mixed` shows the colour table (one colour per
+  executor, dimmed inherited roles, the probe notes); `Edit a role…` lists the probed models of each
+  executor; Save → new name (`ctx.ui.input`) → default yes; `/aw profile show` prints it. Then a
+  workflow with declared execution profiles: `/aw run <wf> "<task>"` → `Custom… (open the profile
+  picker)` → save → the run starts once with the saved preference (`/aw profile workflow show <wf>`).
