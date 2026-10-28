@@ -79,9 +79,12 @@ test("codex: old terminal attempts go with their event log and log dir; active, 
 		Date.now(),
 	);
 	await put(join(a, "broken.json"), "{not json");
+	// WP19 round 7: orphans are only adapter-written names (hex attemptKey digest + suffix).
+	await put(join(a, `${"e".repeat(32)}.log`), null);
+	await put(join(a, `${"9".repeat(32)}.log`), null, Date.now());
+	await put(join(a, `${"f".repeat(32)}.json.123.abcd.tmp`), "{}");
+	// Not adapter-written: never removed, even when old.
 	await put(join(a, "orphan.log"), null);
-	await put(join(a, "fresh-orphan.log"), null, Date.now());
-	await put(join(a, "x.json.123.abcd.tmp"), "{}");
 
 	const classify = codexState.classifyCodexAttemptRecord;
 	const dry = await retention.pruneAdapterAttemptState({
@@ -99,12 +102,13 @@ test("codex: old terminal attempts go with their event log and log dir; active, 
 	// WP19: the launched (terminal) attempt stays as a tombstone; the revoked one goes.
 	assert.equal(done.tombstoned, 1);
 	assert.deepEqual((await readdir(a)).sort(), [
+		`${"9".repeat(32)}.log`,
 		"broken.json",
 		"consumed.json",
 		"done.json",
-		"fresh-orphan.log",
 		"live.json",
 		"live.log",
+		"orphan.log",
 		"recent.json",
 	]);
 	assert.equal(

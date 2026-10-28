@@ -658,3 +658,20 @@ host code (`feedback.ts`, `launch-guard.ts`, `adapter-state.ts`) for the same pa
 | 1b (same class, found by the parent) | `pruneHostLaunchClaims` followed a symlinked `host-launches` or `.agent-workflow` and deleted any `.json` older than 1 h that was not a readable claim | Same containment (shared `containedProjectStateDir` in `src/hosts/run-files.ts`, also used by the queue-end tombstones); prune only `<sha256>.json` claims with the claim schema and matching fingerprint, and their writers' temp files | `test/unit/host-wp19r6-launch-claims-prune-safety.test.mjs` (symlinked dir, symlinked ancestor, only identified claims/temp files pruned) | yes (all 3 tests fail: outside files and unrelated JSON deleted) |
 | 2 (minor) | Deferred catch-up deliveries bypassed the 5-message catch-up cap (6 sent) | A deferred catch-up reserves one of the 5 slots at restore | same file, "deferred catch-up deliveries share the five-message catch-up cap" | yes (6 sent) |
 
+## WP19 round 7
+
+Branch `wp19-fixes-7` from `0da7b0c`, implemented directly by the parent, no model or agent-CLI
+calls. Input: the round-7 confirmation review (gpt-6-astra): all round-6 fixes confirmed (7 new
+tests fail on `af1d2ca`, 85/85 WP19 tests incl. 6 opt-in real-Pi pass, no false refusals for
+`/tmp`→`/private/tmp`, relative cwd or symlinked project parents); one pre-existing major found by
+its bounded deletion-site scan. The new test file was run against `0da7b0c`'s
+`src/executors/state-retention.ts` (stashed fix, rebuilt): both tests fail there, pass after.
+
+| # | Finding | Fix | Regression test | Fails on `0da7b0c` |
+|---|---|---|---|---|
+| 1 (major, pre-existing since WP18b) | The adapter-state orphan sweep removed any old non-`.json` entry under `attempts/` without a matching record (notes, other tools' files, whole directories), via `prune` and the background retention, for all three adapters | Orphan candidates must be adapter-written names: a hex attemptKey digest (32–64) alone (per-attempt dir) or with `.events.jsonl`, `.log` or `.json.<pid>[.<hex>].tmp` | `test/unit/executor-wp19r7-retention-identified-orphans.test.mjs` (host `prune` wrapper for claude/codex/pi; background retention) | yes (unrelated files and `manual-evidence/` deleted) |
+
+`test/unit/executor-state-retention.test.mjs` used non-adapter names (`orphan.log`,
+`x.json.123.abcd.tmp`) as orphans; its fixture now uses digest-named orphans and additionally
+asserts that `orphan.log` is kept.
+
