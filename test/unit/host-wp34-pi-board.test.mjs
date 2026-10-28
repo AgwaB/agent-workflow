@@ -602,7 +602,7 @@ test("/aw <run prefix> opens the run's stages; an unknown token stays an unknown
 
 test("s and u in the board stop and resume a real run through the host API (resume is tracked)", async () => {
 	const { cwd, env, executor } = await project(3_000);
-	const { command, calls } = install(env);
+	const { pi, command, calls } = install(env);
 	const ctx = fakeCtx(cwd, { mode: "tui", custom: true });
 	await command.handler(
 		`run wf.json "long task" --executor ${executor}`,
@@ -621,24 +621,48 @@ test("s and u in the board stop and resume a real run through the host API (resu
 	);
 	assert.ok(calls.includes("stopAction"));
 	const statusesBeforeResume = ctx.statuses.length;
-	view.handleInput("u");
-	view.handleInput("y");
+	const messagesBeforeResume = pi.messages.length;
+	// Tracked like `/aw resume`: the status line shows the run while it runs, and its completion is
+	// delivered when it settles (under load the resumed run can finish before the first status tick).
+	const tracked = () =>
+		ctx.statuses
+			.slice(statusesBeforeResume)
+			.some(
+				(entry) =>
+					entry.key === "agent-workflow" &&
+					entry.text?.startsWith("aw: wp34-board"),
+			) ||
+		pi.messages
+			.slice(messagesBeforeResume)
+			.some(
+				(entry) =>
+					entry.message?.customType === "agent-workflow-completion" &&
+					JSON.stringify(entry.message).includes(runId),
+			);
+	// Under load the stopped run's supervisor can still hold its lease after the 10 s resume
+	// wait (WP37): resume then refuses with "still shutting down; try again", and the user presses
+	// `u` again. Any other refusal fails the test with its message.
+	for (let attempt = 0; ; attempt += 1) {
+		const resumesBefore = calls.filter(
+			(name) => name === "resumeAction",
+		).length;
+		view.handleInput("u");
+		view.handleInput("y");
+		await eventually(
+			() =>
+				calls.filter((name) => name === "resumeAction").length >
+					resumesBefore && !view.busy,
+			"resumed",
+		);
+		if (/shutting down|try again/i.test(view.message ?? "") && attempt < 3) {
+			await new Promise((resolve) => setTimeout(resolve, 2_000));
+			continue;
+		}
+		break;
+	}
 	await eventually(
-		() => calls.includes("resumeAction") && !view.busy,
-		"resumed",
-	);
-	// Tracked = the status line showed the resumed run at least once (it clears again when the
-	// run finishes, which can happen before a later look under load).
-	await eventually(
-		() =>
-			ctx.statuses
-				.slice(statusesBeforeResume)
-				.some(
-					(entry) =>
-						entry.key === "agent-workflow" &&
-						entry.text?.startsWith("aw: wp34-board"),
-				),
-		"the resumed run is tracked (status line)",
+		() => tracked(),
+		`the resumed run is tracked (status line or completion message); board message: ${view.message}`,
 	);
 	view.handleInput("q");
 	await open;
