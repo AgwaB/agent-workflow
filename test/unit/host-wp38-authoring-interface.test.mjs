@@ -27,6 +27,7 @@ test("workflow command completions and run arg parsing preserve task text", () =
 			"profile",
 			"run",
 			"dynamic",
+			"auto",
 			"status",
 			"show",
 			"inspect",
