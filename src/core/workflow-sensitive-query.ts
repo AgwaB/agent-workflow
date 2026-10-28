@@ -314,7 +314,8 @@ function redactStructuredCredentials(value: string): string {
  * backslashes (2·(escapes+1) raw characters each) followed by either the closing delimiter
  * (`escapes` more) or an escaped quote inside the value (2·escapes+1 more). Returns the index of
  * the closing delimiter's first backslash (or quote), or the end of the line when the value is
- * not closed there (the rest of the line is treated as the value: fail closed).
+ * not closed there or the quoting becomes malformed (a quote of an enclosing level inside the
+ * value): the rest of the line is treated as the value (fail closed, WP19 round 3 R4).
  */
 function quotedValueEnd(
 	text: string,
@@ -342,12 +343,19 @@ function quotedValueEnd(
 			// The closing delimiter starts after the escaped backslashes.
 			return { index: index + run - escapes, closed: true };
 		if (rest < escapes)
-			// A quote of an enclosing level: the value cannot run past it.
-			return { index: index + run - rest, closed: false };
+			// WP19 round 3 (R4): a quote of an enclosing level before the value's own closing
+			// delimiter: the quoting is malformed, so where the value ends is ambiguous. Fail
+			// closed: the rest of the line is treated as the value.
+			return { index: lineEnd(text, index), closed: false };
 		// An escaped quote inside the value (or malformed escaping): keep scanning.
 		index += run + 1;
 	}
 	return { index, closed: false };
+}
+
+function lineEnd(text: string, from: number): number {
+	const match = /[\n\r]/u.exec(text.slice(from));
+	return match ? from + match.index : text.length;
 }
 
 /**
