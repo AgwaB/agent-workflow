@@ -118,7 +118,9 @@ Run states: `running`, `completed`, `failed`, `interrupted` (stopped, or a worke
 a dynamic approval). `resume` resets failed, interrupted and resumable blocked tasks and keeps
 completed task artifacts. A run executes the copied `bundle/` in its run directory, so a newer
 package version does not change a running workflow's schemas or helpers; start a fresh run to pick
-up changed workflow code. Loop workflows cannot be resumed; start a fresh run.
+up changed workflow code. Loop workflows cannot be resumed; start a fresh run. Right after `stop`,
+`resume` waits up to 10 s for the stopped supervisor to let go of the run; if it has not by then,
+`resume` changes nothing and says to try again in a few seconds.
 
 `stop` records a durable stop intent. A worker that had not started yet never starts (its launch is
 revoked); a running worker is cancelled. If another supervisor owns the run, the stop is applied by

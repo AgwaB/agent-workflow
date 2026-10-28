@@ -1554,3 +1554,15 @@ unexplained differences in every variant. Every new test that spawns a process k
    rendered launch is one `explained` row of rule `wp37-per-executor-task-prompt` (docs/replay.md
    "WP37"). Tests: `core-wp37-task-prompt-tools.test.mjs` (renderer per executor, task backend with
    fixture executors registered as `pi`, `claude`, `codex`), `replay-acceptance.test.mjs`.
+2. **Resume right after stop** (parity §3.2). `stop` interrupts the run, but the stopped supervisor
+   (attached, often in the same process) may hold the run's supervisor lease for a moment while it
+   shuts down; `resume` refused at once with "another supervisor may be active". Now `resumeRun`, when
+   the lease is held and the stop is recorded (run `interrupted` with `workflow_stopped` tasks or a
+   durable stop intent), retries the normal lease acquisition every 100 ms for up to 10 s. Not
+   released in time → `Cannot resume <run> yet: the previous supervisor is still shutting down; try
+   again in a few seconds`, run unchanged. A live lease is never taken (the acquisition only reclaims
+   stale leases, as before), and a held lease on a run that was not stopped is refused at once with
+   the old message. Tests: `core-wp37-resume-after-stop.test.mjs` (lease held 0.8 s after stop →
+   resume waits and completes; held past the bound → the message, live holder unaffected, then a
+   resume succeeds; blocked run not stopped → immediate refusal); `host-api-handlers.test.mjs` "wait
+   is bounded … stop then resume" no longer retries.

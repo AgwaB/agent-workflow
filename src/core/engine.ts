@@ -2751,6 +2751,38 @@ function assertRunResumableForResume(run: WorkflowRunRecord): void {
 	assertBlockedRunResumable(run);
 }
 
+/** WP37: how long `resume` waits for a just-stopped supervisor to release the run lease. */
+const RESUME_AFTER_STOP_LEASE_WAIT_MS = 10_000;
+const RESUME_AFTER_STOP_LEASE_POLL_MS = 100;
+let resumeAfterStopLeaseWait = {
+	timeoutMs: RESUME_AFTER_STOP_LEASE_WAIT_MS,
+	pollMs: RESUME_AFTER_STOP_LEASE_POLL_MS,
+};
+
+export function setResumeAfterStopLeaseWaitForTests(
+	options: { timeoutMs?: number; pollMs?: number } | undefined,
+): void {
+	resumeAfterStopLeaseWait = {
+		timeoutMs: options?.timeoutMs ?? RESUME_AFTER_STOP_LEASE_WAIT_MS,
+		pollMs: options?.pollMs ?? RESUME_AFTER_STOP_LEASE_POLL_MS,
+	};
+}
+
+/**
+ * The run is terminal (interrupted) because a stop was applied: a durable stop intent is still
+ * recorded, or the stop marked its tasks `workflow_stopped`. Only then is a held lease the stopped
+ * supervisor shutting down rather than another live supervisor.
+ */
+async function runStopRecordedForResume(
+	cwd: string,
+	runId: string,
+): Promise<boolean> {
+	const run = await readRunRecord(cwd, runId).catch(() => undefined);
+	if (run === undefined || run.status !== "interrupted") return false;
+	if (workflowStoppedTaskIds(run).length > 0) return true;
+	return (await readWorkflowStopIntent(cwd, runId)) !== undefined;
+}
+
 export async function resumeRun(
 	cwd: string,
 	runIdOrPrefix: string,
@@ -2760,111 +2792,71 @@ export async function resumeRun(
 	assertRunResumableForResume(current);
 
 	const resetTaskIds: string[] = [];
-	const updated = await withRunLease(
-		cwd,
-		current.runId,
-		async (leaseSignal) => {
-			assertResumeLeaseActive(leaseSignal);
-			const run = await readRunRecord(cwd, current.runId);
-			assertRunResumableForResume(run);
-			assertResumeLeaseActive(leaseSignal);
+	const resumeUnderLease = async (
+		leaseSignal: AbortSignal,
+	): Promise<WorkflowRunRecord> => {
+		assertResumeLeaseActive(leaseSignal);
+		const run = await readRunRecord(cwd, current.runId);
+		assertRunResumableForResume(run);
+		assertResumeLeaseActive(leaseSignal);
 
-			const activeCompiledFlow = await readCompiledWorkflow(cwd, run.runId);
-			assertResumeLeaseActive(leaseSignal);
-			if (!activeCompiledFlow) {
-				throw new Error(
-					`Cannot resume ${run.runId}: compiled workflow is missing`,
-				);
-			}
-			assertUnsupportedLegacyPreparedInvalidation(run, activeCompiledFlow);
-			const prepared = preparedInvalidationPlan(run, activeCompiledFlow);
-			if (!prepared) assertRunTaskPositionalAlignment(run, activeCompiledFlow);
-			assertResumeLoopOwnershipSupported(run, activeCompiledFlow);
-
-			const planned =
-				prepared ?? dependencyResumeInvalidationPlan(run, activeCompiledFlow);
-			if (planned) {
-				assertDependencyInvalidationRematerializable(
-					run,
-					activeCompiledFlow,
-					planned,
-				);
-			}
-			await resumeLeaseMutation(cwd, run.runId, leaseSignal, () =>
-				resolveWorkflowBackend(run).cleanupRun(cwd, run),
+		const activeCompiledFlow = await readCompiledWorkflow(cwd, run.runId);
+		assertResumeLeaseActive(leaseSignal);
+		if (!activeCompiledFlow) {
+			throw new Error(
+				`Cannot resume ${run.runId}: compiled workflow is missing`,
 			);
-			if (!planned) {
-				await resumeLeaseMutation(cwd, run.runId, leaseSignal, async () => {
-					for (const task of run.tasks) {
-						if (resetTaskForResume(task)) resetTaskIds.push(task.taskId);
-					}
-					if (resetTaskIds.length > 0)
-						await writeRunRecord(cwd, run, leaseSignal);
-				});
-				return run;
-			}
+		}
+		assertUnsupportedLegacyPreparedInvalidation(run, activeCompiledFlow);
+		const prepared = preparedInvalidationPlan(run, activeCompiledFlow);
+		if (!prepared) assertRunTaskPositionalAlignment(run, activeCompiledFlow);
+		assertResumeLoopOwnershipSupported(run, activeCompiledFlow);
 
-			if (!prepared) {
-				await resumeLeaseMutation(cwd, run.runId, leaseSignal, async () => {
-					run.invalidationJournal = {
-						generation: planned.generation,
-						idempotencyKey: planned.idempotencyKey,
-						sourceTaskIds: planned.sourceTaskIds,
-						invalidatedTaskIds: planned.invalidatedTaskIds,
-						foreachGroups: planned.foreachGroups,
-						taskOwnership: planned.taskOwnership,
-						unaffectedRunSignature: planned.unaffectedRunSignature,
-						unaffectedCompiledSignature: planned.unaffectedCompiledSignature,
-						artifactState: "pending",
-						status: "prepared",
-					} as WorkflowInvalidationJournal;
-					await writeRunRecord(cwd, run, leaseSignal);
-				});
-			}
-			await resumeLeaseMutation(cwd, run.runId, leaseSignal, () =>
-				quarantineDependencyInvalidationArtifacts(
-					cwd,
-					run,
-					planned,
-					leaseSignal,
-				),
+		const planned =
+			prepared ?? dependencyResumeInvalidationPlan(run, activeCompiledFlow);
+		if (planned) {
+			assertDependencyInvalidationRematerializable(
+				run,
+				activeCompiledFlow,
+				planned,
 			);
-			if (run.invalidationJournal?.artifactState !== "quarantined") {
-				await resumeLeaseMutation(cwd, run.runId, leaseSignal, async () => {
-					run.invalidationJournal = {
-						generation: planned.generation,
-						idempotencyKey: planned.idempotencyKey,
-						sourceTaskIds: planned.sourceTaskIds,
-						invalidatedTaskIds: planned.invalidatedTaskIds,
-						foreachGroups: planned.foreachGroups,
-						taskOwnership: planned.taskOwnership,
-						unaffectedRunSignature: planned.unaffectedRunSignature,
-						unaffectedCompiledSignature: planned.unaffectedCompiledSignature,
-						artifactState: "quarantined",
-						status: "prepared",
-					} as WorkflowInvalidationJournal;
-					await writeRunRecord(cwd, run, leaseSignal);
-				});
-			}
+		}
+		await resumeLeaseMutation(cwd, run.runId, leaseSignal, () =>
+			resolveWorkflowBackend(run).cleanupRun(cwd, run),
+		);
+		if (!planned) {
 			await resumeLeaseMutation(cwd, run.runId, leaseSignal, async () => {
-				const invalidatedTaskIds = applyDependencyResumeInvalidation(
-					run,
-					activeCompiledFlow,
-					planned,
-				);
-				const invalidatedTaskIdSet = new Set([
-					...planned.sourceTaskIds,
-					...planned.invalidatedTaskIds,
-				]);
-				resetTaskIds.push(
-					...invalidatedTaskIds,
-					...resetRemainingTasksForResume(run, invalidatedTaskIdSet),
-				);
-				await writeJsonAtomic(
-					compiledWorkflowPath(cwd, run.runId),
-					activeCompiledFlow,
-					leaseSignal,
-				);
+				for (const task of run.tasks) {
+					if (resetTaskForResume(task)) resetTaskIds.push(task.taskId);
+				}
+				if (resetTaskIds.length > 0)
+					await writeRunRecord(cwd, run, leaseSignal);
+			});
+			return run;
+		}
+
+		if (!prepared) {
+			await resumeLeaseMutation(cwd, run.runId, leaseSignal, async () => {
+				run.invalidationJournal = {
+					generation: planned.generation,
+					idempotencyKey: planned.idempotencyKey,
+					sourceTaskIds: planned.sourceTaskIds,
+					invalidatedTaskIds: planned.invalidatedTaskIds,
+					foreachGroups: planned.foreachGroups,
+					taskOwnership: planned.taskOwnership,
+					unaffectedRunSignature: planned.unaffectedRunSignature,
+					unaffectedCompiledSignature: planned.unaffectedCompiledSignature,
+					artifactState: "pending",
+					status: "prepared",
+				} as WorkflowInvalidationJournal;
+				await writeRunRecord(cwd, run, leaseSignal);
+			});
+		}
+		await resumeLeaseMutation(cwd, run.runId, leaseSignal, () =>
+			quarantineDependencyInvalidationArtifacts(cwd, run, planned, leaseSignal),
+		);
+		if (run.invalidationJournal?.artifactState !== "quarantined") {
+			await resumeLeaseMutation(cwd, run.runId, leaseSignal, async () => {
 				run.invalidationJournal = {
 					generation: planned.generation,
 					idempotencyKey: planned.idempotencyKey,
@@ -2875,13 +2867,60 @@ export async function resumeRun(
 					unaffectedRunSignature: planned.unaffectedRunSignature,
 					unaffectedCompiledSignature: planned.unaffectedCompiledSignature,
 					artifactState: "quarantined",
-					status: "applied",
+					status: "prepared",
 				} as WorkflowInvalidationJournal;
 				await writeRunRecord(cwd, run, leaseSignal);
 			});
-			return run;
-		},
-	);
+		}
+		await resumeLeaseMutation(cwd, run.runId, leaseSignal, async () => {
+			const invalidatedTaskIds = applyDependencyResumeInvalidation(
+				run,
+				activeCompiledFlow,
+				planned,
+			);
+			const invalidatedTaskIdSet = new Set([
+				...planned.sourceTaskIds,
+				...planned.invalidatedTaskIds,
+			]);
+			resetTaskIds.push(
+				...invalidatedTaskIds,
+				...resetRemainingTasksForResume(run, invalidatedTaskIdSet),
+			);
+			await writeJsonAtomic(
+				compiledWorkflowPath(cwd, run.runId),
+				activeCompiledFlow,
+				leaseSignal,
+			);
+			run.invalidationJournal = {
+				generation: planned.generation,
+				idempotencyKey: planned.idempotencyKey,
+				sourceTaskIds: planned.sourceTaskIds,
+				invalidatedTaskIds: planned.invalidatedTaskIds,
+				foreachGroups: planned.foreachGroups,
+				taskOwnership: planned.taskOwnership,
+				unaffectedRunSignature: planned.unaffectedRunSignature,
+				unaffectedCompiledSignature: planned.unaffectedCompiledSignature,
+				artifactState: "quarantined",
+				status: "applied",
+			} as WorkflowInvalidationJournal;
+			await writeRunRecord(cwd, run, leaseSignal);
+		});
+		return run;
+	};
+	let updated = await withRunLease(cwd, current.runId, resumeUnderLease);
+	// WP37: right after `stop` the stopped supervisor (often attached, in this process) may still
+	// hold the lease while it shuts down. Wait a bounded time for it; never take a live lease (B3).
+	if (!updated && (await runStopRecordedForResume(cwd, current.runId))) {
+		const deadline = Date.now() + resumeAfterStopLeaseWait.timeoutMs;
+		while (!updated && Date.now() < deadline) {
+			await sleep(resumeAfterStopLeaseWait.pollMs);
+			updated = await withRunLease(cwd, current.runId, resumeUnderLease);
+		}
+		if (!updated)
+			throw new Error(
+				`Cannot resume ${current.runId} yet: the previous supervisor is still shutting down; try again in a few seconds`,
+			);
+	}
 	if (!updated)
 		throw new Error(
 			`Could not acquire supervisor lease for ${current.runId}; another supervisor may be active`,
