@@ -19,6 +19,7 @@
 //   stepDelayMs   delay between script steps
 //   capabilities  partial capability table over the SDK fake's (WP4d negotiation tests)
 //   probe         probe() result (default: installed, auth ok)
+//   inheritHostTools / fast / fastApi  Pi-only per-task descriptor config (WP35), logged per submit
 import { appendFileSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createFakeExecutor } from "@agwab/agent-workflow/sdk/testing";
@@ -186,6 +187,12 @@ export function createExecutor(config) {
 				sessionId: req.sessionId ?? null,
 				resumeSessionId: req.resumeSessionId ?? null,
 				...(config.logPrompt === true ? { prompt: req.prompt } : {}),
+				// WP35: Pi-only per-task descriptor config the engine added for this attempt.
+				...Object.fromEntries(
+					["inheritHostTools", "fast", "fastApi"]
+						.filter((key) => config[key] !== undefined)
+						.map((key) => [key, config[key]]),
+				),
 			});
 			const inner = innerFor(req);
 			const authority = {

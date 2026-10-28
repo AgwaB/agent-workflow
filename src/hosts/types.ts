@@ -107,6 +107,12 @@ export interface HostApiContext {
 	 * (`/workflow profile`) are consulted at launch; hosts without a registry (CLI, MCP) skip them.
 	 */
 	availableModels?: WorkflowModelInfo[];
+	/**
+	 * WP35 (Pi host only): the host session has Pi's native codemode/MCP, so Pi workers may inherit
+	 * them (`inheritHostTools`). Launches record the run's host context with this project-trust
+	 * decision; the engine honors it only when the run's executor is pi.
+	 */
+	hostTools?: { projectTrusted: boolean };
 }
 
 export function hostEnv(ctx: HostApiContext): NodeJS.ProcessEnv {

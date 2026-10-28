@@ -133,7 +133,7 @@ exits 1; the intent stays durable and is applied when the supervisor next runs.
 
 | Executor | CLI | Notes |
 |---|---|---|
-| `pi` | `pi --mode json` | Pi 1.1+. deep-research needs the `pi-web-access` extension. |
+| `pi` | `pi --mode json` | Pi 1.1+. deep-research needs the `pi-web-access` extension (`pi install npm:pi-web-access`; `agent-workflow doctor` checks it). |
 | `codex` | `codex app-server` | codex-cli 0.159+. Coarse tool allowlist (a sandbox mode). |
 | `claude` | `claude -p` (stream-json) | Claude Code 2.1+. |
 
@@ -502,7 +502,7 @@ as "never started": nothing is retried automatically.
 | `Not started: no executor is usable` | No `--executor`/profile chose one and none of `pi`, `claude`, `codex` is installed and logged in. The message lists each CLI's state and its install or login command; `agent-workflow doctor` shows the same. |
 | `Not started: … EXECUTOR_NOT_INSTALLED` / `EXECUTOR_AUTH_NOT_READY` | The executor CLI is missing or not logged in. The message names the install command or the login command (`pi` then `/login`, `codex login`, `claude auth login`); or pick another `--executor`. |
 | `Not started: … CAPABILITY_REFUSED` | A stage needs something the executor cannot do. The message lists each refusal and its opt-in, if any (`--allow-unverified`, `allowReadOnlyDowngrade`, `--permission-mode free`). |
-| deep-research refused on Pi with `webTools` | Install the `pi-web-access` Pi extension, or use `--executor claude`/`codex`. |
+| deep-research refused on Pi with `webTools` | Your Pi has no `pi-web-access` (not bundled). Install it with `pi install npm:pi-web-access` (check with `pi list` or `agent-workflow doctor`), or use `--executor claude`/`codex`. The refusal and the preview name the same command. |
 | Codex runs show `readOnly`/`contextIsolation` warnings | Your `~/.codex/rules` has allow rules or a global `~/.codex/AGENTS.md` exists. Recorded only; remove them for a clean run. |
 | `Notice: agent "scout": legacy … shadows the bundled agent of the same name` in the preview | A legacy user agent (`~/.pi/agent/agents/scout.md`, …) takes precedence over the bundled one; the notice is also a compile warning and is recorded in `run.capabilityNegotiation.notices`. Rename or remove the legacy file, or copy the bundled agent into `.agent-workflow/agents/` to pin it. A project's own `.pi/agents/` override is not announced. |
 | `input <key> is not declared by this workflow (declared: …)`, `input <key> must be a number` (exit 2) | `--input` / `inputs` names a key the spec does not declare or a value of the wrong type. Use a declared key (`agent-workflow show <workflow>` shows `input`) and a value of the default's type. |

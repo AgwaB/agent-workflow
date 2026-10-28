@@ -83,10 +83,18 @@ Each adapter document has the full list under "Known limits".
 
 - No approvals and no sandbox: `free` and `safe` give the same argv; readOnly drops mutating tools.
 - `sessionBound`: no re-attach to a running Pi after its owning process dies.
-- deep-research needs the `pi-web-access` extension (refused otherwise).
+- deep-research needs the `pi-web-access` extension (refused otherwise). It is not bundled (C2); the
+  probe detects it via `pi list`, and the preview, the refusal and `agent-workflow doctor` name the
+  install command `pi install npm:pi-web-access` when it is missing (WP35).
+- Host tools (WP35): from a Pi 1.1 host with native codemode/MCP, non-readOnly Pi workers inherit
+  `codemode`, `tool_search`, `mcp__*` and the MCP resource tools (mutation-capable; readOnly stages never
+  inherit; recorded as a preview notice). Other hosts and other executors are unchanged; Codex/Claude
+  user-MCP inheritance is a separate opt-in (B6). Offline only; live check pending (live bundle 5).
 - Cost is Pi's catalog estimate (`source: estimated`), also on a subscription. (Fixed in WP12a: usage
   now carries cache-write tokens and the serving model, so Pi tasks record their model.)
-- Fast tier unverified.
+- Fast tier unverified: the provider-stream guard is ported (WP35; guard failure → `config`,
+  degrade → `payload-only`, reported in `pi-fast-tier.json`) and tested offline with fake provider
+  streams; it runs only with `allowUnverifiedCapabilities: ["fastTier"]` until a live check.
 
 **Codex** ([`executors/codex.md`](executors/codex.md#known-limits))
 
@@ -136,3 +144,20 @@ Each adapter document has the full list under "Known limits".
   (`logs`, `wait`, `status`, `inspect`, Pi completion messages) redacts structured credentials and
   macOS/Linux/Windows home paths, and `logs` reads only files inside `.agent-workflow/`. Executor
   attempt retention keeps a tombstone for every launched attempt (never reported as not started).
+
+## Pending live checks (live bundle 5)
+
+WP35 features are verified offline only (fake Pi host, fake provider streams, stub Pi CLI):
+
+- **Host tools (Pi host → Pi workers):** from a Pi 1.1 session with a configured MCP server, `/aw run`
+  a workflow with a non-readOnly stage on `--executor pi`; the run's preview shows the `host tools:`
+  notice, the worker argv has `--tools …,codemode,tool_search,mcp__*,…` plus `-e builtin:mcp`, and
+  the worker's `pi-stdout.jsonl` shows a completed `mcp__<server>__<tool>` (or codemode) call. A
+  readOnly stage of the same run has none of them.
+- **Fast tier:** a `fast: "on"` stage on `openai/gpt-5.5` (or an `openai-codex/*` model) with
+  `allowUnverifiedCapabilities: ["fastTier"]`; `<attempt>/pi-fast-tier.json` reads `status: guarded`
+  with `guardedRequests ≥ 1`, and the provider request carries `service_tier: priority`. Only then
+  `fastTier` may become `probed`.
+- **pi-web-access:** on a Pi without it, `agent-workflow doctor` warns with
+  `pi install npm:pi-web-access` and deep-research is refused naming the same command; after the
+  install, the probe note names the package path and deep-research runs.

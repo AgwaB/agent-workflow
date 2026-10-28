@@ -25,6 +25,12 @@ export const PI_ERROR_RULES: readonly PiErrorRule[] = [
 	{ class: "config", match: /Model ".*" not found/, evidence: "offline" },
 	{ class: "config", match: "Unknown option", evidence: "source" },
 	{ class: "config", match: "Invalid thinking level", evidence: "source" },
+	// WP35: the fast-tier guard aborted a request whose model/payload left the launch binding.
+	{
+		class: "config",
+		match: /workflow fast mode .*binding mismatch|fast tier failed/,
+		evidence: "offline",
+	},
 	// Missing credentials for a provider: exits 1 before any request (offline transcript).
 	{ class: "auth", match: "No API key found for", evidence: "offline" },
 	// Provider rejected the credential: assistant stopReason "error", exit 0 (live transcript).

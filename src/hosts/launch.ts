@@ -8,6 +8,7 @@
 // v1 capture schema only knows Pi slash commands and Pi tools); the detached supervisor is the
 // `agent-workflow supervise` CLI and logs to `<run dir>/supervise.log`.
 // WP17: HostApiContext.host reaches the engine (host-default executor) and launch data shows it.
+// WP35: HostApiContext.hostTools (Pi host) → run option inheritHostTools + the run's host context.
 import { spawn } from "node:child_process";
 import { closeSync, openSync } from "node:fs";
 import { join } from "node:path";
@@ -26,6 +27,7 @@ import {
 	type WorkflowSavedUserProfileLayer,
 } from "../core/engine.js";
 import { workflowDefinitionFingerprint } from "../core/execution-profile.js";
+import { createHostContext, withHostContext } from "../core/host-context.js";
 import {
 	HOST_DEFAULT_EXECUTORS,
 	INSTALLED_DEFAULT_ORDER,
@@ -984,6 +986,7 @@ async function launchClaimed(
 		...(overrides ? { runtimeOverrides: overrides } : {}),
 		...(runtimeDefaults ? { runtimeDefaults } : {}),
 		...(ctx.availableModels ? { availableModels: ctx.availableModels } : {}),
+		...(ctx.hostTools ? { inheritHostTools: true } : {}),
 		...(inputOverrides ? { inputOverrides } : {}),
 		[WORKFLOW_PROMPT_SCHEMA_DIAGNOSTIC_SINK]: (notice, digest) => {
 			if (digest === promptSchemaDigest) return;
@@ -997,7 +1000,17 @@ async function launchClaimed(
 	if (displaced) return displaced;
 	let run: WorkflowRunRecord;
 	try {
-		run = await start(options);
+		// WP35: a host that lends its tools records its host context on the run.
+		run = await (ctx.hostTools
+			? withHostContext(
+					createHostContext({
+						cwd: ctx.cwd,
+						projectTrusted: ctx.hostTools.projectTrusted,
+						env: hostEnv(ctx),
+					}),
+					() => start(options),
+				)
+			: start(options));
 	} catch (error) {
 		if (error instanceof WorkflowDefinitionChangedError)
 			return result(

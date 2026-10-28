@@ -7,6 +7,7 @@
 // recorded and the run proceeds, as in the CLI with --yes). WP16: without a dialog UI, a declared
 // profile choice falls back to text (the headless choice is made and the choices are listed with
 // `--profile`), and `deps.feedback` carries the status line and completion delivery (feedback.ts).
+// WP35: a native codemode/MCP Pi session lends its host tools to Pi workers (piNativeHostTools).
 import * as hostApi from "../api.js";
 import type { HostApiContext, HostOutcome, LaunchRequestBase } from "../api.js";
 import { toWorkflowModelInfo } from "../../core/workflow-runtime.js";
@@ -126,6 +127,28 @@ function availableModels(
 }
 
 /**
+ * WP35 (row 40): Pi's native host tools, captured like pi-workflow's native host context: a Pi 1.1
+ * session with native MCP (`pi.getMcpServers`) and project trust (`ctx.isProjectTrusted`) lends
+ * codemode, tool_search, `mcp__*` and the MCP resource tools to Pi workers. Older Pi hosts lend
+ * nothing (their launches are unchanged).
+ */
+export function piNativeHostTools(
+	pi: PiExtensionApi,
+	ctx: PiExtensionContext,
+): HostApiContext["hostTools"] {
+	if (
+		typeof pi.getMcpServers !== "function" ||
+		typeof ctx.isProjectTrusted !== "function"
+	)
+		return undefined;
+	try {
+		return { projectTrusted: ctx.isProjectTrusted() === true };
+	} catch {
+		return undefined;
+	}
+}
+
+/**
  * Host context of one call. Pi's current model is a runtime default for Pi workers only: when the
  * caller selects another executor (`--executor codex`), the Pi model is not passed on.
  */
@@ -135,6 +158,7 @@ export function hostContext(
 	launch: { executor?: string } = {},
 ): HostApiContext {
 	const models = availableModels(ctx);
+	const hostTools = piNativeHostTools(deps.pi, ctx);
 	const runtimeDefaults =
 		launch.executor === undefined || launch.executor === "pi"
 			? currentRuntimeDefaults(ctx, deps.pi)
@@ -146,6 +170,7 @@ export function hostContext(
 		host: "pi",
 		...(models ? { availableModels: models } : {}),
 		...(runtimeDefaults ? { runtimeDefaults } : {}),
+		...(hostTools ? { hostTools } : {}),
 	};
 }
 

@@ -198,7 +198,10 @@ blocked as pending. That is the safety the Pi tool names used to imply. **WP6 ho
 `codemode`, `tool_search`, `mcp__*`, `list_mcp_resources`, `list_mcp_resource_templates` and
 `read_mcp_resource` only when `runtime.inheritHostTools === true`. Other executors ignore the flag.
 Launch provenance (below) then fails closed, because it still expects exactly one Pi `native-host`
-wrapper for such a task.
+wrapper for such a task. **WP35:** the Pi host sets the option (`docs/pi-host.md`); the engine honors it
+only when the run's executor is `pi`; readOnly stages compile with `inheritHostTools: false`; provenance
+requires the run's `pi` executor instead of the wrapper, and the task backend passes the flag to the Pi
+executor as per-task descriptor config.
 
 **artifact-access.** `prepareDagTask` writes `<task dir>/artifact-access.json` with mode 0600. The file
 is canonical JSON (sorted keys) of `{version: 1, runId, taskId, manifestPath, ledgerPath,
@@ -362,7 +365,8 @@ and the legacy `.pi` directory.
 - **WP6:**
   - Honor `runtime.inheritHostTools` (native tool list above) and emit exactly one `native-host` wrapper
     bound to `run.hostContext`.
-  - Re-home the fast-mode provider guard on `fast-tier.ts` config.
+  - Re-home the fast-mode provider guard on `fast-tier.ts` config. (WP35: done in the Pi executor's
+    per-run extension; the task backend passes `fast`/`fastApi` as per-task descriptor config.)
   - Map `HostContext` from the Pi `ExtensionContext` (`isProjectTrusted`) at launch.
 - `serverSpecSha256` includes `process.execPath`. A node upgrade between recording and re-checking the same
   attempt's provenance fails closed. The old wrapper digest already pinned the package path.

@@ -11,6 +11,7 @@
 // WP5b: the probe summary keeps the executor's declared MCP output limit (mcpOutputLimitChars,
 // mcpOutputNoticeChars) so the artifact server is launched with a measured limit.
 // WP17: install/login hints come from executor-default.ts (first-run guidance names the install command).
+// WP35: host-tool inheritance (Pi host + Pi executor) is recorded as a notice in the preview and record.
 import {
 	type ExecutorCapabilities,
 	mergeProbedCapabilities,
@@ -406,6 +407,31 @@ function probeHeader(summary: WorkflowExecutorProbeSummary): string[] {
 	];
 }
 
+/**
+ * WP35: one notice recording host-tool inheritance (Pi host + Pi executor) in the preview and the
+ * negotiation record: which stages get the host's native tools and which readOnly stages do not.
+ */
+export function hostToolInheritanceNotice(
+	tasks: readonly CompiledTask[],
+): string | undefined {
+	const inheriting = tasks
+		.filter((task) => task.runtime.inheritHostTools === true)
+		.map((task) => task.id);
+	const withheld = tasks
+		.filter(
+			(task) =>
+				task.runtime.inheritHostTools === false && workflowTaskReadOnly(task),
+		)
+		.map((task) => task.id);
+	if (inheriting.length === 0 && withheld.length === 0) return undefined;
+	const by = inheriting.length === 0 ? "no stage" : inheriting.join(", ");
+	const not =
+		withheld.length === 0
+			? ""
+			: `; not by readOnly stage${withheld.length === 1 ? "" : "s"} ${withheld.join(", ")}`;
+	return `host tools: the Pi host's codemode, tool_search, MCP tools (mcp__*) and MCP resource tools are inherited by ${by} (mutation-capable: worktree and approval rules apply)${not}`;
+}
+
 export interface NegotiateWorkflowRunInput {
 	descriptor: ExecutorDescriptor;
 	compiled: Pick<CompiledWorkflow, "tasks" | "stages" | "agentNotices">;
@@ -449,6 +475,10 @@ export async function negotiateWorkflowRun(
 		negotiateTask(executor, probed.capabilities, task, policy, "pre-launch"),
 	);
 	const notices = [...(input.compiled.agentNotices ?? [])];
+	const hostTools = hostToolInheritanceNotice(
+		workflowNegotiationTargets(input.compiled),
+	);
+	if (hostTools !== undefined) notices.push(hostTools);
 	const preview = buildCapabilityPreview(stages, {
 		executor,
 		header: probeHeader(probed.summary),

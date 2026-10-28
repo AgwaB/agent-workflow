@@ -1,7 +1,9 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/launch-bootstrap-provenance.ts. MIT, same author. Changes: artifact provenance digests the canonical ArtifactAccessConfig + workflow_artifact MCP server spec instead of the Pi extension wrapper (WP5b: the server spec as launched, with the run's --max-output-chars); native host check → HostContext/inheritHostTools; env PI_WORKFLOW_{EXTERNAL_LAUNCH_GRANT_SHA256,REQUIRE_EXTERNAL_LAUNCH_GRANT}→AGENT_WORKFLOW_*.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/launch-bootstrap-provenance.ts. MIT, same author. Changes: artifact provenance digests the canonical ArtifactAccessConfig + workflow_artifact MCP server spec instead of the Pi extension wrapper (WP5b: the server spec as launched, with the run's --max-output-chars); native host check → HostContext/inheritHostTools; env PI_WORKFLOW_{EXTERNAL_LAUNCH_GRANT_SHA256,REQUIRE_EXTERNAL_LAUNCH_GRANT}→AGENT_WORKFLOW_*. WP35: host-tool inheritance requires the run's pi executor instead of a generated native-host wrapper.
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+
+import { PI_EXECUTOR_ID } from "../executors/pi/version.js";
 
 import {
 	type ArtifactAccessConfig,
@@ -77,8 +79,10 @@ export async function createLaunchBootstrapProvenance(
 	);
 	// Host-tool inheritance (Pi executor only, WP6) is sealed into the launch:
 	// the prepared launch carries the run's HostContext exactly when the task
-	// inherits host tools, and then exactly one Pi "native-host" wrapper bound
-	// to it (fails closed for executors that cannot inherit host tools).
+	// inherits host tools. WP35: the Pi executor adds the host tools itself
+	// (per-task descriptor config), so the run's executor must be pi (fails
+	// closed for executors that cannot inherit host tools); a generated
+	// "native-host" wrapper, when present, must still be bound to the context.
 	const inheritHostTools =
 		preparedTask.runtime.inheritHostTools === true &&
 		preparedTask.runtime.tools?.length !== 0;
@@ -92,11 +96,16 @@ export async function createLaunchBootstrapProvenance(
 	const nativeExtensions = preparedLaunch.generatedExtensions.filter(
 		(entry) => entry.kind === "native-host",
 	);
+	if (expectedHostContext !== undefined && run.executor?.id !== PI_EXECUTOR_ID)
+		throw new Error(
+			`workflow host-tool inheritance needs the pi executor; this run uses ${run.executor?.id ?? "no recorded executor"}`,
+		);
 	if (
-		nativeExtensions.length !== (expectedHostContext === undefined ? 0 : 1) ||
-		(expectedHostContext !== undefined &&
-			canonicalJson(nativeExtensions[0]?.config) !==
-				canonicalJson(expectedHostContext))
+		nativeExtensions.length > (expectedHostContext === undefined ? 0 : 1) ||
+		nativeExtensions.some(
+			(entry) =>
+				canonicalJson(entry.config) !== canonicalJson(expectedHostContext),
+		)
 	) {
 		throw new Error("workflow host-tool extension does not match the run");
 	}

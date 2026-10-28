@@ -58,8 +58,10 @@ import {
 import { type PiExecutorConfig, parsePiExecutorConfig } from "./config.js";
 import { PiEventNormalizer, PiJsonlSplitter } from "./parse.js";
 import {
+	PI_FAST_TIER_STATE_FILE,
 	PI_PARENT_WATCH_FD,
 	PI_RUN_SECRETS_ENV,
+	type PiFastTierState,
 	type PiRunConfig,
 	piRunExtensionSource,
 } from "./run-extension.js";
@@ -234,6 +236,25 @@ export function parsePiModelList(text: string): string[] {
 	return models;
 }
 
+/** Install command of Pi's web tools (C2: not bundled; the user's Pi provides them). */
+export const PI_WEB_ACCESS_INSTALL = "pi install npm:pi-web-access";
+
+/**
+ * WP35 (row 57): what to tell the user when Pi's web tools are not available. `listFailed`: `pi list`
+ * could not run, so their presence is unknown rather than known missing.
+ */
+export function piWebAccessGuidance(listFailed = false): string {
+	return `${
+		listFailed
+			? "could not check for pi-web-access (`pi list` failed)"
+			: "pi-web-access (Pi's web_search/fetch_content tools) is not installed in this Pi"
+	}; stages that use web tools (deep-research) are refused on the pi executor. Install it: \`${PI_WEB_ACCESS_INSTALL}\` (check with \`pi list\`), or run them with --executor claude or codex`;
+}
+
+/** Probe-note prefixes (doctor shows them; the missing one is also a warning). */
+export const PI_WEB_TOOLS_NOTE = "web tools: ";
+export const PI_WEB_TOOLS_MISSING_NOTE = "web tools missing: ";
+
 /** Path of the `pi-web-access` package in `pi list` output (line after the source). */
 export function parsePiWebAccessPath(text: string): string | null {
 	const lines = text.split("\n");
@@ -243,6 +264,62 @@ export function parsePiWebAccessPath(text: string): string | null {
 			if (path?.startsWith("/")) return path;
 		}
 	return null;
+}
+
+/** WP35: the fast-tier guard report of an attempt (`pi-fast-tier.json`), if the extension wrote one. */
+export async function readPiFastTierState(
+	runDir: string,
+): Promise<PiFastTierState | undefined> {
+	try {
+		const value = JSON.parse(
+			await readFile(join(runDir, PI_FAST_TIER_STATE_FILE), "utf8"),
+		) as PiFastTierState;
+		return value?.schema === "agent-workflow-pi-fast-tier-v1"
+			? value
+			: undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * WP35: a fast-tier guard failure (binding mismatch → request aborted) is a configuration
+ * failure of the attempt, reported with the guard's reason instead of Pi's generic abort.
+ * Degradation (`payload-only`) does not change the outcome; it stays in the state file and stderr.
+ */
+export function piFastTierOutcome(
+	event: ExecEvent,
+	state: PiFastTierState | undefined,
+): ExecEvent {
+	if (state?.status !== "failed" || event.type === "approval_request")
+		return event;
+	if (event.type === "failed" && event.class === "cancelled") return event;
+	const message = `fast tier failed: ${state.reason ?? "binding check failed"}`;
+	if (event.type === "failed")
+		return {
+			...event,
+			class: "config",
+			message,
+			raw: {
+				...(typeof event.raw === "object" &&
+				event.raw !== null &&
+				!Array.isArray(event.raw)
+					? event.raw
+					: {}),
+				message,
+			},
+		};
+	if (event.type === "completed")
+		return {
+			type: "failed",
+			class: "config",
+			message,
+			raw: { message },
+			...(event.ownedSession === undefined
+				? {}
+				: { ownedSession: event.ownedSession }),
+		};
+	return event;
 }
 
 function killGroup(pid: number | undefined, signal: NodeJS.Signals): void {
@@ -390,7 +467,7 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 			if (webAccess === null)
 				throw new SdkError(
 					"CAPABILITY_MISSING",
-					"web tools need the pi-web-access extension, which `pi list` does not show",
+					`web tools need the pi-web-access extension, which \`pi list\` does not show: ${piWebAccessGuidance()}`,
 					{ subject: "webTools" },
 				);
 			extensionsAfter.push(webAccess);
@@ -547,6 +624,14 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 		const runConfig: PiRunConfig = {
 			...baseRunConfig,
 			mcpLogPath: join(runDir, PI_MCP_LOG_FILE),
+			...(baseRunConfig.fastTier === undefined
+				? {}
+				: {
+						fastTier: {
+							...baseRunConfig.fastTier,
+							statePath: join(runDir, PI_FAST_TIER_STATE_FILE),
+						},
+					}),
 			...(budget === undefined
 				? {}
 				: {
@@ -722,7 +807,14 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 				await queueRecord(() =>
 					store.write({ ...spawnedRecord, phase: "exited", exit }),
 				);
-				emit(run, normalizer.finish({ ...exit, stderr }));
+				const fastState =
+					runConfig.fastTier === undefined
+						? undefined
+						: await readPiFastTierState(runDir);
+				emit(
+					run,
+					piFastTierOutcome(normalizer.finish({ ...exit, stderr }), fastState),
+				);
 			})();
 		});
 		await spawnedWrite;
@@ -757,10 +849,17 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 			() => "",
 		);
 		events.push(
-			normalizer.finish({
-				...(record.exit ?? { exitCode: null, signal: null, cancelled: false }),
-				stderr,
-			}),
+			piFastTierOutcome(
+				normalizer.finish({
+					...(record.exit ?? {
+						exitCode: null,
+						signal: null,
+						cancelled: false,
+					}),
+					stderr,
+				}),
+				await readPiFastTierState(runDir),
+			),
 		);
 		return events;
 	}
@@ -830,6 +929,18 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 			const webAccess =
 				config.webAccessExtension ??
 				(list?.code === 0 ? parsePiWebAccessPath(list.stdout) : null);
+			// WP35 (row 57): web tools are not bundled (C2); say whether this Pi has them and how to
+			// install them (doctor shows the note, negotiation the warning).
+			const webGuidance =
+				webAccess === null
+					? piWebAccessGuidance(list !== undefined && list.code !== 0)
+					: undefined;
+			if (installed)
+				notes.push(
+					webGuidance === undefined
+						? `${PI_WEB_TOOLS_NOTE}pi-web-access ${webAccess} (web_search, fetch_content)`
+						: `${PI_WEB_TOOLS_MISSING_NOTE}${webGuidance}`,
+				);
 			if (
 				installed &&
 				!versionAtLeast(cliVersion as string, PI_MIN_CLI_VERSION)
@@ -855,6 +966,9 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 									...level("none", "probed"),
 									detail: "none",
 									safetyPolicy: "unknown",
+									...(webGuidance === undefined
+										? {}
+										: { warning: webGuidance }),
 								}
 							: {
 									...level("native", "probed", `pi-web-access via pi list`),

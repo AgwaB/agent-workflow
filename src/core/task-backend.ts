@@ -1,5 +1,8 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 535-558, 2868-3609, 3821-4245, 6401-6701, 6756-6774, 7371-end, and src/backend.ts (the backend object and its fatal-error wrapper). MIT, same author. Changes: implements the WorkflowBackend on the runtime API (executor descriptor recorded on the run, engine-issued attemptKey, SubmitRequest fields readOnly/isolation/approvalPolicy/env/mcpServers); Pi argv/extension preflight/noExtensions/skills/toolResultBudget/worker-role process env not ported (Pi executor, WP6); R#5 worktree gate before launch; registered for local-pi/headless run records. WP4d: launch-time capability decision from the run's recorded B4 negotiation (refusal → fatal before any effect; forcedReadOnly → SubmitRequest.readOnly and approval policy). WP4e: SubmitRequest.permissionMode from the run record (absent = safe). WP10: the system and task prompts are rendered per executor (artifact tool visible name, artifact tool guidelines section); the workflow_web_* source-card hint is removed (C2) and the refs URL hint names the CLI web tools.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 535-558, 2868-3609, 3821-4245, 6401-6701, 6756-6774, 7371-end, and src/backend.ts (the backend object and its fatal-error wrapper). MIT, same author. Changes: implements the WorkflowBackend on the runtime API (executor descriptor recorded on the run, engine-issued attemptKey, SubmitRequest fields readOnly/isolation/approvalPolicy/env/mcpServers); Pi argv/extension preflight/noExtensions/skills/toolResultBudget/worker-role process env not ported (Pi executor, WP6); R#5 worktree gate before launch; registered for local-pi/headless run records. WP4d: launch-time capability decision from the run's recorded B4 negotiation (refusal → fatal before any effect; forcedReadOnly → SubmitRequest.readOnly and approval policy). WP4e: SubmitRequest.permissionMode from the run record (absent = safe). WP10: the system and task prompts are rendered per executor (artifact tool visible name, artifact tool guidelines section); the workflow_web_* source-card hint is removed (C2) and the refs URL hint names the CLI web tools. WP35: Pi-only per-task options (inheritHostTools; fast/fastApi when negotiation accepted fastTier) reach the Pi executor as per-task descriptor config.
+import { PI_EXECUTOR_ID } from "../executors/pi/version.js";
 import type { ExecutorDescriptor } from "../sdk/descriptor.js";
+import type { NegotiationReport } from "../sdk/requirements.js";
+import { isPlainObject, type JsonValue } from "../sdk/json.js";
 import type { ToolKind } from "../sdk/events.js";
 import { isMutatingKind, PI_TOOL_KINDS } from "../sdk/tools.js";
 import { AGENT_WORKFLOW_ROLE_ENV } from "./process-role.js";
@@ -185,7 +188,7 @@ export async function launchSubagentTask(
 	let executor: ExecutorDescriptor;
 	// WP4d (B4): the recorded capability negotiation decides refusal and forced readOnly for this
 	// task before any effect; runs recorded before WP4d carry none and are not checked.
-	let capabilityLaunch: { forcedReadOnly: boolean };
+	let capabilityLaunch: ReturnType<typeof workflowTaskCapabilityLaunch>;
 	try {
 		// Runs created directly through the store (or imported records) carry no selection yet:
 		// they get the legacy record executor (pi-workflow records ran on Pi), which must itself be
@@ -453,7 +456,12 @@ export async function launchSubagentTask(
 		);
 		const subagentOptions: Record<string, unknown> = {
 			cwd: task.cwd,
-			executor,
+			executor: workflowTaskExecutorDescriptor(
+				executor,
+				compiledTask,
+				sealedLaunch,
+				capabilityLaunch,
+			),
 			attemptKey: workflowExecutorAttemptKey(run, task, launchAuthority),
 			task: renderedTaskPrompt,
 			systemPrompt: renderedSystemPrompt,
@@ -1141,6 +1149,39 @@ function captureToolCallsEnabled(): boolean {
 }
 
 /**
+ * WP35: the executor descriptor for one task. Pi-only per-task options travel as descriptor config
+ * (docs/executors/pi.md): `inheritHostTools` exactly when the sealed launch carries the run's host
+ * context (the task inherits host tools); `fast: "on"` (+ `fastApi`, the API the compiler bound)
+ * when the task asks for the fast tier and the recorded negotiation accepted `fastTier` (an
+ * `unverified` fastTier needs the run's opt-in; without it the preview said "runs without fast
+ * tier", so the worker runs without it). Runs recorded before negotiation get no fast tier. Other
+ * executors get the recorded descriptor unchanged.
+ */
+export function workflowTaskExecutorDescriptor(
+	descriptor: ExecutorDescriptor,
+	compiledTask: Pick<CompiledTask, "runtime">,
+	launch: Pick<PreparedWorkflowTaskLaunch, "hostContext">,
+	capability: { report?: NegotiationReport } = {},
+): ExecutorDescriptor {
+	if (descriptor.id !== PI_EXECUTOR_ID) return descriptor;
+	const extra: Record<string, JsonValue> = {};
+	if (launch.hostContext !== undefined) extra.inheritHostTools = true;
+	const fastAccepted = capability.report?.entries.some(
+		(entry) =>
+			entry.key === "fastTier" &&
+			(entry.outcome === "native" || entry.outcome === "emulated"),
+	);
+	if (compiledTask.runtime.fast === "on" && fastAccepted === true) {
+		extra.fast = "on";
+		const api = (compiledTask.runtime as { api?: unknown }).api;
+		if (typeof api === "string" && api !== "") extra.fastApi = api;
+	}
+	if (Object.keys(extra).length === 0) return descriptor;
+	const base = isPlainObject(descriptor.config) ? descriptor.config : {};
+	return { ...descriptor, config: { ...base, ...extra } };
+}
+
+/**
  * Prepare the sealed launch inputs for one task (subagent-backend.ts 6406-6639). Pi-only parts
  * (provider extension resolution, fetch-cache/web-source/native-host/fast-mode wrappers, the
  * extension isolation probe) are not ported: they belong to the Pi executor (WP6) or were dropped
@@ -1162,8 +1203,9 @@ export async function prepareSubagentTaskLaunch(
 		requireArtifactBinding,
 	);
 	// Host-tool inheritance (Pi executor only, WP6): the prepared launch carries the run's
-	// HostContext exactly when the task inherits host tools. Launch provenance then requires the
-	// Pi native-host wrapper, which only the Pi executor provides, so other executors fail closed.
+	// HostContext exactly when the task inherits host tools. WP35: launch provenance then requires
+	// the run's executor to be pi (it receives `inheritHostTools` as per-task descriptor config,
+	// workflowTaskExecutorDescriptor), so other executors fail closed.
 	const hostContext =
 		compiledTask.runtime.inheritHostTools === true &&
 		compiledTask.runtime.tools?.length !== 0
