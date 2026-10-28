@@ -26,8 +26,9 @@ say the same.
 
 Hosts prefix the names: with the Claude Code plugin they appear as
 `mcp__plugin_agent-workflow_agent-workflow__<tool>`, with `claude mcp add agent-workflow` as
-`mcp__agent-workflow__<tool>`, and in Codex as `mcp__agent-workflow__<tool>`. Use whichever form your
-tool list shows.
+`mcp__agent-workflow__<tool>`, and in Codex as `mcp__agent_workflow__<tool>` (hyphen → underscore; in
+Codex code mode they are functions inside an `exec` cell: `tools.mcp__agent_workflow__<tool>(…)`).
+Use whichever form your tool list shows.
 
 ## Run protocol
 

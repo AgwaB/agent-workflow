@@ -245,6 +245,8 @@ input 30, cache read 567,411, cache write 34,077, output 2,922. No `codex exec` 
    (`docs/plugins.md`) wrote `[projects."<cwd>"] trust_level = "trusted"` into the real
    `config.toml`; use a throw-away `CODEX_HOME` or restore the file. The adapter's worker threads did
    not write it.
+   WP18b: `docs/plugins.md` now runs the probe with a throw-away `CODEX_HOME` and inline
+   `-c projects={…}` trust, with a backup/restore step for the real config.
 8. Still open from stage 1: a domain verdict fails the run (`support_declared_failed`, case 4a;
    WP18b presents it as "finished — verdict: X (report ready)", engine semantics unchanged);
    Claude adapter attempt records are not pruned (`executors/claude/attempts` 56 → 112).
@@ -403,5 +405,7 @@ sessions of live 4).
    inside `exec`, not top-level `mcp__agent-workflow__workflow_*`; long `workflow_wait` calls yield
    the cell after 30 s and continue via `wait`. It worked, but `docs/plugins.md` names the
    non-code-mode form.
+   WP18b: `docs/plugins.md` and the `agent-workflow` skill name `mcp__agent_workflow__<tool>` and the
+   code-mode form `tools.mcp__agent_workflow__<tool>`.
 
 Open problem 1 above is resolved by this section; open problems 2–8 are unchanged.

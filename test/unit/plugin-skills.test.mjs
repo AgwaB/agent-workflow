@@ -96,6 +96,13 @@ test("skill tool names are the host MCP server's tools", () => {
 		main,
 		new RegExp(`mcp__${hostServer.HOST_MCP_SERVER_NAME}__<tool>`),
 	);
+	// WP18b (live 4b): Codex shows the server name with hyphens as underscores.
+	assert.match(
+		main,
+		new RegExp(
+			`mcp__${hostServer.HOST_MCP_SERVER_NAME.replaceAll("-", "_")}__<tool>`,
+		),
+	);
 });
 
 test("plugin skills carry no Pi-only names and the router stays recommendation-only", () => {

@@ -128,7 +128,10 @@ The skills use the short names (`workflow_run`, …). Hosts prefix them:
 |---|---|
 | Claude Code plugin | `mcp__plugin_agent-workflow_agent-workflow__workflow_run` (Claude Code's `mcp__plugin_<plugin>_<server>__` scheme) |
 | `claude mcp add agent-workflow` | `mcp__agent-workflow__workflow_run` |
-| Codex (plugin or `mcp add`) | `mcp__agent-workflow__workflow_run` (Codex: "plugin-provided MCP tools keep standard MCP identifiers") |
+| Codex (plugin or `mcp add`) | `mcp__agent_workflow__workflow_run`: Codex turns the hyphen of the server name into an underscore (observed live 4b, codex-cli 0.159.2). In code mode, the 0.159.2 default, the model's only tools are `exec` (a JavaScript cell) and `wait`; the MCP tools are functions inside the cell, called as `tools.mcp__agent_workflow__workflow_run({…})`. The `codex exec --json` stream still reports server `agent-workflow`, tool `workflow_run`. |
+
+A `workflow_wait` call (up to 45 s) can outlast Codex's 30 s code-mode cell yield; the model then
+resumes the cell with `wait` ([live-acceptance-stage2.md](live-acceptance-stage2.md#case-2-codex-host--codex-workers)).
 
 Codex lists plugin skills as `agent-workflow:agent-workflow`, `agent-workflow:workflow-guide`,
 `agent-workflow:execution-router`.
@@ -193,10 +196,32 @@ $ codex -c "$T" -c "$M" mcp list
 ```
 
 `codex mcp list` does not start servers. To see skills and tools without a model turn, drive
-`codex app-server` over stdio (same `CODEX_HOME` and `-c` overrides, cwd `<tmp>/cproj`):
-`initialize` → `thread/start {cwd, ephemeral: true}` → `skills/list {cwds:[cwd], forceReload:true}`
-→ `mcpServerStatus/list {threadId}`; never `turn/start`. (Thread start also tries to pre-connect
-the Responses websocket; without a login it fails with 401 and nothing is sent.)
+`codex app-server` over stdio, cwd `<tmp>/cproj`: `initialize` → `thread/start {cwd, ephemeral:
+true}` → `skills/list {cwds:[cwd], forceReload:true}` → `mcpServerStatus/list {threadId}`; never
+`turn/start`. (Thread start also tries to pre-connect the Responses websocket; without a login it
+fails with 401 and nothing is sent.)
+
+**`thread/start` trusts its cwd in the config it runs with**: it writes `[projects."<cwd>"]
+trust_level = "trusted"` into `$CODEX_HOME/config.toml` unless the project is already trusted
+(live 4 wrote this entry into the real `~/.codex/config.toml`). Keep the probe away from the user
+config:
+
+```sh
+export CODEX_HOME="$(mktemp -d)"          # throw-away; never the real ~/.codex for this probe
+T='projects={"<tmp>/cproj"={trust_level="trusted"},"/private<tmp>/cproj"={trust_level="trusted"}}'
+codex -c "$T" -c "$M" app-server          # inline trust: thread/start writes no trust_level entry
+```
+
+The inline `projects` override (both the path and its `/private` realpath on macOS) also kept the
+real config untouched in live 4b, where the real `CODEX_HOME` (login) was needed. If the real
+config must be used, back it up first and restore it afterwards:
+
+```sh
+cp ~/.codex/config.toml /tmp/codex-config.backup.toml
+# … codex -c "$T" … runs …
+diff /tmp/codex-config.backup.toml ~/.codex/config.toml   # expect no trust_level line
+cp /tmp/codex-config.backup.toml ~/.codex/config.toml && cmp /tmp/codex-config.backup.toml ~/.codex/config.toml
+```
 
 ```
 skill: agent-workflow:agent-workflow   -> $CODEX_HOME/plugins/cache/agent-workflow/agent-workflow/0.1.0/skills/agent-workflow/SKILL.md
