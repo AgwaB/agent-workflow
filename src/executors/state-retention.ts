@@ -22,6 +22,7 @@ import {
 	lstat,
 	readFile,
 	readdir,
+	realpath,
 	rename,
 	rm,
 	stat,
@@ -29,7 +30,7 @@ import {
 	writeFile,
 } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 /** Terminal attempt records older than this are pruned (7 days). */
 export const ADAPTER_STATE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -189,6 +190,26 @@ export async function pruneAdapterAttemptState(
 		removedPaths: [],
 		errors: [],
 	};
+	// WP19 (review #3): containment is physical, not lexical. The state dir's real path is the
+	// root; `attempts/` must be a real directory (not a symlink), and every path removed must have
+	// only real directories between the root and itself, with a parent whose real path is still
+	// inside the root. A symlinked ancestor (`attempts/`, Pi `runs/`, a per-attempt dir) is refused.
+	let stateReal: string;
+	try {
+		stateReal = await realpath(stateDir);
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+			summary.errors.push(`${stateDir}: ${String(error)}`);
+		return summary;
+	}
+	const attemptsInfo = await lstat(attemptsDir).catch(() => undefined);
+	if (!attemptsInfo) return summary;
+	if (attemptsInfo.isSymbolicLink() || !attemptsInfo.isDirectory()) {
+		summary.errors.push(
+			`${attemptsDir}: refused, not a real directory inside the state dir (symlink or other file type)`,
+		);
+		return summary;
+	}
 	let entries: string[];
 	try {
 		entries = await readdir(attemptsDir);
@@ -197,9 +218,32 @@ export async function pruneAdapterAttemptState(
 			summary.errors.push(`${attemptsDir}: ${String(error)}`);
 		return summary;
 	}
+	const physicallyInside = async (path: string): Promise<string | true> => {
+		if (!isInside(stateDir, path)) return "outside the state dir";
+		const segments = relative(stateDir, resolve(path)).split(sep);
+		let current = stateDir;
+		for (const segment of segments.slice(0, -1)) {
+			current = join(current, segment);
+			const info = await lstat(current).catch(() => undefined);
+			if (!info) return `ancestor ${current} is gone`;
+			if (info.isSymbolicLink()) return `ancestor ${current} is a symlink`;
+			if (!info.isDirectory()) return `ancestor ${current} is not a directory`;
+		}
+		const parentReal = await realpath(dirname(resolve(path))).catch(
+			() => undefined,
+		);
+		if (parentReal === undefined) return "parent is gone";
+		if (parentReal !== stateReal && !isInside(stateReal, parentReal))
+			return `parent resolves outside the state dir (${parentReal})`;
+		return true;
+	};
 	const remove = async (path: string) => {
-		if (!isInside(stateDir, path)) return;
 		if ((await mtimeMs(path)) === undefined) return;
+		const contained = await physicallyInside(path);
+		if (contained !== true) {
+			summary.errors.push(`${path}: refused, ${contained}`);
+			return;
+		}
 		summary.removedPaths.push(path);
 		if (dryRun) return;
 		try {
