@@ -171,12 +171,27 @@ status entry, without the board widget or the presentation lease. Only with a UI
   warning notification. A run launched by `/aw` (the user) does not start an agent turn
   (`triggerTurn: false`); a run launched by `aw_run`/`aw_dynamic` (the agent) is delivered as a
   `followUp` turn with pi-workflow's "treat as data, summarize/present the result" instruction.
-- **Exactly once.** One delivery per run, session and settled state (epoch = SHA-256 of the run
-  status and each task's status, timestamps, exit code and resume events; a resumed run that settles
-  again is a new epoch). The receipt `<run dir>/pi-feedback-receipts/<epoch>.json` is created
-  exclusively *before* `pi.sendMessage` and removed if sending throws (retried on the next poll, at
-  most 4 attempts, then an error notification), so a restart or a second Pi process of the same
-  session never delivers again.
+- **Once while Pi runs, at least once after a crash (WP19, review #5).** One delivery per run,
+  session and settled state (epoch = SHA-256 of the run status and each task's status, timestamps,
+  exit code and resume events; a resumed run that settles again is a new epoch). The receipt
+  `<run dir>/pi-feedback-receipts/<epoch>.json` is first a *pending reservation* (`state:
+  "pending"`, owner token and pid, written under a per-epoch lock before `pi.sendMessage`) and
+  becomes an *acknowledged delivery* (`state: "delivered"`) once `sendMessage` returned; a throwing
+  send drops the reservation (retried on the next poll, at most 4 attempts, then an error
+  notification). A pending reservation whose owner is gone (a crash between reservation and send,
+  or between send and acknowledgement) is resolved against the recipient: Pi's session history
+  (`ctx.sessionManager.getEntries()`) is searched for an `agent-workflow-completion`
+  `custom_message` whose `details` carry this `runId` and `feedbackEpoch`; found = acknowledged,
+  not found = sent again. An empty or corrupt receipt is never proof of delivery. Residuals: a Pi
+  that exposes no `getEntries` gets the message again after such a crash (at least once, never
+  lost); a message Pi itself queued in memory (sent while the agent was streaming) and lost in a Pi
+  crash after the acknowledgement is not resent. Receipts written before WP19 count as delivered
+  when the history holds the run's message or the history is unreadable.
+- **Session fence (WP19, review #6).** Pi's `sendMessage` goes to the runtime's *current* session
+  (there is no session-targeted form). Right before it, synchronously, the delivery re-checks the
+  current session id against the audience and the tracker's session generation (bumped on
+  `session_start`/`session_shutdown`); on a mismatch nothing is sent, the reservation is dropped
+  (`session-changed`) and the delivery stays pending for the audience session's next catch-up.
 - **Restart.** At `session_start` (after the unfinished-run notice, not awaited) the host tracks
   this session's runs that are still active and delivers, without a turn, those that settled while
   no Pi process of the session watched (top-level runs updated in the last 7 days, at most 5).

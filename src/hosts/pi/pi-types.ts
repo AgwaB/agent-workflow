@@ -32,7 +32,16 @@ export interface PiExtensionContext {
 	model?: PiModelLike | undefined;
 	modelRegistry?: { getAvailable?: () => PiModelLike[] } | undefined;
 	/** WP16: the session id is the audience of completion delivery. */
-	sessionManager?: { getSessionId?: () => string } | undefined;
+	sessionManager?:
+		| {
+				getSessionId?: () => string;
+				/**
+				 * WP19: all session entries (Pi `ReadonlySessionManager.getEntries()`); completion
+				 * delivery looks for its own `custom_message` here after a crash.
+				 */
+				getEntries?: () => unknown[];
+		  }
+		| undefined;
 }
 
 /** `pi.sendMessage` custom message (WP16 completion delivery). */

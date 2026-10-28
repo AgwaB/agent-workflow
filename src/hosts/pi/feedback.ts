@@ -17,8 +17,18 @@
 // WP18b: the message shows the domain verdict (`Verdict: NEEDS_WORK`) and the run status
 // (`Run status: completed`) on separate lines (was `Verdict: <run status>`); a run whose only
 // failure is the final verdict gate is headed "finished — verdict: X (report ready)".
-import { createHash } from "node:crypto";
-import { mkdir, open, readFile, unlink } from "node:fs/promises";
+// WP19 (reviews #5, #6): the receipt is a pending reservation, then an acknowledged delivery; a
+// pending one left by a crash is resolved against Pi's session history (at least once, never
+// lost), and the current session is re-checked right before `sendMessage` (see deliverCompletion).
+import { createHash, randomBytes } from "node:crypto";
+import {
+	mkdir,
+	open,
+	readFile,
+	rename,
+	unlink,
+	writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
 
 import {
@@ -27,6 +37,7 @@ import {
 	workflowRunDir,
 } from "../../core/store.js";
 import type { WorkflowRunRecord } from "../../core/types.js";
+import { acquireDirectoryLock } from "../../runtime/artifacts/dir-lock.js";
 import { summarizeWorkflowTerminal } from "../../core/workflow-terminal.js";
 import {
 	formatVerdictGateHeadline,
@@ -60,7 +71,14 @@ interface FeedbackAudience {
 	boundAt: string;
 }
 
-export type DeliveryOutcome = "delivered" | "already-delivered" | "not-owner";
+export type DeliveryOutcome =
+	| "delivered"
+	| "already-delivered"
+	| "not-owner"
+	/** WP19: another delivery of this process (or a live one) is sending it right now. */
+	| "in-flight"
+	/** WP19: the current session changed during delivery; nothing was sent. */
+	| "session-changed";
 
 export function piSessionId(ctx: PiExtensionContext): string | undefined {
 	try {
@@ -296,16 +314,138 @@ async function buildCompletionMessage(
 	return { content, notice, details };
 }
 
+/** A receipt file: a pending reservation, or an acknowledged delivery. */
+interface FeedbackReceipt {
+	schema: typeof RECEIPT_SCHEMA;
+	runId: string;
+	sessionId: string;
+	epoch: string;
+	status: string;
+	/** WP19: `pending` = reserved, maybe not sent; `delivered` = `sendMessage` returned. */
+	state?: "pending" | "delivered";
+	/** WP19: the reserving delivery (unique per attempt) and its process. */
+	token?: string;
+	pid?: number;
+	reservedAt?: string;
+	deliveredAt?: string;
+}
+
+async function readReceipt(file: string): Promise<FeedbackReceipt | undefined> {
+	try {
+		const value = JSON.parse(await readFile(file, "utf8")) as FeedbackReceipt;
+		return value?.schema === RECEIPT_SCHEMA ? value : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+async function writeReceipt(file: string, receipt: FeedbackReceipt) {
+	const temp = `${file}.${process.pid}.${randomBytes(6).toString("hex")}.tmp`;
+	await writeFile(temp, `${JSON.stringify(receipt)}\n`, { mode: 0o600 });
+	try {
+		await rename(temp, file);
+	} catch (error) {
+		await unlink(temp).catch(() => undefined);
+		throw error;
+	}
+}
+
+/** Reservations this process is sending right now (receipt path → token). */
+const inFlight = new Map<string, string>();
+/** A pending reservation older than this whose owner is not sending any more is resolved. */
+const RESERVATION_STALE_MS = 60_000;
+
+function processAlive(pid: unknown): boolean {
+	if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 0)
+		return false;
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch (error) {
+		return (error as NodeJS.ErrnoException).code === "EPERM";
+	}
+}
+
+/** Another delivery is sending this receipt right now (do not send a second copy). */
+function reservationLive(
+	file: string,
+	receipt: FeedbackReceipt,
+	nowMs: number,
+): boolean {
+	if (receipt.state !== "pending" || !receipt.token) return false;
+	if (receipt.pid === process.pid) return inFlight.get(file) === receipt.token;
+	const reservedAt = Date.parse(receipt.reservedAt ?? "");
+	return (
+		processAlive(receipt.pid) &&
+		Number.isFinite(reservedAt) &&
+		nowMs - reservedAt < RESERVATION_STALE_MS
+	);
+}
+
 /**
- * Deliver one settled run into this session: exactly once per run, session and epoch. The receipt
- * is created exclusively before sending (so a second process or a restart sees it) and removed if
- * sending throws.
+ * WP19 (review #5): Pi's session history is the durable recipient. True when the current session
+ * already holds this run's completion message for `epoch` (a `custom_message` entry of our type
+ * whose details carry the run id and epoch); `undefined` when this Pi exposes no history.
+ */
+export function sessionHasCompletion(
+	ctx: PiExtensionContext,
+	runId: string,
+	/** `undefined`: any epoch (receipts written before WP19 carry no epoch in the message). */
+	epoch: string | undefined,
+): boolean | undefined {
+	let entries: unknown[];
+	try {
+		const read = ctx.sessionManager?.getEntries;
+		if (typeof read !== "function") return undefined;
+		entries = read.call(ctx.sessionManager) as unknown[];
+	} catch {
+		return undefined;
+	}
+	if (!Array.isArray(entries)) return undefined;
+	return entries.some((entry) => {
+		const value = entry as {
+			type?: unknown;
+			customType?: unknown;
+			details?: { runId?: unknown; feedbackEpoch?: unknown };
+		};
+		return (
+			value?.type === "custom_message" &&
+			value.customType === AW_COMPLETION_MESSAGE_TYPE &&
+			value.details?.runId === runId &&
+			(epoch === undefined || value.details?.feedbackEpoch === epoch)
+		);
+	});
+}
+
+/**
+ * Deliver one settled run into this session: at most one message per run, session and epoch while
+ * Pi runs, and at least once after a crash.
+ *
+ * WP19 (review #5): the receipt separates a *pending reservation* (written before `sendMessage`)
+ * from an *acknowledged delivery* (`state: "delivered"`, written after `sendMessage` returned). A
+ * pending reservation whose owner is gone (crash between reservation and send, or between send
+ * and acknowledgement) is resolved against the recipient: Pi's session history
+ * (`ctx.sessionManager.getEntries()`) is searched for our `custom_message` with this run id and
+ * epoch; found = acknowledged, not found = sent again. An empty, corrupt or foreign receipt is never
+ * proof of delivery. Without a readable history the reservation is resent (at least once).
+ *
+ * WP19 (review #6): the session is fenced. The current session id (and the caller's `fence`, e.g.
+ * the tracker's session generation) is re-checked synchronously right before `pi.sendMessage`
+ * (Pi's `sendMessage` is bound to the current session; it has no session-targeted form). On a
+ * mismatch nothing is sent, the reservation is dropped and the outcome is `session-changed`: the
+ * delivery stays pending for the audience session's next catch-up.
  */
 export async function deliverCompletion(
 	pi: PiExtensionApi,
 	ctx: PiExtensionContext,
 	run: WorkflowRunRecord,
-	options: { triggerTurn: boolean; now?: number; cwd?: string },
+	options: {
+		triggerTurn: boolean;
+		now?: number;
+		cwd?: string;
+		/** WP19: synchronous check that the delivering session is still current. */
+		fence?: () => boolean;
+	},
 ): Promise<DeliveryOutcome> {
 	const cwd = options.cwd ?? ctx.cwd;
 	const sessionId = piSessionId(ctx);
@@ -313,31 +453,99 @@ export async function deliverCompletion(
 	if (!sessionId || audience?.sessionId !== sessionId) return "not-owner";
 	const epoch = feedbackEpoch(run);
 	const receipt = feedbackReceiptPath(cwd, run.runId, epoch);
-	await mkdir(join(workflowRunDir(cwd, run.runId), FEEDBACK_RECEIPTS_DIR), {
-		recursive: true,
-	});
+	const receiptsDir = join(
+		workflowRunDir(cwd, run.runId),
+		FEEDBACK_RECEIPTS_DIR,
+	);
+	await mkdir(receiptsDir, { recursive: true });
 	const message = await completionMessage(cwd, run, {
 		instruct: options.triggerTurn,
 	});
-	const created = await createExclusive(receipt, {
+	const nowMs = options.now ?? Date.now();
+	const token = randomBytes(12).toString("hex");
+	const base = {
 		schema: RECEIPT_SCHEMA,
 		runId: run.runId,
 		sessionId,
 		epoch,
 		status: run.status,
-		deliveredAt: new Date(options.now ?? Date.now()).toISOString(),
+	} as const;
+	// Reserve under the receipt's mutex, so two deliveries never both decide to send.
+	const lock = await acquireDirectoryLock(join(receiptsDir, `${epoch}.lock`), {
+		retries: 250,
+		retryMs: 20,
 	});
-	if (!created) return "already-delivered";
+	let decision: "send" | "already-delivered" | "in-flight";
+	try {
+		const existing = await readReceipt(receipt);
+		const legacy =
+			existing !== undefined &&
+			existing.state === undefined &&
+			existing.epoch === epoch &&
+			typeof existing.deliveredAt === "string";
+		if (existing?.state === "delivered" && existing.epoch === epoch)
+			decision = "already-delivered";
+		else if (
+			legacy &&
+			sessionHasCompletion(ctx, run.runId, undefined) !== false
+		)
+			// A receipt written before WP19 (reserved before sending): the session history holds
+			// the run's message, or this Pi has no readable history to say otherwise.
+			decision = "already-delivered";
+		else if (existing && reservationLive(receipt, existing, nowMs))
+			decision = "in-flight";
+		else if (
+			existing !== undefined &&
+			sessionHasCompletion(ctx, run.runId, epoch) === true
+		) {
+			// Sent before a crash, never acknowledged: the recipient has it.
+			await writeReceipt(receipt, {
+				...base,
+				state: "delivered",
+				token,
+				pid: process.pid,
+				deliveredAt: new Date(nowMs).toISOString(),
+			});
+			decision = "already-delivered";
+		} else {
+			await writeReceipt(receipt, {
+				...base,
+				state: "pending",
+				token,
+				pid: process.pid,
+				reservedAt: new Date(nowMs).toISOString(),
+			});
+			inFlight.set(receipt, token);
+			decision = "send";
+		}
+	} finally {
+		await lock().catch(() => undefined);
+	}
+	if (decision !== "send") return decision;
+	const dropReservation = async () => {
+		inFlight.delete(receipt);
+		const current = await readReceipt(receipt);
+		if (current?.token === token && current.state === "pending")
+			await unlink(receipt).catch(() => undefined);
+	};
 	try {
 		const send = pi.sendMessage?.bind(pi);
 		if (!send) throw new Error("this Pi has no sendMessage");
+		// WP19 (review #6): the fence and the send are one synchronous step.
+		if (
+			piSessionId(ctx) !== sessionId ||
+			(options.fence !== undefined && !options.fence())
+		) {
+			await dropReservation();
+			return "session-changed";
+		}
 		await Promise.resolve(
 			send(
 				{
 					customType: AW_COMPLETION_MESSAGE_TYPE,
 					content: message.content,
 					display: true,
-					details: message.details,
+					details: { ...message.details, feedbackEpoch: epoch },
 				},
 				options.triggerTurn
 					? { triggerTurn: true, deliverAs: "followUp" }
@@ -345,9 +553,17 @@ export async function deliverCompletion(
 			),
 		);
 	} catch (error) {
-		await unlink(receipt).catch(() => undefined);
+		await dropReservation();
 		throw error;
 	}
+	inFlight.delete(receipt);
+	await writeReceipt(receipt, {
+		...base,
+		state: "delivered",
+		token,
+		pid: process.pid,
+		deliveredAt: new Date(Date.now()).toISOString(),
+	}).catch(() => undefined);
 	try {
 		ctx.ui.notify(
 			message.notice,
@@ -484,6 +700,8 @@ export class PiRunFeedback {
 			const outcome = await deliverCompletion(this.pi, ctx, run, {
 				triggerTurn: false,
 				now: this.now(),
+				// WP19 (review #6): a session switch during catch-up sends nothing.
+				fence: () => generation === this.generation && this.ctx === ctx,
 			}).catch(() => undefined);
 			if (outcome === "delivered") delivered += 1;
 		}
@@ -551,11 +769,14 @@ export class PiRunFeedback {
 				continue;
 			}
 			try {
-				await deliverCompletion(this.pi, ctx, run, {
+				const outcome = await deliverCompletion(this.pi, ctx, run, {
 					triggerTurn: tracked.launchedBy === "tool",
 					now: this.now(),
 					cwd: tracked.cwd,
+					// WP19 (review #6): the session generation is re-checked right before sending.
+					fence: () => generation === this.generation && this.ctx === ctx,
 				});
+				if (outcome === "session-changed" || outcome === "in-flight") continue;
 				this.runs.delete(key);
 			} catch (error) {
 				tracked.failures += 1;
