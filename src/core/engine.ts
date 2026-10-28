@@ -2706,11 +2706,29 @@ function applyDependencyResumeInvalidation(
 				: false;
 		if (task.generation !== journal.generation) {
 			task.generation = journal.generation;
+			// Live bundle 5 (WP39): the launch-bootstrap provenance and launch authority histories
+			// belong to one task generation (their records name the task with its generation, and
+			// every record of a history must name the same task). The previous generation's attempts
+			// are superseded (their artifacts are quarantined), so the relaunch starts new histories;
+			// keeping the old ones failed every relaunch of a task that had been launched before the
+			// stop ("launch-bootstrap provenance is malformed", then "workflow launch authority
+			// history is malformed").
+			task.launchBootstrap = undefined;
+			task.launchAuthority = undefined;
 		}
 		task.dispatchMap = undefined;
 		if (reset) resetTaskIds.push(task.taskId);
 	}
 	return resetTaskIds;
+}
+
+/** Tests only: apply a dependency invalidation plan to a run record in memory. */
+export function applyDependencyResumeInvalidationForTests(
+	run: WorkflowRunRecord,
+	compiledFlow: CompiledWorkflow,
+	journal: ResumeDependencyInvalidationPlan,
+): string[] {
+	return applyDependencyResumeInvalidation(run, compiledFlow, journal);
 }
 
 function resetRemainingTasksForResume(
