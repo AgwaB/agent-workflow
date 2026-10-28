@@ -368,3 +368,46 @@ test("launch provenance: inheriting host tools needs the run's pi executor (fail
 	assert.equal(record.effectivePolicy.inheritHostTools, true);
 	await assert.rejects(provenance("codex"), /needs the pi executor/u);
 });
+
+// WP39b (live bundle 5, O8): a worker that inherits the host tools was told "Only these tools are
+// enabled: read, bash … unavailable tools cannot be called" and answered "tool_search is not
+// available". Its Effective Tool Policy now lists the inherited host tools as available; a readOnly
+// stage's policy is unchanged.
+test("the Effective Tool Policy of a worker that inherits host tools lists them as available", async () => {
+	const { readFile } = await import("node:fs/promises");
+	const { cwd, specPath } = await project();
+	fixture("pi");
+	const ctx = {
+		cwd,
+		env: process.env,
+		host: "pi",
+		hostTools: { projectTrusted: true },
+	};
+	const { run } = await launch(ctx, specPath, "pi");
+	const prompt = async (specId) =>
+		readFile(
+			join(
+				cwd,
+				run.tasks.find((task) => task.taskId === specId).files.systemPrompt,
+			),
+			"utf8",
+		);
+	// Task ids follow the stage order: task-1 = change, task-2 = look.
+	const change = await prompt("task-1");
+	assert.match(
+		change,
+		/Host tools inherited from the Pi session are also available: codemode, tool_search, mcp__\* \(matching MCP tools\), list_mcp_resources, list_mcp_resource_templates, read_mcp_resource;/u,
+	);
+	assert.match(
+		change,
+		/Only these workflow tools are enabled for this workflow task: [^\n]*read[^\n]*bash/u,
+	);
+	assert.doesNotMatch(change, /unavailable tools cannot be called/u);
+	assert.match(change, /use them when the task needs them/u);
+	const look = await prompt("task-2");
+	assert.doesNotMatch(look, /Host tools inherited/u);
+	assert.match(
+		look,
+		/unavailable tools cannot be called in this workflow run/u,
+	);
+});

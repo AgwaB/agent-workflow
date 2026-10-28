@@ -188,6 +188,15 @@ apply yet.
    Tests: `core-wp39b-worktree-state.test.mjs` (all fail on the old code),
    `core-unit-dynamic-runtime.test.mjs` "mutation-capable agents publish from managed and shared
    loop worktrees" (expects the project's mirror now).
+8. WP39b (live bundle 5, O8): the worker system prompt's "Effective Tool Policy" of a task that
+   inherits the Pi host's tools (the sealed launch carries the run's host context, exactly when the
+   Pi executor gets `inheritHostTools`) lists them as available: "Host tools inherited from the Pi
+   session are also available: codemode, tool_search, mcp__* (matching MCP tools),
+   list_mcp_resources, list_mcp_resource_templates, read_mcp_resource; use them when the task needs
+   them", and the stage's own list reads "Only these workflow tools …". Before, it said only the
+   stage's tools were enabled and "unavailable tools cannot be called", and the live worker answered
+   "tool_search is not available". readOnly stages (never inheriting) keep the old text. Test:
+   `executor-wp35-host-tools.test.mjs` "the Effective Tool Policy …" (fails on the old code).
 
 Left unchanged on purpose (not paths or env vars; flagged for later WPs):
 
