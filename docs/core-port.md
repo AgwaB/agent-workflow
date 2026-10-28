@@ -766,6 +766,14 @@ any executor ran any stage with no refusal, degradation record or preview. WP4d 
    `capabilityNegotiation` (created before WP4d, or directly through the store) are not checked.
 7. **Nested runs** reuse the parent's probe (`reusedFromRunId`), `allowUnverified` and `strict`, and are
    never interactive.
+8. **Mixed runs (WP31, Q4).** A role profile can assign stages to several executors
+   (`role-execution.ts`). Each other executor is probed once (`negotiateWorkflowRun` input
+   `executors`), each task template is negotiated against `task.runtime.executor`, the preview's
+   summary names every executor, refusals name the stage and its executor, and role models are
+   checked against the probe's model list (`MODEL_UNKNOWN`; a probe without a list adds a notice).
+   The record keeps the run executor's probe/capabilities at the top level and the others in
+   `executors.<id>`; `workflowTaskCapabilityLaunch` uses the task's executor. Single-executor runs
+   take none of these paths (record unchanged).
 
 ### Run options and spec fields (new)
 

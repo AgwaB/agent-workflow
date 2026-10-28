@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-generated-task-runtime.ts. MIT, same author. Changes: fast-mode config from fast-tier.ts; native-host tool expansion → tool-policy inheritHostTools flag from run.inheritHostTools (task still classified mutation-capable). WP10 (C2): the web budget section applies to the CLI web tools web_search/fetch_content (was workflow_web_*).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-generated-task-runtime.ts. MIT, same author. Changes: fast-mode config from fast-tier.ts; native-host tool expansion → tool-policy inheritHostTools flag from run.inheritHostTools (task still classified mutation-capable). WP10 (C2): the web budget section applies to the CLI web tools web_search/fetch_content (was workflow_web_*). WP31: generated workers run on the dynamic stage's executor (runtime.executor) in role-profile runs and inherit host tools only on pi.
 import { loadAgentByName } from "./agents.js";
 import { readArtifactGraphControl } from "./artifact-graph-runtime.js";
 import { DynamicControllerBudgetBlocked } from "./dynamic-controller-errors.js";
@@ -41,6 +41,7 @@ import { resolveWorkflowFastModeConfig } from "./fast-tier.js";
 import {
 	applyWorkflowToolPolicy,
 	INHERITED_HOST_TOOLS_CLASSIFICATION,
+	runInheritsHostToolsForTask,
 } from "./tool-policy.js";
 
 const DYNAMIC_OUTPUT_MAX_DIGEST_CHARS = 1000;
@@ -206,11 +207,17 @@ export async function buildDynamicGeneratedCompiledTask(input: {
 		agent: requestedAgent,
 		tools: authoredTools,
 	});
-	// The persisted run is authoritative for the host-tool decision.
+	// The persisted run is authoritative for the host-tool decision. WP31×WP35: generated workers
+	// run on the dynamic stage's executor and inherit host tools only when it is pi.
 	const nativeToolPolicy = applyWorkflowToolPolicy(
 		authoredTools,
 		authoredToolProviders,
-		{ inheritHostTools: input.run.inheritHostTools === true },
+		{
+			inheritHostTools: runInheritsHostToolsForTask(
+				input.run,
+				input.controllerCompiledTask,
+			),
+		},
 	);
 	const tools = nativeToolPolicy.tools;
 	const toolProviders = nativeToolPolicy.toolProviders;
@@ -231,8 +238,13 @@ export async function buildDynamicGeneratedCompiledTask(input: {
 	) {
 		selectedRuntime.api = controllerRuntimeApi;
 	}
+	// WP31: a dynamic stage of a role-profile run keeps its executor; its workers resolve models
+	// only against the registry compiled for that stage.
+	const controllerExecutor = input.controllerCompiledTask.runtime.executor;
 	const availableModels =
-		input.availableModels ?? input.dynamic.availableModels;
+		controllerExecutor === undefined
+			? (input.availableModels ?? input.dynamic.availableModels)
+			: input.dynamic.availableModels;
 	const resolvedRuntime = await resolveWorkflowRuntime(
 		selectedRuntime,
 		{
@@ -331,6 +343,9 @@ export async function buildDynamicGeneratedCompiledTask(input: {
 		runtime: {
 			approvalMode: "non-interactive",
 			...resolvedRuntime,
+			...(controllerExecutor === undefined
+				? {}
+				: { executor: controllerExecutor }),
 			tools,
 			...(toolProviders ? { toolProviders } : {}),
 			...(nativeToolPolicy.inheritHostTools === undefined

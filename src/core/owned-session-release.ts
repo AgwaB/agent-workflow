@@ -7,6 +7,8 @@
 //   - blocked and interrupted runs (and their failed/blocked/interrupted tasks) keep theirs until
 //     the run is resolved or pruned.
 // Only locators recorded in `task.ownedSessions` are ever passed to `executor.deleteOwnedSession`.
+// WP31 (Q4): in a mixed run each session is released through the executor that reported it
+// (`session.executorId`, descriptor from run.executor or run.roleExecution.executors).
 import { loadExecutor } from "../sdk/descriptor.js";
 import {
 	EXPERIMENTAL_SAME_SESSION_REPAIR_ENV,
@@ -14,6 +16,7 @@ import {
 } from "./experimental-speed-flags.js";
 import { deriveWorkflowStatus, nowIso, summarizeTasks } from "./store.js";
 import type {
+	WorkflowRunExecutorSelection,
 	WorkflowRunRecord,
 	WorkflowTaskOwnedSessionRecord,
 	WorkflowTaskRunRecord,
@@ -65,48 +68,33 @@ export async function releaseUnneededOwnedSessions(
 		releasableSessions(task, runTerminal),
 	);
 	if (work.length === 0) return false;
-	const descriptor = run.executor?.descriptor;
-	let deleteOwnedSession:
-		| ((
-				session: Pick<WorkflowTaskOwnedSessionRecord, "kind" | "locator">,
-		  ) => Promise<string>)
-		| undefined;
-	let loadError: string | undefined;
-	if (descriptor === undefined) loadError = "run records no executor";
-	else {
-		try {
-			const executor = await loadExecutor(descriptor);
-			if (typeof executor.deleteOwnedSession === "function")
-				deleteOwnedSession = (session) =>
-					(
-						executor.deleteOwnedSession as NonNullable<
-							typeof executor.deleteOwnedSession
-						>
-					)({ kind: session.kind, locator: session.locator });
-		} catch (error) {
-			loadError = error instanceof Error ? error.message : String(error);
+	const loaded = new Map<string, Promise<LoadedReleaser>>();
+	const releaserFor = (executorId: string): Promise<LoadedReleaser> => {
+		let entry = loaded.get(executorId);
+		if (entry === undefined) {
+			entry = loadReleaser(run, executorId);
+			loaded.set(executorId, entry);
 		}
-	}
+		return entry;
+	};
 	for (const session of work) {
 		const at = nowIso();
-		if (loadError !== undefined) {
-			session.release = { at, outcome: "failed", error: loadError };
+		// WP31 (Q4): a mixed run releases each session through the executor that owns it.
+		const releaser = await releaserFor(session.executorId);
+		if (releaser.kind === "load-error") {
+			session.release = { at, outcome: "failed", error: releaser.error };
 			continue;
 		}
-		if (descriptor !== undefined && session.executorId !== descriptor.id) {
-			session.release = {
-				at,
-				outcome: "refused",
-				error: `session belongs to executor ${session.executorId}, not ${descriptor.id}`,
-			};
+		if (releaser.kind === "foreign") {
+			session.release = { at, outcome: "refused", error: releaser.error };
 			continue;
 		}
-		if (deleteOwnedSession === undefined) {
+		if (releaser.deleteOwnedSession === undefined) {
 			session.release = { at, outcome: "unsupported" };
 			continue;
 		}
 		try {
-			const outcome = await deleteOwnedSession(session);
+			const outcome = await releaser.deleteOwnedSession(session);
 			session.release =
 				outcome === "deleted" ||
 				outcome === "not_found" ||
@@ -123,6 +111,59 @@ export async function releaseUnneededOwnedSessions(
 		}
 	}
 	return true;
+}
+
+type LoadedReleaser =
+	| { kind: "load-error"; error: string }
+	| { kind: "foreign"; error: string }
+	| {
+			kind: "ready";
+			deleteOwnedSession?: (
+				session: Pick<WorkflowTaskOwnedSessionRecord, "kind" | "locator">,
+			) => Promise<string>;
+	  };
+
+/** The run's descriptor for `executorId` (the run's executor or, WP31, another of a mixed run). */
+export function runExecutorSelectionFor(
+	run: Pick<WorkflowRunRecord, "executor" | "roleExecution">,
+	executorId: string,
+): WorkflowRunExecutorSelection | undefined {
+	if (run.executor?.id === executorId) return run.executor;
+	const executors = run.roleExecution?.executors ?? {};
+	return Object.hasOwn(executors, executorId)
+		? executors[executorId]
+		: undefined;
+}
+
+async function loadReleaser(
+	run: WorkflowRunRecord,
+	executorId: string,
+): Promise<LoadedReleaser> {
+	const primary = run.executor?.descriptor;
+	if (primary === undefined)
+		return { kind: "load-error", error: "run records no executor" };
+	const selection = runExecutorSelectionFor(run, executorId);
+	if (selection === undefined)
+		return {
+			kind: "foreign",
+			error: `session belongs to executor ${executorId}, not ${primary.id}`,
+		};
+	try {
+		const executor = await loadExecutor(selection.descriptor);
+		if (typeof executor.deleteOwnedSession !== "function")
+			return { kind: "ready" };
+		const remove = executor.deleteOwnedSession.bind(executor);
+		return {
+			kind: "ready",
+			deleteOwnedSession: (session) =>
+				remove({ kind: session.kind, locator: session.locator }),
+		};
+	} catch (error) {
+		return {
+			kind: "load-error",
+			error: error instanceof Error ? error.message : String(error),
+		};
+	}
 }
 
 /** True when the session is gone (deleted by the engine or already absent). */

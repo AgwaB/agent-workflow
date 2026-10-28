@@ -14,6 +14,7 @@
 // Probe results that are usable are cached per process for a short time (EXECUTOR_PROBE_CACHE_TTL_MS)
 // so the selection probe and the capability negotiation probe of the same run share one CLI probe;
 // unusable results and probe failures are never cached (a fresh login is seen on the next run).
+// WP31: the saved per-workflow preference tier sits between the run flag and the declared profile.
 import type { ExecutorCapabilities } from "../sdk/capabilities.js";
 import type { AuthStatus, ExecutorProbe } from "../sdk/contract.js";
 import { type ExecutorDescriptor, loadExecutor } from "../sdk/descriptor.js";
@@ -409,6 +410,9 @@ function candidateSummary(
 
 export interface ResolveRunExecutorInput {
 	runFlag?: string;
+	/** WP31: saved per-workflow preference (role `default` executor), below the run flag. */
+	workflowPreferenceName?: string;
+	workflowPreferenceExecutor?: string;
 	workflowProfileName?: string;
 	workflowProfileExecutor?: string;
 	userProfileName?: string;
@@ -436,6 +440,12 @@ export async function resolveRunExecutorForHost(
 ): Promise<WorkflowRunExecutorSelection> {
 	const explicit = {
 		...(present(input.runFlag) ? { runFlag: input.runFlag } : {}),
+		...(present(input.workflowPreferenceExecutor)
+			? {
+					workflowPreferenceName: input.workflowPreferenceName,
+					workflowPreferenceExecutor: input.workflowPreferenceExecutor,
+				}
+			: {}),
 		...(present(input.workflowProfileExecutor)
 			? {
 					workflowProfileName: input.workflowProfileName,

@@ -4,7 +4,7 @@
 // docs/host-api.md. Logic ported from pi-workflow 0.16.4 (b83cc4f) src/extension.ts and src/cli.mjs
 // (see each module's header). WP17: `doctor` (doctor.ts) and the optional HostApiContext.host.
 // WP16: the duplicate-launch guard covers detached launches (launch-guard.ts, outcome `existing`)
-// and the `logs` action (logs.ts).
+// and the `logs` action (logs.ts). WP31: `workflowPreferenceAction` (saved per-workflow preferences).
 import { showWorkflowSpecAction } from "./catalog.js";
 import { showRunAction } from "./runs.js";
 import type { HostApiContext, HostResult } from "./types.js";
@@ -41,6 +41,9 @@ export {
 	type ValidateData,
 	validateWorkflowAction,
 	type WorkflowListSummary,
+	type WorkflowPreferenceData,
+	type WorkflowPreferenceRequest,
+	workflowPreferenceAction,
 	workflowRolesAction,
 } from "./catalog.js";
 export {
@@ -136,6 +139,10 @@ export {
 	USER_PROFILE_FIELDS,
 	userProfilesPath,
 } from "./user-profiles.js";
+export {
+	type WorkflowPreference,
+	workflowPreferencesPath,
+} from "./workflow-preferences.js";
 
 /** `show <ref> [raw]`: a run (`--raw`, or a `workflow_…` id) or else a workflow spec. */
 export async function showAction(

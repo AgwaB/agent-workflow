@@ -126,6 +126,20 @@ Each adapter document has the full list under "Known limits".
 - Task prompts name tools with Pi names; the system prompt maps them per executor.
 - Usage has one normalized shape on every executor (input excluding cache reads and writes, cache
   read, cache write, output, total, model); an unknown cost is `null`, never `0` (WP12a).
+
+**Mixed runs (WP31, owner decision Q4)**
+
+- A role profile may put stages of one run on different executors; each stage is negotiated against
+  its own executor and the strictest per-executor limits above apply stage by stage (for example a
+  web stage on Codex gets hosted `web_search` only; a precise `tools` list on Codex is coarse).
+- Every executor of the run must be installed and logged in before it starts (each is probed once).
+- Role models are checked against probe model lists: Codex lists its slugs, Claude Code lists aliases
+  (`default`, `haiku`, `sonnet`, `opus`; a full model id is refused there — use an alias), Pi lists
+  none (the model is noted as unverified, not refused).
+- Dynamic decision-loop slots and the workers a dynamic stage generates stay on the dynamic stage's
+  executor; nested workflow runs keep their parent's executor.
+- Offline-verified only (fixture executors registered as `claude` and `codex`); live mixed runs are
+  part of acceptance bundle 5. Preset model ids (`gpt-5.6-luna`, `sonnet`) depend on the account.
 - No worker keeps a CLI session by default (D3); sessions the engine requests (experimental
   same-session repair only) are released at task/run end, blocked and interrupted runs keep theirs
   until resolved or pruned (WP12a).

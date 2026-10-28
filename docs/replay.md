@@ -232,3 +232,12 @@ Bugs the replay found and fixed (core-port WP1b change log 4 and 5):
    `replay-acceptance.test.mjs` asserts the full standard for both variants plus the number of
    `executor-rendered` rows and their executor. Reports regenerated with `--write` (the table above;
    the earlier `explained` counts were from before the reports were last regenerated).
+
+## WP31 change log
+
+1. **Role profiles and mixed executors.** No new explained rule. Runs without a role map (every
+   recorded fixture and every replay variant) take none of the WP31 paths, so their records keep
+   the same shape: no `run.roleExecution`, no `capabilityNegotiation.executors`, no task
+   `runtime.executor`, the same preview text. Acceptance re-run (`node test/replay/acceptance.mjs`):
+   0 unexplained and 0 exact-match violations in every variant. Mixed runs are covered offline by
+   `host-wp31-mixed-executors.test.mjs` (fixture executors registered as `claude` and `codex`).

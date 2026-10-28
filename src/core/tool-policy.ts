@@ -1,4 +1,5 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-native-tool-policy.ts. MIT, same author. Changes: the native-host expansion (codemode, tool_search, mcp__*, MCP resource tools) is no longer added here; it becomes the task flag runtime.inheritHostTools that only the Pi executor honors (WP6), and core keeps the conservative mutation-capable safety it implied. WP4e: inheritedHostToolSafety/prepareWorkflowTaskToolPolicy take permissionMode (R#5 only in safe). WP35: applyWorkflowToolPolicy readOnlyDeclared (readOnly stages never inherit host tools).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-native-tool-policy.ts. MIT, same author. Changes: the native-host expansion (codemode, tool_search, mcp__*, MCP resource tools) is no longer added here; it becomes the task flag runtime.inheritHostTools that only the Pi executor honors (WP6), and core keeps the conservative mutation-capable safety it implied. WP4e: inheritedHostToolSafety/prepareWorkflowTaskToolPolicy take permissionMode (R#5 only in safe). WP35: applyWorkflowToolPolicy readOnlyDeclared (readOnly stages never inherit host tools). WP31×WP35: runInheritsHostToolsForTask (a mixed run's host-tool decision applies only to tasks on the pi executor).
+import { PI_EXECUTOR_ID } from "../executors/pi/version.js";
 import type {
 	CompiledTask,
 	CompiledTaskSafety,
@@ -37,6 +38,21 @@ export interface WorkflowToolPolicy {
 	 * means an explicitly tool-free task stays tool-free.
 	 */
 	inheritHostTools?: boolean;
+}
+
+/**
+ * WP31×WP35: whether the run's host-tool decision applies to one task. Host tools are inherited
+ * per task, only by tasks whose executor is pi: the task's own executor (`runtime.executor`, mixed
+ * role-profile runs), else the run's. Runs recorded without an executor (legacy pi-workflow
+ * records) ran on Pi.
+ */
+export function runInheritsHostToolsForTask(
+	run: { inheritHostTools?: boolean; executor?: { id: string } },
+	task: { runtime: { executor?: string } },
+): boolean {
+	if (run.inheritHostTools !== true) return false;
+	const executorId = task.runtime.executor ?? run.executor?.id;
+	return executorId === undefined || executorId === PI_EXECUTOR_ID;
 }
 
 /**

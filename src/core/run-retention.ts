@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/run-retention.ts. MIT, same author. Changes: subagent mirror root .pi/workflow-subagents→.agent-workflow/workflow-subagents. WP4c (R#10, D3): pruning deletes engine-owned worker sessions (task.ownedSessions) through the run executor's optional deleteOwnedSession first and keeps the run when that fails.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/run-retention.ts. MIT, same author. Changes: subagent mirror root .pi/workflow-subagents→.agent-workflow/workflow-subagents. WP4c (R#10, D3): pruning deletes engine-owned worker sessions (task.ownedSessions) through the run executor's optional deleteOwnedSession first and keeps the run when that fails. WP31: sessions of a mixed run are deleted through the executor that reported them.
 import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import {
 	lstat,
@@ -23,7 +23,10 @@ import {
 	workflowsRoot,
 } from "./store.js";
 import { type ExecutorRegistry, loadExecutor } from "../sdk/descriptor.js";
-import { ownedSessionReleased } from "./owned-session-release.js";
+import {
+	ownedSessionReleased,
+	runExecutorSelectionFor,
+} from "./owned-session-release.js";
 import type { WorkflowRunRecord, WorkflowRunStatus } from "./types.js";
 
 export interface WorkflowPruneOptions {
@@ -716,7 +719,8 @@ function errorMessage(error: unknown): string {
 /**
  * R#10 (D3): delete the worker sessions a run recorded as engine-owned, through the run's
  * recorded executor. Never touches a session that is not in `task.ownedSessions`, and only
- * those whose executor id matches the run's executor.
+ * those whose executor id matches the run's executor (WP31: or another executor a mixed run records
+ * in `run.roleExecution.executors`).
  */
 export async function deleteRunOwnedSessions(
 	run: WorkflowRunRecord,
@@ -728,19 +732,27 @@ export async function deleteRunOwnedSessions(
 		.flatMap((task) => task.ownedSessions ?? [])
 		.filter((session) => !ownedSessionReleased(session));
 	if (sessions.length === 0) return result;
-	const descriptor = run.executor?.descriptor;
-	if (descriptor === undefined)
+	const primary = run.executor?.descriptor;
+	if (primary === undefined)
 		throw new Error(
 			`run ${run.runId} records owned worker sessions but no executor`,
 		);
-	const executor = await loadExecutor(descriptor, { registry });
+	// WP31 (Q4): a mixed run deletes each session through the executor that reported it.
+	const executors = new Map<string, Awaited<ReturnType<typeof loadExecutor>>>();
 	const seen = new Set<string>();
 	for (const session of sessions) {
-		if (session.executorId !== descriptor.id)
+		const selection = runExecutorSelectionFor(run, session.executorId);
+		if (selection === undefined)
 			throw new Error(
-				`owned worker session ${session.kind}:${session.locator} belongs to executor ${session.executorId}, not ${descriptor.id}`,
+				`owned worker session ${session.kind}:${session.locator} belongs to executor ${session.executorId}, not ${primary.id}`,
 			);
-		const key = `${session.kind}\0${session.locator}`;
+		const descriptor = selection.descriptor;
+		let executor = executors.get(descriptor.id);
+		if (executor === undefined) {
+			executor = await loadExecutor(descriptor, { registry });
+			executors.set(descriptor.id, executor);
+		}
+		const key = `${descriptor.id}\0${session.kind}\0${session.locator}`;
 		if (seen.has(key)) continue;
 		seen.add(key);
 		if (typeof executor.deleteOwnedSession !== "function") {

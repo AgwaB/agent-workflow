@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/execution-profile.ts. MIT, same author. Changes: none.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/execution-profile.ts. MIT, same author. Changes: WP31 collectWorkflowRoleSlots (role-profile slots with their agent) and the internal EXECUTION_PROFILE_EXECUTOR stage metadata (a stage's executor in a role-profile run).
 import { createHash } from "node:crypto";
 
 import {
@@ -22,9 +22,63 @@ export const EXECUTION_PROFILE_FOREACH_BATCH = Symbol(
 	"workflow.executionProfileForeachBatch",
 );
 
+/** WP31: internal stage metadata, the executor id of a stage in a role-profile run. */
+export const EXECUTION_PROFILE_EXECUTOR = Symbol(
+	"workflow.executionProfileExecutor",
+);
+
 export type ProfiledArtifactGraphStage = Record<string, unknown> & {
 	[EXECUTION_PROFILE_FOREACH_BATCH]?: ExecutionProfileForeachBatch;
+	[EXECUTION_PROFILE_EXECUTOR]?: string;
 };
+
+/** WP31: a stage override that may carry the internal executor metadata. */
+export type ExecutionProfileStageOverlay = ExecutionProfileStageOverride & {
+	[EXECUTION_PROFILE_EXECUTOR]?: string;
+};
+
+/** WP31: one role-profile slot (see role-profiles.ts). */
+export interface WorkflowRoleProfileSlot extends WorkflowProfileStageSlot {
+	agent?: string;
+	/** Dynamic decision-loop slots: the dynamic stage's slot id. */
+	parentId?: string;
+}
+
+/**
+ * WP31: every model-backed slot a role profile addresses, with its agent (`each.agent`, else the
+ * stage agent, else the spec's default agent).
+ */
+export function collectWorkflowRoleSlots(
+	spec: ArtifactGraphWorkflowSpec,
+): WorkflowRoleProfileSlot[] {
+	const defaultAgent = isRecord(spec.defaults)
+		? stringOrUndefined((spec.defaults as Record<string, unknown>).agent)
+		: undefined;
+	return collectExecutionProfileTargets(spec)
+		.filter(({ target, kind }) =>
+			kind === "dynamic-profile" ? true : isModelBackedStage(target),
+		)
+		.map(({ id, profileRole, kind, target }) => {
+			const each = isRecord(target.each) ? target.each : undefined;
+			const agent =
+				stringOrUndefined(each?.agent) ??
+				stringOrUndefined(target.agent) ??
+				(kind === "stage" ? defaultAgent : undefined);
+			return {
+				id,
+				...(profileRole === undefined ? {} : { profileRole }),
+				kind,
+				...(agent === undefined ? {} : { agent }),
+				...(kind === "dynamic-profile"
+					? { parentId: id.slice(0, id.lastIndexOf(".$")) }
+					: {}),
+			};
+		});
+}
+
+function stringOrUndefined(value: unknown): string | undefined {
+	return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
 
 export interface WorkflowProfileStageSlot {
 	/** Canonical execution-profile target id. */
@@ -71,7 +125,7 @@ export function applyExecutionProfileStageOverrides<
 	Spec extends ArtifactGraphWorkflowSpec,
 >(
 	spec: Spec,
-	mapping: Readonly<Record<string, ExecutionProfileStageOverride>>,
+	mapping: Readonly<Record<string, ExecutionProfileStageOverlay>>,
 	options: ApplyExecutionProfileStageOverridesOptions = {},
 ): Spec {
 	const targets = collectExecutionProfileTargets(spec);
@@ -255,7 +309,7 @@ function collectExecutionProfileTargets(
 function mapStage(
 	stage: Record<string, unknown>,
 	canonicalId: string,
-	mapping: Readonly<Record<string, ExecutionProfileStageOverride>>,
+	mapping: Readonly<Record<string, ExecutionProfileStageOverlay>>,
 	foreachRuntimeOnEach: boolean,
 ): Record<string, unknown> {
 	let next = applyOverride(
@@ -323,7 +377,7 @@ function mapStage(
 
 function applyOverride(
 	target: Record<string, unknown>,
-	override: ExecutionProfileStageOverride | undefined,
+	override: ExecutionProfileStageOverlay | undefined,
 	foreach: boolean,
 ): Record<string, unknown> {
 	if (!override) return target;
@@ -345,6 +399,11 @@ function applyOverride(
 					[EXECUTION_PROFILE_FOREACH_BATCH]: cloneExecutionProfileForeachBatch(
 						override.foreachBatch,
 					),
+				}),
+		...(override[EXECUTION_PROFILE_EXECUTOR] === undefined
+			? {}
+			: {
+					[EXECUTION_PROFILE_EXECUTOR]: override[EXECUTION_PROFILE_EXECUTOR],
 				}),
 	};
 }
