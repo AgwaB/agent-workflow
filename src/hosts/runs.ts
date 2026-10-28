@@ -73,6 +73,8 @@ import {
 } from "./result-presentation.js";
 import {
 	assertActionAllowed,
+	HOST_LONG_WAIT_DEFAULT_TIMEOUT_MS,
+	HOST_LONG_WAIT_MAX_TIMEOUT_MS,
 	HOST_WAIT_MAX_TIMEOUT_MS,
 	HOST_WAIT_MIN_TIMEOUT_MS,
 	type HostApiContext,
@@ -390,8 +392,13 @@ export async function inspectAction(
 
 export interface WaitRequest {
 	runId: string;
-	/** Bound of this call; default and cap 45 000 ms (HOST_WAIT_MAX_TIMEOUT_MS). */
+	/**
+	 * Bound of this call; default and cap 45 000 ms (HOST_WAIT_MAX_TIMEOUT_MS), with `longWait`
+	 * default 30 min and cap 4 h.
+	 */
 	timeoutMs?: number;
+	/** WP28: a host without per-call time limits (Pi) waits up to 4 h instead of 45 s. */
+	longWait?: boolean;
 	signal?: AbortSignal;
 	onProgress?: (run: RunSummary) => void;
 }
@@ -406,7 +413,7 @@ export interface WaitData {
 	actionRequired: boolean;
 	/** The bounded wait ended while the run was still running; call wait again. */
 	stillRunning: boolean;
-	/** Effective bound of this call after the 45 s cap. */
+	/** Effective bound of this call after the 45 s cap (4 h for a long wait). */
 	timeoutMs: number;
 	blockedTaskIds: string[];
 	taskSummary: WorkflowRunRecord["taskSummary"];
@@ -443,26 +450,37 @@ export interface WaitData {
 	degradation?: WorkflowRunRecord["degradation"];
 }
 
-export function boundedWaitTimeout(timeoutMs: number | undefined): number {
-	if (timeoutMs === undefined) return HOST_WAIT_MAX_TIMEOUT_MS;
+export function boundedWaitTimeout(
+	timeoutMs: number | undefined,
+	longWait = false,
+): number {
+	const max = longWait
+		? HOST_LONG_WAIT_MAX_TIMEOUT_MS
+		: HOST_WAIT_MAX_TIMEOUT_MS;
+	if (timeoutMs === undefined)
+		return longWait ? HOST_LONG_WAIT_DEFAULT_TIMEOUT_MS : max;
 	if (typeof timeoutMs !== "number" || !Number.isFinite(timeoutMs))
 		throw new HostUsageError("wait timeoutMs must be a number");
 	return Math.max(
 		HOST_WAIT_MIN_TIMEOUT_MS,
-		Math.min(HOST_WAIT_MAX_TIMEOUT_MS, Math.floor(timeoutMs)),
+		Math.min(max, Math.floor(timeoutMs)),
 	);
 }
 
 /**
- * `wait <run>`: drive and wait for a run for at most 45 s, then return its state. Hosts call it
- * again while `stillRunning`. Cancelling only cancels the wait, never the run.
+ * `wait <run>`: drive and wait for a run for at most 45 s (WP28: 4 h with `longWait`), then return
+ * its state. Hosts call it again while `stillRunning`. Cancelling only cancels the wait, never the
+ * run.
  */
 export async function waitAction(
 	ctx: HostApiContext,
 	request: WaitRequest,
 ): Promise<HostResult<WaitData>> {
 	assertActionAllowed(ctx, "wait");
-	const timeoutMs = boundedWaitTimeout(request.timeoutMs);
+	const timeoutMs = boundedWaitTimeout(
+		request.timeoutMs,
+		request.longWait === true,
+	);
 	const resolved = await readRunRecord(
 		ctx.cwd,
 		requireRunRef(request.runId, "wait"),

@@ -4,10 +4,12 @@
 // the board, `auto` and the TUI profile picker. The command is `/aw`, never `/workflow`, so it can
 // run next to pi-workflow (A2-1). WP16: `/aw logs`; launches and resumes from this session are
 // tracked for the status line and completion delivery (feedback.ts); without a dialog UI the
-// declared-profile choice falls back to text (host.ts `launchHooks`).
+// declared-profile choice falls back to text (host.ts `launchHooks`). WP28 (Q9): `/aw wait <run>
+// [timeout]` waits until the run is terminal or needs action, or the timeout passes (pi-workflow
+// `/workflow wait <run> [timeout-ms]`: default 60 s, max 4 h; the host API `longWait`).
 import {
 	COMMAND_HELP,
-	HOST_WAIT_MAX_TIMEOUT_MS,
+	HOST_LONG_WAIT_MAX_TIMEOUT_MS,
 	type HostResult,
 	HostUsageError,
 	formatHostError,
@@ -52,6 +54,9 @@ export const AW_ACTIONS = [
 	"notices",
 ] as const;
 
+/** `/aw wait` without a timeout: pi-workflow's `/workflow wait` default (the engine's 60 s). */
+export const AW_WAIT_COMMAND_DEFAULT_TIMEOUT_MS = 60_000;
+
 const RUN_OPTIONS =
 	"--executor <id> --profile <name> --permission-mode free|safe --allow-unverified <a,b> --model <id> --effort <level> --input <key=value> --detach --force-new";
 
@@ -72,7 +77,7 @@ Runs:
   /aw show <run> [--raw]                show run details
   /aw inspect <run> [--failures] [--results]
   /aw logs <run> [--task <id>] [--lines N] [--stream output|stderr|events|all]
-  /aw wait <run> [--timeout <duration>] one bounded wait (at most 45 s); repeat while running
+  /aw wait <run> [timeout]             wait until finished or the timeout (default 60s, max 4h)
   /aw resume <run> [--detach]           resume a failed, interrupted or blocked run
   /aw stop <run>                        stop a run
   /aw prune [--keep N] [--older-than DAYS] [--yes]
@@ -184,7 +189,7 @@ function helpText(deps: PiHostDeps, topic: string | undefined): string {
 		throw new HostUsageError(
 			`Unknown /${AW_COMMAND} action "${topic}". Try /${AW_COMMAND} help.`,
 		);
-	return `${deps.api.helpAction(topic).text.replaceAll("agent-workflow ", `/${AW_COMMAND} `)}\n\nIn Pi: --json, --yes and --timeout on run/resume are CLI-only; /${AW_COMMAND} run returns once the run is launched and /${AW_COMMAND} wait waits at most 45 s per call.`;
+	return `${deps.api.helpAction(topic).text.replaceAll("agent-workflow ", `/${AW_COMMAND} `)}\n\nIn Pi: --json, --yes and --timeout on run/resume are CLI-only; /${AW_COMMAND} run returns once the run is launched and /${AW_COMMAND} wait <run> [timeout] waits until the run finishes or the timeout passes (default 60s, max 4h).`;
 }
 
 type Dispatched =
@@ -322,18 +327,28 @@ async function dispatch(
 		}
 		case "wait": {
 			const parsed = parseCommandArgs(rest, { values: ["--timeout"] });
-			const [runId] = only(
-				parsed.positionals,
-				1,
-				"wait <run-id-or-prefix> [--timeout <duration>]",
-			);
-			const timeout = parsed.values.get("--timeout");
+			const usage = "wait <run-id-or-prefix> [timeout | --timeout <duration>]";
+			if (parsed.positionals.length < 1 || parsed.positionals.length > 2)
+				throw new HostUsageError(`Usage: /${AW_COMMAND} ${usage}`);
+			const [runId, positional] = parsed.positionals;
+			const option = parsed.values.get("--timeout");
+			if (positional !== undefined && option !== undefined)
+				throw new HostUsageError(
+					`Usage: /${AW_COMMAND} ${usage} (one timeout, not both)`,
+				);
+			const timeout = positional ?? option;
+			const timeoutMs =
+				timeout === undefined
+					? AW_WAIT_COMMAND_DEFAULT_TIMEOUT_MS
+					: parseDuration(timeout, "timeout");
+			if (timeoutMs > HOST_LONG_WAIT_MAX_TIMEOUT_MS)
+				throw new HostUsageError(
+					`timeout must be at most ${HOST_LONG_WAIT_MAX_TIMEOUT_MS}ms (4h)`,
+				);
 			return api.waitAction(host(), {
 				runId: runId!,
-				timeoutMs:
-					timeout === undefined
-						? HOST_WAIT_MAX_TIMEOUT_MS
-						: parseDuration(timeout),
+				longWait: true,
+				timeoutMs,
 			});
 		}
 		case "resume": {

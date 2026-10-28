@@ -241,11 +241,14 @@ end of a line) is left as it is and never redacts the next line (`Exit code: 1` 
 
 ### `wait`
 
-`WaitRequest`: `{runId, timeoutMs?, signal?, onProgress?(RunSummary)}`. One call drives scheduling
-and waits **at most 45 s** (`HOST_WAIT_MAX_TIMEOUT_MS`; default and cap; minimum 1 s,
+`WaitRequest`: `{runId, timeoutMs?, longWait?, signal?, onProgress?(RunSummary)}`. One call drives
+scheduling and waits **at most 45 s** (`HOST_WAIT_MAX_TIMEOUT_MS`; default and cap; minimum 1 s,
 `boundedWaitTimeout`). MCP hosts have per-tool-call limits (Codex `tool_timeout_sec` defaults to
 60 s), so a host calls `wait` again while `stillRunning` is true; the CLI loops. Cancelling (`signal`)
-cancels only the wait.
+cancels only the wait. WP28 (owner decision Q9): `longWait: true` is for hosts without per-call
+limits (the Pi host): default 30 min (`HOST_LONG_WAIT_DEFAULT_TIMEOUT_MS`), cap 4 h
+(`HOST_LONG_WAIT_MAX_TIMEOUT_MS`), pi-workflow's `workflow_wait` bounds; `data.timeoutMs` is the
+effective bound. The MCP server never sets it.
 
 `WaitData`: `{runId, status, semanticStatus, terminal, actionRequired, stillRunning, timeoutMs,
 blockedTaskIds, taskSummary, outputTaskIds, outputRetryAttempts, launchRetryAttempts, artifactRoot,

@@ -234,9 +234,10 @@ test("registration: /aw command, four aw_* tools with executor-neutral schemas, 
 		"workflow",
 		"task",
 	]);
+	// WP28 (Q9): pi-workflow's long waits (max 4 h).
 	assert.equal(
 		pi.tools.get("aw_wait").parameters.properties.timeoutMs.maximum,
-		45_000,
+		14_400_000,
 	);
 	assert.equal(pi.tools.get("aw_list").parameters.properties.limit.maximum, 20);
 	assert.deepEqual(pi.commands.get("aw").getArgumentCompletions("re"), [
@@ -481,7 +482,8 @@ test("/aw run, status, show, inspect, wait, resume, stop: delegation with launch
 		call.args[1],
 	]);
 	assert.deepEqual(made, [
-		["waitAction", { runId, timeoutMs: 120_000 }],
+		// WP28: a long wait (until terminal or the timeout).
+		["waitAction", { runId, longWait: true, timeoutMs: 120_000 }],
 		["statusAction", { runId }],
 		["statusAction", {}],
 		["showAction", { ref: runId, raw: true }],
@@ -516,7 +518,7 @@ test("/aw run, status, show, inspect, wait, resume, stop: delegation with launch
 	assert.equal(lastNote(ctx).type, "warning");
 });
 
-test("tools: aw_list, aw_run, aw_wait (45 s cap, semantic fields, preview) and aw_dynamic refusal", async () => {
+test("tools: aw_list, aw_run, aw_wait (long wait, semantic fields, preview) and aw_dynamic refusal", async () => {
 	const { cwd, env } = await project();
 	const { calls, pi } = install({ env });
 	const ctx = fakeCtx(cwd);
@@ -588,9 +590,10 @@ test("tools: aw_list, aw_run, aw_wait (45 s cap, semantic fields, preview) and a
 		assert.equal(waitCall.name, "waitAction");
 		assert.equal(waitCall.args[1].runId, runId);
 		assert.equal(waitCall.args[1].timeoutMs, 90_000);
+		assert.equal(waitCall.args[1].longWait, true);
 		assert.equal(typeof waitCall.args[1].onProgress, "function");
-		// The host API caps every wait at 45 s.
-		assert.equal(result.details.timeoutMs, 45_000);
+		// WP28: Pi waits are long (no 45 s cap).
+		assert.equal(result.details.timeoutMs, 90_000);
 		if (!result.details.stillRunning) break;
 	}
 	assert.equal(result.details.outcome, "completed");
