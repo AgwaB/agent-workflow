@@ -1590,3 +1590,12 @@ unexplained differences in every variant. Every new test that spawns a process k
    `host-wp37-profile-precedence.test.mjs` (explicit and default declared profile inherit executor,
    mode and effort; declared executor/mode win per field; run flags win; saved effort not applied to
    another executor; inherited and declared strictCapabilities).
+
+### WP37 validation
+
+`npm run validate` (twice) and `npm run e2e` exit 0 on the final commit; replay acceptance has 0
+unexplained differences in every fixture and variant, including the new executor variants
+`minimal:codex` and `deep-research:engine-only-claude` (docs/replay.md "WP37 change log");
+`node tools/release/plugins.mjs check` passes. Engine status semantics are unchanged (owner
+decision Q8: a domain verdict still fails the run; not part of WP37). No model or agent CLI was
+called.
