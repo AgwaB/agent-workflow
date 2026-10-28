@@ -333,3 +333,46 @@ test("--profile <preset> runs a workflow with the preset when no declared or sav
 		/built-in presets: codex, claude, pi, mixed/,
 	);
 });
+
+test("in the Pi host a preset on another executor resolves models without Pi's model registry", async () => {
+	const { ctx } = await project();
+	const piCtx = {
+		...ctx,
+		host: "pi",
+		availableModels: [
+			{
+				provider: "openai-codex",
+				id: "gpt-5.6-luna",
+				fullId: "openai-codex/gpt-5.6-luna",
+				reasoning: true,
+			},
+		],
+		runtimeDefaults: {
+			model: "anthropic/claude-test",
+			thinking: "low",
+			executor: "pi",
+		},
+	};
+	const launched = await api.runWorkflowAction(piCtx, {
+		workflow: "wf.json",
+		task: "codex preset in pi",
+		profile: "codex",
+	});
+	assert.equal(launched.outcome, "running", launched.text);
+	let waited;
+	do
+		waited = await api.waitAction(piCtx, {
+			runId: launched.data.runId,
+			timeoutMs: 10_000,
+		});
+	while (waited.data.stillRunning);
+	assert.equal(waited.outcome, "completed");
+	const run = await (await import("../../dist/core/store.js")).readRunRecord(
+		ctx.cwd,
+		launched.data.runId,
+	);
+	for (const task of run.tasks) {
+		assert.equal(task.runtime.model, "gpt-5.6-luna", "not the Pi registry id");
+		assert.notEqual(task.runtime.model, "anthropic/claude-test");
+	}
+});

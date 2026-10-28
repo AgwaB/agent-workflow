@@ -853,6 +853,8 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 		executor = rolePlan.executor;
 	}
 	const mixedRun = rolePlan?.roleExecution.mixed === true;
+	const modelRegistryExecutor =
+		options.host === "pi" ? "pi" : options.runtimeDefaults?.executor;
 	const compileRuntimeDefaults = runtimeDefaultsWithSavedProfile(
 		options.runtimeDefaults,
 		options.executionProfile ? options.savedUserProfile : undefined,
@@ -876,12 +878,17 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 						executor: compileRuntimeDefaults.executor ?? executor.id,
 					}
 				: compileRuntimeDefaults,
-		availableModels: options.availableModels,
-		...(mixedRun
-			? {
-					modelRegistryExecutor:
-						options.host === "pi" ? "pi" : options.runtimeDefaults?.executor,
-				}
+		// WP31: the host model registry (Pi's) resolves models only for stages on its executor: a
+		// role-profile run entirely on another executor resolves without it.
+		availableModels:
+			rolePlan &&
+			!mixedRun &&
+			modelRegistryExecutor !== undefined &&
+			modelRegistryExecutor !== executor.id
+				? undefined
+				: options.availableModels,
+		...(mixedRun && modelRegistryExecutor !== undefined
+			? { modelRegistryExecutor }
 			: {}),
 	});
 	// B4 (WP4d): probe the executor once and negotiate every stage before any

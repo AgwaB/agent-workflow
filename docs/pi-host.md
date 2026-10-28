@@ -46,7 +46,8 @@ mode); errors are error notifications.
 | `list [--query T] [--offset N] [--limit N]` | `listWorkflowsAction` |
 | `validate <workflow>`, `roles <workflow>` | `validateWorkflowAction`, `workflowRolesAction` |
 | `agents` | `listAgentsAction` |
-| `profile list \| show [name] \| set <name> … [--default] \| delete <name> \| default <name> \| default --clear` | `profileAction` (saved user profiles; same options as the CLI) |
+| `profile list \| show [name] \| set <name> … [--default] \| delete <name> \| default <name> \| default --clear \| presets` | `profileAction` (saved user profiles; same options as the CLI, WP31: `--preset`, `--role`) |
+| `profile workflow list \| show <workflow> \| set <workflow> … \| clear <workflow>` | `workflowPreferenceAction` (WP31: saved per-workflow preferences; every host's launch applies them) |
 | `run <workflow> <task> [options]` | `runWorkflowAction` |
 | `dynamic <task> [options]` | `runDynamicAction` |
 | `status [run]` | `statusAction` |

@@ -19,7 +19,8 @@ npx agent-workflow --help
 | `agents` | Agent definitions. |
 | `show <workflow>` | The resolved spec file. |
 | `show <run> [--raw]` | Run details. Arguments that start with `workflow_` (or `--raw`) are runs. |
-| `profile list \| show [name] \| set <name> … \| delete <name> \| default <name> \| default --clear` | Saved user profiles (below). |
+| `profile list \| show [name] \| set <name> … \| delete <name> \| default <name> \| default --clear \| presets` | Saved user profiles, roles and built-in presets (below). |
+| `profile workflow list \| show <workflow> \| set <workflow> … \| clear <workflow>` | Saved per-workflow preferences (WP31, below). |
 | `run <workflow> <task…>` | Start exactly the named workflow and wait in the foreground until it is terminal. |
 | `dynamic <task…>` | Start a spec-less direct dynamic run; same options as `run`. |
 | `status [run]` | All top-level runs, or one run. |
@@ -37,7 +38,7 @@ npx agent-workflow --help
 A run argument accepts the run id or an unambiguous prefix.
 
 WP28: every command except `help`/`--version` is also a host MCP tool (`workflow_<command>`,
-[host-mcp.md](host-mcp.md#tools)); the MCP forms of `prune --yes`, `profile set|delete|default` and
+[host-mcp.md](host-mcp.md#tools)); the MCP forms of `prune --yes`, `profile set|delete|default`, `profile workflow set|clear` and
 `notices acknowledge|clear` ask the user to confirm through MCP elicitation, and a client that
 cannot ask is refused with the CLI command line to run here instead. `supervise` on MCP starts the
 detached supervisor and returns at once.
@@ -47,7 +48,7 @@ detached supervisor and returns at once.
 | Option | Meaning |
 |---|---|
 | `--executor <id>` | Executor for this run: `pi`, `codex`, `claude` (or a registered id). Highest precedence. |
-| `--profile <name>` | A profile the workflow declares (`executionProfiles`), else a saved user profile with that name. |
+| `--profile <name>` | A profile the workflow declares (`executionProfiles`), else a saved user profile with that name, else a built-in preset (`codex`, `claude`, `pi`, `mixed`). Without it: the workflow's saved preference profile, if any. |
 | `--permission-mode free\|safe` | Approvals and sandbox (`docs/permissions.md`). Default `free`. |
 | `--allow-unverified <a,b>` | Accept these `unverified` executor capabilities (B4 opt-in), e.g. `contextIsolation`. |
 | `--model <id>` | Model override for every stage. |
@@ -65,11 +66,13 @@ The task is every remaining positional word. Put `--` before task text that star
 ### Precedence
 
 Executor and permission mode: **run flag > workflow-declared profile > saved user profile >
-default** (mode `free`; executor: below). Without `--profile` a launch uses the workflow's
-`defaultExecutionProfile` if it declares one, else the default saved user profile. The
-precedence holds field by field (B2, WP37): a workflow-declared profile that does not set the
-executor, the permission mode or `strictCapabilities` takes them from the default saved user
-profile.
+default** (mode `free`; executor: below). Without `--profile` a launch uses the workflow's saved
+preference profile (WP31), else its `defaultExecutionProfile` if it declares one, else the default
+saved user profile. The precedence holds field by field (B2, WP37): a workflow-declared profile
+that does not set the executor, the permission mode or `strictCapabilities` takes them from the
+default saved user profile. WP31 extends it to roles: per stage, each of executor, model and effort
+comes from the highest layer that has a value for that stage — run flag > per-workflow preference
+roles > workflow-declared profile > saved user profile > default ([usage.md](usage.md#roles-presets-and-mixed-runs)).
 
 **Default executor (WP17).** When nothing above selects one, the CLI uses the **first installed and
 logged-in** of `pi` → `claude` → `codex`. Each candidate is checked with its adapter's probe (version
@@ -142,9 +145,44 @@ agent-workflow profile delete fast
 ```
 
 Fields: `executor`, `model`, `effort`, `permissionMode`, `strictCapabilities` (capability names
-that must be `native`). Stored in `$AGENT_WORKFLOW_HOME/user-profiles/v1/profiles.json` (default
+that must be `native`), `roles` (WP31). Stored in `$AGENT_WORKFLOW_HOME/user-profiles/v1/profiles.json` (default
 `~/.agent-workflow`, private file). `model`/`effort` are run defaults (stage and agent settings
 still win; `--model`/`--effort` override everything).
+
+### Roles and presets (WP31)
+
+```sh
+agent-workflow profile presets                         # codex, claude, pi, mixed and their role tables
+agent-workflow profile set team --preset mixed --default
+agent-workflow profile set team --role verification=codex:gpt-5.6-luna:high
+agent-workflow profile set team --role synthesis=:haiku   # model only (executor from other layers)
+agent-workflow profile set team --unset roles.synthesis
+```
+
+`--role <role>=<executor>[:<model>[:<effort>]]` (repeatable; empty segments are unset). Roles:
+`default`, `planning`, `research-execution`, `synthesis`, `verification`, `final-judgment`, or
+`agent:<name>`. Entries merge role by role. `--preset` replaces the saved executor and roles with
+the preset's (other fields stay; `--executor`/`--role` given with it still win). An unknown
+executor id is refused when the profile is saved (exit 2); role models are checked against the
+executor's probe when a run starts.
+
+### Per-workflow preferences (WP31)
+
+```sh
+agent-workflow profile workflow set deep-research --profile mixed \
+  --role verification=codex:gpt-5.6-luna:high
+agent-workflow profile workflow show deep-research
+agent-workflow profile workflow set deep-research --unset roles.verification
+agent-workflow profile workflow clear deep-research
+agent-workflow profile workflow list
+```
+
+A preference belongs to the workflow's `name` (`<workflow>` may be a name or a spec path). Its
+`profile` (declared, saved or preset; checked when saved) is used when a launch names none; its
+roles apply to every launch of that workflow, from the CLI, MCP hosts and Pi, below the run flags
+and above the selected profile. Stored in
+`$AGENT_WORKFLOW_HOME/workflow-preferences/v1/preferences.json`. pi-workflow's
+`~/.pi/agent/workflow-profiles` is never read.
 
 ## `doctor`
 

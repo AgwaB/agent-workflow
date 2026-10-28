@@ -69,7 +69,8 @@ throw `WorkflowValidationError`; `formatHostError(error)` renders any error. Lau
 | `workflowRolesAction` | `{workflow}` | `{specPath, roles}` | success |
 | `listAgentsAction` | — | `{agents: [{name, displayName, description?, scope, legacySource?, model?, effort?, tools?, readOnly?, sourcePath}]}` | success |
 | `showAction` | `{ref, raw?}`: a run (`raw`, or `workflow_…`) else a workflow | `{kind: "run", run}` or `{kind: "workflow", specPath, spec}` | success |
-| `profileAction` | `{op: "list"} \| {op: "show", name?} \| {op: "set", name, values?, unset?, makeDefault?} \| {op: "delete", name} \| {op: "default", name \| null}` | `{op, path, default?, profiles?, profile?, deleted?}` | success |
+| `profileAction` | `{op: "list"} \| {op: "show", name?} \| {op: "set", name, values?, unset?, makeDefault?, preset?} \| {op: "delete", name} \| {op: "default", name \| null} \| {op: "presets"}` (WP31: `values.roles`, `unset` `roles.<role>`, `preset` codex/claude/pi/mixed) | `{op, path, default?, profiles?, profile?, deleted?, presets?}` | success |
+| `workflowPreferenceAction` (WP31) | `{op: "list"} \| {op: "show", workflow} \| {op: "set", workflow, profile?, roles?, unset?} \| {op: "clear", workflow}` (`workflow`: name or spec path; keyed by `spec.name`; `set` checks the profile exists and role executors are known) | `{op, path, workflow?, preference?, preferences?, cleared?}` | success |
 | `runWorkflowAction` | `RunWorkflowRequest` (below) | `LaunchData` | running, completed, failed, blocked, refused, existing |
 | `runDynamicAction` | `RunDynamicRequest` (no `workflow`) | `LaunchData` (`mode: "direct-dynamic"`) | same |
 | `statusAction` | `{runId?}` | `{run: RunSummary & {tasks}}` or `{runs: RunSummary[]}` (top-level, newest first) | success |
@@ -86,7 +87,8 @@ throw `WorkflowValidationError`; `formatHostError(error)` renders any error. Lau
 | `superviseDetachedAction` (WP28) | `{runId}` | `{runId, status, started, reason?: "not-running" \| "live-supervisor", detached?: {pid, logPath}}`: spawns the standalone `agent-workflow supervise <run>` and returns at once (MCP `workflow_supervise`); nothing for a run without scheduler work or one a live process drives (`isWorkflowRunLeaseLive`: a held run lease or a `supervisor.json` heartbeat < 30 s from a live pid) | running, or the run status when not running |
 
 `RunSummary` = `{runId, name?, status, type, createdAt, updatedAt, parentRunId?, executor?,
-permissionMode?, taskSummary}`.
+executors? (WP31: every executor of a mixed run), permissionMode?, taskSummary}`. `statusAction`
+tasks carry `executor`, `model`, `effort` in runs with a role profile (WP31).
 
 ### `run` / `dynamic`
 
@@ -96,7 +98,7 @@ permissionMode?, taskSummary}`.
 |---|---|
 | `task` | Full runtime task (required). |
 | `executor` | Run flag (B2 highest precedence). |
-| `profile` | A declared spec profile, else a saved user profile with that name; unknown names throw `HostUsageError` listing both. |
+| `profile` | A declared spec profile, else a saved user profile with that name, else (WP31) a built-in preset (`codex`, `claude`, `pi`, `mixed`); unknown names throw `HostUsageError` listing all three. |
 | `permissionMode` | `"free" \| "safe"` run flag (WP4e). |
 | `allowUnverifiedCapabilities` | B4 opt-in keys. |
 | `model`, `effort` | Run overrides of every stage (`runtimeOverrides`). |
@@ -106,9 +108,11 @@ permissionMode?, taskSummary}`.
 | `selectProfile(title, options, meta?)` | Chooser between declared profiles when none is named (Pi host). `meta.headlessOption` (WP16) is the option a headless launch would pick (the declared default, else `Base (no profile)`), so a host without a dialog can make that choice and list the others as text. |
 | `inputOverrides` | Values for declared spec inputs. |
 
-Profile resolution when `profile` is omitted: (host with `availableModels`: the saved per-workflow
-Pi preference) > the declared `defaultExecutionProfile` (or `selectProfile`) > the default saved
-user profile > none. A saved user profile becomes a captured execution profile
+Profile resolution when `profile` is omitted: (WP31) the `profile` of the workflow's saved
+preference (`workflowPreferenceAction`, every host) > (host with `availableModels`: the saved
+per-workflow Pi preference) > the declared `defaultExecutionProfile` (or `selectProfile`) > the
+default saved user profile > none. The saved preference's `roles` reach the engine as the
+`workflowPreference` run option on every launch of that workflow (WP31). A saved user profile becomes a captured execution profile
 (`executionProfileOverride` with `executor`, `permissionMode`, `strictCapabilities`, no stage
 overrides) plus run defaults `model`/`effort`; the engine then applies B2 precedence and records
 `run.executor.source` / `run.permissionMode.source` = `user-profile`. On a spec without an artifact
@@ -117,12 +121,16 @@ refuses).
 
 `LaunchData`: `{mode, runId?, status?, name?, specPath?, executor?: {id, source, profile?, host?},
 permissionMode?: {mode, source, profile?}, profile?: {name, kind: declared | user |
-workflow-preference, source}, capability?: {preview, confirmation, degradations, forcedReadOnly},
+workflow-preference | preset, source: request | workflow-default | user-default |
+workflow-preference}, roles?: {mixed, executors, stages: [{stage, executor, source, role?, model?,
+effort?}], warnings?} (WP31), capability?: {preview, confirmation, degradations, forcedReadOnly},
 taskSummary?, detached?, promptSchemaNotice?, duplicateOf?, refusal?: {code, executorId?,
-preview?}}`. `text` starts with the capability preview, then the launch card.
+preview?}}`. `text` starts with the capability preview, then (WP31) the per-stage role table, then
+the launch card.
 
 Refusals (`outcome: "refused"`, nothing launched, no run record): `WorkflowCapabilityError` codes
 (`EXECUTOR_PROBE_FAILED`, `EXECUTOR_NOT_INSTALLED`, `EXECUTOR_AUTH_NOT_READY`, `CAPABILITY_REFUSED`,
+`MODEL_UNKNOWN` (WP31: a role model the executor's probe does not list),
 `CAPABILITY_CONFIRMATION_REQUIRED`, `CAPABILITY_DEGRADATION_DECLINED`), `EXECUTOR_UNAVAILABLE`
 (unknown or unavailable executor id), and `DUPLICATE_LAUNCH_IN_PROGRESS` (an identical launch is
 still starting after a 15 s wait).
@@ -137,7 +145,7 @@ execution identity (`launchExecutionIdentity`, resolved without prompting or pro
 (`ctx.host`, default `cli`), the executor that applies and its source (request flag, the saved user
 profile the request names or the default one, the workflow's declared profiles, `ctx.defaultExecutor`,
 the host's own CLI, or the terminal's `pi>claude>codex` installed-default order), the contents of the
-saved user profile that applies, the host's inherited model/effort (`runtimeDefaults`), the effective
+saved user profile that applies (WP31: with its roles) and of the workflow's saved preference, the host's inherited model/effort (`runtimeDefaults`), the effective
 permission mode, and `workflowDefinitionFingerprint` of the loaded spec (covering declared profiles
 and defaults). So the same request from Claude Code and Codex, or after a workflow or saved-profile
 change, starts a new run. WP19 round 2 (N5): the launch profile is resolved once, before the guard,
