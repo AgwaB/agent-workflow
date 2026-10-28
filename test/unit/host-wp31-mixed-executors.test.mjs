@@ -462,21 +462,21 @@ test("resume after stop keeps every task on its executor", async () => {
 		Date.now() < deadline
 	)
 		await new Promise((resolve) => setTimeout(resolve, 50));
-	// Under load the stop may not be confirmed within the engine's 1.5 s window; it then says to
-	// retry (stop intent stays durable).
+	// Under load the stop may not be confirmed within the engine's 1.5 s window: it then throws
+	// "retry" while the durable stop intent still interrupts the run. Wait for that instead of
+	// stopping again (a second stop of an interrupted run is refused).
 	let stopped;
-	for (let attempt = 0; ; attempt += 1) {
-		try {
-			stopped = await engine.stopRun(cwd, runId);
-			break;
-		} catch (error) {
-			if (
-				attempt >= 20 ||
-				!/could not be confirmed/.test(String(error?.message))
-			)
-				throw error;
-			await new Promise((resolve) => setTimeout(resolve, 250));
+	try {
+		stopped = await engine.stopRun(cwd, runId);
+	} catch (error) {
+		if (!/could not be confirmed/.test(String(error?.message))) throw error;
+		const until = Date.now() + 60_000;
+		let run = await store.readRunRecord(cwd, runId);
+		while (run.status !== "interrupted" && Date.now() < until) {
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			run = await store.readRunRecord(cwd, runId);
 		}
+		stopped = { run };
 	}
 	assert.equal(stopped.run.status, "interrupted");
 	const before = {
