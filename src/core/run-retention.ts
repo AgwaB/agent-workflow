@@ -275,7 +275,11 @@ async function prunePlan(
 	);
 
 	for (const candidate of childrenFirst(selected, plan.children)) {
-		const worktrees = await inspectRunWorktrees(cwd, candidate.run);
+		// The preview lists only the public fields (no internal absolute paths).
+		const worktrees = (await inspectRunWorktrees(cwd, candidate.run)).map(
+			({ absolutePath: _path, registered: _registered, ...worktree }) =>
+				worktree,
+		);
 		const entry: WorkflowPruneRun = {
 			runId: candidate.run.runId,
 			...(candidate.run.name === undefined ? {} : { name: candidate.run.name }),
@@ -652,7 +656,11 @@ async function deleteCandidate(
 		// (git keeps their registration otherwise); a failure keeps the run.
 		const worktrees = await inspectRunWorktrees(cwd, current);
 		if (worktrees.length) {
-			outcome.worktrees = await removeRunWorktrees(cwd, worktrees);
+			outcome.worktrees = await removeRunWorktrees(
+				cwd,
+				current.runId,
+				worktrees,
+			);
 			const failed = outcome.worktrees.find((worktree) => worktree.error);
 			if (failed)
 				return {
@@ -949,13 +957,55 @@ async function gitText(cwd: string, args: string[]): Promise<string> {
 
 interface RunWorktree extends WorkflowPruneWorktree {
 	absolutePath: string;
-	gitCwd: string;
+	/** The path `git worktree list` registers for it in this repository, if any. */
+	registered?: string;
+}
+
+/** A managed worktree's directory name (its task id) under `<run>/worktrees/`. */
+const MANAGED_WORKTREE_NAME = /^[A-Za-z0-9_][A-Za-z0-9._-]*$/u;
+
+interface GitWorktreeListing {
+	path: string;
+	/** `refs/heads/<branch>`, or undefined for a detached HEAD. */
+	branch?: string;
+}
+
+/** This repository's registered worktrees (`git worktree list --porcelain`, run in the project). */
+async function listGitWorktrees(cwd: string): Promise<GitWorktreeListing[]> {
+	const listed: GitWorktreeListing[] = [];
+	let current: GitWorktreeListing | undefined;
+	for (const line of (
+		await gitText(cwd, ["worktree", "list", "--porcelain"])
+	).split("\n")) {
+		if (line.startsWith("worktree ")) {
+			current = { path: line.slice("worktree ".length) };
+			listed.push(current);
+		} else if (current && line.startsWith("branch "))
+			current.branch = line.slice("branch ".length);
+	}
+	return listed;
+}
+
+/** `path` with its longest existing prefix canonicalized (git may list a non-canonical path). */
+async function canonicalListedPath(path: string): Promise<string> {
+	const absolute = resolve(path);
+	const rest: string[] = [];
+	for (let current = absolute; ; ) {
+		try {
+			return join(await realpath(current), ...rest.reverse());
+		} catch {
+			const parent = resolve(current, "..");
+			if (parent === current) return absolute;
+			rest.push(relative(parent, current));
+			current = parent;
+		}
+	}
 }
 
 /**
  * WP39b (O7): the managed worktrees a run recorded (tasks and shared loop worktrees) that lie in
- * its own `worktrees/` directory, with their state. Never throws: an unreadable worktree is
- * reported with `error`.
+ * its own `worktrees/` directory, with their state. Never throws: an unreadable or unidentified
+ * worktree is reported with `error` (and keeps its run).
  */
 async function inspectRunWorktrees(
 	cwd: string,
@@ -980,31 +1030,80 @@ async function inspectRunWorktrees(
 		const entry: RunWorktree = {
 			path: relative(cwd, absolutePath),
 			absolutePath,
-			gitCwd:
-				typeof record.baseCwd === "string" ? resolve(cwd, record.baseCwd) : cwd,
 			branch: typeof record.branch === "string" ? record.branch : null,
 			dirty: false,
 			commits: 0,
 		};
 		seen.set(absolutePath, entry);
-		const info = await lstat(absolutePath).catch(() => undefined);
-		if (!info) {
-			entry.missing = true;
-			continue;
+		await identifyRunWorktree(cwd, run.runId, rel, entry);
+	}
+	return [...seen.values()];
+}
+
+/**
+ * WP42 (WP39b review, finding 2): positively identify a recorded managed worktree before prune
+ * touches it. All of: the recorded branch is the managed `agent-workflow/<run>-<task>`; the
+ * directory chain from the project down to it is real directories (no symlinked parent); and, when
+ * the directory exists, this repository's `git worktree list` registers exactly that path checked
+ * out on that branch. A missing directory may still be registered (stale), but only on that branch.
+ * Anything else sets `error`: the worktree, its branch and the run are kept.
+ */
+async function identifyRunWorktree(
+	cwd: string,
+	runId: string,
+	name: string,
+	entry: RunWorktree,
+): Promise<void> {
+	const managed = `agent-workflow/${runId}-${name}`;
+	if (!MANAGED_WORKTREE_NAME.test(name)) {
+		entry.error = "not a managed worktree name; kept";
+		return;
+	}
+	if (entry.branch !== managed) {
+		entry.error = `recorded branch ${entry.branch ?? "(none)"} is not the managed branch ${managed}; kept`;
+		return;
+	}
+	let chain;
+	try {
+		chain = await physicalDirectoryChain(cwd, [
+			PROJECT_STATE_DIRECTORY,
+			"workflows",
+			runId,
+			"worktrees",
+			name,
+		]);
+	} catch (error) {
+		entry.error = `${errorMessage(error)}; kept`;
+		return;
+	}
+	if (chain.path !== entry.absolutePath) {
+		entry.error = "worktree path is not canonical; kept";
+		return;
+	}
+	try {
+		let registered: GitWorktreeListing | undefined;
+		for (const listed of await listGitWorktrees(cwd))
+			if ((await canonicalListedPath(listed.path)) === chain.path) {
+				registered = listed;
+				break;
+			}
+		if (!chain.exists) entry.missing = true;
+		else if (!registered) {
+			entry.error = "not registered as a worktree of this repository; kept";
+			return;
 		}
-		if (!info.isDirectory() || info.isSymbolicLink()) {
-			entry.error = "not a worktree directory";
-			continue;
+		if (registered && registered.branch !== `refs/heads/${managed}`) {
+			entry.error = `checked out on ${registered.branch?.replace(/^refs\/heads\//u, "") ?? "a detached HEAD"}, not the managed branch ${managed}; kept`;
+			return;
 		}
-		try {
+		entry.registered = registered?.path;
+		if (chain.exists) {
 			entry.dirty =
-				(await gitText(absolutePath, ["status", "--porcelain"])).trim() !== "";
-			const checkoutHead = (
-				await gitText(entry.gitCwd, ["rev-parse", "HEAD"])
-			).trim();
+				(await gitText(chain.path, ["status", "--porcelain"])).trim() !== "";
+			const checkoutHead = (await gitText(cwd, ["rev-parse", "HEAD"])).trim();
 			entry.commits = Number.parseInt(
 				(
-					await gitText(absolutePath, [
+					await gitText(chain.path, [
 						"rev-list",
 						"--count",
 						"HEAD",
@@ -1014,31 +1113,71 @@ async function inspectRunWorktrees(
 				10,
 			);
 			if (!Number.isFinite(entry.commits)) entry.commits = 0;
-		} catch (error) {
-			entry.error = `git: ${errorMessage(error).split("\n")[0]}`;
 		}
+	} catch (error) {
+		entry.error = `git: ${errorMessage(error).split("\n")[0]}`;
 	}
-	return [...seen.values()];
 }
 
-/** `prune --yes`: remove each worktree; delete its branch only when merged (`git branch -d`). */
+/** The fields that must not change between inspection and removal. */
+function sameWorktreeState(left: RunWorktree, right: RunWorktree): boolean {
+	return (
+		left.error === undefined &&
+		right.error === undefined &&
+		left.absolutePath === right.absolutePath &&
+		left.branch === right.branch &&
+		left.missing === right.missing &&
+		left.registered === right.registered &&
+		left.commits === right.commits
+	);
+}
+
+/**
+ * `prune --yes`: remove each identified worktree (rechecked right before git touches it) and delete
+ * its branch only when merged (`git branch -d`).
+ */
 async function removeRunWorktrees(
-	_cwd: string,
+	cwd: string,
+	runId: string,
 	worktrees: RunWorktree[],
 ): Promise<WorkflowPruneWorktree[]> {
 	const results: WorkflowPruneWorktree[] = [];
 	for (const worktree of worktrees) {
-		const { absolutePath, gitCwd, ...entry } = worktree;
+		const { absolutePath, registered, ...entry } = worktree;
 		if (entry.error) {
 			results.push(entry);
 			continue;
 		}
+		const name = relative(
+			join(workflowsRoot(cwd), runId, "worktrees"),
+			absolutePath,
+		);
+		const recheck = async (): Promise<boolean> => {
+			const current: RunWorktree = {
+				path: entry.path,
+				absolutePath,
+				branch: entry.branch,
+				dirty: false,
+				commits: 0,
+			};
+			await identifyRunWorktree(cwd, runId, name, current);
+			if (sameWorktreeState(worktree, current)) return true;
+			entry.error = current.error ?? "worktree changed since inspection; kept";
+			return false;
+		};
 		try {
-			// A missing directory: only git's stale registration is left (best effort).
-			if (entry.missing)
-				await gitText(gitCwd, ["worktree", "prune"]).catch(() => "");
-			else
-				await gitText(gitCwd, ["worktree", "remove", "--force", absolutePath]);
+			if (!(await recheck())) {
+				results.push(entry);
+				continue;
+			}
+			// A missing directory: only its stale registration (identified above) is removed.
+			if (registered !== undefined)
+				await gitText(cwd, [
+					"worktree",
+					"remove",
+					"--force",
+					entry.missing ? registered : absolutePath,
+				]);
 			entry.removed = true;
 		} catch (error) {
 			entry.error = `git worktree remove: ${errorMessage(error).split("\n")[0]}`;
@@ -1048,7 +1187,7 @@ async function removeRunWorktrees(
 		if (entry.branch)
 			entry.branchDeleted =
 				entry.commits === 0 &&
-				(await gitText(gitCwd, ["branch", "-d", entry.branch])
+				(await gitText(cwd, ["branch", "-d", entry.branch])
 					.then(() => true)
 					.catch(() => false));
 		results.push(entry);
