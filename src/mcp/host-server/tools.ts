@@ -1632,13 +1632,21 @@ export function createHostMcpService(
 					? {
 							consent: {
 								source: "elicitation" as const,
-								confirm: async (title: string, message: string) =>
-									(await elicitConfirmation(
+								// WP39b O1: only `decline` is the user's no; `cancel`/an error is the
+								// client's (e.g. Claude Code print mode auto-cancels).
+								confirm: async (title: string, message: string) => {
+									const answer = await elicitConfirmation(
 										call,
 										`${title}\n\n${message}`,
 										"auto consent",
 										log,
-									)) === "accept",
+									);
+									return answer === "accept"
+										? true
+										: answer === "decline"
+											? false
+											: undefined;
+								},
 							},
 							choose: async (prompt: hostApi.AutoChoicePrompt) => {
 								const options = autoChoiceOptions(prompt.choices);
@@ -1675,6 +1683,8 @@ export function createHostMcpService(
 				next = `Nothing started. If the user then names a workflow, call ${WORKFLOW_RUN_TOOL} {"workflow":"…","task":"…"}; do not call ${WORKFLOW_AUTO_TOOL} again unless the user asks.`;
 			else if (data.phase === "consent-declined")
 				next = `The user declined: nothing was sent and nothing started. Do not retry unless the user asks.`;
+			else if (data.phase === "consent-cancelled")
+				next = `The client cancelled the confirmation dialog or cannot ask the user here (no answer was given): nothing was sent and nothing started. Show the user the shortlist and ask which workflow to run; then call ${WORKFLOW_RUN_TOOL} {"workflow":"…","task":"…"} (or ${WORKFLOW_DYNAMIC_TOOL}).`;
 			return finish(call, auto, data, next);
 		},
 		[WORKFLOW_STATUS_TOOL]: async (args, call) => {

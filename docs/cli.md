@@ -159,6 +159,7 @@ Cancelling at any step starts nothing. The run's launch metadata (`agent-workflo
 records the offered candidates, the recommendation, your choice, the classifier executor/model and
 the consent source (`prompt` or `flag`); the task only as its SHA-256. `show <run>` prints an
 `Auto selection:` line. With `--json`, `data.phase` is `consent-unavailable`, `consent-declined`,
+`consent-cancelled` (MCP/API only: no answer from the user),
 `classifier-unavailable`, `ranked`, `cancelled`, `stale` or `launched` (`data.launch` then holds
 the launch result).
 

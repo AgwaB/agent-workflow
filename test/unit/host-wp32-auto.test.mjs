@@ -876,6 +876,38 @@ test("MCP workflow_auto: declined consent elicitation sends nothing", async () =
 	);
 	assert.ok(requests[0].params.message.includes(TASK));
 	assert.deepEqual(allClassifierSubmits(logs), { pi: 0, claude: 0, codex: 0 });
+	assert.match(out.content[0].text, /did not agree/);
+	assert.match(out.structuredContent.next, /The user declined/);
+});
+
+// WP39b O1: Claude Code print mode answers every elicitation itself with `cancel`. The result must
+// say the client cancelled (or cannot ask), never that the user declined or did not agree.
+test("MCP workflow_auto: a cancelled consent elicitation is the client's cancel, not the user's decline", async () => {
+	for (const answer of [
+		{ action: "cancel" },
+		{ error: { code: -32603, message: "client gone" } },
+	]) {
+		const { cwd, env } = await project();
+		const logs = shadow({ pi: READY, claude: READY, codex: READY });
+		const { client } = await mcpConnect(cwd, env, [answer]);
+		const out = await client.call("workflow_auto", {
+			task: TASK,
+			detach: false,
+		});
+		const text = out.content[0].text;
+		assert.equal(out.structuredContent.data.phase, "consent-cancelled");
+		assert.equal(out.structuredContent.data.classifierCalled, false);
+		assert.deepEqual(allClassifierSubmits(logs), {
+			pi: 0,
+			claude: 0,
+			codex: 0,
+		});
+		assert.match(text, /cancelled|cannot ask/);
+		assert.doesNotMatch(text, /did not agree|declined/i);
+		assert.doesNotMatch(out.structuredContent.next, /declined/i);
+		assert.match(out.structuredContent.next, /cancelled|cannot ask/);
+		assert.equal(await runCount(cwd), 0);
+	}
 });
 
 test("MCP workflow_auto: consent, one classifier call on codex, the choice elicitation launches", async () => {

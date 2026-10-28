@@ -213,8 +213,10 @@ request id is the approval digest), and the decision is recorded on the run
    executor/model. The classifier runs on the run's default executor: `executor`, else the saved
    user profile, else this host's own CLI (`--host claude-code` → `claude`, `codex` → `codex`,
    `generic` → the first installed and logged-in of pi, claude, codex), with `model`/`effort` or the
-   executor's default model. Only `accept` sends the one tool-less request; `decline`, `cancel` or
-   an error send nothing (`phase: "consent-declined"`).
+   executor's default model. Only `accept` sends the one tool-less request; nothing is sent otherwise. `decline` is the user's
+   no (`phase: "consent-declined"`); `cancel` or an error is the client's, not the user's (Claude
+   Code print mode answers every elicitation with `cancel`), so the result says the client
+   cancelled or cannot ask and never that the user declined (`phase: "consent-cancelled"`, WP39b).
 3. **Choice.** A second elicitation (`elicitChoice`) is a form with one required enum field
    `workflow`: the ranked launchable candidates (`1. <name> (recommended)`, …), the recommendation
    as `default`; the message carries the classifier's recommendation and reasons. `accept` with a
