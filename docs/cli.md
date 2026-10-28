@@ -403,3 +403,9 @@ agent-workflow prune --keep 20 --yes
   input and an abort still answer `""`. The unit tests of these flows script `io.prompt` and never ran
   the real prompt; `test/unit/host-wp39-cli-readline-prompt.test.mjs` runs it on a stream (fails with
   the old ordering: `'' !== 'y'`).
+- **WP39b (live bundle 5, O14): no progress output on an open question.** A foreground run whose
+  dynamic-controller approval question stayed open past a wait slice printed `still running …` and
+  progress lines right after `Run dynamic workflow controller? [y/n]`, on the question's line.
+  Progress output now pauses while a question is open and the newest held line is printed after the
+  answer. Test: `host-wp29-cli-approval.test.mjs` "no progress line is printed while the approval
+  question is open" (fails on the old code).
