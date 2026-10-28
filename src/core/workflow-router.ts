@@ -6,6 +6,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { TextDecoder } from "node:util";
 
 import {
+	acquireAutoRouterPin,
 	AUTO_ROUTER_RUNS_DIR,
 	WORKFLOW_AUTO_COMPARE_CORRELATION_ID,
 } from "./auto-router-runs.js";
@@ -1613,6 +1614,20 @@ function buildWorkflowAutoComparisonPacket(
 }
 
 async function runWorkflowAutoComparison(
+	request: WorkflowAutoRequest,
+	packet: string,
+): Promise<string> {
+	// WP42 (WP39b review, finding 5): pin this request's result from before the launch until its
+	// output is consumed, so a concurrent `prune` keeps it.
+	const pin = await acquireAutoRouterPin(request.cwd);
+	try {
+		return await runPinnedWorkflowAutoComparison(request, packet);
+	} finally {
+		await pin?.release();
+	}
+}
+
+async function runPinnedWorkflowAutoComparison(
 	request: WorkflowAutoRequest,
 	packet: string,
 ): Promise<string> {

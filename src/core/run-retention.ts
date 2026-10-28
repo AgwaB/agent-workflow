@@ -30,8 +30,11 @@ import { acquireDirectoryLock } from "../runtime/artifacts/dir-lock.js";
 import { RUN_LOCKS_DIR } from "../runtime/artifacts/registry.js";
 import { physicalDirectoryChain } from "./physical-paths.js";
 import {
+	AUTO_ROUTER_PINS_DIR,
 	AUTO_ROUTER_RUN_ID_PATTERN,
 	AUTO_ROUTER_RUNS_DIR_NAME,
+	type AutoRouterPinState,
+	readAutoRouterPins,
 	unidentifiedClassifierReason,
 } from "./auto-router-runs.js";
 import {
@@ -109,6 +112,8 @@ export interface WorkflowPruneClassifierRun {
 	updatedAt: string;
 	bytes: number;
 	deleted: boolean;
+	/** WP42 (finding 5): pinned by an active classifier request; never deleted. */
+	protected?: boolean;
 	error?: string;
 }
 
@@ -367,7 +372,11 @@ async function prunePlan(
 			summaryRuns.reduce(
 				(total, run) => total + (run.protected ? 0 : run.bytes),
 				0,
-			) + autoRouterRuns.reduce((total, run) => total + run.bytes, 0),
+			) +
+			autoRouterRuns.reduce(
+				(total, run) => total + (run.protected ? 0 : run.bytes),
+				0,
+			),
 		deletedBytes:
 			summaryRuns.reduce(
 				(total, run) => total + (run.deleted ? run.bytes : 0),
@@ -432,7 +441,7 @@ export function formatWorkflowPruneSummary(
 		);
 		for (const run of summary.autoRouterRuns)
 			lines.push(
-				`- ${run.runId} ${run.status} ${run.updatedAt} ${run.bytes} bytes${run.error ? ` — ${run.error}` : run.deleted ? " — deleted" : ""}`,
+				`- ${run.runId} ${run.status} ${run.updatedAt} ${run.bytes} bytes${run.protected ? ` — protected: ${run.error}` : run.error ? ` — ${run.error}` : run.deleted ? " — deleted" : ""}`,
 			);
 	}
 	if (summary.autoRouterPreserved?.length) {
@@ -1264,6 +1273,15 @@ const AUTO_ROUTER_TERMINAL = new Set(["completed", "failed", "cancelled"]);
 const AUTO_ROUTER_LOCK_RETRY_MS = 25;
 const AUTO_ROUTER_LOCK_RETRIES = 200;
 
+const PINNED_CLASSIFIER_REASON =
+	"pinned: an active classifier request has not consumed its result yet";
+
+function isPinned(pins: AutoRouterPinState, updatedAt: string): boolean {
+	return (
+		pins.pinnedSince !== undefined && Date.parse(updatedAt) >= pins.pinnedSince
+	);
+}
+
 let beforeClassifierDeleteForTests: (() => void | Promise<void>) | undefined;
 export function setWorkflowPruneBeforeClassifierDeleteForTests(
 	hook?: () => void | Promise<void>,
@@ -1355,8 +1373,9 @@ async function pruneAutoRouterRuns(
 	const entries = await readdir(root, { withFileTypes: true }).catch(() => []);
 	const candidates: ClassifierCandidate[] = [];
 	for (const entry of entries) {
-		// The runtime's run locks.
-		if (entry.name === RUN_LOCKS_DIR) continue;
+		// The runtime's run locks; WP42 F5 classifier pins.
+		if (entry.name === RUN_LOCKS_DIR || entry.name === AUTO_ROUTER_PINS_DIR)
+			continue;
 		const keepEntry = (reason: string) =>
 			preserved.push({ name: entry.name, reason });
 		if (entry.name.startsWith(".prune-")) {
@@ -1408,13 +1427,23 @@ async function pruneAutoRouterRuns(
 			(cutoff === undefined || Date.parse(candidate.updatedAt) < cutoff),
 	);
 	const results: WorkflowPruneClassifierRun[] = [];
+	// WP42 (finding 5): a live per-request pin keeps the results its caller has not consumed yet.
+	const pins = await readAutoRouterPins(root, yes);
 	for (const { dir, identity, ...entry } of selected) {
+		if (isPinned(pins, entry.updatedAt)) {
+			entry.protected = true;
+			entry.error = PINNED_CLASSIFIER_REASON;
+			results.push(entry);
+			continue;
+		}
 		if (yes)
 			try {
 				await beforeClassifierDeleteForTests?.();
 				await deleteClassifierRun(cwd, root, { ...entry, dir, identity });
 				entry.deleted = true;
 			} catch (error) {
+				if ((error as { pinned?: unknown }).pinned === true)
+					entry.protected = true;
 				entry.error = errorMessage(error);
 			}
 		results.push(entry);
@@ -1449,6 +1478,10 @@ async function deleteClassifierRun(
 		);
 		if (!record || "kept" in record || record.updatedAt !== candidate.updatedAt)
 			throw new Error("classifier request changed since selection");
+		if (isPinned(await readAutoRouterPins(root), record.updatedAt))
+			throw Object.assign(new Error(PINNED_CLASSIFIER_REASON), {
+				pinned: true,
+			});
 	};
 	await recheck();
 	// The runtime's lock directory (created like the runtime does, but never through a symlink).
