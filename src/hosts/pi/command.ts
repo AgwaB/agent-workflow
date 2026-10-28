@@ -25,6 +25,7 @@ import {
 } from "../api.js";
 import { logsRequest, parseCommandArgs } from "../cli/index.js";
 import { FOREGROUND_CANCELLED, withForegroundLoader } from "./active-ui.js";
+import { beginRunParentUsage } from "./parent-usage.js";
 import {
 	emit,
 	hasDialogUi,
@@ -513,6 +514,8 @@ export async function trackLaunched(
 	if (typeof data?.runId !== "string") return;
 	if (data.status !== "running" && data.status !== "pending") return;
 	await deps.feedback.track(ctx, data.runId, launchedBy).catch(() => undefined);
+	// WP33: count the parent session's usage while the run runs (parent-usage.json).
+	await beginRunParentUsage(ctx, data.runId);
 }
 
 export function awArgumentCompletions(

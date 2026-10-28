@@ -13,6 +13,11 @@ import type { PiRunFeedback } from "./feedback.js";
 import { createPiHostDeps, hostContext, type PiHostOptions } from "./host.js";
 import { AW_COMMAND } from "./names.js";
 import { unfinishedRunNotice } from "./notices.js";
+import {
+	flushRunParentUsage,
+	recordRunParentUsage,
+	resumeRunParentUsage,
+} from "./parent-usage.js";
 import type { PiExtensionApi } from "./pi-types.js";
 import { registerAwTools } from "./tools.js";
 
@@ -66,14 +71,22 @@ export function createAgentWorkflowPiExtension(
 				// settled while it was not running (receipts prevent a second delivery).
 				if (current === session)
 					await deps.feedback.restore(ctx).catch(() => undefined);
+				// WP33: keep counting the parent usage of this session's running runs.
+				if (current === session) await resumeRunParentUsage(ctx);
 			})();
 			noticeSettled.set(pi, () => lastNotice);
 		});
 		// WP19 round 4 (F1): the shutdown reason tells whether Pi keeps the session's queue
 		// (`reload`) or disposes it (`new`/`resume`/`fork`/`quit`).
-		pi.on("session_shutdown", (event, ctx) => {
+		pi.on("session_shutdown", async (event, ctx) => {
 			session += 1;
-			return deps.feedback.shutdown(event, ctx);
+			await deps.feedback.shutdown(event, ctx);
+			if (supervisor) await flushRunParentUsage(ctx);
+		});
+		// WP33 (parity row 33): the parent session's assistant usage while its runs are active.
+		pi.on("message_end", (event, ctx) => {
+			if (!supervisor) return;
+			return recordRunParentUsage(ctx, event?.message);
 		});
 
 		if (supervisor) registerAwTools(pi, deps);

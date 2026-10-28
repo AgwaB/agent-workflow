@@ -137,6 +137,14 @@ export interface PiExtensionApi {
 		event: "session_shutdown",
 		handler: (event: unknown, ctx: PiExtensionContext) => void | Promise<void>,
 	): () => void;
+	/** WP33: Pi 1.1 `message_end` (`event.message`: the finished message; parent usage). */
+	on(
+		event: "message_end",
+		handler: (
+			event: { message?: unknown },
+			ctx: PiExtensionContext,
+		) => void | Promise<void>,
+	): () => void;
 	getThinkingLevel?: () => string | undefined;
 	/** WP35: Pi 1.1 native MCP (its presence marks a native codemode/MCP host). */
 	getMcpServers?: () => unknown;

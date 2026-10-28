@@ -72,6 +72,11 @@ import {
 } from "./hints.js";
 import { spawnDetachedSupervisor } from "./launch.js";
 import {
+	formatParentUsage,
+	type ParentUsageSummary,
+	parentUsageSummary,
+} from "./run-provenance.js";
+import {
 	type HostLaunchClaimPrune,
 	pruneHostLaunchClaims,
 } from "./launch-guard.js";
@@ -154,6 +159,8 @@ export interface StatusData {
 		 * (the question, its request id; answer with `approve`).
 		 */
 		pendingApprovals?: PendingDynamicApproval[];
+		/** WP33: the host session's own model usage while it drove the run (Pi host). */
+		parentUsage?: ParentUsageSummary;
 	};
 	runs?: RunSummary[];
 }
@@ -220,7 +227,12 @@ export async function statusAction(
 					: []),
 			].join("\n")
 		: card;
-	const text = approvalText ? `${statusText}\n${approvalText}` : statusText;
+	const parentUsage = await parentUsageSummary(ctx.cwd, run.runId);
+	const text = [
+		statusText,
+		...(parentUsage ? [formatParentUsage(parentUsage)] : []),
+		...(approvalText ? [approvalText] : []),
+	].join("\n");
 	return result(
 		"status",
 		"success",
@@ -237,6 +249,7 @@ export async function statusAction(
 					statusDetail: String(task.statusDetail),
 				})),
 				...(pendingApprovals.length ? { pendingApprovals } : {}),
+				...(parentUsage ? { parentUsage } : {}),
 			},
 		},
 		// WP19 (review #7): the card carries worker messages.
@@ -305,6 +318,8 @@ export interface InspectData {
 		contextLimitFailures: number;
 	};
 	listed: string[];
+	/** WP33: the host session's own model usage while it drove the run (Pi host). */
+	parentUsage?: ParentUsageSummary;
 }
 
 function summarizeReliability(
@@ -381,6 +396,8 @@ export async function inspectAction(
 		`completion: ${reliability.health}`,
 		`retries: output=${reliability.outputRetries}, launch=${reliability.launchRetries}, resumes=${reliability.resumeEvents}, contextLimitFailures=${reliability.contextLimitFailures}`,
 	];
+	const parentUsage = await parentUsageSummary(ctx.cwd, run.runId);
+	if (parentUsage) lines.push(formatParentUsage(parentUsage));
 	if (showAllResults) lines.push("failures: none (showing every task result)");
 	for (const task of selected) {
 		lines.push(
@@ -411,7 +428,12 @@ export async function inspectAction(
 	return result(
 		"inspect",
 		"success",
-		{ run, reliability, listed: selected.map((task) => task.taskId) },
+		{
+			run,
+			reliability,
+			listed: selected.map((task) => task.taskId),
+			...(parentUsage ? { parentUsage } : {}),
+		},
 		// WP19 (review #7): task messages and results are worker output.
 		hostTextRedactor(hostEnv(ctx))(lines.join("\n")),
 	);

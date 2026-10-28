@@ -387,6 +387,23 @@ and JSON mode show nothing):
   `resume` and `approve` return once started, so they need no loader; the agent's `aw_wait` and
   awaited launches are tool calls (Pi shows their progress; aborting the turn cancels the wait).
 
+## Parent-session usage (WP33)
+
+Port of pi-workflow's `parent-usage.json` (`src/workflow-parent-usage.ts`, ported as
+`src/core/workflow-parent-usage.ts`; parity row 33). A run that `/aw run|dynamic|resume|approve`,
+`aw_run` or `aw_dynamic` started (or returned as `existing`) in this session is tracked under the Pi
+session id; every parent assistant message (`message_end` with `usage`) while the run is active adds
+its usage (input, output, total, cache read/write, reasoning tokens, cost) to
+`<run dir>/parent-usage.json`, and the first assistant message after the run settled is counted once
+as the wrap-up (`completedAt`). `session_start` resumes counting for this session's running runs,
+`session_shutdown` flushes and detaches. The core module's rules apply (one writer under the run's
+lease, replay receipts, a run owned by another session — its `pi-feedback-audience.json` — is never
+written). The sidecar holds only numbers, timestamps, the session id and message hashes, never message
+content. It needs a session id, not a UI (print mode counts too). `status <run>` and `inspect <run>`
+(every host) show `Parent session usage: <total> tokens (in …, out …, cache read/write …/…), $<cost>,
+<n> assistant messages` (`(counting)` while open) and return it as `parentUsage` (totals only). Other
+hosts record none: an MCP server cannot see its host's usage.
+
 ## Process roles
 
 With `AGENT_WORKFLOW_ROLE=worker` or `disabled` (a Pi worker that loads this package) the tools are not
@@ -409,6 +426,9 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
   without the tool result in the history).
 - WP33: `host-wp33-pi-active-ui.test.mjs` (widget lines, this session only, footer kept, cleared;
   no UI shows nothing; `/aw wait` loader in the TUI, Escape cancels only the wait; no loader in RPC).
+- WP33: `host-wp33-pi-parent-usage.test.mjs` (totals of this session's assistant messages while the
+  run is active, not other sessions', not content; wrap-up counted once; status/inspect line; CLI
+  runs record nothing; print mode counts).
 - WP28: `host-wp28-pi-waits.test.mjs` (long `aw_wait`, `awaitTerminal` on `aw_run`/`aw_dynamic`,
   cancel = only the wait, no second delivery of an awaited result, `/aw wait <run> [timeout]`),
   `host-wp28-pi-redrive.test.mjs` (a child process launches an attached run and exits; session start
