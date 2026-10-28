@@ -1,0 +1,16 @@
+ adaptive.controller: dynamic approval mode "ask" needs the user's approval and this scheduler has no approval UI. Approve or reject it with agent-workflow approve workflow_mvsdwvhx_835052 (Pi: /aw
+ approve workflow_mvsdwvhx_835052; MCP: workflow_approve).
+ Inspect: /aw inspect workflow_mvsdwvhx_835052 --failures · Resume: /aw resume workflow_mvsdwvhx_835052
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Execution profile for every workflow
+ Saved as a user profile; make it the default to use it when a launch names none.
+ → Codex — every role on codex (gpt-5.6-luna)
+   Claude — every role on claude (sonnet)
+   Pi — every role on pi (Pi's configured default model)
+   Mixed — planning, synthesis, verification and final judgment on claude (sonnet); research/implementation on codex (gpt-5.6-luna)
+   Saved: live5-mixed
+   Custom…
+ ↑↓ navigate  enter select  escape/ctrl+c cancel
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[gpt-5.6-luna] | dir …/tmp/aw-live5/d-pi | git master · 3 untracked · wt: d-pi
+ctx [▏░░░░░░░░░] 0% | fast off | effort low | phase ready | session 01a1838a | last: 10/29 02:24

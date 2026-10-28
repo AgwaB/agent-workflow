@@ -1,0 +1,13 @@
+Workflow resumed: deep-review
+Run: workflow_mvsd4t60_4eb599
+
+Reset 9 task(s) and scheduled remaining work.
+Progress: 2/11 completed · 3 running · 6 queued
+
+Now:
+  • reviewers.runtime-stop-signal — scout · codex · gpt-5.6-luna · low reasoning
+  • reviewers.runtime-terminal-semantics — scout · codex · gpt-5.6-luna · low reasoning
+  • reviewers.runtime-cancel-classification — scout · codex · gpt-5.6-luna · low reasoning
+
+Open: agent-workflow status workflow_mvsd4t60_4eb599
+Detached supervisor: pid 93228

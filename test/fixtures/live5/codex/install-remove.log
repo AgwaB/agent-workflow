@@ -1,0 +1,46 @@
+== 2026-10-28T16:35:29Z marketplace add
+Added marketplace `agent-workflow` from /tmp/aw-live5/plugin.
+Installed marketplace root: /tmp/aw-live5/plugin
+== plugin add
+Added plugin `agent-workflow` from marketplace `agent-workflow`.
+Installed plugin root: <HOME>/.codex/plugins/cache/agent-workflow/agent-workflow/0.1.0
+== diff vs backup
+425a426,429
+> 
+> [marketplaces.agent-workflow]
+> source_type = "local"
+> source = "/tmp/aw-live5/plugin"
+572a577,579
+> [plugins."agent-workflow@agent-workflow"]
+> enabled = true
+> 
+diff exit 1
+== 2026-10-28T17:33:47Z diff before removal
+426a427,430
+> [marketplaces.agent-workflow]
+> source_type = "local"
+> source = "/tmp/aw-live5/plugin"
+> 
+570a575,577
+> enabled = true
+> 
+> [plugins."agent-workflow@agent-workflow"]
+670a678,680
+> 
+> [projects."<HOME>/experiments/video-summarizer/internal/e2e/hosts2/codex"]
+> trust_level = "trusted"
+diff exit 1
+== plugin remove
+Removed plugin `agent-workflow` from marketplace `agent-workflow`.
+== marketplace remove
+Removed marketplace `agent-workflow`.
+== diff after removal
+670a671,673
+> 
+> [projects."<HOME>/experiments/video-summarizer/internal/e2e/hosts2/codex"]
+> trust_level = "trusted"
+diff exit 1
+== cache dir
+total 0
+drwxr-xr-x@ 2 <user>  staff   64 Oct 29 02:33 .
+drwxr-xr-x@ 6 <user>  staff  192 Oct 29 01:35 ..

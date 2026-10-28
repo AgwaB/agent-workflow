@@ -1,0 +1,30 @@
+  executor "codex", model "gpt-5.6-luna", effort "low"; (4) workflow_profile with op "show", name "live5-b4-test"; (5) workflow_profile with op "delete", name "live5-b4-test". After each call print
+  the first 3 lines of its text result.
+• I’ll call the five requested agent-workflow tools in the specified order, printing only the first three text-result lines after each call.
+• Called agent-workflow.workflow_show
+  └ Launch: mcp:codex · tool workflow_auto · named-workflow, base profile, task 151 chars/1 line
+    Auto selection: deep-review (no recommendation; 7 candidates; classifier codex gpt-5.6-luna; consent elicitation)
+    Launch command: workflow_auto {"task":"Review src/workflow-stop.ts, src/workflow-cancellation.ts and src/workflow-terminal.ts for correctness and reliability defects in stop/cancel handling.","mo…
+    + Show details
+• Called agent-workflow.workflow_doctor
+  └   - claude: installed 2.1.312 differs from the verified 2.1.310; capability rows marked probed may not hold
+    OK: 3 of 3 executors usable.
+    + Show details
+• Called agent-workflow.workflow_profile
+  └   executor: codex
+      model: gpt-5.6-luna
+      effort: low
+    + Show details
+• Called agent-workflow.workflow_profile
+  └   executor: codex
+      model: gpt-5.6-luna
+      effort: low
+    + Show details
+• Called agent-workflow.workflow_profile
+  └ Deleted profile live5-b4-test.
+    + Show details
+• Completed the five calls in the requested order, printing the first three text-result lines after each.
+  Worked for 35s • 1:46 AM
+› Ask Codex to do anything
+  GPT-5.6-Luna low fast · Context 91% left · /tmp/aw-live5/b1-codex-auto · 258K window
+  ? for shortcuts                                                                                                                                                             ⚠ 2 warnings · f2 to view

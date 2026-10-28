@@ -1,0 +1,55 @@
+
+ Result preview
+
+ <control>{"schema":"stage-control-v1","digest":"package-name-read"}</control>
+ <analysis>The package name is workflow-stop-sample.</analysis>
+ <refs>[]</refs>
+
+
+ Workflow workflow_mvse1wtr_fd06a6 completed (1/1 completed, 0 failed, 0 interrupted).
+ Open: /aw status workflow_mvse1wtr_fd06a6 · Logs: /aw logs workflow_mvse1wtr_fd06a6
+
+
+ Call the aw_run tool with workflow "live5-hosttools" and task "Report the tools available to workflow workers." (no other options). Then call aw_wait with the returned runId. When it returns, reply
+ with the run status and the first two lines of the result preview, nothing else.
+
+
+
+ aw_run workflow="live5-hosttools" task="Report the tools available to workflow workers."
+ Capability check (pi@0.1.0, 2 stages, permission mode: free): accepted
+   probe: installed, cli 1.1.0, auth ok
+ probe.main: pi@0.1.0 — accepted
+   toolAllowlist.fine: native (preferred, native/probed/fine)
+   usage.cost: native (preferred, native/probed/cost)
+   resume: native (preferred, native/probed/native)
+   contextIsolation: native (required, native/probed)
+   mcpInjection: native (required, native/probed)
+   host tools: inherited (Pi host codemode, tool_search, mcp__*, MCP resources; mutation-capable)
+ check.main: pi@0.1.0 — accepted
+ ... (15 more lines, ctrl+o to expand)
+
+
+
+ aw_wait runId="workflow_mvse2trj_5b109f"
+ <control>{"schema":"stage-control-v1","digest":"tools-listed"}</control>
+
+ <analysis>Available tools: read; mcp__workflow_artifact__workflow_artifact. No tool name starts with mcp__ other than mcp__workflow_artifact__workflow_artifact, and I do not have codemode or
+ tool_search.</analysis>
+
+ <refs>[]</refs>
+
+
+ Deciding reply status and lines preview
+
+ Run status: completed
+
+ <control>{"schema":"stage-control-v1","digest":"tools-listed"}</control>
+
+ <analysis>Available tools: read; mcp__workflow_artifact__workflow_artifact.</analysis>
+
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                                                                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+[gpt-5.6-luna] | dir …/tmp/aw-live5/d-pi | git master · 3 untracked · wt: d-pi
+ctx [▏░░░░░░░░░] 8% | fast off | effort low | phase ready | session 01a1838a | last: 10/29 02:29

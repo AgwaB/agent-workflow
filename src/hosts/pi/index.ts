@@ -18,7 +18,7 @@ export class PiHostUnavailableError extends Error {
 }
 
 try {
-	// Live bundle 5: kept for the late users (loaders, clipboard), see pi-runtime.ts.
+	// Live bundle 5: kept for the late users (loaders, copyToClipboard), see pi-runtime.ts.
 	registerPiRuntimeModule(await import(PI_PACKAGE));
 } catch (error) {
 	throw new PiHostUnavailableError(error);

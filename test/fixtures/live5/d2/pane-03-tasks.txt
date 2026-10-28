@@ -1,0 +1,16 @@
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Stages ─────────────────────────────╮ ╭─ triage tasks ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ › ✓ triage      DONE ▰▰▰▰▰▰  …       │ │ › ✓ triage.main                                                  done · pi gpt-5.6-luna low                                                               │
+│   ↻ reviewers   RUNNING ▰▰▰▰▰…       │ ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+│   • dedup-find… PENDING ▱▱▱▱▱…       │
+│   • devil-advo… PENDING ▱▱▱▱▱…       │
+│   • partition-… PENDING ▱▱▱▱▱…       │
+│   • report-pac… PENDING ▱▱▱▱▱…       │
+│   • report      PENDING ▱▱▱▱▱…       │
+│   • final       PENDING ▱▱▱▱▱…       │
+╰──────────────────────────────────────╯
+Enter/→ logs · b/Esc/← stages · ↑/↓ move · r refresh · v launch · c copy · s stop · u resume · a approve · q close
+ Active workflows
+ ● deep-review 5/11 running · 21s
+[gpt-5.6-luna] | dir …/tmp/aw-live5/d-pi | git master · 1 untracked · wt: d-pi
+ctx [░░░░░░░░░░] 0% | fast off | effort low | phase ready | session 01a18384 | last: 10/29 02:17

@@ -1,0 +1,14 @@
+agent-workflow watch · 16:47:03 · one frame
+
+deep-review (workflow_mvsck9xp_7a85b5)
+Status: running · 0/8 completed · 1 running · 0 failed · elapsed 6s
+
+  ▶ triage.main                    running     6s      claude/haiku
+  · reviewers.item                 pending             codex/gpt-5.6-luna
+  · dedup-findings.main            pending
+  · devil-advocate.item            pending             claude/haiku
+  · partition-verdicts.main        pending
+  · report-packet.main             pending
+  · report.main                    pending             claude/haiku
+  · final.main                     pending
+

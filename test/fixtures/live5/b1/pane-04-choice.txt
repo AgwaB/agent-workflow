@@ -1,0 +1,50 @@
+
+
+› Call the agent-workflow MCP tool workflow_auto exactly once with task: "Review src/workflow-stop.ts, src/workflow-cancellation.ts and src/workflow-terminal.ts for correctness and reliability
+  defects in stop/cancel handling.", model: "gpt-5.6-luna" and effort: "low". Do not call workflow_run. After it returns a runId, call workflow_wait with that runId until the run is terminal, then
+  quote the verdict and report path.
+
+
+• I’m using the agent-workflow skill to run the requested review exactly once, then I’ll wait for completion and report the verdict and artifact path.
+
+• Explored
+  └ Read SKILL.md (agent-workflow:agent-workflow skill)
+    + Show details
+
+• Calling agent-workflow.workflow_auto
+    + Show details
+
+
+  Field 1/1 (1 required unanswered)
+  Choose the workflow to start
+
+  Compared on codex (host-default), model gpt-5.6-luna, effort low (consent: elicitation).
+  No recommendation (routing-unavailable: routing-unavailable: classifier output failed host validation; no path was selected or launched.). Choose a workflow yourself, or nothing.
+  Candidates:
+    1. Dynamic workflow [direct-dynamic, built-in]
+       workflow_dynamic {"task":"<task>"}
+    2. spec-review [named-workflow, package]
+       workflow_run {"workflow":"spec-review","task":"<task>"}
+    3. deep-review [named-workflow, package]
+       workflow_run {"workflow":"deep-review","task":"<task>"}
+    4. impact-review [named-workflow, package]
+       workflow_run {"workflow":"impact-review","task":"<task>"}
+    5. deep-research [named-workflow, package]
+       workflow_run {"workflow":"deep-research","task":"<task>"}
+    6. deep-review-matrix [named-workflow, user]
+       workflow_run {"workflow":"deep-review-matrix","task":"<task>"}
+    7. content-mining [named-workflow, user]
+       workflow_run {"workflow":"content-mining","task":"<task>"}
+
+  Decline to start nothing.
+
+  Workflow to start
+  › 1. 1. Dynamic workflow
+    2. 2. spec-review
+    3. 3. deep-review
+    4. 4. impact-review
+    5. 5. deep-research
+    6. 6. deep-review-matrix
+    7. 7. content-mining
+  enter to submit | esc to cancel
+

@@ -1,0 +1,15 @@
+Capability check (codex@0.1.0, 0 stages, permission mode: free): accepted
+  probe: installed, cli 0.159.2, auth ok
+Dynamic workflow started
+Run: workflow_mvsd8ho2_d3ff4e
+
+Progress: 0/2 completed · 1 running · 1 queued
+
+Now:
+  • dynamic.decide-r0 — researcher · gpt-5.6-luna · low reasoning
+
+Next:
+  • dynamic.controller — dynamic
+Detached supervisor: pid 9623, log .agent-workflow/workflows/workflow_mvsd8ho2_d3ff4e/supervise.log
+Check progress: agent-workflow status workflow_mvsd8ho2_d3ff4e
+Wait for the result: agent-workflow wait workflow_mvsd8ho2_d3ff4e

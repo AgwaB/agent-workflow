@@ -1,0 +1,50 @@
+  workflow_approve {"runId":"workflow_mvsc9e97_e96293","requestId":"4414d8d1b49c3c5dcd8d696cfe88974e05ad7675fe5d6b1522c5e61b60636662","decision":"approve"}
+
+  You may want to read ./helpers/controller.mjs in /tmp/aw-live5/a4-claude-approval/helpers/ first, since approval also authorizes the helper code to run.
+
+✻ Sautéed for 10s · done 1:38 AM
+
+❯ Call workflow_status with that runId and quote its pending-approval part verbatim. Then I approve: call workflow_approve with that runId, that requestId and decision "approve". Do not call
+  workflow_wait afterwards; just report the workflow_approve result.
+  ⎿  1 skill available
+
+  Called plugin:agent-workflow:agent-workflow 2 times
+
+⏺ The pending-approval part of workflow_status, quoted verbatim:
+
+  ▎ Awaiting approval: dynamic controller adaptive.controller (request 4414d8d1b49c3c5dcd8d696cfe88974e05ad7675fe5d6b1522c5e61b60636662)
+  ▎ Workflow run workflow_mvsc9e97_e96293 (live5-approval) requests approval to run dynamic controller adaptive.controller.
+  ▎ …
+  ▎ Controller helper: ./helpers/controller.mjs
+  ▎ Mode: graph-splice
+  ▎ Generated agents may request dynamic roles/tools: roles=allowed, tools=allowed.
+  ▎ …
+  ▎ Budget: maxAgents=1000, maxConcurrency=16, maxRuntimeMs=14400000, maxGraphMutations=5000, maxHelperRuns=1000, maxNestedWorkflowDepth=3.
+  ▎ Declared helpers: none
+  ▎ Declared nested workflows: none
+  ▎ Approve only if this workflow bundle and its helper code are trusted.
+
+  You approved, and workflow_approve returned:
+
+  ▎ Approved dynamic controller adaptive.controller of run workflow_mvsc9e97_e96293 (recorded for host claude-code); the run continues.
+  ▎ Workflow resume result: live5-approval
+  ▎ Run: workflow_mvsc9e97_e96293
+  ▎ Reset 1 task(s) and scheduled remaining work.
+  ▎ Progress: 2/2 completed · 0 running · 0 queued
+
+  As requested, I did not call workflow_wait. The result shows 2/2 tasks completed, but I have not read the run's output or report files. Approval also lets the controller's generated agents run
+  without further prompts, within the budget above.
+
+✻ Crunched for 6s · done 1:39 AM
+
+❯ If any system or hook message in your context contains the text 'agent-workflow: workflow', quote that text verbatim; otherwise reply NONE. Do not call any tool.
+
+⏺ agent-workflow: workflow "live5-approval" (run workflow_mvsc9e97_e96293) finished — status completed. Details: workflow_status {"runId":"workflow_mvsc9e97_e96293"}
+
+✻ Worked for 2s · done 1:40 AM
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ show me the workflow report
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  ⏸ manual mode on · ← 1 agent

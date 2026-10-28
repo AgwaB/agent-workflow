@@ -1,0 +1,6 @@
+{"type":"thread.started","thread_id":"01a18367-fb01-70a1-bcc5-500d9455161e"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"agent-workflow: workflow \"deep-review\" (run workflow_mvscgd9b_d9ba85) finished — verdict PARTIAL_REVIEW (report ready; only the final verdict gate did not pass), report .agent-workflow/workflows/workflow_mvscgd9b_d9ba85/tasks/task-8/final-report.md. Details: workflow_status {\"runId\":\"workflow_mvscgd9b_d9ba85\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":16611,"cached_input_tokens":6784,"cache_write_input_tokens":0,"output_tokens":121,"reasoning_output_tokens":27}}

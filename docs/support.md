@@ -1,7 +1,8 @@
 # Support matrix (stages 1 and 2)
 
 What runs where, verified how. Executors (stage 1) come from two sources below; hosts (stage 2)
-from [live bundle 4](live-acceptance-stage2.md), see [Hosts](#hosts-stage-2).
+from [live bundle 4](live-acceptance-stage2.md), see [Hosts](#hosts-stage-2); the pre-release features
+(WP28–WP38b) from [live bundle 5](live-acceptance-features.md), see [Live bundle 5](#live-bundle-5-pre-release-features).
 
 - **Live**: every bundled workflow run end to end on each executor with real CLIs and models
   (live bundle 3, 2026-10-27). Full evidence, per-run usage and the failure analysis:
@@ -53,16 +54,16 @@ workflow profile, else the host's own CLI: `host-default`). Live bundle 4, 2026-
 
 | Host | Verified CLI | Path | Tool names the model sees | Default executor | Live result | Notes |
 |---|---|---|---|---|---|---|
-| **Claude Code** | 2.1.310 | plugin (`--plugin-dir` dev copy; marketplace install verified offline, [plugins.md](plugins.md)); alternative `claude mcp add` | `mcp__plugin_agent-workflow_agent-workflow__workflow_{list,run,dynamic,status,wait,stop,inspect,validate}` (observed: `…workflow_run`, `…workflow_wait`, `…workflow_inspect`) | `claude`, `host-default` (observed) | completed: claude workers (`NEEDS_WORK`), codex workers (`PARTIAL_REVIEW`, finished detached after the host stopped waiting) | The model receives `structuredContent` serialized as JSON, not `content`. Tool schemas are deferred: the first call is `ToolSearch select:…`. `claude -p --permission-mode default --allowedTools <the 8 tools>` had no denials. The plugin's three skills are listed. Elicitation not exercised. |
-| **Codex** | 0.159.2 | plugin (`codex plugin marketplace add` + `plugin add`, temporary, in the real `CODEX_HOME`; host turn `codex exec`); alternative `codex mcp add` | code mode: the model calls `exec` (JavaScript cell) and inside it `tools.mcp__agent_workflow__workflow_{run,wait,inspect}` (observed; all 8 listed via `ALL_TOOLS`); the `--json` stream shows server `agent-workflow`, tool `workflow_*` | `codex`, `host-default` (observed) | completed (live 4b): codex workers and claude workers, both `PARTIAL_REVIEW` (run `failed` by `support_declared_failed`; the host saw no preview or report path) | The model printed the whole `CallToolResult`, so it saw `content` and `structuredContent`. `workflow_wait` (45 s) outlasts the 30 s code-mode yield; the model resumed with `wait`. Skills `agent-workflow:{agent-workflow,execution-router,workflow-guide}` listed; server runs in the thread cwd with `--host codex`. A new directory gets a `trust_level = "trusted"` entry in the user config unless trusted inline (`-c projects={…}`). |
-| **Pi** | 1.1.0 | extension (`pi -e <package>/dist/hosts/pi/index.js`, or `pi install`) | `/aw …` command; agent tools `aw_list`, `aw_run`, `aw_dynamic`, `aw_wait` | `pi`, `host-default` (observed) | completed: `/aw run` in RPC mode, no model turn (`NEEDS_WORK`) | Footer status `aw: <name> <done>/<total> running`, exactly one `agent-workflow-completion` message, `/aw logs` and `/aw status`. The message's "Verdict:" line is the run status, the report verdict is in the preview. WP34 (offline only, live bundle 5): in the TUI `/aw` and `/aw <run>` open the run board and `/aw profile` the profile picker ([pi-host.md](pi-host.md#board-wp34)); RPC, print and JSON mode keep the text commands. |
+| **Claude Code** | 2.1.310 | plugin (`--plugin-dir` dev copy; marketplace install verified offline, [plugins.md](plugins.md)); alternative `claude mcp add` | `mcp__plugin_agent-workflow_agent-workflow__workflow_{list,run,dynamic,status,wait,stop,inspect,validate}` (observed: `…workflow_run`, `…workflow_wait`, `…workflow_inspect`) | `claude`, `host-default` (observed) | completed: claude workers (`NEEDS_WORK`), codex workers (`PARTIAL_REVIEW`, finished detached after the host stopped waiting); live 5 (2.1.310/2.1.312): `workflow_auto` (consent + enum choice form), `workflow_approve` | The model receives `structuredContent` serialized as JSON, not `content` (WP18b: text only since). Tool schemas are deferred: the first call is `ToolSearch select:…`. `claude -p --permission-mode default --allowedTools <the 8 tools>` had no denials. The plugin's three skills are listed. Live 5: elicitation dialogs render in the interactive TUI (verified); `-p` auto-cancels every elicitation, so `workflow_auto` and confirmed changes refuse there. |
+| **Codex** | 0.159.2 | plugin (`codex plugin marketplace add` + `plugin add`, temporary, in the real `CODEX_HOME`; host turn `codex exec`); alternative `codex mcp add` | code mode: the model calls `exec` (JavaScript cell) and inside it `tools.mcp__agent_workflow__workflow_{run,wait,inspect}` (observed; all 8 listed via `ALL_TOOLS`); the `--json` stream shows server `agent-workflow`, tool `workflow_*` | `codex`, `host-default` (observed) | completed (live 4b): codex workers and claude workers, both `PARTIAL_REVIEW` (run `failed` by `support_declared_failed`; the host saw no preview or report path); live 5: `workflow_auto`, `workflow_show`, `workflow_doctor`, `workflow_profile` set/delete with elicitation | The model printed the whole `CallToolResult`, so it saw `content` and `structuredContent`. `workflow_wait` (45 s) outlasts the 30 s code-mode yield; the model resumed with `wait`. Skills `agent-workflow:{agent-workflow,execution-router,workflow-guide}` listed; server runs in the thread cwd with `--host codex`. A new directory gets a `trust_level = "trusted"` entry in the user config unless trusted inline (`-c projects={…}`). Live 5: with `approval_policy = "on-request"` the consent and enum forms render (one `workflow_auto` call with both dialogs and the classifier took 31 s of the 120 s `tool_timeout_sec`); with the user's `approval_policy = "never"` Codex **auto-accepts** empty confirm forms and cancels the enum form ([open O2](live-acceptance-features.md#observations-not-fixed-open)); destructive-annotated tools (`workflow_auto`, `workflow_profile`, also its `show`) need Codex's tool approval first. |
+| **Pi** | 1.1.0 | extension (`pi -e <package>/dist/hosts/pi/index.js`, or `pi install`) | `/aw …` command; agent tools `aw_list`, `aw_run`, `aw_dynamic`, `aw_wait` | `pi`, `host-default` (observed) | completed: `/aw run` in RPC mode, no model turn (`NEEDS_WORK`); live 5 (TUI): `/aw auto`, board, profile picker, `aw_run` + `aw_wait`, host tools | Footer status `aw: <name> <done>/<total> running`, exactly one `agent-workflow-completion` message, `/aw logs` and `/aw status`. The message's "Verdict:" line is the run status, the report verdict is in the preview. WP34 (live-verified in bundle 5 after fixes F4/F5): in the TUI `/aw` and `/aw <run>` open the run board and `/aw profile` the profile picker ([pi-host.md](pi-host.md#board-wp34)); RPC, print and JSON mode keep the text commands. |
 
 Progress and completion per host (WP36, offline; [host-ux-investigation.md](host-ux-investigation.md)):
 
 | Host | Status display | Live view | Completion delivery |
 |---|---|---|---|
-| **Claude Code** 2.1.310 | `agent-workflow statusline` as `statusLine.command` (user setting; plugins cannot set it) | `agent-workflow watch [run]` in a terminal | Pull: `workflow_wait`/`workflow_status`; plugin `UserPromptSubmit` hook runs `notify-check` (result at the next user message; offline-verified: plugin validates, hook listed). Push (monitor, `asyncRewake`, backgrounded wait, MCP tasks): not enabled, live check pending |
-| **Codex** 0.159.2 | none (`tui.status_line` has only built-in items) | `agent-workflow watch [run]` (`--bell`) | Pull: the tools; `notify-check` hook as user config (`/hooks` trust). Push via `codex queue`: live check pending; `notify` fires only on Codex turn completion |
+| **Claude Code** 2.1.310/2.1.312 | `agent-workflow statusline` as `statusLine.command` (user setting; plugins cannot set it); **live-verified** (L2) | `agent-workflow watch [run]` in a terminal (live-verified) | Pull: `workflow_wait`/`workflow_status`; plugin `UserPromptSubmit` hook runs `notify-check`: **live-verified** (L1; the line reaches the context prefixed "UserPromptSubmit hook success:", idle prompts start no CLI). Push: a plugin monitor running `notify-check --follow` **started a turn in an idle session** (L3, live 5; not shipped yet); `asyncRewake`, backgrounded wait (L4), MCP tasks: not verified |
+| **Codex** 0.159.2 | none (`tui.status_line` has only built-in items) | `agent-workflow watch [run]` (`--bell`) | Pull: the tools; `notify-check` hook as user config (`/hooks` trust): **live-verified** (L5, project `.codex/hooks.json`). Push via `codex queue --thread <id>`: **live-verified** (L6: an idle TUI started a turn, one model turn per delivery; no separate daemon needed); not wired into the product (owner decision on cost); `notify` fires only on Codex turn completion |
 | **Pi** 1.1.0 | footer status (WP16) | `/aw status` | push: one completion message (WP16/WP19) |
 
 Nesting and concurrency: Claude host → Claude workers, Claude host → Codex workers, Codex host →
@@ -97,7 +98,10 @@ Each adapter document has the full list under "Known limits".
 - Host tools (WP35): from a Pi 1.1 host with native codemode/MCP, non-readOnly Pi workers inherit
   `codemode`, `tool_search`, `mcp__*` and the MCP resource tools (mutation-capable; readOnly stages never
   inherit; recorded as a preview notice). Other hosts and other executors are unchanged; Codex/Claude
-  user-MCP inheritance is a separate opt-in (B6). Offline only; live check pending (live bundle 5).
+  user-MCP inheritance is a separate opt-in (B6). Live 5: the worker's tool list held `codemode`,
+  `tool_search` and the user-level `mcp__*` tools, a readOnly stage had none; project `.pi/mcp.json`
+  servers do not reach workers (`--no-approve`), and the worker system prompt still lists only the
+  stage's tools, so the model did not use them (open O8).
 - Cost is Pi's catalog estimate (`source: estimated`), also on a subscription. (Fixed in WP12a: usage
   now carries cache-write tokens and the serving model, so Pi tasks record their model.)
 - Fast tier unverified: the provider-stream guard is ported (WP35; guard failure → `config`,
@@ -146,8 +150,11 @@ Each adapter document has the full list under "Known limits".
   none (the model is noted as unverified, not refused).
 - Dynamic decision-loop slots and the workers a dynamic stage generates stay on the dynamic stage's
   executor; nested workflow runs keep their parent's executor.
-- Offline-verified only (fixture executors registered as `claude` and `codex`); live mixed runs are
-  part of acceptance bundle 5. Preset model ids (`gpt-5.6-luna`, `sonnet`) depend on the account.
+- Live-verified in bundle 5: a saved profile with `default=claude:haiku` and
+  `research-execution=codex:gpt-5.6-luna:low` on deep-review (per-task executors in the preview,
+  `status`, `watch`; both probes; `NEEDS_WORK`), and stop → resume of a mixed run (after fix F2;
+  no kept Claude/Codex session, ephemeral Codex threads). The "not verified by probe" model note was
+  not exercised live. Preset model ids (`gpt-5.6-luna`, `sonnet`) depend on the account.
 - No worker keeps a CLI session by default (D3); sessions the engine requests (experimental
   same-session repair only) are released at task/run end, blocked and interrupted runs keep theirs
   until resolved or pruned (WP12a).
@@ -167,35 +174,39 @@ Each adapter document has the full list under "Known limits".
   macOS/Linux/Windows home paths, and `logs` reads only files inside `.agent-workflow/`. Executor
   attempt retention keeps a tombstone for every launched attempt (never reported as not started).
 
-## Pending live checks (live bundle 5)
+## Live bundle 5 (pre-release features)
 
-WP35 features are verified offline only (fake Pi host, fake provider streams, stub Pi CLI):
+[`live-acceptance-features.md`](live-acceptance-features.md), 2026-10-28, 18 workflow runs, cheap
+models (Claude `haiku`, Codex `gpt-5.6-luna` low, Pi `openai-codex/gpt-5.6-luna` low). Five product
+bugs were found and fixed with regression tests (F1 terminal y/N answers, F2 resume after stop with a
+dependency invalidation, F3 Pi probe bound, F4 `/aw auto` task text, F5 Pi loaders and copyToClipboard). The
+former "needs live verification" items, by work package:
 
-- **Host tools (Pi host → Pi workers):** from a Pi 1.1 session with a configured MCP server, `/aw run`
-  a workflow with a non-readOnly stage on `--executor pi`; the run's preview shows the `host tools:`
-  notice, the worker argv has `--tools …,codemode,tool_search,mcp__*,…` plus `-e builtin:mcp`, and
-  the worker's `pi-stdout.jsonl` shows a completed `mcp__<server>__<tool>` (or codemode) call. A
-  readOnly stage of the same run has none of them.
-- **Fast tier:** a `fast: "on"` stage on `openai/gpt-5.5` (or an `openai-codex/*` model) with
-  `allowUnverifiedCapabilities: ["fastTier"]`; `<attempt>/pi-fast-tier.json` reads `status: guarded`
-  with `guardedRequests ≥ 1`, and the provider request carries `service_tier: priority`. Only then
-  `fastTier` may become `probed`.
-- **pi-web-access:** on a Pi without it, `agent-workflow doctor` warns with
-  `pi install npm:pi-web-access` and deep-research is refused naming the same command; after the
-  install, the probe note names the package path and deep-research runs.
+| WP | Item | Result |
+|---|---|---|
+| WP28 | MCP `workflow_show`, `workflow_doctor`, `workflow_profile` set/delete with elicitation confirm (Codex) | **verified** |
+| WP29 | Dynamic approval: MCP `workflow_status` pending approval + `workflow_approve` elicitation (Claude Code) | **verified** |
+| WP29 | CLI TTY `Run dynamic workflow controller? [y/n]`, later `agent-workflow approve` | **verified** after F1 (`y` at the in-run question itself not pressed) |
+| WP29 | Pi board `a` on a pending approval | **verified** (a run that settles inside the approve call gets no completion message, O10) |
+| WP31 | Mixed run (claude + codex roles), per-task executors in preview/`status`/`watch`, both probes | **verified** |
+| WP31 | Stop/resume of a mixed run, per-executor session cleanup (D3) | **verified** after F2 |
+| WP31 | Model note for a role model missing from the probe list | **not verified** (not exercised) |
+| WP32 | `workflow_auto` on Claude Code (consent + enum choice) | **verified** interactive; `-p` cancels elicitations (no consent possible) |
+| WP32 | `workflow_auto` on Codex; two dialogs + classifier within `tool_timeout_sec` 120 | **verified** with `approval_policy="on-request"` (31 s); **failed safe-consent** under `approval_policy="never"`: consent auto-accepted (O2, open) |
+| WP32 | CLI `auto` on a TTY (consent, pick-list, `Auto selection:` in `show`); non-TTY sends nothing | **verified** after F1 |
+| WP32/WP38b | Pi `/aw auto`: consent, loader with Escape, select, final confirm | **verified** after F4, F5 |
+| WP33 | `aw_run` + `aw_wait`: no duplicate completion message; `parent-usage.json` | **verified** |
+| WP33 | Active widget; `/aw wait` loader | widget **verified**; loader fixed (F5) and verified on `/aw auto` (same factory) |
+| WP33 | `aw-` skills next to pi-workflow's `workflow-guide`/`execution-router` | **verified** (loaded with `--skill`; no collision) |
+| WP34 | Board: navigation, logs tabs, `v`, `c` (after F5), `s`/`u` on a running run, `q` repaint, narrow width | **verified**; `/aw <run-prefix>` and a mixed run's task rows in the board not checked |
+| WP34 | Profile picker: Mixed colour table, Edit a role (probed models), Save as new (`ctx.ui.input`), chooser `Custom…` → save preference → one launch | **verified** |
+| WP35 | Host tools: preview notice, worker tool list with `codemode`, `tool_search`, `mcp__*`; readOnly stage without them | **verified**; a worker actually calling them **not verified** (system prompt lists only stage tools, O8); project `.pi/mcp.json` servers do not reach workers (O9) |
+| WP35 | `doctor` / probe note for pi-web-access | **verified** after F3 (installed path); missing path **not verified** (no uninstall) |
+| WP35 | Fast tier | **not verified** (no API-key `openai/*` provider in the user's Pi) |
+| WP36 | L1 Claude Code prompt hook, L2 status line, L5 Codex prompt hook, L6 `codex queue`, `watch`/`statusline`/`notify-check` | **verified** |
+| WP36 | L3 plugin monitor push | **verified** once (not shipped); `asyncRewake`, L4 backgrounded wait **not verified** |
 
-WP34 (board and profile picker) is verified with fake Pi UI objects only. In a live Pi 1.1 TUI
-(`pi -e <package>/dist/hosts/pi/index.js` in a project with at least one finished and one blocked
-run):
-
-- **Board:** `/aw` opens the board; ↑/↓ and Enter reach a task's logs, ←/→ switch
-  output/stderr/events, Esc walks back; `v` shows the launch command with escaped controls, `c`
-  copies it (paste to check), `r` refreshes, `q` closes and the editor repaints without stale rows;
-  narrow (< 92 columns) and wide terminals; `/aw <run-prefix>` opens that run's stages; on a mixed
-  run the task rows show each task's executor, model and effort; `s` + `y` stops a running run,
-  `u` + `y` resumes it (footer status line returns), `a` + `y` answers a pending dynamic approval.
-- **Picker:** `/aw profile` → `Every workflow…` → `Mixed` shows the colour table (one colour per
-  executor, dimmed inherited roles, the probe notes); `Edit a role…` lists the probed models of each
-  executor; Save → new name (`ctx.ui.input`) → default yes; `/aw profile show` prints it. Then a
-  workflow with declared execution profiles: `/aw run <wf> "<task>"` → `Custom… (open the profile
-  picker)` → save → the run starts once with the saved preference (`/aw profile workflow show <wf>`).
+The fast-tier procedure stays as before: a `fast: "on"` stage on an `openai/*` (API-key) or
+`openai-codex/*` model with `allowUnverifiedCapabilities: ["fastTier"]`; `<attempt>/pi-fast-tier.json`
+reads `status: guarded` with `guardedRequests ≥ 1` and the provider request carries
+`service_tier: priority`. Only then `fastTier` may become `probed`.

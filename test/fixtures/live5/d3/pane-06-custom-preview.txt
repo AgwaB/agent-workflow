@@ -1,0 +1,18 @@
+ Custom (from Pi)  role preview · user profile
+ ROLE                EXECUTOR  MODEL                                                      EFFORT
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ default             pi        openai-codex/gpt-5.6-luna                                  low
+ planning            pi        openai-codex/gpt-5.6-luna                                  low
+ research-execution  pi        openai-codex/gpt-5.6-luna                                  low
+ synthesis           pi        openai-codex/gpt-5.6-luna                                  low
+ verification        pi        openai-codex/gpt-5.6-luna                                  low
+ final-judgment      pi        openai-codex/gpt-5.6-luna                                  low
+ dimmed: no entry of its own, the default role applies
+ pi: 77 models listed; the list is partial (modelListComplete: false): another id is only noted at …
+ → Save
+   Edit a role…
+   Back to profiles
+ ↑↓ navigate  enter select  esc back
+────────────────────────────────────────────────────────────────────────────────────────────────────
+[gpt-5.6-luna] | dir …/tmp/aw-live5/d-pi | git master · 3 untracked · wt: d-pi
+ctx [▏░░░░░░░░░] 0% | fast off | effort low | phase ready | session 01a1838a | last: 10/29 02:24

@@ -1,0 +1,22 @@
+│ ✓ triage.main COMPLETED aw › deep-review › triage › triage.main                                                                                                                                    │
+│ stage: triage · agent: scout · elapsed: completed                                                                                                                                                  │
+│ executor: pi · model: openai-codex/gpt-5.6-luna · effort: low                                                                                                                                      │
+│ detail: completed                                                                                                                                                                                  │
+│ last: completed                                                                                                                                                                                    │
+│ logs: /aw logs workflow_mvsdonwy_a638a5 --task triage.main                                                                                                                                         │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Logs ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ [output]  stderr  events                                                                                                                                                                           │
+│ lines: 1-5 / 5 · file: .agent-workflow/workflows/workflow_mvsdonwy_a638a5/tasks/task-1/output.log                                                                                                  │
+│                                                                                                                                                                                                    │
+│ <control>{"schema":"stage-control-v1","digest":"Targeted review of stop polling, cancellation classification, and terminal semantic mapping; integration dependencies are absent from this checko… │
+│                                                                                                                                                                                                    │
+│ <analysis>All three files are compact but asynchronous behavior is correctness-sensitive. workflow-stop.ts combines process-local AbortSignal registrations with polled durable intent; review sh… │
+│                                                                                                                                                                                                    │
+│ <refs>[]</refs>                                                                                                                                                                                    │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+←/→ output/stderr/events · ↑/↓ scroll · [/] task · b/Esc back · r refresh · s stop · u resume · a approve · q close
+ Active workflows
+ ● deep-review 5/11 running · 23s
+[gpt-5.6-luna] | dir …/tmp/aw-live5/d-pi | git master · 1 untracked · wt: d-pi
+ctx [░░░░░░░░░░] 0% | fast off | effort low | phase ready | session 01a18384 | last: 10/29 02:17

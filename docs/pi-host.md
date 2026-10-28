@@ -646,16 +646,18 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
   `mcp.json` themselves; live MCP connections and `registerMcpServer()` registrations of the parent
   session are not transferred. Under isolation (`--no-approve`) a trusted project's `.pi/mcp.json`
   is not loaded by the worker (pi-workflow loaded it); the recorded project trust is not yet used.
-  Not live-verified (live bundle 5).
-- WP34 is verified with fake Pi UI objects (`ctx.ui.custom` with a fake TUI and theme), not in a live
-  Pi TUI (live bundle 5): rendering in a real terminal (widths, colours, the full repaint on close),
-  key input through Pi's input parser, `copyToClipboard`, `ctx.ui.input`, and the chooser's
-  `Custom…` → picker → relaunch.
-- WP33 is verified with fake Pi UI/session objects and the real Pi 1.1 session runtime only, not in
-  a live Pi session (live bundle 5): the `aw_wait` tool result as the presentation (no follow-up
-  message, history confirmation after `/resume`), the widget and the `/aw wait` loader in the TUI
-  (Escape), `message_end` usage totals against Pi's own session usage, and `/skill:aw-workflow-guide`
-  next to pi-workflow's `workflow-guide`.
+  Live bundle 5: the worker's tool list held `codemode`, `tool_search` and the user-level `mcp__*`
+  tools (a readOnly stage none), the target's `.pi/mcp.json` server did not reach it, and the worker
+  system prompt's "Effective Tool Policy" still names only the stage's tools, so the model did not
+  call them ([live-acceptance-features.md](live-acceptance-features.md), O8/O9).
+- WP34 was live-checked in a Pi 1.1.0 TUI in live bundle 5 (board keys, logs tabs, `v`/`c`,
+  `s`/`u`/`a`, narrow width, picker with `ctx.ui.input`, chooser `Custom…` → picker → one launch;
+  `c` works since the fix above). Not checked live: `/aw <run-prefix>` and a mixed run in the board.
+- WP33 was live-checked in live bundle 5: `aw_run` + `aw_wait` (no follow-up message, the receipt
+  `confirmed` on the tool-result channel), the widget, `parent-usage.json`, and the `aw-` skills next
+  to pi-workflow's. The loaders work since the fix above (verified on `/aw auto` with Escape); usage
+  totals were not compared against Pi's own session usage, and `/resume` history confirmation was not
+  exercised.
 - `runtimeDefaults` follow the explicit executor only: a profile that selects a non-Pi executor still
   receives Pi's current model as the lowest-precedence default.
 
@@ -668,7 +670,7 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
   like `/aw run|dynamic`; launch options may lead or trail it, an option inside the task is refused.
   Tests: `host-wp32-auto.test.mjs` ("the task is the text after `auto`…", fails on the old code);
   `host-wp38b-auto-router.test.mjs` now places the refused option inside the task.
-- **Live bundle 5 (WP39): loaders and clipboard in a real Pi.** Pi 1.1 resolves its packages for an
+- **Live bundle 5 (WP39): loaders and copyToClipboard in a real Pi.** Pi 1.1 resolves its packages for an
   extension only while it loads the extension's entry. The late `import()` of
   `@earendil-works/pi-coding-agent` in `active-ui.ts` (Pi's `BorderedLoader`) and `board-source.ts`
   (`copyToClipboard`) resolved natively and failed with `pi -e <checkout>/dist/hosts/pi/index.js`

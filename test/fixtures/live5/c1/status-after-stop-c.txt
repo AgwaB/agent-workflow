@@ -1,0 +1,12 @@
+Workflow: deep-review
+Run: workflow_mvscu2vn_8ba300
+Status: interrupted
+
+Progress: 2/10 completed · 0 running · 0 queued · 8 interrupted
+
+Needs attention:
+  • reviewers.runtime-stop-race — scout · codex · gpt-5.6-luna · low reasoning
+    Workflow stopped by user request
+
+Open: agent-workflow status workflow_mvscu2vn_8ba300
+Resume: agent-workflow resume workflow_mvscu2vn_8ba300

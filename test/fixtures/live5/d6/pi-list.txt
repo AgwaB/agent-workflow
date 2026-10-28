@@ -1,0 +1,21 @@
+User packages:
+  packages/pi-openai-fast-mode
+    <HOME>/.pi/agent/packages/pi-openai-fast-mode
+  npm:pi-lens
+    <HOME>/.pi/agent/npm/node_modules/pi-lens
+  npm:@agwab/pi-subagent@0.7.2
+    <HOME>/.pi/agent/npm/node_modules/@agwab/pi-subagent
+  packages/warm-ui
+    <HOME>/.pi/agent/packages/warm-ui
+  npm:@agwab/pi-workflow@0.16.4
+    <HOME>/.pi/agent/npm/node_modules/@agwab/pi-workflow
+  ../../pi/pi-doctor
+    <HOME>/pi/pi-doctor
+  npm:pi-web-access@0.44.0
+    <HOME>/.pi/agent/npm/node_modules/pi-web-access
+  npm:@cortexkit/pi-anthropic-auth@1.23.0
+    <HOME>/.pi/agent/npm/node_modules/@cortexkit/pi-anthropic-auth
+  git:github.com/EL4CTEO/blender-skills@71d031dab8bc6729504d11a78cbe91945401045f (filtered)
+    <HOME>/.pi/agent/git/github.com/EL4CTEO/blender-skills
+  git:github.com/cathrynlavery/diagram-design
+    <HOME>/.pi/agent/git/github.com/cathrynlavery/diagram-design
