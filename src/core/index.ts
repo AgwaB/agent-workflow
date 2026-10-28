@@ -45,8 +45,11 @@ export type {
 } from "./workflow-specs.js";
 export {
 	formatWorkflowAutoRecommendation,
+	type PreparedWorkflowAutoComparison,
 	parseWorkflowAutoComparisonOutput,
+	prepareWorkflowAutoComparison,
 	recommendWorkflowAuto,
+	sendPreparedWorkflowAutoComparison,
 	workflowAutoDirectDraft,
 	WORKFLOW_AUTO_COMPARE_CORRELATION_ID,
 	WORKFLOW_AUTO_COMPARE_TIMEOUT_MS,
