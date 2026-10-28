@@ -620,14 +620,24 @@ test("s and u in the board stop and resume a real run through the host API (resu
 		"stopped",
 	);
 	assert.ok(calls.includes("stopAction"));
+	const statusesBeforeResume = ctx.statuses.length;
 	view.handleInput("u");
 	view.handleInput("y");
 	await eventually(
 		() => calls.includes("resumeAction") && !view.busy,
 		"resumed",
 	);
+	// Tracked = the status line showed the resumed run at least once (it clears again when the
+	// run finishes, which can happen before a later look under load).
 	await eventually(
-		() => ctx.footer.get("agent-workflow")?.startsWith("aw: wp34-board"),
+		() =>
+			ctx.statuses
+				.slice(statusesBeforeResume)
+				.some(
+					(entry) =>
+						entry.key === "agent-workflow" &&
+						entry.text?.startsWith("aw: wp34-board"),
+				),
 		"the resumed run is tracked (status line)",
 	);
 	view.handleInput("q");
