@@ -1,7 +1,12 @@
-// New in agent-workflow (WP33): per-run sidecars the host API shows in `status <run>`/`inspect`.
+// New in agent-workflow (WP33): per-run sidecars the host API shows in `status`/`show`/`inspect`.
 // Item 3 (parity row 33): parent-session usage (`parent-usage.json`, written by the Pi host while
 // its session drives a run; pi-workflow showed it in the board's run detail). Only totals are
 // returned: never the session's message hashes.
+import {
+	isWorkflowRunLaunchMetadata,
+	readWorkflowLaunchCommandArtifact,
+} from "../core/store.js";
+import type { WorkflowRunRecord } from "../core/types.js";
 import {
 	readParentUsage,
 	type WorkflowParentUsageRecord,
@@ -73,4 +78,101 @@ export function formatParentUsage(summary: ParentUsageSummary): string {
 	const messages = `${summary.assistantMessages} assistant message${summary.assistantMessages === 1 ? "" : "s"}`;
 	const state = summary.completedAt ? "" : " (counting)";
 	return `Parent session usage: ${count(total)} tokens (in ${count(summary.inputTokens)}, out ${count(summary.outputTokens)}, cache read/write ${count(summary.cacheReadInputTokens)}/${count(summary.cacheCreationInputTokens)})${cost}, ${messages}${state}`;
+}
+
+// Item 4 (parity row 35): launch capture (`run.launch` + `launch-command.txt`), shown by
+// `show <run>` and `inspect <run>` (the WP34 board will use it too). The command text was redacted
+// when it was captured; it is read through the core's verified reader (digest, size, no symlinks).
+
+export interface LaunchSummary {
+	schema: string;
+	/** `cli`, `pi`, `mcp:<host>`; pi-workflow records: `pi-workflow`. */
+	source: string;
+	/** `command run`, `tool aw_run`, … */
+	entry: string;
+	requestKind: string;
+	profile: string;
+	task: { characters: number; lines: number };
+	command:
+		| {
+				state: "captured";
+				fidelity: string;
+				bytes: number;
+				text?: string;
+				error?: string;
+		  }
+		| { state: "unavailable"; reason: string };
+}
+
+const MAX_SHOWN_COMMAND_CHARS = 4000;
+
+/** The launch provenance of a run, or undefined for runs created without one. */
+export async function launchSummary(
+	cwd: string,
+	run: Pick<WorkflowRunRecord, "runId" | "launch">,
+): Promise<LaunchSummary | undefined> {
+	const launch = run.launch;
+	if (!isWorkflowRunLaunchMetadata(launch)) return undefined;
+	const profile =
+		launch.profile.kind === "named"
+			? `profile ${launch.profile.name}`
+			: launch.profile.kind === "base"
+				? "base profile"
+				: "no profile";
+	let source: string;
+	let entry: string;
+	if (launch.schema === "agent-workflow-run-launch-v1") {
+		source = launch.source;
+		entry =
+			launch.entry.kind === "tool"
+				? `tool ${launch.entry.name}`
+				: `command ${launch.entry.action}`;
+	} else {
+		source = "pi-workflow";
+		entry =
+			launch.source.kind === "tool"
+				? `tool ${launch.source.name}`
+				: `command ${launch.source.action}`;
+	}
+	let command: LaunchSummary["command"];
+	if (launch.command.state === "captured") {
+		command = {
+			state: "captured",
+			fidelity: launch.command.fidelity,
+			bytes: launch.command.bytes,
+		};
+		try {
+			command.text = await readWorkflowLaunchCommandArtifact(cwd, run);
+		} catch (error) {
+			command.error = error instanceof Error ? error.message : String(error);
+		}
+	} else command = { state: "unavailable", reason: launch.command.reason };
+	return {
+		schema: launch.schema,
+		source,
+		entry,
+		requestKind: launch.requestKind,
+		profile,
+		task: launch.task,
+		command,
+	};
+}
+
+/** `Launch: pi · command run · named-workflow, base profile, task 12 chars/1 line` + the command. */
+export function formatLaunch(summary: LaunchSummary): string[] {
+	const lines = [
+		`Launch: ${summary.source} · ${summary.entry} · ${summary.requestKind}, ${summary.profile}, task ${summary.task.characters} chars/${summary.task.lines} line${summary.task.lines === 1 ? "" : "s"}`,
+	];
+	const command = summary.command;
+	if (command.state === "unavailable")
+		lines.push(`Launch command: unavailable (${command.reason})`);
+	else if (command.text !== undefined) {
+		const points = Array.from(command.text);
+		const shown =
+			points.length > MAX_SHOWN_COMMAND_CHARS
+				? `${points.slice(0, MAX_SHOWN_COMMAND_CHARS).join("")}… (${points.length} chars)`
+				: command.text;
+		lines.push(`Launch command: ${shown}`);
+	} else lines.push(`Launch command: ${command.error ?? "unavailable"}`);
+	return lines;
 }

@@ -1294,6 +1294,12 @@ export function createHostMcpService(
 			const launched = await api.runWorkflowAction(ctx, {
 				workflow,
 				...launchRequestFromArguments(args),
+				// WP33: launch capture (redacted by the host API).
+				launchOrigin: {
+					kind: "tool",
+					name: WORKFLOW_RUN_TOOL,
+					arguments: { ...args },
+				},
 				...confirmHooks(call),
 			});
 			return finish(call, launched, launched.data, launchNext(launched.data));
@@ -1302,6 +1308,11 @@ export function createHostMcpService(
 			const ctx = await context(args);
 			const launched = await api.runDynamicAction(ctx, {
 				...launchRequestFromArguments(args),
+				launchOrigin: {
+					kind: "tool",
+					name: WORKFLOW_DYNAMIC_TOOL,
+					arguments: { ...args },
+				},
 				...confirmHooks(call),
 			});
 			return finish(call, launched, launched.data, launchNext(launched.data));

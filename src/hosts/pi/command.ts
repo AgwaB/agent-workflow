@@ -269,6 +269,11 @@ async function dispatch(
 				{
 					workflow: parsed.specPath,
 					...launchRequest(parsed),
+					// WP33: launch capture (redacted by the host API): the command as typed.
+					launchOrigin: {
+						kind: "command",
+						text: `/${AW_COMMAND} ${args.trim()}`,
+					},
 					...hooks.hooks,
 				},
 			);
@@ -283,7 +288,14 @@ async function dispatch(
 			const hooks = launchHooks(ctx);
 			const launched = await api.runDynamicAction(
 				hostContext(deps, ctx, { executor: parsed.executor }),
-				{ ...launchRequest(parsed), ...hooks.hooks },
+				{
+					...launchRequest(parsed),
+					launchOrigin: {
+						kind: "command",
+						text: `/${AW_COMMAND} ${args.trim()}`,
+					},
+					...hooks.hooks,
+				},
 			);
 			return { ...launched, note: hooks.note() };
 		}

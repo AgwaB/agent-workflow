@@ -72,12 +72,12 @@ throw `WorkflowValidationError`; `formatHostError(error)` renders any error. Lau
 | `validateWorkflowAction` | `{workflow}` | `{valid, name?, specPath, workflowName?, type, tasks, roles, maxConcurrency, blockedPermissionPreviews, warnings}` | success (invalid specs throw) |
 | `workflowRolesAction` | `{workflow}` | `{specPath, roles}` | success |
 | `listAgentsAction` | — | `{agents: [{name, displayName, description?, scope, legacySource?, model?, effort?, tools?, readOnly?, sourcePath}]}` | success |
-| `showAction` | `{ref, raw?}`: a run (`raw`, or `workflow_…`) else a workflow | `{kind: "run", run}` or `{kind: "workflow", specPath, spec}` | success |
+| `showAction` | `{ref, raw?}`: a run (`raw`, or `workflow_…`) else a workflow | `{kind: "run", run, launch?}` (WP33 launch capture) or `{kind: "workflow", specPath, spec}` | success |
 | `profileAction` | `{op: "list"} \| {op: "show", name?} \| {op: "set", name, values?, unset?, makeDefault?} \| {op: "delete", name} \| {op: "default", name \| null}` | `{op, path, default?, profiles?, profile?, deleted?}` | success |
 | `runWorkflowAction` | `RunWorkflowRequest` (below) | `LaunchData` | running, completed, failed, blocked, refused, existing |
 | `runDynamicAction` | `RunDynamicRequest` (no `workflow`) | `LaunchData` (`mode: "direct-dynamic"`) | same |
-| `statusAction` | `{runId?}` | `{run: RunSummary & {tasks, pendingApprovals?}}` or `{runs: RunSummary[]}` (top-level, newest first) | success |
-| `inspectAction` | `{runId, failures?, results?}` | `{run, reliability: {health, outputRetries, launchRetries, resumeEvents, contextLimitFailures}, listed}` | success |
+| `statusAction` | `{runId?}` | `{run: RunSummary & {tasks, pendingApprovals?, parentUsage?}}` (WP33 Pi parent usage) or `{runs: RunSummary[]}` (top-level, newest first) | success |
+| `inspectAction` | `{runId, failures?, results?}` | `{run, reliability: {health, outputRetries, launchRetries, resumeEvents, contextLimitFailures}, listed, parentUsage?, launch?}` | success |
 | `logsAction` (WP16) | `{runId, task?, lines?, stream?}` (below) | `LogsData`: `{runId, name?, status, lines, streams, tasks: [{taskId, specId, status, statusDetail, streams: [{kind, path, lines, truncated}]}], omittedTasks, truncated}` | success |
 | `waitAction` | `WaitRequest` (below) | `WaitData` | running, completed, failed, interrupted, blocked |
 | `resumeAction` | `{runId, detach?}` | `{runId, status, resetTaskIds, taskSummary, detached?}` | run status |
@@ -192,6 +192,24 @@ refused (`outcome: "refused"`).
 The handler returns once the run is launched (usually `running`). The engine keeps an in-process
 watcher (unref'd timer) for long-lived hosts; short-lived hosts either `wait` in the foreground or
 `detach`.
+
+**Launch capture (WP33, parity row 35).** Every launch records host-neutral launch provenance:
+`run.launch` with schema `agent-workflow-run-launch-v1` — pi-workflow's v2 field set (`schema`,
+`source`, `requestKind`, `routingMode: "off"`, `profile`, `task: {characters, lines}`, `command`)
+without the `/workflow auto`-only `selection`, plus `entry` — and `<run dir>/launch-command.txt`
+(mode 0600, written and read by the core's verified artifact code; `command` holds its size and
+SHA-256). `source` is the host: `cli` (the CLI, and callers without `ctx.host`), `pi`, or
+`mcp:<host>` (the host MCP server's `--host`: `mcp:claude-code`, `mcp:codex`, `mcp:generic`).
+`entry` is `{kind: "command", action}` (fidelity `agent-workflow-host-command-v1`: the command line
+as typed, `agent-workflow run …` or `/aw run …`) or `{kind: "tool", name}` (fidelity
+`agent-workflow-tool-call-v1`: `<tool> <JSON arguments>`, e.g. `aw_run {…}`, `workflow_run {…}`).
+Hosts pass `launchOrigin` in the request; without one the equivalent `agent-workflow run|dynamic …`
+command is synthesized. The text is redacted before it is written (the host redactor: sensitive
+environment values, credential assignments and headers, bearer tokens, URL secrets) and the home
+directory is shown as `~`. `show <run>` (not `--raw`, whose `run.json` already holds the metadata)
+and `inspect <run>` end with `Launch: <source> · <entry> · <requestKind>, <profile>, task N chars/M
+lines` and `Launch command: <text>` and return it as `launch`. pi-workflow's v1/v2 records stay
+valid and are shown with source `pi-workflow`. The WP34 board will use the same reader.
 
 ### `logs` (WP16)
 
@@ -397,8 +415,8 @@ The original files carry `Moved (WP11a)` markers at the former deferral comments
   `availableModels`/`runtimeDefaults` from Pi and `selectProfile`/`confirmDegradations` from the
   TUI; it keeps feedback delivery, parent usage, notices at session start, the board and `auto`.
   WP18b: run-text hints are host-aware (see *Next-step hints* above).
-- **Launch capture:** `WorkflowRunLaunchCapture` has no CLI/MCP source kind; runs launched through
-  the host API record no launch metadata until core gains a host-neutral source.
+- **Launch capture:** done (WP33): the host-neutral `agent-workflow-run-launch-v1` record (see
+  `run` / `dynamic`). The board's `v`/`c` keys come with WP34.
 - **Stage 2 (WP13 MCP host):** done — `docs/host-mcp.md` (`HostUsageError` → `isError` tool
   result, repeated bounded `waitAction` calls, `detach` default true, degradation confirmation
   through MCP elicitation when the client supports it, else non-interactive). WP18b added

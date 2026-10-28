@@ -641,6 +641,12 @@ export function registerAwTools(pi: PiExtensionApi, deps: PiHostDeps): void {
 					{
 						workflow: requiredString(input, "workflow"),
 						...request,
+						// WP33: launch capture (redacted by the host API).
+						launchOrigin: {
+							kind: "tool",
+							name: AW_RUN_TOOL,
+							arguments: { ...input },
+						},
 						...hooks.hooks,
 					},
 				);
@@ -685,7 +691,15 @@ export function registerAwTools(pi: PiExtensionApi, deps: PiHostDeps): void {
 				const hooks = launchHooks(ctx);
 				const launched = await deps.api.runDynamicAction(
 					hostContext(deps, ctx, { executor: request.executor }),
-					{ ...request, ...hooks.hooks },
+					{
+						...request,
+						launchOrigin: {
+							kind: "tool",
+							name: AW_DYNAMIC_TOOL,
+							arguments: { ...input },
+						},
+						...hooks.hooks,
+					},
 				);
 				return launchResult(
 					deps,

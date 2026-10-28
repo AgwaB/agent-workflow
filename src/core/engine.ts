@@ -1089,8 +1089,26 @@ async function persistWorkflowRunLaunch(
 					cwd,
 					runId,
 					capture.command.text,
+					capture.schema !== "agent-workflow-run-launch-v1"
+						? "pi-extension-command-v1"
+						: capture.entry.kind === "tool"
+							? "agent-workflow-tool-call-v1"
+							: "agent-workflow-host-command-v1",
 				)
 			: capture.command;
+	// WP33: host-neutral launch metadata (CLI, Pi host, host MCP server).
+	if (capture.schema === "agent-workflow-run-launch-v1") {
+		return {
+			schema: capture.schema,
+			source: capture.source,
+			entry: capture.entry,
+			requestKind: capture.requestKind,
+			routingMode: capture.routingMode,
+			profile: capture.profile,
+			task: capture.task,
+			command,
+		};
+	}
 	if (capture.schema === "pi-workflow-run-launch-v2") {
 		return {
 			schema: capture.schema,

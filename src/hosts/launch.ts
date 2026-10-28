@@ -4,8 +4,8 @@
 // `run`/`dynamic` handlers with no Pi context: the run options executor, profile, permissionMode,
 // allowUnverifiedCapabilities, interactive + confirmDegradations (WP4d), model/effort; saved user
 // profiles (user-profiles.ts) as the B2 "saved user profile" tier; capability refusals and the
-// duplicate guard return `refused` results instead of throwing; no launch-capture record (the
-// v1 capture schema only knows Pi slash commands and Pi tools); the detached supervisor is the
+// duplicate guard return `refused` results instead of throwing; WP33: every launch records the
+// host-neutral launch capture (launch-capture.ts, schema agent-workflow-run-launch-v1); the detached supervisor is the
 // `agent-workflow supervise` CLI and logs to `<run dir>/supervise.log`.
 // WP17: HostApiContext.host reaches the engine (host-default executor) and launch data shows it.
 // WP35: HostApiContext.hostTools (Pi host) → run option inheritHostTools + the run's host context.
@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { WorkflowCapabilityError } from "../core/capability-negotiation.js";
+import { hostLaunchCapture, type LaunchOrigin } from "./launch-capture.js";
 import { ensureDirectDynamicRuntimeBundle } from "../core/dynamic-runtime-bundle.js";
 import {
 	formatHumanRunLaunch,
@@ -106,6 +107,8 @@ export interface LaunchRequestBase {
 	selectProfile?: WorkflowProfileSelector;
 	/** Overrides for inputs the spec declares (for example depth). */
 	inputOverrides?: Record<string, unknown>;
+	/** WP33: how the host was asked (launch capture); absent → synthesized from the request. */
+	launchOrigin?: LaunchOrigin;
 }
 
 export interface RunWorkflowRequest extends LaunchRequestBase {
@@ -990,6 +993,14 @@ async function launchClaimed(
 		...(ctx.dynamicUi && !request.detach ? { dynamicUi: ctx.dynamicUi } : {}),
 		...(ctx.hostTools ? { inheritHostTools: true } : {}),
 		...(inputOverrides ? { inputOverrides } : {}),
+		// WP33: host-neutral launch capture (launch-command.txt + run.launch).
+		launch: hostLaunchCapture(
+			ctx.host,
+			hostEnv(ctx),
+			action,
+			request,
+			request.launchOrigin,
+		),
 		[WORKFLOW_PROMPT_SCHEMA_DIAGNOSTIC_SINK]: (notice, digest) => {
 			if (digest === promptSchemaDigest) return;
 			promptSchemaDigest = digest;

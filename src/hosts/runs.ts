@@ -72,7 +72,10 @@ import {
 } from "./hints.js";
 import { spawnDetachedSupervisor } from "./launch.js";
 import {
+	formatLaunch,
 	formatParentUsage,
+	type LaunchSummary,
+	launchSummary,
 	type ParentUsageSummary,
 	parentUsageSummary,
 } from "./run-provenance.js";
@@ -261,17 +264,25 @@ export async function statusAction(
 export async function showRunAction(
 	ctx: HostApiContext,
 	request: { runId: string; raw?: boolean },
-): Promise<HostResult<{ kind: "run"; run: WorkflowRunRecord }>> {
+): Promise<
+	HostResult<{ kind: "run"; run: WorkflowRunRecord; launch?: LaunchSummary }>
+> {
 	assertActionAllowed(ctx, "show");
 	const ref = requireRunRef(request.runId, "show");
-	const text = request.raw
+	const details = request.raw
 		? await formatRawRunDetails(ctx.cwd, ref, hostCommandHints(ctx.host))
 		: await formatRunDetails(ctx.cwd, ref, hostCommandHints(ctx.host));
 	const run = await readRunRecord(ctx.cwd, ref);
+	// WP33: launch provenance (source host, entry, redacted command) after the details.
+	const launch = await launchSummary(ctx.cwd, run);
+	const text =
+		launch && !request.raw
+			? [details, "", ...formatLaunch(launch)].join("\n")
+			: details;
 	return result(
 		"show",
 		"success",
-		{ kind: "run", run },
+		{ kind: "run", run, ...(launch ? { launch } : {}) },
 		hostTextRedactor(hostEnv(ctx))(text),
 	);
 }
@@ -320,6 +331,8 @@ export interface InspectData {
 	listed: string[];
 	/** WP33: the host session's own model usage while it drove the run (Pi host). */
 	parentUsage?: ParentUsageSummary;
+	/** WP33: launch provenance (host, entry, redacted command). */
+	launch?: LaunchSummary;
 }
 
 function summarizeReliability(
@@ -398,6 +411,8 @@ export async function inspectAction(
 	];
 	const parentUsage = await parentUsageSummary(ctx.cwd, run.runId);
 	if (parentUsage) lines.push(formatParentUsage(parentUsage));
+	const launch = await launchSummary(ctx.cwd, run);
+	if (launch) lines.push(...formatLaunch(launch));
 	if (showAllResults) lines.push("failures: none (showing every task result)");
 	for (const task of selected) {
 		lines.push(
@@ -433,6 +448,7 @@ export async function inspectAction(
 			reliability,
 			listed: selected.map((task) => task.taskId),
 			...(parentUsage ? { parentUsage } : {}),
+			...(launch ? { launch } : {}),
 		},
 		// WP19 (review #7): task messages and results are worker output.
 		hostTextRedactor(hostEnv(ctx))(lines.join("\n")),
