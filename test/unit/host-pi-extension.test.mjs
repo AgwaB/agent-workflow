@@ -915,7 +915,14 @@ test("./hosts/pi entry: clear error without Pi; nothing else imports the Pi host
 		piAvailable = false;
 	}
 	const pkg = JSON.parse(readFileSync(join(repo, "package.json"), "utf8"));
-	assert.deepEqual(pkg.pi, { extensions: ["./dist/hosts/pi/index.js"] });
+	// WP33: plus the aw- named Pi skills (host-wp33-pi-skills.test.mjs).
+	assert.deepEqual(pkg.pi, {
+		extensions: ["./dist/hosts/pi/index.js"],
+		skills: [
+			"./plugins/pi/skills/aw-workflow-guide",
+			"./plugins/pi/skills/aw-execution-router",
+		],
+	});
 	assert.equal(pkg.exports["./hosts/pi"].default, "./dist/hosts/pi/index.js");
 	for (const peer of [
 		"@earendil-works/pi-coding-agent",

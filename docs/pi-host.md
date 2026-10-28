@@ -26,8 +26,15 @@ pi -e npm:@agwab/agent-workflow
 pi install npm:@agwab/agent-workflow        # personal; add -l for the project
 ```
 
-The package manifest declares only the extension. The bundled `skills/` are not exposed through Pi:
-their names (`workflow-guide`, `execution-router`) equal pi-workflow's skills.
+The package manifest declares the extension and (WP33, owner decision Q10) two Pi skills with the
+`aw-` prefix: `aw-workflow-guide` (workflow authoring, scaffolds) and `aw-execution-router` (route
+recommendation). Pi resolves a skill by its frontmatter `name` (not the directory) and keeps the first
+skill of a name, and pi-workflow ships `workflow-guide` and `execution-router`, so the Pi copies are
+renamed: `node tools/release/plugins.mjs build` generates `plugins/pi/skills/aw-*/SKILL.md` from
+`skills/` (the source of truth; only the name, the relative paths into the package and the skill
+cross-reference change; `check` fails on drift) and package.json `pi.skills` lists them. The
+`agent-workflow` skill (the MCP tool protocol) is not exposed in Pi: the `aw_*` tools carry their own
+prompt guidelines. Use them with `/skill:aw-workflow-guide` or `/skill:aw-execution-router`.
 
 Importing `@agwab/agent-workflow/hosts/pi` outside Pi without the peer fails with
 `PiHostUnavailableError` ("… is a Pi extension and needs the Pi coding agent …") instead of a bare
@@ -429,6 +436,9 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
 - WP33: `host-wp33-pi-parent-usage.test.mjs` (totals of this session's assistant messages while the
   run is active, not other sessions', not content; wrap-up counted once; status/inspect line; CLI
   runs record nothing; print mode counts).
+- WP33: `host-wp33-launch-capture.test.mjs` (launch capture from the CLI, `/aw`, `aw_dynamic` and
+  MCP; redaction; show/inspect) and `host-wp33-pi-skills.test.mjs` (`pi.skills`, `aw-` names, no
+  collision with pi-workflow's skills, generated copies in sync, relative paths resolve).
 - WP28: `host-wp28-pi-waits.test.mjs` (long `aw_wait`, `awaitTerminal` on `aw_run`/`aw_dynamic`,
   cancel = only the wait, no second delivery of an awaited result, `/aw wait <run> [timeout]`),
   `host-wp28-pi-redrive.test.mjs` (a child process launches an attached run and exits; session start

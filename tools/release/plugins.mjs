@@ -3,7 +3,8 @@
 // repo marketplaces (`.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json`).
 // Sources of truth: package.json (version), skills/ (agent-workflow, workflow-guide,
 // execution-router), docs/usage.md and the bundled workflow specs. docs/plugins.md explains the
-// layout.
+// layout. WP33: also the Pi package skills `plugins/pi/skills/aw-*` (renamed copies, owner
+// decision Q10) and their package.json `pi.skills` entry.
 //
 //   node tools/release/plugins.mjs build             regenerate the committed plugin + marketplaces
 //   node tools/release/plugins.mjs check             exit 1 when the committed files drift
@@ -54,6 +55,27 @@ export const PLUGIN_SKILLS = Object.freeze([
 	"execution-router",
 	"workflow-guide",
 ]);
+/**
+ * WP33 (parity row 59, owner decision Q10): the Pi package skills. pi-workflow ships `workflow-guide`
+ * and `execution-router`, and Pi keeps the first skill of a name (frontmatter `name`; the directory
+ * name does not count), so the Pi copies carry the `aw-` prefix. `agent-workflow` (the MCP tool
+ * protocol) is not exposed: in Pi the `aw_*` tools carry their own guidelines.
+ */
+export const PI_SKILLS_DIR = "plugins/pi/skills";
+export const PI_SKILLS = Object.freeze({
+	"workflow-guide": "aw-workflow-guide",
+	"execution-router": "aw-execution-router",
+});
+/** pi-workflow 0.16.4 (b83cc4f) `pi.skills` names; the Pi copies must never use one. */
+export const PI_WORKFLOW_SKILL_NAMES = Object.freeze([
+	"workflow-guide",
+	"execution-router",
+]);
+/** package.json `pi.skills` (paths relative to the package root). */
+export const PI_PACKAGE_SKILL_PATHS = Object.freeze(
+	Object.values(PI_SKILLS).map((name) => `./${PI_SKILLS_DIR}/${name}`),
+);
+
 /** Bundled specs the workflow-guide skill names as quality references. */
 export const REFERENCE_WORKFLOWS = Object.freeze([
 	"deep-research",
@@ -391,6 +413,86 @@ export async function renderPluginFiles({ root = REPO_ROOT, version, launch }) {
 	return files;
 }
 
+/** The source skill's frontmatter `name: <source>` becomes `name: <target>` (exactly once). */
+function renameSkill(text, file, source, target) {
+	const from = `---\nname: ${source}\n`;
+	if (!text.startsWith(from))
+		throw new Error(
+			`${file}: expected frontmatter "name: ${source}" (update tools/release/plugins.mjs)`,
+		);
+	return `---\nname: ${target}\n${text.slice(from.length)}`;
+}
+
+/** From `plugins/pi/skills/<name>/` back to the package root. */
+const PI_SKILL_TO_ROOT = "../../../../";
+
+/** WP33: the Pi copy of skills/workflow-guide/SKILL.md (relative paths point into the package). */
+export function adaptPiWorkflowGuide(text) {
+	const file = "skills/workflow-guide/SKILL.md";
+	return replaceAll(
+		renameSkill(text, file, "workflow-guide", PI_SKILLS["workflow-guide"]),
+		file,
+		[
+			["`../../docs/", `\`${PI_SKILL_TO_ROOT}docs/`],
+			["`../../workflows/", `\`${PI_SKILL_TO_ROOT}workflows/`],
+			["./scaffolds/", `${PI_SKILL_TO_ROOT}skills/workflow-guide/scaffolds/`],
+		],
+	);
+}
+
+/** WP33: the Pi copy of skills/execution-router/SKILL.md. */
+export function adaptPiExecutionRouter(text) {
+	const file = "skills/execution-router/SKILL.md";
+	return replaceAll(
+		renameSkill(text, file, "execution-router", PI_SKILLS["execution-router"]),
+		file,
+		[
+			[
+				"Consult `workflow-guide` only after",
+				`Consult \`${PI_SKILLS["workflow-guide"]}\` only after`,
+			],
+		],
+	);
+}
+
+/** WP33: the Pi package skills, keyed by path relative to PI_SKILLS_DIR. */
+export async function renderPiSkillFiles({ root = REPO_ROOT } = {}) {
+	const read = (path) => readFile(join(root, path), "utf8");
+	const files = new Map([
+		[
+			`${PI_SKILLS["workflow-guide"]}/SKILL.md`,
+			adaptPiWorkflowGuide(await read("skills/workflow-guide/SKILL.md")),
+		],
+		[
+			`${PI_SKILLS["execution-router"]}/SKILL.md`,
+			adaptPiExecutionRouter(await read("skills/execution-router/SKILL.md")),
+		],
+	]);
+	for (const [path, content] of files) {
+		const name = /^---\nname: ([^\n]+)\n/.exec(String(content))?.[1];
+		if (!name?.startsWith("aw-") || PI_WORKFLOW_SKILL_NAMES.includes(name))
+			throw new Error(
+				`${path}: Pi skill name must use the aw- prefix: ${name}`,
+			);
+	}
+	return files;
+}
+
+/** WP33: package.json `pi.skills` must list exactly the generated Pi skills. */
+async function piManifestProblems(root) {
+	const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+	const actual = JSON.stringify(pkg.pi?.skills ?? []);
+	const expected = JSON.stringify(PI_PACKAGE_SKILL_PATHS);
+	const problems = [];
+	if (actual !== expected)
+		problems.push(
+			`package.json pi.skills: expected ${expected}, got ${actual}`,
+		);
+	if (!(pkg.files ?? []).includes("plugins/pi"))
+		problems.push('package.json files: "plugins/pi" missing');
+	return problems;
+}
+
 /** Repo-root marketplace files, keyed by root-relative path. */
 export function renderMarketplaceFiles() {
 	return new Map([
@@ -417,7 +519,13 @@ export async function buildCommitted(root = REPO_ROOT) {
 	await rm(join(root, PLUGIN_DIR), { recursive: true, force: true });
 	await writeTree(join(root, PLUGIN_DIR), files);
 	await writeTree(root, renderMarketplaceFiles());
-	return { version, count: files.size };
+	// WP33: the Pi package skills (aw- names).
+	const piSkills = await renderPiSkillFiles({ root });
+	await rm(join(root, PI_SKILLS_DIR), { recursive: true, force: true });
+	await writeTree(join(root, PI_SKILLS_DIR), piSkills);
+	const problems = await piManifestProblems(root);
+	if (problems.length) throw new Error(problems.join("\n"));
+	return { version, count: files.size, piSkills: piSkills.size };
 }
 
 /** Differences between the committed files and the generator output (empty = in sync). */
@@ -448,6 +556,15 @@ export async function checkCommitted(root = REPO_ROOT) {
 		await compare(`${PLUGIN_DIR}/${path}`, content);
 	for (const [path, content] of renderMarketplaceFiles())
 		await compare(path, content);
+	// WP33: the Pi package skills and their manifest entry.
+	const piExpected = await renderPiSkillFiles({ root });
+	const piRoot = join(root, PI_SKILLS_DIR);
+	for (const path of existsSync(piRoot) ? await listFiles(piRoot) : [])
+		if (!piExpected.has(path))
+			problems.push(`${PI_SKILLS_DIR}/${path}: not generated`);
+	for (const [path, content] of piExpected)
+		await compare(`${PI_SKILLS_DIR}/${path}`, content);
+	problems.push(...(await piManifestProblems(root)));
 	return problems;
 }
 
@@ -486,16 +603,18 @@ export async function buildDev(
 async function main(argv) {
 	const [command, ...rest] = argv;
 	if (command === "build") {
-		const { version, count } = await buildCommitted();
+		const { version, count, piSkills } = await buildCommitted();
 		console.log(
-			`wrote ${PLUGIN_DIR}/ (${count} files, version ${version}), ${CLAUDE_MARKETPLACE_FILE}, ${CODEX_MARKETPLACE_FILE}`,
+			`wrote ${PLUGIN_DIR}/ (${count} files, version ${version}), ${CLAUDE_MARKETPLACE_FILE}, ${CODEX_MARKETPLACE_FILE}, ${PI_SKILLS_DIR}/ (${piSkills} files)`,
 		);
 		return 0;
 	}
 	if (command === "check") {
 		const problems = await checkCommitted();
 		if (problems.length === 0) {
-			console.log(`${PLUGIN_DIR}/ and the marketplaces match the generator.`);
+			console.log(
+				`${PLUGIN_DIR}/, ${PI_SKILLS_DIR}/ and the marketplaces match the generator.`,
+			);
 			return 0;
 		}
 		console.error(

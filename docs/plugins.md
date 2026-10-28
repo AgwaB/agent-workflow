@@ -55,6 +55,12 @@ Why this shape:
   on drift. The root skills keep the Pi names (`aw_*`, `/aw`); the generator replaces them with the
   MCP tool names and fails when an expected source sentence changed. Do not edit
   `plugins/agent-workflow/` by hand.
+- **Pi skills (WP33).** The same generator writes `plugins/pi/skills/aw-workflow-guide/` and
+  `plugins/pi/skills/aw-execution-router/`: renamed copies of `skills/workflow-guide` and
+  `skills/execution-router` (frontmatter `name` with the `aw-` prefix, relative paths pointing into
+  the package) for the Pi package manifest (`pi.skills`; `plugins/pi` is in package.json `files`).
+  Pi keeps the first skill of a name and pi-workflow ships the unprefixed names (owner decision
+  Q10). `check` also fails when `pi.skills` does not list exactly these directories.
 
 ## Server launch
 
