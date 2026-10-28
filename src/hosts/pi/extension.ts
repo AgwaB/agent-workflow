@@ -80,6 +80,8 @@ export function createAgentWorkflowPiExtension(
 		// (`reload`) or disposes it (`new`/`resume`/`fork`/`quit`).
 		pi.on("session_shutdown", async (event, ctx) => {
 			session += 1;
+			// A pending `/aw auto` of the ended session starts nothing (pi-workflow parity).
+			deps.endSession();
 			await deps.feedback.shutdown(event, ctx);
 			if (supervisor) await flushRunParentUsage(ctx);
 		});

@@ -381,6 +381,7 @@ async function dispatch(
 				);
 			const hooks = launchHooks(ctx);
 			const dialog = hasDialogUi(ctx);
+			const signal = deps.sessionSignal();
 			const auto = await api.autoAction(
 				hostContext(deps, ctx, { executor: parsed.executor }),
 				{
@@ -390,6 +391,8 @@ async function dispatch(
 						text: `/${AW_COMMAND} ${args.trim()}`,
 					},
 					...hooks.hooks,
+					// pi-workflow: a session that ends cancels the pending auto selection.
+					signal,
 					// pi-workflow: only an interactive session can authorize the transmission.
 					...(dialog
 						? {
