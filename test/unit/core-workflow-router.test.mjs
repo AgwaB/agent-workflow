@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-router.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); harness from test/helpers/; setSubagentApiForTests→setTaskRuntimeApiForTests; paths .pi/{workflows,agents,workflow-subagents}→.agent-workflow/…, env PI_WORKFLOW_*→AGENT_WORKFLOW_*; 8 of 31 tests not ported (marked in place). The Pi theme init (initTheme) is not called (no Pi package).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-router.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); harness from test/helpers/; setSubagentApiForTests→setTaskRuntimeApiForTests; paths .pi/{workflows,agents,workflow-subagents}→.agent-workflow/…, env PI_WORKFLOW_*→AGENT_WORKFLOW_*; 1 of 31 tests not ported and 7 moved to test/unit/host-wp38b-auto-router.test.mjs (WP38b, against `/aw auto`) (marked in place). The Pi theme init (initTheme) is not called (no Pi package).
 import assert from "node:assert/strict";
 import { drainWorkflowFixture } from "../helpers/workflow-fixture-lifecycle.mjs";
 import {
@@ -15,7 +15,7 @@ import { after, test } from "node:test";
 
 // Not ported: import { initTheme } from "@earendil-works/pi-coding-agent" (Pi package).
 
-// Not ported: import workflowExtension, { parseWorkflowDynamicArgs, parseWorkflowRunArgs, workflowAutoSlashLaunchCapture } from "../../dist/core/extension.js" (Pi host extension (WP11)).
+// Not ported: import workflowExtension, { parseWorkflowDynamicArgs, parseWorkflowRunArgs, workflowAutoSlashLaunchCapture } from "../../dist/core/extension.js" (Pi host extension (WP11); the `/aw auto` tests use it in host-wp38b-auto-router.test.mjs).
 import { setTaskRuntimeApiForTests as setTaskRuntimeApiForTests } from "../../dist/core/runtime-port.js";
 import {
 	assertWorkflowAutoResolvedCandidateSafety,
@@ -207,11 +207,11 @@ function validComparison(
 	});
 }
 
-// Not ported (Pi host extension (WP11): workflowAutoSlashLaunchCapture; see docs/core-port.md WP10): test("auto v2 command capture preserves the supplied slash arguments exactly once").
+// Moved (WP38b, `/aw auto` (WP32)): test("auto v2 command capture preserves the supplied slash arguments exactly once") → test/unit/host-wp38b-auto-router.test.mjs.
 
 // Moved (WP11a, host API parsers): test("explicit run and dynamic reject retired routing flags while preserving quoted task text") → test/unit/host-ported-cli-args.test.mjs.
 
-// Not ported (Pi host extension (WP11): workflowExtension; see docs/core-port.md WP10): test("cancelling a dynamic foreground launch reclaims the created run").
+// Not applicable (WP38: `/aw run|dynamic` return at start, no foreground launch loader; docs/core-port.md "WP38"): test("cancelling a dynamic foreground launch reclaims the created run").
 
 test("routing hints are schema-validated, bounded, and author-controlled", () => {
 	const base = {
@@ -1038,20 +1038,20 @@ test("auto comparison accepts a valid multibyte UTF-8 artifact", async () => {
 	assert.equal(result.status, "recommendation");
 });
 
-// Not ported (Pi host extension (WP11): workflowExtension; see docs/core-port.md WP10): test("headless /workflow auto fails closed without structured transmission authorization").
+// Moved (WP38b, `/aw auto` (WP32)): test("headless /workflow auto fails closed without structured transmission authorization") → test/unit/host-wp38b-auto-router.test.mjs.
 
-// Not ported (Pi host extension (WP11): workflowExtension; see docs/core-port.md WP10): test("TUI cancellation keeps a Korean no-transmit task out of the classifier").
+// Moved (WP38b, `/aw auto` (WP32)): test("TUI cancellation keeps a Korean no-transmit task out of the classifier") → test/unit/host-wp38b-auto-router.test.mjs.
 
-// Not ported (Pi host extension (WP11): workflowExtension; see docs/core-port.md WP10): test("TUI keeps safe choices after no-fit without metadata noise or routing jargon").
+// Moved (WP38b, `/aw auto` (WP32)): test("TUI keeps safe choices after no-fit without metadata noise or routing jargon") → test/unit/host-wp38b-auto-router.test.mjs.
 
 for (const task of [
 	"Do not send this to any external model.",
 	"Do not write to disk; do not use the network.",
 ]) {
-	// Not ported (Pi host extension (WP11): workflowExtension; see docs/core-port.md WP10): test("TUI offers only cancellation under a transmission restriction: ${task}").
+	// Moved (WP38b, `/aw auto` (WP32)): test("TUI offers only cancellation under a transmission restriction: ${task}") → test/unit/host-wp38b-auto-router.test.mjs.
 }
 
-// Not ported (Pi host extension (WP11): workflowExtension; see docs/core-port.md WP10): test("TUI confirms an unranked named manual fallback with null v2 provenance").
+// Moved (WP38b, `/aw auto` (WP32)): test("TUI confirms an unranked named manual fallback with null v2 provenance") → test/unit/host-wp38b-auto-router.test.mjs.
 
 test("structured transmission policy fails closed across languages and preserves detected denials", async () => {
 	const cwd = project();

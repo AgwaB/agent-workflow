@@ -257,7 +257,10 @@ pi-workflow's `/workflow auto` on the host API `autoAction` (same flow on every 
    model. The classifier runs on the run's default executor: `--executor`, else the saved user
    profile, else `pi` (the Pi host's own CLI) with Pi's current model and thinking level (when the
    executor is `pi`). No = nothing is sent, nothing starts.
-3. Yes sends one tool-less classifier request, then `ctx.ui.select` lists the ranked workflows
+3. Yes sends one tool-less classifier request. In the TUI it runs behind a cancellable loader
+   ("Comparing workflow candidates… (Esc cancels; nothing starts)", WP33 `withForegroundLoader`,
+   WP38b): Escape aborts the in-flight request (the executor's cancel) and starts nothing; RPC mode
+   shows a "Comparing workflow candidates…" notification instead. Then `ctx.ui.select` lists the ranked workflows
    (`1. <name> · recommended — <reason>`, …, `Cancel (start nothing)`), and a separate
    `ctx.ui.confirm("Confirm selected workflow launch", …)` (pi-workflow's final confirmation)
    starts it through the normal launch path (`/aw run` options, degradation and profile dialogs). The
@@ -582,6 +585,12 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
 - WP32: `host-wp32-auto.test.mjs` (`/aw auto`: consent, ranked select and final confirm launch and
   track the run with one classifier submit on `pi` with Pi's model; declined consent, declined final
   confirmation and Cancel start nothing; print/JSON mode sends nothing).
+- WP38b: `host-wp38b-auto-launch-cancellation.test.mjs` (pi-workflow's `auto …` launch-cancellation
+  cases: Escape or session end at the final confirmation start nothing; Escape on the comparison
+  loader cancels the in-flight classifier request; `/aw stop` after the launch is exact-run;
+  uncancelled named and dynamic launches dispatch) and `host-wp38b-auto-router.test.mjs` (slash
+  capture, fail-closed without a confirmation dialog, no-transmit and no-fit choices, unranked manual
+  fallback provenance).
 - WP29: `host-wp29-pi-approval.test.mjs` (confirm yes runs the controller, no rejects it, json mode
   blocks with the approve commands, `/aw resume` asks the open approval), `host-wp29-approve-later.test.mjs`
   (`/aw approve` through the dialog, `--yes` without one).
@@ -627,8 +636,10 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
   also with `--no-session`).
 - The profile picker (WP34) edits WP31 role profiles, not pi-workflow's per-stage Pi
   model/thinking settings, and does not list workflow-declared execution profiles.
-  `/aw auto` (WP32) has no foreground loader while the classifier compares (pi-workflow showed
-  one); a notification says the comparison started.
+- `/aw auto` (WP32) has a loader only while the classifier compares (WP38b); once the chosen workflow
+  starts, the command returns like `/aw run` (pi-workflow kept a cancellable "Starting …" loader
+  until the launch settled; here `/aw stop <run>` stops it). A session that ends (`session_shutdown`)
+  while `/aw auto` is still comparing or asking cancels it: nothing starts.
 - Runs left running by a gone process are re-driven at session start (WP28) only while Pi runs;
   for a run that should outlive every session use `--detach` (or `agent-workflow supervise`).
 - Host tools (WP35) are file-configuration inheritance, as in pi-workflow: workers read the user's

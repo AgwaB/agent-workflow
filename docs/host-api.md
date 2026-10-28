@@ -361,7 +361,8 @@ pi-workflow's `/workflow auto` for every host (CLI `auto`, Pi `/aw auto`, MCP `w
 |---|---|
 | `consent` | `{source: "flag"}` (the user's explicit consent given in advance, CLI `--yes`) or `{source: "prompt" \| "elicitation", confirm(title, message, preview) → true \| false \| undefined}`. Absent: **no classifier call**. |
 | `choose(prompt)` | The final choice: `{title, message, choices: AutoCandidateView[], recommendedId?}` → a `candidateId` or undefined (start nothing). Absent: the ranking is returned and nothing starts. |
-| `signal` | Aborts before/after the classifier call (late output is discarded). |
+| `compare(operation)` | WP38b: the host's foreground wrapper of the one classifier call (Pi: a cancellable loader in the TUI). It runs `operation(signal)` — the signal aborts the in-flight request through the executor's cancel — and resolves the result, or undefined when the user cancelled: phase `cancelled`, nothing starts (`classifierCalled` says whether the request had been sent). |
+| `signal` | Cancels the whole action (Pi: the session ended): checked after consent, after the classifier call (late output is discarded) and after the choice; passed to the classifier call. |
 
 Steps: (1) the local routing-only shortlist (core `recommendWorkflowAuto` with
 `transmissionPolicy: "needs-clarification"`: no call); (2) the classifier target
@@ -468,7 +469,7 @@ The original files carry `Moved (WP11a)` markers at the former deferral comments
 - **WP11b (Pi host):** `/workflow` slash commands should call these handlers with
   `availableModels`/`runtimeDefaults` from Pi and `selectProfile`/`confirmDegradations` from the
   TUI; it keeps feedback delivery, parent usage, notices at session start, the board and `auto`
-  (the board and the profile picker: WP34; `auto` is not ported).
+  (the board and the profile picker: WP34; `auto`: WP32).
   WP18b: run-text hints are host-aware (see *Next-step hints* above).
 - **Launch capture:** done (WP33): the host-neutral `agent-workflow-run-launch-v1` record (see
   `run` / `dynamic`). The board's `v`/`c` keys use it (WP34, [pi-host.md](pi-host.md#board-wp34)).

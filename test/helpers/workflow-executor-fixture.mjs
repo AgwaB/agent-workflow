@@ -23,6 +23,8 @@
 //   autoRecommend WP32: answer the auto-router comparison call (its system prompt) with a valid
 //                 recommendation of the candidate card with this label (true: the first startable
 //                 card); the submit log entry then has `autoClassifier: true`
+//   autoStatus    WP38b: "no-fit" answers the comparison with no recommendation (every card a
+//                 partial fit), as pi-workflow's manual-fallback tests do
 import { appendFileSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createFakeExecutor } from "@agwab/agent-workflow/sdk/testing";
@@ -85,11 +87,23 @@ function isAutoClassifierRequest(req) {
 }
 
 /** WP32: a valid auto-router comparison answer for the packet in the prompt. */
-export function autoComparisonText(prompt, recommend) {
+export function autoComparisonText(prompt, recommend, status) {
 	const start = prompt.indexOf("{");
 	const end = prompt.lastIndexOf("}");
 	const packet = JSON.parse(prompt.slice(start, end + 1));
 	const cards = packet.candidateCards;
+	if (status === "no-fit")
+		return JSON.stringify({
+			status: "no-fit",
+			assessments: cards.map((card) => ({
+				candidateId: card.candidateId,
+				fit: "partial",
+				reason: "No ranked recommendation.",
+				evidence: ["task"],
+			})),
+			questions: [],
+			unknowns: [],
+		});
 	const selected =
 		(typeof recommend === "string"
 			? cards.find((card) => card.label === recommend)
@@ -122,7 +136,7 @@ function scriptFor(req, config) {
 	const label = req.attemptKey.split(":")[2] ?? "task";
 	const finalText =
 		config.autoRecommend !== undefined && isAutoClassifierRequest(req)
-			? autoComparisonText(req.prompt, config.autoRecommend)
+			? autoComparisonText(req.prompt, config.autoRecommend, config.autoStatus)
 			: workflowFinalText(label);
 	return [
 		{ type: "started", sessionId: null },
