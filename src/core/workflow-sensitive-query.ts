@@ -1,4 +1,5 @@
 // Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-sensitive-query.ts. MIT, same author. Changes: WP19 (stage-2 review #7) `redactSensitiveWorkflowText` also redacts quoted structured credentials (JSON/header fields such as `"Authorization":"Basic …"`, `"refresh_token":"…"`, also inside escaped JSON), `Proxy-Authorization`/`x-api-key` header lines, and Linux (`/home/<user>`) and Windows (`C:\\Users\\<user>`) home paths besides macOS.
+// WP19 round 2: escape-aware structured values (N4); prose such as `Exit code: 1` or `Authorization: missing …` is kept, credential header values and tokens are not (N6).
 const SENSITIVE_QUERY_TOKENS = new Set([
 	"access",
 	"auth",
@@ -116,17 +117,35 @@ export function redactSensitiveWorkflowText(value: string): string {
 	// WP19: a value never starts with a backslash, so the escaped-JSON form (`\"key\":\"v\"`,
 	// handled by redactStructuredCredentials first) is not split at its escape.
 	const assignment =
-		/(["']?)([^\s"'=:,;{}]+)\1\s*([=:])\s*(["']?)([^\s"'&,;}\\][^\s"'&,;}]*)\4/gu;
+		/(["']?)([^\s"'=:,;{}]+)\1\s*([=:])(\s*)(["']?)([^\s"'&,;}\\][^\s"'&,;}]*)\5/gu;
 	const redactedAssignments = redactStructuredCredentials(
 		withFragments,
-	).replace(assignment, (whole, quote, key, delimiter, valueQuote) => {
-		if (!isSensitiveWorkflowQueryKey(String(key))) return whole;
-		return `${quote}${key}${quote}${delimiter}${valueQuote}REDACTED${valueQuote}`;
-	});
+	).replace(
+		assignment,
+		(whole, quote, key, delimiter, space, valueQuote, assigned) => {
+			if (!isSensitiveWorkflowQueryKey(String(key))) return whole;
+			// WP19 round 2 (N6): `Label: value` with a space is how prose and reports read
+			// (`Exit code: 1`, `HTTP status code: 403`). There only a credential key (password,
+			// token, secret, …) or a token-shaped value is redacted; header names go to the header
+			// rule below, which looks at the value's shape.
+			if (delimiter === ":" && space) {
+				if (isCredentialHeaderName(String(key))) return whole;
+				if (
+					!isStructuredSecretKey(String(key)) &&
+					!looksLikeSecretToken(String(assigned))
+				)
+					return whole;
+			}
+			return `${quote}${key}${quote}${delimiter}${space}${valueQuote}REDACTED${valueQuote}`;
+		},
+	);
 	return redactedAssignments
 		.replace(
-			/(authorization|cookie|set-cookie|x-api-key)\s*:\s*[^\n\r]+/gi,
-			"$1: REDACTED",
+			/(authorization|cookie|set-cookie|x-api-key)\s*:\s*([^\n\r]+)/gi,
+			(whole, name, headerValue) =>
+				credentialHeaderValue(String(name), String(headerValue))
+					? `${name}: REDACTED`
+					: whole,
 		)
 		.replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer REDACTED")
 		.replace(/\/Users\/[^\s:'")]+/g, "/Users/REDACTED")
@@ -165,6 +184,49 @@ const STRUCTURED_SECRET_KEYS = new Set([
 	"credentials",
 ]);
 
+const CREDENTIAL_HEADER_NAMES = new Set([
+	"authorization",
+	"proxyauthorization",
+	"cookie",
+	"setcookie",
+	"xapikey",
+]);
+
+function isCredentialHeaderName(key: string): boolean {
+	return CREDENTIAL_HEADER_NAMES.has(
+		key.toLowerCase().replace(/[^a-z0-9]/g, ""),
+	);
+}
+
+/**
+ * WP19 round 2 (N6): a single word that looks like a credential (API key, token, session id) and
+ * not like prose or a status number: at least 8 characters with a digit or a token character
+ * (`+/=_.~`), or at least 24 characters.
+ */
+function looksLikeSecretToken(word: string): boolean {
+	const value = word.replace(/^["'`<(]+|["'`>).,;:!?]+$/gu, "");
+	if (value.length >= 24 && /^\S+$/u.test(value)) return true;
+	return value.length >= 8 && /[0-9+/=_.~]/u.test(value);
+}
+
+/** Authorization schemes (RFC 7235 registry and common vendor schemes). */
+const AUTH_SCHEME =
+	/^["'`]?(basic|bearer|digest|token|negotiate|ntlm|kerberos|hoba|mutual|vapid|scram-sha-1|scram-sha-256|aws4-hmac-sha256|gnap|dpop|privatetoken|concealed|apikey|api-key|key|oauth|jwt|sharedkey|sharedkeylite|ssws|sso-key|hmac|signature|splunk|otp)\s+\S/iu;
+
+/**
+ * WP19 round 2 (N6): a header line's value is a credential (an auth scheme with its parameters, a
+ * cookie list, a token), not prose such as `Authorization: missing on the delete endpoint`.
+ */
+function credentialHeaderValue(name: string, value: string): boolean {
+	const trimmed = value.trim();
+	if (!trimmed || trimmed === "REDACTED") return false;
+	if (AUTH_SCHEME.test(trimmed)) return true;
+	if (/cookie/iu.test(name) && /^["'`]?[^\s=;,"'`]+=/u.test(trimmed))
+		return true;
+	const first = trimmed.split(/\s+/u)[0] ?? "";
+	return looksLikeSecretToken(first);
+}
+
 function isStructuredSecretKey(key: string): boolean {
 	const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, "");
 	return (
@@ -178,15 +240,81 @@ function isStructuredSecretKey(key: string): boolean {
  * e.g. an event line carrying a request) with a secret-looking key: the whole quoted value goes,
  * whitespace included. The generic assignment rule above stops at the first space, so
  * `{"Authorization":"Basic dXNlcjpw..."}` used to pass through.
+ *
+ * WP19 round 2 (N4): the value's end is found by an escape-aware scanner, not a regex, so an
+ * escaped quote inside the value (`"sid=\"secret\"; path=/"`, a password containing `\"`) is part
+ * of the value, at every nesting level of escaped JSON.
  */
 function redactStructuredCredentials(value: string): string {
-	return value.replace(
-		/(\\*)(["'])([A-Za-z0-9_.-]{1,64})\1\2(\s*:\s*)(\\*)(["'])((?:(?!\5\6)[^\n\r])*)\5\6/gu,
-		(whole, keyEscape, keyQuote, key, delimiter, valueEscape, valueQuote) => {
-			if (!isStructuredSecretKey(String(key))) return whole;
-			return `${keyEscape}${keyQuote}${key}${keyEscape}${keyQuote}${delimiter}${valueEscape}${valueQuote}REDACTED${valueEscape}${valueQuote}`;
-		},
-	);
+	const key = /(\\*)(["'])([A-Za-z0-9_.-]{1,64})\1\2(\s*:\s*)(\\*)(["'])/gu;
+	let out = "";
+	let copied = 0;
+	let match: RegExpExecArray | null;
+	while ((match = key.exec(value)) !== null) {
+		const [whole, , , name, , valueEscape = "", valueQuote = '"'] = match;
+		if (!isStructuredSecretKey(String(name))) {
+			// Rescan from after the key: its value may hold nested escaped JSON with secret keys.
+			key.lastIndex = match.index + 1;
+			continue;
+		}
+		const contentStart = match.index + whole.length;
+		const end = quotedValueEnd(
+			value,
+			contentStart,
+			valueEscape.length,
+			valueQuote,
+		);
+		out += `${value.slice(copied, contentStart)}REDACTED`;
+		if (end.closed) {
+			out += `${valueEscape}${valueQuote}`;
+			copied = end.index + valueEscape.length + 1;
+		} else copied = end.index;
+		key.lastIndex = copied;
+	}
+	return copied === 0 ? value : out + value.slice(copied);
+}
+
+/**
+ * WP19 round 2 (N4): where a quoted value that starts at `start` ends. The value's delimiters are
+ * `quote` preceded by `escapes` backslashes (0 for plain JSON, 1 inside one level of escaped JSON,
+ * 3 inside two, …). In the raw text a run of backslashes before a quote is a number of escaped
+ * backslashes (2·(escapes+1) raw characters each) followed by either the closing delimiter
+ * (`escapes` more) or an escaped quote inside the value (2·escapes+1 more). Returns the index of
+ * the closing delimiter's first backslash (or quote), or the end of the line when the value is
+ * not closed there (the rest of the line is treated as the value: fail closed).
+ */
+function quotedValueEnd(
+	text: string,
+	start: number,
+	escapes: number,
+	quote: string,
+): { index: number; closed: boolean } {
+	const unit = 2 * (escapes + 1);
+	let index = start;
+	while (index < text.length) {
+		const char = text[index];
+		if (char === "\n" || char === "\r") return { index, closed: false };
+		if (char !== "\\" && char !== quote) {
+			index += 1;
+			continue;
+		}
+		let run = 0;
+		while (text[index + run] === "\\") run += 1;
+		if (text[index + run] !== quote) {
+			index += Math.max(run, 1);
+			continue;
+		}
+		const rest = run % unit;
+		if (rest === escapes)
+			// The closing delimiter starts after the escaped backslashes.
+			return { index: index + run - escapes, closed: true };
+		if (rest < escapes)
+			// A quote of an enclosing level: the value cannot run past it.
+			return { index: index + run - rest, closed: false };
+		// An escaped quote inside the value (or malformed escaping): keep scanning.
+		index += run + 1;
+	}
+	return { index, closed: false };
 }
 
 /**

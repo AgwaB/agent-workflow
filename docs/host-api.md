@@ -138,7 +138,14 @@ the host's own CLI, or the terminal's `pi>claude>codex` installed-default order)
 saved user profile that applies, the host's inherited model/effort (`runtimeDefaults`), the effective
 permission mode, and `workflowDefinitionFingerprint` of the loaded spec (covering declared profiles
 and defaults). So the same request from Claude Code and Codex, or after a workflow or saved-profile
-change, starts a new run. Residual: for `cli`/`generic` the installed-default choice is probed after
+change, starts a new run. WP19 round 2 (N5): the launch profile is resolved once, before the guard,
+from one read of the settings (the requested declared or saved user profile, the saved per-workflow
+preference with its resolved stage overrides on hosts with a model registry, the default saved user
+profile); the fingerprint covers that snapshot and the launch runs from the same snapshot (no second
+settings read). Only the interactive declared-profile chooser runs after the guard claimed the launch
+(a duplicate never prompts); it picks from the snapshot. So changing the saved per-workflow
+preference (e.g. Codex → Claude) between two identical requests starts a new run with the new
+preference. Residual: for `cli`/`generic` the installed-default choice is probed after
 the guard, so a login change between two identical launches within the window is not seen.
 `detach` and the interactive hooks are not part of it. An identical launch while the run it recorded is non-terminal (`running`, `pending`,
 `blocked`) and was created within the last 10 minutes (`DUPLICATE_RUN_WINDOW_MS`) returns that run:
@@ -152,9 +159,16 @@ a unique owner token and a renewable lease (`leaseExpiresAt`, 60 s, renewed ever
 launch is in flight, e.g. waiting for a user confirmation). Publishing, stale takeover, renewal,
 `record`, `release` and pruning all run under a per-identity mutex (`<sha256>.lock`, an atomically
 created lock directory with owner-aware stealing, the same `dir-lock` the artifact registry uses), so
-two launches that find the same stale claim serialize and exactly one is `claimed`; a pending claim
-is taken over only when its lease expired or its owner process (same host) is dead; record, release
-and prune leave a claim with another owner token alone. WP18b: claim files older than 1 h that do not name a
+two launches that find the same stale claim serialize and exactly one is `claimed`; record, release
+and prune leave a claim with another owner token alone. WP19 round 2 (N1): the lease fences
+execution, not only the claim. A pending claim is taken over at once only when its owner process
+(same host) is dead; an owner that is alive (same host) or cannot be checked (another host) keeps
+its claim even after its lease expired (a suspended process may still start), and later identical
+launches are refused as `DUPLICATE_LAUNCH_IN_PROGRESS`; such a claim is abandoned only 1 h
+(`LAUNCH_CLAIM_ABANDON_MS`) after its lease expired. Immediately before `start()` the launch passes an
+ownership fence (`begin()`): under the mutex it checks that the claim still carries its owner token
+and marks it `state: "starting"`. A launch whose claim was taken over meanwhile starts nothing and
+returns the new owner's run (`existing`) or is refused (`DUPLICATE_LAUNCH_IN_PROGRESS`). WP18b: claim files older than 1 h that do not name a
 still-active run are stale; every launch removes them in the background and `prune` removes them
 with the runs (same dry-run rule; `data.hostLaunchClaims`). Runs launched outside the host API (the
 SDK) are not guarded. Before WP16 the guard applied to attached launches only, matched spec name + task, and
@@ -186,13 +200,27 @@ canonically (symlinks followed) inside the project's artifact root `<cwd>/.agent
 path, traversal, outside the artifact root, symlink escape) and the text says `(not read: …)`.
 `inspect --results` applies the same check to `task.files.result`, and the wait/status result
 presentation requires the output task dir inside the artifact root (not only the project).
+Legacy `.pi/workflows/…` paths are refused too, by design: runs are only ever listed from
+`.agent-workflow/workflows/` (legacy discovery is for specs and agents; pi-workflow and
+agent-workflow each see their own runs, docs/usage.md), so only a pi-workflow run record copied in by
+hand can name them.
 WP19 (review #7): one redactor (`hosts/redaction.ts`) covers all host text that can carry worker
 output: `logs`, the text of `status <run>`, `show`, `inspect`, `wait` (and `data.preview`), and the Pi
 completion message. Beyond the rules above it redacts quoted structured credentials, whitespace
 included (`"Authorization":"Basic …"`, `Proxy-Authorization`, `Cookie`/`Set-Cookie`, `x-api-key`,
 JSON fields such as `token`, `access_token`, `refresh_token`, `api_key`/`apiKey`, `secret`,
 `client_secret`, `password`, also backslash-escaped inside JSON strings), and Linux `/home/<user>`
-and Windows `C:\Users\<user>` home paths as well as macOS `/Users/<user>`.
+and Windows `C:\Users\<user>` home paths as well as macOS `/Users/<user>`. WP19 round 2 (N4): the end
+of a structured value is found by an escape-aware scanner (JSON string escapes at every nesting
+level of escaped JSON), so an escaped quote inside the value (`"Cookie":"sid=\"…\"; path=/"`, a
+password containing `\"`) no longer ends it early. WP19 round 2 (N6): prose is told apart from
+credentials. In the `Label: value` form (colon and a space) only a credential key (`password`,
+`token`, `secret`, `*_token`, `*_secret`, `*apikey`, …) or a token-shaped value (≥ 8 characters with a
+digit or `+/=_.~`, or ≥ 24 characters) is redacted, so `Exit code: 1` and `HTTP status code: 403`
+stay; `key=value` and `key:value` assignments are redacted as before. An `Authorization`,
+`Proxy-Authorization`, `Cookie`, `Set-Cookie` or `x-api-key` line is redacted when its value is an
+auth scheme with parameters (`Basic …`, `Bearer …`, `Digest …`, …), a cookie list (`name=…`) or a
+token, not when it is prose (`Authorization: missing on the delete endpoint; …`).
 
 ### `wait`
 

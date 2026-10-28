@@ -27,10 +27,23 @@
 //   claim.
 // - The claim is a renewable lease (`leaseExpiresAt`). The owner renews it every
 //   LAUNCH_CLAIM_RENEW_MS while the launch is in flight (e.g. waiting for a user confirmation), so
-//   a live owner keeps its claim past LAUNCH_CLAIM_STALE_MS; only an expired lease or a dead
-//   owner process (same host) is taken over.
+//   a live owner keeps its claim past LAUNCH_CLAIM_STALE_MS; a dead owner process (same host) is
+//   taken over (round 2: an expired lease alone is not enough, see below).
 // - record, release and prune check the owner token first: a launch whose claim was taken over
 //   never overwrites or deletes the new owner's claim.
+//
+// WP19 round 2 (re-review N1): the lease fences execution, not only the claim file.
+// - A pending claim whose owner process is alive (same host) or cannot be checked (another host)
+//   is never taken over, even after its lease expired (e.g. the owner was suspended or its
+//   renewals failed): the second launch is refused as in flight. Only a provably dead owner's
+//   claim is taken over at once; an alive-or-uncertain owner's expired claim is abandoned only
+//   LAUNCH_CLAIM_ABANDON_MS after its lease expired (bounded fail-closed, so a reused pid or a
+//   crashed remote host cannot block the fingerprint forever).
+// - `begin()` is the execution-start fence: immediately before the launch starts the run, it
+//   re-reads the claim under the per-fingerprint mutex, checks that it is still this launch's
+//   (owner token) and marks it `state: "starting"`. A displaced launch (its claim was taken over
+//   meanwhile) starts nothing: it gets the run the new owner recorded (`existing`) or is refused
+//   (`in-flight`). A free or stale slot is re-claimed under the mutex.
 import { createHash, randomBytes } from "node:crypto";
 import {
 	lstat,
@@ -54,6 +67,11 @@ const CLAIM_SCHEMA = "agent-workflow-host-launch-v1";
 export const LAUNCH_CLAIM_STALE_MS = 60_000;
 /** WP19: how often a live owner renews its pending claim's lease. */
 export const LAUNCH_CLAIM_RENEW_MS = 15_000;
+/**
+ * WP19 round 2 (N1): an expired claim whose owner is alive or cannot be checked is abandoned only
+ * this long after its lease expired.
+ */
+export const LAUNCH_CLAIM_ABANDON_MS = 60 * 60 * 1000;
 /** How long a concurrent identical launch waits for the first one to record its run id. */
 const IN_FLIGHT_WAIT_MS = 15_000;
 const IN_FLIGHT_POLL_MS = 100;
@@ -95,6 +113,9 @@ interface LaunchClaim {
 	host?: string;
 	/** WP19: the pending claim's lease; the owner renews it while the launch is in flight. */
 	leaseExpiresAt?: string;
+	/** WP19 round 2 (N1): the owner passed the execution-start fence and is starting the run. */
+	state?: "starting";
+	startingAt?: string;
 	runId?: string;
 	recordedAt?: string;
 }
@@ -234,15 +255,19 @@ function leaseExpiry(claim: LaunchClaim): number {
 	return Date.parse(claim.claimedAt) + LAUNCH_CLAIM_STALE_MS;
 }
 
-/** A pending claim (no run id) whose owner may still be launching. */
+/**
+ * A pending claim (no run id) whose owner may still be launching. WP19 round 2 (N1): fail closed.
+ * A dead owner on this host cannot renew: taken over at once. An owner that is alive (this host)
+ * or cannot be checked (another host) keeps its claim past an expired lease (it may have been
+ * suspended and still call `start()`), up to LAUNCH_CLAIM_ABANDON_MS after the lease expired.
+ */
 function pendingClaimLive(claim: LaunchClaim, nowMs: number): boolean {
 	if (claim.runId) return false;
-	const expiry = leaseExpiry(claim);
-	if (!Number.isFinite(expiry) || nowMs >= expiry) return false;
-	// A dead owner on this host cannot renew: take over at once.
 	if ((claim.host ?? hostname()) === hostname() && !processAlive(claim.pid))
 		return false;
-	return true;
+	const expiry = leaseExpiry(claim);
+	if (!Number.isFinite(expiry)) return false;
+	return nowMs < expiry + LAUNCH_CLAIM_ABANDON_MS;
 }
 
 export type LaunchGuardDecision =
@@ -252,10 +277,20 @@ export type LaunchGuardDecision =
 			kind: "claimed";
 			/** WP19: this launch's unique owner token. */
 			token: string;
+			/**
+			 * WP19 round 2 (N1): the execution-start fence. Call immediately before starting the run;
+			 * start it only on `owned`. `existing`/`in-flight`: the claim was taken over meanwhile.
+			 */
+			begin: () => Promise<LaunchStartFence>;
 			/** Record the started run (or release the claim when nothing started). */
 			record: (runId: string) => Promise<void>;
 			release: () => Promise<void>;
 	  };
+
+export type LaunchStartFence =
+	| { kind: "owned" }
+	| { kind: "existing"; run: WorkflowRunRecord }
+	| { kind: "in-flight"; claimedAt: string };
 
 async function activeMatch(
 	cwd: string,
@@ -339,6 +374,44 @@ export async function claimLaunch(
 		return {
 			kind: "claimed",
 			token,
+			begin: async () => {
+				const step = await withClaimMutex(
+					file,
+					async (): Promise<LaunchStartFence> => {
+						const current = await readClaim(file);
+						if (current?.runId) {
+							const run = await activeMatch(cwd, current, now(), windowMs);
+							if (run) return { kind: "existing", run };
+						} else if (
+							current &&
+							current.token !== token &&
+							pendingClaimLive(current, now())
+						)
+							return { kind: "in-flight", claimedAt: current.claimedAt };
+						// Still ours, or the slot is free/stale again: (re)claim it, marked starting.
+						const at = new Date(now()).toISOString();
+						await writeClaimAtomic(file, {
+							...(ours(current) && !current.runId ? current : claim),
+							token,
+							pid: process.pid,
+							host: hostname(),
+							state: "starting",
+							startingAt: at,
+							leaseExpiresAt: new Date(
+								now() + LAUNCH_CLAIM_STALE_MS,
+							).toISOString(),
+						});
+						return { kind: "owned" };
+					},
+				);
+				// The mutex stayed held: fail closed (start nothing).
+				const fence: LaunchStartFence = step?.value ?? {
+					kind: "in-flight",
+					claimedAt: new Date(now()).toISOString(),
+				};
+				if (fence.kind !== "owned") stop();
+				return fence;
+			},
 			record: async (runId) => {
 				stop();
 				await withClaimMutex(file, async () => {

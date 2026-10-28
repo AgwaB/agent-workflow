@@ -14,7 +14,7 @@ const guard = await import("../../dist/hosts/launch-guard.js");
 const roots = [];
 after(async () => {
 	for (const dir of roots.splice(0))
-		await rm(dir, { recursive: true, force: true });
+		await rm(dir, { recursive: true, force: true, maxRetries: 5 });
 });
 
 async function project() {
@@ -130,7 +130,9 @@ test("record/release of a taken-over claim leave the new owner's claim alone", a
 		renewMs: 3_600_000,
 	});
 	assert.equal(first.kind, "claimed");
-	clock += 120_000;
+	// WP19 round 2 (N1): an alive owner's expired claim is only abandoned after
+	// LAUNCH_CLAIM_ABANDON_MS past its lease.
+	clock += guard.LAUNCH_CLAIM_ABANDON_MS + 120_000;
 	const second = await guard.claimLaunch(cwd, fingerprint, {
 		now,
 		inFlightWaitMs: 0,

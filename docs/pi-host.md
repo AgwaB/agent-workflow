@@ -128,7 +128,9 @@ Execution profile (no dialog UI): the workflow declares execution profiles; this
 saved per-workflow Pi preference or `--profile` skips the choice, as before.
 
 Host context per call: `cwd` = Pi's cwd; `availableModels` = Pi's model registry (so saved
-per-workflow Pi profile preferences apply); `runtimeDefaults` = Pi's current model and thinking level,
+per-workflow Pi profile preferences apply; WP19 round 2: the preference, resolved once with its stage
+overrides, is part of the duplicate-launch identity and the run is launched from that same
+resolution, so changing it starts a new run); `runtimeDefaults` = Pi's current model and thinking level,
 only when no executor or `pi` is selected — a `--executor codex` run does not inherit Pi's model.
 
 ## Session start
@@ -175,18 +177,30 @@ status entry, without the board widget or the presentation lease. Only with a UI
   session and settled state (epoch = SHA-256 of the run status and each task's status, timestamps,
   exit code and resume events; a resumed run that settles again is a new epoch). The receipt
   `<run dir>/pi-feedback-receipts/<epoch>.json` is first a *pending reservation* (`state:
-  "pending"`, owner token and pid, written under a per-epoch lock before `pi.sendMessage`) and
-  becomes an *acknowledged delivery* (`state: "delivered"`) once `sendMessage` returned; a throwing
-  send drops the reservation (retried on the next poll, at most 4 attempts, then an error
-  notification). A pending reservation whose owner is gone (a crash between reservation and send,
-  or between send and acknowledgement) is resolved against the recipient: Pi's session history
-  (`ctx.sessionManager.getEntries()`) is searched for an `agent-workflow-completion`
-  `custom_message` whose `details` carry this `runId` and `feedbackEpoch`; found = acknowledged,
-  not found = sent again. An empty or corrupt receipt is never proof of delivery. Residuals: a Pi
-  that exposes no `getEntries` gets the message again after such a crash (at least once, never
-  lost); a message Pi itself queued in memory (sent while the agent was streaming) and lost in a Pi
-  crash after the acknowledgement is not resent. Receipts written before WP19 count as delivered
-  when the history holds the run's message or the history is unreadable.
+  "pending"`, owner token and pid, written under a per-epoch lock before `pi.sendMessage`). WP19
+  round 2 (N2): once `sendMessage` returned it is `state: "sent"`, not a durable acknowledgement
+  (while the agent streams, Pi only queues the message in this process's memory); it becomes
+  `state: "confirmed"` when Pi's session history (`ctx.sessionManager.getEntries()`) holds an
+  `agent-workflow-completion` `custom_message` whose `details` carry this `runId` and
+  `feedbackEpoch`. Every delivery checks the history first (found = confirmed, nothing sent), and
+  the tracker keeps polling for up to 10 min after a send to confirm it on a later tick. Within one
+  Pi process and tracker generation an epoch already sent is never sent again (in-memory set),
+  confirmed or not. After a restart or in a new tracker generation (`session_start`), a `sent` but
+  unconfirmed receipt is resolved against the history: not found = sent again (Pi lost its queue).
+  A pending reservation whose owner is gone (a crash between reservation and send) is resolved the
+  same way. A throwing send drops the reservation (retried on the next poll, at most 4 attempts,
+  then an error notification). An empty or corrupt receipt is never proof of delivery. Without a
+  readable history (no `getEntries`, or it throws) delivery is at least once: a `sent` receipt is
+  sent again after a restart, but an epoch is sent at most twice while the history stays
+  unreadable (so a lost resend is not retried forever, and a Pi without history is not re-notified
+  on every start). A `sent` receipt of another live Pi process on this host is left to that
+  process. Round-1 `"delivered"` receipts are read as `sent`; receipts written before WP19 count as
+  delivered when the history holds the run's message or the history is unreadable.
+- **Concurrent deliveries (WP19 round 2, N3).** A delivery keeps in-process ownership of its
+  reservation through its final `sent` transition; a concurrent delivery of the same epoch in this
+  process returns `in-flight` without sending. Every receipt transition (reserve, drop, sent,
+  confirmed) is serialized per receipt (an in-process queue plus the per-epoch directory lock) and
+  only rewrites a receipt that still carries the transition's owner token.
 - **Session fence (WP19, review #6).** Pi's `sendMessage` goes to the runtime's *current* session
   (there is no session-targeted form). Right before it, synchronously, the delivery re-checks the
   current session id against the audience and the tracker's session generation (bumped on
@@ -195,6 +209,9 @@ status entry, without the board widget or the presentation lease. Only with a UI
 - **Restart.** At `session_start` (after the unfinished-run notice, not awaited) the host tracks
   this session's runs that are still active and delivers, without a turn, those that settled while
   no Pi process of the session watched (top-level runs updated in the last 7 days, at most 5).
+  WP19 round 2 (N7): a `session_shutdown` while this restore awaits a read wins: the restore
+  re-checks the session generation and context after each await and right before scheduling, so it
+  tracks nothing and starts no timer; a poll that finds no session context clears the timer.
 
 ## Process roles
 
