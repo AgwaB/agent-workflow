@@ -1,0 +1,60 @@
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/unit-test-cleanup.test.mjs. MIT, same
+// author. Changes: fixture test/fixtures/core/unit-cleanup-lifecycle.mjs (over the ported harness
+// test/helpers/unit-test-support.mjs, whose `after` hook drains the advisory index writer before it
+// removes its root); the child also gets an isolated AGENT_WORKFLOW_HOME and PI_CODING_AGENT_DIR.
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import test from "node:test";
+
+for (const mode of ["pending", "inflight"]) {
+	test(`global test cleanup drains ${mode} index work before removing its root`, {
+		timeout: 60000,
+	}, () => {
+		const evidence = mkdtempSync(join(tmpdir(), "workflow-cleanup-control-"));
+		const trace = join(evidence, "trace.jsonl");
+		try {
+			const result = spawnSync(
+				process.execPath,
+				["--test", resolve("test/fixtures/core/unit-cleanup-lifecycle.mjs")],
+				{
+					cwd: process.cwd(),
+					encoding: "utf8",
+					timeout: 45000,
+					killSignal: "SIGKILL",
+					env: {
+						PATH: process.env.PATH,
+						HOME: evidence,
+						USERPROFILE: evidence,
+						AGENT_WORKFLOW_HOME: join(evidence, ".agent-workflow"),
+						PI_CODING_AGENT_DIR: join(evidence, ".pi", "agent"),
+						PI_OFFLINE: "1",
+						CLEANUP_CONTROL_MODE: mode,
+						CLEANUP_CONTROL_TRACE: trace,
+					},
+				},
+			);
+			assert.equal(result.error, undefined, String(result.error));
+			assert.equal(result.status, 0, result.stdout + result.stderr);
+			const events = readFileSync(trace, "utf8")
+				.trim()
+				.split("\n")
+				.map((line) => JSON.parse(line));
+			const cleanup = events.filter((event) => event.phase === "root-cleanup");
+			assert.ok(cleanup.length > 0, "cleanup must execute, not be skipped");
+			assert.ok(
+				cleanup.every((event) => event.entered && event.completed),
+				JSON.stringify(events),
+			);
+			assert.equal(
+				existsSync(cleanup[0].root),
+				false,
+				"the child must leave no test root",
+			);
+		} finally {
+			rmSync(evidence, { recursive: true, force: true });
+		}
+	});
+}

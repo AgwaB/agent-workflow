@@ -309,7 +309,10 @@ audience session (when that session starts, its catch-up delivers it). Then the 
 `noticesAction({argv: ["list"]})` and shows one warning notification listing unfinished runs (port of
 pi-workflow `notifyUnfinishedRuns`): top-level failed/interrupted runs and blocked runs waiting for a
 dynamic approval or an executor decision, excluding mock runs, runs with an active acknowledgement
-and runs not updated for 7 days; at most 5 listed, each with `/aw resume <run>`. A run is notified
+and runs not updated for 7 days; at most 5 listed, each as `<workflow name> <run>: <status>` (WP38:
+`failed (final rendered — degraded)` when the final output was rendered) with `/aw resume <run>`. A
+malformed acknowledgement sidecar suppresses nothing (WP38; the `notices` command still refuses it). A
+run is notified
 again only when its status/updatedAt changed, its acknowledgement became stale, or 6 hours passed
 (state: `.agent-workflow/workflows/unfinished-notices.json`). Silence a run with
 `/aw notices acknowledge <run> --state <sha256> --reason <text>`.

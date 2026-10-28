@@ -131,7 +131,9 @@ test("formatActiveWorkflowLines: progress, elapsed time, truncation and overflow
 });
 
 test("widget lists this session's active runs with progress, keeps the footer entry and clears when done", async () => {
-	const { cwd, env, executor } = await project();
+	// WP38 load margin: both runs must still be active when the second launch returns; with the
+	// default 800 ms steps the first run could finish first on a loaded machine (load average 20+).
+	const { cwd, env, executor } = await project(3_000);
 	const { command } = install(env);
 	const ctx = fakeCtx(cwd);
 	await command.handler(`run wf.json "first" --executor ${executor}`, ctx);

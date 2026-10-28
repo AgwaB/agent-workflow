@@ -1,0 +1,177 @@
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-native-prompt-policy.test.mjs.
+// MIT, same author. Changes: harness from test/helpers/unit-test-support.mjs; subagent-backend names
+// from task-backend; setSubagentApiForTests→setTaskRuntimeApiForTests; backend id
+// agent-workflow/runtime. The `native` dimension is the WP35 host-tools inheritance
+// (`compileWorkflow({inheritHostTools: true})` under a recorded host context, was `nativeHost`): core
+// no longer expands the host tools into the tool list (codemode, tool_search, mcp__* and the MCP
+// resource tools are added by the Pi executor from the descriptor's `inheritHostTools`), so the
+// effective tool list is the same with and without it, `effectivePolicy.inheritHostTools` records
+// the inheritance (writable stages with tools only: a readOnly stage never inherits, WP35; as before, an empty tool list inherits nothing), and the "native-host"
+// generated extension is gone (the Pi executor's per-run extension). The tool list reaches the
+// runtime through the system prompt's policy line (no `tools` launch option since WP4c-1), and the
+// prompt sent to the pi executor names the artifact tool by its MCP name
+// (`renderWorkerPromptToolNames`, WP10), while system-prompt.md keeps the canonical text.
+import { readFile } from "node:fs/promises";
+import {
+	assert,
+	artifactGraphWorkflowSpec,
+	compileWorkflow,
+	join,
+	launchSubagentTask,
+	makeProject,
+	setTaskRuntimeApiForTests,
+	test,
+	writeAgent,
+} from "../helpers/unit-test-support.mjs";
+import { createRunRecord } from "../../dist/core/store.js";
+import {
+	prepareArtifactGraphRetryTask,
+	prepareDagTask,
+} from "../../dist/core/artifact-graph-runtime.js";
+import { prepareSubagentTaskLaunch } from "../../dist/core/task-backend.js";
+import { createLaunchBootstrapProvenance } from "../../dist/core/launch-bootstrap-provenance.js";
+import {
+	createHostContext,
+	withHostContext,
+} from "../../dist/core/host-context.js";
+import { renderWorkerPromptToolNames } from "../../dist/core/artifact-tool-names.js";
+
+for (const native of [false, true]) {
+	for (const empty of [false, true]) {
+		for (const noArtifacts of [false, true]) {
+			for (const retry of [false, true]) {
+				test(`sealed prompt parity: native=${native}, empty=${empty}, artifacts=${!noArtifacts}, retry=${retry}`, async () => {
+					const cwd = makeProject();
+					writeAgent(cwd, "unit-scout", "read");
+					const spec = artifactGraphWorkflowSpec();
+					spec.defaults.worktreePolicy = "off";
+					// WP35: only a writable stage inherits the host's tools.
+					if (native) spec.defaults.readOnly = false;
+					spec.artifactGraph.stages[0].tools = empty ? [] : ["read"];
+					if (noArtifacts)
+						spec.artifactGraph.stages[0].inputPolicy = {
+							artifactAccess: "none",
+						};
+					const hostContext = native
+						? createHostContext({ cwd, projectTrusted: true })
+						: null;
+					const compiled = await compileWorkflow(spec, {
+						cwd,
+						// Inherited host tools make the stage mutation-capable; free mode honors the spec's
+						// worktreePolicy "off" as pi-workflow did (safe mode would require a worktree, D2).
+						...(native
+							? { inheritHostTools: true, permissionMode: "free" }
+							: {}),
+					});
+					const original = JSON.stringify(compiled);
+					const { run } = await withHostContext(hostContext, () =>
+						createRunRecord(cwd, compiled, join(cwd, "spec.json")),
+					);
+					const task = run.tasks[0];
+					let preparedTask = await prepareDagTask(cwd, run, compiled, 0);
+					if (retry) {
+						task.outputRetry = {
+							attempts: 1,
+							message: "offline malformed-output fixture",
+						};
+						preparedTask = await prepareArtifactGraphRetryTask(
+							cwd,
+							task,
+							preparedTask,
+						);
+						assert.match(
+							preparedTask.compiledPrompt,
+							/Workflow Output Retry Instructions/,
+						);
+					}
+					const prepared = await prepareSubagentTaskLaunch(
+						cwd,
+						run,
+						task,
+						preparedTask,
+					);
+					// WP35: host tools are only lent to the pi executor; the run records its executor at
+					// first launch (the default fixture "pi" here), so the pre-launch check names it.
+					const provenance = await createLaunchBootstrapProvenance(
+						cwd,
+						{ ...run, executor: { ...(run.executor ?? {}), id: "pi" } },
+						task,
+						preparedTask,
+						"agent-workflow/runtime",
+						prepared,
+					);
+					const expected = [
+						...(empty ? [] : ["read"]),
+						...(noArtifacts ? [] : ["workflow_artifact"]),
+					];
+					assert.deepEqual(
+						new Set(provenance.effectivePolicy.tools),
+						new Set(expected),
+					);
+					assert.equal(
+						provenance.effectivePolicy.inheritHostTools === true,
+						native && !empty,
+					);
+					assert.deepEqual(prepared.generatedExtensions, []);
+					let captured;
+					setTaskRuntimeApiForTests({
+						async runSubagent(options) {
+							captured = options;
+							return {
+								runId: "run_prompt_fixture",
+								attemptId: "attempt_prompt_fixture",
+								status: "running",
+							};
+						},
+						async getSubagentStatus() {
+							return null;
+						},
+						async reconcileSubagentRun() {
+							return {};
+						},
+						async interruptSubagent() {
+							return {};
+						},
+					});
+					try {
+						const launched = await launchSubagentTask(
+							cwd,
+							run,
+							task,
+							preparedTask,
+							undefined,
+							undefined,
+							prepared,
+						);
+						assert.equal(launched.kind, "launched", JSON.stringify(launched));
+						const canonical = await readFile(
+							join(cwd, task.files.systemPrompt),
+							"utf8",
+						);
+						const policyLine = canonical
+							.split("\n")
+							.find((line) => /^(Only these tools|No tools)/.test(line));
+						const tools = provenance.effectivePolicy.tools;
+						assert.equal(
+							policyLine,
+							tools.length
+								? `Only these tools are enabled for this workflow task: ${tools.join(", ")}.`
+								: "No tools are enabled for this workflow task.",
+						);
+						assert.equal(
+							captured.systemPrompt,
+							renderWorkerPromptToolNames(canonical, captured.executor.id),
+						);
+						assert.equal(
+							captured.executor.config?.inheritHostTools === true,
+							native && !empty,
+						);
+						assert.equal(JSON.stringify(compiled), original);
+					} finally {
+						setTaskRuntimeApiForTests(undefined);
+					}
+				});
+			}
+		}
+	}
+}
