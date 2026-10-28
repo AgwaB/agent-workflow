@@ -1078,7 +1078,7 @@ dispositions of the WP38 work: section "WP38" at the end.
 | workflow-extension-isolation.test.mjs | not-applicable-WP38 | `noExtensions` / `supportsExplicitExtensionIsolation` are pi-subagent launch options; core prepares no extensions and the Pi executor is always isolated (B5); 2 cases |
 | workflow-fixture-lifecycle.test.mjs | ported-WP4c2 (`test/unit/core-workflow-fixture-lifecycle.test.mjs`) | WP4c-2 harness |
 | workflow-guide-fixed-inventory.test.mjs | ported-WP4b (`test/unit/core-workflow-guide-fixed-inventory.test.mjs`) | WP4b; scaffold copied to test/fixtures/core/ |
-| workflow-launch-cancellation.test.mjs | ported-WP38 (`test/unit/core-workflow-launch-cancellation.test.mjs`) | 1 of 15 cases (run-scoped launch fences); the 14 `auto …` cases are not applicable (no `/aw auto`, docs/pi-host.md "Known limits") |
+| workflow-launch-cancellation.test.mjs | ported-WP38 + WP38b (`test/unit/core-workflow-launch-cancellation.test.mjs`, `test/unit/host-wp38b-auto-launch-cancellation.test.mjs`) | 15 of 15 cases: the run-scoped launch fence (WP38) and the 4 "fences first dispatch while durable stop publication is delayed" cases at the core level (`launchSignal`, WP38b); the other 10 `auto …` cases against `/aw auto` (WP32): Escape or session end at the final confirmation, `/aw stop` after the launch, Escape on the comparison loader (WP38b section) |
 | workflow-launch-metadata.test.mjs | ported-WP4c1 (`test/unit/core-workflow-launch-metadata.test.mjs`) | WP4c-1; paths, default executor fixture |
 | workflow-mtbyqwu0-security.test.mjs | ported-WP4b (`test/unit/core-workflow-mtbyqwu0-security.test.mjs`) | WP4b |
 | workflow-native-boundary.test.mjs | dropped | INVENTORY: drop(Pi native host context) |
@@ -1094,7 +1094,7 @@ dispositions of the WP38 work: section "WP38" at the end.
 | workflow-profile-routing-compat.test.mjs | ported-WP4b (`test/unit/core-workflow-profile-routing-compat.test.mjs`) | WP4b; AGENT_WORKFLOW_HOME |
 | workflow-profile-tui.test.mjs | dropped | INVENTORY: drop(Pi TUI) |
 | workflow-report-contracts.test.mjs | ported-WP10 (`test/unit/core-workflow-report-contracts.test.mjs`) | WP10 bundled workflows; 7 of 7 tests |
-| workflow-router.test.mjs | ported-WP10 (`test/unit/core-workflow-router.test.mjs`) | WP10 bundled workflows; no Pi theme init; 23 of 31 tests; the 8 `/workflow auto` slash-capture/TUI and foreground-loader tests are not applicable (WP38: no `/aw auto`; `/aw dynamic` returns at start, no loader) |
+| workflow-router.test.mjs | ported-WP10 + WP38b (`test/unit/core-workflow-router.test.mjs`, `test/unit/host-wp38b-auto-router.test.mjs`) | WP10 bundled workflows; no Pi theme init; 30 of 31 tests: 23 here, the 7 `/workflow auto` slash-capture/TUI tests against `/aw auto` (WP32) in host-wp38b-auto-router (WP38b); "cancelling a dynamic foreground launch reclaims the created run" is not applicable (`/aw dynamic` returns at start, no foreground launch loader) |
 | workflow-user-profiles.test.mjs | ported-WP10 (`test/unit/core-workflow-user-profiles.test.mjs`) | WP10 bundled workflows; settings home AGENT_WORKFLOW_HOME; 10 of 27 tests here; 2 ported in WP11a (`host-ported-cli-args`); the 15 profile UI/TUI tests: 11 superseded by `host-wp34-pi-profile-picker`, 4 not applicable (WP38 section) |
 | workflow-view.test.mjs | dropped | INVENTORY: drop(Pi TUI) / port-adapted if board moves to CLI |
 | workflow-wait-tool.test.mjs | ported-WP38 (`test/unit/host-wp38-workflow-wait-tool.test.mjs`) | 19 of 37 tests ported, 11 superseded, 7 not applicable (WP38 section) |
@@ -1509,8 +1509,8 @@ order). Each fix has a regression test that failed before it.
 
 Other WP12d-1 fixes, logged in their own docs: review #4 (handled signals keep directory locks
 held) in docs/runtime-port.md change log 18, review #8 (MCP ledger race) in docs/mcp.md WP12d-1
-change log, review #11 (replay exact-match paths) in docs/replay.md WP12d-1 change log. Findings
-#2, #3, #5, #6, #9 and #10 (executors) are WP12d-2.
+change log, review #11 (replay exact-match paths) in docs/replay.md WP12d-1 change log.
+Findings #2, #3, #5, #6, #9 and #10 (executors) are WP12d-2.
 
 ### WP12d-1 validation
 
@@ -1636,9 +1636,12 @@ above has no `deferred` status left. No model or agent CLI is called by any new 
 | Scope | Ported | Superseded | Not applicable |
 |---|---|---|---|
 | The 17 deferred files (fast-mode … built-engine-frozen-bundle-regression) | 123 | 17 | 9 |
-| The 6 files whose rows were still deferred after WP11a (review-core-fixes, surface-regressions, unlimited-supervisor, workflow-extension-isolation, workflow-launch-cancellation, workflow-notice-acknowledgements; WP11a parts unchanged) | 22 | 1 | 18 |
-| Individual tests in ported files (authoring-interface, user-profiles, router, core-runtime, dynamic-runtime, engine-store, wb-012) | 12 | 18 | 22 |
-| **Total** | **157** | **36** | **49** |
+| The 6 files whose rows were still deferred after WP11a (review-core-fixes, surface-regressions, unlimited-supervisor, workflow-extension-isolation, workflow-launch-cancellation, workflow-notice-acknowledgements; WP11a parts unchanged) | 36 | 1 | 4 |
+| Individual tests in ported files (authoring-interface, user-profiles, router, core-runtime, dynamic-runtime, engine-store, wb-012) | 19 | 18 | 15 |
+| **Total** | **178** | **36** | **28** |
+
+WP38b moved the 21 cases WP38 had as not applicable for want of `/aw auto` (14 workflow-launch-cancellation,
+7 workflow-router) to ported once WP32 landed; WP38 itself counted 157 / 36 / 49.
 
 Files: 16 more files are `ported-WP38`, 1 `superseded-WP38`, 2 `not-applicable-WP38`; 4 rows record
 their WP11a ports plus WP38 (`ported-WP11a + WP38`, `ported-WP10 + WP38`, `ported-WP11a`).
@@ -1668,7 +1671,9 @@ their WP11a ports plus WP38 (`ported-WP11a + WP38`, `ported-WP10 + WP38`, `porte
 | `core-host-package-policy` | host-package-policy (Pi packages are optional peers) | 2 |
 | `core-unit-test-cleanup` | unit-test-cleanup (fixture test/fixtures/core/unit-cleanup-lifecycle.mjs) | 2 |
 | `core-worker-role` | worker-role (the role is the request `env`) | 1 |
-| `core-workflow-launch-cancellation` | workflow-launch-cancellation (run-scoped launch fences) | 1 |
+| `host-wp38b-auto-launch-cancellation` | workflow-launch-cancellation `auto …` over `/aw auto` (WP38b) | 10 |
+| `host-wp38b-auto-router` | workflow-router `/workflow auto` slash capture and TUI (WP38b) | 7 |
+| `core-workflow-launch-cancellation` | workflow-launch-cancellation (run-scoped launch fences; WP38b: the 4 delayed-stop fence cases) | 5 |
 | `host-wp38-authoring-interface` | unit-authoring-interface completions and run/dynamic arg parsing | 1 |
 | `core-wb-012-public-contracts` (extended) | wb-012 docs tests ×2 and the docs/usage.md root-order half | +2 |
 | `core-unit-engine-store` (extended) | "subagent launch detaches validated options from post-registration mutation" | +1 |
@@ -1727,11 +1732,9 @@ Each file's header lists its changes (mechanical: dist imports, WP4c module name
 - unit-dynamic-runtime: "workflow_dynamic tool starts spec-less direct dynamic runs" →
   `host-wp28-pi-waits` "aw_dynamic awaitTerminal waits for the launched run …".
 
-### Not applicable (49)
+### Not applicable (28)
 
-- **No `/aw auto`** (docs/pi-host.md "Known limits"; host-api.md "Open problems"): the 14 `auto …`
-  cases of workflow-launch-cancellation and 7 workflow-router tests (auto v2 slash capture, headless
-  auto, TUI cancellation, safe choices, transmission restriction ×2, unranked manual fallback).
+- (WP38 listed 21 more here for want of `/aw auto`; WP38b ported them against WP32, see below.)
 - **`/aw run|dynamic` return at start** (WP16 tracking and completion delivery, no foreground loader):
   workflow-router "cancelling a dynamic foreground launch reclaims the created run".
 - **Pi extension loading belongs to the Pi executor** (docs/core-port.md "Pi executor (WP6)"; B5
@@ -1789,3 +1792,52 @@ failed once each under that load and passed on rerun (`core-wp4c1-engine-runtime
 `host-wp31-mixed-executors`). One ported case got the same kind of margin: `core-foreach-batch-runtime`
 "prepared batch execution-surface drift …" schedules until both singleton fallbacks launched (a pass
 can skip while the in-process supervisor holds the run lease).
+
+## WP38b — the `auto` tests (WP32)
+
+WP38 branched before WP32 landed `auto` (host API `autoAction`, CLI `agent-workflow auto`, Pi
+`/aw auto`, MCP `workflow_auto`) and classified 21 pi-workflow cases as not applicable for want of
+`/aw auto`. All 21 are now ported; no row is left on that reason. No model or agent CLI is called:
+the built-in executor ids are shadowed by the workflow executor fixture, whose `autoRecommend` (and
+new `autoStatus: "no-fit"`) answers the classifier call (shared harness
+`test/helpers/pi-auto-harness.mjs`).
+
+**Loader decision: added.** `/aw auto` now runs the one classifier call behind the WP33
+`withForegroundLoader` in the TUI ("Comparing workflow candidates… (Esc cancels; nothing starts)");
+Escape aborts the in-flight request (the signal reaches the executor's `cancel`) and starts nothing
+(`phase: "cancelled"`). RPC and other modes keep the notification. Host API: `AutoRequest.compare`
+(the host's wrapper of the comparison) and `signal` (now also checked right after the comparison).
+
+workflow-launch-cancellation (14 `auto …` cases). agent-workflow launches return once the run
+started, so pi-workflow's "Starting …" loader has no counterpart; the cases map to:
+
+| pi-workflow case | Port |
+|---|---|
+| `auto {named,dynamic} {Escape, session invalidation} before publication …` (4) | `host-wp38b-auto-launch-cancellation`: Escape on the final confirmation, or the session ending (`session_shutdown`) while it is open; no run, no workflow submit, one classifier call |
+| `uncancelled auto named launch still executes its first support action` | same file: the auto-launched named run dispatches its stage and completes |
+| `auto {named,dynamic} Escape after run publication uses exact-run stop semantics` (2) | same file: `/aw stop <run>` after the launch interrupts that run; another run completes |
+| `uncancelled auto dynamic launch reaches its first controller provider action` | same file: the controller task is submitted |
+| `auto {named,dynamic} cancellation during directory preparation …` (2) | same file: Escape on the comparison loader cancels the in-flight classifier request (fixture `cancel` of that attempt); no choice, no run |
+| `auto {named ×3 contention, dynamic} cancellation fences first dispatch while durable stop publication is delayed` (4) | `core-workflow-launch-cancellation`: the engine's `launchSignal` fence driven through `runWorkflowSpec`/`runDynamicTask` (the signal pi-workflow's start loader aborted); the deadline case asserts the durable stop intent past the 1500 ms budget instead of pi-workflow's Pi warning |
+
+workflow-router (7 `/workflow auto` tests) → `host-wp38b-auto-router`: the v2 capture (`hostLaunchCapture`
+and the recorded `launch-command.txt` of a real `/aw auto "review"`), headless fail-closed (an RPC UI
+without a confirmation dialog sends nothing; `--detach` before the task is still refused), the Korean
+no-transmit decline, the no-fit safe choices (Pi `select` plus the final confirmation instead of
+pi-workflow's native picker; the WP32 list tags candidates `[named-workflow, …]`, so that word is not
+excluded), the two transmission restrictions (nothing sent after consent; agent-workflow shows no
+picker when nothing can start instead of a Cancel-only picker) and the unranked named manual
+fallback (`selection.recommendation: null`).
+
+Product changes (own commits): `feat(pi-host)` the comparison loader above (docs/pi-host.md);
+`fix(pi-host)`: a session that ended (`session_shutdown`) while `/aw auto` was asking for the final
+confirmation still started the chosen workflow (pi-workflow aborted its foreground auto launch on
+session invalidation). The extension now aborts a per-session signal at shutdown and `/aw auto`
+passes it to `autoAction`; found by the "session invalidation before publication" ports.
+
+### WP38b validation
+
+`npm run validate` (twice, default concurrency) and `npm run e2e` exit 0 on the final commit; replay
+acceptance has 0 unexplained differences in every fixture and variant;
+`node tools/release/plugins.mjs check` passes. The "session invalidation" ports fail without the
+`fix(pi-host)` commit (the run starts) and pass with it. No model or agent CLI was called.

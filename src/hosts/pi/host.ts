@@ -75,6 +75,10 @@ export interface PiHostDeps {
 	feedback: PiRunFeedback;
 	/** WP33: provider of the foreground loader component (`/aw wait`). */
 	foregroundLoader: () => Promise<ForegroundLoaderFactory | undefined>;
+	/** Aborted when the current Pi session ends (`session_shutdown`): cancels a pending `/aw auto`. */
+	sessionSignal: () => AbortSignal;
+	/** Called at `session_shutdown`: aborts `sessionSignal()` and starts a fresh one. */
+	endSession: () => void;
 }
 
 export function createPiHostDeps(
@@ -85,12 +89,19 @@ export function createPiHostDeps(
 	const env = options.env ?? process.env;
 	let registration: Promise<void> | undefined;
 	const now = options.now ?? Date.now;
+	let session = new AbortController();
 	return {
 		api,
 		env,
 		now,
 		pi,
 		foregroundLoader: options.foregroundLoader ?? piBorderedLoaderFactory,
+		sessionSignal: () => session.signal,
+		endSession: () => {
+			const ended = session;
+			session = new AbortController();
+			ended.abort();
+		},
 		feedback: new PiRunFeedback(pi, {
 			now,
 			...(options.feedbackPollMs ? { pollMs: options.feedbackPollMs } : {}),

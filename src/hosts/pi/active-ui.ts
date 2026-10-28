@@ -4,8 +4,9 @@
 // session* tracks (its WP16 audience, launched or resumed here), not every running run of the
 // project, and is rendered by the WP16 tracker (feedback.ts) next to its footer entry, which stays;
 // key `agent-workflow-active` (pi-workflow uses `pi-workflow-active`, so both can coexist). The
-// foreground loader wraps `/aw wait` (the only `/aw` action that blocks the session; launches and
-// resumes return once started): cancelling it cancels only the wait, never the run (WP28). It uses
+// foreground loader wraps `/aw wait` (launches and resumes return once started): cancelling it
+// cancels only the wait, never the run (WP28). WP38b: it also wraps the `/aw auto` classifier call;
+// cancelling it aborts that request and starts nothing. It uses
 // Pi 1.1's `ctx.ui.custom` with the exported `BorderedLoader` (loaded from Pi at call time, since
 // the package builds without the optional Pi peer) and only in the TUI (`ctx.mode === "tui"`);
 // RPC, print and JSON modes run the operation without a loader, as pi-workflow does.
