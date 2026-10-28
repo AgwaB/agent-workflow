@@ -152,9 +152,16 @@ a unique owner token and a renewable lease (`leaseExpiresAt`, 60 s, renewed ever
 launch is in flight, e.g. waiting for a user confirmation). Publishing, stale takeover, renewal,
 `record`, `release` and pruning all run under a per-identity mutex (`<sha256>.lock`, an atomically
 created lock directory with owner-aware stealing, the same `dir-lock` the artifact registry uses), so
-two launches that find the same stale claim serialize and exactly one is `claimed`; a pending claim
-is taken over only when its lease expired or its owner process (same host) is dead; record, release
-and prune leave a claim with another owner token alone. WP18b: claim files older than 1 h that do not name a
+two launches that find the same stale claim serialize and exactly one is `claimed`; record, release
+and prune leave a claim with another owner token alone. WP19 round 2 (N1): the lease fences
+execution, not only the claim. A pending claim is taken over at once only when its owner process
+(same host) is dead; an owner that is alive (same host) or cannot be checked (another host) keeps
+its claim even after its lease expired (a suspended process may still start), and later identical
+launches are refused as `DUPLICATE_LAUNCH_IN_PROGRESS`; such a claim is abandoned only 1 h
+(`LAUNCH_CLAIM_ABANDON_MS`) after its lease expired. Immediately before `start()` the launch passes an
+ownership fence (`begin()`): under the mutex it checks that the claim still carries its owner token
+and marks it `state: "starting"`. A launch whose claim was taken over meanwhile starts nothing and
+returns the new owner's run (`existing`) or is refused (`DUPLICATE_LAUNCH_IN_PROGRESS`). WP18b: claim files older than 1 h that do not name a
 still-active run are stale; every launch removes them in the background and `prune` removes them
 with the runs (same dry-run rule; `data.hostLaunchClaims`). Runs launched outside the host API (the
 SDK) are not guarded. Before WP16 the guard applied to attached launches only, matched spec name + task, and

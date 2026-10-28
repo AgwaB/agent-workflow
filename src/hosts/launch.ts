@@ -736,8 +736,11 @@ async function launch(
 		Awaited<ReturnType<typeof claimLaunch>>,
 		{ kind: "claimed" }
 	> | null = null;
-	if (!request.forceNew) {
-		const decision = await claimLaunch(ctx.cwd, fingerprint);
+	const duplicate = (
+		decision:
+			| { kind: "existing"; run: WorkflowRunRecord }
+			| { kind: "in-flight"; claimedAt: string },
+	): HostResult<LaunchData> => {
 		if (decision.kind === "existing") {
 			const data = launchData(ctx, decision.run, mode, undefined);
 			data.duplicateOf = decision.run.runId;
@@ -748,13 +751,16 @@ async function launch(
 				existingRunText(action, decision.run, hostCommandHints(ctx.host)),
 			);
 		}
-		if (decision.kind === "in-flight")
-			return result(
-				action,
-				"refused",
-				{ mode, refusal: { code: "DUPLICATE_LAUNCH_IN_PROGRESS" } },
-				`Duplicate launch guard: an identical launch started at ${decision.claimedAt} is still starting. Not starting a new run; check status in a moment, or launch again with --force-new to really start another run.`,
-			);
+		return result(
+			action,
+			"refused",
+			{ mode, refusal: { code: "DUPLICATE_LAUNCH_IN_PROGRESS" } },
+			`Duplicate launch guard: an identical launch started at ${decision.claimedAt} is still starting. Not starting a new run; check status in a moment, or launch again with --force-new to really start another run.`,
+		);
+	};
+	if (!request.forceNew) {
+		const decision = await claimLaunch(ctx.cwd, fingerprint);
+		if (decision.kind !== "claimed") return duplicate(decision);
 		guard = decision;
 	}
 	try {
@@ -762,6 +768,13 @@ async function launch(
 			mode,
 			task,
 			inputOverrides,
+			// WP19 round 2 (N1): the ownership fence right before `start()`. A launch whose claim
+			// was taken over meanwhile starts nothing.
+			beforeStart: async () => {
+				if (!guard) return undefined;
+				const fence = await guard.begin();
+				return fence.kind === "owned" ? undefined : duplicate(fence);
+			},
 			onStarted: async (runId) => {
 				if (guard) await guard.record(runId);
 				else await recordForcedLaunch(ctx.cwd, fingerprint, runId);
@@ -783,6 +796,8 @@ async function launchClaimed(
 		mode: LaunchData["mode"];
 		task: string;
 		inputOverrides: Record<string, unknown> | undefined;
+		/** WP19 round 2 (N1): a result here means "do not start" (displaced launch). */
+		beforeStart: () => Promise<HostResult<LaunchData> | undefined>;
 		onStarted: (runId: string) => Promise<void>;
 	},
 ): Promise<HostResult<LaunchData>> {
@@ -826,6 +841,9 @@ async function launchClaimed(
 			promptSchemaNotice = notice;
 		},
 	};
+	// Nothing between the fence and `start()` awaits anything else.
+	const displaced = await launch.beforeStart();
+	if (displaced) return displaced;
 	let run: WorkflowRunRecord;
 	try {
 		run = await start(options);
