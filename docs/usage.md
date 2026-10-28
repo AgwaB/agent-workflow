@@ -96,6 +96,49 @@ nothing starts): a key the spec does not declare (the message lists the declared
 wrong type, a key given twice, an assignment without `key=`. Undeclared inputs are never dropped
 silently.
 
+### Letting agent-workflow pick the workflow (`auto`)
+
+```sh
+agent-workflow auto "Review the current diff for reliability and test coverage."
+```
+
+`auto` (WP32, pi-workflow's `/workflow auto`) recommends one of the existing workflows for a task
+and starts the one you choose. It never chats instead of running a workflow and never starts
+anything on its own:
+
+1. **Local shortlist (no model call).** The dynamic workflow and the discoverable workflows (at most
+   24), ranked by the task's words against each spec's `routing` hints (`useWhen`, `outputs`) and
+   name. Specs are read as bounded metadata only (no helpers or controllers are loaded).
+2. **Consent before any transmission (owner decision Q5).** Comparing the candidates takes one
+   classifier request that sends your task and the bounded candidate descriptions to a model,
+   without tools. It runs on the run's **default executor**, chosen by the same rule as a run's
+   executor: `--executor`, else the saved user profile (`--profile <name>` or the default one), else
+   the host's own CLI (Claude Code → `claude`, Codex → `codex`, Pi → `pi`; the terminal CLI and a
+   generic MCP client → the first installed and logged-in of `pi`, `claude`, `codex`), with
+   `--model`/`--effort` or the profile's model, else the host's current model (Pi) or the
+   executor's default. Before the request you see the task, the candidate names and the executor
+   and model, and are asked: a `y/N` question in a terminal, `ctx.ui.confirm` in Pi, an MCP
+   elicitation dialog in Claude Code and Codex. Only an explicit yes sends it; the CLI's `--yes` is
+   that yes given in advance. **Where the question cannot be asked** — no terminal and no `--yes`,
+   Pi print/JSON mode, an MCP client without elicitation — **no request is sent**: you get the local
+   shortlist and the command (or tool call) that starts each candidate directly.
+3. **Choice.** The ranked candidates, the recommendation first with the classifier's confidence and
+   reasons, then your pick: a numbered list in a terminal (Enter takes the recommendation), Pi's
+   select plus a final confirmation, an MCP form with one choice field. Cancelling or declining
+   starts nothing.
+4. **Launch.** The chosen workflow starts through the normal launch path (duplicate guard,
+   profiles, capability preview, approvals), exactly as `run`/`dynamic` would. A named workflow that
+   changed after the comparison is refused; run `auto` again.
+
+The run records the selection in its launch metadata (`agent-workflow-run-launch-v2`): the offered
+candidates (opaque id, kind, name), the recommendation, your choice, the classifier executor and
+model and how you consented (`prompt`, `flag` or `elicitation`); the task only as a SHA-256, never
+the classifier's prose. `show <run>` prints an `Auto selection:` line. The classifier request's own
+record lives under `.agent-workflow/workflows/auto-router-runs/`. Commands: [cli.md](cli.md#auto-wp32),
+[pi-host.md](pi-host.md#aw-auto-wp32-owner-decision-q5), [host-mcp.md](host-mcp.md#auto-workflow-selection-wp32-owner-decision-q5).
+
+The `execution-router` skill stays recommendation-only: it may suggest `auto`, but never runs it.
+
 ## Waiting, inspecting, resuming, stopping
 
 ```sh

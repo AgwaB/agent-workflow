@@ -102,10 +102,10 @@ test("workflow-guide owns authoring detail while execution-router permits bounde
 	assert.match(router, /`aw_list`/);
 	// WP10: the router also names the agent-workflow CLI. Was: "…, `/workflow dynamic`, or
 	// `/workflow auto`". WP12c: `aw_run`/`aw_dynamic`/`/aw …` instead of pi-workflow's
-	// `workflow_run`/`workflow_dynamic`/`/workflow …` (agent-workflow has no `auto`).
+	// `workflow_run`/`workflow_dynamic`/`/workflow …`. WP32: `auto` is back (`/aw auto`, consent-gated).
 	assert.match(
 		router,
-		/Never invoke `aw_run`, `aw_dynamic`, `\/aw run`, `\/aw dynamic`, `\/aw resume`, `\/aw approve`, or the matching `agent-workflow` CLI commands/,
+		/Never invoke `aw_run`, `aw_dynamic`, `\/aw run`, `\/aw dynamic`, `\/aw auto`, `\/aw resume`, `\/aw approve`, or the matching `agent-workflow` CLI commands/,
 	);
 	assert.doesNotMatch(router, /\/workflow\b|workflow_(list|run|dynamic)/);
 	assert.match(router, /separate authoring needed/i);
