@@ -66,8 +66,10 @@ test("claude adapter passes the runtime tier (durable worker, rediscovery, contr
 		"runtime.control_relay",
 	])
 		assert.equal(byId[id].status, "pass", `${id}: ${byId[id].reason ?? ""}`);
+	// WP37 (B3): the killed worker took the CLI's stdio with it and no result was recorded, so the
+	// adapter reconciles `unknown` (with a reason) instead of `found`; still needs_decision.
 	assert.equal(
 		byId["runtime.durable_authority"].details.kill,
-		"marked-needs-decision/found",
+		"marked-needs-decision/unknown",
 	);
 });

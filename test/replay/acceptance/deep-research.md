@@ -33,11 +33,11 @@ Tasks not completed:
 
 | Task | Spec | Status | Detail | Message |
 |---|---|---|---|---|
-| task-11 | research-questions.rq-001 | failed | launch_failed | provisional worker run_mvqq2jwi_0f0a33/attempt_mvqq2jwi_5641c4 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
-| task-12 | research-questions.rq-002 | failed | launch_failed | provisional worker run_mvqq2k7t_2b0a83/attempt_mvqq2k7t_a8d2f5 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
-| task-13 | research-questions.rq-003 | failed | launch_failed | provisional worker run_mvqq2ko6_c03aae/attempt_mvqq2ko6_ecb1c4 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
-| task-4 | normalize-claims.main | failed | launch_failed | provisional worker run_mvqq2kze_a9fc7e/attempt_mvqq2kze_57893f ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
-| task-9 | final-audit.main | failed | launch_failed | provisional worker run_mvqq2liz_367e65/attempt_mvqq2liz_1a33d2 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
+| task-11 | research-questions.rq-001 | failed | launch_failed | provisional worker run_mvrxba3p_814e5c/attempt_mvrxba3p_e1c00a ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
+| task-12 | research-questions.rq-002 | failed | launch_failed | provisional worker run_mvrxbapw_a38126/attempt_mvrxbapw_a0d79b ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
+| task-13 | research-questions.rq-003 | failed | launch_failed | provisional worker run_mvrxbbcf_a9a5a9/attempt_mvrxbbcf_c10088 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
+| task-4 | normalize-claims.main | failed | launch_failed | provisional worker run_mvrxbblr_d6a0a0/attempt_mvrxbblr_65d2ad ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
+| task-9 | final-audit.main | failed | launch_failed | provisional worker run_mvrxbc8z_20b8d3/attempt_mvrxbc8z_c3130d ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: Pi executor has no mapping |
 | task-10 | final.main | blocked | support_declared_blocked | support declared blocked |
 
 ### Differences by rule
@@ -71,47 +71,47 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 2eed6d30fc399f2722421f29cdef6b73549e9cbd17795f664fff35a79949e5d6 |
+| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 07e5d0b5cc42a8408f0e478379bd5a198d9aeea5cc362841eda7d7eff30cb7e7 |
 | run.json | tasks[0].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 9611f82c500a884b21a76e72abc793506d1acace28925d474f131ffd490e37bf |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 66dd0e0e8bdf1c8626fa6b974acc0ad0aa602ee0baf083cd5cac6bec5feebfea |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 329bc68c17c4c484541b62acde7053f5379abd377973465e2d658cc4efaadc10 |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 2eed6d30fc399f2722421f29cdef6b73549e9cbd17795f664fff35a79949e5d6 |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 07e5d0b5cc42a8408f0e478379bd5a198d9aeea5cc362841eda7d7eff30cb7e7 |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 9611f82c500a884b21a76e72abc793506d1acace28925d474f131ffd490e37bf |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | a93ecdc53afaef94b274f8cf3520bbe659b14eee5129df6559b75b63289c02ae |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"a93ecdc53afaef94b274f8cf3520bbe659b14eee5129df6559b75b63289c02ae"} |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | b7d6c04b4f7c10481cb3dedd5d25c0bb7f111c0b244172d5ca965c88fe5ffd18 |
+| run.json | tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 7de146a7b97d31720cf1faa504b41a3393f7aa02632bfc294c7c64b88b967376 |
 | run.json | tasks[2].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | a6ad10a1b2900e855ceb07e51c185f4131e829ad2eceeb74c184e67abf70472a |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 4ea6698859587f55d558b0a0be9276ef6449dd1336080f71e716c41720e69a1f |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 7ade023a9260ae0613779d6c0d6ca065b6f234757f2770d96bd2e9e9371cda78 |
-| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | b7d6c04b4f7c10481cb3dedd5d25c0bb7f111c0b244172d5ca965c88fe5ffd18 |
+| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 7de146a7b97d31720cf1faa504b41a3393f7aa02632bfc294c7c64b88b967376 |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | a6ad10a1b2900e855ceb07e51c185f4131e829ad2eceeb74c184e67abf70472a |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | ef7fec5e2d0def1f69e96f9b7dc9e1e6cb935c57b4abc1cb984b76c459e5a4bd |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"1e89fcd2a584ead735c8e355518291f41aebdaff87ae32cec13b131d606d9bd0","kind":"web-source","wrapperSha256":"01aea9b201797e43ba0ef58679cc902365ceb65b7f9e87aae64bb7fae81df983"},"pathSha256":"00e5fed1b911cfea8856c961e7… (280 chars, sha256 eaabdd328af6) |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | a1b08d7aa543326de7cb19fc2042775ea1a3d89cd8c2b203ab662be176148414 |
+| run.json | tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 66e12657f95eb0ac77797189503d6e19d3c02c03f10b347cf449a7f14f550e59 |
 | run.json | tasks[3].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 8e967285a8b5c8d18d45f4e4f807fd533faea105ef366a110fdb0bb9a1d116c0 |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 9eb17f738db0a207c192cc155ceed318e113ea767981bdd800d023a211cb90ad |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | d232ab6acc876747f4541003005f8d8d54560b4ee506781deeb1f47f3af94424 |
-| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | a1b08d7aa543326de7cb19fc2042775ea1a3d89cd8c2b203ab662be176148414 |
+| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 66e12657f95eb0ac77797189503d6e19d3c02c03f10b347cf449a7f14f550e59 |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 8e967285a8b5c8d18d45f4e4f807fd533faea105ef366a110fdb0bb9a1d116c0 |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 6780ed10756d08fccbf1c5a1cda458618dd737576803d0712a2e7718925a63b3 |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"9175157e424cbbfe80dfbff41e52f8a2304776c093479dffe5c8ecea5deb3c0e","kind":"web-source","wrapperSha256":"84ec521aad474c6c1c9221c19a1921241fe130a5ceef1103fba48217c18f94f2"},"pathSha256":"5d5a3c3416344a2a799af43879… (280 chars, sha256 71bcda01530f) |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[4].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 9bda1a10c388d463d418e6ba6d9215bdd8267e5498d95ff786590d4febdf2b8a |
+| run.json | tasks[4].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | c5231918304c2f039205984b79e51eed9226736f946eacadb6fea176978feee1 |
 | run.json | tasks[4].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 4e9dd8f26a02539a96936ddfe57ddab82fc26e93d1fc5c98669ebbd0772a2e25 |  |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 6b608d755705539bf33bb872e72b946cecbd731c29edaa0a3c961303a91cf882 |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 6c9570c44dd36469f4d742495d6fe9f14d1f53bb922b62288eedb4ad54245256 |
-| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 9bda1a10c388d463d418e6ba6d9215bdd8267e5498d95ff786590d4febdf2b8a |
+| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | c5231918304c2f039205984b79e51eed9226736f946eacadb6fea176978feee1 |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 4e9dd8f26a02539a96936ddfe57ddab82fc26e93d1fc5c98669ebbd0772a2e25 |  |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 71a8d6ec9ab66b67985831685452c4a7d3def053534d2569883c5e34197e6f07 |  |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"a3761bc57d0660f9dceb48e1c002bc18b33308e96f50bf269da5c3a45248597a","kind":"web-source","wrapperSha256":"ae843e35195d04808f31bd72448a8bba9f0ced50a109c4c5086d3ad23f869cc8"},"pathSha256":"4ea3b291cc1831ccf00a448330… (280 chars, sha256 a8772083de56) |  |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[6].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 3e8e2d659f08e6f90e022d49b1365f7654a9409856ad3481df6e5d0b216b462d |
+| run.json | tasks[6].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 8781b331be2633dc4623868736cf6e649d69c180367ff4529a4047c411fe36ee |
 | run.json | tasks[6].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 79aa375848399580b81c7347f34241237039ed5d534c77db9623c93d50eb38fd |  |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 99c0cd2dfe6a3a6b9229bd75ff233115cc55bcc0e8e440839d36b96f9153e7a4 |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 01bf6d75fb5520f21b9d66cc3508d5d7e7046c77d8724d2cb22372c15e669aaa |
-| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 3e8e2d659f08e6f90e022d49b1365f7654a9409856ad3481df6e5d0b216b462d |
+| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 8781b331be2633dc4623868736cf6e649d69c180367ff4529a4047c411fe36ee |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 79aa375848399580b81c7347f34241237039ed5d534c77db9623c93d50eb38fd |  |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 2b4008b71fd05242a2426ee885d15ad32e2ec7428bb52fad4ce05e9034982df6 |  |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"da3bd58ef5ff661e8aa764bd2996ddebc12cc993e285724615fba73fdf9b8af2","kind":"web-source","wrapperSha256":"4f54ddd4b26a0d9d0cafa9e0fac4bc41d9b492c2ed67c7bc710eedde9127ce28"},"pathSha256":"7edeea00a469fc0809fe43d484… (280 chars, sha256 27c71ee21909) |  |
@@ -485,7 +485,7 @@ Tasks not completed:
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/deep-research","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-deep-research-original-9257/work/replay-trace.jsonl"}… (374 chars, sha256 b99431347937) |
+| run.json | executor | added |  | {"candidates":[{"auth":"ok","cliVersion":"fake-cli 1.0.0","id":"pi","installed":true,"usable":true}],"descriptor":{"config":{"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/deep-research","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;R… (484 chars, sha256 24a0f2a75e22) |
 
 </details>
 
@@ -737,25 +737,25 @@ Tasks not completed:
 | tasks/task-1/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
 | tasks/task-10/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-10/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
-| tasks/task-11/.launch-barrier-65558a081e2b3ff6-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
-| tasks/task-11/.launch-barrier-65558a081e2b3ff6-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-11ffdcbdafefcdd9-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-11ffdcbdafefcdd9-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
 | tasks/task-11/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-11/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
 | tasks/task-11/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
-| tasks/task-12/.launch-barrier-43092c80d328e338-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
-| tasks/task-12/.launch-barrier-43092c80d328e338-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-346609c40fd59dfb-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-346609c40fd59dfb-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
 | tasks/task-12/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-12/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
 | tasks/task-12/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
-| tasks/task-13/.launch-barrier-54bb1df5a450d536-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
-| tasks/task-13/.launch-barrier-54bb1df5a450d536-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-461bf8e389e50ae2-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-461bf8e389e50ae2-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
 | tasks/task-13/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-13/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
 | tasks/task-13/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
 | tasks/task-3/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-3/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
-| tasks/task-4/.launch-barrier-eba8e2757c7c3319-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
-| tasks/task-4/.launch-barrier-eba8e2757c7c3319-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-01553145757d078a-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-01553145757d078a-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
 | tasks/task-4/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-4/source-manifest.json | .agent-workflow/workflows | literal-renamed ×8 |  |  |
 | tasks/task-4/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
@@ -765,8 +765,8 @@ Tasks not completed:
 | tasks/task-7/source-manifest.json | .agent-workflow/workflows | literal-renamed ×12 |  |  |
 | tasks/task-8/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-8/source-manifest.json | .agent-workflow/workflows | literal-renamed ×16 |  |  |
-| tasks/task-9/.launch-barrier-6817f16c6f28b4d3-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
-| tasks/task-9/.launch-barrier-6817f16c6f28b4d3-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-b1ab5be47b51f618-&lt;RAND16&gt;/decision-v2.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-b1ab5be47b51f618-&lt;RAND16&gt;/decision-v2.json.txn | agent-workflow.&lt;WF_RUN_ | literal-renamed ×1 |  |  |
 | tasks/task-9/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
 | tasks/task-9/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
 | tasks/task-9/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
@@ -825,47 +825,47 @@ The replay executor skips the Pi adapter's tool-mapping check, so the recorded w
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 2eed6d30fc399f2722421f29cdef6b73549e9cbd17795f664fff35a79949e5d6 |
+| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 07e5d0b5cc42a8408f0e478379bd5a198d9aeea5cc362841eda7d7eff30cb7e7 |
 | run.json | tasks[0].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 9611f82c500a884b21a76e72abc793506d1acace28925d474f131ffd490e37bf |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 66dd0e0e8bdf1c8626fa6b974acc0ad0aa602ee0baf083cd5cac6bec5feebfea |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 329bc68c17c4c484541b62acde7053f5379abd377973465e2d658cc4efaadc10 |
-| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 2eed6d30fc399f2722421f29cdef6b73549e9cbd17795f664fff35a79949e5d6 |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 07e5d0b5cc42a8408f0e478379bd5a198d9aeea5cc362841eda7d7eff30cb7e7 |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 9611f82c500a884b21a76e72abc793506d1acace28925d474f131ffd490e37bf |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | a93ecdc53afaef94b274f8cf3520bbe659b14eee5129df6559b75b63289c02ae |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"a93ecdc53afaef94b274f8cf3520bbe659b14eee5129df6559b75b63289c02ae"} |  |
 | run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | b7d6c04b4f7c10481cb3dedd5d25c0bb7f111c0b244172d5ca965c88fe5ffd18 |
+| run.json | tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 7de146a7b97d31720cf1faa504b41a3393f7aa02632bfc294c7c64b88b967376 |
 | run.json | tasks[2].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | a6ad10a1b2900e855ceb07e51c185f4131e829ad2eceeb74c184e67abf70472a |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 4ea6698859587f55d558b0a0be9276ef6449dd1336080f71e716c41720e69a1f |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 7ade023a9260ae0613779d6c0d6ca065b6f234757f2770d96bd2e9e9371cda78 |
-| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | b7d6c04b4f7c10481cb3dedd5d25c0bb7f111c0b244172d5ca965c88fe5ffd18 |
+| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 7de146a7b97d31720cf1faa504b41a3393f7aa02632bfc294c7c64b88b967376 |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | a6ad10a1b2900e855ceb07e51c185f4131e829ad2eceeb74c184e67abf70472a |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | ef7fec5e2d0def1f69e96f9b7dc9e1e6cb935c57b4abc1cb984b76c459e5a4bd |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"1e89fcd2a584ead735c8e355518291f41aebdaff87ae32cec13b131d606d9bd0","kind":"web-source","wrapperSha256":"01aea9b201797e43ba0ef58679cc902365ceb65b7f9e87aae64bb7fae81df983"},"pathSha256":"00e5fed1b911cfea8856c961e7… (280 chars, sha256 eaabdd328af6) |  |
 | run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | a1b08d7aa543326de7cb19fc2042775ea1a3d89cd8c2b203ab662be176148414 |
+| run.json | tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 66e12657f95eb0ac77797189503d6e19d3c02c03f10b347cf449a7f14f550e59 |
 | run.json | tasks[3].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 8e967285a8b5c8d18d45f4e4f807fd533faea105ef366a110fdb0bb9a1d116c0 |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 9eb17f738db0a207c192cc155ceed318e113ea767981bdd800d023a211cb90ad |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | d232ab6acc876747f4541003005f8d8d54560b4ee506781deeb1f47f3af94424 |
-| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | a1b08d7aa543326de7cb19fc2042775ea1a3d89cd8c2b203ab662be176148414 |
+| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 66e12657f95eb0ac77797189503d6e19d3c02c03f10b347cf449a7f14f550e59 |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 8e967285a8b5c8d18d45f4e4f807fd533faea105ef366a110fdb0bb9a1d116c0 |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 6780ed10756d08fccbf1c5a1cda458618dd737576803d0712a2e7718925a63b3 |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"9175157e424cbbfe80dfbff41e52f8a2304776c093479dffe5c8ecea5deb3c0e","kind":"web-source","wrapperSha256":"84ec521aad474c6c1c9221c19a1921241fe130a5ceef1103fba48217c18f94f2"},"pathSha256":"5d5a3c3416344a2a799af43879… (280 chars, sha256 71bcda01530f) |  |
 | run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[4].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 9bda1a10c388d463d418e6ba6d9215bdd8267e5498d95ff786590d4febdf2b8a |
+| run.json | tasks[4].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | c5231918304c2f039205984b79e51eed9226736f946eacadb6fea176978feee1 |
 | run.json | tasks[4].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 4e9dd8f26a02539a96936ddfe57ddab82fc26e93d1fc5c98669ebbd0772a2e25 |  |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 6b608d755705539bf33bb872e72b946cecbd731c29edaa0a3c961303a91cf882 |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 6c9570c44dd36469f4d742495d6fe9f14d1f53bb922b62288eedb4ad54245256 |
-| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 9bda1a10c388d463d418e6ba6d9215bdd8267e5498d95ff786590d4febdf2b8a |
+| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | c5231918304c2f039205984b79e51eed9226736f946eacadb6fea176978feee1 |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 4e9dd8f26a02539a96936ddfe57ddab82fc26e93d1fc5c98669ebbd0772a2e25 |  |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 71a8d6ec9ab66b67985831685452c4a7d3def053534d2569883c5e34197e6f07 |  |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"a3761bc57d0660f9dceb48e1c002bc18b33308e96f50bf269da5c3a45248597a","kind":"web-source","wrapperSha256":"ae843e35195d04808f31bd72448a8bba9f0ced50a109c4c5086d3ad23f869cc8"},"pathSha256":"4ea3b291cc1831ccf00a448330… (280 chars, sha256 a8772083de56) |  |
 | run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[6].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 3e8e2d659f08e6f90e022d49b1365f7654a9409856ad3481df6e5d0b216b462d |
+| run.json | tasks[6].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 8781b331be2633dc4623868736cf6e649d69c180367ff4529a4047c411fe36ee |
 | run.json | tasks[6].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 79aa375848399580b81c7347f34241237039ed5d534c77db9623c93d50eb38fd |  |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 99c0cd2dfe6a3a6b9229bd75ff233115cc55bcc0e8e440839d36b96f9153e7a4 |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 01bf6d75fb5520f21b9d66cc3508d5d7e7046c77d8724d2cb22372c15e669aaa |
-| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 3e8e2d659f08e6f90e022d49b1365f7654a9409856ad3481df6e5d0b216b462d |
+| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 8781b331be2633dc4623868736cf6e649d69c180367ff4529a4047c411fe36ee |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 79aa375848399580b81c7347f34241237039ed5d534c77db9623c93d50eb38fd |  |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 2b4008b71fd05242a2426ee885d15ad32e2ec7428bb52fad4ce05e9034982df6 |  |
 | run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"da3bd58ef5ff661e8aa764bd2996ddebc12cc993e285724615fba73fdf9b8af2","kind":"web-source","wrapperSha256":"4f54ddd4b26a0d9d0cafa9e0fac4bc41d9b492c2ed67c7bc710eedde9127ce28"},"pathSha256":"7edeea00a469fc0809fe43d484… (280 chars, sha256 27c71ee21909) |  |
@@ -880,11 +880,11 @@ The replay executor skips the Pi adapter's tool-mapping check, so the recorded w
 | run.json | tasks[13].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
 | run.json | tasks[15].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"623fbc6be4a11e0841e6a889f15bc2a232c3d51ec83f00dee2504d529ca43512","kind":"web-source","wrapperSha256":"625320d738412fa9422346db58e35224c7b1e44115ffac7f0c341cb2b03d945d"},"pathSha256":"d3bd0190880b06a444fc683a66… (280 chars, sha256 77a21d570b11) |  |
 | run.json | tasks[15].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
-| run.json | tasks[19].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 90e93620ec1e15fbb1d23d7791735eec053402c9f50480b90a386dc37578b9f4 |
+| run.json | tasks[19].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 9fb774907faa80463898ad82202b7a01017d139995e1181deeefe0dd1e7819fa |
 | run.json | tasks[19].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 8fbe606e9303402adc5db3cd340ee35ac2fcf3ea0831217360013d2c08f780f1 |  |
 | run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | cfc6a6eb783d107e429b16eb33fdcc0c50c160e2edfb4f5e3c9d2694a1cdd36b |
 | run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | f7108b0aded17e5b5d8670352edbc7647d505a32bea6421ca5511c3fd85396da |
-| run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 90e93620ec1e15fbb1d23d7791735eec053402c9f50480b90a386dc37578b9f4 |
+| run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 9fb774907faa80463898ad82202b7a01017d139995e1181deeefe0dd1e7819fa |
 | run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 8fbe606e9303402adc5db3cd340ee35ac2fcf3ea0831217360013d2c08f780f1 |  |
 | run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 9d78c9287d44d0dabcb9d95e1232cba94209b5a9410885446921f8b14c28b084 |  |
 | run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"e8cbd9f4af28f1f97e181814f191ec1b2dbfed13dcd9881683b2354be8b23040","kind":"web-source","wrapperSha256":"0efd5a302a233904f6d3cff7a22d320bcf406f648d336088ad5667c7beeb5902"},"pathSha256":"7ca901aa9bee9faffae5e60349… (280 chars, sha256 872413e3d6cf) |  |
@@ -1227,7 +1227,7 @@ The replay executor skips the Pi adapter's tool-mapping check, so the recorded w
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| run.json | executor | added |  | {"descriptor":{"config":{"adapterChecks":false,"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/deep-research","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-deep-research-engine-only-10190… (400 chars, sha256 89a8b5ad96f8) |
+| run.json | executor | added |  | {"candidates":[{"auth":"ok","cliVersion":"fake-cli 1.0.0","id":"pi","installed":true,"usable":true}],"descriptor":{"config":{"adapterChecks":false,"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/deep-research","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG… (509 chars, sha256 dd2bc9117dbd) |
 
 </details>
 
@@ -1494,18 +1494,1265 @@ The replay executor skips the Pi adapter's tool-mapping check, so the recorded w
 
 | File | Path / line | Kind | Recorded | Replayed |
 |---|---|---|---|---|
-| supervisor.json |  | digest-bound ×0 | d675d7c5f0ad9cae409776fb7c97439ffb8fd288bde0a6a478350e0671f3f0a0 | aed6e1e3bf498022f8e7ce7ad23c3044bff0730a98d05008dcad780942a905a6 |
+| supervisor.json |  | digest-bound ×0 | d675d7c5f0ad9cae409776fb7c97439ffb8fd288bde0a6a478350e0671f3f0a0 | 008d4a65bc9fc1945cd13ceea4baea980faa98f19b28f0503d10e0d679489748 |
 | tasks/task-10/source-manifest.json |  | digest-bound ×0 | e6567207bf00961535171ce2a7f54ffbe3c29a4f89c68939fd1b085bb5749434 | c327e1c57fa92bebc762f51774f529f21237c041344c2d54b525c6fb83c7b55a |
 | tasks/task-11/source-manifest.json |  | digest-bound ×1 | 034cd5578ef03a2890cb33ad906d9cd6bb74ed9ce42527002d650b15c28edf14 | 3bf5c2521b4a2d2eff0b22616018b4477ee00d721d938015b5b13f69c72b286c |
 | tasks/task-12/source-manifest.json |  | digest-bound ×1 | 924db728e4c448bc5b37b9a887e522012805e04dc3b362de18d94c33981d8166 | 2f0643a5029a7544221c640d0d442cc129fb08155ddcbcdf8ae0291ebd95e83e |
 | tasks/task-13/source-manifest.json |  | digest-bound ×1 | fae9ca4ee9c47f0a55fe7b40387e3f9d885c388b2ea3bc3bccd1520222c53012 | 0fd6bcbafdd0c9d4433ef150315da8e45c4165093eedfa1e603cfc3a3d0eda65 |
 | tasks/task-3/source-manifest.json |  | digest-bound ×0 | 780bc0dc99e7fa6faac85ebf68cdfdba2deb99ea02cb8fd433edd5debe8da854 | 95624abeae95cbb79fcf420bd0d816b2d5807f618552e97e6ac2c21e6c08a9fe |
-| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | f32560de6fc74ed1d1e79d9740fc557f9d31407f68bac9b8ea4e319ddd67372c | 7a7d145d5a36a6da02c17dc52b292716bd96e71db3f88a4e7a32742e44bd6255 |
+| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | f32560de6fc74ed1d1e79d9740fc557f9d31407f68bac9b8ea4e319ddd67372c | e310dbd4d9eddeb4896e317b00dd95989d7c1d67a6e0586cfe169c6102b34e72 |
 | tasks/task-4/source-manifest.json |  | digest-bound ×1 | de8b7353750ecbed11f8b71bb29ec35f5d83e7ae2ac47c569c947aa85155f5c6 | 7af02ad948062a7504fe9f27fcd3105918559bbd2860488d4d83f56f2ae88047 |
 | tasks/task-5/source-manifest.json |  | digest-bound ×0 | c7f29f184462046ea4396ead7f75966ec311946169b712e917def6b2e3262f7c | d672a86530ddabf16af53613afaf2666a655b0394ee5faad098e99456ea7440c |
 | tasks/task-7/source-manifest.json |  | digest-bound ×0 | 6d0bc9271a3ba0b5c29d94373951ad926112f28ab9b956c18662084483fa1705 | 54d95121986f0174337f29ad35b2a0a0ae7506f0678d76ca9606e96d313c21cb |
 | tasks/task-8/source-manifest.json |  | digest-bound ×0 | 1d29d6b75bdb2497abb9d7bddbc566c84cfb175563e4ea4e91c545a150eb6cca | 64b22e0949c452a42fc4fa5e8769d05313842c1a1d03a2a4f7dc465316bb6cb8 |
-| tasks/task-9/read-ledger.jsonl |  | digest-bound ×0 | 5a500e80efc6560f6a32af4a6a330a05eea49c2134df67fde7800f35b2e36488 | 5837fadbca360f57614d3f70ffb27b622eeb3af03b0594acbf37c18d18c64756 |
+| tasks/task-9/read-ledger.jsonl |  | digest-bound ×0 | 5a500e80efc6560f6a32af4a6a330a05eea49c2134df67fde7800f35b2e36488 | 1d367922b969e49bf90c2a7037822ca10bb9fd3358bfc4f8190d10f67601e16a |
+| tasks/task-9/source-manifest.json |  | digest-bound ×1 | 23b88df0e11ca89c416cf9c64fc4dd5ef4a9375c0451abce85cf1311e796d69f | 77cdd5864150c96b8e251171ca6651e36298eadfffdfc8c559b0a9aa873f79b5 |
+
+</details>
+
+<details><summary>allowed runtime-launch-barrier-identity (406)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | foreachBatches[].dispatch.reservationSha256 | digest-renamed ×3 |  |  |
+| run.json | tasks[].durableLaunchBarrier.records[].ackSha256 | digest-renamed ×11 |  |  |
+| run.json | tasks[].durableLaunchBarrier.records[].decisionSha256 | digest-renamed ×11 |  |  |
+| run.json | tasks[].durableLaunchBarrier.records[].descriptor.challenge | digest-renamed ×11 |  |  |
+| run.json | tasks[].durableLaunchBarrier.records[].descriptor.decisionNonce | digest-renamed ×11 |  |  |
+| run.json | tasks[].durableLaunchBarrier.records[].descriptor.identitySha256 | digest-renamed ×11 |  |  |
+| run.json | tasks[].durableLaunchBarrier.records[].executionPlanSha256 | digest-renamed ×11 |  |  |
+| run.json | tasks[].durableLaunchBarrier.records[].launchPayloadSha256 | digest-renamed ×11 |  |  |
+| run.json | tasks[].durableLaunchBarrier.records[].readySha256 | digest-renamed ×11 |  |  |
+| run.json | tasks[].durableLaunchBarrier.records[].releasePayloadSha256 | digest-renamed ×11 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | ackSha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ack-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | decisionSha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | releasePayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | challenge | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | readySha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | barrierIdentitySha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | challenge | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | decisionNonce | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | executionPlanSha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | launchPayloadSha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | readySha256 | digest-renamed ×1 |  |  |
+
+</details>
+
+<details><summary>allowed state-root-identity (2)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | foreachBatches[].stateRootSha256 | digest-renamed ×3 |  |  |
+| run.json | tasks[].launchBootstrap.records[].effectivePolicy.stateRootSha256 | digest-renamed ×11 |  |  |
+
+</details>
+
+<details><summary>allowed timestamp-derived-digest (20)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | tasks[].rawArtifactIntegrity.owner | digest-renamed ×19 |  |  |
+| tasks/task-1/result.json | rawIntegrity.owner | digest-renamed ×1 |  |  |
+| tasks/task-10/result.json | rawIntegrity.owner | digest-renamed ×1 |  |  |
+| tasks/task-11/result.json | rawIntegrity.owner | digest-renamed ×1 |  |  |
+| tasks/task-12/result.json | rawIntegrity.owner | digest-renamed ×1 |  |  |
+| tasks/task-13/result.json | rawIntegrity.owner | digest-renamed ×1 |  |  |
+| tasks/task-14/result.json | rawIntegrity.owner | digest-renamed ×1 |  |  |
+| tasks/task-15/result.json | rawIntegrity.owner | digest-renamed ×1 |  |  |
+| tasks/task-16/result.json | rawIntegrity.owner | digest-renamed ×1 |  |  |
+| tasks/task-17/result.json | rawIntegrity.owner | digest-renamed ×1 |  |  |
+| tasks/task-18/result.json | rawIntegrity.owner | digest-renamed ×1 |  |  |
+| tasks/task-19/result.json | rawIntegrity.owner | digest-renamed ×1 |  |  |
+| tasks/task-20/result.json | rawIntegrity.owner | digest-renamed ×1 |  |  |
+| tasks/task-21/result.json | rawIntegrity.owner | digest-renamed ×1 |  |  |
+| tasks/task-3/result.json | rawIntegrity.owner | digest-renamed ×1 |  |  |
+| tasks/task-4/result.json | rawIntegrity.owner | digest-renamed ×1 |  |  |
+| tasks/task-5/result.json | rawIntegrity.owner | digest-renamed ×1 |  |  |
+| tasks/task-7/result.json | rawIntegrity.owner | digest-renamed ×1 |  |  |
+| tasks/task-8/result.json | rawIntegrity.owner | digest-renamed ×1 |  |  |
+| tasks/task-9/result.json | rawIntegrity.owner | digest-renamed ×1 |  |  |
+
+</details>
+
+<details><summary>allowed wp4-renamed-literals (37)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| compiled.json | .agent-workflow/workflows | literal-renamed ×24 |  |  |
+| run.json | agent-workflow.&lt;WF_RUN_ | literal-renamed ×47 |  |  |
+| run.json | .agent-workflow/workflows | literal-renamed ×179 |  |  |
+| run.json | agent-workflow/runtime | literal-renamed ×22 |  |  |
+| supervisor.json | .agent-workflow/workflows | literal-renamed ×1 |  |  |
+| tasks/task-1/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
+| tasks/task-1/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
+| tasks/task-10/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
+| tasks/task-10/source-manifest.json | .agent-workflow/workflows | literal-renamed ×8 |  |  |
+| tasks/task-11/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
+| tasks/task-11/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
+| tasks/task-11/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
+| tasks/task-12/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
+| tasks/task-12/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
+| tasks/task-12/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
+| tasks/task-13/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
+| tasks/task-13/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
+| tasks/task-13/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
+| tasks/task-14/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
+| tasks/task-15/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
+| tasks/task-16/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
+| tasks/task-18/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
+| tasks/task-20/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
+| tasks/task-3/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
+| tasks/task-3/source-manifest.json | .agent-workflow/workflows | literal-renamed ×16 |  |  |
+| tasks/task-4/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
+| tasks/task-4/source-manifest.json | .agent-workflow/workflows | literal-renamed ×20 |  |  |
+| tasks/task-4/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
+| tasks/task-5/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
+| tasks/task-5/source-manifest.json | .agent-workflow/workflows | literal-renamed ×8 |  |  |
+| tasks/task-7/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
+| tasks/task-7/source-manifest.json | .agent-workflow/workflows | literal-renamed ×48 |  |  |
+| tasks/task-8/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
+| tasks/task-8/source-manifest.json | .agent-workflow/workflows | literal-renamed ×20 |  |  |
+| tasks/task-9/artifact-access.json | .agent-workflow/workflows | literal-renamed ×3 |  |  |
+| tasks/task-9/source-manifest.json | .agent-workflow/workflows | literal-renamed ×4 |  |  |
+| tasks/task-9/system-prompt.md | You are workflow subagent | literal-renamed ×1 |  |  |
+
+</details>
+
+## Variant `engine-only-claude`
+
+As engine-only, with the replay registered as executor `claude` (WP37): the task prompts are sent in Claude's tool vocabulary (WebSearch, WebFetch, Read/Grep/Glob), and the replay matches them against the recorded prompts rendered the same way (rule wp37-per-executor-task-prompt).
+
+| | |
+|---|---|
+| Recorded status | completed |
+| Replayed status | completed |
+| Worker launches served / recorded | 11 / 11 |
+| Artifact reads re-issued / recorded | 10 / 10 |
+| Differences: allowed | 578 |
+| Differences: explained | 431 |
+| Differences: unexplained | 0 |
+| Exact-match violations | 0 |
+
+### Differences by rule
+
+| Class | Rule | Rows | Source |
+|---|---|---|---|
+| explained | `artifact-mcp-provenance` | 86 | docs/core-port.md WP4b change log 4 and "What launch provenance digests now"; WP4c-1 "Pi executor (WP6)" table (extension isolation, generated extension wrappers) |
+| explained | `c2-web-tools-removed` | 29 | docs/core-port.md WP1b change log 7 (C2/WP10: workflow_web_* tools and the web-source cache removed) |
+| explained | `executor-exit-code` | 28 | docs/core-port.md WP1b change log 1 |
+| explained | `executor-usage-contract` | 213 | docs/core-port.md WP1b change log 2 |
+| explained | `original-helper-legacy-sidecar` | 3 | docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows → .agent-workflow/workflows) |
+| explained | `run-capability-negotiation` | 1 | docs/core-port.md "WP4d — capability negotiation before launch" |
+| explained | `run-executor-record` | 1 | docs/core-port.md WP4c-1 "Executor selection" and change log 11 |
+| explained | `run-permission-mode` | 2 | docs/core-port.md WP4e permission modes; docs/permissions.md |
+| explained | `run-usage-unknown-not-zero` | 2 | docs/core-port.md WP12a change log 2 |
+| explained | `runtime-backend-executor-id` | 3 | docs/runtime-port.md change log 1 (Backends: a resolved backend is the executor id) |
+| explained | `runtime-cost-rounding` | 18 | docs/core-port.md WP1b change log 3 |
+| explained | `runtime-stderr` | 25 | docs/runtime-port.md "Attempt artifacts" (stderr.log: runtime diagnostics, empty on a clean completion) |
+| explained | `wp10-artifact-tool-guidelines` | 6 | docs/core-port.md WP10 change log 2 |
+| explained | `wp10-web-source-hint-removed` | 5 | docs/core-port.md WP10 change log 3 (C2) |
+| explained | `wp37-per-executor-task-prompt` | 9 | docs/core-port.md WP37 change log 1 (stage-1 open problem 8) |
+| allowed | `derived-launch-identity` | 53 | allowed-differences.json (WP1a) |
+| allowed | `executor-record-source` | 25 | allowed-differences.json (WP1b) |
+| allowed | `foreach-batch-capability-identity` | 1 | allowed-differences.json (WP1a) |
+| allowed | `foreach-execution-surface` | 1 | allowed-differences.json (WP1b) |
+| allowed | `host-path-digest` | 4 | allowed-differences.json (WP1a) |
+| allowed | `host-path-file-size` | 15 | allowed-differences.json (WP1a) |
+| allowed | `host-path-manifest-digest` | 1 | allowed-differences.json (WP1a) |
+| allowed | `renamed-literal-digest-binding` | 13 | allowed-differences.json (WP1b) |
+| allowed | `runtime-launch-barrier-identity` | 406 | allowed-differences.json (WP1b) |
+| allowed | `state-root-identity` | 2 | allowed-differences.json (WP1a) |
+| allowed | `timestamp-derived-digest` | 20 | allowed-differences.json (WP1a) |
+| allowed | `wp4-renamed-literals` | 37 | allowed-differences.json (WP1b) |
+
+### Explained and allowed rows
+
+<details><summary>explained artifact-mcp-provenance (86)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 07e5d0b5cc42a8408f0e478379bd5a198d9aeea5cc362841eda7d7eff30cb7e7 |
+| run.json | tasks[0].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 9611f82c500a884b21a76e72abc793506d1acace28925d474f131ffd490e37bf |  |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 66dd0e0e8bdf1c8626fa6b974acc0ad0aa602ee0baf083cd5cac6bec5feebfea |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 329bc68c17c4c484541b62acde7053f5379abd377973465e2d658cc4efaadc10 |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 07e5d0b5cc42a8408f0e478379bd5a198d9aeea5cc362841eda7d7eff30cb7e7 |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 9611f82c500a884b21a76e72abc793506d1acace28925d474f131ffd490e37bf |  |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | a93ecdc53afaef94b274f8cf3520bbe659b14eee5129df6559b75b63289c02ae |  |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"pathSha256":"a93ecdc53afaef94b274f8cf3520bbe659b14eee5129df6559b75b63289c02ae"} |  |
+| run.json | tasks[0].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
+| run.json | tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 7de146a7b97d31720cf1faa504b41a3393f7aa02632bfc294c7c64b88b967376 |
+| run.json | tasks[2].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | a6ad10a1b2900e855ceb07e51c185f4131e829ad2eceeb74c184e67abf70472a |  |
+| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 4ea6698859587f55d558b0a0be9276ef6449dd1336080f71e716c41720e69a1f |
+| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 7ade023a9260ae0613779d6c0d6ca065b6f234757f2770d96bd2e9e9371cda78 |
+| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 7de146a7b97d31720cf1faa504b41a3393f7aa02632bfc294c7c64b88b967376 |
+| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | a6ad10a1b2900e855ceb07e51c185f4131e829ad2eceeb74c184e67abf70472a |  |
+| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | ef7fec5e2d0def1f69e96f9b7dc9e1e6cb935c57b4abc1cb984b76c459e5a4bd |  |
+| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"1e89fcd2a584ead735c8e355518291f41aebdaff87ae32cec13b131d606d9bd0","kind":"web-source","wrapperSha256":"01aea9b201797e43ba0ef58679cc902365ceb65b7f9e87aae64bb7fae81df983"},"pathSha256":"00e5fed1b911cfea8856c961e7… (280 chars, sha256 eaabdd328af6) |  |
+| run.json | tasks[2].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
+| run.json | tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 66e12657f95eb0ac77797189503d6e19d3c02c03f10b347cf449a7f14f550e59 |
+| run.json | tasks[3].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 8e967285a8b5c8d18d45f4e4f807fd533faea105ef366a110fdb0bb9a1d116c0 |  |
+| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 9eb17f738db0a207c192cc155ceed318e113ea767981bdd800d023a211cb90ad |
+| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | d232ab6acc876747f4541003005f8d8d54560b4ee506781deeb1f47f3af94424 |
+| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 66e12657f95eb0ac77797189503d6e19d3c02c03f10b347cf449a7f14f550e59 |
+| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 8e967285a8b5c8d18d45f4e4f807fd533faea105ef366a110fdb0bb9a1d116c0 |  |
+| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 6780ed10756d08fccbf1c5a1cda458618dd737576803d0712a2e7718925a63b3 |  |
+| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"9175157e424cbbfe80dfbff41e52f8a2304776c093479dffe5c8ecea5deb3c0e","kind":"web-source","wrapperSha256":"84ec521aad474c6c1c9221c19a1921241fe130a5ceef1103fba48217c18f94f2"},"pathSha256":"5d5a3c3416344a2a799af43879… (280 chars, sha256 71bcda01530f) |  |
+| run.json | tasks[3].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
+| run.json | tasks[4].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | c5231918304c2f039205984b79e51eed9226736f946eacadb6fea176978feee1 |
+| run.json | tasks[4].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 4e9dd8f26a02539a96936ddfe57ddab82fc26e93d1fc5c98669ebbd0772a2e25 |  |
+| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 6b608d755705539bf33bb872e72b946cecbd731c29edaa0a3c961303a91cf882 |
+| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 6c9570c44dd36469f4d742495d6fe9f14d1f53bb922b62288eedb4ad54245256 |
+| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | c5231918304c2f039205984b79e51eed9226736f946eacadb6fea176978feee1 |
+| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 4e9dd8f26a02539a96936ddfe57ddab82fc26e93d1fc5c98669ebbd0772a2e25 |  |
+| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 71a8d6ec9ab66b67985831685452c4a7d3def053534d2569883c5e34197e6f07 |  |
+| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"a3761bc57d0660f9dceb48e1c002bc18b33308e96f50bf269da5c3a45248597a","kind":"web-source","wrapperSha256":"ae843e35195d04808f31bd72448a8bba9f0ced50a109c4c5086d3ad23f869cc8"},"pathSha256":"4ea3b291cc1831ccf00a448330… (280 chars, sha256 a8772083de56) |  |
+| run.json | tasks[4].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
+| run.json | tasks[6].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 8781b331be2633dc4623868736cf6e649d69c180367ff4529a4047c411fe36ee |
+| run.json | tasks[6].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 79aa375848399580b81c7347f34241237039ed5d534c77db9623c93d50eb38fd |  |
+| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | 99c0cd2dfe6a3a6b9229bd75ff233115cc55bcc0e8e440839d36b96f9153e7a4 |
+| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | 01bf6d75fb5520f21b9d66cc3508d5d7e7046c77d8724d2cb22372c15e669aaa |
+| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 8781b331be2633dc4623868736cf6e649d69c180367ff4529a4047c411fe36ee |
+| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 79aa375848399580b81c7347f34241237039ed5d534c77db9623c93d50eb38fd |  |
+| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 2b4008b71fd05242a2426ee885d15ad32e2ec7428bb52fad4ce05e9034982df6 |  |
+| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"da3bd58ef5ff661e8aa764bd2996ddebc12cc993e285724615fba73fdf9b8af2","kind":"web-source","wrapperSha256":"4f54ddd4b26a0d9d0cafa9e0fac4bc41d9b492c2ed67c7bc710eedde9127ce28"},"pathSha256":"7edeea00a469fc0809fe43d484… (280 chars, sha256 27c71ee21909) |  |
+| run.json | tasks[6].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
+| run.json | tasks[9].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"ee28b595f7ca06bd185c004d0d14475360843fe0fc170c79aef58d6ec273c4dd","kind":"web-source","wrapperSha256":"ab2a84a61690a24001923c20c32cd8edf804d562430bcf1100391cca45e2b61d"},"pathSha256":"3fe1648a5d316cd666c1332fb4… (280 chars, sha256 a78623b90d87) |  |
+| run.json | tasks[9].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
+| run.json | tasks[10].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"4dc7431eff76d721b3333dee392618ac84d85bc5a776cfd33c66369ea7a7f696","kind":"web-source","wrapperSha256":"ae0948d41a194fa5b4e3448aa9d0f0bbe8252335eb5a08e32058cec131ef6476"},"pathSha256":"9fb664fb8c6f83330d05019486… (280 chars, sha256 71ff83f4d157) |  |
+| run.json | tasks[10].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
+| run.json | tasks[11].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"ad37b1c8d46955de82c8e1a1b1a8ec5b3d67fc91f5cdce0949d471f9788c2d3d","kind":"web-source","wrapperSha256":"2b395e280d2d0c5d3f6854f01659a4849e0baff1d90d6594a94813356e6c644f"},"pathSha256":"024caec2a78d828dff21a24368… (280 chars, sha256 cc9d06ed3ef2) |  |
+| run.json | tasks[11].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
+| run.json | tasks[13].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"8bc7a873be6fd19eaba85f4af31f94f373c673846167be1998c29cd73a15795b","kind":"web-source","wrapperSha256":"b3768480aff1fe7c68701bffc1840527296b2df8eac6a4d98252609ec6201b3c"},"pathSha256":"5fbb461a1629014de46c7c8945… (280 chars, sha256 3361759d5f4e) |  |
+| run.json | tasks[13].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
+| run.json | tasks[15].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"623fbc6be4a11e0841e6a889f15bc2a232c3d51ec83f00dee2504d529ca43512","kind":"web-source","wrapperSha256":"625320d738412fa9422346db58e35224c7b1e44115ffac7f0c341cb2b03d945d"},"pathSha256":"d3bd0190880b06a444fc683a66… (280 chars, sha256 77a21d570b11) |  |
+| run.json | tasks[15].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
+| run.json | tasks[19].launchBootstrap.records[0].artifacts.serverSpecSha256 | added |  | 9fb774907faa80463898ad82202b7a01017d139995e1181deeefe0dd1e7819fa |
+| run.json | tasks[19].launchBootstrap.records[0].artifacts.wrapperSha256 | removed | 8fbe606e9303402adc5db3cd340ee35ac2fcf3ea0831217360013d2c08f780f1 |  |
+| run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256 | added |  | cfc6a6eb783d107e429b16eb33fdcc0c50c160e2edfb4f5e3c9d2694a1cdd36b |
+| run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256 | added |  | f7108b0aded17e5b5d8670352edbc7647d505a32bea6421ca5511c3fd85396da |
+| run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256 | added |  | 9fb774907faa80463898ad82202b7a01017d139995e1181deeefe0dd1e7819fa |
+| run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256 | removed | 8fbe606e9303402adc5db3cd340ee35ac2fcf3ea0831217360013d2c08f780f1 |  |
+| run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256 | removed | 9d78c9287d44d0dabcb9d95e1232cba94209b5a9410885446921f8b14c28b084 |  |
+| run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.extensions[0] | removed | {"generated":{"configSha256":"e8cbd9f4af28f1f97e181814f191ec1b2dbfed13dcd9881683b2354be8b23040","kind":"web-source","wrapperSha256":"0efd5a302a233904f6d3cff7a22d320bcf406f648d336088ad5667c7beeb5902"},"pathSha256":"7ca901aa9bee9faffae5e60349… (280 chars, sha256 872413e3d6cf) |  |
+| run.json | tasks[19].launchBootstrap.records[0].effectiveLaunch.noExtensions | removed | true |  |
+| tasks/task-1/artifact-access.json |  | only-replayed |  |  |
+| tasks/task-1/workflow-artifact-extension.ts |  | only-recorded |  |  |
+| tasks/task-10/artifact-access.json |  | only-replayed |  |  |
+| tasks/task-10/workflow-artifact-extension.ts |  | only-recorded |  |  |
+| tasks/task-11/artifact-access.json |  | only-replayed |  |  |
+| tasks/task-11/workflow-artifact-extension.ts |  | only-recorded |  |  |
+| tasks/task-12/artifact-access.json |  | only-replayed |  |  |
+| tasks/task-12/workflow-artifact-extension.ts |  | only-recorded |  |  |
+| tasks/task-13/artifact-access.json |  | only-replayed |  |  |
+| tasks/task-13/workflow-artifact-extension.ts |  | only-recorded |  |  |
+| tasks/task-3/artifact-access.json |  | only-replayed |  |  |
+| tasks/task-3/workflow-artifact-extension.ts |  | only-recorded |  |  |
+| tasks/task-4/artifact-access.json |  | only-replayed |  |  |
+| tasks/task-4/workflow-artifact-extension.ts |  | only-recorded |  |  |
+| tasks/task-5/artifact-access.json |  | only-replayed |  |  |
+| tasks/task-5/workflow-artifact-extension.ts |  | only-recorded |  |  |
+| tasks/task-7/artifact-access.json |  | only-replayed |  |  |
+| tasks/task-7/workflow-artifact-extension.ts |  | only-recorded |  |  |
+| tasks/task-8/artifact-access.json |  | only-replayed |  |  |
+| tasks/task-8/workflow-artifact-extension.ts |  | only-recorded |  |  |
+| tasks/task-9/artifact-access.json |  | only-replayed |  |  |
+| tasks/task-9/workflow-artifact-extension.ts |  | only-recorded |  |  |
+
+</details>
+
+<details><summary>explained c2-web-tools-removed (29)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| tasks/task-11/workflow-web-source-extension.ts |  | only-recorded |  |  |
+| tasks/task-12/workflow-web-source-extension.ts |  | only-recorded |  |  |
+| tasks/task-13/workflow-web-source-extension.ts |  | only-recorded |  |  |
+| tasks/task-14/workflow-web-source-extension.ts |  | only-recorded |  |  |
+| tasks/task-15/workflow-web-source-extension.ts |  | only-recorded |  |  |
+| tasks/task-16/workflow-web-source-extension.ts |  | only-recorded |  |  |
+| tasks/task-18/workflow-web-source-extension.ts |  | only-recorded |  |  |
+| tasks/task-20/workflow-web-source-extension.ts |  | only-recorded |  |  |
+| tasks/task-4/workflow-web-source-extension.ts |  | only-recorded |  |  |
+| tasks/task-9/workflow-web-source-extension.ts |  | only-recorded |  |  |
+| web-source-cache/events.jsonl |  | only-recorded |  |  |
+| web-source-cache/index-events.jsonl |  | only-recorded |  |  |
+| web-source-cache/index.json |  | only-recorded |  |  |
+| web-source-cache/sources/wsrc_3af3257c452fc577322dd1fe372b693b.json |  | only-recorded |  |  |
+| web-source-cache/sources/wsrc_6f2e06f5a0dd2c8d98ce75ab416660e7.json |  | only-recorded |  |  |
+| web-source-cache/sources/wsrc_8159c7d55263c6a032d9c7f21594d478.json |  | only-recorded |  |  |
+| web-source-cache/sources/wsrc_c5b1715029f0427be2aabb1f7072eb4f.json |  | only-recorded |  |  |
+| web-source-cache/sources/wsrc_deaa05710c11e5368c903185b113c8fd.json |  | only-recorded |  |  |
+| web-source-cache/sources/wsrc_e42b5addd714a3ae1543bb53ac209078.json |  | only-recorded |  |  |
+| web-source-cache/sources/wsrc_ff966eae34ec1ec6ab48a4f0cf055b83.json |  | only-recorded |  |  |
+| web-source-cache/visible-budget-ledger/00ba8ab6d0696865ec2f3e3be27bad163a99d0e03c83c9cbb459037b73a1e4e7.json |  | only-recorded |  |  |
+| web-source-cache/visible-budget-ledger/0ab26cf70a258bc4c3d44b88839422a815d3ac4b510f0e407e54f1bcba9acdc4.json |  | only-recorded |  |  |
+| web-source-cache/visible-budget-ledger/0d6f4e44b256f54466762b10a1e369abc602b3047acff9f6121eb448e3903539.json |  | only-recorded |  |  |
+| web-source-cache/visible-budget-ledger/7564ddaac2774d31d5f4535acc28ba01fbe785a57d1213ef1b87054d2ea14232.json |  | only-recorded |  |  |
+| web-source-cache/visible-budget-ledger/7c27170bb065edaebc9ef70afdc39d067c456523fc4001b1d8f97a335a0ec17b.json |  | only-recorded |  |  |
+| web-source-cache/visible-budget-ledger/95c7e8506542ec1f5e85b316f0bc64ffddea6769e41a5e2d88043408832abf63.json |  | only-recorded |  |  |
+| web-source-cache/visible-budget-ledger/bc9d4de31f3c3390924ac72aab803ba90d48a4a572bc446fe9224fb80cc7f8e4.json |  | only-recorded |  |  |
+| web-source-cache/visible-budget-ledger/e9c445fe5a1533f75f647f33155a9efab695ac6e3df69c085335afecf502b09b.json |  | only-recorded |  |  |
+| web-source-cache/visible-budget-ledger/f0bba198ccd04f3107ca5f9a2320cbcd4f95187d4b99715b8b0d2c2ec6ceed39.json |  | only-recorded |  |  |
+
+</details>
+
+<details><summary>explained executor-exit-code (28)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | tasks[0].rawArtifactIntegrity.terminal.exitCode | changed | 0 | null |
+| run.json | tasks[2].rawArtifactIntegrity.terminal.exitCode | changed | 0 | null |
+| run.json | tasks[3].rawArtifactIntegrity.terminal.exitCode | changed | 0 | null |
+| run.json | tasks[4].rawArtifactIntegrity.terminal.exitCode | changed | 0 | null |
+| run.json | tasks[6].rawArtifactIntegrity.terminal.exitCode | changed | 0 | null |
+| run.json | tasks[9].rawArtifactIntegrity.terminal.exitCode | changed | 0 | null |
+| run.json | tasks[10].rawArtifactIntegrity.terminal.exitCode | changed | 0 | null |
+| run.json | tasks[11].rawArtifactIntegrity.terminal.exitCode | changed | 0 | null |
+| run.json | tasks[12].rawArtifactIntegrity.terminal.exitCode | changed | 0 | null |
+| run.json | tasks[13].rawArtifactIntegrity.terminal.exitCode | changed | 0 | null |
+| run.json | tasks[14].rawArtifactIntegrity.terminal.exitCode | changed | 0 | null |
+| run.json | tasks[15].rawArtifactIntegrity.terminal.exitCode | changed | 0 | null |
+| run.json | tasks[16].rawArtifactIntegrity.terminal.exitCode | changed | 0 | null |
+| run.json | tasks[19].rawArtifactIntegrity.terminal.exitCode | changed | 0 | null |
+| tasks/task-1/result.json | rawIntegrity.terminal.exitCode | changed | 0 | null |
+| tasks/task-11/result.json | rawIntegrity.terminal.exitCode | changed | 0 | null |
+| tasks/task-12/result.json | rawIntegrity.terminal.exitCode | changed | 0 | null |
+| tasks/task-13/result.json | rawIntegrity.terminal.exitCode | changed | 0 | null |
+| tasks/task-14/result.json | rawIntegrity.terminal.exitCode | changed | 0 | null |
+| tasks/task-15/result.json | rawIntegrity.terminal.exitCode | changed | 0 | null |
+| tasks/task-16/result.json | rawIntegrity.terminal.exitCode | changed | 0 | null |
+| tasks/task-17/result.json | rawIntegrity.terminal.exitCode | changed | 0 | null |
+| tasks/task-18/result.json | rawIntegrity.terminal.exitCode | changed | 0 | null |
+| tasks/task-19/result.json | rawIntegrity.terminal.exitCode | changed | 0 | null |
+| tasks/task-20/result.json | rawIntegrity.terminal.exitCode | changed | 0 | null |
+| tasks/task-21/result.json | rawIntegrity.terminal.exitCode | changed | 0 | null |
+| tasks/task-4/result.json | rawIntegrity.terminal.exitCode | changed | 0 | null |
+| tasks/task-9/result.json | rawIntegrity.terminal.exitCode | changed | 0 | null |
+
+</details>
+
+<details><summary>explained executor-usage-contract (213)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | foreachBatches[0].physicalExecution.usage.aggregate.reasoningTokens | removed | 0 |  |
+| run.json | foreachBatches[0].physicalExecution.usage.attempts[0].model | removed | gpt-6.1-sol |  |
+| run.json | foreachBatches[0].physicalExecution.usage.attempts[0].provider | removed | openai-codex |  |
+| run.json | foreachBatches[0].physicalExecution.usage.attempts[0].raw.cacheRead | removed | 7680 |  |
+| run.json | foreachBatches[0].physicalExecution.usage.attempts[0].raw.cached | added |  | 7680 |
+| run.json | foreachBatches[0].physicalExecution.usage.attempts[0].raw.cost | changed | {"cacheRead":0.000768,"cacheWrite":0,"input":0.034912,"output":0.008130000000000002,"total":0.04381} | 0.04381 |
+| run.json | foreachBatches[0].physicalExecution.usage.attempts[0].raw.events | added |  | 1 |
+| run.json | foreachBatches[0].physicalExecution.usage.attempts[0].raw.reasoning | removed | 0 |  |
+| run.json | foreachBatches[0].physicalExecution.usage.attempts[0].raw.source | added |  | estimated |
+| run.json | foreachBatches[0].physicalExecution.usage.attempts[0].raw.total | added |  | 25949 |
+| run.json | foreachBatches[0].physicalExecution.usage.attempts[0].raw.totalTokens | removed | 25949 |  |
+| run.json | foreachBatches[0].physicalExecution.usage.attempts[0].reasoningTokens | removed | 0 |  |
+| run.json | foreachBatches[0].physicalExecution.usage.model | removed | gpt-6.1-sol |  |
+| run.json | foreachBatches[0].physicalExecution.usage.provider | removed | openai-codex |  |
+| run.json | foreachBatches[0].physicalExecution.usage.reasoningTokens | removed | 0 |  |
+| run.json | foreachBatches[0].physicalExecution.usage.source | changed | pi-subagent | executor |
+| run.json | foreachBatches[1].physicalExecution.usage.aggregate.reasoningTokens | removed | 0 |  |
+| run.json | foreachBatches[1].physicalExecution.usage.attempts[0].model | removed | gpt-6.1-sol |  |
+| run.json | foreachBatches[1].physicalExecution.usage.attempts[0].provider | removed | openai-codex |  |
+| run.json | foreachBatches[1].physicalExecution.usage.attempts[0].raw.cacheRead | removed | 34816 |  |
+| run.json | foreachBatches[1].physicalExecution.usage.attempts[0].raw.cached | added |  | 34816 |
+| run.json | foreachBatches[1].physicalExecution.usage.attempts[0].raw.cost | changed | {"cacheRead":0.0034816000000000005,"cacheWrite":0,"input":0.019858,"output":0.00931,"total":0.0326496} | 0.0326496 |
+| run.json | foreachBatches[1].physicalExecution.usage.attempts[0].raw.events | added |  | 1 |
+| run.json | foreachBatches[1].physicalExecution.usage.attempts[0].raw.reasoning | removed | 0 |  |
+| run.json | foreachBatches[1].physicalExecution.usage.attempts[0].raw.source | added |  | estimated |
+| run.json | foreachBatches[1].physicalExecution.usage.attempts[0].raw.total | added |  | 45676 |
+| run.json | foreachBatches[1].physicalExecution.usage.attempts[0].raw.totalTokens | removed | 45676 |  |
+| run.json | foreachBatches[1].physicalExecution.usage.attempts[0].reasoningTokens | removed | 0 |  |
+| run.json | foreachBatches[1].physicalExecution.usage.model | removed | gpt-6.1-sol |  |
+| run.json | foreachBatches[1].physicalExecution.usage.provider | removed | openai-codex |  |
+| run.json | foreachBatches[1].physicalExecution.usage.reasoningTokens | removed | 0 |  |
+| run.json | foreachBatches[1].physicalExecution.usage.source | changed | pi-subagent | executor |
+| run.json | foreachBatches[2].physicalExecution.usage.aggregate.reasoningTokens | removed | 0 |  |
+| run.json | foreachBatches[2].physicalExecution.usage.attempts[0].model | removed | gpt-6.1-sol |  |
+| run.json | foreachBatches[2].physicalExecution.usage.attempts[0].provider | removed | openai-codex |  |
+| run.json | foreachBatches[2].physicalExecution.usage.attempts[0].raw.cacheRead | removed | 8320 |  |
+| run.json | foreachBatches[2].physicalExecution.usage.attempts[0].raw.cached | added |  | 8320 |
+| run.json | foreachBatches[2].physicalExecution.usage.attempts[0].raw.cost | changed | {"cacheRead":0.0008320000000000001,"cacheWrite":0,"input":0.036466,"output":0.008320000000000001,"total":0.045618000000000006} | 0.045618 |
+| run.json | foreachBatches[2].physicalExecution.usage.attempts[0].raw.events | added |  | 1 |
+| run.json | foreachBatches[2].physicalExecution.usage.attempts[0].raw.reasoning | removed | 0 |  |
+| run.json | foreachBatches[2].physicalExecution.usage.attempts[0].raw.source | added |  | estimated |
+| run.json | foreachBatches[2].physicalExecution.usage.attempts[0].raw.total | added |  | 27385 |
+| run.json | foreachBatches[2].physicalExecution.usage.attempts[0].raw.totalTokens | removed | 27385 |  |
+| run.json | foreachBatches[2].physicalExecution.usage.attempts[0].reasoningTokens | removed | 0 |  |
+| run.json | foreachBatches[2].physicalExecution.usage.model | removed | gpt-6.1-sol |  |
+| run.json | foreachBatches[2].physicalExecution.usage.provider | removed | openai-codex |  |
+| run.json | foreachBatches[2].physicalExecution.usage.reasoningTokens | removed | 0 |  |
+| run.json | foreachBatches[2].physicalExecution.usage.source | changed | pi-subagent | executor |
+| run.json | tasks[0].usage.aggregate.reasoningTokens | removed | 190 |  |
+| run.json | tasks[0].usage.attempts[0].model | removed | gpt-6.1-sol |  |
+| run.json | tasks[0].usage.attempts[0].provider | removed | openai-codex |  |
+| run.json | tasks[0].usage.attempts[0].raw.cacheRead | removed | 0 |  |
+| run.json | tasks[0].usage.attempts[0].raw.cached | added |  | 0 |
+| run.json | tasks[0].usage.attempts[0].raw.cost | changed | {"cacheRead":0,"cacheWrite":0,"input":0.005874,"output":0.023790000000000002,"total":0.029664000000000003} | 0.029664 |
+| run.json | tasks[0].usage.attempts[0].raw.events | added |  | 1 |
+| run.json | tasks[0].usage.attempts[0].raw.reasoning | removed | 190 |  |
+| run.json | tasks[0].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[0].usage.attempts[0].raw.total | added |  | 5316 |
+| run.json | tasks[0].usage.attempts[0].raw.totalTokens | removed | 5316 |  |
+| run.json | tasks[0].usage.attempts[0].reasoningTokens | removed | 190 |  |
+| run.json | tasks[0].usage.model | removed | gpt-6.1-sol |  |
+| run.json | tasks[0].usage.provider | removed | openai-codex |  |
+| run.json | tasks[0].usage.reasoningTokens | removed | 190 |  |
+| run.json | tasks[2].usage.aggregate.reasoningTokens | removed | 0 |  |
+| run.json | tasks[2].usage.attempts[0].model | removed | gpt-6.1-sol |  |
+| run.json | tasks[2].usage.attempts[0].provider | removed | openai-codex |  |
+| run.json | tasks[2].usage.attempts[0].raw.cacheRead | removed | 44160 |  |
+| run.json | tasks[2].usage.attempts[0].raw.cached | added |  | 44160 |
+| run.json | tasks[2].usage.attempts[0].raw.cost | changed | {"cacheRead":0.004416,"cacheWrite":0,"input":0.0423,"output":0.01609,"total":0.062806} | 0.062806 |
+| run.json | tasks[2].usage.attempts[0].raw.events | added |  | 1 |
+| run.json | tasks[2].usage.attempts[0].raw.reasoning | removed | 0 |  |
+| run.json | tasks[2].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[2].usage.attempts[0].raw.total | added |  | 66919 |
+| run.json | tasks[2].usage.attempts[0].raw.totalTokens | removed | 66919 |  |
+| run.json | tasks[2].usage.attempts[0].reasoningTokens | removed | 0 |  |
+| run.json | tasks[2].usage.model | removed | gpt-6.1-sol |  |
+| run.json | tasks[2].usage.provider | removed | openai-codex |  |
+| run.json | tasks[2].usage.reasoningTokens | removed | 0 |  |
+| run.json | tasks[3].usage.aggregate.reasoningTokens | removed | 32 |  |
+| run.json | tasks[3].usage.attempts[0].model | removed | gpt-6.1-sol |  |
+| run.json | tasks[3].usage.attempts[0].provider | removed | openai-codex |  |
+| run.json | tasks[3].usage.attempts[0].raw.cacheRead | removed | 30976 |  |
+| run.json | tasks[3].usage.attempts[0].raw.cached | added |  | 30976 |
+| run.json | tasks[3].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0030976000000000003,"cacheWrite":0,"input":0.03650599999999999,"output":0.009470000000000001,"total":0.049073599999999995} | 0.0490736 |
+| run.json | tasks[3].usage.attempts[0].raw.events | added |  | 1 |
+| run.json | tasks[3].usage.attempts[0].raw.reasoning | removed | 32 |  |
+| run.json | tasks[3].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[3].usage.attempts[0].raw.total | added |  | 50176 |
+| run.json | tasks[3].usage.attempts[0].raw.totalTokens | removed | 50176 |  |
+| run.json | tasks[3].usage.attempts[0].reasoningTokens | removed | 32 |  |
+| run.json | tasks[3].usage.model | removed | gpt-6.1-sol |  |
+| run.json | tasks[3].usage.provider | removed | openai-codex |  |
+| run.json | tasks[3].usage.reasoningTokens | removed | 32 |  |
+| run.json | tasks[4].usage.aggregate.reasoningTokens | removed | 9 |  |
+| run.json | tasks[4].usage.attempts[0].model | removed | gpt-6.1-sol |  |
+| run.json | tasks[4].usage.attempts[0].provider | removed | openai-codex |  |
+| run.json | tasks[4].usage.attempts[0].raw.cacheRead | removed | 64000 |  |
+| run.json | tasks[4].usage.attempts[0].raw.cached | added |  | 64000 |
+| run.json | tasks[4].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0064,"cacheWrite":0,"input":0.025436000000000004,"output":0.02076,"total":0.05259599999999999} | 0.052596 |
+| run.json | tasks[4].usage.attempts[0].raw.events | added |  | 1 |
+| run.json | tasks[4].usage.attempts[0].raw.reasoning | removed | 9 |  |
+| run.json | tasks[4].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[4].usage.attempts[0].raw.total | added |  | 78794 |
+| run.json | tasks[4].usage.attempts[0].raw.totalTokens | removed | 78794 |  |
+| run.json | tasks[4].usage.attempts[0].reasoningTokens | removed | 9 |  |
+| run.json | tasks[4].usage.model | removed | gpt-6.1-sol |  |
+| run.json | tasks[4].usage.provider | removed | openai-codex |  |
+| run.json | tasks[4].usage.reasoningTokens | removed | 9 |  |
+| run.json | tasks[6].usage.aggregate.reasoningTokens | removed | 161 |  |
+| run.json | tasks[6].usage.attempts[0].model | removed | gpt-6.1-sol |  |
+| run.json | tasks[6].usage.attempts[0].provider | removed | openai-codex |  |
+| run.json | tasks[6].usage.attempts[0].raw.cacheRead | removed | 43264 |  |
+| run.json | tasks[6].usage.attempts[0].raw.cached | added |  | 43264 |
+| run.json | tasks[6].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0043264,"cacheWrite":0,"input":0.028978,"output":0.04083,"total":0.07413439999999999} | 0.0741344 |
+| run.json | tasks[6].usage.attempts[0].raw.events | added |  | 1 |
+| run.json | tasks[6].usage.attempts[0].raw.reasoning | removed | 161 |  |
+| run.json | tasks[6].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[6].usage.attempts[0].raw.total | added |  | 61836 |
+| run.json | tasks[6].usage.attempts[0].raw.totalTokens | removed | 61836 |  |
+| run.json | tasks[6].usage.attempts[0].reasoningTokens | removed | 161 |  |
+| run.json | tasks[6].usage.model | removed | gpt-6.1-sol |  |
+| run.json | tasks[6].usage.provider | removed | openai-codex |  |
+| run.json | tasks[6].usage.reasoningTokens | removed | 161 |  |
+| run.json | tasks[9].usage.aggregate.reasoningTokens | removed | 0 |  |
+| run.json | tasks[9].usage.attempts[0].model | removed | gpt-6.1-sol |  |
+| run.json | tasks[9].usage.attempts[0].provider | removed | openai-codex |  |
+| run.json | tasks[9].usage.attempts[0].raw.cacheRead | removed | 5120 |  |
+| run.json | tasks[9].usage.attempts[0].raw.cached | added |  | 5120 |
+| run.json | tasks[9].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0005120000000000001,"cacheWrite":0,"input":0.011611999999999999,"output":0.0039900000000000005,"total":0.016114} | 0.016114 |
+| run.json | tasks[9].usage.attempts[0].raw.events | added |  | 1 |
+| run.json | tasks[9].usage.attempts[0].raw.reasoning | removed | 0 |  |
+| run.json | tasks[9].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[9].usage.attempts[0].raw.total | added |  | 11325 |
+| run.json | tasks[9].usage.attempts[0].raw.totalTokens | removed | 11325 |  |
+| run.json | tasks[9].usage.attempts[0].reasoningTokens | removed | 0 |  |
+| run.json | tasks[9].usage.model | removed | gpt-6.1-sol |  |
+| run.json | tasks[9].usage.provider | removed | openai-codex |  |
+| run.json | tasks[9].usage.reasoningTokens | removed | 0 |  |
+| run.json | tasks[10].usage.aggregate.reasoningTokens | removed | 0 |  |
+| run.json | tasks[10].usage.attempts[0].model | removed | gpt-6.1-sol |  |
+| run.json | tasks[10].usage.attempts[0].provider | removed | openai-codex |  |
+| run.json | tasks[10].usage.attempts[0].raw.cacheRead | removed | 11008 |  |
+| run.json | tasks[10].usage.attempts[0].raw.cached | added |  | 11008 |
+| run.json | tasks[10].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0011008,"cacheWrite":0,"input":0.012525999999999999,"output":0.004690000000000001,"total":0.0183168} | 0.0183168 |
+| run.json | tasks[10].usage.attempts[0].raw.events | added |  | 1 |
+| run.json | tasks[10].usage.attempts[0].raw.reasoning | removed | 0 |  |
+| run.json | tasks[10].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[10].usage.attempts[0].raw.total | added |  | 17740 |
+| run.json | tasks[10].usage.attempts[0].raw.totalTokens | removed | 17740 |  |
+| run.json | tasks[10].usage.attempts[0].reasoningTokens | removed | 0 |  |
+| run.json | tasks[10].usage.model | removed | gpt-6.1-sol |  |
+| run.json | tasks[10].usage.provider | removed | openai-codex |  |
+| run.json | tasks[10].usage.reasoningTokens | removed | 0 |  |
+| run.json | tasks[11].usage.aggregate.reasoningTokens | removed | 0 |  |
+| run.json | tasks[11].usage.attempts[0].model | removed | gpt-6.1-sol |  |
+| run.json | tasks[11].usage.attempts[0].provider | removed | openai-codex |  |
+| run.json | tasks[11].usage.attempts[0].raw.cacheRead | removed | 7680 |  |
+| run.json | tasks[11].usage.attempts[0].raw.cached | added |  | 7680 |
+| run.json | tasks[11].usage.attempts[0].raw.cost | changed | {"cacheRead":0.000768,"cacheWrite":0,"input":0.034912,"output":0.008130000000000002,"total":0.04381} | 0.04381 |
+| run.json | tasks[11].usage.attempts[0].raw.events | added |  | 1 |
+| run.json | tasks[11].usage.attempts[0].raw.reasoning | removed | 0 |  |
+| run.json | tasks[11].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[11].usage.attempts[0].raw.total | added |  | 25949 |
+| run.json | tasks[11].usage.attempts[0].raw.totalTokens | removed | 25949 |  |
+| run.json | tasks[11].usage.attempts[0].reasoningTokens | removed | 0 |  |
+| run.json | tasks[11].usage.model | removed | gpt-6.1-sol |  |
+| run.json | tasks[11].usage.provider | removed | openai-codex |  |
+| run.json | tasks[11].usage.reasoningTokens | removed | 0 |  |
+| run.json | tasks[13].usage.aggregate.reasoningTokens | removed | 0 |  |
+| run.json | tasks[13].usage.attempts[0].model | removed | gpt-6.1-sol |  |
+| run.json | tasks[13].usage.attempts[0].provider | removed | openai-codex |  |
+| run.json | tasks[13].usage.attempts[0].raw.cacheRead | removed | 34816 |  |
+| run.json | tasks[13].usage.attempts[0].raw.cached | added |  | 34816 |
+| run.json | tasks[13].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0034816000000000005,"cacheWrite":0,"input":0.019858,"output":0.00931,"total":0.0326496} | 0.0326496 |
+| run.json | tasks[13].usage.attempts[0].raw.events | added |  | 1 |
+| run.json | tasks[13].usage.attempts[0].raw.reasoning | removed | 0 |  |
+| run.json | tasks[13].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[13].usage.attempts[0].raw.total | added |  | 45676 |
+| run.json | tasks[13].usage.attempts[0].raw.totalTokens | removed | 45676 |  |
+| run.json | tasks[13].usage.attempts[0].reasoningTokens | removed | 0 |  |
+| run.json | tasks[13].usage.model | removed | gpt-6.1-sol |  |
+| run.json | tasks[13].usage.provider | removed | openai-codex |  |
+| run.json | tasks[13].usage.reasoningTokens | removed | 0 |  |
+| run.json | tasks[15].usage.aggregate.reasoningTokens | removed | 0 |  |
+| run.json | tasks[15].usage.attempts[0].model | removed | gpt-6.1-sol |  |
+| run.json | tasks[15].usage.attempts[0].provider | removed | openai-codex |  |
+| run.json | tasks[15].usage.attempts[0].raw.cacheRead | removed | 8320 |  |
+| run.json | tasks[15].usage.attempts[0].raw.cached | added |  | 8320 |
+| run.json | tasks[15].usage.attempts[0].raw.cost | changed | {"cacheRead":0.0008320000000000001,"cacheWrite":0,"input":0.036466,"output":0.008320000000000001,"total":0.045618000000000006} | 0.045618 |
+| run.json | tasks[15].usage.attempts[0].raw.events | added |  | 1 |
+| run.json | tasks[15].usage.attempts[0].raw.reasoning | removed | 0 |  |
+| run.json | tasks[15].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[15].usage.attempts[0].raw.total | added |  | 27385 |
+| run.json | tasks[15].usage.attempts[0].raw.totalTokens | removed | 27385 |  |
+| run.json | tasks[15].usage.attempts[0].reasoningTokens | removed | 0 |  |
+| run.json | tasks[15].usage.model | removed | gpt-6.1-sol |  |
+| run.json | tasks[15].usage.provider | removed | openai-codex |  |
+| run.json | tasks[15].usage.reasoningTokens | removed | 0 |  |
+| run.json | tasks[19].usage.aggregate.reasoningTokens | removed | 422 |  |
+| run.json | tasks[19].usage.attempts[0].model | removed | gpt-6.1-sol |  |
+| run.json | tasks[19].usage.attempts[0].provider | removed | openai-codex |  |
+| run.json | tasks[19].usage.attempts[0].raw.cacheRead | removed | 92032 |  |
+| run.json | tasks[19].usage.attempts[0].raw.cached | added |  | 92032 |
+| run.json | tasks[19].usage.attempts[0].raw.cost | changed | {"cacheRead":0.009203200000000002,"cacheWrite":0,"input":0.05406999999999999,"output":0.015300000000000001,"total":0.0785732} | 0.0785732 |
+| run.json | tasks[19].usage.attempts[0].raw.events | added |  | 1 |
+| run.json | tasks[19].usage.attempts[0].raw.reasoning | removed | 422 |  |
+| run.json | tasks[19].usage.attempts[0].raw.source | added |  | estimated |
+| run.json | tasks[19].usage.attempts[0].raw.total | added |  | 120597 |
+| run.json | tasks[19].usage.attempts[0].raw.totalTokens | removed | 120597 |  |
+| run.json | tasks[19].usage.attempts[0].reasoningTokens | removed | 422 |  |
+| run.json | tasks[19].usage.model | removed | gpt-6.1-sol |  |
+| run.json | tasks[19].usage.provider | removed | openai-codex |  |
+| run.json | tasks[19].usage.reasoningTokens | removed | 422 |  |
+
+</details>
+
+<details><summary>explained original-helper-legacy-sidecar (3)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| tasks/task-10/audit.md |  | only-recorded |  |  |
+| tasks/task-10/executive.md |  | only-recorded |  |  |
+| tasks/task-10/final-report.md |  | only-recorded |  |  |
+
+</details>
+
+<details><summary>explained run-capability-negotiation (1)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | capabilityNegotiation | added |  | {"capabilities":{"cancel":{"detail":"interrupt","level":"native","source":"declared"},"context":"agent","contextIsolation":{"level":"native","source":"declared"},"effortLevels":["low","medium","high"],"fastTier":{"level":"none","source":"de… (17454 chars, sha256 48477d7c0598) |
+
+</details>
+
+<details><summary>explained run-executor-record (1)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | executor | added |  | {"descriptor":{"config":{"adapterChecks":false,"fixtureDir":"&lt;PKG&gt;/test/replay/fixtures/deep-research","id":"claude","roots":{"HOME":"&lt;HOME&gt;","PKG":["&lt;PKG&gt;","&lt;PKG&gt;"],"ROOT":"&lt;ROOT&gt;","TMP":"&lt;TMP&gt;"},"traceLog":"&lt;TMP&gt;/awr-acc-deep-research-eng… (429 chars, sha256 7f278e02487a) |
+
+</details>
+
+<details><summary>explained run-permission-mode (2)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| compiled.json | permissionMode | added |  | free |
+| run.json | permissionMode | added |  | {"mode":"free","source":"default"} |
+
+</details>
+
+<details><summary>explained run-usage-unknown-not-zero (2)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | usage.cachedInputTokens | removed | 0 |  |
+| run.json | usage.reasoningTokens | removed | 814 |  |
+
+</details>
+
+<details><summary>explained runtime-backend-executor-id (3)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| foreach-batches/1d78f2b12f8565f3deb733b86b7b6b915ccba8561b49cb1cda25e989860bd807/receipt-attempt-1.json | backend.backend | changed | headless | claude |
+| foreach-batches/61c590d1b170c5a09beb0f353f7d2f2602ea24719bbd70743b264e082dd7663e/receipt-attempt-1.json | backend.backend | changed | headless | claude |
+| foreach-batches/6b860cff79c4cca9e27da39e80371564c233ef74d52878a29a4b583e109a95f6/receipt-attempt-1.json | backend.backend | changed | headless | claude |
+
+</details>
+
+<details><summary>explained runtime-cost-rounding (18)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | foreachBatches[2].physicalExecution.usage.aggregate.costUsd | changed | 0.045618000000000006 | 0.045618 |
+| run.json | foreachBatches[2].physicalExecution.usage.attempts[0].costUsd | changed | 0.045618000000000006 | 0.045618 |
+| run.json | foreachBatches[2].physicalExecution.usage.costUsd | changed | 0.045618000000000006 | 0.045618 |
+| run.json | tasks[0].usage.aggregate.costUsd | changed | 0.029664000000000003 | 0.029664 |
+| run.json | tasks[0].usage.attempts[0].costUsd | changed | 0.029664000000000003 | 0.029664 |
+| run.json | tasks[0].usage.costUsd | changed | 0.029664000000000003 | 0.029664 |
+| run.json | tasks[3].usage.aggregate.costUsd | changed | 0.049073599999999995 | 0.0490736 |
+| run.json | tasks[3].usage.attempts[0].costUsd | changed | 0.049073599999999995 | 0.0490736 |
+| run.json | tasks[3].usage.costUsd | changed | 0.049073599999999995 | 0.0490736 |
+| run.json | tasks[4].usage.aggregate.costUsd | changed | 0.05259599999999999 | 0.052596 |
+| run.json | tasks[4].usage.attempts[0].costUsd | changed | 0.05259599999999999 | 0.052596 |
+| run.json | tasks[4].usage.costUsd | changed | 0.05259599999999999 | 0.052596 |
+| run.json | tasks[6].usage.aggregate.costUsd | changed | 0.07413439999999999 | 0.0741344 |
+| run.json | tasks[6].usage.attempts[0].costUsd | changed | 0.07413439999999999 | 0.0741344 |
+| run.json | tasks[6].usage.costUsd | changed | 0.07413439999999999 | 0.0741344 |
+| run.json | tasks[15].usage.aggregate.costUsd | changed | 0.045618000000000006 | 0.045618 |
+| run.json | tasks[15].usage.attempts[0].costUsd | changed | 0.045618000000000006 | 0.045618 |
+| run.json | tasks[15].usage.costUsd | changed | 0.045618000000000006 | 0.045618 |
+
+</details>
+
+<details><summary>explained runtime-stderr (25)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | foreachBatches[0].physicalExecution.timing.terminalStderrBytes | changed | 127 | 0 |
+| run.json | foreachBatches[1].physicalExecution.timing.terminalStderrBytes | changed | 127 | 0 |
+| run.json | foreachBatches[2].physicalExecution.timing.terminalStderrBytes | changed | 127 | 0 |
+| run.json | tasks[0].timing.terminalStderrBytes | changed | 126 | 0 |
+| run.json | tasks[2].timing.terminalStderrBytes | changed | 127 | 0 |
+| run.json | tasks[3].timing.terminalStderrBytes | changed | 127 | 0 |
+| run.json | tasks[4].timing.terminalStderrBytes | changed | 127 | 0 |
+| run.json | tasks[6].timing.terminalStderrBytes | changed | 126 | 0 |
+| run.json | tasks[9].timing.terminalStderrBytes | changed | 127 | 0 |
+| run.json | tasks[10].timing.terminalStderrBytes | changed | 127 | 0 |
+| run.json | tasks[11].timing.terminalStderrBytes | changed | 127 | 0 |
+| run.json | tasks[13].timing.terminalStderrBytes | changed | 127 | 0 |
+| run.json | tasks[15].timing.terminalStderrBytes | changed | 127 | 0 |
+| run.json | tasks[19].timing.terminalStderrBytes | changed | 126 | 0 |
+| tasks/task-1/stderr.log | 1 | changed | Warning: No project session found with id 'pi-workflow.&lt;WF_RUN_1&gt;.task-1'; creating a new session with that id. |  |
+| tasks/task-11/stderr.log | 1 | changed | Warning: No project session found with id 'pi-workflow.&lt;WF_RUN_1&gt;.task-11'; creating a new session with that id. |  |
+| tasks/task-12/stderr.log | 1 | changed | Warning: No project session found with id 'pi-workflow.&lt;WF_RUN_1&gt;.task-12'; creating a new session with that id. |  |
+| tasks/task-13/stderr.log | 1 | changed | Warning: No project session found with id 'pi-workflow.&lt;WF_RUN_1&gt;.task-13'; creating a new session with that id. |  |
+| tasks/task-14/stderr.log | 1 | changed | Warning: No project session found with id 'pi-workflow.&lt;WF_RUN_1&gt;.task-14'; creating a new session with that id. |  |
+| tasks/task-15/stderr.log | 1 | changed | Warning: No project session found with id 'pi-workflow.&lt;WF_RUN_1&gt;.task-15'; creating a new session with that id. |  |
+| tasks/task-16/stderr.log | 1 | changed | Warning: No project session found with id 'pi-workflow.&lt;WF_RUN_1&gt;.task-16'; creating a new session with that id. |  |
+| tasks/task-18/stderr.log | 1 | changed | Warning: No project session found with id 'pi-workflow.&lt;WF_RUN_1&gt;.task-18'; creating a new session with that id. |  |
+| tasks/task-20/stderr.log | 1 | changed | Warning: No project session found with id 'pi-workflow.&lt;WF_RUN_1&gt;.task-20'; creating a new session with that id. |  |
+| tasks/task-4/stderr.log | 1 | changed | Warning: No project session found with id 'pi-workflow.&lt;WF_RUN_1&gt;.task-4'; creating a new session with that id. |  |
+| tasks/task-9/stderr.log | 1 | changed | Warning: No project session found with id 'pi-workflow.&lt;WF_RUN_1&gt;.task-9'; creating a new session with that id. |  |
+
+</details>
+
+<details><summary>explained wp10-artifact-tool-guidelines (6)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| tasks/task-1/system-prompt.md | 8 | changed |  | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe) |
+| tasks/task-11/system-prompt.md | 8 | changed | Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352) | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe) |
+| tasks/task-12/system-prompt.md | 8 | changed | Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352) | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe) |
+| tasks/task-13/system-prompt.md | 8 | changed | Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352) | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe) |
+| tasks/task-4/system-prompt.md | 8 | changed | Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352) | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe) |
+| tasks/task-9/system-prompt.md | 8 | changed | Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352) | # Workflow Artifact Tool⏎- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.⏎- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe) |
+
+</details>
+
+<details><summary>explained wp10-web-source-hint-removed (5)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| tasks/task-14/system-prompt.md | 8 | changed | Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352) |  |
+| tasks/task-15/system-prompt.md | 8 | changed | Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352) |  |
+| tasks/task-16/system-prompt.md | 8 | changed | Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352) |  |
+| tasks/task-18/system-prompt.md | 8 | changed | Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352) |  |
+| tasks/task-20/system-prompt.md | 8 | changed | Workflow web-source tools return compact source cards. Preserve sourceRef values in structured outputs. Use workflow_web_source_read for exact evidence snippets; when several snippets are needed from the same sourceRef, batch them with quer… (480 chars, sha256 3b731a43e352) |  |
+
+</details>
+
+<details><summary>explained wp37-per-executor-task-prompt (9)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| submit-request/task-11.prompt |  | executor-rendered | pi sha256:426037d37cd53974e9f9bb1a40d8edd4e24abb5c50bb89355076ab18b0bc4a23 | claude sha256:27611a7b1cdc23cae7068ea225613e2dda2504173da165b51ecd96833aafbfff |
+| submit-request/task-12.prompt |  | executor-rendered | pi sha256:44f221fe9e6214d4b1098fc00d5db8c725a351005d94b4782fca797d347f5dff | claude sha256:ba10e7beeeaf3aae4085464b0f49c9874921c7e7aa2308e8311e2c8419cdbb5c |
+| submit-request/task-13.prompt |  | executor-rendered | pi sha256:be7e3f80e435bd52cd5ce08e17add3c06c86a705e9b747dce00e8f5dbf6cc6ce | claude sha256:de3a94c0f370f13efa3348809529d49febc94e37f479ff208a165dc32d1bb8e6 |
+| submit-request/task-14.prompt |  | executor-rendered | pi sha256:ca873765f13a8b87a1bcafbcd1a95ce43c3b0bb74e75a2591a2112580603ae5f | claude sha256:cfea8ad89858f05dcee1709f15bdf1f3894c6b8d1473eb22ac2435e81e6f00c3 |
+| submit-request/task-15.prompt |  | executor-rendered | pi sha256:9c1e6bee280dc62532a4aa243e29352e831a898052996849d238553a6339d5da | claude sha256:941a2ffa6b38b9329d3c2b86e125ee872f7ae1d0fe263e58d7c9a933b306102c |
+| submit-request/task-16.prompt |  | executor-rendered | pi sha256:a276797c79f2202e8ffcc16324b8aac1e7413e146832b2f8a2d9c8da8ad28611 | claude sha256:422f65aeda0b0e8032c31720ad1b9a26f2e8b2647e3f07853cf281bd26a082ad |
+| submit-request/task-18.prompt |  | executor-rendered | pi sha256:b3ae765297f128b08ff74c8288bc0561bb0ac9d52002ef9f45ba20dce17b907c | claude sha256:9abba1f16e3be5defa626aad9b55e21ecd302aa5cb3b3d821c15db8a94dc61e1 |
+| submit-request/task-20.prompt |  | executor-rendered | pi sha256:32d39b3fea5a504b0167687f4894ebd33a34871bc79c28a7ce830d0d83d17ad5 | claude sha256:50e0866f750081df69f3038608acd6944b4e7d0df4c3eadc3a001323de7d30fb |
+| submit-request/task-9.prompt |  | executor-rendered | pi sha256:7fc8d9522c8a072cb7fd4b7d98ea3d93acf1af287245eccf322960173c00be5e | claude sha256:355d76fb5fbef725e8d286f7064db309a27834f5da6d6e726fe14a5c61e59be1 |
+
+</details>
+
+<details><summary>allowed derived-launch-identity (53)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | tasks[].durableLaunchBarrier.records[].descriptor.ackPath | digest-renamed ×11 |  |  |
+| run.json | tasks[].durableLaunchBarrier.records[].descriptor.decisionPath | digest-renamed ×11 |  |  |
+| run.json | tasks[].durableLaunchBarrier.records[].descriptor.directory | digest-renamed ×11 |  |  |
+| run.json | tasks[].durableLaunchBarrier.records[].descriptor.readyPath | digest-renamed ×11 |  |  |
+| run.json | tasks[].durableLaunchBarrier.records[].descriptor.subjectSha256 | digest-renamed ×11 |  |  |
+| run.json | tasks[].durableLaunchBarrier.records[].launchAuthoritySha256 | digest-renamed ×11 |  |  |
+| run.json | tasks[].launchAuthority.records[].grant.identitySha256 | digest-renamed ×11 |  |  |
+| run.json | tasks[].launchAuthority.records[].grant.launchBootstrapSha256 | digest-renamed ×11 |  |  |
+| run.json | tasks[].launchBootstrap.records[].identitySha256 | digest-renamed ×11 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-1/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-11/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-12/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-13/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-14/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-15/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-16/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-18/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-20/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-4/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/decision-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json | subjectSha256 | digest-renamed ×1 |  |  |
+| tasks/task-9/.launch-barrier-&lt;ALLOWED:derived-launch-identity#*:16&gt;-&lt;RAND16&gt;/ready-v2.json.txn | subjectSha256 | digest-renamed ×1 |  |  |
+
+</details>
+
+<details><summary>allowed executor-record-source (25)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | foreachBatches[0].physicalExecution.timing.attempts[0].source | changed | pi-subagent | executor |
+| run.json | foreachBatches[1].physicalExecution.timing.attempts[0].source | changed | pi-subagent | executor |
+| run.json | foreachBatches[2].physicalExecution.timing.attempts[0].source | changed | pi-subagent | executor |
+| run.json | tasks[0].timing.attempts[0].source | changed | pi-subagent | executor |
+| run.json | tasks[0].usage.source | changed | pi-subagent | executor |
+| run.json | tasks[2].timing.attempts[0].source | changed | pi-subagent | executor |
+| run.json | tasks[2].usage.source | changed | pi-subagent | executor |
+| run.json | tasks[3].timing.attempts[0].source | changed | pi-subagent | executor |
+| run.json | tasks[3].usage.source | changed | pi-subagent | executor |
+| run.json | tasks[4].timing.attempts[0].source | changed | pi-subagent | executor |
+| run.json | tasks[4].usage.source | changed | pi-subagent | executor |
+| run.json | tasks[6].timing.attempts[0].source | changed | pi-subagent | executor |
+| run.json | tasks[6].usage.source | changed | pi-subagent | executor |
+| run.json | tasks[9].timing.attempts[0].source | changed | pi-subagent | executor |
+| run.json | tasks[9].usage.source | changed | pi-subagent | executor |
+| run.json | tasks[10].timing.attempts[0].source | changed | pi-subagent | executor |
+| run.json | tasks[10].usage.source | changed | pi-subagent | executor |
+| run.json | tasks[11].timing.attempts[0].source | changed | pi-subagent | executor |
+| run.json | tasks[11].usage.source | changed | pi-subagent | executor |
+| run.json | tasks[13].timing.attempts[0].source | changed | pi-subagent | executor |
+| run.json | tasks[13].usage.source | changed | pi-subagent | executor |
+| run.json | tasks[15].timing.attempts[0].source | changed | pi-subagent | executor |
+| run.json | tasks[15].usage.source | changed | pi-subagent | executor |
+| run.json | tasks[19].timing.attempts[0].source | changed | pi-subagent | executor |
+| run.json | tasks[19].usage.source | changed | pi-subagent | executor |
+
+</details>
+
+<details><summary>allowed foreach-batch-capability-identity (1)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | foreachBatches[].capabilitySubjectSha256 | digest-renamed ×3 |  |  |
+
+</details>
+
+<details><summary>allowed foreach-execution-surface (1)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | foreachBatches[].executionSurfaceSha256 | digest-renamed ×3 |  |  |
+
+</details>
+
+<details><summary>allowed host-path-digest (4)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | tasks[].launchBootstrap.records[].artifacts.configSha256 | digest-renamed ×6 |  |  |
+| run.json | tasks[].launchBootstrap.records[].effectiveLaunch.artifactBinding.manifestPathSha256 | digest-renamed ×6 |  |  |
+| run.json | tasks[].launchBootstrap.records[].effectivePolicy.toolProvidersSha256 | digest-renamed ×6 |  |  |
+| run.json | tasks[].launchBootstrap.records[].workflow.specPathSha256 | digest-renamed ×11 |  |  |
+
+</details>
+
+<details><summary>allowed host-path-file-size (15)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | tasks[].rawArtifactIntegrity.terminalVersion.size | digest-renamed ×14 |  |  |
+| tasks/task-1/result.json | rawIntegrity.terminalVersion.size | digest-renamed ×1 |  |  |
+| tasks/task-11/result.json | rawIntegrity.terminalVersion.size | digest-renamed ×1 |  |  |
+| tasks/task-12/result.json | rawIntegrity.terminalVersion.size | digest-renamed ×1 |  |  |
+| tasks/task-13/result.json | rawIntegrity.terminalVersion.size | digest-renamed ×1 |  |  |
+| tasks/task-14/result.json | rawIntegrity.terminalVersion.size | digest-renamed ×1 |  |  |
+| tasks/task-15/result.json | rawIntegrity.terminalVersion.size | digest-renamed ×1 |  |  |
+| tasks/task-16/result.json | rawIntegrity.terminalVersion.size | digest-renamed ×1 |  |  |
+| tasks/task-17/result.json | rawIntegrity.terminalVersion.size | digest-renamed ×1 |  |  |
+| tasks/task-18/result.json | rawIntegrity.terminalVersion.size | digest-renamed ×1 |  |  |
+| tasks/task-19/result.json | rawIntegrity.terminalVersion.size | digest-renamed ×1 |  |  |
+| tasks/task-20/result.json | rawIntegrity.terminalVersion.size | digest-renamed ×1 |  |  |
+| tasks/task-21/result.json | rawIntegrity.terminalVersion.size | digest-renamed ×1 |  |  |
+| tasks/task-4/result.json | rawIntegrity.terminalVersion.size | digest-renamed ×1 |  |  |
+| tasks/task-9/result.json | rawIntegrity.terminalVersion.size | digest-renamed ×1 |  |  |
+
+</details>
+
+<details><summary>allowed host-path-manifest-digest (1)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| run.json | tasks[].launchBootstrap.records[].artifacts.manifestSha256 | digest-renamed ×5 |  |  |
+
+</details>
+
+<details><summary>allowed renamed-literal-digest-binding (13)</summary>
+
+| File | Path / line | Kind | Recorded | Replayed |
+|---|---|---|---|---|
+| supervisor.json |  | digest-bound ×0 | d675d7c5f0ad9cae409776fb7c97439ffb8fd288bde0a6a478350e0671f3f0a0 | 31715982cf297d48b18b4edb0012b7bbaa7e99b259448b50c0f44a98dc1a21eb |
+| tasks/task-10/source-manifest.json |  | digest-bound ×0 | e6567207bf00961535171ce2a7f54ffbe3c29a4f89c68939fd1b085bb5749434 | c327e1c57fa92bebc762f51774f529f21237c041344c2d54b525c6fb83c7b55a |
+| tasks/task-11/source-manifest.json |  | digest-bound ×1 | 034cd5578ef03a2890cb33ad906d9cd6bb74ed9ce42527002d650b15c28edf14 | 3bf5c2521b4a2d2eff0b22616018b4477ee00d721d938015b5b13f69c72b286c |
+| tasks/task-12/source-manifest.json |  | digest-bound ×1 | 924db728e4c448bc5b37b9a887e522012805e04dc3b362de18d94c33981d8166 | 2f0643a5029a7544221c640d0d442cc129fb08155ddcbcdf8ae0291ebd95e83e |
+| tasks/task-13/source-manifest.json |  | digest-bound ×1 | fae9ca4ee9c47f0a55fe7b40387e3f9d885c388b2ea3bc3bccd1520222c53012 | 0fd6bcbafdd0c9d4433ef150315da8e45c4165093eedfa1e603cfc3a3d0eda65 |
+| tasks/task-3/source-manifest.json |  | digest-bound ×0 | 780bc0dc99e7fa6faac85ebf68cdfdba2deb99ea02cb8fd433edd5debe8da854 | 95624abeae95cbb79fcf420bd0d816b2d5807f618552e97e6ac2c21e6c08a9fe |
+| tasks/task-4/read-ledger.jsonl |  | digest-bound ×0 | f32560de6fc74ed1d1e79d9740fc557f9d31407f68bac9b8ea4e319ddd67372c | a4a972fe11fd29522cde961673f68bb8287db44eef0a55f9a1b77dffb7330ac7 |
+| tasks/task-4/source-manifest.json |  | digest-bound ×1 | de8b7353750ecbed11f8b71bb29ec35f5d83e7ae2ac47c569c947aa85155f5c6 | 7af02ad948062a7504fe9f27fcd3105918559bbd2860488d4d83f56f2ae88047 |
+| tasks/task-5/source-manifest.json |  | digest-bound ×0 | c7f29f184462046ea4396ead7f75966ec311946169b712e917def6b2e3262f7c | d672a86530ddabf16af53613afaf2666a655b0394ee5faad098e99456ea7440c |
+| tasks/task-7/source-manifest.json |  | digest-bound ×0 | 6d0bc9271a3ba0b5c29d94373951ad926112f28ab9b956c18662084483fa1705 | 54d95121986f0174337f29ad35b2a0a0ae7506f0678d76ca9606e96d313c21cb |
+| tasks/task-8/source-manifest.json |  | digest-bound ×0 | 1d29d6b75bdb2497abb9d7bddbc566c84cfb175563e4ea4e91c545a150eb6cca | 64b22e0949c452a42fc4fa5e8769d05313842c1a1d03a2a4f7dc465316bb6cb8 |
+| tasks/task-9/read-ledger.jsonl |  | digest-bound ×0 | 5a500e80efc6560f6a32af4a6a330a05eea49c2134df67fde7800f35b2e36488 | 86fcad54223fc83aef1524832161742a75d3d04ce49136baf8ef26a613cd4534 |
 | tasks/task-9/source-manifest.json |  | digest-bound ×1 | 23b88df0e11ca89c416cf9c64fc4dd5ef4a9375c0451abce85cf1311e796d69f | 77cdd5864150c96b8e251171ca6651e36298eadfffdfc8c559b0a9aa873f79b5 |
 
 </details>

@@ -173,6 +173,157 @@ export function renderWorkerPromptToolNames(
 }
 
 /**
+ * WP37 (stage-1 open problem 8): inline renames of logical tool names in task prompts, per executor.
+ * Only executors whose CLI tools have plain names are listed (Claude, from the adapter's tool
+ * mapping, docs/executors/claude.md). Codex maps the logical names to the shell and the hosted
+ * `web_search` tool, which are not names a sentence can use in place of `read`; its task prompts
+ * keep the logical names and get the M17 note. Pi uses the logical names.
+ */
+export const WORKER_TASK_TOOL_RENAMES: Readonly<
+	Record<"claude", Readonly<Record<string, string>>>
+> = {
+	claude: {
+		read: "Read",
+		grep: "Grep",
+		find: "Glob",
+		ls: "Glob",
+		bash: "Bash",
+		edit: "Edit",
+		write: "Write",
+		web_search: "WebSearch",
+		fetch_content: "WebFetch",
+	},
+};
+
+// Logical tool names a task prompt may mention. `read`, `find`, `edit` and `write` are also plain
+// words: they count as tool names only inside a tool list (below). The others count anywhere.
+const TASK_TOOL_NAMES = [
+	"web_search",
+	"fetch_content",
+	"read",
+	"grep",
+	"find",
+	"ls",
+	"bash",
+	"edit",
+	"write",
+] as const;
+const UNAMBIGUOUS_TASK_TOOL_NAMES = new Set([
+	"web_search",
+	"fetch_content",
+	"grep",
+	"ls",
+	"bash",
+]);
+const TASK_TOOL_NAME = `(?:${TASK_TOOL_NAMES.join("|")})`;
+const TASK_TOOL_LIST_SEPARATOR = String.raw`(?:\s*/\s*|,\s+(?:(?:or|and)\s+)?|\s+(?:or|and)\s+)`;
+const TASK_TOOL_BEFORE = String.raw`(?<![A-Za-z0-9_./-])`;
+const TASK_TOOL_AFTER = String.raw`(?![A-Za-z0-9_/-]|\.[A-Za-z0-9])`;
+/** `read/grep/find/ls`, `read, grep, find, or ls`, `web_search and fetch_content`. */
+const TASK_TOOL_LIST = new RegExp(
+	`${TASK_TOOL_BEFORE}${TASK_TOOL_NAME}(?:${TASK_TOOL_LIST_SEPARATOR}${TASK_TOOL_NAME})+${TASK_TOOL_AFTER}`,
+	"gu",
+);
+const TASK_TOOL_LIST_PARTS = new RegExp(
+	`(${TASK_TOOL_NAME})|(${TASK_TOOL_LIST_SEPARATOR})`,
+	"gu",
+);
+const TASK_TOOL_STANDALONE = new RegExp(
+	`${TASK_TOOL_BEFORE}(?:${[...UNAMBIGUOUS_TASK_TOOL_NAMES].join("|")})${TASK_TOOL_AFTER}`,
+	"gu",
+);
+
+/** A list of tool names is a tool list when it names an unambiguous tool or at least three. */
+function taskToolList(
+	text: string,
+): { names: string[]; separators: string[] } | undefined {
+	const names: string[] = [];
+	const separators: string[] = [];
+	for (const part of text.matchAll(TASK_TOOL_LIST_PARTS)) {
+		if (part[1] !== undefined) names.push(part[1]);
+		else if (part[2] !== undefined) separators.push(part[2]);
+	}
+	if (names.length < 2 || separators.length !== names.length - 1)
+		return undefined;
+	if (
+		names.length < 3 &&
+		!names.some((name) => UNAMBIGUOUS_TASK_TOOL_NAMES.has(name))
+	)
+		return undefined;
+	return { names, separators };
+}
+
+/** Codex code mode (live 4b): MCP tools are functions inside the model's `exec` cell. */
+function codexCodeModeNote(visibleName: string): string {
+	return `In Codex code mode an MCP tool is a function inside the exec cell: call ${visibleName} as tools.${visibleName}(…).`;
+}
+
+/**
+ * WP37 (stage-1 open problem 8): renders a worker **task** prompt for `executorId` with the same
+ * mapping the system prompt uses ({@link renderWorkerPromptToolNames}, M17).
+ * - Pi and unknown executors: only the artifact tool's visible name (as before).
+ * - Claude: logical tool names become Claude's tool names inline (`web_search` → `WebSearch`,
+ *   `read/grep/find/ls` → `Read/Grep/Glob`). `read`, `find`, `edit` and `write` are renamed only
+ *   inside a tool list, so prose ("read the brief") stays.
+ * - Codex: the logical names stay and the M17 mapping note for the mentioned tools is appended,
+ *   plus the code-mode form of the artifact tool when the prompt names it (live 4b).
+ * Tools mentioned but not renamed get the note on Claude too. Idempotent.
+ */
+export function renderWorkerTaskPromptToolNames(
+	text: string,
+	executorId: string,
+): string {
+	const rendered = renderWorkerPromptToolNames(text, executorId);
+	if (!Object.hasOwn(WORKER_TOOL_NAME_MAPPINGS, executorId)) return rendered;
+	const marker = `\n\n${TOOL_MAPPING_NOTE_PREFIX}${executorId})`;
+	if (rendered.includes(marker)) return rendered;
+	const renames: Readonly<Record<string, string>> = Object.hasOwn(
+		WORKER_TASK_TOOL_RENAMES,
+		executorId,
+	)
+		? WORKER_TASK_TOOL_RENAMES[executorId as "claude"]
+		: {};
+	const mentioned: Array<{ at: number; name: string }> = [];
+	let out = rendered.replace(TASK_TOOL_LIST, (match, offset: number) => {
+		const list = taskToolList(match);
+		if (!list) return match;
+		if (!list.names.every((name) => Object.hasOwn(renames, name))) {
+			for (const name of list.names) mentioned.push({ at: offset, name });
+			return match;
+		}
+		const kept = [...new Set(list.names.map((name) => renames[name]!))];
+		const separators = list.separators.slice(
+			list.separators.length - (kept.length - 1),
+		);
+		return kept
+			.map((name, index) => (index === 0 ? name : separators[index - 1] + name))
+			.join("");
+	});
+	// Snake-case names are never prose: rename them anywhere. grep/ls/bash outside a list (a
+	// command line, say) stay and are mapped by the note.
+	out = out.replace(TASK_TOOL_STANDALONE, (name, offset: number) => {
+		if (Object.hasOwn(renames, name) && name.includes("_"))
+			return renames[name]!;
+		mentioned.push({ at: offset, name });
+		return name;
+	});
+	const names = [
+		...new Set(
+			mentioned.sort((a, b) => a.at - b.at).map((entry) => entry.name),
+		),
+	];
+	const note = workerToolMappingNote(names, executorId);
+	const visible = artifactToolVisibleName(executorId);
+	const parts = [
+		...(note ? [note] : []),
+		...(executorId === "codex" && out.includes(visible)
+			? [codexCodeModeNote(visible)]
+			: []),
+	];
+	return parts.length === 0 ? out : `${out}\n\n${parts.join(" ")}`;
+}
+
+/**
  * Worker-prompt section with the artifact tool guidelines. MCP clients do not all show server
  * `instructions` to the model (Pi 1.1 does not), so the task backend puts them in the system
  * prompt of every task that has the artifact server. Uses the logical name; render it with

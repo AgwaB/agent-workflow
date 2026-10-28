@@ -38,7 +38,10 @@
 //   fixtureDir  absolute fixture directory (required)
 //   roots       {ROOT, PKG, HOME, TMP} replay host roots; values may be arrays (required)
 //   traceLog    absolute JSONL path; serve/miss/read entries are appended (required)
-//   id          executor id (default "pi": the replay stands in for the Pi executor)
+//   id          executor id (default "pi": the replay stands in for the Pi executor). WP37: any other
+//               id re-keys the recorded prompts with that executor's task-prompt rendering
+//               (renderWorkerTaskPromptToolNames, rule `wp37-per-executor-task-prompt`), so a
+//               request rendered for claude/codex matches the recording it was rendered from.
 //   outputLimit artifact server --max-output-chars (default MAX_MCP_OUTPUT_LIMIT_CHARS; null = the
 //               engine's server spec unchanged)
 //   adapterChecks  true (default): before matching, refuse the request exactly as the Pi adapter's
@@ -326,6 +329,25 @@ export async function createExecutor(config) {
 	const renames = allowed.flatMap((entry) => entry.renames ?? []);
 	const ctx = createContext(config.roots ?? {});
 	const recorded = loadRecordedWorkerCalls(fixtureDir, renames);
+	if (id !== "pi") {
+		const { renderWorkerTaskPromptToolNames } = await import(
+			distUrl("core/artifact-tool-names.js")
+		);
+		for (const call of recorded) {
+			const plain = call.prompt;
+			call.prompt = applyLiteralRenames(
+				renderWorkerTaskPromptToolNames(plain, id),
+				renames,
+			).text;
+			call.key = matchKey(call.taskId, call.prompt);
+			call.rendering = {
+				executor: id,
+				changed: call.prompt !== plain,
+				recorded: sha256(plain),
+				rendered: sha256(call.prompt),
+			};
+		}
+	}
 	const { createFakeExecutor } = await import(distUrl("sdk/testing/index.js"));
 	const { usageFromPi } = await import(distUrl("executors/pi/parse.js"));
 	const { SdkError } = await import(distUrl("sdk/errors.js"));
@@ -453,6 +475,7 @@ export async function createExecutor(config) {
 				seq: call.seq,
 				key: sha256(key),
 				...(digestBindings === undefined ? {} : { digestBindings }),
+				...(call.rendering === undefined ? {} : { rendering: call.rendering }),
 			});
 			return call;
 		}

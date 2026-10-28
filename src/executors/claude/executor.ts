@@ -8,7 +8,8 @@
  * - respond: answers `can_use_tool` control requests (approval channel, R#4); unanswered requests
  *   are denied after `approvalPolicy.timeoutMs` (fail closed, D2).
  * - cancel: `interrupt` control request; `owned` also ends stdin and escalates SIGTERM → SIGKILL.
- * - reconcile: in-memory run, else the durable record.
+ * - reconcile: in-memory run, else the durable record: `found` when the raw stream recorded a
+ *   result, `unknown` with a reason when the owning worker died without one (WP37, B3).
  * - deleteOwnedSession: removes only sessions this adapter created and recorded (D3, R#10).
  */
 import { spawn } from "node:child_process";
@@ -467,6 +468,13 @@ export function createClaudeExecutor(options: {
 							transcript: false,
 						},
 					).catch(() => 0);
+				// WP37: the raw stream is on disk before the terminal event, so a reconcile in another
+				// process right after it (the worker exits at once) sees the recorded result.
+				await new Promise<void>((resolve) => {
+					if (rawStream.closed || rawStream.destroyed) return resolve();
+					rawStream.once("close", () => resolve());
+					rawStream.end();
+				});
 				const held = run.heldTerminal;
 				run.heldTerminal = undefined;
 				if (held !== undefined) push(run, held);
@@ -479,7 +487,6 @@ export function createClaudeExecutor(options: {
 						? {}
 						: { spawnError: redact(spawnError) }),
 				});
-				rawStream.end();
 				stderrStream.end();
 			};
 			// Let readline flush the last stdout lines before deciding the terminal event.
@@ -511,6 +518,22 @@ export function createClaudeExecutor(options: {
 			);
 		return run;
 	};
+
+	/** The kept raw stream holds a terminal (`result`) line. Unreadable or missing → false. */
+	async function rawStreamRecordedResult(
+		rawPath: string | undefined,
+	): Promise<boolean> {
+		if (rawPath === undefined) return false;
+		let text: string;
+		try {
+			text = await readFile(rawPath, "utf8");
+		} catch {
+			return false;
+		}
+		return parseClaudeStream(text.split("\n"), {}).some(
+			(event) => event.type === "completed" || event.type === "failed",
+		);
+	}
 
 	async function* replay(ref: ExecRef): AsyncGenerator<ExecEvent> {
 		const record = await store.readAttempt(ref.attemptKey);
@@ -682,8 +705,17 @@ export function createClaudeExecutor(options: {
 				return { unknown: true, reason: lookup.reason };
 			const record = lookup.record;
 			if (record.phase === "revoked") return { absent: true };
-			if (record.phase === "spawned" && record.ref !== undefined)
-				return { found: record.ref };
+			if (record.phase === "spawned" && record.ref !== undefined) {
+				// WP37 (B3, sessionBound): this process does not own the attempt, so the worker that
+				// spawned the CLI is gone and its stdio and control protocol went with it. A recorded
+				// result can still be replayed (`found`); without one nobody can tell how it ended.
+				if (await rawStreamRecordedResult(record.rawPath))
+					return { found: record.ref };
+				return {
+					unknown: true,
+					reason: `claude attempt ${record.ref.handle} (CLI pid ${record.pid ?? "unknown"}) was launched by a worker process that is gone; the claude CLI is session-bound (its stdio and control protocol belonged to that process) and no result was recorded, so the outcome is unknown: needs an owner decision, no automatic relaunch (B3)`,
+				};
+			}
 			return {
 				unknown: true,
 				reason: "authority consumed but no launch evidence was recorded",

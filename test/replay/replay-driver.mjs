@@ -316,6 +316,7 @@ export async function replayFixture(name, options = {}) {
 		...(options.adapterChecks === undefined
 			? {}
 			: { adapterChecks: options.adapterChecks }),
+		...(options.executorId === undefined ? {} : { id: options.executorId }),
 	});
 	const saved = {};
 	setEnv(
@@ -332,11 +333,13 @@ export async function replayFixture(name, options = {}) {
 	let refusal;
 	try {
 		try {
-			run = await engine.runWorkflowSpec(
-				specPath,
-				project,
-				replayRunOptions(loaded.fixture),
-			);
+			run = await engine.runWorkflowSpec(specPath, project, {
+				...replayRunOptions(loaded.fixture),
+				// WP37: a per-executor variant selects the replay descriptor by its id (run flag).
+				...(options.executorId === undefined
+					? {}
+					: { executor: options.executorId }),
+			});
 		} catch (error) {
 			refusal = {
 				name: error?.name ?? "Error",

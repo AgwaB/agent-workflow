@@ -1526,3 +1526,76 @@ unexplained differences in every variant. Every new test that spawns a process k
    the scanner misses or over-flags. Test: `release-secret-scan.test.mjs` (self-test, rule names,
    unquoted code expressions, the shipped `src`/`dist`/`docs`/`skills`/`workflows`/`agents` text has
    no finding).
+
+## WP37 — engine open items (per-executor task prompts, resume after stop, Claude reconcile, profile precedence)
+
+### WP37 change log
+
+1. **Task prompts are rendered per executor** (stage-1 open problem 8, live bundle 3). Until now only
+   the system prompt got the M17 tool mapping; task prompts named Pi's tools (`read/grep/find/ls`,
+   `web_search`, `fetch_content`). `launchSubagentTask` now sends
+   `renderWorkerTaskPromptToolNames(compiledPrompt, executor.id)` (`src/core/artifact-tool-names.ts`):
+   - **Pi** (and unknown executors): unchanged, only the artifact tool's visible name (WP10).
+   - **Claude:** the logical names become Claude's tool names inline (`WORKER_TASK_TOOL_RENAMES`, the
+     adapter's mapping): `web_search` → `WebSearch` and `fetch_content` → `WebFetch` anywhere;
+     `read`/`grep`/`find`/`ls`/`bash`/`edit`/`write` inside a tool list (`read/grep/find/ls` →
+     `Read/Grep/Glob`, `filesystem read, grep, find, or ls` → `filesystem Read, Grep, or Glob`;
+     duplicates collapse). `read`, `find`, `edit`, `write` outside a list are prose and stay.
+   - **Codex:** its tools have no names a sentence could use instead (shell commands, the hosted
+     `web_search`), so the logical names stay and the M17 note (`workerToolMappingNote`, the same
+     text as in the system prompt) for the mentioned tools is appended, plus the code-mode form of
+     the artifact tool when the prompt names it: "call mcp__workflow_artifact__workflow_artifact as
+     tools.mcp__workflow_artifact__workflow_artifact(…)" (live 4b: Codex 0.159.2 runs the model in
+     code mode).
+   - A tool named outside a list (`grep`, `ls`, `bash`) is not renamed; the note maps it (Claude too).
+   `task.md` and the launch provenance keep the canonical text. Replay: the replay executor re-keys
+   the recorded prompts with the same renderer when it is registered under another id, and the new
+   variants `minimal:codex` and `deep-research:engine-only-claude` show every launch matched; each
+   rendered launch is one `explained` row of rule `wp37-per-executor-task-prompt` (docs/replay.md
+   "WP37"). Tests: `core-wp37-task-prompt-tools.test.mjs` (renderer per executor, task backend with
+   fixture executors registered as `pi`, `claude`, `codex`), `replay-acceptance.test.mjs`.
+2. **Resume right after stop** (parity §3.2). `stop` interrupts the run, but the stopped supervisor
+   (attached, often in the same process) may hold the run's supervisor lease for a moment while it
+   shuts down; `resume` refused at once with "another supervisor may be active". Now `resumeRun`, when
+   the lease is held and the stop is recorded (run `interrupted` with `workflow_stopped` tasks or a
+   durable stop intent), retries the normal lease acquisition every 100 ms for up to 10 s. Not
+   released in time → `Cannot resume <run> yet: the previous supervisor is still shutting down; try
+   again in a few seconds`, run unchanged. A live lease is never taken (the acquisition only reclaims
+   stale leases, as before), and a held lease on a run that was not stopped is refused at once with
+   the old message. Tests: `core-wp37-resume-after-stop.test.mjs` (lease held 0.8 s after stop →
+   resume waits and completes; held past the bound → the message, live holder unaffected, then a
+   resume succeeds; blocked run not stopped → immediate refusal); `host-api-handlers.test.mjs` "wait
+   is bounded … stop then resume" no longer retries.
+3. **Claude `sessionBound` reconcile** (parity §3.2, B3). When a Claude worker dies its CLI loses
+   stdio; reconcile from another process could not observe it but answered `found`. It now answers
+   `unknown` with a reason unless the raw stream recorded a result, so the runtime records
+   `failed/needs_decision` with that reason and the engine blocks the task (`executor_needs_decision`),
+   never relaunching it automatically. Details and tests: docs/executors/claude.md change log
+   "WP37".
+4. **Saved vs declared profiles, field by field** (parity §3.2, B2 interpretation). A selected
+   workflow-declared profile used to replace the saved user profile as a whole, so the default saved
+   profile's executor (or permission mode) never applied under a declared profile that omitted it.
+   Now the precedence run flag > workflow profile > saved user profile > default holds per field.
+   New run option `savedUserProfile` (`WorkflowSavedUserProfileLayer`: name, executor, permissionMode,
+   strictCapabilities, model, effort), used only with a declared `executionProfile`: the executor and
+   permission-mode resolvers get it as their saved-user-profile tier, `workflowProfileStrictCapabilities`
+   falls back to it when the declared profile has no `executionProfileStrictCapabilities` entry (an
+   empty list is an entry), and its model/effort join the run defaults when it names no executor or
+   the run's executor (`runtimeDefaultsWithSavedProfile`; host defaults still apply only to their own
+   executor). The host launch (`src/hosts/launch.ts`) passes the default saved user profile with an
+   explicit declared profile and with the declared default/chooser choice; an unreadable profiles
+   file is ignored there, as before. A saved profile named with `--profile` and the Pi per-workflow
+   preference are unchanged. The launch fingerprint includes the inherited profile. Docs:
+   `docs/usage.md` "Profiles", `docs/cli.md` "Precedence". Test:
+   `host-wp37-profile-precedence.test.mjs` (explicit and default declared profile inherit executor,
+   mode and effort; declared executor/mode win per field; run flags win; saved effort not applied to
+   another executor; inherited and declared strictCapabilities).
+
+### WP37 validation
+
+`npm run validate` (twice) and `npm run e2e` exit 0 on the final commit; replay acceptance has 0
+unexplained differences in every fixture and variant, including the new executor variants
+`minimal:codex` and `deep-research:engine-only-claude` (docs/replay.md "WP37 change log");
+`node tools/release/plugins.mjs check` passes. Engine status semantics are unchanged (owner
+decision Q8: a domain verdict still fails the run; not part of WP37). No model or agent CLI was
+called.

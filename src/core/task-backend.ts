@@ -19,6 +19,7 @@ import {
 } from "./artifact-access.js";
 import {
 	renderWorkerPromptToolNames,
+	renderWorkerTaskPromptToolNames,
 	workflowArtifactToolGuidelinesSection,
 } from "./artifact-tool-names.js";
 import { DEFAULT_WORKER_TOOLS, workflowTaskReadOnly } from "./tool-policy.js";
@@ -330,7 +331,8 @@ export async function launchSubagentTask(
 	// WP10: tasks with the artifact server get its guidelines (not every MCP client shows server
 	// instructions). The prompt files keep the engine's canonical text (logical tool names; the
 	// launch provenance digests compiledPrompt = task.md); the SubmitRequest carries the text
-	// rendered for the executor (artifact tool by its visible name).
+	// rendered for the executor (artifact tool by its visible name; WP37: the task prompt also names
+	// the executor's own tools, see renderWorkerTaskPromptToolNames).
 	const systemPrompt = buildSystemPrompt(compiledTask, effectiveLaunchTools, {
 		artifactTool: launchHasArtifactTool(sealedLaunch, effectiveLaunchTools),
 	});
@@ -339,7 +341,7 @@ export async function launchSubagentTask(
 		executor.id,
 	);
 	const renderedTaskPrompt = renderControlSchemaPath(
-		renderWorkerPromptToolNames(compiledTask.compiledPrompt, executor.id),
+		renderWorkerTaskPromptToolNames(compiledTask.compiledPrompt, executor.id),
 		task,
 	);
 	let releaseLiveModelWorkerSlot: (() => void) | undefined;

@@ -258,6 +258,7 @@ import {
 	type WorkflowCapturedExecutionProfile,
 	type WorkflowRunRouting,
 	type WorkflowTaskRunRecord,
+	type ThinkingLevel,
 } from "./types.js";
 import {
 	clampTimeout,
@@ -361,6 +362,40 @@ const supervisorRunMtimes = new Map<string, number>();
 const supervisorErrorCounts = new Map<string, number>();
 const MAX_SUPERVISOR_CONSECUTIVE_ERRORS = 3;
 
+/** WP37: the saved user profile fields that sit below a declared profile (B2 precedence). */
+export interface WorkflowSavedUserProfileLayer {
+	name: string;
+	executor?: string;
+	permissionMode?: "free" | "safe";
+	strictCapabilities?: string[];
+	model?: string;
+	effort?: ThinkingLevel;
+}
+
+/**
+ * WP37: run defaults from the saved user profile under a declared profile. Host defaults keep
+ * applying only to the executor they belong to; the saved model/effort apply when the saved profile
+ * names no executor or names the run's executor.
+ */
+function runtimeDefaultsWithSavedProfile(
+	defaults: WorkflowRuntimeDefaults | undefined,
+	saved: WorkflowSavedUserProfileLayer | undefined,
+	executorId: string,
+): WorkflowRuntimeDefaults | undefined {
+	const host = runtimeDefaultsForExecutor(defaults, executorId);
+	if (
+		saved === undefined ||
+		(saved.model === undefined && saved.effort === undefined) ||
+		(saved.executor !== undefined && saved.executor !== executorId)
+	)
+		return host;
+	return {
+		...(host ?? {}),
+		...(saved.model === undefined ? {} : { model: saved.model }),
+		...(saved.effort === undefined ? {} : { thinking: saved.effort }),
+	};
+}
+
 export interface WorkflowRunOptions {
 	task?: string;
 	runtimeOverrides?: WorkflowRuntimeDefaults;
@@ -393,6 +428,14 @@ export interface WorkflowRunOptions {
 	 * A declared executionProfile takes precedence when both are supplied.
 	 */
 	executionProfileOverride?: WorkflowCapturedExecutionProfile;
+	/**
+	 * WP37 (B2, field by field): the saved user profile layered under a selected declared
+	 * `executionProfile`. Each field the declared profile does not set (executor, permission mode,
+	 * strictCapabilities) comes from here; its model/effort are run defaults when it names no
+	 * executor or the run's executor. Ignored without `executionProfile` (use
+	 * `executionProfileOverride` for a saved profile on its own).
+	 */
+	savedUserProfile?: WorkflowSavedUserProfileLayer;
 	/**
 	 * Run flag: executor id for this run (B2 precedence: run flag > workflow
 	 * declared profile > saved user profile > default). Unknown or unavailable
@@ -722,10 +765,10 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 					options.executionProfile,
 				),
 				userProfileName: options.executionProfile
-					? undefined
+					? options.savedUserProfile?.name
 					: options.executionProfileOverride?.name,
 				userProfileMode: options.executionProfile
-					? undefined
+					? options.savedUserProfile?.permissionMode
 					: options.executionProfileOverride?.permissionMode,
 			});
 	// Executor selection (B2) fails before any run record or launch exists. WP17: with no
@@ -742,10 +785,10 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 					options.executionProfile,
 				),
 				userProfileName: options.executionProfile
-					? undefined
+					? options.savedUserProfile?.name
 					: options.executionProfileOverride?.name,
 				userProfileExecutor: options.executionProfile
-					? undefined
+					? options.savedUserProfile?.executor
 					: options.executionProfileOverride?.executor,
 				defaultExecutor: options.defaultExecutor,
 				...(options.host === undefined ? {} : { host: options.host }),
@@ -762,9 +805,11 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 		...(allowSharedCheckoutWrites ? { allowSharedCheckoutWrites: true } : {}),
 		permissionMode: permissionMode.mode,
 		runtimeOverrides: options.runtimeOverrides,
-		// Host model/thinking defaults apply only to the executor they belong to.
-		runtimeDefaults: runtimeDefaultsForExecutor(
+		// Host model/thinking defaults apply only to the executor they belong to; WP37: the saved
+		// profile under a declared one adds its model/effort for its own executor.
+		runtimeDefaults: runtimeDefaultsWithSavedProfile(
 			options.runtimeDefaults,
+			options.executionProfile ? options.savedUserProfile : undefined,
 			executor.id,
 		),
 		availableModels: options.availableModels,
@@ -786,6 +831,7 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 						spec,
 						options.executionProfile,
 						options.executionProfileOverride,
+						options.savedUserProfile,
 					),
 			allowReadOnlyDowngrade:
 				(spec as { allowReadOnlyDowngrade?: unknown })
@@ -2751,6 +2797,38 @@ function assertRunResumableForResume(run: WorkflowRunRecord): void {
 	assertBlockedRunResumable(run);
 }
 
+/** WP37: how long `resume` waits for a just-stopped supervisor to release the run lease. */
+const RESUME_AFTER_STOP_LEASE_WAIT_MS = 10_000;
+const RESUME_AFTER_STOP_LEASE_POLL_MS = 100;
+let resumeAfterStopLeaseWait = {
+	timeoutMs: RESUME_AFTER_STOP_LEASE_WAIT_MS,
+	pollMs: RESUME_AFTER_STOP_LEASE_POLL_MS,
+};
+
+export function setResumeAfterStopLeaseWaitForTests(
+	options: { timeoutMs?: number; pollMs?: number } | undefined,
+): void {
+	resumeAfterStopLeaseWait = {
+		timeoutMs: options?.timeoutMs ?? RESUME_AFTER_STOP_LEASE_WAIT_MS,
+		pollMs: options?.pollMs ?? RESUME_AFTER_STOP_LEASE_POLL_MS,
+	};
+}
+
+/**
+ * The run is terminal (interrupted) because a stop was applied: a durable stop intent is still
+ * recorded, or the stop marked its tasks `workflow_stopped`. Only then is a held lease the stopped
+ * supervisor shutting down rather than another live supervisor.
+ */
+async function runStopRecordedForResume(
+	cwd: string,
+	runId: string,
+): Promise<boolean> {
+	const run = await readRunRecord(cwd, runId).catch(() => undefined);
+	if (run === undefined || run.status !== "interrupted") return false;
+	if (workflowStoppedTaskIds(run).length > 0) return true;
+	return (await readWorkflowStopIntent(cwd, runId)) !== undefined;
+}
+
 export async function resumeRun(
 	cwd: string,
 	runIdOrPrefix: string,
@@ -2760,111 +2838,71 @@ export async function resumeRun(
 	assertRunResumableForResume(current);
 
 	const resetTaskIds: string[] = [];
-	const updated = await withRunLease(
-		cwd,
-		current.runId,
-		async (leaseSignal) => {
-			assertResumeLeaseActive(leaseSignal);
-			const run = await readRunRecord(cwd, current.runId);
-			assertRunResumableForResume(run);
-			assertResumeLeaseActive(leaseSignal);
+	const resumeUnderLease = async (
+		leaseSignal: AbortSignal,
+	): Promise<WorkflowRunRecord> => {
+		assertResumeLeaseActive(leaseSignal);
+		const run = await readRunRecord(cwd, current.runId);
+		assertRunResumableForResume(run);
+		assertResumeLeaseActive(leaseSignal);
 
-			const activeCompiledFlow = await readCompiledWorkflow(cwd, run.runId);
-			assertResumeLeaseActive(leaseSignal);
-			if (!activeCompiledFlow) {
-				throw new Error(
-					`Cannot resume ${run.runId}: compiled workflow is missing`,
-				);
-			}
-			assertUnsupportedLegacyPreparedInvalidation(run, activeCompiledFlow);
-			const prepared = preparedInvalidationPlan(run, activeCompiledFlow);
-			if (!prepared) assertRunTaskPositionalAlignment(run, activeCompiledFlow);
-			assertResumeLoopOwnershipSupported(run, activeCompiledFlow);
-
-			const planned =
-				prepared ?? dependencyResumeInvalidationPlan(run, activeCompiledFlow);
-			if (planned) {
-				assertDependencyInvalidationRematerializable(
-					run,
-					activeCompiledFlow,
-					planned,
-				);
-			}
-			await resumeLeaseMutation(cwd, run.runId, leaseSignal, () =>
-				resolveWorkflowBackend(run).cleanupRun(cwd, run),
+		const activeCompiledFlow = await readCompiledWorkflow(cwd, run.runId);
+		assertResumeLeaseActive(leaseSignal);
+		if (!activeCompiledFlow) {
+			throw new Error(
+				`Cannot resume ${run.runId}: compiled workflow is missing`,
 			);
-			if (!planned) {
-				await resumeLeaseMutation(cwd, run.runId, leaseSignal, async () => {
-					for (const task of run.tasks) {
-						if (resetTaskForResume(task)) resetTaskIds.push(task.taskId);
-					}
-					if (resetTaskIds.length > 0)
-						await writeRunRecord(cwd, run, leaseSignal);
-				});
-				return run;
-			}
+		}
+		assertUnsupportedLegacyPreparedInvalidation(run, activeCompiledFlow);
+		const prepared = preparedInvalidationPlan(run, activeCompiledFlow);
+		if (!prepared) assertRunTaskPositionalAlignment(run, activeCompiledFlow);
+		assertResumeLoopOwnershipSupported(run, activeCompiledFlow);
 
-			if (!prepared) {
-				await resumeLeaseMutation(cwd, run.runId, leaseSignal, async () => {
-					run.invalidationJournal = {
-						generation: planned.generation,
-						idempotencyKey: planned.idempotencyKey,
-						sourceTaskIds: planned.sourceTaskIds,
-						invalidatedTaskIds: planned.invalidatedTaskIds,
-						foreachGroups: planned.foreachGroups,
-						taskOwnership: planned.taskOwnership,
-						unaffectedRunSignature: planned.unaffectedRunSignature,
-						unaffectedCompiledSignature: planned.unaffectedCompiledSignature,
-						artifactState: "pending",
-						status: "prepared",
-					} as WorkflowInvalidationJournal;
-					await writeRunRecord(cwd, run, leaseSignal);
-				});
-			}
-			await resumeLeaseMutation(cwd, run.runId, leaseSignal, () =>
-				quarantineDependencyInvalidationArtifacts(
-					cwd,
-					run,
-					planned,
-					leaseSignal,
-				),
+		const planned =
+			prepared ?? dependencyResumeInvalidationPlan(run, activeCompiledFlow);
+		if (planned) {
+			assertDependencyInvalidationRematerializable(
+				run,
+				activeCompiledFlow,
+				planned,
 			);
-			if (run.invalidationJournal?.artifactState !== "quarantined") {
-				await resumeLeaseMutation(cwd, run.runId, leaseSignal, async () => {
-					run.invalidationJournal = {
-						generation: planned.generation,
-						idempotencyKey: planned.idempotencyKey,
-						sourceTaskIds: planned.sourceTaskIds,
-						invalidatedTaskIds: planned.invalidatedTaskIds,
-						foreachGroups: planned.foreachGroups,
-						taskOwnership: planned.taskOwnership,
-						unaffectedRunSignature: planned.unaffectedRunSignature,
-						unaffectedCompiledSignature: planned.unaffectedCompiledSignature,
-						artifactState: "quarantined",
-						status: "prepared",
-					} as WorkflowInvalidationJournal;
-					await writeRunRecord(cwd, run, leaseSignal);
-				});
-			}
+		}
+		await resumeLeaseMutation(cwd, run.runId, leaseSignal, () =>
+			resolveWorkflowBackend(run).cleanupRun(cwd, run),
+		);
+		if (!planned) {
 			await resumeLeaseMutation(cwd, run.runId, leaseSignal, async () => {
-				const invalidatedTaskIds = applyDependencyResumeInvalidation(
-					run,
-					activeCompiledFlow,
-					planned,
-				);
-				const invalidatedTaskIdSet = new Set([
-					...planned.sourceTaskIds,
-					...planned.invalidatedTaskIds,
-				]);
-				resetTaskIds.push(
-					...invalidatedTaskIds,
-					...resetRemainingTasksForResume(run, invalidatedTaskIdSet),
-				);
-				await writeJsonAtomic(
-					compiledWorkflowPath(cwd, run.runId),
-					activeCompiledFlow,
-					leaseSignal,
-				);
+				for (const task of run.tasks) {
+					if (resetTaskForResume(task)) resetTaskIds.push(task.taskId);
+				}
+				if (resetTaskIds.length > 0)
+					await writeRunRecord(cwd, run, leaseSignal);
+			});
+			return run;
+		}
+
+		if (!prepared) {
+			await resumeLeaseMutation(cwd, run.runId, leaseSignal, async () => {
+				run.invalidationJournal = {
+					generation: planned.generation,
+					idempotencyKey: planned.idempotencyKey,
+					sourceTaskIds: planned.sourceTaskIds,
+					invalidatedTaskIds: planned.invalidatedTaskIds,
+					foreachGroups: planned.foreachGroups,
+					taskOwnership: planned.taskOwnership,
+					unaffectedRunSignature: planned.unaffectedRunSignature,
+					unaffectedCompiledSignature: planned.unaffectedCompiledSignature,
+					artifactState: "pending",
+					status: "prepared",
+				} as WorkflowInvalidationJournal;
+				await writeRunRecord(cwd, run, leaseSignal);
+			});
+		}
+		await resumeLeaseMutation(cwd, run.runId, leaseSignal, () =>
+			quarantineDependencyInvalidationArtifacts(cwd, run, planned, leaseSignal),
+		);
+		if (run.invalidationJournal?.artifactState !== "quarantined") {
+			await resumeLeaseMutation(cwd, run.runId, leaseSignal, async () => {
 				run.invalidationJournal = {
 					generation: planned.generation,
 					idempotencyKey: planned.idempotencyKey,
@@ -2875,13 +2913,60 @@ export async function resumeRun(
 					unaffectedRunSignature: planned.unaffectedRunSignature,
 					unaffectedCompiledSignature: planned.unaffectedCompiledSignature,
 					artifactState: "quarantined",
-					status: "applied",
+					status: "prepared",
 				} as WorkflowInvalidationJournal;
 				await writeRunRecord(cwd, run, leaseSignal);
 			});
-			return run;
-		},
-	);
+		}
+		await resumeLeaseMutation(cwd, run.runId, leaseSignal, async () => {
+			const invalidatedTaskIds = applyDependencyResumeInvalidation(
+				run,
+				activeCompiledFlow,
+				planned,
+			);
+			const invalidatedTaskIdSet = new Set([
+				...planned.sourceTaskIds,
+				...planned.invalidatedTaskIds,
+			]);
+			resetTaskIds.push(
+				...invalidatedTaskIds,
+				...resetRemainingTasksForResume(run, invalidatedTaskIdSet),
+			);
+			await writeJsonAtomic(
+				compiledWorkflowPath(cwd, run.runId),
+				activeCompiledFlow,
+				leaseSignal,
+			);
+			run.invalidationJournal = {
+				generation: planned.generation,
+				idempotencyKey: planned.idempotencyKey,
+				sourceTaskIds: planned.sourceTaskIds,
+				invalidatedTaskIds: planned.invalidatedTaskIds,
+				foreachGroups: planned.foreachGroups,
+				taskOwnership: planned.taskOwnership,
+				unaffectedRunSignature: planned.unaffectedRunSignature,
+				unaffectedCompiledSignature: planned.unaffectedCompiledSignature,
+				artifactState: "quarantined",
+				status: "applied",
+			} as WorkflowInvalidationJournal;
+			await writeRunRecord(cwd, run, leaseSignal);
+		});
+		return run;
+	};
+	let updated = await withRunLease(cwd, current.runId, resumeUnderLease);
+	// WP37: right after `stop` the stopped supervisor (often attached, in this process) may still
+	// hold the lease while it shuts down. Wait a bounded time for it; never take a live lease (B3).
+	if (!updated && (await runStopRecordedForResume(cwd, current.runId))) {
+		const deadline = Date.now() + resumeAfterStopLeaseWait.timeoutMs;
+		while (!updated && Date.now() < deadline) {
+			await sleep(resumeAfterStopLeaseWait.pollMs);
+			updated = await withRunLease(cwd, current.runId, resumeUnderLease);
+		}
+		if (!updated)
+			throw new Error(
+				`Cannot resume ${current.runId} yet: the previous supervisor is still shutting down; try again in a few seconds`,
+			);
+	}
 	if (!updated)
 		throw new Error(
 			`Could not acquire supervisor lease for ${current.runId}; another supervisor may be active`,

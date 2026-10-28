@@ -23,6 +23,7 @@ import {
 	WORKFLOW_PROMPT_SCHEMA_DIAGNOSTIC_SINK,
 	WorkflowDefinitionChangedError,
 	type WorkflowRunOptions,
+	type WorkflowSavedUserProfileLayer,
 } from "../core/engine.js";
 import { workflowDefinitionFingerprint } from "../core/execution-profile.js";
 import {
@@ -233,7 +234,43 @@ interface LaunchProfile {
 	runtimeDefaults?: WorkflowRuntimeDefaults;
 	/** Saved user profile on a spec without an artifact graph: applied as run options. */
 	fallback?: { executor?: string; permissionMode?: "free" | "safe" };
+	/**
+	 * WP37 (B2 field by field): the default saved user profile under a selected declared profile;
+	 * the engine takes each field the declared profile leaves unset from it.
+	 */
+	savedUserProfile?: UserProfile;
 	info?: LaunchProfileInfo;
+}
+
+/** WP37: the default saved user profile, or none when there is none or the file is unreadable. */
+async function defaultUserProfileQuietly(
+	env: NodeJS.ProcessEnv,
+): Promise<UserProfile | undefined> {
+	try {
+		const file = await readUserProfiles(env);
+		return file.default ? userProfileFromFile(file, file.default) : undefined;
+	} catch {
+		// Declared profiles never needed the saved profiles; an unreadable file does not block them.
+		return undefined;
+	}
+}
+
+/** WP37: the engine's saved-profile layer under a declared profile. */
+function savedUserProfileLayer(
+	profile: UserProfile,
+): WorkflowSavedUserProfileLayer {
+	return {
+		name: profile.name,
+		...(profile.executor ? { executor: profile.executor } : {}),
+		...(profile.permissionMode
+			? { permissionMode: profile.permissionMode }
+			: {}),
+		...(profile.strictCapabilities
+			? { strictCapabilities: [...profile.strictCapabilities] }
+			: {}),
+		...(profile.model ? { model: profile.model } : {}),
+		...(profile.effort ? { effort: profile.effort } : {}),
+	};
 }
 
 function applyUserProfile(
@@ -315,13 +352,16 @@ async function snapshotLaunchProfile(
 	const env = hostEnv(ctx);
 	const declared = loaded.spec.executionProfiles ?? {};
 	if (request.profile !== undefined) {
-		if (Object.hasOwn(declared, request.profile))
+		if (Object.hasOwn(declared, request.profile)) {
+			const savedUserProfile = await defaultUserProfileQuietly(env);
 			return {
 				resolved: {
 					selection: { executionProfile: request.profile },
 					info: { name: request.profile, kind: "declared", source: "request" },
+					...(savedUserProfile ? { savedUserProfile } : {}),
 				},
 			};
+		}
 		const file = await readUserProfiles(env);
 		const user = userProfileFromFile(file, request.profile);
 		if (user)
@@ -391,7 +431,8 @@ async function finishLaunchProfile(
 		request.selectProfile,
 		loaded,
 	);
-	if (executionProfile)
+	if (executionProfile) {
+		const savedUserProfile = snapshot.declaredChoice?.userDefault;
 		return {
 			selection: { executionProfile },
 			info: {
@@ -399,7 +440,9 @@ async function finishLaunchProfile(
 				kind: "declared",
 				source: "workflow-default",
 			},
+			...(savedUserProfile ? { savedUserProfile } : {}),
 		};
+	}
 	if (snapshot.declaredChoice?.userProfilesError !== undefined)
 		throw snapshot.declaredChoice.userProfilesError;
 	const userDefault = snapshot.declaredChoice?.userDefault;
@@ -413,7 +456,8 @@ function snapshotIdentity(
 	snapshot: LaunchProfileSnapshot,
 ): Record<string, unknown> {
 	if (snapshot.resolved) {
-		const { selection, runtimeDefaults, fallback, info } = snapshot.resolved;
+		const { selection, runtimeDefaults, fallback, info, savedUserProfile } =
+			snapshot.resolved;
 		return {
 			resolved: {
 				info: info ?? null,
@@ -421,6 +465,9 @@ function snapshotIdentity(
 				executionProfileOverride: selection.executionProfileOverride ?? null,
 				runtimeDefaults: runtimeDefaults ?? null,
 				fallback: fallback ?? null,
+				savedUserProfile: savedUserProfile
+					? { ...savedUserProfile, updatedAt: undefined }
+					: null,
 			},
 		};
 	}
@@ -732,7 +779,8 @@ function launchExecutionIdentity(
 	const profileExecutor = userKind
 		? (override?.executor ?? resolved?.fallback?.executor)
 		: undefined;
-	const userDefault = snapshot.declaredChoice?.userDefault;
+	const userDefault =
+		snapshot.declaredChoice?.userDefault ?? resolved?.savedUserProfile;
 	const hostDefault =
 		host === "cli" || host === "generic"
 			? { id: INSTALLED_DEFAULT_ORDER.join(">"), source: "installed-default" }
@@ -917,6 +965,9 @@ async function launchClaimed(
 	} = {
 		task,
 		...profile.selection,
+		...(profile.savedUserProfile && profile.selection.executionProfile
+			? { savedUserProfile: savedUserProfileLayer(profile.savedUserProfile) }
+			: {}),
 		...(executor ? { executor } : {}),
 		...(ctx.defaultExecutor ? { defaultExecutor: ctx.defaultExecutor } : {}),
 		...(ctx.host ? { host: ctx.host } : {}),

@@ -59,7 +59,7 @@
 					"specId": "report.main",
 					"status": "failed",
 					"statusDetail": "launch_failed",
-					"lastMessage": "provisional worker run_mvqq3g2m_d081d6/attempt_mvqq3g2m_bb6dcd ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: replay miss for task-7: no recorded launch has this prompt; closest recorded task-7 seq 11143, first difference at line 64: recorded \"[{\\\"source\\\":\\\"partition-findings\\\",\\\"taskId\\\":\\\"task-6\\\",\\\"specId\\\":\\\"partition-findings.main\\\",\\\"stageId\\\":\\\"partition-findings\\\",\\\"status\\\":\\\"completed\\\",\\\"statusDetail\\\":\\\"support_completed\\\",\\\"lastMessage\\\":\\\"support completed\\\",\\\"digest\\\":\\\"sha256:acf75c059c93b7c057b49aa724cc80d8cc4ed3809180b2cbae1a47896bbae45e\\\",\\\"availableArtifacts\\\":[\\\"control\\\",\\\"analysis\\\",\\\"refs\\\",\\\"raw\\\"]}]\" replay \"[{\\\"source\\\":\\\"partition-findings\\\",\\\"taskId\\\":\\\"task-6\\\",\\\"specId\\\":\\\"partition-findings.main\\\",\\\"stageId\\\":\\\"partition-findings\\\",\\\"status\\\":\\\"completed\\\",\\\"statusDetail\\\":\\\"support_completed\\\",\\\"lastMessage\\\":\\\"support completed\\\",\\\"digest\\\":\\\"sha256:be93034874343d4b75a94c7baffffd5bf22f4614eae88df1193f6be2624ac814\\\",\\\"availableArtifacts\\\":[\\\"control\\\",\\\"analysis\\\",\\\"refs\\\",\\\"raw\\\"]}]\""
+					"lastMessage": "provisional worker run_mvrxd8vh_bacdcd/attempt_mvrxd8vh_f4b977 ended (failed/validation) before the durable launch barrier READY: executor refused the attempt before launch: replay miss for task-7: no recorded launch has this prompt; closest recorded task-7 seq 11143, first difference at line 64: recorded \"[{\\\"source\\\":\\\"partition-findings\\\",\\\"taskId\\\":\\\"task-6\\\",\\\"specId\\\":\\\"partition-findings.main\\\",\\\"stageId\\\":\\\"partition-findings\\\",\\\"status\\\":\\\"completed\\\",\\\"statusDetail\\\":\\\"support_completed\\\",\\\"lastMessage\\\":\\\"support completed\\\",\\\"digest\\\":\\\"sha256:acf75c059c93b7c057b49aa724cc80d8cc4ed3809180b2cbae1a47896bbae45e\\\",\\\"availableArtifacts\\\":[\\\"control\\\",\\\"analysis\\\",\\\"refs\\\",\\\"raw\\\"]}]\" replay \"[{\\\"source\\\":\\\"partition-findings\\\",\\\"taskId\\\":\\\"task-6\\\",\\\"specId\\\":\\\"partition-findings.main\\\",\\\"stageId\\\":\\\"partition-findings\\\",\\\"status\\\":\\\"completed\\\",\\\"statusDetail\\\":\\\"support_completed\\\",\\\"lastMessage\\\":\\\"support completed\\\",\\\"digest\\\":\\\"sha256:be93034874343d4b75a94c7baffffd5bf22f4614eae88df1193f6be2624ac814\\\",\\\"availableArtifacts\\\":[\\\"control\\\",\\\"analysis\\\",\\\"refs\\\",\\\"raw\\\"]}]\""
 				},
 				{
 					"taskId": "task-8",
@@ -282,7 +282,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-7/.launch-barrier-27112792b7d4d85c-<RAND16>/decision-v2.json",
+					"file": "tasks/task-7/.launch-barrier-d3549452a1b1a568-<RAND16>/decision-v2.json",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -290,7 +290,7 @@
 				{
 					"class": "allowed",
 					"rule": "wp4-renamed-literals",
-					"file": "tasks/task-7/.launch-barrier-27112792b7d4d85c-<RAND16>/decision-v2.json.txn",
+					"file": "tasks/task-7/.launch-barrier-d3549452a1b1a568-<RAND16>/decision-v2.json.txn",
 					"kind": "literal-renamed",
 					"literal": "agent-workflow.<WF_RUN_",
 					"count": 1
@@ -366,7 +366,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211",
-					"replayed": "128dfdb5b96e6b029234dfca3c25a0584becb836b66cc1f340f9943ce585f4ca",
+					"replayed": "f368a2d28ff2549858e575887c801e315aa4d9672902058b99007a2323bce05b",
 					"count": 0
 				},
 				{
@@ -2432,7 +2432,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/spec-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-spec-review-original-15994/work/replay-trace.jsonl\"},\"c… (371 chars, sha256 05766058c61e)"
+					"replayed": "{\"candidates\":[{\"auth\":\"ok\",\"cliVersion\":\"fake-cli 1.0.0\",\"id\":\"pi\",\"installed\":true,\"usable\":true}],\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/spec-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROO… (481 chars, sha256 ab387e33e260)"
 				},
 				{
 					"class": "explained",
@@ -2465,7 +2465,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "1f3eb9ceda8641e4dd0d5a7deabbb09d255013e250fe3090fcffd895c8ed4b91"
+					"replayed": "678b25789f4fc9b4f379a307897f800cbfd85fe4495bd0c40e649ba0cd7b5514"
 				},
 				{
 					"class": "explained",
@@ -2505,7 +2505,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "1f3eb9ceda8641e4dd0d5a7deabbb09d255013e250fe3090fcffd895c8ed4b91"
+					"replayed": "678b25789f4fc9b4f379a307897f800cbfd85fe4495bd0c40e649ba0cd7b5514"
 				},
 				{
 					"class": "explained",
@@ -2748,7 +2748,7 @@
 					"kind": "added",
 					"path": "tasks[1].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-2",
-					"replayed": "104b8a34138366698391fea1c11ba66239515b73b8f52b6c36e166a6c5d469d2"
+					"replayed": "68a4ccd1c4c57f120e405102b1799fd6b5cfde3834517c2790c6c1f9a451bd16"
 				},
 				{
 					"class": "explained",
@@ -2788,7 +2788,7 @@
 					"kind": "added",
 					"path": "tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-2",
-					"replayed": "104b8a34138366698391fea1c11ba66239515b73b8f52b6c36e166a6c5d469d2"
+					"replayed": "68a4ccd1c4c57f120e405102b1799fd6b5cfde3834517c2790c6c1f9a451bd16"
 				},
 				{
 					"class": "explained",
@@ -3064,7 +3064,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-3",
-					"replayed": "7cbf5fcf89fc601f1f2056bd1aa7b663084b5f06087ded18603647dc06d4a0e1"
+					"replayed": "670a9da0587930e65b3c70229f30e8376e4b22d93468048918c8c4d5f92354e2"
 				},
 				{
 					"class": "explained",
@@ -3104,7 +3104,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-3",
-					"replayed": "7cbf5fcf89fc601f1f2056bd1aa7b663084b5f06087ded18603647dc06d4a0e1"
+					"replayed": "670a9da0587930e65b3c70229f30e8376e4b22d93468048918c8c4d5f92354e2"
 				},
 				{
 					"class": "explained",
@@ -3347,7 +3347,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-4",
-					"replayed": "d8c2022fe4fde1106513e9eb74cbebd1c609e1613d0f8739ab1e902a13d80646"
+					"replayed": "873384e86a723d3c1f4d84ca182bb7bdc54eb5931bf9eebe42f70a72f6918645"
 				},
 				{
 					"class": "explained",
@@ -3387,7 +3387,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-4",
-					"replayed": "d8c2022fe4fde1106513e9eb74cbebd1c609e1613d0f8739ab1e902a13d80646"
+					"replayed": "873384e86a723d3c1f4d84ca182bb7bdc54eb5931bf9eebe42f70a72f6918645"
 				},
 				{
 					"class": "explained",
@@ -3630,7 +3630,7 @@
 					"kind": "added",
 					"path": "tasks[5].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-9",
-					"replayed": "b8371d8a0a6c826c34b31e17e3d7aee17ffe70841c2aa768a67e7b3b37838974"
+					"replayed": "0a939e19bc459f30444a6d33b7f8adceb66b387d2d774d39fc0c588af9880751"
 				},
 				{
 					"class": "explained",
@@ -3670,7 +3670,7 @@
 					"kind": "added",
 					"path": "tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-9",
-					"replayed": "b8371d8a0a6c826c34b31e17e3d7aee17ffe70841c2aa768a67e7b3b37838974"
+					"replayed": "0a939e19bc459f30444a6d33b7f8adceb66b387d2d774d39fc0c588af9880751"
 				},
 				{
 					"class": "explained",
@@ -3966,7 +3966,7 @@
 					"kind": "added",
 					"path": "tasks[7].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "74703a01f4b38738ba22c83ffa3119fc57ee30f4d2cdb73e09f7afab6df29ffc"
+					"replayed": "9bd9de516cd67efa762f48af534abf2ad3b4682dfb85b66505d44c582da47564"
 				},
 				{
 					"class": "explained",
@@ -4006,7 +4006,7 @@
 					"kind": "added",
 					"path": "tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "74703a01f4b38738ba22c83ffa3119fc57ee30f4d2cdb73e09f7afab6df29ffc"
+					"replayed": "9bd9de516cd67efa762f48af534abf2ad3b4682dfb85b66505d44c582da47564"
 				},
 				{
 					"class": "explained",
@@ -5059,7 +5059,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "1fef8f8ffa8b1b69fbdbc6f8ae12adb138834eae70eca6f505d2aecaa5a9d933",
-					"replayed": "9e33f525f24c44bfafed5fa126c2afc9fa42e16cfe6fd8c961c3761f3bfa018c",
+					"replayed": "fe44fbee02724271d8222c2435594eb4442454d63981b0433e5629e82b914935",
 					"count": 0
 				},
 				{
@@ -5069,7 +5069,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "75eba04c00fb495d10f317528c4072192ef1c668017dc67a43206a092b43d211",
-					"replayed": "05212b9d29eee031bb0fc509be06674ba3cf4c13d0757d83eec84a470c899a82",
+					"replayed": "3f9587d2917fb435cfd80eb7f64a0531675ebd6ca436ef9f094690c2f22df8b8",
 					"count": 0
 				},
 				{
@@ -5119,7 +5119,7 @@
 					"kind": "digest-bound",
 					"proof": "file",
 					"recorded": "6180e80979172dcb3d65c14be3ff0396fcc6a38122fc1e4dab35f11d4a9b1db6",
-					"replayed": "530af0230b04621a0a2d43077ed8b23d0eeb8a45795c832d08a38ec73a0fc9de",
+					"replayed": "9b1c1391cf1ebcb4577fedffef17aee8c72f0e7c5a224a6dabc93ef6bd0dfc50",
 					"count": 0
 				},
 				{
@@ -7477,7 +7477,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/spec-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-spec-review-state-path-migrated-16765/work/replay-trace… (382 chars, sha256 bceea1fcbce0)"
+					"replayed": "{\"candidates\":[{\"auth\":\"ok\",\"cliVersion\":\"fake-cli 1.0.0\",\"id\":\"pi\",\"installed\":true,\"usable\":true}],\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/spec-review\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\",\"<PKG>\"],\"ROOT\":\"<ROO… (492 chars, sha256 ea27573d2b3e)"
 				},
 				{
 					"class": "explained",
@@ -7496,7 +7496,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "1f3eb9ceda8641e4dd0d5a7deabbb09d255013e250fe3090fcffd895c8ed4b91"
+					"replayed": "678b25789f4fc9b4f379a307897f800cbfd85fe4495bd0c40e649ba0cd7b5514"
 				},
 				{
 					"class": "explained",
@@ -7536,7 +7536,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "1f3eb9ceda8641e4dd0d5a7deabbb09d255013e250fe3090fcffd895c8ed4b91"
+					"replayed": "678b25789f4fc9b4f379a307897f800cbfd85fe4495bd0c40e649ba0cd7b5514"
 				},
 				{
 					"class": "explained",
@@ -7779,7 +7779,7 @@
 					"kind": "added",
 					"path": "tasks[1].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-2",
-					"replayed": "104b8a34138366698391fea1c11ba66239515b73b8f52b6c36e166a6c5d469d2"
+					"replayed": "68a4ccd1c4c57f120e405102b1799fd6b5cfde3834517c2790c6c1f9a451bd16"
 				},
 				{
 					"class": "explained",
@@ -7819,7 +7819,7 @@
 					"kind": "added",
 					"path": "tasks[1].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-2",
-					"replayed": "104b8a34138366698391fea1c11ba66239515b73b8f52b6c36e166a6c5d469d2"
+					"replayed": "68a4ccd1c4c57f120e405102b1799fd6b5cfde3834517c2790c6c1f9a451bd16"
 				},
 				{
 					"class": "explained",
@@ -8095,7 +8095,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-3",
-					"replayed": "7cbf5fcf89fc601f1f2056bd1aa7b663084b5f06087ded18603647dc06d4a0e1"
+					"replayed": "670a9da0587930e65b3c70229f30e8376e4b22d93468048918c8c4d5f92354e2"
 				},
 				{
 					"class": "explained",
@@ -8135,7 +8135,7 @@
 					"kind": "added",
 					"path": "tasks[2].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-3",
-					"replayed": "7cbf5fcf89fc601f1f2056bd1aa7b663084b5f06087ded18603647dc06d4a0e1"
+					"replayed": "670a9da0587930e65b3c70229f30e8376e4b22d93468048918c8c4d5f92354e2"
 				},
 				{
 					"class": "explained",
@@ -8378,7 +8378,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-4",
-					"replayed": "d8c2022fe4fde1106513e9eb74cbebd1c609e1613d0f8739ab1e902a13d80646"
+					"replayed": "873384e86a723d3c1f4d84ca182bb7bdc54eb5931bf9eebe42f70a72f6918645"
 				},
 				{
 					"class": "explained",
@@ -8418,7 +8418,7 @@
 					"kind": "added",
 					"path": "tasks[3].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-4",
-					"replayed": "d8c2022fe4fde1106513e9eb74cbebd1c609e1613d0f8739ab1e902a13d80646"
+					"replayed": "873384e86a723d3c1f4d84ca182bb7bdc54eb5931bf9eebe42f70a72f6918645"
 				},
 				{
 					"class": "explained",
@@ -8661,7 +8661,7 @@
 					"kind": "added",
 					"path": "tasks[5].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-9",
-					"replayed": "b8371d8a0a6c826c34b31e17e3d7aee17ffe70841c2aa768a67e7b3b37838974"
+					"replayed": "0a939e19bc459f30444a6d33b7f8adceb66b387d2d774d39fc0c588af9880751"
 				},
 				{
 					"class": "explained",
@@ -8701,7 +8701,7 @@
 					"kind": "added",
 					"path": "tasks[5].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-9",
-					"replayed": "b8371d8a0a6c826c34b31e17e3d7aee17ffe70841c2aa768a67e7b3b37838974"
+					"replayed": "0a939e19bc459f30444a6d33b7f8adceb66b387d2d774d39fc0c588af9880751"
 				},
 				{
 					"class": "explained",
@@ -8977,7 +8977,7 @@
 					"kind": "added",
 					"path": "tasks[7].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "74703a01f4b38738ba22c83ffa3119fc57ee30f4d2cdb73e09f7afab6df29ffc"
+					"replayed": "9bd9de516cd67efa762f48af534abf2ad3b4682dfb85b66505d44c582da47564"
 				},
 				{
 					"class": "explained",
@@ -9017,7 +9017,7 @@
 					"kind": "added",
 					"path": "tasks[7].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-7",
-					"replayed": "74703a01f4b38738ba22c83ffa3119fc57ee30f4d2cdb73e09f7afab6df29ffc"
+					"replayed": "9bd9de516cd67efa762f48af534abf2ad3b4682dfb85b66505d44c582da47564"
 				},
 				{
 					"class": "explained",

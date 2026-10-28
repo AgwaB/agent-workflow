@@ -118,7 +118,9 @@ Run states: `running`, `completed`, `failed`, `interrupted` (stopped, or a worke
 a dynamic approval). `resume` resets failed, interrupted and resumable blocked tasks and keeps
 completed task artifacts. A run executes the copied `bundle/` in its run directory, so a newer
 package version does not change a running workflow's schemas or helpers; start a fresh run to pick
-up changed workflow code. Loop workflows cannot be resumed; start a fresh run.
+up changed workflow code. Loop workflows cannot be resumed; start a fresh run. Right after `stop`,
+`resume` waits up to 10 s for the stopped supervisor to let go of the run; if it has not by then,
+`resume` changes nothing and says to try again in a few seconds.
 
 `stop` records a durable stop intent. A worker that had not started yet never starts (its launch is
 revoked); a running worker is cancelled. If another supervisor owns the run, the stop is applied by
@@ -161,14 +163,22 @@ Two layers:
 1. **Workflow-declared execution profiles.** A spec may declare `executionProfiles` (stage overrides
    of `model`, `thinking`/effort and `foreachBatch`; plus an executor and permission mode per profile
    via `executionProfileExecutors` / `executionProfilePermissionModes`) and a
-   `defaultExecutionProfile`. Select one with `--profile <name>`. A declared profile replaces the
-   saved user profile as a whole.
+   `defaultExecutionProfile`. Select one with `--profile <name>`. A declared profile sits on top of
+   your default saved user profile, field by field: whatever the declared profile does not set
+   (executor, permission mode, `strictCapabilities`) comes from the default saved profile, and that
+   profile's `model`/`effort` stay run defaults when it names no executor or the run's executor.
 2. **Saved user profiles.** `agent-workflow profile set <name> --executor codex --effort high
    --permission-mode safe [--strict-capabilities readOnly,contextIsolation] [--default]`. Fields:
    `executor`, `model`, `effort`, `permissionMode`, `strictCapabilities` (capabilities that must be
    `native`, else the run is refused). Stored in `$AGENT_WORKFLOW_HOME/user-profiles/v1/profiles.json`.
    `--profile <name>` picks a declared profile first, then a saved one; without `--profile` a launch
-   uses the declared default profile, else the default saved profile.
+   uses the declared default profile (over the default saved profile, as above), else the default
+   saved profile. A saved profile named with `--profile` is used on its own.
+
+Example: the default saved profile sets `--executor codex --permission-mode safe`; a workflow's
+declared profile `high` sets only stage efforts. `--profile high` runs on `codex` in `safe` mode
+with `high`'s stage efforts; `--profile high --executor claude` runs on `claude` (run flag), still
+`safe`.
 
 `--model` and `--effort` override every stage and win over both layers. `model`/`effort` from a
 saved profile are run defaults (stage and agent settings still win).

@@ -241,7 +241,8 @@ interactive host asks once in `safe` mode), **refuse** (the run is not started).
 - Web tool names in prompts: prompts and the system prompt's tool list name `web_search` /
   `fetch_content` (Pi vocabulary). Claude shows `WebSearch`/`WebFetch`, Codex one hosted
   `web_search`. Since M17 (live bundle 3) the system prompt maps the enabled names per executor;
-  task prompts still use the logical names.
+  since WP37 the task prompts are rendered per executor too (Claude names inline, the Codex mapping
+  note; docs/core-port.md WP37 change log 1).
 - Quality of model-reported web evidence (no byte check) and of the URL-only verification pool is
   unmeasured (plan §7: stage 1 checks completion and format only).
 - Pi needs `pi-web-access` for deep-research (refused otherwise). Codex shows `forcedReadOnly` only

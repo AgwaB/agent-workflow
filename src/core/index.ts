@@ -266,4 +266,7 @@ export type {
 	ExecutorAuthKind,
 	ExecutorAuthKindProbe,
 } from "./retry-policy.js";
-export type { WorkflowRunOptions } from "./engine.js";
+export type {
+	WorkflowRunOptions,
+	WorkflowSavedUserProfileLayer,
+} from "./engine.js";

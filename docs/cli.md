@@ -60,8 +60,10 @@ The task is every remaining positional word. Put `--` before task text that star
 
 Executor and permission mode: **run flag > workflow-declared profile > saved user profile >
 default** (mode `free`; executor: below). Without `--profile` a launch uses the workflow's
-`defaultExecutionProfile` if it declares one, else the default saved user profile. A
-workflow-declared profile replaces the saved user profile as a whole (B2).
+`defaultExecutionProfile` if it declares one, else the default saved user profile. The
+precedence holds field by field (B2, WP37): a workflow-declared profile that does not set the
+executor, the permission mode or `strictCapabilities` takes them from the default saved user
+profile.
 
 **Default executor (WP17).** When nothing above selects one, the CLI uses the **first installed and
 logged-in** of `pi` → `claude` → `codex`. Each candidate is checked with its adapter's probe (version
