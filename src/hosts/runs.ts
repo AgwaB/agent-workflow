@@ -351,6 +351,11 @@ export interface WaitData {
 		message?: string;
 		taskIds: string[];
 	};
+	/**
+	 * WP18b: the workflow's domain verdict from the output task (for example NEEDS_WORK), distinct
+	 * from the run `status`/`semanticStatus`.
+	 */
+	verdict?: string;
 	/** Bounded authoritative-result preview of a terminal run. */
 	preview?: string;
 	reportArtifacts: WorkflowResultArtifact[];
@@ -437,6 +442,7 @@ export async function waitAction(
 		launchRetryAttempts: terminal.launchRetryAttempts,
 		artifactRoot: toDisplayPath(terminal.artifactRoot, ctx.cwd),
 		...(nextRetry ? { nextRetry } : {}),
+		...(presentation?.verdict ? { verdict: presentation.verdict } : {}),
 		...(preview ? { preview } : {}),
 		reportArtifacts: artifacts,
 		...(run.usage ? { usage: run.usage } : {}),

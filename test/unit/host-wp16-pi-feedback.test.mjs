@@ -155,7 +155,7 @@ test("status line while a /aw run is active, cleared when it completes; one comp
 	assert.equal(message.display, true);
 	assert.match(message.content, /^\*\*Workflow completed: wp16-feedback\*\*/);
 	assert.match(message.content, new RegExp(`Workflow ${runId} completed`));
-	assert.match(message.content, /Verdict: /);
+	assert.match(message.content, /Run status: completed/); // WP18b: Verdict only for a domain verdict
 	assert.match(message.content, new RegExp(`/aw status ${runId}`));
 	assert.equal(message.details.runId, runId);
 	assert.equal(message.details.status, "completed");

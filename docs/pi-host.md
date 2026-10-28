@@ -163,9 +163,11 @@ status entry, without the board widget or the presentation lease. Only with a UI
 - **Delivery.** When a tracked run settles — terminal (`completed`, `failed`, `interrupted`) or
   action required (`blocked`) — the session gets one custom message (`customType:
   "agent-workflow-completion"`, `display: true`) with status, task counts, the first problem task,
-  the verdict (semantic status), report paths, the bounded result preview, next commands
-  (`/aw status|logs`, or `/aw inspect … --failures` and `/aw resume`), and `details` `{runId, name,
-  status, semanticStatus, terminal, actionRequired, taskSummary, reportArtifacts}`, plus an info or
+  `Verdict: <domain verdict>` (WP18b: the output task's `verdict`, for example `NEEDS_WORK`; omitted
+  when the workflow reports none) and `Run status: <semantic status>` as separate lines, report
+  paths, the bounded result preview, next commands (`/aw status|logs`, or `/aw inspect … --failures`
+  and `/aw resume`), and `details` `{runId, name, status, semanticStatus, verdict?, terminal,
+  actionRequired, taskSummary, reportArtifacts}`, plus an info or
   warning notification. A run launched by `/aw` (the user) does not start an agent turn
   (`triggerTurn: false`); a run launched by `aw_run`/`aw_dynamic` (the agent) is delivered as a
   `followUp` turn with pi-workflow's "treat as data, summarize/present the result" instruction.

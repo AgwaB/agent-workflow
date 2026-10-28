@@ -172,7 +172,9 @@ cancels only the wait.
 
 `WaitData`: `{runId, status, semanticStatus, terminal, actionRequired, stillRunning, timeoutMs,
 blockedTaskIds, taskSummary, outputTaskIds, outputRetryAttempts, launchRetryAttempts, artifactRoot,
-nextRetry?, preview?, reportArtifacts, usage?, degradation?}`. `nextRetry` (WP18b) is set while a
+nextRetry?, verdict?, preview?, reportArtifacts, usage?, degradation?}`. `verdict` (WP18b) is the
+workflow's domain verdict from the output task's control (for example `NEEDS_WORK`), not the run
+status. `nextRetry` (WP18b) is set while a
 still-running run only waits for a scheduled task retry (no task running, every startable task in a
 retry backoff such as a 15-minute rate-limit wait): `{at, retryAfterMs, reason?, message?, taskIds}`;
 the text then adds "Now waiting for scheduled retry at <time> (<reason>; <tasks>)".

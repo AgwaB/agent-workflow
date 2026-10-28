@@ -1,6 +1,7 @@
 // Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/extension.ts (readWorkflowResultPresentation
 // and its safe task-artifact helpers, used by the workflow_wait tool). MIT, same author. Changes
 // (WP11a): moved into the host API; the truncation notice no longer names the Pi `/workflow` board.
+// WP18b: the presentation carries the output task's domain `verdict`.
 import { realpath, readFile } from "node:fs/promises";
 import {
 	dirname,
@@ -23,6 +24,11 @@ export interface WorkflowResultArtifact {
 export interface WorkflowResultPresentation {
 	preview?: string;
 	artifacts: WorkflowResultArtifact[];
+	/**
+	 * WP18b: the workflow's domain verdict, `verdict` of the output task's control (for example
+	 * deep-review's REVIEW_COMPLETE / NEEDS_WORK / PARTIAL_REVIEW). Not the run status.
+	 */
+	verdict?: string;
 }
 
 interface SafeRelativeTaskArtifact {
@@ -237,6 +243,7 @@ export async function readWorkflowResultPresentation(
 	);
 	const control = controlText ? parseJsonRecord(controlText) : undefined;
 	const artifacts = await collectWorkflowResultArtifacts(cwd, taskDir, control);
+	const verdict = domainVerdict(control?.verdict);
 	const presentation = (
 		preview: string | undefined,
 		preserveExact = false,
@@ -247,7 +254,11 @@ export async function readWorkflowResultPresentation(
 				? preview
 				: truncateWorkflowPreview(preview);
 		}
-		return { preview: presentedPreview, artifacts };
+		return {
+			preview: presentedPreview,
+			artifacts,
+			...(verdict ? { verdict } : {}),
+		};
 	};
 	// This is the authoritative terminal-summary field. Unlike fallback prose,
 	// its Markdown is an exact result payload: do not trim, normalize, or
@@ -311,6 +322,14 @@ function parseJsonRecord(text: string): Record<string, unknown> | undefined {
 	} catch {
 		return undefined;
 	}
+}
+
+/** A short verdict token (`NEEDS_WORK`, `Partial review`); anything else is ignored. */
+function domainVerdict(value: unknown): string | undefined {
+	const text = stringValue(value);
+	return text && text.length <= 64 && /^[A-Za-z][A-Za-z0-9_ .-]*$/.test(text)
+		? text
+		: undefined;
 }
 
 function stringValue(value: unknown): string | undefined {

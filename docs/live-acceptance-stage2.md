@@ -239,6 +239,8 @@ input 30, cache read 567,411, cache write 34,077, output 2,922. No `codex exec` 
    scheduled retry at <time> (<reason>; <task>)" instead (`scheduledRetryWait`, core).
 6. **Pi completion message "Verdict: completed"** is the run's semantic status; the report verdict
    (`NEEDS_WORK`) appears only in the preview below it.
+   WP18b: `Verdict: NEEDS_WORK` (the output task's domain verdict) and `Run status: completed` are
+   separate lines; `WaitData.verdict` carries it for every host.
 7. **Codex `thread/start` trusts the project in the user config.** The documented app-server probe
    (`docs/plugins.md`) wrote `[projects."<cwd>"] trust_level = "trusted"` into the real
    `config.toml`; use a throw-away `CODEX_HOME` or restore the file. The adapter's worker threads did

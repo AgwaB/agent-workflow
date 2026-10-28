@@ -325,3 +325,87 @@ test("wait: a run waiting on a retry backoff returns the retry time and reason (
 		.stopAction({ cwd, env, host: "cli" }, { runId })
 		.catch(() => undefined);
 });
+
+// --- items 5/6: domain verdict vs. run status ---
+
+const feedback = await import("../../dist/hosts/pi/feedback.js");
+const cli = await import("../../dist/hosts/cli/index.js");
+
+/** A deep-review-like renderer: writes final-report.md and declares `status` + `verdict`. */
+const RENDER_HELPER = `import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+export default async function render({ options, context }) {
+	const dir = join(context.cwd, ".agent-workflow", "workflows", context.runId, "tasks", context.taskId);
+	await mkdir(dir, { recursive: true });
+	const markdown = "# Review\\n\\nVerdict: " + options.verdict + "\\n\\nOne finding kept.";
+	await writeFile(join(dir, "final-report.md"), markdown + "\\n", "utf8");
+	const passed = options.status === "passed";
+	return {
+		schema: "stage-control-v1",
+		digest: "Rendered 1 finding.",
+		status: options.status,
+		verdict: options.verdict,
+		completionSummaryMarkdown: passed ? "Verdict: " + options.verdict + " — one finding kept." : "",
+		markdown,
+		sidecarPath: "final-report.md",
+	};
+}
+`;
+
+async function verdictRun(status, verdict) {
+	const { cwd, env } = await project();
+	await writeFile(join(cwd, "render.mjs"), RENDER_HELPER);
+	await writeFile(
+		join(cwd, "verdict.json"),
+		JSON.stringify({
+			schemaVersion: 1,
+			name: "wp18b-verdict",
+			defaults: { agent: "reader", readOnly: true, tools: ["read"] },
+			artifactGraph: {
+				stages: [
+					{ id: "a", type: "single", prompt: "Collect facts." },
+					{
+						id: "final",
+						from: "a",
+						support: { uses: "./render.mjs", options: { status, verdict } },
+					},
+				],
+			},
+		}),
+	);
+	const executor = fixture();
+	const ctx = { cwd, env, host: "cli" };
+	const launched = await api.runWorkflowAction(ctx, {
+		workflow: "verdict.json",
+		task: "review",
+		executor,
+	});
+	assert.ok(launched.data.runId, launched.text);
+	let waited;
+	do
+		waited = await api.waitAction(ctx, {
+			runId: launched.data.runId,
+			timeoutMs: 10_000,
+		});
+	while (waited.data.stillRunning);
+	return { cwd, env, runId: launched.data.runId, waited };
+}
+
+test("Pi completion message: the domain verdict, with the run status on its own line", async () => {
+	const { cwd, runId, waited } = await verdictRun("passed", "NEEDS_WORK");
+	assert.equal(waited.data.status, "completed", waited.text);
+	assert.equal(waited.data.verdict, "NEEDS_WORK");
+	const run = JSON.parse(
+		await readFile(
+			join(cwd, ".agent-workflow", "workflows", runId, "run.json"),
+			"utf8",
+		),
+	);
+	for (const instruct of [false, true]) {
+		const message = await feedback.completionMessage(cwd, run, { instruct });
+		assert.match(message.content, /^Verdict: NEEDS_WORK$/m, message.content);
+		assert.match(message.content, /^Run status: completed$/m, message.content);
+		assert.doesNotMatch(message.content, /Verdict: completed/);
+		assert.equal(message.details.verdict, "NEEDS_WORK");
+	}
+});
