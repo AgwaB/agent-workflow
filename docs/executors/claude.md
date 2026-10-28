@@ -363,6 +363,7 @@ standard`) and `WebFetch` (`url`, `prompt`) both completed. The answer cited sou
   - Prune `stateDir/attempts`: done in WP18b (`revoked`, or `spawned` with the process gone, older
     than 7 days, with its `attempts/<hash>/` dir; on submit at most every 6 h and by
     `agent-workflow prune`).
+    WP19 (review #2): a launched attempt's record (`spawned`) is not deleted but replaced by a compact tombstone (`agent-workflow-attempt-tombstone-v1`: attemptKey, no outcome: the adapter records none, finishedAt, prunedAt); reconcile reads it as `unknown` ("launched, record pruned"), never `absent`, and submit refuses that attemptKey, so an orphaned workflow never retries an attempt that already ran. Tombstones are never pruned; only `revoked` (never-launched) records are removed.
 - **WP10**
   - `web_search`/`fetch_content` → `WebSearch`/`WebFetch` (pre-allowed, `safetyPolicy: unknown`).
   - `ls` maps to `Glob`.

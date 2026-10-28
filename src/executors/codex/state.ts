@@ -20,7 +20,12 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ExecRef } from "../../sdk/contract.js";
 import type { ExecEvent } from "../../sdk/events.js";
-import type { AttemptRecordClass } from "../state-retention.js";
+import {
+	type AttemptRecordClass,
+	type AttemptTombstone,
+	attemptTombstoneReason,
+	parseAttemptTombstone,
+} from "../state-retention.js";
 
 export type AttemptPhase = "revoked" | "consumed" | "spawned" | "terminal";
 
@@ -38,7 +43,12 @@ export interface AttemptRecord {
 export type AttemptLookup =
 	| { readonly status: "missing" }
 	| { readonly status: "found"; readonly record: AttemptRecord }
-	| { readonly status: "unreadable"; readonly reason: string };
+	| {
+			readonly status: "unreadable";
+			readonly reason: string;
+			/** WP19: the record was replaced by a retention tombstone. */
+			readonly pruned?: AttemptTombstone;
+	  };
 
 const ATTEMPT_PHASES: ReadonlySet<unknown> = new Set([
 	"revoked",
@@ -95,6 +105,14 @@ export class AttemptStore {
 		} catch {
 			return { status: "unreadable", reason: "attempt record is malformed" };
 		}
+		// WP19: a pruned launched attempt is ambiguous (launched, outcome kept), never missing.
+		const tombstone = parseAttemptTombstone(record);
+		if (tombstone)
+			return {
+				status: "unreadable",
+				reason: attemptTombstoneReason(tombstone),
+				pruned: tombstone,
+			};
 		if (
 			record === null ||
 			typeof record !== "object" ||
@@ -271,6 +289,9 @@ export function classifyCodexAttemptRecord(
 			value.phase === "terminal" ||
 			value.phase === "revoked" ||
 			(value.phase === "spawned" && !processAlive(value.pid)),
+		// WP19: a launched attempt leaves a tombstone with its terminal outcome.
+		launched: value.phase === "spawned" || value.phase === "terminal",
+		...(typeof value.terminal === "string" ? { outcome: value.terminal } : {}),
 		...(typeof value.updatedAt === "number" && Number.isFinite(value.updatedAt)
 			? { updatedAtMs: value.updatedAt }
 			: {}),

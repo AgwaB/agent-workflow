@@ -222,7 +222,7 @@ Other terminal cases:
 Attempt records (`<stateDir>/attempts/<sha256(attemptKey)>.json`, default `~/.agent-workflow/executors/pi`;
 WP18b: `exited`/`revoked` records, or `spawned` ones whose process is gone, older than 7 days are
 pruned with the adapter's own `<stateDir>/runs/<h>/`, on submit at most every 6 h and by
-`agent-workflow prune`):
+`agent-workflow prune`; WP19 (review #2): a launched attempt's record (`spawned` or `exited`) is not deleted but replaced by a compact tombstone (`agent-workflow-attempt-tombstone-v1`: attemptKey, the exit as outcome, finishedAt, prunedAt); reconcile reads it as `unknown` ("launched, record pruned"), never `absent`, and submit refuses that attemptKey, so an orphaned workflow never retries an attempt that already ran. Tombstones are never pruned; only `revoked` (never-launched) records are removed.):
 
 1. `pending` is written exclusively **before** `consume()`.
 2. Then `revoked`, or `consumed`.

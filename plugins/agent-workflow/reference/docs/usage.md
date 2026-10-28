@@ -475,6 +475,9 @@ Executor adapters keep one attempt record per worker attempt under
 older than 7 days are removed with their event logs and per-attempt dirs, in the background when a
 worker is submitted (at most every 6 h) and by `agent-workflow prune` (same dry-run rule;
 `--older-than DAYS` sets the window). Records of attempts that may still run are never removed.
+Since WP19 an attempt that was launched leaves a small tombstone in place of its record (never
+pruned), so a later reconcile reports it as "launched, outcome unknown or as recorded" and never
+as "never started": nothing is retried automatically.
 
 ## Troubleshooting
 

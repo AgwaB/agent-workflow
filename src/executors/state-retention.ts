@@ -7,15 +7,28 @@
 // their companions; records of non-terminal attempts, unreadable records and anything newer stay.
 // Kept-session ownership records (`<stateDir>/sessions/`) are not touched: releasing a session
 // already forgets its record, and an unreleased one is the evidence that allows deleting it.
+//
+// WP19 (stage-2 review #2): pruning never destroys launch evidence. A record of an attempt that was
+// launched (the adapter's classify says `launched`) is replaced by a compact tombstone at the same
+// path (`agent-workflow-attempt-tombstone-v1`: attemptKey, terminal outcome when known, finishedAt,
+// prunedAt; ~250 bytes) instead of being removed, and its bulky companions (raw stream, event log,
+// files dir) go. Every adapter's attempt lookup reads a tombstone as "launched, record pruned":
+// submit never relaunches that attemptKey (the exclusive first-record create still fails), and
+// reconcile answers `unknown` with the known outcome in its reason (the runtime records
+// failed/needs_decision, never not_started). Only never-launched records (`revoked`) are removed.
+// Tombstones are never removed by retention (they are counted in `tombstones`): one small file per
+// launched attempt, which is the price of "an attempt that ran is never reported as absent".
 import {
 	lstat,
 	readFile,
 	readdir,
+	rename,
 	rm,
 	stat,
 	utimes,
 	writeFile,
 } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 /** Terminal attempt records older than this are pruned (7 days). */
@@ -23,6 +36,53 @@ export const ADAPTER_STATE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 /** Background pruning on submit runs at most this often per state dir (6 h). */
 export const ADAPTER_STATE_PRUNE_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const PRUNE_STAMP_FILE = ".prune-stamp";
+
+/** WP19: schema of the compact record that replaces a pruned launched-attempt record. */
+export const ATTEMPT_TOMBSTONE_SCHEMA = "agent-workflow-attempt-tombstone-v1";
+
+export interface AttemptTombstone {
+	schema: typeof ATTEMPT_TOMBSTONE_SCHEMA;
+	attemptKey: string | null;
+	/** Terminal outcome when the adapter recorded one (`completed`, `failed`, `exit 0`, ...). */
+	outcome: string | null;
+	/** When the attempt finished (or its record was last updated). */
+	finishedAt: string | null;
+	prunedAt: string;
+}
+
+/** The tombstone when `value` is one. */
+export function parseAttemptTombstone(
+	value: unknown,
+): AttemptTombstone | undefined {
+	const record = value as Partial<AttemptTombstone> | null;
+	if (
+		record === null ||
+		typeof record !== "object" ||
+		record.schema !== ATTEMPT_TOMBSTONE_SCHEMA
+	)
+		return undefined;
+	return {
+		schema: ATTEMPT_TOMBSTONE_SCHEMA,
+		attemptKey:
+			typeof record.attemptKey === "string" ? record.attemptKey : null,
+		outcome: typeof record.outcome === "string" ? record.outcome : null,
+		finishedAt:
+			typeof record.finishedAt === "string" ? record.finishedAt : null,
+		prunedAt: typeof record.prunedAt === "string" ? record.prunedAt : "",
+	};
+}
+
+/**
+ * Why a tombstoned attempt is ambiguous: it was launched, its record was pruned, so it is never
+ * reported absent (reconcile `unknown`, no relaunch).
+ */
+export function attemptTombstoneReason(tombstone: AttemptTombstone): string {
+	return `attempt was launched and its record was pruned by retention${
+		tombstone.prunedAt ? ` at ${tombstone.prunedAt}` : ""
+	} (last known outcome: ${tombstone.outcome ?? "unknown"}${
+		tombstone.finishedAt ? `, ${tombstone.finishedAt}` : ""
+	}); not relaunched, needs an owner decision`;
+}
 
 /** An adapter's view of one parsed attempt record. */
 export interface AttemptRecordClass {
@@ -32,6 +92,13 @@ export interface AttemptRecordClass {
 	updatedAtMs?: number;
 	/** More per-attempt paths to remove with the record; only paths inside the state dir count. */
 	extraPaths?: string[];
+	/**
+	 * WP19: the attempt was launched (a process ran). Its record is replaced by a tombstone instead
+	 * of being removed. Only never-launched attempts (e.g. `revoked`) may leave no trace.
+	 */
+	launched?: boolean;
+	/** WP19: terminal outcome kept in the tombstone, when the record knows it. */
+	outcome?: string;
 }
 
 export interface AdapterStatePruneOptions {
@@ -58,6 +125,10 @@ export interface AdapterStatePruneSummary {
 	prunedRecords: number;
 	/** Records kept because the attempt is not terminal (or the record is unreadable). */
 	keptActive: number;
+	/** WP19: launched-attempt records replaced by a tombstone in this pass (subset of prunedRecords). */
+	tombstoned: number;
+	/** WP19: tombstones found (kept forever, they are the launch evidence). */
+	tombstones: number;
 	/** Every removed (or removable) path, records and companions and stale orphans. */
 	removedPaths: string[];
 	errors: string[];
@@ -113,6 +184,8 @@ export async function pruneAdapterAttemptState(
 		records: 0,
 		prunedRecords: 0,
 		keptActive: 0,
+		tombstoned: 0,
+		tombstones: 0,
 		removedPaths: [],
 		errors: [],
 	};
@@ -150,6 +223,10 @@ export async function pruneAdapterAttemptState(
 			summary.keptActive += 1;
 			continue;
 		}
+		if (parseAttemptTombstone(parsed)) {
+			summary.tombstones += 1;
+			continue;
+		}
 		const verdict = options.classify(parsed, base);
 		if (!verdict?.terminal) {
 			summary.keptActive += 1;
@@ -165,8 +242,32 @@ export async function pruneAdapterAttemptState(
 			...(verdict.extraPaths ?? []),
 		])
 			await remove(companion);
-		await remove(recordPath);
 		summary.prunedRecords += 1;
+		if (verdict.launched) {
+			// WP19: the launch evidence stays as a tombstone (companions first, so a crash in
+			// between leaves the full record, which the next pass tombstones).
+			summary.tombstoned += 1;
+			if (dryRun) continue;
+			const key = (parsed as { attemptKey?: unknown } | null)?.attemptKey;
+			const tombstone: AttemptTombstone = {
+				schema: ATTEMPT_TOMBSTONE_SCHEMA,
+				attemptKey: typeof key === "string" ? key : null,
+				outcome: verdict.outcome ?? null,
+				finishedAt: new Date(at).toISOString(),
+				prunedAt: new Date(nowMs).toISOString(),
+			};
+			try {
+				const temp = `${recordPath}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`;
+				await writeFile(temp, `${JSON.stringify(tombstone)}\n`, {
+					mode: 0o600,
+				});
+				await rename(temp, recordPath);
+			} catch (error) {
+				summary.errors.push(`${recordPath}: ${String(error)}`);
+			}
+			continue;
+		}
+		await remove(recordPath);
 	}
 	// Orphans: companions of an already removed record, interrupted temp files.
 	for (const name of entries) {

@@ -9,7 +9,13 @@ import { link, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
 import type { ExecRef } from "../../sdk/contract.js";
 import type { OwnedSession } from "../../sdk/events.js";
-import { type AttemptRecordClass, processAlive } from "../state-retention.js";
+import {
+	type AttemptRecordClass,
+	type AttemptTombstone,
+	attemptTombstoneReason,
+	parseAttemptTombstone,
+	processAlive,
+} from "../state-retention.js";
 
 export type PiAttemptPhase =
 	| "pending"
@@ -48,7 +54,12 @@ export interface PiAttemptRecord {
 export type PiAttemptLookup =
 	| { readonly status: "missing" }
 	| { readonly status: "found"; readonly record: PiAttemptRecord }
-	| { readonly status: "unreadable"; readonly reason: string };
+	| {
+			readonly status: "unreadable";
+			readonly reason: string;
+			/** WP19: the record was replaced by a retention tombstone. */
+			readonly pruned?: AttemptTombstone;
+	  };
 
 const PI_ATTEMPT_PHASES: ReadonlySet<unknown> = new Set([
 	"pending",
@@ -96,6 +107,14 @@ export class PiAttemptStore {
 		} catch {
 			return { status: "unreadable", reason: "attempt record is malformed" };
 		}
+		// WP19: a pruned launched attempt is ambiguous (launched, outcome kept), never missing.
+		const tombstone = parseAttemptTombstone(record);
+		if (tombstone)
+			return {
+				status: "unreadable",
+				reason: attemptTombstoneReason(tombstone),
+				pruned: tombstone,
+			};
 		if (
 			record === null ||
 			typeof record !== "object" ||
@@ -165,6 +184,12 @@ export class PiAttemptStore {
 	}
 }
 
+function piExitOutcome(exit: PiAttemptExit): string {
+	if (exit.cancelled) return "cancelled";
+	if (exit.signal) return `signal ${exit.signal}`;
+	return `exit ${exit.exitCode ?? "unknown"}`;
+}
+
 /**
  * WP18b retention: a Pi attempt is terminal when `exited` or `revoked`, or `spawned` with its
  * process gone (`pending`/`consumed` without launch evidence stay). The raw-stream dir goes with
@@ -191,6 +216,9 @@ export function classifyPiAttemptRecord(
 			value.phase === "exited" ||
 			value.phase === "revoked" ||
 			(value.phase === "spawned" && !processAlive(value.pid)),
+		// WP19: a launched attempt leaves a tombstone with its exit as the outcome.
+		launched: value.phase === "spawned" || value.phase === "exited",
+		...(value.exit ? { outcome: piExitOutcome(value.exit) } : {}),
 		...(Number.isFinite(updatedAtMs) ? { updatedAtMs } : {}),
 		...(ownRunDir ? { extraPaths: [runDir] } : {}),
 	};
