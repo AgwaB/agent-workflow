@@ -6,6 +6,7 @@
 // the system prompt is a file path; B5 isolation adds `-ne -ns -np --no-themes -na` next to the
 // ported `--no-context-files`; MCP servers and Pi-only options are carried by one generated per-run
 // extension (`-e`); `--session-dir` keeps D3 sessions under adapter state.
+import { INHERITED_HOST_TOOL_NAMES } from "../../core/tool-policy.js";
 import type { ToolKind } from "../../sdk/events.js";
 import {
 	isMutatingKind,
@@ -72,15 +73,8 @@ export const PI_EXECUTOR_TOOL_MAPPING: ToolMapping = {
 	},
 };
 
-/** Tools `inheritHostTools` adds (pi-workflow `workflowNativeLaunchTools`). */
-export const INHERITED_HOST_TOOLS = [
-	"codemode",
-	"tool_search",
-	"mcp__*",
-	"list_mcp_resources",
-	"list_mcp_resource_templates",
-	"read_mcp_resource",
-] as const;
+/** Tools `inheritHostTools` adds (pi-workflow `workflowNativeLaunchTools`; one list, in core). */
+export const INHERITED_HOST_TOOLS = INHERITED_HOST_TOOL_NAMES;
 
 /** `mcp__<server>__<tool>` with chars outside `[A-Za-z0-9_]` → `_` (Pi 1.1 `docs/mcp.md`). */
 export function piMcpToolName(server: string, tool: string): string {

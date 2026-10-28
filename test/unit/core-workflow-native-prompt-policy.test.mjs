@@ -9,7 +9,8 @@
 // the inheritance (writable stages with tools only: a readOnly stage never inherits, WP35; as before, an empty tool list inherits nothing), and the "native-host"
 // generated extension is gone (the Pi executor's per-run extension). The tool list reaches the
 // runtime through the system prompt's policy line (no `tools` launch option since WP4c-1), and the
-// prompt sent to the pi executor names the artifact tool by its MCP name
+// prompt sent to the pi executor names the artifact tool by its MCP name (WP39b: with inherited host
+// tools the policy also lists them as available)
 // (`renderWorkerPromptToolNames`, WP10), while system-prompt.md keeps the canonical text.
 import { readFile } from "node:fs/promises";
 import {
@@ -150,13 +151,27 @@ for (const native of [false, true]) {
 						);
 						const policyLine = canonical
 							.split("\n")
-							.find((line) => /^(Only these tools|No tools)/.test(line));
+							.find((line) =>
+								/^(Only these (workflow )?tools|No (workflow )?tools)/.test(
+									line,
+								),
+							);
 						const tools = provenance.effectivePolicy.tools;
+						// WP39b (O8): a task that inherits the host tools names them as available and
+						// calls its own list "workflow tools".
+						const hostTools = native && !empty;
+						const kind = hostTools ? "workflow tools" : "tools";
 						assert.equal(
 							policyLine,
 							tools.length
-								? `Only these tools are enabled for this workflow task: ${tools.join(", ")}.`
-								: "No tools are enabled for this workflow task.",
+								? `Only these ${kind} are enabled for this workflow task: ${tools.join(", ")}.`
+								: `No ${kind} are enabled for this workflow task.`,
+						);
+						assert.equal(
+							/^Host tools inherited from the Pi session are also available: codemode, tool_search, mcp__\*/m.test(
+								canonical,
+							),
+							hostTools,
 						);
 						assert.equal(
 							captured.systemPrompt,

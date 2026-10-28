@@ -208,7 +208,12 @@ test("headless /workflow auto fails closed without structured transmission autho
 	});
 	assert.equal(submits(log).classifier.length, 0);
 	const text = messages.map(({ message }) => message).join("\n");
-	assert.match(text, /Not sent: you did not agree to the comparison request/);
+	// WP39b (O1): a dialog that cannot be shown is no answer from the user, not a decline.
+	assert.match(
+		text,
+		/Not sent: the consent dialog was cancelled without an answer \(the client cancelled it or cannot ask here\)/,
+	);
+	assert.doesNotMatch(text, /did not agree/);
 	assert.match(text, /no workflow has been started\./);
 	assert.equal(text.includes("SECRET ORIGINAL TASK"), false);
 	const optionMessages = [];
