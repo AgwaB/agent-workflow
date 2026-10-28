@@ -6,8 +6,10 @@ import {
 	mkdir,
 	mkdtemp,
 	readFile,
+	readdir,
 	realpath,
 	rm,
+	utimes,
 	writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -500,4 +502,57 @@ test("verdict gate: a run whose only failure is the final verdict is presented a
 	);
 	assert.equal(realWait.data.verdictGate, undefined);
 	assert.doesNotMatch(realWait.text, /report ready/);
+});
+
+// --- item 8: host launch claim files are pruned ---
+
+const guard = await import("../../dist/hosts/launch-guard.js");
+
+test("launch claims: stale claim files are pruned on launch and by prune; fresh ones stay", async () => {
+	const { cwd, env } = await project();
+	const dir = guard.launchGuardDir(cwd);
+	await mkdir(dir, { recursive: true });
+	const old = new Date(Date.now() - 2 * 60 * 60 * 1000);
+	const claim = (name, extra = {}) =>
+		JSON.stringify({
+			schema: "agent-workflow-host-launch-v1",
+			fingerprint: name,
+			claimedAt: old.toISOString(),
+			pid: 999_999,
+			...extra,
+		});
+	const files = {
+		"done.json": claim("done", { runId: "workflow_gone_000000" }),
+		"dead.json": claim("dead"),
+		"x.json.1.2.tmp": "{}",
+	};
+	for (const [name, text] of Object.entries(files)) {
+		await writeFile(join(dir, name), text);
+		await utimes(join(dir, name), old, old);
+	}
+	await writeFile(
+		join(dir, "fresh.json"),
+		claim("fresh", { claimedAt: new Date().toISOString() }),
+	);
+
+	const dry = await api.pruneAction({ cwd, env }, {});
+	assert.equal(dry.data.hostLaunchClaims.removed.length, 3);
+	assert.match(
+		dry.text,
+		/Host launch claims: 3 stale file\(s\) would be removed/,
+	);
+	assert.equal((await readdir(dir)).length, 4);
+	const done = await api.pruneAction({ cwd, env }, { yes: true });
+	assert.match(done.text, /Host launch claims: 3 stale file\(s\) removed/);
+	assert.deepEqual(await readdir(dir), ["fresh.json"]);
+
+	// A launch prunes stale claims of other fingerprints too.
+	await writeFile(join(dir, "dead.json"), claim("dead"));
+	await utimes(join(dir, "dead.json"), old, old);
+	const decision = await guard.claimLaunch(cwd, "f".repeat(64));
+	assert.equal(decision.kind, "claimed");
+	await decision.release();
+	for (let i = 0; i < 50 && (await readdir(dir)).includes("dead.json"); i += 1)
+		await new Promise((resolve) => setTimeout(resolve, 20));
+	assert.deepEqual(await readdir(dir), ["fresh.json"]);
 });

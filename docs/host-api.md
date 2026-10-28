@@ -139,8 +139,10 @@ pruned or older run, different inputs or options, or `forceNew: true` start a ne
 claim file per identity in `<cwd>/.agent-workflow/host-launches/<sha256>.json`, created exclusively
 before the run starts and given the run id afterwards, so concurrent identical launches also yield
 one run (the later ones wait up to 15 s for the first run id; a claim of a dead process or older
-than 60 s without a run id is taken over). Runs launched outside the host API (the SDK) are not
-guarded. Before WP16 the guard applied to attached launches only, matched spec name + task, and
+than 60 s without a run id is taken over). WP18b: claim files older than 1 h that do not name a
+still-active run are stale; every launch removes them in the background and `prune` removes them
+with the runs (same dry-run rule; `data.hostLaunchClaims`). Runs launched outside the host API (the
+SDK) are not guarded. Before WP16 the guard applied to attached launches only, matched spec name + task, and
 refused (`outcome: "refused"`).
 
 The handler returns once the run is launched (usually `running`). The engine keeps an in-process

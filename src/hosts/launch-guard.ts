@@ -11,8 +11,19 @@
 // (outside the run store, so run listings and notices never see it). A launch claims the
 // fingerprint exclusively before it starts the run and records the run id afterwards, so two
 // concurrent identical launches (a retry racing the first call) also yield one run.
+// WP18b: claim files only matter inside the guard window, so stale ones (older than 1 h, and not
+// naming a still-active run) are pruned in the background on every launch and by
+// `agent-workflow prune` (`pruneHostLaunchClaims`).
 import { createHash } from "node:crypto";
-import { mkdir, open, readFile, rename, unlink } from "node:fs/promises";
+import {
+	lstat,
+	mkdir,
+	open,
+	readFile,
+	readdir,
+	rename,
+	unlink,
+} from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 import { DUPLICATE_RUN_WINDOW_MS } from "../core/run-estimates.js";
@@ -25,6 +36,11 @@ export const LAUNCH_CLAIM_STALE_MS = 60_000;
 /** How long a concurrent identical launch waits for the first one to record its run id. */
 const IN_FLIGHT_WAIT_MS = 15_000;
 const IN_FLIGHT_POLL_MS = 100;
+/**
+ * WP18b: a claim file older than this (mtime) is stale: the guard window is 10 min and a claim
+ * without a run id is taken over after 60 s.
+ */
+export const LAUNCH_CLAIM_RETENTION_MS = 60 * 60 * 1000;
 const ACTIVE_STATUSES = new Set(["running", "pending", "blocked"]);
 
 export interface LaunchFingerprintInput {
@@ -233,6 +249,8 @@ export async function claimLaunch(
 				await unlink(file).catch(() => undefined);
 		},
 	});
+	// WP18b: stale claims of earlier launches go in the background (never blocks the launch).
+	void pruneHostLaunchClaims(cwd).catch(() => undefined);
 	while (true) {
 		const mine = fresh();
 		if (await createClaim(file, mine)) return claimed(mine);
@@ -262,6 +280,63 @@ export async function claimLaunch(
 		if (after && after.pid === mine.pid && after.claimedAt === mine.claimedAt)
 			return claimed(mine);
 	}
+}
+
+export interface HostLaunchClaimPrune {
+	dir: string;
+	dryRun: boolean;
+	/** Stale claim and temp files removed (or that would be removed in a dry run). */
+	removed: string[];
+	errors: string[];
+}
+
+/**
+ * Remove stale launch claim files (and interrupted temp files): mtime older than
+ * `LAUNCH_CLAIM_RETENTION_MS`, unless the claim names a run that is still active and inside the
+ * guard window.
+ */
+export async function pruneHostLaunchClaims(
+	cwd: string,
+	options: { dryRun?: boolean; nowMs?: number; retentionMs?: number } = {},
+): Promise<HostLaunchClaimPrune> {
+	const dir = launchGuardDir(cwd);
+	const nowMs = options.nowMs ?? Date.now();
+	const cutoff = nowMs - (options.retentionMs ?? LAUNCH_CLAIM_RETENTION_MS);
+	const summary: HostLaunchClaimPrune = {
+		dir,
+		dryRun: options.dryRun === true,
+		removed: [],
+		errors: [],
+	};
+	let names: string[];
+	try {
+		names = await readdir(dir);
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+			summary.errors.push(String(error));
+		return summary;
+	}
+	for (const name of names) {
+		if (!name.endsWith(".json") && !name.endsWith(".tmp")) continue;
+		const file = join(dir, name);
+		const info = await lstat(file).catch(() => undefined);
+		if (!info?.isFile() || info.mtimeMs > cutoff) continue;
+		if (name.endsWith(".json")) {
+			const claim = await readClaim(file);
+			if (
+				claim &&
+				(await activeMatch(cwd, claim, nowMs, DUPLICATE_RUN_WINDOW_MS))
+			)
+				continue;
+		}
+		summary.removed.push(file);
+		if (summary.dryRun) continue;
+		await unlink(file).catch((error) => {
+			if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+				summary.errors.push(`${file}: ${String(error)}`);
+		});
+	}
+	return summary;
 }
 
 /** Record a forceNew launch so later identical launches find the newest run. */

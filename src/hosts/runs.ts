@@ -58,6 +58,10 @@ import {
 import { hostCommandHints, type WorkflowCommandHints } from "./hints.js";
 import { spawnDetachedSupervisor } from "./launch.js";
 import {
+	type HostLaunchClaimPrune,
+	pruneHostLaunchClaims,
+} from "./launch-guard.js";
+import {
 	formatVerdictGateHeadline,
 	formatWorkflowResultPresentation,
 	isResultOnlyWorkflowSuccess,
@@ -697,7 +701,10 @@ export async function pruneAction(
 		| { argv: string[] },
 ): Promise<
 	HostResult<
-		WorkflowPruneSummary & { adapterState: ExecutorStatePruneResult[] }
+		WorkflowPruneSummary & {
+			adapterState: ExecutorStatePruneResult[];
+			hostLaunchClaims: HostLaunchClaimPrune;
+		}
 	>
 > {
 	assertActionAllowed(ctx, "prune");
@@ -724,11 +731,16 @@ export async function pruneAction(
 			? {}
 			: { retentionMs: retention.olderThanDays * 86_400_000 }),
 	});
+	// WP18b: stale host launch claims (`.agent-workflow/host-launches/`) go with the runs.
+	const hostLaunchClaims = await pruneHostLaunchClaims(ctx.cwd, {
+		dryRun: !retention.yes,
+	});
+	const claimsText = `Host launch claims: ${hostLaunchClaims.removed.length} stale file(s) ${hostLaunchClaims.dryRun ? "would be removed" : "removed"}${hostLaunchClaims.errors.length ? `; errors: ${hostLaunchClaims.errors.join("; ")}` : ""}`;
 	return result(
 		"prune",
 		summary.error ? "failed" : "success",
-		{ ...summary, adapterState },
-		`${formatWorkflowPruneSummary(summary)}\n${formatExecutorStatePrune(adapterState)}`,
+		{ ...summary, adapterState, hostLaunchClaims },
+		`${formatWorkflowPruneSummary(summary)}\n${formatExecutorStatePrune(adapterState)}\n${claimsText}`,
 	);
 }
 
