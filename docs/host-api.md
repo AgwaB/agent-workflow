@@ -138,8 +138,14 @@ is spawned, and the text starts `Duplicate launch guard:` and names `--force-new
 pruned or older run, different inputs or options, or `forceNew: true` start a new run. State: one
 claim file per identity in `<cwd>/.agent-workflow/host-launches/<sha256>.json`, created exclusively
 before the run starts and given the run id afterwards, so concurrent identical launches also yield
-one run (the later ones wait up to 15 s for the first run id; a claim of a dead process or older
-than 60 s without a run id is taken over). WP18b: claim files older than 1 h that do not name a
+one run (the later ones wait up to 15 s for the first run id). WP19 (review #1): every claim carries
+a unique owner token and a renewable lease (`leaseExpiresAt`, 60 s, renewed every 15 s while the
+launch is in flight, e.g. waiting for a user confirmation). Publishing, stale takeover, renewal,
+`record`, `release` and pruning all run under a per-identity mutex (`<sha256>.lock`, an atomically
+created lock directory with owner-aware stealing, the same `dir-lock` the artifact registry uses), so
+two launches that find the same stale claim serialize and exactly one is `claimed`; a pending claim
+is taken over only when its lease expired or its owner process (same host) is dead; record, release
+and prune leave a claim with another owner token alone. WP18b: claim files older than 1 h that do not name a
 still-active run are stale; every launch removes them in the background and `prune` removes them
 with the runs (same dry-run rule; `data.hostLaunchClaims`). Runs launched outside the host API (the
 SDK) are not guarded. Before WP16 the guard applied to attached launches only, matched spec name + task, and
