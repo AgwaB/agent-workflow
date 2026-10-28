@@ -48,6 +48,7 @@ import {
 import type { WorkflowRuntimeDefaults } from "../core/workflow-runtime.js";
 import { HostUsageError, isThinkingLevel } from "./args.js";
 import {
+	LAUNCH_CANCELLED,
 	type LaunchData,
 	type LaunchRequestBase,
 	runDynamicAction,
@@ -146,7 +147,10 @@ export interface AutoRequest
 	compare?: (
 		operation: (signal: AbortSignal | undefined) => Promise<WorkflowAutoResult>,
 	) => Promise<WorkflowAutoResult | undefined>;
-	/** Cancels the whole action (Pi: the session ended); checked at every step before the launch. */
+	/**
+	 * Cancels the whole action (Pi: the session ended); checked at every step before the launch and
+	 * (WP42) carried into the launch itself (profile chooser, capability confirm, engine fence).
+	 */
 	signal?: AbortSignal;
 }
 
@@ -791,9 +795,11 @@ export async function autoAction(
 		consent: _consent,
 		choose: _choose,
 		compare: _compare,
-		signal: _signal,
 		...launchOptions
 	} = request;
+	// WP42 (review round 1, finding 1): the session signal stays on the launch request: the launch
+	// path re-checks it after its own dialogs (profile chooser, capability confirm) and the engine
+	// fences publication and the first dispatch with it.
 	const launchRequest: LaunchRequestBase = {
 		...launchOptions,
 		task,
@@ -806,6 +812,17 @@ export async function autoAction(
 					workflow: source.specPath!,
 				})
 			: await runDynamicAction(ctx, launchRequest);
+	if (launched.data.refusal?.code === LAUNCH_CANCELLED && !launched.data.runId)
+		return result(
+			"auto",
+			"refused",
+			{ ...data, phase: "cancelled", selected: chosen, launch: launched.data },
+			[
+				...rankedText,
+				`Selected: ${chosen.label}`,
+				"Auto selection cancelled: the session ended before the launch was published. No workflow has been started.",
+			].join("\n"),
+		);
 	return {
 		...launched,
 		action: "auto",

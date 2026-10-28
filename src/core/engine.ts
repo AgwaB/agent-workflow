@@ -1079,7 +1079,8 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 			return persisted;
 		});
 	} catch (error) {
-		if (options.autoLaunchBinding)
+		// WP42: a foreground-cancelled launch leaves no unpublished run directory behind either.
+		if (options.autoLaunchBinding || options.launchSignal?.aborted)
 			await removeUnpublishedAutoRunDirectory(cwd, run.runId);
 		throw error;
 	}
