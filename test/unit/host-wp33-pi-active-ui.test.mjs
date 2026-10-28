@@ -131,7 +131,9 @@ test("formatActiveWorkflowLines: progress, elapsed time, truncation and overflow
 });
 
 test("widget lists this session's active runs with progress, keeps the footer entry and clears when done", async () => {
-	const { cwd, env, executor } = await project();
+	// A long step keeps both runs active until the widget (1 s refresh) has shown them, also under
+	// load (with 800 ms the runs could finish first).
+	const { cwd, env, executor } = await project(5_000);
 	const { command } = install(env);
 	const ctx = fakeCtx(cwd);
 	await command.handler(`run wf.json "first" --executor ${executor}`, ctx);
