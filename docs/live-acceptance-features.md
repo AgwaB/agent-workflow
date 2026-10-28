@@ -476,3 +476,14 @@ no `<HOME>/.pi/agent/sessions` entry for the targets.
 - `y` at the in-run CLI approval question (the same prompt as the verified `approve` one).
 - Elicitation on Codex with the user's own `approval_policy = "never"` (O2): decided 2026-10-28,
   the auto-accept counts as consent (documented, WP39b).
+
+## WP42 review round 3 fix
+
+Round-3 confirmation review (gpt-6-astra, `9bfcfaa`): N1–N3 fixed (13 new tests: 9 behavioral
+failures on `cdab133`, all pass on the target), no false keeps for canonical/aliased/non-git
+layouts, one remaining major. Fixed by the parent:
+
+| Finding | Fix | Regression test | Fails before the fix |
+|---|---|---|---|
+| N4 (major): with git missing (`ENOENT`) or outside a git repository, `registeredWorktreeInside` inferred "no registered worktree", so a run directory holding an unrecorded worktree with user work was deleted | Without a git listing, a git checkout found on disk inside the run directory (a `.git` entry, no symlinks followed, bounded depth) keeps the run; `git` calls time out after 30 s (fail closed) | `test/unit/core-wp42-n4-missing-git.test.mjs` (git missing + unrecorded worktree → kept; non-git project + nested checkout → kept; control without a checkout → removed) | yes (2 of 3; the control passes) |
+

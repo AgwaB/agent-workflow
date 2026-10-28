@@ -697,6 +697,9 @@ What prune removes and what it keeps (WP42):
   repository's `git worktree list` still registers after prune removed the identified managed ones
   (for example one created there by hand), or while one of its enabled worktree records cannot be
   identified (below). Prune never removes a registered git worktree by deleting its run directory.
+  When git cannot list registrations (git is not installed, or the project is not a git
+  repository), a git checkout found inside the run directory (a `.git` file or directory) keeps
+  the run instead; a hung `git` (30 s) also keeps it.
 
 **Worktrees.** A write-capable stage that runs in a managed worktree
 (`.agent-workflow/workflows/<run>/worktrees/<task>`, branch `agent-workflow/<run>-<task>`) leaves it
