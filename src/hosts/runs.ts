@@ -48,6 +48,7 @@ import {
 	SUPERVISE_DEFAULT_MAX_RUNTIME_MS,
 	SUPERVISE_DEFAULT_POLL_MS,
 } from "./args.js";
+import { hostCommandHints } from "./hints.js";
 import { spawnDetachedSupervisor } from "./launch.js";
 import {
 	formatWorkflowResultPresentation,
@@ -122,7 +123,7 @@ export async function statusAction(
 ): Promise<HostResult<StatusData>> {
 	assertActionAllowed(ctx, "status");
 	if (request.runId === undefined) {
-		const text = await formatStatus(ctx.cwd);
+		const text = await formatStatus(ctx.cwd, hostCommandHints(ctx.host));
 		const runs = (await listRunRecords(ctx.cwd))
 			.filter((run) => !run.parentRunId)
 			.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -130,7 +131,7 @@ export async function statusAction(
 		return result("status", "success", { runs }, text);
 	}
 	const ref = requireRunRef(request.runId, "status");
-	const text = await formatRunStatus(ctx.cwd, ref);
+	const text = await formatRunStatus(ctx.cwd, ref, hostCommandHints(ctx.host));
 	const run = await readRunRecord(ctx.cwd, ref);
 	return result(
 		"status",
@@ -158,8 +159,8 @@ export async function showRunAction(
 	assertActionAllowed(ctx, "show");
 	const ref = requireRunRef(request.runId, "show");
 	const text = request.raw
-		? await formatRawRunDetails(ctx.cwd, ref)
-		: await formatRunDetails(ctx.cwd, ref);
+		? await formatRawRunDetails(ctx.cwd, ref, hostCommandHints(ctx.host))
+		: await formatRunDetails(ctx.cwd, ref, hostCommandHints(ctx.host));
 	const run = await readRunRecord(ctx.cwd, ref);
 	return result("show", "success", { kind: "run", run }, text);
 }
@@ -425,6 +426,7 @@ export async function waitAction(
 		...(run.usage ? { usage: run.usage } : {}),
 		...(run.degradation ? { degradation: run.degradation } : {}),
 	};
+	const hints = hostCommandHints(ctx.host);
 	let text: string;
 	if (stillRunning) {
 		text = `Workflow still running: ${run.name ?? "workflow"}\nRun: ${run.runId}\nProgress: ${run.taskSummary.completed}/${run.taskSummary.total} completed, ${run.taskSummary.running} running (waited ${timeoutMs}ms; wait again to keep driving it)`;
@@ -442,14 +444,14 @@ export async function waitAction(
 			`Run: ${run.runId}`,
 			`Engine status: ${terminal.engineStatus}`,
 			`Semantic status: ${terminal.semanticStatus}`,
-			formatHumanRunOutcome(run),
+			formatHumanRunOutcome(run, { hints }),
 			`Output retries: ${terminal.outputRetryAttempts}; launch retries: ${terminal.launchRetryAttempts}`,
 			`Artifacts: ${data.artifactRoot}`,
 			terminal.terminal
 				? preview
 					? `Final result preview:\n${formatWorkflowResultPresentation(preview, artifacts)}`
 					: "Final result preview: unavailable"
-				: `Blocked tasks: ${blockedTaskIds.join(", ") || "unknown"}; inspect with: agent-workflow inspect ${run.runId} --failures; resume with: agent-workflow resume ${run.runId}`,
+				: `Blocked tasks: ${blockedTaskIds.join(", ") || "unknown"}; inspect with: ${hints.inspectFailures(run.runId)}; resume with: ${hints.resume(run.runId)}`,
 		].join("\n");
 	}
 	return result(
@@ -494,7 +496,9 @@ export async function resumeAction(
 		"resume",
 		outcomeForRunStatus(run.status),
 		data,
-		formatHumanRunResume(run, resetTaskIds.length) + note,
+		formatHumanRunResume(run, resetTaskIds.length, {
+			hints: hostCommandHints(ctx.host),
+		}) + note,
 	);
 }
 
@@ -542,7 +546,11 @@ export async function stopAction(
 					interruptedTaskIds,
 					pending: false,
 				},
-				formatHumanRunStop(run, interruptedTaskIds.length),
+				formatHumanRunStop(
+					run,
+					interruptedTaskIds.length,
+					hostCommandHints(ctx.host),
+				),
 			);
 		} catch (error) {
 			if (!isWorkflowStopPendingError(error)) throw error;
@@ -558,7 +566,7 @@ export async function stopAction(
 						interruptedTaskIds: [],
 						pending: true,
 					},
-					`Stop requested for ${run.runId}; the active supervisor has not confirmed it yet. The stop intent is durable. Check: agent-workflow status ${run.runId}`,
+					`Stop requested for ${run.runId}; the active supervisor has not confirmed it yet. The stop intent is durable. Check: ${hostCommandHints(ctx.host).status(run.runId)}`,
 				);
 			}
 			await new Promise((done) => setTimeout(done, 250));

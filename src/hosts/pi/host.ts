@@ -227,10 +227,11 @@ function printMode(ctx: PiExtensionContext): boolean {
 }
 
 /**
- * Core formatters (ported from pi-workflow) print `/workflow …` hints. In Pi, `/workflow` is
- * pi-workflow's command (its own run store), so the Pi host points them at `/aw`; there is no board,
- * so `/workflow <run>` becomes `/aw status <run>` and `/workflow logs <run> [task]` becomes
- * `/aw logs <run> [--task <task>]` (WP16). Everything else in the handler text is unchanged.
+ * WP18b: run texts already carry `/aw …` hints (the Pi host passes `host: "pi"`, the host API picks
+ * the hints; src/hosts/hints.ts). This remains a fallback for the few ported core messages that
+ * still name pi-workflow's `/workflow …` (auto/profile/usage texts): in Pi, `/workflow` is
+ * pi-workflow's command (its own run store), so they point at `/aw`; `/workflow <run>` becomes
+ * `/aw status <run>` and `/workflow logs <run> [task]` becomes `/aw logs <run> [--task <task>]`.
  */
 export function piHostText(text: string): string {
 	return text

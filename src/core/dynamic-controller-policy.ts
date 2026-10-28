@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-controller-policy.ts. MIT, same author. Changes: run bundle path in approval text .pi/workflows→.agent-workflow/workflows.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-controller-policy.ts. MIT, same author. Changes: run bundle path in approval text .pi/workflows→.agent-workflow/workflows; approval messages name `/aw resume` (WP18b), not pi-workflow's `/workflow resume`.
 import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import { basename, relative } from "node:path";
 
@@ -105,7 +105,7 @@ export async function ensureDynamicControllerApproval(input: {
 				},
 			});
 		}
-		const message = `dynamic approval mode "ask" requires an interactive Pi UI; this scheduler has no approval UI. Open an interactive Pi session and run /workflow resume ${input.run.runId} to approve or reject.`;
+		const message = `dynamic approval mode "ask" requires an interactive Pi UI; this scheduler has no approval UI. Open an interactive Pi session and run /aw resume ${input.run.runId} to approve or reject.`;
 		await recordDynamicControllerStatus(input.cwd, input.run.runId, {
 			controllerSpecId: input.task.specId,
 			status: "awaiting_ui_unavailable",
@@ -136,7 +136,7 @@ export async function ensureDynamicControllerApproval(input: {
 			approvalMessage,
 		);
 	} catch {
-		const message = `dynamic controller approval timed out or was unavailable. Open an interactive Pi session and run /workflow resume ${input.run.runId} to approve or reject.`;
+		const message = `dynamic controller approval timed out or was unavailable. Open an interactive Pi session and run /aw resume ${input.run.runId} to approve or reject.`;
 		await recordDynamicControllerStatus(input.cwd, input.run.runId, {
 			controllerSpecId: input.task.specId,
 			status: "awaiting_ui_unavailable",

@@ -41,6 +41,15 @@ passed through unchanged for the stage-2 default-executor rule, WP17).
 | `data` | Structured, JSON-serializable payload (per handler below). |
 | `text` | Plain-text rendering for humans (CLI stdout, MCP text content). |
 
+**Next-step hints (WP18b).** Run texts name follow-up commands (`Open:`, `Resume:`, `Logs:`, `Raw:`,
+stall warnings, the detached-launch and blocked-wait lines). Handlers choose them from `ctx.host`
+(`src/hosts/hints.ts`): `cli` or unset → `agent-workflow status|resume|logs … <run>`, `pi` →
+`/aw …`, `claude-code`/`codex`/`generic` → MCP tool calls (`workflow_status {"runId":…}`,
+`workflow_logs`, `workflow_inspect`, `workflow_stop`; resume has no tool, so it names
+`agent-workflow resume <run>`). Hosts print `text` unchanged; no host rewrites handler text for
+hints. The core formatters keep pi-workflow's `/workflow …` form only as their default for direct
+(ported) core callers.
+
 **Errors.** Caller mistakes throw `HostUsageError` (CLI exit 2; host MCP server: a tool result
 with `isError` and `error.kind: "usage"`, see `host-mcp.md`). Spec errors
 throw `WorkflowValidationError`; `formatHostError(error)` renders any error. Launch refusals are
@@ -258,7 +267,7 @@ The original files carry `Moved (WP11a)` markers at the former deferral comments
 - **WP11b (Pi host):** `/workflow` slash commands should call these handlers with
   `availableModels`/`runtimeDefaults` from Pi and `selectProfile`/`confirmDegradations` from the
   TUI; it keeps feedback delivery, parent usage, notices at session start, the board and `auto`.
-  Core formatters still print `/workflow …` hints (status/show/stop texts); the CLI shows them as is.
+  WP18b: run-text hints are host-aware (see *Next-step hints* above).
 - **Launch capture:** `WorkflowRunLaunchCapture` has no CLI/MCP source kind; runs launched through
   the host API record no launch metadata until core gains a host-neutral source.
 - **Stage 2 (WP13 MCP host):** done — `docs/host-mcp.md` (`HostUsageError` → `isError` tool

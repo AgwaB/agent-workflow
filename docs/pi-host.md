@@ -68,10 +68,11 @@ Run options (leading or trailing, quoted text is literal; the host API parser
 the Pi session lives; `/aw wait`, `/aw status` or `aw_wait` show progress, `--detach` hands it to a
 standalone supervisor that outlives the session. `supervise` is CLI-only.
 
-Core formatters print pi-workflow-style `/workflow …` hints; the Pi host rewrites them to `/aw …`
-(`/workflow <run>` → `/aw status <run>`, `/workflow logs <run> …` → `/aw inspect <run> --results`),
-because `/workflow` belongs to pi-workflow and its own run store. WP16: `/workflow logs <run> [task]`
-→ `/aw logs <run> [--task <task>]` (was `/aw inspect <run> --results`).
+Run texts name `/aw …` follow-up commands (`Open: /aw status <run>`, `Resume: /aw resume <run>`,
+`/aw logs <run> --task <task>`): the Pi host passes `host: "pi"` and the host API picks the hints
+(WP18b, [host-api.md](host-api.md#common-contract)). `piHostText` remains only as a fallback for the
+few ported core messages that still name pi-workflow's `/workflow` (for example the `auto`/profile
+messages): it points them at `/aw`, because `/workflow` belongs to pi-workflow and its own run store.
 
 ## Tools
 

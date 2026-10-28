@@ -229,6 +229,8 @@ input 30, cache read 567,411, cache write 34,077, output 2,922. No `codex exec` 
 4. **CLI text uses pi-workflow hints.** `agent-workflow status` prints `Open: /workflow <run>`,
    `Resume: /workflow resume <run>` and "inspect /workflow logs <run>"; only the Pi host rewrites
    them (the MCP texts seen here had none).
+   WP18b: hints come from the host API per host (`agent-workflow …`, `/aw …`, MCP tool calls;
+   [host-api.md](host-api.md#common-contract)).
 5. **False stall warning during a scheduled retry.** `status` showed "⚠ no task progress for 14m
    (heartbeat alive — possible stall)" while the only open task was waiting for its retry time.
 6. **Pi completion message "Verdict: completed"** is the run's semantic status; the report verdict
