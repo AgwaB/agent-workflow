@@ -288,3 +288,40 @@ test("Pi /aw approve asks through ctx.ui.confirm and continues the run; no dialo
 		ctx.notes.some((note) => /Approved dynamic controller/.test(note.message)),
 	);
 });
+
+// WP39b (live bundle 5, O10): a run that settles inside the approve call (foreground `/aw approve`,
+// board `a`) got no completion message: tracking started only for running/pending results. Now a
+// settled result is tracked too and the message is delivered exactly once.
+test("Pi /aw approve: a run that settles inside the approve call gets exactly one completion message", async () => {
+	const p = await project();
+	const runId = await blockedRun(p);
+	const history = [];
+	const pi = fakePi({ history });
+	ext.createAgentWorkflowPiExtension({ env: p.env, feedbackPollMs: 50 })(pi);
+	instances.push(pi);
+	const ctx = fakeCtx(p.cwd, { history });
+	ctx.ui.confirm = async () => true;
+	await pi.commands.get("aw").handler(`approve ${runId}`, ctx);
+	assert.equal(
+		(await store.readRunRecord(p.cwd, runId)).status,
+		"completed",
+		"settled inside the approve call",
+	);
+	const completions = () =>
+		pi.messages.filter(
+			(entry) =>
+				entry.message.customType === "agent-workflow-completion" &&
+				entry.message.details?.runId === runId,
+		);
+	await eventually(
+		async () => completions().length > 0,
+		"the completion message",
+		10_000,
+	);
+	await new Promise((resolveSleep) => setTimeout(resolveSleep, 400));
+	assert.equal(completions().length, 1, "exactly once");
+	// The same settled state again (board `a` after the command): still once.
+	await pi.commands.get("aw").handler(`status ${runId}`, ctx);
+	await new Promise((resolveSleep) => setTimeout(resolveSleep, 300));
+	assert.equal(completions().length, 1);
+});

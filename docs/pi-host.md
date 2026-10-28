@@ -680,3 +680,10 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
   (entry import ok, nested late import `ERR_MODULE_NOT_FOUND`). `index.ts` now registers the module
   its entry import returned (`pi-runtime.ts`) and the late users read it. Test:
   `host-wp39-pi-runtime-module.test.mjs`.
+- **WP39b (live bundle 5, O10): completion message for a run that settles inside the approve call.**
+  A run that finished inside `/aw approve` or the board's `a` (foreground resume after the
+  decision) got no completion message: tracking started only for `running`/`pending` results. A
+  settled result of `approve` or `resume` (`completed`, `failed`, `interrupted`, `blocked` again)
+  is now tracked too, so the tracker delivers it with the usual receipts (exactly once). Test:
+  `host-wp29-approve-later.test.mjs` "Pi /aw approve: a run that settles inside the approve call …"
+  (fails on the old code).
