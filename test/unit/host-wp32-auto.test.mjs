@@ -767,3 +767,131 @@ test("Pi /aw auto in print/JSON mode: no dialog, no classifier call", async () =
 	assert.match(text, /\/aw run wp32-alpha "<task>"/);
 	assert.equal(await runCount(cwd), 0);
 });
+
+// Item 4: the host MCP server's workflow_auto (consent and choice through elicitation).
+const { inProcessHostServer } = await import("../helpers/mcp-host-client.mjs");
+const mcpClients = [];
+after(async () => {
+	for (const client of mcpClients.splice(0))
+		await client.close().catch(() => undefined);
+});
+
+async function mcpConnect(cwd, env, answers) {
+	const requests = [];
+	const client = await inProcessHostServer({
+		root: cwd,
+		env,
+		host: "codex",
+		...(answers
+			? {
+					onRequest: async (message) => {
+						requests.push(message);
+						const answer = answers.shift();
+						return typeof answer === "function"
+							? answer(message)
+							: (answer ?? { action: "cancel" });
+					},
+				}
+			: {}),
+	});
+	mcpClients.push(client);
+	const init = await client.initialize(
+		"2025-06-18",
+		answers ? { elicitation: {} } : {},
+	);
+	assert.equal(init.error, undefined, JSON.stringify(init));
+	return { client, requests };
+}
+
+test("MCP workflow_auto without elicitation: no classifier call, the local shortlist", async () => {
+	const { cwd, env } = await project();
+	const logs = shadow({ pi: READY, claude: READY, codex: READY });
+	const { client } = await mcpConnect(cwd, env);
+	const listed = await client.request("tools/list", {});
+	assert.ok(listed.result.tools.some((tool) => tool.name === "workflow_auto"));
+	const out = await client.call("workflow_auto", { task: TASK, detach: false });
+	assert.equal(out.structuredContent.data.phase, "consent-unavailable");
+	assert.deepEqual(allClassifierSubmits(logs), { pi: 0, claude: 0, codex: 0 });
+	assert.match(
+		out.content[0].text,
+		/workflow_run \{"workflow":"wp32-alpha","task":"<task>"\}/,
+	);
+	assert.match(out.structuredContent.next, /show the user the shortlist/);
+	assert.equal(await runCount(cwd), 0);
+});
+
+test("MCP workflow_auto: declined consent elicitation sends nothing", async () => {
+	const { cwd, env } = await project();
+	const logs = shadow({ pi: READY, claude: READY, codex: READY });
+	const { client, requests } = await mcpConnect(cwd, env, [
+		{ action: "decline" },
+	]);
+	const out = await client.call("workflow_auto", { task: TASK, detach: false });
+	assert.equal(out.structuredContent.data.phase, "consent-declined");
+	assert.equal(requests.length, 1);
+	assert.match(
+		requests[0].params.message,
+		/Send this task to codex to compare workflows\?/,
+	);
+	assert.ok(requests[0].params.message.includes(TASK));
+	assert.deepEqual(allClassifierSubmits(logs), { pi: 0, claude: 0, codex: 0 });
+});
+
+test("MCP workflow_auto: consent, one classifier call on codex, the choice elicitation launches", async () => {
+	const { cwd, env } = await project();
+	const logs = shadow({ pi: READY, claude: READY, codex: READY });
+	let choiceSchema;
+	const { client, requests } = await mcpConnect(cwd, env, [
+		{ action: "accept", content: {} },
+		(message) => {
+			choiceSchema = message.params.requestedSchema;
+			const options = choiceSchema.properties.workflow.enum;
+			return {
+				action: "accept",
+				content: {
+					workflow: options.find((option) => /wp32-beta/.test(option)),
+				},
+			};
+		},
+	]);
+	const out = await client.call("workflow_auto", { task: TASK, detach: false });
+	const data = out.structuredContent.data;
+	assert.equal(data.phase, "launched", out.content[0].text);
+	assert.equal(requests.length, 2);
+	assert.deepEqual(choiceSchema.required, ["workflow"]);
+	assert.match(
+		choiceSchema.properties.workflow.default,
+		/wp32-alpha \(recommended\)/,
+	);
+	assert.deepEqual(allClassifierSubmits(logs), { pi: 0, claude: 0, codex: 1 });
+	assert.match(out.structuredContent.next, /call workflow_wait/);
+	await settle(cwd, env, data.launch.runId);
+	const record = await store.readRunRecord(cwd, data.launch.runId);
+	assert.equal(record.name, "wp32-beta");
+	assert.equal(record.launch.source, "mcp:codex");
+	assert.deepEqual(record.launch.entry, {
+		kind: "tool",
+		name: "workflow_auto",
+	});
+	assert.equal(record.launch.selection.consent, "elicitation");
+	assert.equal(record.launch.selection.choseRecommendation, false);
+	assert.deepEqual(record.launch.selection.classifier, {
+		executor: "codex",
+		model: null,
+	});
+});
+
+test("MCP workflow_auto: declining the choice returns the ranked list and starts nothing", async () => {
+	const { cwd, env } = await project();
+	const logs = shadow({ pi: READY, claude: READY, codex: READY });
+	const { client } = await mcpConnect(cwd, env, [
+		{ action: "accept", content: {} },
+		{ action: "decline" },
+	]);
+	const out = await client.call("workflow_auto", { task: TASK, detach: false });
+	assert.equal(out.structuredContent.data.phase, "cancelled");
+	assert.equal(out.structuredContent.data.ranked[0].label, "wp32-alpha");
+	assert.deepEqual(allClassifierSubmits(logs), { pi: 0, claude: 0, codex: 1 });
+	assert.match(out.structuredContent.next, /Nothing started/);
+	assert.equal(await runCount(cwd), 0);
+});
