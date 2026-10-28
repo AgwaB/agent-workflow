@@ -132,6 +132,7 @@ try {
 		"workflow_prune",
 		"workflow_profile",
 		"workflow_supervise",
+		"workflow_approve",
 	]);
 
 	const listed = await call("workflow_list", { query: "e2e-review" });

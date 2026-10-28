@@ -29,7 +29,11 @@ default, below the saved user profile), `runtimeDefaults` (the host's current mo
 `availableModels` (the host's model registry; when present, the per-workflow Pi profile preferences
 of `/workflow profile` are consulted at launch; the CLI and MCP hosts leave it unset), and `host`
 (the calling host's identity, for example `claude-code`/`codex` from the host MCP server's `--host`;
-passed through unchanged for the stage-2 default-executor rule, WP17).
+passed through unchanged for the stage-2 default-executor rule, WP17). WP29: `dynamicUi` (the host
+can ask its user to approve a dynamic controller while the call drives the run: `{hasUI, host,
+confirm(title, message, {timeout, signal})}`; the Pi host passes Pi's `ctx.ui.confirm` with a dialog
+UI, the CLI a y/n prompt on a terminal, the MCP server nothing). Attached launches, waits, resumes
+and re-drives use it; detached launches and resumes never do.
 
 **Result** `HostResult<T>`:
 
@@ -72,11 +76,12 @@ throw `WorkflowValidationError`; `formatHostError(error)` renders any error. Lau
 | `profileAction` | `{op: "list"} \| {op: "show", name?} \| {op: "set", name, values?, unset?, makeDefault?} \| {op: "delete", name} \| {op: "default", name \| null}` | `{op, path, default?, profiles?, profile?, deleted?}` | success |
 | `runWorkflowAction` | `RunWorkflowRequest` (below) | `LaunchData` | running, completed, failed, blocked, refused, existing |
 | `runDynamicAction` | `RunDynamicRequest` (no `workflow`) | `LaunchData` (`mode: "direct-dynamic"`) | same |
-| `statusAction` | `{runId?}` | `{run: RunSummary & {tasks}}` or `{runs: RunSummary[]}` (top-level, newest first) | success |
+| `statusAction` | `{runId?}` | `{run: RunSummary & {tasks, pendingApprovals?}}` or `{runs: RunSummary[]}` (top-level, newest first) | success |
 | `inspectAction` | `{runId, failures?, results?}` | `{run, reliability: {health, outputRetries, launchRetries, resumeEvents, contextLimitFailures}, listed}` | success |
 | `logsAction` (WP16) | `{runId, task?, lines?, stream?}` (below) | `LogsData`: `{runId, name?, status, lines, streams, tasks: [{taskId, specId, status, statusDetail, streams: [{kind, path, lines, truncated}]}], omittedTasks, truncated}` | success |
 | `waitAction` | `WaitRequest` (below) | `WaitData` | running, completed, failed, interrupted, blocked |
 | `resumeAction` | `{runId, detach?}` | `{runId, status, resetTaskIds, taskSummary, detached?}` | run status |
+| `approveAction` (WP29) | `ApproveRequest` (below) | `ApproveData` | the resume outcome after an approval; success (rejected); blocked (approved, not resumed); refused (unanswered) |
 | `stopAction` | `{runId, timeoutMs?}` | `{runId, status, interruptedTaskIds, pending}` | success, or running when `pending` |
 | `pruneAction` | `{keep?, olderThanDays?, yes?}` or `{argv}` | `WorkflowPruneSummary` (core) | success, failed (`summary.error`) |
 | `noticesAction` | `{argv}` (`list [--json]`, `acknowledge <id> --state <sha> --reason <text>`, `clear <id> [--json]`) | list: `{notices, acknowledgements, warnings}`; else `{action, runId, notificationOnly}` | success |
@@ -253,7 +258,8 @@ effective bound. The MCP server never sets it.
 
 `WaitData`: `{runId, status, semanticStatus, terminal, actionRequired, stillRunning, timeoutMs,
 blockedTaskIds, taskSummary, outputTaskIds, outputRetryAttempts, launchRetryAttempts, artifactRoot,
-nextRetry?, verdict?, preview?, reportArtifacts, usage?, degradation?}`. `verdict` (WP18b) is the
+nextRetry?, verdict?, preview?, reportArtifacts, usage?, degradation?, pendingApprovals?}`.
+`pendingApprovals` (WP29) lists the dynamic controllers a blocked run waits on (below). `verdict` (WP18b) is the
 workflow's domain verdict from the output task's control (for example `NEEDS_WORK`), not the run
 status. `verdictGate: true` (WP18b) marks a run whose only failure is the final verdict
 gate (`isVerdictGateFailure`: run `failed`, every task completed or skipped except output tasks with
@@ -282,6 +288,31 @@ the text then adds "Now waiting for scheduled retry at <time> (<reason>; <tasks>
 `readWorkflowResultPresentation`: `completionSummaryMarkdown` verbatim, else summaries/reports,
 truncated to 6000 characters); `reportArtifacts` lists the final report and evidence audit paths.
 For a successful run with a preview, `text` is the preview alone (pi-workflow result-only success).
+
+### `approve` (WP29)
+
+A dynamic stage whose controller declares `dynamic.permissions.approval: "ask"` runs only after the
+user's approval (pi-workflow semantics, [usage.md](usage.md#dynamic-approval)). With
+`ctx.dynamicUi` the scheduler asks while the call drives the run; without it the controller task
+blocks as `dynamic_ui_unavailable` (or `dynamic_approval_timeout` after an unanswered prompt) and
+`statusAction`/`waitAction` return `pendingApprovals: [{requestId, controllerSpecId, taskId, title,
+message, requestedAt}]` (`requestId` is the approval request digest; `message` the question) and add
+an `Awaiting approval` block with the host's approve/reject commands (`hostApproveHint`).
+
+`ApproveRequest`: `{runId, requestId?, decision: "approve" | "reject", confirm?(title, message) →
+true | false | undefined, detach?}`. `requestId` (or a unique prefix of 8+ characters) is optional
+with one open approval. With `confirm` the user is asked first (title "Run dynamic workflow
+controller?" or "Reject dynamic workflow controller?", bounded to 5 minutes): `true` → as decided;
+`false` on the approval question → rejected (pi-workflow's no), on the rejection question → nothing;
+`undefined` (cancelled, failed, timed out) → nothing recorded, outcome `refused`. Without `confirm`
+the decision is final (CLI `--yes`). The decision is appended under the run lease as the
+`approval.resolved` dynamic event with `decidedBy: {host: ctx.host ?? "cli", via: "approve"}`
+(prompt answers record `via: "prompt"`); a rejection also sets the task to
+`dynamic_approval_rejected` (no scheduling). An approval then runs `resumeAction` (completed tasks
+are not relaunched) unless the run also has failed, interrupted or other blocked tasks
+(`otherBlockers`; their resume is a separate owner decision): then only the decision is recorded
+(outcome `blocked`). `ApproveData`: `{runId, requestId, controllerSpecId, decision: "approved" |
+"rejected" | "unanswered", status, decidedBy?, resumed?: ResumeData, otherBlockers?}`.
 
 ### `stop`
 
