@@ -1,0 +1,15 @@
+# Config restore proof, live 4b (2026-10-28T01:09:29Z)
+# backup taken before the install; the per-run -c projects={...} override was used, no trust entry appeared (diff after runs = install entries only)
+<HOME>/.codex/plugins/cache/agent-workflow
+cache dir removed: yes
+cmp: identical
+diff exit=0
+704a2c61c9249f7bbd1dd0e3df29301a04e2ae7afb52d4a2429315c543efb069  backup/config.toml
+704a2c61c9249f7bbd1dd0e3df29301a04e2ae7afb52d4a2429315c543efb069  <HOME>/.codex/config.toml
+grep agent-workflow|aw-live4b in config: 0
+## codex plugin marketplace list
+0
+## codex plugin list
+0
+## codex mcp list
+0

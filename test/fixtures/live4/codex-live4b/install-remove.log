@@ -1,0 +1,33 @@
+# codex plugin install (temporary, real CODEX_HOME)
+Added marketplace `agent-workflow` from /tmp/aw-live4b/plugin.
+Installed marketplace root: /tmp/aw-live4b/plugin
+Added plugin `agent-workflow` from marketplace `agent-workflow`.
+Installed plugin root: <HOME>/.codex/plugins/cache/agent-workflow/agent-workflow/0.1.0
+
+# diff backup → config after install
+425a426,429
+> 
+> [marketplaces.agent-workflow]
+> source_type = "local"
+> source = "/tmp/aw-live4b/plugin"
+575a580,582
+> [plugins."agent-workflow@agent-workflow"]
+> enabled = true
+> 
+
+# removal
+## after runs, before removal: diff backup current
+425a426,429
+> 
+> [marketplaces.agent-workflow]
+> source_type = "local"
+> source = "/tmp/aw-live4b/plugin"
+575a580,582
+> [plugins."agent-workflow@agent-workflow"]
+> enabled = true
+> 
+Removed plugin `agent-workflow` from marketplace `agent-workflow`.
+Removed marketplace `agent-workflow`.
+## after plugin remove + marketplace remove: diff backup current
+diff exit=0
+drwxr-xr-x@  2 toby  staff   64 Oct 28 10:09 agent-workflow
