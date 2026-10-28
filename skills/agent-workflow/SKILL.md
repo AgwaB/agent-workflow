@@ -1,6 +1,6 @@
 ---
 name: agent-workflow
-description: Run, watch, stop, resume and report agent-workflow workflows (deep-review, deep-research, spec-review, impact-review or a dynamic workflow) through the agent-workflow MCP tools. Use when the user asks to run a workflow, to review/research/check something "with a workflow" or "with agent-workflow", to check, wait for, inspect, resume or stop a workflow run, to choose the executor, profile or permission mode of a run, or to manage saved profiles, notices, pruning or the environment check.
+description: Run, watch, stop, resume and report agent-workflow workflows (deep-review, deep-research, spec-review, impact-review or a dynamic workflow) through the agent-workflow MCP tools. Use when the user asks to run a workflow, to review/research/check something "with a workflow" or "with agent-workflow", to let agent-workflow pick the workflow for a task, to check, wait for, inspect, resume or stop a workflow run, to choose the executor, profile or permission mode of a run, or to manage saved profiles, notices, pruning or the environment check.
 ---
 
 # agent-workflow
@@ -17,6 +17,7 @@ say the same.
 | `workflow_list` | Find workflow names (`query?`, `offset?`, `limit?`). Never guess a name. |
 | `workflow_run` | Launch a named workflow: `{workflow, task}` plus launch options. Returns the `runId` at once. |
 | `workflow_dynamic` | Launch a spec-less dynamic workflow: `{task}` plus launch options. |
+| `workflow_auto` | Let the user pick a workflow for a task: `{task}` plus launch options. Asks the user in a dialog before it sends the task to one classifier request, then lets the user choose the workflow (or none) in a second dialog and starts it. Only when the user asks you to choose a workflow. |
 | `workflow_wait` | Wait for a run, **at most 45 s per call** (`runId`, `timeoutMs?` 1000-45000). |
 | `workflow_status` | List runs, or one run with `runId`. |
 | `workflow_inspect` | Details of a run: `failures: true` for failed tasks, `results: true` for task results. |
@@ -49,7 +50,12 @@ Use whichever form your tool list shows.
 ## Run protocol
 
 1. If the workflow name is not certain, call `workflow_list` (with a `query` such as `review`) and
-   pick from the result. If nothing fits, say so and offer `workflow_dynamic`.
+   pick from the result. If nothing fits, say so and offer `workflow_dynamic`. If the user asks
+   agent-workflow to choose the workflow, call `workflow_auto {task}` instead: the user consents to
+   the one classifier request and picks the workflow in dialogs (declined = nothing sent or started;
+   do not retry). Without dialog support it sends nothing and returns a local shortlist: show it,
+   let the user pick, then call `workflow_run`. A launched `workflow_auto` result continues with
+   step 3 (its `launch.runId`).
 2. Call `workflow_run {workflow, task}` (or `workflow_dynamic {task}`). Write a self-contained `task`:
    scope, paths, exclusions and the expected output, in the user's words where possible. Pass
    declared workflow `inputs` only when the user asked for them (for example `{"depth": "quick"}`).
@@ -119,7 +125,7 @@ the user asks).
 
 ## Without the MCP tools
 
-The same operations exist in the CLI (`agent-workflow list|run|dynamic|wait|status|inspect|logs|stop|
+The same operations exist in the CLI (`agent-workflow list|run|dynamic|auto|wait|status|inspect|logs|stop|
 validate|resume|approve|show|roles|agents|notices|doctor|prune|profile|supervise`). If the CLI is not
 installed, run it through npx:
 `npx -y --package=@agwab/agent-workflow agent-workflow <command>`.

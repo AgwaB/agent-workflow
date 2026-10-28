@@ -167,9 +167,9 @@ test("tools/list: the nine CLI-command tools follow the original nine; schemas, 
 	const { cwd, env } = await project();
 	const client = await connect({ root: cwd, env });
 	const { tools } = (await client.request("tools/list")).result;
-	// WP29: workflow_approve follows them (mcp-host-wp29-approve.test.mjs).
+	// WP29: workflow_approve follows them (mcp-host-wp29-approve.test.mjs); WP32: workflow_auto.
 	assert.deepEqual(tools.map((tool) => tool.name).slice(9, 18), NEW_TOOLS);
-	assert.equal(tools.length, 19);
+	assert.equal(tools.length, 20);
 	const byName = Object.fromEntries(tools.map((tool) => [tool.name, tool]));
 	for (const name of NEW_TOOLS) {
 		const tool = byName[name];

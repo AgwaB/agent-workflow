@@ -82,6 +82,7 @@ throw `WorkflowValidationError`; `formatHostError(error)` renders any error. Lau
 | `logsAction` (WP16) | `{runId, task?, lines?, stream?}` (below) | `LogsData`: `{runId, name?, status, lines, streams, tasks: [{taskId, specId, status, statusDetail, streams: [{kind, path, lines, truncated}]}], omittedTasks, truncated}` | success |
 | `waitAction` | `WaitRequest` (below) | `WaitData` | running, completed, failed, interrupted, blocked |
 | `resumeAction` | `{runId, detach?}` | `{runId, status, resetTaskIds, taskSummary, detached?}` | run status |
+| `autoAction` (WP32) | `AutoRequest` (below) | `AutoData` | launched: the launch outcome; ranked: success; no consent, declined, cancelled, stale, no classifier executor: refused |
 | `approveAction` (WP29) | `ApproveRequest` (below) | `ApproveData` | the resume outcome after an approval; success (rejected); blocked (approved, not resumed); refused (unanswered) |
 | `stopAction` | `{runId, timeoutMs?}` | `{runId, status, interruptedTaskIds, pending}` | success, or running when `pending` |
 | `pruneAction` | `{keep?, olderThanDays?, yes?}` or `{argv}` | `WorkflowPruneSummary` (core) | success, failed (`summary.error`) |
@@ -219,6 +220,14 @@ directory is shown as `~`. `show <run>` (not `--raw`, whose `run.json` already h
 and `inspect <run>` end with `Launch: <source> · <entry> · <requestKind>, <profile>, task N chars/M
 lines` and `Launch command: <text>` and return it as `launch`. pi-workflow's v1/v2 records stay
 valid and are shown with source `pi-workflow`. The WP34 board will use the same reader.
+WP32: a confirmed `auto` launch records `agent-workflow-run-launch-v2` instead: `entry`
+`{kind: "command", action: "auto"}` or the tool, `routingMode: "auto-confirmed"`, and `selection`
+(`candidates` [{candidateId, kind, label}] as offered, `recommendation` {candidateId, confidence} or
+null, `selected`, `choseRecommendation`, `classifier` {executor, model | null}, `consent`
+`prompt | flag | elicitation`, `taskSha256`, `confirmed: true`; validated strictly: the selection
+must be one of the candidates and match `requestKind`, no other keys). `show`/`inspect` add
+`Auto selection: <name> (recommended | recommended was <name>; N candidates; classifier <executor>
+[<model>]; consent <source>)`.
 
 ### `logs` (WP16)
 
@@ -341,6 +350,41 @@ are not relaunched) unless the run also has failed, interrupted or other blocked
 (outcome `blocked`). `ApproveData`: `{runId, requestId, controllerSpecId, decision: "approved" |
 "rejected" | "unanswered", status, decidedBy?, resumed?: ResumeData, otherBlockers?}`.
 
+### `auto` (WP32, owner decision Q5, parity row 21)
+
+pi-workflow's `/workflow auto` for every host (CLI `auto`, Pi `/aw auto`, MCP `workflow_auto`).
+`AutoRequest`: the `run`/`dynamic` launch options without `workflow` (`task`, `executor`,
+`profile`, `permissionMode`, `allowUnverifiedCapabilities`, `model`, `effort`, `detach`, `forceNew`,
+`inputOverrides`, `interactive`, `confirmDegradations`, `selectProfile`, `launchOrigin`) plus:
+
+| Field | Meaning |
+|---|---|
+| `consent` | `{source: "flag"}` (the user's explicit consent given in advance, CLI `--yes`) or `{source: "prompt" \| "elicitation", confirm(title, message, preview) → true \| false \| undefined}`. Absent: **no classifier call**. |
+| `choose(prompt)` | The final choice: `{title, message, choices: AutoCandidateView[], recommendedId?}` → a `candidateId` or undefined (start nothing). Absent: the ranking is returned and nothing starts. |
+| `signal` | Aborts before/after the classifier call (late output is discarded). |
+
+Steps: (1) the local routing-only shortlist (core `recommendWorkflowAuto` with
+`transmissionPolicy: "needs-clarification"`: no call); (2) the classifier target
+(`resolveAutoClassifier`: run flag > saved user profile (named, else default; its `executor` or
+`roles.default`) > `ctx.defaultExecutor` > the host default of `resolveRunExecutorForHost`; model
+and effort: request > that profile > `ctx.runtimeDefaults` when they belong to that executor > the
+executor's default); (3) `consent.confirm` with the preview (`AutoConsentPreview`: the task text
+bounded to 2 000 characters, the candidate names, the executor/model); anything but `true` →
+`consent-declined`; (4) exactly one `recommendWorkflowAuto` with `transmissionPolicy: "allowed"` and
+that executor (the core still refuses tasks that forbid external models or exceed 24 KB);
+(5) the launchable shortlist candidates ranked (recommended first, then complete/partial fit) →
+`choose`; (6) a named workflow is re-hashed against the compared spec (`stale` when it changed),
+then `runWorkflowAction(specPath)` / `runDynamicAction` with `autoSelection` (launch capture v2).
+
+`AutoData`: `{phase, classifierCalled, classifier?: {executor, source, model, effort}, consent?,
+shortlist: AutoCandidateView[], status?, reason?, recommendation?: {candidateId, label, confidence,
+reason}, ranked?, selected?, launch?: LaunchData, next?}`; `phase` is `consent-unavailable`,
+`consent-declined`, `classifier-unavailable`, `ranked`, `cancelled`, `stale` or `launched`.
+`AutoCandidateView`: `{candidateId, kind, label, scope, description, launchable, blockers?, fit?,
+reason?, recommended?, command?}` (`command`: the host's direct `run`/`dynamic` command or tool call
+with the task as `<task>`; texts never echo the task outside the consent preview). The classifier's
+reasons are shown (bounded, control characters replaced) but never persisted.
+
 ### `stop`
 
 Stops a run through the engine (durable stop intent). If another supervisor (for example a detached
@@ -390,9 +434,10 @@ path is absolute and the id starts with `test-`. Otherwise it throws `TestExecut
 
 Pi-session behavior stays with the Pi host (WP11b, WP16 `docs/pi-host.md`): completion feedback
 delivery, its audience and receipts, the status line, parent-session usage tracking, unfinished-run
-notices at session start (`notifyUnfinishedRuns`), the board/TUI, `/workflow auto`, and the Pi
-profile picker UI. Launches record no launch-capture metadata (the v1
-capture schema only knows Pi slash commands and Pi tools).
+notices at session start (`notifyUnfinishedRuns`), the board/TUI and the Pi profile picker UI.
+Launches record no launch-capture metadata (the v1
+capture schema only knows Pi slash commands and Pi tools). WP32: `auto` is a host API action now
+(above).
 
 ## Ported pi-workflow tests (WP11a decisions)
 

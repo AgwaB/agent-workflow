@@ -133,6 +133,8 @@ try {
 		"workflow_profile",
 		"workflow_supervise",
 		"workflow_approve",
+		// WP32: auto workflow selection with consent.
+		"workflow_auto",
 	]);
 
 	const listed = await call("workflow_list", { query: "e2e-review" });

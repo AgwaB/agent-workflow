@@ -11,7 +11,10 @@
 // WP29: `/aw approve <run>` answers a dynamic-controller approval through ctx.ui.confirm.
 // WP34: in the TUI, `/aw` with no arguments and `/aw <run>` open the board (board.ts); other modes
 // keep the text behavior (`/aw` = help, `/aw <run>` = unknown action).
+// WP32: `/aw auto <task>` (pi-workflow `/workflow auto`): consent through ctx.ui.confirm, then the
+// ranked workflows in ctx.ui.select and a final ctx.ui.confirm; print/JSON mode sends nothing.
 import {
+	type AutoChoicePrompt,
 	COMMAND_HELP,
 	HOST_LONG_WAIT_MAX_TIMEOUT_MS,
 	type HostResult,
@@ -60,6 +63,7 @@ export const AW_ACTIONS = [
 	"profile",
 	"run",
 	"dynamic",
+	"auto",
 	"status",
 	"show",
 	"inspect",
@@ -94,6 +98,8 @@ Runs:
   /aw [<run>]                           open the run board (TUI only; r refresh, v launch, c copy, s stop, u resume, a approve, q close)
   /aw run <workflow> <task> [options]   start a workflow; returns once it is launched
   /aw dynamic <task> [options]          start a spec-less dynamic workflow
+  /aw auto <task> [options]             recommend a workflow and start the one you choose (asks
+                                        before one classifier call; nothing is sent without a UI)
   /aw status [run]                      show runs
   /aw show <run> [--raw]                show run details
   /aw inspect <run> [--failures] [--results]
@@ -367,6 +373,43 @@ async function dispatch(
 			);
 			return { ...launched, note: hooks.note() };
 		}
+		case "auto": {
+			const parsed = parseWorkflowDynamicArgs(args);
+			if (!parsed.task)
+				throw new HostUsageError(
+					`Missing task. Usage: /${AW_COMMAND} auto "<task>" [options]`,
+				);
+			const hooks = launchHooks(ctx);
+			const dialog = hasDialogUi(ctx);
+			const auto = await api.autoAction(
+				hostContext(deps, ctx, { executor: parsed.executor }),
+				{
+					...launchRequest(parsed),
+					launchOrigin: {
+						kind: "command",
+						text: `/${AW_COMMAND} ${args.trim()}`,
+					},
+					...hooks.hooks,
+					// pi-workflow: only an interactive session can authorize the transmission.
+					...(dialog
+						? {
+								consent: {
+									source: "prompt" as const,
+									confirm: async (title: string, message: string) => {
+										const agreed =
+											(await ctx.ui.confirm(title, message)) === true;
+										if (agreed)
+											ctx.ui.notify("Comparing workflow candidates…", "info");
+										return agreed;
+									},
+								},
+								choose: (prompt: AutoChoicePrompt) => piAutoChoice(ctx, prompt),
+							}
+						: {}),
+				},
+			);
+			return { ...auto, note: hooks.note() };
+		}
 		case "status": {
 			const { positionals } = parseCommandArgs(rest, {});
 			if (positionals.length > 1)
@@ -514,6 +557,35 @@ async function dispatch(
 	}
 }
 
+export const AUTO_CANCEL_CHOICE = "Cancel (start nothing)";
+export const AUTO_LAUNCH_CONFIRM_TITLE = "Confirm selected workflow launch";
+
+/**
+ * WP32: pi-workflow's auto picker (`selectWorkflowAutoChoice`) and its separate final confirmation:
+ * the ranked workflows (recommended first) and Cancel in ctx.ui.select, then ctx.ui.confirm.
+ */
+async function piAutoChoice(
+	ctx: PiExtensionContext,
+	prompt: AutoChoicePrompt,
+): Promise<string | undefined> {
+	const labels = prompt.choices.map(
+		(choice, index) =>
+			`${index + 1}. ${choice.label}${choice.recommended ? " · recommended" : ""} — ${choice.reason ?? choice.description}`,
+	);
+	const picked = await ctx.ui.select(`${prompt.title}\n${prompt.message}`, [
+		...labels,
+		AUTO_CANCEL_CHOICE,
+	]);
+	const index = picked === undefined ? -1 : labels.indexOf(picked);
+	const choice = prompt.choices[index];
+	if (!choice) return undefined;
+	const confirmed = await ctx.ui.confirm(
+		AUTO_LAUNCH_CONFIRM_TITLE,
+		`Start ${choice.label}${choice.recommended ? " (recommended)" : " (not the recommendation)"} with this task now?`,
+	);
+	return confirmed === true ? choice.candidateId : undefined;
+}
+
 function launchRequest(parsed: {
 	task: string;
 	detach: boolean;
@@ -557,9 +629,17 @@ export async function handleAwCommand(
 			return;
 		}
 		const data = outcome.data as
-			| { stillRunning?: unknown; runId?: unknown; status?: unknown }
+			| {
+					stillRunning?: unknown;
+					runId?: unknown;
+					status?: unknown;
+					launch?: { runId?: unknown; status?: unknown };
+			  }
 			| undefined;
-		await trackLaunched(deps, ctx, outcome.action, data, "command");
+		// WP32: an auto launch carries the run in `launch`.
+		if (outcome.action === "auto")
+			await trackLaunched(deps, ctx, "run", data?.launch, "command");
+		else await trackLaunched(deps, ctx, outcome.action, data, "command");
 		emit(
 			ctx,
 			outcome.note ? `${outcome.text}\n${outcome.note}` : outcome.text,

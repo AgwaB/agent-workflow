@@ -638,12 +638,28 @@ export function isWorkflowRunLaunchMetadata(
 	return (
 		isWorkflowRunLaunchMetadataV1(value) ||
 		isWorkflowRunLaunchMetadataV2(value) ||
-		isWorkflowRunLaunchMetadataHostV1(value)
+		isWorkflowRunLaunchMetadataHostV1(value) ||
+		isWorkflowRunLaunchMetadataHostV2(value)
 	);
 }
 
-/** WP33: the host-neutral launch metadata (`agent-workflow-run-launch-v1`). */
+/**
+ * WP33: the host-neutral launch metadata (`agent-workflow-run-launch-v1`); WP32: its confirmed
+ * `auto` variant (`agent-workflow-run-launch-v2`: entry action `auto`, routing mode
+ * `auto-confirmed`, the `selection` facts).
+ */
 function isWorkflowRunLaunchMetadataHostV1(value: unknown): boolean {
+	return isWorkflowRunLaunchMetadataHost(value, false);
+}
+
+function isWorkflowRunLaunchMetadataHostV2(value: unknown): boolean {
+	return isWorkflowRunLaunchMetadataHost(value, true);
+}
+
+function isWorkflowRunLaunchMetadataHost(
+	value: unknown,
+	auto: boolean,
+): boolean {
 	if (
 		!isPlainRecordWithKeys(value, [
 			"schema",
@@ -653,23 +669,29 @@ function isWorkflowRunLaunchMetadataHostV1(value: unknown): boolean {
 			"routingMode",
 			"profile",
 			"task",
+			...(auto ? ["selection"] : []),
 			"command",
 		])
 	)
 		return false;
-	if (value.schema !== "agent-workflow-run-launch-v1") return false;
+	if (
+		value.schema !==
+		(auto ? "agent-workflow-run-launch-v2" : "agent-workflow-run-launch-v1")
+	)
+		return false;
 	if (!isWorkflowLaunchHostSource(value.source)) return false;
 	const entry = value.entry;
 	const command = value.command;
 	let fidelity: WorkflowRunLaunchCommandFidelity;
 	if (isPlainRecordWithKeys(entry, ["kind", "action"])) {
-		if (
-			entry.kind !== "command" ||
-			(entry.action !== "run" && entry.action !== "dynamic")
-		)
-			return false;
-		if ((entry.action === "run") !== (value.requestKind === "named-workflow"))
-			return false;
+		if (entry.kind !== "command") return false;
+		if (auto) {
+			if (entry.action !== "auto") return false;
+		} else {
+			if (entry.action !== "run" && entry.action !== "dynamic") return false;
+			if ((entry.action === "run") !== (value.requestKind === "named-workflow"))
+				return false;
+		}
 		fidelity = "agent-workflow-host-command-v1";
 	} else if (isPlainRecordWithKeys(entry, ["kind", "name"])) {
 		if (
@@ -685,7 +707,9 @@ function isWorkflowRunLaunchMetadataHostV1(value: unknown): boolean {
 		value.requestKind !== "direct-dynamic"
 	)
 		return false;
-	if (value.routingMode !== "off") return false;
+	if (value.routingMode !== (auto ? "auto-confirmed" : "off")) return false;
+	if (auto && !isWorkflowHostAutoSelection(value.selection, value.requestKind))
+		return false;
 	if (
 		!isWorkflowLaunchProfile(value.profile) ||
 		!isWorkflowLaunchTask(value.task)
@@ -700,6 +724,100 @@ function isWorkflowRunLaunchMetadataHostV1(value: unknown): boolean {
 		return false;
 	if (!isWorkflowLaunchMetadataCommand(command, [fidelity])) return false;
 	return (command as Record<string, unknown>).state === "captured";
+}
+
+const AUTO_CANDIDATE_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
+const AUTO_SAFE_ID_PATTERN = /^[A-Za-z0-9._:/@+-]{1,256}$/;
+
+function isWorkflowAutoCandidateRef(value: unknown): boolean {
+	return (
+		isPlainRecordWithKeys(value, ["candidateId", "kind", "label"]) &&
+		typeof value.candidateId === "string" &&
+		AUTO_CANDIDATE_ID_PATTERN.test(value.candidateId) &&
+		(value.kind === "named-workflow" || value.kind === "direct-dynamic") &&
+		typeof value.label === "string" &&
+		value.label.length > 0 &&
+		Array.from(value.label).length <= 240 &&
+		!/[\u0000-\u001f\u007f-\u009f]/.test(value.label)
+	);
+}
+
+/** WP32: the selection facts of a confirmed host `auto` launch (no task text, no paths). */
+function isWorkflowHostAutoSelection(
+	value: unknown,
+	requestKind: unknown,
+): boolean {
+	if (
+		!isPlainRecordWithKeys(value, [
+			"candidates",
+			"recommendation",
+			"selected",
+			"choseRecommendation",
+			"classifier",
+			"consent",
+			"taskSha256",
+			"confirmed",
+		])
+	)
+		return false;
+	const candidates = value.candidates;
+	if (
+		!Array.isArray(candidates) ||
+		candidates.length === 0 ||
+		candidates.length > 24 ||
+		!candidates.every(isWorkflowAutoCandidateRef)
+	)
+		return false;
+	const ids = new Set(
+		candidates.map(
+			(candidate) => (candidate as { candidateId: string }).candidateId,
+		),
+	);
+	if (!isWorkflowAutoCandidateRef(value.selected)) return false;
+	const selected = value.selected as Record<string, unknown>;
+	if (!ids.has(selected.candidateId as string)) return false;
+	if (selected.kind !== requestKind) return false;
+	const recommendation = value.recommendation;
+	if (recommendation !== null) {
+		if (
+			!isPlainRecordWithKeys(recommendation, ["candidateId", "confidence"]) ||
+			typeof recommendation.candidateId !== "string" ||
+			!ids.has(recommendation.candidateId) ||
+			(recommendation.confidence !== "high" &&
+				recommendation.confidence !== "medium" &&
+				recommendation.confidence !== "low")
+		)
+			return false;
+	}
+	if (typeof value.choseRecommendation !== "boolean") return false;
+	if (
+		value.choseRecommendation !==
+		(recommendation !== null &&
+			(recommendation as Record<string, unknown>).candidateId ===
+				selected.candidateId)
+	)
+		return false;
+	const classifier = value.classifier;
+	if (
+		!isPlainRecordWithKeys(classifier, ["executor", "model"]) ||
+		typeof classifier.executor !== "string" ||
+		!AUTO_SAFE_ID_PATTERN.test(classifier.executor) ||
+		(classifier.model !== null &&
+			(typeof classifier.model !== "string" ||
+				!AUTO_SAFE_ID_PATTERN.test(classifier.model)))
+	)
+		return false;
+	if (
+		value.consent !== "prompt" &&
+		value.consent !== "flag" &&
+		value.consent !== "elicitation"
+	)
+		return false;
+	return (
+		typeof value.taskSha256 === "string" &&
+		/^[0-9a-f]{64}$/.test(value.taskSha256) &&
+		value.confirmed === true
+	);
 }
 
 function isWorkflowLaunchHostSource(value: unknown): boolean {
@@ -831,7 +949,11 @@ function isWorkflowRunLaunchCapture(
 			command: captureCommandAsMetadata(command),
 		});
 	}
-	if (record.schema === "agent-workflow-run-launch-v1") {
+	if (
+		record.schema === "agent-workflow-run-launch-v1" ||
+		record.schema === "agent-workflow-run-launch-v2"
+	) {
+		const auto = record.schema === "agent-workflow-run-launch-v2";
 		if (
 			!isPlainRecordWithKeys(record, [
 				"schema",
@@ -841,21 +963,25 @@ function isWorkflowRunLaunchCapture(
 				"routingMode",
 				"profile",
 				"task",
+				...(auto ? ["selection"] : []),
 				"command",
 			]) ||
 			command.state !== "captured"
 		)
 			return false;
 		const entry = record.entry as Record<string, unknown> | undefined;
-		return isWorkflowRunLaunchMetadataHostV1({
-			...record,
-			command: captureCommandAsMetadata(
-				command,
-				entry?.kind === "tool"
-					? "agent-workflow-tool-call-v1"
-					: "agent-workflow-host-command-v1",
-			),
-		});
+		return isWorkflowRunLaunchMetadataHost(
+			{
+				...record,
+				command: captureCommandAsMetadata(
+					command,
+					entry?.kind === "tool"
+						? "agent-workflow-tool-call-v1"
+						: "agent-workflow-host-command-v1",
+				),
+			},
+			auto,
+		);
 	}
 	if (record.schema === "pi-workflow-run-launch-v2") {
 		if (

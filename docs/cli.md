@@ -23,6 +23,7 @@ npx agent-workflow --help
 | `profile workflow list \| show <workflow> \| set <workflow> … \| clear <workflow>` | Saved per-workflow preferences (WP31, below). |
 | `run <workflow> <task…>` | Start exactly the named workflow and wait in the foreground until it is terminal. |
 | `dynamic <task…>` | Start a spec-less direct dynamic run; same options as `run`. |
+| `auto <task…> [--yes]` | WP32: recommend a workflow for the task (one classifier request, only with your consent) and start the one you choose; same options as `run`. Below. |
 | `status [run]` | All top-level runs, or one run. |
 | `inspect <run> [--failures] [--results]` | Reliability summary and task listing. `--failures` lists failed/blocked/interrupted tasks; `--results` prints task results (with `--failures` on a clean run: every result). |
 | `logs <run> [--task <id>] [--lines N] [--stream output\|stderr\|events\|all]` | Bounded tail of task output, stderr and executor events (the latest attempt's `exec-events.jsonl`); every started task by default (at most 6). Lines per stream 1-400 (default 20), lines cut at 400 characters, the text at 48 000. Credentials (WP19: also quoted structured fields such as `"Authorization":"Basic …"` and `"refresh_token":"…"`), bearer tokens, URL secrets, macOS/Linux/Windows home paths and values of sensitive environment variables are redacted, here and in `status`/`show`/`inspect`/`wait` text. WP19: only files inside the project's `.agent-workflow/` are read; a tampered absolute, `..` or symlink-escaping path is refused and the reason shown. |
@@ -49,7 +50,7 @@ WP28: every command except `help`/`--version` (and the WP36 terminal views `watc
 cannot ask is refused with the CLI command line to run here instead. `supervise` on MCP starts the
 detached supervisor and returns at once.
 
-## Launch options (`run`, `dynamic`)
+## Launch options (`run`, `dynamic`, `auto`)
 
 | Option | Meaning |
 |---|---|
@@ -62,7 +63,7 @@ detached supervisor and returns at once.
 | `--input <key=value>` | Set a workflow input the spec declares (repeatable; `--input=key=value` also works). Typed like the declared default: string as is, number, `true`/`false`, JSON for arrays, objects and `null`. An undeclared key, a wrong type, a repeated key or a missing `=` is a usage error (exit 2, nothing starts). Example: `--input depth=quick`. |
 | `--detach` | Start a background supervisor (`agent-workflow supervise <id>`, log in `<run dir>/supervise.log`) and return the run id at once. |
 | `--force-new` | Start a new run although an identical launch (same workflow, task, inputs and options) is still active; without it, the guard prints that run (`outcome: "existing"`, exit 0) and, in the foreground, waits for it. Applies to `--detach` too. |
-| `--yes` | Never ask: record capability degradations and proceed. |
+| `--yes` | Never ask: record capability degradations and proceed. For `auto` it is also your explicit consent to the one classifier request. |
 | `--timeout <d>` | Stop waiting after `d` (`30000`, `30s`, `5m`, `1h`). The run continues. Not with `--detach`. |
 | `--json` | Print one JSON object `{action, ok, outcome, data}` (for `run`/`resume` without `--detach`, `data.wait` holds the final wait result). |
 
@@ -128,6 +129,38 @@ exits; any later process can `status`, `wait` or `stop` it.
 
 `wait` without `--timeout` loops until the run is terminal or blocked. With `--timeout` it returns
 when the time is up; a run still running then exits 1 with `data.stillRunning: true`.
+
+### `auto` (WP32)
+
+`agent-workflow auto "<task>"` is pi-workflow's `/workflow auto` for the terminal. It compares the
+trusted dynamic workflow and the discoverable workflows (at most 24) and starts the one you choose:
+
+1. **Local shortlist, no model call.** The candidates are ranked by the task's words against each
+   spec's `routing` hints (`useWhen`, `outputs`) and name.
+2. **Consent.** Comparing them sends one request to a classifier model: your task and the bounded
+   descriptions of the candidates, without tools. It runs on the run's default executor (owner
+   decision Q5): `--executor`, else the executor of the saved user profile (`--profile <name>` or
+   the default one), else the first installed and logged-in of `pi`, `claude`, `codex`; with
+   `--model`/`--effort` or the profile's model, else the executor's default model. On a terminal
+   you see the task, the candidate names and the executor/model and are asked
+   `Send this task to <executor> to compare workflows? [y/N]`; anything but `y` sends nothing.
+   `--yes` is your explicit consent instead of the question. Without a terminal and without
+   `--yes` nothing is sent: the local shortlist is printed with the `run`/`dynamic` command of each
+   candidate and how to consent (exit 1).
+3. **Choice.** The ranked candidates (recommended first, with the classifier's fit and reason)
+   are printed and you pick one: `Start which workflow? [1-N, Enter = 1, n = cancel]` (Enter takes
+   the recommendation; without one Enter cancels). Without a terminal (`--yes` only) the ranking
+   and the commands are printed and nothing starts (exit 0).
+4. **Launch.** The chosen workflow starts like `run`/`dynamic` (duplicate guard, profiles,
+   capability preview, approvals; foreground, or `--detach`). A named workflow that changed since
+   the comparison is refused (`stale`); run `auto` again.
+
+Cancelling at any step starts nothing. The run's launch metadata (`agent-workflow-run-launch-v2`)
+records the offered candidates, the recommendation, your choice, the classifier executor/model and
+the consent source (`prompt` or `flag`); the task only as its SHA-256. `show <run>` prints an
+`Auto selection:` line. With `--json`, `data.phase` is `consent-unavailable`, `consent-declined`,
+`classifier-unavailable`, `ranked`, `cancelled`, `stale` or `launched` (`data.launch` then holds
+the launch result).
 
 ### Dynamic-controller approval (WP29)
 

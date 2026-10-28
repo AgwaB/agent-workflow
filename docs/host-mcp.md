@@ -53,6 +53,10 @@ node <package>/dist/mcp/host-server/server.js --host <claude-code|codex|generic>
    `requestId`) in `workflow_wait`/`workflow_status`. The host shows the user the question; only
    after the user decides it calls `workflow_approve {runId, requestId, decision}`, which asks the
    user again in a dialog.
+8. WP32: when the user asks the host to pick a workflow for a task (instead of naming one), the
+   host calls `workflow_auto {task}`. It asks the user before it sends the task to one classifier
+   request and lets the user choose the workflow (below). Without dialog support it sends nothing
+   and returns a local shortlist; the host shows it and calls `workflow_run` with the user's pick.
 
 Permission mode is `free` by default ([permissions.md](permissions.md)); `safe` only on request.
 Executor: omit it to use the workflow profile or the host default; set `executor`/`profile` only
@@ -83,6 +87,7 @@ Every tool takes an optional `cwd` (see below). Unknown parameters are refused.
 | `workflow_profile` (WP28, WP31) | `op?` (`list` default, `show`, `set`, `delete`, `default`, `clear-default`, `presets`, `workflow-list`, `workflow-show`, `workflow-set`, `workflow-clear`), `name?`, set: `executor?`, `model?`, `effort?`, `permissionMode?`, `strictCapabilities?`, `preset?`, `roles?` (role → `{executor?, model?, effort?}`), `unset?` (also `roles.<role>`), `makeDefault?`; workflow-*: `workflow`, workflow-set: `profile?`, `roles?`, `unset?` | `profileAction`, `workflowPreferenceAction` | `ProfileData` / `WorkflowPreferenceData`; **set/delete/default/clear-default/workflow-set/workflow-clear confirm** |
 | `workflow_supervise` (WP28) | `runId` | `superviseDetachedAction` | `{runId, status, started, reason?: not-running \| live-supervisor, detached?}`: spawns `agent-workflow supervise <run>` for a running run no live process drives (the CLI's foreground `supervise` would outlast a tool call) |
 | `workflow_approve` (WP29) | `runId`, `requestId`, `decision` (`approve`/`reject`), `detach?` (default true) | `approveAction` | `ApproveData` (`decision: approved \| rejected \| unanswered`, `resumed?`, `otherBlockers?`); **always confirms** (below) |
+| `workflow_auto` (WP32) | `task`, launch options | `autoAction` | `AutoData` (`phase`, `classifierCalled`, `classifier`, `consent`, `shortlist`, `recommendation?`, `ranked?`, `selected?`, `launch?`); **asks consent before its one classifier request and then the choice** (below) |
 
 Launch options (same as the CLI flags and Pi's `aw_run`): `executor`, `profile`, `permissionMode`
 (`free`/`safe`), `allowUnverified` (capability keys), `model`, `effort`, `inputs` (declared workflow
@@ -100,7 +105,7 @@ logs redaction keeps report prose such as `Exit code: 1` and redacts escaped-quo
 `/aw logs` call the same `logs` handler.
 
 Annotations: `list`, `status`, `inspect`, `logs`, `validate`, `show`, `roles`, `agents`, `doctor` are
-read-only; `run`, `dynamic`, `stop`, `resume`, `prune`, `profile`, `approve` are destructive; `wait`, `notices` and
+read-only; `run`, `dynamic`, `auto`, `stop`, `resume`, `prune`, `profile`, `approve` are destructive; `wait`, `notices` and
 `supervise` are neither. `title` is sent from
 `2025-06-18`, `annotations` from `2025-03-26` (same gating as the artifact server).
 
@@ -196,6 +201,41 @@ own (the user confirms in the dialog), a stale request id cannot approve a chang
 request id is the approval digest), and the decision is recorded on the run
 (`decidedBy: {host: "<--host>", via: "approve"}`).
 
+## Auto workflow selection (WP32, owner decision Q5)
+
+`workflow_auto {task, …launch options}` is the MCP form of `agent-workflow auto` and pi-workflow's
+`/workflow auto`:
+
+1. **Local shortlist.** The dynamic workflow and the discoverable workflows (at most 24), ranked by
+   the task's words against each spec's `routing` hints. No model call.
+2. **Consent.** One `elicitation/create` (`elicitConfirmation`) titled `Send this task to
+   <executor> to compare workflows?` shows the task, the candidate names and the classifier
+   executor/model. The classifier runs on the run's default executor: `executor`, else the saved
+   user profile, else this host's own CLI (`--host claude-code` → `claude`, `codex` → `codex`,
+   `generic` → the first installed and logged-in of pi, claude, codex), with `model`/`effort` or the
+   executor's default model. Only `accept` sends the one tool-less request; `decline`, `cancel` or
+   an error send nothing (`phase: "consent-declined"`).
+3. **Choice.** A second elicitation (`elicitChoice`) is a form with one required enum field
+   `workflow`: the ranked launchable candidates (`1. <name> (recommended)`, …), the recommendation
+   as `default`; the message carries the classifier's recommendation and reasons. `accept` with a
+   value starts that workflow through the normal launch path (duplicate guard, profiles, degradation
+   elicitation, `detach` default true; the footer says to call `workflow_wait`). `decline`/`cancel`
+   starts nothing and returns the ranked list (`phase: "cancelled"`), so the host can show it and
+   call `workflow_run` if the user then names a workflow.
+4. **No elicitation.** A client without form elicitation gets no classifier request at all: the
+   result (`phase: "consent-unavailable"`, `outcome: "refused"`) is the local shortlist with the
+   `workflow_run`/`workflow_dynamic` call of each candidate (the task as `<task>`).
+
+Why this design: consent has to come from the user, not the model, so it is an elicitation, as for
+the WP28 confirmed changes; the second elicitation keeps the final choice with the user and lets the
+server record it (launch capture `agent-workflow-run-launch-v2`: offered candidates,
+recommendation, choice, classifier executor/model, consent `elicitation`; never the task text). The
+alternative — return the ranking and let the host call `workflow_run` — would leave the choice to
+the model and lose the selection record; it remains the fallback when the user declines the choice
+dialog. Live-only: whether Claude Code and Codex show the enum form, and whether a tool call that
+waits for two dialogs plus a classifier request (up to 120 s) fits the host's tool timeout (Codex
+`tool_timeout_sec`, default 60 s).
+
 ## `cwd`
 
 Optional on every tool. Relative paths resolve against the root. After resolving symlinks the target
@@ -249,6 +289,9 @@ any dialog), SDK cases in `mcp-host-sdk-interop.test.mjs` (confirmed profile cha
 `packed-mcp-host` (packed bin: list → run → wait loop → inspect → show). WP29:
 `mcp-host-wp29-approve.test.mjs` (pending approvals in wait/status, `workflow_approve` refused
 without elicitation, accept continues, decline rejects, cancel/error record nothing, reject).
+WP32: `host-wp32-auto.test.mjs` (`workflow_auto` without elicitation sends nothing; declined consent
+sends nothing; consent → one classifier submit on `codex` for `--host codex` → the choice form
+launches and records the selection; a declined choice starts nothing).
 
 ## Open items
 

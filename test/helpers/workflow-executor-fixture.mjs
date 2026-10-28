@@ -20,6 +20,9 @@
 //   capabilities  partial capability table over the SDK fake's (WP4d negotiation tests)
 //   probe         probe() result (default: installed, auth ok)
 //   inheritHostTools / fast / fastApi  Pi-only per-task descriptor config (WP35), logged per submit
+//   autoRecommend WP32: answer the auto-router comparison call (its system prompt) with a valid
+//                 recommendation of the candidate card with this label (true: the first startable
+//                 card); the submit log entry then has `autoClassifier: true`
 import { appendFileSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createFakeExecutor } from "@agwab/agent-workflow/sdk/testing";
@@ -71,9 +74,56 @@ export function workflowFinalText(label) {
 	].join("\n");
 }
 
+const AUTO_ROUTER_PROMPT_MARKER =
+	"You compare existing workflow execution candidates";
+
+function isAutoClassifierRequest(req) {
+	return (
+		typeof req.systemPrompt === "string" &&
+		req.systemPrompt.includes(AUTO_ROUTER_PROMPT_MARKER)
+	);
+}
+
+/** WP32: a valid auto-router comparison answer for the packet in the prompt. */
+export function autoComparisonText(prompt, recommend) {
+	const start = prompt.indexOf("{");
+	const end = prompt.lastIndexOf("}");
+	const packet = JSON.parse(prompt.slice(start, end + 1));
+	const cards = packet.candidateCards;
+	const selected =
+		(typeof recommend === "string"
+			? cards.find((card) => card.label === recommend)
+			: undefined) ??
+		cards.find((card) => card.readiness?.startAllowed) ??
+		cards[0];
+	return JSON.stringify({
+		status: "recommendation",
+		recommendation: {
+			candidateId: selected.candidateId,
+			confidence: "high",
+			reason: `${selected.label} fits the supplied task.`,
+			alternatives: cards
+				.filter((card) => card.candidateId !== selected.candidateId)
+				.slice(0, 1)
+				.map((card) => card.candidateId),
+		},
+		assessments: cards.map((card) => ({
+			candidateId: card.candidateId,
+			fit: card === selected ? "complete" : "partial",
+			reason: "Compared only supplied fields.",
+			evidence: ["task", "routing.useWhen"],
+		})),
+		questions: [],
+		unknowns: [],
+	});
+}
+
 function scriptFor(req, config) {
 	const label = req.attemptKey.split(":")[2] ?? "task";
-	const finalText = workflowFinalText(label);
+	const finalText =
+		config.autoRecommend !== undefined && isAutoClassifierRequest(req)
+			? autoComparisonText(req.prompt, config.autoRecommend)
+			: workflowFinalText(label);
 	return [
 		{ type: "started", sessionId: null },
 		{ type: "message_delta", text: finalText },
@@ -187,6 +237,7 @@ export function createExecutor(config) {
 				sessionId: req.sessionId ?? null,
 				resumeSessionId: req.resumeSessionId ?? null,
 				...(config.logPrompt === true ? { prompt: req.prompt } : {}),
+				...(isAutoClassifierRequest(req) ? { autoClassifier: true } : {}),
 				// WP35: Pi-only per-task descriptor config the engine added for this attempt.
 				...Object.fromEntries(
 					["inheritHostTools", "fast", "fastApi"]

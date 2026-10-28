@@ -380,8 +380,12 @@ export function adaptExecutionRouter(text) {
 			"such as the `workflow_list` tool or `agent-workflow list`",
 		],
 		[
-			"Never invoke `aw_run`, `aw_dynamic`, `/aw run`, `/aw dynamic`, `/aw resume`, `/aw approve`, or the matching `agent-workflow` CLI commands",
-			"Never invoke `workflow_run`, `workflow_dynamic`, `workflow_wait`, `workflow_stop`, `workflow_validate`, `workflow_resume`, `workflow_supervise`, `workflow_prune`, `workflow_profile`, `workflow_notices`, `workflow_approve`, `agent-workflow resume`, `agent-workflow approve`, or the matching `agent-workflow` CLI commands",
+			"Never invoke `aw_run`, `aw_dynamic`, `/aw run`, `/aw dynamic`, `/aw auto`, `/aw resume`, `/aw approve`, or the matching `agent-workflow` CLI commands",
+			"Never invoke `workflow_run`, `workflow_dynamic`, `workflow_auto`, `workflow_wait`, `workflow_stop`, `workflow_validate`, `workflow_resume`, `workflow_supervise`, `workflow_prune`, `workflow_profile`, `workflow_notices`, `workflow_approve`, `agent-workflow auto`, `agent-workflow resume`, `agent-workflow approve`, or the matching `agent-workflow` CLI commands",
+		],
+		[
+			'`agent-workflow auto "<task>"` (in Pi: `/aw auto`; it asks',
+			'`agent-workflow auto "<task>"` (or, as the user\'s own later request, the `workflow_auto` tool; it asks',
 		],
 		[
 			'an existing workflow (`agent-workflow run <name> "<task>"`), a direct dynamic run (`agent-workflow dynamic "<task>"`)',

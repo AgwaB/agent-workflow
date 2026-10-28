@@ -62,6 +62,7 @@ mode); errors are error notifications.
 | `profile workflow list \| show <workflow> \| set <workflow> … \| clear <workflow>` | `workflowPreferenceAction` (WP31: saved per-workflow preferences; every host's launch applies them) |
 | `run <workflow> <task> [options]` | `runWorkflowAction` |
 | `dynamic <task> [options]` | `runDynamicAction` |
+| `auto <task> [options]` | `autoAction` (WP32): recommend a workflow and start the one the user chooses (below); print/JSON mode sends nothing |
 | `status [run]` | `statusAction` |
 | `show <workflow>` / `show <run> [--raw]` | `showAction` |
 | `inspect <run> [--failures] [--results]` | `inspectAction` |
@@ -244,6 +245,30 @@ outside the TUI `/aw profile` still lists.
 
 Back and cancel write nothing. Workflow-declared execution profiles are not listed in the picker
 (they stay in the launch chooser).
+
+## `/aw auto` (WP32, owner decision Q5)
+
+pi-workflow's `/workflow auto` on the host API `autoAction` (same flow on every host, [cli.md](cli.md#auto-wp32)):
+
+1. A local shortlist without a model call (the dynamic workflow and the discoverable workflows,
+   ranked by their `routing` hints).
+2. With a dialog UI (`ctx.hasUI`, not print/JSON mode): `ctx.ui.confirm("Send this task to <executor>
+   to compare workflows?", …)` shows the task, the candidate names and the classifier executor and
+   model. The classifier runs on the run's default executor: `--executor`, else the saved user
+   profile, else `pi` (the Pi host's own CLI) with Pi's current model and thinking level (when the
+   executor is `pi`). No = nothing is sent, nothing starts.
+3. Yes sends one tool-less classifier request, then `ctx.ui.select` lists the ranked workflows
+   (`1. <name> · recommended — <reason>`, …, `Cancel (start nothing)`), and a separate
+   `ctx.ui.confirm("Confirm selected workflow launch", …)` (pi-workflow's final confirmation)
+   starts it through the normal launch path (`/aw run` options, degradation and profile dialogs). The
+   run is tracked for the status line and completion delivery like `/aw run`.
+4. Print/JSON mode cannot ask, so it sends nothing: it prints the local shortlist with the
+   `/aw run`/`/aw dynamic` command of each candidate (exit code 1).
+
+The run's launch metadata (`agent-workflow-run-launch-v2`, source `pi`, entry `command auto`) records
+the offered candidates, the recommendation, the choice, the classifier executor/model and consent
+`prompt`. pi-workflow had no auto tool, so there is no `aw_auto`: agents cannot start the
+classifier request on their own.
 
 ## Dynamic-controller approval (WP29)
 
@@ -551,6 +576,9 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
   `host-wp28-pi-redrive.test.mjs` (a child process launches an attached run and exits; session start
   re-drives it, B3 decision instead of a relaunch after a killed worker, audience kept, live drivers
   skipped), `host-wp28-pi-exposure.test.mjs` (deferred tool exposure).
+- WP32: `host-wp32-auto.test.mjs` (`/aw auto`: consent, ranked select and final confirm launch and
+  track the run with one classifier submit on `pi` with Pi's model; declined consent, declined final
+  confirmation and Cancel start nothing; print/JSON mode sends nothing).
 - WP29: `host-wp29-pi-approval.test.mjs` (confirm yes runs the controller, no rejects it, json mode
   blocks with the approve commands, `/aw resume` asks the open approval), `host-wp29-approve-later.test.mjs`
   (`/aw approve` through the dialog, `--yes` without one).
@@ -594,8 +622,10 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
   loader (cancel it with a new `/aw wait` … Escape, or let it finish).
 - A context without a session id gets no status line or delivery (Pi 1.1 has one in TUI and RPC,
   also with `--no-session`).
-- No `/aw auto`. The profile picker (WP34) edits WP31 role profiles, not pi-workflow's per-stage Pi
+- The profile picker (WP34) edits WP31 role profiles, not pi-workflow's per-stage Pi
   model/thinking settings, and does not list workflow-declared execution profiles.
+  `/aw auto` (WP32) has no foreground loader while the classifier compares (pi-workflow showed
+  one); a notification says the comparison started.
 - Runs left running by a gone process are re-driven at session start (WP28) only while Pi runs;
   for a run that should outlive every session use `--detach` (or `agent-workflow supervise`).
 - Host tools (WP35) are file-configuration inheritance, as in pi-workflow: workers read the user's

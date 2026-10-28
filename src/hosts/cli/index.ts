@@ -8,6 +8,7 @@
 // WP31: `profile set --preset/--role`, `profile presets`, `profile workflow list|show|set|clear`.
 // WP29: on a terminal, foreground runs/waits/resumes ask y/n to approve a dynamic controller
 // (cliDynamicUi); `approve <run>` answers an approval a run is blocked on.
+// WP32: `auto <task>`: consent y/N on a terminal (or --yes), then a pick-list of the ranked workflows.
 import { readFileSync } from "node:fs";
 import { parseRoleAssignmentText } from "../../core/role-profiles.js";
 import { addWorkflowInputAssignment } from "../args.js";
@@ -15,7 +16,10 @@ import { cliLaunchCommand } from "../launch-capture.js";
 import { createInterface } from "node:readline";
 
 import {
+	type AutoChoicePrompt,
+	type AutoConsent,
 	approveAction,
+	autoAction,
 	doctorAction,
 	formatHostError,
 	HOST_WAIT_MAX_TIMEOUT_MS,
@@ -23,6 +27,7 @@ import {
 	type HostResult,
 	HostUsageError,
 	helpAction,
+	type LaunchRequestBase,
 	inspectAction,
 	listAgentsAction,
 	listWorkflowsAction,
@@ -332,6 +337,37 @@ async function launchCommand(
 				? 'Missing task. Usage: agent-workflow run <workflow> "<task>"'
 				: 'Missing task. Usage: agent-workflow dynamic "<task>"',
 		);
+	const options = launchOptionsFromArgs(parsed, io);
+	const request = {
+		task,
+		...options.request,
+		// WP33: launch capture (redacted by the host API): the command line as typed.
+		launchOrigin: {
+			kind: "command" as const,
+			text: cliLaunchCommand([command, ...argv]),
+		},
+	};
+	const launched =
+		command === "run"
+			? await runWorkflowAction(ctx, { workflow: workflow!, ...request })
+			: await runDynamicAction(ctx, request);
+	return followLaunch(command, launched, launched.data, options, ctx, io, emit);
+}
+
+interface CliLaunchOptions {
+	request: Omit<LaunchRequestBase, "task" | "launchOrigin">;
+	json: boolean;
+	detach: boolean;
+	totalTimeoutMs: number | undefined;
+	/** On a terminal without --yes. */
+	interactive: boolean;
+}
+
+/** The launch options shared by `run`, `dynamic` and `auto`. */
+function launchOptionsFromArgs(
+	parsed: ParsedArgs,
+	io: CliIo,
+): CliLaunchOptions {
 	const json = parsed.flags.has("--json");
 	const detach = parsed.flags.has("--detach");
 	const timeout = parsed.values.get("--timeout");
@@ -350,7 +386,6 @@ async function launchCommand(
 	for (const assignment of assignments)
 		addWorkflowInputAssignment(inputs, assignment);
 	const request = {
-		task,
 		...(assignments.length > 0 ? { inputOverrides: inputs } : {}),
 		...(parsed.values.has("--executor")
 			? { executor: parsed.values.get("--executor")! }
@@ -373,11 +408,6 @@ async function launchCommand(
 		...(effort ? { effort: parseThinkingLevel(effort) } : {}),
 		...(detach ? { detach: true } : {}),
 		...(parsed.flags.has("--force-new") ? { forceNew: true } : {}),
-		// WP33: launch capture (redacted by the host API): the command line as typed.
-		launchOrigin: {
-			kind: "command" as const,
-			text: cliLaunchCommand([command, ...argv]),
-		},
 		...(interactive
 			? {
 					interactive: true,
@@ -391,32 +421,111 @@ async function launchCommand(
 				}
 			: {}),
 	};
-	const launched =
-		command === "run"
-			? await runWorkflowAction(ctx, { workflow: workflow!, ...request })
-			: await runDynamicAction(ctx, request);
+	return { request, json, detach, totalTimeoutMs, interactive };
+}
+
+/** After a launch: print it and, unless detached, wait in the foreground until it settles. */
+async function followLaunch(
+	command: "run" | "dynamic" | "auto",
+	launched: HostResult<unknown>,
+	data: { runId?: string; status?: string } | undefined,
+	options: CliLaunchOptions,
+	ctx: HostApiContext,
+	io: CliIo,
+	emit: Emit,
+): Promise<number> {
+	const { json, detach, totalTimeoutMs } = options;
 	if (!json) io.stdout(`${launched.text}\n`);
-	if (detach || launched.data.status !== "running" || !launched.data.runId)
+	if (detach || data?.status !== "running" || !data.runId)
 		return json ? emit(launched) : exitCodeFor(launched);
 	if (!json)
 		io.stderr(
-			`Waiting for ${launched.data.runId} (Ctrl-C stops waiting; the run can be continued with \`agent-workflow wait ${launched.data.runId}\`)\n`,
+			`Waiting for ${data.runId} (Ctrl-C stops waiting; the run can be continued with \`agent-workflow wait ${data.runId}\`)\n`,
 		);
 	const waited = await waitUntilSettled(
 		ctx,
 		io,
-		launched.data.runId,
+		data.runId,
 		totalTimeoutMs,
 		json,
 	);
 	const final: HostResult<unknown> = {
 		...waited,
 		action: command,
-		data: { ...launched.data, wait: waited.data },
+		data: { ...(launched.data as object), wait: waited.data },
 	};
 	if (json) return emit(final, exitCodeFor(waited));
 	io.stdout(`${waited.text}\n`);
 	return exitCodeFor(waited);
+}
+
+/**
+ * WP32: `auto <task...> [--yes] [launch options]`. On a terminal: the consent question (the task,
+ * the candidates and the classifier executor/model; y/N), then a numbered pick-list of the ranked
+ * candidates (Enter = the recommendation, n = cancel). Without a terminal nothing is sent unless
+ * --yes (the user's explicit consent); then the ranking is printed and nothing starts.
+ */
+async function autoCommand(
+	argv: readonly string[],
+	ctx: HostApiContext,
+	io: CliIo,
+	emit: Emit,
+): Promise<number> {
+	const parsed = parseCommandArgs(argv, LAUNCH_SPEC);
+	const task = parsed.positionals.join(" ").trim();
+	if (!task)
+		throw new HostUsageError(
+			'Missing task. Usage: agent-workflow auto "<task>"',
+		);
+	const options = launchOptionsFromArgs(parsed, io);
+	const prompt = io.prompt ?? defaultPrompt;
+	const yes = parsed.flags.has("--yes");
+	const consent: AutoConsent | undefined = yes
+		? { source: "flag" }
+		: io.isTTY
+			? {
+					source: "prompt",
+					confirm: async (title, message) => {
+						io.stderr(`\n${message}\n`);
+						const answer = await prompt(`${title} [y/N] `);
+						return /^y(es)?$/i.test(answer.trim());
+					},
+				}
+			: undefined;
+	const choose = io.isTTY
+		? async (shown: AutoChoicePrompt): Promise<string | undefined> => {
+				io.stderr(`\n${shown.message}\n`);
+				const count = shown.choices.length;
+				const recommended = shown.recommendedId
+					? shown.choices.findIndex(
+							(choice) => choice.candidateId === shown.recommendedId,
+						)
+					: -1;
+				const answer = (
+					await prompt(
+						`Start which workflow? [1-${count}${recommended >= 0 ? `, Enter = ${recommended + 1}` : ""}, n = cancel] `,
+					)
+				)
+					.trim()
+					.toLowerCase();
+				if (answer === "" && recommended >= 0)
+					return shown.choices[recommended]!.candidateId;
+				if (!/^\d+$/.test(answer)) return undefined;
+				return shown.choices[Number(answer) - 1]?.candidateId;
+			}
+		: undefined;
+	const out = await autoAction(ctx, {
+		task,
+		...options.request,
+		...(consent ? { consent } : {}),
+		...(choose ? { choose } : {}),
+		...(io.signal ? { signal: io.signal } : {}),
+		launchOrigin: {
+			kind: "command",
+			text: cliLaunchCommand(["auto", ...argv]),
+		},
+	});
+	return followLaunch("auto", out, out.data.launch, options, ctx, io, emit);
 }
 
 /** WP31: `--role` values → a role map (each `<role>=<executor>[:<model>[:<effort>]]`). */
@@ -701,6 +810,8 @@ async function dispatch(
 		case "run":
 		case "dynamic":
 			return launchCommand(command, argv, ctx, io, emit);
+		case "auto":
+			return autoCommand(argv, ctx, io, emit);
 		case "status": {
 			const parsed = parseCommandArgs(argv, jsonOnly);
 			if (parsed.positionals.length > 1)

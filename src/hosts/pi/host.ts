@@ -42,6 +42,7 @@ export type PiHostApi = Pick<
 	| "waitAction"
 	| "resumeAction"
 	| "approveAction"
+	| "autoAction"
 	| "stopAction"
 	| "pruneAction"
 	| "noticesAction"

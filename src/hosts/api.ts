@@ -7,7 +7,9 @@
 // and the `logs` action (logs.ts). WP31: `workflowPreferenceAction` (saved per-workflow preferences).
 // and the `logs` action (logs.ts). WP29: the `approve` action (approve.ts) answers a dynamic-controller
 // approval a run is blocked on. WP34: `executorModelsAction` (each executor's probed model list, for
-// role-profile editors such as the Pi profile picker).
+// role-profile editors such as the Pi profile picker). WP32: the `auto` action (auto.ts) compares
+// workflows for a task (one classifier call, only after the user's consent) and starts the one the
+// user chooses.
 import { showWorkflowSpecAction } from "./catalog.js";
 import { showRunAction } from "./runs.js";
 import type { HostApiContext, HostResult } from "./types.js";
@@ -40,6 +42,18 @@ export {
 	tokenizeWorkflowArgs,
 	type WorkflowArgToken,
 } from "./args.js";
+export {
+	type AutoCandidateView,
+	type AutoChoicePrompt,
+	type AutoClassifierTarget,
+	type AutoConsent,
+	type AutoConsentPreview,
+	type AutoData,
+	type AutoPhase,
+	type AutoRequest,
+	autoAction,
+	resolveAutoClassifier,
+} from "./auto.js";
 export {
 	type AgentSummary,
 	type ListData,

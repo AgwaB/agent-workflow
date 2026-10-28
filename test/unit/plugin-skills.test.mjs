@@ -62,6 +62,8 @@ test("skill tool names are the host MCP server's tools", () => {
 	assert.deepEqual([...toolNames].sort(), [
 		"workflow_agents",
 		"workflow_approve",
+		// WP32: auto workflow selection with consent.
+		"workflow_auto",
 		"workflow_doctor",
 		"workflow_dynamic",
 		"workflow_inspect",
@@ -123,7 +125,7 @@ test("plugin skills carry no Pi-only names and the router stays recommendation-o
 	assert.match(router, /`workflow_list` tool/);
 	assert.match(
 		router,
-		/Never invoke `workflow_run`, `workflow_dynamic`, `workflow_wait`, `workflow_stop`, `workflow_validate`/,
+		/Never invoke `workflow_run`, `workflow_dynamic`, `workflow_auto`, `workflow_wait`, `workflow_stop`, `workflow_validate`/,
 	);
 	assert.match(router, /\*\*No execution performed\.\*\*/);
 	const guide = skill("workflow-guide");
