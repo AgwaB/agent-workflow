@@ -668,3 +668,13 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
   like `/aw run|dynamic`; launch options may lead or trail it, an option inside the task is refused.
   Tests: `host-wp32-auto.test.mjs` ("the task is the text after `auto`…", fails on the old code);
   `host-wp38b-auto-router.test.mjs` now places the refused option inside the task.
+- **Live bundle 5 (WP39): loaders and clipboard in a real Pi.** Pi 1.1 resolves its packages for an
+  extension only while it loads the extension's entry. The late `import()` of
+  `@earendil-works/pi-coding-agent` in `active-ui.ts` (Pi's `BorderedLoader`) and `board-source.ts`
+  (`copyToClipboard`) resolved natively and failed with `pi -e <checkout>/dist/hosts/pi/index.js`
+  (no Pi copy next to the extension; `pi install` does not install the optional peer either): the
+  `/aw auto` comparison and `/aw wait` ran without a loader (Escape could not cancel them) and the
+  board's `c` reported "Launch command copy failed". Verified with a probe extension in Pi 1.1.0
+  (entry import ok, nested late import `ERR_MODULE_NOT_FOUND`). `index.ts` now registers the module
+  its entry import returned (`pi-runtime.ts`) and the late users read it. Test:
+  `host-wp39-pi-runtime-module.test.mjs`.

@@ -6,8 +6,7 @@
 // extensions). Nothing else in agent-workflow imports this module.
 export const MODULE = "src/hosts/pi";
 
-// Not a string literal on purpose: the package type-checks and builds without the optional peer.
-const PI_PACKAGE: string = ["@earendil-works", "pi-coding-agent"].join("/");
+import { PI_PACKAGE, registerPiRuntimeModule } from "./pi-runtime.js";
 
 export class PiHostUnavailableError extends Error {
 	constructor(cause: unknown) {
@@ -19,7 +18,8 @@ export class PiHostUnavailableError extends Error {
 }
 
 try {
-	await import(PI_PACKAGE);
+	// Live bundle 5: kept for the late users (loaders, clipboard), see pi-runtime.ts.
+	registerPiRuntimeModule(await import(PI_PACKAGE));
 } catch (error) {
 	throw new PiHostUnavailableError(error);
 }
