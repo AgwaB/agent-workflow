@@ -401,3 +401,30 @@ test("profile choice: dialog with a UI (ctx.ui.select), text fallback without on
 	for (const launched of [noUi, withUi])
 		await settle(hostCtx, launched.details.runId);
 });
+
+// WP39b (live bundle 5, O11): the Pi TUI showed the blocked/completed text twice in the scrollback
+// (the completion message and a ctx.ui.notify of the same text) while the history held it once. In
+// the TUI the message is the only notification.
+test("TUI: the completion is shown once (the message), without a duplicate notify of its text", async () => {
+	const { cwd, env, executor } = await project();
+	const { pi, command } = install(env);
+	const ctx = fakeCtx(cwd, { sessionId: "session-tui", mode: "tui" });
+	await startSession(pi, ctx);
+	await command.handler(`run wf.json "tui task" --executor ${executor}`, ctx);
+	const launchNote = ctx.notes.find((note) =>
+		/^Workflow started: wp16-feedback/m.test(note.message),
+	);
+	const runId = /Run: (workflow_\S+)/.exec(launchNote.message)[1];
+	await eventually(
+		() => completions(pi).length === 1,
+		"the completion message",
+	);
+	await new Promise((done) => setTimeout(done, 200));
+	assert.equal(completions(pi).length, 1);
+	assert.equal(
+		ctx.notes.filter((note) => note.message.startsWith(`Workflow ${runId} `))
+			.length,
+		0,
+		JSON.stringify(ctx.notes),
+	);
+});

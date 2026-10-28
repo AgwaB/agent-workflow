@@ -687,3 +687,10 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
   is now tracked too, so the tracker delivers it with the usual receipts (exactly once). Test:
   `host-wp29-approve-later.test.mjs` "Pi /aw approve: a run that settles inside the approve call …"
   (fails on the old code).
+- **WP39b (live bundle 5, O11): the completion shown once in the TUI.** The live pane showed the
+  `[agent-workflow-completion]` message ("Workflow blocked; action required: …") and right after it
+  a `Warning:` notification with the same body, while the session history held the message once:
+  the tracker sends the custom message and then calls `ctx.ui.notify` with its notice, and the TUI
+  prints both in the scrollback. In the TUI the message is now the only notification; RPC and other
+  modes keep the notice. Test: `host-wp16-pi-feedback.test.mjs` "TUI: the completion is shown once
+  …" (fails on the old code).
