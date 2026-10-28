@@ -171,6 +171,23 @@ apply yet.
    invalid (`facts.invented`, `routing.useWhen.0`, `comparison`). The prompt is unchanged. Test:
    `core-workflow-router.test.mjs` "recorded luna classifier outputs …" on the three recorded live-5
    outputs (`test/fixtures/live5/auto-router/`; all three fail on the old code).
+7. WP39b (live bundle 5, O7), managed worktrees (pi-workflow 0.16.4 has the same code):
+   - The attempt state of a task in a managed worktree (`workflow-subagents/<run>/<task>/`) is
+     written in the project's own `.agent-workflow/`, not inside the worktree: the runtime runs the
+     task with `cwd` = the project and the worktree as its shared-mode execution directory
+     (`workflowTaskStateCwd`; runtime change log 19). Readers use the recorded handle's cwd
+     (`recordedTaskStateCwd`), handle recovery looks in the project first, then in the task cwd
+     (attempts launched before WP39b), and the raw-artifact contract (`backendMirrorRoot`) takes the
+     project's mirror when the attempt is there, after the same worktree checks (the worktree must
+     still be the real managed directory). Prune and logs now see those attempt dirs.
+   - The dirty-checkout snapshot excludes the whole project state directory `.agent-workflow/`
+     (was only `.agent-workflow/workflows/`), so other tasks' attempt state, notify receipts and
+     runtime bundles are never copied into a worktree when `.agent-workflow/` is not git-ignored.
+   - `status`/`show`/`inspect` name each worktree task's path and branch; `prune` lists a run's
+     worktrees in the dry run and removes them with `--yes` (docs/usage.md "Worktrees").
+   Tests: `core-wp39b-worktree-state.test.mjs` (all fail on the old code),
+   `core-unit-dynamic-runtime.test.mjs` "mutation-capable agents publish from managed and shared
+   loop worktrees" (expects the project's mirror now).
 
 Left unchanged on purpose (not paths or env vars; flagged for later WPs):
 

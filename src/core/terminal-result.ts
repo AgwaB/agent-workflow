@@ -4,6 +4,7 @@ import { setTaskTerminal } from "./store.js";
 import { type SubagentRunStatusSnapshot } from "./runtime-port.js";
 import { mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { recordedTaskStateCwd } from "./task-artifacts.js";
 import { activeForeachBatchRecordForTask } from "./foreach-batch-runtime.js";
 import {
 	materializeTerminalForeachBatchResult,
@@ -59,7 +60,10 @@ export async function materializeTerminalSubagentResult(
 	const stderrFile = fromProjectPath(cwd, task.files.stderr);
 	const resultFile = fromProjectPath(cwd, task.files.result);
 	const artifactRoot = task.backendFiles?.runsDir
-		? fromProjectPath(task.cwd, task.backendFiles.runsDir)
+		? fromProjectPath(
+				recordedTaskStateCwd(cwd, task),
+				task.backendFiles.runsDir,
+			)
 		: undefined;
 
 	await mkdir(dirname(outputFile), { recursive: true });

@@ -7,7 +7,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { after, test } from "node:test";
 
 const { ensureManagedWorktree } = await import("../../dist/core/worktree.js");
@@ -255,4 +255,132 @@ test("status, show and inspect name a worktree task's worktree path and branch",
 		inspected.text,
 		/- task-1: completed\/.*\n {4}worktree: \.agent-workflow\/workflows\/workflow_wtshow\/worktrees\/task-1 \(branch agent-workflow\/workflow_wtshow-task-1\)/,
 	);
+});
+
+test("runtime: shared mode with workspace.path runs in that directory; the state root stays cwd", async () => {
+	const { resolveWorkspace } = await import(
+		"../../dist/runtime/workspace/worktree.js"
+	);
+	const cwd = await repo();
+	const elsewhere = join(cwd, "sub");
+	mkdirSync(elsewhere);
+	assert.deepEqual(
+		await resolveWorkspace({
+			cwd,
+			input: { workspace: { mode: "shared", path: elsewhere } },
+		}),
+		{ mode: "shared", baseCwd: cwd, cwd: elsewhere, worktreePath: null },
+	);
+	assert.deepEqual(
+		await resolveWorkspace({ cwd, input: { workspace: "shared" } }),
+		{ mode: "shared", baseCwd: cwd, cwd, worktreePath: null },
+	);
+	await assert.rejects(
+		resolveWorkspace({
+			cwd,
+			input: { workspace: { mode: "shared", path: join(cwd, "missing") } },
+		}),
+		/not an existing directory/,
+	);
+	// Nothing was created.
+	assert.equal(git(cwd, ["worktree", "list"]).trim().split("\n").length, 1);
+});
+
+test("a worktree task runs in its worktree; its attempt state is written under the project's .agent-workflow/ (real runtime, fixture executor)", async () => {
+	const { workflowFixtureDescriptor, readFixtureLog } = await import(
+		"../helpers/workflow-executor-fixture.mjs"
+	);
+	const core = await import("../../dist/core/index.js");
+	const api = await import("../../dist/hosts/api.js");
+	const slots = await import("../../dist/core/launch-slots.js");
+	slots.setSubagentLaunchControlsForTests({
+		releaseDelayMs: 0,
+		retryJitterMs: 0,
+	});
+	const cwd = await repo();
+	mkdirSync(join(cwd, "workflows", "wt-write"), { recursive: true });
+	mkdirSync(join(cwd, ".agent-workflow", "agents"), { recursive: true });
+	writeFileSync(
+		join(cwd, ".agent-workflow", "agents", "writer.md"),
+		"---\nname: writer\ndescription: writes notes\ntools: read, write\nreadOnly: false\n---\nYou write notes.\n",
+	);
+	writeFileSync(
+		join(cwd, "workflows", "wt-write", "spec.json"),
+		JSON.stringify({
+			schemaVersion: 1,
+			name: "wt-write",
+			description: "writes in a worktree",
+			defaults: {
+				agent: "writer",
+				readOnly: false,
+				tools: ["read", "write"],
+				worktreePolicy: "on",
+			},
+			artifactGraph: {
+				stages: [{ id: "w", type: "single", prompt: "Write notes." }],
+			},
+		}),
+	);
+	git(cwd, ["add", "."]);
+	git(cwd, ["commit", "-q", "--no-gpg-sign", "--no-verify", "-m", "spec"]);
+	const effectLog = join(cwd, "..", `${basename(cwd)}-effects.jsonl`);
+	roots.push(effectLog);
+	const unregister = core.registerWorkflowExecutor(
+		workflowFixtureDescriptor({ id: "wt-fixture", effectLog }),
+	);
+	try {
+		const env = {
+			...process.env,
+			AGENT_WORKFLOW_HOME: join(cwd, "..", `${basename(cwd)}-home`),
+		};
+		roots.push(env.AGENT_WORKFLOW_HOME);
+		const launched = await api.runWorkflowAction(
+			{ cwd, env },
+			{
+				workflow: "wt-write",
+				task: "Write notes.",
+				executor: "wt-fixture",
+				detach: true,
+			},
+		);
+		const runId = launched.data.runId;
+		assert.ok(runId, launched.text);
+		let waited;
+		do
+			waited = await api.waitAction({ cwd, env }, { runId, timeoutMs: 10_000 });
+		while (waited.data.stillRunning);
+		assert.equal(waited.data.status, "completed", waited.text);
+		const store = await import("../../dist/core/store.js");
+		const run = await store.readRunRecord(cwd, runId);
+		const [task] = run.tasks;
+		assert.equal(task.worktree.enabled, true);
+		const submit = readFixtureLog(effectLog).find(
+			(entry) => entry.type === "submit",
+		);
+		assert.equal(
+			submit.cwd,
+			task.worktree.path,
+			"the worker runs in the worktree",
+		);
+		assert.ok(
+			submit.artifactsDir.startsWith(
+				join(cwd, ".agent-workflow", "workflow-subagents", runId, task.taskId),
+			),
+			submit.artifactsDir,
+		);
+		// (The committed agent file under .agent-workflow/agents/ is part of HEAD.)
+		assert.equal(
+			existsSync(
+				join(task.worktree.path, ".agent-workflow", "workflow-subagents"),
+			),
+			false,
+			"no attempt state inside the worktree",
+		);
+		assert.equal(
+			existsSync(join(task.worktree.path, ".agent-workflow", "workflows")),
+			false,
+		);
+	} finally {
+		unregister();
+	}
 });

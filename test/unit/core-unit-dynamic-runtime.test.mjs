@@ -5901,7 +5901,13 @@ test("artifactGraph mutation-capable agents publish from managed and shared loop
 		assert.equal(generated.status, "running");
 		assert.equal(generated.worktree.enabled, true);
 		assert.equal(generated.cwd, generated.worktree.path);
-		assert.equal(launchOptions.cwd, generated.cwd);
+		// WP39b (live bundle 5, O7): the worker runs in the worktree (the runtime's shared-mode
+		// execution path); its attempt state stays in the project's `.agent-workflow/`.
+		assert.equal(launchOptions.cwd, cwd);
+		assert.deepEqual(launchOptions.workspace, {
+			mode: "shared",
+			path: generated.cwd,
+		});
 		assert.equal(
 			launchOptions.runsDir,
 			`.agent-workflow/workflow-subagents/${run.runId}/${generated.taskId}`,
@@ -5995,7 +6001,9 @@ test("artifactGraph mutation-capable agents publish from managed and shared loop
 		assert.notEqual(loopCheck.taskId, loopImplement.taskId);
 		assert.equal(loopCheck.worktree.path, loopImplement.worktree.path);
 		assert.equal(loopCheck.cwd, loopImplement.cwd);
-		assert.equal(launchOptions.cwd, loopCheck.cwd);
+		// WP39b (O7): state in the project, the worker in the shared loop worktree.
+		assert.equal(launchOptions.cwd, cwd);
+		assert.equal(launchOptions.workspace.path, loopCheck.cwd);
 
 		await scheduleRun(cwd, loopRun.runId);
 		loopUpdated = await readRunRecord(cwd, loopRun.runId);
@@ -6096,11 +6104,12 @@ test("artifactGraph mutation-capable agents publish from managed and shared loop
 			writeFileSync(runPath, pristineRun);
 		}
 		const linkType = process.platform === "win32" ? "junction" : "dir";
-		const mirrorRoot = join(
-			generated.cwd,
-			".agent-workflow",
-			"workflow-subagents",
+		// WP39b (O7): the attempt mirror of a worktree task is the project's own.
+		assert.equal(
+			existsSync(join(generated.cwd, ".agent-workflow", "workflow-subagents")),
+			false,
 		);
+		const mirrorRoot = join(cwd, ".agent-workflow", "workflow-subagents");
 		const movedMirrorRoot = `${mirrorRoot}-moved`;
 		renameSync(mirrorRoot, movedMirrorRoot);
 		try {

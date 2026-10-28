@@ -340,8 +340,10 @@ async function backendMirrorRoot(options: {
 	run: WorkflowRunRecord;
 	task: WorkflowTaskRunRecord;
 	provenance: LaunchBootstrapProvenanceRecord;
+	backendRunId: string;
 }): Promise<string> {
-	const { project, lexicalProject, run, task, provenance } = options;
+	const { project, lexicalProject, run, task, provenance, backendRunId } =
+		options;
 	assertLaunchWorkspaceProvenance(task, provenance);
 	const worktree = task.worktree;
 	if (!worktree.enabled) {
@@ -405,6 +407,23 @@ async function backendMirrorRoot(options: {
 		basename(canonicalExpectedWorktree) !== leaf
 	)
 		fail();
+	// WP39b (O7): a worktree task launched since WP39b keeps its attempt state in the project's
+	// own mirror; earlier attempts kept it inside the validated worktree. Either root is then
+	// checked component by component (directoryChain) like before.
+	const projectMirrorRun = join(
+		project,
+		PROJECT_STATE_DIRECTORY,
+		"workflow-subagents",
+		run.runId,
+		task.taskId,
+		backendRunId,
+	);
+	const projectMirror = await lstat(projectMirrorRun).catch(() => undefined);
+	if (projectMirror?.isDirectory() && !projectMirror.isSymbolicLink()) {
+		// The worktree itself must still be the real managed directory, not a link elsewhere.
+		await directoryChain(project, expectedWorktree, new Map());
+		return project;
+	}
 	// Keep the canonical-project lexical path so directoryChain observes a
 	// worktree symlink or junction instead of validating only its realpath target.
 	return expectedWorktree;
@@ -584,6 +603,7 @@ export async function establishRawOwner(
 			run,
 			task: executionTask,
 			provenance,
+			backendRunId: state.backendRunId,
 		});
 		const mirrorRun = join(
 			mirrorRoot,

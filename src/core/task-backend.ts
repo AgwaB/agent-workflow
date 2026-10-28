@@ -137,8 +137,10 @@ import {
 	findLog,
 	getSubagentHandle,
 	makeSubagentHandle,
+	recordedTaskStateCwd,
 	recoverSubagentHandle,
 	subagentRunsDir,
+	workflowTaskStateCwd,
 } from "./task-artifacts.js";
 import { acknowledgeSubagentTaskInterrupted } from "./task-cancellation.js";
 import {
@@ -288,6 +290,9 @@ export async function launchSubagentTask(
 	const stderrFile = fromProjectPath(cwd, task.files.stderr);
 	const resultFile = fromProjectPath(cwd, task.files.result);
 	const runsDir = subagentRunsDir(run, task);
+	// WP39b (O7): a worktree task's attempt state stays in the project (the worker runs in the
+	// worktree as the runtime's execution directory).
+	const stateCwd = workflowTaskStateCwd(cwd, task);
 	const correlationId = `${run.runId}:${task.taskId}`;
 	const sessionId = workflowTaskSessionId(run, task);
 
@@ -415,7 +420,7 @@ export async function launchSubagentTask(
 		task.statusDetail = "launching";
 		task.startedAt = nowIso();
 		task.backendFiles = {
-			runsDir: toProjectPath(task.cwd, resolve(task.cwd, runsDir)),
+			runsDir: toProjectPath(stateCwd, resolve(stateCwd, runsDir)),
 			correlationId,
 			...(sessionId === undefined ? {} : { sessionId }),
 		};
@@ -459,7 +464,7 @@ export async function launchSubagentTask(
 			compiledTask.runtime.maxRuntimeMs,
 		);
 		const subagentOptions: Record<string, unknown> = {
-			cwd: task.cwd,
+			cwd: stateCwd,
 			executor: workflowTaskExecutorDescriptor(
 				executor,
 				compiledTask,
@@ -488,7 +493,8 @@ export async function launchSubagentTask(
 			async: true,
 			onComplete: "detach",
 			asyncDependency: "needed-before-final",
-			workspace: "shared",
+			workspace:
+				stateCwd === task.cwd ? "shared" : { mode: "shared", path: task.cwd },
 			worktreePolicy: "never",
 			...(taskTimeoutMs === undefined ? {} : { timeoutMs: taskTimeoutMs }),
 			runsDir,
@@ -661,6 +667,7 @@ export async function launchSubagentTask(
 		launched.attemptId,
 		runsDir,
 		sessionId,
+		stateCwd,
 	);
 	if (durableBarrierDescriptor !== undefined) {
 		await settleDurableLaunchBarrier({
@@ -697,7 +704,7 @@ export async function launchSubagentTask(
 		});
 	}
 	task.backendFiles = {
-		runsDir: toProjectPath(task.cwd, resolve(task.cwd, runsDir)),
+		runsDir: toProjectPath(stateCwd, resolve(stateCwd, runsDir)),
 		correlationId,
 		...(sessionId === undefined ? {} : { sessionId }),
 	};
@@ -751,12 +758,15 @@ export async function refreshRunFromSubagentArtifacts(
 			continue;
 		let handle = getSubagentHandle(task);
 		if (!handle) {
-			handle = await recoverSubagentHandle(run, task);
+			handle = await recoverSubagentHandle(run, task, cwd);
 			if (handle) {
 				task.backendHandle = handle;
 				task.backendTaskId = handle.runId;
 				task.backendFiles = {
-					runsDir: toProjectPath(task.cwd, resolve(task.cwd, handle.runsDir)),
+					runsDir: toProjectPath(
+						handle.cwd,
+						resolve(handle.cwd, handle.runsDir),
+					),
 					correlationId: `${run.runId}:${task.taskId}`,
 					...(handle.sessionId === undefined
 						? {}
@@ -1088,7 +1098,10 @@ async function refreshRunningArtifactGraphPartialOutput(
 	const outputRef = findLog(snapshot, "output");
 	const outputFile = fromProjectPath(cwd, task.files.output);
 	const artifactRoot = task.backendFiles?.runsDir
-		? fromProjectPath(task.cwd, task.backendFiles.runsDir)
+		? fromProjectPath(
+				recordedTaskStateCwd(cwd, task),
+				task.backendFiles.runsDir,
+			)
 		: undefined;
 	await copyLogOrEmpty(snapshot, outputRef, outputFile, artifactRoot);
 	await writeWorkflowPartialOutputLedgerFromFile({
