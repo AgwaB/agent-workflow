@@ -14,11 +14,13 @@ import {
 	formatHumanRunResume,
 	formatHumanRunStop,
 	formatRawRunDetails,
+	formatScheduledRetryWait,
 	formatRunDetails,
 	formatRunStatus,
 	formatStatus,
 	refreshRun,
 	resumeRun,
+	scheduledRetryWait,
 	scheduleRun,
 	stopRun,
 	confirmRunStop,
@@ -337,6 +339,18 @@ export interface WaitData {
 	outputRetryAttempts: number;
 	launchRetryAttempts: number;
 	artifactRoot: string;
+	/**
+	 * WP18b: set while the run only waits for a scheduled task retry (for example a 15-minute
+	 * rate-limit backoff): the earliest retry time, its remaining ms, reason/message and the waiting
+	 * task ids. No task progress is expected before `at`.
+	 */
+	nextRetry?: {
+		at: string;
+		retryAfterMs: number;
+		reason?: string;
+		message?: string;
+		taskIds: string[];
+	};
 	/** Bounded authoritative-result preview of a terminal run. */
 	preview?: string;
 	reportArtifacts: WorkflowResultArtifact[];
@@ -407,6 +421,7 @@ export async function waitAction(
 		.filter((task) => task.status === "blocked")
 		.map((task) => task.specId);
 	const actionRequired = !terminal.terminal && !stillRunning;
+	const nextRetry = stillRunning ? scheduledRetryWait(run) : undefined;
 	const data: WaitData = {
 		runId: run.runId,
 		status: run.status,
@@ -421,6 +436,7 @@ export async function waitAction(
 		outputRetryAttempts: terminal.outputRetryAttempts,
 		launchRetryAttempts: terminal.launchRetryAttempts,
 		artifactRoot: toDisplayPath(terminal.artifactRoot, ctx.cwd),
+		...(nextRetry ? { nextRetry } : {}),
 		...(preview ? { preview } : {}),
 		reportArtifacts: artifacts,
 		...(run.usage ? { usage: run.usage } : {}),
@@ -430,6 +446,8 @@ export async function waitAction(
 	let text: string;
 	if (stillRunning) {
 		text = `Workflow still running: ${run.name ?? "workflow"}\nRun: ${run.runId}\nProgress: ${run.taskSummary.completed}/${run.taskSummary.total} completed, ${run.taskSummary.running} running (waited ${timeoutMs}ms; wait again to keep driving it)`;
+		if (nextRetry)
+			text += `\nNow ${formatScheduledRetryWait(nextRetry)}${nextRetry.message ? `: ${nextRetry.message}` : ""}; no progress before then.`;
 	} else if (
 		terminal.terminal &&
 		preview &&

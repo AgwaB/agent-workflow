@@ -226,6 +226,8 @@ input 30, cache read 567,411, cache write 34,077, output 2,922. No `codex exec` 
 3. **Long engine backoff vs. host patience.** A rate-limit launch retry waits 15 min
    (`retryAfterMs: 900000`); the haiku host stopped after ~8.5 min of `workflow_wait`. MCP hosts get
    no completion delivery, so the user learns the result only by asking again.
+   WP18b: `workflow_wait` returns `nextRetry` (time, reason) and the skill and server instructions
+   tell the host to give the user the run id, what it waits for, and that they can ask again.
 4. **CLI text uses pi-workflow hints.** `agent-workflow status` prints `Open: /workflow <run>`,
    `Resume: /workflow resume <run>` and "inspect /workflow logs <run>"; only the Pi host rewrites
    them (the MCP texts seen here had none).

@@ -172,7 +172,10 @@ cancels only the wait.
 
 `WaitData`: `{runId, status, semanticStatus, terminal, actionRequired, stillRunning, timeoutMs,
 blockedTaskIds, taskSummary, outputTaskIds, outputRetryAttempts, launchRetryAttempts, artifactRoot,
-preview?, reportArtifacts, usage?, degradation?}`.
+nextRetry?, preview?, reportArtifacts, usage?, degradation?}`. `nextRetry` (WP18b) is set while a
+still-running run only waits for a scheduled task retry (no task running, every startable task in a
+retry backoff such as a 15-minute rate-limit wait): `{at, retryAfterMs, reason?, message?, taskIds}`;
+the text then adds "Now waiting for scheduled retry at <time> (<reason>; <tasks>)".
 
 | State | `terminal` | `actionRequired` | `stillRunning` | outcome |
 |---|---|---|---|---|

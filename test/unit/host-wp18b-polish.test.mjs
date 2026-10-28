@@ -2,7 +2,14 @@
 // in the core run texts (CLI `agent-workflow …`, Pi `/aw …`, MCP tool calls; never pi-workflow's
 // `/workflow …`). Runs use the workflow executor fixture (no model or agent-CLI calls).
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import {
+	mkdir,
+	mkdtemp,
+	readFile,
+	realpath,
+	rm,
+	writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
@@ -254,4 +261,67 @@ test("stall warning: a run whose only open task waits for a scheduled retry says
 		/possible stall; inspect agent-workflow logs workflow_retry_wait/,
 	);
 	assert.equal(engine.scheduledRetryWait(run, nowMs + 10 * 60_000), undefined);
+});
+
+// --- item 4: wait reports the scheduled retry ---
+
+test("wait: a run waiting on a retry backoff returns the retry time and reason (data, text, MCP next)", async () => {
+	const { cwd, env, runId } = await interruptedRun();
+	const runPath = join(cwd, ".agent-workflow", "workflows", runId, "run.json");
+	const record = JSON.parse(await readFile(runPath, "utf8"));
+	const nextEligibleAt = new Date(Date.now() + 15 * 60_000).toISOString();
+	record.status = "running";
+	for (const task of record.tasks) {
+		task.status = "pending";
+		task.statusDetail = "retry_model_failure";
+		task.launchRetry = {
+			attempts: 1,
+			maxAttempts: 3,
+			reason: "model_rate_limit",
+			message: "429 rate limited",
+			nextEligibleAt,
+			retryAfterMs: 900_000,
+		};
+	}
+	record.taskSummary = {
+		...record.taskSummary,
+		pending: record.tasks.length,
+		running: 0,
+		interrupted: 0,
+	};
+	await writeFile(runPath, `${JSON.stringify(record, null, 2)}\n`);
+	const ctx = { cwd, env, host: "codex" };
+	const waited = await api.waitAction(ctx, { runId, timeoutMs: 1_000 });
+	assert.equal(waited.data.stillRunning, true, waited.text);
+	assert.equal(waited.data.nextRetry?.at, nextEligibleAt);
+	assert.equal(waited.data.nextRetry?.reason, "model_rate_limit");
+	assert.deepEqual(waited.data.nextRetry?.taskIds, [record.tasks[0].taskId]);
+	assert.match(
+		waited.text,
+		/waiting for scheduled retry at .*model_rate_limit/,
+	);
+	const service = mcpTools.createHostMcpService({
+		root: cwd,
+		host: "codex",
+		env,
+	});
+	const call = {
+		protocolVersion: "2025-06-18",
+		clientCapabilities: {},
+		signal: new AbortController().signal,
+		sendRequest: async () => ({}),
+		sendNotification: async () => undefined,
+	};
+	const viaMcp = await service.call(
+		"workflow_wait",
+		{ runId, timeoutMs: 1_000 },
+		call,
+	);
+	const text = viaMcp.content[0].text;
+	assert.match(text, /waiting for scheduled retry at/);
+	assert.match(text, /no completion push|does not notify/i);
+	assert.match(text, new RegExp(runId));
+	await api
+		.stopAction({ cwd, env, host: "cli" }, { runId })
+		.catch(() => undefined);
 });

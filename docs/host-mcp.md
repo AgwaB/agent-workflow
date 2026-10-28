@@ -36,6 +36,10 @@ node <package>/dist/mcp/host-server/server.js --host <claude-code|codex|generic>
    `actionRequired: true` = blocked (report it, use `workflow_inspect`; the user resumes with
    `agent-workflow resume <runId>`).
 4. When finished, quote the result preview and give the report paths verbatim; do not paraphrase.
+5. No completion push (WP18b): a run reports only through `workflow_wait`/`workflow_status`. If it is
+   still running when the host stops waiting (for example a 15-minute rate-limit backoff; the wait
+   result's `nextRetry` and the footer's `nextRetryAt=` give the retry time and reason), the host
+   tells the user the `runId`, what the run waits for, and that they can ask again.
 
 Permission mode is `free` by default ([permissions.md](permissions.md)); `safe` only on request.
 Executor: omit it to use the workflow profile or the host default; set `executor`/`profile` only

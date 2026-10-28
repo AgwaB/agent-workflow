@@ -39,6 +39,11 @@ tool list shows.
 3. Call `workflow_wait {runId}`. While the result says `stillRunning: true`, call `workflow_wait`
    again with the same `runId`; between calls give the user at most a one-line progress note. Do not
    poll with shell `sleep`, and do not start other edits on files the run is reading.
+   You get **no completion push**: the run reports only through `workflow_wait`/`workflow_status`.
+   If it is still running when you stop waiting (for example a long rate-limit backoff: the wait
+   result then has `nextRetry` with the retry time and reason), tell the user the `runId`, what the
+   run is waiting for (the retry time and reason, or its running tasks), and that they can ask you
+   again later for the result.
 4. `terminal: true`: the run finished. Quote the result preview and give the report paths verbatim
    (the `reportArtifacts`/paths the tool prints). Do not paraphrase or re-summarize the report; read
    the report file only if the user wants details.
