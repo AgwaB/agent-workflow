@@ -28,6 +28,7 @@ export type PiHostApi = Pick<
 	| "workflowRolesAction"
 	| "listAgentsAction"
 	| "profileAction"
+	| "workflowPreferenceAction"
 	| "runWorkflowAction"
 	| "runDynamicAction"
 	| "statusAction"

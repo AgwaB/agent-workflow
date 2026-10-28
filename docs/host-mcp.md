@@ -77,7 +77,7 @@ Every tool takes an optional `cwd` (see below). Unknown parameters are refused.
 | `workflow_notices` (WP28) | `action?` (`list` default, `acknowledge`, `clear`), `runId?`, `state?`, `reason?` | `noticesAction` | list: `{notices, acknowledgements, warnings}`; else `{action, runId, notificationOnly}`. **acknowledge/clear confirm** |
 | `workflow_doctor` (WP28) | — | `doctorAction` | `DoctorData` (no model call, nothing written) |
 | `workflow_prune` (WP28) | `keep?`, `olderThanDays?`, `dryRun?` (default true) | `pruneAction` | the prune summary; **`dryRun: false` confirms** (the dialog shows the dry run first) |
-| `workflow_profile` (WP28) | `op?` (`list` default, `show`, `set`, `delete`, `default`, `clear-default`), `name?`, set: `executor?`, `model?`, `effort?`, `permissionMode?`, `strictCapabilities?`, `unset?`, `makeDefault?` | `profileAction` | `ProfileData`; **set/delete/default/clear-default confirm** |
+| `workflow_profile` (WP28, WP31) | `op?` (`list` default, `show`, `set`, `delete`, `default`, `clear-default`, `presets`, `workflow-list`, `workflow-show`, `workflow-set`, `workflow-clear`), `name?`, set: `executor?`, `model?`, `effort?`, `permissionMode?`, `strictCapabilities?`, `preset?`, `roles?` (role → `{executor?, model?, effort?}`), `unset?` (also `roles.<role>`), `makeDefault?`; workflow-*: `workflow`, workflow-set: `profile?`, `roles?`, `unset?` | `profileAction`, `workflowPreferenceAction` | `ProfileData` / `WorkflowPreferenceData`; **set/delete/default/clear-default/workflow-set/workflow-clear confirm** |
 | `workflow_supervise` (WP28) | `runId` | `superviseDetachedAction` | `{runId, status, started, reason?: not-running \| live-supervisor, detached?}`: spawns `agent-workflow supervise <run>` for a running run no live process drives (the CLI's foreground `supervise` would outlast a tool call) |
 | `workflow_approve` (WP29) | `runId`, `requestId`, `decision` (`approve`/`reject`), `detach?` (default true) | `approveAction` | `ApproveData` (`decision: approved \| rejected \| unanswered`, `resumed?`, `otherBlockers?`); **always confirms** (below) |
 
@@ -141,7 +141,9 @@ A launch whose capability check needs confirmation (WP4d; for example environmen
 
 ## Confirmed changes (WP28, owner decision Q7)
 
-`workflow_prune` with `dryRun: false`, `workflow_profile` `set`/`delete`/`default`/`clear-default` and
+`workflow_prune` with `dryRun: false`, `workflow_profile` `set`/`delete`/`default`/`clear-default`/
+`workflow-set`/`workflow-clear` (WP31: the per-workflow preference; the terminal command is
+`agent-workflow profile workflow set|clear …`) and
 `workflow_notices` `acknowledge`/`clear` change state only after the user confirms. Arguments are
 checked first (a usage error never asks). Then, through the same elicitation helper as above
 (`elicitConfirmation`):

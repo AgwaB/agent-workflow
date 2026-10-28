@@ -5,9 +5,11 @@
 // Replaces pi-workflow's src/cli.mjs (inspect/prune/notices/supervise), whose prune path imported
 // the Pi extension (R#14).
 // WP17: passes host "cli" (installed-default executor) and adds `doctor`. WP16: `logs`.
+// WP31: `profile set --preset/--role`, `profile presets`, `profile workflow list|show|set|clear`.
 // WP29: on a terminal, foreground runs/waits/resumes ask y/n to approve a dynamic controller
 // (cliDynamicUi); `approve <run>` answers an approval a run is blocked on.
 import { readFileSync } from "node:fs";
+import { parseRoleAssignmentText } from "../../core/role-profiles.js";
 import { addWorkflowInputAssignment } from "../args.js";
 import { createInterface } from "node:readline";
 
@@ -46,6 +48,8 @@ import {
 	type WaitData,
 	validateWorkflowAction,
 	waitAction,
+	type WorkflowPreferenceRequest,
+	workflowPreferenceAction,
 	workflowRolesAction,
 } from "../api.js";
 
@@ -399,6 +403,78 @@ async function launchCommand(
 	return exitCodeFor(waited);
 }
 
+/** WP31: `--role` values → a role map (each `<role>=<executor>[:<model>[:<effort>]]`). */
+export function parseRoleFlags(
+	values: readonly string[] | undefined,
+): Record<string, unknown> | undefined {
+	if (values === undefined || values.length === 0) return undefined;
+	const roles: Record<string, unknown> = {};
+	for (const value of values) {
+		let parsed: ReturnType<typeof parseRoleAssignmentText>;
+		try {
+			parsed = parseRoleAssignmentText(value, "--role");
+		} catch (error) {
+			throw new HostUsageError(
+				error instanceof Error ? error.message : String(error),
+			);
+		}
+		if (Object.hasOwn(roles, parsed[0]))
+			throw new HostUsageError(`--role ${parsed[0]} is given twice`);
+		roles[parsed[0]] = parsed[1];
+	}
+	return roles;
+}
+
+const WORKFLOW_PREFERENCE_USAGE =
+	"profile workflow list | show <workflow> | set <workflow> [--profile <name>] [--role <role>=<executor>[:<model>[:<effort>]]]... [--unset profile,roles,roles.<role>] | clear <workflow>";
+
+/** WP31: `profile workflow …` → a per-workflow preference request (also the Pi `/aw` command). */
+export function workflowPreferenceRequest(
+	argv: readonly string[],
+): WorkflowPreferenceRequest {
+	const [op = "list", ...rest] = argv;
+	if (op === "list") {
+		only(
+			parseCommandArgs(rest, { flags: ["--json"] }),
+			0,
+			WORKFLOW_PREFERENCE_USAGE,
+		);
+		return { op: "list" };
+	}
+	if (op === "show" || op === "clear") {
+		const [workflow] = only(
+			parseCommandArgs(rest, { flags: ["--json"] }),
+			1,
+			WORKFLOW_PREFERENCE_USAGE,
+		);
+		return { op, workflow: workflow! };
+	}
+	if (op === "set") {
+		const parsed = parseCommandArgs(rest, {
+			flags: ["--json"],
+			values: ["--profile", "--unset"],
+			repeatable: ["--role"],
+		});
+		const [workflow] = only(parsed, 1, WORKFLOW_PREFERENCE_USAGE);
+		const roles = parseRoleFlags(parsed.lists.get("--role"));
+		const unset = parsed.values
+			.get("--unset")
+			?.split(",")
+			.map((field) => field.trim())
+			.filter(Boolean);
+		return {
+			op: "set",
+			workflow: workflow!,
+			...(parsed.values.has("--profile")
+				? { profile: parsed.values.get("--profile")! }
+				: {}),
+			...(roles ? { roles } : {}),
+			...(unset ? { unset } : {}),
+		};
+	}
+	throw new HostUsageError(`Usage: ${WORKFLOW_PREFERENCE_USAGE}`);
+}
+
 /**
  * WP29: `approve <run> [--request <id>] [--reject] [--yes] [--detach] [--timeout <d>] [--json]`.
  * On a terminal the approval question is asked y/n (n rejects, no answer records nothing); without
@@ -496,7 +572,9 @@ async function profileCommand(
 				"--permission-mode",
 				"--strict-capabilities",
 				"--unset",
+				"--preset",
 			],
+			repeatable: ["--role"],
 			aliases: { "--thinking": "--effort" },
 		});
 		const [name] = only(parsed, 1, "profile set <name> [options]");
@@ -513,6 +591,9 @@ async function profileCommand(
 				v.get("--strict-capabilities")!,
 				"--strict-capabilities",
 			);
+		// WP31: `--role <role>=<executor>[:<model>[:<effort>]]` (repeatable) and `--preset <id>`.
+		const roles = parseRoleFlags(parsed.lists.get("--role"));
+		if (roles) values.roles = roles;
 		const unset = v
 			.get("--unset")
 			?.split(",")
@@ -524,7 +605,15 @@ async function profileCommand(
 			values,
 			...(unset ? { unset } : {}),
 			...(parsed.flags.has("--default") ? { makeDefault: true } : {}),
+			...(v.has("--preset") ? { preset: v.get("--preset")! } : {}),
 		};
+	} else if (op === "presets") {
+		only(parseCommandArgs(rest, { flags: ["--json"] }), 0, "profile presets");
+		request = { op: "presets" };
+	} else if (op === "workflow") {
+		return emit(
+			await workflowPreferenceAction(ctx, workflowPreferenceRequest(rest)),
+		);
 	} else if (op === "delete") {
 		const parsed = parseCommandArgs(rest, { flags: ["--json"] });
 		request = {
@@ -543,7 +632,7 @@ async function profileCommand(
 			};
 	} else
 		throw new HostUsageError(
-			`Unknown profile operation "${op}". Usage: profile list|show|set|delete|default`,
+			`Unknown profile operation "${op}". Usage: profile list|show|set|delete|default|presets|workflow`,
 		);
 	return emit(await profileAction(ctx, request));
 }

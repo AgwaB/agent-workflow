@@ -96,6 +96,13 @@ export interface ExecutorProbe {
 	 * longer. Example: Pi 1.1 cuts text over 20 KiB and wraps the kept head/tail in a notice.
 	 */
 	readonly mcpOutputNoticeChars?: number | null;
+	/**
+	 * WP31 follow-up: the model list this probe reports (`models`, or a `models: …` note) names every
+	 * model the CLI accepts. `true`: a model missing from it is refused before launch. Absent or
+	 * `false` (e.g. aliases only, or a catalog the CLI does not enforce): a missing model is only
+	 * noted as not verified and the run proceeds.
+	 */
+	readonly modelListComplete?: boolean;
 	readonly notes?: readonly string[];
 }
 

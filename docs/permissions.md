@@ -45,6 +45,10 @@ follow the parent run's recorded mode. Runs recorded before WP4e carry no mode a
 - Capability preview, first line: `Capability check (<executor>@<version>, <n> stages, permission
   mode: free): …`; free-accepted entries are marked `(accepted: free mode)`. The recorded negotiation
   policy carries `permissionMode` too.
+- Mixed runs (WP31): the mode is one per run; each stage's executor applies it its own way (the
+  table in [usage.md](usage.md#permission-modes)), so a `free` run whose planning stage runs on Claude
+  and research on Codex gets `bypassPermissions` there and `danger-full-access` here. The preview
+  names every executor (`Capability check (mixed: claude@… ×n + codex@… ×m, …)`).
 - Each attempt: `SubmitRequest.permissionMode` (execution plan, `executor.json`, durable worker payload);
   adapters record their resulting invocation (`claude-invocation.json`, the Codex raw transcript).
 - Approvals: `approvals.jsonl` and the result metadata record `by: "engine-policy:free"` for answers made

@@ -214,7 +214,9 @@ when the installed version differs.
 - `installed`
 - `cliVersion` (`claude --version`)
 - `auth` (`claude auth status --json` → only `loggedIn` → `ok`/`missing`/`unknown`)
-- models (from `initialize`; only the model `value`s are kept)
+- models (from `initialize`; only the model `value`s are kept). These are aliases, and the CLI also
+  accepts full ids (`claude-haiku-5-5`), so `modelListComplete: false`: a role model missing from
+  the list is noted as not verified, never refused (WP31 follow-up)
 - `mcpOutputLimitChars` (22,500)
 
 ## Error classification (`CLAUDE_ERROR_RULES`)

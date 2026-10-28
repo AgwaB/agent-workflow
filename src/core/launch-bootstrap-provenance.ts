@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/launch-bootstrap-provenance.ts. MIT, same author. Changes: artifact provenance digests the canonical ArtifactAccessConfig + workflow_artifact MCP server spec instead of the Pi extension wrapper (WP5b: the server spec as launched, with the run's --max-output-chars); native host check → HostContext/inheritHostTools; env PI_WORKFLOW_{EXTERNAL_LAUNCH_GRANT_SHA256,REQUIRE_EXTERNAL_LAUNCH_GRANT}→AGENT_WORKFLOW_*. WP35: host-tool inheritance requires the run's pi executor instead of a generated native-host wrapper.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/launch-bootstrap-provenance.ts. MIT, same author. Changes: artifact provenance digests the canonical ArtifactAccessConfig + workflow_artifact MCP server spec instead of the Pi extension wrapper (WP5b: the server spec as launched, with the run's --max-output-chars); native host check → HostContext/inheritHostTools; env PI_WORKFLOW_{EXTERNAL_LAUNCH_GRANT_SHA256,REQUIRE_EXTERNAL_LAUNCH_GRANT}→AGENT_WORKFLOW_*. WP35: host-tool inheritance requires the task's executor to be pi (WP31: per task in mixed runs) instead of a generated native-host wrapper. WP31: the artifact server output limit comes from the task's executor probe in mixed runs.
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -80,9 +80,11 @@ export async function createLaunchBootstrapProvenance(
 	// Host-tool inheritance (Pi executor only, WP6) is sealed into the launch:
 	// the prepared launch carries the run's HostContext exactly when the task
 	// inherits host tools. WP35: the Pi executor adds the host tools itself
-	// (per-task descriptor config), so the run's executor must be pi (fails
+	// (per-task descriptor config), so the task's executor must be pi (fails
 	// closed for executors that cannot inherit host tools); a generated
 	// "native-host" wrapper, when present, must still be bound to the context.
+	// WP31×WP35: the task's executor is its own in a mixed run (runtime.executor),
+	// else the run's.
 	const inheritHostTools =
 		preparedTask.runtime.inheritHostTools === true &&
 		preparedTask.runtime.tools?.length !== 0;
@@ -96,9 +98,10 @@ export async function createLaunchBootstrapProvenance(
 	const nativeExtensions = preparedLaunch.generatedExtensions.filter(
 		(entry) => entry.kind === "native-host",
 	);
-	if (expectedHostContext !== undefined && run.executor?.id !== PI_EXECUTOR_ID)
+	const taskExecutorId = preparedTask.runtime.executor ?? run.executor?.id;
+	if (expectedHostContext !== undefined && taskExecutorId !== PI_EXECUTOR_ID)
 		throw new Error(
-			`workflow host-tool inheritance needs the pi executor; this run uses ${run.executor?.id ?? "no recorded executor"}`,
+			`workflow host-tool inheritance needs the pi executor; task ${task.taskId} uses ${taskExecutorId ?? "no recorded executor"}`,
 		);
 	if (
 		nativeExtensions.length > (expectedHostContext === undefined ? 0 : 1) ||
@@ -868,7 +871,7 @@ async function artifactIdentity(
 		serverSpecSha256: sha256Canonical(
 			withArtifactMcpOutputLimit(
 				artifactMcpServerSpec(config),
-				artifactServerOutputLimitForRun(run),
+				artifactServerOutputLimitForRun(run, task.runtime.executor),
 			),
 		),
 	};

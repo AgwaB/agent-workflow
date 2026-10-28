@@ -205,10 +205,12 @@ Two layers:
 2. **Saved user profiles.** `agent-workflow profile set <name> --executor codex --effort high
    --permission-mode safe [--strict-capabilities readOnly,contextIsolation] [--default]`. Fields:
    `executor`, `model`, `effort`, `permissionMode`, `strictCapabilities` (capabilities that must be
-   `native`, else the run is refused). Stored in `$AGENT_WORKFLOW_HOME/user-profiles/v1/profiles.json`.
-   `--profile <name>` picks a declared profile first, then a saved one; without `--profile` a launch
-   uses the declared default profile (over the default saved profile, as above), else the default
-   saved profile. A saved profile named with `--profile` is used on its own.
+   `native`, else the run is refused), `roles` (WP31, below). Stored in
+   `$AGENT_WORKFLOW_HOME/user-profiles/v1/profiles.json`.
+   `--profile <name>` picks a declared profile first, then a saved one, then a built-in preset;
+   without `--profile` a launch uses the workflow's saved preference profile, else the declared
+   default profile (over the default saved profile, as above), else the default saved profile. A
+   saved profile named with `--profile` is used on its own.
 
 Example: the default saved profile sets `--executor codex --permission-mode safe`; a workflow's
 declared profile `high` sets only stage efforts. `--profile high` runs on `codex` in `safe` mode
@@ -224,10 +226,110 @@ verification. `low` is an explicit speed/cost-for-quality trade-off. No declared
 model. Evidence gates are the same in every profile.
 
 Every model-backed stage in a bundled workflow declares a semantic `profileRole` (`planning`,
-`research-execution`, `synthesis`, `verification`, `final-judgment`). pi-workflow's per-workflow
-role picker (`/workflow profile`: Codex / Codex High / Claude / Mixed / Custom) is not exposed by the
-stage-1 hosts; the Pi host still honors a preference saved under
-`$AGENT_WORKFLOW_HOME/workflow-profiles/v1/` when no profile is named.
+`research-execution`, `synthesis`, `verification`, `final-judgment`). The Pi host still honors a
+pi-workflow-style preference saved under `$AGENT_WORKFLOW_HOME/workflow-profiles/v1/` (Pi model ids)
+when no profile is named and no per-workflow preference (below) names one; pi-workflow's own
+`~/.pi/agent/workflow-profiles` is never read.
+
+### Roles, presets and mixed runs
+
+**Roles (WP31, owner decision B2).** A saved user profile (`roles`), a workflow-declared profile
+(`executionProfileRoles`) and a per-workflow preference can map *roles* to
+`{executor?, model?, effort?}`. A role addresses model-backed stages without naming stage ids, so one
+profile fits every workflow:
+
+| Role key | Matches |
+|---|---|
+| `agent:<name>` | stages whose agent is `<name>` (`each.agent` for foreach, else `agent`, else `defaults.agent`) |
+| `planning`, `research-execution`, `synthesis`, `verification`, `final-judgment` | stages with that `profileRole` |
+| `default` | every stage no other key matches |
+
+Inside one profile the most specific key wins (`agent:` > profileRole > `default`). A profile's flat
+`executor` counts for every stage it has no role entry for; its `default` role's executor is also the
+run's executor (`run.executor`) when nothing higher names one.
+
+```json
+{
+  "executionProfiles": { "mixed": {} },
+  "executionProfileRoles": {
+    "mixed": {
+      "default": { "executor": "claude", "model": "sonnet", "effort": "medium" },
+      "research-execution": { "executor": "codex", "model": "gpt-5.6-luna" },
+      "verification": { "executor": "claude", "effort": "high" }
+    }
+  }
+}
+```
+
+```sh
+agent-workflow profile set team --preset mixed --default
+agent-workflow profile set team --role verification=codex:gpt-5.6-luna:high
+agent-workflow profile workflow set deep-research --profile team --role synthesis=::high
+```
+
+**Precedence, per stage and per field** (executor, model, effort each on its own; WP37 extended to
+roles):
+
+| Layer (highest first) | Executor | Model / effort |
+|---|---|---|
+| Run flags `--executor`, `--model`, `--effort` | every stage | every stage |
+| Per-workflow preference `roles` | its matching role entry | its matching role entry |
+| Workflow-declared profile | role entry, else `executionProfileExecutors` | its stage overrides, else role entry |
+| Saved user profile (or preset) | role entry, else `executor` | role entry; flat `model`/`effort` stay run defaults |
+| Default | host default / installed default | stage, agent, host defaults, executor's own |
+
+The highest layer that has a value for a stage wins that field. A role entry's model and effort
+apply only when the stage runs on that entry's executor (or the entry names none): a model id belongs
+to its executor, so `--executor codex` with a profile whose `verification` entry is
+`claude:sonnet` runs verification on codex with codex's model. Dynamic decision-loop slots
+(`$planner`, `$verifier`, …) and the workers a dynamic stage generates run on the dynamic stage's
+executor (a note says so when a role asked for another one). Nested workflow runs keep their
+parent's executor.
+
+**Validation.** An unknown executor id (flat or in a role) is refused when a profile or preference
+is saved and when a run starts. A role model is checked before launch against the model list the
+executor's probe reports (no model call: Pi `pi --list-models`, Codex `codex debug models`, Claude
+Code's model aliases `default`/`haiku`/`sonnet`/`opus`). Each probe says whether its list is
+exhaustive (`modelListComplete`). None of the built-in ones is: Pi's `--model` also resolves
+patterns (`sonnet`, `provider/…`), Claude's list holds aliases only (full ids such as
+`claude-opus-4-8` are valid) and Codex's holds the visible catalog only, so a model missing from
+them is noted (`model "x" for <stages> is not verified by probe: …`) and the
+run proceeds; when a probe lists no models at all, the preview notes `model "x" for <stages> is
+not verified`.
+
+**Presets** (`agent-workflow profile presets`; `--profile <preset>` when no declared or saved
+profile has that name, or `profile set <name> --preset <preset>`):
+
+| Preset | Run executor | Roles |
+|---|---|---|
+| `codex` | codex | every role codex `gpt-5.6-luna` |
+| `claude` | claude | every role claude `sonnet` |
+| `pi` | pi | every role pi, Pi's configured default model |
+| `mixed` | claude | planning, synthesis, verification, final-judgment: claude `sonnet`; research/implementation (`research-execution`): codex `gpt-5.6-luna` |
+
+Efforts in every preset: `high` for planning, verification and final judgment, `medium` otherwise.
+In `mixed`, verification runs on a different model family from the codex workers whose findings it
+checks (owner decision E4). Preset models are names the CLIs accept today; if your account lacks
+one, override the role (`--role research-execution=codex:<model>`) or use `--model`.
+
+**Per-workflow preferences** (`agent-workflow profile workflow set <workflow> [--profile <name>]
+[--role …]`, MCP `workflow_profile` `workflow-set`, Pi `/aw profile workflow set …`). Keyed by the
+workflow's `name`, stored in `$AGENT_WORKFLOW_HOME/workflow-preferences/v1/preferences.json`, and
+applied by every launch of that workflow from the CLI, MCP hosts and Pi: its `profile` when the
+launch names none (before the declared default), its roles as the layer above the selected profile.
+
+**Mixed runs (owner decision Q4).** When stages resolve to more than one executor, one run mixes
+them. Each executor is probed once; every stage is negotiated against *its* executor (readOnly,
+artifact MCP, web tools, isolation, permission mode) and a stage whose executor cannot satisfy it is
+refused before launch, naming the stage and executor (`stage "search.main" on codex: webTools —
+CAPABILITY_MISSING:webTools`), unless the usual degrade/opt-in rules allow it. The preview's first
+line names every executor (`Capability check (mixed: claude@0.1.0 ×3 + codex@0.1.0 ×2, …)`) and each
+stage line names its executor; the launch text adds a `Role profile` table (stage → executor, model,
+effort, role, source). The run records `run.roleExecution` (per-stage assignment, every executor's
+descriptor) and each task's `runtime.executor`; resume, reconcile, owned-session release and prune
+use each task's own executor. `status`, `inspect` and `show --raw` show the executor per task.
+Host model defaults (Pi's current model) and the Pi model registry apply only to stages on their
+executor.
 
 ## Permission modes
 

@@ -6,7 +6,10 @@ import { hashDynamicRequest } from "./dynamic-events.js";
 import { stringifyPromptJson } from "./prompt-json.js";
 import { compactStrings } from "./strings.js";
 import { loadWorkflowHelper } from "./workflow-helpers.js";
-import { prepareWorkflowTaskToolPolicy } from "./tool-policy.js";
+import {
+	prepareWorkflowTaskToolPolicy,
+	runInheritsHostToolsForTask,
+} from "./tool-policy.js";
 import {
 	type ArtifactAccessConfig,
 	artifactMcpServerSpec,
@@ -1077,7 +1080,11 @@ export async function prepareDagTask(
 	const compiledTask = prepareWorkflowTaskToolPolicy(
 		compiledFlow.tasks[index]!,
 		{
-			inheritHostTools: run.inheritHostTools === true,
+			// WP31×WP35: only tasks on the pi executor inherit host tools.
+			inheritHostTools: runInheritsHostToolsForTask(
+				run,
+				compiledFlow.tasks[index]!,
+			),
 			allowSharedCheckoutWrites: run.allowSharedCheckoutWrites === true,
 			permissionMode: workflowRunPermissionMode(run),
 		},

@@ -4,6 +4,10 @@
 // "saved user profile" tier of the B2 precedence (run flag > workflow-declared profile > saved user
 // profile > default). pi-workflow's per-workflow Pi TUI preferences (workflow-profile-settings.ts)
 // are a different store and stay with the Pi host (WP11b).
+// WP31: a profile can map roles to `{executor?, model?, effort?}` (`roles`, role-profiles.ts) and can
+// be created from a built-in preset (`--preset`, executor-presets.ts). An unknown executor id (flat or
+// in a role) is refused when the profile is saved; role models are checked against the executor's
+// probe when a run starts.
 import { lstat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
@@ -14,7 +18,18 @@ import {
 	readPrivateFileText,
 	writePrivateFileAtomic,
 } from "../core/secure-atomic-write.js";
-import { THINKING_LEVELS, type ThinkingLevel } from "../core/types.js";
+import { executorPreset } from "../core/executor-presets.js";
+import { workflowExecutorRegistration } from "../core/executor-registry.js";
+import {
+	formatRoleAssignment,
+	parseWorkflowRoleMap,
+	sortedRoleKeys,
+} from "../core/role-profiles.js";
+import {
+	THINKING_LEVELS,
+	type ThinkingLevel,
+	type WorkflowRoleMap,
+} from "../core/types.js";
 import { HostUsageError } from "./args.js";
 
 export const USER_PROFILES_SCHEMA = "agent-workflow-user-profiles-v1" as const;
@@ -26,6 +41,8 @@ export interface UserProfileValues {
 	effort?: ThinkingLevel;
 	permissionMode?: "free" | "safe";
 	strictCapabilities?: string[];
+	/** WP31: role → executor/model/effort (keys: a profileRole, `agent:<name>`, `default`). */
+	roles?: WorkflowRoleMap;
 }
 
 export interface UserProfile extends UserProfileValues {
@@ -46,6 +63,7 @@ export const USER_PROFILE_FIELDS = [
 	"effort",
 	"permissionMode",
 	"strictCapabilities",
+	"roles",
 ] as const;
 export type UserProfileField = (typeof USER_PROFILE_FIELDS)[number];
 
@@ -75,7 +93,7 @@ export function validateUserProfileValues(
 			throw new HostUsageError(
 				`${where}: unknown field "${key}" (known: ${USER_PROFILE_FIELDS.join(", ")})`,
 			);
-	const { executor, model, effort, permissionMode, strictCapabilities } =
+	const { executor, model, effort, permissionMode, strictCapabilities, roles } =
 		values;
 	if (executor !== undefined) {
 		if (typeof executor !== "string" || !EXECUTOR_ID_PATTERN.test(executor))
@@ -114,7 +132,39 @@ export function validateUserProfileValues(
 			throw new HostUsageError(`${where}: strictCapabilities ${problem}`);
 		out.strictCapabilities = [...new Set(strictCapabilities as string[])];
 	}
+	if (roles !== undefined) {
+		try {
+			out.roles = parseWorkflowRoleMap(roles, `${where}: roles`);
+		} catch (error) {
+			throw new HostUsageError(
+				error instanceof Error ? error.message : String(error),
+			);
+		}
+		if (Object.keys(out.roles).length === 0) delete out.roles;
+	}
 	return out;
+}
+
+/**
+ * WP31: refuse executor ids no adapter serves (flat and per role), naming where they came from.
+ * Model ids are checked against the executor's probe when a run starts (probing here would run
+ * the CLI on every save).
+ */
+export function assertKnownProfileExecutors(
+	values: UserProfileValues,
+	where = "profile",
+): void {
+	const check = (id: string | undefined, field: string) => {
+		if (id === undefined) return;
+		const registration = workflowExecutorRegistration(id);
+		if (registration?.descriptor === undefined)
+			throw new HostUsageError(
+				`${where}: ${field} "${id}" is ${registration === undefined ? "an unknown executor" : `unavailable (${registration.unavailableReason ?? "no adapter"})`}; known executors include pi, codex and claude`,
+			);
+	};
+	check(values.executor, "executor");
+	for (const [role, assignment] of Object.entries(values.roles ?? {}))
+		check(assignment.executor, `roles.${role}.executor`);
 }
 
 function emptyFile(): UserProfilesFile {
@@ -201,6 +251,11 @@ export interface SetUserProfileInput {
 	unset?: readonly string[];
 	/** Make this the default profile. */
 	makeDefault?: boolean;
+	/**
+	 * WP31: start from a built-in preset (executor-presets.ts): its executor and roles replace the
+	 * saved ones; `values` (and `values.roles`, role by role) still win over the preset.
+	 */
+	preset?: string;
 }
 
 /** Create or update a profile (merge); returns the saved profile and whether it is the default. */
@@ -209,9 +264,31 @@ export async function setUserProfile(
 	env: NodeJS.ProcessEnv = process.env,
 ): Promise<{ profile: UserProfile; isDefault: boolean; created: boolean }> {
 	assertUserProfileName(input.name);
-	const values = validateUserProfileValues(input.values ?? {});
+	const explicit = validateUserProfileValues(input.values ?? {});
+	let preset: ReturnType<typeof executorPreset> | undefined;
+	if (input.preset !== undefined) {
+		try {
+			preset = executorPreset(input.preset);
+		} catch (error) {
+			throw new HostUsageError(
+				error instanceof Error ? error.message : String(error),
+			);
+		}
+	}
+	const values: UserProfileValues = preset
+		? {
+				...explicit,
+				executor: explicit.executor ?? preset.executor,
+				roles: { ...preset.roles, ...(explicit.roles ?? {}) },
+			}
+		: explicit;
+	assertKnownProfileExecutors(values);
+	const unsetRoles = (input.unset ?? [])
+		.filter((field) => field.startsWith("roles."))
+		.map((field) => field.slice("roles.".length));
 	for (const field of input.unset ?? [])
-		if (!(USER_PROFILE_FIELDS as readonly string[]).includes(field))
+		if (field.startsWith("roles.")) continue;
+		else if (!(USER_PROFILE_FIELDS as readonly string[]).includes(field))
 			throw new HostUsageError(
 				`profile: cannot unset unknown field "${field}" (known: ${USER_PROFILE_FIELDS.join(", ")})`,
 			);
@@ -223,12 +300,26 @@ export async function setUserProfile(
 		...(file.profiles[input.name] ?? {}),
 	};
 	delete previous.updatedAt;
+	if (preset) {
+		// A preset replaces the saved executor and roles (it is a fresh role table).
+		delete previous.executor;
+		delete previous.roles;
+	}
 	for (const field of input.unset ?? []) delete previous[field];
+	const kept = validateUserProfileValues(previous);
+	// WP31: role entries merge role by role; `--unset roles.<role>` removes one.
+	const roles = {
+		...(kept.roles ?? {}),
+		...(values.roles ?? {}),
+	};
+	for (const role of unsetRoles) delete roles[role];
 	const merged = {
-		...validateUserProfileValues(previous),
+		...kept,
 		...values,
+		...(Object.keys(roles).length > 0 ? { roles } : {}),
 		updatedAt: new Date().toISOString(),
 	};
+	if (Object.keys(roles).length === 0) delete merged.roles;
 	file.profiles[input.name] = merged;
 	if (input.makeDefault) file.default = input.name;
 	await writeUserProfiles(file, env);
@@ -275,12 +366,28 @@ export function formatUserProfile(
 ): string {
 	const fields = USER_PROFILE_FIELDS.filter(
 		(field) => profile[field] !== undefined,
-	).map((field) => {
+	).flatMap((field) => {
 		const value = profile[field];
-		return `  ${field}: ${Array.isArray(value) ? value.join(",") : String(value)}`;
+		if (field === "roles")
+			return [
+				"  roles:",
+				...formatRoleMapLines(profile.roles ?? {}).map((line) => `    ${line}`),
+			];
+		return [
+			`  ${field}: ${Array.isArray(value) ? value.join(",") : String(value)}`,
+		];
 	});
 	return [
 		`${profile.name}${isDefault ? " (default)" : ""}`,
 		...(fields.length > 0 ? fields : ["  (no fields set)"]),
 	].join("\n");
+}
+
+/** WP31: `role  executor:model:effort` lines (default first, then the profile roles, then agents). */
+export function formatRoleMapLines(roles: WorkflowRoleMap): string[] {
+	const keys = sortedRoleKeys(roles);
+	const width = Math.max(0, ...keys.map((key) => key.length));
+	return keys.map(
+		(key) => `${key.padEnd(width)}  ${formatRoleAssignment(roles[key]!)}`,
+	);
 }

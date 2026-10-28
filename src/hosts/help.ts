@@ -1,11 +1,13 @@
 // New in agent-workflow (WP11a): command help shared by the `agent-workflow` CLI and the host API
 // `help` action (stage-2 hosts reuse the same text). WP17: `doctor` and the default-executor line.
+// WP31: profile roles, presets and per-workflow preferences.
 import { HostUsageError } from "./args.js";
 import { type HostResult, result } from "./types.js";
 
 const LAUNCH_FLAGS = `  --executor <id>              executor for this run (pi, codex, claude; run flag beats profiles;
                                default: first installed and logged-in of pi, claude, codex)
-  --profile <name>             workflow-declared execution profile, else a saved user profile
+  --profile <name>             workflow-declared execution profile, else a saved user profile,
+                               else a built-in preset (codex, claude, pi, mixed)
   --permission-mode free|safe  approvals/sandbox mode (default free; see docs/permissions.md)
   --allow-unverified <a,b>     accept these unverified executor capabilities (B4 opt-in)
   --model <id>                 model override for every stage
@@ -35,16 +37,27 @@ Show the compiled role context exactly as it is injected into task prompts.`,
 List discoverable agent definitions.`,
 	profile: `Usage: agent-workflow profile list [--json]
        agent-workflow profile show [<name>] [--json]
-       agent-workflow profile set <name> [--executor <id>] [--model <id>] [--effort <level>]
+       agent-workflow profile set <name> [--preset codex|claude|pi|mixed] [--executor <id>]
+                                  [--model <id>] [--effort <level>]
+                                  [--role <role>=<executor>[:<model>[:<effort>]]]...
                                   [--permission-mode free|safe] [--strict-capabilities <a,b>]
-                                  [--unset <field,...>] [--default] [--json]
+                                  [--unset <field,...|roles.<role>>] [--default] [--json]
        agent-workflow profile delete <name> [--json]
        agent-workflow profile default <name> | --clear [--json]
+       agent-workflow profile presets [--json]
+       agent-workflow profile workflow list [--json]
+       agent-workflow profile workflow show|clear <workflow> [--json]
+       agent-workflow profile workflow set <workflow> [--profile <name>]
+                                  [--role <role>=<executor>[:<model>[:<effort>]]]...
+                                  [--unset profile,roles,roles.<role>] [--json]
 
-Saved user profiles live in $AGENT_WORKFLOW_HOME/user-profiles/v1/profiles.json
-(default ~/.agent-workflow). A launch uses: --profile <name>, else the workflow's declared default
-profile, else the default saved profile. Precedence for the executor and permission mode:
-run flag > workflow-declared profile > saved user profile > default.`,
+Roles: default, planning, research-execution, synthesis, verification, final-judgment, or
+agent:<name>. Saved user profiles live in $AGENT_WORKFLOW_HOME/user-profiles/v1/profiles.json,
+per-workflow preferences in $AGENT_WORKFLOW_HOME/workflow-preferences/v1/preferences.json
+(default ~/.agent-workflow). A launch uses: --profile <name>, else the workflow's saved preference
+profile, else the workflow's declared default profile, else the default saved profile. Precedence
+per field (executor, model, effort, also per role): run flag > per-workflow preference roles >
+workflow-declared profile > saved user profile > default.`,
 	run: `Usage: agent-workflow run <workflow-name-or-path> <task...> [options]
 
 Start exactly the named workflow and wait in the foreground until it is terminal (Ctrl-C stops

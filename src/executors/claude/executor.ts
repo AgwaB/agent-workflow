@@ -630,6 +630,9 @@ export function createClaudeExecutor(options: {
 				cliVersion,
 				auth,
 				mcpOutputLimitChars: mcpOutputLimitChars(config.mcpOutputTokens),
+				// WP31 follow-up: `initialize` lists aliases (default, haiku, sonnet, opus) only; the CLI
+				// also accepts full model ids (`claude-haiku-5-5`), so the list is not exhaustive.
+				modelListComplete: false,
 				notes,
 			};
 		},

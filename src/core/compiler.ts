@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/compiler.ts. MIT, same author. Changes: R#5/D2 write-capable tasks require a worktree even under spec worktreePolicy "off" (warning; only the run option allowSharedCheckoutWrites waives it); fast mode from fast-tier.ts; native host → inheritHostTools compile option (tool-policy.ts). WP4e: compile option permissionMode — R#5 only in "safe"; "free" honors worktreePolicy as written (pi-workflow). WP35: a declared readOnly stage never inherits host tools.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/compiler.ts. MIT, same author. Changes: R#5/D2 write-capable tasks require a worktree even under spec worktreePolicy "off" (warning; only the run option allowSharedCheckoutWrites waives it); fast mode from fast-tier.ts; native host → inheritHostTools compile option (tool-policy.ts). WP4e: compile option permissionMode — R#5 only in "safe"; "free" honors worktreePolicy as written (pi-workflow). WP35: a declared readOnly stage never inherits host tools; with compile option runExecutor (WP31 mixed runs) only stages on the pi executor do. WP31: a stage's executor (EXECUTION_PROFILE_EXECUTOR) reaches runtime.executor; host model defaults and the model registry apply only to stages on their executor.
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
@@ -11,7 +11,11 @@ import {
 	resourceInheritanceWarnings,
 	WORKFLOW_RESOURCE_POLICY_VERSION,
 } from "./resource-inheritance.js";
-import { EXECUTION_PROFILE_FOREACH_BATCH } from "./execution-profile.js";
+import { PI_EXECUTOR_ID } from "../executors/pi/version.js";
+import {
+	EXECUTION_PROFILE_EXECUTOR,
+	EXECUTION_PROFILE_FOREACH_BATCH,
+} from "./execution-profile.js";
 import {
 	classifyToolCapability,
 	effectiveToolClassification,
@@ -47,6 +51,7 @@ import {
 } from "./types.js";
 import {
 	resolveWorkflowRuntime,
+	runtimeDefaultsForExecutor,
 	selectWorkflowRuntime,
 	type WorkflowModelInfo,
 	type WorkflowRuntimeDefaults,
@@ -90,6 +95,13 @@ export interface CompileOptions {
 	 */
 	inheritHostTools?: boolean;
 	/**
+	 * WP31×WP35: the run's executor id. With `inheritHostTools`, only stages whose executor (the
+	 * stage's role executor, else this one) is pi inherit host tools; stages on another executor
+	 * compile as if the host had not offered them. Absent: every stage may inherit (single-executor
+	 * callers that already decided).
+	 */
+	runExecutor?: string;
+	/**
 	 * D2/R#5 run option of the executing user: honor a spec's
 	 * `worktreePolicy: "off"` for write-capable tasks (shared-checkout writes).
 	 * A spec cannot set this; without it a spec "off" is ignored with a warning.
@@ -102,6 +114,11 @@ export interface CompileOptions {
 	 * behavior). Absent = `safe`; the engine always passes the run's mode.
 	 */
 	permissionMode?: "free" | "safe";
+	/**
+	 * WP31: executor the host model registry (`availableModels`) belongs to. In a role-profile run a
+	 * stage on another executor resolves its model without the registry.
+	 */
+	modelRegistryExecutor?: string;
 	/** Bounded routing preflight injects frontmatter-only agent metadata. */
 	agentLoader?: (
 		name: string,
@@ -1602,6 +1619,28 @@ async function compileArtifactGraphPlan(
 		overrides: Partial<CompiledTask> & Record<string, unknown> = {},
 	): Promise<any> => {
 		const key = `${stage.id}.${taskId}`;
+		// WP31 (Q4): a stage of a role-profile run carries its executor; host model defaults and the
+		// host model registry apply only to stages on the executor they belong to.
+		const stageExecutor = (stage as { [EXECUTION_PROFILE_EXECUTOR]?: string })[
+			EXECUTION_PROFILE_EXECUTOR
+		];
+		const stageRuntimeDefaults =
+			stageExecutor === undefined
+				? runtimeDefaults
+				: runtimeDefaultsForExecutor(runtimeDefaults, stageExecutor);
+		const stageAvailableModels =
+			stageExecutor === undefined ||
+			stageExecutor === options.modelRegistryExecutor
+				? options.availableModels
+				: undefined;
+		// WP31×WP35: host tools are inherited per task, only by stages on the pi executor.
+		const stageHostToolsExecutor = stageExecutor ?? options.runExecutor;
+		const stageToolPolicyOptions = {
+			inheritHostTools:
+				toolPolicyOptions.inheritHostTools &&
+				(stageHostToolsExecutor === undefined ||
+					stageHostToolsExecutor === PI_EXECUTOR_ID),
+		};
 		const runtimeStageKind = runtimeStageKindFor(stage) ?? "single";
 		const each =
 			runtimeStageKind === "foreach" && isPlainRecord(stage.each)
@@ -1645,12 +1684,12 @@ async function compileArtifactGraphPlan(
 			const effectiveDynamicToolPolicy = applyWorkflowToolPolicy(
 				dynamicToolSelection.tools,
 				dynamicToolSelection.toolProviders,
-				toolPolicyOptions,
+				stageToolPolicyOptions,
 			);
 			const requestedRuntime = selectWorkflowRuntime(
 				runtimeOverrides,
 				runtimeSettings(stage),
-				runtimeDefaults,
+				stageRuntimeDefaults,
 				specRuntimeDefaults,
 			);
 			const resolvedDynamicRuntime = await resolveWorkflowRuntime(
@@ -1661,11 +1700,11 @@ async function compileArtifactGraphPlan(
 					taskId,
 					agent: "dynamic",
 				},
-				{ availableModels: options.availableModels },
+				{ availableModels: stageAvailableModels },
 			);
 			resolveWorkflowFastModeConfig(
 				resolvedDynamicRuntime,
-				options.availableModels,
+				stageAvailableModels,
 			);
 			const dynamicTask = buildDynamicTask(
 				stage,
@@ -1680,7 +1719,7 @@ async function compileArtifactGraphPlan(
 				resolvedDynamicRuntime,
 				{
 					runtimeOverrides,
-					runtimeDefaults,
+					runtimeDefaults: stageRuntimeDefaults,
 					specRuntimeDefaults,
 					stageRuntime: runtimeSettings(stage),
 				},
@@ -1690,9 +1729,10 @@ async function compileArtifactGraphPlan(
 			dynamicTask.runtime = {
 				...dynamicTask.runtime,
 				...resolvedDynamicRuntime,
+				...(stageExecutor === undefined ? {} : { executor: stageExecutor }),
 			};
-			if (options.availableModels?.length) {
-				dynamicTask.dynamic.availableModels = options.availableModels;
+			if (stageAvailableModels?.length) {
+				dynamicTask.dynamic.availableModels = stageAvailableModels;
 			}
 			dynamicTask.runtime = {
 				...dynamicTask.runtime,
@@ -1824,13 +1864,13 @@ async function compileArtifactGraphPlan(
 		const effectiveToolPolicy = applyWorkflowToolPolicy(
 			filteredToolSelection.tools,
 			filteredToolSelection.toolProviders,
-			{ ...toolPolicyOptions, readOnlyDeclared },
+			{ ...stageToolPolicyOptions, readOnlyDeclared },
 		);
 		const requestedRuntime = selectWorkflowRuntime(
 			runtimeOverrides,
 			runtimeSettings(each),
 			runtimeSettings(stage),
-			runtimeDefaults,
+			stageRuntimeDefaults,
 			specRuntimeDefaults,
 			runtimeSettings(stageAgent),
 		);
@@ -1843,10 +1883,10 @@ async function compileArtifactGraphPlan(
 				agent: stageAgentName,
 			},
 			{
-				availableModels: options.availableModels,
+				availableModels: stageAvailableModels,
 			},
 		);
-		resolveWorkflowFastModeConfig(resolvedRuntime, options.availableModels);
+		resolveWorkflowFastModeConfig(resolvedRuntime, stageAvailableModels);
 		const runtime = {
 			approvalMode:
 				stage.approvalMode ?? spec.defaults?.approvalMode ?? "non-interactive",
@@ -1863,6 +1903,7 @@ async function compileArtifactGraphPlan(
 				stage.maxRuntimeMs ??
 				spec.defaults?.maxRuntimeMs ??
 				DEFAULT_MAX_RUNTIME_MS,
+			...(stageExecutor === undefined ? {} : { executor: stageExecutor }),
 		};
 		const worktreePolicy =
 			each?.worktreePolicy ??

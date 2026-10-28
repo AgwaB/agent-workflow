@@ -38,7 +38,7 @@ every method).
 
 | Method | Obligation |
 |---|---|
-| `probe()` | Readiness without a model call: `installed`, `cliVersion`, `auth` (`ok`/`missing`/`expired`/`unknown`; auth is the CLI's own, D1), optional `capabilities` rows confirmed on this machine (merged as `source: "probed"`), `mcpOutputLimitChars` / `mcpOutputNoticeChars` (below), `notes`. |
+| `probe()` | Readiness without a model call: `installed`, `cliVersion`, `auth` (`ok`/`missing`/`expired`/`unknown`; auth is the CLI's own, D1), optional `capabilities` rows confirmed on this machine (merged as `source: "probed"`), `mcpOutputLimitChars` / `mcpOutputNoticeChars` (below), `modelListComplete` (WP31: the reported model list names every model the CLI accepts; absent/`false` = a missing role model is only noted, `true` = it is refused), `notes`. |
 | `capabilities()` | The declared capability table (below). Pure; no I/O. |
 | `submit(req)` | Start the attempt, or return the existing `ExecRef` for a known `attemptKey` (idempotent: the same key never causes a second effect). Calls `req.authority.consume()` immediately before the first side effect (next section). |
 | `observe(ref)` | The normalized event stream of the attempt: `started` first and once, then any events, then exactly one terminal event (`completed` or `failed`). Another process may call it (`sessionBound` says whether that can re-attach). |

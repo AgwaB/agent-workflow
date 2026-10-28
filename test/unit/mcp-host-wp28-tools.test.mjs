@@ -197,6 +197,12 @@ test("tools/list: the nine CLI-command tools follow the original nine; schemas, 
 		"delete",
 		"default",
 		"clear-default",
+		// WP31: built-in executor presets (read-only) and per-workflow preferences.
+		"presets",
+		"workflow-list",
+		"workflow-show",
+		"workflow-set",
+		"workflow-clear",
 	]);
 	assert.match(byName.workflow_prune.description, /dry run by default/i);
 	const instructions = hostServer.HOST_MCP_INSTRUCTIONS;

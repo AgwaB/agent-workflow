@@ -201,7 +201,11 @@ Launch provenance (below) then fails closed, because it still expects exactly on
 wrapper for such a task. **WP35:** the Pi host sets the option (`docs/pi-host.md`); the engine honors it
 only when the run's executor is `pi`; readOnly stages compile with `inheritHostTools: false`; provenance
 requires the run's `pi` executor instead of the wrapper, and the task backend passes the flag to the Pi
-executor as per-task descriptor config.
+executor as per-task descriptor config. **WP31 × WP35:** in a mixed role-profile run the decision is per
+task: the compile option `runExecutor` keeps host tools to stages whose executor is `pi`
+(`runInheritsHostToolsForTask` does the same for foreach/loop/dynamic tasks prepared at runtime),
+provenance checks the task's own executor, and each stage's negotiation record/preview block carries
+`hostTools` (`inherited`, `readOnly`, `no-tools`, `executor`).
 
 **artifact-access.** `prepareDagTask` writes `<task dir>/artifact-access.json` with mode 0600. The file
 is canonical JSON (sorted keys) of `{version: 1, runId, taskId, manifestPath, ledgerPath,
@@ -766,6 +770,17 @@ any executor ran any stage with no refusal, degradation record or preview. WP4d 
    `capabilityNegotiation` (created before WP4d, or directly through the store) are not checked.
 7. **Nested runs** reuse the parent's probe (`reusedFromRunId`), `allowUnverified` and `strict`, and are
    never interactive.
+8. **Mixed runs (WP31, Q4).** A role profile can assign stages to several executors
+   (`role-execution.ts`). Each other executor is probed once (`negotiateWorkflowRun` input
+   `executors`), each task template is negotiated against `task.runtime.executor`, the preview's
+   summary names every executor, refusals name the stage and its executor, and role models are
+   checked against the probe's model list (`MODEL_UNKNOWN` only when the probe declares the list
+   exhaustive, `ExecutorProbe.modelListComplete` — none of the built-in adapters; a partial list (Pi
+   registry with pattern resolution, Claude aliases, Codex visible catalog) or no list adds a "not
+   verified" notice).
+   The record keeps the run executor's probe/capabilities at the top level and the others in
+   `executors.<id>`; `workflowTaskCapabilityLaunch` uses the task's executor. Single-executor runs
+   take none of these paths (record unchanged).
 
 ### Run options and spec fields (new)
 

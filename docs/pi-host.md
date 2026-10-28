@@ -46,7 +46,8 @@ mode); errors are error notifications.
 | `list [--query T] [--offset N] [--limit N]` | `listWorkflowsAction` |
 | `validate <workflow>`, `roles <workflow>` | `validateWorkflowAction`, `workflowRolesAction` |
 | `agents` | `listAgentsAction` |
-| `profile list \| show [name] \| set <name> … [--default] \| delete <name> \| default <name> \| default --clear` | `profileAction` (saved user profiles; same options as the CLI) |
+| `profile list \| show [name] \| set <name> … [--default] \| delete <name> \| default <name> \| default --clear \| presets` | `profileAction` (saved user profiles; same options as the CLI, WP31: `--preset`, `--role`) |
+| `profile workflow list \| show <workflow> \| set <workflow> … \| clear <workflow>` | `workflowPreferenceAction` (WP31: saved per-workflow preferences; every host's launch applies them) |
 | `run <workflow> <task> [options]` | `runWorkflowAction` |
 | `dynamic <task> [options]` | `runDynamicAction` |
 | `status [run]` | `statusAction` |
@@ -174,8 +175,10 @@ same check as pi-workflow's native host context — lends its native tools to Pi
 - The host API launch then sets the run option `inheritHostTools` and records the run's host context
   (`run.hostContext`: cwd, agent-workflow home, project trust; references only, never MCP
   configuration or credentials).
-- The engine honors it only when the run's executor is `pi`; a `--executor codex|claude` run (or a
-  profile that selects one) is unchanged. Codex/Claude user-MCP inheritance is a separate opt-in
+- The engine honors it only for tasks whose executor is `pi`; a `--executor codex|claude` run (or a
+  profile that selects one) is unchanged. In a mixed role-profile run (WP31) the decision is per
+  task: pi stages inherit, claude/codex stages do not (compile option `runExecutor`, launch
+  provenance checks the task's own executor). Codex/Claude user-MCP inheritance is a separate opt-in
   (B6), not this flag.
 - Each non-readOnly Pi worker gets `codemode`, `tool_search`, `mcp__*`, `list_mcp_resources`,
   `list_mcp_resource_templates` and `read_mcp_resource` (Pi executor, `docs/executors/pi.md`).
@@ -184,7 +187,10 @@ same check as pi-workflow's native host context — lends its native tools to Pi
 - A stage that declares `readOnly` never inherits them (compile records `inheritHostTools: false`);
   a stage forced readOnly by negotiation gets none either (the Pi executor drops them).
 - The capability preview and `run.capabilityNegotiation.notices` record a `host tools: …` notice
-  naming the inheriting stages and the readOnly stages that do not inherit.
+  naming the inheriting stages, the readOnly stages that do not inherit and (mixed runs) the stages
+  on other executors. Each stage's preview block also has a `host tools: …` line, and its record
+  `run.capabilityNegotiation.stages[].hostTools` says `inherited`, `readOnly`, `no-tools` or
+  `executor` (not pi).
 - Older Pi hosts (no native MCP) and the CLI/MCP hosts launch exactly as before.
 
 ## Session start
@@ -377,7 +383,9 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
 - WP35: `test/unit/executor-wp35-host-tools.test.mjs` (fake native Pi host → `hostTools`; Pi host +
   pi executor → per-task `inheritHostTools`, readOnly stage excluded, preview notice; Pi executor
   argv with/without readOnly; non-Pi host and non-pi executor unchanged; provenance fails closed for
-  other executors).
+  other executors). WP31×WP35: `test/unit/host-wp31-wp35-mixed-host-tools.test.mjs` (mixed pi +
+  claude run from a fake native Pi host: pi tasks inherit, claude and readOnly pi stages do not;
+  per-stage preview lines; provenance per task executor).
 - `test/unit/host-pi-extension.test.mjs`: fake `ExtensionAPI`; every action and tool delegates to the
   right handler with the right arguments (a recording wrapper over the real host API); runs use the
   WP11a guarded test-executor hook; confirmation (decline, accept, no UI); session-start notices

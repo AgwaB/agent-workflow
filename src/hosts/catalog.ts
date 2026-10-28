@@ -3,10 +3,17 @@
 // clipWorkflowMetadata). MIT, same author. Changes (WP11a): host-neutral handlers returning
 // structured data and text; list paging is opt-in (`limit`), the CLI lists everything; validate no
 // longer prints the legacy `local-pi/headless` backend line; `profile` manages the new saved user
-// profiles (user-profiles.ts) instead of the Pi TUI per-workflow picker (WP11b).
+// profiles (user-profiles.ts) instead of the Pi TUI per-workflow picker (WP11b). WP31: `profile set
+// --preset`, `profile presets` (built-in executor presets), `profile workflow list|show|set|clear`
+// (saved per-workflow preferences, workflow-preferences.ts).
 import { readFile } from "node:fs/promises";
 
 import { discoverAgents } from "../core/agents.js";
+import {
+	EXECUTOR_PRESET_IDS,
+	type ExecutorPreset,
+	executorPreset,
+} from "../core/executor-presets.js";
 import { compileWorkflow } from "../core/compiler.js";
 import { loadWorkflowSpec } from "../core/schema.js";
 import type { CompiledWorkflow } from "../core/types.js";
@@ -22,6 +29,7 @@ import {
 } from "./types.js";
 import {
 	deleteUserProfile,
+	formatRoleMapLines,
 	formatUserProfile,
 	readUserProfiles,
 	setDefaultUserProfile,
@@ -30,6 +38,15 @@ import {
 	userProfileFromFile,
 	userProfilesPath,
 } from "./user-profiles.js";
+import {
+	clearWorkflowPreference,
+	formatWorkflowPreference,
+	readWorkflowPreferences,
+	setWorkflowPreference,
+	type WorkflowPreference,
+	workflowPreferenceFrom,
+	workflowPreferencesPath,
+} from "./workflow-preferences.js";
 
 export interface WorkflowListSummary {
 	name: string;
@@ -460,7 +477,11 @@ export type ProfileRequest =
 			values?: Record<string, unknown>;
 			unset?: string[];
 			makeDefault?: boolean;
+			/** WP31: start from a built-in preset (codex, claude, pi, mixed). */
+			preset?: string;
 	  }
+	/** WP31: the built-in executor presets and their role tables. */
+	| { op: "presets" }
 	| { op: "delete"; name: string }
 	| { op: "default"; name: string | null };
 
@@ -471,6 +492,8 @@ export interface ProfileData {
 	profiles?: UserProfile[];
 	profile?: UserProfile;
 	deleted?: boolean;
+	/** WP31: op presets. */
+	presets?: ExecutorPreset[];
 }
 
 /** `profile list|show|set|delete|default`: saved user profiles (B2 "saved user profile" tier). */
@@ -535,6 +558,7 @@ export async function profileAction(
 				...(request.values === undefined ? {} : { values: request.values }),
 				...(request.unset === undefined ? {} : { unset: request.unset }),
 				...(request.makeDefault ? { makeDefault: true } : {}),
+				...(request.preset === undefined ? {} : { preset: request.preset }),
 			},
 			env,
 		);
@@ -548,6 +572,23 @@ export async function profileAction(
 				profile: saved.profile,
 			},
 			`${saved.created ? "Saved" : "Updated"} profile:\n${formatUserProfile(saved.profile, saved.isDefault)}`,
+		);
+	}
+	if (request.op === "presets") {
+		const presets = EXECUTOR_PRESET_IDS.map((id) => executorPreset(id));
+		return result(
+			"profile",
+			"success",
+			{ op: "presets", path, presets },
+			[
+				...presets.map((preset) =>
+					[
+						`${preset.id} — ${preset.description}`,
+						...formatRoleMapLines(preset.roles).map((line) => `  ${line}`),
+					].join("\n"),
+				),
+				"Save one with: agent-workflow profile set <name> --preset <id> [--default]; or run with --profile <id>.",
+			].join("\n\n"),
 		);
 	}
 	if (request.op === "delete") {
@@ -578,5 +619,153 @@ export async function profileAction(
 	}
 	throw new HostUsageError(
 		`unknown profile operation ${JSON.stringify((request as { op?: unknown }).op)}`,
+	);
+}
+
+export type WorkflowPreferenceRequest =
+	| { op: "list" }
+	| { op: "show"; workflow: string }
+	| {
+			op: "set";
+			workflow: string;
+			/** Declared profile, saved user profile or built-in preset used when a launch names none. */
+			profile?: string;
+			/** Role → {executor?, model?, effort?}; merged role by role. */
+			roles?: Record<string, unknown>;
+			/** `profile`, `roles` or `roles.<role>`. */
+			unset?: string[];
+	  }
+	| { op: "clear"; workflow: string };
+
+export interface WorkflowPreferenceData {
+	op: WorkflowPreferenceRequest["op"];
+	path: string;
+	preferences?: WorkflowPreference[];
+	preference?: WorkflowPreference;
+	/** Workflow name the preference belongs to (show/set/clear). */
+	workflow?: string;
+	cleared?: boolean;
+}
+
+/** WP31: the workflow name a preference is keyed by (`spec.name`). */
+async function preferenceWorkflowName(
+	ctx: HostApiContext,
+	ref: string,
+	allowUnresolved: boolean,
+): Promise<{ name: string; spec?: { executionProfiles?: object } }> {
+	if (typeof ref !== "string" || !ref.trim())
+		throw new HostUsageError("a workflow name or spec path is required");
+	try {
+		const loaded = await loadWorkflowSpec(ref.trim(), ctx.cwd);
+		const name = loaded.spec.name?.trim();
+		if (!name)
+			throw new HostUsageError(
+				`workflow ${ref} has no name; saved preferences are keyed by the workflow name`,
+			);
+		return { name, spec: loaded.spec };
+	} catch (error) {
+		if (allowUnresolved && !(error instanceof HostUsageError))
+			return { name: ref.trim() };
+		throw error;
+	}
+}
+
+/**
+ * WP31 (`profile workflow list|show|set|clear`): saved per-workflow preferences
+ * (workflow-preferences.ts). `set` checks that the profile exists (declared by the workflow, a saved
+ * user profile or a built-in preset) and that role executors are known.
+ */
+export async function workflowPreferenceAction(
+	ctx: HostApiContext,
+	request: WorkflowPreferenceRequest,
+): Promise<HostResult<WorkflowPreferenceData>> {
+	assertActionAllowed(ctx, "profile");
+	const env = hostEnv(ctx);
+	const path = workflowPreferencesPath(env);
+	if (request.op === "list") {
+		const file = await readWorkflowPreferences(env);
+		const preferences = Object.keys(file.workflows)
+			.sort((a, b) => a.localeCompare(b))
+			.map((name) => workflowPreferenceFrom(file, name)!);
+		return result(
+			"profile",
+			"success",
+			{ op: "list", path, preferences },
+			preferences.length === 0
+				? "No saved workflow preferences. Create one with: agent-workflow profile workflow set <workflow> --profile <name> [--role <role>=<executor>[:<model>[:<effort>]]]"
+				: preferences.map(formatWorkflowPreference).join("\n\n"),
+		);
+	}
+	if (request.op === "show") {
+		const { name } = await preferenceWorkflowName(ctx, request.workflow, true);
+		const preference = workflowPreferenceFrom(
+			await readWorkflowPreferences(env),
+			name,
+		);
+		return result(
+			"profile",
+			"success",
+			{
+				op: "show",
+				path,
+				workflow: name,
+				...(preference ? { preference } : {}),
+			},
+			preference
+				? formatWorkflowPreference(preference)
+				: `No saved preference for workflow ${name}.`,
+		);
+	}
+	if (request.op === "set") {
+		const { name, spec } = await preferenceWorkflowName(
+			ctx,
+			request.workflow,
+			false,
+		);
+		if (request.profile !== undefined) {
+			const declared = Object.keys(
+				(spec as { executionProfiles?: Record<string, unknown> } | undefined)
+					?.executionProfiles ?? {},
+			);
+			const saved = Object.keys((await readUserProfiles(env)).profiles);
+			if (
+				!declared.includes(request.profile) &&
+				!saved.includes(request.profile) &&
+				!(EXECUTOR_PRESET_IDS as readonly string[]).includes(request.profile)
+			)
+				throw new HostUsageError(
+					`unknown profile "${request.profile}" for workflow ${name}: it declares ${declared.length ? declared.sort().join(", ") : "no execution profiles"}; saved user profiles: ${saved.length ? saved.sort().join(", ") : "none"}; built-in presets: ${EXECUTOR_PRESET_IDS.join(", ")}`,
+				);
+		}
+		const saved = await setWorkflowPreference(
+			{
+				workflow: name,
+				...(request.profile === undefined ? {} : { profile: request.profile }),
+				...(request.roles === undefined ? {} : { roles: request.roles }),
+				...(request.unset === undefined ? {} : { unset: request.unset }),
+			},
+			env,
+		);
+		return result(
+			"profile",
+			"success",
+			{ op: "set", path, workflow: name, preference: saved.preference },
+			`${saved.created ? "Saved" : "Updated"} workflow preference (applies to every launch of ${name} from the CLI, MCP hosts and Pi):\n${formatWorkflowPreference(saved.preference)}`,
+		);
+	}
+	if (request.op === "clear") {
+		const { name } = await preferenceWorkflowName(ctx, request.workflow, true);
+		const cleared = await clearWorkflowPreference(name, env);
+		return result(
+			"profile",
+			"success",
+			{ op: "clear", path, workflow: name, cleared },
+			cleared
+				? `Cleared the saved preference of workflow ${name}.`
+				: `No saved preference for workflow ${name}.`,
+		);
+	}
+	throw new HostUsageError(
+		`unknown workflow preference operation ${JSON.stringify((request as { op?: unknown }).op)}`,
 	);
 }

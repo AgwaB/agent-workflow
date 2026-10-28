@@ -548,9 +548,13 @@ export function buildCapabilityPreview(
 	stages: readonly StageNegotiation[],
 	options: {
 		readonly executor?: { readonly id: string; readonly version: string };
+		/** Replaces the executor in the summary line (a mixed run names every executor). */
+		readonly executorLabel?: string;
 		readonly header?: readonly string[];
 		/** Effective run permission mode, shown on the first line (WP4e). */
 		readonly permissionMode?: PermissionMode;
+		/** Extra lines under a stage's block, by stage label (e.g. its host-tool decision). */
+		readonly stageNotes?: ReadonlyMap<string, readonly string[]>;
 	} = {},
 ): CapabilityPreview {
 	const refusals: string[] = [];
@@ -566,9 +570,10 @@ export function buildCapabilityPreview(
 	}
 	const accepted = refusals.length === 0;
 	const executor =
-		options.executor === undefined
+		options.executorLabel ??
+		(options.executor === undefined
 			? (stages[0]?.report.executorId ?? "executor")
-			: `${options.executor.id}@${options.executor.version}`;
+			: `${options.executor.id}@${options.executor.version}`);
 	const mode =
 		options.permissionMode === undefined
 			? ""
@@ -581,8 +586,10 @@ export function buildCapabilityPreview(
 			: `REFUSED (${refusals.length})`
 	}${forcedReadOnly.length > 0 ? `; forced readOnly: ${forcedReadOnly.join(", ")}` : ""}`;
 	const lines = [summary, ...(options.header ?? [])];
-	for (const { label, report } of stages)
+	for (const { label, report } of stages) {
 		lines.push(...formatNegotiationPreview(report, label));
+		lines.push(...(options.stageNotes?.get(label) ?? []));
+	}
 	return {
 		accepted,
 		needsConfirmation: accepted && needsConfirmation,

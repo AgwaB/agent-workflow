@@ -12,6 +12,14 @@
 // mcpOutputNoticeChars) so the artifact server is launched with a measured limit.
 // WP17: install/login hints come from executor-default.ts (first-run guidance names the install command).
 // WP35: host-tool inheritance (Pi host + Pi executor) is recorded as a notice in the preview and record.
+// WP31 (Q4): a mixed run (role profile) negotiates every stage against its own executor
+// (`task.runtime.executor`): each executor is probed once, refusals name the stage and its executor,
+// role-assigned models are checked against each probe's model list (unknown → refused; the probe
+// cannot tell → notice), and the launch-time check uses the task executor's recorded capabilities.
+// WP31×WP35: in a mixed run only pi stages inherit host tools; the host-tools notice names them.
+// WP31 follow-up: unknown → refused only when the probe declares its list exhaustive
+// (`modelListComplete`); a partial list (Claude aliases, Codex visible catalog) → "not verified by
+// probe" notice and the run proceeds.
 import {
 	type ExecutorCapabilities,
 	mergeProbedCapabilities,
@@ -28,8 +36,10 @@ import {
 	type RequirementKey,
 	type StageRequirementContext,
 } from "../sdk/requirements.js";
+import { PI_EXECUTOR_ID } from "../executors/pi/version.js";
 import { strictCapabilityKeysProblem } from "./artifact-graph-schema.js";
 import { executorSetupHints, installText } from "./executor-default.js";
+import { modelListed, probeModelList } from "./role-profiles.js";
 import { workflowTaskReadOnly } from "./tool-policy.js";
 import type {
 	CompiledLoopStageRecord,
@@ -55,6 +65,7 @@ export type WorkflowCapabilityErrorCode =
 	| "EXECUTOR_NOT_INSTALLED"
 	| "EXECUTOR_AUTH_NOT_READY"
 	| "CAPABILITY_REFUSED"
+	| "MODEL_UNKNOWN"
 	| "CAPABILITY_CONFIRMATION_REQUIRED"
 	| "CAPABILITY_DEGRADATION_DECLINED";
 
@@ -154,6 +165,10 @@ export async function probeWorkflowExecutor(
 ): Promise<{
 	summary: WorkflowExecutorProbeSummary;
 	capabilities: ExecutorCapabilities;
+	/** WP31: models the probe lists (no model call); null when it cannot tell. */
+	models: string[] | null;
+	/** WP31 follow-up: the probe declares `models` exhaustive (`modelListComplete: true`). */
+	modelListComplete: boolean;
 }> {
 	const id = descriptor.id;
 	const timeoutMs = options.timeoutMs ?? DEFAULT_EXECUTOR_PROBE_TIMEOUT_MS;
@@ -205,7 +220,14 @@ export async function probeWorkflowExecutor(
 			id,
 		);
 	}
-	return { summary, capabilities };
+	return {
+		summary,
+		capabilities,
+		models: probeModelList(
+			result.probe as Parameters<typeof probeModelList>[0],
+		),
+		modelListComplete: result.probe.modelListComplete === true,
+	};
 }
 
 /**
@@ -359,6 +381,8 @@ function optInHint(code: string, policy: WorkflowCapabilityPolicy): string {
 function refusalLines(
 	stages: readonly WorkflowStageCapabilityNegotiation[],
 	policy: WorkflowCapabilityPolicy,
+	/** WP31: name each stage's executor (mixed runs). */
+	withExecutor = false,
 ): string[] {
 	const lines: string[] = [];
 	for (const stage of stages)
@@ -370,7 +394,7 @@ function refusalLines(
 					? "unmapped"
 					: `${entry.observed.level}/${entry.observed.source}`;
 			lines.push(
-				`  - stage "${stage.label}": ${entry.key} — ${code} (executor has ${observed}${
+				`  - stage "${stage.label}"${withExecutor ? ` on ${stage.report.executorId}` : ""}: ${entry.key} — ${code} (executor has ${observed}${
 					entry.note === undefined ? "" : `; ${entry.note}`
 				}); ${optInHint(code, policy)}`,
 			);
@@ -408,11 +432,53 @@ function probeHeader(summary: WorkflowExecutorProbeSummary): string[] {
 }
 
 /**
+ * WP31×WP35: one stage's host-tool decision when the host lent its tools (Pi host): `inherited`
+ * (pi executor), `readOnly` (a readOnly stage never inherits), `no-tools` (an explicitly tool-free
+ * stage), `executor` (the stage runs on another executor; only pi inherits host tools).
+ */
+export type WorkflowStageHostTools = NonNullable<
+	WorkflowStageCapabilityNegotiation["hostTools"]
+>;
+
+function stageHostTools(
+	task: CompiledTask,
+	runExecutorId: string | undefined,
+	offered: boolean,
+): WorkflowStageHostTools | undefined {
+	if (task.runtime.inheritHostTools === true) return "inherited";
+	if (task.runtime.inheritHostTools === false)
+		return workflowTaskReadOnly(task) ? "readOnly" : "no-tools";
+	if (!offered) return undefined;
+	const executorId = task.runtime.executor ?? runExecutorId;
+	return executorId === undefined || executorId === PI_EXECUTOR_ID
+		? undefined
+		: "executor";
+}
+
+function stageHostToolsLine(
+	status: WorkflowStageHostTools,
+	executorId: string,
+): string {
+	switch (status) {
+		case "inherited":
+			return "  host tools: inherited (Pi host codemode, tool_search, mcp__*, MCP resources; mutation-capable)";
+		case "readOnly":
+			return "  host tools: not inherited (readOnly stage)";
+		case "no-tools":
+			return "  host tools: not inherited (tool-free stage)";
+		case "executor":
+			return `  host tools: not inherited (${executorId} executor; only pi inherits the Pi host's tools)`;
+	}
+}
+
+/**
  * WP35: one notice recording host-tool inheritance (Pi host + Pi executor) in the preview and the
  * negotiation record: which stages get the host's native tools and which readOnly stages do not.
+ * WP31×WP35: with `runExecutorId`, a mixed run's stages on another executor are named too.
  */
 export function hostToolInheritanceNotice(
 	tasks: readonly CompiledTask[],
+	runExecutorId?: string,
 ): string | undefined {
 	const inheriting = tasks
 		.filter((task) => task.runtime.inheritHostTools === true)
@@ -424,12 +490,28 @@ export function hostToolInheritanceNotice(
 		)
 		.map((task) => task.id);
 	if (inheriting.length === 0 && withheld.length === 0) return undefined;
+	const byExecutor = new Map<string, string[]>();
+	for (const task of tasks) {
+		if (task.runtime.inheritHostTools !== undefined) continue;
+		const executorId = task.runtime.executor ?? runExecutorId;
+		if (executorId === undefined || executorId === PI_EXECUTOR_ID) continue;
+		byExecutor.set(executorId, [
+			...(byExecutor.get(executorId) ?? []),
+			task.id,
+		]);
+	}
 	const by = inheriting.length === 0 ? "no stage" : inheriting.join(", ");
 	const not =
 		withheld.length === 0
 			? ""
 			: `; not by readOnly stage${withheld.length === 1 ? "" : "s"} ${withheld.join(", ")}`;
-	return `host tools: the Pi host's codemode, tool_search, MCP tools (mcp__*) and MCP resource tools are inherited by ${by} (mutation-capable: worktree and approval rules apply)${not}`;
+	const others = [...byExecutor.entries()]
+		.map(
+			([executorId, ids]) =>
+				`; not by ${executorId} stage${ids.length === 1 ? "" : "s"} ${ids.join(", ")} (only pi inherits)`,
+		)
+		.join("");
+	return `host tools: the Pi host's codemode, tool_search, MCP tools (mcp__*) and MCP resource tools are inherited by ${by} (mutation-capable: worktree and approval rules apply)${not}${others}`;
 }
 
 export interface NegotiateWorkflowRunInput {
@@ -443,6 +525,70 @@ export interface NegotiateWorkflowRunInput {
 	probeTimeoutMs?: number;
 	/** B4 confirmation hook; called only when interactive and a stage needs confirmation. */
 	confirmDegradations?: (preview: CapabilityPreview) => Promise<boolean>;
+	/**
+	 * WP31 (Q4): descriptors of every other executor of a mixed run. A task runs on
+	 * `task.runtime.executor` (absent: `descriptor`).
+	 */
+	executors?: Record<string, ExecutorDescriptor>;
+	/** WP31: role-assigned models, checked against their executor's probe model list. */
+	modelChecks?: Array<{ slot: string; executor: string; model: string }>;
+}
+
+interface ProbedExecutor {
+	version: string;
+	contractVersion: string;
+	summary: WorkflowExecutorProbeSummary;
+	capabilities: ExecutorCapabilities;
+	models: string[] | null;
+	modelListComplete: boolean;
+}
+
+/**
+ * WP31: refusals and notices of the role-model check (no model call; probe lists only). A model
+ * missing from an exhaustive list (`modelListComplete`) is refused; missing from a partial list
+ * (Claude's aliases) or with no list at all, it is noted as not verified and the run proceeds.
+ */
+function checkRoleModels(
+	checks: NonNullable<NegotiateWorkflowRunInput["modelChecks"]>,
+	probes: ReadonlyMap<string, ProbedExecutor>,
+): { refusals: string[]; notices: string[] } {
+	const refusals: string[] = [];
+	const notices: string[] = [];
+	const unverified = new Map<string, string[]>();
+	const partial = new Map<string, { listed: string[]; slots: string[] }>();
+	for (const check of checks) {
+		const listed = probes.get(check.executor)?.models ?? null;
+		if (listed === null) {
+			const slots = unverified.get(`${check.executor}\0${check.model}`) ?? [];
+			slots.push(check.slot);
+			unverified.set(`${check.executor}\0${check.model}`, slots);
+			continue;
+		}
+		if (modelListed(check.model, listed)) continue;
+		if (probes.get(check.executor)?.modelListComplete !== true) {
+			const key = `${check.executor}\0${check.model}`;
+			const slots = partial.get(key) ?? { listed, slots: [] };
+			slots.slots.push(check.slot);
+			partial.set(key, slots);
+			continue;
+		}
+		refusals.push(
+			`  - stage "${check.slot}": model "${check.model}" is unknown to executor ${check.executor} (its probe lists: ${listed.join(", ") || "none"}); use one of those names in the profile`,
+		);
+	}
+	for (const [key, slots] of unverified) {
+		const [executor, model] = key.split("\0");
+		notices.push(
+			`model "${model}" for ${slots.join(", ")} is not verified: executor ${executor}'s probe does not list its models`,
+		);
+	}
+	for (const [key, entry] of partial) {
+		const [executor, model] = key.split("\0");
+		notices.push(
+			`model "${model}" for ${entry.slots.join(", ")} is not verified by probe: executor ${executor}'s probe lists ${entry.listed.join(", ") || "no model"}, which is not exhaustive; the run proceeds`,
+		);
+	}
+	return { refusals, notices };
 }
 
 /**
@@ -454,14 +600,15 @@ export async function negotiateWorkflowRun(
 ): Promise<WorkflowRunCapabilityNegotiation> {
 	const { descriptor, policy } = input;
 	const executor = { id: descriptor.id, version: descriptor.version };
+	const probeOptions = {
+		...(input.prober === undefined ? {} : { prober: input.prober }),
+		...(input.probeTimeoutMs === undefined
+			? {}
+			: { timeoutMs: input.probeTimeoutMs }),
+	};
 	const probed =
 		input.recorded === undefined
-			? await probeWorkflowExecutor(descriptor, {
-					...(input.prober === undefined ? {} : { prober: input.prober }),
-					...(input.probeTimeoutMs === undefined
-						? {}
-						: { timeoutMs: input.probeTimeoutMs }),
-				})
+			? await probeWorkflowExecutor(descriptor, probeOptions)
 			: {
 					summary: {
 						...input.recorded.probe,
@@ -470,26 +617,120 @@ export async function negotiateWorkflowRun(
 							: { reusedFromRunId: input.recordedFromRunId }),
 					},
 					capabilities: input.recorded.capabilities,
+					models: null,
+					modelListComplete: false,
 				};
-	const stages = workflowNegotiationTargets(input.compiled).map((task) =>
-		negotiateTask(executor, probed.capabilities, task, policy, "pre-launch"),
-	);
-	const notices = [...(input.compiled.agentNotices ?? [])];
-	const hostTools = hostToolInheritanceNotice(
-		workflowNegotiationTargets(input.compiled),
-	);
-	if (hostTools !== undefined) notices.push(hostTools);
+	const probes = new Map<string, ProbedExecutor>([
+		[
+			executor.id,
+			{
+				version: executor.version,
+				contractVersion: descriptor.contractVersion,
+				...probed,
+			},
+		],
+	]);
+	// WP31 (Q4): each other executor of a mixed run is probed once, in a stable order.
+	for (const id of Object.keys(input.executors ?? {}).sort()) {
+		if (probes.has(id)) continue;
+		const other = input.executors![id]!;
+		probes.set(id, {
+			version: other.version,
+			contractVersion: other.contractVersion,
+			...(await probeWorkflowExecutor(other, probeOptions)),
+		});
+	}
+	const mixed = probes.size > 1;
+	const stages = workflowNegotiationTargets(input.compiled).map((task) => {
+		const id = task.runtime.executor ?? executor.id;
+		const target = probes.get(id);
+		if (target === undefined)
+			throw new WorkflowCapabilityError(
+				"CAPABILITY_REFUSED",
+				`stage "${task.id}" is assigned to executor "${id}", which this run did not prepare; the run was not started.`,
+				id,
+			);
+		return negotiateTask(
+			{ id, version: target.version },
+			target.capabilities,
+			task,
+			policy,
+			"pre-launch",
+		);
+	});
+	const modelCheck = checkRoleModels(input.modelChecks ?? [], probes);
+	const notices = [
+		...(input.compiled.agentNotices ?? []),
+		...modelCheck.notices,
+	];
+	// WP35: host-tool inheritance notice. WP31×WP35: per stage (each stage's preview block and
+	// record say whether it inherits; in a mixed run only pi stages do).
+	const targets = workflowNegotiationTargets(input.compiled);
+	const hostTools = hostToolInheritanceNotice(targets, executor.id);
+	if (hostTools !== undefined) {
+		notices.push(hostTools);
+		const byId = new Map(targets.map((task) => [task.id, task]));
+		for (const stage of stages) {
+			const task = byId.get(stage.label);
+			const status =
+				task === undefined
+					? undefined
+					: stageHostTools(task, executor.id, true);
+			if (status !== undefined) stage.hostTools = status;
+		}
+	}
+	const executorsLabel = [...probes.entries()]
+		.map(([id, target]) => {
+			const count = stages.filter(
+				(stage) => stage.report.executorId === id,
+			).length;
+			return `${id}@${target.version} ×${count}`;
+		})
+		.join(" + ");
 	const preview = buildCapabilityPreview(stages, {
 		executor,
-		header: probeHeader(probed.summary),
+		...(mixed ? { executorLabel: `mixed: ${executorsLabel}` } : {}),
+		header: mixed
+			? [...probes.entries()].map(
+					([id, target]) =>
+						`  probe ${id}: installed, cli ${target.summary.cliVersion ?? "unknown"}, auth ${target.summary.auth}`,
+				)
+			: probeHeader(probed.summary),
 		permissionMode: policy.permissionMode ?? "safe",
+		...(hostTools === undefined
+			? {}
+			: {
+					stageNotes: new Map(
+						stages
+							.filter((stage) => stage.hostTools !== undefined)
+							.map((stage) => [
+								stage.label,
+								[stageHostToolsLine(stage.hostTools!, stage.report.executorId)],
+							]),
+					),
+				}),
 	});
 	if (!preview.accepted)
 		throw new WorkflowCapabilityError(
 			"CAPABILITY_REFUSED",
 			[
-				`executor ${executor.id}@${executor.version} cannot run this workflow; the run was not started and no task was launched:`,
-				...refusalLines(stages, policy),
+				mixed
+					? "a stage's executor cannot run it; the run was not started and no task was launched:"
+					: `executor ${executor.id}@${executor.version} cannot run this workflow; the run was not started and no task was launched:`,
+				...refusalLines(stages, policy, mixed),
+			].join("\n"),
+			mixed
+				? (stages.find((stage) => !stage.report.accepted)?.report.executorId ??
+						executor.id)
+				: executor.id,
+			preview.text,
+		);
+	if (modelCheck.refusals.length > 0)
+		throw new WorkflowCapabilityError(
+			"MODEL_UNKNOWN",
+			[
+				"a role profile assigns a model the executor does not offer; the run was not started and no task was launched:",
+				...modelCheck.refusals,
 			].join("\n"),
 			executor.id,
 			preview.text,
@@ -520,6 +761,7 @@ export async function negotiateWorkflowRun(
 				preview.text,
 			);
 	}
+	const others = [...probes.entries()].filter(([id]) => id !== executor.id);
 	return {
 		schema: "agent-workflow-capability-negotiation-v1",
 		executorId: executor.id,
@@ -546,6 +788,21 @@ export async function negotiateWorkflowRun(
 						"\n",
 					),
 		...(notices.length === 0 ? {} : { notices }),
+		...(others.length === 0
+			? {}
+			: {
+					executors: Object.fromEntries(
+						others.map(([id, target]) => [
+							id,
+							{
+								executorVersion: target.version,
+								contractVersion: target.contractVersion,
+								probe: target.summary,
+								capabilities: target.capabilities,
+							},
+						]),
+					),
+				}),
 	};
 }
 
@@ -566,9 +823,29 @@ export function workflowTaskCapabilityLaunch(
 		...negotiation.policy,
 		interactive: false,
 	};
+	// WP31 (Q4): the task's own executor in a mixed run.
+	const executorId = task.runtime.executor ?? negotiation.executorId;
+	const target =
+		executorId === negotiation.executorId
+			? {
+					version: negotiation.executorVersion,
+					capabilities: negotiation.capabilities,
+				}
+			: Object.hasOwn(negotiation.executors ?? {}, executorId)
+				? {
+						version: negotiation.executors![executorId]!.executorVersion,
+						capabilities: negotiation.executors![executorId]!.capabilities,
+					}
+				: undefined;
+	if (target === undefined)
+		throw new WorkflowCapabilityError(
+			"CAPABILITY_REFUSED",
+			`task ${task.id} is assigned to executor ${executorId}, which was not negotiated before launch; it was not launched`,
+			executorId,
+		);
 	const stage = negotiateTask(
-		{ id: negotiation.executorId, version: negotiation.executorVersion },
-		negotiation.capabilities,
+		{ id: executorId, version: target.version },
+		target.capabilities,
 		task,
 		policy,
 		"launch",
@@ -577,10 +854,10 @@ export function workflowTaskCapabilityLaunch(
 		throw new WorkflowCapabilityError(
 			"CAPABILITY_REFUSED",
 			[
-				`executor ${negotiation.executorId}@${negotiation.executorVersion} refused task ${task.id} before launch:`,
+				`executor ${executorId}@${target.version} refused task ${task.id} before launch:`,
 				...refusalLines([stage], policy),
 			].join("\n"),
-			negotiation.executorId,
+			executorId,
 		);
 	if (!negotiation.stages.some((recorded) => recorded.label === task.id)) {
 		negotiation.stages.push(stage);

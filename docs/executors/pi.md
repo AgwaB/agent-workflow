@@ -131,10 +131,10 @@ The table is `PI_EXECUTOR_TOOL_MAPPING`.
     user's `mcp.json`: that is the point of inheriting host tools.
   - It is **ignored for readOnly requests**, because codemode can reach mutating tools.
   - **WP35: who sets it.** The Pi host (`docs/pi-host.md` "Host tools for Pi workers") offers it when its
-    session has Pi 1.1 native codemode/MCP; the engine honors it only for runs on this executor and
-    compiles readOnly stages without it. The task backend then passes `inheritHostTools: true` as
+    session has Pi 1.1 native codemode/MCP; the engine honors it only for tasks on this executor
+    (per task in a WP31 mixed run) and compiles readOnly stages without it. The task backend then passes `inheritHostTools: true` as
     **per-task descriptor config** (`workflowTaskExecutorDescriptor`, `src/core/task-backend.ts`) for each
-    inheriting task; the run's descriptor stays unchanged. Launch provenance requires the run's
+    inheriting task; the run's descriptor stays unchanged. Launch provenance requires the task's
     executor to be `pi` for such a task (other executors fail closed). The capability preview records
     a `host tools: …` notice. Verified offline (`executor-wp35-host-tools.test.mjs`), not live.
 
@@ -197,7 +197,9 @@ live or offline with the real CLI.
 `probe()` makes no model turn. It runs:
 
 - `pi --version`;
-- `pi --list-models` (→ `models`);
+- `pi --list-models` (→ `models`; `modelListComplete: false`: Pi's `--model` also resolves patterns
+  such as `sonnet`, so a role model missing from the list is noted, not refused; Pi reports a model
+  it cannot resolve itself);
 - `pi list` (→ `webAccessExtension`, and the WP35 `web tools` note with install guidance);
 - optionally `pi auth check --model <config.authCheckModel> --json --no-refresh`.
 

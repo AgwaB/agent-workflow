@@ -7,6 +7,7 @@
 // declared-profile choice falls back to text (host.ts `launchHooks`). WP28 (Q9): `/aw wait <run>
 // [timeout]` waits until the run is terminal or needs action, or the timeout passes (pi-workflow
 // `/workflow wait <run> [timeout-ms]`: default 60 s, max 4 h; the host API `longWait`).
+// WP31: `/aw profile set --preset/--role`, `/aw profile presets`, `/aw profile workflow …`.
 // WP29: `/aw approve <run>` answers a dynamic-controller approval through ctx.ui.confirm.
 import {
 	COMMAND_HELP,
@@ -23,7 +24,12 @@ import {
 	parseWorkflowRunArgs,
 	tokenizeWorkflowArgs,
 } from "../api.js";
-import { logsRequest, parseCommandArgs } from "../cli/index.js";
+import {
+	logsRequest,
+	parseCommandArgs,
+	parseRoleFlags,
+	workflowPreferenceRequest,
+} from "../cli/index.js";
 import {
 	emit,
 	hasDialogUi,
@@ -71,7 +77,8 @@ Workflows:
   /aw roles <workflow>                                 show compiled role context
   /aw agents                                           list agent definitions
   /aw show <workflow>                                  print a workflow spec
-  /aw profile list|show|set|delete|default …           manage saved user profiles
+  /aw profile list|show|set|delete|default|presets …   manage saved user profiles (roles, presets)
+  /aw profile workflow list|show|set|clear …           saved per-workflow preferences
 
 Runs:
   /aw run <workflow> <task> [options]   start a workflow; returns once it is launched
@@ -129,7 +136,9 @@ function profileRequest(argv: string[]): ProfileRequest {
 				"--permission-mode",
 				"--strict-capabilities",
 				"--unset",
+				"--preset",
 			],
+			repeatable: ["--role"],
 			aliases: { "--thinking": "--effort" },
 		});
 		const [name] = only(parsed.positionals, 1, "profile set <name> [options]");
@@ -146,6 +155,9 @@ function profileRequest(argv: string[]): ProfileRequest {
 				v.get("--strict-capabilities")!,
 				"--strict-capabilities",
 			);
+		// WP31: roles and presets (same syntax as the CLI).
+		const roles = parseRoleFlags(parsed.lists.get("--role"));
+		if (roles) values.roles = roles;
 		const unset = v
 			.get("--unset")
 			?.split(",")
@@ -157,7 +169,12 @@ function profileRequest(argv: string[]): ProfileRequest {
 			values,
 			...(unset ? { unset } : {}),
 			...(parsed.flags.has("--default") ? { makeDefault: true } : {}),
+			...(v.has("--preset") ? { preset: v.get("--preset")! } : {}),
 		};
+	}
+	if (op === "presets") {
+		only(parseCommandArgs(rest, {}).positionals, 0, "profile presets");
+		return { op: "presets" };
 	}
 	if (op === "delete")
 		return {
@@ -180,7 +197,7 @@ function profileRequest(argv: string[]): ProfileRequest {
 		};
 	}
 	throw new HostUsageError(
-		`Unknown profile operation "${op}". Usage: /${AW_COMMAND} profile list|show|set|delete|default`,
+		`Unknown profile operation "${op}". Usage: /${AW_COMMAND} profile list|show|set|delete|default|presets|workflow`,
 	);
 }
 
@@ -250,6 +267,12 @@ async function dispatch(
 			only(parseCommandArgs(rest, {}).positionals, 0, "agents");
 			return api.listAgentsAction(host());
 		case "profile":
+			// WP31: `/aw profile workflow …` manages saved per-workflow preferences.
+			if (rest[0] === "workflow")
+				return api.workflowPreferenceAction(
+					host(),
+					workflowPreferenceRequest(rest.slice(1)),
+				);
 			return api.profileAction(host(), profileRequest(rest));
 		case "run": {
 			const parsed = parseWorkflowRunArgs(args);

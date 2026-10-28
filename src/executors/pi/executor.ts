@@ -957,6 +957,11 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 				mcpOutputLimitChars: modern ? PI_MCP_OUTPUT_LIMIT_CHARS : null,
 				mcpOutputNoticeChars: modern ? PI_MCP_OUTPUT_NOTICE_CHARS : null,
 				models: models.code === 0 ? parsePiModelList(models.stdout) : null,
+				// WP31 follow-up: `pi --list-models` lists the registry models Pi can run here, but
+				// Pi's `--model` also resolves patterns ("sonnet", "provider/…"), so an exact-id
+				// check would refuse valid requests: the list is not treated as exhaustive (a model
+				// missing from it is noted, Pi itself reports a model it cannot resolve).
+				modelListComplete: false,
 				webAccessExtension: webAccess,
 				capabilities: {
 					...(modern ? {} : { mcpInjection: level("none", "probed") }),
