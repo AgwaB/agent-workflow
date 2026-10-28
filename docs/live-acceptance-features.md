@@ -351,6 +351,30 @@ directories, which prune never deletes through) runs unpinned; a pin protects ev
 record updated since it was taken (over-retention, not loss) and a reused pid of a dead pinning
 process keeps records until that process exits.
 
+## WP42 review round 2 fixes
+
+Branch `wp42-review-fixes-2` from main `cdab133`; no model or agent-CLI call. Input: the round-2
+confirmation review of `cdab133` (1 major, 2 minor; the reviewer's probes adapted into the tests
+below, defect observations inverted). One commit per finding; every regression test was written
+first and run against the unfixed code, where it failed as listed.
+
+| # | Finding | Fix | Commit | Test | Pre-fix failure confirmed |
+|---|---|---|---|---|---|
+| N1 | Major: path aliases bypassed worktree ownership checks | a recorded worktree path is mapped onto the canonical project root (its `<root>/.agent-workflow/workflows/<run>/worktrees/<task>` prefix resolved with `realpath`; symlinks below the root still refused by the physical chain); an enabled record that cannot be mapped (unresolvable or other project root, outside the run's `worktrees/`, no path) is an error that keeps the run; before detaching a run directory prune lists `git worktree list` and keeps the run if any registered worktree is still inside it (outside a git repository nothing can be registered) | `989679c` | `core-wp42-n1-worktree-path-alias.test.mjs` (real `ensureManagedWorktree` through `/tmp`, switched to `user-work` with an uncommitted file → kept; symlinked-project variant → kept; unchanged managed-branch controls via both aliases → removed with no stale registration and the branch deleted; unresolvable recorded root → kept; unrecorded registered worktree inside the run → kept; runs without worktrees in and outside git → removed) | yes (5 of 6; the last is a control) |
+| N2 | Minor: stamp errors discarded claimed notifications | the hook stamp is best-effort after the receipts are claimed: a failed replacement removes the stamp instead, a failed removal warns on stderr; never a recursive removal at the stamp path; the hook's fast path needs a regular stamp file, so a directory there means the next prompt checks again | `2f4dacb` | `host-wp42-n2-notify-stamp-errors.test.mjs` (directory at `hook-claude-code.stamp`: one run printed; six-run backlog prints five, then one; obstruction kept; in-process warning; writable-stamp control) | yes (3 of 4; the control passed) |
+| N3 | Minor: failed pin creation was not prune-safe | `acquireAutoRouterPin` throws on any failure except a proven non-prunable layout (a component of `.agent-workflow/workflows/auto-router-runs` is a symlink or not a directory: `undefined`, unpinned); the router then returns `routing-unavailable` ("could not be pinned … no classifier was called") without a classifier submit | `83c62d5` | `core-wp42-n3-pin-failure.test.mjs` (`.pins` mode 0555 → refused, zero submits; symlinked `auto-router-runs` → one submit, result kept by prune; normal layout → pinned, result kept, pin released) | yes (0555 case; the two others guard behavior that already held) |
+| docs | `usage.md` prune keeps-what list and worktree identification; plugins rebuilt | final commit `fix: WP42 review round 2` | `node tools/release/plugins.mjs check` | — |
+
+Validation (final tree): `npm run validate` exit 0 twice in a row with
+`AGENT_WORKFLOW_TEST_CONCURRENCY=4` (2529 pass, 0 fail, 29 skipped); `npm run e2e` exit 0;
+`node test/replay/acceptance.mjs` 0 unexplained in every fixture and variant;
+`node tools/release/plugins.mjs check` passes. The reviewer's six defect observations now fail
+(the defects are gone); its controls and confirmation probes pass. Residual: the registered-worktree check and the
+final `rename` are check-then-act (a worktree registered inside a run directory in between is not
+covered); a project moved after its runs recorded worktrees keeps those runs (the recorded root no
+longer resolves) until they are removed by hand; a symlinked `auto-router-runs` replaced by a real
+directory during an unpinned call is not covered.
+
 ## Live-call ledger (18 workflow runs of ≤ 20)
 
 Usage = the run's task roll-up (input excludes cache reads/writes). Claude costs are
