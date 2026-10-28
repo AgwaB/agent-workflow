@@ -169,6 +169,19 @@ checked first (a usage error never asks). Then, through the same elicitation hel
 Read-only calls, `workflow_prune` dry runs, `workflow_resume` and `workflow_supervise` never ask
 (resume and supervise state their cost in the description instead).
 
+### Codex `approval_policy = "never"` (owner decision O2, 2026-10-28)
+
+The server respects the client's policy. Codex with `approval_policy = "never"` answers every
+empty confirm form (`elicitation/create` without fields) itself with `accept`, without showing a
+dialog; agent-workflow treats that as the user's consent, consistent with the permission mode
+`free` ("approve everything"). This covers the `workflow_auto` consent (recorded as consent
+`elicitation`; one classifier request is sent), the degradation confirmation, `workflow_approve`
+and the confirmed changes (`workflow_profile`, `workflow_prune`, `workflow_notices`). Forms with a
+required field (the `workflow_auto` choice) are cancelled by Codex under that policy, so nothing
+starts from `workflow_auto` without a choice. To be asked, run Codex with
+`-c approval_policy="on-request"` (or set it in `~/.codex/config.toml`); live bundle 5 showed both
+dialogs there.
+
 Hints (WP18b) now name `workflow_resume {"runId":…}` for resume and `workflow_show {"ref":…,"raw":true}`
 for the raw run view; a blocked `workflow_wait` footer offers `workflow_resume` after the user agrees.
 

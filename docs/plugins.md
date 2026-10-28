@@ -111,6 +111,12 @@ marketplace file `.agents/plugins/marketplace.json` alone was not picked up by t
 CLI needs `codex plugin marketplace add` (or a `marketplaces` config entry), and `plugin add`
 installs the copy into `$CODEX_HOME/plugins/cache/`.
 
+Codex's `approval_policy` decides whether you see the confirmation dialogs: under
+`approval_policy = "never"` Codex auto-accepts confirm dialogs (auto consent, degradations,
+approvals, profile/prune/notice changes) without asking, and agent-workflow treats that as your
+consent (owner decision O2, like the permission mode `free`). To be asked, start Codex with
+`-c approval_policy="on-request"` ([host-mcp.md](host-mcp.md#codex-approval_policy--never-owner-decision-o2-2026-10-28)).
+
 Restart the session after installing. Claude Code shows the server as
 `plugin:agent-workflow:agent-workflow` (`claude mcp list`), Codex as `agent-workflow`.
 
