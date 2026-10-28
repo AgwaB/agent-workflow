@@ -55,9 +55,11 @@ export function createAgentWorkflowPiExtension(
 			})();
 			noticeSettled.set(pi, () => lastNotice);
 		});
-		pi.on("session_shutdown", () => {
+		// WP19 round 4 (F1): the shutdown reason tells whether Pi keeps the session's queue
+		// (`reload`) or disposes it (`new`/`resume`/`fork`/`quit`).
+		pi.on("session_shutdown", (event, ctx) => {
 			session += 1;
-			deps.feedback.stop();
+			return deps.feedback.shutdown(event, ctx);
 		});
 
 		if (supervisor) registerAwTools(pi, deps);
