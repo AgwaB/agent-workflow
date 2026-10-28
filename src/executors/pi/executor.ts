@@ -957,6 +957,10 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 				mcpOutputLimitChars: modern ? PI_MCP_OUTPUT_LIMIT_CHARS : null,
 				mcpOutputNoticeChars: modern ? PI_MCP_OUTPUT_NOTICE_CHARS : null,
 				models: models.code === 0 ? parsePiModelList(models.stdout) : null,
+				// WP31 follow-up: `pi --list-models` lists every registry model (built-in and
+				// models.json) Pi can run here (configured auth); Pi refuses others, so the list is
+				// exhaustive.
+				...(models.code === 0 ? { modelListComplete: true } : {}),
 				webAccessExtension: webAccess,
 				capabilities: {
 					...(modern ? {} : { mcpInjection: level("none", "probed") }),

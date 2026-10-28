@@ -1063,6 +1063,10 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 				auth,
 				capabilities: codexEnvironmentCapabilities(environment),
 				mcpOutputLimitChars: CODEX_MCP_OUTPUT_LIMIT_CHARS,
+				// WP31 follow-up: `codex debug models` lists the visible catalog slugs only (hidden ones
+				// are dropped above) and the CLI passes any `model` on (API-key and custom-provider
+				// logins accept models outside the catalog), so the list is not exhaustive.
+				modelListComplete: false,
 				notes,
 			};
 		},

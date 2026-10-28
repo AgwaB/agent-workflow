@@ -254,10 +254,14 @@ parent's executor.
 
 **Validation.** An unknown executor id (flat or in a role) is refused when a profile or preference
 is saved and when a run starts. A role model is checked before launch against the model list the
-executor's probe reports (no model call: Codex `codex debug models`, Claude Code's model aliases
-`default`/`haiku`/`sonnet`/`opus`): a model the list does not contain refuses the run
-(`MODEL_UNKNOWN`, naming the stage and the listed models); when the probe cannot list models (Pi),
-the preview notes `model "x" for <stages> is not verified` and the run proceeds.
+executor's probe reports (no model call: Pi `pi --list-models`, Codex `codex debug models`, Claude
+Code's model aliases `default`/`haiku`/`sonnet`/`opus`). Each probe says whether its list is
+exhaustive (`modelListComplete`). Only Pi's is: a Pi model the list does not contain refuses the
+run (`MODEL_UNKNOWN`, naming the stage and the listed models). Claude's list holds aliases only
+(full ids such as `claude-opus-4-8` are valid) and Codex's holds the visible catalog only, so a
+model missing from them is noted (`model "x" for <stages> is not verified by probe: …`) and the
+run proceeds; when a probe lists no models at all, the preview notes `model "x" for <stages> is
+not verified`.
 
 **Presets** (`agent-workflow profile presets`; `--profile <preset>` when no declared or saved
 profile has that name, or `profile set <name> --preset <preset>`):

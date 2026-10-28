@@ -17,6 +17,9 @@
 // role-assigned models are checked against each probe's model list (unknown → refused; the probe
 // cannot tell → notice), and the launch-time check uses the task executor's recorded capabilities.
 // WP31×WP35: in a mixed run only pi stages inherit host tools; the host-tools notice names them.
+// WP31 follow-up: unknown → refused only when the probe declares its list exhaustive
+// (`modelListComplete`); a partial list (Claude aliases, Codex visible catalog) → "not verified by
+// probe" notice and the run proceeds.
 import {
 	type ExecutorCapabilities,
 	mergeProbedCapabilities,
@@ -164,6 +167,8 @@ export async function probeWorkflowExecutor(
 	capabilities: ExecutorCapabilities;
 	/** WP31: models the probe lists (no model call); null when it cannot tell. */
 	models: string[] | null;
+	/** WP31 follow-up: the probe declares `models` exhaustive (`modelListComplete: true`). */
+	modelListComplete: boolean;
 }> {
 	const id = descriptor.id;
 	const timeoutMs = options.timeoutMs ?? DEFAULT_EXECUTOR_PROBE_TIMEOUT_MS;
@@ -221,6 +226,7 @@ export async function probeWorkflowExecutor(
 		models: probeModelList(
 			result.probe as Parameters<typeof probeModelList>[0],
 		),
+		modelListComplete: result.probe.modelListComplete === true,
 	};
 }
 
@@ -534,9 +540,14 @@ interface ProbedExecutor {
 	summary: WorkflowExecutorProbeSummary;
 	capabilities: ExecutorCapabilities;
 	models: string[] | null;
+	modelListComplete: boolean;
 }
 
-/** WP31: refusals and notices of the role-model check (no model call; probe lists only). */
+/**
+ * WP31: refusals and notices of the role-model check (no model call; probe lists only). A model
+ * missing from an exhaustive list (`modelListComplete`) is refused; missing from a partial list
+ * (Claude's aliases) or with no list at all, it is noted as not verified and the run proceeds.
+ */
 function checkRoleModels(
 	checks: NonNullable<NegotiateWorkflowRunInput["modelChecks"]>,
 	probes: ReadonlyMap<string, ProbedExecutor>,
@@ -544,6 +555,7 @@ function checkRoleModels(
 	const refusals: string[] = [];
 	const notices: string[] = [];
 	const unverified = new Map<string, string[]>();
+	const partial = new Map<string, { listed: string[]; slots: string[] }>();
 	for (const check of checks) {
 		const listed = probes.get(check.executor)?.models ?? null;
 		if (listed === null) {
@@ -552,15 +564,28 @@ function checkRoleModels(
 			unverified.set(`${check.executor}\0${check.model}`, slots);
 			continue;
 		}
-		if (!modelListed(check.model, listed))
-			refusals.push(
-				`  - stage "${check.slot}": model "${check.model}" is unknown to executor ${check.executor} (its probe lists: ${listed.join(", ") || "none"}); use one of those names in the profile`,
-			);
+		if (modelListed(check.model, listed)) continue;
+		if (probes.get(check.executor)?.modelListComplete !== true) {
+			const key = `${check.executor}\0${check.model}`;
+			const slots = partial.get(key) ?? { listed, slots: [] };
+			slots.slots.push(check.slot);
+			partial.set(key, slots);
+			continue;
+		}
+		refusals.push(
+			`  - stage "${check.slot}": model "${check.model}" is unknown to executor ${check.executor} (its probe lists: ${listed.join(", ") || "none"}); use one of those names in the profile`,
+		);
 	}
 	for (const [key, slots] of unverified) {
 		const [executor, model] = key.split("\0");
 		notices.push(
 			`model "${model}" for ${slots.join(", ")} is not verified: executor ${executor}'s probe does not list its models`,
+		);
+	}
+	for (const [key, entry] of partial) {
+		const [executor, model] = key.split("\0");
+		notices.push(
+			`model "${model}" for ${entry.slots.join(", ")} is not verified by probe: executor ${executor}'s probe lists ${entry.listed.join(", ") || "no model"}, which is not exhaustive; the run proceeds`,
 		);
 	}
 	return { refusals, notices };
@@ -593,6 +618,7 @@ export async function negotiateWorkflowRun(
 					},
 					capabilities: input.recorded.capabilities,
 					models: null,
+					modelListComplete: false,
 				};
 	const probes = new Map<string, ProbedExecutor>([
 		[

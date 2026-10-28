@@ -197,7 +197,8 @@ live or offline with the real CLI.
 `probe()` makes no model turn. It runs:
 
 - `pi --version`;
-- `pi --list-models` (→ `models`);
+- `pi --list-models` (→ `models`; `modelListComplete: true`: Pi runs only registry models, so a
+  role model missing from the list is refused before launch);
 - `pi list` (→ `webAccessExtension`, and the WP35 `web tools` note with install guidance);
 - optionally `pi auth check --model <config.authCheckModel> --json --no-refresh`.
 

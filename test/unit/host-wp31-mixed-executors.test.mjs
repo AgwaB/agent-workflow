@@ -374,15 +374,17 @@ test("a stage whose executor lacks a required capability is refused before launc
 });
 
 test("role models are checked against the executor's probe list: unknown is refused", async () => {
-	const probe = (models) => ({
+	// WP31 follow-up: a missing model is refused only when the probe declares its list exhaustive.
+	const probe = (models, modelListComplete) => ({
 		installed: true,
 		cliVersion: "fake-cli 1.0.0",
 		auth: "ok",
+		modelListComplete,
 		notes: [`models: ${models.join(", ")}`],
 	});
 	const logs = executors({
-		claude: { probe: probe(["default", "haiku", "sonnet"]) },
-		codex: { probe: probe(["gpt-5.6-luna"]) },
+		claude: { probe: probe(["default", "haiku", "sonnet"], false) },
+		codex: { probe: probe(["gpt-5.6-luna"], true) },
 	});
 	const { ctx } = await project(TWO_STAGES);
 	await saveProfile(ctx, {

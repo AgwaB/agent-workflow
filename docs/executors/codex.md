@@ -293,7 +293,9 @@ budget are not confirmed. `fetch_content` (open_page) not observed.
   and by `agent-workflow prune`).
   WP19 (review #2): a launched attempt's record (`spawned` or `terminal`) is not deleted but replaced by a compact tombstone (`agent-workflow-attempt-tombstone-v1`: attemptKey, the `terminal` outcome, finishedAt, prunedAt); reconcile reads it as `unknown` ("launched, record pruned"), never `absent`, and submit refuses that attemptKey, so an orphaned workflow never retries an attempt that already ran. Tombstones are never pruned; only `revoked` (never-launched) records are removed.
 - `probe()` lists models with `codex debug models` (a debug subcommand; app-server `model/list`
-  would need a second app-server spawn).
+  would need a second app-server spawn). The list keeps visible slugs only and the CLI passes any
+  model on (API-key and custom-provider logins), so `modelListComplete: false`: a role model missing
+  from it is noted as not verified, never refused (WP31 follow-up).
 - `fetch_content`, `grep`, `find`, `ls` mappings and token-refresh contention are unverified.
 
 ## What later work packages need
