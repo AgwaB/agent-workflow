@@ -51,11 +51,24 @@ export function fakePi({ history } = {}) {
 /**
  * Fake ExtensionContext with a dialog UI (rpc) or none (json), a session id and a footer. With
  * `history`, `sessionManager.getEntries()` returns it (WP19 round 2). WP33: widgets are recorded;
- * `custom: true` adds `ui.custom` (resolves when the component calls `done`).
+ * `custom: true` adds `ui.custom` (resolves when the component calls `done`). WP34: the custom
+ * factory gets a fake TUI (`requestRender` calls are counted in `renders`, `true` = full repaint)
+ * and `theme` (default: none, plain text); `confirm` and `input` script those dialogs (recorded in
+ * `confirms` and `inputs`).
  */
 export function fakeCtx(
 	cwd,
-	{ hasUI = true, sessionId = "session-a", select, mode, history, custom } = {},
+	{
+		hasUI = true,
+		sessionId = "session-a",
+		select,
+		mode,
+		history,
+		custom,
+		theme,
+		confirm,
+		input,
+	} = {},
 ) {
 	const notes = [];
 	const statuses = [];
@@ -65,6 +78,10 @@ export function fakeCtx(
 	const widgetCalls = [];
 	const widgets = new Map();
 	const customs = [];
+	const renders = [];
+	const confirms = [];
+	const inputs = [];
+	const tui = { requestRender: (force) => renders.push(force === true) };
 	return {
 		cwd,
 		hasUI,
@@ -85,9 +102,19 @@ export function fakeCtx(
 		widgetCalls,
 		widgets,
 		customs,
+		renders,
+		confirms,
+		inputs,
 		ui: {
 			notify: (message, type) => notes.push({ message, type }),
-			confirm: async () => true,
+			confirm: async (title, message) => {
+				confirms.push({ title, message });
+				return confirm ? confirm(title, message) : true;
+			},
+			input: async (title, placeholder) => {
+				inputs.push({ title, placeholder });
+				return input ? input(title, placeholder) : undefined;
+			},
 			select: async (title, options) => {
 				selects.push({ title, options });
 				return select ? select(options) : undefined;
@@ -106,7 +133,7 @@ export function fakeCtx(
 				? {
 						custom: (factory) =>
 							new Promise((resolve) => {
-								const component = factory({}, {}, {}, resolve);
+								const component = factory(tui, theme ?? {}, {}, resolve);
 								customs.push(component);
 							}),
 					}
