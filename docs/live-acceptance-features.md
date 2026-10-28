@@ -487,3 +487,10 @@ layouts, one remaining major. Fixed by the parent:
 |---|---|---|---|
 | N4 (major): with git missing (`ENOENT`) or outside a git repository, `registeredWorktreeInside` inferred "no registered worktree", so a run directory holding an unrecorded worktree with user work was deleted | Without a git listing, a git checkout found on disk inside the run directory (a `.git` entry, no symlinks followed, bounded depth) keeps the run; `git` calls time out after 30 s (fail closed) | `test/unit/core-wp42-n4-missing-git.test.mjs` (git missing + unrecorded worktree → kept; non-git project + nested checkout → kept; control without a checkout → removed) | yes (2 of 3; the control passes) |
 
+Round-4 confirmation (gpt-6-astra, `962a4af`): N4's reported cases fixed (the new test fails on
+`9bfcfaa`), the entry budget fails closed, the 30 s timeout keeps the run; one remaining case: a
+checkout below the scan's depth limit was treated as absent. Fixed by the parent: a directory
+below the depth limit, the entry budget, or an unreadable directory each keep the run ("cannot be
+ruled out"); regression "N4 round 4" in `core-wp42-n4-missing-git.test.mjs` (fails before: the
+depth-7 worktree and checkout were deleted). Accepted conservative effect: a workflow output file
+or directory named `.git` inside a run directory keeps the run when git cannot list registrations.

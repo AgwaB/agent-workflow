@@ -992,6 +992,9 @@ async function gitCheckoutInside(runDir: string): Promise<string | undefined> {
 	const MAX_DEPTH = 6;
 	const MAX_ENTRIES = 20_000;
 	let seen = 0;
+	// WP42 (review round 4): an incomplete scan never proves "no checkout". The entry budget, a
+	// directory below the depth limit, or a directory that cannot be read returns that path, so
+	// the run is kept.
 	const walk = async (
 		dir: string,
 		depth: number,
@@ -999,15 +1002,18 @@ async function gitCheckoutInside(runDir: string): Promise<string | undefined> {
 		let entries: Dirent[];
 		try {
 			entries = await readdir(dir, { withFileTypes: true });
-		} catch {
-			return undefined;
+		} catch (error) {
+			return (error as NodeJS.ErrnoException).code === "ENOENT"
+				? undefined
+				: dir;
 		}
 		for (const entry of entries) {
 			seen += 1;
 			if (seen > MAX_ENTRIES) return dir;
 			const path = join(dir, entry.name);
 			if (entry.name === ".git") return path;
-			if (entry.isDirectory() && depth < MAX_DEPTH) {
+			if (entry.isDirectory()) {
+				if (depth >= MAX_DEPTH) return path;
 				const found = await walk(path, depth + 1);
 				if (found) return found;
 			}
@@ -1073,7 +1079,7 @@ async function registeredWorktreeInside(
 			// listing, any git checkout on disk inside the run directory keeps the run.
 			const checkout = await gitCheckoutInside(runDir);
 			return checkout
-				? `${failure.code === "ENOENT" ? "git is not available" : "not a git repository"} and a git checkout exists inside the run directory (${relative(cwd, checkout)}); kept`
+				? `${failure.code === "ENOENT" ? "git is not available" : "not a git repository"} and a git checkout inside the run directory cannot be ruled out (${relative(cwd, checkout)}); kept`
 				: undefined;
 		}
 		return `git worktree list failed: ${errorMessage(error).split("\n")[0]}; kept`;

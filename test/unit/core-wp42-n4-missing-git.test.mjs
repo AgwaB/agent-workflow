@@ -50,6 +50,7 @@ test("N4: git missing — an unrecorded registered worktree inside the run direc
 	);
 	assert.equal(done.runs[0]?.deleted, false, JSON.stringify(done));
 	assert.match(done.runs[0]?.error ?? "", /git is not available/);
+	assert.match(done.runs[0]?.error ?? "", /cannot be ruled out/);
 	assert.ok(existsSync(join(foreign, "UNCOMMITTED.txt")));
 	assert.match(git(cwd, ["worktree", "list", "--porcelain"]), /user-work/);
 });
@@ -75,4 +76,39 @@ test("N4 control: git missing — a run without any git checkout is still remove
 		);
 		assert.equal(done.runs[0]?.deleted, true, JSON.stringify(done));
 	}
+});
+
+test("N4 round 4: a checkout below the scan depth limit keeps the run (git missing, and outside a git repository)", async () => {
+	const deep = (runDir) =>
+		join(
+			runDir,
+			"level-1",
+			"level-2",
+			"level-3",
+			"level-4",
+			"level-5",
+			"level-6",
+			"user-tree",
+		);
+	const cwd = await repo();
+	const runDir = await workflow(cwd, NO_WORKTREE);
+	const tree = deep(runDir);
+	await mkdir(dirname(tree), { recursive: true });
+	git(cwd, ["worktree", "add", "-q", "-b", "user-work", tree, "HEAD"]);
+	await writeFile(join(tree, "UNCOMMITTED.txt"), "valuable work\n");
+	const done = await withoutGit(() =>
+		pruneWorkflowRuns(cwd, { keep: 0, yes: true }),
+	);
+	assert.equal(done.runs[0]?.deleted, false, JSON.stringify(done));
+	assert.ok(existsSync(join(tree, "UNCOMMITTED.txt")));
+
+	const plain = await temp();
+	const plainRun = await workflow(plain, NO_WORKTREE);
+	const clone = deep(plainRun);
+	await mkdir(clone, { recursive: true });
+	git(clone, ["init", "-q"]);
+	await writeFile(join(clone, "WORK.txt"), "work\n");
+	const plainDone = await pruneWorkflowRuns(plain, { keep: 0, yes: true });
+	assert.equal(plainDone.runs[0]?.deleted, false, JSON.stringify(plainDone));
+	assert.ok(existsSync(join(clone, "WORK.txt")));
 });
