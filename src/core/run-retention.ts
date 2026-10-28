@@ -277,8 +277,12 @@ async function prunePlan(
 	for (const candidate of childrenFirst(selected, plan.children)) {
 		// The preview lists only the public fields (no internal absolute paths).
 		const worktrees = (await inspectRunWorktrees(cwd, candidate.run)).map(
-			({ absolutePath: _path, registered: _registered, ...worktree }) =>
-				worktree,
+			({
+				absolutePath: _path,
+				registered: _registered,
+				tip: _tip,
+				...worktree
+			}) => worktree,
 		);
 		const entry: WorkflowPruneRun = {
 			runId: candidate.run.runId,
@@ -959,6 +963,8 @@ interface RunWorktree extends WorkflowPruneWorktree {
 	absolutePath: string;
 	/** The path `git worktree list` registers for it in this repository, if any. */
 	registered?: string;
+	/** The managed branch's tip commit, if the branch exists. */
+	tip?: string;
 }
 
 /** A managed worktree's directory name (its task id) under `<run>/worktrees/`. */
@@ -1097,26 +1103,84 @@ async function identifyRunWorktree(
 			return;
 		}
 		entry.registered = registered?.path;
-		if (chain.exists) {
+		if (chain.exists)
 			entry.dirty =
 				(await gitText(chain.path, ["status", "--porcelain"])).trim() !== "";
-			const checkoutHead = (await gitText(cwd, ["rev-parse", "HEAD"])).trim();
-			entry.commits = Number.parseInt(
-				(
-					await gitText(chain.path, [
-						"rev-list",
-						"--count",
-						"HEAD",
-						`^${checkoutHead}`,
-					])
-				).trim(),
-				10,
-			);
-			if (!Number.isFinite(entry.commits)) entry.commits = 0;
+		// WP42 (finding 4): the managed branch's own tip against the checkout's HEAD, also when the
+		// directory is missing (its commits are not visible through a worktree then).
+		entry.tip = await managedBranchTip(cwd, managed);
+		if (entry.tip === undefined) {
+			if (chain.exists) {
+				entry.error = `managed branch ${managed} not found; kept`;
+				return;
+			}
+			return;
 		}
+		const checkoutHead = (await gitText(cwd, ["rev-parse", "HEAD"])).trim();
+		const commits = Number.parseInt(
+			(
+				await gitText(cwd, [
+					"rev-list",
+					"--count",
+					entry.tip,
+					`^${checkoutHead}`,
+				])
+			).trim(),
+			10,
+		);
+		if (!Number.isFinite(commits)) {
+			entry.error = "unknown commit state; kept";
+			return;
+		}
+		entry.commits = commits;
 	} catch (error) {
 		entry.error = `git: ${errorMessage(error).split("\n")[0]}`;
 	}
+}
+
+/** `refs/heads/<branch>`'s commit; undefined when the branch does not exist (other errors throw). */
+async function managedBranchTip(
+	cwd: string,
+	branch: string,
+): Promise<string | undefined> {
+	try {
+		return (
+			await gitText(cwd, [
+				"rev-parse",
+				"--verify",
+				"--quiet",
+				`refs/heads/${branch}^{commit}`,
+			])
+		).trim();
+	} catch (error) {
+		if ((error as { code?: unknown }).code === 1) return undefined;
+		throw error;
+	}
+}
+
+/**
+ * WP42 (finding 4): delete a managed branch only when `git merge-base --is-ancestor <tip> HEAD`
+ * holds (independent of any upstream), no worktree has it checked out, and it still points at the
+ * verified tip (`git update-ref -d <ref> <tip>`). Any unknown state keeps the branch.
+ */
+async function deleteMergedManagedBranch(
+	cwd: string,
+	branch: string,
+	tip: string,
+): Promise<boolean> {
+	try {
+		const head = (await gitText(cwd, ["rev-parse", "HEAD"])).trim();
+		await gitText(cwd, ["merge-base", "--is-ancestor", tip, head]);
+		for (const listed of await listGitWorktrees(cwd))
+			if (listed.branch === `refs/heads/${branch}`) return false;
+		await gitText(cwd, ["update-ref", "-d", `refs/heads/${branch}`, tip]);
+	} catch {
+		return false;
+	}
+	await gitText(cwd, ["config", "--remove-section", `branch.${branch}`]).catch(
+		() => "",
+	);
+	return true;
 }
 
 /** The fields that must not change between inspection and removal. */
@@ -1128,13 +1192,14 @@ function sameWorktreeState(left: RunWorktree, right: RunWorktree): boolean {
 		left.branch === right.branch &&
 		left.missing === right.missing &&
 		left.registered === right.registered &&
+		left.tip === right.tip &&
 		left.commits === right.commits
 	);
 }
 
 /**
  * `prune --yes`: remove each identified worktree (rechecked right before git touches it) and delete
- * its branch only when merged (`git branch -d`).
+ * its managed branch only when its tip is contained in the checkout's HEAD.
  */
 async function removeRunWorktrees(
 	cwd: string,
@@ -1143,7 +1208,7 @@ async function removeRunWorktrees(
 ): Promise<WorkflowPruneWorktree[]> {
 	const results: WorkflowPruneWorktree[] = [];
 	for (const worktree of worktrees) {
-		const { absolutePath, registered, ...entry } = worktree;
+		const { absolutePath, registered, tip, ...entry } = worktree;
 		if (entry.error) {
 			results.push(entry);
 			continue;
@@ -1184,12 +1249,10 @@ async function removeRunWorktrees(
 			results.push(entry);
 			continue;
 		}
-		if (entry.branch)
+		if (entry.branch && tip !== undefined)
 			entry.branchDeleted =
 				entry.commits === 0 &&
-				(await gitText(cwd, ["branch", "-d", entry.branch])
-					.then(() => true)
-					.catch(() => false));
+				(await deleteMergedManagedBranch(cwd, entry.branch, tip));
 		results.push(entry);
 	}
 	return results;
