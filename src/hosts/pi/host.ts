@@ -35,6 +35,7 @@ export type PiHostApi = Pick<
 	| "inspectAction"
 	| "waitAction"
 	| "resumeAction"
+	| "approveAction"
 	| "stopAction"
 	| "pruneAction"
 	| "noticesAction"
@@ -177,7 +178,7 @@ export function hostContext(
 }
 
 /** A dialog-capable Pi UI (TUI/RPC), not print/JSON mode. */
-function hasDialogUi(ctx: PiExtensionContext): boolean {
+export function hasDialogUi(ctx: PiExtensionContext): boolean {
 	return ctx.hasUI === true && !printMode(ctx);
 }
 

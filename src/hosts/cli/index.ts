@@ -12,6 +12,7 @@ import { addWorkflowInputAssignment } from "../args.js";
 import { createInterface } from "node:readline";
 
 import {
+	approveAction,
 	doctorAction,
 	formatHostError,
 	HOST_WAIT_MAX_TIMEOUT_MS,
@@ -398,6 +399,76 @@ async function launchCommand(
 	return exitCodeFor(waited);
 }
 
+/**
+ * WP29: `approve <run> [--request <id>] [--reject] [--yes] [--detach] [--timeout <d>] [--json]`.
+ * On a terminal the approval question is asked y/n (n rejects, no answer records nothing); without
+ * one, --yes is the explicit decision. An approval resumes the run in the foreground (as `resume`)
+ * or, with --detach, in a background supervisor.
+ */
+async function approveCommand(
+	argv: readonly string[],
+	ctx: HostApiContext,
+	io: CliIo,
+	emit: Emit,
+): Promise<number> {
+	const parsed = parseCommandArgs(argv, {
+		flags: ["--json", "--reject", "--yes", "--detach"],
+		values: ["--request", "--timeout"],
+	});
+	const usage =
+		"approve <run-id-or-prefix> [--request <id>] [--reject] [--yes] [--detach] [--timeout <duration>]";
+	const [runId] = only(parsed, 1, usage);
+	const detach = parsed.flags.has("--detach");
+	const timeout = parsed.values.get("--timeout");
+	if (detach && timeout !== undefined)
+		throw new HostUsageError("--timeout cannot be combined with --detach");
+	const yes = parsed.flags.has("--yes");
+	if (!yes && !io.isTTY)
+		throw new HostUsageError(
+			`approve without a terminal needs --yes (review the approval first: agent-workflow status ${runId})`,
+		);
+	const prompt = io.prompt ?? defaultPrompt;
+	const answered = await approveAction(ctx, {
+		runId: runId!,
+		decision: parsed.flags.has("--reject") ? "reject" : "approve",
+		...(parsed.values.has("--request")
+			? { requestId: parsed.values.get("--request")! }
+			: {}),
+		...(detach ? { detach: true } : {}),
+		...(yes
+			? {}
+			: {
+					confirm: async (title: string, message: string) => {
+						io.stderr(`\n${message}\n`);
+						const answer = (await prompt(`${title} [y/n] `))
+							.trim()
+							.toLowerCase();
+						if (answer === "y" || answer === "yes") return true;
+						if (answer === "n" || answer === "no") return false;
+						return undefined;
+					},
+				}),
+	});
+	const resumed = answered.data.resumed;
+	if (detach || !resumed || resumed.status !== "running") return emit(answered);
+	if (!parsed.flags.has("--json")) io.stdout(`${answered.text}\n`);
+	const waited = await waitUntilSettled(
+		ctx,
+		io,
+		answered.data.runId,
+		timeout === undefined ? undefined : parseDuration(timeout),
+		parsed.flags.has("--json"),
+	);
+	return emit(
+		{
+			...waited,
+			action: "approve",
+			data: { ...answered.data, status: waited.data.status, wait: waited.data },
+		},
+		exitCodeFor(waited),
+	);
+}
+
 async function profileCommand(
 	argv: readonly string[],
 	ctx: HostApiContext,
@@ -624,6 +695,8 @@ async function dispatch(
 				exitCodeFor(waited),
 			);
 		}
+		case "approve":
+			return approveCommand(argv, ctx, io, emit);
 		case "stop": {
 			const [runId] = only(
 				parseCommandArgs(argv, jsonOnly),
