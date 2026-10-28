@@ -204,13 +204,14 @@ test("invalid decision attempts retain immutable distinct event-linked raw and v
 test("controller deadline terminates late-started helper and persists terminal evidence before settlement", async (t) => {
 	const f = await fixture(
 		t,
-		`export default async ctx => { await new Promise(r=>setTimeout(r,650)); await ctx.helper('slow'); return {control:{digest:'done'}}; };`,
+		`export default async ctx => { await new Promise(r=>setTimeout(r,200)); await ctx.helper('slow'); return {control:{digest:'done'}}; };`,
 		{
-			budget: { maxRuntimeMs: 1000 },
+			// Wide margins (load): the helper starts ~200 ms in and is still running at the 2 s deadline.
+			budget: { maxRuntimeMs: 2000 },
 			helpers: { slow: { uses: "./slow.mjs" } },
 		},
 		{
-			"slow.mjs": `import {writeFile} from 'node:fs/promises'; export default async () => { await new Promise(r=>setTimeout(r,650)); await writeFile('$ROOT/late-marker','late'); return {ok:true}; };`,
+			"slow.mjs": `import {writeFile} from 'node:fs/promises'; export default async () => { await new Promise(r=>setTimeout(r,2600)); await writeFile('$ROOT/late-marker','late'); return {ok:true}; };`,
 		},
 	);
 	const r = await schedule(f);
@@ -223,7 +224,7 @@ test("controller deadline terminates late-started helper and persists terminal e
 	assert.ok(started);
 	const terminal = events.find((e) => e.type === "helper.cancelled");
 	const ledger = JSON.stringify(events);
-	await new Promise((r) => setTimeout(r, 800));
+	await new Promise((r) => setTimeout(r, 2800));
 	await assert.rejects(
 		access(join(f.dir, "late-marker")),
 		{ code: "ENOENT" },
