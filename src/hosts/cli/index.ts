@@ -5,6 +5,8 @@
 // Replaces pi-workflow's src/cli.mjs (inspect/prune/notices/supervise), whose prune path imported
 // the Pi extension (R#14).
 // WP17: passes host "cli" (installed-default executor) and adds `doctor`. WP16: `logs`.
+// WP29: on a terminal, foreground runs/waits/resumes ask y/n to approve a dynamic controller
+// (cliDynamicUi); `approve <run>` answers an approval a run is blocked on.
 import { readFileSync } from "node:fs";
 import { addWorkflowInputAssignment } from "../args.js";
 import { createInterface } from "node:readline";
@@ -55,8 +57,11 @@ export interface CliIo {
 	stderr: (text: string) => void;
 	/** stdin and stdout are terminals: `run` may ask y/N. */
 	isTTY: boolean;
-	/** Ask one question; resolves with the typed line. */
-	prompt?: (question: string) => Promise<string>;
+	/** Ask one question; resolves with the typed line (WP29: `signal` closes an open question). */
+	prompt?: (
+		question: string,
+		options?: { signal?: AbortSignal },
+	) => Promise<string>;
 	signal?: AbortSignal;
 	/** Bound of each underlying wait call (default and cap 45 s; tests use less). */
 	waitSliceMs?: number;
@@ -66,18 +71,58 @@ export const EXIT_OK = 0;
 export const EXIT_FAILED = 1;
 export const EXIT_USAGE = 2;
 
-function defaultPrompt(question: string): Promise<string> {
+function defaultPrompt(
+	question: string,
+	options: { signal?: AbortSignal } = {},
+): Promise<string> {
 	return new Promise((resolveAnswer) => {
 		const rl = createInterface({
 			input: process.stdin,
 			output: process.stderr,
 		});
+		const onAbort = () => rl.close();
+		options.signal?.addEventListener("abort", onAbort, { once: true });
 		rl.question(question, (answer) => {
 			rl.close();
 			resolveAnswer(answer);
 		});
-		rl.once("close", () => resolveAnswer(""));
+		rl.once("close", () => {
+			options.signal?.removeEventListener("abort", onAbort);
+			resolveAnswer("");
+		});
 	});
+}
+
+/**
+ * WP29 (parity row 43): the CLI's dynamic-controller approval on a terminal, the port of
+ * pi-workflow's `ctx.ui.confirm` (src/extension.ts `dynamicUiFromContext`): the approval scope on
+ * stderr, then "Run dynamic workflow controller? [y/n]". `y` runs the controller; `n` rejects it for
+ * this run (no re-prompt on resume); no answer (empty line, end of input, or the engine's 5-minute
+ * timeout) leaves it blocked and resumable. Used by foreground `run`/`dynamic`/`wait`/`resume` on a
+ * terminal only; without a terminal, and for `--detach`, the run blocks with the `approve` command.
+ */
+export function cliDynamicUi(
+	io: CliIo,
+): NonNullable<HostApiContext["dynamicUi"]> {
+	const prompt = io.prompt ?? defaultPrompt;
+	return {
+		hasUI: true,
+		host: "cli",
+		confirm: async (title, message, options) => {
+			io.stderr(`\n${message}\n`);
+			const answer = (
+				await prompt(
+					`${title} [y/n] `,
+					options?.signal ? { signal: options.signal } : {},
+				)
+			)
+				.trim()
+				.toLowerCase();
+			if (answer === "y" || answer === "yes") return true;
+			if (answer === "n" || answer === "no") return false;
+			throw new Error("dynamic controller approval was not answered");
+		},
+	};
 }
 
 export function processCliIo(): CliIo {
@@ -669,7 +714,13 @@ export async function runAgentWorkflowCli(
 			);
 		// WP17: the terminal CLI's default executor is the first installed and logged-in of
 		// pi → claude → codex (host "cli").
-		const ctx: HostApiContext = { cwd: io.cwd, env: io.env, host: "cli" };
+		const ctx: HostApiContext = {
+			cwd: io.cwd,
+			env: io.env,
+			host: "cli",
+			// WP29: only a terminal can answer; detached launches/resumes never ask (host API).
+			...(io.isTTY ? { dynamicUi: cliDynamicUi(io) } : {}),
+		};
 		// notices prints its own JSON form (`notices list --json`).
 		const emit: Emit = (result, exitCode) => {
 			if (json && result.action !== "notices")
