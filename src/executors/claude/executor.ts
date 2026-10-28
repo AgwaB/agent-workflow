@@ -235,6 +235,7 @@ export function createClaudeExecutor(options: {
 		schedulePeriodicAdapterStatePrune({
 			stateDir: config.stateDir,
 			classify: classifyClaudeAttemptRecord,
+			attemptDigestLength: 40,
 		});
 		const existingRef = fromLookup(
 			req.attemptKey,

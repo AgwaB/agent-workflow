@@ -675,3 +675,22 @@ its bounded deletion-site scan. The new test file was run against `0da7b0c`'s
 `x.json.123.abcd.tmp`) as orphans; its fixture now uses digest-named orphans and additionally
 asserts that `orphan.log` is kept.
 
+## WP19 round 8
+
+Round-8 confirmation review (gpt-6-astra) of `b69254a`: round-7 fix confirmed for the reported
+names (new tests fail on `0da7b0c`); all adapter naming patterns covered; the test-only load-flake
+changes keep their assertions (the controller-deadline test still fails with worker termination
+disabled; resume-after-stop refusal while the in-process supervisor drains its lease is accepted
+stage-1 behavior — a failed resume leaves the run unchanged). One residual major in the same code:
+the `{32,64}` digest range matched lengths no adapter writes (a 56-hex SHA-224-named directory was
+deleted). Fixed by the parent: `pruneAdapterAttemptState` takes the adapter's exact
+`attemptDigestLength` (Claude 40, Codex 32, Pi 64; without it no orphan is a candidate), passed by
+the three adapters' background prune and by the host `prune` wrapper.
+
+| Finding | Regression test | Fails on `b69254a` |
+|---|---|---|
+| Orphan digest range accepted non-adapter lengths | `executor-wp19r7-retention-identified-orphans.test.mjs` → "round 8: only the adapter's exact digest length is an orphan" (56-hex dir/log and another adapter's length kept; own length removed) | yes |
+
+The round-7 test fixtures now use each adapter's own digest length; the four other retention test
+files pass `attemptDigestLength` explicitly.
+

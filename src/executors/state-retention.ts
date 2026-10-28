@@ -110,6 +110,12 @@ export interface AdapterStatePruneOptions {
 	 * (kept).
 	 */
 	classify: (record: unknown, base: string) => AttemptRecordClass | undefined;
+	/**
+	 * WP19 round 8: the exact hex length of this adapter's attemptKey digest (Claude 40, Codex 32,
+	 * Pi 64). Orphans are recognized only with exactly this length, so other hex-named content
+	 * (e.g. a SHA-224 name) is never an orphan candidate.
+	 */
+	attemptDigestLength: 32 | 40 | 64;
 	retentionMs?: number;
 	nowMs?: number;
 	/** Report what would be removed without removing it. */
@@ -166,12 +172,17 @@ async function mtimeMs(path: string): Promise<number | undefined> {
 }
 
 /**
- * WP19 round 7: a file or directory an adapter writes under `attempts/` — the attemptKey digest
- * (hex: Claude 40, Codex 32, Pi 64 characters) alone (per-attempt directory) or with a companion
- * suffix (`.events.jsonl`, `.log`) or an atomic-write temp suffix (`.json.<pid>[.<hex>].tmp`).
+ * WP19 round 7/8: a file or directory an adapter writes under `attempts/` — its attemptKey digest
+ * (hex, exactly `digestLength` characters: Claude 40, Codex 32, Pi 64) alone (per-attempt
+ * directory) or with a companion suffix (`.events.jsonl`, `.log`) or an atomic-write temp suffix
+ * (`.json.<pid>[.<hex>].tmp`).
  */
-const ADAPTER_ATTEMPT_FILE =
-	/^[0-9a-f]{32,64}(?:\.events\.jsonl|\.log|\.json\.\d+(?:\.[0-9a-f]+)?\.tmp)?$/u;
+function adapterAttemptFile(digestLength: 32 | 40 | 64): RegExp {
+	return new RegExp(
+		`^[0-9a-f]{${digestLength}}(?:\\.events\\.jsonl|\\.log|\\.json\\.\\d+(?:\\.[0-9a-f]+)?\\.tmp)?$`,
+		"u",
+	);
+}
 
 /**
  * Remove terminal attempt records older than the retention window, with their companion files
@@ -321,12 +332,16 @@ export async function pruneAdapterAttemptState(
 		}
 		await remove(recordPath);
 	}
+	// Without a known digest length nothing is an orphan candidate (never guess).
+	const adapterFile = [32, 40, 64].includes(options.attemptDigestLength)
+		? adapterAttemptFile(options.attemptDigestLength)
+		: undefined;
 	// Orphans: companions of an already removed record, interrupted temp files. WP19 round 7:
 	// only names an adapter writes (hex attemptKey digest + a known suffix) are candidates;
 	// anything else in `attempts/` (notes, other tools' files, directories) is never touched.
 	for (const name of entries) {
 		if (name.endsWith(".json")) continue;
-		if (!ADAPTER_ATTEMPT_FILE.test(name)) continue;
+		if (!adapterFile?.test(name)) continue;
 		const base = name
 			.replace(/\.events\.jsonl$/, "")
 			.replace(/\.log$/, "")

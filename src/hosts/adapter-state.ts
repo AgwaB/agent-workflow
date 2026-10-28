@@ -40,6 +40,7 @@ export async function pruneExecutorAdapterState(options: {
 				...common,
 				stateDir: join(root, "claude"),
 				classify: classifyClaudeAttemptRecord,
+				attemptDigestLength: 40,
 			})),
 		},
 		{
@@ -48,6 +49,7 @@ export async function pruneExecutorAdapterState(options: {
 				...common,
 				stateDir: join(root, "codex"),
 				classify: classifyCodexAttemptRecord,
+				attemptDigestLength: 32,
 			})),
 		},
 		{
@@ -56,6 +58,7 @@ export async function pruneExecutorAdapterState(options: {
 				...common,
 				stateDir: piDir,
 				classify: (record) => classifyPiAttemptRecord(piDir, record),
+				attemptDigestLength: 64,
 			})),
 		},
 	];

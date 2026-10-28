@@ -893,6 +893,7 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 		schedulePeriodicAdapterStatePrune({
 			stateDir,
 			classify: classifyCodexAttemptRecord,
+			attemptDigestLength: 32,
 		});
 		// Last step before the effect (R#1).
 		const decision = await req.authority.consume();

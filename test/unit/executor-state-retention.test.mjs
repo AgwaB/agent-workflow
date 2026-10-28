@@ -90,12 +90,17 @@ test("codex: old terminal attempts go with their event log and log dir; active, 
 	const dry = await retention.pruneAdapterAttemptState({
 		stateDir,
 		classify,
+		attemptDigestLength: 32,
 		dryRun: true,
 	});
 	assert.equal(dry.prunedRecords, 2);
 	assert.ok(existsSync(join(a, "done.json")), "dry run removes nothing");
 
-	const done = await retention.pruneAdapterAttemptState({ stateDir, classify });
+	const done = await retention.pruneAdapterAttemptState({
+		stateDir,
+		classify,
+		attemptDigestLength: 32,
+	});
 	assert.equal(done.records, 6);
 	assert.equal(done.prunedRecords, 2);
 	assert.equal(done.keptActive, 3);
@@ -138,6 +143,7 @@ test("claude: revoked and dead-process attempts go with their files dir; pi: onl
 	const c = await retention.pruneAdapterAttemptState({
 		stateDir: claudeDir,
 		classify: claudeState.classifyClaudeAttemptRecord,
+		attemptDigestLength: 40,
 	});
 	assert.equal(c.prunedRecords, 2);
 	assert.deepEqual((await readdir(ca)).sort(), [
@@ -166,6 +172,7 @@ test("claude: revoked and dead-process attempts go with their files dir; pi: onl
 	const p = await retention.pruneAdapterAttemptState({
 		stateDir: piDir,
 		classify: (record) => piState.classifyPiAttemptRecord(piDir, record),
+		attemptDigestLength: 64,
 	});
 	assert.equal(p.prunedRecords, 2);
 	assert.deepEqual((await readdir(pa)).sort(), [
@@ -218,7 +225,11 @@ test("periodic prune on submit: at most once per interval per state dir", async 
 	const a = join(stateDir, "attempts");
 	await put(join(a, "one.json"), codexRecord("one", "terminal"));
 	const classify = codexState.classifyCodexAttemptRecord;
-	retention.schedulePeriodicAdapterStatePrune({ stateDir, classify });
+	retention.schedulePeriodicAdapterStatePrune({
+		stateDir,
+		classify,
+		attemptDigestLength: 32,
+	});
 	const tombstoned = async (name) =>
 		JSON.parse(await readFile(join(a, name), "utf8")).schema ===
 		"agent-workflow-attempt-tombstone-v1";
@@ -227,7 +238,11 @@ test("periodic prune on submit: at most once per interval per state dir", async 
 	assert.equal(await tombstoned("one.json"), true);
 	assert.ok(existsSync(join(stateDir, ".prune-stamp")));
 	await put(join(a, "two.json"), codexRecord("two", "terminal"));
-	retention.schedulePeriodicAdapterStatePrune({ stateDir, classify });
+	retention.schedulePeriodicAdapterStatePrune({
+		stateDir,
+		classify,
+		attemptDigestLength: 32,
+	});
 	await new Promise((done) => setTimeout(done, 200));
 	assert.equal(
 		await tombstoned("two.json"),

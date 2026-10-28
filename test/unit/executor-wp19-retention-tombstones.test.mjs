@@ -54,6 +54,7 @@ const ADAPTERS = {
 			}),
 		base: (key) => createHash("sha256").update(key).digest("hex").slice(0, 40),
 		classify: () => classifyClaudeAttemptRecord,
+		digest: 40,
 		launched: (key) => ({
 			schema: "agent-workflow-claude-attempt-v1",
 			attemptKey: key,
@@ -78,6 +79,7 @@ const ADAPTERS = {
 			createCodexExecutor({ codexPath: "/nonexistent/codex", stateDir }),
 		base: (key) => codexDigest(key),
 		classify: () => classifyCodexAttemptRecord,
+		digest: 32,
 		launched: (key) => ({
 			schema: "agent-workflow-codex-attempt-v1",
 			attemptKey: key,
@@ -98,6 +100,7 @@ const ADAPTERS = {
 		create: (stateDir) =>
 			createPiExecutor({ piCommand: "/nonexistent/pi", stateDir }),
 		base: (key) => piDigest(key),
+		digest: 64,
 		classify: (stateDir) => (record) =>
 			classifyPiAttemptRecord(stateDir, record),
 		launched: (key) => ({
@@ -164,6 +167,7 @@ for (const [name, adapter] of Object.entries(ADAPTERS)) {
 		const pruned = await pruneAdapterAttemptState({
 			stateDir,
 			classify: adapter.classify(stateDir),
+			attemptDigestLength: adapter.digest,
 		});
 		assert.equal(pruned.prunedRecords, 2, JSON.stringify(pruned));
 		assert.equal(
@@ -198,6 +202,7 @@ for (const [name, adapter] of Object.entries(ADAPTERS)) {
 		const again = await pruneAdapterAttemptState({
 			stateDir,
 			classify: adapter.classify(stateDir),
+			attemptDigestLength: adapter.digest,
 			nowMs: Date.now() + 365 * 86_400_000,
 		});
 		assert.equal(again.tombstones, 1);
@@ -219,6 +224,7 @@ test("review #2 (codex): the tombstone keeps the known terminal outcome", async 
 	await pruneAdapterAttemptState({
 		stateDir,
 		classify: classifyCodexAttemptRecord,
+		attemptDigestLength: 32,
 	});
 	const result = await ADAPTERS.codex.create(stateDir).reconcile(key);
 	assert.equal(result.unknown, true);
