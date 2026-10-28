@@ -76,7 +76,8 @@ active returns that run with `outcome: "existing"` instead of starting another (
 refused as `DUPLICATE_LAUNCH_IN_PROGRESS` even if the first launch's lease expired, and a changed saved
 user profile is a new launch); `forceNew: true` starts a new run. The text and
 logs redaction keeps report prose such as `Exit code: 1` and redacts escaped-quote credentials
-(WP19 round 2, `host-api.md`). `workflow_logs` (WP18b), `agent-workflow logs` and Pi's
+(WP19 round 2, `host-api.md`); WP19 round 3: values under credential headers (`Authorization`,
+`x-api-key`, `Cookie`, `*-token`, …) are always redacted, whatever their length. `workflow_logs` (WP18b), `agent-workflow logs` and Pi's
 `/aw logs` call the same `logs` handler.
 
 Annotations: `list`, `status`, `inspect`, `logs`, `validate` are read-only; `run`, `dynamic`, `stop` are

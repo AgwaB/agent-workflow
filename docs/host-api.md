@@ -217,10 +217,14 @@ password containing `\"`) no longer ends it early. WP19 round 2 (N6): prose is t
 credentials. In the `Label: value` form (colon and a space) only a credential key (`password`,
 `token`, `secret`, `*_token`, `*_secret`, `*apikey`, …) or a token-shaped value (≥ 8 characters with a
 digit or `+/=_.~`, or ≥ 24 characters) is redacted, so `Exit code: 1` and `HTTP status code: 403`
-stay; `key=value` and `key:value` assignments are redacted as before. An `Authorization`,
-`Proxy-Authorization`, `Cookie`, `Set-Cookie` or `x-api-key` line is redacted when its value is an
-auth scheme with parameters (`Basic …`, `Bearer …`, `Digest …`, …), a cookie list (`name=…`) or a
-token, not when it is prose (`Authorization: missing on the delete endpoint; …`).
+stay; `key=value` and `key:value` assignments are redacted as before. WP19 round 3 (R1): a value
+under an unequivocal credential header (`Authorization`, `Proxy-Authorization`, `Cookie`,
+`Set-Cookie`, `x-api-key`, `api-key`, `*-token` such as `X-Auth-Token`) is always redacted through
+the end of the line, whatever its length or alphabet (`x-api-key: k3y012` and `Authorization: abc`
+too), as are the credential JSON keys above (`password: abc`). The only prose exception is an
+obvious statement after `Authorization:`/`Proxy-Authorization:`: the first word is `missing`,
+`not`, `none`, `required`, `optional`, … and no word looks like a token
+(`Authorization: missing on the delete endpoint; …` stays). When unsure, it redacts.
 
 ### `wait`
 
