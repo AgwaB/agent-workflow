@@ -97,10 +97,17 @@ test("background retention never removes unrelated old content", async (t) => {
 		stateDir,
 		classify: classifyCodexAttemptRecord,
 	});
-	for (let i = 0; i < 200; i += 1) {
+	// The background pass removes the orphans one by one: wait until all four are gone.
+	const orphans = [
+		`${"a".repeat(32)}.events.jsonl`,
+		`${"b".repeat(40)}.log`,
+		`${"c".repeat(64)}.json.123.0a1b2c3d.tmp`,
+		"d".repeat(40),
+	];
+	for (let i = 0; i < 300; i += 1) {
 		const names = await fs.readdir(dir);
-		if (!names.includes(`${"b".repeat(40)}.log`)) break;
-		await new Promise((resolve) => setTimeout(resolve, 10));
+		if (!orphans.some((name) => names.includes(name))) break;
+		await new Promise((resolve) => setTimeout(resolve, 50));
 	}
 	assert.deepEqual((await fs.readdir(dir)).sort(), KEPT);
 });

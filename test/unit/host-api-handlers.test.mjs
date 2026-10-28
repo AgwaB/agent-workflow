@@ -563,7 +563,19 @@ test("wait is bounded (45 s cap, still-running result); stop then resume complet
 	assert.equal(after.ok, false);
 	assert.equal(after.data.terminal, true);
 
-	const resumed = await api.resumeAction(ctx, { runId: launched.data.runId });
+	// The stopped (attached, in-process) supervisor may still hold its lease for a moment under
+	// load; resume refuses with "another supervisor may be active" until it is released.
+	let resumed;
+	for (let attempt = 0; ; attempt += 1) {
+		try {
+			resumed = await api.resumeAction(ctx, { runId: launched.data.runId });
+			break;
+		} catch (error) {
+			if (attempt >= 50 || !/supervisor lease/.test(String(error?.message)))
+				throw error;
+			await new Promise((resolve) => setTimeout(resolve, 200));
+		}
+	}
 	assertResult(resumed, "resume", "running");
 	assert.ok(resumed.data.resetTaskIds.length >= 1);
 	assert.equal((await settle(ctx, launched.data.runId)).outcome, "completed");
