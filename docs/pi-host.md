@@ -492,5 +492,10 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
   session are not transferred. Under isolation (`--no-approve`) a trusted project's `.pi/mcp.json`
   is not loaded by the worker (pi-workflow loaded it); the recorded project trust is not yet used.
   Not live-verified (live bundle 5).
+- WP33 is verified with fake Pi UI/session objects and the real Pi 1.1 session runtime only, not in
+  a live Pi session (live bundle 5): the `aw_wait` tool result as the presentation (no follow-up
+  message, history confirmation after `/resume`), the widget and the `/aw wait` loader in the TUI
+  (Escape), `message_end` usage totals against Pi's own session usage, and `/skill:aw-workflow-guide`
+  next to pi-workflow's `workflow-guide`.
 - `runtimeDefaults` follow the explicit executor only: a profile that selects a non-Pi executor still
   receives Pi's current model as the lowest-precedence default.
