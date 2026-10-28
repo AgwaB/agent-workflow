@@ -352,16 +352,26 @@ export async function claimLaunch(
 		let done = false;
 		const ours = (current: LaunchClaim | undefined): current is LaunchClaim =>
 			current?.token === token;
+		// At most one renewal at a time: a renewal that waits on a contended mutex (up to the
+		// mutex retry budget) must not let later ticks pile up behind it and starve record/release.
+		let renewing = false;
 		const renew = async () => {
-			if (done) return;
-			await withClaimMutex(file, async () => {
-				const current = await readClaim(file);
-				if (done || !ours(current) || current.runId) return;
-				await writeClaimAtomic(file, {
-					...current,
-					leaseExpiresAt: new Date(now() + LAUNCH_CLAIM_STALE_MS).toISOString(),
-				});
-			}).catch(() => undefined);
+			if (done || renewing) return;
+			renewing = true;
+			try {
+				await withClaimMutex(file, async () => {
+					const current = await readClaim(file);
+					if (done || !ours(current) || current.runId) return;
+					await writeClaimAtomic(file, {
+						...current,
+						leaseExpiresAt: new Date(
+							now() + LAUNCH_CLAIM_STALE_MS,
+						).toISOString(),
+					});
+				}).catch(() => undefined);
+			} finally {
+				renewing = false;
+			}
 		};
 		const timer = setInterval(() => {
 			void renew();

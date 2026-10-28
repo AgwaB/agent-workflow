@@ -150,3 +150,38 @@ test("record/release of a taken-over claim leave the new owner's claim alone", a
 		"workflow_new_owner",
 	);
 });
+
+test("lease renewals never overlap: a slow renewal does not pile up later ticks", async () => {
+	const cwd = await project();
+	const fingerprint = "e".repeat(64);
+	const owner = await guard.claimLaunch(cwd, fingerprint, { renewMs: 5 });
+	assert.equal(owner.kind, "claimed");
+	// Hold the claim's mutex from outside so every renewal has to wait on it.
+	const { acquireDirectoryLock } = await import(
+		"../../dist/runtime/artifacts/dir-lock.js"
+	);
+	const lockPath = join(guard.launchGuardDir(cwd), `${fingerprint}.lock`);
+	const releaseOutside = await acquireDirectoryLock(lockPath, {
+		retries: 0,
+		retryMs: 1,
+	});
+	const lockParent = guard.launchGuardDir(cwd);
+	const { readdir } = await import("node:fs/promises");
+	let maxStaged = 0;
+	const started = Date.now();
+	while (Date.now() - started < 400) {
+		const names = await readdir(lockParent);
+		maxStaged = Math.max(
+			maxStaged,
+			names.filter((name) => name.includes(".lock.") || name.endsWith(".tmp"))
+				.length,
+		);
+		await new Promise((resolve) => setTimeout(resolve, 10));
+	}
+	await releaseOutside();
+	// One waiting renewal stages at most one owner file next to the lock; overlapping renewals
+	// (one per 5 ms tick) would stage dozens.
+	assert.ok(maxStaged <= 2, `overlapping renewals staged ${maxStaged} files`);
+	await owner.record("workflow_after_contention");
+	await owner.release();
+});
