@@ -218,4 +218,5 @@ afterwards on `main` (WP12a, merge `11a1969`; details in [`core-port.md`](core-p
 Final WP12a commit (test temp-root retries, regenerated replay reports): `f393705`. Problem 9's
 offline support table was regenerated per permission mode in WP12b (`4baf08b`); the Codex environment
 warnings themselves depend on the machine. Problems 7 (domain verdict vs run failure) and 8 (tool names
-in task prompts) remain open.
+in task prompts) remain open. Problem 8 was fixed later in WP37 (task prompts rendered per executor,
+docs/core-port.md WP37 change log 1).

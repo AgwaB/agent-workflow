@@ -145,13 +145,15 @@ its cause separately.
 
 | Fixture:variant | Recorded → replayed | Allowed / explained / unexplained | Workers served, reads re-issued |
 |---|---|---|---|
-| minimal:original | completed → completed | 76 / 47 / 0 | 1/1, 0/0 |
-| deep-review:original | completed → completed | 587 / 361 / 0 | 12/12, 1/1 |
-| impact-review:original | failed → failed | 597 / 476 / 0 | 12/12, 31/31 |
-| spec-review:original | failed → failed (divergent) | 293 / 491 / 0 | 5/6, 43/57 |
-| spec-review:state-path-migrated | failed → failed | 335 / 244 / 0 | 6/6, 57/57 |
-| deep-research:original | completed → blocked (expected refusal) | 175 / 2206 / 0 | 1/11, 0/10 |
-| deep-research:engine-only | completed → completed | 579 / 515 / 0 | 11/11, 10/10 |
+| minimal:original | completed → completed | 76 / 40 / 0 | 1/1, 0/0 |
+| minimal:codex (WP37) | completed → completed | 76 / 41 / 0 | 1/1, 0/0 |
+| deep-review:original | completed → completed | 587 / 279 / 0 | 12/12, 1/1 |
+| impact-review:original | failed → failed | 597 / 394 / 0 | 12/12, 31/31 |
+| spec-review:original | failed → failed (divergent) | 292 / 459 / 0 | 5/6, 43/57 |
+| spec-review:state-path-migrated | failed → failed | 334 / 204 / 0 | 6/6, 57/57 |
+| deep-research:original | completed → blocked (expected refusal) | 174 / 2209 / 0 | 1/11, 0/10 |
+| deep-research:engine-only | completed → completed | 578 / 422 / 0 | 11/11, 10/10 |
+| deep-research:engine-only-claude (WP37) | completed → completed | 578 / 431 / 0 | 11/11, 10/10 |
 
 The `allowed` counts vary by a few rows from run to run. Supervisor progress snapshots depend on
 timing, and the digest bindings of timestamped files (read ledgers) show up only when the run's
@@ -203,3 +205,30 @@ Bugs the replay found and fixed (core-port WP1b change log 4 and 5):
    prompt digest, rule `original-spec-review-legacy-state-read`). Both are the documented divergent
    outcomes above. The committed reports were regenerated (`allowed` row counts vary by run, see
    above).
+
+## WP37 change log
+
+1. **Per-executor task prompts** (core-port WP37 change log 1). The `pi` replay executor sees no
+   change: Pi's task-prompt rendering is the WP10 one, so every `original` variant still matches its
+   recording key for key. To check the Claude and Codex renderings against the recordings too:
+   - **Executor variants.** `minimal:codex` and `deep-research:engine-only-claude` register the replay
+     descriptor under `codex` / `claude` (run flag `executor`) with the Pi adapter checks off (they
+     are Pi's). The replay executor then re-keys every recorded prompt with
+     `renderWorkerTaskPromptToolNames(recorded, id)` followed by the literal renames, so a request
+     matches only if it is exactly the recorded prompt rendered for that executor. The serve trace
+     records `rendering: {executor, changed, recorded, rendered}` (sha256 of the Pi and the rendered
+     prompt).
+   - **New explained rule `wp37-per-executor-task-prompt`** (variants `codex`, `engine-only-claude`).
+     `compareReplay({renderedPrompts})` adds one difference `submit-request/<task>.prompt`, kind
+     `executor-rendered`, for each served launch whose rendered prompt differs from the Pi text
+     (minimal:codex 1 — the artifact tool's code-mode note; deep-research:engine-only-claude 9 — the
+     WebSearch/WebFetch/Read/Grep/Glob names). Safe because the row exists only for a launch that was
+     served, that is, proven equal to the recorded prompt under the renderer; any other prompt change
+     still misses and fails the variant. `task.md` and the launch prompt digests stay in the
+     exact-match set and do not differ.
+   - **Extended rule `runtime-backend-executor-id`.** A second pattern, scoped to the same two
+     variants, accepts the foreach batch receipt backend `claude`/`codex` (the resolved backend is
+     the executor id, runtime-port change log 1; deep-research:engine-only-claude has 3 such rows).
+   `replay-acceptance.test.mjs` asserts the full standard for both variants plus the number of
+   `executor-rendered` rows and their executor. Reports regenerated with `--write` (the table above;
+   the earlier `explained` counts were from before the reports were last regenerated).

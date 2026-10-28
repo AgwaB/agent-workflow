@@ -660,7 +660,7 @@
 					"file": "run.json",
 					"kind": "added",
 					"path": "executor",
-					"replayed": "{\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/minimal\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-minimal-original-15937/work/replay-trace.jsonl\"},\"contractVersion\":… (355 chars, sha256 60b34a534e8a)"
+					"replayed": "{\"candidates\":[{\"auth\":\"ok\",\"cliVersion\":\"fake-cli 1.0.0\",\"id\":\"pi\",\"installed\":true,\"usable\":true}],\"descriptor\":{\"config\":{\"fixtureDir\":\"<PKG>/test/replay/fixtures/minimal\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<… (465 chars, sha256 f122de42a26f)"
 				},
 				{
 					"class": "explained",
@@ -679,7 +679,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "b0c128810f168814e517e772c26461afcf1ff177370ceda82dac8cf7e4ddd9ca"
+					"replayed": "a54c7c4d321e1bdcae2e9e86a98c9080cda7bd783883eee3922486ab2b0d1a76"
 				},
 				{
 					"class": "explained",
@@ -699,7 +699,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
 					"taskId": "task-1",
-					"replayed": "83521d179ce57e3ae4607a2ff9a8a381d1edd65f1613a44ceec91e2b1dacc7cb"
+					"replayed": "49b4a5d9064bf04cbd8c62b5fcc794381559107f30d2d9b094ee1b13dd5d74e9"
 				},
 				{
 					"class": "explained",
@@ -709,7 +709,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
 					"taskId": "task-1",
-					"replayed": "6a7350fdb20128f5ef3b965596de7f21ce735421eff7411801b9916766f03960"
+					"replayed": "6d3cd9e25f06433ae584248152ad67a69ed6561a0bf16e1ea275ded200f5bd23"
 				},
 				{
 					"class": "explained",
@@ -719,7 +719,7 @@
 					"kind": "added",
 					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
 					"taskId": "task-1",
-					"replayed": "b0c128810f168814e517e772c26461afcf1ff177370ceda82dac8cf7e4ddd9ca"
+					"replayed": "a54c7c4d321e1bdcae2e9e86a98c9080cda7bd783883eee3922486ab2b0d1a76"
 				},
 				{
 					"class": "explained",
@@ -1049,6 +1049,1065 @@
 					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
 					"file": "tasks/task-1/workflow-artifact-extension.ts",
 					"kind": "only-recorded"
+				}
+			],
+			"exactMatchViolations": [],
+			"exactMatchDivergences": 0
+		},
+		{
+			"fixture": "minimal",
+			"variant": "codex",
+			"description": "The replay registered as executor `codex` (WP37): the task prompt carries the Codex tool-mapping note, and the replay matches it against the recorded prompt rendered the same way (rule wp37-per-executor-task-prompt). The Pi adapter request checks are off (they are Pi's).",
+			"platform": "darwin",
+			"recordedStatus": "completed",
+			"replayedStatus": "completed",
+			"tasks": [
+				{
+					"taskId": "task-1",
+					"specId": "first-heading.main",
+					"status": "completed",
+					"statusDetail": "completed"
+				}
+			],
+			"worker": {
+				"recordedLaunches": 1,
+				"servedLaunches": 1,
+				"unservedLaunches": [],
+				"misses": [],
+				"adapterRefusals": [],
+				"recordedReads": 0,
+				"reissuedReads": 0,
+				"readErrors": [],
+				"unreproducibleReads": [],
+				"readsOverDefaultDeliveryBound": []
+			},
+			"unreproducible": [
+				"Worker CLI stderr (pi-subagent stderr.log, e.g. Pi's session notice): the runtime stderr.log holds runtime diagnostics only; the replay emits no CLI output.",
+				"Worker tool calls other than workflow_artifact reads (read/grep/find/ls on project files, web tools): they only shaped the recorded final text, which is replayed verbatim.",
+				"Pi session files: the replay reports the ownedSession locator the Pi adapter would report but creates no session directory.",
+				"Timing, poll counts, process ids and the Pi provider/model metadata of the recorded attempt (not part of the executor event contract)."
+			],
+			"counts": {
+				"allowed": 76,
+				"explained": 41,
+				"unexplained": 0
+			},
+			"differences": [
+				{
+					"class": "allowed",
+					"rule": "wp4-renamed-literals",
+					"file": "run.json",
+					"kind": "literal-renamed",
+					"literal": "agent-workflow.<WF_RUN_",
+					"count": 4
+				},
+				{
+					"class": "allowed",
+					"rule": "wp4-renamed-literals",
+					"file": "run.json",
+					"kind": "literal-renamed",
+					"literal": ".agent-workflow/workflows",
+					"count": 9
+				},
+				{
+					"class": "allowed",
+					"rule": "wp4-renamed-literals",
+					"file": "run.json",
+					"kind": "literal-renamed",
+					"literal": "agent-workflow/runtime",
+					"count": 2
+				},
+				{
+					"class": "allowed",
+					"rule": "wp4-renamed-literals",
+					"file": "supervisor.json",
+					"kind": "literal-renamed",
+					"literal": ".agent-workflow/workflows",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "wp4-renamed-literals",
+					"file": "tasks/task-1/artifact-access.json",
+					"kind": "literal-renamed",
+					"literal": ".agent-workflow/workflows",
+					"count": 3
+				},
+				{
+					"class": "allowed",
+					"rule": "wp4-renamed-literals",
+					"file": "tasks/task-1/system-prompt.md",
+					"kind": "literal-renamed",
+					"literal": "You are workflow subagent",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "run.json",
+					"path": "tasks[].durableLaunchBarrier.records[].ackSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "run.json",
+					"path": "tasks[].durableLaunchBarrier.records[].decisionSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "derived-launch-identity",
+					"file": "run.json",
+					"path": "tasks[].durableLaunchBarrier.records[].descriptor.ackPath",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "run.json",
+					"path": "tasks[].durableLaunchBarrier.records[].descriptor.challenge",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "run.json",
+					"path": "tasks[].durableLaunchBarrier.records[].descriptor.decisionNonce",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "derived-launch-identity",
+					"file": "run.json",
+					"path": "tasks[].durableLaunchBarrier.records[].descriptor.decisionPath",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "derived-launch-identity",
+					"file": "run.json",
+					"path": "tasks[].durableLaunchBarrier.records[].descriptor.directory",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "run.json",
+					"path": "tasks[].durableLaunchBarrier.records[].descriptor.identitySha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "derived-launch-identity",
+					"file": "run.json",
+					"path": "tasks[].durableLaunchBarrier.records[].descriptor.readyPath",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "derived-launch-identity",
+					"file": "run.json",
+					"path": "tasks[].durableLaunchBarrier.records[].descriptor.subjectSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "run.json",
+					"path": "tasks[].durableLaunchBarrier.records[].executionPlanSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "derived-launch-identity",
+					"file": "run.json",
+					"path": "tasks[].durableLaunchBarrier.records[].launchAuthoritySha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "run.json",
+					"path": "tasks[].durableLaunchBarrier.records[].launchPayloadSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "run.json",
+					"path": "tasks[].durableLaunchBarrier.records[].readySha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "run.json",
+					"path": "tasks[].durableLaunchBarrier.records[].releasePayloadSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "derived-launch-identity",
+					"file": "run.json",
+					"path": "tasks[].launchAuthority.records[].grant.identitySha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "derived-launch-identity",
+					"file": "run.json",
+					"path": "tasks[].launchAuthority.records[].grant.launchBootstrapSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "host-path-digest",
+					"file": "run.json",
+					"path": "tasks[].launchBootstrap.records[].artifacts.configSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "host-path-digest",
+					"file": "run.json",
+					"path": "tasks[].launchBootstrap.records[].effectiveLaunch.artifactBinding.manifestPathSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "host-path-digest",
+					"file": "run.json",
+					"path": "tasks[].launchBootstrap.records[].effectivePolicy.cwdSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "state-root-identity",
+					"file": "run.json",
+					"path": "tasks[].launchBootstrap.records[].effectivePolicy.stateRootSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "host-path-digest",
+					"file": "run.json",
+					"path": "tasks[].launchBootstrap.records[].effectivePolicy.toolProvidersSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "derived-launch-identity",
+					"file": "run.json",
+					"path": "tasks[].launchBootstrap.records[].identitySha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "host-path-digest",
+					"file": "run.json",
+					"path": "tasks[].launchBootstrap.records[].workflow.specPathSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "timestamp-derived-digest",
+					"file": "run.json",
+					"path": "tasks[].rawArtifactIntegrity.owner",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "host-path-file-size",
+					"file": "run.json",
+					"path": "tasks[].rawArtifactIntegrity.terminalVersion.size",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ack-v2.json",
+					"path": "ackSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ack-v2.json",
+					"path": "barrierIdentitySha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ack-v2.json",
+					"path": "challenge",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ack-v2.json",
+					"path": "decisionNonce",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ack-v2.json",
+					"path": "decisionSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ack-v2.json",
+					"path": "readySha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ack-v2.json.txn",
+					"path": "ackSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ack-v2.json.txn",
+					"path": "barrierIdentitySha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ack-v2.json.txn",
+					"path": "challenge",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ack-v2.json.txn",
+					"path": "decisionNonce",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ack-v2.json.txn",
+					"path": "decisionSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ack-v2.json.txn",
+					"path": "readySha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/decision-v2.json",
+					"path": "barrierIdentitySha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/decision-v2.json",
+					"path": "challenge",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/decision-v2.json",
+					"path": "decisionNonce",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/decision-v2.json",
+					"path": "decisionSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/decision-v2.json",
+					"path": "readySha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/decision-v2.json",
+					"path": "releasePayloadSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "derived-launch-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/decision-v2.json",
+					"path": "subjectSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/decision-v2.json.txn",
+					"path": "barrierIdentitySha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/decision-v2.json.txn",
+					"path": "challenge",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/decision-v2.json.txn",
+					"path": "decisionNonce",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/decision-v2.json.txn",
+					"path": "decisionSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/decision-v2.json.txn",
+					"path": "readySha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/decision-v2.json.txn",
+					"path": "releasePayloadSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "derived-launch-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/decision-v2.json.txn",
+					"path": "subjectSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ready-v2.json",
+					"path": "barrierIdentitySha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ready-v2.json",
+					"path": "challenge",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ready-v2.json",
+					"path": "decisionNonce",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ready-v2.json",
+					"path": "executionPlanSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ready-v2.json",
+					"path": "launchPayloadSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ready-v2.json",
+					"path": "readySha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "derived-launch-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ready-v2.json",
+					"path": "subjectSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ready-v2.json.txn",
+					"path": "barrierIdentitySha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ready-v2.json.txn",
+					"path": "challenge",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ready-v2.json.txn",
+					"path": "decisionNonce",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ready-v2.json.txn",
+					"path": "executionPlanSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ready-v2.json.txn",
+					"path": "launchPayloadSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "runtime-launch-barrier-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ready-v2.json.txn",
+					"path": "readySha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "derived-launch-identity",
+					"file": "tasks/task-1/.launch-barrier-<ALLOWED:derived-launch-identity#*:16>-<RAND16>/ready-v2.json.txn",
+					"path": "subjectSha256",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "timestamp-derived-digest",
+					"file": "tasks/task-1/result.json",
+					"path": "rawIntegrity.owner",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "allowed",
+					"rule": "host-path-file-size",
+					"file": "tasks/task-1/result.json",
+					"path": "rawIntegrity.terminalVersion.size",
+					"kind": "digest-renamed",
+					"count": 1
+				},
+				{
+					"class": "explained",
+					"rule": "run-permission-mode",
+					"citation": "docs/core-port.md WP4e permission modes; docs/permissions.md",
+					"file": "compiled.json",
+					"kind": "added",
+					"path": "permissionMode",
+					"replayed": "free"
+				},
+				{
+					"class": "explained",
+					"rule": "run-capability-negotiation",
+					"citation": "docs/core-port.md \"WP4d — capability negotiation before launch\"",
+					"file": "run.json",
+					"kind": "added",
+					"path": "capabilityNegotiation",
+					"replayed": "{\"capabilities\":{\"cancel\":{\"detail\":\"interrupt\",\"level\":\"native\",\"source\":\"declared\"},\"context\":\"agent\",\"contextIsolation\":{\"level\":\"native\",\"source\":\"declared\"},\"effortLevels\":[\"low\",\"medium\",\"high\"],\"fastTier\":{\"level\":\"none\",\"source\":\"de… (3084 chars, sha256 fe9183990329)"
+				},
+				{
+					"class": "explained",
+					"rule": "run-executor-record",
+					"citation": "docs/core-port.md WP4c-1 \"Executor selection\" and change log 11",
+					"file": "run.json",
+					"kind": "added",
+					"path": "executor",
+					"replayed": "{\"descriptor\":{\"config\":{\"adapterChecks\":false,\"fixtureDir\":\"<PKG>/test/replay/fixtures/minimal\",\"id\":\"codex\",\"roots\":{\"HOME\":\"<HOME>\",\"PKG\":[\"<PKG>\"],\"ROOT\":\"<ROOT>\",\"TMP\":\"<TMP>\"},\"traceLog\":\"<TMP>/awr-acc-minimal-codex-13307/work/replay-… (394 chars, sha256 1359b1b67c61)"
+				},
+				{
+					"class": "explained",
+					"rule": "run-permission-mode",
+					"citation": "docs/core-port.md WP4e permission modes; docs/permissions.md",
+					"file": "run.json",
+					"kind": "added",
+					"path": "permissionMode",
+					"replayed": "{\"mode\":\"free\",\"source\":\"default\"}"
+				},
+				{
+					"class": "explained",
+					"rule": "artifact-mcp-provenance",
+					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
+					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[0].launchBootstrap.records[0].artifacts.serverSpecSha256",
+					"taskId": "task-1",
+					"replayed": "ce7e281ad8d71af15cea2b47ae448e41ca8b5e0624c6a15055775ae36061c67f"
+				},
+				{
+					"class": "explained",
+					"rule": "artifact-mcp-provenance",
+					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "tasks[0].launchBootstrap.records[0].artifacts.wrapperSha256",
+					"taskId": "task-1",
+					"recorded": "a25d9d0ffad76dcd1929cf3a932be7a38410da1095b27308fc4be62c61d68f95"
+				},
+				{
+					"class": "explained",
+					"rule": "artifact-mcp-provenance",
+					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
+					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configBytesSha256",
+					"taskId": "task-1",
+					"replayed": "b3626b56f321610e4909599647c500a6c4000dbecf778b80784540bbd3b44afe"
+				},
+				{
+					"class": "explained",
+					"rule": "artifact-mcp-provenance",
+					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
+					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.configPathSha256",
+					"taskId": "task-1",
+					"replayed": "8f03e3b7a5f3d986b6e0b6b1e53f3e54374a4856749c2ed575e7555b79b3dd53"
+				},
+				{
+					"class": "explained",
+					"rule": "artifact-mcp-provenance",
+					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
+					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.serverSpecSha256",
+					"taskId": "task-1",
+					"replayed": "ce7e281ad8d71af15cea2b47ae448e41ca8b5e0624c6a15055775ae36061c67f"
+				},
+				{
+					"class": "explained",
+					"rule": "artifact-mcp-provenance",
+					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperBytesSha256",
+					"taskId": "task-1",
+					"recorded": "a25d9d0ffad76dcd1929cf3a932be7a38410da1095b27308fc4be62c61d68f95"
+				},
+				{
+					"class": "explained",
+					"rule": "artifact-mcp-provenance",
+					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.artifactBinding.wrapperPathSha256",
+					"taskId": "task-1",
+					"recorded": "1c571feaba54d772deca047a1a5a89af80dae392002c11a3c85612d924ab22f4"
+				},
+				{
+					"class": "explained",
+					"rule": "artifact-mcp-provenance",
+					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.extensions[0]",
+					"taskId": "task-1",
+					"recorded": "{\"pathSha256\":\"1c571feaba54d772deca047a1a5a89af80dae392002c11a3c85612d924ab22f4\"}"
+				},
+				{
+					"class": "explained",
+					"rule": "artifact-mcp-provenance",
+					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "tasks[0].launchBootstrap.records[0].effectiveLaunch.noExtensions",
+					"taskId": "task-1",
+					"recorded": "true"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-exit-code",
+					"citation": "docs/core-port.md WP1b change log 1",
+					"file": "run.json",
+					"kind": "changed",
+					"path": "tasks[0].rawArtifactIntegrity.terminal.exitCode",
+					"taskId": "task-1",
+					"recorded": "0",
+					"replayed": "null"
+				},
+				{
+					"class": "allowed",
+					"rule": "executor-record-source",
+					"file": "run.json",
+					"kind": "changed",
+					"path": "tasks[0].timing.attempts[0].source",
+					"taskId": "task-1",
+					"recorded": "pi-subagent",
+					"replayed": "executor"
+				},
+				{
+					"class": "explained",
+					"rule": "runtime-stderr",
+					"citation": "docs/runtime-port.md \"Attempt artifacts\" (stderr.log: runtime diagnostics, empty on a clean completion)",
+					"file": "run.json",
+					"kind": "changed",
+					"path": "tasks[0].timing.terminalStderrBytes",
+					"taskId": "task-1",
+					"recorded": "126",
+					"replayed": "0"
+				},
+				{
+					"class": "explained",
+					"rule": "runtime-cost-rounding",
+					"citation": "docs/core-port.md WP1b change log 3",
+					"file": "run.json",
+					"kind": "changed",
+					"path": "tasks[0].usage.aggregate.costUsd",
+					"taskId": "task-1",
+					"recorded": "0.013680000000000001",
+					"replayed": "0.01368"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "tasks[0].usage.aggregate.reasoningTokens",
+					"taskId": "task-1",
+					"recorded": "24"
+				},
+				{
+					"class": "explained",
+					"rule": "runtime-cost-rounding",
+					"citation": "docs/core-port.md WP1b change log 3",
+					"file": "run.json",
+					"kind": "changed",
+					"path": "tasks[0].usage.attempts[0].costUsd",
+					"taskId": "task-1",
+					"recorded": "0.013680000000000001",
+					"replayed": "0.01368"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "tasks[0].usage.attempts[0].model",
+					"taskId": "task-1",
+					"recorded": "gpt-6.1-sol"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "tasks[0].usage.attempts[0].provider",
+					"taskId": "task-1",
+					"recorded": "openai-codex"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "tasks[0].usage.attempts[0].raw.cacheRead",
+					"taskId": "task-1",
+					"recorded": "0"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[0].usage.attempts[0].raw.cached",
+					"taskId": "task-1",
+					"replayed": "0"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
+					"kind": "changed",
+					"path": "tasks[0].usage.attempts[0].raw.cost",
+					"taskId": "task-1",
+					"recorded": "{\"cacheRead\":0,\"cacheWrite\":0,\"input\":0.012629999999999999,\"output\":0.0010500000000000002,\"total\":0.013680000000000001}",
+					"replayed": "0.01368"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[0].usage.attempts[0].raw.events",
+					"taskId": "task-1",
+					"replayed": "1"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "tasks[0].usage.attempts[0].raw.reasoning",
+					"taskId": "task-1",
+					"recorded": "24"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[0].usage.attempts[0].raw.source",
+					"taskId": "task-1",
+					"replayed": "estimated"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
+					"kind": "added",
+					"path": "tasks[0].usage.attempts[0].raw.total",
+					"taskId": "task-1",
+					"replayed": "6420"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "tasks[0].usage.attempts[0].raw.totalTokens",
+					"taskId": "task-1",
+					"recorded": "6420"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "tasks[0].usage.attempts[0].reasoningTokens",
+					"taskId": "task-1",
+					"recorded": "24"
+				},
+				{
+					"class": "explained",
+					"rule": "runtime-cost-rounding",
+					"citation": "docs/core-port.md WP1b change log 3",
+					"file": "run.json",
+					"kind": "changed",
+					"path": "tasks[0].usage.costUsd",
+					"taskId": "task-1",
+					"recorded": "0.013680000000000001",
+					"replayed": "0.01368"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "tasks[0].usage.model",
+					"taskId": "task-1",
+					"recorded": "gpt-6.1-sol"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "tasks[0].usage.provider",
+					"taskId": "task-1",
+					"recorded": "openai-codex"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-usage-contract",
+					"citation": "docs/core-port.md WP1b change log 2",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "tasks[0].usage.reasoningTokens",
+					"taskId": "task-1",
+					"recorded": "24"
+				},
+				{
+					"class": "allowed",
+					"rule": "executor-record-source",
+					"file": "run.json",
+					"kind": "changed",
+					"path": "tasks[0].usage.source",
+					"taskId": "task-1",
+					"recorded": "pi-subagent",
+					"replayed": "executor"
+				},
+				{
+					"class": "explained",
+					"rule": "runtime-cost-rounding",
+					"citation": "docs/core-port.md WP1b change log 3",
+					"file": "run.json",
+					"kind": "changed",
+					"path": "usage.costUsd",
+					"recorded": "0.013680000000000001",
+					"replayed": "0.01368"
+				},
+				{
+					"class": "explained",
+					"rule": "run-usage-unknown-not-zero",
+					"citation": "docs/core-port.md WP12a change log 2",
+					"file": "run.json",
+					"kind": "removed",
+					"path": "usage.reasoningTokens",
+					"recorded": "24"
+				},
+				{
+					"class": "explained",
+					"rule": "artifact-mcp-provenance",
+					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
+					"file": "tasks/task-1/artifact-access.json",
+					"kind": "only-replayed"
+				},
+				{
+					"class": "explained",
+					"rule": "executor-exit-code",
+					"citation": "docs/core-port.md WP1b change log 1",
+					"file": "tasks/task-1/result.json",
+					"kind": "changed",
+					"path": "rawIntegrity.terminal.exitCode",
+					"recorded": "0",
+					"replayed": "null"
+				},
+				{
+					"class": "explained",
+					"rule": "runtime-stderr",
+					"citation": "docs/runtime-port.md \"Attempt artifacts\" (stderr.log: runtime diagnostics, empty on a clean completion)",
+					"file": "tasks/task-1/stderr.log",
+					"kind": "changed",
+					"line": 1,
+					"recorded": "Warning: No project session found with id 'pi-workflow.<WF_RUN_1>.task-1'; creating a new session with that id.",
+					"replayed": ""
+				},
+				{
+					"class": "explained",
+					"rule": "wp10-artifact-tool-guidelines",
+					"citation": "docs/core-port.md WP10 change log 2",
+					"file": "tasks/task-1/system-prompt.md",
+					"kind": "changed",
+					"line": 8,
+					"recorded": "",
+					"replayed": "# Workflow Artifact Tool\n- Use workflow_artifact to inspect upstream workflow artifacts when the workflow prompt lists available sources or required reads.\n- Call workflow_artifact with action=list to see visible source names before reading… (676 chars, sha256 7b05bb24effe)"
+				},
+				{
+					"class": "explained",
+					"rule": "artifact-mcp-provenance",
+					"citation": "docs/core-port.md WP4b change log 4 and \"What launch provenance digests now\"; WP4c-1 \"Pi executor (WP6)\" table (extension isolation, generated extension wrappers)",
+					"file": "tasks/task-1/workflow-artifact-extension.ts",
+					"kind": "only-recorded"
+				},
+				{
+					"class": "explained",
+					"rule": "wp37-per-executor-task-prompt",
+					"citation": "docs/core-port.md WP37 change log 1 (stage-1 open problem 8)",
+					"file": "submit-request/task-1.prompt",
+					"kind": "executor-rendered",
+					"recorded": "pi sha256:0f6b5e35ddcff8f3485027157b0e960018ecdee235c8d4d201500b8da69d2b70",
+					"replayed": "codex sha256:4a2b0fed85a6e2f02e2e89ddeba163aa2800915dc92819ac53f6d80b02ba83c6"
 				}
 			],
 			"exactMatchViolations": [],

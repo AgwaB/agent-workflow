@@ -1526,3 +1526,31 @@ unexplained differences in every variant. Every new test that spawns a process k
    the scanner misses or over-flags. Test: `release-secret-scan.test.mjs` (self-test, rule names,
    unquoted code expressions, the shipped `src`/`dist`/`docs`/`skills`/`workflows`/`agents` text has
    no finding).
+
+## WP37 — engine open items (per-executor task prompts, resume after stop, Claude reconcile, profile precedence)
+
+### WP37 change log
+
+1. **Task prompts are rendered per executor** (stage-1 open problem 8, live bundle 3). Until now only
+   the system prompt got the M17 tool mapping; task prompts named Pi's tools (`read/grep/find/ls`,
+   `web_search`, `fetch_content`). `launchSubagentTask` now sends
+   `renderWorkerTaskPromptToolNames(compiledPrompt, executor.id)` (`src/core/artifact-tool-names.ts`):
+   - **Pi** (and unknown executors): unchanged, only the artifact tool's visible name (WP10).
+   - **Claude:** the logical names become Claude's tool names inline (`WORKER_TASK_TOOL_RENAMES`, the
+     adapter's mapping): `web_search` → `WebSearch` and `fetch_content` → `WebFetch` anywhere;
+     `read`/`grep`/`find`/`ls`/`bash`/`edit`/`write` inside a tool list (`read/grep/find/ls` →
+     `Read/Grep/Glob`, `filesystem read, grep, find, or ls` → `filesystem Read, Grep, or Glob`;
+     duplicates collapse). `read`, `find`, `edit`, `write` outside a list are prose and stay.
+   - **Codex:** its tools have no names a sentence could use instead (shell commands, the hosted
+     `web_search`), so the logical names stay and the M17 note (`workerToolMappingNote`, the same
+     text as in the system prompt) for the mentioned tools is appended, plus the code-mode form of
+     the artifact tool when the prompt names it: "call mcp__workflow_artifact__workflow_artifact as
+     tools.mcp__workflow_artifact__workflow_artifact(…)" (live 4b: Codex 0.159.2 runs the model in
+     code mode).
+   - A tool named outside a list (`grep`, `ls`, `bash`) is not renamed; the note maps it (Claude too).
+   `task.md` and the launch provenance keep the canonical text. Replay: the replay executor re-keys
+   the recorded prompts with the same renderer when it is registered under another id, and the new
+   variants `minimal:codex` and `deep-research:engine-only-claude` show every launch matched; each
+   rendered launch is one `explained` row of rule `wp37-per-executor-task-prompt` (docs/replay.md
+   "WP37"). Tests: `core-wp37-task-prompt-tools.test.mjs` (renderer per executor, task backend with
+   fixture executors registered as `pi`, `claude`, `codex`), `replay-acceptance.test.mjs`.

@@ -41,6 +41,12 @@ function assertFullReplay(name, report) {
 	assert.deepEqual(report.worker.unreproducibleReads, [], label);
 }
 
+/** WP37 per-executor variants: executor and launches whose rendered task prompt differs from Pi's. */
+const PER_EXECUTOR = {
+	"minimal:codex": { executor: "codex", rendered: 1 },
+	"deep-research:engine-only-claude": { executor: "claude", rendered: 9 },
+};
+
 function divergentRows(report, rule) {
 	return report.differences.filter(
 		(row) => row.class === "explained" && row.rule === rule,
@@ -154,6 +160,23 @@ for (const name of listFixtureNames(FIXTURES_ROOT)) {
 			);
 			if (DIVERGENT.has(key)) CHECKS[key](report);
 			else assertFullReplay(name, report);
+			if (Object.hasOwn(PER_EXECUTOR, key)) {
+				// WP37: the task prompts went out in the executor's vocabulary and still matched.
+				const rows = divergentRows(report, "wp37-per-executor-task-prompt");
+				assert.equal(rows.length, PER_EXECUTOR[key].rendered, key);
+				for (const row of rows) {
+					assert.equal(row.kind, "executor-rendered", key);
+					assert.match(row.recorded, /^pi sha256:[0-9a-f]{64}$/u, key);
+					assert.match(
+						row.replayed,
+						new RegExp(
+							`^${PER_EXECUTOR[key].executor} sha256:[0-9a-f]{64}$`,
+							"u",
+						),
+						key,
+					);
+				}
+			}
 		}
 		if (result.variants.every((report) => report.skipped))
 			t.skip(`fixture pins a ${loaded.fixture.replayRootPlatform} replay root`);

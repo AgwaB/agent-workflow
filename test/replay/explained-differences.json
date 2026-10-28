@@ -203,7 +203,7 @@
 		{
 			"id": "runtime-backend-executor-id",
 			"citation": "docs/runtime-port.md change log 1 (Backends: a resolved backend is the executor id)",
-			"reason": "The foreach batch receipt records the runtime result's backend. pi-subagent resolved the backend to \"headless\"; in the runtime a resolved backend is the executor id (the replay executor stands in for \"pi\").",
+			"reason": "The foreach batch receipt records the runtime result's backend. pi-subagent resolved the backend to \"headless\"; in the runtime a resolved backend is the executor id (the replay executor stands in for \"pi\"; in the WP37 per-executor variants it is registered as \"claude\" or \"codex\").",
 			"differences": [
 				{
 					"file": "^foreach-batches/[0-9a-f]{64}/receipt-attempt-[0-9]+\\.json$",
@@ -211,6 +211,14 @@
 					"kind": "changed",
 					"recorded": "^headless$",
 					"replayed": "^pi$"
+				},
+				{
+					"file": "^foreach-batches/[0-9a-f]{64}/receipt-attempt-[0-9]+\\.json$",
+					"path": "^backend\\.backend$",
+					"kind": "changed",
+					"recorded": "^headless$",
+					"replayed": "^(?:claude|codex)$",
+					"variants": ["codex", "engine-only-claude"]
 				}
 			]
 		},
@@ -293,6 +301,18 @@
 					"file": "^(run|compiled)\\.json$",
 					"path": "^permissionMode$",
 					"kind": "added"
+				}
+			]
+		},
+		{
+			"id": "wp37-per-executor-task-prompt",
+			"citation": "docs/core-port.md WP37 change log 1 (stage-1 open problem 8)",
+			"reason": "The task backend renders task prompts per executor (renderWorkerTaskPromptToolNames): Claude gets its tool names inline (WebSearch, WebFetch, Read/Grep/Glob), Codex keeps the logical names and gets the M17 tool-mapping note and the code-mode form of the artifact tool; Pi is unchanged. task.md and the launch prompt digests keep the canonical text, so only the SubmitRequest prompt differs. A difference of this kind exists only for a launch the replay executor served, which proves the request equals the recorded prompt rendered for that executor; any other prompt change still misses.",
+			"variants": ["codex", "engine-only-claude"],
+			"differences": [
+				{
+					"file": "^submit-request/[^/]+\\.prompt$",
+					"kind": "executor-rendered"
 				}
 			]
 		}

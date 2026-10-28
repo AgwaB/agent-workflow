@@ -61,6 +61,20 @@ export const VARIANTS = {
 				"The replay executor skips the Pi adapter's tool-mapping check, so the recorded workers are served although the original spec asks for the removed workflow_web_* tools. Shows how far the engine itself reproduces the recording past the C2 refusal.",
 			options: { adapterChecks: false },
 		},
+		{
+			id: "engine-only-claude",
+			description:
+				"As engine-only, with the replay registered as executor `claude` (WP37): the task prompts are sent in Claude's tool vocabulary (WebSearch, WebFetch, Read/Grep/Glob), and the replay matches them against the recorded prompts rendered the same way (rule wp37-per-executor-task-prompt).",
+			options: { adapterChecks: false, executorId: "claude" },
+		},
+	],
+	minimal: [
+		{
+			id: "codex",
+			description:
+				"The replay registered as executor `codex` (WP37): the task prompt carries the Codex tool-mapping note, and the replay matches it against the recorded prompt rendered the same way (rule wp37-per-executor-task-prompt). The Pi adapter request checks are off (they are Pi's).",
+			options: { adapterChecks: false, executorId: "codex" },
+		},
 	],
 };
 
@@ -253,6 +267,9 @@ async function runFixtureVariantInProcess(name, variant, options = {}) {
 				roots: result.roots,
 				fixture: name,
 				variant: variant.id,
+				renderedPrompts: result.trace.filter(
+					(entry) => entry.type === "serve" && entry.rendering !== undefined,
+				),
 				recordedRoots:
 					loaded.fixture.replayRoot === undefined
 						? undefined

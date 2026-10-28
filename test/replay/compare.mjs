@@ -527,6 +527,7 @@ export function compareReplay({
 	fixture,
 	variant,
 	recordedRoots,
+	renderedPrompts = [],
 	allowed = loadAllowedDifferences(undefined, { replay: true }),
 	explained = loadExplainedDifferences(),
 }) {
@@ -682,6 +683,17 @@ export function compareReplay({
 			recordedTasks[Number(index)]?.taskId ??
 			replayedTasks[Number(index)]?.taskId;
 	}
+	// WP37: a launch served to a non-pi replay executor matched the recorded prompt rendered for that
+	// executor (replay-executor.mjs re-keys the recording with renderWorkerTaskPromptToolNames). Its
+	// SubmitRequest prompt differs from the Pi text; each such launch is one difference here.
+	for (const served of renderedPrompts)
+		if (served.rendering?.changed === true)
+			differences.push({
+				file: `submit-request/${served.taskId}.prompt`,
+				kind: "executor-rendered",
+				a: `pi sha256:${served.rendering.recorded}`,
+				b: `${served.rendering.executor} sha256:${served.rendering.rendered}`,
+			});
 	const classified = differences.map((diff) => {
 		const result = classify(diff, allowed, explained, { fixture, variant });
 		return {
