@@ -59,7 +59,7 @@ const loop = {
 };
 async function fixture(t, controller, dynamic, helpers = {}) {
 	const dir = await mkdtemp(join(tmpdir(), "piwf-dynamic-regression-"));
-	t.after(() => rm(dir, { recursive: true, force: true }));
+	t.after(() => rm(dir, { recursive: true, force: true, maxRetries: 10 }));
 	h.captureSubagentPrompts([]);
 	h.writeAgent(dir, "unit-scout", "read");
 	const bundle = join(dir, "bundle");
@@ -158,7 +158,7 @@ test("executable IDs reject engine truncation, reserved IDs and prior-task colli
 
 test("invalid decision attempts retain immutable distinct event-linked raw and validation artifacts across replay", async (t) => {
 	const cwd = await mkdtemp(join(tmpdir(), "piwf-decisions-"));
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() => rm(cwd, { recursive: true, force: true, maxRetries: 10 }));
 	const base = {
 		cwd,
 		run: { runId: "workflow_invalid" },
