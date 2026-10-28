@@ -105,7 +105,7 @@ test("workflow-guide owns authoring detail while execution-router permits bounde
 	// `workflow_run`/`workflow_dynamic`/`/workflow …` (agent-workflow has no `auto`).
 	assert.match(
 		router,
-		/Never invoke `aw_run`, `aw_dynamic`, `\/aw run`, `\/aw dynamic`, `\/aw resume`, or the matching `agent-workflow` CLI commands/,
+		/Never invoke `aw_run`, `aw_dynamic`, `\/aw run`, `\/aw dynamic`, `\/aw resume`, `\/aw approve`, or the matching `agent-workflow` CLI commands/,
 	);
 	assert.doesNotMatch(router, /\/workflow\b|workflow_(list|run|dynamic)/);
 	assert.match(router, /separate authoring needed/i);

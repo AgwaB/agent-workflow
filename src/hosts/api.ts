@@ -4,11 +4,22 @@
 // docs/host-api.md. Logic ported from pi-workflow 0.16.4 (b83cc4f) src/extension.ts and src/cli.mjs
 // (see each module's header). WP17: `doctor` (doctor.ts) and the optional HostApiContext.host.
 // WP16: the duplicate-launch guard covers detached launches (launch-guard.ts, outcome `existing`)
-// and the `logs` action (logs.ts).
+// and the `logs` action (logs.ts). WP29: the `approve` action (approve.ts) answers a dynamic-controller
+// approval a run is blocked on.
 import { showWorkflowSpecAction } from "./catalog.js";
 import { showRunAction } from "./runs.js";
 import type { HostApiContext, HostResult } from "./types.js";
 
+export {
+	type ApproveData,
+	type ApproveRequest,
+	approveAction,
+	DYNAMIC_REJECT_TITLE,
+} from "./approve.js";
+export {
+	DYNAMIC_APPROVAL_TITLE,
+	type PendingDynamicApproval,
+} from "../core/dynamic-approval.js";
 export {
 	HostUsageError,
 	isThinkingLevel,
