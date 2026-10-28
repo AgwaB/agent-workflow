@@ -524,6 +524,8 @@ test("Pi-only options: fast tier, tool-result budget, inheritHostTools go into t
 		model: "gpt-5.5",
 		api: "openai-responses",
 		serviceTier: "priority",
+		// WP35: the fast-tier guard reports into the attempt dir.
+		statePath: join(artifactsDir, "pi-fast-tier.json"),
 	});
 	assert.deepEqual(config.toolResultBudget, {
 		maxTotalChars: 1000,

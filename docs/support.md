@@ -90,7 +90,9 @@ Each adapter document has the full list under "Known limits".
   user-MCP inheritance is a separate opt-in (B6). Offline only; live check pending (live bundle 5).
 - Cost is Pi's catalog estimate (`source: estimated`), also on a subscription. (Fixed in WP12a: usage
   now carries cache-write tokens and the serving model, so Pi tasks record their model.)
-- Fast tier unverified.
+- Fast tier unverified: the provider-stream guard is ported (WP35; guard failure → `config`,
+  degrade → `payload-only`, reported in `pi-fast-tier.json`) and tested offline with fake provider
+  streams; it runs only with `allowUnverifiedCapabilities: ["fastTier"]` until a live check.
 
 **Codex** ([`executors/codex.md`](executors/codex.md#known-limits))
 

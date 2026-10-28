@@ -58,8 +58,10 @@ import {
 import { type PiExecutorConfig, parsePiExecutorConfig } from "./config.js";
 import { PiEventNormalizer, PiJsonlSplitter } from "./parse.js";
 import {
+	PI_FAST_TIER_STATE_FILE,
 	PI_PARENT_WATCH_FD,
 	PI_RUN_SECRETS_ENV,
+	type PiFastTierState,
 	type PiRunConfig,
 	piRunExtensionSource,
 } from "./run-extension.js";
@@ -243,6 +245,62 @@ export function parsePiWebAccessPath(text: string): string | null {
 			if (path?.startsWith("/")) return path;
 		}
 	return null;
+}
+
+/** WP35: the fast-tier guard report of an attempt (`pi-fast-tier.json`), if the extension wrote one. */
+export async function readPiFastTierState(
+	runDir: string,
+): Promise<PiFastTierState | undefined> {
+	try {
+		const value = JSON.parse(
+			await readFile(join(runDir, PI_FAST_TIER_STATE_FILE), "utf8"),
+		) as PiFastTierState;
+		return value?.schema === "agent-workflow-pi-fast-tier-v1"
+			? value
+			: undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * WP35: a fast-tier guard failure (binding mismatch → request aborted) is a configuration
+ * failure of the attempt, reported with the guard's reason instead of Pi's generic abort.
+ * Degradation (`payload-only`) does not change the outcome; it stays in the state file and stderr.
+ */
+export function piFastTierOutcome(
+	event: ExecEvent,
+	state: PiFastTierState | undefined,
+): ExecEvent {
+	if (state?.status !== "failed" || event.type === "approval_request")
+		return event;
+	if (event.type === "failed" && event.class === "cancelled") return event;
+	const message = `fast tier failed: ${state.reason ?? "binding check failed"}`;
+	if (event.type === "failed")
+		return {
+			...event,
+			class: "config",
+			message,
+			raw: {
+				...(typeof event.raw === "object" &&
+				event.raw !== null &&
+				!Array.isArray(event.raw)
+					? event.raw
+					: {}),
+				message,
+			},
+		};
+	if (event.type === "completed")
+		return {
+			type: "failed",
+			class: "config",
+			message,
+			raw: { message },
+			...(event.ownedSession === undefined
+				? {}
+				: { ownedSession: event.ownedSession }),
+		};
+	return event;
 }
 
 function killGroup(pid: number | undefined, signal: NodeJS.Signals): void {
@@ -547,6 +605,14 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 		const runConfig: PiRunConfig = {
 			...baseRunConfig,
 			mcpLogPath: join(runDir, PI_MCP_LOG_FILE),
+			...(baseRunConfig.fastTier === undefined
+				? {}
+				: {
+						fastTier: {
+							...baseRunConfig.fastTier,
+							statePath: join(runDir, PI_FAST_TIER_STATE_FILE),
+						},
+					}),
 			...(budget === undefined
 				? {}
 				: {
@@ -722,7 +788,14 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 				await queueRecord(() =>
 					store.write({ ...spawnedRecord, phase: "exited", exit }),
 				);
-				emit(run, normalizer.finish({ ...exit, stderr }));
+				const fastState =
+					runConfig.fastTier === undefined
+						? undefined
+						: await readPiFastTierState(runDir);
+				emit(
+					run,
+					piFastTierOutcome(normalizer.finish({ ...exit, stderr }), fastState),
+				);
 			})();
 		});
 		await spawnedWrite;
@@ -757,10 +830,17 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 			() => "",
 		);
 		events.push(
-			normalizer.finish({
-				...(record.exit ?? { exitCode: null, signal: null, cancelled: false }),
-				stderr,
-			}),
+			piFastTierOutcome(
+				normalizer.finish({
+					...(record.exit ?? {
+						exitCode: null,
+						signal: null,
+						cancelled: false,
+					}),
+					stderr,
+				}),
+				await readPiFastTierState(runDir),
+			),
 		);
 		return events;
 	}

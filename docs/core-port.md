@@ -365,7 +365,8 @@ and the legacy `.pi` directory.
 - **WP6:**
   - Honor `runtime.inheritHostTools` (native tool list above) and emit exactly one `native-host` wrapper
     bound to `run.hostContext`.
-  - Re-home the fast-mode provider guard on `fast-tier.ts` config.
+  - Re-home the fast-mode provider guard on `fast-tier.ts` config. (WP35: done in the Pi executor's
+    per-run extension; the task backend passes `fast`/`fastApi` as per-task descriptor config.)
   - Map `HostContext` from the Pi `ExtensionContext` (`isProjectTrusted`) at launch.
 - `serverSpecSha256` includes `process.execPath`. A node upgrade between recording and re-checking the same
   attempt's provenance fails closed. The old wrapper digest already pinned the package path.

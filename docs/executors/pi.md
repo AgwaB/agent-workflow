@@ -52,7 +52,7 @@ stdin: the prompt
 | `--system-prompt <file>` | Replace (capability `systemPrompt: replace`). A file avoids argv limits |
 | `--thinking` | `effortLevels`: `off minimal low medium high xhigh max`. Pi clamps the level to the model |
 | `--tools` / `--no-tools` | Fine allowlist. Plain names replace Pi's defaults. `mcp__<server>__*` declares the injected servers' tools |
-| `-e <attempt>/pi-extension.mjs` | Generated per run (0600). It imports `dist/executors/pi/run-extension.js` and carries a non-secret JSON config: MCP servers with env **keys**, budget, fast tier, orphan guard |
+| `-e <attempt>/pi-extension.mjs` | Generated per run (0600). It imports `dist/executors/pi/run-extension.js` and carries a non-secret JSON config: MCP servers with env **keys**, budget, fast tier (WP35: plus Pi's OpenAI stream functions for the guard), orphan guard |
 | env `AGENT_WORKFLOW_PI_RUN_SECRETS_JSON` | MCP env values. The extension reads it and **deletes it at load**, so `bash` children never see it (verified offline). It is never on disk or on argv |
 | env `PI_SKIP_VERSION_CHECK=1` | No `pi.dev` request per worker |
 | fd 3 (pipe) | Orphan guard. When the owning process dies, the extension SIGTERMs Pi's process group (verified offline: SIGKILL of the driver ⇒ Pi gone) |
@@ -181,7 +181,7 @@ live or offline with the real CLI.
 | cancel | native / kill | probed | SIGTERM to Pi's process group, then SIGKILL after `killGraceMs` (3 s). Live #16: exit 143 → `failed/cancelled`. `turn` and `owned` both stop the run: print mode has no turn interrupt |
 | nativeSchema | none | declared | Pi has no structured-output flag |
 | contextIsolation | native | probed | live #8 + offline sections |
-| fastTier | native | **unverified** | `before_provider_request` sets `service_tier: priority` after a model-binding check (ported from pi-workflow). The provider-stream guard was not ported, and no live verification was done (the OpenAI key is stale) |
+| fastTier | native | **unverified** | Ported from pi-workflow (WP35: complete). `session_start` re-registers the bound OpenAI provider with a guarded stream (`serviceTier: priority`, payload guard, reasoning clamp); `before_provider_request` also stamps `service_tier` after a model-binding check. Reported in `<attempt>/pi-fast-tier.json`; see "Fast tier" below. Offline only (fake provider streams); no live run yet (live bundle 5) |
 | toolResultBudget | native | probed (offline) | Per-run `context` hook (ported enforcer). Real Pi + faux: 3×40-char results, budget 60 → 2 evicted, state file written |
 | webTools | native / search+fetch, safetyPolicy **unknown** | unverified (static) / probed via `pi list` | pi-web-access 0.44.0. `web_search` live #15/#18. Its URL/IP/redaction controls were not audited, so the policy is `unknown`, never `engine` |
 
@@ -201,6 +201,37 @@ Pi's "No models available" → `missing`, a failing command → `unknown`. Rows 
 `provider model …` header.
 Note: `ready` only means "credentials present". Live #1 got a 401 on a key that `auth check` called ready.
 
+## Fast tier (WP35, feature-parity row 39)
+
+`fast: "on"` (Pi-only, `src/core/fast-tier.ts` eligible OpenAI models, `service_tier: priority`):
+
+- **Who sets it.** The task backend passes `fast: "on"` and `fastApi` (the API the compiler bound for
+  the model) as per-task descriptor config, only when the task asks for it **and** the run's recorded
+  negotiation accepted `fastTier`. `fastTier` is `unverified`, so a run needs
+  `allowUnverifiedCapabilities: ["fastTier"]`; without it the preview records
+  `fastTier: degraded — runs without fast tier` and the worker runs without it.
+- **Guard** (generated wrapper → `registerFastTierGuard`, `run-extension.ts`; ported from pi-workflow
+  `installWorkflowFastProviderGuard`/`createWorkflowFastProviderStream`):
+  - The wrapper imports `streamOpenAIResponses`, `streamOpenAICodexResponses` and
+    `clampThinkingLevel` from Pi's own `@earendil-works/pi-ai/compat` and hands them in, so the module
+    stays Pi-free.
+  - On `session_start` it re-registers the bound provider (`openai` or `openai-codex`) through
+    `ctx.modelRegistry.registerProvider` with a stream that checks the model binding
+    (provider/id/api), sends `serviceTier: priority`, chains any upstream `onPayload` and stamps
+    `service_tier` on the payload, and clamps the reasoning level to the model.
+  - `before_provider_request` still checks the binding and stamps `service_tier: priority`.
+- **Failure:** any binding mismatch (model or payload) calls `ctx.abort()`, writes `status: failed`
+  with the reason to `<attempt>/pi-fast-tier.json` and a `agent-workflow: fast tier failed: …` line to
+  stderr. The attempt then fails as `config` with `fast tier failed: <reason>` (instead of Pi's
+  generic `unknown` abort); the error table also maps the text to `config`.
+- **Degrade:** without a provider registry (or stream functions) the guard reports
+  `status: payload-only` (state file + `agent-workflow: fast tier degraded to the payload hook …` on
+  stderr) and only the payload hook requests the tier. The attempt outcome does not change.
+- State file fields: `status` (`pending` | `guarded` | `payload-only` | `failed`), the binding,
+  `guardedRequests`, `payloadRequests`, `reason`.
+- **Unverified:** tests use fake provider streams (`executor-wp35-fast-guard.test.mjs`). Live bundle 5
+  must show a real OpenAI request served with `service_tier: priority`.
+
 ## Errors (`PI_ERROR_RULES`; first match wins, else `unknown`)
 
 Pi **exits 0** after a provider error. The terminal state comes from the last assistant `stopReason: "error"`
@@ -211,6 +242,7 @@ plus `errorMessage`, then from the exit code and stderr.
 | context length / window exceeded (pi-subagent pattern) | permanent | source |
 | `Model "<x>" not found` (exit 1, before any request) | config | offline transcript `fail-config-model-not-found` |
 | `Unknown option`, `Invalid thinking level` | config | source |
+| `workflow fast mode … binding mismatch`, `fast tier failed` (WP35 fast-tier guard) | config | offline (fake provider stream) |
 | `No API key found for <provider>` (exit 1, before any request) | auth | offline transcript `fail-auth-no-api-key` |
 | `(401)`/`(403)`, `invalid_api_key` | auth | **live** #1 `fail-auth-openai-401` |
 | OAuth expired/refresh | auth | source |
@@ -288,7 +320,8 @@ is used. The 4th–5th parallel run and long runs are untested.
   bridge would need a per-run `tool_call` gate extension plus a file channel. It is not built.
 - **`sessionBound`:** no live re-attach after the owning process dies. The orphan guard stops Pi instead.
 - **Settings residue:** non-overridable user settings apply under isolation (see Isolation).
-- **Fast tier is unverified.** Neither the provider-stream guard nor a live check was done.
+- **Fast tier is unverified.** The provider-stream guard is ported (WP35) and tested with fake
+  provider streams only; no live check was done.
 - Model matching: Pi's `--model` accepts fuzzy matches. An unknown `provider/id:suffix` is sent as a custom id
   (live #1). The engine should pass exact `provider/id`.
 - Pi's free-tier/subscription billing is not reflected: cost is a catalog estimate.
@@ -360,7 +393,7 @@ request drops mutating tools from `--tools` in both modes. The conformance harne
 - **WP11 (hosts):**
   - Pass `inheritHostTools`, `fast`/`fastApi` (from `resolveWorkflowFastModeConfig`) and `toolResultBudget`
     as **per-task descriptor config**. The descriptor is digested into the execution plan. (WP35:
-    `inheritHostTools` done.)
+    `inheritHostTools` and `fast`/`fastApi` done; `toolResultBudget` still open.)
   - Never pass secrets in config.
   - Retention should call `deleteOwnedSession(ownedSession)`, which deletes only under `<stateDir>/sessions`.
 - **WP4c:**
