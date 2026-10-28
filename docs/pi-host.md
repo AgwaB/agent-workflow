@@ -209,6 +209,9 @@ status entry, without the board widget or the presentation lease. Only with a UI
 - **Restart.** At `session_start` (after the unfinished-run notice, not awaited) the host tracks
   this session's runs that are still active and delivers, without a turn, those that settled while
   no Pi process of the session watched (top-level runs updated in the last 7 days, at most 5).
+  WP19 round 2 (N7): a `session_shutdown` while this restore awaits a read wins: the restore
+  re-checks the session generation and context after each await and right before scheduling, so it
+  tracks nothing and starts no timer; a poll that finds no session context clears the timer.
 
 ## Process roles
 

@@ -867,6 +867,8 @@ export class PiRunFeedback {
 		for (const run of runs) {
 			if (generation !== this.generation) return;
 			const audience = await readFeedbackAudience(ctx.cwd, run.runId);
+			// WP19 round 2 (N7): stopped (or switched) during the read: track nothing.
+			if (generation !== this.generation || this.ctx !== ctx) return;
 			if (audience?.sessionId !== sessionId) continue;
 			if (ACTIVE_STATUSES.has(run.status)) {
 				this.runs.set(`${ctx.cwd}\0${run.runId}`, {
@@ -887,11 +889,14 @@ export class PiRunFeedback {
 			}).catch(() => undefined);
 			if (outcome === "delivered") delivered += 1;
 		}
+		if (generation !== this.generation || this.ctx !== ctx) return;
 		// WP19 round 2 (N2): also keep polling while a catch-up message awaits confirmation.
 		if (
 			this.runs.size > 0 ||
 			(await confirmSentDeliveries(ctx, this.now())) > 0
 		) {
+			// WP19 round 2 (N7): re-checked right before scheduling (stop() may have run).
+			if (generation !== this.generation || this.ctx !== ctx) return;
 			this.schedule();
 			await this.tick();
 		}
@@ -942,7 +947,12 @@ export class PiRunFeedback {
 	private async poll(): Promise<void> {
 		const generation = this.generation;
 		const ctx = this.ctx;
-		if (!ctx) return;
+		if (!ctx) {
+			// WP19 round 2 (N7): no session to deliver into: never keep a timer.
+			if (this.timer) clearInterval(this.timer);
+			this.timer = undefined;
+			return;
+		}
 		const active: WorkflowRunRecord[] = [];
 		for (const [key, tracked] of [...this.runs]) {
 			const run = await readRunRecord(tracked.cwd, tracked.runId).catch(
