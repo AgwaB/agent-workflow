@@ -128,6 +128,13 @@ export interface LaunchRequestBase {
 	 * capture `agent-workflow-run-launch-v2`).
 	 */
 	autoSelection?: WorkflowRunHostAutoSelectionMetadata;
+	/**
+	 * WP42 (review round 1, finding 1): foreground cancellation of this launch (the `auto` action
+	 * passes its session signal). Re-checked after every dialog of the launch path (profile chooser,
+	 * capability confirm) and carried into the engine's `launchSignal` fence: aborted before
+	 * publication = nothing published and nothing submitted; after publication = that run is stopped.
+	 */
+	signal?: AbortSignal;
 }
 
 export interface RunWorkflowRequest extends LaunchRequestBase {
@@ -818,6 +825,27 @@ function refusalResult(
 	);
 }
 
+/** WP42: the launch was cancelled (its foreground signal aborted) before anything was published. */
+function cancelledLaunchResult(
+	action: "run" | "dynamic",
+	mode: LaunchData["mode"],
+	profile: LaunchProfileInfo | undefined,
+): HostResult<LaunchData> {
+	return result(
+		action,
+		"refused",
+		{
+			mode,
+			...(profile ? { profile } : {}),
+			refusal: { code: LAUNCH_CANCELLED },
+		},
+		"Not started: the launch was cancelled (the session ended) before the run was published; nothing was started.",
+	);
+}
+
+/** WP42: refusal code of a launch whose foreground signal aborted before publication. */
+export const LAUNCH_CANCELLED = "LAUNCH_CANCELLED";
+
 function launchData(
 	ctx: HostApiContext,
 	run: WorkflowRunRecord,
@@ -998,6 +1026,8 @@ async function launch(
 	// WP19 (review #8): the identity is the resolved execution identity, not only the request.
 	// WP19 round 2 (N5): resolved once; the launch below runs from the same snapshot.
 	const snapshot = await snapshotLaunchProfile(ctx, loaded, request);
+	if (request.signal?.aborted)
+		return cancelledLaunchResult(action, mode, undefined);
 	const execution = launchExecutionIdentity(ctx, loaded, request, snapshot);
 	const fingerprint = launchFingerprint({
 		execution,
@@ -1093,12 +1123,17 @@ async function launchClaimed(
 	},
 ): Promise<HostResult<LaunchData>> {
 	const { mode, task, inputOverrides } = launch;
+	if (request.signal?.aborted)
+		return cancelledLaunchResult(action, mode, undefined);
 	const profile = await finishLaunchProfile(
 		ctx,
 		loaded,
 		request,
 		launch.snapshot,
 	);
+	// WP42: the session may have ended while the profile chooser was open.
+	if (request.signal?.aborted)
+		return cancelledLaunchResult(action, mode, profile.info);
 	let promptSchemaNotice = "";
 	let promptSchemaDigest: string | undefined;
 	const executor = request.executor ?? profile.fallback?.executor;
@@ -1147,6 +1182,9 @@ async function launchClaimed(
 		...(ctx.dynamicUi && !request.detach ? { dynamicUi: ctx.dynamicUi } : {}),
 		...(ctx.hostTools ? { inheritHostTools: true } : {}),
 		...(inputOverrides ? { inputOverrides } : {}),
+		// WP42: the engine's foreground fence (after the capability confirm, before publication and
+		// before the first dispatch; exact-run stop once published).
+		...(request.signal ? { launchSignal: request.signal } : {}),
 		// WP33: host-neutral launch capture (launch-command.txt + run.launch).
 		launch: hostLaunchCapture(
 			ctx.host,
@@ -1166,6 +1204,8 @@ async function launchClaimed(
 	// Nothing between the fence and `start()` awaits anything else.
 	const displaced = await launch.beforeStart();
 	if (displaced) return displaced;
+	if (request.signal?.aborted)
+		return cancelledLaunchResult(action, mode, profile.info);
 	let run: WorkflowRunRecord;
 	try {
 		// WP35: a host that lends its tools records its host context on the run.
@@ -1180,6 +1220,9 @@ async function launchClaimed(
 				)
 			: start(options));
 	} catch (error) {
+		// WP42: aborted before publication (the engine's launchSignal fence threw): nothing started.
+		if (request.signal?.aborted)
+			return cancelledLaunchResult(action, mode, profile.info);
 		if (error instanceof WorkflowDefinitionChangedError)
 			return result(
 				action,

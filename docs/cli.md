@@ -36,7 +36,7 @@ npx agent-workflow --help
 | `supervise <run> \| --all [--poll-ms N] [--max-runtime-ms N]` | Drive scheduling from this process until the run(s) are terminal. |
 | `watch [run] [--follow] [--once] [--interval S] [--bell]` | WP36: live terminal view of the project's active runs or one run (tasks, status, elapsed, pending approvals, verdict and report at the end). Read-only. Below. |
 | `statusline` | WP36: one line about the active runs for a status bar (Claude Code `statusLine`); empty when idle; always exit 0. Below. |
-| `notify-check [--host H] [--json] [--follow [--interval S]]` | WP36: one line per run that finished (or needs the user) since the last check, each state once; for host hooks. Below. |
+| `notify-check [--host H] [--json] [--stamp N] [--follow [--interval S]]` | WP36: one line per run that finished (or needs the user) since the last check, each state once; for host hooks. Below. |
 | `doctor [--json]` | Check this machine without a model call: executors (installed, version vs verified, login), the default executor here and why, permission-mode default, Node, `AGENT_WORKFLOW_HOME`, Codex environment warnings, stale run-index entries. Exit 0 when at least one executor is usable. Below. |
 | `help [command]`, `<command> --help`, `--version` | Help and version. |
 
@@ -325,8 +325,12 @@ returned, so a result the host already showed is not repeated; since WP39b also 
 more by the hook). At most 5 runs per check (the rest
 next time); markers of pruned runs are removed. `--json` prints `{action, ok, outcome, data:
 {notifications, deferred}}`. `--follow` checks every 5 s (`--interval` 1-60) and prints new lines as
-they appear (a long-lived feed, for example a Claude Code plugin monitor). Hook setup:
-[plugins.md](plugins.md#completion-check-hook).
+they appear (a long-lived feed, for example a Claude Code plugin monitor). `--stamp <name>` (WP42,
+the plugin hook's idle test) writes `.agent-workflow/notify-check/<name>.stamp` after a successful
+check, with the check's start time as its mtime (a check that deferred runs removes it instead, so
+the hook checks again until the backlog is drained); the receipts directory is created only as a real
+directory inside a real `.agent-workflow` (a symlinked one is refused and nothing is written). Hook
+setup: [plugins.md](plugins.md#completion-check-hook).
 
 ## Exit codes
 

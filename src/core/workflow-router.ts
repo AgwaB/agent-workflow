@@ -296,6 +296,73 @@ interface TaskConstraints {
 export async function recommendWorkflowAuto(
 	request: WorkflowAutoRequest,
 ): Promise<WorkflowAutoResult> {
+	const prepared = await prepareWorkflowAuto(
+		request,
+		request.transmissionPolicy,
+	);
+	return sendPreparedWorkflowAuto(prepared, request);
+}
+
+/**
+ * WP42 (review round 1, finding 2): a classifier request frozen before consent. `packet` is the
+ * exact text the one comparison call transmits (task, candidate cards with their bounded
+ * descriptions); `outcome` is set instead when no call may happen (empty/too-large task, a task
+ * that forbids transmission, an oversized packet). Opaque: hand it to
+ * `sendPreparedWorkflowAutoComparison` unchanged.
+ */
+export interface PreparedWorkflowAutoComparison {
+	readonly task: string;
+	readonly catalog: WorkflowRoutingCatalog;
+	readonly candidates: WorkflowAutoCandidate[];
+	/** The candidate cards of `packet`, in packet order. */
+	readonly shortlist: WorkflowAutoCandidate[];
+	readonly packet?: string;
+	readonly outcome?: WorkflowAutoResult;
+}
+
+/**
+ * WP42: build the comparison packet locally (catalog scan, bounded metadata, packet) without any
+ * transmission, so a host can show it for consent and later send exactly it. Recognized task
+ * restrictions still fail closed here (no packet).
+ */
+export async function prepareWorkflowAutoComparison(
+	request: Omit<WorkflowAutoRequest, "transmissionPolicy">,
+): Promise<PreparedWorkflowAutoComparison> {
+	return prepareWorkflowAuto(
+		{ ...request, transmissionPolicy: "allowed" },
+		"allowed",
+	);
+}
+
+/**
+ * WP42: transmit a prepared packet (no rescan: a catalog change after preparation is not sent).
+ * `request.transmissionPolicy` is the structured host/user decision; anything but "allowed" sends
+ * nothing. `request.cwd`/`task` must be the prepared ones.
+ */
+export async function sendPreparedWorkflowAutoComparison(
+	prepared: PreparedWorkflowAutoComparison,
+	request: WorkflowAutoRequest,
+): Promise<WorkflowAutoResult> {
+	if (request.task.trim() !== prepared.task)
+		throw new Error("prepared auto comparison belongs to a different task");
+	if (prepared.outcome) return prepared.outcome;
+	if (request.transmissionPolicy !== "allowed")
+		return unavailable(
+			prepared.catalog,
+			prepared.candidates,
+			prepared.shortlist,
+			"External model transmission was not authorized by a structured host/user decision; no classifier was called.",
+			request.transmissionPolicy === "blocked"
+				? "blocked"
+				: "needs-clarification",
+		);
+	return sendPreparedWorkflowAuto(prepared, request);
+}
+
+async function prepareWorkflowAuto(
+	request: WorkflowAutoRequest,
+	requested: WorkflowAutoTransmissionPolicy | undefined,
+): Promise<PreparedWorkflowAutoComparison> {
 	const task = request.task.trim();
 	const catalog = await listWorkflowRoutingSpecs(request.cwd);
 	const constraints = inspectTaskConstraints(task);
@@ -304,10 +371,10 @@ export async function recommendWorkflowAuto(
 	// attempt to infer permission from task language. Omission is fail-closed;
 	// recognized task restrictions are a defense-in-depth downgrade only.
 	const requestedTransmission: WorkflowAutoTransmissionPolicy =
-		request.transmissionPolicy === "allowed" ||
-		request.transmissionPolicy === "blocked" ||
-		request.transmissionPolicy === "needs-clarification"
-			? request.transmissionPolicy
+		requested === "allowed" ||
+		requested === "blocked" ||
+		requested === "needs-clarification"
+			? requested
 			: "needs-clarification";
 	let transmission: WorkflowAutoTransmissionPolicy = "allowed";
 	if (requestedTransmission === "blocked" || taskTransmission === "blocked") {
@@ -324,28 +391,41 @@ export async function recommendWorkflowAuto(
 	const available = request.availableAgentNames
 		? new Set([...request.availableAgentNames])
 		: undefined;
+	const done = (
+		outcome: WorkflowAutoResult,
+	): PreparedWorkflowAutoComparison => ({
+		task,
+		catalog,
+		candidates,
+		shortlist,
+		outcome,
+	});
 	if (!task) {
 		for (const candidate of candidates)
 			applyCandidateGates(candidate, constraints, available);
-		return unavailable(
-			catalog,
-			candidates,
-			shortlist,
-			"A concrete task is required before execution paths can be compared.",
-			"needs-clarification",
-			"none",
+		return done(
+			unavailable(
+				catalog,
+				candidates,
+				shortlist,
+				"A concrete task is required before execution paths can be compared.",
+				"needs-clarification",
+				"none",
+			),
 		);
 	}
 	if (Buffer.byteLength(task, "utf8") > WORKFLOW_AUTO_MAX_TASK_BYTES) {
 		for (const candidate of candidates)
 			applyCandidateGates(candidate, constraints, available);
-		return unavailable(
-			catalog,
-			candidates,
-			shortlist,
-			`input-too-large: task exceeds ${WORKFLOW_AUTO_MAX_TASK_BYTES} UTF-8 bytes and was not sent to a classifier.`,
-			"blocked",
-			localChoiceScope,
+		return done(
+			unavailable(
+				catalog,
+				candidates,
+				shortlist,
+				`input-too-large: task exceeds ${WORKFLOW_AUTO_MAX_TASK_BYTES} UTF-8 bytes and was not sent to a classifier.`,
+				"blocked",
+				localChoiceScope,
+			),
 		);
 	}
 	// Enforce task/transmission gates before even bounded local metadata
@@ -363,7 +443,9 @@ export async function recommendWorkflowAuto(
 			reason =
 				"External model transmission was not authorized by a structured host/user decision; no classifier was called.";
 		}
-		return unavailable(catalog, candidates, shortlist, reason, transmission);
+		return done(
+			unavailable(catalog, candidates, shortlist, reason, transmission),
+		);
 	}
 	await buildEffectiveWorkflowAutoCandidates(
 		candidates,
@@ -373,13 +455,15 @@ export async function recommendWorkflowAuto(
 		available,
 	);
 	if (request.signal?.aborted)
-		return unavailable(
-			catalog,
-			candidates,
-			shortlist,
-			"Auto comparison cancelled before provider dispatch.",
-			"blocked",
-			localChoiceScope,
+		return done(
+			unavailable(
+				catalog,
+				candidates,
+				shortlist,
+				"Auto comparison cancelled before provider dispatch.",
+				"blocked",
+				localChoiceScope,
+			),
 		);
 
 	const packet = buildWorkflowAutoComparisonPacket(
@@ -388,15 +472,36 @@ export async function recommendWorkflowAuto(
 		catalog.partial,
 	);
 	if (Buffer.byteLength(packet, "utf8") > WORKFLOW_AUTO_MAX_MODEL_INPUT_BYTES) {
-		return unavailable(
-			catalog,
-			candidates,
-			shortlist,
-			`input-too-large: comparison packet exceeds ${WORKFLOW_AUTO_MAX_MODEL_INPUT_BYTES} UTF-8 bytes and was not sent to a classifier.`,
-			"blocked",
-			"all-safe",
+		return done(
+			unavailable(
+				catalog,
+				candidates,
+				shortlist,
+				`input-too-large: comparison packet exceeds ${WORKFLOW_AUTO_MAX_MODEL_INPUT_BYTES} UTF-8 bytes and was not sent to a classifier.`,
+				"blocked",
+				"all-safe",
+			),
 		);
 	}
+	return { task, catalog, candidates, shortlist, packet };
+}
+
+async function sendPreparedWorkflowAuto(
+	prepared: PreparedWorkflowAutoComparison,
+	request: WorkflowAutoRequest,
+): Promise<WorkflowAutoResult> {
+	const { catalog, candidates, shortlist, packet } = prepared;
+	if (prepared.outcome || packet === undefined)
+		return (
+			prepared.outcome ??
+			unavailable(
+				catalog,
+				candidates,
+				shortlist,
+				"routing-unavailable: no comparison packet was prepared.",
+				"blocked",
+			)
+		);
 	if (request.signal?.aborted)
 		return unavailable(
 			catalog,

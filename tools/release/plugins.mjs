@@ -159,23 +159,33 @@ export const NOTIFY_HOOK_TIMEOUT_SEC = 60;
  * Always exits 0 and prints nothing on errors, so a prompt is never blocked or decorated.
  * The hook runs on every prompt, so the CLI (an `npx` start in the published plugin) is only
  * started when a `run.json` changed since the last successful check: a stamp file
- * (`.agent-workflow/notify-check/hook-<host>.stamp`, touched before the check starts so a change
- * during it is seen next time, kept only when the check succeeded) makes the idle case a `find`.
+ * (`.agent-workflow/notify-check/hook-<host>.stamp`) makes the idle case a `find`.
+ * WP42 (review round 1, finding 4): the shell only reads (`find -newer` writes nothing, even
+ * through a symlink); the stamp is written by `notify-check --stamp hook-<host>` itself, through
+ * its contained writer, after a successful check and timed to the check's start (so a change during
+ * it is seen next time). WP42 finding 5: a check that left runs for later (the cap of five) removes
+ * the stamp, so the next prompt checks again until the backlog is drained.
  */
 export function notifyHookCommand(cli, host) {
-	const run = [cli.command, ...cli.args, "notify-check", "--host", host]
+	const stamp = `hook-${host}`;
+	const run = [
+		cli.command,
+		...cli.args,
+		"notify-check",
+		"--host",
+		host,
+		"--stamp",
+		stamp,
+	]
 		.map(shellWord)
 		.join(" ");
-	const stamp = `hook-${host}.stamp`;
 	return [
 		`d="\${CLAUDE_PROJECT_DIR:-.}"`,
 		`w="$d/.agent-workflow/workflows"`,
 		`[ -d "$w" ] || exit 0`,
-		`n="$d/.agent-workflow/notify-check"`,
-		`s="$n/${stamp}"`,
+		`s="$d/.agent-workflow/notify-check/${stamp}.stamp"`,
 		`[ -f "$s" ] && [ -z "$(find "$w" -name run.json -newer "$s" 2>/dev/null | head -n 1)" ] && exit 0`,
-		`mkdir -p "$n" 2>/dev/null && touch "$s.next" 2>/dev/null`,
-		`(cd "$d" && ${run} 2>/dev/null) && mv -f "$s.next" "$s" 2>/dev/null`,
+		`(cd "$d" && ${run} 2>/dev/null)`,
 		"exit 0",
 	].join("; ");
 }

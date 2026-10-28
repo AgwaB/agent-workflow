@@ -58,7 +58,7 @@ import {
 	workflowPreferenceAction,
 	workflowRolesAction,
 } from "../api.js";
-import { notifyCheck } from "../notify-check.js";
+import { assertNotifyStampName, notifyCheck } from "../notify-check.js";
 import { runWatch, WATCH_DEFAULT_INTERVAL_MS } from "../watch.js";
 import { runStatusLine } from "./statusline.js";
 
@@ -1028,13 +1028,24 @@ async function dispatch(
 		case "notify-check": {
 			const parsed = parseCommandArgs(argv, {
 				flags: ["--json", "--follow"],
-				values: ["--host", "--interval"],
+				values: ["--host", "--interval", "--stamp"],
 			});
 			only(
 				parsed,
 				0,
-				"notify-check [--host cli|claude-code|codex|generic] [--json] [--follow [--interval <seconds>]]",
+				"notify-check [--host cli|claude-code|codex|generic] [--json] [--stamp <name>] [--follow [--interval <seconds>]]",
 			);
+			// WP42: the prompt hook's idle stamp, written by the check itself (contained writer).
+			const stamp = parsed.values.get("--stamp");
+			if (stamp !== undefined) {
+				try {
+					assertNotifyStampName(stamp);
+				} catch (error) {
+					throw new HostUsageError(
+						error instanceof Error ? error.message : String(error),
+					);
+				}
+			}
 			const host = parsed.values.get("--host") ?? "cli";
 			if (!["cli", "claude-code", "codex", "generic", "pi"].includes(host))
 				throw new HostUsageError(
@@ -1046,6 +1057,8 @@ async function dispatch(
 			const interval = parsed.values.get("--interval");
 			if (interval !== undefined && !follow)
 				throw new HostUsageError("--interval needs --follow");
+			if (stamp !== undefined && follow)
+				throw new HostUsageError("--stamp cannot be combined with --follow");
 			const seconds = interval === undefined ? 5 : Number(interval);
 			if (!/^\d+$/.test(interval ?? "5") || seconds < 1 || seconds > 60)
 				throw new HostUsageError(
@@ -1056,6 +1069,7 @@ async function dispatch(
 					host: host as NonNullable<HostApiContext["host"]>,
 					env: io.env,
 					...(io.now ? { now: io.now() } : {}),
+					...(stamp !== undefined ? { stamp } : {}),
 				});
 			if (follow) {
 				// WP36: a long-lived feed (for example a Claude Code plugin monitor, whose output lines

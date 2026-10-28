@@ -20,6 +20,7 @@ import {
 } from "../core/secure-atomic-write.js";
 import type { WorkflowRoleMap } from "../core/types.js";
 import { HostUsageError } from "./args.js";
+import { withStoreLock } from "./store-lock.js";
 import {
 	assertKnownProfileExecutors,
 	assertUserProfileName,
@@ -184,35 +185,38 @@ export async function setWorkflowPreference(
 			throw new HostUsageError(
 				`workflow preference: cannot unset "${field}" (known: profile, roles, roles.<role>)`,
 			);
-	const file = await readWorkflowPreferences(env);
-	const created = !Object.hasOwn(file.workflows, input.workflow);
-	if (created && Object.keys(file.workflows).length >= MAX_WORKFLOWS)
-		throw new HostUsageError(
-			`at most ${MAX_WORKFLOWS} saved workflow preferences`,
-		);
-	const previous = file.workflows[input.workflow];
-	const unset = new Set(input.unset ?? []);
-	const mergedRoles: WorkflowRoleMap = {
-		...(unset.has("roles") ? {} : (previous?.roles ?? {})),
-		...(roles ?? {}),
-	};
-	for (const field of unset)
-		if (field.startsWith("roles."))
-			delete mergedRoles[field.slice("roles.".length)];
-	const profile =
-		input.profile ?? (unset.has("profile") ? undefined : previous?.profile);
-	const entry = {
-		...(profile === undefined ? {} : { profile }),
-		...(Object.keys(mergedRoles).length > 0 ? { roles: mergedRoles } : {}),
-		updatedAt: new Date().toISOString(),
-	};
-	if (entry.profile === undefined && entry.roles === undefined)
-		throw new HostUsageError(
-			`a workflow preference needs a profile or at least one role (to remove it use: profile workflow clear ${input.workflow})`,
-		);
-	file.workflows[input.workflow] = entry;
-	await writeWorkflowPreferences(file, env);
-	return { preference: { workflow: input.workflow, ...entry }, created };
+	// WP42 (review round 1, finding 3): the whole read–modify–write under the store lock.
+	return withStoreLock(workflowPreferencesPath(env), async () => {
+		const file = await readWorkflowPreferences(env);
+		const created = !Object.hasOwn(file.workflows, input.workflow);
+		if (created && Object.keys(file.workflows).length >= MAX_WORKFLOWS)
+			throw new HostUsageError(
+				`at most ${MAX_WORKFLOWS} saved workflow preferences`,
+			);
+		const previous = file.workflows[input.workflow];
+		const unset = new Set(input.unset ?? []);
+		const mergedRoles: WorkflowRoleMap = {
+			...(unset.has("roles") ? {} : (previous?.roles ?? {})),
+			...(roles ?? {}),
+		};
+		for (const field of unset)
+			if (field.startsWith("roles."))
+				delete mergedRoles[field.slice("roles.".length)];
+		const profile =
+			input.profile ?? (unset.has("profile") ? undefined : previous?.profile);
+		const entry = {
+			...(profile === undefined ? {} : { profile }),
+			...(Object.keys(mergedRoles).length > 0 ? { roles: mergedRoles } : {}),
+			updatedAt: new Date().toISOString(),
+		};
+		if (entry.profile === undefined && entry.roles === undefined)
+			throw new HostUsageError(
+				`a workflow preference needs a profile or at least one role (to remove it use: profile workflow clear ${input.workflow})`,
+			);
+		file.workflows[input.workflow] = entry;
+		await writeWorkflowPreferences(file, env);
+		return { preference: { workflow: input.workflow, ...entry }, created };
+	});
 }
 
 export async function clearWorkflowPreference(
@@ -220,11 +224,13 @@ export async function clearWorkflowPreference(
 	env: NodeJS.ProcessEnv = process.env,
 ): Promise<boolean> {
 	assertWorkflowName(workflow);
-	const file = await readWorkflowPreferences(env);
-	if (!Object.hasOwn(file.workflows, workflow)) return false;
-	delete file.workflows[workflow];
-	await writeWorkflowPreferences(file, env);
-	return true;
+	return withStoreLock(workflowPreferencesPath(env), async () => {
+		const file = await readWorkflowPreferences(env);
+		if (!Object.hasOwn(file.workflows, workflow)) return false;
+		delete file.workflows[workflow];
+		await writeWorkflowPreferences(file, env);
+		return true;
+	});
 }
 
 export function formatWorkflowPreference(

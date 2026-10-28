@@ -1,11 +1,13 @@
 // New in agent-workflow (WP32, owner decision Q5, parity row 21): the host API `auto` action, the
 // host-neutral port of pi-workflow 0.16.4 (b83cc4f) src/extension.ts `handleWorkflowAutoRequest`
 // (`/workflow auto`). Flow and consent semantics are pi-workflow's:
-//   1. a local, routing-only shortlist (no model call): the trusted dynamic workflow plus the
-//      bounded catalog of named workflows, ranked by the task's words against each spec's
-//      `routing` hints (core `recommendWorkflowAuto` with no transmission authorization);
+//   1. a local shortlist (no model call): the trusted dynamic workflow plus the bounded catalog of
+//      named workflows, ranked by the task's words against each spec's `routing` hints; WP42: the
+//      classifier request packet (task, these candidates, their bounded descriptions) is built
+//      here, once (core `prepareWorkflowAutoComparison`, nothing sent);
 //   2. explicit consent before anything leaves the machine: the host shows what would be sent (the
-//      task text, the candidate workflows, the classifier executor and model) and asks through its
+//      task text, the candidate workflows, the classifier executor and model; exactly the prepared
+//      packet is transmitted, a catalog change during the dialog is not) and asks through its
 //      own dialog (`consent.confirm`: CLI y/n on a terminal, Pi `ctx.ui.confirm`, MCP elicitation)
 //      or passes an explicit user flag (`consent: { source: "flag" }`, CLI `--yes`). No consent
 //      hook = no call (print/JSON mode, no terminal, an MCP client without elicitation): the
@@ -40,14 +42,17 @@ import type {
 	WorkflowRunHostAutoSelectionMetadata,
 } from "../core/types.js";
 import {
+	type PreparedWorkflowAutoComparison,
+	prepareWorkflowAutoComparison,
 	recommendWorkflowAuto,
-	WORKFLOW_AUTO_MAX_CANDIDATE_CARDS,
+	sendPreparedWorkflowAutoComparison,
 	type WorkflowAutoCandidate,
 	type WorkflowAutoResult,
 } from "../core/workflow-router.js";
 import type { WorkflowRuntimeDefaults } from "../core/workflow-runtime.js";
 import { HostUsageError, isThinkingLevel } from "./args.js";
 import {
+	LAUNCH_CANCELLED,
 	type LaunchData,
 	type LaunchRequestBase,
 	runDynamicAction,
@@ -146,7 +151,10 @@ export interface AutoRequest
 	compare?: (
 		operation: (signal: AbortSignal | undefined) => Promise<WorkflowAutoResult>,
 	) => Promise<WorkflowAutoResult | undefined>;
-	/** Cancels the whole action (Pi: the session ended); checked at every step before the launch. */
+	/**
+	 * Cancels the whole action (Pi: the session ended); checked at every step before the launch and
+	 * (WP42) carried into the launch itself (profile chooser, capability confirm, engine fence).
+	 */
 	signal?: AbortSignal;
 }
 
@@ -515,30 +523,23 @@ export async function autoAction(
 	if (request.effort !== undefined && !isThinkingLevel(request.effort))
 		throw new HostUsageError("auto effort is not a known effort level");
 	const agents = await availableAgentNames(ctx.cwd);
-	// 1. Local routing-only shortlist: no transmission authorization, so no classifier call.
-	const local = await recommendWorkflowAuto({
-		cwd: ctx.cwd,
-		task,
-		transmissionPolicy: "needs-clarification",
-		...(agents ? { availableAgentNames: agents } : {}),
-	});
-	const shortlist = local.shortlist
-		.filter(
-			(candidate) =>
-				candidate.kind === "named-workflow" ||
-				candidate.kind === "direct-dynamic",
-		)
-		.slice(0, WORKFLOW_AUTO_MAX_CANDIDATE_CARDS)
-		.map((candidate) =>
-			candidateView(ctx, candidate, candidate.readiness.startAllowed),
-		);
 	const header = "Workflow auto selection";
-	// 2. The classifier executor/model (Q5) for the preview.
+	// 1. The classifier executor/model (Q5) for the preview.
 	let target: AutoClassifierTarget;
 	try {
 		target = await resolveAutoClassifier(ctx, request);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
+		// Local routing-only shortlist: no transmission authorization, so no classifier call.
+		const local = await recommendWorkflowAuto({
+			cwd: ctx.cwd,
+			task,
+			transmissionPolicy: "needs-clarification",
+			...(agents ? { availableAgentNames: agents } : {}),
+		});
+		const shortlist = local.shortlist.map((candidate) =>
+			candidateView(ctx, candidate, candidate.readiness.startAllowed),
+		);
 		return result(
 			"auto",
 			"refused",
@@ -556,8 +557,32 @@ export async function autoAction(
 			].join("\n"),
 		);
 	}
+	const runtimeOverrides: WorkflowRuntimeDefaults | undefined =
+		target.model || target.effort
+			? {
+					...(target.model ? { model: target.model } : {}),
+					...(target.effort ? { thinking: target.effort } : {}),
+				}
+			: undefined;
+	// 2. WP42 (review round 1, finding 2): the classifier request is built once, locally, before
+	// consent (catalog scan, bounded descriptions, the packet). The preview shows its candidates
+	// and the task; after consent exactly this frozen packet is sent (no rescan: a workflow added
+	// or a description changed while the dialog is open is not transmitted).
+	const prepared: PreparedWorkflowAutoComparison =
+		await prepareWorkflowAutoComparison({
+			cwd: ctx.cwd,
+			task,
+			executor: target.executor,
+			...(runtimeOverrides ? { runtimeOverrides } : {}),
+			...(ctx.availableModels ? { availableModels: ctx.availableModels } : {}),
+			...(agents ? { availableAgentNames: agents } : {}),
+			...(request.signal ? { signal: request.signal } : {}),
+		});
+	const shortlist = prepared.shortlist.map((candidate) =>
+		candidateView(ctx, candidate, candidate.readiness.startAllowed),
+	);
 	const preview = consentPreview(task, target, shortlist);
-	// 3. Consent.
+	// 3. Consent (to exactly the prepared packet).
 	const noCall = (
 		phase: "consent-unavailable" | "consent-declined" | "consent-cancelled",
 	): HostResult<AutoData> => {
@@ -615,19 +640,12 @@ export async function autoAction(
 			(item): item is AbortSignal => item !== undefined,
 		);
 		const combined = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
-		pending = recommendWorkflowAuto({
+		pending = sendPreparedWorkflowAutoComparison(prepared, {
 			cwd: ctx.cwd,
 			task,
 			transmissionPolicy: "allowed",
 			executor: target.executor,
-			...(target.model || target.effort
-				? {
-						runtimeOverrides: {
-							...(target.model ? { model: target.model } : {}),
-							...(target.effort ? { thinking: target.effort } : {}),
-						},
-					}
-				: {}),
+			...(runtimeOverrides ? { runtimeOverrides } : {}),
 			...(ctx.availableModels ? { availableModels: ctx.availableModels } : {}),
 			...(agents ? { availableAgentNames: agents } : {}),
 			...(combined ? { signal: combined } : {}),
@@ -791,9 +809,11 @@ export async function autoAction(
 		consent: _consent,
 		choose: _choose,
 		compare: _compare,
-		signal: _signal,
 		...launchOptions
 	} = request;
+	// WP42 (review round 1, finding 1): the session signal stays on the launch request: the launch
+	// path re-checks it after its own dialogs (profile chooser, capability confirm) and the engine
+	// fences publication and the first dispatch with it.
 	const launchRequest: LaunchRequestBase = {
 		...launchOptions,
 		task,
@@ -806,6 +826,17 @@ export async function autoAction(
 					workflow: source.specPath!,
 				})
 			: await runDynamicAction(ctx, launchRequest);
+	if (launched.data.refusal?.code === LAUNCH_CANCELLED && !launched.data.runId)
+		return result(
+			"auto",
+			"refused",
+			{ ...data, phase: "cancelled", selected: chosen, launch: launched.data },
+			[
+				...rankedText,
+				`Selected: ${chosen.label}`,
+				"Auto selection cancelled: the session ended before the launch was published. No workflow has been started.",
+			].join("\n"),
+		);
 	return {
 		...launched,
 		action: "auto",
