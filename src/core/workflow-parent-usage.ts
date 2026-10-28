@@ -10,6 +10,7 @@ import {
 	nowIso,
 	readIndex,
 	readJson,
+	readRunRecord,
 	workflowRunDir,
 	writeJsonAtomicDurable,
 } from "./store.js";
@@ -333,12 +334,8 @@ export async function recordParentSessionUsage(
 			entry.operations.push(async () => {
 				// Preserve the original intent across retries if the run finishes while
 				// its sidecar is busy; don't turn an earlier turn into the wrap-up.
-				if (terminal === undefined) {
-					const index = await readIndex(cwd);
-					terminal = TERMINAL_INDEX_STATUSES.has(
-						index?.runs.find((r) => r.runId === entry.runId)?.status ?? "",
-					);
-				}
+				if (terminal === undefined)
+					terminal = await runSettledForParentUsage(cwd, entry.runId);
 				await mutate(entry, (record) => {
 					if (record.completedAt && terminal) return;
 					if (!record.messageIds?.includes(receipt)) {
@@ -358,6 +355,26 @@ export async function recordParentSessionUsage(
 			});
 			return drain(entry);
 		}),
+	);
+}
+
+/**
+ * WP39b: whether the run has settled, from its run record (written when the run settles); the run
+ * index, which the engine updates debounced, only when the record cannot be read. Reading the
+ * index alone made a parent message right after completion a during-run message and the next one
+ * the wrap-up.
+ */
+async function runSettledForParentUsage(
+	cwd: string,
+	runId: string,
+): Promise<boolean> {
+	const recorded = await readRunRecord(cwd, runId)
+		.then((run) => run.status)
+		.catch(() => undefined);
+	if (recorded !== undefined) return TERMINAL_INDEX_STATUSES.has(recorded);
+	const index = await readIndex(cwd);
+	return TERMINAL_INDEX_STATUSES.has(
+		index?.runs.find((r) => r.runId === runId)?.status ?? "",
 	);
 }
 

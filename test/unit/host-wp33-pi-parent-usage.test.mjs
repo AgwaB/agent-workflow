@@ -166,11 +166,15 @@ test("records the owning session's assistant usage while the run is active, show
 	assert.equal(inspect.data.parentUsage.assistantMessages, 2);
 
 	// The run settles: the next message is the wrap-up (counted once), later ones are not.
+	// WP39b: under load the detached supervisor can need longer than the default 30 s; and the
+	// tracker now reads the settled state from the run record (the index is debounced), which
+	// this status call also reads, so the next message is the wrap-up.
 	await eventually(
 		async () =>
 			(await api.statusAction({ cwd, env }, { runId })).data.run.status ===
 			"completed",
 		"run completion",
+		120_000,
 	);
 	await messageEnd(assistant(7, 3, 0), ctx);
 	await messageEnd(assistant(1_000, 1_000, 0), ctx);

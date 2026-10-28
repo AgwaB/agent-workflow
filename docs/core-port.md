@@ -208,6 +208,14 @@ apply yet.
     made the retention plan "uncertain", so every selected run was protected ("uncertain run
     references") once a project had used `auto`. Test: `core-wp39b-auto-router-retention.test.mjs`
     (fails on the old code).
+11. WP39b (flaky `host-wp33-pi-parent-usage`): the parent-usage tracker took "the run has settled"
+    from the run index, which the engine updates debounced, so a parent message right after the run
+    completed was counted as a during-run message and the next one as the wrap-up (the test's
+    "expected 3 messages, got 4" under load). It now reads the run record first (the index only when
+    the record cannot be read). Each message was still counted once; only the boundary moved. The
+    test's completion wait is 120 s (the "timeout" variant under load). Test:
+    `core-wp39b-parent-usage-wrapup.test.mjs` (deterministic: the index lags on purpose; fails on
+    the old code with 3 !== 2).
 
 Left unchanged on purpose (not paths or env vars; flagged for later WPs):
 
