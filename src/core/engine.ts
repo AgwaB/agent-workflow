@@ -453,12 +453,45 @@ export const WORKFLOW_PROMPT_SCHEMA_DIAGNOSTIC_SINK: unique symbol = Symbol(
 	"workflowPromptSchemaDiagnosticSink",
 );
 
+/**
+ * WP19 round 3 (R5): the definition fingerprint (`workflowDefinitionFingerprint`) of the spec a
+ * host resolved the launch from (duplicate guard, declared-profile chooser). The engine compares it
+ * with its own final load and refuses the launch when they differ.
+ */
+export const WORKFLOW_EXPECTED_DEFINITION_FINGERPRINT: unique symbol = Symbol(
+	"workflowExpectedDefinitionFingerprint",
+);
+
+/** WP19 round 3 (R5): the workflow file changed between the host's load and the engine's. */
+export class WorkflowDefinitionChangedError extends Error {
+	readonly code = "WORKFLOW_DEFINITION_CHANGED" as const;
+
+	constructor(specPath: string) {
+		super(
+			`the workflow definition ${specPath} changed while the launch was being prepared (for example while choosing a profile); the run was not started with a definition other than the one shown. Launch again to use the current definition.`,
+		);
+		this.name = "WorkflowDefinitionChangedError";
+	}
+}
+
 type WorkflowRunDiagnosticOptions = WorkflowRunOptions & {
 	[WORKFLOW_PROMPT_SCHEMA_DIAGNOSTIC_SINK]?: (
 		notice: string,
 		digest: string,
 	) => void;
+	[WORKFLOW_EXPECTED_DEFINITION_FINGERPRINT]?: string;
 };
+
+function assertExpectedDefinition(
+	options: WorkflowRunDiagnosticOptions,
+	specPath: string,
+	spec: unknown,
+): void {
+	const expected = options[WORKFLOW_EXPECTED_DEFINITION_FINGERPRINT];
+	if (expected === undefined) return;
+	if (workflowDefinitionFingerprint(spec) !== expected)
+		throw new WorkflowDefinitionChangedError(specPath);
+}
 
 export async function runWorkflowSpec(
 	specPath: string,
@@ -468,6 +501,7 @@ export async function runWorkflowSpec(
 	options.launchSignal?.throwIfAborted();
 	const loaded = await loadWorkflowSpec(specPath, cwd);
 	options.launchSignal?.throwIfAborted();
+	assertExpectedDefinition(options, loaded.specPath, loaded.spec);
 	return runLoadedWorkflowSpec(
 		cwd,
 		loaded.specPath,
@@ -479,7 +513,7 @@ export async function runWorkflowSpec(
 
 export async function runDynamicTask(
 	cwd: string,
-	options: WorkflowRunOptions = {},
+	options: WorkflowRunDiagnosticOptions = {},
 ): Promise<WorkflowRunRecord> {
 	if (!options.task || options.task.trim() === "") {
 		throw new Error(
@@ -499,6 +533,7 @@ export async function runDynamicTask(
 	options.launchSignal?.throwIfAborted();
 	const loaded = await loadWorkflowSpec(specPath, cwd);
 	options.launchSignal?.throwIfAborted();
+	assertExpectedDefinition(options, loaded.specPath, loaded.spec);
 	return runLoadedWorkflowSpec(
 		cwd,
 		loaded.specPath,

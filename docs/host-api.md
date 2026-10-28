@@ -145,7 +145,11 @@ profile); the fingerprint covers that snapshot and the launch runs from the same
 settings read). Only the interactive declared-profile chooser runs after the guard claimed the launch
 (a duplicate never prompts); it picks from the snapshot. So changing the saved per-workflow
 preference (e.g. Codex → Claude) between two identical requests starts a new run with the new
-preference. Residual: for `cli`/`generic` the installed-default choice is probed after
+preference. WP19 round 3 (R5): the launch carries the fingerprint of the definition it was resolved
+from (guard, chooser) into the engine, which compares it with its own final load of the workflow;
+if the file changed meanwhile (e.g. `fast`'s model edited while the chooser is open) nothing starts:
+`outcome: "refused"`, `refusal.code: "WORKFLOW_DEFINITION_CHANGED"`, and launching again uses the
+current definition. Residual: for `cli`/`generic` the installed-default choice is probed after
 the guard, so a login change between two identical launches within the window is not seen.
 `detach` and the interactive hooks are not part of it. An identical launch while the run it recorded is non-terminal (`running`, `pending`,
 `blocked`) and was created within the last 10 minutes (`DUPLICATE_RUN_WINDOW_MS`) returns that run:
