@@ -188,6 +188,8 @@ test("initialize and tools/list: server name, instructions, every tool gated per
 			"workflow_prune",
 			"workflow_profile",
 			"workflow_supervise",
+			// WP29: dynamic-controller approvals (mcp-host-wp29-approve.test.mjs).
+			"workflow_approve",
 		],
 	);
 	for (const tool of tools) {

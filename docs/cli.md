@@ -27,6 +27,7 @@ npx agent-workflow --help
 | `logs <run> [--task <id>] [--lines N] [--stream output\|stderr\|events\|all]` | Bounded tail of task output, stderr and executor events (the latest attempt's `exec-events.jsonl`); every started task by default (at most 6). Lines per stream 1-400 (default 20), lines cut at 400 characters, the text at 48 000. Credentials (WP19: also quoted structured fields such as `"Authorization":"Basic …"` and `"refresh_token":"…"`), bearer tokens, URL secrets, macOS/Linux/Windows home paths and values of sensitive environment variables are redacted, here and in `status`/`show`/`inspect`/`wait` text. WP19: only files inside the project's `.agent-workflow/` are read; a tampered absolute, `..` or symlink-escaping path is refused and the reason shown. |
 | `wait <run> [--timeout D]` | Drive and wait until the run is terminal or needs action. |
 | `resume <run> [--detach] [--timeout D]` | Reset failed, interrupted and resumable blocked tasks, then continue in the foreground or detached. |
+| `approve <run> [--request <id>] [--reject] [--yes] [--detach] [--timeout D]` | WP29: answer a dynamic-controller approval the run is blocked on (below). |
 | `stop <run>` | Stop a non-terminal run (durable stop intent; workers are cancelled). Waits up to 15 s for confirmation (below). |
 | `prune [--keep N] [--older-than DAYS] [--yes]` | Delete terminal runs beyond the filters, and (WP18b) terminal executor attempt records older than 7 days (or `--older-than`) under `~/.agent-workflow/executors/` (WP19: a launched attempt's record becomes a compact tombstone that is never pruned, so reconcile never reports it absent; containment is physical: a symlinked `attempts/`, Pi `runs/` or other ancestor is refused and reported, never followed; WP19 round 7/8: orphans are removed only when the name is adapter-written — the adapter's own attemptKey digest of exactly its length (Claude 40, Codex 32, Pi 64 hex) alone or with `.events.jsonl`/`.log`/an atomic-write temp suffix — so other files there are never touched), and stale host launch claims (`.agent-workflow/host-launches/`, older than 1 h); a dry run without `--yes`. |
 | `notices list [--json] \| acknowledge <run> --state <sha256> --reason <text> \| clear <run> [--json]` | Notification-only acknowledgements of unfinished runs. |
@@ -38,7 +39,8 @@ A run argument accepts the run id or an unambiguous prefix.
 
 WP28: every command except `help`/`--version` is also a host MCP tool (`workflow_<command>`,
 [host-mcp.md](host-mcp.md#tools)); the MCP forms of `prune --yes`, `profile set|delete|default` and
-`notices acknowledge|clear` ask the user to confirm through MCP elicitation, and a client that
+`notices acknowledge|clear` ask the user to confirm through MCP elicitation (WP29: as does
+`workflow_approve`, the MCP form of `approve`), and a client that
 cannot ask is refused with the CLI command line to run here instead. `supervise` on MCP starts the
 detached supervisor and returns at once.
 
@@ -119,6 +121,30 @@ exits; any later process can `status`, `wait` or `stop` it.
 
 `wait` without `--timeout` loops until the run is terminal or blocked. With `--timeout` it returns
 when the time is up; a run still running then exits 1 with `data.stillRunning: true`.
+
+### Dynamic-controller approval (WP29)
+
+A dynamic stage that declares `dynamic.permissions.approval: "ask"` needs the user's approval before
+its controller runs ([usage.md](usage.md#dynamic-approval)).
+
+- **In a terminal**, foreground `run`, `dynamic`, `wait` and `resume` print the approval scope to
+  stderr and ask `Run dynamic workflow controller? [y/n]`. `y` runs the controller; `n` rejects it
+  for this run (`dynamic_approval_rejected`, never asked again); an empty answer, end of input or 5
+  minutes without one leave it open (`dynamic_approval_timeout`, resumable). `--yes` does not approve
+  controllers; it only skips the degradation question.
+- **Without a terminal, and for `--detach`** (the background supervisor has no terminal), the run
+  blocks as `dynamic_ui_unavailable`. `status <run>` and `wait <run>` print the question, its request
+  id and the commands `Approve: agent-workflow approve <run> --request <id>` /
+  `Reject: … --reject`; `--json` has `data.pendingApprovals` (status: `data.run.pendingApprovals`).
+
+`approve <run>` answers it later, from any process: in a terminal it shows the question and asks
+`y/n` (`n` rejects, no answer records nothing and exits 1); without a terminal `--yes` is required
+(exit 2 otherwise) and the flags are the decision (`--reject` rejects). `--request <id>` (or a unique
+prefix of 8+ characters) picks one of several open approvals. The decision is recorded on the run
+with `decidedBy: {host: "cli", via: "approve"}`. An approval resumes the run like `resume` (in the
+foreground, `--detach` in a background supervisor; completed tasks are not relaunched); when the run
+also holds failed, interrupted or undecided-executor tasks it is not resumed (exit 1) and `resume` is
+named. A rejection exits 0 and leaves the run blocked.
 
 ### Stop confirmation
 

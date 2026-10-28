@@ -16,6 +16,7 @@ for `safe`; the executor is the workflow profile or the host default unless the 
 spec. WP28: the other CLI commands are tools too (`workflow_resume`, `workflow_show`, `workflow_roles`,
 `workflow_agents`, `workflow_notices`, `workflow_doctor`, `workflow_prune`, `workflow_profile`,
 `workflow_supervise`); prune, profile and notices changes ask the user to confirm in a dialog.
+WP29: `workflow_approve` answers a dynamic-controller approval a run waits on, also after a dialog.
 Details: [host-mcp.md](host-mcp.md).
 
 ## Layout

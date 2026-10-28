@@ -8,6 +8,7 @@
 // profile choice falls back to text (the headless choice is made and the choices are listed with
 // `--profile`), and `deps.feedback` carries the status line and completion delivery (feedback.ts).
 // WP35: a native codemode/MCP Pi session lends its host tools to Pi workers (piNativeHostTools).
+// WP29: with a dialog UI, dynamic-controller approvals are asked through `ctx.ui.confirm` (piDynamicUi).
 import * as hostApi from "../api.js";
 import type { HostApiContext, HostOutcome, LaunchRequestBase } from "../api.js";
 import { toWorkflowModelInfo } from "../../core/workflow-runtime.js";
@@ -34,6 +35,7 @@ export type PiHostApi = Pick<
 	| "inspectAction"
 	| "waitAction"
 	| "resumeAction"
+	| "approveAction"
 	| "stopAction"
 	| "pruneAction"
 	| "noticesAction"
@@ -171,6 +173,31 @@ export function hostContext(
 		...(models ? { availableModels: models } : {}),
 		...(runtimeDefaults ? { runtimeDefaults } : {}),
 		...(hostTools ? { hostTools } : {}),
+		...(hasDialogUi(ctx) ? { dynamicUi: piDynamicUi(ctx) } : {}),
+	};
+}
+
+/** A dialog-capable Pi UI (TUI/RPC), not print/JSON mode. */
+export function hasDialogUi(ctx: PiExtensionContext): boolean {
+	return ctx.hasUI === true && !printMode(ctx);
+}
+
+/**
+ * WP29 (parity row 43): pi-workflow's `dynamicUiFromContext` (src/extension.ts): a dynamic
+ * controller with `approval: "ask"` is approved through Pi's `ctx.ui.confirm` ("Run dynamic
+ * workflow controller?", the approval scope as the message, a 5-minute timeout and an abort signal).
+ * Yes runs it; no rejects it for this run (no re-prompt on resume); a timeout leaves it blocked and
+ * resumable. Only attached launches, waits, resumes and re-drives of a session with a dialog UI get
+ * it (src/hosts/types.ts `dynamicUi`); print/JSON mode keeps `dynamic_ui_unavailable`.
+ */
+export function piDynamicUi(
+	ctx: PiExtensionContext,
+): NonNullable<HostApiContext["dynamicUi"]> {
+	return {
+		hasUI: true,
+		host: "pi",
+		confirm: (title, message, options) =>
+			ctx.ui.confirm(title, message, options),
 	};
 }
 

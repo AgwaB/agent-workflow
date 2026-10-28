@@ -91,6 +91,18 @@ failed, was interrupted, is blocked, or is still running at --timeout.`,
 
 Reset failed, interrupted and resumable blocked tasks and continue the run (in the foreground,
 or with --detach in a background supervisor).`,
+	approve: `Usage: agent-workflow approve <run-id-or-prefix> [--request <id>] [--reject] [--yes]
+                                [--detach] [--timeout <duration>] [--json]
+
+Answer a dynamic-controller approval (a workflow whose dynamic stage declares
+permissions.approval "ask") that a run is blocked on. \`status <run>\` shows the question and its
+request id; --request picks one when several are open (a unique prefix of 8+ characters is enough).
+In a terminal the question is asked y/n: y approves, n rejects the controller for this run (it is
+never asked again), no answer records nothing. Without a terminal --yes is required and the
+decision is final. An approval resumes the run (in the foreground, or with --detach in a background
+supervisor); completed tasks are not relaunched. The decision is recorded on the run with the host
+that made it. Foreground run, wait and resume ask the same question in a terminal while they drive
+the run.`,
 	stop: `Usage: agent-workflow stop <run-id-or-prefix> [--json]
 
 Stop a non-terminal run; running tasks are interrupted. Resume later with \`resume\`.`,
@@ -141,6 +153,7 @@ Runs:
   logs <run>                 bounded, redacted tail of task output, stderr and events
   wait <run>                 wait until a run is terminal or needs action
   resume <run>               resume a failed, interrupted or blocked run
+  approve <run>              approve or reject a dynamic controller a run waits on
   stop <run>                 stop a run
   prune                      delete old terminal runs (dry run without --yes)
   notices ...                acknowledge unfinished-run notices

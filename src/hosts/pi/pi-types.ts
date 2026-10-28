@@ -7,7 +7,12 @@ export type PiNotifyLevel = "info" | "warning" | "error";
 
 export interface PiUiContext {
 	notify(message: string, type?: PiNotifyLevel): void;
-	confirm(title: string, message: string): Promise<boolean>;
+	/** WP29: Pi's dialog options (pi-workflow passes `timeout`/`signal` for dynamic approvals). */
+	confirm(
+		title: string,
+		message: string,
+		options?: { timeout?: number; signal?: AbortSignal },
+	): Promise<boolean>;
 	select(title: string, options: string[]): Promise<string | undefined>;
 	/** Footer status entry; `undefined` clears it (WP16). Fire-and-forget in RPC mode. */
 	setStatus?(key: string, text: string | undefined): void;

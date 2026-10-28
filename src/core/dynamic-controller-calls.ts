@@ -1,6 +1,7 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-controller-calls.ts. MIT, same author. Changes: the nested-approval message names host-neutral resume commands (WP18b), not `/workflow resume`.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-controller-calls.ts. MIT, same author. Changes: the nested-approval message names host-neutral resume commands (WP18b), not `/workflow resume`; WP29: and the approve commands for the nested run.
 import { readFile } from "node:fs/promises";
 import { persistedResumeHint } from "./command-hints.js";
+import { persistedApproveHint } from "./dynamic-approval.js";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
 import { readArtifactGraphControl } from "./artifact-graph-runtime.js";
@@ -264,7 +265,7 @@ export async function runDynamicNestedWorkflowCall(input: {
 		normalizedInput.wait
 	) {
 		throw new DynamicControllerNestedApprovalBlocked(
-			`dynamic nested workflow ${workflowId} (${nestedRun.runId}) is blocked awaiting approval; run ${persistedResumeHint(nestedRun.runId)}, then run ${persistedResumeHint(input.run.runId)} after the nested workflow completes to continue the parent workflow`,
+			`dynamic nested workflow ${workflowId} (${nestedRun.runId}) is blocked awaiting approval; approve it with ${persistedApproveHint(nestedRun.runId)}, then run ${persistedResumeHint(input.run.runId)} after the nested workflow completes to continue the parent workflow`,
 			nestedRun.runId,
 		);
 	}

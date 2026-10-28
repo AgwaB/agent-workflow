@@ -32,10 +32,11 @@ say the same.
 | `workflow_notices` | Unfinished-run notices: `list` (default); `acknowledge` (`runId`, `state`, `reason`) and `clear` (`runId`) need the user's confirmation. |
 | `workflow_prune` | Remove finished runs (`keep?`, `olderThanDays?`). A dry run unless `dryRun: false`, which needs the user's confirmation. |
 | `workflow_profile` | Saved user profiles: `op` `list` (default) or `show`; `set`, `delete`, `default`, `clear-default` need the user's confirmation. |
+| `workflow_approve` | Answer a dynamic-controller approval a blocked run waits on (`runId`, `requestId`, `decision`: `approve` or `reject`, `detach?` default true). Only after the user decided; the user confirms in a dialog. An approval continues the run (**model calls**). |
 
 **Confirmed changes.** `workflow_prune` with `dryRun: false`, `workflow_profile` `set`/`delete`/
-`default`/`clear-default` and `workflow_notices` `acknowledge`/`clear` show the user a confirmation
-dialog first (MCP elicitation). Call them only when the user asked for that change. If the user
+`default`/`clear-default`, `workflow_notices` `acknowledge`/`clear` and `workflow_approve` show the
+user a confirmation dialog first (MCP elicitation). Call them only when the user asked for that change. If the user
 declines, nothing changes: do not retry. If the host cannot show the dialog, the tool refuses and
 names the terminal command; give that command to the user instead of trying another way.
 
@@ -71,7 +72,13 @@ Use whichever form your tool list shows.
    with a non-passing domain verdict, for example `PARTIAL_REVIEW`: report the verdict, quote the
    preview and give the report path. Its status says `failed` only because the verdict did not pass
    the final gate; do not call it a workflow failure.
-7. A failed or partial run otherwise: report status and the failed tasks from `workflow_inspect`; do
+7. `actionRequired: true` with `pendingApprovals`: a dynamic controller of the workflow needs the
+   user's approval before it runs (its helper code and budget). Show the user the approval question
+   (the `message` of each pending approval) and ask them to approve or reject. Only after they
+   decide, call `workflow_approve {runId, requestId, decision}`; the user confirms again in a dialog.
+   If they decline the approval dialog the controller is rejected for this run (it never asks
+   again); if they cancel, nothing changes. After an approval, continue with step 3.
+8. A failed or partial run otherwise: report status and the failed tasks from `workflow_inspect`; do
    not invent results for missing parts.
 
 Runs are detached by default (`detach: true`): they keep running between calls and after the host
@@ -109,6 +116,6 @@ the user asks).
 ## Without the MCP tools
 
 The same operations exist in the CLI (`agent-workflow list|run|dynamic|wait|status|inspect|logs|stop|
-validate|resume|show|roles|agents|notices|doctor|prune|profile|supervise`). If the CLI is not
+validate|resume|approve|show|roles|agents|notices|doctor|prune|profile|supervise`). If the CLI is not
 installed, run it through npx:
 `npx -y --package=@agwab/agent-workflow agent-workflow <command>`.
