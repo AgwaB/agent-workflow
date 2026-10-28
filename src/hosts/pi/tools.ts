@@ -6,7 +6,8 @@
 // `timeoutMs` on run/dynamic and long `aw_wait` calls are restored with pi-workflow's bounds
 // (default 30 min, max 4 h; the host API `longWait`), cancelling the tool call cancels only the
 // wait; a launch whose awaited result is returned is not delivered again later (it is tracked for
-// delivery only when the wait ends before the run settles). WP12c: `inputs` on run/dynamic (the tool form of --input; typed by the host
+// delivery only when the wait ends before the run settles). WP28: AGENT_WORKFLOW_TOOL_EXPOSURE=deferred
+// registers the tools with deferred exposure (pi-workflow PI_WORKFLOW_TOOL_EXPOSURE). WP12c: `inputs` on run/dynamic (the tool form of --input; typed by the host
 // API like the CLI's strings). WP16: launched runs are tracked for the status line and completion
 // delivery into this session (feedback.ts; a tool launch triggers a follow-up turn when it settles);
 // an identical launch while the first run is active returns that run (`outcome: "existing"`).
@@ -453,8 +454,26 @@ async function guarded<T>(work: () => Promise<T>): Promise<T> {
 	}
 }
 
+/** WP28 environment switch of the `aw_*` tools' exposure (docs/environment.md). */
+export const AW_TOOL_EXPOSURE_ENV = "AGENT_WORKFLOW_TOOL_EXPOSURE";
+
+/**
+ * WP28: opt-in deferred exposure (port of pi-workflow b83cc4f `workflowToolExposure`,
+ * `PI_WORKFLOW_TOOL_EXPOSURE=deferred`): the tools stay out of every request until Pi's
+ * `tool_search` loads them. Any other value (or none) keeps Pi's default.
+ */
+export function awToolExposure(env: NodeJS.ProcessEnv): {
+	exposure?: "deferred";
+} {
+	return env[AW_TOOL_EXPOSURE_ENV] === "deferred"
+		? { exposure: "deferred" }
+		: {};
+}
+
 export function registerAwTools(pi: PiExtensionApi, deps: PiHostDeps): void {
+	const exposure = awToolExposure(deps.env);
 	pi.registerTool({
+		...exposure,
 		name: AW_LIST_TOOL,
 		label: "List agent-workflow workflows",
 		description:
@@ -494,6 +513,7 @@ export function registerAwTools(pi: PiExtensionApi, deps: PiHostDeps): void {
 	});
 
 	pi.registerTool({
+		...exposure,
 		name: AW_RUN_TOOL,
 		label: "Run agent-workflow workflow",
 		description:
@@ -541,6 +561,7 @@ export function registerAwTools(pi: PiExtensionApi, deps: PiHostDeps): void {
 	});
 
 	pi.registerTool({
+		...exposure,
 		name: AW_DYNAMIC_TOOL,
 		label: "Run agent-workflow dynamic workflow",
 		description:
@@ -583,6 +604,7 @@ export function registerAwTools(pi: PiExtensionApi, deps: PiHostDeps): void {
 	});
 
 	pi.registerTool({
+		...exposure,
 		name: AW_WAIT_TOOL,
 		label: "Wait for agent-workflow run",
 		description: `Drive and wait for an existing agent-workflow run until it is terminal or needs action (default ${LONG_WAIT_MINUTES} minutes, at most ${LONG_WAIT_MAX_HOURS} h) without model-driven polling. Returns terminal, actionRequired and stillRunning, the semantic status, and a bounded authoritative-result preview when the run finished.`,

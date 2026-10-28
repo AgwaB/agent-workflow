@@ -86,6 +86,11 @@ Schemas, descriptions and prompt guidelines are adapted from pi-workflow's
 | `aw_dynamic` | `task` and the same options | `runDynamicAction` (+ `waitAction`) |
 | `aw_wait` | `runId`, `timeoutMs?` (1000-14400000, default 1800000) | `waitAction` with `longWait` |
 
+Exposure (WP28): with `AGENT_WORKFLOW_TOOL_EXPOSURE=deferred` every `aw_*` tool is registered with
+`exposure: "deferred"`, so Pi keeps it out of each request until `tool_search` loads it (port of
+pi-workflow's `PI_WORKFLOW_TOOL_EXPOSURE`; [environment.md](environment.md)). Unset or any other
+value: normal registration.
+
 Results: `content` is the handler text; `details` is the handler `data` plus `outcome`/`ok`.
 Launches add `waitWith`; a refused launch is returned with `isError: true` (the refusal code is in
 `details.refusal`). WP16: an identical launch while the first run is active (also with `detach`) is
@@ -322,7 +327,7 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
   cancel = only the wait, no second delivery of an awaited result, `/aw wait <run> [timeout]`),
   `host-wp28-pi-redrive.test.mjs` (a child process launches an attached run and exits; session start
   re-drives it, B3 decision instead of a relaunch after a killed worker, audience kept, live drivers
-  skipped).
+  skipped), `host-wp28-pi-exposure.test.mjs` (deferred tool exposure).
 - `test/unit/host-pi-extension.test.mjs`: fake `ExtensionAPI`; every action and tool delegates to the
   right handler with the right arguments (a recording wrapper over the real host API); runs use the
   WP11a guarded test-executor hook; confirmation (decline, accept, no UI); session-start notices
