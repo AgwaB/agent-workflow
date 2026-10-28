@@ -122,6 +122,38 @@ export function readlinePrompt(
 		});
 }
 
+/**
+ * WP39b (live bundle 5, O14): terminal questions open on this io. While one is open, foreground
+ * progress output pauses (it was printed on the question's line); the newest progress line is
+ * printed once the question is answered.
+ */
+const openPrompts = new WeakMap<CliIo, { count: number; held?: string }>();
+
+async function withOpenPrompt<T>(io: CliIo, ask: () => Promise<T>): Promise<T> {
+	const state = openPrompts.get(io) ?? { count: 0 };
+	state.count += 1;
+	openPrompts.set(io, state);
+	try {
+		return await ask();
+	} finally {
+		state.count -= 1;
+		if (state.count === 0) {
+			openPrompts.delete(io);
+			if (state.held !== undefined) io.stderr(state.held);
+		}
+	}
+}
+
+/** Progress output: held (newest line only) while a question is open on this io. */
+function progressOutput(io: CliIo, text: string): void {
+	const state = openPrompts.get(io);
+	if (state && state.count > 0) {
+		state.held = text;
+		return;
+	}
+	io.stderr(text);
+}
+
 function defaultPrompt(
 	question: string,
 	options: { signal?: AbortSignal } = {},
@@ -145,12 +177,14 @@ export function cliDynamicUi(
 		hasUI: true,
 		host: "cli",
 		confirm: async (title, message, options) => {
-			io.stderr(`\n${message}\n`);
 			const answer = (
-				await prompt(
-					`${title} [y/n] `,
-					options?.signal ? { signal: options.signal } : {},
-				)
+				await withOpenPrompt(io, async () => {
+					io.stderr(`\n${message}\n`);
+					return prompt(
+						`${title} [y/n] `,
+						options?.signal ? { signal: options.signal } : {},
+					);
+				})
 			)
 				.trim()
 				.toLowerCase();
@@ -320,13 +354,14 @@ async function waitUntilSettled(
 				const line = `${run.runId}: ${run.taskSummary.completed}/${run.taskSummary.total} completed, ${run.taskSummary.running} running (${run.status})`;
 				if (line === lastProgress) return;
 				lastProgress = line;
-				io.stderr(`${line}\n`);
+				progressOutput(io, `${line}\n`);
 			},
 		});
 		if (!waited.data.stillRunning) return waited;
 		if (deadline !== undefined && Date.now() >= deadline) return waited;
 		if (!quiet)
-			io.stderr(
+			progressOutput(
+				io,
 				`${runId}: still running after a ${waited.data.timeoutMs}ms wait; waiting again\n`,
 			);
 	}

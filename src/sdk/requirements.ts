@@ -555,6 +555,8 @@ export function buildCapabilityPreview(
 		readonly permissionMode?: PermissionMode;
 		/** Extra lines under a stage's block, by stage label (e.g. its host-tool decision). */
 		readonly stageNotes?: ReadonlyMap<string, readonly string[]>;
+		/** Replaces "<n> stages" in the summary line (a dynamic run generates its stages later). */
+		readonly stagesLabel?: string;
 	} = {},
 ): CapabilityPreview {
 	const refusals: string[] = [];
@@ -578,7 +580,10 @@ export function buildCapabilityPreview(
 		options.permissionMode === undefined
 			? ""
 			: `, permission mode: ${options.permissionMode}`;
-	const summary = `Capability check (${executor}, ${stages.length} stage${stages.length === 1 ? "" : "s"}${mode}): ${
+	const stagesText =
+		options.stagesLabel ??
+		`${stages.length} stage${stages.length === 1 ? "" : "s"}`;
+	const summary = `Capability check (${executor}, ${stagesText}${mode}): ${
 		accepted
 			? degradations.length > 0
 				? `accepted with ${degradations.length} degradation${degradations.length === 1 ? "" : "s"}`

@@ -370,8 +370,9 @@ Steps: (1) the local routing-only shortlist (core `recommendWorkflowAuto` with
 `roles.default`) > `ctx.defaultExecutor` > the host default of `resolveRunExecutorForHost`; model
 and effort: request > that profile > `ctx.runtimeDefaults` when they belong to that executor > the
 executor's default); (3) `consent.confirm` with the preview (`AutoConsentPreview`: the task text
-bounded to 2 000 characters, the candidate names, the executor/model); anything but `true` →
-`consent-declined`; (4) exactly one `recommendWorkflowAuto` with `transmissionPolicy: "allowed"` and
+bounded to 2 000 characters, the candidate names, the executor/model); `false` →
+`consent-declined`, `undefined` or a throw (no answer from the user: the client cancelled or cannot
+ask) → `consent-cancelled` (WP39b); nothing is sent unless `true`; (4) exactly one `recommendWorkflowAuto` with `transmissionPolicy: "allowed"` and
 that executor (the core still refuses tasks that forbid external models or exceed 24 KB);
 (5) the launchable shortlist candidates ranked (recommended first, then complete/partial fit) →
 `choose`; (6) a named workflow is re-hashed against the compared spec (`stale` when it changed),
@@ -380,7 +381,7 @@ then `runWorkflowAction(specPath)` / `runDynamicAction` with `autoSelection` (la
 `AutoData`: `{phase, classifierCalled, classifier?: {executor, source, model, effort}, consent?,
 shortlist: AutoCandidateView[], status?, reason?, recommendation?: {candidateId, label, confidence,
 reason}, ranked?, selected?, launch?: LaunchData, next?}`; `phase` is `consent-unavailable`,
-`consent-declined`, `classifier-unavailable`, `ranked`, `cancelled`, `stale` or `launched`.
+`consent-declined`, `consent-cancelled`, `classifier-unavailable`, `ranked`, `cancelled`, `stale` or `launched`.
 `AutoCandidateView`: `{candidateId, kind, label, scope, description, launchable, blockers?, fit?,
 reason?, recommended?, command?}` (`command`: the host's direct `run`/`dynamic` command or tool call
 with the task as `<task>`; texts never echo the task outside the consent preview). The classifier's

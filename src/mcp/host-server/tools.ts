@@ -130,7 +130,7 @@ export const HOST_MCP_INSTRUCTIONS = [
 	`2. ${WORKFLOW_RUN_TOOL} {workflow, task} (or ${WORKFLOW_DYNAMIC_TOOL} {task} for a spec-less dynamic workflow) starts a run and returns its runId at once. Runs are detached by default, so they keep going between calls and after this server stops.`,
 	`3. ${WORKFLOW_WAIT_TOOL} {runId} waits at most ${WAIT_SECONDS} s per call. While stillRunning is true, call ${WORKFLOW_WAIT_TOOL} again with the same runId. terminal=true means finished; actionRequired=true means blocked: report it and use ${WORKFLOW_INSPECT_TOOL}.`,
 	'4. When the run finished, quote the result preview and give the report paths verbatim; do not paraphrase or re-summarize the report. Read the report file for details. A result headed "Workflow finished — verdict: X (report ready)" (verdictGate=true) is the workflow\'s result with a non-passing domain verdict, not a workflow failure: report the verdict and the report.',
-	`5. You get no completion push: a run only reports through ${WORKFLOW_WAIT_TOOL}/${WORKFLOW_STATUS_TOOL}. If it is still running when you stop waiting (for example a long rate-limit backoff, nextRetry in the ${WORKFLOW_WAIT_TOOL} result), tell the user the runId, what the run is waiting for, that they can ask you again later, and that they can follow it live in a terminal with \`agent-workflow watch <runId>\` (in Claude Code, \`agent-workflow statusline\` as the statusLine command shows active runs). A line "agent-workflow: workflow … finished — …" at the start of a later turn comes from the completion check (agent-workflow notify-check): relay it to the user with the report path.`,
+	`5. You get no completion push: a run only reports through ${WORKFLOW_WAIT_TOOL}/${WORKFLOW_STATUS_TOOL}. If it is still running when you stop waiting (for example a long rate-limit backoff, nextRetry in the ${WORKFLOW_WAIT_TOOL} result), tell the user the runId, what the run is waiting for, that they can ask you again later, and that they can follow it live in a terminal with \`agent-workflow watch <runId>\` (in Claude Code, \`agent-workflow statusline\` as the statusLine command shows active runs). A line containing "agent-workflow: workflow … finished — …" in a later turn's context (a host may prefix it, for example "UserPromptSubmit hook success: ") comes from the completion check (agent-workflow notify-check): relay it to the user with the report path.`,
 	`${WORKFLOW_STATUS_TOOL} lists runs or shows one; ${WORKFLOW_LOGS_TOOL} shows a bounded, redacted tail of task output, stderr and executor events; ${WORKFLOW_STOP_TOOL} interrupts a run (cancelling ${WORKFLOW_WAIT_TOOL} only stops waiting); ${WORKFLOW_VALIDATE_TOOL} checks a workflow spec.`,
 	`More tools (the CLI commands): ${WORKFLOW_SHOW_TOOL} (a workflow spec or a run record), ${WORKFLOW_ROLES_TOOL}, ${WORKFLOW_AGENTS_TOOL}, ${WORKFLOW_DOCTOR_TOOL} (environment check) are read-only. ${WORKFLOW_RESUME_TOOL} continues a failed, interrupted or blocked run and ${WORKFLOW_SUPERVISE_TOOL} starts a background supervisor for a running run without one: both start model calls (cost), so call them only when the user asks.`,
 	`Dynamic approvals: a run whose dynamic controller needs the user's approval stops with actionRequired=true and pendingApprovals (the question and a requestId) in ${WORKFLOW_WAIT_TOOL}/${WORKFLOW_STATUS_TOOL}. Show the user the question; only when the user decides, call ${WORKFLOW_APPROVE_TOOL} {runId, requestId, decision} (it asks the user to confirm in a dialog; an approval continues the run, which starts model calls).`,
@@ -943,14 +943,25 @@ function rejectUnknown(name: string, params: Record<string, unknown>) {
 }
 
 /** Tool arguments → LaunchRequestBase fields (without the confirmation hooks). */
-/** WP32: unique option labels of the auto choice (the enum values of the elicitation form). */
+/**
+ * WP32: unique option labels of the auto choice (the enum values of the elicitation form), in the
+ * ranked order. WP39b (O4): no number prefix; Codex numbers enum options itself ("1. 1. …") and
+ * Claude Code lists them in order. Equal labels get their scope (`review [user]`), then a counter.
+ */
 export function autoChoiceOptions(
 	choices: readonly hostApi.AutoCandidateView[],
 ): string[] {
-	return choices.map(
-		(choice, index) =>
-			`${index + 1}. ${choice.label}${choice.recommended ? " (recommended)" : ""}`,
-	);
+	const counts = new Map<string, number>();
+	for (const choice of choices)
+		counts.set(choice.label, (counts.get(choice.label) ?? 0) + 1);
+	const seen = new Set<string>();
+	return choices.map((choice) => {
+		const base = `${choice.label}${(counts.get(choice.label) ?? 0) > 1 ? ` [${choice.scope}]` : ""}${choice.recommended ? " (recommended)" : ""}`;
+		let option = base;
+		for (let n = 2; seen.has(option); n += 1) option = `${base} #${n}`;
+		seen.add(option);
+		return option;
+	});
 }
 
 export function launchRequestFromArguments(
@@ -1632,13 +1643,21 @@ export function createHostMcpService(
 					? {
 							consent: {
 								source: "elicitation" as const,
-								confirm: async (title: string, message: string) =>
-									(await elicitConfirmation(
+								// WP39b O1: only `decline` is the user's no; `cancel`/an error is the
+								// client's (e.g. Claude Code print mode auto-cancels).
+								confirm: async (title: string, message: string) => {
+									const answer = await elicitConfirmation(
 										call,
 										`${title}\n\n${message}`,
 										"auto consent",
 										log,
-									)) === "accept",
+									);
+									return answer === "accept"
+										? true
+										: answer === "decline"
+											? false
+											: undefined;
+								},
 							},
 							choose: async (prompt: hostApi.AutoChoicePrompt) => {
 								const options = autoChoiceOptions(prompt.choices);
@@ -1675,6 +1694,8 @@ export function createHostMcpService(
 				next = `Nothing started. If the user then names a workflow, call ${WORKFLOW_RUN_TOOL} {"workflow":"…","task":"…"}; do not call ${WORKFLOW_AUTO_TOOL} again unless the user asks.`;
 			else if (data.phase === "consent-declined")
 				next = `The user declined: nothing was sent and nothing started. Do not retry unless the user asks.`;
+			else if (data.phase === "consent-cancelled")
+				next = `The client cancelled the confirmation dialog or cannot ask the user here (no answer was given): nothing was sent and nothing started. Show the user the shortlist and ask which workflow to run; then call ${WORKFLOW_RUN_TOOL} {"workflow":"…","task":"…"} (or ${WORKFLOW_DYNAMIC_TOOL}).`;
 			return finish(call, auto, data, next);
 		},
 		[WORKFLOW_STATUS_TOOL]: async (args, call) => {

@@ -1,5 +1,6 @@
 // Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine-format.ts. MIT, same author. Changes: WP12a usage lines show the run cost, `unknown` when no task reported one (never $0); WP18b next-step hints (`Open:`, `Resume:`, `Logs:`, stall warnings) come from the caller's `WorkflowCommandHints` (default pi-workflow's `/workflow …`); a run that only waits for a scheduled retry says "waiting for scheduled retry at <time>" instead of the no-progress stall warning. WP31: task lines name the task's executor in role-profile runs.
 import { lstat } from "node:fs/promises";
+import { isAbsolute, relative } from "node:path";
 import {
 	PI_WORKFLOW_COMMAND_HINTS,
 	type WorkflowCommandHints,
@@ -481,6 +482,7 @@ function formatHumanRunCard(
 		}
 	}
 	lines.push(...taskSections(run));
+	lines.push(...formatRunWorktreeLines(run));
 	lines.push("", `Open: ${hints.status(run.runId)}`);
 	if (["failed", "blocked", "interrupted"].includes(run.status))
 		lines.push(`Resume: ${hints.resume(run.runId)}`);
@@ -1011,6 +1013,40 @@ function formatTaskDetail(
 ): string {
 	if (detail !== "full") return ` output=${task.files.output}`;
 	return `\n  agentFile=${task.agentFile}\n  cwd=${task.cwd}${formatTaskWorktree(task)}${formatTaskDependencies(task)}\n  tools=${formatTaskTools(task)}\n  output=${task.files.output}\n  stderr=${task.files.stderr}\n  result=${task.files.result}`;
+}
+
+/**
+ * WP39b (live bundle 5, O7): where a worktree task's result is. `path` relative to the checkout it
+ * was made from when it lies inside it.
+ */
+export function formatTaskWorktreeLocation(
+	task: Pick<WorkflowTaskRunRecord, "worktree">,
+): string | undefined {
+	const worktree = task.worktree;
+	if (!worktree?.enabled || typeof worktree.path !== "string") return undefined;
+	const base = typeof worktree.baseCwd === "string" ? worktree.baseCwd : "";
+	const rel = base ? relative(base, worktree.path) : "";
+	const shown =
+		rel && !rel.startsWith("..") && !isAbsolute(rel) ? rel : worktree.path;
+	return `${shown}${worktree.branch ? ` (branch ${worktree.branch})` : ""}`;
+}
+
+/** One `Worktree:` line per managed worktree of the run (kept after the run; no auto-merge). */
+export function formatRunWorktreeLines(run: WorkflowRunRecord): string[] {
+	const seen = new Set<string>();
+	const lines: string[] = [];
+	for (const task of run.tasks ?? []) {
+		const location = formatTaskWorktreeLocation(task);
+		if (!location || seen.has(location)) continue;
+		seen.add(location);
+		lines.push(`  ${task.displayName || task.specId}: Worktree: ${location}`);
+	}
+	if (lines.length === 0) return [];
+	return [
+		"",
+		"Worktrees (kept after the run; review and merge, or remove with git worktree remove / agent-workflow prune):",
+		...lines,
+	];
 }
 
 function formatTaskWorktree(task: WorkflowTaskRunRecord): string {

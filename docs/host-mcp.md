@@ -169,6 +169,19 @@ checked first (a usage error never asks). Then, through the same elicitation hel
 Read-only calls, `workflow_prune` dry runs, `workflow_resume` and `workflow_supervise` never ask
 (resume and supervise state their cost in the description instead).
 
+### Codex `approval_policy = "never"` (owner decision O2, 2026-10-28)
+
+The server respects the client's policy. Codex with `approval_policy = "never"` answers every
+empty confirm form (`elicitation/create` without fields) itself with `accept`, without showing a
+dialog; agent-workflow treats that as the user's consent, consistent with the permission mode
+`free` ("approve everything"). This covers the `workflow_auto` consent (recorded as consent
+`elicitation`; one classifier request is sent), the degradation confirmation, `workflow_approve`
+and the confirmed changes (`workflow_profile`, `workflow_prune`, `workflow_notices`). Forms with a
+required field (the `workflow_auto` choice) are cancelled by Codex under that policy, so nothing
+starts from `workflow_auto` without a choice. To be asked, run Codex with
+`-c approval_policy="on-request"` (or set it in `~/.codex/config.toml`); live bundle 5 showed both
+dialogs there.
+
 Hints (WP18b) now name `workflow_resume {"runId":…}` for resume and `workflow_show {"ref":…,"raw":true}`
 for the raw run view; a blocked `workflow_wait` footer offers `workflow_resume` after the user agrees.
 
@@ -213,11 +226,14 @@ request id is the approval digest), and the decision is recorded on the run
    executor/model. The classifier runs on the run's default executor: `executor`, else the saved
    user profile, else this host's own CLI (`--host claude-code` → `claude`, `codex` → `codex`,
    `generic` → the first installed and logged-in of pi, claude, codex), with `model`/`effort` or the
-   executor's default model. Only `accept` sends the one tool-less request; `decline`, `cancel` or
-   an error send nothing (`phase: "consent-declined"`).
+   executor's default model. Only `accept` sends the one tool-less request; nothing is sent otherwise. `decline` is the user's
+   no (`phase: "consent-declined"`); `cancel` or an error is the client's, not the user's (Claude
+   Code print mode answers every elicitation with `cancel`), so the result says the client
+   cancelled or cannot ask and never that the user declined (`phase: "consent-cancelled"`, WP39b).
 3. **Choice.** A second elicitation (`elicitChoice`) is a form with one required enum field
-   `workflow`: the ranked launchable candidates (`1. <name> (recommended)`, …), the recommendation
-   as `default`; the message carries the classifier's recommendation and reasons. `accept` with a
+   `workflow`: the ranked launchable candidates (`<name> (recommended)`, `<name>`, …; no number prefix, since
+   Codex numbers enum options itself — WP39b; equal names get their scope, `review [user]`), the
+   recommendation as `default`; the message carries the classifier's recommendation and reasons. `accept` with a
    value starts that workflow through the normal launch path (duplicate guard, profiles, degradation
    elicitation, `detach` default true; the footer says to call `workflow_wait`). `decline`/`cancel`
    starts nothing and returns the ranked list (`phase: "cancelled"`), so the host can show it and

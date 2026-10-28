@@ -161,6 +161,61 @@ apply yet.
    superseded generation's artifacts are quarantined as before. Regression tests:
    `test/unit/core-wp39-resume-generation-provenance.test.mjs` (record level, and stop/resume end to
    end on the workflow executor fixture; both fail on the old code).
+6. WP39b (live bundle 5, O3): the auto classifier output parser (`parseWorkflowAutoComparisonOutput`)
+   normalizes evidence fields before validating them. `gpt-5.6-luna` named flattened sub-fields of
+   a card's nested objects (`facts.tools`, `facts.usesNetwork`, `facts.effective`,
+   `readiness.status`, `readiness.startAllowed`) and once an unprefixed `declaredVerification`, and
+   every such output failed host validation (no recommendation). Now a known sub-field of `facts`,
+   `readiness` or `comparison.overhead` maps to that field, an unprefixed name that is the last
+   segment of exactly one offered field maps to it, duplicates collapse, and anything else is still
+   invalid (`facts.invented`, `routing.useWhen.0`, `comparison`). The prompt is unchanged. Test:
+   `core-workflow-router.test.mjs` "recorded luna classifier outputs …" on the three recorded live-5
+   outputs (`test/fixtures/live5/auto-router/`; all three fail on the old code).
+7. WP39b (live bundle 5, O7), managed worktrees (pi-workflow 0.16.4 has the same code):
+   - The attempt state of a task in a managed worktree (`workflow-subagents/<run>/<task>/`) is
+     written in the project's own `.agent-workflow/`, not inside the worktree: the runtime runs the
+     task with `cwd` = the project and the worktree as its shared-mode execution directory
+     (`workflowTaskStateCwd`; runtime change log 19). Readers use the recorded handle's cwd
+     (`recordedTaskStateCwd`), handle recovery looks in the project first, then in the task cwd
+     (attempts launched before WP39b), and the raw-artifact contract (`backendMirrorRoot`) takes the
+     project's mirror when the attempt is there, after the same worktree checks (the worktree must
+     still be the real managed directory). Prune and logs now see those attempt dirs.
+   - The dirty-checkout snapshot excludes the whole project state directory `.agent-workflow/`
+     (was only `.agent-workflow/workflows/`), so other tasks' attempt state, notify receipts and
+     runtime bundles are never copied into a worktree when `.agent-workflow/` is not git-ignored.
+   - `status`/`show`/`inspect` name each worktree task's path and branch; `prune` lists a run's
+     worktrees in the dry run and removes them with `--yes` (docs/usage.md "Worktrees").
+   Tests: `core-wp39b-worktree-state.test.mjs` (all fail on the old code),
+   `core-unit-dynamic-runtime.test.mjs` "mutation-capable agents publish from managed and shared
+   loop worktrees" (expects the project's mirror now).
+8. WP39b (live bundle 5, O8): the worker system prompt's "Effective Tool Policy" of a task that
+   inherits the Pi host's tools (the sealed launch carries the run's host context, exactly when the
+   Pi executor gets `inheritHostTools`) lists them as available: "Host tools inherited from the Pi
+   session are also available: codemode, tool_search, mcp__* (matching MCP tools),
+   list_mcp_resources, list_mcp_resource_templates, read_mcp_resource; use them when the task needs
+   them", and the stage's own list reads "Only these workflow tools …". Before, it said only the
+   stage's tools were enabled and "unavailable tools cannot be called", and the live worker answered
+   "tool_search is not available". readOnly stages (never inheriting) keep the old text. Test:
+   `executor-wp35-host-tools.test.mjs` "the Effective Tool Policy …" (fails on the old code).
+9. WP39b (live bundle 5, O13): the capability preview of a launch with no stage to negotiate up
+   front (direct dynamic) reads `Capability check (<executor>, stages are generated at run time;
+   each is negotiated when generated, permission mode: …)` instead of `0 stages`
+   (`buildCapabilityPreview` option `stagesLabel`). Test: `core-wp39b-dynamic-preview.test.mjs`
+   (fails on the old code).
+10. WP39b (live bundle 5, O16): `prune` also handles the auto classifier's one-shot runs under
+    `workflows/auto-router-runs/` (`run_*` with a terminal runtime `run.json`, the run filters,
+    summary field `autoRouterRuns`). Before, that directory, which has no `run.json` of its own,
+    made the retention plan "uncertain", so every selected run was protected ("uncertain run
+    references") once a project had used `auto`. Test: `core-wp39b-auto-router-retention.test.mjs`
+    (fails on the old code).
+11. WP39b (flaky `host-wp33-pi-parent-usage`): the parent-usage tracker took "the run has settled"
+    from the run index, which the engine updates debounced, so a parent message right after the run
+    completed was counted as a during-run message and the next one as the wrap-up (the test's
+    "expected 3 messages, got 4" under load). It now reads the run record first (the index only when
+    the record cannot be read). Each message was still counted once; only the boundary moved. The
+    test's completion wait is 120 s (the "timeout" variant under load). Test:
+    `core-wp39b-parent-usage-wrapup.test.mjs` (deterministic: the index lags on purpose; fails on
+    the old code with 3 !== 2).
 
 Left unchanged on purpose (not paths or env vars; flagged for later WPs):
 

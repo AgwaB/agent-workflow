@@ -1,5 +1,6 @@
 // Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 535-558, 2868-3609, 3821-4245, 6401-6701, 6756-6774, 7371-end, and src/backend.ts (the backend object and its fatal-error wrapper). MIT, same author. Changes: implements the WorkflowBackend on the runtime API (executor descriptor recorded on the run, engine-issued attemptKey, SubmitRequest fields readOnly/isolation/approvalPolicy/env/mcpServers); Pi argv/extension preflight/noExtensions/skills/toolResultBudget/worker-role process env not ported (Pi executor, WP6); R#5 worktree gate before launch; registered for local-pi/headless run records. WP4d: launch-time capability decision from the run's recorded B4 negotiation (refusal → fatal before any effect; forcedReadOnly → SubmitRequest.readOnly and approval policy). WP4e: SubmitRequest.permissionMode from the run record (absent = safe). WP10: the system and task prompts are rendered per executor (artifact tool visible name, artifact tool guidelines section); the workflow_web_* source-card hint is removed (C2) and the refs URL hint names the CLI web tools. WP35: Pi-only per-task options (inheritHostTools; fast/fastApi when negotiation accepted fastTier) reach the Pi executor as per-task descriptor config. WP31: each task launches on its own executor in mixed runs (compiled runtime.executor, descriptor from run.roleExecution).
 import { PI_EXECUTOR_ID } from "../executors/pi/version.js";
+import { INHERITED_HOST_TOOL_NAMES } from "./tool-policy.js";
 import type { ExecutorDescriptor } from "../sdk/descriptor.js";
 import type { NegotiationReport } from "../sdk/requirements.js";
 import { isPlainObject, type JsonValue } from "../sdk/json.js";
@@ -137,8 +138,10 @@ import {
 	findLog,
 	getSubagentHandle,
 	makeSubagentHandle,
+	recordedTaskStateCwd,
 	recoverSubagentHandle,
 	subagentRunsDir,
+	workflowTaskStateCwd,
 } from "./task-artifacts.js";
 import { acknowledgeSubagentTaskInterrupted } from "./task-cancellation.js";
 import {
@@ -288,6 +291,9 @@ export async function launchSubagentTask(
 	const stderrFile = fromProjectPath(cwd, task.files.stderr);
 	const resultFile = fromProjectPath(cwd, task.files.result);
 	const runsDir = subagentRunsDir(run, task);
+	// WP39b (O7): a worktree task's attempt state stays in the project (the worker runs in the
+	// worktree as the runtime's execution directory).
+	const stateCwd = workflowTaskStateCwd(cwd, task);
 	const correlationId = `${run.runId}:${task.taskId}`;
 	const sessionId = workflowTaskSessionId(run, task);
 
@@ -342,6 +348,9 @@ export async function launchSubagentTask(
 	// the executor's own tools, see renderWorkerTaskPromptToolNames).
 	const systemPrompt = buildSystemPrompt(compiledTask, effectiveLaunchTools, {
 		artifactTool: launchHasArtifactTool(sealedLaunch, effectiveLaunchTools),
+		// WP39b (O8): the Pi worker gets the host tools exactly when the sealed launch carries the
+		// run's host context (piWorkerDescriptorConfig); its prompt must name them as available.
+		inheritHostTools: sealedLaunch.hostContext !== undefined,
 	});
 	const renderedSystemPrompt = renderWorkerPromptToolNames(
 		systemPrompt,
@@ -415,7 +424,7 @@ export async function launchSubagentTask(
 		task.statusDetail = "launching";
 		task.startedAt = nowIso();
 		task.backendFiles = {
-			runsDir: toProjectPath(task.cwd, resolve(task.cwd, runsDir)),
+			runsDir: toProjectPath(stateCwd, resolve(stateCwd, runsDir)),
 			correlationId,
 			...(sessionId === undefined ? {} : { sessionId }),
 		};
@@ -459,7 +468,7 @@ export async function launchSubagentTask(
 			compiledTask.runtime.maxRuntimeMs,
 		);
 		const subagentOptions: Record<string, unknown> = {
-			cwd: task.cwd,
+			cwd: stateCwd,
 			executor: workflowTaskExecutorDescriptor(
 				executor,
 				compiledTask,
@@ -488,7 +497,8 @@ export async function launchSubagentTask(
 			async: true,
 			onComplete: "detach",
 			asyncDependency: "needed-before-final",
-			workspace: "shared",
+			workspace:
+				stateCwd === task.cwd ? "shared" : { mode: "shared", path: task.cwd },
 			worktreePolicy: "never",
 			...(taskTimeoutMs === undefined ? {} : { timeoutMs: taskTimeoutMs }),
 			runsDir,
@@ -661,6 +671,7 @@ export async function launchSubagentTask(
 		launched.attemptId,
 		runsDir,
 		sessionId,
+		stateCwd,
 	);
 	if (durableBarrierDescriptor !== undefined) {
 		await settleDurableLaunchBarrier({
@@ -697,7 +708,7 @@ export async function launchSubagentTask(
 		});
 	}
 	task.backendFiles = {
-		runsDir: toProjectPath(task.cwd, resolve(task.cwd, runsDir)),
+		runsDir: toProjectPath(stateCwd, resolve(stateCwd, runsDir)),
 		correlationId,
 		...(sessionId === undefined ? {} : { sessionId }),
 	};
@@ -751,12 +762,15 @@ export async function refreshRunFromSubagentArtifacts(
 			continue;
 		let handle = getSubagentHandle(task);
 		if (!handle) {
-			handle = await recoverSubagentHandle(run, task);
+			handle = await recoverSubagentHandle(run, task, cwd);
 			if (handle) {
 				task.backendHandle = handle;
 				task.backendTaskId = handle.runId;
 				task.backendFiles = {
-					runsDir: toProjectPath(task.cwd, resolve(task.cwd, handle.runsDir)),
+					runsDir: toProjectPath(
+						handle.cwd,
+						resolve(handle.cwd, handle.runsDir),
+					),
 					correlationId: `${run.runId}:${task.taskId}`,
 					...(handle.sessionId === undefined
 						? {}
@@ -1088,7 +1102,10 @@ async function refreshRunningArtifactGraphPartialOutput(
 	const outputRef = findLog(snapshot, "output");
 	const outputFile = fromProjectPath(cwd, task.files.output);
 	const artifactRoot = task.backendFiles?.runsDir
-		? fromProjectPath(task.cwd, task.backendFiles.runsDir)
+		? fromProjectPath(
+				recordedTaskStateCwd(cwd, task),
+				task.backendFiles.runsDir,
+			)
 		: undefined;
 	await copyLogOrEmpty(snapshot, outputRef, outputFile, artifactRoot);
 	await writeWorkflowPartialOutputLedgerFromFile({
@@ -1345,7 +1362,7 @@ function launchHasArtifactTool(
 function buildSystemPrompt(
 	task: CompiledTask,
 	effectiveLaunchTools: readonly string[] | undefined,
-	options: { artifactTool?: boolean } = {},
+	options: { artifactTool?: boolean; inheritHostTools?: boolean } = {},
 ): string {
 	const workflowMaxDigestChars = task.artifactGraph?.output.maxDigestChars;
 	const workflowRefsMinItems = task.artifactGraph?.output.refsMinItems;
@@ -1386,17 +1403,24 @@ function buildSystemPrompt(
 						"When complete, provide a concise final report with findings, changed files if any, and blockers.",
 					];
 	const enabledTools = effectiveLaunchTools ?? [];
+	const hostTools = options.inheritHostTools === true;
 	const toolPolicy = [
 		"# Effective Tool Policy",
 		effectiveLaunchTools === undefined
 			? "Tool availability follows the host's default tool selection."
 			: enabledTools.length > 0
-				? `Only these tools are enabled for this workflow task: ${enabledTools.join(", ")}.`
-				: "No tools are enabled for this workflow task.",
+				? `Only these ${hostTools ? "workflow tools" : "tools"} are enabled for this workflow task: ${enabledTools.join(", ")}.`
+				: `No ${hostTools ? "workflow tools" : "tools"} are enabled for this workflow task.`,
+		// WP39b (live bundle 5, O8): inherited host tools (Pi executor only, never readOnly stages).
+		hostTools
+			? `Host tools inherited from the Pi session are also available: ${INHERITED_HOST_TOOL_NAMES.map((name) => (name === "mcp__*" ? "mcp__* (matching MCP tools)" : name)).join(", ")}; use them when the task needs them. Discover MCP tools through tool_search or codemode; trust, exposure and permission checks still apply.`
+			: undefined,
 		effectiveLaunchTools === undefined
 			? "Use only tools actually available from the host."
-			: "If the agent definition below mentions tools that are not in this enabled list, ignore those mentions; unavailable tools cannot be called in this workflow run.",
-		enabledTools.includes("mcp__*")
+			: hostTools
+				? "If the agent definition below mentions other tools, ignore those mentions; tools outside these two lists cannot be called in this workflow run."
+				: "If the agent definition below mentions tools that are not in this enabled list, ignore those mentions; unavailable tools cannot be called in this workflow run.",
+		enabledTools.includes("mcp__*") && !hostTools
 			? "mcp__* includes matching active MCP tools, not a literal callable name. Discover them through tool_search or codemode; trust, exposure and permission checks still apply."
 			: undefined,
 		// C2/WP10: the workflow_web_* source-card tools are gone; web tools are the CLI's own.

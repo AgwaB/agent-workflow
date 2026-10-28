@@ -238,7 +238,7 @@ Retries caused by bugs: C2 (consent; no run started), C1 (runs 7 and 8 lost to F
 for F4/F5, no extra run). Not bugs: domain verdicts, output-validation failures (C4 Claude, D1
 reviewer), the luna classifier's invalid evidence fields.
 
-## Observations not fixed (open)
+## Observations (fixed in WP39b except O9, O12, O15; see "WP39b fixes")
 
 | # | Observation |
 |---|---|
@@ -258,6 +258,41 @@ reviewer), the luna classifier's invalid evidence fields.
 | O14 | CLI foreground progress lines are printed on the same line as an open approval question. |
 | O15 | Interactive Claude Code records workspace trust for each `/tmp/aw-live5/*` project in its own state file (not `settings.json`); needed for the status line; not reverted. |
 | O16 | Classifier requests leave `.agent-workflow/workflows/auto-router-runs/` in the project. |
+
+## WP39b fixes
+
+Branch `wp39b-live5-fixes` from main `505fc78`; no model or agent-CLI call. Every behavior fix has a
+test written first and run against the old code (stash of the fix, or `505fc78`'s `dist`) before
+the fix. Not fixed: O9 (documented), O12 (model quality), O15 (Claude Code's own state; noted in
+[support.md](support.md)). O2 is documentation only (owner decision 2026-10-28: Codex
+`approval_policy = "never"` auto-accepting a confirm dialog counts as the user's consent, like
+`free`).
+
+| # | Fix | Commit | Test | Pre-fix failure confirmed |
+|---|---|---|---|---|
+| O1 | `workflow_auto`: an elicitation `cancel`/error (and a dialog that cannot be shown) is `phase: "consent-cancelled"`, "the client cancelled it or cannot ask here"; "declined" only for `decline` | `9303010` (+ `2e91083`: the ported headless `/aw auto` test now expects the cancelled text) | `host-wp32-auto.test.mjs` "a cancelled consent elicitation is the client's cancel …" | yes (`consent-declined`) |
+| O2 | Docs: `host-mcp.md`, `plugins.md`, `support.md` — auto-accept under `never` is consent; `-c approval_policy="on-request"` to be asked | `87334ad` | — (docs) | — |
+| O3 | Classifier evidence fields: flattened sub-fields (`facts.tools` → `facts`, `readiness.status` → `readiness`, `comparison.overhead.*`) and a unique unprefixed name normalize; anything else stays invalid; prompt unchanged | `84aebdb` | `core-workflow-router.test.mjs` "recorded luna classifier outputs …" on the three recorded live-5 outputs (`test/fixtures/live5/auto-router/`) | yes (all three `undefined`) |
+| O4 | Auto choice enum values without a number prefix; equal names get their scope | `79f50f1` | `host-wp32-auto.test.mjs` "auto choice options: no number prefix …" + the MCP choice test | yes |
+| O5 | `wait` creates `notify-check/` and the baseline when needed, then marks the settled state seen | `060f5a2` | `host-wp36-progress.test.mjs` "wait marks a returned settled state seen in a fresh project …" | yes (no receipts directory) |
+| O6 | Server instructions and the `agent-workflow` skill: "a line containing `agent-workflow:`" (plugins rebuilt) | `4011d54` | `plugin-skills.test.mjs` "the completion-check line is described as a line containing …" | yes |
+| O7a | A worktree task's attempt state is written under the project's `.agent-workflow/workflow-subagents/` (runtime `workspace: {mode: "shared", path}` = the worktree as execution directory); readers, recovery and the raw-artifact contract follow | `a4971f5` | `core-wp39b-worktree-state.test.mjs` (real runtime + fixture executor; runtime shared-path), `core-unit-dynamic-runtime.test.mjs` worktree test | yes (`artifactsDir` inside the worktree) |
+| O7b | The dirty snapshot excludes the whole `.agent-workflow/` | `d537eb5` | `core-wp39b-worktree-state.test.mjs` "the dirty snapshot never copies .agent-workflow/ …" | yes |
+| O7c | `status`/`show` list `Worktree: <path> (branch …)`; `inspect` a `worktree:` line per task | `334ebef` | `core-wp39b-worktree-state.test.mjs` "status, show and inspect name …" | yes |
+| O7d | pi-workflow keeps managed worktrees (no auto-merge, `rm` of the run dir on prune); kept here too, documented (`usage.md` "Worktrees"); `prune` dry run lists them (branch, uncommitted changes, commits not in HEAD), `--yes` runs `git worktree remove --force` and `git branch -d` (unmerged branches kept); a failed removal keeps the run | `0208a10` | `core-wp39b-worktree-state.test.mjs` "prune: managed worktrees are listed …" | yes |
+| O8 | With inherited host tools the Effective Tool Policy lists codemode, tool_search, `mcp__*`, the MCP resource tools as available; readOnly stages unchanged | `bb26d91` (+ `2e91083`: list moved to core for import isolation, ported prompt-policy test updated) | `executor-wp35-host-tools.test.mjs` "the Effective Tool Policy of a worker that inherits host tools …" | yes |
+| O10 | Pi: a settled `approve`/`resume` result is tracked too (delivery receipts keep it exactly once) | `dd0531a` | `host-wp29-approve-later.test.mjs` "Pi /aw approve: a run that settles inside the approve call …" | yes (no message) |
+| O11 | Cause: the tracker sends the custom message and then `ctx.ui.notify`s its notice; the TUI prints both. TUI: no notify | `759ef2b` | `host-wp16-pi-feedback.test.mjs` "TUI: the completion is shown once …" | yes |
+| O13 | Preview: "stages are generated at run time; each is negotiated when generated" instead of "0 stages" | `e2d9555` | `core-wp39b-dynamic-preview.test.mjs` | yes |
+| O14 | CLI: progress and "still running" output held while a question is open, newest line printed after the answer | `75b29e5` | `host-wp29-cli-approval.test.mjs` "no progress line is printed while the approval question is open" | yes (two lines on the open question) |
+| O16 | `prune` handles `auto-router-runs/run_*` with the run filters (terminal, `--keep`, `--older-than`, `--yes`); the directory no longer makes retention "uncertain" (every run was protected); never listed as a run | `e6a65db` | `core-wp39b-auto-router-retention.test.mjs` | yes ("uncertain run references") |
+| flaky | `host-wp33-pi-parent-usage`: the wrap-up was decided from the debounced run index, so a message right after completion counted as during-run and the next as wrap-up (3 → 4); now the run record; completion wait 120 s | `7744738` | `core-wp39b-parent-usage-wrapup.test.mjs` (index lags on purpose) | yes (`3 !== 2`) |
+
+Validation (final commit): `npm run validate` exit 0 twice at the default concurrency (11 on this
+12-core machine) and once with `AGENT_WORKFLOW_TEST_CONCURRENCY=4`; six concurrent runs of
+`host-wp33-pi-parent-usage` + `core-unit-dynamic-runtime` passed; `npm run e2e` exit 0; replay
+acceptance 0 unexplained in every fixture and variant; `node tools/release/plugins.mjs check`
+passes.
 
 ## Live-call ledger (18 workflow runs of ≤ 20)
 
@@ -358,4 +393,5 @@ no `<HOME>/.pi/agent/sessions` entry for the targets.
 - Host tools: a worker actually calling an inherited `mcp__*`/`codemode` tool (O8), and project-level
   MCP servers for workers (O9).
 - `y` at the in-run CLI approval question (the same prompt as the verified `approve` one).
-- Elicitation on Codex with the user's own `approval_policy = "never"` (O2) is a product decision.
+- Elicitation on Codex with the user's own `approval_policy = "never"` (O2): decided 2026-10-28,
+  the auto-accept counts as consent (documented, WP39b).

@@ -31,7 +31,7 @@ npx agent-workflow --help
 | `resume <run> [--detach] [--timeout D]` | Reset failed, interrupted and resumable blocked tasks, then continue in the foreground or detached. |
 | `approve <run> [--request <id>] [--reject] [--yes] [--detach] [--timeout D]` | WP29: answer a dynamic-controller approval the run is blocked on (below). |
 | `stop <run>` | Stop a non-terminal run (durable stop intent; workers are cancelled). Waits up to 15 s for confirmation (below). |
-| `prune [--keep N] [--older-than DAYS] [--yes]` | Delete terminal runs beyond the filters, and (WP18b) terminal executor attempt records older than 7 days (or `--older-than`) under `~/.agent-workflow/executors/` (WP19: a launched attempt's record becomes a compact tombstone that is never pruned, so reconcile never reports it absent; containment is physical: a symlinked `attempts/`, Pi `runs/` or other ancestor is refused and reported, never followed; WP19 round 7/8: orphans are removed only when the name is adapter-written — the adapter's own attemptKey digest of exactly its length (Claude 40, Codex 32, Pi 64 hex) alone or with `.events.jsonl`/`.log`/an atomic-write temp suffix — so other files there are never touched), and stale host launch claims (`.agent-workflow/host-launches/`, older than 1 h); a dry run without `--yes`. |
+| `prune [--keep N] [--older-than DAYS] [--yes]` | Delete terminal runs beyond the filters, and (WP18b) terminal executor attempt records older than 7 days (or `--older-than`) under `~/.agent-workflow/executors/` (WP19: a launched attempt's record becomes a compact tombstone that is never pruned, so reconcile never reports it absent; containment is physical: a symlinked `attempts/`, Pi `runs/` or other ancestor is refused and reported, never followed; WP19 round 7/8: orphans are removed only when the name is adapter-written — the adapter's own attemptKey digest of exactly its length (Claude 40, Codex 32, Pi 64 hex) alone or with `.events.jsonl`/`.log`/an atomic-write temp suffix — so other files there are never touched), and stale host launch claims (`.agent-workflow/host-launches/`, older than 1 h); WP39b: a pruned run's managed worktrees (merged branches deleted, unmerged kept) and the `auto` classifier's requests (`.agent-workflow/workflows/auto-router-runs/`, same filters); a dry run without `--yes`. |
 | `notices list [--json] \| acknowledge <run> --state <sha256> --reason <text> \| clear <run> [--json]` | Notification-only acknowledgements of unfinished runs. |
 | `supervise <run> \| --all [--poll-ms N] [--max-runtime-ms N]` | Drive scheduling from this process until the run(s) are terminal. |
 | `watch [run] [--follow] [--once] [--interval S] [--bell]` | WP36: live terminal view of the project's active runs or one run (tasks, status, elapsed, pending approvals, verdict and report at the end). Read-only. Below. |
@@ -159,6 +159,7 @@ Cancelling at any step starts nothing. The run's launch metadata (`agent-workflo
 records the offered candidates, the recommendation, your choice, the classifier executor/model and
 the consent source (`prompt` or `flag`); the task only as its SHA-256. `show <run>` prints an
 `Auto selection:` line. With `--json`, `data.phase` is `consent-unavailable`, `consent-declined`,
+`consent-cancelled` (MCP/API only: no answer from the user),
 `classifier-unavailable`, `ranked`, `cancelled`, `stale` or `launched` (`data.launch` then holds
 the launch result).
 
@@ -314,11 +315,14 @@ agent-workflow: workflow "deep-review" (run workflow_…) finished — verdict N
 
 and nothing otherwise (exit 0). Blocked runs name the approval (`approve`) or the
 inspect/resume commands; `--host claude-code|codex|generic` words the follow-ups as MCP tool calls.
-Receipts: `.agent-workflow/notify-check/` (created by the first check in a project that has runs)
+Receipts: `.agent-workflow/notify-check/` (created by the first check in a project that has runs,
+or by the first `wait` that returns a settled state)
 holds `baseline.json` (the first check also reports runs that settled in the hour before it) and one
 marker per reported state, created exclusively so concurrent checks print a state once. A resumed
 run that settles again is reported again. `wait` (CLI, MCP `workflow_wait`, Pi) marks the state it
-returned, so a result the host already showed is not repeated. At most 5 runs per check (the rest
+returned, so a result the host already showed is not repeated; since WP39b also in a fresh project
+(it creates the directory and the baseline; before, the first run of a project was announced once
+more by the hook). At most 5 runs per check (the rest
 next time); markers of pruned runs are removed. `--json` prints `{action, ok, outcome, data:
 {notifications, deferred}}`. `--follow` checks every 5 s (`--interval` 1-60) and prints new lines as
 they appear (a long-lived feed, for example a Claude Code plugin monitor). Hook setup:
@@ -399,3 +403,9 @@ agent-workflow prune --keep 20 --yes
   input and an abort still answer `""`. The unit tests of these flows script `io.prompt` and never ran
   the real prompt; `test/unit/host-wp39-cli-readline-prompt.test.mjs` runs it on a stream (fails with
   the old ordering: `'' !== 'y'`).
+- **WP39b (live bundle 5, O14): no progress output on an open question.** A foreground run whose
+  dynamic-controller approval question stayed open past a wait slice printed `still running …` and
+  progress lines right after `Run dynamic workflow controller? [y/n]`, on the question's line.
+  Progress output now pauses while a question is open and the newest held line is printed after the
+  answer. Test: `host-wp29-cli-approval.test.mjs` "no progress line is printed while the approval
+  question is open" (fails on the old code).

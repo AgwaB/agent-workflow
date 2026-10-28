@@ -99,6 +99,66 @@ const WORKFLOW_AUTO_COMPARISON_EVIDENCE_FIELD_SET = new Set<string>(
 	WORKFLOW_AUTO_COMPARISON_EVIDENCE_FIELDS,
 );
 const WORKFLOW_AUTO_COMPARISON_TEXT_MAX_UTF8_BYTES = 480;
+/**
+ * WP39b (live bundle 5, O3): sub-fields of the card's nested objects that some models name as
+ * evidence (`facts.tools`, `readiness.status`, `comparison.overhead.stages`). They normalize to the
+ * offered field that contains them; a path naming nothing on the card stays invalid.
+ */
+const WORKFLOW_AUTO_EVIDENCE_SUBFIELDS: ReadonlyMap<
+	string,
+	ReadonlySet<string>
+> = new Map([
+	[
+		"facts",
+		new Set([
+			"stageCount",
+			"stageTypes",
+			"agents",
+			"tools",
+			"readOnly",
+			"hasSupport",
+			"hasDynamic",
+			"requiresApproval",
+			"usesNetwork",
+			"effective",
+			"effective.capability",
+			"effective.network",
+			"effective.unknownTools",
+		]),
+	],
+	["readiness", new Set(["status", "startAllowed", "blockers", "cautions"])],
+	[
+		"comparison.overhead",
+		new Set([
+			"stages",
+			"executionStages",
+			"foreachStages",
+			"loopStages",
+			"dynamic",
+			"support",
+		]),
+	],
+]);
+
+/**
+ * One evidence field → the offered field it names: an offered field as is; a flattened sub-field of
+ * an offered object field (`facts.tools` → `facts`); an unprefixed name that is the last segment of
+ * exactly one offered field (`declaredVerification` → `comparison.declaredVerification`).
+ */
+function normalizeWorkflowAutoEvidenceField(field: string): string | undefined {
+	if (WORKFLOW_AUTO_COMPARISON_EVIDENCE_FIELD_SET.has(field)) return field;
+	for (const [parent, subfields] of WORKFLOW_AUTO_EVIDENCE_SUBFIELDS)
+		if (
+			field.startsWith(`${parent}.`) &&
+			subfields.has(field.slice(parent.length + 1))
+		)
+			return parent;
+	if (field.includes(".")) return undefined;
+	const bySuffix = WORKFLOW_AUTO_COMPARISON_EVIDENCE_FIELDS.filter((offered) =>
+		offered.endsWith(`.${field}`),
+	);
+	return bySuffix.length === 1 ? bySuffix[0] : undefined;
+}
 
 export type WorkflowAutoCandidateKind = WorkflowAutoRoute;
 export type WorkflowAutoReadiness = "ready" | "needs-check" | "blocked";
@@ -1791,17 +1851,17 @@ export function parseWorkflowAutoComparisonOutput(
 			raw.evidence.length === 0
 		)
 			return undefined;
-		if (
-			!raw.evidence.every((field) =>
-				WORKFLOW_AUTO_COMPARISON_EVIDENCE_FIELD_SET.has(field),
-			)
-		)
-			return undefined;
+		const evidence: string[] = [];
+		for (const field of raw.evidence) {
+			const normalized = normalizeWorkflowAutoEvidenceField(field);
+			if (normalized === undefined) return undefined;
+			if (!evidence.includes(normalized)) evidence.push(normalized);
+		}
 		assessments.push({
 			candidateId: raw.candidateId,
 			fit: raw.fit,
 			reason: raw.reason,
-			evidence: raw.evidence,
+			evidence,
 		});
 	}
 	if (expectedIds.size) return undefined;

@@ -111,6 +111,12 @@ marketplace file `.agents/plugins/marketplace.json` alone was not picked up by t
 CLI needs `codex plugin marketplace add` (or a `marketplaces` config entry), and `plugin add`
 installs the copy into `$CODEX_HOME/plugins/cache/`.
 
+Codex's `approval_policy` decides whether you see the confirmation dialogs: under
+`approval_policy = "never"` Codex auto-accepts confirm dialogs (auto consent, degradations,
+approvals, profile/prune/notice changes) without asking, and agent-workflow treats that as your
+consent (owner decision O2, like the permission mode `free`). To be asked, start Codex with
+`-c approval_policy="on-request"` ([host-mcp.md](host-mcp.md#codex-approval_policy--never-owner-decision-o2-2026-10-28)).
+
 Restart the session after installing. Claude Code shows the server as
 `plugin:agent-workflow:agent-workflow` (`claude mcp list`), Codex as `agent-workflow`.
 
@@ -172,7 +178,8 @@ context: at the user's next message, each run that finished since the last check
   before the check starts and kept only when the check succeeded, so a change during a check or a
   failed check is looked at again on the next prompt. It never blocks a prompt and prints nothing on
   errors. Claude Code adds the plain stdout of `UserPromptSubmit` hooks to the
-  context. There is no `hooks/hooks.json` (Claude Code loads that file by default, and Codex would
+  context, prefixed `UserPromptSubmit hook success: ` (live bundle 5), so the server instructions and
+  the skill speak of a line *containing* `agent-workflow:`, not one starting with it (WP39b). There is no `hooks/hooks.json` (Claude Code loads that file by default, and Codex would
   read it too). The dev plugin runs the checkout's CLI instead of `npx`.
 - **Codex (manual).** The plugin ships no Codex hook: Codex skips plugin hooks until the user
   trusts them in `/hooks`, and plugins with lifecycle hooks are not eligible for the public plugin

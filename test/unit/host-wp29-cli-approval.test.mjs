@@ -145,3 +145,44 @@ test("CLI without a terminal: blocked as dynamic_ui_unavailable; the output name
 	assert.match(result.out, new RegExp(`agent-workflow approve ${runId}`));
 	assert.equal(await p.controllerRuns(), 0);
 });
+
+// WP39b (live bundle 5, O14): foreground progress lines were printed while the approval question
+// was open, on the question's line. Progress output pauses while a prompt is open.
+test("CLI terminal: no progress line is printed while the approval question is open", async () => {
+	const p = await project();
+	const err = [];
+	let open = false;
+	const duringPrompt = [];
+	const code = await cli.runAgentWorkflowCli(
+		["run", "wf.json", "progress", "--executor", p.executor],
+		{
+			cwd: p.cwd,
+			env: p.env,
+			stdout: () => undefined,
+			stderr: (text) => {
+				err.push(text);
+				if (open) duringPrompt.push(text);
+			},
+			isTTY: true,
+			// A wait slice ends while the question is open (the engine's schedule step that asks
+			// keeps running), so the CLI polls again during the question.
+			waitSliceMs: 1_000,
+			prompt: async () => {
+				open = true;
+				// Hold the question open across several progress polls.
+				await new Promise((resolveSleep) => setTimeout(resolveSleep, 3_000));
+				open = false;
+				return "y";
+			},
+		},
+	);
+	assert.equal(code, 0, err.join(""));
+	assert.deepEqual(
+		duringPrompt.filter((text) =>
+			/completed, \d+ running|still running/.test(text),
+		),
+		[],
+	);
+	// Progress resumes after the answer.
+	assert.match(err.join(""), /2\/2 completed|completed, 0 running/);
+});

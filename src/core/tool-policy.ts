@@ -8,6 +8,19 @@ import type {
 } from "./types.js";
 
 /**
+ * Tools `inheritHostTools` adds to a Pi worker (pi-workflow `workflowNativeLaunchTools`). The Pi
+ * executor passes them to the worker (executors/pi/argv.ts); the worker prompt names them (WP39b).
+ */
+export const INHERITED_HOST_TOOL_NAMES = [
+	"codemode",
+	"tool_search",
+	"mcp__*",
+	"list_mcp_resources",
+	"list_mcp_resource_templates",
+	"read_mcp_resource",
+] as const;
+
+/**
  * Pi tool-name vocabulary a worker gets when its tool list is unspecified and
  * host tools are inherited. Executors map these names (sdk/tools.ts).
  */

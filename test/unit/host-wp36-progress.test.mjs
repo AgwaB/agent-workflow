@@ -753,3 +753,52 @@ test("progress helpers: elapsed formatting and name cutting", () => {
 		`${"a".repeat(23)}…`,
 	);
 });
+
+// WP39b O5: in a fresh project (no `.agent-workflow/notify-check/` yet) a settled state that `wait`
+// returned was announced again by the first notify-check (the hook). `wait` now creates the
+// receipts directory and baseline itself.
+test("wait marks a returned settled state seen in a fresh project; notify-check does not repeat it", async () => {
+	const cwd = await project();
+	await writeRun(cwd, {
+		runId: "workflow_fresh",
+		tasks: DONE,
+		updatedAt: new Date().toISOString(),
+		report: { specId: "render", verdict: "NEEDS_WORK" },
+	});
+	const runFile = join(
+		cwd,
+		".agent-workflow",
+		"workflows",
+		"workflow_fresh",
+		"run.json",
+	);
+	const record = JSON.parse(await readFile(runFile, "utf8"));
+	record.backend = { type: "local-pi", mode: "headless" };
+	await writeFile(runFile, JSON.stringify(record));
+	assert.equal(existsSync(join(cwd, ".agent-workflow", "notify-check")), false);
+	const waited = await runCli(cwd, ["wait", "workflow_fresh", "--json"], {
+		now: undefined,
+	});
+	assert.equal(
+		JSON.parse(waited.out).data?.terminal,
+		true,
+		waited.out + waited.err,
+	);
+	const receipts = await readdir(join(cwd, ".agent-workflow", "notify-check"));
+	assert.ok(receipts.includes("baseline.json"));
+	assert.ok(receipts.some((name) => name.startsWith("workflow_fresh.")));
+	assert.equal(
+		(await notify.notifyCheck(cwd, { host: "claude-code" })).text,
+		"",
+	);
+	// A run the host never waited for is still announced.
+	await writeRun(cwd, {
+		runId: "workflow_other",
+		tasks: DONE,
+		updatedAt: new Date().toISOString(),
+	});
+	assert.match(
+		(await notify.notifyCheck(cwd, { host: "claude-code" })).text,
+		/workflow_other\) finished/,
+	);
+});

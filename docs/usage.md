@@ -550,7 +550,8 @@ or `null` for no cap), `until` (must reference the final child: `{"stage": "<fin
 combinators `all`/`any`). A loop ends `completed` (until true), `exhausted` (positive `maxRounds`
 used up), `stopped_no_progress` (the `progressPath` metric, default `$.blockingFailures`, did not
 decrease; omitted `progressPath` on an unlimited loop disables this) or `failed`. An optional
-`onExhausted` stage runs once on exhaustion or no progress. There is no auto-merge of worktree output.
+`onExhausted` stage runs once on exhaustion or no progress. There is no auto-merge of worktree output
+(see "Worktrees" under Retention).
 
 ### Roles
 
@@ -667,6 +668,24 @@ runs beyond the newest 50 (`--keep N`, `--older-than DAYS`); `--yes` deletes the
 and runs with retained children are protected. Pruning a run also deletes the worker CLI sessions
 still recorded as owned (where the adapter supports `deleteOwnedSession`; already `deleted` or
 `not_found` entries are skipped, the rest retried); a run whose session deletion fails is kept.
+The `auto` classifier's requests (`.agent-workflow/workflows/auto-router-runs/run_*`, one per
+comparison) follow the same rules (terminal only, the newest `--keep` kept, `--older-than`, deleted
+only with `--yes`) and are listed separately as "Classifier requests"; they are never shown as runs
+and never hold back the pruning of runs (WP39b).
+
+**Worktrees.** A write-capable stage that runs in a managed worktree
+(`.agent-workflow/workflows/<run>/worktrees/<task>`, branch `agent-workflow/<run>-<task>`) leaves it
+in place after the run, as pi-workflow does: there is no auto-merge, the worktree and its branch
+hold the result for you to review and merge (`show`/`inspect`/`status` name the path and branch).
+The run's attempt state stays in the project's own `.agent-workflow/`, and the project's
+`.agent-workflow/` is never copied into a worktree (WP39b). To remove one yourself:
+`git worktree remove <path>` (add `--force` to discard uncommitted changes) and
+`git branch -D agent-workflow/<run>-<task>`. `agent-workflow prune` includes them: the dry run lists
+each worktree of a run it would delete with its branch, `uncommitted changes` and the number of
+commits not in your checkout's HEAD; `--yes` removes them (`git worktree remove --force`, so
+uncommitted changes in them are discarded only with `--yes`) and deletes a branch only when it has
+no such commits (`git branch -d`); an unmerged branch is kept and named. A run whose worktree
+cannot be removed is kept.
 
 Executor adapters keep one attempt record per worker attempt under
 `~/.agent-workflow/executors/{claude,codex,pi}/attempts/`. Since WP18b, terminal attempt records

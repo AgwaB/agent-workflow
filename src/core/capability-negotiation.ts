@@ -689,6 +689,13 @@ export async function negotiateWorkflowRun(
 		.join(" + ");
 	const preview = buildCapabilityPreview(stages, {
 		executor,
+		// WP39b (live bundle 5, O13): a direct dynamic run has no stage up front ("0 stages").
+		...(stages.length === 0
+			? {
+					stagesLabel:
+						"stages are generated at run time; each is negotiated when generated",
+				}
+			: {}),
 		...(mixed ? { executorLabel: `mixed: ${executorsLabel}` } : {}),
 		header: mixed
 			? [...probes.entries()].map(

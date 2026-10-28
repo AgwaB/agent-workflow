@@ -46,6 +46,7 @@ import {
 	safeArtifactPath,
 	makeSubagentHandle,
 	subagentRunsDir,
+	workflowTaskStateCwd,
 	timestampMs,
 } from "./task-artifacts.js";
 import { WORKFLOW_TASK_BACKEND_ID } from "./task-artifacts.js";
@@ -286,6 +287,7 @@ export async function reconcileDurableLaunchBarrierTask(
 				ready.attemptId,
 				subagentRunsDir(run, task),
 				workflowTaskSessionId(run, task),
+				workflowTaskStateCwd(cwd, task),
 			);
 			task.backendHandle = handle;
 			task.backendTaskId = ready.runId;

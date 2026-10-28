@@ -682,6 +682,13 @@ Run results, statuses and `RunStatusSnapshot` keep their shapes; `backend` is th
     acquisition is `ELOCKED`, the later explicit release succeeds; a handled SIGTERM followed by
     `process.exit` still removes the lock).
 
+19. **WP39b (live bundle 5, O7): shared mode with `workspace.path`.** `workspace: {mode: "shared",
+    path}` now runs the worker in that existing directory (`request.cwd`, the durable worker's
+    `executionCwd`) while the run and attempt state stay under `cwd`/`runsDir`; nothing is created or
+    removed, and a path that is not an existing directory is a `WorkspacePolicyError`. Before, `path`
+    was ignored in shared mode. The engine uses it for tasks in its managed worktrees. Test:
+    `core-wp39b-worktree-state.test.mjs`.
+
 ## Inherited from pi-subagent 0.7.2
 
 The WP2c defects as they exist in `pi-subagent-engine` at `ab91a74` (read-only check; paths relative to that

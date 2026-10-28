@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/workspace/worktree.ts. MIT, same author. Changes: default worktree parent ".pi-subagent-worktrees" -> ".agent-workflow-worktrees"; diff also excludes **/.agent-workflow/runs/** (new default runs dir).
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/workspace/worktree.ts. MIT, same author. Changes: default worktree parent ".pi-subagent-worktrees" -> ".agent-workflow-worktrees"; diff also excludes **/.agent-workflow/runs/** (new default runs dir); WP39b: shared mode with `workspace.path` runs in that existing directory (state stays under cwd).
 import { execFile, spawn } from "node:child_process";
 import { appendFile, mkdir, open, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
@@ -87,7 +87,19 @@ export async function resolveWorkspace(
 	const intent = resolveWorktreeIntent(options.input);
 
 	if (intent === "shared") {
-		return { mode: "shared", baseCwd, cwd: baseCwd, worktreePath: null };
+		// agent-workflow (WP39b): `workspace: {mode: "shared", path}` runs the worker in an existing
+		// directory the caller owns (the engine's managed worktree) while the run state stays under
+		// `cwd`; nothing is created or removed. Without `path`, the worker runs in `cwd`.
+		const sharedPath = explicitWorkspacePath(options.input);
+		if (sharedPath === undefined)
+			return { mode: "shared", baseCwd, cwd: baseCwd, worktreePath: null };
+		const executionCwd = resolve(baseCwd, sharedPath);
+		const info = await stat(executionCwd).catch(() => undefined);
+		if (!info?.isDirectory())
+			throw new WorkspacePolicyError(
+				`workspace.path ${executionCwd} is not an existing directory`,
+			);
+		return { mode: "shared", baseCwd, cwd: executionCwd, worktreePath: null };
 	}
 
 	const root = await gitRoot(baseCwd);

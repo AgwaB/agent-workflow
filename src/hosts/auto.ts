@@ -113,7 +113,11 @@ export type AutoConsent =
 	| { source: "flag" }
 	| {
 			source: Exclude<WorkflowAutoConsentSource, "flag">;
-			/** true = consent; false/undefined = declined or not answered (nothing is sent). */
+			/**
+			 * true = consent; false = the user declined; undefined = no answer from the user: the
+			 * client cancelled the dialog or cannot ask here (e.g. Claude Code print mode). Nothing is
+			 * sent unless true.
+			 */
 			confirm: (
 				title: string,
 				message: string,
@@ -149,8 +153,13 @@ export interface AutoRequest
 export type AutoPhase =
 	/** No consent hook (no dialog, no terminal, no elicitation, no flag): nothing was sent. */
 	| "consent-unavailable"
-	/** The user declined (or did not answer) the consent dialog: nothing was sent. */
+	/** The user declined the consent dialog: nothing was sent. */
 	| "consent-declined"
+	/**
+	 * WP39b: the consent dialog got no answer from the user (the client cancelled it or cannot ask
+	 * here, e.g. Claude Code print mode auto-cancels elicitations): nothing was sent.
+	 */
+	| "consent-cancelled"
 	/** The classifier executor could not be resolved: nothing was sent. */
 	| "classifier-unavailable"
 	/** Ranked after consent; no choice hook, so nothing started. */
@@ -368,8 +377,15 @@ function shortlistLines(shortlist: readonly AutoCandidateView[]): string[] {
 	);
 }
 
-function consentNext(ctx: HostApiContext): string[] {
+function consentNext(
+	ctx: HostApiContext,
+	phase: "consent-unavailable" | "consent-declined" | "consent-cancelled",
+): string[] {
 	const kind = hostKind(ctx);
+	if (phase === "consent-cancelled" && kind !== "cli" && kind !== "pi")
+		return [
+			'The client cancelled the confirmation dialog without an answer from the user (or cannot ask in this mode, e.g. Claude Code print mode), so no comparison was sent. Start a workflow directly with the tool calls above, or run `agent-workflow auto "<task>"` in a terminal.',
+		];
 	if (kind === "cli")
 		return [
 			'Ask again on a terminal (agent-workflow auto "<task>"), or consent explicitly with --yes (agent-workflow auto "<task>" --yes) to send the one comparison request.',
@@ -543,9 +559,9 @@ export async function autoAction(
 	const preview = consentPreview(task, target, shortlist);
 	// 3. Consent.
 	const noCall = (
-		phase: "consent-unavailable" | "consent-declined",
+		phase: "consent-unavailable" | "consent-declined" | "consent-cancelled",
 	): HostResult<AutoData> => {
-		const next = consentNext(ctx);
+		const next = consentNext(ctx, phase);
 		return result(
 			"auto",
 			"refused",
@@ -560,7 +576,9 @@ export async function autoAction(
 				header,
 				phase === "consent-declined"
 					? "Not sent: you did not agree to the comparison request. No task was sent and no workflow has been started."
-					: "Not sent: agent-workflow could not ask for your consent here, so no task was sent to a classifier and no workflow has been started.",
+					: phase === "consent-cancelled"
+						? "Not sent: the consent dialog was cancelled without an answer (the client cancelled it or cannot ask here), so no task was sent to a classifier and no workflow has been started."
+						: "Not sent: agent-workflow could not ask for your consent here, so no task was sent to a classifier and no workflow has been started.",
 				`The comparison would run on ${describeClassifier(target)}.`,
 				"Local shortlist (ranked by the workflows' routing hints, no model call):",
 				...shortlistLines(shortlist),
@@ -578,10 +596,14 @@ export async function autoAction(
 				preview,
 			);
 		} catch {
-			agreed = false;
+			agreed = undefined;
 		}
 		if (agreed !== true || request.signal?.aborted)
-			return noCall("consent-declined");
+			return noCall(
+				agreed === false && !request.signal?.aborted
+					? "consent-declined"
+					: "consent-cancelled",
+			);
 	}
 	const consent: WorkflowAutoConsentSource = request.consent.source;
 	// 4. Exactly one classifier call on the resolved executor (behind the host's loader, if any).

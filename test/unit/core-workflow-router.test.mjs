@@ -1365,3 +1365,102 @@ test("strict output parser requires an assessment for every candidate and uses o
 		undefined,
 	);
 });
+
+// WP39b O3: gpt-5.6-luna (live bundle 5, Codex ×2 and Pi ×1) named flattened sub-fields of a card's
+// nested objects as evidence (`facts.tools`, `facts.usesNetwork`, `readiness.status`, an unprefixed
+// `declaredVerification`). The parser normalizes them to the offered evidence fields and validates
+// as before; an evidence path that names nothing on the card stays invalid.
+test("recorded luna classifier outputs with flattened evidence fields parse after normalization", async () => {
+	const { readFile, readdir } = await import("node:fs/promises");
+	const dir = new URL("../fixtures/live5/auto-router/", import.meta.url);
+	const files = (await readdir(dir)).filter((name) =>
+		name.endsWith(".output.log"),
+	);
+	assert.equal(files.length, 3);
+	for (const name of files) {
+		const text = await readFile(new URL(name, dir), "utf8");
+		const raw = JSON.parse(text);
+		const cards = raw.assessments.map((assessment) => ({
+			candidateId: assessment.candidateId,
+			readiness: { startAllowed: true, status: "ready" },
+		}));
+		const parsed = parseWorkflowAutoComparisonOutput(text, cards);
+		assert.equal(parsed?.status, "recommendation", name);
+		assert.equal(
+			parsed.recommendation.candidateId,
+			raw.recommendation.candidateId,
+		);
+		const offered = new Set([
+			"task",
+			"routing.useWhen",
+			"routing.avoidWhen",
+			"routing.outputs",
+			"facts",
+			"comparison.description",
+			"comparison.purpose",
+			"comparison.declaredOutputs",
+			"comparison.declaredSchemas",
+			"comparison.declaredVerification",
+			"comparison.overhead",
+			"comparison.unknowns",
+			"readiness",
+		]);
+		for (const assessment of parsed.assessments) {
+			assert.ok(assessment.evidence.length > 0);
+			assert.equal(
+				new Set(assessment.evidence).size,
+				assessment.evidence.length,
+				"normalized evidence is deduplicated",
+			);
+			for (const field of assessment.evidence)
+				assert.ok(offered.has(field), `${name}: ${field}`);
+		}
+	}
+	const one = [
+		{
+			candidateId: "a".repeat(64),
+			readiness: { startAllowed: true, status: "ready" },
+		},
+	];
+	const withEvidence = (evidence) =>
+		JSON.stringify({
+			status: "needs-clarification",
+			assessments: [
+				{ candidateId: "a".repeat(64), fit: "partial", reason: "x", evidence },
+			],
+			questions: ["What scope?"],
+			unknowns: [],
+		});
+	assert.deepEqual(
+		parseWorkflowAutoComparisonOutput(
+			withEvidence([
+				"facts.tools",
+				"facts.usesNetwork",
+				"facts.effective.network",
+				"readiness.startAllowed",
+				"comparison.overhead.stages",
+				"declaredVerification",
+			]),
+			one,
+		)?.assessments[0].evidence,
+		[
+			"facts",
+			"readiness",
+			"comparison.overhead",
+			"comparison.declaredVerification",
+		],
+	);
+	for (const invalid of [
+		["facts.invented"],
+		["readiness.nope"],
+		["invented.path"],
+		["routing.useWhen.0"],
+		["comparison"],
+		["overhead.stages"],
+	])
+		assert.equal(
+			parseWorkflowAutoComparisonOutput(withEvidence(invalid), one),
+			undefined,
+			invalid.join(),
+		);
+});

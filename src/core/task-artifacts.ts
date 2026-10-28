@@ -277,46 +277,67 @@ interface SubagentRunRecordLike {
 export async function recoverSubagentHandle(
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
+	projectCwd?: string,
 ): Promise<SubagentBackendHandle | undefined> {
 	const runsDir = subagentRunsDir(run, task);
-	const absoluteRunsDir = resolve(task.cwd, runsDir);
 	const expectedCorrelationId = `${run.runId}:${task.taskId}`;
 	const claimStartedAtMs = timestampMs(task.startedAt);
-	const entries = await readdir(absoluteRunsDir, { withFileTypes: true }).catch(
-		() => [],
-	);
 	const candidates: Array<{
 		handle: SubagentBackendHandle;
 		updatedAtMs: number;
 	}> = [];
+	// WP39b: the project for a worktree task (its state cwd); before WP39b, inside the worktree.
+	const stateCwds = [
+		...new Set([
+			...(projectCwd === undefined
+				? []
+				: [workflowTaskStateCwd(projectCwd, task)]),
+			task.cwd,
+		]),
+	];
+	for (const stateCwd of stateCwds) {
+		const absoluteRunsDir = resolve(stateCwd, runsDir);
+		const entries = await readdir(absoluteRunsDir, {
+			withFileTypes: true,
+		}).catch(() => []);
+		await collectRecoveredHandles(entries, absoluteRunsDir, stateCwd);
+		if (candidates.length > 0) break;
+	}
 
-	for (const entry of entries) {
-		if (!entry.isDirectory() || !entry.name.startsWith("run_")) continue;
-		const record = await readJsonLoose<SubagentRunRecordLike>(
-			join(absoluteRunsDir, entry.name, "run.json"),
-		);
-		if (!record || record.correlationId !== expectedCorrelationId) continue;
-		if (isPreClaimSubagentRecord(record, claimStartedAtMs)) continue;
-		const attemptId =
-			record.activeAttemptId ??
-			record.latestAttemptId ??
-			record.attempts?.at(-1)?.attemptId;
-		if (typeof attemptId !== "string" || attemptId.length === 0) continue;
-		candidates.push({
-			handle: makeSubagentHandle(
-				task,
-				record.runId ?? entry.name,
-				attemptId,
-				runsDir,
-				workflowTaskSessionId(run, task),
-			),
-			updatedAtMs:
-				timestampMs(record.updatedAt) ??
-				timestampMs(record.startedAt) ??
-				timestampMs(record.attempts?.at(-1)?.updatedAt) ??
-				timestampMs(record.attempts?.at(-1)?.startedAt) ??
-				0,
-		});
+	async function collectRecoveredHandles(
+		entries: Array<import("node:fs").Dirent>,
+		absoluteRunsDir: string,
+		stateCwd: string,
+	): Promise<void> {
+		for (const entry of entries) {
+			if (!entry.isDirectory() || !entry.name.startsWith("run_")) continue;
+			const record = await readJsonLoose<SubagentRunRecordLike>(
+				join(absoluteRunsDir, entry.name, "run.json"),
+			);
+			if (!record || record.correlationId !== expectedCorrelationId) continue;
+			if (isPreClaimSubagentRecord(record, claimStartedAtMs)) continue;
+			const attemptId =
+				record.activeAttemptId ??
+				record.latestAttemptId ??
+				record.attempts?.at(-1)?.attemptId;
+			if (typeof attemptId !== "string" || attemptId.length === 0) continue;
+			candidates.push({
+				handle: makeSubagentHandle(
+					task,
+					record.runId ?? entry.name,
+					attemptId,
+					runsDir,
+					workflowTaskSessionId(run, task),
+					stateCwd,
+				),
+				updatedAtMs:
+					timestampMs(record.updatedAt) ??
+					timestampMs(record.startedAt) ??
+					timestampMs(record.attempts?.at(-1)?.updatedAt) ??
+					timestampMs(record.attempts?.at(-1)?.startedAt) ??
+					0,
+			});
+		}
 	}
 
 	candidates.sort((left, right) => right.updatedAtMs - left.updatedAtMs);
@@ -343,19 +364,49 @@ export function timestampMs(value: string | undefined): number | undefined {
 	return Number.isFinite(time) ? time : undefined;
 }
 
+/**
+ * WP39b (live bundle 5, O7): where a task's runtime attempt state (`runsDir`) lives. A task in a
+ * managed worktree runs there, but its attempt state stays in the project's own `.agent-workflow/`
+ * (the runtime runs it with `cwd` = the project and the worktree as its execution directory);
+ * every other task keeps it under its cwd.
+ */
+export function workflowTaskStateCwd(
+	projectCwd: string,
+	task: Pick<WorkflowTaskRunRecord, "cwd" | "worktree">,
+): string {
+	const worktree = task.worktree;
+	return worktree?.enabled === true &&
+		typeof worktree.path === "string" &&
+		resolve(task.cwd) === resolve(worktree.path)
+		? resolve(projectCwd)
+		: task.cwd;
+}
+
+/**
+ * The state cwd of a launched task: the recorded handle's (attempts launched before WP39b kept a
+ * worktree task's state inside the worktree), else `workflowTaskStateCwd`.
+ */
+export function recordedTaskStateCwd(
+	projectCwd: string,
+	task: WorkflowTaskRunRecord,
+): string {
+	return getSubagentHandle(task)?.cwd ?? workflowTaskStateCwd(projectCwd, task);
+}
+
 export function makeSubagentHandle(
 	task: WorkflowTaskRunRecord,
 	runId: string,
 	attemptId: string,
 	runsDir: string,
 	sessionId?: string,
+	stateCwd: string = task.cwd,
 ): SubagentBackendHandle {
 	return {
 		engine: "agent-workflow",
 		backend: "runtime",
 		runId,
 		attemptId,
-		cwd: task.cwd,
+		cwd: stateCwd,
 		runsDir,
 		display: `agent-workflow/runtime ${runId}/${attemptId}`,
 		...(sessionId === undefined ? {} : { sessionId }),

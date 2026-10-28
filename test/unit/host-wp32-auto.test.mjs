@@ -876,6 +876,38 @@ test("MCP workflow_auto: declined consent elicitation sends nothing", async () =
 	);
 	assert.ok(requests[0].params.message.includes(TASK));
 	assert.deepEqual(allClassifierSubmits(logs), { pi: 0, claude: 0, codex: 0 });
+	assert.match(out.content[0].text, /did not agree/);
+	assert.match(out.structuredContent.next, /The user declined/);
+});
+
+// WP39b O1: Claude Code print mode answers every elicitation itself with `cancel`. The result must
+// say the client cancelled (or cannot ask), never that the user declined or did not agree.
+test("MCP workflow_auto: a cancelled consent elicitation is the client's cancel, not the user's decline", async () => {
+	for (const answer of [
+		{ action: "cancel" },
+		{ error: { code: -32603, message: "client gone" } },
+	]) {
+		const { cwd, env } = await project();
+		const logs = shadow({ pi: READY, claude: READY, codex: READY });
+		const { client } = await mcpConnect(cwd, env, [answer]);
+		const out = await client.call("workflow_auto", {
+			task: TASK,
+			detach: false,
+		});
+		const text = out.content[0].text;
+		assert.equal(out.structuredContent.data.phase, "consent-cancelled");
+		assert.equal(out.structuredContent.data.classifierCalled, false);
+		assert.deepEqual(allClassifierSubmits(logs), {
+			pi: 0,
+			claude: 0,
+			codex: 0,
+		});
+		assert.match(text, /cancelled|cannot ask/);
+		assert.doesNotMatch(text, /did not agree|declined/i);
+		assert.doesNotMatch(out.structuredContent.next, /declined/i);
+		assert.match(out.structuredContent.next, /cancelled|cannot ask/);
+		assert.equal(await runCount(cwd), 0);
+	}
 });
 
 test("MCP workflow_auto: consent, one classifier call on codex, the choice elicitation launches", async () => {
@@ -904,6 +936,9 @@ test("MCP workflow_auto: consent, one classifier call on codex, the choice elici
 		choiceSchema.properties.workflow.default,
 		/wp32-alpha \(recommended\)/,
 	);
+	// WP39b O4: Codex numbers enum options itself ("1. 1. …"): the values carry no number.
+	for (const option of choiceSchema.properties.workflow.enum)
+		assert.doesNotMatch(option, /^\d+\.\s/, option);
 	assert.deepEqual(allClassifierSubmits(logs), { pi: 0, claude: 0, codex: 1 });
 	assert.match(out.structuredContent.next, /call workflow_wait/);
 	await settle(cwd, env, data.launch.runId);
@@ -935,4 +970,32 @@ test("MCP workflow_auto: declining the choice returns the ranked list and starts
 	assert.deepEqual(allClassifierSubmits(logs), { pi: 0, claude: 0, codex: 1 });
 	assert.match(out.structuredContent.next, /Nothing started/);
 	assert.equal(await runCount(cwd), 0);
+});
+
+test("auto choice options: no number prefix (Codex numbers them), unique values for equal labels", async () => {
+	const { autoChoiceOptions } = await import(
+		"../../dist/mcp/host-server/index.js"
+	);
+	const view = (label, scope, recommended) => ({
+		candidateId: `${label}-${scope}`,
+		kind: "named-workflow",
+		label,
+		scope,
+		description: "",
+		launchable: true,
+		...(recommended ? { recommended: true } : {}),
+	});
+	const options = autoChoiceOptions([
+		view("deep-review", "package", true),
+		view("Dynamic workflow", "built-in"),
+		view("review", "project"),
+		view("review", "user"),
+	]);
+	assert.deepEqual(options, [
+		"deep-review (recommended)",
+		"Dynamic workflow",
+		"review [project]",
+		"review [user]",
+	]);
+	assert.equal(new Set(options).size, options.length);
 });

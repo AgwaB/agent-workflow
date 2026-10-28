@@ -1411,14 +1411,18 @@ export async function deliverCompletion(
 		state.inFlight.delete(receipt);
 		enforceDeliveryStateBounds();
 	}
-	try {
-		ctx.ui.notify(
-			message.notice,
-			run.status === "completed" ? "info" : "warning",
-		);
-	} catch {
-		// The receipt is authoritative; the notification is best effort.
-	}
+	// WP39b (live bundle 5, O11): the TUI renders the custom message in the transcript, so a
+	// notify of the same text showed it twice in the scrollback (the history holds it once). Other
+	// modes keep the short notice next to the message.
+	if (ctx.mode !== "tui")
+		try {
+			ctx.ui.notify(
+				message.notice,
+				run.status === "completed" ? "info" : "warning",
+			);
+		} catch {
+			// The receipt is authoritative; the notification is best effort.
+		}
 	return "delivered";
 }
 

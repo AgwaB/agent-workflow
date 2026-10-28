@@ -73,6 +73,7 @@ import {
 	type WorkflowCommandHints,
 } from "./hints.js";
 import { spawnDetachedSupervisor } from "./launch.js";
+import { formatTaskWorktreeLocation } from "../core/engine-format.js";
 import { markRunNotifySeen } from "./notify-check.js";
 import {
 	formatLaunch,
@@ -443,6 +444,9 @@ export async function inspectAction(
 		lines.push(
 			`- ${task.taskId}${runtime}: ${task.status}/${task.statusDetail}${task.lastMessage ? ` — ${task.lastMessage}` : ""}`,
 		);
+		// WP39b (O7): a worktree task's result is in its worktree (kept after the run).
+		const worktree = formatTaskWorktreeLocation(task);
+		if (worktree) lines.push(`    worktree: ${worktree}`);
 		const resultFile = (task.files as { result?: string } | undefined)?.result;
 		if (request.results && resultFile) {
 			// WP19 (review #4): a metadata path is read only inside the artifact root.

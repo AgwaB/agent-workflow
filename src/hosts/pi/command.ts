@@ -725,10 +725,19 @@ export async function trackLaunched(
 	)
 		return;
 	if (typeof data?.runId !== "string") return;
-	if (data.status !== "running" && data.status !== "pending") return;
+	const active = data.status === "running" || data.status === "pending";
+	// WP39b (live bundle 5, O10): a run that settled inside the approve (or resume) call is
+	// tracked too, so its completion message is delivered (exactly once: the delivery receipts).
+	const settledHere =
+		(action === "approve" || action === "resume") &&
+		(data.status === "completed" ||
+			data.status === "failed" ||
+			data.status === "interrupted" ||
+			data.status === "blocked");
+	if (!active && !settledHere) return;
 	await deps.feedback.track(ctx, data.runId, launchedBy).catch(() => undefined);
 	// WP33: count the parent session's usage while the run runs (parent-usage.json).
-	await beginRunParentUsage(ctx, data.runId);
+	if (active) await beginRunParentUsage(ctx, data.runId);
 }
 
 export function awArgumentCompletions(
