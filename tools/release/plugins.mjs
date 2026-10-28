@@ -135,12 +135,27 @@ export const NOTIFY_HOOK_TIMEOUT_SEC = 60;
  * directory, only when the project has runs (otherwise a directory test and nothing else); its
  * output (one line per run that finished since the last check) is added to the conversation.
  * Always exits 0 and prints nothing on errors, so a prompt is never blocked or decorated.
+ * The hook runs on every prompt, so the CLI (an `npx` start in the published plugin) is only
+ * started when a `run.json` changed since the last successful check: a stamp file
+ * (`.agent-workflow/notify-check/hook-<host>.stamp`, touched before the check starts so a change
+ * during it is seen next time, kept only when the check succeeded) makes the idle case a `find`.
  */
 export function notifyHookCommand(cli, host) {
 	const run = [cli.command, ...cli.args, "notify-check", "--host", host]
 		.map(shellWord)
 		.join(" ");
-	return `d="\${CLAUDE_PROJECT_DIR:-.}"; [ -d "$d/.agent-workflow/workflows" ] || exit 0; cd "$d" && ${run} 2>/dev/null; exit 0`;
+	const stamp = `hook-${host}.stamp`;
+	return [
+		`d="\${CLAUDE_PROJECT_DIR:-.}"`,
+		`w="$d/.agent-workflow/workflows"`,
+		`[ -d "$w" ] || exit 0`,
+		`n="$d/.agent-workflow/notify-check"`,
+		`s="$n/${stamp}"`,
+		`[ -f "$s" ] && [ -z "$(find "$w" -name run.json -newer "$s" 2>/dev/null | head -n 1)" ] && exit 0`,
+		`mkdir -p "$n" 2>/dev/null && touch "$s.next" 2>/dev/null`,
+		`(cd "$d" && ${run} 2>/dev/null) && mv -f "$s.next" "$s" 2>/dev/null`,
+		"exit 0",
+	].join("; ");
 }
 
 /**

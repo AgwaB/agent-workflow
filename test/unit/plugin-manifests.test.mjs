@@ -11,7 +11,13 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+	mkdirSync,
+	mkdtempSync,
+	rmSync,
+	utimesSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -96,7 +102,19 @@ test("WP36: the Claude Code manifest ships the notify-check prompt hook; Codex s
 	assert.equal(hook.timeout, plugins.NOTIFY_HOOK_TIMEOUT_SEC);
 	assert.equal(
 		hook.command,
-		`d="\${CLAUDE_PROJECT_DIR:-.}"; [ -d "$d/.agent-workflow/workflows" ] || exit 0; cd "$d" && npx -y --package=${pkg.name}@${pkg.version} agent-workflow notify-check --host claude-code 2>/dev/null; exit 0`,
+		plugins.notifyHookCommand(
+			{
+				command: "npx",
+				args: ["-y", `--package=${pkg.name}@${pkg.version}`, "agent-workflow"],
+			},
+			"claude-code",
+		),
+	);
+	assert.ok(
+		hook.command.includes(
+			`npx -y --package=${pkg.name}@${pkg.version} agent-workflow notify-check --host claude-code`,
+		),
+		hook.command,
 	);
 	assert.equal(pkg.bin["agent-workflow"], "src/hosts/cli/cli.mjs");
 	assert.equal(codex.hooks, undefined);
@@ -163,6 +181,32 @@ test("WP36: the hook command is silent and exits 0 without runs, and prints the 
 			shown.stdout,
 			/^agent-workflow: workflow "deep-review" \(run workflow_hook\) finished — status completed\. Details: workflow_status \{"runId":"workflow_hook"\}\n$/,
 		);
+		// Idle prompts never start the CLI: nothing changed since the last successful check.
+		const stamp = join(
+			project,
+			".agent-workflow",
+			"notify-check",
+			"hook-claude-code.stamp",
+		);
+		assert.ok(existsSync(stamp), "stamp written after a successful check");
+		const marker = join(temp, "cli-started");
+		const counting = plugins.notifyHookCommand(
+			{ command: "sh", args: ["-c", `touch ${marker}; exit 0`, "x"] },
+			"claude-code",
+		);
+		const runWith = (cmd) =>
+			spawnSync("sh", ["-c", cmd], {
+				cwd: temp,
+				env: { ...process.env, CLAUDE_PROJECT_DIR: project },
+				encoding: "utf8",
+			});
+		assert.equal(runWith(counting).status, 0);
+		assert.equal(existsSync(marker), false, "CLI started without a change");
+		// A changed run.json starts it again.
+		const later = new Date(Date.now() + 5_000);
+		utimesSync(join(runDir, "run.json"), later, later);
+		assert.equal(runWith(counting).status, 0);
+		assert.equal(existsSync(marker), true, "CLI not started after a change");
 		assert.equal(run(project, { CLAUDE_PROJECT_DIR: "" }).stdout, "");
 		// A broken CLI never blocks or decorates the prompt.
 		const broken = spawnSync(

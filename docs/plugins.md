@@ -156,10 +156,16 @@ E2) is `agent-workflow notify-check`, run from a hook whose output the host adds
 context: at the user's next message, each run that finished since the last check is announced once.
 
 - **Claude Code (shipped in the plugin).** `.claude-plugin/plugin.json` declares an inline
-  `UserPromptSubmit` command hook (timeout 60 s):
-  `d="${CLAUDE_PROJECT_DIR:-.}"; [ -d "$d/.agent-workflow/workflows" ] || exit 0; cd "$d" && npx -y --package=@agwab/agent-workflow@<package version> agent-workflow notify-check --host claude-code 2>/dev/null; exit 0`.
-  In a project without runs it is a directory test and nothing else; it never blocks a prompt and
-  prints nothing on errors. Claude Code adds the plain stdout of `UserPromptSubmit` hooks to the
+  `UserPromptSubmit` command hook (timeout 60 s) that runs
+  `npx -y --package=@agwab/agent-workflow@<package version> agent-workflow notify-check --host claude-code`
+  in the project directory (`$CLAUDE_PROJECT_DIR`; exact command: `notifyHookCommand` in
+  `tools/release/plugins.mjs`). The hook runs on every prompt, so it starts the CLI only when it has
+  something to check: in a project without runs it is a directory test, and after a successful check
+  it keeps a stamp (`.agent-workflow/notify-check/hook-claude-code.stamp`) and exits at once unless a
+  `run.json` changed since (one `find`; no `npx` start while nothing changed). The stamp is touched
+  before the check starts and kept only when the check succeeded, so a change during a check or a
+  failed check is looked at again on the next prompt. It never blocks a prompt and prints nothing on
+  errors. Claude Code adds the plain stdout of `UserPromptSubmit` hooks to the
   context. There is no `hooks/hooks.json` (Claude Code loads that file by default, and Codex would
   read it too). The dev plugin runs the checkout's CLI instead of `npx`.
 - **Codex (manual).** The plugin ships no Codex hook: Codex skips plugin hooks until the user
