@@ -7,6 +7,7 @@
 // feedback) is not part of the host API; `inspect` reads runs through the store (prefixes,
 // `.agent-workflow/workflows`); supervise is a handler with an optional log sink.
 import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 import {
 	formatHumanRunOutcome,
@@ -24,8 +25,12 @@ import {
 	stopRun,
 	confirmRunStop,
 	waitForRun,
+	watchRun,
 } from "../core/engine.js";
-import { hasActiveSchedulerWork } from "../core/engine-wait.js";
+import {
+	hasActiveSchedulerWork,
+	recordSupervisorError,
+} from "../core/engine-wait.js";
 import {
 	formatWorkflowPruneSummary,
 	pruneWorkflowRuns,
@@ -36,6 +41,7 @@ import {
 	isWorkflowRunLeaseLive,
 	listRunRecords,
 	readRunRecord,
+	workflowRunDir,
 } from "../core/store.js";
 import type { WorkflowRunRecord } from "../core/types.js";
 import { isWorkflowStopPendingError } from "../core/workflow-stop.js";
@@ -893,6 +899,85 @@ export async function superviseDetachedAction(
 		{ runId: run.runId, status: run.status, started: true, detached },
 		`Detached supervisor started for ${run.runId}: pid ${detached.pid ?? "unknown"}, log ${toDisplayPath(detached.logPath, ctx.cwd)}\nWait for the result: ${hints.wait(run.runId)}`,
 	);
+}
+
+/**
+ * A live process other than this one drives the run. Live lease evidence that only names this
+ * process (its own watcher, or a status refresh it made) does not count: `watchRun` is idempotent
+ * per process, so re-driving such a run is safe.
+ */
+async function drivenByAnotherProcess(
+	cwd: string,
+	runId: string,
+): Promise<boolean> {
+	if (!(await isWorkflowRunLeaseLive(cwd, runId))) return false;
+	const dir = workflowRunDir(cwd, runId);
+	const pids: number[] = [];
+	const lock = await readFile(join(dir, "supervisor.lock"), "utf8").catch(
+		() => undefined,
+	);
+	if (lock !== undefined)
+		pids.push(Number.parseInt(lock.split(/\r?\n/)[1] ?? "", 10));
+	for (const file of ["supervisor.json", "supervisor-lease.json"]) {
+		const record = await readFile(join(dir, file), "utf8")
+			.then((text) => JSON.parse(text) as { pid?: unknown })
+			.catch(() => undefined);
+		if (record) pids.push(typeof record.pid === "number" ? record.pid : NaN);
+	}
+	return !(pids.length > 0 && pids.every((pid) => pid === process.pid));
+}
+
+export interface RedriveData {
+	/** Runs this process scheduled and now watches (engine `watchRun`). */
+	redriven: string[];
+	/** Runs with active work that a live process already drives. */
+	skipped: Array<{ runId: string; reason: "live-supervisor" }>;
+	/** Runs whose first scheduling pass failed (recorded in `supervisor.json`; still watched). */
+	errors: Array<{ runId: string; message: string }>;
+}
+
+/**
+ * WP28: port of pi-workflow 0.16.4 (b83cc4f) `resumeSupervisors` (src/engine.ts:2628) for a host
+ * process that outlives a run's launcher (the Pi host at session start). Every run of the project
+ * with active scheduler work that no live process drives (`isWorkflowRunLeaseLive`: a held run
+ * lease, or a `supervisor.json`/`supervisor-lease.json` heartbeat < 30 s from a live pid; for
+ * example an attached run whose Pi session or CLI process ended) is scheduled once and then watched
+ * by this process. Change from pi-workflow: runs a live supervisor drives are skipped instead of
+ * being scheduled concurrently (the run lease arbitrated that), and no run index is rewritten.
+ * Re-driving only schedules, never resumes: a blocked run (B3: an attempt whose launch the executor
+ * cannot prove either way is `executor_needs_decision`) stays blocked, and a running attempt with an
+ * `unknown` reconcile becomes that decision through the engine's normal refresh, never a relaunch.
+ * Completion delivery stays with each run's own audience (the host decides; nothing is bound here).
+ */
+export async function redriveRunsAction(
+	ctx: HostApiContext,
+): Promise<HostResult<RedriveData>> {
+	assertActionAllowed(ctx, "supervise");
+	const options = ctx.availableModels
+		? { availableModels: ctx.availableModels }
+		: {};
+	const data: RedriveData = { redriven: [], skipped: [], errors: [] };
+	for (const run of await listRunRecords(ctx.cwd)) {
+		if (!hasActiveSchedulerWork(run)) continue;
+		if (await drivenByAnotherProcess(ctx.cwd, run.runId)) {
+			data.skipped.push({ runId: run.runId, reason: "live-supervisor" });
+			continue;
+		}
+		try {
+			await scheduleRun(ctx.cwd, run.runId, undefined, options);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			data.errors.push({ runId: run.runId, message });
+			await recordSupervisorError(ctx.cwd, run.runId, error);
+		}
+		watchRun(ctx.cwd, run.runId, options);
+		data.redriven.push(run.runId);
+	}
+	const text =
+		data.redriven.length === 0
+			? "No unsupervised running runs to pick up."
+			: `Picked up ${data.redriven.length} running run(s) without a live supervisor: ${data.redriven.join(", ")}`;
+	return result("supervise", "success", data, text);
 }
 
 export interface SuperviseRequest {

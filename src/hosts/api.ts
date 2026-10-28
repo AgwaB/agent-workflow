@@ -88,6 +88,8 @@ export {
 	inspectAction,
 	noticesAction,
 	pruneAction,
+	type RedriveData,
+	redriveRunsAction,
 	type ResumeData,
 	type RunSummary,
 	resumeAction,

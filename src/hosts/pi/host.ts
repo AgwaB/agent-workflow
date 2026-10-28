@@ -37,6 +37,7 @@ export type PiHostApi = Pick<
 	| "pruneAction"
 	| "noticesAction"
 	| "logsAction"
+	| "redriveRunsAction"
 	| "registerTestExecutorFromEnv"
 >;
 

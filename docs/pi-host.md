@@ -141,7 +141,18 @@ only when no executor or `pi` is selected — a `--executor codex` run does not 
 
 ## Session start
 
-On `session_start` (not awaited, never delays startup) the host calls
+On `session_start` (not awaited, never delays startup; supervisor role only) the host first
+re-drives running runs (WP28, port of pi-workflow `resumeSupervisors`, `src/engine.ts:2628`):
+`redriveRunsAction` schedules every run of the project that still has scheduler work and that no
+other live process drives (a held run lease, or a `supervisor.json`/`supervisor-lease.json`
+heartbeat younger than 30 s from a live pid other than this Pi process), then keeps watching it in
+this process. So an attached run whose Pi session (or CLI, or `detach: false` MCP server) ended
+continues when Pi starts again in the project; a detached run whose supervisor is alive, or a run
+another Pi session drives, is left alone. Re-driving only schedules: a blocked run stays blocked,
+and an attempt whose worker died without a terminal record is reconciled by the engine, where an
+`unknown` outcome blocks the task as `executor_needs_decision` (B3), never a relaunch. Delivery is
+not taken over: nothing is bound, so the completion message still goes only to the run's WP16
+audience session (when that session starts, its catch-up delivers it). Then the host calls
 `noticesAction({argv: ["list"]})` and shows one warning notification listing unfinished runs (port of
 pi-workflow `notifyUnfinishedRuns`): top-level failed/interrupted runs and blocked runs waiting for a
 dynamic approval or an executor decision, excluding mock runs, runs with an active acknowledgement
@@ -307,6 +318,11 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
 
 ## Verification
 
+- WP28: `host-wp28-pi-waits.test.mjs` (long `aw_wait`, `awaitTerminal` on `aw_run`/`aw_dynamic`,
+  cancel = only the wait, no second delivery of an awaited result, `/aw wait <run> [timeout]`),
+  `host-wp28-pi-redrive.test.mjs` (a child process launches an attached run and exits; session start
+  re-drives it, B3 decision instead of a relaunch after a killed worker, audience kept, live drivers
+  skipped).
 - `test/unit/host-pi-extension.test.mjs`: fake `ExtensionAPI`; every action and tool delegates to the
   right handler with the right arguments (a recording wrapper over the real host API); runs use the
   WP11a guarded test-executor hook; confirmation (decline, accept, no UI); session-start notices
@@ -341,8 +357,7 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
   also with `--no-session`).
 - No `/aw auto` or TUI profile picker (`/workflow profile`); `/aw profile` manages saved user
   profiles only.
-- Runs left running by an earlier Pi session are not resumed at session start (only their status
-  line and delivery are restored); attached runs of a gone Pi process need `/aw wait`, `/aw resume`
-  or `agent-workflow supervise`.
+- Runs left running by a gone process are re-driven at session start (WP28) only while Pi runs;
+  for a run that should outlive every session use `--detach` (or `agent-workflow supervise`).
 - `runtimeDefaults` follow the explicit executor only: a profile that selects a non-Pi executor still
   receives Pi's current model as the lowest-precedence default.
