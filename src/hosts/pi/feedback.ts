@@ -1063,6 +1063,8 @@ export async function deliverCompletion(
 		host: hostname(),
 	};
 	let attempts = 1;
+	/** WP19 round 5 (finding 3): the receipt this reservation replaced (its attempt history). */
+	let previous: FeedbackReceipt | undefined;
 	const decision = await withReceiptLock(
 		receipt,
 		async (): Promise<
@@ -1131,6 +1133,7 @@ export async function deliverCompletion(
 			}
 			// WP19 round 3 (R2): readable history without the message overrules any receipt.
 			attempts = (existing?.attempts ?? (existing ? 1 : 0)) + 1;
+			previous = existing;
 			await writeReceipt(receipt, {
 				...base,
 				...owner,
@@ -1144,12 +1147,17 @@ export async function deliverCompletion(
 		},
 	);
 	if (decision !== "send") return decision;
+	// The reservation provably sent nothing (the fence stopped it, or `sendMessage` threw before
+	// returning): refund only this attempt. WP19 round 5 (finding 3): the receipt it replaced is
+	// restored as it was, with its attempt history (deleting it reset the two-attempt budget);
+	// without one the reservation is removed.
 	const dropReservation = async () => {
 		try {
 			await withReceiptLock(receipt, async () => {
 				const current = await readReceipt(receipt);
-				if (current?.token === token && current.state === "pending")
-					await unlink(receipt).catch(() => undefined);
+				if (current?.token !== token || current.state !== "pending") return;
+				if (previous) await writeReceipt(receipt, previous);
+				else await unlink(receipt).catch(() => undefined);
 			});
 		} finally {
 			state.inFlight.delete(receipt);
