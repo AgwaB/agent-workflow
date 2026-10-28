@@ -541,6 +541,8 @@ export function buildCapabilityPreview(
 	stages: readonly StageNegotiation[],
 	options: {
 		readonly executor?: { readonly id: string; readonly version: string };
+		/** Replaces the executor in the summary line (a mixed run names every executor). */
+		readonly executorLabel?: string;
 		readonly header?: readonly string[];
 		/** Effective run permission mode, shown on the first line (WP4e). */
 		readonly permissionMode?: PermissionMode;
@@ -559,9 +561,10 @@ export function buildCapabilityPreview(
 	}
 	const accepted = refusals.length === 0;
 	const executor =
-		options.executor === undefined
+		options.executorLabel ??
+		(options.executor === undefined
 			? (stages[0]?.report.executorId ?? "executor")
-			: `${options.executor.id}@${options.executor.version}`;
+			: `${options.executor.id}@${options.executor.version}`);
 	const mode =
 		options.permissionMode === undefined
 			? ""

@@ -11,6 +11,10 @@
 // WP5b: the probe summary keeps the executor's declared MCP output limit (mcpOutputLimitChars,
 // mcpOutputNoticeChars) so the artifact server is launched with a measured limit.
 // WP17: install/login hints come from executor-default.ts (first-run guidance names the install command).
+// WP31 (Q4): a mixed run (role profile) negotiates every stage against its own executor
+// (`task.runtime.executor`): each executor is probed once, refusals name the stage and its executor,
+// role-assigned models are checked against each probe's model list (unknown → refused; the probe
+// cannot tell → notice), and the launch-time check uses the task executor's recorded capabilities.
 import {
 	type ExecutorCapabilities,
 	mergeProbedCapabilities,
@@ -29,6 +33,7 @@ import {
 } from "../sdk/requirements.js";
 import { strictCapabilityKeysProblem } from "./artifact-graph-schema.js";
 import { executorSetupHints, installText } from "./executor-default.js";
+import { modelListed, probeModelList } from "./role-profiles.js";
 import { workflowTaskReadOnly } from "./tool-policy.js";
 import type {
 	CompiledLoopStageRecord,
@@ -54,6 +59,7 @@ export type WorkflowCapabilityErrorCode =
 	| "EXECUTOR_NOT_INSTALLED"
 	| "EXECUTOR_AUTH_NOT_READY"
 	| "CAPABILITY_REFUSED"
+	| "MODEL_UNKNOWN"
 	| "CAPABILITY_CONFIRMATION_REQUIRED"
 	| "CAPABILITY_DEGRADATION_DECLINED";
 
@@ -153,6 +159,8 @@ export async function probeWorkflowExecutor(
 ): Promise<{
 	summary: WorkflowExecutorProbeSummary;
 	capabilities: ExecutorCapabilities;
+	/** WP31: models the probe lists (no model call); null when it cannot tell. */
+	models: string[] | null;
 }> {
 	const id = descriptor.id;
 	const timeoutMs = options.timeoutMs ?? DEFAULT_EXECUTOR_PROBE_TIMEOUT_MS;
@@ -204,7 +212,13 @@ export async function probeWorkflowExecutor(
 			id,
 		);
 	}
-	return { summary, capabilities };
+	return {
+		summary,
+		capabilities,
+		models: probeModelList(
+			result.probe as Parameters<typeof probeModelList>[0],
+		),
+	};
 }
 
 /**
@@ -358,6 +372,8 @@ function optInHint(code: string, policy: WorkflowCapabilityPolicy): string {
 function refusalLines(
 	stages: readonly WorkflowStageCapabilityNegotiation[],
 	policy: WorkflowCapabilityPolicy,
+	/** WP31: name each stage's executor (mixed runs). */
+	withExecutor = false,
 ): string[] {
 	const lines: string[] = [];
 	for (const stage of stages)
@@ -369,7 +385,7 @@ function refusalLines(
 					? "unmapped"
 					: `${entry.observed.level}/${entry.observed.source}`;
 			lines.push(
-				`  - stage "${stage.label}": ${entry.key} — ${code} (executor has ${observed}${
+				`  - stage "${stage.label}"${withExecutor ? ` on ${stage.report.executorId}` : ""}: ${entry.key} — ${code} (executor has ${observed}${
 					entry.note === undefined ? "" : `; ${entry.note}`
 				}); ${optInHint(code, policy)}`,
 			);
@@ -417,6 +433,51 @@ export interface NegotiateWorkflowRunInput {
 	probeTimeoutMs?: number;
 	/** B4 confirmation hook; called only when interactive and a stage needs confirmation. */
 	confirmDegradations?: (preview: CapabilityPreview) => Promise<boolean>;
+	/**
+	 * WP31 (Q4): descriptors of every other executor of a mixed run. A task runs on
+	 * `task.runtime.executor` (absent: `descriptor`).
+	 */
+	executors?: Record<string, ExecutorDescriptor>;
+	/** WP31: role-assigned models, checked against their executor's probe model list. */
+	modelChecks?: Array<{ slot: string; executor: string; model: string }>;
+}
+
+interface ProbedExecutor {
+	version: string;
+	contractVersion: string;
+	summary: WorkflowExecutorProbeSummary;
+	capabilities: ExecutorCapabilities;
+	models: string[] | null;
+}
+
+/** WP31: refusals and notices of the role-model check (no model call; probe lists only). */
+function checkRoleModels(
+	checks: NonNullable<NegotiateWorkflowRunInput["modelChecks"]>,
+	probes: ReadonlyMap<string, ProbedExecutor>,
+): { refusals: string[]; notices: string[] } {
+	const refusals: string[] = [];
+	const notices: string[] = [];
+	const unverified = new Map<string, string[]>();
+	for (const check of checks) {
+		const listed = probes.get(check.executor)?.models ?? null;
+		if (listed === null) {
+			const slots = unverified.get(`${check.executor}\0${check.model}`) ?? [];
+			slots.push(check.slot);
+			unverified.set(`${check.executor}\0${check.model}`, slots);
+			continue;
+		}
+		if (!modelListed(check.model, listed))
+			refusals.push(
+				`  - stage "${check.slot}": model "${check.model}" is unknown to executor ${check.executor} (its probe lists: ${listed.join(", ") || "none"}); use one of those names in the profile`,
+			);
+	}
+	for (const [key, slots] of unverified) {
+		const [executor, model] = key.split("\0");
+		notices.push(
+			`model "${model}" for ${slots.join(", ")} is not verified: executor ${executor}'s probe does not list its models`,
+		);
+	}
+	return { refusals, notices };
 }
 
 /**
@@ -428,14 +489,15 @@ export async function negotiateWorkflowRun(
 ): Promise<WorkflowRunCapabilityNegotiation> {
 	const { descriptor, policy } = input;
 	const executor = { id: descriptor.id, version: descriptor.version };
+	const probeOptions = {
+		...(input.prober === undefined ? {} : { prober: input.prober }),
+		...(input.probeTimeoutMs === undefined
+			? {}
+			: { timeoutMs: input.probeTimeoutMs }),
+	};
 	const probed =
 		input.recorded === undefined
-			? await probeWorkflowExecutor(descriptor, {
-					...(input.prober === undefined ? {} : { prober: input.prober }),
-					...(input.probeTimeoutMs === undefined
-						? {}
-						: { timeoutMs: input.probeTimeoutMs }),
-				})
+			? await probeWorkflowExecutor(descriptor, probeOptions)
 			: {
 					summary: {
 						...input.recorded.probe,
@@ -444,22 +506,91 @@ export async function negotiateWorkflowRun(
 							: { reusedFromRunId: input.recordedFromRunId }),
 					},
 					capabilities: input.recorded.capabilities,
+					models: null,
 				};
-	const stages = workflowNegotiationTargets(input.compiled).map((task) =>
-		negotiateTask(executor, probed.capabilities, task, policy, "pre-launch"),
-	);
-	const notices = [...(input.compiled.agentNotices ?? [])];
+	const probes = new Map<string, ProbedExecutor>([
+		[
+			executor.id,
+			{
+				version: executor.version,
+				contractVersion: descriptor.contractVersion,
+				...probed,
+			},
+		],
+	]);
+	// WP31 (Q4): each other executor of a mixed run is probed once, in a stable order.
+	for (const id of Object.keys(input.executors ?? {}).sort()) {
+		if (probes.has(id)) continue;
+		const other = input.executors![id]!;
+		probes.set(id, {
+			version: other.version,
+			contractVersion: other.contractVersion,
+			...(await probeWorkflowExecutor(other, probeOptions)),
+		});
+	}
+	const mixed = probes.size > 1;
+	const stages = workflowNegotiationTargets(input.compiled).map((task) => {
+		const id = task.runtime.executor ?? executor.id;
+		const target = probes.get(id);
+		if (target === undefined)
+			throw new WorkflowCapabilityError(
+				"CAPABILITY_REFUSED",
+				`stage "${task.id}" is assigned to executor "${id}", which this run did not prepare; the run was not started.`,
+				id,
+			);
+		return negotiateTask(
+			{ id, version: target.version },
+			target.capabilities,
+			task,
+			policy,
+			"pre-launch",
+		);
+	});
+	const modelCheck = checkRoleModels(input.modelChecks ?? [], probes);
+	const notices = [
+		...(input.compiled.agentNotices ?? []),
+		...modelCheck.notices,
+	];
+	const executorsLabel = [...probes.entries()]
+		.map(([id, target]) => {
+			const count = stages.filter(
+				(stage) => stage.report.executorId === id,
+			).length;
+			return `${id}@${target.version} ×${count}`;
+		})
+		.join(" + ");
 	const preview = buildCapabilityPreview(stages, {
 		executor,
-		header: probeHeader(probed.summary),
+		...(mixed ? { executorLabel: `mixed: ${executorsLabel}` } : {}),
+		header: mixed
+			? [...probes.entries()].map(
+					([id, target]) =>
+						`  probe ${id}: installed, cli ${target.summary.cliVersion ?? "unknown"}, auth ${target.summary.auth}`,
+				)
+			: probeHeader(probed.summary),
 		permissionMode: policy.permissionMode ?? "safe",
 	});
 	if (!preview.accepted)
 		throw new WorkflowCapabilityError(
 			"CAPABILITY_REFUSED",
 			[
-				`executor ${executor.id}@${executor.version} cannot run this workflow; the run was not started and no task was launched:`,
-				...refusalLines(stages, policy),
+				mixed
+					? "a stage's executor cannot run it; the run was not started and no task was launched:"
+					: `executor ${executor.id}@${executor.version} cannot run this workflow; the run was not started and no task was launched:`,
+				...refusalLines(stages, policy, mixed),
+			].join("\n"),
+			mixed
+				? (stages.find((stage) => !stage.report.accepted)?.report.executorId ??
+						executor.id)
+				: executor.id,
+			preview.text,
+		);
+	if (modelCheck.refusals.length > 0)
+		throw new WorkflowCapabilityError(
+			"MODEL_UNKNOWN",
+			[
+				"a role profile assigns a model the executor does not offer; the run was not started and no task was launched:",
+				...modelCheck.refusals,
 			].join("\n"),
 			executor.id,
 			preview.text,
@@ -490,6 +621,7 @@ export async function negotiateWorkflowRun(
 				preview.text,
 			);
 	}
+	const others = [...probes.entries()].filter(([id]) => id !== executor.id);
 	return {
 		schema: "agent-workflow-capability-negotiation-v1",
 		executorId: executor.id,
@@ -516,6 +648,21 @@ export async function negotiateWorkflowRun(
 						"\n",
 					),
 		...(notices.length === 0 ? {} : { notices }),
+		...(others.length === 0
+			? {}
+			: {
+					executors: Object.fromEntries(
+						others.map(([id, target]) => [
+							id,
+							{
+								executorVersion: target.version,
+								contractVersion: target.contractVersion,
+								probe: target.summary,
+								capabilities: target.capabilities,
+							},
+						]),
+					),
+				}),
 	};
 }
 
@@ -536,9 +683,29 @@ export function workflowTaskCapabilityLaunch(
 		...negotiation.policy,
 		interactive: false,
 	};
+	// WP31 (Q4): the task's own executor in a mixed run.
+	const executorId = task.runtime.executor ?? negotiation.executorId;
+	const target =
+		executorId === negotiation.executorId
+			? {
+					version: negotiation.executorVersion,
+					capabilities: negotiation.capabilities,
+				}
+			: Object.hasOwn(negotiation.executors ?? {}, executorId)
+				? {
+						version: negotiation.executors![executorId]!.executorVersion,
+						capabilities: negotiation.executors![executorId]!.capabilities,
+					}
+				: undefined;
+	if (target === undefined)
+		throw new WorkflowCapabilityError(
+			"CAPABILITY_REFUSED",
+			`task ${task.id} is assigned to executor ${executorId}, which was not negotiated before launch; it was not launched`,
+			executorId,
+		);
 	const stage = negotiateTask(
-		{ id: negotiation.executorId, version: negotiation.executorVersion },
-		negotiation.capabilities,
+		{ id: executorId, version: target.version },
+		target.capabilities,
 		task,
 		policy,
 		"launch",
@@ -547,10 +714,10 @@ export function workflowTaskCapabilityLaunch(
 		throw new WorkflowCapabilityError(
 			"CAPABILITY_REFUSED",
 			[
-				`executor ${negotiation.executorId}@${negotiation.executorVersion} refused task ${task.id} before launch:`,
+				`executor ${executorId}@${target.version} refused task ${task.id} before launch:`,
 				...refusalLines([stage], policy),
 			].join("\n"),
-			negotiation.executorId,
+			executorId,
 		);
 	if (!negotiation.stages.some((recorded) => recorded.label === task.id)) {
 		negotiation.stages.push(stage);

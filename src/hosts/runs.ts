@@ -6,6 +6,7 @@
 // when the run is still running; the Pi completion-delivery receipt/lease of workflow_wait (session
 // feedback) is not part of the host API; `inspect` reads runs through the store (prefixes,
 // `.agent-workflow/workflows`); supervise is a handler with an optional log sink.
+// WP31: status data/inspect lines name each task's executor/model/effort in role-profile runs.
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -108,6 +109,8 @@ export interface RunSummary {
 	updatedAt: string;
 	parentRunId?: string;
 	executor?: string;
+	/** WP31: every executor of a mixed run (role profile), the run's executor first. */
+	executors?: string[];
 	permissionMode?: string;
 	taskSummary: WorkflowRunRecord["taskSummary"];
 }
@@ -122,6 +125,9 @@ export function summarizeRun(run: WorkflowRunRecord): RunSummary {
 		updatedAt: run.updatedAt,
 		...(run.parentRunId ? { parentRunId: run.parentRunId } : {}),
 		...(run.executor ? { executor: run.executor.id } : {}),
+		...(run.roleExecution?.mixed
+			? { executors: Object.keys(run.roleExecution.executors) }
+			: {}),
 		...(run.permissionMode ? { permissionMode: run.permissionMode.mode } : {}),
 		taskSummary: run.taskSummary,
 	};
@@ -140,6 +146,10 @@ export interface StatusData {
 			specId: string;
 			status: string;
 			statusDetail: string;
+			/** WP31: the task's executor, model and effort (role-profile runs). */
+			executor?: string;
+			model?: string;
+			effort?: string;
 		}>;
 	};
 	runs?: RunSummary[];
@@ -215,6 +225,15 @@ export async function statusAction(
 					specId: task.specId,
 					status: task.status,
 					statusDetail: String(task.statusDetail),
+					...(task.runtime?.executor
+						? {
+								executor: task.runtime.executor,
+								...(task.runtime.model ? { model: task.runtime.model } : {}),
+								...(task.runtime.thinking
+									? { effort: task.runtime.thinking }
+									: {}),
+							}
+						: {}),
 				})),
 			},
 		},
@@ -362,8 +381,12 @@ export async function inspectAction(
 	];
 	if (showAllResults) lines.push("failures: none (showing every task result)");
 	for (const task of selected) {
+		// WP31: a role-profile run shows each task's executor/model/effort.
+		const runtime = task.runtime?.executor
+			? ` [${task.runtime.executor}${task.runtime.model ? ` ${task.runtime.model}` : ""}${task.runtime.thinking ? ` ${task.runtime.thinking}` : ""}]`
+			: "";
 		lines.push(
-			`- ${task.taskId}: ${task.status}/${task.statusDetail}${task.lastMessage ? ` — ${task.lastMessage}` : ""}`,
+			`- ${task.taskId}${runtime}: ${task.status}/${task.statusDetail}${task.lastMessage ? ` — ${task.lastMessage}` : ""}`,
 		);
 		const resultFile = (task.files as { result?: string } | undefined)?.result;
 		if (request.results && resultFile) {

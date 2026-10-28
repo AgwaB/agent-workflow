@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 535-558, 2868-3609, 3821-4245, 6401-6701, 6756-6774, 7371-end, and src/backend.ts (the backend object and its fatal-error wrapper). MIT, same author. Changes: implements the WorkflowBackend on the runtime API (executor descriptor recorded on the run, engine-issued attemptKey, SubmitRequest fields readOnly/isolation/approvalPolicy/env/mcpServers); Pi argv/extension preflight/noExtensions/skills/toolResultBudget/worker-role process env not ported (Pi executor, WP6); R#5 worktree gate before launch; registered for local-pi/headless run records. WP4d: launch-time capability decision from the run's recorded B4 negotiation (refusal → fatal before any effect; forcedReadOnly → SubmitRequest.readOnly and approval policy). WP4e: SubmitRequest.permissionMode from the run record (absent = safe). WP10: the system and task prompts are rendered per executor (artifact tool visible name, artifact tool guidelines section); the workflow_web_* source-card hint is removed (C2) and the refs URL hint names the CLI web tools.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 535-558, 2868-3609, 3821-4245, 6401-6701, 6756-6774, 7371-end, and src/backend.ts (the backend object and its fatal-error wrapper). MIT, same author. Changes: implements the WorkflowBackend on the runtime API (executor descriptor recorded on the run, engine-issued attemptKey, SubmitRequest fields readOnly/isolation/approvalPolicy/env/mcpServers); Pi argv/extension preflight/noExtensions/skills/toolResultBudget/worker-role process env not ported (Pi executor, WP6); R#5 worktree gate before launch; registered for local-pi/headless run records. WP4d: launch-time capability decision from the run's recorded B4 negotiation (refusal → fatal before any effect; forcedReadOnly → SubmitRequest.readOnly and approval policy). WP4e: SubmitRequest.permissionMode from the run record (absent = safe). WP10: the system and task prompts are rendered per executor (artifact tool visible name, artifact tool guidelines section); the workflow_web_* source-card hint is removed (C2) and the refs URL hint names the CLI web tools. WP31: each task launches on its own executor in mixed runs (compiled runtime.executor, descriptor from run.roleExecution).
 import type { ExecutorDescriptor } from "../sdk/descriptor.js";
 import type { ToolKind } from "../sdk/events.js";
 import { isMutatingKind, PI_TOOL_KINDS } from "../sdk/tools.js";
@@ -196,7 +196,11 @@ export async function launchSubagentTask(
 			});
 			await writeRunRecord(cwd, run);
 		}
-		executor = recordedRunExecutorDescriptor(run);
+		// WP31 (Q4): the task's own executor in a mixed run (role profile).
+		executor = recordedRunExecutorDescriptor(
+			run,
+			compiledTask.runtime.executor,
+		);
 		capabilityLaunch = workflowTaskCapabilityLaunch(run, compiledTask);
 	} catch (error) {
 		return {
@@ -543,7 +547,10 @@ export async function launchSubagentTask(
 						? [...DEFAULT_WORKER_TOOLS]
 						: [...effectiveLaunchTools];
 				subagentOptions.mcpServers = preparedMcpServers(sealedLaunch, {
-					artifactOutputLimitChars: artifactServerOutputLimitForRun(run),
+					artifactOutputLimitChars: artifactServerOutputLimitForRun(
+						run,
+						task.runtime.executor,
+					),
 				});
 				if (sealedLaunch.captureToolCalls)
 					subagentOptions.captureToolCalls = true;

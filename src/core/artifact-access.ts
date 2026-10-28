@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-artifact-extension.ts. MIT, same author. Changes: instead of generating a Pi extension wrapper that registers workflow_artifact, core writes a serializable ArtifactAccessConfig and describes the stdio MCP server (WP5) that serves it; Pi registerTool/activation code dropped.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-artifact-extension.ts. MIT, same author. Changes: instead of generating a Pi extension wrapper that registers workflow_artifact, core writes a serializable ArtifactAccessConfig and describes the stdio MCP server (WP5) that serves it; Pi registerTool/activation code dropped. WP31: the artifact server output limit comes from the task's executor probe in mixed runs.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -251,8 +251,15 @@ export function withArtifactMcpOutputLimit(
  */
 export function artifactServerOutputLimitForRun(
 	run: Pick<WorkflowRunRecord, "capabilityNegotiation">,
+	/** WP31: the task's executor in a mixed run (absent: the run's executor). */
+	executorId?: string,
 ): number | null {
-	return artifactServerOutputLimit(run.capabilityNegotiation?.probe);
+	const negotiation = run.capabilityNegotiation;
+	const probe =
+		executorId === undefined || executorId === negotiation?.executorId
+			? negotiation?.probe
+			: negotiation?.executors?.[executorId]?.probe;
+	return artifactServerOutputLimit(probe);
 }
 
 /** Canonical JSON (sorted keys, undefined dropped) used for bytes and digests. */

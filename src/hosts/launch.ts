@@ -132,6 +132,23 @@ export interface LaunchData {
 	specPath?: string;
 	/** WP17: `host` is set when the host's default rule chose the executor. */
 	executor?: { id: string; source: string; profile?: string; host?: string };
+	/**
+	 * WP31: per-stage executor/model/effort of a run with a role profile (`mixed`: more than one
+	 * executor runs stages).
+	 */
+	roles?: {
+		mixed: boolean;
+		executors: string[];
+		stages: Array<{
+			stage: string;
+			executor: string;
+			source: string;
+			role?: string;
+			model?: string;
+			effort?: string;
+		}>;
+		warnings?: string[];
+	};
 	permissionMode?: { mode: string; source: string; profile?: string };
 	profile?: LaunchProfileInfo;
 	capability?: {
@@ -270,6 +287,7 @@ function savedUserProfileLayer(
 			: {}),
 		...(profile.model ? { model: profile.model } : {}),
 		...(profile.effort ? { effort: profile.effort } : {}),
+		...(profile.roles ? { roles: profile.roles } : {}),
 	};
 }
 
@@ -317,6 +335,7 @@ function applyUserProfile(
 		...(profile.strictCapabilities
 			? { strictCapabilities: [...profile.strictCapabilities] }
 			: {}),
+		...(profile.roles ? { roles: profile.roles } : {}),
 	};
 	return {
 		selection: { executionProfileOverride: override },
@@ -737,6 +756,7 @@ function launchData(
 		...(run.permissionMode
 			? { permissionMode: { ...run.permissionMode } }
 			: {}),
+		...(run.roleExecution ? { roles: launchRoles(run.roleExecution) } : {}),
 		...(profile ? { profile } : {}),
 		...(negotiation
 			? {
@@ -753,6 +773,41 @@ function launchData(
 			: {}),
 		taskSummary: run.taskSummary,
 	};
+}
+
+/** WP31: the launch data view of `run.roleExecution`. */
+function launchRoles(
+	roleExecution: NonNullable<WorkflowRunRecord["roleExecution"]>,
+): NonNullable<LaunchData["roles"]> {
+	return {
+		mixed: roleExecution.mixed,
+		executors: Object.keys(roleExecution.executors),
+		stages: Object.entries(roleExecution.stages).map(([stage, assignment]) => ({
+			stage,
+			executor: assignment.executor,
+			source: assignment.source,
+			...(assignment.role ? { role: assignment.role } : {}),
+			...(assignment.model ? { model: assignment.model } : {}),
+			...(assignment.effort ? { effort: assignment.effort } : {}),
+		})),
+		...(roleExecution.warnings?.length
+			? { warnings: [...roleExecution.warnings] }
+			: {}),
+	};
+}
+
+/** WP31: one line per stage of a role-profile launch (`stage → executor model effort (role)`). */
+export function formatLaunchRoles(
+	roles: NonNullable<LaunchData["roles"]>,
+): string {
+	return [
+		`Role profile (${roles.mixed ? `mixed executors: ${roles.executors.join(", ")}` : `executor: ${roles.executors[0] ?? "?"}`}):`,
+		...roles.stages.map(
+			(stage) =>
+				`  ${stage.stage} → ${stage.executor}${stage.model ? ` ${stage.model}` : ""}${stage.effort ? ` ${stage.effort}` : ""} (${stage.role ? `role ${stage.role}, ` : ""}${stage.source})`,
+		),
+		...(roles.warnings ?? []).map((warning) => `  note: ${warning}`),
+	].join("\n");
 }
 
 /**
@@ -1054,6 +1109,7 @@ async function launchClaimed(
 	const text = [
 		promptSchemaNotice || undefined,
 		data.capability?.preview,
+		data.roles ? formatLaunchRoles(data.roles) : undefined,
 		unverifiedNote,
 		heading,
 		formatHumanRunLaunch(run, { hints: hostCommandHints(ctx.host) }),

@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine.ts. MIT, same author. Changes: the backend comes from the task-launch registry and the core task backend registers itself (was hard-wired pi-subagent); acknowledgeSubagentTaskInterrupted from task-cancellation.ts; run options executor/defaultExecutor (B2 executor selection before the run record exists, frozen as run.executor; nested runs copy the parent's) and inheritHostTools/allowSharedCheckoutWrites passed into compileWorkflow (nested runs follow the parent record); native host context → withHostContext(resolveHostContext()); foreach batch eligibility uses prepareWorkflowTaskToolPolicy with the run's host-tool and shared-checkout decisions (R#5); messages say agent-workflow. WP4d: B4 capability negotiation after executor selection and compile, before the run record (probe once, refuse/degrade/confirm, record run.capabilityNegotiation; run options interactive/confirmDegradations/allowUnverifiedCapabilities/executorProber/executorProbeTimeoutMs). WP4e: run option permissionMode resolved with B2 precedence (permission-mode.ts), passed to compile and negotiation, recorded as run.permissionMode (nested runs follow the parent). WP17: run option host; with no explicit executor the default is the host's own CLI (terminal: first usable of pi → claude → codex via cached probes, executor-default.ts), recorded as run.executor.source host-default/installed-default with the host; the cached prober is shared with negotiation. WP18b: re-exports scheduledRetryWait/formatScheduledRetryWait.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine.ts. MIT, same author. Changes: the backend comes from the task-launch registry and the core task backend registers itself (was hard-wired pi-subagent); acknowledgeSubagentTaskInterrupted from task-cancellation.ts; run options executor/defaultExecutor (B2 executor selection before the run record exists, frozen as run.executor; nested runs copy the parent's) and inheritHostTools/allowSharedCheckoutWrites passed into compileWorkflow (nested runs follow the parent record); native host context → withHostContext(resolveHostContext()); foreach batch eligibility uses prepareWorkflowTaskToolPolicy with the run's host-tool and shared-checkout decisions (R#5); messages say agent-workflow. WP4d: B4 capability negotiation after executor selection and compile, before the run record (probe once, refuse/degrade/confirm, record run.capabilityNegotiation; run options interactive/confirmDegradations/allowUnverifiedCapabilities/executorProber/executorProbeTimeoutMs). WP4e: run option permissionMode resolved with B2 precedence (permission-mode.ts), passed to compile and negotiation, recorded as run.permissionMode (nested runs follow the parent). WP17: run option host; with no explicit executor the default is the host's own CLI (terminal: first usable of pi → claude → codex via cached probes, executor-default.ts), recorded as run.executor.source host-default/installed-default with the host; the cached prober is shared with negotiation. WP18b: re-exports scheduledRetryWait/formatScheduledRetryWait. WP31: role-level profiles (role-execution.ts): run options workflowPreference and roles on saved profiles; per-stage executor/model/effort recorded as run.roleExecution; mixed runs (Q4) compile runtime.executor per task and negotiate every stage against its own executor.
 import { releaseUnneededOwnedSessions } from "./owned-session-release.js";
 import { createHash } from "node:crypto";
 import {
@@ -246,6 +246,12 @@ import {
 	workflowDefinitionFingerprint,
 } from "./execution-profile.js";
 import {
+	planRoleExecution,
+	roleLayerExecutor,
+	roleLayersActive,
+	workflowRoleLayers,
+} from "./role-execution.js";
+import {
 	type CompiledDynamicWorkflowTask,
 	type CompiledTask,
 	type CompiledWorkflow,
@@ -256,6 +262,7 @@ import {
 	type WorkflowRunLaunchMetadata,
 	type WorkflowRunRecord,
 	type WorkflowCapturedExecutionProfile,
+	type WorkflowRoleMap,
 	type WorkflowRunRouting,
 	type WorkflowTaskRunRecord,
 	type ThinkingLevel,
@@ -366,6 +373,8 @@ const MAX_SUPERVISOR_CONSECUTIVE_ERRORS = 3;
 export interface WorkflowSavedUserProfileLayer {
 	name: string;
 	executor?: string;
+	/** WP31: role map (role → executor/model/effort). */
+	roles?: WorkflowRoleMap;
 	permissionMode?: "free" | "safe";
 	strictCapabilities?: string[];
 	model?: string;
@@ -436,6 +445,11 @@ export interface WorkflowRunOptions {
 	 * `executionProfileOverride` for a saved profile on its own).
 	 */
 	savedUserProfile?: WorkflowSavedUserProfileLayer;
+	/**
+	 * WP31: the saved per-workflow preference's role overrides (above the declared profile, below
+	 * run flags). `name` is the workflow name.
+	 */
+	workflowPreference?: { name: string; roles?: WorkflowRoleMap };
 	/**
 	 * Run flag: executor id for this run (B2 precedence: run flag > workflow
 	 * declared profile > saved user profile > default). Unknown or unavailable
@@ -775,21 +789,45 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 	// explicit choice the host's own CLI is the default (terminal CLI: first usable of
 	// pi → claude → codex, probed). Nested runs keep the parent's executor.
 	const executorProber = options.executorProber ?? cachedExecutorProber;
-	const executor = parentRun?.executor
+	// WP31: role layers (per-workflow preference > declared profile > saved user profile). A layer's
+	// role `default` executor counts as its flat executor in the run-executor chain.
+	const userLayerProfile = options.executionProfile
+		? options.savedUserProfile
+		: options.executionProfileOverride;
+	const roleLayers = parentRun
+		? []
+		: workflowRoleLayers({
+				spec,
+				...(options.executionProfile === undefined
+					? {}
+					: { executionProfile: options.executionProfile }),
+				...(userLayerProfile ? { userProfile: userLayerProfile } : {}),
+				...(options.workflowPreference
+					? { workflowPreference: options.workflowPreference }
+					: {}),
+			});
+	const preferenceExecutor = roleLayerExecutor(
+		roleLayers,
+		"workflow-preference",
+	);
+	let executor = parentRun?.executor
 		? { ...parentRun.executor }
 		: await resolveRunExecutorForHost({
 				runFlag: options.executor,
+				...(preferenceExecutor
+					? {
+							workflowPreferenceName: preferenceExecutor.name,
+							workflowPreferenceExecutor: preferenceExecutor.executor,
+						}
+					: {}),
 				workflowProfileName: options.executionProfile,
-				workflowProfileExecutor: workflowDeclaredProfileExecutor(
-					spec,
-					options.executionProfile,
-				),
-				userProfileName: options.executionProfile
-					? options.savedUserProfile?.name
-					: options.executionProfileOverride?.name,
-				userProfileExecutor: options.executionProfile
-					? options.savedUserProfile?.executor
-					: options.executionProfileOverride?.executor,
+				workflowProfileExecutor:
+					workflowDeclaredProfileExecutor(spec, options.executionProfile) ??
+					roleLayerExecutor(roleLayers, "workflow-profile")?.executor,
+				userProfileName: userLayerProfile?.name,
+				userProfileExecutor:
+					userLayerProfile?.executor ??
+					userLayerProfile?.roles?.default?.executor,
 				defaultExecutor: options.defaultExecutor,
 				...(options.host === undefined ? {} : { host: options.host }),
 				prober: executorProber,
@@ -797,6 +835,29 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 					? {}
 					: { probeTimeoutMs: options.executorProbeTimeoutMs }),
 			});
+	// WP31: role profiles resolve every stage's executor/model/effort before compile (B2 per field,
+	// extended to roles; Q4: stages may run on different executors).
+	const rolePlan = roleLayersActive(roleLayers)
+		? planRoleExecution({
+				spec,
+				layers: roleLayers,
+				executor,
+				...(options.executor ? { runFlagExecutor: options.executor } : {}),
+				...(options.runtimeOverrides?.model
+					? { runFlagModel: options.runtimeOverrides.model }
+					: {}),
+			})
+		: undefined;
+	if (rolePlan) {
+		spec = rolePlan.spec;
+		executor = rolePlan.executor;
+	}
+	const mixedRun = rolePlan?.roleExecution.mixed === true;
+	const compileRuntimeDefaults = runtimeDefaultsWithSavedProfile(
+		options.runtimeDefaults,
+		options.executionProfile ? options.savedUserProfile : undefined,
+		executor.id,
+	);
 	const compiled = await compileWorkflow(spec, {
 		cwd,
 		specPath,
@@ -806,13 +867,22 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 		permissionMode: permissionMode.mode,
 		runtimeOverrides: options.runtimeOverrides,
 		// Host model/thinking defaults apply only to the executor they belong to; WP37: the saved
-		// profile under a declared one adds its model/effort for its own executor.
-		runtimeDefaults: runtimeDefaultsWithSavedProfile(
-			options.runtimeDefaults,
-			options.executionProfile ? options.savedUserProfile : undefined,
-			executor.id,
-		),
+		// profile under a declared one adds its model/effort for its own executor. WP31: in a mixed
+		// run the remaining defaults belong to the run's executor and reach only its stages.
+		runtimeDefaults:
+			mixedRun && compileRuntimeDefaults
+				? {
+						...compileRuntimeDefaults,
+						executor: compileRuntimeDefaults.executor ?? executor.id,
+					}
+				: compileRuntimeDefaults,
 		availableModels: options.availableModels,
+		...(mixedRun
+			? {
+					modelRegistryExecutor:
+						options.host === "pi" ? "pi" : options.runtimeDefaults?.executor,
+				}
+			: {}),
 	});
 	// B4 (WP4d): probe the executor once and negotiate every stage before any
 	// run record or launch exists. Nested runs reuse the parent's probe and
@@ -851,6 +921,19 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 		...(options.confirmDegradations === undefined
 			? {}
 			: { confirmDegradations: options.confirmDegradations }),
+		...(rolePlan && rolePlan.otherExecutors.length > 0
+			? {
+					executors: Object.fromEntries(
+						rolePlan.otherExecutors.map((selection) => [
+							selection.id,
+							selection.descriptor,
+						]),
+					),
+				}
+			: {}),
+		...(rolePlan && rolePlan.modelChecks.length > 0
+			? { modelChecks: rolePlan.modelChecks }
+			: {}),
 	});
 	options.launchSignal?.throwIfAborted();
 	if (options.autoLaunchBinding)
@@ -898,6 +981,7 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 	if (options.routing) run.routing = options.routing;
 	if (appliedProfile.record) run.executionProfile = appliedProfile.record;
 	run.executor = executor;
+	if (rolePlan) run.roleExecution = rolePlan.roleExecution;
 	run.permissionMode = permissionMode;
 	run.capabilityNegotiation = capabilityNegotiation;
 	let initialized: WorkflowRunRecord | undefined;
