@@ -206,7 +206,10 @@ completion message. Beyond the rules above it redacts quoted structured credenti
 included (`"Authorization":"Basic …"`, `Proxy-Authorization`, `Cookie`/`Set-Cookie`, `x-api-key`,
 JSON fields such as `token`, `access_token`, `refresh_token`, `api_key`/`apiKey`, `secret`,
 `client_secret`, `password`, also backslash-escaped inside JSON strings), and Linux `/home/<user>`
-and Windows `C:\Users\<user>` home paths as well as macOS `/Users/<user>`.
+and Windows `C:\Users\<user>` home paths as well as macOS `/Users/<user>`. WP19 round 2 (N4): the end
+of a structured value is found by an escape-aware scanner (JSON string escapes at every nesting
+level of escaped JSON), so an escaped quote inside the value (`"Cookie":"sid=\"…\"; path=/"`, a
+password containing `\"`) no longer ends it early.
 
 ### `wait`
 
