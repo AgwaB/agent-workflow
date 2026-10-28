@@ -188,7 +188,7 @@ reports them as unknown (never 0).
 | Row | Value | Source | Evidence |
 |---|---|---|---|
 | toolLoop / context | agent / agent | declared | CLI owns both |
-| sessionBound | **true** | declared | stdio and the control protocol belong to the spawning worker. Reconcile `found` ⇒ `needs_decision`, never adoption |
+| sessionBound | **true** | declared | stdio and the control protocol belong to the spawning worker. From another process, reconcile is `unknown` (with a reason) unless the raw stream recorded a result (`found`); both ⇒ `needs_decision`, never adoption or relaunch |
 | mcpInjection | native | probed | #1, #10 |
 | readOnly | native | probed | kit `live.readonly_enforced` |
 | toolAllowlist | native, fine | probed | kit `live.tool_allowlist` |
@@ -253,7 +253,7 @@ standard`) and `WebFetch` (`url`, `prompt`) both completed. The answer cited sou
 - **Offline** (`test/unit/executor-claude-conformance.test.mjs`): 33 checks pass. The stub CLI replays the scrubbed transcripts; `mcp_tool` uses `fake-claude-mcp.mjs`, which acts as Claude's MCP client, `${VAR}` expansion and spill included.
   - `mcp.delivery_bound` is **skipped, justified.** Claude replaces an over-limit result with a spill notice instead of delivering a prefix, so no delivered output contains the nonce the check measures. The live measurements are #8 and #9.
   - The fail scenarios for rate_limit, transient and permanent are synthetic API-error results in the live `api_error` shape. The auth and config scenarios are the live transcripts.
-- **Runtime** (same file): `runtime.durable_authority` (kill ⇒ `marked-needs-decision/found`), `runtime.detach_rediscovery` and `runtime.control_relay` all pass. They drive the real durable worker with the stub CLI.
+- **Runtime** (same file): `runtime.durable_authority` (kill ⇒ `marked-needs-decision/unknown` since WP37), `runtime.detach_rediscovery` and `runtime.control_relay` all pass. They drive the real durable worker with the stub CLI.
 - **Live** (`test/unit/executor-claude-live.test.mjs`, `AGENT_WORKFLOW_LIVE=1`, real HOME):
   - Kit checks: `live.readonly_enforced`, `live.tool_allowlist`, `live.isolation`, `live.session_ownership` and `live.resume` all pass.
   - Own tests: smoke + artifact MCP, concurrency, web and system prompt all pass.
@@ -262,7 +262,7 @@ standard`) and `WebFetch` (`url`, `prompt`) both completed. The answer cited sou
 ## Known limits
 
 - **sessionBound.**
-  - If the worker process dies, the CLI loses its stdio. Reconcile reports `found` ⇒ the attempt needs a decision.
+  - If the worker process dies, the CLI loses its stdio. Reconcile from another process reports `unknown` with a reason (no result recorded) or `found` (the raw stream holds a result); either way the attempt needs a decision and is never relaunched automatically (B3, WP37).
   - `observe` in another process replays the raw stream and, if no result was recorded, ends with `failed{unknown}`.
 - **CLI-side auto-allow.** Read/Grep/Glob inside the cwd and read-only Bash commands are allowed without an approval request. They are visible only as `tool_call` events.
 - **Spilled MCP results.** They land under `~/.claude/projects/…` while the run is active. The adapter removes them after exit. The artifact server's bound (22,500 chars) keeps `workflow_artifact` below the spill.
@@ -278,6 +278,20 @@ standard`) and `WebFetch` (`url`, `prompt`) both completed. The answer cited sou
 
 ## Change log
 
+- **WP37 (B3 reconcile):** `reconcile(attemptKey)` in a process that does not own the attempt (the
+  spawning worker died, taking the CLI's stdio and control protocol with it) reads the kept raw
+  stream. With a recorded `result` line it stays `found` (the outcome can be replayed); without one
+  it reports `{unknown: true, reason}` naming the attempt handle and CLI pid, "the claude CLI is
+  session-bound … no result was recorded, so the outcome is unknown: needs an owner decision, no
+  automatic relaunch (B3)". Before, it reported `found`, and the runtime's needs_decision message
+  claimed the executor "still holds the attempt". The runtime records the reason
+  (`metadata.executor.reconcileReason`) and marks the attempt `failed/needs_decision`; the engine
+  blocks the task (`executor_needs_decision`) until a person resumes or stops it. The owning
+  instance still reports `found`. The raw stream is now closed (flushed) before the held terminal
+  event is delivered, so a worker that exits right after that event leaves a result another process
+  can read (a validate run under load once saw the conformance `reconcile.found` restart read the
+  file before the flush). Tests: `executor-wp37-claude-reconcile.test.mjs`;
+  `executor-claude-conformance.test.mjs` expects kill ⇒ `marked-needs-decision/unknown`.
 - **Live bundle 4 (2026-10-27):** an ephemeral attempt's spilled tool results
   (`<claudeConfigDir>/projects/<cwd slug>/<uuid>/tool-results/`) are removed **before** the terminal
   event. The terminal event is emitted at the stream's `result` line, and the durable worker commits

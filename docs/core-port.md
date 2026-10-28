@@ -1566,3 +1566,9 @@ unexplained differences in every variant. Every new test that spawns a process k
    resume waits and completes; held past the bound → the message, live holder unaffected, then a
    resume succeeds; blocked run not stopped → immediate refusal); `host-api-handlers.test.mjs` "wait
    is bounded … stop then resume" no longer retries.
+3. **Claude `sessionBound` reconcile** (parity §3.2, B3). When a Claude worker dies its CLI loses
+   stdio; reconcile from another process could not observe it but answered `found`. It now answers
+   `unknown` with a reason unless the raw stream recorded a result, so the runtime records
+   `failed/needs_decision` with that reason and the engine blocks the task (`executor_needs_decision`),
+   never relaunching it automatically. Details and tests: docs/executors/claude.md change log
+   "WP37".
