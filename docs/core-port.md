@@ -201,7 +201,11 @@ Launch provenance (below) then fails closed, because it still expects exactly on
 wrapper for such a task. **WP35:** the Pi host sets the option (`docs/pi-host.md`); the engine honors it
 only when the run's executor is `pi`; readOnly stages compile with `inheritHostTools: false`; provenance
 requires the run's `pi` executor instead of the wrapper, and the task backend passes the flag to the Pi
-executor as per-task descriptor config.
+executor as per-task descriptor config. **WP31 × WP35:** in a mixed role-profile run the decision is per
+task: the compile option `runExecutor` keeps host tools to stages whose executor is `pi`
+(`runInheritsHostToolsForTask` does the same for foreach/loop/dynamic tasks prepared at runtime),
+provenance checks the task's own executor, and each stage's negotiation record/preview block carries
+`hostTools` (`inherited`, `readOnly`, `no-tools`, `executor`).
 
 **artifact-access.** `prepareDagTask` writes `<task dir>/artifact-access.json` with mode 0600. The file
 is canonical JSON (sorted keys) of `{version: 1, runId, taskId, manifestPath, ledgerPath,
