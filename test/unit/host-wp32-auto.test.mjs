@@ -640,3 +640,130 @@ test("CLI on a terminal: n at the pick-list starts nothing", async () => {
 	);
 	assert.equal(await runCount(cwd), 0);
 });
+
+// Item 3: Pi `/aw auto <task>` (pi-workflow had no auto tool, so there is no aw_auto).
+const ext = await import("../../dist/hosts/pi/extension.js");
+const { fakeCtx, fakePi } = await import("../helpers/pi-host-fake.mjs");
+const piInstances = [];
+after(async () => {
+	for (const pi of piInstances)
+		for (const handler of pi.handlers.get("session_shutdown") ?? [])
+			await handler({}, undefined);
+});
+
+function piSession(cwd, env, options = {}) {
+	const pi = fakePi();
+	ext.createAgentWorkflowPiExtension({ env, feedbackPollMs: 50 })(pi);
+	piInstances.push(pi);
+	const confirms = [];
+	const answers = [...(options.confirms ?? [])];
+	const ctx = fakeCtx(cwd, {
+		...options.ctx,
+		select: options.select ?? ((choices) => choices[0]),
+	});
+	ctx.ui.confirm = async (title, message) => {
+		confirms.push({ title, message });
+		return answers.shift() ?? false;
+	};
+	return { pi, ctx, confirms };
+}
+
+test("Pi /aw auto: consent dialog, ranked select, final confirm; the run is launched and tracked", async () => {
+	const { cwd, env } = await project();
+	const logs = shadow({ pi: READY, claude: READY, codex: READY });
+	const { pi, ctx, confirms } = piSession(cwd, env, { confirms: [true, true] });
+	assert.equal(pi.tools.has("aw_auto"), false);
+	await pi.commands.get("aw").handler(`auto "${TASK}"`, ctx);
+	assert.equal(confirms.length, 2, JSON.stringify(ctx.notes));
+	assert.match(
+		confirms[0].title,
+		/Send this task to pi to compare workflows\?/,
+	);
+	assert.match(
+		confirms[0].message,
+		/model anthropic\/claude-test, effort medium/,
+	);
+	assert.equal(confirms[1].title, "Confirm selected workflow launch");
+	const [shown] = ctx.selects;
+	assert.match(shown.options[0], /^1\. wp32-alpha · recommended — /);
+	assert.equal(shown.options.at(-1), "Cancel (start nothing)");
+	const submits = classifierSubmits(logs.pi);
+	assert.equal(submits.length, 1);
+	assert.equal(submits[0].model, "anthropic/claude-test");
+	assert.deepEqual(allClassifierSubmits(logs), { pi: 1, claude: 0, codex: 0 });
+	const [listed] = (await api.statusAction({ cwd, env })).data.runs;
+	assert.ok(listed, JSON.stringify(ctx.notes));
+	await settle(cwd, env, listed.runId);
+	const record = await store.readRunRecord(cwd, listed.runId);
+	assert.equal(record.launch.source, "pi");
+	assert.deepEqual(record.launch.entry, { kind: "command", action: "auto" });
+	assert.deepEqual(record.launch.selection.classifier, {
+		executor: "pi",
+		model: "anthropic/claude-test",
+	});
+	assert.equal(record.launch.selection.consent, "prompt");
+	assert.ok(
+		ctx.notes.some((note) =>
+			/Selected: wp32-alpha \(recommended\)/.test(note.message),
+		),
+	);
+});
+
+test("Pi /aw auto: declining consent or the final confirmation starts nothing", async () => {
+	const { cwd, env } = await project();
+	const logs = shadow({ pi: READY, claude: READY, codex: READY });
+	const declined = piSession(cwd, env, { confirms: [false] });
+	await declined.pi.commands.get("aw").handler(`auto "${TASK}"`, declined.ctx);
+	assert.equal(declined.ctx.selects.length, 0);
+	assert.deepEqual(allClassifierSubmits(logs), { pi: 0, claude: 0, codex: 0 });
+	assert.ok(
+		declined.ctx.notes.some((note) => /did not agree/.test(note.message)),
+	);
+	const unconfirmed = piSession(cwd, env, { confirms: [true, false] });
+	await unconfirmed.pi.commands
+		.get("aw")
+		.handler(`auto "${TASK}"`, unconfirmed.ctx);
+	assert.equal(classifierSubmits(logs.pi).length, 1);
+	assert.ok(
+		unconfirmed.ctx.notes.some((note) =>
+			/Auto selection cancelled/.test(note.message),
+		),
+	);
+	const cancelled = piSession(cwd, env, {
+		confirms: [true],
+		select: (choices) => choices.at(-1),
+	});
+	await cancelled.pi.commands
+		.get("aw")
+		.handler(`auto "${TASK}"`, cancelled.ctx);
+	assert.equal(
+		cancelled.confirms.length,
+		1,
+		"Cancel asks no final confirmation",
+	);
+	assert.equal(await runCount(cwd), 0);
+});
+
+test("Pi /aw auto in print/JSON mode: no dialog, no classifier call", async () => {
+	const { cwd, env } = await project();
+	const logs = shadow({ pi: READY, claude: READY, codex: READY });
+	const { pi, ctx, confirms } = piSession(cwd, env, { ctx: { hasUI: false } });
+	const writes = [];
+	const write = process.stdout.write;
+	process.stdout.write = (chunk) => {
+		writes.push(String(chunk));
+		return true;
+	};
+	try {
+		await pi.commands.get("aw").handler(`auto "${TASK}"`, ctx);
+	} finally {
+		process.stdout.write = write;
+		process.exitCode = undefined;
+	}
+	assert.equal(confirms.length, 0);
+	assert.deepEqual(allClassifierSubmits(logs), { pi: 0, claude: 0, codex: 0 });
+	const text = writes.join("");
+	assert.match(text, /could not ask for your consent/);
+	assert.match(text, /\/aw run wp32-alpha "<task>"/);
+	assert.equal(await runCount(cwd), 0);
+});
