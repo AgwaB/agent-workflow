@@ -413,3 +413,41 @@ calls) addresses live-4 open problems 2–7 and the presentation part of 8, and 
 1–3; see the "WP18b:" note under each. Not changed: engine run-status semantics (a non-passing
 domain verdict still fails the run, CLI exit 1; replay acceptance 0 unexplained). None of the fixes
 was rerun live.
+
+## WP19 review fixes
+
+Branch `wp19-fixes` from `8fd2da8`, no model or agent-CLI calls. Input: the stage-2 cross-review
+(gpt-6-astra max, "Request changes", 10 findings). Each commit adds an adversarial regression test
+that reproduces the reviewer's scenario; every listed test fails on `8fd2da8` (checked by running it
+against a build of that commit) and passes after the fix.
+
+| # | Finding | Commit | Regression test |
+|---|---|---|---|
+| 1 | Launch-guard takeover not exclusive; live owner stolen after 60 s | `f815d45` | `test/unit/host-wp19-guard-takeover.test.mjs` |
+| 2 | Retention turned launched attempts into `absent` | `51ebc0b` | `test/unit/executor-wp19-retention-tombstones.test.mjs` |
+| 3 | Pruning followed symlinked ancestors out of the state dir | `266c9c8` | `test/unit/executor-wp19-retention-symlinks.test.mjs` |
+| 4 | `workflow_logs` read files outside the project | `9cc42b6` | `test/unit/host-wp19-logs-containment-redaction.test.mjs` (#4 cases) |
+| 5 | Pi delivery lost on a crash; empty receipt counted as delivered | `fd88bc9` | `test/unit/host-wp19-pi-delivery.test.mjs` (#5 cases) |
+| 6 | Pi completion reached the wrong session | `fd88bc9` | `test/unit/host-wp19-pi-delivery.test.mjs` (#6 cases) |
+| 7 | Structured credentials and Linux/Windows home paths not redacted | `9cc42b6` | `test/unit/host-wp19-logs-containment-redaction.test.mjs` (#7 cases) |
+| 8 | Duplicate fingerprint omitted the effective settings | `88c1830` | `test/unit/host-wp19-guard-identity.test.mjs` |
+| 9 | CLI default treated unknown auth as logged in | `3de8816` | `test/unit/core-wp19-default-readiness.test.mjs` |
+| 10 | Generic support failures presented as verdict gates | `16ada62` | `test/unit/host-wp19-verdict-gate-evidence.test.mjs` |
+
+Notes:
+
+- #2: tombstones are compact per-attempt records (`agent-workflow-attempt-tombstone-v1`, about 250
+  bytes) that retention never deletes. Reconcile reports them as `unknown` with the last known
+  outcome in the reason, because the SDK `ReconcileResult` has no terminal variant and `found` would
+  make the runtime adopt and observe a ref whose output was pruned. The runtime records
+  failed/needs_decision, never not_started, so nothing is retried automatically.
+- #5/#6: Pi's session history (`ctx.sessionManager.getEntries()`) is the durable recipient. Pi has no
+  session-targeted `sendMessage`, so the fence is a synchronous re-check right before the send.
+- #9: Pi readiness comes from `pi --list-models`, which lists only models whose provider has
+  configured auth in Pi. This was checked in the Pi docs (`docs/cli.md`, `docs/models.md`), in the
+  installed Pi's `dist/cli/list-models.js` → pi-ai `ModelRuntime.getAvailable` (authenticated
+  providers only) and with `pi --help`. No login and no model call were made.
+- #1 and #8 also change docs/host-api.md, #4/#7 docs/host-api.md, host-mcp.md, cli.md and pi-host.md,
+  #5/#6 docs/pi-host.md, #9 docs/cli.md, usage.md and executors/pi.md, #10 docs/host-api.md,
+  host-mcp.md, cli.md and support.md, #2/#3 the executor docs.
+- None of the fixes was rerun live.
