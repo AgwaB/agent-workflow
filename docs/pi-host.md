@@ -53,7 +53,7 @@ mode); errors are error notifications.
 | `show <workflow>` / `show <run> [--raw]` | `showAction` |
 | `inspect <run> [--failures] [--results]` | `inspectAction` |
 | `logs <run> [--task <id>] [--lines N] [--stream output\|stderr\|events\|all]` | `logsAction` (WP16): bounded, redacted tail of task output, stderr and executor events (WP19: contained to `.agent-workflow/`, structured credentials redacted; the completion message is redacted the same way) |
-| `wait <run> [--timeout D]` | `waitAction` — one call, at most 45 s |
+| `wait <run> [timeout \| --timeout D]` | `waitAction` with `longWait` (WP28): until the run is terminal or needs action, or the timeout passes; default 60 s (pi-workflow `/workflow wait`), max 4 h; a bare number is milliseconds |
 | `resume <run> [--detach]` | `resumeAction` |
 | `stop <run>` | `stopAction` |
 | `prune [--keep N] [--older-than DAYS] [--yes]` | `pruneAction` |
@@ -66,7 +66,7 @@ Run options (leading or trailing, quoted text is literal; the host API parser
 
 `/aw run` returns once the run is launched. The engine's in-process watcher keeps driving it while
 the Pi session lives; `/aw wait`, `/aw status` or `aw_wait` show progress, `--detach` hands it to a
-standalone supervisor that outlives the session. `supervise` is CLI-only.
+standalone supervisor that outlives the session. `supervise` is CLI-only (MCP: `workflow_supervise`).
 
 Run texts name `/aw …` follow-up commands (`Open: /aw status <run>`, `Resume: /aw resume <run>`,
 `/aw logs <run> --task <task>`): the Pi host passes `host: "pi"` and the host API picks the hints
@@ -82,9 +82,14 @@ Schemas, descriptions and prompt guidelines are adapted from pi-workflow's
 | Tool | Parameters | Handler |
 |---|---|---|
 | `aw_list` | `query?`, `offset?`, `limit?` (1-20, default 20) | `listWorkflowsAction` |
-| `aw_run` | `workflow`, `task`, `executor?`, `profile?`, `permissionMode?` (`free`/`safe`), `allowUnverified?` (string[]), `model?`, `effort?`, `detach?`, `forceNew?`, `inputs?` (object) | `runWorkflowAction` |
-| `aw_dynamic` | `task` and the same options | `runDynamicAction` |
-| `aw_wait` | `runId`, `timeoutMs?` (1000-45000) | `waitAction` |
+| `aw_run` | `workflow`, `task`, `executor?`, `profile?`, `permissionMode?` (`free`/`safe`), `allowUnverified?` (string[]), `model?`, `effort?`, `detach?`, `forceNew?`, `inputs?` (object), `awaitTerminal?`, `timeoutMs?` (1000-14400000, needs `awaitTerminal`) | `runWorkflowAction` (+ `waitAction` with `awaitTerminal`) |
+| `aw_dynamic` | `task` and the same options | `runDynamicAction` (+ `waitAction`) |
+| `aw_wait` | `runId`, `timeoutMs?` (1000-14400000, default 1800000) | `waitAction` with `longWait` |
+
+Exposure (WP28): with `AGENT_WORKFLOW_TOOL_EXPOSURE=deferred` every `aw_*` tool is registered with
+`exposure: "deferred"`, so Pi keeps it out of each request until `tool_search` loads it (port of
+pi-workflow's `PI_WORKFLOW_TOOL_EXPOSURE`; [environment.md](environment.md)). Unset or any other
+value: normal registration.
 
 Results: `content` is the handler text; `details` is the handler `data` plus `outcome`/`ok`.
 Launches add `waitWith`; a refused launch is returned with `isError: true` (the refusal code is in
@@ -92,9 +97,15 @@ Launches add `waitWith`; a refused launch is returned with `isError: true` (the 
 not an error: `details.outcome` is `existing`, `details.runId`/`duplicateOf` name that run and
 `waitWith` points at it; `forceNew: true` starts another run. `aw_wait` returns `terminal`, `actionRequired`, `stillRunning`, `semanticStatus`,
 `preview` (bounded authoritative result), `reportArtifacts`, `taskSummary`, … and streams progress
-through `onUpdate`. Each call waits at most 45 s (the host API cap); the guidelines tell the agent to
-call it again while `stillRunning` is true. Cancelling a tool call cancels only the wait. Unlike
-pi-workflow, `aw_run`/`aw_dynamic` have no `awaitTerminal`.
+through `onUpdate`. WP28 (owner decision Q9, ported from pi-workflow `workflow_wait`/`awaitTerminal`):
+`aw_wait` waits until the run is terminal or needs action, or `timeoutMs` passes (default 30 min,
+max 4 h; the host API `longWait`); `stillRunning: true` only means the timeout came first.
+`aw_run`/`aw_dynamic` with `awaitTerminal: true` launch and then wait the same way and return the
+wait result (`details` = wait data plus `launch` = the launch details); `detach` and `awaitTerminal`
+are mutually exclusive and `timeoutMs` requires `awaitTerminal`. Cancelling a tool call cancels only
+the wait. An awaited result is not delivered again as a completion message; when the wait ends
+first (timeout or cancel) the run is tracked like a plain tool launch and reports back when it
+settles. The MCP server keeps its 45 s cap; the CLI is unchanged.
 
 `inputs` (WP12c) is the tool form of `--input`: an object of declared workflow inputs, passed to the
 host API as `inputOverrides` and typed there like the CLI's strings (a string is converted for a
@@ -135,7 +146,18 @@ only when no executor or `pi` is selected — a `--executor codex` run does not 
 
 ## Session start
 
-On `session_start` (not awaited, never delays startup) the host calls
+On `session_start` (not awaited, never delays startup; supervisor role only) the host first
+re-drives running runs (WP28, port of pi-workflow `resumeSupervisors`, `src/engine.ts:2628`):
+`redriveRunsAction` schedules every run of the project that still has scheduler work and that no
+other live process drives (a held run lease, or a `supervisor.json`/`supervisor-lease.json`
+heartbeat younger than 30 s from a live pid other than this Pi process), then keeps watching it in
+this process. So an attached run whose Pi session (or CLI, or `detach: false` MCP server) ended
+continues when Pi starts again in the project; a detached run whose supervisor is alive, or a run
+another Pi session drives, is left alone. Re-driving only schedules: a blocked run stays blocked,
+and an attempt whose worker died without a terminal record is reconciled by the engine, where an
+`unknown` outcome blocks the task as `executor_needs_decision` (B3), never a relaunch. Delivery is
+not taken over: nothing is bound, so the completion message still goes only to the run's WP16
+audience session (when that session starts, its catch-up delivers it). Then the host calls
 `noticesAction({argv: ["list"]})` and shows one warning notification listing unfinished runs (port of
 pi-workflow `notifyUnfinishedRuns`): top-level failed/interrupted runs and blocked runs waiting for a
 dynamic approval or an executor decision, excluding mock runs, runs with an active acknowledgement
@@ -301,6 +323,11 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
 
 ## Verification
 
+- WP28: `host-wp28-pi-waits.test.mjs` (long `aw_wait`, `awaitTerminal` on `aw_run`/`aw_dynamic`,
+  cancel = only the wait, no second delivery of an awaited result, `/aw wait <run> [timeout]`),
+  `host-wp28-pi-redrive.test.mjs` (a child process launches an attached run and exits; session start
+  re-drives it, B3 decision instead of a relaunch after a killed worker, audience kept, live drivers
+  skipped), `host-wp28-pi-exposure.test.mjs` (deferred tool exposure).
 - `test/unit/host-pi-extension.test.mjs`: fake `ExtensionAPI`; every action and tool delegates to the
   right handler with the right arguments (a recording wrapper over the real host API); runs use the
   WP11a guarded test-executor hook; confirmation (decline, accept, no UI); session-start notices
@@ -335,8 +362,7 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
   also with `--no-session`).
 - No `/aw auto` or TUI profile picker (`/workflow profile`); `/aw profile` manages saved user
   profiles only.
-- Runs left running by an earlier Pi session are not resumed at session start (only their status
-  line and delivery are restored); attached runs of a gone Pi process need `/aw wait`, `/aw resume`
-  or `agent-workflow supervise`.
+- Runs left running by a gone process are re-driven at session start (WP28) only while Pi runs;
+  for a run that should outlive every session use `--detach` (or `agent-workflow supervise`).
 - `runtimeDefaults` follow the explicit executor only: a profile that selects a non-Pi executor still
   receives Pi's current model as the lowest-precedence default.

@@ -2,19 +2,25 @@
 // Schemas, descriptions and prompt guidelines are adapted from pi-workflow 0.16.4 (b83cc4f)
 // `workflow_list/run/dynamic/wait` with executor-neutral wording: the parent agent is Pi, the
 // workflow workers run on the selected executor (default pi). Each tool calls one host API handler.
-// Differences from pi-workflow: no `awaitTerminal` on run/dynamic and `aw_wait` waits at most 45 s
-// per call (the host API bound), so the agent calls `aw_wait` again while `stillRunning` is true;
-// no presentation lease. WP12c: `inputs` on run/dynamic (the tool form of --input; typed by the host
+// Differences from pi-workflow: no presentation lease. WP28 (owner decision Q9): `awaitTerminal` +
+// `timeoutMs` on run/dynamic and long `aw_wait` calls are restored with pi-workflow's bounds
+// (default 30 min, max 4 h; the host API `longWait`), cancelling the tool call cancels only the
+// wait; a launch whose awaited result is returned is not delivered again later (it is tracked for
+// delivery only when the wait ends before the run settles). WP28: AGENT_WORKFLOW_TOOL_EXPOSURE=deferred
+// registers the tools with deferred exposure (pi-workflow PI_WORKFLOW_TOOL_EXPOSURE). WP12c: `inputs` on run/dynamic (the tool form of --input; typed by the host
 // API like the CLI's strings). WP16: launched runs are tracked for the status line and completion
 // delivery into this session (feedback.ts; a tool launch triggers a follow-up turn when it settles);
 // an identical launch while the first run is active returns that run (`outcome: "existing"`).
 import {
 	formatHostError,
-	HOST_WAIT_MAX_TIMEOUT_MS,
+	HOST_LONG_WAIT_DEFAULT_TIMEOUT_MS,
+	HOST_LONG_WAIT_MAX_TIMEOUT_MS,
 	HOST_WAIT_MIN_TIMEOUT_MS,
 	type HostResult,
 	HostUsageError,
 	type LaunchData,
+	type RunSummary,
+	type WaitData,
 	parseCapabilityList,
 	parsePermissionMode,
 	parseThinkingLevel,
@@ -34,7 +40,29 @@ import {
 	AW_RUN_TOOL,
 	AW_WAIT_TOOL,
 } from "./names.js";
-import type { PiExtensionApi, PiToolResult } from "./pi-types.js";
+import type {
+	PiExtensionApi,
+	PiExtensionContext,
+	PiToolResult,
+	PiToolUpdate,
+} from "./pi-types.js";
+
+const LONG_WAIT_MINUTES = HOST_LONG_WAIT_DEFAULT_TIMEOUT_MS / 60_000;
+const LONG_WAIT_MAX_HOURS = HOST_LONG_WAIT_MAX_TIMEOUT_MS / 3_600_000;
+
+/** WP28: the terminal-wait options of `aw_run`/`aw_dynamic` (pi-workflow `awaitTerminal`). */
+const AWAIT_PROPERTIES = {
+	awaitTerminal: {
+		type: "boolean",
+		description: `Optional. Wait for the run to finish (or need action) and return its result and a bounded final-result preview, up to timeoutMs (default ${LONG_WAIT_MINUTES} minutes). Mutually exclusive with detach.`,
+	},
+	timeoutMs: {
+		type: "number",
+		minimum: HOST_WAIT_MIN_TIMEOUT_MS,
+		maximum: HOST_LONG_WAIT_MAX_TIMEOUT_MS,
+		description: `Optional terminal-wait timeout in milliseconds (max ${LONG_WAIT_MAX_HOURS} h). Requires awaitTerminal=true.`,
+	},
+} as const;
 
 const LAUNCH_OPTION_PROPERTIES = {
 	executor: {
@@ -126,6 +154,7 @@ export const AW_RUN_PARAMETERS = {
 				"Full runtime task for the workflow. Preserve the user's language, file references, and constraints.",
 		},
 		...LAUNCH_OPTION_PROPERTIES,
+		...AWAIT_PROPERTIES,
 	},
 	required: ["workflow", "task"],
 } as const;
@@ -140,6 +169,7 @@ export const AW_DYNAMIC_PARAMETERS = {
 				"Full runtime task for spec-less direct dynamic workflow execution. Preserve the user's language, file references, constraints, and requested depth.",
 		},
 		...LAUNCH_OPTION_PROPERTIES,
+		...AWAIT_PROPERTIES,
 	},
 	required: ["task"],
 } as const;
@@ -155,8 +185,8 @@ export const AW_WAIT_PARAMETERS = {
 		timeoutMs: {
 			type: "number",
 			minimum: HOST_WAIT_MIN_TIMEOUT_MS,
-			maximum: HOST_WAIT_MAX_TIMEOUT_MS,
-			description: `Optional bound of this wait in milliseconds (default and maximum ${HOST_WAIT_MAX_TIMEOUT_MS}).`,
+			maximum: HOST_LONG_WAIT_MAX_TIMEOUT_MS,
+			description: `Optional wait timeout in milliseconds; defaults to ${LONG_WAIT_MINUTES} minutes (max ${LONG_WAIT_MAX_HOURS} h).`,
 		},
 	},
 	required: ["runId"],
@@ -214,7 +244,131 @@ function optionalInteger(
 	return value;
 }
 
-const LAUNCH_KEYS = new Set(["task", ...Object.keys(LAUNCH_OPTION_PROPERTIES)]);
+const LAUNCH_KEYS = new Set([
+	"task",
+	...Object.keys(LAUNCH_OPTION_PROPERTIES),
+	...Object.keys(AWAIT_PROPERTIES),
+]);
+
+/** `timeoutMs` of a long wait: an integer from 1000 to 14400000 (pi-workflow's bounds). */
+function optionalWaitTimeout(
+	params: Record<string, unknown>,
+	tool: string,
+): number | undefined {
+	const value = params.timeoutMs;
+	if (value === undefined) return undefined;
+	if (
+		typeof value !== "number" ||
+		!Number.isInteger(value) ||
+		value < HOST_WAIT_MIN_TIMEOUT_MS ||
+		value > HOST_LONG_WAIT_MAX_TIMEOUT_MS
+	)
+		throw new HostUsageError(
+			`${tool} timeoutMs must be an integer from ${HOST_WAIT_MIN_TIMEOUT_MS} to ${HOST_LONG_WAIT_MAX_TIMEOUT_MS}`,
+		);
+	return value;
+}
+
+/** WP28: `awaitTerminal`/`timeoutMs` of a launch tool (pi-workflow `parseWorkflowAwaitParams`). */
+export function awaitOptionsFromToolParams(
+	params: Record<string, unknown>,
+	tool: string,
+): { awaitTerminal: boolean; timeoutMs?: number } {
+	const value = params.awaitTerminal;
+	if (value !== undefined && typeof value !== "boolean")
+		throw new HostUsageError(`${tool} awaitTerminal must be a boolean`);
+	const awaitTerminal = value === true;
+	const timeoutMs = optionalWaitTimeout(params, tool);
+	if (timeoutMs !== undefined && !awaitTerminal)
+		throw new HostUsageError(`${tool} timeoutMs requires awaitTerminal=true`);
+	if (awaitTerminal && params.detach === true)
+		throw new HostUsageError(
+			`${tool} detach and awaitTerminal are mutually exclusive`,
+		);
+	return { awaitTerminal, ...(timeoutMs === undefined ? {} : { timeoutMs }) };
+}
+
+/** Progress of a long wait through Pi's `onUpdate`. */
+function waitProgress(
+	onUpdate: PiToolUpdate | undefined,
+): { onProgress: (run: RunSummary) => void } | Record<string, never> {
+	if (!onUpdate) return {};
+	return {
+		onProgress: (run) =>
+			onUpdate({
+				content: [
+					{
+						type: "text",
+						text: `Waiting for ${run.runId}: ${run.taskSummary.completed}/${run.taskSummary.total} completed (${run.status})`,
+					},
+				],
+				details: {
+					runId: run.runId,
+					status: run.status,
+					taskSummary: run.taskSummary,
+				},
+			}),
+	};
+}
+
+function waitDetails(data: WaitData): Record<string, unknown> {
+	return {
+		...data,
+		...(data.actionRequired
+			? {
+					inspectCommand: `/${AW_COMMAND} inspect ${data.runId} --failures`,
+					resumeCommand: `/${AW_COMMAND} resume ${data.runId}`,
+				}
+			: {}),
+	};
+}
+
+/**
+ * WP28: a launch tool with `awaitTerminal`: wait (long) for the launched run and return the wait
+ * result plus the launch details under `launch`. The run is tracked for completion delivery only
+ * when the wait ends before it settles (timeout) or is cancelled; an awaited result is not
+ * delivered a second time.
+ */
+async function launchResult(
+	deps: PiHostDeps,
+	ctx: PiExtensionContext,
+	action: "run" | "dynamic",
+	launched: HostResult<LaunchData>,
+	note: string | undefined,
+	awaitOptions: { awaitTerminal: boolean; timeoutMs?: number },
+	signal: AbortSignal | undefined,
+	onUpdate: PiToolUpdate | undefined,
+): Promise<PiToolResult> {
+	const runId = launched.data.runId;
+	const running = launched.data.status === "running";
+	if (!awaitOptions.awaitTerminal || !runId || !running) {
+		await trackLaunched(deps, ctx, action, launched.data, "tool");
+		return toolResult(launched, launchDetails(launched.data), note);
+	}
+	let waited: HostResult<WaitData>;
+	try {
+		waited = await deps.api.waitAction(hostContext(deps, ctx), {
+			runId,
+			longWait: true,
+			...(awaitOptions.timeoutMs === undefined
+				? {}
+				: { timeoutMs: awaitOptions.timeoutMs }),
+			...(signal ? { signal } : {}),
+			...waitProgress(onUpdate),
+		});
+	} catch (error) {
+		// Only the wait ends: the run continues and reports back like a plain launch.
+		await trackLaunched(deps, ctx, action, launched.data, "tool");
+		throw error;
+	}
+	if (waited.data.stillRunning)
+		await trackLaunched(deps, ctx, action, launched.data, "tool");
+	return toolResult(
+		waited,
+		{ ...waitDetails(waited.data), launch: launchDetails(launched.data) },
+		note,
+	);
+}
 
 function rejectUnknown(params: Record<string, unknown>, allowed: Set<string>) {
 	for (const key of Object.keys(params))
@@ -300,8 +454,26 @@ async function guarded<T>(work: () => Promise<T>): Promise<T> {
 	}
 }
 
+/** WP28 environment switch of the `aw_*` tools' exposure (docs/environment.md). */
+export const AW_TOOL_EXPOSURE_ENV = "AGENT_WORKFLOW_TOOL_EXPOSURE";
+
+/**
+ * WP28: opt-in deferred exposure (port of pi-workflow b83cc4f `workflowToolExposure`,
+ * `PI_WORKFLOW_TOOL_EXPOSURE=deferred`): the tools stay out of every request until Pi's
+ * `tool_search` loads them. Any other value (or none) keeps Pi's default.
+ */
+export function awToolExposure(env: NodeJS.ProcessEnv): {
+	exposure?: "deferred";
+} {
+	return env[AW_TOOL_EXPOSURE_ENV] === "deferred"
+		? { exposure: "deferred" }
+		: {};
+}
+
 export function registerAwTools(pi: PiExtensionApi, deps: PiHostDeps): void {
+	const exposure = awToolExposure(deps.env);
 	pi.registerTool({
+		...exposure,
 		name: AW_LIST_TOOL,
 		label: "List agent-workflow workflows",
 		description:
@@ -341,6 +513,7 @@ export function registerAwTools(pi: PiExtensionApi, deps: PiHostDeps): void {
 	});
 
 	pi.registerTool({
+		...exposure,
 		name: AW_RUN_TOOL,
 		label: "Run agent-workflow workflow",
 		description:
@@ -353,15 +526,16 @@ export function registerAwTools(pi: PiExtensionApi, deps: PiHostDeps): void {
 			`Do not call ${AW_RUN_TOOL} unless both an exact workflow name/path and a concrete task are known; ask a clarifying question if either is missing.`,
 			`Set ${AW_RUN_TOOL}.executor, profile or permissionMode only when the user asks for them (for example "run it on codex"); use detach=true only for explicit background execution.`,
 			`Set ${AW_RUN_TOOL}.inputs only for inputs the workflow declares and the user asked for (for example {"depth":"quick"}); otherwise the spec defaults apply.`,
-			`After ${AW_RUN_TOOL} returns a running run whose result the task needs, call ${AW_WAIT_TOOL}.`,
+			`Set ${AW_RUN_TOOL}.awaitTerminal=true when the current task needs the final workflow result; otherwise, after ${AW_RUN_TOOL} returns a running run whose result the task needs, call ${AW_WAIT_TOOL}.`,
 			`Preserve the user's task language, file references, constraints, and requested depth in ${AW_RUN_TOOL}.task; do not reduce it to 'run the workflow'.`,
 		],
 		parameters: AW_RUN_PARAMETERS,
-		async execute(_id, params, _signal, _onUpdate, ctx) {
+		async execute(_id, params, signal, onUpdate, ctx) {
 			return guarded(async () => {
 				await deps.ready();
 				const input = record(params);
 				rejectUnknown(input, new Set([...LAUNCH_KEYS, "workflow"]));
+				const awaitOptions = awaitOptionsFromToolParams(input, AW_RUN_TOOL);
 				const request = launchRequestFromToolParams(input);
 				const hooks = launchHooks(ctx);
 				const launched = await deps.api.runWorkflowAction(
@@ -372,13 +546,22 @@ export function registerAwTools(pi: PiExtensionApi, deps: PiHostDeps): void {
 						...hooks.hooks,
 					},
 				);
-				await trackLaunched(deps, ctx, "run", launched.data, "tool");
-				return toolResult(launched, launchDetails(launched.data), hooks.note());
+				return launchResult(
+					deps,
+					ctx,
+					"run",
+					launched,
+					hooks.note(),
+					awaitOptions,
+					signal,
+					onUpdate,
+				);
 			});
 		},
 	});
 
 	pi.registerTool({
+		...exposure,
 		name: AW_DYNAMIC_TOOL,
 		label: "Run agent-workflow dynamic workflow",
 		description:
@@ -390,36 +573,46 @@ export function registerAwTools(pi: PiExtensionApi, deps: PiHostDeps): void {
 			`Do not use ${AW_DYNAMIC_TOOL} for ordinary research, review, or coding requests unless the user explicitly asks for dynamic workflow execution.`,
 			`If the user names a workflow such as deep-research or deep-review, use ${AW_RUN_TOOL} instead.`,
 			`Do not call ${AW_DYNAMIC_TOOL} unless a concrete task is known; ask a clarifying question if it is missing.`,
-			`After ${AW_DYNAMIC_TOOL} returns a running run whose synthesis the task needs, call ${AW_WAIT_TOOL}; use detach=true only for explicit background execution.`,
+			`Set ${AW_DYNAMIC_TOOL}.awaitTerminal=true when the current task needs the synthesis (or call ${AW_WAIT_TOOL} after it returns a running run); use detach=true only for explicit background execution.`,
 			`Preserve the user's task language, file references, constraints, and requested depth in ${AW_DYNAMIC_TOOL}.task.`,
 		],
 		parameters: AW_DYNAMIC_PARAMETERS,
-		async execute(_id, params, _signal, _onUpdate, ctx) {
+		async execute(_id, params, signal, onUpdate, ctx) {
 			return guarded(async () => {
 				await deps.ready();
 				const input = record(params);
 				rejectUnknown(input, LAUNCH_KEYS);
+				const awaitOptions = awaitOptionsFromToolParams(input, AW_DYNAMIC_TOOL);
 				const request = launchRequestFromToolParams(input);
 				const hooks = launchHooks(ctx);
 				const launched = await deps.api.runDynamicAction(
 					hostContext(deps, ctx, { executor: request.executor }),
 					{ ...request, ...hooks.hooks },
 				);
-				await trackLaunched(deps, ctx, "dynamic", launched.data, "tool");
-				return toolResult(launched, launchDetails(launched.data), hooks.note());
+				return launchResult(
+					deps,
+					ctx,
+					"dynamic",
+					launched,
+					hooks.note(),
+					awaitOptions,
+					signal,
+					onUpdate,
+				);
 			});
 		},
 	});
 
 	pi.registerTool({
+		...exposure,
 		name: AW_WAIT_TOOL,
 		label: "Wait for agent-workflow run",
-		description: `Drive and wait for an existing agent-workflow run for at most ${HOST_WAIT_MAX_TIMEOUT_MS / 1000} s without model-driven polling. Returns terminal, actionRequired and stillRunning, the semantic status, and a bounded authoritative-result preview when the run finished.`,
+		description: `Drive and wait for an existing agent-workflow run until it is terminal or needs action (default ${LONG_WAIT_MINUTES} minutes, at most ${LONG_WAIT_MAX_HOURS} h) without model-driven polling. Returns terminal, actionRequired and stillRunning, the semantic status, and a bounded authoritative-result preview when the run finished.`,
 		promptSnippet:
 			"Wait for an agent-workflow run and return its result without polling files through the model.",
 		promptGuidelines: [
 			`Use ${AW_WAIT_TOOL} when ${AW_RUN_TOOL} or ${AW_DYNAMIC_TOOL} returned a running run and the current task needs its final result.`,
-			`If ${AW_WAIT_TOOL} returns stillRunning=true, call ${AW_WAIT_TOOL} again with the same runId; each call waits at most ${HOST_WAIT_MAX_TIMEOUT_MS / 1000} s.`,
+			`Call ${AW_WAIT_TOOL} once with an appropriate timeoutMs; if it returns stillRunning=true (the timeout passed first), call it again only when the task still needs the result.`,
 			`If ${AW_WAIT_TOOL} returns terminal=false and actionRequired=true, report the blocker and suggest /${AW_COMMAND} inspect and /${AW_COMMAND} resume instead of treating the run as complete.`,
 			`Do not read run.json or task logs to poll workflow progress; call ${AW_WAIT_TOOL}.`,
 			`Cancelling ${AW_WAIT_TOOL} cancels only the wait; it does not stop the workflow.`,
@@ -430,44 +623,15 @@ export function registerAwTools(pi: PiExtensionApi, deps: PiHostDeps): void {
 				await deps.ready();
 				const input = record(params);
 				rejectUnknown(input, new Set(["runId", "timeoutMs"]));
-				const timeoutMs = input.timeoutMs;
-				if (
-					timeoutMs !== undefined &&
-					(typeof timeoutMs !== "number" || !Number.isFinite(timeoutMs))
-				)
-					throw new HostUsageError("timeoutMs must be a number");
+				const timeoutMs = optionalWaitTimeout(input, AW_WAIT_TOOL);
 				const waited = await deps.api.waitAction(hostContext(deps, ctx), {
 					runId: requiredString(input, "runId"),
+					longWait: true,
 					...(timeoutMs === undefined ? {} : { timeoutMs }),
 					...(signal ? { signal } : {}),
-					...(onUpdate
-						? {
-								onProgress: (run) =>
-									onUpdate({
-										content: [
-											{
-												type: "text",
-												text: `Waiting for ${run.runId}: ${run.taskSummary.completed}/${run.taskSummary.total} completed (${run.status})`,
-											},
-										],
-										details: {
-											runId: run.runId,
-											status: run.status,
-											taskSummary: run.taskSummary,
-										},
-									}),
-							}
-						: {}),
+					...waitProgress(onUpdate),
 				});
-				return toolResult(waited, {
-					...waited.data,
-					...(waited.data.actionRequired
-						? {
-								inspectCommand: `/${AW_COMMAND} inspect ${waited.data.runId} --failures`,
-								resumeCommand: `/${AW_COMMAND} resume ${waited.data.runId}`,
-							}
-						: {}),
-				});
+				return toolResult(waited, waitDetails(waited.data));
 			});
 		},
 	});

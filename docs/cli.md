@@ -36,6 +36,12 @@ npx agent-workflow --help
 
 A run argument accepts the run id or an unambiguous prefix.
 
+WP28: every command except `help`/`--version` is also a host MCP tool (`workflow_<command>`,
+[host-mcp.md](host-mcp.md#tools)); the MCP forms of `prune --yes`, `profile set|delete|default` and
+`notices acknowledge|clear` ask the user to confirm through MCP elicitation, and a client that
+cannot ask is refused with the CLI command line to run here instead. `supervise` on MCP starts the
+detached supervisor and returns at once.
+
 ## Launch options (`run`, `dynamic`)
 
 | Option | Meaning |

@@ -59,14 +59,23 @@ test("the plugin ships the agent-workflow, workflow-guide and execution-router s
 });
 
 test("skill tool names are the host MCP server's tools", () => {
-	assert.deepEqual(toolNames.sort(), [
+	assert.deepEqual([...toolNames].sort(), [
+		"workflow_agents",
+		"workflow_doctor",
 		"workflow_dynamic",
 		"workflow_inspect",
 		"workflow_list",
 		"workflow_logs",
+		"workflow_notices",
+		"workflow_profile",
+		"workflow_prune",
+		"workflow_resume",
+		"workflow_roles",
 		"workflow_run",
+		"workflow_show",
 		"workflow_status",
 		"workflow_stop",
+		"workflow_supervise",
 		"workflow_validate",
 		"workflow_wait",
 	]);

@@ -277,7 +277,7 @@ export function adaptExecutionRouter(text) {
 		],
 		[
 			"Never invoke `aw_run`, `aw_dynamic`, `/aw run`, `/aw dynamic`, `/aw resume`, or the matching `agent-workflow` CLI commands",
-			"Never invoke `workflow_run`, `workflow_dynamic`, `workflow_wait`, `workflow_stop`, `workflow_validate`, `agent-workflow resume`, or the matching `agent-workflow` CLI commands",
+			"Never invoke `workflow_run`, `workflow_dynamic`, `workflow_wait`, `workflow_stop`, `workflow_validate`, `workflow_resume`, `workflow_supervise`, `workflow_prune`, `workflow_profile`, `workflow_notices`, `agent-workflow resume`, or the matching `agent-workflow` CLI commands",
 		],
 		[
 			'an existing workflow (`agent-workflow run <name> "<task>"`), a direct dynamic run (`agent-workflow dynamic "<task>"`)',

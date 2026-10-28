@@ -1,6 +1,6 @@
 ---
 name: agent-workflow
-description: Run, watch, stop and report agent-workflow workflows (deep-review, deep-research, spec-review, impact-review or a dynamic workflow) through the agent-workflow MCP tools. Use when the user asks to run a workflow, to review/research/check something "with a workflow" or "with agent-workflow", to check, wait for, inspect or stop a workflow run, or to choose the executor, profile or permission mode of a run.
+description: Run, watch, stop, resume and report agent-workflow workflows (deep-review, deep-research, spec-review, impact-review or a dynamic workflow) through the agent-workflow MCP tools. Use when the user asks to run a workflow, to review/research/check something "with a workflow" or "with agent-workflow", to check, wait for, inspect, resume or stop a workflow run, to choose the executor, profile or permission mode of a run, or to manage saved profiles, notices, pruning or the environment check.
 ---
 
 # agent-workflow
@@ -23,6 +23,21 @@ say the same.
 | `workflow_logs` | Bounded, redacted tail of task output, stderr and executor events (`runId`, `task?`, `lines?`, `stream?`). |
 | `workflow_stop` | Stop a run (`runId`). Cancelling a wait call does not stop the run. |
 | `workflow_validate` | Check a workflow spec (`workflow`: name or spec path). |
+| `workflow_resume` | Continue a failed, interrupted or blocked run (`runId`, `detach?` default true). **Starts model calls (cost)**: only when the user asks. |
+| `workflow_supervise` | Start a background supervisor for a running run that nothing drives (`runId`). Starts model calls: only when the user asks. |
+| `workflow_show` | A workflow spec (`ref`: name or path) or a run (`ref`: run id, `raw?`). |
+| `workflow_roles` | Compiled role context of a workflow (`workflow`). |
+| `workflow_agents` | The agent definitions agent-workflow finds. |
+| `workflow_doctor` | Environment check: installed and logged-in executors, the default executor and why. No model call. |
+| `workflow_notices` | Unfinished-run notices: `list` (default); `acknowledge` (`runId`, `state`, `reason`) and `clear` (`runId`) need the user's confirmation. |
+| `workflow_prune` | Remove finished runs (`keep?`, `olderThanDays?`). A dry run unless `dryRun: false`, which needs the user's confirmation. |
+| `workflow_profile` | Saved user profiles: `op` `list` (default) or `show`; `set`, `delete`, `default`, `clear-default` need the user's confirmation. |
+
+**Confirmed changes.** `workflow_prune` with `dryRun: false`, `workflow_profile` `set`/`delete`/
+`default`/`clear-default` and `workflow_notices` `acknowledge`/`clear` show the user a confirmation
+dialog first (MCP elicitation). Call them only when the user asked for that change. If the user
+declines, nothing changes: do not retry. If the host cannot show the dialog, the tool refuses and
+names the terminal command; give that command to the user instead of trying another way.
 
 Hosts prefix the names: with the Claude Code plugin they appear as
 `mcp__plugin_agent-workflow_agent-workflow__<tool>`, with `claude mcp add agent-workflow` as
@@ -49,8 +64,9 @@ Use whichever form your tool list shows.
    (the `reportArtifacts`/paths the tool prints). Do not paraphrase or re-summarize the report; read
    the report file only if the user wants details.
 5. `actionRequired: true`: the run is blocked. Report the reason, call
-   `workflow_inspect {runId, failures: true}` and tell the user that `agent-workflow resume <runId>`
-   (CLI) continues it after they fix the cause.
+   `workflow_inspect {runId, failures: true}` and tell the user that the run can be resumed after
+   they fix the cause. Call `workflow_resume {runId}` only when the user asks (it starts new model
+   calls), then continue with step 3.
 6. A result headed `Workflow finished — verdict: X (report ready)` (`verdictGate: true`) finished
    with a non-passing domain verdict, for example `PARTIAL_REVIEW`: report the verdict, quote the
    preview and give the report path. Its status says `failed` only because the verdict did not pass
@@ -59,7 +75,9 @@ Use whichever form your tool list shows.
    not invent results for missing parts.
 
 Runs are detached by default (`detach: true`): they keep running between calls and after the host
-session ends. `workflow_status` finds them again later.
+session ends. `workflow_status` finds them again later. A run launched with `detach: false` stops
+progressing when the server process ends; `workflow_supervise {runId}` picks it up again (only when
+the user asks).
 
 ## Launch options
 
@@ -81,8 +99,9 @@ session ends. `workflow_status` finds them again later.
 ## Errors
 
 - `isError` with `outcome: "refused"`: the launch did not start (unavailable executor, capability
-  refusal, declined confirmation, duplicate run). Explain the reason; do not retry with different
-  options unless the user agrees.
+  refusal, declined confirmation, duplicate run), or a confirmed change was declined or cannot be
+  confirmed here (nothing changed). Explain the reason; do not retry with different options unless
+  the user agrees.
 - `Usage error:` text: fix the arguments (unknown workflow, bad input, bad `cwd`) and call again.
 - The server may ask the user to confirm executor capability degradations before a launch; that is
   the host's confirmation dialog, not something to answer yourself.
@@ -90,5 +109,6 @@ session ends. `workflow_status` finds them again later.
 ## Without the MCP tools
 
 The same operations exist in the CLI (`agent-workflow list|run|dynamic|wait|status|inspect|logs|stop|
-validate|resume`). If the CLI is not installed, run it through npx:
+validate|resume|show|roles|agents|notices|doctor|prune|profile|supervise`). If the CLI is not
+installed, run it through npx:
 `npx -y --package=@agwab/agent-workflow agent-workflow <command>`.

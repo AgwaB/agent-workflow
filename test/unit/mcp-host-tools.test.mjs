@@ -146,7 +146,7 @@ async function cliJson(cwd, env, argv) {
 
 const text = (result) => result.content[0].text;
 
-test("initialize and tools/list: server name, instructions, nine tools gated per revision", async () => {
+test("initialize and tools/list: server name, instructions, every tool gated per revision", async () => {
 	const { cwd, env } = await project();
 	const client = await inProcessHostServer({ root: cwd, env });
 	clients.push(client);
@@ -178,6 +178,16 @@ test("initialize and tools/list: server name, instructions, nine tools gated per
 			"workflow_inspect",
 			"workflow_logs",
 			"workflow_validate",
+			// WP28: the CLI commands (mcp-host-wp28-tools.test.mjs).
+			"workflow_resume",
+			"workflow_show",
+			"workflow_roles",
+			"workflow_agents",
+			"workflow_notices",
+			"workflow_doctor",
+			"workflow_prune",
+			"workflow_profile",
+			"workflow_supervise",
 		],
 	);
 	for (const tool of tools) {

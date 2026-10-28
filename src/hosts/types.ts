@@ -23,6 +23,15 @@ export const HOST_API_VERSION = "1";
 export const HOST_WAIT_MAX_TIMEOUT_MS = 45_000;
 export const HOST_WAIT_MIN_TIMEOUT_MS = 1_000;
 
+/**
+ * WP28 (owner decision Q9): a host whose calls are not time-limited (Pi: `aw_wait`, `aw_run`/
+ * `aw_dynamic` with `awaitTerminal`, `/aw wait`) may ask for a long wait (`WaitRequest.longWait`):
+ * up to 4 h, by default 30 min. Ported from pi-workflow 0.16.4 (b83cc4f) `workflow_wait`
+ * (`timeoutMs` 1000-14400000, default 1800000). MCP keeps the 45 s bound; the CLI loops over it.
+ */
+export const HOST_LONG_WAIT_MAX_TIMEOUT_MS = 14_400_000;
+export const HOST_LONG_WAIT_DEFAULT_TIMEOUT_MS = 1_800_000;
+
 export type HostAction =
 	| "help"
 	| "list"

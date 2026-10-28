@@ -44,6 +44,8 @@ node <package>/dist/mcp/host-server/server.js --host <claude-code|codex|generic>
    still running when the host stops waiting (for example a 15-minute rate-limit backoff; the wait
    result's `nextRetry` and the footer's `nextRetryAt=` give the retry time and reason), the host
    tells the user the `runId`, what the run waits for, and that they can ask again.
+6. WP28: the other CLI commands are tools. `workflow_resume` and `workflow_supervise` start model
+   calls (cost), so only on request; the changing calls below ask the user first.
 
 Permission mode is `free` by default ([permissions.md](permissions.md)); `safe` only on request.
 Executor: omit it to use the workflow profile or the host default; set `executor`/`profile` only
@@ -64,6 +66,15 @@ Every tool takes an optional `cwd` (see below). Unknown parameters are refused.
 | `workflow_inspect` | `runId`, `failures?`, `results?` | `inspectAction` | `{run, reliability, listed}`; `run` is the run summary plus brief task rows instead of the full run record |
 | `workflow_logs` (WP18b) | `runId`, `task?`, `lines?` (1-400, default 20), `stream?` (`output`/`stderr`/`events`/`all`) | `logsAction` | `LogsData` (bounded, redacted tails per task; WP19: only files inside `.agent-workflow/`, tampered or symlinked paths are refused with a reason; structured credentials and Linux/Windows/macOS home paths redacted, also in `workflow_wait`/`workflow_status` text and previews) |
 | `workflow_validate` | `workflow` | `validateWorkflowAction` | `ValidateData` |
+| `workflow_resume` (WP28) | `runId`, `detach?` (default true) | `resumeAction` | `ResumeData`; the description says it continues the run and starts model calls (cost) |
+| `workflow_show` (WP28) | `ref`, `raw?` | `showAction` | `{kind: "workflow", specPath, spec}` or `{kind: "run", run}` with the run projected like `workflow_inspect` |
+| `workflow_roles` (WP28) | `workflow` | `workflowRolesAction` | `RolesData` |
+| `workflow_agents` (WP28) | — | `listAgentsAction` | `{agents}` |
+| `workflow_notices` (WP28) | `action?` (`list` default, `acknowledge`, `clear`), `runId?`, `state?`, `reason?` | `noticesAction` | list: `{notices, acknowledgements, warnings}`; else `{action, runId, notificationOnly}`. **acknowledge/clear confirm** |
+| `workflow_doctor` (WP28) | — | `doctorAction` | `DoctorData` (no model call, nothing written) |
+| `workflow_prune` (WP28) | `keep?`, `olderThanDays?`, `dryRun?` (default true) | `pruneAction` | the prune summary; **`dryRun: false` confirms** (the dialog shows the dry run first) |
+| `workflow_profile` (WP28) | `op?` (`list` default, `show`, `set`, `delete`, `default`, `clear-default`), `name?`, set: `executor?`, `model?`, `effort?`, `permissionMode?`, `strictCapabilities?`, `unset?`, `makeDefault?` | `profileAction` | `ProfileData`; **set/delete/default/clear-default confirm** |
+| `workflow_supervise` (WP28) | `runId` | `superviseDetachedAction` | `{runId, status, started, reason?: not-running \| live-supervisor, detached?}`: spawns `agent-workflow supervise <run>` for a running run no live process drives (the CLI's foreground `supervise` would outlast a tool call) |
 
 Launch options (same as the CLI flags and Pi's `aw_run`): `executor`, `profile`, `permissionMode`
 (`free`/`safe`), `allowUnverified` (capability keys), `model`, `effort`, `inputs` (declared workflow
@@ -80,8 +91,9 @@ logs redaction keeps report prose such as `Exit code: 1` and redacts escaped-quo
 `x-api-key`, `Cookie`, `*-token`, …) are always redacted, whatever their length. `workflow_logs` (WP18b), `agent-workflow logs` and Pi's
 `/aw logs` call the same `logs` handler.
 
-Annotations: `list`, `status`, `inspect`, `logs`, `validate` are read-only; `run`, `dynamic`, `stop` are
-destructive; `wait` drives scheduling (not read-only, not destructive). `title` is sent from
+Annotations: `list`, `status`, `inspect`, `logs`, `validate`, `show`, `roles`, `agents`, `doctor` are
+read-only; `run`, `dynamic`, `stop`, `resume`, `prune`, `profile` are destructive; `wait`, `notices` and
+`supervise` are neither. `title` is sent from
 `2025-06-18`, `annotations` from `2025-03-26` (same gating as the artifact server).
 
 ## Results
@@ -122,6 +134,29 @@ A launch whose capability check needs confirmation (WP4d; for example environmen
 - Otherwise (no elicitation, URL-only elicitation, older revision) the launch is non-interactive:
   degradations are recorded (`confirmation: "non-interactive"`) and the run proceeds.
 
+## Confirmed changes (WP28, owner decision Q7)
+
+`workflow_prune` with `dryRun: false`, `workflow_profile` `set`/`delete`/`default`/`clear-default` and
+`workflow_notices` `acknowledge`/`clear` change state only after the user confirms. Arguments are
+checked first (a usage error never asks). Then, through the same elicitation helper as above
+(`elicitConfirmation`):
+
+- Client with form elicitation: one `elicitation/create` whose message names the change
+  (`Save the agent-workflow user profile "fast"?` plus the fields; prune adds its dry run; notices
+  the reason). `accept` acts; `decline`, `cancel`, an error response or a failed request change
+  nothing: `isError: true`, `outcome: "refused"`, `data: {confirmation: "declined" | "cancelled",
+  command, changed: false}`.
+- Client without form elicitation (no capability, URL-only, before `2025-06-18`): refused the same
+  way with `confirmation: "unsupported"`; the text names the terminal command, for example
+  `agent-workflow profile set fast --executor codex --default` (with `cd <dir> &&` for a `cwd` below
+  the root).
+
+Read-only calls, `workflow_prune` dry runs, `workflow_resume` and `workflow_supervise` never ask
+(resume and supervise state their cost in the description instead).
+
+Hints (WP18b) now name `workflow_resume {"runId":…}` for resume and `workflow_show {"ref":…,"raw":true}`
+for the raw run view; a blocked `workflow_wait` footer offers `workflow_resume` after the user agrees.
+
 ## `cwd`
 
 Optional on every tool. Relative paths resolve against the root. After resolving symlinks the target
@@ -141,8 +176,12 @@ run) and no response is sent. A `workflow_wait` call with `_meta.progressToken` 
 and CLI `--json`, wait cap and loop, progress, cancellation, elicitation accept/decline/error/absent,
 cwd rule, usage errors, host identity, role check), `mcp-host-sdk-interop.test.mjs` (official SDK
 client over stdio with the test-executor hook, including SDK elicitation), `mcp-host-protocol.test.mjs`
-(startup arguments, framing and lifecycle), and the E2E case `packed-mcp-host` (packed bin: list →
-run → wait loop → inspect).
+(startup arguments, framing and lifecycle), `mcp-host-wp28-tools.test.mjs` (WP28: every new tool
+against the host API and CLI `--json`, confirmation refused without elicitation, declined/cancelled/
+error change nothing, accept acts, dry-run prune and read-only calls never ask, usage errors before
+any dialog), SDK cases in `mcp-host-sdk-interop.test.mjs` (confirmed profile changes, dry-run prune,
+`workflow_supervise` driving a run whose attached server was killed), and the E2E case
+`packed-mcp-host` (packed bin: list → run → wait loop → inspect → show).
 
 ## Open items
 

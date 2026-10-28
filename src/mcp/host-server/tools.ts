@@ -5,11 +5,18 @@
 // (src/hosts/pi/tools.ts); differences: `detach` defaults to true (MCP calls are time-limited),
 // every tool takes an optional `cwd` below the server's root, and degradation confirmation goes
 // through MCP elicitation when the client supports it. docs/host-mcp.md.
+// WP28 (owner decision Q7): every CLI command is a tool: workflow_resume, workflow_show,
+// workflow_roles, workflow_agents, workflow_notices, workflow_doctor, workflow_prune,
+// workflow_profile and workflow_supervise (detached). Changing calls (prune without dry run,
+// profile set/delete/default/clear-default, notices acknowledge/clear) act only after an MCP
+// elicitation confirmation; a client without form elicitation is refused with the terminal CLI
+// command, and a declined/cancelled/failed elicitation changes nothing.
 import { realpath, stat } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
 import * as hostApi from "../../hosts/api.js";
 import type {
+	HostAction,
 	HostApiContext,
 	HostResult,
 	InspectData,
@@ -18,6 +25,7 @@ import type {
 	WaitData,
 } from "../../hosts/api.js";
 import { THINKING_LEVELS, WorkflowValidationError } from "../../core/types.js";
+import { parseWorkflowNoticesArgs } from "../../core/workflow-notices.js";
 import type { CapabilityPreview } from "../../sdk/requirements.js";
 import {
 	mcpVersionHasToolAnnotations,
@@ -61,6 +69,22 @@ export const WORKFLOW_STOP_TOOL = "workflow_stop";
 export const WORKFLOW_INSPECT_TOOL = "workflow_inspect";
 export const WORKFLOW_VALIDATE_TOOL = "workflow_validate";
 export const WORKFLOW_LOGS_TOOL = "workflow_logs";
+export const WORKFLOW_RESUME_TOOL = "workflow_resume";
+export const WORKFLOW_SHOW_TOOL = "workflow_show";
+export const WORKFLOW_ROLES_TOOL = "workflow_roles";
+export const WORKFLOW_AGENTS_TOOL = "workflow_agents";
+export const WORKFLOW_NOTICES_TOOL = "workflow_notices";
+export const WORKFLOW_DOCTOR_TOOL = "workflow_doctor";
+export const WORKFLOW_PRUNE_TOOL = "workflow_prune";
+export const WORKFLOW_PROFILE_TOOL = "workflow_profile";
+export const WORKFLOW_SUPERVISE_TOOL = "workflow_supervise";
+
+/** WP28: tool calls that change state only after the user confirms through MCP elicitation. */
+export const CONFIRMED_CHANGES = [
+	`${WORKFLOW_PRUNE_TOOL} (dryRun=false)`,
+	`${WORKFLOW_PROFILE_TOOL} (set, delete, default, clear-default)`,
+	`${WORKFLOW_NOTICES_TOOL} (acknowledge, clear)`,
+] as const;
 
 /** Bound of one tool result's text (the list action bounds itself the same way). */
 export const HOST_MCP_MAX_TEXT_CHARS = 50_000;
@@ -79,6 +103,8 @@ export const HOST_MCP_INSTRUCTIONS = [
 	'4. When the run finished, quote the result preview and give the report paths verbatim; do not paraphrase or re-summarize the report. Read the report file for details. A result headed "Workflow finished — verdict: X (report ready)" (verdictGate=true) is the workflow\'s result with a non-passing domain verdict, not a workflow failure: report the verdict and the report.',
 	`5. You get no completion push: a run only reports through ${WORKFLOW_WAIT_TOOL}/${WORKFLOW_STATUS_TOOL}. If it is still running when you stop waiting (for example a long rate-limit backoff, nextRetry in the ${WORKFLOW_WAIT_TOOL} result), tell the user the runId, what the run is waiting for, and that they can ask you again later.`,
 	`${WORKFLOW_STATUS_TOOL} lists runs or shows one; ${WORKFLOW_LOGS_TOOL} shows a bounded, redacted tail of task output, stderr and executor events; ${WORKFLOW_STOP_TOOL} interrupts a run (cancelling ${WORKFLOW_WAIT_TOOL} only stops waiting); ${WORKFLOW_VALIDATE_TOOL} checks a workflow spec.`,
+	`More tools (the CLI commands): ${WORKFLOW_SHOW_TOOL} (a workflow spec or a run record), ${WORKFLOW_ROLES_TOOL}, ${WORKFLOW_AGENTS_TOOL}, ${WORKFLOW_DOCTOR_TOOL} (environment check) are read-only. ${WORKFLOW_RESUME_TOOL} continues a failed, interrupted or blocked run and ${WORKFLOW_SUPERVISE_TOOL} starts a background supervisor for a running run without one: both start model calls (cost), so call them only when the user asks.`,
+	`Changes that need the user's confirmation in an MCP dialog: ${CONFIRMED_CHANGES.join("; ")}. Without dialog support they are refused with the terminal command to run instead. ${WORKFLOW_PRUNE_TOOL} without dryRun=false only previews.`,
 	'Permission mode: "free" by default (workers run without approval prompts; stages the workflow declares read-only stay read-only). Set permissionMode "safe" only when the user asks for approvals/sandboxing.',
 	'Executor: omit executor to use the workflow profile or this host\'s default executor; set executor ("claude", "codex", "pi") or profile only when the user asks (for example "run it on codex").',
 	"Every tool takes an optional cwd (a directory inside the project this server was started in); omit it to use the project root.",
@@ -403,6 +429,265 @@ export const HOST_MCP_TOOLS: readonly HostMcpToolDefinition[] = [
 			openWorldHint: false,
 		},
 	},
+	{
+		name: WORKFLOW_RESUME_TOOL,
+		title: "Resume agent-workflow run",
+		description: `Resume a failed, interrupted or blocked agent-workflow run: resets its failed, interrupted and resumable blocked tasks and continues the run. This starts new model calls on the run's executors (cost), so call it only when the user asks to resume or continue the run. Detached by default; then call ${WORKFLOW_WAIT_TOOL} {runId} and repeat while stillRunning is true.`,
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				...RUN_ID_PROPERTY,
+				detach: {
+					type: "boolean",
+					description:
+						"Optional, default true: spawn a standalone supervisor so the resumed run keeps progressing between tool calls and after this server exits.",
+				},
+				...CWD_PROPERTY,
+			},
+			required: ["runId"],
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: true,
+			idempotentHint: false,
+			openWorldHint: true,
+		},
+	},
+	{
+		name: WORKFLOW_SHOW_TOOL,
+		title: "Show agent-workflow spec or run",
+		description: `Show a workflow spec (ref = workflow name, alias or spec path) or a run's details (ref = run id; raw=true for the raw run record view). Read-only; for a run's progress prefer ${WORKFLOW_STATUS_TOOL}, for its result ${WORKFLOW_WAIT_TOOL}.`,
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				ref: {
+					type: "string",
+					description:
+						"Workflow name, alias or spec path, or a run id (workflow_…).",
+				},
+				raw: {
+					type: "boolean",
+					description:
+						"Optional. Treat ref as a run (id or prefix) and show the raw run record view.",
+				},
+				...CWD_PROPERTY,
+			},
+			required: ["ref"],
+		},
+		annotations: {
+			readOnlyHint: true,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false,
+		},
+	},
+	{
+		name: WORKFLOW_ROLES_TOOL,
+		title: "agent-workflow workflow roles",
+		description:
+			"Show the compiled role context of an agent-workflow workflow (which agent, tools and permissions each stage gets). Read-only.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				workflow: {
+					type: "string",
+					description: "Workflow name, alias or spec path.",
+				},
+				...CWD_PROPERTY,
+			},
+			required: ["workflow"],
+		},
+		annotations: {
+			readOnlyHint: true,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false,
+		},
+	},
+	{
+		name: WORKFLOW_AGENTS_TOOL,
+		title: "List agent-workflow agents",
+		description:
+			"List the agent definitions agent-workflow discovers (project, user directory, package). Read-only.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: { ...CWD_PROPERTY },
+		},
+		annotations: {
+			readOnlyHint: true,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false,
+		},
+	},
+	{
+		name: WORKFLOW_NOTICES_TOOL,
+		title: "agent-workflow unfinished-run notices",
+		description:
+			'Unfinished-run notices (notification-only; runs and resume are unchanged). action "list" (default) is read-only and shows each notice\'s --state hash. "acknowledge" (runId, state, reason) hides a notice and "clear" (runId) removes an acknowledgement: both ask the user to confirm in an MCP dialog first and are refused when the client cannot show one.',
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				action: {
+					type: "string",
+					enum: ["list", "acknowledge", "clear"],
+					description: "Optional, default list.",
+				},
+				runId: {
+					type: "string",
+					description: "Exact run id (acknowledge, clear).",
+				},
+				state: {
+					type: "string",
+					description: "The notice's sha256 state from the list (acknowledge).",
+				},
+				reason: {
+					type: "string",
+					description: "Why the notice is acknowledged (acknowledge).",
+				},
+				...CWD_PROPERTY,
+			},
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false,
+		},
+	},
+	{
+		name: WORKFLOW_DOCTOR_TOOL,
+		title: "agent-workflow doctor",
+		description:
+			"Read-only environment check (no model call, nothing written): which executors (claude, codex, pi) are installed and logged in, the default executor here and why, permission-mode default, Node version, AGENT_WORKFLOW_HOME, environment warnings and stale run-index entries.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: { ...CWD_PROPERTY },
+		},
+		annotations: {
+			readOnlyHint: true,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false,
+		},
+	},
+	{
+		name: WORKFLOW_PRUNE_TOOL,
+		title: "Prune agent-workflow runs",
+		description:
+			"Retention of finished agent-workflow runs, stale executor attempt state and host launch claims. A dry run by default: lists what would be removed and changes nothing. dryRun=false deletes, only after the user confirms in an MCP dialog (refused when the client cannot show one). Active runs are never pruned.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				keep: {
+					type: "integer",
+					minimum: 0,
+					description:
+						"Optional. Keep this many newest finished runs (same as --keep).",
+				},
+				olderThanDays: {
+					type: "number",
+					minimum: 0,
+					description:
+						"Optional. Only finished runs older than this many days (same as --older-than).",
+				},
+				dryRun: {
+					type: "boolean",
+					description:
+						"Optional, default true. false deletes after the user's confirmation (same as --yes).",
+				},
+				...CWD_PROPERTY,
+			},
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: true,
+			idempotentHint: true,
+			openWorldHint: false,
+		},
+	},
+	{
+		name: WORKFLOW_PROFILE_TOOL,
+		title: "agent-workflow saved user profiles",
+		description:
+			'Saved agent-workflow user profiles (executor, model, effort, permission mode, strict capabilities) that profile= on a launch selects. op "list" (default) and "show" are read-only. "set", "delete", "default" and "clear-default" change the user\'s profiles only after the user confirms in an MCP dialog (refused when the client cannot show one). Change profiles only when the user asks.',
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				op: {
+					type: "string",
+					enum: ["list", "show", "set", "delete", "default", "clear-default"],
+					description: "Optional, default list.",
+				},
+				name: {
+					type: "string",
+					description:
+						"Profile name (set, delete, default; optional for show: the default profile).",
+				},
+				executor: {
+					type: "string",
+					description: 'set: executor id ("claude", "codex", "pi").',
+				},
+				model: { type: "string", description: "set: model id." },
+				effort: {
+					type: "string",
+					enum: [...THINKING_LEVELS],
+					description: "set: effort (thinking/reasoning level).",
+				},
+				permissionMode: {
+					type: "string",
+					enum: ["free", "safe"],
+					description: "set: worker permission mode.",
+				},
+				strictCapabilities: {
+					type: "array",
+					items: { type: "string" },
+					description: "set: capability keys that must be verified.",
+				},
+				unset: {
+					type: "array",
+					items: { type: "string" },
+					description: "set: fields to remove from the profile.",
+				},
+				makeDefault: {
+					type: "boolean",
+					description: "set: also make it the default profile.",
+				},
+				...CWD_PROPERTY,
+			},
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: true,
+			idempotentHint: true,
+			openWorldHint: false,
+		},
+	},
+	{
+		name: WORKFLOW_SUPERVISE_TOOL,
+		title: "Supervise agent-workflow run",
+		description: `Start a standalone background supervisor (agent-workflow supervise <runId>) for a running agent-workflow run that no live process drives, for example an attached run whose host session ended. The run then continues and makes model calls (cost), so call it only when the user asks. Does nothing when the run is not running or a live supervisor already drives it. Then call ${WORKFLOW_WAIT_TOOL} {runId}.`,
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: { ...RUN_ID_PROPERTY, ...CWD_PROPERTY },
+			required: ["runId"],
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: true,
+		},
+	},
 ];
 
 /** Tool definitions as sent for one negotiated protocol revision. */
@@ -432,6 +717,15 @@ export type HostMcpApi = Pick<
 	| "inspectAction"
 	| "logsAction"
 	| "validateWorkflowAction"
+	| "resumeAction"
+	| "showAction"
+	| "workflowRolesAction"
+	| "listAgentsAction"
+	| "noticesAction"
+	| "doctorAction"
+	| "pruneAction"
+	| "profileAction"
+	| "superviseDetachedAction"
 >;
 
 export interface HostMcpServiceOptions {
@@ -608,27 +902,146 @@ export function clientSupportsFormElicitation(
 	return elicitation.form !== undefined || elicitation.url === undefined;
 }
 
+/** Answer of one confirmation elicitation; `error` = an error response or a failed request. */
+export type ElicitationAnswer = "accept" | "decline" | "cancel" | "error";
+
+/**
+ * WP13 elicitation helper (WP28: shared by the degradation confirmation and the confirmed changes):
+ * one form-mode `elicitation/create` with an empty form. Only `accept` lets the caller go on.
+ */
+export async function elicitConfirmation(
+	call: McpToolCallContext,
+	message: string,
+	what: string,
+	log: (message: string) => void,
+): Promise<ElicitationAnswer> {
+	try {
+		const answer = asRecord(
+			await call.sendRequest(
+				"elicitation/create",
+				{
+					...(call.protocolVersion === "2025-06-18" ? {} : { mode: "form" }),
+					message,
+					requestedSchema: { type: "object", properties: {} },
+				},
+				call.signal,
+			),
+		);
+		if (answer?.action === "accept") return "accept";
+		return answer?.action === "decline" ? "decline" : "cancel";
+	} catch (error) {
+		log(
+			`${what} failed (treated as declined): ${error instanceof Error ? error.message : String(error)}`,
+		);
+		return "error";
+	}
+}
+
+/** One POSIX shell word (for the terminal command of a refused change). */
+export function shellWord(value: string): string {
+	return /^[\w@%+=:,./-]+$/.test(value)
+		? value
+		: `'${value.replaceAll("'", `'\\''`)}'`;
+}
+
 function boundedText(text: string): string {
 	if (text.length <= HOST_MCP_MAX_TEXT_CHARS) return text;
 	return `${text.slice(0, HOST_MCP_MAX_TEXT_CHARS)}\n[truncated ${text.length - HOST_MCP_MAX_TEXT_CHARS} characters; read the run files for the rest]`;
 }
 
+/** A run without the full record (bounded): run summary + brief task rows. */
+function runProjection(run: InspectData["run"]): Record<string, unknown> {
+	const tasks = Array.isArray(run.tasks) ? run.tasks : [];
+	return {
+		...hostApi.summarizeRun(run),
+		tasks: tasks.map((task) => ({
+			taskId: task.taskId,
+			specId: task.specId,
+			status: task.status,
+			statusDetail: String(task.statusDetail),
+			...(task.lastMessage ? { lastMessage: task.lastMessage } : {}),
+		})),
+	};
+}
+
 /** Inspect without the full run record (bounded): run summary + brief task rows. */
 function inspectProjection(data: InspectData): Record<string, unknown> {
-	const tasks = Array.isArray(data.run.tasks) ? data.run.tasks : [];
 	return {
-		run: {
-			...hostApi.summarizeRun(data.run),
-			tasks: tasks.map((task) => ({
-				taskId: task.taskId,
-				specId: task.specId,
-				status: task.status,
-				statusDetail: String(task.statusDetail),
-				...(task.lastMessage ? { lastMessage: task.lastMessage } : {}),
-			})),
-		},
+		run: runProjection(data.run),
 		reliability: data.reliability,
 		listed: data.listed,
+	};
+}
+
+/** `workflow_profile` op set: the profile values, the change summary and the CLI flags. */
+function profileSetFromArguments(params: Record<string, unknown>): {
+	values: Record<string, unknown>;
+	unset?: string[];
+	makeDefault: boolean;
+	describe: string[];
+	flags: string[];
+} {
+	const stringList = (key: string): string[] | undefined => {
+		const value = params[key];
+		if (value === undefined) return undefined;
+		if (
+			!Array.isArray(value) ||
+			value.some((entry) => typeof entry !== "string" || !entry.trim())
+		)
+			throw new UsageError(`${key} must be an array of non-empty strings`);
+		return value.map((entry: string) => entry.trim());
+	};
+	const values: Record<string, unknown> = {};
+	const describe: string[] = [];
+	const flags: string[] = [];
+	const executor = optionalString(params, "executor");
+	const model = optionalString(params, "model");
+	const effort = optionalString(params, "effort");
+	const permission = optionalString(params, "permissionMode");
+	const strict = stringList("strictCapabilities");
+	const unset = stringList("unset");
+	if (executor) {
+		values.executor = executor;
+		flags.push("--executor", executor);
+	}
+	if (model) {
+		values.model = model;
+		flags.push("--model", model);
+	}
+	if (effort) {
+		values.effort = hostApi.parseThinkingLevel(effort);
+		flags.push("--effort", effort);
+	}
+	if (permission) {
+		values.permissionMode = hostApi.parsePermissionMode(
+			permission,
+			"permissionMode",
+		);
+		flags.push("--permission-mode", permission);
+	}
+	if (strict?.length) {
+		values.strictCapabilities = hostApi.parseCapabilityList(
+			strict.join(","),
+			"strictCapabilities",
+		);
+		flags.push("--strict-capabilities", strict.join(","));
+	}
+	for (const [key, value] of Object.entries(values))
+		describe.push(
+			`${key}: ${Array.isArray(value) ? value.join(", ") : String(value)}`,
+		);
+	if (unset?.length) {
+		describe.push(`remove: ${unset.join(", ")}`);
+		flags.push("--unset", unset.join(","));
+	}
+	const makeDefault = optionalBoolean(params, "makeDefault") === true;
+	if (makeDefault) flags.push("--default");
+	return {
+		values,
+		...(unset?.length ? { unset } : {}),
+		makeDefault,
+		describe,
+		flags,
 	};
 }
 
@@ -649,7 +1062,7 @@ function waitNext(data: WaitData): string {
 		return `${state}${data.nextRetry ? ` nextRetryAt=${data.nextRetry.at}` : ""}\nNext: call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} again. If you stop waiting, tell the user the run ${data.runId} is still running and waiting for ${waitingFor}, and that they can ask you again for the result: there is no completion push to this chat.`;
 	}
 	if (data.actionRequired)
-		return `${state}\nNext: report the blocker; ${WORKFLOW_INSPECT_TOOL} {"runId":"${data.runId}","failures":true} shows the failed tasks; the user can resume with: agent-workflow resume ${data.runId}`;
+		return `${state}\nNext: report the blocker; ${WORKFLOW_INSPECT_TOOL} {"runId":"${data.runId}","failures":true} shows the failed tasks. When the user asks to continue, ${WORKFLOW_RESUME_TOOL} {"runId":"${data.runId}"} resumes it (new model calls; CLI: agent-workflow resume ${data.runId}).`;
 	const reports = data.reportArtifacts.map(
 		(artifact) => `${artifact.label}: ${artifact.path}`,
 	);
@@ -695,31 +1108,77 @@ export function createHostMcpService(
 			return {};
 		return {
 			interactive: true,
-			confirmDegradations: async (preview: CapabilityPreview) => {
-				try {
-					const answer = asRecord(
-						await call.sendRequest(
-							"elicitation/create",
-							{
-								...(call.protocolVersion === "2025-06-18"
-									? {}
-									: { mode: "form" }),
-								message: `${DEGRADATION_ELICITATION_TITLE}\n\n${preview.text}`,
-								requestedSchema: { type: "object", properties: {} },
-							},
-							call.signal,
-						),
-					);
-					return answer?.action === "accept";
-				} catch (error) {
-					log(
-						`degradation confirmation failed (treated as declined): ${error instanceof Error ? error.message : String(error)}`,
-					);
-					return false;
-				}
-			},
+			confirmDegradations: async (preview: CapabilityPreview) =>
+				(await elicitConfirmation(
+					call,
+					`${DEGRADATION_ELICITATION_TITLE}\n\n${preview.text}`,
+					"degradation confirmation",
+					log,
+				)) === "accept",
 		};
 	};
+
+	/**
+	 * WP28: gate of a changing call. Undefined = the user accepted, go on; otherwise the refusal
+	 * result (no elicitation support → the terminal command; declined, cancelled or failed → nothing
+	 * changed).
+	 */
+	const requireConfirmation = async (
+		call: McpToolCallContext,
+		change: {
+			action: HostAction;
+			summary: string;
+			detail?: string | (() => Promise<string>);
+			command: string;
+			cwd: string;
+		},
+	): Promise<HostMcpToolResult | undefined> => {
+		const terminal = `${change.cwd === options.root ? "" : `cd ${shellWord(change.cwd)} && `}${change.command}`;
+		if (
+			!clientSupportsFormElicitation(
+				call.protocolVersion,
+				call.clientCapabilities,
+			)
+		)
+			return refusedChange(
+				call,
+				change.action,
+				"unsupported",
+				terminal,
+				`Not changed: ${change.summary} needs the user's confirmation, and this MCP client does not support confirmation dialogs (elicitation). The user can run it in a terminal instead:\n  ${terminal}`,
+			);
+		const detail =
+			typeof change.detail === "function"
+				? await change.detail()
+				: change.detail;
+		const answer = await elicitConfirmation(
+			call,
+			`${change.summary}?${detail ? `\n\n${detail}` : ""}`,
+			`${change.action} confirmation`,
+			log,
+		);
+		if (answer === "accept") return undefined;
+		return refusedChange(
+			call,
+			change.action,
+			answer === "decline" ? "declined" : "cancelled",
+			terminal,
+			`Not changed: the user ${answer === "decline" ? "declined" : "did not confirm"} "${change.summary}". Nothing was changed; do not retry unless the user asks.`,
+		);
+	};
+
+	const refusedChange = (
+		call: McpToolCallContext,
+		action: HostAction,
+		confirmation: "unsupported" | "declined" | "cancelled",
+		command: string,
+		text: string,
+	): HostMcpToolResult =>
+		finish(
+			call,
+			{ action, ok: false, outcome: "refused", data: undefined, text },
+			{ confirmation, command, changed: false },
+		);
 
 	const finish = <T>(
 		call: McpToolCallContext,
@@ -878,6 +1337,245 @@ export function createHostMcpService(
 				workflow: requiredString(args, "workflow"),
 			});
 			return finish(call, validated, validated.data);
+		},
+		[WORKFLOW_RESUME_TOOL]: async (args, call) => {
+			const runId = requiredString(args, "runId");
+			// Time-limited calls: detach unless the caller opts out (as launches).
+			const detach = optionalBoolean(args, "detach") ?? true;
+			const resumed = await api.resumeAction(await context(args), {
+				runId,
+				...(detach ? { detach: true } : {}),
+			});
+			return finish(
+				call,
+				resumed,
+				resumed.data,
+				resumed.data.status === "running"
+					? `Next: call ${WORKFLOW_WAIT_TOOL} {"runId":"${resumed.data.runId}"} and repeat while stillRunning is true.`
+					: undefined,
+			);
+		},
+		[WORKFLOW_SHOW_TOOL]: async (args, call) => {
+			const ref = requiredString(args, "ref");
+			const raw = optionalBoolean(args, "raw");
+			const shown = await api.showAction(await context(args), {
+				ref,
+				...(raw ? { raw: true } : {}),
+			});
+			const data = shown.data;
+			return finish(
+				call,
+				shown,
+				data.kind === "run"
+					? { kind: "run", run: runProjection(data.run) }
+					: data,
+			);
+		},
+		[WORKFLOW_ROLES_TOOL]: async (args, call) => {
+			const roles = await api.workflowRolesAction(await context(args), {
+				workflow: requiredString(args, "workflow"),
+			});
+			return finish(call, roles, roles.data);
+		},
+		[WORKFLOW_AGENTS_TOOL]: async (args, call) => {
+			const agents = await api.listAgentsAction(await context(args));
+			return finish(call, agents, agents.data);
+		},
+		[WORKFLOW_DOCTOR_TOOL]: async (args, call) => {
+			const doctor = await api.doctorAction(await context(args));
+			return finish(call, doctor, doctor.data);
+		},
+		[WORKFLOW_SUPERVISE_TOOL]: async (args, call) => {
+			const supervised = await api.superviseDetachedAction(
+				await context(args),
+				{ runId: requiredString(args, "runId") },
+			);
+			return finish(
+				call,
+				supervised,
+				supervised.data,
+				supervised.data.reason === "not-running"
+					? undefined
+					: `Next: call ${WORKFLOW_WAIT_TOOL} {"runId":"${supervised.data.runId}"} and repeat while stillRunning is true.`,
+			);
+		},
+		[WORKFLOW_NOTICES_TOOL]: async (args, call) => {
+			const action = optionalString(args, "action") ?? "list";
+			const runId = optionalString(args, "runId");
+			const state = optionalString(args, "state");
+			const reason = optionalString(args, "reason");
+			const allowed: Record<string, string[]> = {
+				list: [],
+				acknowledge: ["runId", "state", "reason"],
+				clear: ["runId"],
+			};
+			const keys = allowed[action];
+			if (!keys)
+				throw new UsageError("action must be one of list, acknowledge, clear");
+			for (const key of ["runId", "state", "reason"]) {
+				const given = args[key] !== undefined;
+				if (given && !keys.includes(key))
+					throw new UsageError(`${key} is not valid with action ${action}`);
+				if (!given && keys.includes(key))
+					throw new UsageError(`${key} is required with action ${action}`);
+			}
+			const argv =
+				action === "list"
+					? ["list"]
+					: action === "clear"
+						? ["clear", runId!]
+						: ["acknowledge", runId!, "--state", state!, "--reason", reason!];
+			try {
+				parseWorkflowNoticesArgs(argv);
+			} catch (error) {
+				throw new UsageError(
+					error instanceof Error ? error.message : String(error),
+				);
+			}
+			const ctx = await context(args);
+			if (action !== "list") {
+				const refused = await requireConfirmation(call, {
+					action: "notices",
+					summary:
+						action === "clear"
+							? `Clear the acknowledgement of the unfinished-run notice for ${runId}`
+							: `Acknowledge (hide) the unfinished-run notice for ${runId}`,
+					detail: `${action === "acknowledge" ? `Reason: ${reason}\n` : ""}Notification only: the run and its resume are unchanged.`,
+					command: `agent-workflow notices ${argv.map(shellWord).join(" ")}`,
+					cwd: ctx.cwd,
+				});
+				if (refused) return refused;
+			}
+			const notices = await api.noticesAction(ctx, { argv });
+			return finish(call, notices, notices.data);
+		},
+		[WORKFLOW_PRUNE_TOOL]: async (args, call) => {
+			const keep = optionalInteger(args, "keep", 0, Number.MAX_SAFE_INTEGER);
+			const olderThanDays = args.olderThanDays;
+			if (
+				olderThanDays !== undefined &&
+				(typeof olderThanDays !== "number" ||
+					!Number.isFinite(olderThanDays) ||
+					olderThanDays < 0)
+			)
+				throw new UsageError("olderThanDays must be a non-negative number");
+			const dryRun = optionalBoolean(args, "dryRun") ?? true;
+			const retention = {
+				...(keep === undefined ? {} : { keep }),
+				...(olderThanDays === undefined ? {} : { olderThanDays }),
+			};
+			const ctx = await context(args);
+			if (!dryRun) {
+				const refused = await requireConfirmation(call, {
+					action: "prune",
+					summary: `Delete finished agent-workflow runs and stale state in ${ctx.cwd}`,
+					detail: async () =>
+						`Dry run of this prune:\n${(await api.pruneAction(ctx, retention)).text}`,
+					command: [
+						"agent-workflow prune --yes",
+						...(keep === undefined ? [] : [`--keep ${keep}`]),
+						...(olderThanDays === undefined
+							? []
+							: [`--older-than ${olderThanDays}`]),
+					].join(" "),
+					cwd: ctx.cwd,
+				});
+				if (refused) return refused;
+			}
+			const pruned = await api.pruneAction(ctx, {
+				...retention,
+				...(dryRun ? {} : { yes: true }),
+			});
+			return finish(call, pruned, pruned.data);
+		},
+		[WORKFLOW_PROFILE_TOOL]: async (args, call) => {
+			const op = optionalString(args, "op") ?? "list";
+			const name = optionalString(args, "name");
+			const setOnly = [
+				"executor",
+				"model",
+				"effort",
+				"permissionMode",
+				"strictCapabilities",
+				"unset",
+				"makeDefault",
+			];
+			if (op !== "set")
+				for (const key of setOnly)
+					if (args[key] !== undefined)
+						throw new UsageError(`${key} is only valid with op set`);
+			const needsName = op === "set" || op === "delete" || op === "default";
+			if (needsName && !name)
+				throw new UsageError(`name is required with op ${op}`);
+			if ((op === "list" || op === "clear-default") && name)
+				throw new UsageError(`name is not valid with op ${op}`);
+			let request: hostApi.ProfileRequest;
+			let change:
+				| { summary: string; detail?: string; command: string }
+				| undefined;
+			const cli = (words: string[]) =>
+				`agent-workflow profile ${words.map(shellWord).join(" ")}`;
+			switch (op) {
+				case "list":
+					request = { op: "list" };
+					break;
+				case "show":
+					request = name ? { op: "show", name } : { op: "show" };
+					break;
+				case "set": {
+					const set = profileSetFromArguments(args);
+					request = {
+						op: "set",
+						name: name!,
+						values: set.values,
+						...(set.unset ? { unset: set.unset } : {}),
+						...(set.makeDefault ? { makeDefault: true } : {}),
+					};
+					change = {
+						summary: `Save the agent-workflow user profile "${name}"${set.makeDefault ? " and make it the default" : ""}`,
+						detail: set.describe.join("\n") || "(no field changes)",
+						command: cli(["set", name!, ...set.flags]),
+					};
+					break;
+				}
+				case "delete":
+					request = { op: "delete", name: name! };
+					change = {
+						summary: `Delete the agent-workflow user profile "${name}"`,
+						command: cli(["delete", name!]),
+					};
+					break;
+				case "default":
+					request = { op: "default", name: name! };
+					change = {
+						summary: `Make "${name}" the default agent-workflow user profile`,
+						command: cli(["default", name!]),
+					};
+					break;
+				case "clear-default":
+					request = { op: "default", name: null };
+					change = {
+						summary: "Clear the default agent-workflow user profile",
+						command: cli(["default", "--clear"]),
+					};
+					break;
+				default:
+					throw new UsageError(
+						"op must be one of list, show, set, delete, default, clear-default",
+					);
+			}
+			const ctx = await context(args);
+			if (change) {
+				const refused = await requireConfirmation(call, {
+					action: "profile",
+					...change,
+					detail: `${change.detail ? `${change.detail}\n` : ""}Saved user profiles apply to every project of this user.`,
+					cwd: ctx.cwd,
+				});
+				if (refused) return refused;
+			}
+			const profiles = await api.profileAction(ctx, request);
+			return finish(call, profiles, profiles.data);
 		},
 	};
 

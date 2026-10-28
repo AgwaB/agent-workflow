@@ -13,7 +13,10 @@ the run is detached), then `workflow_wait` in calls of at most 45 s until the ru
 finally quotes the result preview and report paths. Permission mode is `free` unless the user asks
 for `safe`; the executor is the workflow profile or the host default unless the user names one.
 `workflow_status`, `workflow_inspect`, `workflow_logs` and `workflow_stop` manage runs, `workflow_validate` checks a
-spec. Details: [host-mcp.md](host-mcp.md).
+spec. WP28: the other CLI commands are tools too (`workflow_resume`, `workflow_show`, `workflow_roles`,
+`workflow_agents`, `workflow_notices`, `workflow_doctor`, `workflow_prune`, `workflow_profile`,
+`workflow_supervise`); prune, profile and notices changes ask the user to confirm in a dialog.
+Details: [host-mcp.md](host-mcp.md).
 
 ## Layout
 
@@ -67,7 +70,8 @@ serverInfo: {"name":"agent-workflow","version":"0.1.0"}
 tools: workflow_list,workflow_run,workflow_dynamic,workflow_status,workflow_wait,workflow_stop,workflow_inspect,workflow_validate
 ```
 
-(Recorded before WP18b added `workflow_logs`; the server now lists nine tools.)
+(Recorded before WP18b added `workflow_logs` and WP28 added the CLI-command tools; the server now
+lists 18 tools.)
 
 ## Install (plugin)
 

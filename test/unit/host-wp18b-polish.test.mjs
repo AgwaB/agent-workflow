@@ -118,6 +118,7 @@ test("hints: every host gets its own vocabulary, MCP hints name real tools", () 
 	for (const text of [
 		h.status("r"),
 		h.wait("r"),
+		h.resume("r"),
 		h.logs("r", "t"),
 		h.raw("r"),
 		h.inspectFailures("r"),
@@ -136,7 +137,8 @@ test("status/show/stop/resume/wait texts carry the calling host's hints, never /
 		pi: [`Open: /aw status ${runId}`, `Resume: /aw resume ${runId}`],
 		codex: [
 			`Open: workflow_status {"runId":"${runId}"}`,
-			`Resume: agent-workflow resume ${runId}`,
+			// WP28: resume is an MCP tool.
+			`Resume: workflow_resume {"runId":"${runId}"}`,
 		],
 	};
 	for (const [host, expected] of Object.entries(expectations)) {

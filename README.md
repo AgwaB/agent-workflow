@@ -62,7 +62,9 @@ pi install npm:@agwab/agent-workflow       # or install as a Pi package (add -l 
 ```
 
 Then in Pi: `/aw list`, `/aw run deep-review "Review the current diff" --executor codex`,
-`/aw wait <run>`. The agent can use the `aw_list`, `aw_run`, `aw_dynamic` and `aw_wait` tools. Pi is
+`/aw wait <run>`. The agent can use the `aw_list`, `aw_run`, `aw_dynamic` and `aw_wait` tools
+(`awaitTerminal` and waits of up to 4 h; `AGENT_WORKFLOW_TOOL_EXPOSURE=deferred` defers them until
+`tool_search`). A new Pi session picks up attached runs a gone session left running. Pi is
 the parent agent; workers run on whichever executor is selected. `/aw` and `aw_*` do not collide with
 pi-workflow's `/workflow`. See [`docs/pi-host.md`](docs/pi-host.md).
 
@@ -82,7 +84,9 @@ Alternative without the plugin (server only):
 `claude mcp add agent-workflow -- npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow-mcp --host claude-code`
 or `codex mcp add agent-workflow -- npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow-mcp --host codex`.
 Then ask for a workflow in the conversation: the agent launches it with `workflow_run`, waits in
-bounded 45 s `workflow_wait` calls and quotes the result and report paths. Local development
+bounded 45 s `workflow_wait` calls and quotes the result and report paths. Every CLI command is also
+a tool (`workflow_resume`, `workflow_show`, `workflow_profile`, `workflow_prune`, …); prune, profile
+and notice changes ask the user to confirm in a dialog first. Local development
 (`--plugin-dir`), timeouts and tool names: [`docs/plugins.md`](docs/plugins.md); the server:
 [`docs/host-mcp.md`](docs/host-mcp.md).
 

@@ -111,7 +111,8 @@ agent-workflow prune --keep 20 --yes          # delete old terminal runs (dry ru
 
 A run argument accepts the id or an unambiguous prefix. Any process can wait for, inspect or stop a
 run, including one started elsewhere with `--detach`. `wait` drives scheduling in bounded steps
-(45 s per call in the Pi tool and the host API; the CLI loops).
+(45 s per call over MCP and in the host API; the CLI loops; the Pi tools and `/aw wait` wait until
+the run settles or their timeout passes, up to 4 h).
 
 Run states: `running`, `completed`, `failed`, `interrupted` (stopped, or a worker was revoked) and
 `blocked` (needs a person: an unprovable executor state, an exhausted required-read or output repair,

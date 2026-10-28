@@ -2,6 +2,8 @@
 // `aw_list`/`aw_run`/`aw_dynamic`/`aw_wait` tools and the session-start unfinished-run notice, all
 // over the host API (../api.ts). WP16: the status line and completion delivery of runs this session
 // launched (feedback.ts), restored at session start and stopped at shutdown. No board or widgets.
+// WP28: session start first re-drives the project's running runs that no live process drives
+// (host API `redriveRunsAction`, port of pi-workflow `resumeSupervisors`), then shows the notice.
 // This module only has type-level Pi dependencies (./pi-types.ts); the package entry `./hosts/pi`
 // (index.ts) adds the Pi presence check.
 import { isWorkflowSupervisorEnabled } from "../../core/process-role.js";
@@ -36,6 +38,17 @@ export function createAgentWorkflowPiExtension(
 			const current = session;
 			// Not awaited: the notice never delays Pi startup.
 			lastNotice = (async () => {
+				try {
+					await deps.ready();
+					// WP28: pick up attached runs left running by a gone process (this Pi
+					// session's earlier process, another session, a CLI). Delivery stays with
+					// each run's audience (feedback.restore below binds nothing).
+					await deps.api
+						.redriveRunsAction(hostContext(deps, ctx))
+						.catch(() => undefined);
+				} catch {
+					// Re-driving is best effort; a run that is not picked up still has /aw wait.
+				}
 				try {
 					await deps.ready();
 					const text = await unfinishedRunNotice(

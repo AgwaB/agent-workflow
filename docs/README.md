@@ -7,9 +7,9 @@
 | [`../README.md`](../README.md) | What agent-workflow is, install, quick start, permission modes, executors |
 | [`usage.md`](usage.md) | Workflows and specs, running, waiting, resuming, stopping, profiles, permission modes, capability preview, stage model and authoring, artifacts and required reads, run records, troubleshooting |
 | [`cli.md`](cli.md) | `agent-workflow` CLI reference: commands, launch options, exit codes, test-executor hook |
-| [`host-mcp.md`](host-mcp.md) | Host MCP server `agent-workflow-mcp` for Claude Code / Codex: tools, call protocol, `--host`, `cwd` rule, elicitation |
+| [`host-mcp.md`](host-mcp.md) | Host MCP server `agent-workflow-mcp` for Claude Code / Codex: tools (every CLI command), call protocol, `--host`, `cwd` rule, elicitation and confirmed changes |
 | [`plugins.md`](plugins.md) | Claude Code and Codex plugin: install, `mcp add` alternative, local dev plugin, timeouts, tool names, validation evidence |
-| [`pi-host.md`](pi-host.md) | Pi host: `/aw` command, `aw_*` tools, install, confirmation, session-start notices |
+| [`pi-host.md`](pi-host.md) | Pi host: `/aw` command, `aw_*` tools (long waits, deferred exposure), install, confirmation, session-start re-drive and notices |
 | [`permissions.md`](permissions.md) | Permission modes `free` (default) and `safe`: behavior, selection, per-adapter mapping |
 | [`support.md`](support.md) | Support matrix (live and offline), verified CLI versions, hosts, known limits per executor |
 | [`environment.md`](environment.md) | Every `AGENT_WORKFLOW_*` environment variable |

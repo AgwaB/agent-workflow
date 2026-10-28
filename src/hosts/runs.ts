@@ -7,6 +7,7 @@
 // feedback) is not part of the host API; `inspect` reads runs through the store (prefixes,
 // `.agent-workflow/workflows`); supervise is a handler with an optional log sink.
 import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 import {
 	formatHumanRunOutcome,
@@ -24,8 +25,12 @@ import {
 	stopRun,
 	confirmRunStop,
 	waitForRun,
+	watchRun,
 } from "../core/engine.js";
-import { hasActiveSchedulerWork } from "../core/engine-wait.js";
+import {
+	hasActiveSchedulerWork,
+	recordSupervisorError,
+} from "../core/engine-wait.js";
 import {
 	formatWorkflowPruneSummary,
 	pruneWorkflowRuns,
@@ -33,8 +38,10 @@ import {
 } from "../core/run-retention.js";
 import {
 	compiledWorkflowPath,
+	isWorkflowRunLeaseLive,
 	listRunRecords,
 	readRunRecord,
+	workflowRunDir,
 } from "../core/store.js";
 import type { WorkflowRunRecord } from "../core/types.js";
 import { isWorkflowStopPendingError } from "../core/workflow-stop.js";
@@ -72,6 +79,8 @@ import {
 } from "./result-presentation.js";
 import {
 	assertActionAllowed,
+	HOST_LONG_WAIT_DEFAULT_TIMEOUT_MS,
+	HOST_LONG_WAIT_MAX_TIMEOUT_MS,
 	HOST_WAIT_MAX_TIMEOUT_MS,
 	HOST_WAIT_MIN_TIMEOUT_MS,
 	type HostApiContext,
@@ -389,8 +398,13 @@ export async function inspectAction(
 
 export interface WaitRequest {
 	runId: string;
-	/** Bound of this call; default and cap 45 000 ms (HOST_WAIT_MAX_TIMEOUT_MS). */
+	/**
+	 * Bound of this call; default and cap 45 000 ms (HOST_WAIT_MAX_TIMEOUT_MS), with `longWait`
+	 * default 30 min and cap 4 h.
+	 */
 	timeoutMs?: number;
+	/** WP28: a host without per-call time limits (Pi) waits up to 4 h instead of 45 s. */
+	longWait?: boolean;
 	signal?: AbortSignal;
 	onProgress?: (run: RunSummary) => void;
 }
@@ -405,7 +419,7 @@ export interface WaitData {
 	actionRequired: boolean;
 	/** The bounded wait ended while the run was still running; call wait again. */
 	stillRunning: boolean;
-	/** Effective bound of this call after the 45 s cap. */
+	/** Effective bound of this call after the 45 s cap (4 h for a long wait). */
 	timeoutMs: number;
 	blockedTaskIds: string[];
 	taskSummary: WorkflowRunRecord["taskSummary"];
@@ -442,26 +456,37 @@ export interface WaitData {
 	degradation?: WorkflowRunRecord["degradation"];
 }
 
-export function boundedWaitTimeout(timeoutMs: number | undefined): number {
-	if (timeoutMs === undefined) return HOST_WAIT_MAX_TIMEOUT_MS;
+export function boundedWaitTimeout(
+	timeoutMs: number | undefined,
+	longWait = false,
+): number {
+	const max = longWait
+		? HOST_LONG_WAIT_MAX_TIMEOUT_MS
+		: HOST_WAIT_MAX_TIMEOUT_MS;
+	if (timeoutMs === undefined)
+		return longWait ? HOST_LONG_WAIT_DEFAULT_TIMEOUT_MS : max;
 	if (typeof timeoutMs !== "number" || !Number.isFinite(timeoutMs))
 		throw new HostUsageError("wait timeoutMs must be a number");
 	return Math.max(
 		HOST_WAIT_MIN_TIMEOUT_MS,
-		Math.min(HOST_WAIT_MAX_TIMEOUT_MS, Math.floor(timeoutMs)),
+		Math.min(max, Math.floor(timeoutMs)),
 	);
 }
 
 /**
- * `wait <run>`: drive and wait for a run for at most 45 s, then return its state. Hosts call it
- * again while `stillRunning`. Cancelling only cancels the wait, never the run.
+ * `wait <run>`: drive and wait for a run for at most 45 s (WP28: 4 h with `longWait`), then return
+ * its state. Hosts call it again while `stillRunning`. Cancelling only cancels the wait, never the
+ * run.
  */
 export async function waitAction(
 	ctx: HostApiContext,
 	request: WaitRequest,
 ): Promise<HostResult<WaitData>> {
 	assertActionAllowed(ctx, "wait");
-	const timeoutMs = boundedWaitTimeout(request.timeoutMs);
+	const timeoutMs = boundedWaitTimeout(
+		request.timeoutMs,
+		request.longWait === true,
+	);
 	const resolved = await readRunRecord(
 		ctx.cwd,
 		requireRunRef(request.runId, "wait"),
@@ -814,6 +839,145 @@ function parseJsonText(text: string): JsonObject {
 	if (!value || typeof value !== "object" || Array.isArray(value))
 		throw new Error("unexpected JSON output: not an object");
 	return value as JsonObject;
+}
+
+export interface SuperviseDetachedData {
+	runId: string;
+	status: WorkflowRunRecord["status"];
+	/** A standalone supervisor was spawned by this call. */
+	started: boolean;
+	/** Why nothing was spawned: the run is not running, or a live supervisor already drives it. */
+	reason?: "not-running" | "live-supervisor";
+	detached?: { pid?: number; logPath: string };
+}
+
+/**
+ * WP28: `supervise <run>` for hosts whose calls are time-limited (the host MCP server): spawn the
+ * standalone `agent-workflow supervise <run>` (as a detached launch does) and return at once.
+ * Nothing is spawned for a run that is not running or that a live supervisor already drives (a
+ * fresh run lease or `supervisor.json` heartbeat of a live process); the run lease would arbitrate
+ * a second supervisor anyway, this only avoids an idle one.
+ */
+export async function superviseDetachedAction(
+	ctx: HostApiContext,
+	request: { runId: string },
+): Promise<HostResult<SuperviseDetachedData>> {
+	assertActionAllowed(ctx, "supervise");
+	const run = await readRunRecord(
+		ctx.cwd,
+		requireRunRef(request.runId, "supervise"),
+	);
+	const hints = hostCommandHints(ctx.host);
+	if (!hasActiveSchedulerWork(run))
+		return result(
+			"supervise",
+			outcomeForRunStatus(run.status),
+			{
+				runId: run.runId,
+				status: run.status,
+				started: false,
+				reason: "not-running",
+			},
+			`Nothing to supervise: ${run.runId} is ${run.status}. Open: ${hints.status(run.runId)}`,
+		);
+	if (await isWorkflowRunLeaseLive(ctx.cwd, run.runId))
+		return result(
+			"supervise",
+			"running",
+			{
+				runId: run.runId,
+				status: run.status,
+				started: false,
+				reason: "live-supervisor",
+			},
+			`A live supervisor already drives ${run.runId}; no second one was started. Wait for the result: ${hints.wait(run.runId)}`,
+		);
+	const detached = spawnDetachedSupervisor(ctx.cwd, run.runId, hostEnv(ctx));
+	return result(
+		"supervise",
+		"running",
+		{ runId: run.runId, status: run.status, started: true, detached },
+		`Detached supervisor started for ${run.runId}: pid ${detached.pid ?? "unknown"}, log ${toDisplayPath(detached.logPath, ctx.cwd)}\nWait for the result: ${hints.wait(run.runId)}`,
+	);
+}
+
+/**
+ * A live process other than this one drives the run. Live lease evidence that only names this
+ * process (its own watcher, or a status refresh it made) does not count: `watchRun` is idempotent
+ * per process, so re-driving such a run is safe.
+ */
+async function drivenByAnotherProcess(
+	cwd: string,
+	runId: string,
+): Promise<boolean> {
+	if (!(await isWorkflowRunLeaseLive(cwd, runId))) return false;
+	const dir = workflowRunDir(cwd, runId);
+	const pids: number[] = [];
+	const lock = await readFile(join(dir, "supervisor.lock"), "utf8").catch(
+		() => undefined,
+	);
+	if (lock !== undefined)
+		pids.push(Number.parseInt(lock.split(/\r?\n/)[1] ?? "", 10));
+	for (const file of ["supervisor.json", "supervisor-lease.json"]) {
+		const record = await readFile(join(dir, file), "utf8")
+			.then((text) => JSON.parse(text) as { pid?: unknown })
+			.catch(() => undefined);
+		if (record) pids.push(typeof record.pid === "number" ? record.pid : NaN);
+	}
+	return !(pids.length > 0 && pids.every((pid) => pid === process.pid));
+}
+
+export interface RedriveData {
+	/** Runs this process scheduled and now watches (engine `watchRun`). */
+	redriven: string[];
+	/** Runs with active work that a live process already drives. */
+	skipped: Array<{ runId: string; reason: "live-supervisor" }>;
+	/** Runs whose first scheduling pass failed (recorded in `supervisor.json`; still watched). */
+	errors: Array<{ runId: string; message: string }>;
+}
+
+/**
+ * WP28: port of pi-workflow 0.16.4 (b83cc4f) `resumeSupervisors` (src/engine.ts:2628) for a host
+ * process that outlives a run's launcher (the Pi host at session start). Every run of the project
+ * with active scheduler work that no live process drives (`isWorkflowRunLeaseLive`: a held run
+ * lease, or a `supervisor.json`/`supervisor-lease.json` heartbeat < 30 s from a live pid; for
+ * example an attached run whose Pi session or CLI process ended) is scheduled once and then watched
+ * by this process. Change from pi-workflow: runs a live supervisor drives are skipped instead of
+ * being scheduled concurrently (the run lease arbitrated that), and no run index is rewritten.
+ * Re-driving only schedules, never resumes: a blocked run (B3: an attempt whose launch the executor
+ * cannot prove either way is `executor_needs_decision`) stays blocked, and a running attempt with an
+ * `unknown` reconcile becomes that decision through the engine's normal refresh, never a relaunch.
+ * Completion delivery stays with each run's own audience (the host decides; nothing is bound here).
+ */
+export async function redriveRunsAction(
+	ctx: HostApiContext,
+): Promise<HostResult<RedriveData>> {
+	assertActionAllowed(ctx, "supervise");
+	const options = ctx.availableModels
+		? { availableModels: ctx.availableModels }
+		: {};
+	const data: RedriveData = { redriven: [], skipped: [], errors: [] };
+	for (const run of await listRunRecords(ctx.cwd)) {
+		if (!hasActiveSchedulerWork(run)) continue;
+		if (await drivenByAnotherProcess(ctx.cwd, run.runId)) {
+			data.skipped.push({ runId: run.runId, reason: "live-supervisor" });
+			continue;
+		}
+		try {
+			await scheduleRun(ctx.cwd, run.runId, undefined, options);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			data.errors.push({ runId: run.runId, message });
+			await recordSupervisorError(ctx.cwd, run.runId, error);
+		}
+		watchRun(ctx.cwd, run.runId, options);
+		data.redriven.push(run.runId);
+	}
+	const text =
+		data.redriven.length === 0
+			? "No unsupervised running runs to pick up."
+			: `Picked up ${data.redriven.length} running run(s) without a live supervisor: ${data.redriven.join(", ")}`;
+	return result("supervise", "success", data, text);
 }
 
 export interface SuperviseRequest {

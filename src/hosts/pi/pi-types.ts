@@ -69,6 +69,8 @@ export interface PiToolDefinition {
 	/** JSON Schema object (TypeBox schemas are JSON Schema). */
 	parameters: Record<string, unknown>;
 	annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean };
+	/** WP28: `deferred` keeps the tool out of each request until Pi's `tool_search` loads it. */
+	exposure?: "deferred";
 	execute(
 		toolCallId: string,
 		params: unknown,
