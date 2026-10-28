@@ -120,10 +120,7 @@ export type AutoConsent =
 	  };
 
 export interface AutoRequest
-	extends Omit<
-		LaunchRequestBase,
-		"autoSelection" | "inputOverrides" | "task" | "profile"
-	> {
+	extends Omit<LaunchRequestBase, "autoSelection" | "task" | "profile"> {
 	/** The task to compare workflows for (and to run with the chosen one). */
 	task: string;
 	/**

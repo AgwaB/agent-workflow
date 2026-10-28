@@ -1,7 +1,7 @@
 // New in agent-workflow (WP11a): command help shared by the `agent-workflow` CLI and the host API
 // `help` action (stage-2 hosts reuse the same text). WP17: `doctor` and the default-executor line.
 // WP31: profile roles, presets and per-workflow preferences.
-// WP36: statusline, watch, notify-check.
+// WP36: statusline, watch, notify-check. WP32: auto.
 import { HostUsageError } from "./args.js";
 import { type HostResult, result } from "./types.js";
 
@@ -74,6 +74,26 @@ ${LAUNCH_FLAGS}`,
 	dynamic: `Usage: agent-workflow dynamic <task...> [options]
 
 Start a spec-less direct dynamic workflow run. Same options and behavior as \`run\`.
+
+Options:
+${LAUNCH_FLAGS}`,
+	auto: `Usage: agent-workflow auto <task...> [--yes] [options]
+
+Recommend a workflow for a task and start the one you choose. First a local shortlist is made
+without any model call (the dynamic workflow and the discoverable workflows, ranked by their
+routing hints). Comparing them needs one classifier request: it sends your task and the bounded
+descriptions of the candidates to the run's default executor (--executor, else the saved user
+profile, else the first installed and logged-in of pi, claude, codex) with --model/--effort or the
+executor's default model, without tools. Nothing is sent without your consent:
+  - in a terminal you are shown the task, the candidates and the executor/model and asked y/N;
+    then you pick the workflow from the ranked list (Enter takes the recommendation, n cancels),
+    and it starts like \`run\` (foreground; --detach for background);
+  - without a terminal no request is sent: the local shortlist and the commands to start a
+    workflow directly are printed (exit 1);
+  - --yes is your explicit consent to the one request (no question). Without a terminal the
+    ranked recommendation and the commands are printed and nothing starts.
+Declining or cancelling starts nothing. The started run records the selection (candidates,
+recommendation, your choice, classifier executor/model, consent) in its launch metadata.
 
 Options:
 ${LAUNCH_FLAGS}`,
@@ -188,6 +208,7 @@ Workflows:
 Runs:
   run <workflow> <task...>   start a workflow (foreground; --detach for background)
   dynamic <task...>          start a spec-less dynamic workflow
+  auto <task...>             recommend a workflow (asks before one classifier call), start it
   status [run]               show runs
   show <run>                 show run details
   inspect <run>              reliability summary and task results

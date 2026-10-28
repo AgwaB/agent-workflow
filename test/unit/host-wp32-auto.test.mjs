@@ -517,3 +517,126 @@ test("launch metadata v2 validation rejects a selection outside the offered cand
 		false,
 	);
 });
+
+// Item 2: the CLI `agent-workflow auto "<task>"`.
+const cli = await import("../../dist/hosts/cli/index.js");
+
+function cliIo(cwd, env, { isTTY, answers = [] }) {
+	const out = [];
+	const err = [];
+	const questions = [];
+	return {
+		out,
+		err,
+		questions,
+		io: {
+			cwd,
+			env,
+			stdout: (text) => out.push(text),
+			stderr: (text) => err.push(text),
+			isTTY,
+			prompt: async (question) => {
+				questions.push(question);
+				return answers.shift() ?? "";
+			},
+			waitSliceMs: 2_000,
+		},
+	};
+}
+
+test("CLI without a terminal: no classifier call, the shortlist and how to run it (exit 1)", async () => {
+	const { cwd, env } = await project();
+	const logs = shadow({ pi: NOT_INSTALLED, claude: READY, codex: READY });
+	const { io, out, questions } = cliIo(cwd, env, { isTTY: false });
+	const code = await cli.runAgentWorkflowCli(["auto", TASK], io);
+	assert.equal(code, 1);
+	assert.deepEqual(questions, []);
+	assert.deepEqual(allClassifierSubmits(logs), { pi: 0, claude: 0, codex: 0 });
+	const text = out.join("");
+	assert.match(text, /could not ask for your consent/);
+	assert.match(text, /agent-workflow run wp32-alpha "<task>"/);
+	assert.match(text, /--yes/);
+	assert.equal(await runCount(cwd), 0);
+});
+
+test("CLI --yes without a terminal: one classifier call on the installed default, ranking only", async () => {
+	const { cwd, env } = await project();
+	const logs = shadow({ pi: NOT_INSTALLED, claude: READY, codex: READY });
+	const { io, out } = cliIo(cwd, env, { isTTY: false });
+	const code = await cli.runAgentWorkflowCli(
+		["auto", TASK, "--yes", "--json"],
+		io,
+	);
+	assert.equal(code, 0, out.join(""));
+	const json = JSON.parse(out.join(""));
+	assert.equal(json.action, "auto");
+	assert.equal(json.data.phase, "ranked");
+	assert.equal(json.data.consent, "flag");
+	assert.equal(json.data.classifier.executor, "claude");
+	assert.equal(json.data.classifier.source, "installed-default");
+	assert.deepEqual(allClassifierSubmits(logs), { pi: 0, claude: 1, codex: 0 });
+	assert.equal(await runCount(cwd), 0);
+});
+
+test("CLI on a terminal: declining the consent question sends nothing", async () => {
+	const { cwd, env } = await project();
+	const logs = shadow({ pi: READY, claude: READY, codex: READY });
+	const { io, err, questions } = cliIo(cwd, env, {
+		isTTY: true,
+		answers: ["n"],
+	});
+	const code = await cli.runAgentWorkflowCli(["auto", TASK], io);
+	assert.equal(code, 1);
+	assert.equal(questions.length, 1);
+	assert.match(
+		questions[0],
+		/Send this task to pi to compare workflows\? \[y\/N\]/,
+	);
+	assert.ok(err.join("").includes(TASK), "the consent preview shows the task");
+	assert.deepEqual(allClassifierSubmits(logs), { pi: 0, claude: 0, codex: 0 });
+});
+
+test("CLI on a terminal: consent, then the pick-list; Enter starts the recommendation in the foreground", async () => {
+	const { cwd, env } = await project();
+	const logs = shadow({ pi: READY, claude: READY, codex: READY });
+	const { io, out, err, questions } = cliIo(cwd, env, {
+		isTTY: true,
+		answers: ["y", ""],
+	});
+	const code = await cli.runAgentWorkflowCli(["auto", TASK], io);
+	assert.equal(code, 0, out.join("") + err.join(""));
+	assert.equal(questions.length, 2);
+	assert.match(
+		questions[1],
+		/Start which workflow\? \[1-\d+, Enter = 1, n = cancel\]/,
+	);
+	assert.match(err.join(""), /1\. wp32-alpha · recommended/);
+	assert.deepEqual(allClassifierSubmits(logs), { pi: 1, claude: 0, codex: 0 });
+	const text = out.join("");
+	assert.match(text, /Selected: wp32-alpha \(recommended\)/);
+	const runId = /(workflow_[A-Za-z0-9_]+)/.exec(text)[1];
+	const record = await store.readRunRecord(cwd, runId);
+	assert.equal(record.status, "completed");
+	assert.equal(record.launch.schema, "agent-workflow-run-launch-v2");
+	assert.equal(record.launch.source, "cli");
+	assert.equal(record.launch.selection.consent, "prompt");
+	const command = await readFile(
+		join(cwd, ".agent-workflow", "workflows", runId, "launch-command.txt"),
+		"utf8",
+	);
+	assert.match(command, /^agent-workflow auto /);
+	assert.doesNotMatch(command, new RegExp(SECRET));
+});
+
+test("CLI on a terminal: n at the pick-list starts nothing", async () => {
+	const { cwd, env } = await project();
+	shadow({ pi: READY, claude: READY, codex: READY });
+	const { io, out } = cliIo(cwd, env, { isTTY: true, answers: ["yes", "n"] });
+	const code = await cli.runAgentWorkflowCli(["auto", TASK], io);
+	assert.equal(code, 1);
+	assert.match(
+		out.join(""),
+		/Auto selection cancelled\. No workflow has been started\./,
+	);
+	assert.equal(await runCount(cwd), 0);
+});
