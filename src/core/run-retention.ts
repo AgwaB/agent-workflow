@@ -9,7 +9,9 @@ import {
 	rename,
 	rm,
 } from "node:fs/promises";
+import { execFile } from "node:child_process";
 import { isAbsolute, join, relative, resolve } from "node:path";
+import { promisify } from "node:util";
 
 import {
 	acquireRunFileLease,
@@ -56,6 +58,13 @@ export interface WorkflowPruneRun {
 	purged?: boolean;
 	retainedEvidencePath?: string;
 	retainedMirrorPath?: string;
+	/**
+	 * WP39b (O7): the run's managed worktrees (`<run>/worktrees/<task>`, branch
+	 * `agent-workflow/<run>-<task>`). Kept after the run by design (no auto-merge); prune lists them
+	 * in the dry run and removes them with `--yes` (`git worktree remove --force`), deleting the
+	 * branch only when it has no commits outside the checkout's HEAD (`git branch -d`).
+	 */
+	worktrees?: WorkflowPruneWorktree[];
 	/** R#10: owned worker sessions handled for this run. */
 	ownedSessions?: {
 		deleted: number;
@@ -63,6 +72,21 @@ export interface WorkflowPruneRun {
 		/** The executor has no deleteOwnedSession (sessions are left in place). */
 		unsupported: number;
 	};
+	error?: string;
+}
+
+export interface WorkflowPruneWorktree {
+	/** Project-relative path. */
+	path: string;
+	branch: string | null;
+	/** Uncommitted changes (tracked or untracked) in the worktree. */
+	dirty: boolean;
+	/** Commits on the worktree's HEAD that the checkout's HEAD does not contain. */
+	commits: number;
+	/** The directory is gone (only the git registration was cleaned up). */
+	missing?: boolean;
+	removed?: boolean;
+	branchDeleted?: boolean;
 	error?: string;
 }
 
@@ -179,6 +203,7 @@ async function prunePlan(
 	);
 
 	for (const candidate of childrenFirst(selected, plan.children)) {
+		const worktrees = await inspectRunWorktrees(cwd, candidate.run);
 		const entry: WorkflowPruneRun = {
 			runId: candidate.run.runId,
 			...(candidate.run.name === undefined ? {} : { name: candidate.run.name }),
@@ -188,6 +213,7 @@ async function prunePlan(
 			selected: true,
 			protected: false,
 			deleted: false,
+			...(worktrees.length ? { worktrees } : {}),
 		};
 		const referenceError = await retainedChildReason(
 			cwd,
@@ -284,6 +310,24 @@ export function formatWorkflowPruneSummary(
 			lines.push(
 				`- ${run.runId} ${run.name ?? "(unnamed)"} ${run.status} ${run.updatedAt} ${run.bytes} bytes${run.protected ? ` — protected: ${run.error}` : run.error ? ` — ${run.error}` : run.deleted ? " — deleted" : ""}`,
 			);
+			for (const worktree of run.worktrees ?? []) {
+				const state = [
+					worktree.branch ? `branch ${worktree.branch}` : "detached",
+					...(worktree.missing ? ["directory missing"] : []),
+					...(worktree.dirty ? ["uncommitted changes"] : []),
+					...(worktree.commits > 0
+						? [
+								`${worktree.commits} commit(s) not in the checkout's HEAD; the branch is kept`,
+							]
+						: []),
+				];
+				const done = worktree.error
+					? ` — ${worktree.error}`
+					: worktree.removed
+						? ` — removed${worktree.branchDeleted ? ", branch deleted" : worktree.branch ? ", branch kept" : ""}`
+						: "";
+				lines.push(`  Worktree: ${worktree.path} (${state.join("; ")})${done}`);
+			}
 			if (run.retainedEvidencePath)
 				lines.push(`  Retained run evidence: ${run.retainedEvidencePath}`);
 			if (run.retainedMirrorPath)
@@ -430,6 +474,7 @@ type DeletionOutcome = Pick<
 	| "retainedEvidencePath"
 	| "retainedMirrorPath"
 	| "ownedSessions"
+	| "worktrees"
 >;
 
 async function deleteCandidate(
@@ -499,6 +544,20 @@ async function deleteCandidate(
 					error: `owned worker session deletion failed: ${errorMessage(error)}`,
 				};
 			}
+			await lease.assertOwner();
+		}
+		// WP39b (O7): the run's managed worktrees go before the run directory that contains them
+		// (git keeps their registration otherwise); a failure keeps the run.
+		const worktrees = await inspectRunWorktrees(cwd, current);
+		if (worktrees.length) {
+			outcome.worktrees = await removeRunWorktrees(cwd, worktrees);
+			const failed = outcome.worktrees.find((worktree) => worktree.error);
+			if (failed)
+				return {
+					...outcome,
+					protected: true,
+					error: `worktree removal failed: ${failed.path}: ${failed.error}`,
+				};
 			await lease.assertOwner();
 		}
 		// No irreversible removal until BOTH generations are safely detached.
@@ -773,4 +832,124 @@ export async function deleteRunOwnedSessions(
 			);
 	}
 	return result;
+}
+
+const execFileAsync = promisify(execFile);
+
+async function gitText(cwd: string, args: string[]): Promise<string> {
+	const { stdout } = await execFileAsync("git", args, {
+		cwd,
+		encoding: "utf8",
+		maxBuffer: 16 * 1024 * 1024,
+	});
+	return stdout;
+}
+
+interface RunWorktree extends WorkflowPruneWorktree {
+	absolutePath: string;
+	gitCwd: string;
+}
+
+/**
+ * WP39b (O7): the managed worktrees a run recorded (tasks and shared loop worktrees) that lie in
+ * its own `worktrees/` directory, with their state. Never throws: an unreadable worktree is
+ * reported with `error`.
+ */
+async function inspectRunWorktrees(
+	cwd: string,
+	run: WorkflowRunRecord,
+): Promise<RunWorktree[]> {
+	const root = join(workflowsRoot(cwd), run.runId, "worktrees");
+	const seen = new Map<string, RunWorktree>();
+	const records = [
+		...(run.tasks ?? []).map((task) => task.worktree),
+		...(run.loopWorktrees ?? []).map((record) => ({
+			...record,
+			enabled: true,
+		})),
+	];
+	for (const record of records) {
+		if (!record?.enabled || typeof record.path !== "string") continue;
+		const absolutePath = resolve(cwd, record.path);
+		const rel = relative(root, absolutePath);
+		if (!rel || rel.startsWith("..") || isAbsolute(rel) || rel.includes("/"))
+			continue;
+		if (seen.has(absolutePath)) continue;
+		const entry: RunWorktree = {
+			path: relative(cwd, absolutePath),
+			absolutePath,
+			gitCwd:
+				typeof record.baseCwd === "string" ? resolve(cwd, record.baseCwd) : cwd,
+			branch: typeof record.branch === "string" ? record.branch : null,
+			dirty: false,
+			commits: 0,
+		};
+		seen.set(absolutePath, entry);
+		const info = await lstat(absolutePath).catch(() => undefined);
+		if (!info) {
+			entry.missing = true;
+			continue;
+		}
+		if (!info.isDirectory() || info.isSymbolicLink()) {
+			entry.error = "not a worktree directory";
+			continue;
+		}
+		try {
+			entry.dirty =
+				(await gitText(absolutePath, ["status", "--porcelain"])).trim() !== "";
+			const checkoutHead = (
+				await gitText(entry.gitCwd, ["rev-parse", "HEAD"])
+			).trim();
+			entry.commits = Number.parseInt(
+				(
+					await gitText(absolutePath, [
+						"rev-list",
+						"--count",
+						"HEAD",
+						`^${checkoutHead}`,
+					])
+				).trim(),
+				10,
+			);
+			if (!Number.isFinite(entry.commits)) entry.commits = 0;
+		} catch (error) {
+			entry.error = `git: ${errorMessage(error).split("\n")[0]}`;
+		}
+	}
+	return [...seen.values()];
+}
+
+/** `prune --yes`: remove each worktree; delete its branch only when merged (`git branch -d`). */
+async function removeRunWorktrees(
+	_cwd: string,
+	worktrees: RunWorktree[],
+): Promise<WorkflowPruneWorktree[]> {
+	const results: WorkflowPruneWorktree[] = [];
+	for (const worktree of worktrees) {
+		const { absolutePath, gitCwd, ...entry } = worktree;
+		if (entry.error) {
+			results.push(entry);
+			continue;
+		}
+		try {
+			// A missing directory: only git's stale registration is left (best effort).
+			if (entry.missing)
+				await gitText(gitCwd, ["worktree", "prune"]).catch(() => "");
+			else
+				await gitText(gitCwd, ["worktree", "remove", "--force", absolutePath]);
+			entry.removed = true;
+		} catch (error) {
+			entry.error = `git worktree remove: ${errorMessage(error).split("\n")[0]}`;
+			results.push(entry);
+			continue;
+		}
+		if (entry.branch)
+			entry.branchDeleted =
+				entry.commits === 0 &&
+				(await gitText(gitCwd, ["branch", "-d", entry.branch])
+					.then(() => true)
+					.catch(() => false));
+		results.push(entry);
+	}
+	return results;
 }
