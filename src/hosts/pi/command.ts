@@ -24,6 +24,7 @@ import {
 	tokenizeWorkflowArgs,
 } from "../api.js";
 import { logsRequest, parseCommandArgs } from "../cli/index.js";
+import { FOREGROUND_CANCELLED, withForegroundLoader } from "./active-ui.js";
 import {
 	emit,
 	hasDialogUi,
@@ -350,11 +351,25 @@ async function dispatch(
 				throw new HostUsageError(
 					`timeout must be at most ${HOST_LONG_WAIT_MAX_TIMEOUT_MS}ms (4h)`,
 				);
-			return api.waitAction(host(), {
-				runId: runId!,
-				longWait: true,
-				timeoutMs,
-			});
+			// WP33: the wait blocks the session: a cancellable loader in the TUI (Escape cancels
+			// only the wait; the run continues).
+			const waited = await withForegroundLoader(
+				ctx,
+				`Waiting for ${runId} (Esc stops waiting; the run continues)…`,
+				(signal) =>
+					api.waitAction(host(), {
+						runId: runId!,
+						longWait: true,
+						timeoutMs,
+						...(signal ? { signal } : {}),
+					}),
+				deps.foregroundLoader,
+			);
+			if (waited === FOREGROUND_CANCELLED)
+				return {
+					text: `Stopped waiting for ${runId}; the run continues. Check it with /${AW_COMMAND} status ${runId} or wait again with /${AW_COMMAND} wait ${runId}.`,
+				};
+			return waited;
 		}
 		case "resume": {
 			const parsed = parseCommandArgs(rest, { flags: ["--detach"] });

@@ -1,7 +1,8 @@
 // New in agent-workflow (WP11b): the minimal Pi host extension. Registers the `/aw` command, the
 // `aw_list`/`aw_run`/`aw_dynamic`/`aw_wait` tools and the session-start unfinished-run notice, all
 // over the host API (../api.ts). WP16: the status line and completion delivery of runs this session
-// launched (feedback.ts), restored at session start and stopped at shutdown. No board or widgets.
+// launched (feedback.ts), restored at session start and stopped at shutdown. No board; WP33 adds the
+// active-workflows widget and the `/aw wait` loader (active-ui.ts).
 // WP28: session start first re-drives the project's running runs that no live process drives
 // (host API `redriveRunsAction`, port of pi-workflow `resumeSupervisors`), then shows the notice.
 // This module only has type-level Pi dependencies (./pi-types.ts); the package entry `./hosts/pi`

@@ -50,16 +50,21 @@ export function fakePi({ history } = {}) {
 
 /**
  * Fake ExtensionContext with a dialog UI (rpc) or none (json), a session id and a footer. With
- * `history`, `sessionManager.getEntries()` returns it (WP19 round 2).
+ * `history`, `sessionManager.getEntries()` returns it (WP19 round 2). WP33: widgets are recorded;
+ * `custom: true` adds `ui.custom` (resolves when the component calls `done`).
  */
 export function fakeCtx(
 	cwd,
-	{ hasUI = true, sessionId = "session-a", select, mode, history } = {},
+	{ hasUI = true, sessionId = "session-a", select, mode, history, custom } = {},
 ) {
 	const notes = [];
 	const statuses = [];
 	const selects = [];
 	const footer = new Map();
+	// WP33: `setWidget` records (key → current lines) and the `ctx.ui.custom` components shown.
+	const widgetCalls = [];
+	const widgets = new Map();
+	const customs = [];
 	return {
 		cwd,
 		hasUI,
@@ -77,6 +82,9 @@ export function fakeCtx(
 		statuses,
 		selects,
 		footer,
+		widgetCalls,
+		widgets,
+		customs,
 		ui: {
 			notify: (message, type) => notes.push({ message, type }),
 			confirm: async () => true,
@@ -89,6 +97,20 @@ export function fakeCtx(
 				if (text === undefined) footer.delete(key);
 				else footer.set(key, text);
 			},
+			setWidget: (key, lines, options) => {
+				widgetCalls.push({ key, lines, options });
+				if (lines === undefined) widgets.delete(key);
+				else widgets.set(key, lines);
+			},
+			...(custom
+				? {
+						custom: (factory) =>
+							new Promise((resolve) => {
+								const component = factory({}, {}, {}, resolve);
+								customs.push(component);
+							}),
+					}
+				: {}),
 		},
 	};
 }

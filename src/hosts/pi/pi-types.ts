@@ -16,6 +16,28 @@ export interface PiUiContext {
 	select(title: string, options: string[]): Promise<string | undefined>;
 	/** Footer status entry; `undefined` clears it (WP16). Fire-and-forget in RPC mode. */
 	setStatus?(key: string, text: string | undefined): void;
+	/**
+	 * WP33: a block of text lines near the editor; `undefined` clears it. Pi 1.1 (TUI and RPC;
+	 * fire-and-forget in RPC mode, string arrays only).
+	 */
+	setWidget?(
+		key: string,
+		content: string[] | undefined,
+		options?: { placement?: "aboveEditor" | "belowEditor" },
+	): void;
+	/**
+	 * WP33: Pi 1.1 `ctx.ui.custom`: one component takes the editor area until it calls `done`
+	 * (TUI; the foreground loader of `/aw wait`).
+	 */
+	custom?<T>(
+		factory: (
+			tui: unknown,
+			theme: unknown,
+			keybindings: unknown,
+			done: (result: T) => void,
+		) => unknown,
+		options?: Record<string, unknown>,
+	): Promise<T>;
 }
 
 export interface PiModelLike {

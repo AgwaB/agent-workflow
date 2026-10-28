@@ -367,6 +367,26 @@ status entry, without the board widget (WP33 adds the presentation lease, below)
   re-checks the session generation and context after each await and right before scheduling, so it
   tracks nothing and starts no timer; a poll that finds no session context clears the timer.
 
+## Active workflows widget and foreground loader (WP33)
+
+Port of pi-workflow's `src/workflow-active-ui.ts` (parity row 23), with a UI only (TUI or RPC; print
+and JSON mode show nothing):
+
+- **Widget.** Next to the WP16 footer entry (kept as is) the tracker sets the widget
+  `agent-workflow-active` (`ctx.ui.setWidget`, placement `belowEditor`; pi-workflow's is
+  `pi-workflow-active`, so both can show): `Active workflows`, then one line per active run of this
+  session (`● <name> <completed+running>/<total> <status> · <elapsed>`, newest first, at most 5,
+  then `… and N more`). It lists only the runs this session tracks (its audience), not every
+  running run of the project as pi-workflow did, is rewritten only when its text changes, and is
+  cleared when no tracked run is active and at session shutdown.
+- **Loader.** `/aw wait <run>` blocks the session, so in the TUI (`ctx.mode === "tui"`) it runs
+  behind Pi's cancellable `BorderedLoader` (`ctx.ui.custom`; "Waiting for <run> (Esc stops
+  waiting; the run continues)…"). Escape cancels only the wait (WP28): the command reports
+  `Stopped waiting for <run>; the run continues …` and the run keeps going (tracked runs still
+  report back). RPC mode has no `ctx.ui.custom` and runs the wait as before. `/aw run`, `dynamic`,
+  `resume` and `approve` return once started, so they need no loader; the agent's `aw_wait` and
+  awaited launches are tool calls (Pi shows their progress; aborting the turn cancels the wait).
+
 ## Process roles
 
 With `AGENT_WORKFLOW_ROLE=worker` or `disabled` (a Pi worker that loads this package) the tools are not
@@ -387,6 +407,8 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
   completion message follows; another session is refused; unowned runs; a timed-out wait leaves
   delivery to the tracker; already-delivered note; awaited duplicate launch; restart with and
   without the tool result in the history).
+- WP33: `host-wp33-pi-active-ui.test.mjs` (widget lines, this session only, footer kept, cleared;
+  no UI shows nothing; `/aw wait` loader in the TUI, Escape cancels only the wait; no loader in RPC).
 - WP28: `host-wp28-pi-waits.test.mjs` (long `aw_wait`, `awaitTerminal` on `aw_run`/`aw_dynamic`,
   cancel = only the wait, no second delivery of an awaited result, `/aw wait <run> [timeout]`),
   `host-wp28-pi-redrive.test.mjs` (a child process launches an attached run and exits; session start
@@ -424,8 +446,11 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
 
 ## Limits
 
-- No board, widgets or `/aw` with a bare run id (pi-workflow's board TUI is out of scope); the
-  status line is one footer entry.
+- No board or `/aw` with a bare run id (pi-workflow's board TUI is out of scope); the session's
+  runs show in one footer entry and the active-workflows widget (WP33).
+- The `/aw wait` loader shares Pi's editor slot with dialogs: a dynamic-controller approval asked
+  during the wait (WP29) replaces the loader; the wait continues after the answer, without the
+  loader (cancel it with a new `/aw wait` … Escape, or let it finish).
 - A context without a session id gets no status line or delivery (Pi 1.1 has one in TUI and RPC,
   also with `--no-session`).
 - No `/aw auto` or TUI profile picker (`/workflow profile`); `/aw profile` manages saved user

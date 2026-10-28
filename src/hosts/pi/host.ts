@@ -12,6 +12,10 @@
 import * as hostApi from "../api.js";
 import type { HostApiContext, HostOutcome, LaunchRequestBase } from "../api.js";
 import { toWorkflowModelInfo } from "../../core/workflow-runtime.js";
+import {
+	type ForegroundLoaderFactory,
+	piBorderedLoaderFactory,
+} from "./active-ui.js";
 import { PiRunFeedback } from "./feedback.js";
 import type {
 	PiExtensionApi,
@@ -53,6 +57,8 @@ export interface PiHostOptions {
 	now?: () => number;
 	/** Status-line/delivery poll interval (tests; capped at 1 s). */
 	feedbackPollMs?: number;
+	/** WP33: the `/aw wait` loader component (tests; default Pi's BorderedLoader). */
+	foregroundLoader?: () => Promise<ForegroundLoaderFactory | undefined>;
 }
 
 export interface PiHostDeps {
@@ -64,6 +70,8 @@ export interface PiHostDeps {
 	pi: PiExtensionApi;
 	/** WP16: status line and completion delivery of runs this session launched. */
 	feedback: PiRunFeedback;
+	/** WP33: provider of the foreground loader component (`/aw wait`). */
+	foregroundLoader: () => Promise<ForegroundLoaderFactory | undefined>;
 }
 
 export function createPiHostDeps(
@@ -79,6 +87,7 @@ export function createPiHostDeps(
 		env,
 		now,
 		pi,
+		foregroundLoader: options.foregroundLoader ?? piBorderedLoaderFactory,
 		feedback: new PiRunFeedback(pi, {
 			now,
 			...(options.feedbackPollMs ? { pollMs: options.feedbackPollMs } : {}),

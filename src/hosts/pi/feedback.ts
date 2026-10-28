@@ -65,6 +65,10 @@ import {
 } from "../result-presentation.js";
 import { hostTextRedactor } from "../redaction.js";
 import {
+	formatActiveWorkflowLines,
+	setActiveWorkflowWidget,
+} from "./active-ui.js";
+import {
 	AW_COMMAND,
 	AW_DYNAMIC_TOOL,
 	AW_RUN_TOOL,
@@ -1454,6 +1458,8 @@ export class PiRunFeedback {
 	private timer: ReturnType<typeof setInterval> | undefined;
 	private ticking: Promise<void> | undefined;
 	private shownStatus: string | undefined;
+	/** WP33: the active-workflows widget lines last shown (joined). */
+	private shownWidget: string | undefined;
 	private generation = 0;
 	private readonly pollMs: number;
 	private readonly now: () => number;
@@ -1639,6 +1645,7 @@ export class PiRunFeedback {
 		this.timer = undefined;
 		this.runs.clear();
 		this.setStatus(undefined);
+		this.setWidget(undefined);
 		this.ctx = undefined;
 	}
 
@@ -1660,6 +1667,16 @@ export class PiRunFeedback {
 		} catch {
 			// Workflow progress never depends on optional UI rendering.
 		}
+	}
+
+	/** WP33: the active-workflows widget (only when its lines change; cleared when idle). */
+	private setWidget(lines: string[] | undefined): void {
+		const key = lines?.length ? lines.join("\n") : undefined;
+		if (key === this.shownWidget) return;
+		const ctx = this.ctx;
+		this.shownWidget = key;
+		if (!ctx) return;
+		setActiveWorkflowWidget(ctx, key === undefined ? undefined : lines);
 	}
 
 	/** One poll: read tracked runs, deliver settled ones, refresh or clear the status entry. */
@@ -1730,6 +1747,7 @@ export class PiRunFeedback {
 		if (generation !== this.generation) return;
 		active.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 		this.setStatus(statusLine(active));
+		this.setWidget(formatActiveWorkflowLines(active, this.now()));
 		// WP19 round 2 (N2): confirm sent messages the session history shows by now.
 		const watching = await confirmSentDeliveries(ctx, this.now()).catch(
 			() => 0,
