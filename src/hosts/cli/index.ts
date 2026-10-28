@@ -91,26 +91,42 @@ export const EXIT_OK = 0;
 export const EXIT_FAILED = 1;
 export const EXIT_USAGE = 2;
 
+/**
+ * One terminal question on `input`/`output` (the CLI passes stdin/stderr). Resolves with the typed
+ * line, or "" at end of input or when `signal` aborts. Live bundle 5 (WP39): the answer is settled
+ * before `rl.close()`, whose synchronous `close` event used to resolve "" first, so every y/N
+ * typed on a real terminal (auto consent, degradation confirmation, dynamic approval, `approve`)
+ * was read as no answer.
+ */
+export function readlinePrompt(
+	input: NodeJS.ReadableStream,
+	output: NodeJS.WritableStream,
+): (question: string, options?: { signal?: AbortSignal }) => Promise<string> {
+	return (question, options = {}) =>
+		new Promise((resolveAnswer) => {
+			const rl = createInterface({ input, output });
+			let settled = false;
+			const onAbort = () => rl.close();
+			const settle = (answer: string) => {
+				if (settled) return;
+				settled = true;
+				options.signal?.removeEventListener("abort", onAbort);
+				resolveAnswer(answer);
+			};
+			options.signal?.addEventListener("abort", onAbort, { once: true });
+			rl.once("close", () => settle(""));
+			rl.question(question, (answer) => {
+				settle(answer);
+				rl.close();
+			});
+		});
+}
+
 function defaultPrompt(
 	question: string,
 	options: { signal?: AbortSignal } = {},
 ): Promise<string> {
-	return new Promise((resolveAnswer) => {
-		const rl = createInterface({
-			input: process.stdin,
-			output: process.stderr,
-		});
-		const onAbort = () => rl.close();
-		options.signal?.addEventListener("abort", onAbort, { once: true });
-		rl.question(question, (answer) => {
-			rl.close();
-			resolveAnswer(answer);
-		});
-		rl.once("close", () => {
-			options.signal?.removeEventListener("abort", onAbort);
-			resolveAnswer("");
-		});
-	});
+	return readlinePrompt(process.stdin, process.stderr)(question, options);
 }
 
 /**

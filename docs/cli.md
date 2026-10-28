@@ -385,3 +385,17 @@ agent-workflow inspect "$id" --failures --results
 agent-workflow stop "$id" && agent-workflow resume "$id" --detach
 agent-workflow prune --keep 20 --yes
 ```
+
+## Change log
+
+- **Live bundle 5 (WP39): terminal answers were read as no answer.** On a real terminal every y/N
+  question of the CLI (the `auto` consent and pick-list, `Proceed with these capability
+  degradations?`, the dynamic-controller approval of foreground `run`/`dynamic`/`wait`/`resume`, and
+  `approve`) received an empty answer whatever was typed: the readline prompt closed its interface
+  before resolving the typed line, and the synchronous `close` event resolved `""` first. So `y` to
+  the `auto` consent printed "Not sent: you did not agree", a degradation confirmation declined, and
+  an approval stayed open (`dynamic_approval_timeout`). Nothing was sent or started by mistake (every
+  path fails closed). The prompt (`readlinePrompt`) now settles the typed line before closing; end of
+  input and an abort still answer `""`. The unit tests of these flows script `io.prompt` and never ran
+  the real prompt; `test/unit/host-wp39-cli-readline-prompt.test.mjs` runs it on a stream (fails with
+  the old ordering: `'' !== 'y'`).
