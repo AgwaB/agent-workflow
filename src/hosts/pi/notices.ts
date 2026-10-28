@@ -6,9 +6,12 @@
 // 5 runs are listed, and a run is re-notified only when its status/updatedAt changed, its
 // acknowledgement became stale since the last notice, or 6 hours passed (per-run state in
 // `.agent-workflow/workflows/unfinished-notices.json`, pruned on write). Hints point at `/aw`.
+// WP38: a malformed acknowledgement sidecar no longer hides every notice (it suppresses none, as in
+// pi-workflow).
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { listUnfinishedNoticesIgnoringInvalidAcknowledgements } from "../../core/workflow-notices.js";
 import type { HostApiContext } from "../api.js";
 import type { PiHostApi } from "./host.js";
 import { AW_COMMAND } from "./names.js";
@@ -36,7 +39,10 @@ interface NoticeState {
 	lastNotifiedAt?: string;
 }
 
-function noticesFromData(data: Record<string, unknown>): {
+function noticesFromData(data: {
+	notices?: unknown;
+	acknowledgements?: unknown;
+}): {
 	notices: ListedNotice[];
 	acknowledgements: ListedAcknowledgement[];
 } {
@@ -89,8 +95,20 @@ export async function unfinishedRunNotice(
 	ctx: HostApiContext,
 	nowMs: number,
 ): Promise<string | undefined> {
-	const listed = await api.noticesAction(ctx, { argv: ["list"] });
-	const { notices, acknowledgements } = noticesFromData(listed.data);
+	// pi-workflow: a malformed or invalid acknowledgement sidecar never suppresses a notice. The
+	// strict `notices list` refuses it, so list again treating it as "no acknowledgements".
+	const data = await api
+		.noticesAction(ctx, { argv: ["list"] })
+		.then((listed) => listed.data)
+		.catch(async (error: unknown) => {
+			const lenient =
+				await listUnfinishedNoticesIgnoringInvalidAcknowledgements(
+					ctx.cwd,
+				).catch(() => undefined);
+			if (!lenient) throw error;
+			return lenient;
+		});
+	const { notices, acknowledgements } = noticesFromData(data);
 	if (notices.length === 0) return undefined;
 	const acknowledged = new Map(
 		acknowledgements.map((entry) => [entry.runId, entry]),

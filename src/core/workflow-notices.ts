@@ -243,7 +243,21 @@ export async function noticeAcknowledgementMatch(
 	}
 }
 
-async function listNotices(cwd: string) {
+/**
+ * The session-start notifier's list (pi-workflow `notifyUnfinishedRuns`): a malformed or invalid
+ * acknowledgement sidecar never suppresses a notice, so it counts as "no acknowledgements" here
+ * (the `notices` command itself still refuses it and preserves its bytes).
+ */
+export function listUnfinishedNoticesIgnoringInvalidAcknowledgements(
+	cwd: string,
+): ReturnType<typeof listNotices> {
+	return listNotices(cwd, { ignoreInvalidAcknowledgements: true });
+}
+
+async function listNotices(
+	cwd: string,
+	options: { ignoreInvalidAcknowledgements?: boolean } = {},
+) {
 	let root: string;
 	try {
 		root = await noticeRoot(cwd);
@@ -252,7 +266,13 @@ async function listNotices(cwd: string) {
 			return { notices: [], acknowledgements: [], warnings: [] };
 		throw error;
 	}
-	const state = parseSidecar(await sidecarBytes(root));
+	let state: NoticeAcknowledgements;
+	try {
+		state = parseSidecar(await sidecarBytes(root));
+	} catch (error) {
+		if (!options.ignoreInvalidAcknowledgements) throw error;
+		state = { schema: SCHEMA, acknowledgements: [] };
+	}
 	const notices: ObservedNotice[] = [];
 	const warnings: string[] = [];
 	for (const entry of await readdir(root, { withFileTypes: true })) {
