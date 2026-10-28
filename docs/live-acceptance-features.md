@@ -294,6 +294,28 @@ Validation (final commit): `npm run validate` exit 0 twice at the default concur
 acceptance 0 unexplained in every fixture and variant; `node tools/release/plugins.mjs check`
 passes.
 
+## WP42 review round 1 fixes
+
+Branch `wp42-review-fixes-1` from main `3ebf279` (WP39b included); no model or agent-CLI call.
+Input: the pre-release feature review of `505fc78` (2 High, 3 Medium; reviewer's probes adapted
+into the tests below). One commit per finding; every regression test was written first and run
+against the unfixed code, where it failed as listed.
+
+| # | Finding | Fix | Commit | Test | Pre-fix failure confirmed |
+|---|---|---|---|---|---|
+| 1 | High: auto launch dropped the session signal | `autoAction` keeps `signal` on the launch request; the launch re-checks it after the snapshot, the profile chooser and the launch fence, and passes it as the engine's `launchSignal` (fence after the capability confirm, before publication and dispatch; exact-run stop once published); an aborted launch is `LAUNCH_CANCELLED` → auto `phase: "cancelled"`; the engine also removes an unpublished run directory of a cancelled launch | `25d2024` | `host-wp42-auto-late-cancel.test.mjs` (shutdown inside the profile chooser; inside the capability-degradation confirm) | yes (1 run published, worker submitted) |
+| 2 | High: consent did not bind the classifier packet | core `prepareWorkflowAutoComparison` builds the packet (catalog scan, bounded descriptions, task) once before consent; the preview lists exactly its candidates; `sendPreparedWorkflowAutoComparison` sends that frozen packet (no rescan) | `ed534b7` | `host-wp42-auto-consent-packet.test.mjs` (workflow added during consent; description changed during consent; preview list = transmitted list) | yes (sentinel description transmitted) |
+| 3 | Medium: lost updates in workflow preferences | every set/clear runs its read–modify–write under the runtime dir-lock (`store-lock.ts`, `acquireDirectoryLock` as the launch guard); the saved user profiles (`set`, `delete`, `default`) had the same pattern and use it too | `22f9ffa` | `host-wp42-preferences-lock.test.mjs` (paused-before-rename interleavings: two saves keep both; set/clear does not resurrect; same for user profiles set/set and default/delete) | yes (all four) |
+| 4 | Medium: notification writers followed symlinks | `containedProjectStateDir(create)` checks `.agent-workflow` is a real directory (or creates it as one, non-recursive) and that it is contained before creating the leaf, then re-checks; the hook shell only reads (`[ -d ]`, `find -newer`), the stamp is written by `notify-check --stamp hook-<host>` (exclusive temp, `futimes` to the check start, rename in the contained directory) | `a27653a` | `host-wp42-notify-containment.test.mjs` (symlinked `.agent-workflow` / `notify-check/` for the hook, direct `notify-check` with and without `--stamp`, and `wait`'s seen-marker; outside directory unchanged) | yes (5 of 8; the other 3 guard behavior that already held) |
+| 5 | Medium: the idle optimization stranded the backlog | a check that deferred runs (cap 5) removes the stamp instead of writing it, so the next prompt checks again until drained | `6a9b41a` | `host-wp42-notify-backlog.test.mjs` (six settled runs, two hook prompts with no change → five, then one; then idle) | yes (second prompt delivered nothing) |
+
+Validation (final tree): `npm run validate` exit 0 twice with `AGENT_WORKFLOW_TEST_CONCURRENCY=4`;
+`npm run e2e` exit 0; replay acceptance 0 unexplained in every fixture and variant;
+`node tools/release/plugins.mjs check` passes. Residual: the containment checks are check-then-act
+(a concurrent swap of `.agent-workflow` between the check and the write is not covered, as before);
+the stop-after-publication path of finding 1 relies on the existing engine semantics and has no new
+interleaving test.
+
 ## Live-call ledger (18 workflow runs of ≤ 20)
 
 Usage = the run's task roll-up (input excludes cache reads/writes). Claude costs are
