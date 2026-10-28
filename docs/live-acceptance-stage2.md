@@ -590,3 +590,53 @@ Notes:
 - Docs: docs/pi-host.md (F1, F3, F4), docs/host-api.md (F2).
 - Validation: `npm run validate` twice, `npm run e2e`, replay acceptance (0 unexplained),
   `node tools/release/plugins.mjs check`. None of the fixes was rerun live.
+
+## WP19 round 5
+
+Branch `wp19-fixes-5` from `7fbc8f6`, one commit per finding plus this docs commit (`fix: WP19
+round-5 review fixes`), no model or agent-CLI calls. Input: the round-5 review (gpt-6-astra,
+"Request changes", finding 1 major, 2–3 minor) and its probes (`aw-wp19r5-additional`,
+`aw-wp19r5-renewal`), the basis of the regression tests. Every listed test was run against a
+temporary build of `7fbc8f6` (`git archive 7fbc8f6`, `npm run build`, the new test files and
+`test/helpers/pi-delivery-fixtures.mjs` copied in, real-runtime env var set): each defect test
+fails there with an assertion reproducing the reviewer's scenario; the positive controls pass on
+both. All pass after the fix.
+
+| # | Finding | Regression test | Fails on `7fbc8f6` |
+|---|---|---|---|
+| 1 | Hot `/reload` upgrade adopted round-3 process state (entries without a queue lifetime suppressed every queue): `/new` → `/resume` lost the completion | `test/unit/host-wp19r5-pi-upgrade-state.test.mjs` (fake runtime, always on; Pi 1.1's real `AgentSessionRuntime`/`AgentSession` queue/`SessionManager`, opt-in) | yes (0 completions in the resumed history, fake and real; schema-mismatch case: state reused) |
+| 2 | Queue ends were published only for receipts still in the bounded 64/256 maps; another live process deferred to the evicted one forever, also with unreadable history, and its tracker did not retry | `test/unit/host-wp19r5-pi-queue-end.test.mjs` | yes (257 deliveries: 1 suppressed with readable history, 257 with unreadable history; deferred deliveries not retried; no tombstones) |
+| 3 | A failed recovery deleted the receipt and reset the two-attempt budget (unreadable history) | `test/unit/host-wp19r5-pi-attempt-budget.test.mjs` | yes (3 successful sends) |
+
+Pi delivery guarantee after round 5 (docs/pi-host.md, "Delivery decision"):
+
+| Situation | Messages per epoch |
+|---|---|
+| Normal | exactly 1 |
+| `/reload` (queue retained) | exactly 1 |
+| `/reload` upgrading across a process-state schema | at least 1, at most 1 duplicate |
+| `/new`, `/resume`, `/fork` (queue disposed), session active again | exactly 1 in its history (resent once if the queue dropped it) |
+| Another live Pi process queued it | deferred and retried while its queue is alive (≤ 10 min, no tombstone), then reconciled |
+| Crash, history readable | 1 if the durable history has it, else 1 more on restart |
+| Crash, history unreadable | at most 2 successful enqueue attempts; at least 1 unless two attempts crashed before sending |
+
+Notes:
+
+- 1: the process state key is now `Symbol.for("agent-workflow.pi-feedback.process-state.v2")`
+  with `schema: 2`; other state is never reused (fresh state, new sender id) and an entry without
+  a concrete queue lifetime never suppresses. Rule documented in docs/pi-host.md: bump the schema
+  on any incompatible change; older state is only downgraded to "reconcile against the history".
+  The round-4 test of the state internals now reads the `v2` key.
+- 2: `session_shutdown` (`new`/`resume`/`fork`/`quit`) writes
+  `.agent-workflow/pi-feedback-queue-ends/<lifetime>.json` (pruned after 20 min, at most 1024);
+  `deliverCompletion` returns the new outcome `deferred` (tracked and retried, also from catch-up,
+  without a turn) instead of `already-delivered` when it leaves a delivery to another live owner.
+  With unreadable history the same lifetime/tombstone/10 min rule applies (round 4 deferred
+  unconditionally); the round-4 test of that case was updated accordingly (`deferred`; a receipt
+  naming no queue lifetime gets one bounded resend).
+- 3: a dropped reservation (fence, or `sendMessage` threw) restores the receipt it replaced.
+- Docs: docs/pi-host.md (delivery decision, guarantee table, upgrade rule, tombstones).
+- Validation: `npm run validate` twice, `npm run e2e`, replay acceptance (0 unexplained),
+  `node tools/release/plugins.mjs check`, opt-in real-Pi tests with
+  `AGENT_WORKFLOW_PI_CODING_AGENT_DIR` and `AGENT_WORKFLOW_PI_SESSION_MANAGER` set. None of the
+  fixes was rerun live.

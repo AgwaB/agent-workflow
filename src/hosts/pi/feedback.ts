@@ -30,6 +30,9 @@
 // `ctx.sessionManager` object) that holds it is alive; `session_shutdown` with `new`/`resume`/
 // `fork`/`quit` ends it (`reload` keeps it). Unreadable-history resends count orphaned pending
 // reservations too. The in-memory delivery state is bounded.
+// WP19 round 5: process state of another module version never suppresses (versioned key and
+// schema; at most one duplicate, never a loss); queue ends are durable tombstones, a delivery left
+// to another live owner is `deferred` and retried; a dropped reservation keeps the attempt history.
 import { createHash, randomBytes } from "node:crypto";
 import {
 	mkdir,
@@ -37,6 +40,7 @@ import {
 	readdir,
 	readFile,
 	rename,
+	stat,
 	unlink,
 	writeFile,
 } from "node:fs/promises";
@@ -806,15 +810,26 @@ async function pruneQueueEndTombstones(
 		const file = join(dir, name);
 		if (file === keep) continue;
 		if (!name.endsWith(".json")) {
-			// A temp file left by a crashed writer.
-			if (name.endsWith(".tmp")) await unlink(file).catch(() => undefined);
+			// A temp file left by a crashed writer (a concurrent writer's is recent).
+			if (name.endsWith(".tmp")) {
+				const modifiedMs = await stat(file)
+					.then((info) => info.mtimeMs)
+					.catch(() => Number.NaN);
+				if (nowMs - modifiedMs > QUEUE_END_RETAIN_MS)
+					await unlink(file).catch(() => undefined);
+			}
 			continue;
 		}
-		const endedAtMs = await readFile(file, "utf8")
-			.then((text) =>
-				Date.parse((JSON.parse(text) as { endedAt?: string }).endedAt ?? ""),
-			)
-			.catch(() => Number.NaN);
+		let endedAtMs = Number.NaN;
+		try {
+			const value = JSON.parse(await readFile(file, "utf8")) as {
+				endedAt?: unknown;
+			};
+			if (typeof value?.endedAt === "string")
+				endedAtMs = Date.parse(value.endedAt);
+		} catch {
+			// Unreadable or torn (tombstones are renamed into place): pruned below.
+		}
 		if (!Number.isFinite(endedAtMs) || nowMs - endedAtMs > QUEUE_END_RETAIN_MS)
 			await unlink(file).catch(() => undefined);
 		else kept.push({ file, endedAtMs });
