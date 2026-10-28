@@ -173,7 +173,9 @@ non-passing verdict as `failed` (for example deep-review's `PARTIAL_REVIEW`, sta
 `support_declared_failed`) leaves the run `failed`, so `run`/`wait` exit 1 and a CI job fails. The
 text still presents it as a finished run, not as a crash: `Workflow finished — verdict: PARTIAL_REVIEW
 (report ready)`, the run status on its own line, the result preview and the report path; `--json`
-has `data.verdict` and `data.verdictGate: true`. Passing verdicts (for example `NEEDS_WORK` and
+has `data.verdict` and `data.verdictGate: true`. WP19: only when the output task declared a
+domain verdict *and* wrote its report inside the run directory; any other support failure is shown
+as a failure. Passing verdicts (for example `NEEDS_WORK` and
 `REVIEW_COMPLETE` in deep-review) complete the run and exit 0.
 
 ## Environment

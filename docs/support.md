@@ -129,3 +129,10 @@ Each adapter document has the full list under "Known limits".
   shown as `0`, the usage roll-up and token semantics, kept sessions, the load flakes of `stop` and
   reconcile. Details:
   [`live-acceptance-stage1.md`](live-acceptance-stage1.md#fixed-after-acceptance-wp12a).
+- WP19 (stage-2 review): a failed run is presented as "finished — verdict: X (report ready)" only with
+  a declared domain verdict and a report inside the run directory; other support failures are shown
+  as failures. The terminal CLI's default executor prefers a verified login (Pi: `pi --list-models`
+  lists a model with configured auth) over an unknown one. Host text that carries worker output
+  (`logs`, `wait`, `status`, `inspect`, Pi completion messages) redacts structured credentials and
+  macOS/Linux/Windows home paths, and `logs` reads only files inside `.agent-workflow/`. Executor
+  attempt retention keeps a tombstone for every launched attempt (never reported as not started).

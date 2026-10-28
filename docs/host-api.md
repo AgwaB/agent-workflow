@@ -212,6 +212,11 @@ gate (`isVerdictGateFailure`: run `failed`, every task completed or skipped exce
 task (before WP18b only a *completed* output task was read, so these runs had no preview and no
 report), and `text` leads with `Workflow finished — verdict: X (report ready)` and keeps the run
 status on its own line. Presentation only: `status` and the outcome stay `failed` (CLI exit 1).
+WP19 (review #10): that structural shape is only the precondition. `verdictGate` also needs
+explicit evidence: a non-empty domain verdict in the output task's control *and* an existing
+final-report artifact whose task dir resolves inside the run's own directory. A generic support
+failure without them (for example a control with only `status: "failed"` and "required evidence
+missing") is presented as an ordinary failure: no `verdictGate`, no preview from that task.
 `statusAction` for one terminal run adds the same headline, `Verdict:` and report lines, and
 `data.run.{verdict?, verdictGate?, reportArtifacts}`. `nextRetry` (WP18b) is set while a
 still-running run only waits for a scheduled task retry (no task running, every startable task in a
