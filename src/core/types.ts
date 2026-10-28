@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/types.ts. MIT, same author. Changes: run.nativeHost→run.hostContext (HostContext); runtime.nativeToolsEnabled→runtime.inheritHostTools; added allowSharedCheckoutWrites (R#5), inheritHostTools run/compile flags, agent legacySource; artifact provenance digests config + MCP server spec instead of extension wrapper bytes. WP4c: run.executor (executor selection), spec executionProfileExecutors, WorkflowRunExecutionProfile.executor, task.ownedSessions, usage/budget record source "executor". WP4d: run.capabilityNegotiation (B4), spec allowReadOnlyDowngrade/executionProfileStrictCapabilities, WorkflowRunExecutionProfile.strictCapabilities. WP4e: run.permissionMode (WorkflowRunPermissionMode), spec executionProfilePermissionModes, WorkflowRunExecutionProfile.permissionMode, compiled.permissionMode, negotiation policy.permissionMode.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/types.ts. MIT, same author. Changes: run.nativeHost→run.hostContext (HostContext); runtime.nativeToolsEnabled→runtime.inheritHostTools; added allowSharedCheckoutWrites (R#5), inheritHostTools run/compile flags, agent legacySource; artifact provenance digests config + MCP server spec instead of extension wrapper bytes. WP4c: run.executor (executor selection), spec executionProfileExecutors, WorkflowRunExecutionProfile.executor, task.ownedSessions, usage/budget record source "executor". WP4d: run.capabilityNegotiation (B4), spec allowReadOnlyDowngrade/executionProfileStrictCapabilities, WorkflowRunExecutionProfile.strictCapabilities. WP4e: run.permissionMode (WorkflowRunPermissionMode), spec executionProfilePermissionModes, WorkflowRunExecutionProfile.permissionMode, compiled.permissionMode, negotiation policy.permissionMode. WP31: role-level profiles (WorkflowRoleAssignment/WorkflowRoleMap, spec executionProfileRoles, run.roleExecution, compiled/task runtime.executor in role-profile runs, negotiation executors for mixed runs, executor source workflow-preference).
 import type { ExecutorCapabilities } from "../sdk/capabilities.js";
 import type { AuthStatus } from "../sdk/contract.js";
 import type { ExecutorDescriptor } from "../sdk/descriptor.js";
@@ -151,6 +151,19 @@ export interface WorkflowForeachBatchGrouping {
 	groupKey?: string;
 }
 
+/** WP31 (B2): what a profile assigns to one role. Every field is optional. */
+export interface WorkflowRoleAssignment {
+	executor?: string;
+	model?: string;
+	effort?: ThinkingLevel;
+}
+
+/**
+ * WP31: role key → assignment. Keys: a `profileRole` (planning, research-execution, synthesis,
+ * verification, final-judgment), `agent:<agent name>`, or `default` (every role not listed).
+ */
+export type WorkflowRoleMap = Record<string, WorkflowRoleAssignment>;
+
 export interface ExecutionProfileStageOverride {
 	model?: string;
 	thinking?: ThinkingLevel;
@@ -197,6 +210,11 @@ export interface ArtifactGraphWorkflowSpec {
 	 * declared execution profile selects.
 	 */
 	executionProfilePermissionModes?: Record<string, "free" | "safe">;
+	/**
+	 * agent-workflow (WP31, B2): role → executor/model/effort per declared execution profile.
+	 * Role keys: a `profileRole`, `agent:<name>` or `default`.
+	 */
+	executionProfileRoles?: Record<string, WorkflowRoleMap>;
 	/**
 	 * agent-workflow (WP4d, B4): when an executor has no precise tool allowlist
 	 * (or cannot map a tool), run the stage with readOnly enforced instead of
@@ -460,6 +478,11 @@ export interface CompiledTaskRuntime {
 	 */
 	inheritHostTools?: boolean;
 	maxRuntimeMs?: number;
+	/**
+	 * WP31: executor id of this task in a run with a role profile (mixed executors, Q4). Absent:
+	 * the run's executor (`run.executor`).
+	 */
+	executor?: string;
 }
 
 export interface CompiledTaskSafety {
@@ -1290,6 +1313,8 @@ export interface WorkflowTaskRunRecord {
 		fast?: FastMode;
 		approvalMode: ApprovalMode;
 		maxRuntimeMs?: number;
+		/** WP31: the task's executor in a run with a role profile (absent: `run.executor`). */
+		executor?: string;
 	};
 	tools?: string[];
 	cwd: string;
@@ -1451,6 +1476,8 @@ export type WorkflowRouteDepth = "quick" | "standard" | "max";
 /** Where a run's executor came from (B2: run flag > workflow profile > user profile > default). */
 export type WorkflowRunExecutorSource =
 	| "run-flag"
+	/** WP31: the saved per-workflow preference (role overrides). */
+	| "workflow-preference"
 	| "workflow-profile"
 	| "user-profile"
 	/** Explicit host override (`defaultExecutor`) or a legacy record without a selection. */
@@ -1559,6 +1586,51 @@ export interface WorkflowRunCapabilityNegotiation {
 	preview: string;
 	/** WP12a: one-line notices (legacy agents shadowing bundled agents), also in `preview`. */
 	notices?: string[];
+	/**
+	 * WP31 (Q4): the other executors of a mixed run (role profile), each probed once. Stage reports
+	 * name their executor (`report.executorId`); the top-level fields belong to `executorId`.
+	 */
+	executors?: Record<string, WorkflowRunNegotiatedExecutor>;
+}
+
+/** WP31: probe and effective capabilities of one more executor of a mixed run. */
+export interface WorkflowRunNegotiatedExecutor {
+	executorVersion: string;
+	contractVersion: string;
+	probe: WorkflowExecutorProbeSummary;
+	capabilities: ExecutorCapabilities;
+}
+
+/** WP31: where a stage's executor came from (B2 precedence extended to roles). */
+export type WorkflowStageExecutorSource =
+	| WorkflowRunExecutorSource
+	| "parent-stage";
+
+/** WP31: the resolved role assignment of one model-backed stage slot. */
+export interface WorkflowStageRoleAssignment {
+	executor: string;
+	source: WorkflowStageExecutorSource;
+	/** Profile (or workflow) name of the layer that chose the executor. */
+	profile?: string;
+	/** Role key that matched (`agent:<name>`, a profileRole or `default`). */
+	role?: string;
+	/** Model / effort a role entry set (absent: stage, agent, run defaults or the executor's own). */
+	model?: string;
+	effort?: ThinkingLevel;
+}
+
+/** WP31: role-profile resolution frozen at run creation (absent when no role profile applies). */
+export interface WorkflowRunRoleExecution {
+	schema: "agent-workflow-role-execution-v1";
+	/** More than one executor runs stages of this run (Q4). */
+	mixed: boolean;
+	/** Every executor the run uses, including `run.executor`. */
+	executors: Record<string, WorkflowRunExecutorSelection>;
+	/** Canonical stage slot id → assignment. */
+	stages: Record<string, WorkflowStageRoleAssignment>;
+	/** Layers that contributed, in precedence order. */
+	layers: Array<{ tier: string; name: string }>;
+	warnings?: string[];
 }
 
 /** Effective declared or user-saved profile frozen into a new run. */
@@ -1579,6 +1651,8 @@ export interface WorkflowRunExecutionProfile {
 	permissionMode?: "free" | "safe";
 	/** Definition identity captured with a user-saved profile before launch. */
 	definitionFingerprint?: string;
+	/** WP31: role map of a saved user profile or preset. */
+	roles?: WorkflowRoleMap;
 	/** Canonical stage-id → captured profile overrides applied at compile time. */
 	stageOverrides: Record<string, ExecutionProfileStageOverride>;
 }
@@ -1801,6 +1875,8 @@ export interface WorkflowRunRecord {
 	executionProfile?: WorkflowRunExecutionProfile;
 	/** Executor selection frozen at creation; absent on legacy pi-workflow records. */
 	executor?: WorkflowRunExecutorSelection;
+	/** WP31: per-stage executor/model/effort of a run with a role profile. */
+	roleExecution?: WorkflowRunRoleExecution;
 	/**
 	 * B4 capability negotiation done before the first launch (WP4d): executor
 	 * probe summary, effective capabilities, per-stage reports and the preview.

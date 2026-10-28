@@ -138,6 +138,9 @@ export function workflowExecutorRegistration(
 export interface RunExecutorSelectionInput {
 	/** Run flag (`--executor`). */
 	runFlag?: string;
+	/** WP31: workflow name of the saved per-workflow preference and its executor. */
+	workflowPreferenceName?: string;
+	workflowPreferenceExecutor?: string;
 	/** Name of the workflow-declared execution profile selected for the run. */
 	workflowProfileName?: string;
 	workflowProfileExecutor?: string;
@@ -162,6 +165,8 @@ function describeSource(
 	profile: string | undefined,
 ): string {
 	if (source === "run-flag") return "run flag";
+	if (source === "workflow-preference")
+		return `saved preference of workflow "${profile}"`;
 	if (source === "workflow-profile")
 		return `workflow execution profile "${profile}"`;
 	if (source === "user-profile") return `saved user profile "${profile}"`;
@@ -187,6 +192,11 @@ export function resolveRunExecutorSelection(
 		profile?: string;
 	}> = [
 		{ id: input.runFlag, source: "run-flag" },
+		{
+			id: input.workflowPreferenceExecutor,
+			source: "workflow-preference",
+			profile: input.workflowPreferenceName,
+		},
 		{
 			id: input.workflowProfileExecutor,
 			source: "workflow-profile",
@@ -268,11 +278,29 @@ export function workflowDeclaredProfileExecutor(
  * Descriptor a run launches with. Uses the descriptor recorded at run creation (rediscovery,
  * R#15); a run without one (legacy pi-workflow record) cannot launch.
  */
-export function recordedRunExecutorDescriptor(run: {
-	runId: string;
-	executor?: WorkflowRunExecutorSelection;
-}): ExecutorDescriptor {
-	const selection = run.executor;
+export function recordedRunExecutorDescriptor(
+	run: {
+		runId: string;
+		executor?: WorkflowRunExecutorSelection;
+		roleExecution?: {
+			executors?: Record<string, WorkflowRunExecutorSelection>;
+		};
+	},
+	/** WP31: the task's executor in a mixed run (absent or the run's executor: `run.executor`). */
+	executorId?: string,
+): ExecutorDescriptor {
+	const selection =
+		executorId === undefined || executorId === run.executor?.id
+			? run.executor
+			: Object.hasOwn(run.roleExecution?.executors ?? {}, executorId)
+				? run.roleExecution!.executors![executorId]
+				: undefined;
+	if (selection === undefined && executorId !== undefined && run.executor)
+		throw new WorkflowExecutorUnavailableError(
+			`workflow run ${run.runId} records no descriptor for the task executor "${executorId}"; it cannot launch the task (start a new run)`,
+			executorId,
+			"default",
+		);
 	if (selection === undefined)
 		throw new WorkflowExecutorUnavailableError(
 			`workflow run ${run.runId} records no executor; it cannot launch tasks (start a new run)`,

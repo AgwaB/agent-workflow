@@ -1,8 +1,9 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/artifact-graph-schema.ts. MIT, same author. Changes: new optional top-level executionProfileExecutors (WP4c, B2: executor id per declared profile); WP4d: optional top-level executionProfileStrictCapabilities and allowReadOnlyDowngrade (B4 capability negotiation). WP4e: optional top-level executionProfilePermissionModes.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/artifact-graph-schema.ts. MIT, same author. Changes: new optional top-level executionProfileExecutors (WP4c, B2: executor id per declared profile); WP4d: optional top-level executionProfileStrictCapabilities and allowReadOnlyDowngrade (B4 capability negotiation). WP4e: optional top-level executionProfilePermissionModes. WP31: optional top-level executionProfileRoles (role → executor/model/effort per declared profile).
 import { isAbsolute } from "node:path";
 
 import { LEVEL_CAPABILITY_NAMES } from "../sdk/capabilities.js";
 import { DYNAMIC_OUTPUT_PROFILES } from "./dynamic-profiles.js";
+import { parseWorkflowRoleMap } from "./role-profiles.js";
 import { isModelTaskMaxRuntimeMs } from "./model-task-runtime.js";
 import { compactStrings } from "./strings.js";
 import { isSimpleJsonPath } from "./workflow-runtime.js";
@@ -47,6 +48,7 @@ const TOP_LEVEL_KEYS = new Set([
 	"executionProfileExecutors",
 	"executionProfileStrictCapabilities",
 	"executionProfilePermissionModes",
+	"executionProfileRoles",
 	"allowReadOnlyDowngrade",
 	"artifactGraph",
 ]);
@@ -374,6 +376,11 @@ function validateArtifactGraphTopLevel(
 		spec.executionProfiles,
 		issues,
 	);
+	validateExecutionProfileRoles(
+		spec.executionProfileRoles,
+		spec.executionProfiles,
+		issues,
+	);
 	if (
 		spec.allowReadOnlyDowngrade !== undefined &&
 		typeof spec.allowReadOnlyDowngrade !== "boolean"
@@ -444,6 +451,43 @@ function validateExecutionProfilePermissionModes(
 			});
 		if (mode !== "free" && mode !== "safe")
 			issues.push({ path: entryPath, message: 'must be "free" or "safe"' });
+	}
+}
+
+/**
+ * agent-workflow (WP31, B2): `executionProfileRoles: { <declared profile>: { <role>: { executor?,
+ * model?, effort? } } }` — roles are a profileRole, `agent:<name>` or `default`.
+ */
+function validateExecutionProfileRoles(
+	value: unknown,
+	profiles: unknown,
+	issues: ValidationIssue[],
+): void {
+	if (value === undefined) return;
+	const path = "$.executionProfileRoles";
+	const map = recordAt(value, path, issues);
+	if (!map) return;
+	const declared =
+		profiles !== null &&
+		typeof profiles === "object" &&
+		!Array.isArray(profiles)
+			? (profiles as Record<string, unknown>)
+			: {};
+	for (const [name, roles] of Object.entries(map)) {
+		const entryPath = `${path}.${jsonKey(name)}`;
+		if (!Object.hasOwn(declared, name))
+			issues.push({
+				path: entryPath,
+				message: `unknown execution profile "${name}"`,
+			});
+		try {
+			parseWorkflowRoleMap(roles, entryPath);
+		} catch (error) {
+			issues.push({
+				path: entryPath,
+				message: error instanceof Error ? error.message : String(error),
+			});
+		}
 	}
 }
 
