@@ -1,0 +1,307 @@
+{
+	"case": "c5-cli-codex-concurrent-2",
+	"hostKind": "cli",
+	"runId": "workflow_mvrevrco_4b8933",
+	"name": "deep-review",
+	"status": "failed",
+	"cwd": "/tmp/aw-live4b/c5-cli-codex-2",
+	"createdAt": "2026-10-28T01:04:05.689Z",
+	"updatedAt": "2026-10-28T01:05:16.544Z",
+	"wallS": 71,
+	"executor": {
+		"id": "codex",
+		"source": "run-flag"
+	},
+	"permissionMode": {
+		"mode": "free",
+		"source": "default"
+	},
+	"taskSummary": {
+		"total": 13,
+		"pending": 0,
+		"running": 0,
+		"blocked": 0,
+		"completed": 12,
+		"failed": 1,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"capability": {
+		"confirmation": "non-interactive",
+		"degradations": [
+			"triage.main: CAPABILITY_WARNING:readOnly",
+			"triage.main: CAPABILITY_MISSING:toolAllowlist.fine",
+			"triage.main: CAPABILITY_MISSING:usage.cost",
+			"triage.main: CAPABILITY_WARNING:contextIsolation",
+			"reviewers.item: CAPABILITY_WARNING:readOnly",
+			"reviewers.item: CAPABILITY_MISSING:toolAllowlist.fine",
+			"reviewers.item: CAPABILITY_MISSING:usage.cost",
+			"reviewers.item: CAPABILITY_WARNING:contextIsolation",
+			"devil-advocate.item: CAPABILITY_WARNING:readOnly",
+			"devil-advocate.item: CAPABILITY_MISSING:toolAllowlist.fine",
+			"devil-advocate.item: CAPABILITY_MISSING:usage.cost",
+			"devil-advocate.item: CAPABILITY_WARNING:contextIsolation",
+			"report.main: CAPABILITY_WARNING:readOnly",
+			"report.main: CAPABILITY_MISSING:usage.cost",
+			"report.main: CAPABILITY_WARNING:contextIsolation",
+			"reviewers.runtime-correctness: CAPABILITY_WARNING:readOnly",
+			"reviewers.runtime-correctness: CAPABILITY_MISSING:toolAllowlist.fine",
+			"reviewers.runtime-correctness: CAPABILITY_MISSING:usage.cost",
+			"reviewers.runtime-correctness: CAPABILITY_WARNING:contextIsolation",
+			"reviewers.boundary-safety: CAPABILITY_WARNING:readOnly",
+			"reviewers.boundary-safety: CAPABILITY_MISSING:toolAllowlist.fine",
+			"reviewers.boundary-safety: CAPABILITY_MISSING:usage.cost",
+			"reviewers.boundary-safety: CAPABILITY_WARNING:contextIsolation",
+			"devil-advocate.finding-001: CAPABILITY_WARNING:readOnly",
+			"devil-advocate.finding-001: CAPABILITY_MISSING:toolAllowlist.fine",
+			"devil-advocate.finding-001: CAPABILITY_MISSING:usage.cost",
+			"devil-advocate.finding-001: CAPABILITY_WARNING:contextIsolation",
+			"devil-advocate.finding-002: CAPABILITY_WARNING:readOnly",
+			"devil-advocate.finding-002: CAPABILITY_MISSING:toolAllowlist.fine",
+			"devil-advocate.finding-002: CAPABILITY_MISSING:usage.cost",
+			"devil-advocate.finding-002: CAPABILITY_WARNING:contextIsolation",
+			"devil-advocate.finding-003: CAPABILITY_WARNING:readOnly",
+			"devil-advocate.finding-003: CAPABILITY_MISSING:toolAllowlist.fine",
+			"devil-advocate.finding-003: CAPABILITY_MISSING:usage.cost",
+			"devil-advocate.finding-003: CAPABILITY_WARNING:contextIsolation"
+		]
+	},
+	"usage": {
+		"source": "task-rollup",
+		"capturedAt": "2026-10-28T01:05:16.552Z",
+		"taskCount": 13,
+		"tasksReporting": 7,
+		"inputTokens": 75226,
+		"outputTokens": 7119,
+		"totalTokens": 444457,
+		"cacheCreationInputTokens": 0,
+		"cacheReadInputTokens": 362112,
+		"costUsd": null
+	},
+	"failedTasks": [
+		{
+			"taskId": "task-8",
+			"specId": "final.main",
+			"status": "failed",
+			"statusDetail": "support_declared_failed"
+		}
+	],
+	"finalTasks": [
+		{
+			"taskId": "task-8",
+			"specId": "final.main",
+			"status": "failed",
+			"statusDetail": "support_declared_failed",
+			"controlStatus": "failed",
+			"verdict": "PARTIAL_REVIEW",
+			"digest": "Rendered 2 findings: medium=2."
+		}
+	],
+	"perTaskUsage": [
+		{
+			"taskId": "task-1",
+			"specId": "triage.main",
+			"status": "completed",
+			"model": "gpt-5.6-luna",
+			"usage": {
+				"attempts": 1,
+				"incomplete": true,
+				"inputTokens": 15863,
+				"outputTokens": 1258,
+				"totalTokens": 64097,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 46976,
+				"costUsd": null
+			}
+		},
+		{
+			"taskId": "task-9",
+			"specId": "reviewers.runtime-correctness",
+			"status": "completed",
+			"model": "gpt-5.6-luna",
+			"usage": {
+				"attempts": 1,
+				"incomplete": true,
+				"inputTokens": 17398,
+				"outputTokens": 1773,
+				"totalTokens": 102755,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 83584,
+				"costUsd": null
+			}
+		},
+		{
+			"taskId": "task-10",
+			"specId": "reviewers.boundary-safety",
+			"status": "completed",
+			"model": "gpt-5.6-luna",
+			"usage": {
+				"attempts": 1,
+				"incomplete": true,
+				"inputTokens": 9444,
+				"outputTokens": 1292,
+				"totalTokens": 44784,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 34048,
+				"costUsd": null
+			}
+		},
+		{
+			"taskId": "task-11",
+			"specId": "devil-advocate.finding-001",
+			"status": "completed",
+			"model": "gpt-5.6-luna",
+			"usage": {
+				"attempts": 1,
+				"incomplete": true,
+				"inputTokens": 17426,
+				"outputTokens": 1038,
+				"totalTokens": 104864,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 86400,
+				"costUsd": null
+			}
+		},
+		{
+			"taskId": "task-12",
+			"specId": "devil-advocate.finding-002",
+			"status": "completed",
+			"model": "gpt-5.6-luna",
+			"usage": {
+				"attempts": 1,
+				"incomplete": true,
+				"inputTokens": 5407,
+				"outputTokens": 598,
+				"totalTokens": 42741,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 36736,
+				"costUsd": null
+			}
+		},
+		{
+			"taskId": "task-13",
+			"specId": "devil-advocate.finding-003",
+			"status": "completed",
+			"model": "gpt-5.6-luna",
+			"usage": {
+				"attempts": 1,
+				"incomplete": true,
+				"inputTokens": 5455,
+				"outputTokens": 671,
+				"totalTokens": 42606,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 36480,
+				"costUsd": null
+			}
+		},
+		{
+			"taskId": "task-7",
+			"specId": "report.main",
+			"status": "completed",
+			"model": "gpt-5.6-luna",
+			"usage": {
+				"attempts": 1,
+				"incomplete": true,
+				"inputTokens": 4233,
+				"outputTokens": 489,
+				"totalTokens": 42610,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 37888,
+				"costUsd": null
+			}
+		}
+	],
+	"workers": {
+		"task-1": {
+			"files": [
+				"task-1/run_mvrevrh8_f05961/attempts/attempt_mvrevrh8_7ab1fd/codex-app-server.jsonl",
+				"task-1/run_mvrevrh8_f05961/attempts/attempt_mvrevrh8_7ab1fd/exec-events.jsonl",
+				"task-1/run_mvrevrh8_f05961/events.jsonl"
+			],
+			"models": {
+				"gpt-5.6-luna/low": 1
+			},
+			"tools": {
+				"commandExecution": 3
+			}
+		},
+		"task-10": {
+			"files": [
+				"task-10/run_mvrew3wm_0d333b/attempts/attempt_mvrew3wm_06cd4c/codex-app-server.jsonl",
+				"task-10/run_mvrew3wm_0d333b/attempts/attempt_mvrew3wm_06cd4c/exec-events.jsonl",
+				"task-10/run_mvrew3wm_0d333b/events.jsonl"
+			],
+			"models": {
+				"gpt-5.6-luna/low": 1
+			},
+			"tools": {
+				"commandExecution": 2
+			}
+		},
+		"task-11": {
+			"files": [
+				"task-11/run_mvrewni9_5735ad/attempts/attempt_mvrewni9_9e11b8/codex-app-server.jsonl",
+				"task-11/run_mvrewni9_5735ad/attempts/attempt_mvrewni9_9e11b8/exec-events.jsonl",
+				"task-11/run_mvrewni9_5735ad/events.jsonl"
+			],
+			"models": {
+				"gpt-5.6-luna/low": 1
+			},
+			"tools": {
+				"commandExecution": 6
+			}
+		},
+		"task-12": {
+			"files": [
+				"task-12/run_mvrewnq9_131989/attempts/attempt_mvrewnq9_4923a9/codex-app-server.jsonl",
+				"task-12/run_mvrewnq9_131989/attempts/attempt_mvrewnq9_4923a9/exec-events.jsonl",
+				"task-12/run_mvrewnq9_131989/events.jsonl"
+			],
+			"models": {
+				"gpt-5.6-luna/low": 1
+			},
+			"tools": {
+				"commandExecution": 2
+			}
+		},
+		"task-13": {
+			"files": [
+				"task-13/run_mvrewnyz_2208a4/attempts/attempt_mvrewnyz_069701/codex-app-server.jsonl",
+				"task-13/run_mvrewnyz_2208a4/attempts/attempt_mvrewnyz_069701/exec-events.jsonl",
+				"task-13/run_mvrewnyz_2208a4/events.jsonl"
+			],
+			"models": {
+				"gpt-5.6-luna/low": 1
+			},
+			"tools": {
+				"commandExecution": 2
+			}
+		},
+		"task-7": {
+			"files": [
+				"task-7/run_mvrex33w_90529e/attempts/attempt_mvrex33w_9f8881/codex-app-server.jsonl",
+				"task-7/run_mvrex33w_90529e/attempts/attempt_mvrex33w_9f8881/exec-events.jsonl",
+				"task-7/run_mvrex33w_90529e/events.jsonl"
+			],
+			"models": {
+				"gpt-5.6-luna/low": 1
+			},
+			"tools": {
+				"mcp:workflow_artifact/workflow_artifact": 1
+			}
+		},
+		"task-9": {
+			"files": [
+				"task-9/run_mvrew3pd_af99eb/attempts/attempt_mvrew3pd_90e6fe/codex-app-server.jsonl",
+				"task-9/run_mvrew3pd_af99eb/attempts/attempt_mvrew3pd_90e6fe/exec-events.jsonl",
+				"task-9/run_mvrew3pd_af99eb/events.jsonl"
+			],
+			"models": {
+				"gpt-5.6-luna/low": 1
+			},
+			"tools": {
+				"commandExecution": 5
+			}
+		}
+	}
+}

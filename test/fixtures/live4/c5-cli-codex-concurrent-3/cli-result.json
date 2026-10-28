@@ -1,0 +1,89 @@
+{
+	"action": "run",
+	"ok": false,
+	"outcome": "failed",
+	"data": {
+		"mode": "named-workflow",
+		"runId": "workflow_mvrevrcm_0b960a",
+		"status": "running",
+		"name": "deep-review",
+		"specPath": "<HOME>/agent-workflow-live4b/workflows/deep-review/spec.json",
+		"executor": {
+			"id": "codex",
+			"source": "run-flag"
+		},
+		"permissionMode": {
+			"mode": "free",
+			"source": "default"
+		},
+		"capability": {
+			"preview": "Capability check (codex@0.1.0, 4 stages, permission mode: free): accepted with 15 degradations\n  probe: installed, cli 0.159.2, auth ok\ntriage.main: codex@0.1.0 — accepted with degradation\n  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval\n  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list\n  usage.cost: degraded (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost recorded as unknown: the executor reports tokens only and the engine has no model prices\n  resume: native (preferred, native/probed/native)\n  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker\nreviewers.item: codex@0.1.0 — accepted with degradation\n  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval\n  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list\n  usage.cost: degraded (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost recorded as unknown: the executor reports tokens only and the engine has no model prices\n  resume: native (preferred, native/probed/native)\n  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker\ndevil-advocate.item: codex@0.1.0 — accepted with degradation\n  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval\n  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list\n  usage.cost: degraded (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost recorded as unknown: the executor reports tokens only and the engine has no model prices\n  resume: native (preferred, native/probed/native)\n  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker\nreport.main: codex@0.1.0 — accepted with degradation\n  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval\n  mcpInjection: native (required, native/probed)\n  usage.cost: degraded (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost recorded as unknown: the executor reports tokens only and the engine has no model prices\n  resume: native (preferred, native/probed/native)\n  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker",
+			"confirmation": "non-interactive",
+			"degradations": [
+				"triage.main: CAPABILITY_WARNING:readOnly",
+				"triage.main: CAPABILITY_MISSING:toolAllowlist.fine",
+				"triage.main: CAPABILITY_MISSING:usage.cost",
+				"triage.main: CAPABILITY_WARNING:contextIsolation",
+				"reviewers.item: CAPABILITY_WARNING:readOnly",
+				"reviewers.item: CAPABILITY_MISSING:toolAllowlist.fine",
+				"reviewers.item: CAPABILITY_MISSING:usage.cost",
+				"reviewers.item: CAPABILITY_WARNING:contextIsolation",
+				"devil-advocate.item: CAPABILITY_WARNING:readOnly",
+				"devil-advocate.item: CAPABILITY_MISSING:toolAllowlist.fine",
+				"devil-advocate.item: CAPABILITY_MISSING:usage.cost",
+				"devil-advocate.item: CAPABILITY_WARNING:contextIsolation",
+				"report.main: CAPABILITY_WARNING:readOnly",
+				"report.main: CAPABILITY_MISSING:usage.cost",
+				"report.main: CAPABILITY_WARNING:contextIsolation"
+			],
+			"forcedReadOnly": []
+		},
+		"taskSummary": {
+			"total": 8,
+			"pending": 7,
+			"running": 1,
+			"blocked": 0,
+			"completed": 0,
+			"failed": 0,
+			"skipped": 0,
+			"interrupted": 0
+		},
+		"wait": {
+			"runId": "workflow_mvrevrcm_0b960a",
+			"status": "failed",
+			"semanticStatus": "failed",
+			"terminal": true,
+			"actionRequired": false,
+			"stillRunning": false,
+			"timeoutMs": 45000,
+			"blockedTaskIds": [],
+			"taskSummary": {
+				"total": 14,
+				"pending": 0,
+				"running": 0,
+				"blocked": 0,
+				"completed": 13,
+				"failed": 1,
+				"skipped": 0,
+				"interrupted": 0
+			},
+			"outputTaskIds": ["final.main"],
+			"outputRetryAttempts": 0,
+			"launchRetryAttempts": 0,
+			"artifactRoot": ".agent-workflow/workflows/workflow_mvrevrcm_0b960a",
+			"reportArtifacts": [],
+			"usage": {
+				"source": "task-rollup",
+				"capturedAt": "2026-10-28T01:05:20.350Z",
+				"taskCount": 14,
+				"tasksReporting": 8,
+				"inputTokens": 108170,
+				"outputTokens": 8691,
+				"totalTokens": 554493,
+				"cacheCreationInputTokens": 0,
+				"cacheReadInputTokens": 437632,
+				"costUsd": null
+			}
+		}
+	}
+}
