@@ -6,7 +6,8 @@
 // WP16: the duplicate-launch guard covers detached launches (launch-guard.ts, outcome `existing`)
 // and the `logs` action (logs.ts). WP31: `workflowPreferenceAction` (saved per-workflow preferences).
 // and the `logs` action (logs.ts). WP29: the `approve` action (approve.ts) answers a dynamic-controller
-// approval a run is blocked on.
+// approval a run is blocked on. WP34: `executorModelsAction` (each executor's probed model list, for
+// role-profile editors such as the Pi profile picker).
 import { showWorkflowSpecAction } from "./catalog.js";
 import { showRunAction } from "./runs.js";
 import type { HostApiContext, HostResult } from "./types.js";
@@ -64,6 +65,13 @@ export {
 	type DoctorRequest,
 	doctorAction,
 } from "./doctor.js";
+export {
+	type ExecutorModelList,
+	type ExecutorModelsData,
+	type ExecutorModelsRequest,
+	executorModelsAction,
+	modelListNote,
+} from "./executor-models.js";
 export { COMMAND_HELP, GENERAL_HELP, helpAction } from "./help.js";
 export {
 	agentWorkflowCliPath,

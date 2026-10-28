@@ -117,7 +117,7 @@ export function fakeCtx(
 			},
 			select: async (title, options) => {
 				selects.push({ title, options });
-				return select ? select(options) : undefined;
+				return select ? select(options, title) : undefined;
 			},
 			setStatus: (key, text) => {
 				statuses.push({ key, text });
