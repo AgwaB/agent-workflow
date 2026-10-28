@@ -943,14 +943,25 @@ function rejectUnknown(name: string, params: Record<string, unknown>) {
 }
 
 /** Tool arguments → LaunchRequestBase fields (without the confirmation hooks). */
-/** WP32: unique option labels of the auto choice (the enum values of the elicitation form). */
+/**
+ * WP32: unique option labels of the auto choice (the enum values of the elicitation form), in the
+ * ranked order. WP39b (O4): no number prefix; Codex numbers enum options itself ("1. 1. …") and
+ * Claude Code lists them in order. Equal labels get their scope (`review [user]`), then a counter.
+ */
 export function autoChoiceOptions(
 	choices: readonly hostApi.AutoCandidateView[],
 ): string[] {
-	return choices.map(
-		(choice, index) =>
-			`${index + 1}. ${choice.label}${choice.recommended ? " (recommended)" : ""}`,
-	);
+	const counts = new Map<string, number>();
+	for (const choice of choices)
+		counts.set(choice.label, (counts.get(choice.label) ?? 0) + 1);
+	const seen = new Set<string>();
+	return choices.map((choice) => {
+		const base = `${choice.label}${(counts.get(choice.label) ?? 0) > 1 ? ` [${choice.scope}]` : ""}${choice.recommended ? " (recommended)" : ""}`;
+		let option = base;
+		for (let n = 2; seen.has(option); n += 1) option = `${base} #${n}`;
+		seen.add(option);
+		return option;
+	});
 }
 
 export function launchRequestFromArguments(

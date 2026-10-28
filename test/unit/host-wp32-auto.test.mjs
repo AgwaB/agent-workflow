@@ -936,6 +936,9 @@ test("MCP workflow_auto: consent, one classifier call on codex, the choice elici
 		choiceSchema.properties.workflow.default,
 		/wp32-alpha \(recommended\)/,
 	);
+	// WP39b O4: Codex numbers enum options itself ("1. 1. …"): the values carry no number.
+	for (const option of choiceSchema.properties.workflow.enum)
+		assert.doesNotMatch(option, /^\d+\.\s/, option);
 	assert.deepEqual(allClassifierSubmits(logs), { pi: 0, claude: 0, codex: 1 });
 	assert.match(out.structuredContent.next, /call workflow_wait/);
 	await settle(cwd, env, data.launch.runId);
@@ -967,4 +970,32 @@ test("MCP workflow_auto: declining the choice returns the ranked list and starts
 	assert.deepEqual(allClassifierSubmits(logs), { pi: 0, claude: 0, codex: 1 });
 	assert.match(out.structuredContent.next, /Nothing started/);
 	assert.equal(await runCount(cwd), 0);
+});
+
+test("auto choice options: no number prefix (Codex numbers them), unique values for equal labels", async () => {
+	const { autoChoiceOptions } = await import(
+		"../../dist/mcp/host-server/index.js"
+	);
+	const view = (label, scope, recommended) => ({
+		candidateId: `${label}-${scope}`,
+		kind: "named-workflow",
+		label,
+		scope,
+		description: "",
+		launchable: true,
+		...(recommended ? { recommended: true } : {}),
+	});
+	const options = autoChoiceOptions([
+		view("deep-review", "package", true),
+		view("Dynamic workflow", "built-in"),
+		view("review", "project"),
+		view("review", "user"),
+	]);
+	assert.deepEqual(options, [
+		"deep-review (recommended)",
+		"Dynamic workflow",
+		"review [project]",
+		"review [user]",
+	]);
+	assert.equal(new Set(options).size, options.length);
 });

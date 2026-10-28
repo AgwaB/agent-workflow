@@ -231,8 +231,9 @@ request id is the approval digest), and the decision is recorded on the run
    Code print mode answers every elicitation with `cancel`), so the result says the client
    cancelled or cannot ask and never that the user declined (`phase: "consent-cancelled"`, WP39b).
 3. **Choice.** A second elicitation (`elicitChoice`) is a form with one required enum field
-   `workflow`: the ranked launchable candidates (`1. <name> (recommended)`, …), the recommendation
-   as `default`; the message carries the classifier's recommendation and reasons. `accept` with a
+   `workflow`: the ranked launchable candidates (`<name> (recommended)`, `<name>`, …; no number prefix, since
+   Codex numbers enum options itself — WP39b; equal names get their scope, `review [user]`), the
+   recommendation as `default`; the message carries the classifier's recommendation and reasons. `accept` with a
    value starts that workflow through the normal launch path (duplicate guard, profiles, degradation
    elicitation, `detach` default true; the footer says to call `workflow_wait`). `decline`/`cancel`
    starts nothing and returns the ranked list (`phase: "cancelled"`), so the host can show it and
