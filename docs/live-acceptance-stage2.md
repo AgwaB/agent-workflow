@@ -408,4 +408,8 @@ sessions of live 4).
    WP18b: `docs/plugins.md` and the `agent-workflow` skill name `mcp__agent_workflow__<tool>` and the
    code-mode form `tools.mcp__agent_workflow__<tool>`.
 
-Open problem 1 above is resolved by this section; open problems 2–8 are unchanged.
+Open problem 1 above is resolved by this section. WP18b (branch `wp18b-stage2-polish`, no model
+calls) addresses live-4 open problems 2–7 and the presentation part of 8, and live-4b open problems
+1–3; see the "WP18b:" note under each. Not changed: engine run-status semantics (a non-passing
+domain verdict still fails the run, CLI exit 1; replay acceptance 0 unexplained). None of the fixes
+was rerun live.
