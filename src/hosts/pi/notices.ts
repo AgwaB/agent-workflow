@@ -6,9 +6,13 @@
 // 5 runs are listed, and a run is re-notified only when its status/updatedAt changed, its
 // acknowledgement became stale since the last notice, or 6 hours passed (per-run state in
 // `.agent-workflow/workflows/unfinished-notices.json`, pruned on write). Hints point at `/aw`.
+// WP38: a malformed acknowledgement sidecar no longer hides every notice (it suppresses none, as in
+// pi-workflow); each line names the workflow and marks a degraded failed run (final rendered).
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { readRunRecord } from "../../core/store.js";
+import { listUnfinishedNoticesIgnoringInvalidAcknowledgements } from "../../core/workflow-notices.js";
 import type { HostApiContext } from "../api.js";
 import type { PiHostApi } from "./host.js";
 import { AW_COMMAND } from "./names.js";
@@ -36,7 +40,10 @@ interface NoticeState {
 	lastNotifiedAt?: string;
 }
 
-function noticesFromData(data: Record<string, unknown>): {
+function noticesFromData(data: {
+	notices?: unknown;
+	acknowledgements?: unknown;
+}): {
 	notices: ListedNotice[];
 	acknowledgements: ListedAcknowledgement[];
 } {
@@ -89,8 +96,20 @@ export async function unfinishedRunNotice(
 	ctx: HostApiContext,
 	nowMs: number,
 ): Promise<string | undefined> {
-	const listed = await api.noticesAction(ctx, { argv: ["list"] });
-	const { notices, acknowledgements } = noticesFromData(listed.data);
+	// pi-workflow: a malformed or invalid acknowledgement sidecar never suppresses a notice. The
+	// strict `notices list` refuses it, so list again treating it as "no acknowledgements".
+	const data = await api
+		.noticesAction(ctx, { argv: ["list"] })
+		.then((listed) => listed.data)
+		.catch(async (error: unknown) => {
+			const lenient =
+				await listUnfinishedNoticesIgnoringInvalidAcknowledgements(
+					ctx.cwd,
+				).catch(() => undefined);
+			if (!lenient) throw error;
+			return lenient;
+		});
+	const { notices, acknowledgements } = noticesFromData(data);
 	if (notices.length === 0) return undefined;
 	const acknowledged = new Map(
 		acknowledgements.map((entry) => [entry.runId, entry]),
@@ -148,12 +167,20 @@ export async function unfinishedRunNotice(
 	await writeFile(temp, `${JSON.stringify({ notices: state }, null, 2)}\n`);
 	await rename(temp, file);
 
-	const lines = needing
-		.slice(0, MAX_RUNS)
-		.map(
-			(run) =>
-				`- ${run.runId}: ${run.status} (updated ${run.updatedAt}) — /${AW_COMMAND} resume ${run.runId}`,
-		);
+	// pi-workflow parity: the line names the workflow and marks a failed run whose final output
+	// was rendered as degraded (read from the run record; a record that cannot be read adds nothing).
+	const lines = await Promise.all(
+		needing.slice(0, MAX_RUNS).map(async (run) => {
+			const record = await readRunRecord(ctx.cwd, run.runId).catch(
+				() => undefined,
+			);
+			const name = record?.name ? `${record.name} ` : "";
+			const status = record?.degradation?.finalOutputRendered
+				? `${run.status} (final rendered — degraded)`
+				: run.status;
+			return `- ${name}${run.runId}: ${status} (updated ${run.updatedAt}) — /${AW_COMMAND} resume ${run.runId}`;
+		}),
+	);
 	if (needing.length > MAX_RUNS)
 		lines.push(
 			`- … and ${needing.length - MAX_RUNS} more (/${AW_COMMAND} notices list)`,
