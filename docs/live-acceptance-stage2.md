@@ -496,3 +496,48 @@ Notes:
 - Docs: docs/host-api.md (N1, N4, N5, N6, legacy paths), docs/pi-host.md (N2, N3, N5, N7),
   docs/usage.md (legacy paths).
 - None of the fixes was rerun live.
+
+## WP19 round 3
+
+Branch `wp19-fixes-3` from `69acbaa`, no model or agent-CLI calls. Input: the round-3 review
+(gpt-6-astra, "Request changes", R1–R4 major, R5 minor); its probes
+(`aw-wp19r3-extra`, `aw-wp19r3-followup`, `aw-wp19r3-pi-history`) are the basis of the regression
+tests. Every listed test was run against a temporary build of `69acbaa` (`git archive 69acbaa`,
+`npm run build`, the new test file copied in) and fails there with an assertion that reproduces the
+reviewer's scenario; all pass after the fix.
+
+| # | Finding | Commit | Regression test | Fails on `69acbaa` |
+|---|---|---|---|---|
+| R1 | Credential headers leaked short or letters-only values (`x-api-key: k3y012`, `Authorization: abc`) | `68cbe88` | `test/unit/host-wp19r3-redaction-headers.test.mjs` | yes (`x-api-key: abcdefghijklmnop` unchanged) |
+| R4 | Malformed nested escapes kept the credential suffix | `ab6434d` | `test/unit/host-wp19r3-redaction-malformed.test.mjs` | yes (`…REDACTED"SENSITIVE-SUFFIX…`) |
+| R2 | A `confirmed` receipt overruled readable history without the message | `e398466` | `test/unit/host-wp19r3-pi-delivery.test.mjs` (R2 cases; one with Pi 1.1's real `SessionManager`) | yes (`already-delivered`, 0 resends) |
+| R3 | Same-process reload / tracker restart resent a still-queued completion | `e398466` | `test/unit/host-wp19r3-pi-delivery.test.mjs` (R3 cases) | yes (2 messages) |
+| R5 | Declared-profile chooser launched a definition changed while it was open | `b9e3f61` | `test/unit/host-wp19r3-profile-chooser.test.mjs` | yes (`running` with `changed-while-choosing`) |
+
+Pi delivery guarantee after round 3 (docs/pi-host.md, "Delivery decision"):
+
+| Situation | Messages per epoch |
+|---|---|
+| Normal (one process; queued while streaming, then persisted) | exactly 1 |
+| Extension reload or tracker stop/restore in the same process (queue kept) | exactly 1 |
+| Crash/restart, history readable | 1 if the durable history has it, else 1 more on restart (also after a `confirmed` receipt) |
+| Crash/restart, history unreadable | at least 1, at most 2 |
+
+Notes:
+
+- R2/R3: generation-scoped suppression is replaced by process-scoped state on `globalThis`
+  (`Symbol.for("agent-workflow.pi-feedback.process-state.v1")`); receipts record pid, host and a
+  random per-process id. N3 serialization and the N7 restore/stop fix are unchanged. No round-1/2
+  test needed changes (none encoded the generation-scoped resend). `deliverCompletion`'s `scope`
+  option is accepted and ignored. Kept: a `sent` receipt of another live Pi process on this host is
+  left to that process (PID-reuse residual as accepted in round 2).
+- R2's real-`SessionManager` test runs when `@earendil-works/pi-coding-agent` is importable or
+  `AGENT_WORKFLOW_PI_SESSION_MANAGER` names its `dist/core/session-manager.js`; otherwise it is
+  skipped and the fake-history R2 test covers the same sequence. It was run with Pi 1.1.0.
+- R1: the only prose kept after a credential header is an obvious statement after
+  `Authorization:` (`missing …`, `not required …`); all round-2 N6 prose lines and round-1 cases pass.
+- R5: refusal `WORKFLOW_DEFINITION_CHANGED`; the duplicate guard claim is released, so launching
+  again runs the current definition.
+- Docs: docs/pi-host.md (R2, R3), docs/host-api.md (R1, R4, R5), docs/host-mcp.md (R1).
+- Validation: `npm run validate` twice, `npm run e2e`, replay acceptance (0 unexplained),
+  `node tools/release/plugins.mjs check`. None of the fixes was rerun live.

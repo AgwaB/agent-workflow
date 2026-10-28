@@ -145,7 +145,11 @@ profile); the fingerprint covers that snapshot and the launch runs from the same
 settings read). Only the interactive declared-profile chooser runs after the guard claimed the launch
 (a duplicate never prompts); it picks from the snapshot. So changing the saved per-workflow
 preference (e.g. Codex → Claude) between two identical requests starts a new run with the new
-preference. Residual: for `cli`/`generic` the installed-default choice is probed after
+preference. WP19 round 3 (R5): the launch carries the fingerprint of the definition it was resolved
+from (guard, chooser) into the engine, which compares it with its own final load of the workflow;
+if the file changed meanwhile (e.g. `fast`'s model edited while the chooser is open) nothing starts:
+`outcome: "refused"`, `refusal.code: "WORKFLOW_DEFINITION_CHANGED"`, and launching again uses the
+current definition. Residual: for `cli`/`generic` the installed-default choice is probed after
 the guard, so a login change between two identical launches within the window is not seen.
 `detach` and the interactive hooks are not part of it. An identical launch while the run it recorded is non-terminal (`running`, `pending`,
 `blocked`) and was created within the last 10 minutes (`DUPLICATE_RUN_WINDOW_MS`) returns that run:
@@ -213,14 +217,20 @@ JSON fields such as `token`, `access_token`, `refresh_token`, `api_key`/`apiKey`
 and Windows `C:\Users\<user>` home paths as well as macOS `/Users/<user>`. WP19 round 2 (N4): the end
 of a structured value is found by an escape-aware scanner (JSON string escapes at every nesting
 level of escaped JSON), so an escaped quote inside the value (`"Cookie":"sid=\"…\"; path=/"`, a
-password containing `\"`) no longer ends it early. WP19 round 2 (N6): prose is told apart from
+password containing `\"`) no longer ends it early. WP19 round 3 (R4): when the quoting inside a credential value
+becomes malformed or ambiguous (a quote of an enclosing escape level before the value's own closing
+delimiter, or no closing delimiter on the line), the rest of the line is redacted (fail closed). WP19 round 2 (N6): prose is told apart from
 credentials. In the `Label: value` form (colon and a space) only a credential key (`password`,
 `token`, `secret`, `*_token`, `*_secret`, `*apikey`, …) or a token-shaped value (≥ 8 characters with a
 digit or `+/=_.~`, or ≥ 24 characters) is redacted, so `Exit code: 1` and `HTTP status code: 403`
-stay; `key=value` and `key:value` assignments are redacted as before. An `Authorization`,
-`Proxy-Authorization`, `Cookie`, `Set-Cookie` or `x-api-key` line is redacted when its value is an
-auth scheme with parameters (`Basic …`, `Bearer …`, `Digest …`, …), a cookie list (`name=…`) or a
-token, not when it is prose (`Authorization: missing on the delete endpoint; …`).
+stay; `key=value` and `key:value` assignments are redacted as before. WP19 round 3 (R1): a value
+under an unequivocal credential header (`Authorization`, `Proxy-Authorization`, `Cookie`,
+`Set-Cookie`, `x-api-key`, `api-key`, `*-token` such as `X-Auth-Token`) is always redacted through
+the end of the line, whatever its length or alphabet (`x-api-key: k3y012` and `Authorization: abc`
+too), as are the credential JSON keys above (`password: abc`). The only prose exception is an
+obvious statement after `Authorization:`/`Proxy-Authorization:`: the first word is `missing`,
+`not`, `none`, `required`, `optional`, … and no word looks like a token
+(`Authorization: missing on the delete endpoint; …` stays). When unsure, it redacts.
 
 ### `wait`
 

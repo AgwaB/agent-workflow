@@ -21,8 +21,10 @@
 // pending one left by a crash is resolved against Pi's session history (at least once, never
 // lost), and the current session is re-checked right before `sendMessage` (see deliverCompletion).
 // WP19 round 2 (N2, N3): `sent` (enqueued by this process) is not `confirmed` (in Pi's session
-// history); unconfirmed sends are resolved against the history after a restart, never resent in
-// the same process and generation, and receipt transitions are serialized and ownership-checked.
+// history); receipt transitions are serialized and ownership-checked.
+// WP19 round 3 (R2, R3): suppression is process-scoped (state on `globalThis`, surviving extension
+// reloads): an epoch this OS process enqueued is never resent by it; any other delivery attempt
+// is resolved against readable session history, which overrules even a `confirmed` receipt.
 import { createHash, randomBytes } from "node:crypto";
 import {
 	mkdir,
@@ -333,8 +335,10 @@ interface FeedbackReceipt {
 	/** WP19: the reserving delivery (unique per attempt) and its process. */
 	token?: string;
 	pid?: number;
-	/** WP19 round 2: the sending module instance (a restart has a new one). */
+	/** WP19 round 2: the sending module instance (round-2 receipts; read only). */
 	instance?: string;
+	/** WP19 round 3: the sending OS process's identity (random, one per process). */
+	processId?: string;
 	host?: string;
 	/** WP19 round 2: how many times this epoch was sent (bounds resends without history). */
 	attempts?: number;
@@ -365,37 +369,71 @@ async function writeReceipt(file: string, receipt: FeedbackReceipt) {
 	}
 }
 
-/** WP19 round 2: this module instance (a Pi restart, or a reloaded module, has another one). */
-let processInstance = randomBytes(8).toString("hex");
-/** Reservations this process is sending right now (receipt path → token). */
-const inFlight = new Map<string, string>();
-/** WP19 round 2 (N2): receipts this process sent (enqueued with Pi), by receipt path. */
+/** WP19 round 2 (N2): an epoch this OS process enqueued with Pi, by receipt path. */
 interface SentDelivery {
 	token: string;
-	scope: string;
 	runId: string;
 	epoch: string;
 	sessionId: string;
 	sentAtMs: number;
 	confirmed: boolean;
 }
-const sentDeliveries = new Map<string, SentDelivery>();
-/** WP19 round 2 (N3): in-process serialization of one receipt's transitions. */
-const receiptQueues = new Map<string, Promise<void>>();
+
+/**
+ * WP19 round 3 (R2, R3): delivery state of this OS process. It lives on `globalThis` (not in module
+ * variables) because a Pi extension reload re-imports this module while Pi keeps its queue of
+ * pending custom messages: an epoch this process enqueued must not be sent again by the reloaded
+ * module. `processId` is this process's sender identity in receipts (random, one per process).
+ */
+interface FeedbackProcessState {
+	processId: string;
+	/** Reservations this process is sending right now (receipt path → token). */
+	inFlight: Map<string, string>;
+	/** Epochs this process enqueued with Pi (never sent again by this process). */
+	enqueued: Map<string, SentDelivery>;
+	/** WP19 round 2 (N3): in-process serialization of one receipt's transitions. */
+	receiptQueues: Map<string, Promise<void>>;
+}
+
+const PROCESS_STATE_KEY = Symbol.for(
+	"agent-workflow.pi-feedback.process-state.v1",
+);
+
+function processState(): FeedbackProcessState {
+	const holder = globalThis as { [PROCESS_STATE_KEY]?: FeedbackProcessState };
+	let state = holder[PROCESS_STATE_KEY];
+	if (
+		!state ||
+		typeof state.processId !== "string" ||
+		!(state.inFlight instanceof Map) ||
+		!(state.enqueued instanceof Map) ||
+		!(state.receiptQueues instanceof Map)
+	) {
+		state = {
+			processId: randomBytes(12).toString("hex"),
+			inFlight: new Map(),
+			enqueued: new Map(),
+			receiptQueues: new Map(),
+		};
+		holder[PROCESS_STATE_KEY] = state;
+	}
+	return state;
+}
 /** A pending reservation older than this whose owner is not sending any more is resolved. */
 const RESERVATION_STALE_MS = 60_000;
 /** WP19 round 2: how long the tracker keeps looking for a sent message in the session history. */
 const CONFIRM_WATCH_MS = 10 * 60_000;
 /** WP19 round 2: without readable history an epoch is sent at most this many times. */
 const MAX_UNVERIFIABLE_SENDS = 2;
-/** Scope of callers that pass none (one per module instance). */
-const DEFAULT_SCOPE = "default";
-
-/** Test hook: forget this process's in-memory delivery state, as a Pi restart does. */
+/**
+ * Test hook: forget this process's delivery state, as a Pi restart (a new OS process) does: a new
+ * sender identity and no enqueued or in-flight epochs. An extension reload does not do this.
+ */
 export function resetFeedbackDeliveryStateForTests(): void {
-	processInstance = randomBytes(8).toString("hex");
-	inFlight.clear();
-	sentDeliveries.clear();
+	const state = processState();
+	state.processId = randomBytes(12).toString("hex");
+	state.inFlight.clear();
+	state.enqueued.clear();
 }
 
 function processAlive(pid: unknown): boolean {
@@ -416,13 +454,28 @@ function reservationLive(
 	nowMs: number,
 ): boolean {
 	if (receipt.state !== "pending" || !receipt.token) return false;
-	if (receipt.pid === process.pid) return inFlight.get(file) === receipt.token;
+	if (receipt.pid === process.pid)
+		return processState().inFlight.get(file) === receipt.token;
 	const reservedAt = Date.parse(receipt.reservedAt ?? "");
 	return (
 		(receipt.host ?? hostname()) === hostname() &&
 		processAlive(receipt.pid) &&
 		Number.isFinite(reservedAt) &&
 		nowMs - reservedAt < RESERVATION_STALE_MS
+	);
+}
+
+/**
+ * WP19 round 3 (R2): a `sent` receipt of another Pi process on this host that is still alive. A
+ * receipt with this process's pid but another process id was written by an earlier process with a
+ * reused pid (or a simulated restart in tests): that sender is gone.
+ */
+function sentByOtherLiveProcess(receipt: FeedbackReceipt): boolean {
+	if (receipt.processId === processState().processId) return false;
+	return (
+		receipt.pid !== process.pid &&
+		(receipt.host ?? hostname()) === hostname() &&
+		processAlive(receipt.pid)
 	);
 }
 
@@ -434,6 +487,7 @@ async function withReceiptLock<T>(
 	receipt: string,
 	body: () => Promise<T>,
 ): Promise<T> {
+	const { receiptQueues } = processState();
 	const previous = receiptQueues.get(receipt) ?? Promise.resolve();
 	let done!: () => void;
 	const gate = new Promise<void>((resolve) => {
@@ -505,7 +559,7 @@ export async function confirmSentDeliveries(
 	const sessionId = piSessionId(ctx);
 	if (!sessionId) return 0;
 	let watching = 0;
-	for (const [file, entry] of [...sentDeliveries]) {
+	for (const [file, entry] of [...processState().enqueued]) {
 		if (entry.confirmed || entry.sessionId !== sessionId) continue;
 		const seen = sessionHasCompletion(ctx, entry.runId, entry.epoch);
 		if (seen === undefined) continue;
@@ -539,16 +593,19 @@ export async function confirmSentDeliveries(
  *
  * WP19 (review #5) and round 2 (N2): the receipt is a *pending reservation* (written before
  * `sendMessage`), then `sent` (written after `sendMessage` returned: Pi may only have queued the
- * message in this process's memory, e.g. while it streams), then `confirmed` (the message is in
- * Pi's session history, `ctx.sessionManager.getEntries()`: our `custom_message` with this run id and
- * epoch). The session history is checked on every delivery: found = confirmed, nothing sent.
- * - Within one process and delivery scope (the tracker's session generation), an epoch already
- *   sent is never sent again (in-memory set), confirmed or not.
- * - After a restart or in a new tracker generation, a `sent` but unconfirmed receipt is resolved
- *   against the history: not found = sent again (Pi lost its queue). Without readable history it
- *   is sent again too (at least once), but an epoch is sent at most MAX_UNVERIFIABLE_SENDS times
- *   while the history stays unreadable. A `sent` receipt of another live Pi process on this host is
- *   left to that process.
+ * message in this process's memory, e.g. while it streams), then `confirmed` (the message was seen
+ * in Pi's session history, `ctx.sessionManager.getEntries()`: our `custom_message` with this run id
+ * and epoch). Every receipt records its sender identity (pid, host and a random per-process id).
+ *
+ * WP19 round 3 (R2, R3), on every delivery attempt, whatever the receipt says:
+ * - This OS process enqueued the epoch (process-scoped state on `globalThis`, so it survives an
+ *   extension reload and a tracker stop/restore, which keep Pi's queue): never sent again.
+ * - Otherwise, with readable session history: present = confirmed, nothing sent; absent = sent
+ *   (again). A `confirmed` receipt of another process does not overrule explicit absence (Pi 1.1's
+ *   in-memory history can show a message whose append to the session file failed). A `sent`
+ *   receipt of another live Pi process on this host is left to that process (its queue is alive).
+ * - Without readable history: a `confirmed` receipt is final; a `sent` (or crashed pending) one is
+ *   sent again, bounded: at most MAX_UNVERIFIABLE_SENDS sends per epoch.
  * - A pending reservation whose owner is gone is resolved the same way. An empty, corrupt or
  *   foreign receipt is never proof of delivery.
  * - The tracker confirms sent messages opportunistically on later ticks (`confirmSentDeliveries`).
@@ -574,20 +631,23 @@ export async function deliverCompletion(
 		cwd?: string;
 		/** WP19: synchronous check that the delivering session is still current. */
 		fence?: () => boolean;
-		/** WP19 round 2: delivery scope (the tracker's session generation). */
+		/**
+		 * WP19 round 2: delivery scope. Ignored since round 3: suppression is process-scoped.
+		 * @deprecated
+		 */
 		scope?: string;
 	},
 ): Promise<DeliveryOutcome> {
 	const cwd = options.cwd ?? ctx.cwd;
-	const scope = options.scope ?? DEFAULT_SCOPE;
+	const state = processState();
 	const sessionId = piSessionId(ctx);
 	const audience = await readFeedbackAudience(cwd, run.runId);
 	if (!sessionId || audience?.sessionId !== sessionId) return "not-owner";
 	const epoch = feedbackEpoch(run);
 	const receipt = feedbackReceiptPath(cwd, run.runId, epoch);
-	// WP19 round 2 (N2/N3): this process is sending it, or already sent it in this scope.
-	if (inFlight.has(receipt)) return "in-flight";
-	if (sentDeliveries.get(receipt)?.scope === scope) return "already-delivered";
+	// WP19 round 3 (R3): this process is sending it, or already enqueued it with Pi.
+	if (state.inFlight.has(receipt)) return "in-flight";
+	if (state.enqueued.has(receipt)) return "already-delivered";
 	const receiptsDir = join(
 		workflowRunDir(cwd, run.runId),
 		FEEDBACK_RECEIPTS_DIR,
@@ -608,7 +668,7 @@ export async function deliverCompletion(
 	const owner = {
 		token,
 		pid: process.pid,
-		instance: processInstance,
+		processId: state.processId,
 		host: hostname(),
 	};
 	let attempts = 1;
@@ -616,17 +676,14 @@ export async function deliverCompletion(
 		receipt,
 		async (): Promise<"send" | "already-delivered" | "in-flight"> => {
 			// Re-check under the lock: a concurrent delivery of this process may have finished.
-			if (inFlight.has(receipt)) return "in-flight";
-			if (sentDeliveries.get(receipt)?.scope === scope)
-				return "already-delivered";
+			if (state.inFlight.has(receipt)) return "in-flight";
+			if (state.enqueued.has(receipt)) return "already-delivered";
 			const existing = await readReceipt(receipt);
 			const legacy =
 				existing !== undefined &&
 				existing.state === undefined &&
 				existing.epoch === epoch &&
 				typeof existing.deliveredAt === "string";
-			if (existing?.state === "confirmed" && existing.epoch === epoch)
-				return "already-delivered";
 			if (legacy && sessionHasCompletion(ctx, run.runId, undefined) !== false)
 				// A receipt written before WP19 (reserved before sending): the session history
 				// holds the run's message, or this Pi has no readable history to say otherwise.
@@ -634,34 +691,39 @@ export async function deliverCompletion(
 			const history = sessionHasCompletion(ctx, run.runId, epoch);
 			if (history === true) {
 				// The recipient has it (sent before a crash, or queued and persisted since).
-				await writeReceipt(receipt, {
-					...base,
-					...(existing?.token ? { token: existing.token } : owner),
-					state: "confirmed",
-					attempts: existing?.attempts ?? 1,
-					confirmedAt: new Date(nowMs).toISOString(),
-				});
+				if (existing?.state !== "confirmed")
+					await writeReceipt(receipt, {
+						...base,
+						...(existing?.token
+							? {
+									token: existing.token,
+									...(existing.pid !== undefined ? { pid: existing.pid } : {}),
+									...(existing.processId
+										? { processId: existing.processId }
+										: {}),
+									...(existing.host ? { host: existing.host } : {}),
+								}
+							: owner),
+						state: "confirmed",
+						attempts: existing?.attempts ?? 1,
+						confirmedAt: new Date(nowMs).toISOString(),
+					});
 				return "already-delivered";
 			}
 			if (existing && reservationLive(receipt, existing, nowMs))
 				return "in-flight";
 			const sent =
 				existing?.state === "sent" || existing?.state === "delivered";
-			if (sent) {
-				// Another live Pi process on this host queued it: that process owns it.
-				if (
-					existing.pid !== process.pid &&
-					(existing.host ?? hostname()) === hostname() &&
-					processAlive(existing.pid)
-				)
-					return "already-delivered";
-				// No history to resolve it against: at least once, but bounded.
-				if (
-					history === undefined &&
-					(existing.attempts ?? 1) >= MAX_UNVERIFIABLE_SENDS
-				)
+			// Another live Pi process on this host queued it: its queue is alive, it owns it.
+			if (sent && sentByOtherLiveProcess(existing)) return "already-delivered";
+			if (history === undefined) {
+				// No history to resolve it against: a confirmation is final; otherwise at least
+				// once, but bounded.
+				if (existing?.state === "confirmed") return "already-delivered";
+				if (sent && (existing.attempts ?? 1) >= MAX_UNVERIFIABLE_SENDS)
 					return "already-delivered";
 			}
+			// WP19 round 3 (R2): readable history without the message overrules any receipt.
 			attempts = (existing?.attempts ?? (existing ? 1 : 0)) + 1;
 			await writeReceipt(receipt, {
 				...base,
@@ -670,7 +732,7 @@ export async function deliverCompletion(
 				attempts,
 				reservedAt: new Date(nowMs).toISOString(),
 			});
-			inFlight.set(receipt, token);
+			state.inFlight.set(receipt, token);
 			return "send";
 		},
 	);
@@ -683,7 +745,7 @@ export async function deliverCompletion(
 					await unlink(receipt).catch(() => undefined);
 			});
 		} finally {
-			inFlight.delete(receipt);
+			state.inFlight.delete(receipt);
 		}
 	};
 	try {
@@ -714,10 +776,9 @@ export async function deliverCompletion(
 		await dropReservation().catch(() => undefined);
 		throw error;
 	}
-	// Sent (maybe only queued): never again in this process and scope.
-	sentDeliveries.set(receipt, {
+	// Sent (maybe only queued): never again in this OS process (WP19 round 3, R3).
+	state.enqueued.set(receipt, {
 		token,
-		scope,
 		runId: run.runId,
 		epoch,
 		sessionId,
@@ -741,7 +802,7 @@ export async function deliverCompletion(
 	} catch {
 		// The pending reservation stays; this process's in-memory record suppresses a resend.
 	} finally {
-		inFlight.delete(receipt);
+		state.inFlight.delete(receipt);
 	}
 	try {
 		ctx.ui.notify(
@@ -787,8 +848,6 @@ export class PiRunFeedback {
 	private ticking: Promise<void> | undefined;
 	private shownStatus: string | undefined;
 	private generation = 0;
-	/** WP19 round 2 (N2): delivery scope = this tracker and its session generation. */
-	private readonly instance = randomBytes(6).toString("hex");
 	private readonly pollMs: number;
 	private readonly now: () => number;
 
@@ -885,7 +944,6 @@ export class PiRunFeedback {
 				now: this.now(),
 				// WP19 (review #6): a session switch during catch-up sends nothing.
 				fence: () => generation === this.generation && this.ctx === ctx,
-				scope: this.scope(generation),
 			}).catch(() => undefined);
 			if (outcome === "delivered") delivered += 1;
 		}
@@ -910,10 +968,6 @@ export class PiRunFeedback {
 		this.runs.clear();
 		this.setStatus(undefined);
 		this.ctx = undefined;
-	}
-
-	private scope(generation: number): string {
-		return `${this.instance}:${generation}`;
 	}
 
 	private schedule(): void {
@@ -975,7 +1029,6 @@ export class PiRunFeedback {
 					cwd: tracked.cwd,
 					// WP19 (review #6): the session generation is re-checked right before sending.
 					fence: () => generation === this.generation && this.ctx === ctx,
-					scope: this.scope(generation),
 				});
 				if (outcome === "session-changed" || outcome === "in-flight") continue;
 				this.runs.delete(key);

@@ -182,20 +182,36 @@ status entry, without the board widget or the presentation lease. Only with a UI
   (while the agent streams, Pi only queues the message in this process's memory); it becomes
   `state: "confirmed"` when Pi's session history (`ctx.sessionManager.getEntries()`) holds an
   `agent-workflow-completion` `custom_message` whose `details` carry this `runId` and
-  `feedbackEpoch`. Every delivery checks the history first (found = confirmed, nothing sent), and
-  the tracker keeps polling for up to 10 min after a send to confirm it on a later tick. Within one
-  Pi process and tracker generation an epoch already sent is never sent again (in-memory set),
-  confirmed or not. After a restart or in a new tracker generation (`session_start`), a `sent` but
-  unconfirmed receipt is resolved against the history: not found = sent again (Pi lost its queue).
-  A pending reservation whose owner is gone (a crash between reservation and send) is resolved the
-  same way. A throwing send drops the reservation (retried on the next poll, at most 4 attempts,
-  then an error notification). An empty or corrupt receipt is never proof of delivery. Without a
-  readable history (no `getEntries`, or it throws) delivery is at least once: a `sent` receipt is
-  sent again after a restart, but an epoch is sent at most twice while the history stays
-  unreadable (so a lost resend is not retried forever, and a Pi without history is not re-notified
-  on every start). A `sent` receipt of another live Pi process on this host is left to that
-  process. Round-1 `"delivered"` receipts are read as `sent`; receipts written before WP19 count as
+  `feedbackEpoch`. The tracker keeps polling for up to 10 min after a send to confirm it on a
+  later tick. Every receipt records its sender: pid, host and a random per-process id (WP19 round
+  3). A pending reservation whose owner is gone (a crash between reservation and send) is resolved
+  like a `sent` receipt. A throwing send drops the reservation (retried on the next poll, at most 4
+  attempts, then an error notification). An empty or corrupt receipt is never proof of delivery.
+  Round-1 `"delivered"` receipts are read as `sent`; receipts written before WP19 count as
   delivered when the history holds the run's message or the history is unreadable.
+- **Delivery decision (WP19 round 3, R2/R3) — the exact guarantee.** On every delivery attempt,
+  whatever the receipt says, in this order:
+  1. *This OS process enqueued the epoch* → never sent again. The set of enqueued epochs is
+     process-scoped: it lives on `globalThis` (`Symbol.for("agent-workflow.pi-feedback.process-state.v1")`),
+     so an extension reload (which re-imports the module but keeps Pi's pending-message queue) or
+     a tracker `session_shutdown`/`session_start` cycle never resends it.
+  2. *Otherwise, readable session history*: present → `confirmed`, nothing sent; absent → sent
+     (again). A `confirmed` receipt written by another process does not overrule explicit absence
+     (Pi 1.1's `getEntries()` is in memory: a message whose append to the session file failed was
+     "seen" and confirmed, yet the restarted session lacks it). Exception: a `sent` (unconfirmed)
+     receipt of another *live* Pi process on this host is left to that process, whose queue is
+     still alive.
+  3. *Otherwise (history unreadable: no `getEntries`, or it throws)*: a `confirmed` receipt is
+     final; a `sent` or orphaned pending one is sent again, but an epoch is sent at most twice
+     (bounded at-least-once, so a Pi without history is not re-notified on every start).
+
+  | Situation | Messages per epoch |
+  |---|---|
+  | Normal (one process; queued while streaming, then persisted) | exactly 1 |
+  | Extension reload or tracker stop/restore in the same process (queue kept) | exactly 1 (never resent by this process) |
+  | Crash/restart, history readable | 1 if the durable history has it; otherwise 1 more on restart (also after a `confirmed` receipt) |
+  | Crash/restart, history unreadable | at least 1, at most 2 (one resend after restart, never more) |
+
 - **Concurrent deliveries (WP19 round 2, N3).** A delivery keeps in-process ownership of its
   reservation through its final `sent` transition; a concurrent delivery of the same epoch in this
   process returns `in-flight` without sending. Every receipt transition (reserve, drop, sent,

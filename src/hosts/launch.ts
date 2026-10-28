@@ -19,7 +19,9 @@ import {
 	formatHumanRunLaunch,
 	runDynamicTask,
 	runWorkflowSpec,
+	WORKFLOW_EXPECTED_DEFINITION_FINGERPRINT,
 	WORKFLOW_PROMPT_SCHEMA_DIAGNOSTIC_SINK,
+	WorkflowDefinitionChangedError,
 	type WorkflowRunOptions,
 } from "../core/engine.js";
 import { workflowDefinitionFingerprint } from "../core/execution-profile.js";
@@ -787,6 +789,9 @@ async function launch(
 ): Promise<HostResult<LaunchData>> {
 	const mode = action === "run" ? "named-workflow" : "direct-dynamic";
 	const task = request.task.trim();
+	// WP19 round 3 (R5): the definition this launch is resolved from (guard, chooser); the engine
+	// refuses to start when its own final load differs.
+	const definitionFingerprint = workflowDefinitionFingerprint(loaded.spec);
 	const inputOverrides = typedWorkflowInputOverrides(
 		loaded.spec,
 		request.inputOverrides,
@@ -852,6 +857,7 @@ async function launch(
 			task,
 			snapshot,
 			inputOverrides,
+			definitionFingerprint,
 			// WP19 round 2 (N1): the ownership fence right before `start()`. A launch whose claim
 			// was taken over meanwhile starts nothing.
 			beforeStart: async () => {
@@ -881,6 +887,8 @@ async function launchClaimed(
 		task: string;
 		snapshot: LaunchProfileSnapshot;
 		inputOverrides: Record<string, unknown> | undefined;
+		/** WP19 round 3 (R5): fingerprint of the definition the launch was resolved from. */
+		definitionFingerprint: string;
 		/** WP19 round 2 (N1): a result here means "do not start" (displaced launch). */
 		beforeStart: () => Promise<HostResult<LaunchData> | undefined>;
 		onStarted: (runId: string) => Promise<void>;
@@ -905,6 +913,7 @@ async function launchClaimed(
 			notice: string,
 			digest: string,
 		) => void;
+		[WORKFLOW_EXPECTED_DEFINITION_FINGERPRINT]: string;
 	} = {
 		task,
 		...profile.selection,
@@ -930,6 +939,7 @@ async function launchClaimed(
 			promptSchemaDigest = digest;
 			promptSchemaNotice = notice;
 		},
+		[WORKFLOW_EXPECTED_DEFINITION_FINGERPRINT]: launch.definitionFingerprint,
 	};
 	// Nothing between the fence and `start()` awaits anything else.
 	const displaced = await launch.beforeStart();
@@ -938,6 +948,17 @@ async function launchClaimed(
 	try {
 		run = await start(options);
 	} catch (error) {
+		if (error instanceof WorkflowDefinitionChangedError)
+			return result(
+				action,
+				"refused",
+				{
+					mode,
+					...(profile.info ? { profile: profile.info } : {}),
+					refusal: { code: error.code },
+				},
+				`Not started: ${error.message}`,
+			);
 		if (isRefusal(error))
 			return refusalResult(
 				action,
