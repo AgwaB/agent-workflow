@@ -226,6 +226,36 @@ test("initialize and tools/list: server name, instructions, eight tools gated pe
 	assert.equal(listed.isError, false);
 });
 
+test("WP18b: --host claude-code gets the text content only (no structuredContent); codex and generic keep it", async () => {
+	const { cwd, env } = await project();
+	assert.deepEqual(hostServer.HOST_MCP_TEXT_ONLY_HOSTS, ["claude-code"]);
+	for (const [host, structured] of [
+		["claude-code", false],
+		["codex", true],
+		["generic", true],
+	]) {
+		assert.equal(
+			hostServer.hostMcpSendsStructuredContent(host, "2025-06-18"),
+			structured,
+		);
+		const client = await connect({ root: cwd, env, host }, "2025-06-18");
+		const listed = await client.call("workflow_list", { limit: 1 });
+		assert.equal(listed.isError, false);
+		assert.match(text(listed), /wf|deep-review|workflow/i);
+		assert.equal(listed.structuredContent !== undefined, structured, host);
+		// Error results follow the same rule; the text keeps the error kind.
+		const refused = await client.call("workflow_status", { runId: "-x" });
+		assert.equal(refused.isError, true);
+		assert.match(text(refused), /^Usage error:/);
+		assert.equal(refused.structuredContent !== undefined, structured, host);
+	}
+	// No revision gives Claude Code structuredContent.
+	assert.equal(
+		hostServer.hostMcpSendsStructuredContent("claude-code", "2025-11-25"),
+		false,
+	);
+});
+
 test("every tool through the fake client equals the host API and CLI --json results", async () => {
 	const { cwd, env, ctx } = await project();
 	const executor = fixture();

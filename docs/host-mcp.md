@@ -78,6 +78,12 @@ destructive; `wait` drives scheduling (not read-only, not destructive). `title` 
   `Next: call workflow_wait {"runId":"…"} again.`
 - `structuredContent` (from `2025-06-18`): `{action, ok, outcome, data, text, next?}`; `data` equals
   the host API's (and the CLI `--json`) `data`, except for the inspect projection above.
+- **Per host (WP18b):** `--host claude-code` gets the text `content` only, never
+  `structuredContent` (`HOST_MCP_TEXT_ONLY_HOSTS`). Evidence: live bundle 4 case 1
+  ([live-acceptance-stage2.md](live-acceptance-stage2.md)), Claude Code 2.1.310 handed the model
+  the serialized `structuredContent` JSON instead of `content`, so every result reached the model
+  twice (`data` and the same `text`). The tools declare no `outputSchema`, so `structuredContent`
+  is optional. `codex` and `generic` keep it (Codex's rendering is not observed live yet).
 - `isError: true` for a refused launch (`outcome: "refused"`: capability refusal, unavailable
   executor, declined confirmation, an identical launch still starting) and for handler errors:
   `structuredContent: {ok: false, outcome: kind, error: {kind, message}}` with `kind` `usage`
@@ -128,6 +134,8 @@ run → wait loop → inspect).
 
 - WP14/WP15 ([plugins.md](plugins.md)): the plugin manifests register
   `agent-workflow-mcp --host claude-code|codex`. Offline checks: both hosts start the plugin
-  server in the project directory. Still live-only: the exact tool permission names, whether each
-  host shows `content` or `structuredContent` to the model, and elicitation support in practice.
+  server in the project directory. Live bundle 4 verified Claude Code (tool names, server cwd;
+  it shows `structuredContent` when present, so it gets `content` only since WP18b). Still
+  live-only: Codex's tool names in a model turn, whether Codex shows `content` or
+  `structuredContent`, and elicitation support in practice.
 - WP17: default executor from `ctx.host`; until then an omitted `executor` uses the engine default.

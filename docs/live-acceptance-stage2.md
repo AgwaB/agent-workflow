@@ -222,6 +222,7 @@ input 30, cache read 567,411, cache write 34,077, output 2,922. No `codex exec` 
 2. **Claude Code shows `structuredContent`, not `content`.** The model gets the whole
    `{action, ok, outcome, data, text, next}` JSON, so every result carries the data twice (structured
    and in `text`). It worked, but a large `data` (wait results, inspect) costs host context.
+   WP18b: `--host claude-code` now gets the text `content` only ([host-mcp.md](host-mcp.md#results)).
 3. **Long engine backoff vs. host patience.** A rate-limit launch retry waits 15 min
    (`retryAfterMs: 900000`); the haiku host stopped after ~8.5 min of `workflow_wait`. MCP hosts get
    no completion delivery, so the user learns the result only by asking again.

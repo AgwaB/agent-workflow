@@ -31,6 +31,27 @@ export const HOST_MCP_SERVER_NAME = "agent-workflow";
 export const HOST_MCP_HOSTS = ["claude-code", "codex", "generic"] as const;
 export type HostMcpHost = (typeof HOST_MCP_HOSTS)[number];
 
+/**
+ * WP18b: hosts that get the text `content` only, without `structuredContent`. Live bundle 4
+ * (Claude Code 2.1.310, docs/live-acceptance-stage2.md case 1): Claude Code hands the model the
+ * serialized `structuredContent` JSON instead of the `content` text when both are present, so every
+ * result reached the model twice (`data` plus the same `text`). The tools declare no
+ * `outputSchema`, so `structuredContent` is optional (MCP 2025-06-18). Codex and generic clients
+ * keep it (not observed live yet; structured clients can use `data`).
+ */
+export const HOST_MCP_TEXT_ONLY_HOSTS: readonly HostMcpHost[] = ["claude-code"];
+
+/** Whether results for this host and protocol revision carry `structuredContent`. */
+export function hostMcpSendsStructuredContent(
+	host: HostMcpHost,
+	protocolVersion: string,
+): boolean {
+	return (
+		mcpVersionHasStructuredContent(protocolVersion) &&
+		!HOST_MCP_TEXT_ONLY_HOSTS.includes(host)
+	);
+}
+
 export const WORKFLOW_LIST_TOOL = "workflow_list";
 export const WORKFLOW_RUN_TOOL = "workflow_run";
 export const WORKFLOW_DYNAMIC_TOOL = "workflow_dynamic";
@@ -659,7 +680,10 @@ export function createHostMcpService(
 		next?: string,
 	): HostMcpToolResult => {
 		const text = boundedText(outcome.text);
-		const structured = mcpVersionHasStructuredContent(call.protocolVersion);
+		const structured = hostMcpSendsStructuredContent(
+			options.host,
+			call.protocolVersion,
+		);
 		return {
 			content: [{ type: "text", text: next ? `${text}\n\n${next}` : text }],
 			...(structured
@@ -797,7 +821,10 @@ export function createHostMcpService(
 				rejectUnknown(name, args);
 				return await handler(args, call);
 			} catch (error) {
-				return errorResult(call, error);
+				return errorResult(
+					hostMcpSendsStructuredContent(options.host, call.protocolVersion),
+					error,
+				);
 			}
 		},
 	};
@@ -813,10 +840,7 @@ export function mcpVersionHasStructuredContent(version: string): boolean {
  * reported to the model so it can correct the call), with `error.kind` usage (HostUsageError, the
  * CLI's exit 2), validation (an invalid workflow spec) or error.
  */
-function errorResult(
-	call: McpToolCallContext,
-	error: unknown,
-): HostMcpToolResult {
+function errorResult(structured: boolean, error: unknown): HostMcpToolResult {
 	const kind =
 		error instanceof hostApi.HostUsageError
 			? "usage"
@@ -827,7 +851,7 @@ function errorResult(
 	const text = kind === "usage" ? `Usage error: ${message}` : message;
 	return {
 		content: [{ type: "text", text: boundedText(text) }],
-		...(mcpVersionHasStructuredContent(call.protocolVersion)
+		...(structured
 			? {
 					structuredContent: {
 						ok: false,
