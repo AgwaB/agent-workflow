@@ -54,10 +54,12 @@ import { AppServerConnection, type RpcId, type RpcMessage } from "./rpc.js";
 import {
 	AttemptStore,
 	attemptDigest,
+	classifyCodexAttemptRecord,
 	defaultStateDir,
 	processAlive,
 	ThreadOwnershipStore,
 } from "./state.js";
+import { schedulePeriodicAdapterStatePrune } from "../state-retention.js";
 import { planCodexTools } from "./tools.js";
 import {
 	createSecretRedactor,
@@ -887,6 +889,11 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 					subject: req.attemptKey,
 				},
 			);
+		// WP18b: old terminal attempt records are pruned in the background (at most every 6 h).
+		schedulePeriodicAdapterStatePrune({
+			stateDir,
+			classify: classifyCodexAttemptRecord,
+		});
 		// Last step before the effect (R#1).
 		const decision = await req.authority.consume();
 		if (decision.kind === "revoked")

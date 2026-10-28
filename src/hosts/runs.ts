@@ -14,11 +14,13 @@ import {
 	formatHumanRunResume,
 	formatHumanRunStop,
 	formatRawRunDetails,
+	formatScheduledRetryWait,
 	formatRunDetails,
 	formatRunStatus,
 	formatStatus,
 	refreshRun,
 	resumeRun,
+	scheduledRetryWait,
 	scheduleRun,
 	stopRun,
 	confirmRunStop,
@@ -48,12 +50,24 @@ import {
 	SUPERVISE_DEFAULT_MAX_RUNTIME_MS,
 	SUPERVISE_DEFAULT_POLL_MS,
 } from "./args.js";
+import {
+	type ExecutorStatePruneResult,
+	formatExecutorStatePrune,
+	pruneExecutorAdapterState,
+} from "./adapter-state.js";
+import { hostCommandHints, type WorkflowCommandHints } from "./hints.js";
 import { spawnDetachedSupervisor } from "./launch.js";
 import {
+	type HostLaunchClaimPrune,
+	pruneHostLaunchClaims,
+} from "./launch-guard.js";
+import {
+	formatVerdictGateHeadline,
 	formatWorkflowResultPresentation,
 	isResultOnlyWorkflowSuccess,
 	readWorkflowResultPresentation,
 	type WorkflowResultArtifact,
+	type WorkflowResultPresentation,
 } from "./result-presentation.js";
 import {
 	assertActionAllowed,
@@ -105,6 +119,12 @@ export function summarizeRun(run: WorkflowRunRecord): RunSummary {
 
 export interface StatusData {
 	run?: RunSummary & {
+		/** WP18b: domain verdict of a terminal run (output task control). */
+		verdict?: string;
+		/** WP18b: the run's only failure is the final verdict gate. */
+		verdictGate?: true;
+		/** WP18b: report artifacts of a terminal run. */
+		reportArtifacts: WorkflowResultArtifact[];
 		tasks: Array<{
 			taskId: string;
 			specId: string;
@@ -115,6 +135,20 @@ export interface StatusData {
 	runs?: RunSummary[];
 }
 
+/** Presentation (verdict, report, preview) of a terminal run; undefined while it runs. */
+async function terminalPresentation(
+	cwd: string,
+	run: WorkflowRunRecord,
+): Promise<WorkflowResultPresentation | undefined> {
+	const terminal = await summarizeWorkflowTerminal(cwd, run);
+	if (!terminal.terminal) return undefined;
+	return await readWorkflowResultPresentation(
+		cwd,
+		run,
+		terminal.outputTaskIds,
+	).catch(() => undefined);
+}
+
 /** `status [run]`: one run (refreshed) or every top-level run. */
 export async function statusAction(
 	ctx: HostApiContext,
@@ -122,7 +156,7 @@ export async function statusAction(
 ): Promise<HostResult<StatusData>> {
 	assertActionAllowed(ctx, "status");
 	if (request.runId === undefined) {
-		const text = await formatStatus(ctx.cwd);
+		const text = await formatStatus(ctx.cwd, hostCommandHints(ctx.host));
 		const runs = (await listRunRecords(ctx.cwd))
 			.filter((run) => !run.parentRunId)
 			.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -130,14 +164,42 @@ export async function statusAction(
 		return result("status", "success", { runs }, text);
 	}
 	const ref = requireRunRef(request.runId, "status");
-	const text = await formatRunStatus(ctx.cwd, ref);
+	const card = await formatRunStatus(ctx.cwd, ref, hostCommandHints(ctx.host));
 	const run = await readRunRecord(ctx.cwd, ref);
+	// WP18b: a terminal run shows its domain verdict and report; a verdict-gate run leads with
+	// "finished — verdict: X (report ready)".
+	const presentation = await terminalPresentation(ctx.cwd, run);
+	const text = presentation
+		? [
+				...(presentation.verdictGate
+					? [
+							`Workflow ${formatVerdictGateHeadline(presentation)} (run status: ${run.status})`,
+							"",
+						]
+					: []),
+				card,
+				...(presentation.verdict || presentation.artifacts.length
+					? [
+							"",
+							...(presentation.verdict
+								? [`Verdict: ${presentation.verdict}`]
+								: []),
+							...presentation.artifacts.map(
+								(artifact) => `${artifact.label}: ${artifact.path}`,
+							),
+						]
+					: []),
+			].join("\n")
+		: card;
 	return result(
 		"status",
 		"success",
 		{
 			run: {
 				...summarizeRun(run),
+				...(presentation?.verdict ? { verdict: presentation.verdict } : {}),
+				...(presentation?.verdictGate ? { verdictGate: true as const } : {}),
+				reportArtifacts: presentation?.artifacts ?? [],
 				tasks: run.tasks.map((task) => ({
 					taskId: task.taskId,
 					specId: task.specId,
@@ -158,8 +220,8 @@ export async function showRunAction(
 	assertActionAllowed(ctx, "show");
 	const ref = requireRunRef(request.runId, "show");
 	const text = request.raw
-		? await formatRawRunDetails(ctx.cwd, ref)
-		: await formatRunDetails(ctx.cwd, ref);
+		? await formatRawRunDetails(ctx.cwd, ref, hostCommandHints(ctx.host))
+		: await formatRunDetails(ctx.cwd, ref, hostCommandHints(ctx.host));
 	const run = await readRunRecord(ctx.cwd, ref);
 	return result("show", "success", { kind: "run", run }, text);
 }
@@ -336,6 +398,28 @@ export interface WaitData {
 	outputRetryAttempts: number;
 	launchRetryAttempts: number;
 	artifactRoot: string;
+	/**
+	 * WP18b: set while the run only waits for a scheduled task retry (for example a 15-minute
+	 * rate-limit backoff): the earliest retry time, its remaining ms, reason/message and the waiting
+	 * task ids. No task progress is expected before `at`.
+	 */
+	nextRetry?: {
+		at: string;
+		retryAfterMs: number;
+		reason?: string;
+		message?: string;
+		taskIds: string[];
+	};
+	/**
+	 * WP18b: the workflow's domain verdict from the output task (for example NEEDS_WORK), distinct
+	 * from the run `status`/`semanticStatus`.
+	 */
+	verdict?: string;
+	/**
+	 * WP18b: the run's only failure is its final verdict gate (every model task completed; the final
+	 * step declared a non-passing verdict as `failed`). `status` and the outcome stay `failed`.
+	 */
+	verdictGate?: true;
 	/** Bounded authoritative-result preview of a terminal run. */
 	preview?: string;
 	reportArtifacts: WorkflowResultArtifact[];
@@ -406,6 +490,7 @@ export async function waitAction(
 		.filter((task) => task.status === "blocked")
 		.map((task) => task.specId);
 	const actionRequired = !terminal.terminal && !stillRunning;
+	const nextRetry = stillRunning ? scheduledRetryWait(run) : undefined;
 	const data: WaitData = {
 		runId: run.runId,
 		status: run.status,
@@ -420,20 +505,28 @@ export async function waitAction(
 		outputRetryAttempts: terminal.outputRetryAttempts,
 		launchRetryAttempts: terminal.launchRetryAttempts,
 		artifactRoot: toDisplayPath(terminal.artifactRoot, ctx.cwd),
+		...(nextRetry ? { nextRetry } : {}),
+		...(presentation?.verdict ? { verdict: presentation.verdict } : {}),
+		...(presentation?.verdictGate ? { verdictGate: true as const } : {}),
 		...(preview ? { preview } : {}),
 		reportArtifacts: artifacts,
 		...(run.usage ? { usage: run.usage } : {}),
 		...(run.degradation ? { degradation: run.degradation } : {}),
 	};
+	const hints = hostCommandHints(ctx.host);
 	let text: string;
 	if (stillRunning) {
 		text = `Workflow still running: ${run.name ?? "workflow"}\nRun: ${run.runId}\nProgress: ${run.taskSummary.completed}/${run.taskSummary.total} completed, ${run.taskSummary.running} running (waited ${timeoutMs}ms; wait again to keep driving it)`;
+		if (nextRetry)
+			text += `\nNow ${formatScheduledRetryWait(nextRetry)}${nextRetry.message ? `: ${nextRetry.message}` : ""}; no progress before then.`;
 	} else if (
 		terminal.terminal &&
 		preview &&
 		isResultOnlyWorkflowSuccess(terminal.semanticStatus, preview)
 	) {
 		text = formatWorkflowResultPresentation(preview, artifacts);
+	} else if (presentation?.verdictGate) {
+		text = formatVerdictGateText(run, presentation, hints);
 	} else {
 		text = [
 			terminal.terminal
@@ -442,14 +535,15 @@ export async function waitAction(
 			`Run: ${run.runId}`,
 			`Engine status: ${terminal.engineStatus}`,
 			`Semantic status: ${terminal.semanticStatus}`,
-			formatHumanRunOutcome(run),
+			...(presentation?.verdict ? [`Verdict: ${presentation.verdict}`] : []),
+			formatHumanRunOutcome(run, { hints }),
 			`Output retries: ${terminal.outputRetryAttempts}; launch retries: ${terminal.launchRetryAttempts}`,
 			`Artifacts: ${data.artifactRoot}`,
 			terminal.terminal
 				? preview
 					? `Final result preview:\n${formatWorkflowResultPresentation(preview, artifacts)}`
 					: "Final result preview: unavailable"
-				: `Blocked tasks: ${blockedTaskIds.join(", ") || "unknown"}; inspect with: agent-workflow inspect ${run.runId} --failures; resume with: agent-workflow resume ${run.runId}`,
+				: `Blocked tasks: ${blockedTaskIds.join(", ") || "unknown"}; inspect with: ${hints.inspectFailures(run.runId)}; resume with: ${hints.resume(run.runId)}`,
 		].join("\n");
 	}
 	return result(
@@ -458,6 +552,33 @@ export async function waitAction(
 		data,
 		text,
 	);
+}
+
+/**
+ * WP18b: text of a run whose only failure is the final verdict gate: a finished run with a domain
+ * verdict and a report, not a failure; the run status stays visible on its own line.
+ */
+function formatVerdictGateText(
+	run: WorkflowRunRecord,
+	presentation: WorkflowResultPresentation,
+	hints: WorkflowCommandHints,
+): string {
+	return [
+		`Workflow ${formatVerdictGateHeadline(presentation)}: ${run.name ?? "workflow"}`,
+		`Run: ${run.runId}`,
+		`Run status: ${run.status} (only the final verdict gate did not pass; every other task completed)`,
+		"",
+		presentation.preview
+			? formatWorkflowResultPresentation(
+					presentation.preview,
+					presentation.artifacts,
+				)
+			: presentation.artifacts
+					.map((artifact) => `- ${artifact.label}: \`${artifact.path}\``)
+					.join("\n"),
+		"",
+		`Open: ${hints.status(run.runId)}`,
+	].join("\n");
 }
 
 export interface ResumeData {
@@ -494,7 +615,9 @@ export async function resumeAction(
 		"resume",
 		outcomeForRunStatus(run.status),
 		data,
-		formatHumanRunResume(run, resetTaskIds.length) + note,
+		formatHumanRunResume(run, resetTaskIds.length, {
+			hints: hostCommandHints(ctx.host),
+		}) + note,
 	);
 }
 
@@ -542,7 +665,11 @@ export async function stopAction(
 					interruptedTaskIds,
 					pending: false,
 				},
-				formatHumanRunStop(run, interruptedTaskIds.length),
+				formatHumanRunStop(
+					run,
+					interruptedTaskIds.length,
+					hostCommandHints(ctx.host),
+				),
 			);
 		} catch (error) {
 			if (!isWorkflowStopPendingError(error)) throw error;
@@ -558,7 +685,7 @@ export async function stopAction(
 						interruptedTaskIds: [],
 						pending: true,
 					},
-					`Stop requested for ${run.runId}; the active supervisor has not confirmed it yet. The stop intent is durable. Check: agent-workflow status ${run.runId}`,
+					`Stop requested for ${run.runId}; the active supervisor has not confirmed it yet. The stop intent is durable. Check: ${hostCommandHints(ctx.host).status(run.runId)}`,
 				);
 			}
 			await new Promise((done) => setTimeout(done, 250));
@@ -572,7 +699,14 @@ export async function pruneAction(
 	request:
 		| { keep?: number; olderThanDays?: number; yes?: boolean }
 		| { argv: string[] },
-): Promise<HostResult<WorkflowPruneSummary>> {
+): Promise<
+	HostResult<
+		WorkflowPruneSummary & {
+			adapterState: ExecutorStatePruneResult[];
+			hostLaunchClaims: HostLaunchClaimPrune;
+		}
+	>
+> {
 	assertActionAllowed(ctx, "prune");
 	const options =
 		"argv" in request
@@ -588,11 +722,25 @@ export async function pruneAction(
 				]);
 	const { json: _json, ...retention } = options;
 	const summary = await pruneWorkflowRuns(ctx.cwd, retention);
+	// WP18b: the executor adapters' attempt state is pruned with the same dry-run rule; the window
+	// is `--older-than` when given, else 7 days.
+	const adapterState = await pruneExecutorAdapterState({
+		env: hostEnv(ctx),
+		dryRun: !retention.yes,
+		...(retention.olderThanDays === undefined
+			? {}
+			: { retentionMs: retention.olderThanDays * 86_400_000 }),
+	});
+	// WP18b: stale host launch claims (`.agent-workflow/host-launches/`) go with the runs.
+	const hostLaunchClaims = await pruneHostLaunchClaims(ctx.cwd, {
+		dryRun: !retention.yes,
+	});
+	const claimsText = `Host launch claims: ${hostLaunchClaims.removed.length} stale file(s) ${hostLaunchClaims.dryRun ? "would be removed" : "removed"}${hostLaunchClaims.errors.length ? `; errors: ${hostLaunchClaims.errors.join("; ")}` : ""}`;
 	return result(
 		"prune",
 		summary.error ? "failed" : "success",
-		summary,
-		formatWorkflowPruneSummary(summary),
+		{ ...summary, adapterState, hostLaunchClaims },
+		`${formatWorkflowPruneSummary(summary)}\n${formatExecutorStatePrune(adapterState)}\n${claimsText}`,
 	);
 }
 

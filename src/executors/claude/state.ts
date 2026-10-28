@@ -3,12 +3,14 @@
  * under `config.stateDir`. Reconcile in a fresh process reads these records: `revoked` or no record
  * ⇒ `absent`; `consumed` without launch evidence ⇒ `unknown`; `spawned` ⇒ `found`. The first
  * record of an attempt is claimed exclusively (review #2).
- * Records hold no env values and no prompt text.
+ * Records hold no env values and no prompt text. WP18b: terminal records older than the retention
+ * window are pruned (`classifyClaudeAttemptRecord`, ../state-retention.ts).
  */
 import { createHash, randomBytes } from "node:crypto";
 import { link, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ExecRef } from "../../sdk/contract.js";
+import { type AttemptRecordClass, processAlive } from "../state-retention.js";
 
 export interface AttemptRecord {
 	readonly schema: "agent-workflow-claude-attempt-v1";
@@ -194,4 +196,23 @@ export class ClaudeStateStore {
 	async forgetSession(sessionId: string): Promise<void> {
 		await rm(join(this.sessionsDir(), `${sessionId}.json`), { force: true });
 	}
+}
+
+/**
+ * WP18b retention: a Claude attempt is terminal when revoked or spawned and its process is gone
+ * (the adapter has no terminal phase; `consumed` without launch evidence stays, it reconciles as
+ * `unknown`).
+ */
+export function classifyClaudeAttemptRecord(
+	record: unknown,
+): AttemptRecordClass | undefined {
+	const value = record as Partial<AttemptRecord> | null;
+	if (value?.schema !== "agent-workflow-claude-attempt-v1") return undefined;
+	const updatedAtMs = Date.parse(String(value.updatedAt));
+	return {
+		terminal:
+			value.phase === "revoked" ||
+			(value.phase === "spawned" && !processAlive(value.pid)),
+		...(Number.isFinite(updatedAtMs) ? { updatedAtMs } : {}),
+	};
 }

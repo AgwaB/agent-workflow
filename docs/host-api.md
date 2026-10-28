@@ -41,6 +41,15 @@ passed through unchanged for the stage-2 default-executor rule, WP17).
 | `data` | Structured, JSON-serializable payload (per handler below). |
 | `text` | Plain-text rendering for humans (CLI stdout, MCP text content). |
 
+**Next-step hints (WP18b).** Run texts name follow-up commands (`Open:`, `Resume:`, `Logs:`, `Raw:`,
+stall warnings, the detached-launch and blocked-wait lines). Handlers choose them from `ctx.host`
+(`src/hosts/hints.ts`): `cli` or unset → `agent-workflow status|resume|logs … <run>`, `pi` →
+`/aw …`, `claude-code`/`codex`/`generic` → MCP tool calls (`workflow_status {"runId":…}`,
+`workflow_logs`, `workflow_inspect`, `workflow_stop`; resume has no tool, so it names
+`agent-workflow resume <run>`). Hosts print `text` unchanged; no host rewrites handler text for
+hints. The core formatters keep pi-workflow's `/workflow …` form only as their default for direct
+(ported) core callers.
+
 **Errors.** Caller mistakes throw `HostUsageError` (CLI exit 2; host MCP server: a tool result
 with `isError` and `error.kind: "usage"`, see `host-mcp.md`). Spec errors
 throw `WorkflowValidationError`; `formatHostError(error)` renders any error. Launch refusals are
@@ -130,8 +139,10 @@ pruned or older run, different inputs or options, or `forceNew: true` start a ne
 claim file per identity in `<cwd>/.agent-workflow/host-launches/<sha256>.json`, created exclusively
 before the run starts and given the run id afterwards, so concurrent identical launches also yield
 one run (the later ones wait up to 15 s for the first run id; a claim of a dead process or older
-than 60 s without a run id is taken over). Runs launched outside the host API (the SDK) are not
-guarded. Before WP16 the guard applied to attached launches only, matched spec name + task, and
+than 60 s without a run id is taken over). WP18b: claim files older than 1 h that do not name a
+still-active run are stale; every launch removes them in the background and `prune` removes them
+with the runs (same dry-run rule; `data.hostLaunchClaims`). Runs launched outside the host API (the
+SDK) are not guarded. Before WP16 the guard applied to attached launches only, matched spec name + task, and
 refused (`outcome: "refused"`).
 
 The handler returns once the run is launched (usually `running`). The engine keeps an in-process
@@ -163,7 +174,19 @@ cancels only the wait.
 
 `WaitData`: `{runId, status, semanticStatus, terminal, actionRequired, stillRunning, timeoutMs,
 blockedTaskIds, taskSummary, outputTaskIds, outputRetryAttempts, launchRetryAttempts, artifactRoot,
-preview?, reportArtifacts, usage?, degradation?}`.
+nextRetry?, verdict?, preview?, reportArtifacts, usage?, degradation?}`. `verdict` (WP18b) is the
+workflow's domain verdict from the output task's control (for example `NEEDS_WORK`), not the run
+status. `verdictGate: true` (WP18b) marks a run whose only failure is the final verdict
+gate (`isVerdictGateFailure`: run `failed`, every task completed or skipped except output tasks with
+`support_declared_failed`): the preview and `reportArtifacts` then come from that declared-failed
+task (before WP18b only a *completed* output task was read, so these runs had no preview and no
+report), and `text` leads with `Workflow finished — verdict: X (report ready)` and keeps the run
+status on its own line. Presentation only: `status` and the outcome stay `failed` (CLI exit 1).
+`statusAction` for one terminal run adds the same headline, `Verdict:` and report lines, and
+`data.run.{verdict?, verdictGate?, reportArtifacts}`. `nextRetry` (WP18b) is set while a
+still-running run only waits for a scheduled task retry (no task running, every startable task in a
+retry backoff such as a 15-minute rate-limit wait): `{at, retryAfterMs, reason?, message?, taskIds}`;
+the text then adds "Now waiting for scheduled retry at <time> (<reason>; <tasks>)".
 
 | State | `terminal` | `actionRequired` | `stillRunning` | outcome |
 |---|---|---|---|---|
@@ -258,13 +281,13 @@ The original files carry `Moved (WP11a)` markers at the former deferral comments
 - **WP11b (Pi host):** `/workflow` slash commands should call these handlers with
   `availableModels`/`runtimeDefaults` from Pi and `selectProfile`/`confirmDegradations` from the
   TUI; it keeps feedback delivery, parent usage, notices at session start, the board and `auto`.
-  Core formatters still print `/workflow …` hints (status/show/stop texts); the CLI shows them as is.
+  WP18b: run-text hints are host-aware (see *Next-step hints* above).
 - **Launch capture:** `WorkflowRunLaunchCapture` has no CLI/MCP source kind; runs launched through
   the host API record no launch metadata until core gains a host-neutral source.
 - **Stage 2 (WP13 MCP host):** done — `docs/host-mcp.md` (`HostUsageError` → `isError` tool
   result, repeated bounded `waitAction` calls, `detach` default true, degradation confirmation
-  through MCP elicitation when the client supports it, else non-interactive). Follow-up: a
-  `workflow_logs` tool over `logsAction` (WP16 left the MCP tool list unchanged).
+  through MCP elicitation when the client supports it, else non-interactive). WP18b added
+  the `workflow_logs` tool over `logsAction`.
 - **Duplicate guard (WP16):** an `existing` run returned to a launch that asked for `detach` may be an
   attached run whose host process is gone (it stays `running` until `wait`, `resume` or `supervise`
   drives it); `forceNew` or `resume` then. The claim files are not pruned with runs (one small

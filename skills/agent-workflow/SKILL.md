@@ -20,13 +20,15 @@ say the same.
 | `workflow_wait` | Wait for a run, **at most 45 s per call** (`runId`, `timeoutMs?` 1000-45000). |
 | `workflow_status` | List runs, or one run with `runId`. |
 | `workflow_inspect` | Details of a run: `failures: true` for failed tasks, `results: true` for task results. |
+| `workflow_logs` | Bounded, redacted tail of task output, stderr and executor events (`runId`, `task?`, `lines?`, `stream?`). |
 | `workflow_stop` | Stop a run (`runId`). Cancelling a wait call does not stop the run. |
 | `workflow_validate` | Check a workflow spec (`workflow`: name or spec path). |
 
 Hosts prefix the names: with the Claude Code plugin they appear as
 `mcp__plugin_agent-workflow_agent-workflow__<tool>`, with `claude mcp add agent-workflow` as
-`mcp__agent-workflow__<tool>`, and in Codex as `mcp__agent-workflow__<tool>`. Use whichever form your
-tool list shows.
+`mcp__agent-workflow__<tool>`, and in Codex as `mcp__agent_workflow__<tool>` (hyphen → underscore; in
+Codex code mode they are functions inside an `exec` cell: `tools.mcp__agent_workflow__<tool>(…)`).
+Use whichever form your tool list shows.
 
 ## Run protocol
 
@@ -38,14 +40,23 @@ tool list shows.
 3. Call `workflow_wait {runId}`. While the result says `stillRunning: true`, call `workflow_wait`
    again with the same `runId`; between calls give the user at most a one-line progress note. Do not
    poll with shell `sleep`, and do not start other edits on files the run is reading.
+   You get **no completion push**: the run reports only through `workflow_wait`/`workflow_status`.
+   If it is still running when you stop waiting (for example a long rate-limit backoff: the wait
+   result then has `nextRetry` with the retry time and reason), tell the user the `runId`, what the
+   run is waiting for (the retry time and reason, or its running tasks), and that they can ask you
+   again later for the result.
 4. `terminal: true`: the run finished. Quote the result preview and give the report paths verbatim
    (the `reportArtifacts`/paths the tool prints). Do not paraphrase or re-summarize the report; read
    the report file only if the user wants details.
 5. `actionRequired: true`: the run is blocked. Report the reason, call
    `workflow_inspect {runId, failures: true}` and tell the user that `agent-workflow resume <runId>`
    (CLI) continues it after they fix the cause.
-6. A failed or partial run: report status and the failed tasks from `workflow_inspect`; do not
-   invent results for missing parts.
+6. A result headed `Workflow finished — verdict: X (report ready)` (`verdictGate: true`) finished
+   with a non-passing domain verdict, for example `PARTIAL_REVIEW`: report the verdict, quote the
+   preview and give the report path. Its status says `failed` only because the verdict did not pass
+   the final gate; do not call it a workflow failure.
+7. A failed or partial run otherwise: report status and the failed tasks from `workflow_inspect`; do
+   not invent results for missing parts.
 
 Runs are detached by default (`detach: true`): they keep running between calls and after the host
 session ends. `workflow_status` finds them again later.
@@ -78,6 +89,6 @@ session ends. `workflow_status` finds them again later.
 
 ## Without the MCP tools
 
-The same operations exist in the CLI (`agent-workflow list|run|dynamic|wait|status|inspect|stop|
+The same operations exist in the CLI (`agent-workflow list|run|dynamic|wait|status|inspect|logs|stop|
 validate|resume`). If the CLI is not installed, run it through npx:
 `npx -y --package=@agwab/agent-workflow agent-workflow <command>`.

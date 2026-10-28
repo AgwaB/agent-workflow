@@ -1,6 +1,8 @@
 // Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/extension.ts (readWorkflowResultPresentation
 // and its safe task-artifact helpers, used by the workflow_wait tool). MIT, same author. Changes
 // (WP11a): moved into the host API; the truncation notice no longer names the Pi `/workflow` board.
+// WP18b: the presentation carries the output task's domain `verdict`; a run that failed only at its
+// final verdict gate presents the declared-failed output task (`isVerdictGateFailure`).
 import { realpath, readFile } from "node:fs/promises";
 import {
 	dirname,
@@ -23,6 +25,57 @@ export interface WorkflowResultArtifact {
 export interface WorkflowResultPresentation {
 	preview?: string;
 	artifacts: WorkflowResultArtifact[];
+	/**
+	 * WP18b: the workflow's domain verdict, `verdict` of the output task's control (for example
+	 * deep-review's REVIEW_COMPLETE / NEEDS_WORK / PARTIAL_REVIEW). Not the run status.
+	 */
+	verdict?: string;
+	/**
+	 * WP18b: the run failed only at its final verdict gate (see `isVerdictGateFailure`); the preview
+	 * and report come from that declared-failed output task.
+	 */
+	verdictGate?: true;
+}
+
+/**
+ * WP18b (live 4/4b): a run whose only failure is the final verdict gate. Engine status `failed`,
+ * every task completed (or skipped) except output tasks whose support step declared `failed` (for
+ * example deep-review's renderer for PARTIAL_REVIEW: `support_declared_failed`). Presentation only:
+ * hosts show "finished — verdict: X (report ready)" instead of a failure; the run status, the host
+ * outcome and the CLI exit code stay `failed`.
+ */
+export function isVerdictGateFailure(
+	run: Pick<WorkflowRunRecord, "status" | "tasks">,
+	outputTaskIds: readonly string[],
+): boolean {
+	if (run.status !== "failed") return false;
+	const outputs = new Set(outputTaskIds);
+	let gate = false;
+	for (const task of run.tasks) {
+		if (task.status === "completed" || task.status === "skipped") continue;
+		if (
+			task.status === "failed" &&
+			String(task.statusDetail) === "support_declared_failed" &&
+			(outputs.has(task.specId) || outputs.has(task.taskId))
+		) {
+			gate = true;
+			continue;
+		}
+		return false;
+	}
+	return gate;
+}
+
+/** `finished — verdict: X (report ready)`: the headline of a verdict-gate run. */
+export function formatVerdictGateHeadline(
+	presentation: Pick<WorkflowResultPresentation, "verdict" | "artifacts">,
+): string {
+	const report = presentation.artifacts.some(
+		(artifact) => artifact.kind === "final-report",
+	)
+		? "report ready"
+		: "no report file";
+	return `finished — verdict: ${presentation.verdict ?? "not reported"} (${report})`;
 }
 
 interface SafeRelativeTaskArtifact {
@@ -194,19 +247,30 @@ export function formatWorkflowResultPresentation(
 	].join("\n\n");
 }
 
-/** Bounded authoritative-result preview of a terminal run (first completed output task). */
+/**
+ * Bounded authoritative-result preview of a terminal run (first completed output task; WP18b: else
+ * the declared-failed output task of a verdict-gate run).
+ */
 export async function readWorkflowResultPresentation(
 	cwd: string,
 	run: WorkflowRunRecord,
 	outputTaskIds: string[],
 ): Promise<WorkflowResultPresentation | undefined> {
-	const task = outputTaskIds
-		.map((id) =>
-			run.tasks.find(
-				(candidate) => candidate.specId === id || candidate.taskId === id,
-			),
-		)
-		.find((candidate) => candidate?.status === "completed");
+	const outputTasks = outputTaskIds.map((id) =>
+		run.tasks.find(
+			(candidate) => candidate.specId === id || candidate.taskId === id,
+		),
+	);
+	let task = outputTasks.find((candidate) => candidate?.status === "completed");
+	// WP18b: a run that failed only at its final verdict gate still has its report (the
+	// declared-failed output task wrote it); present that task's result.
+	const verdictGate = !task && isVerdictGateFailure(run, outputTaskIds);
+	if (verdictGate)
+		task = outputTasks.find(
+			(candidate) =>
+				candidate?.status === "failed" &&
+				String(candidate.statusDetail) === "support_declared_failed",
+		);
 	if (!task) return undefined;
 
 	const projectDir = resolvePath(cwd);
@@ -237,6 +301,7 @@ export async function readWorkflowResultPresentation(
 	);
 	const control = controlText ? parseJsonRecord(controlText) : undefined;
 	const artifacts = await collectWorkflowResultArtifacts(cwd, taskDir, control);
+	const verdict = domainVerdict(control?.verdict);
 	const presentation = (
 		preview: string | undefined,
 		preserveExact = false,
@@ -247,7 +312,12 @@ export async function readWorkflowResultPresentation(
 				? preview
 				: truncateWorkflowPreview(preview);
 		}
-		return { preview: presentedPreview, artifacts };
+		return {
+			preview: presentedPreview,
+			artifacts,
+			...(verdict ? { verdict } : {}),
+			...(verdictGate ? { verdictGate: true as const } : {}),
+		};
 	};
 	// This is the authoritative terminal-summary field. Unlike fallback prose,
 	// its Markdown is an exact result payload: do not trim, normalize, or
@@ -311,6 +381,14 @@ function parseJsonRecord(text: string): Record<string, unknown> | undefined {
 	} catch {
 		return undefined;
 	}
+}
+
+/** A short verdict token (`NEEDS_WORK`, `Partial review`); anything else is ignored. */
+function domainVerdict(value: unknown): string | undefined {
+	const text = stringValue(value);
+	return text && text.length <= 64 && /^[A-Za-z][A-Za-z0-9_ .-]*$/.test(text)
+		? text
+		: undefined;
 }
 
 function stringValue(value: unknown): string | undefined {

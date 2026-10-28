@@ -470,6 +470,12 @@ and runs with retained children are protected. Pruning a run also deletes the wo
 still recorded as owned (where the adapter supports `deleteOwnedSession`; already `deleted` or
 `not_found` entries are skipped, the rest retried); a run whose session deletion fails is kept.
 
+Executor adapters keep one attempt record per worker attempt under
+`~/.agent-workflow/executors/{claude,codex,pi}/attempts/`. Since WP18b, terminal attempt records
+older than 7 days are removed with their event logs and per-attempt dirs, in the background when a
+worker is submitted (at most every 6 h) and by `agent-workflow prune` (same dry-run rule;
+`--older-than DAYS` sets the window). Records of attempts that may still run are never removed.
+
 ## Troubleshooting
 
 | Symptom | Cause and fix |

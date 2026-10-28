@@ -3,7 +3,8 @@
  * log per attemptKey under `<stateDir>/attempts/`, so a restarted executor (or a fresh process
  * reloaded from the descriptor) can answer submit/reconcile/observe without a second launch.
  * Records hold no prompt, env value or credential: attemptKey digest, phase, ExecRef, pid, thread
- * id. The event log holds the normalized events (the same view the runtime persists).
+ * id. The event log holds the normalized events (the same view the runtime persists). WP18b:
+ * terminal records older than the retention window are pruned (`classifyCodexAttemptRecord`).
  */
 import { createHash, randomBytes } from "node:crypto";
 import {
@@ -19,6 +20,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ExecRef } from "../../sdk/contract.js";
 import type { ExecEvent } from "../../sdk/events.js";
+import type { AttemptRecordClass } from "../state-retention.js";
 
 export type AttemptPhase = "revoked" | "consumed" | "spawned" | "terminal";
 
@@ -253,4 +255,24 @@ export class ThreadOwnershipStore {
 	forget(threadId: string): void {
 		rmSync(this.path(threadId), { force: true });
 	}
+}
+
+/**
+ * WP18b retention: a Codex attempt is terminal in phase `terminal` or `revoked`, or `spawned` with
+ * its app-server process gone. Its event log and `<h>.log/` dir go with the record.
+ */
+export function classifyCodexAttemptRecord(
+	record: unknown,
+): AttemptRecordClass | undefined {
+	const value = record as Partial<AttemptRecord> | null;
+	if (value?.schema !== "agent-workflow-codex-attempt-v1") return undefined;
+	return {
+		terminal:
+			value.phase === "terminal" ||
+			value.phase === "revoked" ||
+			(value.phase === "spawned" && !processAlive(value.pid)),
+		...(typeof value.updatedAt === "number" && Number.isFinite(value.updatedAt)
+			? { updatedAtMs: value.updatedAt }
+			: {}),
+	};
 }

@@ -219,7 +219,10 @@ Other terminal cases:
 
 ## Durability, idempotency, fencing
 
-Attempt records (`<stateDir>/attempts/<sha256(attemptKey)>.json`, default `~/.agent-workflow/executors/pi`):
+Attempt records (`<stateDir>/attempts/<sha256(attemptKey)>.json`, default `~/.agent-workflow/executors/pi`;
+WP18b: `exited`/`revoked` records, or `spawned` ones whose process is gone, older than 7 days are
+pruned with the adapter's own `<stateDir>/runs/<h>/`, on submit at most every 6 h and by
+`agent-workflow prune`):
 
 1. `pending` is written exclusively **before** `consume()`.
 2. Then `revoked`, or `consumed`.

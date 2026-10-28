@@ -73,6 +73,7 @@ export {
 	type LogsTask,
 	LOGS_DEFAULT_LINES,
 	LOGS_MAX_LINES,
+	LOGS_MAX_TASKS,
 	logsAction,
 } from "./logs.js";
 export {

@@ -122,6 +122,7 @@ function recordingApi(stubs = {}) {
 		"waitAction",
 		"stopAction",
 		"inspectAction",
+		"logsAction",
 		"validateWorkflowAction",
 	])
 		wrapped[name] = async (ctx, request) => {
@@ -145,7 +146,7 @@ async function cliJson(cwd, env, argv) {
 
 const text = (result) => result.content[0].text;
 
-test("initialize and tools/list: server name, instructions, eight tools gated per revision", async () => {
+test("initialize and tools/list: server name, instructions, nine tools gated per revision", async () => {
 	const { cwd, env } = await project();
 	const client = await inProcessHostServer({ root: cwd, env });
 	clients.push(client);
@@ -175,6 +176,7 @@ test("initialize and tools/list: server name, instructions, eight tools gated pe
 			"workflow_wait",
 			"workflow_stop",
 			"workflow_inspect",
+			"workflow_logs",
 			"workflow_validate",
 		],
 	);
@@ -224,6 +226,36 @@ test("initialize and tools/list: server name, instructions, eight tools gated pe
 	const listed = await old.call("workflow_list", { limit: 1 });
 	assert.equal(listed.structuredContent, undefined);
 	assert.equal(listed.isError, false);
+});
+
+test("WP18b: --host claude-code gets the text content only (no structuredContent); codex and generic keep it", async () => {
+	const { cwd, env } = await project();
+	assert.deepEqual(hostServer.HOST_MCP_TEXT_ONLY_HOSTS, ["claude-code"]);
+	for (const [host, structured] of [
+		["claude-code", false],
+		["codex", true],
+		["generic", true],
+	]) {
+		assert.equal(
+			hostServer.hostMcpSendsStructuredContent(host, "2025-06-18"),
+			structured,
+		);
+		const client = await connect({ root: cwd, env, host }, "2025-06-18");
+		const listed = await client.call("workflow_list", { limit: 1 });
+		assert.equal(listed.isError, false);
+		assert.match(text(listed), /wf|deep-review|workflow/i);
+		assert.equal(listed.structuredContent !== undefined, structured, host);
+		// Error results follow the same rule; the text keeps the error kind.
+		const refused = await client.call("workflow_status", { runId: "-x" });
+		assert.equal(refused.isError, true);
+		assert.match(text(refused), /^Usage error:/);
+		assert.equal(refused.structuredContent !== undefined, structured, host);
+	}
+	// No revision gives Claude Code structuredContent.
+	assert.equal(
+		hostServer.hostMcpSendsStructuredContent("claude-code", "2025-11-25"),
+		false,
+	);
 });
 
 test("every tool through the fake client equals the host API and CLI --json results", async () => {
@@ -340,6 +372,51 @@ test("every tool through the fake client equals the host API and CLI --json resu
 		inspected.structuredContent.data.reliability,
 		cliInspect.json.data.reliability,
 	);
+
+	// logs (WP18b): the host API logs action; equal to the CLI --json data.
+	const logs = await client.call("workflow_logs", {
+		runId,
+		lines: 5,
+		stream: "output",
+	});
+	assert.equal(logs.isError, false, text(logs));
+	const apiLogs = await api.logsAction(ctx, {
+		runId,
+		lines: 5,
+		stream: "output",
+	});
+	assert.deepEqual(logs.structuredContent.data, apiLogs.data);
+	assert.equal(text(logs), apiLogs.text);
+	assert.deepEqual(
+		logs.structuredContent.data,
+		(
+			await cliJson(cwd, env, [
+				"logs",
+				runId,
+				"--lines",
+				"5",
+				"--stream",
+				"output",
+			])
+		).json.data,
+	);
+	const taskLogs = await client.call("workflow_logs", {
+		runId,
+		task: apiLogs.data.tasks[0].specId,
+	});
+	assert.equal(taskLogs.structuredContent.data.tasks.length, 1);
+	for (const [args, pattern] of [
+		[
+			{ runId, stream: "nope" },
+			/stream must be one of output, stderr, events, all/,
+		],
+		[{ runId, lines: 0 }, /lines must be an integer from 1 to 400/],
+		[{ runId, task: "no-such-task" }, /no-such-task/],
+	]) {
+		const bad = await client.call("workflow_logs", args);
+		assert.equal(bad.isError, true);
+		assert.match(text(bad), pattern);
+	}
 
 	// dynamic with an unavailable executor: refused, nothing launched, isError.
 	const refused = await client.call("workflow_dynamic", {

@@ -120,6 +120,7 @@ try {
 		"workflow_wait",
 		"workflow_stop",
 		"workflow_inspect",
+		"workflow_logs",
 		"workflow_validate",
 	]);
 

@@ -360,7 +360,9 @@ standard`) and `WebFetch` (`url`, `prompt`) both completed. The answer cited sou
   - Flip `ARTIFACT_TOOL_NAME_MAPPINGS.claude.verified` (its type is literal `false`).
 - **WP4c/retention**
   - `ownedSession {kind: "claude-session"}` must be deleted through the adapter's `deleteOwnedSession`. Consider adding an optional `deleteOwnedSession` to `WorkflowExecutor`.
-  - Prune `stateDir/attempts`.
+  - Prune `stateDir/attempts`: done in WP18b (`revoked`, or `spawned` with the process gone, older
+    than 7 days, with its `attempts/<hash>/` dir; on submit at most every 6 h and by
+    `agent-workflow prune`).
 - **WP10**
   - `web_search`/`fetch_content` → `WebSearch`/`WebFetch` (pre-allowed, `safetyPolicy: unknown`).
   - `ls` maps to `Glob`.

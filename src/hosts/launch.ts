@@ -36,6 +36,7 @@ import type {
 import { resolveSavedWorkflowExecutionProfile } from "../core/workflow-profile-settings.js";
 import type { WorkflowRuntimeDefaults } from "../core/workflow-runtime.js";
 import type { CapabilityPreview } from "../sdk/requirements.js";
+import { hostCommandHints, type WorkflowCommandHints } from "./hints.js";
 import {
 	HostUsageError,
 	isThinkingLevel,
@@ -426,6 +427,7 @@ function validateLaunchRequest(
 function existingRunText(
 	action: "run" | "dynamic",
 	run: WorkflowRunRecord,
+	hints: WorkflowCommandHints,
 	now = Date.now(),
 ): string {
 	const startedAgoMs = now - Date.parse(run.createdAt);
@@ -435,8 +437,8 @@ function existingRunText(
 	const what = action === "dynamic" ? "dynamic task" : "workflow, task";
 	return [
 		`Duplicate launch guard: run ${run.runId} is already active with the same ${what}, inputs and options (${run.status}${startedAgo}).`,
-		`Not starting a new run; returning the existing run ${run.runId}. Check status ${run.runId} or wait for it; launch again with --force-new to really start another run.`,
-		formatHumanRunLaunch(run),
+		`Not starting a new run; returning the existing run ${run.runId}. Check status (${hints.status(run.runId)}) or wait for it (${hints.wait(run.runId)}); launch again with --force-new to really start another run.`,
+		formatHumanRunLaunch(run, { hints }),
 	].join("\n");
 }
 
@@ -682,7 +684,7 @@ async function launch(
 				action,
 				"existing",
 				data,
-				existingRunText(action, decision.run),
+				existingRunText(action, decision.run, hostCommandHints(ctx.host)),
 			);
 		}
 		if (decision.kind === "in-flight")
@@ -782,7 +784,8 @@ async function launchClaimed(
 	let detachNote = "";
 	if (request.detach && run.status === "running") {
 		data.detached = spawnDetachedSupervisor(ctx.cwd, run.runId, hostEnv(ctx));
-		detachNote = `\nDetached supervisor: pid ${data.detached.pid ?? "unknown"}, log ${toDisplayPath(data.detached.logPath, ctx.cwd)}\nCheck progress: agent-workflow status ${run.runId}\nWait for the result: agent-workflow wait ${run.runId}`;
+		const hints = hostCommandHints(ctx.host);
+		detachNote = `\nDetached supervisor: pid ${data.detached.pid ?? "unknown"}, log ${toDisplayPath(data.detached.logPath, ctx.cwd)}\nCheck progress: ${hints.status(run.runId)}\nWait for the result: ${hints.wait(run.runId)}`;
 	}
 	const verb =
 		run.status === "running"
@@ -800,7 +803,7 @@ async function launchClaimed(
 		promptSchemaNotice || undefined,
 		data.capability?.preview,
 		heading,
-		formatHumanRunLaunch(run),
+		formatHumanRunLaunch(run, { hints: hostCommandHints(ctx.host) }),
 	]
 		.filter((line): line is string => Boolean(line))
 		.join("\n")

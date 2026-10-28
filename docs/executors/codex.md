@@ -287,7 +287,10 @@ budget are not confirmed. `fetch_content` (open_page) not observed.
 - Output includes reasoning tokens. (Since WP12a the adapter subtracts cached and cache-write tokens from Codex's `inputTokens`, so `input` excludes them like every executor.)
 - A user MCP server with the same name as an injected one merges keys (e.g. `url` + `command` →
   config failure).
-- Attempt records and logs under `stateDir` are never pruned yet.
+- Attempt records and logs under `stateDir`: since WP18b a record in phase `terminal` or `revoked`
+  (or `spawned` with its app-server process gone) older than 7 days is pruned with its
+  `.events.jsonl` and `.log/` dir (`src/executors/state-retention.ts`; on submit at most every 6 h,
+  and by `agent-workflow prune`).
 - `probe()` lists models with `codex debug models` (a debug subcommand; app-server `model/list`
   would need a second app-server spawn).
 - `fetch_content`, `grep`, `find`, `ls` mappings and token-refresh contention are unverified.

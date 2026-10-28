@@ -63,6 +63,7 @@ test("skill tool names are the host MCP server's tools", () => {
 		"workflow_dynamic",
 		"workflow_inspect",
 		"workflow_list",
+		"workflow_logs",
 		"workflow_run",
 		"workflow_status",
 		"workflow_stop",
@@ -94,6 +95,13 @@ test("skill tool names are the host MCP server's tools", () => {
 	assert.match(
 		main,
 		new RegExp(`mcp__${hostServer.HOST_MCP_SERVER_NAME}__<tool>`),
+	);
+	// WP18b (live 4b): Codex shows the server name with hyphens as underscores.
+	assert.match(
+		main,
+		new RegExp(
+			`mcp__${hostServer.HOST_MCP_SERVER_NAME.replaceAll("-", "_")}__<tool>`,
+		),
 	);
 });
 

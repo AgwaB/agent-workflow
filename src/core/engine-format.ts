@@ -1,5 +1,9 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine-format.ts. MIT, same author. Changes: WP12a usage lines show the run cost, `unknown` when no task reported one (never $0).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine-format.ts. MIT, same author. Changes: WP12a usage lines show the run cost, `unknown` when no task reported one (never $0); WP18b next-step hints (`Open:`, `Resume:`, `Logs:`, stall warnings) come from the caller's `WorkflowCommandHints` (default pi-workflow's `/workflow …`); a run that only waits for a scheduled retry says "waiting for scheduled retry at <time>" instead of the no-progress stall warning.
 import { lstat } from "node:fs/promises";
+import {
+	PI_WORKFLOW_COMMAND_HINTS,
+	type WorkflowCommandHints,
+} from "./command-hints.js";
 import { readFileLinesBounded } from "./workflow-preview.js";
 
 import { formatDynamicAuditSummary } from "./dynamic-audit.js";
@@ -76,16 +80,102 @@ export function detectRunStall(
 	return { kind: "no-progress", ageMs };
 }
 
+/** WP18b: a running run that only waits for the scheduled retry of one or more tasks. */
+export interface WorkflowScheduledRetryWait {
+	/** Earliest `launchRetry.nextEligibleAt` (ISO) of the waiting tasks. */
+	at: string;
+	retryAfterMs: number;
+	/** `launchRetry.reason`/`message` of the task retried first. */
+	reason?: string;
+	message?: string;
+	taskIds: string[];
+}
+
+/**
+ * WP18b (live 4, open problem 5): the run is `running`, no task is running, and every pending task
+ * whose dependencies completed waits for a future `launchRetry.nextEligibleAt` (for example a
+ * 15-minute rate-limit backoff). No task progress is then expected until that time, so it is not a
+ * stall. Undefined when any task runs or could start now.
+ */
+export function scheduledRetryWait(
+	run: Pick<WorkflowRunRecord, "status"> & {
+		tasks?: readonly Pick<
+			WorkflowTaskRunRecord,
+			"taskId" | "specId" | "status" | "dependsOn" | "launchRetry"
+		>[];
+	},
+	nowMs = Date.now(),
+): WorkflowScheduledRetryWait | undefined {
+	if (run.status !== "running" || !Array.isArray(run.tasks)) return undefined;
+	if (run.tasks.some((task) => task.status === "running")) return undefined;
+	const completed = new Set(
+		run.tasks
+			.filter((task) => task.status === "completed")
+			.map((task) => task.specId),
+	);
+	const waiting: Array<{
+		task: (typeof run.tasks)[number];
+		atMs: number;
+		at: string;
+	}> = [];
+	for (const task of run.tasks) {
+		if (task.status !== "pending") continue;
+		const at = task.launchRetry?.nextEligibleAt;
+		const atMs = parseIsoTimeMs(at);
+		if (at && atMs !== undefined && atMs > nowMs) {
+			waiting.push({ task, atMs, at });
+			continue;
+		}
+		if ((task.dependsOn ?? []).every((dep: string) => completed.has(dep)))
+			return undefined;
+	}
+	if (waiting.length === 0) return undefined;
+	waiting.sort((a, b) => a.atMs - b.atMs);
+	const first = waiting[0]!;
+	return {
+		at: first.at,
+		retryAfterMs: first.atMs - nowMs,
+		...(first.task.launchRetry?.reason
+			? { reason: first.task.launchRetry.reason }
+			: {}),
+		...(first.task.launchRetry?.message
+			? { message: first.task.launchRetry.message }
+			: {}),
+		taskIds: waiting.map((entry) => entry.task.taskId),
+	};
+}
+
+/** `waiting for scheduled retry at <time> (<reason>; task-2)`. */
+export function formatScheduledRetryWait(
+	wait: WorkflowScheduledRetryWait,
+): string {
+	const why = [wait.reason, wait.taskIds.join(", ")].filter(Boolean).join("; ");
+	return `waiting for scheduled retry at ${friendlyTimestamp(wait.at)} (${why})`;
+}
+
 export function formatRunStallWarning(
-	run: Pick<WorkflowRunRecord, "runId" | "status" | "createdAt">,
+	run: Pick<WorkflowRunRecord, "runId" | "status" | "createdAt"> & {
+		tasks?: WorkflowRunRecord["tasks"];
+	},
 	supervisor: WorkflowSupervisorRecord | undefined,
 	nowMs = Date.now(),
+	hints: WorkflowCommandHints = PI_WORKFLOW_COMMAND_HINTS,
 ): string | undefined {
 	const stall = detectRunStall(run, supervisor, nowMs);
 	if (!stall) return undefined;
 	if (stall.kind === "heartbeat-lost")
-		return `⚠ supervisor heartbeat lost (last heartbeat ${formatStallAge(stall.ageMs)} ago while run says running; inspect /workflow logs ${run.runId})`;
-	return `⚠ no task progress for ${formatStallAge(stall.ageMs)} (heartbeat alive — possible stall; inspect /workflow logs ${run.runId})`;
+		return `⚠ supervisor heartbeat lost (last heartbeat ${formatStallAge(stall.ageMs)} ago while run says running; inspect ${hints.logs(run.runId)})`;
+	const retry = scheduledRetryWait(run, nowMs);
+	if (retry)
+		return `⏳ ${formatScheduledRetryWait(retry)}; no task progress for ${formatStallAge(stall.ageMs)} is expected until then`;
+	return `⚠ no task progress for ${formatStallAge(stall.ageMs)} (heartbeat alive — possible stall; inspect ${hints.logs(run.runId)})`;
+}
+
+/** Options of the human run cards (WP18b: `hints` = the host's command vocabulary). */
+export interface HumanRunFormatOptions {
+	supervisor?: WorkflowSupervisorRecord;
+	nowMs?: number;
+	hints?: WorkflowCommandHints;
 }
 
 function formatStallAge(ms: number): string {
@@ -112,13 +202,16 @@ async function readRunSupervisor(
 	}
 }
 
-export async function formatStatus(cwd: string): Promise<string> {
+export async function formatStatus(
+	cwd: string,
+	hints: WorkflowCommandHints = PI_WORKFLOW_COMMAND_HINTS,
+): Promise<string> {
 	const cached = await readFreshIndex(cwd);
 	if (cached) {
 		await reconcileIndexedActiveRuns(cwd, cached);
 		const refreshed = (await readFreshIndex(cwd).catch(() => cached)) ?? cached;
 		if (refreshed.runs.length === 0) return "No workflow runs found.";
-		return formatHumanRunList(cwd, refreshed);
+		return formatHumanRunList(cwd, refreshed, hints);
 	}
 
 	const runs = await reconcileActiveRuns(cwd);
@@ -126,7 +219,7 @@ export async function formatStatus(cwd: string): Promise<string> {
 		return "No workflow runs found.";
 	const rebuilt = await updateIndex(cwd).catch(() => readIndex(cwd));
 	if (!rebuilt || rebuilt.runs.length === 0) return "No workflow runs found.";
-	return formatHumanRunList(cwd, rebuilt);
+	return formatHumanRunList(cwd, rebuilt, hints);
 }
 
 async function hasWorkflowState(cwd: string): Promise<boolean> {
@@ -169,11 +262,12 @@ function prependRefreshWarning(text: string, warning?: string): string {
 export async function formatRunDetails(
 	cwd: string,
 	runIdOrPrefix: string,
+	hints?: WorkflowCommandHints,
 ): Promise<string> {
 	const { run, warning } = await refreshRunForFormat(cwd, runIdOrPrefix);
 	const supervisor = await readRunSupervisor(cwd, run.runId);
 	return prependRefreshWarning(
-		formatHumanRunDetails(run, { supervisor }),
+		formatHumanRunDetails(run, { supervisor, ...(hints ? { hints } : {}) }),
 		warning,
 	);
 }
@@ -181,20 +275,25 @@ export async function formatRunDetails(
 export async function formatRawRunDetails(
 	cwd: string,
 	runIdOrPrefix: string,
+	hints?: WorkflowCommandHints,
 ): Promise<string> {
 	const { run, warning } = await refreshRunForFormat(cwd, runIdOrPrefix);
 	const supervisor = await readRunSupervisor(cwd, run.runId);
-	return prependRefreshWarning(formatRun(run, "full", { supervisor }), warning);
+	return prependRefreshWarning(
+		formatRun(run, "full", { supervisor, ...(hints ? { hints } : {}) }),
+		warning,
+	);
 }
 
 export async function formatRunStatus(
 	cwd: string,
 	runIdOrPrefix: string,
+	hints?: WorkflowCommandHints,
 ): Promise<string> {
 	const { run, warning } = await refreshRunForFormat(cwd, runIdOrPrefix);
 	const supervisor = await readRunSupervisor(cwd, run.runId);
 	return prependRefreshWarning(
-		formatHumanRunStatus(run, { supervisor }),
+		formatHumanRunStatus(run, { supervisor, ...(hints ? { hints } : {}) }),
 		warning,
 	);
 }
@@ -233,14 +332,14 @@ export async function formatLogs(
 
 export function formatHumanRunStatus(
 	run: WorkflowRunRecord,
-	options: { supervisor?: WorkflowSupervisorRecord; nowMs?: number } = {},
+	options: HumanRunFormatOptions = {},
 ): string {
 	return formatHumanRunCard(run, { ...options, mode: "status" });
 }
 
 export function formatHumanRunDetails(
 	run: WorkflowRunRecord,
-	options: { supervisor?: WorkflowSupervisorRecord; nowMs?: number } = {},
+	options: HumanRunFormatOptions = {},
 ): string {
 	return formatHumanRunCard(run, {
 		...options,
@@ -251,7 +350,7 @@ export function formatHumanRunDetails(
 
 export function formatHumanRunOutcome(
 	run: WorkflowRunRecord,
-	options: { supervisor?: WorkflowSupervisorRecord; nowMs?: number } = {},
+	options: HumanRunFormatOptions = {},
 ): string {
 	return formatHumanRunCard(run, {
 		...options,
@@ -263,7 +362,7 @@ export function formatHumanRunOutcome(
 export function formatHumanRunResume(
 	run: WorkflowRunRecord,
 	resetCount: number,
-	options: { supervisor?: WorkflowSupervisorRecord; nowMs?: number } = {},
+	options: HumanRunFormatOptions = {},
 ): string {
 	return [
 		`Workflow ${run.status === "running" ? "resumed" : "resume result"}: ${workflowName(run)}`,
@@ -276,13 +375,14 @@ export function formatHumanRunResume(
 		...formatWarnings(run, options),
 		...taskSections(run),
 		"",
-		`Open: /workflow ${run.runId}`,
+		`Open: ${(options.hints ?? PI_WORKFLOW_COMMAND_HINTS).status(run.runId)}`,
 	].join("\n");
 }
 
 export function formatHumanRunStop(
 	run: WorkflowRunRecord,
 	interruptedCount: number,
+	hints: WorkflowCommandHints = PI_WORKFLOW_COMMAND_HINTS,
 ): string {
 	return [
 		`Workflow stopped: ${workflowName(run)}`,
@@ -293,14 +393,14 @@ export function formatHumanRunStop(
 			: `Interrupted ${interruptedCount} task(s).`,
 		`Progress: ${formatHumanProgress(run)}`,
 		"",
-		`Open: /workflow ${run.runId}`,
-		`Resume: /workflow resume ${run.runId}`,
+		`Open: ${hints.status(run.runId)}`,
+		`Resume: ${hints.resume(run.runId)}`,
 	].join("\n");
 }
 
 export function formatHumanRunLaunch(
 	run: WorkflowRunRecord,
-	options: { supervisor?: WorkflowSupervisorRecord; nowMs?: number } = {},
+	options: HumanRunFormatOptions = {},
 ): string {
 	return [
 		`Run: ${run.runId}`,
@@ -339,13 +439,12 @@ export function formatLoopSummaryLines(run: WorkflowRunRecord): string[] {
 
 function formatHumanRunCard(
 	run: WorkflowRunRecord,
-	options: {
-		supervisor?: WorkflowSupervisorRecord;
-		nowMs?: number;
+	options: HumanRunFormatOptions & {
 		mode: "status" | "details" | "outcome";
 		includeUsage?: boolean;
 	},
 ): string {
+	const hints = options.hints ?? PI_WORKFLOW_COMMAND_HINTS;
 	const heading =
 		options.mode === "outcome"
 			? `Workflow ${run.status}: ${workflowName(run)}`
@@ -382,12 +481,12 @@ function formatHumanRunCard(
 		}
 	}
 	lines.push(...taskSections(run));
-	lines.push("", `Open: /workflow ${run.runId}`);
+	lines.push("", `Open: ${hints.status(run.runId)}`);
 	if (["failed", "blocked", "interrupted"].includes(run.status))
-		lines.push(`Resume: /workflow resume ${run.runId}`);
+		lines.push(`Resume: ${hints.resume(run.runId)}`);
 	if (options.mode === "details") {
-		lines.push(`Logs: /workflow logs ${run.runId} <task-or-spec-id>`);
-		lines.push(`Raw: /workflow show --raw ${run.runId}`);
+		lines.push(`Logs: ${hints.logs(run.runId, "<task-or-spec-id>")}`);
+		lines.push(`Raw: ${hints.raw(run.runId)}`);
 	}
 	return lines.join("\n");
 }
@@ -502,7 +601,7 @@ function taskRuntime(task: WorkflowTaskRunRecord): string {
 
 function formatWarnings(
 	run: WorkflowRunRecord,
-	options: { supervisor?: WorkflowSupervisorRecord; nowMs?: number },
+	options: HumanRunFormatOptions,
 ): string[] {
 	const lines: string[] = [];
 	if (run.degradation?.summary)
@@ -515,8 +614,13 @@ function formatWarnings(
 		run,
 		options.supervisor,
 		options.nowMs ?? Date.now(),
+		options.hints,
 	);
 	if (stall) lines.push(stall);
+	else {
+		const retry = scheduledRetryWait(run, options.nowMs ?? Date.now());
+		if (retry) lines.push(`⏳ ${formatScheduledRetryWait(retry)}`);
+	}
 	return lines.length > 0 ? ["", ...lines] : [];
 }
 
@@ -675,6 +779,7 @@ function formatHumanUsageLine(run: WorkflowRunRecord): string | undefined {
 async function formatHumanRunList(
 	cwd: string,
 	index: WorkflowIndexRecord,
+	hints: WorkflowCommandHints,
 ): Promise<string> {
 	const active = index.runs.filter((run) =>
 		["running", "blocked", "failed", "interrupted"].includes(run.status),
@@ -689,14 +794,16 @@ async function formatHumanRunList(
 		"Active",
 		active.filter((run) => run.status === "running"),
 		mockTags,
+		hints,
 	);
 	appendRunGroup(
 		lines,
 		"Needs attention",
 		active.filter((run) => run.status !== "running"),
 		mockTags,
+		hints,
 	);
-	appendRunGroup(lines, "Recently completed", completed, mockTags);
+	appendRunGroup(lines, "Recently completed", completed, mockTags, hints);
 	if (lines.length === 1) lines.push("", "No active workflow runs.");
 	return lines.join("\n");
 }
@@ -724,6 +831,7 @@ function appendRunGroup(
 	label: string,
 	runs: WorkflowIndexRecord["runs"],
 	mockTags: Map<string, string>,
+	hints: WorkflowCommandHints,
 ): void {
 	if (runs.length === 0) return;
 	lines.push("", label);
@@ -731,7 +839,7 @@ function appendRunGroup(
 		lines.push(
 			`  • ${run.name ?? run.type} — ${run.status}${mockTags.get(run.runId) ?? ""} · ${formatSummaryProgress(run.taskSummary)}`,
 		);
-		lines.push(`    /workflow ${run.runId}`);
+		lines.push(`    ${hints.status(run.runId)}`);
 	}
 }
 
@@ -761,7 +869,7 @@ function runFailurePolicyEnabled(run: WorkflowRunRecord): boolean {
 export function formatRun(
 	run: WorkflowRunRecord,
 	detail: "summary" | "full" = "summary",
-	options: { supervisor?: WorkflowSupervisorRecord; nowMs?: number } = {},
+	options: HumanRunFormatOptions = {},
 ): string {
 	const telemetry = summarizeWorkflowTelemetry(run);
 	const failureClasses = summarizeTaskFailureClasses(run.tasks);
@@ -789,6 +897,7 @@ export function formatRun(
 		run,
 		options.supervisor,
 		options.nowMs ?? Date.now(),
+		options.hints,
 	);
 	if (stallWarning) lines.push(stallWarning);
 

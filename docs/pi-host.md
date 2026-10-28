@@ -68,10 +68,11 @@ Run options (leading or trailing, quoted text is literal; the host API parser
 the Pi session lives; `/aw wait`, `/aw status` or `aw_wait` show progress, `--detach` hands it to a
 standalone supervisor that outlives the session. `supervise` is CLI-only.
 
-Core formatters print pi-workflow-style `/workflow …` hints; the Pi host rewrites them to `/aw …`
-(`/workflow <run>` → `/aw status <run>`, `/workflow logs <run> …` → `/aw inspect <run> --results`),
-because `/workflow` belongs to pi-workflow and its own run store. WP16: `/workflow logs <run> [task]`
-→ `/aw logs <run> [--task <task>]` (was `/aw inspect <run> --results`).
+Run texts name `/aw …` follow-up commands (`Open: /aw status <run>`, `Resume: /aw resume <run>`,
+`/aw logs <run> --task <task>`): the Pi host passes `host: "pi"` and the host API picks the hints
+(WP18b, [host-api.md](host-api.md#common-contract)). `piHostText` remains only as a fallback for the
+few ported core messages that still name pi-workflow's `/workflow` (for example the `auto`/profile
+messages): it points them at `/aw`, because `/workflow` belongs to pi-workflow and its own run store.
 
 ## Tools
 
@@ -162,9 +163,11 @@ status entry, without the board widget or the presentation lease. Only with a UI
 - **Delivery.** When a tracked run settles — terminal (`completed`, `failed`, `interrupted`) or
   action required (`blocked`) — the session gets one custom message (`customType:
   "agent-workflow-completion"`, `display: true`) with status, task counts, the first problem task,
-  the verdict (semantic status), report paths, the bounded result preview, next commands
-  (`/aw status|logs`, or `/aw inspect … --failures` and `/aw resume`), and `details` `{runId, name,
-  status, semanticStatus, terminal, actionRequired, taskSummary, reportArtifacts}`, plus an info or
+  `Verdict: <domain verdict>` (WP18b: the output task's `verdict`, for example `NEEDS_WORK`; omitted
+  when the workflow reports none) and `Run status: <semantic status>` as separate lines, report
+  paths, the bounded result preview, next commands (`/aw status|logs`, or `/aw inspect … --failures`
+  and `/aw resume`), and `details` `{runId, name, status, semanticStatus, verdict?, terminal,
+  actionRequired, taskSummary, reportArtifacts}`, plus an info or
   warning notification. A run launched by `/aw` (the user) does not start an agent turn
   (`triggerTurn: false`); a run launched by `aw_run`/`aw_dynamic` (the agent) is delivered as a
   `followUp` turn with pi-workflow's "treat as data, summarize/present the result" instruction.

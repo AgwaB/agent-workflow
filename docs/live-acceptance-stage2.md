@@ -222,21 +222,33 @@ input 30, cache read 567,411, cache write 34,077, output 2,922. No `codex exec` 
 2. **Claude Code shows `structuredContent`, not `content`.** The model gets the whole
    `{action, ok, outcome, data, text, next}` JSON, so every result carries the data twice (structured
    and in `text`). It worked, but a large `data` (wait results, inspect) costs host context.
+   WP18b: `--host claude-code` now gets the text `content` only ([host-mcp.md](host-mcp.md#results)).
 3. **Long engine backoff vs. host patience.** A rate-limit launch retry waits 15 min
    (`retryAfterMs: 900000`); the haiku host stopped after ~8.5 min of `workflow_wait`. MCP hosts get
    no completion delivery, so the user learns the result only by asking again.
+   WP18b: `workflow_wait` returns `nextRetry` (time, reason) and the skill and server instructions
+   tell the host to give the user the run id, what it waits for, and that they can ask again.
 4. **CLI text uses pi-workflow hints.** `agent-workflow status` prints `Open: /workflow <run>`,
    `Resume: /workflow resume <run>` and "inspect /workflow logs <run>"; only the Pi host rewrites
    them (the MCP texts seen here had none).
+   WP18b: hints come from the host API per host (`agent-workflow …`, `/aw …`, MCP tool calls;
+   [host-api.md](host-api.md#common-contract)).
 5. **False stall warning during a scheduled retry.** `status` showed "⚠ no task progress for 14m
    (heartbeat alive — possible stall)" while the only open task was waiting for its retry time.
+   WP18b: a run whose only startable work waits for a future retry time shows "⏳ waiting for
+   scheduled retry at <time> (<reason>; <task>)" instead (`scheduledRetryWait`, core).
 6. **Pi completion message "Verdict: completed"** is the run's semantic status; the report verdict
    (`NEEDS_WORK`) appears only in the preview below it.
+   WP18b: `Verdict: NEEDS_WORK` (the output task's domain verdict) and `Run status: completed` are
+   separate lines; `WaitData.verdict` carries it for every host.
 7. **Codex `thread/start` trusts the project in the user config.** The documented app-server probe
    (`docs/plugins.md`) wrote `[projects."<cwd>"] trust_level = "trusted"` into the real
    `config.toml`; use a throw-away `CODEX_HOME` or restore the file. The adapter's worker threads did
    not write it.
-8. Still open from stage 1: a domain verdict fails the run (`support_declared_failed`, case 4a);
+   WP18b: `docs/plugins.md` now runs the probe with a throw-away `CODEX_HOME` and inline
+   `-c projects={…}` trust, with a backup/restore step for the real config.
+8. Still open from stage 1: a domain verdict fails the run (`support_declared_failed`, case 4a;
+   WP18b presents it as "finished — verdict: X (report ready)", engine semantics unchanged);
    Claude adapter attempt records are not pruned (`executors/claude/attempts` 56 → 112).
 
 ## Live 4b (Codex, after reset)
@@ -381,12 +393,23 @@ sessions of live 4).
    `reportArtifacts: []` although `tasks/task-8/final-report.md` exists with the verdict. Both Codex
    hosts answered "Engine status: failed" instead of `PARTIAL_REVIEW` (5 of 5 runs here). Follows
    from open problem 8 above (a domain verdict fails the run); fix both together.
+   WP18b: a verdict-gate run (`isVerdictGateFailure`) now presents the declared-failed output
+   task's preview, report path and `verdict` on every host ("Workflow finished — verdict:
+   PARTIAL_REVIEW (report ready)"); the run status stays `failed` (presentation only, CLI exit 1).
 2. **Codex adapter attempt records are not pruned** either: one `<id>.json`, `<id>.events.jsonl`
    (worker tool calls with command lines) and an empty `<id>.log/` per attempt under
    `<HOME>/.agent-workflow/executors/codex/attempts/` (354 entries after this bundle).
+   WP18b: terminal attempt records older than 7 days are pruned with their companions for Claude,
+   Codex and Pi (on submit, at most every 6 h, and by `agent-workflow prune`).
 3. **Codex code mode changes the tool names.** The model sees `tools.mcp__agent_workflow__workflow_*`
    inside `exec`, not top-level `mcp__agent-workflow__workflow_*`; long `workflow_wait` calls yield
    the cell after 30 s and continue via `wait`. It worked, but `docs/plugins.md` names the
    non-code-mode form.
+   WP18b: `docs/plugins.md` and the `agent-workflow` skill name `mcp__agent_workflow__<tool>` and the
+   code-mode form `tools.mcp__agent_workflow__<tool>`.
 
-Open problem 1 above is resolved by this section; open problems 2–8 are unchanged.
+Open problem 1 above is resolved by this section. WP18b (branch `wp18b-stage2-polish`, no model
+calls) addresses live-4 open problems 2–7 and the presentation part of 8, and live-4b open problems
+1–3; see the "WP18b:" note under each. Not changed: engine run-status semantics (a non-passing
+domain verdict still fails the run, CLI exit 1; replay acceptance 0 unexplained). None of the fixes
+was rerun live.

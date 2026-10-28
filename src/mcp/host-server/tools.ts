@@ -1,6 +1,6 @@
-// New in agent-workflow (WP13): the `agent-workflow` host MCP server's eight tools for agent hosts
+// New in agent-workflow (WP13): the `agent-workflow` host MCP server's tools for agent hosts
 // (Claude Code, Codex): workflow_list, workflow_run, workflow_dynamic, workflow_status,
-// workflow_wait, workflow_stop, workflow_inspect, workflow_validate. Each is a thin call into one
+// workflow_wait, workflow_stop, workflow_inspect, workflow_logs (WP18b), workflow_validate. Each is a thin call into one
 // host API handler (src/hosts/api.ts). Schemas and wording follow the Pi host's `aw_*` tools
 // (src/hosts/pi/tools.ts); differences: `detach` defaults to true (MCP calls are time-limited),
 // every tool takes an optional `cwd` below the server's root, and degradation confirmation goes
@@ -31,6 +31,27 @@ export const HOST_MCP_SERVER_NAME = "agent-workflow";
 export const HOST_MCP_HOSTS = ["claude-code", "codex", "generic"] as const;
 export type HostMcpHost = (typeof HOST_MCP_HOSTS)[number];
 
+/**
+ * WP18b: hosts that get the text `content` only, without `structuredContent`. Live bundle 4
+ * (Claude Code 2.1.310, docs/live-acceptance-stage2.md case 1): Claude Code hands the model the
+ * serialized `structuredContent` JSON instead of the `content` text when both are present, so every
+ * result reached the model twice (`data` plus the same `text`). The tools declare no
+ * `outputSchema`, so `structuredContent` is optional (MCP 2025-06-18). Codex and generic clients
+ * keep it (not observed live yet; structured clients can use `data`).
+ */
+export const HOST_MCP_TEXT_ONLY_HOSTS: readonly HostMcpHost[] = ["claude-code"];
+
+/** Whether results for this host and protocol revision carry `structuredContent`. */
+export function hostMcpSendsStructuredContent(
+	host: HostMcpHost,
+	protocolVersion: string,
+): boolean {
+	return (
+		mcpVersionHasStructuredContent(protocolVersion) &&
+		!HOST_MCP_TEXT_ONLY_HOSTS.includes(host)
+	);
+}
+
 export const WORKFLOW_LIST_TOOL = "workflow_list";
 export const WORKFLOW_RUN_TOOL = "workflow_run";
 export const WORKFLOW_DYNAMIC_TOOL = "workflow_dynamic";
@@ -39,6 +60,7 @@ export const WORKFLOW_WAIT_TOOL = "workflow_wait";
 export const WORKFLOW_STOP_TOOL = "workflow_stop";
 export const WORKFLOW_INSPECT_TOOL = "workflow_inspect";
 export const WORKFLOW_VALIDATE_TOOL = "workflow_validate";
+export const WORKFLOW_LOGS_TOOL = "workflow_logs";
 
 /** Bound of one tool result's text (the list action bounds itself the same way). */
 export const HOST_MCP_MAX_TEXT_CHARS = 50_000;
@@ -54,8 +76,9 @@ export const HOST_MCP_INSTRUCTIONS = [
 	`1. ${WORKFLOW_LIST_TOOL} when the workflow name is uncertain; never guess workflow names.`,
 	`2. ${WORKFLOW_RUN_TOOL} {workflow, task} (or ${WORKFLOW_DYNAMIC_TOOL} {task} for a spec-less dynamic workflow) starts a run and returns its runId at once. Runs are detached by default, so they keep going between calls and after this server stops.`,
 	`3. ${WORKFLOW_WAIT_TOOL} {runId} waits at most ${WAIT_SECONDS} s per call. While stillRunning is true, call ${WORKFLOW_WAIT_TOOL} again with the same runId. terminal=true means finished; actionRequired=true means blocked: report it and use ${WORKFLOW_INSPECT_TOOL}.`,
-	"4. When the run finished, quote the result preview and give the report paths verbatim; do not paraphrase or re-summarize the report. Read the report file for details.",
-	`${WORKFLOW_STATUS_TOOL} lists runs or shows one; ${WORKFLOW_STOP_TOOL} interrupts a run (cancelling ${WORKFLOW_WAIT_TOOL} only stops waiting); ${WORKFLOW_VALIDATE_TOOL} checks a workflow spec.`,
+	'4. When the run finished, quote the result preview and give the report paths verbatim; do not paraphrase or re-summarize the report. Read the report file for details. A result headed "Workflow finished — verdict: X (report ready)" (verdictGate=true) is the workflow\'s result with a non-passing domain verdict, not a workflow failure: report the verdict and the report.',
+	`5. You get no completion push: a run only reports through ${WORKFLOW_WAIT_TOOL}/${WORKFLOW_STATUS_TOOL}. If it is still running when you stop waiting (for example a long rate-limit backoff, nextRetry in the ${WORKFLOW_WAIT_TOOL} result), tell the user the runId, what the run is waiting for, and that they can ask you again later.`,
+	`${WORKFLOW_STATUS_TOOL} lists runs or shows one; ${WORKFLOW_LOGS_TOOL} shows a bounded, redacted tail of task output, stderr and executor events; ${WORKFLOW_STOP_TOOL} interrupts a run (cancelling ${WORKFLOW_WAIT_TOOL} only stops waiting); ${WORKFLOW_VALIDATE_TOOL} checks a workflow spec.`,
 	'Permission mode: "free" by default (workers run without approval prompts; stages the workflow declares read-only stay read-only). Set permissionMode "safe" only when the user asks for approvals/sandboxing.',
 	'Executor: omit executor to use the workflow profile or this host\'s default executor; set executor ("claude", "codex", "pi") or profile only when the user asks (for example "run it on codex").',
 	"Every tool takes an optional cwd (a directory inside the project this server was started in); omit it to use the project root.",
@@ -320,6 +343,43 @@ export const HOST_MCP_TOOLS: readonly HostMcpToolDefinition[] = [
 		},
 	},
 	{
+		name: WORKFLOW_LOGS_TOOL,
+		title: "agent-workflow run logs",
+		description: `Bounded, redacted tail of an agent-workflow run's task logs: output, stderr and executor events per task (without task: the most recently started tasks, at most ${hostApi.LOGS_MAX_TASKS}). Use it to see what a running or failed task is doing; for the result of a finished run use ${WORKFLOW_WAIT_TOOL}.`,
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				...RUN_ID_PROPERTY,
+				task: {
+					type: "string",
+					description:
+						"Optional task id or spec id; omit for every started task.",
+				},
+				lines: {
+					type: "integer",
+					minimum: 1,
+					maximum: hostApi.LOGS_MAX_LINES,
+					description: `Lines per stream (default ${hostApi.LOGS_DEFAULT_LINES}, max ${hostApi.LOGS_MAX_LINES}).`,
+				},
+				stream: {
+					type: "string",
+					enum: [...hostApi.LOG_STREAMS, "all"],
+					description:
+						"Optional: one stream (output, stderr, events) or all (default).",
+				},
+				...CWD_PROPERTY,
+			},
+			required: ["runId"],
+		},
+		annotations: {
+			readOnlyHint: true,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false,
+		},
+	},
+	{
 		name: WORKFLOW_VALIDATE_TOOL,
 		title: "Validate agent-workflow workflow",
 		description:
@@ -370,6 +430,7 @@ export type HostMcpApi = Pick<
 	| "waitAction"
 	| "stopAction"
 	| "inspectAction"
+	| "logsAction"
 	| "validateWorkflowAction"
 >;
 
@@ -581,14 +642,22 @@ function launchNext(data: LaunchData): string | undefined {
 
 function waitNext(data: WaitData): string {
 	const state = `[${WORKFLOW_WAIT_TOOL}] runId=${data.runId} status=${data.status} terminal=${data.terminal} actionRequired=${data.actionRequired} stillRunning=${data.stillRunning}`;
-	if (data.stillRunning)
-		return `${state}\nNext: call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} again.`;
+	if (data.stillRunning) {
+		const waitingFor = data.nextRetry
+			? `a scheduled retry at ${data.nextRetry.at}${data.nextRetry.reason ? ` (${data.nextRetry.reason})` : ""}`
+			: "its running tasks";
+		return `${state}${data.nextRetry ? ` nextRetryAt=${data.nextRetry.at}` : ""}\nNext: call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} again. If you stop waiting, tell the user the run ${data.runId} is still running and waiting for ${waitingFor}, and that they can ask you again for the result: there is no completion push to this chat.`;
+	}
 	if (data.actionRequired)
 		return `${state}\nNext: report the blocker; ${WORKFLOW_INSPECT_TOOL} {"runId":"${data.runId}","failures":true} shows the failed tasks; the user can resume with: agent-workflow resume ${data.runId}`;
 	const reports = data.reportArtifacts.map(
 		(artifact) => `${artifact.label}: ${artifact.path}`,
 	);
-	return `${state}${reports.length ? `\n${reports.join("\n")}` : ""}\nQuote the result preview and the report paths; do not paraphrase the report.`;
+	const verdict = data.verdict ? ` verdict=${data.verdict}` : "";
+	const gate = data.verdictGate
+		? `\nThe run finished with the domain verdict ${data.verdict ?? "(not reported)"}; status=failed only means this verdict did not pass the workflow's final gate. Report it as the workflow's result (verdict and report), not as a workflow failure.`
+		: "";
+	return `${state}${verdict}${reports.length ? `\n${reports.join("\n")}` : ""}${gate}\nQuote the result preview and the report paths; do not paraphrase the report.`;
 }
 
 export interface HostMcpService {
@@ -659,7 +728,10 @@ export function createHostMcpService(
 		next?: string,
 	): HostMcpToolResult => {
 		const text = boundedText(outcome.text);
-		const structured = mcpVersionHasStructuredContent(call.protocolVersion);
+		const structured = hostMcpSendsStructuredContent(
+			options.host,
+			call.protocolVersion,
+		);
 		return {
 			content: [{ type: "text", text: next ? `${text}\n\n${next}` : text }],
 			...(structured
@@ -781,6 +853,26 @@ export function createHostMcpService(
 			});
 			return finish(call, inspected, inspectProjection(inspected.data));
 		},
+		[WORKFLOW_LOGS_TOOL]: async (args, call) => {
+			const task = optionalString(args, "task");
+			const lines = optionalInteger(args, "lines", 1, hostApi.LOGS_MAX_LINES);
+			const stream = optionalString(args, "stream");
+			if (
+				stream !== undefined &&
+				stream !== "all" &&
+				!(hostApi.LOG_STREAMS as readonly string[]).includes(stream)
+			)
+				throw new UsageError(
+					`stream must be one of ${[...hostApi.LOG_STREAMS, "all"].join(", ")}`,
+				);
+			const logs = await api.logsAction(await context(args), {
+				runId: requiredString(args, "runId"),
+				...(task ? { task } : {}),
+				...(lines === undefined ? {} : { lines }),
+				...(stream ? { stream: stream as hostApi.LogStreamKind | "all" } : {}),
+			});
+			return finish(call, logs, logs.data);
+		},
 		[WORKFLOW_VALIDATE_TOOL]: async (args, call) => {
 			const validated = await api.validateWorkflowAction(await context(args), {
 				workflow: requiredString(args, "workflow"),
@@ -797,7 +889,10 @@ export function createHostMcpService(
 				rejectUnknown(name, args);
 				return await handler(args, call);
 			} catch (error) {
-				return errorResult(call, error);
+				return errorResult(
+					hostMcpSendsStructuredContent(options.host, call.protocolVersion),
+					error,
+				);
 			}
 		},
 	};
@@ -813,10 +908,7 @@ export function mcpVersionHasStructuredContent(version: string): boolean {
  * reported to the model so it can correct the call), with `error.kind` usage (HostUsageError, the
  * CLI's exit 2), validation (an invalid workflow spec) or error.
  */
-function errorResult(
-	call: McpToolCallContext,
-	error: unknown,
-): HostMcpToolResult {
+function errorResult(structured: boolean, error: unknown): HostMcpToolResult {
 	const kind =
 		error instanceof hostApi.HostUsageError
 			? "usage"
@@ -827,7 +919,7 @@ function errorResult(
 	const text = kind === "usage" ? `Usage error: ${message}` : message;
 	return {
 		content: [{ type: "text", text: boundedText(text) }],
-		...(mcpVersionHasStructuredContent(call.protocolVersion)
+		...(structured
 			? {
 					structuredContent: {
 						ok: false,

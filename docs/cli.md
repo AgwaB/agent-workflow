@@ -28,7 +28,7 @@ npx agent-workflow --help
 | `wait <run> [--timeout D]` | Drive and wait until the run is terminal or needs action. |
 | `resume <run> [--detach] [--timeout D]` | Reset failed, interrupted and resumable blocked tasks, then continue in the foreground or detached. |
 | `stop <run>` | Stop a non-terminal run (durable stop intent; workers are cancelled). Waits up to 15 s for confirmation (below). |
-| `prune [--keep N] [--older-than DAYS] [--yes]` | Delete terminal runs beyond the filters; a dry run without `--yes`. |
+| `prune [--keep N] [--older-than DAYS] [--yes]` | Delete terminal runs beyond the filters, and (WP18b) terminal executor attempt records older than 7 days (or `--older-than`) under `~/.agent-workflow/executors/`, and stale host launch claims (`.agent-workflow/host-launches/`, older than 1 h); a dry run without `--yes`. |
 | `notices list [--json] \| acknowledge <run> --state <sha256> --reason <text> \| clear <run> [--json]` | Notification-only acknowledgements of unfinished runs. |
 | `supervise <run> \| --all [--poll-ms N] [--max-runtime-ms N]` | Drive scheduling from this process until the run(s) are terminal. |
 | `doctor [--json]` | Check this machine without a model call: executors (installed, version vs verified, login), the default executor here and why, permission-mode default, Node, `AGENT_WORKFLOW_HOME`, Codex environment warnings, stale run-index entries. Exit 0 when at least one executor is usable. Below. |
@@ -162,6 +162,14 @@ outcome, data}`.
 
 `supervise` previously (pi-workflow) exited 2 for blocked runs; it now exits 1 like every other
 command. Its log lines and its structured result still say `blocked`.
+
+**Non-passing domain verdicts exit 1 (CI semantics, WP18b).** A workflow whose final step reports a
+non-passing verdict as `failed` (for example deep-review's `PARTIAL_REVIEW`, statusDetail
+`support_declared_failed`) leaves the run `failed`, so `run`/`wait` exit 1 and a CI job fails. The
+text still presents it as a finished run, not as a crash: `Workflow finished — verdict: PARTIAL_REVIEW
+(report ready)`, the run status on its own line, the result preview and the report path; `--json`
+has `data.verdict` and `data.verdictGate: true`. Passing verdicts (for example `NEEDS_WORK` and
+`REVIEW_COMPLETE` in deep-review) complete the run and exit 0.
 
 ## Environment
 
