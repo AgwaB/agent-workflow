@@ -215,7 +215,7 @@ input 30, cache read 567,411, cache write 34,077, output 2,922. No `codex exec` 
 
 ## Open problems
 
-1. **Codex host and Codex concurrency are unverified live** (cases 2, 4b, 5-on-Codex): rerun after
+1. **Resolved by [Live 4b](#live-4b-codex-after-reset).** **Codex host and Codex concurrency are unverified live** (cases 2, 4b, 5-on-Codex): rerun after
    the limit resets (2026-11-02T06:10Z) or with approval to use credits: `codex exec` with the
    temporary plugin (tool names in a model turn, `content` vs `structuredContent`, `host-default`
    codex), Codex host → claude workers, three concurrent Codex runs (token refresh).
@@ -239,3 +239,155 @@ input 30, cache read 567,411, cache write 34,077, output 2,922. No `codex exec` 
    not write it.
 8. Still open from stage 1: a domain verdict fails the run (`support_declared_failed`, case 4a);
    Claude adapter attempt records are not pruned (`executors/claude/attempts` 56 → 112).
+
+## Live 4b (Codex, after reset)
+
+The Codex cases live 4 could not run (open problem 1), on a separate branch (`live4b-codex-host` from
+main `f0aadec`) after the weekly limit was reset. Approved scope: ≤ 8 workflow runs including
+retries; **5 were used, no retry.** Supersedes the "not run live" rows 2, 4b and the Codex part of
+row 5 above.
+
+- Date: 2026-10-28, 00:56–01:06Z. codex-cli 0.159.2, Claude Code 2.1.310, real HOME and logins,
+  `free` mode, the parent's `PI_*` variables removed. Codex host and Codex workers `gpt-5.6-luna`,
+  effort `low`; Claude workers `haiku`.
+- Plugin: `node tools/release/plugins.mjs dev /tmp/aw-live4b/plugin --force`; targets
+  `/tmp/aw-live4b/<case>/` built as in live 4 (same task text, `scout.md` project agent, git commit).
+- **Limit gate:** `codex app-server` `account/rateLimits/read` (no model call) before each Codex run:
+  `ordinaryUsageAllowed: true`, `rateLimitReachedType: null`, 7-day window 12 % before c2, c4b, c5
+  and after the bundle (`codex-live4b/rate-limit-gate.txt`). No 429 in any host or worker.
+- Codex host command, in the target: `codex exec --json -m gpt-5.6-luna -c 'model_reasoning_effort="low"'
+  -c 'projects={"<target>"={trust_level="trusted"},"/private<target>"={trust_level="trusted"}}' "<prompt>"`.
+  The inline `projects` override kept Codex from writing a `trust_level` entry (live 4 pitfall):
+  after both host runs `diff` against the backup showed only the plugin install lines. The user
+  config's `approval_policy = "never"` and `sandbox_mode = "danger-full-access"` applied (rollout
+  `turn_context`), so MCP calls needed no approval.
+- Prompts: the live-4 text; case 2 "Pass model: "gpt-5.6-luna" and effort: "low" for the workers and
+  set no other launch options" (no executor: tests `host-default`), case 4b "Pass executor: "claude"
+  and model: "haiku" …".
+- Evidence: `test/fixtures/live4/c2-codex-host-codex-workers/`, `c4b-codex-host-claude-workers/`
+  (`host-result.json` from the `codex exec --json` stream plus the host's own rollout:
+  `modelFacing.calls`, `toolNamesListed`, `skillsListed`, `whatModelSaw`), `c5-cli-codex-concurrent-{1,2,3}/`,
+  `codex-live4b/` (install/removal log, restore proof, limit gate, concurrency samples, worker scan).
+
+| # | Case | Result | Run id | Executor (source) | Verdict | Tasks | Wall |
+|---|---|---|---|---|---|---|---|
+| 2 | Codex host → codex workers | **completed** (domain verdict; run `failed` by `support_declared_failed`) | `workflow_mvrem9sx_96f351` | `codex` (`host-default`, host `codex`) | `PARTIAL_REVIEW` (1 kept, 2 needs-human) | 14/15 | 73 s (host turn 91 s) |
+| 4b | Codex host → claude workers | **completed** (same) | `workflow_mvrer5bb_772c8d` | `claude` (`run-flag`) | `PARTIAL_REVIEW` (1 weakened, 8 needs-human) | 18/19 | 147 s (host turn 166 s) |
+| 5 | 3 concurrent CLI runs, `--executor codex --model gpt-5.6-luna --effort low` | **completed ×3** (same) | `workflow_mvrevrcm_3386eb`, `workflow_mvrevrco_4b8933`, `workflow_mvrevrcm_0b960a` | `codex` (`run-flag`) | `PARTIAL_REVIEW` ×3 | 12/13, 12/13, 13/14 | 78 s, 71 s, 75 s |
+
+Every run ended with the final render's domain verdict `PARTIAL_REVIEW`, which the deep-review
+render reports as `status: "failed"` (stage-1 open problem: `support_declared_failed`). The reasons
+are target/model ones: the triage plan required `src/store.ts`, which this excerpt does not contain
+(`reviewers (source_coverage_incomplete)`), and verifier quotes cited one line off (for example
+`src/workflow-stop.ts:69` for the line-68 `const check = …`, `verifier_evidence_unverified`).
+Not product bugs.
+
+### Case 2: Codex host → codex workers
+
+- **Skills visible:** the host's developer message lists `agent-workflow:agent-workflow`,
+  `agent-workflow:execution-router`, `agent-workflow:workflow-guide`; the model opened
+  `…/plugins/cache/agent-workflow/agent-workflow/0.1.0/skills/agent-workflow/SKILL.md` first (one
+  `sed` command, the only file read by the host).
+- **Exact tool names the model called.** Codex 0.159.2 runs the model in code mode: the model's
+  only tools are `exec` (a JavaScript cell) and `wait` (resume a yielded cell). The MCP tools are
+  functions inside the cell, named **`tools.mcp__agent_workflow__workflow_*`** (hyphen → underscore;
+  not `mcp__agent-workflow__…` as `docs/plugins.md` assumed). Found by the model through
+  `ALL_TOOLS` (all 8 listed). Calls: `exec` → `tools.mcp__agent_workflow__workflow_run({workflow,
+  task, model:"gpt-5.6-luna", effort:"low"})`, `exec` → `…workflow_wait({runId, timeoutMs:45000})`
+  (the cell yielded after 30 s, then `wait {cell_id}`), `exec` → `…workflow_wait` (terminal),
+  `exec` → `…workflow_inspect({runId, failures:true})`. The `codex exec --json` stream reports them as
+  `mcp_tool_call` items, server `agent-workflow`, tool `workflow_run`/`workflow_wait`/`workflow_inspect`.
+- **What the model saw: both.** Each cell ended with `text(r)`, so the model read the whole
+  `CallToolResult` serialized: `{"content":[{"type":"text","text":…}],"structuredContent":{"action":…,
+  "ok":…,"outcome":…,"data":…,"next":…}}` (rollout `custom_tool_call_output`). The stream item carries
+  `result.content` and `result.structured_content`.
+- **Server cwd = target:** `run.cwd` `/tmp/aw-live4b/c2-codex-codex`, run store in the target
+  (the server runs in the thread's cwd, as in the live-4 offline probe).
+- **Executor:** `{"id":"codex","source":"host-default","host":"codex"}` in the launch result and the
+  run record; all 10 worker turns `gpt-5.6-luna`/`low`.
+- Host answer: "Verdict: “Engine status: failed” / “Semantic status: failed” … Result preview:
+  “Final result preview: unavailable” … Report artifacts: “[]”". The `workflow_wait` result has no
+  preview and no report path for a failed final task (live-4b open problem 1 below).
+- Duplicate guard: not exercised (one `workflow_run` per host turn, no retry).
+
+### Case 4b: Codex host → claude workers
+
+Same host command and tool path: `exec` → `tools.mcp__agent_workflow__workflow_run({…, executor:"claude",
+model:"haiku"})`, 4 × `…workflow_wait` (with 3 `wait` cell resumptions), `…workflow_inspect({runId,
+failures:true, results:true})`; content and structuredContent seen as in case 2. Executor
+`{"id":"claude","source":"run-flag"}`; workers `claude-haiku-5-5` (117 assistant messages), tools
+`Read`/`Grep`/`Glob` and `mcp__workflow_artifact__workflow_artifact` (`report.main`). **Nesting:** a
+Codex host (ChatGPT login) launching Claude workers showed no auth or session conflict: no
+`401`/`429`/token/lock line in any worker stderr or stream. D3: no
+`<HOME>/.claude/projects` entry for the target after the run. Host answer as in case 2 (no preview).
+
+### Case 5: three concurrent Codex runs
+
+`agent-workflow run deep-review --executor codex --model gpt-5.6-luna --effort low --json -- "<task>"`
+started in three targets at 01:04:05Z (runs created within 3 ms). All three reached their final
+render (exit 1 = run `failed`, domain verdict above). **Peak 9 concurrent Codex worker attempts**
+(23 attempts, from the attempt `startedAt`/`finishedAt`; the 3-s process sampler started late and saw
+≤ 6 workers / 3 app-servers). **No token-refresh, auth, lock or rate-limit error**: the scan of every
+worker `stderr.log`, `worker.log` and `codex-app-server.jsonl` for
+`401|403|429|unauthorized|token refresh/expired|rate limit|database is locked|SQLITE_BUSY|…` found
+nothing (`codex-live4b/codex-workers-scan.json`); 1 output retry (schema repair, model) in run 1.
+Wall 71–78 s against 73 s for the single run of case 2.
+
+**D3, Codex:** all 33 worker `thread/start` requests of runs 2 and 5 had `ephemeral: true`;
+`executors/codex/sessions` does not exist (no adapter-kept thread); the only new
+`<HOME>/.codex/sessions` rollouts that mention the targets are the two host `codex exec` turns.
+**Usage records `model`:** every reporting task has `model: "gpt-5.6-luna"`, `thinking: "low"`,
+`costUsd: null`. The adapter left 33 attempt records (`<id>.json` + `<id>.events.jsonl`) and 33 empty
+`log_dir` directories under `<HOME>/.agent-workflow/executors/codex/attempts/` (live-4b open problem 2).
+
+### Bugs found
+
+None. No adapter or product fix, no retry.
+
+### Live-call ledger (5 workflow runs of ≤ 8)
+
+| # | Case | Host (model) | Workers (model) | Run id | Duration | Input (excl. cache) | Cache read | Cache write | Output | Cost (as reported) | Result |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 2 | Codex (`gpt-5.6-luna`, low) | codex (`gpt-5.6-luna`, low) | `workflow_mvrem9sx_96f351` | 73 s run, 91 s host | 114,389 | 473,600 | 0 | 9,367 | not reported (`null`) | failed / PARTIAL_REVIEW (domain) |
+| 2 | 4b | Codex (`gpt-5.6-luna`, low) | claude (`claude-haiku-5-5`) | `workflow_mvrer5bb_772c8d` | 147 s run, 166 s host | 104 | 488,533 | 106,624 | 57,902 | workers $0.0552 notional | failed / PARTIAL_REVIEW (domain) |
+| 3 | 5 | CLI | codex (`gpt-5.6-luna`, low) | `workflow_mvrevrcm_3386eb` | 78 s | 113,938 | 497,280 | 0 | 8,527 | not reported | failed / PARTIAL_REVIEW (domain) |
+| 4 | 5 | CLI | codex (`gpt-5.6-luna`, low) | `workflow_mvrevrco_4b8933` | 71 s | 75,226 | 362,112 | 0 | 7,119 | not reported | failed / PARTIAL_REVIEW (domain) |
+| 5 | 5 | CLI | codex (`gpt-5.6-luna`, low) | `workflow_mvrevrcm_0b960a` | 75 s | 108,170 | 437,632 | 0 | 8,691 | not reported | failed / PARTIAL_REVIEW (domain) |
+
+Host usage (`turn.completed`): case 2 input 231,359 (cached 197,248), output 881 (reasoning 224);
+case 4b input 318,580 (cached 274,688), output 1,254 (reasoning 323). Codex total ≈ 3.38 M tokens
+(hosts 0.55 M, 4 worker runs 2.83 M), all within the ordinary weekly allowance (12 % before and
+after); Claude $0.055 notional (subscription).
+
+### Config restore proof
+
+`codex-live4b/install-remove.log`, `codex-live4b/config-restore-proof.txt`. Backup of
+`~/.codex/config.toml` before the install (SHA-256 `704a2c61…`, identical to the live-4 backup).
+`codex plugin marketplace add /tmp/aw-live4b/plugin` + `codex plugin add agent-workflow@agent-workflow`
+added exactly `[marketplaces.agent-workflow]` and `[plugins."agent-workflow@agent-workflow"] enabled
+= true`; after the five runs the `diff` was still exactly those lines (no `trust_level` entry). After
+`codex plugin remove agent-workflow@agent-workflow` and `codex plugin marketplace remove
+agent-workflow` the `diff` was empty; the empty cache dir `<HOME>/.codex/plugins/cache/agent-workflow/`
+was deleted and the backup copied back: `cmp` identical, `diff` exit 0, both SHA-256
+`704a2c61c9249f7bbd1dd0e3df29301a04e2ae7afb52d4a2429315c543efb069`, no `agent-workflow`/`aw-live4b`
+line, and no agent-workflow entry in `codex plugin marketplace list`, `codex plugin list`,
+`codex mcp list`. The two host rollouts stay in `<HOME>/.codex/sessions` (like the Claude host
+sessions of live 4).
+
+### Open problems (live 4b)
+
+1. **MCP hosts get no verdict and no report path when the final task "fails" with a domain
+   verdict.** `readWorkflowResultPresentation` takes only a *completed* output task, so for
+   `support_declared_failed` `workflow_wait` returns "Final result preview: unavailable" and
+   `reportArtifacts: []` although `tasks/task-8/final-report.md` exists with the verdict. Both Codex
+   hosts answered "Engine status: failed" instead of `PARTIAL_REVIEW` (5 of 5 runs here). Follows
+   from open problem 8 above (a domain verdict fails the run); fix both together.
+2. **Codex adapter attempt records are not pruned** either: one `<id>.json`, `<id>.events.jsonl`
+   (worker tool calls with command lines) and an empty `<id>.log/` per attempt under
+   `<HOME>/.agent-workflow/executors/codex/attempts/` (354 entries after this bundle).
+3. **Codex code mode changes the tool names.** The model sees `tools.mcp__agent_workflow__workflow_*`
+   inside `exec`, not top-level `mcp__agent-workflow__workflow_*`; long `workflow_wait` calls yield
+   the cell after 30 s and continue via `wait`. It worked, but `docs/plugins.md` names the
+   non-code-mode form.
+
+Open problem 1 above is resolved by this section; open problems 2–8 are unchanged.

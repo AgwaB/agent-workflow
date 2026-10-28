@@ -49,18 +49,19 @@ warnings need confirmation in an interactive host.
 
 The agent that the user talks to. Workers run on the executor the run selects (explicit choice,
 workflow profile, else the host's own CLI: `host-default`). Live bundle 4, 2026-10-27,
-[`live-acceptance-stage2.md`](live-acceptance-stage2.md).
+[`live-acceptance-stage2.md`](live-acceptance-stage2.md); the Codex host in live bundle 4b, 2026-10-28.
 
 | Host | Verified CLI | Path | Tool names the model sees | Default executor | Live result | Notes |
 |---|---|---|---|---|---|---|
 | **Claude Code** | 2.1.310 | plugin (`--plugin-dir` dev copy; marketplace install verified offline, [plugins.md](plugins.md)); alternative `claude mcp add` | `mcp__plugin_agent-workflow_agent-workflow__workflow_{list,run,dynamic,status,wait,stop,inspect,validate}` (observed: `…workflow_run`, `…workflow_wait`, `…workflow_inspect`) | `claude`, `host-default` (observed) | completed: claude workers (`NEEDS_WORK`), codex workers (`PARTIAL_REVIEW`, finished detached after the host stopped waiting) | The model receives `structuredContent` serialized as JSON, not `content`. Tool schemas are deferred: the first call is `ToolSearch select:…`. `claude -p --permission-mode default --allowedTools <the 8 tools>` had no denials. The plugin's three skills are listed. Elicitation not exercised. |
-| **Codex** | 0.159.2 | plugin (`codex plugin marketplace add` + `plugin add`, temporary, in the real `CODEX_HOME`); alternative `codex mcp add` | server `agent-workflow`, tools `workflow_*` (8); model-facing names not observed (no model turn) | `codex`, `host-default` (unit test only) | **not run live**: the account's Codex weekly limit was reached during the bundle | Offline: skills `agent-workflow:{agent-workflow,execution-router,workflow-guide}` listed, server started in the thread cwd with `--host codex`. `thread/start` in a new directory adds a `trust_level = "trusted"` entry to the user config. |
+| **Codex** | 0.159.2 | plugin (`codex plugin marketplace add` + `plugin add`, temporary, in the real `CODEX_HOME`; host turn `codex exec`); alternative `codex mcp add` | code mode: the model calls `exec` (JavaScript cell) and inside it `tools.mcp__agent_workflow__workflow_{run,wait,inspect}` (observed; all 8 listed via `ALL_TOOLS`); the `--json` stream shows server `agent-workflow`, tool `workflow_*` | `codex`, `host-default` (observed) | completed (live 4b): codex workers and claude workers, both `PARTIAL_REVIEW` (run `failed` by `support_declared_failed`; the host saw no preview or report path) | The model printed the whole `CallToolResult`, so it saw `content` and `structuredContent`. `workflow_wait` (45 s) outlasts the 30 s code-mode yield; the model resumed with `wait`. Skills `agent-workflow:{agent-workflow,execution-router,workflow-guide}` listed; server runs in the thread cwd with `--host codex`. A new directory gets a `trust_level = "trusted"` entry in the user config unless trusted inline (`-c projects={…}`). |
 | **Pi** | 1.1.0 | extension (`pi -e <package>/dist/hosts/pi/index.js`, or `pi install`) | `/aw …` command; agent tools `aw_list`, `aw_run`, `aw_dynamic`, `aw_wait` | `pi`, `host-default` (observed) | completed: `/aw run` in RPC mode, no model turn (`NEEDS_WORK`) | Footer status `aw: <name> <done>/<total> running`, exactly one `agent-workflow-completion` message, `/aw logs` and `/aw status`. The message's "Verdict:" line is the run status, the report verdict is in the preview. |
 
-Nesting and concurrency: Claude host → Claude workers and Claude host → Codex workers showed no
-auth or session conflict; three concurrent CLI runs on Claude workers (13 worker processes at peak)
-completed without auth, lock or rate-limit errors. Codex-host nesting and concurrent Codex runs
-(token refresh) are not verified yet. Worker artifact tool: `mcp__workflow_artifact__workflow_artifact`
+Nesting and concurrency: Claude host → Claude workers, Claude host → Codex workers, Codex host →
+Codex workers and Codex host → Claude workers showed no auth or session conflict; three concurrent
+CLI runs on Claude workers (13 worker processes at peak) and three on Codex workers (9 concurrent
+Codex worker attempts at peak, live 4b) completed without token-refresh, auth, lock or rate-limit
+errors. Codex worker threads are ephemeral (no kept thread, no rollout). Worker artifact tool: `mcp__workflow_artifact__workflow_artifact`
 on Claude and Pi, server `workflow_artifact` / tool `workflow_artifact` on Codex. Since `91dc66a`
 Claude workers leave no spilled tool results under `~/.claude/projects` (D3).
 
