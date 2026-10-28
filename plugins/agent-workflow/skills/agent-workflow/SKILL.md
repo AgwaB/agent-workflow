@@ -68,9 +68,10 @@ Use whichever form your tool list shows.
    run is waiting for (the retry time and reason, or its running tasks), that they can ask you
    again later for the result, and that they can follow it live in a terminal with
    `agent-workflow watch <runId>` (in Claude Code, `agent-workflow statusline` as the `statusLine`
-   command shows active runs). A line `agent-workflow: workflow … finished — …` at the start of a
-   later turn comes from the completion check (`agent-workflow notify-check`, run by the Claude
-   Code plugin's prompt hook): tell the user, with the verdict and report path it names.
+   command shows active runs). A line containing `agent-workflow: workflow … finished — …` in a
+   later turn's context (Claude Code prefixes it, for example `UserPromptSubmit hook success: `)
+   comes from the completion check (`agent-workflow notify-check`, run by the Claude Code plugin's
+   prompt hook): tell the user, with the verdict and report path it names.
 4. `terminal: true`: the run finished. Quote the result preview and give the report paths verbatim
    (the `reportArtifacts`/paths the tool prints). Do not paraphrase or re-summarize the report; read
    the report file only if the user wants details.

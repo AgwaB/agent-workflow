@@ -168,3 +168,20 @@ test("the adaptation fails loudly when the source skill text changes", () => {
 		/expected source text not found/,
 	);
 });
+
+// WP39b O6: Claude Code prefixes `UserPromptSubmit` output ("UserPromptSubmit hook success: "), so
+// the notify-check line does not start the turn's context; the guidance must say "containing".
+test("the completion-check line is described as a line containing agent-workflow:, not starting with it", () => {
+	for (const [where, text] of [
+		["server instructions", hostServer.HOST_MCP_INSTRUCTIONS],
+		["plugin skill", skill("agent-workflow")],
+		[
+			"source skill",
+			readFileSync(join(root, "skills", "agent-workflow", "SKILL.md"), "utf8"),
+		],
+	]) {
+		const flat = text.replace(/\s+/g, " ");
+		assert.match(flat, /a line containing [`"]?agent-workflow:/i, where);
+		assert.doesNotMatch(flat, /at the start of a later turn/, where);
+	}
+});
