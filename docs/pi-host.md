@@ -250,6 +250,16 @@ status entry, without the board widget or the presentation lease. Only with a UI
   Queue-end tombstones (round 5) are pruned at every write: older than 20 min (a receipt counts as
   queued in a live queue only within 10 min of its send, which precedes the queue end) or beyond
   1024 files (the oldest; a missing one only delays reconciliation to the 10 min window end).
+  Round 6: the directory is written or pruned only when it is physically
+  `<real cwd>/.agent-workflow/pi-feedback-queue-ends` — neither `.agent-workflow` nor
+  `pi-feedback-queue-ends` may be a symlink — otherwise no tombstone is written (recovery waits for
+  the 10 min window) and nothing is pruned. Pruning removes only files that are positively ours: a
+  `<lifetime>.json` whose content carries the queue-end schema and that lifetime, or a writer's
+  `<lifetime>.json.<pid>.<hex>.tmp`; any other file there is left alone.
+
+  Catch-up (round 6): at session start at most 5 catch-up messages are sent in total. A catch-up
+  deferred to another live owner reserves one of the 5 slots, so the tracker's later retries of
+  deferred catch-ups never push the total past 5.
 
   Memory (round 4, F4): the confirmation watch (sent, not yet in the history, < 10 min, at most 64
   entries) is separate from the dedup map (epochs enqueued into live queues, at most 256; durable

@@ -35,12 +35,12 @@
 // to another live owner is `deferred` and retried; a dropped reservation keeps the attempt history.
 import { createHash, randomBytes } from "node:crypto";
 import {
+	lstat,
 	mkdir,
 	open,
 	readdir,
 	readFile,
 	rename,
-	stat,
 	unlink,
 	writeFile,
 } from "node:fs/promises";
@@ -55,6 +55,7 @@ import {
 import type { WorkflowRunRecord } from "../../core/types.js";
 import { PROJECT_STATE_DIRECTORY } from "../../core/home-dir.js";
 import { acquireDirectoryLock } from "../../runtime/artifacts/dir-lock.js";
+import { containedProjectStateDir } from "../run-files.js";
 import { summarizeWorkflowTerminal } from "../../core/workflow-terminal.js";
 import {
 	formatVerdictGateHeadline,
@@ -737,6 +738,23 @@ function queueEndsDir(cwd: string): string {
 	return join(cwd, PROJECT_STATE_DIRECTORY, FEEDBACK_QUEUE_ENDS_DIR);
 }
 
+/** A tombstone file name, or a writer's temp file of one (`<lifetime>.json.<pid>.<hex>.tmp`). */
+const QUEUE_END_FILE = /^([A-Za-z0-9_-]{1,128})\.json$/u;
+const QUEUE_END_TEMP_FILE =
+	/^[A-Za-z0-9_-]{1,128}\.json\.\d+\.[0-9a-f]{12}\.tmp$/u;
+
+/**
+ * WP19 round 6: the queue-ends directory is only written or pruned when it is physically
+ * `<real cwd>/.agent-workflow/pi-feedback-queue-ends` (no symlinked component). Otherwise no
+ * tombstone is written (recovery then waits for the owner window) and nothing is pruned.
+ */
+function containedQueueEndsDir(
+	cwd: string,
+	create: boolean,
+): Promise<string | undefined> {
+	return containedProjectStateDir(cwd, FEEDBACK_QUEUE_ENDS_DIR, create);
+}
+
 /** The tombstone of `lifetime` (a receipt field: validated before it becomes a path). */
 export function feedbackQueueEndPath(
 	cwd: string,
@@ -775,8 +793,8 @@ async function writeQueueEndTombstone(
 ): Promise<void> {
 	const file = feedbackQueueEndPath(cwd, lifetime);
 	if (!file) return;
-	const dir = queueEndsDir(cwd);
-	await mkdir(dir, { recursive: true });
+	const dir = await containedQueueEndsDir(cwd, true);
+	if (!dir) return;
 	const temp = `${file}.${process.pid}.${randomBytes(6).toString("hex")}.tmp`;
 	await writeFile(
 		temp,
@@ -797,39 +815,49 @@ async function writeQueueEndTombstone(
 		await unlink(temp).catch(() => undefined);
 		throw error;
 	}
-	await pruneQueueEndTombstones(dir, file, nowMs).catch(() => undefined);
+	await pruneQueueEndTombstones(cwd, dir, file, nowMs).catch(() => undefined);
 }
 
 async function pruneQueueEndTombstones(
+	cwd: string,
 	dir: string,
 	keep: string,
 	nowMs: number,
 ): Promise<void> {
+	// WP19 round 6: prune only inside the physically contained directory, and only files that
+	// are positively ours — a tombstone name whose content carries our schema and lifetime, or a
+	// writer's temp file — never any other `.json` that happens to be there.
+	if ((await containedQueueEndsDir(cwd, false)) !== dir) return;
 	const kept: { file: string; endedAtMs: number }[] = [];
 	for (const name of await readdir(dir)) {
 		const file = join(dir, name);
 		if (file === keep) continue;
-		if (!name.endsWith(".json")) {
+		const info = await lstat(file).catch(() => undefined);
+		if (!info?.isFile()) continue;
+		if (QUEUE_END_TEMP_FILE.test(name)) {
 			// A temp file left by a crashed writer (a concurrent writer's is recent).
-			if (name.endsWith(".tmp")) {
-				const modifiedMs = await stat(file)
-					.then((info) => info.mtimeMs)
-					.catch(() => Number.NaN);
-				if (nowMs - modifiedMs > QUEUE_END_RETAIN_MS)
-					await unlink(file).catch(() => undefined);
-			}
+			if (nowMs - info.mtimeMs > QUEUE_END_RETAIN_MS)
+				await unlink(file).catch(() => undefined);
 			continue;
 		}
+		const lifetime = QUEUE_END_FILE.exec(name)?.[1];
+		if (!lifetime) continue;
 		let endedAtMs = Number.NaN;
+		let ours = false;
 		try {
 			const value = JSON.parse(await readFile(file, "utf8")) as {
+				schema?: unknown;
+				queueLifetime?: unknown;
 				endedAt?: unknown;
 			};
-			if (typeof value?.endedAt === "string")
+			ours =
+				value?.schema === QUEUE_END_SCHEMA && value.queueLifetime === lifetime;
+			if (ours && typeof value.endedAt === "string")
 				endedAtMs = Date.parse(value.endedAt);
 		} catch {
-			// Unreadable or torn (tombstones are renamed into place): pruned below.
+			// Unreadable: not provably ours. Tombstones are renamed into place, so ours is never torn.
 		}
+		if (!ours) continue;
 		if (!Number.isFinite(endedAtMs) || nowMs - endedAtMs > QUEUE_END_RETAIN_MS)
 			await unlink(file).catch(() => undefined);
 		else kept.push({ file, endedAtMs });
@@ -1361,6 +1389,10 @@ export class PiRunFeedback {
 			})
 			.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 		let delivered = 0;
+		// WP19 round 6: a catch-up deferred to another live owner reserves one of the
+		// CATCH_UP_MAX_RUNS slots (the tracker may send it later), so immediate and deferred
+		// catch-up messages together never exceed the cap.
+		let reserved = 0;
 		for (const run of runs) {
 			if (generation !== this.generation) return;
 			const audience = await readFeedbackAudience(ctx.cwd, run.runId);
@@ -1376,7 +1408,7 @@ export class PiRunFeedback {
 				});
 				continue;
 			}
-			if (delivered >= CATCH_UP_MAX_RUNS) continue;
+			if (delivered + reserved >= CATCH_UP_MAX_RUNS) continue;
 			const outcome = await deliverCompletion(this.pi, ctx, run, {
 				triggerTurn: false,
 				now: this.now(),
@@ -1390,7 +1422,8 @@ export class PiRunFeedback {
 				(outcome === "deferred" || outcome === "in-flight") &&
 				generation === this.generation &&
 				this.ctx === ctx
-			)
+			) {
+				reserved += 1;
 				this.runs.set(`${ctx.cwd}\0${run.runId}`, {
 					runId: run.runId,
 					cwd: ctx.cwd,
@@ -1398,6 +1431,7 @@ export class PiRunFeedback {
 					failures: 0,
 					catchUp: true,
 				});
+			}
 		}
 		if (generation !== this.generation || this.ctx !== ctx) return;
 		// WP19 round 2 (N2): also keep polling while a catch-up message awaits confirmation.

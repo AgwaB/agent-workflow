@@ -5,7 +5,7 @@
 // inside the project's canonical artifact root, `<cwd>/.agent-workflow` (run dirs and the
 // `workflow-subagents/` attempt dirs live there). Absolute paths, `..` segments and symlink
 // escapes (a symlinked attempt dir or log file pointing elsewhere) are refused with a reason.
-import { realpath } from "node:fs/promises";
+import { lstat, mkdir, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep, win32 } from "node:path";
 
 import { PROJECT_STATE_DIRECTORY } from "../core/home-dir.js";
@@ -26,6 +26,38 @@ function inside(root: string, path: string): boolean {
 /** The project's artifact root (`<cwd>/.agent-workflow`). */
 export function projectArtifactRoot(cwd: string): string {
 	return join(resolve(cwd), PROJECT_STATE_DIRECTORY);
+}
+
+/**
+ * WP19 round 6: a host-owned state directory `<cwd>/.agent-workflow/<name>` that is physically
+ * where it claims to be — `.agent-workflow` and `<name>` are real directories (not symlinks) and
+ * the real path equals `<real cwd>/.agent-workflow/<name>`. Returns the directory, or `undefined`
+ * when it is missing (and `create` is off) or not contained; callers then neither write nor prune
+ * there. `create` makes missing directories first; an existing symlinked component still fails.
+ */
+export async function containedProjectStateDir(
+	cwd: string,
+	name: string,
+	create = false,
+): Promise<string | undefined> {
+	const stateDir = projectArtifactRoot(cwd);
+	const dir = join(stateDir, name);
+	try {
+		if (create) await mkdir(dir, { recursive: true });
+		for (const component of [stateDir, dir]) {
+			const info = await lstat(component);
+			if (info.isSymbolicLink() || !info.isDirectory()) return undefined;
+		}
+		const [cwdReal, dirReal] = await Promise.all([
+			realpath(resolve(cwd)),
+			realpath(dir),
+		]);
+		return dirReal === join(cwdReal, PROJECT_STATE_DIRECTORY, name)
+			? dir
+			: undefined;
+	} catch {
+		return undefined;
+	}
 }
 
 /**

@@ -640,3 +640,21 @@ Notes:
   `node tools/release/plugins.mjs check`, opt-in real-Pi tests with
   `AGENT_WORKFLOW_PI_CODING_AGENT_DIR` and `AGENT_WORKFLOW_PI_SESSION_MANAGER` set. None of the
   fixes was rerun live.
+
+## WP19 round 6
+
+Branch `wp19-fixes-6` from `af1d2ca`, implemented directly by the parent (no subagent), no model or
+agent-CLI calls. Input: the round-6 review (gpt-6-astra, "Request changes", 1 major, 1 minor; the
+three round-5 items confirmed fixed and the bounded closing check of `6e9a386..af1d2ca` found no
+other major) and its probes (`aw-wp19r6-probes`). The new test file was run against `af1d2ca`'s
+`src/hosts/pi/feedback.ts` / `src/hosts/launch-guard.ts` (stashed fix, rebuilt): all new tests
+fail there (4 + 3), all pass after. The parent also checked every other deletion site in the stage-2
+host code (`feedback.ts`, `launch-guard.ts`, `adapter-state.ts`) for the same pattern: the remaining
+`unlink`s remove only this writer's own temp file or a receipt/claim under its own token.
+
+| # | Finding | Fix | Regression test | Fails on `af1d2ca` |
+|---|---|---|---|---|
+| 1 (major) | Queue-end tombstone pruning followed a symlinked `pi-feedback-queue-ends` or `.agent-workflow` and deleted any `.json` without a valid `endedAt` (outside files deleted) | Physical containment check before writing or pruning (no symlinked component, real path equals `<real cwd>/.agent-workflow/pi-feedback-queue-ends`); prune only schema-identified `<lifetime>.json` tombstones and writer temp files | `test/unit/host-wp19r6-pi-queue-ends-safety.test.mjs` (symlinked dir, symlinked ancestor, unrelated JSON kept / expired tombstone pruned) | yes (outside sentinels and unrelated JSON deleted) |
+| 1b (same class, found by the parent) | `pruneHostLaunchClaims` followed a symlinked `host-launches` or `.agent-workflow` and deleted any `.json` older than 1 h that was not a readable claim | Same containment (shared `containedProjectStateDir` in `src/hosts/run-files.ts`, also used by the queue-end tombstones); prune only `<sha256>.json` claims with the claim schema and matching fingerprint, and their writers' temp files | `test/unit/host-wp19r6-launch-claims-prune-safety.test.mjs` (symlinked dir, symlinked ancestor, only identified claims/temp files pruned) | yes (all 3 tests fail: outside files and unrelated JSON deleted) |
+| 2 (minor) | Deferred catch-up deliveries bypassed the 5-message catch-up cap (6 sent) | A deferred catch-up reserves one of the 5 slots at restore | same file, "deferred catch-up deliveries share the five-message catch-up cap" | yes (6 sent) |
+
