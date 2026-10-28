@@ -161,6 +161,16 @@ apply yet.
    superseded generation's artifacts are quarantined as before. Regression tests:
    `test/unit/core-wp39-resume-generation-provenance.test.mjs` (record level, and stop/resume end to
    end on the workflow executor fixture; both fail on the old code).
+6. WP39b (live bundle 5, O3): the auto classifier output parser (`parseWorkflowAutoComparisonOutput`)
+   normalizes evidence fields before validating them. `gpt-5.6-luna` named flattened sub-fields of
+   a card's nested objects (`facts.tools`, `facts.usesNetwork`, `facts.effective`,
+   `readiness.status`, `readiness.startAllowed`) and once an unprefixed `declaredVerification`, and
+   every such output failed host validation (no recommendation). Now a known sub-field of `facts`,
+   `readiness` or `comparison.overhead` maps to that field, an unprefixed name that is the last
+   segment of exactly one offered field maps to it, duplicates collapse, and anything else is still
+   invalid (`facts.invented`, `routing.useWhen.0`, `comparison`). The prompt is unchanged. Test:
+   `core-workflow-router.test.mjs` "recorded luna classifier outputs …" on the three recorded live-5
+   outputs (`test/fixtures/live5/auto-router/`; all three fail on the old code).
 
 Left unchanged on purpose (not paths or env vars; flagged for later WPs):
 
