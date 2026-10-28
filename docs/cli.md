@@ -163,6 +163,14 @@ outcome, data}`.
 `supervise` previously (pi-workflow) exited 2 for blocked runs; it now exits 1 like every other
 command. Its log lines and its structured result still say `blocked`.
 
+**Non-passing domain verdicts exit 1 (CI semantics, WP18b).** A workflow whose final step reports a
+non-passing verdict as `failed` (for example deep-review's `PARTIAL_REVIEW`, statusDetail
+`support_declared_failed`) leaves the run `failed`, so `run`/`wait` exit 1 and a CI job fails. The
+text still presents it as a finished run, not as a crash: `Workflow finished — verdict: PARTIAL_REVIEW
+(report ready)`, the run status on its own line, the result preview and the report path; `--json`
+has `data.verdict` and `data.verdictGate: true`. Passing verdicts (for example `NEEDS_WORK` and
+`REVIEW_COMPLETE` in deep-review) complete the run and exit 0.
+
 ## Environment
 
 | Variable | Meaning |

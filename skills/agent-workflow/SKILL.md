@@ -50,8 +50,12 @@ tool list shows.
 5. `actionRequired: true`: the run is blocked. Report the reason, call
    `workflow_inspect {runId, failures: true}` and tell the user that `agent-workflow resume <runId>`
    (CLI) continues it after they fix the cause.
-6. A failed or partial run: report status and the failed tasks from `workflow_inspect`; do not
-   invent results for missing parts.
+6. A result headed `Workflow finished — verdict: X (report ready)` (`verdictGate: true`) finished
+   with a non-passing domain verdict, for example `PARTIAL_REVIEW`: report the verdict, quote the
+   preview and give the report path. Its status says `failed` only because the verdict did not pass
+   the final gate; do not call it a workflow failure.
+7. A failed or partial run otherwise: report status and the failed tasks from `workflow_inspect`; do
+   not invent results for missing parts.
 
 Runs are detached by default (`detach: true`): they keep running between calls and after the host
 session ends. `workflow_status` finds them again later.

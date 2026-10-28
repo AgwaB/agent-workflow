@@ -50,13 +50,15 @@ import {
 	SUPERVISE_DEFAULT_MAX_RUNTIME_MS,
 	SUPERVISE_DEFAULT_POLL_MS,
 } from "./args.js";
-import { hostCommandHints } from "./hints.js";
+import { hostCommandHints, type WorkflowCommandHints } from "./hints.js";
 import { spawnDetachedSupervisor } from "./launch.js";
 import {
+	formatVerdictGateHeadline,
 	formatWorkflowResultPresentation,
 	isResultOnlyWorkflowSuccess,
 	readWorkflowResultPresentation,
 	type WorkflowResultArtifact,
+	type WorkflowResultPresentation,
 } from "./result-presentation.js";
 import {
 	assertActionAllowed,
@@ -108,6 +110,12 @@ export function summarizeRun(run: WorkflowRunRecord): RunSummary {
 
 export interface StatusData {
 	run?: RunSummary & {
+		/** WP18b: domain verdict of a terminal run (output task control). */
+		verdict?: string;
+		/** WP18b: the run's only failure is the final verdict gate. */
+		verdictGate?: true;
+		/** WP18b: report artifacts of a terminal run. */
+		reportArtifacts: WorkflowResultArtifact[];
 		tasks: Array<{
 			taskId: string;
 			specId: string;
@@ -116,6 +124,20 @@ export interface StatusData {
 		}>;
 	};
 	runs?: RunSummary[];
+}
+
+/** Presentation (verdict, report, preview) of a terminal run; undefined while it runs. */
+async function terminalPresentation(
+	cwd: string,
+	run: WorkflowRunRecord,
+): Promise<WorkflowResultPresentation | undefined> {
+	const terminal = await summarizeWorkflowTerminal(cwd, run);
+	if (!terminal.terminal) return undefined;
+	return await readWorkflowResultPresentation(
+		cwd,
+		run,
+		terminal.outputTaskIds,
+	).catch(() => undefined);
 }
 
 /** `status [run]`: one run (refreshed) or every top-level run. */
@@ -133,14 +155,42 @@ export async function statusAction(
 		return result("status", "success", { runs }, text);
 	}
 	const ref = requireRunRef(request.runId, "status");
-	const text = await formatRunStatus(ctx.cwd, ref, hostCommandHints(ctx.host));
+	const card = await formatRunStatus(ctx.cwd, ref, hostCommandHints(ctx.host));
 	const run = await readRunRecord(ctx.cwd, ref);
+	// WP18b: a terminal run shows its domain verdict and report; a verdict-gate run leads with
+	// "finished — verdict: X (report ready)".
+	const presentation = await terminalPresentation(ctx.cwd, run);
+	const text = presentation
+		? [
+				...(presentation.verdictGate
+					? [
+							`Workflow ${formatVerdictGateHeadline(presentation)} (run status: ${run.status})`,
+							"",
+						]
+					: []),
+				card,
+				...(presentation.verdict || presentation.artifacts.length
+					? [
+							"",
+							...(presentation.verdict
+								? [`Verdict: ${presentation.verdict}`]
+								: []),
+							...presentation.artifacts.map(
+								(artifact) => `${artifact.label}: ${artifact.path}`,
+							),
+						]
+					: []),
+			].join("\n")
+		: card;
 	return result(
 		"status",
 		"success",
 		{
 			run: {
 				...summarizeRun(run),
+				...(presentation?.verdict ? { verdict: presentation.verdict } : {}),
+				...(presentation?.verdictGate ? { verdictGate: true as const } : {}),
+				reportArtifacts: presentation?.artifacts ?? [],
 				tasks: run.tasks.map((task) => ({
 					taskId: task.taskId,
 					specId: task.specId,
@@ -356,6 +406,11 @@ export interface WaitData {
 	 * from the run `status`/`semanticStatus`.
 	 */
 	verdict?: string;
+	/**
+	 * WP18b: the run's only failure is its final verdict gate (every model task completed; the final
+	 * step declared a non-passing verdict as `failed`). `status` and the outcome stay `failed`.
+	 */
+	verdictGate?: true;
 	/** Bounded authoritative-result preview of a terminal run. */
 	preview?: string;
 	reportArtifacts: WorkflowResultArtifact[];
@@ -443,6 +498,7 @@ export async function waitAction(
 		artifactRoot: toDisplayPath(terminal.artifactRoot, ctx.cwd),
 		...(nextRetry ? { nextRetry } : {}),
 		...(presentation?.verdict ? { verdict: presentation.verdict } : {}),
+		...(presentation?.verdictGate ? { verdictGate: true as const } : {}),
 		...(preview ? { preview } : {}),
 		reportArtifacts: artifacts,
 		...(run.usage ? { usage: run.usage } : {}),
@@ -460,6 +516,8 @@ export async function waitAction(
 		isResultOnlyWorkflowSuccess(terminal.semanticStatus, preview)
 	) {
 		text = formatWorkflowResultPresentation(preview, artifacts);
+	} else if (presentation?.verdictGate) {
+		text = formatVerdictGateText(run, presentation, hints);
 	} else {
 		text = [
 			terminal.terminal
@@ -468,6 +526,7 @@ export async function waitAction(
 			`Run: ${run.runId}`,
 			`Engine status: ${terminal.engineStatus}`,
 			`Semantic status: ${terminal.semanticStatus}`,
+			...(presentation?.verdict ? [`Verdict: ${presentation.verdict}`] : []),
 			formatHumanRunOutcome(run, { hints }),
 			`Output retries: ${terminal.outputRetryAttempts}; launch retries: ${terminal.launchRetryAttempts}`,
 			`Artifacts: ${data.artifactRoot}`,
@@ -484,6 +543,33 @@ export async function waitAction(
 		data,
 		text,
 	);
+}
+
+/**
+ * WP18b: text of a run whose only failure is the final verdict gate: a finished run with a domain
+ * verdict and a report, not a failure; the run status stays visible on its own line.
+ */
+function formatVerdictGateText(
+	run: WorkflowRunRecord,
+	presentation: WorkflowResultPresentation,
+	hints: WorkflowCommandHints,
+): string {
+	return [
+		`Workflow ${formatVerdictGateHeadline(presentation)}: ${run.name ?? "workflow"}`,
+		`Run: ${run.runId}`,
+		`Run status: ${run.status} (only the final verdict gate did not pass; every other task completed)`,
+		"",
+		presentation.preview
+			? formatWorkflowResultPresentation(
+					presentation.preview,
+					presentation.artifacts,
+				)
+			: presentation.artifacts
+					.map((artifact) => `- ${artifact.label}: \`${artifact.path}\``)
+					.join("\n"),
+		"",
+		`Open: ${hints.status(run.runId)}`,
+	].join("\n");
 }
 
 export interface ResumeData {

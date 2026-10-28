@@ -76,7 +76,7 @@ export const HOST_MCP_INSTRUCTIONS = [
 	`1. ${WORKFLOW_LIST_TOOL} when the workflow name is uncertain; never guess workflow names.`,
 	`2. ${WORKFLOW_RUN_TOOL} {workflow, task} (or ${WORKFLOW_DYNAMIC_TOOL} {task} for a spec-less dynamic workflow) starts a run and returns its runId at once. Runs are detached by default, so they keep going between calls and after this server stops.`,
 	`3. ${WORKFLOW_WAIT_TOOL} {runId} waits at most ${WAIT_SECONDS} s per call. While stillRunning is true, call ${WORKFLOW_WAIT_TOOL} again with the same runId. terminal=true means finished; actionRequired=true means blocked: report it and use ${WORKFLOW_INSPECT_TOOL}.`,
-	"4. When the run finished, quote the result preview and give the report paths verbatim; do not paraphrase or re-summarize the report. Read the report file for details.",
+	'4. When the run finished, quote the result preview and give the report paths verbatim; do not paraphrase or re-summarize the report. Read the report file for details. A result headed "Workflow finished — verdict: X (report ready)" (verdictGate=true) is the workflow\'s result with a non-passing domain verdict, not a workflow failure: report the verdict and the report.',
 	`5. You get no completion push: a run only reports through ${WORKFLOW_WAIT_TOOL}/${WORKFLOW_STATUS_TOOL}. If it is still running when you stop waiting (for example a long rate-limit backoff, nextRetry in the ${WORKFLOW_WAIT_TOOL} result), tell the user the runId, what the run is waiting for, and that they can ask you again later.`,
 	`${WORKFLOW_STATUS_TOOL} lists runs or shows one; ${WORKFLOW_LOGS_TOOL} shows a bounded, redacted tail of task output, stderr and executor events; ${WORKFLOW_STOP_TOOL} interrupts a run (cancelling ${WORKFLOW_WAIT_TOOL} only stops waiting); ${WORKFLOW_VALIDATE_TOOL} checks a workflow spec.`,
 	'Permission mode: "free" by default (workers run without approval prompts; stages the workflow declares read-only stay read-only). Set permissionMode "safe" only when the user asks for approvals/sandboxing.',
@@ -653,7 +653,11 @@ function waitNext(data: WaitData): string {
 	const reports = data.reportArtifacts.map(
 		(artifact) => `${artifact.label}: ${artifact.path}`,
 	);
-	return `${state}${reports.length ? `\n${reports.join("\n")}` : ""}\nQuote the result preview and the report paths; do not paraphrase the report.`;
+	const verdict = data.verdict ? ` verdict=${data.verdict}` : "";
+	const gate = data.verdictGate
+		? `\nThe run finished with the domain verdict ${data.verdict ?? "(not reported)"}; status=failed only means this verdict did not pass the workflow's final gate. Report it as the workflow's result (verdict and report), not as a workflow failure.`
+		: "";
+	return `${state}${verdict}${reports.length ? `\n${reports.join("\n")}` : ""}${gate}\nQuote the result preview and the report paths; do not paraphrase the report.`;
 }
 
 export interface HostMcpService {

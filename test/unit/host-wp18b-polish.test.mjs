@@ -409,3 +409,95 @@ test("Pi completion message: the domain verdict, with the run status on its own 
 		assert.equal(message.details.verdict, "NEEDS_WORK");
 	}
 });
+
+test("verdict gate: a run whose only failure is the final verdict is presented as finished with that verdict (all hosts)", async () => {
+	const { cwd, env, runId, waited } = await verdictRun(
+		"failed",
+		"PARTIAL_REVIEW",
+	);
+	// Engine semantics are unchanged: the run is failed, the outcome stays failed (CLI exit 1).
+	assert.equal(waited.data.status, "failed", waited.text);
+	assert.equal(waited.outcome, "failed");
+	assert.equal(waited.ok, false);
+	assert.equal(waited.data.verdict, "PARTIAL_REVIEW");
+	assert.equal(waited.data.verdictGate, true);
+	assert.match(waited.data.preview ?? "", /Verdict: PARTIAL_REVIEW/);
+	const report = waited.data.reportArtifacts.find(
+		(a) => a.kind === "final-report",
+	);
+	assert.match(report?.path ?? "", /final-report\.md$/);
+	assert.match(
+		waited.text,
+		/finished — verdict: PARTIAL_REVIEW \(report ready\)/,
+	);
+	assert.doesNotMatch(waited.text, /preview: unavailable/);
+	assert.ok(waited.text.includes(report.path), waited.text);
+
+	const status = await api.statusAction({ cwd, env, host: "cli" }, { runId });
+	assert.match(
+		status.text,
+		/finished — verdict: PARTIAL_REVIEW \(report ready\)/,
+	);
+	assert.ok(status.text.includes(report.path), status.text);
+	assert.equal(status.data.run.verdict, "PARTIAL_REVIEW");
+	assert.equal(status.data.run.verdictGate, true);
+
+	const service = mcpTools.createHostMcpService({
+		root: cwd,
+		host: "codex",
+		env,
+	});
+	const call = {
+		protocolVersion: "2025-06-18",
+		clientCapabilities: {},
+		signal: new AbortController().signal,
+		sendRequest: async () => ({}),
+		sendNotification: async () => undefined,
+	};
+	const viaMcp = await service.call("workflow_wait", { runId }, call);
+	const mcpText = viaMcp.content[0].text;
+	assert.match(mcpText, /verdict=PARTIAL_REVIEW/);
+	assert.match(mcpText, /finished — verdict: PARTIAL_REVIEW \(report ready\)/);
+	assert.ok(mcpText.includes(report.path));
+	assert.equal(viaMcp.isError, false);
+
+	const out = [];
+	const io = {
+		cwd,
+		env,
+		stdout: (t) => out.push(t),
+		stderr: () => undefined,
+		isTTY: false,
+	};
+	assert.equal(await cli.runAgentWorkflowCli(["wait", runId], io), 1);
+	assert.match(
+		out.join(""),
+		/finished — verdict: PARTIAL_REVIEW \(report ready\)/,
+	);
+
+	const run = JSON.parse(
+		await readFile(
+			join(cwd, ".agent-workflow", "workflows", runId, "run.json"),
+			"utf8",
+		),
+	);
+	const message = await feedback.completionMessage(cwd, run, {
+		instruct: true,
+	});
+	assert.match(
+		message.content,
+		/finished — verdict: PARTIAL_REVIEW \(report ready\)/,
+	);
+	assert.match(message.content, /^Verdict: PARTIAL_REVIEW$/m);
+	assert.ok(message.content.includes(report.path), message.content);
+	assert.match(message.content, /Verdict: PARTIAL_REVIEW/);
+
+	// A real failure (an interrupted model task) is not a verdict gate.
+	const real = await interruptedRun();
+	const realWait = await api.waitAction(
+		{ cwd: real.cwd, env: real.env, host: "cli" },
+		{ runId: real.runId, timeoutMs: 1_000 },
+	);
+	assert.equal(realWait.data.verdictGate, undefined);
+	assert.doesNotMatch(realWait.text, /report ready/);
+});

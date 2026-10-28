@@ -245,7 +245,8 @@ input 30, cache read 567,411, cache write 34,077, output 2,922. No `codex exec` 
    (`docs/plugins.md`) wrote `[projects."<cwd>"] trust_level = "trusted"` into the real
    `config.toml`; use a throw-away `CODEX_HOME` or restore the file. The adapter's worker threads did
    not write it.
-8. Still open from stage 1: a domain verdict fails the run (`support_declared_failed`, case 4a);
+8. Still open from stage 1: a domain verdict fails the run (`support_declared_failed`, case 4a;
+   WP18b presents it as "finished — verdict: X (report ready)", engine semantics unchanged);
    Claude adapter attempt records are not pruned (`executors/claude/attempts` 56 → 112).
 
 ## Live 4b (Codex, after reset)
@@ -390,6 +391,9 @@ sessions of live 4).
    `reportArtifacts: []` although `tasks/task-8/final-report.md` exists with the verdict. Both Codex
    hosts answered "Engine status: failed" instead of `PARTIAL_REVIEW` (5 of 5 runs here). Follows
    from open problem 8 above (a domain verdict fails the run); fix both together.
+   WP18b: a verdict-gate run (`isVerdictGateFailure`) now presents the declared-failed output
+   task's preview, report path and `verdict` on every host ("Workflow finished — verdict:
+   PARTIAL_REVIEW (report ready)"); the run status stays `failed` (presentation only, CLI exit 1).
 2. **Codex adapter attempt records are not pruned** either: one `<id>.json`, `<id>.events.jsonl`
    (worker tool calls with command lines) and an empty `<id>.log/` per attempt under
    `<HOME>/.agent-workflow/executors/codex/attempts/` (354 entries after this bundle).

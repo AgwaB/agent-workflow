@@ -15,7 +15,8 @@
 // none is active; a run launched by `/aw` (the user) does not trigger an agent turn, a run launched
 // by the `aw_run`/`aw_dynamic` tools does (`followUp`), so the agent can act on the result.
 // WP18b: the message shows the domain verdict (`Verdict: NEEDS_WORK`) and the run status
-// (`Run status: completed`) on separate lines (was `Verdict: <run status>`).
+// (`Run status: completed`) on separate lines (was `Verdict: <run status>`); a run whose only
+// failure is the final verdict gate is headed "finished — verdict: X (report ready)".
 import { createHash } from "node:crypto";
 import { mkdir, open, readFile, unlink } from "node:fs/promises";
 import { join } from "node:path";
@@ -28,6 +29,7 @@ import {
 import type { WorkflowRunRecord } from "../../core/types.js";
 import { summarizeWorkflowTerminal } from "../../core/workflow-terminal.js";
 import {
+	formatVerdictGateHeadline,
 	formatWorkflowResultPresentation,
 	isResultOnlyWorkflowSuccess,
 	readWorkflowResultPresentation,
@@ -201,7 +203,9 @@ export async function completionMessage(
 	// WP18b: the domain verdict (NEEDS_WORK, …) and the run status are separate lines.
 	const verdictLines = [
 		...(verdict ? [`Verdict: ${verdict}`] : []),
-		`Run status: ${terminal.semanticStatus}`,
+		presentation?.verdictGate
+			? `Run status: ${terminal.semanticStatus} (only the final verdict gate did not pass; every other task completed)`
+			: `Run status: ${terminal.semanticStatus}`,
 	];
 	const summary = run.taskSummary;
 	const name = run.name ?? run.runId;
@@ -225,6 +229,7 @@ export async function completionMessage(
 		status: run.status,
 		semanticStatus: terminal.semanticStatus,
 		...(verdict ? { verdict } : {}),
+		...(presentation?.verdictGate ? { verdictGate: true } : {}),
 		terminal: terminal.terminal,
 		actionRequired,
 		taskSummary: run.taskSummary,
@@ -252,7 +257,9 @@ export async function completionMessage(
 	const content = [
 		actionRequired
 			? `**Workflow blocked; action required: ${name}**`
-			: `**Workflow ${run.status}: ${name}**`,
+			: presentation?.verdictGate
+				? `**Workflow ${formatVerdictGateHeadline(presentation)}: ${name}**`
+				: `**Workflow ${run.status}: ${name}**`,
 		"",
 		notice,
 		...verdictLines,

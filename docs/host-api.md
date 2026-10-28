@@ -174,7 +174,14 @@ cancels only the wait.
 blockedTaskIds, taskSummary, outputTaskIds, outputRetryAttempts, launchRetryAttempts, artifactRoot,
 nextRetry?, verdict?, preview?, reportArtifacts, usage?, degradation?}`. `verdict` (WP18b) is the
 workflow's domain verdict from the output task's control (for example `NEEDS_WORK`), not the run
-status. `nextRetry` (WP18b) is set while a
+status. `verdictGate: true` (WP18b) marks a run whose only failure is the final verdict
+gate (`isVerdictGateFailure`: run `failed`, every task completed or skipped except output tasks with
+`support_declared_failed`): the preview and `reportArtifacts` then come from that declared-failed
+task (before WP18b only a *completed* output task was read, so these runs had no preview and no
+report), and `text` leads with `Workflow finished — verdict: X (report ready)` and keeps the run
+status on its own line. Presentation only: `status` and the outcome stay `failed` (CLI exit 1).
+`statusAction` for one terminal run adds the same headline, `Verdict:` and report lines, and
+`data.run.{verdict?, verdictGate?, reportArtifacts}`. `nextRetry` (WP18b) is set while a
 still-running run only waits for a scheduled task retry (no task running, every startable task in a
 retry backoff such as a 15-minute rate-limit wait): `{at, retryAfterMs, reason?, message?, taskIds}`;
 the text then adds "Now waiting for scheduled retry at <time> (<reason>; <tasks>)".
