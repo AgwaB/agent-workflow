@@ -7,6 +7,7 @@ import { TextDecoder } from "node:util";
 
 import {
 	acquireAutoRouterPin,
+	type AutoRouterPin,
 	AUTO_ROUTER_RUNS_DIR,
 	WORKFLOW_AUTO_COMPARE_CORRELATION_ID,
 } from "./auto-router-runs.js";
@@ -517,8 +518,26 @@ async function sendPreparedWorkflowAuto(
 			"all-safe",
 		);
 
+	// WP42 (WP39b review, finding 5): pin this request's result from before the launch until its
+	// output is consumed, so a concurrent `prune` keeps it. WP42 (review round 2, N3): a pin that
+	// cannot be established refuses the comparison (an unpinned result could be pruned before it
+	// is read); only a proven non-prunable layout runs unpinned (`undefined`).
+	let pin: AutoRouterPin | undefined;
 	try {
-		const output = await runWorkflowAutoComparison(request, packet);
+		pin = await acquireAutoRouterPin(request.cwd);
+	} catch (error) {
+		const code = (error as NodeJS.ErrnoException).code;
+		return unavailable(
+			catalog,
+			candidates,
+			shortlist,
+			`routing-unavailable: the classifier request could not be pinned against a concurrent prune in ${AUTO_ROUTER_RUNS_DIR}/.pins${typeof code === "string" ? ` (${code})` : ""}; no classifier was called. No path was selected or launched.`,
+			"blocked",
+			"all-safe",
+		);
+	}
+	try {
+		const output = await runWorkflowAutoComparison(request, packet, pin);
 		if (request.signal?.aborted)
 			return unavailable(
 				catalog,
@@ -1721,10 +1740,8 @@ function buildWorkflowAutoComparisonPacket(
 async function runWorkflowAutoComparison(
 	request: WorkflowAutoRequest,
 	packet: string,
+	pin: AutoRouterPin | undefined,
 ): Promise<string> {
-	// WP42 (WP39b review, finding 5): pin this request's result from before the launch until its
-	// output is consumed, so a concurrent `prune` keeps it.
-	const pin = await acquireAutoRouterPin(request.cwd);
 	try {
 		return await runPinnedWorkflowAutoComparison(request, packet);
 	} finally {
