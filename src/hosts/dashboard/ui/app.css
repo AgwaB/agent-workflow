@@ -743,3 +743,80 @@ dialog footer .muted {
 		display: none;
 	}
 }
+.status-icon {
+	display: inline-block;
+	vertical-align: middle;
+	color: var(--muted);
+}
+.status-icon.running {
+	color: var(--accent);
+}
+.status-icon.blocked {
+	color: var(--warn);
+}
+.status-icon.failed {
+	color: var(--err);
+}
+.needs-button,
+.toolbar button {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+.items-progress {
+	margin: 24px 16px 8px;
+}
+.item-filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin: 0 16px;
+}
+.item-filters button {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 13px;
+	padding: 2px 5px;
+	color: var(--muted);
+}
+.item-filters .glyph {
+	width: 14px;
+}
+.item-filters button[aria-pressed="true"],
+.items-mode button[aria-pressed="true"] {
+	border-color: var(--accent);
+	color: var(--text);
+}
+.items-mode {
+	display: flex;
+	gap: 4px;
+	margin: 12px 16px 0;
+}
+.items-mode button {
+	font-size: 14px;
+}
+.item-grid {
+	grid-template-columns: repeat(auto-fill, minmax(18px, 1fr));
+	gap: 4px;
+}
+.item-grid button {
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	padding: 0;
+	height: 20px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.item-grid button .glyph {
+	width: 16px;
+	height: 16px;
+}
+.item-grid button .status-icon {
+	width: 12px;
+	height: 12px;
+}
+.item-grid > p {
+	grid-column: 1 / -1;
+}

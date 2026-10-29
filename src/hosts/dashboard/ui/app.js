@@ -38,22 +38,75 @@ const labels = {
 	skipped: "Skipped",
 	retry: "Waiting to retry",
 };
-const marks = {
-	completed: "✓",
-	running: "•",
-	pending: "○",
-	blocked: "♧",
-	failed: "×",
-	interrupted: "□",
-	skipped: "⊘",
-	retry: "◷",
+const iconPaths = {
+	completed: "M3.5 8.5l3 3 6-7",
+	failed: "M4 4l8 8M12 4l-8 8",
+	blocked:
+		"M5 8V4.2a1 1 0 0 1 2 0V7.5M7 7V3.2a1 1 0 0 1 2 0V7M9 7V4a1 1 0 0 1 2 0v5.5c0 2.5-1.6 4.5-4 4.5-1.7 0-2.6-.8-3.5-2.2L2.3 9.6a1 1 0 0 1 1.6-1.1L5 9.6",
+	retry: "M13 6a6 6 0 1 0 1 3M8 5v3.2l2 1.2M11 2l3 1-1 3",
+	interrupted: "M5.5 5.5h5v5h-5z",
+	skipped: "M4 12l8-8",
+	td: "M5 2.5h6v3H5zM5 10.5h6v3H5zM8 5.5v5",
+	lr: "M1.5 5h4v6h-4zM10.5 5h4v6h-4zM5.5 8h5",
+	fit: "M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10",
 };
+function markIcon(status, x = 0, y = 0, size = 16) {
+	const icon = svg("svg", {
+		x,
+		y,
+		width: size,
+		height: size,
+		viewBox: "0 0 16 16",
+		class: `status-icon ${status}`,
+		"aria-hidden": "true",
+		fill: "none",
+		stroke: "currentColor",
+		"stroke-width": 1.5,
+		"stroke-linecap": "round",
+		"stroke-linejoin": "round",
+	});
+	if (status === "running")
+		icon.append(
+			svg("circle", {
+				cx: 8,
+				cy: 8,
+				r: 3.5,
+				fill: "currentColor",
+				stroke: "none",
+			}),
+		);
+	else {
+		if (
+			["pending", "skipped", "interrupted"].includes(status) ||
+			!iconPaths[status]
+		)
+			icon.append(svg("circle", { cx: 8, cy: 8, r: 6.25 }));
+		if (iconPaths[status]) icon.append(svg("path", { d: iconPaths[status] }));
+	}
+	return icon;
+}
 const glyph = (status) =>
 	element(
 		"span",
 		{ class: `glyph ${status}`, "aria-hidden": "true" },
-		marks[status] || "○",
+		markIcon(status),
 	);
+function logo() {
+	return svg(
+		"svg",
+		{ width: 20, height: 20, viewBox: "0 0 20 20", "aria-hidden": "true" },
+		svg("rect", { x: 1, y: 1, width: 18, height: 18, rx: 5, fill: "#eeeff2" }),
+		svg("path", {
+			d: "M6.5 6.5l7 3.5-7 3.5",
+			fill: "none",
+			stroke: "#0b0c0f",
+			"stroke-width": 1.4,
+		}),
+		svg("circle", { cx: 6.5, cy: 6.5, r: 2, fill: "#0b0c0f" }),
+		svg("circle", { cx: 6.5, cy: 13.5, r: 2, fill: "#0b0c0f" }),
+		svg("circle", { cx: 13.5, cy: 10, r: 2, fill: "#6ee7b7" }),
+	);
+}
 const date = (value) => Date.parse(value) || 0;
 let clockOffset = 0;
 const now = () => Date.now() + clockOffset;
@@ -212,6 +265,7 @@ let session,
 	run = null,
 	graphModel = null,
 	graphControl = null;
+let runRevision = 0;
 let loadGeneration = 0,
 	selectionController,
 	eventSource,
@@ -292,9 +346,12 @@ function go(patch, replace = false) {
 	}
 }
 function renderTop() {
+	const focusedLabel = $("top").contains(document.activeElement)
+		? document.activeElement.getAttribute("aria-label")
+		: null;
 	const needs = runs.reduce((n, r) => n + (r.needsYou?.length || 0), 0);
 	$("top").replaceChildren(
-		element("span", { class: "brand" }, "◉ agent-workflow"),
+		element("span", { class: "brand row" }, logo(), "agent-workflow"),
 		element("span", { class: "muted", "aria-hidden": "true" }, "/"),
 		element("span", { class: "project", id: "project" }, session.project.name),
 		button(
@@ -307,7 +364,7 @@ function renderTop() {
 		),
 		element("span", { class: "grow" }),
 		button(
-			`♧ Needs you  ${needs}`,
+			[glyph("blocked"), `Needs you  ${needs}`],
 			() => {
 				$("rail").querySelector(".need")?.focus();
 			},
@@ -319,6 +376,10 @@ function renderTop() {
 		element("span", { id: "connection", class: "connection", role: "status" }),
 	);
 	updateConnection();
+	if (focusedLabel)
+		$("top")
+			.querySelector(`[aria-label="${CSS.escape(focusedLabel)}"]`)
+			?.focus({ preventScroll: true });
 }
 function updateConnection() {
 	const el = $("connection");
@@ -355,6 +416,7 @@ function progress(completed, total) {
 	});
 }
 function renderRail() {
+	const focusedRun = document.activeElement?.closest(".run-row")?.dataset.run;
 	const rail = $("rail"),
 		scroll = rail.scrollTop;
 	const needs = runs.flatMap((r) =>
@@ -464,6 +526,10 @@ function renderRail() {
 		rail.append(row);
 	}
 	rail.scrollTop = scroll;
+	if (focusedRun)
+		rail
+			.querySelector(`[data-run="${CSS.escape(focusedRun)}"]`)
+			?.focus({ preventScroll: true });
 }
 function actionButton(text, dialog, cls = "") {
 	return button(text, () => go({ dialog }), {
@@ -473,6 +539,13 @@ function actionButton(text, dialog, cls = "") {
 			readonly() || busy || (dialog === "stop" && stoppingRuns.has(run.runId)),
 		title: readonly() ? "Read-only mode" : null,
 	});
+}
+function sentenceParts() {
+	const text = statusSentence(run, now(), stoppingRuns.has(run.runId));
+	const end = text.indexOf(". ");
+	return end < 0
+		? [text]
+		: [element("strong", {}, text.slice(0, end + 1)), text.slice(end + 1)];
 }
 function renderHeader() {
 	const actions = element("div", { class: "actions" });
@@ -509,11 +582,7 @@ function renderHeader() {
 			),
 			actions,
 		),
-		element(
-			"p",
-			{ class: "sentence", id: "status-sentence" },
-			statusSentence(run, now(), stoppingRuns.has(run.runId)),
-		),
+		element("p", { class: "sentence", id: "status-sentence" }, sentenceParts()),
 		element(
 			"div",
 			{ class: "stat" },
@@ -681,9 +750,12 @@ function selectedTask() {
 function selectedStage() {
 	return state.stage || selectedTask()?.stageId;
 }
+const graphViews = new Map();
 function renderGraph() {
 	graphControl?.destroy();
 	const model = graphModel;
+	const viewKey = `${run.runId}:${state.layout}`;
+	const savedView = graphViews.get(viewKey);
 	const wrap = element("div", { class: "canvas", id: "canvas" });
 	const drawing = svg("svg", {
 		class: "graph",
@@ -753,11 +825,7 @@ function renderGraph() {
 		node.append(
 			svg("rect", { class: "outline", width: p.w, height: p.h, rx: 10 }),
 			svg("title", {}, stage.name || stage.id),
-			svg(
-				"text",
-				{ x: 14, y: 24, class: `mark ${stage.status}` },
-				marks[stage.status] || "○",
-			),
+			markIcon(stage.status, 12, 12),
 			svg(
 				"text",
 				{ x: 36, y: 24, class: "node-name", "data-fit": p.w - 48 },
@@ -817,11 +885,7 @@ function renderGraph() {
 							height: 25,
 							fill: "transparent",
 						}),
-						svg(
-							"text",
-							{ x: 15, y, class: `mark ${status}` },
-							marks[status] || "○",
-						),
+						markIcon(status, 15, y - 11, 13),
 						svg(
 							"text",
 							{ x: 36, y, class: "agent-name", "data-fit": p.w - 165 },
@@ -932,9 +996,12 @@ function renderGraph() {
 		}
 		nodes.append(node);
 	}
-	let view = { x: 0, y: 0, k: 1 },
+	let view = savedView ? { ...savedView } : { x: 0, y: 0, k: 1 },
 		dragged = null;
 	function apply() {
+		view.width = wrap.clientWidth;
+		view.height = wrap.clientHeight;
+		graphViews.set(viewKey, { ...view });
 		viewport.setAttribute(
 			"transform",
 			`translate(${view.x},${view.y}) scale(${view.k})`,
@@ -997,6 +1064,7 @@ function renderGraph() {
 			(p.y + p.h) * view.k + view.y < wrap.clientHeight - 60
 		)
 			return;
+		view.manual = true;
 		if (focus) view.k = Math.min(1.15, (wrap.clientWidth - 32) / p.w);
 		view.x = wrap.clientWidth / 2 - (p.x + p.w / 2) * view.k;
 		view.y = (wrap.clientHeight - 60) / 2 - (p.y + p.h / 2) * view.k;
@@ -1006,6 +1074,7 @@ function renderGraph() {
 		"wheel",
 		(event) => {
 			event.preventDefault();
+			view.manual = true;
 			if (event.ctrlKey || event.metaKey) {
 				const rect = wrap.getBoundingClientRect(),
 					x = event.clientX - rect.left,
@@ -1015,6 +1084,7 @@ function renderGraph() {
 					Math.min(2, view.k * Math.exp(-event.deltaY * 0.01)),
 				);
 				view = {
+					manual: true,
 					k,
 					x: x - ((x - view.x) * k) / view.k,
 					y: y - ((y - view.y) * k) / view.k,
@@ -1034,6 +1104,7 @@ function renderGraph() {
 	});
 	wrap.addEventListener("pointermove", (event) => {
 		if (dragged) {
+			view.manual = true;
 			view.x = dragged.vx + event.clientX - dragged.x;
 			view.y = dragged.vy + event.clientY - dragged.y;
 			apply();
@@ -1049,7 +1120,7 @@ function renderGraph() {
 		element(
 			"div",
 			{ class: "toolbar", role: "toolbar", "aria-label": "Graph view" },
-			button("⛶  Fit", fit, { title: "Fit graph (F)" }),
+			button([markIcon("fit"), "Fit"], fit, { title: "Fit graph (F)" }),
 			button("Focus", () => {
 				const id =
 					selectedStage() ||
@@ -1059,12 +1130,12 @@ function renderGraph() {
 					[...model.stages.keys()].at(-1);
 				reveal(id, true);
 			}),
-			button("↧", () => changeLayout("td"), {
+			button(markIcon("td"), () => changeLayout("td"), {
 				"aria-label": "Top-down",
 				title: "Top-down",
 				"aria-pressed": String(!horizontal),
 			}),
-			button("⇥", () => changeLayout("lr"), {
+			button(markIcon("lr"), () => changeLayout("lr"), {
 				"aria-label": "Left-right",
 				title: "Left-right",
 				"aria-pressed": String(horizontal),
@@ -1072,10 +1143,16 @@ function renderGraph() {
 			button("?", openStatusKey, { "aria-label": "Status key" }),
 		),
 	);
-	const observer = new ResizeObserver(fit);
+	function resize() {
+		if (!view.manual) return fit();
+		view.x += (wrap.clientWidth - (view.width || wrap.clientWidth)) / 2;
+		view.y += (wrap.clientHeight - (view.height || wrap.clientHeight)) / 2;
+		apply();
+	}
+	const observer = new ResizeObserver(resize);
 	requestAnimationFrame(() => {
 		if (wrap.isConnected) {
-			fit();
+			resize();
 			observer.observe(wrap);
 		}
 	});
@@ -1193,6 +1270,17 @@ function renderSelection() {
 	const same = inspector.dataset.key === key,
 		scroll = same ? inspector.scrollTop : 0;
 	const detailsOpen = same && inspector.querySelector("details")?.open;
+	const logScroll = same ? inspector.querySelector(".log")?.scrollTop || 0 : 0;
+	const focusedField =
+		same &&
+		inspector.contains(document.activeElement) &&
+		document.activeElement.matches("input,select")
+			? {
+					label: document.activeElement.getAttribute("aria-label"),
+					start: document.activeElement.selectionStart,
+					end: document.activeElement.selectionEnd,
+				}
+			: null;
 	const focusedTab = inspector.contains(document.activeElement)
 		? document.activeElement?.dataset.tab
 		: null;
@@ -1391,6 +1479,16 @@ function renderSelection() {
 		logLoading = false;
 	}
 	inspector.scrollTop = scroll;
+	if (inspector.querySelector(".log"))
+		inspector.querySelector(".log").scrollTop = logScroll;
+	if (focusedField) {
+		const field = inspector.querySelector(
+			`[aria-label="${CSS.escape(focusedField.label)}"]`,
+		);
+		field?.focus({ preventScroll: true });
+		if (field?.setSelectionRange && focusedField.start != null)
+			field.setSelectionRange(focusedField.start, focusedField.end);
+	}
 	if (focusedTab)
 		document
 			.querySelector(`[data-tab="${CSS.escape(focusedTab)}"]`)
@@ -1403,63 +1501,111 @@ function renderItems(inspector, stage) {
 		element(
 			"p",
 			{ class: "details-section" },
-			`${stage.done} / ${stage.items.length} complete`,
+			`${labels[stage.status] || "Waiting"} · ${stage.done} / ${stage.items.length} done`,
 		),
 	);
 	const key = `${run.runId}:${stage.id}`,
-		filter = itemFilters.get(key) || { query: "", status: "all" };
+		filter = itemFilters.get(key) || {
+			query: "",
+			status: "all",
+			view: stage.items.length > 6 ? "grid" : "table",
+		};
 	const input = element("input", {
 		type: "search",
-		placeholder: "Find an agent…",
+		placeholder: `Filter ${stage.items.length} items…`,
 		"aria-label": "Find an agent",
 		value: filter.query,
 	});
-	const select = element(
-		"select",
-		{ "aria-label": "Filter agents by status" },
-		[
-			"all",
-			"running",
-			"retry",
-			"failed",
-			"blocked",
-			"pending",
-			"completed",
-			"interrupted",
-			"skipped",
-		].map((status) =>
-			element(
-				"option",
-				{ value: status },
-				status === "all" ? "All states" : labels[status],
-			),
-		),
-	);
-	select.value = filter.status;
+	const filters = element("div", {
+		class: "item-filters",
+		"aria-label": "Filter agents by status",
+	});
+	const modes = element("div", {
+		class: "items-mode",
+		role: "group",
+		"aria-label": "Agent view",
+	});
 	const list = element("div", { class: "item-list", "aria-label": "Agents" });
 	function paint() {
 		filter.query = input.value;
-		filter.status = select.value;
 		itemFilters.set(key, filter);
+		filters.replaceChildren(
+			...[
+				"all",
+				"completed",
+				"running",
+				"retry",
+				"failed",
+				"blocked",
+				"pending",
+				"interrupted",
+				"skipped",
+			].flatMap((status) => {
+				const count =
+					status === "all"
+						? stage.items.length
+						: stage.items.filter((task) => taskState(task) === status).length;
+				if (!count && status !== "all") return [];
+				return [
+					button(
+						[
+							status === "all" ? null : glyph(status),
+							status === "all"
+								? `All ${count}`
+								: `${count} ${status === "retry" ? "auto-retry" : (labels[status] || "Waiting").toLowerCase()}`,
+						],
+						() => {
+							filter.status = status;
+							paint();
+							filters.querySelector(`[data-filter="${status}"]`)?.focus();
+						},
+						{
+							"data-filter": status,
+							"aria-pressed": String(filter.status === status),
+						},
+					),
+				];
+			}),
+		);
+		modes.replaceChildren(
+			...["grid", "table"].map((view) =>
+				button(
+					view === "grid" ? "Grid" : "Table",
+					() => {
+						filter.view = view;
+						paint();
+						modes.querySelector(`[data-mode="${view}"]`)?.focus();
+					},
+					{ "data-mode": view, "aria-pressed": String(filter.view === view) },
+				),
+			),
+		);
 		const matches = stage.items.filter(
 			(task) =>
 				task.specId.toLowerCase().includes(filter.query.toLowerCase()) &&
 				(filter.status === "all" || taskState(task) === filter.status),
 		);
+		list.classList.toggle("item-grid", filter.view === "grid");
 		list.replaceChildren(
 			...matches.map((task) =>
 				button(
-					[
-						element(
-							"span",
-							{},
-							glyph(taskState(task)),
-							task.specId.slice(stage.id.length + 1),
-						),
-						element("span", { class: "item-state" }, taskLine(task)),
-					],
+					filter.view === "grid"
+						? glyph(taskState(task))
+						: [
+								element(
+									"span",
+									{},
+									glyph(taskState(task)),
+									task.specId.slice(stage.id.length + 1),
+								),
+								element("span", { class: "item-state" }, taskLine(task)),
+							],
 					() => go({ task: task.specId }),
-					{ "data-item": task.specId },
+					{
+						"data-item": task.specId,
+						title: `${task.specId} · ${taskLine(task)}`,
+						"aria-label": `${task.specId} · ${taskLine(task)}`,
+					},
 				),
 			),
 		);
@@ -1475,9 +1621,15 @@ function renderItems(inspector, stage) {
 			);
 	}
 	input.addEventListener("input", paint);
-	select.addEventListener("change", paint);
 	inspector.append(
-		element("div", { class: "items-tools" }, input, select),
+		element(
+			"div",
+			{ class: "items-progress" },
+			progress(stage.done, stage.items.length),
+		),
+		filters,
+		modes,
+		element("div", { class: "items-tools" }, input),
 		list,
 	);
 	paint();
@@ -1582,7 +1734,12 @@ function renderModal() {
 		return;
 	}
 	const kind = state.dialog,
-		approval = run.pendingApprovals?.[0];
+		approval =
+			run.pendingApprovals?.find(
+				(a) =>
+					[a.controllerSpecId, a.taskId].includes(selectedTask()?.specId) ||
+					a.taskId === selectedTask()?.taskId,
+			) || run.pendingApprovals?.[0];
 	if (
 		((kind === "approve" || kind === "reject") && !approval) ||
 		(kind === "stop" && !liveRun(run)) ||
@@ -1717,6 +1874,7 @@ function renderModal() {
 async function mutate(runId, kind, approval) {
 	if (readonly() || busy) return;
 	busy = true;
+	const actionModal = modalKey;
 	renderModal();
 	const action = kind === "reject" ? "approve" : kind;
 	try {
@@ -1737,7 +1895,7 @@ async function mutate(runId, kind, approval) {
 		);
 		if (kind === "stop" && result.pending) stoppingRuns.add(runId);
 		notice(result.text || "Action recorded.");
-		dismissDialog();
+		if (modalKey === actionModal) dismissDialog();
 		if (state.run === runId) await refreshRun();
 		await refreshRuns();
 	} catch (error) {
@@ -1932,6 +2090,13 @@ async function refreshRuns() {
 }
 function acceptRun(data) {
 	if (data.runId !== state.run) return;
+	if (
+		run &&
+		(date(data.updatedAt) < date(run.updatedAt) ||
+			JSON.stringify(data) === JSON.stringify(run))
+	)
+		return;
+	runRevision++;
 	run = data;
 	if (!liveRun(run)) stoppingRuns.delete(run.runId);
 	const index = runs.findIndex((r) => r.runId === run.runId);
@@ -1949,14 +2114,20 @@ function acceptRun(data) {
 }
 async function refreshRun() {
 	const id = state.run,
-		generation = loadGeneration;
+		generation = loadGeneration,
+		revision = runRevision;
 	const data = await api(`/api/runs/${encodeURIComponent(id)}`, {
 		signal: AbortSignal.any([
 			selectionController.signal,
 			AbortSignal.timeout(20000),
 		]),
 	});
-	if (generation === loadGeneration && id === state.run) acceptRun(data);
+	if (
+		generation === loadGeneration &&
+		id === state.run &&
+		revision === runRevision
+	)
+		acceptRun(data);
 }
 function stopEvents() {
 	clearTimeout(reconnectTimer);
@@ -2137,11 +2308,7 @@ setInterval(() => {
 	updateConnection();
 	if (!run) return;
 	if ($("status-sentence"))
-		$("status-sentence").textContent = statusSentence(
-			run,
-			now(),
-			stoppingRuns.has(run.runId),
-		);
+		$("status-sentence").replaceChildren(...sentenceParts());
 	if ($("elapsed")) $("elapsed").textContent = `Elapsed ${elapsed(run)}`;
 	const task = selectedTask();
 	if (task && $("task-status")) $("task-status").textContent = taskLine(task);
