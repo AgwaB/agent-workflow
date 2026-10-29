@@ -34,6 +34,14 @@ export async function createBrowser(executable) {
 			"--disable-background-networking",
 			"--disable-component-update",
 			"--disable-sync",
+			// The unit runner isolates HOME; without these, a fresh-profile Chrome on macOS can block on
+			// the login keychain ("Chrome Safe Storage") and never answer the first navigation.
+			"--use-mock-keychain",
+			"--password-store=basic",
+			"--disable-extensions",
+			"--disable-crash-reporter",
+			"--disable-breakpad",
+			"--metrics-recording-only",
 			"--hide-scrollbars",
 			"--remote-debugging-pipe",
 			`--user-data-dir=${profile}`,
