@@ -1,0 +1,42 @@
+== workflow_mvt1zrv5_6ea312
+Status: completed
+Progress: 13/13 completed · 0 running · 0 queued
+Verdict: NEEDS_WORK
+  task-1 triage.main completed claude claude-haiku-5-5 
+  task-2 reviewers.item completed codex gpt-5.6-luna low
+  task-9 reviewers.runtime-correctness completed codex gpt-5.6-luna low
+  task-10 reviewers.release-test-hygiene completed codex gpt-5.6-luna low
+  task-3 dedup-findings.main completed - - 
+  task-4 devil-advocate.item completed claude claude-haiku-5-5 
+  task-11 devil-advocate.finding-001 completed claude claude-haiku-5-5 
+  task-12 devil-advocate.finding-002 completed claude claude-haiku-5-5 
+  task-13 devil-advocate.finding-003 completed claude claude-haiku-5-5 
+  task-5 partition-verdicts.main completed - - 
+  task-6 report-packet.main completed - - 
+  task-7 report.main completed claude claude-haiku-5-5 
+  task-8 final.main completed - - 
+== workflow_mvt23704_e8e6d7
+Status: completed
+Progress: 16/16 completed · 0 running · 0 queued
+Verdict: NEEDS_WORK
+  task-1 triage.main completed claude claude-haiku-5-5 
+  task-2 reviewers.item completed codex gpt-5.6-luna low
+  task-9 reviewers.stop-signal-race completed codex gpt-5.6-luna low
+  task-10 reviewers.terminal-status-mapping completed codex gpt-5.6-luna low
+  task-11 reviewers.cancellation-detection-compat completed codex gpt-5.6-luna low
+  task-3 dedup-findings.main completed - - 
+  task-4 devil-advocate.item completed claude claude-haiku-5-5 
+  task-12 devil-advocate.finding-001 completed claude claude-haiku-5-5 
+  task-13 devil-advocate.finding-002 completed claude claude-haiku-5-5 
+  task-14 devil-advocate.finding-003 completed claude claude-haiku-5-5 
+  task-15 devil-advocate.finding-004 completed claude claude-haiku-5-5 
+  task-16 devil-advocate.finding-005 completed claude claude-haiku-5-5 
+  task-5 partition-verdicts.main completed - - 
+  task-6 report-packet.main completed - - 
+  task-7 report.main completed claude claude-haiku-5-5 
+  task-8 final.main completed - - 
+== stop/resume run: reviewer generations (run.json)
+  task-2 reviewers.item completed generation None
+  task-9 reviewers.stop-signal-race completed generation 1
+  task-10 reviewers.terminal-status-mapping completed generation 1
+  task-11 reviewers.cancellation-detection-compat completed generation 1

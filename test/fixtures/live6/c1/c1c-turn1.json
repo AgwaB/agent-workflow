@@ -1,0 +1,10 @@
+{
+	"result": "**Hook output (UserPromptSubmit):**\n\n```\nUserPromptSubmit hook success: agent-workflow: workflow \"live6-quick-read\" (run workflow_mvt1jojn_3dd217) finished — status completed. Details: workflow_status {\"runId\":\"workflow_mvt1jojn_3dd217\"}\nagent-workflow: workflow \"live6-quick-read\" (run workflow_mvt1o23h_473296) finished — status completed. Details: workflow_status {\"runId\":\"workflow_mvt1o23h_473296\"}\nagent-workflow: workflow \"live6-approval\" (run workflow_mvt1u0kj_1504b2) finished — status completed. Details: workflow_status {\"runId\":\"workflow_mvt1u0kj_1504b2\"}\nagent-workflow: workflow \"live6-approval\" (run workflow_mvt1vuk5_31af6e) finished — status completed. Details: workflow_status {\"runId\":\"workflow_mvt1vuk5_31af6e\"}\nagent-workflow: workflow \"live6-hosttools\" (run workflow_mvt1xuaf_efa9ee) finished — status completed. Details: workflow_status {\"runId\":\"workflow_mvt1xuaf_efa9ee\"}\nagent-workflow: 1 more finished run(s); run notify-check again or list them with workflow_status {}.\n```\n\n**MCP server instructions (plugin:agent-workflow), not skill or tool descriptions:**\n\n```\n## plugin:agent-workflow:agent-workflow\nA line containing \"agent-workflow: workflow … finished — …\" in a later turn's context (a host may prefix it, for example \"UserPromptSubmit hook success: \") comes from the completion check (agent-workflow notify-check): relay it to the user with the report path.\n```\n\nI made no tool calls.",
+	"total_cost_usd": 0.00521752,
+	"usage": {
+		"input_tokens": 2,
+		"output_tokens": 2206,
+		"cache_read_input_tokens": 11852,
+		"cache_creation_input_tokens": 19979
+	}
+}

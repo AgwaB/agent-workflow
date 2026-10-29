@@ -1,0 +1,15 @@
+{
+	"schemaVersion": 1,
+	"name": "live6-quick-read",
+	"description": "Live bundle 6: one short read stage that states the package name (a cheap launch target for auto).",
+	"defaults": { "agent": "reader", "readOnly": true, "tools": ["read"] },
+	"artifactGraph": {
+		"stages": [
+			{
+				"id": "look",
+				"type": "single",
+				"prompt": "Read package.json and state the package name in one sentence. Do not read other files."
+			}
+		]
+	}
+}

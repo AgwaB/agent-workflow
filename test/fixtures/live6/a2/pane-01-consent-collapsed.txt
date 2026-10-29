@@ -1,0 +1,50 @@
+
+ ▐▛███▛█   Claude Code v2.1.312
+▝▜██████▀  Haiku 5.5 · Claude Team
+ ▝▝   ▝▝   /tmp/aw-live6/a2-claude-auto
+
+  Get to finished work sooner with Opus 5.5. Switch anytime with /model.
+
+❯ Call the agent-workflow MCP tool workflow_auto exactly once with task "Report the package name declared in package.json.", executor "claude" and model "haiku". Then report its result briefly. Do
+  nothing else.
+
+  Calling plugin:agent-workflow:agent-workflow · 19s…
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  MCP server “plugin:agent-workflow:agent-workflow” requests your input
+
+  Send this task to claude to compare workflows?
+
+  To recommend a workflow, agent-workflow sends one request to a classifier model. Nothing is sent and nothing starts unless you agree.
+  … (+5 more lines)
+
+  ❯ Accept    Decline
+
+  Esc to cancel · ↑/↓ to navigate

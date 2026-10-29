@@ -1,0 +1,10 @@
+Workflow: live6-write
+Run: workflow_mvt1s7qi_d85de9
+Status: completed
+
+Progress: 1/1 completed · 0 running · 0 queued
+
+Worktrees (kept after the run; review and merge, or remove with git worktree remove / agent-workflow prune):
+  note.main: Worktree: .agent-workflow/workflows/workflow_mvt1s7qi_d85de9/worktrees/task-1 (branch agent-workflow/workflow_mvt1s7qi_d85de9-task-1)
+
+Open: agent-workflow status workflow_mvt1s7qi_d85de9

@@ -1,0 +1,23 @@
+Capability check (claude@0.1.0, 1 stage, permission mode: free): accepted
+  probe: installed, cli 2.1.312, auth ok
+note.main: claude@0.1.0 — accepted
+  toolAllowlist.fine: native (preferred, native/probed/fine)
+  usage.cost: native (preferred, native/probed/cost)
+  resume: native (preferred, native/probed/native)
+  contextIsolation: native (required, native/probed)
+  mcpInjection: native (required, native/probed)
+Workflow started: live6-write
+Run: workflow_mvt1s7qi_d85de9
+
+Progress: 0/1 completed · 1 running · 0 queued
+
+Now:
+  • note.main — writer · claude-haiku-5-5 · reasoning unknown
+Waiting for workflow_mvt1s7qi_d85de9 (Ctrl-C stops waiting; the run can be continued with `agent-workflow wait workflow_mvt1s7qi_d85de9`)
+workflow_mvt1s7qi_d85de9: 0/1 completed, 1 running (running)
+workflow_mvt1s7qi_d85de9: 1/1 completed, 0 running (completed)
+<control>{"schema":"stage-control-v1","digest":"NOTES.md written with one line: live6 worktree note"}</control>
+
+<analysis>Created NOTES.md in the worktree directory (/tmp/aw-live6/c4-worktree/.agent-workflow/workflows/workflow_mvt1s7qi_d85de9/worktrees/task-1/NOTES.md) containing exactly the line "live6 worktree note" with a trailing newline. No other files were touched and no upstream artifacts were needed.</analysis>
+
+<refs>["/tmp/aw-live6/c4-worktree/.agent-workflow/workflows/workflow_mvt1s7qi_d85de9/worktrees/task-1/NOTES.md"]</refs>

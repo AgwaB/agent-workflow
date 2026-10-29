@@ -649,10 +649,13 @@ extensions in one real Pi. Run stores differ: agent-workflow uses `.agent-workfl
   Live bundle 5: the worker's tool list held `codemode`, `tool_search` and the user-level `mcp__*`
   tools (a readOnly stage none), the target's `.pi/mcp.json` server did not reach it, and the worker
   system prompt's "Effective Tool Policy" still names only the stage's tools, so the model did not
-  call them ([live-acceptance-features.md](live-acceptance-features.md), O8/O9).
+  call them ([live-acceptance-features.md](live-acceptance-features.md), O8/O9). Since WP39b the
+  policy lists them; in live bundle 6 a worker called `tool_search` and `list_mcp_resources` (a
+  readOnly stage still had neither).
 - WP34 was live-checked in a Pi 1.1.0 TUI in live bundle 5 (board keys, logs tabs, `v`/`c`,
   `s`/`u`/`a`, narrow width, picker with `ctx.ui.input`, chooser `Custom…` → picker → one launch;
-  `c` works since the fix above). Not checked live: `/aw <run-prefix>` and a mixed run in the board.
+  `c` works since the fix above). `/aw <run-prefix>` opened that run's board in live bundle 6. Not
+  checked live: a mixed run in the board.
 - WP33 was live-checked in live bundle 5: `aw_run` + `aw_wait` (no follow-up message, the receipt
   `confirmed` on the tool-result channel), the widget, `parent-usage.json`, and the `aw-` skills next
   to pi-workflow's. The loaders work since the fix above (verified on `/aw auto` with Escape); usage

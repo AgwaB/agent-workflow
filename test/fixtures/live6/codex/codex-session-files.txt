@@ -1,0 +1,8 @@
+# D3 check after the bundle (no model call)
+Claude Code projects for /tmp/aw-live6 before the residue move: a2-claude-auto, c1-backlog, c1-symlink (host sessions only; no worker project for c4/c6/c10)
+Codex rollouts mentioning aw-live6 in <HOME>/.codex/sessions/2026/10/29/:
+<HOME>/.codex/sessions/2026/10/29/rollout-2026-10-29T13-25-11-01a185e7-9fcd-7833-8cd7-eea877e51a5c.jsonl
+(the B3 TUI host session; the classifier and the codex workers of B3/C10 ran on ephemeral threads)
+3 .agent-workflow/workflow-subagents/workflow_mvt23704_e8e6d7/task-10/run_mvt23r5n_e210eb/attempts/attempt_mvt23r5n_9877d5/codex-app-server.jsonl:"ephemeral":true
+3 .agent-workflow/workflow-subagents/workflow_mvt23704_e8e6d7/task-11/run_mvt23rfs_19cd70/attempts/attempt_mvt23rfs_e2bbdd/codex-app-server.jsonl:"ephemeral":true
+3 .agent-workflow/workflow-subagents/workflow_mvt23704_e8e6d7/task-9/run_mvt23qz7_360cdf/attempts/attempt_mvt23qz7_9f6757/codex-app-server.jsonl:"ephemeral":true

@@ -494,3 +494,236 @@ below the depth limit, the entry budget, or an unreadable directory each keep th
 ruled out"); regression "N4 round 4" in `core-wp42-n4-missing-git.test.mjs` (fails before: the
 depth-7 worktree and checkout were deleted). Accepted conservative effect: a workflow output file
 or directory named `.git` inside a run directory keeps the run when git cannot list registrations.
+
+# Live bundle 6 (re-verification)
+
+Real-call re-checks of the paths WP39b and the WP42 review rounds changed after live bundle 5.
+Same format and procedures as live bundle 5 above. A domain verdict counts as completed.
+
+- Date: 2026-10-29, 04:21–04:48Z. Branch `live6-reverify` from main `351b95d` (all WP39b and WP42
+  fixes). CLIs: Claude Code 2.1.312, codex-cli 0.159.2 (update prompt skipped), Pi 1.1.0 (update
+  notices ignored). Real HOME and logins, permission mode `free`. The driving session's `PI_*`
+  variables and `OPENAI_API_KEY` were removed from every spawned host and CLI (wrapper + a separate
+  tmux server started with the clean environment).
+- Models: Claude `haiku` (`claude-haiku-5-5`; check 8 also the full id); Codex `gpt-5.6-luna`,
+  effort `low`; Pi `--model openai-codex/gpt-5.6-luna --thinking low` (never Pi's default).
+- Plugin: `node tools/release/plugins.mjs dev /tmp/aw-live6/plugin --force`. Claude Code:
+  `--plugin-dir /tmp/aw-live6/plugin/plugins/agent-workflow --settings /tmp/aw-live6/claude-settings.json`
+  (status line only). Codex: temporary `codex plugin marketplace add` + `plugin add`, removed right
+  after check 3 (below). Pi: `pi -e <checkout>/dist/hosts/pi/index.js --model … --thinking low
+  --session-dir /tmp/aw-live6/pi-sessions` (no `--approve`, no `--skill`).
+- Targets: `/tmp/aw-live6/<case>/` = `package.json`, `tsconfig.json`, `src/` of
+  `internal/raw-recordings/projects/deep-review/`, the specs used under `workflows/` (committed),
+  agents `scout`/`reader`/`writer` in `.agent-workflow/agents/` (untracked, not ignored), `git init`,
+  one commit. Specs: `test/fixtures/live6/specs/` (`live6-quick-read`, `live6-write`,
+  `live6-approval`, `live6-hosttools`).
+- Codex limit gate (`account/rateLimits/read`, no model call) before each Codex or Pi-luna run:
+  `ordinaryUsageAllowed: true` every time, 7-day window 20 % → 22 %; no 429.
+- Evidence: `test/fixtures/live6/<check>/`, `run-summary.json`, `codex/`, `auto-router/` (the two
+  classifier outputs). Scrubbed: `<HOME>`, `<user>`, `<hostname>`, `/private/tmp` → `/tmp`.
+
+## Results
+
+| # | Check | Result | Runs | Evidence |
+|---|---|---|---|---|
+| 1 | Claude Code completion hook via `notify-check --stamp` | **verified** (a)–(d) | 0 (finished live-6 runs reused) | `a2/`, `c1/` |
+| 2 | `auto` on Claude Code (interactive) + `claude -p` (O1) | **verified**; the haiku classifier's output was invalid (model), no recommendation | 1 | `a2/` |
+| 3 | `auto` on Codex, `on-request` (O3, O4) | **verified** | 1 | `b3/`, `auto-router/` |
+| 4 | Worktree write stage via the CLI (O7a–c, prune) | **verified**; the dry run disagreed with `--yes` → **fixed (B1)** | 2 | `c4/` |
+| 5 | Pi `/aw approve`: one completion message (O10) | **verified** | 1 | `d/` |
+| 6 | CLI `y` at the in-run approval question | **verified** | 1 | `c6/` |
+| 7 | Pi worker calls inherited host tools (O8) | **verified** | 1 | `d/hosttools-worker-calls.txt` |
+| 8 | Role model not in the probe list | **verified** (combined with 10) | 0 extra | `c10/launch.txt` |
+| 9 | `/aw <run-prefix>` | **verified** | 0 | `d/pane-04-board-prefix.txt` |
+| 10 | Mixed run stop/resume (F2) | **verified** (second try; the first run finished before the stop) | 2 | `c10/` |
+
+**1. Completion hook (WP42 stamp path).** (a) The A2 run (`workflow_mvt1o23h_473296`) finished
+without `workflow_wait`; the next interactive prompt's transcript has a `hook_success` attachment
+`agent-workflow: workflow "live6-quick-read" (run workflow_mvt1o23h_473296) finished — status
+completed. …` (376 ms), the API request carries it as "UserPromptSubmit hook success: …", and haiku
+quoted it verbatim. The CLI created `notify-check/` with `baseline.json`, the receipt and
+`hook-claude-code.stamp`. (b) The next prompt ("Reply OK"): every file in `notify-check/`, the stamp
+included, has the same `mtime_ns` before and after (`a2/notify-check-*-idle.txt`), so the CLI was not
+started (it would have rewritten the stamp). (c) Six finished live-6 run directories copied into a
+fresh project: prompt 1 delivered five lines plus `agent-workflow: 1 more finished run(s); run
+notify-check again …` and left no stamp; prompt 2 delivered the sixth (`deep-review … verdict
+NEEDS_WORK, report …`) and wrote the stamp (`c1/c1c-turn*.json`, `c1/notify-dirs.txt`). (d)
+`.agent-workflow/notify-check` → `/tmp/aw-live6/outside-notify` (empty) with one finished run: the
+prompt delivered nothing and the outside directory stayed empty; running the plugin's hook command
+and `notify-check --stamp hook-claude-code` directly afterwards also wrote nothing there (exit 0).
+
+**2. `auto` on Claude Code.** Interactive session (tmux; workspace trust accepted in Claude Code's
+own state, as O15). Consent dialog "Send this task to claude to compare workflows?" — Claude Code
+collapses the body ("… (+5 more lines)", also at 120 rows; observation L6-O5), so the full text was
+read from Claude Code's MCP log: "the bounded descriptions of 10 candidate workflows: Dynamic
+workflow, spec-review, deep-research, deep-review, impact-review, content-mining,
+deep-review-matrix, dependency-audit, live6-quick-read, repo-analysis" (`a2/mcp-log-elicitations.jsonl`).
+The claude executor sends the classifier prompt on stdin and its `auto-router-runs/run_*` record does
+not contain it (L6-O2); the classifier's answer names exactly 10 candidate ids, in the dialog's
+order, equal to the card ids of the Codex request record of check 3 for the same nine workflows
+(`a2/consent-vs-request.txt`). The haiku answer failed validation (no `questions`/`unknowns`, and no
+assessment for the candidate it recommended; model, L6-O1), so the choice form said "No
+recommendation (routing-unavailable …)" with eight launchable options (the two `needs-check` user
+workflows are not offered); `live6-quick-read` picked → launched on claude/haiku, completed;
+`show`: `Auto selection: live6-quick-read (no recommendation; 8 candidates; classifier claude haiku;
+consent elicitation)`. **O1:** one `claude -p` turn calling `workflow_auto`: "Not sent: the consent
+dialog was cancelled without an answer (the client cancelled it or cannot ask here) …"; no
+"declined", no classifier record (`a2/print-mode-o1.json`).
+
+**3. `auto` on Codex** (`-c approval_policy="on-request"`, inline project trust). Tool approval →
+consent elicitation (task, the same 10 candidates, `Classifier: codex (run-flag), model
+gpt-5.6-luna, effort low`) → the classifier's output validated: "Recommended: live6-quick-read
+(confidence high)" with reasons per candidate; the enum form lists `1. live6-quick-read
+(recommended)`, `2. Dynamic workflow`, … — one number each (O4). Enter launched it on codex/luna,
+completed. The request record (`auto-router-runs/run_mvt1j5it_9b49a4`, `codex-app-server.jsonl`
+`turn/start`) holds exactly the 10 cards of the dialog. This luna output already used valid evidence
+field names, so the O3 normalization was not needed this time (it stays covered by the recorded
+live-5 outputs, `core-workflow-router.test.mjs`).
+
+**4. Worktrees (CLI).** Two `live6-write` runs (`worktreePolicy: "on"`) in one project whose checkout
+was dirty (untracked `scratch.txt` and `.agent-workflow/`). Run A (`workflow_mvt1s7qi_d85de9`):
+attempt state under the project's `.agent-workflow/workflow-subagents/<run>/task-1/…`, no
+`.agent-workflow` in the worktree (O7a); the worktree got `scratch.txt` but not `.agent-workflow/`
+(O7b); `show` and `status` print `Worktrees (kept after the run …)` / `note.main: Worktree:
+.agent-workflow/workflows/<run>/worktrees/task-1 (branch agent-workflow/<run>-task-1)`, `inspect` a
+`worktree:` line (O7c) (`c4/worktree-o7.txt`, `show.txt`, `inspect.txt`, `status.txt`). Then A's
+`NOTES.md` was committed in its worktree (copied `scratch.txt` removed) and fast-forward merged;
+run B's worktree was switched to `user-work` with an uncommitted `user.txt`. `prune --keep 0` (dry
+run) listed both, B's worktree "checked out on user-work, not the managed branch …; kept", **but B
+itself under "Runs that would be deleted" and in the total bytes** (B1). `prune --keep 0 --yes`: A
+deleted, "Worktree … — removed, branch deleted"; B "protected: worktree removal failed: … user-work …;
+kept", its worktree, branch, `user.txt` and attempt state intact; `git worktree list` shows only the
+checkout and B. After the fix the dry run says `… — protected: worktree kept: …`, total 0 bytes
+(`c4/prune-dry-after-fix.txt`).
+
+**5. Pi `/aw approve` (O10).** `/aw run live6-approval "…" --detach` → the detached run blocked
+(`dynamic_ui_unavailable`); one "[agent-workflow-completion] Workflow blocked; action required"
+message. `/aw approve workflow_mvt1vuk5_31af6e` → "Run dynamic workflow controller?" (scope) → Yes →
+"Approved … (recorded for host pi); the run continues", controller ran once, and exactly one
+"Workflow completed: live6-approval" message (pane count 1; `pi-feedback-receipts/`: one receipt per
+epoch, `blocked` and `completed`, both `confirmed`; `d/approve-receipts.txt`). No agent turn, so Pi
+persisted no session file.
+
+**6. CLI `y` in-run** (tmux, foreground `run live6-approval --executor claude --model haiku`): the
+scope and `Run dynamic workflow controller? [y/n]`; `y` → `1/2` → `2/2 completed`, exit 0, controller
+ran once, dynamic event `decidedBy: {host: "cli", via: "prompt"}`; no progress line on the question
+line (O14).
+
+**7. Pi host tools (O8).** `/aw run live6-hosttools "…"` in the Pi TUI with the user's MCP servers.
+Preview: `probe.main … host tools: inherited (Pi host codemode, tool_search, mcp__*, MCP resources;
+mutation-capable)`, `check.main … not inherited (readOnly stage)`. The probe worker's system prompt
+lists the inherited tools; its `pi-stdout.jsonl` has exactly two tool calls: `tool_search {"query":
+"resources", "limit": 20}` ("Loaded 3 tools …") and `list_mcp_resources {}` (`{"resources":[]}`) —
+no other MCP tool, no `codemode`. The readOnly worker made no call and reported only `read` and the
+artifact tool. Run completed 2/2.
+
+**8. Model note.** The note applies to role models only; a run-flag `--model` is not checked (by
+design, `role-execution.ts`; run A used `--model claude-haiku-5-5` without a note, L6-O4). With the
+test profile `live6-mixed` (`default=claude:claude-haiku-5-5`, `research-execution=codex:gpt-5.6-luna:low`)
+the preview printed `Notice: model "claude-haiku-5-5" for triage, devil-advocate, report is not
+verified by probe: executor claude's probe lists default, opus, fable, sonnet, haiku,
+claude-haiku-4-5-20251001, … which is not exhaustive; the run proceeds` and the run completed.
+
+**9. `/aw workflow_mvt1vu`** opened the board in stage mode on that run ("aw › live6-approval",
+run summary, stages `prep`/`adaptive` DONE).
+
+**10. Mixed stop/resume.** First run (`…zrv5`) completed (13/13, `NEEDS_WORK`) before the stop was
+sent (the poll script parsed the wrong JSON level). Second run (`…23704`): `stop` as soon as a Codex
+reviewer ran ("Interrupted 9 task(s)"), `resume` → "Reset 9 task(s)", the three Codex reviewers
+relaunched (generation 1) and completed, 16/16, `NEEDS_WORK`; no `launch_failed`. Codex worker
+threads `ephemeral: true`; no Claude project directory or Codex rollout for the CLI targets (D3).
+
+## Bug found and fixed
+
+| # | Check | Bug | Fix (commit) | Regression test (fails on the old code) |
+|---|---|---|---|---|
+| B1 | 4 | `prune` dry run listed a run whose managed worktree prune keeps (user branch, unidentified, unknown state) as a run to delete and counted its bytes; `--yes` kept it | `a9b89e6` the dry run marks it `protected: worktree kept: <path>: <reason>`; changelog `docs/cli.md`, `usage.md` | `core-live6-prune-preview-kept-worktree.test.mjs` (`protected` false before; control: an unchanged worktree is still listed for deletion) |
+
+## Observations
+
+| # | Observation |
+|---|---|
+| L6-O1 | The haiku classifier output (A2) was invalid: no `questions`/`unknowns` arrays and no assessment for its own recommended candidate (9 of 10). Live 5 had haiku 2/2 valid. Model quality; the choice works without a recommendation. |
+| L6-O2 | The classifier request record under `auto-router-runs/` contains the sent packet only for the Codex executor (its app-server log); the Claude executor passes the prompt on stdin and records argv without it. Consent = packet was therefore checked through the Codex record and the Claude answer's candidate ids. |
+| L6-O3 | The luna output (B3) validated without normalization; O3's normalization path was not exercised live. |
+| L6-O4 | A run-flag `--model` is never checked against the probe list (only role models are, as documented in `usage.md`). |
+| L6-O5 | Claude Code 2.1.312 collapses an elicitation's message ("… (+5 more lines)") with no visible expand key, so the consent's candidate list and the choice reasons are not readable in the dialog itself (Claude Code UI). |
+
+## Live-call ledger (9 workflow runs of ≤ 10)
+
+Usage = the run's task roll-up (input excludes cache). Claude costs `total_cost_usd` (notional,
+subscription); Codex reports none; Pi costs are Pi's catalog estimate.
+
+| # | Check | Host (model) | Workers (model) | Run id | Status / verdict | Tasks | Wall | Total tokens | Cost |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 3 | Codex 0.159.2 (luna low) | codex (luna low) | `workflow_mvt1jojn_3dd217` | completed | 1/1 | 6 s | 25,287 | — |
+| 2 | 2, 1a | Claude Code 2.1.312 (haiku) | claude (haiku) | `workflow_mvt1o23h_473296` | completed | 1/1 | 5 s | 12,436 | $0.0014 |
+| 3 | 4 | CLI | claude (`--model claude-haiku-5-5`) | `workflow_mvt1s7qi_d85de9` | completed | 1/1 | — | not captured: deleted by the `prune --yes` check | ≈ $0.001 (like #4) |
+| 4 | 4 | CLI | claude (haiku) | `workflow_mvt1t1i7_7b71df` | completed | 1/1 | 6 s | 13,728 | $0.0007 |
+| 5 | 6 | CLI (TTY) | claude (haiku) | `workflow_mvt1u0kj_1504b2` | completed | 2/2 | 10 s | 12,503 | $0.0006 |
+| 6 | 5, 9 | Pi 1.1.0 (no model turn) | pi (luna low) | `workflow_mvt1vuk5_31af6e` | completed (after `/aw approve`) | 2/2 | 38 s | 2,616 | $0.0005 |
+| 7 | 7 | Pi (no model turn) | pi (luna low) | `workflow_mvt1xuaf_efa9ee` | completed | 2/2 | 14 s | 13,243 | $0.0020 |
+| 8 | 10, 8 | CLI | claude claude-haiku-5-5 + codex luna low | `workflow_mvt1zrv5_6ea312` | completed / NEEDS_WORK (stop missed) | 13/13 | 71 s | 436,214 (claude 246,998, codex 189,216) | $0.0177 (claude part) |
+| 9 | 10, 8 | CLI | mixed, as #8 | `workflow_mvt23704_e8e6d7` | completed / NEEDS_WORK (stop + resume) | 16/16 | 71 s | 387,457 (claude 254,926, codex 132,531) | $0.0210 (claude part) |
+
+Model calls outside workflow runs:
+
+| Turn | Model | Tokens | Cost |
+|---|---|---|---|
+| A2 interactive host session (3 prompts, 5 messages) | Claude haiku | in 10, out 2,384, cache read 232,835, cache write 23,651 | $0.0083 * |
+| A2 `claude -p` (O1) | Claude haiku | in 6, out 540, cache read 75,942, cache write 21,764 | $0.0054 |
+| Hook turns 1c-1, 1c-2, 1d (`claude -p`) | Claude haiku | out 2,206 / 2,813 / 2,949 (+ cache) | $0.0052 / $0.0049 / $0.0055 |
+| Classifier A2 | Claude haiku | out 1,712, cache write 14,012, cache read 658 | $0.0037 |
+| B3 Codex TUI session | Codex luna low | input 30,504 (+119,040 cached), output 439 | — |
+| Classifier B3 | Codex luna low | input 18,041 (6,912 cached), output 990 | — |
+
+\* from the session transcript with the haiku-5-5 rates of live 5 (they reproduce the classifier's
+reported $0.003665 exactly).
+
+| CLI | Runs / turns | Cost |
+|---|---|---|
+| Claude Code / claude | 5 host turns or sessions, 1 classifier, workers in 6 runs (4 claude-only, 2 mixed) | ≈ **$0.075** notional: workers $0.042 (+ ≈ $0.001 for #3), hosts $0.029, classifier $0.004 |
+| Codex | 1 host session, 1 classifier, workers in 1 codex-only + 2 mixed runs | **not reported**: ≈ 0.35 M worker tokens, 0.03 M host (+0.12 M cached), 0.02 M classifier; weekly window 20 % → 22 % |
+| Pi | no host model turn, workers in 2 runs | ≈ **$0.0024** Pi estimate |
+
+## Config changes and restore
+
+**Codex** (`codex/install-remove.log`, `codex/config-restore-proof.txt`): backup of
+`<HOME>/.codex/config.toml` (SHA-256 `7f04f9e8…`) at 04:24Z; `codex plugin marketplace add
+/tmp/aw-live6/plugin` + `codex plugin add agent-workflow@agent-workflow` added exactly
+`[marketplaces.agent-workflow]` (3 lines) and `[plugins."agent-workflow@agent-workflow"] enabled =
+true`. Check 3 used per-run `-c approval_policy="on-request"` and inline `-c 'projects={…trusted…}'`
+(no trust entry written). At 04:27Z, before removal, the diff showed only those two blocks (no
+foreign change this time); after `codex plugin remove` and `codex plugin marketplace remove` `cmp`
+and `diff` against the backup are identical (exit 0, SHA-256 `7f04f9e8…`), no `agent-workflow`/
+`aw-live6` line; `codex plugin marketplace list`, `codex plugin list`, `codex mcp list` show no
+agent-workflow entry; the empty cache dir `<HOME>/.codex/plugins/cache/agent-workflow/` was deleted.
+Codex session files: only the B3 TUI rollout `<HOME>/.codex/sessions/2026/10/29/rollout-2026-10-29T13-25-11-01a185e7-….jsonl`
+(`codex/codex-session-files.txt`); classifier and worker threads were ephemeral.
+
+**Claude Code**: only per-invocation `--plugin-dir`/`--settings`. Residue moved to
+`/tmp/claude-live6-host-session-residue-20261029T044803Z/`: `projects/` (host sessions of
+a2-claude-auto, c1-backlog, c1-symlink; no worker project) and `caches/` (MCP logs of hosts and
+workers). The interactive A2 session recorded workspace trust for `/tmp/aw-live6/a2-claude-auto` in
+Claude Code's own state (O15; not reverted).
+
+**Pi**: only `pi -e` + `--model`/`--thinking` + `--session-dir`. No session file was written (no
+agent turn); the empty session dir moved to `/tmp/pi-live6-host-session-residue-20261029T044803Z/`;
+no `<HOME>/.pi/agent/sessions` entry for the targets.
+
+**agent-workflow state**: the test profile `live6-mixed` was deleted (`profiles.json` holds no
+`live6` entry); no preference was saved. Executor attempt records under
+`<HOME>/.agent-workflow/executors/` stay (retention).
+
+Validation (final tree): `npm run validate` exit 0 with `AGENT_WORKFLOW_TEST_CONCURRENCY=4` (2535
+pass, 0 fail, 29 skipped); `node tools/release/plugins.mjs check` passes.
+
+## Still unverified after live bundle 6
+
+- O3's evidence-field normalization on a live output (this luna output was already valid; recorded
+  live-5 outputs cover it offline).
+- The Claude executor's classifier request content on disk (not recorded, L6-O2).
+- L4 (backgrounded long `workflow_wait`), `asyncRewake`, the Pi fast tier, the pi-web-access missing
+  path, project `.pi/mcp.json` servers for workers (O9), a mixed run's task rows in the Pi board, the
+  `/aw wait` loader after F5, and Codex elicitation under the user's own `approval_policy = "never"`
+  (owner decision: counts as consent) — unchanged from live bundle 5.

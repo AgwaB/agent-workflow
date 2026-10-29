@@ -396,6 +396,14 @@ agent-workflow prune --keep 20 --yes
 
 ## Change log
 
+- **Live bundle 6: the `prune` dry run agreed with `--yes` only for removable worktrees.** A run
+  whose managed worktree prune keeps (checked out on a user branch, not identified, unknown state)
+  was listed under "Runs that would be deleted" and counted in the total bytes, with only the
+  worktree line saying "kept"; `--yes` then kept the run ("protected: worktree removal failed: …").
+  The dry run now marks such a run `protected: worktree kept: <path>: <reason>` and leaves its bytes
+  out of the total; `--yes` is unchanged. Test:
+  `test/unit/core-live6-prune-preview-kept-worktree.test.mjs` (fails on the old code:
+  `protected` false).
 - **Live bundle 5 (WP39): terminal answers were read as no answer.** On a real terminal every y/N
   question of the CLI (the `auto` consent and pick-list, `Proceed with these capability
   degradations?`, the dynamic-controller approval of foreground `run`/`dynamic`/`wait`/`resume`, and

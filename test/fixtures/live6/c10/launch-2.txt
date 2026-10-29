@@ -1,0 +1,43 @@
+Capability check (mixed: claude@0.1.0 ×3 + codex@0.1.0 ×1, 4 stages, permission mode: free): accepted with 4 degradations
+  probe claude: installed, cli 2.1.312, auth ok
+  probe codex: installed, cli 0.159.2, auth ok
+triage.main: claude@0.1.0 — accepted
+  readOnly: native (required, native/probed)
+  toolAllowlist.fine: native (preferred, native/probed/fine)
+  usage.cost: native (preferred, native/probed/cost)
+  resume: native (preferred, native/probed/native)
+  contextIsolation: native (required, native/probed)
+reviewers.item: codex@0.1.0 — accepted with degradation
+  readOnly: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:readOnly] — 151 allow rules in <HOME>/.codex/rules let matching commands run without approval
+  toolAllowlist.fine: degraded (accepted: free mode) (preferred, native/probed/coarse) [CAPABILITY_MISSING:toolAllowlist.fine] — free permission mode: precise tool allowlist unavailable; the worker may use tools outside the stage's list
+  usage.cost: degraded (preferred, native/probed/tokens) [CAPABILITY_MISSING:usage.cost] — cost recorded as unknown: the executor reports tokens only and the engine has no model prices
+  resume: native (preferred, native/probed/native)
+  contextIsolation: degraded by executor (accepted: free mode) (required, emulated/probed) [CAPABILITY_WARNING:contextIsolation] — global <HOME>/.codex/AGENTS.md is loaded into every Codex worker
+devil-advocate.item: claude@0.1.0 — accepted
+  readOnly: native (required, native/probed)
+  toolAllowlist.fine: native (preferred, native/probed/fine)
+  usage.cost: native (preferred, native/probed/cost)
+  resume: native (preferred, native/probed/native)
+  contextIsolation: native (required, native/probed)
+report.main: claude@0.1.0 — accepted
+  readOnly: native (required, native/probed)
+  mcpInjection: native (required, native/probed)
+  usage.cost: native (preferred, native/probed/cost)
+  resume: native (preferred, native/probed/native)
+  contextIsolation: native (required, native/probed)
+Notice: model "claude-haiku-5-5" for triage, devil-advocate, report is not verified by probe: executor claude's probe lists default, opus, fable, sonnet, haiku, claude-haiku-4-5-20251001, claude-sonnet-5, claude-opus-5, claude-fable-5, claude-opus-4-8, claude-opus-4-7, claude-opus-4-6, claude-sonnet-4-6, which is not exhaustive; the run proceeds
+Role profile (mixed executors: claude, codex):
+  triage → claude claude-haiku-5-5 (role default, user-profile)
+  reviewers → codex gpt-5.6-luna low (role research-execution, user-profile)
+  devil-advocate → claude claude-haiku-5-5 (role default, user-profile)
+  report → claude claude-haiku-5-5 (role default, user-profile)
+Workflow started: deep-review
+Run: workflow_mvt23704_e8e6d7
+
+Progress: 0/8 completed · 1 running · 7 queued
+
+Now:
+  • triage.main — scout · claude · claude-haiku-5-5 · reasoning unknown
+Detached supervisor: pid 5825, log .agent-workflow/workflows/workflow_mvt23704_e8e6d7/supervise.log
+Check progress: agent-workflow status workflow_mvt23704_e8e6d7
+Wait for the result: agent-workflow wait workflow_mvt23704_e8e6d7

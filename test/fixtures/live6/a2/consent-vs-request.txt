@@ -1,0 +1,6 @@
+A2 (Claude Code) consent dialog candidates (10): ['Dynamic workflow', 'spec-review', 'deep-research', 'deep-review', 'impact-review', 'content-mining', 'deep-review-matrix', 'dependency-audit', 'live6-quick-read', 'repo-analysis']
+A2 classifier answer: 10 distinct candidate ids (9 assessments + the recommended id, which has no assessment)
+B3 (Codex) request record (auto-router-runs/run_mvt1j5it_9b49a4, codex-app-server.jsonl turn/start) candidateCards (10): ['Dynamic workflow', 'spec-review', 'deep-research', 'deep-review', 'impact-review', 'content-mining', 'deep-review-matrix', 'dependency-audit', 'live6-quick-read', 'repo-analysis']
+B3 card ids: ['67c61135', 'cb8439fc', 'd5f01621', '661b9ec1', 'd2d42912', 'df7d0950', '31814c41', '7a8a7b2c', 'c03c71cf', '7a831436']
+A2 answer ids in order: ['67c61135', 'cb8439fc', 'd5f01621', '661b9ec1', 'd2d42912', 'df7d0950', '31814c41', '7a8a7b2c', '7a831436', '062a9e87']
+Same order and ids for the 9 shared workflows; live6-quick-read's id depends on the project (B3 c03c71cf, A2 062a9e87).

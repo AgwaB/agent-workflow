@@ -1,0 +1,50 @@
+
+• Calling agent-workflow.workflow_auto
+    + Show details
+
+
+  Field 1/1
+  Choose the workflow to start
+
+  Compared on codex (run-flag), model gpt-5.6-luna, effort low (consent: elicitation).
+  Recommended: live6-quick-read (confidence high)
+  Reason: This ready one-stage workflow explicitly states the package name and is the simplest complete fit for the narrow fact request.
+  Candidates:
+    1. live6-quick-read · recommended [named-workflow, project-shared] fit complete
+       Explicitly designed as a cheap one-stage target that states the package name, and it is ready.
+       workflow_run {"workflow":"live6-quick-read","task":"<task>"}
+    2. Dynamic workflow [direct-dynamic, built-in] fit complete
+       Can adaptively answer the request but is unnecessary overhead for a single local fact.
+       workflow_dynamic {"task":"<task>"}
+    3. spec-review [named-workflow, package] fit not-fit
+       Designed for specification conformance review, not reporting one package field.
+       workflow_run {"workflow":"spec-review","task":"<task>"}
+    4. deep-research [named-workflow, package] fit not-fit
+       Designed for broad research and claim verification, which exceeds this narrow local fact request.
+       workflow_run {"workflow":"deep-research","task":"<task>"}
+    5. deep-review [named-workflow, package] fit not-fit
+       Designed for multi-lens code or design review rather than a package metadata lookup.
+       workflow_run {"workflow":"deep-review","task":"<task>"}
+    6. impact-review [named-workflow, package] fit not-fit
+       Designed for change impact and ship-risk analysis, not a single package field.
+       workflow_run {"workflow":"impact-review","task":"<task>"}
+    7. content-mining [named-workflow, user] fit not-fit
+       Designed to mine an analysis dossier into content ideas, unrelated to this request.
+       workflow_run {"workflow":"content-mining","task":"<task>"}
+    8. deep-review-matrix [named-workflow, user] fit not-fit
+       Designed for two-model deep review, far beyond the requested fact lookup.
+       workflow_run {"workflow":"deep-review-matrix","task":"<task>"}
+
+  Decline to start nothing.
+
+  Workflow to start
+  › 1. live6-quick-read (recommended)
+    2. Dynamic workflow
+    3. spec-review
+    4. deep-research
+    5. deep-review
+    6. impact-review
+    7. content-mining
+    8. deep-review-matrix
+  enter to submit | esc to cancel
+

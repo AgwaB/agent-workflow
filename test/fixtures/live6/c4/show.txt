@@ -1,0 +1,21 @@
+Workflow: live6-write
+Run: workflow_mvt1s7qi_d85de9
+Status: completed
+Started: 2026-10-29 04:32Z
+Updated: 2026-10-29 04:33Z
+
+Progress: 1/1 completed · 0 running · 0 queued
+Usage: 13781 tokens · in 4 · out 399 · cache r/w 6560 / 6818 · cost $0.001629 · 1/1 tasks reporting
+
+Completed:
+  ✓ note.main
+
+Worktrees (kept after the run; review and merge, or remove with git worktree remove / agent-workflow prune):
+  note.main: Worktree: .agent-workflow/workflows/workflow_mvt1s7qi_d85de9/worktrees/task-1 (branch agent-workflow/workflow_mvt1s7qi_d85de9-task-1)
+
+Open: agent-workflow status workflow_mvt1s7qi_d85de9
+Logs: agent-workflow logs workflow_mvt1s7qi_d85de9 --task <task-or-spec-id>
+Raw: agent-workflow show workflow_mvt1s7qi_d85de9 --raw
+
+Launch: cli · command run · named-workflow, base profile, task 15 chars/1 line
+Launch command: agent-workflow run live6-write 'Write the note.' --executor claude --model claude-haiku-5-5
