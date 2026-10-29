@@ -521,8 +521,10 @@ async function followLaunch(
 			fromEnv &&
 			detectAgentEnvironment(io.env, ctx.host).detected
 		) {
+			// The launch text (stdout) already carries the token-free link when a dashboard runs;
+			// the notice only explains why nothing opened.
 			io.stderr(
-				`${data.dashboard ? `Dashboard: ${data.dashboard.url} ` : "Dashboard "}(not opened: AI agent environment; pass --open to force)\n`,
+				"Dashboard not opened (AI agent environment; pass --open to force).\n",
 			);
 		} else if (options.open || (fromEnv && io.isTTY)) {
 			try {

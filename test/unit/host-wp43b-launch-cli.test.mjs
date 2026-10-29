@@ -172,7 +172,12 @@ test("env opt-in is suppressed in agents and on pipes; failures cannot fail the 
 	assert.equal(suppressed.code, 0, suppressed.stderr);
 	assert.match(
 		suppressed.stderr,
-		/Dashboard: http:\/\/127\.0\.0\.1:.*not opened: AI agent environment; pass --open to force/,
+		/Dashboard not opened \(AI agent environment; pass --open to force\)/,
+	);
+	assert.match(
+		suppressed.stdout,
+		/Dashboard: http:\/\/127\.0\.0\.1:\d+\/\?run=workflow_/,
+		"the token-free link stays in the launch text",
 	);
 	const piped = await invoke(ctx, args("pipe suppression"), {
 		env: {
