@@ -1,0 +1,172 @@
+{
+  "serverTime": "2026-10-29T08:10:00.000Z",
+  "runs": [
+    {
+      "runId": "workflow_mvt9n8dd_19b2f4",
+      "name": "migration-planner",
+      "status": "blocked",
+      "createdAt": "2026-10-29T07:56:00.000Z",
+      "updatedAt": "2026-10-29T07:58:00.000Z",
+      "executor": "claude",
+      "host": "cli",
+      "taskSummary": {
+        "total": 2,
+        "completed": 1,
+        "blocked": 1,
+        "running": 0,
+        "pending": 0,
+        "failed": 0
+      },
+      "reportAvailable": false,
+      "needsYou": [
+        {
+          "kind": "approval",
+          "title": "Run dynamic workflow controller?",
+          "requestId": "15527fe54bfe59ff5ed440c1aef315475ec6104d0f7ce18a872fdb7efb09a137",
+          "taskId": "adaptive.controller",
+          "since": "2026-10-29T07:58:00.000Z"
+        }
+      ],
+      "live": true
+    },
+    {
+      "runId": "workflow_mvt9k2qa_7c41e0",
+      "name": "deep-review",
+      "status": "running",
+      "createdAt": "2026-10-29T08:01:00.000Z",
+      "updatedAt": "2026-10-29T08:09:55.000Z",
+      "executor": "claude",
+      "host": "cli",
+      "taskSummary": {
+        "total": 13,
+        "completed": 3,
+        "running": 1,
+        "pending": 9,
+        "failed": 0,
+        "blocked": 0,
+        "interrupted": 0,
+        "skipped": 0
+      },
+      "reportAvailable": false,
+      "needsYou": [],
+      "live": true
+    },
+    {
+      "runId": "workflow_mvt8x01c_aa3e91",
+      "name": "spec-review",
+      "status": "failed",
+      "createdAt": "2026-10-29T07:00:00.000Z",
+      "updatedAt": "2026-10-29T07:06:00.000Z",
+      "executor": "claude",
+      "host": "mcp:claude-code",
+      "taskSummary": {
+        "total": 4,
+        "completed": 1,
+        "failed": 1,
+        "skipped": 2,
+        "running": 0,
+        "pending": 0
+      },
+      "reportAvailable": false,
+      "needsYou": [
+        {
+          "kind": "failed",
+          "title": "map-implementation failed",
+          "taskId": "task-2",
+          "since": "2026-10-29T07:06:00.000Z"
+        }
+      ],
+      "live": false
+    },
+    {
+      "runId": "workflow_mvt63y66_4c2a15",
+      "name": "deep-research",
+      "status": "completed",
+      "createdAt": "2026-10-29T06:34:03.584Z",
+      "updatedAt": "2026-10-29T06:59:03.105Z",
+      "executor": "pi",
+      "host": "pi",
+      "taskSummary": {
+        "total": 36,
+        "pending": 0,
+        "running": 0,
+        "blocked": 0,
+        "completed": 36,
+        "failed": 0,
+        "skipped": 0,
+        "interrupted": 0
+      },
+      "verdict": "COMPLETE",
+      "reportAvailable": true,
+      "needsYou": [],
+      "live": false
+    },
+    {
+      "runId": "workflow_mvt23704_e8e6d7",
+      "name": "deep-review",
+      "status": "completed",
+      "createdAt": "2026-10-29T04:41:29.909Z",
+      "updatedAt": "2026-10-29T04:42:40.454Z",
+      "executor": "claude",
+      "host": "cli",
+      "taskSummary": {
+        "total": 16,
+        "pending": 0,
+        "running": 0,
+        "blocked": 0,
+        "completed": 16,
+        "failed": 0,
+        "skipped": 0,
+        "interrupted": 0
+      },
+      "verdict": "NEEDS_WORK",
+      "reportAvailable": true,
+      "needsYou": [],
+      "live": false
+    },
+    {
+      "runId": "workflow_mvt1t1i7_7b71df",
+      "name": "docs-writer",
+      "status": "completed",
+      "createdAt": "2026-10-29T04:33:36.224Z",
+      "updatedAt": "2026-10-29T04:33:42.001Z",
+      "executor": "claude",
+      "host": "cli",
+      "taskSummary": {
+        "total": 1,
+        "pending": 0,
+        "running": 0,
+        "blocked": 0,
+        "completed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "interrupted": 0
+      },
+      "reportAvailable": false,
+      "needsYou": [],
+      "live": false
+    },
+    {
+      "runId": "workflow_mvt1jojn_3dd217",
+      "name": "live6-quick-read",
+      "status": "completed",
+      "createdAt": "2026-10-29T04:26:19.524Z",
+      "updatedAt": "2026-10-29T04:26:25.858Z",
+      "executor": "codex",
+      "host": "mcp:codex",
+      "taskSummary": {
+        "total": 1,
+        "pending": 0,
+        "running": 0,
+        "blocked": 0,
+        "completed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "interrupted": 0
+      },
+      "reportAvailable": false,
+      "needsYou": [],
+      "live": false
+    }
+  ]
+}

@@ -1,0 +1,120 @@
+# Local web dashboard (WP43)
+
+`agent-workflow dashboard` serves a **localhost-only** web view of the project's runs: where each agent is, how far along the run is, what needs the human, and the task logs — with Stop / Resume / Approve / Reject. It is the browser form of the Pi `/aw` board and of `watch`, and like them it is a **host**: every read and every action goes through the host API (`statusAction`, `showAction`, `logsAction`, `stopAction`, `resumeAction`, `approveAction`), so it inherits their containment, redaction and semantics. It never reads run files directly, takes no lease and calls no model.
+
+Design reference: the approved F v9-O mockup (`/Users/toby/agent-workflow-design/dashboard-mockups/f-combined-v9-o.html`, 2026-10-29): rail · run header (status sentence + `N / total`) · DAG with the active foreach stage listing its agents · inspector; dark "control room" look; only what a person looks at more than once a day is on the default screen.
+
+## Command
+
+```
+agent-workflow dashboard [--port <n>] [--readonly] [--open] [--project <dir>]
+```
+
+- Binds **127.0.0.1 only** (never `0.0.0.0`, never IPv6-any). Port: a free ephemeral port unless `--port`.
+- Prints one line with the URL **including the session token** and keeps running until SIGINT/SIGTERM (exit 0). `--open` opens it in the default browser.
+- `--readonly`: the UI shows a read-only badge and the server rejects every mutation with 403, even with a valid token.
+- `--project`: project directory (default: cwd). One server = one project (`<dir>/.agent-workflow/`).
+- Exit 2 on usage errors (port in use, port out of range, not a directory).
+
+## Security model
+
+| Threat | Control |
+| --- | --- |
+| Another local user / process on the machine | Bind `127.0.0.1`; 256-bit random **session token** required for everything except the bootstrap redirect; token is printed once to the launching terminal only. |
+| Token leaking via URL/history/referrer | The URL form `http://127.0.0.1:<port>/?token=…` is accepted **once per request** to set an `HttpOnly; SameSite=Strict; Path=/` cookie and `302` to `/`. All later requests use the cookie. `Referrer-Policy: no-referrer` on every response. |
+| DNS rebinding / a web page on another origin calling the API | `Host` must be `127.0.0.1:<port>` or `localhost:<port>` (else 421). Mutations require `Origin` equal to the server origin (else 403). `Sec-Fetch-Site`, when present, must be `same-origin` or `none`. |
+| CSRF through the cookie | Mutations are `POST` with `Content-Type: application/json` and header `X-AW-CSRF: <csrf>`; the csrf value comes from `GET /api/session` and is tied to the session token (HMAC). Cookie `SameSite=Strict`. No form posts. |
+| XSS from worker output / reports / prompts | UI renders every string with `textContent`/`createElement`; reports are shown as **text** (headings and lists built as DOM nodes; no HTML, no images, no links from content). CSP: `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`. No inline scripts/styles, no external resources, no web fonts. `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Cache-Control: no-store`. |
+| Secrets / home paths in logs and launch commands | Everything passes the host API's redaction (`hostTextRedactor`, logs containment of WP19); the dashboard adds nothing unredacted. |
+| Unbounded reads | Log tails bounded by the host API (≤ 400 lines, ≤ 48 kB per call); report body capped at 256 kB (truncated with a notice); SSE one connection per tab, server-side poll ≥ 1 s. |
+| Mutation by a page in read-only mode | `--readonly` → 403 `{ error: "read-only" }` server-side; the UI disables the controls as well. |
+
+Paths from the host API are project-relative already; the dashboard never echoes absolute paths beyond what `showAction` (redacted) returns.
+
+## HTTP API
+
+All JSON responses: `Content-Type: application/json; charset=utf-8`. Errors: `{ "error": string }` with 400/401/403/404/409/421/500.
+
+| Method & path | Returns |
+| --- | --- |
+| `GET /?token=…` | sets cookie, 302 → `/` |
+| `GET /` `/app.js` `/app.css` | the UI (cookie required; 401 otherwise, with a short HTML notice that says to use the printed URL) |
+| `GET /api/session` | `{ apiVersion: 1, project: { path, name }, mode: "read-write" \| "read-only", csrf, serverTime, version }` |
+| `GET /api/runs` | `{ serverTime, runs: DashboardRunSummary[] }` — every top-level run, newest first |
+| `GET /api/runs/:runId` | `DashboardRun` (full projection, below) |
+| `GET /api/runs/:runId/tasks/:taskId/logs?stream=output\|stderr\|events\|all&lines=1..400` | `logsAction` data for that task (`LogsTask`, with `truncated`/`refused` as the host API reports) |
+| `GET /api/runs/:runId/report` | `{ path, text, truncated }` of the first report artifact (text only) or 404 |
+| `GET /api/events?run=<runId>` | SSE. Events: `runs` (`{ serverTime, runs }`), `run` (`DashboardRun` of `run`), `heartbeat` every 15 s. A payload is sent only when its content hash changed; first payloads immediately on connect. Poll interval 1 s (env `AGENT_WORKFLOW_DASHBOARD_POLL_MS`, 500–10000). |
+| `POST /api/runs/:runId/stop` | `stopAction` → `{ outcome, status, pending, interruptedTaskIds, text }` |
+| `POST /api/runs/:runId/resume` | `resumeAction` (detached supervisor, like the Pi board) → `{ outcome, status, resetTaskIds, text }` |
+| `POST /api/runs/:runId/approve` body `{ requestId, decision: "approve"\|"reject" }` | `approveAction` → `{ outcome, status, text }` |
+
+Mutations in read-only mode: 403. Unknown run: 404. A run id must match `^workflow_[A-Za-z0-9_-]+$` (no prefixes over HTTP).
+
+## Dashboard projection (what the UI renders)
+
+The server projects host-API data into one JSON shape; the UI never sees the raw run record. Field sources in brackets.
+
+```ts
+interface DashboardRunSummary {
+  runId: string; name: string;                    // [RunSummary]
+  status: "running"|"completed"|"failed"|"blocked"|"interrupted"|"pending";
+  statusDetail?: string;                           // run-level hint when blocked (e.g. dynamic_approval_rejected)
+  createdAt: string; updatedAt: string;
+  executor?: string; executors?: string[];         // mixed runs: every executor
+  host?: string;                                   // [launch.host] "cli" | "pi" | "codex" | "claude-code" | …
+  taskSummary: { total, completed, running, pending, failed, blocked, interrupted, skipped };
+  verdict?: string; reportAvailable: boolean;      // [statusAction verdict / reportArtifacts]
+  needsYou: Array<{ kind: "approval"|"failed"|"decision"; title: string; requestId?: string; taskId?: string; since: string }>;
+  live: boolean;                                   // a supervisor holds the lease [watch readWatchRun semantics]
+}
+interface DashboardRun extends DashboardRunSummary {
+  task?: string;                                   // the user's task text (redacted) [record.description / launch]
+  permissionMode?: string;
+  usage: { tasksReporting, taskCount, input?, output?, cacheRead?, total?, costUsd: number|null, note?: string } | null;  // null → "Not collected"
+  launch?: { host, entry, command }                // [showAction launch, redacted]
+  pendingApprovals: Array<{ requestId, controllerSpecId, taskId, title, message, requestedAt }>;
+  tasks: DashboardTask[];
+}
+interface DashboardTask {
+  taskId; specId; stageId; kind: "single"|"foreach"|"reduce"|"support"|"dynamic"|"loop"|string; agent;
+  status; statusDetail;                            // raw engine values; the UI maps them to sentences
+  dependsOn: string[];                             // spec ids
+  generated: boolean; placeholder: boolean;        // foreach/dynamic expansion
+  executor?; model?; effort?;
+  startedAt?; completedAt?; elapsedMs?;
+  retry?: { attempt: number; maxAttempts?: number; reason?: string; nextRetryAt?: string };  // [launchRetry / outputRetry]
+  lastMessage?: string;                            // redacted
+  usage: { input?, output?, total?, costUsd: number|null } | null;
+  worktree?: { path: string|null; branch: string|null };
+  hasLogs: boolean;                                // a started task with output/stderr files
+}
+```
+
+Rules: `costUsd` is `null` unless the executor reported a cost — never 0. Pending approvals come from `pendingDynamicApprovals` (status). `needsYou` = pending approvals (`approval`), tasks with `statusDetail === "executor_needs_decision"` (`decision`), and failed/blocked runs (`failed`). Strings are redacted by the host API before projection.
+
+## UI
+
+Single page, no build step: `src/hosts/dashboard/ui/{index.html,app.css,app.js}` (ES module). Behavior is the F v9-O mockup with the fixture replaced by `/api/*` + SSE:
+
+- Rail: Needs you (across the project's runs) · Runs (name, one human line, `done/total`, elapsed, thin neutral bar; completed runs with a report get `Report ↗`).
+- Run header: name 28 px, state chip, **status sentence** (mapping table in `app.js`: `statusDetail`/counts → one plain sentence), `N / total` stat block, elapsed, actions (Stop…, Resume…, Review approval…, Run details).
+- DAG: top-down (left-right toggle), outlined nodes, dimmed pending, the **active foreach node lists its agents** (≤ 6, else `n agents · inspect items`), mint running marker, amber gate edge, red failed glyph. `Fit`, `Focus`, layout toggle, `?` (status key).
+- Inspector: task name, one status line (live countdown from `retry.nextRetryAt`), reason, `executor · model · effort`, Output / Stderr / Events tabs with the bounded redacted tail and one `untrusted output` label, `Copy`, collapsed **Details** (attempts, timestamps, usage/`Not collected`, dependencies, worktree, terminal handoff commands).
+- Run details view: task text, launch command (copy), usage, permission mode, host.
+- Dialogs: Stop (impact: running/pending counts; "stop is recorded durably and confirmed by the supervisor"), Approve (question + scope from the approval message), Reject (run stays blocked), Resume (completed tasks are not relaunched). Read-only disables confirm.
+- Connection: `Live` while SSE delivers; `Reconnecting` on error with automatic retry; `Stale (updated …)` when no heartbeat for 30 s — independent of run status.
+- URL state: `?run=<id>&task=<specId>&tab=output|stderr|events&view=report|details&dialog=stop|resume|approve|reject`. Keyboard: ↑/↓ runs or tasks, Enter opens, Esc closes, `⌘K` palette (jump to run/stage).
+- Body 15 px; nothing < 12 px; no `innerHTML`; no fills on fills; one accent.
+
+## Acceptance (verifiable)
+
+1. `npm run validate` passes (format, typecheck, unit); new unit tests cover: projection from a synthetic `WorkflowRunRecord` (retry, foreach, approval, decision, usage null→`costUsd: null`), every security control (bind address, token bootstrap once, cookie flags, Host 421, Origin 403, CSRF 403, read-only 403, CSP/nosniff/no-referrer headers present, run id validation, 404), SSE change-only delivery, and the CLI parse (`--port` validation, exit codes).
+2. An e2e test (`test/e2e`, using the existing test-executor hook) starts a real run, starts the dashboard, and asserts over HTTP: the run appears, tasks and `needsYou` match the record, logs are bounded and redacted, `stop` interrupts the run, `--readonly` blocks it.
+3. A headless-Chrome check (`test/e2e/dashboard-ui.*`, skipped when Chrome is absent) loads the UI against the running server: no console errors, no network requests off-origin, the status sentence and `N / total` render, selecting a task shows the inspector with the countdown, and the CSP header is honored (an injected `<script>` text in a log line stays text).
+4. Package: `npm run pack:dry` lists the UI files; `check:public-surface` passes (the dashboard is a host, not an SDK export).
+5. Docs: this file, `docs/cli.md` (command section + change log), `README.md` one line.
+
+## Out of scope (v1)
+
+Multiple projects in one server, authentication beyond the local token, HTTPS, remote access, light theme, editing workflows, launching runs from the browser, desktop app / MCP Apps.
