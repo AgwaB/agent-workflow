@@ -1,0 +1,20 @@
+{
+	"schemaVersion": 1,
+	"name": "live6-write",
+	"description": "Live bundle 6: one write stage in its own managed worktree.",
+	"defaults": {
+		"agent": "writer",
+		"readOnly": false,
+		"tools": ["read", "write"],
+		"worktreePolicy": "on"
+	},
+	"artifactGraph": {
+		"stages": [
+			{
+				"id": "note",
+				"type": "single",
+				"prompt": "Create the file NOTES.md in the current working directory containing exactly one line: live6 worktree note. Then report the path you wrote."
+			}
+		]
+	}
+}

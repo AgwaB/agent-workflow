@@ -1,0 +1,50 @@
+codex -m gpt-5.6-luna -c model_reasoning_effort='"low"' -c approval_policy='"on-request"' -c 'projects={"/tmp/aw-live6/b3-codex-auto"={trust_level="trusted"},"/tmp/aw-live6/b3-codex-auto"={tru
+st_level="trusted"}}'
+(base)                                                codex                                           '"low"'                    '"on-request"'    'projects={"/tmp/aw-live6/b3-codex-auto"={trust_level
+="trusted"},"/tmp/aw-live6/b3-codex-auto"={trust_level="trusted"}}'
+Token usage: total=30,943 input=30,504 (+ 119,040 cached) output=439 (reasoning 139)
+To continue this session, run:
+  codex resume 01a185e7-9fcd-7833-8cd7-eea877e51a5c
+Or run codex resume and select Report package name.
+(base)
+<user> in <hostname> in b3-codex-auto master*​ 2m36s ❯
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

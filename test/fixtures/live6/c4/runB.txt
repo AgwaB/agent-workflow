@@ -1,0 +1,25 @@
+Capability check (claude@0.1.0, 1 stage, permission mode: free): accepted
+  probe: installed, cli 2.1.312, auth ok
+note.main: claude@0.1.0 — accepted
+  toolAllowlist.fine: native (preferred, native/probed/fine)
+  usage.cost: native (preferred, native/probed/cost)
+  resume: native (preferred, native/probed/native)
+  contextIsolation: native (required, native/probed)
+  mcpInjection: native (required, native/probed)
+Workflow started: live6-write
+Run: workflow_mvt1t1i7_7b71df
+
+Progress: 0/1 completed · 1 running · 0 queued
+
+Now:
+  • note.main — writer · haiku · reasoning unknown
+Waiting for workflow_mvt1t1i7_7b71df (Ctrl-C stops waiting; the run can be continued with `agent-workflow wait workflow_mvt1t1i7_7b71df`)
+workflow_mvt1t1i7_7b71df: 0/1 completed, 1 running (running)
+workflow_mvt1t1i7_7b71df: 1/1 completed, 0 running (completed)
+<control>{"schema":"stage-control-v1","digest":"NOTES.md written with one line: live6 worktree note"}</control>
+
+<analysis>
+Created NOTES.md in the task worktree (/tmp/aw-live6/c4-worktree/.agent-workflow/workflows/workflow_mvt1t1i7_7b71df/worktrees/task-1/NOTES.md) containing exactly the line "live6 worktree note". The file was created fresh with the Write tool, so no existing content was overwritten. I did not read it back, as the write reported success.
+</analysis>
+
+<refs>[]</refs>

@@ -1,0 +1,86 @@
+{
+	"status": "recommendation",
+	"recommendation": {
+		"candidateId": "c03c71cf04ee831046770da0442c7fd805fc4fae27523a53d8ea60723276a95d",
+		"confidence": "high",
+		"reason": "This ready one-stage workflow explicitly states the package name and is the simplest complete fit for the narrow fact request.",
+		"alternatives": []
+	},
+	"assessments": [
+		{
+			"candidateId": "67c61135541439e78d41c54f2465940b316c7e67ce3545ec04f0763e96233615",
+			"fit": "complete",
+			"reason": "Can adaptively answer the request but is unnecessary overhead for a single local fact.",
+			"evidence": ["task", "facts", "comparison.overhead", "readiness"]
+		},
+		{
+			"candidateId": "cb8439fc22b96bba46d55a130f4c480df4a18c442b2685c8f18fda131d644921",
+			"fit": "not-fit",
+			"reason": "Designed for specification conformance review, not reporting one package field.",
+			"evidence": ["routing.useWhen", "routing.avoidWhen", "comparison.purpose"]
+		},
+		{
+			"candidateId": "d5f01621b77fc14c99c8b520fab801b2d6dffb95bcdd81f5347dba2a696eed4f",
+			"fit": "not-fit",
+			"reason": "Designed for broad research and claim verification, which exceeds this narrow local fact request.",
+			"evidence": [
+				"routing.useWhen",
+				"routing.avoidWhen",
+				"comparison.overhead"
+			]
+		},
+		{
+			"candidateId": "661b9ec15833591da21d90b914b03fed3bdd3cbfcadd5bbf43db6eb3e73f6e18",
+			"fit": "not-fit",
+			"reason": "Designed for multi-lens code or design review rather than a package metadata lookup.",
+			"evidence": ["routing.useWhen", "routing.avoidWhen", "comparison.purpose"]
+		},
+		{
+			"candidateId": "d2d4291202e33a2513c701dcf3c2e45b44e76c56472ce485e618bf2c11c6a58c",
+			"fit": "not-fit",
+			"reason": "Designed for change impact and ship-risk analysis, not a single package field.",
+			"evidence": [
+				"routing.useWhen",
+				"routing.avoidWhen",
+				"comparison.overhead"
+			]
+		},
+		{
+			"candidateId": "df7d0950c61bb876f7540740f5e05f5043456b9802482b7daa681ae03bcc94e3",
+			"fit": "not-fit",
+			"reason": "Designed to mine an analysis dossier into content ideas, unrelated to this request.",
+			"evidence": ["comparison.purpose", "facts", "comparison.overhead"]
+		},
+		{
+			"candidateId": "31814c41b3c1e60f4e982f217bf4bd5462d623fa6a5f2d0f7e4a3bcb7297a7f6",
+			"fit": "not-fit",
+			"reason": "Designed for two-model deep review, far beyond the requested fact lookup.",
+			"evidence": ["comparison.purpose", "comparison.overhead"]
+		},
+		{
+			"candidateId": "7a8a7b2c8b0f77342ed4c238e8b42d5085f7b04251a5df79f032f718269e130e",
+			"fit": "not-fit",
+			"reason": "Designed for dependency auditing and is not ready to start.",
+			"evidence": ["comparison.purpose", "readiness"]
+		},
+		{
+			"candidateId": "c03c71cf04ee831046770da0442c7fd805fc4fae27523a53d8ea60723276a95d",
+			"fit": "complete",
+			"reason": "Explicitly designed as a cheap one-stage target that states the package name, and it is ready.",
+			"evidence": [
+				"comparison.description",
+				"comparison.purpose",
+				"facts",
+				"readiness"
+			]
+		},
+		{
+			"candidateId": "7a831436afd54c3ef5e9de30a81e69933fadd06e6e8fe9aec643a61362ac81f6",
+			"fit": "not-fit",
+			"reason": "Designed for deep repository analysis and is not ready to start.",
+			"evidence": ["comparison.purpose", "comparison.overhead", "readiness"]
+		}
+	],
+	"questions": [],
+	"unknowns": []
+}

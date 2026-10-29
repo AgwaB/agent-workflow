@@ -1,0 +1,50 @@
+╭─────────────────────────────────────────────────╮
+│ ✨ Update available! 0.159.2 -> 0.165.0         │
+│ Run npm install -g @openai/codex to update.     │
+│                                                 │
+│ See full release notes:                         │
+│ https://github.com/openai/codex/releases/latest │
+╰─────────────────────────────────────────────────╯
+
+
+  >_ OpenAI Codex (v0.159.2)
+     /tmp/aw-live6/b3-codex-auto
+
+  There’s a perfectly good prompt with your name on it.
+
+
+› Call the agent-workflow MCP tool workflow_auto exactly once with task "Report the package name declared in package.json." and executor "codex", model "gpt-5.6-luna", effort "low". Then report its
+  result briefly. Do nothing else.
+
+
+• I’m using the agent-workflow skill to make the single requested workflow call.
+
+• Explored
+  └ Read SKILL.md (agent-workflow:agent-workflow skill)
+    + Show details
+
+• Calling agent-workflow.workflow_auto
+    + Show details
+
+
+
+
+
+
+
+
+  Field 1/1
+  Send this task to codex to compare workflows?
+
+  To recommend a workflow, agent-workflow sends one request to a classifier model. Nothing is sent and nothing starts unless you agree.
+  Classifier: codex (run-flag), model gpt-5.6-luna, effort low
+  Sent: your task (49 characters) and the bounded descriptions of 10 candidate workflows: Dynamic workflow, spec-review, deep-research, deep-review, impact-review, content-mining, deep-review-
+  matrix, dependency-audit, live6-quick-read, repo-analysis.
+  Task:
+    Report the package name declared in package.json.
+  After the comparison you choose the workflow (or nothing) before anything starts.
+  › 1. Allow   Allow this request and continue
+    2. Deny    Decline this request and continue
+    3. Cancel  Cancel this request
+  enter to submit | esc to cancel
+

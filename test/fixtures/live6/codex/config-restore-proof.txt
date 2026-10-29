@@ -1,0 +1,14 @@
+restore proof 2026-10-29T04:27:40Z
+backup sha256: 7f04f9e8500b7f68e3eeb2d93a95cdba430770df4f1f626b47766e0606e5ed9b
+current sha256: 7f04f9e8500b7f68e3eeb2d93a95cdba430770df4f1f626b47766e0606e5ed9b
+cmp: identical (exit 0)
+diff: empty (exit 0)
+grep agent-workflow|aw-live6 in config.toml: 0
+== codex plugin marketplace list
+(no agent-workflow entry)
+== codex plugin list
+(no agent-workflow entry)
+== codex mcp list
+(no agent-workflow entry)
+== cache dir
+ls: <HOME>/.codex/plugins/cache/agent-workflow: No such file or directory

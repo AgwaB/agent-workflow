@@ -1,0 +1,15 @@
+[
+	{
+		"toolResult": "Workflow auto selection\nNot sent: the consent dialog was cancelled without an answer (the client cancelled it or cannot ask here), so no task was sent to a classifier and no workflow has been started.\nThe comparison would run on claude (run-flag), model haiku.\nLocal shortlist (ranked by the workflows' routing hints, no model call):\n  1. Dynamic workflow [direct-dynamic, built-in]\n     workflow_dynamic {\"task\":\"<task>\"}\n  2. spec-review [named-workflow, package]\n     workflow_run {\"workflow\":\"spec-review\",\"task\":\"<task>\"}\n  3. deep-research [named-workflow, package]\n     workflow_run {\"workflow\":\"deep-research\",\"task\":\"<task>\"}\n  4. deep-review [named-workflow, package]\n     workflow_run {\"workflow\":\"deep-review\",\"task\":\"<task>\"}\n  5. impact-review [named-workflow, package]\n     workflow_run {\"workflow\":\"impact-review\",\"task\":\"<task>\"}\n  6. content-mining [named-workflow, user]\n     workflow_run {\"workflow\":\"content-mining\",\"task\":\"<task>\"}\n  7. deep-review-matrix [named-workflow, user]\n     workflow_run {\"workflow\":\"deep-review-matrix\",\"task\":\"<task>\"}\n  8. dependency-audit [named-workflow, user] (not launchable)\n     workflow_run {\"workflow\":\"dependency-audit\",\"task\":\"<task>\"}\n  9. live6-quick-read [named-workflow, project-shared]\n     workflow_run {\"workflow\":\"live6-quick-read\",\"task\":\"<task>\"}\n  10. repo-analysis [named-workflow, user] (not launchable)\n     workflow_run {\"workflow\":\"repo-analysis\",\"task\":\"<task>\"}\nThe client cancelled the confirmation dialog without an answer from the user (or cannot ask in this mode, e.g. Claude Code print mode), so no comparison was sent. Start a workflow directly with the tool calls above, or run `agent-workflow auto \"<task>\"` in a terminal.\n\nThe client cancelled the confirmation dialog or cannot ask the user here (no answer was given): nothing was sent and nothing started. Show the user the shortlist and ask which workflow to run; then call workflow_run {\"workflow\":\"…\",\"task\":\"…\"} (or workflow_dynamic)."
+	},
+	{
+		"result": "The tool call did not run. The result's first two lines, verbatim:\n\n```\nWorkflow auto selection\nNot sent: the consent dialog was cancelled without an answer (the client cancelled it or cannot ask here), so no task was sent to a classifier and no workflow has been started.\n```",
+		"total_cost_usd": 0.00538282,
+		"usage": {
+			"input_tokens": 6,
+			"output_tokens": 540,
+			"cache_read_input_tokens": 75942,
+			"cache_creation_input_tokens": 21764
+		}
+	}
+]

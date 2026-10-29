@@ -1,0 +1,47 @@
+Workflow resumed: deep-review
+Run: workflow_mvt23704_e8e6d7
+
+Reset 9 task(s) and scheduled remaining work.
+Progress: 2/11 completed · 3 running · 6 queued
+
+Now:
+  • reviewers.stop-signal-race — scout · codex · gpt-5.6-luna · low reasoning
+  • reviewers.terminal-status-mapping — scout · codex · gpt-5.6-luna · low reasoning
+  • reviewers.cancellation-detection-compat — scout · codex · gpt-5.6-luna · low reasoning
+
+Open: agent-workflow status workflow_mvt23704_e8e6d7
+workflow_mvt23704_e8e6d7: 2/11 completed, 3 running (running)
+workflow_mvt23704_e8e6d7: 3/11 completed, 2 running (running)
+workflow_mvt23704_e8e6d7: 7/16 completed, 5 running (running)
+workflow_mvt23704_e8e6d7: 8/16 completed, 4 running (running)
+workflow_mvt23704_e8e6d7: 9/16 completed, 3 running (running)
+workflow_mvt23704_e8e6d7: 10/16 completed, 2 running (running)
+workflow_mvt23704_e8e6d7: 11/16 completed, 1 running (running)
+workflow_mvt23704_e8e6d7: 13/16 completed, 1 running (running)
+workflow_mvt23704_e8e6d7: 14/16 completed, 1 running (running)
+workflow_mvt23704_e8e6d7: 15/16 completed, 0 running (running)
+workflow_mvt23704_e8e6d7: 16/16 completed, 0 running (completed)
+## Core conclusion
+
+Verdict: **NEEDS_WORK**. The deterministic ledger contains 5 kept or weakened findings and 0 needs-human items.
+
+## Key findings
+
+- **high / WEAKEN:** Disposed stop signal can still abort from an in-flight poll
+- **high / WEAKEN:** Unbinding one duplicate binding removes the signal for other bindings
+- **high / KEEP:** Missing dynamic control incorrectly maps failed, interrupted, or stopped runs to completion
+- **medium / WEAKEN:** Provider payload content can be recursively misclassified as cancellation
+- **medium / WEAKEN:** Stop-error detection accepts unrelated errors by message prefix
+
+## Evidence level
+
+- Canonical rows: 5 kept or weakened findings, 0 needs-human items, and 0 supporting observations.
+- Coverage: complete according to source-status accounting.
+
+## Important limitations
+
+- Evidence and quotes are bound to the reviewed snapshot available to the partition stage; final rendering does not re-read repository files and therefore does not attest current-tree bytes.
+
+## Detailed reports
+
+- Final report: `.agent-workflow/workflows/workflow_mvt23704_e8e6d7/tasks/task-8/final-report.md`

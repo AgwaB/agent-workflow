@@ -1,0 +1,18 @@
+== task-1 probe (non-readOnly, inherits host tools): tool calls in pi-stdout.jsonl
+call: tool_search {"query": "resources", "limit": 20}
+result: tool_search ok Loaded 3 tools. They are available from your next call: | - read_mcp_resource: Read a specific resource from an MCP server given the server name and resource URI. | - list_mcp_resources: Lists resources provided by MCP servers. Resources allow servers to share data that provides context to language models, such as files, database schemas, or application-specific information. Prefer resources over web 
+call: list_mcp_resources {}
+result: list_mcp_resources ok {"resources":[]}
+-- Effective Tool Policy:
+Only these workflow tools are enabled for this workflow task: read, mcp__workflow_artifact__workflow_artifact.
+Host tools inherited from the Pi session are also available: codemode, tool_search, mcp__* (matching MCP tools), list_mcp_resources, list_mcp_resource_templates, read_mcp_resource; use them when the task needs them. Discover MCP tools through tool_search or codemode; trust, exposure and permission checks still apply.
+If the agent definition below mentions other tools, ignore those mentions; tools outside these two lists cannot be called in this workflow run.
+== task-2 check (readOnly): tool calls in pi-stdout.jsonl
+(no tool call)
+-- Effective Tool Policy:
+Only these tools are enabled for this workflow task: read, mcp__workflow_artifact__workflow_artifact.
+If the agent definition below mentions tools that are not in this enabled list, ignore those mentions; unavailable tools cannot be called in this workflow run.
+# Workflow Artifact Tool
+== task analyses
+task-1 Callable tools: read, tool_search, mcp__workflow_artifact__workflow_artifact, mcp__aside__repl, mcp__donsetch__web_fetch, mcp__workflow_artifact__workflow_artifact, codemode, list_mcp_resources, read_mcp_resource. tool_search("resources") returned: read_mcp_resource, list_mcp_resources, list_mcp_resource_templates. list_mcp_resources() returned no resources and mentioned no servers.
+task-2 Available tools: read, mcp__workflow_artifact__workflow_artifact. No tool name starts with mcp__ other than mcp__workflow_artifact__workflow_artifact; codemode, tool_search, and list_mcp_resources are unavailable.
