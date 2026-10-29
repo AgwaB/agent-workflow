@@ -723,7 +723,8 @@ its worktree directory is gone. A recorded path that spells the project through 
 `/tmp` for `/private/tmp`, a symlinked project parent) is mapped onto the canonical project root
 first; a symlink below the project root is still refused. A worktree that is not identified this
 way, an enabled worktree record whose project root cannot be resolved or that points elsewhere, or
-one whose state is unknown is kept with its branch and its run, and the reason is listed.
+one whose state is unknown is kept with its branch and its run, and the reason is listed (the dry
+run already lists that run as `protected: worktree kept: …`).
 
 Executor adapters keep one attempt record per worker attempt under
 `~/.agent-workflow/executors/{claude,codex,pi}/attempts/`. Since WP18b, terminal attempt records

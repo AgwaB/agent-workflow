@@ -320,6 +320,13 @@ async function prunePlan(
 			continue;
 		}
 		if (!options.yes) {
+			// Live bundle 6: a worktree prune would keep (not identified, user branch, unknown state)
+			// keeps its run under `--yes` ("worktree removal failed"); the preview says so too.
+			const kept = worktrees.find((worktree) => worktree.error);
+			if (kept) {
+				entry.protected = true;
+				entry.error = `worktree kept: ${kept.path}: ${kept.error}`;
+			}
 			summaryRuns.push(entry);
 			continue;
 		}
