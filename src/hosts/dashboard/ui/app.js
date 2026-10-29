@@ -351,7 +351,8 @@ function renderTop() {
 		? document.activeElement.getAttribute("aria-label")
 		: null;
 	const needs = runs.reduce((n, r) => n + (r.needsYou?.length || 0), 0);
-	$("top").replaceChildren(
+	$("top").replaceChildren();
+	append($("top"), [
 		element("span", { class: "brand row" }, logo(), "agent-workflow"),
 		element("span", { class: "muted", "aria-hidden": "true" }, "/"),
 		element("span", { class: "project", id: "project" }, session.project.name),
@@ -375,7 +376,7 @@ function renderTop() {
 			? element("span", { class: "badge", id: "readonly-badge" }, "Read-only")
 			: null,
 		element("span", { id: "connection", class: "connection", role: "status" }),
-	);
+	]);
 	updateConnection();
 	if (focusedLabel)
 		$("top")

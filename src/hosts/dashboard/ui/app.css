@@ -220,7 +220,7 @@ kbd {
 	padding-left: 12px;
 }
 .run-row .elapsed {
-	font-size: 12px;
+	font-size: 13px;
 	white-space: nowrap;
 }
 .run-progress {
@@ -230,6 +230,8 @@ kbd {
 .run-progress span {
 	font: 13px var(--mono);
 	color: var(--muted);
+	white-space: nowrap;
+	flex: none;
 }
 progress {
 	appearance: none;
