@@ -6,7 +6,7 @@ import {
 	CSP,
 	createFixtureServer,
 	injection,
-} from "./dashboard-ui-fixture-server.mjs";
+} from "../helpers/dashboard-ui-fixture-server.mjs";
 
 const running = "workflow_mvt9k2qa_7c41e0";
 const approval = "workflow_mvt9n8dd_19b2f4";

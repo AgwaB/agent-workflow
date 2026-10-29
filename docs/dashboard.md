@@ -37,7 +37,7 @@ All JSON responses: `Content-Type: application/json; charset=utf-8`. Errors: `{ 
 
 | Method & path | Returns |
 | --- | --- |
-| `GET /?token=…` | sets cookie, 302 → `/` |
+| `GET /?token=…` | sets cookie, 302 → `/` — a printed deep link keeps its well-formed `run`, `task`, `tab`, `view` params (never the token, nothing else) |
 | `GET /` `/app.js` `/app.css` | the UI (cookie required; 401 otherwise, with a short HTML notice that says to use the printed URL) |
 | `GET /api/session` | `{ apiVersion: 1, project: { path, name }, mode: "read-write" \| "read-only", csrf, serverTime, version }` |
 | `GET /api/runs` | `{ serverTime, runs: DashboardRunSummary[] }` — every top-level run, newest first |
@@ -91,7 +91,7 @@ interface DashboardTask {
 }
 ```
 
-Rules: `costUsd` is `null` unless the executor reported a cost — never 0. Pending approvals come from `pendingDynamicApprovals` (status). `needsYou` = pending approvals (`approval`), tasks with `statusDetail === "executor_needs_decision"` (`decision`), and failed/blocked runs (`failed`). Strings are redacted by the host API before projection.
+Rules: `task` is the run's runtime task text from `showAction({ includeTask })` (redacted, bounded), never the workflow's `description`. `costUsd` is `null` unless the executor reported a cost — never 0. Pending approvals come from `pendingDynamicApprovals` (status). `needsYou` = pending approvals (`approval`), tasks with `statusDetail === "executor_needs_decision"` (`decision`), and failed/blocked runs (`failed`). A run the user stopped (`interrupted`) is not a need: its sentence says "Stopped by you … Resume when ready" and the Resume action is offered; it is not pinned. Strings are redacted by the host API before projection.
 
 ## UI
 
