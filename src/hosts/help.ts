@@ -16,6 +16,7 @@ const LAUNCH_FLAGS = `  --executor <id>              executor for this run (pi, 
   --input <key=value>          set a workflow input the spec declares (repeatable; typed like
                                the declared default, e.g. --input depth=quick)
   --detach                     start a background supervisor and return immediately
+  --open                       open the dashboard for this run (even in an agent environment)
   --force-new                  start a new run even if an identical launch is still active
                                (otherwise the active run is returned)
   --yes                        do not ask: record capability degradations and proceed
@@ -163,10 +164,12 @@ not usable); which executor a run here uses by default and why; the permission-m
 Node version; AGENT_WORKFLOW_HOME and whether it is writable; Codex environment warnings (allow
 rules, global AGENTS.md; counts only); stale run-index entries. Exit 0 when at least one executor is
 usable, 1 otherwise.`,
-	dashboard: `Usage: agent-workflow dashboard [--port <n>] [--readonly] [--open] [--project <dir>]
+	dashboard: `Usage: agent-workflow dashboard [--port <n>] [--readonly] [--open] [--detached | --status | --stop] [--project <dir>]
 
 Serve the local web dashboard on 127.0.0.1 only. Prints a private session URL; Ctrl-C stops
-the server, not the runs. --readonly rejects mutations. --open opens a browser on a terminal.
+the server, not the runs. --readonly rejects mutations. --open opens a one-time sign-in URL.
+--detached prints only the listening address, not a session URL. --status shows pid/port/since;
+--stop sends SIGTERM and waits up to 5 seconds for discovery cleanup.
 Port defaults to an available ephemeral port. One server serves one project (default cwd).`,
 	watch: `Usage: agent-workflow watch [<run-id-or-prefix>] [--follow] [--once] [--interval <seconds>]
                               [--bell]

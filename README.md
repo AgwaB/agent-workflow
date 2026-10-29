@@ -54,7 +54,7 @@ npx agent-workflow inspect "$id" --failures --results
 `run` prints a capability preview, starts the run and waits in the foreground; `--detach` hands it
 to a background supervisor. Full reference: [`docs/cli.md`](docs/cli.md).
 
-`agent-workflow dashboard --open` provides a private [local web dashboard](docs/dashboard.md) with live tasks, logs, reports and run controls (`--readonly` available).
+`agent-workflow dashboard --open` provides a private [local web dashboard](docs/dashboard.md) with live tasks, logs, reports and run controls (`--readonly` available); `run … --open` opts in to opening it for a new run.
 
 ### Pi (`/aw`)
 
