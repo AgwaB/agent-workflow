@@ -135,6 +135,8 @@ try {
 		"workflow_approve",
 		// WP32: auto workflow selection with consent.
 		"workflow_auto",
+		// WP43b: open the local dashboard (URL elicitation or terminal instructions; never a token).
+		"workflow_dashboard",
 	]);
 
 	const listed = await call("workflow_list", { query: "e2e-review" });

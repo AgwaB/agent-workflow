@@ -8,3 +8,6 @@ export {
 	artifactToolVisibleName,
 	mcpPrefixedToolName,
 } from "../core/artifact-tool-names.js";
+
+// WP43b: host tool logical name (the client applies its MCP server prefix).
+export const WORKFLOW_DASHBOARD_TOOL = "workflow_dashboard";

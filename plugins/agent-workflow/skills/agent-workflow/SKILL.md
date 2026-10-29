@@ -23,6 +23,7 @@ say the same.
 | `workflow_inspect` | Details of a run: `failures: true` for failed tasks, `results: true` for task results. |
 | `workflow_logs` | Bounded, redacted tail of task output, stderr and executor events (`runId`, `task?`, `lines?`, `stream?`). |
 | `workflow_stop` | Stop a run (`runId`). Cancelling a wait call does not stop the run. |
+| `workflow_dashboard` | On request, start the local dashboard (`run?`: full run id). A URL-capable client asks the user to open it; otherwise give the returned terminal instructions. Never changes a run or returns sign-in credentials. |
 | `workflow_validate` | Check a workflow spec (`workflow`: name or spec path). |
 | `workflow_resume` | Continue a failed, interrupted or blocked run (`runId`, `detach?` default true). **Starts model calls (cost)**: only when the user asks. |
 | `workflow_supervise` | Start a background supervisor for a running run that nothing drives (`runId`). Starts model calls: only when the user asks. |

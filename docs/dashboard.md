@@ -118,3 +118,37 @@ Single page, no build step: `src/hosts/dashboard/ui/{index.html,app.css,app.js}`
 ## Out of scope (v1)
 
 Multiple projects in one server, authentication beyond the local token, HTTPS, remote access, light theme, editing workflows, launching runs from the browser, desktop app / MCP Apps.
+
+## Launch integration (WP43b — "run" and the dashboard)
+
+Decision (owner, 2026-10-30, after the survey in the analysis workspace): running a workflow never starts or opens a dashboard by itself; `run` prints a token-free link when a dashboard is already running; opening is opt-in and is suppressed when an AI agent launched the command.
+
+### Discovery file
+
+`<project>/.agent-workflow/dashboard.json`, mode `0600`, written by the dashboard after it listens and removed when it exits (SIGINT/SIGTERM/close):
+
+```json
+{ "schema": "agent-workflow-dashboard-v1", "pid": 12345, "port": 47318, "startedAt": "…", "launchKey": "<32 random bytes, base64url>" }
+```
+
+- `launchKey` is a **local control secret** that only mints one-time launch URLs (below). It is never the session token, and it is never printed. Same trust boundary as the run records next to it (same user, 0600).
+- Readers (`readDashboardDiscovery(cwd)`) accept the file only if the pid is alive and `GET http://127.0.0.1:<port>/api/session` answers 401 with our JSON error within 500 ms (proves the port is ours). A stale file whose pid is dead is deleted.
+
+### One-time launch URLs
+
+- `POST /api/launch` — loopback + Host checks; header `X-AW-Launch-Key` (timing-safe compare); JSON body with optional `run`, `task`, `tab`, `view` (validated like the bootstrap forward). Response `{ "url": "http://127.0.0.1:<port>/?token=<one-time>&run=…" }`. No cookie or CSRF (the key authenticates). 401 on a bad key, 429 with more than 16 outstanding tokens.
+- One-time tokens: 32 random bytes, 60 s TTL, single use; the bootstrap accepts them exactly like the session token (sets the same session cookie, forwards the UI params) and then discards them. The session token still works for manual sign-in.
+- `dashboard --open` opens a one-time URL, not the session URL (Jupyter's launch-token pattern).
+
+### `run` / `dynamic` / `auto`
+
+- `LaunchData.dashboard?: { url, port }` when discovery validates — `url` is token-free (`http://127.0.0.1:<port>/?run=<id>`); the text gets one line `Dashboard: <url>`. Nothing is printed when no dashboard runs (no nagging).
+- `--open` (CLI flag) or `AGENT_WORKFLOW_DASHBOARD_OPEN=1`: after the launch, make sure a dashboard runs (start one detached when absent: `agent-workflow dashboard --project <cwd> --detached`, which prints no session URL and only writes the discovery file; wait ≤ 3 s), mint a one-time URL for `run=<id>` and open it with the platform opener.
+- **Agent suppression (Storybook's rule):** when `CLAUDECODE`, `CODEX_SANDBOX`, `CODEX_THREAD_ID`, `CURSOR_AGENT` or `AI_AGENT` is set, or the host context is `pi`/`codex`/`claude-code`, the env-var form does not open (the token-free line is printed with "not opened: AI agent environment; pass --open to force"). The explicit `--open` flag always opens.
+- `dashboard --status` prints the discovery state (pid, port, since); `dashboard --stop` sends SIGTERM to the recorded pid and waits for the file to disappear.
+
+### MCP hosts (Codex, Claude Code)
+
+- `workflow_run` / `workflow_dynamic` / `workflow_auto` results carry the token-free `dashboard` line through `LaunchData`.
+- New tool `workflow_dashboard { run? }`: ensure a dashboard runs (start detached when absent), mint a one-time URL, then: if the client advertises `elicitation.url` (MCP 2025-11-25), send `elicitation/create` with `mode: "url"`, `url`, `elicitationId`, `message` ("Open the agent-workflow dashboard for <project>?"); the user consents in the client's dialog and the client opens it — the URL never enters the tool result. Otherwise the result is instructions only: "Dashboard is running on 127.0.0.1:<port>; open it from a terminal with `agent-workflow dashboard --open`". `structuredContent`: `{ running, port, opened, method: "url-elicitation" | "instructions" }`. Never the token, never the launch key.
+- Codex today advertises form-only elicitation by default (openai/codex#29344), so Codex gets the instructions path until that lands; Claude Code (≥ 2.1.87) gets the URL dialog.

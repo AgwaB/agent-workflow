@@ -9,8 +9,16 @@
 // WP29: on a terminal, foreground runs/waits/resumes ask y/n to approve a dynamic controller
 // (cliDynamicUi); `approve <run>` answers an approval a run is blocked on.
 // WP32: `auto <task>`: consent y/N on a terminal (or --yes), then a pick-list of the ranked workflows.
-import { readFileSync } from "node:fs";
-import { spawn } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import { setTimeout as dashboardSleep } from "node:timers/promises";
+import {
+	dashboardDiscoveryPath,
+	readDashboardDiscovery,
+	detectAgentEnvironment,
+	ensureDashboard,
+	mintLaunchUrl,
+	openInBrowser,
+} from "../dashboard/discovery.js";
 import { resolve } from "node:path";
 import { startDashboardServer } from "../dashboard/server.js";
 import { parseRoleAssignmentText } from "../../core/role-profiles.js";
@@ -80,6 +88,8 @@ export interface CliIo {
 		options?: { signal?: AbortSignal },
 	) => Promise<string>;
 	signal?: AbortSignal;
+	/** Browser opener; explicit --open may run even without a TTY. */
+	open?: (url: string) => boolean | Promise<boolean>;
 	/** Bound of each underlying wait call (default and cap 45 s; tests use less). */
 	waitSliceMs?: number;
 	/** WP36: terminal height for `watch` (bounds the task rows). */
@@ -307,7 +317,7 @@ function only(parsed: ParsedArgs, count: number, usage: string): string[] {
 }
 
 const LAUNCH_SPEC: OptionSpec = {
-	flags: ["--detach", "--force-new", "--yes", "--json"],
+	flags: ["--detach", "--force-new", "--yes", "--json", "--open"],
 	values: [
 		"--executor",
 		"--profile",
@@ -409,6 +419,7 @@ async function launchCommand(
 }
 
 interface CliLaunchOptions {
+	open: boolean;
 	request: Omit<LaunchRequestBase, "task" | "launchOrigin">;
 	json: boolean;
 	detach: boolean;
@@ -475,14 +486,27 @@ function launchOptionsFromArgs(
 				}
 			: {}),
 	};
-	return { request, json, detach, totalTimeoutMs, interactive };
+	return {
+		request,
+		json,
+		detach,
+		totalTimeoutMs,
+		interactive,
+		open: parsed.flags.has("--open"),
+	};
 }
 
 /** After a launch: print it and, unless detached, wait in the foreground until it settles. */
 async function followLaunch(
 	command: "run" | "dynamic" | "auto",
 	launched: HostResult<unknown>,
-	data: { runId?: string; status?: string } | undefined,
+	data:
+		| {
+				runId?: string;
+				status?: string;
+				dashboard?: { url: string; port: number };
+		  }
+		| undefined,
 	options: CliLaunchOptions,
 	ctx: HostApiContext,
 	io: CliIo,
@@ -490,6 +514,34 @@ async function followLaunch(
 ): Promise<number> {
 	const { json, detach, totalTimeoutMs } = options;
 	if (!json) io.stdout(`${launched.text}\n`);
+	if (launched.ok && data?.runId) {
+		const fromEnv = io.env.AGENT_WORKFLOW_DASHBOARD_OPEN === "1";
+		if (
+			!options.open &&
+			fromEnv &&
+			detectAgentEnvironment(io.env, ctx.host).detected
+		) {
+			// The launch text (stdout) already carries the token-free link when a dashboard runs;
+			// the notice only explains why nothing opened.
+			io.stderr(
+				"Dashboard not opened (AI agent environment; pass --open to force).\n",
+			);
+		} else if (options.open || (fromEnv && io.isTTY)) {
+			try {
+				const dashboard = await ensureDashboard(ctx.cwd, io.env, {
+					start: true,
+				});
+				if (!dashboard) throw new Error("dashboard unavailable");
+				const url = await mintLaunchUrl(dashboard, { run: data.runId });
+				if (!(await (io.open ? io.open(url) : openInBrowser(url, io.env))))
+					throw new Error("opener unavailable");
+			} catch {
+				io.stderr(
+					"Could not open the browser; use `agent-workflow dashboard --open` from a terminal.\n",
+				);
+			}
+		}
+	}
 	if (detach || data?.status !== "running" || !data.runId)
 		return json ? emit(launched) : exitCodeFor(launched);
 	if (!json)
@@ -995,17 +1047,78 @@ async function dispatch(
 			});
 		case "dashboard": {
 			const parsed = parseCommandArgs(argv, {
-				flags: ["--readonly", "--open"],
+				flags: ["--readonly", "--open", "--detached", "--status", "--stop"],
 				values: ["--port", "--project"],
 			});
 			only(
 				parsed,
 				0,
-				"dashboard [--port <n>] [--readonly] [--open] [--project <dir>]",
+				"dashboard [--port <n>] [--readonly] [--open] [--detached | --status | --stop] [--project <dir>]",
 			);
+			const cwd = resolve(io.cwd, parsed.values.get("--project") ?? ".");
+			const status = parsed.flags.has("--status");
+			const stopping = parsed.flags.has("--stop");
+			if (
+				(status || stopping) &&
+				(parsed.flags.size !== 1 || parsed.values.has("--port"))
+			)
+				throw new HostUsageError("--status/--stop only accept --project");
+			const existing = await readDashboardDiscovery(cwd);
+			if (status || stopping) {
+				if (!existing) {
+					io.stderr("No dashboard running.\n");
+					return EXIT_FAILED;
+				}
+				if (status) {
+					io.stdout(
+						`Dashboard listening on 127.0.0.1:${existing.port} (pid ${existing.pid}, since ${existing.startedAt})\n`,
+					);
+					return EXIT_OK;
+				}
+				try {
+					process.kill(existing.pid, "SIGTERM");
+				} catch {
+					io.stderr("Could not stop the dashboard.\n");
+					return EXIT_FAILED;
+				}
+				const deadline = Date.now() + 5000;
+				while (existsSync(dashboardDiscoveryPath(cwd)) && Date.now() < deadline)
+					await dashboardSleep(50);
+				if (existsSync(dashboardDiscoveryPath(cwd))) {
+					io.stderr("Dashboard did not stop within 5 seconds.\n");
+					return EXIT_FAILED;
+				}
+				io.stdout("Dashboard stopped.\n");
+				return EXIT_OK;
+			}
+			if (
+				existing &&
+				parsed.flags.has("--open") &&
+				!parsed.flags.has("--readonly") &&
+				!parsed.flags.has("--detached") &&
+				!parsed.values.has("--port")
+			) {
+				try {
+					const url = await mintLaunchUrl(existing);
+					if (!(await (io.open ? io.open(url) : openInBrowser(url, io.env))))
+						throw new Error("opener unavailable");
+				} catch {
+					io.stderr(
+						"Could not open the browser; use the printed dashboard URL.\n",
+					);
+					return EXIT_FAILED;
+				}
+				io.stdout(`Dashboard listening on 127.0.0.1:${existing.port}\n`);
+				return EXIT_OK;
+			}
+			if (existing)
+				throw new HostUsageError(
+					"A dashboard is already running; use --open, --status or --stop",
+				);
 			const port = intValue(parsed.values.get("--port"), "--port");
 			const dashboard = await startDashboardServer({
-				cwd: resolve(io.cwd, parsed.values.get("--project") ?? "."),
+				cwd,
+				discovery: true,
 				env: io.env,
 				...(port === undefined ? {} : { port }),
 				readonly: parsed.flags.has("--readonly"),
@@ -1024,27 +1137,20 @@ async function dispatch(
 			}
 			try {
 				io.stdout(
-					`Dashboard: ${dashboard.url}${parsed.flags.has("--readonly") ? " (read-only)" : ""}\n`,
+					parsed.flags.has("--detached")
+						? `Dashboard listening on 127.0.0.1:${dashboard.port}\n`
+						: `Dashboard: ${dashboard.url}${parsed.flags.has("--readonly") ? " (read-only)" : ""}\n`,
 				);
-				if (parsed.flags.has("--open") && io.isTTY) {
-					const command =
-						process.platform === "darwin"
-							? "open"
-							: process.platform === "win32"
-								? "cmd"
-								: "xdg-open";
-					const args =
-						process.platform === "win32"
-							? ["/c", "start", "", dashboard.url]
-							: [dashboard.url];
-					const child = spawn(command, args, {
-						stdio: "ignore",
-						detached: true,
-					});
-					child.once("error", () =>
-						io.stderr("Could not open the browser; use the printed URL.\n"),
-					);
-					child.unref();
+				if (parsed.flags.has("--open")) {
+					try {
+						const url = await mintLaunchUrl(dashboard);
+						if (!(await (io.open ? io.open(url) : openInBrowser(url, io.env))))
+							throw new Error("opener unavailable");
+					} catch {
+						io.stderr(
+							"Could not open the browser; use the printed dashboard URL.\n",
+						);
+					}
 				}
 				await stopped;
 				return EXIT_OK;

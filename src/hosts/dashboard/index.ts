@@ -18,3 +18,15 @@ export {
 	type DashboardNeed,
 	type DashboardUsage,
 } from "./projection.js";
+export {
+	dashboardDiscoveryPath,
+	writeDashboardDiscovery,
+	removeDashboardDiscovery,
+	readDashboardDiscovery,
+	detectAgentEnvironment,
+	mintLaunchUrl,
+	ensureDashboard,
+	openInBrowser,
+	type DashboardDiscovery,
+	type DashboardLaunchParams,
+} from "./discovery.js";

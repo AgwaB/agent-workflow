@@ -12,6 +12,7 @@
 // WP31: built-in presets as `--profile <id>`; the saved per-workflow preference (workflow-
 // preferences.ts) applies to every host's launch (its profile when none is named, its role overrides
 // as the engine's workflowPreference layer); launch data/text show the per-stage role assignment.
+import { readDashboardDiscovery } from "./dashboard/discovery.js";
 import { spawn } from "node:child_process";
 import { closeSync, openSync } from "node:fs";
 import { join } from "node:path";
@@ -157,6 +158,7 @@ export interface LaunchProfileInfo {
 }
 
 export interface LaunchData {
+	dashboard?: { url: string; port: number };
 	mode: "named-workflow" | "direct-dynamic";
 	runId?: string;
 	status?: WorkflowRunRecord["status"];
@@ -1245,6 +1247,14 @@ async function launchClaimed(
 	}
 	await launch.onStarted(run.runId).catch(() => undefined);
 	const data = launchData(ctx, run, mode, profile.info);
+	const dashboard = await readDashboardDiscovery(ctx.cwd).catch(
+		() => undefined,
+	);
+	if (dashboard)
+		data.dashboard = {
+			url: `http://127.0.0.1:${dashboard.port}/?run=${run.runId}`,
+			port: dashboard.port,
+		};
 	if (promptSchemaNotice) data.promptSchemaNotice = promptSchemaNotice;
 	let detachNote = "";
 	if (request.detach && run.status === "running") {
@@ -1282,6 +1292,7 @@ async function launchClaimed(
 		unverifiedNote,
 		heading,
 		formatHumanRunLaunch(run, { hints: hostCommandHints(ctx.host) }),
+		data.dashboard ? `Dashboard: ${data.dashboard.url}` : undefined,
 	]
 		.filter((line): line is string => Boolean(line))
 		.join("\n")

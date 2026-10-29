@@ -56,7 +56,7 @@ test("dashboard project must be a directory, and occupied ports exit 2", async (
 	assert.equal((await invoke(["dashboard", "--port", String(s.port)])).code, 2);
 });
 
-test("dashboard prints one URL, supports project/read-only, and honors io.signal without opening on pipes", {
+test("dashboard prints one URL, supports project/read-only, and honors io.signal with an explicit opener on pipes", {
 	timeout: 5000,
 }, async (t) => {
 	const root = await mkdtemp(join(tmpdir(), "aw-dashboard-cli-"));
@@ -71,6 +71,7 @@ test("dashboard prints one URL, supports project/read-only, and honors io.signal
 		["dashboard", "--readonly", "--open", "--project", root],
 		{
 			signal: controller.signal,
+			open: async () => true,
 			stdout: (line) => {
 				lines.push(line);
 				ready();

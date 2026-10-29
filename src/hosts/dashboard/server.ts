@@ -7,6 +7,10 @@ import {
 	type ServerResponse,
 } from "node:http";
 import { basename, resolve } from "node:path";
+import {
+	writeDashboardDiscovery,
+	removeDashboardDiscovery,
+} from "./discovery.js";
 import { HostUsageError } from "../args.js";
 import { hostTextRedactor } from "../redaction.js";
 import { boundReportText } from "../run-artifacts.js";
@@ -37,11 +41,15 @@ export interface DashboardServerOptions {
 	source?: DashboardSource;
 	pollMs?: number;
 	now?: () => number;
+	/** Publish discovery (CLI enables it; embedded/test servers opt in). */
+	discovery?: boolean;
+	launchKey?: string;
 }
 export interface DashboardServer {
 	url: string;
 	port: number;
 	token: string;
+	launchKey: string;
 	close(): Promise<void>;
 }
 class HttpError extends Error {
@@ -149,6 +157,8 @@ export async function startDashboardServer(
 		options.source ?? hostApiDashboardSource({ cwd, env, host: "cli" });
 	const token = generateDashboardToken();
 	const csrf = dashboardCsrf(token);
+	const launchKey = options.launchKey ?? generateDashboardToken();
+	const launchTokens = new Map<string, number>();
 	const now = options.now ?? Date.now;
 	const serverTime = () => new Date(now()).toISOString();
 	const configuredPoll =
@@ -249,6 +259,12 @@ export async function startDashboardServer(
 		request: IncomingMessage,
 		response: ServerResponse,
 	): Promise<void> {
+		if (
+			!["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(
+				request.socket.remoteAddress ?? "",
+			)
+		)
+			throw new HttpError(403, "loopback required");
 		if (!allowedHost(request.headers.host, port))
 			throw new HttpError(421, "invalid Host");
 		if (!allowedFetchSite(request.headers["sec-fetch-site"]))
@@ -259,13 +275,52 @@ export async function startDashboardServer(
 		} catch {
 			throw new HttpError(400, "invalid URL");
 		}
+		if (request.method === "POST" && url.pathname === "/api/launch") {
+			if (
+				!secureEqual(
+					typeof request.headers["x-aw-launch-key"] === "string"
+						? request.headers["x-aw-launch-key"]
+						: undefined,
+					launchKey,
+				)
+			)
+				throw new HttpError(401, "invalid launch key");
+			if (
+				request.headers["content-type"]?.split(";")[0]?.trim().toLowerCase() !==
+				"application/json"
+			)
+				throw new HttpError(400, "Content-Type must be application/json");
+			const body = await readBody(request);
+			const params = new URLSearchParams();
+			for (const [key, value] of Object.entries(body)) {
+				if (typeof value === "string") params.set(key, value);
+			}
+			const forwarded = new URL(bootstrapLocation(params), origin);
+			for (const [value, expires] of launchTokens)
+				if (expires <= now()) launchTokens.delete(value);
+			if (launchTokens.size >= 16)
+				throw new HttpError(429, "too many outstanding launch tokens");
+			const oneTime = generateDashboardToken();
+			launchTokens.set(oneTime, now() + 60_000);
+			const target = new URL("/", origin);
+			target.searchParams.set("token", oneTime);
+			for (const [key, value] of forwarded.searchParams)
+				target.searchParams.set(key, value);
+			json(response, 200, { url: target.href });
+			return;
+		}
 		if (
 			request.method === "GET" &&
 			url.pathname === "/" &&
 			url.searchParams.has("token")
 		) {
-			if (!secureEqual(url.searchParams.get("token") ?? undefined, token))
-				throw new HttpError(401, "invalid session token");
+			const supplied = url.searchParams.get("token") ?? "";
+			if (!secureEqual(supplied, token)) {
+				const expires = launchTokens.get(supplied);
+				launchTokens.delete(supplied);
+				if (expires === undefined || expires <= now())
+					throw new HttpError(401, "invalid session token");
+			}
 			bootstrapSession(response, token, bootstrapLocation(url.searchParams));
 			return;
 		}
@@ -463,16 +518,29 @@ export async function startDashboardServer(
 		throw new Error("dashboard did not bind a TCP port");
 	port = address.port;
 	origin = `http://127.0.0.1:${port}`;
+	if (options.discovery) {
+		try {
+			await writeDashboardDiscovery(cwd, { pid: process.pid, port, launchKey });
+		} catch (error) {
+			server.close();
+			server.closeAllConnections();
+			throw error;
+		}
+	}
 	let closing: Promise<void> | undefined;
 	return {
 		url: `${origin}/?token=${token}`,
 		port,
 		token,
+		launchKey,
 		close() {
 			closing ??= new Promise<void>((done, reject) => {
 				for (const cleanup of clients) cleanup();
 				server.close((error) => (error ? reject(error) : done()));
 				server.closeAllConnections();
+			}).finally(async () => {
+				launchTokens.clear();
+				if (options.discovery) await removeDashboardDiscovery(cwd, launchKey);
 			});
 			return closing;
 		},

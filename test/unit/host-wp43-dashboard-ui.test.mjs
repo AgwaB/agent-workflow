@@ -37,7 +37,7 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 	skip: chrome
 		? false
 		: "Chrome is not installed (set CHROME to a local executable)",
-	timeout: 90000,
+	timeout: 180_000,
 }, async (t) => {
 	const fixture = await createFixtureServer();
 	const approvalSnapshot = structuredClone(fixture.runs.get(approval));

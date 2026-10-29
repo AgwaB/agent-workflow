@@ -27,10 +27,18 @@
 // final choice among the ranked workflows, which then start through the normal launch path. A client
 // without elicitation gets the local routing-only shortlist and no call; declining the choice
 // returns the ranked list and starts nothing.
+import { randomUUID } from "node:crypto";
 import { realpath, stat } from "node:fs/promises";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { basename, isAbsolute, relative, resolve, sep } from "node:path";
 
 import * as hostApi from "../../hosts/api.js";
+import {
+	ensureDashboard,
+	mintLaunchUrl,
+} from "../../hosts/dashboard/discovery.js";
+import { assertActionAllowed } from "../../hosts/types.js";
+import { WORKFLOW_DASHBOARD_TOOL } from "../visible-names.js";
+export { WORKFLOW_DASHBOARD_TOOL } from "../visible-names.js";
 import type {
 	HostAction,
 	HostApiContext,
@@ -61,7 +69,7 @@ export const HOST_MCP_HOSTS = ["claude-code", "codex", "generic"] as const;
 export type HostMcpHost = (typeof HOST_MCP_HOSTS)[number];
 
 /**
- * WP18b: hosts that get the text `content` only, without `structuredContent`. Live bundle 4
+ * WP18b: hosts whose host API results get text `content` only, without `structuredContent`. Live bundle 4
  * (Claude Code 2.1.310, docs/live-acceptance-stage2.md case 1): Claude Code hands the model the
  * serialized `structuredContent` JSON instead of the `content` text when both are present, so every
  * result reached the model twice (`data` plus the same `text`). The tools declare no
@@ -70,7 +78,7 @@ export type HostMcpHost = (typeof HOST_MCP_HOSTS)[number];
  */
 export const HOST_MCP_TEXT_ONLY_HOSTS: readonly HostMcpHost[] = ["claude-code"];
 
-/** Whether results for this host and protocol revision carry `structuredContent`. */
+/** Whether host API results for this host and protocol revision carry `structuredContent`. */
 export function hostMcpSendsStructuredContent(
 	host: HostMcpHost,
 	protocolVersion: string,
@@ -138,6 +146,7 @@ export const HOST_MCP_INSTRUCTIONS = [
 	`Changes that need the user's confirmation in an MCP dialog: ${CONFIRMED_CHANGES.join("; ")}. Without dialog support they are refused with the terminal command to run instead. ${WORKFLOW_PRUNE_TOOL} without dryRun=false only previews.`,
 	'Permission mode: "free" by default (workers run without approval prompts; stages the workflow declares read-only stay read-only). Set permissionMode "safe" only when the user asks for approvals/sandboxing.',
 	'Executor: omit executor to use the workflow profile or this host\'s default executor; set executor ("claude", "codex", "pi") or profile only when the user asks (for example "run it on codex").',
+	`${WORKFLOW_DASHBOARD_TOOL} starts the local dashboard on request, then asks to open it only when the client supports URL elicitation; otherwise it gives terminal instructions. It never returns a sign-in URL or changes a run.`,
 	"Every tool takes an optional cwd (a directory inside the project this server was started in); omit it to use the project root.",
 ].join("\n");
 
@@ -821,6 +830,31 @@ export const HOST_MCP_TOOLS: readonly HostMcpToolDefinition[] = [
 			openWorldHint: true,
 		},
 	},
+	{
+		name: WORKFLOW_DASHBOARD_TOOL,
+		title: "Open agent-workflow dashboard",
+		description:
+			"Ensure the project's local dashboard is running. With URL elicitation, ask the user to open it in their browser; otherwise return terminal instructions. Optional run selects a full workflow run id. Never changes a run or returns a sign-in URL.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				run: {
+					type: "string",
+					pattern: "^workflow_[A-Za-z0-9_-]+$",
+					description:
+						"Optional full workflow run id to select in the dashboard.",
+				},
+				...CWD_PROPERTY,
+			},
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: false,
+			idempotentHint: false,
+			openWorldHint: false,
+		},
+	},
 ];
 
 /** Tool definitions as sent for one negotiated protocol revision. */
@@ -1057,6 +1091,17 @@ export function clientSupportsFormElicitation(
 	if (elicitation === undefined) return false;
 	// An empty object means form mode (backward compatibility); `url` alone does not.
 	return elicitation.form !== undefined || elicitation.url === undefined;
+}
+
+/** URL mode was introduced in MCP 2025-11-25 and must be explicitly advertised. */
+export function clientSupportsUrlElicitation(
+	protocolVersion: string,
+	capabilities: Record<string, unknown>,
+): boolean {
+	return (
+		protocolVersion >= "2025-11-25" &&
+		asRecord(capabilities.elicitation)?.url !== undefined
+	);
 }
 
 /** Answer of one confirmation elicitation; `error` = an error response or a failed request. */
@@ -1579,6 +1624,74 @@ export function createHostMcpService(
 			call: McpToolCallContext,
 		) => Promise<HostMcpToolResult>
 	> = {
+		[WORKFLOW_DASHBOARD_TOOL]: async (args, call) => {
+			const ctx = await context(args);
+			// Same local-process authority as stop; never bypass worker/disabled role restrictions.
+			assertActionAllowed(ctx, "stop");
+			const run = args.run;
+			if (
+				run !== undefined &&
+				(typeof run !== "string" || !/^workflow_[A-Za-z0-9_-]+$/.test(run))
+			)
+				throw new UsageError(
+					"run must be a full workflow id matching ^workflow_[A-Za-z0-9_-]+$",
+				);
+			const dashboard = await ensureDashboard(ctx.cwd, env, { start: true });
+			if (!dashboard)
+				throw new Error(
+					"Could not start the dashboard: no live dashboard was discovered within 3 seconds.",
+				);
+			let url: string;
+			try {
+				url = await mintLaunchUrl(dashboard, run === undefined ? {} : { run });
+			} catch {
+				// Never echo transport errors: they can contain credentials or the launch URL.
+				throw new Error("Could not mint dashboard launch URL.");
+			}
+			const urlElicitation = clientSupportsUrlElicitation(
+				call.protocolVersion,
+				call.clientCapabilities,
+			);
+			let opened = false;
+			if (urlElicitation) {
+				try {
+					const answer = asRecord(
+						await call.sendRequest(
+							"elicitation/create",
+							{
+								mode: "url",
+								url,
+								elicitationId: randomUUID(),
+								message: `Open the agent-workflow dashboard for ${basename(ctx.cwd)}?`,
+							},
+							call.signal,
+						),
+					);
+					opened = answer?.action === "accept";
+				} catch {
+					// The client may echo the sign-in URL in its error. Do not log or return it.
+				}
+			}
+			const text = urlElicitation
+				? opened
+					? "Opened the dashboard in your browser."
+					: "Dashboard is running; browser opening was not confirmed."
+				: `Dashboard is running on 127.0.0.1:${dashboard.port}; open it from a terminal with \`agent-workflow dashboard --open\` (project ${ctx.cwd})`;
+			return {
+				content: [{ type: "text", text }],
+				...(mcpVersionHasStructuredContent(call.protocolVersion)
+					? {
+							structuredContent: {
+								running: true,
+								port: dashboard.port,
+								opened,
+								method: urlElicitation ? "url-elicitation" : "instructions",
+							},
+						}
+					: {}),
+				isError: false,
+			};
+		},
 		[WORKFLOW_LIST_TOOL]: async (args, call) => {
 			const query = optionalString(args, "query");
 			const offset = optionalInteger(
