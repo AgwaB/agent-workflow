@@ -1,132 +1,132 @@
 {
-  "runId": "workflow_mvt8x01c_aa3e91",
-  "name": "spec-review",
-  "status": "failed",
-  "createdAt": "2026-10-29T07:00:00.000Z",
-  "updatedAt": "2026-10-29T07:06:00.000Z",
-  "executor": "claude",
-  "host": "mcp:claude-code",
-  "taskSummary": {
-    "total": 4,
-    "completed": 1,
-    "failed": 1,
-    "skipped": 2,
-    "running": 0,
-    "pending": 0
-  },
-  "reportAvailable": false,
-  "needsYou": [
-    {
-      "kind": "failed",
-      "title": "map-implementation failed",
-      "taskId": "task-2",
-      "since": "2026-10-29T07:06:00.000Z"
-    }
-  ],
-  "live": false,
-  "task": "Check docs/api.md against src/routes for missing endpoints.",
-  "permissionMode": "free",
-  "usage": {
-    "tasksReporting": 2,
-    "taskCount": 4,
-    "input": 12000,
-    "output": 2100,
-    "cacheRead": 0,
-    "total": 14100,
-    "costUsd": 0.0061
-  },
-  "launch": {
-    "host": "mcp:claude-code",
-    "entry": {
-      "source": "mcp:claude-code",
-      "entry": {
-        "kind": "tool",
-        "name": "workflow_auto"
-      },
-      "profile": {
-        "kind": "base"
-      },
-      "taskChars": 49
-    },
-    "command": "agent-workflow run undefined \"undefined\""
-  },
-  "pendingApprovals": [],
-  "tasks": [
-    {
-      "taskId": "task-1",
-      "specId": "extract-requirements.main",
-      "stageId": "extract-requirements",
-      "kind": "single",
-      "agent": "scout",
-      "status": "completed",
-      "statusDetail": "completed",
-      "dependsOn": [],
-      "generated": false,
-      "placeholder": false,
-      "executor": "claude",
-      "model": "claude-haiku-5-5",
-      "effort": "low",
-      "startedAt": "2026-10-29T07:00:00.000Z",
-      "completedAt": "2026-10-29T07:02:00.000Z",
-      "elapsedMs": 120000,
-      "usage": {
-        "input": 12000,
-        "output": 2100,
-        "total": 14100,
-        "costUsd": 0.0061
-      },
-      "hasLogs": false
-    },
-    {
-      "taskId": "task-2",
-      "specId": "map-implementation.main",
-      "stageId": "map-implementation",
-      "kind": "single",
-      "agent": "scout",
-      "status": "failed",
-      "statusDetail": "output_contract_failed",
-      "dependsOn": [],
-      "generated": false,
-      "placeholder": false,
-      "executor": "claude",
-      "model": "claude-haiku-5-5",
-      "effort": "low",
-      "startedAt": "2026-10-29T07:02:00.000Z",
-      "completedAt": "2026-10-29T07:06:00.000Z",
-      "elapsedMs": 240000,
-      "lastMessage": "output failed validation after 3 repairs: refs[2] points to a file outside the source ledger",
-      "usage": null,
-      "hasLogs": true
-    },
-    {
-      "taskId": "task-3",
-      "specId": "verify-gaps.main",
-      "stageId": "verify-gaps",
-      "kind": "single",
-      "agent": "scout",
-      "status": "skipped",
-      "statusDetail": "dependency failed",
-      "dependsOn": [],
-      "generated": false,
-      "placeholder": false,
-      "executor": "claude",
-      "usage": null,
-      "hasLogs": false
-    },
-    {
-      "taskId": "task-4",
-      "specId": "report.main",
-      "stageId": "report",
-      "kind": "support",
-      "agent": null,
-      "status": "skipped",
-      "statusDetail": "dependency failed",
-      "dependsOn": [],
-      "generated": false,
-      "placeholder": false,
-      "executor": "claude",
-      "usage": null,
-      "hasLogs": false
-    }
-  ]
+	"runId": "workflow_mvt8x01c_aa3e91",
+	"name": "spec-review",
+	"status": "failed",
+	"createdAt": "2026-10-29T07:00:00.000Z",
+	"updatedAt": "2026-10-29T07:06:00.000Z",
+	"executor": "claude",
+	"host": "mcp:claude-code",
+	"taskSummary": {
+		"total": 4,
+		"completed": 1,
+		"failed": 1,
+		"skipped": 2,
+		"running": 0,
+		"pending": 0
+	},
+	"reportAvailable": false,
+	"needsYou": [
+		{
+			"kind": "failed",
+			"title": "map-implementation failed",
+			"taskId": "task-2",
+			"since": "2026-10-29T07:06:00.000Z"
+		}
+	],
+	"live": false,
+	"task": "Check docs/api.md against src/routes for missing endpoints.",
+	"permissionMode": "free",
+	"usage": {
+		"tasksReporting": 2,
+		"taskCount": 4,
+		"input": 12000,
+		"output": 2100,
+		"cacheRead": 0,
+		"total": 14100,
+		"costUsd": 0.0061
+	},
+	"launch": {
+		"host": "mcp:claude-code",
+		"entry": {
+			"source": "mcp:claude-code",
+			"entry": {
+				"kind": "tool",
+				"name": "workflow_auto"
+			},
+			"profile": {
+				"kind": "base"
+			},
+			"taskChars": 49
+		},
+		"command": "agent-workflow run undefined \"undefined\""
+	},
+	"pendingApprovals": [],
+	"tasks": [
+		{
+			"taskId": "task-1",
+			"specId": "extract-requirements.main",
+			"stageId": "extract-requirements",
+			"kind": "single",
+			"agent": "scout",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": [],
+			"generated": false,
+			"placeholder": false,
+			"executor": "claude",
+			"model": "claude-haiku-5-5",
+			"effort": "low",
+			"startedAt": "2026-10-29T07:00:00.000Z",
+			"completedAt": "2026-10-29T07:02:00.000Z",
+			"elapsedMs": 120000,
+			"usage": {
+				"input": 12000,
+				"output": 2100,
+				"total": 14100,
+				"costUsd": 0.0061
+			},
+			"hasLogs": false
+		},
+		{
+			"taskId": "task-2",
+			"specId": "map-implementation.main",
+			"stageId": "map-implementation",
+			"kind": "single",
+			"agent": "scout",
+			"status": "failed",
+			"statusDetail": "output_contract_failed",
+			"dependsOn": [],
+			"generated": false,
+			"placeholder": false,
+			"executor": "claude",
+			"model": "claude-haiku-5-5",
+			"effort": "low",
+			"startedAt": "2026-10-29T07:02:00.000Z",
+			"completedAt": "2026-10-29T07:06:00.000Z",
+			"elapsedMs": 240000,
+			"lastMessage": "output failed validation after 3 repairs: refs[2] points to a file outside the source ledger",
+			"usage": null,
+			"hasLogs": true
+		},
+		{
+			"taskId": "task-3",
+			"specId": "verify-gaps.main",
+			"stageId": "verify-gaps",
+			"kind": "single",
+			"agent": "scout",
+			"status": "skipped",
+			"statusDetail": "dependency failed",
+			"dependsOn": [],
+			"generated": false,
+			"placeholder": false,
+			"executor": "claude",
+			"usage": null,
+			"hasLogs": false
+		},
+		{
+			"taskId": "task-4",
+			"specId": "report.main",
+			"stageId": "report",
+			"kind": "support",
+			"agent": null,
+			"status": "skipped",
+			"statusDetail": "dependency failed",
+			"dependsOn": [],
+			"generated": false,
+			"placeholder": false,
+			"executor": "claude",
+			"usage": null,
+			"hasLogs": false
+		}
+	]
 }
