@@ -68,15 +68,22 @@ export function hostApiDashboardSource(ctx: HostApiContext): DashboardSource {
 	const safe = <T>(data: T) => redactDashboardData(data, redact);
 	const detail = async (runId: string) => {
 		const [status, shown] = await Promise.all([
-			statusAction(ctx, { runId }),
-			showAction(ctx, { ref: runId, includeTaskLogs: true }),
+			statusAction(ctx, { runId, boundedArtifacts: true, snapshot: true }),
+			showAction(ctx, { ref: runId, includeTaskLogs: true, snapshot: true }),
 		]);
-		if (!status.data.run || shown.data.kind !== "run") return undefined;
+		if (
+			!status.data.run ||
+			status.data.run.runId !== runId ||
+			shown.data.kind !== "run" ||
+			shown.data.run.runId !== runId
+		)
+			return undefined;
 		return { run: status.data.run, shown: shown.data };
 	};
 	return {
 		async listRuns() {
-			const summaries = (await statusAction(ctx, {})).data.runs ?? [];
+			const summaries =
+				(await statusAction(ctx, { snapshot: true })).data.runs ?? [];
 			const runs: DashboardRunSummary[] = [];
 			// Sequential reads avoid a project-sized burst of file descriptors on every poll.
 			for (const summary of summaries
@@ -93,12 +100,22 @@ export function hostApiDashboardSource(ctx: HostApiContext): DashboardSource {
 		},
 		async taskLogs(runId, taskId, options) {
 			return safe(
-				(await logsAction(ctx, { runId, task: taskId, ...options })).data
-					.tasks[0],
+				(
+					await logsAction(ctx, {
+						runId,
+						task: taskId,
+						...options,
+						snapshot: true,
+					})
+				).data.tasks[0],
 			);
 		},
 		async report(runId) {
-			const shown = await showAction(ctx, { ref: runId, includeReport: true });
+			const shown = await showAction(ctx, {
+				ref: runId,
+				includeReport: true,
+				snapshot: true,
+			});
 			return shown.data.kind === "run" ? safe(shown.data.report) : undefined;
 		},
 		async stop(runId) {

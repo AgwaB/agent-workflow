@@ -187,6 +187,7 @@ export async function showAction(
 		raw?: boolean;
 		includeTaskLogs?: boolean;
 		includeReport?: boolean;
+		snapshot?: boolean;
 	},
 ): Promise<
 	HostResult<
@@ -197,6 +198,7 @@ export async function showAction(
 	if (request.raw || request.ref.startsWith("workflow_"))
 		return showRunAction(ctx, {
 			runId: request.ref,
+			...(request.snapshot ? { snapshot: true } : {}),
 			...(request.includeTaskLogs ? { includeTaskLogs: true } : {}),
 			...(request.includeReport ? { includeReport: true } : {}),
 			...(request.raw ? { raw: true } : {}),

@@ -73,7 +73,11 @@ import {
 	type WorkflowCommandHints,
 } from "./hints.js";
 import { spawnDetachedSupervisor } from "./launch.js";
-import { formatTaskWorktreeLocation } from "../core/engine-format.js";
+import {
+	formatTaskWorktreeLocation,
+	formatHumanRunStatus,
+	formatHumanRunDetails,
+} from "../core/engine-format.js";
 import { markRunNotifySeen } from "./notify-check.js";
 import {
 	formatLaunch,
@@ -89,6 +93,7 @@ import {
 } from "./launch-guard.js";
 import { hostTextRedactor } from "./redaction.js";
 import {
+	REPORT_MAX_BYTES,
 	hostTaskLogIds,
 	readHostRunReport,
 	type RunReport,
@@ -192,6 +197,7 @@ export interface StatusData {
 async function terminalPresentation(
 	cwd: string,
 	run: WorkflowRunRecord,
+	maxArtifactBytes?: number,
 ): Promise<WorkflowResultPresentation | undefined> {
 	const terminal = await summarizeWorkflowTerminal(cwd, run);
 	if (!terminal.terminal) return undefined;
@@ -199,29 +205,50 @@ async function terminalPresentation(
 		cwd,
 		run,
 		terminal.outputTaskIds,
+		maxArtifactBytes,
 	).catch(() => undefined);
 }
 
 /** `status [run]`: one run (refreshed) or every top-level run. */
 export async function statusAction(
 	ctx: HostApiContext,
-	request: { runId?: string } = {},
+	request: {
+		runId?: string;
+		boundedArtifacts?: boolean;
+		snapshot?: boolean;
+	} = {},
 ): Promise<HostResult<StatusData>> {
 	assertActionAllowed(ctx, "status");
 	if (request.runId === undefined) {
-		const text = await formatStatus(ctx.cwd, hostCommandHints(ctx.host));
+		const text = request.snapshot
+			? undefined
+			: await formatStatus(ctx.cwd, hostCommandHints(ctx.host));
 		const runs = (await listRunRecords(ctx.cwd))
 			.filter((run) => !run.parentRunId)
 			.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 			.map(summarizeRun);
-		return result("status", "success", { runs }, text);
+		return result(
+			"status",
+			"success",
+			{ runs },
+			text ?? runs.map((run) => `${run.runId}: ${run.status}`).join("\n"),
+		);
 	}
 	const ref = requireRunRef(request.runId, "status");
-	const card = await formatRunStatus(ctx.cwd, ref, hostCommandHints(ctx.host));
+	const refreshedCard = request.snapshot
+		? undefined
+		: await formatRunStatus(ctx.cwd, ref, hostCommandHints(ctx.host));
 	const run = await readRunRecord(ctx.cwd, ref);
+	const card =
+		refreshedCard ??
+		formatHumanRunStatus(run, { hints: hostCommandHints(ctx.host) });
 	// WP18b: a terminal run shows its domain verdict and report; a verdict-gate run leads with
 	// "finished — verdict: X (report ready)".
-	const presentation = await terminalPresentation(ctx.cwd, run);
+	const presentation = await terminalPresentation(
+		ctx.cwd,
+		run,
+		request.boundedArtifacts ? REPORT_MAX_BYTES : undefined,
+	);
 	const pendingApprovals = await pendingDynamicApprovals(ctx.cwd, run);
 	const approvalText = pendingApprovalLines(
 		ctx.host,
@@ -300,6 +327,8 @@ export async function showRunAction(
 		raw?: boolean;
 		includeTaskLogs?: boolean;
 		includeReport?: boolean;
+		/** Read persisted state only: no refresh, lease or executor polling (WP43). */
+		snapshot?: boolean;
 	},
 ): Promise<
 	HostResult<{
@@ -312,9 +341,11 @@ export async function showRunAction(
 > {
 	assertActionAllowed(ctx, "show");
 	const ref = requireRunRef(request.runId, "show");
-	const details = request.raw
-		? await formatRawRunDetails(ctx.cwd, ref, hostCommandHints(ctx.host))
-		: await formatRunDetails(ctx.cwd, ref, hostCommandHints(ctx.host));
+	const details = request.snapshot
+		? undefined
+		: request.raw
+			? await formatRawRunDetails(ctx.cwd, ref, hostCommandHints(ctx.host))
+			: await formatRunDetails(ctx.cwd, ref, hostCommandHints(ctx.host));
 	const run = await readRunRecord(ctx.cwd, ref);
 	// WP33: launch provenance (source host, entry, redacted command) after the details.
 	const launch = await launchSummary(ctx.cwd, run);
@@ -322,15 +353,20 @@ export async function showRunAction(
 		? await hostTaskLogIds(ctx.cwd, run)
 		: undefined;
 	const reportPath = request.includeReport
-		? (await terminalPresentation(ctx.cwd, run))?.artifacts[0]?.path
+		? (await terminalPresentation(ctx.cwd, run, REPORT_MAX_BYTES))?.artifacts[0]
+				?.path
 		: undefined;
 	const report = reportPath
 		? await readHostRunReport(ctx, reportPath)
 		: undefined;
 	const text =
 		launch && !request.raw
-			? [details, "", ...formatLaunch(launch)].join("\n")
-			: details;
+			? [
+					details ?? formatHumanRunDetails(run),
+					"",
+					...formatLaunch(launch),
+				].join("\n")
+			: (details ?? formatHumanRunDetails(run));
 	return result(
 		"show",
 		"success",

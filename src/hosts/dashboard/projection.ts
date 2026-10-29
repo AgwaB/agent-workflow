@@ -133,6 +133,15 @@ export function projectRunSummary(
 	live = "live" in run && run.live === true,
 ): DashboardRunSummary {
 	const detail = "tasks" in run ? run : undefined;
+	const executors = [
+		...new Set(
+			[
+				run.executor,
+				...(run.executors ?? []),
+				...(shown?.run.tasks.map((task) => task.runtime?.executor) ?? []),
+			].filter((value): value is string => Boolean(value)),
+		),
+	];
 	const statusDetail = shown?.run.tasks.find(
 		(task) => task.status === "blocked",
 	)?.statusDetail;
@@ -144,7 +153,7 @@ export function projectRunSummary(
 		createdAt: run.createdAt,
 		updatedAt: run.updatedAt,
 		...(run.executor ? { executor: run.executor } : {}),
-		...(run.executors ? { executors: run.executors } : {}),
+		...(executors.length > 1 ? { executors } : {}),
 		...(shown?.launch ? { host: shown.launch.source } : {}),
 		taskSummary: { ...run.taskSummary },
 		...(detail?.verdict ? { verdict: detail.verdict } : {}),

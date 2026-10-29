@@ -9,7 +9,7 @@ import {
 import { basename, resolve } from "node:path";
 import { HostUsageError } from "../args.js";
 import { hostTextRedactor } from "../redaction.js";
-import { REPORT_MAX_BYTES } from "../run-artifacts.js";
+import { boundReportText } from "../run-artifacts.js";
 import {
 	hostApiDashboardSource,
 	redactDashboardData,
@@ -175,7 +175,7 @@ export async function startDashboardServer(
 	const safe = <T>(value: T) => redactDashboardData(value, redact);
 	const getRun = async (runId: string) => {
 		const run = await source.run(runId);
-		if (!run) throw new HttpError(404, "run not found");
+		if (!run || run.runId !== runId) throw new HttpError(404, "run not found");
 		return safe(run);
 	};
 	const runsPayload = async () => ({
@@ -392,19 +392,13 @@ export async function startDashboardServer(
 			await getRun(runId);
 			const report = await source.report(runId);
 			if (!report) throw new HttpError(404, "report not found");
-			const bytes = Buffer.from(report.text);
-			json(
-				response,
-				200,
-				safe({
-					path: report.path,
-					text:
-						bytes.length > REPORT_MAX_BYTES
-							? `${bytes.subarray(0, REPORT_MAX_BYTES).toString("utf8")}\n\n[Report truncated at 256 kB]`
-							: report.text,
-					truncated: report.truncated || bytes.length > REPORT_MAX_BYTES,
-				}),
-			);
+			const redacted = safe(report);
+			const bounded = boundReportText(redacted.text);
+			json(response, 200, {
+				path: redacted.path,
+				text: bounded.text,
+				truncated: report.truncated || bounded.truncated,
+			});
 			return;
 		}
 		if (

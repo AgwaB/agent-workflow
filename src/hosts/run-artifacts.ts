@@ -12,6 +12,25 @@ export interface RunReport {
 	truncated: boolean;
 }
 
+/** Includes the truncation notice inside the byte cap; never leaves a partial UTF-8 codepoint. */
+export function boundReportText(
+	text: string,
+	truncated = false,
+): Pick<RunReport, "text" | "truncated"> {
+	const bytes = Buffer.from(text);
+	if (!truncated && bytes.length <= REPORT_MAX_BYTES)
+		return { text, truncated: false };
+	const notice = "\n\n[Report truncated at 256 kB]";
+	const prefix = bytes.subarray(
+		0,
+		REPORT_MAX_BYTES - Buffer.byteLength(notice),
+	);
+	return {
+		text: new TextDecoder().decode(prefix, { stream: true }) + notice,
+		truncated: true,
+	};
+}
+
 export async function readHostRunReport(
 	ctx: HostApiContext,
 	path: string,
@@ -30,10 +49,7 @@ export async function readHostRunReport(
 		const redact = hostTextRedactor(ctx.env ?? process.env);
 		return {
 			path: redact(path),
-			text:
-				redact(bytes.toString("utf8")) +
-				(truncated ? "\n\n[Report truncated at 256 kB]" : ""),
-			truncated,
+			...boundReportText(redact(bytes.toString("utf8")), truncated),
 		};
 	} finally {
 		await file.close();
