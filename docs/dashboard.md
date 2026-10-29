@@ -2,7 +2,7 @@
 
 `agent-workflow dashboard` serves a **localhost-only** web view of the project's runs: where each agent is, how far along the run is, what needs the human, and the task logs — with Stop / Resume / Approve / Reject. It is the browser form of the Pi `/aw` board and of `watch`, and like them it is a **host**: every read and every action goes through the host API (`statusAction`, `showAction`, `logsAction`, `stopAction`, `resumeAction`, `approveAction`), so it inherits their containment, redaction and semantics. It never reads run files directly, takes no lease and calls no model.
 
-Design reference: the approved F v9-O mockup (`/Users/toby/agent-workflow-design/dashboard-mockups/f-combined-v9-o.html`, 2026-10-29): rail · run header (status sentence + `N / total`) · DAG with the active foreach stage listing its agents · inspector; dark "control room" look; only what a person looks at more than once a day is on the default screen.
+Design reference: the approved F v9-O mockup (`dashboard-mockups/f-combined-v9-o.html`, 2026-10-29): rail · run header (status sentence + `N / total`) · DAG with the active foreach stage listing its agents · inspector; dark "control room" look; only what a person looks at more than once a day is on the default screen.
 
 ## Command
 
