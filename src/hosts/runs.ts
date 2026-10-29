@@ -327,6 +327,8 @@ export async function showRunAction(
 		raw?: boolean;
 		includeTaskLogs?: boolean;
 		includeReport?: boolean;
+		/** WP43: also return the run's runtime task text (`compiled.json` `task`, redacted, bounded). */
+		includeTask?: boolean;
 		/** Read persisted state only: no refresh, lease or executor polling (WP43). */
 		snapshot?: boolean;
 	},
@@ -337,6 +339,8 @@ export async function showRunAction(
 		launch?: LaunchSummary;
 		taskLogIds?: string[];
 		report?: RunReport;
+		/** The user's task text for this run (not the workflow description). */
+		runtimeTask?: string;
 	}>
 > {
 	assertActionAllowed(ctx, "show");
@@ -359,6 +363,9 @@ export async function showRunAction(
 	const report = reportPath
 		? await readHostRunReport(ctx, reportPath)
 		: undefined;
+	const runtimeTask = request.includeTask
+		? await readRuntimeTask(ctx, run.runId)
+		: undefined;
 	const text =
 		launch && !request.raw
 			? [
@@ -376,9 +383,34 @@ export async function showRunAction(
 			...(launch ? { launch } : {}),
 			...(taskLogIds ? { taskLogIds } : {}),
 			...(report ? { report } : {}),
+			...(runtimeTask !== undefined ? { runtimeTask } : {}),
 		},
 		hostTextRedactor(hostEnv(ctx))(text),
 	);
+}
+
+/** Bound of the runtime task text returned by `show` (`includeTask`); longer tasks are cut with a marker. */
+export const SHOW_TASK_MAX_CHARS = 8_000;
+
+/** The run's runtime task (`compiled.json` `task`), redacted like every host string; undefined when absent. */
+async function readRuntimeTask(
+	ctx: HostApiContext,
+	runId: string,
+): Promise<string | undefined> {
+	let compiled: unknown;
+	try {
+		compiled = parseJsonText(
+			await readFile(compiledWorkflowPath(ctx.cwd, runId), "utf8"),
+		);
+	} catch {
+		return undefined;
+	}
+	const task = (compiled as { task?: unknown } | null)?.task;
+	if (typeof task !== "string" || !task.trim()) return undefined;
+	const redacted = hostTextRedactor(hostEnv(ctx))(task.trim());
+	return redacted.length > SHOW_TASK_MAX_CHARS
+		? `${redacted.slice(0, SHOW_TASK_MAX_CHARS)}\n… [task cut at ${SHOW_TASK_MAX_CHARS} characters]`
+		: redacted;
 }
 
 function positiveCount(value: unknown): number {

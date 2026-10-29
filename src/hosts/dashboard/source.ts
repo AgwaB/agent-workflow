@@ -69,7 +69,12 @@ export function hostApiDashboardSource(ctx: HostApiContext): DashboardSource {
 	const detail = async (runId: string) => {
 		const [status, shown] = await Promise.all([
 			statusAction(ctx, { runId, boundedArtifacts: true, snapshot: true }),
-			showAction(ctx, { ref: runId, includeTaskLogs: true, snapshot: true }),
+			showAction(ctx, {
+				ref: runId,
+				includeTaskLogs: true,
+				includeTask: true,
+				snapshot: true,
+			}),
 		]);
 		if (
 			!status.data.run ||

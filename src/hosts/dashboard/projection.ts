@@ -286,7 +286,8 @@ export function projectRun(
 	}
 	return {
 		...projectRunSummary(run, shown, live),
-		...(record.description ? { task: record.description } : {}),
+		// The user's task for this run (host API `includeTask`), never the workflow's description.
+		...(shown.runtimeTask ? { task: shown.runtimeTask } : {}),
 		...(run.permissionMode ? { permissionMode: run.permissionMode } : {}),
 		usage: rollup,
 		...(shown.launch

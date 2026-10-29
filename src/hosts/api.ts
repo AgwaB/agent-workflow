@@ -188,6 +188,7 @@ export async function showAction(
 		includeTaskLogs?: boolean;
 		includeReport?: boolean;
 		snapshot?: boolean;
+		includeTask?: boolean;
 	},
 ): Promise<
 	HostResult<
@@ -201,6 +202,7 @@ export async function showAction(
 			...(request.snapshot ? { snapshot: true } : {}),
 			...(request.includeTaskLogs ? { includeTaskLogs: true } : {}),
 			...(request.includeReport ? { includeReport: true } : {}),
+			...(request.includeTask ? { includeTask: true } : {}),
 			...(request.raw ? { raw: true } : {}),
 		});
 	return showWorkflowSpecAction(ctx, { workflow: request.ref });

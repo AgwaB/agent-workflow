@@ -90,8 +90,10 @@ function data() {
 	};
 	const shown = {
 		kind: "run",
-		run: { ...run, description: "Review the checkout", tasks },
+		// The workflow description is not the user's task; `task` comes from the host API's runtimeTask.
+		run: { ...run, description: "Bundled review workflow", tasks },
 		taskLogIds: ["task-2"],
+		runtimeTask: "Review the checkout",
 	};
 	return { run, shown };
 }
@@ -102,6 +104,11 @@ test("projection preserves retry countdown, foreach/dynamic items, runtime and a
 	assert.equal(result.live, true);
 	assert.deepEqual(result.executors, ["claude", "codex"]);
 	assert.equal(result.task, "Review the checkout");
+	assert.equal(
+		projectRun(run, { ...shown, runtimeTask: undefined }).task,
+		undefined,
+		"no task text when the host API has none (never the description)",
+	);
 	assert.equal(result.permissionMode, "safe");
 	assert.equal(result.tasks[0].placeholder, true);
 	assert.equal(result.tasks[0].generated, false);
