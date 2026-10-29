@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>agent-workflow</title>
+    <link rel="stylesheet" href="./app.css">
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <div id="app">
+      <header id="top" class="top"></header>
+      <div id="body" class="body">
+        <aside id="rail" class="rail" aria-label="Runs"></aside>
+        <main id="center" class="center"><p class="empty">Connecting to the dashboard…</p></main>
+        <aside id="inspector" class="inspector" aria-label="Inspector" hidden></aside>
+      </div>
+    </div>
+    <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
+    <div id="notice" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>
