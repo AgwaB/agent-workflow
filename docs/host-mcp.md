@@ -68,6 +68,7 @@ Every tool takes an optional `cwd` (see below). Unknown parameters are refused.
 
 | Tool | Arguments | Host API handler | `data` |
 |---|---|---|---|
+| `workflow_dashboard` (WP43b) | `run?` (full id: `^workflow_[A-Za-z0-9_-]+$`) | dashboard discovery / launch URL | `{running, port, opened, method}` (top-level structured content; no credentials) |
 | `workflow_list` | `query?`, `offset?`, `limit?` (1-20, default 20) | `listWorkflowsAction` | `ListData` |
 | `workflow_run` | `workflow`, `task`, launch options | `runWorkflowAction` | `LaunchData` |
 | `workflow_dynamic` | `task`, launch options | `runDynamicAction` | `LaunchData` |
@@ -106,7 +107,7 @@ logs redaction keeps report prose such as `Exit code: 1` and redacts escaped-quo
 
 Annotations: `list`, `status`, `inspect`, `logs`, `validate`, `show`, `roles`, `agents`, `doctor` are
 read-only; `run`, `dynamic`, `auto`, `stop`, `resume`, `prune`, `profile`, `approve` are destructive; `wait`, `notices` and
-`supervise` are neither. `title` is sent from
+`supervise` and `dashboard` are neither. `dashboard` mutates local process state only (never runs) and uses the same role gate as `stop`. `title` is sent from
 `2025-06-18`, `annotations` from `2025-03-26` (same gating as the artifact server).
 
 ## Results
@@ -117,8 +118,8 @@ read-only; `run`, `dynamic`, `auto`, `stop`, `resume`, `prune`, `profile`, `appr
   `Next: call workflow_wait {"runId":"…"} again.`
 - `structuredContent` (from `2025-06-18`): `{action, ok, outcome, data, text, next?}`; `data` equals
   the host API's (and the CLI `--json`) `data`, except for the inspect projection above.
-- **Per host (WP18b):** `--host claude-code` gets the text `content` only, never
-  `structuredContent` (`HOST_MCP_TEXT_ONLY_HOSTS`). Evidence: live bundle 4 case 1
+- **Per host (WP18b):** `--host claude-code` gets the text `content` only, without
+  `structuredContent` for host API results (`HOST_MCP_TEXT_ONLY_HOSTS`). Evidence: live bundle 4 case 1
   ([live-acceptance-stage2.md](live-acceptance-stage2.md)), Claude Code 2.1.310 handed the model
   the serialized `structuredContent` JSON instead of `content`, so every result reached the model
   twice (`data` and the same `text`). The tools declare no `outputSchema`, so `structuredContent`
@@ -131,6 +132,29 @@ read-only; `run`, `dynamic`, `auto`, `stop`, `resume`, `prune`, `profile`, `appr
 - JSON-RPC errors only for protocol problems: unknown tool or non-object `arguments` (`-32602`),
   unknown method (`-32601`), requests before `initialize` (`-32600`).
 - Worker processes (`AGENT_WORKFLOW_ROLE=worker`) may only `workflow_validate` (host API role check).
+
+## Dashboard opening (WP43b)
+
+`workflow_run`, `workflow_dynamic` and a launched `workflow_auto` preserve the token-free
+`Dashboard: http://127.0.0.1:<port>/?run=<id>` line when a dashboard is already running.
+The launch data includes `dashboard: {url, port}` (`workflow_auto`: `data.launch.dashboard`).
+They never start or open a dashboard themselves.
+
+`workflow_dashboard {run?}` ensures a dashboard is running for the call's project, starting it
+detached if needed, and mints a one-time sign-in URL. With protocol **2025-11-25** or later and
+`capabilities.elicitation.url`, it sends one `elicitation/create` with `mode: "url"`: the client
+asks the user and opens the browser on acceptance. Decline, cancel or error means `opened: false`;
+there is no fallback opener. Without URL elicitation it asks no dialog and gives instructions:
+`Dashboard is running on 127.0.0.1:<port>; open it from a terminal with
+agent-workflow dashboard --open (project <dir>)`.
+
+Codex currently advertises **form-only elicitation by default** (openai/codex#29344), so gets
+instructions; Claude Code **≥ 2.1.87** supports the URL dialog. The one-time URL travels only in
+the client request, never the tool result; neither the session token nor the launch key is returned.
+On protocols supporting structured content this tool returns the compact top-level
+`{running, port, opened, method: "url-elicitation" | "instructions"}` even for Claude Code
+(an exception to host API text-only results). Startup failures return `isError: true` with a reason.
+This tool is not a confirmed run change: it starts a local process but changes nothing in runs.
 
 ## Degradation confirmation (elicitation)
 
