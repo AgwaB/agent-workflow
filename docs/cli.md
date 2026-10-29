@@ -34,6 +34,7 @@ npx agent-workflow --help
 | `prune [--keep N] [--older-than DAYS] [--yes]` | Delete terminal runs beyond the filters, and (WP18b) terminal executor attempt records older than 7 days (or `--older-than`) under `~/.agent-workflow/executors/` (WP19: a launched attempt's record becomes a compact tombstone that is never pruned, so reconcile never reports it absent; containment is physical: a symlinked `attempts/`, Pi `runs/` or other ancestor is refused and reported, never followed; WP19 round 7/8: orphans are removed only when the name is adapter-written — the adapter's own attemptKey digest of exactly its length (Claude 40, Codex 32, Pi 64 hex) alone or with `.events.jsonl`/`.log`/an atomic-write temp suffix — so other files there are never touched), and stale host launch claims (`.agent-workflow/host-launches/`, older than 1 h); WP39b: a pruned run's managed worktrees (merged branches deleted, unmerged kept) and the `auto` classifier's requests (`.agent-workflow/workflows/auto-router-runs/`, same filters); a dry run without `--yes`. |
 | `notices list [--json] \| acknowledge <run> --state <sha256> --reason <text> \| clear <run> [--json]` | Notification-only acknowledgements of unfinished runs. |
 | `supervise <run> \| --all [--poll-ms N] [--max-runtime-ms N]` | Drive scheduling from this process until the run(s) are terminal. |
+| `dashboard [--port N] [--readonly] [--open] [--project DIR]` | WP43: private localhost web dashboard: run/task state, logs, reports, Stop/Resume/Approve/Reject. |
 | `watch [run] [--follow] [--once] [--interval S] [--bell]` | WP36: live terminal view of the project's active runs or one run (tasks, status, elapsed, pending approvals, verdict and report at the end). Read-only. Below. |
 | `statusline` | WP36: one line about the active runs for a status bar (Claude Code `statusLine`); empty when idle; always exit 0. Below. |
 | `notify-check [--host H] [--json] [--stamp N] [--follow [--interval S]]` | WP36: one line per run that finished (or needs the user) since the last check, each state once; for host hooks. Below. |
@@ -42,7 +43,7 @@ npx agent-workflow --help
 
 A run argument accepts the run id or an unambiguous prefix.
 
-WP28: every command except `help`/`--version` (and the WP36 terminal views `watch`, `statusline`,
+WP28: every command except `help`/`--version` (and the WP36 terminal views `watch`, `dashboard`, `statusline`,
 `notify-check`, whose data the `workflow_status`/`workflow_wait` tools already return) is also a host MCP tool (`workflow_<command>`,
 [host-mcp.md](host-mcp.md#tools)); the MCP forms of `prune --yes`, `profile set|delete|default`, `profile workflow set|clear` and
 `notices acknowledge|clear` ask the user to confirm through MCP elicitation (WP29: as does
@@ -270,6 +271,24 @@ and above the selected profile. Stored in
 Exit 0 when at least one executor is usable, 1 otherwise. `--json` prints `{action: "doctor", ok,
 outcome, data}`.
 
+## `dashboard`
+
+```sh
+agent-workflow dashboard [--port <n>] [--readonly] [--open] [--project <dir>]
+```
+
+Serves one project's runs on **127.0.0.1 only**, at a free ephemeral port (or `--port` 1–65535).
+Prints `Dashboard: http://127.0.0.1:<port>/?token=…` once: use this private URL to establish the
+browser session. `--readonly` adds a read-only badge and rejects all mutations on the server.
+`--open` opens the URL in your default browser only from a terminal. `--project` selects an existing
+project directory (default cwd). Ctrl-C/SIGTERM stops the dashboard, never the runs; exit 0.
+Invalid ports, occupied ports and non-directories exit 2. No `--json` mode.
+
+Run/task state, bounded redacted logs, text reports and Stop / Resume / Approve / Reject use the
+same host API as the Pi board. Live updates use SSE (default 1 s polls; environment
+`AGENT_WORKFLOW_DASHBOARD_POLL_MS` accepts 500–10000, with a 1 s minimum effective interval).
+Security and HTTP contract: [dashboard.md](dashboard.md).
+
 ## `statusline`, `watch`, `notify-check`
 
 WP36 (owner decisions E1/E2, [host-ux-investigation.md](host-ux-investigation.md)): progress and
@@ -395,6 +414,9 @@ agent-workflow prune --keep 20 --yes
 ```
 
 ## Change log
+
+- **WP43:** added the private localhost `dashboard` host with read-only mode, bounded logs/reports,
+  live SSE updates and the Pi board’s Stop / Resume / Approve / Reject actions.
 
 - **Live bundle 6: the `prune` dry run agreed with `--yes` only for removable worktrees.** A run
   whose managed worktree prune keeps (checked out on a user branch, not identified, unknown state)

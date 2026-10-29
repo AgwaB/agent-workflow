@@ -10,8 +10,10 @@
 // misses a planted secret or flags a benign mention.
 
 /** Local machine paths and desktop artifacts that must never ship (unchanged from WP0). */
+// `navigator.clipboard` is the Web Clipboard API the dashboard's Copy button uses, not a desktop
+// artifact name; every other `clipboard` mention is still refused.
 export const LOCAL_PATH_PATTERN =
-	/\/Users\/toby|\/var\/folders|Desktop|clipboard|Screenshot/;
+	/\/Users\/toby|\/var\/folders|Desktop|(?<!navigator\.)clipboard|Screenshot/;
 
 /** Token shapes that are secrets wherever they appear. */
 const TOKEN_RULES = [

@@ -41,6 +41,8 @@ export const LOG_STREAMS = ["output", "stderr", "events"] as const;
 export type LogStreamKind = (typeof LOG_STREAMS)[number];
 
 export interface LogsRequest {
+	/** WP43: read persisted state only, without a refresh lease or executor polling. */
+	snapshot?: boolean;
 	runId: string;
 	/** Task id or spec id; omitted = every started task (at most 6, most recent first). */
 	task?: string;
@@ -264,7 +266,9 @@ export async function logsAction(
 	const count = logLines(request.lines);
 	const kinds = logStreams(request.stream);
 	const resolved = await readRunRecord(ctx.cwd, request.runId.trim());
-	const run = await refreshRun(ctx.cwd, resolved.runId).catch(() => resolved);
+	const run = request.snapshot
+		? resolved
+		: await refreshRun(ctx.cwd, resolved.runId).catch(() => resolved);
 	const redact = logRedactor(hostEnv(ctx));
 	const { tasks, omitted } = selectTasks(run, request.task?.trim());
 	const data: LogsData = {

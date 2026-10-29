@@ -7,7 +7,7 @@
 // as a verdict gate only with explicit evidence: a non-empty domain verdict in the output task's
 // control AND an existing final-report artifact inside the run's directory. A generic support
 // failure without them (e.g. "required evidence missing") stays a failure.
-import { realpath, readFile } from "node:fs/promises";
+import { realpath, readFile, open } from "node:fs/promises";
 import {
 	dirname,
 	isAbsolute as isAbsolutePath,
@@ -153,6 +153,7 @@ function isRawProtocolArtifactPath(candidate: string): boolean {
 async function resolveSafeRelativeTaskArtifact(
 	taskDir: string,
 	candidate: string,
+	maxBytes?: number,
 ): Promise<SafeRelativeTaskArtifact | undefined> {
 	const path = safeRelativeTaskArtifactPath(taskDir, candidate);
 	if (!path) return undefined;
@@ -168,7 +169,20 @@ async function resolveSafeRelativeTaskArtifact(
 			isAbsolutePath(escaped)
 		)
 			return undefined;
-		const text = (await readFile(target, "utf8")).trim();
+		let raw: string;
+		if (maxBytes === undefined) raw = await readFile(target, "utf8");
+		else {
+			const file = await open(target, "r");
+			try {
+				if (!(await file.stat()).isFile()) return undefined;
+				const buffer = Buffer.alloc(maxBytes);
+				const { bytesRead } = await file.read(buffer, 0, buffer.length, 0);
+				raw = buffer.subarray(0, bytesRead).toString("utf8");
+			} finally {
+				await file.close();
+			}
+		}
+		const text = raw.trim();
 		return text ? { path, text } : undefined;
 	} catch {
 		return undefined;
@@ -178,8 +192,13 @@ async function resolveSafeRelativeTaskArtifact(
 async function readSafeRelativeTaskArtifact(
 	taskDir: string,
 	candidate: string,
+	maxBytes?: number,
 ): Promise<string | undefined> {
-	const artifact = await resolveSafeRelativeTaskArtifact(taskDir, candidate);
+	const artifact = await resolveSafeRelativeTaskArtifact(
+		taskDir,
+		candidate,
+		maxBytes,
+	);
 	return artifact?.text;
 }
 
@@ -203,6 +222,7 @@ async function collectWorkflowResultArtifacts(
 	cwd: string,
 	taskDir: string,
 	control: Record<string, unknown> | undefined,
+	maxBytes?: number,
 ): Promise<WorkflowResultArtifact[]> {
 	const artifacts: WorkflowResultArtifact[] = [];
 	const reportCandidates = [
@@ -211,7 +231,11 @@ async function collectWorkflowResultArtifacts(
 	].filter((candidate): candidate is string => Boolean(candidate));
 	for (const candidate of reportCandidates) {
 		if (isRawProtocolArtifactPath(candidate)) continue;
-		const artifact = await resolveSafeRelativeTaskArtifact(taskDir, candidate);
+		const artifact = await resolveSafeRelativeTaskArtifact(
+			taskDir,
+			candidate,
+			maxBytes,
+		);
 		if (!artifact) continue;
 		const path = safeWorkflowArtifactDisplayPath(cwd, artifact.path);
 		if (!path) continue;
@@ -223,6 +247,7 @@ async function collectWorkflowResultArtifacts(
 		const artifact = await resolveSafeRelativeTaskArtifact(
 			taskDir,
 			auditCandidate,
+			maxBytes,
 		);
 		if (artifact) {
 			const path = safeWorkflowArtifactDisplayPath(cwd, artifact.path);
@@ -260,6 +285,7 @@ export async function readWorkflowResultPresentation(
 	cwd: string,
 	run: WorkflowRunRecord,
 	outputTaskIds: string[],
+	maxArtifactBytes?: number,
 ): Promise<WorkflowResultPresentation | undefined> {
 	const outputTasks = outputTaskIds.map((id) =>
 		run.tasks.find(
@@ -305,9 +331,15 @@ export async function readWorkflowResultPresentation(
 	const controlText = await readSafeRelativeTaskArtifact(
 		taskDir,
 		"control.json",
+		maxArtifactBytes,
 	);
 	const control = controlText ? parseJsonRecord(controlText) : undefined;
-	const artifacts = await collectWorkflowResultArtifacts(cwd, taskDir, control);
+	const artifacts = await collectWorkflowResultArtifacts(
+		cwd,
+		taskDir,
+		control,
+		maxArtifactBytes,
+	);
 	const verdict = domainVerdict(control?.verdict);
 	// WP19 (review #10): explicit verdict-gate evidence, else this is a real failure.
 	const verdictGate =
@@ -352,17 +384,29 @@ export async function readWorkflowResultPresentation(
 		// for their user-facing preview; never expose protocol wrappers.
 		const summary = stringValue(control?.summary);
 		if (summary) return presentation(summary);
-		const analysis = await readSafeRelativeTaskArtifact(taskDir, "analysis.md");
+		const analysis = await readSafeRelativeTaskArtifact(
+			taskDir,
+			"analysis.md",
+			maxArtifactBytes,
+		);
 		if (analysis) return presentation(analysis);
 		const executiveMarkdown = stringValue(control?.executiveMarkdown);
 		if (executiveMarkdown) return presentation(executiveMarkdown);
 		const sidecarPath = stringValue(control?.sidecarPath);
 		if (sidecarPath && !isRawProtocolArtifactPath(sidecarPath)) {
-			const sidecar = await readSafeRelativeTaskArtifact(taskDir, sidecarPath);
+			const sidecar = await readSafeRelativeTaskArtifact(
+				taskDir,
+				sidecarPath,
+				maxArtifactBytes,
+			);
 			if (sidecar) return presentation(sidecar);
 		}
 		return presentation(
-			await readSafeRelativeTaskArtifact(taskDir, "final-report.md"),
+			await readSafeRelativeTaskArtifact(
+				taskDir,
+				"final-report.md",
+				maxArtifactBytes,
+			),
 		);
 	}
 
@@ -379,7 +423,7 @@ export async function readWorkflowResultPresentation(
 		(item): item is string => typeof item === "string" && item.length > 0,
 	)) {
 		const text = stringValue(
-			await readSafeRelativeTaskArtifact(taskDir, fileName),
+			await readSafeRelativeTaskArtifact(taskDir, fileName, maxArtifactBytes),
 		);
 		if (text) return presentation(text);
 	}

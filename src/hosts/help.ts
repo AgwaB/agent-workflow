@@ -163,6 +163,11 @@ not usable); which executor a run here uses by default and why; the permission-m
 Node version; AGENT_WORKFLOW_HOME and whether it is writable; Codex environment warnings (allow
 rules, global AGENTS.md; counts only); stale run-index entries. Exit 0 when at least one executor is
 usable, 1 otherwise.`,
+	dashboard: `Usage: agent-workflow dashboard [--port <n>] [--readonly] [--open] [--project <dir>]
+
+Serve the local web dashboard on 127.0.0.1 only. Prints a private session URL; Ctrl-C stops
+the server, not the runs. --readonly rejects mutations. --open opens a browser on a terminal.
+Port defaults to an available ephemeral port. One server serves one project (default cwd).`,
 	watch: `Usage: agent-workflow watch [<run-id-or-prefix>] [--follow] [--once] [--interval <seconds>]
                               [--bell]
 
@@ -222,6 +227,7 @@ Runs:
   prune                      delete old terminal runs (dry run without --yes)
   notices ...                acknowledge unfinished-run notices
   supervise <run>|--all      drive runs from a standalone process
+  dashboard                   local web dashboard (private loopback URL; --readonly available)
   watch [run]                live terminal view of active runs (read-only)
   statusline                 one-line run status for a status bar (Claude Code statusLine)
   notify-check               report runs that finished since the last check (host hooks)

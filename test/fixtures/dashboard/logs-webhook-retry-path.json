@@ -1,0 +1,29 @@
+{
+	"taskId": "task-11",
+	"specId": "reviewers.webhook-retry-path",
+	"status": "pending",
+	"statusDetail": "retry_backoff",
+	"streams": [
+		{
+			"kind": "output",
+			"path": ".agent-workflow/runs/workflow_mvt9k2qa_7c41e0/tasks/task-11/output.log",
+			"lines": [],
+			"truncated": false
+		},
+		{
+			"kind": "stderr",
+			"path": ".agent-workflow/runs/workflow_mvt9k2qa_7c41e0/tasks/task-11/stderr.log",
+			"lines": [
+				"codex: 429 Too Many Requests (exceeded retry limit)",
+				"agent-workflow: scheduled retry 2/4 at +7m"
+			],
+			"truncated": false
+		},
+		{
+			"kind": "events",
+			"path": ".agent-workflow/runs/workflow_mvt9k2qa_7c41e0/tasks/task-11/events.jsonl",
+			"lines": [],
+			"truncated": false
+		}
+	]
+}

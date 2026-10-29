@@ -1,0 +1,129 @@
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import test from "node:test";
+import { runAgentWorkflowCli } from "../../dist/hosts/cli/index.js";
+import { COMMAND_HELP, GENERAL_HELP } from "../../dist/hosts/help.js";
+import { startDashboardServer } from "../../dist/hosts/dashboard/server.js";
+
+async function invoke(args, extra = {}) {
+	const stdout = [],
+		stderr = [];
+	const code = await runAgentWorkflowCli(args, {
+		cwd: process.cwd(),
+		env: {},
+		isTTY: false,
+		stdout: (s) => stdout.push(s),
+		stderr: (s) => stderr.push(s),
+		...extra,
+	});
+	return { code, stdout: stdout.join(""), stderr: stderr.join("") };
+}
+
+test("dashboard CLI rejects invalid ports and unknown flags with usage exit 2", async () => {
+	for (const args of [
+		["--port", "abc"],
+		["--port", "70000"],
+		["--port", "0"],
+		["--port", "-1"],
+		["--port", "1.5"],
+		["--port"],
+		["--once"],
+		["unexpected"],
+		["--readonly", "--readonly"],
+	]) {
+		const result = await invoke(["dashboard", ...args]);
+		assert.equal(result.code, 2, args.join(" "));
+		assert.notEqual(result.stderr, "");
+		assert.equal(result.stdout, "");
+	}
+});
+
+test("dashboard project must be a directory, and occupied ports exit 2", async (t) => {
+	const root = await mkdtemp(join(tmpdir(), "aw-dashboard-cli-"));
+	t.after(() => rm(root, { recursive: true, force: true }));
+	await writeFile(join(root, "file"), "not a directory");
+	for (const name of ["file", "missing"])
+		assert.equal(
+			(await invoke(["dashboard", "--project", join(root, name)])).code,
+			2,
+		);
+	const s = await startDashboardServer({ cwd: root, env: {} });
+	t.after(() => s.close());
+	assert.equal((await invoke(["dashboard", "--port", String(s.port)])).code, 2);
+});
+
+test("dashboard prints one URL, supports project/read-only, and honors io.signal without opening on pipes", {
+	timeout: 5000,
+}, async (t) => {
+	const root = await mkdtemp(join(tmpdir(), "aw-dashboard-cli-"));
+	t.after(() => rm(root, { recursive: true, force: true }));
+	const controller = new AbortController();
+	const lines = [];
+	let ready;
+	const started = new Promise((resolve) => {
+		ready = resolve;
+	});
+	const command = invoke(
+		["dashboard", "--readonly", "--open", "--project", root],
+		{
+			signal: controller.signal,
+			stdout: (line) => {
+				lines.push(line);
+				ready();
+			},
+		},
+	);
+	t.after(() => controller.abort());
+	await started;
+	assert.equal(lines.length, 1);
+	assert.match(
+		lines[0],
+		/^Dashboard: http:\/\/127\.0\.0\.1:\d+\/\?token=[\w-]+ \(read-only\)\n$/,
+	);
+	const url = new URL(lines[0].split(" ")[1]);
+	const response = await fetch(new URL("/api/session", url), {
+		headers: { Cookie: `aw_session=${url.searchParams.get("token")}` },
+	});
+	const session = await response.json();
+	assert.equal(session.project.name, root.split("/").at(-1));
+	assert.equal(session.mode, "read-only");
+	controller.abort();
+	assert.equal((await command).code, 0);
+});
+
+test("dashboard is listed in general and command help", async () => {
+	assert.match(GENERAL_HELP, /dashboard/);
+	assert.match(COMMAND_HELP.dashboard, /--port/);
+	assert.equal((await invoke(["dashboard", "--help"])).code, 0);
+});
+
+test("real CLI closes cleanly on SIGTERM and exits 0", {
+	timeout: 8000,
+}, async (t) => {
+	const bin = fileURLToPath(
+		new URL("../../src/hosts/cli/cli.mjs", import.meta.url),
+	);
+	const child = spawn(process.execPath, [bin, "dashboard", "--readonly"], {
+		stdio: ["ignore", "pipe", "pipe"],
+		env: { ...process.env, AGENT_WORKFLOW_TEST_EXECUTOR_MODULE: "" },
+	});
+	t.after(() => {
+		if (child.exitCode === null) child.kill("SIGKILL");
+	});
+	const closed = new Promise((resolve) =>
+		child.once("close", (code, signal) => resolve({ code, signal })),
+	);
+	await new Promise((resolve, reject) => {
+		child.once("error", reject);
+		child.stdout.once("data", (data) => {
+			assert.match(data.toString(), /^Dashboard:/);
+			resolve();
+		});
+	});
+	child.kill("SIGTERM");
+	assert.deepEqual(await closed, { code: 0, signal: null });
+});

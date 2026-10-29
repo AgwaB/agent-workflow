@@ -1,0 +1,80 @@
+{
+	"runId": "workflow_mvt1t1i7_7b71df",
+	"name": "docs-writer",
+	"status": "completed",
+	"createdAt": "2026-10-29T04:33:36.224Z",
+	"updatedAt": "2026-10-29T04:33:42.001Z",
+	"executor": "claude",
+	"host": "cli",
+	"taskSummary": {
+		"total": 1,
+		"pending": 0,
+		"running": 0,
+		"blocked": 0,
+		"completed": 1,
+		"failed": 0,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"reportAvailable": false,
+	"needsYou": [],
+	"live": false,
+	"task": "Add a CHANGELOG entry for the refund fix.",
+	"permissionMode": "free",
+	"usage": {
+		"tasksReporting": 1,
+		"taskCount": 1,
+		"input": 4,
+		"output": 346,
+		"cacheRead": 11340,
+		"total": 13728,
+		"costUsd": 0.0006944
+	},
+	"launch": {
+		"host": "cli",
+		"entry": {
+			"source": "cli",
+			"entry": {
+				"kind": "command",
+				"action": "run"
+			},
+			"profile": {
+				"kind": "base"
+			},
+			"taskChars": 15
+		},
+		"command": "agent-workflow run undefined \"undefined\""
+	},
+	"pendingApprovals": [],
+	"tasks": [
+		{
+			"taskId": "task-1",
+			"specId": "note.main",
+			"stageId": "note",
+			"kind": "single",
+			"agent": "writer",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": [],
+			"generated": false,
+			"placeholder": false,
+			"executor": "claude",
+			"model": "claude-haiku-5-5",
+			"startedAt": "2026-10-29T04:33:36.781Z",
+			"completedAt": "2026-10-29T04:33:41.690Z",
+			"elapsedMs": 4909,
+			"lastMessage": "completed",
+			"usage": {
+				"input": 4,
+				"output": 346,
+				"total": 13728,
+				"costUsd": 0.0006944
+			},
+			"worktree": {
+				"path": "/private/tmp/aw-live6/c4-worktree/.agent-workflow/workflows/workflow_mvt1t1i7_7b71df/worktrees/task-1",
+				"branch": "agent-workflow/workflow_mvt1t1i7_7b71df-task-1"
+			},
+			"hasLogs": true
+		}
+	]
+}

@@ -1,0 +1,77 @@
+{
+	"runId": "workflow_mvt1jojn_3dd217",
+	"name": "live6-quick-read",
+	"status": "completed",
+	"createdAt": "2026-10-29T04:26:19.524Z",
+	"updatedAt": "2026-10-29T04:26:25.858Z",
+	"executor": "codex",
+	"host": "mcp:codex",
+	"taskSummary": {
+		"total": 1,
+		"pending": 0,
+		"running": 0,
+		"blocked": 0,
+		"completed": 1,
+		"failed": 0,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"reportAvailable": false,
+	"needsYou": [],
+	"live": false,
+	"task": "Summarise sample/ in five bullets.",
+	"permissionMode": "free",
+	"usage": {
+		"tasksReporting": 1,
+		"taskCount": 1,
+		"input": 12866,
+		"output": 133,
+		"cacheRead": 12288,
+		"total": 25287,
+		"costUsd": null
+	},
+	"launch": {
+		"host": "mcp:codex",
+		"entry": {
+			"source": "mcp:codex",
+			"entry": {
+				"kind": "tool",
+				"name": "workflow_auto"
+			},
+			"profile": {
+				"kind": "base"
+			},
+			"taskChars": 49
+		},
+		"command": "agent-workflow run undefined \"undefined\""
+	},
+	"pendingApprovals": [],
+	"tasks": [
+		{
+			"taskId": "task-1",
+			"specId": "look.main",
+			"stageId": "look",
+			"kind": "single",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": [],
+			"generated": false,
+			"placeholder": false,
+			"executor": "codex",
+			"model": "gpt-5.6-luna",
+			"effort": "low",
+			"startedAt": "2026-10-29T04:26:19.581Z",
+			"completedAt": "2026-10-29T04:26:25.039Z",
+			"elapsedMs": 5458,
+			"lastMessage": "completed",
+			"usage": {
+				"input": 12866,
+				"output": 133,
+				"total": 25287,
+				"costUsd": null
+			},
+			"hasLogs": true
+		}
+	]
+}

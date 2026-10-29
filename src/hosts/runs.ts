@@ -73,7 +73,11 @@ import {
 	type WorkflowCommandHints,
 } from "./hints.js";
 import { spawnDetachedSupervisor } from "./launch.js";
-import { formatTaskWorktreeLocation } from "../core/engine-format.js";
+import {
+	formatTaskWorktreeLocation,
+	formatHumanRunStatus,
+	formatHumanRunDetails,
+} from "../core/engine-format.js";
 import { markRunNotifySeen } from "./notify-check.js";
 import {
 	formatLaunch,
@@ -88,6 +92,12 @@ import {
 	pruneHostLaunchClaims,
 } from "./launch-guard.js";
 import { hostTextRedactor } from "./redaction.js";
+import {
+	REPORT_MAX_BYTES,
+	hostTaskLogIds,
+	readHostRunReport,
+	type RunReport,
+} from "./run-artifacts.js";
 import { resolveContainedRunFile } from "./run-files.js";
 import {
 	formatVerdictGateHeadline,
@@ -154,6 +164,8 @@ export function summarizeRun(run: WorkflowRunRecord): RunSummary {
 
 export interface StatusData {
 	run?: RunSummary & {
+		/** WP43: same running/lease semantics as readWatchRun. */
+		live?: boolean;
 		/** WP18b: domain verdict of a terminal run (output task control). */
 		verdict?: string;
 		/** WP18b: the run's only failure is the final verdict gate. */
@@ -185,6 +197,7 @@ export interface StatusData {
 async function terminalPresentation(
 	cwd: string,
 	run: WorkflowRunRecord,
+	maxArtifactBytes?: number,
 ): Promise<WorkflowResultPresentation | undefined> {
 	const terminal = await summarizeWorkflowTerminal(cwd, run);
 	if (!terminal.terminal) return undefined;
@@ -192,29 +205,50 @@ async function terminalPresentation(
 		cwd,
 		run,
 		terminal.outputTaskIds,
+		maxArtifactBytes,
 	).catch(() => undefined);
 }
 
 /** `status [run]`: one run (refreshed) or every top-level run. */
 export async function statusAction(
 	ctx: HostApiContext,
-	request: { runId?: string } = {},
+	request: {
+		runId?: string;
+		boundedArtifacts?: boolean;
+		snapshot?: boolean;
+	} = {},
 ): Promise<HostResult<StatusData>> {
 	assertActionAllowed(ctx, "status");
 	if (request.runId === undefined) {
-		const text = await formatStatus(ctx.cwd, hostCommandHints(ctx.host));
+		const text = request.snapshot
+			? undefined
+			: await formatStatus(ctx.cwd, hostCommandHints(ctx.host));
 		const runs = (await listRunRecords(ctx.cwd))
 			.filter((run) => !run.parentRunId)
 			.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 			.map(summarizeRun);
-		return result("status", "success", { runs }, text);
+		return result(
+			"status",
+			"success",
+			{ runs },
+			text ?? runs.map((run) => `${run.runId}: ${run.status}`).join("\n"),
+		);
 	}
 	const ref = requireRunRef(request.runId, "status");
-	const card = await formatRunStatus(ctx.cwd, ref, hostCommandHints(ctx.host));
+	const refreshedCard = request.snapshot
+		? undefined
+		: await formatRunStatus(ctx.cwd, ref, hostCommandHints(ctx.host));
 	const run = await readRunRecord(ctx.cwd, ref);
+	const card =
+		refreshedCard ??
+		formatHumanRunStatus(run, { hints: hostCommandHints(ctx.host) });
 	// WP18b: a terminal run shows its domain verdict and report; a verdict-gate run leads with
 	// "finished — verdict: X (report ready)".
-	const presentation = await terminalPresentation(ctx.cwd, run);
+	const presentation = await terminalPresentation(
+		ctx.cwd,
+		run,
+		request.boundedArtifacts ? REPORT_MAX_BYTES : undefined,
+	);
 	const pendingApprovals = await pendingDynamicApprovals(ctx.cwd, run);
 	const approvalText = pendingApprovalLines(
 		ctx.host,
@@ -255,6 +289,9 @@ export async function statusAction(
 		{
 			run: {
 				...summarizeRun(run),
+				live:
+					run.status === "running" &&
+					(await isWorkflowRunLeaseLive(ctx.cwd, run.runId).catch(() => false)),
 				...(presentation?.verdict ? { verdict: presentation.verdict } : {}),
 				...(presentation?.verdictGate ? { verdictGate: true as const } : {}),
 				reportArtifacts: presentation?.artifacts ?? [],
@@ -285,28 +322,95 @@ export async function statusAction(
 /** `show <run> [--raw]`: run details (the workflow-spec form lives in catalog.ts). */
 export async function showRunAction(
 	ctx: HostApiContext,
-	request: { runId: string; raw?: boolean },
+	request: {
+		runId: string;
+		raw?: boolean;
+		includeTaskLogs?: boolean;
+		includeReport?: boolean;
+		/** WP43: also return the run's runtime task text (`compiled.json` `task`, redacted, bounded). */
+		includeTask?: boolean;
+		/** Read persisted state only: no refresh, lease or executor polling (WP43). */
+		snapshot?: boolean;
+	},
 ): Promise<
-	HostResult<{ kind: "run"; run: WorkflowRunRecord; launch?: LaunchSummary }>
+	HostResult<{
+		kind: "run";
+		run: WorkflowRunRecord;
+		launch?: LaunchSummary;
+		taskLogIds?: string[];
+		report?: RunReport;
+		/** The user's task text for this run (not the workflow description). */
+		runtimeTask?: string;
+	}>
 > {
 	assertActionAllowed(ctx, "show");
 	const ref = requireRunRef(request.runId, "show");
-	const details = request.raw
-		? await formatRawRunDetails(ctx.cwd, ref, hostCommandHints(ctx.host))
-		: await formatRunDetails(ctx.cwd, ref, hostCommandHints(ctx.host));
+	const details = request.snapshot
+		? undefined
+		: request.raw
+			? await formatRawRunDetails(ctx.cwd, ref, hostCommandHints(ctx.host))
+			: await formatRunDetails(ctx.cwd, ref, hostCommandHints(ctx.host));
 	const run = await readRunRecord(ctx.cwd, ref);
 	// WP33: launch provenance (source host, entry, redacted command) after the details.
 	const launch = await launchSummary(ctx.cwd, run);
+	const taskLogIds = request.includeTaskLogs
+		? await hostTaskLogIds(ctx.cwd, run)
+		: undefined;
+	const reportPath = request.includeReport
+		? (await terminalPresentation(ctx.cwd, run, REPORT_MAX_BYTES))?.artifacts[0]
+				?.path
+		: undefined;
+	const report = reportPath
+		? await readHostRunReport(ctx, reportPath)
+		: undefined;
+	const runtimeTask = request.includeTask
+		? await readRuntimeTask(ctx, run.runId)
+		: undefined;
 	const text =
 		launch && !request.raw
-			? [details, "", ...formatLaunch(launch)].join("\n")
-			: details;
+			? [
+					details ?? formatHumanRunDetails(run),
+					"",
+					...formatLaunch(launch),
+				].join("\n")
+			: (details ?? formatHumanRunDetails(run));
 	return result(
 		"show",
 		"success",
-		{ kind: "run", run, ...(launch ? { launch } : {}) },
+		{
+			kind: "run",
+			run,
+			...(launch ? { launch } : {}),
+			...(taskLogIds ? { taskLogIds } : {}),
+			...(report ? { report } : {}),
+			...(runtimeTask !== undefined ? { runtimeTask } : {}),
+		},
 		hostTextRedactor(hostEnv(ctx))(text),
 	);
+}
+
+/** Bound of the runtime task text returned by `show` (`includeTask`); longer tasks are cut with a marker. */
+export const SHOW_TASK_MAX_CHARS = 8_000;
+
+/** The run's runtime task (`compiled.json` `task`), redacted like every host string; undefined when absent. */
+async function readRuntimeTask(
+	ctx: HostApiContext,
+	runId: string,
+): Promise<string | undefined> {
+	let compiled: unknown;
+	try {
+		compiled = parseJsonText(
+			await readFile(compiledWorkflowPath(ctx.cwd, runId), "utf8"),
+		);
+	} catch {
+		return undefined;
+	}
+	const task = (compiled as { task?: unknown } | null)?.task;
+	if (typeof task !== "string" || !task.trim()) return undefined;
+	const redacted = hostTextRedactor(hostEnv(ctx))(task.trim());
+	return redacted.length > SHOW_TASK_MAX_CHARS
+		? `${redacted.slice(0, SHOW_TASK_MAX_CHARS)}\n… [task cut at ${SHOW_TASK_MAX_CHARS} characters]`
+		: redacted;
 }
 
 function positiveCount(value: unknown): number {

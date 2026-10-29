@@ -117,8 +117,10 @@ export function redactSensitiveWorkflowText(value: string): string {
 	);
 	// WP19: a value never starts with a backslash, so the escaped-JSON form (`\"key\":\"v\"`,
 	// handled by redactStructuredCredentials first) is not split at its escape.
+	// WP43: start only at a key boundary. Otherwise a long report word with no delimiter
+	// retries the greedy key at every character (quadratic work on a 256 kB report).
 	const assignment =
-		/(["']?)([^\s"'=:,;{}]+)\1\s*([=:])(\s*)(["']?)([^\s"'&,;}\\][^\s"'&,;}]*)\5/gu;
+		/(?<![^\s"'=:,;{}])(["']?)([^\s"'=:,;{}]+)\1\s*([=:])(\s*)(["']?)([^\s"'&,;}\\][^\s"'&,;}]*)\5/gu;
 	const redactedAssignments = redactStructuredCredentials(
 		withFragments,
 	).replace(
