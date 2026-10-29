@@ -9,6 +9,11 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const assets = [
+	...["index.html", "app.js", "app.css"].map((file) => ({
+		path: `hosts/dashboard/ui/${file}`,
+		mode: 0o644,
+		optional: true,
+	})),
 	{ path: "runtime/native/darwin-process-identity", mode: 0o755 },
 	{ path: "runtime/native/darwin-process-identity.manifest.json", mode: 0o644 },
 ];
@@ -16,6 +21,8 @@ const assets = [
 for (const asset of assets) {
 	const source = join(root, "src", asset.path);
 	const target = join(root, "dist", asset.path);
+	if (asset.optional && !(await stat(source).catch(() => undefined))?.isFile())
+		continue;
 	await mkdir(dirname(target), { recursive: true });
 	await copyFile(source, target);
 	await chmod(target, asset.mode);

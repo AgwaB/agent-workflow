@@ -10,6 +10,9 @@
 // (cliDynamicUi); `approve <run>` answers an approval a run is blocked on.
 // WP32: `auto <task>`: consent y/N on a terminal (or --yes), then a pick-list of the ranked workflows.
 import { readFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { resolve } from "node:path";
+import { startDashboardServer } from "../dashboard/server.js";
 import { parseRoleAssignmentText } from "../../core/role-profiles.js";
 import { addWorkflowInputAssignment } from "../args.js";
 import { cliLaunchCommand } from "../launch-capture.js";
@@ -990,6 +993,68 @@ async function dispatch(
 				stdout: io.stdout,
 				...(io.now ? { now: io.now } : {}),
 			});
+		case "dashboard": {
+			const parsed = parseCommandArgs(argv, {
+				flags: ["--readonly", "--open"],
+				values: ["--port", "--project"],
+			});
+			only(
+				parsed,
+				0,
+				"dashboard [--port <n>] [--readonly] [--open] [--project <dir>]",
+			);
+			const port = intValue(parsed.values.get("--port"), "--port");
+			const dashboard = await startDashboardServer({
+				cwd: resolve(io.cwd, parsed.values.get("--project") ?? "."),
+				env: io.env,
+				...(port === undefined ? {} : { port }),
+				readonly: parsed.flags.has("--readonly"),
+				...(io.now ? { now: io.now } : {}),
+			});
+			let stop!: () => void;
+			const stopped = new Promise<void>((done) => {
+				stop = done;
+			});
+			if (io.signal) {
+				io.signal.addEventListener("abort", stop, { once: true });
+				if (io.signal.aborted) stop();
+			} else {
+				process.once("SIGINT", stop);
+				process.once("SIGTERM", stop);
+			}
+			try {
+				io.stdout(
+					`Dashboard: ${dashboard.url}${parsed.flags.has("--readonly") ? " (read-only)" : ""}\n`,
+				);
+				if (parsed.flags.has("--open") && io.isTTY) {
+					const command =
+						process.platform === "darwin"
+							? "open"
+							: process.platform === "win32"
+								? "cmd"
+								: "xdg-open";
+					const args =
+						process.platform === "win32"
+							? ["/c", "start", "", dashboard.url]
+							: [dashboard.url];
+					const child = spawn(command, args, {
+						stdio: "ignore",
+						detached: true,
+					});
+					child.once("error", () =>
+						io.stderr("Could not open the browser; use the printed URL.\n"),
+					);
+					child.unref();
+				}
+				await stopped;
+				return EXIT_OK;
+			} finally {
+				io.signal?.removeEventListener("abort", stop);
+				process.removeListener("SIGINT", stop);
+				process.removeListener("SIGTERM", stop);
+				await dashboard.close();
+			}
+		}
 		case "watch": {
 			const parsed = parseCommandArgs(argv, {
 				flags: ["--follow", "--once", "--bell"],

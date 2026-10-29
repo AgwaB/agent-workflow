@@ -88,6 +88,11 @@ import {
 	pruneHostLaunchClaims,
 } from "./launch-guard.js";
 import { hostTextRedactor } from "./redaction.js";
+import {
+	hostTaskLogIds,
+	readHostRunReport,
+	type RunReport,
+} from "./run-artifacts.js";
 import { resolveContainedRunFile } from "./run-files.js";
 import {
 	formatVerdictGateHeadline,
@@ -154,6 +159,8 @@ export function summarizeRun(run: WorkflowRunRecord): RunSummary {
 
 export interface StatusData {
 	run?: RunSummary & {
+		/** WP43: same running/lease semantics as readWatchRun. */
+		live?: boolean;
 		/** WP18b: domain verdict of a terminal run (output task control). */
 		verdict?: string;
 		/** WP18b: the run's only failure is the final verdict gate. */
@@ -255,6 +262,9 @@ export async function statusAction(
 		{
 			run: {
 				...summarizeRun(run),
+				live:
+					run.status === "running" &&
+					(await isWorkflowRunLeaseLive(ctx.cwd, run.runId).catch(() => false)),
 				...(presentation?.verdict ? { verdict: presentation.verdict } : {}),
 				...(presentation?.verdictGate ? { verdictGate: true as const } : {}),
 				reportArtifacts: presentation?.artifacts ?? [],
@@ -285,9 +295,20 @@ export async function statusAction(
 /** `show <run> [--raw]`: run details (the workflow-spec form lives in catalog.ts). */
 export async function showRunAction(
 	ctx: HostApiContext,
-	request: { runId: string; raw?: boolean },
+	request: {
+		runId: string;
+		raw?: boolean;
+		includeTaskLogs?: boolean;
+		includeReport?: boolean;
+	},
 ): Promise<
-	HostResult<{ kind: "run"; run: WorkflowRunRecord; launch?: LaunchSummary }>
+	HostResult<{
+		kind: "run";
+		run: WorkflowRunRecord;
+		launch?: LaunchSummary;
+		taskLogIds?: string[];
+		report?: RunReport;
+	}>
 > {
 	assertActionAllowed(ctx, "show");
 	const ref = requireRunRef(request.runId, "show");
@@ -297,6 +318,15 @@ export async function showRunAction(
 	const run = await readRunRecord(ctx.cwd, ref);
 	// WP33: launch provenance (source host, entry, redacted command) after the details.
 	const launch = await launchSummary(ctx.cwd, run);
+	const taskLogIds = request.includeTaskLogs
+		? await hostTaskLogIds(ctx.cwd, run)
+		: undefined;
+	const reportPath = request.includeReport
+		? (await terminalPresentation(ctx.cwd, run))?.artifacts[0]?.path
+		: undefined;
+	const report = reportPath
+		? await readHostRunReport(ctx, reportPath)
+		: undefined;
 	const text =
 		launch && !request.raw
 			? [details, "", ...formatLaunch(launch)].join("\n")
@@ -304,7 +334,13 @@ export async function showRunAction(
 	return result(
 		"show",
 		"success",
-		{ kind: "run", run, ...(launch ? { launch } : {}) },
+		{
+			kind: "run",
+			run,
+			...(launch ? { launch } : {}),
+			...(taskLogIds ? { taskLogIds } : {}),
+			...(report ? { report } : {}),
+		},
 		hostTextRedactor(hostEnv(ctx))(text),
 	);
 }

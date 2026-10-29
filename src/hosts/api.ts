@@ -182,7 +182,12 @@ export {
 /** `show <ref> [raw]`: a run (`--raw`, or a `workflow_…` id) or else a workflow spec. */
 export async function showAction(
 	ctx: HostApiContext,
-	request: { ref: string; raw?: boolean },
+	request: {
+		ref: string;
+		raw?: boolean;
+		includeTaskLogs?: boolean;
+		includeReport?: boolean;
+	},
 ): Promise<
 	HostResult<
 		| Awaited<ReturnType<typeof showRunAction>>["data"]
@@ -192,6 +197,8 @@ export async function showAction(
 	if (request.raw || request.ref.startsWith("workflow_"))
 		return showRunAction(ctx, {
 			runId: request.ref,
+			...(request.includeTaskLogs ? { includeTaskLogs: true } : {}),
+			...(request.includeReport ? { includeReport: true } : {}),
 			...(request.raw ? { raw: true } : {}),
 		});
 	return showWorkflowSpecAction(ctx, { workflow: request.ref });
