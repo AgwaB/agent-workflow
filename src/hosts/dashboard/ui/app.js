@@ -1251,9 +1251,19 @@ function definition(rows) {
 	);
 }
 function usageRows(usage) {
+	// "Total tokens" only when the executor reported a total; a missing total next to reported
+	// input/output counts is "not reported", not "not collected".
+	const reportedParts = usage?.input != null || usage?.output != null;
 	return [
 		["Cost", cost(usage)],
-		["Tokens", usage?.total?.toLocaleString() || "Not collected"],
+		[
+			"Total tokens",
+			usage?.total != null
+				? usage.total.toLocaleString()
+				: reportedParts
+					? "Not reported"
+					: "Not collected",
+		],
 		usage?.input != null
 			? ["Input tokens", usage.input.toLocaleString()]
 			: null,

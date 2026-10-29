@@ -94,6 +94,9 @@ export async function createBrowser(executable) {
 				responses.push(event.params.response);
 		}
 	});
+	// Chrome under the parallel unit suite can take well over 15 s for its first navigation; the
+	// per-command bound is generous so contention becomes slowness, not a flaky failure.
+	const CDP_TIMEOUT_MS = Number(process.env.AW_TEST_CDP_TIMEOUT_MS) || 60_000;
 	const send = (method, params = {}, target = session) =>
 		new Promise((resolve, reject) => {
 			if (startupError) return reject(startupError);
@@ -101,7 +104,7 @@ export async function createBrowser(executable) {
 			const timer = setTimeout(() => {
 				pending.delete(id);
 				reject(new Error(`CDP timeout: ${method}`));
-			}, 15000);
+			}, CDP_TIMEOUT_MS);
 			pending.set(id, { resolve, reject, timer });
 			chrome.stdio[3].write(
 				`${JSON.stringify({ id, method, params, ...(target ? { sessionId: target } : {}) })}\0`,
@@ -121,7 +124,7 @@ export async function createBrowser(executable) {
 			throw new Error(JSON.stringify(result.exceptionDetails));
 		return result.result.value;
 	};
-	const waitFor = async (fn, timeout = 5000) => {
+	const waitFor = async (fn, timeout = 20_000) => {
 		const until = Date.now() + timeout;
 		while (Date.now() < until) {
 			if (await evaluate(fn)) return;
