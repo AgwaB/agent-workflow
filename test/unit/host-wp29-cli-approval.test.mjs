@@ -151,6 +151,7 @@ test("CLI without a terminal: blocked as dynamic_ui_unavailable; the output name
 test("CLI terminal: no progress line is printed while the approval question is open", async () => {
 	const p = await project();
 	const err = [];
+	const out = [];
 	let open = false;
 	const duringPrompt = [];
 	const code = await cli.runAgentWorkflowCli(
@@ -158,7 +159,7 @@ test("CLI terminal: no progress line is printed while the approval question is o
 		{
 			cwd: p.cwd,
 			env: p.env,
-			stdout: () => undefined,
+			stdout: (text) => out.push(text),
 			stderr: (text) => {
 				err.push(text);
 				if (open) duringPrompt.push(text);
@@ -183,6 +184,9 @@ test("CLI terminal: no progress line is printed while the approval question is o
 		),
 		[],
 	);
-	// Progress resumes after the answer.
-	assert.match(err.join(""), /2\/2 completed|completed, 0 running/);
+	// After the answer the run goes on to completion (under load it can finish before the next
+	// progress tick, so the run record is the evidence, not a progress line).
+	const runId = /Run: (workflow_[A-Za-z0-9_]+)/.exec(out.join(""))?.[1];
+	assert.ok(runId, out.join(""));
+	assert.equal((await store.readRunRecord(p.cwd, runId)).status, "completed");
 });
