@@ -115,6 +115,7 @@ function syncClock(value) {
 }
 function duration(ms) {
 	if (!Number.isFinite(ms)) return "—";
+	if (ms >= 0 && ms < 1000) return `${(ms / 1000).toFixed(2)}s`;
 	const seconds = Math.max(0, Math.floor(ms / 1000));
 	if (seconds < 60) return `${seconds}s`;
 	const minutes = Math.floor(seconds / 60);
@@ -456,7 +457,7 @@ function renderRail() {
 					go({
 						run: need.run.runId,
 						task: target || null,
-						dialog: need.kind === "approval" ? "approve" : null,
+						dialog: need.kind === "approval" ? "approve" : "resume",
 					});
 				},
 				{ class: "need" },
@@ -495,7 +496,11 @@ function renderRail() {
 					{ class: "grow truncate", title: summary.name },
 					summary.name,
 				),
-				element("span", { class: "elapsed muted" }, elapsed(summary)),
+				element(
+					"span",
+					{ class: "elapsed muted", "data-run-elapsed": summary.runId },
+					elapsed(summary),
+				),
 			),
 			element(
 				"div",
@@ -935,7 +940,13 @@ function renderGraph() {
 			node.append(
 				svg(
 					"text",
-					{ x: 36, y: 44, class: "sub", "data-fit": p.w - 48 },
+					{
+						x: 36,
+						y: 44,
+						class: "sub",
+						"data-fit": p.w - 48,
+						"data-stage-line": stage.id,
+					},
 					stageLine(stage),
 				),
 			);
@@ -1242,6 +1253,15 @@ function usageRows(usage) {
 	return [
 		["Cost", cost(usage)],
 		["Tokens", usage?.total?.toLocaleString() || "Not collected"],
+		usage?.input != null
+			? ["Input tokens", usage.input.toLocaleString()]
+			: null,
+		usage?.output != null
+			? ["Output tokens", usage.output.toLocaleString()]
+			: null,
+		usage?.cacheRead != null
+			? ["Cached input tokens", usage.cacheRead.toLocaleString()]
+			: null,
 		usage?.tasksReporting != null
 			? [
 					"Coverage",
@@ -1896,8 +1916,18 @@ async function mutate(runId, kind, approval) {
 		if (kind === "stop" && result.pending) stoppingRuns.add(runId);
 		notice(result.text || "Action recorded.");
 		if (modalKey === actionModal) dismissDialog();
-		if (state.run === runId) await refreshRun();
-		await refreshRuns();
+		const refreshes = await Promise.allSettled([
+			state.run === runId ? refreshRun() : Promise.resolve(),
+			refreshRuns(),
+		]);
+		const failure = refreshes.find(
+			(refresh) =>
+				refresh.status === "rejected" && refresh.reason.name !== "AbortError",
+		);
+		if (failure)
+			notice(
+				`${result.text || "Action recorded."}\nThe latest state could not be refreshed: ${failure.reason.message}`,
+			);
 	} catch (error) {
 		notice(`Action failed: ${error.message}`);
 	} finally {
@@ -2306,7 +2336,21 @@ document.addEventListener("keydown", (event) => {
 });
 setInterval(() => {
 	updateConnection();
+	for (const node of document.querySelectorAll("[data-run-elapsed]")) {
+		const summary = runs.find(
+			(summary) => summary.runId === node.dataset.runElapsed,
+		);
+		if (summary) node.textContent = elapsed(summary);
+	}
 	if (!run) return;
+	for (const node of document.querySelectorAll("[data-stage-line]")) {
+		const stage = graphModel?.stages.get(node.dataset.stageLine);
+		if (stage && ["running", "retry"].includes(stage.status)) {
+			const text = stageLine(stage);
+			node.dataset.full = text;
+			if (node.firstElementChild) node.firstElementChild.textContent = text;
+		}
+	}
 	if ($("status-sentence"))
 		$("status-sentence").replaceChildren(...sentenceParts());
 	if ($("elapsed")) $("elapsed").textContent = `Elapsed ${elapsed(run)}`;
