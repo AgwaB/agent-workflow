@@ -18,6 +18,7 @@ import {
 import {
 	allowedFetchSite,
 	allowedHost,
+	bootstrapLocation,
 	bootstrapSession,
 	dashboardCsrf,
 	generateDashboardToken,
@@ -265,7 +266,7 @@ export async function startDashboardServer(
 		) {
 			if (!secureEqual(url.searchParams.get("token") ?? undefined, token))
 				throw new HttpError(401, "invalid session token");
-			bootstrapSession(response, token);
+			bootstrapSession(response, token, bootstrapLocation(url.searchParams));
 			return;
 		}
 		if (!hasSessionCookie(request, token)) {

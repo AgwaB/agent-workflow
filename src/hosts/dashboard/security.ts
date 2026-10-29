@@ -32,15 +32,36 @@ export function hasSessionCookie(
 		secureEqual(values[0]!.slice(SESSION_COOKIE.length + 1), token)
 	);
 }
+/** UI state a printed deep link may carry past the bootstrap (`?token=…&run=…`); nothing else survives. */
+export const BOOTSTRAP_FORWARDED_PARAMS = [
+	"run",
+	"task",
+	"tab",
+	"view",
+] as const;
+const FORWARDED_VALUE = /^[A-Za-z0-9._-]{1,120}$/;
+
+/** Where the bootstrap redirects: `/` plus the allowlisted, well-formed UI params (never the token). */
+export function bootstrapLocation(params: URLSearchParams): string {
+	const kept = new URLSearchParams();
+	for (const key of BOOTSTRAP_FORWARDED_PARAMS) {
+		const value = params.get(key);
+		if (value && FORWARDED_VALUE.test(value)) kept.set(key, value);
+	}
+	const query = kept.toString();
+	return query ? `/?${query}` : "/";
+}
+
 export function bootstrapSession(
 	response: ServerResponse,
 	token: string,
+	location = "/",
 ): void {
 	response.setHeader(
 		"Set-Cookie",
 		`${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Strict; Path=/`,
 	);
-	response.writeHead(302, { Location: "/" });
+	response.writeHead(302, { Location: location });
 	response.end();
 }
 export function allowedHost(host: string | undefined, port: number): boolean {

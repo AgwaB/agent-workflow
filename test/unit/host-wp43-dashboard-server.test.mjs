@@ -127,6 +127,18 @@ test("bind is IPv4 loopback; token bootstrap redirects and sets strict cookie on
 		(await http(s, "/api/session")).headers["set-cookie"],
 		undefined,
 	);
+	// A printed deep link keeps its allowlisted UI params past the bootstrap, never the token or
+	// anything else.
+	const deep = await http(
+		s,
+		`/?token=${s.token}&run=workflow_mvt9k2qa_7c41e0&task=reviewers.webhook-retry-path&tab=stderr&view=report&evil=%3Cscript%3E&redirect=http://x`,
+		{ auth: false },
+	);
+	assert.equal(deep.status, 302);
+	assert.equal(
+		deep.headers.location,
+		"/?run=workflow_mvt9k2qa_7c41e0&task=reviewers.webhook-retry-path&tab=stderr&view=report",
+	);
 	assert.equal((await http(s, "/?token=wrong", { auth: false })).status, 401);
 	assert.equal((await http(s, "/api/session", { auth: false })).status, 401);
 	const unauthenticated = await http(s, "/", { auth: false });
