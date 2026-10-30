@@ -495,6 +495,26 @@ progress::-moz-progress-bar {
 		stroke-dashoffset: -14;
 	}
 }
+/* Travelled edges: dots keep moving toward the target, also on a finished run (calm, neutral;
+   running work is the faster green dash). */
+.pulse {
+	fill: none;
+	stroke: rgba(238, 239, 242, 0.9);
+	stroke-width: 3;
+	stroke-linecap: round;
+	stroke-dasharray: 0.1 28;
+	vector-effect: non-scaling-stroke;
+	pointer-events: none;
+	animation: travel 1.6s linear infinite;
+}
+.pulse.failed {
+	stroke: rgba(241, 140, 137, 0.95);
+}
+@keyframes travel {
+	to {
+		stroke-dashoffset: -28.1;
+	}
+}
 .arrow path,
 .arrow-sample {
 	fill: rgba(238, 239, 242, 0.55);
@@ -532,6 +552,9 @@ progress::-moz-progress-bar {
 	}
 }
 @media (prefers-reduced-motion: reduce) {
+	.pulse {
+		display: none;
+	}
 	.edge,
 	.node.running .outline,
 	.node .status-icon.running circle {

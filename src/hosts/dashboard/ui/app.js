@@ -1112,6 +1112,10 @@ function renderGraph() {
 			}),
 			svg("circle", { class: `port ${state}`, cx: x1, cy: y1, r: 3 }),
 		);
+		// The path the work took keeps showing its direction, also after the run ended: small
+		// dots travel along every travelled (or failed) edge toward its target.
+		if (state === "done" || state === "failed")
+			link.append(svg("path", { class: `pulse ${state}`, d }));
 		links.push({ from: edge.from, to: edge.to, link });
 		edges.append(link);
 	}
@@ -2717,7 +2721,7 @@ function openStatusKey() {
 		...[
 			["active", "Work is flowing into this stage now"],
 			["next", "Where work goes next (dashed outline: the next stage)"],
-			["done", "Already travelled"],
+			["done", "Already travelled (dots show the direction it went)"],
 			["later", "Later"],
 		].map(([state, text]) =>
 			element(
@@ -2733,6 +2737,9 @@ function openStatusKey() {
 						"aria-hidden": "true",
 					},
 					svg("path", { class: `edge ${state}`, d: "M1,6 H34" }),
+					state === "done"
+						? svg("path", { class: "pulse done", d: "M1,6 H34" })
+						: null,
 					svg("path", {
 						class: `arrow-sample ${state}`,
 						d: "M33,1.5 L42,6 L33,10.5 Q35.5,6 33,1.5 z",

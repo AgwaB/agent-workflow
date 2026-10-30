@@ -434,6 +434,22 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 			.querySelector("#report-content")
 			?.textContent.includes("Review report"),
 	);
+	// A finished run still shows where the work went, with no button or setting: dots travel
+	// along every travelled edge.
+	assert.deepEqual(
+		await browser.evaluate(() => {
+			const done = document.querySelectorAll(".edge.done").length;
+			const pulses = [...document.querySelectorAll(".pulse.done")];
+			return {
+				some: done > 0,
+				same: pulses.length === done,
+				moving: pulses.every(
+					(pulse) => getComputedStyle(pulse).animationName === "travel",
+				),
+			};
+		}),
+		{ some: true, same: true, moving: true },
+	);
 	assert.equal(
 		await browser.evaluate(
 			() =>
