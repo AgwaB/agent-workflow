@@ -822,3 +822,20 @@ dialog footer .muted {
 .item-grid > p {
 	grid-column: 1 / -1;
 }
+
+.report-table {
+	border-collapse: collapse;
+	margin: 8px 0 16px;
+	font-size: 14px;
+}
+.report-table th,
+.report-table td {
+	border-bottom: 1px solid var(--line);
+	padding: 6px 12px 6px 0;
+	text-align: left;
+	vertical-align: top;
+}
+.report-table th {
+	color: var(--muted);
+	font-weight: 500;
+}

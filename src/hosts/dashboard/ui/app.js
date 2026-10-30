@@ -2009,9 +2009,32 @@ async function openReport() {
 			return nodes;
 		};
 		let paragraph = null;
+		let table = null;
 		for (const line of data.text.split("\n")) {
 			const heading = /^#{1,6}\s+(.+)$/.exec(line),
-				item = /^\s*[-*+]\s+(.+)$/.exec(line);
+				item = /^\s*[-*+]\s+(.+)$/.exec(line),
+				row = /^\s*\|(.+)\|\s*$/.exec(line);
+			if (row) {
+				// Pipe tables: a separator row (|---|:--:|) is skipped; cells are text nodes.
+				list = null;
+				paragraph = null;
+				const cells = row[1].split("|").map((c) => c.trim());
+				if (cells.every((c) => /^:?-{2,}:?$/.test(c))) continue;
+				if (!table) {
+					table = element("table", { class: "report-table" });
+					body.append(table);
+				}
+				const tag = table.childElementCount === 0 ? "th" : "td";
+				table.append(
+					element(
+						"tr",
+						{},
+						...cells.map((c) => element(tag, {}, ...inline(c))),
+					),
+				);
+				continue;
+			}
+			table = null;
 			if (heading) {
 				list = null;
 				paragraph = null;
