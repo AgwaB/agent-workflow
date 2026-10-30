@@ -144,6 +144,52 @@ test("run --open overrides agent/non-TTY suppression, opens once and bootstraps 
 	const response = await fetch(urls[0], { redirect: "manual" });
 	assert.equal(response.status, 302);
 	assert.equal(response.headers.get("location"), `/?run=${data.runId}`);
+	// WP43d default: the opened URL carries a launch id, never a credential, and no cookie is set.
+	assert.equal(response.headers.get("set-cookie"), null);
+	const opened = new URL(urls[0]);
+	assert.equal(opened.searchParams.has("token"), false);
+	assert.match(opened.searchParams.get("launch"), /^[A-Za-z0-9_-]{24}$/);
+	assert.ok(!out.stdout.includes(opened.searchParams.get("launch")));
+});
+test("run --open against an --auth dashboard bootstraps once with a one-time token that stays out of stdout", {
+	timeout: 15_000,
+}, async (t) => {
+	const ctx = await project(t);
+	const s = await startDashboardServer({
+		cwd: ctx.cwd,
+		env: ctx.env,
+		discovery: true,
+		auth: true,
+	});
+	t.after(() => s.close());
+	const urls = [];
+	const out = await invoke(
+		ctx,
+		[
+			"run",
+			"wf.json",
+			"open auth",
+			"--executor",
+			ctx.executor,
+			"--open",
+			"--json",
+		],
+		{
+			env: { ...ctx.env, CLAUDECODE: "1" },
+			open: async (url) => {
+				urls.push(url);
+				return true;
+			},
+		},
+	);
+	assert.equal(out.code, 0, out.stderr);
+	assert.equal(urls.length, 1);
+	const data = JSON.parse(out.stdout).data;
+	assert.equal(data.dashboard.auth, true);
+	const response = await fetch(urls[0], { redirect: "manual" });
+	assert.equal(response.status, 302);
+	assert.equal(response.headers.get("location"), `/?run=${data.runId}`);
+	assert.match(response.headers.get("set-cookie"), /HttpOnly/);
 	assert.equal((await fetch(urls[0], { redirect: "manual" })).status, 401);
 	assert.ok(!out.stdout.includes(new URL(urls[0]).searchParams.get("token")));
 });

@@ -401,12 +401,17 @@ function updateConnection() {
 					: "Reconnecting";
 	el.classList.toggle("live", !stale && connection === "Live");
 }
-/** True when the server answers but no longer accepts this tab's session (restart → new token). */
+/**
+ * True when the server answers but no longer accepts this tab's session (auth mode: restart → new
+ * token). When it still answers, adopt its current session (a restarted open-mode server has a new
+ * CSRF secret; mutations would otherwise be refused).
+ */
 async function sessionLost() {
 	try {
 		const response = await fetch("/api/session", {
 			credentials: "same-origin",
 		});
+		if (response.ok) session = await response.json();
 		return response.status === 401;
 	} catch {
 		return false;

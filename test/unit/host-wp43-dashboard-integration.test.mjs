@@ -28,8 +28,9 @@ const TWO_STAGES = {
 	},
 };
 
-// Adapted from host-wp43-dashboard-server.test.mjs; authenticate with the actual
-// bootstrap cookie and session CSRF value, rather than constructing credentials.
+// Adapted from host-wp43-dashboard-server.test.mjs; the default (WP43d open) mode: no cookie,
+// mutations carry same-origin fetch metadata, the server Origin and the CSRF value that
+// /api/session hands out.
 function http(server, path, { method = "GET", headers = {}, body } = {}) {
 	return new Promise((resolve, reject) => {
 		const req = request(
@@ -76,6 +77,7 @@ const mutation = (server) => ({
 	method: "POST",
 	headers: {
 		Origin: `http://127.0.0.1:${server.port}`,
+		"Sec-Fetch-Site": "same-origin",
 		"X-AW-CSRF": server.csrf,
 		"Content-Type": "application/json",
 	},
@@ -90,11 +92,10 @@ async function dashboard(cleanups, ctx, readonly = false) {
 		readonly,
 	});
 	cleanups.push(() => server.close());
-	const bootstrap = await http(server, `/?token=${server.token}`);
-	assert.equal(bootstrap.status, 302);
-	assert.equal(bootstrap.headers.location, "/");
-	server.cookie = bootstrap.headers["set-cookie"][0].split(";")[0];
+	assert.equal(server.auth, false);
+	assert.equal(server.url, `http://127.0.0.1:${server.port}/`);
 	const session = await json(server, "/api/session");
+	assert.equal(session.auth, false);
 	server.csrf = session.csrf;
 	assert.equal(typeof server.csrf, "string");
 	assert.equal(session.mode, readonly ? "read-only" : "read-write");
@@ -123,7 +124,7 @@ function events(cleanups, server, runId) {
 			hostname: "127.0.0.1",
 			port: server.port,
 			path: `/api/events?run=${runId}`,
-			headers: { Cookie: server.cookie },
+			headers: server.cookie ? { Cookie: server.cookie } : {},
 		},
 		(res) => {
 			response = res;

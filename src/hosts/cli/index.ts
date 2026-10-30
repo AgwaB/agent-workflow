@@ -1057,6 +1057,7 @@ async function dispatch(
 				flags: [
 					"--readonly",
 					"--open",
+					"--auth",
 					"--detached",
 					"--status",
 					"--stop",
@@ -1067,7 +1068,7 @@ async function dispatch(
 			only(
 				parsed,
 				0,
-				"dashboard [--port <n>] [--readonly] [--open] [--detached | --status | --stop | --reset-session] [--project <dir>]",
+				"dashboard [--port <n>] [--readonly] [--auth] [--open] [--detached | --status | --stop | --reset-session] [--project <dir>]",
 			);
 			const cwd = resolve(io.cwd, parsed.values.get("--project") ?? ".");
 			const status = parsed.flags.has("--status");
@@ -1085,7 +1086,7 @@ async function dispatch(
 				if (!existing && resetting) {
 					await resetDashboardSession(cwd);
 					io.stdout(
-						"Dashboard session reset; sign in again with agent-workflow dashboard --open.\n",
+						"Dashboard session reset; --auth dashboards sign in again with agent-workflow dashboard --open.\n",
 					);
 					return EXIT_OK;
 				}
@@ -1095,7 +1096,7 @@ async function dispatch(
 				}
 				if (status) {
 					io.stdout(
-						`Dashboard listening on 127.0.0.1:${existing.port} (pid ${existing.pid}, since ${existing.startedAt}${existing.detached && existing.idleExitAt ? `, idle exit in ${Math.max(0, Math.ceil((Date.parse(existing.idleExitAt) - (io.now?.() ?? Date.now())) / 60_000))}m` : ""})\n`,
+						`Dashboard listening on 127.0.0.1:${existing.port} (pid ${existing.pid}, since ${existing.startedAt}, auth ${existing.auth ? "on" : "off"}${existing.detached && existing.idleExitAt ? `, idle exit in ${Math.max(0, Math.ceil((Date.parse(existing.idleExitAt) - (io.now?.() ?? Date.now())) / 60_000))}m` : ""})\n`,
 					);
 					return EXIT_OK;
 				}
@@ -1115,7 +1116,7 @@ async function dispatch(
 				if (resetting) {
 					await resetDashboardSession(cwd);
 					io.stdout(
-						"Dashboard session reset; sign in again with agent-workflow dashboard --open.\n",
+						"Dashboard session reset; --auth dashboards sign in again with agent-workflow dashboard --open.\n",
 					);
 				} else io.stdout("Dashboard stopped.\n");
 				return EXIT_OK;
@@ -1124,6 +1125,7 @@ async function dispatch(
 				existing &&
 				parsed.flags.has("--open") &&
 				!parsed.flags.has("--readonly") &&
+				!parsed.flags.has("--auth") &&
 				!parsed.flags.has("--detached") &&
 				!parsed.values.has("--port")
 			) {
@@ -1159,6 +1161,8 @@ async function dispatch(
 			const stopped = new Promise<void>((done) => {
 				stop = done;
 			});
+			// WP43d: sign-in is opt-in (`--auth`, or AGENT_WORKFLOW_DASHBOARD_AUTH=1 so that auto-started
+			// dashboards inherit it).
 			const dashboard = await startDashboardServer({
 				cwd,
 				idleExitMs,
@@ -1167,6 +1171,9 @@ async function dispatch(
 				env: io.env,
 				...(port === undefined ? {} : { port }),
 				readonly: parsed.flags.has("--readonly"),
+				auth:
+					parsed.flags.has("--auth") ||
+					io.env.AGENT_WORKFLOW_DASHBOARD_AUTH === "1",
 				...(io.now ? { now: io.now } : {}),
 			});
 			if (io.signal) {

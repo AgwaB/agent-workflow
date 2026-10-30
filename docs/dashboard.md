@@ -7,23 +7,25 @@ Design reference: the approved F v9-O mockup (`dashboard-mockups/f-combined-v9-o
 ## Command
 
 ```
-agent-workflow dashboard [--port <n>] [--readonly] [--open] [--project <dir>]
+agent-workflow dashboard [--port <n>] [--readonly] [--auth] [--open] [--project <dir>]
 ```
 
-- Binds **127.0.0.1 only** (never `0.0.0.0`, never IPv6-any). Port: a free ephemeral port unless `--port`.
-- Prints one line with the URL **including the session token** and keeps running until SIGINT/SIGTERM (exit 0). `--open` opens it in the default browser.
-- `--readonly`: the UI shows a read-only badge and the server rejects every mutation with 403, even with a valid token.
+- Binds **127.0.0.1 only** (never `0.0.0.0`, never IPv6-any). Port: the project's last port when free, else a free ephemeral port, unless `--port`.
+- Prints one line with the URL and keeps running until SIGINT/SIGTERM (exit 0). `--open` opens it in the default browser. **By default there is no sign-in** (WP43d, below): the URL is plain. With `--auth` the URL includes the session token.
+- `--readonly`: the UI shows a read-only badge and the server rejects every mutation with 403, whoever asks.
 - `--project`: project directory (default: cwd). One server = one project (`<dir>/.agent-workflow/`).
 - Exit 2 on usage errors (port in use, port out of range, not a directory).
 
 ## Security model
 
+The default mode (WP43d) has **no sign-in**; the rows marked *(`--auth`)* apply only when sign-in is turned on. See "No sign-in by default" at the end for the reasoning and the stated residual risk.
+
 | Threat | Control |
 | --- | --- |
-| Another local user / process on the machine | Bind `127.0.0.1`; 256-bit random **session token** required for everything except the bootstrap redirect; token is printed once to the launching terminal only. |
-| Token leaking via URL/history/referrer | The URL form `http://127.0.0.1:<port>/?token=…` is accepted **once per request** to set an `HttpOnly; SameSite=Strict; Path=/` cookie and `302` to `/`. All later requests use the cookie. `Referrer-Policy: no-referrer` on every response. |
-| DNS rebinding / a web page on another origin calling the API | `Host` must be `127.0.0.1:<port>` or `localhost:<port>` (else 421). Mutations require `Origin` equal to the server origin (else 403). `Sec-Fetch-Site`, when present, must be `same-origin` or `none`. |
-| CSRF through the cookie | Mutations are `POST` with `Content-Type: application/json` and header `X-AW-CSRF: <csrf>`; the csrf value comes from `GET /api/session` and is tied to the session token (HMAC). Cookie `SameSite=Strict`. No form posts. |
+| Another local user / process on the machine | Bind `127.0.0.1`. **Default: accepted** — a local party that can reach the port can view runs and press the controls (same parties can read `.agent-workflow/` anyway). *(`--auth`)* 256-bit random **session token** required for everything except the bootstrap redirect; printed once to the launching terminal only. |
+| Token leaking via URL/history/referrer *(`--auth`)* | The URL form `http://127.0.0.1:<port>/?token=…` is accepted **once per request** to set an `HttpOnly; SameSite=Strict; Path=/` cookie and `302` to `/`. All later requests use the cookie. `Referrer-Policy: no-referrer` on every response (both modes). |
+| DNS rebinding / a web page on another origin calling the API | `Host` must be `127.0.0.1:<port>` or `localhost:<port>` (else 421). No CORS headers, so a foreign page cannot read any response. Mutations require `Origin` equal to the server origin (else 403). `Sec-Fetch-Site`, when present, must be `same-origin` or `none`; **default mode requires `same-origin` on every mutation** (browsers set it; pages elsewhere cannot). |
+| CSRF | Mutations are `POST` with `Content-Type: application/json` and header `X-AW-CSRF: <csrf>`; the csrf value comes from `GET /api/session`, which only a same-origin page can read. *(`--auth`)* it is tied to the session token (HMAC) and the cookie is `SameSite=Strict`. No form posts. |
 | XSS from worker output / reports / prompts | UI renders every string with `textContent`/`createElement`; reports are shown as **text** (headings and lists built as DOM nodes; no HTML, no images, no links from content). CSP: `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`. No inline scripts/styles, no external resources, no web fonts. `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Cache-Control: no-store`. |
 | Secrets / home paths in logs and launch commands | Everything passes the host API's redaction (`hostTextRedactor`, logs containment of WP19); the dashboard adds nothing unredacted. |
 | Unbounded reads | Log tails bounded by the host API (≤ 400 lines, ≤ 48 kB per call); report body capped at 256 kB (truncated with a notice); SSE one connection per tab, server-side poll ≥ 1 s. |
@@ -37,9 +39,10 @@ All JSON responses: `Content-Type: application/json; charset=utf-8`. Errors: `{ 
 
 | Method & path | Returns |
 | --- | --- |
-| `GET /?token=…` | sets cookie, 302 → `/` — a printed deep link keeps its well-formed `run`, `task`, `tab`, `view` params (never the token, nothing else) |
-| `GET /` `/app.js` `/app.css` | the UI (cookie required; 401 otherwise, with a short HTML notice that says to use the printed URL) |
-| `GET /api/session` | `{ apiVersion: 1, project: { path, name }, mode: "read-write" \| "read-only", csrf, serverTime, version }` |
+| `GET /?launch=…` (default) | marks that launch consumed (unknown ids ignored), 302 → `/` keeping well-formed `run`, `task`, `tab`, `view` params; a stray `?token=` is dropped the same way |
+| `GET /?token=…` *(`--auth`)* | sets cookie, 302 → `/` — a printed deep link keeps its well-formed `run`, `task`, `tab`, `view` params (never the token, nothing else) |
+| `GET /` `/app.js` `/app.css` | the UI (*`--auth`*: cookie required; 401 otherwise with the sign-in page) |
+| `GET /api/session` | `{ apiVersion: 1, project: { path, name }, mode: "read-write" \| "read-only", auth: boolean, csrf, serverTime, version }` |
 | `GET /api/runs` | `{ serverTime, runs: DashboardRunSummary[] }` — every top-level run, newest first |
 | `GET /api/runs/:runId` | `DashboardRun` (full projection, below) |
 | `GET /api/runs/:runId/tasks/:taskId/logs?stream=output\|stderr\|events\|all&lines=1..400` | `logsAction` data for that task (`LogsTask`, with `truncated`/`refused` as the host API reports) |
@@ -128,24 +131,25 @@ Decision (owner, 2026-10-30, after the survey in the analysis workspace): runnin
 `<project>/.agent-workflow/dashboard.json`, mode `0600`, written by the dashboard after it listens and removed when it exits (SIGINT/SIGTERM/close):
 
 ```json
-{ "schema": "agent-workflow-dashboard-v1", "pid": 12345, "port": 47318, "startedAt": "…", "launchKey": "<32 random bytes, base64url>" }
+{ "schema": "agent-workflow-dashboard-v1", "pid": 12345, "port": 47318, "startedAt": "…", "launchKey": "<32 random bytes, base64url>", "auth": false }
 ```
 
 - `launchKey` is a **local control secret** that only mints one-time launch URLs (below). It is never the session token, and it is never printed. Same trust boundary as the run records next to it (same user, 0600).
-- Readers (`readDashboardDiscovery(cwd)`) accept the file only if the pid is alive and `GET http://127.0.0.1:<port>/api/session` answers 401 with our JSON error within 500 ms (proves the port is ours). A stale file whose pid is dead is deleted.
+- `auth` (WP43d) says whether that server requires sign-in; a file without it (older server) means it does.
+- Readers (`readDashboardDiscovery(cwd)`) accept the file only if the pid is alive and `GET http://127.0.0.1:<port>/api/session` answers within 500 ms either 401 with our JSON error (`--auth`) or 200 with `apiVersion: 1, auth: false` (default) — proves the port is ours. A stale file whose pid is dead is deleted.
 
 ### One-time launch URLs
 
-- `POST /api/launch` — loopback + Host checks; header `X-AW-Launch-Key` (timing-safe compare); JSON body with optional `run`, `task`, `tab`, `view` (validated like the bootstrap forward). Response `{ "url": "http://127.0.0.1:<port>/?token=<one-time>&run=…" }`. No cookie or CSRF (the key authenticates). 401 on a bad key, 429 with more than 16 outstanding tokens.
-- One-time tokens: 32 random bytes, 60 s TTL, single use; the bootstrap accepts them exactly like the session token (sets the same session cookie, forwards the UI params) and then discards them. The session token still works for manual sign-in.
-- `dashboard --open` opens a one-time URL, not the session URL (Jupyter's launch-token pattern).
+- `POST /api/launch` — loopback + Host checks; header `X-AW-Launch-Key` (timing-safe compare); JSON body with optional `run`, `task`, `tab`, `view` (validated like the bootstrap forward). Response `{ "url", "launchId" }`; the URL is `http://127.0.0.1:<port>/?launch=<id>&run=…` by default (no credential) and `…/?token=<one-time>&run=…` under `--auth`. No cookie or CSRF (the key authenticates). 401 on a bad key, 429 with more than 16 outstanding launches.
+- One-time tokens (`--auth`): 32 random bytes, 60 s TTL, single use; the bootstrap accepts them exactly like the session token (sets the same session cookie, forwards the UI params) and then discards them. The session token still works for manual sign-in. By default the launch id only lets the minter learn that the browser arrived (`GET /api/launch/:id`, launch-key protected).
+- `dashboard --open` opens a launch URL, never a session URL (Jupyter's launch-token pattern under `--auth`).
 
 ### `run` / `dynamic` / `auto`
 
 - `LaunchData.dashboard?: { url, port }` when discovery validates — `url` is token-free (`http://127.0.0.1:<port>/?run=<id>`); the text gets one line `Dashboard: <url>` right after the run heading. When no dashboard runs the line reads `Dashboard: not running · agent-workflow dashboard --open` (one short line; the owner asked for the link to come first).
 - `--open` (CLI flag) or `AGENT_WORKFLOW_DASHBOARD_OPEN=1`: after the launch, make sure a dashboard runs (start one detached when absent: `agent-workflow dashboard --project <cwd> --detached`, which prints no session URL and only writes the discovery file; wait ≤ 3 s), mint a one-time URL for `run=<id>` and open it with the platform opener.
 - **Agent suppression (Storybook's rule):** when `CLAUDECODE`, `CODEX_SANDBOX`, `CODEX_THREAD_ID`, `CURSOR_AGENT` or `AI_AGENT` is set, or the host context is `pi`/`codex`/`claude-code`, the env-var form does not open (the token-free line is printed with "not opened: AI agent environment; pass --open to force"). The explicit `--open` flag always opens.
-- `dashboard --status` prints the discovery state (pid, port, since); `dashboard --stop` sends SIGTERM to the recorded pid and waits for the file to disappear.
+- `dashboard --status` prints the discovery state (pid, port, since, auth on/off); `dashboard --stop` sends SIGTERM to the recorded pid and waits for the file to disappear.
 
 ### MCP hosts (Codex, Claude Code)
 
@@ -156,9 +160,9 @@ Decision (owner, 2026-10-30, after the survey in the analysis workspace): runnin
 
 ## Always a link (WP43c — owner decision A, 2026-10-30)
 
-The owner wants the dashboard link in the launch result every time, clickable, without a token in the chat. Three pieces make that work:
+The owner wants the dashboard link in the launch result every time, clickable, without a token in the chat. Three pieces make that work. (WP43d then made the session optional: the persistent-session section below applies under `--auth`; auto-start, sticky port and idle exit apply always.)
 
-### Persistent session (sign in once per browser)
+### Persistent session (sign in once per browser) — `--auth` only
 
 - The session token is stored in `<project>/.agent-workflow/dashboard-session` (mode 0600, 32 random bytes base64url) and **reused** by every dashboard start for that project, so a browser that signed in once keeps a valid cookie across dashboard restarts. Same trust boundary as `dashboard.json`'s launch key and the run records beside it.
 - `agent-workflow dashboard --reset-session` writes a new token (every browser must sign in again) and stops a running dashboard first if there is one.
@@ -167,10 +171,10 @@ The owner wants the dashboard link in the launch result every time, clickable, w
 
 ### Auto-start on launch
 
-- `run` / `dynamic` / `auto` (host API, so CLI, Pi and MCP alike): when no dashboard runs for the project, start one detached (`agent-workflow dashboard --project <cwd> --detached`), wait ≤ 3 s for its discovery file, and fill `LaunchData.dashboard = { url, port, started: true }`. The text line is always `Dashboard: http://127.0.0.1:<port>/?run=<id>`; when it was started just now the line ends with ` · first time in this browser? agent-workflow dashboard --open`.
+- `run` / `dynamic` / `auto` (host API, so CLI, Pi and MCP alike): when no dashboard runs for the project, start one detached (`agent-workflow dashboard --project <cwd> --detached`; it inherits `AGENT_WORKFLOW_DASHBOARD_AUTH`), wait ≤ 3 s for its discovery file, and fill `LaunchData.dashboard = { url, port, started: true, auth?: true }`. The text line is always `Dashboard: http://127.0.0.1:<port>/?run=<id>`; when an `--auth` dashboard was started just now the line ends with ` · first time in this browser? agent-workflow dashboard --open`.
 - Opening the browser is still opt-in (`--open`, env var, `workflow_dashboard`, `/aw dashboard`) and still suppressed under agent environments — auto-start only runs a loopback server.
 - Off switch: `AGENT_WORKFLOW_DASHBOARD_AUTOSTART=0`. Never auto-starts under the `worker` process role, in `--readonly` contexts, or when the start fails (the launch still succeeds; the line then reads `Dashboard: not running · agent-workflow dashboard --open`). The unit runner and the e2e guard set the variable to `0`; tests that cover auto-start opt in.
-- MCP `Next:` guidance: tell the user the run id and the Dashboard link before waiting; if the user says the link asks them to sign in, call `workflow_dashboard` (consent dialog → browser).
+- MCP `Next:` guidance: tell the user the run id and the Dashboard link before waiting; if the user wants it opened for them (or, under `--auth`, says the link asks them to sign in), call `workflow_dashboard` (consent dialog → browser).
 
 ### Sticky port
 

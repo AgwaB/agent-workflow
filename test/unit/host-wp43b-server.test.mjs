@@ -55,8 +55,39 @@ test("launch key authenticates without a cookie/CSRF; Host and fetch-site still 
 	assert.equal((await launch(s, { "Content-Type": "text/plain" })).status, 400);
 	assert.equal((await launch(s)).status, 200, "read-only still allows sign-in");
 });
-test("one-time bootstrap sets the session cookie, forwards only valid UI params, and rejects reuse", async (t) => {
-	const s = await server(t);
+test("WP43d open mode: launch URLs carry a launch id, not a credential; arriving forwards UI params and reclaims the slot", async (t) => {
+	let now = 10_000;
+	const s = await server(t, { now: () => now });
+	assert.equal(s.auth, false);
+	const url = await mintLaunchUrl(s, {
+		run: "workflow_example",
+		tab: "output",
+	});
+	const minted = new URL(url);
+	assert.deepEqual([...minted.searchParams.keys()], ["launch", "run", "tab"]);
+	assert.match(minted.searchParams.get("launch"), /^[A-Za-z0-9_-]{24}$/);
+	const response = await fetch(url, { redirect: "manual" });
+	assert.equal(response.status, 302);
+	assert.equal(
+		response.headers.get("location"),
+		"/?run=workflow_example&tab=output",
+	);
+	assert.equal(response.headers.get("set-cookie"), null);
+	// Re-use is harmless (nothing to steal) and the UI is open anyway.
+	assert.equal((await fetch(url, { redirect: "manual" })).status, 302);
+	assert.equal((await fetch(s.url)).status, 200);
+	// The 16-slot cap still applies and a consumed launch frees its slot.
+	const urls = [];
+	for (let i = 0; i < 16; i++) urls.push(await mintLaunchUrl(s));
+	assert.equal((await launch(s)).status, 429);
+	assert.equal((await fetch(urls[0], { redirect: "manual" })).status, 302);
+	assert.equal((await launch(s)).status, 200);
+	assert.equal((await launch(s)).status, 429);
+	now += 60_000;
+	assert.equal((await launch(s)).status, 200);
+});
+test("--auth: one-time bootstrap sets the session cookie, forwards only valid UI params, and rejects reuse", async (t) => {
+	const s = await server(t, { auth: true });
 	const url = await mintLaunchUrl(s, {
 		run: "workflow_example",
 		task: "a.1",
@@ -98,9 +129,9 @@ test("one-time bootstrap sets the session cookie, forwards only valid UI params,
 	const forwarded = new URL(result.url);
 	assert.deepEqual([...forwarded.searchParams.keys()], ["token", "tab"]);
 });
-test("launch tokens expire at 60s, cap outstanding tokens at 16, and reclaim used/expired slots", async (t) => {
+test("--auth: launch tokens expire at 60s, cap outstanding tokens at 16, and reclaim used/expired slots", async (t) => {
 	let now = 10_000;
-	const s = await server(t, { now: () => now });
+	const s = await server(t, { now: () => now, auth: true });
 	const urls = [];
 	for (let i = 0; i < 16; i++) urls.push(await mintLaunchUrl(s));
 	assert.equal((await launch(s)).status, 429);

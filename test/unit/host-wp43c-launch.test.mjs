@@ -106,17 +106,21 @@ test("real fixture launch auto-starts a real detached dashboard and always print
 	assert.notEqual(discovery.pid, process.pid);
 	assert.equal(discovery.detached, true);
 	const url = `http://127.0.0.1:${discovery.port}/?run=${first.data.runId}`;
+	// WP43d default: the auto-started dashboard needs no sign-in, so no "first time" hint.
+	assert.equal(discovery.auth, false);
 	assert.deepEqual(first.data.dashboard, {
 		url,
 		port: discovery.port,
 		started: true,
 	});
-	assert.ok(
-		first.text.includes(
-			`Dashboard: ${url} · first time in this browser? agent-workflow dashboard --open`,
-		),
-	);
+	assert.ok(first.text.split("\n").includes(`Dashboard: ${url}`), first.text);
+	assert.doesNotMatch(first.text, /first time in this browser|sign in/);
 	assert.doesNotMatch(JSON.stringify(first), /token=|launchKey/);
+	// The link opens directly: no cookie, no sign-in page.
+	const landing = await fetch(url);
+	assert.equal(landing.status, 200);
+	assert.equal(landing.headers.get("set-cookie"), null);
+	assert.doesNotMatch(await landing.text(), /isn't signed in/);
 	if (process.platform !== "win32") {
 		const { stdout } = await promisify(execFile)("ps", [
 			"-p",
@@ -142,6 +146,37 @@ test("real fixture launch auto-starts a real detached dashboard and always print
 	);
 	assert.doesNotMatch(second.text, /first time in this browser/);
 	assert.equal((await readDashboardDiscovery(ctx.cwd)).pid, discovery.pid);
+});
+
+test("AGENT_WORKFLOW_DASHBOARD_AUTH=1: the auto-started dashboard requires sign-in and the launch says so once", {
+	timeout: 20_000,
+}, async (t) => {
+	const { ctx, launch } = await project(t, {
+		CLAUDECODE: "1",
+		AGENT_WORKFLOW_DASHBOARD_AUTH: "1",
+	});
+	const first = await launch();
+	assert.ok(first.ok, first.text);
+	const discovery = await readDashboardDiscovery(ctx.cwd);
+	assert.ok(discovery);
+	assert.equal(discovery.auth, true);
+	const url = `http://127.0.0.1:${discovery.port}/?run=${first.data.runId}`;
+	assert.deepEqual(first.data.dashboard, {
+		url,
+		port: discovery.port,
+		started: true,
+		auth: true,
+	});
+	assert.ok(
+		first.text.includes(
+			`Dashboard: ${url} · first time in this browser? agent-workflow dashboard --open`,
+		),
+		first.text,
+	);
+	assert.equal((await fetch(url)).status, 401);
+	const second = await launch("Use the existing auth dashboard");
+	assert.equal(second.data.dashboard.auth, true);
+	assert.doesNotMatch(second.text, /first time in this browser/);
 });
 
 test("auto-start off switch retains the not-running line", {

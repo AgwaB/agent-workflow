@@ -68,7 +68,7 @@ test("dashboard prints one URL, supports project/read-only, and honors io.signal
 		ready = resolve;
 	});
 	const command = invoke(
-		["dashboard", "--readonly", "--open", "--project", root],
+		["dashboard", "--readonly", "--auth", "--open", "--project", root],
 		{
 			signal: controller.signal,
 			open: async () => true,
@@ -92,6 +92,40 @@ test("dashboard prints one URL, supports project/read-only, and honors io.signal
 	const session = await response.json();
 	assert.equal(session.project.name, root.split("/").at(-1));
 	assert.equal(session.mode, "read-only");
+	assert.equal(session.auth, true);
+	controller.abort();
+	assert.equal((await command).code, 0);
+});
+
+test("dashboard (default, WP43d) prints a plain URL that opens without sign-in", {
+	timeout: 5000,
+}, async (t) => {
+	const root = await mkdtemp(join(tmpdir(), "aw-dashboard-cli-open-"));
+	t.after(() => rm(root, { recursive: true, force: true }));
+	const controller = new AbortController();
+	const lines = [];
+	let ready;
+	const started = new Promise((resolve) => {
+		ready = resolve;
+	});
+	const command = invoke(["dashboard", "--project", root], {
+		signal: controller.signal,
+		stdout: (line) => {
+			lines.push(line);
+			ready();
+		},
+	});
+	t.after(() => controller.abort());
+	await started;
+	assert.equal(lines.length, 1);
+	assert.match(lines[0], /^Dashboard: http:\/\/127\.0\.0\.1:\d+\/\n$/);
+	const url = new URL(lines[0].split(" ")[1]);
+	const page = await fetch(url);
+	assert.equal(page.status, 200);
+	assert.equal(page.headers.get("set-cookie"), null);
+	const session = await (await fetch(new URL("/api/session", url))).json();
+	assert.equal(session.auth, false);
+	assert.equal(session.mode, "read-write");
 	controller.abort();
 	assert.equal((await command).code, 0);
 });

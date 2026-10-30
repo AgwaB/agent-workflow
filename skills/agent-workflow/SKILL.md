@@ -23,7 +23,7 @@ say the same.
 | `workflow_inspect` | Details of a run: `failures: true` for failed tasks, `results: true` for task results. |
 | `workflow_logs` | Bounded, redacted tail of task output, stderr and executor events (`runId`, `task?`, `lines?`, `stream?`). |
 | `workflow_stop` | Stop a run (`runId`). Cancelling a wait call does not stop the run. |
-| `workflow_dashboard` | When the user wants to watch: start the local dashboard (`run?`: full run id) and open it in their browser after a consent dialog (URL dialog in Claude Code, form dialog in Codex); clients without dialogs get terminal instructions. Never changes a run or returns sign-in credentials. |
+| `workflow_dashboard` | When the user wants to watch: start the local dashboard (`run?`: full run id) and open it in their browser after a consent dialog (URL dialog in Claude Code, form dialog in Codex); clients without dialogs get terminal instructions. Never changes a run or returns credentials. |
 | `workflow_validate` | Check a workflow spec (`workflow`: name or spec path). |
 | `workflow_resume` | Continue a failed, interrupted or blocked run (`runId`, `detach?` default true). **Starts model calls (cost)**: only when the user asks. |
 | `workflow_supervise` | Start a background supervisor for a running run that nothing drives (`runId`). Starts model calls: only when the user asks. |
@@ -61,9 +61,10 @@ Use whichever form your tool list shows.
    scope, paths, exclusions and the expected output, in the user's words where possible. Pass
    declared workflow `inputs` only when the user asked for them (for example `{"depth": "quick"}`).
 3. **Before waiting, tell the user the `runId` and the `Dashboard:` line from the launch result**
-   — the token-free link is always there (the server auto-starts unless disabled or startup fails).
-   If the user can't open it or it asks them to sign in, call `workflow_dashboard` — the user
-   confirms in a dialog. People want the link first.
+   — the token-free link is always there (the server auto-starts unless disabled or startup fails)
+   and opens directly (no sign-in by default). If the user wants it opened for them, can't open it,
+   or — on a dashboard started with `--auth` — it asks them to sign in, call `workflow_dashboard`:
+   the user confirms in a dialog. People want the link first.
 4. Call `workflow_wait {runId}`. While the result says `stillRunning: true`, call `workflow_wait`
    again with the same `runId`; between calls give the user at most a one-line progress note. Do not
    poll with shell `sleep`, and do not start other edits on files the run is reading.

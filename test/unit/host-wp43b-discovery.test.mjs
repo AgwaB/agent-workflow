@@ -35,14 +35,31 @@ test("discovery is private, atomic, correctly located and requires a valid schem
 	const discovery = await readDashboardDiscovery(cwd, {
 		probe: async () => true,
 	});
+	// WP43d: a file without `auth` (older server) means sign-in is on.
 	assert.deepEqual(discovery, {
 		pid: process.pid,
 		port: 1234,
 		launchKey: key,
 		startedAt: raw.startedAt,
+		auth: true,
 	});
 	assert.equal(
 		await readDashboardDiscovery(cwd, { probe: async () => false }),
+		undefined,
+	);
+	await writeDashboardDiscovery(cwd, {
+		pid: process.pid,
+		port: 1234,
+		launchKey: key,
+		auth: false,
+	});
+	assert.equal(
+		(await readDashboardDiscovery(cwd, { probe: async () => true })).auth,
+		false,
+	);
+	await writeFile(path, JSON.stringify({ ...raw, auth: "yes" }));
+	assert.equal(
+		await readDashboardDiscovery(cwd, { probe: async () => true }),
 		undefined,
 	);
 	await removeDashboardDiscovery(cwd, "not-the-owner");
@@ -54,20 +71,27 @@ test("discovery is private, atomic, correctly located and requires a valid schem
 	await assert.rejects(stat(path), { code: "ENOENT" });
 	await removeDashboardDiscovery(cwd);
 });
-test("discovery probes the real unauthenticated dashboard, cleans up on close", async (t) => {
-	const cwd = await project(t);
-	const s = await startDashboardServer({ cwd, env: {}, discovery: true });
-	t.after(() => s.close());
-	const found = await readDashboardDiscovery(cwd);
-	assert.equal(found.port, s.port);
-	assert.equal(found.launchKey, s.launchKey);
-	assert.notEqual(found.launchKey, s.token);
-	assert.deepEqual(await ensureDashboard(cwd, {}, { start: false }), found);
-	await s.close();
-	assert.equal(await readDashboardDiscovery(cwd), undefined);
-	await assert.rejects(stat(dashboardDiscoveryPath(cwd)), { code: "ENOENT" });
-	assert.equal(await ensureDashboard(cwd, {}, { start: false }), undefined);
-});
+for (const auth of [false, true])
+	test(`discovery probes the real dashboard without credentials (auth ${auth}), cleans up on close`, async (t) => {
+		const cwd = await project(t);
+		const s = await startDashboardServer({
+			cwd,
+			env: {},
+			discovery: true,
+			auth,
+		});
+		t.after(() => s.close());
+		const found = await readDashboardDiscovery(cwd);
+		assert.equal(found.port, s.port);
+		assert.equal(found.launchKey, s.launchKey);
+		assert.equal(found.auth, auth);
+		assert.notEqual(found.launchKey, s.token);
+		assert.deepEqual(await ensureDashboard(cwd, {}, { start: false }), found);
+		await s.close();
+		assert.equal(await readDashboardDiscovery(cwd), undefined);
+		await assert.rejects(stat(dashboardDiscoveryPath(cwd)), { code: "ENOENT" });
+		assert.equal(await ensureDashboard(cwd, {}, { start: false }), undefined);
+	});
 test("probe rejects other services, malformed errors, redirects, and a stalled response within 500ms", {
 	timeout: 5000,
 }, async (t) => {
@@ -75,12 +99,26 @@ test("probe rejects other services, malformed errors, redirects, and a stalled r
 	let mode = "ok";
 	const server = createServer((_req, res) => {
 		if (mode === "hang") return;
-		res.writeHead(mode === "redirect" ? 302 : mode === "ok" ? 200 : 401, {
-			"Content-Type": "application/json",
-			Location: "/api/session",
-		});
+		res.writeHead(
+			mode === "redirect"
+				? 302
+				: mode === "ok" || mode === "open-auth" || mode === "open"
+					? 200
+					: 401,
+			{
+				"Content-Type": "application/json",
+				Location: "/api/session",
+			},
+		);
+		// "open-auth": a 200 that claims auth (not an open dashboard's answer); "open": the real one.
 		res.end(
-			mode === "bad" ? "{}" : '{"error":"use the printed dashboard URL"}',
+			mode === "bad"
+				? "{}"
+				: mode === "open-auth"
+					? '{"apiVersion":1,"auth":true}'
+					: mode === "open"
+						? '{"apiVersion":1,"auth":false}'
+						: '{"error":"use the printed dashboard URL"}',
 		);
 	});
 	await new Promise((done) => server.listen(0, "127.0.0.1", done));
@@ -93,13 +131,13 @@ test("probe rejects other services, malformed errors, redirects, and a stalled r
 		port: server.address().port,
 		launchKey: key,
 	});
-	for (mode of ["ok", "bad", "redirect", "hang"]) {
+	for (mode of ["ok", "open-auth", "bad", "redirect", "hang"]) {
 		const start = Date.now();
 		assert.equal(await readDashboardDiscovery(cwd), undefined, mode);
 		assert.ok(Date.now() - start < 900, "bounded probe");
 	}
-	mode = "valid";
-	assert.ok(await readDashboardDiscovery(cwd));
+	for (mode of ["valid", "open"])
+		assert.ok(await readDashboardDiscovery(cwd), mode);
 	const start = Date.now();
 	assert.equal(
 		await readDashboardDiscovery(cwd, { probe: () => new Promise(() => {}) }),

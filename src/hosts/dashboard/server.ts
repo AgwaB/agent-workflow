@@ -1,4 +1,6 @@
-// WP43: loopback-only, cookie-authenticated HTTP host. No framework or engine/file-store access.
+// WP43: loopback-only HTTP host. No framework or engine/file-store access.
+// WP43d: no sign-in by default (loopback + Host/fetch-site/Origin/CSRF); `auth` opts into the
+// persistent-session cookie model for shared machines.
 import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import {
@@ -49,6 +51,11 @@ export interface DashboardServerOptions {
 	discovery?: boolean;
 	launchKey?: string;
 	token?: string;
+	/**
+	 * Require the session cookie (sign-in page, one-time launch URLs, persistent project session).
+	 * Default: `AGENT_WORKFLOW_DASHBOARD_AUTH=1` in `env`, else off.
+	 */
+	auth?: boolean;
 	idleExitMs?: number;
 	/** How often the idle rule is evaluated (default 60 s; tests shorten it). */
 	idleCheckMs?: number;
@@ -57,8 +64,10 @@ export interface DashboardServerOptions {
 export interface DashboardServer {
 	url: string;
 	port: number;
+	/** Session token when `auth` is on; otherwise the server's private CSRF secret (not a URL credential). */
 	token: string;
 	launchKey: string;
+	auth: boolean;
 	close(): Promise<void>;
 }
 class HttpError extends Error {
@@ -202,9 +211,12 @@ export async function startDashboardServer(
 	const redact = hostTextRedactor(env);
 	const source =
 		options.source ?? hostApiDashboardSource({ cwd, env, host: "cli" });
+	const auth = options.auth ?? env.AGENT_WORKFLOW_DASHBOARD_AUTH === "1";
+	// Without auth the token is only the CSRF secret: never persisted, never printed or accepted in
+	// a URL; foreign pages cannot read `/api/session` (no CORS), so they cannot forge mutations.
 	const token =
 		options.token ??
-		(options.discovery
+		(auth && options.discovery
 			? await readOrCreateDashboardSession(cwd)
 			: generateDashboardToken());
 	const csrf = dashboardCsrf(token);
@@ -383,10 +395,32 @@ export async function startDashboardServer(
 				if (launch.expires + 600_000 <= now()) launches.delete(id);
 			launches.set(launchId, { token: oneTime, expires });
 			const target = new URL("/", origin);
-			target.searchParams.set("token", oneTime);
+			// WP43d: without auth the URL needs no credential; it carries the launch id instead so the
+			// minter can still learn that the browser arrived (MCP elicitation completion).
+			if (auth) target.searchParams.set("token", oneTime);
+			else target.searchParams.set("launch", launchId);
 			for (const [key, value] of forwarded.searchParams)
 				target.searchParams.set(key, value);
 			json(response, 200, { url: target.href, launchId });
+			return;
+		}
+		if (
+			!auth &&
+			request.method === "GET" &&
+			url.pathname === "/" &&
+			(url.searchParams.has("launch") || url.searchParams.has("token"))
+		) {
+			// Mark the launch consumed (unknown/expired ids are simply ignored) and drop the parameter,
+			// as well as any `token` from a link printed while auth was on: the UI params survive.
+			const launch = launches.get(url.searchParams.get("launch") ?? "");
+			if (launch && launch.consumedAt === undefined && launch.expires > now()) {
+				launch.consumedAt = now();
+				launchTokens.delete(launch.token);
+			}
+			response.writeHead(302, {
+				Location: bootstrapLocation(url.searchParams),
+			});
+			response.end();
 			return;
 		}
 		if (
@@ -411,7 +445,7 @@ export async function startDashboardServer(
 		// signed-in tab through the OS opener; the one-time URL never travels to the page or the chat.
 		// Cross-site pages are refused by the fetch-metadata check; non-browser callers gain nothing
 		// (the tab opens in the server owner's browser).
-		if (request.method === "GET" && url.pathname === "/signin.js") {
+		if (auth && request.method === "GET" && url.pathname === "/signin.js") {
 			response.writeHead(200, {
 				"Content-Type": "text/javascript; charset=utf-8",
 				"Cache-Control": "no-store",
@@ -419,7 +453,11 @@ export async function startDashboardServer(
 			response.end(SIGNIN_SCRIPT);
 			return;
 		}
-		if (request.method === "POST" && url.pathname === "/api/signin-local") {
+		if (
+			auth &&
+			request.method === "POST" &&
+			url.pathname === "/api/signin-local"
+		) {
 			if (
 				request.headers["sec-fetch-site"] !== "same-origin" ||
 				request.headers.origin !== origin
@@ -455,7 +493,7 @@ export async function startDashboardServer(
 			json(response, 200, { opened });
 			return;
 		}
-		if (!hasSessionCookie(request, token)) {
+		if (auth && !hasSessionCookie(request, token)) {
 			if (url.pathname === "/app.css") {
 				// Stylesheet only (no data); the sign-in page uses it.
 				const css = await readFile(
@@ -481,6 +519,10 @@ export async function startDashboardServer(
 		}
 		if (request.method === "POST") {
 			if (options.readonly) throw new HttpError(403, "read-only");
+			// Without a cookie, same-origin fetch metadata is required (browsers send it; the general
+			// fetch-site check above also admits navigations and non-browser callers).
+			if (!auth && request.headers["sec-fetch-site"] !== "same-origin")
+				throw new HttpError(403, "invalid Origin or CSRF token");
 			if (
 				request.headers.origin !== origin ||
 				!secureEqual(
@@ -529,6 +571,7 @@ export async function startDashboardServer(
 				apiVersion: 1,
 				project: { path: redact(cwd), name: redact(basename(cwd)) },
 				mode: options.readonly ? "read-only" : "read-write",
+				auth,
 				csrf,
 				serverTime: serverTime(),
 				version,
@@ -689,6 +732,7 @@ export async function startDashboardServer(
 				port,
 				launchKey,
 				startedAt,
+				auth,
 				...(options.idleExitMs !== undefined
 					? {
 							detached: true,
@@ -707,10 +751,11 @@ export async function startDashboardServer(
 	let closing: Promise<void> | undefined;
 	let idleTimer: ReturnType<typeof setInterval> | undefined;
 	const dashboard: DashboardServer = {
-		url: `${origin}/?token=${token}`,
+		url: auth ? `${origin}/?token=${token}` : `${origin}/`,
 		port,
 		token,
 		launchKey,
+		auth,
 		close() {
 			clearInterval(idleTimer);
 			closing ??= new Promise<void>((done, reject) => {
@@ -745,6 +790,7 @@ export async function startDashboardServer(
 							port,
 							launchKey,
 							startedAt,
+							auth,
 							detached: true,
 							idleExitAt: new Date(
 								(clients.size || live ? now() : noClientsSince) + idleExitMs,

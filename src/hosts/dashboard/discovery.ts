@@ -24,6 +24,8 @@ export interface DashboardDiscovery {
 	port: number;
 	launchKey: string;
 	startedAt: string;
+	/** WP43d: whether the server requires the session cookie (sign-in). Absent in older files = on. */
+	auth: boolean;
 	detached?: true;
 	idleExitAt?: string;
 }
@@ -117,7 +119,7 @@ export async function writeDashboardDiscovery(
 		DashboardDiscovery,
 		"pid" | "port" | "launchKey" | "detached" | "idleExitAt"
 	> &
-		Partial<Pick<DashboardDiscovery, "startedAt">>,
+		Partial<Pick<DashboardDiscovery, "startedAt" | "auth">>,
 ): Promise<void> {
 	const path = dashboardDiscoveryPath(cwd);
 	await mkdir(dirname(path), { recursive: true });
@@ -161,7 +163,8 @@ async function loadDiscovery(
 			typeof value.launchKey !== "string" ||
 			!/^[A-Za-z0-9_-]{43}$/.test(value.launchKey) ||
 			typeof value.startedAt !== "string" ||
-			!Number.isFinite(Date.parse(value.startedAt))
+			!Number.isFinite(Date.parse(value.startedAt)) ||
+			(value.auth !== undefined && typeof value.auth !== "boolean")
 		)
 			return undefined;
 		return {
@@ -169,6 +172,7 @@ async function loadDiscovery(
 			port: value.port,
 			launchKey: value.launchKey,
 			startedAt: value.startedAt,
+			auth: value.auth !== false,
 			...(value.detached === true ? { detached: true as const } : {}),
 			...(typeof value.idleExitAt === "string" &&
 			Number.isFinite(Date.parse(value.idleExitAt))
@@ -179,7 +183,10 @@ async function loadDiscovery(
 		return undefined;
 	}
 }
-/** Bounded, unauthenticated identity probe; do not follow redirects or accept an arbitrary listener. */
+/**
+ * Bounded identity probe without credentials; do not follow redirects or accept an arbitrary
+ * listener. An auth server answers 401 `{ error }`; an open one answers 200 `{ apiVersion: 1 }`.
+ */
 export function probeDashboard(
 	discovery: DashboardDiscovery,
 ): Promise<boolean> {
@@ -201,7 +208,7 @@ export function probeDashboard(
 			},
 			(res) => {
 				if (
-					res.statusCode !== 401 ||
+					(res.statusCode !== 401 && res.statusCode !== 200) ||
 					!res.headers["content-type"]?.startsWith("application/json")
 				) {
 					finish(false);
@@ -215,7 +222,12 @@ export function probeDashboard(
 				res.on("error", () => finish(false));
 				res.on("end", () => {
 					try {
-						finish(typeof JSON.parse(body).error === "string");
+						const parsed = JSON.parse(body);
+						finish(
+							res.statusCode === 401
+								? typeof parsed.error === "string"
+								: parsed.apiVersion === 1 && parsed.auth === false,
+						);
 					} catch {
 						finish(false);
 					}
@@ -297,7 +309,12 @@ export async function mintLaunchUrl(
 	if (
 		url.origin !== origin ||
 		url.pathname !== "/" ||
-		!/^[A-Za-z0-9_-]{43}$/.test(url.searchParams.get("token") ?? "")
+		// Auth servers mint `?token=<one-time>`; open servers mint `?launch=<id>` (no credential).
+		!(
+			/^[A-Za-z0-9_-]{43}$/.test(url.searchParams.get("token") ?? "") ||
+			(/^[A-Za-z0-9_-]{24}$/.test(url.searchParams.get("launch") ?? "") &&
+				!url.searchParams.has("token"))
+		)
 	)
 		throw new Error("Invalid dashboard launch URL");
 	lastLaunchIds.set(

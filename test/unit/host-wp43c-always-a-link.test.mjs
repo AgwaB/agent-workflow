@@ -77,7 +77,7 @@ async function get(origin, path, headers = {}) {
 	return { status: response.status, text, headers: response.headers };
 }
 
-test("the session persists across dashboard restarts; --reset-session signs every browser out", {
+test("--auth: the session persists across dashboard restarts; --reset-session signs every browser out", {
 	timeout: 20_000,
 }, async (t) => {
 	const p = await project(t);
@@ -85,6 +85,7 @@ test("the session persists across dashboard restarts; --reset-session signs ever
 		cwd: p.cwd,
 		env: p.env,
 		discovery: true,
+		auth: true,
 	});
 	const sessionFile = dashboardSessionPath(p.cwd);
 	assert.equal((await stat(sessionFile)).mode & 0o777, 0o600);
@@ -100,6 +101,7 @@ test("the session persists across dashboard restarts; --reset-session signs ever
 		cwd: p.cwd,
 		env: p.env,
 		discovery: true,
+		auth: true,
 	});
 	t.after(() => second.close());
 	assert.equal(second.token, first.token, "same project → same session token");
@@ -127,6 +129,7 @@ test("the session persists across dashboard restarts; --reset-session signs ever
 		cwd: p.cwd,
 		env: p.env,
 		discovery: true,
+		auth: true,
 	});
 	t.after(() => third.close());
 	assert.notEqual(third.port, first.port);
@@ -139,7 +142,7 @@ test("the session persists across dashboard restarts; --reset-session signs ever
 	);
 });
 
-test("an unsigned browser gets the sign-in page: project name only, no token, no paths", {
+test("--auth: an unsigned browser gets the sign-in page: project name only, no token, no paths", {
 	timeout: 15_000,
 }, async (t) => {
 	const p = await project(t);
@@ -147,6 +150,7 @@ test("an unsigned browser gets the sign-in page: project name only, no token, no
 		cwd: p.cwd,
 		env: p.env,
 		discovery: true,
+		auth: true,
 	});
 	t.after(() => s.close());
 	const page = await get(`http://127.0.0.1:${s.port}`, "/?run=workflow_x");
@@ -198,7 +202,7 @@ test("a launch auto-starts a detached dashboard and always carries a token-free 
 	).catch((error) => ({ refused: String(error) }));
 	if (!("refused" in worker)) assert.equal(worker.data.dashboard, undefined);
 	assert.equal(await readDashboardDiscovery(p.cwd), undefined);
-	// Default: auto-start, link with the first-time hint.
+	// Default: auto-start, plain link (WP43d: no sign-in, so no first-time hint).
 	const started = await runWorkflowAction(p, {
 		workflow: "wf.json",
 		task: "autostart",
@@ -208,16 +212,18 @@ test("a launch auto-starts a detached dashboard and always carries a token-free 
 	const discovery = await readDashboardDiscovery(p.cwd);
 	assert.ok(discovery, "a detached dashboard is running");
 	assert.equal(discovery.detached, true);
+	assert.equal(discovery.auth, false);
 	assert.equal(started.data.dashboard.port, discovery.port);
 	assert.equal(
 		started.data.dashboard.url,
 		`http://127.0.0.1:${discovery.port}/?run=${started.data.runId}`,
 	);
+	assert.equal(started.data.dashboard.auth, undefined);
 	assert.match(
 		started.text,
-		/Dashboard: http:\/\/127\.0\.0\.1:\d+\/\?run=workflow_[\w-]+ · first time in this browser\? agent-workflow dashboard --open/,
+		/Dashboard: http:\/\/127\.0\.0\.1:\d+\/\?run=workflow_[\w-]+\n/,
 	);
-	assert.doesNotMatch(started.text, /token=/);
+	assert.doesNotMatch(started.text, /first time in this browser|token=/);
 	// A second launch reuses it: plain link, no hint, same port.
 	const reused = await runWorkflowAction(p, {
 		workflow: "wf.json",
@@ -231,16 +237,21 @@ test("a launch auto-starts a detached dashboard and always carries a token-free 
 		/Dashboard: http:\/\/127\.0\.0\.1:\d+\/\?run=workflow_[\w-]+\n/,
 	);
 	assert.doesNotMatch(reused.text, /first time in this browser/);
-	// The detached server uses the persisted session: a browser signed in earlier can open the link.
-	const token = (await readFile(dashboardSessionPath(p.cwd), "utf8")).trim();
+	// The detached server is open: the link and the API work without any cookie, and no session
+	// file was created.
 	const run = await get(
 		`http://127.0.0.1:${discovery.port}`,
 		`/api/runs/${reused.data.runId}`,
-		{
-			cookie: `aw_session=${token}`,
-		},
 	);
 	assert.equal(run.status, 200);
+	assert.equal(run.headers.get("set-cookie"), null);
+	const page = await get(
+		`http://127.0.0.1:${discovery.port}`,
+		`/?run=${reused.data.runId}`,
+	);
+	assert.equal(page.status, 200);
+	assert.doesNotMatch(page.text, /isn't signed in/);
+	await assert.rejects(stat(dashboardSessionPath(p.cwd)), { code: "ENOENT" });
 	// --status reports the idle exit.
 	const lines = [];
 	await runAgentWorkflowCli(["dashboard", "--status", "--project", p.cwd], {
@@ -269,11 +280,9 @@ test("a detached dashboard idles out only with no SSE client and no live run", {
 		},
 	});
 	t.after(() => s.close().catch(() => undefined));
-	const cookie = cookieOf(s.url);
 	// A connected SSE client keeps it alive past the idle window.
 	const controller = new AbortController();
 	const stream = fetch(`http://127.0.0.1:${s.port}/api/events`, {
-		headers: { cookie },
 		signal: controller.signal,
 	});
 	await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -289,7 +298,7 @@ test("a detached dashboard idles out only with no SSE client and no live run", {
 	assert.equal(await readDashboardDiscovery(p.cwd), undefined);
 });
 
-test("one-click local sign-in: the page's own script may ask the server to open a signed-in tab; cross-site callers may not", {
+test("--auth: one-click local sign-in: the page's own script may ask the server to open a signed-in tab; cross-site callers may not", {
 	timeout: 20_000,
 }, async (t) => {
 	const p = await project(t);
@@ -301,6 +310,7 @@ test("one-click local sign-in: the page's own script may ask the server to open 
 		cwd: p.cwd,
 		env: { ...p.env, BROWSER: recorder },
 		discovery: true,
+		auth: true,
 	});
 	t.after(() => s.close());
 	const origin = `http://127.0.0.1:${s.port}`;

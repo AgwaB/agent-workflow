@@ -274,15 +274,21 @@ outcome, data}`.
 ## `dashboard`
 
 ```sh
-agent-workflow dashboard [--port <n>] [--readonly] [--open] [--detached | --status | --stop | --reset-session] [--project <dir>]
+agent-workflow dashboard [--port <n>] [--readonly] [--auth] [--open] [--detached | --status | --stop | --reset-session] [--project <dir>]
 ```
 
-Serves one project's runs on **127.0.0.1 only**, at a free ephemeral port (or `--port` 1–65535).
-Prints `Dashboard: http://127.0.0.1:<port>/?token=…` once: use this private URL to establish the
-browser session. The session persists across restarts in `<project>/.agent-workflow/dashboard-session`
-(mode 0600). `--reset-session` stops a running dashboard first, rotates the token and exits; every
-browser must sign in again. It also works when no dashboard is running. `--readonly` adds a read-only badge and rejects all mutations on the server.
-`--open` opens a one-time sign-in URL (60-second expiry, single use), including on pipes when explicitly requested; it reuses an existing dashboard. `--project` selects an existing
+Serves one project's runs on **127.0.0.1 only**, at the project's last port when free, else a free
+ephemeral port (or `--port` 1–65535). Prints `Dashboard: http://127.0.0.1:<port>/` once. **No
+sign-in by default:** any browser on this computer opens it directly (loopback bind, `Host`
+allowlist, same-origin/CSRF checks on every action; another local user or process could see runs
+and press the controls — see [docs/dashboard.md](dashboard.md)). `--auth` (or
+`AGENT_WORKFLOW_DASHBOARD_AUTH=1`, which auto-started dashboards inherit) turns sign-in on for
+shared machines: the printed URL then carries a session token (`/?token=…`) that establishes the
+browser session; the session persists across restarts in `<project>/.agent-workflow/dashboard-session`
+(mode 0600), and browsers without it see a sign-in page with a one-click button. `--reset-session`
+stops a running dashboard first, rotates that token and exits; every browser must sign in again. It
+also works when no dashboard is running. `--readonly` adds a read-only badge and rejects all mutations on the server.
+`--open` opens the dashboard in the browser (under `--auth` via a one-time sign-in URL: 60-second expiry, single use), including on pipes when explicitly requested; it reuses an existing dashboard. `--project` selects an existing
 project directory (default cwd). Ctrl-C/SIGTERM stops the dashboard, never the runs; exit 0.
 Invalid ports, occupied ports and non-directories exit 2. No `--json` mode.
 
@@ -291,13 +297,14 @@ never a session token, and exits after 2 hours without SSE clients when no live 
 (running/blocked with a live lease). `AGENT_WORKFLOW_DASHBOARD_IDLE_MS` sets the interval in
 milliseconds (minimum 60000; invalid values exit 2). Foreground servers never idle out. Discovery is written privately (0600) to
 `<project>/.agent-workflow/dashboard.json` and removed on close, SIGINT or SIGTERM.
-`--status` prints pid, port and start time, plus `idle exit in <m>m` for detached servers; `--stop` sends SIGTERM and waits up to 5 seconds for
+`--status` prints pid, port, start time and `auth on|off`, plus `idle exit in <m>m` for detached servers; `--stop` sends SIGTERM and waits up to 5 seconds for
 cleanup. Both accept `--project` and exit 1 if no dashboard is running.
 
 `run`, `dynamic` and `auto` print a token-free `Dashboard: http://127.0.0.1:<port>/?run=<id>`
-on every successful launch, starting a detached loopback server if needed (at most 3 seconds).
-A newly started server adds ` · first time in this browser? agent-workflow dashboard --open` and
-sets launch data `dashboard.started: true`. Set `AGENT_WORKFLOW_DASHBOARD_AUTOSTART=0` to opt out;
+on every successful launch, starting a detached loopback server if needed (at most 3 seconds); the
+link opens directly. A newly started server sets launch data `dashboard.started: true`; under
+`AGENT_WORKFLOW_DASHBOARD_AUTH=1` the data also carries `dashboard.auth: true` and a newly started
+server's line adds ` · first time in this browser? agent-workflow dashboard --open`. Set `AGENT_WORKFLOW_DASHBOARD_AUTOSTART=0` to opt out;
 worker roles, read-only contexts and failed launches never auto-start. When disabled or startup
 fails, the line is `Dashboard: not running · agent-workflow dashboard --open`; dashboard failure
 never fails the run. Auto-start does not open a browser. Opt in to opening after a successful launch:

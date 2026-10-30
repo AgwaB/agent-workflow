@@ -25,11 +25,13 @@ async function project(t) {
 	});
 	return {
 		cwd,
+		// WP43d: these are the --auth (persistent session) contracts; open mode has no session.
 		start: async (options = {}) => {
 			const server = await startDashboardServer({
 				cwd,
 				discovery: true,
 				env: {},
+				auth: true,
 				...options,
 			});
 			servers.push(server);
@@ -109,16 +111,21 @@ test("cookie survives two starts; CLI reset stops a detached server and invalida
 	await second.close();
 	const detached = await ensureDashboard(
 		cwd,
-		{ ...process.env, AGENT_WORKFLOW_DASHBOARD_IDLE_MS: "120000" },
+		{
+			...process.env,
+			AGENT_WORKFLOW_DASHBOARD_IDLE_MS: "120000",
+			AGENT_WORKFLOW_DASHBOARD_AUTH: "1",
+		},
 		{ start: true },
 	);
 	assert.ok(detached);
+	assert.equal(detached.auth, true);
 	assert.equal((await http(detached, "/api/session", cookie)).status, 200);
 	assert.equal(detached.detached, true);
 	assert.ok(Number.isFinite(Date.parse(detached.idleExitAt)));
 	const status = await cli(cwd, ["--status"]);
 	assert.equal(status.code, 0, status.stderr);
-	assert.match(status.stdout, /idle exit in 2m/);
+	assert.match(status.stdout, /auth on, idle exit in 2m/);
 	const reset = await cli(cwd, ["--reset-session"]);
 	assert.equal(reset.code, 0, reset.stderr);
 	assert.equal(await readDashboardDiscovery(cwd), undefined);
@@ -130,6 +137,30 @@ test("cookie survives two starts; CLI reset stops a detached server and invalida
 	assert.equal((await stat(dashboardSessionPath(cwd))).mode & 0o777, 0o600);
 	await third.close();
 	assert.equal((await cli(cwd, ["--reset-session"])).code, 0);
+});
+
+test("open mode never creates a session file; --status reports auth off", {
+	timeout: 15_000,
+}, async (t) => {
+	const { cwd, start } = await project(t);
+	const server = await start({ auth: false });
+	assert.equal(server.auth, false);
+	await assert.rejects(stat(dashboardSessionPath(cwd)), { code: "ENOENT" });
+	assert.equal((await http(server, "/")).status, 200);
+	await server.close();
+	const detached = await ensureDashboard(
+		cwd,
+		{ ...process.env, AGENT_WORKFLOW_DASHBOARD_IDLE_MS: "120000" },
+		{ start: true },
+	);
+	assert.ok(detached);
+	assert.equal(detached.auth, false);
+	assert.equal((await http(detached, "/api/session")).status, 200);
+	const status = await cli(cwd, ["--status"]);
+	assert.equal(status.code, 0, status.stderr);
+	assert.match(status.stdout, /auth off, idle exit in 2m/);
+	await assert.rejects(stat(dashboardSessionPath(cwd)), { code: "ENOENT" });
+	assert.equal((await cli(cwd, ["--stop"])).code, 0);
 });
 
 test("401 sign-in page uses only escaped project basename, no path or credentials", async (t) => {

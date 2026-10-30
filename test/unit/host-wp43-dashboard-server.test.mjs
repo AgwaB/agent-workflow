@@ -103,17 +103,139 @@ const mutation = (s, extra = {}) => ({
 	method: "POST",
 	headers: {
 		Origin: `http://127.0.0.1:${s.port}`,
+		"Sec-Fetch-Site": "same-origin",
 		"X-AW-CSRF": dashboardCsrf(s.token),
 		"Content-Type": "application/json",
 		...extra,
 	},
 	body: "{}",
 });
+const LAUNCH_KEY = "L".repeat(43);
 
-test("bind is IPv4 loopback; token bootstrap redirects and sets strict cookie only on bootstrap", {
+test("WP43d default: no sign-in — loopback requests read the UI/API without a cookie; links carry no token", {
 	timeout: 5000,
 }, async (t) => {
-	const s = await server(t);
+	const s = await server(t, { launchKey: LAUNCH_KEY });
+	assert.equal(s.auth, false);
+	assert.equal(s.url, `http://127.0.0.1:${s.port}/`);
+	const home = await http(s, "/", { auth: false });
+	assert.equal(home.status, 200);
+	assert.equal(home.headers["set-cookie"], undefined);
+	assert.doesNotMatch(home.text, /signed in/);
+	const session = await http(s, "/api/session", { auth: false });
+	assert.equal(session.status, 200);
+	assert.equal(session.json().auth, false);
+	assert.equal(session.headers["set-cookie"], undefined);
+	assert.equal((await http(s, "/api/runs", { auth: false })).status, 200);
+	// A link printed while auth was on still lands (the token is dropped, UI params survive).
+	const old = await http(s, `/?token=${"x".repeat(43)}&run=${ID}&evil=1`, {
+		auth: false,
+	});
+	assert.equal(old.status, 302);
+	assert.equal(old.headers.location, `/?run=${ID}`);
+	assert.equal(old.headers["set-cookie"], undefined);
+	// The sign-in machinery is absent.
+	assert.equal((await http(s, "/signin.js", { auth: false })).status, 404);
+	assert.notEqual(
+		(
+			await http(s, "/api/signin-local", {
+				method: "POST",
+				auth: false,
+				headers: {
+					Origin: `http://127.0.0.1:${s.port}`,
+					"Sec-Fetch-Site": "same-origin",
+					"Content-Type": "application/json",
+				},
+				body: "{}",
+			})
+		).status,
+		200,
+	);
+	// Launch URLs carry a launch id instead of a credential; arriving marks the launch consumed.
+	const minted = await http(s, "/api/launch", {
+		method: "POST",
+		auth: false,
+		headers: {
+			"X-AW-Launch-Key": LAUNCH_KEY,
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({ run: ID, evil: "<x>" }),
+	});
+	assert.equal(minted.status, 200);
+	const { url, launchId } = minted.json();
+	const launch = new URL(url);
+	assert.equal(launch.origin, `http://127.0.0.1:${s.port}`);
+	assert.equal(launch.searchParams.get("launch"), launchId);
+	assert.equal(launch.searchParams.has("token"), false);
+	assert.equal(launch.searchParams.get("run"), ID);
+	const status = () =>
+		http(s, `/api/launch/${launchId}`, {
+			auth: false,
+			headers: { "X-AW-Launch-Key": LAUNCH_KEY },
+		});
+	assert.deepEqual((await status()).json(), {
+		consumed: false,
+		expired: false,
+	});
+	const arrived = await http(s, `${launch.pathname}${launch.search}`, {
+		auth: false,
+	});
+	assert.equal(arrived.status, 302);
+	assert.equal(arrived.headers.location, `/?run=${ID}`);
+	assert.equal(arrived.headers["set-cookie"], undefined);
+	assert.deepEqual((await status()).json(), { consumed: true, expired: false });
+	// Unknown launch ids are harmless.
+	assert.equal(
+		(await http(s, "/?launch=nope", { auth: false })).headers.location,
+		"/",
+	);
+	// Mutations still need same-origin fetch metadata, the server Origin and the CSRF value
+	// (readable only by same-origin pages: no CORS).
+	assert.equal(
+		(await http(s, `/api/runs/${ID}/stop`, { ...mutation(s), auth: false }))
+			.status,
+		200,
+	);
+	for (const extra of [
+		{ "Sec-Fetch-Site": "none" },
+		{ "X-AW-CSRF": "wrong" },
+		{ Origin: "http://evil.example" },
+	])
+		assert.equal(
+			(
+				await http(s, `/api/runs/${ID}/stop`, {
+					...mutation(s, extra),
+					auth: false,
+				})
+			).status,
+			403,
+			JSON.stringify(extra),
+		);
+	const { "Sec-Fetch-Site": _omitted, ...noMetadata } = mutation(s).headers;
+	assert.equal(
+		(
+			await http(s, `/api/runs/${ID}/stop`, {
+				...mutation(s),
+				headers: noMetadata,
+				auth: false,
+			})
+		).status,
+		403,
+	);
+});
+
+test("AGENT_WORKFLOW_DASHBOARD_AUTH=1 turns the session model on without the option", async (t) => {
+	const s = await server(t, { env: { AGENT_WORKFLOW_DASHBOARD_AUTH: "1" } });
+	assert.equal(s.auth, true);
+	assert.equal((await http(s, "/api/session", { auth: false })).status, 401);
+	assert.equal((await http(s, "/api/session")).json().auth, true);
+});
+
+test("--auth: bind is IPv4 loopback; token bootstrap redirects and sets strict cookie only on bootstrap", {
+	timeout: 5000,
+}, async (t) => {
+	const s = await server(t, { auth: true });
+	assert.equal(s.auth, true);
 	assert.match(s.url, /^http:\/\/127\.0\.0\.1:\d+\/\?token=[\w-]{43}$/);
 	assert.equal(Buffer.from(s.token, "base64url").length, 32);
 	const boot = await http(s, `/?token=${s.token}`, { auth: false });
@@ -160,7 +282,7 @@ test("bind is IPv4 loopback; token bootstrap redirects and sets strict cookie on
 });
 
 test("all responses have CSP, frame denial, nosniff, no-referrer and no-store", async (t) => {
-	const s = await server(t);
+	const s = await server(t, { auth: true });
 	for (const [path, options] of [
 		["/api/session", {}],
 		["/api/runs", { auth: false }],
@@ -177,7 +299,7 @@ test("all responses have CSP, frame denial, nosniff, no-referrer and no-store", 
 });
 
 test("Host and fetch-site reject rebinding and cross-origin requests before authentication", async (t) => {
-	const s = await server(t);
+	const s = await server(t, { auth: true });
 	for (const host of [
 		"evil.example",
 		`evil.example:${s.port}`,
@@ -222,6 +344,7 @@ test("fixture JSON routes and session shape", async (t) => {
 	const session = (await http(s, "/api/session")).json();
 	assert.deepEqual(Object.keys(session).sort(), [
 		"apiVersion",
+		"auth",
 		"csrf",
 		"mode",
 		"project",
@@ -229,6 +352,7 @@ test("fixture JSON routes and session shape", async (t) => {
 		"version",
 	]);
 	assert.equal(session.apiVersion, 1);
+	assert.equal(session.auth, false);
 	assert.equal(session.mode, "read-write");
 	assert.equal(session.csrf, dashboardCsrf(s.token));
 	assert.equal(session.serverTime, runs.serverTime);
@@ -241,7 +365,7 @@ test("fixture JSON routes and session shape", async (t) => {
 });
 
 test("mutations require Origin, CSRF and JSON; valid Stop, Resume, Approve and Reject use source", async (t) => {
-	const s = await server(t);
+	const s = await server(t, { auth: true });
 	for (const headers of [
 		{},
 		{ Origin: `http://127.0.0.1:${s.port}` },

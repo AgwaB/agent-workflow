@@ -137,20 +137,23 @@ read-only; `run`, `dynamic`, `auto`, `stop`, `resume`, `prune`, `profile`, `appr
 
 `workflow_run`, `workflow_dynamic` and a launched `workflow_auto` preserve the token-free
 `Dashboard: http://127.0.0.1:<port>/?run=<id>` line on every successful launch, auto-starting a detached server when needed (unless disabled or startup fails).
-The launch data includes `dashboard: {url, port, started?: true}` (`workflow_auto`: `data.launch.dashboard`) and the
+The launch data includes `dashboard: {url, port, started?: true, auth?: true}` (`workflow_auto`: `data.launch.dashboard`) and the
 text's `Dashboard:` line sits right under the run heading (`Dashboard: not running · agent-workflow
 dashboard --open` when auto-start is off or fails); the `Next:` guidance tells the model to report the run id and that
-link to the user before waiting, then call `workflow_dashboard` if the user says it asks them to
-sign in. Launches auto-start the server but never open a browser themselves.
+link to the user before waiting, then call `workflow_dashboard` if the user wants it opened for
+them (or, when the dashboard runs with sign-in — `auth: true` — says the link asks them to sign in).
+The link opens directly by default: the dashboard has no sign-in unless started with `--auth` /
+`AGENT_WORKFLOW_DASHBOARD_AUTH=1`. Launches auto-start the server but never open a browser themselves.
 
 `workflow_dashboard {run?}` ensures a dashboard is running for the call's project, starting it
-detached if needed, and mints a one-time sign-in URL. Then, by what the client can show:
+detached if needed, and mints a launch URL (a launch id by default; a one-time sign-in token under
+`--auth`). Then, by what the client can show:
 
 - **URL elicitation** (protocol **2025-11-25** or later with `capabilities.elicitation.url`; Claude
   Code ≥ 2.1.87): one `elicitation/create` with `mode: "url"` — the client asks the user and opens
-  the browser on acceptance; once the browser has signed in (the one-time token was consumed; the
-  server polls `GET /api/launch/:id`) the server sends `notifications/elicitation/complete`, so the
-  client stops waiting. `method: "url-elicitation"`.
+  the browser on acceptance; once the browser has arrived (the launch id, or under `--auth` the
+  one-time token, was consumed; the server polls `GET /api/launch/:id`) the server sends
+  `notifications/elicitation/complete`, so the client stops waiting. `method: "url-elicitation"`.
 - **Form elicitation only** (Codex today, openai/codex#29344): one form dialog "Open the
   agent-workflow dashboard for <project> in your browser?"; on accept the MCP server — which runs on
   the user's machine over stdio — opens the browser itself (`BROWSER`/`BROWSER_ARGS` honored), as

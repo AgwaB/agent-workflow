@@ -162,7 +162,8 @@ export interface LaunchProfileInfo {
 }
 
 export interface LaunchData {
-	dashboard?: { url: string; port: number; started?: true };
+	/** WP43d: `auth` is set only when that dashboard requires sign-in (`--auth`). */
+	dashboard?: { url: string; port: number; started?: true; auth?: true };
 	mode: "named-workflow" | "direct-dynamic";
 	runId?: string;
 	status?: WorkflowRunRecord["status"];
@@ -1275,6 +1276,7 @@ async function launchClaimed(
 							url: `http://127.0.0.1:${dashboard.port}/?run=${run.runId}`,
 							port: dashboard.port,
 							...(started ? { started: true } : {}),
+							...(dashboard.auth ? { auth: true } : {}),
 						}
 					: undefined;
 			})(),
@@ -1320,7 +1322,7 @@ async function launchClaimed(
 	// WP43b: the dashboard link is the first thing a person wants after a launch; when none runs,
 	// say so in one short line instead of silently omitting it.
 	const dashboardLine = data.dashboard
-		? `Dashboard: ${data.dashboard.url}${data.dashboard.started ? " · first time in this browser? agent-workflow dashboard --open" : ""}`
+		? `Dashboard: ${data.dashboard.url}${data.dashboard.started && data.dashboard.auth ? " · first time in this browser? agent-workflow dashboard --open" : ""}`
 		: `Dashboard: not running · agent-workflow dashboard --open`;
 	const text = [
 		promptSchemaNotice || undefined,

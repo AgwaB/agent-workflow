@@ -56,7 +56,7 @@ function fakeCtx(cwd) {
 	};
 }
 
-test("/aw dashboard opens a one-time URL in the browser and never shows the token", {
+test("/aw dashboard opens a launch URL in the browser (open mode: no credential; --auth: one-time token) and never shows secrets", {
 	timeout: 20_000,
 }, async (t) => {
 	const cwd = join(root, "p1");
@@ -70,12 +70,37 @@ test("/aw dashboard opens a one-time URL in the browser and never shows the toke
 		AGENT_WORKFLOW_HOME: join(root, "home"),
 		BROWSER: recorder,
 	};
-	const server = await startDashboardServer({ cwd, env, discovery: true });
-	t.after(() => server.close());
+	// WP43d default (open): the opened URL carries only a launch id and sets no cookie.
+	const open = await startDashboardServer({ cwd, env, discovery: true });
 	const pi = fakePi();
 	ext.createAgentWorkflowPiExtension({ api, env })(pi);
 	const command = pi.commands.get("aw");
 	const ctx = fakeCtx(cwd);
+	await command.handler("dashboard", ctx);
+	let openRecorded = "";
+	for (let i = 0; i < 30 && !openRecorded; i++) {
+		await new Promise((r) => setTimeout(r, 100));
+		openRecorded = await readFile(log, "utf8").catch(() => "");
+	}
+	assert.match(
+		openRecorded.trim(),
+		new RegExp(
+			`^http://127\\.0\\.0\\.1:${open.port}/\\?launch=[A-Za-z0-9_-]{24}$`,
+		),
+	);
+	const landed = await fetch(openRecorded.trim(), { redirect: "manual" });
+	assert.equal(landed.status, 302);
+	assert.equal(landed.headers.get("set-cookie"), null);
+	assert.match(ctx.notes.at(-1)?.message ?? "", /Opened the dashboard/);
+	await open.close();
+	await rm(log, { force: true });
+	const server = await startDashboardServer({
+		cwd,
+		env,
+		discovery: true,
+		auth: true,
+	});
+	t.after(() => server.close());
 	await command.handler("dashboard", ctx);
 	// The recorder is a detached shell; give it a moment to write.
 	let recorded = "";

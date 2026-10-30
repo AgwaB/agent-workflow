@@ -44,7 +44,7 @@ after(async () => {
 			retryDelay: 50,
 		});
 });
-async function project({ start = true } = {}) {
+async function project({ start = true, auth = false } = {}) {
 	const cwd = await realpath(await mkdtemp(join(tmpdir(), "aw-wp43b-mcp-")));
 	roots.push(cwd);
 	const env = {
@@ -54,7 +54,7 @@ async function project({ start = true } = {}) {
 		AGENT_WORKFLOW_ROLE: "supervisor",
 	};
 	const dashboard = start
-		? await startDashboardServer({ cwd, env, discovery: true })
+		? await startDashboardServer({ cwd, env, discovery: true, auth })
 		: undefined;
 	if (dashboard) dashboards.push(dashboard);
 	return { cwd, env, dashboard };
@@ -123,10 +123,47 @@ test("URL capability requires 2025-11-25 and explicit URL mode; dashboard is not
 	);
 });
 
-test("URL accept: client bootstraps the real server once to the selected run; result has no secrets", {
+test("WP43d open mode: URL accept carries a launch id (no credential, no cookie); arrival completes the elicitation", {
 	timeout: 15_000,
 }, async () => {
 	const p = await project();
+	const run = "workflow_dashboard-test_1";
+	let url, response;
+	const client = await connect(p, {
+		onRequest: async (message) => {
+			url = message.params.url;
+			response = await fetch(url, {
+				redirect: "manual",
+				signal: AbortSignal.timeout(2000),
+			});
+			await response.arrayBuffer();
+			return { action: "accept" };
+		},
+	});
+	const result = await client.call(WORKFLOW_DASHBOARD_TOOL, { run });
+	assert.equal(result.isError, false);
+	assert.equal(result.structuredContent.opened, true);
+	const opened = new URL(url);
+	assert.equal(opened.searchParams.has("token"), false);
+	assert.match(opened.searchParams.get("launch"), /^[A-Za-z0-9_-]{24}$/);
+	assert.equal(response.status, 302);
+	assert.equal(response.headers.get("location"), `/?run=${run}`);
+	assert.equal(response.headers.get("set-cookie"), null);
+	noSecrets(result, p.dashboard, url);
+	const complete = client.messages.find(
+		(m) => m.method === "notifications/elicitation/complete",
+	);
+	assert.ok(complete, "notifications/elicitation/complete was sent");
+	assert.equal(
+		complete.params.elicitationId,
+		requests(client)[0].params.elicitationId,
+	);
+});
+
+test("--auth: URL accept: client bootstraps the real server once to the selected run; result has no secrets", {
+	timeout: 15_000,
+}, async () => {
+	const p = await project({ auth: true });
 	const run = "workflow_dashboard-test_1";
 	let url, response;
 	const client = await connect(p, {
@@ -263,7 +300,7 @@ for (const config of [
 	test(`form consent (no URL mode): accept opens the browser from the server via BROWSER; the URL never reaches the client: ${JSON.stringify(config)}`, {
 		timeout: 15_000,
 	}, async () => {
-		const p = await project();
+		const p = await project({ auth: true });
 		const log = join(p.cwd, "opened.log");
 		const recorder = join(p.cwd, "browser.sh");
 		await writeFile(
@@ -415,9 +452,11 @@ test("real workflow_run preserves the token-free dashboard link only while a das
 		assert.ok(runId);
 		assert.ok(
 			result.content[0].text.includes(
-				`First tell the user the run id and the Dashboard link above (if they say it asks them to sign in, call workflow_dashboard). Then call workflow_wait {"runId":"${runId}"} and repeat while stillRunning is true.`,
+				`First tell the user the run id and the Dashboard link above (if they want it opened for them, call workflow_dashboard). Then call workflow_wait {"runId":"${runId}"} and repeat while stillRunning is true.`,
 			),
+			result.content[0].text,
 		);
+		assert.doesNotMatch(result.content[0].text, /sign in/);
 		assert.doesNotMatch(result.content[0].text, /already signed in/);
 		if (running) {
 			const url = `http://127.0.0.1:${p.dashboard.port}/?run=${runId}`;
