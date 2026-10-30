@@ -179,3 +179,13 @@ The port a project's dashboard used last is kept in `<project>/.agent-workflow/d
 ### Idle exit for detached dashboards
 
 - A dashboard started `--detached` exits by itself after `AGENT_WORKFLOW_DASHBOARD_IDLE_MS` (default 2 h, min 1 min) with **no SSE client connected and no live run** (running/blocked with a live lease) in the project; it removes its discovery file on the way out. A foreground dashboard never idles out. `dashboard --status` shows "idle exit in …" for detached ones.
+
+## No sign-in by default (WP43d — owner decision, 2026-10-30)
+
+Local dev UIs in the survey (Dagster, Prefect, Temporal dev, Inngest, Mastra, MLflow) have no sign-in on loopback; the owner found the one-time sign-in friction not worth what it buys on a personal machine. So:
+
+- **Default (`auth: false`)**: no session token, no cookie, no sign-in page. Any loopback request may read the UI and the API; `Dashboard:` links open directly in any browser. What still holds: `127.0.0.1` bind, `Host` allowlist (421 against DNS rebinding), no CORS headers (foreign pages cannot read responses), mutations require `Origin` = server origin **and** `Sec-Fetch-Site: same-origin` **and** `X-AW-CSRF` (a per-server random value delivered by `GET /api/session`, which foreign pages cannot read), CSP/nosniff/DENY/no-referrer/no-store, bounded bodies/logs/reports, read-only mode. **Residual risk, stated plainly:** another OS user or process on the same machine can view runs and press Stop/Resume/Approve/Reject while a dashboard is up. The `.agent-workflow/` run records beside it are readable by the same parties anyway.
+- **Opt-in (`agent-workflow dashboard --auth`, or `AGENT_WORKFLOW_DASHBOARD_AUTH=1` so auto-started dashboards use it too)**: the previous model exactly — persistent per-project session token, cookie bootstrap, one-time launch URLs, sign-in page with the one-click button, `--reset-session`. For shared machines.
+- `GET /api/session` reports `auth: true|false`; the UI shows no sign-in state when auth is off (a restart just reconnects).
+- Links and openers in the default mode carry no token: the launch line is `Dashboard: http://127.0.0.1:<port>/?run=<id>` (no "first time" hint); `dashboard --open`, `/aw dashboard`, `workflow_dashboard` and `--open` open `http://127.0.0.1:<port>/?run=…` directly. `POST /api/launch` (launch-key protected as before) returns `{ url, launchId }` where the URL carries `launch=<id>` instead of a token; serving `/` with `launch=<id>` marks it consumed (then the UI params are forwarded without it), so the MCP tool's `notifications/elicitation/complete` keeps working. The discovery file records `auth: true|false`.
+- `dashboard --status` prints `auth: on|off`. Docs/README say which mode is on and why.
