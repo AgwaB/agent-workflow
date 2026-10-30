@@ -1285,14 +1285,19 @@ async function launchClaimed(
 		chosenCandidate?.auth === "unknown"
 			? unverifiedDefaultGuidance(chosenCandidate.id)
 			: undefined;
+	// WP43b: the dashboard link is the first thing a person wants after a launch; when none runs,
+	// say so in one short line instead of silently omitting it.
+	const dashboardLine = data.dashboard
+		? `Dashboard: ${data.dashboard.url}`
+		: `Dashboard: not running · agent-workflow dashboard --open`;
 	const text = [
 		promptSchemaNotice || undefined,
 		data.capability?.preview,
 		data.roles ? formatLaunchRoles(data.roles) : undefined,
 		unverifiedNote,
 		heading,
+		data.runId ? dashboardLine : undefined,
 		formatHumanRunLaunch(run, { hints: hostCommandHints(ctx.host) }),
-		data.dashboard ? `Dashboard: ${data.dashboard.url}` : undefined,
 	]
 		.filter((line): line is string => Boolean(line))
 		.join("\n")

@@ -36,6 +36,7 @@ import {
 	ensureDashboard,
 	launchConsumed,
 	mintLaunchUrl,
+	openInBrowser,
 } from "../../hosts/dashboard/discovery.js";
 import { assertActionAllowed } from "../../hosts/types.js";
 import { WORKFLOW_DASHBOARD_TOOL } from "../visible-names.js";
@@ -147,7 +148,7 @@ export const HOST_MCP_INSTRUCTIONS = [
 	`Changes that need the user's confirmation in an MCP dialog: ${CONFIRMED_CHANGES.join("; ")}. Without dialog support they are refused with the terminal command to run instead. ${WORKFLOW_PRUNE_TOOL} without dryRun=false only previews.`,
 	'Permission mode: "free" by default (workers run without approval prompts; stages the workflow declares read-only stay read-only). Set permissionMode "safe" only when the user asks for approvals/sandboxing.',
 	'Executor: omit executor to use the workflow profile or this host\'s default executor; set executor ("claude", "codex", "pi") or profile only when the user asks (for example "run it on codex").',
-	`${WORKFLOW_DASHBOARD_TOOL} starts the local dashboard on request, then asks to open it only when the client supports URL elicitation; otherwise it gives terminal instructions. It never returns a sign-in URL or changes a run.`,
+	`${WORKFLOW_DASHBOARD_TOOL} starts the local dashboard on request and opens it in the user's browser after the user consents in a dialog (URL elicitation, else a form dialog); clients without dialogs get terminal instructions. It never returns a sign-in URL or changes a run.`,
 	"Every tool takes an optional cwd (a directory inside the project this server was started in); omit it to use the project root.",
 ].join("\n");
 
@@ -835,7 +836,7 @@ export const HOST_MCP_TOOLS: readonly HostMcpToolDefinition[] = [
 		name: WORKFLOW_DASHBOARD_TOOL,
 		title: "Open agent-workflow dashboard",
 		description:
-			"Ensure the project's local dashboard is running. With URL elicitation, ask the user to open it in their browser; otherwise return terminal instructions. Optional run selects a full workflow run id. Never changes a run or returns a sign-in URL.",
+			"Call when the user wants to see or open the dashboard (or right after a launch when no dashboard is running and the user wants to watch). Ensures the project's local dashboard is running, then opens it in the user's browser after they consent in a dialog (URL dialog, else a form dialog); clients without dialogs get terminal instructions. Optional run selects a full workflow run id. Never changes a run or returns a sign-in URL.",
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -1328,7 +1329,11 @@ function profileSetFromArguments(params: Record<string, unknown>): {
 
 function launchNext(data: LaunchData): string | undefined {
 	if (data.runId && data.status === "running")
-		return `Next: call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.`;
+		return `First tell the user the run id and the Dashboard line above (${
+			data.dashboard
+				? "the link; their browser is already signed in"
+				: `no dashboard is running — offer to open one with ${WORKFLOW_DASHBOARD_TOOL}`
+		}). Then call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.`;
 	if (data.duplicateOf)
 		return `Next: call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.duplicateOf}"} for the active run, or ${WORKFLOW_RUN_TOOL} with forceNew=true to really start another run.`;
 	return undefined;
@@ -1689,11 +1694,34 @@ export function createHostMcpService(
 					}
 				}
 			}
-			const text = urlElicitation
-				? opened
-					? "Opened the dashboard in your browser."
-					: "Dashboard is running; browser opening was not confirmed."
-				: `Dashboard is running on 127.0.0.1:${dashboard.port}; open it from a terminal with \`agent-workflow dashboard --open\` (project ${ctx.cwd})`;
+			// Clients without URL elicitation but with form dialogs (Codex today): ask consent in a
+			// form dialog, then open the browser from this server — it runs on the user's machine
+			// (stdio), so this is the same as `/aw dashboard` in Pi. The URL still never reaches the
+			// model. Clients with no dialogs at all get terminal instructions.
+			let method: "url-elicitation" | "form-consent" | "instructions" =
+				urlElicitation ? "url-elicitation" : "instructions";
+			if (
+				!urlElicitation &&
+				clientSupportsFormElicitation(
+					call.protocolVersion,
+					call.clientCapabilities,
+				)
+			) {
+				method = "form-consent";
+				const answer = await elicitConfirmation(
+					call,
+					`Open the agent-workflow dashboard for ${basename(ctx.cwd)} in your browser?`,
+					"dashboard open confirmation",
+					() => {},
+				);
+				if (answer === "accept") opened = await openInBrowser(url, env);
+			}
+			const text =
+				method === "instructions"
+					? `Dashboard is running on 127.0.0.1:${dashboard.port}; open it from a terminal with \`agent-workflow dashboard --open\` (project ${ctx.cwd})`
+					: opened
+						? `Opened the dashboard in your browser (127.0.0.1:${dashboard.port}).`
+						: `Dashboard is running on 127.0.0.1:${dashboard.port}; it was not opened (declined or no browser). Open it from a terminal with \`agent-workflow dashboard --open\`.`;
 			return {
 				content: [{ type: "text", text }],
 				...(mcpVersionHasStructuredContent(call.protocolVersion)
@@ -1702,7 +1730,7 @@ export function createHostMcpService(
 								running: true,
 								port: dashboard.port,
 								opened,
-								method: urlElicitation ? "url-elicitation" : "instructions",
+								method,
 							},
 						}
 					: {}),

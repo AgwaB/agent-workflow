@@ -23,7 +23,7 @@ say the same.
 | `workflow_inspect` | Details of a run: `failures: true` for failed tasks, `results: true` for task results. |
 | `workflow_logs` | Bounded, redacted tail of task output, stderr and executor events (`runId`, `task?`, `lines?`, `stream?`). |
 | `workflow_stop` | Stop a run (`runId`). Cancelling a wait call does not stop the run. |
-| `workflow_dashboard` | On request, start the local dashboard (`run?`: full run id). A URL-capable client asks the user to open it; otherwise give the returned terminal instructions. Never changes a run or returns sign-in credentials. |
+| `workflow_dashboard` | When the user wants to watch: start the local dashboard (`run?`: full run id) and open it in their browser after a consent dialog (URL dialog in Claude Code, form dialog in Codex); clients without dialogs get terminal instructions. Never changes a run or returns sign-in credentials. |
 | `workflow_validate` | Check a workflow spec (`workflow`: name or spec path). |
 | `workflow_resume` | Continue a failed, interrupted or blocked run (`runId`, `detach?` default true). **Starts model calls (cost)**: only when the user asks. |
 | `workflow_supervise` | Start a background supervisor for a running run that nothing drives (`runId`). Starts model calls: only when the user asks. |
@@ -60,7 +60,10 @@ Use whichever form your tool list shows.
 2. Call `workflow_run {workflow, task}` (or `workflow_dynamic {task}`). Write a self-contained `task`:
    scope, paths, exclusions and the expected output, in the user's words where possible. Pass
    declared workflow `inputs` only when the user asked for them (for example `{"depth": "quick"}`).
-3. Call `workflow_wait {runId}`. While the result says `stillRunning: true`, call `workflow_wait`
+3. **Before waiting, tell the user the `runId` and the `Dashboard:` line from the launch result**
+   (the token-free link when a dashboard is running; when it says `not running`, offer to open one
+   with `workflow_dashboard` — the user confirms in a dialog). People want the link first.
+4. Call `workflow_wait {runId}`. While the result says `stillRunning: true`, call `workflow_wait`
    again with the same `runId`; between calls give the user at most a one-line progress note. Do not
    poll with shell `sleep`, and do not start other edits on files the run is reading.
    You get **no completion push**: the run reports only through `workflow_wait`/`workflow_status`.
@@ -73,24 +76,24 @@ Use whichever form your tool list shows.
    later turn's context (Claude Code prefixes it, for example `UserPromptSubmit hook success: `)
    comes from the completion check (`agent-workflow notify-check`, run by the Claude Code plugin's
    prompt hook): tell the user, with the verdict and report path it names.
-4. `terminal: true`: the run finished. Quote the result preview and give the report paths verbatim
+5. `terminal: true`: the run finished. Quote the result preview and give the report paths verbatim
    (the `reportArtifacts`/paths the tool prints). Do not paraphrase or re-summarize the report; read
    the report file only if the user wants details.
-5. `actionRequired: true`: the run is blocked. Report the reason, call
+6. `actionRequired: true`: the run is blocked. Report the reason, call
    `workflow_inspect {runId, failures: true}` and tell the user that the run can be resumed after
    they fix the cause. Call `workflow_resume {runId}` only when the user asks (it starts new model
-   calls), then continue with step 3.
-6. A result headed `Workflow finished — verdict: X (report ready)` (`verdictGate: true`) finished
+   calls), then continue with step 4.
+7. A result headed `Workflow finished — verdict: X (report ready)` (`verdictGate: true`) finished
    with a non-passing domain verdict, for example `PARTIAL_REVIEW`: report the verdict, quote the
    preview and give the report path. Its status says `failed` only because the verdict did not pass
    the final gate; do not call it a workflow failure.
-7. `actionRequired: true` with `pendingApprovals`: a dynamic controller of the workflow needs the
+8. `actionRequired: true` with `pendingApprovals`: a dynamic controller of the workflow needs the
    user's approval before it runs (its helper code and budget). Show the user the approval question
    (the `message` of each pending approval) and ask them to approve or reject. Only after they
    decide, call `workflow_approve {runId, requestId, decision}`; the user confirms again in a dialog.
    If they decline the approval dialog the controller is rejected for this run (it never asks
-   again); if they cancel, nothing changes. After an approval, continue with step 3.
-8. A failed or partial run otherwise: report status and the failed tasks from `workflow_inspect`; do
+   again); if they cancel, nothing changes. After an approval, continue with step 4.
+9. A failed or partial run otherwise: report status and the failed tasks from `workflow_inspect`; do
    not invent results for missing parts.
 
 Runs are detached by default (`detach: true`): they keep running between calls and after the host

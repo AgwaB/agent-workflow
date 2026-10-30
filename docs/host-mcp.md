@@ -137,22 +137,29 @@ read-only; `run`, `dynamic`, `auto`, `stop`, `resume`, `prune`, `profile`, `appr
 
 `workflow_run`, `workflow_dynamic` and a launched `workflow_auto` preserve the token-free
 `Dashboard: http://127.0.0.1:<port>/?run=<id>` line when a dashboard is already running.
-The launch data includes `dashboard: {url, port}` (`workflow_auto`: `data.launch.dashboard`).
-They never start or open a dashboard themselves.
+The launch data includes `dashboard: {url, port}` (`workflow_auto`: `data.launch.dashboard`) and the
+text's `Dashboard:` line sits right under the run heading (`Dashboard: not running · agent-workflow
+dashboard --open` when none runs); the `Next:` guidance tells the model to report the run id and that
+line to the user before waiting. Launches never start or open a dashboard themselves.
 
 `workflow_dashboard {run?}` ensures a dashboard is running for the call's project, starting it
-detached if needed, and mints a one-time sign-in URL. With protocol **2025-11-25** or later and
-`capabilities.elicitation.url`, it sends one `elicitation/create` with `mode: "url"`: the client
-asks the user and opens the browser on acceptance. Decline, cancel or error means `opened: false`;
-there is no fallback opener. Without URL elicitation it asks no dialog and gives instructions:
-`Dashboard is running on 127.0.0.1:<port>; open it from a terminal with
-agent-workflow dashboard --open (project <dir>)`.
+detached if needed, and mints a one-time sign-in URL. Then, by what the client can show:
 
-Codex currently advertises **form-only elicitation by default** (openai/codex#29344), so gets
-instructions; Claude Code **≥ 2.1.87** supports the URL dialog. The one-time URL travels only in
-the client request, never the tool result; neither the session token nor the launch key is returned.
-On protocols supporting structured content this tool returns the compact top-level
-`{running, port, opened, method: "url-elicitation" | "instructions"}` even for Claude Code
+- **URL elicitation** (protocol **2025-11-25** or later with `capabilities.elicitation.url`; Claude
+  Code ≥ 2.1.87): one `elicitation/create` with `mode: "url"` — the client asks the user and opens
+  the browser on acceptance; once the browser has signed in (the one-time token was consumed; the
+  server polls `GET /api/launch/:id`) the server sends `notifications/elicitation/complete`, so the
+  client stops waiting. `method: "url-elicitation"`.
+- **Form elicitation only** (Codex today, openai/codex#29344): one form dialog "Open the
+  agent-workflow dashboard for <project> in your browser?"; on accept the MCP server — which runs on
+  the user's machine over stdio — opens the browser itself (`BROWSER`/`BROWSER_ARGS` honored), as
+  `/aw dashboard` does in Pi. `method: "form-consent"`. Decline/cancel: `opened: false`, nothing opens.
+- **No dialogs**: instructions only — `Dashboard is running on 127.0.0.1:<port>; open it from a
+  terminal with agent-workflow dashboard --open (project <dir>)`. `method: "instructions"`.
+
+The one-time URL travels only in the elicitation request or to the local browser, never in the tool
+result; neither the session token nor the launch key is returned. On protocols supporting structured
+content this tool returns the compact top-level `{running, port, opened, method}` even for Claude Code
 (an exception to host API text-only results). Startup failures return `isError: true` with a reason.
 This tool is not a confirmed run change: it starts a local process but changes nothing in runs.
 

@@ -101,7 +101,11 @@ test("real host launch carries a token-free dashboard link only while discovery 
 	});
 	const second = await launch("Without dashboard");
 	assert.equal(second.data.dashboard, undefined);
-	assert.ok(!second.text.includes("Dashboard:"));
+	assert.match(
+		second.text,
+		/Dashboard: not running · agent-workflow dashboard --open/,
+	);
+	assert.ok(!second.text.includes("Dashboard: http"));
 });
 test("run --open overrides agent/non-TTY suppression, opens once and bootstraps to the run", {
 	timeout: 15_000,

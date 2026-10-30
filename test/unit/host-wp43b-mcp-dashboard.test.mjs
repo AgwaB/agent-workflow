@@ -1,6 +1,14 @@
 // WP43b: MCP URL consent keeps dashboard credentials out of model-visible tool results.
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import {
+	chmod,
+	mkdir,
+	mkdtemp,
+	readFile,
+	realpath,
+	rm,
+	writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { after, test } from "node:test";
@@ -133,7 +141,10 @@ test("URL accept: client bootstraps the real server once to the selected run; re
 	});
 	const result = await client.call(WORKFLOW_DASHBOARD_TOOL, { run });
 	assert.equal(result.isError, false);
-	assert.equal(result.content[0].text, "Opened the dashboard in your browser.");
+	assert.equal(
+		result.content[0].text,
+		`Opened the dashboard in your browser (127.0.0.1:${p.dashboard.port}).`,
+	);
 	assert.deepEqual(result.structuredContent, {
 		running: true,
 		port: p.dashboard.port,
@@ -218,9 +229,9 @@ for (const action of ["decline", "cancel", "error"]) {
 }
 
 for (const config of [
-	{ capabilities: { elicitation: { form: {} } }, host: "codex" },
-	{ capabilities: { elicitation: { url: {} } }, protocol: "2025-06-18" },
 	{ capabilities: {} },
+	// `url` alone on a pre-2025-11-25 protocol is neither URL mode nor form mode.
+	{ capabilities: { elicitation: { url: {} } }, protocol: "2025-06-18" },
 ]) {
 	test(`instructions only: ${JSON.stringify(config)}`, {
 		timeout: 15_000,
@@ -242,6 +253,73 @@ for (const config of [
 		assert.equal(requests(client).length, 0);
 		assert.doesNotMatch(JSON.stringify(result), /https?:\/\//);
 		noSecrets(result, p.dashboard);
+	});
+}
+
+for (const config of [
+	{ capabilities: { elicitation: { form: {} } }, host: "codex" },
+]) {
+	test(`form consent (no URL mode): accept opens the browser from the server via BROWSER; the URL never reaches the client: ${JSON.stringify(config)}`, {
+		timeout: 15_000,
+	}, async () => {
+		const p = await project();
+		const log = join(p.cwd, "opened.log");
+		const recorder = join(p.cwd, "browser.sh");
+		await writeFile(
+			recorder,
+			`#!/bin/sh\necho "$1" >> ${JSON.stringify(log)}\n`,
+		);
+		await chmod(recorder, 0o755);
+		p.env.BROWSER = recorder;
+		const client = await connect(p, {
+			...config,
+			onRequest: async () => ({ action: "accept" }),
+		});
+		const result = await client.call(WORKFLOW_DASHBOARD_TOOL);
+		assert.equal(result.isError, false);
+		assert.deepEqual(result.structuredContent, {
+			running: true,
+			port: p.dashboard.port,
+			opened: true,
+			method: "form-consent",
+		});
+		assert.equal(
+			result.content[0].text,
+			`Opened the dashboard in your browser (127.0.0.1:${p.dashboard.port}).`,
+		);
+		const [request] = requests(client);
+		assert.equal(requests(client).length, 1);
+		assert.notEqual(request.params.mode, "url");
+		assert.doesNotMatch(JSON.stringify(request.params), /token=|https?:\/\//);
+		let recorded = "";
+		for (let i = 0; i < 30 && !recorded; i++) {
+			await new Promise((r) => setTimeout(r, 100));
+			recorded = await readFile(log, "utf8").catch(() => "");
+		}
+		const url = recorded.trim();
+		assert.match(
+			url,
+			new RegExp(
+				`^http://127\\.0\\.0\\.1:${p.dashboard.port}/\\?token=[A-Za-z0-9_-]{43}$`,
+			),
+		);
+		noSecrets(result, p.dashboard, url);
+		noSecrets(client.logs, p.dashboard, url);
+	});
+	test(`form consent declined: nothing opens, instructions returned: ${JSON.stringify(config)}`, {
+		timeout: 15_000,
+	}, async () => {
+		const p = await project();
+		p.env.BROWSER = "none";
+		const client = await connect(p, {
+			...config,
+			onRequest: async () => ({ action: "decline" }),
+		});
+		const result = await client.call(WORKFLOW_DASHBOARD_TOOL);
+		assert.equal(result.structuredContent.opened, false);
+		assert.equal(result.structuredContent.method, "form-consent");
+		assert.match(result.content[0].text, /not opened/);
+		assert.doesNotMatch(JSON.stringify(result), /https?:\/\//);
 	});
 }
 
@@ -339,7 +417,11 @@ test("real workflow_run preserves the token-free dashboard link only while a das
 			assert.ok(result.content[0].text.includes(`Dashboard: ${url}`));
 			assert.deepEqual(dashboard, { url, port: p.dashboard.port });
 		} else {
-			assert.doesNotMatch(result.content[0].text, /Dashboard:/);
+			assert.match(
+				result.content[0].text,
+				/Dashboard: not running · agent-workflow dashboard --open/,
+			);
+			assert.doesNotMatch(result.content[0].text, /Dashboard: http/);
 			assert.equal(dashboard, undefined);
 		}
 		noSecrets(result, p.dashboard);
