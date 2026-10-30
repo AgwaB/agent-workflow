@@ -340,10 +340,39 @@ progress::-moz-progress-bar {
 	vector-effect: non-scaling-stroke;
 	pointer-events: all;
 }
+/* Where work is: running glows, failed/blocked take their colour, the next stage is a dashed
+   accent outline, pending stays quiet. Selection wins. */
+.node.running .outline {
+	stroke: rgba(110, 231, 183, 0.75);
+	stroke-width: 1.5;
+	fill: rgba(110, 231, 183, 0.05);
+	filter: drop-shadow(0 0 9px rgba(110, 231, 183, 0.3));
+}
+.node.retry .outline {
+	stroke: rgba(233, 187, 108, 0.6);
+	stroke-width: 1.5;
+}
+.node.blocked .outline {
+	stroke: rgba(233, 187, 108, 0.8);
+	stroke-width: 1.5;
+	fill: rgba(233, 187, 108, 0.04);
+}
+.node.failed .outline {
+	stroke: rgba(241, 140, 137, 0.65);
+	stroke-width: 1.5;
+}
+.node.next .outline {
+	stroke: rgba(110, 231, 183, 0.4);
+	stroke-dasharray: 5 4;
+}
+.node.next .node-name {
+	fill: var(--text);
+}
 .node.selected .outline,
 .node:focus .outline {
 	stroke: var(--accent);
-	stroke-width: 1.5;
+	stroke-width: 2;
+	stroke-dasharray: none;
 }
 .node:focus {
 	outline: none;
@@ -359,7 +388,7 @@ progress::-moz-progress-bar {
 	font-size: 14px;
 }
 .node.pending .outline {
-	stroke: rgba(255, 255, 255, 0.06);
+	stroke: rgba(255, 255, 255, 0.14);
 }
 .node.pending .node-name {
 	fill: var(--muted);
@@ -391,14 +420,85 @@ progress::-moz-progress-bar {
 .agent-row:hover text {
 	fill: var(--accent);
 }
+/* Edges say where work has been (done), is (active, blocked), goes next, or later; the arrowhead
+   marker takes the same colour. The active dash pattern flows toward the next stage. */
 .edge {
 	fill: none;
-	stroke: rgba(238, 239, 242, 0.35);
-	stroke-width: 1;
+	stroke: rgba(238, 239, 242, 0.45);
+	stroke-width: 1.5;
 	vector-effect: non-scaling-stroke;
 }
-.port {
-	fill: #62656b;
+.edge.later {
+	stroke: rgba(238, 239, 242, 0.18);
+	stroke-dasharray: 3 6;
+}
+.edge.next {
+	stroke: rgba(110, 231, 183, 0.55);
+	stroke-width: 2;
+	stroke-dasharray: 6 6;
+	animation: flow 2.4s linear infinite;
+}
+.edge.active {
+	stroke: var(--accent);
+	stroke-width: 2.5;
+	stroke-dasharray: 8 6;
+	animation: flow 0.9s linear infinite;
+}
+.edge.blocked {
+	stroke: var(--warn);
+	stroke-width: 2;
+	stroke-dasharray: 8 6;
+	animation: flow 1.6s linear infinite;
+}
+.edge.failed {
+	stroke: rgba(241, 140, 137, 0.7);
+}
+@keyframes flow {
+	to {
+		stroke-dashoffset: -14;
+	}
+}
+.arrow path,
+.arrow-sample {
+	fill: rgba(238, 239, 242, 0.55);
+}
+.arrow.later path,
+.arrow-sample.later {
+	fill: rgba(238, 239, 242, 0.22);
+}
+.arrow.next path,
+.arrow-sample.next {
+	fill: rgba(110, 231, 183, 0.7);
+}
+.arrow.active path,
+.arrow-sample.active {
+	fill: var(--accent);
+}
+.arrow.blocked path,
+.arrow-sample.blocked {
+	fill: var(--warn);
+}
+.arrow.failed path,
+.arrow-sample.failed {
+	fill: rgba(241, 140, 137, 0.8);
+}
+.edge-sample {
+	flex: none;
+	overflow: visible;
+}
+.node .status-icon.running circle {
+	animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+	50% {
+		opacity: 0.35;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.edge,
+	.node .status-icon.running circle {
+		animation: none;
+	}
 }
 .track {
 	fill: rgba(238, 239, 242, 0.12);
@@ -408,6 +508,48 @@ progress::-moz-progress-bar {
 }
 .running-marker {
 	fill: var(--accent);
+}
+/* Off-screen stage hints (one per side); accent when the work is over there. */
+.more {
+	position: absolute;
+	z-index: 1;
+	padding: 4px 11px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	background: var(--overlay);
+	color: var(--muted);
+	font-size: 13px;
+	font-family: var(--mono);
+	cursor: pointer;
+}
+.more:hover {
+	color: var(--text);
+	border-color: var(--muted);
+}
+.more.live {
+	color: var(--accent);
+	border-color: rgba(110, 231, 183, 0.45);
+}
+.more.left {
+	left: 12px;
+	top: 12px;
+}
+.more.right {
+	right: 12px;
+	top: 12px;
+}
+.more.top {
+	top: 12px;
+	left: 50%;
+	transform: translateX(-50%);
+}
+.more.bottom {
+	bottom: 16px;
+	left: 50%;
+	transform: translateX(-50%);
+}
+.more[hidden] {
+	display: none;
 }
 .toolbar {
 	position: absolute;

@@ -784,6 +784,29 @@ function selectedStage() {
 	return state.stage || selectedTask()?.stageId;
 }
 const graphViews = new Map();
+const EDGE_STATES = ["done", "active", "blocked", "next", "later", "failed"];
+/** Fit never zooms below this: boxes stay large enough for their 14px text (rows, bars). */
+const FIT_MIN_ZOOM = 0.7;
+const settledStage = (stage) => ["completed", "skipped"].includes(stage.status);
+const activeStage = (stage) =>
+	["running", "retry", "blocked"].includes(stage.status);
+/** The stage a pending node is waiting on has started or finished: work heads here next. */
+const nextStage = (stage) =>
+	stage.status === "pending" &&
+	!stage.ghost &&
+	stage.deps.size > 0 &&
+	[...stage.deps].every((id) => {
+		const dep = graphModel.stages.get(id);
+		return settledStage(dep) || activeStage(dep);
+	});
+/** How an edge reads: where work has been (done), is (active/blocked), goes next, or later. */
+function edgeState(from, to) {
+	if (to.status === "failed") return "failed";
+	if (to.status === "blocked") return "blocked";
+	if (activeStage(to)) return "active";
+	if (settledStage(to) || to.status === "interrupted") return "done";
+	return settledStage(from) || activeStage(from) ? "next" : "later";
+}
 function renderGraph() {
 	graphControl?.destroy();
 	const model = graphModel;
@@ -798,8 +821,29 @@ function renderGraph() {
 	const viewport = svg("g"),
 		edges = svg("g"),
 		nodes = svg("g");
+	// Arrowheads: one marker per edge state (the fill is a CSS rule); sized in apply() so they
+	// keep a constant screen size at any zoom.
+	const defs = svg("defs");
+	for (const state of EDGE_STATES)
+		defs.append(
+			svg(
+				"marker",
+				{
+					id: `arrow-${state}`,
+					class: `arrow ${state}`,
+					viewBox: "0 0 10 10",
+					refX: 8.5,
+					refY: 5,
+					markerUnits: "userSpaceOnUse",
+					markerWidth: 13,
+					markerHeight: 13,
+					orient: "auto",
+				},
+				svg("path", { d: "M1,1.5 L9,5 L1,8.5 Q3,5 1,1.5 z" }),
+			),
+		);
 	viewport.append(edges, nodes);
-	drawing.append(viewport);
+	drawing.append(defs, viewport);
 	wrap.append(drawing);
 	const positions = new Map(),
 		horizontal = state.layout === "lr";
@@ -821,7 +865,8 @@ function renderGraph() {
 			});
 			side += horizontal ? nodeHeight(stage) + 14 : width + 18;
 		}
-		axis += horizontal ? width + 40 : height + 10;
+		// Room between layers so the edges and their arrowheads read as a path, not a seam.
+		axis += horizontal ? width + 72 : height + 48;
 	}
 	for (const edge of model.edges) {
 		const a = positions.get(edge.from),
@@ -833,9 +878,17 @@ function renderGraph() {
 		const d = horizontal
 			? `M${x1},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2},${y2}`
 			: `M${x1},${y1} C${x1},${(y1 + y2) / 2} ${x2},${(y1 + y2) / 2} ${x2},${y2}`;
+		const state = edgeState(
+			model.stages.get(edge.from),
+			model.stages.get(edge.to),
+		);
 		edges.append(
-			svg("path", { class: "edge", d }),
-			svg("circle", { class: "port", cx: x2, cy: y2, r: 2.6 }),
+			svg("path", {
+				class: `edge ${state}`,
+				d,
+				"marker-end": `url(#arrow-${state})`,
+				"data-edge": `${edge.from}>${edge.to}`,
+			}),
 		);
 	}
 	const priority = {
@@ -848,7 +901,7 @@ function renderGraph() {
 	for (const stage of model.stages.values()) {
 		const p = positions.get(stage.id);
 		const node = svg("g", {
-			class: `node ${stage.status}${stage.ghost ? " ghost" : ""}`,
+			class: `node ${stage.status}${stage.ghost ? " ghost" : ""}${nextStage(stage) ? " next" : ""}`,
 			transform: `translate(${p.x},${p.y})`,
 			tabindex: "0",
 			role: "button",
@@ -1037,7 +1090,102 @@ function renderGraph() {
 	}
 	let view = savedView ? { ...savedView } : { x: 0, y: 0, k: 1 },
 		dragged = null;
+	function bounds() {
+		const values = [...positions.values()];
+		if (!values.length) return undefined;
+		const x0 = Math.min(...values.map((p) => p.x)) - 8,
+			y0 = Math.min(...values.map((p) => p.y)) - 8;
+		return {
+			x0,
+			y0,
+			w: Math.max(...values.map((p) => p.x + p.w)) + 8 - x0,
+			h: Math.max(...values.map((p) => p.y + p.h)) + 8 - y0,
+		};
+	}
+	// The graph can never be panned out of sight: a graph smaller than the canvas stays inside
+	// it, a larger one stops when its far edge reaches the canvas edge.
+	function clamp() {
+		const b = bounds();
+		if (!b || !wrap.clientWidth || !wrap.clientHeight) return;
+		const range = (lead, trail, size, start, length) => {
+			const near = lead - start * view.k,
+				far = size - trail - (start + length) * view.k;
+			return [Math.min(near, far), Math.max(near, far)];
+		};
+		const [xMin, xMax] = range(16, 16, wrap.clientWidth, b.x0, b.w);
+		const [yMin, yMax] = range(16, 76, wrap.clientHeight, b.y0, b.h);
+		view.x = Math.min(xMax, Math.max(xMin, view.x));
+		view.y = Math.min(yMax, Math.max(yMin, view.y));
+	}
+	// Off-screen hints: when part of the graph is outside the canvas, a pill on that side says how
+	// many stages are there (accent when one of them is where the work is); clicking pans there.
+	const sides = {
+		left: "\u2190",
+		right: "\u2192",
+		top: "\u2191",
+		bottom: "\u2193",
+	};
+	const hints = Object.fromEntries(
+		Object.keys(sides).map((side) => [
+			side,
+			button("", () => pan(side), {
+				class: `more ${side}`,
+				hidden: "",
+				"data-more": side,
+			}),
+		]),
+	);
+	function pan(side) {
+		view.manual = true;
+		const dx = wrap.clientWidth * 0.8,
+			dy = (wrap.clientHeight - 76) * 0.8;
+		if (side === "left") view.x += dx;
+		else if (side === "right") view.x -= dx;
+		else if (side === "top") view.y += dy;
+		else view.y -= dy;
+		apply();
+	}
+	function updateHints() {
+		const W = wrap.clientWidth,
+			H = wrap.clientHeight - 60;
+		const count = { left: 0, right: 0, top: 0, bottom: 0 },
+			live = { left: false, right: false, top: false, bottom: false };
+		for (const stage of model.stages.values()) {
+			const p = positions.get(stage.id);
+			const x0 = p.x * view.k + view.x,
+				x1 = (p.x + p.w) * view.k + view.x,
+				y0 = p.y * view.k + view.y,
+				y1 = (p.y + p.h) * view.k + view.y;
+			const side =
+				x1 < 0
+					? "left"
+					: x0 > W
+						? "right"
+						: y1 < 0
+							? "top"
+							: y0 > H
+								? "bottom"
+								: null;
+			if (!side) continue;
+			count[side] += 1;
+			if (activeStage(stage) || stage.status === "failed") live[side] = true;
+		}
+		for (const [side, hint] of Object.entries(hints)) {
+			hint.hidden = !count[side];
+			const text = `${count[side]} more${live[side] ? " \u00b7 active" : ""}`;
+			hint.textContent =
+				side === "left" || side === "top"
+					? `${sides[side]} ${text}`
+					: `${text} ${sides[side]}`;
+			hint.classList.toggle("live", live[side]);
+			hint.setAttribute(
+				"aria-label",
+				`${count[side]} stages ${side === "left" ? "to the left" : side === "right" ? "to the right" : side === "top" ? "above" : "below"}; pan there`,
+			);
+		}
+	}
 	function apply() {
+		clamp();
 		view.width = wrap.clientWidth;
 		view.height = wrap.clientHeight;
 		graphViews.set(viewKey, { ...view });
@@ -1045,18 +1193,22 @@ function renderGraph() {
 			"transform",
 			`translate(${view.x},${view.y}) scale(${view.k})`,
 		);
-		// SVG presentation attributes keep text >=14px at Fit without inline CSS.
+		updateHints();
+		// Arrowheads keep ~13px on screen whatever the zoom.
+		for (const marker of defs.querySelectorAll("marker")) {
+			marker.setAttribute("markerWidth", 13 / view.k);
+			marker.setAttribute("markerHeight", 13 / view.k);
+		}
+		// SVG presentation attributes keep text >=14px at Fit without inline CSS. Below the Fit
+		// floor (an explicit zoom-out) the text shrinks with the boxes instead of spilling over them.
 		for (const text of nodes.querySelectorAll("text")) {
 			const size = text.classList.contains("node-name") ? 15 : 14;
-			text.setAttribute("font-size", Math.max(size, size / view.k));
+			const fontSize = Math.max(size, size / Math.max(view.k, FIT_MIN_ZOOM));
+			text.setAttribute("font-size", fontSize);
 			// A class rule would override the presentation attribute: use a nested text span.
 			if (!text.dataset.full) text.dataset.full = text.textContent;
 			text.replaceChildren(
-				svg(
-					"tspan",
-					{ "font-size": Math.max(size, size / view.k) },
-					text.dataset.full,
-				),
+				svg("tspan", { "font-size": fontSize }, text.dataset.full),
 			);
 			const max = Number(text.dataset.fit);
 			const span = text.firstChild;
@@ -1074,21 +1226,25 @@ function renderGraph() {
 		}
 	}
 	function fit() {
-		const values = [...positions.values()];
-		if (!values.length) return;
-		const x0 = Math.min(...values.map((p) => p.x)) - 8,
-			y0 = Math.min(...values.map((p) => p.y)) - 8;
-		const w = Math.max(...values.map((p) => p.x + p.w)) + 8 - x0,
-			h = Math.max(...values.map((p) => p.y + p.h)) + 8 - y0;
+		const b = bounds();
+		if (!b) return;
+		const { x0, y0, w, h } = b;
 		const available = Math.max(100, wrap.clientHeight - 140);
+		// Never shrink boxes below what their text needs; a big graph pans (clamped) instead.
 		const k = Math.max(
-			0.15,
+			FIT_MIN_ZOOM,
 			Math.min((wrap.clientWidth - 40) / w, available / h, 1.05),
 		);
+		// A graph that overflows at the floor starts at its beginning (top / left); Focus and the
+		// clamped pan reach the rest.
 		view = {
 			k,
-			x: wrap.clientWidth / 2 - (x0 + w / 2) * k,
-			y: 44 + (available - h * k) / 2 - y0 * k,
+			x:
+				w * k > wrap.clientWidth - 40
+					? 20 - x0 * k
+					: wrap.clientWidth / 2 - (x0 + w / 2) * k,
+			y:
+				h * k > available ? 44 - y0 * k : 44 + (available - h * k) / 2 - y0 * k,
 		};
 		apply();
 	}
@@ -1119,7 +1275,7 @@ function renderGraph() {
 					x = event.clientX - rect.left,
 					y = event.clientY - rect.top;
 				const k = Math.max(
-					0.15,
+					0.4,
 					Math.min(2, view.k * Math.exp(-event.deltaY * 0.01)),
 				);
 				view = {
@@ -1188,6 +1344,7 @@ function renderGraph() {
 		view.y += (wrap.clientHeight - (view.height || wrap.clientHeight)) / 2;
 		apply();
 	}
+	wrap.append(...Object.values(hints));
 	const observer = new ResizeObserver(resize);
 	requestAnimationFrame(() => {
 		if (wrap.isConnected) {
@@ -2107,6 +2264,34 @@ function openStatusKey() {
 			"p",
 			{ class: "muted" },
 			"Amber marks approvals and executor decisions. Red marks failures.",
+		),
+		element("h3", {}, "Arrows"),
+		...[
+			["active", "Work is flowing into this stage now"],
+			["next", "Where work goes next (dashed outline: the next stage)"],
+			["done", "Already travelled"],
+			["later", "Later"],
+		].map(([state, text]) =>
+			element(
+				"p",
+				{ class: "row" },
+				svg(
+					"svg",
+					{
+						class: "edge-sample",
+						width: 44,
+						height: 12,
+						viewBox: "0 0 44 12",
+						"aria-hidden": "true",
+					},
+					svg("path", { class: `edge ${state}`, d: "M1,6 H34" }),
+					svg("path", {
+						class: `arrow-sample ${state}`,
+						d: "M33,1.5 L42,6 L33,10.5 Q35.5,6 33,1.5 z",
+					}),
+				),
+				text,
+			),
 		),
 		button("Close", () => dismissDialog(false), { "data-cancel": "true" }),
 	]);

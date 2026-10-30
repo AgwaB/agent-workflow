@@ -73,6 +73,107 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		await browser.evaluate(() => document.querySelectorAll(".node").length),
 		8,
 	);
+	// Edges read as a path: into the running stage (active, animated), to the stage that comes
+	// next (dashed accent, and that node is outlined as next), then later; every edge has an
+	// arrowhead marker of its own state.
+	assert.deepEqual(
+		await browser.evaluate(() =>
+			[...document.querySelectorAll(".edge")].map(
+				(edge) =>
+					`${edge.dataset.edge}:${edge.classList[1]}:${edge.getAttribute("marker-end")}`,
+			),
+		),
+		[
+			"triage>reviewers:active:url(#arrow-active)",
+			"reviewers>dedup-findings:next:url(#arrow-next)",
+			"dedup-findings>devil-advocate:later:url(#arrow-later)",
+			"devil-advocate>partition-verdicts:later:url(#arrow-later)",
+			"partition-verdicts>report-packet:later:url(#arrow-later)",
+			"report-packet>report:later:url(#arrow-later)",
+			"report>final:later:url(#arrow-later)",
+		],
+	);
+	assert.deepEqual(
+		await browser.evaluate(() => ({
+			next: [...document.querySelectorAll(".node.next")].map(
+				(node) => node.dataset.stage,
+			),
+			markers: document.querySelectorAll(".graph defs marker").length,
+			flowing: getComputedStyle(document.querySelector(".edge.active"))
+				.animationName,
+			still: getComputedStyle(document.querySelector(".edge.later"))
+				.animationName,
+			ports: document.querySelectorAll(".port").length,
+		})),
+		{
+			next: ["dedup-findings"],
+			markers: 6,
+			flowing: "flow",
+			still: "none",
+			ports: 0,
+		},
+	);
+	// Panning is clamped: however far the wheel scrolls, the graph stays inside the canvas and
+	// the markers keep their on-screen size.
+	const panned = await browser.evaluate(() => {
+		const canvas = document.getElementById("canvas");
+		const wheel = (deltaX, deltaY) =>
+			canvas.dispatchEvent(
+				new WheelEvent("wheel", {
+					deltaX,
+					deltaY,
+					bubbles: true,
+					cancelable: true,
+				}),
+			);
+		const place = () => {
+			const c = canvas.getBoundingClientRect();
+			const g = document
+				.querySelector(".graph > g:last-of-type")
+				.getBoundingClientRect();
+			return {
+				inside:
+					g.top >= c.top &&
+					g.bottom <= c.bottom &&
+					g.left >= c.left &&
+					g.right <= c.right,
+				visibleNodes: [...document.querySelectorAll(".node")].filter((n) => {
+					const r = n.getBoundingClientRect();
+					return r.bottom > c.top && r.top < c.bottom;
+				}).length,
+			};
+		};
+		const before = place();
+		for (let i = 0; i < 60; i++) wheel(0, 500);
+		const down = place();
+		for (let i = 0; i < 120; i++) wheel(0, -500);
+		const up = place();
+		for (let i = 0; i < 60; i++) wheel(500, 0);
+		const right = place();
+		const marker = document.querySelector(".graph defs marker");
+		const k = document
+			.querySelector(".graph > g:last-of-type")
+			.getScreenCTM().a;
+		return {
+			before,
+			down,
+			up,
+			right,
+			markerPx: Number(marker.getAttribute("markerWidth")) * k,
+			fitZoom: k,
+		};
+	});
+	for (const [label, place] of Object.entries(panned))
+		if (typeof place === "object")
+			assert.ok(
+				place.inside && place.visibleNodes === 8,
+				`${label}: ${JSON.stringify(place)}`,
+			);
+	assert.ok(Math.abs(panned.markerPx - 13) < 0.01, JSON.stringify(panned));
+	assert.ok(panned.fitZoom >= 0.699, JSON.stringify(panned));
+	await browser.evaluate(() =>
+		document.querySelector(".toolbar button").click(),
+	);
 	assert.equal(
 		await browser.evaluate(() => document.querySelector("#inspector").hidden),
 		true,
