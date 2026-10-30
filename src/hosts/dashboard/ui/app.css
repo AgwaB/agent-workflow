@@ -495,25 +495,25 @@ progress::-moz-progress-bar {
 		stroke-dashoffset: -14;
 	}
 }
-/* Travelled edges: dots keep moving toward the target, also on a finished run (calm, neutral;
-   running work is the faster green dash). */
+/* Travelled edges: one soft glint per edge travels toward the target, layer after layer, then
+   a pause — a calm wave down the path the work took, also on a finished run. The dash and its
+   motion are scripted (app.js) so every edge stays in step; hidden until the script starts. */
 .pulse {
 	fill: none;
-	stroke: rgba(238, 239, 242, 0.9);
-	stroke-width: 3;
+	stroke: rgba(238, 239, 242, 0.95);
+	stroke-width: 2.5;
 	stroke-linecap: round;
-	stroke-dasharray: 0.1 28;
 	vector-effect: non-scaling-stroke;
 	pointer-events: none;
-	animation: travel 1.6s linear infinite;
+	visibility: hidden;
+	filter: drop-shadow(0 0 3px rgba(238, 239, 242, 0.7));
+}
+.pulse[stroke-dasharray] {
+	visibility: visible;
 }
 .pulse.failed {
-	stroke: rgba(241, 140, 137, 0.95);
-}
-@keyframes travel {
-	to {
-		stroke-dashoffset: -28.1;
-	}
+	stroke: rgba(241, 140, 137, 1);
+	filter: drop-shadow(0 0 4px rgba(241, 140, 137, 0.8));
 }
 .arrow path,
 .arrow-sample {

@@ -434,21 +434,29 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 			.querySelector("#report-content")
 			?.textContent.includes("Review report"),
 	);
-	// A finished run still shows where the work went, with no button or setting: dots travel
-	// along every travelled edge.
+	// A finished run still shows where the work went, with no button or setting: one glint per
+	// travelled edge, all on one shared cycle (a wave layer by layer, then a rest).
+	await browser.waitFor(() =>
+		document.querySelector(".pulse[stroke-dasharray]"),
+	);
 	assert.deepEqual(
 		await browser.evaluate(() => {
 			const done = document.querySelectorAll(".edge.done").length;
 			const pulses = [...document.querySelectorAll(".pulse.done")];
+			const timings = pulses.map((pulse) =>
+				pulse.getAnimations()[0]?.effect.getTiming(),
+			);
 			return {
 				some: done > 0,
 				same: pulses.length === done,
-				moving: pulses.every(
-					(pulse) => getComputedStyle(pulse).animationName === "travel",
+				glint: pulses.every((pulse) =>
+					/^22 /.test(pulse.getAttribute("stroke-dasharray")),
 				),
+				forever: timings.every((t) => t?.iterations === Infinity),
+				one_cycle: new Set(timings.map((t) => t?.duration)).size === 1,
 			};
 		}),
-		{ some: true, same: true, moving: true },
+		{ some: true, same: true, glint: true, forever: true, one_cycle: true },
 	);
 	assert.equal(
 		await browser.evaluate(

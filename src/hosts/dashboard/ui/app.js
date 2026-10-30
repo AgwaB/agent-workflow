@@ -1747,11 +1747,56 @@ function renderGraph() {
 			);
 		}
 	}
+	// The wave: each travelled edge carries one short glint from its source to its target. Edges
+	// leaving layer n start at n·STEP and all travel in the same time (a long rail is not slower),
+	// then everything rests and repeats — one shared cycle, so the glints stay in step instead of
+	// scattering dots along shared rails.
+	function startWave(afterReplay) {
+		if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+		const STEP = 650,
+			TRAVEL = 620,
+			REST = 1300,
+			GLINT = 22;
+		// The last layer sends nothing, so the wave ends one step earlier.
+		const cycle = Math.max(1, model.layers.length - 1) * STEP + TRAVEL + REST;
+		const start = afterReplay ? model.layers.length * 170 + 500 : 0;
+		for (const pulse of edges.querySelectorAll(".pulse")) {
+			const length = pulse.getTotalLength();
+			if (!length) continue;
+			const from = pulse.closest(".link").dataset.link.split(">")[0];
+			pulse.setAttribute("stroke-dasharray", `${GLINT} ${length + GLINT + 4}`);
+			pulse.setAttribute("stroke-dashoffset", String(GLINT));
+			pulse.animate(
+				[
+					{ strokeDashoffset: GLINT, opacity: 0, easing: "ease-in-out" },
+					{
+						strokeDashoffset: GLINT - length * 0.12,
+						opacity: 1,
+						offset: (TRAVEL * 0.12) / cycle,
+					},
+					{
+						strokeDashoffset: -length * 0.9,
+						opacity: 1,
+						offset: (TRAVEL * 0.9) / cycle,
+					},
+					{ strokeDashoffset: -length, opacity: 0, offset: TRAVEL / cycle },
+					{ strokeDashoffset: -length, opacity: 0 },
+				],
+				{
+					duration: cycle,
+					delay: start + layerOf.get(from) * STEP,
+					iterations: Infinity,
+					fill: "both",
+				},
+			);
+		}
+	}
 	requestAnimationFrame(() => {
 		if (wrap.isConnected) {
 			resize();
 			observer.observe(wrap);
 			if (replay) playReplay();
+			startWave(replay);
 		}
 	});
 	graphControl = { destroy: () => observer.disconnect(), fit, reveal };
@@ -2721,7 +2766,7 @@ function openStatusKey() {
 		...[
 			["active", "Work is flowing into this stage now"],
 			["next", "Where work goes next (dashed outline: the next stage)"],
-			["done", "Already travelled (dots show the direction it went)"],
+			["done", "Already travelled (a glint runs along it, layer by layer)"],
 			["later", "Later"],
 		].map(([state, text]) =>
 			element(
