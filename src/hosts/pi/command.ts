@@ -51,6 +51,11 @@ import {
 	type PiHostDeps,
 	type PiLaunchHooks,
 } from "./host.js";
+import {
+	ensureDashboard,
+	mintLaunchUrl,
+	openInBrowser,
+} from "../dashboard/discovery.js";
 import { AW_COMMAND, AW_TOOL_NAMES } from "./names.js";
 import type { PiExtensionContext } from "./pi-types.js";
 
@@ -75,6 +80,7 @@ export const AW_ACTIONS = [
 	"stop",
 	"prune",
 	"notices",
+	"dashboard",
 ] as const;
 
 /** `/aw wait` without a timeout: pi-workflow's `/workflow wait` default (the engine's 60 s). */
@@ -115,7 +121,10 @@ Runs:
 
 Run options: ${RUN_OPTIONS}
 With a Pi UI, dynamic controllers that need approval are asked ("Run dynamic workflow controller?": yes runs it, no rejects it for the run) while this session drives the run; detached runs wait for /aw approve. With a Pi UI, capability degradations that need confirmation are asked and a declared execution profile is chosen in a dialog; without one degradations are recorded, the default profile is used and the choices are listed. Runs launched here show their progress in the status line and report back into this session when they finish or need action.
-Agent tools: ${AW_TOOL_NAMES.join(", ")}. /aw help <action> shows the agent-workflow help of one action.`;
+Agent tools: ${AW_TOOL_NAMES.join(", ")}. /aw help <action> shows the agent-workflow help of one action.
+
+Dashboard:
+  /aw dashboard [<run-id-or-prefix>]                   open the local web dashboard in your browser (starts it when needed; never prints the token)`;
 
 function only(positionals: string[], count: number, usage: string): string[] {
 	if (positionals.length !== count)
@@ -565,6 +574,33 @@ async function dispatch(
 			return api.pruneAction(host(), { argv: rest });
 		case "notices":
 			return api.noticesAction(host(), { argv: rest });
+		case "dashboard": {
+			// WP43b: open the local web dashboard from Pi. Pi is a local TUI, so opening the browser
+			// is the right move (like `agent-workflow dashboard --open`); the one-time URL goes to the
+			// browser only — the session token and launch key never reach the chat.
+			const positionals = parseCommandArgs(rest, {}).positionals;
+			if (positionals.length > 1)
+				throw new HostUsageError(
+					`Usage: /${AW_COMMAND} dashboard [<run-id-or-prefix>]`,
+				);
+			const env = host().env ?? process.env;
+			const ref = positionals[0];
+			const runId = ref
+				? (await api.statusAction(host(), { runId: ref })).data.run?.runId
+				: undefined;
+			const dashboard = await ensureDashboard(ctx.cwd, env, { start: true });
+			if (!dashboard)
+				throw new HostUsageError(
+					"The dashboard could not be started; run `agent-workflow dashboard --open` from a terminal.",
+				);
+			const url = await mintLaunchUrl(dashboard, runId ? { run: runId } : {});
+			const opened = await openInBrowser(url, env);
+			return {
+				text: opened
+					? `Opened the dashboard in your browser (127.0.0.1:${dashboard.port}${runId ? `, run ${runId}` : ""}).`
+					: `Dashboard is running on 127.0.0.1:${dashboard.port}; open it with \`agent-workflow dashboard --open\` from a terminal.`,
+			};
+		}
 		default:
 			throw new HostUsageError(
 				`Unknown /${AW_COMMAND} action "${action}". Try /${AW_COMMAND} help.`,

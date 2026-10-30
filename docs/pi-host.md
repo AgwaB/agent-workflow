@@ -209,6 +209,11 @@ redacted tails). Changes from pi-workflow: no direct run-store reads; logs inste
 and prompt files; stop/resume/approve keys; `c` also works without opening the viewer; a 2 s refresh
 (pi-workflow: 1 s; each tick is up to two host API reads).
 
+## `/aw dashboard` (WP43b)
+
+`/aw dashboard [<run-id-or-prefix>]` opens the project's local web dashboard in the browser (starting it detached when none runs) through a one-time launch URL; the session token and launch key never reach the chat. Pi is a local TUI, so opening the browser directly is the right move (the MCP hosts use URL elicitation or terminal instructions instead; see [dashboard.md](dashboard.md)). The `/aw` TUI board remains the in-terminal view.
+
+
 ## Profile picker (WP34)
 
 Port of pi-workflow's `/workflow profile` picker (`src/workflow-profile-ui.ts`,
