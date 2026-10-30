@@ -9,6 +9,7 @@ import {
 import { basename, resolve } from "node:path";
 import {
 	writeDashboardDiscovery,
+	openInBrowser,
 	readOrCreateDashboardSession,
 	readPreferredDashboardPort,
 	writePreferredDashboardPort,
@@ -144,6 +145,44 @@ function errorStatus(error: unknown): number {
 	return 500;
 }
 
+/** The sign-in page's script (served at /signin.js; CSP allows same-origin scripts only). */
+const SIGNIN_SCRIPT = `(() => {
+	const button = document.getElementById("signin");
+	const status = document.getElementById("signin-status");
+	if (!button || !status) return;
+	const say = (text) => { status.textContent = text; };
+	const signedIn = async () => {
+		try { return (await fetch("/api/session", { credentials: "same-origin" })).status === 200; }
+		catch { return false; }
+	};
+	button.addEventListener("click", async () => {
+		button.disabled = true;
+		say("Opening a signed-in tab…");
+		let opened = false;
+		try {
+			const response = await fetch("/api/signin-local", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ next: location.search }),
+			});
+			opened = response.ok && (await response.json()).opened === true;
+		} catch {}
+		if (!opened) {
+			say("Could not open a browser from here. Run agent-workflow dashboard --open in a terminal.");
+			button.disabled = false;
+			return;
+		}
+		say("Signed-in tab opened. This tab will refresh as soon as the sign-in lands.");
+		for (let i = 0; i < 60; i++) {
+			await new Promise((r) => setTimeout(r, 1000));
+			if (await signedIn()) { location.reload(); return; }
+		}
+		say("Still not signed in here; use the new tab, or run agent-workflow dashboard --open.");
+		button.disabled = false;
+	});
+})();
+`;
+
 export async function startDashboardServer(
 	options: DashboardServerOptions,
 ): Promise<DashboardServer> {
@@ -169,6 +208,7 @@ export async function startDashboardServer(
 	const csrf = dashboardCsrf(token);
 	const launchKey = options.launchKey ?? generateDashboardToken();
 	const launchTokens = new Map<string, number>();
+	let lastLocalSignIn = 0;
 	/** Launch id → { token, consumedAt }: lets the minter ask whether its one-time URL was used. */
 	const launches = new Map<
 		string,
@@ -364,11 +404,74 @@ export async function startDashboardServer(
 			bootstrapSession(response, token, bootstrapLocation(url.searchParams));
 			return;
 		}
+		// WP43c: one-click local sign-in from the sign-in page. The page's own script (same-origin
+		// fetch, so the browser sets Sec-Fetch-Site: same-origin and Origin) asks the server to open a
+		// signed-in tab through the OS opener; the one-time URL never travels to the page or the chat.
+		// Cross-site pages are refused by the fetch-metadata check; non-browser callers gain nothing
+		// (the tab opens in the server owner's browser).
+		if (request.method === "GET" && url.pathname === "/signin.js") {
+			response.writeHead(200, {
+				"Content-Type": "text/javascript; charset=utf-8",
+				"Cache-Control": "no-store",
+			});
+			response.end(SIGNIN_SCRIPT);
+			return;
+		}
+		if (request.method === "POST" && url.pathname === "/api/signin-local") {
+			if (
+				request.headers["sec-fetch-site"] !== "same-origin" ||
+				request.headers.origin !== origin
+			)
+				throw new HttpError(
+					403,
+					"sign-in must come from the dashboard's own page",
+				);
+			if (
+				request.headers["content-type"]?.split(";")[0]?.trim().toLowerCase() !==
+				"application/json"
+			)
+				throw new HttpError(400, "Content-Type must be application/json");
+			if (now() - lastLocalSignIn < 3000)
+				throw new HttpError(429, "sign-in already in progress");
+			lastLocalSignIn = now();
+			const body = await readBody(request);
+			const next = typeof body.next === "string" ? body.next : "";
+			const forwarded = new URL(
+				bootstrapLocation(new URLSearchParams(next.replace(/^\?/, ""))),
+				origin,
+			);
+			const oneTime = generateDashboardToken();
+			launchTokens.set(oneTime, now() + 60_000);
+			const target = new URL("/", origin);
+			target.searchParams.set("token", oneTime);
+			for (const [key, value] of forwarded.searchParams)
+				target.searchParams.set(key, value);
+			const opened = await openInBrowser(
+				target.href,
+				options.env ?? process.env,
+			);
+			json(response, 200, { opened });
+			return;
+		}
 		if (!hasSessionCookie(request, token)) {
-			if (["/", "/app.js", "/app.css"].includes(url.pathname)) {
+			if (url.pathname === "/app.css") {
+				// Stylesheet only (no data); the sign-in page uses it.
+				const css = await readFile(
+					new URL("./ui/app.css", import.meta.url),
+				).catch(() => undefined);
+				if (!css) throw new HttpError(404, "dashboard UI is missing");
+				response.writeHead(200, { "Content-Type": "text/css; charset=utf-8" });
+				response.end(css);
+				return;
+			}
+			if (["/", "/app.js"].includes(url.pathname)) {
 				response.writeHead(401, { "Content-Type": "text/html; charset=utf-8" });
+				const project = basename(cwd).replace(
+					/[&<>"']/g,
+					(char) => `&#${char.charCodeAt(0)};`,
+				);
 				response.end(
-					`<!doctype html><html lang="en"><meta charset="utf-8"><title>Dashboard sign-in</title><p>This browser isn't signed in to the agent-workflow dashboard for ${basename(cwd).replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`)}. Sign in once: run <code>agent-workflow dashboard --open</code> in a terminal, or ask your agent to open the dashboard. After that, links like this one open directly.</p></html>`,
+					`<!doctype html><html lang="en"><meta charset="utf-8"><title>Dashboard sign-in</title><link rel="stylesheet" href="/app.css"><main class="signin"><h1>Dashboard sign-in</h1><p>This browser isn't signed in to the agent-workflow dashboard for ${project}. Sign in once; after that, links like this one open directly.</p><p><button type="button" id="signin">Sign in on this computer</button></p><p id="signin-status" role="status"></p><p class="muted">Or run <code>agent-workflow dashboard --open</code> in a terminal, or ask your agent to open the dashboard.</p></main><script src="/signin.js"></script></html>`,
 				);
 				return;
 			}

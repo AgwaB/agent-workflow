@@ -287,3 +287,90 @@ test("a detached dashboard idles out only with no SSE client and no live run", {
 	assert.equal(idled, 1, "idled out once nobody watched");
 	assert.equal(await readDashboardDiscovery(p.cwd), undefined);
 });
+
+test("one-click local sign-in: the page's own script may ask the server to open a signed-in tab; cross-site callers may not", {
+	timeout: 20_000,
+}, async (t) => {
+	const p = await project(t);
+	const log = join(p.cwd, "opened.log");
+	const recorder = join(p.cwd, "browser.sh");
+	await writeFile(recorder, `#!/bin/sh\necho "$1" >> ${JSON.stringify(log)}\n`);
+	await (await import("node:fs/promises")).chmod(recorder, 0o755);
+	const s = await startDashboardServer({
+		cwd: p.cwd,
+		env: { ...p.env, BROWSER: recorder },
+		discovery: true,
+	});
+	t.after(() => s.close());
+	const origin = `http://127.0.0.1:${s.port}`;
+	const page = await get(origin, "/?run=workflow_abc");
+	assert.equal(page.status, 401);
+	assert.match(page.text, /id="signin"/);
+	assert.match(page.text, /<script src="\/signin\.js">/);
+	assert.match(page.text, /<link rel="stylesheet" href="\/app\.css">/);
+	const script = await get(origin, "/signin.js");
+	assert.equal(script.status, 200);
+	assert.match(script.headers.get("content-type"), /javascript/);
+	assert.match(script.text, /\/api\/signin-local/);
+	assert.doesNotMatch(script.text, /token=/);
+	assert.equal(
+		(await get(origin, "/app.css")).status,
+		200,
+		"stylesheet is public",
+	);
+	const post = (headers, body = { next: "?run=workflow_abc" }) =>
+		fetch(`${origin}/api/signin-local`, {
+			method: "POST",
+			headers: { "content-type": "application/json", ...headers },
+			body: JSON.stringify(body),
+		});
+	assert.equal((await post({})).status, 403, "no fetch metadata → refused");
+	assert.equal(
+		(await post({ "sec-fetch-site": "cross-site", origin })).status,
+		403,
+		"cross-site → refused",
+	);
+	assert.equal(
+		(
+			await post({
+				"sec-fetch-site": "same-origin",
+				origin: "http://evil.example",
+			})
+		).status,
+		403,
+		"foreign origin → refused",
+	);
+	const ok = await post({ "sec-fetch-site": "same-origin", origin });
+	assert.equal(ok.status, 200);
+	assert.deepEqual(await ok.json(), { opened: true });
+	assert.equal(
+		(await post({ "sec-fetch-site": "same-origin", origin })).status,
+		429,
+		"one open per few seconds",
+	);
+	let recorded = "";
+	for (let i = 0; i < 30 && !recorded; i++) {
+		await new Promise((r) => setTimeout(r, 100));
+		recorded = await readFile(log, "utf8").catch(() => "");
+	}
+	const url = recorded.trim();
+	assert.match(
+		url,
+		new RegExp(`^${origin}/\\?token=[A-Za-z0-9_-]{43}&run=workflow_abc$`),
+	);
+	assert.notEqual(
+		url.split("token=")[1].split("&")[0],
+		s.token,
+		"a one-time token, not the session",
+	);
+	const boot = await fetch(url, { redirect: "manual" });
+	assert.equal(boot.status, 302);
+	assert.equal(boot.headers.get("location"), "/?run=workflow_abc");
+	assert.match(boot.headers.get("set-cookie"), /aw_session=/);
+	await boot.arrayBuffer();
+	assert.equal(
+		(await fetch(url, { redirect: "manual" })).status,
+		401,
+		"single use",
+	);
+});
