@@ -87,6 +87,8 @@ export interface HostResult<T> {
 
 /** Per-call host context. No Pi objects: hosts pass plain values. */
 export interface HostApiContext {
+	/** Read-only host contexts must not auto-start dashboard processes. */
+	readonly?: boolean;
 	/** Project directory (run records live under `<cwd>/.agent-workflow/`). */
 	cwd: string;
 	/** Environment for role checks and the user home (defaults to process.env). */

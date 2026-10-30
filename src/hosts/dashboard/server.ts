@@ -9,6 +9,7 @@ import {
 import { basename, resolve } from "node:path";
 import {
 	writeDashboardDiscovery,
+	readOrCreateDashboardSession,
 	removeDashboardDiscovery,
 } from "./discovery.js";
 import { HostUsageError } from "../args.js";
@@ -44,6 +45,9 @@ export interface DashboardServerOptions {
 	/** Publish discovery (CLI enables it; embedded/test servers opt in). */
 	discovery?: boolean;
 	launchKey?: string;
+	token?: string;
+	idleExitMs?: number;
+	onIdleExit?: () => void;
 }
 export interface DashboardServer {
 	url: string;
@@ -155,7 +159,11 @@ export async function startDashboardServer(
 	const redact = hostTextRedactor(env);
 	const source =
 		options.source ?? hostApiDashboardSource({ cwd, env, host: "cli" });
-	const token = generateDashboardToken();
+	const token =
+		options.token ??
+		(options.discovery
+			? await readOrCreateDashboardSession(cwd)
+			: generateDashboardToken());
 	const csrf = dashboardCsrf(token);
 	const launchKey = options.launchKey ?? generateDashboardToken();
 	const launchTokens = new Map<string, number>();
@@ -180,6 +188,9 @@ export async function startDashboardServer(
 		? Math.max(1000, Math.min(10_000, configuredPoll))
 		: 1000;
 	const clients = new Set<() => void>();
+	let noClientsSince = now();
+	const startedAt = serverTime();
+	let idleUpdate: Promise<void> | undefined;
 	let port = 0;
 	let origin = "";
 	let version = "unknown";
@@ -258,6 +269,7 @@ export async function startDashboardServer(
 			clearInterval(poll);
 			clearInterval(beats);
 			clients.delete(cleanup);
+			if (clients.size === 0) noClientsSince = now();
 			response.end();
 		}
 		clients.add(cleanup);
@@ -354,7 +366,7 @@ export async function startDashboardServer(
 			if (["/", "/app.js", "/app.css"].includes(url.pathname)) {
 				response.writeHead(401, { "Content-Type": "text/html; charset=utf-8" });
 				response.end(
-					"<!doctype html><title>Dashboard</title><p>Use the printed dashboard URL to sign in.</p>",
+					`<!doctype html><html lang="en"><meta charset="utf-8"><title>Dashboard sign-in</title><p>This browser isn't signed in to the agent-workflow dashboard for ${basename(cwd).replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`)}. Sign in once: run <code>agent-workflow dashboard --open</code> in a terminal, or ask your agent to open the dashboard. After that, links like this one open directly.</p></html>`,
 				);
 				return;
 			}
@@ -546,7 +558,20 @@ export async function startDashboardServer(
 	origin = `http://127.0.0.1:${port}`;
 	if (options.discovery) {
 		try {
-			await writeDashboardDiscovery(cwd, { pid: process.pid, port, launchKey });
+			await writeDashboardDiscovery(cwd, {
+				pid: process.pid,
+				port,
+				launchKey,
+				startedAt,
+				...(options.idleExitMs !== undefined
+					? {
+							detached: true,
+							idleExitAt: new Date(
+								noClientsSince + options.idleExitMs,
+							).toISOString(),
+						}
+					: {}),
+			});
 		} catch (error) {
 			server.close();
 			server.closeAllConnections();
@@ -554,12 +579,14 @@ export async function startDashboardServer(
 		}
 	}
 	let closing: Promise<void> | undefined;
-	return {
+	let idleTimer: ReturnType<typeof setInterval> | undefined;
+	const dashboard: DashboardServer = {
 		url: `${origin}/?token=${token}`,
 		port,
 		token,
 		launchKey,
 		close() {
+			clearInterval(idleTimer);
 			closing ??= new Promise<void>((done, reject) => {
 				for (const cleanup of clients) cleanup();
 				server.close((error) => (error ? reject(error) : done()));
@@ -567,9 +594,50 @@ export async function startDashboardServer(
 			}).finally(async () => {
 				launchTokens.clear();
 				launches.clear();
+				await idleUpdate;
 				if (options.discovery) await removeDashboardDiscovery(cwd, launchKey);
 			});
 			return closing;
 		},
 	};
+	if (options.idleExitMs !== undefined) {
+		const idleExitMs = options.idleExitMs;
+		let checking = false;
+		idleTimer = setInterval(
+			() => {
+				if (checking || closing) return;
+				checking = true;
+				void (async () => {
+					const live = (await source.listRuns()).some((run) => run.live);
+					if (closing) return;
+					if (!clients.size && !live && now() - noClientsSince >= idleExitMs) {
+						await dashboard.close();
+						options.onIdleExit?.();
+					} else if (options.discovery) {
+						idleUpdate = writeDashboardDiscovery(cwd, {
+							pid: process.pid,
+							port,
+							launchKey,
+							startedAt,
+							detached: true,
+							idleExitAt: new Date(
+								(clients.size || live ? now() : noClientsSince) + idleExitMs,
+							).toISOString(),
+						}).catch(() => undefined);
+						await idleUpdate;
+					}
+				})()
+					.catch(() => {
+						/* Unknown run liveness: stay up rather than interrupt a user. */
+					})
+					.finally(() => {
+						checking = false;
+					});
+				// Check every minute, or faster for short idle windows (tests, custom settings).
+			},
+			Math.min(60_000, Math.max(250, Math.floor(idleExitMs / 2))),
+		);
+		idleTimer.unref();
+	}
+	return dashboard;
 }

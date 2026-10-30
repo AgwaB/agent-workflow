@@ -14,6 +14,7 @@ import { setTimeout as dashboardSleep } from "node:timers/promises";
 import {
 	dashboardDiscoveryPath,
 	readDashboardDiscovery,
+	resetDashboardSession,
 	detectAgentEnvironment,
 	ensureDashboard,
 	mintLaunchUrl,
@@ -1053,31 +1054,48 @@ async function dispatch(
 			});
 		case "dashboard": {
 			const parsed = parseCommandArgs(argv, {
-				flags: ["--readonly", "--open", "--detached", "--status", "--stop"],
+				flags: [
+					"--readonly",
+					"--open",
+					"--detached",
+					"--status",
+					"--stop",
+					"--reset-session",
+				],
 				values: ["--port", "--project"],
 			});
 			only(
 				parsed,
 				0,
-				"dashboard [--port <n>] [--readonly] [--open] [--detached | --status | --stop] [--project <dir>]",
+				"dashboard [--port <n>] [--readonly] [--open] [--detached | --status | --stop | --reset-session] [--project <dir>]",
 			);
 			const cwd = resolve(io.cwd, parsed.values.get("--project") ?? ".");
 			const status = parsed.flags.has("--status");
 			const stopping = parsed.flags.has("--stop");
+			const resetting = parsed.flags.has("--reset-session");
 			if (
-				(status || stopping) &&
+				(status || stopping || resetting) &&
 				(parsed.flags.size !== 1 || parsed.values.has("--port"))
 			)
-				throw new HostUsageError("--status/--stop only accept --project");
+				throw new HostUsageError(
+					"--status/--stop/--reset-session only accept --project",
+				);
 			const existing = await readDashboardDiscovery(cwd);
-			if (status || stopping) {
+			if (status || stopping || resetting) {
+				if (!existing && resetting) {
+					await resetDashboardSession(cwd);
+					io.stdout(
+						"Dashboard session reset; sign in again with agent-workflow dashboard --open.\n",
+					);
+					return EXIT_OK;
+				}
 				if (!existing) {
 					io.stderr("No dashboard running.\n");
 					return EXIT_FAILED;
 				}
 				if (status) {
 					io.stdout(
-						`Dashboard listening on 127.0.0.1:${existing.port} (pid ${existing.pid}, since ${existing.startedAt})\n`,
+						`Dashboard listening on 127.0.0.1:${existing.port} (pid ${existing.pid}, since ${existing.startedAt}${existing.detached && existing.idleExitAt ? `, idle exit in ${Math.max(0, Math.ceil((Date.parse(existing.idleExitAt) - (io.now?.() ?? Date.now())) / 60_000))}m` : ""})\n`,
 					);
 					return EXIT_OK;
 				}
@@ -1094,7 +1112,12 @@ async function dispatch(
 					io.stderr("Dashboard did not stop within 5 seconds.\n");
 					return EXIT_FAILED;
 				}
-				io.stdout("Dashboard stopped.\n");
+				if (resetting) {
+					await resetDashboardSession(cwd);
+					io.stdout(
+						"Dashboard session reset; sign in again with agent-workflow dashboard --open.\n",
+					);
+				} else io.stdout("Dashboard stopped.\n");
 				return EXIT_OK;
 			}
 			if (
@@ -1122,17 +1145,29 @@ async function dispatch(
 					"A dashboard is already running; use --open, --status or --stop",
 				);
 			const port = intValue(parsed.values.get("--port"), "--port");
+			const idleExitMs = parsed.flags.has("--detached")
+				? Number(io.env.AGENT_WORKFLOW_DASHBOARD_IDLE_MS ?? 7_200_000)
+				: undefined;
+			if (
+				idleExitMs !== undefined &&
+				(!Number.isSafeInteger(idleExitMs) || idleExitMs < 60_000)
+			)
+				throw new HostUsageError(
+					"AGENT_WORKFLOW_DASHBOARD_IDLE_MS must be an integer of at least 60000",
+				);
+			let stop!: () => void;
+			const stopped = new Promise<void>((done) => {
+				stop = done;
+			});
 			const dashboard = await startDashboardServer({
 				cwd,
+				idleExitMs,
+				onIdleExit: stop,
 				discovery: true,
 				env: io.env,
 				...(port === undefined ? {} : { port }),
 				readonly: parsed.flags.has("--readonly"),
 				...(io.now ? { now: io.now } : {}),
-			});
-			let stop!: () => void;
-			const stopped = new Promise<void>((done) => {
-				stop = done;
 			});
 			if (io.signal) {
 				io.signal.addEventListener("abort", stop, { once: true });

@@ -208,7 +208,11 @@ test("dashboard HTTP observes, streams and stops a real multi-task workflow", {
 	const ctx = {
 		cwd,
 		host: "cli",
-		env: { ...process.env, AGENT_WORKFLOW_HOME: join(cwd, "home") },
+		env: {
+			...process.env,
+			AGENT_WORKFLOW_DASHBOARD_AUTOSTART: "0",
+			AGENT_WORKFLOW_HOME: join(cwd, "home"),
+		},
 	};
 	let runId;
 	let unregister;

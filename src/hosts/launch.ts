@@ -12,7 +12,11 @@
 // WP31: built-in presets as `--profile <id>`; the saved per-workflow preference (workflow-
 // preferences.ts) applies to every host's launch (its profile when none is named, its role overrides
 // as the engine's workflowPreference layer); launch data/text show the per-stage role assignment.
-import { readDashboardDiscovery } from "./dashboard/discovery.js";
+import {
+	ensureDashboard,
+	readDashboardDiscovery,
+} from "./dashboard/discovery.js";
+import { getWorkflowProcessRole } from "../core/process-role.js";
 import { spawn } from "node:child_process";
 import { closeSync, openSync } from "node:fs";
 import { join } from "node:path";
@@ -158,7 +162,7 @@ export interface LaunchProfileInfo {
 }
 
 export interface LaunchData {
-	dashboard?: { url: string; port: number };
+	dashboard?: { url: string; port: number; started?: true };
 	mode: "named-workflow" | "direct-dynamic";
 	runId?: string;
 	status?: WorkflowRunRecord["status"];
@@ -1247,14 +1251,42 @@ async function launchClaimed(
 	}
 	await launch.onStarted(run.runId).catch(() => undefined);
 	const data = launchData(ctx, run, mode, profile.info);
-	const dashboard = await readDashboardDiscovery(ctx.cwd).catch(
-		() => undefined,
-	);
-	if (dashboard)
-		data.dashboard = {
-			url: `http://127.0.0.1:${dashboard.port}/?run=${run.runId}`,
-			port: dashboard.port,
-		};
+	// Dashboard discovery/start is best effort and adds at most the 3 s discovery budget.
+	let dashboardTimer: ReturnType<typeof setTimeout> | undefined;
+	try {
+		data.dashboard = await Promise.race([
+			(async (): Promise<LaunchData["dashboard"]> => {
+				let dashboard = await readDashboardDiscovery(ctx.cwd);
+				let started = false;
+				if (
+					!dashboard &&
+					hostEnv(ctx).AGENT_WORKFLOW_DASHBOARD_AUTOSTART !== "0" &&
+					getWorkflowProcessRole(hostEnv(ctx)) === "supervisor" &&
+					!ctx.readonly &&
+					["running", "completed", "blocked"].includes(run.status)
+				) {
+					dashboard = await ensureDashboard(ctx.cwd, hostEnv(ctx), {
+						start: true,
+					});
+					started = Boolean(dashboard);
+				}
+				return dashboard
+					? {
+							url: `http://127.0.0.1:${dashboard.port}/?run=${run.runId}`,
+							port: dashboard.port,
+							...(started ? { started: true } : {}),
+						}
+					: undefined;
+			})(),
+			new Promise<undefined>((done) => {
+				dashboardTimer = setTimeout(() => done(undefined), 3000);
+			}),
+		]);
+	} catch {
+		/* A dashboard failure must never fail the workflow launch. */
+	} finally {
+		clearTimeout(dashboardTimer);
+	}
 	if (promptSchemaNotice) data.promptSchemaNotice = promptSchemaNotice;
 	let detachNote = "";
 	if (request.detach && run.status === "running") {
@@ -1288,7 +1320,7 @@ async function launchClaimed(
 	// WP43b: the dashboard link is the first thing a person wants after a launch; when none runs,
 	// say so in one short line instead of silently omitting it.
 	const dashboardLine = data.dashboard
-		? `Dashboard: ${data.dashboard.url}`
+		? `Dashboard: ${data.dashboard.url}${data.dashboard.started ? " · first time in this browser? agent-workflow dashboard --open" : ""}`
 		: `Dashboard: not running · agent-workflow dashboard --open`;
 	const text = [
 		promptSchemaNotice || undefined,

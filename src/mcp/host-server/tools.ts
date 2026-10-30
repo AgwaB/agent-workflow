@@ -1329,11 +1329,7 @@ function profileSetFromArguments(params: Record<string, unknown>): {
 
 function launchNext(data: LaunchData): string | undefined {
 	if (data.runId && data.status === "running")
-		return `First tell the user the run id and the Dashboard line above (${
-			data.dashboard
-				? "the link; their browser is already signed in"
-				: `no dashboard is running — offer to open one with ${WORKFLOW_DASHBOARD_TOOL}`
-		}). Then call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.`;
+		return `First tell the user the run id and the Dashboard link above (if they say it asks them to sign in, call ${WORKFLOW_DASHBOARD_TOOL}). Then call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.`;
 	if (data.duplicateOf)
 		return `Next: call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.duplicateOf}"} for the active run, or ${WORKFLOW_RUN_TOOL} with forceNew=true to really start another run.`;
 	return undefined;

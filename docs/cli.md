@@ -274,24 +274,33 @@ outcome, data}`.
 ## `dashboard`
 
 ```sh
-agent-workflow dashboard [--port <n>] [--readonly] [--open] [--detached | --status | --stop] [--project <dir>]
+agent-workflow dashboard [--port <n>] [--readonly] [--open] [--detached | --status | --stop | --reset-session] [--project <dir>]
 ```
 
 Serves one project's runs on **127.0.0.1 only**, at a free ephemeral port (or `--port` 1–65535).
 Prints `Dashboard: http://127.0.0.1:<port>/?token=…` once: use this private URL to establish the
-browser session. `--readonly` adds a read-only badge and rejects all mutations on the server.
+browser session. The session persists across restarts in `<project>/.agent-workflow/dashboard-session`
+(mode 0600). `--reset-session` stops a running dashboard first, rotates the token and exits; every
+browser must sign in again. It also works when no dashboard is running. `--readonly` adds a read-only badge and rejects all mutations on the server.
 `--open` opens a one-time sign-in URL (60-second expiry, single use), including on pipes when explicitly requested; it reuses an existing dashboard. `--project` selects an existing
 project directory (default cwd). Ctrl-C/SIGTERM stops the dashboard, never the runs; exit 0.
 Invalid ports, occupied ports and non-directories exit 2. No `--json` mode.
 
 `--detached` is the background-process mode: prints only `Dashboard listening on 127.0.0.1:<port>`,
-never a session token, and stays alive until signalled. Discovery is written privately (0600) to
+never a session token, and exits after 2 hours without SSE clients when no live run remains
+(running/blocked with a live lease). `AGENT_WORKFLOW_DASHBOARD_IDLE_MS` sets the interval in
+milliseconds (minimum 60000; invalid values exit 2). Foreground servers never idle out. Discovery is written privately (0600) to
 `<project>/.agent-workflow/dashboard.json` and removed on close, SIGINT or SIGTERM.
-`--status` prints pid, port and start time; `--stop` sends SIGTERM and waits up to 5 seconds for
+`--status` prints pid, port and start time, plus `idle exit in <m>m` for detached servers; `--stop` sends SIGTERM and waits up to 5 seconds for
 cleanup. Both accept `--project` and exit 1 if no dashboard is running.
 
 `run`, `dynamic` and `auto` print a token-free `Dashboard: http://127.0.0.1:<port>/?run=<id>`
-when a dashboard already runs; they never start one by default. Opt in after a successful launch:
+on every successful launch, starting a detached loopback server if needed (at most 3 seconds).
+A newly started server adds ` · first time in this browser? agent-workflow dashboard --open` and
+sets launch data `dashboard.started: true`. Set `AGENT_WORKFLOW_DASHBOARD_AUTOSTART=0` to opt out;
+worker roles, read-only contexts and failed launches never auto-start. When disabled or startup
+fails, the line is `Dashboard: not running · agent-workflow dashboard --open`; dashboard failure
+never fails the run. Auto-start does not open a browser. Opt in to opening after a successful launch:
 
 ```sh
 agent-workflow run deep-review "Review this change" --open
@@ -396,6 +405,8 @@ as a failure. Passing verdicts (for example `NEEDS_WORK` and
 
 | Variable | Meaning |
 |---|---|
+| `AGENT_WORKFLOW_DASHBOARD_AUTOSTART` | Default on; exactly `0` disables detached dashboard auto-start after successful launches. Never starts for worker roles or read-only contexts. |
+| `AGENT_WORKFLOW_DASHBOARD_IDLE_MS` | Detached dashboard idle exit interval in milliseconds; default 7200000 (2 h), minimum 60000. Requires no SSE clients and no live run. Invalid values exit 2. |
 | `AGENT_WORKFLOW_DASHBOARD_OPEN=1` | Opt in to opening the run dashboard on terminals; suppressed in agent environments unless `--open` is explicit. Default off. |
 | `BROWSER` / `BROWSER_ARGS` | Browser program (and arguments) for `--open`; `BROWSER=none` disables opening. Default: the platform opener. |
 | `AGENT_WORKFLOW_HOME` | Per-user directory (profiles, user workflows and agents). Default `~/.agent-workflow`. |

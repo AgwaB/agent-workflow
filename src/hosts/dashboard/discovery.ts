@@ -1,12 +1,22 @@
 // WP43b: local dashboard discovery and opt-in browser launch. Never expose control secrets in text.
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import {
+	chmod,
+	link,
+	mkdir,
+	readFile,
+	rename,
+	rm,
+	stat,
+	writeFile,
+} from "node:fs/promises";
 import { request } from "node:http";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 import { workflowsRoot } from "../../core/store.js";
+import { withStoreLock } from "../store-lock.js";
 
 const SCHEMA = "agent-workflow-dashboard-v1";
 export interface DashboardDiscovery {
@@ -14,6 +24,8 @@ export interface DashboardDiscovery {
 	port: number;
 	launchKey: string;
 	startedAt: string;
+	detached?: true;
+	idleExitAt?: string;
 }
 export type DashboardLaunchParams = Partial<
 	Record<"run" | "task" | "tab" | "view", string>
@@ -22,9 +34,64 @@ export type DashboardLaunchParams = Partial<
 export function dashboardDiscoveryPath(cwd: string): string {
 	return join(workflowsRoot(cwd), "..", "dashboard.json");
 }
+/** Stable project credential; only explicit reset signs existing browsers out. */
+export function dashboardSessionPath(cwd: string): string {
+	return join(workflowsRoot(cwd), "..", "dashboard-session");
+}
+async function publishSession(cwd: string, replace: boolean): Promise<string> {
+	const path = dashboardSessionPath(cwd);
+	await mkdir(dirname(path), { recursive: true });
+	const token = randomBytes(32).toString("base64url");
+	const temporary = `${path}.${process.pid}.${randomBytes(8).toString("hex")}.tmp`;
+	try {
+		await writeFile(temporary, `${token}\n`, { mode: 0o600, flag: "wx" });
+		// Link publishes a complete file without overwriting a concurrent creator's token.
+		if (replace) await rename(temporary, path);
+		else await link(temporary, path);
+		return token;
+	} finally {
+		await rm(temporary, { force: true });
+	}
+}
+export async function readOrCreateDashboardSession(
+	cwd: string,
+): Promise<string> {
+	const path = dashboardSessionPath(cwd);
+	// Serialize repair as well as creation: two readers of a malformed file must not
+	// remove a token that another reader has just repaired.
+	return withStoreLock(path, async () => {
+		for (;;) {
+			try {
+				const token = (await readFile(path, "utf8")).trim();
+				if (/^[A-Za-z0-9_-]{43}$/.test(token)) {
+					await chmod(path, 0o600);
+					return token;
+				}
+				await rm(path, { force: true });
+			} catch (error) {
+				if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+			}
+			try {
+				return await publishSession(cwd, false);
+			} catch (error) {
+				if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+			}
+		}
+	});
+}
+/** Caller stops any running dashboard before rotating its session. */
+export function resetDashboardSession(cwd: string): Promise<string> {
+	return withStoreLock(dashboardSessionPath(cwd), () =>
+		publishSession(cwd, true),
+	);
+}
 export async function writeDashboardDiscovery(
 	cwd: string,
-	data: Pick<DashboardDiscovery, "pid" | "port" | "launchKey">,
+	data: Pick<
+		DashboardDiscovery,
+		"pid" | "port" | "launchKey" | "detached" | "idleExitAt"
+	> &
+		Partial<Pick<DashboardDiscovery, "startedAt">>,
 ): Promise<void> {
 	const path = dashboardDiscoveryPath(cwd);
 	await mkdir(dirname(path), { recursive: true });
@@ -32,7 +99,7 @@ export async function writeDashboardDiscovery(
 	try {
 		await writeFile(
 			temporary,
-			`${JSON.stringify({ schema: SCHEMA, ...data, startedAt: new Date().toISOString() })}\n`,
+			`${JSON.stringify({ schema: SCHEMA, startedAt: new Date().toISOString(), ...data })}\n`,
 			{ mode: 0o600, flag: "wx" },
 		);
 		await rename(temporary, path);
@@ -76,6 +143,11 @@ async function loadDiscovery(
 			port: value.port,
 			launchKey: value.launchKey,
 			startedAt: value.startedAt,
+			...(value.detached === true ? { detached: true as const } : {}),
+			...(typeof value.idleExitAt === "string" &&
+			Number.isFinite(Date.parse(value.idleExitAt))
+				? { idleExitAt: value.idleExitAt }
+				: {}),
 		};
 	} catch {
 		return undefined;

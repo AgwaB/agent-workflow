@@ -49,6 +49,7 @@ async function project({ start = true } = {}) {
 	roots.push(cwd);
 	const env = {
 		...process.env,
+		AGENT_WORKFLOW_DASHBOARD_AUTOSTART: "0",
 		AGENT_WORKFLOW_HOME: join(cwd, "home"),
 		AGENT_WORKFLOW_ROLE: "supervisor",
 	};
@@ -412,6 +413,12 @@ test("real workflow_run preserves the token-free dashboard link only while a das
 		assert.equal(result.isError, false, result.content[0].text);
 		const { runId, dashboard } = result.structuredContent.data;
 		assert.ok(runId);
+		assert.ok(
+			result.content[0].text.includes(
+				`First tell the user the run id and the Dashboard link above (if they say it asks them to sign in, call workflow_dashboard). Then call workflow_wait {"runId":"${runId}"} and repeat while stillRunning is true.`,
+			),
+		);
+		assert.doesNotMatch(result.content[0].text, /already signed in/);
 		if (running) {
 			const url = `http://127.0.0.1:${p.dashboard.port}/?run=${runId}`;
 			assert.ok(result.content[0].text.includes(`Dashboard: ${url}`));

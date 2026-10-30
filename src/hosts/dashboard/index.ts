@@ -20,6 +20,9 @@ export {
 } from "./projection.js";
 export {
 	dashboardDiscoveryPath,
+	dashboardSessionPath,
+	readOrCreateDashboardSession,
+	resetDashboardSession,
 	writeDashboardDiscovery,
 	removeDashboardDiscovery,
 	readDashboardDiscovery,

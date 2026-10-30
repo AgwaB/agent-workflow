@@ -92,6 +92,7 @@ for (const name of Object.keys(process.env))
 Object.assign(process.env, isolatedEnvironment, {
 	PATH: `${commandShimDir}${delimiter}${process.env.PATH ?? ""}`,
 	AGENT_WORKFLOW_E2E_NO_EXTERNAL_ACTIONS: "1",
+	AGENT_WORKFLOW_DASHBOARD_AUTOSTART: "0",
 	AGENT_WORKFLOW_E2E_PROCESS_LOG: processLog,
 	AGENT_WORKFLOW_E2E_REAL_NPM: realNpm,
 	npm_config_offline: "true",

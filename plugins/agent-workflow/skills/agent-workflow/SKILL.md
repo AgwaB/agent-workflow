@@ -61,8 +61,9 @@ Use whichever form your tool list shows.
    scope, paths, exclusions and the expected output, in the user's words where possible. Pass
    declared workflow `inputs` only when the user asked for them (for example `{"depth": "quick"}`).
 3. **Before waiting, tell the user the `runId` and the `Dashboard:` line from the launch result**
-   (the token-free link when a dashboard is running; when it says `not running`, offer to open one
-   with `workflow_dashboard` — the user confirms in a dialog). People want the link first.
+   — the token-free link is always there (the server auto-starts unless disabled or startup fails).
+   If the user can't open it or it asks them to sign in, call `workflow_dashboard` — the user
+   confirms in a dialog. People want the link first.
 4. Call `workflow_wait {runId}`. While the result says `stillRunning: true`, call `workflow_wait`
    again with the same `runId`; between calls give the user at most a one-line progress note. Do not
    poll with shell `sleep`, and do not start other edits on files the run is reading.

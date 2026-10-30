@@ -136,11 +136,12 @@ read-only; `run`, `dynamic`, `auto`, `stop`, `resume`, `prune`, `profile`, `appr
 ## Dashboard opening (WP43b)
 
 `workflow_run`, `workflow_dynamic` and a launched `workflow_auto` preserve the token-free
-`Dashboard: http://127.0.0.1:<port>/?run=<id>` line when a dashboard is already running.
-The launch data includes `dashboard: {url, port}` (`workflow_auto`: `data.launch.dashboard`) and the
+`Dashboard: http://127.0.0.1:<port>/?run=<id>` line on every successful launch, auto-starting a detached server when needed (unless disabled or startup fails).
+The launch data includes `dashboard: {url, port, started?: true}` (`workflow_auto`: `data.launch.dashboard`) and the
 text's `Dashboard:` line sits right under the run heading (`Dashboard: not running · agent-workflow
-dashboard --open` when none runs); the `Next:` guidance tells the model to report the run id and that
-line to the user before waiting. Launches never start or open a dashboard themselves.
+dashboard --open` when auto-start is off or fails); the `Next:` guidance tells the model to report the run id and that
+link to the user before waiting, then call `workflow_dashboard` if the user says it asks them to
+sign in. Launches auto-start the server but never open a browser themselves.
 
 `workflow_dashboard {run?}` ensures a dashboard is running for the call's project, starting it
 detached if needed, and mints a one-time sign-in URL. Then, by what the client can show:

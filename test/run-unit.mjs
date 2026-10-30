@@ -54,6 +54,7 @@ const concurrency = Math.max(
 function isolatedEnv(home) {
 	const env = {
 		...process.env,
+		AGENT_WORKFLOW_DASHBOARD_AUTOSTART: "0",
 		HOME: home,
 		USERPROFILE: home,
 		AGENT_WORKFLOW_HOME: join(home, ".agent-workflow"),

@@ -143,7 +143,7 @@ test("bind is IPv4 loopback; token bootstrap redirects and sets strict cookie on
 	assert.equal((await http(s, "/api/session", { auth: false })).status, 401);
 	const unauthenticated = await http(s, "/", { auth: false });
 	assert.equal(unauthenticated.status, 401);
-	assert.match(unauthenticated.text, /printed dashboard URL/);
+	assert.match(unauthenticated.text, /This browser isn't signed in/);
 	assert.equal(
 		(await http(s, "/api/session", { headers: { Cookie: "aw_session=wrong" } }))
 			.status,
