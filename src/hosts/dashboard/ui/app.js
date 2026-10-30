@@ -387,12 +387,26 @@ function updateConnection() {
 	const el = $("connection");
 	if (!el) return;
 	const stale = lastEvent && Date.now() - lastEvent > 30000;
-	el.textContent = stale
-		? `Stale (updated ${Math.floor((Date.now() - lastEvent) / 1000)}s ago)`
-		: connection === "Live"
-			? "• Live"
-			: "Reconnecting";
+	el.textContent =
+		connection === "Signed out"
+			? "Signed out — use the printed URL"
+			: stale
+				? `Stale (updated ${Math.floor((Date.now() - lastEvent) / 1000)}s ago)`
+				: connection === "Live"
+					? "• Live"
+					: "Reconnecting";
 	el.classList.toggle("live", !stale && connection === "Live");
+}
+/** True when the server answers but no longer accepts this tab's session (restart → new token). */
+async function sessionLost() {
+	try {
+		const response = await fetch("/api/session", {
+			credentials: "same-origin",
+		});
+		return response.status === 401;
+	} catch {
+		return false;
+	}
 }
 function railLine(summary) {
 	if (summary.status === "completed")
@@ -2228,8 +2242,19 @@ function connectEvents() {
 		updateConnection();
 		const wait = backoff;
 		backoff = Math.min(30000, backoff * 2);
-		reconnectTimer = setTimeout(() => {
-			if (generation === loadGeneration) connectEvents();
+		reconnectTimer = setTimeout(async () => {
+			if (generation !== loadGeneration) return;
+			// A dashboard that was restarted has a new session: this tab's cookie is now refused
+			// (401). Say so instead of reconnecting forever behind a "Stale" badge.
+			if (await sessionLost()) {
+				connection = "Signed out";
+				updateConnection();
+				notice(
+					"The dashboard was restarted. Open the new URL printed by agent-workflow dashboard.",
+				);
+				return;
+			}
+			connectEvents();
 		}, wait);
 	}
 	source.onerror = reconnect;

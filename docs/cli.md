@@ -397,6 +397,7 @@ as a failure. Passing verdicts (for example `NEEDS_WORK` and
 | Variable | Meaning |
 |---|---|
 | `AGENT_WORKFLOW_DASHBOARD_OPEN=1` | Opt in to opening the run dashboard on terminals; suppressed in agent environments unless `--open` is explicit. Default off. |
+| `BROWSER` / `BROWSER_ARGS` | Browser program (and arguments) for `--open`; `BROWSER=none` disables opening. Default: the platform opener. |
 | `AGENT_WORKFLOW_HOME` | Per-user directory (profiles, user workflows and agents). Default `~/.agent-workflow`. |
 | `AGENT_WORKFLOW_ROLE` | `worker`/`disabled` processes may only `validate`/`help`. |
 | `AGENT_WORKFLOW_CONTAIN_DETACHED_SUPERVISOR=1` | Keep the detached supervisor in the CLI's process group (tests). |

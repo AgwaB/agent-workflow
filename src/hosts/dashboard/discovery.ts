@@ -241,19 +241,33 @@ export async function ensureDashboard(
 	}
 	return undefined;
 }
+/**
+ * Opens `url` in the user's browser. `BROWSER` (Vite/Jupyter convention) names the program to use
+ * instead of the platform opener (`BROWSER=none` opens nothing and reports false); `BROWSER_ARGS`
+ * adds arguments. Never throws.
+ */
 export async function openInBrowser(
 	url: string,
 	env: NodeJS.ProcessEnv,
 ): Promise<boolean> {
 	try {
+		const custom = env.BROWSER?.trim();
+		if (custom === "none") return false;
 		const command =
-			process.platform === "darwin"
+			custom ||
+			(process.platform === "darwin"
 				? "open"
 				: process.platform === "win32"
 					? "rundll32.exe"
-					: "xdg-open";
-		const args =
-			process.platform === "win32"
+					: "xdg-open");
+		const args = custom
+			? [
+					...(env.BROWSER_ARGS?.trim()
+						? env.BROWSER_ARGS.trim().split(/\s+/)
+						: []),
+					url,
+				]
+			: process.platform === "win32"
 				? ["url.dll,FileProtocolHandler", url]
 				: [url];
 		return await new Promise<boolean>((done) => {

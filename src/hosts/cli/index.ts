@@ -535,6 +535,12 @@ async function followLaunch(
 				const url = await mintLaunchUrl(dashboard, { run: data.runId });
 				if (!(await (io.open ? io.open(url) : openInBrowser(url, io.env))))
 					throw new Error("opener unavailable");
+				// The launch text had no link when the dashboard was started just now; print the
+				// token-free one so the terminal has it too.
+				if (!data.dashboard && !json)
+					io.stdout(
+						`Dashboard: http://127.0.0.1:${dashboard.port}/?run=${data.runId}\n`,
+					);
 			} catch {
 				io.stderr(
 					"Could not open the browser; use `agent-workflow dashboard --open` from a terminal.\n",
