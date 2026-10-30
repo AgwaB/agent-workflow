@@ -31,6 +31,8 @@ export interface DashboardRunSummary {
 	host?: string;
 	taskSummary: RunSummary["taskSummary"];
 	verdict?: string;
+	/** The run's only failure is the final verdict gate (the report is the outcome). */
+	verdictGate?: true;
 	reportAvailable: boolean;
 	needsYou: DashboardNeed[];
 	live: boolean;
@@ -109,8 +111,10 @@ export function projectNeedsYou(
 		});
 	}
 	// An approval/decision already explains a blocked run; don't show a duplicate generic alert.
+	// A run whose only failure is the final verdict gate finished its work and wrote its report —
+	// the verdict is the outcome, not something to inspect and resume.
 	if (
-		run.status === "failed" ||
+		(run.status === "failed" && !run.verdictGate) ||
 		(run.status === "blocked" && needs.length === 0)
 	) {
 		const task = run.tasks.find((item) => item.status === run.status);
@@ -157,6 +161,7 @@ export function projectRunSummary(
 		...(shown?.launch ? { host: shown.launch.source } : {}),
 		taskSummary: { ...run.taskSummary },
 		...(detail?.verdict ? { verdict: detail.verdict } : {}),
+		...(detail?.verdictGate ? { verdictGate: true as const } : {}),
 		reportAvailable: Boolean(detail?.reportArtifacts.length),
 		needsYou: projectNeedsYou(
 			detail ?? { ...run, tasks: [], reportArtifacts: [] },

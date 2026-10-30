@@ -186,6 +186,22 @@ test("failed/blocked runs need attention even without approvals; live is not inf
 	}
 });
 
+test("a verdict-gated failure is an outcome, not a need: verdictGate is carried and Needs you stays empty", () => {
+	const { run, shown } = data();
+	run.status = "failed";
+	run.tasks = [];
+	run.verdict = "INCONCLUSIVE";
+	run.verdictGate = true;
+	run.reportArtifacts = [{ path: "tasks/task-8/final-report.md" }];
+	const summary = projectRunSummary(run, shown);
+	assert.equal(summary.verdictGate, true);
+	assert.equal(summary.verdict, "INCONCLUSIVE");
+	assert.equal(summary.reportAvailable, true);
+	assert.deepEqual(summary.needsYou, []);
+	delete run.verdictGate;
+	assert.equal(projectRunSummary(run, shown).needsYou[0].kind, "failed");
+});
+
 test("output repair, elapsed zero, reported cost zero and rollup are retained without inventing usage", () => {
 	const { run, shown } = data();
 	const task = shown.run.tasks[1];

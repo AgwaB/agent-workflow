@@ -158,8 +158,10 @@ export function taskState(task) {
 const rejected = (run) =>
 	run.statusDetail === "dynamic_approval_rejected" ||
 	run.tasks?.some((t) => t.statusDetail === "dynamic_approval_rejected");
+// A verdict-gated "failed" run finished its work: Resume would relaunch nothing useful.
 const needsResume = (run) =>
 	!rejected(run) &&
+	!(run.status === "failed" && run.verdictGate) &&
 	(["failed", "interrupted"].includes(run.status) ||
 		run.tasks?.some((t) =>
 			["executor_needs_decision", "dynamic_approval_approved"].includes(
@@ -191,6 +193,8 @@ export function statusSentence(run, time = now(), stopping = false) {
 		run.needsYou?.some((n) => n.kind === "decision")
 	)
 		return `${reviewing ? "Reviewing" : "Work"} is paused. The executor couldn't confirm whether one task ran — you need to decide.`;
+	if (run.status === "failed" && run.verdictGate)
+		return `Finished ${ago(run.updatedAt, time).replace(/(\d)([mhd])/, "$1 $2")} with verdict ${run.verdict || "not passed"}. The final gate did not pass; the report explains why.${run.reportAvailable ? " Report is ready." : ""}`;
 	if (run.status === "failed")
 		return failed
 			? `Stopped at ${failed.stageId}. ${/contract/.test(failed.statusDetail || "") ? "Output didn't match the contract." : "A task failed."} Inspect and resume when ready.`
@@ -411,6 +415,8 @@ async function sessionLost() {
 function railLine(summary) {
 	if (summary.status === "completed")
 		return `Finished${summary.verdict ? ` · ${summary.verdict}` : ""}`;
+	if (summary.status === "failed" && summary.verdictGate)
+		return `Finished · ${summary.verdict || "gate not passed"}`;
 	if (summary.status === "failed")
 		return summary.needsYou?.[0]?.title || "A task failed";
 	if (rejected(summary)) return "Controller rejected";
@@ -598,7 +604,9 @@ function renderHeader() {
 				"span",
 				{ class: "badge row" },
 				glyph(run.status),
-				labels[run.status] || "Waiting",
+				run.status === "failed" && run.verdictGate
+					? `Finished · ${run.verdict || "gate not passed"}`
+					: labels[run.status] || "Waiting",
 			),
 			actions,
 		),
