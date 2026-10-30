@@ -1015,6 +1015,9 @@ function edgeState(from, to) {
 	return settledStage(from) || activeStage(from) ? "next" : "later";
 }
 function renderGraph() {
+	// First drawing of this run in this tab: replay how the work travelled (cards and edges
+	// appear layer by layer, the end card pulses once). Redraws after a status change do not.
+	const replay = graphControl?.runId !== run.runId;
 	graphControl?.destroy();
 	const model = graphModel;
 	const viewKey = `${run.runId}:${state.layout}`;
@@ -1676,10 +1679,75 @@ function renderGraph() {
 	}
 	wrap.append(...Object.values(hints));
 	const observer = new ResizeObserver(resize);
+	// The journey, replayed: layer n's cards fade in at n·step, the edges leaving them draw
+	// themselves toward the next layer right after; the last card (or the one that failed /
+	// waits for you) pulses once in its colour. Web Animations only — no inline styles.
+	function playReplay() {
+		if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+		const step = 170;
+		const fade = (target, delay, duration = 260) =>
+			target.animate([{ opacity: 0 }, { opacity: 1 }], {
+				duration,
+				delay,
+				fill: "backwards",
+				easing: "ease-out",
+			});
+		for (const node of nodes.querySelectorAll(".node"))
+			fade(node, layerOf.get(node.dataset.stage) * step);
+		for (const { from, link } of links) {
+			const delay = layerOf.get(from) * step + 110;
+			fade(link, delay, 160);
+			const path = link.querySelector(".edge");
+			// Solid edges draw themselves along their length; dashed states keep their pattern
+			// (a stylesheet dash array would override the attribute anyway) and only fade in.
+			if (
+				!path.classList.contains("done") &&
+				!path.classList.contains("failed")
+			)
+				continue;
+			const length = path.getTotalLength();
+			if (!length) continue;
+			path.setAttribute("stroke-dasharray", String(length));
+			const draw = path.animate(
+				[{ strokeDashoffset: length }, { strokeDashoffset: 0 }],
+				{ duration: 320, delay, fill: "backwards", easing: "ease-in-out" },
+			);
+			draw.onfinish = () => path.removeAttribute("stroke-dasharray");
+			draw.oncancel = draw.onfinish;
+		}
+		// Where it ended: the failed / blocked card, else the last layer's cards.
+		const last = model.layers.length - 1;
+		const ends = [...model.nodes.values()].filter((n) =>
+			["failed", "blocked"].includes(n.status),
+		);
+		for (const n of ends.length ? ends : model.layers[last]) {
+			const outline = nodes.querySelector(
+				`[data-stage="${CSS.escape(n.id)}"] .outline`,
+			);
+			const colour =
+				n.status === "failed"
+					? "241, 140, 137"
+					: n.status === "blocked"
+						? "233, 187, 108"
+						: "110, 231, 183";
+			outline?.animate(
+				[
+					{ filter: `drop-shadow(0 0 0 rgba(${colour}, 0))` },
+					{
+						filter: `drop-shadow(0 0 18px rgba(${colour}, 0.75))`,
+						offset: 0.4,
+					},
+					{ filter: `drop-shadow(0 0 0 rgba(${colour}, 0))` },
+				],
+				{ duration: 1100, delay: layerOf.get(n.id) * step + 260 },
+			);
+		}
+	}
 	requestAnimationFrame(() => {
 		if (wrap.isConnected) {
 			resize();
 			observer.observe(wrap);
+			if (replay) playReplay();
 		}
 	});
 	graphControl = { destroy: () => observer.disconnect(), fit, reveal };

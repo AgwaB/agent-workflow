@@ -505,6 +505,19 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 	// keeps its phase and hover survives); a status change redraws it.
 	await open(`run=${running}`);
 	await browser.waitFor(() => document.querySelector(".edge.active"));
+	// First drawing of a run replays the journey: every card and link gets a scripted fade
+	// (layer by layer) on top of the stylesheet's flow animations.
+	assert.ok(
+		(await browser.evaluate(
+			() =>
+				document
+					.getAnimations()
+					.filter(
+						(a) =>
+							!(a instanceof CSSAnimation) && a.effect.target.closest(".graph"),
+					).length,
+		)) >= 15,
+	);
 	await browser.evaluate(() => {
 		document.getElementById("canvas").dataset.mark = "kept";
 		document.getElementById("run-header").dataset.mark = "old";
