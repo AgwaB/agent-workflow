@@ -108,15 +108,15 @@ export function resolveExecutorModel(
 			.map((provider) => `${provider}/${model}`)
 			.find((candidate) => matches.includes(candidate));
 		if (preferred !== undefined) return { value: preferred, changed: true };
+		if (matches.length > 1)
+			return {
+				refused: `model "${model}" is offered by several Pi providers (${matches.join(", ")}); name one`,
+			};
+		// Pi's --model also resolves patterns ("sonnet", "opus"); it reports one it cannot resolve.
 		return {
-			refused:
-				matches.length > 1
-					? `model "${model}" is offered by several Pi providers (${matches.join(", ")}); name one`
-					: `model "${model}" is not offered by pi${
-							vendor === "anthropic" && !model.startsWith("claude-")
-								? ` (Pi names Claude models "anthropic/claude-…", not the Claude Code alias "${model}")`
-								: ""
-						}`,
+			value: model,
+			changed: false,
+			notice: `model "${model}" is not an exact Pi model id; Pi resolves it as a pattern when the stage starts (exact ids look like "anthropic/claude-opus-5-5")`,
 		};
 	}
 	return { value: model, changed: false };
@@ -145,7 +145,54 @@ const EFFORT_NEAREST: Readonly<
 	pi: { ultra: "max" },
 };
 
+/** Effort levels from least to most. */
+const EFFORT_ORDER = [
+	"off",
+	"minimal",
+	"low",
+	"medium",
+	"high",
+	"xhigh",
+	"max",
+	"ultra",
+] as const;
+
+/**
+ * `effort` as `executorId` names it; with `modelLevels` (the levels the stage's model supports,
+ * from the probe) the highest supported level not above the request — else the lowest.
+ */
 export function resolveExecutorEffort(
+	executorId: string,
+	effort: string,
+	model?: string,
+	modelLevels?: readonly string[],
+): ExecutorNameResolution {
+	const general = resolveExecutorEffortName(executorId, effort);
+	if (
+		"refused" in general ||
+		modelLevels === undefined ||
+		modelLevels.length === 0
+	)
+		return general;
+	if (modelLevels.includes(general.value)) return general;
+	const rank = (level: string) =>
+		(EFFORT_ORDER as readonly string[]).indexOf(level);
+	const supported = [...modelLevels]
+		.filter((level) => rank(level) >= 0)
+		.sort((left, right) => rank(left) - rank(right));
+	const chosen =
+		[...supported]
+			.reverse()
+			.find((level) => rank(level) <= rank(general.value)) ?? supported[0];
+	if (chosen === undefined) return general;
+	return {
+		value: chosen,
+		changed: chosen !== effort,
+		notice: `effort "${effort}" is "${chosen}" for ${model ?? "this model"} on ${executorId} (its levels: ${supported.join(", ")})`,
+	};
+}
+
+function resolveExecutorEffortName(
 	executorId: string,
 	effort: string,
 ): ExecutorNameResolution {

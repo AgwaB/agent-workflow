@@ -491,6 +491,41 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 } {
 	const config = parseConfig(rawConfig);
 	const codexPath = config.codexPath ?? "codex";
+	/** Visible models from `codex debug models` (no model turn), with their supported efforts. */
+	const codexModelCatalog = async (): Promise<
+		Array<{ slug: string; efforts: string[] }>
+	> => {
+		const result = await runCli(codexPath, ["debug", "models"]);
+		if (result.code !== 0) return [];
+		try {
+			const parsed = JSON.parse(result.stdout) as unknown;
+			const list =
+				isRecord(parsed) && Array.isArray(parsed.models)
+					? parsed.models
+					: parsed;
+			if (!Array.isArray(list)) return [];
+			return list.flatMap((entry) =>
+				isRecord(entry) &&
+				typeof entry.slug === "string" &&
+				entry.visibility !== "hide"
+					? [
+							{
+								slug: entry.slug,
+								efforts: Array.isArray(entry.supported_reasoning_levels)
+									? entry.supported_reasoning_levels.flatMap((level) =>
+											isRecord(level) && typeof level.effort === "string"
+												? [level.effort]
+												: [],
+										)
+									: [],
+							},
+						]
+					: [],
+			);
+		} catch {
+			return [];
+		}
+	};
 	const stateDir = config.stateDir ?? defaultStateDir();
 	const store = new AttemptStore(stateDir);
 	const threads = new ThreadOwnershipStore(stateDir);
@@ -1057,7 +1092,8 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 				);
 			const login = await runCli(codexPath, ["login", "status"]);
 			const auth = parseLoginStatus(login);
-			const models = await executor.listModels().catch(() => [] as string[]);
+			const catalog = await codexModelCatalog().catch(() => []);
+			const models = catalog.map((entry) => entry.slug);
 			notes.push(
 				models.length > 0
 					? `models: ${models.join(", ")}`
@@ -1076,6 +1112,15 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 				// are dropped above) and the CLI passes any `model` on (API-key and custom-provider
 				// logins accept models outside the catalog), so the list is not exhaustive.
 				modelListComplete: false,
+				...(catalog.some((entry) => entry.efforts.length > 0)
+					? {
+							modelEfforts: Object.fromEntries(
+								catalog
+									.filter((entry) => entry.efforts.length > 0)
+									.map((entry) => [entry.slug, entry.efforts]),
+							),
+						}
+					: {}),
 				notes,
 			};
 		},
@@ -1085,25 +1130,7 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 
 		/** Visible model slugs from `codex debug models` (no model turn). */
 		async listModels(): Promise<string[]> {
-			const result = await runCli(codexPath, ["debug", "models"]);
-			if (result.code !== 0) return [];
-			try {
-				const parsed = JSON.parse(result.stdout) as unknown;
-				const list =
-					isRecord(parsed) && Array.isArray(parsed.models)
-						? parsed.models
-						: parsed;
-				if (!Array.isArray(list)) return [];
-				return list.flatMap((entry) =>
-					isRecord(entry) &&
-					typeof entry.slug === "string" &&
-					entry.visibility !== "hide"
-						? [entry.slug]
-						: [],
-				);
-			} catch {
-				return [];
-			}
+			return (await codexModelCatalog()).map((entry) => entry.slug);
 		},
 
 		async submit(req: SubmitRequest): Promise<ExecRef> {

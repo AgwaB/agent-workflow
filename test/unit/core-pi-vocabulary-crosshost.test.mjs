@@ -212,9 +212,17 @@ test("model names are the executor's: rewritten to its form, refused when it can
 		value: "anthropic/claude-opus-5-5",
 		changed: true,
 	});
+	// Pi resolves patterns ("opus", "sonnet") itself: noted, not refused.
 	assert.match(
-		resolveExecutorModel("pi", "opus", piList).refused,
-		/Pi names Claude models "anthropic\/claude-…", not the Claude Code alias "opus"/,
+		resolveExecutorModel("pi", "opus", piList).notice,
+		/not an exact Pi model id; Pi resolves it as a pattern/,
+	);
+	assert.match(
+		resolveExecutorModel("pi", "gpt-6.1-sol", [
+			"openrouter/gpt-6.1-sol",
+			"azure/gpt-6.1-sol",
+		]).refused,
+		/offered by several Pi providers/,
 	);
 	assert.deepEqual(
 		resolveExecutorModel("pi", "anthropic/claude-opus-5-5", piList),
@@ -227,6 +235,30 @@ test("model names are the executor's: rewritten to its form, refused when it can
 		notice: 'effort "minimal" is "low" on codex (it has no "minimal")',
 	});
 	assert.equal(resolveExecutorEffort("pi", "ultra").value, "max");
+	// Per-model levels from the probe (Codex: luna has no "ultra"; Pi: a model without thinking).
+	assert.deepEqual(
+		resolveExecutorEffort("codex", "ultra", "gpt-6-luna", [
+			"low",
+			"medium",
+			"high",
+			"xhigh",
+			"max",
+		]),
+		{
+			value: "max",
+			changed: true,
+			notice:
+				'effort "ultra" is "max" for gpt-6-luna on codex (its levels: low, medium, high, xhigh, max)',
+		},
+	);
+	assert.deepEqual(
+		resolveExecutorEffort("codex", "high", "gpt-6-luna", ["low", "high"]),
+		{ value: "high", changed: false },
+	);
+	assert.equal(
+		resolveExecutorEffort("pi", "high", "x/no-thinking", ["off"]).value,
+		"off",
+	);
 	assert.match(
 		resolveExecutorEffort("claude", "turbo").refused,
 		/effort "turbo" is not a claude level/,

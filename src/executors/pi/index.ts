@@ -41,6 +41,7 @@ export {
 	PI_VERIFIED_WITH,
 	type PiExecutor,
 	type PiExecutorProbe,
+	parsePiModelEfforts,
 	parsePiModelList,
 	parsePiWebAccessPath,
 	piCapabilities,

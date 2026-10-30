@@ -104,6 +104,12 @@ export interface ExecutorProbe {
 	 * noted as not verified and the run proceeds.
 	 */
 	readonly modelListComplete?: boolean;
+	/**
+	 * Effort levels each listed model supports, when the CLI reports them per model (Codex: a model
+	 * may lack `ultra`). The engine maps a stage's effort to the nearest level its model has before
+	 * launch instead of the stage failing on the CLI.
+	 */
+	readonly modelEfforts?: Readonly<Record<string, readonly string[]>>;
 	readonly notes?: readonly string[];
 }
 

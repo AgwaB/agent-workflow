@@ -183,6 +183,7 @@ export async function probeWorkflowExecutor(
 	/** WP31 follow-up: the probe declares `models` exhaustive (`modelListComplete: true`). */
 	modelListComplete: boolean;
 	toolMapping?: ToolMapping;
+	modelEfforts?: Readonly<Record<string, readonly string[]>>;
 }> {
 	const id = descriptor.id;
 	const timeoutMs = options.timeoutMs ?? DEFAULT_EXECUTOR_PROBE_TIMEOUT_MS;
@@ -244,6 +245,9 @@ export async function probeWorkflowExecutor(
 		...(result.toolMapping === undefined
 			? {}
 			: { toolMapping: result.toolMapping }),
+		...(result.probe.modelEfforts === undefined
+			? {}
+			: { modelEfforts: result.probe.modelEfforts }),
 	};
 }
 
@@ -559,6 +563,8 @@ interface ProbedExecutor {
 	models: string[] | null;
 	modelListComplete: boolean;
 	toolMapping?: ToolMapping;
+	/** Effort levels per model from the probe (Codex, Pi), when the CLI reports them. */
+	modelEfforts?: Readonly<Record<string, readonly string[]>>;
 }
 
 /**
@@ -669,6 +675,7 @@ function resolveTaskNames(
 		const id = task.runtime.executor ?? runExecutorId;
 		const probe = probes.get(id);
 		const model = task.runtime.model;
+		let resolvedModel = model;
 		if (model !== undefined && model !== "") {
 			const listChecked = !roleChecked.has(`${id}\0${model}`);
 			const resolved = resolveExecutorModel(
@@ -682,6 +689,7 @@ function resolveTaskNames(
 			else {
 				if (resolved.notice !== undefined)
 					group(notices, resolved.notice, task.id);
+				resolvedModel = resolved.value;
 				if (resolved.changed)
 					writes.push(() => {
 						task.runtime.model = resolved.value;
@@ -690,7 +698,14 @@ function resolveTaskNames(
 		}
 		const effort = task.runtime.thinking;
 		if (effort !== undefined) {
-			const resolved = resolveExecutorEffort(id, effort);
+			const resolved = resolveExecutorEffort(
+				id,
+				effort,
+				resolvedModel,
+				resolvedModel === undefined
+					? undefined
+					: probe?.modelEfforts?.[resolvedModel],
+			);
 			if ("refused" in resolved)
 				group(refusals, `executor ${id}: ${resolved.refused}`, task.id);
 			else {

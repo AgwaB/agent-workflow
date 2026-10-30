@@ -96,7 +96,15 @@ async function codexProbe() {
 					{
 						stdout: {
 							models: [
-								{ slug: "gpt-5.6-luna", visibility: "list" },
+								{
+									slug: "gpt-5.6-luna",
+									visibility: "list",
+									supported_reasoning_levels: [
+										{ effort: "low" },
+										{ effort: "medium" },
+										{ effort: "high" },
+									],
+								},
 								{ slug: "codex-auto-review", visibility: "hide" },
 							],
 						},
@@ -321,4 +329,21 @@ test("a probe that says nothing about completeness only notes a missing model", 
 		/model "gamma" for plan is not verified by probe/u,
 	);
 	assert.equal((await settle(ctx, launched.data.runId)).outcome, "completed");
+});
+
+test("probes report effort levels per model when the CLI lists them (Codex catalog, Pi thinking column)", async () => {
+	const { probe } = await codexProbe();
+	assert.deepEqual(probe.modelEfforts, {
+		"gpt-5.6-luna": ["low", "medium", "high"],
+	});
+	assert.deepEqual(
+		pi.parsePiModelEfforts(
+			[
+				"provider   model          context  max-out  thinking  images",
+				"anthropic  claude-opus-5  200K     64K      yes       yes",
+				"openai     gpt-4o-mini    128K     16K      no        yes",
+			].join("\n"),
+		),
+		{ "openai/gpt-4o-mini": ["off"] },
+	);
 });

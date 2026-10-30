@@ -240,6 +240,28 @@ export function parsePiModelList(text: string): string[] {
 	return models;
 }
 
+/**
+ * Models `pi --list-models` marks without thinking (`thinking` column `no`): their only effort is
+ * `off`, so the engine maps a stage's effort to `off` for them before launch (with a notice).
+ */
+export function parsePiModelEfforts(
+	text: string,
+): Record<string, readonly string[]> {
+	const efforts: Record<string, readonly string[]> = {};
+	let thinkingColumn = -1;
+	for (const line of text.split("\n")) {
+		const cells = line.trim().split(/\s+/u);
+		if (cells[0] === "provider" && cells[1] === "model") {
+			thinkingColumn = cells.indexOf("thinking");
+			continue;
+		}
+		if (thinkingColumn < 0 || cells.length <= thinkingColumn) continue;
+		if (cells[thinkingColumn] === "no")
+			efforts[`${cells[0]}/${cells[1]}`] = ["off"];
+	}
+	return efforts;
+}
+
 /** Install command of Pi's web tools (C2: not bundled; the user's Pi provides them). */
 export const PI_WEB_ACCESS_INSTALL = "pi install npm:pi-web-access";
 
@@ -968,6 +990,10 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 				mcpOutputLimitChars: modern ? PI_MCP_OUTPUT_LIMIT_CHARS : null,
 				mcpOutputNoticeChars: modern ? PI_MCP_OUTPUT_NOTICE_CHARS : null,
 				models: models.code === 0 ? parsePiModelList(models.stdout) : null,
+				...(models.code === 0 &&
+				Object.keys(parsePiModelEfforts(models.stdout)).length > 0
+					? { modelEfforts: parsePiModelEfforts(models.stdout) }
+					: {}),
 				// WP31 follow-up: `pi --list-models` lists the registry models Pi can run here, but
 				// Pi's `--model` also resolves patterns ("sonnet", "provider/…"), so an exact-id
 				// check would refuse valid requests: the list is not treated as exhaustive (a model
