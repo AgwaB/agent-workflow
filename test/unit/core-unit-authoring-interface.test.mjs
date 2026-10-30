@@ -2416,6 +2416,65 @@ test("object-form tools cannot expand beyond agent-declared tool ceilings", asyn
 	}
 });
 
+test("web tools: an agent written for pi-workflow (workflow_web_*) authorises the CLI web tools, and back", async () => {
+	const cwd = makeProject();
+	try {
+		// A legacy pi-workflow researcher shadowing the bundled one (the real failure: Codex ran
+		// the bundled deep-research, whose stages ask web_search/fetch_content).
+		writeAgent(
+			cwd,
+			"unit-researcher",
+			"read, grep, find, ls, bash, workflow_web_search, workflow_web_fetch_source, workflow_web_source_read",
+		);
+		const current = await compileWorkflow(
+			workflowSpec("unit-researcher", {
+				readOnly: true,
+				tools: ["read", "web_search", "fetch_content"],
+			}),
+			{ cwd, task: "Research" },
+		);
+		assert.deepEqual(current.tasks[0].runtime.tools, [
+			"read",
+			"web_search",
+			"fetch_content",
+		]);
+		// Search alone does not authorise fetching.
+		writeAgent(cwd, "unit-searcher", "read, workflow_web_search");
+		await assert.rejects(
+			() =>
+				compileWorkflow(
+					workflowSpec("unit-searcher", {
+						readOnly: true,
+						tools: ["web_search", "fetch_content"],
+					}),
+					{ cwd, task: "Research" },
+				),
+			(error) => {
+				assert(error instanceof WorkflowValidationError);
+				assertIssue(error, "$.defaults.tools", 'tool "fetch_content" expands');
+				return true;
+			},
+		);
+		// The original direction still holds: an old spec under a current agent.
+		writeAgent(cwd, "unit-current", "read, web_search, fetch_content");
+		const old = await compileWorkflow(
+			workflowSpec("unit-current", {
+				readOnly: true,
+				tools: ["workflow_web_search", "workflow_web_fetch_source"],
+			}),
+			{ cwd, task: "Research" },
+		);
+		assert.equal(old.tasks.length, 1);
+	} finally {
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 5,
+			retryDelay: 10,
+		});
+	}
+});
+
 test("narrow tool scopes inherit metadata for strings and override it for objects", async () => {
 	const cwd = makeProject();
 	try {
