@@ -172,6 +172,10 @@ The owner wants the dashboard link in the launch result every time, clickable, w
 - Off switch: `AGENT_WORKFLOW_DASHBOARD_AUTOSTART=0`. Never auto-starts under the `worker` process role, in `--readonly` contexts, or when the start fails (the launch still succeeds; the line then reads `Dashboard: not running · agent-workflow dashboard --open`). The unit runner and the e2e guard set the variable to `0`; tests that cover auto-start opt in.
 - MCP `Next:` guidance: tell the user the run id and the Dashboard link before waiting; if the user says the link asks them to sign in, call `workflow_dashboard` (consent dialog → browser).
 
+### Sticky port
+
+The port a project's dashboard used last is kept in `<project>/.agent-workflow/dashboard-port` and reused on the next start when nothing else holds it (an explicit `--port` is strict; a busy preferred port falls back to an ephemeral one). Together with the persistent session this keeps `Dashboard:` links in older chat messages working across idle exits and restarts.
+
 ### Idle exit for detached dashboards
 
 - A dashboard started `--detached` exits by itself after `AGENT_WORKFLOW_DASHBOARD_IDLE_MS` (default 2 h, min 1 min) with **no SSE client connected and no live run** (running/blocked with a live lease) in the project; it removes its discovery file on the way out. A foreground dashboard never idles out. `dashboard --status` shows "idle exit in …" for detached ones.

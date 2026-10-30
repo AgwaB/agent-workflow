@@ -10,6 +10,8 @@ import { basename, resolve } from "node:path";
 import {
 	writeDashboardDiscovery,
 	readOrCreateDashboardSession,
+	readPreferredDashboardPort,
+	writePreferredDashboardPort,
 	removeDashboardDiscovery,
 } from "./discovery.js";
 import { HostUsageError } from "../args.js";
@@ -538,25 +540,44 @@ export async function startDashboardServer(
 	});
 	server.requestTimeout = 15_000;
 	server.headersTimeout = 10_000;
-	await new Promise<void>((ready, reject) => {
-		server.once("error", reject);
-		server.listen(options.port ?? 0, "127.0.0.1", () => {
-			server.removeListener("error", reject);
-			ready();
+	// WP43c: links in old chat messages must survive restarts, so a project's dashboard reuses its
+	// last port when nothing else holds it; an explicit --port is strict, an ephemeral one is the
+	// fallback.
+	const preferred =
+		options.port === undefined && options.discovery
+			? await readPreferredDashboardPort(cwd)
+			: undefined;
+	const listenOn = (candidate: number) =>
+		new Promise<void>((ready, reject) => {
+			server.once("error", reject);
+			server.listen(candidate, "127.0.0.1", () => {
+				server.removeListener("error", reject);
+				ready();
+			});
 		});
-	}).catch((error: NodeJS.ErrnoException) => {
-		if (error.code === "EADDRINUSE" || error.code === "EACCES")
+	try {
+		await listenOn(options.port ?? preferred ?? 0);
+	} catch (error) {
+		const code = (error as NodeJS.ErrnoException).code;
+		if (
+			options.port === undefined &&
+			preferred !== undefined &&
+			(code === "EADDRINUSE" || code === "EACCES")
+		) {
+			await listenOn(0);
+		} else if (code === "EADDRINUSE" || code === "EACCES") {
 			throw new HostUsageError(
 				"dashboard port is unavailable (in use or permission denied)",
 			);
-		throw error;
-	});
+		} else throw error;
+	}
 	const address = server.address();
 	if (!address || typeof address === "string")
 		throw new Error("dashboard did not bind a TCP port");
 	port = address.port;
 	origin = `http://127.0.0.1:${port}`;
 	if (options.discovery) {
+		await writePreferredDashboardPort(cwd, port).catch(() => undefined);
 		try {
 			await writeDashboardDiscovery(cwd, {
 				pid: process.pid,

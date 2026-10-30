@@ -104,6 +104,11 @@ test("the session persists across dashboard restarts; --reset-session signs ever
 	t.after(() => second.close());
 	assert.equal(second.token, first.token, "same project → same session token");
 	assert.equal(
+		second.port,
+		first.port,
+		"same project → same port when it is free (old links keep working)",
+	);
+	assert.equal(
 		(await get(`http://127.0.0.1:${second.port}`, "/api/session", { cookie }))
 			.status,
 		200,
@@ -112,12 +117,20 @@ test("the session persists across dashboard restarts; --reset-session signs ever
 	await second.close();
 	const rotated = await resetDashboardSession(p.cwd);
 	assert.notEqual(rotated, first.token);
+	// Preferred port taken by someone else → falls back to an ephemeral port instead of failing.
+	const squatter = await startDashboardServer({
+		cwd: p.cwd,
+		env: p.env,
+		port: first.port,
+	});
 	const third = await startDashboardServer({
 		cwd: p.cwd,
 		env: p.env,
 		discovery: true,
 	});
 	t.after(() => third.close());
+	assert.notEqual(third.port, first.port);
+	await squatter.close();
 	assert.equal(third.token, rotated);
 	assert.equal(
 		(await get(`http://127.0.0.1:${third.port}`, "/api/session", { cookie }))

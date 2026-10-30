@@ -79,6 +79,32 @@ export async function readOrCreateDashboardSession(
 		}
 	});
 }
+/** The port this project's dashboard used last (`.agent-workflow/dashboard-port`); reused when free. */
+export function dashboardPortPath(cwd: string): string {
+	return join(workflowsRoot(cwd), "..", "dashboard-port");
+}
+export async function readPreferredDashboardPort(
+	cwd: string,
+): Promise<number | undefined> {
+	try {
+		const value = Number(
+			(await readFile(dashboardPortPath(cwd), "utf8")).trim(),
+		);
+		return Number.isInteger(value) && value >= 1024 && value <= 65535
+			? value
+			: undefined;
+	} catch {
+		return undefined;
+	}
+}
+export async function writePreferredDashboardPort(
+	cwd: string,
+	port: number,
+): Promise<void> {
+	const path = dashboardPortPath(cwd);
+	await mkdir(dirname(path), { recursive: true });
+	await writeFile(path, `${port}\n`, { mode: 0o600 });
+}
 /** Caller stops any running dashboard before rotating its session. */
 export function resetDashboardSession(cwd: string): Promise<string> {
 	return withStoreLock(dashboardSessionPath(cwd), () =>

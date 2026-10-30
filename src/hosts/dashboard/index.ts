@@ -22,6 +22,8 @@ export {
 	dashboardDiscoveryPath,
 	dashboardSessionPath,
 	readOrCreateDashboardSession,
+	readPreferredDashboardPort,
+	writePreferredDashboardPort,
 	resetDashboardSession,
 	writeDashboardDiscovery,
 	removeDashboardDiscovery,
