@@ -435,8 +435,9 @@ function railLine(summary) {
 			: "Work is under way"
 		: "Waiting to start";
 }
-function progress(completed, total) {
+function progress(completed, total, status = "") {
 	return element("progress", {
+		class: status ? `p-${status}` : null,
 		max: Math.max(1, total || 0),
 		value: completed || 0,
 		"aria-label": `${completed || 0} of ${total || 0} tasks complete`,
@@ -531,7 +532,7 @@ function renderRail() {
 			element(
 				"div",
 				{ class: "row run-progress" },
-				progress(counts.completed, counts.total),
+				progress(counts.completed, counts.total, summary.status),
 				element("span", {}, `${counts.completed} / ${counts.total}`),
 			),
 			element(
@@ -607,7 +608,9 @@ function renderHeader() {
 			element("h1", {}, run.name),
 			element(
 				"span",
-				{ class: "badge row" },
+				{
+					class: `badge row status-chip ${run.status}`,
+				},
 				glyph(run.status),
 				run.status === "failed" && run.verdictGate
 					? `Finished · ${run.verdict || "gate not passed"}`

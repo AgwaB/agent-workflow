@@ -110,7 +110,7 @@ Single page, no build step: `src/hosts/dashboard/ui/{index.html,app.css,app.js}`
 - Dialogs: Stop (impact: running/pending counts; "stop is recorded durably and confirmed by the supervisor"), Approve (question + scope from the approval message), Reject (run stays blocked), Resume (completed tasks are not relaunched). Read-only disables confirm.
 - Connection: `Live` while SSE delivers; `Reconnecting` on error with automatic retry; `Stale (updated …)` when no heartbeat for 30 s — independent of run status.
 - URL state: `?run=<id>&task=<specId>&tab=output|stderr|events&view=report|details&dialog=stop|resume|approve|reject`. Keyboard: ↑/↓ runs or tasks, Enter opens, Esc closes, `⌘K` palette (jump to run/stage).
-- Body 15 px; nothing < 12 px; no `innerHTML`; no fills on fills; one accent.
+- Body 15 px; nothing < 12 px; no `innerHTML`. Colour (2026-10-30, owner: "too flat"): blue-black ground (`#090c13`) lit by two soft radial glows (mint top-left, periwinkle bottom-right); translucent rail/inspector surfaces; one hue per meaning — mint `#6ee7b7` work in progress, periwinkle `#8ea2ff` work done (checks, travelled edges and their glints, bars), amber `#e9bb6c` needs you, coral `#f18c89` failed — carried by glyphs, the run state chip, rail progress bars (running: periwinkle→mint gradient), card outlines and a dark tint of the card fill; a lit gradient line under the top bar; the `N / total` count in a soft gradient.
 
 ## Acceptance (verifiable)
 

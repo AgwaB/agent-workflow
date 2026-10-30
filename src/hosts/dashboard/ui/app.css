@@ -1,13 +1,17 @@
 :root {
 	color-scheme: dark;
-	--bg: #0b0c0f;
-	--text: #eeeff2;
-	--muted: #969ba5;
-	--line: rgba(255, 255, 255, 0.09);
+	/* Control-room palette: blue-black ground with two soft light sources, mint for work in
+	   progress, periwinkle for work done, amber for you, coral for failures. */
+	--bg: #090c13;
+	--text: #eef1f7;
+	--muted: #8f98ab;
+	--line: rgba(148, 163, 205, 0.14);
 	--accent: #6ee7b7;
+	--done: #8ea2ff;
 	--warn: #e9bb6c;
 	--err: #f18c89;
-	--overlay: #15171b;
+	--overlay: #131824;
+	--surface: rgba(18, 23, 35, 0.72);
 	--mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 	font:
 		15px / 1.5 system-ui,
@@ -15,7 +19,19 @@
 		BlinkMacSystemFont,
 		"Segoe UI",
 		sans-serif;
-	background: var(--bg);
+	background:
+		radial-gradient(
+			1100px 620px at 12% -12%,
+			rgba(110, 231, 183, 0.09),
+			transparent 62%
+		),
+		radial-gradient(
+			1000px 760px at 108% 112%,
+			rgba(142, 162, 255, 0.1),
+			transparent 60%
+		),
+		var(--bg);
+	background-attachment: fixed;
 	color: var(--text);
 }
 * {
@@ -42,7 +58,8 @@ button {
 	padding: 5px 12px;
 }
 button:hover:not(:disabled) {
-	border-color: var(--muted);
+	border-color: rgba(142, 162, 255, 0.55);
+	background: rgba(142, 162, 255, 0.06);
 }
 button:disabled {
 	opacity: 0.45;
@@ -116,6 +133,9 @@ h3 {
 .connection.live {
 	color: var(--accent);
 }
+.glyph.completed {
+	color: var(--done);
+}
 .glyph.blocked {
 	color: var(--warn);
 }
@@ -128,7 +148,16 @@ h3 {
 	display: flex;
 	align-items: center;
 	gap: 16px;
-	border-bottom: 1px solid var(--line);
+	border-bottom: 1px solid transparent;
+	border-image: linear-gradient(
+			90deg,
+			rgba(110, 231, 183, 0.45),
+			rgba(142, 162, 255, 0.35) 45%,
+			rgba(148, 163, 205, 0.1)
+		)
+		1;
+	background: rgba(9, 12, 19, 0.55);
+	backdrop-filter: blur(12px);
 }
 .brand {
 	font-weight: 650;
@@ -174,6 +203,8 @@ kbd {
 	margin: 16px 0 16px 16px;
 	border: 1px solid var(--line);
 	border-radius: 16px;
+	background: var(--surface);
+	box-shadow: 0 18px 48px -28px rgba(0, 0, 0, 0.9);
 	padding: 0 12px 12px;
 	overflow-y: auto;
 	min-height: 0;
@@ -214,10 +245,19 @@ kbd {
 	border-bottom: 1px solid var(--line);
 	padding: 12px 4px;
 	cursor: pointer;
+	transition: background 0.15s ease;
+}
+.run-row:hover {
+	background: rgba(142, 162, 255, 0.04);
 }
 .run-row[aria-current="true"] {
 	box-shadow: inset 2px 0 var(--accent);
 	padding-left: 12px;
+	background: linear-gradient(
+		90deg,
+		rgba(110, 231, 183, 0.1),
+		rgba(110, 231, 183, 0) 75%
+	);
 }
 .run-row .elapsed {
 	font-size: 13px;
@@ -238,19 +278,37 @@ progress {
 	width: 100%;
 	height: 3px;
 	border: 0;
-	background: rgba(238, 239, 242, 0.12);
+	background: rgba(148, 163, 205, 0.15);
 	border-radius: 2px;
 }
 progress::-webkit-progress-bar {
-	background: rgba(238, 239, 242, 0.12);
+	background: rgba(148, 163, 205, 0.15);
 	border-radius: 2px;
 }
 progress::-webkit-progress-value {
-	background: #969ba5;
+	background: var(--done);
 	border-radius: 2px;
 }
 progress::-moz-progress-bar {
-	background: #969ba5;
+	background: var(--done);
+}
+progress.p-running::-webkit-progress-value {
+	background: linear-gradient(90deg, var(--done), var(--accent));
+}
+progress.p-running::-moz-progress-bar {
+	background: linear-gradient(90deg, var(--done), var(--accent));
+}
+progress.p-failed::-webkit-progress-value {
+	background: var(--err);
+}
+progress.p-failed::-moz-progress-bar {
+	background: var(--err);
+}
+progress.p-blocked::-webkit-progress-value {
+	background: var(--warn);
+}
+progress.p-blocked::-moz-progress-bar {
+	background: var(--warn);
 }
 .run-line {
 	display: flex;
@@ -299,6 +357,34 @@ progress::-moz-progress-bar {
 	font: 650 32px / 1.2 var(--mono);
 	letter-spacing: -1.5px;
 	white-space: nowrap;
+	background: linear-gradient(90deg, var(--text), #b8c3ff);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+/* The run's state chip carries its colour (mint working, periwinkle done, amber you, coral
+   failed). */
+.status-chip.running,
+.status-chip.retry {
+	color: var(--accent);
+	border-color: rgba(110, 231, 183, 0.4);
+	background: rgba(110, 231, 183, 0.08);
+}
+.status-chip.completed {
+	color: #c4cdff;
+	border-color: rgba(142, 162, 255, 0.4);
+	background: rgba(142, 162, 255, 0.09);
+}
+.status-chip.blocked {
+	color: #f3d29a;
+	border-color: rgba(233, 187, 108, 0.45);
+	background: rgba(233, 187, 108, 0.08);
+}
+.status-chip.failed,
+.status-chip.interrupted {
+	color: #ffb9b6;
+	border-color: rgba(241, 140, 137, 0.45);
+	background: rgba(241, 140, 137, 0.08);
 }
 .stat .elapsed {
 	display: block;
@@ -316,12 +402,16 @@ progress::-moz-progress-bar {
 	flex: 1;
 	min-height: 0;
 	position: relative;
-	background-image: radial-gradient(
-		circle,
-		rgba(255, 255, 255, 0.04) 1px,
-		transparent 1px
-	);
-	background-size: 24px 24px;
+	background-image:
+		radial-gradient(
+			ellipse 70% 60% at 50% 45%,
+			rgba(110, 231, 183, 0.045),
+			transparent 70%
+		),
+		radial-gradient(circle, rgba(148, 163, 205, 0.09) 1px, transparent 1px);
+	background-size:
+		100% 100%,
+		24px 24px;
 	overflow: hidden;
 	touch-action: none;
 }
@@ -334,18 +424,21 @@ progress::-moz-progress-bar {
 	cursor: pointer;
 }
 .node .outline {
-	fill: none;
-	stroke: var(--line);
+	fill: rgba(17, 22, 34, 0.94);
+	stroke: rgba(148, 163, 205, 0.2);
 	stroke-width: 1;
 	vector-effect: non-scaling-stroke;
 	pointer-events: all;
 }
 /* Where work is: running glows, failed/blocked take their colour, the next stage is a dashed
    accent outline, pending stays quiet. Selection wins. */
+.node.completed .outline {
+	stroke: rgba(142, 162, 255, 0.34);
+}
 .node.running .outline {
 	stroke: rgba(110, 231, 183, 0.75);
 	stroke-width: 1.5;
-	fill: rgba(110, 231, 183, 0.05);
+	fill: rgba(16, 40, 37, 0.96);
 	filter: drop-shadow(0 0 9px rgba(110, 231, 183, 0.3));
 	animation: glow 2.4s ease-in-out infinite;
 }
@@ -361,15 +454,17 @@ progress::-moz-progress-bar {
 .node.blocked .outline {
 	stroke: rgba(233, 187, 108, 0.8);
 	stroke-width: 1.5;
-	fill: rgba(233, 187, 108, 0.04);
+	fill: rgba(42, 33, 17, 0.95);
 }
 .node.failed .outline {
-	stroke: rgba(241, 140, 137, 0.65);
+	stroke: rgba(241, 140, 137, 0.7);
 	stroke-width: 1.5;
+	fill: rgba(44, 21, 25, 0.95);
 }
 .node.next .outline {
-	stroke: rgba(110, 231, 183, 0.4);
+	stroke: rgba(110, 231, 183, 0.45);
 	stroke-dasharray: 5 4;
+	fill: rgba(15, 29, 31, 0.94);
 }
 .node.next .node-name {
 	fill: var(--text);
@@ -394,7 +489,8 @@ progress::-moz-progress-bar {
 	font-size: 14px;
 }
 .node.pending .outline {
-	stroke: rgba(255, 255, 255, 0.14);
+	stroke: rgba(148, 163, 205, 0.16);
+	fill: rgba(14, 18, 28, 0.88);
 }
 .node.pending .node-name {
 	fill: var(--muted);
@@ -442,7 +538,7 @@ progress::-moz-progress-bar {
 	stroke-width: 2.5;
 }
 .port {
-	fill: rgba(238, 239, 242, 0.5);
+	fill: rgba(142, 162, 255, 0.8);
 }
 .port.later {
 	fill: rgba(238, 239, 242, 0.22);
@@ -461,12 +557,12 @@ progress::-moz-progress-bar {
    marker takes the same colour. The active dash pattern flows toward the next stage. */
 .edge {
 	fill: none;
-	stroke: rgba(238, 239, 242, 0.45);
+	stroke: rgba(142, 162, 255, 0.5);
 	stroke-width: 1.5;
 	vector-effect: non-scaling-stroke;
 }
 .edge.later {
-	stroke: rgba(238, 239, 242, 0.18);
+	stroke: rgba(148, 163, 205, 0.22);
 	stroke-dasharray: 3 6;
 }
 .edge.next {
@@ -500,13 +596,13 @@ progress::-moz-progress-bar {
    motion are scripted (app.js) so every edge stays in step; hidden until the script starts. */
 .pulse {
 	fill: none;
-	stroke: rgba(238, 239, 242, 0.95);
+	stroke: #e3e8ff;
 	stroke-width: 2.5;
 	stroke-linecap: round;
 	vector-effect: non-scaling-stroke;
 	pointer-events: none;
 	visibility: hidden;
-	filter: drop-shadow(0 0 3px rgba(238, 239, 242, 0.7));
+	filter: drop-shadow(0 0 5px rgba(142, 162, 255, 0.95));
 }
 .pulse[stroke-dasharray] {
 	visibility: visible;
@@ -517,11 +613,11 @@ progress::-moz-progress-bar {
 }
 .arrow path,
 .arrow-sample {
-	fill: rgba(238, 239, 242, 0.55);
+	fill: rgba(142, 162, 255, 0.75);
 }
 .arrow.later path,
 .arrow-sample.later {
-	fill: rgba(238, 239, 242, 0.22);
+	fill: rgba(148, 163, 205, 0.28);
 }
 .arrow.next path,
 .arrow-sample.next {
@@ -562,10 +658,10 @@ progress::-moz-progress-bar {
 	}
 }
 .track {
-	fill: rgba(238, 239, 242, 0.12);
+	fill: rgba(148, 163, 205, 0.15);
 }
 .bar {
-	fill: #969ba5;
+	fill: var(--done);
 }
 .running-marker {
 	fill: var(--accent);
@@ -635,6 +731,8 @@ progress::-moz-progress-bar {
 	margin: 16px 16px 16px 0;
 	border: 1px solid var(--line);
 	border-radius: 16px;
+	background: var(--surface);
+	box-shadow: 0 18px 48px -28px rgba(0, 0, 0, 0.9);
 	overflow-y: auto;
 	min-width: 0;
 	min-height: 0;
@@ -779,6 +877,7 @@ dd {
 .primary {
 	color: var(--accent);
 	border-color: var(--accent);
+	background: rgba(110, 231, 183, 0.1);
 }
 .empty {
 	padding: 32px;
@@ -955,6 +1054,9 @@ dialog footer .muted {
 }
 .status-icon.running {
 	color: var(--accent);
+}
+.status-icon.completed {
+	color: var(--done);
 }
 .status-icon.blocked {
 	color: var(--warn);
