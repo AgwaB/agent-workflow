@@ -63,6 +63,8 @@ async function project(t) {
 		...process.env,
 		AGENT_WORKFLOW_HOME: join(cwd, "home"),
 		AGENT_WORKFLOW_DASHBOARD_OPEN: "0",
+		// The unit runner disables auto-start globally; this suite covers it, so opt in.
+		AGENT_WORKFLOW_DASHBOARD_AUTOSTART: "1",
 	};
 	delete env.AGENT_WORKFLOW_ROLE;
 	return { cwd, executor, env, host: "cli" };
