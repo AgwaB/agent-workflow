@@ -28,7 +28,10 @@ import type { ExecutorProbe } from "../sdk/contract.js";
 import { EXECUTOR_CONTRACT_VERSION } from "../sdk/contract.js";
 import { type ExecutorDescriptor, loadExecutor } from "../sdk/descriptor.js";
 import { mapTools, type ToolMapping } from "../sdk/tools.js";
-import { executorModelId } from "./executor-model-id.js";
+import {
+	resolveExecutorEffort,
+	resolveExecutorModel,
+} from "./executor-model-id.js";
 import {
 	buildCapabilityPreview,
 	type CapabilityPreview,
@@ -645,53 +648,73 @@ function unmappedToolRefusals(
 }
 
 /**
- * A provider-qualified model the executor passes through (codex: a custom provider may serve
- * `anthropic/…`) but its probe does not list: say so before launch — a Pi provider id fails at the
- * stage unless such a provider is configured.
+ * Model and effort names are the executor's (2026-10-30): resolve every stage's `model` and
+ * `thinking` for the executor that runs it (executor-model-id.ts) — rewrite a name to that tool's
+ * form, refuse what it cannot run, note what its probe cannot confirm. `apply()` writes the resolved
+ * names into the compiled tasks the run record is created from.
  */
-function providerModelNotices(
+function resolveTaskNames(
 	tasks: readonly CompiledTask[],
 	runExecutorId: string,
 	probes: ReadonlyMap<string, ProbedExecutor>,
-): string[] {
-	const slots = new Map<string, string[]>();
+	/** `executor\0model` pairs a role profile assigned: their list check is checkRoleModels'. */
+	roleChecked: ReadonlySet<string> = new Set(),
+): { refusals: string[]; notices: string[]; apply: () => void } {
+	const refusals = new Map<string, string[]>();
+	const notices = new Map<string, string[]>();
+	const writes: Array<() => void> = [];
+	const group = (map: Map<string, string[]>, key: string, label: string) =>
+		map.set(key, [...(map.get(key) ?? []), label]);
 	for (const task of tasks) {
-		const model = task.runtime.model;
-		if (model === undefined || !/^[a-z0-9][a-z0-9-]*\//u.test(model)) continue;
 		const id = task.runtime.executor ?? runExecutorId;
-		const translated = executorModelId(id, model);
-		if (!("model" in translated) || translated.model !== model) continue;
-		if (id === PI_EXECUTOR_ID) continue;
-		const listed = probes.get(id)?.models ?? null;
-		if (listed !== null && modelListed(model, listed)) continue;
-		const key = `${id}\0${model}`;
-		slots.set(key, [...(slots.get(key) ?? []), task.id]);
-	}
-	return [...slots].map(([key, labels]) => {
-		const [id, model] = key.split("\0");
-		return `model "${model}" for ${labels.join(", ")} looks like a Pi provider id; executor ${id} does not list it and runs it only if one of its configured providers serves that name`;
-	});
-}
-
-/** Stage models (spec, agent or profile) whose provider the stage's executor cannot run. */
-function foreignModelRefusals(
-	tasks: readonly CompiledTask[],
-	runExecutorId: string,
-): string[] {
-	const groups = new Map<string, string[]>();
-	for (const task of tasks) {
+		const probe = probes.get(id);
 		const model = task.runtime.model;
-		if (model === undefined || model === "") continue;
-		const id = task.runtime.executor ?? runExecutorId;
-		const translated = executorModelId(id, model);
-		if (!("refused" in translated)) continue;
-		const key = `executor ${id}: ${translated.refused}`;
-		groups.set(key, [...(groups.get(key) ?? []), task.id]);
+		if (model !== undefined && model !== "") {
+			const listChecked = !roleChecked.has(`${id}\0${model}`);
+			const resolved = resolveExecutorModel(
+				id,
+				model,
+				listChecked ? (probe?.models ?? null) : null,
+				listChecked && probe?.modelListComplete === true,
+			);
+			if ("refused" in resolved)
+				group(refusals, `executor ${id}: ${resolved.refused}`, task.id);
+			else {
+				if (resolved.notice !== undefined)
+					group(notices, resolved.notice, task.id);
+				if (resolved.changed)
+					writes.push(() => {
+						task.runtime.model = resolved.value;
+					});
+			}
+		}
+		const effort = task.runtime.thinking;
+		if (effort !== undefined) {
+			const resolved = resolveExecutorEffort(id, effort);
+			if ("refused" in resolved)
+				group(refusals, `executor ${id}: ${resolved.refused}`, task.id);
+			else {
+				if (resolved.notice !== undefined)
+					group(notices, resolved.notice, task.id);
+				if (resolved.changed)
+					writes.push(() => {
+						task.runtime.thinking =
+							resolved.value as typeof task.runtime.thinking;
+					});
+			}
+		}
 	}
-	return [...groups].map(
-		([reason, labels]) =>
-			`  - ${labels.join(", ")}: ${reason}; run it on the pi executor or assign this stage another executor (role profile)`,
-	);
+	return {
+		refusals: [...refusals].map(
+			([reason, labels]) => `  - ${labels.join(", ")}: ${reason}`,
+		),
+		notices: [...notices].map(
+			([notice, labels]) => `${notice} (${labels.join(", ")})`,
+		),
+		apply: () => {
+			for (const write of writes) write();
+		},
+	};
 }
 
 /**
@@ -762,25 +785,22 @@ export async function negotiateWorkflowRun(
 		);
 	});
 	const modelCheck = checkRoleModels(input.modelChecks ?? [], probes);
+	const targets0 = workflowNegotiationTargets(input.compiled);
+	const names = resolveTaskNames(
+		targets0,
+		executor.id,
+		probes,
+		new Set(
+			(input.modelChecks ?? []).map(
+				(check) => `${check.executor}\0${check.model}`,
+			),
+		),
+	);
 	const toolRefusals = [
-		...unmappedToolRefusals(
-			workflowNegotiationTargets(input.compiled),
-			executor.id,
-			probes,
-		),
-		...foreignModelRefusals(
-			workflowNegotiationTargets(input.compiled),
-			executor.id,
-		),
+		...unmappedToolRefusals(targets0, executor.id, probes),
+		...names.refusals,
 	];
-	const notices = [
-		...modelCheck.notices,
-		...providerModelNotices(
-			workflowNegotiationTargets(input.compiled),
-			executor.id,
-			probes,
-		),
-	];
+	const notices = [...modelCheck.notices, ...names.notices];
 	// WP35: host-tool inheritance notice. WP31×WP35: per stage (each stage's preview block and
 	// record say whether it inherits; in a mixed run only pi stages do).
 	const targets = workflowNegotiationTargets(input.compiled);
@@ -850,22 +870,22 @@ export async function negotiateWorkflowRun(
 				: executor.id,
 			preview.text,
 		);
-	if (toolRefusals.length > 0)
-		throw new WorkflowCapabilityError(
-			"CAPABILITY_REFUSED",
-			[
-				"a stage asks for tools or a model its executor cannot provide; the run was not started and no task was launched:",
-				...toolRefusals,
-			].join("\n"),
-			executor.id,
-			preview.text,
-		);
 	if (modelCheck.refusals.length > 0)
 		throw new WorkflowCapabilityError(
 			"MODEL_UNKNOWN",
 			[
 				"a role profile assigns a model the executor does not offer; the run was not started and no task was launched:",
 				...modelCheck.refusals,
+			].join("\n"),
+			executor.id,
+			preview.text,
+		);
+	if (toolRefusals.length > 0)
+		throw new WorkflowCapabilityError(
+			"CAPABILITY_REFUSED",
+			[
+				"a stage asks for tools, a model or an effort its executor cannot provide; the run was not started and no task was launched:",
+				...toolRefusals,
 			].join("\n"),
 			executor.id,
 			preview.text,
@@ -896,6 +916,9 @@ export async function negotiateWorkflowRun(
 				preview.text,
 			);
 	}
+	// Accepted: the run is created from the compiled tasks, with each model/effort in its executor's
+	// own form.
+	names.apply();
 	const others = [...probes.entries()].filter(([id]) => id !== executor.id);
 	return {
 		schema: "agent-workflow-capability-negotiation-v1",
@@ -915,7 +938,7 @@ export async function negotiateWorkflowRun(
 		stages,
 		degradations: [...preview.degradations],
 		forcedReadOnly: [...preview.forcedReadOnly],
-		// WP12a: one-line notices (legacy agents shadowing bundled agents) shown with the preview.
+		// One-line notices (model/effort names the probe cannot confirm, …) shown with the preview.
 		preview:
 			notices.length === 0
 				? preview.text

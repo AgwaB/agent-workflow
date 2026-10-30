@@ -1013,11 +1013,12 @@ test("IR1-09 actual long-path catalog pages bound serialized content AND details
 		agentRoot = join(agentRoot, `${i}-${"d".repeat(96)}`);
 	const workflows = join(agentRoot, "workflows");
 	await mkdir(workflows, { recursive: true });
-	const previous = process.env.PI_CODING_AGENT_DIR;
-	process.env.PI_CODING_AGENT_DIR = agentRoot;
+	// The user workflow root ($AGENT_WORKFLOW_HOME/workflows); Pi's directory is no longer read.
+	const previous = process.env.AGENT_WORKFLOW_HOME;
+	process.env.AGENT_WORKFLOW_HOME = agentRoot;
 	t.after(() => {
-		if (previous === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = previous;
+		if (previous === undefined) delete process.env.AGENT_WORKFLOW_HOME;
+		else process.env.AGENT_WORKFLOW_HOME = previous;
 	});
 	const paths = new Set();
 	for (let i = 0; i < 35; i++) {
@@ -1076,11 +1077,11 @@ test("IR1-09 actual long-path catalog pages bound serialized content AND details
 
 test("workflow_list execution bounds huge metadata and provides actionable continuation", async (t) => {
 	const cwd = scratch("list-bounds");
-	const previousAgent = process.env.PI_CODING_AGENT_DIR;
-	process.env.PI_CODING_AGENT_DIR = join(cwd, "agent");
+	const previousHome = process.env.AGENT_WORKFLOW_HOME;
+	process.env.AGENT_WORKFLOW_HOME = join(cwd, "home");
 	t.after(() => {
-		if (previousAgent === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = previousAgent;
+		if (previousHome === undefined) delete process.env.AGENT_WORKFLOW_HOME;
+		else process.env.AGENT_WORKFLOW_HOME = previousHome;
 	});
 	await mkdir(join(cwd, "workflows"), { recursive: true });
 	for (let i = 0; i < 80; i++)

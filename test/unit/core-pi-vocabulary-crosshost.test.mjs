@@ -19,7 +19,10 @@ import {
 	negotiateWorkflowRun,
 	WorkflowCapabilityError,
 } from "../../dist/core/capability-negotiation.js";
-import { executorModelId } from "../../dist/core/executor-model-id.js";
+import {
+	resolveExecutorEffort,
+	resolveExecutorModel,
+} from "../../dist/core/executor-model-id.js";
 import { workflowExecutorRegistration } from "../../dist/core/index.js";
 import {
 	buildClaudeInvocation,
@@ -62,6 +65,8 @@ const spec = (defaults, stage = {}) => ({
 });
 const compile = (cwd, value) =>
 	compileWorkflow(value, { cwd, task: "probe", permissionMode: "free" });
+/** A fresh copy of compiled tasks (negotiation writes resolved names into the ones it accepts). */
+const compileSync = (compiled) => structuredClone(compiled);
 
 const CAPABILITIES = {
 	codex: () => codexCapabilities(),
@@ -149,64 +154,119 @@ test("an adapter that declares no tool mapping is not checked (third-party adapt
 	await negotiate(compiled, "codex", { mapping: false });
 });
 
-test("models: Pi provider prefixes are translated for the CLI that owns them, foreign ones refused or noted before launch", async () => {
-	assert.deepEqual(executorModelId("codex", "openai-codex/gpt-6.1-sol"), {
-		model: "gpt-6.1-sol",
+test("model names are the executor's: rewritten to its form, refused when it cannot run them, Pi ids resolved from its list", async () => {
+	// codex
+	assert.deepEqual(resolveExecutorModel("codex", "openai-codex/gpt-6.1-sol"), {
+		value: "gpt-6.1-sol",
+		changed: true,
 	});
-	assert.deepEqual(executorModelId("codex", "gpt-6.1-sol"), {
-		model: "gpt-6.1-sol",
-	});
-	// A Codex custom provider (OpenRouter, a gateway) may legitimately use provider/… ids.
-	assert.deepEqual(executorModelId("codex", "anthropic/claude-opus-5-5"), {
-		model: "anthropic/claude-opus-5-5",
-	});
-	assert.deepEqual(executorModelId("claude", "anthropic/claude-opus-5-5"), {
-		model: "claude-opus-5-5",
+	assert.deepEqual(resolveExecutorModel("codex", "gpt-6.1-sol"), {
+		value: "gpt-6.1-sol",
+		changed: false,
 	});
 	assert.match(
-		executorModelId("claude", "google/gemini-3.5-flash").refused,
-		/provider google, which Claude Code cannot run/,
+		resolveExecutorModel("codex", "anthropic/claude-opus-5-5").refused,
+		/is an Anthropic model; codex cannot run it \(use the claude executor for this stage/,
 	);
-	// Bedrock ARNs are not provider prefixes.
-	const arn = "arn:aws:bedrock:us-east-1:1:application-inference-profile/x";
-	assert.deepEqual(executorModelId("claude", arn), { model: arn });
-	assert.deepEqual(executorModelId("pi", "anthropic/claude-opus-5-5"), {
-		model: "anthropic/claude-opus-5-5",
+	assert.match(resolveExecutorModel("codex", "opus").refused, /Anthropic/);
+	assert.match(
+		resolveExecutorModel("codex", "gpt-9", ["gpt-6.1-sol"], false).notice,
+		/not in codex's model list/,
+	);
+	// claude
+	assert.deepEqual(
+		resolveExecutorModel("claude", "anthropic/claude-opus-5-5"),
+		{
+			value: "claude-opus-5-5",
+			changed: true,
+		},
+	);
+	assert.deepEqual(resolveExecutorModel("claude", "opus"), {
+		value: "opus",
+		changed: false,
 	});
+	assert.match(
+		resolveExecutorModel("claude", "openai-codex/gpt-6.1-sol").refused,
+		/is an OpenAI model; claude cannot run it \(use the codex executor/,
+	);
+	assert.match(
+		resolveExecutorModel("claude", "google/gemini-3.5-flash").refused,
+		/is a google model; claude cannot run it \(use the pi executor/,
+	);
+	const arn = "arn:aws:bedrock:us-east-1:1:application-inference-profile/x";
+	assert.deepEqual(resolveExecutorModel("claude", arn), {
+		value: arn,
+		changed: false,
+	});
+	// pi: bare ids are found in Pi's list (ChatGPT-login provider first for OpenAI models)
+	const piList = [
+		"openai/gpt-6.1-sol",
+		"openai-codex/gpt-6.1-sol",
+		"anthropic/claude-opus-5-5",
+	];
+	assert.deepEqual(resolveExecutorModel("pi", "gpt-6.1-sol", piList), {
+		value: "openai-codex/gpt-6.1-sol",
+		changed: true,
+	});
+	assert.deepEqual(resolveExecutorModel("pi", "claude-opus-5-5", piList), {
+		value: "anthropic/claude-opus-5-5",
+		changed: true,
+	});
+	assert.match(
+		resolveExecutorModel("pi", "opus", piList).refused,
+		/Pi names Claude models "anthropic\/claude-…", not the Claude Code alias "opus"/,
+	);
+	assert.deepEqual(
+		resolveExecutorModel("pi", "anthropic/claude-opus-5-5", piList),
+		{ value: "anthropic/claude-opus-5-5", changed: false },
+	);
+	// effort
+	assert.deepEqual(resolveExecutorEffort("codex", "minimal"), {
+		value: "low",
+		changed: true,
+		notice: 'effort "minimal" is "low" on codex (it has no "minimal")',
+	});
+	assert.equal(resolveExecutorEffort("pi", "ultra").value, "max");
+	assert.match(
+		resolveExecutorEffort("claude", "turbo").refused,
+		/effort "turbo" is not a claude level/,
+	);
 
+	// Before launch: the run's compiled tasks carry the executor's names; refusals stop the run.
 	const cwd = await project();
 	const openai = await compile(
 		cwd,
-		spec({ tools: ["read"] }, { model: "openai-codex/gpt-6.1-sol" }),
+		spec(
+			{ tools: ["read"] },
+			{ model: "openai-codex/gpt-6.1-sol", thinking: "minimal" },
+		),
 	);
+	await negotiate(openai, "codex");
+	assert.equal(openai.tasks[0].runtime.model, "gpt-6.1-sol");
+	assert.equal(openai.tasks[0].runtime.thinking, "low");
 	await assert.rejects(
-		() => negotiate(openai, "claude"),
+		() => negotiate(compileSync(openai), "claude"),
 		(error) => {
 			assert(error instanceof WorkflowCapabilityError);
+			assert.match(error.message, /the run was not started/);
 			assert.match(
 				error.message,
-				/a\.main: executor claude: model "openai-codex\/gpt-6\.1-sol" belongs to provider openai-codex, which Claude Code cannot run; run it on the pi executor or assign this stage another executor/,
+				/a\.main: executor claude: model "gpt-6\.1-sol" is an OpenAI model; claude cannot run it/,
 			);
 			return true;
 		},
 	);
-	await negotiate(openai, "codex"); // translated at submit
 	const anthropic = await compile(
 		cwd,
 		spec({ tools: ["read"] }, { model: "anthropic/claude-opus-5-5" }),
 	);
-	await negotiate(anthropic, "claude");
-	const onCodex = await negotiate(anthropic, "codex", {
-		models: ["gpt-6.1-sol"],
-	});
-	assert.ok(
-		onCodex.notices.some((notice) =>
-			/model "anthropic\/claude-opus-5-5" for a\.main looks like a Pi provider id; executor codex does not list it/.test(
-				notice,
-			),
-		),
-		JSON.stringify(onCodex.notices),
+	await assert.rejects(
+		() => negotiate(anthropic, "codex"),
+		/a\.main: executor codex: model "anthropic\/claude-opus-5-5" is an Anthropic model; codex cannot run it/,
 	);
+	assert.equal(anthropic.tasks[0].runtime.model, "anthropic/claude-opus-5-5");
+	await negotiate(anthropic, "claude");
+	assert.equal(anthropic.tasks[0].runtime.model, "claude-opus-5-5");
 });
 
 test("claude argv: anthropic/ is dropped, a foreign provider is refused before any effect", () => {
@@ -236,6 +296,6 @@ test("claude argv: anthropic/ is dropped, a foreign provider is refused before a
 			buildClaudeInvocation(req("google/gemini-3.5-flash"), config, {
 				mcpConfigPath: "/tmp/mcp.json",
 			}),
-		/provider google, which Claude Code cannot run/,
+		/is a google model; claude cannot run it/,
 	);
 });
