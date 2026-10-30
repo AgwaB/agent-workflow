@@ -110,7 +110,7 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 			markers: 6,
 			flowing: "flow",
 			still: "none",
-			ports: 0,
+			ports: 7,
 		},
 	);
 	// Panning is clamped: however far the wheel scrolls, the graph stays inside the canvas and
@@ -173,6 +173,43 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 	assert.ok(panned.fitZoom >= 0.699, JSON.stringify(panned));
 	await browser.evaluate(() =>
 		document.querySelector(".toolbar button").click(),
+	);
+	// Edges are orthogonal rails (no bezier), every one starts with a port dot; hovering a card
+	// lights its own edges and neighbours and dims the rest.
+	assert.deepEqual(
+		await browser.evaluate(() => {
+			const bezier = [...document.querySelectorAll(".edge")].some((edge) =>
+				/C/.test(edge.getAttribute("d")),
+			);
+			const node = document.querySelector('[data-stage="reviewers"]');
+			node.dispatchEvent(new MouseEvent("mouseenter"));
+			const lit = {
+				tracing: document.querySelector(".graph").classList.contains("tracing"),
+				links: [...document.querySelectorAll(".link.lit")].map(
+					(link) => link.dataset.link,
+				),
+				nodes: [...document.querySelectorAll(".node.lit")].map(
+					(n) => n.dataset.stage,
+				),
+				finalLit: document
+					.querySelector('[data-stage="final"]')
+					.classList.contains("lit"),
+			};
+			node.dispatchEvent(new MouseEvent("mouseleave"));
+			return {
+				bezier,
+				...lit,
+				after: document.querySelector(".graph").classList.contains("tracing"),
+			};
+		}),
+		{
+			bezier: false,
+			tracing: true,
+			links: ["triage>reviewers", "reviewers>dedup-findings"],
+			nodes: ["triage", "reviewers", "dedup-findings"],
+			finalLit: false,
+			after: false,
+		},
 	);
 	assert.equal(
 		await browser.evaluate(() => document.querySelector("#inspector").hidden),
@@ -338,6 +375,35 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 	assert.match(
 		await text("#status-sentence"),
 		/Output didn't match the contract/,
+	);
+	// Stages that share inputs and outputs (here: four stages with none) stack into one card with
+	// a row per stage; the card takes the worst status, the rows keep their own.
+	assert.deepEqual(
+		await browser.evaluate(() => {
+			const card = document.querySelector(".node.group");
+			return {
+				cards: document.querySelectorAll(".node").length,
+				status: card?.classList[1],
+				title: card?.querySelector(".node-name")?.textContent,
+				rows: [...card.querySelectorAll(".stage-row")].map(
+					(row) =>
+						`${row.dataset.stage}:${row.querySelector(".status-icon").classList[1]}`,
+				),
+				edges: document.querySelectorAll(".edge").length,
+			};
+		}),
+		{
+			cards: 1,
+			status: "failed",
+			title: "4 in parallel",
+			rows: [
+				"extract-requirements:completed",
+				"map-implementation:failed",
+				"verify-gaps:skipped",
+				"report:skipped",
+			],
+			edges: 0,
+		},
 	);
 	assert.match(await text("#dialog"), /Completed tasks are not relaunched/);
 	await browser.click("#confirm-action");

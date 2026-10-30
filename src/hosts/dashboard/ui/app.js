@@ -736,12 +736,98 @@ export function deriveGraph(projection) {
 		levels.set(id, value);
 		return value;
 	};
-	const layers = [];
+	for (const stage of stages.values()) level(stage.id);
+	// Stages that share the same inputs and the same outputs are parallel siblings: one stacked
+	// card with a row per stage (GitHub Actions stacks such jobs the same way), so a fan-out/join
+	// is one card and one edge instead of n×m crossing lines. Foreach, approval and ghost stages
+	// keep their own card.
+	// A dotted prefix every stage shares (`impact-analysis.` in a 13-stage review) says nothing
+	// on a card: cards show the part that differs; titles, labels and the inspector keep the
+	// full name.
+	const prefix =
+		stages.size > 1
+			? commonPrefix([...stages.values()].map((s) => s.name || s.id))
+			: "";
+	for (const stage of stages.values())
+		stage.short = prefix
+			? (stage.name || stage.id).slice(prefix.length + 1)
+			: stage.name || stage.id;
+	const nodes = new Map(),
+		owner = new Map(),
+		buckets = new Map();
 	for (const stage of stages.values()) {
-		const n = level(stage.id);
-		(layers[n] ||= []).push(stage);
+		const key =
+			stage.kind === "foreach" || stage.approval || stage.ghost
+				? null
+				: `${levels.get(stage.id)}|${[...stage.deps].sort().join(",")}|${[...stage.kids].sort().join(",")}`;
+		if (key === null) continue;
+		if (!buckets.has(key)) buckets.set(key, []);
+		buckets.get(key).push(stage);
 	}
-	return { stages, layers: orderLayers(layers.filter(Boolean)), edges };
+	let groupIndex = 0;
+	for (const members of buckets.values()) {
+		if (members.length < 2) continue;
+		const id = `__group_${groupIndex++}`;
+		const prefix = commonPrefix(members.map((s) => s.short));
+		const states = members.map((s) => s.status);
+		nodes.set(id, {
+			id,
+			kind: "group",
+			name: prefix,
+			members,
+			tasks: members.flatMap((s) => s.tasks),
+			items: [],
+			status: states.every((s) => ["completed", "skipped"].includes(s))
+				? "completed"
+				: priority.find((s) => states.includes(s)) || "pending",
+			done: states.filter((s) => s === "completed").length,
+			deps: new Set(),
+			kids: new Set(),
+		});
+		for (const stage of members) owner.set(stage.id, id);
+	}
+	for (const stage of stages.values())
+		if (!owner.has(stage.id)) {
+			nodes.set(stage.id, stage);
+			owner.set(stage.id, stage.id);
+		}
+	const nodeEdges = [],
+		seenEdges = new Set();
+	for (const edge of edges) {
+		const from = owner.get(edge.from),
+			to = owner.get(edge.to);
+		if (from === to || seenEdges.has(`${from}>${to}`)) continue;
+		seenEdges.add(`${from}>${to}`);
+		nodeEdges.push({ from, to });
+	}
+	for (const node of nodes.values())
+		if (node.kind === "group") {
+			for (const id of node.members[0].deps) node.deps.add(owner.get(id));
+			for (const id of node.members[0].kids) node.kids.add(owner.get(id));
+		}
+	const layers = [];
+	for (const node of nodes.values()) {
+		const n = levels.get(node.kind === "group" ? node.members[0].id : node.id);
+		(layers[n] ||= []).push(node);
+	}
+	return {
+		stages,
+		nodes,
+		owner,
+		layers: orderLayers(layers.filter(Boolean)),
+		edges: nodeEdges,
+	};
+}
+/** Longest common dotted prefix of stage names (`a.b.c`, `a.b.d` → `a.b`), else empty. */
+function commonPrefix(names) {
+	const parts = names.map((name) => name.split("."));
+	const shared = [];
+	for (let i = 0; i < parts[0].length - 1; i++) {
+		if (parts.every((p) => p.length > i + 1 && p[i] === parts[0][i]))
+			shared.push(parts[0][i]);
+		else break;
+	}
+	return shared.join(".");
 }
 /**
  * Fewer edge crossings: order each layer by the mean position of its neighbours in the layers
@@ -787,6 +873,7 @@ const activeAgents = (stage) =>
 	["running", "retry", "failed", "blocked"].includes(stage.status) &&
 	stage.items.length;
 function nodeHeight(stage) {
+	if (stage.kind === "group") return 55 + stage.members.length * 25;
 	if (stage.ghost) return 58;
 	if (stage.approval) return 94;
 	if (activeAgents(stage))
@@ -835,9 +922,75 @@ const nextStage = (stage) =>
 	!stage.ghost &&
 	stage.deps.size > 0 &&
 	[...stage.deps].every((id) => {
-		const dep = graphModel.stages.get(id);
+		const dep = graphModel.nodes.get(id);
 		return settledStage(dep) || activeStage(dep);
 	});
+/** Axis-aligned polyline with rounded corners (radius shrinks on short segments). */
+function roundedPath(points, radius = 10) {
+	let d = `M${points[0][0]},${points[0][1]}`;
+	for (let i = 1; i < points.length - 1; i++) {
+		const [px, py] = points[i - 1],
+			[cx, cy] = points[i],
+			[nx, ny] = points[i + 1];
+		const inLength = Math.hypot(cx - px, cy - py),
+			outLength = Math.hypot(nx - cx, ny - cy);
+		const r = Math.min(radius, inLength / 2, outLength / 2);
+		if (r < 0.5 || !inLength || !outLength) {
+			d += ` L${cx},${cy}`;
+			continue;
+		}
+		const ax = cx - ((cx - px) / inLength) * r,
+			ay = cy - ((cy - py) / inLength) * r,
+			bx = cx + ((nx - cx) / outLength) * r,
+			by = cy + ((ny - cy) / outLength) * r;
+		d += ` L${ax},${ay} Q${cx},${cy} ${bx},${by}`;
+	}
+	const [ex, ey] = points.at(-1);
+	return `${d} L${ex},${ey}`;
+}
+/**
+ * Orthogonal edge (GitHub Actions style): a stem out of the source, a rail along the channel
+ * between the two layers (one shared line per channel, so a fan-out/join reads as a bus), a
+ * stem into the target. An edge that skips layers travels down the gap beside its source.
+ * Coordinates are written for top-down; left-right swaps the axes.
+ */
+function edgePath(a, b, horizontal, railOut, railIn) {
+	const flip = ([x, y]) => (horizontal ? [y, x] : [x, y]);
+	const box = (p) => (horizontal ? { x: p.y, y: p.x, w: p.h, h: p.w } : p);
+	const A = box(a),
+		B = box(b);
+	const x1 = A.x + A.w / 2,
+		y1 = A.y + A.h,
+		x2 = B.x + B.w / 2,
+		y2 = B.y;
+	let points;
+	if (railOut === railIn) {
+		points =
+			Math.abs(x2 - x1) < 1
+				? [
+						[x1, y1],
+						[x2, y2],
+					]
+				: [
+						[x1, y1],
+						[x1, railOut],
+						[x2, railOut],
+						[x2, y2],
+					];
+	} else {
+		const gap = x2 >= x1 ? A.x + A.w + 9 : A.x - 9;
+		points = [
+			[x1, y1],
+			[x1, railOut],
+			[gap, railOut],
+			[gap, railIn],
+			[x2, railIn],
+			[x2, y2],
+		];
+	}
+	const start = flip(points[0]);
+	return { d: roundedPath(points.map(flip)), x1: start[0], y1: start[1] };
+}
 /** How an edge reads: where work has been (done), is (active/blocked), goes next, or later. */
 function edgeState(from, to) {
 	if (to.status === "failed") return "failed";
@@ -889,7 +1042,9 @@ function renderGraph() {
 	const widest = Math.max(...model.layers.map((layer) => layer.length));
 	const width = widest >= 4 ? 300 : widest === 3 ? 340 : 440;
 	let axis = 0;
-	for (const layer of model.layers) {
+	const layerOf = new Map(),
+		rails = [];
+	model.layers.forEach((layer, n) => {
 		const total = horizontal
 			? layer.reduce((sum, stage) => sum + nodeHeight(stage), 0) +
 				(layer.length - 1) * 14
@@ -897,6 +1052,7 @@ function renderGraph() {
 		let side = -total / 2;
 		const height = Math.max(...layer.map(nodeHeight));
 		for (const stage of layer) {
+			layerOf.set(stage.id, n);
 			positions.set(stage.id, {
 				x: horizontal ? axis : side,
 				y: horizontal ? side : axis + (height - nodeHeight(stage)) / 2,
@@ -905,31 +1061,54 @@ function renderGraph() {
 			});
 			side += horizontal ? nodeHeight(stage) + 14 : width + 18;
 		}
-		// Room between layers so the edges and their arrowheads read as a path, not a seam.
-		axis += horizontal ? width + 72 : height + 48;
-	}
+		// Room between layers so the edges and their arrowheads read as a path, not a seam; the
+		// rail every edge of this channel shares runs through its middle.
+		const gap = horizontal ? 80 : 56,
+			end = axis + (horizontal ? width : height);
+		rails.push(end + gap / 2);
+		axis = end + gap;
+	});
+	const links = [];
 	for (const edge of model.edges) {
 		const a = positions.get(edge.from),
 			b = positions.get(edge.to);
-		const x1 = horizontal ? a.x + a.w : a.x + a.w / 2,
-			y1 = horizontal ? a.y + a.h / 2 : a.y + a.h;
-		const x2 = horizontal ? b.x : b.x + b.w / 2,
-			y2 = horizontal ? b.y + b.h / 2 : b.y;
-		const d = horizontal
-			? `M${x1},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2},${y2}`
-			: `M${x1},${y1} C${x1},${(y1 + y2) / 2} ${x2},${(y1 + y2) / 2} ${x2},${y2}`;
-		const state = edgeState(
-			model.stages.get(edge.from),
-			model.stages.get(edge.to),
+		const { d, x1, y1 } = edgePath(
+			a,
+			b,
+			horizontal,
+			rails[layerOf.get(edge.from)],
+			rails[layerOf.get(edge.to) - 1],
 		);
-		edges.append(
+		const state = edgeState(
+			model.nodes.get(edge.from),
+			model.nodes.get(edge.to),
+		);
+		const link = svg(
+			"g",
+			{ class: `link ${state}`, "data-link": `${edge.from}>${edge.to}` },
 			svg("path", {
 				class: `edge ${state}`,
 				d,
 				"marker-end": `url(#arrow-${state})`,
 				"data-edge": `${edge.from}>${edge.to}`,
 			}),
+			svg("circle", { class: `port ${state}`, cx: x1, cy: y1, r: 3 }),
 		);
+		links.push({ from: edge.from, to: edge.to, link });
+		edges.append(link);
+	}
+	// Hover or focus a card: its edges and neighbours stay lit, everything else steps back, so a
+	// dense join still reads "this one feeds these".
+	function trace(id) {
+		drawing.classList.toggle("tracing", Boolean(id));
+		const near = new Set([id]);
+		for (const { from, to, link } of links) {
+			const lit = Boolean(id) && (from === id || to === id);
+			link.classList.toggle("lit", lit);
+			if (lit) near.add(from).add(to);
+		}
+		for (const node of nodes.querySelectorAll(".node"))
+			node.classList.toggle("lit", Boolean(id) && near.has(node.dataset.stage));
 	}
 	const priority = {
 		running: 0,
@@ -938,32 +1117,47 @@ function renderGraph() {
 		blocked: 3,
 		completed: 4,
 	};
-	for (const stage of model.stages.values()) {
+	for (const stage of model.nodes.values()) {
 		const p = positions.get(stage.id);
+		const group = stage.kind === "group";
+		const title = group
+			? `${stage.name ? `${stage.name} · ` : ""}${stage.members.length} in parallel`
+			: stage.short || stage.name || stage.id;
 		const node = svg("g", {
-			class: `node ${stage.status}${stage.ghost ? " ghost" : ""}${nextStage(stage) ? " next" : ""}`,
+			class: `node ${stage.status}${stage.ghost ? " ghost" : ""}${group ? " group" : ""}${nextStage(stage) ? " next" : ""}`,
 			transform: `translate(${p.x},${p.y})`,
 			tabindex: "0",
 			role: "button",
 			"data-stage": stage.id,
-			"aria-label": `${stage.name || stage.id}, ${labels[stage.status] || "Waiting"}`,
+			...(group
+				? { "data-members": stage.members.map((s) => s.id).join(",") }
+				: {}),
+			"aria-label": `${group ? title : stage.name || stage.id}, ${labels[stage.status] || "Waiting"}`,
 		});
 		node.append(
 			svg("rect", { class: "outline", width: p.w, height: p.h, rx: 10 }),
-			svg("title", {}, stage.name || stage.id),
+			svg("title", {}, group ? title : stage.name || stage.id),
 			markIcon(stage.status, 12, 12),
 			svg(
 				"text",
 				{ x: 36, y: 24, class: "node-name", "data-fit": p.w - 48 },
-				stage.name || stage.id,
+				title,
 			),
 		);
-		node.addEventListener("click", () => chooseStage(stage));
+		node.addEventListener("mouseenter", () => trace(stage.id));
+		node.addEventListener("mouseleave", () => trace(null));
+		node.addEventListener("focusin", () => trace(stage.id));
+		node.addEventListener("focusout", (event) => {
+			if (!node.contains(event.relatedTarget)) trace(null);
+		});
+		// The card opens its stage (a group card: its first stage; each row opens its own).
+		const open = () => chooseStage(group ? stage.members[0] : stage);
+		node.addEventListener("click", open);
 		node.addEventListener("keydown", (event) => {
 			if (["Enter", " "].includes(event.key)) {
 				event.preventDefault();
 				event.stopPropagation();
-				chooseStage(stage);
+				open();
 			} else if (
 				["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"].includes(event.key)
 			) {
@@ -986,6 +1180,86 @@ function renderGraph() {
 				if (id) reveal(id);
 			}
 		});
+		if (group) {
+			stage.members.forEach((member, i) => {
+				const y = 48 + i * 25,
+					name = stage.name
+						? member.short.slice(stage.name.length + 1)
+						: member.short;
+				const row = svg("g", {
+					class: "agent-row stage-row",
+					role: "button",
+					tabindex: "0",
+					"data-stage": member.id,
+					"aria-label": `${member.name || member.id}, ${labels[member.status] || "Waiting"}`,
+				});
+				row.append(
+					svg("rect", {
+						x: 8,
+						y: y - 17,
+						width: p.w - 16,
+						height: 25,
+						fill: "transparent",
+					}),
+					markIcon(member.status, 15, y - 11, 13),
+					svg(
+						"text",
+						{ x: 36, y, class: "agent-name", "data-fit": p.w - 150 },
+						name,
+					),
+					svg(
+						"text",
+						{
+							x: p.w - 14,
+							y,
+							class: "agent-state",
+							"text-anchor": "end",
+							"data-stage-line": member.id,
+						},
+						stageLine(member),
+					),
+				);
+				row.addEventListener("click", (event) => {
+					event.stopPropagation();
+					chooseStage(member);
+				});
+				row.addEventListener("keydown", (event) => {
+					if (["Enter", " "].includes(event.key)) {
+						event.preventDefault();
+						event.stopPropagation();
+						chooseStage(member);
+					}
+				});
+				node.append(row);
+			});
+			const barWidth = p.w - 92,
+				completedWidth = (stage.done / stage.members.length) * barWidth;
+			node.append(
+				svg("rect", {
+					x: 12,
+					y: p.h - 14,
+					width: barWidth,
+					height: 3,
+					rx: 1.5,
+					class: "track",
+				}),
+				svg("rect", {
+					x: 12,
+					y: p.h - 14,
+					width: completedWidth,
+					height: 3,
+					rx: 1.5,
+					class: "bar",
+				}),
+				svg(
+					"text",
+					{ x: p.w - 14, y: p.h - 10, "text-anchor": "end", class: "fraction" },
+					`${stage.done}/${stage.members.length}`,
+				),
+			);
+			nodes.append(node);
+			continue;
+		}
 		if (activeAgents(stage) && stage.items.length <= 6) {
 			[...stage.items]
 				.sort(
@@ -1190,7 +1464,7 @@ function renderGraph() {
 			H = wrap.clientHeight - 60;
 		const count = { left: 0, right: 0, top: 0, bottom: 0 },
 			live = { left: false, right: false, top: false, bottom: false };
-		for (const stage of model.stages.values()) {
+		for (const stage of model.nodes.values()) {
 			const p = positions.get(stage.id);
 			const x0 = p.x * view.k + view.x,
 				x1 = (p.x + p.w) * view.k + view.x,
@@ -1288,7 +1562,8 @@ function renderGraph() {
 		};
 		apply();
 	}
-	function reveal(id, focus = false) {
+	function reveal(stageId, focus = false) {
+		const id = model.owner.get(stageId) ?? stageId;
 		const p = positions.get(id);
 		if (!p) return;
 		if (
@@ -1359,10 +1634,10 @@ function renderGraph() {
 			button("Focus", () => {
 				const id =
 					selectedStage() ||
-					[...model.stages.values()].find((s) =>
+					[...model.nodes.values()].find((s) =>
 						["running", "retry", "blocked", "failed"].includes(s.status),
 					)?.id ||
-					[...model.stages.keys()].at(-1);
+					[...model.nodes.keys()].at(-1);
 				reveal(id, true);
 			}),
 			button(markIcon("td"), () => changeLayout("td"), {
@@ -1543,7 +1818,13 @@ function renderSelection() {
 	inspector.hidden = !visible;
 	$("body").classList.toggle("inspecting", visible);
 	for (const node of document.querySelectorAll(".node"))
-		node.classList.toggle("selected", node.dataset.stage === selectedStage());
+		node.classList.toggle(
+			"selected",
+			node.dataset.stage === selectedStage() ||
+				(node.dataset.members?.split(",") ?? []).includes(selectedStage()),
+		);
+	for (const row of document.querySelectorAll(".stage-row"))
+		row.classList.toggle("selected", row.dataset.stage === selectedStage());
 	inspector.replaceChildren();
 	if (state.view === "details") {
 		inspector.append(
@@ -2304,6 +2585,11 @@ function openStatusKey() {
 			"p",
 			{ class: "muted" },
 			"Amber marks approvals and executor decisions. Red marks failures.",
+		),
+		element(
+			"p",
+			{ class: "muted" },
+			"A card titled “n in parallel” stacks stages that share the same inputs and outputs; each row is one stage. Hover or focus a card to light its connections.",
 		),
 		element("h3", {}, "Arrows"),
 		...[

@@ -417,8 +417,39 @@ progress::-moz-progress-bar {
 	outline: none;
 }
 .agent-row:focus text,
-.agent-row:hover text {
+.agent-row:hover text,
+.stage-row.selected text {
 	fill: var(--accent);
+}
+/* Tracing: hovering/focusing a card keeps its edges and neighbours lit; the rest steps back. */
+.link,
+.node {
+	transition: opacity 0.15s ease;
+}
+.graph.tracing .link:not(.lit) {
+	opacity: 0.18;
+}
+.graph.tracing .node:not(.lit) {
+	opacity: 0.38;
+}
+.link.lit .edge {
+	stroke-width: 2.5;
+}
+.port {
+	fill: rgba(238, 239, 242, 0.5);
+}
+.port.later {
+	fill: rgba(238, 239, 242, 0.22);
+}
+.port.next,
+.port.active {
+	fill: var(--accent);
+}
+.port.blocked {
+	fill: var(--warn);
+}
+.port.failed {
+	fill: rgba(241, 140, 137, 0.8);
 }
 /* Edges say where work has been (done), is (active, blocked), goes next, or later; the arrowhead
    marker takes the same colour. The active dash pattern flows toward the next stage. */
