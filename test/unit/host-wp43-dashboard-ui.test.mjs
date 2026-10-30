@@ -501,6 +501,42 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 	assert.match(mapped.decision, /you need to decide/);
 	assert.doesNotMatch(mapped.unknown, /private_unknown_engine_code/);
 
+	// A run update that changes nothing structural keeps the drawn graph (so the flow animation
+	// keeps its phase and hover survives); a status change redraws it.
+	await open(`run=${running}`);
+	await browser.waitFor(() => document.querySelector(".edge.active"));
+	await browser.evaluate(() => {
+		document.getElementById("canvas").dataset.mark = "kept";
+		document.getElementById("run-header").dataset.mark = "old";
+	});
+	const live = fixture.runs.get(running);
+	live.updatedAt = new Date(Date.parse(live.updatedAt) + 1000).toISOString();
+	fixture.publish();
+	await browser.waitFor(
+		() => document.getElementById("run-header").dataset.mark !== "old",
+	);
+	assert.equal(
+		await browser.evaluate(
+			() => document.getElementById("canvas").dataset.mark,
+		),
+		"kept",
+	);
+	live.tasks.find((task) => task.specId === "triage.main").status = "failed";
+	live.updatedAt = new Date(Date.parse(live.updatedAt) + 1000).toISOString();
+	fixture.publish();
+	await browser.waitFor(() =>
+		document
+			.querySelector('[data-stage="triage"]')
+			?.classList.contains("failed"),
+	);
+	assert.equal(
+		await browser.evaluate(
+			() => document.getElementById("canvas").dataset.mark,
+		),
+		undefined,
+	);
+	live.tasks.find((task) => task.specId === "triage.main").status = "completed";
+
 	// A 240-item active foreach stays bounded in the graph; inspection is searchable.
 	const scale = structuredClone(fixture.runs.get(running));
 	scale.runId = "workflow_scale";

@@ -347,6 +347,12 @@ progress::-moz-progress-bar {
 	stroke-width: 1.5;
 	fill: rgba(110, 231, 183, 0.05);
 	filter: drop-shadow(0 0 9px rgba(110, 231, 183, 0.3));
+	animation: glow 2.4s ease-in-out infinite;
+}
+@keyframes glow {
+	50% {
+		filter: drop-shadow(0 0 16px rgba(110, 231, 183, 0.55));
+	}
 }
 .node.retry .outline {
 	stroke: rgba(233, 187, 108, 0.6);
@@ -473,7 +479,7 @@ progress::-moz-progress-bar {
 	stroke: var(--accent);
 	stroke-width: 2.5;
 	stroke-dasharray: 8 6;
-	animation: flow 0.9s linear infinite;
+	animation: flow 0.7s linear infinite;
 }
 .edge.blocked {
 	stroke: var(--warn);
@@ -527,6 +533,7 @@ progress::-moz-progress-bar {
 }
 @media (prefers-reduced-motion: reduce) {
 	.edge,
+	.node.running .outline,
 	.node .status-icon.running circle {
 		animation: none;
 	}

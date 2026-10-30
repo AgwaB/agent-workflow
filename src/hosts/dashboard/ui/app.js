@@ -1684,23 +1684,62 @@ function changeLayout(layout) {
 	urlState();
 	renderRun();
 }
+/**
+ * Everything that decides the graph's DOM: layout, each card's status/shape/rows, each edge's
+ * state. While it is unchanged, a run update keeps the drawn graph (its flow animation keeps
+ * its phase, hover/focus survive) and only the header and the live texts change.
+ */
+function graphSignature(model, layout) {
+	return JSON.stringify([
+		layout,
+		[...model.nodes.values()].map((node) => [
+			node.id,
+			node.status,
+			nextStage(node),
+			nodeHeight(node),
+			node.done,
+			node.approval?.requestId ?? null,
+			node.kind === "group"
+				? node.members.map((m) => [m.id, m.status])
+				: activeAgents(node)
+					? node.items.map((t) => [t.specId, taskState(t)])
+					: node.items.length,
+		]),
+		model.edges.map((edge) => `${edge.from}>${edge.to}`),
+	]);
+}
 function renderRun() {
 	const active = document.activeElement;
 	const focusStage = active?.closest(".node")?.dataset.stage,
 		focusTask = active?.closest(".agent-row")?.dataset.task;
 	graphModel = deriveGraph(run);
-	$("center").replaceChildren(renderHeader());
-	if (run.pendingApprovals?.length)
-		$("center").append(
-			element(
+	const signature = graphSignature(graphModel, state.layout);
+	const canvas = $("canvas");
+	const keepGraph =
+		canvas &&
+		graphControl?.signature === signature &&
+		graphControl.runId === run.runId;
+	const banner = run.pendingApprovals?.length
+		? element(
 				"div",
 				{ class: "approval-banner" },
 				glyph("blocked"),
 				`${run.pendingApprovals.length} approval${run.pendingApprovals.length === 1 ? " is" : "s are"} required before this run can continue`,
 				actionButton("Review approval…", "approve"),
-			),
-		);
-	$("center").append(renderGraph());
+			)
+		: null;
+	if (keepGraph) {
+		// The canvas stays in place (removing and re-adding it would restart its animations).
+		for (const child of [...$("center").children])
+			if (child !== canvas) child.remove();
+		$("center").prepend(renderHeader(), ...(banner ? [banner] : []));
+		refreshGraphTexts();
+	} else {
+		$("center").replaceChildren(renderHeader(), ...(banner ? [banner] : []));
+		$("center").append(renderGraph());
+		graphControl.signature = signature;
+		graphControl.runId = run.runId;
+	}
 	renderSelection();
 	renderModal();
 	if (focusTask)
@@ -2953,6 +2992,16 @@ setInterval(() => {
 		if (summary) node.textContent = elapsed(summary);
 	}
 	if (!run) return;
+	refreshGraphTexts();
+	if ($("status-sentence"))
+		$("status-sentence").replaceChildren(...sentenceParts());
+	if ($("elapsed")) $("elapsed").textContent = `Elapsed ${elapsed(run)}`;
+	const task = selectedTask();
+	if (task && $("task-status")) $("task-status").textContent = taskLine(task);
+}, 1000);
+/** Live texts inside the drawn graph (stage lines of running/retry stages, agent states). */
+function refreshGraphTexts() {
+	if (!run) return;
 	for (const node of document.querySelectorAll("[data-stage-line]")) {
 		const stage = graphModel?.stages.get(node.dataset.stageLine);
 		if (stage && ["running", "retry"].includes(stage.status)) {
@@ -2961,11 +3010,6 @@ setInterval(() => {
 			if (node.firstElementChild) node.firstElementChild.textContent = text;
 		}
 	}
-	if ($("status-sentence"))
-		$("status-sentence").replaceChildren(...sentenceParts());
-	if ($("elapsed")) $("elapsed").textContent = `Elapsed ${elapsed(run)}`;
-	const task = selectedTask();
-	if (task && $("task-status")) $("task-status").textContent = taskLine(task);
 	for (const node of document.querySelectorAll("[data-agent-state]")) {
 		const task = run.tasks.find((t) => t.specId === node.dataset.agentState);
 		if (task) {
@@ -2975,7 +3019,7 @@ setInterval(() => {
 			else node.textContent = text;
 		}
 	}
-}, 1000);
+}
 setInterval(() => {
 	if (
 		!document.hidden &&
