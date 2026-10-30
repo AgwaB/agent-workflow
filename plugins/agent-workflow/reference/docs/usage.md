@@ -34,12 +34,14 @@ workflow has schemas or helpers. `agent-workflow list` shows what resolves, `age
 <name>` prints the resolved spec, and `agent-workflow validate <name-or-path>` compiles it without
 running anything.
 
-Agents (`agent:` in a spec) resolve the same way: `<cwd>/.agent-workflow/agents/`,
-`$AGENT_WORKFLOW_HOME/agents/`, legacy `<cwd>/.pi/agents/` and `~/.pi/agent/agents/` (read-only),
-then the bundled `scout` and `researcher`. A legacy user agent with a bundled agent's name therefore
-replaces the bundled one; the capability preview announces it with a `Notice:` line. Put a copy of
-the bundled agent in `.agent-workflow/agents/` to pin it.
-`agent-workflow agents` lists what resolves and from where.
+Agents (`agent:` in a spec) resolve in this order: `<cwd>/.agent-workflow/agents/`,
+`$AGENT_WORKFLOW_HOME/agents/`, a project's legacy `<cwd>/.pi/agents/` (read-only), the bundled
+`scout` and `researcher`, and last Pi's user agents `~/.pi/agent/agents/` (read-only). Pi's user
+agents are Pi configuration (written for pi-workflow's tool and model names), so they never replace
+the bundled agents on Codex, Claude Code or the CLI; they only supply names agent-workflow does not
+ship (2026-10-30 owner decision; WP12a's legacy-first order and its `Notice:` are gone). To
+customise `scout` or `researcher` for agent-workflow, put a copy in `$AGENT_WORKFLOW_HOME/agents/`
+or `.agent-workflow/agents/`. `agent-workflow agents` lists what resolves and from where.
 
 agent-workflow never writes to the legacy locations; its runs and settings live under
 `.agent-workflow/` and `$AGENT_WORKFLOW_HOME`. pi-workflow can stay installed next to it; each only
@@ -744,7 +746,7 @@ as "never started": nothing is retried automatically.
 | `Not started: … CAPABILITY_REFUSED` | A stage needs something the executor cannot do. The message lists each refusal and its opt-in, if any (`--allow-unverified`, `allowReadOnlyDowngrade`, `--permission-mode free`). |
 | deep-research refused on Pi with `webTools` | Your Pi has no `pi-web-access` (not bundled). Install it with `pi install npm:pi-web-access` (check with `pi list` or `agent-workflow doctor`), or use `--executor claude`/`codex`. The refusal and the preview name the same command. |
 | Codex runs show `readOnly`/`contextIsolation` warnings | Your `~/.codex/rules` has allow rules or a global `~/.codex/AGENTS.md` exists. Recorded only; remove them for a clean run. |
-| `Notice: agent "scout": legacy … shadows the bundled agent of the same name` in the preview | A legacy user agent (`~/.pi/agent/agents/scout.md`, …) takes precedence over the bundled one; the notice is also a compile warning and is recorded in `run.capabilityNegotiation.notices`. Rename or remove the legacy file, or copy the bundled agent into `.agent-workflow/agents/` to pin it. A project's own `.pi/agents/` override is not announced. |
+| A change to `~/.pi/agent/agents/scout.md` (or `researcher.md`) has no effect in agent-workflow | By design (2026-10-30): the bundled agent of that name wins over Pi's user agents on every host. Put the customised agent in `$AGENT_WORKFLOW_HOME/agents/` (all projects) or `.agent-workflow/agents/` (one project). |
 | `input <key> is not declared by this workflow (declared: …)`, `input <key> must be a number` (exit 2) | `--input` / `inputs` names a key the spec does not declare or a value of the wrong type. Use a declared key (`agent-workflow show <workflow>` shows `input`) and a value of the default's type. |
 | Usage shows `cost unknown` | The executor reported no cost (Codex always; any task without a cost). Token counts are still recorded; nothing is estimated. |
 | The run is `failed` but the report looks fine | Final renders mark verdicts such as `PARTIAL_REVIEW`, `INCONCLUSIVE`, `GAPS_FOUND`, `BLOCKED` as declared failures (`support_declared_failed`): the workflow worked and reported a finding about the target. Read `final-report.md`. |
