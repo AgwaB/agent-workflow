@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/thinking-max.test.mjs. MIT, same author. Changes: imports from dist/core; the run/dynamic parsers come from dist/hosts/args (moved from extension.ts in WP11a) and report usage errors as "Invalid effort level … Supported: …, xhigh, max" (was "… xhigh, max"); the Pi executor's `--thinking` levels include max as well (PI_EFFORT_LEVELS).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/thinking-max.test.mjs. MIT, same author. Changes: imports from dist/core; the run/dynamic parsers come from dist/hosts/args (moved from extension.ts in WP11a) and report usage errors as "Invalid effort level … Supported: …, xhigh, max" (was "… xhigh, max"); the Pi executor's `--thinking` levels include max as well (PI_EFFORT_LEVELS). 2026-10-30: the workflow vocabulary adds Codex's "ultra" above max (Pi keeps max as its top level).
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -26,7 +26,7 @@ function workflow(stage = {}) {
 	};
 }
 
-test("max is the highest workflow thinking level", () => {
+test("max is Pi's highest thinking level; the workflow vocabulary adds Codex's ultra above it", () => {
 	assert.deepEqual(THINKING_LEVELS, [
 		"off",
 		"minimal",
@@ -35,8 +35,13 @@ test("max is the highest workflow thinking level", () => {
 		"high",
 		"xhigh",
 		"max",
+		// 2026-10-30: Codex's top level; mapped to max for Pi/Claude and models without it.
+		"ultra",
 	]);
-	assert.deepEqual([...PI_EFFORT_LEVELS], [...THINKING_LEVELS]);
+	assert.deepEqual(
+		[...PI_EFFORT_LEVELS],
+		THINKING_LEVELS.filter((level) => level !== "ultra"),
+	);
 });
 
 test("max is offered only when the model maps it, mirroring pi-ai", () => {
@@ -66,8 +71,11 @@ test("specs, agent frontmatter, and launch arguments accept max", () => {
 	assert.doesNotThrow(() =>
 		parseArtifactGraphWorkflowSpec(workflow({ thinking: "max" })),
 	);
-	assert.throws(() =>
+	assert.doesNotThrow(() =>
 		parseArtifactGraphWorkflowSpec(workflow({ thinking: "ultra" })),
+	);
+	assert.throws(() =>
+		parseArtifactGraphWorkflowSpec(workflow({ thinking: "extreme" })),
 	);
 	const agent = parseAgentMarkdown(
 		"---\ndescription: Deep\nthinking: max\n---\nBody",
@@ -85,8 +93,13 @@ test("specs, agent frontmatter, and launch arguments accept max", () => {
 		).thinking,
 		"max",
 	);
+	assert.equal(
+		parseWorkflowRunArgs('run review "Fix the thing" --thinking ultra')
+			.thinking,
+		"ultra",
+	);
 	assert.throws(
-		() => parseWorkflowRunArgs('run review "Fix the thing" --thinking ultra'),
-		/xhigh, max/,
+		() => parseWorkflowRunArgs('run review "Fix the thing" --thinking extreme'),
+		/xhigh, max, ultra/,
 	);
 });

@@ -74,7 +74,7 @@ duplicate-launch claim, no model call. See [usage.md](usage.md#preflight-capabil
 | `--permission-mode free\|safe` | Approvals and sandbox (`docs/permissions.md`). Default `free`. |
 | `--allow-unverified <a,b>` | Accept these `unverified` executor capabilities (B4 opt-in), e.g. `contextIsolation`. |
 | `--model <id>` | Model override for every stage. |
-| `--effort <level>` | Effort override: `off minimal low medium high xhigh max` (`--thinking`/`--reasoning` are aliases). |
+| `--effort <level>` | Effort override: `off minimal low medium high xhigh max ultra` (`--thinking`/`--reasoning` are aliases). Each executor and model gets the nearest level it supports, from the highest it has not above the request (Codex `ultra` on Luna → `max`; Claude/Pi `ultra` → `max`; Codex `off`/`minimal` → `low`), and `check`/the launch text says so. |
 | `--input <key=value>` | Set a workflow input the spec declares (repeatable; `--input=key=value` also works). Typed like the declared default: string as is, number, `true`/`false`, JSON for arrays, objects and `null`. An undeclared key, a wrong type, a repeated key or a missing `=` is a usage error (exit 2, nothing starts). Example: `--input depth=quick`. |
 | `--detach` | Start a background supervisor (`agent-workflow supervise <id>`, log in `<run dir>/supervise.log`) and return the run id at once. |
 | `--force-new` | Start a new run although an identical launch (same workflow, task, inputs and options) is still active; without it, the guard prints that run (`outcome: "existing"`, exit 0) and, in the foreground, waits for it. Applies to `--detach` too. |

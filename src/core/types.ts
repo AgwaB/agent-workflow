@@ -17,6 +17,8 @@ export const THINKING_LEVELS = [
 	"high",
 	"xhigh",
 	"max",
+	// Codex's top level; mapped before launch to the nearest level other executors/models have.
+	"ultra",
 ] as const;
 export const FAST_MODES = ["inherit", "off", "on"] as const;
 export const WORKFLOW_PROFILE_ROLES = [

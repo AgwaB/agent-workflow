@@ -37,6 +37,7 @@ import {
 	type CompiledWorkflow,
 	type CompiledTask,
 	type CompiledLoopStageRecord,
+	THINKING_LEVELS,
 	WORKFLOW_RUN_TYPE,
 	type WorkflowIndexRecord,
 	type WorkflowRunDegradation,
@@ -1144,7 +1145,7 @@ function isWorkflowAutoSelection(value: unknown): boolean {
 	return (
 		(runtime.model === undefined || typeof runtime.model === "string") &&
 		(runtime.thinking === undefined ||
-			["off", "minimal", "low", "medium", "high", "xhigh", "max"].includes(
+			(THINKING_LEVELS as readonly string[]).includes(
 				runtime.thinking as string,
 			)) &&
 		(runtime.fast === undefined ||

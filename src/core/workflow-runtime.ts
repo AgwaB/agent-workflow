@@ -185,7 +185,8 @@ export function getSupportedThinkingLevels(
 	return THINKING_LEVELS.filter((level) => {
 		const mapped = model.thinkingLevelMap?.[level];
 		if (mapped === null) return false;
-		if (level === "xhigh" || level === "max") return mapped !== undefined;
+		if (level === "xhigh" || level === "max" || level === "ultra")
+			return mapped !== undefined;
 		return true;
 	});
 }
