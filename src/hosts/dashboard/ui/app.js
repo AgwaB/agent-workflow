@@ -741,7 +741,46 @@ export function deriveGraph(projection) {
 		const n = level(stage.id);
 		(layers[n] ||= []).push(stage);
 	}
-	return { stages, layers: layers.filter(Boolean), edges };
+	return { stages, layers: orderLayers(layers.filter(Boolean)), edges };
+}
+/**
+ * Fewer edge crossings: order each layer by the mean position of its neighbours in the layers
+ * it connects to (barycenter sweeps down, then up); spec order breaks ties.
+ */
+function orderLayers(layers) {
+	const position = new Map();
+	const place = (layer) =>
+		layer.forEach((stage, i) =>
+			position.set(stage.id, layer.length > 1 ? i / (layer.length - 1) : 0.5),
+		);
+	const spec = new Map();
+	layers.forEach((layer) => {
+		layer.forEach((stage, i) => spec.set(stage.id, i));
+		place(layer);
+	});
+	const sortBy = (layer, neighbours) => {
+		const mean = (stage) => {
+			const values = [...neighbours(stage)]
+				.map((id) => position.get(id))
+				.filter((value) => value !== undefined);
+			return values.length
+				? values.reduce((sum, value) => sum + value, 0) / values.length
+				: position.get(stage.id);
+		};
+		const keys = new Map(layer.map((stage) => [stage.id, mean(stage)]));
+		layer.sort(
+			(a, b) =>
+				keys.get(a.id) - keys.get(b.id) || spec.get(a.id) - spec.get(b.id),
+		);
+		place(layer);
+	};
+	for (let sweep = 0; sweep < 2; sweep++) {
+		for (let n = 1; n < layers.length; n++)
+			sortBy(layers[n], (stage) => stage.deps);
+		for (let n = layers.length - 2; n >= 0; n--)
+			sortBy(layers[n], (stage) => stage.kids);
+	}
+	return layers;
 }
 const activeAgents = (stage) =>
 	stage.kind === "foreach" &&
@@ -847,7 +886,8 @@ function renderGraph() {
 	wrap.append(drawing);
 	const positions = new Map(),
 		horizontal = state.layout === "lr";
-	const width = model.layers.some((layer) => layer.length > 2) ? 340 : 440;
+	const widest = Math.max(...model.layers.map((layer) => layer.length));
+	const width = widest >= 4 ? 300 : widest === 3 ? 340 : 440;
 	let axis = 0;
 	for (const layer of model.layers) {
 		const total = horizontal
