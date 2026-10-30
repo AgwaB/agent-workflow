@@ -1516,6 +1516,7 @@ problems 1–6, 10).
    print at launch (host API `data.capability.notices`). Test:
    `core-wp12a-legacy-agent-shadow.test.mjs` (no legacy file → no notice; legacy `scout.md` → still
    resolves first, one-line notice in record and preview).
+   *Superseded 2026-10-30 (owner decision):* the bundled agents now come before `~/.pi/agent/agents`, so a Pi user agent never replaces `scout`/`researcher` on any host and the notice is gone; the test asserts the bundled agent resolves and a Pi-only name still does.
 
 ### WP12a validation
 

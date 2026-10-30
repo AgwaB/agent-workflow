@@ -1,5 +1,5 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/agents.ts. MIT, same author. Changes: agent roots .pi/agents→.agent-workflow/agents and ~/.pi/agent/agents→~/.agent-workflow/agents, legacy Pi roots searched read-only after them and tagged legacySource "pi" (F5). WP12a: a legacy user agent (~/.pi/agent/agents) that shadows a bundled agent of the same name records shadowsBundledAgent.
-import { type Dirent, existsSync } from "node:fs";
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/agents.ts. MIT, same author. Changes: agent roots .pi/agents→.agent-workflow/agents and ~/.pi/agent/agents→~/.agent-workflow/agents, legacy Pi roots searched read-only after them and tagged legacySource "pi" (F5). 2026-10-30: the bundled agents come before ~/.pi/agent/agents (a Pi user agent no longer replaces researcher/scout on non-Pi hosts; the WP12a shadow notice is gone with the shadowing).
+import type { Dirent } from "node:fs";
 import {
 	lstat,
 	open,
@@ -103,7 +103,6 @@ export async function loadAgentByName(
 			return withLegacySource(
 				await readAgentFile(candidate.file, candidate.root, candidate.scope),
 				candidate.legacy,
-				name,
 			);
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
@@ -155,7 +154,7 @@ export async function loadAgentMetadataByName(
 			maxBytes,
 		);
 		return candidate.legacy
-			? { ...metadata, agent: withLegacySource(metadata.agent, true, name) }
+			? { ...metadata, agent: withLegacySource(metadata.agent, true) }
 			: metadata;
 	};
 	for (const candidate of candidateAgentPaths(name, cwd)) {
@@ -258,9 +257,14 @@ export function parseAgentMarkdown(
 }
 
 /**
- * Search order: agent-workflow locations first, then the legacy Pi locations
- * read-only (F5: user-authored pi-workflow agents keep resolving), then the
- * bundled agents.
+ * Search order: agent-workflow locations, a project's own legacy `.pi/agents` (the project's explicit
+ * choice; bundled recordings ship one), the bundled agents, and last the Pi user directory
+ * `~/.pi/agent/agents` read-only (F5: user-authored pi-workflow agents keep resolving).
+ * 2026-10-30 owner decision: Pi's user agents are Pi configuration — written for pi-workflow's tool
+ * and model names — so they no longer replace the agents agent-workflow ships (researcher, scout)
+ * on Codex, Claude Code and the CLI; they fill in only names agent-workflow does not ship. To
+ * customise a bundled agent for agent-workflow, put it in `~/.agent-workflow/agents/` or the
+ * project's `.agent-workflow/agents/`.
  */
 function agentRoots(
 	cwd: string,
@@ -273,49 +277,16 @@ function agentRoots(
 			scope: "project",
 			legacy: true,
 		},
-		{ path: join(legacyPiAgentDir(), "agents"), scope: "user", legacy: true },
 		...bundledAgentRoots().map((path) => ({ path, scope: "bundled" as const })),
+		{ path: join(legacyPiAgentDir(), "agents"), scope: "user", legacy: true },
 	];
 }
 
 function withLegacySource(
 	agent: AgentDefinition,
 	legacy: true | undefined,
-	lookupName?: string,
 ): AgentDefinition {
-	if (!legacy) return agent;
-	// Only the legacy user directory (`~/.pi/agent/agents`) is checked: a project's own legacy
-	// `.pi/agents` override is the project's explicit choice (bundled recordings ship one).
-	const shadowed =
-		agent.scope === "user"
-			? bundledAgentShadowedBy(agent, lookupName)
-			: undefined;
-	return {
-		...agent,
-		legacySource: "pi",
-		...(shadowed === undefined ? {} : { shadowsBundledAgent: shadowed }),
-	};
-}
-
-/**
- * WP12a: the bundled agent a legacy Pi user agent shadows (same name; legacy roots come first, F5).
- * Precedence is unchanged; the compiler turns this into a notice.
- */
-function bundledAgentShadowedBy(
-	agent: AgentDefinition,
-	lookupName: string | undefined,
-): string | undefined {
-	const names = uniqueStrings([lookupName, agent.name]).filter(isSafeAgentName);
-	for (const root of bundledAgentRoots())
-		for (const name of names)
-			for (const relativePath of uniqueStrings([
-				`${name.replaceAll(".", sep)}.md`,
-				`${name}.md`,
-			])) {
-				const file = resolve(root, relativePath);
-				if (isPathInside(resolve(root), file) && existsSync(file)) return file;
-			}
-	return undefined;
+	return legacy ? { ...agent, legacySource: "pi" } : agent;
 }
 
 function bundledAgentRoots(): string[] {

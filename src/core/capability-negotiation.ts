@@ -530,7 +530,7 @@ export function hostToolInheritanceNotice(
 
 export interface NegotiateWorkflowRunInput {
 	descriptor: ExecutorDescriptor;
-	compiled: Pick<CompiledWorkflow, "tasks" | "stages" | "agentNotices">;
+	compiled: Pick<CompiledWorkflow, "tasks" | "stages">;
 	policy: WorkflowCapabilityPolicy;
 	/** Reuse a recorded probe (nested runs) instead of probing again. */
 	recorded?: Pick<WorkflowRunCapabilityNegotiation, "probe" | "capabilities">;
@@ -774,7 +774,6 @@ export async function negotiateWorkflowRun(
 		),
 	];
 	const notices = [
-		...(input.compiled.agentNotices ?? []),
 		...modelCheck.notices,
 		...providerModelNotices(
 			workflowNegotiationTargets(input.compiled),

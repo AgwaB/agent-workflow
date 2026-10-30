@@ -71,8 +71,8 @@ const KNOWN_LOCAL_TOOLS = new Set([
 // pi-workflow's web tools (`workflow_web_*`) and agent-workflow's CLI web tools
 // (`web_search`, `fetch_content`) are the same capabilities under two names, so either
 // vocabulary authorises the other: an old spec runs under a current agent, and a current spec
-// (the bundled deep-research) runs under an agent written for pi-workflow — for example a
-// legacy `~/.pi/agent/agents/researcher.md`, which shadows the bundled agent of that name.
+// runs under an agent written for pi-workflow (a project's `.pi/agents`, or a `~/.pi/agent/agents`
+// agent with a name agent-workflow does not ship).
 const TOOL_AUTHORITY_COMPAT_ALIASES: Record<string, string[]> = {
 	workflow_web_search: ["web_search"],
 	workflow_web_fetch_source: ["fetch_content"],
