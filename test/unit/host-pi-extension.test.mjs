@@ -379,6 +379,20 @@ test("/aw catalog actions delegate to the host API and show the handler text", a
 		[roles.name, roles.args[1]],
 		["workflowRolesAction", { workflow: "wf.json" }],
 	);
+	// /aw check: the launch preflight (run options, task optional).
+	const check = await run("check wf.json --executor codex --model gpt-6.1-sol");
+	assert.deepEqual(
+		[check.name, check.args[1]],
+		[
+			"checkWorkflowAction",
+			{
+				workflow: "wf.json",
+				task: "preflight check",
+				executor: "codex",
+				model: "gpt-6.1-sol",
+			},
+		],
+	);
 	assert.equal((await run("agents")).name, "listAgentsAction");
 	assert.match(lastNote(ctx).message, /reader/);
 	const showSpec = await run("show wf.json");
@@ -427,6 +441,7 @@ test("/aw catalog actions delegate to the host API and show the handler text", a
 	for (const [args, pattern] of [
 		["frobnicate", /Unknown \/aw action "frobnicate"/],
 		["validate", /Usage: \/aw validate/],
+		["check", /Usage: \/aw check/],
 		["list --bogus", /Unknown option --bogus/],
 		["supervise --all", /Unknown \/aw action "supervise"/],
 	]) {

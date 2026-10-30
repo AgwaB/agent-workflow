@@ -123,6 +123,7 @@ try {
 		"workflow_inspect",
 		"workflow_logs",
 		"workflow_validate",
+		"workflow_check",
 		"workflow_resume",
 		"workflow_show",
 		"workflow_roles",

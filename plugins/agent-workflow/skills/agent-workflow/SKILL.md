@@ -25,6 +25,7 @@ say the same.
 | `workflow_stop` | Stop a run (`runId`). Cancelling a wait call does not stop the run. |
 | `workflow_dashboard` | When the user wants to watch: start the local dashboard (`run?`: full run id) and open it in their browser after a consent dialog (URL dialog in Claude Code, form dialog in Codex); clients without dialogs get terminal instructions. Never changes a run or returns credentials. |
 | `workflow_validate` | Check a workflow spec (`workflow`: name or spec path). |
+| `workflow_check` | Launch preflight without a run (`workflow`, optional `executor`, `model`, `effort`, `profile`): says whether the run can start on that executor and why not — unknown tools, a model the executor cannot run, effort levels. No run, no model call. Use it when the user asks whether a workflow can run here, or after a refusal. |
 | `workflow_resume` | Continue a failed, interrupted or blocked run (`runId`, `detach?` default true). **Starts model calls (cost)**: only when the user asks. |
 | `workflow_supervise` | Start a background supervisor for a running run that nothing drives (`runId`). Starts model calls: only when the user asks. |
 | `workflow_show` | A workflow spec (`ref`: name or path) or a run (`ref`: run id, `raw?`). |

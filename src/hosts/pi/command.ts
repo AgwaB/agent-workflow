@@ -64,6 +64,7 @@ export const AW_ACTIONS = [
 	"help",
 	"list",
 	"validate",
+	"check",
 	"roles",
 	"agents",
 	"profile",
@@ -94,6 +95,7 @@ export const AW_HELP = `/aw — agent-workflow in Pi. Workers run on the selecte
 Workflows:
   /aw list [--query <text>] [--offset N] [--limit N]   list discoverable workflows
   /aw validate <workflow>                              validate a workflow spec
+  /aw check <workflow> [options]                       launch preflight: executor, tools, models, effort (no run)
   /aw roles <workflow>                                 show compiled role context
   /aw agents                                           list agent definitions
   /aw show <workflow>                                  print a workflow spec
@@ -289,6 +291,24 @@ async function dispatch(
 			return action === "validate"
 				? api.validateWorkflowAction(host(), { workflow: workflow! })
 				: api.workflowRolesAction(host(), { workflow: workflow! });
+		}
+		case "check": {
+			// The launch preflight only: `/aw run` options, task optional, no run.
+			const parsed = parseWorkflowRunArgs(
+				args.trim().replace(/^check(?:\s+|$)/iu, ""),
+			);
+			if (!parsed.specPath)
+				throw new HostUsageError(
+					`Usage: /${AW_COMMAND} check <workflow-name-or-path> ["<task>"] [options]`,
+				);
+			const { detach: _detach, ...request } = launchRequest({
+				...parsed,
+				task: parsed.task || "preflight check",
+			});
+			return api.checkWorkflowAction(
+				hostContext(deps, ctx, { executor: parsed.executor }),
+				{ workflow: parsed.specPath, ...request },
+			);
 		}
 		case "agents":
 			only(parseCommandArgs(rest, {}).positionals, 0, "agents");

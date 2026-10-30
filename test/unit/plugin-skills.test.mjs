@@ -64,6 +64,8 @@ test("skill tool names are the host MCP server's tools", () => {
 		"workflow_approve",
 		// WP32: auto workflow selection with consent.
 		"workflow_auto",
+		// 2026-10-30: the launch preflight without a run.
+		"workflow_check",
 		"workflow_dashboard",
 		"workflow_doctor",
 		"workflow_dynamic",

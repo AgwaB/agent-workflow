@@ -29,6 +29,7 @@ export type PiHostApi = Pick<
 	| "helpAction"
 	| "listWorkflowsAction"
 	| "validateWorkflowAction"
+	| "checkWorkflowAction"
 	| "workflowRolesAction"
 	| "listAgentsAction"
 	| "profileAction"

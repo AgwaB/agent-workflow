@@ -78,6 +78,7 @@ Every tool takes an optional `cwd` (see below). Unknown parameters are refused.
 | `workflow_inspect` | `runId`, `failures?`, `results?` | `inspectAction` | `{run, reliability, listed}`; `run` is the run summary plus brief task rows instead of the full run record |
 | `workflow_logs` (WP18b) | `runId`, `task?`, `lines?` (1-400, default 20), `stream?` (`output`/`stderr`/`events`/`all`) | `logsAction` | `LogsData` (bounded, redacted tails per task; WP19: only files inside `.agent-workflow/`, tampered or symlinked paths are refused with a reason; structured credentials and Linux/Windows/macOS home paths redacted, also in `workflow_wait`/`workflow_status` text and previews) |
 | `workflow_validate` | `workflow` | `validateWorkflowAction` | `ValidateData` |
+| `workflow_check` | `workflow`, `task?`, `executor?`, `profile?`, `permissionMode?`, `allowUnverified?`, `model?`, `effort?`, `inputs?` | `checkWorkflowAction` (2026-10-30: the launch preflight, no run) | `LaunchData` (`capability`; `refusal` when a run would not start) |
 | `workflow_resume` (WP28) | `runId`, `detach?` (default true) | `resumeAction` | `ResumeData`; the description says it continues the run and starts model calls (cost) |
 | `workflow_show` (WP28) | `ref`, `raw?` | `showAction` | `{kind: "workflow", specPath, spec}` or `{kind: "run", run}` with the run projected like `workflow_inspect` |
 | `workflow_roles` (WP28) | `workflow` | `workflowRolesAction` | `RolesData` |
@@ -131,7 +132,7 @@ read-only; `run`, `dynamic`, `auto`, `stop`, `resume`, `prune`, `profile`, `appr
   example an unknown run). Tool-level errors let the model correct the call (MCP guidance).
 - JSON-RPC errors only for protocol problems: unknown tool or non-object `arguments` (`-32602`),
   unknown method (`-32601`), requests before `initialize` (`-32600`).
-- Worker processes (`AGENT_WORKFLOW_ROLE=worker`) may only `workflow_validate` (host API role check).
+- Worker processes (`AGENT_WORKFLOW_ROLE=worker`) may only `workflow_validate` and `workflow_check` (host API role check; `check` uses the `validate` permission).
 
 ## Dashboard opening (WP43b)
 

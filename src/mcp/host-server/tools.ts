@@ -99,6 +99,7 @@ export const WORKFLOW_WAIT_TOOL = "workflow_wait";
 export const WORKFLOW_STOP_TOOL = "workflow_stop";
 export const WORKFLOW_INSPECT_TOOL = "workflow_inspect";
 export const WORKFLOW_VALIDATE_TOOL = "workflow_validate";
+export const WORKFLOW_CHECK_TOOL = "workflow_check";
 export const WORKFLOW_LOGS_TOOL = "workflow_logs";
 export const WORKFLOW_RESUME_TOOL = "workflow_resume";
 export const WORKFLOW_SHOW_TOOL = "workflow_show";
@@ -460,6 +461,41 @@ export const HOST_MCP_TOOLS: readonly HostMcpToolDefinition[] = [
 					type: "string",
 					description: "Workflow name, alias or spec path.",
 				},
+				...CWD_PROPERTY,
+			},
+			required: ["workflow"],
+		},
+		annotations: {
+			readOnlyHint: true,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false,
+		},
+	},
+	{
+		name: WORKFLOW_CHECK_TOOL,
+		title: "Preflight agent-workflow workflow",
+		description: `The launch preflight without the launch: picks the executor and checks what a run needs — executor installed and logged in, every stage's tools, model and effort available on the executor that would run it (names rewritten to that tool's form), capabilities. Returns the short check, or why a run would not start (an error result). No run, no model call. Use it when the user asks whether a workflow can run here or with an executor/model, or before ${WORKFLOW_RUN_TOOL} after a refusal.`,
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				workflow: {
+					type: "string",
+					description: "Workflow name, alias or spec path.",
+				},
+				task: {
+					type: "string",
+					description:
+						"Optional runtime task (only some workflows compile differently by task).",
+				},
+				executor: LAUNCH_OPTION_PROPERTIES.executor,
+				profile: LAUNCH_OPTION_PROPERTIES.profile,
+				permissionMode: LAUNCH_OPTION_PROPERTIES.permissionMode,
+				allowUnverified: LAUNCH_OPTION_PROPERTIES.allowUnverified,
+				model: LAUNCH_OPTION_PROPERTIES.model,
+				effort: LAUNCH_OPTION_PROPERTIES.effort,
+				inputs: LAUNCH_OPTION_PROPERTIES.inputs,
 				...CWD_PROPERTY,
 			},
 			required: ["workflow"],
@@ -886,6 +922,7 @@ export type HostMcpApi = Pick<
 	| "inspectAction"
 	| "logsAction"
 	| "validateWorkflowAction"
+	| "checkWorkflowAction"
 	| "resumeAction"
 	| "showAction"
 	| "workflowRolesAction"
@@ -1949,6 +1986,17 @@ export function createHostMcpService(
 				workflow: requiredString(args, "workflow"),
 			});
 			return finish(call, validated, validated.data);
+		},
+		[WORKFLOW_CHECK_TOOL]: async (args, call) => {
+			const { detach: _detach, ...request } = launchRequestFromArguments({
+				...args,
+				task: optionalString(args, "task") ?? "preflight check",
+			});
+			const checked = await api.checkWorkflowAction(await context(args), {
+				workflow: requiredString(args, "workflow"),
+				...request,
+			});
+			return finish(call, checked, checked.data);
 		},
 		[WORKFLOW_RESUME_TOOL]: async (args, call) => {
 			const runId = requiredString(args, "runId");

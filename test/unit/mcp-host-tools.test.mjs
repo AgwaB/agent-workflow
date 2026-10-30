@@ -178,6 +178,8 @@ test("initialize and tools/list: server name, instructions, every tool gated per
 			"workflow_inspect",
 			"workflow_logs",
 			"workflow_validate",
+			// 2026-10-30: the launch preflight without the launch (host-check-preflight.test.mjs).
+			"workflow_check",
 			// WP28: the CLI commands (mcp-host-wp28-tools.test.mjs).
 			"workflow_resume",
 			"workflow_show",
@@ -301,6 +303,25 @@ test("every tool through the fake client equals the host API and CLI --json resu
 		validated.structuredContent.data,
 		(await cliJson(cwd, env, ["validate", "wf.json"])).json.data,
 	);
+
+	// check: the launch preflight without a run (same data as the host API and the CLI)
+	const checked = await client.call("workflow_check", {
+		workflow: "wf.json",
+		executor,
+	});
+	assert.equal(checked.isError, false, text(checked));
+	assert.match(text(checked), /^Preflight passed: .* no run was started\./);
+	assert.equal(checked.structuredContent.data.runId, undefined);
+	assert.ok(
+		checked.structuredContent.data.capability.preview.startsWith(
+			"Capability check",
+		),
+	);
+	const refusedCheck = await client.call("workflow_check", {
+		workflow: "wf.json",
+		executor: "no-such-executor",
+	});
+	assert.equal(refusedCheck.isError, true);
 
 	// run (in-process: detach false) → wait loop
 	const launched = await client.call("workflow_run", {
