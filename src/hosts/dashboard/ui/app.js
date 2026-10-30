@@ -1990,22 +1990,49 @@ async function openReport() {
 		if (generation !== reportGeneration || modalKey !== `report:${id}`) return;
 		body.replaceChildren();
 		let list = null;
-		// Deliberately text-only: no Markdown links, HTML, images or content-derived URLs.
+		// Deliberately text-only: no Markdown links, HTML, images or content-derived URLs. Inline
+		// `**bold**` / `` `code` `` become <strong>/<code> text nodes; blank lines only end a block.
+		const inline = (text) => {
+			const nodes = [];
+			const re = /(\*\*([^*]+)\*\*|`([^`]+)`)/g;
+			let last = 0;
+			for (const m of text.matchAll(re)) {
+				if (m.index > last) nodes.push(text.slice(last, m.index));
+				nodes.push(
+					m[2] !== undefined
+						? element("strong", {}, m[2])
+						: element("code", {}, m[3]),
+				);
+				last = m.index + m[0].length;
+			}
+			if (last < text.length) nodes.push(text.slice(last));
+			return nodes;
+		};
+		let paragraph = null;
 		for (const line of data.text.split("\n")) {
 			const heading = /^#{1,6}\s+(.+)$/.exec(line),
 				item = /^\s*[-*+]\s+(.+)$/.exec(line);
 			if (heading) {
 				list = null;
-				body.append(element("h3", {}, heading[1]));
+				paragraph = null;
+				body.append(element("h3", {}, ...inline(heading[1])));
 			} else if (item) {
+				paragraph = null;
 				if (!list) {
 					list = element("ul");
 					body.append(list);
 				}
-				list.append(element("li", {}, item[1]));
+				list.append(element("li", {}, ...inline(item[1])));
+			} else if (!line.trim()) {
+				list = null;
+				paragraph = null;
 			} else {
 				list = null;
-				body.append(element("p", {}, line || "\u00a0"));
+				if (!paragraph) {
+					paragraph = element("p");
+					body.append(paragraph);
+				} else paragraph.append(" ");
+				append(paragraph, inline(line));
 			}
 		}
 		if (data.truncated)
