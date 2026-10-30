@@ -217,7 +217,9 @@ test("mixed run from a native Pi host: pi tasks inherit host tools, claude tasks
 		preview,
 		/look\.main: pi@[^\n]*\n(?: {2}[^\n]*\n)*? {2}host tools: not inherited \(readOnly stage\)/u,
 	);
-	assert.match(launched.text, /host tools: inherited/u);
+	// The launch text is the short preflight (2026-10-30): the per-stage block stays in the record
+	// (above); the text carries the one-line host-tools notice.
+	assert.match(launched.text, /⚠ host tools: .* inherited by change\.main/u);
 });
 
 test("a mixed run with no pi stage: the host's tools are ignored (no notice, no inheritance)", async () => {

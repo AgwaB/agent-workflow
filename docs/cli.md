@@ -13,8 +13,9 @@ npx agent-workflow --help
 
 | Command | What it does |
 |---|---|
-| `list [--query T] [--offset N] [--limit N]` | Discoverable workflows: project `.agent-workflow/workflows/`, `~/.agent-workflow/workflows/`, bundled; legacy Pi locations read-only. `--limit` (1-20) pages the output and bounds it to 50 KB. |
+| `list [--query T] [--offset N] [--limit N]` | Discoverable workflows: project `workflows/` and `.agent-workflow/workflows/`, `~/.agent-workflow/workflows/`, bundled (Pi's directories are not read). `--limit` (1-20) pages the output and bounds it to 50 KB. |
 | `validate <workflow>` | Load and compile a spec without running it. |
+| `check <workflow> [<task…>] [launch options]` | The launch preflight without the launch: executor, tools, models and effort for the executor that would run each stage (below). No run, no model call. |
 | `roles <workflow>` | Compiled role context as injected into task prompts. |
 | `agents` | Agent definitions. |
 | `show <workflow>` | The resolved spec file. |
