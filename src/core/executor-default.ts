@@ -18,6 +18,7 @@
 import type { ExecutorCapabilities } from "../sdk/capabilities.js";
 import type { AuthStatus, ExecutorProbe } from "../sdk/contract.js";
 import { type ExecutorDescriptor, loadExecutor } from "../sdk/descriptor.js";
+import type { ToolMapping } from "../sdk/tools.js";
 import {
 	resolveRunExecutorSelection,
 	WorkflowExecutorUnavailableError,
@@ -60,7 +61,11 @@ export const EXECUTOR_PROBE_CACHE_TTL_MS = 60_000;
 /** Probe seam (same shape as the engine's `executorProber`). */
 export type ExecutorReadinessProber = (
 	descriptor: ExecutorDescriptor,
-) => Promise<{ probe: ExecutorProbe; capabilities: ExecutorCapabilities }>;
+) => Promise<{
+	probe: ExecutorProbe;
+	capabilities: ExecutorCapabilities;
+	toolMapping?: ToolMapping;
+}>;
 
 export function isWorkflowHostId(value: unknown): value is WorkflowHostId {
 	return (
@@ -207,6 +212,10 @@ export const cachedExecutorProber: ExecutorReadinessProber = (descriptor) => {
 		return {
 			capabilities: executor.capabilities(),
 			probe: await executor.probe(),
+			// The pre-launch tool check (capability negotiation) uses the adapter's mapping.
+			...(executor.toolMapping === undefined
+				? {}
+				: { toolMapping: executor.toolMapping }),
 		};
 	})();
 	const entry: CacheEntry = { at: cacheNow(), value };

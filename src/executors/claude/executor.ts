@@ -38,6 +38,7 @@ import { SdkError } from "../../sdk/errors.js";
 import type { ExecEvent, OwnedSession } from "../../sdk/events.js";
 import { buildClaudeInvocation, isUuid, userMessageLine } from "./argv.js";
 import { claudeCapabilities } from "./capabilities.js";
+import { CLAUDE_TOOL_MAPPING } from "./tools.js";
 import {
 	CLAUDE_ADAPTER_VERSION,
 	CLAUDE_EXECUTOR_ID,
@@ -638,6 +639,7 @@ export function createClaudeExecutor(options: {
 		},
 
 		capabilities: (): ExecutorCapabilities => capabilities,
+		toolMapping: CLAUDE_TOOL_MAPPING,
 
 		async submit(req: SubmitRequest): Promise<ExecRef> {
 			const problems = validateSubmitRequest(req);

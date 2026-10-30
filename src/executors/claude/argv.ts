@@ -24,6 +24,7 @@
  * are pre-allowed.
  */
 import { createHash } from "node:crypto";
+import { executorModelId } from "../../core/executor-model-id.js";
 import type { McpServerSpec, SubmitRequest } from "../../sdk/contract.js";
 import { SdkError } from "../../sdk/errors.js";
 import { isUnrestricted } from "../../sdk/permission.js";
@@ -280,8 +281,16 @@ export function buildClaudeInvocation(
 			throw new SdkError("INVALID_REQUEST", "mcp config path missing");
 		argv.push("--mcp-config", options.mcpConfigPath);
 	}
-	if (req.model !== undefined && req.model !== "")
-		argv.push("--model", req.model);
+	if (req.model !== undefined && req.model !== "") {
+		// Pi's `anthropic/<id>` (a legacy `~/.pi` agent or workflow) is `<id>` for Claude Code; other
+		// providers are refused before launch (capability negotiation) and here.
+		const translated = executorModelId("claude", req.model);
+		if ("refused" in translated)
+			throw new SdkError("INVALID_REQUEST", translated.refused, {
+				subject: "model",
+			});
+		argv.push("--model", translated.model);
+	}
 	if (effort !== null) argv.push("--effort", effort);
 	if (req.systemPrompt !== undefined && req.systemPrompt !== "")
 		argv.push(

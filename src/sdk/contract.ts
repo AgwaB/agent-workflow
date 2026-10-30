@@ -10,6 +10,7 @@ import type { ExecutorCapabilities } from "./capabilities.js";
 import { SdkError } from "./errors.js";
 import type { ExecEvent } from "./events.js";
 import { isPermissionMode, type PermissionMode } from "./permission.js";
+import type { ToolMapping } from "./tools.js";
 
 /**
  * Contract version. Compatibility: for 0.x, same major+minor; from 1.0, same major (semver).
@@ -146,6 +147,12 @@ export interface WorkflowExecutor {
 	readonly contractVersion: string;
 	probe(): Promise<ExecutorProbe>;
 	capabilities(): ExecutorCapabilities;
+	/**
+	 * Optional: the workflow tool names this adapter can run (`mapTools`). When present the engine
+	 * refuses, before the run starts, a stage asking for a tool it has no mapping for — instead of
+	 * the attempt failing at submit after earlier stages already ran.
+	 */
+	readonly toolMapping?: ToolMapping;
 	/**
 	 * Start (or, for a known `attemptKey`, return) an attempt. The adapter must call
 	 * `req.authority.consume()` immediately before its first side effect (R#1). When that

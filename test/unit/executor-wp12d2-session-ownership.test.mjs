@@ -158,3 +158,26 @@ test("review #9 (claude): resuming a foreign session does not make it owned", as
 		"refused",
 	);
 });
+
+test("codex: a Pi-qualified model (openai-codex/…) reaches the CLI as its bare id", async (t) => {
+	// 2026-10-30 cross-host finding: legacy ~/.pi agents/workflows carry Pi provider prefixes.
+	const { dir, config } = await codexSetup(t);
+	const executor = createCodexExecutor(config);
+	const ref = await executor.submit(
+		request(dir, "codex-pi-model", { model: "openai-codex/gpt-6.1-sol" }),
+	);
+	const { terminal } = await drain(executor, ref, { timeoutMs: 15_000 });
+	assert.equal(terminal.type, "completed");
+	const sent = (await readFile(process.env.FAKE_CODEX_LOG, "utf8"))
+		.split("\n")
+		.filter(Boolean)
+		.map((line) => JSON.parse(line))
+		.filter((message) =>
+			["thread/start", "turn/start"].includes(message.method),
+		)
+		.map((message) => [message.method, message.params.model]);
+	assert.deepEqual(sent, [
+		["thread/start", "gpt-6.1-sol"],
+		["turn/start", "gpt-6.1-sol"],
+	]);
+});

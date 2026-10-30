@@ -997,6 +997,7 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 		},
 
 		capabilities: piCapabilities,
+		toolMapping: PI_EXECUTOR_TOOL_MAPPING,
 
 		async submit(req: SubmitRequest): Promise<ExecRef> {
 			const problems = validateSubmitRequest(req);

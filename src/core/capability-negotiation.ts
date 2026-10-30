@@ -27,6 +27,8 @@ import {
 import type { ExecutorProbe } from "../sdk/contract.js";
 import { EXECUTOR_CONTRACT_VERSION } from "../sdk/contract.js";
 import { type ExecutorDescriptor, loadExecutor } from "../sdk/descriptor.js";
+import { mapTools, type ToolMapping } from "../sdk/tools.js";
+import { executorModelId } from "./executor-model-id.js";
 import {
 	buildCapabilityPreview,
 	type CapabilityPreview,
@@ -58,7 +60,12 @@ export const DEFAULT_EXECUTOR_PROBE_TIMEOUT_MS = 30_000;
 /** Probe seam: what the engine needs from an executor before launch. Injectable for tests. */
 export type WorkflowExecutorProber = (
 	descriptor: ExecutorDescriptor,
-) => Promise<{ probe: ExecutorProbe; capabilities: ExecutorCapabilities }>;
+) => Promise<{
+	probe: ExecutorProbe;
+	capabilities: ExecutorCapabilities;
+	/** The adapter's tool mapping, when it declares one (pre-launch tool check). */
+	toolMapping?: ToolMapping;
+}>;
 
 export type WorkflowCapabilityErrorCode =
 	| "EXECUTOR_PROBE_FAILED"
@@ -110,6 +117,9 @@ const defaultProber: WorkflowExecutorProber = async (descriptor) => {
 	return {
 		capabilities: executor.capabilities(),
 		probe: await executor.probe(),
+		...(executor.toolMapping === undefined
+			? {}
+			: { toolMapping: executor.toolMapping }),
 	};
 };
 
@@ -169,6 +179,7 @@ export async function probeWorkflowExecutor(
 	models: string[] | null;
 	/** WP31 follow-up: the probe declares `models` exhaustive (`modelListComplete: true`). */
 	modelListComplete: boolean;
+	toolMapping?: ToolMapping;
 }> {
 	const id = descriptor.id;
 	const timeoutMs = options.timeoutMs ?? DEFAULT_EXECUTOR_PROBE_TIMEOUT_MS;
@@ -227,6 +238,9 @@ export async function probeWorkflowExecutor(
 			result.probe as Parameters<typeof probeModelList>[0],
 		),
 		modelListComplete: result.probe.modelListComplete === true,
+		...(result.toolMapping === undefined
+			? {}
+			: { toolMapping: result.toolMapping }),
 	};
 }
 
@@ -541,6 +555,7 @@ interface ProbedExecutor {
 	capabilities: ExecutorCapabilities;
 	models: string[] | null;
 	modelListComplete: boolean;
+	toolMapping?: ToolMapping;
 }
 
 /**
@@ -589,6 +604,94 @@ function checkRoleModels(
 		);
 	}
 	return { refusals, notices };
+}
+
+/**
+ * Stages whose tools the executor has no mapping for. The executor itself refuses such an attempt
+ * at submit (before any effect), but by then the run exists and earlier stages may already have
+ * run — a launch that cannot succeed is refused here, before anything starts. Executors that do not
+ * declare a mapping (third-party adapters, recorded probes) are not checked.
+ */
+function unmappedToolRefusals(
+	tasks: readonly CompiledTask[],
+	runExecutorId: string,
+	probes: ReadonlyMap<string, ProbedExecutor>,
+): string[] {
+	const byExecutor = new Map<string, Map<string, string[]>>();
+	for (const task of tasks) {
+		const tools = task.runtime.tools;
+		if (tools === undefined || tools.length === 0) continue;
+		const id = task.runtime.executor ?? runExecutorId;
+		const mapping = probes.get(id)?.toolMapping;
+		if (mapping === undefined) continue;
+		const unmapped = mapTools(tools, mapping).unmapped;
+		if (unmapped.length === 0) continue;
+		const key = unmapped.join(", ");
+		const stages = byExecutor.get(id) ?? new Map<string, string[]>();
+		stages.set(key, [...(stages.get(key) ?? []), task.id]);
+		byExecutor.set(id, stages);
+	}
+	const lines: string[] = [];
+	for (const [id, groups] of byExecutor)
+		for (const [tools, labels] of groups)
+			lines.push(
+				`  - ${labels.join(", ")}: executor ${id} has no mapping for ${tools}${
+					/\bworkflow_web_/u.test(tools)
+						? " (pi-workflow's web tools; agent-workflow uses web_search and fetch_content)"
+						: ""
+				}`,
+			);
+	return lines;
+}
+
+/**
+ * A provider-qualified model the executor passes through (codex: a custom provider may serve
+ * `anthropic/…`) but its probe does not list: say so before launch — a Pi provider id fails at the
+ * stage unless such a provider is configured.
+ */
+function providerModelNotices(
+	tasks: readonly CompiledTask[],
+	runExecutorId: string,
+	probes: ReadonlyMap<string, ProbedExecutor>,
+): string[] {
+	const slots = new Map<string, string[]>();
+	for (const task of tasks) {
+		const model = task.runtime.model;
+		if (model === undefined || !/^[a-z0-9][a-z0-9-]*\//u.test(model)) continue;
+		const id = task.runtime.executor ?? runExecutorId;
+		const translated = executorModelId(id, model);
+		if (!("model" in translated) || translated.model !== model) continue;
+		if (id === PI_EXECUTOR_ID) continue;
+		const listed = probes.get(id)?.models ?? null;
+		if (listed !== null && modelListed(model, listed)) continue;
+		const key = `${id}\0${model}`;
+		slots.set(key, [...(slots.get(key) ?? []), task.id]);
+	}
+	return [...slots].map(([key, labels]) => {
+		const [id, model] = key.split("\0");
+		return `model "${model}" for ${labels.join(", ")} looks like a Pi provider id; executor ${id} does not list it and runs it only if one of its configured providers serves that name`;
+	});
+}
+
+/** Stage models (spec, agent or profile) whose provider the stage's executor cannot run. */
+function foreignModelRefusals(
+	tasks: readonly CompiledTask[],
+	runExecutorId: string,
+): string[] {
+	const groups = new Map<string, string[]>();
+	for (const task of tasks) {
+		const model = task.runtime.model;
+		if (model === undefined || model === "") continue;
+		const id = task.runtime.executor ?? runExecutorId;
+		const translated = executorModelId(id, model);
+		if (!("refused" in translated)) continue;
+		const key = `executor ${id}: ${translated.refused}`;
+		groups.set(key, [...(groups.get(key) ?? []), task.id]);
+	}
+	return [...groups].map(
+		([reason, labels]) =>
+			`  - ${labels.join(", ")}: ${reason}; run it on the pi executor or assign this stage another executor (role profile)`,
+	);
 }
 
 /**
@@ -659,9 +762,25 @@ export async function negotiateWorkflowRun(
 		);
 	});
 	const modelCheck = checkRoleModels(input.modelChecks ?? [], probes);
+	const toolRefusals = [
+		...unmappedToolRefusals(
+			workflowNegotiationTargets(input.compiled),
+			executor.id,
+			probes,
+		),
+		...foreignModelRefusals(
+			workflowNegotiationTargets(input.compiled),
+			executor.id,
+		),
+	];
 	const notices = [
 		...(input.compiled.agentNotices ?? []),
 		...modelCheck.notices,
+		...providerModelNotices(
+			workflowNegotiationTargets(input.compiled),
+			executor.id,
+			probes,
+		),
 	];
 	// WP35: host-tool inheritance notice. WP31×WP35: per stage (each stage's preview block and
 	// record say whether it inherits; in a mixed run only pi stages do).
@@ -730,6 +849,16 @@ export async function negotiateWorkflowRun(
 				? (stages.find((stage) => !stage.report.accepted)?.report.executorId ??
 						executor.id)
 				: executor.id,
+			preview.text,
+		);
+	if (toolRefusals.length > 0)
+		throw new WorkflowCapabilityError(
+			"CAPABILITY_REFUSED",
+			[
+				"a stage asks for tools or a model its executor cannot provide; the run was not started and no task was launched:",
+				...toolRefusals,
+			].join("\n"),
+			executor.id,
 			preview.text,
 		);
 	if (modelCheck.refusals.length > 0)

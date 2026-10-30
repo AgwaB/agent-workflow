@@ -60,7 +60,15 @@ import {
 	ThreadOwnershipStore,
 } from "./state.js";
 import { schedulePeriodicAdapterStatePrune } from "../state-retention.js";
-import { planCodexTools } from "./tools.js";
+import { CODEX_TOOL_MAPPING, planCodexTools } from "./tools.js";
+import { executorModelId } from "../../core/executor-model-id.js";
+
+/** Pi's `openai-codex/<id>` (a legacy `~/.pi` agent or workflow) is `<id>` for the Codex CLI. */
+function codexModel(model: string | undefined): string | undefined {
+	if (model === undefined || model === "") return model;
+	const translated = executorModelId("codex", model);
+	return "model" in translated ? translated.model : model;
+}
 import {
 	createSecretRedactor,
 	requestSecrets,
@@ -746,9 +754,10 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 					}),
 				);
 			const plan = planCodexTools(req.tools, req.readOnly, req.permissionMode);
+			const model = codexModel(req.model);
 			const threadParams = {
 				cwd: req.cwd,
-				...(req.model === undefined ? {} : { model: req.model }),
+				...(model === undefined ? {} : { model }),
 				// WP4e: "never" + danger-full-access only for free mode on a non-readOnly stage.
 				approvalPolicy: plan.approvalPolicy,
 				approvalsReviewer: "user",
@@ -785,8 +794,8 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			run.normalizer.model =
 				typeof started.model === "string" && started.model !== ""
 					? started.model
-					: req.model !== undefined && req.model !== ""
-						? req.model
+					: model !== undefined && model !== ""
+						? model
 						: undefined;
 			if (keep && threadId !== undefined) {
 				// Review #9: a thread is owned only when this adapter created it (durable record
@@ -843,7 +852,7 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			const turn = (await conn.request("turn/start", {
 				threadId,
 				input: [{ type: "text", text: req.prompt, text_elements: [] }],
-				...(req.model === undefined ? {} : { model: req.model }),
+				...(model === undefined ? {} : { model }),
 				...(req.effort === undefined ? {} : { effort: req.effort }),
 			})) as Record<string, unknown>;
 			if (isRecord(turn.turn) && typeof turn.turn.id === "string")
@@ -1072,6 +1081,7 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 		},
 
 		capabilities: () => capabilities,
+		toolMapping: CODEX_TOOL_MAPPING,
 
 		/** Visible model slugs from `codex debug models` (no model turn). */
 		async listModels(): Promise<string[]> {
