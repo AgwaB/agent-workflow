@@ -1585,13 +1585,29 @@ export interface WorkflowRunCapabilityNegotiation {
 	forcedReadOnly: string[];
 	/** Pre-start preview text shown to hosts. */
 	preview: string;
-	/** WP12a: one-line notices (legacy agents shadowing bundled agents), also in `preview`. */
+	/** One-line notices (model/effort names the probe cannot confirm, …), also in `preview`. */
 	notices?: string[];
+	/** What the run's executor can name (tools, models, efforts): checks stages generated later. */
+	names?: WorkflowRunExecutorNames;
 	/**
 	 * WP31 (Q4): the other executors of a mixed run (role profile), each probed once. Stage reports
 	 * name their executor (`report.executorId`); the top-level fields belong to `executorId`.
 	 */
 	executors?: Record<string, WorkflowRunNegotiatedExecutor>;
+}
+
+/**
+ * 2026-10-30: an executor's vocabulary as probed before launch (no model call), recorded so a stage
+ * generated during the run (dynamic/auto) is checked like the planned ones before it is submitted.
+ */
+export interface WorkflowRunExecutorNames {
+	/** Workflow tool names the executor maps; absent when its adapter declares no mapping. */
+	tools?: string[];
+	/** Models its probe lists (absent: not listable). */
+	models?: string[];
+	modelListComplete?: boolean;
+	/** Effort levels per model, when the CLI reports them. */
+	modelEfforts?: Record<string, string[]>;
 }
 
 /** WP31: probe and effective capabilities of one more executor of a mixed run. */
@@ -1600,6 +1616,7 @@ export interface WorkflowRunNegotiatedExecutor {
 	contractVersion: string;
 	probe: WorkflowExecutorProbeSummary;
 	capabilities: ExecutorCapabilities;
+	names?: WorkflowRunExecutorNames;
 }
 
 /** WP31: where a stage's executor came from (B2 precedence extended to roles). */

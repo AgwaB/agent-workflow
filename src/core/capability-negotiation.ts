@@ -53,6 +53,7 @@ import type {
 	WorkflowCapturedExecutionProfile,
 	WorkflowExecutorProbeSummary,
 	WorkflowRunCapabilityNegotiation,
+	WorkflowRunExecutorNames,
 	WorkflowRunRecord,
 	WorkflowStageCapabilityNegotiation,
 } from "./types.js";
@@ -540,7 +541,10 @@ export interface NegotiateWorkflowRunInput {
 	compiled: Pick<CompiledWorkflow, "tasks" | "stages">;
 	policy: WorkflowCapabilityPolicy;
 	/** Reuse a recorded probe (nested runs) instead of probing again. */
-	recorded?: Pick<WorkflowRunCapabilityNegotiation, "probe" | "capabilities">;
+	recorded?: Pick<
+		WorkflowRunCapabilityNegotiation,
+		"probe" | "capabilities" | "names"
+	>;
 	recordedFromRunId?: string;
 	prober?: WorkflowExecutorProber;
 	probeTimeoutMs?: number;
@@ -662,7 +666,10 @@ function unmappedToolRefusals(
 function resolveTaskNames(
 	tasks: readonly CompiledTask[],
 	runExecutorId: string,
-	probes: ReadonlyMap<string, ProbedExecutor>,
+	probes: ReadonlyMap<
+		string,
+		Pick<ProbedExecutor, "models" | "modelListComplete" | "modelEfforts">
+	>,
 	/** `executor\0model` pairs a role profile assigned: their list check is checkRoleModels'. */
 	roleChecked: ReadonlySet<string> = new Set(),
 ): { refusals: string[]; notices: string[]; apply: () => void } {
@@ -976,11 +983,45 @@ export async function negotiateWorkflowRun(
 								contractVersion: target.contractVersion,
 								probe: target.summary,
 								capabilities: target.capabilities,
+								...executorNamesField(target),
 							},
 						]),
 					),
 				}),
+		// A nested run reuses its parent's probe: and with it, its recorded vocabulary.
+		...(input.recorded?.names !== undefined
+			? { names: input.recorded.names }
+			: executorNamesField(probes.get(executor.id))),
 	};
+}
+
+/** The probed vocabulary recorded on the run (stages generated later are checked against it). */
+function executorNamesField(target: ProbedExecutor | undefined): {
+	names?: WorkflowRunExecutorNames;
+} {
+	if (target === undefined) return {};
+	const names: WorkflowRunExecutorNames = {
+		...(target.toolMapping === undefined
+			? {}
+			: {
+					tools: Object.entries(target.toolMapping.entries)
+						.filter(([, entry]) => entry.type !== "none")
+						.map(([name]) => name),
+				}),
+		...(target.models === null ? {} : { models: [...target.models] }),
+		...(target.modelListComplete ? { modelListComplete: true } : {}),
+		...(target.modelEfforts === undefined
+			? {}
+			: {
+					modelEfforts: Object.fromEntries(
+						Object.entries(target.modelEfforts).map(([model, levels]) => [
+							model,
+							[...levels],
+						]),
+					),
+				}),
+	};
+	return Object.keys(names).length === 0 ? {} : { names };
 }
 
 /**
@@ -1037,6 +1078,54 @@ export function workflowTaskCapabilityLaunch(
 			executorId,
 		);
 	if (!negotiation.stages.some((recorded) => recorded.label === task.id)) {
+		// A stage generated during the run (dynamic/auto): the tool, model and effort checks the
+		// planned stages got before launch, against the recorded vocabulary of its executor.
+		const names =
+			executorId === negotiation.executorId
+				? negotiation.names
+				: negotiation.executors?.[executorId]?.names;
+		const unmapped =
+			names?.tools === undefined
+				? []
+				: (task.runtime.tools ?? []).filter(
+						(tool) => !names.tools!.includes(tool),
+					);
+		const resolved = resolveTaskNames(
+			[task],
+			executorId,
+			new Map([
+				[
+					executorId,
+					{
+						models: names?.models ?? null,
+						modelListComplete: names?.modelListComplete === true,
+						...(names?.modelEfforts
+							? { modelEfforts: names.modelEfforts }
+							: {}),
+					},
+				],
+			]),
+		);
+		if (unmapped.length > 0 || resolved.refusals.length > 0)
+			throw new WorkflowCapabilityError(
+				"CAPABILITY_REFUSED",
+				[
+					`executor ${executorId} refused generated task ${task.id} before launch:`,
+					...(unmapped.length > 0
+						? [
+								`  ✗ ${task.id}: executor ${executorId} has no mapping for ${unmapped.join(", ")}`,
+							]
+						: []),
+					...resolved.refusals,
+				].join("\n"),
+				executorId,
+			);
+		resolved.apply();
+		if (resolved.notices.length > 0)
+			negotiation.notices = [
+				...(negotiation.notices ?? []),
+				...resolved.notices,
+			];
 		negotiation.stages.push(stage);
 		for (const code of stage.report.degradations)
 			negotiation.degradations.push(`${task.id}: ${code}`);

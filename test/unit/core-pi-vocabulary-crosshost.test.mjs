@@ -18,6 +18,7 @@ import { compileWorkflow } from "../../dist/core/compiler.js";
 import {
 	negotiateWorkflowRun,
 	WorkflowCapabilityError,
+	workflowTaskCapabilityLaunch,
 } from "../../dist/core/capability-negotiation.js";
 import {
 	resolveExecutorEffort,
@@ -330,4 +331,57 @@ test("claude argv: anthropic/ is dropped, a foreign provider is refused before a
 			}),
 		/is a google model; claude cannot run it/,
 	);
+});
+
+test("stages generated during a run (dynamic/auto) get the same tool, model and effort checks before submit", async () => {
+	const cwd = await project();
+	const compiled = await compile(cwd, spec({ tools: ["read", "web_search"] }));
+	const negotiation = await negotiate(compiled, "codex", {
+		models: ["gpt-6.1-sol", "gpt-6-luna"],
+	});
+	// The run records what its executor can name.
+	assert.ok(negotiation.names.tools.includes("web_search"));
+	assert.ok(!negotiation.names.tools.includes("workflow_web_search"));
+	assert.deepEqual(negotiation.names.models, ["gpt-6.1-sol", "gpt-6-luna"]);
+	const run = { capabilityNegotiation: negotiation };
+	const generated = (patch) => {
+		const task = structuredClone(compiled.tasks[0]);
+		task.id = task.key = task.specId = "generated.w1";
+		Object.assign(task.runtime, patch);
+		return task;
+	};
+	// A pi-workflow tool name: refused before submit, with the reason.
+	assert.throws(
+		() =>
+			workflowTaskCapabilityLaunch(
+				run,
+				generated({ tools: ["read", "workflow_web_search"] }),
+			),
+		(error) => {
+			assert(error instanceof WorkflowCapabilityError);
+			assert.match(
+				error.message,
+				/refused generated task generated\.w1 before launch:\n {2}✗ generated\.w1: executor codex has no mapping for workflow_web_search/,
+			);
+			return true;
+		},
+	);
+	// A Claude model on codex: refused.
+	assert.throws(
+		() =>
+			workflowTaskCapabilityLaunch(
+				run,
+				generated({ model: "anthropic/claude-opus-5-5" }),
+			),
+		/is an Anthropic model; codex cannot run it/,
+	);
+	// A Pi-qualified OpenAI id is rewritten for codex before submit.
+	const ok = generated({
+		model: "openai-codex/gpt-6.1-sol",
+		thinking: "minimal",
+	});
+	workflowTaskCapabilityLaunch(run, ok);
+	assert.equal(ok.runtime.model, "gpt-6.1-sol");
+	assert.equal(ok.runtime.thinking, "low");
+	assert.ok(negotiation.stages.some((stage) => stage.label === "generated.w1"));
 });
