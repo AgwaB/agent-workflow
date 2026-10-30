@@ -263,6 +263,7 @@ test("a detached dashboard idles out only with no SSE client and no live run", {
 		env: p.env,
 		discovery: true,
 		idleExitMs: 1500,
+		idleCheckMs: 300,
 		onIdleExit: () => {
 			idled += 1;
 		},

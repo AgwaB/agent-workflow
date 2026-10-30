@@ -135,7 +135,9 @@ test("cookie survives two starts; CLI reset stops a detached server and invalida
 test("401 sign-in page uses only escaped project basename, no path or credentials", async (t) => {
 	const { cwd, start } = await project(t);
 	const server = await start();
-	for (const path of ["/", "/?run=workflow_test", "/app.js", "/app.css"]) {
+	// app.css is public (the sign-in page is styled with it); the page and the app script are not.
+	assert.equal((await http(server, "/app.css")).status, 200);
+	for (const path of ["/", "/?run=workflow_test", "/app.js"]) {
 		const response = await http(server, path);
 		assert.equal(response.status, 401);
 		assert.match(response.headers.get("content-type"), /text\/html/);
@@ -147,11 +149,19 @@ test("401 sign-in page uses only escaped project basename, no path or credential
 		);
 		assert.match(
 			response.text,
-			/Sign in once: run <code>agent-workflow dashboard --open<\/code> in a terminal, or ask your agent to open the dashboard\. After that, links like this one open directly\./,
+			/Sign in once; after that, links like this one open directly\./,
+		);
+		assert.match(response.text, /id="signin"/);
+		assert.match(
+			response.text,
+			/Or run <code>agent-workflow dashboard --open<\/code> in a terminal, or ask your agent to open the dashboard\./,
 		);
 		for (const secret of [cwd, server.token, server.launchKey])
 			assert.ok(!response.text.includes(secret));
-		assert.doesNotMatch(response.text, /<script|token=/);
+		assert.doesNotMatch(
+			response.text,
+			/<script>|token=|<script src="(?!\/signin\.js")/,
+		);
 	}
 	const explicit = await start({ token: "a".repeat(43), discovery: false });
 	assert.equal(explicit.token, "a".repeat(43));

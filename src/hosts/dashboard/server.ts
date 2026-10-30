@@ -50,6 +50,8 @@ export interface DashboardServerOptions {
 	launchKey?: string;
 	token?: string;
 	idleExitMs?: number;
+	/** How often the idle rule is evaluated (default 60 s; tests shorten it). */
+	idleCheckMs?: number;
 	onIdleExit?: () => void;
 }
 export interface DashboardServer {
@@ -757,9 +759,8 @@ export async function startDashboardServer(
 					.finally(() => {
 						checking = false;
 					});
-				// Check every minute, or faster for short idle windows (tests, custom settings).
 			},
-			Math.min(60_000, Math.max(250, Math.floor(idleExitMs / 2))),
+			Math.max(100, options.idleCheckMs ?? 60_000),
 		);
 		idleTimer.unref();
 	}
