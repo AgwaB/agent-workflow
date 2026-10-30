@@ -255,8 +255,13 @@ for (const protection of ["none", "SSE", "live run", "source failure"]) {
 			live = false;
 			fails = false;
 			now += 1600;
-			t.mock.timers.tick(60_000);
-			await until(() => exited);
+			// Under a loaded suite the previous check may still be writing its discovery update when
+			// this tick fires (the `checking` guard then skips it) — keep ticking like the real clock.
+			for (let n = 0; n < 200 && !exited; n++) {
+				t.mock.timers.tick(60_000);
+				await new Promise((done) => setTimeout(done, 10));
+			}
+			assert.ok(exited, "idle exit after the protection ends");
 		}
 		await assert.rejects(stat(dashboardDiscoveryPath(cwd)), { code: "ENOENT" });
 		await assert.rejects(http(server, "/api/session"));
