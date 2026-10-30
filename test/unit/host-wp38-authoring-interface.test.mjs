@@ -38,6 +38,7 @@ test("workflow command completions and run arg parsing preserve task text", () =
 			"stop",
 			"prune",
 			"notices",
+			"dashboard",
 		],
 	);
 	assert.deepEqual(
