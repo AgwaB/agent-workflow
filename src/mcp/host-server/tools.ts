@@ -473,41 +473,6 @@ export const HOST_MCP_TOOLS: readonly HostMcpToolDefinition[] = [
 		},
 	},
 	{
-		name: WORKFLOW_CHECK_TOOL,
-		title: "Preflight agent-workflow workflow",
-		description: `The launch preflight without the launch: picks the executor and checks what a run needs — executor installed and logged in, every stage's tools, model and effort available on the executor that would run it (names rewritten to that tool's form), capabilities. Returns the short check, or why a run would not start (an error result). No run, no model call. Use it when the user asks whether a workflow can run here or with an executor/model, or before ${WORKFLOW_RUN_TOOL} after a refusal.`,
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			properties: {
-				workflow: {
-					type: "string",
-					description: "Workflow name, alias or spec path.",
-				},
-				task: {
-					type: "string",
-					description:
-						"Optional runtime task (only some workflows compile differently by task).",
-				},
-				executor: LAUNCH_OPTION_PROPERTIES.executor,
-				profile: LAUNCH_OPTION_PROPERTIES.profile,
-				permissionMode: LAUNCH_OPTION_PROPERTIES.permissionMode,
-				allowUnverified: LAUNCH_OPTION_PROPERTIES.allowUnverified,
-				model: LAUNCH_OPTION_PROPERTIES.model,
-				effort: LAUNCH_OPTION_PROPERTIES.effort,
-				inputs: LAUNCH_OPTION_PROPERTIES.inputs,
-				...CWD_PROPERTY,
-			},
-			required: ["workflow"],
-		},
-		annotations: {
-			readOnlyHint: true,
-			destructiveHint: false,
-			idempotentHint: true,
-			openWorldHint: false,
-		},
-	},
-	{
 		name: WORKFLOW_RESUME_TOOL,
 		title: "Resume agent-workflow run",
 		description: `Resume a failed, interrupted or blocked agent-workflow run: resets its failed, interrupted and resumable blocked tasks and continues the run. This starts new model calls on the run's executors (cost), so call it only when the user asks to resume or continue the run. Detached by default; then call ${WORKFLOW_WAIT_TOOL} {runId} and repeat while stillRunning is true.`,
@@ -890,6 +855,41 @@ export const HOST_MCP_TOOLS: readonly HostMcpToolDefinition[] = [
 			readOnlyHint: false,
 			destructiveHint: false,
 			idempotentHint: false,
+			openWorldHint: false,
+		},
+	},
+	{
+		name: WORKFLOW_CHECK_TOOL,
+		title: "Preflight agent-workflow workflow",
+		description: `The launch preflight without the launch: picks the executor and checks what a run needs — executor installed and logged in, every stage's tools, model and effort available on the executor that would run it (names rewritten to that tool's form), capabilities. Returns the short check, or why a run would not start (an error result). No run, no model call. Use it when the user asks whether a workflow can run here or with an executor/model, or before ${WORKFLOW_RUN_TOOL} after a refusal.`,
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				workflow: {
+					type: "string",
+					description: "Workflow name, alias or spec path.",
+				},
+				task: {
+					type: "string",
+					description:
+						"Optional runtime task (only some workflows compile differently by task).",
+				},
+				executor: LAUNCH_OPTION_PROPERTIES.executor,
+				profile: LAUNCH_OPTION_PROPERTIES.profile,
+				permissionMode: LAUNCH_OPTION_PROPERTIES.permissionMode,
+				allowUnverified: LAUNCH_OPTION_PROPERTIES.allowUnverified,
+				model: LAUNCH_OPTION_PROPERTIES.model,
+				effort: LAUNCH_OPTION_PROPERTIES.effort,
+				inputs: LAUNCH_OPTION_PROPERTIES.inputs,
+				...CWD_PROPERTY,
+			},
+			required: ["workflow"],
+		},
+		annotations: {
+			readOnlyHint: true,
+			destructiveHint: false,
+			idempotentHint: true,
 			openWorldHint: false,
 		},
 	},

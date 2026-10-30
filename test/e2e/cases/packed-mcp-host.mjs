@@ -123,7 +123,6 @@ try {
 		"workflow_inspect",
 		"workflow_logs",
 		"workflow_validate",
-		"workflow_check",
 		"workflow_resume",
 		"workflow_show",
 		"workflow_roles",
@@ -138,6 +137,7 @@ try {
 		"workflow_auto",
 		// WP43b: open the local dashboard (URL elicitation or terminal instructions; never a token).
 		"workflow_dashboard",
+		"workflow_check",
 	]);
 
 	const listed = await call("workflow_list", { query: "e2e-review" });
