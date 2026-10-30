@@ -1753,9 +1753,9 @@ function renderGraph() {
 	// scattering dots along shared rails.
 	function startWave(afterReplay) {
 		if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-		const STEP = 650,
-			TRAVEL = 620,
-			REST = 1300,
+		const STEP = 1000,
+			TRAVEL = 950,
+			REST = 2000,
 			GLINT = 22;
 		// The last layer sends nothing, so the wave ends one step earlier.
 		const cycle = Math.max(1, model.layers.length - 1) * STEP + TRAVEL + REST;
