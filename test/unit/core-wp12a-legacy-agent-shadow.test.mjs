@@ -1,7 +1,7 @@
 // New in agent-workflow (WP12a, live bundle 3 open problem 2), changed 2026-10-30 (owner decision):
-// a Pi user agent (`~/.pi/agent/agents/<name>.md`, written for pi-workflow's tool/model names) no
-// longer replaces the bundled agent of the same name on any host; it only fills in names
-// agent-workflow does not ship. With nothing shadowed there is no shadow notice any more.
+// Pi's user agents (`~/.pi/agent/agents`, written for pi-workflow's tool/model names) are not read
+// at all — not as a replacement for a bundled agent, not as a fallback for other names. With
+// nothing shadowed there is no shadow notice any more.
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -13,11 +13,11 @@ const core = await import("../../dist/core/index.js");
 const engine = await import("../../dist/core/engine.js");
 const agents = await import("../../dist/core/agents.js");
 const slots = await import("../../dist/core/launch-slots.js");
-const home = await import("../../dist/core/home-dir.js");
 
 let root;
 const unregister = [];
-const legacyAgentsDir = join(home.legacyPiAgentDir(), "agents");
+// The unit runner points PI_CODING_AGENT_DIR at a scratch home; never the real ~/.pi.
+const legacyAgentsDir = join(process.env.PI_CODING_AGENT_DIR, "agents");
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp12a-shadow-")));
@@ -71,7 +71,6 @@ async function runWithScout(name) {
 test("without a legacy agent the bundled agent resolves and no notice is recorded", async () => {
 	const agent = await agents.loadAgentByName("scout", root);
 	assert.equal(agent.scope, "bundled");
-	assert.equal(agent.shadowsBundledAgent, undefined);
 	const run = await runWithScout("clean");
 	assert.equal(run.status, "completed");
 	assert.equal(run.capabilityNegotiation.notices, undefined);
@@ -81,7 +80,7 @@ test("without a legacy agent the bundled agent resolves and no notice is recorde
 	);
 });
 
-test("a legacy ~/.pi/agent/agents/<name>.md does not replace the bundled agent; other legacy names still resolve", async () => {
+test("a ~/.pi/agent/agents/<name>.md is ignored: the bundled agent resolves and Pi-only names do not", async () => {
 	await mkdir(legacyAgentsDir, { recursive: true });
 	await writeFile(
 		join(legacyAgentsDir, "scout.md"),
@@ -93,13 +92,14 @@ test("a legacy ~/.pi/agent/agents/<name>.md does not replace the bundled agent; 
 	);
 	const agent = await agents.loadAgentByName("scout", root);
 	assert.equal(agent.scope, "bundled");
-	assert.equal(agent.legacySource, undefined);
 	assert.doesNotMatch(agent.sourcePath, /\.pi\/agent\/agents/);
 	const registry = await agents.discoverAgents(root);
 	assert.equal(registry.byAlias.get("scout").scope, "bundled");
-	const piOnly = await agents.loadAgentByName("wp12a-only-in-pi", root);
-	assert.equal(piOnly.legacySource, "pi");
-	assert.equal(registry.byAlias.get("wp12a-only-in-pi").legacySource, "pi");
+	assert.equal(
+		await agents.loadAgentByName("wp12a-only-in-pi", root),
+		undefined,
+	);
+	assert.equal(registry.byAlias.has("wp12a-only-in-pi"), false);
 	const run = await runWithScout("shadowed");
 	assert.equal(run.status, "completed");
 	assert.equal(run.capabilityNegotiation.notices, undefined);

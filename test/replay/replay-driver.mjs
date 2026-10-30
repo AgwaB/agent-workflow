@@ -11,8 +11,8 @@
 // recording ran inside the pi-workflow checkout: <ROOT> == <PKG>, so the original workflow
 // directory is placed at <project>/workflows/<name>), `executionProfile`, `inputOverrides`,
 // `env` (PI_WORKFLOW_* names mapped to their AGENT_WORKFLOW_* renames, docs/core-port.md WP4c-1).
-// Agents are installed where the recording had them, `<project>/.pi/agents/<agent>.md`; the
-// engine reads that legacy location (docs/core-port.md WP4b "Legacy read (F5)").
+// Agents the recording had in `<project>/.pi/agents/<agent>.md` are installed in
+// `<project>/.agent-workflow/agents/` (agent-workflow no longer reads Pi's directories, 2026-10-30).
 // The original bundled spec directory is the fixture's `run/bundle/` (the frozen copy the recorded
 // engine wrote; byte-identical to pi-workflow b83cc4f `workflows/<name>/`, checked by
 // `verifyBundleAgainstSource` when PI_WORKFLOW_SOURCE points at a pi-workflow git checkout).
@@ -221,11 +221,13 @@ export function migrateHelperStatePaths(workflowDir) {
 export function prepareReplayProject(loaded, work, options = {}) {
 	const { fixture, fixtureDir } = loaded;
 	const { project, cleanup, release } = projectDir(loaded, work);
-	mkdirSync(join(project, ".pi", "agents"), { recursive: true });
+	// The recording had its agents in `<project>/.pi/agents`; agent-workflow reads project agents
+	// from `.agent-workflow/agents` only (2026-10-30: Pi's directories are not read).
+	mkdirSync(join(project, ".agent-workflow", "agents"), { recursive: true });
 	for (const [agent, file] of Object.entries(fixture.projectAgents ?? {}))
 		copyFileSync(
 			join(fixtureDir, file),
-			join(project, ".pi", "agents", `${agent}.md`),
+			join(project, ".agent-workflow", "agents", `${agent}.md`),
 		);
 	for (const file of fixture.projectFiles ??
 		(fixture.bundledWorkflow ? [] : ["NOTES.md"])) {

@@ -3,7 +3,7 @@
 // provenance digests described in docs/core-port.md.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
@@ -25,7 +25,6 @@ import {
 import {
 	AGENT_WORKFLOW_HOME_ENV,
 	agentWorkflowHome,
-	legacyPiAgentDir,
 } from "../../dist/core/home-dir.js";
 import {
 	createHostContext,
@@ -116,8 +115,6 @@ test("home-dir: AGENT_WORKFLOW_HOME overrides ~/.agent-workflow; Pi dir is legac
 		agentWorkflowHome({ PI_CODING_AGENT_DIR: "/x/pi" }),
 		join(homedir(), ".agent-workflow"),
 	);
-	assert.equal(legacyPiAgentDir({}), join(homedir(), ".pi", "agent"));
-	assert.equal(legacyPiAgentDir({ PI_CODING_AGENT_DIR: "/x/pi" }), "/x/pi");
 });
 
 test("workflow-profile-settings lives under the agent-workflow home", async (t) => {
@@ -349,7 +346,7 @@ test("R#5: the executing user's allowSharedCheckoutWrites option waives it and i
 	);
 });
 
-test("legacy read (F5): new locations win, Pi locations are found read-only and tagged", async (t) => {
+test("Pi's directories are not read (2026-10-30, replaces F5): only agent-workflow locations and bundled", async (t) => {
 	const { root, cwd } = await scratch(t, "legacy");
 	const specBody = JSON.stringify(
 		spec({}, { readOnly: true, tools: ["read"] }),
@@ -362,69 +359,36 @@ test("legacy read (F5): new locations win, Pi locations are found read-only and 
 	await mkdir(newProject, { recursive: true });
 	await writeFile(join(legacyProject, "pi-only.json"), specBody);
 	await writeFile(join(legacyUser, "pi-user.json"), specBody);
-	await writeFile(join(legacyProject, "both.json"), specBody);
 	await writeFile(join(newProject, "both.json"), specBody);
+	await writeFile(join(legacyProject, "both.json"), specBody);
 
-	const piOnly = await resolveWorkflowRef("pi-only", cwd);
-	assert.equal(piOnly.specPath, join(legacyProject, "pi-only.json"));
-	assert.equal(piOnly.legacySource, "pi");
-	const piUser = await resolveWorkflowRef("pi-user", cwd);
-	assert.equal(piUser.specPath, join(legacyUser, "pi-user.json"));
-	assert.equal(piUser.legacySource, "pi");
+	await assert.rejects(() => resolveWorkflowRef("pi-only", cwd));
+	await assert.rejects(() => resolveWorkflowRef("pi-user", cwd));
 	const both = await resolveWorkflowRef("both", cwd);
 	assert.equal(both.specPath, join(newProject, "both.json"));
-	assert.equal(Object.hasOwn(both, "legacySource"), false);
-	const listed = await listWorkflows(cwd);
-	assert.equal(listed.find((r) => r.name === "pi-only")?.legacySource, "pi");
-	assert.equal(listed.filter((r) => r.name === "both").length, 1);
-	assert.equal(
-		Object.hasOwn(
-			listed.find((r) => r.name === "both"),
-			"legacySource",
-		),
-		false,
+	const listed = (await listWorkflows(cwd)).map((record) => record.name);
+	assert.ok(listed.includes("both"));
+	assert.ok(!listed.includes("pi-only") && !listed.includes("pi-user"));
+	// An explicit path still works (the user chose the file).
+	const byPath = await resolveWorkflowRef(
+		join(legacyProject, "pi-only.json"),
+		cwd,
 	);
+	assert.equal(byPath.specPath, join(legacyProject, "pi-only.json"));
 
 	await writeAgent(join(cwd, ".pi", "agents"), "legacy-agent");
 	await writeAgent(
 		join(root, "home", ".pi", "agent", "agents"),
 		"legacy-user-agent",
 	);
-	await writeAgent(
-		join(cwd, ".pi", "agents"),
-		"shadowed",
-		"tools: [read, bash]",
-	);
-	await writeAgent(join(root, "home", ".agent-workflow", "agents"), "shadowed");
-	const legacyAgent = await loadAgentByName("legacy-agent", cwd);
-	assert.equal(legacyAgent.legacySource, "pi");
-	assert.equal(legacyAgent.scope, "project");
-	assert.equal(
-		(await loadAgentByName("legacy-user-agent", cwd)).legacySource,
-		"pi",
-	);
-	const shadowed = await loadAgentByName("shadowed", cwd);
-	assert.equal(shadowed.scope, "user");
-	assert.equal(Object.hasOwn(shadowed, "legacySource"), false);
+	await writeAgent(join(root, "home", ".agent-workflow", "agents"), "mine");
+	assert.equal(await loadAgentByName("legacy-agent", cwd), undefined);
+	assert.equal(await loadAgentByName("legacy-user-agent", cwd), undefined);
+	assert.equal((await loadAgentByName("mine", cwd)).scope, "user");
 	const registry = await discoverAgents(cwd);
-	assert.equal(registry.byAlias.get("legacy-agent")?.legacySource, "pi");
-	assert.equal(
-		Object.hasOwn(registry.byAlias.get("shadowed"), "legacySource"),
-		false,
-	);
-
-	// A legacy spec compiles and runs into the new state root; nothing is written under .pi.
-	const before = readdirSync(legacyProject).sort();
-	const compiled = await compileWorkflow(JSON.parse(specBody), {
-		cwd,
-		specPath: piOnly.specPath,
-		agentLoader: async () => legacyAgent,
-	});
-	const { run } = await createRunRecord(cwd, compiled, piOnly.specPath);
-	await writeRunRecord(cwd, run);
-	assert.equal(existsSync(join(newProject, run.runId, "run.json")), true);
-	assert.deepEqual(readdirSync(legacyProject).sort(), before);
-	assert.equal(existsSync(join(cwd, ".pi", "workflows", run.runId)), false);
+	assert.equal(registry.byAlias.has("legacy-agent"), false);
+	assert.equal(registry.byAlias.has("legacy-user-agent"), false);
+	assert.equal(registry.byAlias.get("mine")?.scope, "user");
 });
 
 test("artifact access: canonical config, MCP server spec, and provenance digests", async (t) => {

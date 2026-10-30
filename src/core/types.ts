@@ -424,8 +424,6 @@ export interface AgentDefinition {
 	aliases: string[];
 	sourcePath: string;
 	scope: "project" | "user" | "bundled";
-	/** Found in a legacy Pi location (`.pi/agents`, `~/.pi/agent/agents`), read-only (F5). */
-	legacySource?: "pi";
 	frontmatter: Record<string, unknown>;
 	body: string;
 	model?: string;

@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-specs.ts. MIT, same author. Changes: discovery roots .pi/workflows→.agent-workflow/workflows and ~/.pi/agent/workflows→~/.agent-workflow/workflows, legacy Pi roots searched read-only after them and tagged legacySource "pi" (F5); package workflow root resolved from dist/core/.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-specs.ts. MIT, same author. Changes: discovery roots .pi/workflows→.agent-workflow/workflows and ~/.pi/agent/workflows→~/.agent-workflow/workflows, 2026-10-30: Pi's workflow directories are no longer read (the F5 legacy roots are gone); package workflow root resolved from dist/core/.
 import {
 	lstat,
 	open,
@@ -25,12 +25,7 @@ import {
 	isArtifactGraphWorkflowSpecShape,
 	parseArtifactGraphWorkflowSpec,
 } from "./artifact-graph-schema.js";
-import {
-	agentWorkflowHome,
-	LEGACY_PROJECT_PI_DIRECTORY,
-	legacyPiAgentDir,
-	PROJECT_STATE_DIRECTORY,
-} from "./home-dir.js";
+import { agentWorkflowHome, PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import {
 	type ArtifactGraphWorkflowSpec,
 	WorkflowValidationError,
@@ -116,8 +111,6 @@ export interface ResolvedWorkflowSpecRef {
 	specPath: string;
 	workflowName?: string;
 	workflowRoot?: string;
-	/** Resolved by name from a legacy Pi location, read-only (F5). */
-	legacySource?: "pi";
 }
 
 export interface WorkflowSpecRecord {
@@ -126,8 +119,6 @@ export interface WorkflowSpecRecord {
 	aliases: string[];
 	specPath: string;
 	workflowRoot: string;
-	/** Discovered in a legacy Pi location, read-only (F5). */
-	legacySource?: "pi";
 }
 
 interface WorkflowCandidate {
@@ -135,15 +126,12 @@ interface WorkflowCandidate {
 	file: string;
 	root: string;
 	priority: number;
-	legacy?: true;
 }
 
 interface WorkflowRoot {
 	path: string;
 	priority: number;
 	scope: WorkflowRoutingScope;
-	/** Legacy Pi location: searched after the agent-workflow ones, never written. */
-	legacy?: true;
 }
 
 export type WorkflowRoutingScope =
@@ -228,7 +216,6 @@ export async function resolveWorkflowRef(
 		specPath: match!.file,
 		workflowName: match!.name,
 		workflowRoot: match!.root,
-		...(match!.legacy ? { legacySource: "pi" as const } : {}),
 	};
 }
 
@@ -258,7 +245,6 @@ export async function listWorkflows(
 						aliases,
 						specPath: file,
 						workflowRoot: workflowRootFor(file, root.path),
-						...(root.legacy ? { legacySource: "pi" as const } : {}),
 						priority: root.priority,
 					},
 				];
@@ -399,7 +385,6 @@ export async function listWorkflowRoutingSpecs(
 			aliases,
 			specPath: safeFile,
 			workflowRoot: workflowRootFor(candidate.file, candidate.root.path),
-			...(candidate.root.legacy ? { legacySource: "pi" as const } : {}),
 			scope: candidate.root.scope,
 			priority: candidate.root.priority,
 			bytes,
@@ -651,9 +636,9 @@ function dedupeWorkflowRecords(
 }
 
 /**
- * Search order (lower priority wins): the agent-workflow locations first, then
- * the legacy Pi locations read-only (F5: user-authored pi-workflow specs keep
- * resolving), then the package's bundled workflows.
+ * Search order (lower priority wins): the agent-workflow locations, then the package's bundled
+ * workflows. Pi's directories (`~/.pi/agent/workflows`, a project's `.pi/workflows`) are Pi
+ * configuration and are not read (2026-10-30 owner decision; replaces the F5 legacy roots).
  */
 function workflowRoots(cwd: string): WorkflowRoot[] {
 	return uniqueWorkflowRoots([
@@ -668,19 +653,7 @@ function workflowRoots(cwd: string): WorkflowRoot[] {
 			priority: 2,
 			scope: "user",
 		},
-		{
-			path: resolve(cwd, LEGACY_PROJECT_PI_DIRECTORY, "workflows"),
-			priority: 3,
-			scope: "project-private",
-			legacy: true,
-		},
-		{
-			path: join(legacyPiAgentDir(), "workflows"),
-			priority: 4,
-			scope: "user",
-			legacy: true,
-		},
-		{ path: PACKAGE_WORKFLOW_ROOT, priority: 5, scope: "package" },
+		{ path: PACKAGE_WORKFLOW_ROOT, priority: 3, scope: "package" },
 	]);
 }
 
@@ -712,7 +685,6 @@ async function findWorkflowCandidates(
 								file,
 								root: workflowRootFor(file, root.path),
 								priority: root.priority,
-								...(root.legacy ? { legacy: true as const } : {}),
 							},
 						]
 					: [],

@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/agents.ts. MIT, same author. Changes: agent roots .pi/agents→.agent-workflow/agents and ~/.pi/agent/agents→~/.agent-workflow/agents, legacy Pi roots searched read-only after them and tagged legacySource "pi" (F5). 2026-10-30: the bundled agents come before ~/.pi/agent/agents (a Pi user agent no longer replaces researcher/scout on non-Pi hosts; the WP12a shadow notice is gone with the shadowing).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/agents.ts. MIT, same author. Changes: agent roots .pi/agents→.agent-workflow/agents and ~/.pi/agent/agents→~/.agent-workflow/agents, 2026-10-30 (owner decision): Pi's agent directories are no longer read (the F5 legacy roots, the legacySource tag and the WP12a shadow notice are gone).
 import type { Dirent } from "node:fs";
 import {
 	lstat,
@@ -19,12 +19,7 @@ import {
 } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import {
-	agentWorkflowHome,
-	LEGACY_PROJECT_PI_DIRECTORY,
-	legacyPiAgentDir,
-	PROJECT_STATE_DIRECTORY,
-} from "./home-dir.js";
+import { agentWorkflowHome, PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import {
 	APPROVAL_MODES,
 	type AgentDefinition,
@@ -65,10 +60,7 @@ export async function discoverAgents(cwd: string): Promise<AgentRegistry> {
 	for (const root of agentRoots(cwd)) {
 		const files = await listMarkdownFiles(root.path, root.scope);
 		for (const file of files) {
-			const agent = withLegacySource(
-				await readAgentFile(file, root.path, root.scope),
-				root.legacy,
-			);
+			const agent = await readAgentFile(file, root.path, root.scope);
 			let accepted = false;
 
 			for (const alias of agent.aliases) {
@@ -100,9 +92,10 @@ export async function loadAgentByName(
 
 	for (const candidate of candidateAgentPaths(name, cwd)) {
 		try {
-			return withLegacySource(
-				await readAgentFile(candidate.file, candidate.root, candidate.scope),
-				candidate.legacy,
+			return await readAgentFile(
+				candidate.file,
+				candidate.root,
+				candidate.scope,
 			);
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
@@ -133,7 +126,6 @@ export async function loadAgentMetadataByName(
 		file: string;
 		root: string;
 		scope: AgentScope;
-		legacy?: true;
 	}): Promise<BoundedAgentMetadata | undefined> => {
 		const file = resolve(candidate.file);
 		if (seen.has(file)) return undefined;
@@ -147,15 +139,12 @@ export async function loadAgentMetadataByName(
 			throw error;
 		}
 		options.beforeRead?.();
-		const metadata = await readAgentMetadataFile(
+		return readAgentMetadataFile(
 			candidate.file,
 			candidate.root,
 			candidate.scope,
 			maxBytes,
 		);
-		return candidate.legacy
-			? { ...metadata, agent: withLegacySource(metadata.agent, true) }
-			: metadata;
 	};
 	for (const candidate of candidateAgentPaths(name, cwd)) {
 		try {
@@ -194,7 +183,6 @@ export async function loadAgentMetadataByName(
 					file,
 					root: root.path,
 					scope: root.scope,
-					...(root.legacy ? { legacy: true as const } : {}),
 				});
 				if (result?.agent.aliases.includes(name)) return result;
 			} catch (error) {
@@ -257,36 +245,17 @@ export function parseAgentMarkdown(
 }
 
 /**
- * Search order: agent-workflow locations, a project's own legacy `.pi/agents` (the project's explicit
- * choice; bundled recordings ship one), the bundled agents, and last the Pi user directory
- * `~/.pi/agent/agents` read-only (F5: user-authored pi-workflow agents keep resolving).
- * 2026-10-30 owner decision: Pi's user agents are Pi configuration — written for pi-workflow's tool
- * and model names — so they no longer replace the agents agent-workflow ships (researcher, scout)
- * on Codex, Claude Code and the CLI; they fill in only names agent-workflow does not ship. To
- * customise a bundled agent for agent-workflow, put it in `~/.agent-workflow/agents/` or the
- * project's `.agent-workflow/agents/`.
+ * Search order: the project's `.agent-workflow/agents`, `$AGENT_WORKFLOW_HOME/agents`, then the
+ * bundled agents. Pi's directories (`~/.pi/agent/agents`, a project's `.pi/agents`) are Pi
+ * configuration — written for pi-workflow's tool and model names — and are not read (2026-10-30
+ * owner decision; replaces the F5 read-only legacy roots).
  */
-function agentRoots(
-	cwd: string,
-): Array<{ path: string; scope: AgentScope; legacy?: true }> {
+function agentRoots(cwd: string): Array<{ path: string; scope: AgentScope }> {
 	return [
 		{ path: resolve(cwd, PROJECT_STATE_DIRECTORY, "agents"), scope: "project" },
 		{ path: join(agentWorkflowHome(), "agents"), scope: "user" },
-		{
-			path: resolve(cwd, LEGACY_PROJECT_PI_DIRECTORY, "agents"),
-			scope: "project",
-			legacy: true,
-		},
 		...bundledAgentRoots().map((path) => ({ path, scope: "bundled" as const })),
-		{ path: join(legacyPiAgentDir(), "agents"), scope: "user", legacy: true },
 	];
-}
-
-function withLegacySource(
-	agent: AgentDefinition,
-	legacy: true | undefined,
-): AgentDefinition {
-	return legacy ? { ...agent, legacySource: "pi" } : agent;
 }
 
 function bundledAgentRoots(): string[] {
@@ -299,7 +268,7 @@ function bundledAgentRoots(): string[] {
 function candidateAgentPaths(
 	name: string,
 	cwd: string,
-): Array<{ file: string; root: string; scope: AgentScope; legacy?: true }> {
+): Array<{ file: string; root: string; scope: AgentScope }> {
 	if (!isSafeAgentName(name)) return [];
 
 	const roots = agentRoots(cwd);
@@ -316,7 +285,6 @@ function candidateAgentPaths(
 					file,
 					root: rootPath,
 					scope: root.scope,
-					...(root.legacy ? { legacy: true as const } : {}),
 				},
 			];
 		});

@@ -125,6 +125,13 @@
 			]
 		},
 		{
+			"id": "pi-dirs-not-read-agents",
+			"introducedBy": "WP1b",
+			"decision": "2026-10-30 owner decision: agent-workflow no longer reads Pi's directories (~/.pi/agent, a project's .pi); docs/usage.md \"Agents\"",
+			"reason": "The recordings ran with their agents in <project>/.pi/agents; agent-workflow reads project agents only from <project>/.agent-workflow/agents, so the replay driver installs the same agent files there. Agent paths in compiled.json/run.json name that directory instead; the agent bytes are unchanged.",
+			"renames": [["<ROOT>/.agent-workflow/agents/", "<ROOT>/.pi/agents/"]]
+		},
+		{
 			"id": "executor-record-source",
 			"introducedBy": "WP1b",
 			"decision": "WP4c-1 literal rename: usage/budget record source \"pi-subagent\" → \"executor\" (docs/core-port.md \"Paths, env and literals\")",

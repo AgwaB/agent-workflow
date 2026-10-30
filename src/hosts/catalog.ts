@@ -396,7 +396,6 @@ export interface AgentSummary {
 	displayName: string;
 	description?: string;
 	scope: string;
-	legacySource?: "pi";
 	model?: string;
 	effort?: string;
 	tools?: string[];
@@ -404,7 +403,7 @@ export interface AgentSummary {
 	sourcePath: string;
 }
 
-/** `agents`: discoverable agent definitions (project, user, bundled; legacy Pi roots read-only). */
+/** `agents`: discoverable agent definitions (project, user, bundled). */
 export async function listAgentsAction(
 	ctx: HostApiContext,
 ): Promise<HostResult<{ agents: AgentSummary[] }>> {
@@ -415,7 +414,6 @@ export async function listAgentsAction(
 		displayName: agent.displayName,
 		...(agent.description ? { description: agent.description } : {}),
 		scope: agent.scope,
-		...(agent.legacySource ? { legacySource: agent.legacySource } : {}),
 		...(agent.model ? { model: agent.model } : {}),
 		...(agent.thinking ? { effort: agent.thinking } : {}),
 		...(agent.tools ? { tools: [...agent.tools] } : {}),
