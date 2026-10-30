@@ -376,3 +376,57 @@ test("in the Pi host a preset on another executor resolves models without Pi's m
 		assert.notEqual(task.runtime.model, "anthropic/claude-test");
 	}
 });
+
+test("in the Pi host a plain --executor codex --model <id> launch (no profile) also skips Pi's registry (WP43b live finding)", async () => {
+	const { ctx } = await project();
+	const piCtx = {
+		...ctx,
+		host: "pi",
+		// Two registry entries match the bare id: Pi alone would call it ambiguous and the
+		// qualified id "openai-codex/gpt-5.6-luna" would then reach the codex CLI, which rejects it.
+		availableModels: [
+			{
+				provider: "openai-codex",
+				id: "gpt-5.6-luna",
+				fullId: "openai-codex/gpt-5.6-luna",
+				reasoning: true,
+			},
+			{
+				provider: "openai",
+				id: "gpt-5.6-luna",
+				fullId: "openai/gpt-5.6-luna",
+				reasoning: true,
+			},
+		],
+		runtimeDefaults: {
+			model: "anthropic/claude-test",
+			thinking: "low",
+			executor: "pi",
+		},
+	};
+	const launched = await api.runWorkflowAction(piCtx, {
+		workflow: "wf.json",
+		task: "codex executor with a bare model id in pi",
+		executor: "codex",
+		model: "gpt-5.6-luna",
+	});
+	assert.equal(launched.outcome, "running", launched.text);
+	let waited;
+	do
+		waited = await api.waitAction(piCtx, {
+			runId: launched.data.runId,
+			timeoutMs: 10_000,
+		});
+	while (waited.data.stillRunning);
+	assert.equal(waited.outcome, "completed", waited.text);
+	const run = await (await import("../../dist/core/store.js")).readRunRecord(
+		ctx.cwd,
+		launched.data.runId,
+	);
+	for (const task of run.tasks)
+		assert.equal(
+			task.runtime.model,
+			"gpt-5.6-luna",
+			"the bare id reaches the executor untouched",
+		);
+});

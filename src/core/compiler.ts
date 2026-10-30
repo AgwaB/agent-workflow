@@ -1628,9 +1628,14 @@ async function compileArtifactGraphPlan(
 			stageExecutor === undefined
 				? runtimeDefaults
 				: runtimeDefaultsForExecutor(runtimeDefaults, stageExecutor);
+		// The stage's effective executor (its own, else the run's) must be the registry's executor;
+		// a stage of a mixed run that falls back to a codex/claude run executor resolves without Pi's
+		// registry too.
+		const stageEffectiveExecutor = stageExecutor ?? options.runExecutor;
 		const stageAvailableModels =
-			stageExecutor === undefined ||
-			stageExecutor === options.modelRegistryExecutor
+			options.modelRegistryExecutor === undefined ||
+			stageEffectiveExecutor === undefined ||
+			stageEffectiveExecutor === options.modelRegistryExecutor
 				? options.availableModels
 				: undefined;
 		// WP31×WP35: host tools are inherited per task, only by stages on the pi executor.

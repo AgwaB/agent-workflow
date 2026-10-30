@@ -899,10 +899,11 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 						executor: compileRuntimeDefaults.executor ?? executor.id,
 					}
 				: compileRuntimeDefaults,
-		// WP31: the host model registry (Pi's) resolves models only for stages on its executor: a
-		// role-profile run entirely on another executor resolves without it.
+		// WP31: the host model registry (Pi's) resolves models only for stages on its executor. A run
+		// on another executor — role profile or a plain `--executor codex --model <id>` (WP43b live
+		// finding: a bare id was "ambiguous in /model" and the Pi-qualified id then reached the
+		// codex CLI) — resolves without it; mixed runs decide per stage in the compiler.
 		availableModels:
-			rolePlan &&
 			!mixedRun &&
 			modelRegistryExecutor !== undefined &&
 			modelRegistryExecutor !== executor.id
