@@ -153,3 +153,25 @@ Decision (owner, 2026-10-30, after the survey in the analysis workspace): runnin
 - New tool `workflow_dashboard { run? }`: ensure a dashboard runs (start detached when absent), mint a one-time URL, then: if the client advertises `elicitation.url` (MCP 2025-11-25), send `elicitation/create` with `mode: "url"`, `url`, `elicitationId`, `message` ("Open the agent-workflow dashboard for <project>?"); the user consents in the client's dialog and the client opens it — the URL never enters the tool result — and once the browser has consumed the one-time token the server sends `notifications/elicitation/complete` (polled through `GET /api/launch/:id`, launch-key protected) so the client stops waiting. If the client has only form elicitation (Codex today), a form dialog asks "Open the agent-workflow dashboard for <project> in your browser?" and on accept the MCP server — which runs on the user's machine — opens the browser itself (`BROWSER` honored), like `/aw dashboard` in Pi. Clients without any dialog get instructions only: "Dashboard is running on 127.0.0.1:<port>; open it from a terminal with `agent-workflow dashboard --open`". `structuredContent`: `{ running, port, opened, method: "url-elicitation" | "form-consent" | "instructions" }`. Never the token, never the launch key.
 - Launch results (`workflow_run`/`workflow_dynamic`/`workflow_auto`, CLI `run`) put the `Dashboard:` line right after the run heading; when no dashboard runs the line reads `Dashboard: not running · agent-workflow dashboard --open`, and the MCP "Next:" guidance tells the model to report the run id and that line to the user **before** waiting (people want the link first).
 - Codex today advertises form-only elicitation by default (openai/codex#29344), so Codex gets the instructions path until that lands; Claude Code (≥ 2.1.87) gets the URL dialog.
+
+## Always a link (WP43c — owner decision A, 2026-10-30)
+
+The owner wants the dashboard link in the launch result every time, clickable, without a token in the chat. Three pieces make that work:
+
+### Persistent session (sign in once per browser)
+
+- The session token is stored in `<project>/.agent-workflow/dashboard-session` (mode 0600, 32 random bytes base64url) and **reused** by every dashboard start for that project, so a browser that signed in once keeps a valid cookie across dashboard restarts. Same trust boundary as `dashboard.json`'s launch key and the run records beside it.
+- `agent-workflow dashboard --reset-session` writes a new token (every browser must sign in again) and stops a running dashboard first if there is one.
+- The foreground `dashboard` command still prints the token URL once; `--detached` prints nothing but the port.
+- A request without the cookie for `/`, `/app.js`, `/app.css` gets a **401 sign-in page** (text, CSP-safe): "This browser isn't signed in to the agent-workflow dashboard for `<project basename>`. Sign in once: run `agent-workflow dashboard --open` in a terminal, or ask your agent to open the dashboard. After that, links like this one open directly."
+
+### Auto-start on launch
+
+- `run` / `dynamic` / `auto` (host API, so CLI, Pi and MCP alike): when no dashboard runs for the project, start one detached (`agent-workflow dashboard --project <cwd> --detached`), wait ≤ 3 s for its discovery file, and fill `LaunchData.dashboard = { url, port, started: true }`. The text line is always `Dashboard: http://127.0.0.1:<port>/?run=<id>`; when it was started just now the line ends with ` · first time in this browser? agent-workflow dashboard --open`.
+- Opening the browser is still opt-in (`--open`, env var, `workflow_dashboard`, `/aw dashboard`) and still suppressed under agent environments — auto-start only runs a loopback server.
+- Off switch: `AGENT_WORKFLOW_DASHBOARD_AUTOSTART=0`. Never auto-starts under the `worker` process role, in `--readonly` contexts, or when the start fails (the launch still succeeds; the line then reads `Dashboard: not running · agent-workflow dashboard --open`). The unit runner and the e2e guard set the variable to `0`; tests that cover auto-start opt in.
+- MCP `Next:` guidance: tell the user the run id and the Dashboard link before waiting; if the user says the link asks them to sign in, call `workflow_dashboard` (consent dialog → browser).
+
+### Idle exit for detached dashboards
+
+- A dashboard started `--detached` exits by itself after `AGENT_WORKFLOW_DASHBOARD_IDLE_MS` (default 2 h, min 1 min) with **no SSE client connected and no live run** (running/blocked with a live lease) in the project; it removes its discovery file on the way out. A foreground dashboard never idles out. `dashboard --status` shows "idle exit in …" for detached ones.
