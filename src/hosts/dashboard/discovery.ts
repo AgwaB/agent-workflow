@@ -192,7 +192,7 @@ export async function mintLaunchUrl(
 		redirect: "error",
 	});
 	if (!response.ok) throw new Error("Could not mint dashboard launch URL");
-	const data = (await response.json()) as { url?: unknown };
+	const data = (await response.json()) as { url?: unknown; launchId?: unknown };
 	if (typeof data.url !== "string")
 		throw new Error("Invalid dashboard launch URL");
 	const url = new URL(data.url);
@@ -202,7 +202,40 @@ export async function mintLaunchUrl(
 		!/^[A-Za-z0-9_-]{43}$/.test(url.searchParams.get("token") ?? "")
 	)
 		throw new Error("Invalid dashboard launch URL");
+	lastLaunchIds.set(
+		url.href,
+		typeof data.launchId === "string" ? data.launchId : "",
+	);
 	return url.href;
+}
+/** Launch ids of URLs minted in this process (an MCP host asks whether the browser used one). */
+const lastLaunchIds = new Map<string, string>();
+
+/**
+ * Whether the browser signed in with a launch URL minted by `mintLaunchUrl` (the one-time token
+ * was consumed). `undefined` when the dashboard cannot say (unknown launch, not reachable).
+ */
+export async function launchConsumed(
+	discovery: Pick<DashboardDiscovery, "port" | "launchKey">,
+	launchUrl: string,
+): Promise<boolean | undefined> {
+	const launchId = lastLaunchIds.get(launchUrl);
+	if (!launchId) return undefined;
+	try {
+		const response = await fetch(
+			`http://127.0.0.1:${discovery.port}/api/launch/${launchId}`,
+			{
+				headers: { "X-AW-Launch-Key": discovery.launchKey },
+				signal: AbortSignal.timeout(500),
+				redirect: "error",
+			},
+		);
+		if (!response.ok) return undefined;
+		const data = (await response.json()) as { consumed?: unknown };
+		return data.consumed === true;
+	} catch {
+		return undefined;
+	}
 }
 export async function ensureDashboard(
 	cwd: string,

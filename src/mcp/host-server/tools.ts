@@ -34,6 +34,7 @@ import { basename, isAbsolute, relative, resolve, sep } from "node:path";
 import * as hostApi from "../../hosts/api.js";
 import {
 	ensureDashboard,
+	launchConsumed,
 	mintLaunchUrl,
 } from "../../hosts/dashboard/discovery.js";
 import { assertActionAllowed } from "../../hosts/types.js";
@@ -1654,6 +1655,7 @@ export function createHostMcpService(
 			);
 			let opened = false;
 			if (urlElicitation) {
+				const elicitationId = randomUUID();
 				try {
 					const answer = asRecord(
 						await call.sendRequest(
@@ -1661,7 +1663,7 @@ export function createHostMcpService(
 							{
 								mode: "url",
 								url,
-								elicitationId: randomUUID(),
+								elicitationId,
 								message: `Open the agent-workflow dashboard for ${basename(ctx.cwd)}?`,
 							},
 							call.signal,
@@ -1670,6 +1672,21 @@ export function createHostMcpService(
 					opened = answer?.action === "accept";
 				} catch {
 					// The client may echo the sign-in URL in its error. Do not log or return it.
+				}
+				// MCP 2025-11-25: tell the client when the out-of-band step finished, else it keeps
+				// "waiting for completion" (Claude Code shows Reopen/Skip). The dashboard knows: the
+				// one-time token was consumed by the browser's sign-in. Bounded wait, then give up quietly.
+				if (opened) {
+					const deadline = Date.now() + 20_000;
+					while (Date.now() < deadline && !call.signal.aborted) {
+						if ((await launchConsumed(dashboard, url)) === true) {
+							call.sendNotification("notifications/elicitation/complete", {
+								elicitationId,
+							});
+							break;
+						}
+						await new Promise((resolve) => setTimeout(resolve, 500));
+					}
 				}
 			}
 			const text = urlElicitation

@@ -164,6 +164,14 @@ test("URL accept: client bootstraps the real server once to the selected run; re
 	assert.equal(replay.status, 401);
 	await replay.arrayBuffer();
 	noSecrets(result, p.dashboard, url);
+	// MCP 2025-11-25: once the browser signed in (token consumed) the server tells the client the
+	// out-of-band step is complete, so it stops "waiting for completion".
+	const complete = client.messages.find(
+		(m) => m.method === "notifications/elicitation/complete",
+	);
+	assert.ok(complete, "notifications/elicitation/complete was sent");
+	assert.equal(complete.params.elicitationId, params.elicitationId);
+	assert.equal("id" in complete, false, "a notification, not a request");
 });
 
 for (const action of ["decline", "cancel", "error"]) {

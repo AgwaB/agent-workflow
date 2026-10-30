@@ -159,6 +159,18 @@ export async function startDashboardServer(
 	const csrf = dashboardCsrf(token);
 	const launchKey = options.launchKey ?? generateDashboardToken();
 	const launchTokens = new Map<string, number>();
+	/** Launch id → { token, consumedAt }: lets the minter ask whether its one-time URL was used. */
+	const launches = new Map<
+		string,
+		{ token: string; expires: number; consumedAt?: number }
+	>();
+	const launchKeyOk = (request: IncomingMessage) =>
+		secureEqual(
+			typeof request.headers["x-aw-launch-key"] === "string"
+				? request.headers["x-aw-launch-key"]
+				: undefined,
+			launchKey,
+		);
 	const now = options.now ?? Date.now;
 	const serverTime = () => new Date(now()).toISOString();
 	const configuredPoll =
@@ -275,16 +287,23 @@ export async function startDashboardServer(
 		} catch {
 			throw new HttpError(400, "invalid URL");
 		}
+		// WP43b: the minter (CLI --open, Pi, the MCP tool) may ask whether its launch URL was used,
+		// so an MCP host can send `notifications/elicitation/complete` once the browser signed in.
+		const launchStatus = /^\/api\/launch\/([A-Za-z0-9_-]{16,64})$/.exec(
+			url.pathname,
+		);
+		if (request.method === "GET" && launchStatus) {
+			if (!launchKeyOk(request)) throw new HttpError(401, "invalid launch key");
+			const launch = launches.get(launchStatus[1]!);
+			if (!launch) throw new HttpError(404, "unknown launch");
+			json(response, 200, {
+				consumed: launch.consumedAt !== undefined,
+				expired: launch.consumedAt === undefined && launch.expires <= now(),
+			});
+			return;
+		}
 		if (request.method === "POST" && url.pathname === "/api/launch") {
-			if (
-				!secureEqual(
-					typeof request.headers["x-aw-launch-key"] === "string"
-						? request.headers["x-aw-launch-key"]
-						: undefined,
-					launchKey,
-				)
-			)
-				throw new HttpError(401, "invalid launch key");
+			if (!launchKeyOk(request)) throw new HttpError(401, "invalid launch key");
 			if (
 				request.headers["content-type"]?.split(";")[0]?.trim().toLowerCase() !==
 				"application/json"
@@ -301,12 +320,17 @@ export async function startDashboardServer(
 			if (launchTokens.size >= 16)
 				throw new HttpError(429, "too many outstanding launch tokens");
 			const oneTime = generateDashboardToken();
-			launchTokens.set(oneTime, now() + 60_000);
+			const expires = now() + 60_000;
+			launchTokens.set(oneTime, expires);
+			const launchId = generateDashboardToken().slice(0, 24);
+			for (const [id, launch] of launches)
+				if (launch.expires + 600_000 <= now()) launches.delete(id);
+			launches.set(launchId, { token: oneTime, expires });
 			const target = new URL("/", origin);
 			target.searchParams.set("token", oneTime);
 			for (const [key, value] of forwarded.searchParams)
 				target.searchParams.set(key, value);
-			json(response, 200, { url: target.href });
+			json(response, 200, { url: target.href, launchId });
 			return;
 		}
 		if (
@@ -320,6 +344,8 @@ export async function startDashboardServer(
 				launchTokens.delete(supplied);
 				if (expires === undefined || expires <= now())
 					throw new HttpError(401, "invalid session token");
+				for (const launch of launches.values())
+					if (launch.token === supplied) launch.consumedAt = now();
 			}
 			bootstrapSession(response, token, bootstrapLocation(url.searchParams));
 			return;
@@ -540,6 +566,7 @@ export async function startDashboardServer(
 				server.closeAllConnections();
 			}).finally(async () => {
 				launchTokens.clear();
+				launches.clear();
 				if (options.discovery) await removeDashboardDiscovery(cwd, launchKey);
 			});
 			return closing;
