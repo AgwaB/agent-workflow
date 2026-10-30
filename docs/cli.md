@@ -51,6 +51,19 @@ WP28: every command except `help`/`--version` (and the WP36 terminal views `watc
 cannot ask is refused with the CLI command line to run here instead. `supervise` on MCP starts the
 detached supervisor and returns at once.
 
+## `check`
+
+```sh
+agent-workflow check <workflow> [<task...>] [--executor <id>] [--profile <name>] [--preset <id>]
+                     [--model <id>] [--effort <level>] [--role …]... [--permission-mode free|safe] [--json]
+```
+
+The launch preflight without the launch (2026-10-30): the same executor selection, compile and
+checks as `run` — executor installed and logged in, every stage's tools, model and effort available
+on the executor that would run it (names rewritten to that tool's form), capabilities. Prints the
+short check and exits 0, or `Not started: …` with each problem (`✗`) and exits 1. No run, no
+duplicate-launch claim, no model call. See [usage.md](usage.md#preflight-capability-tools-models-and-effort).
+
 ## Launch options (`run`, `dynamic`, `auto`)
 
 | Option | Meaning |
@@ -110,8 +123,11 @@ Probe results that are usable are reused within one process for 60 s.
 
 ### Capability preview and confirmation (B4)
 
-Every launch prints the capability preview (`Capability check (<executor>@<version>, <n> stages,
-permission mode: …): …`). A refusal starts nothing: the command prints `Not started: …` and exits 1.
+Every launch prints the short preflight (`Capability check (<executor>@<version>, <n> stages,
+permission mode: …): …`, then each warning once with the stages it affects; the full per-stage
+preview is in the run record and `--json`). Tools, models and effort the executor cannot provide
+are refused before anything starts; model and effort names are rewritten to the executor's form
+(see `check` above). A refusal starts nothing: the command prints `Not started: …` and exits 1.
 
 - **In a terminal** (stdin and stdout are TTYs) without `--yes`: when a stage degrades in a way that
   needs confirmation (for example a capability warning under `--permission-mode safe`), the preview

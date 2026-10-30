@@ -32,6 +32,7 @@ import {
 	WORKFLOW_EXPECTED_DEFINITION_FINGERPRINT,
 	WORKFLOW_PROMPT_SCHEMA_DIAGNOSTIC_SINK,
 	WorkflowDefinitionChangedError,
+	WorkflowPreflightPassed,
 	type WorkflowRunOptions,
 	type WorkflowSavedUserProfileLayer,
 } from "../core/engine.js";
@@ -56,6 +57,7 @@ import type {
 	WorkflowCapturedExecutionProfile,
 	WorkflowExecutionProfileSelection,
 	WorkflowRunHostAutoSelectionMetadata,
+	WorkflowRunCapabilityNegotiation,
 	WorkflowRunRecord,
 } from "../core/types.js";
 import { resolveSavedWorkflowExecutionProfile } from "../core/workflow-profile-settings.js";
@@ -119,6 +121,8 @@ export interface LaunchRequestBase {
 	detach?: boolean;
 	/** Skip the duplicate-launch guard. */
 	forceNew?: boolean;
+	/** `check`: run the preflight only (no run, no guard claim, no model call). */
+	preflightOnly?: boolean;
 	/** B4 (WP4d): the host can ask the user; degradations then need confirmDegradations. */
 	interactive?: boolean;
 	confirmDegradations?: (preview: CapabilityPreview) => Promise<boolean>;
@@ -809,6 +813,38 @@ function isRefusal(error: unknown): boolean {
 	);
 }
 
+/**
+ * The launch's capability check in a few lines (owner, 2026-10-30: "short; stop on a problem"): the
+ * summary line, then each degradation once with the stages it affects, then the notices. The full
+ * per-stage preview stays in the run record (`capabilityNegotiation.preview`) and `--json`.
+ */
+export function compactCapabilityText(
+	negotiation: Pick<
+		WorkflowRunCapabilityNegotiation,
+		"preview" | "stages" | "forcedReadOnly" | "notices"
+	>,
+): string {
+	const lines = [negotiation.preview.split("\n")[0] ?? ""];
+	const groups = new Map<string, string[]>();
+	for (const stage of negotiation.stages)
+		for (const entry of stage.report.entries) {
+			if (entry.code === undefined) continue;
+			const text = `${entry.key}${entry.note ? ` — ${entry.note}` : ""}`;
+			groups.set(text, [...(groups.get(text) ?? []), stage.label]);
+		}
+	const total = negotiation.stages.length;
+	for (const [text, labels] of groups)
+		lines.push(
+			`  ⚠ ${text} (${labels.length === total && total > 1 ? `all ${total} stages` : labels.join(", ")})`,
+		);
+	if (negotiation.forcedReadOnly.length > 0)
+		lines.push(
+			`  ⚠ readOnly enforced on: ${negotiation.forcedReadOnly.join(", ")}`,
+		);
+	for (const notice of negotiation.notices ?? []) lines.push(`  ⚠ ${notice}`);
+	return lines.join("\n");
+}
+
 function refusalResult(
 	action: "run" | "dynamic",
 	mode: LaunchData["mode"],
@@ -1081,7 +1117,7 @@ async function launch(
 			`Duplicate launch guard: an identical launch started at ${decision.claimedAt} is still starting. Not starting a new run; check status in a moment, or launch again with --force-new to really start another run.`,
 		);
 	};
-	if (!request.forceNew) {
+	if (!request.forceNew && !request.preflightOnly) {
 		const decision = await claimLaunch(ctx.cwd, fingerprint);
 		if (decision.kind !== "claimed") return duplicate(decision);
 		guard = decision;
@@ -1156,6 +1192,7 @@ async function launchClaimed(
 		[WORKFLOW_EXPECTED_DEFINITION_FINGERPRINT]: string;
 	} = {
 		task,
+		...(request.preflightOnly ? { preflightOnly: true } : {}),
 		...profile.selection,
 		...(profile.savedUserProfile && profile.selection.executionProfile
 			? { savedUserProfile: savedUserProfileLayer(profile.savedUserProfile) }
@@ -1230,6 +1267,28 @@ async function launchClaimed(
 		// WP42: aborted before publication (the engine's launchSignal fence threw): nothing started.
 		if (request.signal?.aborted)
 			return cancelledLaunchResult(action, mode, profile.info);
+		if (error instanceof WorkflowPreflightPassed)
+			return result(
+				action,
+				"success",
+				{
+					mode,
+					...(profile.info ? { profile: profile.info } : {}),
+					capability: {
+						preview: error.negotiation.preview,
+						confirmation: error.negotiation.confirmation,
+						degradations: [...error.negotiation.degradations],
+						forcedReadOnly: [...error.negotiation.forcedReadOnly],
+						...(error.negotiation.notices
+							? { notices: [...error.negotiation.notices] }
+							: {}),
+					},
+				},
+				[
+					`Preflight passed: ${loaded.spec.name ?? "workflow"} on ${error.negotiation.executorId} — no run was started.`,
+					compactCapabilityText(error.negotiation),
+				].join("\n"),
+			);
 		if (error instanceof WorkflowDefinitionChangedError)
 			return result(
 				action,
@@ -1326,7 +1385,9 @@ async function launchClaimed(
 		: `Dashboard: not running · agent-workflow dashboard --open`;
 	const text = [
 		promptSchemaNotice || undefined,
-		data.capability?.preview,
+		run.capabilityNegotiation
+			? compactCapabilityText(run.capabilityNegotiation)
+			: undefined,
 		data.roles ? formatLaunchRoles(data.roles) : undefined,
 		unverifiedNote,
 		heading,
@@ -1352,6 +1413,33 @@ export async function runWorkflowAction(
 	validateLaunchRequest(request, "run");
 	const loaded = await loadWorkflowSpec(request.workflow.trim(), ctx.cwd);
 	return launch(ctx, "run", request, loaded, (options) =>
+		runWorkflowSpec(loaded.specPath, ctx.cwd, options),
+	);
+}
+
+/**
+ * `check`: the launch preflight only (owner, 2026-10-30) — the same executor selection, compile
+ * and capability/tool/model/effort checks as `run`, then stop. `refused` names what would stop a
+ * run; `success` shows the short check. No run, no duplicate-launch claim, no model call.
+ */
+export async function checkWorkflowAction(
+	ctx: HostApiContext,
+	request: Omit<RunWorkflowRequest, "task"> & { task?: string },
+): Promise<HostResult<LaunchData>> {
+	assertActionAllowed(ctx, "validate" satisfies HostAction);
+	if (typeof request.workflow !== "string" || !request.workflow.trim())
+		throw new HostUsageError(
+			"check needs a workflow: agent-workflow check <workflow>",
+		);
+	const full = {
+		...request,
+		task: request.task?.trim() || "preflight check",
+		detach: false,
+		preflightOnly: true,
+	};
+	validateLaunchRequest(full, "run");
+	const loaded = await loadWorkflowSpec(request.workflow.trim(), ctx.cwd);
+	return launch(ctx, "run", full, loaded, (options) =>
 		runWorkflowSpec(loaded.specPath, ctx.cwd, options),
 	);
 }

@@ -400,16 +400,36 @@ their parent's mode.
 
 Details: [`permissions.md`](permissions.md).
 
-## Capability preview and degradations
+## Preflight: capability, tools, models and effort
 
-Before a run starts, the engine probes the executor (installed, CLI version, login; no model call)
-and matches every stage's needs against the executor's capability table (B4). The first output line
-is the preview:
+Before a run starts, the engine probes the executor (installed, CLI version, login, model list; no
+model call) and checks every stage against the executor that would run it (B4). Anything that would
+fail a stage mid-run stops the launch instead, with the reason and what to do (`Not started: …`,
+exit 1, no run record):
+
+- **tools** the executor has no mapping for (for example pi-workflow's `workflow_web_*`);
+- **models**: a name is the executor's — the engine rewrites it to that tool's form
+  (`openai-codex/gpt-6.1-sol` → `gpt-6.1-sol` on codex; `anthropic/claude-opus-5-5` →
+  `claude-opus-5-5` on claude; a bare `gpt-6.1-sol` → `openai-codex/gpt-6.1-sol` on pi, found in
+  Pi's model list) and refuses a model the tool cannot run (a Claude model on codex, an OpenAI model
+  on claude, a Claude Code alias such as `opus` on pi). It never moves a stage to another executor by
+  itself: use `--executor`, `--preset mixed` or a role for that. A name the probe list cannot
+  confirm (Codex and Claude lists are not exhaustive) gets a one-line notice;
+- **effort** levels: a level the tool lacks becomes its nearest level with a notice (`minimal` →
+  `low` on codex/claude, `ultra` → `max` on claude/pi); an unknown level is refused;
+- **capabilities** (below).
+
+The same check runs alone with `agent-workflow check <workflow> [--executor …] [--model …] …`
+(no run). The launch prints it short: the summary line, then each warning once with the stages it
+affects:
 
 ```text
-Capability check (codex@0.1.0, 4 stages, permission mode: free): accepted with degradations
-  …CAPABILITY_MISSING:toolAllowlist.fine (accepted: free mode)…
+Capability check (codex@0.1.0, 12 stages, permission mode: free): accepted with 48 degradations
+  ⚠ readOnly — 152 allow rules in ~/.codex/rules let matching commands run without approval (all 12 stages)
+  ⚠ toolAllowlist.fine — free permission mode: precise tool allowlist unavailable … (all 12 stages)
 ```
+
+The full per-stage preview stays in `run.capabilityNegotiation.preview` (and `--json`).
 
 Each need is `native`, `emulated`, **degraded** (runs, recorded in `run.capabilityNegotiation`) or
 **refused** (nothing starts: `Not started: …`, exit 1, no run record). Typical entries:

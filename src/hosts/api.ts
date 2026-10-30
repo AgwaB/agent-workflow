@@ -96,6 +96,7 @@ export {
 	type RunDynamicRequest,
 	type RunWorkflowRequest,
 	resolveWorkflowExecutionProfileForLaunch,
+	checkWorkflowAction,
 	runDynamicAction,
 	runWorkflowAction,
 	selectWorkflowExecutionProfile,

@@ -26,11 +26,20 @@ const LAUNCH_FLAGS = `  --executor <id>              executor for this run (pi, 
 export const COMMAND_HELP: Readonly<Record<string, string>> = {
 	list: `Usage: agent-workflow list [--query <text>] [--offset N] [--limit N] [--json]
 
-List discoverable workflows (project .agent-workflow/workflows, ~/.agent-workflow/workflows,
-bundled; legacy Pi locations read-only). --limit (1-20) pages the output.`,
+List discoverable workflows (project workflows/, .agent-workflow/workflows,
+~/.agent-workflow/workflows, bundled; Pi's directories are not read). --limit (1-20) pages the output.`,
 	validate: `Usage: agent-workflow validate <workflow-name-or-path> [--json]
 
 Load and compile a workflow spec without running it. Exit 1 when the spec is invalid.`,
+	check: `Usage: agent-workflow check <workflow-name-or-path> [<task...>] [--executor <id>] [--profile <name>]
+                           [--preset codex|claude|pi|mixed] [--model <id>] [--effort <level>]
+                           [--role <role>=<executor>[:<model>[:<effort>]]]... [--permission-mode free|safe]
+                           [--json]
+
+The launch preflight without the launch: picks the executor, compiles the spec and checks what a run
+needs — executor installed and logged in, every stage's tools, model and effort available on the
+executor that would run it, capabilities. Prints the same short check as a launch; exit 1 and the
+reasons when something would stop the run. No run is created and no model is called.`,
 	roles: `Usage: agent-workflow roles <workflow-name-or-path> [--json]
 
 Show the compiled role context exactly as it is injected into task prompts.`,
@@ -210,6 +219,7 @@ Usage: agent-workflow <command> [arguments] [options]
 Workflows:
   list                 list discoverable workflows
   validate <workflow>  validate a workflow spec
+  check <workflow>     launch preflight: executor, tools, models, effort (no run, no model call)
   roles <workflow>     show compiled role context
   agents               list agent definitions
   show <workflow>      print a workflow spec

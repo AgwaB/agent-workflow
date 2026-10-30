@@ -106,7 +106,7 @@ and the permission mode: **run flag > workflow-declared profile > saved user pro
 (executor: the host's own CLI, in a terminal the first installed and logged-in of `pi` → `claude` →
 `codex`; mode `free`). `agent-workflow doctor` shows which executors are ready. Before any run starts, the engine probes the executor and checks every stage's needs
 against what the executor can enforce; gaps are refused or recorded, never silent
-([`docs/usage.md`](docs/usage.md#capability-preview-and-degradations)). Writing your own executor:
+([`docs/usage.md`](docs/usage.md#preflight-capability-tools-models-and-effort)). Writing your own executor:
 [`docs/sdk.md`](docs/sdk.md).
 
 ## Bundled workflows

@@ -638,7 +638,7 @@ function unmappedToolRefusals(
 	for (const [id, groups] of byExecutor)
 		for (const [tools, labels] of groups)
 			lines.push(
-				`  - ${labels.join(", ")}: executor ${id} has no mapping for ${tools}${
+				`  ✗ ${labels.join(", ")}: executor ${id} has no mapping for ${tools}${
 					/\bworkflow_web_/u.test(tools)
 						? " (pi-workflow's web tools; agent-workflow uses web_search and fetch_content)"
 						: ""
@@ -704,12 +704,16 @@ function resolveTaskNames(
 			}
 		}
 	}
+	const which = (labels: string[]) =>
+		labels.length === tasks.length && tasks.length > 1
+			? `all ${tasks.length} stages`
+			: labels.join(", ");
 	return {
 		refusals: [...refusals].map(
-			([reason, labels]) => `  - ${labels.join(", ")}: ${reason}`,
+			([reason, labels]) => `  ✗ ${which(labels)}: ${reason}`,
 		),
 		notices: [...notices].map(
-			([notice, labels]) => `${notice} (${labels.join(", ")})`,
+			([notice, labels]) => `${notice} (${which(labels)})`,
 		),
 		apply: () => {
 			for (const write of writes) write();

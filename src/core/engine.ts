@@ -242,6 +242,7 @@ import {
 import {
 	negotiateWorkflowRun,
 	type WorkflowExecutorProber,
+	workflowNegotiationTargets,
 	workflowProfileStrictCapabilities,
 } from "./capability-negotiation.js";
 import type { CapabilityPreview } from "../sdk/requirements.js";
@@ -265,6 +266,7 @@ import {
 	type WorkflowRunLaunchCapture,
 	type WorkflowRunLaunchMetadata,
 	type WorkflowRunRecord,
+	type WorkflowRunCapabilityNegotiation,
 	type WorkflowCapturedExecutionProfile,
 	type WorkflowRoleMap,
 	type WorkflowRunRouting,
@@ -411,6 +413,12 @@ function runtimeDefaultsWithSavedProfile(
 
 export interface WorkflowRunOptions {
 	task?: string;
+	/**
+	 * Preflight only (`agent-workflow check`): select the executor, compile and negotiate exactly as a
+	 * launch would, then throw {@link WorkflowPreflightPassed} instead of creating a run. Refusals
+	 * throw as they do for a launch. Nothing is written and no model is called.
+	 */
+	preflightOnly?: boolean;
 	runtimeOverrides?: WorkflowRuntimeDefaults;
 	runtimeDefaults?: WorkflowRuntimeDefaults;
 	availableModels?: WorkflowModelInfo[];
@@ -527,6 +535,18 @@ export const WORKFLOW_EXPECTED_DEFINITION_FINGERPRINT: unique symbol = Symbol(
 );
 
 /** WP19 round 3 (R5): the workflow file changed between the host's load and the engine's. */
+/** `preflightOnly`: the launch would have started; this is what its preflight found. */
+export class WorkflowPreflightPassed extends Error {
+	readonly code = "WORKFLOW_PREFLIGHT_PASSED" as const;
+	constructor(
+		readonly negotiation: WorkflowRunCapabilityNegotiation,
+		readonly stages: number,
+	) {
+		super("preflight passed; no run was started");
+		this.name = "WorkflowPreflightPassed";
+	}
+}
+
 export class WorkflowDefinitionChangedError extends Error {
 	readonly code = "WORKFLOW_DEFINITION_CHANGED" as const;
 
@@ -965,6 +985,11 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 			: {}),
 	});
 	options.launchSignal?.throwIfAborted();
+	if (options.preflightOnly)
+		throw new WorkflowPreflightPassed(
+			capabilityNegotiation,
+			workflowNegotiationTargets(compiled).length,
+		);
 	if (options.autoLaunchBinding)
 		options.autoLaunchBinding = sealWorkflowAutoLaunchBindingCompiled(
 			options.autoLaunchBinding,

@@ -57,6 +57,7 @@ import {
 	registerTestExecutorFromEnv,
 	resumeAction,
 	runDynamicAction,
+	checkWorkflowAction,
 	runWorkflowAction,
 	showAction,
 	statusAction,
@@ -914,6 +915,22 @@ async function dispatch(
 					? await validateWorkflowAction(ctx, { workflow: workflow! })
 					: await workflowRolesAction(ctx, { workflow: workflow! }),
 			);
+		}
+		case "check": {
+			// The launch preflight only: same flags as `run` (executor, profile, model, …), no run.
+			const parsed = parseCommandArgs(argv, LAUNCH_SPEC);
+			const [workflow, ...taskWords] = parsed.positionals;
+			if (!workflow)
+				throw new HostUsageError(
+					"Usage: agent-workflow check <workflow> [<task...>] [--executor <id>] [options]",
+				);
+			const options = launchOptionsFromArgs(parsed, io);
+			const checked = await checkWorkflowAction(ctx, {
+				workflow,
+				...options.request,
+				...(taskWords.length > 0 ? { task: taskWords.join(" ") } : {}),
+			});
+			return emit(checked);
 		}
 		case "agents":
 			only(parseCommandArgs(argv, jsonOnly), 0, "agents");

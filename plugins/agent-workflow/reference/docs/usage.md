@@ -23,9 +23,12 @@ A name resolves from the first root that has a match:
 1. `<cwd>/workflows/` — repo-tracked, project-shared
 2. `<cwd>/.agent-workflow/workflows/` — project-private
 3. `$AGENT_WORKFLOW_HOME/workflows/` (default `~/.agent-workflow/workflows/`) — user
-4. legacy pi-workflow locations, **read-only**: `<cwd>/.pi/workflows/`, then `~/.pi/agent/workflows/`
-   (`$PI_CODING_AGENT_DIR/workflows/`)
-5. the package's bundled `workflows/`
+4. the package's bundled `workflows/`
+
+Pi's directories (`~/.pi/agent/workflows/`, `<cwd>/.pi/workflows/`) are **not** read: they are
+Pi configuration, written for pi-workflow's tool and model names (2026-10-30 owner decision; the
+earlier read-only legacy roots are gone). To use a pi-workflow spec here, copy it into one of the
+roots above, or pass its path.
 
 A higher root shadows lower ones; more than one match in the winning root (for example both
 `name.json` and `name/spec.json`) fails as ambiguous. Each root accepts a flat `<name>.json` or a
@@ -34,21 +37,17 @@ workflow has schemas or helpers. `agent-workflow list` shows what resolves, `age
 <name>` prints the resolved spec, and `agent-workflow validate <name-or-path>` compiles it without
 running anything.
 
-Agents (`agent:` in a spec) resolve in this order: `<cwd>/.agent-workflow/agents/`,
-`$AGENT_WORKFLOW_HOME/agents/`, a project's legacy `<cwd>/.pi/agents/` (read-only), the bundled
-`scout` and `researcher`, and last Pi's user agents `~/.pi/agent/agents/` (read-only). Pi's user
-agents are Pi configuration (written for pi-workflow's tool and model names), so they never replace
-the bundled agents on Codex, Claude Code or the CLI; they only supply names agent-workflow does not
-ship (2026-10-30 owner decision; WP12a's legacy-first order and its `Notice:` are gone). To
-customise `scout` or `researcher` for agent-workflow, put a copy in `$AGENT_WORKFLOW_HOME/agents/`
-or `.agent-workflow/agents/`. `agent-workflow agents` lists what resolves and from where.
+Agents (`agent:` in a spec) resolve the same way: `<cwd>/.agent-workflow/agents/`,
+`$AGENT_WORKFLOW_HOME/agents/`, then the bundled `scout` and `researcher`. Pi's agent directories
+(`~/.pi/agent/agents/`, `<cwd>/.pi/agents/`) are not read. To customise `scout` or `researcher`, put
+a copy in `$AGENT_WORKFLOW_HOME/agents/` or `.agent-workflow/agents/`. `agent-workflow agents` lists
+what resolves and from where.
 
-agent-workflow never writes to the legacy locations; its runs and settings live under
+agent-workflow never reads or writes Pi's directories; its runs and settings live under
 `.agent-workflow/` and `$AGENT_WORKFLOW_HOME`. pi-workflow can stay installed next to it; each only
-sees its own runs. Legacy discovery covers specs and agents only: pi-workflow runs under
-`.pi/workflows/` are never listed, and `logs`/`inspect` read only files inside `.agent-workflow/`, so
-a pi-workflow run copied into `.agent-workflow/workflows/` (its record still points at `.pi/…`)
-shows those files as `(not read: path is outside the project's artifact root …)`.
+sees its own specs, agents and runs. `logs`/`inspect` read only files inside `.agent-workflow/`, so a
+pi-workflow run copied into `.agent-workflow/workflows/` (its record still points at `.pi/…`) shows
+those files as `(not read: path is outside the project's artifact root …)`.
 
 ### Bundled workflows
 
@@ -401,16 +400,36 @@ their parent's mode.
 
 Details: [`permissions.md`](permissions.md).
 
-## Capability preview and degradations
+## Preflight: capability, tools, models and effort
 
-Before a run starts, the engine probes the executor (installed, CLI version, login; no model call)
-and matches every stage's needs against the executor's capability table (B4). The first output line
-is the preview:
+Before a run starts, the engine probes the executor (installed, CLI version, login, model list; no
+model call) and checks every stage against the executor that would run it (B4). Anything that would
+fail a stage mid-run stops the launch instead, with the reason and what to do (`Not started: …`,
+exit 1, no run record):
+
+- **tools** the executor has no mapping for (for example pi-workflow's `workflow_web_*`);
+- **models**: a name is the executor's — the engine rewrites it to that tool's form
+  (`openai-codex/gpt-6.1-sol` → `gpt-6.1-sol` on codex; `anthropic/claude-opus-5-5` →
+  `claude-opus-5-5` on claude; a bare `gpt-6.1-sol` → `openai-codex/gpt-6.1-sol` on pi, found in
+  Pi's model list) and refuses a model the tool cannot run (a Claude model on codex, an OpenAI model
+  on claude, a Claude Code alias such as `opus` on pi). It never moves a stage to another executor by
+  itself: use `--executor`, `--preset mixed` or a role for that. A name the probe list cannot
+  confirm (Codex and Claude lists are not exhaustive) gets a one-line notice;
+- **effort** levels: a level the tool lacks becomes its nearest level with a notice (`minimal` →
+  `low` on codex/claude, `ultra` → `max` on claude/pi); an unknown level is refused;
+- **capabilities** (below).
+
+The same check runs alone with `agent-workflow check <workflow> [--executor …] [--model …] …`
+(no run). The launch prints it short: the summary line, then each warning once with the stages it
+affects:
 
 ```text
-Capability check (codex@0.1.0, 4 stages, permission mode: free): accepted with degradations
-  …CAPABILITY_MISSING:toolAllowlist.fine (accepted: free mode)…
+Capability check (codex@0.1.0, 12 stages, permission mode: free): accepted with 48 degradations
+  ⚠ readOnly — 152 allow rules in ~/.codex/rules let matching commands run without approval (all 12 stages)
+  ⚠ toolAllowlist.fine — free permission mode: precise tool allowlist unavailable … (all 12 stages)
 ```
+
+The full per-stage preview stays in `run.capabilityNegotiation.preview` (and `--json`).
 
 Each need is `native`, `emulated`, **degraded** (runs, recorded in `run.capabilityNegotiation`) or
 **refused** (nothing starts: `Not started: …`, exit 1, no run record). Typical entries:
@@ -746,7 +765,7 @@ as "never started": nothing is retried automatically.
 | `Not started: … CAPABILITY_REFUSED` | A stage needs something the executor cannot do. The message lists each refusal and its opt-in, if any (`--allow-unverified`, `allowReadOnlyDowngrade`, `--permission-mode free`). |
 | deep-research refused on Pi with `webTools` | Your Pi has no `pi-web-access` (not bundled). Install it with `pi install npm:pi-web-access` (check with `pi list` or `agent-workflow doctor`), or use `--executor claude`/`codex`. The refusal and the preview name the same command. |
 | Codex runs show `readOnly`/`contextIsolation` warnings | Your `~/.codex/rules` has allow rules or a global `~/.codex/AGENTS.md` exists. Recorded only; remove them for a clean run. |
-| A change to `~/.pi/agent/agents/scout.md` (or `researcher.md`) has no effect in agent-workflow | By design (2026-10-30): the bundled agent of that name wins over Pi's user agents on every host. Put the customised agent in `$AGENT_WORKFLOW_HOME/agents/` (all projects) or `.agent-workflow/agents/` (one project). |
+| A workflow or agent from `~/.pi/agent/` is missing in `agent-workflow list`/`agents` | By design (2026-10-30): Pi's directories are Pi configuration and are not read. Copy what you want into `$AGENT_WORKFLOW_HOME/workflows/` or `…/agents/` (or the project's `.agent-workflow/`), or pass a spec path. |
 | `input <key> is not declared by this workflow (declared: …)`, `input <key> must be a number` (exit 2) | `--input` / `inputs` names a key the spec does not declare or a value of the wrong type. Use a declared key (`agent-workflow show <workflow>` shows `input`) and a value of the default's type. |
 | Usage shows `cost unknown` | The executor reported no cost (Codex always; any task without a cost). Token counts are still recorded; nothing is estimated. |
 | The run is `failed` but the report looks fine | Final renders mark verdicts such as `PARTIAL_REVIEW`, `INCONCLUSIVE`, `GAPS_FOUND`, `BLOCKED` as declared failures (`support_declared_failed`): the workflow worked and reported a finding about the target. Read `final-report.md`. |
