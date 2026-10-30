@@ -753,6 +753,7 @@ export function deriveGraph(projection) {
 			? (stage.name || stage.id).slice(prefix.length + 1)
 			: stage.name || stage.id;
 	const nodes = new Map(),
+		groups = new Map(),
 		owner = new Map(),
 		buckets = new Map();
 	for (const stage of stages.values()) {
@@ -770,7 +771,7 @@ export function deriveGraph(projection) {
 		const id = `__group_${groupIndex++}`;
 		const prefix = commonPrefix(members.map((s) => s.short));
 		const states = members.map((s) => s.status);
-		nodes.set(id, {
+		groups.set(id, {
 			id,
 			kind: "group",
 			name: prefix,
@@ -787,10 +788,24 @@ export function deriveGraph(projection) {
 		for (const stage of members) owner.set(stage.id, id);
 	}
 	for (const stage of stages.values())
-		if (!owner.has(stage.id)) {
-			nodes.set(stage.id, stage);
-			owner.set(stage.id, stage.id);
-		}
+		if (!owner.has(stage.id)) owner.set(stage.id, stage.id);
+	// Cards in spec order. A stage that stands alone is its own card; its deps/kids are
+	// translated to card ids (a neighbour may now live inside a stacked card). The stage object
+	// itself stays untouched.
+	for (const stage of stages.values()) {
+		const id = owner.get(stage.id);
+		if (nodes.has(id)) continue;
+		nodes.set(
+			id,
+			id === stage.id
+				? {
+						...stage,
+						deps: new Set([...stage.deps].map((dep) => owner.get(dep))),
+						kids: new Set([...stage.kids].map((kid) => owner.get(kid))),
+					}
+				: groups.get(id),
+		);
+	}
 	const nodeEdges = [],
 		seenEdges = new Set();
 	for (const edge of edges) {

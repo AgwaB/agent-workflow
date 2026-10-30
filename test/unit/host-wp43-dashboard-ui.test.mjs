@@ -537,6 +537,79 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 	);
 	live.tasks.find((task) => task.specId === "triage.main").status = "completed";
 
+	// A fan-out/join (scope → {api, data} → synthesis, all under one dotted prefix): the two
+	// siblings stack into one card, neighbours' edges point at the card, the shared prefix leaves
+	// the card text, and a stage inside the card can be selected and traced.
+	const fan = structuredClone(fixture.runs.get(running));
+	fan.runId = "workflow_fan";
+	fan.name = "fan";
+	const template = fan.tasks.find((task) => task.specId === "triage.main");
+	const single = (name, dependsOn, status = "completed") => ({
+		...template,
+		taskId: `task-${name}`,
+		specId: `impact.${name}.main`,
+		stageId: `impact.${name}`,
+		status,
+		statusDetail: status,
+		dependsOn: dependsOn.map((dep) => `impact.${dep}.main`),
+	});
+	fan.tasks = [
+		single("scope", []),
+		single("api", ["scope"]),
+		single("data", ["scope"], "running"),
+		single("synthesis", ["api", "data"], "pending"),
+	];
+	fixture.runs.set(fan.runId, fan);
+	await open(`run=${fan.runId}`);
+	await browser.waitFor(() => document.querySelector(".node.group"));
+	assert.deepEqual(
+		await browser.evaluate(() => ({
+			cards: [...document.querySelectorAll(".node")].map(
+				(node) =>
+					`${node.dataset.stage}:${node.classList[1]}:${node.querySelector(".node-name").textContent}`,
+			),
+			rows: [...document.querySelectorAll(".stage-row .agent-name")].map(
+				(row) => row.textContent,
+			),
+			edges: [...document.querySelectorAll(".edge")].map(
+				(edge) => `${edge.dataset.edge}:${edge.classList[1]}`,
+			),
+			next: [...document.querySelectorAll(".node.next")].map(
+				(node) => node.dataset.stage,
+			),
+		})),
+		{
+			cards: [
+				"impact.scope:completed:scope",
+				"__group_0:running:2 in parallel",
+				"impact.synthesis:pending:synthesis",
+			],
+			rows: ["api", "data"],
+			edges: [
+				"impact.scope>__group_0:active",
+				"__group_0>impact.synthesis:next",
+			],
+			next: ["impact.synthesis"],
+		},
+	);
+	await browser.click('.stage-row[data-stage="impact.data"]');
+	await browser.waitFor(() => !document.querySelector("#inspector").hidden);
+	assert.deepEqual(
+		await browser.evaluate(() => ({
+			card: document
+				.querySelector('[data-stage="__group_0"]')
+				.classList.contains("selected"),
+			row: document
+				.querySelector('.stage-row[data-stage="impact.data"]')
+				.classList.contains("selected"),
+			other: document
+				.querySelector('.stage-row[data-stage="impact.api"]')
+				.classList.contains("selected"),
+			inspector: document.querySelector("#inspector h2")?.textContent,
+		})),
+		{ card: true, row: true, other: false, inspector: "impact.data.main" },
+	);
+
 	// A 240-item active foreach stays bounded in the graph; inspection is searchable.
 	const scale = structuredClone(fixture.runs.get(running));
 	scale.runId = "workflow_scale";
