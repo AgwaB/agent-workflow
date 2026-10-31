@@ -4,6 +4,8 @@
 // another test's durable worker, whose run ended `blocked` (executor_needs_decision: owner gone, no
 // result). Record a process's identity (birth time and process group) when its pid is learned;
 // at cleanup it is killed only while that same process is still alive.
+import { execFileSync } from "node:child_process";
+
 import {
 	captureProcessIdentity,
 	verifyProcessIdentity,
@@ -61,4 +63,40 @@ export function killLiveChild(child, { group = false } = {}) {
 			// Exited meanwhile.
 		}
 	}
+}
+
+/** The command line of `pid` now (`ps`), or undefined when no such process (never throws). */
+export function processCommand(pid) {
+	if (!Number.isInteger(pid) || pid <= 0) return undefined;
+	try {
+		const text = execFileSync("ps", ["-p", String(pid), "-o", "command="], {
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "ignore"],
+		}).trim();
+		return text === "" ? undefined : text;
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * SIGKILL `pid` (its group with `group`) only while its command line still contains `needle`
+ * (e.g. the unique path of a stub CLI). For pids known only from a log written by the process
+ * itself: a stub killed by a test never logs its exit, so its pid stays "running" in the log and
+ * may belong to another process by cleanup time. Never throws.
+ */
+export function killIfCommandMatches(pid, needle, { group = false } = {}) {
+	const command = processCommand(pid);
+	if (command === undefined || !command.includes(needle)) return false;
+	try {
+		// Still our process, so its group (when it leads one) is still its own.
+		process.kill(group ? -pid : pid, "SIGKILL");
+	} catch {
+		try {
+			process.kill(pid, "SIGKILL");
+		} catch {
+			return false;
+		}
+	}
+	return true;
 }

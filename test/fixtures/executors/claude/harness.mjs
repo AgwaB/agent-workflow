@@ -27,6 +27,7 @@ import {
 	parseClaudeConfig,
 } from "../../../../dist/executors/claude/index.js";
 import { EXECUTOR_CONTRACT_VERSION } from "../../../../dist/sdk/index.js";
+import { killIfCommandMatches } from "../../../helpers/process-cleanup.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const ADAPTER_MODULE = fileURLToPath(
@@ -300,13 +301,10 @@ function configFor(dir, claudePath, extra = {}) {
 }
 
 async function killLeftovers(cli) {
+	// Only pids that are still this stub (a stub killed by a test never logs its exit).
 	for (const invocation of await cli.invocations())
 		if (invocation.exitCode === null)
-			try {
-				process.kill(invocation.pid, "SIGKILL");
-			} catch {
-				// already gone
-			}
+			killIfCommandMatches(invocation.pid, cli.path);
 }
 
 /** Documented argv per permission mode (docs/executors/claude.md, WP4e). */

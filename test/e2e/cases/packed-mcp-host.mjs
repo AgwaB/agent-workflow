@@ -11,6 +11,10 @@ import { spawn } from "node:child_process";
 import { cp, mkdir, readFile, realpath, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+	killTrackedProcess,
+	trackProcess,
+} from "../../helpers/process-cleanup.mjs";
 
 const [packageRootArg, consumerArg] = process.argv.slice(2);
 if (!packageRootArg || !consumerArg)
@@ -159,6 +163,7 @@ try {
 	assert.equal(launch.permissionMode.mode, "free");
 	assert.equal(typeof launch.detached?.pid, "number", "detached by default");
 	supervisorPid = launch.detached.pid;
+	trackProcess(supervisorPid);
 	assert.match(launched.content[0].text, /call workflow_wait/);
 
 	let waited;
@@ -209,10 +214,8 @@ try {
 	);
 } finally {
 	if (child.exitCode === null) child.kill("SIGKILL");
-	if (supervisorPid)
-		try {
-			process.kill(supervisorPid, "SIGKILL");
-		} catch {}
+	// Only if it is still that supervisor: it finished above, and its pid may be reused.
+	if (supervisorPid) await killTrackedProcess(supervisorPid);
 }
 
 async function waitForSupervisorDone(logPath, id) {

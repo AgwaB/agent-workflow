@@ -27,6 +27,7 @@ import {
 	PI_EXECUTOR_VERSION,
 } from "../../../../dist/executors/pi/index.js";
 import { EXECUTOR_CONTRACT_VERSION } from "../../../../dist/sdk/index.js";
+import { killIfCommandMatches } from "../../../helpers/process-cleanup.mjs";
 
 export const PI_MODULE = fileURLToPath(
 	new URL("../../../../dist/executors/pi/index.js", import.meta.url),
@@ -204,12 +205,11 @@ function counters(cli, stateDir) {
 				cwd: invocation.cwd,
 			})),
 		async killLeftovers() {
+			// A stub killed by a test never logs its exit: kill only pids that are still this stub
+			// (a reused pid killed another test's durable worker and its process group).
 			for (const invocation of await cli.invocations())
 				if (invocation.exitCode === null)
-					for (const target of [-invocation.pid, invocation.pid])
-						try {
-							process.kill(target, "SIGKILL");
-						} catch {}
+					killIfCommandMatches(invocation.pid, cli.path, { group: true });
 		},
 	};
 }

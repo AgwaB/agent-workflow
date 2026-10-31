@@ -67,3 +67,45 @@ test("killLiveChild signals a child Node has not seen exit, and nothing else", a
 	await exited(child);
 	assert.deepEqual(signals, [[child.pid, "SIGKILL"]]);
 });
+
+test("killIfCommandMatches kills a stub only while the pid is still that stub (stubs never log a SIGKILL exit)", {
+	skip: supported ? false : "ps is POSIX-only",
+}, async (t) => {
+	const { mkdtemp, rm } = await import("node:fs/promises");
+	const { tmpdir } = await import("node:os");
+	const { join } = await import("node:path");
+	const { createStubCli } = await import("../../dist/sdk/conformance/index.js");
+	const { killIfCommandMatches, processCommand } = await import(
+		"../helpers/process-cleanup.mjs"
+	);
+	const dir = await mkdtemp(join(tmpdir(), "aw-stub-cleanup-"));
+	t.after(() => rm(dir, { recursive: true, force: true, maxRetries: 10 }));
+	const cli = await createStubCli({
+		dir,
+		name: "pi",
+		scripts: [
+			{ name: "hang", when: { argvIncludes: [] }, steps: [{ hang: true }] },
+		],
+	});
+	const child = spawn(cli.path, ["x"], { detached: true, stdio: "ignore" });
+	t.after(() => killLiveChild(child, { group: true }));
+	for (
+		let index = 0;
+		index < 100 && !processCommand(child.pid)?.includes(cli.path);
+		index += 1
+	)
+		await new Promise((done) => setTimeout(done, 20));
+	assert.equal(killIfCommandMatches(child.pid, "/some/other/stub"), false);
+	assert.equal(child.exitCode, null, "a different command is never signalled");
+	assert.equal(
+		killIfCommandMatches(child.pid, cli.path, { group: true }),
+		true,
+	);
+	await exited(child);
+	const signals = observeKills(t);
+	assert.equal(
+		killIfCommandMatches(child.pid, cli.path, { group: true }),
+		false,
+	);
+	assert.deepEqual(signals, [], "a gone stub's pid is never signalled");
+});
