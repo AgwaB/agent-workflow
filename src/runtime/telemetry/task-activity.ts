@@ -26,7 +26,12 @@ function safeText(value: string): string {
 			const resource = sanitizedUrlResource(url);
 			return resource ? resource.value.replace(/^https?:\/\//, "") : "[url]";
 		})
-		.replace(/\b(?:sk-[\w-]+|gh[pousr]_[\w]+)\b/gi, "[redacted]")
+		.replace(/\b(?:sk-[\w-]+|gh[pousr]_[\w]+|github_pat_\w+)\b/gi, "[redacted]")
+		// Case-sensitive vendor key shapes: AWS access key ids, Slack and Google API tokens.
+		.replace(
+			/\b(?:(?:AKIA|ASIA)[0-9A-Z]{16}|xox[abpors]-[\w-]{10,}|AIza[\w-]{30,})\b/g,
+			"[redacted]",
+		)
 		.replace(/\bBearer\s+[^\s"']+/gi, "[redacted]")
 		.replace(/\b[A-Za-z0-9_+/=-]{32,}\b/g, "[redacted]");
 	const words = cleaned.split(" ");

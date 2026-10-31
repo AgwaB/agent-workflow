@@ -429,3 +429,31 @@ for (const async of [false, true]) {
 		}
 	});
 }
+
+test("vendor key shapes in search patterns and commands are redacted", () => {
+	const label = (name, input) =>
+		activityFromExecEvent(
+			{ type: "tool_call", status: "running", name, input, id: "k" },
+			"/tmp/project",
+		)?.label;
+	for (const secret of [
+		"AKIAIOSFODNN7EXAMPLE",
+		"ASIAABCDEFGHIJKLMNOP",
+		"xoxb-123456789012-abcdefghij",
+		"AIzaSyA1234567890abcdefghijklmnopqrstu",
+		"github_pat_11ABCDEFG0123456789_abcdefghijklmnop",
+	]) {
+		assert.doesNotMatch(
+			label("Grep", { pattern: secret }),
+			new RegExp(secret.slice(0, 12)),
+		);
+		assert.doesNotMatch(
+			label("Bash", { command: `aws s3 ls ${secret}` }),
+			new RegExp(secret.slice(0, 12)),
+		);
+	}
+	assert.equal(
+		label("Grep", { pattern: "AKIA is a prefix" }),
+		'Searching "AKIA is a prefix"',
+	);
+});
