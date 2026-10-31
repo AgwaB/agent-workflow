@@ -94,8 +94,10 @@ for (const auth of [false, true])
 		await assert.rejects(stat(dashboardDiscoveryPath(cwd)), { code: "ENOENT" });
 		assert.equal(await ensureDashboard(cwd, {}, { start: false }), undefined);
 	});
-test("probe rejects other services, malformed errors, redirects, and a stalled response within 500ms", {
-	timeout: 5000,
+// 2026-11-01: the probe bound is 3 s (was 0.5 s): a healthy dashboard on a loaded machine answered
+// later than 0.5 s. Wrong answers are rejected at once; only a stalled one waits for the bound.
+test("probe rejects other services, malformed errors and redirects at once, and a stalled response within 3 s", {
+	timeout: 20_000,
 }, async (t) => {
 	const cwd = await project(t);
 	let mode = "ok";
@@ -136,7 +138,17 @@ test("probe rejects other services, malformed errors, redirects, and a stalled r
 	for (mode of ["ok", "open-auth", "bad", "redirect", "hang"]) {
 		const start = Date.now();
 		assert.equal(await readDashboardDiscovery(cwd), undefined, mode);
-		assert.ok(Date.now() - start < 900, "bounded probe");
+		const elapsed = Date.now() - start;
+		if (mode === "hang")
+			assert.ok(
+				elapsed >= 2_500 && elapsed < 4_500,
+				`bounded probe: ${elapsed} ms`,
+			);
+		else
+			assert.ok(
+				elapsed < 2_000,
+				`${mode} is rejected without waiting: ${elapsed} ms`,
+			);
 	}
 	for (mode of ["valid", "open"])
 		assert.ok(await readDashboardDiscovery(cwd), mode);
@@ -145,7 +157,10 @@ test("probe rejects other services, malformed errors, redirects, and a stalled r
 		await readDashboardDiscovery(cwd, { probe: () => new Promise(() => {}) }),
 		undefined,
 	);
-	assert.ok(Date.now() - start < 900);
+	assert.ok(
+		Date.now() - start < 4_500,
+		"a probe that never settles is bounded",
+	);
 });
 test("agent detection matrix: set markers (even empty), host contexts, ordinary terminals", () => {
 	for (const marker of [

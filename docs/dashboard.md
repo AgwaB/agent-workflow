@@ -138,7 +138,7 @@ Decision (owner, 2026-10-30, after the survey in the analysis workspace): runnin
 
 - `launchKey` is a **local control secret** that only mints one-time launch URLs (below). It is never the session token, and it is never printed. Same trust boundary as the run records next to it (same user, 0600).
 - `auth` (WP43d) says whether that server requires sign-in; a file without it (older server) means it does.
-- Readers (`readDashboardDiscovery(cwd)`) accept the file only if the pid is alive and `GET http://127.0.0.1:<port>/api/session` answers within 500 ms either 401 with our JSON error (`--auth`) or 200 with `apiVersion: 1, auth: false` (default) — proves the port is ours. A stale file whose pid is dead is deleted.
+- Readers (`readDashboardDiscovery(cwd)`) accept the file only if the pid is alive and `GET http://127.0.0.1:<port>/api/session` answers within 3 s (each local dashboard request — this check, minting a launch URL, asking whether it was used — is bounded by 3 s) either 401 with our JSON error (`--auth`) or 200 with `apiVersion: 1, auth: false` (default) — proves the port is ours. A stale file whose pid is dead is deleted.
 
 ### One-time launch URLs
 

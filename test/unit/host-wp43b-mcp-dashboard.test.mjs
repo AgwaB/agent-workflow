@@ -335,7 +335,8 @@ for (const config of [
 		assert.notEqual(request.params.mode, "url");
 		assert.doesNotMatch(JSON.stringify(request.params), /token=|https?:\/\//);
 		let recorded = "";
-		for (let i = 0; i < 30 && !recorded; i++) {
+		// The BROWSER stand-in writes asynchronously: poll up to 15 s (3 s was too short under load).
+		for (let i = 0; i < 150 && !recorded; i++) {
 			await new Promise((r) => setTimeout(r, 100));
 			recorded = await readFile(log, "utf8").catch(() => "");
 		}

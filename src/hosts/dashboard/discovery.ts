@@ -184,6 +184,14 @@ async function loadDiscovery(
 	}
 }
 /**
+ * Bound for one request to the local dashboard (is it a live dashboard, mint a launch URL, was a
+ * launch URL used). 3 s (was 0.5 s, 2026-11-01): on a loaded machine a healthy loopback dashboard
+ * answered later, so a launch said "not running" and minting failed. Only a hung dashboard waits
+ * this long.
+ */
+const DASHBOARD_LOCAL_REQUEST_MS = 3000;
+
+/**
  * Bounded identity probe without credentials; do not follow redirects or accept an arbitrary
  * listener. An auth server answers 401 `{ error }`; an open one answers 200 `{ apiVersion: 1 }`.
  */
@@ -234,7 +242,7 @@ export function probeDashboard(
 				});
 			},
 		);
-		const timer = setTimeout(() => finish(false), 500);
+		const timer = setTimeout(() => finish(false), DASHBOARD_LOCAL_REQUEST_MS);
 		req.on("error", () => finish(false));
 		req.end();
 	});
@@ -259,7 +267,7 @@ export async function readDashboardDiscovery(
 		const valid = await Promise.race([
 			(options.probe ?? probeDashboard)(data),
 			new Promise<boolean>((done) => {
-				timer = setTimeout(() => done(false), 500);
+				timer = setTimeout(() => done(false), DASHBOARD_LOCAL_REQUEST_MS);
 			}),
 		]);
 		return valid ? data : undefined;
@@ -298,7 +306,7 @@ export async function mintLaunchUrl(
 			"X-AW-Launch-Key": discovery.launchKey,
 		},
 		body: JSON.stringify(params),
-		signal: AbortSignal.timeout(500),
+		signal: AbortSignal.timeout(DASHBOARD_LOCAL_REQUEST_MS),
 		redirect: "error",
 	});
 	if (!response.ok) throw new Error("Could not mint dashboard launch URL");
@@ -341,7 +349,7 @@ export async function launchConsumed(
 			`http://127.0.0.1:${discovery.port}/api/launch/${launchId}`,
 			{
 				headers: { "X-AW-Launch-Key": discovery.launchKey },
-				signal: AbortSignal.timeout(500),
+				signal: AbortSignal.timeout(DASHBOARD_LOCAL_REQUEST_MS),
 				redirect: "error",
 			},
 		);
