@@ -338,13 +338,13 @@ test("executor outcomes: absent → not_started; unknown → needs_decision; unl
 	const unknownResult = JSON.parse(
 		await readFile(join(unknownStore.attemptDir, "result.json"), "utf8"),
 	);
-	assert.equal(
+	assert.match(
 		unknownResult.metadata.executor.workerExit,
-		"Error: inactive attempt ownership could not be drained",
+		/; its last log line: Error: inactive attempt ownership could not be drained$/u,
 	);
 	assert.match(
 		await readFile(join(unknownStore.attemptDir, "stderr.log"), "utf8"),
-		/\nworker: Error: inactive attempt ownership could not be drained\n/u,
+		/\nworker: .*; its last log line: Error: inactive attempt ownership could not be drained\n/u,
 	);
 
 	const missingCwd = join(tempRoot, "executor-missing");

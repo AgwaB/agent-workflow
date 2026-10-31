@@ -7,10 +7,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
 
-import {
-	killTrackedProcess,
-	trackProcess,
-} from "../helpers/process-cleanup.mjs";
 import { workflowFixtureDescriptor } from "../helpers/workflow-executor-fixture.mjs";
 
 const core = await import("../../dist/core/index.js");
@@ -94,14 +90,14 @@ test("a worker killed mid-run: the blocked task says the worker left no log line
 			await new Promise((done) => setTimeout(done, 50));
 	}
 	assert.equal(typeof workerPid, "number", "the worker was recorded");
-	trackProcess(workerPid);
-	await killTrackedProcess(workerPid, { group: true });
+	// The worker is alive (just read from its record): kill its group directly.
+	process.kill(-workerPid, "SIGKILL");
 	const run = await engine.waitForRun(cwd, started.runId, 60_000);
 	assert.equal(run.status, "blocked", JSON.stringify(run.tasks[0]));
 	const [task] = run.tasks;
 	assert.equal(task.statusDetail, core.EXECUTOR_NEEDS_DECISION_STATUS_DETAIL);
 	assert.match(
 		task.lastMessage,
-		/owner decision is required .*; worker: no log line \(killed or crashed before it could log\)/,
+		/owner decision is required .*; worker: worker pid \d+ is gone; its log is empty/,
 	);
 });

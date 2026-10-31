@@ -342,7 +342,9 @@ test("WP28 official SDK client: workflow_supervise drives a run whose attached s
 	const runId = launched.structuredContent.data.runId;
 	assert.equal(launched.structuredContent.data.detached, undefined);
 	// The server that drove the run dies.
-	await killPid(first.pid());
+	// Kill the live server now (it just answered): a direct kill, not the stale-pid-safe cleanup,
+	// which skips a process whose identity could not be read under load.
+	process.kill(first.pid(), "SIGKILL");
 	await new Promise((resolve) => setTimeout(resolve, 300));
 
 	const second = await sdkClient(t, { cwd, config: { stepDelayMs: 1_500 } });

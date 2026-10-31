@@ -246,16 +246,40 @@ function signalOwnedProcess(
  * twice; if it stays unknown the attempt is kept running and looked at again on the next poll.
  */
 async function ownerProcessAlive(attempt: RunAttemptRecord): Promise<boolean> {
+	const status = await ownerProcessState(attempt);
+	return status === "alive" || status === "unknown";
+}
+
+/** The owner (durable worker) as identified now; `none`: no complete identity is recorded. */
+async function ownerProcessState(
+	attempt: RunAttemptRecord,
+): Promise<"alive" | "dead" | "mismatch" | "unknown" | "none"> {
 	const { identities } = ownedProcessIdentities(attempt);
 	const ownerPid = attempt.process?.workerPid ?? attempt.process?.pid;
 	const owner = identities.find((identity) => identity.pid === ownerPid);
-	if (owner === undefined) return false;
+	if (owner === undefined) return "none";
 	let status = await verifyProcessIdentity(owner);
 	for (let retry = 0; status === "unknown" && retry < 2; retry += 1) {
 		await new Promise((resolveSleep) => setTimeout(resolveSleep, 100));
 		status = await verifyProcessIdentity(owner);
 	}
-	return status === "alive" || status === "unknown";
+	return status;
+}
+
+/** How reconcile found the owner it gave up on, for the owner-decision message. */
+function describeOwnerState(
+	attempt: RunAttemptRecord,
+	state: Awaited<ReturnType<typeof ownerProcessState>>,
+): string {
+	const pid = attempt.process?.workerPid ?? attempt.process?.pid;
+	if (state === "none")
+		return pid === undefined
+			? `no worker process was recorded for the attempt (heartbeat ${attempt.heartbeatAt ?? "never"})`
+			: `worker pid ${pid} has no complete recorded identity`;
+	if (state === "dead") return `worker pid ${pid} is gone`;
+	if (state === "mismatch")
+		return `worker pid ${pid} is now another process (the worker is gone)`;
+	return `worker pid ${pid} is ${state}`;
 }
 
 async function terminateOwnedProcesses(
@@ -499,8 +523,10 @@ export async function reconcileSubagentRun(
 	}
 
 	const ownerPid = attempt.process?.workerPid ?? attempt.process?.pid;
+	const ownerState = await ownerProcessState(attempt);
 	if (
-		(await ownerProcessAlive(attempt)) ||
+		ownerState === "alive" ||
+		ownerState === "unknown" ||
 		(ownerPid === undefined && heartbeatFresh(attempt, staleAfterMs))
 	)
 		return { status: "running", runId: options.runId, record };
@@ -527,6 +553,7 @@ export async function reconcileSubagentRun(
 			artifactCwd,
 			result,
 			cleanupStatus,
+			ownerState: describeOwnerState(attempt, ownerState),
 		});
 		if (viaExecutor !== undefined) return viaExecutor;
 	}
@@ -597,8 +624,8 @@ const DEFAULT_ADOPT_TIMEOUT_MS = 5_000;
 
 /**
  * Why the durable worker stopped without a result, from its own log (`worker.log`: it logs the
- * reason before it exits): the last line that is not a stack frame, bounded. A worker that left
- * no line was killed or crashed before it could log (2026-10-31: a test killing a stale pid).
+ * reason before it exits): the last line that is not a stack frame, bounded. An empty log means
+ * it was killed, or never got to log anything.
  */
 async function workerExitLine(attemptDir: string): Promise<string> {
 	const text = await readFile(join(attemptDir, "worker.log"), "utf8").catch(
@@ -610,8 +637,8 @@ async function workerExitLine(attemptDir: string): Promise<string> {
 		.filter((entry) => entry !== "" && !entry.startsWith("at "))
 		.at(-1);
 	return line === undefined
-		? "no log line (killed or crashed before it could log)"
-		: line.slice(0, 300);
+		? "its log is empty"
+		: `its last log line: ${line.slice(0, 300)}`;
 }
 
 /**
@@ -632,6 +659,8 @@ async function reconcileThroughExecutor(context: {
 	artifactCwd: string;
 	result: ResultEnvelope | null;
 	cleanupStatus: "kept" | "not-needed";
+	/** How the owner was found (gone, another process, never recorded): shown with the decision. */
+	ownerState?: string;
 }): Promise<ReconcileSubagentRunResult | undefined> {
 	const { options, ref, record, attempt, artifactCwd, result } = context;
 	const attemptDir = join(
@@ -801,7 +830,11 @@ async function reconcileThroughExecutor(context: {
 
 	const notStarted = outcome.outcome === "absent";
 	const failureKind = notStarted ? "not_started" : "needs_decision";
-	meta.workerExit = await workerExitLine(store.attemptDir);
+	const logLine = await workerExitLine(store.attemptDir);
+	meta.workerExit =
+		context.ownerState === undefined
+			? logLine
+			: `${context.ownerState}; ${logLine}`;
 	const message = notStarted
 		? "worker exited without a result; the executor reports the attempt never launched (not_started)"
 		: outcome.outcome === "found"
