@@ -62,7 +62,14 @@ export const TERMINAL_INDEX_LIMIT = 50;
 export const LEASE_STALE_MS = 30_000;
 export const FAIL_FAST_CANCELLED_STATUS_DETAIL = "fail_fast_cancelled";
 const LEASE_ABSOLUTE_STALE_MS = 7 * 24 * 60 * 60 * 1000;
-const INDEX_LOCK_WAIT_MS = 5_000;
+/**
+ * How long a writer waits for the project-wide workflow locks (the run index and the topology
+ * lease that publishes a new run or prunes) before giving up. 15 s (was 5 s, 2026-11-01): on a
+ * heavily loaded machine with many runs in one project, 5 s was exceeded and a run failed to start
+ * ("workflow topology lease unavailable"). Stale locks of dead owners are reclaimed regardless, so a
+ * longer wait only delays the error when a live owner really holds the lock that long.
+ */
+const INDEX_LOCK_WAIT_MS = 15_000;
 const INDEX_LOCK_RETRY_MS = 50;
 const DEFAULT_INDEX_UPDATE_DEBOUNCE_MS = 500;
 const RUN_FILE_LEASE_RELEASE_RETRY_DELAYS_MS = [0, 10, 25] as const;
