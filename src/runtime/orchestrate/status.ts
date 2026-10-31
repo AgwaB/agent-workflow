@@ -1,3 +1,7 @@
+import {
+	projectTaskActivity,
+	type TaskActivity,
+} from "../../core/task-activity.js";
 // Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/orchestrate/status.ts. MIT, same author. Changes: default runs dir ".agent-workflow/runs"; result backend check accepts any executor id; missing backend reported as "unknown" instead of "headless".
 import { readdir, readFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -55,6 +59,7 @@ export interface RunAttemptStatusSnapshot {
 	startedAt: string;
 	completedAt: string | null;
 	heartbeatAt?: string;
+	activity?: TaskActivity;
 	resultPath: string | null;
 	outputPath: string | null;
 	stdoutPath: string | null;
@@ -207,6 +212,9 @@ function attemptSnapshot(attempt: RunAttemptRecord): RunAttemptStatusSnapshot {
 		...(attempt.heartbeatAt === undefined
 			? {}
 			: { heartbeatAt: attempt.heartbeatAt }),
+		...(attempt.status === "running" && projectTaskActivity(attempt.activity)
+			? { activity: projectTaskActivity(attempt.activity) }
+			: {}),
 		resultPath: attempt.resultPath ?? null,
 		outputPath: attempt.outputPath ?? null,
 		stdoutPath: attempt.stdoutPath ?? null,

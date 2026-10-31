@@ -53,6 +53,8 @@ import {
 	appendApprovalAudit,
 } from "./control.js";
 import type { SubmitRequestFields } from "./request.js";
+import type { TaskActivity } from "../../core/task-activity.js";
+import { activityFromExecEvent } from "../telemetry/task-activity.js";
 
 /** How long the runtime waits for a terminal event after it asked the executor to stop. */
 export const DEFAULT_CANCEL_GRACE_MS = 10_000;
@@ -412,6 +414,8 @@ export interface ExecuteAttemptOptions {
 	cancelGraceMs?: number;
 	/** Write tool-calls.jsonl / tool-calls-summary.json from normalized tool_call events. */
 	captureToolCalls?: boolean;
+	/** Always-on latest intent; independent of tool-call artifact capture. */
+	onActivity?(activity: TaskActivity): void;
 	/** WP2b: the attempt's control mailbox state (interactive approvals, cancel relay). */
 	control?: AttemptControl;
 }
@@ -538,12 +542,11 @@ export async function executeAttempt(
 			unauthorized: () =>
 				fence.state() === "released" ? undefined : fence.state(),
 			cancelOnStop: true,
-			...(toolCalls === undefined
-				? {}
-				: {
-						onEvent: (event: ExecEvent, index: number) =>
-							processExecToolCall(toolCalls, event, index),
-					}),
+			onEvent: (event: ExecEvent, index: number) => {
+				const activity = activityFromExecEvent(event, request.cwd);
+				if (activity) options.onActivity?.(activity);
+				if (toolCalls) processExecToolCall(toolCalls, event, index);
+			},
 		}),
 	);
 

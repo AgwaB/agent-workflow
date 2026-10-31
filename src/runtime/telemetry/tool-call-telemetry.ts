@@ -12,7 +12,7 @@ const MAX_DETAIL_ARRAY_ITEMS = 16;
 const MAX_DETAIL_DEPTH = 3;
 const MAX_RECORDS = 1_000;
 const URL_PATTERN = /https?:\/\/[^\s"'<>]+/gi;
-const SENSITIVE_KEY_PATTERN =
+export const SENSITIVE_KEY_PATTERN =
 	/(?:authorization|auth|bearer|cookie|session|token|secret|password|passwd|api[-_]?key|access[-_]?key|refresh[-_]?token|credential|headers?)/i;
 
 type ToolCallStatus = "completed" | "failed" | "incomplete";
@@ -156,7 +156,9 @@ function truncate(value: string, max: number): string {
 	return value.length <= max ? value : value.slice(0, max - 1) + "…";
 }
 
-function sanitizedUrlResource(raw: string): ToolResourceSummary | undefined {
+export function sanitizedUrlResource(
+	raw: string,
+): ToolResourceSummary | undefined {
 	try {
 		const parsed = new URL(trimTrailingUrlPunctuation(raw));
 		if (parsed.protocol !== "http:" && parsed.protocol !== "https:")

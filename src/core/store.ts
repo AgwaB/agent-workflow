@@ -2365,6 +2365,10 @@ export async function writeRunRecord(
 		firstWrite = true;
 	}
 	assertLeaseNotAborted(abortSignal);
+	// Activity is transient intent, never a terminal result (including timeout/cancel paths).
+	for (const task of run.tasks) {
+		if (task.status !== "running") delete task.activity;
+	}
 	run.updatedAt = nowIso();
 	const derived = deriveRunStatus(run);
 	Object.assign(run, derived);
@@ -3818,6 +3822,7 @@ export function setTaskTerminal(
 	} = {},
 ): boolean {
 	if (isTerminalTaskStatus(task.status)) return false;
+	delete task.activity;
 	task.status = status;
 	task.statusDetail = statusDetail;
 	task.completedAt = options.completedAt ?? nowIso();

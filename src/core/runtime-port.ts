@@ -13,6 +13,8 @@ export interface SubagentAttemptSnapshot {
 	attemptId: string;
 	status: string;
 	heartbeatAt?: string;
+	/** Runtime/persisted boundary: validate before copying onto the task. */
+	activity?: unknown;
 	pid?: number;
 	workerPid?: number;
 }

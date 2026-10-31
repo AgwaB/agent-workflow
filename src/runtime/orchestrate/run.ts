@@ -1,5 +1,7 @@
 // Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/orchestrate/run.ts. MIT, same author. Changes: Pi agent loading (loadAgentByName, agent tools ceiling) removed — the core supplies prompt/system prompt/model/tools in the request; resolveBackend replaced by the run's ExecutorDescriptor (backend = executor id); the headless/inline/tmux runners replaced by executeAttempt (SDK submit/observe under the durable authority); tmux metadata plumbing and the inline-binding guard removed; a pre-effect ExecutionNotStartedError is written as a terminal result instead of thrown from runSubagentTask; the durable worker binding is handed out by the authority, not by childEnv. WP2c: discardPreparedExecutionWorkspace (workspace-only discard for callers that write their own terminal result); discardSubagentExecution clears activeAttemptId (pi-subagent left the cancelled attempt active). WP2b: in worktree mode the terminal result.json is written once, after the worktree finalization; the durable control mailbox (orchestrate/control.ts) is served during execution and closed before the terminal result.
 import { resolve } from "node:path";
+import type { TaskActivity } from "../../core/task-activity.js";
+import { ActivityHeartbeat } from "../telemetry/task-activity.js";
 import type { WorkflowExecutor } from "../../sdk/contract.js";
 import { type ExecutorRegistry, loadExecutor } from "../../sdk/descriptor.js";
 import {
@@ -10,6 +12,7 @@ import {
 	createAttemptId,
 	createRunId,
 	readRunRecord,
+	recordAttemptHeartbeat,
 	upsertRunAttempt,
 	type ResultEnvelope,
 	type RunRef,
@@ -541,6 +544,8 @@ async function writeOwnedExecutionFailure(
 }
 
 export interface RunPreparedOptions {
+	/** Durable workers share activity writes with their liveness heartbeat. */
+	onActivity?(activity: TaskActivity): void;
 	signal?: AbortSignal;
 	deferTerminalCommit?: boolean;
 	/** Already-loaded executor (the durable worker loads it before preparing). */
@@ -686,7 +691,20 @@ export async function runPreparedSubagentExecution(
 			attemptDir: prepared.attemptDir,
 			handlers: control.handlers,
 		});
+		// Foreground attempts have no worker pulse. Only write when the latest intent changed.
+		const activityHeartbeat = new ActivityHeartbeat((activity) =>
+			recordAttemptHeartbeat({ ...runRef, attemptId, activity }),
+		);
+		const activityTimer = options.onActivity
+			? undefined
+			: setInterval(() => {
+					void activityHeartbeat.tick(Date.now());
+				}, 1000);
+		activityTimer?.unref();
 		const report = await executeAttempt({
+			onActivity:
+				options.onActivity ??
+				((activity) => activityHeartbeat.update(activity)),
 			executor,
 			request: prepared.request,
 			authority,
@@ -707,7 +725,11 @@ export async function runPreparedSubagentExecution(
 					data: { ref: { ...ref } },
 				}).catch(() => undefined);
 			},
-		}).finally(closeControl);
+		}).finally(async () => {
+			if (activityTimer) clearInterval(activityTimer);
+			await activityHeartbeat.drain();
+			await closeControl();
+		});
 		const stderr = await store.writeTextArtifact(
 			"stderr",
 			report.message.length === 0 ? "" : `${report.message}\n`,
