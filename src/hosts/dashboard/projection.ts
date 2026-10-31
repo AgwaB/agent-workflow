@@ -7,6 +7,7 @@ import type {
 } from "../api.js";
 import type { WorkflowTaskUsageValues } from "../../core/types.js";
 import { EXECUTOR_NEEDS_DECISION_STATUS_DETAIL } from "../../core/terminal-result.js";
+import type { TaskOutcome } from "./task-text.js";
 
 export type DashboardStatusRun = NonNullable<StatusData["run"]>;
 export type DashboardShownRun = Awaited<
@@ -67,6 +68,10 @@ export interface DashboardTask {
 		nextRetryAt?: string;
 	};
 	lastMessage?: string;
+	/** A foreach item's human title, from its source item (task-text.ts). */
+	title?: string;
+	/** A completed task's status word and one-line result, from its control.json (task-text.ts). */
+	outcome?: TaskOutcome;
 	usage: DashboardUsage | null;
 	worktree?: { path: string | null; branch: string | null };
 	hasLogs: boolean;

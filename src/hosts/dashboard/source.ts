@@ -18,6 +18,7 @@ import {
 	type DashboardRun,
 	type DashboardRunSummary,
 } from "./projection.js";
+import { attachTaskTexts } from "./task-text.js";
 
 export interface DashboardActionResult {
 	outcome: string;
@@ -101,7 +102,15 @@ export function hostApiDashboardSource(ctx: HostApiContext): DashboardSource {
 		},
 		async run(runId) {
 			const data = await detail(runId);
-			return data ? safe(projectRun(data.run, data.shown)) : undefined;
+			if (!data) return undefined;
+			const projected = projectRun(data.run, data.shown);
+			// Titles and one-line results are a convenience: a failed read leaves the ids in place.
+			await attachTaskTexts(
+				ctx.cwd,
+				data.shown.run.tasks,
+				projected.tasks,
+			).catch(() => undefined);
+			return safe(projected);
 		},
 		async taskLogs(runId, taskId, options) {
 			return safe(
