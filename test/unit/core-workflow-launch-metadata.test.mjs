@@ -59,7 +59,12 @@ test("launch command artifact is exact, private, integrity-linked, and absent fr
 		assert.equal(await readWorkflowLaunchCommandArtifact(cwd, run), text);
 		assert.equal(JSON.stringify(run).includes(text), false);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -128,7 +133,12 @@ test("launch metadata validation is closed and artifact reads fail closed on tam
 			/verification failed/,
 		);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -287,7 +297,12 @@ test("v2 auto launch metadata is distinct, strict, and cannot widen v1", async (
 			/missing its in-memory selection binding/,
 		);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -361,10 +376,30 @@ test("launch artifact rejects symlinked workflow roots, run directories, and art
 			false,
 		);
 	} finally {
-		await rm(rootCwd, { recursive: true, force: true });
-		await rm(runCwd, { recursive: true, force: true });
-		await rm(artifactCwd, { recursive: true, force: true });
-		await rm(outside, { recursive: true, force: true });
+		await rm(rootCwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+		await rm(runCwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+		await rm(artifactCwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+		await rm(outside, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -420,8 +455,18 @@ test("launch artifact read and commit reject path swaps without disclosing comma
 		}
 	} finally {
 		setWorkflowLaunchArtifactTestHooksForTests();
-		await rm(cwd, { recursive: true, force: true });
-		await rm(outside, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+		await rm(outside, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -466,8 +511,18 @@ test("launch artifact hard-link races fail closed and zero escaped command bytes
 		}
 	} finally {
 		setWorkflowLaunchArtifactTestHooksForTests();
-		await rm(cwd, { recursive: true, force: true });
-		await rm(outside, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+		await rm(outside, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -536,6 +591,11 @@ test("sidecar write failure prevents run record publication", async () => {
 		}
 	} finally {
 		setWorkflowLaunchArtifactTestHooksForTests();
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

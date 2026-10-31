@@ -225,7 +225,12 @@ function cleanupUnitTestRoot() {
 		console.error(`workflow unit test artifacts retained at ${UNIT_TEST_ROOT}`);
 		return;
 	}
-	rmSync(UNIT_TEST_ROOT, { recursive: true, force: true });
+	rmSync(UNIT_TEST_ROOT, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 }
 
 after(async () => {

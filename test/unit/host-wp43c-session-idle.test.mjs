@@ -26,7 +26,12 @@ async function project(t) {
 	t.after(async () => {
 		for (const server of servers) await server.close();
 		await cli(cwd, ["--stop"]);
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	});
 	return {
 		cwd,

@@ -45,7 +45,9 @@ test("packed tarball contains the server and it starts from the install", async 
 		"run `npm run build` first",
 	);
 	const work = await mkdtemp(join(tmpdir(), "aw-mcp-packed-"));
-	t.after(() => rm(work, { recursive: true, force: true }));
+	t.after(() =>
+		rm(work, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	let packed;
 	try {
 		// --ignore-scripts: dist is already built; prepack would rebuild under parallel tests.
@@ -105,7 +107,14 @@ test("packed tarball contains the server and it starts from the install", async 
 	);
 
 	const fixture = await createRunFixture();
-	t.after(() => rm(fixture.cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(fixture.cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	const access = await import(
 		pathToFileURL(join(installed, "dist", "core", "artifact-access.js")).href
 	);

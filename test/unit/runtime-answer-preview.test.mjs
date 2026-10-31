@@ -100,6 +100,11 @@ test("answer-preview", async () => {
 		// status, parallel and async/notify responses. It needs run/async + a
 		// durable worker and is ported with WP2a-2.
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

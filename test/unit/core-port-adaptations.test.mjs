@@ -115,6 +115,11 @@ test("direct dynamic runtime bundle lives under .agent-workflow/workflow-runtime
 		// Second call accepts the immutable files already on disk.
 		assert.equal(await ensureDirectDynamicRuntimeBundle(cwd), specPath);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

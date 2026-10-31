@@ -294,6 +294,11 @@ console.log(JSON.stringify({
 			{ authorized: true, other: true },
 		]);
 	} finally {
-		await rm(work, { recursive: true, force: true });
+		await rm(work, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

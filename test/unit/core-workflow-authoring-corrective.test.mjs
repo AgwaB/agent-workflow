@@ -117,7 +117,12 @@ test("compiler applies foreach agent, role, tools, runtime, safety, and cwd over
 		assert.equal(generated.tasks[0].safety.readOnlyDeclared, true);
 		assert.match(generated.tasks[0].compiledPrompt, /Item role context/);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -177,6 +182,11 @@ test("workflow discovery omits invalid advertised names while explicit paths sti
 			invalidPath,
 		);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

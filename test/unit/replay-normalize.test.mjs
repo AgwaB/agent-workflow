@@ -52,7 +52,12 @@ for (const name of fixtures) {
 				[],
 			);
 		} finally {
-			rmSync(out, { recursive: true, force: true });
+			rmSync(out, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 100,
+			});
 		}
 	});
 

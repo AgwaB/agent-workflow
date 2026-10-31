@@ -113,6 +113,11 @@ test("runSubagent refuses a run whose executor config carries a token, before an
 				!error.message.includes(fake.openai),
 		);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

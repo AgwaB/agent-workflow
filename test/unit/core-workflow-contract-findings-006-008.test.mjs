@@ -115,7 +115,9 @@ const statuses = [
 
 test("spec-review batch fallback IDs preserve end-to-end candidate coverage", async (t) => {
 	const cwd = await mkdtemp(join(tmpdir(), "spec-batch-bytes-"));
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	await writeFile(join(cwd, "source.ts"), "The gap is present.\n");
 	const plan = await specReview({
 		sources: {

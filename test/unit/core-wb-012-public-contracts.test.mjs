@@ -85,7 +85,12 @@ test("workflow name resolution follows documented priority and same-root ambigui
 		else process.env.HOME = previousHome;
 		if (previousAwHome === undefined) delete process.env.AGENT_WORKFLOW_HOME;
 		else process.env.AGENT_WORKFLOW_HOME = previousAwHome;
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 

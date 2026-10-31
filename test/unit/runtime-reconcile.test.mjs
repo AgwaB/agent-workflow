@@ -58,7 +58,12 @@ after(async () => {
 		if (typeof entry === "number")
 			await killTrackedProcess(entry, { group: true });
 		else killLiveChild(entry, { group: true });
-	await rm(tempRoot, { recursive: true, force: true });
+	await rm(tempRoot, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 const sleep = (ms) =>

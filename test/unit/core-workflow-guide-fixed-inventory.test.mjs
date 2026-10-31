@@ -140,7 +140,14 @@ function pipelineInput(items = binding().items) {
 
 async function makeTemp(t, prefix) {
 	const directory = await mkdtemp(join(tmpdir(), prefix));
-	t.after(() => rm(directory, { recursive: true, force: true }));
+	t.after(() =>
+		rm(directory, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	return directory;
 }
 

@@ -68,7 +68,12 @@ for (const failure of ["raw.md", "analysis.md"]) {
 			]);
 			clearTimeout(timeout);
 			setWorkflowOutputArtifactWriteHookForTests(undefined);
-			await rm(root, { recursive: true, force: true });
+			await rm(root, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 100,
+			});
 		}
 	});
 }

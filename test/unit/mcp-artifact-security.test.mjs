@@ -30,9 +30,23 @@ const SECRET = "aw-secret-value-8c1f3e";
 
 async function serve(t, fixtureOptions = {}) {
 	const fixture = await createRunFixture(fixtureOptions);
-	t.after(() => rm(fixture.cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(fixture.cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	const outside = await mkdtemp(join(tmpdir(), "aw-mcp-outside-"));
-	t.after(() => rm(outside, { recursive: true, force: true }));
+	t.after(() =>
+		rm(outside, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	await writeFile(join(outside, "secret.txt"), "OUTSIDE-THE-RUN-DIR\n");
 	const server = startServer(["--config", fixture.configPath], {
 		env: { AW_TEST_TOKEN: SECRET },
@@ -126,10 +140,24 @@ test("symlinked, hard-linked and symlinked-directory artifacts are refused", asy
 
 test("a symlinked directory inside the run dir cannot reach outside", async (t) => {
 	const outside = await mkdtemp(join(tmpdir(), "aw-mcp-outside-dir-"));
-	t.after(() => rm(outside, { recursive: true, force: true }));
+	t.after(() =>
+		rm(outside, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	await writeFile(join(outside, "analysis.md"), "OUTSIDE-THE-RUN-DIR\n");
 	const fixture = await createRunFixture();
-	t.after(() => rm(fixture.cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(fixture.cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	const linkDir = join(fixture.runDir, "tasks", "linked");
 	await symlink(outside, linkDir);
 	const manifest = JSON.parse(await readFile(fixture.manifestPath, "utf8"));
@@ -200,7 +228,14 @@ test("debug artifacts need human-debug in the config; the manifest policy cannot
 
 async function refusal(t, mutate, pattern, args) {
 	const fixture = await createRunFixture();
-	t.after(() => rm(fixture.cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(fixture.cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	const configPath = (await mutate(fixture)) ?? fixture.configPath;
 	const result = await runServerToExit(args ?? ["--config", configPath], {
 		env: { AW_TEST_TOKEN: SECRET },
@@ -338,7 +373,14 @@ test("config/run mismatches and unsafe config paths refuse to start", async (t) 
 
 test("the canonical config written by core is what the server accepts", async (t) => {
 	const fixture = await createRunFixture();
-	t.after(() => rm(fixture.cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(fixture.cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	assert.equal(
 		await readFile(fixture.configPath, "utf8"),
 		artifactAccessConfigBytes(fixture.config),

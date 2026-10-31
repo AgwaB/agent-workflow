@@ -58,7 +58,12 @@ before(async () => {
 	executor = fixtureDescriptor({ effectLog });
 });
 after(async () => {
-	await rm(root, { recursive: true, force: true });
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 function pidAlive(pid) {

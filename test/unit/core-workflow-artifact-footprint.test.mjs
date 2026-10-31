@@ -57,7 +57,12 @@ async function withStaticArtifacts(
 		await fn(join(root, ".agent-workflow", "workflows", runId), originalSpec);
 	} finally {
 		setStaticArtifactLinkForTests(undefined);
-		await rm(root, { recursive: true, force: true });
+		await rm(root, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 }
 
@@ -71,7 +76,13 @@ async function withTaskDir(fn) {
 		throw error;
 	} finally {
 		setTaskArtifactLinkForTests(undefined);
-		if (!failed) await rm(root, { recursive: true, force: true });
+		if (!failed)
+			await rm(root, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 100,
+			});
 		else console.error(`workflow artifact test artifacts retained at ${root}`);
 	}
 }
@@ -217,7 +228,12 @@ test("prune dry run is non-destructive and selects only beyond-keep terminal run
 			join(cwd, ".agent-workflow", "workflows", "workflow-old", "run.json"),
 		);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -268,7 +284,12 @@ test("prune yes removes workflow and subagent mirrors and rewrites the index", a
 			["workflow-keep"],
 		);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -312,7 +333,12 @@ test("prune protects running, blocked, and live-lease runs", async () => {
 			join(cwd, ".agent-workflow", "workflows", "workflow-live", "run.json"),
 		);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -347,7 +373,12 @@ test("older-than combines with the keep window and retains mock terminal runs as
 		);
 		assert.equal(summary.runs[0].status, "completed");
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -376,7 +407,17 @@ test("prune skips symlinked run directories outside the workflow root", async ()
 			),
 		);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
-		await rm(outside, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+		await rm(outside, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

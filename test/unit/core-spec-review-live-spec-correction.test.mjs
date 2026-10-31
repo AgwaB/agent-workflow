@@ -137,7 +137,9 @@ async function positiveChain(cwd) {
 
 test("NONBLOCKING scope limits survive a positive zero-candidate chain", async (t) => {
 	const cwd = await mkdtemp(join(tmpdir(), "spec-live-limit-"));
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const { p, report, result } = await positiveChain(cwd);
 	assert.deepEqual(p.scopeLimitations, [limitation]);
 	assert.equal(p.testExecutionAttested, false);

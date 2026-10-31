@@ -35,7 +35,12 @@ afterEach(() => {
 	core.resetExecutorProbeCacheForTests();
 });
 after(async () => {
-	await rm(root, { recursive: true, force: true });
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 const READY = { installed: true, cliVersion: "1.1.0", auth: "ok" };

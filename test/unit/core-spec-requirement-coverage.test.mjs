@@ -620,8 +620,19 @@ for (const mode of modes)
 				assert.equal(pristine.evidenceGate.complete, passed);
 		} finally {
 			h.setTaskRuntimeApiForTests(undefined);
-			await rm(cwd, { recursive: true, force: true });
-			if (sidecarRoot) await rm(sidecarRoot, { recursive: true, force: true });
+			await rm(cwd, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 100,
+			});
+			if (sidecarRoot)
+				await rm(sidecarRoot, {
+					recursive: true,
+					force: true,
+					maxRetries: 10,
+					retryDelay: 100,
+				});
 		}
 	});
 
@@ -887,6 +898,11 @@ test("SR-FINAL-S07 escaped max-schema projections and empty tails stay readable"
 		);
 		assert.ok(emptyTail.chars > 0);
 	} finally {
-		await rm(root, { recursive: true, force: true });
+		await rm(root, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

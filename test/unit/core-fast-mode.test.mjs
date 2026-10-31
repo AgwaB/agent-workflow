@@ -26,7 +26,12 @@ import { selectWorkflowRuntime } from "../../dist/core/workflow-runtime.js";
 const ROOT = mkdtempSync(join(tmpdir(), "pi-workflow-fast-mode-"));
 
 after(() => {
-	rmSync(ROOT, { recursive: true, force: true });
+	rmSync(ROOT, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 function project() {

@@ -88,8 +88,18 @@ test("secure writers reject symlinked ancestors for every publication mode", asy
 		);
 		assert.deepEqual(await readdir(outside), []);
 	} finally {
-		await rm(root, { recursive: true, force: true });
-		await rm(outside, { recursive: true, force: true });
+		await rm(root, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+		await rm(outside, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -121,6 +131,11 @@ test("refs URL validation blocks loopback before any HTTP request", async () => 
 			),
 		);
 	} finally {
-		await rm(taskDir, { recursive: true, force: true });
+		await rm(taskDir, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

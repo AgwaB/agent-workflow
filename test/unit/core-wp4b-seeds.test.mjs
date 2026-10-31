@@ -73,7 +73,12 @@ async function scratch(t, prefix) {
 			if (value === undefined) delete process.env[key];
 			else process.env[key] = value;
 		}
-		await rm(root, { recursive: true, force: true });
+		await rm(root, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	});
 	const cwd = join(root, "project");
 	await mkdir(cwd, { recursive: true });

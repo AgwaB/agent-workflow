@@ -30,7 +30,12 @@ before(async () => {
 	process.env.AGENT_WORKFLOW_RUN_INDEX_DIR = join(root, "run-index");
 });
 after(async () => {
-	await rm(root, { recursive: true, force: true });
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 function freshDir(label) {

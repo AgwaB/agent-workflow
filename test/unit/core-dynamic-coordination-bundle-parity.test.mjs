@@ -41,7 +41,12 @@ async function loadBundledPlannerPrompt() {
 		assert.equal(typeof imported.directDynamicPlannerPrompt, "function");
 		return imported.directDynamicPlannerPrompt;
 	} finally {
-		rmSync(dir, { recursive: true, force: true });
+		rmSync(dir, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 }
 
@@ -291,7 +296,12 @@ test("direct-dynamic v4 controller opts into final synthesis reservation", async
 		assert.equal(captured.reserveFinalRoundForSynthesis, true);
 		assert.equal(typeof captured.buildPlannerPrompt, "function");
 	} finally {
-		rmSync(dir, { recursive: true, force: true });
+		rmSync(dir, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 

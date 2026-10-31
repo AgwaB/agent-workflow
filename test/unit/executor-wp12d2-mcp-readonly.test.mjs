@@ -82,7 +82,9 @@ test("review #6 (claude): readOnly never pre-allows a whole injected server", ()
 
 test("review #6 (claude): submit refuses before consuming the authority", async (t) => {
 	const dir = await mkdtemp(join(tmpdir(), "aw-claude-mcp-ro-"));
-	t.after(() => rm(dir, { recursive: true, force: true }));
+	t.after(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const executor = createClaudeExecutor({
 		config: parseClaudeConfig({
 			claudePath: "/nonexistent/claude",
@@ -99,7 +101,9 @@ test("review #6 (claude): submit refuses before consuming the authority", async 
 
 test("review #6 (pi): readOnly declares only the artifact tool, refuses other servers", async (t) => {
 	const dir = await mkdtemp(join(tmpdir(), "aw-pi-mcp-ro-"));
-	t.after(() => rm(dir, { recursive: true, force: true }));
+	t.after(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const cli = await createStubCli({
 		dir,
 		name: "pi",
@@ -134,7 +138,9 @@ test("review #6 (pi): readOnly declares only the artifact tool, refuses other se
 
 test("review #6 (codex): a readOnly request with another server is refused", async (t) => {
 	const dir = await mkdtemp(join(tmpdir(), "aw-codex-mcp-ro-"));
-	t.after(() => rm(dir, { recursive: true, force: true }));
+	t.after(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const executor = createCodexExecutor({
 		codexPath: "/nonexistent/codex",
 		stateDir: join(dir, "state"),

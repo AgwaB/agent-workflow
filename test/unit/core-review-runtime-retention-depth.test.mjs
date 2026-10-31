@@ -120,7 +120,12 @@ for (const status of ["running", "failed", "interrupted", "completed"])
 		} finally {
 			release?.();
 			await held;
-			await rm(cwd, { recursive: true, force: true });
+			await rm(cwd, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 100,
+			});
 		}
 	});
 test("RR-01 selected child purges before newer parent; dry run has no writes", async () => {
@@ -144,7 +149,12 @@ test("RR-01 selected child purges before newer parent; dry run has no writes", a
 		);
 		assert.ok(result.runs.every((r) => r.deleted));
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 test("RR-01 malformed child references conservatively protect ancestors", async () => {
@@ -156,7 +166,12 @@ test("RR-01 malformed child references conservatively protect ancestors", async 
 		const result = await pruneWorkflowRuns(cwd, { keep: 0, yes: true });
 		assert.equal(result.runs[0].protected, true);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 test("RR-02 post-detach failure reports recovery paths, repairs index and frees no retained bytes", async () => {
@@ -191,7 +206,12 @@ test("RR-02 post-detach failure reports recovery paths, repairs index and frees 
 		);
 	} finally {
 		setWorkflowPruneAfterQuarantineForTests();
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 test("RR-02 retained child quarantine protects its parent", async () => {
@@ -210,7 +230,12 @@ test("RR-02 retained child quarantine protects its parent", async () => {
 		);
 	} finally {
 		setWorkflowPruneAfterQuarantineForTests();
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 // Moved (WP11a): 'RR-02 actual CLI rejects mirror validation failure and preserves primary and
@@ -241,7 +266,12 @@ test("RR-02 pre-primary-detach failure preserves canonical run and recoverable m
 		assert.equal((await readIndex(cwd)).runs[0].runId, parent);
 	} finally {
 		setWorkflowPruneBeforePrimaryDetachForTests();
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 test("RR-01 retained quarantine continues to protect ancestry in a later prune plan", async () => {
@@ -262,7 +292,12 @@ test("RR-01 retained quarantine continues to protect ancestry in a later prune p
 		);
 	} finally {
 		setWorkflowPruneAfterQuarantineForTests();
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 function processResult(code, cwd) {
@@ -325,7 +360,12 @@ test("RR-01 cross-process child publication cannot race a prune into an orphan",
 	} finally {
 		setWorkflowPruneBeforeDeleteForTests();
 		await writer;
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 test("RR-01 two destructive prune processes serialize their plans", async () => {
@@ -352,7 +392,12 @@ test("RR-01 two destructive prune processes serialize their plans", async () => 
 	} finally {
 		setWorkflowPruneBeforeDeleteForTests();
 		await second;
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 test("RR-02 post-detach fault never removes a new same-ID run or mirror and indexes the new generation", async () => {
@@ -379,7 +424,12 @@ test("RR-02 post-detach fault never removes a new same-ID run or mirror and inde
 		);
 	} finally {
 		setWorkflowPruneAfterQuarantineForTests();
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 test("RR-01 topology lease acquisition is bounded and dry run ignores a held plan lock", async () => {
@@ -398,7 +448,12 @@ test("RR-01 topology lease acquisition is bounded and dry run ignores a held pla
 		await lease.assertOwner();
 	} finally {
 		await lease?.release();
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 test("RR-01 first child publication fences topology ownership at atomic commit", async () => {
@@ -429,7 +484,12 @@ test("RR-01 first child publication fences topology ownership at atomic commit",
 		assert.equal(await exists(file), false);
 	} finally {
 		setRunLeaseTestHooksForTests();
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 test("RR-01 competing first writers cannot change a published parent reference", async () => {
@@ -455,7 +515,12 @@ test("RR-01 competing first writers cannot change a published parent reference",
 			/ancestry is immutable/,
 		);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 test("RR-01 published ancestry cannot move outside topology serialization", async () => {
@@ -468,7 +533,12 @@ test("RR-01 published ancestry cannot move outside topology serialization", asyn
 			/ancestry is immutable/,
 		);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 for (const change of [
@@ -504,7 +574,12 @@ for (const change of [
 				change === "valid" ? 1 : 0,
 			);
 		} finally {
-			await rm(cwd, { recursive: true, force: true });
+			await rm(cwd, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 100,
+			});
 		}
 	});
 test("DEP-02 hot reads/writes do not open descendant ledgers; explicit display retains full depth", async () => {
@@ -544,6 +619,11 @@ test("DEP-02 hot reads/writes do not open descendant ledgers; explicit display r
 			payload: { phase: "hot" },
 		});
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

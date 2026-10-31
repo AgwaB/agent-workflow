@@ -852,7 +852,12 @@ test("cwd: the root or a directory below it; outside, symlink escapes, missing a
 		});
 		assert.equal(nestedStatus.structuredContent.data.run.status, "completed");
 	} finally {
-		await rm(outside, { recursive: true, force: true });
+		await rm(outside, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 

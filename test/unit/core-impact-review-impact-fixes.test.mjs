@@ -551,7 +551,12 @@ test("source reorder is deterministic and sidecar retains all original controls"
 		sidecar.blockers.join("\n"),
 		/does not attest source bytes|control values/,
 	);
-	await rm(cwd, { recursive: true, force: true });
+	await rm(cwd, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 test("required projected reads distinguish default truncation from explicit capacity", async () => {
@@ -614,7 +619,12 @@ test("required projected reads distinguish default truncation from explicit capa
 		),
 		{ missing: [], projectionFailures: [] },
 	);
-	await rm(root, { recursive: true, force: true });
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 test("sidecar failure is visible and cannot claim passed", async () => {
@@ -631,5 +641,10 @@ test("sidecar failure is visible and cannot claim passed", async () => {
 	assert.equal(result.status, "failed");
 	assert.equal(result.gates.sidecarPublished, false);
 	assert.match(result.sidecarError, /Sidecar publication failed/);
-	await rm(cwd, { recursive: true, force: true });
+	await rm(cwd, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });

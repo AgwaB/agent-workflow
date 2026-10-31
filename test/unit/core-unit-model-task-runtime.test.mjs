@@ -255,7 +255,12 @@ test("compiler preserves unlimited defaults, stage and foreach overrides, loop t
 		});
 		assert.equal(omitted.tasks[0].runtime.maxRuntimeMs, 30 * 60_000);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -333,7 +338,12 @@ test("dynamic decision profiles and ctx.agent requests preserve zero with reques
 			/cannot override maxRuntimeMs/,
 		);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -408,7 +418,12 @@ test("unlimited launches omit backend timeout, persist zero provenance, and rema
 		assert.equal(interrupts.length, 2);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -475,7 +490,12 @@ test("zero disables active and late-result deadlines while finite timeout reject
 			);
 		}
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -516,6 +536,11 @@ test("compiled and run-record serialization retain an explicit zero", async () =
 		assert.equal(persisted.tasks[0].runtime.maxRuntimeMs, 0);
 		assert.equal(persistedCompiled.tasks[0].runtime.maxRuntimeMs, 0);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

@@ -20,7 +20,12 @@ process.env.HOME = UNIT_TEST_HOME;
 process.env.USERPROFILE = UNIT_TEST_HOME;
 
 after(() => {
-	rmSync(UNIT_TEST_HOME, { recursive: true, force: true });
+	rmSync(UNIT_TEST_HOME, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 const NOW = Date.parse("2026-07-07T12:00:00.000Z");
@@ -113,7 +118,12 @@ test("estimateWorkflowDurationMs returns the median of the most recent completed
 		const estimate = await estimateWorkflowDurationMs(cwd, "deep-research");
 		assert.deepEqual(estimate, { medianMs: 9 * MINUTE_MS, samples: 8 });
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -142,7 +152,12 @@ test("estimateWorkflowDurationMs excludes mock runs and needs at least two sampl
 		assert.equal(await estimateWorkflowDurationMs(cwd, "unknown"), undefined);
 		assert.equal(await estimateWorkflowDurationMs(cwd, undefined), undefined);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -236,7 +251,12 @@ test("findDuplicateActiveRun matches active same-name byte-identical-task runs w
 			undefined,
 		);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -312,7 +332,12 @@ test("findDuplicateActiveRun ignores child, terminal, and mock runs and matches 
 			undefined,
 		);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 

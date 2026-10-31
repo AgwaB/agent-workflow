@@ -9021,7 +9021,14 @@ test("deep-review render-review-report surfaces count mismatches and missing par
 
 test("deep-research claim-evidence-gate enforces structured evidence, rejoins identity, and partitions statuses", async (t) => {
 	const cwd = makeProject();
-	t.after(() => rmSync(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	mkdirSync(join(cwd, "docs"), { recursive: true });
 	writeFileSync(
 		join(cwd, "docs", "usage.md"),

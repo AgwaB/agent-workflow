@@ -32,7 +32,9 @@ const ID = "6c5135b7-3668-4f3a-b3d2-a2fb0ec7a40a";
 
 async function setup(t) {
 	const dir = await mkdtemp(join(tmpdir(), "aw-claude-sessions-"));
-	t.after(() => rm(dir, { recursive: true, force: true }));
+	t.after(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const claudeConfigDir = join(dir, "claude-config");
 	const cli = await createStubCli({
 		dir,

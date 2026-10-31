@@ -82,7 +82,14 @@ const withoutAt = (line) => {
 
 async function compare(t, { fixtureOptions = {}, env = {}, calls = CALLS }) {
 	const fixture = await createRunFixture(fixtureOptions);
-	t.after(() => rm(fixture.cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(fixture.cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	const server = startServer(
 		["--config", fixture.configPath, "--max-output-chars", "1000000"],
 		{ env },

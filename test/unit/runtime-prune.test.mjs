@@ -499,9 +499,24 @@ test("prune", async () => {
 			false,
 			"no tombstone is left behind",
 		);
-		await rm(outside, { recursive: true, force: true });
-		await rm(linkedCwd, { recursive: true, force: true });
-		await rm(linkedEntryCwd, { recursive: true, force: true });
+		await rm(outside, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+		await rm(linkedCwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+		await rm(linkedEntryCwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 
 		// 10b. Every registry writer that targets an existing run serializes with
 		// the deletion and never recreates a directory for a pruned run: a late
@@ -589,9 +604,24 @@ test("prune", async () => {
 		assert.equal(viaApi.status, "dry-run");
 		assert.deepEqual(viaApi.selected, []);
 	} finally {
-		await rm(indexDir, { recursive: true, force: true });
-		await rm(cwd, { recursive: true, force: true });
-		await rm(otherCwd, { recursive: true, force: true });
+		await rm(indexDir, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+		await rm(otherCwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 	console.log("prune checks passed");
 });

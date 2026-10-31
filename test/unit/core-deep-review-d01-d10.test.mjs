@@ -268,7 +268,14 @@ test("D03 gates duplicate pairs and accepts a legitimate second-pass root repare
 
 test("D04 rejects normalized whitespace, CRLF substitution, invalid UTF-8, and out-of-bounds ranges", async (t) => {
 	const cwd = mkdtempSync(join(tmpdir(), "deep-review-d04-"));
-	t.after(() => rmSync(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	mkdirSync(join(cwd, "src"), { recursive: true });
 	const crlf = "  const danger = true;  \r\nconst safe = true;\r\n";
 	writeFileSync(join(cwd, "src/review.ts"), crlf);
@@ -459,7 +466,14 @@ test("D07 preserves escaped synthesis risks/actions and finding rationale", asyn
 
 test("D08 escapes source-gap output while evidence remains fenced", async (t) => {
 	const cwd = mkdtempSync(join(tmpdir(), "deep-review-d08-"));
-	t.after(() => rmSync(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	mkdirSync(join(cwd, "src"), { recursive: true });
 	writeFileSync(join(cwd, "src/review.ts"), "const x = true;\n");
 	const html = '<img src="https://invalid.example/pixel">';
@@ -493,7 +507,14 @@ test("D08 escapes source-gap output while evidence remains fenced", async (t) =>
 
 test("D09 exposes requested sidecar write failure", async (t) => {
 	const cwd = mkdtempSync(join(tmpdir(), "deep-review-d09-"));
-	t.after(() => rmSync(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	// WP10: the sidecar root is .agent-workflow/ (was .pi/), so block that one.
 	writeFileSync(join(cwd, ".agent-workflow"), "not a directory");
 	const d = await dedup([], {}, undefined, cwd);

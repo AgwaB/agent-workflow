@@ -97,7 +97,9 @@ const synthesis = {
 
 async function fixture(t) {
 	const cwd = await mkdtemp(join(tmpdir(), "research-verifier-identity-"));
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	await mkdir(join(cwd, ".agent-workflow", "agents"), { recursive: true });
 	await writeFile(
 		join(cwd, ".agent-workflow", "agents", "researcher.md"),

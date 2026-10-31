@@ -61,7 +61,12 @@ test("dir-lock: exclusive, fails closed with ELOCKED, releases once", async () =
 			(error) => error.code === "ENOENT",
 		);
 	} finally {
-		await rm(root, { recursive: true, force: true });
+		await rm(root, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -88,14 +93,24 @@ test("dir-lock: release after an external removal is not a compromise; a replace
 			true,
 			"an empty foreign directory is left alone",
 		);
-		await rm(lockPath, { recursive: true, force: true });
+		await rm(lockPath, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 
 		// The whole lock directory already removed: nothing to release.
 		const second = await acquireDirectoryLock(lockPath, {
 			retries: 0,
 			retryMs: 5,
 		});
-		await rm(lockPath, { recursive: true, force: true });
+		await rm(lockPath, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 		await second();
 
 		// Our record replaced by another owner's: compromised.
@@ -111,7 +126,12 @@ test("dir-lock: release after an external removal is not a compromise; a replace
 		await assert.rejects(third(), (error) => error.code === "ECOMPROMISED");
 		assert.equal(await exists(join(lockPath, "owner-someoneelse.json")), true);
 	} finally {
-		await rm(root, { recursive: true, force: true });
+		await rm(root, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -144,7 +164,12 @@ ${script}`,
 			if (expectSignal === null) assert.equal(code, 0);
 			assert.equal(await exists(lockPath), false, "lock directory removed");
 		} finally {
-			await rm(root, { recursive: true, force: true });
+			await rm(root, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 100,
+			});
 		}
 	});
 }
@@ -238,7 +263,12 @@ process.stdout.write("ready\\n");`,
 		assert.equal(await exists(lockPath), false, "released lock removed");
 	} finally {
 		killChild(child);
-		await rm(root, { recursive: true, force: true });
+		await rm(root, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -267,6 +297,11 @@ process.kill(process.pid, "SIGTERM");`,
 		assert.equal(await exists(lockPath), false, "lock directory removed");
 	} finally {
 		killChild(child);
-		await rm(root, { recursive: true, force: true });
+		await rm(root, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

@@ -48,7 +48,12 @@ before(async () => {
 	process.env.AGENT_WORKFLOW_CANCEL_GRACE_MS = "500";
 });
 after(async () => {
-	await rm(root, { recursive: true, force: true });
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 async function cwd() {

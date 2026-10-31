@@ -71,7 +71,12 @@ test("a bundle directory containing spec.json resolves as a workflow path", asyn
 			/bundle directory containing spec\.json/,
 		);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -149,7 +154,12 @@ test("strict prompt diagnostics skip dynamic helpers but still reject model prom
 			/Strict prompt\/schema validation rejected/,
 		);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -220,7 +230,12 @@ test("nested-shape warning names a non-empty skeleton when the schema forbids an
 		assert.match(warning, /requires a non-empty array/);
 		assert.doesNotMatch(warning, /"evidence": \[\] control shape/);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -432,6 +447,11 @@ test("scaffold evidence gate verifies quotes against cited file ranges and demot
 		assert.equal(clean.value.evidenceGate.integrity, "complete");
 		assert.equal(clean.value.partitions.keep[0].evidenceGate, "verified");
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

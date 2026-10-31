@@ -71,7 +71,14 @@ test("WB-017 memoizes completed artifact reads with identical output and ledger 
 		setArtifactValidatedHookForTests(undefined);
 	});
 	const fixture = await artifactFixture("completed");
-	t.after(() => rm(fixture.cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(fixture.cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	let opens = 0;
 	setArtifactValidatedHookForTests(() => {
 		opens += 1;
@@ -95,7 +102,14 @@ test("WB-017 never memoizes running sources", async (t) => {
 		setArtifactValidatedHookForTests(undefined);
 	});
 	const fixture = await artifactFixture("running");
-	t.after(() => rm(fixture.cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(fixture.cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	let opens = 0;
 	setArtifactValidatedHookForTests(() => {
 		opens += 1;
@@ -164,7 +178,9 @@ test("WB-017 batches all nonterminal dirty runs in one cwd index flush", async (
 	});
 	await flushPendingIndexUpdatesForTests();
 	const cwd = await mkdtemp(join(tmpdir(), "piwf-wb017-index-"));
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const runs = ["workflow_a", "workflow_b", "workflow_c"].map((id) =>
 		runningRun(cwd, id),
 	);
@@ -192,7 +208,12 @@ test("WB-017 keeps cwd batches separate and terminal cancellation preserves sibl
 	t.after(() =>
 		Promise.all(
 			[firstCwd, secondCwd].map((cwd) =>
-				rm(cwd, { recursive: true, force: true }),
+				rm(cwd, {
+					recursive: true,
+					force: true,
+					maxRetries: 10,
+					retryDelay: 100,
+				}),
 			),
 		),
 	);

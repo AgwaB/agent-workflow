@@ -20,7 +20,12 @@ process.env.HOME = UNIT_TEST_HOME;
 process.env.USERPROFILE = UNIT_TEST_HOME;
 
 after(() => {
-	rmSync(UNIT_TEST_HOME, { recursive: true, force: true });
+	rmSync(UNIT_TEST_HOME, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 function makeProject() {
@@ -208,7 +213,12 @@ test("a task whose attempt passed output validation is never re-dispatched by la
 		assert.equal(launchCount, 1);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -245,7 +255,12 @@ test("a completed upstream task is not re-dispatched while downstream stages sti
 		assert.equal(launchCount, 2);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -283,7 +298,12 @@ test("zero output retry override fails the first invalid workflow output", async
 		if (previous === undefined) delete process.env[ARTIFACT_OUTPUT_RETRIES_ENV];
 		else process.env[ARTIFACT_OUTPUT_RETRIES_ENV] = previous;
 		setTaskRuntimeApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -334,6 +354,11 @@ test("workflow-invalid output triggers exactly one bounded repair launch, then n
 		assert.equal(launchCount, 2);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

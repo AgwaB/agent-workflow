@@ -65,7 +65,12 @@ test("auto binding includes implicit default and role-source agents", async () =
 			/Auto selection is stale/,
 		);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -179,7 +184,12 @@ test("auto selection binds task, agents, bundle resources, and frozen bytes befo
 			/frozen bundle bytes changed/,
 		);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -218,8 +228,18 @@ test("auto binding rejects a same-string cwd that was replaced before launch", a
 			/current project directory changed before launch/,
 		);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
-		await rm(movedCwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+		await rm(movedCwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -279,7 +299,12 @@ test("auto binding covers the actual direct-dynamic runtime controller and agent
 			/Auto selection is stale/,
 		);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -348,6 +373,11 @@ test("auto binding rejects external provider extensions in a nested bundled work
 			/provider extension unfrozen-provider-extension/,
 		);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

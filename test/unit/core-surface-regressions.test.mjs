@@ -20,7 +20,12 @@ async function project(t) {
 	const cwd = await mkdtemp(join(tmpdir(), "surface-regression-"));
 	t.after(async () => {
 		usage.resetParentUsageTrackingForTests();
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	});
 	return cwd;
 }

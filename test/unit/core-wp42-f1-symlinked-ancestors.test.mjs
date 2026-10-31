@@ -82,7 +82,12 @@ test("F1: a classifier directory swapped for a symlink after selection is not de
 	const id = classifierId();
 	await classifier(router, id);
 	retention.setWorkflowPruneBeforeClassifierDeleteForTests(async () => {
-		await rm(join(outside, "moved"), { recursive: true, force: true });
+		await rm(join(outside, "moved"), {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 		await rename(router, join(outside, "moved"));
 		await symlink(join(outside, "moved"), router);
 	});

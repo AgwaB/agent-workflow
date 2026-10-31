@@ -13,7 +13,9 @@ import {
 } from "../../dist/sdk/conformance/index.js";
 
 const root = await mkdtemp(join(tmpdir(), "aw-conformance-stubs-"));
-after(() => rm(root, { recursive: true, force: true }));
+after(() =>
+	rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+);
 
 let dirCounter = 0;
 async function dir() {

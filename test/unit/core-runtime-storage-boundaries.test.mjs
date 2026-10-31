@@ -34,7 +34,12 @@ async function fixture(fn) {
 		setWorkflowPruneAfterQuarantineForTests();
 		setWorkflowPruneBeforeDeleteForTests();
 		setRunLeaseTestHooksForTests();
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 }
 async function runFixture(cwd, status = "failed") {

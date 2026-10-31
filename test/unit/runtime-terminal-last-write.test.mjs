@@ -53,7 +53,12 @@ before(async () => {
 });
 after(async () => {
 	for (const burner of burners) burner.kill("SIGKILL");
-	await rm(root, { recursive: true, force: true });
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 function fresh(label) {

@@ -141,6 +141,11 @@ test("notify-check --stamp keeps no stamp while runs are deferred", async () => 
 		assert.equal(drained.data.deferred, 0);
 		assert.ok((await readdir(dir)).includes("hook-claude-code.stamp"));
 	} finally {
-		await rm(project, { recursive: true, force: true });
+		await rm(project, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

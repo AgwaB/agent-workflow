@@ -39,7 +39,14 @@ test("supported protocol versions come from the official SDK constants", () => {
 
 test("official SDK stdio client: connect, list tools, call tool, close", async (t) => {
 	const fixture = await createRunFixture();
-	t.after(() => rm(fixture.cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(fixture.cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	const transport = new StdioClientTransport({
 		command: process.execPath,
 		args: [SERVER, "--config", fixture.configPath],
@@ -116,7 +123,14 @@ test("official SDK stdio client: connect, list tools, call tool, close", async (
 test("raw responses for every supported version validate against the SDK result schemas", async (t) => {
 	for (const version of MCP_SUPPORTED_PROTOCOL_VERSIONS) {
 		const fixture = await createRunFixture();
-		t.after(() => rm(fixture.cwd, { recursive: true, force: true }));
+		t.after(() =>
+			rm(fixture.cwd, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 100,
+			}),
+		);
 		const server = startServer(["--config", fixture.configPath]);
 		t.after(() => server.child.kill("SIGKILL"));
 		const init = await server.initialize(version);

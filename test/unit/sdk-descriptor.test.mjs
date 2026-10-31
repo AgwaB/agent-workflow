@@ -15,7 +15,14 @@ const testingUrl = new URL("../../dist/sdk/testing/index.js", import.meta.url)
 	.href;
 const sdkUrl = new URL("../../dist/sdk/index.js", import.meta.url).href;
 const dir = mkdtempSync(join(tmpdir(), "aw-sdk-descriptor-"));
-after(() => rmSync(dir, { recursive: true, force: true }));
+after(() =>
+	rmSync(dir, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	}),
+);
 
 // An "external adapter" module on disk, as a third party would ship it.
 const adapterPath = join(dir, "external-adapter.mjs");

@@ -36,7 +36,12 @@ process.env.HOME = UNIT_TEST_HOME;
 process.env.USERPROFILE = UNIT_TEST_HOME;
 
 after(() => {
-	rmSync(UNIT_TEST_HOME, { recursive: true, force: true });
+	rmSync(UNIT_TEST_HOME, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 function makeProject() {

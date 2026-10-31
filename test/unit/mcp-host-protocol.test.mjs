@@ -20,7 +20,12 @@ before(async () => {
 });
 after(async () => {
 	for (const server of servers.splice(0)) server.kill();
-	await rm(cwd, { recursive: true, force: true });
+	await rm(cwd, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 function start(options = {}) {

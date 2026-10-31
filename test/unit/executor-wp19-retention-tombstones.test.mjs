@@ -140,7 +140,14 @@ function request(cwd, attemptKey, gate) {
 for (const [name, adapter] of Object.entries(ADAPTERS)) {
 	test(`review #2 (${name}): a pruned launched attempt never reconciles absent`, async (t) => {
 		const dir = await mkdtemp(join(tmpdir(), `aw-wp19-tomb-${name}-`));
-		t.after(() => rm(dir, { recursive: true, force: true }));
+		t.after(() =>
+			rm(dir, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 100,
+			}),
+		);
 		const stateDir = join(dir, "state");
 		const attempts = join(stateDir, "attempts");
 		await mkdir(attempts, { recursive: true });
@@ -213,7 +220,9 @@ for (const [name, adapter] of Object.entries(ADAPTERS)) {
 
 test("review #2 (codex): the tombstone keeps the known terminal outcome", async (t) => {
 	const dir = await mkdtemp(join(tmpdir(), "aw-wp19-tomb-outcome-"));
-	t.after(() => rm(dir, { recursive: true, force: true }));
+	t.after(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const stateDir = join(dir, "state");
 	const attempts = join(stateDir, "attempts");
 	await mkdir(attempts, { recursive: true });

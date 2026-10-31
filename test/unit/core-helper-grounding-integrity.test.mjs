@@ -45,7 +45,9 @@ const owner = (stage, id, source = stage) => ({
 });
 async function fixture(t) {
 	const cwd = await mkdtemp(join(tmpdir(), "helper-grounding-"));
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	await writeFile(
 		join(cwd, "source.ts"),
 		"export const enabled = false;\nsecond line\n",

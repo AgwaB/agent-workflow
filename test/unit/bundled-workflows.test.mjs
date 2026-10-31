@@ -54,7 +54,12 @@ test("every bundled workflow and scaffold validates and compiles with the bundle
 			assert.deepEqual(compiled.warnings ?? [], [], `${file} warnings`);
 		}
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 

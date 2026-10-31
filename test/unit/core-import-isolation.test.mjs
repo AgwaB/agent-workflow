@@ -111,6 +111,11 @@ test("every dist/core/*.js imports in a child process from a temp dist/ copy wit
 			else assert.ok(exportCount > 0, `${name} has no runtime exports`);
 		}
 	} finally {
-		await rm(temp, { recursive: true, force: true });
+		await rm(temp, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

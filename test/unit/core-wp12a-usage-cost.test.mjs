@@ -192,7 +192,14 @@ test("a run whose model tasks report no cost rolls up cost null, not 0 (support 
 	assert.equal(metrics.totals.usage.costUsd, null);
 
 	const cwd = mkdtempSync(join(tmpdir(), "wp12a-usage-cost-"));
-	t.after(() => rmSync(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	await writeRunRecord(cwd, record);
 	const persisted = await readRunRecord(cwd, record.runId);
 	assert.equal(persisted.usage.tasksReporting, 2);
@@ -210,7 +217,14 @@ test("a run whose model tasks report cost rolls up that cost and shows it", asyn
 		task("task-2", "support", undefined),
 	]);
 	const cwd = mkdtempSync(join(tmpdir(), "wp12a-usage-cost-"));
-	t.after(() => rmSync(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	await writeRunRecord(cwd, record);
 	const persisted = await readRunRecord(cwd, record.runId);
 	assert.equal(persisted.usage.costUsd, claude.cost);

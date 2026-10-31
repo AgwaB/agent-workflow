@@ -46,7 +46,14 @@ function satisfiesRequiredRead(rows, source, artifact) {
 
 async function setup(t, args, options = {}) {
 	const fixture = await createRunFixture(options.fixture);
-	t.after(() => rm(fixture.cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(fixture.cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	await writeFile(join(fixture.producerDir, "analysis.md"), BIG_ANALYSIS);
 	if (options.analysis !== undefined)
 		await writeFile(join(fixture.producerDir, "analysis.md"), options.analysis);
@@ -264,7 +271,14 @@ test("list output is bounded too and writes no ledger row", async (t) => {
 
 test("invalid --max-output-chars values refuse to start", async (t) => {
 	const fixture = await createRunFixture();
-	t.after(() => rm(fixture.cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(fixture.cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	for (const value of [
 		"0",
 		"-5",
@@ -287,7 +301,14 @@ test("invalid --max-output-chars values refuse to start", async (t) => {
 
 test("artifactMcpServerSpecWithOutputLimit appends the flag to the core spec", async (t) => {
 	const fixture = await createRunFixture();
-	t.after(() => rm(fixture.cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(fixture.cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	const base = artifactMcpServerSpec(fixture.config);
 	assert.deepEqual(artifactMcpServerSpecWithOutputLimit(fixture.config, null), {
 		...base,

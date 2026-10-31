@@ -133,7 +133,9 @@ function packetSources(
 
 async function actualSynthesisRead(t, packet) {
 	const cwd = await mkdtemp(join(tmpdir(), "deep-research-actual-read-"));
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const producer = join(cwd, "producer");
 	const consumer = join(cwd, "consumer");
 	await mkdir(producer, { recursive: true });
@@ -186,7 +188,9 @@ async function actualSynthesisRead(t, packet) {
 
 test("deep-research production research schema and packet preserve local evidence and question failures", async (t) => {
 	const cwd = await mkdtemp(join(tmpdir(), "deep-research-integrity-"));
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	await writeFile(join(cwd, "source.custom"), "enabled = false;\n");
 	const output = {
 		schema: "stage-control-v1",
@@ -266,7 +270,9 @@ test("deep-research production research schema and packet preserve local evidenc
 
 test("deep-research every local evidence alias reaches the byte gate, including opaque extensionless refs", async (t) => {
 	const cwd = await mkdtemp(join(tmpdir(), "deep-research-local-aliases-"));
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	await writeFile(join(cwd, "README"), "actual bytes\n");
 	const aliases = [
 		"source",
@@ -605,7 +611,9 @@ test("deep-research source phrase checks retain exact source-backed API claims",
 
 test("deep-research local url evidence is byte-gated rather than accepted as a web citation", async (t) => {
 	const cwd = await mkdtemp(join(tmpdir(), "deep-research-local-url-"));
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	await writeFile(join(cwd, "source.custom"), "enabled = false;\n");
 	const result = await claimGate({
 		sources: {
@@ -820,7 +828,9 @@ test("deep-research final packet bounds the required synthesis read and rejects 
 
 test("deep-research local aliases honor typed paths and do not read opaque labels", async (t) => {
 	const cwd = await mkdtemp(join(tmpdir(), "deep-research-local-context-"));
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	await writeFile(join(cwd, "README"), "actual bytes\\n");
 	const rows = await localQuoteGate(
 		[
@@ -847,7 +857,9 @@ test("deep-research contradictory local and remote evidence is conservatively do
 	const cwd = await mkdtemp(
 		join(tmpdir(), "deep-research-contradictory-fields-"),
 	);
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	await writeFile(join(cwd, "good.txt"), "actual bytes\\n");
 	const sources = {
 		"plan.main": { factSlots: [{ id: "slot-1" }] },

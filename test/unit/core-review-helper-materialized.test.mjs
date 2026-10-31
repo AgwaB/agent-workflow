@@ -140,7 +140,12 @@ async function withRun(bundlePath, name, fn) {
 		}
 	} finally {
 		h.setTaskRuntimeApiForTests(undefined);
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 }
 

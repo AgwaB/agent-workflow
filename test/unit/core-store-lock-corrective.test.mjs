@@ -55,7 +55,12 @@ test("supervisor lock release preserves outcomes and abandons persistent failure
 		assert.equal(releaseAttempts, 3);
 	} finally {
 		setRunLeaseTestHooksForTests(undefined);
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -99,6 +104,11 @@ test("index lock release preserves outcomes and abandons persistent failures", a
 		assert.equal(secondReplacement.schemaVersion, 1);
 	} finally {
 		setRunLeaseTestHooksForTests(undefined);
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

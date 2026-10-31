@@ -43,7 +43,12 @@ before(async () => {
 	process.env.AGENT_WORKFLOW_HEARTBEAT_MS = "50";
 });
 after(async () => {
-	await rm(root, { recursive: true, force: true });
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 function fresh(label) {

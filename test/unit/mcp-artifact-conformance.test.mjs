@@ -33,7 +33,14 @@ test("the kit catalog still defines the mcp.* checks this file mirrors", () => {
 
 test("mcp.injection: the core launch spec starts the server and its tool result arrives", async (t) => {
 	const fixture = await createRunFixture();
-	t.after(() => rm(fixture.cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(fixture.cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	const spec = {
 		...artifactMcpServerSpec(fixture.config),
 		env: { [MCP_SECRET_ENV]: SECRET },
@@ -63,7 +70,14 @@ test("mcp.injection: the core launch spec starts the server and its tool result 
 
 test("mcp.argv_no_secrets: argv carries only paths; env secrets never reach argv, ledger or output", async (t) => {
 	const fixture = await createRunFixture();
-	t.after(() => rm(fixture.cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(fixture.cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	const spec = {
 		...artifactMcpServerSpecWithOutputLimit(fixture.config, 4096),
 		env: { [MCP_SECRET_ENV]: SECRET },
@@ -88,7 +102,14 @@ test("mcp.argv_no_secrets: argv carries only paths; env secrets never reach argv
 
 test("mcp.delivery_bound: output served at 2x the declared limit is delivered within it", async (t) => {
 	const fixture = await createRunFixture();
-	t.after(() => rm(fixture.cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(fixture.cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	const limit = 4096; // the fake harness default mcpOutputLimitChars
 	await writeFile(
 		join(fixture.producerDir, "analysis.md"),
@@ -128,7 +149,14 @@ test("mcp.delivery_bound: output served at 2x the declared limit is delivered wi
 
 test("mcp.paged_read: a 3x-limit artifact is delivered completely through pages within the declared limit", async (t) => {
 	const fixture = await createRunFixture();
-	t.after(() => rm(fixture.cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(fixture.cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	const declared = 4096; // the fake harness default mcpOutputLimitChars
 	const pageLimit = artifactServerOutputLimit({
 		mcpOutputLimitChars: declared,

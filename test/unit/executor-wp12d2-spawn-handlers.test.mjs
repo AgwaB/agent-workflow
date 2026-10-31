@@ -49,7 +49,9 @@ function claude(dir, claudePath) {
 
 test("review #10 (claude): an immediate spawn error is a failed event, not a crash", async (t) => {
 	const dir = await mkdtemp(join(tmpdir(), "aw-claude-spawn-"));
-	t.after(() => rm(dir, { recursive: true, force: true }));
+	t.after(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const executor = claude(dir, join(dir, "missing-claude"));
 	const ref = await executor.submit(request(dir, "claude-enoent-1"));
 	const { terminal } = await drain(executor, ref, { timeoutMs: 15_000 });
@@ -59,7 +61,9 @@ test("review #10 (claude): an immediate spawn error is a failed event, not a cra
 
 test("review #10 (claude): a CLI that exits at once reaches a terminal event", async (t) => {
 	const dir = await mkdtemp(join(tmpdir(), "aw-claude-fast-exit-"));
-	t.after(() => rm(dir, { recursive: true, force: true }));
+	t.after(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const path = join(dir, "claude");
 	await writeFile(path, "#!/bin/sh\nexit 3\n", { mode: 0o755 });
 	const executor = claude(dir, path);
@@ -70,7 +74,9 @@ test("review #10 (claude): a CLI that exits at once reaches a terminal event", a
 
 test("review #10 (pi): a CLI that exits at once reaches a terminal event", async (t) => {
 	const dir = await mkdtemp(join(tmpdir(), "aw-pi-fast-exit-"));
-	t.after(() => rm(dir, { recursive: true, force: true }));
+	t.after(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const path = join(dir, "pi");
 	await writeFile(path, "#!/bin/sh\necho boom >&2\nexit 3\n", { mode: 0o755 });
 	const executor = createPiExecutor({
@@ -108,7 +114,9 @@ function slowSpawnedWrite(t, proto, method) {
 
 test("review #10 (claude): an exit during the durable spawned write is observed", async (t) => {
 	const dir = await mkdtemp(join(tmpdir(), "aw-claude-slow-write-"));
-	t.after(() => rm(dir, { recursive: true, force: true }));
+	t.after(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	slowSpawnedWrite(t, ClaudeStateStore.prototype, "writeAttempt");
 	const path = join(dir, "claude");
 	await writeFile(path, "#!/bin/sh\necho early-exit >&2\nexit 3\n", {
@@ -128,7 +136,9 @@ test("review #10 (claude): an exit during the durable spawned write is observed"
 
 test("review #10 (pi): an exit during the durable spawned write is observed", async (t) => {
 	const dir = await mkdtemp(join(tmpdir(), "aw-pi-slow-write-"));
-	t.after(() => rm(dir, { recursive: true, force: true }));
+	t.after(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	slowSpawnedWrite(t, PiAttemptStore.prototype, "write");
 	const path = join(dir, "pi");
 	await writeFile(path, "#!/bin/sh\necho early-exit >&2\nexit 3\n", {

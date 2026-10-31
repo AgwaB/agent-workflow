@@ -30,7 +30,14 @@ const sha256 = (text) =>
 
 async function setup(t, { limit, analysis, env } = {}) {
 	const fixture = await createRunFixture();
-	t.after(() => rm(fixture.cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(fixture.cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	if (analysis !== undefined)
 		await writeFile(join(fixture.producerDir, "analysis.md"), analysis);
 	const server = startServer(

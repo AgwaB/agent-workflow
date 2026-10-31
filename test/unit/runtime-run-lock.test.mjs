@@ -175,7 +175,12 @@ test("run-lock", async () => {
 			/Lock file is already being held/,
 			"an old lock must fail closed instead of stealing from a possibly paused writer",
 		);
-		await rm(staleLockPath, { recursive: true, force: true });
+		await rm(staleLockPath, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 		await beginRunRecord({
 			cwd: staleCwd,
 			runId: staleRunId,
@@ -217,6 +222,11 @@ test("run-lock", async () => {
 			JSON.stringify({ name: "check-run-lock", status: "completed" }, null, 2),
 		);
 	} finally {
-		await rm(tempRoot, { recursive: true, force: true });
+		await rm(tempRoot, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

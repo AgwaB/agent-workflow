@@ -24,7 +24,9 @@ let root;
 before(async () => {
 	root = await mkdtemp(join(tmpdir(), "aw-pi-dashboard-"));
 });
-after(() => rm(root, { recursive: true, force: true }));
+after(() =>
+	rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+);
 
 function fakePi() {
 	const commands = new Map();

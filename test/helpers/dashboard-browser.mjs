@@ -222,7 +222,12 @@ export async function createBrowser(executable) {
 			p.reject(new Error("Browser closed"));
 		}
 		pending.clear();
-		await rm(profile, { recursive: true, force: true });
+		await rm(profile, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	};
 	try {
 		const { targetId } = await send(

@@ -48,7 +48,9 @@ function page(start, end, fields = {}) {
 
 async function ledgerDir(t, rows) {
 	const dir = await mkdtemp(join(tmpdir(), "aw-wp5b-coverage-"));
-	t.after(() => rm(dir, { recursive: true, force: true }));
+	t.after(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	await writeFile(
 		join(dir, "read-ledger.jsonl"),
 		rows.map((entry) => `${JSON.stringify(entry)}\n`).join(""),

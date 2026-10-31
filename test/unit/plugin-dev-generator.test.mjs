@@ -32,7 +32,12 @@ before(async () => {
 	temp = await realpath(await mkdtemp(join(tmpdir(), "aw-plugin-dev-")));
 });
 after(async () => {
-	await rm(temp, { recursive: true, force: true });
+	await rm(temp, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 async function readJson(path) {

@@ -32,7 +32,12 @@ async function fixture(t) {
 		setWorkflowPruneAfterQuarantineForTests(undefined);
 		usage.resetParentUsageTrackingForTests();
 		await store.flushPendingIndexUpdatesForTests();
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	});
 	const specPath = join(cwd, "spec.json");
 	await writeFile(
@@ -119,7 +124,12 @@ test("beginning tracking for an unknown run does not create workflow storage", a
 	const cwd = await mkdtemp(join(tmpdir(), "piwf-usage-unknown-"));
 	t.after(async () => {
 		usage.resetParentUsageTrackingForTests();
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	});
 	usage.beginParentUsageTracking(cwd, "workflow_unknown", owner);
 	await usage.flushParentUsageTracking(cwd, owner);

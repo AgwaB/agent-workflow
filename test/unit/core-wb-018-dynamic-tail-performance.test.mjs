@@ -35,7 +35,9 @@ test("WB-018 dynamic append cursor reads a ledger once and preserves sequential 
 	resetDynamicEventAppendStateForTests();
 	t.after(() => resetDynamicEventAppendStateForTests());
 	const cwd = await mkdtemp(join(tmpdir(), "piwf-wb018-dynamic-"));
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const runId = "workflow_incremental";
 	for (let index = 1; index <= 100; index += 1)
 		await appendDynamicEvent(cwd, runId, input(index));
@@ -59,7 +61,9 @@ test("WB-018 dynamic append queue serializes same-process concurrent calls", asy
 	resetDynamicEventAppendStateForTests();
 	t.after(() => resetDynamicEventAppendStateForTests());
 	const cwd = await mkdtemp(join(tmpdir(), "piwf-wb018-concurrent-"));
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const runId = "workflow_concurrent";
 	const appended = await Promise.all(
 		Array.from({ length: 40 }, (_, index) =>
@@ -77,7 +81,9 @@ test("WB-018 cursor self-heals after restart and external size change", async (t
 	resetDynamicEventAppendStateForTests();
 	t.after(() => resetDynamicEventAppendStateForTests());
 	const cwd = await mkdtemp(join(tmpdir(), "piwf-wb018-restart-"));
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const runId = "workflow_restart";
 	await appendDynamicEvent(cwd, runId, input(1));
 	resetDynamicEventAppendStateForTests();
@@ -108,7 +114,9 @@ test("WB-018 cursor self-heals after restart and external size change", async (t
 
 test("WB-018 bounded tail matches full UTF-8/CRLF visible output with fewer bytes", async (t) => {
 	const cwd = await mkdtemp(join(tmpdir(), "piwf-wb018-tail-"));
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const relative = "logs/output.log";
 	const absolute = join(cwd, relative);
 	await mkdir(join(cwd, "logs"), { recursive: true });
@@ -133,7 +141,9 @@ test("WB-018 bounded tail matches full UTF-8/CRLF visible output with fewer byte
 
 test("WB-018 bounded tail preserves short, trailing-newline, empty, and missing behavior", async (t) => {
 	const cwd = await mkdtemp(join(tmpdir(), "piwf-wb018-tail-edge-"));
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	await writeFile(join(cwd, "short.log"), "alpha\nbeta\n");
 	await writeFile(join(cwd, "empty.log"), "");
 	assert.deepEqual(await readFileLinesBounded(cwd, "short.log", 10), [

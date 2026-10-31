@@ -125,7 +125,12 @@ test("a task launched before stop relaunches after a generation-bumping resume (
 			[grant.identitySha256],
 		);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -158,7 +163,12 @@ test("a resume that keeps the generation keeps the launch-bootstrap history", as
 		assert.deepEqual(upstream.launchBootstrap, kept);
 		assert.deepEqual(upstream.launchAuthority, keptAuthority);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 

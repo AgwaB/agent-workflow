@@ -47,7 +47,9 @@ const raw =
 	'<control>{"schema":"stage-control-v1","digest":"done"}</control>\n<analysis>Evidence é 🎯</analysis>\n<refs>[]</refs>';
 async function fixture(t, legacy = false) {
 	const root = await mkdtemp(join(tmpdir(), "bounded-raw-"));
-	t.after(() => rm(root, { recursive: true, force: true }));
+	t.after(() =>
+		rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	t.after(() => {
 		setTaskArtifactLinkForTests(undefined);
 		setArtifactValidatedHookForTests(undefined);

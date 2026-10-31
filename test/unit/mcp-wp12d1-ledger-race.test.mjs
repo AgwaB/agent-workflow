@@ -40,8 +40,22 @@ function interceptOnce(name, path, swap) {
 async function setup(t) {
 	const fixture = await createRunFixture();
 	const outside = await fs.mkdtemp(join(fixture.cwd, "..", "aw-mcp-race-out-"));
-	t.after(() => fs.rm(fixture.cwd, { recursive: true, force: true }));
-	t.after(() => fs.rm(outside, { recursive: true, force: true }));
+	t.after(() =>
+		fs.rm(fixture.cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
+	t.after(() =>
+		fs.rm(outside, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	const service = await createArtifactToolService({
 		configPath: fixture.configPath,
 	});

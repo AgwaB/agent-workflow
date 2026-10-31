@@ -24,7 +24,9 @@ const AT = "2026-10-29T08:00:00.000Z";
 const SECRET = "dashboard-test-secret-0123456789";
 async function project(t) {
 	const cwd = await mkdtemp(join(tmpdir(), "aw-dashboard-source-"));
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const ctx = {
 		cwd,
 		env: { ...process.env, SERVICE_TOKEN: SECRET },

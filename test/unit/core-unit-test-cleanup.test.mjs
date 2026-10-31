@@ -54,7 +54,12 @@ for (const mode of ["pending", "inflight"]) {
 				"the child must leave no test root",
 			);
 		} finally {
-			rmSync(evidence, { recursive: true, force: true });
+			rmSync(evidence, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 100,
+			});
 		}
 	});
 }

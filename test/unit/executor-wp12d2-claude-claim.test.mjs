@@ -21,7 +21,9 @@ import { stubScripts } from "../fixtures/executors/claude/harness.mjs";
 
 async function setup(t) {
 	const dir = await mkdtemp(join(tmpdir(), "aw-claude-claim-"));
-	t.after(() => rm(dir, { recursive: true, force: true }));
+	t.after(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const cli = await createStubCli({
 		dir,
 		name: "claude",

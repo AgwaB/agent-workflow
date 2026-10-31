@@ -4506,7 +4506,14 @@ test("deep-research claim-evidence-gate backfills npm docs sourceRefs across CLI
 
 test("deep-research claim-evidence-gate suppresses sourceRef join failures for local evidence", async (t) => {
 	const cwd = makeProject();
-	t.after(() => rmSync(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	mkdirSync(join(cwd, "src"), { recursive: true });
 	writeFileSync(
 		join(cwd, "src", "engine.ts"),
@@ -4756,7 +4763,12 @@ test("experimental workflow_artifact dedup suppresses exact duplicate read conte
 	} finally {
 		if (previous === undefined) delete process.env[EXPERIMENTAL_TOOL_DEDUP_ENV];
 		else process.env[EXPERIMENTAL_TOOL_DEDUP_ENV] = previous;
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -7115,7 +7127,12 @@ test("workflow artifact bundle can validate strict ref URL availability", async 
 		);
 	} finally {
 		globalThis.fetch = originalFetch;
-		rmSync(taskDir, { recursive: true, force: true });
+		rmSync(taskDir, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -7175,7 +7192,12 @@ test("workflow artifact bundle validates unique ref URLs concurrently", async ()
 	} finally {
 		clearTimeout(fallback);
 		globalThis.fetch = originalFetch;
-		rmSync(taskDir, { recursive: true, force: true });
+		rmSync(taskDir, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -7241,7 +7263,12 @@ test("workflow artifact bundle keeps ref URL validation serial per host", async 
 		]);
 	} finally {
 		globalThis.fetch = originalFetch;
-		rmSync(taskDir, { recursive: true, force: true });
+		rmSync(taskDir, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -7303,7 +7330,12 @@ test("workflow artifact bundle validates duplicate ref URLs once", async () => {
 		);
 	} finally {
 		globalThis.fetch = originalFetch;
-		rmSync(taskDir, { recursive: true, force: true });
+		rmSync(taskDir, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -7352,7 +7384,12 @@ test("workflow artifact bundle counts duplicate ref URLs toward maxUrls", async 
 		);
 	} finally {
 		globalThis.fetch = originalFetch;
-		rmSync(taskDir, { recursive: true, force: true });
+		rmSync(taskDir, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -7396,7 +7433,12 @@ test("workflow artifact bundle orders concurrent ref URL issues by ref index", a
 		);
 	} finally {
 		globalThis.fetch = originalFetch;
-		rmSync(taskDir, { recursive: true, force: true });
+		rmSync(taskDir, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -7435,7 +7477,12 @@ test("workflow artifact bundle can restrict refs to an upstream source ledger", 
 			JSON.stringify(written.parsed.issues),
 		);
 	} finally {
-		rmSync(taskDir, { recursive: true, force: true });
+		rmSync(taskDir, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -7506,7 +7553,12 @@ test("workflow artifact bundle gates positive verifier claim support", async () 
 
 		assert.equal(written.valid, true, JSON.stringify(written.parsed.issues));
 	} finally {
-		rmSync(taskDir, { recursive: true, force: true });
+		rmSync(taskDir, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -7554,7 +7606,12 @@ test("workflow artifact bundle rejects positive verifier support outside refs", 
 			JSON.stringify(written.parsed.issues),
 		);
 	} finally {
-		rmSync(taskDir, { recursive: true, force: true });
+		rmSync(taskDir, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 

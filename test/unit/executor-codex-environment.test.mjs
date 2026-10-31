@@ -25,7 +25,12 @@ before(async () => {
 	root = await mkdtemp(join(tmpdir(), "aw-codex-env-"));
 });
 after(async () => {
-	await rm(root, { recursive: true, force: true });
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 let counter = 0;

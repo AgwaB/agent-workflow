@@ -84,7 +84,12 @@ test("fixture lease waits for ownership instead of silently skipping a manual mu
 		release();
 		await holder;
 		await h.flushPendingIndexUpdatesForTests();
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -112,7 +117,12 @@ for (const guarded of [false, true]) {
 		try {
 			await entered;
 			if (!guarded) {
-				await rm(cwd, { recursive: true, force: true });
+				await rm(cwd, {
+					recursive: true,
+					force: true,
+					maxRetries: 10,
+					retryDelay: 100,
+				});
 				release();
 				await assert.rejects(holder, { code: "ENOENT" });
 			} else {
@@ -128,7 +138,12 @@ for (const guarded of [false, true]) {
 			release();
 			await holder.catch(() => {});
 			await h.flushPendingIndexUpdatesForTests();
-			await rm(cwd, { recursive: true, force: true });
+			await rm(cwd, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 100,
+			});
 		}
 	});
 }

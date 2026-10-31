@@ -45,7 +45,12 @@ after(() => {
 		console.error(`workflow user profile test artifacts retained at ${ROOT}`);
 		return;
 	}
-	rmSync(ROOT, { recursive: true, force: true });
+	rmSync(ROOT, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 const SOL = "openai-codex/gpt-6.1-sol";

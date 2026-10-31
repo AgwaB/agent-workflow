@@ -152,6 +152,11 @@ test("duration sampling reaches usable history beyond mock prefixes and rereads 
 			samples: 8,
 		});
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

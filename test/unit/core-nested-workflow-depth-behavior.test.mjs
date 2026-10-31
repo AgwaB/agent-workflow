@@ -78,7 +78,12 @@ async function fixture(files, options = {}) {
 		async close() {
 			h.setTaskRuntimeApiForTests(undefined);
 			await h.flushPendingIndexUpdatesForTests();
-			await rm(cwd, { recursive: true, force: true });
+			await rm(cwd, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 100,
+			});
 		},
 	};
 }

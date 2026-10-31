@@ -52,7 +52,12 @@ test("private generation publication crash leaves no ownerless live lock", async
 		assert.equal((await stat(join(target, "owner.json"))).isFile(), true);
 	} finally {
 		setSecureAtomicBeforeRenameHookForTests(undefined);
-		await rm(root, { recursive: true, force: true });
+		await rm(root, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 

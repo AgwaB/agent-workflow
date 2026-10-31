@@ -32,7 +32,12 @@ after(async () => {
 	setProcessIdentityInspectorForTests(undefined);
 	// Only children Node has not seen exit: an exited child's pid may be another process now.
 	for (const child of children) killLiveChild(child, { group: true });
-	await rm(tempRoot, { recursive: true, force: true });
+	await rm(tempRoot, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 const alive = (pid) => {

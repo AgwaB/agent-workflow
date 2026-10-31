@@ -39,7 +39,12 @@ test("loop requires an explicit positive count or null, preserving null through 
 			null,
 		);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -88,7 +93,12 @@ test("unlimited loop continues past finite defaults with unchanged progress and 
 		);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -108,7 +118,12 @@ test("explicit progressPath still opts unlimited loops into no-progress stopping
 		assert.equal(current.loopResults[0].roundsUsed, 2);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -164,7 +179,12 @@ test("unlimited loop materializes round 100 from structured round 99 state with 
 		assert.equal(final.loopResults[0].status, "completed");
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -223,6 +243,11 @@ test("unlimited loop stops on execution failure and allows downstream partial cl
 		);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

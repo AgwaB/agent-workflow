@@ -40,7 +40,12 @@ function cleanupUnitTestRoot() {
 		);
 		return;
 	}
-	rmSync(UNIT_TEST_ROOT, { recursive: true, force: true });
+	rmSync(UNIT_TEST_ROOT, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 }
 
 after(cleanupUnitTestRoot);
@@ -489,7 +494,12 @@ test("selected profile overlays model and thinking, records complete overrides, 
 		]);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -568,7 +578,12 @@ test("pre-resolved user profiles are frozen on the run and declared profiles rem
 		assert.deepEqual(calls.launches, []);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -631,7 +646,12 @@ test("empty profile is identity and selected foreach batches lower to compiled t
 		);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -652,6 +672,11 @@ test("unknown profile name fails closed before any launch", async () => {
 		assert.equal(calls.launches.length, 0);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

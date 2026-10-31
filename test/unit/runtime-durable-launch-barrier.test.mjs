@@ -233,7 +233,12 @@ test("durable-launch-barrier", async () => {
 			subjectSha256: "8".repeat(64),
 			timeoutMs: 100,
 		});
-		await rm(deletedBarrier.directory, { recursive: true, force: true });
+		await rm(deletedBarrier.directory, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 		await assert.rejects(
 			waitForDurableLaunchBarrierReady(deletedBarrier),
 			(error) =>
@@ -728,7 +733,12 @@ test("durable-launch-barrier", async () => {
 		}
 		await checkTransactionTempAliasRace(root);
 	} finally {
-		await rm(root, { recursive: true, force: true });
+		await rm(root, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 
 	console.log("durable launch barrier checks passed");

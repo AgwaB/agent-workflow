@@ -83,7 +83,9 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 test("review #5 (codex): echoed env and MCP env values are redacted everywhere", async (t) => {
 	const dir = await mkdtemp(join(tmpdir(), "aw-codex-echo-"));
-	t.after(() => rm(dir, { recursive: true, force: true }));
+	t.after(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const codexPath = join(dir, "codex");
 	await writeFile(
 		codexPath,
@@ -154,7 +156,9 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 test("review #5 (claude): a value split across stderr chunks is redacted", async (t) => {
 	const dir = await mkdtemp(join(tmpdir(), "aw-claude-echo-"));
-	t.after(() => rm(dir, { recursive: true, force: true }));
+	t.after(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const claudePath = await echoScript(dir, "claude", [
 		JSON.stringify({
 			type: "system",
@@ -197,7 +201,9 @@ test("review #5 (claude): a value split across stderr chunks is redacted", async
 
 test("review #5 (pi): a value split across stderr chunks is redacted", async (t) => {
 	const dir = await mkdtemp(join(tmpdir(), "aw-pi-echo-"));
-	t.after(() => rm(dir, { recursive: true, force: true }));
+	t.after(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const piCommand = await echoScript(dir, "pi", [
 		JSON.stringify({ type: "session", id: "s" }),
 		JSON.stringify({

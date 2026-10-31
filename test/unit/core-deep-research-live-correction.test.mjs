@@ -38,7 +38,9 @@ function owner(id) {
 
 test("live research correction reconciles canonical slots and preserves blocked/local evidence", async (t) => {
 	const cwd = await mkdtemp(join(tmpdir(), "deep-research-live-correction-"));
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	await writeFile(
 		join(cwd, "facts.md"),
 		"TTL is 30 seconds; reread origin after expiry.\n",

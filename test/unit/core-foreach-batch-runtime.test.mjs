@@ -75,6 +75,27 @@ process.env.USERPROFILE = UNIT_TEST_HOME;
 setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 
 /**
+ * Write a run record the test rewrote, under the run lease. `withRunLease` returns undefined
+ * without running the callback while the run's in-process supervisor holds the lease; the write
+ * was then silently skipped, and a test waited 46 s for a state that was never written. Retry
+ * until the write happened (bounded).
+ */
+async function writeRunRecordUnderLease(cwd, runId, run) {
+	const deadline = Date.now() + 30_000;
+	while (Date.now() < deadline) {
+		const written = await withRunLease(cwd, runId, async () => {
+			await writeRunRecord(cwd, run);
+			return true;
+		});
+		if (written === true) return;
+		await new Promise((done) => setTimeout(done, 20));
+	}
+	throw new Error(
+		`could not take the lease of ${runId} to write the run record`,
+	);
+}
+
+/**
  * How long a test waits for its run (hang protection): runs finish in about a second, but the whole
  * suite in parallel on a busy machine took over 20 s for one.
  */
@@ -98,7 +119,12 @@ function cleanupUnitTestRoot() {
 		console.error(`foreach batch test artifacts retained at ${UNIT_TEST_ROOT}`);
 		return;
 	}
-	rmSync(UNIT_TEST_ROOT, { recursive: true, force: true });
+	rmSync(UNIT_TEST_ROOT, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 }
 
 after(cleanupUnitTestRoot);
@@ -571,9 +597,7 @@ async function persistTerminalBatchBoundary(cwd, runId, fake) {
 		task.status = "running";
 		task.statusDetail = "batch_terminal_received";
 	}
-	await withRunLease(cwd, runId, async () => {
-		await writeRunRecord(cwd, run);
-	});
+	await writeRunRecordUnderLease(cwd, runId, run);
 	return { rawFile, record };
 }
 
@@ -1626,9 +1650,7 @@ test("prepared batch execution-surface drift falls back before a physical batch 
 				phase: "prepared",
 			};
 		}
-		await withRunLease(cwd, started.runId, async () =>
-			writeRunRecord(cwd, prepared),
-		);
+		await writeRunRecordUnderLease(cwd, started.runId, prepared);
 		const compiledPath = compiledWorkflowPath(cwd, started.runId);
 		const compiled = JSON.parse(readFileSync(compiledPath, "utf8"));
 		const leaderIndex = compiled.tasks.findIndex(
@@ -1814,9 +1836,7 @@ test("an expired leader falls back the exact pair after backend refresh errors",
 		);
 		assert.ok(leader);
 		leader.startedAt = "2000-01-01T00:00:00.000Z";
-		await withRunLease(cwd, started.runId, async () => {
-			await writeRunRecord(cwd, active);
-		});
+		await writeRunRecordUnderLease(cwd, started.runId, active);
 
 		await assert.rejects(
 			() => refreshRun(cwd, started.runId),

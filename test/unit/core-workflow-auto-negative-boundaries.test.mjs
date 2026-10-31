@@ -27,7 +27,12 @@ import "../helpers/register-default-executor.mjs";
 const root = realpathSync(mkdtempSync(join(tmpdir(), "piwf-auto-negative-")));
 after(() => {
 	setTaskRuntimeApiForTests(undefined);
-	rmSync(root, { recursive: true, force: true });
+	rmSync(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 function project() {
 	const cwd = mkdtempSync(join(root, "project-"));

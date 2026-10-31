@@ -77,7 +77,12 @@ test("normal release snapshot cannot admit a replacement before its rename", {
 		setRunLeaseTestHooksForTests();
 		await second?.release();
 		await first?.release();
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -117,7 +122,12 @@ test("concurrent releases of one handle share cleanup and never touch the succes
 		setRunLeaseTestHooksForTests();
 		await second?.release();
 		await first?.release();
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -160,7 +170,12 @@ test("failed cleanup hands off only after all rename attempts and cannot resume 
 		setRunLeaseTestHooksForTests();
 		await second?.release();
 		await first?.release();
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -194,7 +209,12 @@ test("a validated failed-release abandonment stays latched across reclaim rename
 		setRunLeaseTestHooksForTests();
 		await second?.release();
 		await first?.release();
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -230,7 +250,12 @@ test("held lock, owner mismatch, and invalid abandonment never authorize protect
 	} finally {
 		setRunLeaseTestHooksForTests();
 		await lease?.release();
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -266,6 +291,11 @@ test("release and abandonment IO failures remain visible and do not authorize re
 	} finally {
 		setRunLeaseTestHooksForTests();
 		await lease?.release();
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

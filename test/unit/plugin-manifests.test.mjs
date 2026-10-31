@@ -226,7 +226,12 @@ test("WP36: the hook command is silent and exits 0 without runs, and prints the 
 		);
 		assert.deepEqual([broken.status, broken.stdout], [0, ""]);
 	} finally {
-		rmSync(temp, { recursive: true, force: true });
+		rmSync(temp, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 

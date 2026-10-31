@@ -140,7 +140,12 @@ for (const depth of [1, 2]) {
 			assert.equal(launches.length, 2);
 		} finally {
 			setTaskRuntimeApiForTests(undefined);
-			rmSync(cwd, { recursive: true, force: true });
+			rmSync(cwd, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 100,
+			});
 		}
 	});
 }
@@ -228,7 +233,12 @@ for (const [mode, name] of [
 			}
 		} finally {
 			setTaskRuntimeApiForTests(undefined);
-			rmSync(cwd, { recursive: true, force: true });
+			rmSync(cwd, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 100,
+			});
 		}
 	});
 
@@ -313,7 +323,12 @@ test("workflow loader rejects malformed supported schema keyword values", async 
 			/required|type/,
 		);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -549,6 +564,11 @@ test("public TypeScript workflow authors can declare injectRuntimeTask without c
 			[],
 		);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

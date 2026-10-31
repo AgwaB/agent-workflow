@@ -25,7 +25,9 @@ import { artifactReadFixture } from "../helpers/workflow-artifact-fixture.mjs";
 
 async function outsideDir(t) {
 	const dir = await mkdtemp(join(tmpdir(), "aw-ledger-outside-"));
-	t.after(() => rm(dir, { recursive: true, force: true }));
+	t.after(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	return dir;
 }
 

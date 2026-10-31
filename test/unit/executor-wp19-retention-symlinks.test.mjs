@@ -28,7 +28,9 @@ async function aged(path) {
 
 test("review #3: Pi prune through a symlinked <stateDir>/runs keeps the outside sentinel", async (t) => {
 	const root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp19-sym-")));
-	t.after(() => rm(root, { recursive: true, force: true }));
+	t.after(() =>
+		rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const stateDir = join(root, "state");
 	const outside = join(root, "outside");
 	await mkdir(join(stateDir, "attempts"), { recursive: true });
@@ -64,7 +66,9 @@ test("review #3: Pi prune through a symlinked <stateDir>/runs keeps the outside 
 
 test("review #3: a symlinked <stateDir>/attempts is refused (outside records survive)", async (t) => {
 	const root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp19-sym-")));
-	t.after(() => rm(root, { recursive: true, force: true }));
+	t.after(() =>
+		rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const stateDir = join(root, "state");
 	const outside = join(root, "elsewhere");
 	await mkdir(stateDir, { recursive: true });

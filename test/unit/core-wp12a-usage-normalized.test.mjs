@@ -225,7 +225,14 @@ test("run rollup: totalTokens is the sum (not 0); a blocked run carries the usag
 	blocked.statusDetail = "executor_needs_decision";
 	observe(blocked, summary, 2);
 	const cwd = mkdtempSync(join(tmpdir(), "wp12a-usage-normalized-"));
-	t.after(() => rmSync(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	await writeRunRecord(cwd, {
 		schemaVersion: 1,
 		runId: "workflow_wp12a_usage_blocked",

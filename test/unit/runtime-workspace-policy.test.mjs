@@ -86,6 +86,11 @@ test("workspace-policy", async () => {
 			),
 		);
 	} finally {
-		await rm(tempRoot, { recursive: true, force: true });
+		await rm(tempRoot, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

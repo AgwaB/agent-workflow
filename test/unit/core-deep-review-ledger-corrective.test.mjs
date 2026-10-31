@@ -134,7 +134,14 @@ test("deep-review verifies exact read/OCR coverage and fails partial rendering c
 	const coverageRoot = mkdtempSync(
 		join(tmpdir(), "pi-workflow-deep-review-coverage-"),
 	);
-	t.after(() => rmSync(coverageRoot, { recursive: true, force: true }));
+	t.after(() =>
+		rmSync(coverageRoot, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	mkdirSync(join(coverageRoot, "src"), { recursive: true });
 	mkdirSync(join(coverageRoot, ".agent-workflow", "ocr-artifacts"), {
 		recursive: true,
@@ -465,7 +472,14 @@ test("deep-review duplicate merge remains incomplete in either reviewer order", 
 	const coverageRoot = mkdtempSync(
 		join(tmpdir(), "pi-workflow-deep-review-merge-"),
 	);
-	t.after(() => rmSync(coverageRoot, { recursive: true, force: true }));
+	t.after(() =>
+		rmSync(coverageRoot, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	mkdirSync(join(coverageRoot, "src"), { recursive: true });
 	writeFileSync(join(coverageRoot, "src", "shared.ts"), "sharedExact()\n");
 	const lenses = ["first", "second"];
@@ -539,7 +553,14 @@ test("deep-review duplicate merge remains incomplete in either reviewer order", 
 
 test("deep-review grounds structured singleton verifier evidence", async (t) => {
 	const cwd = mkdtempSync(join(tmpdir(), "pi-workflow-deep-review-verifier-"));
-	t.after(() => rmSync(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	mkdirSync(join(cwd, "src"), { recursive: true });
 	writeFileSync(join(cwd, "src", "verifier.ts"), "const danger = true;\n");
 	const verifierFinding = finding("verifier-grounding", "src/verifier.ts", {
@@ -637,7 +658,14 @@ test("deep-review carries 26 mixed legacy recommendations through schema-valid p
 	const coverageRoot = mkdtempSync(
 		join(tmpdir(), "pi-workflow-deep-review-recommendations-"),
 	);
-	t.after(() => rmSync(coverageRoot, { recursive: true, force: true }));
+	t.after(() =>
+		rmSync(coverageRoot, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	mkdirSync(join(coverageRoot, "src"), { recursive: true });
 	for (const file of ["correctness.ts", "reliability.ts", "test-quality.ts"]) {
 		writeFileSync(join(coverageRoot, "src", file), `read src/${file}\n`);

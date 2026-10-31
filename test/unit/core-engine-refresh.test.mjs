@@ -81,7 +81,12 @@ function cleanupUnitTestRoot() {
 		);
 		return;
 	}
-	rmSync(UNIT_TEST_ROOT, { recursive: true, force: true });
+	rmSync(UNIT_TEST_ROOT, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 }
 
 after(cleanupUnitTestRoot);
@@ -265,7 +270,12 @@ test("waitForRun records transient refresh poll failures and continues", async (
 		assert.equal(launchCount, 1);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -1196,7 +1206,12 @@ test("dependency invalidation atomically quarantines old task evidence and fails
 			/generational dynamic replay is not supported/,
 		);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -1637,7 +1652,12 @@ test("resumeRun rejects a prepared legacy foreach invalidation journal before an
 			compiledBefore,
 		);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -1862,7 +1882,12 @@ test("scheduler materializes stable foreach children from completed control arti
 		);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 test("scheduler validates valid and invalid 256-child dispatch maps once per pass", async () => {
@@ -2023,7 +2048,12 @@ test("scheduler validates valid and invalid 256-child dispatch maps once per pas
 			assert.deepEqual(child.backendHandle, { runId: "already-claimed" });
 		}
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 test("streaming final control rejects identical-hash source migration", () => {
@@ -2594,7 +2624,12 @@ test("resume replays exact foreach invalidation journals across compiled-only an
 	} finally {
 		setRunLeaseTestHooksForTests(undefined);
 		setTaskRuntimeApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 test("foreach reconciliation rejects membership-less children and global task identity collisions", () => {
@@ -2871,7 +2906,12 @@ test("resume revalidates status after acquiring the lease before cleanup", async
 		assert.equal((await readRunRecord(cwd, run.runId)).status, "completed");
 	} finally {
 		setRunLeaseTestHooksForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -2935,7 +2975,12 @@ test("strict named diagnostics reject before any run, provenance, authority, or 
 			delete process.env.AGENT_WORKFLOW_STRICT_PROMPT_SCHEMA;
 		else process.env.AGENT_WORKFLOW_STRICT_PROMPT_SCHEMA = previousStrict;
 		setTaskRuntimeApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -2992,7 +3037,12 @@ test("new runs reject persisted run-id collisions and lease refusal before sched
 		releaseHolder();
 		assert.equal(await holder, "released");
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -3057,7 +3107,12 @@ test("run leases release first-heartbeat failures and abort an owner after stale
 		await firstOwnerRejected;
 	} finally {
 		setRunLeaseTestHooksForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -3122,7 +3177,12 @@ test("stale live-pid run lease reclaims only a generation that never published i
 			/^published-live-owner\n/,
 		);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -3166,7 +3226,12 @@ test("run record identity and public run ids fail closed without mutation", asyn
 		);
 		assert.deepEqual(projectTreeSnapshot(cwd), before);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -3187,7 +3252,12 @@ test("listRunRecords rejects duplicate taskIds before exposing a run", async () 
 		);
 		await assert.rejects(() => listRunRecords(cwd), /duplicate taskId/);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -3427,7 +3497,12 @@ test("resume fences cleanup when ownership changes immediately before mutation",
 		);
 	} finally {
 		setRunLeaseTestHooksForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -3447,7 +3522,12 @@ test("a lease action cannot succeed after another owner takes its lock", async (
 			/Lost supervisor lease/,
 		);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -3473,6 +3553,11 @@ test("a healthy old lease heartbeat is not reclaimable by absolute age alone", a
 			`healthy-owner\n${process.pid}\n${createdAt.toISOString()}\n`,
 		);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

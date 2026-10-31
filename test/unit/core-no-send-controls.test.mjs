@@ -141,7 +141,12 @@ test("workflow state-root capabilities are private, stable, and physically bound
 			/private workflow state-root capability is required/,
 		);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -326,7 +331,12 @@ test("subagent launch durably consumes authority before releasing the general wo
 		delete process.env.AGENT_WORKFLOW_EXTERNAL_LAUNCH_GRANT_SHA256;
 		delete process.env.AGENT_WORKFLOW_REQUIRE_EXTERNAL_LAUNCH_GRANT;
 		resetLaunchControls();
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -462,7 +472,12 @@ test("READY authority-binding drift fails closed and interrupts the provisional 
 		delete process.env.AGENT_WORKFLOW_EXTERNAL_LAUNCH_GRANT_SHA256;
 		delete process.env.AGENT_WORKFLOW_REQUIRE_EXTERNAL_LAUNCH_GRANT;
 		resetLaunchControls();
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -505,7 +520,12 @@ test("lease cancellation before READY interrupts the persisted provisional worke
 	} finally {
 		finishReady?.();
 		resetLaunchControls();
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -556,7 +576,12 @@ test("workflow stop after READY interrupts the provisional worker and never rele
 		);
 	} finally {
 		resetLaunchControls();
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -597,7 +622,12 @@ test("workflow stop during the release decision window wins the exclusive revoke
 		assert.equal(events.includes("ack"), false);
 	} finally {
 		resetLaunchControls();
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -662,7 +692,12 @@ test("barrier recovery reconstructs release and ACK receipts without respawn", a
 		assert.equal(events.filter((event) => event === "run").length, launchCount);
 	} finally {
 		resetLaunchControls();
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -700,7 +735,12 @@ test("stale pre-release barrier recovery revokes and exactly reaps the same atte
 		assert.equal(events.filter((event) => event === "run").length, launchCount);
 	} finally {
 		resetLaunchControls();
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -725,7 +765,12 @@ test("barrier recovery rejects receipt identity drift before adoption", async ()
 		);
 	} finally {
 		resetLaunchControls();
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -778,6 +823,11 @@ test("workflow stop before ACK interrupts an already-released provisional worker
 		);
 	} finally {
 		resetLaunchControls();
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

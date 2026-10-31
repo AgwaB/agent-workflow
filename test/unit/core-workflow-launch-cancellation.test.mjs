@@ -131,7 +131,13 @@ async function cleanup(cwd) {
 	setDynamicControllerHooksForTests();
 	setRunLeaseTestHooksForTests();
 	setTaskRuntimeApiForTests(undefined);
-	if (cwd) rmSync(cwd, { recursive: true, force: true });
+	if (cwd)
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 }
 
 for (const selectedKind of ["named-workflow", "direct-dynamic"]) {
@@ -320,6 +326,11 @@ test("launch cancellation fences are run-scoped and released by their owner", as
 		await throwIfWorkflowStopRequested(cwd, "workflow_owned");
 	} finally {
 		dispose();
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

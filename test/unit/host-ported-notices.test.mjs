@@ -50,7 +50,9 @@ async function project(t) {
 	const cwd = await realpath(
 		await mkdtemp(join(tmpdir(), "workflow-notice-ack-")),
 	);
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	await mkdir(join(cwd, ".agent-workflow", "workflows"), { recursive: true });
 	return cwd;
 }
@@ -354,7 +356,12 @@ test("symlink and hard-link evidence escapes are rejected without touching valid
 				? "Unsafe workflow notices file."
 				: "ELOOP";
 		}
-		await rm(path, { recursive: true, force: true });
+		await rm(path, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 		if (target.startsWith("hard-linked-")) await link(destination, path);
 		else await symlink(destination, path);
 		const before = await hashes(outside);

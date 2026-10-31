@@ -299,7 +299,12 @@ test("spec-review renderer preserves every legacy disposition but withholds ungr
 			/### FINDING-KEEP — Unsafe \\`title\\` \\#\\# Related artifacts/,
 		);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -575,7 +580,12 @@ test("impact-review renderer reconciles joins, preserves rows, and writes a safe
 			/\\#\\# Related artifacts \\`\\`\\` is untrusted/,
 		);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -654,7 +664,12 @@ test("impact-review renderer applies blocking and unknown precedence and fails c
 		assert.equal(nonTerminal.verdict, "UNKNOWN");
 		assert.equal(nonTerminal.gates.sourceCoverageComplete, false);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -897,6 +912,11 @@ test("spec-review renderer fails closed on verdict, source, evidence, and verifi
 		assert.equal(noMetadata.status, "failed");
 		assert.equal(noMetadata.verdict, "INCONCLUSIVE");
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

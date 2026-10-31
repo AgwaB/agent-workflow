@@ -47,7 +47,9 @@ function request(cwd, attemptKey, overrides = {}) {
 
 async function codexSetup(t) {
 	const dir = await mkdtemp(join(tmpdir(), "aw-codex-owner-"));
-	t.after(() => rm(dir, { recursive: true, force: true }));
+	t.after(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const codexPath = join(dir, "codex");
 	await writeFile(
 		codexPath,
@@ -131,7 +133,9 @@ test("review #9 (codex): a kept thread the adapter created is deletable once", a
 
 test("review #9 (claude): resuming a foreign session does not make it owned", async (t) => {
 	const dir = await mkdtemp(join(tmpdir(), "aw-claude-owner-"));
-	t.after(() => rm(dir, { recursive: true, force: true }));
+	t.after(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const cli = await createStubCli({
 		dir,
 		name: "claude",

@@ -186,7 +186,12 @@ async function fixture(fn) {
 		);
 		await fn(cwd);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 }
 async function scaffold(cwd, file = "source.ts", quote = citation.quote) {
@@ -246,7 +251,12 @@ for (const kind of [
 					assert.equal(out.value.evidenceGate.integrity, "partial");
 					assert.equal(out.value.partitions.keep.length, 0);
 				} finally {
-					await rm(outside, { recursive: true, force: true });
+					await rm(outside, {
+						recursive: true,
+						force: true,
+						maxRetries: 10,
+						retryDelay: 100,
+					});
 				}
 				return;
 			}

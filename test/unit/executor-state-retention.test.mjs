@@ -34,7 +34,12 @@ before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-state-ret-")));
 });
 after(async () => {
-	await rm(root, { recursive: true, force: true });
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 async function dir(name) {

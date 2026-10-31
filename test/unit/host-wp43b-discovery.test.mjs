@@ -17,7 +17,9 @@ import { startDashboardServer } from "../../dist/hosts/dashboard/server.js";
 const key = "a".repeat(43);
 async function project(t) {
 	const cwd = await mkdtemp(join(tmpdir(), "aw-wp43b-discovery-"));
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	return cwd;
 }
 test("discovery is private, atomic, correctly located and requires a valid schema and live pid", async (t) => {

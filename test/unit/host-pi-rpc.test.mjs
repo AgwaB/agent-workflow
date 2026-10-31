@@ -234,6 +234,11 @@ test("live real-Pi RPC check (AGENT_WORKFLOW_PI_BIN)", {
 				);
 		}
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

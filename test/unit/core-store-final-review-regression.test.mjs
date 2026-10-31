@@ -139,7 +139,12 @@ test("frozen bundles collect decision-loop providers and TypeScript import closu
 			join(bundleDir, "providers", "allowed.cts"),
 		);
 	} finally {
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -283,6 +288,11 @@ test("debounced index writes outlive the run lease that scheduled them", async (
 	} finally {
 		setIndexUpdateDebounceMsForTests(undefined);
 		await flushPendingIndexUpdatesForTests().catch(() => undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

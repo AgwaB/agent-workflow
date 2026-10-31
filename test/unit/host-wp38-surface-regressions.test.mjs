@@ -18,7 +18,9 @@ const feedback = await import("../../dist/hosts/pi/feedback.js");
 
 async function project(t) {
 	const cwd = await mkdtemp(join(tmpdir(), "surface-regression-"));
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	return cwd;
 }
 

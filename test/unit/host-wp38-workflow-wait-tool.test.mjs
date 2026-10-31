@@ -343,7 +343,12 @@ test("run-file lease retries release internally and abandons persistent failures
 		await reclaimedInitial.release();
 	} finally {
 		setRunLeaseTestHooksForTests(undefined);
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -390,7 +395,12 @@ test("successful completion feedback preserves the authoritative result and repo
 		assert.doesNotMatch(sent[0].content, /completed, 0 failed/);
 		assert.doesNotMatch(sent[0].content, /link relevant artifacts/);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -422,7 +432,12 @@ test("immutable completion receipt precedes best-effort UI notification", async 
 		assert.equal(repeated, "already-delivered");
 		assert.equal(pi.messages.length, 1);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -490,7 +505,12 @@ test("terminal delivery epochs allow same-status resume (legacy marker half not 
 		);
 		assert.equal(pi.messages.length, 2);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -520,7 +540,12 @@ test("feedback watcher stops after retry exhaustion and warns once", async () =>
 			tracker.stop();
 		}
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -588,7 +613,12 @@ test("workflow wait returns a terminal result without model polling", async () =
 		assert.equal(typeof result.details.feedbackEpoch, "string");
 		assert.equal((await feedbackReceipts(cwd, run.runId)).length, 1);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -621,7 +651,12 @@ test("workflow wait reports blocked action-required state without a final previe
 		assert.match(result.content[0].text, /Workflow blocked; action required/);
 		assert.doesNotMatch(result.content[0].text, /Intermediate text/);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -693,7 +728,12 @@ test("result-only completion is limited to successful semantic statuses with out
 		assert.doesNotMatch(blank.sent[0].content, /Authoritative result/);
 		assert.match(blank.sent[0].content, /Summarize the workflow outcome/);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -714,7 +754,12 @@ test("workflow preview ignores sidecar traversal paths", async () => {
 		assert.doesNotMatch(sent[0].content, /MUST NOT BE PREVIEWED/);
 		assert.doesNotMatch(sent[0].content, /outside-preview/);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -766,7 +811,12 @@ test("completion report links reject display injection and symlink escapes", asy
 			);
 		}
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -804,7 +854,12 @@ test("completion report links reject injected task-directory display paths", asy
 		assert.deepEqual(result.details.reportArtifacts, []);
 		assert.doesNotMatch(result.content[0].text, /INJECTED|hidden report/);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -827,7 +882,12 @@ test("workflow preview rejects a control.json symlink escape", async () => {
 		assert.doesNotMatch(sent[0].content, /EXTERNAL_CONTROL_ESCAPE/);
 		assert.match(sent[0].content, /Summarize the workflow outcome/);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -854,7 +914,12 @@ test("direct dynamic synthesis rejects normalized raw protocol aliases", async (
 		assert.doesNotMatch(sent[0].content, /RAW_ALIAS_ESCAPE/);
 		assert.match(sent[0].content, /Summarize the workflow outcome/);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -895,7 +960,12 @@ test("direct dynamic synthesis previews validated analysis, never protocol wrapp
 		assert.match(sent[0].content, /Validated synthesis analysis/);
 		assert.doesNotMatch(sent[0].content, /RAW PROTOCOL|RAW WRAPPER/);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -953,7 +1023,12 @@ test("workflow wait previews the declared dynamic output instead of the last com
 			/Misleading later intermediate/,
 		);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -998,7 +1073,12 @@ test("workflow wait never falls back to an upstream artifact when the final task
 		assert.equal(result.details.preview, undefined);
 		assert.doesNotMatch(result.content[0].text, /Upstream output/);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -1080,7 +1160,12 @@ test("terminal summary distinguishes dynamic synthesis from exhausted no-output 
 		assert.equal(incompleteSummary.engineStatus, "failed");
 		assert.equal(incompleteSummary.semanticStatus, "dynamic_incomplete");
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -1099,6 +1184,11 @@ test("terminal summary reports static degradation without changing engine status
 		assert.equal(summary.engineStatus, "completed");
 		assert.equal(summary.semanticStatus, "completed_degraded");
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

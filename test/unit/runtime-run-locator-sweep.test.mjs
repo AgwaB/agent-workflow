@@ -98,8 +98,18 @@ test("run-locator-sweep", async () => {
 		);
 		delete process.env.AGENT_WORKFLOW_RUN_LOCATOR_PRUNE_AFTER_MS;
 	} finally {
-		await rm(indexDir, { recursive: true, force: true });
-		await rm(cwd, { recursive: true, force: true });
+		await rm(indexDir, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 	console.log("run locator sweep checks passed");
 });

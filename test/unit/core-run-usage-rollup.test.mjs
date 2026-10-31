@@ -75,7 +75,14 @@ function runRecord(runId, tasks) {
 
 test("terminal writeRunRecord persists a task-usage rollup on the run", async (t) => {
 	const cwd = mkdtempSync(join(tmpdir(), "run-usage-rollup-"));
-	t.after(() => rmSync(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 
 	const run = runRecord("workflow_rollup_1", [
 		taskRecord("task-1", {
@@ -107,7 +114,14 @@ test("terminal writeRunRecord persists a task-usage rollup on the run", async (t
 
 test("non-terminal writeRunRecord does not attach a rollup", async (t) => {
 	const cwd = mkdtempSync(join(tmpdir(), "run-usage-rollup-"));
-	t.after(() => rmSync(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 
 	const tasks = [
 		taskRecord("task-1", { totalTokens: 300, costUsd: 0.5 }),

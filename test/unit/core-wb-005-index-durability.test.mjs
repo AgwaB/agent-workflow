@@ -134,7 +134,12 @@ test("formatStatus does not create workflow state in a project without runs", as
 		);
 	} finally {
 		const { rm } = await import("node:fs/promises");
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -162,7 +167,12 @@ for (const state of ["corrupt", "orphaned", "directory"]) {
 				assert.deepEqual((await readIndex(cwd)).runs, []);
 			}
 		} finally {
-			await rm(cwd, { recursive: true, force: true });
+			await rm(cwd, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 100,
+			});
 		}
 	});
 }
@@ -189,7 +199,12 @@ test("concurrent first-run status still publishes a real run", async () => {
 		);
 	} finally {
 		const { rm } = await import("node:fs/promises");
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -222,6 +237,11 @@ test("resumeSupervisors does not create workflow state in a project without runs
 			[runId],
 		);
 	} finally {
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

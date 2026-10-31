@@ -44,7 +44,9 @@ test("dashboard CLI rejects invalid ports and unknown flags with usage exit 2", 
 
 test("dashboard project must be a directory, and occupied ports exit 2", async (t) => {
 	const root = await mkdtemp(join(tmpdir(), "aw-dashboard-cli-"));
-	t.after(() => rm(root, { recursive: true, force: true }));
+	t.after(() =>
+		rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	await writeFile(join(root, "file"), "not a directory");
 	for (const name of ["file", "missing"])
 		assert.equal(
@@ -60,7 +62,9 @@ test("dashboard prints one URL, supports project/read-only, and honors io.signal
 	timeout: 5000,
 }, async (t) => {
 	const root = await mkdtemp(join(tmpdir(), "aw-dashboard-cli-"));
-	t.after(() => rm(root, { recursive: true, force: true }));
+	t.after(() =>
+		rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const controller = new AbortController();
 	const lines = [];
 	let ready;
@@ -101,7 +105,9 @@ test("dashboard (default, WP43d) prints a plain URL that opens without sign-in",
 	timeout: 5000,
 }, async (t) => {
 	const root = await mkdtemp(join(tmpdir(), "aw-dashboard-cli-open-"));
-	t.after(() => rm(root, { recursive: true, force: true }));
+	t.after(() =>
+		rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const controller = new AbortController();
 	const lines = [];
 	let ready;

@@ -42,7 +42,13 @@ import {
 
 const roots = [];
 after(async () => {
-	for (const dir of roots) await rm(dir, { recursive: true, force: true });
+	for (const dir of roots)
+		await rm(dir, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 });
 
 /** A project whose `researcher` is written for pi-workflow (as `~/.pi/agent/agents` is today). */

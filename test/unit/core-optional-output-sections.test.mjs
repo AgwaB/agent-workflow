@@ -24,7 +24,14 @@ for (const analysisRequired of [true, false])
 		const options = { analysisRequired, refsRequired };
 		test(`optional presence follows required flags ${JSON.stringify(options)}`, async (t) => {
 			const root = await mkdtemp(join(tmpdir(), "workflow-optional-output-"));
-			t.after(() => rm(root, { recursive: true, force: true }));
+			t.after(() =>
+				rm(root, {
+					recursive: true,
+					force: true,
+					maxRetries: 10,
+					retryDelay: 100,
+				}),
+			);
 			for (const includeAnalysis of [true, false])
 				for (const includeRefs of [true, false]) {
 					const raw = [
@@ -70,7 +77,14 @@ for (const analysisRequired of [true, false])
 		});
 		test(`support serializer accepts optional settings ${JSON.stringify(options)}`, async (t) => {
 			const root = await mkdtemp(join(tmpdir(), "workflow-optional-support-"));
-			t.after(() => rm(root, { recursive: true, force: true }));
+			t.after(() =>
+				rm(root, {
+					recursive: true,
+					force: true,
+					maxRetries: 10,
+					retryDelay: 100,
+				}),
+			);
 			const runDir = join(
 					root,
 					".agent-workflow",
@@ -115,7 +129,9 @@ for (const analysisRequired of [true, false])
 
 test("optional section prompts permit omission instead of demanding three sections", async (t) => {
 	const root = await mkdtemp(join(tmpdir(), "workflow-optional-prompt-"));
-	t.after(() => rm(root, { recursive: true, force: true }));
+	t.after(() =>
+		rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const spec = parseWorkflow({
 		schemaVersion: 1,
 		defaults: { agent: "scout", tools: ["read"], readOnly: true },

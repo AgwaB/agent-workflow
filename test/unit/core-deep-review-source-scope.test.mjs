@@ -80,8 +80,18 @@ test("source coverage distinguishes unsupported scope and ranges without weakeni
 			}
 		}
 	} finally {
-		rmSync(root, { recursive: true, force: true });
-		rmSync(outside, { recursive: true, force: true });
+		rmSync(root, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+		rmSync(outside, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 

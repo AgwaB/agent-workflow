@@ -398,7 +398,12 @@ test("bundled common agents are fallback after project-local agents", async () =
 			maxRetries: 5,
 			retryDelay: 10,
 		});
-		rmSync(home, { recursive: true, force: true });
+		rmSync(home, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -2581,7 +2586,14 @@ test("tool metadata cannot downgrade known mutating tools", async () => {
 
 test("spec-review partition helper joins verifier results and flags missing coverage", async (t) => {
 	const cwd = makeProject();
-	t.after(() => rmSync(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	mkdirSync(join(cwd, "src"), { recursive: true });
 	writeFileSync(join(cwd, "src/a.ts"), "a\n");
 	const helper = (
@@ -3547,7 +3559,12 @@ test("workflow registry prefers project workflow over local state and bundled du
 			maxRetries: 5,
 			retryDelay: 10,
 		});
-		rmSync(packageDuplicateRoot, { recursive: true, force: true });
+		rmSync(packageDuplicateRoot, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 

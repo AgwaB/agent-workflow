@@ -37,7 +37,12 @@ after(async () => {
 	setSubagentApiForTests(undefined);
 	setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 	await flushPendingIndexUpdatesForTests();
-	await rm(ROOT, { recursive: true, force: true });
+	await rm(ROOT, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 async function fixture(name, options = {}) {

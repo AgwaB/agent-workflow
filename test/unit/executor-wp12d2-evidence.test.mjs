@@ -79,7 +79,14 @@ function request(cwd, attemptKey, gate) {
 for (const [name, adapter] of Object.entries(ADAPTERS)) {
 	test(`review #3 (${name}): only a missing record reconciles absent`, async (t) => {
 		const dir = await mkdtemp(join(tmpdir(), `aw-evidence-${name}-`));
-		t.after(() => rm(dir, { recursive: true, force: true }));
+		t.after(() =>
+			rm(dir, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 100,
+			}),
+		);
 		const stateDir = join(dir, "state");
 		const executor = adapter.create(stateDir);
 		assert.deepEqual(await executor.reconcile("missing-1"), { absent: true });

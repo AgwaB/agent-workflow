@@ -61,7 +61,12 @@ test("durable-worker-preflight", async () => {
 		await assert.rejects(access(validBarrier.readyPath));
 		await assert.rejects(access(validBarrier.ackPath));
 	} finally {
-		await rm(root, { recursive: true, force: true });
+		await rm(root, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 	console.log("durable worker preflight checks passed");
 });

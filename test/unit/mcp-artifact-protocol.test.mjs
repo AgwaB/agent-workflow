@@ -18,7 +18,14 @@ import { createRunFixture, startServer } from "../fixtures/mcp/helpers.mjs";
 
 async function withServer(t, fn, options = {}) {
 	const fixture = await createRunFixture(options.fixture);
-	t.after(() => rm(fixture.cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(fixture.cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		}),
+	);
 	const server = startServer(
 		["--config", fixture.configPath, ...(options.args ?? [])],
 		options,

@@ -40,7 +40,12 @@ import { parseArtifactGraphWorkflowSpec } from "../../dist/core/artifact-graph-s
 const ROOT = mkdtempSync(join(tmpdir(), "pi-workflow-auto-test-"));
 after(() => {
 	setTaskRuntimeApiForTests(undefined);
-	rmSync(ROOT, { recursive: true, force: true });
+	rmSync(ROOT, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 function project() {

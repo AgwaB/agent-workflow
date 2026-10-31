@@ -104,6 +104,11 @@ test("process-gate: --file payload is read once and removed", async () => {
 		assert.equal(result.stdout, "file\n");
 		assert.equal(existsSync(path), false, "payload file is unlinked");
 	} finally {
-		await rm(dir, { recursive: true, force: true });
+		await rm(dir, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

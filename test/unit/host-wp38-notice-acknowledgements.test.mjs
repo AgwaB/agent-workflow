@@ -30,7 +30,9 @@ async function project(t) {
 	const cwd = await realpath(
 		await mkdtemp(join(tmpdir(), "workflow-notice-ack-")),
 	);
-	t.after(() => rm(cwd, { recursive: true, force: true }));
+	t.after(() =>
+		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	await mkdir(join(cwd, ".agent-workflow", "workflows"), { recursive: true });
 	return cwd;
 }

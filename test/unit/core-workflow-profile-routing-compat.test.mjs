@@ -28,7 +28,12 @@ const priorAgentDir = process.env.AGENT_WORKFLOW_HOME;
 after(() => {
 	if (priorAgentDir === undefined) delete process.env.AGENT_WORKFLOW_HOME;
 	else process.env.AGENT_WORKFLOW_HOME = priorAgentDir;
-	rmSync(ROOT, { recursive: true, force: true });
+	rmSync(ROOT, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 const SOL = "openai-codex/gpt-6.1-sol";
 const MODELS = [

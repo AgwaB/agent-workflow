@@ -183,7 +183,12 @@ test("launch provenance digests the server spec with the limit actually launched
 			if (value === undefined) delete process.env[key];
 			else process.env[key] = value;
 		}
-		await rm(root, { recursive: true, force: true });
+		await rm(root, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	});
 	const cwd = join(root, "project");
 	const agents = join(cwd, ".agent-workflow", "agents");

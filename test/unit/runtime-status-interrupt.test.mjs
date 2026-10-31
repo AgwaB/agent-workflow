@@ -77,7 +77,12 @@ test("status: record-only snapshot, result snapshot, wait", async () => {
 		);
 	} finally {
 		delete process.env.AGENT_WORKFLOW_RUN_INDEX_DIR;
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });
 
@@ -160,6 +165,11 @@ test("interrupt: signals only an identity-verified process", {
 		try {
 			child.kill("SIGKILL");
 		} catch {}
-		await rm(cwd, { recursive: true, force: true });
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
 	}
 });

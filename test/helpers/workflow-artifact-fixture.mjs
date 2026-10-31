@@ -17,7 +17,9 @@ export async function artifactReadFixture(
 	source = "producer",
 ) {
 	const root = await mkdtemp(join(tmpdir(), "workflow-read-completeness-"));
-	t.after(() => rm(root, { recursive: true, force: true }));
+	t.after(() =>
+		rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const producer = join(root, "tasks", "producer"),
 		consumer = join(root, "tasks", "consumer");
 	await mkdir(consumer, { recursive: true });
