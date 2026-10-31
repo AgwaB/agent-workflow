@@ -1,3 +1,4 @@
+import type { TaskActivity } from "./task-activity.js";
 // Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/types.ts. MIT, same author. Changes: run.nativeHost→run.hostContext (HostContext); runtime.nativeToolsEnabled→runtime.inheritHostTools; added allowSharedCheckoutWrites (R#5), inheritHostTools run/compile flags, agent legacySource; artifact provenance digests config + MCP server spec instead of extension wrapper bytes. WP4c: run.executor (executor selection), spec executionProfileExecutors, WorkflowRunExecutionProfile.executor, task.ownedSessions, usage/budget record source "executor". WP4d: run.capabilityNegotiation (B4), spec allowReadOnlyDowngrade/executionProfileStrictCapabilities, WorkflowRunExecutionProfile.strictCapabilities. WP4e: run.permissionMode (WorkflowRunPermissionMode), spec executionProfilePermissionModes, WorkflowRunExecutionProfile.permissionMode, compiled.permissionMode, negotiation policy.permissionMode. WP31: role-level profiles (WorkflowRoleAssignment/WorkflowRoleMap, spec executionProfileRoles, run.roleExecution, compiled/task runtime.executor in role-profile runs, negotiation executors for mixed runs, executor source workflow-preference).
 import type { ExecutorCapabilities } from "../sdk/capabilities.js";
 import type { AuthStatus } from "../sdk/contract.js";
@@ -1292,6 +1293,7 @@ export interface WorkflowTaskOwnedSessionRecord {
 }
 
 export interface WorkflowTaskRunRecord {
+	activity?: TaskActivity;
 	/** Engine-owned worker sessions reported by the executor (R#10). */
 	ownedSessions?: WorkflowTaskOwnedSessionRecord[];
 	taskId: string;

@@ -251,3 +251,46 @@ test("structured text redaction preserves JSON types, quotes and newlines", () =
 	assert.match(result.text, /a "quote"\n/);
 	assert.equal(result.cost, null);
 });
+
+test("activity is running-only, bounded, validated and strictly allowlisted", () => {
+	const { run, shown } = data();
+	const task = shown.run.tasks[1];
+	task.status = "running";
+	task.activity = {
+		kind: "read",
+		label: "Reading src/core/store.ts",
+		at: AT,
+		input: "never expose",
+		output: "never expose",
+	};
+	assert.deepEqual(projectRun(run, shown).tasks[1].activity, {
+		kind: "read",
+		label: "Reading src/core/store.ts",
+		at: AT,
+	});
+	task.activity.label = "Reading \u0000\n" + "a".repeat(200);
+	const bounded = projectRun(run, shown).tasks[1].activity;
+	assert.equal(bounded.label.length, 120);
+	assert.doesNotMatch(bounded.label, /[\u0000-\u001f]/);
+	for (const kind of ["invalid", null, {}, "__proto__"]) {
+		task.activity.kind = kind;
+		assert.equal(projectRun(run, shown).tasks[1].activity, undefined);
+	}
+	task.activity.kind = "read";
+	for (const at of [null, "invalid", "2026-11-01T00:00:00Z\n<script>"]) {
+		task.activity.at = at;
+		assert.equal(projectRun(run, shown).tasks[1].activity, undefined);
+	}
+	task.activity.at = AT;
+	for (const status of [
+		"pending",
+		"completed",
+		"failed",
+		"interrupted",
+		"blocked",
+		"skipped",
+	]) {
+		task.status = status;
+		assert.equal("activity" in projectRun(run, shown).tasks[1], false);
+	}
+});

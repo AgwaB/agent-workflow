@@ -1,3 +1,4 @@
+import { projectTaskActivity } from "./task-activity.js";
 // Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 535-558, 2868-3609, 3821-4245, 6401-6701, 6756-6774, 7371-end, and src/backend.ts (the backend object and its fatal-error wrapper). MIT, same author. Changes: implements the WorkflowBackend on the runtime API (executor descriptor recorded on the run, engine-issued attemptKey, SubmitRequest fields readOnly/isolation/approvalPolicy/env/mcpServers); Pi argv/extension preflight/noExtensions/skills/toolResultBudget/worker-role process env not ported (Pi executor, WP6); R#5 worktree gate before launch; registered for local-pi/headless run records. WP4d: launch-time capability decision from the run's recorded B4 negotiation (refusal → fatal before any effect; forcedReadOnly → SubmitRequest.readOnly and approval policy). WP4e: SubmitRequest.permissionMode from the run record (absent = safe). WP10: the system and task prompts are rendered per executor (artifact tool visible name, artifact tool guidelines section); the workflow_web_* source-card hint is removed (C2) and the refs URL hint names the CLI web tools. WP35: Pi-only per-task options (inheritHostTools; fast/fastApi when negotiation accepted fastTier) reach the Pi executor as per-task descriptor config. WP31: each task launches on its own executor in mixed runs (compiled runtime.executor, descriptor from run.roleExecution).
 import { PI_EXECUTOR_ID } from "../executors/pi/version.js";
 import { INHERITED_HOST_TOOL_NAMES } from "./tool-policy.js";
@@ -957,6 +958,12 @@ export async function refreshRunFromSubagentArtifacts(
 				task.statusDetail = "running";
 				changed = true;
 			}
+			const nextActivity = projectTaskActivity(activeAttempt?.activity);
+			if (JSON.stringify(task.activity) !== JSON.stringify(nextActivity)) {
+				if (nextActivity) task.activity = nextActivity;
+				else delete task.activity;
+				changed = true;
+			}
 			const nextLastMessage = activeAttempt?.heartbeatAt
 				? `executor heartbeat ${activeAttempt.heartbeatAt}`
 				: "executor running";
@@ -986,6 +993,10 @@ export async function refreshRunFromSubagentArtifacts(
 			continue;
 		}
 
+		if (task.activity) {
+			delete task.activity;
+			changed = true;
+		}
 		if (await materializeTerminalSubagentResult(cwd, run, task, snapshot)) {
 			releaseLiveModelWorkerSlotForTask(run, task);
 			changed = true;

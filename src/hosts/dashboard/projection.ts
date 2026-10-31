@@ -1,3 +1,7 @@
+import {
+	projectTaskActivity,
+	type TaskActivity,
+} from "../../core/task-activity.js";
 // WP43: pure, allowlisted browser projections of host API data. Never expose a raw run record.
 import type {
 	PendingDynamicApproval,
@@ -67,6 +71,7 @@ export interface DashboardTask {
 		nextRetryAt?: string;
 	};
 	lastMessage?: string;
+	activity?: TaskActivity;
 	usage: DashboardUsage | null;
 	worktree?: { path: string | null; branch: string | null };
 	hasLogs: boolean;
@@ -203,6 +208,10 @@ export function projectRun(
 			runtime?.executor ?? task.runtime?.executor ?? run.executor;
 		const model = runtime?.model ?? task.runtime?.model;
 		const effort = runtime?.effort ?? task.runtime?.thinking;
+		const activity =
+			task.status === "running"
+				? projectTaskActivity(task.activity)
+				: undefined;
 		return {
 			taskId: task.taskId,
 			specId: task.specId,
@@ -237,6 +246,7 @@ export function projectRun(
 					}
 				: {}),
 			...(task.lastMessage ? { lastMessage: task.lastMessage } : {}),
+			...(activity ? { activity } : {}),
 			usage: usage(task.usage?.aggregate ?? task.usage),
 			...(task.worktree?.enabled
 				? {

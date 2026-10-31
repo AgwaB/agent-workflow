@@ -47,6 +47,7 @@ if (!payloadPath) {
 
 const [
 	{ loadExecutor },
+	{ ActivityHeartbeat },
 	{ isSdkError },
 	{
 		createAttemptArtifactStore,
@@ -76,6 +77,7 @@ const [
 	},
 ] = await Promise.all([
 	import("../../sdk/descriptor.js"),
+	import("../telemetry/task-activity.js"),
 	import("../../sdk/errors.js"),
 	import("../artifacts/index.js"),
 	import("../core/constants.js"),
@@ -610,16 +612,18 @@ try {
 // WP2b: at most one heartbeat in flight. setInterval kept firing while a heartbeat waited for the
 // run lock, so under load heartbeats piled up on the lock and starved the attempt's own registry
 // mutations (prepare, running, terminal) until they failed ELOCKED.
-let heartbeatInFlight = false;
-heartbeat = setInterval(() => {
-	if (heartbeatInFlight) return;
-	heartbeatInFlight = true;
-	void recordAttemptHeartbeat({ ...runRef, attemptId })
-		.catch(() => undefined)
-		.finally(() => {
-			heartbeatInFlight = false;
-		});
-}, heartbeatMs);
+let lastHeartbeatAt = Date.now();
+const activityHeartbeat = new ActivityHeartbeat((activity) => {
+	lastHeartbeatAt = Date.now();
+	return recordAttemptHeartbeat({ ...runRef, attemptId, activity });
+});
+heartbeat = setInterval(
+	() => {
+		const now = Date.now();
+		void activityHeartbeat.tick(now, now - lastHeartbeatAt >= heartbeatMs);
+	},
+	Math.min(heartbeatMs, 1000),
+);
 heartbeat.unref?.();
 try {
 	await maybeDelayStartForTests();
@@ -671,6 +675,7 @@ try {
 			executionCwd: prepared.workspace.cwd,
 		});
 	terminalResult = await runPreparedSubagentExecution(prepared, {
+		onActivity: (activity) => activityHeartbeat.update(activity),
 		signal: executionAbort.signal,
 		deferTerminalCommit: true,
 		executor,
@@ -732,6 +737,7 @@ try {
 	}
 } finally {
 	if (heartbeat !== undefined) clearInterval(heartbeat);
+	await activityHeartbeat.drain();
 }
 if (terminalResult !== undefined) {
 	spawnTerminalFinalizer({
