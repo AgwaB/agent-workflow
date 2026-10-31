@@ -21,6 +21,8 @@ import {
 	providersForSelectedTools,
 	toolAllowedByAuthorityCeiling,
 } from "./tool-metadata.js";
+import { resolveGeneratedTaskNames } from "./capability-negotiation.js";
+import { THINKING_LEVELS } from "./types.js";
 import type {
 	CompiledDynamicWorkflowTask,
 	CompiledTask,
@@ -394,6 +396,12 @@ export async function buildDynamicGeneratedCompiledTask(input: {
 		},
 	} as CompiledTask;
 	restoreDynamicGeneratedResourceWarnings(input.compiledFlow, compiledTask);
+	// Model/effort/tool names for the executor that runs it, as for planned stages, before the
+	// task is recorded and its launch sealed (a refusal reaches the controller's ctx.agent()).
+	if (input.run.capabilityNegotiation)
+		resolveGeneratedTaskNames(input.run.capabilityNegotiation, compiledTask, {
+			apply: true,
+		});
 	return compiledTask;
 }
 
@@ -962,18 +970,16 @@ function optionalDynamicModelTaskMaxRuntimeMs(
 
 function optionalDynamicThinking(value: unknown): ThinkingLevel | undefined {
 	if (value === undefined) return undefined;
+	// The workflow vocabulary (specs, agents, --effort): each executor/model gets its nearest level
+	// before launch, like a planned stage.
 	if (
-		value === "off" ||
-		value === "minimal" ||
-		value === "low" ||
-		value === "medium" ||
-		value === "high" ||
-		value === "xhigh" ||
-		value === "max"
-	) {
-		return value;
-	}
-	throw new Error("ctx.agent() thinking has an unsupported value");
+		typeof value === "string" &&
+		(THINKING_LEVELS as readonly string[]).includes(value)
+	)
+		return value as ThinkingLevel;
+	throw new Error(
+		`ctx.agent() thinking has an unsupported value (use one of: ${THINKING_LEVELS.join(", ")})`,
+	);
 }
 
 function requiredDynamicOutputProfile(

@@ -168,3 +168,41 @@ test("resume right after the approval was recorded waits for the supervisor's la
 	);
 	assert.equal(await controllerRuns(), 1);
 });
+
+test("an approve and a reject sent at once record exactly one decision; the other is told nothing is waiting", async () => {
+	store.setSupervisorExitLeaseWaitForTests({ timeoutMs: 10_000, pollMs: 50 });
+	const { cwd, runId, requestId } = await blockedRun();
+	const decide = (approved) =>
+		approvals
+			.recordDynamicApprovalDecision(cwd, runId, {
+				requestId,
+				approved,
+				decidedBy: { host: "cli", via: "approve" },
+			})
+			.then(
+				() => "recorded",
+				(error) => error.message,
+			);
+	const outcomes = await Promise.all([
+		decide(true),
+		decide(false),
+		decide(true),
+	]);
+	assert.equal(outcomes.filter((outcome) => outcome === "recorded").length, 1);
+	for (const outcome of outcomes.filter((entry) => entry !== "recorded"))
+		assert.match(outcome, /has no dynamic controller approval waiting/);
+	assert.equal(await resolvedCount(cwd, runId), 1);
+});
+
+test("a request id prefix shorter than 8 characters says so (not 'no pending approval')", async () => {
+	const { cwd, runId, requestId } = await blockedRun();
+	await assert.rejects(
+		approvals.recordDynamicApprovalDecision(cwd, runId, {
+			requestId: requestId.slice(0, 4),
+			approved: true,
+			decidedBy: { host: "cli", via: "approve" },
+		}),
+		/is too short: use at least 8 characters of it/,
+	);
+	assert.equal(await resolvedCount(cwd, runId), 0);
+});

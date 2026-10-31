@@ -6,6 +6,7 @@
 import { spawn } from "node:child_process";
 import { PassThrough } from "node:stream";
 import { fileURLToPath } from "node:url";
+import { killTrackedProcess } from "./process-cleanup.mjs";
 
 export const HOST_SERVER = fileURLToPath(
 	new URL("../../dist/mcp/host-server/server.js", import.meta.url),
@@ -225,12 +226,13 @@ export function hookEnv(effectLog, config) {
 	};
 }
 
-/** Kill a detached supervisor if it is still alive (best effort). */
-export function killPid(pid) {
-	if (typeof pid !== "number") return;
-	try {
-		process.kill(pid, "SIGKILL");
-	} catch {}
+/**
+ * Kill a detached supervisor or server if it is still the same process (best effort). Call
+ * `trackProcess(pid)` when the pid is learned: a pid kept until cleanup may be another process by
+ * then (process-cleanup.mjs).
+ */
+export async function killPid(pid) {
+	await killTrackedProcess(pid);
 }
 
 /** Call workflow_wait until the run is no longer stillRunning. */

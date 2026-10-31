@@ -13,6 +13,7 @@ import {
 	readFixtureLog,
 	workflowFixtureDescriptor,
 } from "../helpers/workflow-executor-fixture.mjs";
+import { runDiagnostics } from "../helpers/run-diagnostics.mjs";
 
 const api = await import("../../dist/hosts/api.js");
 const core = await import("../../dist/core/index.js");
@@ -137,6 +138,11 @@ async function settle(ctx, runId) {
 	let waited;
 	do waited = await api.waitAction(ctx, { runId, timeoutMs: 10_000 });
 	while (waited.data.stillRunning);
+	// A rare load-only `blocked` (executor_needs_decision): print its evidence with the failure.
+	if (waited.outcome === "blocked")
+		waited.diagnostics = await runDiagnostics(ctx.cwd, runId, {
+			tailChars: 2500,
+		});
 	return waited;
 }
 
@@ -191,7 +197,8 @@ test("a mixed run sends every task to its role's executor with its model and eff
 	);
 	// The fixture probes list no models: the role models are noted as unverified, not refused.
 	assert.match(launched.text, /model "sonnet" for plan is not verified/);
-	assert.equal((await settle(ctx, launched.data.runId)).outcome, "completed");
+	const settled = await settle(ctx, launched.data.runId);
+	assert.equal(settled.outcome, "completed", settled.diagnostics);
 
 	const claude = submits(logs.claude);
 	const codex = submits(logs.codex);
@@ -275,7 +282,8 @@ test("--executor puts every stage on one executor; a role model of another execu
 	});
 	assert.equal(launched.outcome, "running", launched.text);
 	assert.equal(launched.data.roles.mixed, false);
-	assert.equal((await settle(ctx, launched.data.runId)).outcome, "completed");
+	const settled = await settle(ctx, launched.data.runId);
+	assert.equal(settled.outcome, "completed", settled.diagnostics);
 	assert.deepEqual(submits(logs.claude), []);
 	const codex = submits(logs.codex);
 	const stages = await stagesOf(cwd, launched.data.runId, logs.codex);
@@ -315,7 +323,8 @@ test("declared executionProfileRoles beat the saved profile's roles", async () =
 	// No stage uses claude any more: the run's executor is the first stage's.
 	assert.equal(launched.data.executor.id, "codex");
 	assert.equal(launched.data.roles.mixed, false);
-	assert.equal((await settle(ctx, launched.data.runId)).outcome, "completed");
+	const settled = await settle(ctx, launched.data.runId);
+	assert.equal(settled.outcome, "completed", settled.diagnostics);
 	assert.deepEqual(submits(logs.claude), []);
 	assert.equal(submits(logs.codex).length, 2);
 });
@@ -369,7 +378,10 @@ test("a stage whose executor lacks a required capability is refused before launc
 		task: "web on claude",
 	});
 	assert.equal(accepted.outcome, "running", accepted.text);
-	assert.equal((await settle(ctx, accepted.data.runId)).outcome, "completed");
+	{
+		const settled = await settle(ctx, accepted.data.runId);
+		assert.equal(settled.outcome, "completed", settled.diagnostics);
+	}
 	assert.equal(submits(logs.claude).length, 2);
 });
 
@@ -413,7 +425,10 @@ test("role models are checked against the executor's probe list: unknown is refu
 	});
 	assert.equal(ok.outcome, "running", ok.text);
 	assert.doesNotMatch(ok.text, /not verified/);
-	assert.equal((await settle(ctx, ok.data.runId)).outcome, "completed");
+	{
+		const settled = await settle(ctx, ok.data.runId);
+		assert.equal(settled.outcome, "completed", settled.diagnostics);
+	}
 });
 
 test("unknown executor ids in a profile are refused when it is saved", async () => {
@@ -529,7 +544,8 @@ test("owned sessions are released, and pruned, through the executor that reporte
 		workflow: "wf.json",
 		task: "sessions",
 	});
-	assert.equal((await settle(ctx, launched.data.runId)).outcome, "completed");
+	const settled = await settle(ctx, launched.data.runId);
+	assert.equal(settled.outcome, "completed", settled.diagnostics);
 	const run = await store.readRunRecord(cwd, launched.data.runId);
 	for (const task of run.tasks) {
 		assert.ok(task.ownedSessions?.length, `${task.specId} owns a session`);

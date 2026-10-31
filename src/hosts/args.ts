@@ -287,13 +287,32 @@ function requiredOptionValue(
 	return token.text;
 }
 
+/** Options run/dynamic know (a misplaced one is reported only when no option is unknown). */
+const RUN_KNOWN_OPTION_NAMES = new Set([
+	...RUN_VALUE_OPTION_NAMES,
+	"--detach",
+	"--force-new",
+	"--route",
+	"--no-route",
+]);
+
 function assertNoUnconsumedOptions(tokens: readonly WorkflowArgToken[]): void {
-	for (const token of tokens) {
-		if (!token.quoted && token.text.startsWith("--"))
-			throw new HostUsageError(
-				`Unknown or misplaced workflow option ${token.text}; quote literal task text containing options`,
-			);
-	}
+	const options = tokens.filter(
+		(token) => !token.quoted && token.text.startsWith("--"),
+	);
+	if (options.length === 0) return;
+	// Trailing options are read from the end and stop at an unknown one, which leaves the known
+	// options before it unconsumed: name the unknown one, not the first known one.
+	const unknown = options.find(
+		(token) => !RUN_KNOWN_OPTION_NAMES.has(token.text.split("=")[0]!),
+	);
+	if (unknown)
+		throw new HostUsageError(
+			`Unknown workflow option ${unknown.text}; quote literal task text containing options`,
+		);
+	throw new HostUsageError(
+		`Misplaced workflow option ${options[0]!.text}: put options before the workflow or after the task; quote literal task text containing options`,
+	);
 }
 
 function trimEndBefore(input: string, index: number): number {

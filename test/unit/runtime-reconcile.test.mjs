@@ -33,6 +33,11 @@ import {
 	fixtureDescriptor,
 	readEffectLog,
 } from "../fixtures/runtime/fake-executor-module.mjs";
+import {
+	killLiveChild,
+	killTrackedProcess,
+	trackProcess,
+} from "../helpers/process-cleanup.mjs";
 
 const execFileAsync = promisify(execFile);
 const runtimeUrl = new URL("../../dist/runtime/index.js", import.meta.url).href;
@@ -48,18 +53,11 @@ before(async () => {
 	process.env.AGENT_WORKFLOW_RUN_INDEX_DIR = join(tempRoot, "run-index");
 });
 after(async () => {
-	for (const pid of cleanup) {
-		if (!pidAlive(pid)) continue;
-		try {
-			process.kill(-pid, "SIGKILL");
-		} catch {
-			try {
-				process.kill(pid, "SIGKILL");
-			} catch {
-				// already gone
-			}
-		}
-	}
+	// Only processes this file started and that are still the same processes (pids are reused).
+	for (const entry of cleanup)
+		if (typeof entry === "number")
+			await killTrackedProcess(entry, { group: true });
+		else killLiveChild(entry, { group: true });
 	await rm(tempRoot, { recursive: true, force: true });
 });
 
@@ -87,7 +85,7 @@ async function pathExists(path) {
 
 function spawnOwned(command, args) {
 	const child = spawn(command, args, { detached: true, stdio: "ignore" });
-	cleanup.push(child.pid);
+	cleanup.push(child);
 	return child;
 }
 
@@ -315,6 +313,16 @@ test("executor outcomes: absent → not_started; unknown → needs_decision; unl
 			attemptKey: "k-unknown",
 		},
 	);
+	// The worker logged why it stopped (then a stack): the owner decision shows that line.
+	const unknownStore = await createAttemptArtifactStore({
+		cwd: unknownCwd,
+		runId: "run_exec_unknown",
+		attemptId: "attempt_exec_unknown",
+	});
+	await writeFile(
+		join(unknownStore.attemptDir, "worker.log"),
+		"Error: inactive attempt ownership could not be drained\n    at commitOwnedTerminalResult (run.js:1:1)\n    at async main (worker.js:2:2)\n",
+	);
 	const unknown = await reconcileSubagentRun({
 		cwd: unknownCwd,
 		runId: "run_exec_unknown",
@@ -322,6 +330,17 @@ test("executor outcomes: absent → not_started; unknown → needs_decision; unl
 	});
 	assert.equal(unknown.status, "marked-needs-decision");
 	assert.equal(unknown.record?.failureKind, "needs_decision");
+	const unknownResult = JSON.parse(
+		await readFile(join(unknownStore.attemptDir, "result.json"), "utf8"),
+	);
+	assert.equal(
+		unknownResult.metadata.executor.workerExit,
+		"Error: inactive attempt ownership could not be drained",
+	);
+	assert.match(
+		await readFile(join(unknownStore.attemptDir, "stderr.log"), "utf8"),
+		/\nworker: Error: inactive attempt ownership could not be drained\n/u,
+	);
 
 	const missingCwd = join(tempRoot, "executor-missing");
 	await createRunningAttempt(
@@ -956,9 +975,15 @@ test("a dead group leader with a live group blocks; EPERM on a live group surfac
 		`${JSON.stringify(process.execPath)} --input-type=module -e 'import { writeFileSync } from "node:fs"; process.on("SIGTERM", () => {}); await new Promise((resolve) => setTimeout(resolve, 3000)); writeFileSync(${JSON.stringify(sideEffect)}, "late"); await new Promise((resolve) => setTimeout(resolve, 10000));' ignored-sigterm-child & echo $! > ${JSON.stringify(pidPath)}; wait`,
 	]);
 	const leaderIdentity = await captureProcessIdentity(leader.pid);
-	for (let index = 0; index < 100 && !(await pathExists(pidPath)); index += 1)
-		await sleep(10);
-	const childPid = Number((await readFile(pidPath, "utf8")).trim());
+	// `echo $! > file` creates the file before it writes the pid: wait for the number itself
+	// (an empty read was pid 0, "not alive", on a loaded machine).
+	let childPid = 0;
+	for (let index = 0; index < 1000 && !(childPid > 0); index += 1) {
+		if (await pathExists(pidPath))
+			childPid = Number((await readFile(pidPath, "utf8")).trim());
+		if (!(childPid > 0)) await sleep(10);
+	}
+	trackProcess(childPid);
 	cleanup.push(childPid);
 	assert.equal(pidAlive(childPid), true);
 	await sleep(100);

@@ -345,6 +345,9 @@ export async function startDashboardServer(
 			)
 		)
 			throw new HttpError(403, "loopback required");
+		// Node keeps only the first of repeated Host headers; RFC 9112 requires refusing them.
+		if ((request.headersDistinct.host?.length ?? 0) > 1)
+			throw new HttpError(400, "more than one Host header");
 		if (!allowedHost(request.headers.host, port))
 			throw new HttpError(421, "invalid Host");
 		if (!allowedFetchSite(request.headers["sec-fetch-site"]))

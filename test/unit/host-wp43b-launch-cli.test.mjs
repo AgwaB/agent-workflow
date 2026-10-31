@@ -14,6 +14,10 @@ import {
 	ensureDashboard,
 	readDashboardDiscovery,
 } from "../../dist/hosts/dashboard/discovery.js";
+import {
+	killTrackedProcess,
+	trackProcess,
+} from "../helpers/process-cleanup.mjs";
 let counter = 0;
 setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 async function project(t) {
@@ -256,17 +260,12 @@ test("ensure starts a real detached dashboard; status, reuse --open and stop rou
 }, async (t) => {
 	const ctx = await project(t);
 	let pid;
-	t.after(() => {
-		if (pid) {
-			try {
-				process.kill(pid, "SIGKILL");
-			} catch {}
-		}
-	});
+	t.after(() => killTrackedProcess(pid));
 	const start = Date.now();
 	const discovery = await ensureDashboard(ctx.cwd, ctx.env, { start: true });
 	assert.ok(discovery);
 	pid = discovery.pid;
+	trackProcess(pid);
 	assert.notEqual(pid, process.pid);
 	assert.ok(Date.now() - start < 3100);
 	const status = await invoke(ctx, ["dashboard", "--status"]);
@@ -299,10 +298,10 @@ test("run --open starts a missing dashboard, while ordinary launches stay headle
 	let dashboard;
 	t.after(async () => {
 		if (dashboard) {
+			trackProcess(dashboard.pid);
 			await invoke(ctx, ["dashboard", "--stop"]);
-			try {
-				process.kill(dashboard.pid, "SIGKILL");
-			} catch {}
+			// After --stop the pid may be another process: kill only the same dashboard.
+			await killTrackedProcess(dashboard.pid);
 		}
 	});
 	const urls = [];
@@ -325,6 +324,7 @@ test("run --open starts a missing dashboard, while ordinary launches stay headle
 		},
 	);
 	dashboard = await readDashboardDiscovery(ctx.cwd);
+	if (dashboard) trackProcess(dashboard.pid);
 	assert.equal(result.code, 0, result.stderr);
 	assert.ok(dashboard);
 	assert.equal(urls.length, 1);

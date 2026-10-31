@@ -21,6 +21,7 @@ import {
 	hookEnv,
 	killPid,
 } from "../helpers/mcp-host-client.mjs";
+import { trackProcess } from "../helpers/process-cleanup.mjs";
 
 const hostServer = await import("../../dist/mcp/host-server/index.js");
 
@@ -41,7 +42,7 @@ before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-mcp-host-sdk-")));
 });
 after(async () => {
-	for (const pid of detachedPids.splice(0)) killPid(pid);
+	for (const pid of detachedPids.splice(0)) await killPid(pid);
 	await rm(root, {
 		recursive: true,
 		force: true,
@@ -88,10 +89,11 @@ async function sdkClient(t, { cwd, config, capabilities, onElicit, command }) {
 	);
 	if (onElicit) client.setRequestHandler(ElicitRequestSchema, onElicit);
 	await client.connect(transport);
+	trackProcess(transport.pid);
 	t.after(async () => {
 		await client.close().catch(() => undefined);
 		const pid = transport.pid;
-		if (pid) killPid(pid);
+		if (pid) await killPid(pid);
 	});
 	return { client, stderr: () => stderr, pid: () => transport.pid };
 }
@@ -155,6 +157,7 @@ test("official SDK client: list → run (detached by default) → wait loop → 
 	assert.equal(launch.executor.id, "test-fixture");
 	assert.equal(typeof launch.detached?.pid, "number", "detached by default");
 	detachedPids.push(launch.detached.pid);
+	trackProcess(launch.detached.pid);
 	assert.match(stderr(), /test executor "test-fixture" registered/);
 
 	const final = await waitUntilSettled(client, launch.runId);
@@ -181,6 +184,7 @@ test("official SDK client: list → run (detached by default) → wait loop → 
 	});
 	const slowData = slowRun.structuredContent.data;
 	detachedPids.push(slowData.detached.pid);
+	trackProcess(slowData.detached.pid);
 	const stopped = await call(slow.client, "workflow_stop", {
 		runId: slowData.runId,
 	});
@@ -224,6 +228,7 @@ test("official SDK client: elicitation accept and decline for a degraded safe-mo
 	assert.equal(accepted.isError, false, accepted.content[0].text);
 	const data = accepted.structuredContent.data;
 	detachedPids.push(data.detached?.pid);
+	trackProcess(data.detached?.pid);
 	assert.equal(data.capability.confirmation, "confirmed");
 	assert.equal(asked.length, 1);
 	assert.match(asked[0].message, /global AGENTS\.md loaded/);
@@ -252,6 +257,7 @@ test("official SDK client: elicitation accept and decline for a degraded safe-mo
 		permissionMode: "safe",
 	});
 	detachedPids.push(quiet.structuredContent.data.detached?.pid);
+	trackProcess(quiet.structuredContent.data.detached?.pid);
 	assert.equal(
 		quiet.structuredContent.data.capability.confirmation,
 		"non-interactive",
@@ -336,14 +342,17 @@ test("WP28 official SDK client: workflow_supervise drives a run whose attached s
 	const runId = launched.structuredContent.data.runId;
 	assert.equal(launched.structuredContent.data.detached, undefined);
 	// The server that drove the run dies.
-	killPid(first.pid());
+	await killPid(first.pid());
 	await new Promise((resolve) => setTimeout(resolve, 300));
 
 	const second = await sdkClient(t, { cwd, config: { stepDelayMs: 1_500 } });
 	const supervised = await call(second.client, "workflow_supervise", { runId });
 	assert.equal(supervised.isError, false, supervised.content[0].text);
 	const data = supervised.structuredContent.data;
-	if (data.started) detachedPids.push(data.detached.pid);
+	if (data.started) {
+		detachedPids.push(data.detached.pid);
+		trackProcess(data.detached.pid);
+	}
 	assert.equal(data.started, true, supervised.content[0].text);
 	assert.equal(typeof data.detached.pid, "number");
 	assert.match(supervised.content[0].text, /Detached supervisor started/);

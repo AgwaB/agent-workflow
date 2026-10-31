@@ -566,3 +566,36 @@ test("SSE sends immediate snapshots, only changes, heartbeats, and closes active
 	await reading;
 	await s.close(); // idempotent
 });
+
+test("raw requests: an empty Host is refused, and two Host headers are a 400 even when the first is allowed", async (t) => {
+	const s = await server(t, { auth: false });
+	const { connect } = await import("node:net");
+	const statusLine = (head) =>
+		new Promise((resolve, reject) => {
+			const socket = connect(s.port, "127.0.0.1", () => socket.write(head));
+			let body = "";
+			socket.on("data", (chunk) => {
+				body += chunk;
+			});
+			socket.on("end", () => resolve(body.split("\r\n")[0]));
+			socket.on("error", reject);
+		});
+	assert.match(
+		await statusLine(
+			"GET /api/session HTTP/1.1\r\nHost: \r\nConnection: close\r\n\r\n",
+		),
+		/ 421 /,
+	);
+	assert.match(
+		await statusLine(
+			`GET /api/session HTTP/1.1\r\nHost: 127.0.0.1:${s.port}\r\nHost: evil.example\r\nConnection: close\r\n\r\n`,
+		),
+		/ 400 /,
+	);
+	assert.match(
+		await statusLine(
+			`GET /api/session HTTP/1.1\r\nHost: 127.0.0.1:${s.port}\r\nConnection: close\r\n\r\n`,
+		),
+		/ 200 /,
+	);
+});

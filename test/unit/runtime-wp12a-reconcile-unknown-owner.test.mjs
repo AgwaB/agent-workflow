@@ -19,6 +19,7 @@ import {
 import { setProcessIdentityInspectorForTests } from "../../dist/runtime/process-identity.js";
 import { defaultApprovalPolicy } from "../../dist/sdk/index.js";
 import { fixtureDescriptor } from "../fixtures/runtime/fake-executor-module.mjs";
+import { killLiveChild } from "../helpers/process-cleanup.mjs";
 
 let tempRoot;
 const children = [];
@@ -29,12 +30,8 @@ before(async () => {
 });
 after(async () => {
 	setProcessIdentityInspectorForTests(undefined);
-	for (const child of children)
-		try {
-			process.kill(-child.pid, "SIGKILL");
-		} catch {
-			// already gone
-		}
+	// Only children Node has not seen exit: an exited child's pid may be another process now.
+	for (const child of children) killLiveChild(child, { group: true });
 	await rm(tempRoot, { recursive: true, force: true });
 });
 

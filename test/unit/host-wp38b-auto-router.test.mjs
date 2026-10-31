@@ -231,7 +231,7 @@ test("headless /workflow auto fails closed without structured transmission autho
 	});
 	assert.equal(
 		optionMessages.some(({ message }) =>
-			/Unknown or misplaced workflow option --detach/.test(message),
+			/Misplaced workflow option --detach/.test(message),
 		),
 		true,
 	);

@@ -1025,6 +1025,69 @@ function executorNamesField(target: ProbedExecutor | undefined): {
 }
 
 /**
+ * The tool, model and effort checks a planned stage gets before launch, for a stage generated
+ * during the run (dynamic `ctx.agent`), against the recorded vocabulary of its executor
+ * (`negotiation.names`). Refusals throw `WorkflowCapabilityError`. With `apply`, names are
+ * rewritten in the executor's form (call it where the task is built, before it is recorded and
+ * its launch sealed) and notices are added to the negotiation. Runs recorded before the vocabulary
+ * (no `names`) are only checked for what the recorded probe still allows.
+ */
+export function resolveGeneratedTaskNames(
+	negotiation: WorkflowRunCapabilityNegotiation,
+	task: CompiledTask,
+	options: { apply: boolean },
+): void {
+	if (!isExecutorTask(task)) return;
+	const executorId = task.runtime.executor ?? negotiation.executorId;
+	const names =
+		executorId === negotiation.executorId
+			? negotiation.names
+			: negotiation.executors?.[executorId]?.names;
+	const unmapped =
+		names?.tools === undefined
+			? []
+			: (task.runtime.tools ?? []).filter(
+					(tool) => !names.tools!.includes(tool),
+				);
+	const resolved = resolveTaskNames(
+		[task],
+		executorId,
+		new Map([
+			[
+				executorId,
+				{
+					models: names?.models ?? null,
+					modelListComplete: names?.modelListComplete === true,
+					...(names?.modelEfforts ? { modelEfforts: names.modelEfforts } : {}),
+				},
+			],
+		]),
+	);
+	if (unmapped.length > 0 || resolved.refusals.length > 0)
+		throw new WorkflowCapabilityError(
+			"CAPABILITY_REFUSED",
+			[
+				`executor ${executorId} refused generated task ${task.id} before launch:`,
+				...(unmapped.length > 0
+					? [
+							`  ✗ ${task.id}: executor ${executorId} has no mapping for ${unmapped.join(", ")}`,
+						]
+					: []),
+				...resolved.refusals,
+			].join("\n"),
+			executorId,
+		);
+	if (!options.apply) return;
+	resolved.apply();
+	// A rebuilt task (resume) brings the same notices again: record each once.
+	const fresh = resolved.notices.filter(
+		(notice) => !(negotiation.notices ?? []).includes(notice),
+	);
+	if (fresh.length > 0)
+		negotiation.notices = [...(negotiation.notices ?? []), ...fresh];
+}
+
+/**
  * Launch-time decision for one task (task backend, before any effect). Re-derives the report from
  * the recorded effective capabilities and policy; a task generated at runtime whose template was
  * not negotiated before launch is appended to the record (`negotiatedAt: "launch"`, never asks for
@@ -1079,53 +1142,10 @@ export function workflowTaskCapabilityLaunch(
 		);
 	if (!negotiation.stages.some((recorded) => recorded.label === task.id)) {
 		// A stage generated during the run (dynamic/auto): the tool, model and effort checks the
-		// planned stages got before launch, against the recorded vocabulary of its executor.
-		const names =
-			executorId === negotiation.executorId
-				? negotiation.names
-				: negotiation.executors?.[executorId]?.names;
-		const unmapped =
-			names?.tools === undefined
-				? []
-				: (task.runtime.tools ?? []).filter(
-						(tool) => !names.tools!.includes(tool),
-					);
-		const resolved = resolveTaskNames(
-			[task],
-			executorId,
-			new Map([
-				[
-					executorId,
-					{
-						models: names?.models ?? null,
-						modelListComplete: names?.modelListComplete === true,
-						...(names?.modelEfforts
-							? { modelEfforts: names.modelEfforts }
-							: {}),
-					},
-				],
-			]),
-		);
-		if (unmapped.length > 0 || resolved.refusals.length > 0)
-			throw new WorkflowCapabilityError(
-				"CAPABILITY_REFUSED",
-				[
-					`executor ${executorId} refused generated task ${task.id} before launch:`,
-					...(unmapped.length > 0
-						? [
-								`  ✗ ${task.id}: executor ${executorId} has no mapping for ${unmapped.join(", ")}`,
-							]
-						: []),
-					...resolved.refusals,
-				].join("\n"),
-				executorId,
-			);
-		resolved.apply();
-		if (resolved.notices.length > 0)
-			negotiation.notices = [
-				...(negotiation.notices ?? []),
-				...resolved.notices,
-			];
+		// planned stages got before launch. Its names were already rewritten where it was built
+		// (`resolveGeneratedTaskNames`, before its launch was sealed); here only refusals count,
+		// since rewriting a sealed task would no longer match its recorded launch.
+		resolveGeneratedTaskNames(negotiation, task, { apply: false });
 		negotiation.stages.push(stage);
 		for (const code of stage.report.degradations)
 			negotiation.degradations.push(`${task.id}: ${code}`);

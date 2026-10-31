@@ -368,9 +368,14 @@ test("fencing (b): worker killed after consume â†’ reconcile asks the executor â
 	const final = await result(cwd, run);
 	assert.equal(final.failureKind, "needs_decision");
 	assert.equal(final.metadata.executor.reconcile, "unknown");
+	// A worker killed before it could log says so (the owner decision shows why it stopped).
+	assert.equal(
+		final.metadata.executor.workerExit,
+		"no log line (killed or crashed before it could log)",
+	);
 	assert.match(
 		await readFile(join(attemptDir(cwd, run), "stderr.log"), "utf8"),
-		/owner decision/u,
+		/owner decision[^]*\nworker: no log line \(killed or crashed before it could log\)/u,
 	);
 	const events = await readRunEvents({ cwd, runId: run.runId }, Infinity);
 	assert.ok(

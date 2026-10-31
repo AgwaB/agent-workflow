@@ -216,7 +216,7 @@ under the attempt log dir when no `artifactsDir` is given. Redacted there: MCP e
 | toolAllowlist | native, coarse | probed | #12 (`tools: [read]` → read-only sandbox; `touch` denied) |
 | systemPrompt | native, append | declared | #17 (`developerInstructions` honored) |
 | modelSelect | native | probed | all calls (`x-codex-turn-metadata` model) |
-| effortLevels | low, medium, high, xhigh, max, ultra | — | `model/list` union (Luna models stop at max); per model from `codex debug models` `supported_reasoning_levels` (probe `modelEfforts`), so a stage effort maps to its model's highest level not above it before launch |
+| effortLevels | low, medium, high, xhigh, max, ultra | — | `model/list` union (Luna models stop at max); per model from `codex debug models` `supported_reasoning_levels` (probe `modelEfforts`), so a stage effort maps to the nearest level its model has (the lower on a tie) before launch |
 | resume | native, native | probed | kit `live.resume` (#15–16) |
 | partialStream | native | probed | `item/agentMessage/delta` |
 | usage | native, tokens | probed | every completed call; cost never reported |

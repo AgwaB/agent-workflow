@@ -167,6 +167,11 @@ export interface ResultExecutorMetadata {
 	reconcile?: "found" | "absent" | "unknown" | "error";
 	reconcileReason?: string;
 	/**
+	 * The durable worker exited without a result: its last log line (why it stopped), or a note that
+	 * it left none (killed). Shown with the owner decision so the cause is visible (2026-10-31).
+	 */
+	workerExit?: string;
+	/**
 	 * Worker session the adapter kept and reported on the terminal event (R#10, D3). Only these
 	 * locators may be deleted by retention; nothing else is engine-owned.
 	 */

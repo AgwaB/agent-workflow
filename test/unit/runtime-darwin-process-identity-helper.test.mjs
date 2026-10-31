@@ -11,6 +11,7 @@ import {
 	verifyProcessIdentity,
 } from "../../dist/runtime/process-identity.js";
 import { test } from "node:test";
+import { killLiveChild } from "../helpers/process-cleanup.mjs";
 
 test("darwin-process-identity-helper", async () => {
 	const sourcePath = fileURLToPath(
@@ -139,13 +140,7 @@ test("darwin-process-identity-helper", async () => {
 				const secondStartSecond = identities[1].birthIdentity.split(":")[1];
 				if (firstStartSecond === secondStartSecond) sameSecondPair = identities;
 			} finally {
-				for (const child of children)
-					if (child.pid !== undefined)
-						try {
-							process.kill(child.pid, "SIGKILL");
-						} catch {
-							// Child already exited.
-						}
+				for (const child of children) killLiveChild(child);
 			}
 		}
 		assert.ok(

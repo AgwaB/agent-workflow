@@ -1444,9 +1444,10 @@ export async function checkWorkflowAction(
 	};
 	validateLaunchRequest(full, "run");
 	const loaded = await loadWorkflowSpec(request.workflow.trim(), ctx.cwd);
-	return launch(ctx, "run", full, loaded, (options) =>
+	const checked = await launch(ctx, "run", full, loaded, (options) =>
 		runWorkflowSpec(loaded.specPath, ctx.cwd, options),
 	);
+	return { ...checked, action: "check" };
 }
 
 /** `dynamic`: start a spec-less direct dynamic run. */

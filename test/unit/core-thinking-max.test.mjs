@@ -103,3 +103,24 @@ test("specs, agent frontmatter, and launch arguments accept max", () => {
 		/xhigh, max, ultra/,
 	);
 });
+
+test("an unknown option after known ones is named, not the first known one; a misplaced one says so", () => {
+	for (const args of [
+		"run review --executor codex --bogus",
+		'run review "Fix it" --effort high --bogus',
+		"run --bogus review task",
+	])
+		assert.throws(
+			() => parseWorkflowRunArgs(args),
+			/^HostUsageError: Unknown workflow option --bogus;|Unknown workflow option --bogus;/,
+			args,
+		);
+	assert.throws(
+		() => parseWorkflowRunArgs("run review task --executor codex more words"),
+		/Misplaced workflow option --executor: put options before the workflow or after the task/,
+	);
+	assert.throws(
+		() => parseWorkflowDynamicArgs("dynamic --executor codex research --bogus"),
+		/Unknown workflow option --bogus;/,
+	);
+});

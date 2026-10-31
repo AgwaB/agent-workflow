@@ -17,6 +17,7 @@ import { after, test } from "node:test";
 import { compileWorkflow } from "../../dist/core/compiler.js";
 import {
 	negotiateWorkflowRun,
+	resolveGeneratedTaskNames,
 	WorkflowCapabilityError,
 	workflowTaskCapabilityLaunch,
 } from "../../dist/core/capability-negotiation.js";
@@ -375,13 +376,126 @@ test("stages generated during a run (dynamic/auto) get the same tool, model and 
 			),
 		/is an Anthropic model; codex cannot run it/,
 	);
-	// A Pi-qualified OpenAI id is rewritten for codex before submit.
+	// A Pi-qualified OpenAI id is rewritten for codex where the task is built (before its launch
+	// is sealed); the launch-time check then only refuses, it never rewrites a sealed task.
 	const ok = generated({
 		model: "openai-codex/gpt-6.1-sol",
 		thinking: "minimal",
 	});
-	workflowTaskCapabilityLaunch(run, ok);
+	const unconverted = structuredClone(ok);
+	resolveGeneratedTaskNames(negotiation, ok, { apply: true });
 	assert.equal(ok.runtime.model, "gpt-6.1-sol");
 	assert.equal(ok.runtime.thinking, "low");
+	workflowTaskCapabilityLaunch(run, ok);
 	assert.ok(negotiation.stages.some((stage) => stage.label === "generated.w1"));
+	workflowTaskCapabilityLaunch(run, unconverted);
+	assert.equal(unconverted.runtime.model, "openai-codex/gpt-6.1-sol");
+	// Refusals hold at both points.
+	assert.throws(
+		() =>
+			resolveGeneratedTaskNames(
+				negotiation,
+				generated({ model: "anthropic/claude-opus-5-5" }),
+				{ apply: true },
+			),
+		/is an Anthropic model; codex cannot run it/,
+	);
+});
+
+test("model names: malformed ones are refused, case and stray spaces do not leak to the CLI, gemini is Google's", () => {
+	for (const model of [
+		"openai-codex/",
+		"openai-codex//gpt-6.1-sol",
+		"/gpt-6.1-sol",
+		"  ",
+	])
+		assert.match(
+			resolveExecutorModel("codex", model).refused ?? "",
+			/is malformed \(write "model" or "provider\/model"\)/,
+			model,
+		);
+	assert.deepEqual(resolveExecutorModel("codex", "OpenAI/gpt-6.1-sol"), {
+		value: "gpt-6.1-sol",
+		changed: true,
+	});
+	assert.deepEqual(resolveExecutorModel("codex", "gpt-6.1-sol "), {
+		value: "gpt-6.1-sol",
+		changed: true,
+	});
+	assert.deepEqual(
+		resolveExecutorModel("claude", "ANTHROPIC/claude-opus-5-5"),
+		{
+			value: "claude-opus-5-5",
+			changed: true,
+		},
+	);
+	assert.match(
+		resolveExecutorModel("codex", "gemini-3-pro").refused ?? "",
+		/is a google model; codex cannot run it/,
+	);
+	assert.match(
+		resolveExecutorModel("codex", "azure/gpt-6.1-sol").refused ?? "",
+		/is an azure model/,
+	);
+	// Pi: a listed id in another case is the listed id; a nested provider id stays as is.
+	const piList = ["openai-codex/gpt-6.1-sol", "openrouter/openai/gpt-5"];
+	assert.deepEqual(
+		resolveExecutorModel("pi", "OPENAI-CODEX/gpt-6.1-sol", piList),
+		{ value: "openai-codex/gpt-6.1-sol", changed: true },
+	);
+	assert.deepEqual(
+		resolveExecutorModel("pi", "openrouter/openai/gpt-5", piList),
+		{
+			value: "openrouter/openai/gpt-5",
+			changed: false,
+		},
+	);
+});
+
+test("per-model effort: the nearest level the model has, the lower one on a tie", () => {
+	const level = (effort, levels) =>
+		resolveExecutorEffort("codex", effort, "m", levels).value;
+	assert.equal(
+		level("max", ["low", "ultra"]),
+		"ultra",
+		"one step up, not four down",
+	);
+	assert.equal(
+		level("ultra", ["low", "medium", "high", "xhigh", "max"]),
+		"max",
+	);
+	assert.equal(level("low", ["medium", "high"]), "medium");
+	assert.equal(
+		level("medium", ["low", "high"]),
+		"low",
+		"a tie goes to the cheaper level",
+	);
+	assert.equal(
+		level("high", ["none", "auto"]),
+		"high",
+		"unknown level names are ignored",
+	);
+	assert.equal(level("high", []), "high");
+});
+
+test("a refusal's hint names launch options that exist (--executor, --profile mixed; --preset is only for profile set)", async () => {
+	const { parseWorkflowRunArgs } = await import("../../dist/hosts/args.js");
+	const refused = resolveExecutorModel(
+		"codex",
+		"anthropic/claude-opus-5-5",
+	).refused;
+	assert.match(
+		refused,
+		/--executor claude, or a role profile such as --profile mixed\)/,
+	);
+	assert.doesNotMatch(refused, /--preset/);
+	const parsed = parseWorkflowRunArgs(
+		"run wf.json task --executor claude --profile mixed",
+	);
+	assert.equal(parsed.executor, "claude");
+	assert.equal(parsed.profile, "mixed");
+	assert.throws(
+		() => parseWorkflowRunArgs("run wf.json task --preset mixed"),
+		/Unknown workflow option --preset/,
+	);
 });

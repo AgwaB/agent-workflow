@@ -15,11 +15,13 @@
 
 /** Who makes a model, from its name: `openai`, `anthropic`, a Pi provider id, or undefined. */
 export function modelVendor(model: string): string | undefined {
-	const prefix = /^([a-z0-9][a-z0-9-]*)\//u.exec(model)?.[1];
+	// Provider prefixes are matched without case ("OpenAI/gpt-…" is an OpenAI model).
+	const prefix = /^([a-z0-9][a-z0-9-]*)\//iu.exec(model)?.[1]?.toLowerCase();
 	if (prefix !== undefined)
 		return prefix === "openai-codex" || prefix === "openai" ? "openai" : prefix;
-	if (/^(?:gpt-|o\d|codex-)/u.test(model)) return "openai";
-	if (/^(?:claude-|(?:opus|sonnet|haiku)$)/u.test(model)) return "anthropic";
+	if (/^(?:gpt-|o\d|codex-)/iu.test(model)) return "openai";
+	if (/^(?:claude-|(?:opus|sonnet|haiku)$)/iu.test(model)) return "anthropic";
+	if (/^gemini-/iu.test(model)) return "google";
 	return undefined;
 }
 
@@ -43,7 +45,7 @@ export type ExecutorNameResolution =
 	| { refused: string };
 
 function bare(model: string): string {
-	return model.replace(/^[a-z0-9][a-z0-9-]*\//u, "");
+	return model.replace(/^[a-z0-9][a-z0-9-]*\//iu, "");
 }
 
 /**
@@ -52,18 +54,40 @@ function bare(model: string): string {
  */
 export function resolveExecutorModel(
 	executorId: string,
-	model: string,
+	requested: string,
 	listed: readonly string[] | null = null,
 	listComplete = false,
 ): ExecutorNameResolution {
-	const vendor = modelVendor(model);
+	const model = requested.trim();
+	// "openai-codex/", "a//b", "/x": an empty part would reach the CLI as "" or a broken name.
+	if (model === "" || model.split("/").some((part) => part === ""))
+		return {
+			refused: `model ${JSON.stringify(requested)} is malformed (write "model" or "provider/model")`,
+		};
+	const resolved = resolveTrimmedModel(executorId, model, listed, listComplete);
+	if ("refused" in resolved || resolved.value === requested) return resolved;
+	return { ...resolved, changed: true };
+}
+
+function resolveTrimmedModel(
+	executorId: string,
+	model: string,
+	listed: readonly string[] | null,
+	listComplete: boolean,
+): ExecutorNameResolution {
 	if (listed?.includes(model)) return { value: model, changed: false };
+	// The executor lists the same name in another case ("OPENAI-CODEX/x" for "openai-codex/x").
+	const caseMatch = listed?.filter(
+		(entry) => entry.toLowerCase() === model.toLowerCase(),
+	);
+	if (caseMatch?.length === 1) return { value: caseMatch[0]!, changed: true };
+	const vendor = modelVendor(model);
 	const own = EXECUTOR_VENDORS[executorId];
 	if (own !== undefined) {
 		if (vendor !== undefined && vendor !== own) {
 			const other = VENDOR_EXECUTOR[vendor] ?? "pi";
 			return {
-				refused: `model "${model}" is ${vendorLabel(vendor)} model; ${executorId} cannot run it (use the ${other} executor for this stage: --executor ${other}, or a role/preset such as --preset mixed)`,
+				refused: `model "${model}" is ${vendorLabel(vendor)} model; ${executorId} cannot run it (use the ${other} executor for this stage: --executor ${other}, or a role profile such as --profile mixed)`,
 			};
 		}
 		const value = vendor === own ? bare(model) : model;
@@ -127,7 +151,7 @@ function vendorLabel(vendor: string): string {
 		? "an OpenAI"
 		: vendor === "anthropic"
 			? "an Anthropic"
-			: `a ${vendor}`;
+			: `${/^[aeiou]/u.test(vendor) ? "an" : "a"} ${vendor}`;
 }
 
 /** Effort/thinking levels each built-in executor accepts. */
@@ -159,7 +183,7 @@ const EFFORT_ORDER = [
 
 /**
  * `effort` as `executorId` names it; with `modelLevels` (the levels the stage's model supports,
- * from the probe) the highest supported level not above the request — else the lowest.
+ * from the probe) the nearest of them (a tie: the lower one).
  */
 export function resolveExecutorEffort(
 	executorId: string,
@@ -180,10 +204,14 @@ export function resolveExecutorEffort(
 	const supported = [...modelLevels]
 		.filter((level) => rank(level) >= 0)
 		.sort((left, right) => rank(left) - rank(right));
-	const chosen =
-		[...supported]
-			.reverse()
-			.find((level) => rank(level) <= rank(general.value)) ?? supported[0];
+	// The nearest supported level; a tie goes to the lower (cheaper) one. With a model's usual
+	// contiguous range this is its top level above it and its bottom level below it.
+	const wanted = rank(general.value);
+	const chosen = [...supported].sort(
+		(left, right) =>
+			Math.abs(rank(left) - wanted) - Math.abs(rank(right) - wanted) ||
+			rank(left) - rank(right),
+	)[0];
 	if (chosen === undefined) return general;
 	return {
 		value: chosen,

@@ -156,3 +156,62 @@ test("the launch's capability text is short: each warning once, with the stages 
 		].join("\n"),
 	);
 });
+
+test("check edge cases: its own action name; no dashboard even when auto-start is on; --detach starts nothing; allowed for workers", async (t) => {
+	const { ctx, executor, effects } = await project(t);
+	const autostart = { ...ctx, env: { ...ctx.env } };
+	delete autostart.env.AGENT_WORKFLOW_DASHBOARD_AUTOSTART;
+	const checked = await checkWorkflowAction(autostart, {
+		workflow: "wf.json",
+		executor,
+	});
+	assert.equal(checked.action, "check");
+	assert.equal(checked.ok, true, checked.text);
+	assert.equal(checked.data.dashboard, undefined);
+	assert.equal(
+		existsSync(join(ctx.cwd, ".agent-workflow", "dashboard.json")),
+		false,
+		"a preflight starts no dashboard",
+	);
+	// Launch-only flags are accepted and do nothing (no detached supervisor, no run).
+	const out = [];
+	assert.equal(
+		await runAgentWorkflowCli(
+			[
+				"check",
+				"wf.json",
+				"--executor",
+				executor,
+				"--detach",
+				"--force-new",
+				"--json",
+			],
+			{
+				cwd: ctx.cwd,
+				env: autostart.env,
+				stdout: (text) => out.push(text),
+				stderr: () => {},
+				isTTY: false,
+			},
+		),
+		0,
+	);
+	const json = JSON.parse(out.join(""));
+	assert.equal(json.action, "check");
+	assert.equal(json.data.detached, undefined);
+	assert.equal(json.data.runId, undefined);
+	// A worker process may check (it may validate too): same answer, still nothing launched.
+	const worker = await checkWorkflowAction(
+		{ ...ctx, env: { ...ctx.env, AGENT_WORKFLOW_ROLE: "worker" } },
+		{ workflow: "wf.json", executor },
+	);
+	assert.equal(worker.ok, true, worker.text);
+	assert.equal(existsSync(effects), false, "the executor was never asked");
+	assert.equal(
+		existsSync(join(ctx.cwd, ".agent-workflow", "workflows")) &&
+			readdirSync(join(ctx.cwd, ".agent-workflow", "workflows")).some((name) =>
+				name.startsWith("workflow_"),
+			),
+		false,
+	);
+});

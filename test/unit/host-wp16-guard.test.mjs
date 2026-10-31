@@ -15,6 +15,10 @@ import { fileURLToPath } from "node:url";
 
 import { inProcessHostServer } from "../helpers/mcp-host-client.mjs";
 import { fakeCtx, fakePi } from "../helpers/pi-host-fake.mjs";
+import {
+	killTrackedProcess,
+	trackProcess,
+} from "../helpers/process-cleanup.mjs";
 
 const HOOK_MODULE = fileURLToPath(
 	new URL("../helpers/host-test-executor.mjs", import.meta.url),
@@ -62,13 +66,7 @@ after(async () => {
 		await client.close().catch(() => undefined);
 	for (const { ctx, runId } of launchedRuns)
 		await api.stopAction(ctx, { runId }).catch(() => undefined);
-	for (const pid of supervisorPids) {
-		try {
-			process.kill(pid, "SIGKILL");
-		} catch {
-			// Already gone.
-		}
-	}
+	for (const pid of supervisorPids) await killTrackedProcess(pid);
 	await new Promise((done) => setTimeout(done, 200));
 	for (const dir of [root, hookRoot])
 		await rm(dir, {
@@ -101,7 +99,10 @@ async function project() {
 
 function remember(ctx, data) {
 	if (data?.runId) launchedRuns.push({ ctx, runId: data.runId });
-	if (data?.detached?.pid) supervisorPids.add(data.detached.pid);
+	if (data?.detached?.pid) {
+		supervisorPids.add(data.detached.pid);
+		trackProcess(data.detached.pid);
+	}
 }
 
 function runDirs(cwd) {

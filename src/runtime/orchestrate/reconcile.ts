@@ -596,6 +596,25 @@ export async function reconcileSubagentRun(
 const DEFAULT_ADOPT_TIMEOUT_MS = 5_000;
 
 /**
+ * Why the durable worker stopped without a result, from its own log (`worker.log`: it logs the
+ * reason before it exits): the last line that is not a stack frame, bounded. A worker that left
+ * no line was killed or crashed before it could log (2026-10-31: a test killing a stale pid).
+ */
+async function workerExitLine(attemptDir: string): Promise<string> {
+	const text = await readFile(join(attemptDir, "worker.log"), "utf8").catch(
+		() => "",
+	);
+	const line = text
+		.split("\n")
+		.map((entry) => entry.trim())
+		.filter((entry) => entry !== "" && !entry.startsWith("at "))
+		.at(-1);
+	return line === undefined
+		? "no log line (killed or crashed before it could log)"
+		: line.slice(0, 300);
+}
+
+/**
  * WP2a-2: the owner process is gone and no terminal result exists. When the attempt has a
  * persisted executor descriptor, ask the executor (B3) instead of guessing "stale":
  * - `found`: adopt the ExecRef and observe it here if the executor is not `sessionBound`
@@ -782,12 +801,14 @@ async function reconcileThroughExecutor(context: {
 
 	const notStarted = outcome.outcome === "absent";
 	const failureKind = notStarted ? "not_started" : "needs_decision";
+	meta.workerExit = await workerExitLine(store.attemptDir);
 	const message = notStarted
 		? "worker exited without a result; the executor reports the attempt never launched (not_started)"
 		: outcome.outcome === "found"
 			? `worker exited without a result; the executor still holds the attempt (${outcome.ref?.handle ?? "?"}) but cannot be observed from here; needs an owner decision (B3)`
 			: `worker exited without a result; the executor cannot tell whether the attempt launched (${outcome.outcome}${outcome.reason === undefined ? "" : `: ${outcome.reason}`}); needs an owner decision, no automatic retry (B3)`;
-	const stderr = await store.writeTextArtifact("stderr", `${message}\n`);
+	const detailed = `${message}\nworker: ${meta.workerExit}`;
+	const stderr = await store.writeTextArtifact("stderr", `${detailed}\n`);
 	const output = await store.ensureTextArtifact("output");
 	await closeControlMailbox(store.attemptDir).catch(() => undefined);
 	const terminalResult = await store.writeResult({
@@ -818,7 +839,7 @@ async function reconcileThroughExecutor(context: {
 		type: "reconcile.failed",
 		attemptId: attempt.attemptId,
 		status: "failed",
-		message,
+		message: detailed,
 		data: { failureKind, executorReconcile: outcome.outcome },
 	}).catch(() => undefined);
 	return {

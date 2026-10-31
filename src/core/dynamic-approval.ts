@@ -151,6 +151,13 @@ export function selectPendingDynamicApproval(
 			(requestId.length >= 8 && entry.requestId.startsWith(requestId)),
 	);
 	if (matches.length === 1) return matches[0]!;
+	if (
+		requestId.length < 8 &&
+		pending.some((entry) => entry.requestId.startsWith(requestId))
+	)
+		throw new Error(
+			`Request id ${requestId} is too short: use at least 8 characters of it (pending: ${pending.map((entry) => `${entry.requestId.slice(0, 12)} (${entry.controllerSpecId})`).join(", ")})`,
+		);
 	throw new Error(
 		`Run ${runId} has no pending approval with request id ${requestId}; pending: ${pending.map((entry) => `${entry.requestId} (${entry.controllerSpecId})`).join(", ")}`,
 	);

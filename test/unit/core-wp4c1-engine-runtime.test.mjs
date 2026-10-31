@@ -339,6 +339,8 @@ test("runtime needs_decision blocks the task and the run with a notice; nothing 
 	assert.equal(task.statusDetail, core.EXECUTOR_NEEDS_DECISION_STATUS_DETAIL);
 	assert.equal(task.launchRetry, undefined);
 	assert.match(task.lastMessage, /owner decision/);
+	// The worker itself recorded the decision (it did not exit without a result): no worker line.
+	assert.doesNotMatch(task.lastMessage, /; worker: /);
 	const result = JSON.parse(
 		await readFile(join(cwd, task.files.result), "utf8"),
 	);

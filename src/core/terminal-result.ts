@@ -380,13 +380,16 @@ function workflowStatusFromSubagent(
 			snapshot.metadata?.contextLengthExceeded,
 	);
 	const outputPartial = hasPartialSubagentOutput(snapshot, result);
-	if (snapshot.failureKind === EXECUTOR_NEEDS_DECISION_FAILURE_KIND)
+	if (snapshot.failureKind === EXECUTOR_NEEDS_DECISION_FAILURE_KIND) {
+		const workerExit = (
+			snapshot.metadata?.executor as { workerExit?: unknown } | undefined
+		)?.workerExit;
 		return {
 			status: "blocked",
 			failureKind: EXECUTOR_NEEDS_DECISION_FAILURE_KIND,
-			errorMessage:
-				"executor reconcile could not prove whether the attempt launched; an owner decision is required (resume relaunches with a new attempt, stop abandons it)",
+			errorMessage: `executor reconcile could not prove whether the attempt launched; an owner decision is required (resume relaunches with a new attempt, stop abandons it)${typeof workerExit === "string" ? `; worker: ${workerExit}` : ""}`,
 		};
+	}
 	if (snapshot.status === "completed" && outputPartial)
 		return {
 			status: "failed",
