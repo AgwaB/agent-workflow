@@ -212,3 +212,93 @@ test("attachTaskTexts refuses paths outside the artifact root, symlinks out and 
 		await cleanup(outside);
 	}
 });
+
+test("titles also come from the task's own itemRef or, failing that, the run spec's foreach source", async () => {
+	const { cwd, control } = await project();
+	try {
+		const plan = await control("task-1", {
+			items: [
+				{ id: "C1", claim: "First" },
+				"Second as text",
+				{ id: "c3", title: "Third" },
+			],
+		});
+		await writeFile(
+			join(cwd, RUN, "spec.json"),
+			JSON.stringify({
+				artifactGraph: {
+					stages: [
+						{ id: "plan", type: "single" },
+						{
+							id: "check",
+							type: "foreach",
+							from: { source: "plan", path: "$.items" },
+						},
+						{
+							id: "custom",
+							type: "foreach",
+							from: { source: "plan", path: "$.items" },
+							itemIdentityPath: "$.claim",
+						},
+					],
+				},
+			}),
+		);
+		const gen = (taskId, specId, extra = {}) => ({
+			taskId,
+			specId,
+			stageId: specId.split(".")[0],
+			kind: "foreach",
+			status: "pending",
+			files: { result: `${RUN}/tasks/${taskId}/result.json` },
+			foreachGenerated: {
+				placeholderSpecId: `${specId.split(".")[0]}.item`,
+				...extra,
+			},
+		});
+		const records = [
+			{
+				taskId: "task-1",
+				specId: "plan.main",
+				stageId: "plan",
+				kind: "single",
+				status: "completed",
+				files: plan,
+			},
+			gen("task-2", "check.c1"),
+			gen("task-3", "check.item-002"),
+			gen("task-4", "check.c3"),
+			gen("task-5", "check.c9"),
+			gen("task-6", "custom.first"),
+			gen("task-7", "other.x", {
+				itemSourceTaskId: "task-1",
+				itemRef: "plan.main:control:$.items[2]",
+			}),
+		];
+		const targets = records.map((record) => ({ taskId: record.taskId }));
+		await attachTaskTexts(cwd, records, targets);
+		const title = Object.fromEntries(
+			targets.map((target) => [target.taskId, target.title]),
+		);
+		assert.equal(
+			title["task-2"],
+			"First",
+			"id is matched the engine's way (lower-cased)",
+		);
+		assert.equal(
+			title["task-3"],
+			"Second as text",
+			"an item without id matches by item-NNN",
+		);
+		assert.equal(title["task-4"], "Third");
+		assert.equal(title["task-5"], undefined, "no matching item");
+		assert.equal(
+			title["task-6"],
+			undefined,
+			"a custom identity path is not guessed",
+		);
+		assert.equal(title["task-7"], "Third", "the task's own itemRef");
+	} finally {
+		await cleanup(cwd);
+	}
+});

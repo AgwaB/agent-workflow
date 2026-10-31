@@ -32,9 +32,81 @@ export interface TaskOutcome {
 }
 interface TaskTextRecord {
 	taskId: string;
+	specId?: string;
+	stageId?: string;
+	kind?: string;
 	status: string;
 	files?: { result?: string };
 	dispatchMap?: { entries?: unknown };
+	foreachGenerated?: {
+		placeholderSpecId?: string;
+		itemSourceTaskId?: string;
+		itemRef?: string;
+	};
+}
+
+/** The engine's foreach task id for an item without a custom identity path (engine-run-graph). */
+function legacyItemTaskId(item: unknown, index: number): string {
+	const id =
+		item &&
+		typeof item === "object" &&
+		typeof (item as { id?: unknown }).id === "string"
+			? (item as { id: string }).id
+					.trim()
+					.toLowerCase()
+					.replace(/[^a-z0-9_.-]+/g, "-")
+					.replace(/^-+|-+$/g, "")
+					.slice(0, 64)
+			: "";
+	return id || `item-${String(index + 1).padStart(3, "0")}`;
+}
+
+/** Title fallback from spec.json: the foreach stage's `from` source item whose id matches. */
+async function specItemTitle(
+	cwd: string,
+	record: TaskTextRecord,
+	records: TaskTextRecord[],
+): Promise<string | undefined> {
+	const stageId = record.stageId;
+	if (!stageId || !record.specId?.startsWith(`${stageId}.`)) return undefined;
+	const spec = await readRunSpec(cwd, record.files?.result);
+	const stages = (spec as { artifactGraph?: { stages?: unknown } } | undefined)
+		?.artifactGraph?.stages;
+	if (!Array.isArray(stages)) return undefined;
+	const stage = stages.find(
+		(entry) => entry && typeof entry === "object" && entry.id === stageId,
+	) as
+		| {
+				type?: unknown;
+				from?: { source?: unknown; path?: unknown };
+				each?: unknown;
+				itemIdentityPath?: unknown;
+		  }
+		| undefined;
+	if (stage?.type !== "foreach" || stage.itemIdentityPath !== undefined)
+		return undefined;
+	if (
+		(stage.each as { itemIdentityPath?: unknown } | undefined)
+			?.itemIdentityPath !== undefined
+	)
+		return undefined;
+	const { source, path } = stage.from ?? {};
+	if (typeof source !== "string" || typeof path !== "string") return undefined;
+	const steps = parseItemPath(path);
+	const origin = records.find(
+		(entry) =>
+			entry.stageId === source &&
+			entry.kind !== "foreach" &&
+			entry.status === "completed",
+	);
+	if (!steps || !origin) return undefined;
+	const items = at(await readControl(cwd, origin.files?.result), steps);
+	if (!Array.isArray(items)) return undefined;
+	const suffix = record.specId.slice(stageId.length + 1);
+	const index = items.findIndex(
+		(item, i) => legacyItemTaskId(item, i) === suffix,
+	);
+	return index < 0 ? undefined : itemTitle(items[index]);
 }
 interface TaskTextTarget {
 	taskId: string;
@@ -55,10 +127,27 @@ export function oneLine(value: string, max = MAX_TEXT): string {
 
 async function readControl(cwd: string, resultPath: unknown): Promise<unknown> {
 	if (typeof resultPath !== "string" || !resultPath) return undefined;
-	const candidate = posix.join(
-		posix.dirname(resultPath.replaceAll("\\", "/")),
-		"control.json",
+	return await readContainedJson(
+		cwd,
+		posix.join(posix.dirname(resultPath.replaceAll("\\", "/")), "control.json"),
 	);
+}
+
+/** The run's spec.json, next to tasks/<task>/result.json. */
+async function readRunSpec(cwd: string, resultPath: unknown): Promise<unknown> {
+	if (typeof resultPath !== "string" || !resultPath) return undefined;
+	const taskDir = posix.dirname(resultPath.replaceAll("\\", "/"));
+	if (posix.basename(posix.dirname(taskDir)) !== "tasks") return undefined;
+	return await readContainedJson(
+		cwd,
+		posix.join(posix.dirname(posix.dirname(taskDir)), "spec.json"),
+	);
+}
+
+async function readContainedJson(
+	cwd: string,
+	candidate: string,
+): Promise<unknown> {
 	const contained = await resolveContainedRunFile(cwd, candidate);
 	if (contained.kind !== "ok") return undefined;
 	try {
@@ -193,6 +282,20 @@ export async function attachTaskTexts(
 			});
 		}
 	}
+	for (const record of records) {
+		const own = record.foreachGenerated;
+		if (
+			own &&
+			!items.has(record.taskId) &&
+			typeof own.itemSourceTaskId === "string" &&
+			typeof own.itemRef === "string" &&
+			own.itemRef.includes(":control:")
+		)
+			items.set(record.taskId, {
+				source: own.itemSourceTaskId,
+				path: own.itemRef.slice(own.itemRef.lastIndexOf(":control:") + 9),
+			});
+	}
 	for (const target of targets) {
 		const item = items.get(target.taskId);
 		if (item) {
@@ -206,6 +309,10 @@ export async function attachTaskTexts(
 			}
 		}
 		const record = byId.get(target.taskId);
+		if (!target.title && record?.foreachGenerated) {
+			const title = await specItemTitle(cwd, record, records);
+			if (title) target.title = title;
+		}
 		if (record?.status !== "completed") continue;
 		const outcome = outcomeOf(
 			await readControl(cwd, record.files?.result),
