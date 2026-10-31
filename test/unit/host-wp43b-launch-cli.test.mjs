@@ -142,7 +142,7 @@ test("run --open overrides agent/non-TTY suppression, opens once and bootstraps 
 			},
 		},
 	);
-	assert.equal(out.code, 0, out.stderr);
+	assert.equal(out.code, 0, `${out.stderr}\n${out.stdout}`);
 	assert.equal(urls.length, 1);
 	const data = JSON.parse(out.stdout).data;
 	const response = await fetch(urls[0], { redirect: "manual" });
@@ -186,7 +186,7 @@ test("run --open against an --auth dashboard bootstraps once with a one-time tok
 			},
 		},
 	);
-	assert.equal(out.code, 0, out.stderr);
+	assert.equal(out.code, 0, `${out.stderr}\n${out.stdout}`);
 	assert.equal(urls.length, 1);
 	const data = JSON.parse(out.stdout).data;
 	assert.equal(data.dashboard.auth, true);
@@ -224,7 +224,11 @@ test("env opt-in is suppressed in agents and on pipes; failures cannot fail the 
 			return true;
 		},
 	});
-	assert.equal(suppressed.code, 0, suppressed.stderr);
+	assert.equal(
+		suppressed.code,
+		0,
+		`${suppressed.stderr}\n${suppressed.stdout}`,
+	);
 	assert.match(
 		suppressed.stderr,
 		/Dashboard not opened \(AI agent environment; pass --open to force\)/,
@@ -244,14 +248,14 @@ test("env opt-in is suppressed in agents and on pipes; failures cannot fail the 
 			return true;
 		},
 	});
-	assert.equal(piped.code, 0, piped.stderr);
+	assert.equal(piped.code, 0, `${piped.stderr}\n${piped.stdout}`);
 	assert.equal(opens, 0);
 	const failed = await invoke(ctx, [...args("opener failure"), "--open"], {
 		open: () => {
 			throw new Error("private error must not be printed");
 		},
 	});
-	assert.equal(failed.code, 0, failed.stderr);
+	assert.equal(failed.code, 0, `${failed.stderr}\n${failed.stdout}`);
 	assert.match(failed.stderr, /Could not open the browser/);
 	assert.ok(!failed.stderr.includes("private error"));
 });
@@ -269,7 +273,7 @@ test("ensure starts a real detached dashboard; status, reuse --open and stop rou
 	assert.notEqual(pid, process.pid);
 	assert.ok(Date.now() - start < 3100);
 	const status = await invoke(ctx, ["dashboard", "--status"]);
-	assert.equal(status.code, 0, status.stderr);
+	assert.equal(status.code, 0, `${status.stderr}\n${status.stdout}`);
 	assert.ok(status.stdout.includes(`pid ${pid}`));
 	assert.ok(status.stdout.includes(`127.0.0.1:${discovery.port}`));
 	assert.ok(status.stdout.includes(discovery.startedAt));
@@ -281,7 +285,7 @@ test("ensure starts a real detached dashboard; status, reuse --open and stop rou
 			return true;
 		},
 	});
-	assert.equal(opened.code, 0, opened.stderr);
+	assert.equal(opened.code, 0, `${opened.stderr}\n${opened.stdout}`);
 	assert.equal(urls.length, 1);
 	assert.equal((await fetch(urls[0], { redirect: "manual" })).status, 302);
 	assert.equal((await readDashboardDiscovery(ctx.cwd)).pid, pid);
@@ -325,7 +329,7 @@ test("run --open starts a missing dashboard, while ordinary launches stay headle
 	);
 	dashboard = await readDashboardDiscovery(ctx.cwd);
 	if (dashboard) trackProcess(dashboard.pid);
-	assert.equal(result.code, 0, result.stderr);
+	assert.equal(result.code, 0, `${result.stderr}\n${result.stdout}`);
 	assert.ok(dashboard);
 	assert.equal(urls.length, 1);
 	const runId = JSON.parse(result.stdout).data.runId;
@@ -394,6 +398,6 @@ test("terminal env opt-in opens once outside agent environments", {
 			},
 		},
 	);
-	assert.equal(result.code, 0, result.stderr);
+	assert.equal(result.code, 0, `${result.stderr}\n${result.stdout}`);
 	assert.equal(opened, 1);
 });
