@@ -223,7 +223,7 @@ kbd {
 }
 .run-row {
 	border-bottom: 1px solid var(--line);
-	padding: 12px 4px;
+	padding: 8px 4px;
 	cursor: pointer;
 	transition: background 0.15s ease;
 }
@@ -242,7 +242,7 @@ kbd {
 	white-space: nowrap;
 }
 .run-progress {
-	margin: 10px 0;
+	margin: 6px 0;
 	gap: 12px;
 }
 .run-progress span {
@@ -1259,4 +1259,19 @@ main.signin code {
 	.handoff-packet {
 		display: none;
 	}
+}
+
+/* Helpers remain navigable, but do not compete with agent work. */
+.node.support .outline {
+	fill: transparent;
+}
+.node.support .node-name {
+	fill: var(--muted);
+	font-size: 14px;
+}
+.run-line > .grow {
+	flex-basis: 100%;
+}
+.run-line > .elapsed {
+	margin-right: auto;
 }

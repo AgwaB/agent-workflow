@@ -41,8 +41,7 @@ const labels = {
 const iconPaths = {
 	completed: "M3.5 8.5l3 3 6-7",
 	failed: "M4 4l8 8M12 4l-8 8",
-	blocked:
-		"M5 8V4.2a1 1 0 0 1 2 0V7.5M7 7V3.2a1 1 0 0 1 2 0V7M9 7V4a1 1 0 0 1 2 0v5.5c0 2.5-1.6 4.5-4 4.5-1.7 0-2.6-.8-3.5-2.2L2.3 9.6a1 1 0 0 1 1.6-1.1L5 9.6",
+	blocked: "M8 3v6M8 12h.01",
 	retry: "M13 6a6 6 0 1 0 1 3M8 5v3.2l2 1.2M11 2l3 1-1 3",
 	interrupted: "M5.5 5.5h5v5h-5z",
 	skipped: "M4 12l8-8",
@@ -104,7 +103,7 @@ function logo() {
 		}),
 		svg("circle", { cx: 6.5, cy: 6.5, r: 2, fill: "#0b0c0f" }),
 		svg("circle", { cx: 6.5, cy: 13.5, r: 2, fill: "#0b0c0f" }),
-		svg("circle", { cx: 13.5, cy: 10, r: 2, fill: "#6ee7b7" }),
+		svg("circle", { cx: 13.5, cy: 10, r: 2, fill: "#6fbf8e" }),
 	);
 }
 const date = (value) => Date.parse(value) || 0;
@@ -419,7 +418,7 @@ async function sessionLost() {
 }
 function railLine(summary) {
 	if (summary.status === "completed")
-		return `Finished${summary.verdict ? ` · ${summary.verdict}` : ""}`;
+		return `Finished${incomplete(summary) ? " · incomplete" : summary.verdict ? ` · ${summary.verdict}` : ""}`;
 	if (summary.status === "failed" && summary.verdictGate)
 		return `Finished · ${summary.verdict || "gate not passed"}`;
 	if (summary.status === "failed")
@@ -495,6 +494,7 @@ function renderRail() {
 		rail.append(element("p", { class: "muted" }, "No runs yet"));
 	for (const summary of runs) {
 		const counts = summary.taskSummary;
+		const display = summary.runId === run?.runId ? run : summary;
 		const row = element(
 			"div",
 			{
@@ -517,16 +517,19 @@ function renderRail() {
 			element(
 				"div",
 				{ class: "row" },
-				glyph(summary.status),
+				glyph(
+					display.status === "failed" && !display.verdictGate
+						? "failed"
+						: display.needsYou?.length ||
+								display.status === "blocked" ||
+								(!liveRun(display) && incomplete(display))
+							? "blocked"
+							: summary.status,
+				),
 				element(
 					"span",
 					{ class: "grow truncate", title: summary.name },
 					summary.name,
-				),
-				element(
-					"span",
-					{ class: "elapsed muted", "data-run-elapsed": summary.runId },
-					elapsed(summary),
 				),
 			),
 			element(
@@ -538,7 +541,12 @@ function renderRail() {
 			element(
 				"div",
 				{ class: "run-line" },
-				element("span", { class: "grow" }, railLine(summary)),
+				element("span", { class: "grow" }, railLine(display)),
+				element(
+					"span",
+					{ class: "elapsed muted", "data-run-elapsed": summary.runId },
+					elapsed(summary),
+				),
 				summary.status === "completed" && summary.reportAvailable
 					? element(
 							"a",
@@ -579,60 +587,173 @@ function sentenceParts() {
 		? [text]
 		: [element("strong", {}, text.slice(0, end + 1)), text.slice(end + 1)];
 }
+const reducedMotion = () =>
+	matchMedia("(prefers-reduced-motion: reduce)").matches;
+matchMedia("(prefers-reduced-motion: reduce)").addEventListener(
+	"change",
+	(event) => {
+		if (event.matches)
+			for (const animation of document.getAnimations()) animation.cancel();
+	},
+);
+const humanize = (name) => {
+	const text = name.replace(/[-_]+/g, " ");
+	return text.charAt(0).toUpperCase() + text.slice(1);
+};
+const agentTasks = (run) =>
+	run.tasks.filter((t) => !t.placeholder && t.kind !== "support" && t.agent);
+const incomplete = (run) =>
+	Boolean(
+		run.verdictGate ||
+			(run.verdict &&
+				!/^(?:pass(?:ed)?|ok|success|complete(?:d)?)$/i.test(run.verdict)) ||
+			run.tasks?.some((t) => t.outcome && t.outcome.tone !== "ok"),
+	);
+function heroState(run) {
+	if (run.status === "failed" && !run.verdictGate) return ["failed", "Failed"];
+	if (run.status === "completed" || run.verdictGate)
+		return ["completed", "Finished"];
+	if (run.status === "blocked" || run.needsYou?.length)
+		return ["blocked", "Needs you"];
+	return [run.status, labels[run.status] || "Waiting"];
+}
+function heroSubline() {
+	const tasks = agentTasks(run),
+		done = tasks.filter((t) => t.status === "completed").length;
+	return `${run.name} · ${elapsed(run)} · ${liveRun(run) ? `${done} of ${tasks.length} agents done` : `${tasks.length} agents`}`;
+}
+const badgeStates = new Map();
+function renderBadge(status) {
+	const tasks = agentTasks(run),
+		done = tasks.filter((t) => t.status === "completed").length;
+	const finished = status === "completed",
+		offset =
+			97.4 * (1 - (finished ? 1 : tasks.length ? done / tasks.length : 0));
+	const ring = svg("circle", {
+		class: "hero-ring",
+		cx: 17,
+		cy: 17,
+		r: 15.5,
+		transform: "rotate(-90 17 17)",
+		"stroke-dasharray": 97.4,
+		"stroke-dashoffset": offset,
+	});
+	const badge = svg(
+		"svg",
+		{
+			class: `hero-badge ${status}`,
+			viewBox: "0 0 34 34",
+			width: 34,
+			height: 34,
+			role: "img",
+			"aria-label": finished
+				? "Finished"
+				: `${done} of ${tasks.length} agents done`,
+		},
+		svg("circle", { class: "hero-track", cx: 17, cy: 17, r: 15.5 }),
+		ring,
+	);
+	if (finished) {
+		const check = svg("path", {
+			class: "hero-check",
+			d: "M11 17.5 L15.2 21.5 L23 13",
+			"stroke-dasharray": 17,
+			"stroke-dashoffset": 0,
+		});
+		badge.append(check);
+		if (!reducedMotion() && badgeStates.get(run.runId) !== "completed") {
+			ring.animate([{ strokeDashoffset: 18 }, { strokeDashoffset: 0 }], {
+				duration: 250,
+			});
+			check.animate([{ strokeDashoffset: 17 }, { strokeDashoffset: 0 }], {
+				duration: 380,
+				delay: 220,
+				fill: "backwards",
+				easing: "ease-out",
+			});
+		}
+	} else
+		badge.append(
+			svg(
+				"text",
+				{ x: 17, y: 21, "text-anchor": "middle", class: "hero-number" },
+				status === "failed" ? "✕" : status === "blocked" ? "!" : done,
+			),
+		);
+	badgeStates.set(run.runId, status);
+	return badge;
+}
 function renderHeader() {
+	const [status, title] = heroState(run);
 	const actions = element("div", { class: "actions" });
 	if (run.pendingApprovals?.length)
 		actions.append(actionButton("Review approval…", "approve"));
 	if (liveRun(run))
 		actions.append(
-			actionButton(
-				stoppingRuns.has(run.runId) ? "Stopping…" : "□  Stop…",
-				"stop",
-			),
+			actionButton(stoppingRuns.has(run.runId) ? "Stopping…" : "Stop…", "stop"),
 		);
 	if (needsResume(run))
 		actions.append(actionButton("Resume…", "resume", "primary"));
+	if (run.reportAvailable && !liveRun(run))
+		actions.append(
+			button("Open report", () => go({ view: "report" }), { class: "primary" }),
+		);
 	actions.append(
 		button(
-			"Run details  ›",
+			"Run details ›",
 			() => go({ view: "details", task: null, stage: null }),
 			{ "aria-label": "Run details" },
 		),
 	);
+	const result =
+		!liveRun(run) &&
+		(run.verdict || run.summary || run.tasks.some((t) => t.outcome));
+	const summary =
+		run.summary ||
+		[...run.tasks]
+			.reverse()
+			.find(
+				(t) => t.outcome?.text && t.kind !== "foreach" && t.kind !== "support",
+			)?.outcome?.text;
 	return element(
 		"section",
-		{ class: "run-header", id: "run-header" },
+		{ class: "run-header", id: "run-header", "data-status": status },
 		element(
 			"div",
 			{ class: "row title-row" },
-			element("h1", {}, run.name),
+			renderBadge(status),
 			element(
-				"span",
-				{
-					class: `badge row status-chip ${run.status}`,
-				},
-				glyph(run.status),
-				run.status === "failed" && run.verdictGate
-					? `Finished · ${run.verdict || "gate not passed"}`
-					: labels[run.status] || "Waiting",
+				"div",
+				{ class: "hero-copy grow" },
+				element("h1", {}, title),
+				element("p", { class: "hero-sub", id: "hero-sub" }, heroSubline()),
 			),
 			actions,
 		),
-		element("p", { class: "sentence", id: "status-sentence" }, sentenceParts()),
 		element(
 			"div",
-			{ class: "stat" },
+			{ class: "result" },
 			element(
-				"strong",
-				{ class: "headline-count", id: "task-count" },
-				`${run.taskSummary.completed} / ${run.taskSummary.total}`,
+				"div",
+				{ class: "result-label" },
+				result ? "Result" : liveRun(run) ? "Now" : "Status",
+				result && incomplete(run)
+					? element("span", { class: "incomplete" }, "Incomplete")
+					: null,
 			),
-			"tasks complete",
+			summary && result
+				? element("p", { class: "result-summary" }, summary)
+				: null,
 			element(
-				"span",
-				{ class: "elapsed", id: "elapsed" },
-				`Elapsed ${elapsed(run)}`,
+				"p",
+				{ class: "sentence", id: "status-sentence" },
+				sentenceParts(),
 			),
+		),
+		element(
+			"span",
+			{ id: "task-count", class: "sr-only" },
+			`${run.taskSummary.completed} / ${run.taskSummary.total}`,
 		),
 	);
 }
@@ -893,9 +1014,10 @@ const activeAgents = (stage) =>
 function nodeHeight(stage) {
 	if (stage.kind === "group") return 55 + stage.members.length * 25;
 	if (stage.ghost) return 58;
+	if (stage.kind === "support" && !stage.approval) return 34;
 	if (stage.approval) return 94;
 	if (activeAgents(stage))
-		return stage.items.length <= 6 ? 55 + stage.items.length * 25 : 104;
+		return stage.items.length <= 6 ? 55 + stage.items.length * 25 : 76;
 	if (stage.status === "pending") return stage.kind === "foreach" ? 54 : 42;
 	return stage.kind === "foreach" ? 76 : 58;
 }
@@ -906,8 +1028,8 @@ function stageLine(stage) {
 		const starts = stage.items.map((t) => date(t.startedAt)).filter(Boolean),
 			ends = stage.items.map((t) => date(t.completedAt)).filter(Boolean);
 		return starts.length && ends.length
-			? `Done · ${duration(Math.max(...ends) - Math.min(...starts))}`
-			: "Done";
+			? `${stage.items.length} agents · ${duration(Math.max(...ends) - Math.min(...starts))}`
+			: `${stage.items.length} agents done`;
 	}
 	return stage.items[0]
 		? taskLine(stage.items[0])
@@ -1036,7 +1158,22 @@ function renderGraph() {
 		nodes = svg("g");
 	// Arrowheads: one marker per edge state (the fill is a CSS rule); sized in apply() so they
 	// keep a constant screen size at any zoom.
-	const defs = svg("defs");
+	const defs = svg(
+		"defs",
+		{},
+		svg(
+			"pattern",
+			{
+				id: "failure-hatch",
+				width: 5,
+				height: 5,
+				patternUnits: "userSpaceOnUse",
+				patternTransform: "rotate(135)",
+			},
+			svg("rect", { width: 5, height: 5, class: "hatch-base" }),
+			svg("line", { x1: 0, x2: 0, y1: 0, y2: 5, class: "hatch-line" }),
+		),
+	);
 	for (const state of EDGE_STATES)
 		defs.append(
 			svg(
@@ -1084,7 +1221,10 @@ function renderGraph() {
 		}
 		// Room between layers so the edges and their arrowheads read as a path, not a seam; the
 		// rail every edge of this channel shares runs through its middle.
-		const gap = horizontal ? 80 : 56,
+		const helpers =
+			layer.every((stage) => stage.kind === "support") ||
+			model.layers[n + 1]?.every((stage) => stage.kind === "support");
+		const gap = horizontal ? 80 : helpers ? 26 : 56,
 			end = axis + (horizontal ? width : height);
 		rails.push(end + gap / 2);
 		axis = end + gap;
@@ -1115,10 +1255,6 @@ function renderGraph() {
 			}),
 			svg("circle", { class: `port ${state}`, cx: x1, cy: y1, r: 3 }),
 		);
-		// The path the work took keeps showing its direction, also after the run ended: small
-		// dots travel along every travelled (or failed) edge toward its target.
-		if (state === "done" || state === "failed")
-			link.append(svg("path", { class: `pulse ${state}`, d }));
 		links.push({ from: edge.from, to: edge.to, link });
 		edges.append(link);
 	}
@@ -1147,9 +1283,9 @@ function renderGraph() {
 		const group = stage.kind === "group";
 		const title = group
 			? `${stage.name ? `${stage.name} · ` : ""}${stage.members.length} in parallel`
-			: stage.short || stage.name || stage.id;
+			: humanize(stage.short || stage.name || stage.id);
 		const node = svg("g", {
-			class: `node ${stage.status}${stage.ghost ? " ghost" : ""}${group ? " group" : ""}${nextStage(stage) ? " next" : ""}`,
+			class: `node ${stage.status}${stage.ghost ? " ghost" : ""}${stage.kind === "support" ? " support" : ""}${!group && stage.kind !== "foreach" && stage.status === "completed" && stage.items[0]?.outcome?.tone === "warn" ? " outcome-warn" : ""}${group ? " group" : ""}${nextStage(stage) ? " next" : ""}`,
 			transform: `translate(${p.x},${p.y})`,
 			tabindex: "0",
 			role: "button",
@@ -1230,7 +1366,7 @@ function renderGraph() {
 					svg(
 						"text",
 						{ x: 36, y, class: "agent-name", "data-fit": p.w - 150 },
-						name,
+						humanize(name),
 					),
 					svg(
 						"text",
@@ -1348,15 +1484,15 @@ function renderGraph() {
 				svg(
 					"text",
 					{ x: 36, y: 44, class: "sub", "data-fit": p.w - 48 },
-					`${count("running")} running · ${count("retry")} retry · ${count("failed")} failed`,
-				),
-				svg(
-					"text",
-					{ x: 36, y: 72, class: "agent-summary" },
-					`${stage.items.length} agents · inspect items`,
+					stage.items.length > 48
+						? `${stage.items.length} agents · inspect items`
+						: `${stage.done} of ${stage.items.length} done · ${count("running")} running`,
 				),
 			);
-		} else if (stage.status !== "pending" || stage.ghost)
+		} else if (
+			(stage.status !== "pending" || stage.ghost) &&
+			stage.kind !== "support"
+		)
 			node.append(
 				svg(
 					"text",
@@ -1370,7 +1506,45 @@ function renderGraph() {
 					stageLine(stage),
 				),
 			);
-		if (stage.kind === "foreach") {
+		if (
+			stage.kind === "foreach" &&
+			stage.items.length > 0 &&
+			stage.items.length <= 48
+		) {
+			const gap = 3,
+				width =
+					(p.w - 48 - gap * (stage.items.length - 1)) / stage.items.length;
+			stage.items.forEach((task, i) => {
+				const status = taskState(task),
+					tone =
+						status === "failed"
+							? "err"
+							: status === "completed"
+								? task.outcome?.tone || "ok"
+								: "";
+				node.append(
+					svg(
+						"rect",
+						{
+							x: 36 + i * (width + gap),
+							y: p.h - 13,
+							width,
+							height: 5,
+							rx: 1,
+							class: `segment ${status} ${tone} stagger-${i % 6}`,
+							...(tone === "err" ? { fill: "url(#failure-hatch)" } : {}),
+							"data-segment": task.specId,
+							"aria-label": `${task.title || task.specId}, ${labels[status] || "Waiting"}${tone === "warn" || tone === "err" ? `, ${task.outcome?.status || tone}` : ""}`,
+						},
+						svg(
+							"title",
+							{},
+							`${task.title || task.specId} · ${task.outcome?.status || labels[status] || "Waiting"}`,
+						),
+					),
+				);
+			});
+		} else if (stage.kind === "foreach") {
 			const barWidth = p.w - 92,
 				completedWidth = stage.items.length
 					? (stage.done / stage.items.length) * barWidth
@@ -1722,76 +1896,48 @@ function renderGraph() {
 			draw.onfinish = () => path.removeAttribute("stroke-dasharray");
 			draw.oncancel = draw.onfinish;
 		}
-		// Where it ended: the failed / blocked card, else the last layer's cards.
-		const last = model.layers.length - 1;
-		const ends = [...model.nodes.values()].filter((n) =>
-			["failed", "blocked"].includes(n.status),
-		);
-		for (const n of ends.length ? ends : model.layers[last]) {
-			const outline = nodes.querySelector(
-				`[data-stage="${CSS.escape(n.id)}"] .outline`,
-			);
-			const colour =
-				n.status === "failed"
-					? "241, 140, 137"
-					: n.status === "blocked"
-						? "233, 187, 108"
-						: "110, 231, 183";
-			outline?.animate(
-				[
-					{ filter: `drop-shadow(0 0 0 rgba(${colour}, 0))` },
-					{
-						filter: `drop-shadow(0 0 18px rgba(${colour}, 0.75))`,
-						offset: 0.4,
-					},
-					{ filter: `drop-shadow(0 0 0 rgba(${colour}, 0))` },
-				],
-				{ duration: 1100, delay: layerOf.get(n.id) * step + 260 },
-			);
-		}
 	}
-	// The wave: each travelled edge carries one short glint from its source to its target. Edges
-	// leaving layer n start at n·STEP and all travel in the same time (a long rail is not slower),
-	// then everything rests and repeats — one shared cycle, so the glints stay in step instead of
-	// scattering dots along shared rails.
-	function startWave(afterReplay) {
-		if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-		const STEP = 1000,
-			TRAVEL = 950,
-			REST = 2000,
-			GLINT = 22;
-		// The last layer sends nothing, so the wave ends one step earlier.
-		const cycle = Math.max(1, model.layers.length - 1) * STEP + TRAVEL + REST;
-		const start = afterReplay ? model.layers.length * 170 + 500 : 0;
-		for (const pulse of edges.querySelectorAll(".pulse")) {
-			const length = pulse.getTotalLength();
-			if (!length) continue;
-			const from = pulse.closest(".link").dataset.link.split(">")[0];
-			pulse.setAttribute("stroke-dasharray", `${GLINT} ${length + GLINT + 4}`);
-			pulse.setAttribute("stroke-dashoffset", String(GLINT));
-			pulse.animate(
-				[
-					{ strokeDashoffset: GLINT, opacity: 0, easing: "ease-in-out" },
-					{
-						strokeDashoffset: GLINT - length * 0.12,
-						opacity: 1,
-						offset: (TRAVEL * 0.12) / cycle,
-					},
-					{
-						strokeDashoffset: -length * 0.9,
-						opacity: 1,
-						offset: (TRAVEL * 0.9) / cycle,
-					},
-					{ strokeDashoffset: -length, opacity: 0, offset: TRAVEL / cycle },
-					{ strokeDashoffset: -length, opacity: 0 },
-				],
-				{
-					duration: cycle,
-					delay: start + layerOf.get(from) * STEP,
-					iterations: Infinity,
-					fill: "both",
-				},
-			);
+	// Packets are evidence of a handoff, never decoration on a finished graph. Web Animations
+	// only — no inline styles. Geometry stays in SVG coordinates, including orthogonal rails.
+	const packets = new Set();
+	function handoff(events) {
+		if (
+			reducedMotion() ||
+			document.hidden ||
+			$("dialog").open ||
+			!wrap.isConnected ||
+			!wrap.getClientRects().length
+		)
+			return;
+		for (const event of events) {
+			const id = model.owner.get(event.stageId);
+			for (const { from, to, link } of links) {
+				if ((event.kind === "start" ? to : from) !== id || packets.size >= 24)
+					continue;
+				const path = link.querySelector(".edge"),
+					length = path.getTotalLength();
+				if (!length) continue;
+				const dot = svg("circle", {
+					class: `handoff-packet ${event.tone}`,
+					r: 3,
+					"data-handoff": event.kind,
+					"aria-hidden": "true",
+				});
+				const frames = Array.from({ length: 41 }, (_, i) => {
+					const p = path.getPointAtLength((length * i) / 40);
+					return { transform: `translate(${p.x}px, ${p.y}px)` };
+				});
+				link.append(dot);
+				const animation = dot.animate(frames, {
+					duration: 800,
+					easing: "ease-in-out",
+				});
+				packets.add(animation);
+				animation.onfinish = animation.oncancel = () => {
+					dot.remove();
+					packets.delete(animation);
+				};
+			}
 		}
 	}
 	requestAnimationFrame(() => {
@@ -1799,10 +1945,17 @@ function renderGraph() {
 			resize();
 			observer.observe(wrap);
 			if (replay) playReplay();
-			startWave(replay);
 		}
 	});
-	graphControl = { destroy: () => observer.disconnect(), fit, reveal };
+	graphControl = {
+		destroy: () => {
+			observer.disconnect();
+			for (const animation of packets) animation.cancel();
+		},
+		fit,
+		reveal,
+		handoff,
+	};
 	return wrap;
 }
 function agentState(task) {
@@ -1833,12 +1986,17 @@ function graphSignature(model, layout) {
 			nextStage(node),
 			nodeHeight(node),
 			node.done,
+			node.items[0]?.outcome?.tone,
 			node.approval?.requestId ?? null,
 			node.kind === "group"
 				? node.members.map((m) => [m.id, m.status])
-				: activeAgents(node)
-					? node.items.map((t) => [t.specId, taskState(t)])
-					: node.items.length,
+				: node.items.map((t) => [
+						t.specId,
+						taskState(t),
+						t.outcome?.tone,
+						t.outcome?.status,
+						t.title,
+					]),
 		]),
 		model.edges.map((edge) => `${edge.from}>${edge.to}`),
 	]);
@@ -1973,6 +2131,10 @@ function renderSelection() {
 		key = `${run.runId}:${state.task}:${state.stage}:${state.view}`;
 	const same = inspector.dataset.key === key,
 		scroll = same ? inspector.scrollTop : 0;
+	const previousItems = same ? itemPositions(inspector) : new Map();
+	const focusedItem = same
+		? document.activeElement?.closest("[data-item]")?.dataset.item
+		: null;
 	const detailsOpen = same && inspector.querySelector("details")?.open;
 	const logScroll = same ? inspector.querySelector(".log")?.scrollTop || 0 : 0;
 	const focusedField =
@@ -2040,7 +2202,8 @@ function renderSelection() {
 				? task.lastMessage || "A task failed. Inspect the logs before resuming."
 				: null);
 		inspector.append(
-			inspectorHeader(name, status, [
+			inspectorHeader(task.title || name, status, [
+				taskAnnotation(task),
 				element(
 					"p",
 					{ class: "task-status", id: "task-status" },
@@ -2181,7 +2344,7 @@ function renderSelection() {
 			loadLogs();
 		}
 		paintLogs();
-	} else if (stage) renderItems(inspector, stage, same);
+	} else if (stage) renderItems(inspector, stage, previousItems);
 	if (!task) {
 		logController?.abort();
 		logGeneration++;
@@ -2199,30 +2362,104 @@ function renderSelection() {
 		if (field?.setSelectionRange && focusedField.start != null)
 			field.setSelectionRange(focusedField.start, focusedField.end);
 	}
+	if (focusedItem)
+		inspector
+			.querySelector(`[data-item="${CSS.escape(focusedItem)}"]`)
+			?.focus({ preventScroll: true });
 	if (focusedTab)
 		document
 			.querySelector(`[data-tab="${CSS.escape(focusedTab)}"]`)
 			?.focus({ preventScroll: true });
 }
+// Activity is optional until the runtime branch supplies it; text always enters as text nodes.
+function taskAnnotation(task) {
+	if (task.status === "running")
+		return element(
+			"div",
+			{ class: "agent-sub activity", "data-activity": task.specId },
+			element("span", {}, task.activity?.label || "Starting…"),
+		);
+	if (task.status === "failed")
+		return element(
+			"div",
+			{ class: "agent-sub tone-err" },
+			task.lastMessage || task.statusDetail || "A task failed.",
+		);
+	if (task.status === "completed" && task.outcome)
+		return element(
+			"div",
+			{ class: "agent-sub outcome" },
+			element(
+				"b",
+				{ class: `tone-${task.outcome.tone}` },
+				humanize(
+					task.outcome.status ||
+						(task.outcome.tone === "ok"
+							? "Done"
+							: task.outcome.tone === "warn"
+								? "Needs a look"
+								: "Couldn't check"),
+				),
+			),
+			task.outcome.text ? ` · ${task.outcome.text}` : null,
+		);
+	if (taskState(task) === "retry")
+		return element("div", { class: "agent-sub" }, taskLine(task));
+	if (task.status === "blocked")
+		return element(
+			"div",
+			{ class: "agent-sub tone-warn" },
+			task.lastMessage || "Needs you",
+		);
+	return null;
+}
 const itemFilters = new Map();
-function renderItems(inspector, stage) {
+const itemGroup = (task) =>
+	task.status === "running"
+		? "running"
+		: ["failed", "blocked", "interrupted"].includes(task.status) ||
+				(task.status === "completed" &&
+					["warn", "err"].includes(task.outcome?.tone))
+			? "look"
+			: ["completed", "skipped"].includes(task.status)
+				? "done"
+				: "waiting";
+function itemTime(task) {
+	if (task.status === "running")
+		return task.startedAt
+			? `${Math.max(0, Math.floor((now() - date(task.startedAt)) / 1000))}s`
+			: "0s";
+	if (!["completed", "failed", "interrupted", "skipped"].includes(task.status))
+		return "";
+	const ms =
+		task.elapsedMs ??
+		(task.startedAt && task.completedAt
+			? date(task.completedAt) - date(task.startedAt)
+			: undefined);
+	return ms == null ? "" : `${Math.max(0, Math.round(ms / 1000))}s`;
+}
+function itemPositions(inspector) {
+	return new Map(
+		[...inspector.querySelectorAll("[data-item]")].map((row) => [
+			row.dataset.item,
+			row.getBoundingClientRect().top,
+		]),
+	);
+}
+function renderItems(inspector, stage, previous = new Map()) {
 	inspector.append(
-		inspectorHeader(stage.id, stage.status),
+		inspectorHeader(humanize(stage.id), stage.status),
 		element(
 			"p",
-			{ class: "details-section" },
-			`${labels[stage.status] || "Waiting"} · ${stage.done} / ${stage.items.length} done`,
+			{ class: "agents-meta" },
+			`${stage.items.length} agents · ${stage.done} done`,
 		),
 	);
 	const key = `${run.runId}:${stage.id}`,
-		filter = itemFilters.get(key) || {
-			query: "",
-			status: "all",
-			view: stage.items.length > 6 ? "grid" : "table",
-		};
+		filter = itemFilters.get(key) || { query: "", status: "all" };
 	const input = element("input", {
 		type: "search",
-		placeholder: `Filter ${stage.items.length} items…`,
+		placeholder: `Filter ${stage.items.length} agents…`,
 		"aria-label": "Find an agent",
 		value: filter.query,
 	});
@@ -2230,13 +2467,8 @@ function renderItems(inspector, stage) {
 		class: "item-filters",
 		"aria-label": "Filter agents by status",
 	});
-	const modes = element("div", {
-		class: "items-mode",
-		role: "group",
-		"aria-label": "Agent view",
-	});
 	const list = element("div", { class: "item-list", "aria-label": "Agents" });
-	function paint() {
+	function paint(before = itemPositions(inspector)) {
 		filter.query = input.value;
 		itemFilters.set(key, filter);
 		filters.replaceChildren(
@@ -2258,12 +2490,9 @@ function renderItems(inspector, stage) {
 				if (!count && status !== "all") return [];
 				return [
 					button(
-						[
-							status === "all" ? null : glyph(status),
-							status === "all"
-								? `All ${count}`
-								: `${count} ${status === "retry" ? "auto-retry" : (labels[status] || "Waiting").toLowerCase()}`,
-						],
+						status === "all"
+							? `All ${count}`
+							: `${labels[status] || "Waiting"} ${count}`,
 						() => {
 							filter.status = status;
 							paint();
@@ -2277,48 +2506,81 @@ function renderItems(inspector, stage) {
 				];
 			}),
 		);
-		modes.replaceChildren(
-			...["grid", "table"].map((view) =>
-				button(
-					view === "grid" ? "Grid" : "Table",
-					() => {
-						filter.view = view;
-						paint();
-						modes.querySelector(`[data-mode="${view}"]`)?.focus();
-					},
-					{ "data-mode": view, "aria-pressed": String(filter.view === view) },
-				),
-			),
-		);
+		const query = filter.query.toLowerCase();
 		const matches = stage.items.filter(
 			(task) =>
-				task.specId.toLowerCase().includes(filter.query.toLowerCase()) &&
+				`${task.specId} ${task.title || ""}`.toLowerCase().includes(query) &&
 				(filter.status === "all" || taskState(task) === filter.status),
 		);
-		list.classList.toggle("item-grid", filter.view === "grid");
-		list.replaceChildren(
-			...matches.map((task) =>
-				button(
-					filter.view === "grid"
-						? glyph(taskState(task))
-						: [
-								element(
-									"span",
-									{},
-									glyph(taskState(task)),
-									task.specId.slice(stage.id.length + 1),
-								),
-								element("span", { class: "item-state" }, taskLine(task)),
-							],
-					() => go({ task: task.specId }),
-					{
-						"data-item": task.specId,
-						title: `${task.specId} · ${taskLine(task)}`,
-						"aria-label": `${task.specId} · ${taskLine(task)}`,
-					},
+		list.replaceChildren();
+		for (const [group, title] of [
+			["running", "Running"],
+			["look", "Needs a look"],
+			["waiting", "Waiting"],
+			["done", "Done"],
+		]) {
+			const tasks = matches.filter((task) => itemGroup(task) === group);
+			if (!tasks.length) continue;
+			list.append(
+				element(
+					"h3",
+					{ class: `agent-group ${group}`, "data-group": group },
+					title,
+					element("span", {}, tasks.length),
 				),
-			),
-		);
+			);
+			for (const task of tasks) {
+				const status = taskState(task),
+					tone =
+						task.status === "failed"
+							? "err"
+							: task.status === "completed"
+								? task.outcome?.tone || "ok"
+								: "";
+				const annotation = group === "done" ? null : taskAnnotation(task);
+				const content = element(
+					"span",
+					{ class: "agent-content" },
+					element(
+						"span",
+						{ class: `agent-icon tone-${tone}`, "aria-hidden": "true" },
+						status === "running"
+							? "●"
+							: tone === "err"
+								? "✕"
+								: tone === "warn" || status === "blocked"
+									? "!"
+									: group === "done"
+										? "✓"
+										: "○",
+					),
+					element(
+						"span",
+						{ class: "agent-index" },
+						stage.items.indexOf(task) + 1,
+					),
+					element(
+						"span",
+						{ class: "agent-title" },
+						task.title || task.specId.slice(stage.id.length + 1) || task.specId,
+					),
+					element(
+						"span",
+						{ class: "agent-time", "data-item-time": task.specId },
+						itemTime(task),
+					),
+					annotation,
+				);
+				list.append(
+					button(content, () => go({ task: task.specId }), {
+						class: `agent-item ${status}`,
+						"data-item": task.specId,
+						title: `${task.title || task.specId} · ${taskLine(task)}${task.outcome?.text ? ` · ${task.outcome.text}` : ""}`,
+						"aria-label": `${task.title || task.specId} · ${taskLine(task)}`,
+					}),
+				);
+			}
+		}
 		if (!matches.length)
 			list.append(
 				element(
@@ -2329,21 +2591,30 @@ function renderItems(inspector, stage) {
 						: "Items appear when this stage expands.",
 				),
 			);
+		if (!reducedMotion())
+			for (const row of list.querySelectorAll("[data-item]")) {
+				const top = before.get(row.dataset.item),
+					delta = top == null ? 0 : top - row.getBoundingClientRect().top;
+				// FLIP the content inside its clipped, normal-flow slot: moving groups never overlap.
+				if (delta)
+					row.firstElementChild.animate(
+						[
+							{ transform: `translateY(${delta}px)`, opacity: 0.35 },
+							{ transform: "translateY(0)", opacity: 1 },
+						],
+						{ duration: 280, easing: "ease-out" },
+					);
+			}
 	}
-	input.addEventListener("input", paint);
+	input.addEventListener("input", () => paint());
 	inspector.append(
-		element(
-			"div",
-			{ class: "items-progress" },
-			progress(stage.done, stage.items.length),
-		),
 		filters,
-		modes,
 		element("div", { class: "items-tools" }, input),
 		list,
 	);
-	paint();
+	paint(previous);
 }
+
 function logText(tab) {
 	const stream = logData?.streams?.find((s) => s.kind === tab);
 	return stream?.lines?.join("\n") || "";
@@ -2769,7 +3040,10 @@ function openStatusKey() {
 		...[
 			["active", "Work is flowing into this stage now"],
 			["next", "Where work goes next (dashed outline: the next stage)"],
-			["done", "Already travelled (a glint runs along it, layer by layer)"],
+			[
+				"done",
+				"Already travelled. Dots appear only when agents hand off work.",
+			],
 			["later", "Later"],
 		].map(([state, text]) =>
 			element(
@@ -2785,9 +3059,6 @@ function openStatusKey() {
 						"aria-hidden": "true",
 					},
 					svg("path", { class: `edge ${state}`, d: "M1,6 H34" }),
-					state === "done"
-						? svg("path", { class: "pulse done", d: "M1,6 H34" })
-						: null,
 					svg("path", {
 						class: `arrow-sample ${state}`,
 						d: "M33,1.5 L42,6 L33,10.5 Q35.5,6 33,1.5 z",
@@ -2902,6 +3173,7 @@ function acceptRun(data) {
 			JSON.stringify(data) === JSON.stringify(run))
 	)
 		return;
+	const handoffs = taskHandoffs(run, data);
 	runRevision++;
 	run = data;
 	if (!liveRun(run)) stoppingRuns.delete(run.runId);
@@ -2917,6 +3189,29 @@ function acceptRun(data) {
 	}
 	renderRail();
 	renderRun();
+	requestAnimationFrame(() => {
+		if (run === data) graphControl?.handoff(handoffs);
+	});
+}
+/** Diff projections, not redraws: initial loads and repeated SSE snapshots send no packets. */
+export function taskHandoffs(previous, next) {
+	if (!previous || previous.runId !== next.runId) return [];
+	const old = new Map(previous.tasks.map((t) => [t.specId, t]));
+	return next.tasks.flatMap((task) => {
+		if (task.placeholder || old.get(task.specId)?.status === task.status)
+			return [];
+		if (task.status === "running")
+			return [{ stageId: task.stageId, kind: "start", tone: "ok" }];
+		if (["completed", "failed"].includes(task.status))
+			return [
+				{
+					stageId: task.stageId,
+					kind: "complete",
+					tone: task.status === "failed" ? "err" : task.outcome?.tone || "ok",
+				},
+			];
+		return [];
+	});
 }
 async function refreshRun() {
 	const id = state.run,
@@ -3133,7 +3428,11 @@ setInterval(() => {
 	refreshGraphTexts();
 	if ($("status-sentence"))
 		$("status-sentence").replaceChildren(...sentenceParts());
-	if ($("elapsed")) $("elapsed").textContent = `Elapsed ${elapsed(run)}`;
+	if ($("hero-sub")) $("hero-sub").textContent = heroSubline();
+	for (const node of document.querySelectorAll("[data-item-time]")) {
+		const task = run.tasks.find((t) => t.specId === node.dataset.itemTime);
+		if (task) node.textContent = itemTime(task);
+	}
 	const task = selectedTask();
 	if (task && $("task-status")) $("task-status").textContent = taskLine(task);
 }, 1000);
