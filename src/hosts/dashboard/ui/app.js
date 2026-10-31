@@ -369,11 +369,12 @@ function renderTop() {
 		),
 		element("span", { class: "grow" }),
 		button(
-			[glyph("blocked"), `Needs you  ${needs}`],
+			// Amber only when something waits for you; "Needs you 0" stays neutral.
+			[needs ? glyph("blocked") : null, `Needs you  ${needs}`],
 			() => {
 				$("rail").querySelector(".need")?.focus();
 			},
-			{ class: "needs-button" },
+			{ class: `needs-button${needs ? "" : " none"}` },
 		),
 		readonly()
 			? element("span", { class: "badge", id: "readonly-badge" }, "Read-only")

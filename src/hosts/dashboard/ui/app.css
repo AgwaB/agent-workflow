@@ -1280,3 +1280,6 @@ main.signin code {
 .run-line > .elapsed {
 	margin-right: auto;
 }
+.needs-button.none {
+	color: var(--muted);
+}
