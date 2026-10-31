@@ -4,9 +4,12 @@ import { test } from "node:test";
 
 import { runConformance } from "../../dist/sdk/conformance/index.js";
 import { createStubCliHarness } from "../conformance/stub-cli-adapter.mjs";
+import { UNIT_CONFORMANCE_TIMEOUTS } from "../fixtures/conformance-timeouts.mjs";
 
 test("stub-CLI example adapter passes every offline check it can stage", async () => {
-	const report = await runConformance(createStubCliHarness());
+	const report = await runConformance(createStubCliHarness(), {
+		timeouts: UNIT_CONFORMANCE_TIMEOUTS,
+	});
 	const byId = Object.fromEntries(
 		report.results.map((result) => [result.id, result]),
 	);

@@ -116,8 +116,10 @@ test("review #10 (claude): an exit during the durable spawned write is observed"
 	});
 	const executor = claude(dir, path);
 	const ref = await executor.submit(request(dir, "claude-slow-write-1"));
+	// 15 s like the fast-exit tests: a missed exit never ends the drain; a busy machine (the whole
+	// suite in parallel) measured over 5 s for an observed one.
 	const { terminal, timedOut } = await drain(executor, ref, {
-		timeoutMs: 5_000,
+		timeoutMs: 15_000,
 	});
 	assert.notEqual(timedOut, true, "terminal event observed");
 	assert.equal(terminal?.type, "failed");
@@ -137,8 +139,10 @@ test("review #10 (pi): an exit during the durable spawned write is observed", as
 		stateDir: join(dir, "state"),
 	});
 	const ref = await executor.submit(request(dir, "pi-slow-write-1"));
+	// 15 s like the fast-exit tests: a missed exit never ends the drain; a busy machine (the whole
+	// suite in parallel) measured over 5 s for an observed one.
 	const { terminal, timedOut } = await drain(executor, ref, {
-		timeoutMs: 5_000,
+		timeoutMs: 15_000,
 	});
 	assert.notEqual(timedOut, true, "terminal event observed");
 	assert.equal(terminal?.type, "failed");

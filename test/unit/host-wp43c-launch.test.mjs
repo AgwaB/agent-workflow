@@ -12,8 +12,13 @@ import { runAgentWorkflowCli } from "../../dist/hosts/cli/index.js";
 import {
 	dashboardDiscoveryPath,
 	readDashboardDiscovery,
+	setDashboardStartBudgetForTests,
 } from "../../dist/hosts/dashboard/discovery.js";
 import { workflowFixtureDescriptor } from "../helpers/workflow-executor-fixture.mjs";
+
+// The dashboard a launch starts gets 15 s here instead of 3 s: these tests check the auto-start
+// and the link, not how fast a loaded machine (the whole suite in parallel) boots Node.
+setDashboardStartBudgetForTests(15_000);
 
 let counter = 0;
 setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
@@ -95,7 +100,7 @@ async function project(t, overrides = {}) {
 }
 
 test("real fixture launch auto-starts a real detached dashboard and always prints a token-free link", {
-	timeout: 20_000,
+	timeout: 60_000,
 }, async (t) => {
 	const { ctx, launch } = await project(t, { CLAUDECODE: "1" });
 	const first = await launch();
@@ -149,7 +154,7 @@ test("real fixture launch auto-starts a real detached dashboard and always print
 });
 
 test("AGENT_WORKFLOW_DASHBOARD_AUTH=1: the auto-started dashboard requires sign-in and the launch says so once", {
-	timeout: 20_000,
+	timeout: 60_000,
 }, async (t) => {
 	const { ctx, launch } = await project(t, {
 		CLAUDECODE: "1",
@@ -180,7 +185,7 @@ test("AGENT_WORKFLOW_DASHBOARD_AUTH=1: the auto-started dashboard requires sign-
 });
 
 test("auto-start off switch retains the not-running line", {
-	timeout: 15_000,
+	timeout: 60_000,
 }, async (t) => {
 	const { ctx, launch } = await project(t, {
 		AGENT_WORKFLOW_DASHBOARD_AUTOSTART: "0",
@@ -205,7 +210,7 @@ test("worker role refuses launch before starting any dashboard", async (t) => {
 });
 
 test("readonly host context does not auto-start", {
-	timeout: 15_000,
+	timeout: 60_000,
 }, async (t) => {
 	const { ctx, launch } = await project(t);
 	const out = await launch("readonly host", { ...ctx, readonly: true });
@@ -215,15 +220,22 @@ test("readonly host context does not auto-start", {
 });
 
 test("dashboard startup failure is bounded and cannot fail the fixture launch", {
-	timeout: 15_000,
+	timeout: 60_000,
 }, async (t) => {
+	// The real 3 s budget: a dashboard that never comes up delays the launch by about that much.
+	setDashboardStartBudgetForTests(undefined);
+	t.after(() => setDashboardStartBudgetForTests(15_000));
 	const { ctx, launch } = await project(t, {
 		AGENT_WORKFLOW_DASHBOARD_IDLE_MS: "invalid",
 	});
 	const at = Date.now();
 	const out = await launch();
 	assert.ok(out.ok, out.text);
-	assert.ok(Date.now() - at < 6000, "3s discovery budget plus fixture launch");
+	// Bounded, not hung: 3 s plus the fixture launch, which a loaded machine can take seconds for.
+	assert.ok(
+		Date.now() - at < 15_000,
+		"3s discovery budget plus fixture launch",
+	);
 	assert.equal(out.data.dashboard, undefined);
 	assert.match(
 		out.text,

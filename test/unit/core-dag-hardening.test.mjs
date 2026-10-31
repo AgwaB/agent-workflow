@@ -298,7 +298,7 @@ test("stopRun reports pending when an in-process support helper ignores abort", 
 		scheduling = scheduleRun(cwd, run.runId);
 		await eventually(
 			() => assert.equal(existsSync(join(cwd, "helper-started")), true),
-			1500,
+			10_000,
 		);
 		await assert.rejects(
 			() => stopRun(cwd, run.runId),
@@ -308,7 +308,8 @@ test("stopRun reports pending when an in-process support helper ignores abort", 
 		helper.release();
 		await Promise.race([
 			scheduling,
-			sleep(1500).then(() => {
+			// A hang bound, not a speed check: 1.5 s was exceeded on a loaded machine.
+			sleep(10_000).then(() => {
 				throw new Error("support helper cleanup leaked or hung");
 			}),
 		]);
@@ -352,7 +353,7 @@ test("stopRun writes durable intent and cooperatively cancels a blocked async su
 		const scheduling = scheduleRun(cwd, run.runId);
 		await eventually(
 			() => assert.equal(existsSync(join(cwd, "helper-started")), true),
-			1500,
+			10_000,
 		);
 		const stopped = await stopRun(cwd, run.runId);
 		await scheduling;
@@ -408,7 +409,7 @@ test("stop intent during support helper preparation prevents helper invocation a
 		const scheduling = scheduleRun(cwd, run.runId);
 		await eventually(
 			() => assert.equal(existsSync(join(cwd, "helper-prepared")), true),
-			1500,
+			10_000,
 		);
 		await requestWorkflowStop(cwd, run.runId);
 		releasePreparation.resolve();
@@ -471,7 +472,7 @@ test("stop intent during backend launch preparation prevents runSubagent side ef
 		const scheduling = scheduleRun(cwd, run.runId);
 		await eventually(
 			() => assert.equal(existsSync(join(cwd, "backend-prepared")), true),
-			1500,
+			10_000,
 		);
 		await requestWorkflowStop(cwd, run.runId);
 		releasePreparation.resolve();
@@ -537,7 +538,7 @@ test("stop during support prevents later independent backend launches and record
 		const scheduling = scheduleRun(cwd, run.runId);
 		await eventually(
 			() => assert.equal(existsSync(join(cwd, "helper-started")), true),
-			1500,
+			10_000,
 		);
 		await stopRun(cwd, run.runId).catch((error) => {
 			assert.match(String(error), /stop|terminal|pending/i);
@@ -906,7 +907,7 @@ test("existing stop intent prevents dynamic nested workflow launch", async () =>
 		await eventually(
 			() =>
 				assert.equal(existsSync(join(cwd, "nested-controller-ready")), true),
-			1500,
+			10_000,
 		);
 		await requestWorkflowStop(cwd, run.runId);
 		writeFileSync(releaseFile, "release", "utf8");

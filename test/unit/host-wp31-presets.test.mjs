@@ -12,6 +12,7 @@ import {
 	readFixtureLog,
 	workflowFixtureDescriptor,
 } from "../helpers/workflow-executor-fixture.mjs";
+import { runDiagnostics } from "../helpers/run-diagnostics.mjs";
 
 const cli = await import("../../dist/hosts/cli/index.js");
 const api = await import("../../dist/hosts/api.js");
@@ -366,11 +367,12 @@ test("in the Pi host a preset on another executor resolves models without Pi's m
 			timeoutMs: 10_000,
 		});
 	while (waited.data.stillRunning);
-	assert.equal(waited.outcome, "completed");
 	const run = await (await import("../../dist/core/store.js")).readRunRecord(
 		ctx.cwd,
 		launched.data.runId,
 	);
+	if (waited.outcome !== "completed")
+		assert.fail(await runDiagnostics(ctx.cwd, launched.data.runId));
 	for (const task of run.tasks) {
 		assert.equal(task.runtime.model, "gpt-5.6-luna", "not the Pi registry id");
 		assert.notEqual(task.runtime.model, "anthropic/claude-test");

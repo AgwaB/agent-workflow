@@ -2,7 +2,7 @@
 // engine → core task backend → runtime durable worker → executor descriptor (the SDK fake executor
 // wrapped by test/helpers/workflow-executor-fixture.mjs). No model or agent-CLI calls.
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import {
 	mkdir,
 	mkdtemp,
@@ -216,7 +216,13 @@ test("two-stage workflow runs end to end: engine → task backend → durable wo
 	let summary;
 	let pruned;
 	for (let attempt = 0; attempt < 200; attempt += 1) {
-		if (existsSync(join(runDir, "supervisor.lock"))) {
+		// The lock and its release/reclaim files (release renames the lock before removing it).
+		if (
+			readdirSync(runDir).some(
+				(name) =>
+					name === "supervisor.lock" || name.startsWith("supervisor.lock."),
+			)
+		) {
 			await new Promise((resolveWait) => setTimeout(resolveWait, 100));
 			continue;
 		}
@@ -232,7 +238,12 @@ test("two-stage workflow runs end to end: engine → task backend → durable wo
 		}
 		summary = await retention.pruneWorkflowRuns(cwd, { keep: 0, yes: true });
 		pruned = summary.runs.find((entry) => entry.runId === run.runId);
-		if (pruned?.error !== "supervisor lease acquired concurrently") break;
+		// Both are the supervisor still finishing (a heartbeat after the ageing above).
+		if (
+			pruned?.error !== "supervisor lease acquired concurrently" &&
+			pruned?.error !== "live or indeterminate supervisor lease"
+		)
+			break;
 		await new Promise((resolveWait) => setTimeout(resolveWait, 100));
 	}
 	assert.equal(pruned.deleted, true, JSON.stringify(summary));

@@ -285,11 +285,26 @@ function setEnv(values, saved) {
 	}
 }
 
+/**
+ * Wait until the supervisor has let go of its lock: `supervisor.lock` and the release/reclaim
+ * files beside it. Release renames the lock to `supervisor.lock.release-<pid>-<hex>` before
+ * removing it, so the lock alone can be gone while that file still exists (a busy machine showed
+ * it in the replayed tree as an unexplained `only-replayed` file).
+ */
 async function waitForSupervisorRelease(runDir, timeoutMs = 15_000) {
-	const lock = join(runDir, "supervisor.lock");
+	const held = () => {
+		try {
+			return readdirSync(runDir).some(
+				(name) =>
+					name === "supervisor.lock" || name.startsWith("supervisor.lock."),
+			);
+		} catch {
+			return false;
+		}
+	};
 	for (
 		const deadline = Date.now() + timeoutMs;
-		existsSync(lock) && Date.now() < deadline;
+		held() && Date.now() < deadline;
 	)
 		await new Promise((resolveWait) => setTimeout(resolveWait, 50));
 }

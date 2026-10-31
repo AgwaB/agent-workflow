@@ -14,6 +14,7 @@ import * as api from "../../dist/hosts/api.js";
 import { startDashboardServer } from "../../dist/hosts/dashboard/server.js";
 import { hostApiDashboardSource } from "../../dist/hosts/dashboard/source.js";
 import { workflowFixtureDescriptor } from "../helpers/workflow-executor-fixture.mjs";
+import { runDiagnostics } from "../helpers/run-diagnostics.mjs";
 
 // The stock fixture emits control/analysis/refs, not foreach items or scripted output.
 const TWO_STAGES = {
@@ -110,6 +111,11 @@ async function poll(read, accepts, timeoutMs, label) {
 		if (accepts(value)) return value;
 		await delay(50);
 	} while (Date.now() < deadline);
+	// A run record: name each task's reason and the worker logs (rare load-only failures).
+	if (value?.runId && value?.cwd)
+		assert.fail(
+			`Timed out waiting for ${label}:\n${await runDiagnostics(value.cwd, value.runId)}`,
+		);
 	assert.fail(`Timed out waiting for ${label}: ${JSON.stringify(value)}`);
 }
 

@@ -1664,6 +1664,49 @@ async function acquireFileLeaseInDirectory(
 	};
 }
 
+/**
+ * How long a lease taker waits for the supervisor of a run that already reached a state its
+ * supervisor stops in (blocked on an approval): it holds the lease while it shuts down, seconds on
+ * a busy machine.
+ */
+const SUPERVISOR_EXIT_LEASE_WAIT_MS = 10_000;
+const SUPERVISOR_EXIT_LEASE_POLL_MS = 100;
+let supervisorExitLeaseWait = {
+	timeoutMs: SUPERVISOR_EXIT_LEASE_WAIT_MS,
+	pollMs: SUPERVISOR_EXIT_LEASE_POLL_MS,
+};
+
+export function setSupervisorExitLeaseWaitForTests(
+	options: { timeoutMs?: number; pollMs?: number } | undefined,
+): void {
+	supervisorExitLeaseWait = {
+		timeoutMs: options?.timeoutMs ?? SUPERVISOR_EXIT_LEASE_WAIT_MS,
+		pollMs: options?.pollMs ?? SUPERVISOR_EXIT_LEASE_POLL_MS,
+	};
+}
+
+/**
+ * `withRunLease`; while the lease is held and `holderIsExiting()` says the run is in a state its
+ * supervisor stops in, retry for a bounded time. Every try is an ordinary acquire, so a live lease
+ * is never taken. `undefined`: still held at the deadline (or held by a supervisor that is not
+ * exiting).
+ */
+export async function withRunLeaseAfterSupervisorExit<T>(
+	cwd: string,
+	runId: string,
+	action: (abortSignal: AbortSignal) => Promise<T>,
+	holderIsExiting: () => Promise<boolean>,
+): Promise<T | undefined> {
+	let outcome = await withRunLease(cwd, runId, action);
+	if (outcome !== undefined || !(await holderIsExiting())) return outcome;
+	const deadline = Date.now() + supervisorExitLeaseWait.timeoutMs;
+	while (outcome === undefined && Date.now() < deadline) {
+		await sleep(supervisorExitLeaseWait.pollMs);
+		outcome = await withRunLease(cwd, runId, action);
+	}
+	return outcome;
+}
+
 export async function withRunLease<T>(
 	cwd: string,
 	runId: string,

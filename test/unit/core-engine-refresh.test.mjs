@@ -257,7 +257,7 @@ test("waitForRun records transient refresh poll failures and continues", async (
 		});
 		assert.equal(started.status, "running");
 
-		const completed = await waitForRun(cwd, started.runId, 5_000);
+		const completed = await waitForRun(cwd, started.runId, 60_000);
 		assert.equal(completed.status, "completed");
 		assert.equal(completed.tasks[0].status, "completed");
 		assert.ok(reconcileCalls >= 2);

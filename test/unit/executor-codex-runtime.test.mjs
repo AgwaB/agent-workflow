@@ -6,11 +6,13 @@ import { test } from "node:test";
 
 import { runConformance } from "../../dist/sdk/conformance/index.js";
 import { createCodexStubHarness } from "../fixtures/executors/codex/harness.mjs";
+import { UNIT_CONFORMANCE_TIMEOUTS } from "../fixtures/conformance-timeouts.mjs";
 
 test("codex adapter passes the runtime conformance tier against the stub CLI", async () => {
 	const report = await runConformance(createCodexStubHarness(), {
 		tiers: ["runtime"],
 		only: ["runtime."],
+		timeouts: UNIT_CONFORMANCE_TIMEOUTS,
 	});
 	assert.deepEqual(
 		report.results.map((result) => [

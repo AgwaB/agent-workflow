@@ -149,17 +149,26 @@ test("refreshes a suspended nested child under its lease and advances sequential
 		// A concurrent child supervisor owns the child lease. The parent poll must
 		// defer without invoking the backend or mutating the child run record.
 		let releaseChildLease;
-		let childLeaseReady;
-		const childLeaseReadyPromise = new Promise((resolve) => {
-			childLeaseReady = resolve;
-		});
-		const childLease = h.withRunLease(cwd, childRunId, async () => {
-			childLeaseReady();
-			await new Promise((resolve) => {
-				releaseChildLease = resolve;
+		// Take the child lease; a supervisor tick still finishing can hold it for a moment (then
+		// withRunLease returns without running the callback, which hung this test), so retry.
+		let childLease;
+		for (let attempt = 0; ; attempt += 1) {
+			let childLeaseReady;
+			const childLeaseReadyPromise = new Promise((resolve) => {
+				childLeaseReady = resolve;
 			});
-		});
-		await childLeaseReadyPromise;
+			childLease = h.withRunLease(cwd, childRunId, async () => {
+				childLeaseReady(true);
+				await new Promise((resolve) => {
+					releaseChildLease = resolve;
+				});
+				return true;
+			});
+			if ((await Promise.race([childLeaseReadyPromise, childLease])) === true)
+				break;
+			assert.ok(attempt < 600, "the child lease was never free");
+			await new Promise((resolve) => setTimeout(resolve, 50));
+		}
 		// The callback has already entered before the parent scheduling tick.
 		const childRecordPath = join(
 			cwd,

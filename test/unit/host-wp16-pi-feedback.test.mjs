@@ -13,6 +13,7 @@ import { join } from "node:path";
 import { after, before, test } from "node:test";
 
 import { eventually, fakeCtx, fakePi } from "../helpers/pi-host-fake.mjs";
+import { runDiagnostics } from "../helpers/run-diagnostics.mjs";
 import { workflowFixtureDescriptor } from "../helpers/workflow-executor-fixture.mjs";
 
 const api = await import("../../dist/hosts/api.js");
@@ -153,7 +154,8 @@ test("status line while a /aw run is active, cleared when it completes; one comp
 	const [{ message, options }] = completions(pi);
 	assert.deepEqual(options, { triggerTurn: false });
 	assert.equal(message.display, true);
-	assert.match(message.content, /^\*\*Workflow completed: wp16-feedback\*\*/);
+	if (!/^\*\*Workflow completed: wp16-feedback\*\*/.test(message.content))
+		assert.fail(`${message.content}\n${await runDiagnostics(cwd, runId)}`);
 	assert.match(message.content, new RegExp(`Workflow ${runId} completed`));
 	assert.match(message.content, /Run status: completed/); // WP18b: Verdict only for a domain verdict
 	assert.match(message.content, new RegExp(`/aw status ${runId}`));

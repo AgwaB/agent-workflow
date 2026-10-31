@@ -74,6 +74,25 @@ process.env.USERPROFILE = UNIT_TEST_HOME;
 // the assertion runs under the full concurrent suite.
 setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 
+/**
+ * How long a test waits for its run (hang protection): runs finish in about a second, but the whole
+ * suite in parallel on a busy machine took over 20 s for one.
+ */
+const RUN_WAIT_MS = 120_000;
+
+/**
+ * Remove a test project. A supervisor or worker finishing its last write can still create a file
+ * there while it is removed (ENOTEMPTY on a busy machine): retry like the other suites do.
+ */
+function removeProject(cwd) {
+	rmSync(cwd, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
+}
+
 function cleanupUnitTestRoot() {
 	if (process.exitCode !== undefined && process.exitCode !== 0) {
 		console.error(`foreach batch test artifacts retained at ${UNIT_TEST_ROOT}`);
@@ -723,7 +742,7 @@ test("groupBy separates adjacent keys and a missing key is singleton-only", asyn
 			task: "Keep groups separate.",
 			executionProfile: "batched",
 		});
-		const completed = await waitForRun(cwd, started.runId, 20_000);
+		const completed = await waitForRun(cwd, started.runId, RUN_WAIT_MS);
 		assert.equal(completed.status, "completed");
 		assert.deepEqual(
 			fake.launches.map((launch) => launch.kind),
@@ -731,7 +750,7 @@ test("groupBy separates adjacent keys and a missing key is singleton-only", asyn
 		);
 	} finally {
 		setSubagentApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		removeProject(cwd);
 	}
 });
 
@@ -797,7 +816,17 @@ test("profile-only batching uses one physical launch, preserves per-item artifac
 			undefined,
 			"member must never own a backend handle",
 		);
-		await refreshRun(cwd, started.runId);
+		// A refresh while the run's in-process supervisor holds the lease returns the record
+		// unchanged (no poll), so refresh until one poll happened; it must be the leader's only.
+		for (
+			let attempt = 0;
+			attempt < 200 && fake.batchStatusCalls() === 0;
+			attempt += 1
+		) {
+			await refreshRun(cwd, started.runId);
+			if (fake.batchStatusCalls() === 0)
+				await new Promise((done) => setTimeout(done, 50));
+		}
 		assert.equal(fake.batchStatusCalls(), 1, "only the leader is polled");
 		assert.equal(
 			fake.launches.length,
@@ -806,7 +835,7 @@ test("profile-only batching uses one physical launch, preserves per-item artifac
 		);
 
 		fake.setBatchCompleted(true);
-		const completed = await waitForRun(cwd, started.runId, 20_000);
+		const completed = await waitForRun(cwd, started.runId, RUN_WAIT_MS);
 		assert.equal(completed.status, "completed");
 		assert.deepEqual(
 			fake.launches.map((launch) => launch.kind),
@@ -947,7 +976,7 @@ test("profile-only batching uses one physical launch, preserves per-item artifac
 		} finally {
 			setSubagentApiForTests(undefined);
 			// A failed drain must retain the fixture rather than delete under a writer.
-			if (drained) rmSync(cwd, { recursive: true, force: true });
+			if (drained) removeProject(cwd);
 		}
 	}
 });
@@ -993,7 +1022,7 @@ test("scheduler persisted dynamic export manifest reads exact full/truncated raw
 		const started = await runWorkflow("raw-dynamic-export", cwd, {
 			task: "Local dynamic export",
 		});
-		const terminal = await waitForRun(cwd, started.runId, 20000);
+		const terminal = await waitForRun(cwd, started.runId, RUN_WAIT_MS);
 		assert.equal(terminal.status, "completed");
 		const run = await readRunRecord(cwd, started.runId),
 			runDir = workflowRunDir(cwd, run.runId);
@@ -1144,7 +1173,7 @@ test("scheduler persisted dynamic export manifest reads exact full/truncated raw
 	} finally {
 		setArtifactReadHookForTests(undefined);
 		setSubagentApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		removeProject(cwd);
 	}
 });
 
@@ -1353,7 +1382,7 @@ for (const kind of ["backend", "salvage", "batch", "dynamic"])
 			} finally {
 				setRawOwnerEstablishmentHookForTests(undefined);
 				setSubagentApiForTests(undefined);
-				rmSync(cwd, { recursive: true, force: true });
+				removeProject(cwd);
 			}
 		});
 
@@ -1400,7 +1429,7 @@ test("stop and resume clear an active group as a unit and resume as singletons",
 		}
 
 		const resumed = await resumeRun(cwd, started.runId);
-		const completed = await waitForRun(cwd, resumed.run.runId, 20_000);
+		const completed = await waitForRun(cwd, resumed.run.runId, RUN_WAIT_MS);
 		assert.equal(completed.status, "completed");
 		assert.equal(
 			fake.launches.filter((launch) => launch.kind === "batch").length,
@@ -1413,7 +1442,7 @@ test("stop and resume clear an active group as a unit and resume as singletons",
 		);
 	} finally {
 		setSubagentApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		removeProject(cwd);
 	}
 });
 
@@ -1541,12 +1570,12 @@ test("restart recovers a prepared exact pair without inferring adjacency", async
 			"the recovered exact pair receives one replacement physical launch",
 		);
 		fake.setBatchCompleted(true);
-		const completed = await waitForRun(cwd, started.runId, 20_000);
+		const completed = await waitForRun(cwd, started.runId, RUN_WAIT_MS);
 		assert.equal(completed.status, "completed");
 	} finally {
 		if (started) await drainWorkflowFixture(cwd, started.runId);
 		setSubagentApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		removeProject(cwd);
 	}
 });
 
@@ -1625,7 +1654,7 @@ test("prepared batch execution-surface drift falls back before a physical batch 
 		assert.equal(singletons(), 2);
 	} finally {
 		setSubagentApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		removeProject(cwd);
 	}
 });
 
@@ -1721,12 +1750,12 @@ test("restart recovers terminal and partial-demux boundaries from durable batch 
 				),
 			);
 		}
-		const completed = await waitForRun(cwd, started.runId, 20_000);
+		const completed = await waitForRun(cwd, started.runId, RUN_WAIT_MS);
 		assert.equal(completed.status, "completed");
 	} finally {
 		setWorkflowOutputArtifactWriteHookForTests(undefined);
 		setSubagentApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		removeProject(cwd);
 	}
 });
 
@@ -1802,7 +1831,7 @@ test("an expired leader falls back the exact pair after backend refresh errors",
 			assert.equal(task.foreachBatch?.batchingDisabled, true);
 			assert.equal(task.outputRetry, undefined);
 		}
-		const completed = await waitForRun(cwd, started.runId, 20_000);
+		const completed = await waitForRun(cwd, started.runId, RUN_WAIT_MS);
 		assert.equal(completed.status, "completed");
 		assert.equal(
 			fake.launches.filter((launch) => launch.kind === "singleton").length,
@@ -1810,7 +1839,7 @@ test("an expired leader falls back the exact pair after backend refresh errors",
 		);
 	} finally {
 		setSubagentApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		removeProject(cwd);
 	}
 });
 
@@ -1835,7 +1864,7 @@ test("one invalid batched member falls back both items to singleton without outp
 			task: "Run invalid batch fallback.",
 			executionProfile: "batched",
 		});
-		const completed = await waitForRun(cwd, started.runId, 20_000);
+		const completed = await waitForRun(cwd, started.runId, RUN_WAIT_MS);
 		assert.equal(completed.status, "completed");
 		assert.deepEqual(
 			fake.launches.map((launch) => launch.kind),
@@ -1899,7 +1928,7 @@ test("one invalid batched member falls back both items to singleton without outp
 		);
 	} finally {
 		setSubagentApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		removeProject(cwd);
 	}
 });
 
@@ -1928,7 +1957,7 @@ test("legacy completed member keeps its authority while pending leader migrates 
 			task: "Create a legacy fallback authority fixture.",
 			executionProfile: "batched",
 		});
-		const initial = await waitForRun(cwd, started.runId, 20_000);
+		const initial = await waitForRun(cwd, started.runId, RUN_WAIT_MS);
 		assert.equal(initial.status, "completed");
 		let fixture = await readRunRecord(cwd, started.runId);
 		const record = fixture.foreachBatches?.[0];
@@ -1970,7 +1999,7 @@ test("legacy completed member keeps its authority while pending leader migrates 
 				compiled.tasks[fixture.tasks.indexOf(member)],
 			);
 		});
-		fixture = await waitForRun(cwd, started.runId, 20_000);
+		fixture = await waitForRun(cwd, started.runId, RUN_WAIT_MS);
 		const completedMember = fixture.tasks.find(
 			(task) => task.taskId === member.taskId,
 		);
@@ -2209,7 +2238,7 @@ test("legacy completed member keeps its authority while pending leader migrates 
 				return memberLaunchesBeforeRecovery;
 			},
 		);
-		const completed = await waitForRun(cwd, started.runId, 20_000);
+		const completed = await waitForRun(cwd, started.runId, RUN_WAIT_MS);
 		const finalLeader = completed.tasks.find(
 			(task) => task.taskId === leader.taskId,
 		);
@@ -2249,7 +2278,7 @@ test("legacy completed member keeps its authority while pending leader migrates 
 			drained = true;
 		} finally {
 			setSubagentApiForTests(undefined);
-			if (drained) rmSync(cwd, { recursive: true, force: true });
+			if (drained) removeProject(cwd);
 		}
 	}
 });
@@ -2381,7 +2410,7 @@ test("zero and one foreach items remain valid without creating batch ownership",
 				task: `Run ${itemCount} foreach items.`,
 				executionProfile: "batched",
 			});
-			const completed = await waitForRun(cwd, started.runId, 20_000);
+			const completed = await waitForRun(cwd, started.runId, RUN_WAIT_MS);
 			assert.equal(completed.status, "completed");
 			assert.equal(completed.foreachBatches?.length ?? 0, 0);
 			assert.deepEqual(
@@ -2392,7 +2421,7 @@ test("zero and one foreach items remain valid without creating batch ownership",
 			);
 		} finally {
 			setSubagentApiForTests(undefined);
-			rmSync(cwd, { recursive: true, force: true });
+			removeProject(cwd);
 		}
 	}
 });
@@ -2425,7 +2454,7 @@ test("logical concurrency below two degrades an eligible pair to ordered singlet
 				task: "Respect one logical slot.",
 				executionProfile: "batched",
 			});
-			const completed = await waitForRun(cwd, started.runId, 20_000);
+			const completed = await waitForRun(cwd, started.runId, RUN_WAIT_MS);
 			assert.equal(completed.status, "completed");
 			assert.equal(completed.foreachBatches?.length ?? 0, 0);
 			assert.deepEqual(
@@ -2434,7 +2463,7 @@ test("logical concurrency below two degrades an eligible pair to ordered singlet
 			);
 		} finally {
 			setSubagentApiForTests(undefined);
-			rmSync(cwd, { recursive: true, force: true });
+			removeProject(cwd);
 		}
 	}
 });
@@ -2508,7 +2537,7 @@ test("multiple groups accept reversed batch rows and preserve exact per-item own
 			task: "Accept exact ids regardless of row order.",
 			executionProfile: "batched",
 		});
-		const completed = await waitForRun(cwd, started.runId, 20_000);
+		const completed = await waitForRun(cwd, started.runId, RUN_WAIT_MS);
 		assert.equal(completed.status, "completed");
 		assert.equal(
 			fake.launches.filter((launch) => launch.kind === "batch").length,
@@ -2534,7 +2563,7 @@ test("multiple groups accept reversed batch rows and preserve exact per-item own
 		}
 	} finally {
 		setSubagentApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		removeProject(cwd);
 	}
 });
 
@@ -2559,7 +2588,7 @@ test("a physical batch launch failure durably falls back the exact pair to singl
 			task: "Recover a failed physical pair launch.",
 			executionProfile: "batched",
 		});
-		const completed = await waitForRun(cwd, started.runId, 20_000);
+		const completed = await waitForRun(cwd, started.runId, RUN_WAIT_MS);
 		assert.equal(completed.status, "completed");
 		assert.deepEqual(
 			fake.launches.map((launch) => launch.kind),
@@ -2580,6 +2609,6 @@ test("a physical batch launch failure durably falls back the exact pair to singl
 		}
 	} finally {
 		setSubagentApiForTests(undefined);
-		rmSync(cwd, { recursive: true, force: true });
+		removeProject(cwd);
 	}
 });

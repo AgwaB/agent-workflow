@@ -5657,7 +5657,7 @@ test("artifact graph workflow runs workflow artifacts and enforces required read
 		const started = await runWorkflow("artifact", cwd, {
 			task: "Run artifact graph",
 		});
-		const completed = await waitForRun(cwd, started.runId, 5_000);
+		const completed = await waitForRun(cwd, started.runId, 60_000);
 		assert.equal(completed.status, "completed");
 		assert.equal(launchCount, 2);
 		const finalTask = taskBySpec(completed, "final.main");
@@ -5816,7 +5816,7 @@ test("artifact graph output retry reuses confirmed subagent session", async () =
 		const started = await runWorkflow("session-retry", cwd, {
 			task: "Run artifact graph",
 		});
-		const completed = await waitForRun(cwd, started.runId, 5_000);
+		const completed = await waitForRun(cwd, started.runId, 60_000);
 		assert.equal(completed.status, "completed");
 		assert.equal(launched.length, 2);
 		const expectedSessionId = `agent-workflow.${started.runId}.task-1`;
@@ -5957,7 +5957,7 @@ test("artifact graph output retry defaults to new session when same-session flag
 		const started = await runWorkflow("session-default-off", cwd, {
 			task: "Run artifact graph",
 		});
-		const completed = await waitForRun(cwd, started.runId, 5_000);
+		const completed = await waitForRun(cwd, started.runId, 60_000);
 		assert.equal(completed.status, "completed");
 		assert.equal(launched.length, 2);
 		const baseSessionId = `agent-workflow.${started.runId}.task-1`;
@@ -6101,7 +6101,7 @@ test("artifact graph output retry falls back to new session after same-session r
 		started = await runWorkflow("session-retry-fallback", cwd, {
 			task: "Run artifact graph",
 		});
-		const completed = await waitForRun(cwd, started.runId, 5_000);
+		const completed = await waitForRun(cwd, started.runId, 60_000);
 		assert.equal(completed.status, "completed");
 		assert.equal(launched.length, 3);
 		const baseSessionId = `agent-workflow.${started.runId}.task-1`;
@@ -6254,7 +6254,7 @@ test("artifact graph output retry starts new session when subagent session is un
 		const started = await runWorkflow("session-fallback", cwd, {
 			task: "Run artifact graph",
 		});
-		const completed = await waitForRun(cwd, started.runId, 5_000);
+		const completed = await waitForRun(cwd, started.runId, 60_000);
 		assert.equal(completed.status, "completed");
 		assert.equal(launched.length, 2);
 		const baseSessionId = `agent-workflow.${started.runId}.task-1`;
@@ -7122,7 +7122,6 @@ test("workflow artifact bundle can validate strict ref URL availability", async 
 test("workflow artifact bundle validates unique ref URLs concurrently", async () => {
 	const taskDir = mkdtempSync(join(tmpdir(), "workflow-ref-url-concurrent-"));
 	const originalFetch = globalThis.fetch;
-	const delayMs = 120;
 	const refs = [
 		{ url: "https://a.example.test/one" },
 		{ url: "https://b.example.test/two" },
@@ -7132,13 +7131,22 @@ test("workflow artifact bundle validates unique ref URLs concurrently", async ()
 	let inFlight = 0;
 	let maxInFlight = 0;
 	let callCount = 0;
+	// No fetch answers before all four started (four hosts, concurrency 4): concurrent validation
+	// passes the barrier at once; serial validation would only get past it by the fallback timer,
+	// with one fetch in flight. Independent of machine load (an elapsed-time bound was not).
+	let releaseAll;
+	const allStarted = new Promise((resolve) => {
+		releaseAll = resolve;
+	});
+	const fallback = setTimeout(() => releaseAll(), 5_000);
 	try {
 		globalThis.fetch = async () => {
 			callCount += 1;
 			inFlight += 1;
 			maxInFlight = Math.max(maxInFlight, inFlight);
+			if (inFlight === refs.length) releaseAll();
 			try {
-				await sleep(delayMs);
+				await allStarted;
 				return {
 					ok: true,
 					status: 200,
@@ -7150,26 +7158,22 @@ test("workflow artifact bundle validates unique ref URLs concurrently", async ()
 			}
 		};
 
-		const startedAt = Date.now();
 		const written = await writeWorkflowTaskArtifactBundle({
 			taskDir,
 			rawOutput: workflowOutputRawWithRefs(refs),
 			refsMinItems: 1,
-			refsUrlValidation: { timeoutMs: 1_000, maxUrls: refs.length },
+			refsUrlValidation: { timeoutMs: 10_000, maxUrls: refs.length },
 		});
-		const elapsedMs = Date.now() - startedAt;
 
 		assert.equal(written.valid, true, JSON.stringify(written.parsed.issues));
 		assert.equal(callCount, refs.length);
-		assert.ok(
-			maxInFlight > 1,
-			`expected concurrent fetches, saw ${maxInFlight}`,
-		);
-		assert.ok(
-			elapsedMs < delayMs * refs.length,
-			`expected concurrent validation below serial lower bound, elapsed ${elapsedMs}ms`,
+		assert.equal(
+			maxInFlight,
+			refs.length,
+			`expected all ${refs.length} fetches in flight at once, saw ${maxInFlight}`,
 		);
 	} finally {
+		clearTimeout(fallback);
 		globalThis.fetch = originalFetch;
 		rmSync(taskDir, { recursive: true, force: true });
 	}

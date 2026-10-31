@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/process-identity.ts. MIT, same author. Changes: WP12a test seam `setProcessIdentityInspectorForTests` (simulates an inspection that times out under load).
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/process-identity.ts. MIT, same author. Changes: WP12a test seam `setProcessIdentityInspectorForTests` (simulates an inspection that times out under load); `captureProcessIdentity` retries a transient `unknown` (2026-10-31).
 import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { promisify } from "node:util";
@@ -188,10 +188,28 @@ async function inspectProcessIdentityDirect(
 	};
 }
 
+/**
+ * Inspections when recording a live process's identity: the helper (2 s bound) can time out on a
+ * heavily loaded machine, which failed a task launch (`launch_failed`) though the process was fine.
+ * Only `unknown` is retried; `dead` is final.
+ */
+const CAPTURE_IDENTITY_ATTEMPTS = 3;
+const CAPTURE_IDENTITY_RETRY_MS = 100;
+
 export async function captureProcessIdentity(
 	pid: number,
 ): Promise<ProcessIdentity> {
-	const status = await inspectProcessIdentity(pid);
+	let status = await inspectProcessIdentity(pid);
+	for (
+		let attempt = 1;
+		status.state === "unknown" && attempt < CAPTURE_IDENTITY_ATTEMPTS;
+		attempt += 1
+	) {
+		await new Promise((resolve) =>
+			setTimeout(resolve, CAPTURE_IDENTITY_RETRY_MS * attempt),
+		);
+		status = await inspectProcessIdentity(pid);
+	}
 	if (status.state !== "alive")
 		throw new Error(
 			status.state === "dead"

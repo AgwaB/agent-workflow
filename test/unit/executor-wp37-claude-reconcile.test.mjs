@@ -29,6 +29,7 @@ import {
 	createClaudeStubHarness,
 	stubScripts,
 } from "../fixtures/executors/claude/harness.mjs";
+import { UNIT_CONFORMANCE_TIMEOUTS } from "../fixtures/conformance-timeouts.mjs";
 
 async function setup(t, scenario) {
 	const dir = await mkdtemp(join(tmpdir(), "aw-wp37-claude-reconcile-"));
@@ -118,6 +119,7 @@ test("runtime: a killed Claude worker is marked needs_decision with the adapter'
 	const report = await runConformance(createClaudeStubHarness(), {
 		tiers: ["runtime"],
 		only: ["runtime.durable_authority"],
+		timeouts: UNIT_CONFORMANCE_TIMEOUTS,
 	});
 	const result = report.results.find(
 		(entry) => entry.id === "runtime.durable_authority",

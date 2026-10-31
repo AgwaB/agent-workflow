@@ -422,7 +422,23 @@ test("CLI run without an executor uses the first usable one and records installe
 		result.io,
 	);
 	const parsed = JSON.parse(result.out());
-	assert.equal(code, 0, result.out() + result.err());
+	if (code !== 0) {
+		// Name each task's state and reason (the run result alone only says "blocked").
+		const store = await import("../../dist/core/store.js");
+		const run = await store.readRunRecord(cwd, parsed.data.runId);
+		assert.fail(
+			`${result.err()}\n${JSON.stringify(
+				run.tasks.map((task) => ({
+					specId: task.specId,
+					status: task.status,
+					statusDetail: task.statusDetail,
+					lastMessage: task.lastMessage,
+				})),
+				null,
+				1,
+			)}`,
+		);
+	}
 	assert.deepEqual(parsed.data.executor, {
 		id: "claude",
 		source: "installed-default",

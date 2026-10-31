@@ -37,7 +37,13 @@ before(async () => {
 });
 after(async () => {
 	for (const undo of unregister.splice(0)) undo();
-	await rm(root, { recursive: true, force: true });
+	// A supervisor finishing its last write can still create a file meanwhile (ENOTEMPTY).
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
 });
 
 let counter = 0;

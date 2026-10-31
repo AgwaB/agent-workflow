@@ -12,8 +12,13 @@ import {
 	readDashboardDiscovery,
 	readOrCreateDashboardSession,
 	resetDashboardSession,
+	setDashboardStartBudgetForTests,
 } from "../../dist/hosts/dashboard/discovery.js";
 import { runAgentWorkflowCli } from "../../dist/hosts/cli/index.js";
+
+// The dashboard a launch starts gets 15 s here instead of 3 s: these tests check the auto-start
+// and the link, not how fast a loaded machine (the whole suite in parallel) boots Node.
+setDashboardStartBudgetForTests(15_000);
 
 async function project(t) {
 	const cwd = await mkdtemp(join(tmpdir(), "aw-wp43c-session-"));
@@ -96,7 +101,7 @@ test("session creation is atomic and private; malformed sessions regenerate", as
 });
 
 test("cookie survives two starts; CLI reset stops a detached server and invalidates the old cookie", {
-	timeout: 15_000,
+	timeout: 60_000,
 }, async (t) => {
 	const { cwd, start } = await project(t);
 	const first = await start();
@@ -140,7 +145,7 @@ test("cookie survives two starts; CLI reset stops a detached server and invalida
 });
 
 test("open mode never creates a session file; --status reports auth off", {
-	timeout: 15_000,
+	timeout: 60_000,
 }, async (t) => {
 	const { cwd, start } = await project(t);
 	const server = await start({ auth: false });
@@ -227,10 +232,17 @@ test("invalid detached idle environment is usage exit 2; foreground ignores it",
 	assert.equal(result, 0);
 });
 
+/**
+ * Wait for the idle check's async work (file I/O included) to settle. Bounded by real time, not a
+ * count of event-loop turns: 1000 turns were not enough on a loaded machine. Only setInterval is
+ * mocked here, so setTimeout and Date are real.
+ */
 async function until(predicate) {
-	for (let n = 0; n < 1000; n++) {
+	const deadline = Date.now() + 10_000;
+	for (let n = 0; Date.now() < deadline; n++) {
 		if (await predicate()) return;
-		await immediate();
+		if (n % 100 === 99) await new Promise((done) => setTimeout(done, 5));
+		else await immediate();
 	}
 	assert.fail("idle callback did not settle");
 }

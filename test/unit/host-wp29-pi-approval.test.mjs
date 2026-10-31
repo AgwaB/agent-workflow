@@ -160,7 +160,11 @@ test("Pi /aw resume with a dialog UI asks the open approval and continues the bl
 	const ctx = dialogCtx(cwd, true);
 	await pi.commands.get("aw").handler(`resume ${runId}`, ctx);
 	await pi.commands.get("aw").handler(`wait ${runId} 30s`, ctx);
-	assert.equal(ctx.confirms.length, 1);
+	assert.equal(
+		ctx.confirms.length,
+		1,
+		JSON.stringify(ctx.notes, null, 1).slice(0, 3000),
+	);
 	assert.equal((await store.readRunRecord(cwd, runId)).status, "completed");
 	assert.equal(await controllerRuns(), 1);
 	assert.equal(submits(), 1, "the completed prep stage is not relaunched");

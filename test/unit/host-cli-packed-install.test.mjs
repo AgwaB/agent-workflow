@@ -215,7 +215,38 @@ test("packed install: agent-workflow bin runs Pi-free (help, list, validate, run
 			["run", "wf.json", "packed", "task", "--executor", "test-packed"],
 			hook,
 		);
-		assert.equal(foreground.code, 0, foreground.stdout + foreground.stderr);
+		if (foreground.code !== 0) {
+			// Name the failed task's reason (the launch text only says "failed").
+			const runId = /Run: (\S+)/u.exec(foreground.stdout)?.[1];
+			let detail = "";
+			if (runId) {
+				const inspected = await aw(["inspect", runId, "--json"]);
+				try {
+					const tasks = JSON.parse(inspected.stdout).data.run.tasks;
+					detail = JSON.stringify(
+						tasks.map((task) => ({
+							specId: task.specId,
+							status: task.status,
+							statusDetail: task.statusDetail,
+							lastMessage: task.lastMessage,
+							error: task.error,
+							stderr: task.files?.stderr
+								? readFileSync(join(project, task.files.stderr), "utf8").slice(
+										-2000,
+									)
+								: undefined,
+						})),
+						null,
+						1,
+					);
+				} catch {
+					detail = inspected.stdout.slice(0, 4000);
+				}
+			}
+			assert.fail(
+				`${foreground.stdout}${foreground.stderr}\n--- failed tasks ---\n${detail}`,
+			);
+		}
 		assert.match(
 			foreground.stdout,
 			/Capability check \(test-packed@0\.1\.0, 1 stage, permission mode: free\): accepted/,

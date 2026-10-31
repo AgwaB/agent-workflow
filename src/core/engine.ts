@@ -99,6 +99,7 @@ import {
 	type DynamicControllerStatus,
 } from "./dynamic-state.js";
 import { remainingDynamicNestedWorkflowDepth } from "./dynamic-nested-depth.js";
+import { runBlockedOnDynamicApproval } from "./dynamic-approval.js";
 import {
 	DynamicControllerBudgetBlocked,
 	DynamicControllerNestedApprovalBlocked,
@@ -3005,15 +3006,19 @@ export function setResumeAfterStopLeaseWaitForTests(
 }
 
 /**
- * The run is terminal (interrupted) because a stop was applied: a durable stop intent is still
- * recorded, or the stop marked its tasks `workflow_stopped`. Only then is a held lease the stopped
- * supervisor shutting down rather than another live supervisor.
+ * The run's supervisor has stopped driving it, so a held lease is that supervisor shutting down
+ * rather than another live supervisor: the run is blocked on a dynamic-controller approval, or it
+ * is terminal (interrupted) because a stop was applied (a durable stop intent is still recorded,
+ * or the stop marked its tasks `workflow_stopped`).
  */
 async function runStopRecordedForResume(
 	cwd: string,
 	runId: string,
 ): Promise<boolean> {
 	const run = await readRunRecord(cwd, runId).catch(() => undefined);
+	// Blocked on a dynamic-controller approval (asked, or answered and not yet resumed): its
+	// supervisor stopped there, and hosts answer and resume right after the block notice.
+	if (run !== undefined && runBlockedOnDynamicApproval(run)) return true;
 	if (run === undefined || run.status !== "interrupted") return false;
 	if (workflowStoppedTaskIds(run).length > 0) return true;
 	return (await readWorkflowStopIntent(cwd, runId)) !== undefined;

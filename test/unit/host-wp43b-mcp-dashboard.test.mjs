@@ -16,8 +16,9 @@ import { registerWorkflowExecutor } from "../../dist/core/index.js";
 import { setSubagentLaunchControlsForTests } from "../../dist/core/launch-slots.js";
 import { startDashboardServer } from "../../dist/hosts/dashboard/server.js";
 import {
-	readDashboardDiscovery,
 	mintLaunchUrl,
+	readDashboardDiscovery,
+	setDashboardStartBudgetForTests,
 } from "../../dist/hosts/dashboard/discovery.js";
 import {
 	clientSupportsUrlElicitation,
@@ -26,6 +27,10 @@ import {
 import { WORKFLOW_DASHBOARD_TOOL } from "../../dist/mcp/visible-names.js";
 import { inProcessHostServer } from "../helpers/mcp-host-client.mjs";
 import { workflowFixtureDescriptor } from "../helpers/workflow-executor-fixture.mjs";
+
+// The dashboard a launch starts gets 15 s here instead of 3 s: these tests check the auto-start
+// and the link, not how fast a loaded machine (the whole suite in parallel) boots Node.
+setDashboardStartBudgetForTests(15_000);
 
 const clients = [],
 	dashboards = [],
@@ -95,7 +100,7 @@ const requests = (client) =>
 	client.messages.filter((message) => message.method === "elicitation/create");
 
 test("URL capability requires 2025-11-25 and explicit URL mode; dashboard is not a confirmed run change", {
-	timeout: 15_000,
+	timeout: 60_000,
 }, () => {
 	assert.equal(WORKFLOW_DASHBOARD_TOOL, "workflow_dashboard");
 	assert.ok(
@@ -124,7 +129,7 @@ test("URL capability requires 2025-11-25 and explicit URL mode; dashboard is not
 });
 
 test("WP43d open mode: URL accept carries a launch id (no credential, no cookie); arrival completes the elicitation", {
-	timeout: 15_000,
+	timeout: 60_000,
 }, async () => {
 	const p = await project();
 	const run = "workflow_dashboard-test_1";
@@ -161,7 +166,7 @@ test("WP43d open mode: URL accept carries a launch id (no credential, no cookie)
 });
 
 test("--auth: URL accept: client bootstraps the real server once to the selected run; result has no secrets", {
-	timeout: 15_000,
+	timeout: 60_000,
 }, async () => {
 	const p = await project({ auth: true });
 	const run = "workflow_dashboard-test_1";
@@ -225,7 +230,7 @@ test("--auth: URL accept: client bootstraps the real server once to the selected
 
 for (const action of ["decline", "cancel", "error"]) {
 	test(`URL ${action}: no fallback open and no secret echoed by the client`, {
-		timeout: 15_000,
+		timeout: 60_000,
 	}, async () => {
 		const p = await project();
 		let url;
@@ -272,7 +277,7 @@ for (const config of [
 	{ capabilities: { elicitation: { url: {} } }, protocol: "2025-06-18" },
 ]) {
 	test(`instructions only: ${JSON.stringify(config)}`, {
-		timeout: 15_000,
+		timeout: 60_000,
 	}, async () => {
 		const p = await project();
 		const client = await connect(p, config);
@@ -298,7 +303,7 @@ for (const config of [
 	{ capabilities: { elicitation: { form: {} } }, host: "codex" },
 ]) {
 	test(`form consent (no URL mode): accept opens the browser from the server via BROWSER; the URL never reaches the client: ${JSON.stringify(config)}`, {
-		timeout: 15_000,
+		timeout: 60_000,
 	}, async () => {
 		const p = await project({ auth: true });
 		const log = join(p.cwd, "opened.log");
@@ -345,7 +350,7 @@ for (const config of [
 		noSecrets(client.logs, p.dashboard, url);
 	});
 	test(`form consent declined: nothing opens, instructions returned: ${JSON.stringify(config)}`, {
-		timeout: 15_000,
+		timeout: 60_000,
 	}, async () => {
 		const p = await project();
 		p.env.BROWSER = "none";
@@ -362,7 +367,7 @@ for (const config of [
 }
 
 test("invalid ids, unknown arguments and restricted roles refuse before starting a dashboard", {
-	timeout: 15_000,
+	timeout: 60_000,
 }, async () => {
 	const p = await project({ start: false });
 	const client = await connect(p);
@@ -397,7 +402,7 @@ test("invalid ids, unknown arguments and restricted roles refuse before starting
 });
 
 test("launch mint failure is an error without credentials or elicitation", {
-	timeout: 15_000,
+	timeout: 60_000,
 }, async () => {
 	const p = await project();
 	for (let n = 0; n < 16; n++) await mintLaunchUrl(p.dashboard);
@@ -410,7 +415,7 @@ test("launch mint failure is an error without credentials or elicitation", {
 });
 
 test("real workflow_run preserves the token-free dashboard link only while a dashboard runs", {
-	timeout: 15_000,
+	timeout: 60_000,
 }, async () => {
 	const p = await project();
 	await mkdir(join(p.cwd, ".agent-workflow/agents"), { recursive: true });

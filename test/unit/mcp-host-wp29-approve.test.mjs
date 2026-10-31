@@ -218,7 +218,7 @@ test("workflow_approve decline rejects the controller for the run; cancel and er
 		decision: "approve",
 	});
 	assert.equal(
-		declined.structuredContent.data.decision,
+		declined.structuredContent.data?.decision,
 		"rejected",
 		text(declined),
 	);
@@ -247,7 +247,7 @@ test("workflow_approve reject + accept rejects the controller", async () => {
 		decision: "reject",
 	});
 	assert.equal(
-		result.structuredContent.data.decision,
+		result.structuredContent.data?.decision,
 		"rejected",
 		text(result),
 	);

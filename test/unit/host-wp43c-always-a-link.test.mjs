@@ -25,6 +25,11 @@ import {
 	resetDashboardSession,
 	startDashboardServer,
 } from "../../dist/hosts/dashboard/index.js";
+import { setDashboardStartBudgetForTests } from "../../dist/hosts/dashboard/discovery.js";
+
+// The dashboard a launch starts gets 15 s here instead of 3 s: these tests check the auto-start
+// and the link, not how fast a loaded machine (the whole suite in parallel) boots Node.
+setDashboardStartBudgetForTests(15_000);
 
 setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 let counter = 0;
@@ -78,7 +83,7 @@ async function get(origin, path, headers = {}) {
 }
 
 test("--auth: the session persists across dashboard restarts; --reset-session signs every browser out", {
-	timeout: 20_000,
+	timeout: 60_000,
 }, async (t) => {
 	const p = await project(t);
 	const first = await startDashboardServer({
@@ -143,7 +148,7 @@ test("--auth: the session persists across dashboard restarts; --reset-session si
 });
 
 test("--auth: an unsigned browser gets the sign-in page: project name only, no token, no paths", {
-	timeout: 15_000,
+	timeout: 60_000,
 }, async (t) => {
 	const p = await project(t);
 	const s = await startDashboardServer({
@@ -172,7 +177,7 @@ test("--auth: an unsigned browser gets the sign-in page: project name only, no t
 });
 
 test("a launch auto-starts a detached dashboard and always carries a token-free link; off switch and worker role respected", {
-	timeout: 40_000,
+	timeout: 60_000,
 }, async (t) => {
 	const p = await project(t);
 	t.after(async () => {
@@ -265,7 +270,7 @@ test("a launch auto-starts a detached dashboard and always carries a token-free 
 });
 
 test("a detached dashboard idles out only with no SSE client and no live run", {
-	timeout: 30_000,
+	timeout: 60_000,
 }, async (t) => {
 	const p = await project(t);
 	let idled = 0;
@@ -299,7 +304,7 @@ test("a detached dashboard idles out only with no SSE client and no live run", {
 });
 
 test("--auth: one-click local sign-in: the page's own script may ask the server to open a signed-in tab; cross-site callers may not", {
-	timeout: 20_000,
+	timeout: 60_000,
 }, async (t) => {
 	const p = await project(t);
 	const log = join(p.cwd, "opened.log");

@@ -352,12 +352,29 @@ export async function launchConsumed(
 		return undefined;
 	}
 }
+/**
+ * How long a launch waits for the dashboard it starts (best effort; the launch prints the start
+ * command instead when it is not up in time). 186 ms idle; a heavily loaded machine (the whole
+ * test suite twice in parallel) took over 3 s.
+ */
+const DASHBOARD_START_BUDGET_MS = 3000;
+let dashboardStartBudget = DASHBOARD_START_BUDGET_MS;
+
+export function dashboardStartBudgetMs(): number {
+	return dashboardStartBudget;
+}
+
+/** Tests on a loaded machine wait longer for the started dashboard; `undefined` restores 3 s. */
+export function setDashboardStartBudgetForTests(ms: number | undefined): void {
+	dashboardStartBudget = ms ?? DASHBOARD_START_BUDGET_MS;
+}
+
 export async function ensureDashboard(
 	cwd: string,
 	env: NodeJS.ProcessEnv,
 	options: { start: boolean },
 ): Promise<DashboardDiscovery | undefined> {
-	const deadline = Date.now() + 3000;
+	const deadline = Date.now() + dashboardStartBudget;
 	const existing = await readDashboardDiscovery(cwd);
 	if (existing || !options.start) return existing;
 	try {

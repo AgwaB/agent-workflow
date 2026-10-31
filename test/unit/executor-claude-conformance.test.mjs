@@ -5,6 +5,7 @@ import { test } from "node:test";
 
 import { runConformance } from "../../dist/sdk/conformance/index.js";
 import { createClaudeStubHarness } from "../fixtures/executors/claude/harness.mjs";
+import { UNIT_CONFORMANCE_TIMEOUTS } from "../fixtures/conformance-timeouts.mjs";
 
 const failures = (report) =>
 	report.results
@@ -14,7 +15,9 @@ const failures = (report) =>
 test("claude adapter passes every offline check it can stage", {
 	timeout: 300_000,
 }, async () => {
-	const report = await runConformance(createClaudeStubHarness());
+	const report = await runConformance(createClaudeStubHarness(), {
+		timeouts: UNIT_CONFORMANCE_TIMEOUTS,
+	});
 	assert.deepEqual(failures(report), []);
 	const byId = Object.fromEntries(
 		report.results.map((result) => [result.id, result]),
@@ -55,6 +58,7 @@ test("claude adapter passes the runtime tier (durable worker, rediscovery, contr
 	const report = await runConformance(createClaudeStubHarness(), {
 		tiers: ["runtime"],
 		only: ["runtime."],
+		timeouts: UNIT_CONFORMANCE_TIMEOUTS,
 	});
 	assert.deepEqual(failures(report), []);
 	const byId = Object.fromEntries(

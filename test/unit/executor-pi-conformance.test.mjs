@@ -5,12 +5,14 @@ import { test } from "node:test";
 
 import { registerConformanceTests } from "../../dist/sdk/conformance/index.js";
 import { createPiStubHarness } from "../fixtures/executors/pi/harness.mjs";
+import { UNIT_CONFORMANCE_TIMEOUTS } from "../fixtures/conformance-timeouts.mjs";
 
 const results = [];
 registerConformanceTests({
 	test,
 	harness: createPiStubHarness(),
 	tiers: ["offline", "runtime"],
+	timeouts: UNIT_CONFORMANCE_TIMEOUTS,
 	prefix: "pi executor conformance",
 	onResult: (result) => results.push(result),
 });

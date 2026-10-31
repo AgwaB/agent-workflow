@@ -8,10 +8,12 @@ import { test } from "node:test";
 import { runConformance } from "../../dist/sdk/conformance/index.js";
 import { createCodexStubHarness } from "../fixtures/executors/codex/harness.mjs";
 import { scenarioTranscript } from "../fixtures/executors/codex/scenarios.mjs";
+import { UNIT_CONFORMANCE_TIMEOUTS } from "../fixtures/conformance-timeouts.mjs";
 
 test("codex adapter passes every offline conformance check", async () => {
 	const report = await runConformance(createCodexStubHarness(), {
 		tiers: ["offline"],
+		timeouts: UNIT_CONFORMANCE_TIMEOUTS,
 	});
 	const failures = report.results
 		.filter((result) => result.status === "fail")

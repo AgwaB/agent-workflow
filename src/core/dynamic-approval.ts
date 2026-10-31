@@ -15,7 +15,11 @@ import {
 	recordDynamicControllerStatus,
 	recordDynamicEventAndUpdateState,
 } from "./dynamic-state.js";
-import { readRunRecord, withRunLease, writeRunRecord } from "./store.js";
+import {
+	readRunRecord,
+	withRunLeaseAfterSupervisorExit,
+	writeRunRecord,
+} from "./store.js";
 import type { WorkflowRunRecord } from "./types.js";
 
 /** Title of every dynamic-controller approval question (pi-workflow's confirm title). */
@@ -62,6 +66,21 @@ export function persistedApproveHint(runId: string): string {
 
 function approvalOpId(controllerSpecId: string): string {
 	return `${controllerSpecId}:approval:controller`;
+}
+
+/**
+ * A controller task of the run is blocked on its approval (asked, or answered and not yet resumed).
+ * Its supervisor stopped there, and hosts answer and resume right after the block notice.
+ */
+export function runBlockedOnDynamicApproval(run: WorkflowRunRecord): boolean {
+	return (
+		run.status === "blocked" &&
+		run.tasks.some(
+			(task) =>
+				task.status === "blocked" &&
+				DYNAMIC_APPROVAL_PENDING_DETAILS.has(String(task.statusDetail)),
+		)
+	);
 }
 
 /**
@@ -153,52 +172,64 @@ export async function recordDynamicApprovalDecision(
 	},
 ): Promise<{ run: WorkflowRunRecord; approval: PendingDynamicApproval }> {
 	const current = await readRunRecord(cwd, runIdOrPrefix);
-	const outcome = await withRunLease(cwd, current.runId, async (signal) => {
-		const run = await readRunRecord(cwd, current.runId);
-		const approval = selectPendingDynamicApproval(
-			await pendingDynamicApprovals(cwd, run),
-			run.runId,
-			decision.requestId,
-		);
-		const scope = (await readDynamicEvents(cwd, run.runId))
-			.filter(
-				(event) =>
-					event.type === "approval.pending" &&
-					event.requestHash === approval.requestId,
-			)
-			.at(-1)?.payload.approvalScope;
-		await recordDynamicEventAndUpdateState(cwd, run.runId, {
-			controllerSpecId: approval.controllerSpecId,
-			type: "approval.resolved",
-			opId: approvalOpId(approval.controllerSpecId),
-			requestHash: approval.requestId,
-			payload: {
-				approved: decision.approved,
-				...(scope === undefined ? {} : { approvalScope: scope }),
-				decidedBy: {
-					host: decision.decidedBy.host,
-					via: decision.decidedBy.via,
-				},
-			},
-		});
-		if (!decision.approved) {
-			await recordDynamicControllerStatus(cwd, run.runId, {
-				controllerSpecId: approval.controllerSpecId,
-				status: "policy_blocked",
-				message: DYNAMIC_APPROVAL_REJECTED_MESSAGE,
-			}).catch(() => undefined);
-			const task = run.tasks.find(
-				(candidate) => candidate.taskId === approval.taskId,
+	// The run blocked on this approval, so a held lease is its supervisor shutting down: wait for it
+	// (bounded) instead of asking the user to retry.
+	const outcome = await withRunLeaseAfterSupervisorExit(
+		cwd,
+		current.runId,
+		async (signal) => {
+			const run = await readRunRecord(cwd, current.runId);
+			const approval = selectPendingDynamicApproval(
+				await pendingDynamicApprovals(cwd, run),
+				run.runId,
+				decision.requestId,
 			);
-			if (task) {
-				// The task is already blocked (terminal); only its reason changes.
-				task.statusDetail = "dynamic_approval_rejected";
-				task.lastMessage = DYNAMIC_APPROVAL_REJECTED_MESSAGE;
-				await writeRunRecord(cwd, run, signal);
+			const scope = (await readDynamicEvents(cwd, run.runId))
+				.filter(
+					(event) =>
+						event.type === "approval.pending" &&
+						event.requestHash === approval.requestId,
+				)
+				.at(-1)?.payload.approvalScope;
+			await recordDynamicEventAndUpdateState(cwd, run.runId, {
+				controllerSpecId: approval.controllerSpecId,
+				type: "approval.resolved",
+				opId: approvalOpId(approval.controllerSpecId),
+				requestHash: approval.requestId,
+				payload: {
+					approved: decision.approved,
+					...(scope === undefined ? {} : { approvalScope: scope }),
+					decidedBy: {
+						host: decision.decidedBy.host,
+						via: decision.decidedBy.via,
+					},
+				},
+			});
+			if (!decision.approved) {
+				await recordDynamicControllerStatus(cwd, run.runId, {
+					controllerSpecId: approval.controllerSpecId,
+					status: "policy_blocked",
+					message: DYNAMIC_APPROVAL_REJECTED_MESSAGE,
+				}).catch(() => undefined);
+				const task = run.tasks.find(
+					(candidate) => candidate.taskId === approval.taskId,
+				);
+				if (task) {
+					// The task is already blocked (terminal); only its reason changes.
+					task.statusDetail = "dynamic_approval_rejected";
+					task.lastMessage = DYNAMIC_APPROVAL_REJECTED_MESSAGE;
+					await writeRunRecord(cwd, run, signal);
+				}
 			}
-		}
-		return { run, approval };
-	});
+			return { run, approval };
+		},
+		async () => {
+			const run = await readRunRecord(cwd, current.runId).catch(
+				() => undefined,
+			);
+			return run !== undefined && runBlockedOnDynamicApproval(run);
+		},
+	);
 	if (!outcome)
 		throw new Error(
 			`Could not record the approval decision for ${current.runId}: another supervisor is driving the run; try again in a few seconds`,

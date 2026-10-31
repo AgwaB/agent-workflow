@@ -292,7 +292,11 @@ function setParentSubagentEnv(cwd) {
 	process.env.AGENT_WORKFLOW_PARENT_SUBAGENT_ATTEMPT_ID = "parent_attempt";
 }
 
-async function eventually(action, timeoutMs = 750) {
+/**
+ * Retry `action` until it stops throwing. Returns at once when it passes; the bound only decides
+ * how long a failing condition takes to fail (750 ms failed passing launches on a loaded machine).
+ */
+async function eventually(action, timeoutMs = 10_000) {
 	const deadline = Date.now() + timeoutMs;
 	let lastError;
 	while (Date.now() <= deadline) {

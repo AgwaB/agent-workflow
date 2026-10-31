@@ -13,6 +13,7 @@
 // preferences.ts) applies to every host's launch (its profile when none is named, its role overrides
 // as the engine's workflowPreference layer); launch data/text show the per-stage role assignment.
 import {
+	dashboardStartBudgetMs,
 	ensureDashboard,
 	readDashboardDiscovery,
 } from "./dashboard/discovery.js";
@@ -1311,7 +1312,8 @@ async function launchClaimed(
 	}
 	await launch.onStarted(run.runId).catch(() => undefined);
 	const data = launchData(ctx, run, mode, profile.info);
-	// Dashboard discovery/start is best effort and adds at most the 3 s discovery budget.
+	// Dashboard discovery/start is best effort and adds at most the 3 s discovery budget
+	// (`dashboardStartBudgetMs`).
 	let dashboardTimer: ReturnType<typeof setTimeout> | undefined;
 	try {
 		data.dashboard = await Promise.race([
@@ -1340,7 +1342,10 @@ async function launchClaimed(
 					: undefined;
 			})(),
 			new Promise<undefined>((done) => {
-				dashboardTimer = setTimeout(() => done(undefined), 3000);
+				dashboardTimer = setTimeout(
+					() => done(undefined),
+					dashboardStartBudgetMs(),
+				);
 			}),
 		]);
 	} catch {
