@@ -601,7 +601,7 @@ const humanize = (name) => {
 	return text.charAt(0).toUpperCase() + text.slice(1);
 };
 const agentTasks = (run) =>
-	run.tasks.filter((t) => !t.placeholder && t.kind !== "support" && t.agent);
+	run.tasks.filter((t) => !t.placeholder && t.kind !== "support");
 const incomplete = (run) =>
 	Boolean(
 		run.verdictGate ||
@@ -1141,7 +1141,7 @@ function edgeState(from, to) {
 }
 function renderGraph() {
 	// First drawing of this run in this tab: replay how the work travelled (cards and edges
-	// appear layer by layer, the end card pulses once). Redraws after a status change do not.
+	// appear layer by layer). Redraws after a status change do not.
 	const replay = graphControl?.runId !== run.runId;
 	graphControl?.destroy();
 	const model = graphModel;
@@ -1861,8 +1861,7 @@ function renderGraph() {
 	wrap.append(...Object.values(hints));
 	const observer = new ResizeObserver(resize);
 	// The journey, replayed: layer n's cards fade in at n·step, the edges leaving them draw
-	// themselves toward the next layer right after; the last card (or the one that failed /
-	// waits for you) pulses once in its colour. Web Animations only — no inline styles.
+	// themselves toward the next layer right after. Web Animations only — no inline styles.
 	function playReplay() {
 		if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 		const step = 170;

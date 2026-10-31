@@ -108,7 +108,7 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		{
 			next: ["dedup-findings"],
 			markers: 6,
-			flowing: "flow",
+			flowing: "none",
 			still: "none",
 			ports: 7,
 		},
@@ -434,30 +434,15 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 			.querySelector("#report-content")
 			?.textContent.includes("Review report"),
 	);
-	// A finished run still shows where the work went, with no button or setting: one glint per
-	// travelled edge, all on one shared cycle (a wave layer by layer, then a rest).
-	await browser.waitFor(() =>
-		document.querySelector(".pulse[stroke-dasharray]"),
-	);
+	// Finished paths stay visible and static: no perpetual decorative glints or packets.
 	assert.deepEqual(
-		await browser.evaluate(() => {
-			const done = document.querySelectorAll(".edge.done").length;
-			const pulses = [...document.querySelectorAll(".pulse.done")];
-			const timings = pulses.map((pulse) =>
-				pulse.getAnimations()[0]?.effect.getTiming(),
-			);
-			return {
-				some: done > 0,
-				same: pulses.length === done,
-				glint: pulses.every((pulse) =>
-					/^22 /.test(pulse.getAttribute("stroke-dasharray")),
-				),
-				forever: timings.every((t) => t?.iterations === Infinity),
-				one_cycle: new Set(timings.map((t) => t?.duration)).size === 1,
-			};
-		}),
-		{ some: true, same: true, glint: true, forever: true, one_cycle: true },
+		await browser.evaluate(() => ({
+			done: document.querySelectorAll(".edge.done").length > 0,
+			packets: document.querySelectorAll(".handoff-packet,.pulse").length,
+		})),
+		{ done: true, packets: 0 },
 	);
+
 	assert.equal(
 		await browser.evaluate(
 			() =>
@@ -617,11 +602,11 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		})),
 		{
 			cards: [
-				"impact.scope:completed:scope",
+				"impact.scope:completed:Scope",
 				"__group_0:running:2 in parallel",
-				"impact.synthesis:pending:synthesis",
+				"impact.synthesis:pending:Synthesis",
 			],
-			rows: ["api", "data"],
+			rows: ["Api", "Data"],
 			edges: [
 				"impact.scope>__group_0:active",
 				"__group_0>impact.synthesis:next",
@@ -684,18 +669,21 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		),
 		240,
 	);
-	assert.ok(
-		await browser.evaluate(() =>
-			document.querySelector(".item-list").classList.contains("item-grid"),
-		),
-	);
-	await browser.click('[data-mode="table"]');
 	assert.equal(
-		await browser.evaluate(() =>
-			document.querySelector(".item-list").classList.contains("item-grid"),
+		await browser.evaluate(
+			() => document.querySelectorAll("[data-mode]").length,
 		),
-		false,
+		0,
 	);
+	assert.deepEqual(
+		await browser.evaluate(() =>
+			[...document.querySelectorAll("[data-group]")].map(
+				(el) => el.dataset.group,
+			),
+		),
+		["running", "waiting", "done"],
+	);
+
 	await browser.click('[data-filter="running"]');
 	assert.equal(
 		await browser.evaluate(

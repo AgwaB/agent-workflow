@@ -211,7 +211,7 @@ kbd {
 }
 .need-action {
 	display: block;
-	color: var(--accent);
+	color: var(--text);
 	text-decoration: underline;
 	font-size: 14px;
 	margin: 4px 0;
@@ -320,6 +320,9 @@ progress::-moz-progress-bar {
 }
 .hero-badge.completed .hero-ring {
 	stroke: var(--text);
+}
+.hero-badge.interrupted .hero-ring {
+	stroke: var(--faint);
 }
 .hero-badge.blocked .hero-ring {
 	stroke: var(--warn);
@@ -511,7 +514,7 @@ progress::-moz-progress-bar {
 .agent-row:focus text,
 .agent-row:hover text,
 .stage-row.selected text {
-	fill: var(--accent);
+	fill: var(--text);
 }
 /* Tracing: hovering/focusing a card keeps its edges and neighbours lit; the rest steps back. */
 .link,
@@ -533,7 +536,9 @@ progress::-moz-progress-bar {
 .port.later {
 	fill: rgba(238, 239, 242, 0.22);
 }
-.port.next,
+.port.next {
+	fill: var(--faint);
+}
 .port.active {
 	fill: var(--accent);
 }
@@ -607,19 +612,19 @@ progress::-moz-progress-bar {
 	stroke: var(--surface);
 	stroke-width: 2;
 }
-.stagger-1 {
+.segment.stagger-1 {
 	animation-delay: -0.3s;
 }
-.stagger-2 {
+.segment.stagger-2 {
 	animation-delay: -0.6s;
 }
-.stagger-3 {
+.segment.stagger-3 {
 	animation-delay: -0.9s;
 }
-.stagger-4 {
+.segment.stagger-4 {
 	animation-delay: -1.2s;
 }
-.stagger-5 {
+.segment.stagger-5 {
 	animation-delay: -1.5s;
 }
 @keyframes breathe-segment {
@@ -786,7 +791,7 @@ progress::-moz-progress-bar {
 	padding: 8px;
 }
 .tabs button[aria-selected="true"] {
-	border-bottom-color: var(--accent);
+	border-bottom-color: var(--text);
 	color: var(--text);
 }
 .output {
@@ -802,7 +807,7 @@ progress::-moz-progress-bar {
 .output-label button {
 	border: 0;
 	padding: 0;
-	color: var(--accent);
+	color: var(--text);
 }
 pre {
 	white-space: pre-wrap;
@@ -1044,8 +1049,8 @@ dialog footer .muted {
 	padding: 10px;
 }
 .palette-list button[aria-selected="true"] {
-	color: var(--accent);
-	outline: 1px solid var(--accent);
+	color: var(--text);
+	outline: 1px solid var(--text);
 	outline-offset: -1px;
 }
 .report {
