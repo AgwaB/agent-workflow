@@ -2450,7 +2450,7 @@ function itemPositions(inspector) {
 	return new Map(
 		[...inspector.querySelectorAll("[data-item]")].map((row) => [
 			row.dataset.item,
-			row.getBoundingClientRect().top,
+			{ top: row.getBoundingClientRect().top, group: row.dataset.rowGroup },
 		]),
 	);
 }
@@ -2583,6 +2583,7 @@ function renderItems(inspector, stage, previous = new Map()) {
 					button(content, () => go({ task: task.specId }), {
 						class: `agent-item ${status}`,
 						"data-item": task.specId,
+						"data-row-group": group,
 						title: `${task.title || task.specId} · ${taskLine(task)}${task.outcome?.text ? ` · ${task.outcome.text}` : ""}`,
 						"aria-label": `${task.title || task.specId} · ${taskLine(task)}`,
 					}),
@@ -2601,16 +2602,31 @@ function renderItems(inspector, stage, previous = new Map()) {
 			);
 		if (!reducedMotion())
 			for (const row of list.querySelectorAll("[data-item]")) {
-				const top = before.get(row.dataset.item),
-					delta = top == null ? 0 : top - row.getBoundingClientRect().top;
-				// FLIP the content inside its clipped, normal-flow slot: moving groups never overlap.
-				if (delta)
+				const was = before.get(row.dataset.item);
+				if (!was) continue;
+				const delta = was.top - row.getBoundingClientRect().top;
+				// Content moves inside its clipped, normal-flow slot, so the hint stays within the slot
+				// (a full-distance FLIP would start outside the clip and flash an empty list). A row that
+				// changed group fades in from its direction of travel; rows that only shifted settle.
+				const nudge = Math.max(-10, Math.min(10, delta));
+				if (was.group !== row.dataset.rowGroup)
 					row.firstElementChild.animate(
 						[
-							{ transform: `translateY(${delta}px)`, opacity: 0.35 },
+							{
+								transform: `translateY(${Math.sign(delta) * 6}px)`,
+								opacity: 0,
+							},
 							{ transform: "translateY(0)", opacity: 1 },
 						],
-						{ duration: 280, easing: "ease-out" },
+						{ duration: 260, easing: "ease-out" },
+					);
+				else if (nudge)
+					row.firstElementChild.animate(
+						[
+							{ transform: `translateY(${nudge}px)` },
+							{ transform: "translateY(0)" },
+						],
+						{ duration: 200, easing: "ease-out" },
 					);
 			}
 	}

@@ -457,3 +457,36 @@ test("vendor key shapes in search patterns and commands are redacted", () => {
 		'Searching "AKIA is a prefix"',
 	);
 });
+
+test("everyday words that resemble secret keys stay readable in free text", () => {
+	const label = (name, input) =>
+		activityFromExecEvent(
+			{ type: "tool_call", status: "running", kind: "read", name, input },
+			"/tmp/project",
+		)?.label;
+	assert.equal(
+		label("WebSearch", { query: "Tool definitions cost tokens on every call" }),
+		'Searching "Tool definitions cost tokens on every call"',
+	);
+	assert.equal(
+		label("Read", { file_path: "/tmp/project/src/auth/session.ts" }),
+		"Reading src/auth/session.ts",
+	);
+	assert.equal(
+		label("Grep", { pattern: "cookie banner text" }),
+		'Searching "cookie banner text"',
+	);
+	// Assignments, headers, flags and secret words still redact what follows.
+	for (const pattern of [
+		"token=abc123",
+		"Authorization: Basic dXNlcg",
+		"--session-id s3cr3t",
+		'"secret": "abc"',
+		"my password hunter2",
+	])
+		assert.doesNotMatch(
+			label("Grep", { pattern }),
+			/abc123|dXNlcg|s3cr3t|"abc"|hunter2/,
+			pattern,
+		);
+});

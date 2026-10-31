@@ -34,11 +34,31 @@ function safeText(value: string): string {
 		)
 		.replace(/\bBearer\s+[^\s"']+/gi, "[redacted]")
 		.replace(/\b[A-Za-z0-9_+/=-]{32,}\b/g, "[redacted]");
+	// Free text (queries, paths, URLs) names secrets as words all the time ("auth/session.ts",
+	// "tool tokens"); only a sensitive key used as an assignment, header or flag marks a value.
 	const words = cleaned.split(" ");
-	const sensitive = words.findIndex((word) => SENSITIVE_KEY_PATTERN.test(word));
+	const sensitive = words.findIndex(sensitiveKeyWord);
 	return sensitive < 0
 		? cleaned
 		: `${words.slice(0, sensitive).join(" ")} [redacted]`.trim();
+}
+
+// Words that name a secret value outright: a bare occurrence still redacts what follows.
+const SECRET_WORD =
+	/^(?:pass(?:word|wd|phrase)?s?|secrets?|credentials?|api[-_]?keys?|private[-_]?keys?|client[-_]?secrets?)$/i;
+
+/**
+ * `password=…`, `Authorization:`, `--api-key`, `-token`, or a bare secret word ("password …") —
+ * but not everyday words such as "tokens", "auth" or "session" in a query or a path.
+ */
+function sensitiveKeyWord(word: string): boolean {
+	if (SECRET_WORD.test(word.replace(/^["'(]+|["'),.;]+$/g, ""))) return true;
+	const key =
+		/^-{1,2}([A-Za-z][\w.-]*)(?:[=:].*)?$|^["']?([A-Za-z_][\w.-]*)["']?[=:]/.exec(
+			word,
+		);
+	const name = key?.[1] ?? key?.[2];
+	return name !== undefined && SENSITIVE_KEY_PATTERN.test(name);
 }
 
 function safePath(value: string, cwd: string): string {
