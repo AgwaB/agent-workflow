@@ -294,3 +294,38 @@ test("activity is running-only, bounded, validated and strictly allowlisted", ()
 		assert.equal("activity" in projectRun(run, shown).tasks[1], false);
 	}
 });
+
+test("run summaries count agents, not foreach placeholders or support helpers", () => {
+	const { run, shown } = data();
+	shown.run.tasks.push({
+		taskId: "task-s",
+		specId: "prep.main",
+		stageId: "prep",
+		kind: "support",
+		status: "completed",
+		statusDetail: "support",
+		runtime: {},
+		files: {},
+	});
+	const summary = projectRunSummary(run, shown);
+	const agents = shown.run.tasks.filter(
+		(task) =>
+			task.kind !== "support" &&
+			!(
+				task.kind === "foreach" &&
+				!task.foreachGenerated &&
+				!task.dynamicGenerated
+			),
+	);
+	assert.equal(summary.agentSummary.total, agents.length);
+	assert.ok(summary.agentSummary.total < shown.run.tasks.length);
+	assert.equal(
+		summary.agentSummary.completed,
+		agents.filter((task) => task.status === "completed").length,
+	);
+	assert.equal(
+		projectRunSummary(run).agentSummary,
+		undefined,
+		"no shown record, no agent count",
+	);
+});

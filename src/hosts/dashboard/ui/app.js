@@ -193,13 +193,13 @@ export function statusSentence(run, time = now(), stopping = false) {
 	)
 		return `${reviewing ? "Reviewing" : "Work"} is paused. The executor couldn't confirm whether one task ran — you need to decide.`;
 	if (run.status === "failed" && run.verdictGate)
-		return `Finished ${ago(run.updatedAt, time).replace(/(\d)([mhd])/, "$1 $2")} with verdict ${run.verdict || "not passed"}. The final gate did not pass; the report explains why.${run.reportAvailable ? " Report is ready." : ""}`;
+		return `Finished ${ago(run.updatedAt, time).replace(/(\d)([mhd])/, "$1 $2")} with verdict ${run.verdict ? verdictWord(run.verdict) : "not passed"}. The final gate did not pass; the report explains why.${run.reportAvailable ? " Report is ready." : ""}`;
 	if (run.status === "failed")
 		return failed
 			? `Stopped at ${failed.stageId}. ${/contract/.test(failed.statusDetail || "") ? "Output didn't match the contract." : "A task failed."} Inspect and resume when ready.`
 			: "A task failed. Inspect and resume when ready.";
 	if (run.status === "completed")
-		return `Finished ${ago(run.updatedAt, time).replace(/(\d)([mhd])/, "$1 $2")}${run.verdict ? ` with verdict ${run.verdict}` : ""}.${run.reportAvailable ? " Report is ready." : ""}`;
+		return `Finished ${ago(run.updatedAt, time).replace(/(\d)([mhd])/, "$1 $2")}${run.verdict ? ` with verdict ${verdictWord(run.verdict)}` : ""}.${run.reportAvailable ? " Report is ready." : ""}`;
 	if (tasks.some((t) => t.statusDetail === "dynamic_approval_approved"))
 		return "Approved by you. Resume separately to run the controller.";
 	if (run.status === "blocked")
@@ -416,11 +416,20 @@ async function sessionLost() {
 		return false;
 	}
 }
+/** A workflow's verdict token (`BLOCKED`, `needs_changes`) in sentence case. */
+function verdictWord(value) {
+	const text = String(value || "")
+		.replace(/[_-]+/g, " ")
+		.trim();
+	return /[a-z]/.test(text)
+		? text
+		: text.charAt(0) + text.slice(1).toLowerCase();
+}
 function railLine(summary) {
 	if (summary.status === "completed")
-		return `Finished${incomplete(summary) ? " · incomplete" : summary.verdict ? ` · ${summary.verdict}` : ""}`;
+		return `Finished${incomplete(summary) ? " · incomplete" : summary.verdict ? ` · ${verdictWord(summary.verdict)}` : ""}`;
 	if (summary.status === "failed" && summary.verdictGate)
-		return `Finished · ${summary.verdict || "gate not passed"}`;
+		return `Finished · ${summary.verdict ? verdictWord(summary.verdict) : "gate not passed"}`;
 	if (summary.status === "failed")
 		return summary.needsYou?.[0]?.title || "A task failed";
 	if (rejected(summary)) return "Controller rejected";
@@ -493,7 +502,7 @@ function renderRail() {
 	if (!runs.length)
 		rail.append(element("p", { class: "muted" }, "No runs yet"));
 	for (const summary of runs) {
-		const counts = summary.taskSummary;
+		const counts = summary.agentSummary || summary.taskSummary;
 		const display = summary.runId === run?.runId ? run : summary;
 		const row = element(
 			"div",

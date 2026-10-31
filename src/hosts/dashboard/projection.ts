@@ -35,6 +35,8 @@ export interface DashboardRunSummary {
 	executors?: string[];
 	host?: string;
 	taskSummary: RunSummary["taskSummary"];
+	/** Agent tasks only (no foreach placeholders or support helpers): what the header counts. */
+	agentSummary?: { completed: number; total: number };
 	verdict?: string;
 	/** The run's only failure is the final verdict gate (the report is the outcome). */
 	verdictGate?: true;
@@ -160,6 +162,15 @@ export function projectRunSummary(
 	const statusDetail = shown?.run.tasks.find(
 		(task) => task.status === "blocked",
 	)?.statusDetail;
+	const agents = (shown?.run.tasks ?? []).filter(
+		(task) =>
+			task.kind !== "support" &&
+			!(
+				task.kind === "foreach" &&
+				!task.foreachGenerated &&
+				!task.dynamicGenerated
+			),
+	);
 	return {
 		runId: run.runId,
 		name: run.name ?? "workflow",
@@ -171,6 +182,15 @@ export function projectRunSummary(
 		...(executors.length > 1 ? { executors } : {}),
 		...(shown?.launch ? { host: shown.launch.source } : {}),
 		taskSummary: { ...run.taskSummary },
+		...(agents.length
+			? {
+					agentSummary: {
+						completed: agents.filter((task) => task.status === "completed")
+							.length,
+						total: agents.length,
+					},
+				}
+			: {}),
 		...(detail?.verdict ? { verdict: detail.verdict } : {}),
 		...(detail?.verdictGate ? { verdictGate: true as const } : {}),
 		reportAvailable: Boolean(detail?.reportArtifacts.length),
