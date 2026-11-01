@@ -402,6 +402,28 @@ function activeAttempt(record: RunRecord): RunAttemptRecord | undefined {
 	return record.attempts.at(-1);
 }
 
+/** Commit only after the recorded owner and its process group have drained. */
+async function commitDrainedAttemptResult(
+	ref: RunRef,
+	attempt: RunAttemptRecord,
+	result: ResultEnvelope,
+): Promise<ReconcileSubagentRunResult> {
+	const committed = await commitAttemptResultIfActive(ref, result);
+	await appendRunEvent(ref, {
+		type: "reconcile.completed",
+		attemptId: attempt.attemptId,
+		status: result.status,
+		message: committed.committed
+			? "committed terminal attempt result"
+			: "terminal attempt result was stale",
+	}).catch(() => undefined);
+	return {
+		status: committed.committed ? "committed-result" : "running",
+		runId: ref.runId,
+		record: committed.record,
+	};
+}
+
 export async function reconcileSubagentRun(
 	options: ReconcileSubagentRunOptions,
 ): Promise<ReconcileSubagentRunResult> {
@@ -491,7 +513,7 @@ export async function reconcileSubagentRun(
 			blockedInactiveAttemptIds,
 		);
 
-	const result = await readAttemptResult(attempt, options.runId);
+	let result = await readAttemptResult(attempt, options.runId);
 	if (
 		result !== null &&
 		result.attemptId === attempt.attemptId &&
@@ -506,20 +528,7 @@ export async function reconcileSubagentRun(
 				"terminal-result-ownership",
 				[attempt.attemptId],
 			);
-		const committed = await commitAttemptResultIfActive(ref, result);
-		await appendRunEvent(ref, {
-			type: "reconcile.completed",
-			attemptId: attempt.attemptId,
-			status: result.status,
-			message: committed.committed
-				? "committed terminal attempt result"
-				: "terminal attempt result was stale",
-		}).catch(() => undefined);
-		return {
-			status: committed.committed ? "committed-result" : "running",
-			runId: options.runId,
-			record: committed.record,
-		};
+		return commitDrainedAttemptResult(ref, attempt, result);
 	}
 
 	const ownerPid = attempt.process?.workerPid ?? attempt.process?.pid;
@@ -538,6 +547,14 @@ export async function reconcileSubagentRun(
 			"stale-attempt-ownership",
 			[attempt.attemptId],
 		);
+
+	// The first result read precedes asynchronous owner inspection/cleanup. A healthy worker
+	// can write its terminal result and exit in that interval (normally without any log line).
+	// Only now, after ownership has drained, is absence of a terminal result meaningful. Never
+	// overwrite that result with an executor's unknown/absent answer from a stale snapshot.
+	result = await readAttemptResult(attempt, options.runId);
+	if (result !== null && isTerminalStatus(result.status))
+		return commitDrainedAttemptResult(ref, attempt, result);
 
 	const interrupted = record.interrupt !== undefined;
 	const cleanupStatus =
