@@ -1,0 +1,80 @@
+{
+	"runId": "workflow_matrix_single_finished",
+	"name": "검증 — Long dashboard workflow name Long dashboard workflow name Long dashboard workflow name Long dashboard workflow name Long dashboard workflow name Long dashboard workflow name Long dashboard workflow name Long dashboard workflow name Long dashboard workflow name Long dashboard workflow name ",
+	"status": "completed",
+	"createdAt": "2026-10-29T08:09:51.543Z",
+	"updatedAt": "2026-10-29T08:09:55.000Z",
+	"executor": "test-matrix",
+	"host": "cli",
+	"taskSummary": {
+		"total": 1,
+		"pending": 0,
+		"running": 0,
+		"blocked": 0,
+		"completed": 1,
+		"failed": 0,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"agentSummary": {
+		"completed": 1,
+		"total": 1
+	},
+	"reportAvailable": false,
+	"needsYou": [],
+	"live": false,
+	"task": "검증 UI matrix — local test only",
+	"permissionMode": "free",
+	"usage": {
+		"input": 10,
+		"output": 5,
+		"costUsd": null,
+		"tasksReporting": 1,
+		"taskCount": 1
+	},
+	"launch": {
+		"host": "cli",
+		"entry": {
+			"source": "cli",
+			"entry": {
+				"kind": "command",
+				"action": "run"
+			},
+			"profile": {
+				"kind": "base"
+			},
+			"taskChars": 30
+		},
+		"command": "agent-workflow run wf.json '검증 UI matrix — local test only' --executor test-matrix --detach"
+	},
+	"pendingApprovals": [],
+	"tasks": [
+		{
+			"taskId": "task-1",
+			"specId": "very-long-very-long-stage-title-very-long-stage-title-very-long-stage-title-very-long-stage-title-very-long-stage-title-very-long-stage-title-very-long-stage-title-.main",
+			"stageId": "very-long-very-long-stage-title-very-long-stage-title-very-long-stage-title-very-long-stage-title-very-long-stage-title-very-long-stage-title-very-long-stage-title-",
+			"kind": "single",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": [],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:51.839Z",
+			"completedAt": "2026-10-29T08:09:54.483Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		}
+	]
+}

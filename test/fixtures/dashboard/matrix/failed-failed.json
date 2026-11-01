@@ -1,0 +1,78 @@
+{
+	"runId": "workflow_matrix_failed_failed",
+	"name": "matrix-failed",
+	"status": "failed",
+	"createdAt": "2026-10-29T08:09:49.518Z",
+	"updatedAt": "2026-10-29T08:09:55.000Z",
+	"executor": "test-matrix",
+	"host": "cli",
+	"taskSummary": {
+		"total": 1,
+		"pending": 0,
+		"running": 0,
+		"blocked": 0,
+		"completed": 0,
+		"failed": 1,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"agentSummary": {
+		"completed": 0,
+		"total": 1
+	},
+	"reportAvailable": false,
+	"needsYou": [
+		{
+			"kind": "failed",
+			"title": "failure failed",
+			"taskId": "task-1",
+			"since": "2026-10-29T08:09:53.485Z"
+		}
+	],
+	"live": false,
+	"task": "검증 UI matrix — local test only",
+	"permissionMode": "free",
+	"usage": {
+		"tasksReporting": 1,
+		"taskCount": 1,
+		"costUsd": null
+	},
+	"launch": {
+		"host": "cli",
+		"entry": {
+			"source": "cli",
+			"entry": {
+				"kind": "command",
+				"action": "run"
+			},
+			"profile": {
+				"kind": "base"
+			},
+			"taskChars": 30
+		},
+		"command": "agent-workflow run wf.json '검증 UI matrix — local test only' --executor test-matrix --detach"
+	},
+	"pendingApprovals": [],
+	"tasks": [
+		{
+			"taskId": "task-1",
+			"specId": "failure.main",
+			"stageId": "failure",
+			"kind": "single",
+			"agent": "reader",
+			"status": "failed",
+			"statusDetail": "failed",
+			"dependsOn": [],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:50.494Z",
+			"completedAt": "2026-10-29T08:09:53.485Z",
+			"lastMessage": "executor run failed: executor_auth",
+			"usage": {
+				"costUsd": null
+			},
+			"hasLogs": true
+		}
+	]
+}

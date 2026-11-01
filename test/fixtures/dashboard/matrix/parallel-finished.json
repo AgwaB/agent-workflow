@@ -1,0 +1,188 @@
+{
+	"runId": "workflow_matrix_parallel_finished",
+	"name": "matrix-parallel",
+	"status": "completed",
+	"createdAt": "2026-10-29T08:09:31.888Z",
+	"updatedAt": "2026-10-29T08:09:55.000Z",
+	"executor": "test-matrix",
+	"host": "cli",
+	"taskSummary": {
+		"total": 5,
+		"pending": 0,
+		"running": 0,
+		"blocked": 0,
+		"completed": 5,
+		"failed": 0,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"agentSummary": {
+		"completed": 5,
+		"total": 5
+	},
+	"reportAvailable": false,
+	"needsYou": [],
+	"live": false,
+	"task": "검증 UI matrix — local test only",
+	"permissionMode": "free",
+	"usage": {
+		"input": 50,
+		"output": 25,
+		"costUsd": null,
+		"tasksReporting": 5,
+		"taskCount": 5
+	},
+	"launch": {
+		"host": "cli",
+		"entry": {
+			"source": "cli",
+			"entry": {
+				"kind": "command",
+				"action": "run"
+			},
+			"profile": {
+				"kind": "base"
+			},
+			"taskChars": 30
+		},
+		"command": "agent-workflow run wf.json '검증 UI matrix — local test only' --executor test-matrix --detach"
+	},
+	"pendingApprovals": [],
+	"tasks": [
+		{
+			"taskId": "task-1",
+			"specId": "plan.main",
+			"stageId": "plan",
+			"kind": "single",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": [],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:34.053Z",
+			"completedAt": "2026-10-29T08:09:39.755Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-2",
+			"specId": "alpha.main",
+			"stageId": "alpha",
+			"kind": "single",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:40.930Z",
+			"completedAt": "2026-10-29T08:09:44.321Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-3",
+			"specId": "beta.main",
+			"stageId": "beta",
+			"kind": "single",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:42.429Z",
+			"completedAt": "2026-10-29T08:09:45.812Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-4",
+			"specId": "gamma.main",
+			"stageId": "gamma",
+			"kind": "single",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:43.718Z",
+			"completedAt": "2026-10-29T08:09:46.903Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-5",
+			"specId": "join.main",
+			"stageId": "join",
+			"kind": "single",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["alpha.main", "beta.main", "gamma.main"],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:49.488Z",
+			"completedAt": "2026-10-29T08:09:52.913Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		}
+	]
+}

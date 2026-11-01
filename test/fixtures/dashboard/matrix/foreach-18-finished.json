@@ -1,0 +1,647 @@
+{
+	"runId": "workflow_matrix_foreach_18_finished",
+	"name": "matrix-foreach-18",
+	"status": "completed",
+	"createdAt": "2026-10-29T08:09:09.927Z",
+	"updatedAt": "2026-10-29T08:09:55.000Z",
+	"executor": "test-matrix",
+	"host": "cli",
+	"taskSummary": {
+		"total": 21,
+		"pending": 0,
+		"running": 0,
+		"blocked": 0,
+		"completed": 21,
+		"failed": 0,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"agentSummary": {
+		"completed": 20,
+		"total": 20
+	},
+	"reportAvailable": false,
+	"needsYou": [],
+	"live": false,
+	"task": "검증 UI matrix — local test only",
+	"permissionMode": "free",
+	"usage": {
+		"input": 200,
+		"output": 100,
+		"costUsd": null,
+		"tasksReporting": 20,
+		"taskCount": 21
+	},
+	"launch": {
+		"host": "cli",
+		"entry": {
+			"source": "cli",
+			"entry": {
+				"kind": "command",
+				"action": "run"
+			},
+			"profile": {
+				"kind": "base"
+			},
+			"taskChars": 30
+		},
+		"command": "agent-workflow run wf.json '검증 UI matrix — local test only' --executor test-matrix --detach"
+	},
+	"pendingApprovals": [],
+	"tasks": [
+		{
+			"taskId": "task-1",
+			"specId": "plan.main",
+			"stageId": "plan",
+			"kind": "single",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": [],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:10.589Z",
+			"completedAt": "2026-10-29T08:09:13.667Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-2",
+			"specId": "check-claims.item",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "foreach_materialized",
+			"dependsOn": ["plan.main"],
+			"generated": false,
+			"placeholder": true,
+			"executor": "test-matrix",
+			"completedAt": "2026-10-29T08:09:14.068Z",
+			"lastMessage": "foreach produced 18 item(s)",
+			"usage": null,
+			"hasLogs": false
+		},
+		{
+			"taskId": "task-4",
+			"specId": "check-claims.c1",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:14.136Z",
+			"completedAt": "2026-10-29T08:09:17.402Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 1 — Very long evidence title with no truncation of meaning Very long evidence title with no truncation of meaning Very long evidence title with no trunca…",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-5",
+			"specId": "check-claims.c2",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:15.819Z",
+			"completedAt": "2026-10-29T08:09:19.586Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 2 — Very long evidence title with no truncation of meaning",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-6",
+			"specId": "check-claims.c3",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:17.391Z",
+			"completedAt": "2026-10-29T08:09:21.070Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 3 — Very long evidence title with no truncation of meaning",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-7",
+			"specId": "check-claims.c4",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:19.153Z",
+			"completedAt": "2026-10-29T08:09:22.475Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 4 — Very long evidence title with no truncation of meaning",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-8",
+			"specId": "check-claims.c5",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:20.558Z",
+			"completedAt": "2026-10-29T08:09:23.623Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 5 — Very long evidence title with no truncation of meaning",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-9",
+			"specId": "check-claims.c6",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:21.488Z",
+			"completedAt": "2026-10-29T08:09:24.481Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 6 — Very long evidence title with no truncation of meaning",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-10",
+			"specId": "check-claims.c7",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:22.558Z",
+			"completedAt": "2026-10-29T08:09:25.373Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 7 — Very long evidence title with no truncation of meaning",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-11",
+			"specId": "check-claims.c8",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:23.436Z",
+			"completedAt": "2026-10-29T08:09:26.644Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 8 — Very long evidence title with no truncation of meaning",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-12",
+			"specId": "check-claims.c9",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:32.877Z",
+			"completedAt": "2026-10-29T08:09:36.453Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 9 — Very long evidence title with no truncation of meaning",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-13",
+			"specId": "check-claims.c10",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:34.378Z",
+			"completedAt": "2026-10-29T08:09:37.303Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 10 — Very long evidence title with no truncation of meaning",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-14",
+			"specId": "check-claims.c11",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:35.124Z",
+			"completedAt": "2026-10-29T08:09:38.094Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 11 — Very long evidence title with no truncation of meaning",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-15",
+			"specId": "check-claims.c12",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:35.981Z",
+			"completedAt": "2026-10-29T08:09:39.365Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 12 — Very long evidence title with no truncation of meaning",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-16",
+			"specId": "check-claims.c13",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:38.030Z",
+			"completedAt": "2026-10-29T08:09:41.726Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 13 — Very long evidence title with no truncation of meaning",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-17",
+			"specId": "check-claims.c14",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:39.537Z",
+			"completedAt": "2026-10-29T08:09:42.466Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 14 — Very long evidence title with no truncation of meaning",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-18",
+			"specId": "check-claims.c15",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:40.304Z",
+			"completedAt": "2026-10-29T08:09:43.178Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 15 — Very long evidence title with no truncation of meaning",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-19",
+			"specId": "check-claims.c16",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:41.055Z",
+			"completedAt": "2026-10-29T08:09:44.067Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 16 — Very long evidence title with no truncation of meaning",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-20",
+			"specId": "check-claims.c17",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:45.550Z",
+			"completedAt": "2026-10-29T08:09:48.483Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 17 — Very long evidence title with no truncation of meaning",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-21",
+			"specId": "check-claims.c18",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:46.416Z",
+			"completedAt": "2026-10-29T08:09:49.325Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 18 — Very long evidence title with no truncation of meaning",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-3",
+			"specId": "report.main",
+			"stageId": "report",
+			"kind": "single",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": [
+				"check-claims.c1",
+				"check-claims.c2",
+				"check-claims.c3",
+				"check-claims.c4",
+				"check-claims.c5",
+				"check-claims.c6",
+				"check-claims.c7",
+				"check-claims.c8",
+				"check-claims.c9",
+				"check-claims.c10",
+				"check-claims.c11",
+				"check-claims.c12",
+				"check-claims.c13",
+				"check-claims.c14",
+				"check-claims.c15",
+				"check-claims.c16",
+				"check-claims.c17",
+				"check-claims.c18"
+			],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:49.872Z",
+			"completedAt": "2026-10-29T08:09:52.951Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		}
+	]
+}

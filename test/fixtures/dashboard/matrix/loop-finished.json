@@ -1,0 +1,151 @@
+{
+	"runId": "workflow_matrix_loop_finished",
+	"name": "matrix-loop",
+	"status": "completed",
+	"createdAt": "2026-10-29T08:09:34.749Z",
+	"updatedAt": "2026-10-29T08:09:55.000Z",
+	"executor": "test-matrix",
+	"host": "cli",
+	"taskSummary": {
+		"total": 4,
+		"pending": 0,
+		"running": 0,
+		"blocked": 0,
+		"completed": 4,
+		"failed": 0,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"agentSummary": {
+		"completed": 3,
+		"total": 3
+	},
+	"reportAvailable": false,
+	"needsYou": [],
+	"live": false,
+	"task": "검증 UI matrix — local test only",
+	"permissionMode": "free",
+	"usage": {
+		"input": 30,
+		"output": 15,
+		"costUsd": null,
+		"tasksReporting": 3,
+		"taskCount": 4
+	},
+	"launch": {
+		"host": "cli",
+		"entry": {
+			"source": "cli",
+			"entry": {
+				"kind": "command",
+				"action": "run"
+			},
+			"profile": {
+				"kind": "base"
+			},
+			"taskChars": 30
+		},
+		"command": "agent-workflow run wf.json '검증 UI matrix — local test only' --executor test-matrix --detach"
+	},
+	"pendingApprovals": [],
+	"tasks": [
+		{
+			"taskId": "task-1",
+			"specId": "iterate.loop",
+			"stageId": "iterate",
+			"kind": "loop",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "loop_completed",
+			"dependsOn": [],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"completedAt": "2026-10-29T08:09:47.545Z",
+			"lastMessage": "Loop completed after 1 round.\nworktree=(none)\nfinalCheck={\"schema\":\"stage-control-v1\",\"digest\":\"검증 결과 — evidence checked\",\"status\":\"verified\"}",
+			"usage": null,
+			"hasLogs": false
+		},
+		{
+			"taskId": "task-3",
+			"specId": "iterate.r01.work",
+			"stageId": "iterate.r01.work",
+			"kind": "single",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": [],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:36.401Z",
+			"completedAt": "2026-10-29T08:09:40.135Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-4",
+			"specId": "iterate.r01.check",
+			"stageId": "iterate.r01.check",
+			"kind": "single",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["iterate.r01.work"],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:41.005Z",
+			"completedAt": "2026-10-29T08:09:45.272Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-2",
+			"specId": "report.main",
+			"stageId": "report",
+			"kind": "single",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["iterate.loop"],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:47.780Z",
+			"completedAt": "2026-10-29T08:09:52.279Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		}
+	]
+}

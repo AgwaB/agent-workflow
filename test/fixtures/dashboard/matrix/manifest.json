@@ -1,0 +1,233 @@
+[
+	{
+		"name": "single",
+		"state": "running",
+		"file": "single-running.json",
+		"status": "running",
+		"tasks": 1
+	},
+	{
+		"name": "single",
+		"state": "finished",
+		"file": "single-finished.json",
+		"status": "completed",
+		"tasks": 1
+	},
+	{
+		"name": "linear",
+		"state": "running",
+		"file": "linear-running.json",
+		"status": "running",
+		"tasks": 4
+	},
+	{
+		"name": "linear",
+		"state": "finished",
+		"file": "linear-finished.json",
+		"status": "completed",
+		"tasks": 4
+	},
+	{
+		"name": "foreach-3",
+		"state": "running",
+		"file": "foreach-3-running.json",
+		"status": "running",
+		"tasks": 6
+	},
+	{
+		"name": "foreach-3",
+		"state": "finished",
+		"file": "foreach-3-finished.json",
+		"status": "completed",
+		"tasks": 6
+	},
+	{
+		"name": "foreach-60",
+		"state": "running",
+		"file": "foreach-60-running.json",
+		"status": "running",
+		"tasks": 63
+	},
+	{
+		"name": "foreach-60",
+		"state": "finished",
+		"file": "foreach-60-finished.json",
+		"status": "completed",
+		"tasks": 63
+	},
+	{
+		"name": "dynamic",
+		"state": "running",
+		"file": "dynamic-running.json",
+		"status": "running",
+		"tasks": 5
+	},
+	{
+		"name": "dynamic",
+		"state": "finished",
+		"file": "dynamic-finished.json",
+		"status": "completed",
+		"tasks": 5
+	},
+	{
+		"name": "approval",
+		"state": "running",
+		"file": "approval-running.json",
+		"status": "running",
+		"tasks": 2
+	},
+	{
+		"name": "approval",
+		"state": "blocked",
+		"file": "approval-blocked.json",
+		"status": "blocked",
+		"tasks": 2
+	},
+	{
+		"name": "support",
+		"state": "running",
+		"file": "support-running.json",
+		"status": "running",
+		"tasks": 3
+	},
+	{
+		"name": "support",
+		"state": "finished",
+		"file": "support-finished.json",
+		"status": "completed",
+		"tasks": 3
+	},
+	{
+		"name": "needs-decision",
+		"state": "running",
+		"file": "needs-decision-running.json",
+		"status": "running",
+		"tasks": 1
+	},
+	{
+		"name": "needs-decision",
+		"state": "blocked",
+		"file": "needs-decision-blocked.json",
+		"status": "blocked",
+		"tasks": 1
+	},
+	{
+		"name": "foreach-18",
+		"state": "running",
+		"file": "foreach-18-running.json",
+		"status": "running",
+		"tasks": 21
+	},
+	{
+		"name": "foreach-18",
+		"state": "finished",
+		"file": "foreach-18-finished.json",
+		"status": "completed",
+		"tasks": 21
+	},
+	{
+		"name": "mixed",
+		"state": "running",
+		"file": "mixed-running.json",
+		"status": "running",
+		"tasks": 5
+	},
+	{
+		"name": "mixed",
+		"state": "retry",
+		"file": "mixed-retry.json",
+		"status": "running",
+		"tasks": 5
+	},
+	{
+		"name": "mixed",
+		"state": "failed",
+		"file": "mixed-failed.json",
+		"status": "failed",
+		"tasks": 5
+	},
+	{
+		"name": "loop",
+		"state": "running",
+		"file": "loop-running.json",
+		"status": "running",
+		"tasks": 4
+	},
+	{
+		"name": "loop",
+		"state": "finished",
+		"file": "loop-finished.json",
+		"status": "completed",
+		"tasks": 4
+	},
+	{
+		"name": "failed",
+		"state": "running",
+		"file": "failed-running.json",
+		"status": "running",
+		"tasks": 1
+	},
+	{
+		"name": "failed",
+		"state": "failed",
+		"file": "failed-failed.json",
+		"status": "failed",
+		"tasks": 1
+	},
+	{
+		"name": "long-text",
+		"state": "running",
+		"file": "long-text-running.json",
+		"derivedFrom": "single-running.json",
+		"purpose": "Adversarial unbroken workflow/summary/activity labels; topology and counters unchanged"
+	},
+	{
+		"name": "long-text",
+		"state": "finished",
+		"file": "long-text-finished.json",
+		"derivedFrom": "single-finished.json",
+		"purpose": "Adversarial unbroken workflow/summary/activity labels; topology and counters unchanged"
+	},
+	{
+		"name": "parallel",
+		"state": "running",
+		"file": "parallel-running.json",
+		"status": "running",
+		"tasks": 5
+	},
+	{
+		"name": "parallel",
+		"state": "finished",
+		"file": "parallel-finished.json",
+		"status": "completed",
+		"tasks": 5
+	},
+	{
+		"name": "stop-resume",
+		"state": "running",
+		"file": "stop-resume-running.json",
+		"status": "running",
+		"tasks": 3
+	},
+	{
+		"name": "stop-resume",
+		"state": "stopped",
+		"file": "stop-resume-stopped.json",
+		"status": "interrupted",
+		"tasks": 3
+	},
+	{
+		"name": "stop-resume",
+		"state": "resumed",
+		"file": "stop-resume-resumed.json",
+		"status": "running",
+		"tasks": 3
+	},
+	{
+		"name": "stop-resume",
+		"state": "finished",
+		"file": "stop-resume-finished.json",
+		"status": "completed",
+		"tasks": 3
+	}
+]

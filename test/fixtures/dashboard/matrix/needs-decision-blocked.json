@@ -1,0 +1,79 @@
+{
+	"runId": "workflow_matrix_needs_decision_blocked",
+	"name": "matrix-needs-decision",
+	"status": "blocked",
+	"statusDetail": "executor_needs_decision",
+	"createdAt": "2026-10-29T08:09:54.570Z",
+	"updatedAt": "2026-10-29T08:09:55.000Z",
+	"executor": "test-matrix",
+	"host": "cli",
+	"taskSummary": {
+		"total": 1,
+		"pending": 0,
+		"running": 0,
+		"blocked": 1,
+		"completed": 0,
+		"failed": 0,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"agentSummary": {
+		"completed": 0,
+		"total": 1
+	},
+	"reportAvailable": false,
+	"needsYou": [
+		{
+			"kind": "decision",
+			"title": "crash needs a decision",
+			"taskId": "task-1",
+			"since": "2026-10-29T08:09:54.813Z"
+		}
+	],
+	"live": false,
+	"task": "검증 UI matrix — local test only",
+	"permissionMode": "free",
+	"usage": {
+		"tasksReporting": 1,
+		"taskCount": 1,
+		"costUsd": null
+	},
+	"launch": {
+		"host": "cli",
+		"entry": {
+			"source": "cli",
+			"entry": {
+				"kind": "command",
+				"action": "run"
+			},
+			"profile": {
+				"kind": "base"
+			},
+			"taskChars": 30
+		},
+		"command": "agent-workflow run wf.json '검증 UI matrix — local test only' --executor test-matrix --detach"
+	},
+	"pendingApprovals": [],
+	"tasks": [
+		{
+			"taskId": "task-1",
+			"specId": "crash.main",
+			"stageId": "crash",
+			"kind": "single",
+			"agent": "reader",
+			"status": "blocked",
+			"statusDetail": "executor_needs_decision",
+			"dependsOn": [],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:54.614Z",
+			"completedAt": "2026-10-29T08:09:54.813Z",
+			"lastMessage": "executor reconcile could not prove whether the attempt launched; an owner decision is required (resume relaunches with a new attempt, stop abandons it) (runtime run run_mvx4luvr_ecde56/attempt_mvx4luvr_7ad251)",
+			"usage": {
+				"costUsd": null
+			},
+			"hasLogs": true
+		}
+	]
+}
