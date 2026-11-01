@@ -1,0 +1,144 @@
+{
+	"runId": "workflow_matrix_dynamic_running",
+	"name": "matrix-dynamic",
+	"status": "running",
+	"createdAt": "2026-10-29T08:09:51.198Z",
+	"updatedAt": "2026-10-29T08:09:55.000Z",
+	"executor": "test-matrix",
+	"host": "cli",
+	"taskSummary": {
+		"total": 5,
+		"pending": 3,
+		"running": 1,
+		"blocked": 0,
+		"completed": 1,
+		"failed": 0,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"agentSummary": {
+		"completed": 1,
+		"total": 4
+	},
+	"reportAvailable": false,
+	"needsYou": [],
+	"live": true,
+	"task": "검증 UI matrix — local test only",
+	"permissionMode": "free",
+	"usage": {
+		"tasksReporting": 1,
+		"taskCount": 5,
+		"input": 10,
+		"output": 5,
+		"costUsd": null
+	},
+	"launch": {
+		"host": "cli",
+		"entry": {
+			"source": "cli",
+			"entry": {
+				"kind": "command",
+				"action": "run"
+			},
+			"profile": {
+				"kind": "base"
+			},
+			"taskChars": 30
+		},
+		"command": "agent-workflow run wf.json '검증 UI matrix — local test only' --executor test-matrix --detach"
+	},
+	"pendingApprovals": [],
+	"tasks": [
+		{
+			"taskId": "task-1",
+			"specId": "prep.main",
+			"stageId": "prep",
+			"kind": "single",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": [],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:51.396Z",
+			"completedAt": "2026-10-29T08:09:54.154Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-2",
+			"specId": "adaptive.controller",
+			"stageId": "adaptive",
+			"kind": "dynamic",
+			"agent": "dynamic",
+			"status": "pending",
+			"statusDetail": "suspended_waiting_children",
+			"dependsOn": ["prep.main"],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:54.458Z",
+			"lastMessage": "waiting for dynamic generated task adaptive.one (pending) [wait=c29c44485cbb33dc]",
+			"usage": null,
+			"hasLogs": false
+		},
+		{
+			"taskId": "task-4",
+			"specId": "adaptive.one",
+			"stageId": "adaptive",
+			"kind": "dynamic-agent",
+			"agent": "reader",
+			"status": "running",
+			"statusDetail": "launching",
+			"dependsOn": ["prep.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:54.996Z",
+			"lastMessage": "test-matrix executor launch claim recorded",
+			"usage": null,
+			"hasLogs": true
+		},
+		{
+			"taskId": "task-5",
+			"specId": "adaptive.two",
+			"stageId": "adaptive",
+			"kind": "dynamic-agent",
+			"agent": "reader",
+			"status": "pending",
+			"statusDetail": "pending",
+			"dependsOn": ["prep.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"usage": null,
+			"hasLogs": false
+		},
+		{
+			"taskId": "task-3",
+			"specId": "report.main",
+			"stageId": "report",
+			"kind": "single",
+			"agent": "reader",
+			"status": "pending",
+			"statusDetail": "pending",
+			"dependsOn": ["adaptive.controller"],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"usage": null,
+			"hasLogs": false
+		}
+	]
+}

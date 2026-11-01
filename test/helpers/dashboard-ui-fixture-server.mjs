@@ -10,18 +10,27 @@ export const injection = "<script>globalThis.dashboardInjected = true</script>";
 
 // Local-only browser harness. Real API fixtures are unchanged; optional mutations and
 // adversarial log/report text are synthesized here, not in the production UI.
-export async function createFixtureServer({ readonly = false } = {}) {
+export async function createFixtureServer({
+	readonly = false,
+	snapshots,
+} = {}) {
 	const readJson = async (name) =>
 		JSON.parse(await readFile(new URL(name, fixtures), "utf8"));
 	const session = await readJson("session.json");
-	const listing = await readJson("runs.json");
+	const listing = snapshots
+		? { ...(await readJson("runs.json")), runs: snapshots }
+		: await readJson("runs.json");
 	const logs = await readJson("logs-webhook-retry-path.json");
 	const runs = new Map();
-	for (const file of await readdir(fixtures))
-		if (file.startsWith("run-")) {
-			const run = await readJson(file);
-			runs.set(run.runId, run);
-		}
+	if (snapshots) {
+		for (const run of snapshots) runs.set(run.runId, structuredClone(run));
+	} else {
+		for (const file of await readdir(fixtures))
+			if (file.startsWith("run-")) {
+				const run = await readJson(file);
+				runs.set(run.runId, run);
+			}
+	}
 	const mutations = [],
 		requests = [],
 		clients = new Set();

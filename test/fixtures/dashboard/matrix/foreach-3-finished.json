@@ -1,0 +1,208 @@
+{
+	"runId": "workflow_matrix_foreach_3_finished",
+	"name": "matrix-foreach-3",
+	"status": "completed",
+	"createdAt": "2026-10-29T08:09:42.405Z",
+	"updatedAt": "2026-10-29T08:09:55.000Z",
+	"executor": "test-matrix",
+	"host": "cli",
+	"taskSummary": {
+		"total": 6,
+		"pending": 0,
+		"running": 0,
+		"blocked": 0,
+		"completed": 6,
+		"failed": 0,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"agentSummary": {
+		"completed": 5,
+		"total": 5
+	},
+	"reportAvailable": false,
+	"needsYou": [],
+	"live": false,
+	"task": "검증 UI matrix — local test only",
+	"permissionMode": "free",
+	"usage": {
+		"input": 50,
+		"output": 25,
+		"costUsd": null,
+		"tasksReporting": 5,
+		"taskCount": 6
+	},
+	"launch": {
+		"host": "cli",
+		"entry": {
+			"source": "cli",
+			"entry": {
+				"kind": "command",
+				"action": "run"
+			},
+			"profile": {
+				"kind": "base"
+			},
+			"taskChars": 30
+		},
+		"command": "agent-workflow run wf.json '검증 UI matrix — local test only' --executor test-matrix --detach"
+	},
+	"pendingApprovals": [],
+	"tasks": [
+		{
+			"taskId": "task-1",
+			"specId": "plan.main",
+			"stageId": "plan",
+			"kind": "single",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": [],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:42.567Z",
+			"completedAt": "2026-10-29T08:09:45.067Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-2",
+			"specId": "check-claims.item",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "foreach_materialized",
+			"dependsOn": ["plan.main"],
+			"generated": false,
+			"placeholder": true,
+			"executor": "test-matrix",
+			"completedAt": "2026-10-29T08:09:45.414Z",
+			"lastMessage": "foreach produced 3 item(s)",
+			"usage": null,
+			"hasLogs": false
+		},
+		{
+			"taskId": "task-4",
+			"specId": "check-claims.c1",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:45.500Z",
+			"completedAt": "2026-10-29T08:09:48.338Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 1 — Very long evidence title with no truncation of meaning Very long evidence title with no truncation of meaning Very long evidence title with no trunca…",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-5",
+			"specId": "check-claims.c2",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:46.370Z",
+			"completedAt": "2026-10-29T08:09:49.241Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 2 — Very long evidence title with no truncation of meaning",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-6",
+			"specId": "check-claims.c3",
+			"stageId": "check-claims",
+			"kind": "foreach",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["plan.main"],
+			"generated": true,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:47.235Z",
+			"completedAt": "2026-10-29T08:09:49.872Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"title": "검증 항목 3 — Very long evidence title with no truncation of meaning",
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-3",
+			"specId": "report.main",
+			"stageId": "report",
+			"kind": "single",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["check-claims.c1", "check-claims.c2", "check-claims.c3"],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:52.112Z",
+			"completedAt": "2026-10-29T08:09:54.802Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		}
+	]
+}

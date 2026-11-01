@@ -611,7 +611,9 @@ const humanize = (name) => {
 	return text.charAt(0).toUpperCase() + text.slice(1);
 };
 const agentTasks = (run) =>
-	run.tasks.filter((t) => !t.placeholder && t.kind !== "support");
+	run.tasks.filter(
+		(t) => !t.placeholder && !["support", "dynamic", "loop"].includes(t.kind),
+	);
 const incomplete = (run) =>
 	Boolean(
 		run.verdictGate ||
@@ -630,7 +632,8 @@ function heroState(run) {
 function heroSubline() {
 	const tasks = agentTasks(run),
 		done = tasks.filter((t) => t.status === "completed").length;
-	return `${run.name} · ${elapsed(run)} · ${liveRun(run) ? `${done} of ${tasks.length} agents done` : `${tasks.length} agents`}`;
+	const noun = tasks.length === 1 ? "agent" : "agents";
+	return `${run.name} · ${elapsed(run)} · ${liveRun(run) ? `${done} of ${tasks.length} ${noun} done` : `${tasks.length} ${noun}`}`;
 }
 const badgeStates = new Map();
 function renderBadge(status) {
@@ -784,7 +787,10 @@ export function deriveGraph(projection) {
 			});
 		const stage = stages.get(task.stageId);
 		stage.tasks.push(task);
-		if (!task.placeholder) stage.items.push(task);
+		// Controllers and loop gates are navigable tasks, not generated agents. Keeping a
+		// suspended controller first made an active dynamic stage incorrectly say "Waiting".
+		if (!task.placeholder && !["dynamic", "loop"].includes(task.kind))
+			stage.items.push(task);
 	}
 	const priority = [
 		"failed",
@@ -802,9 +808,8 @@ export function deriveGraph(projection) {
 				const id = specStage.get(dep) || dep.split(".")[0];
 				if (id !== stage.id && stages.has(id)) stage.deps.add(id);
 			}
-		const states = (stage.items.length ? stage.items : stage.tasks).map(
-			taskState,
-		);
+		const visible = stage.tasks.filter((task) => !task.placeholder);
+		const states = (visible.length ? visible : stage.tasks).map(taskState);
 		stage.status = states.every((s) => ["completed", "skipped"].includes(s))
 			? states.every((s) => s === "skipped")
 				? "skipped"
@@ -1034,6 +1039,8 @@ function nodeHeight(stage) {
 function stageLine(stage) {
 	if (stage.ghost) return "After approval";
 	if (stage.approval) return "Awaiting your approval";
+	if (stage.kind === "dynamic" && stage.items.length > 1)
+		return `${stage.done} of ${stage.items.length} agents done`;
 	if (stage.kind === "foreach" && stage.status === "completed") {
 		const starts = stage.items.map((t) => date(t.startedAt)).filter(Boolean),
 			ends = stage.items.map((t) => date(t.completedAt)).filter(Boolean);
@@ -1049,6 +1056,8 @@ function chooseStage(stage) {
 	if (stage.ghost) return chooseStage(stage.parent);
 	if (stage.kind !== "foreach" && stage.items.length === 1)
 		go({ task: stage.items[0].specId });
+	else if (!stage.items.length && stage.tasks.length === 1)
+		go({ task: stage.tasks[0].specId });
 	else go({ stage: stage.id });
 }
 function selectedTask() {
@@ -2013,7 +2022,13 @@ function graphSignature(model, layout) {
 function renderRun() {
 	const active = document.activeElement;
 	const focusStage = active?.closest(".node")?.dataset.stage,
-		focusTask = active?.closest(".agent-row")?.dataset.task;
+		focusTask = active?.closest(".agent-row")?.dataset.task,
+		focusMember = active?.closest(".stage-row")?.dataset.stage;
+	const headerKey = (node) =>
+		node.dataset.action || node.getAttribute("aria-label") || node.textContent;
+	const focusedHeader = active?.matches("#run-header button")
+		? headerKey(active)
+		: null;
 	graphModel = deriveGraph(run);
 	const signature = graphSignature(graphModel, state.layout);
 	const canvas = $("canvas");
@@ -2044,9 +2059,17 @@ function renderRun() {
 	}
 	renderSelection();
 	renderModal();
+	if (focusedHeader)
+		[...document.querySelectorAll("#run-header button:not(:disabled)")]
+			.find((node) => headerKey(node) === focusedHeader)
+			?.focus({ preventScroll: true });
 	if (focusTask)
 		document
 			.querySelector(`[data-task="${CSS.escape(focusTask)}"]`)
+			?.focus({ preventScroll: true });
+	else if (focusMember)
+		document
+			.querySelector(`.stage-row[data-stage="${CSS.escape(focusMember)}"]`)
 			?.focus({ preventScroll: true });
 	else if (focusStage)
 		document
@@ -2143,6 +2166,9 @@ function renderSelection() {
 	const previousItems = same ? itemPositions(inspector) : new Map();
 	const focusedItem = same
 		? document.activeElement?.closest("[data-item]")?.dataset.item
+		: null;
+	const focusedFilter = same
+		? document.activeElement?.closest("[data-filter]")?.dataset.filter
 		: null;
 	const detailsOpen = same && inspector.querySelector("details")?.open;
 	const logScroll = same ? inspector.querySelector(".log")?.scrollTop || 0 : 0;
@@ -2371,6 +2397,10 @@ function renderSelection() {
 		if (field?.setSelectionRange && focusedField.start != null)
 			field.setSelectionRange(focusedField.start, focusedField.end);
 	}
+	if (focusedFilter)
+		inspector
+			.querySelector(`[data-filter="${CSS.escape(focusedFilter)}"]`)
+			?.focus({ preventScroll: true });
 	if (focusedItem)
 		inspector
 			.querySelector(`[data-item="${CSS.escape(focusedItem)}"]`)
@@ -2496,7 +2526,9 @@ function renderItems(inspector, stage, previous = new Map()) {
 					status === "all"
 						? stage.items.length
 						: stage.items.filter((task) => taskState(task) === status).length;
-				if (!count && status !== "all") return [];
+				// Keep the selected filter when its last item settles: otherwise an SSE
+				// update removes the focused button and leaves no selected filter at all.
+				if (!count && status !== "all" && filter.status !== status) return [];
 				return [
 					button(
 						status === "all"

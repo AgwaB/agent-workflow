@@ -295,7 +295,7 @@ test("activity is running-only, bounded, validated and strictly allowlisted", ()
 	}
 });
 
-test("run summaries count agents, not foreach placeholders or support helpers", () => {
+test("run summaries count agents, not placeholders, helpers or engine controllers", () => {
 	const { run, shown } = data();
 	shown.run.tasks.push({
 		taskId: "task-s",
@@ -307,10 +307,16 @@ test("run summaries count agents, not foreach placeholders or support helpers", 
 		runtime: {},
 		files: {},
 	});
+	for (const kind of ["dynamic", "loop"])
+		shown.run.tasks.push({
+			...shown.run.tasks.at(-1),
+			taskId: `task-${kind}`,
+			kind,
+		});
 	const summary = projectRunSummary(run, shown);
 	const agents = shown.run.tasks.filter(
 		(task) =>
-			task.kind !== "support" &&
+			!["support", "dynamic", "loop"].includes(task.kind) &&
 			!(
 				task.kind === "foreach" &&
 				!task.foreachGenerated &&
@@ -327,5 +333,13 @@ test("run summaries count agents, not foreach placeholders or support helpers", 
 		projectRunSummary(run).agentSummary,
 		undefined,
 		"no shown record, no agent count",
+	);
+	shown.run.tasks = shown.run.tasks.filter((task) =>
+		["support", "dynamic", "loop"].includes(task.kind),
+	);
+	assert.deepEqual(
+		projectRunSummary(run, shown).agentSummary,
+		{ completed: 0, total: 0 },
+		"a controller-only run must not fall back to counting tasks as agents",
 	);
 });

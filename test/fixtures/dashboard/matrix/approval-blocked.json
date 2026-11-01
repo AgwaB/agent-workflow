@@ -1,0 +1,116 @@
+{
+	"runId": "workflow_matrix_approval_blocked",
+	"name": "matrix-approval",
+	"status": "blocked",
+	"statusDetail": "dynamic_ui_unavailable",
+	"createdAt": "2026-10-29T08:09:51.972Z",
+	"updatedAt": "2026-10-29T08:09:55.000Z",
+	"executor": "test-matrix",
+	"host": "cli",
+	"taskSummary": {
+		"total": 2,
+		"pending": 0,
+		"running": 0,
+		"blocked": 1,
+		"completed": 1,
+		"failed": 0,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"agentSummary": {
+		"completed": 1,
+		"total": 1
+	},
+	"reportAvailable": false,
+	"needsYou": [
+		{
+			"kind": "approval",
+			"title": "Run dynamic workflow controller?",
+			"requestId": "f6923fb4a713fc078f62c0a6cfeb9c271653ba1d5d1190175f423d420f72d908",
+			"taskId": "task-2",
+			"since": "2026-10-29T08:09:54.990Z"
+		}
+	],
+	"live": false,
+	"task": "검증 UI matrix — local test only",
+	"permissionMode": "free",
+	"usage": {
+		"input": 10,
+		"output": 5,
+		"costUsd": null,
+		"tasksReporting": 1,
+		"taskCount": 2
+	},
+	"launch": {
+		"host": "cli",
+		"entry": {
+			"source": "cli",
+			"entry": {
+				"kind": "command",
+				"action": "run"
+			},
+			"profile": {
+				"kind": "base"
+			},
+			"taskChars": 30
+		},
+		"command": "agent-workflow run wf.json '검증 UI matrix — local test only' --executor test-matrix --detach"
+	},
+	"pendingApprovals": [
+		{
+			"requestId": "f6923fb4a713fc078f62c0a6cfeb9c271653ba1d5d1190175f423d420f72d908",
+			"controllerSpecId": "adaptive.controller",
+			"taskId": "task-2",
+			"title": "Run dynamic workflow controller?",
+			"message": "Workflow run workflow_matrix_approval_blocked (matrix-approval) requests approval to run dynamic controller adaptive.controller.\nOriginal spec: /private/tmp/dashboard-matrix/approval/wf.json\nRun bundle spec: .agent-workflow/workflows/workflow_matrix_approval_blocked/bundle/wf.json\nApproval request digest: f6923fb4a713fc078f62c0a6cfeb9c271653ba1d5d1190175f423d420f72d908\nTask: 검증 UI matrix — local test only\nTask digest: b7997ac54c545775b33a45d208dc0a8adcba946418724108db8176690eea5df7 (length=30)\nController helper: ./controller.mjs\nMode: graph-splice\nGenerated agents may request dynamic roles/tools: roles=allowed, tools=allowed.\nApproving this controller authorizes this controller's generated agents to run without later approval prompts. Generated agents run non-interactively within the allowed roles/tools and budgets shown here; read-only generated agents use the shared workspace, while mutation-capable agents and agents using Pi-default tools use managed worktrees. Nested workflows keep their own approval policy and may still block for approval.\nBudget: maxAgents=1000, maxConcurrency=16, maxRuntimeMs=14400000, maxGraphMutations=5000, maxHelperRuns=1000, maxNestedWorkflowDepth=3.\nDeclared helpers: none\nDeclared nested workflows: none\nApprove only if this workflow bundle and its helper code are trusted.",
+			"requestedAt": "2026-10-29T08:09:54.990Z"
+		}
+	],
+	"tasks": [
+		{
+			"taskId": "task-1",
+			"specId": "prep.main",
+			"stageId": "prep",
+			"kind": "single",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": [],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:52.171Z",
+			"completedAt": "2026-10-29T08:09:54.794Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-2",
+			"specId": "adaptive.controller",
+			"stageId": "adaptive",
+			"kind": "dynamic",
+			"agent": "dynamic",
+			"status": "blocked",
+			"statusDetail": "dynamic_ui_unavailable",
+			"dependsOn": ["prep.main"],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:54.978Z",
+			"completedAt": "2026-10-29T08:09:54.999Z",
+			"lastMessage": "dynamic approval mode \"ask\" needs the user's approval and this scheduler has no approval UI. Approve or reject it with agent-workflow approve workflow_matrix_approval_blocked (Pi: /aw approve workflow_matrix_approval_blocked; MCP: workflow_approve).",
+			"usage": null,
+			"hasLogs": false
+		}
+	]
+}

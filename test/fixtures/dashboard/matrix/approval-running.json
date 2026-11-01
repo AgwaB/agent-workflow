@@ -1,0 +1,79 @@
+{
+	"runId": "workflow_matrix_approval_running",
+	"name": "matrix-approval",
+	"status": "running",
+	"createdAt": "2026-10-29T08:09:54.282Z",
+	"updatedAt": "2026-10-29T08:09:55.000Z",
+	"executor": "test-matrix",
+	"host": "cli",
+	"taskSummary": {
+		"total": 2,
+		"pending": 1,
+		"running": 1,
+		"blocked": 0,
+		"completed": 0,
+		"failed": 0,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"agentSummary": {
+		"completed": 0,
+		"total": 1
+	},
+	"reportAvailable": false,
+	"needsYou": [],
+	"live": false,
+	"task": "검증 UI matrix — local test only",
+	"permissionMode": "free",
+	"usage": null,
+	"launch": {
+		"host": "cli",
+		"entry": {
+			"source": "cli",
+			"entry": {
+				"kind": "command",
+				"action": "run"
+			},
+			"profile": {
+				"kind": "base"
+			},
+			"taskChars": 30
+		},
+		"command": "agent-workflow run wf.json '검증 UI matrix — local test only' --executor test-matrix --detach"
+	},
+	"pendingApprovals": [],
+	"tasks": [
+		{
+			"taskId": "task-1",
+			"specId": "prep.main",
+			"stageId": "prep",
+			"kind": "single",
+			"agent": "reader",
+			"status": "running",
+			"statusDetail": "running",
+			"dependsOn": [],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:54.481Z",
+			"lastMessage": "launched via the test-matrix executor",
+			"usage": null,
+			"hasLogs": true
+		},
+		{
+			"taskId": "task-2",
+			"specId": "adaptive.controller",
+			"stageId": "adaptive",
+			"kind": "dynamic",
+			"agent": "dynamic",
+			"status": "pending",
+			"statusDetail": "pending",
+			"dependsOn": ["prep.main"],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"usage": null,
+			"hasLogs": false
+		}
+	]
+}

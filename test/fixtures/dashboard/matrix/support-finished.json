@@ -1,0 +1,129 @@
+{
+	"runId": "workflow_matrix_support_finished",
+	"name": "matrix-support",
+	"status": "completed",
+	"createdAt": "2026-10-29T08:09:46.545Z",
+	"updatedAt": "2026-10-29T08:09:55.000Z",
+	"executor": "test-matrix",
+	"host": "cli",
+	"taskSummary": {
+		"total": 3,
+		"pending": 0,
+		"running": 0,
+		"blocked": 0,
+		"completed": 3,
+		"failed": 0,
+		"skipped": 0,
+		"interrupted": 0
+	},
+	"agentSummary": {
+		"completed": 2,
+		"total": 2
+	},
+	"reportAvailable": false,
+	"needsYou": [],
+	"live": false,
+	"task": "검증 UI matrix — local test only",
+	"permissionMode": "free",
+	"usage": {
+		"input": 20,
+		"output": 10,
+		"costUsd": null,
+		"tasksReporting": 2,
+		"taskCount": 3
+	},
+	"launch": {
+		"host": "cli",
+		"entry": {
+			"source": "cli",
+			"entry": {
+				"kind": "command",
+				"action": "run"
+			},
+			"profile": {
+				"kind": "base"
+			},
+			"taskChars": 30
+		},
+		"command": "agent-workflow run wf.json '검증 UI matrix — local test only' --executor test-matrix --detach"
+	},
+	"pendingApprovals": [],
+	"tasks": [
+		{
+			"taskId": "task-1",
+			"specId": "prep.main",
+			"stageId": "prep",
+			"kind": "single",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": [],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:46.664Z",
+			"completedAt": "2026-10-29T08:09:49.184Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		},
+		{
+			"taskId": "task-2",
+			"specId": "normalize.main",
+			"stageId": "normalize",
+			"kind": "support",
+			"agent": "support",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"dependsOn": ["prep.main"],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:49.403Z",
+			"completedAt": "2026-10-29T08:09:50.615Z",
+			"lastMessage": "support completed",
+			"usage": null,
+			"hasLogs": true,
+			"outcome": {
+				"tone": "ok",
+				"text": "Support helper completed."
+			}
+		},
+		{
+			"taskId": "task-3",
+			"specId": "report.main",
+			"stageId": "report",
+			"kind": "single",
+			"agent": "reader",
+			"status": "completed",
+			"statusDetail": "completed",
+			"dependsOn": ["normalize.main"],
+			"generated": false,
+			"placeholder": false,
+			"executor": "test-matrix",
+			"startedAt": "2026-10-29T08:09:50.645Z",
+			"completedAt": "2026-10-29T08:09:53.043Z",
+			"lastMessage": "completed",
+			"usage": {
+				"input": 10,
+				"output": 5,
+				"costUsd": null
+			},
+			"hasLogs": true,
+			"outcome": {
+				"status": "Verified",
+				"tone": "ok",
+				"text": "검증 결과 — evidence checked"
+			}
+		}
+	]
+}
