@@ -29,6 +29,7 @@ import {
 	writeAttemptExecutorRecord,
 } from "../../dist/runtime/index.js";
 import { defaultApprovalPolicy } from "../../dist/sdk/index.js";
+import { setProcessIdentityInspectorForTests } from "../../dist/runtime/process-identity.js";
 import {
 	fixtureDescriptor,
 	readEffectLog,
@@ -1108,3 +1109,72 @@ test("a dead group leader with a live group blocks; EPERM on a live group surfac
 		JSON.stringify(epermAfter),
 	);
 });
+
+// The worker writes result.json last, then exits quietly. Reconcile can read "running" just
+// before that write, and observe the owner as dead just after it. The terminal result, not an
+// executor that cannot rediscover an in-process session, must decide the attempt's outcome.
+for (const status of ["completed", "failed", "cancelled"]) {
+	test(`worker exit race: preserve a ${status} result written during owner inspection`, async (t) => {
+		const cwd = join(tempRoot, `exit-race-${status}`);
+		const runId = `run_exit_race_${status}`;
+		const attemptId = `attempt_exit_race_${status}`;
+		const effectLog = join(tempRoot, `exit-race-${status}.jsonl`);
+		const effects = [{ type: "effect", attemptKey: `${runId}:${attemptId}` }];
+		await writeFile(effectLog, `${JSON.stringify(effects[0])}\n`);
+		const child = spawnOwned(process.execPath, [
+			"-e",
+			"setInterval(() => {}, 1000)",
+		]);
+		const identity = await captureProcessIdentity(child.pid);
+		const store = await createRunningAttempt(cwd, runId, attemptId, {
+			executor: fixtureDescriptor({ effectLog, reconcile: "unknown" }),
+			process: {
+				workerPid: identity.pid,
+				workerProcessGroupId: identity.processGroupId,
+				workerProcessBirthIdentity: identity.birthIdentity,
+			},
+		});
+		const running = JSON.parse(
+			await readFile(join(store.attemptDir, "result.json"), "utf8"),
+		);
+		let terminal;
+		let injected = false;
+		t.after(() => setProcessIdentityInspectorForTests(undefined));
+		setProcessIdentityInspectorForTests(async (pid, inspect) => {
+			if (pid === identity.pid && !injected) {
+				injected = true;
+				// This callback is reached only after reconcile's first result read.
+				await store.writeTextArtifact("output", "finished before exit\n");
+				terminal = await store.writeResult({
+					...running,
+					status,
+					failureKind:
+						status === "completed"
+							? null
+							: status === "failed"
+								? "internal"
+								: "user_cancelled",
+					completedAt: new Date(),
+				});
+				const closed = new Promise((resolve) => child.once("close", resolve));
+				child.kill("SIGKILL");
+				await closed;
+			}
+			return inspect(pid);
+		});
+		const reconciled = await reconcileSubagentRun({ cwd, runId });
+		assert.equal(injected, true);
+		assert.equal(reconciled.status, "committed-result");
+		assert.equal(reconciled.record.status, status);
+		assert.equal(reconciled.executorReconcile, undefined);
+		assert.deepEqual(
+			JSON.parse(await readFile(join(store.attemptDir, "result.json"), "utf8")),
+			terminal,
+		);
+		assert.deepEqual(
+			readEffectLog(effectLog),
+			effects,
+			"no reconcile or second submit is needed",
+		);
+	});
+}
