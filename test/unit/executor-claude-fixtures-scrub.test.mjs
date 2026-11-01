@@ -41,8 +41,24 @@ const PATTERNS = [
 ];
 const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 // The recording machine's user and host names (checked wherever the suite runs).
+// Container/CI account names ("node" in the official Node image, "runner" on GitHub Actions) are
+// ordinary words in recordings (".nvm/versions/node/…"), not a personal identity.
+const GENERIC_ACCOUNTS = new Set([
+	"node",
+	"root",
+	"runner",
+	"user",
+	"admin",
+	"ubuntu",
+	"debian",
+	"docker",
+	"builder",
+	"vscode",
+	"codespace",
+	"app",
+]);
 const user = userInfo().username;
-if (user.length >= 3)
+if (user.length >= 3 && !GENERIC_ACCOUNTS.has(user.toLowerCase()))
 	PATTERNS.push(["local user name", new RegExp(`\\b${escape(user)}\\b`, "iu")]);
 const host = hostname().replace(/\.local$/u, "");
 if (host.length >= 3 && host !== "localhost")

@@ -4,6 +4,22 @@
 import { homedir, hostname, userInfo } from "node:os";
 
 const HOME = homedir();
+// Container/CI account names ("node" in the official Node image, "runner" on GitHub Actions) are
+// ordinary words in recordings (".nvm/versions/node/…"), not a personal identity.
+const GENERIC_ACCOUNTS = new Set([
+	"node",
+	"root",
+	"runner",
+	"user",
+	"admin",
+	"ubuntu",
+	"debian",
+	"docker",
+	"builder",
+	"vscode",
+	"codespace",
+	"app",
+]);
 const USER = userInfo().username;
 const HOST = hostname();
 
@@ -50,7 +66,7 @@ export function scrubText(text) {
 	out = out.replace(/\/home\/[A-Za-z0-9._-]+/gu, "<HOME>");
 	if (HOST.length >= 3)
 		out = out.replace(new RegExp(escape(HOST), "gu"), "<HOST>");
-	if (USER.length >= 3)
+	if (USER.length >= 3 && !GENERIC_ACCOUNTS.has(USER.toLowerCase()))
 		out = out.replace(new RegExp(`\\b${escape(USER)}\\b`, "gu"), "<USER>");
 	out = out.replace(
 		/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/gu,
