@@ -47,6 +47,11 @@ import type { WorkflowRunRecord, WorkflowRunStatus } from "./types.js";
 export interface WorkflowPruneOptions {
 	keep?: number;
 	olderThanDays?: number;
+	/**
+	 * 2026-11-01: exactly these terminal runs (keep/olderThanDays ignored; auto-router requests are
+	 * left alone). Any id that is not a terminal run here fails the whole call; nothing is deleted.
+	 */
+	runIds?: readonly string[];
 	yes?: boolean;
 	/**
 	 * R#10/D3: delete the worker sessions each pruned run recorded as engine-owned
@@ -274,11 +279,28 @@ async function prunePlan(
 	const summaryRuns: WorkflowPruneRun[] = [];
 	const detachedRunIds: string[] = [];
 	const purgedRunIds = new Set<string>();
-	const selected = candidates.filter(
-		(candidate, index) =>
-			index >= keep &&
-			(cutoff === undefined || Date.parse(candidate.run.updatedAt) < cutoff),
-	);
+	const named = options.runIds;
+	if (named) {
+		const terminal = new Set(
+			candidates.map((candidate) => candidate.run.runId),
+		);
+		const unknown = named.filter((runId) => !terminal.has(runId));
+		if (unknown.length > 0)
+			return emptySummary(
+				!options.yes,
+				keep,
+				olderThanDays,
+				`not a terminal run in this project: ${unknown.join(", ")}; nothing was ${options.yes ? "deleted" : "listed"}`,
+			);
+	}
+	const selected = named
+		? candidates.filter((candidate) => named.includes(candidate.run.runId))
+		: candidates.filter(
+				(candidate, index) =>
+					index >= keep &&
+					(cutoff === undefined ||
+						Date.parse(candidate.run.updatedAt) < cutoff),
+			);
 
 	for (const candidate of childrenFirst(selected, plan.children)) {
 		// The preview lists only the public fields (no internal absolute paths).
@@ -353,8 +375,9 @@ async function prunePlan(
 		summaryRuns.push(entry);
 	}
 
-	const { runs: autoRouterRuns, preserved: autoRouterPreserved } =
-		await pruneAutoRouterRuns(cwd, keep, cutoff, options.yes === true);
+	const { runs: autoRouterRuns, preserved: autoRouterPreserved } = named
+		? { runs: [], preserved: [] }
+		: await pruneAutoRouterRuns(cwd, keep, cutoff, options.yes === true);
 	let indexUpdated = false;
 	const failures = summaryRuns.filter((run) => !run.protected && run.error);
 	let error =

@@ -48,6 +48,8 @@ export interface ParsedWorkflowDynamicArgs extends WorkflowRunParsedOptions {
 export interface ParsedWorkflowPruneArgs {
 	keep?: number;
 	olderThanDays?: number;
+	/** `--run <id>` (repeatable): exactly these terminal runs, instead of the retention filters. */
+	runIds?: string[];
 	yes?: boolean;
 	json?: boolean;
 }
@@ -427,7 +429,7 @@ function parseTaskWithRunOptions(body: string): ParsedWorkflowDynamicArgs {
 	return { task, ...parsed };
 }
 
-/** `prune [--keep N] [--older-than DAYS] [--yes] [--json]`, before any retention IO. */
+/** `prune [--keep N] [--older-than DAYS] [--run <id>]… [--yes] [--json]`, before any retention IO. */
 export function parseWorkflowPruneArgs(
 	args: readonly string[],
 ): ParsedWorkflowPruneArgs {
@@ -444,8 +446,22 @@ export function parseWorkflowPruneArgs(
 			if (!raw?.trim() || raw.startsWith("--"))
 				throw new HostUsageError(`${arg} requires a numeric value`);
 			options[key] = Number(raw);
+		} else if (arg === "--run") {
+			const id = args[++index];
+			if (!id || !/^workflow_[A-Za-z0-9_]+$/.test(id))
+				throw new HostUsageError(
+					"--run requires an exact run id (workflow_…); prefixes are not accepted",
+				);
+			options.runIds = [...new Set([...(options.runIds ?? []), id])];
 		} else throw new HostUsageError(`Unknown prune argument "${arg}"`);
 	}
+	if (
+		options.runIds &&
+		(options.keep !== undefined || options.olderThanDays !== undefined)
+	)
+		throw new HostUsageError(
+			"--run selects runs by id; it cannot be combined with --keep or --older-than",
+		);
 	if (
 		options.keep !== undefined &&
 		(!Number.isSafeInteger(options.keep) || options.keep < 0)

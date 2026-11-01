@@ -151,8 +151,10 @@ the run.`,
 
 Stop a non-terminal run; running tasks are interrupted. Resume later with \`resume\`.`,
 	prune: `Usage: agent-workflow prune [--keep N] [--older-than DAYS] [--yes] [--json]
+       agent-workflow prune --run <run-id> [--run <run-id>]… [--yes] [--json]
 
-Delete terminal runs beyond the retention filters. Without --yes this is a dry run.`,
+Delete terminal runs beyond the retention filters, or exactly the named terminal runs (--run; an id
+that is not a terminal run here deletes nothing). Without --yes this is a dry run.`,
 	notices: `Usage: agent-workflow notices list [--json]
        agent-workflow notices acknowledge <exact-run-id> --state <sha256> --reason <text>
        agent-workflow notices clear <exact-run-id> [--json]

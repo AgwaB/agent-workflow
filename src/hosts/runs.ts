@@ -89,6 +89,7 @@ import {
 } from "./run-provenance.js";
 import {
 	type HostLaunchClaimPrune,
+	launchGuardDir,
 	pruneHostLaunchClaims,
 } from "./launch-guard.js";
 import { hostTextRedactor } from "./redaction.js";
@@ -980,17 +981,28 @@ export async function pruneAction(
 	const summary = await pruneWorkflowRuns(ctx.cwd, retention);
 	// WP18b: the executor adapters' attempt state is pruned with the same dry-run rule; the window
 	// is `--older-than` when given, else 7 days.
-	const adapterState = await pruneExecutorAdapterState({
-		env: hostEnv(ctx),
-		dryRun: !retention.yes,
-		...(retention.olderThanDays === undefined
-			? {}
-			: { retentionMs: retention.olderThanDays * 86_400_000 }),
-	});
+	// `--run <id>` removes exactly those runs: the age-based sweeps below stay out of it.
+	const targeted = retention.runIds !== undefined;
+	const adapterState = targeted
+		? []
+		: await pruneExecutorAdapterState({
+				env: hostEnv(ctx),
+				dryRun: !retention.yes,
+				...(retention.olderThanDays === undefined
+					? {}
+					: { retentionMs: retention.olderThanDays * 86_400_000 }),
+			});
 	// WP18b: stale host launch claims (`.agent-workflow/host-launches/`) go with the runs.
-	const hostLaunchClaims = await pruneHostLaunchClaims(ctx.cwd, {
-		dryRun: !retention.yes,
-	});
+	const hostLaunchClaims = targeted
+		? {
+				dir: launchGuardDir(ctx.cwd),
+				dryRun: !retention.yes,
+				removed: [],
+				errors: [],
+			}
+		: await pruneHostLaunchClaims(ctx.cwd, {
+				dryRun: !retention.yes,
+			});
 	const claimsText = `Host launch claims: ${hostLaunchClaims.removed.length} stale file(s) ${hostLaunchClaims.dryRun ? "would be removed" : "removed"}${hostLaunchClaims.errors.length ? `; errors: ${hostLaunchClaims.errors.join("; ")}` : ""}`;
 	return result(
 		"prune",
