@@ -122,6 +122,17 @@ WP12c (stage-1 doc sync):
   profile-picker text (`/workflow profile`, Codex / Codex High / Claude / Mixed / Custom) and shows
   `--input depth=…` instead of "Use max depth." in the task.
 
+After stage 2 (2026-11-01):
+
+- **M19.** `impact-review/helpers/render-impact-report.mjs`: report rows (synthesis, contract, regression,
+  ship) are free-form objects — the schemas only require an object — and the renderer printed every
+  object row as JSON (200 rows in five recorded Codex reports). A flat row (string, number, boolean or
+  string-array values) now renders as its main text (`text`, `issue`, `title`, `summary`, …, first
+  present) followed by ` — key: value; …` for every other field; a row with nested values keeps the
+  stable JSON form. Replaying the five recorded runs: status, verdict and gates unchanged, all 318
+  field values present. The ledger text and row keys are unchanged. Test:
+  `core-impact-review-row-text.test.mjs`.
+
 ## Worker prompt rendering (core)
 
 Workers see the artifact tool under an executor-specific name (`mcp__workflow_artifact__workflow_artifact`

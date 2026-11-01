@@ -539,8 +539,62 @@ function summarizeCanonicalRisk(rows, unverifiedResolutions = []) {
 	return { present: observationIds.size > 0, knownFloor, observationIds: [...observationIds].sort() };
 }
 
+// agent-workflow 2026-11-01: the schemas only require rows to be objects, so models name fields
+// freely ({issue, action}, {question, reason}, {id, text}, …) and every row used to print as JSON. A
+// flat row now reads as its main text followed by its other fields; no field is dropped. Rows with
+// nested values keep the stable JSON form. (The ledger text and row keys are unchanged.)
+const ROW_MAIN_KEYS = [
+	"text",
+	"issue",
+	"title",
+	"summary",
+	"description",
+	"detail",
+	"question",
+	"item",
+	"note",
+	"check",
+	"action",
+	"validation",
+	"assumption",
+	"area",
+];
+
+function isRowScalar(value) {
+	return (
+		typeof value === "string" ||
+		typeof value === "boolean" ||
+		(typeof value === "number" && Number.isFinite(value))
+	);
+}
+
+function readableRow(row) {
+	if (typeof row === "string") return row;
+	if (!isRecord(row)) return stableStringify(row);
+	const keys = Object.keys(row).sort();
+	const flat =
+		keys.length > 0 &&
+		keys.every(
+			(key) =>
+				isRowScalar(row[key]) ||
+				(Array.isArray(row[key]) && row[key].every(isRowScalar)),
+		);
+	if (!flat) return stableStringify(row);
+	const main = ROW_MAIN_KEYS.find(
+		(key) => typeof row[key] === "string" && row[key].trim() !== "",
+	);
+	const fields = keys
+		.filter((key) => key !== main)
+		.map(
+			(key) =>
+				`${key}: ${Array.isArray(row[key]) ? row[key].join(", ") : String(row[key])}`,
+		);
+	if (!main) return fields.join("; ");
+	return fields.length > 0 ? `${row[main]} — ${fields.join("; ")}` : row[main];
+}
+
 function rowText(row) {
-	return safeInline(typeof row === "string" ? row : stableStringify(row));
+	return safeInline(readableRow(row));
 }
 
 function renderRows(heading, rows, emptyText) {
@@ -704,7 +758,7 @@ function renderCompletionSummary({
 	else
 		actions.forEach((row) =>
 			out.push(
-				`- ${completionText(typeof row === "string" ? row : stableStringify(row), 420)}`,
+				`- ${completionText(readableRow(row), 420)}`,
 			),
 		);
 	out.push(
@@ -731,7 +785,7 @@ function renderCompletionSummary({
 			.slice(0, 8)
 			.forEach((row) =>
 				out.push(
-					`- ${completionText(typeof row === "string" ? row : stableStringify(row), 300)}`,
+					`- ${completionText(readableRow(row), 300)}`,
 				),
 			);
 	return out
