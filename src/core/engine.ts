@@ -203,8 +203,10 @@ import {
 	type WorkflowPartialOutputItem,
 } from "./workflow-partial-output.js";
 import {
+	EXPERIMENTAL_CACHE_STABLE_FOREACH_ENV,
 	PER_ITEM_DISPATCH_ENV,
-	workflowExperimentalFlagEnabled,
+	runExperimentalFlagEnabled,
+	runScopedExperimentalFlagsAtLaunch,
 } from "./experimental-speed-flags.js";
 import { evidenceRefetchEnabledAtLaunch } from "./evidence-web-quotes.js";
 import {
@@ -1046,6 +1048,9 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 			: evidenceRefetchEnabledAtLaunch()
 	)
 		run.evidenceRefetch = true;
+	run.experimentalFlags = Array.isArray(parentRun?.experimentalFlags)
+		? [...parentRun.experimentalFlags]
+		: runScopedExperimentalFlagsAtLaunch();
 	run.capabilityNegotiation = capabilityNegotiation;
 	let initialized: WorkflowRunRecord | undefined;
 	try {
@@ -5097,6 +5102,10 @@ async function materializeForeachTask(
 			?.sourceLineageDigest;
 		return canonicalForeachSourceLineage(meta.sourceSpecId, upstream);
 	});
+	const cacheStableForeach = runExperimentalFlagEnabled(
+		run,
+		EXPERIMENTAL_CACHE_STABLE_FOREACH_ENV,
+	);
 	const generated = buildForeachGeneratedTasks(
 		template,
 		compiledFlow.task,
@@ -5112,8 +5121,9 @@ async function materializeForeachTask(
 							)
 							.map((task) => compiledTaskSpecId(task)),
 					),
+					cacheStableForeach,
 				}
-			: undefined,
+			: { cacheStableForeach },
 	);
 	if (generated.error) {
 		setTaskTerminal(templateRunTask, "blocked", "foreach_expansion_blocked", {
@@ -5404,7 +5414,8 @@ async function materializeStreamingForeachTask(input: {
 	partialLedgerPathsBySourceSpecId: Map<string, ReadonlySet<string>>;
 }): Promise<boolean> {
 	const sourceTaskSpecIdSet = new Set(input.sourceTaskSpecIds);
-	const perItemDispatch = workflowExperimentalFlagEnabled(
+	const perItemDispatch = runExperimentalFlagEnabled(
+		input.run,
 		PER_ITEM_DISPATCH_ENV,
 	);
 	const existingGeneratedTasks = input.compiledFlow.tasks.filter(

@@ -1910,3 +1910,22 @@ passes it to `autoAction`; found by the "session invalidation before publication
 acceptance has 0 unexplained differences in every fixture and variant;
 `node tools/release/plugins.mjs check` passes. The "session invalidation" ports fail without the
 `fix(pi-host)` commit (the run starts) and pass with it. No model or agent CLI was called.
+
+## 2026-11-01 — run-scoped experimental flags
+
+Live finding (deep-research on Claude): the waiting CLI took over supervision of a detached run and
+drove a stage without the environment the run was launched with, so an environment-variable feature
+switched off mid-run. Flags that change what a run does are now decided at launch and recorded:
+
+- `run.experimentalFlags` (experimental-speed-flags.ts `RUN_SCOPED_EXPERIMENTAL_FLAGS`):
+  `AGENT_WORKFLOW_EXPERIMENTAL_TOOL_DEDUP`, `…_CACHE_STABLE_FOREACH`, `…_SAME_SESSION_REPAIR`,
+  `AGENT_WORKFLOW_PER_ITEM_DISPATCH`; an empty list when none is set; nested runs copy the parent's.
+  Read sites use `runExperimentalFlagEnabled(run, name)`; runs created before keep reading the
+  environment. Tool dedup reaches the artifact MCP server as `readDedup` in `artifact-access.json`
+  (launch provenance derives the same bytes).
+- `run.evidenceRefetch` (deep-research web quote check, `docs/bundled-workflows.md` M22).
+- `AGENT_WORKFLOW_EXPERIMENTAL_LAUNCH_RAMP` and `AGENT_WORKFLOW_ADAPTIVE_LIVE_WORKERS` stay
+  process-level: they pace one process's launches across runs.
+
+Replay: `run-scoped-experimental-flags` in `test/replay/explained-differences.json` (added field only).
+Tests: `core-run-scoped-flags.test.mjs`, `core-evidence-run-flag.test.mjs`.

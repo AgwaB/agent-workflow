@@ -134,6 +134,7 @@ export async function createArtifactToolService(options: {
 		runDir: config.runDir,
 		...(config.maxBytes === undefined ? {} : { maxBytes: config.maxBytes }),
 		...(config.maxLines === undefined ? {} : { maxLines: config.maxLines }),
+		...(config.readDedup === undefined ? {} : { readDedup: config.readDedup }),
 	};
 	// Reads (keyed like the core dedup key) whose delivery was cut; a duplicate-suppressed
 	// re-read of one of them must not become clean required-read evidence.

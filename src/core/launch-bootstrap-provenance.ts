@@ -8,6 +8,7 @@ import { PI_EXECUTOR_ID } from "../executors/pi/version.js";
 import {
 	type ArtifactAccessConfig,
 	artifactAccessConfigBytes,
+	artifactAccessReadDedup,
 	artifactAccessConfigPath,
 	artifactMcpServerSpec,
 	artifactServerOutputLimitForRun,
@@ -851,6 +852,7 @@ async function artifactIdentity(
 		ledgerPath: join(directory, "read-ledger.jsonl"),
 		accessMode: "workflow-task",
 		runDir: workflowRunDir(cwd, run.runId),
+		...artifactAccessReadDedup(run),
 	};
 	// The on-disk config the MCP server reads must be byte-identical to the
 	// canonical config derived from the run (tamper evidence that replaces the

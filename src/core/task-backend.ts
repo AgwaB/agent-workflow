@@ -507,7 +507,8 @@ export async function launchSubagentTask(
 			// D3 (WP12a): the engine session id stays the attempt identity (backendFiles, launch
 			// provenance); the executor is asked to keep a CLI session only when a same-session
 			// repair may continue it. Otherwise adapters run without session persistence.
-			...(sessionId === undefined || !workflowTaskKeepsSession(task)
+			...(sessionId === undefined ||
+			!workflowTaskKeepsSession(task, process.env, run)
 				? {}
 				: { sessionId }),
 			...(durableBarrierDescriptor === undefined

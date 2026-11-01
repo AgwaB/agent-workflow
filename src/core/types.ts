@@ -1967,6 +1967,11 @@ export interface WorkflowRunRecord {
 	 */
 	evidenceRefetch?: true;
 	/**
+	 * 2026-11-01: run-scoped experimental flags enabled at launch (experimental-speed-flags.ts
+	 * RUN_SCOPED_EXPERIMENTAL_FLAGS); absent on runs created before, which read the environment.
+	 */
+	experimentalFlags?: string[];
+	/**
 	 * WP4e (D2 revised): effective permission mode and where it came from.
 	 * Absent on records created before WP4e; those run as `safe`.
 	 */

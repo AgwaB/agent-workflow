@@ -13,6 +13,7 @@ import {
 } from "./tool-policy.js";
 import {
 	type ArtifactAccessConfig,
+	artifactAccessReadDedup,
 	artifactMcpServerSpec,
 	WORKFLOW_ARTIFACT_TOOL_NAME,
 	writeArtifactAccessConfig,
@@ -1274,6 +1275,7 @@ async function prepareArtifactGraphTask(
 		ledgerPath,
 		accessMode: "workflow-task",
 		runDir: workflowRunDir(cwd, run.runId),
+		...artifactAccessReadDedup(run),
 	};
 	await writeArtifactAccessConfig(artifactAccess);
 	const artifactServer = artifactMcpServerSpec(artifactAccess);

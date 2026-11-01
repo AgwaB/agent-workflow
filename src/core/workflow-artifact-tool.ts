@@ -149,6 +149,8 @@ export interface WorkflowArtifactToolConfig {
 	runDir?: string;
 	maxBytes?: number;
 	maxLines?: number;
+	/** The run's recorded duplicate-read decision; absent = read the environment (older runs). */
+	readDedup?: boolean;
 }
 
 export interface WorkflowArtifactListEntry {
@@ -1195,7 +1197,8 @@ export async function handleWorkflowArtifactToolCall(
 	const dedupKey = workflowArtifactReadDedupKey(config, accessMode, input);
 	const cachedRead =
 		input.artifact !== "raw" &&
-		workflowExperimentalFlagEnabled(EXPERIMENTAL_TOOL_DEDUP_ENV)
+		(config.readDedup ??
+			workflowExperimentalFlagEnabled(EXPERIMENTAL_TOOL_DEDUP_ENV))
 			? workflowArtifactReadDedupCache.get(dedupKey)
 			: undefined;
 	if (cachedRead !== undefined) {
@@ -1306,7 +1309,10 @@ export async function handleWorkflowArtifactToolCall(
 			? {}
 			: { maxChars: read.projection.maxChars }),
 	});
-	if (workflowExperimentalFlagEnabled(EXPERIMENTAL_TOOL_DEDUP_ENV)) {
+	if (
+		config.readDedup ??
+		workflowExperimentalFlagEnabled(EXPERIMENTAL_TOOL_DEDUP_ENV)
+	) {
 		workflowArtifactReadDedupCache.set(dedupKey, read);
 	}
 	return {

@@ -36,6 +36,24 @@ export interface ArtifactAccessConfig {
 	runDir: string;
 	maxBytes?: number;
 	maxLines?: number;
+	/**
+	 * 2026-11-01: the run's recorded AGENT_WORKFLOW_EXPERIMENTAL_TOOL_DEDUP decision (duplicate-read
+	 * suppression). Absent for runs created before flags were recorded: the server reads its env.
+	 */
+	readDedup?: boolean;
+}
+
+/** `readDedup` for a task's config, from the run's recorded flags (absent on older runs). */
+export function artifactAccessReadDedup(run: {
+	readonly experimentalFlags?: readonly string[];
+}): { readDedup?: boolean } {
+	return Array.isArray(run.experimentalFlags)
+		? {
+				readDedup: run.experimentalFlags.includes(
+					"AGENT_WORKFLOW_EXPERIMENTAL_TOOL_DEDUP",
+				),
+			}
+		: {};
 }
 
 export type ArtifactMcpServerSpec = McpServerSpec & {
@@ -153,6 +171,7 @@ export function assertArtifactAccessConfig(
 		"runDir",
 		"maxBytes",
 		"maxLines",
+		"readDedup",
 	]);
 	const record = value as Record<string, unknown> | null;
 	const ok =
@@ -169,7 +188,8 @@ export function assertArtifactAccessConfig(
 		(record.accessMode === "workflow-task" ||
 			record.accessMode === "human-debug") &&
 		optionalLimit(record.maxBytes) &&
-		optionalLimit(record.maxLines);
+		optionalLimit(record.maxLines) &&
+		(record.readDedup === undefined || typeof record.readDedup === "boolean");
 	if (!ok) throw new Error("Invalid workflow artifact access config");
 }
 

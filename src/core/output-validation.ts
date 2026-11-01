@@ -4,7 +4,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import {
 	EXPERIMENTAL_SAME_SESSION_REPAIR_ENV,
-	workflowExperimentalFlagEnabled,
+	runExperimentalFlagEnabled,
 } from "./experimental-speed-flags.js";
 import { type JsonSchema, validateJsonSchemaSubset } from "./json-schema.js";
 import {
@@ -66,7 +66,7 @@ function artifactGraphRetrySession(
 	const sessionId = sessionRecord?.id;
 	const sessionRequested = sessionRecord?.requested;
 	if (
-		workflowExperimentalFlagEnabled(EXPERIMENTAL_SAME_SESSION_REPAIR_ENV) &&
+		runExperimentalFlagEnabled(run, EXPERIMENTAL_SAME_SESSION_REPAIR_ENV) &&
 		typeof actualSessionId === "string" &&
 		actualSessionId === expectedSessionId &&
 		(typeof sessionId !== "string" || sessionId === expectedSessionId) &&

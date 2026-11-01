@@ -12,7 +12,7 @@
 import { loadExecutor } from "../sdk/descriptor.js";
 import {
 	EXPERIMENTAL_SAME_SESSION_REPAIR_ENV,
-	workflowExperimentalFlagEnabled,
+	runExperimentalFlagEnabled,
 } from "./experimental-speed-flags.js";
 import { deriveWorkflowStatus, nowIso, summarizeTasks } from "./store.js";
 import type {
@@ -32,10 +32,11 @@ import type {
 export function workflowTaskKeepsSession(
 	task: Pick<WorkflowTaskRunRecord, "artifactGraph">,
 	env: Record<string, string | undefined> = process.env,
+	run?: { readonly experimentalFlags?: readonly string[] },
 ): boolean {
 	return (
 		task.artifactGraph?.enabled === true &&
-		workflowExperimentalFlagEnabled(EXPERIMENTAL_SAME_SESSION_REPAIR_ENV, env)
+		runExperimentalFlagEnabled(run, EXPERIMENTAL_SAME_SESSION_REPAIR_ENV, env)
 	);
 }
 

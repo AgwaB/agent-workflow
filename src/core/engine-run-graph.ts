@@ -1024,6 +1024,8 @@ export function buildForeachGeneratedTasks(
 	options?: {
 		lineages?: readonly ForeachSourceLineage[];
 		reservedSpecIds?: ReadonlySet<string>;
+		/** The run's recorded flag (run.experimentalFlags); absent = read the environment. */
+		cacheStableForeach?: boolean;
 	},
 ): { tasks: CompiledTask[]; error?: string } {
 	const identities = items.map((item, index) =>
@@ -1066,9 +1068,9 @@ export function buildForeachGeneratedTasks(
 		if (itemPayload.error) return { tasks: [], error: itemPayload.error };
 		const batchGrouping = foreachBatchGrouping(template, item);
 		const itemText = formatForeachItem(itemPayload.value);
-		const cacheStableForeach = workflowExperimentalFlagEnabled(
-			EXPERIMENTAL_CACHE_STABLE_FOREACH_ENV,
-		);
+		const cacheStableForeach =
+			options?.cacheStableForeach ??
+			workflowExperimentalFlagEnabled(EXPERIMENTAL_CACHE_STABLE_FOREACH_ENV);
 		const instructions = cacheStableForeach
 			? template.foreach!.prompt.replace(
 					/\$\{item\}/g,
