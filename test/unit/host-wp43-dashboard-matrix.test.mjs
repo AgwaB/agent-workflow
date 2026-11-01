@@ -145,6 +145,7 @@ test("dashboard matrix: shape/state projections, viewport geometry, counts and k
 					segments: document.querySelectorAll("[data-segment]").length,
 					parallel: [...document.querySelectorAll(".node.group")].map((el) => ({
 						members: el.dataset.members.split(",").length,
+						ids: el.dataset.members.split(","),
 						rows: el.querySelectorAll(".stage-row").length,
 						fraction: el.querySelector(".fraction").textContent,
 					})),
@@ -156,6 +157,15 @@ test("dashboard matrix: shape/state projections, viewport geometry, counts and k
 						(node) =>
 							node.getAttribute("aria-label") &&
 							node.getAttribute("tabindex") === "0",
+					),
+					meaningColors: Object.entries({
+						running: "rgb(111, 191, 142)",
+						blocked: "rgb(217, 165, 72)",
+						failed: "rgb(229, 103, 90)",
+					}).every(([status, color]) =>
+						[...document.querySelectorAll(`.status-icon.${status}`)].every(
+							(icon) => getComputedStyle(icon).color === color,
+						),
 					),
 					neutralDone: [
 						...document.querySelectorAll(".segment.completed.ok"),
@@ -172,11 +182,33 @@ test("dashboard matrix: shape/state projections, viewport geometry, counts and k
 				);
 				assert.equal(counts.animations, 0, `reduced motion: ${label}`);
 				assert.ok(
-					counts.readonly && counts.accessible && counts.neutralDone,
+					counts.readonly &&
+						counts.accessible &&
+						counts.neutralDone &&
+						counts.meaningColors,
 					label,
 				);
+				if (expected.length === 1)
+					assert.doesNotMatch(counts.header, /\b1 agents\b/, label);
 				for (const group of counts.parallel) {
 					assert.equal(group.members, group.rows, label);
+					const completedMembers = group.ids.filter((id) => {
+						const tasks = run.tasks.filter(
+							(task) => task.stageId === id && !task.placeholder,
+						);
+						return (
+							tasks.length > 0 &&
+							tasks.every((task) =>
+								["completed", "skipped"].includes(task.status),
+							) &&
+							tasks.some((task) => task.status === "completed")
+						);
+					}).length;
+					assert.equal(
+						Number(group.fraction.split("/")[0]),
+						completedMembers,
+						label,
+					);
 					assert.equal(
 						Number(group.fraction.split("/")[1]),
 						group.members,
@@ -352,6 +384,39 @@ test("dashboard live matrix: focus survives updates and all sampled frames retai
 				frame.w === frames[0].w,
 		),
 		"clock ticks do not jump the graph",
+	);
+	await browser.click('[data-filter="running"]');
+	const lastRunning = run.tasks.find((task) => task.status === "running");
+	lastRunning.status = lastRunning.statusDetail = "completed";
+	run.taskSummary.running--;
+	run.taskSummary.completed++;
+	run.agentSummary.completed++;
+	run.updatedAt = new Date(Date.parse(run.updatedAt) + 1000).toISOString();
+	fixture.publish();
+	await browser.waitFor(
+		() =>
+			document.querySelector('[data-filter="running"]')?.textContent ===
+			"Running 0",
+	);
+	assert.equal(
+		await browser.evaluate(() => document.activeElement.dataset.filter),
+		"running",
+		"a selected zero-count filter retains keyboard focus",
+	);
+	assert.equal(
+		await browser.evaluate(() =>
+			document
+				.querySelector('[data-filter="running"]')
+				.getAttribute("aria-pressed"),
+		),
+		"true",
+	);
+	await browser.click('[data-filter="all"]');
+	assert.equal(
+		await browser.evaluate(
+			() => document.querySelectorAll("[data-item]").length,
+		),
+		18,
 	);
 	await browser.open(`${fixture.origin}/?run=${parallel.runId}`);
 	await browser.waitFor(

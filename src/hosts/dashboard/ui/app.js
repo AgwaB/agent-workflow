@@ -2526,7 +2526,9 @@ function renderItems(inspector, stage, previous = new Map()) {
 					status === "all"
 						? stage.items.length
 						: stage.items.filter((task) => taskState(task) === status).length;
-				if (!count && status !== "all") return [];
+				// Keep the selected filter when its last item settles: otherwise an SSE
+				// update removes the focused button and leaves no selected filter at all.
+				if (!count && status !== "all" && filter.status !== status) return [];
 				return [
 					button(
 						status === "all"
