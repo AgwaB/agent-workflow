@@ -636,6 +636,15 @@ Truncated reads never count. Direct file reads do not satisfy it: the ledger pro
 not semantic use. A stage whose required reads stay missing after its repair retries fails
 (`required_reads_missing_exhausted`).
 
+**Input integrity.** A stage may report in its control whether it could use its inputs:
+`"inputIntegrity": {"status": "complete"}` or `{"status": "blocked", "reason": …, "detail": …}`
+with `truncated_read`, `missing_read`, `inconsistent_input` or `budget_block`. Once the required
+reads passed, the ledger proves every one was delivered complete, so a `truncated_read` or
+`missing_read` block is a misjudgment: the engine repeats the attempt with that evidence and fails
+the stage if the claim persists (`input_integrity_contradicted_exhausted`). `inconsistent_input` and
+`budget_block` are about content and are accepted as reported. deep-research's final audit requires
+the field (2026-11-01: a model withheld a complete packet as "truncated").
+
 **Paging.** Each executor's CLI cuts long MCP results (Pi 1.1 at about 20 KB, Claude at 22,500
 chars, Codex at about 32,000 chars). The engine starts the artifact server with a limit below the
 executor's measured cut, so nothing is cut silently: a whole-artifact read that does not fit is
