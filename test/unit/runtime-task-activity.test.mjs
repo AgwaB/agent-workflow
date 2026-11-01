@@ -539,3 +539,34 @@ test("paths inside a symlinked cwd stay relative (macOS /tmp → /private/tmp)",
 		});
 	}
 });
+
+test("shell wrappers are unwrapped and long plain path segments are not mistaken for tokens", () => {
+	const label = (name, input) =>
+		activityFromExecEvent(
+			{ type: "tool_call", status: "running", kind: "execute", name, input },
+			"/tmp/project",
+		)?.label;
+	assert.equal(
+		label("Bash", { command: "zsh -lc 'rg -n accuracy src'" }),
+		"Running rg -n accuracy src",
+	);
+	assert.equal(
+		label("Bash", { command: '/bin/bash -c "npm test"' }),
+		"Running npm test",
+	);
+	assert.equal(
+		label("Read", {
+			file_path: "/tmp/project/sample/src/workflow-cancellation.ts",
+		}),
+		"Reading sample/src/workflow-cancellation.ts",
+	);
+	// A wrapped secret is still redacted after unwrapping; a mixed letter/digit run is still a token.
+	assert.doesNotMatch(
+		label("Bash", { command: "zsh -lc 'export API_KEY=abc; curl x'" }),
+		/abc/,
+	);
+	assert.doesNotMatch(
+		label("Grep", { pattern: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8" }),
+		/a1b2c3/,
+	);
+});

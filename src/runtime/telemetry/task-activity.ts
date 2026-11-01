@@ -34,7 +34,14 @@ function safeText(value: string): string {
 			"[redacted]",
 		)
 		.replace(/\bBearer\s+[^\s"']+/gi, "[redacted]")
-		.replace(/\b[A-Za-z0-9_+/=-]{32,}\b/g, "[redacted]");
+		// A long base64/hex-like run is a token when it mixes letters and digits or is one 40+
+		// character blob; a long path ("sample/src/workflow-cancellation") stays readable.
+		.replace(/\b[A-Za-z0-9_+/=-]{32,}\b/g, (run) =>
+			(/\d/.test(run) && /[A-Za-z]/.test(run)) ||
+			(run.length >= 40 && !run.includes("/"))
+				? "[redacted]"
+				: run,
+		);
 	// Free text (queries, paths, URLs) names secrets as words all the time ("auth/session.ts",
 	// "tool tokens"); only a sensitive key used as an assignment, header or flag marks a value.
 	const words = cleaned.split(" ");
@@ -103,9 +110,20 @@ function safeWebUrl(value: string): string {
 	return resource ? safeText(resource.value) : "[url]";
 }
 
+/** `zsh -lc 'cmd'`, `/bin/bash -c "cmd"` (how Codex runs commands) → `cmd`. */
+function unwrapShell(command: string): string {
+	const match =
+		/^\s*(?:\/[\w./-]*\/)?(?:ba|z|da|k)?sh\s+-(?:l?c|cl)\s+(?:'([^']*)'|"((?:[^"\\]|\\.)*)")\s*$/.exec(
+			command,
+		);
+	return match
+		? (match[1] ?? match[2]!.replace(/\\(["\\$`])/g, "$1"))
+		: command;
+}
+
 function safeCommand(value: string, cwd: string): string {
 	if (value.length > 8192) return "[long command]";
-	let command = activityPlainText(value).replace(
+	let command = unwrapShell(activityPlainText(value)).replace(
 		/^(?:\s*(?:[A-Za-z_][\w]*=(?:"[^"]*"|'[^']*'|[^\s]+))\s+)+/,
 		"",
 	);
