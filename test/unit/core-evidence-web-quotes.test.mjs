@@ -268,21 +268,28 @@ test("the page cache is content-addressed, expires and stays under its cap", asy
 	assert.equal(await cache.get("https://b.example/"), undefined, "expired");
 });
 
-test("support helpers get the check, enabled only by the experimental flag", () => {
+test("support helpers get the check; enabled is the run's launch-time decision", () => {
 	const signal = new AbortController().signal;
 	assert.equal(
-		supportEvidenceContext("/tmp", "run", signal, {}).refetchEnabled,
+		supportEvidenceContext({
+			cwd: "/tmp",
+			runId: "run",
+			signal,
+			enabled: false,
+		}).refetchEnabled,
 		false,
 	);
+	const on = supportEvidenceContext({
+		cwd: "/tmp",
+		runId: "run",
+		signal,
+		enabled: true,
+	});
+	assert.equal(on.refetchEnabled, true);
+	assert.equal(typeof on.checkWebQuotes, "function");
 	assert.equal(
-		supportEvidenceContext("/tmp", "run", signal, {
-			[EVIDENCE_REFETCH_ENV]: "1",
-		}).refetchEnabled,
-		true,
-	);
-	assert.equal(
-		typeof supportEvidenceContext("/tmp", "run", signal, {}).checkWebQuotes,
-		"function",
+		EVIDENCE_REFETCH_ENV,
+		"AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH",
 	);
 });
 
@@ -378,14 +385,12 @@ test("a quote in the worker's own page text is verified without fetching; summar
 		}),
 	]);
 	const calls = [];
-	const checker = supportEvidenceContext(
+	const checker = supportEvidenceContext({
 		cwd,
-		"run-2",
-		new AbortController().signal,
-		{
-			[EVIDENCE_REFETCH_ENV]: "1",
-		},
-	);
+		runId: "run-2",
+		signal: new AbortController().signal,
+		enabled: true,
+	});
 	// Use the injected fetch through checkWebQuotes directly with the same receipts.
 	const receipts = await readTaskWebReceipts(cwd, "run-2", "task-1");
 	const { results, summary } = await checkWebQuotes(

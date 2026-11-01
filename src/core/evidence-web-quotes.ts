@@ -30,7 +30,6 @@ import {
 	type SafeFetchResult,
 } from "./evidence-safe-fetch.js";
 import { htmlToTextViews } from "./evidence-text-views.js";
-import { workflowExperimentalFlagEnabled } from "./experimental-speed-flags.js";
 
 export const EVIDENCE_REFETCH_ENV =
 	"AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH";
@@ -433,21 +432,25 @@ export interface SupportWebQuoteInput {
 
 /** What support helpers receive as `context.evidence`. */
 export interface SupportEvidenceContext {
-	/** True when the owner opted in with AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH=1. */
+	/**
+	 * True when the run was launched with AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH=1
+	 * (recorded as `run.evidenceRefetch`).
+	 */
 	readonly refetchEnabled: boolean;
 	checkWebQuotes(
 		rows: readonly SupportWebQuoteInput[],
 	): Promise<{ results: WebQuoteResult[]; summary: WebQuoteSummary }>;
 }
 
-export function supportEvidenceContext(
-	cwd: string,
-	runId: string | undefined,
-	signal: AbortSignal,
-	env: Record<string, string | undefined> = process.env,
-): SupportEvidenceContext {
+export function supportEvidenceContext(options: {
+	readonly cwd: string;
+	readonly runId?: string;
+	readonly signal: AbortSignal;
+	readonly enabled: boolean;
+}): SupportEvidenceContext {
+	const { cwd, runId, signal } = options;
 	return {
-		refetchEnabled: workflowExperimentalFlagEnabled(EVIDENCE_REFETCH_ENV, env),
+		refetchEnabled: options.enabled,
 		checkWebQuotes: async (rows) => {
 			const receipts = new Map<string, WebReceipt[]>();
 			if (runId !== undefined)

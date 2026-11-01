@@ -180,7 +180,9 @@ After stage 2 (2026-11-01):
   only in a summary (Claude `WebFetch`) or search result is noted (`inWorkerSummary`) and still
   checked on the page — the report counts how often such summary quotes were on the page. Codex web
   events carry no page text. Recorded Pi run: 33 of 39 quotes verified from its own captures, 2 pages
-  fetched.
+  fetched. The opt-in is decided at launch and recorded as `run.evidenceRefetch` (live finding: a
+  stage driven by a process without the variable reported "off"); a quote's own trailing punctuation
+  is not compared (live Claude quotes ending in "." where the page continues).
 
 ## Worker prompt rendering (core)
 

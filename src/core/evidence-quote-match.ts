@@ -3,7 +3,8 @@
 // - exact: the quote is a substring of a page view;
 // - normalized: after folding both sides — Unicode NFKC (𝑡→t, ₜ→t, ligatures), curly quotes,
 //   dashes and primes, zero-width characters, Markdown links/escapes/emphasis/code marks, `$`,
-//   table pipes, runs of whitespace and spaces before closing punctuation;
+//   table pipes, runs of whitespace and spaces before closing punctuation; a quote's own trailing
+//   punctuation is not compared;
 // - math: additionally spaces around symbols and single letters removed, ONLY when the quote itself
 //   contains math notation; spaces between words stay, so words cannot merge or split.
 // Words, numbers and their order must still match; there is no edit-distance allowance (a fixed
@@ -88,11 +89,18 @@ export function matchQuote(
 		if (text.includes(needle)) return { matched: true, level: "exact", view };
 	const folded = foldForMatch(needle);
 	if (folded === "") return { matched: false };
-	for (const [view, text] of prepared.folded.entries())
-		if (text.includes(folded))
-			return { matched: true, level: "normalized", view };
+	// A quote cut from the middle of a sentence often gets a closing period the page does not have
+	// there ("…eight model families." for "…eight model families: OpenAI…"); trailing punctuation is
+	// not compared. Leading/inner punctuation still is.
+	const body = folded.replace(/\s*[.,;:!?]+$/, "");
+	const candidates =
+		body.length >= 8 && body !== folded ? [folded, body] : [folded];
+	for (const candidate of candidates)
+		for (const [view, text] of prepared.folded.entries())
+			if (text.includes(candidate))
+				return { matched: true, level: "normalized", view };
 	if (!hasMathNotation(needle)) return { matched: false };
-	const squeezed = squeeze(folded);
+	const squeezed = squeeze(candidates.at(-1) as string);
 	for (const [view, text] of prepared.squeezed.entries())
 		if (text.includes(squeezed)) return { matched: true, level: "math", view };
 	return { matched: false };

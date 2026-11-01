@@ -206,6 +206,7 @@ import {
 	PER_ITEM_DISPATCH_ENV,
 	workflowExperimentalFlagEnabled,
 } from "./experimental-speed-flags.js";
+import { EVIDENCE_REFETCH_ENV } from "./evidence-web-quotes.js";
 import {
 	activeForeachBatchRecordForTask,
 	applyForeachBatchFallback,
@@ -1038,6 +1039,13 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 	run.executor = executor;
 	if (rolePlan) run.roleExecution = rolePlan.roleExecution;
 	run.permissionMode = permissionMode;
+	// Experimental evidence checks: decided once at launch (nested runs follow the parent).
+	if (
+		parentRun
+			? parentRun.evidenceRefetch === true
+			: workflowExperimentalFlagEnabled(EVIDENCE_REFETCH_ENV)
+	)
+		run.evidenceRefetch = true;
 	run.capabilityNegotiation = capabilityNegotiation;
 	let initialized: WorkflowRunRecord | undefined;
 	try {

@@ -162,6 +162,27 @@ test("math typesetting passes only for quotes with math notation", () => {
 	assert.equal(hasMathNotation("the value $x$ grows"), true);
 });
 
+test("a quote's trailing punctuation is not compared (live Claude run)", () => {
+	const page =
+		"We selected a total of 15 LLMs from eight model families: OpenAI (GPT-4o-mini) and others. They achieved an average performance of 65%\u2014a 25-point drop from single-turn performances of 90% when they receive the instruction.";
+	for (const quote of [
+		"We selected a total of 15 LLMs from eight model families.",
+		"average performance of 65%\u2013a 25-point drop from single-turn performances of 90%.",
+	])
+		assert.equal(matchQuote(quote, [page]).level, "normalized", quote);
+	assert.equal(
+		matchQuote("We selected a total of 16 LLMs from eight model families.", [
+			page,
+		]).matched,
+		false,
+	);
+	assert.equal(
+		matchQuote("OpenAI;", ["OpenAI (GPT"]).matched,
+		false,
+		"too short to trim",
+	);
+});
+
 test("no edit-distance allowance: one changed character fails", () => {
 	assert.equal(matchQuote("0123456ZZZ", ["0123456789"]).matched, false);
 	assert.equal(

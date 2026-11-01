@@ -563,7 +563,8 @@ its permissions and are not limited by tool allowlists, so bundle only trusted c
 workflow's helpers must not cause undeclared side effects.
 
 **Web quote check (experimental).** With `AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH=1` in the
-environment of the process that runs the workflow, `context.evidence.refetchEnabled` is true and
+environment of the process that launches the run (recorded on the run, so a later supervisor or
+resume does not need it), `context.evidence.refetchEnabled` is true and
 `context.evidence.checkWebQuotes([{ key, url, quote, taskId }])` looks for each quote in the page text
 the task's own web tools returned for that URL, otherwise fetches the cited page itself (no model
 call). It reaches public addresses only, caps pages at 5 MB (PDF 10 MB, through

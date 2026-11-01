@@ -125,7 +125,12 @@ export async function executeSupportTask(
 				runId: run.runId,
 				cwd,
 				signal: stop.signal,
-				evidence: supportEvidenceContext(cwd, run.runId, stop.signal),
+				evidence: supportEvidenceContext({
+					cwd,
+					runId: run.runId,
+					signal: stop.signal,
+					enabled: run.evidenceRefetch === true,
+				}),
 				...(compiledTask.artifactGraph?.enabled
 					? {
 							sourceStatuses: buildArtifactGraphSupportSourceStatuses(
