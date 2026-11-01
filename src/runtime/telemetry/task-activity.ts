@@ -19,6 +19,19 @@ const record = (value: unknown): Record<string, unknown> =>
 const string = (value: unknown): string =>
 	typeof value === "string" ? value : "";
 
+/**
+ * One run of token alphabet: a token when it is ≥ 32 characters mixing letters and digits, or a
+ * ≥ 40-character blob without identifier separators. A path is judged segment by segment, so
+ * `.agent-workflow/workflows/workflow_mvx…57/…` and `mcp__workflow_artifact__workflow_artifact`
+ * stay readable.
+ */
+function redactTokenRun(run: string): string {
+	if (run.length < 32) return run;
+	const mixed = /\d/.test(run) && /[A-Za-z]/.test(run);
+	const blob = run.length >= 40 && /^[A-Za-z0-9+=]+$/.test(run);
+	return mixed || blob ? "[redacted]" : run;
+}
+
 function safeText(value: string): string {
 	// Bound work before regexes. If a value was cut, do not expose a partial secret.
 	if (value.length > 8192) return "[long value]";
@@ -37,10 +50,9 @@ function safeText(value: string): string {
 		// A long base64/hex-like run is a token when it mixes letters and digits or is one 40+
 		// character blob; a long path ("sample/src/workflow-cancellation") stays readable.
 		.replace(/\b[A-Za-z0-9_+/=-]{32,}\b/g, (run) =>
-			(/\d/.test(run) && /[A-Za-z]/.test(run)) ||
-			(run.length >= 40 && !run.includes("/"))
-				? "[redacted]"
-				: run,
+			run.includes("/")
+				? run.split("/").map(redactTokenRun).join("/")
+				: redactTokenRun(run),
 		);
 	// Free text (queries, paths, URLs) names secrets as words all the time ("auth/session.ts",
 	// "tool tokens"); only a sensitive key used as an assignment, header or flag marks a value.
@@ -168,7 +180,24 @@ export function activityFromExecEvent(
 	const url = string(input.url ?? action.url);
 	let kind: TaskActivity["kind"] = "tool";
 	let label: string;
-	if (/^(?:bash|shell|terminal|execute|command_execution)$/.test(name)) {
+	const mcp = /^mcp__(.+?)__(.+)$/.exec(name);
+	if ((mcp?.[2] ?? name) === "workflow_artifact") {
+		// The engine's own artifact tool: say which upstream artifact is being read.
+		kind = "read";
+		const source = safeText(string(input.source)).slice(0, 60);
+		const artifact = safeText(string(input.artifact)).slice(0, 30);
+		const at = safeText(
+			string(input.path)
+				.replace(/^\$\.?/, "")
+				.split(".")
+				.slice(-2)
+				.join("."),
+		).slice(0, 50);
+		label =
+			string(input.action) === "list" || !source
+				? "Listing workflow artifacts"
+				: `Reading ${source}${artifact && artifact !== "control" ? ` ${artifact}` : ""}${at ? ` · ${at}` : ""}`;
+	} else if (/^(?:bash|shell|terminal|execute|command_execution)$/.test(name)) {
 		const actions = Array.isArray(input.actions) ? input.actions : [];
 		const first = record(actions[0]);
 		if (event.kind === "read" && string(first.path)) {
@@ -189,11 +218,16 @@ export function activityFromExecEvent(
 		/(?:^|[_-])search$/.test(name)
 	) {
 		kind = "search";
+		const terms = query || string(input.q);
 		label =
-			url && !query
+			url && !terms
 				? `Opening ${safeWebUrl(url)}`
-				: `Searching "${clip(safeText(query || string(input.q) || "files"), 106)}"`;
-		if (url && !query) kind = "web";
+				: terms
+					? `Searching "${clip(safeText(terms), 106)}"`
+					: /web/.test(name)
+						? "Searching the web" // Codex starts web_search before its query is known
+						: "Searching files";
+		if ((url && !terms) || (!terms && /web/.test(name))) kind = "web";
 	} else if (/webfetch|web_fetch|fetch|browse|open_url|navigate/.test(name)) {
 		kind = "web";
 		label = `Opening ${safeWebUrl(url)}`;
@@ -209,7 +243,10 @@ export function activityFromExecEvent(
 		// Prompts/descriptions can contain arbitrary user data: never include them.
 		label = "Delegating to agent";
 	} else {
-		label = `Using ${safeText(event.name) || "tool"}`;
+		// `mcp__server__tool` → "Using tool (server)"; the prefix is plumbing, not information.
+		label = mcp
+			? `Using ${safeText(mcp[2]!)} (${safeText(mcp[1]!)})`
+			: `Using ${safeText(event.name) || "tool"}`;
 	}
 	return { kind, label: clip(activityPlainText(label), 120), at };
 }

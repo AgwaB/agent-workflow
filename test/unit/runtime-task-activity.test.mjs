@@ -117,7 +117,7 @@ test("Codex fixture items map command actions, changes, web, MCP and agents", ()
 			arguments: { password: "never-show" },
 		}),
 		"tool",
-		"Using mcp__server__custom",
+		"Using custom (server)",
 	);
 	expect(
 		codex({ type: "collabAgentToolCall", tool: "spawnAgent" }),
@@ -568,5 +568,71 @@ test("shell wrappers are unwrapped and long plain path segments are not mistaken
 	assert.doesNotMatch(
 		label("Grep", { pattern: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8" }),
 		/a1b2c3/,
+	);
+});
+
+test("real Codex shapes: artifact reads, MCP names, web search before its query, run-id paths", () => {
+	const label = (name, input, kind = "other") =>
+		activityFromExecEvent(
+			{ type: "tool_call", status: "running", kind, name, input },
+			"/Users/me/project",
+		)?.label;
+	// 2026-11-01 deep-research on Codex: these read "Using [redacted]", `Searching "files"` and
+	// "Reading .[redacted].schema.json".
+	assert.equal(
+		label("mcp__workflow_artifact__workflow_artifact", {
+			action: "read",
+			source: "final-audit-packet",
+			artifact: "control",
+			path: "$.packet.synthesisInput.pages[3]",
+			maxChars: 16000,
+		}),
+		"Reading final-audit-packet · synthesisInput.pages[3]",
+	);
+	assert.equal(
+		label("workflow_artifact", {
+			action: "read",
+			source: "plan",
+			artifact: "analysis",
+		}),
+		"Reading plan analysis",
+	);
+	assert.equal(
+		label("mcp__workflow_artifact__workflow_artifact", { action: "list" }),
+		"Listing workflow artifacts",
+	);
+	assert.equal(
+		label("mcp__github__create_issue", { title: "x" }),
+		"Using create_issue (github)",
+	);
+	assert.equal(
+		label("web_search", { query: "", action: null }, "fetch"),
+		"Searching the web",
+	);
+	assert.equal(label("Grep", { pattern: "" }), "Searching files");
+	assert.equal(
+		label("shell", {
+			command:
+				"/bin/zsh -lc 'cat .agent-workflow/workflows/workflow_mvxbris3_74ae57/bundle/a.json'",
+		}),
+		"Running cat .agent-workflow/workflows/workflow_mvxbris3_74ae57/bund…",
+	);
+	// Token shapes inside a path segment and bare blobs are still redacted.
+	assert.doesNotMatch(
+		label("Read", {
+			file_path:
+				"/Users/me/project/keys/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8/x",
+		}),
+		/a1b2c3/,
+	);
+	assert.doesNotMatch(label("Grep", { pattern: "q".repeat(48) }), /qqqq/);
+	// An artifact source/path cannot smuggle a token into the label either.
+	assert.doesNotMatch(
+		label("workflow_artifact", {
+			action: "read",
+			source: "sk-abcdefghijklmnopqrstu",
+			path: "$.a",
+		}),
+		/sk-abc/,
 	);
 });
