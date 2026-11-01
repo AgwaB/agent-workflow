@@ -575,7 +575,7 @@ test("real Codex shapes: artifact reads, MCP names, web search before its query,
 	const label = (name, input, kind = "other") =>
 		activityFromExecEvent(
 			{ type: "tool_call", status: "running", kind, name, input },
-			"/Users/me/project",
+			"/work/project",
 		)?.label;
 	// 2026-11-01 deep-research on Codex: these read "Using [redacted]", `Searching "files"` and
 	// "Reading .[redacted].schema.json".
@@ -620,8 +620,7 @@ test("real Codex shapes: artifact reads, MCP names, web search before its query,
 	// Token shapes inside a path segment and bare blobs are still redacted.
 	assert.doesNotMatch(
 		label("Read", {
-			file_path:
-				"/Users/me/project/keys/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8/x",
+			file_path: "/work/project/keys/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8/x",
 		}),
 		/a1b2c3/,
 	);
