@@ -1737,6 +1737,7 @@ function renderGraph() {
 		// SVG presentation attributes keep text >=14px at Fit without inline CSS. Below the Fit
 		// floor (an explicit zoom-out) the text shrinks with the boxes instead of spilling over them.
 		for (const text of nodes.querySelectorAll("text")) {
+			if (text.closest(".morph-old")) continue; // a fading copy keeps its fitted text
 			const size = text.classList.contains("node-name") ? 15 : 14;
 			const fontSize = Math.max(size, size / Math.max(view.k, FIT_MIN_ZOOM));
 			text.setAttribute("font-size", fontSize);
@@ -2024,13 +2025,24 @@ function renderGraph() {
 					],
 					motion,
 				);
-				// The card's new content arrives once the box has mostly reached its new size.
+				// Old content fades out while the new fades in, so the card is never an empty box.
 				for (const child of node.children)
 					if (!child.matches("rect.outline, title"))
 						child.animate(
-							[{ opacity: 0 }, { opacity: 0, offset: 0.25 }, { opacity: 1 }],
+							[{ opacity: 0 }, { opacity: 0, offset: 0.15 }, { opacity: 1 }],
 							motion,
 						);
+				const ghost = staleCopy(was.content);
+				if (ghost) {
+					node.insertBefore(
+						ghost,
+						node.querySelector(":scope > rect.outline")?.nextSibling ?? null,
+					);
+					ghost.animate(
+						[{ opacity: 1 }, { opacity: 0, offset: 0.4 }, { opacity: 0 }],
+						motion,
+					).onfinish = () => ghost.remove();
+				}
 			}
 			const shape = (value) => value?.replace(/[-\d.e]+/g, "#");
 			for (const path of edges.querySelectorAll("path.edge[data-edge]")) {
@@ -2079,6 +2091,20 @@ function renderGraph() {
 	};
 	return wrap;
 }
+/** An inert, display-only copy of a card's previous content (no focus, events or hooks). */
+function staleCopy(children) {
+	if (!children?.length) return null;
+	const group = svg("g", { class: "morph-old", "aria-hidden": "true" });
+	for (const child of children) group.append(child.cloneNode(true));
+	for (const el of [group, ...group.querySelectorAll("*")]) {
+		for (const name of [...el.getAttributeNames()])
+			if (/^(?:id|tabindex|role|data-.*|aria-(?!hidden).*)$/.test(name))
+				el.removeAttribute(name);
+		el.classList?.remove("agent-row", "stage-row");
+	}
+	group.querySelectorAll("title, foreignObject").forEach((el) => el.remove());
+	return group;
+}
 /** Card boxes and edge paths of the drawn graph (user units), for a morphing redraw. */
 function graphGeometry() {
 	const canvas = $("canvas");
@@ -2096,6 +2122,9 @@ function graphGeometry() {
 				y: Number(at[2]),
 				w: Number(outline.getAttribute("width")),
 				h: Number(outline.getAttribute("height")),
+				content: [...node.children].filter(
+					(child) => !child.matches("rect.outline, title"),
+				),
 			});
 	}
 	for (const path of canvas.querySelectorAll("path.edge[data-edge]"))
