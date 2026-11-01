@@ -152,6 +152,13 @@ opens only `rules/*.rules` and `AGENTS.md`, never `auth.json` or other credentia
   the WP5 server checks UTF-16 length and UTF-8 bytes). Since WP5b the engine launches the artifact
   server with `--max-output-chars 30400` (32,000 − 5 % margin; docs/mcp.md "Measured limits"), and
   larger whole reads are paged.
+  Re-measured 2026-11-01 on **codex-cli 0.165.0** (same pinned 10,000-token limit, no model call:
+  a mock Responses API recorded what Codex sends): results up to about **48,000 bytes** arrive
+  intact (47,500 B intact; 48,500 B → 48,022 B), larger ones are cut in the middle with a
+  `…N tokens truncated…` marker, head and tail kept; ASCII and Korean text cut at the same byte
+  size, so the estimate is still byte-based. Seventeen parallel results totalling 61,810 chars
+  (the deep-research final-audit pages) all arrived intact through the app-server adapter. The
+  30,400-char/-byte server limit stays below both versions' bounds; no change was needed.
 - Tool timeout: `tool_timeout_sec` per server is honored (2 s → "timed out awaiting tools/call
   after 2s", measured offline with `mcpServer/tool/call`); with no value, a direct call did not time
   out within 200 s. The adapter sets 300 s.
