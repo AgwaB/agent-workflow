@@ -718,8 +718,11 @@ function renderHeader() {
 			{ "aria-label": "Run details" },
 		),
 	);
+	// Only a run that finished its work has a result; a failed or stopped run keeps "Status", so an
+	// earlier stage's summary never reads as the outcome of a run that did not get there.
 	const result =
 		!liveRun(run) &&
+		(run.status === "completed" || run.verdictGate) &&
 		(run.verdict || run.summary || run.tasks.some((t) => t.outcome));
 	const summary =
 		run.summary ||

@@ -570,6 +570,12 @@ export async function startDashboardServer(
 			);
 			return;
 		}
+		// Browsers ask for a favicon on their own; answer "none" instead of a logged 404.
+		if (request.method === "GET" && url.pathname === "/favicon.ico") {
+			response.writeHead(204, { "Cache-Control": "max-age=86400" });
+			response.end();
+			return;
+		}
 		if (request.method === "GET" && url.pathname === "/api/session") {
 			json(response, 200, {
 				apiVersion: 1,

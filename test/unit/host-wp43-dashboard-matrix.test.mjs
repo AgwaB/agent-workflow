@@ -149,6 +149,10 @@ test("dashboard matrix: shape/state projections, viewport geometry, counts and k
 						rows: el.querySelectorAll(".stage-row").length,
 						fraction: el.querySelector(".fraction").textContent,
 					})),
+					resultLabel: document
+						.querySelector(".result-label")
+						?.firstChild?.textContent?.trim(),
+					resultSummary: Boolean(document.querySelector(".result-summary")),
 					animations: document.getAnimations().length,
 					readonly: [...document.querySelectorAll("[data-action]")].every(
 						(button) => button.disabled,
@@ -181,6 +185,15 @@ test("dashboard matrix: shape/state projections, viewport geometry, counts and k
 					label,
 				);
 				assert.equal(counts.animations, 0, `reduced motion: ${label}`);
+				// Only a run that finished its work shows a Result (an earlier stage's summary must not
+				// read as the outcome of a failed, stopped or blocked run).
+				if (
+					!["completed", "running", "pending"].includes(run.status) &&
+					!run.verdictGate
+				) {
+					assert.notEqual(counts.resultLabel, "Result", label);
+					assert.equal(counts.resultSummary, false, label);
+				}
 				assert.ok(
 					counts.readonly &&
 						counts.accessible &&

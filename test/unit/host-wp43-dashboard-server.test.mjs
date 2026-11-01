@@ -134,6 +134,10 @@ test("WP43d default: no sign-in — loopback requests read the UI/API without a 
 	assert.equal(old.status, 302);
 	assert.equal(old.headers.location, `/?run=${ID}`);
 	assert.equal(old.headers["set-cookie"], undefined);
+	// The browser's own favicon request is answered without a logged 404.
+	const favicon = await http(s, "/favicon.ico", { auth: false });
+	assert.equal(favicon.status, 204);
+	assert.equal(favicon.text, "");
 	// The sign-in machinery is absent.
 	assert.equal((await http(s, "/signin.js", { auth: false })).status, 404);
 	assert.notEqual(
