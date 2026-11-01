@@ -1344,3 +1344,30 @@ main.signin code {
 	color: var(--muted);
 	padding: 3px 9px;
 }
+.need-item {
+	display: flex;
+	align-items: flex-start;
+	gap: 2px;
+}
+.need-item > .need {
+	flex: 1;
+	min-width: 0;
+}
+.need-dismiss {
+	border: 0;
+	padding: 2px 7px;
+	color: var(--faint);
+	font-size: 15px;
+	line-height: 1.4;
+}
+.need-dismiss:hover:not(:disabled),
+.need-dismiss:focus-visible {
+	color: var(--text);
+	background: var(--selected);
+}
+.need-restore {
+	margin: 0 8px 6px;
+	font-size: 12.5px;
+	color: var(--muted);
+	text-align: left;
+}

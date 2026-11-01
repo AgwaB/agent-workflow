@@ -434,7 +434,7 @@ function renderTop() {
 	const focusedLabel = $("top").contains(document.activeElement)
 		? document.activeElement.getAttribute("aria-label")
 		: null;
-	const needs = runs.reduce((n, r) => n + (r.needsYou?.length || 0), 0);
+	const needs = visibleNeeds().length;
 	$("top").replaceChildren();
 	append($("top"), [
 		element("span", { class: "brand row" }, logo(), "agent-workflow"),
@@ -534,51 +534,149 @@ function progress(completed, total, status = "") {
 		"aria-label": `${completed || 0} of ${total || 0} tasks complete`,
 	});
 }
+/**
+ * 2026-11-01: a failure you have looked at can be dismissed from "Needs you" (this browser only).
+ * The key includes when it happened, so a new failure of the same run shows again. Approvals and
+ * decisions still block their run and cannot be dismissed.
+ */
+const dismissKey = () =>
+	`agent-workflow:dismissed-needs:${session?.project?.path ?? session?.project?.name ?? ""}`;
+const needKey = (need, runId) =>
+	[runId, need.kind, need.requestId ?? need.taskId ?? "", need.since].join("|");
+function dismissedNeeds() {
+	try {
+		const value = JSON.parse(localStorage.getItem(dismissKey()) || "[]");
+		return new Set(
+			Array.isArray(value)
+				? value.filter((key) => typeof key === "string")
+				: [],
+		);
+	} catch {
+		return new Set();
+	}
+}
+function saveDismissedNeeds(keys) {
+	try {
+		localStorage.setItem(dismissKey(), JSON.stringify([...keys].slice(-200)));
+	} catch {
+		// Storage unavailable: the dismissal lasts until the next repaint only.
+	}
+}
+function allNeeds() {
+	return runs.flatMap((r) =>
+		(r.needsYou || []).map((n) => ({ ...n, run: r, key: needKey(n, r.runId) })),
+	);
+}
+function visibleNeeds() {
+	const dismissed = dismissedNeeds();
+	return allNeeds().filter(
+		(need) => need.kind !== "failed" || !dismissed.has(need.key),
+	);
+}
+function setNeedDismissed(keys, dismissed) {
+	const current = dismissedNeeds();
+	for (const key of keys)
+		if (dismissed) current.add(key);
+		else current.delete(key);
+	saveDismissedNeeds(current);
+	renderTop();
+	renderRail();
+}
+
 function renderRail() {
 	const focusedRun = document.activeElement?.closest(".run-row")?.dataset.run;
 	const rail = $("rail"),
 		scroll = rail.scrollTop;
-	const needs = runs.flatMap((r) =>
-		(r.needsYou || []).map((n) => ({ ...n, run: r })),
+	const needs = visibleNeeds();
+	const hidden = allNeeds().filter(
+		(need) => !needs.some((shown) => shown.key === need.key),
 	);
 	rail.replaceChildren();
-	if (needs.length)
+	if (needs.length || hidden.length)
 		rail.append(element("h2", { class: "rail-heading" }, "Needs you"));
 	for (const need of needs)
 		rail.append(
-			button(
-				[
-					glyph(need.kind === "failed" ? "failed" : "blocked"),
-					element(
-						"span",
-						{ class: "grow" },
-						element(
-							"b",
-							{ class: "need-title" },
-							need.kind === "approval" ? "Approve the controller?" : need.title,
-						),
+			element(
+				"div",
+				{ class: "need-item" },
+				button(
+					[
+						glyph(need.kind === "failed" ? "failed" : "blocked"),
 						element(
 							"span",
-							{ class: "need-action" },
-							need.kind === "approval" ? "Review approval" : "Inspect & resume",
+							{ class: "grow" },
+							element(
+								"b",
+								{ class: "need-title" },
+								need.kind === "approval"
+									? "Approve the controller?"
+									: need.title,
+							),
+							element(
+								"span",
+								{ class: "need-action" },
+								need.kind === "approval"
+									? "Review approval"
+									: "Inspect & resume",
+							),
+							element("small", {}, `${need.run.name} ${ago(need.since)}`),
 						),
-						element("small", {}, `${need.run.name} ${ago(need.since)}`),
-					),
-				],
+					],
+					() => {
+						const target =
+							need.run.runId === run?.runId
+								? run.tasks.find((t) =>
+										[t.taskId, t.specId].includes(need.taskId),
+									)?.specId
+								: need.taskId;
+						go({
+							run: need.run.runId,
+							task: target || null,
+							dialog: need.kind === "approval" ? "approve" : "resume",
+						});
+					},
+					{ class: "need" },
+				),
+				need.kind === "failed"
+					? button(
+							"×",
+							() => {
+								// Focus the need now at this position (the next, else the previous one),
+								// else the restore link.
+								const index = [
+									...rail.querySelectorAll(".need-item"),
+								].findIndex((item) =>
+									item.querySelector(`[data-need="${CSS.escape(need.key)}"]`),
+								);
+								setNeedDismissed([need.key], true);
+								const left = [...$("rail").querySelectorAll(".need")];
+								(
+									left[Math.min(index, left.length - 1)] ??
+									$("rail").querySelector(".need-restore")
+								)?.focus({ preventScroll: true });
+							},
+							{
+								class: "need-dismiss",
+								"data-need": need.key,
+								"aria-label": `Dismiss: ${need.title}`,
+								title: "Dismiss (this browser; a new failure shows again)",
+							},
+						)
+					: null,
+			),
+		);
+	if (hidden.length)
+		rail.append(
+			button(
+				`Show ${hidden.length} dismissed`,
 				() => {
-					const target =
-						need.run.runId === run?.runId
-							? run.tasks.find((t) =>
-									[t.taskId, t.specId].includes(need.taskId),
-								)?.specId
-							: need.taskId;
-					go({
-						run: need.run.runId,
-						task: target || null,
-						dialog: need.kind === "approval" ? "approve" : "resume",
-					});
+					setNeedDismissed(
+						hidden.map((need) => need.key),
+						false,
+					);
+					$("rail").querySelector(".need")?.focus({ preventScroll: true });
 				},
-				{ class: "need" },
+				{ class: "need-restore link" },
 			),
 		);
 	rail.append(element("h2", { class: "rail-heading muted" }, "Runs"));
