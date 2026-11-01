@@ -464,9 +464,16 @@ test("bundled deep-research compacts audit packets before executive final", asyn
 		byStage.get("verify-claims")?.compiledPrompt ?? "",
 		/cannot find an exact supporting quote in fetched content, do not mark the claim verified/,
 	);
+	// M22 (2026-11-01): the engine re-checks quotes on the page, so verifiers are told to copy one
+	// contiguous passage exactly and to flag values read from images. Was: /Source verification is
+	// model-reported/.
 	assert.match(
 		byStage.get("verify-claims")?.compiledPrompt ?? "",
-		/Source verification is model-reported/,
+		/the engine looks for every quote on the cited page itself/,
+	);
+	assert.match(
+		byStage.get("verify-claims")?.compiledPrompt ?? "",
+		/do not join list items, headings or names/,
 	);
 	assert.match(
 		byStage.get("verify-claims")?.compiledPrompt ?? "",

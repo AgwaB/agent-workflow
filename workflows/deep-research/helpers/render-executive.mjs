@@ -2201,7 +2201,7 @@ function renderQuoteCheckAudit(quoteCheck) {
 		);
 		for (const row of unchecked)
 			out.push(
-				`| ${escapeTableCell(row.claimId ?? "")} | ${escapeTableCell(row.url ?? "")} | ${escapeTableCell(truncateWords(cleanText(row.quote ?? ""), 24))} | ${escapeTableCell(`${row.reason === "http-error" && row.detail ? row.detail : (QUOTE_CHECK_REASONS[row.reason] ?? row.reason ?? "")}${row.inWorkerSummary ? " (it was in the verifier's page summary)" : ""}`)} |`,
+				`| ${escapeTableCell(row.claimId ?? "")} | ${escapeTableCell(row.url ?? "")} | ${escapeTableCell(`${truncateWords(cleanText(row.quote ?? ""), 24)}${row.location ? ` — at ${cleanText(row.location)}` : ""}`)} | ${escapeTableCell(`${row.reason === "http-error" && row.detail ? row.detail : (QUOTE_CHECK_REASONS[row.reason] ?? row.reason ?? "")}${row.inWorkerSummary ? " (it was in the verifier's page summary)" : ""}`)} |`,
 			);
 	}
 	return out;

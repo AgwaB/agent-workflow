@@ -19,7 +19,11 @@ const VERIFIERS = {
 			evidence: [
 				{ url: "https://docs.example.com/a", quote: "The cache is cleared." },
 				{ url: "src/local.ts", line: 3, quote: "local code" },
-				{ sourceUrl: "https://img.example.com/t.png", quote: "96.6" },
+				{
+					sourceUrl: "https://img.example.com/t.png",
+					quote: "96.6",
+					excerptLocation: "Table 1 (image)",
+				},
 			],
 		},
 	],
@@ -151,6 +155,7 @@ test("when enabled, the engine checks the rows and the stage records the outcome
 	);
 	assert.equal(result.results[0].page.bodySha256, "a".repeat(64));
 	assert.equal(result.results[1].quote, "96.6");
+	assert.equal(result.results[1].location, "Table 1 (image)");
 });
 
 test("an engine failure is recorded, not thrown", async () => {
@@ -242,7 +247,7 @@ test("the report shows the counts and lists unchecked quotes with reasons; verdi
 	assert.match(checked.auditMarkdown, /## Quote check \(engine\)/);
 	assert.match(
 		checked.auditMarkdown,
-		/\| claim-001 \| https:\/\/img\.example\.com\/t\.png \| 96\.6 \| image \|/,
+		/\| claim-001 \| https:\/\/img\.example\.com\/t\.png \| 96\.6 — at Table 1 \(image\) \| image \|/,
 	);
 	assert.deepEqual(checked.claimSummary, plain.claimSummary);
 	assert.equal(checked.quoteCheck.verified, 1);

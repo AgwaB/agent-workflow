@@ -188,6 +188,14 @@ After stage 2 (2026-11-01):
   on after a live comparison: three Claude Sonnet 5.5 runs, 77 quotes, 75 on the re-fetched page;
   69 were also in a `WebFetch` summary, 68 of them on the page; re-fetch costs no model tokens
   (about 2 s for 14 pages) and is the only check possible for Codex.
+- **M23.** deep-research quote instructions (2026-11-01, after M22). Both specs' research and verifier
+  prompts replace "Source verification is model-reported: no workflow tool re-reads source bytes" with
+  what now happens: the engine looks for every quote on the cited page, so a quote must be one
+  contiguous passage copied exactly — not joined list items, headings or names (the two live Claude
+  quotes the check could not find), not reworded, not a tool's summary. A value read from an image or
+  scanned table cannot be checked as text: prefer a text source, else name the figure/table in
+  `excerptLocation`, which the audit's "Quote check" table shows next to the quote. The verify prompt
+  stays under its 6,000-character ceiling (5,811).
 
 ## Worker prompt rendering (core)
 

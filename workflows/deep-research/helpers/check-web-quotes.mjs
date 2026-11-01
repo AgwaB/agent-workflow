@@ -54,6 +54,8 @@ export function collectWebQuotes(sources, sourceStatuses = []) {
 				if (seen.has(key)) continue;
 				seen.add(key);
 				const taskId = taskBySource.get(sourceId);
+				const location =
+					typeof row.excerptLocation === "string" ? row.excerptLocation.trim() : "";
 				rows.push({
 					key,
 					claimId,
@@ -61,6 +63,7 @@ export function collectWebQuotes(sources, sourceStatuses = []) {
 					url,
 					quote: typeof row.quote === "string" ? row.quote : "",
 					...(taskId ? { taskId } : {}),
+					...(location ? { location: location.slice(0, 200) } : {}),
 				});
 			}
 		}
@@ -108,6 +111,7 @@ export default async function checkWebQuotes({ sources, context = {} }) {
 			evidenceIndex: row?.evidenceIndex ?? null,
 			url: result.url,
 			quote: (row?.quote ?? "").slice(0, MAX_QUOTE_CHARS),
+			...(row?.location ? { location: row.location } : {}),
 			grade: result.grade,
 			...(result.level ? { level: result.level } : {}),
 			...(result.capturedBy ? { capturedBy: result.capturedBy } : {}),
