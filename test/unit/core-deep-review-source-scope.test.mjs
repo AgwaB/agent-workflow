@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/deep-review-source-scope.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); harness from test/helpers/; setSubagentApiForTests→setTaskRuntimeApiForTests; paths .pi/{workflows,agents,workflow-subagents}→.agent-workflow/…, env PI_WORKFLOW_*→AGENT_WORKFLOW_*.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/deep-review-source-scope.test.mjs. MIT, same author. Changes: 2026-11-01 — a quote at most 10 lines outside its planned range is accepted (recorded), so the "not found" case moved 12 lines away; imports from dist/core (subagent-backend names from their WP4c modules); harness from test/helpers/; setSubagentApiForTests→setTaskRuntimeApiForTests; paths .pi/{workflows,agents,workflow-subagents}→.agent-workflow/…, env PI_WORKFLOW_*→AGENT_WORKFLOW_*.
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -16,7 +16,10 @@ test("source coverage distinguishes unsupported scope and ranges without weakeni
 	const root = mkdtempSync(join(tmpdir(), "review-scope-"));
 	const outside = mkdtempSync(join(tmpdir(), "review-outside-"));
 	try {
-		writeFileSync(join(root, "source.txt"), "first\nexact quote\nlast\n");
+		writeFileSync(
+			join(root, "source.txt"),
+			`first\nexact quote\n${"filler\n".repeat(14)}last\n`,
+		);
 		writeFileSync(join(outside, "source.txt"), "exact quote\n");
 		symlinkSync(join(outside, "source.txt"), join(root, "escape.txt"));
 		for (const [pointer, issue] of [
@@ -30,7 +33,10 @@ test("source coverage distinguishes unsupported scope and ranges without weakeni
 			["source.txt:1-2,3-4", "multiple source ranges are unsupported"],
 			["escape.txt", "required source file is unavailable"],
 			["missing.txt", "required source file is unavailable"],
-			["source.txt:1", "content quote was not found"],
+			// agent-workflow 2026-11-01: a quote at most 10 lines outside the planned range is accepted
+			// with a recorded correction; farther away it still fails.
+			["source.txt:1", null],
+			["source.txt:14", "content quote was not found"],
 		]) {
 			const result = await pipeline({
 				sources: {

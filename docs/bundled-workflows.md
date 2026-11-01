@@ -148,6 +148,17 @@ After stage 2 (2026-11-01):
   7 `NEEDS_WORK`, 2 `PARTIAL_REVIEW` (a reviewer quote outside its planned range; a quote not in the
   file); the four runs without corrections produce byte-identical stage output. Tests:
   `core-deep-review-line-corrections.test.mjs`, D04 in `core-deep-review-d01-d10.test.mjs`.
+- **M21.** deep-review evidence tolerance (owner decision, 2026-11-01), refining M20. Evidence is
+  accepted with a recorded correction when it differs from the file only in (a) cited lines, a
+  planned range end, or a coverage quote's position — at most 10 lines off; or (b) whitespace, line
+  endings, or quote/dash/space characters (each line trimmed and folded the way Codex `apply_patch`
+  and Pi `edit` match text). The match must be unique in the file; a folded match stores the file's
+  own lines as the evidence. Different words, farther positions, repeated text, escape typos (a
+  literal `\t`) and invalid UTF-8 still fail. M20's unbounded relocation is now capped (D04's
+  original `1-99` case is rejected again). The report section is renamed "Evidence corrections".
+  Replaying the 14 recorded Codex runs (report stage emulated with a consistent verdict): 11
+  `NEEDS_WORK`, 3 `PARTIAL_REVIEW` (a repeated short quote, a literal `\t`, a quote with a missing
+  word); the three runs without corrections produce byte-identical stage output.
 
 ## Worker prompt rendering (core)
 

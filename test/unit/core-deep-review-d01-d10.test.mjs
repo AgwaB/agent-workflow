@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/deep-review-d01-d10.test.mjs. MIT, same author. Changes: D04 (2026-11-01) — a planned range ending past the file is checked through its last line and recorded, one starting past it still fails; imports from dist/core (subagent-backend names from their WP4c modules); harness from test/helpers/; setSubagentApiForTests→setTaskRuntimeApiForTests; paths .pi/{workflows,agents,workflow-subagents}→.agent-workflow/…, env PI_WORKFLOW_*→AGENT_WORKFLOW_*; WP10: D09 blocks the .agent-workflow sidecar root (was .pi).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/deep-review-d01-d10.test.mjs. MIT, same author. Changes: D04 (2026-11-01, owner decision) — whitespace/line-ending/quote-character differences and cited lines or planned ranges at most 10 lines off are accepted with a recorded correction (file text stored); different words, ranges far past the file and invalid UTF-8 still fail; imports from dist/core (subagent-backend names from their WP4c modules); harness from test/helpers/; setSubagentApiForTests→setTaskRuntimeApiForTests; paths .pi/{workflows,agents,workflow-subagents}→.agent-workflow/…, env PI_WORKFLOW_*→AGENT_WORKFLOW_*; WP10: D09 blocks the .agent-workflow sidecar root (was .pi).
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -266,7 +266,7 @@ test("D03 gates duplicate pairs and accepts a legitimate second-pass root repare
 	assert.equal(rejected.status, "failed");
 });
 
-test("D04 rejects normalized whitespace, CRLF substitution, invalid UTF-8, and out-of-bounds ranges", async (t) => {
+test("D04 records whitespace/CRLF and small range corrections; rejects different words, invalid UTF-8 and far ranges", async (t) => {
 	const cwd = mkdtempSync(join(tmpdir(), "deep-review-d04-"));
 	t.after(() =>
 		rmSync(cwd, {
@@ -288,6 +288,10 @@ test("D04 rejects normalized whitespace, CRLF substitution, invalid UTF-8, and o
 	};
 	const good = await dedup([], {}, goodCoverage, cwd);
 	assert.equal(good.sourceStatusSummary.nonCompleted, 0);
+	// agent-workflow 2026-11-01 (owner decision): evidence that differs from the file only in
+	// whitespace, line endings or quote/dash characters, or cites lines at most 10 off, is accepted
+	// with a recorded correction (pi-workflow rejected it); the stored text is the file's own.
+	// Different words, ranges far past the file and invalid UTF-8 still fail.
 	const lf = await dedup(
 		[],
 		{},
@@ -297,27 +301,51 @@ test("D04 rejects normalized whitespace, CRLF substitution, invalid UTF-8, and o
 		},
 		cwd,
 	);
-	assert.equal(lf.sourceStatusSummary.nonCompleted, 1);
-	// agent-workflow 2026-11-01: a planned range that ends past the file is checked through its
-	// last line and recorded as a correction (pi-workflow rejected it); one that starts past the
-	// file is still rejected.
+	assert.equal(lf.sourceStatusSummary.nonCompleted, 0);
+	assert.deepEqual(lf.reviewerLedger.plannedRangeCorrections, [
+		{
+			source: "reviewers.runtime",
+			lens: "runtime",
+			kind: "coverage-quote",
+			path: "src/review.ts:1-2",
+			actual: "1-2",
+			reason: "whitespace",
+		},
+	]);
+	const words = await dedup(
+		[],
+		{},
+		{
+			...goodCoverage,
+			evidence: "  const danger = false;  \nconst safe = true;",
+		},
+		cwd,
+	);
+	assert.equal(words.sourceStatusSummary.nonCompleted, 1);
+	const nearEof = await dedup(
+		[],
+		{},
+		{ ...goodCoverage, path: "src/review.ts:1-9" },
+		cwd,
+	);
+	assert.equal(nearEof.sourceStatusSummary.nonCompleted, 0);
+	assert.deepEqual(nearEof.reviewerLedger.plannedRangeCorrections, [
+		{
+			source: "reviewers.runtime",
+			lens: "runtime",
+			kind: "planned-range-end",
+			path: "src/review.ts:1-9",
+			fileLines: 2,
+			checked: "1-2",
+		},
+	]);
 	const pastEof = await dedup(
 		[],
 		{},
 		{ ...goodCoverage, path: "src/review.ts:1-99" },
 		cwd,
 	);
-	assert.equal(pastEof.sourceStatusSummary.nonCompleted, 0);
-	assert.deepEqual(pastEof.reviewerLedger.plannedRangeCorrections, [
-		{
-			kind: "planned-range-end",
-			source: "reviewers.runtime",
-			lens: "runtime",
-			path: "src/review.ts:1-99",
-			fileLines: 2,
-			checked: "1-2",
-		},
-	]);
+	assert.equal(pastEof.sourceStatusSummary.nonCompleted, 1);
 	const startPastEof = await dedup(
 		[],
 		{},
@@ -335,7 +363,7 @@ test("D04 rejects normalized whitespace, CRLF substitution, invalid UTF-8, and o
 		{
 			path: "src/binary.ts",
 			status: "read",
-			evidence: "const �;",
+			evidence: "const \ufffd;",
 			artifact: "",
 			reason: "",
 		},
@@ -356,7 +384,8 @@ test("D04 rejects normalized whitespace, CRLF substitution, invalid UTF-8, and o
 		{ cwd, sourceStatuses: [] },
 	);
 	assert.equal(exact.partitions.keep.length, 1);
-	const trimmed = await partition(
+	assert.equal(exact.evidenceCorrections, undefined);
+	const spaced = await partition(
 		d,
 		[
 			verifier("exact", f.title, "KEEP", [
@@ -365,8 +394,24 @@ test("D04 rejects normalized whitespace, CRLF substitution, invalid UTF-8, and o
 		],
 		{ cwd, sourceStatuses: [] },
 	);
+	assert.equal(spaced.partitions.keep.length, 1);
+	assert.equal(spaced.evidenceCorrections[0].reason, "whitespace");
 	assert.equal(
-		trimmed.partitions.needsHuman.some((row) => row.findingId === "exact"),
+		spaced.partitions.keep[0].evidence[0].quote,
+		"  const danger = true;  \r",
+		"the stored evidence is the file's own bytes",
+	);
+	const changed = await partition(
+		d,
+		[
+			verifier("exact", f.title, "KEEP", [
+				{ file: "src/review.ts", line: 1, quote: "  const danger = false;  " },
+			]),
+		],
+		{ cwd, sourceStatuses: [] },
+	);
+	assert.equal(
+		changed.partitions.needsHuman.some((row) => row.findingId === "exact"),
 		true,
 	);
 });

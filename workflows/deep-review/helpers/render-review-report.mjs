@@ -1719,33 +1719,44 @@ function renderEvidenceCoverage(partition, findings) {
 }
 
 /**
- * agent-workflow 2026-11-01: line numbers the pipeline corrected (finding-pipeline
- * `evidenceCorrections`). The quoted bytes were checked unchanged; only the cited lines moved.
+ * agent-workflow 2026-11-01: evidence the pipeline matched with a correction (finding-pipeline
+ * `evidenceCorrections`): cited lines off by at most ten, a planned range ending past the file, or
+ * whitespace / quote and dash characters. The stored evidence is the reviewed file's own text.
  */
 function renderEvidenceCorrections(partition) {
 	const corrections = asArray(partition?.evidenceCorrections).filter(
 		(correction) => correction && typeof correction === "object",
 	);
 	if (corrections.length === 0) return [];
+	const why = (correction) => {
+		if (correction.kind === "planned-range-end")
+			return `the planned range ends past the file (${correction.fileLines} lines)`;
+		if (correction.reason === "whitespace")
+			return "matches the file except whitespace or quote/dash characters; the file's text is stored";
+		return correction.kind === "coverage-quote"
+			? "the quote is a few lines outside the planned range"
+			: "the quote occurs once in the file, at these lines";
+	};
 	const lines = [
-		"## Line corrections",
+		"## Evidence corrections",
 		"",
-		"The exact quoted text was verified; only the cited line numbers were corrected.",
+		"Evidence that differed from the reviewed file only in cited lines or whitespace was matched against the file; the stored evidence is the file's own text.",
 		"",
 		"| Stage | File | Lines given | Lines checked | Why |",
 		"|---|---|---|---|---|",
 	];
 	for (const correction of corrections) {
-		if (correction.kind === "planned-range-end") {
-			const pointer = /^(.*):(\d+(?:-\d+)?)$/u.exec(String(correction.path ?? ""));
-			lines.push(
-				`| ${escapeTableCell(`triage plan for reviewer ${correction.lens || correction.source || "unknown"}`)} | ${escapeTableCell(pointer?.[1] ?? correction.path ?? "unknown")} | ${escapeTableCell(pointer?.[2] ?? "")} | ${escapeTableCell(correction.checked ?? "")} | ${escapeTableCell(`the planned range ends past the file (${correction.fileLines} lines)`)} |`,
-			);
-		} else {
-			lines.push(
-				`| ${escapeTableCell(`verifier of ${correction.findingId || correction.source || "unknown"}`)} | ${escapeTableCell(correction.file ?? "unknown")} | ${escapeTableCell(correction.cited ?? "")} | ${escapeTableCell(correction.actual ?? "")} | ${escapeTableCell("the quote occurs exactly once in the file, at these lines")} |`,
-			);
-		}
+		const pointer = /^(.*):(\d+(?:-\d+)?)$/u.exec(String(correction.path ?? ""));
+		const isPlan = correction.kind === "planned-range-end" || correction.kind === "coverage-quote";
+		const stage = isPlan
+			? `${correction.kind === "planned-range-end" ? "triage plan" : "reviewer"} for ${correction.lens || correction.source || "unknown"}`
+			: `verifier of ${correction.findingId || correction.source || "unknown"}`;
+		const file = isPlan ? (pointer?.[1] ?? correction.path ?? "unknown") : (correction.file ?? "unknown");
+		const given = isPlan ? (pointer?.[2] ?? "whole file") : (correction.cited ?? "");
+		const checked = correction.kind === "planned-range-end" ? correction.checked : correction.actual;
+		lines.push(
+			`| ${escapeTableCell(stage)} | ${escapeTableCell(file)} | ${escapeTableCell(given)} | ${escapeTableCell(checked ?? "")} | ${escapeTableCell(why(correction))} |`,
+		);
 	}
 	lines.push("");
 	return lines;

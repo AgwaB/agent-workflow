@@ -282,6 +282,77 @@ function verifierEvidenceRowsOf(value) {
 	return { rows, issues };
 }
 
+/**
+ * agent-workflow 2026-11-01 (owner decision): evidence that differs from the reviewed file only in
+ * its cited lines (at most EVIDENCE_LINE_TOLERANCE lines away) or in whitespace and quote/dash/space
+ * characters is accepted. The match must be unique in the file, the stored evidence becomes the
+ * file's own text, and every correction is recorded and listed in the report. The folding mirrors
+ * the edit tools of the executors themselves (Codex apply_patch: trim + Unicode punctuation; Pi
+ * edit: trailing whitespace + quotes/dashes/spaces). A quote that differs in words, sits farther
+ * away, or occurs more than once still fails.
+ */
+const EVIDENCE_LINE_TOLERANCE = 10;
+
+function foldEvidenceLine(line) {
+	return line
+		.replace(/\r$/u, "")
+		.replace(/[\u2018\u2019\u201A\u201B]/gu, "'")
+		.replace(/[\u201C\u201D\u201E\u201F]/gu, '"')
+		.replace(/[\u2010-\u2015\u2212]/gu, "-")
+		.replace(/[\u00A0\u2002-\u200A\u202F\u205F\u3000]/gu, " ")
+		.trim();
+}
+
+function rangeDistance(line, lineEnd, otherLine, otherEnd) {
+	if (lineEnd < otherLine) return otherLine - lineEnd;
+	if (otherEnd < line) return line - otherEnd;
+	return 0;
+}
+
+/**
+ * Where `quote` is in the file: a unique exact occurrence, else a unique occurrence after folding
+ * each line. Returns null when absent, ambiguous, or farther than the tolerance from the cited range.
+ */
+function locateEvidence(text, quote, citedLine, citedEnd) {
+	const exact = [];
+	for (let at = text.indexOf(quote); at >= 0; at = text.indexOf(quote, at + 1)) {
+		const line = lineNumberOfOffset(text, at);
+		exact.push({ line, lineEnd: line + quote.split("\n").length - 1 });
+		if (exact.length > 1) break;
+	}
+	let found = null;
+	let reason = "line";
+	if (exact.length > 1) return null;
+	if (exact.length === 1) found = exact[0];
+	else {
+		const lines = text.split("\n");
+		const folded = quote.split("\n").map(foldEvidenceLine).join("\n");
+		if (folded.length < 8) return null;
+		const span = quote.split("\n").length;
+		const hits = [];
+		for (let start = 1; start + span - 1 <= lines.length; start++) {
+			const window = lines
+				.slice(start - 1, start - 1 + span)
+				.map(foldEvidenceLine)
+				.join("\n");
+			if (window.includes(folded)) {
+				hits.push({ line: start, lineEnd: start + span - 1 });
+				if (hits.length > 1) return null;
+			}
+		}
+		if (hits.length === 0) return null;
+		found = hits[0];
+		reason = "whitespace";
+		found.text = lines.slice(found.line - 1, found.lineEnd).join("\n");
+	}
+	if (
+		rangeDistance(found.line, found.lineEnd, citedLine, citedEnd) >
+		EVIDENCE_LINE_TOLERANCE
+	)
+		return null;
+	return { ...found, reason };
+}
+
 function lineRangeLabel(line, lineEnd) {
 	return lineEnd === undefined || lineEnd === line
 		? String(line)
@@ -290,11 +361,9 @@ function lineRangeLabel(line, lineEnd) {
 
 /**
  * agent-workflow 2026-11-01: a verifier quote that is not at its cited lines is still accepted when
- * the exact quote occurs exactly once in the cited file. The row is moved to the lines where the
- * quote is (the quoted bytes are unchanged) and `corrections` records cited and actual lines.
- * Models often read files without line numbers (Codex `sed -n`, Pi `read`) and cite a line or two
- * off; in recorded Codex runs that alone turned verified findings into needs-human. A quote that is
- * absent or occurs more than once still fails.
+ * {@link locateEvidence} finds it once, near the cited lines (see EVIDENCE_LINE_TOLERANCE). The row
+ * moves to the actual lines, a whitespace-only match stores the file's own text, and `corrections`
+ * records what changed. Models often read files without line numbers (Codex `sed -n`, Pi `read`).
  */
 function verifierEvidenceGroundingIssues(rows, context = {}, corrections = null) {
 	if (rows.length === 0)
@@ -320,27 +389,28 @@ function verifierEvidenceGroundingIssues(rows, context = {}, corrections = null)
 			lines.slice(row.line - 1, lineEnd).join("\n").includes(row.quote)
 		)
 			continue;
-		const offset = source.text.indexOf(row.quote);
-		if (
-			corrections &&
-			offset >= 0 &&
-			source.text.indexOf(row.quote, offset + 1) < 0
-		) {
-			const actualLine = lineNumberOfOffset(source.text, offset);
-			const actualEnd = actualLine + row.quote.split("\n").length - 1;
+		const found = corrections
+			? locateEvidence(source.text, row.quote, row.line, lineEnd)
+			: null;
+		if (found) {
 			corrections.push({
 				file: row.file,
 				cited: lineRangeLabel(row.line, row.lineEnd),
 				actual: lineRangeLabel(
-					actualLine,
-					row.lineEnd === undefined && actualEnd === actualLine
+					found.line,
+					row.lineEnd === undefined && found.lineEnd === found.line
 						? undefined
-						: actualEnd,
+						: found.lineEnd,
 				),
+				reason: found.reason,
+				...(found.reason === "whitespace"
+					? { quoted: row.quote, stored: found.text }
+					: {}),
 			});
-			row.line = actualLine;
-			if (row.lineEnd !== undefined || actualEnd !== actualLine)
-				row.lineEnd = actualEnd;
+			row.line = found.line;
+			if (row.lineEnd !== undefined || found.lineEnd !== found.line)
+				row.lineEnd = found.lineEnd;
+			if (found.reason === "whitespace") row.quote = found.text;
 			continue;
 		}
 		issues.push(
@@ -948,30 +1018,52 @@ function exactSourceQuoteIssue(row, path, context, corrections = null) {
 		// Split only on LF. The CR in CRLF is source content and must remain in
 		// the scoped bytes; a terminal LF intentionally creates an empty line.
 		const lines = source.text.split("\n");
-		if (pointer.line > lines.length)
+		const fileLines = source.text.endsWith("\n")
+			? lines.length - 1
+			: lines.length;
+		// agent-workflow 2026-11-01: a planned range that starts inside the file but ends at most
+		// EVIDENCE_LINE_TOLERANCE lines past it is checked through the file's last line, and
+		// `corrections` records it (the report lists it). Triage plans ranges from text it may have
+		// read without line numbers; recorded Codex runs planned e.g. 62-118 for a 113-line file.
+		if (
+			pointer.line > lines.length ||
+			pointer.lineEnd - fileLines > EVIDENCE_LINE_TOLERANCE
+		)
 			return "required source range is outside the file";
-		// agent-workflow 2026-11-01: a planned range that starts inside the file but ends past it is
-		// checked through the file's last line, and `corrections` records it (the report lists it).
-		// Triage plans ranges from text it may have read without line numbers; recorded Codex runs
-		// planned e.g. 62-118 for a 113-line file while the reviewers quoted inside it. A range that
-		// starts past the file still fails.
-		scopedText = lines
-			.slice(pointer.line - 1, Math.min(pointer.lineEnd, lines.length))
-			.join("\n");
-		if (pointer.lineEnd > lines.length && scopedText.includes(row.evidence)) {
-			const fileLines = source.text.endsWith("\n")
-				? lines.length - 1
-				: lines.length;
+		const lineEnd = Math.min(pointer.lineEnd, lines.length);
+		scopedText = lines.slice(pointer.line - 1, lineEnd).join("\n");
+		const clamped = pointer.lineEnd > lines.length;
+		const found = scopedText.includes(row.evidence)
+			? null
+			: locateEvidence(source.text, row.evidence, pointer.line, lineEnd);
+		if (!scopedText.includes(row.evidence) && !found)
+			return "content quote was not found in required source range";
+		if (clamped)
 			corrections?.push({
+				kind: "planned-range-end",
 				path,
 				fileLines,
 				checked: `${pointer.line}-${Math.max(pointer.line, fileLines)}`,
 			});
-		}
+		if (found)
+			corrections?.push({
+				kind: "coverage-quote",
+				path,
+				actual: lineRangeLabel(found.line, found.lineEnd),
+				reason: found.reason,
+			});
+		return "";
 	}
-	return scopedText.includes(row.evidence)
-		? ""
-		: "content quote was not found in required source range";
+	if (scopedText.includes(row.evidence)) return "";
+	const found = locateEvidence(source.text, row.evidence, 1, Number.MAX_SAFE_INTEGER);
+	if (!found) return "content quote was not found in required source range";
+	corrections?.push({
+		kind: "coverage-quote",
+		path,
+		actual: lineRangeLabel(found.line, found.lineEnd),
+		reason: found.reason,
+	});
+	return "";
 }
 
 function assessSourceCoverage(requiredValue, coverageValue, context = {}) {
@@ -1314,7 +1406,6 @@ function reviewerCoverageLedger(sources, context, coverageIssues) {
 		}
 		for (const correction of sourceCoverage.corrections ?? [])
 			plannedRangeCorrections.push({
-				kind: "planned-range-end",
 				source: sourceId,
 				lens: lensId,
 				...correction,
@@ -4137,8 +4228,18 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 				findingId: item.findingId,
 				...correction,
 			});
+			if (correction.reason === "whitespace") {
+				const swap = (quotes) =>
+					(Array.isArray(quotes) ? quotes : []).map((quote) =>
+						quote === correction.quoted ? correction.stored : quote,
+					);
+				item.verifierEvidence = swap(item.verifierEvidence);
+				item.evidenceQuotes = swap(item.evidenceQuotes);
+			}
 			normalizationNotes.push(
-				`verifier evidence for "${title}" cited ${correction.file}:${correction.cited}; the exact quote occurs once, at ${correction.actual}; line corrected`,
+				correction.reason === "whitespace"
+					? `verifier evidence for "${title}" matched ${correction.file}:${correction.actual} except whitespace or quote/dash characters; the file text was stored`
+					: `verifier evidence for "${title}" cited ${correction.file}:${correction.cited}; the exact quote occurs once, at ${correction.actual}; line corrected`,
 			);
 		}
 		if (verifierEvidenceIssues.length > 0) {

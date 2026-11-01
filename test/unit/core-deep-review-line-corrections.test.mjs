@@ -1,13 +1,13 @@
-// agent-workflow 2026-11-01: deep-review corrects line numbers in code instead of failing on them.
-// Models often read files without line numbers (Codex `sed -n`, Pi `read`). In nine recorded Codex
-// runs this alone left 6 of 9 reviews PARTIAL_REVIEW: triage planned ranges past the end of the file
-// (e.g. 62-118 for a 113-line file) and verifiers cited correct quotes one or two lines off.
-// - A planned coverage range that starts inside the file but ends past it is checked through the
-//   last line and recorded; one that starts past the file still fails.
-// - A verifier quote that is not at its cited lines is accepted when it occurs exactly once in the
-//   cited file; the row moves to the actual lines and the correction is recorded. An absent or
-//   repeated quote still fails.
-// The report lists every correction under "Line corrections".
+// agent-workflow 2026-11-01 (owner decision): deep-review accepts evidence that differs from the
+// file only in trivial ways and records the correction instead of failing. Models often read files
+// without line numbers (Codex `sed -n`, Pi `read`) and retype quotes; in recorded Codex runs this
+// alone left most reviews PARTIAL_REVIEW.
+// - Cited lines, planned ranges past the end of the file, and coverage quotes outside the planned
+//   range are accepted when at most 10 lines off.
+// - Whitespace, line-ending and quote/dash/space-character differences are accepted; the stored
+//   evidence becomes the file's own text.
+// - The match must be unique in the file. Different words, farther lines, repeated quotes still fail.
+// The report lists every correction under "Evidence corrections".
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -129,17 +129,16 @@ function partition(cwd, dedupOutput, evidence) {
 	});
 }
 
-test("a planned range ending past the file is checked through its last line and recorded", async (t) => {
+test("planned ranges: end ≤10 lines past the file is clamped and recorded; farther or past the start fails", async (t) => {
 	const cwd = project(t);
-	const past = await dedup(cwd, "src/a.ts:2-50", "danger = true;");
-	assert.equal(past.findings[0].sourceCoverageComplete, true);
-	assert.equal(past.sourceStatusSummary.nonCompleted, 0);
-	assert.deepEqual(past.reviewerLedger.plannedRangeCorrections, [
+	const near = await dedup(cwd, "src/a.ts:2-12", "danger = true;");
+	assert.equal(near.findings[0].sourceCoverageComplete, true);
+	assert.deepEqual(near.reviewerLedger.plannedRangeCorrections, [
 		{
-			kind: "planned-range-end",
 			source: "reviewers.runtime",
 			lens: "runtime",
-			path: "src/a.ts:2-50",
+			kind: "planned-range-end",
+			path: "src/a.ts:2-12",
 			fileLines: 6,
 			checked: "2-6",
 		},
@@ -150,12 +149,11 @@ test("a planned range ending past the file is checked through its last line and 
 		undefined,
 		"no correction, no field",
 	);
-
 	for (const [planned, quote, reason] of [
 		[
-			"src/a.ts:2-50",
-			"first();",
-			"content quote was not found in required source range",
+			"src/a.ts:2-30",
+			"danger = true;",
+			"required source range is outside the file",
 		],
 		[
 			"src/a.ts:9-12",
@@ -163,8 +161,8 @@ test("a planned range ending past the file is checked through its last line and 
 			"required source range is outside the file",
 		],
 		[
-			"src/a.ts:5-6",
-			"danger = true;",
+			"src/a.ts:2-12",
+			"danger = false;",
 			"content quote was not found in required source range",
 		],
 	]) {
@@ -174,19 +172,48 @@ test("a planned range ending past the file is checked through its last line and 
 			failed.sourceStatusSummary.partialFailures[0].statusDetail.includes(
 				`${planned}: read (${reason})`,
 			),
+			planned,
 		);
-		assert.equal(failed.reviewerLedger.plannedRangeCorrections, undefined);
 	}
 });
 
-test("a verifier quote cited at the wrong lines moves to its only occurrence; absent or repeated quotes fail", async (t) => {
+test("coverage quotes: a few lines outside the range or whitespace-only differences are recorded", async (t) => {
+	const cwd = project(t);
+	const outside = await dedup(cwd, "src/a.ts:5-6", "danger = true;");
+	assert.equal(outside.findings[0].sourceCoverageComplete, true);
+	assert.deepEqual(outside.reviewerLedger.plannedRangeCorrections, [
+		{
+			source: "reviewers.runtime",
+			lens: "runtime",
+			kind: "coverage-quote",
+			path: "src/a.ts:5-6",
+			actual: "4",
+			reason: "line",
+		},
+	]);
+	const spaced = await dedup(cwd, "src/a.ts:1-6", "danger  =  true;");
+	assert.equal(
+		spaced.findings[0].sourceCoverageComplete,
+		false,
+		"inner spacing is a content difference",
+	);
+	const tabbed = await dedup(cwd, "src/a.ts:1-6", "\t\tdanger = true;  ");
+	assert.equal(tabbed.findings[0].sourceCoverageComplete, true);
+	assert.equal(
+		tabbed.reviewerLedger.plannedRangeCorrections[0].reason,
+		"whitespace",
+	);
+});
+
+test("verifier quotes: moved to their only occurrence within 10 lines, whitespace folded to file text", async (t) => {
 	const cwd = project(t);
 	const base = await dedup(cwd, "src/a.ts:1-6", "danger = true;");
 
 	const moved = await partition(cwd, base, [
 		{ file: "src/a.ts", line: 6, quote: "danger = true;" },
-		{ file: "src/a.ts", line: 40, lineEnd: 41, quote: "second();\nrepeat();" },
+		{ file: "src/a.ts", line: 12, lineEnd: 13, quote: "second();\nrepeat();" },
 		{ file: "src/a.ts", line: 1, quote: "first();" },
+		{ file: "src/a.ts", line: 6, quote: "  sixth();\t" },
 	]);
 	assert.equal(moved.partitionSummary.keep, 1);
 	assert.equal(moved.partitionSummary.partialFailures, 0);
@@ -194,54 +221,50 @@ test("a verifier quote cited at the wrong lines moves to its only occurrence; ab
 		{ file: "src/a.ts", line: 4, quote: "danger = true;" },
 		{ file: "src/a.ts", line: 2, lineEnd: 3, quote: "second();\nrepeat();" },
 		{ file: "src/a.ts", line: 1, quote: "first();" },
+		{ file: "src/a.ts", line: 6, quote: "sixth();" },
 	]);
-	assert.deepEqual(moved.evidenceCorrections, [
-		{
-			kind: "verifier-line",
-			source: "devil-advocate.f1",
-			findingId: "f1",
-			file: "src/a.ts",
-			cited: "6",
-			actual: "4",
-		},
-		{
-			kind: "verifier-line",
-			source: "devil-advocate.f1",
-			findingId: "f1",
-			file: "src/a.ts",
-			cited: "40-41",
-			actual: "2-3",
-		},
-	]);
+	assert.deepEqual(
+		moved.evidenceCorrections.map(({ cited, actual, reason }) => [
+			cited,
+			actual,
+			reason,
+		]),
+		[
+			["6", "4", "line"],
+			["12-13", "2-3", "line"],
+			["6", "6", "whitespace"],
+		],
+	);
+	assert.ok(
+		moved.partitions.keep[0].verifierEvidence.includes("sixth();"),
+		"verifier quotes use the file text",
+	);
+	assert.ok(
+		!moved.partitions.keep[0].verifierEvidence.includes("  sixth();\t"),
+	);
 	assert.ok(
 		moved.normalizationNotes.some((note) =>
 			note.includes("cited src/a.ts:6; the exact quote occurs once, at 4"),
 		),
 	);
 
-	const exact = await partition(cwd, base, [
-		{ file: "src/a.ts", line: 4, quote: "danger = true;" },
-	]);
-	assert.equal(exact.partitionSummary.keep, 1);
-	assert.equal(exact.evidenceCorrections, undefined, "no correction, no field");
-
-	for (const quote of ["repeat();", "danger = false;"]) {
+	for (const [quote, line] of [
+		["repeat();", 1],
+		["danger = false;", 1],
+		["danger = true;", 20],
+	]) {
 		const failed = await partition(cwd, base, [
-			{ file: "src/a.ts", line: 1, quote },
+			{ file: "src/a.ts", line, quote },
 		]);
 		assert.equal(failed.partitionSummary.keep, 0, quote);
 		assert.equal(failed.partitionSummary.needsHuman, 1, quote);
-		assert.match(
-			failed.partitions.needsHuman[0].note,
-			/src\/a\.ts:1-1 did not contain the exact verifier quote/u,
-		);
-		assert.equal(failed.evidenceCorrections, undefined);
+		assert.equal(failed.evidenceCorrections, undefined, quote);
 	}
 });
 
 test("the report lists the corrections; without corrections there is no section", async (t) => {
 	const cwd = project(t);
-	const base = await dedup(cwd, "src/a.ts:1-50", "danger = true;");
+	const base = await dedup(cwd, "src/a.ts:1-12", "danger = true;");
 	const report = {
 		summary: "Fix it",
 		verdict: "NEEDS_WORK",
@@ -256,15 +279,15 @@ test("the report lists the corrections; without corrections there is no section"
 	});
 	assert.equal(out.verdict, "NEEDS_WORK");
 	const lines = out.markdown.split("\n");
-	assert.ok(lines.includes("## Line corrections"));
+	assert.ok(lines.includes("## Evidence corrections"));
 	assert.ok(
 		lines.includes(
-			"| triage plan for reviewer runtime | src/a.ts | 1-50 | 1-6 | the planned range ends past the file (6 lines) |",
+			"| triage plan for runtime | src/a.ts | 1-12 | 1-6 | the planned range ends past the file (6 lines) |",
 		),
 	);
 	assert.ok(
 		lines.includes(
-			"| verifier of f1 | src/a.ts | 6 | 4 | the quote occurs exactly once in the file, at these lines |",
+			"| verifier of f1 | src/a.ts | 6 | 4 | the quote occurs once in the file, at these lines |",
 		),
 	);
 
@@ -276,5 +299,5 @@ test("the report lists the corrections; without corrections there is no section"
 	const plain = await render({
 		sources: { "partition-verdicts.main": clean, report },
 	});
-	assert.equal(plain.markdown.includes("## Line corrections"), false);
+	assert.equal(plain.markdown.includes("## Evidence corrections"), false);
 });
