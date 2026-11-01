@@ -635,3 +635,63 @@ test("real Codex shapes: artifact reads, MCP names, web search before its query,
 		/sk-abc/,
 	);
 });
+
+test("a Codex web_search completion fills in the query of the call still on screen", () => {
+	const ev = (status, callId, input, name = "web_search") => ({
+		type: "tool_call",
+		status,
+		kind: "fetch",
+		name,
+		callId,
+		input,
+	});
+	const at = "2026-11-01T00:00:00.000Z";
+	const started = activityFromExecEvent(
+		ev("running", "c1", { query: "", action: null }),
+		"/work/project",
+		at,
+	);
+	assert.equal(started.label, "Searching the web");
+	// Real Codex shapes (deep-research 2026-11-01): the query, or the page it opened.
+	assert.equal(
+		activityFromExecEvent(
+			ev("completed", "c1", {
+				query: "Chroma context rot 18 models",
+				action: { type: "search" },
+			}),
+			"/work/project",
+			at,
+			{ refineCallId: "c1" },
+		).label,
+		'Searching "Chroma context rot 18 models"',
+	);
+	const opened = activityFromExecEvent(
+		ev("completed", "c2", {
+			query: "https://www.trychroma.com/research/context-rot?ref=x",
+			action: {
+				type: "openPage",
+				url: "https://www.trychroma.com/research/context-rot?ref=x",
+			},
+		}),
+		"/work/project",
+		at,
+		{ refineCallId: "c2" },
+	);
+	assert.deepEqual(
+		[opened.kind, opened.label],
+		["web", "Opening www.trychroma.com/research/context-rot"],
+	);
+	// Not the call on screen any more, not a web search, or nothing to add: no change.
+	for (const [event, refine] of [
+		[ev("completed", "c1", { query: "late" }), "c9"],
+		[ev("completed", "c1", { query: "late" }), undefined],
+		[ev("completed", "c3", { command: "ls" }, "shell"), "c3"],
+		[ev("completed", "c4", { query: "", action: null }), "c4"],
+	])
+		assert.equal(
+			activityFromExecEvent(event, "/work/project", at, {
+				refineCallId: refine,
+			}),
+			undefined,
+		);
+});

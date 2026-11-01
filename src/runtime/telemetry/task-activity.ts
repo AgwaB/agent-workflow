@@ -157,14 +157,28 @@ function safeCommand(value: string, cwd: string): string {
 	return clip(safeText(command), 60);
 }
 
-/** Normalized executor inputs only. Completion/output events cannot overwrite newer intent. */
+const WEB_SEARCH_NAME = /^(?:websearch|web_search|search_web)$/;
+
+/**
+ * Normalized executor inputs only. Completion/output events cannot overwrite newer intent — with
+ * one exception: Codex starts `web_search` before its query is known and reports the query (or
+ * the page it opened) on completion. When that call is still the latest activity
+ * (`refineCallId`), its completion fills in the label; output is never used.
+ */
 export function activityFromExecEvent(
 	event: ExecEvent,
 	cwd: string,
 	at = new Date().toISOString(),
+	options: { refineCallId?: string } = {},
 ): TaskActivity | undefined {
+	if (event.type !== "tool_call") return undefined;
+	const refinesSearch =
+		event.status === "completed" &&
+		event.callId !== undefined &&
+		event.callId === options.refineCallId &&
+		WEB_SEARCH_NAME.test(event.name.toLowerCase());
 	if (
-		event.type !== "tool_call" ||
+		!refinesSearch &&
 		!["pending", "approval_pending", "running"].includes(event.status)
 	)
 		return undefined;
@@ -219,15 +233,19 @@ export function activityFromExecEvent(
 	) {
 		kind = "search";
 		const terms = query || string(input.q);
+		const opening =
+			string(action.type) === "openPage" || /^https?:\/\//i.test(terms);
+		if (refinesSearch && !terms && !url) return undefined;
 		label =
-			url && !terms
-				? `Opening ${safeWebUrl(url)}`
+			(url && !terms) || opening
+				? `Opening ${safeWebUrl(url || terms)}`
 				: terms
 					? `Searching "${clip(safeText(terms), 106)}"`
 					: /web/.test(name)
 						? "Searching the web" // Codex starts web_search before its query is known
 						: "Searching files";
-		if ((url && !terms) || (!terms && /web/.test(name))) kind = "web";
+		if ((url && !terms) || opening || (!terms && /web/.test(name)))
+			kind = "web";
 	} else if (/webfetch|web_fetch|fetch|browse|open_url|navigate/.test(name)) {
 		kind = "web";
 		label = `Opening ${safeWebUrl(url)}`;

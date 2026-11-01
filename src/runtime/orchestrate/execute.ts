@@ -453,6 +453,8 @@ export async function executeAttempt(
 		}
 	};
 
+	// The call whose activity is shown last (a later completion of it may refine the label).
+	let latestActivityCallId: string | undefined;
 	const submitted = executor
 		.submit({ ...request, authority: fence.authority })
 		.then(
@@ -543,8 +545,13 @@ export async function executeAttempt(
 				fence.state() === "released" ? undefined : fence.state(),
 			cancelOnStop: true,
 			onEvent: (event: ExecEvent, index: number) => {
-				const activity = activityFromExecEvent(event, request.cwd);
-				if (activity) options.onActivity?.(activity);
+				const activity = activityFromExecEvent(event, request.cwd, undefined, {
+					refineCallId: latestActivityCallId,
+				});
+				if (activity) {
+					options.onActivity?.(activity);
+					if (event.type === "tool_call") latestActivityCallId = event.callId;
+				}
 				if (toolCalls) processExecToolCall(toolCalls, event, index);
 			},
 		}),
