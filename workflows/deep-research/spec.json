@@ -236,6 +236,16 @@
         "sourcePolicy": "partial"
       },
       {
+        "id": "check-web-quotes",
+        "from": [
+          "verify-claims"
+        ],
+        "sourcePolicy": "partial",
+        "support": {
+          "uses": "./helpers/check-web-quotes.mjs"
+        }
+      },
+      {
         "id": "audit-claims",
         "from": [
           "plan",
@@ -421,7 +431,8 @@
         "id": "final",
         "from": [
           "final-audit",
-          "final-audit-packet"
+          "final-audit-packet",
+          "check-web-quotes"
         ],
         "sourcePolicy": "partial",
         "output": {

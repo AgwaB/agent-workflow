@@ -545,7 +545,8 @@ and must not change in the final control. Downstream reducers still wait for eve
 ```js
 export default async function helper({ sources, options, context }) {
   // sources: upstream control.json values keyed by stable source names (foreach items as
-  // "<stage>.<item id>"); context: specPath, runId, taskId, stageId, cwd, signal, sourceStatuses
+  // "<stage>.<item id>"); context: specPath, runId, taskId, stageId, cwd, signal, sourceStatuses,
+  // evidence (experimental engine-side web quote check, below)
   return { schema: "my-merge-control-v1", digest: "merged 3 reviews", items: [/* … */] };
 }
 ```
@@ -560,6 +561,16 @@ or `gates.passed: false`, ends the task as declared (`support_declared_failed` /
 inside the bundle. That is path containment, not a sandbox: helpers run in the engine process with
 its permissions and are not limited by tool allowlists, so bundle only trusted code. A read-only
 workflow's helpers must not cause undeclared side effects.
+
+**Web quote check (experimental).** With `AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH=1` in the
+environment of the process that runs the workflow, `context.evidence.refetchEnabled` is true and
+`context.evidence.checkWebQuotes([{ key, url, quote }])` fetches each cited page itself and looks for
+the quote (no model call). It reaches public addresses only, caps pages at 5 MB (PDF 10 MB, through
+the system `pdftotext` when installed), caches pages by content hash in
+`.agent-workflow/evidence-cache/` (1 GiB, 24 h), and returns per quote `verified-refetched` or
+`unverified` with a reason. deep-research uses it in its `check-web-quotes` stage: the final report's
+audit summary gets a "Quote check" line and `audit.md` lists every quote that could not be checked.
+Verdicts are not changed.
 
 ### Loop behavior
 

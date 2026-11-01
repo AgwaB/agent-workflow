@@ -633,6 +633,7 @@ test("bundled deep-research compacts audit packets before executive final", asyn
 	assert.deepEqual(final.dependsOn, [
 		"final-audit.main",
 		"final-audit-packet.main",
+		"check-web-quotes.main",
 	]);
 	assert.equal(final.support.uses, "./helpers/render-executive.mjs");
 	assert.deepEqual(final.support.options ?? {}, {});

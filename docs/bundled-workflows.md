@@ -159,6 +159,21 @@ After stage 2 (2026-11-01):
   Replaying the 14 recorded Codex runs (report stage emulated with a consistent verdict): 11
   `NEEDS_WORK`, 3 `PARTIAL_REVIEW` (a repeated short quote, a literal `\t`, a quote with a missing
   word); the three runs without corrections produce byte-identical stage output.
+- **M22.** deep-research web quote check (experimental, owner decision 2026-11-01). Both specs gain a
+  support stage `check-web-quotes` (`helpers/check-web-quotes.mjs`, from the verifier stages) whose
+  output is an extra `final` source. Off unless `AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH=1`;
+  when on, the engine itself fetches every cited http(s) page (`context.evidence.checkWebQuotes`,
+  `src/core/evidence-*.ts`: public addresses only, checked per redirect hop and at DNS time; 5 MB
+  cap, PDF 10 MB via the system `pdftotext`; `Accept` prefers Markdown, `Accept-Language` en-US;
+  pages cached by SHA-256 under `.agent-workflow/evidence-cache/`, 1 GiB cap, 24 h) and looks for
+  each verifier quote: exact, then formatting-folded, then — only for quotes with math notation —
+  with spaces around symbols removed. No edit-distance allowance. A quote that cannot be checked
+  gets a reason (image, PDF tool missing, little page text, HTTP error, …). `render-executive.mjs`
+  adds one "Quote check" line to the final report's audit summary and a "Quote check" section with
+  every unchecked quote to `audit.md`; claim verdicts are unchanged. Replaying the 114 recorded
+  Pi/Codex verifier quotes: 108 found (exact 88, normalized 19, math 1), 6 not checked (image 4,
+  a PDF table row, one HTTP 403); 438 mutated quotes (numbers, negation, words, order, merges) 0
+  found. Tests: `core-evidence-*.test.mjs`, `core-deep-research-web-quote-check.test.mjs`.
 
 ## Worker prompt rendering (core)
 

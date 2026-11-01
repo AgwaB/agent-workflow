@@ -3,6 +3,7 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import { hashDynamicRequest } from "./dynamic-events.js";
+import { supportEvidenceContext } from "./evidence-web-quotes.js";
 import { stringifyPromptJson } from "./prompt-json.js";
 import { compactStrings } from "./strings.js";
 import { loadWorkflowHelper } from "./workflow-helpers.js";
@@ -124,6 +125,7 @@ export async function executeSupportTask(
 				runId: run.runId,
 				cwd,
 				signal: stop.signal,
+				evidence: supportEvidenceContext(cwd, stop.signal),
 				...(compiledTask.artifactGraph?.enabled
 					? {
 							sourceStatuses: buildArtifactGraphSupportSourceStatuses(

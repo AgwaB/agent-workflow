@@ -1,0 +1,829 @@
+{
+	"note": "Recorded deep-research verify-claims quotes (Pi workflow_mvt63y66, Codex workflow_mvwmi8oc/mvxbris3/mvxdpz4e/mvxdtrtc) that the engine re-fetch found on the cited page on 2026-11-01, each with a short window of that page's text view. Used for match-level regression and mutation (false-pass) tests.",
+	"cases": [
+		{
+			"executor": "pi",
+			"url": "https://trychroma.com/research/context-rot",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "We demonstrate that even under these minimal conditions, model performance degrades as input length increases, often in surprising and non-uniform ways.",
+			"page": "odels replicate a series of repeated words. Each task remains intentionally simple and is deliberately controlled to isolate the impact of context length alone.\nWe demonstrate that even under these minimal conditions, model performance degrades as input length increases, often in surprising and non-uniform ways. Real-world applications typically involve much greater complexity, implying that the influence of input length may be even more pronounced in practice.\nOur in-depth technical"
+		},
+		{
+			"executor": "pi",
+			"url": "https://trychroma.com/research/context-rot",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "To address this, our experiments hold task complexity constant while varying only the input length—allowing us to directly measure the effect of input length alone.",
+			"page": "often grow in complexity as input length increases, making it difficult to isolate whether performance drops are due to longer inputs or inherently harder problems. To address this, our experiments hold task complexity constant while varying only the input length—allowing us to directly measure the effect of input length alone.\nContributions#\nWe present the following:\nAn evaluation across 18 LLMs, including leading closed-source and open-weights models, revealing nonuniform performance with "
+		},
+		{
+			"executor": "pi",
+			"url": "https://arxiv.org/abs/2307.03172",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "performance is often highest when relevant information occurs at the beginning or end of the input context",
+			"page": "ing the position of relevant information, indicating that current language models do not robustly make use of information in long input contexts. In particular, we observe that performance is often highest when relevant information occurs at the beginning or end of the input context, and significantly degrades when models "
+		},
+		{
+			"executor": "pi",
+			"url": "https://arxiv.org/abs/2307.03172",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "We analyze the performance of language models on two tasks that require identifying relevant information in their input contexts: multi-document question answering and key-value retrieval.",
+			"page": "TML (experimental)\nAbstract:While recent language models have the ability to take long contexts as input, relatively little is known about how well they use longer context. We analyze the performance of language models on two tasks that require identifying relevant information in their input contexts: multi-document question answering and key-value retrieval. We find that performance can degrade significantly when changing the position of relevant information, indicating that current language models do not robustly make use of"
+		},
+		{
+			"executor": "pi",
+			"url": "https://raw.githubusercontent.com/chroma-core/context-rot/master/README.md",
+			"view": "text",
+			"level": "exact",
+			"quote": "month = {July},",
+			"page": "5context,\n  title = {Context Rot: How Increasing Input Tokens Impacts LLM Performance},\n  author = {Hong, Kelly and Troynikov, Anton and Huber, Jeff},\n  year = {2025},\n  month = {July},\n  institution = {Chroma},\n  url = {https://research.trychroma.com/context-rot},\n}\n```\n"
+		},
+		{
+			"executor": "pi",
+			"url": "https://raw.githubusercontent.com/chroma-core/context-rot/master/README.md",
+			"view": "text",
+			"level": "exact",
+			"quote": "year = {2025},",
+			"page": "hreport{hong2025context,\n  title = {Context Rot: How Increasing Input Tokens Impacts LLM Performance},\n  author = {Hong, Kelly and Troynikov, Anton and Huber, Jeff},\n  year = {2025},\n  month = {July},\n  institution = {Chroma},\n  url = {https://research.trychroma.com/context-rot},\n}\n```\n"
+		},
+		{
+			"executor": "pi",
+			"url": "https://raw.githubusercontent.com/chroma-core/context-rot/master/experiments/niah_extension/run/create_haystacks.py",
+			"view": "text",
+			"level": "exact",
+			"quote": "tokenizer = tiktoken.get_encoding(\"o200k_base\")",
+			"page": ": str, needle: str, shuffled: bool, output_folder: str, \n                    question: str, distractors: list[str] = None):\n    os.makedirs(output_folder, exist_ok=True)\n    tokenizer = tiktoken.get_encoding(\"o200k_base\")\n    \n    texts = load_text_files(haystack_folder)\n    \n    input_lengths = [500, 1_000, 5_000, 10_000, 50_000, 100_000, 500_000, 900_000]\n    depths = [0, 10, 20, 30,"
+		},
+		{
+			"executor": "pi",
+			"url": "https://arxiv.org/html/2502.05167v3",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "At 32K, for instance, 11 models drop below 50% of their strong short-length baselines.",
+			"page": "hat claim to support contexts of at least 128K tokens. While they perform well in short contexts (< 1K), performance degrades significantly as context length increases. At 32K, for instance, 11 models drop below 50% of their strong short-length baselines. Even GPT-4o, one of the top-performing exceptions, experiences a reduction from an almost-perfect baseline of 99.3% to 69.7%. Our analysis suggests these declines stem "
+		},
+		{
+			"executor": "pi",
+			"url": "https://arxiv.org/abs/2502.05167v3",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "We evaluate 13 popular LLMs that claim to support contexts of at least 128K tokens. While they perform well in short contexts (<1K), performance degrades significantly as context length increases.",
+			"page": "y designed needle set, where questions and needles have minimal lexical overlap, requiring models to infer latent associations to locate the needle within the haystack. We evaluate 13 popular LLMs that claim to support contexts of at least 128K tokens. While they perform well in short contexts (<1K), performance degrades significantly as context length increases. At 32K, for instance, 11 models drop below 50% of their strong short-length baselines. Even GPT-4o, one of the top-performing exceptions, experiences a reduction from an almost-p"
+		},
+		{
+			"executor": "pi",
+			"url": "https://arxiv.org/abs/2502.05167v3",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "Wed, 9 Jul 2025 14:35:23 UTC (575 KB)",
+			"page": "re\narXiv-issued DOI via DataCite\nSubmission history\nFrom: Ali Modarressi [view email]\n[v1]\nFri, 7 Feb 2025 18:49:46 UTC (351 KB)\n[v2]\nWed, 26 Mar 2025 13:23:30 UTC (352 KB)\n[v3]\nWed, 9 Jul 2025 14:35:23 UTC (575 KB)\nFull-text links:\nAccess Paper:\nView a PDF of the paper titled NoLiMa: Long-Context Evaluation Beyond Literal Matching, by Ali Modarressi and 6 other aut"
+		},
+		{
+			"executor": "pi",
+			"url": "https://raw.githubusercontent.com/adobe-research/NoLiMa/main/README.md",
+			"view": "text",
+			"level": "exact",
+			"quote": "The **effective length** is defined as the longest context where a model maintains at least 85% of its base score.",
+			"page": "core** represents a model’s accuracy on the task at short contexts (250, 500, and 1K) and serves as a controlled reference to measure performance degradation at longer contexts. \nThe **effective length** is defined as the longest context where a model maintains at least 85% of its base score. Scores above this threshold are <ins>underlined</ins>, while scores dropping below"
+		},
+		{
+			"executor": "pi",
+			"url": "https://raw.githubusercontent.com/adobe-research/NoLiMa/main/README.md",
+			"view": "text",
+			"level": "exact",
+			"quote": "The **base score** represents a model’s accuracy on the task at short contexts (250, 500, and 1K) and serves as a controlled reference to measure performance degradation at longer contexts.",
+			"page": "          | 73.6 (62.6)             | 50.3 | *35.3* | *16.4* | *7.5* | *2.3* | *0.9* | -- | -- |\n\nThis table presents the performance results of selected models on NOLIMA tests. The **base score** represents a model’s accuracy on the task at short contexts (250, 500, and 1K) and serves as a controlled reference to measure performance degradation at longer contexts. \nThe **effective length** is defined as the longest context where a model maintains at least 85% of its base score. Scores above this threshold are <ins>underlined</ins"
+		},
+		{
+			"executor": "pi",
+			"url": "https://raw.githubusercontent.com/NVIDIA/RULER/main/README.md",
+			"view": "text",
+			"level": "exact",
+			"quote": "Almost all models fall below the threshold before reaching the claimed context lengths.",
+			"page": "handle sequence length of 32K by exceeding a qualitative threshold, Llama-2-7b performance at 4K (85.6%). The performance exceeding the threshold is <ins>underlined</ins>.\n- Almost all models fall below the threshold before reaching the claimed context lengths. \n- Notes \n    - Jamba-1.5-large results are reported by authors from this [report](https://arxiv.org/pdf/2408.12570).\n    - FILM-7B results are reported by authors of"
+		},
+		{
+			"executor": "pi",
+			"url": "https://raw.githubusercontent.com/NVIDIA/RULER/main/README.md",
+			"view": "text",
+			"level": "exact",
+			"quote": "While all models claim context size of 32k tokens or greater, only half of them can effectively handle sequence length of 32K by exceeding a qualitative threshold, Llama-2-7b performance at 4K (85.6%).",
+			"page": "rly perfect performance on the vanilla needle-in-a-haystack (NIAH) test, most models exhibit large degradation on tasks in RULER as sequence length increases. \n- While all models claim context size of 32k tokens or greater, only half of them can effectively handle sequence length of 32K by exceeding a qualitative threshold, Llama-2-7b performance at 4K (85.6%). The performance exceeding the threshold is <ins>underlined</ins>.\n- Almost all models fall below the threshold before reaching the claimed context lengths. \n- N"
+		},
+		{
+			"executor": "pi",
+			"url": "https://arxiv.org/abs/2404.06654",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "We evaluate 17 long-context LMs with 13 representative tasks in RULER.",
+			"page": " with diverse types and quantities of needles. Moreover, RULER introduces new task categories multi-hop tracing and aggregation to test behaviors beyond searching from context. We evaluate 17 long-context LMs with 13 representative tasks in RULER. Despite achieving nearly perfect accuracy in the vanilla NIAH test, almost all models exhibit large performance drops as the context length increases. While these models al"
+		},
+		{
+			"executor": "pi",
+			"url": "https://arxiv.org/abs/2508.21433",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "We find that a simple environment observation masking strategy halves cost relative to the raw agent while matching, and sometimes slightly exceeding, the solve rate of LLM summarization.",
+			"page": "E-agent on SWE-bench Verified across five diverse model configurations. Moreover, we show initial evidence of our findings generalizing to the OpenHands agent scaffold. We find that a simple environment observation masking strategy halves cost relative to the raw agent while matching, and sometimes slightly exceeding, the solve rate of LLM summarization. Additionally, we introduce a novel hybrid approach that further reduces costs by 7% and 11% compared to just observation masking or LLM summarization, respectively. Our fi"
+		},
+		{
+			"executor": "pi",
+			"url": "https://arxiv.org/abs/2508.21433",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "We present a systematic comparison of these approaches within SWE-agent on SWE-bench Verified across five diverse model configurations.",
+			"page": "ummarization to tackle this issue, it is unclear whether the increased complexity offers tangible performance benefits compared to simply omitting older observations. We present a systematic comparison of these approaches within SWE-agent on SWE-bench Verified across five diverse model configurations. Moreover, we show initial evidence of our findings generalizing to the OpenHands agent scaffold. We find that a simple environment observation masking strategy halves cost relat"
+		},
+		{
+			"executor": "pi",
+			"url": "https://arxiv.org/html/2508.21433v3",
+			"view": "rendered",
+			"level": "normalized",
+			"quote": "We find that both Observation Masking and [llm](#id1)\\-Summary more than halve the cost compared to the Raw Agent.",
+			"page": "ity on OpenHands [30]. Our experiments span model families, model sizes, licenses (open-weights vs. proprietary), and reasoning regimes (thinking vs. non-thinking).\nWe find that both Observation Masking and llm-Summary more than halve the cost compared to the Raw Agent. Furthermore, llm-Summary is unable to consistently or significantly outperform the simple Observation Masking strategy across all model configurations. We show initi"
+		},
+		{
+			"executor": "pi",
+			"url": "https://www.anthropic.com/research/demystifying-evals-for-ai-agents",
+			"view": "rendered",
+			"level": "normalized",
+			"quote": "When we evaluate “an agent,” we’re evaluating the harness _and_ the model working together.",
+			"page": "results.\nAn agent harness (or scaffold) is the system that enables a model to act as an agent: it processes inputs, orchestrates tool calls, and returns results. When we evaluate “an agent,” we’re evaluating the harness and the model working together. For example, Claude Code is a flexible agent harness, and we used its core primitives through the Agent SDK to build our long-running agent harness.\nAn evaluation suite is "
+		},
+		{
+			"executor": "pi",
+			"url": "https://anthropic.com/engineering/effective-context-engineering-for-ai-agents",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "Note that minimal does not necessarily mean short; you still need to give the agent sufficient information up front to ensure it adheres to the desired behavior.",
+			"page": "ardless of how you decide to structure your system prompt, you should be striving for the minimal set of information that fully outlines your expected behavior. (Note that minimal does not necessarily mean short; you still need to give the agent sufficient information up front to ensure it adheres to the desired behavior.) It’s best to start by testing a minimal prompt with the best model available to see how it performs on your task, and then add clear instructions and examples "
+		},
+		{
+			"executor": "pi",
+			"url": "https://anthropic.com/engineering/effective-context-engineering-for-ai-agents",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "It’s best to start by testing a minimal prompt with the best model available to see how it performs on your task, and then add clear instructions and examples to improve performance based on failure modes found during initial testing.",
+			"page": "Note that minimal does not necessarily mean short; you still need to give the agent sufficient information up front to ensure it adheres to the desired behavior.) It’s best to start by testing a minimal prompt with the best model available to see how it performs on your task, and then add clear instructions and examples to improve performance based on failure modes found during initial testing.\nTools allow agents to operate with their environment and pull in new, additional context as they work. Because tools define the contract between agents and their information/acti"
+		},
+		{
+			"executor": "pi",
+			"url": "https://platform.claude.com/docs/en/build-with-claude/compaction",
+			"view": "text",
+			"level": "exact",
+			"quote": "when the default summary drops something a later turn needs. Your prompt replaces the default one.",
+			"page": "nd. Otherwise skip it.\n* [Write your own summarization prompt](https://platform.claude.com/docs/en/build-with-claude/compaction-on-demand#write-your-own-summarization-prompt): when the default summary drops something a later turn needs. Your prompt replaces the default one.\n* [Compact again](https://platform.claude.com/docs/en/build-with-claude/compaction-on-demand#compact-again): when a conversation that already starts with a compaction block grow"
+		},
+		{
+			"executor": "pi",
+			"url": "https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "Read the git logs and progress files to get up to speed on what was recently worked on.",
+			"page": "series of steps to get its bearings, some quite basic but still helpful:\nRun pwd to see the directory you’re working in. You’ll only be able to edit files in this directory.\nRead the git logs and progress files to get up to speed on what was recently worked on.\nRead the features list file and choose the highest-priority feature that’s not yet done to work on.\nThis approach saves Claude some tokens in every session since it d"
+		},
+		{
+			"executor": "pi",
+			"url": "https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "The key insight here was finding a way for agents to quickly understand the state of work when starting with a fresh context window, which is accomplished with the claude-progress.txt file alongside the git history.",
+			"page": "ial git commit that shows what files were added.\nCoding agent: Every subsequent session asks the model to make incremental progress, then leave structured updates.1\nThe key insight here was finding a way for agents to quickly understand the state of work when starting with a fresh context window, which is accomplished with the claude-progress.txt file alongside the git history."
+		},
+		{
+			"executor": "pi",
+			"url": "https://arxiv.org/html/2605.23170v1",
+			"view": "rendered",
+			"level": "normalized",
+			"quote": "MiMo-v2-Flash, for example, drops 88pp at 64K under with\\_solutions filler, with middle accuracy falling to 8%.",
+			"page": "dor releases. Models can drop sharply when\nthe target task moves from the end of the context to the middle,\nand the drop grows worse with context length for vulnerable models.\nMiMo-v2-Flash, for example, drops 88pp at 64K under with_solutions\nfiller, with middle accuracy falling to 8%. The newer releases show\nsmaller middle-position drops under the same filler. At 64K, three\nof the four stay within ± 6pp of end-position accuracy. MiMo-V2.5-Pro\nnarrows the drop"
+		},
+		{
+			"executor": "pi",
+			"url": "https://arxiv.org/html/2605.23170v1",
+			"view": "rendered",
+			"level": "normalized",
+			"quote": "Models can drop sharply when the target task moves from the end of the context to the middle, and the drop grows worse with context length for vulnerable models.",
+			"page": "matically varies all three factors. We evaluate nine LLMs\non GSM8K and ARC-Challenge across two rounds: an initial five-model\nset and four newer vendor releases. Models can drop sharply when\nthe target task moves from the end of the context to the middle,\nand the drop grows worse with context length for vulnerable models.\nMiMo-v2-Flash, for example, drops 88pp at 64K under with_solutions\nfiller, with middle accuracy falling to 8%. The newer releases show\nsmaller middle-position d"
+		},
+		{
+			"executor": "pi",
+			"url": "https://arxiv.org/abs/2605.23170v1",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "Fri, 22 May 2026 02:42:41 UTC",
+			"page": "1 [cs.CL] for this version)\nhttps://doi.org/10.48550/arXiv.2605.23170\nFocus to learn more\narXiv-issued DOI via DataCite\nSubmission history\nFrom: Chuyifei Zhang [view email]\n[v1]\nFri, 22 May 2026 02:42:41 UTC (1,074 KB)\nFull-text links:\nAccess Paper:\nView a PDF of the paper titled Positional Failures in Long-Context LLMs: A Blind Spot in Reasoning Benchmarks, by Chuyifei Zha"
+		},
+		{
+			"executor": "pi",
+			"url": "https://arxiv.org/html/2410.10813",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "While further compression into individual user facts harms overall performance due to information loss, it improves the multi-session reasoning accuracy.",
+			"page": "ntify several effective memory designs:\n•\n(Section 5.2) Instead of sessions, round is the more optimal granularity for storing and utilizing the interactive history. While further compression into individual user facts harms overall performance due to information loss, it improves the multi-session reasoning accuracy.\n•\n(Section 5.3) While using a flat index with the memory values themselves as the keys is a strong baseline, further expanding the keys with extracted user facts improves b"
+		},
+		{
+			"executor": "pi",
+			"url": "https://platform.claude.com/docs/en/build-with-claude/context-editing",
+			"view": "text",
+			"level": "exact",
+			"quote": "You’ll incur cache write costs each time content is cleared, but subsequent requests can reuse the newly cached prefix.",
+			"page": "o account for this, clear enough tokens to make the cache invalidation worthwhile. Use the `clear_at_least` parameter to ensure a minimum number of tokens is cleared each time. You’ll incur cache write costs each time content is cleared, but subsequent requests can reuse the newly cached prefix.\n\n* **Thinking block clearing:** When thinking blocks are **kept** in context (not cleared), the prompt cache is preserved, allowing cache hits and reducing inp"
+		},
+		{
+			"executor": "pi",
+			"url": "https://platform.claude.com/docs/en/build-with-claude/context-editing",
+			"view": "text",
+			"level": "exact",
+			"quote": "Invalidates cached prompt prefixes when content is cleared.",
+			"page": "ching\n\nContext editing’s interaction with [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) varies by strategy:\n\n* **Tool result clearing:** Invalidates cached prompt prefixes when content is cleared. To account for this, clear enough tokens to make the cache invalidation worthwhile. Use the `clear_at_least` parameter to ensure a minimum number of tokens is cleared each time. "
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.trychroma.com/research/context-rot",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "their performance grows increasingly unreliable as input length grows.",
+			"page": "evaluate 18 LLMs, including the state-of-the-art GPT-4.1, Claude 4, Gemini 2.5, and Qwen3 models. Our results reveal that models do not use their context uniformly; instead, their performance grows increasingly unreliable as input length grows.\nClaude Sonnet 4, GPT-4.1, Qwen3-32B, and Gemini 2.5 Flash on Repeated Words Task\n—Table of Contents\nIntroduction\nRelated Work\nNeedle in a Haystack Extension\nNeedle-Question Si"
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.trychroma.com/research/context-rot",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "Each task remains intentionally simple",
+			"page": ".\nAdditionally, we include a conversational question-answer evaluation using LongMemEval [2], as well as a synthetic task in which models replicate a series of repeated words. Each task remains intentionally simple and is deliberately controlled to isolate the impact of context length alone.\nWe demonstrate that even under these minimal conditions, model performance degrades as input length"
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.dbreunig.com/2025/06/22/how-contexts-fail-and-how-to-fix-them.html",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "Context Poisoning is when a hallucination or other error makes it into the context, where it is repeatedly referenced.",
+			"page": "n the context overwhelms the training\nContext Confusion: When superfluous context influences the response\nContext Clash: When parts of the context disagree\nContext Poisoning\nContext Poisoning is when a hallucination or other error makes it into the context, where it is repeatedly referenced."
+		},
+		{
+			"executor": "codex",
+			"url": "https://arxiv.org/abs/2503.03704",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "without assuming that the attacker can directly modify the memory bank of the agent",
+			"page": "may easily produce harmful outputs when the past records retrieved for demonstration are malicious. In this paper, we propose a novel Memory INJection Attack, MINJA, without assuming that the attacker can directly modify the memory bank of the agent. The attacker injects malicious records into the memory bank by only interacting with the agent via queries and output observations. These malicious records are d"
+		},
+		{
+			"executor": "codex",
+			"url": "https://dl.packetstormsecurity.net/papers/attack/2503.03704v2.pdf",
+			"view": "pdf",
+			"level": "normalized",
+			"quote": "achieves over 95% ISR across all LLM-based agents and datasets",
+			"page": ". More\ndetails of MINJA on each agent are in Appendix E.\n\nMINJA achieves high injection success rate (ISR) and\nattack success rate (ASR). As shown in Table 1, MINJA\nachieves over 95% ISR across all LLM-based agents and\ndatasets, and over 70% ASR on most datasets. The strong\nISR highlights the effective design of indication prompts and\ncutoffs in "
+		},
+		{
+			"executor": "codex",
+			"url": "https://dl.packetstormsecurity.net/papers/attack/2503.03704v2.pdf",
+			"view": "pdf",
+			"level": "normalized",
+			"quote": "The values under “Overall” are the average of the corresponding row data",
+			"page": "e based on 9 victim-target pairs. GPT-4-based MMLU\nfocuses on pairs from distinct subjects. Metrics include ISR, ASR, and UD for each pair and overall performance. The values under\n“Overall” are the average of the corresponding row data, with its subscript representing the standard deviation.\nAgent\n\nDataset\n\nMetrics\n\nPair 1\n\nPair 2 Pair 3\n\nPair 4 Pair 5\n\nPair 6\n\nPair 7 Pair 8\n\nPair 9\n\nOverall\n\nEHR (GPT-4)"
+		},
+		{
+			"executor": "codex",
+			"url": "https://github.com/langchain-samples/context-failure-evals/",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "Measures references to poisoned text, impossible goal pursuit, and recovery time",
+			"page": "t Hallucination - Agent believes it needs impossible levels\nCircular Goal Dependency - Goals that depend on each other in cycles\nEvaluators:\nContext Poisoning: Measures references to poisoned text, impossible goal pursuit, and recovery time\nGoal Cancellation: Whether agent recognizes and cancels impossible goals\nTask Completion: Whether agent completes achievable tasks despite poisoning\nKey insigh"
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.dbreunig.com/2025/06/22/how-contexts-fail-and-how-to-fix-them.html",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "When the context overwhelms the training",
+			"page": ", then review methods to mitigate or entirely avoid context fails.\nContext Fails\nContext Poisoning: When a hallucination makes it into the context\nContext Distraction: When the context overwhelms the training\nContext Confusion: When superfluous context influences the response\nContext Clash: When parts of the context disagree\nContext Poiso"
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.dbreunig.com/2025/06/22/how-contexts-fail-and-how-to-fix-them.html",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "the model over-focuses on the context, neglecting what it learned during training",
+			"page": " would develop nonsensical strategies and repeat behaviors in pursuit of a goal that cannot be met.\nContext Distraction\nContext Distraction is when a context grows so long that the model over-focuses on the context, neglecting what it learned during training.\nAs c"
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.dbreunig.com/2025/06/22/how-contexts-fail-and-how-to-fix-them.html",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "Context Confusion is when superfluous content in the context is used by the model to generate a low-quality response.",
+			"page": "ntext windows? In a nutshell: summarization3 and fact retrieval. If you’re not doing either of those, be wary of your chosen model’s distraction ceiling.\nContext Confusion\nContext Confusion is when superfluous content in the context is used by the model to generate a low-quality response.\nFor a minute there, it really seemed like everyone was going to ship an MCP. The dream of a powerful model, connected to all your services and stuff, doing all your mundane tasks"
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.dbreunig.com/2025/06/22/how-contexts-fail-and-how-to-fix-them.html",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "Context confusion leads to irrelevant tool or document usage.",
+			"page": ". Context poisoning embeds errors that compound over time. Context distraction causes agents to lean heavily on their context and repeat past actions rather than push forward. Context confusion leads to irrelevant tool or document usage. Context clash creates internal contradictions "
+		},
+		{
+			"executor": "codex",
+			"url": "https://aclanthology.org/2025.findings-acl.1258/",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "ToolRet, a heterogeneous tool retrieval benchmark comprising 7.6k diverse retrieval tasks",
+			"page": "l-use benchmarks simplify this step by manually pre-annotating a small set of relevant tools for each task, which is far from the real-world scenarios. In this paper, we propose ToolRet, a heterogeneous tool retrieval benchmark comprising 7.6k diverse retrieval tasks, and a corpus of 43k tools, collected from existing datasets. We benchmark six types of models on ToolRet. Surprisingly, even the models with strong performance in conv"
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.dbreunig.com/2025/06/22/how-contexts-fail-and-how-to-fix-them.html",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "When parts of the context disagree",
+			"page": "to the context\nContext Distraction: When the context overwhelms the training\nContext Confusion: When superfluous context influences the response\nContext Clash: When parts of the context disagree\nC"
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.dbreunig.com/2025/06/22/how-contexts-fail-and-how-to-fix-them.html",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "This is a more problematic version of Context Confusion",
+			"page": "lity comes with downsides.\nContext Clash\nContext Clash is when you accrue new information and tools in your context that conflicts with other information in the context.\nThis is a more problematic version of Context Confusion: the bad context here isn’t irrelevant, it directly conflicts with other information in the prompt.\nA Microsoft and Salesforce team documented this brilliantly in a recent pa"
+		},
+		{
+			"executor": "codex",
+			"url": "https://proceedings.neurips.cc/paper_files/paper/2024/hash/c63819755591ea972f8570beffca6b1b-Abstract-Datasets_and_Benchmarks_Track.html",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "a benchmark consisting of 253 high-quality, human-annotated instances",
+			"page": "ers based on contradictory passages from Wikipedia, a dataset widely regarded as a high-quality pre-training resource for most LLMs. Specifically, we introduce WikiContradict, a benchmark consisting of 253 high-quality, human-annotated instances designed to assess the performance of LLMs in providing a complete perspective on conflicts from the retrieved documents, rather than choosing one answer over another, wh"
+		},
+		{
+			"executor": "codex",
+			"url": "https://aclanthology.org/2026.lrec-1.182.pdf",
+			"view": "pdf",
+			"level": "exact",
+			"quote": "Adding the hint that the contexts might be contradictory decreased the accuracy scores for all LLMs",
+			"page": " For two non-contradictory contexts\nwithout a hint, the accuracy scores range from\n0.7075 (claude-sonnet-4-5-20250929) to 0.8491\n(gemini-2.5-flash) (mean = 0.779, std = 0.0531).\nAdding the hint that the contexts might be contradictory decreased the accuracy scores for all LLMs\nto a range from 0.2453 (llama3) to 0.7358 (gpt-5)\n(mean = 0.562, std = 0.167).\nWith regards to different types of reasoning,\nthe LLMs to be tested did not show obvious tendencies"
+		},
+		{
+			"executor": "codex",
+			"url": "https://aclanthology.org/2026.lrec-1.182.pdf",
+			"view": "pdf",
+			"level": "exact",
+			"quote": "mean = 0.779, std = 0.0531",
+			"page": "hen the hint\nwas added. For two non-contradictory contexts\nwithout a hint, the accuracy scores range from\n0.7075 (claude-sonnet-4-5-20250929) to 0.8491\n(gemini-2.5-flash) (mean = 0.779, std = 0.0531).\nAdding the hint that the contexts might be contradictory decreased the accuracy scores for all LLMs\nto a range from 0.2453 (llama3) to 0.7358 (gpt-5)\n(mean = 0.562"
+		},
+		{
+			"executor": "codex",
+			"url": "https://aclanthology.org/2026.lrec-1.182.pdf",
+			"view": "pdf",
+			"level": "exact",
+			"quote": "mean = 0.562, std = 0.167",
+			"page": "79, std = 0.0531).\nAdding the hint that the contexts might be contradictory decreased the accuracy scores for all LLMs\nto a range from 0.2453 (llama3) to 0.7358 (gpt-5)\n(mean = 0.562, std = 0.167).\nWi"
+		},
+		{
+			"executor": "codex",
+			"url": "https://microsoft.github.io/ai-agents-for-beginners/12-context-engineering/",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "the older instruction is removed or explicitly overridden in the context",
+			"page": " conflicting search results or get confused about which preference to prioritize.\nSolution: Implement context pruning. When a new instruction contradicts an old one, the older instruction is removed or explicitly overridden in the context. Alternatively, the agent can"
+		},
+		{
+			"executor": "codex",
+			"url": "https://aclanthology.org/2024.tacl-1.9/",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "multi-document question answering and key-value retrieval",
+			"page": "well they use longer context. We analyze the performance of language models on two tasks that require identifying relevant information in their input contexts: multi-document question answering and key-value retrieval. We find that performance can degrade significantly when changing the position of relevant information, indicating that current language models do not robustly make use o"
+		},
+		{
+			"executor": "codex",
+			"url": "https://aclanthology.org/2024.tacl-1.9/",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "performance can degrade significantly when changing the position of relevant information",
+			"page": "models on two tasks that require identifying relevant information in their input contexts: multi-document question answering and key-value retrieval. We find that performance can degrade significantly when changing the position of relevant information, indicating that current language models do not robustly mak"
+		},
+		{
+			"executor": "codex",
+			"url": "https://research.google/pubs/found-in-the-middle-calibrating-positional-attention-bias-improves-long-context-utilization/",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "improved retrieval-augmented generation (RAG) performance across various tasks, outperforming existing methods by up to 15 percentage points.",
+			"page": "dle. Third, we show found-in-the-middle not only achieves better performance in locating relevant information within a long context, but also eventually leads to improved retrieval-augmented generation (RAG) performance across various tasks, outperforming existing methods by up to 15 percentage points. These findings open up future directions in understanding LLM attention bias and its potential consequences.\nMeet the teams driving innovation\nOur teams advance"
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.dbreunig.com/2025/06/26/how-to-fix-your-context.html",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "Tool Loadout is the act of selecting only relevant tool definitions to add to your context.",
+			"page": " last time: if you treat your context like a junk drawer, the junk will influence your response. If you want to learn more, here’s a new course that looks great.\nTool Loadout\nTool Loadout is the act of selecting only relevant tool definitions to add to your context.\nThe term “loadout” is a gaming term that refers to the specific combination of abilities, weapons, and equipment you select before a level, match, or round. Usually, your loadou"
+		},
+		{
+			"executor": "codex",
+			"url": "https://aclanthology.org/2024.emnlp-main.447/",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "weaker models suffer from low recall",
+			"page": " (RQ1) and analyze LLMs’ conflict resolution behaviors (RQ2). Our key findings include: (1) NLI and LLM models exhibit high precision in detecting answer conflicts, though weaker models suffer from low recall; (2) FC models struggle with lexically similar answer conflicts, while NLI and LLM models handle these better; and (3) stronger models like GPT-4 show robust performance, espe"
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.trychroma.com/research/context-rot",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "their performance grows increasingly unreliable as input length grows.",
+			"page": "evaluate 18 LLMs, including the state-of-the-art GPT-4.1, Claude 4, Gemini 2.5, and Qwen3 models. Our results reveal that models do not use their context uniformly; instead, their performance grows increasingly unreliable as input length grows.\nClaude Sonnet 4, GPT-4.1, Qwen3-32B, and Gemini 2.5 Flash on Repeated Words Task\n—Table of Contents\nIntroduction\nRelated Work\nNeedle in a Haystack Extension\nNeedle-Question Si"
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.trychroma.com/research/context-rot",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "In this report, we evaluate 18 LLMs",
+			"page": " 100th. However, in practice, this assumption does not hold. We observe that model performance varies significantly as input length changes, even on simple tasks.\nIn this report, we evaluate 18 LLMs, including the state-of-the-art GPT-4.1, Claude 4, Gemini 2.5"
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.trychroma.com/research/context-rot",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "a conversational question-answer evaluation using LongMemEval",
+			"page": "f needles with semantic, rather than direct lexical matches, as well as the effects of introducing variations to the haystack content.\nAdditionally, we include a conversational question-answer evaluation using LongMemEval [2], as well as a synthetic task in which models replicate a series of repeated words. Each task remains intentionally simple and is deliberately controlled to is"
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.trychroma.com/research/context-rot",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "We extend the standard NIAH task",
+			"page": " typically assesses direct lexical matching, which may not be representative of flexible, semantically oriented tasks.\nExample Needle in a Haystack (NIAH) Setup\nWe extend the standard NIAH task, to investigate model behavior in previously underexplored settings. We examine the effects of needles with semantic, rather than direct lexical matches, as well as the effec"
+		},
+		{
+			"executor": "codex",
+			"url": "https://arxiv.org/abs/2406.16008",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "improved retrieval-augmented generation (RAG) performance across various tasks, outperforming existing methods by up to 15 percentage points",
+			"page": "e. Third, we show found-in-the-middle not only achieves better performance in locating relevant information within a long context, but also eventually leads to improved retrieval-augmented generation (RAG) performance across various tasks, outperforming existing methods by up to 15 percentage points. These findings open up future directions in understanding LLM attention bias and its potential consequences.\nComments:\nACL Findings 2024\nSubjects:\nComputation"
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.dbreunig.com/2025/06/22/how-contexts-fail-and-how-to-fix-them.html",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "a hallucination or other error makes it into the context, where it is repeatedly referenced",
+			"page": "ntext Confusion: When superfluous context influences the response\nContext Clash: When parts of the context disagree\nContext Poisoning\nContext Poisoning is when a hallucination or other error makes it into the context, where it is repeatedly referenced.\nThe Deep Mind team called out context poisoning in the Gemini 2.5 technical report, which we broke down last week. When playing Pokémon, the Gemini agent would occasionall"
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.proceedings.com/content/079/079017-4136open.pdf",
+			"view": "pdf",
+			"level": "normalized",
+			"quote": "poisoning the long-term memory or knowledge base of the victim LLM agent using very few malicious demonstrations",
+			"page": "his paper, we propose a novel red-teaming approach AGENT P OISON, the first backdoor attack\ntargeting generic LLM agents based on RAG. AGENT P OISON is launched by poisoning the long-term\nmemory or knowledge base of the victim LLM agent using very few malicious demonstrations,\neach containing a valid query, an optimized trigger, and some prescribed adversarial targets (e.g.,\na dangerous sudden stop action for autonomous driving agents). The goa"
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.proceedings.com/content/079/079017-4136open.pdf",
+			"view": "pdf",
+			"level": "normalized",
+			"quote": "the attacker has partial access to the RAG database of the victim agent",
+			"page": "odel\n\nAssumptions for the attacker We follow the standard assumption from previous backdoor\nattacks against LLMs [13, 31] and RAG systems [41, 43]. We assume that the attacker has\npartial access to the RAG database of the victim agent and can inject a small number of malicious instances to create a poisoned database Dpoiso"
+		},
+		{
+			"executor": "codex",
+			"url": "https://learn.microsoft.com/en-us/security/zero-trust/catalog-ai-attack-techniques/ai-memory-context-poisoning",
+			"view": "text",
+			"level": "exact",
+			"quote": "Apply – source approval, provenance tracking, integrity checks, versioning, change review, rollback, and monitoring",
+			"page": "isible memory. Manage persistent memory, conversation summaries, agent scratchpads, runtime context, embeddings, and vector stores as critical supply-chain dependencies. Apply – source approval, provenance tracking, integrity checks, versioning, change review, rollback, and monitoring — for any memory or context artifact that can influence model behavior or agent decisions.\r\n- **Memory Access Governance:** Treat memory writes as privileged operations. Requ"
+		},
+		{
+			"executor": "codex",
+			"url": "https://learn.microsoft.com/en-us/security/zero-trust/catalog-ai-attack-techniques/ai-memory-context-poisoning",
+			"view": "text",
+			"level": "exact",
+			"quote": "Treat memory writes as privileged operations. Require policy checks for what types of data may be persisted.",
+			"page": "versioning, change review, rollback, and monitoring — for any memory or context artifact that can influence model behavior or agent decisions.\r\n- **Memory Access Governance:** Treat memory writes as privileged operations. Require policy checks for what types of data may be persisted.\r\n- **Schema-Bound Memory:** Restrict memory to structured fields only (preferences, identifiers, metadata). No free‑text or arbitrary content.\r\n- **Memory Sanitization"
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.langchain.com/blog/context-engineering-for-agents",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "Context Distraction: When the context overwhelms the training",
+			"page": " nicely outlined a number of specific ways that longer context can cause perform problems, including:\nContext Poisoning: When a hallucination makes it into the context\nContext Distraction: When the context overwhelms the training\nContext Confusion: When superfluous context influences the response\nContext Clash: When parts of the context disagree\nContext from tool calls accumulates "
+		},
+		{
+			"executor": "codex",
+			"url": "https://proceedings.mlr.press/v202/shi23a/shi23a.pdf",
+			"view": "pdf",
+			"level": "normalized",
+			"quote": "to each base problem one sentence containing irrelevant information.",
+			"page": "blems, 60 of them can be solved with two\nreasoning steps. The full dataset statistics can be found in\nAppendix A.\nWe then generate the examples of our new dataset by adding\nto each base problem one sentence containing irrelevant\ninformation. We use a template-based method (Figure 1) to\ngenerate these sentences, which can be characterized by the\nfollowing three factors:\n• Topic of the inserted sentence. We wri"
+		},
+		{
+			"executor": "codex",
+			"url": "https://proceedings.mlr.press/v202/shi23a/shi23a.pdf",
+			"view": "pdf",
+			"level": "exact",
+			"quote": "affect the standard solution of the base problem.",
+			"page": "answer prediction without such intermediate reasoning steps.\n\nWe manually verify that (1) all the generated sentences are\nacceptable in English and that (2) adding them does not\naffect the standard solution of the base problem. Because\nthe above factors are orthogonal, we generate for each base\nexample a set of derived examples with different factor\ncombinations. The full GSM-IC benchmark cons"
+		},
+		{
+			"executor": "codex",
+			"url": "https://proceedings.mlr.press/v202/shi23a/shi23a.pdf",
+			"view": "pdf",
+			"level": "normalized",
+			"quote": "on GSM-IC greatly decreases compared to the original GSM8K",
+			"page": "\nhttp://openai.com/api/\n\n\fLarge Language Models Can Be Easily Distracted by Irrelevant Context\n\n2. Related Work\n\nChowdhery et al., 2022).We find that their performance\non GSM-IC greatly decreases compared to the original\nGSM8K (without irrelevant context). We then investigate\nseveral approaches to mitigate this weakness, including\nself-consistency (Wang et al., 2022c) and adding irrelevant"
+		},
+		{
+			"executor": "codex",
+			"url": "https://proceedings.mlr.press/v202/shi23a/shi23a.pdf",
+			"view": "pdf",
+			"level": "normalized",
+			"quote": "simply adding an instruction to ignore irrelevant information brings notable performance gains on our benchmark.",
+			"page": "\n\nTable 8. A DROP example about football games.\n\nproblems with irrelevant context in the prompt also consistently improves the performance. Similarly, we find that\nsimply adding an instruction to ignore irrelevant information\nbrings notable performance gains on our benchmark.\nDespite the improvement achieved by these methods, the\nfundamental issue remains: a single piece of irrelevant information can distract the models and substantially degrad"
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.oreilly.com/radar/working-with-contexts/",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "Context confusion leads to irrelevant tool or document usage.",
+			"page": ". Context poisoning embeds errors that compound over time. Context distraction causes agents to lean heavily on their context and repeat past actions rather than push forward. Context confusion leads to irrelevant tool or document usage. Context clash creates internal contradictions "
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.oreilly.com/radar/working-with-contexts/",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "Context confusion is when superfluous content in the context is used by the model to generate a low-quality response.",
+			"page": "ntext windows? In a nutshell: summarization3 and fact retrieval. If you’re not doing either of those, be wary of your chosen model’s distraction ceiling.\nContext Confusion\nContext confusion is when superfluous content in the context is used by the model to generate a low-quality response.\nFor a minute there, it really seemed like everyone was going to ship an MCP. The dream of a powerful model, connected to all your services and stuff, doing all your mundane tasks"
+		},
+		{
+			"executor": "codex",
+			"url": "https://arxiv.org/html/2310.03128",
+			"view": "rendered",
+			"level": "normalized",
+			"quote": "the most similar tools of t as top-(n-1)ₜ, which are selected based on the cosine similarity of their embeddings",
+			"page": "enoted as E⁡(t) , where E⁡(⋅) represents the embedding function (here, we utilize the text-embedding-ada-002 model (OpenAI, 2023c) to generate embeddings). Denote the most similar tools of t as top-(n−1)t , which are selected based on the cosine similarity of their embeddings: top-(n−1)t=arg top-kt′∈T\\{t}​sim​(E⁡(t),E⁡(t′)) . Consequently, Lt={t}"
+		},
+		{
+			"executor": "codex",
+			"url": "https://arxiv.org/html/2310.03128",
+			"view": "rendered",
+			"level": "normalized",
+			"quote": "Consequently, Lₜ={t}∪top-(n-1)ₜ.",
+			"page": "he most similar tools of t as top-(n−1)t , which are selected based on the cosine similarity of their embeddings: top-(n−1)t=arg top-kt′∈T\\{t}​sim​(E⁡(t),E⁡(t′)) . Consequently, Lt={t}∪top-​(n−1)t .\nSub-task 2: tool selection in specific scenarios. The objective of this task is to simulate how LLMs perform using tools when they act as controllers of a system (Shen e"
+		},
+		{
+			"executor": "codex",
+			"url": "https://arxiv.org/html/2310.03128",
+			"view": "rendered",
+			"level": "math",
+			"quote": "we remove the ground-truth tool $t$ of query $q$ and $t$’s most similar $k$ tools",
+			"page": " as the way in Task 1. Then we randomly sample n tools from the rest tool set T′ to construct Lt , denoted as Lt={t1,t2,…,tn} where ti∈T′​(1≤i≤n) and T′=T\\({t}∪top-kt) . Overall, we remove the ground-truth tool t of query q and t′ s most similar k tools to keep the tools in Lt not related to t as much as possible.\nSub-task 4: multi-tool selection. In addition to testing the selection of single tools, like previous resear"
+		},
+		{
+			"executor": "codex",
+			"url": "https://arxiv.org/html/2310.03128",
+			"view": "tex",
+			"level": "normalized",
+			"quote": "Tool selection with possible reliability issues | The tools randomly chosen are from the remaining set of tools, which excludes tool $t$ and its $k$ most similar tools. | $\\varnothing$",
+			"page": "eal output\nTool selection with similar choices\nTool $t$ and its most similar $(n-1)$ tools.\n$t$\nTool selection in specific scenarios\nSpecified tools in a certain scenario.\n$t$\nTool selection with possible reliability issues\nThe tools randomly chosen are from the remaining set of tools, which excludes tool $t$ and its $k$ most similar tools.\n$\\varnothing$\nMulti-tool Selection\nThe tools randomly chosen are from the remaining set of tools, which excludes the union set of $k$ most similar tools of $t\\in S_{t}$ , wh"
+		},
+		{
+			"executor": "codex",
+			"url": "https://arxiv.org/html/2310.03128",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "For single-tool tasks, if no matches are found, it is recorded as \"None.\"",
+			"page": "yes.\"\nFor cases not covered by the above rules, the answers are analyzed manually.\nTool selection. We match the names of tools from the results that contain a tool list. For single-tool tasks, if no matches are found, it is recorded as \"None.\" If one match is found, and \"None\" is not present in the results, it "
+		},
+		{
+			"executor": "codex",
+			"url": "https://microsoft.github.io/ai-agents-for-beginners/12-context-engineering/",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "When conflicting information exists within the context, leading to inconsistent reasoning or bad final responses.",
+			"page": "only the most relevant tools like rent_car or public_transport_info based on your query, presenting a focused “loadout” of tools to the LLM.\nContext Clash\nWhat it is: When conflicting information exists within the context, leading to inconsistent reasoning or bad final responses. This often happens when informa"
+		},
+		{
+			"executor": "codex",
+			"url": "https://arxiv.org/abs/2502.08745",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "a novel benchmark comprising 3,538 examples across nine tasks",
+			"page": ", and there is a lack of comprehensive benchmarks for evaluating models' ability to follow the instruction hierarchy. We bridge this gap by introducing IHEval, a novel benchmark comprising 3,538 examples across nine tasks, covering cases where instructions in different priorities either align or conflict. Our evaluation of popular LMs highlights their struggle to recognize instruct"
+		},
+		{
+			"executor": "codex",
+			"url": "https://microsoft.github.io/ai-agents-for-beginners/12-context-engineering/",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "the older instruction is removed or explicitly overridden in the context",
+			"page": " conflicting search results or get confused about which preference to prioritize.\nSolution: Implement context pruning. When a new instruction contradicts an old one, the older instruction is removed or explicitly overridden in the context. Alternatively, the agent can"
+		},
+		{
+			"executor": "codex",
+			"url": "https://feeds.simonwillison.net/2025/Jun/29/how-to-fix-your-context/",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "he described four common patterns for context rot",
+			"page": " free\n29th June 2025 - Link Blog\nHow to Fix Your Context. Drew Breunig has been publishing some very detailed notes on context engineering recently. In How Long Contexts Fail he described four common patterns for context rot, which he summarizes like so:\nContext Poisoning: When a hallucination or other error makes it into the context, where it is repeatedly referenced.\nContext Distraction: Whe"
+		},
+		{
+			"executor": "codex",
+			"url": "https://learn.microsoft.com/en-us/security/zero-trust/catalog-ai-attack-techniques/ai-memory-context-poisoning",
+			"view": "text",
+			"level": "exact",
+			"quote": "Memory/Context Poisoning occurs when an attacker injects malicious or manipulative content into these long‑lived memory channels.",
+			"page": "zed, efficient, and agentic experiences. However, as soon as memory becomes part of the system’s decision‑making loop, it becomes a **new, durable attack surface**.\r\n\r\nMemory/Context Poisoning occurs when an attacker injects malicious or manipulative content into these long‑lived memory channels. Unlike a one‑time prompt injection, memory poisoning **persists across sessions**, subtly altering how the model reasons, plans, responds, and acts in future tasks. This can happ"
+		},
+		{
+			"executor": "codex",
+			"url": "https://learn.microsoft.com/en-us/security/zero-trust/catalog-ai-attack-techniques/ai-memory-context-poisoning",
+			"view": "text",
+			"level": "normalized",
+			"quote": "memory poisoning persists across sessions, subtly altering how the model reasons, plans, responds, and acts in future tasks.",
+			"page": "y/Context Poisoning occurs when an attacker injects malicious or manipulative content into these long‑lived memory channels. Unlike a one‑time prompt injection, memory poisoning **persists across sessions**, subtly altering how the model reasons, plans, responds, and acts in future tasks. This c"
+		},
+		{
+			"executor": "codex",
+			"url": "https://proceedings.neurips.cc/paper_files/paper/2024/file/eb113910e9c3f6242541c1652e30dfd6-Paper-Conference.pdf",
+			"view": "pdf",
+			"level": "exact",
+			"quote": "82% retrieval success rate and 63% end-to-end attack success rate",
+			"page": "ON on three types of LLM agents for autonomous\ndriving, dialogues, and healthcare, respectively. We show that AGENT P OISON outperforms baseline\nattacks by achieving 82% retrieval success rate and 63% end-to-end attack success rate with less than\n1% drop in the benign performance and with poisoning ratio less than 0.1%. We also find that our\n2\n\n\ftrigger optimized for one type of RAG embedder can b"
+		},
+		{
+			"executor": "codex",
+			"url": "https://proceedings.neurips.cc/paper_files/paper/2024/file/eb113910e9c3f6242541c1652e30dfd6-Paper-Conference.pdf",
+			"view": "pdf",
+			"level": "normalized",
+			"quote": "retrieval success rate of 81.2% in average",
+			"page": " invariably degrade all retrievals. As a comparison, AGENT P OISON has minimal impact on\nbenign performance of average 0.74% while outperforming the baselines in terms of retrieval success\nrate of 81.2% in average, while an average 59.4% generates target actions where"
+		},
+		{
+			"executor": "codex",
+			"url": "https://learn.microsoft.com/en-us/security/zero-trust/catalog-ai-attack-techniques/ai-memory-context-poisoning",
+			"view": "text",
+			"level": "exact",
+			"quote": "Memory/Context Poisoning occurs when an attacker injects malicious or manipulative content into these long‑lived memory channels.",
+			"page": "zed, efficient, and agentic experiences. However, as soon as memory becomes part of the system’s decision‑making loop, it becomes a **new, durable attack surface**.\r\n\r\nMemory/Context Poisoning occurs when an attacker injects malicious or manipulative content into these long‑lived memory channels. Unlike a one‑time prompt injection, memory poisoning **persists across sessions**, subtly altering how the model reasons, plans, responds, and acts in future tasks. This can happ"
+		},
+		{
+			"executor": "codex",
+			"url": "https://learn.microsoft.com/en-us/security/zero-trust/catalog-ai-attack-techniques/ai-memory-context-poisoning",
+			"view": "text",
+			"level": "normalized",
+			"quote": "memory poisoning persists across sessions, subtly altering how the model reasons, plans, responds, and acts in future tasks.",
+			"page": "y/Context Poisoning occurs when an attacker injects malicious or manipulative content into these long‑lived memory channels. Unlike a one‑time prompt injection, memory poisoning **persists across sessions**, subtly altering how the model reasons, plans, responds, and acts in future tasks. This c"
+		},
+		{
+			"executor": "codex",
+			"url": "https://proceedings.neurips.cc/paper_files/paper/2024/file/97091a5177d8dc64b1da8bf3e1f6fb54-Paper-Datasets_and_Benchmarks_Track.pdf",
+			"view": "pdf",
+			"level": "exact",
+			"quote": "We evaluate each agent on our full suite of 629 security test cases, for 97 different user tasks.",
+			"page": " Except for Llama 3, which does\nnot provide function calling out-of-the-box, we query all LLMs using the official providers’ APIs,\nfollowing the respective documentation.\nWe evaluate each agent on our full suite of 629 security test cases, for 97 different user tasks. For\nadditional experiments and ablations on attack and defense components, we focus on GPT-4o as it is\nthe model with the highest (benign) utility on our suite"
+		},
+		{
+			"executor": "codex",
+			"url": "https://proceedings.neurips.cc/paper_files/paper/2024/file/97091a5177d8dc64b1da8bf3e1f6fb54-Paper-Datasets_and_Benchmarks_Track.pdf",
+			"view": "pdf",
+			"level": "normalized",
+			"quote": "Security tests consist of an attacker goal (e.g., leak the victim’s emails) and an injection endpoint (e.g., an email in the user’s inbox).",
+			"page": "ate the\nprogress of AI agents, prompt injections attacks, and defenses.\nprovides an AI agent with tasks (e.g., summarizing and sending emails) and access to tools to solve\nthem. Security tests consist of an attacker goal (e.g., leak the victim’s emails) and an injection\nendpoint (e.g., an email in the user’s inbox).\nIn contrast to prior benchmarks for AI Agents [32, 43, 50, 68] and for prompt injections [34, 57,\n66, 71], AgentDojo requires agents to dynamically call multiple tools in a state"
+		},
+		{
+			"executor": "codex",
+			"url": "https://arxiv.org/html/2307.03172v3",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "all models achieve near-perfect performance on the 75, 140, and 300 key-value pair settings",
+			"page": "ntextualization of documents (or key-value pairs)?\nWe find that query-aware contextualization dramatically improves performance on the key-value retrieval task—all models achieve near-perfect performance on the 75, 140, and 300 key-value pair settings. For example, GPT-3.5-Turbo (16K) with query-aware contextualization achieves perfect performance when evaluated with 300 key-value pairs.\nIn contrast, without query-aware "
+		},
+		{
+			"executor": "codex",
+			"url": "https://arxiv.org/html/2307.03172v3",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "query-aware contextualization minimally affects performance trends in the multi-document question answering task",
+			"page": "contrast, without query-aware contextualization, the worst-case performance is 45.6% (Figure 7).\nDespite the significant impact on key-value retrieval performance, query-aware contextualization minimally affects performance trends in the multi-document question answering task (Figure 9); it slightly improves performance when the relevant information is located at the very beginning of the input context, but slightly decreases performance in oth"
+		},
+		{
+			"executor": "codex",
+			"url": "https://aclanthology.org/2025.findings-emnlp.466/",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "both open-source and proprietary models struggle with conflict detection—especially when multi-hop reasoning is required",
+			"page": "tional structure of KGs.Experimental results on our benchmark, MAGIC, provide intriguing insights into the inner workings of LLMs regarding knowledge conflict: both open-source and proprietary models struggle with conflict detection—especially when multi-hop reasoning is required—and often fail to pinpoint the exact source of contradictions.Finally, we present in-depth analyses that serve as a foundation for improving LLMs in integratin"
+		},
+		{
+			"executor": "codex",
+			"url": "https://aclanthology.org/2025.findings-emnlp.466.pdf",
+			"view": "pdf",
+			"level": "normalized",
+			"quote": "multi-hop conflicts introduce greater complexity",
+			"page": "ingle-hop conflicts, often involving entity or relation substitutions, are relatively easier, with models performing well in both identification and localization. In contrast, multi-hop conflicts introduce\ngreater complexity, as contradictions become more\nindirect, leading to lower ID and LOC scores. Localization is especially difficult in multi-hop cases,\nas conflicts often span multiple "
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.trychroma.com/research/context-rot",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "We compare performance of the models on these long prompts to a focused version, which only contains the relevant parts to answer the question.",
+			"page": "e out to ~113k tokens.\nThese long prompts mostly consist of content irrelevant to the question, and sometimes distractors which may seem relevant to the question. We compare performance of the models on these long prompts to a focused version, which only contains the relevant parts to answer the question.\nFocused prompts average to ~300 tokens, which are derived from the originally labeled dataset and manual adjustments.\nModel outputs were judged using an aligned LLM "
+		},
+		{
+			"executor": "codex",
+			"url": "https://aclanthology.org/2025.findings-emnlp.1264/",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "prompting the model to recite the retrieved evidence before attempting to solve the problem",
+			"page": "quality and without any distraction. They motivate our simple, model-agnostic mitigation strategy that transforms a long-context task into a short-context one by prompting the model to recite the retrieved evidence before attempting to solve the problem. On RULER, we observe a consistent improvement of GPT-4o up to 4% on an already strong baseline.\nAnthology ID:\n2025.findings-emnlp.1264\nVolume:\nFindings of the Associatio"
+		},
+		{
+			"executor": "codex",
+			"url": "https://aclanthology.org/2025.findings-emnlp.1264/",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "On RULER, we observe a consistent improvement of GPT-4o up to 4% on an already strong baseline.",
+			"page": " strategy that transforms a long-context task into a short-context one by prompting the model to recite the retrieved evidence before attempting to solve the problem. On RULER, we observe a consistent improvement of GPT-4o up to 4% on an already strong baseline.\nAnthology ID:\n2025.findings-emnlp.1264\nVolume:\nFindings of the Association for Computational Linguistics: EMNLP 2025\nMonth:\nNovember\nYear:\n2025\nAddress:\nSuzhou, China\nEditors:\nC"
+		},
+		{
+			"executor": "codex",
+			"url": "https://arxiv.org/html/2302.00093v3",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "we keep all sentences in the original problem description, and introduce an irrelevant sentence that is ensured not to affect the standard answer.",
+			"page": "ying sentences to change the ground-truth classification labels.\nIn contrast the above work where the meaning of problem descriptions may be changed with perturbations, we keep all sentences in the original problem description, and introduce an irrelevant sentence that is ensured not to affect the standard answer.\nNatural language benchmarks with irrelevant input context.\nJia & Liang (2017) have shown that neural question answering systems are largely affected by adversarial dist"
+		},
+		{
+			"executor": "codex",
+			"url": "https://arxiv.org/html/2302.00093v3",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "adding an instruction to ignore irrelevant information brings notable performance gains on our benchmark.",
+			"page": "ontext across the board, and presenting example problems with irrelevant context in the prompt also consistently improves the performance. Similarly, we find that simply adding an instruction to ignore irrelevant information brings notable performance gains on our benchmark.\nDespite the improvement achieved by these methods, the fundamental issue remains: a single piece of irrelevant information can distract the models and substantially"
+		},
+		{
+			"executor": "codex",
+			"url": "https://microsoft.github.io/ai-agents-for-beginners/12-context-engineering/",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "select only the most relevant tools for each specific task",
+			"page": "levant tools. Smaller models are especially prone to this.\nWhat to do: Implement tool loadout management using RAG techniques. Store tool descriptions in a vector database and select only the most relevant tools for each specific task. Research shows limiting tool selections to fewer than 30.\nTravel Booking Example: Your agent has access to dozens of tools: book_flight, book_hotel, rent_car, find_tours, curre"
+		},
+		{
+			"executor": "codex",
+			"url": "https://www.dbreunig.com/2026/10/24/the-state-of-context-engineering.html",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "context clash is when tool calls, skills, and other information within your harness start to conflict and work against you in ways you didn’t expect.",
+			"page": "re not going to dig into it today, but it’s one of my favorite failure modes. The model makes assumptions about who you are, and those assumptions influence the answer.\nFinally, context clash is when tool calls, skills, and other information within your harness start to conflict and work against you in ways you didn’t expect.\n(How many of you keep memory on in ChatGPT or Claude? I turn it off. I hate it. Sometimes I’m talking about work conversations; sometimes I’m talking about a project I’"
+		},
+		{
+			"executor": "codex",
+			"url": "https://microsoft.github.io/ai-agents-for-beginners/12-context-engineering/",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "If both instructions remain in the context, the agent might receive conflicting search results or get confused about which preference to prioritize.",
+			"page": ": You initially tell your agent, “I want to fly economy class.” Later in the conversation, you change your mind and say, “Actually, for this trip, let’s go business class.” If both instructions remain in the context, the agent might receive conflicting search results or get confused about which preference to prioritize.\nSolution: Implement context pruning. When a new instruction contradicts an old one, the older instruction is removed or explicitly overridden in the context. Alternativel"
+		},
+		{
+			"executor": "codex",
+			"url": "https://microsoft.github.io/ai-agents-for-beginners/12-context-engineering/",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "I want to fly economy class.",
+			"page": "loading gives the model a separate “scratchpad” workspace to process information without cluttering the main context.\nTravel Booking Example: You initially tell your agent, “I want to fly economy class.” Later in the conversation, you change your mind and say, “Actually, for this trip, let’s go business class.” If both instructions remain in the context, the agent might"
+		},
+		{
+			"executor": "codex",
+			"url": "https://microsoft.github.io/ai-agents-for-beginners/12-context-engineering/",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "Actually, for this trip, let’s go business class.",
+			"page": "hout cluttering the main context.\nTravel Booking Example: You initially tell your agent, “I want to fly economy class.” Later in the conversation, you change your mind and say, “Actually, for this trip, let’s go business class.” If both instructions remain in the context, the agent might receive conflicting search results or get confused about which preference to prioritize.\nSolution: Implemen"
+		},
+		{
+			"executor": "codex",
+			"url": "https://arxiv.org/abs/2310.00935",
+			"view": "rendered",
+			"level": "exact",
+			"quote": "identify knowledge conflicts, 2) pinpoint conflicting information segments, and 3) provide distinct answers or viewpoints",
+			"page": "ntext. In this work we ask what are the desiderata for LLMs when a knowledge conflict arises and whether existing LLMs fulfill them. We posit that LLMs should 1) identify knowledge conflicts, 2) pinpoint conflicting information segments, and 3) provide distinct answers or viewpoints in conflicting scenarios. To this end, we introduce an evaluation framework for simulating contextual knowledge conflicts and quantitatively evaluating to what "
+		}
+	]
+}

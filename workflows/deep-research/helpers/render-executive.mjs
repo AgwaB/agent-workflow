@@ -2075,7 +2075,7 @@ function renderSourceIndex(sourceIndex) {
 	return out;
 }
 
-function renderAuditSummary(report, claimSummary, slots) {
+function renderAuditSummary(report, claimSummary, slots, quoteCheck = null) {
 	const coverage = report?.coverageSummary ?? {};
 	const mismatches = asArray(claimSummary.coverageSummaryMismatch);
 	return [
@@ -2093,8 +2093,90 @@ function renderAuditSummary(report, claimSummary, slots) {
 		...(coverage.researchQuestions != null
 			? [`- Research questions: ${coverage.researchQuestions}.`]
 			: []),
+		...renderQuoteCheckSummaryLine(quoteCheck),
 		"",
 	];
+}
+
+// 2026-11-01: experimental engine-side web quote check (check-web-quotes stage). Shown, never
+// used to change a verdict.
+const QUOTE_CHECK_REASONS = {
+	"quote-not-on-page": "not found on the page",
+	"little-page-text": "page had little text (script-rendered or blocked)",
+	image: "image",
+	audio: "audio",
+	video: "video",
+	"unsupported-type": "unsupported content type",
+	"pdf-tool-missing": "pdftotext not installed",
+	"pdf-extract-failed": "PDF text extraction failed",
+	"http-error": "HTTP error",
+	timeout: "timed out",
+	"blocked-address": "non-public address",
+	"dns-failed": "host not found",
+	"too-large": "page too large",
+	"too-many-redirects": "too many redirects",
+	"network-error": "network error",
+	"invalid-url": "invalid URL",
+	"unsupported-scheme": "not an http(s) URL",
+	"credentials-in-url": "URL carries credentials",
+	"no-quote": "no quote given",
+	aborted: "stopped",
+};
+
+function quoteCheckOf(source) {
+	if (!isRecord(source) || source.enabled !== true) return null;
+	if (!isRecord(source.summary) || !Array.isArray(source.results)) return null;
+	return source;
+}
+
+function quoteCheckReasonText(byReason) {
+	return Object.entries(isRecord(byReason) ? byReason : {})
+		.filter(([, count]) => Number(count) > 0)
+		.sort((a, b) => Number(b[1]) - Number(a[1]))
+		.map(([reason, count]) => `${QUOTE_CHECK_REASONS[reason] ?? reason} ${count}`)
+		.join(", ");
+}
+
+function renderQuoteCheckSummaryLine(quoteCheck) {
+	if (!quoteCheck) return [];
+	const summary = quoteCheck.summary;
+	const reasons = quoteCheckReasonText(summary.byReason);
+	return [
+		`- Quote check (engine re-fetch, experimental): ${summary.verified} of ${summary.quotes} quotes found on the cited page${
+			summary.unverified > 0
+				? `; ${summary.unverified} not checked (${reasons}) — listed in [audit](audit.md)`
+				: ""
+		}.`,
+	];
+}
+
+function renderQuoteCheckAudit(quoteCheck) {
+	if (!quoteCheck) return [];
+	const summary = quoteCheck.summary;
+	const levels = isRecord(summary.byLevel) ? summary.byLevel : {};
+	const out = [
+		"",
+		"## Quote check (engine re-fetch, experimental)",
+		"",
+		"The engine fetched each cited web page itself and looked for the verifier's quote. No model was involved; verdicts above are unchanged.",
+		"",
+		`- Quotes: ${summary.quotes} on ${summary.pages} pages; found ${summary.verified} (exact ${Number(levels.exact ?? 0)}, after normalization ${Number(levels.normalized ?? 0)}, math notation ${Number(levels.math ?? 0)}); not checked ${summary.unverified}.`,
+	];
+	const unchecked = quoteCheck.results.filter(
+		(row) => isRecord(row) && row.grade !== "verified-refetched",
+	);
+	if (unchecked.length > 0) {
+		out.push(
+			"",
+			"| Claim | Source | Quote | Why not checked |",
+			"| --- | --- | --- | --- |",
+		);
+		for (const row of unchecked)
+			out.push(
+				`| ${escapeTableCell(row.claimId ?? "")} | ${escapeTableCell(row.url ?? "")} | ${escapeTableCell(truncateWords(cleanText(row.quote ?? ""), 24))} | ${escapeTableCell(row.reason === "http-error" && row.detail ? row.detail : (QUOTE_CHECK_REASONS[row.reason] ?? row.reason ?? ""))} |`,
+			);
+	}
+	return out;
 }
 
 function renderRelatedArtifacts() {
@@ -2224,7 +2306,7 @@ function renderResearchMarkdown(control, packetSource, options = {}) {
 		...renderEvidenceStrength(report),
 		...renderCaveats(report),
 		...renderSourceIndex(sourceIndex),
-		...renderAuditSummary(report, claimSummary, slots),
+		...renderAuditSummary(report, claimSummary, slots, options.quoteCheck),
 		...renderRelatedArtifacts(),
 	];
 
@@ -2266,7 +2348,7 @@ function synthesisClaimRows(control, rows) {
 	return ids.map((id) => rowById.get(id)).filter(Boolean);
 }
 
-function renderAuditMarkdown(control, packetSource, rendered) {
+function renderAuditMarkdown(control, packetSource, rendered, quoteCheck = null) {
 	const packet = packetSource?.packet ?? {};
 	const report = control?.finalReport ?? {};
 	const ledger = asArray(packet.claimVerdictLedger);
@@ -2355,6 +2437,7 @@ function renderAuditMarkdown(control, packetSource, rendered) {
 				`- ${caveatText(failure) || escapeMarkdownText(stringifyItem(failure))}`,
 			);
 	}
+	out.push(...renderQuoteCheckAudit(quoteCheck));
 	out.push(
 		"",
 		"## Renderer diagnostics",
@@ -2408,9 +2491,11 @@ export default async function renderExecutive({
 }) {
 	let control;
 	let auditPacket;
+	let quoteCheck = null;
 	try {
 		control = findSource(sources, "final-audit");
 		auditPacket = findSource(sources, "final-audit-packet");
+		quoteCheck = quoteCheckOf(findSource(sources, "check-web-quotes"));
 	} catch (error) {
 		return blockedSourceResult(
 			error instanceof Error ? error.message : String(error),
@@ -2480,14 +2565,22 @@ export default async function renderExecutive({
 			? Math.max(0, Number(options.maxUrls))
 			: Infinity,
 	};
-	const rendered = renderResearchMarkdown(control, auditPacket, opts);
+	const rendered = renderResearchMarkdown(control, auditPacket, {
+		...opts,
+		quoteCheck,
+	});
 	let markdown = rendered.markdown;
 	let truncated = false;
 	if (Number.isFinite(opts.maxWords) && countWords(markdown) > opts.maxWords) {
 		truncated = true;
 		markdown = truncateWords(markdown, opts.maxWords);
 	}
-	const auditMarkdown = renderAuditMarkdown(control, auditPacket, rendered);
+	const auditMarkdown = renderAuditMarkdown(
+		control,
+		auditPacket,
+		rendered,
+		quoteCheck,
+	);
 	const serializationArtifact =
 		hasObjectSerializationArtifact(markdown) ||
 		hasObjectSerializationArtifact(auditMarkdown);
@@ -2558,6 +2651,7 @@ export default async function renderExecutive({
 		})),
 		claimSummary: rendered.claimSummary,
 		factSlotSummary: rendered.factSlotSummary,
+		...(quoteCheck ? { quoteCheck: quoteCheck.summary } : {}),
 		sectionCounts: rendered.sectionCounts,
 		renderWarnings: rendered.renderWarnings,
 		sidecarErrors,
