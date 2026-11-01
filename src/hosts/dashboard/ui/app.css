@@ -217,6 +217,7 @@ kbd {
 	margin: 4px 0;
 }
 .need small {
+	overflow-wrap: anywhere;
 	display: block;
 	font-size: 14px;
 	color: var(--muted);
@@ -301,6 +302,7 @@ progress::-moz-progress-bar {
 	font-size: 13px;
 }
 .hero-sub {
+	overflow-wrap: anywhere;
 	color: var(--muted);
 	font-size: 13px;
 	margin-top: 3px;
@@ -372,6 +374,7 @@ progress::-moz-progress-bar {
 }
 .sentence,
 .result-summary {
+	overflow-wrap: anywhere;
 	font-size: 14px;
 	line-height: 1.6;
 	margin-top: 6px;
@@ -951,6 +954,7 @@ dd {
 	margin-top: 1px;
 }
 .inspector-head .agent-sub {
+	overflow-wrap: anywhere;
 	margin-top: 10px;
 	white-space: normal;
 }

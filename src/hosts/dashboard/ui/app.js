@@ -630,7 +630,8 @@ function heroState(run) {
 function heroSubline() {
 	const tasks = agentTasks(run),
 		done = tasks.filter((t) => t.status === "completed").length;
-	return `${run.name} · ${elapsed(run)} · ${liveRun(run) ? `${done} of ${tasks.length} agents done` : `${tasks.length} agents`}`;
+	const noun = tasks.length === 1 ? "agent" : "agents";
+	return `${run.name} · ${elapsed(run)} · ${liveRun(run) ? `${done} of ${tasks.length} ${noun} done` : `${tasks.length} ${noun}`}`;
 }
 const badgeStates = new Map();
 function renderBadge(status) {
@@ -2013,7 +2014,13 @@ function graphSignature(model, layout) {
 function renderRun() {
 	const active = document.activeElement;
 	const focusStage = active?.closest(".node")?.dataset.stage,
-		focusTask = active?.closest(".agent-row")?.dataset.task;
+		focusTask = active?.closest(".agent-row")?.dataset.task,
+		focusMember = active?.closest(".stage-row")?.dataset.stage;
+	const headerKey = (node) =>
+		node.dataset.action || node.getAttribute("aria-label") || node.textContent;
+	const focusedHeader = active?.matches("#run-header button")
+		? headerKey(active)
+		: null;
 	graphModel = deriveGraph(run);
 	const signature = graphSignature(graphModel, state.layout);
 	const canvas = $("canvas");
@@ -2044,9 +2051,17 @@ function renderRun() {
 	}
 	renderSelection();
 	renderModal();
+	if (focusedHeader)
+		[...document.querySelectorAll("#run-header button:not(:disabled)")]
+			.find((node) => headerKey(node) === focusedHeader)
+			?.focus({ preventScroll: true });
 	if (focusTask)
 		document
 			.querySelector(`[data-task="${CSS.escape(focusTask)}"]`)
+			?.focus({ preventScroll: true });
+	else if (focusMember)
+		document
+			.querySelector(`.stage-row[data-stage="${CSS.escape(focusMember)}"]`)
 			?.focus({ preventScroll: true });
 	else if (focusStage)
 		document
@@ -2143,6 +2158,9 @@ function renderSelection() {
 	const previousItems = same ? itemPositions(inspector) : new Map();
 	const focusedItem = same
 		? document.activeElement?.closest("[data-item]")?.dataset.item
+		: null;
+	const focusedFilter = same
+		? document.activeElement?.closest("[data-filter]")?.dataset.filter
 		: null;
 	const detailsOpen = same && inspector.querySelector("details")?.open;
 	const logScroll = same ? inspector.querySelector(".log")?.scrollTop || 0 : 0;
@@ -2371,6 +2389,10 @@ function renderSelection() {
 		if (field?.setSelectionRange && focusedField.start != null)
 			field.setSelectionRange(focusedField.start, focusedField.end);
 	}
+	if (focusedFilter)
+		inspector
+			.querySelector(`[data-filter="${CSS.escape(focusedFilter)}"]`)
+			?.focus({ preventScroll: true });
 	if (focusedItem)
 		inspector
 			.querySelector(`[data-item="${CSS.escape(focusedItem)}"]`)
