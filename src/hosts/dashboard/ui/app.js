@@ -91,20 +91,101 @@ const glyph = (status) =>
 		markIcon(status),
 	);
 function logo() {
+	// Colours come from the theme (app.css .logo rules); the attributes are the dark fallback.
 	return svg(
 		"svg",
-		{ width: 20, height: 20, viewBox: "0 0 20 20", "aria-hidden": "true" },
-		svg("rect", { x: 1, y: 1, width: 18, height: 18, rx: 5, fill: "#eeeff2" }),
+		{
+			class: "logo",
+			width: 20,
+			height: 20,
+			viewBox: "0 0 20 20",
+			"aria-hidden": "true",
+		},
+		svg("rect", {
+			class: "logo-tile",
+			x: 1,
+			y: 1,
+			width: 18,
+			height: 18,
+			rx: 5,
+			fill: "#eeeff2",
+		}),
 		svg("path", {
+			class: "logo-ink",
 			d: "M6.5 6.5l7 3.5-7 3.5",
 			fill: "none",
 			stroke: "#0b0c0f",
 			"stroke-width": 1.4,
 		}),
-		svg("circle", { cx: 6.5, cy: 6.5, r: 2, fill: "#0b0c0f" }),
-		svg("circle", { cx: 6.5, cy: 13.5, r: 2, fill: "#0b0c0f" }),
-		svg("circle", { cx: 13.5, cy: 10, r: 2, fill: "#6fbf8e" }),
+		svg("circle", {
+			class: "logo-ink",
+			cx: 6.5,
+			cy: 6.5,
+			r: 2,
+			fill: "#0b0c0f",
+		}),
+		svg("circle", {
+			class: "logo-ink",
+			cx: 6.5,
+			cy: 13.5,
+			r: 2,
+			fill: "#0b0c0f",
+		}),
+		svg("circle", {
+			class: "logo-live",
+			cx: 13.5,
+			cy: 10,
+			r: 2,
+			fill: "#6fbf8e",
+		}),
 	);
+}
+
+/**
+ * Theme (2026-11-01, owner choice): follow the system by default; the top-bar button pins Light or
+ * Dark (kept in this browser) and cycles Auto → Light → Dark → Auto. CSS does the rest
+ * (`color-scheme` + `light-dark()`), so an unpinned page needs no script to match the system.
+ */
+const THEMES = ["auto", "light", "dark"];
+const THEME_KEY = "agent-workflow:theme";
+function themeChoice() {
+	try {
+		const value = localStorage.getItem(THEME_KEY);
+		return THEMES.includes(value) ? value : "auto";
+	} catch {
+		return "auto";
+	}
+}
+function applyTheme(choice) {
+	if (choice === "auto") delete document.documentElement.dataset.theme;
+	else document.documentElement.dataset.theme = choice;
+}
+function cycleTheme() {
+	const next = THEMES[(THEMES.indexOf(themeChoice()) + 1) % THEMES.length];
+	try {
+		if (next === "auto") localStorage.removeItem(THEME_KEY);
+		else localStorage.setItem(THEME_KEY, next);
+	} catch {
+		// Storage can be unavailable (private mode); the choice then lasts for this page only.
+	}
+	applyTheme(next);
+	themeOverride = next;
+	renderTop();
+	$("theme-button")?.focus({ preventScroll: true });
+}
+let themeOverride = null;
+applyTheme(themeChoice());
+function themeButton() {
+	const choice = themeOverride ?? themeChoice();
+	const name = { auto: "Auto", light: "Light", dark: "Dark" }[choice];
+	const next = { auto: "Light", light: "Dark", dark: "Auto" }[choice];
+	return button(name, cycleTheme, {
+		class: "theme-button",
+		id: "theme-button",
+		"data-theme-choice": choice,
+		"aria-label": `Theme: ${name}. Switch to ${next}`,
+		title: `Theme: ${name} (${choice === "auto" ? "follows the system" : "pinned"}). Click for ${next}.`,
+	});
 }
 const date = (value) => Date.parse(value) || 0;
 let clockOffset = 0;
@@ -379,6 +460,7 @@ function renderTop() {
 		readonly()
 			? element("span", { class: "badge", id: "readonly-badge" }, "Read-only")
 			: null,
+		themeButton(),
 		element("span", { id: "connection", class: "connection", role: "status" }),
 	]);
 	updateConnection();

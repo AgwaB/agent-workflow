@@ -140,7 +140,32 @@ export async function createBrowser(executable) {
 		}
 		throw new Error(`Browser condition timed out: ${fn}`);
 	};
+	// The dashboard follows the system theme (2026-11-01) and headless Chrome reports light. Tests
+	// see the dark palette unless they emulate a colour scheme themselves.
+	let mediaEmulated = false;
+	const sendWithScheme = (method, params, target) => {
+		if (method === "Emulation.setEmulatedMedia") mediaEmulated = true;
+		return send(
+			method,
+			method === "Emulation.setEmulatedMedia" &&
+				!(params?.features ?? []).some(
+					(feature) => feature.name === "prefers-color-scheme",
+				)
+				? {
+						...params,
+						features: [
+							...(params?.features ?? []),
+							{ name: "prefers-color-scheme", value: "dark" },
+						],
+					}
+				: params,
+			target,
+		);
+	};
 	const open = async (url, width = 1440, height = 900) => {
+		// Only the first time: a test's own emulation (reduced motion, a scheme) is kept.
+		if (!mediaEmulated)
+			await sendWithScheme("Emulation.setEmulatedMedia", { features: [] });
 		await send("Emulation.setDeviceMetricsOverride", {
 			width,
 			height,
@@ -249,7 +274,7 @@ export async function createBrowser(executable) {
 		throw error;
 	}
 	return {
-		send,
+		send: sendWithScheme,
 		evaluate,
 		waitFor,
 		open,

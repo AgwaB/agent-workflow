@@ -1,20 +1,32 @@
 :root {
-	color-scheme: dark;
-	/* Colour carries meaning; completed work stays neutral. */
-	--bg: #141414;
-	--panel: #181818;
-	--surface: #1c1c1c;
-	--text: #ededed;
-	--muted: #b0b0b0;
-	--faint: #8c8c8c;
-	--line: rgba(255, 255, 255, 0.07);
-	--line2: rgba(255, 255, 255, 0.14);
-	--accent: #6fbf8e;
-	--done: #5a5a5a;
-	--warn: #d9a548;
-	--err: #e5675a;
-	--overlay: #181818;
-	--selected: #262626;
+	/* Follows the system (light or dark) unless the theme button pins one (data-theme). */
+	color-scheme: light dark;
+	/* Colour carries meaning; completed work stays neutral. light-dark(light, dark). */
+	--bg: light-dark(#f6f5f1, #141414);
+	--panel: light-dark(#fbfaf7, #181818);
+	--surface: light-dark(#ffffff, #1c1c1c);
+	--text: light-dark(#1c1b19, #ededed);
+	--muted: light-dark(#55534d, #b0b0b0);
+	--faint: light-dark(#66645d, #8c8c8c);
+	--line: light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.07));
+	--line2: light-dark(rgba(0, 0, 0, 0.16), rgba(255, 255, 255, 0.14));
+	--accent: light-dark(#1f7a4d, #6fbf8e);
+	--done: light-dark(#aaa69c, #5a5a5a);
+	--warn: light-dark(#925f10, #d9a548);
+	--err: light-dark(#b4372a, #e5675a);
+	--overlay: light-dark(#fbfaf7, #181818);
+	--selected: light-dark(#efede7, #262626);
+	--warn-tint: light-dark(rgba(146, 95, 16, 0.12), rgba(217, 165, 72, 0.14));
+	--warn-on-tint: light-dark(
+		#7a4f0c,
+		#d9a548
+	); /* ≥ 5:1 on the tint in both themes */
+	--later: light-dark(rgba(0, 0, 0, 0.18), rgba(238, 239, 242, 0.22));
+	--primary-bg: light-dark(#1c1b19, #ffffff);
+	--primary-hover: light-dark(#33312d, #ededed);
+	--primary-fg: light-dark(#f6f5f1, #141414);
+	--backdrop: light-dark(rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.65));
+	--shadow: light-dark(rgba(0, 0, 0, 0.28), #000);
 	--mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 	font:
 		15px / 1.5 system-ui,
@@ -366,8 +378,8 @@ progress::-moz-progress-bar {
 	color: var(--muted);
 }
 .incomplete {
-	color: var(--warn);
-	background: rgba(217, 165, 72, 0.14);
+	color: var(--warn-on-tint);
+	background: var(--warn-tint);
 	border-radius: 4px;
 	padding: 0 7px;
 	font-size: 12px;
@@ -537,7 +549,7 @@ progress::-moz-progress-bar {
 	fill: var(--faint);
 }
 .port.later {
-	fill: rgba(238, 239, 242, 0.22);
+	fill: var(--later);
 }
 .port.next {
 	fill: var(--faint);
@@ -983,13 +995,13 @@ dd {
 }
 .primary,
 main.signin button {
-	color: var(--bg);
+	color: var(--primary-fg);
 	border-color: transparent;
-	background: #fff;
+	background: var(--primary-bg);
 	font-weight: 600;
 }
 .primary:hover:not(:disabled) {
-	background: #ededed;
+	background: var(--primary-hover);
 	color: var(--bg);
 }
 .empty {
@@ -1004,10 +1016,10 @@ dialog {
 	width: min(640px, calc(100vw - 32px));
 	max-height: calc(100dvh - 64px);
 	padding: 24px;
-	box-shadow: 0 16px 48px -16px #000;
+	box-shadow: 0 16px 48px -16px var(--shadow);
 }
 dialog::backdrop {
-	background: rgba(0, 0, 0, 0.65);
+	background: var(--backdrop);
 	backdrop-filter: blur(3px);
 }
 dialog h2 {
@@ -1239,8 +1251,8 @@ main.signin h1 {
 main.signin button {
 	font: inherit;
 	font-weight: 600;
-	color: var(--base, #0b0c0f);
-	background: #fff;
+	color: var(--primary-fg);
+	background: var(--primary-bg);
 	border: 0;
 	border-radius: 8px;
 	padding: 10px 16px;
@@ -1289,4 +1301,46 @@ main.signin code {
 }
 .morph-old {
 	pointer-events: none;
+}
+.node.support:not(.failed):not(.blocked):not(.running):not(.retry) .outline {
+	stroke: var(--line);
+}
+.node.support:not(.failed):not(.blocked):not(.running):not(.retry) .node-name {
+	fill: var(--faint);
+}
+.node.support:not(.failed):not(.blocked):not(.running):not(.retry)
+	.status-icon {
+	opacity: 0.6;
+}
+.node.support:is(:hover, :focus-visible) .node-name {
+	fill: var(--muted);
+}
+.node.support:is(:hover, :focus-visible) .outline {
+	stroke: var(--line2);
+}
+
+:root[data-theme="light"] {
+	color-scheme: light;
+}
+:root[data-theme="dark"] {
+	color-scheme: dark;
+}
+/* The logo's tile follows the theme (CSS beats SVG presentation attributes). */
+.logo .logo-tile {
+	fill: var(--text);
+}
+.logo .logo-ink {
+	fill: var(--bg);
+	stroke: var(--bg);
+}
+.logo .logo-ink[fill="none"] {
+	fill: none;
+}
+.logo .logo-live {
+	fill: var(--accent);
+}
+.theme-button {
+	font-size: 12.5px;
+	color: var(--muted);
+	padding: 3px 9px;
 }

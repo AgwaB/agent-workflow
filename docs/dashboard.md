@@ -120,6 +120,8 @@ Single page, no build step: `src/hosts/dashboard/ui/{index.html,app.css,app.js}`
 - Connection: `Live` while SSE delivers; `Reconnecting` on error with automatic retry; `Stale (updated …)` when no heartbeat for 30 s — independent of run status.
 - URL state: `?run=<id>&task=<specId>&tab=output|stderr|events&view=report|details&dialog=stop|resume|approve|reject`. Keyboard: ↑/↓ runs or tasks, Enter opens, Esc closes, `⌘K` palette (jump to run/stage).
 - Body 15 px; nothing < 12 px; no `innerHTML`. Colour (2026-11-01, replacing the 2026-10-30 glow palette; owner: minimal, no "AI slop"): neutral near-black surfaces (`#141414` ground, `#181818` panels, `#1c1c1c` cards, white 7 %/14 % lines), text `#ededed`/`#b0b0b0`/`#8c8c8c`; colour only for meaning — green `#6fbf8e` running, amber `#d9a548` warning / needs you, red `#e5675a` failure; finished work is neutral grey; white primary button; no gradients or glows. Status also reads without colour (✓ ! ✕ ● ○ glyphs, hatching for failure). `GET /favicon.ico` answers 204.
+- Theme (2026-11-01, owner choice: follow the system + a switch): `color-scheme: light dark` with `light-dark()` palette pairs, so an unpinned page follows the OS with no script; the top-bar button cycles **Auto → Light → Dark** and keeps a pinned choice in `localStorage` (`agent-workflow:theme`). Light ("paper"): `#f6f5f1` ground, `#fbfaf7` panels, white cards, text `#1c1b19`/`#55534d`/`#66645d`, green `#1f7a4d`, amber `#925f10` (`#7a4f0c` on its tint), red `#b4372a`, dark primary button; every text and meaning colour is ≥ 4.5:1 on every surface (tested). The logo follows the theme.
+- Support helpers (owner choice: keep them as cards): lighter than agent stages — faint outline and name, dimmed glyph — back to normal on hover/focus; running, retry, blocked and failed helpers keep their state colours.
 
 ## Acceptance (verifiable)
 
@@ -131,7 +133,7 @@ Single page, no build step: `src/hosts/dashboard/ui/{index.html,app.css,app.js}`
 
 ## Out of scope (v1)
 
-Multiple projects in one server, authentication beyond the local token, HTTPS, remote access, light theme, editing workflows, launching runs from the browser, desktop app / MCP Apps.
+Multiple projects in one server, authentication beyond the local token, HTTPS, remote access, editing workflows, launching runs from the browser, desktop app / MCP Apps.
 
 ## Launch integration (WP43b — "run" and the dashboard)
 
