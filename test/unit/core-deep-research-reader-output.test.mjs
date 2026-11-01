@@ -59,6 +59,7 @@ async function inputs() {
 		"final-audit-packet": packet,
 		"final-audit": {
 			schema: "deep-research-final-synthesis-v2",
+			inputIntegrity: { status: "complete" },
 			digest: "Reader-facing result",
 			synthesis,
 		},

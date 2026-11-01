@@ -32,6 +32,7 @@ function synthesis(comparisonRows) {
 	return {
 		schema: "deep-research-final-synthesis-v2",
 		digest: "Evidence-qualified comparison with explicit denominator limits.",
+		inputIntegrity: { status: "complete" },
 		synthesis: {
 			bottomLine:
 				"The subject has verified strengths, but the evidence does not establish every reference capability.",

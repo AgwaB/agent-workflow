@@ -1,6 +1,6 @@
 {
   "type": "object",
-  "required": ["schema", "digest", "synthesis"],
+  "required": ["schema", "digest", "inputIntegrity", "synthesis"],
   "properties": {
     "schema": {
       "type": "string",
@@ -10,6 +10,19 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 1200
+    },
+    "inputIntegrity": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string", "enum": ["complete", "blocked"] },
+        "reason": {
+          "type": "string",
+          "enum": ["truncated_read", "missing_read", "inconsistent_input", "budget_block"]
+        },
+        "detail": { "type": "string", "maxLength": 600 }
+      },
+      "additionalProperties": false
     },
     "synthesis": {
       "type": "object",

@@ -576,6 +576,24 @@ function modernDecisionValid(item) {
 	);
 }
 
+/** 2026-11-01: v2 declares its packet intake; v1 and older v2 outputs carry none. */
+function inputIntegrityValid(control) {
+	if (!hasOwn(control, "inputIntegrity")) return true;
+	const integrity = control.inputIntegrity;
+	return (
+		exactKeys(integrity, ["status", "reason", "detail"]) &&
+		["complete", "blocked"].includes(integrity.status) &&
+		(!hasOwn(integrity, "reason") ||
+			[
+				"truncated_read",
+				"missing_read",
+				"inconsistent_input",
+				"budget_block",
+			].includes(integrity.reason)) &&
+		(!hasOwn(integrity, "detail") || boundedString(integrity.detail, 0, 600))
+	);
+}
+
 function validModernFinalAudit(control) {
 	const synthesis = control?.synthesis;
 	const synthesisKeys = [
@@ -596,7 +614,8 @@ function validModernFinalAudit(control) {
 		? boundedArray(synthesis.comparisonRows, 8, modernComparisonValid)
 		: control?.schema === "deep-research-final-synthesis-v1";
 	return Boolean(
-		exactKeys(control, ["schema", "digest", "synthesis"]) &&
+		exactKeys(control, ["schema", "digest", "inputIntegrity", "synthesis"]) &&
+			inputIntegrityValid(control) &&
 			modernSchema &&
 			boundedString(control.digest, 1, 1200) &&
 			exactKeys(synthesis, synthesisKeys) &&
