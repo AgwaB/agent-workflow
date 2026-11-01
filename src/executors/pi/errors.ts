@@ -23,6 +23,12 @@ export const PI_ERROR_RULES: readonly PiErrorRule[] = [
 	},
 	// `pi --model <unknown>` exits 1 before any request (offline transcript).
 	{ class: "config", match: /Model ".*" not found/, evidence: "offline" },
+	// A bare model id that several authenticated providers offer (Pi 1.x).
+	{
+		class: "config",
+		match: /Model ".*" is ambiguous across providers/,
+		evidence: "live",
+	},
 	{ class: "config", match: "Unknown option", evidence: "source" },
 	{ class: "config", match: "Invalid thinking level", evidence: "source" },
 	// WP35: the fast-tier guard aborted a request whose model/payload left the launch binding.

@@ -138,6 +138,12 @@ export async function materializeTerminalSubagentResult(
 		(typeof subagentResult?.errorMessage === "string"
 			? subagentResult.errorMessage
 			: undefined);
+	// "executor run failed: executor_config" alone sends the owner to the logs; name the CLI's
+	// own error line when it printed one (e.g. Pi: `Error: Model "x" is ambiguous …`).
+	if (/^executor run failed: executor_/u.test(errorMessage ?? ""))
+		errorMessage = withCliErrorLine(errorMessage!, stderrText);
+	if (errorMessage !== statusInfo.errorMessage && statusInfo.errorMessage)
+		statusInfo = { ...statusInfo, errorMessage };
 	const contextLengthExceeded = Boolean(
 		(subagentResult?.metadata as any)?.contextLengthExceeded ??
 			snapshot.metadata?.contextLengthExceeded,
@@ -448,6 +454,19 @@ function workflowStatusFromSubagent(
 			? `executor run failed: ${snapshot.failureKind}`
 			: "executor run failed",
 	};
+}
+
+/** Append the last `Error: …` line an executor CLI printed to stderr (bounded, one line). */
+export function withCliErrorLine(message: string, stderrText: string): string {
+	const line = stderrText
+		.slice(-16_384)
+		.split(/\r?\n/u)
+		.map((entry) => entry.replace(/^\w+: (?=Error\b)/u, "").trim())
+		.filter((entry) => /^(?:Error|error|fatal|FATAL)\b[:\s]/u.test(entry))
+		.at(-1)
+		?.replace(/[\u0000-\u001f\u007f-\u009f]+/gu, " ");
+	if (!line) return message;
+	return `${message} — ${line.length > 240 ? `${line.slice(0, 239)}…` : line}`;
 }
 
 /** Runtime failure kind for reconcile `unknown` (docs/runtime-port.md "Failure kinds"). */

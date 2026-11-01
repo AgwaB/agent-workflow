@@ -112,8 +112,10 @@ const STDERR_LIMIT = 256 * 1024;
 // Live bundle 5 (WP39): `pi --list-models` took 4.2–5.4 s and a cold `pi list` 4.1 s on a loaded
 // machine (Pi 1.1.0 with the user's packages); the former 4 s bound turned both into failures
 // (auth "unknown", pi-web-access "could not check" → web stages refused). These are read-only
-// commands without a model call, so the bound only stops a hung CLI.
-const PROBE_TIMEOUT_MS = 15_000;
+// commands without a model call, so the bound only stops a hung CLI. 2026-11-01: 10.6 s on a busy
+// machine and several runs probing at once crossed 15 s; the model list was then missing, a bare id
+// such as "gpt-6-luna" reached Pi unresolved and Pi refused it as ambiguous across providers.
+const PROBE_TIMEOUT_MS = 30_000;
 const REDACT_MIN_CHARS = 6;
 
 export interface PiExecutorProbe extends ExecutorProbe {
