@@ -29,6 +29,9 @@ const LIGHT = "rgb(246, 245, 241)";
 const DARK = "rgb(20, 20, 20)";
 
 test("theme: Auto follows the system; the button pins Light/Dark, persists, and keeps focus", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
 	timeout: 60_000,
 }, async (t) => {
 	const fixture = await createFixtureServer();
@@ -88,6 +91,9 @@ test("theme: Auto follows the system; the button pins Light/Dark, persists, and 
 });
 
 test("theme: light text and meaning colours meet WCAG AA on light surfaces", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
 	timeout: 60_000,
 }, async (t) => {
 	const fixture = await createFixtureServer();

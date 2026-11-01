@@ -90,7 +90,10 @@ function publishingRuntime(cwd, dir, observed) {
 	};
 }
 
-test("N3: a readable but unwritable .pins refuses the comparison before any classifier call", async () => {
+test("N3: a readable but unwritable .pins refuses the comparison before any classifier call", {
+	// Permission bits do not stop root (a container run): the refusal cannot be provoked there.
+	skip: process.getuid?.() === 0 ? "root ignores directory permissions" : false,
+}, async () => {
 	const { cwd, unregister, request } = await classifierProject();
 	const pinDir = join(cwd, ROUTER_RUNS, ".pins");
 	await mkdir(pinDir, { recursive: true });

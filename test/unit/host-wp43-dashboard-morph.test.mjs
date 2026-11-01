@@ -84,6 +84,9 @@ const morphs = () =>
 	});
 
 test("dashboard graph: reshaping status changes morph from the previous geometry; reduced motion is instant", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
 	timeout: 60_000,
 }, async (t) => {
 	const { expanded, collapsed } = await states();
