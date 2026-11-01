@@ -247,6 +247,29 @@ test("probe parsing keeps no account data", () => {
 		},
 	});
 	assert.deepEqual(modelsFromInitialize(init), ["haiku"]);
+	// 2026-11-01: aliases resolve to full ids (claude 2.1.314); both are known model names.
+	const withResolved = JSON.stringify({
+		type: "control_response",
+		response: {
+			request_id: "probe-initialize",
+			response: {
+				models: [
+					{ value: "default", resolvedModel: "claude-opus-5-5" },
+					{ value: "sonnet", resolvedModel: "claude-sonnet-5-5" },
+					{ value: "claude-sonnet-5", resolvedModel: "claude-sonnet-5" },
+					{ value: "opus", resolvedModel: "claude-opus-5-5" },
+				],
+			},
+		},
+	});
+	assert.deepEqual(modelsFromInitialize(withResolved), [
+		"default",
+		"sonnet",
+		"claude-sonnet-5",
+		"opus",
+		"claude-opus-5-5",
+		"claude-sonnet-5-5",
+	]);
 });
 
 test("probe against the stub: version, auth, models, MCP limit; no effect", async (t) => {

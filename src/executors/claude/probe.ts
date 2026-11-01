@@ -72,7 +72,11 @@ export function parseAuthStatus(output: CommandOutput): AuthStatus {
 	return "unknown";
 }
 
-/** Model values from an `initialize` control response (no account data is returned). */
+/**
+ * Model names from an `initialize` control response (no account data is returned): each entry's
+ * `value` (aliases such as `sonnet`) followed by the full ids they resolve to (`resolvedModel`,
+ * e.g. `claude-sonnet-5-5`), so a pinned full id is not reported as unknown (2026-11-01 live run).
+ */
 export function modelsFromInitialize(line: string): string[] | null {
 	let parsed: unknown;
 	try {
@@ -84,13 +88,21 @@ export function modelsFromInitialize(line: string): string[] | null {
 		parsed as { response?: { response?: { models?: unknown } } }
 	)?.response?.response;
 	if (!Array.isArray(response?.models)) return null;
-	return response.models.flatMap((model) =>
-		model !== null &&
-		typeof model === "object" &&
-		typeof (model as { value?: unknown }).value === "string"
-			? [(model as { value: string }).value]
-			: [],
+	const entries = response.models.filter(
+		(model): model is { value: string; resolvedModel?: unknown } =>
+			model !== null &&
+			typeof model === "object" &&
+			typeof (model as { value?: unknown }).value === "string",
 	);
+	const names = entries.map((model) => model.value);
+	for (const model of entries)
+		if (
+			typeof model.resolvedModel === "string" &&
+			model.resolvedModel !== "" &&
+			!names.includes(model.resolvedModel)
+		)
+			names.push(model.resolvedModel);
+	return names;
 }
 
 export const PROBE_INIT_ARGV = [
