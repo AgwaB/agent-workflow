@@ -16,6 +16,7 @@ import {
 	formatRequiredArtifactRead,
 	formatRequiredReadFailureMessage,
 	formatRequiredReadPolicyName,
+	inputIntegrityContradiction,
 } from "./required-reads.js";
 import {
 	applyTaskResultArtifact,
@@ -268,6 +269,35 @@ async function materializeTerminalArtifactGraphResultInner(
 			attempt,
 			message,
 			artifacts,
+			...retrySession,
+		});
+	}
+
+	// Required reads were all delivered complete (the check above): a worker that still withholds
+	// its result as "truncated"/"missing" input misjudged it — retry with the ledger as evidence.
+	const contradiction = inputIntegrityContradiction(
+		parsed.control,
+		(task.artifactGraph?.requiredReads ?? []).length +
+			(task.artifactGraph?.requiredReadPolicy ?? []).length,
+	);
+	if (contradiction) {
+		await measureTerminalArtifactBundleWrite(task, () =>
+			writeArtifactGraphMissingReadsAttempt(
+				dirname(options.resultFile),
+				rawOutput,
+				attempt,
+				[],
+				options.completedAt,
+				{
+					failureKind: "input_integrity_contradicted",
+					errorMessage: contradiction,
+				},
+			),
+		);
+		return retryOrFailArtifactGraphTask(task, {
+			reason: "input_integrity_contradicted",
+			attempt,
+			message: contradiction,
 			...retrySession,
 		});
 	}

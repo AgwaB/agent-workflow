@@ -411,3 +411,39 @@ export function formatRequiredReadFailureMessage(
 	}
 	return parts.join("; ");
 }
+
+/** `control.inputIntegrity.reason` values the read ledger can disprove. */
+const LEDGER_DISPROVABLE_READ_CLAIMS = new Set([
+	"truncated_read",
+	"missing_read",
+]);
+
+/**
+ * 2026-11-01: a worker may withhold its result because it believes a required read was truncated
+ * or missing (`control.inputIntegrity = { status: "blocked", reason: "truncated_read" }`). Called
+ * only after `checkRequiredArtifactReads` passed, which counts a read only when it was delivered
+ * complete (not truncated, delivery verified) in this attempt — so such a claim contradicts the
+ * ledger. Returns the retry instruction, or undefined when there is nothing to contradict.
+ * Claims the ledger cannot judge (`inconsistent_input`, `budget_block`) are accepted.
+ */
+export function inputIntegrityContradiction(
+	control: Record<string, unknown> | undefined,
+	requiredReadCount: number,
+): string | undefined {
+	if (requiredReadCount === 0) return undefined;
+	const integrity = control?.inputIntegrity;
+	if (!integrity || typeof integrity !== "object" || Array.isArray(integrity))
+		return undefined;
+	const { status, reason, detail } = integrity as Record<string, unknown>;
+	if (status !== "blocked" || typeof reason !== "string") return undefined;
+	if (!LEDGER_DISPROVABLE_READ_CLAIMS.has(reason)) return undefined;
+	const claim =
+		typeof detail === "string" && detail.trim()
+			? ` (${JSON.stringify(detail.trim().slice(0, 300))})`
+			: "";
+	return [
+		`Your control reported inputIntegrity.status="blocked" with reason="${reason}"${claim}, but the engine's read ledger shows all ${requiredReadCount} required workflow_artifact reads of that attempt were delivered complete: none truncated (every projection had charsTruncated=false) and none missing.`,
+		'Do not report truncated or missing reads. Read the required paths again and build the output from their full content; report inputIntegrity.status="complete".',
+		'Only if the content itself is inconsistent (for example a header count that does not match the entries on the pages), report inputIntegrity.status="blocked" with reason="inconsistent_input" and name the exact field and the two counts in detail.',
+	].join(" ");
+}

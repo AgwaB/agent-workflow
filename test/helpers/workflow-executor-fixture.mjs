@@ -25,6 +25,9 @@
 //                 card); the submit log entry then has `autoClassifier: true`
 //   autoStatus    WP38b: "no-fit" answers the comparison with no recommendation (every card a
 //                 partial fit), as pi-workflow's manual-fallback tests do
+//   controlSequence  { "<task id>": [control, …] }: the Nth submit for that task (counted in the
+//                 effect log, so across worker processes) answers with the Nth control (the last
+//                 one repeats) instead of the default `{schema, digest}` control
 import { appendFileSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createFakeExecutor } from "@agwab/agent-workflow/sdk/testing";
@@ -62,6 +65,28 @@ function log(path, entry) {
 }
 
 /** Final answer in the workflow output protocol (control / analysis / refs). */
+/** Submits logged so far for a task id (the current one included: it is logged first). */
+function submitsFor(effectLog, label) {
+	return readFixtureLog(effectLog).filter(
+		(entry) =>
+			entry.type === "submit" && entry.attemptKey?.split(":")[2] === label,
+	).length;
+}
+
+export function workflowControlText(control) {
+	return [
+		"<control>",
+		JSON.stringify(control),
+		"</control>",
+		"<analysis>",
+		"fixture analysis",
+		"</analysis>",
+		"<refs>",
+		"[]",
+		"</refs>",
+	].join("\n");
+}
+
 export function workflowFinalText(label) {
 	return [
 		"<control>",
@@ -134,10 +159,20 @@ export function autoComparisonText(prompt, recommend, status) {
 
 function scriptFor(req, config) {
 	const label = req.attemptKey.split(":")[2] ?? "task";
+	const sequence = config.controlSequence?.[label];
 	const finalText =
 		config.autoRecommend !== undefined && isAutoClassifierRequest(req)
 			? autoComparisonText(req.prompt, config.autoRecommend, config.autoStatus)
-			: workflowFinalText(label);
+			: sequence
+				? workflowControlText(
+						sequence[
+							Math.min(
+								submitsFor(config.effectLog, label) - 1,
+								sequence.length - 1,
+							)
+						],
+					)
+				: workflowFinalText(label);
 	return [
 		{ type: "started", sessionId: null },
 		{ type: "message_delta", text: finalText },
