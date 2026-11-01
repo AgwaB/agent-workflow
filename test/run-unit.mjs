@@ -55,6 +55,8 @@ function isolatedEnv(home) {
 	const env = {
 		...process.env,
 		AGENT_WORKFLOW_DASHBOARD_AUTOSTART: "0",
+		// Unit runs must not fetch cited web pages; the evidence tests enable it explicitly.
+		AGENT_WORKFLOW_EVIDENCE_REFETCH: "0",
 		HOME: home,
 		USERPROFILE: home,
 		AGENT_WORKFLOW_HOME: join(home, ".agent-workflow"),

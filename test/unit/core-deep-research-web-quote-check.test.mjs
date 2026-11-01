@@ -1,5 +1,5 @@
-// agent-workflow 2026-11-01: deep-research's experimental check-web-quotes stage. Off by default;
-// when the owner opts in, every verifier evidence row with an http(s) URL and a quote goes to the
+// agent-workflow 2026-11-01: deep-research's check-web-quotes stage. On by default (a launch with
+// AGENT_WORKFLOW_EVIDENCE_REFETCH=0 turns it off for that run); when on, every verifier evidence row with an http(s) URL and a quote goes to the
 // engine's web quote check. The report shows the counts (final report) and every unchecked quote
 // with its reason (audit); claim verdicts are not changed.
 import assert from "node:assert/strict";
@@ -34,15 +34,12 @@ const VERIFIERS = {
 	},
 };
 
-test("off unless the experimental flag is set", async () => {
+test("off when the run was launched with the check off", async () => {
 	for (const context of [{}, { evidence: { refetchEnabled: false } }]) {
 		const result = await checkWebQuotes({ sources: VERIFIERS, context });
 		assert.equal(result.enabled, false);
 		assert.deepEqual(result.results, []);
-		assert.match(
-			result.digest,
-			/AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH=1/,
-		);
+		assert.match(result.digest, /AGENT_WORKFLOW_EVIDENCE_REFETCH=0/);
 	}
 });
 
@@ -240,18 +237,33 @@ test("the report shows the counts and lists unchecked quotes with reasons; verdi
 	assert.equal(checked.status, "passed", JSON.stringify(checked.gates));
 	assert.match(
 		checked.executiveMarkdown,
-		/Quote check \(engine, experimental\): 1 of 3 quotes found on the cited page; 2 not checked \(image 1, no quote given 1\)/,
+		/Quote check \(engine\): 1 of 3 quotes found on the cited page; 2 not checked \(image 1, no quote given 1\)/,
 	);
-	assert.match(
-		checked.auditMarkdown,
-		/## Quote check \(engine, experimental\)/,
-	);
+	assert.match(checked.auditMarkdown, /## Quote check \(engine\)/);
 	assert.match(
 		checked.auditMarkdown,
 		/\| claim-001 \| https:\/\/img\.example\.com\/t\.png \| 96\.6 \| image \|/,
 	);
 	assert.deepEqual(checked.claimSummary, plain.claimSummary);
 	assert.equal(checked.quoteCheck.verified, 1);
+	// The source-verification statement says what the engine checked instead of "model-reported".
+	const statement =
+		"Source verification: the engine found 1 of 3 quoted web passages on the cited pages (see Quote check in the audit); whether they support each claim is the verifiers' judgment.";
+	for (const markdown of [
+		checked.completionSummaryMarkdown,
+		checked.reportMarkdown,
+		checked.auditMarkdown,
+	]) {
+		assert.ok(markdown.includes(statement));
+		assert.doesNotMatch(
+			markdown,
+			/byte-level source verification is not performed/,
+		);
+	}
+	assert.match(
+		plain.auditMarkdown,
+		/model-reported \(byte-level source verification is not performed\)/,
+	);
 
 	// A disabled stage adds nothing.
 	const off = await render({

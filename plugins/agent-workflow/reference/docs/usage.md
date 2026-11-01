@@ -562,9 +562,10 @@ inside the bundle. That is path containment, not a sandbox: helpers run in the e
 its permissions and are not limited by tool allowlists, so bundle only trusted code. A read-only
 workflow's helpers must not cause undeclared side effects.
 
-**Web quote check (experimental).** With `AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH=1` in the
-environment of the process that launches the run (recorded on the run, so a later supervisor or
-resume does not need it), `context.evidence.refetchEnabled` is true and
+**Web quote check.** On by default; `AGENT_WORKFLOW_EVIDENCE_REFETCH=0` in the environment of the
+process that launches a run turns it off for that run (the decision is recorded on the run, so a
+later supervisor or resume follows it; runs started before the check existed have it off). When on,
+`context.evidence.refetchEnabled` is true and
 `context.evidence.checkWebQuotes([{ key, url, quote, taskId }])` looks for each quote in the page text
 the task's own web tools returned for that URL, otherwise fetches the cited page itself (no model
 call). It reaches public addresses only, caps pages at 5 MB (PDF 10 MB, through

@@ -1,4 +1,7 @@
-// agent-workflow 2026-11-01: engine-side check of web quotes (experimental, opt-in).
+// agent-workflow 2026-11-01: engine-side check of web quotes. On by default since the owner's
+// decision after the live Claude comparison (77 quotes: 75 on the page; re-fetch costs no tokens and
+// is the only check possible for Codex, whose events carry no page text); a launch with
+// AGENT_WORKFLOW_EVIDENCE_REFETCH=0 turns it off for that run.
 // For each `{url, quote}`: first the page text the worker's own tool returned for that URL
 // (evidence-receipts.ts; verified-captured), otherwise the engine fetches the cited page itself
 // (cache, safe fetch, PDF text), builds its text views and looks for the quote
@@ -31,8 +34,14 @@ import {
 } from "./evidence-safe-fetch.js";
 import { htmlToTextViews } from "./evidence-text-views.js";
 
-export const EVIDENCE_REFETCH_ENV =
-	"AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH";
+export const EVIDENCE_REFETCH_ENV = "AGENT_WORKFLOW_EVIDENCE_REFETCH";
+
+/** Launch-time decision: on unless the variable says 0/false/no/off. */
+export function evidenceRefetchEnabledAtLaunch(
+	env: Record<string, string | undefined> = process.env,
+): boolean {
+	return !/^(0|false|no|off)$/i.test(env[EVIDENCE_REFETCH_ENV]?.trim() ?? "");
+}
 
 export interface WebQuoteInput {
 	/** Caller's id for the row (e.g. `claimId#evidenceIndex`). */
@@ -433,8 +442,8 @@ export interface SupportWebQuoteInput {
 /** What support helpers receive as `context.evidence`. */
 export interface SupportEvidenceContext {
 	/**
-	 * True when the run was launched with AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH=1
-	 * (recorded as `run.evidenceRefetch`).
+	 * The run's launch-time decision (`run.evidenceRefetch`): true unless launched with
+	 * AGENT_WORKFLOW_EVIDENCE_REFETCH=0; false for runs started before the check existed.
 	 */
 	readonly refetchEnabled: boolean;
 	checkWebQuotes(

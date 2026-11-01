@@ -1,7 +1,7 @@
-// agent-workflow 2026-11-01 (live finding): the experimental web quote check is decided once, at
-// launch, and recorded as run.evidenceRefetch. In a live Claude run the stage ran in a process
-// without the environment variable (the waiting CLI had taken over supervision) and reported "off"
-// although the run was launched with AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH=1.
+// agent-workflow 2026-11-01 (live finding): the web quote check is decided once, at launch, and
+// recorded as run.evidenceRefetch. In a live Claude run the stage ran in a process without the
+// launch environment (the waiting CLI had taken over supervision) and reported "off" although the
+// run was launched with the check on. Default on; AGENT_WORKFLOW_EVIDENCE_REFETCH=0 turns it off.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
@@ -99,10 +99,15 @@ function probeOutput(cwd, run) {
 }
 
 test("the launch environment decides and is recorded on the run", async () => {
-	for (const flag of [true, false]) {
+	for (const [value, flag] of [
+		[undefined, true],
+		["1", true],
+		["0", false],
+		["off", false],
+	]) {
 		const cwd = await project();
-		if (flag) process.env[EVIDENCE_REFETCH_ENV] = "1";
-		else delete process.env[EVIDENCE_REFETCH_ENV];
+		if (value === undefined) delete process.env[EVIDENCE_REFETCH_ENV];
+		else process.env[EVIDENCE_REFETCH_ENV] = value;
 		const started = await engine.runWorkflowSpec(join(cwd, "wf.json"), cwd, {
 			task: "probe",
 			executor: "codex",
@@ -132,8 +137,8 @@ test("a process driving the run later uses the recorded decision, not its own en
 		if (recorded) run.evidenceRefetch = true;
 		await writeStaticRunArtifacts(cwd, run, compiled, spec);
 		await store.writeRunRecord(cwd, run);
-		if (recorded) delete process.env[EVIDENCE_REFETCH_ENV];
-		else process.env[EVIDENCE_REFETCH_ENV] = "1";
+		if (recorded) process.env[EVIDENCE_REFETCH_ENV] = "0";
+		else delete process.env[EVIDENCE_REFETCH_ENV];
 		await scheduleRun(cwd, run.runId);
 		const finished = await engine.waitForRun(cwd, run.runId, 60_000);
 		assert.equal(finished.status, "completed");

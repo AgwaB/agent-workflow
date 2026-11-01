@@ -21,9 +21,9 @@ export interface WorkflowHelperContext {
 	 */
 	signal?: AbortSignal;
 	/**
-	 * Engine-side evidence checks (2026-11-01, experimental): fetch cited pages and look for quotes
-	 * without model calls. Present for support helpers; `refetchEnabled` is false unless the owner
-	 * set AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH=1.
+	 * Engine-side evidence checks (2026-11-01): look for quotes in the worker's own fetched pages or
+	 * fetch the cited pages, without model calls. Present for support helpers; `refetchEnabled` is
+	 * the run's launch-time decision (on unless launched with AGENT_WORKFLOW_EVIDENCE_REFETCH=0).
 	 */
 	evidence?: SupportEvidenceContext;
 }

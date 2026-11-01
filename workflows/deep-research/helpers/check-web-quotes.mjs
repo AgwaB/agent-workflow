@@ -1,5 +1,5 @@
-// agent-workflow 2026-11-01: experimental engine-side check of verifier web quotes.
-// Off unless the owner sets AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH=1. When on, every
+// agent-workflow 2026-11-01: engine-side check of verifier web quotes. On by default (a launch with
+// AGENT_WORKFLOW_EVIDENCE_REFETCH=0 turns it off for that run). When on, every
 // verifier evidence row with an http(s) URL and a quote is checked by the engine itself
 // (`context.evidence.checkWebQuotes`: the page text the verifier's own tool returned, else the
 // cited page fetched by the engine). No model calls.
@@ -75,7 +75,7 @@ export default async function checkWebQuotes({ sources, context = {} }) {
 			schema,
 			enabled: false,
 			digest:
-				"Web quote check is off (experimental; set AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH=1).",
+				"Web quote check is off for this run (launched with AGENT_WORKFLOW_EVIDENCE_REFETCH=0, or started before the check existed).",
 			results: [],
 		};
 	const rows = collectWebQuotes(sources, context.sourceStatuses);

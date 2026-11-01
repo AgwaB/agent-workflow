@@ -1901,7 +1901,15 @@ function readerEvidenceLimits(report, claimSummary, slots, korean) {
 export const SOURCE_VERIFICATION_STATEMENT =
 	"Source verification: model-reported (byte-level source verification is not performed).";
 
-function renderCompletionSummary(report, claimSummary, slots, fallback) {
+// 2026-11-01: when the engine's web quote check ran, the statement says what it checked; claims
+// themselves stay model-judged. Without the check (off, or older runs) the C2 statement stands.
+export function sourceVerificationStatement(quoteCheck) {
+	if (!quoteCheck) return SOURCE_VERIFICATION_STATEMENT;
+	const summary = quoteCheck.summary;
+	return `Source verification: the engine found ${summary.verified} of ${summary.quotes} quoted web passages on the cited pages (see Quote check in the audit); whether they support each claim is the verifiers' judgment.`;
+}
+
+function renderCompletionSummary(report, claimSummary, slots, fallback, quoteCheck = null) {
 	const summary = summaryText(report, fallback);
 	// Fixed presentation labels follow Korean prose when present; other prose is
 	// retained verbatim and the parent may translate fixed labels as before.
@@ -1939,7 +1947,7 @@ function renderCompletionSummary(report, claimSummary, slots, fallback) {
 	if (limits.length) {
 		out.push("## Limits to keep in mind", "", ...limits.map(text => `- ${completionText(text)}`), "");
 	}
-	out.push(SOURCE_VERIFICATION_STATEMENT, "");
+	out.push(sourceVerificationStatement(quoteCheck), "");
 	return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
@@ -2098,7 +2106,7 @@ function renderAuditSummary(report, claimSummary, slots, quoteCheck = null) {
 	];
 }
 
-// 2026-11-01: experimental engine-side web quote check (check-web-quotes stage). Shown, never
+// 2026-11-01: engine-side web quote check (check-web-quotes stage). Shown, never
 // used to change a verdict.
 const QUOTE_CHECK_REASONS = {
 	"quote-not-on-page": "not found on the page",
@@ -2160,7 +2168,7 @@ function renderQuoteCheckSummaryLine(quoteCheck) {
 	const summary = quoteCheck.summary;
 	const reasons = quoteCheckReasonText(summary.byReason);
 	return [
-		`- Quote check (engine, experimental): ${summary.verified} of ${summary.quotes} quotes found on the cited page${quoteCheckSources(summary)}${
+		`- Quote check (engine): ${summary.verified} of ${summary.quotes} quotes found on the cited page${quoteCheckSources(summary)}${
 			summary.unverified > 0
 				? `; ${summary.unverified} not checked (${reasons}) — listed in [audit](audit.md)`
 				: ""
@@ -2175,7 +2183,7 @@ function renderQuoteCheckAudit(quoteCheck) {
 	const levels = isRecord(summary.byLevel) ? summary.byLevel : {};
 	const out = [
 		"",
-		"## Quote check (engine, experimental)",
+		"## Quote check (engine)",
 		"",
 		"The engine looked for each verifier quote in the page text the verifier's own tool returned for that URL, otherwise on the cited page fetched by the engine itself. No model was involved; verdicts above are unchanged.",
 		"",
@@ -2305,6 +2313,7 @@ function renderResearchMarkdown(control, packetSource, options = {}) {
 		claimSummary,
 		slots,
 		control.digest,
+		options.quoteCheck,
 	);
 	const reportExecutiveSummary = completionSummaryMarkdown.replace(
 		/^## /gm,
@@ -2388,7 +2397,7 @@ function renderAuditMarkdown(control, packetSource, rendered, quoteCheck = null)
 		"",
 		"This artifact preserves the detailed claim/gap/source ledger behind `final-report.md`.",
 		"",
-		SOURCE_VERIFICATION_STATEMENT,
+		sourceVerificationStatement(quoteCheck),
 		"",
 		renderEvidenceAuditSummary(rendered.report, rendered.claimSummary, rendered.factSlotSummary),
 		"",

@@ -16,6 +16,7 @@ import {
 import {
 	checkWebQuotes,
 	EVIDENCE_REFETCH_ENV,
+	evidenceRefetchEnabledAtLaunch,
 	supportEvidenceContext,
 } from "../../dist/core/evidence-web-quotes.js";
 
@@ -287,10 +288,20 @@ test("support helpers get the check; enabled is the run's launch-time decision",
 	});
 	assert.equal(on.refetchEnabled, true);
 	assert.equal(typeof on.checkWebQuotes, "function");
-	assert.equal(
-		EVIDENCE_REFETCH_ENV,
-		"AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH",
-	);
+	assert.equal(EVIDENCE_REFETCH_ENV, "AGENT_WORKFLOW_EVIDENCE_REFETCH");
+	assert.equal(evidenceRefetchEnabledAtLaunch({}), true, "default on");
+	for (const value of ["0", "false", "no", "OFF", " off "])
+		assert.equal(
+			evidenceRefetchEnabledAtLaunch({ [EVIDENCE_REFETCH_ENV]: value }),
+			false,
+			value,
+		);
+	for (const value of ["1", "true", "yes", ""])
+		assert.equal(
+			evidenceRefetchEnabledAtLaunch({ [EVIDENCE_REFETCH_ENV]: value }),
+			true,
+			value,
+		);
 });
 
 // Receipts: what the worker's own web tools returned (normalized exec-events of its attempts).

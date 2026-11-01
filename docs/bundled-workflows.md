@@ -69,7 +69,9 @@ deep-research (C2: the executors' own web tools):
   model-reported (byte-level source verification is not performed)." — the plan's
   "출처 검증: 모델 보고" (source verification: model reported). It ends the parent-facing completion
   summary (and so the report's executive summary) and follows the intro of `audit.md`. The wording is
-  English in every language of the report.
+  English in every language of the report. Since M22 (2026-11-01) a run whose web quote check ran
+  says instead how many quoted web passages the engine found on the cited pages
+  (`sourceVerificationStatement`); the C2 statement stays for runs without the check.
 
 All bundled specs:
 
@@ -159,10 +161,10 @@ After stage 2 (2026-11-01):
   Replaying the 14 recorded Codex runs (report stage emulated with a consistent verdict): 11
   `NEEDS_WORK`, 3 `PARTIAL_REVIEW` (a repeated short quote, a literal `\t`, a quote with a missing
   word); the three runs without corrections produce byte-identical stage output.
-- **M22.** deep-research web quote check (experimental, owner decision 2026-11-01). Both specs gain a
+- **M22.** deep-research web quote check (owner decisions 2026-11-01). Both specs gain a
   support stage `check-web-quotes` (`helpers/check-web-quotes.mjs`, from the verifier stages) whose
-  output is an extra `final` source. Off unless `AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH=1`;
-  when on, the engine itself fetches every cited http(s) page (`context.evidence.checkWebQuotes`,
+  output is an extra `final` source. On by default; a launch with `AGENT_WORKFLOW_EVIDENCE_REFETCH=0`
+  turns it off for that run. When on, the engine itself fetches every cited http(s) page (`context.evidence.checkWebQuotes`,
   `src/core/evidence-*.ts`: public addresses only, checked per redirect hop and at DNS time; 5 MB
   cap, PDF 10 MB via the system `pdftotext`; `Accept` prefers Markdown, `Accept-Language` en-US;
   pages cached by SHA-256 under `.agent-workflow/evidence-cache/`, 1 GiB cap, 24 h) and looks for
@@ -180,9 +182,12 @@ After stage 2 (2026-11-01):
   only in a summary (Claude `WebFetch`) or search result is noted (`inWorkerSummary`) and still
   checked on the page — the report counts how often such summary quotes were on the page. Codex web
   events carry no page text. Recorded Pi run: 33 of 39 quotes verified from its own captures, 2 pages
-  fetched. The opt-in is decided at launch and recorded as `run.evidenceRefetch` (live finding: a
-  stage driven by a process without the variable reported "off"); a quote's own trailing punctuation
-  is not compared (live Claude quotes ending in "." where the page continues).
+  fetched. The decision is made at launch and recorded as `run.evidenceRefetch` (live finding: a
+  stage driven by a process without the launch environment reported "off"); a quote's own trailing
+  punctuation is not compared (live Claude quotes ending in "." where the page continues). Default
+  on after a live comparison: three Claude Sonnet 5.5 runs, 77 quotes, 75 on the re-fetched page;
+  69 were also in a `WebFetch` summary, 68 of them on the page; re-fetch costs no model tokens
+  (about 2 s for 14 pages) and is the only check possible for Codex.
 
 ## Worker prompt rendering (core)
 

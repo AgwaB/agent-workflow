@@ -1961,9 +1961,9 @@ export interface WorkflowRunRecord {
 	/** D2/R#5: the executing user allowed shared-checkout writes for this run. */
 	allowSharedCheckoutWrites?: true;
 	/**
-	 * 2026-11-01 (experimental): engine-side web quote checks were opted in at launch
-	 * (AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH=1). Recorded so the stage does not depend on
-	 * the environment of whichever process later drives or resumes the run.
+	 * 2026-11-01: engine-side web quote checks are on for this run (default; off when launched with
+	 * AGENT_WORKFLOW_EVIDENCE_REFETCH=0, and absent on runs created before the check). Recorded so
+	 * the stage does not depend on the environment of whichever process later drives the run.
 	 */
 	evidenceRefetch?: true;
 	/**
