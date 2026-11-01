@@ -165,6 +165,8 @@ export function projectRunSummary(
 	const agents = (shown?.run.tasks ?? []).filter(
 		(task) =>
 			task.kind !== "support" &&
+			task.kind !== "dynamic" &&
+			task.kind !== "loop" &&
 			!(
 				task.kind === "foreach" &&
 				!task.foreachGenerated &&
@@ -182,7 +184,7 @@ export function projectRunSummary(
 		...(executors.length > 1 ? { executors } : {}),
 		...(shown?.launch ? { host: shown.launch.source } : {}),
 		taskSummary: { ...run.taskSummary },
-		...(agents.length
+		...(shown
 			? {
 					agentSummary: {
 						completed: agents.filter((task) => task.status === "completed")

@@ -611,7 +611,9 @@ const humanize = (name) => {
 	return text.charAt(0).toUpperCase() + text.slice(1);
 };
 const agentTasks = (run) =>
-	run.tasks.filter((t) => !t.placeholder && t.kind !== "support");
+	run.tasks.filter(
+		(t) => !t.placeholder && !["support", "dynamic", "loop"].includes(t.kind),
+	);
 const incomplete = (run) =>
 	Boolean(
 		run.verdictGate ||
@@ -785,7 +787,10 @@ export function deriveGraph(projection) {
 			});
 		const stage = stages.get(task.stageId);
 		stage.tasks.push(task);
-		if (!task.placeholder) stage.items.push(task);
+		// Controllers and loop gates are navigable tasks, not generated agents. Keeping a
+		// suspended controller first made an active dynamic stage incorrectly say "Waiting".
+		if (!task.placeholder && !["dynamic", "loop"].includes(task.kind))
+			stage.items.push(task);
 	}
 	const priority = [
 		"failed",
@@ -803,9 +808,8 @@ export function deriveGraph(projection) {
 				const id = specStage.get(dep) || dep.split(".")[0];
 				if (id !== stage.id && stages.has(id)) stage.deps.add(id);
 			}
-		const states = (stage.items.length ? stage.items : stage.tasks).map(
-			taskState,
-		);
+		const visible = stage.tasks.filter((task) => !task.placeholder);
+		const states = (visible.length ? visible : stage.tasks).map(taskState);
 		stage.status = states.every((s) => ["completed", "skipped"].includes(s))
 			? states.every((s) => s === "skipped")
 				? "skipped"
@@ -1035,6 +1039,8 @@ function nodeHeight(stage) {
 function stageLine(stage) {
 	if (stage.ghost) return "After approval";
 	if (stage.approval) return "Awaiting your approval";
+	if (stage.kind === "dynamic" && stage.items.length > 1)
+		return `${stage.done} of ${stage.items.length} agents done`;
 	if (stage.kind === "foreach" && stage.status === "completed") {
 		const starts = stage.items.map((t) => date(t.startedAt)).filter(Boolean),
 			ends = stage.items.map((t) => date(t.completedAt)).filter(Boolean);
@@ -1050,6 +1056,8 @@ function chooseStage(stage) {
 	if (stage.ghost) return chooseStage(stage.parent);
 	if (stage.kind !== "foreach" && stage.items.length === 1)
 		go({ task: stage.items[0].specId });
+	else if (!stage.items.length && stage.tasks.length === 1)
+		go({ task: stage.tasks[0].specId });
 	else go({ stage: stage.id });
 }
 function selectedTask() {
