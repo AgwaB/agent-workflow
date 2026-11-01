@@ -1287,3 +1287,6 @@ main.signin code {
 .needs-button.none {
 	color: var(--muted);
 }
+.morph-old {
+	pointer-events: none;
+}
