@@ -3,27 +3,18 @@
 // a detached dashboard so the result always carries a token-free link, and detached dashboards
 // idle out when nobody is watching and nothing is live.
 import assert from "node:assert/strict";
-import {
-	mkdir,
-	mkdtemp,
-	readFile,
-	rm,
-	stat,
-	writeFile,
-} from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
 import { workflowFixtureDescriptor } from "../helpers/workflow-executor-fixture.mjs";
 import { registerWorkflowExecutor } from "../../dist/core/index.js";
 import { setSubagentLaunchControlsForTests } from "../../dist/core/launch-slots.js";
-import { runWorkflowAction } from "../../dist/hosts/api.js";
+import { dashboardProject } from "../helpers/dashboard-project.mjs";
 import { runAgentWorkflowCli } from "../../dist/hosts/cli/index.js";
 import {
 	dashboardSessionPath,
 	readDashboardDiscovery,
 	resetDashboardSession,
-	startDashboardServer,
 } from "../../dist/hosts/dashboard/index.js";
 import { setDashboardStartBudgetForTests } from "../../dist/hosts/dashboard/discovery.js";
 
@@ -35,10 +26,8 @@ setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 let counter = 0;
 
 async function project(t) {
-	const cwd = await mkdtemp(join(tmpdir(), "aw-wp43c-"));
-	t.after(() =>
-		rm(cwd, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }),
-	);
+	const fixture = await dashboardProject(t, "aw-wp43c-");
+	const { cwd } = fixture;
 	await mkdir(join(cwd, ".agent-workflow/agents"), { recursive: true });
 	await writeFile(
 		join(cwd, ".agent-workflow/agents/reader.md"),
@@ -56,7 +45,7 @@ async function project(t) {
 		}),
 	);
 	const executor = `wp43c-fixture-${++counter}`;
-	t.after(
+	fixture.dispose(
 		registerWorkflowExecutor(
 			workflowFixtureDescriptor({
 				id: executor,
@@ -72,7 +61,7 @@ async function project(t) {
 		AGENT_WORKFLOW_DASHBOARD_AUTOSTART: "1",
 	};
 	delete env.AGENT_WORKFLOW_ROLE;
-	return { cwd, executor, env, host: "cli" };
+	return { ...fixture, executor, env, host: "cli" };
 }
 
 const cookieOf = (url) => `aw_session=${url.split("token=")[1]}`;
@@ -86,7 +75,7 @@ test("--auth: the session persists across dashboard restarts; --reset-session si
 	timeout: 60_000,
 }, async (t) => {
 	const p = await project(t);
-	const first = await startDashboardServer({
+	const first = await p.start({
 		cwd: p.cwd,
 		env: p.env,
 		discovery: true,
@@ -102,13 +91,12 @@ test("--auth: the session persists across dashboard restarts; --reset-session si
 		200,
 	);
 	await first.close();
-	const second = await startDashboardServer({
+	const second = await p.start({
 		cwd: p.cwd,
 		env: p.env,
 		discovery: true,
 		auth: true,
 	});
-	t.after(() => second.close());
 	assert.equal(second.token, first.token, "same project → same session token");
 	assert.equal(
 		second.port,
@@ -125,18 +113,17 @@ test("--auth: the session persists across dashboard restarts; --reset-session si
 	const rotated = await resetDashboardSession(p.cwd);
 	assert.notEqual(rotated, first.token);
 	// Preferred port taken by someone else → falls back to an ephemeral port instead of failing.
-	const squatter = await startDashboardServer({
+	const squatter = await p.start({
 		cwd: p.cwd,
 		env: p.env,
 		port: first.port,
 	});
-	const third = await startDashboardServer({
+	const third = await p.start({
 		cwd: p.cwd,
 		env: p.env,
 		discovery: true,
 		auth: true,
 	});
-	t.after(() => third.close());
 	assert.notEqual(third.port, first.port);
 	await squatter.close();
 	assert.equal(third.token, rotated);
@@ -151,13 +138,12 @@ test("--auth: an unsigned browser gets the sign-in page: project name only, no t
 	timeout: 60_000,
 }, async (t) => {
 	const p = await project(t);
-	const s = await startDashboardServer({
+	const s = await p.start({
 		cwd: p.cwd,
 		env: p.env,
 		discovery: true,
 		auth: true,
 	});
-	t.after(() => s.close());
 	const page = await get(`http://127.0.0.1:${s.port}`, "/?run=workflow_x");
 	assert.equal(page.status, 401);
 	assert.match(page.headers.get("content-type"), /text\/html/);
@@ -180,17 +166,9 @@ test("a launch auto-starts a detached dashboard and always carries a token-free 
 	timeout: 60_000,
 }, async (t) => {
 	const p = await project(t);
-	t.after(async () => {
-		await runAgentWorkflowCli(["dashboard", "--stop", "--project", p.cwd], {
-			cwd: p.cwd,
-			env: p.env,
-			stdout: () => {},
-			stderr: () => {},
-			isTTY: false,
-		}).catch(() => undefined);
-	});
+
 	// Off switch: no dashboard, honest line.
-	const off = await runWorkflowAction(
+	const off = await p.launch(
 		{ ...p, env: { ...p.env, AGENT_WORKFLOW_DASHBOARD_AUTOSTART: "0" } },
 		{ workflow: "wf.json", task: "off", executor: p.executor },
 	);
@@ -201,14 +179,16 @@ test("a launch auto-starts a detached dashboard and always carries a token-free 
 	);
 	assert.equal(await readDashboardDiscovery(p.cwd), undefined);
 	// Worker role: never starts one.
-	const worker = await runWorkflowAction(
-		{ ...p, env: { ...p.env, AGENT_WORKFLOW_ROLE: "worker" } },
-		{ workflow: "wf.json", task: "worker", executor: p.executor },
-	).catch((error) => ({ refused: String(error) }));
+	const worker = await p
+		.launch(
+			{ ...p, env: { ...p.env, AGENT_WORKFLOW_ROLE: "worker" } },
+			{ workflow: "wf.json", task: "worker", executor: p.executor },
+		)
+		.catch((error) => ({ refused: String(error) }));
 	if (!("refused" in worker)) assert.equal(worker.data.dashboard, undefined);
 	assert.equal(await readDashboardDiscovery(p.cwd), undefined);
 	// Default: auto-start, plain link (WP43d: no sign-in, so no first-time hint).
-	const started = await runWorkflowAction(p, {
+	const started = await p.launch(p, {
 		workflow: "wf.json",
 		task: "autostart",
 		executor: p.executor,
@@ -230,7 +210,7 @@ test("a launch auto-starts a detached dashboard and always carries a token-free 
 	);
 	assert.doesNotMatch(started.text, /first time in this browser|token=/);
 	// A second launch reuses it: plain link, no hint, same port.
-	const reused = await runWorkflowAction(p, {
+	const reused = await p.launch(p, {
 		workflow: "wf.json",
 		task: "reuse",
 		executor: p.executor,
@@ -274,7 +254,7 @@ test("a detached dashboard idles out only with no SSE client and no live run", {
 }, async (t) => {
 	const p = await project(t);
 	let idled = 0;
-	const s = await startDashboardServer({
+	const s = await p.start({
 		cwd: p.cwd,
 		env: p.env,
 		discovery: true,
@@ -284,9 +264,9 @@ test("a detached dashboard idles out only with no SSE client and no live run", {
 			idled += 1;
 		},
 	});
-	t.after(() => s.close().catch(() => undefined));
 	// A connected SSE client keeps it alive past the idle window.
 	const controller = new AbortController();
+	t.after(() => controller.abort());
 	const stream = fetch(`http://127.0.0.1:${s.port}/api/events`, {
 		signal: controller.signal,
 	});
@@ -311,13 +291,12 @@ test("--auth: one-click local sign-in: the page's own script may ask the server 
 	const recorder = join(p.cwd, "browser.sh");
 	await writeFile(recorder, `#!/bin/sh\necho "$1" >> ${JSON.stringify(log)}\n`);
 	await (await import("node:fs/promises")).chmod(recorder, 0o755);
-	const s = await startDashboardServer({
+	const s = await p.start({
 		cwd: p.cwd,
 		env: { ...p.env, BROWSER: recorder },
 		discovery: true,
 		auth: true,
 	});
-	t.after(() => s.close());
 	const origin = `http://127.0.0.1:${s.port}`;
 	const page = await get(origin, "/?run=workflow_abc");
 	assert.equal(page.status, 401);
