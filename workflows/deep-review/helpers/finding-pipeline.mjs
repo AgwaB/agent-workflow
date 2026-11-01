@@ -282,7 +282,21 @@ function verifierEvidenceRowsOf(value) {
 	return { rows, issues };
 }
 
-function verifierEvidenceGroundingIssues(rows, context = {}) {
+function lineRangeLabel(line, lineEnd) {
+	return lineEnd === undefined || lineEnd === line
+		? String(line)
+		: `${line}-${lineEnd}`;
+}
+
+/**
+ * agent-workflow 2026-11-01: a verifier quote that is not at its cited lines is still accepted when
+ * the exact quote occurs exactly once in the cited file. The row is moved to the lines where the
+ * quote is (the quoted bytes are unchanged) and `corrections` records cited and actual lines.
+ * Models often read files without line numbers (Codex `sed -n`, Pi `read`) and cite a line or two
+ * off; in recorded Codex runs that alone turned verified findings into needs-human. A quote that is
+ * absent or occurs more than once still fails.
+ */
+function verifierEvidenceGroundingIssues(rows, context = {}, corrections = null) {
 	if (rows.length === 0)
 		return ["verifier supplied no structured evidence rows"];
 	const issues = [];
@@ -300,16 +314,40 @@ function verifierEvidenceGroundingIssues(rows, context = {}) {
 		// Split only on LF so CRLF evidence remains byte-distinct from LF.
 		const lines = source.text.split("\n");
 		const lineEnd = row.lineEnd ?? row.line;
-		if (row.line > lines.length || lineEnd > lines.length) {
-			issues.push(`${row.file}:${row.line}-${lineEnd} is outside the file`);
+		const inFile = row.line <= lines.length && lineEnd <= lines.length;
+		if (
+			inFile &&
+			lines.slice(row.line - 1, lineEnd).join("\n").includes(row.quote)
+		)
+			continue;
+		const offset = source.text.indexOf(row.quote);
+		if (
+			corrections &&
+			offset >= 0 &&
+			source.text.indexOf(row.quote, offset + 1) < 0
+		) {
+			const actualLine = lineNumberOfOffset(source.text, offset);
+			const actualEnd = actualLine + row.quote.split("\n").length - 1;
+			corrections.push({
+				file: row.file,
+				cited: lineRangeLabel(row.line, row.lineEnd),
+				actual: lineRangeLabel(
+					actualLine,
+					row.lineEnd === undefined && actualEnd === actualLine
+						? undefined
+						: actualEnd,
+				),
+			});
+			row.line = actualLine;
+			if (row.lineEnd !== undefined || actualEnd !== actualLine)
+				row.lineEnd = actualEnd;
 			continue;
 		}
-		const scopedText = lines.slice(row.line - 1, lineEnd).join("\n");
-		if (!scopedText.includes(row.quote)) {
-			issues.push(
-				`${row.file}:${row.line}-${lineEnd} did not contain the exact verifier quote`,
-			);
-		}
+		issues.push(
+			inFile
+				? `${row.file}:${row.line}-${lineEnd} did not contain the exact verifier quote`
+				: `${row.file}:${row.line}-${lineEnd} is outside the file`,
+		);
 	}
 	return issues;
 }
@@ -853,7 +891,7 @@ function ocrBindingIssue(row, path, source, artifact, repoRoot) {
 	return "";
 }
 
-function exactSourceQuoteIssue(row, path, context) {
+function exactSourceQuoteIssue(row, path, context, corrections = null) {
 	if (!row.evidence) return "content quote missing";
 	if (/:\d+(?:-\d+)?(?:,\d+(?:-\d+)?)+$/u.test(path))
 		return "multiple source ranges are unsupported; plan each range as a separate pointer";
@@ -910,9 +948,26 @@ function exactSourceQuoteIssue(row, path, context) {
 		// Split only on LF. The CR in CRLF is source content and must remain in
 		// the scoped bytes; a terminal LF intentionally creates an empty line.
 		const lines = source.text.split("\n");
-		if (pointer.line > lines.length || pointer.lineEnd > lines.length)
+		if (pointer.line > lines.length)
 			return "required source range is outside the file";
-		scopedText = lines.slice(pointer.line - 1, pointer.lineEnd).join("\n");
+		// agent-workflow 2026-11-01: a planned range that starts inside the file but ends past it is
+		// checked through the file's last line, and `corrections` records it (the report lists it).
+		// Triage plans ranges from text it may have read without line numbers; recorded Codex runs
+		// planned e.g. 62-118 for a 113-line file while the reviewers quoted inside it. A range that
+		// starts past the file still fails.
+		scopedText = lines
+			.slice(pointer.line - 1, Math.min(pointer.lineEnd, lines.length))
+			.join("\n");
+		if (pointer.lineEnd > lines.length && scopedText.includes(row.evidence)) {
+			const fileLines = source.text.endsWith("\n")
+				? lines.length - 1
+				: lines.length;
+			corrections?.push({
+				path,
+				fileLines,
+				checked: `${pointer.line}-${Math.max(pointer.line, fileLines)}`,
+			});
+		}
 	}
 	return scopedText.includes(row.evidence)
 		? ""
@@ -945,8 +1000,9 @@ function assessSourceCoverage(requiredValue, coverageValue, context = {}) {
 		requiredPaths.push(path);
 	}
 	if (requiredPaths.length === 0 && issues.length === 0) {
-		return { issues: [], rows: [] };
+		return { issues: [], rows: [], corrections: [] };
 	}
+	const corrections = [];
 	const rows = asObjects(coverageValue).map((row) => ({
 		path: typeof row.path === "string" ? row.path : String(row.path ?? ""),
 		status: String(row.status ?? "").trim(),
@@ -979,7 +1035,7 @@ function assessSourceCoverage(requiredValue, coverageValue, context = {}) {
 			});
 			continue;
 		}
-		const evidenceIssue = exactSourceQuoteIssue(row, path, context);
+		const evidenceIssue = exactSourceQuoteIssue(row, path, context, corrections);
 		if (evidenceIssue) {
 			issues.push({ path, status: row.status, reason: evidenceIssue });
 		}
@@ -993,7 +1049,7 @@ function assessSourceCoverage(requiredValue, coverageValue, context = {}) {
 			});
 		}
 	}
-	return { issues, rows };
+	return { issues, rows, corrections };
 }
 
 function sourceCoverageFailure(sourceId, reviewerId, assessment) {
@@ -1206,6 +1262,7 @@ function reviewerCoverageLedger(sources, context, coverageIssues) {
 	const validAttestationSourceIds = [];
 	const ownerMap = [];
 	const sourceCoverageFailures = [];
+	const plannedRangeCorrections = [];
 	let ownerBindingValid = true;
 	for (const [sourceId, source] of reviewerEntries) {
 		const owners = reviewerStatusesForAlias(rawStatuses, sourceId);
@@ -1255,6 +1312,13 @@ function reviewerCoverageLedger(sources, context, coverageIssues) {
 				sourceCoverageFailure(sourceId, lensId, sourceCoverage),
 			);
 		}
+		for (const correction of sourceCoverage.corrections ?? [])
+			plannedRangeCorrections.push({
+				kind: "planned-range-end",
+				source: sourceId,
+				lens: lensId,
+				...correction,
+			});
 		if (owner) {
 			materializedReviewerIds.push(owner.itemIdentity);
 			materializedReviewerSourceIds.push(sourceId);
@@ -1358,6 +1422,7 @@ function reviewerCoverageLedger(sources, context, coverageIssues) {
 			sameSet(plannedLensIds, attestedLensIds),
 		sourceStatuses: statuses,
 		sourceCoverageFailures,
+		...(plannedRangeCorrections.length > 0 ? { plannedRangeCorrections } : {}),
 	};
 }
 
@@ -3838,6 +3903,7 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 
 	const partitions = { keep: [], weaken: [], drop: [], needsHuman: [] };
 	const normalizationNotes = [];
+	const verifierLineCorrections = [];
 	const matchedFindingIds = new Set();
 	const issueCoveredFindingIds = new Set();
 	let missingVerdicts = 0;
@@ -4052,13 +4118,29 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 			);
 			continue;
 		}
+		const rowLineCorrections = [];
 		const verifierEvidenceIssues =
 			!row.batched && structuredVerifierEvidence
 				? [
 						...verifierEvidenceResult.issues,
-						...verifierEvidenceGroundingIssues(verifierEvidenceRows, context),
+						...verifierEvidenceGroundingIssues(
+							verifierEvidenceRows,
+							context,
+							rowLineCorrections,
+						),
 					]
 				: [];
+		for (const correction of rowLineCorrections) {
+			verifierLineCorrections.push({
+				kind: "verifier-line",
+				source: row.sourceId ?? "unknown-verifier",
+				findingId: item.findingId,
+				...correction,
+			});
+			normalizationNotes.push(
+				`verifier evidence for "${title}" cited ${correction.file}:${correction.cited}; the exact quote occurs once, at ${correction.actual}; line corrected`,
+			);
+		}
 		if (verifierEvidenceIssues.length > 0) {
 			const failure = {
 				source: row.sourceId ?? "unknown-verifier",
@@ -4446,7 +4528,17 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 		sourceStatusSummary: mergedSourceStatusSummary,
 		partitionSummary,
 		normalizationNotes,
+		...evidenceCorrectionsOf(reviewerLedger, verifierLineCorrections),
 	};
+}
+
+/** agent-workflow 2026-11-01: line corrections made by the coverage and verifier checks (report lists them). */
+function evidenceCorrectionsOf(reviewerLedger, verifierLineCorrections) {
+	const corrections = [
+		...asObjects(reviewerLedger?.plannedRangeCorrections),
+		...verifierLineCorrections,
+	];
+	return corrections.length > 0 ? { evidenceCorrections: corrections } : {};
 }
 
 export default async function findingPipeline({

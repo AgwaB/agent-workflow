@@ -132,6 +132,22 @@ After stage 2 (2026-11-01):
   stable JSON form. Replaying the five recorded runs: status, verdict and gates unchanged, all 318
   field values present. The ledger text and row keys are unchanged. Test:
   `core-impact-review-row-text.test.mjs`.
+- **M20.** deep-review line corrections (`finding-pipeline.mjs`, `render-review-report.mjs`). Models
+  often read files without line numbers (Codex `sed -n`, Pi `read`); in nine recorded Codex runs
+  that alone left 6 of 9 reviews `PARTIAL_REVIEW` (triage planned ranges past the end of the file;
+  verifiers quoted correctly but one to six lines off). Two code corrections, both recorded:
+  - A planned coverage range that starts inside the file but ends past it is checked through the
+    last line (`reviewerLedger.plannedRangeCorrections`). One that starts past the file still fails.
+    This changes pi-workflow's D04 rule (2026-09-07 audit: reject ranges past EOF), which guarded
+    against silently accepting such a range; the correction is now listed instead.
+  - A verifier quote that is not at its cited lines is accepted when the exact quote occurs exactly
+    once in the cited file; the evidence row moves to those lines. An absent or repeated quote still
+    fails. The quoted bytes are never changed or normalized.
+  Partition output carries `evidenceCorrections` (only when there are any) and the report lists them
+  under "Line corrections". Replaying the nine runs (report stage emulated with a consistent verdict):
+  7 `NEEDS_WORK`, 2 `PARTIAL_REVIEW` (a reviewer quote outside its planned range; a quote not in the
+  file); the four runs without corrections produce byte-identical stage output. Tests:
+  `core-deep-review-line-corrections.test.mjs`, D04 in `core-deep-review-d01-d10.test.mjs`.
 
 ## Worker prompt rendering (core)
 

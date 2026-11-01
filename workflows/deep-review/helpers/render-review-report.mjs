@@ -1718,6 +1718,39 @@ function renderEvidenceCoverage(partition, findings) {
 	];
 }
 
+/**
+ * agent-workflow 2026-11-01: line numbers the pipeline corrected (finding-pipeline
+ * `evidenceCorrections`). The quoted bytes were checked unchanged; only the cited lines moved.
+ */
+function renderEvidenceCorrections(partition) {
+	const corrections = asArray(partition?.evidenceCorrections).filter(
+		(correction) => correction && typeof correction === "object",
+	);
+	if (corrections.length === 0) return [];
+	const lines = [
+		"## Line corrections",
+		"",
+		"The exact quoted text was verified; only the cited line numbers were corrected.",
+		"",
+		"| Stage | File | Lines given | Lines checked | Why |",
+		"|---|---|---|---|---|",
+	];
+	for (const correction of corrections) {
+		if (correction.kind === "planned-range-end") {
+			const pointer = /^(.*):(\d+(?:-\d+)?)$/u.exec(String(correction.path ?? ""));
+			lines.push(
+				`| ${escapeTableCell(`triage plan for reviewer ${correction.lens || correction.source || "unknown"}`)} | ${escapeTableCell(pointer?.[1] ?? correction.path ?? "unknown")} | ${escapeTableCell(pointer?.[2] ?? "")} | ${escapeTableCell(correction.checked ?? "")} | ${escapeTableCell(`the planned range ends past the file (${correction.fileLines} lines)`)} |`,
+			);
+		} else {
+			lines.push(
+				`| ${escapeTableCell(`verifier of ${correction.findingId || correction.source || "unknown"}`)} | ${escapeTableCell(correction.file ?? "unknown")} | ${escapeTableCell(correction.cited ?? "")} | ${escapeTableCell(correction.actual ?? "")} | ${escapeTableCell("the quote occurs exactly once in the file, at these lines")} |`,
+			);
+		}
+	}
+	lines.push("");
+	return lines;
+}
+
 function renderLimitations(limitations) {
 	return [
 		"## Limitations",
@@ -1890,6 +1923,7 @@ function renderMarkdown({
 	}
 	lines.push(...renderEvidenceCoverage(partition, sortedFindings));
 	lines.push(...renderSourceCoverageGaps(partition));
+	lines.push(...renderEvidenceCorrections(partition));
 	lines.push(...renderLimitations(limitations));
 	lines.push(...renderRelatedArtifacts());
 	return {

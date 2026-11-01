@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/deep-review-d01-d10.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); harness from test/helpers/; setSubagentApiForTests→setTaskRuntimeApiForTests; paths .pi/{workflows,agents,workflow-subagents}→.agent-workflow/…, env PI_WORKFLOW_*→AGENT_WORKFLOW_*; WP10: D09 blocks the .agent-workflow sidecar root (was .pi).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/deep-review-d01-d10.test.mjs. MIT, same author. Changes: D04 (2026-11-01) — a planned range ending past the file is checked through its last line and recorded, one starting past it still fails; imports from dist/core (subagent-backend names from their WP4c modules); harness from test/helpers/; setSubagentApiForTests→setTaskRuntimeApiForTests; paths .pi/{workflows,agents,workflow-subagents}→.agent-workflow/…, env PI_WORKFLOW_*→AGENT_WORKFLOW_*; WP10: D09 blocks the .agent-workflow sidecar root (was .pi).
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -298,13 +298,33 @@ test("D04 rejects normalized whitespace, CRLF substitution, invalid UTF-8, and o
 		cwd,
 	);
 	assert.equal(lf.sourceStatusSummary.nonCompleted, 1);
+	// agent-workflow 2026-11-01: a planned range that ends past the file is checked through its
+	// last line and recorded as a correction (pi-workflow rejected it); one that starts past the
+	// file is still rejected.
 	const pastEof = await dedup(
 		[],
 		{},
 		{ ...goodCoverage, path: "src/review.ts:1-99" },
 		cwd,
 	);
-	assert.equal(pastEof.sourceStatusSummary.nonCompleted, 1);
+	assert.equal(pastEof.sourceStatusSummary.nonCompleted, 0);
+	assert.deepEqual(pastEof.reviewerLedger.plannedRangeCorrections, [
+		{
+			kind: "planned-range-end",
+			source: "reviewers.runtime",
+			lens: "runtime",
+			path: "src/review.ts:1-99",
+			fileLines: 2,
+			checked: "1-2",
+		},
+	]);
+	const startPastEof = await dedup(
+		[],
+		{},
+		{ ...goodCoverage, path: "src/review.ts:4-9" },
+		cwd,
+	);
+	assert.equal(startPastEof.sourceStatusSummary.nonCompleted, 1);
 	writeFileSync(
 		join(cwd, "src/binary.ts"),
 		Buffer.from([0x63, 0x6f, 0x6e, 0x73, 0x74, 0xff, 0x3b]),
