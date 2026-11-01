@@ -1,14 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile, rm, stat, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import test from "node:test";
 import { setImmediate as immediate } from "node:timers/promises";
-import { startDashboardServer } from "../../dist/hosts/dashboard/server.js";
+import { dashboardProject } from "../helpers/dashboard-project.mjs";
 import {
 	dashboardDiscoveryPath,
 	dashboardSessionPath,
-	ensureDashboard,
 	readDashboardDiscovery,
 	readOrCreateDashboardSession,
 	resetDashboardSession,
@@ -21,32 +19,13 @@ import { runAgentWorkflowCli } from "../../dist/hosts/cli/index.js";
 setDashboardStartBudgetForTests(15_000);
 
 async function project(t) {
-	const cwd = await mkdtemp(join(tmpdir(), "aw-wp43c-session-"));
-	const servers = [];
-	t.after(async () => {
-		for (const server of servers) await server.close();
-		await cli(cwd, ["--stop"]);
-		await rm(cwd, {
-			recursive: true,
-			force: true,
-			maxRetries: 10,
-			retryDelay: 100,
-		});
-	});
+	const fixture = await dashboardProject(t, "aw-wp43c-session-");
 	return {
-		cwd,
+		cwd: fixture.cwd,
+		ensure: fixture.ensure,
 		// WP43d: these are the --auth (persistent session) contracts; open mode has no session.
-		start: async (options = {}) => {
-			const server = await startDashboardServer({
-				cwd,
-				discovery: true,
-				env: {},
-				auth: true,
-				...options,
-			});
-			servers.push(server);
-			return server;
-		},
+		start: (options = {}) =>
+			fixture.start({ discovery: true, env: {}, auth: true, ...options }),
 	};
 }
 async function cli(cwd, args, env = {}) {
@@ -108,7 +87,7 @@ test("session creation is atomic and private; malformed sessions regenerate", as
 test("cookie survives two starts; CLI reset stops a detached server and invalidates the old cookie", {
 	timeout: 60_000,
 }, async (t) => {
-	const { cwd, start } = await project(t);
+	const { cwd, start, ensure } = await project(t);
 	const first = await start();
 	const boot = await http(first, `/?token=${first.token}`);
 	assert.equal(boot.status, 302);
@@ -119,15 +98,11 @@ test("cookie survives two starts; CLI reset stops a detached server and invalida
 	assert.equal((await http(second, "/api/session", cookie)).status, 200);
 	assert.notEqual(second.launchKey, first.launchKey);
 	await second.close();
-	const detached = await ensureDashboard(
-		cwd,
-		{
-			...process.env,
-			AGENT_WORKFLOW_DASHBOARD_IDLE_MS: "120000",
-			AGENT_WORKFLOW_DASHBOARD_AUTH: "1",
-		},
-		{ start: true },
-	);
+	const detached = await ensure({
+		...process.env,
+		AGENT_WORKFLOW_DASHBOARD_IDLE_MS: "120000",
+		AGENT_WORKFLOW_DASHBOARD_AUTH: "1",
+	});
 	assert.ok(detached);
 	assert.equal(detached.auth, true);
 	assert.equal((await http(detached, "/api/session", cookie)).status, 200);
@@ -152,17 +127,16 @@ test("cookie survives two starts; CLI reset stops a detached server and invalida
 test("open mode never creates a session file; --status reports auth off", {
 	timeout: 60_000,
 }, async (t) => {
-	const { cwd, start } = await project(t);
+	const { cwd, start, ensure } = await project(t);
 	const server = await start({ auth: false });
 	assert.equal(server.auth, false);
 	await assert.rejects(stat(dashboardSessionPath(cwd)), { code: "ENOENT" });
 	assert.equal((await http(server, "/")).status, 200);
 	await server.close();
-	const detached = await ensureDashboard(
-		cwd,
-		{ ...process.env, AGENT_WORKFLOW_DASHBOARD_IDLE_MS: "120000" },
-		{ start: true },
-	);
+	const detached = await ensure({
+		...process.env,
+		AGENT_WORKFLOW_DASHBOARD_IDLE_MS: "120000",
+	});
 	assert.ok(detached);
 	assert.equal(detached.auth, false);
 	assert.equal((await http(detached, "/api/session")).status, 200);
@@ -227,6 +201,7 @@ test("invalid detached idle environment is usage exit 2; foreground ignores it",
 		assert.match(result.stderr, /AGENT_WORKFLOW_DASHBOARD_IDLE_MS/);
 	}
 	const controller = new AbortController();
+	t.after(() => controller.abort());
 	const result = await runAgentWorkflowCli(["dashboard"], {
 		cwd,
 		env: { AGENT_WORKFLOW_DASHBOARD_IDLE_MS: "invalid" },
@@ -281,6 +256,7 @@ for (const protection of ["none", "SSE", "live run", "source failure"]) {
 			stream = await fetch(`http://127.0.0.1:${server.port}/api/events`, {
 				headers: { Cookie: `aw_session=${server.token}` },
 			});
+			t.after(() => stream.body.cancel().catch(() => {}));
 			assert.equal(stream.status, 200);
 		}
 		now += 1600;
@@ -335,3 +311,44 @@ test("foreground servers do not idle out", async (t) => {
 		200,
 	);
 });
+
+for (const removed of ["project", "state"]) {
+	for (const protection of ["live run", "source failure"]) {
+		test(`detached dashboard exits after ${removed} deletion despite ${protection}`, async (t) => {
+			const { cwd, start } = await project(t);
+			t.mock.timers.enable({ apis: ["setInterval"] });
+			let exited = false,
+				calls = 0;
+			const server = await start({
+				idleExitMs: 7_200_000,
+				source: {
+					listRuns: async () => {
+						calls++;
+						if (protection === "source failure")
+							throw new Error("missing state");
+						return [{ live: true }];
+					},
+				},
+				onIdleExit: () => {
+					exited = true;
+				},
+			});
+			const path = removed === "project" ? cwd : join(cwd, ".agent-workflow");
+			await rm(path, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 100,
+			});
+			t.mock.timers.tick(60_000);
+			await until(() => exited);
+			assert.equal(
+				calls,
+				0,
+				"do not query a source that could recreate the deleted project",
+			);
+			await assert.rejects(stat(path), { code: "ENOENT" });
+			await assert.rejects(http(server, "/api/session"));
+		});
+	}
+}

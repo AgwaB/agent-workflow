@@ -1,14 +1,12 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
 import { registerWorkflowExecutor } from "../../dist/core/index.js";
 import { setSubagentLaunchControlsForTests } from "../../dist/core/launch-slots.js";
-import { runWorkflowAction, waitAction } from "../../dist/hosts/api.js";
-import { runAgentWorkflowCli } from "../../dist/hosts/cli/index.js";
+import { dashboardProject } from "../helpers/dashboard-project.mjs";
 import {
 	dashboardDiscoveryPath,
 	readDashboardDiscovery,
@@ -23,7 +21,8 @@ setDashboardStartBudgetForTests(15_000);
 let counter = 0;
 setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 async function project(t, overrides = {}) {
-	const cwd = await mkdtemp(join(tmpdir(), "aw-wp43c-launch-"));
+	const fixture = await dashboardProject(t, "aw-wp43c-launch-");
+	const { cwd } = fixture;
 	const env = {
 		...process.env,
 		AGENT_WORKFLOW_HOME: join(cwd, "home"),
@@ -49,52 +48,24 @@ async function project(t, overrides = {}) {
 		}),
 	);
 	const executor = `wp43c-fixture-${++counter}`;
-	const undo = registerWorkflowExecutor(
-		workflowFixtureDescriptor({
-			id: executor,
-			effectLog: join(cwd, "effects.jsonl"),
-		}),
+	fixture.dispose(
+		registerWorkflowExecutor(
+			workflowFixtureDescriptor({
+				id: executor,
+				effectLog: join(cwd, "effects.jsonl"),
+			}),
+		),
 	);
-	const runs = [];
 	const ctx = { cwd, env, host: "cli" };
-	t.after(async () => {
-		for (const runId of runs)
-			await waitAction(
-				{ ...ctx, env: { ...env, AGENT_WORKFLOW_ROLE: "supervisor" } },
-				{ runId, timeoutMs: 10_000 },
-			);
-		const discovery = await readDashboardDiscovery(cwd);
-		if (discovery) {
-			let stderr = "";
-			const code = await runAgentWorkflowCli(["dashboard", "--stop"], {
-				cwd,
-				env: { ...env, AGENT_WORKFLOW_ROLE: "supervisor" },
-				stdout: () => {},
-				stderr: (s) => {
-					stderr += s;
-				},
-			});
-			assert.equal(code, 0, stderr);
-		}
-		undo();
-		await rm(cwd, {
-			recursive: true,
-			force: true,
-			maxRetries: 5,
-			retryDelay: 100,
-		});
-	});
 	return {
 		ctx,
 		launch: async (task = "Show my run", context = ctx, request = {}) => {
-			const out = await runWorkflowAction(context, {
+			return fixture.launch(context, {
 				workflow: "wf.json",
 				task,
 				executor,
 				...request,
 			});
-			if (out.data.runId) runs.push(out.data.runId);
-			return out;
 		},
 	};
 }
@@ -250,4 +221,29 @@ test("refused workflow launch does not auto-start", async (t) => {
 		launch("bad workflow", ctx, { workflow: "missing.json" }),
 	);
 	assert.equal(await readDashboardDiscovery(ctx.cwd), undefined);
+});
+
+test("an expired dashboard start budget leaves no late detached child", {
+	timeout: 60_000,
+	skip:
+		process.platform === "win32" ? "process command inspection uses ps" : false,
+}, async (t) => {
+	const fixture = await dashboardProject(t, "aw-wp43c-budget-");
+	setDashboardStartBudgetForTests(1);
+	t.after(() => setDashboardStartBudgetForTests(15_000));
+	assert.equal(
+		await fixture.ensure({ ...process.env, BROWSER: "none" }),
+		undefined,
+	);
+	const { stdout } = await promisify(execFile)("ps", ["-axo", "command="]);
+	assert.ok(
+		!stdout
+			.split("\n")
+			.some(
+				(line) =>
+					line.includes("cli.mjs dashboard") && line.includes(fixture.cwd),
+			),
+		"timed-out child exited before ensureDashboard returned",
+	);
+	assert.equal(await readDashboardDiscovery(fixture.cwd), undefined);
 });

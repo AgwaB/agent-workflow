@@ -11,6 +11,7 @@ import {
 import { basename, resolve } from "node:path";
 import {
 	writeDashboardDiscovery,
+	dashboardDiscoveryPath,
 	openInBrowser,
 	readOrCreateDashboardSession,
 	readPreferredDashboardPort,
@@ -782,6 +783,19 @@ export async function startDashboardServer(
 				if (checking || closing) return;
 				checking = true;
 				void (async () => {
+					// Detached servers no longer belong to a project after its state/discovery is
+					// removed. Check before listRuns or publishing: either can recreate directories.
+					if (options.discovery) {
+						try {
+							await stat(dashboardDiscoveryPath(cwd));
+						} catch (error) {
+							if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+								throw error;
+							await dashboard.close();
+							options.onIdleExit?.();
+							return;
+						}
+					}
 					const live = (await source.listRuns()).some((run) => run.live);
 					if (closing) return;
 					if (!clients.size && !live && now() - noClientsSince >= idleExitMs) {

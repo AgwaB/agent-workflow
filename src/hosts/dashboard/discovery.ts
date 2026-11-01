@@ -385,8 +385,10 @@ export async function ensureDashboard(
 	const deadline = Date.now() + dashboardStartBudget;
 	const existing = await readDashboardDiscovery(cwd);
 	if (existing || !options.start) return existing;
+	let child: ReturnType<typeof spawn> | undefined;
+	let adopted = false;
 	try {
-		const child = spawn(
+		child = spawn(
 			process.execPath,
 			[
 				fileURLToPath(
@@ -406,11 +408,30 @@ export async function ensureDashboard(
 		child.unref();
 		while (!failed && Date.now() < deadline - 500) {
 			const discovery = await readDashboardDiscovery(cwd);
-			if (discovery) return discovery;
+			if (discovery) {
+				adopted = discovery.pid === child.pid;
+				return discovery;
+			}
 			await sleep(50);
 		}
 	} catch {
 		/* Opening is best effort and must never fail a workflow launch. */
+	} finally {
+		// A timed-out start must not publish discovery later, after the caller has given up
+		// (or removed its project). Signal only our still-live ChildProcess, never a stored pid.
+		if (
+			!adopted &&
+			child?.pid &&
+			child.exitCode === null &&
+			child.signalCode === null
+		) {
+			const failedChild = child;
+			const exited = new Promise<void>((done) =>
+				failedChild.once("close", () => done()),
+			);
+			failedChild.kill("SIGKILL");
+			await exited;
+		}
 	}
 	return undefined;
 }
