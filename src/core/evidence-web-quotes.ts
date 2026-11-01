@@ -1,7 +1,9 @@
 // agent-workflow 2026-11-01: engine-side check of web quotes (experimental, opt-in).
-// For each `{url, quote}` the engine fetches the cited page itself (cache, safe fetch, PDF text),
-// builds the page's text views and looks for the quote (evidence-quote-match.ts). The model never
-// sees this and no tokens are spent. A quote that cannot be checked gets a reason (image, PDF tool
+// For each `{url, quote}`: first the page text the worker's own tool returned for that URL
+// (evidence-receipts.ts; verified-captured), otherwise the engine fetches the cited page itself
+// (cache, safe fetch, PDF text), builds its text views and looks for the quote
+// (evidence-quote-match.ts; verified-refetched). A quote found only in a worker-side summary is
+// recorded as such and still needs the page. The model never sees this; no tokens are spent. A quote that cannot be checked gets a reason (image, PDF tool
 // missing, blocked address, little page text, …) instead of a verdict: honest labelling, not a
 // gate (owner decision 2026-11-01; offline sample of 114 recorded quotes: 0 fabricated, 5 unchecked
 // — images 4, PDF table 1).
@@ -11,6 +13,12 @@ import {
 	type CachedPage,
 } from "./evidence-page-cache.js";
 import { isPdf, pdfTextViews, pdfToText } from "./evidence-pdf-text.js";
+import {
+	readTaskWebReceipts,
+	receiptUrlKey,
+	type WebReceipt,
+	type WebReceiptForm,
+} from "./evidence-receipts.js";
 import {
 	matchQuote,
 	PreparedPage,
@@ -32,6 +40,8 @@ export interface WebQuoteInput {
 	readonly key: string;
 	readonly url: string;
 	readonly quote: string;
+	/** What the worker's own web tools returned (evidence-receipts.ts), if known. */
+	readonly receipts?: readonly WebReceipt[];
 }
 
 export type WebQuoteReason =
@@ -59,11 +69,24 @@ export interface WebQuotePage {
 	readonly fromCache: boolean;
 }
 
+export type WebQuoteGrade =
+	| "verified-captured"
+	| "verified-refetched"
+	| "unverified";
+
 export interface WebQuoteResult {
 	readonly key: string;
 	readonly url: string;
-	readonly grade: "verified-refetched" | "unverified";
+	/**
+	 * verified-captured: in the page text the worker's own tool returned for this URL;
+	 * verified-refetched: on the page the engine fetched; unverified: neither (see `reason`).
+	 */
+	readonly grade: WebQuoteGrade;
 	readonly level?: QuoteMatchLevel;
+	/** Tool whose captured page text contained the quote (verified-captured). */
+	readonly capturedBy?: string;
+	/** The quote also occurs in a summary/search result the worker got for this URL. */
+	readonly inWorkerSummary?: WebReceiptForm;
 	readonly view?: WebQuoteView;
 	readonly reason?: WebQuoteReason;
 	readonly detail?: string;
@@ -74,7 +97,19 @@ export interface WebQuoteSummary {
 	readonly quotes: number;
 	readonly pages: number;
 	readonly verified: number;
+	readonly verifiedCaptured: number;
+	readonly verifiedRefetched: number;
 	readonly unverified: number;
+	/**
+	 * Quotes found in a worker-side summary/search result for the URL, and what the page showed:
+	 * how often a summary-based check would have been right.
+	 */
+	readonly inWorkerSummary: {
+		readonly total: number;
+		readonly onPage: number;
+		readonly notOnPage: number;
+		readonly unchecked: number;
+	};
 	readonly byLevel: Partial<Record<QuoteMatchLevel, number>>;
 	readonly byReason: Partial<Record<WebQuoteReason, number>>;
 }
@@ -246,16 +281,40 @@ function fetchKey(url: string): string {
 	}
 }
 
+function capturedCheck(row: WebQuoteInput):
+	| {
+			verified?: { tool: string; level: QuoteMatchLevel };
+			inWorkerSummary?: WebReceiptForm;
+	  }
+	| undefined {
+	if (!row.receipts?.length || row.quote.trim() === "") return undefined;
+	const key = receiptUrlKey(row.url);
+	const same = row.receipts.filter((receipt) => receipt.targets.includes(key));
+	for (const receipt of same.filter((r) => r.form === "page-text")) {
+		const match = matchQuote(row.quote, [receipt.text]);
+		if (match.matched)
+			return { verified: { tool: receipt.tool, level: match.level } };
+	}
+	for (const receipt of same.filter((r) => r.form !== "page-text"))
+		if (matchQuote(row.quote, [receipt.text]).matched)
+			return { inWorkerSummary: receipt.form };
+	return undefined;
+}
+
 export async function checkWebQuotes(
 	rows: readonly WebQuoteInput[],
 	options: CheckWebQuotesOptions,
 ): Promise<{ results: WebQuoteResult[]; summary: WebQuoteSummary }> {
 	const cache =
 		options.cache ?? new EvidencePageCache(evidenceCacheDir(options.cwd));
+	const captured = rows.map((row) => capturedCheck(row));
 	const urls = [
 		...new Set(
 			rows
-				.filter((row) => row.quote.trim() !== "")
+				.filter(
+					(row, index) =>
+						row.quote.trim() !== "" && captured[index]?.verified === undefined,
+				)
 				.map((row) => fetchKey(row.url)),
 		),
 	];
@@ -275,10 +334,29 @@ export async function checkWebQuotes(
 			worker,
 		),
 	);
-	const results = rows.map((row): WebQuoteResult => {
-		const base = { key: row.key, url: row.url };
+	const results = rows.map((row, index): WebQuoteResult => {
+		const check = captured[index];
+		const base = {
+			key: row.key,
+			url: row.url,
+			...(check?.inWorkerSummary
+				? { inWorkerSummary: check.inWorkerSummary }
+				: {}),
+		};
 		if (row.quote.trim() === "")
-			return { ...base, grade: "unverified", reason: "no-quote" };
+			return {
+				key: row.key,
+				url: row.url,
+				grade: "unverified",
+				reason: "no-quote",
+			};
+		if (check?.verified)
+			return {
+				...base,
+				grade: "verified-captured",
+				level: check.verified.level,
+				capturedBy: check.verified.tool,
+			};
 		const outcome = pages.get(fetchKey(row.url));
 		if (!outcome)
 			return { ...base, grade: "unverified", reason: "aborted", detail: "" };
@@ -316,20 +394,41 @@ export async function checkWebQuotes(
 		if (result.reason)
 			byReason[result.reason] = (byReason[result.reason] ?? 0) + 1;
 	}
-	const verified = results.filter(
-		(result) => result.grade === "verified-refetched",
-	).length;
+	const count = (grade: WebQuoteGrade) =>
+		results.filter((result) => result.grade === grade).length;
+	const summarized = results.filter((result) => result.inWorkerSummary);
+	const verifiedCaptured = count("verified-captured");
+	const verifiedRefetched = count("verified-refetched");
 	return {
 		results,
 		summary: {
 			quotes: results.length,
 			pages: urls.length,
-			verified,
-			unverified: results.length - verified,
+			verified: verifiedCaptured + verifiedRefetched,
+			verifiedCaptured,
+			verifiedRefetched,
+			unverified: count("unverified"),
+			inWorkerSummary: {
+				total: summarized.length,
+				onPage: summarized.filter((r) => r.grade !== "unverified").length,
+				notOnPage: summarized.filter((r) => r.reason === "quote-not-on-page")
+					.length,
+				unchecked: summarized.filter(
+					(r) => r.grade === "unverified" && r.reason !== "quote-not-on-page",
+				).length,
+			},
 			byLevel,
 			byReason,
 		},
 	};
+}
+
+/** A row from a support helper: `taskId` names the worker task whose own tool output to use. */
+export interface SupportWebQuoteInput {
+	readonly key: string;
+	readonly url: string;
+	readonly quote: string;
+	readonly taskId?: string;
 }
 
 /** What support helpers receive as `context.evidence`. */
@@ -337,17 +436,35 @@ export interface SupportEvidenceContext {
 	/** True when the owner opted in with AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH=1. */
 	readonly refetchEnabled: boolean;
 	checkWebQuotes(
-		rows: readonly WebQuoteInput[],
+		rows: readonly SupportWebQuoteInput[],
 	): Promise<{ results: WebQuoteResult[]; summary: WebQuoteSummary }>;
 }
 
 export function supportEvidenceContext(
 	cwd: string,
+	runId: string | undefined,
 	signal: AbortSignal,
 	env: Record<string, string | undefined> = process.env,
 ): SupportEvidenceContext {
 	return {
 		refetchEnabled: workflowExperimentalFlagEnabled(EVIDENCE_REFETCH_ENV, env),
-		checkWebQuotes: (rows) => checkWebQuotes(rows, { cwd, signal }),
+		checkWebQuotes: async (rows) => {
+			const receipts = new Map<string, WebReceipt[]>();
+			if (runId !== undefined)
+				for (const taskId of new Set(rows.map((row) => row.taskId)))
+					if (taskId !== undefined && /^[\w.-]+$/.test(taskId))
+						receipts.set(taskId, await readTaskWebReceipts(cwd, runId, taskId));
+			return checkWebQuotes(
+				rows.map(({ key, url, quote, taskId }) => ({
+					key,
+					url,
+					quote,
+					...(taskId !== undefined && receipts.has(taskId)
+						? { receipts: receipts.get(taskId) }
+						: {}),
+				})),
+				{ cwd, signal },
+			);
+		},
 	};
 }

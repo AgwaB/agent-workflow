@@ -46,7 +46,15 @@ test("off unless the experimental flag is set", async () => {
 	}
 });
 
-test("collects web evidence rows from verifier stages only", () => {
+test("collects web evidence rows from verifier stages only, with the verifier's task", () => {
+	const rows = collectWebQuotes(VERIFIERS, [
+		{ source: "verify-claims", taskId: "task-7" },
+		{ source: "verify-claims.batch-2", taskId: "task-8" },
+	]);
+	assert.deepEqual(
+		rows.map((row) => row.taskId),
+		["task-7", "task-7", "task-8"],
+	);
 	assert.deepEqual(
 		collectWebQuotes(VERIFIERS).map(({ key, url, quote }) => ({
 			key,
@@ -129,7 +137,7 @@ test("when enabled, the engine checks the rows and the stage records the outcome
 	assert.equal(result.enabled, true);
 	assert.match(
 		result.digest,
-		/1 of 3 quotes found on the cited page \(2 pages\); 2 not checked/,
+		/1 of 3 quotes found \(0 in the verifier's own fetched page text, 1 on the engine's re-fetch of 2 pages\); 2 not checked/,
 	);
 	assert.deepEqual(
 		result.results.map((row) => [
@@ -232,11 +240,11 @@ test("the report shows the counts and lists unchecked quotes with reasons; verdi
 	assert.equal(checked.status, "passed", JSON.stringify(checked.gates));
 	assert.match(
 		checked.executiveMarkdown,
-		/Quote check \(engine re-fetch, experimental\): 1 of 3 quotes found on the cited page; 2 not checked \(image 1, no quote given 1\)/,
+		/Quote check \(engine, experimental\): 1 of 3 quotes found on the cited page; 2 not checked \(image 1, no quote given 1\)/,
 	);
 	assert.match(
 		checked.auditMarkdown,
-		/## Quote check \(engine re-fetch, experimental\)/,
+		/## Quote check \(engine, experimental\)/,
 	);
 	assert.match(
 		checked.auditMarkdown,
@@ -253,4 +261,67 @@ test("the report shows the counts and lists unchecked quotes with reasons; verdi
 		},
 	});
 	assert.doesNotMatch(off.executiveMarkdown + off.auditMarkdown, /Quote check/);
+});
+
+test("the report separates the verifier's own captures from re-fetches and shows summary-only quotes", async () => {
+	const engine = {
+		results: [
+			{
+				key: "claim-001#0",
+				url: "https://docs.example.com/a",
+				grade: "verified-captured",
+				level: "exact",
+				capturedBy: "fetch_content",
+			},
+			{
+				key: "claim-001#2",
+				url: "https://img.example.com/t.png",
+				grade: "verified-refetched",
+				level: "exact",
+				inWorkerSummary: "summary",
+			},
+			{
+				key: "claim-002#0",
+				url: "http://docs.example.com/b",
+				grade: "unverified",
+				reason: "quote-not-on-page",
+				inWorkerSummary: "summary",
+			},
+		],
+		summary: {
+			quotes: 3,
+			pages: 2,
+			verified: 2,
+			verifiedCaptured: 1,
+			verifiedRefetched: 1,
+			unverified: 1,
+			inWorkerSummary: { total: 2, onPage: 1, notOnPage: 1, unchecked: 0 },
+			byLevel: { exact: 2 },
+			byReason: { "quote-not-on-page": 1 },
+		},
+	};
+	const stage = await checkWebQuotes({
+		sources: VERIFIERS,
+		context: {
+			evidence: { refetchEnabled: true, checkWebQuotes: async () => engine },
+		},
+	});
+	assert.equal(stage.results[0].capturedBy, "fetch_content");
+	assert.equal(stage.results[2].inWorkerSummary, "summary");
+	const result = await render({
+		sources: { ...(await reportSources()), "check-web-quotes": stage },
+	});
+	assert.equal(result.status, "passed");
+	assert.match(
+		result.executiveMarkdown,
+		/2 of 3 quotes found on the cited page \(1 in the verifier's own fetched page text, 1 on the engine's re-fetch\); 1 not checked \(not found on the page 1\)/,
+	);
+	assert.match(
+		result.executiveMarkdown,
+		/only summarized \(found in its page summary\): 2 — on the page 1, not on the page 1, could not check 0/,
+	);
+	assert.match(
+		result.auditMarkdown,
+		/\| claim-002 \| http:\/\/docs\.example\.com\/b \|  \| not found on the page \(it was in the verifier's page summary\) \|/,
+	);
 });

@@ -1,7 +1,8 @@
 // agent-workflow 2026-11-01: experimental engine-side check of verifier web quotes.
 // Off unless the owner sets AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH=1. When on, every
 // verifier evidence row with an http(s) URL and a quote is checked by the engine itself
-// (`context.evidence.checkWebQuotes`: fetch the cited page, look for the quote). No model calls.
+// (`context.evidence.checkWebQuotes`: the page text the verifier's own tool returned, else the
+// cited page fetched by the engine). No model calls.
 // The result is shown in the report (counts in final-report.md, unchecked quotes in audit.md);
 // it does not change any claim verdict.
 
@@ -32,7 +33,12 @@ function webUrlOf(evidence) {
 	return null;
 }
 
-export function collectWebQuotes(sources) {
+export function collectWebQuotes(sources, sourceStatuses = []) {
+	const taskBySource = new Map(
+		(Array.isArray(sourceStatuses) ? sourceStatuses : [])
+			.filter((status) => typeof status?.source === "string" && typeof status?.taskId === "string")
+			.map((status) => [status.source, status.taskId]),
+	);
 	const rows = [];
 	const seen = new Set();
 	for (const [sourceId, source] of Object.entries(sources ?? {})) {
@@ -47,12 +53,14 @@ export function collectWebQuotes(sources) {
 				const key = `${claimId ?? sourceId}#${index}`;
 				if (seen.has(key)) continue;
 				seen.add(key);
+				const taskId = taskBySource.get(sourceId);
 				rows.push({
 					key,
 					claimId,
 					evidenceIndex: index,
 					url,
 					quote: typeof row.quote === "string" ? row.quote : "",
+					...(taskId ? { taskId } : {}),
 				});
 			}
 		}
@@ -70,11 +78,16 @@ export default async function checkWebQuotes({ sources, context = {} }) {
 				"Web quote check is off (experimental; set AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH=1).",
 			results: [],
 		};
-	const rows = collectWebQuotes(sources);
+	const rows = collectWebQuotes(sources, context.sourceStatuses);
 	let checked;
 	try {
 		checked = await context.evidence.checkWebQuotes(
-			rows.map(({ key, url, quote }) => ({ key, url, quote })),
+			rows.map(({ key, url, quote, taskId }) => ({
+				key,
+				url,
+				quote,
+				...(taskId ? { taskId } : {}),
+			})),
 		);
 	} catch (error) {
 		context.signal?.throwIfAborted();
@@ -97,6 +110,8 @@ export default async function checkWebQuotes({ sources, context = {} }) {
 			quote: (row?.quote ?? "").slice(0, MAX_QUOTE_CHARS),
 			grade: result.grade,
 			...(result.level ? { level: result.level } : {}),
+			...(result.capturedBy ? { capturedBy: result.capturedBy } : {}),
+			...(result.inWorkerSummary ? { inWorkerSummary: result.inWorkerSummary } : {}),
 			...(result.view ? { view: result.view } : {}),
 			...(result.reason ? { reason: result.reason } : {}),
 			...(result.detail ? { detail: result.detail } : {}),
@@ -117,7 +132,7 @@ export default async function checkWebQuotes({ sources, context = {} }) {
 	return {
 		schema,
 		enabled: true,
-		digest: `Web quote check: ${summary.verified} of ${summary.quotes} quotes found on the cited page (${summary.pages} pages); ${summary.unverified} not checked.`,
+		digest: `Web quote check: ${summary.verified} of ${summary.quotes} quotes found (${summary.verifiedCaptured ?? 0} in the verifier's own fetched page text, ${summary.verifiedRefetched ?? summary.verified} on the engine's re-fetch of ${summary.pages} pages); ${summary.unverified} not checked.`,
 		summary,
 		results,
 	};

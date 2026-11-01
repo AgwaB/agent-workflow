@@ -564,11 +564,12 @@ workflow's helpers must not cause undeclared side effects.
 
 **Web quote check (experimental).** With `AGENT_WORKFLOW_EXPERIMENTAL_EVIDENCE_REFETCH=1` in the
 environment of the process that runs the workflow, `context.evidence.refetchEnabled` is true and
-`context.evidence.checkWebQuotes([{ key, url, quote }])` fetches each cited page itself and looks for
-the quote (no model call). It reaches public addresses only, caps pages at 5 MB (PDF 10 MB, through
+`context.evidence.checkWebQuotes([{ key, url, quote, taskId }])` looks for each quote in the page text
+the task's own web tools returned for that URL, otherwise fetches the cited page itself (no model
+call). It reaches public addresses only, caps pages at 5 MB (PDF 10 MB, through
 the system `pdftotext` when installed), caches pages by content hash in
-`.agent-workflow/evidence-cache/` (1 GiB, 24 h), and returns per quote `verified-refetched` or
-`unverified` with a reason. deep-research uses it in its `check-web-quotes` stage: the final report's
+`.agent-workflow/evidence-cache/` (1 GiB, 24 h), and returns per quote `verified-captured`,
+`verified-refetched` or `unverified` with a reason. deep-research uses it in its `check-web-quotes` stage: the final report's
 audit summary gets a "Quote check" line and `audit.md` lists every quote that could not be checked.
 Verdicts are not changed.
 

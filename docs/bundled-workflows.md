@@ -174,6 +174,13 @@ After stage 2 (2026-11-01):
   Pi/Codex verifier quotes: 108 found (exact 88, normalized 19, math 1), 6 not checked (image 4,
   a PDF table row, one HTTP 403); 438 mutated quotes (numbers, negation, words, order, merges) 0
   found. Tests: `core-evidence-*.test.mjs`, `core-deep-research-web-quote-check.test.mjs`.
+  Before fetching, the check reads what the verifier's own web tools returned (`exec-events.jsonl` of
+  the task's attempts, `src/core/evidence-receipts.ts`): a quote in page text the worker fetched for
+  the same URL (Pi `fetch_content`) is `verified-captured` and that URL is not fetched; a quote found
+  only in a summary (Claude `WebFetch`) or search result is noted (`inWorkerSummary`) and still
+  checked on the page — the report counts how often such summary quotes were on the page. Codex web
+  events carry no page text. Recorded Pi run: 33 of 39 quotes verified from its own captures, 2 pages
+  fetched.
 
 ## Worker prompt rendering (core)
 

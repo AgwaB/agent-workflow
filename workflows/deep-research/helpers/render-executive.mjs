@@ -2137,16 +2137,35 @@ function quoteCheckReasonText(byReason) {
 		.join(", ");
 }
 
+function quoteCheckSources(summary) {
+	const captured = Number(summary.verifiedCaptured ?? 0);
+	const refetched = Number(summary.verifiedRefetched ?? summary.verified ?? 0);
+	return captured > 0
+		? ` (${captured} in the verifier's own fetched page text, ${refetched} on the engine's re-fetch)`
+		: "";
+}
+
+function quoteCheckSummaryText(summary) {
+	const inSummary = isRecord(summary.inWorkerSummary)
+		? summary.inWorkerSummary
+		: null;
+	if (!inSummary || Number(inSummary.total) <= 0) return [];
+	return [
+		`- Quotes the verifier's tool only summarized (found in its page summary): ${inSummary.total} — on the page ${Number(inSummary.onPage ?? 0)}, not on the page ${Number(inSummary.notOnPage ?? 0)}, could not check ${Number(inSummary.unchecked ?? 0)}.`,
+	];
+}
+
 function renderQuoteCheckSummaryLine(quoteCheck) {
 	if (!quoteCheck) return [];
 	const summary = quoteCheck.summary;
 	const reasons = quoteCheckReasonText(summary.byReason);
 	return [
-		`- Quote check (engine re-fetch, experimental): ${summary.verified} of ${summary.quotes} quotes found on the cited page${
+		`- Quote check (engine, experimental): ${summary.verified} of ${summary.quotes} quotes found on the cited page${quoteCheckSources(summary)}${
 			summary.unverified > 0
 				? `; ${summary.unverified} not checked (${reasons}) — listed in [audit](audit.md)`
 				: ""
 		}.`,
+		...quoteCheckSummaryText(summary),
 	];
 }
 
@@ -2156,11 +2175,12 @@ function renderQuoteCheckAudit(quoteCheck) {
 	const levels = isRecord(summary.byLevel) ? summary.byLevel : {};
 	const out = [
 		"",
-		"## Quote check (engine re-fetch, experimental)",
+		"## Quote check (engine, experimental)",
 		"",
-		"The engine fetched each cited web page itself and looked for the verifier's quote. No model was involved; verdicts above are unchanged.",
+		"The engine looked for each verifier quote in the page text the verifier's own tool returned for that URL, otherwise on the cited page fetched by the engine itself. No model was involved; verdicts above are unchanged.",
 		"",
-		`- Quotes: ${summary.quotes} on ${summary.pages} pages; found ${summary.verified} (exact ${Number(levels.exact ?? 0)}, after normalization ${Number(levels.normalized ?? 0)}, math notation ${Number(levels.math ?? 0)}); not checked ${summary.unverified}.`,
+		`- Quotes: ${summary.quotes}; found ${summary.verified}${quoteCheckSources(summary)} (exact ${Number(levels.exact ?? 0)}, after normalization ${Number(levels.normalized ?? 0)}, math notation ${Number(levels.math ?? 0)}); pages fetched ${summary.pages}; not checked ${summary.unverified}.`,
+		...quoteCheckSummaryText(summary),
 	];
 	const unchecked = quoteCheck.results.filter(
 		(row) => isRecord(row) && row.grade !== "verified-refetched",
@@ -2173,7 +2193,7 @@ function renderQuoteCheckAudit(quoteCheck) {
 		);
 		for (const row of unchecked)
 			out.push(
-				`| ${escapeTableCell(row.claimId ?? "")} | ${escapeTableCell(row.url ?? "")} | ${escapeTableCell(truncateWords(cleanText(row.quote ?? ""), 24))} | ${escapeTableCell(row.reason === "http-error" && row.detail ? row.detail : (QUOTE_CHECK_REASONS[row.reason] ?? row.reason ?? ""))} |`,
+				`| ${escapeTableCell(row.claimId ?? "")} | ${escapeTableCell(row.url ?? "")} | ${escapeTableCell(truncateWords(cleanText(row.quote ?? ""), 24))} | ${escapeTableCell(`${row.reason === "http-error" && row.detail ? row.detail : (QUOTE_CHECK_REASONS[row.reason] ?? row.reason ?? "")}${row.inWorkerSummary ? " (it was in the verifier's page summary)" : ""}`)} |`,
 			);
 	}
 	return out;

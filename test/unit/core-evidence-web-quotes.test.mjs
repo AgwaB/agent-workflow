@@ -3,12 +3,16 @@
 // What cannot be checked gets a reason instead of a verdict.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { EvidencePageCache } from "../../dist/core/evidence-page-cache.js";
 import { pdfToText, pdfTextViews } from "../../dist/core/evidence-pdf-text.js";
+import {
+	readTaskWebReceipts,
+	receiptUrlKey,
+} from "../../dist/core/evidence-receipts.js";
 import {
 	checkWebQuotes,
 	EVIDENCE_REFETCH_ENV,
@@ -267,16 +271,166 @@ test("the page cache is content-addressed, expires and stays under its cap", asy
 test("support helpers get the check, enabled only by the experimental flag", () => {
 	const signal = new AbortController().signal;
 	assert.equal(
-		supportEvidenceContext("/tmp", signal, {}).refetchEnabled,
+		supportEvidenceContext("/tmp", "run", signal, {}).refetchEnabled,
 		false,
 	);
 	assert.equal(
-		supportEvidenceContext("/tmp", signal, { [EVIDENCE_REFETCH_ENV]: "1" })
-			.refetchEnabled,
+		supportEvidenceContext("/tmp", "run", signal, {
+			[EVIDENCE_REFETCH_ENV]: "1",
+		}).refetchEnabled,
 		true,
 	);
 	assert.equal(
-		typeof supportEvidenceContext("/tmp", signal, {}).checkWebQuotes,
+		typeof supportEvidenceContext("/tmp", "run", signal, {}).checkWebQuotes,
 		"function",
 	);
+});
+
+// Receipts: what the worker's own web tools returned (normalized exec-events of its attempts).
+function writeAttempt(cwd, runId, taskId, attempt, events) {
+	const dir = join(
+		cwd,
+		".agent-workflow",
+		"workflow-subagents",
+		runId,
+		taskId,
+		"run_1",
+		"attempts",
+		attempt,
+	);
+	mkdirSync(dir, { recursive: true });
+	writeFileSync(
+		join(dir, "exec-events.jsonl"),
+		`${events.map((event) => JSON.stringify(event)).join("\n")}\n`,
+	);
+}
+
+const tool = (name, status, callId, extra) => ({
+	type: "tool_call",
+	name,
+	kind: "fetch",
+	status,
+	callId,
+	...extra,
+});
+
+test("receipts come from every attempt's tool calls, typed by what the tool returns", async (t) => {
+	const cwd = mkdtempSync(join(tmpdir(), "aw-evidence-receipts-"));
+	t.after(() => rmSync(cwd, { recursive: true, force: true }));
+	writeAttempt(cwd, "run-1", "task-3", "attempt_a", [
+		tool("fetch_content", "running", "c1", {
+			input: { url: "https://www.Docs.example.com/a/" },
+		}),
+		tool("fetch_content", "completed", "c1", {
+			output: "Page A says the cache is cleared.",
+		}),
+		tool("fetch_content", "running", "c2", {
+			input: { urls: ["https://x.example/1", "https://x.example/2"] },
+		}),
+		tool("fetch_content", "failed", "c2", { output: "error" }),
+		tool("web_search", "running", "c3", { input: { queries: ["q"] } }),
+		tool("web_search", "completed", "c3", {
+			output: "1. Title https://news.example/story snippet text",
+		}),
+		{ type: "message_delta", text: "fetch_content" },
+	]);
+	writeAttempt(cwd, "run-1", "task-3", "attempt_b", [
+		tool("WebFetch", "running", "w1", {
+			input: { url: "https://docs.example.com/b", prompt: "?" },
+		}),
+		tool("WebFetch", "completed", "w1", {
+			output: "The page says **Node.js 24** is the newest LTS.",
+		}),
+		tool("web_search", "completed", "x1", {
+			input: { query: "codex", action: null },
+		}),
+	]);
+	const receipts = await readTaskWebReceipts(cwd, "run-1", "task-3");
+	const forms = receipts.map((r) => [r.tool, r.form, r.targets]);
+	assert.deepEqual(forms.sort(), [
+		["WebFetch", "summary", ["docs.example.com/b"]],
+		["fetch_content", "page-text", ["docs.example.com/a"]],
+		["web_search", "search-results", ["news.example/story"]],
+	]);
+	assert.equal(
+		receiptUrlKey("https://WWW.Docs.example.com/a/#x"),
+		"docs.example.com/a",
+	);
+	assert.deepEqual(await readTaskWebReceipts(cwd, "run-1", "missing"), []);
+});
+
+test("a quote in the worker's own page text is verified without fetching; summaries are only noted", async (t) => {
+	const cwd = mkdtempSync(join(tmpdir(), "aw-evidence-receipts-"));
+	t.after(() => rmSync(cwd, { recursive: true, force: true }));
+	writeAttempt(cwd, "run-2", "task-1", "attempt_a", [
+		tool("fetch_content", "running", "c1", {
+			input: { url: "https://captured.example/page" },
+		}),
+		tool("fetch_content", "completed", "c1", {
+			output: "Captured text: the limit is 48,000 bytes.",
+		}),
+		tool("WebFetch", "running", "w1", {
+			input: { url: "https://docs.example.com/a" },
+		}),
+		tool("WebFetch", "completed", "w1", {
+			output:
+				"Summary: The cache is invalidated when content is cleared. It is never refreshed.",
+		}),
+	]);
+	const calls = [];
+	const checker = supportEvidenceContext(
+		cwd,
+		"run-2",
+		new AbortController().signal,
+		{
+			[EVIDENCE_REFETCH_ENV]: "1",
+		},
+	);
+	// Use the injected fetch through checkWebQuotes directly with the same receipts.
+	const receipts = await readTaskWebReceipts(cwd, "run-2", "task-1");
+	const { results, summary } = await checkWebQuotes(
+		[
+			{
+				key: "cap",
+				url: "https://captured.example/page",
+				quote: "the limit is 48,000 bytes",
+				receipts,
+			},
+			{
+				key: "sum-ok",
+				url: "https://docs.example.com/a",
+				quote: "The cache is invalidated when content is cleared.",
+				receipts,
+			},
+			{
+				key: "sum-bad",
+				url: "https://docs.example.com/a",
+				quote: "It is never refreshed.",
+				receipts,
+			},
+		],
+		{ cwd, cache: new EvidencePageCache(cwd), fetch: fakeFetch(calls) },
+	);
+	const by = Object.fromEntries(results.map((r) => [r.key, r]));
+	assert.equal(by.cap.grade, "verified-captured");
+	assert.equal(by.cap.capturedBy, "fetch_content");
+	assert.equal(by["sum-ok"].grade, "verified-refetched");
+	assert.equal(by["sum-ok"].inWorkerSummary, "summary");
+	assert.equal(by["sum-bad"].grade, "unverified");
+	assert.equal(by["sum-bad"].reason, "quote-not-on-page");
+	assert.equal(by["sum-bad"].inWorkerSummary, "summary");
+	assert.deepEqual(
+		calls,
+		["https://docs.example.com/a"],
+		"captured URL is not fetched",
+	);
+	assert.deepEqual(summary.inWorkerSummary, {
+		total: 2,
+		onPage: 1,
+		notOnPage: 1,
+		unchecked: 0,
+	});
+	assert.equal(summary.verifiedCaptured, 1);
+	assert.equal(summary.verifiedRefetched, 1);
+	assert.equal(typeof checker.checkWebQuotes, "function");
 });
