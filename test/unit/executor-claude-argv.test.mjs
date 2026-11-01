@@ -354,6 +354,10 @@ test("capability table is valid and honest", () => {
 		assert.equal(caps.sessionBound, true);
 		for (const [name, row] of Object.entries(caps))
 			if (row?.source === "probed")
-				assert.match(row.verifiedWith, /2\.1\.310/, name);
+				assert.match(
+					row.verifiedWith,
+					/claude-code 2\.1\.314, WP8 live 2026-10-26, re-verified 2026-11-01/,
+					name,
+				);
 	}
 });

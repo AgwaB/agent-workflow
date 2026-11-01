@@ -86,3 +86,21 @@ Exact argv (`claude-invocation.json`): `claude -p --input-format stream-json --o
 | 23 | Free mode accepted (non-readOnly, no write) | claude-haiku-5-5 | 8.4 s (CLI) | 10768 (8270 cached) / 107 | $0.0006354 | completed `WP4E-LIVE-MARKER first line`. `system/init.permissionMode: bypassPermissions`. Bash `head -n 1 NOTES.md` ran, no `can_use_tool` request, no file created |
 
 Totals now 23 calls (WP8: 22, WP4e: 1). Nothing was left under `~/.claude/projects`; the temp dir was removed.
+
+## Re-verification on 2.1.314 (2026-11-01)
+
+`agent-workflow doctor` reported `installed 2.1.314 (verified 2.1.310, differs)`. Same login,
+`AGENT_WORKFLOW_LIVE=1 node --test test/unit/executor-claude-live.test.mjs` (real HOME), model alias
+`haiku` (resolved to `claude-haiku-5-5`).
+
+| # | Purpose | Calls | Outcome |
+|---|---|---|---|
+| 24 | Smoke: read-only run with the real artifact MCP server | 1 | pass (5.1 s) |
+| 25–27 | Concurrency: three parallel `claude -p` runs | 3 | pass (2.5 s) |
+| 28 | Native WebSearch + WebFetch | 1 | pass (8.0 s) |
+| 29–30 | System prompt append and replace | 2 | pass (5.0 s) |
+| 31–36 | Kit live tier (resume = 2 calls) | 6 | pass (14.3 s) |
+
+13 calls, reported cost $0.0174 in total (sum of `total_cost_usd`). Nothing was left under
+`~/.claude/projects`. `CLAUDE_VERIFIED_CLI_VERSION` is now 2.1.314. Earlier the same day three
+Sonnet 5.5 deep-research runs completed on 2.1.314. Totals now 36 calls.
