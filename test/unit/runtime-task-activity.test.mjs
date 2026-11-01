@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, access } from "node:fs/promises";
+import {
+	mkdtemp,
+	rm,
+	access,
+	mkdir,
+	realpath,
+	symlink,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -489,4 +496,46 @@ test("everyday words that resemble secret keys stay readable in free text", () =
 			/abc123|dXNlcg|s3cr3t|"abc"|hunter2/,
 			pattern,
 		);
+});
+
+test("paths inside a symlinked cwd stay relative (macOS /tmp → /private/tmp)", async () => {
+	const base = await mkdtemp(join(tmpdir(), "aw-activity-link-"));
+	try {
+		const real = join(base, "real");
+		await mkdir(join(real, "src"), { recursive: true });
+		const link = join(base, "link");
+		await symlink(real, link);
+		const label = (cwd, file_path) =>
+			activityFromExecEvent(
+				{
+					type: "tool_call",
+					status: "running",
+					kind: "read",
+					name: "Read",
+					input: { file_path },
+				},
+				cwd,
+			)?.label;
+		// Agent reports the symlinked path; the task cwd is canonical — and the reverse.
+		assert.equal(
+			label(await realpath(real), join(link, "src", "a.ts")),
+			"Reading src/a.ts",
+		);
+		assert.equal(
+			label(link, join(await realpath(real), "src", "a.ts")),
+			"Reading src/a.ts",
+		);
+		// A path outside stays a basename.
+		assert.equal(
+			label(link, join(base, "elsewhere", "secret.txt")),
+			"Reading secret.txt",
+		);
+	} finally {
+		await rm(base, {
+			recursive: true,
+			force: true,
+			maxRetries: 5,
+			retryDelay: 100,
+		});
+	}
 });

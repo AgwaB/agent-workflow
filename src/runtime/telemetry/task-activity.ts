@@ -1,4 +1,5 @@
-import { basename, isAbsolute, relative, resolve } from "node:path";
+import { realpathSync } from "node:fs";
+import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
 import {
 	activityPlainText,
 	type TaskActivity,
@@ -61,18 +62,39 @@ function sensitiveKeyWord(word: string): boolean {
 	return name !== undefined && SENSITIVE_KEY_PATTERN.test(name);
 }
 
+/** The canonical directory, or the input when it cannot be resolved (missing, permissions). */
+function canonical(path: string): string {
+	try {
+		return realpathSync(path);
+	} catch {
+		return path;
+	}
+}
+
+/** Inside-cwd relative path, also across a symlinked prefix (macOS /tmp → /private/tmp). */
+function localPath(path: string, cwd: string): string | undefined {
+	const inside = (from: string, to: string) => {
+		const local = relative(from, to);
+		return local === ""
+			? "."
+			: local !== ".." && !local.startsWith("../") && !isAbsolute(local)
+				? local
+				: undefined;
+	};
+	const direct = inside(cwd, path);
+	if (direct !== undefined) return direct;
+	const realCwd = canonical(cwd);
+	const realPath = resolve(canonical(dirname(path)), basename(path));
+	return (
+		inside(realCwd, realPath) ?? inside(realCwd, path) ?? inside(cwd, realPath)
+	);
+}
+
 function safePath(value: string, cwd: string): string {
 	if (!value) return "";
 	if (value.length > 8192) return "[long path]";
 	const path = resolve(cwd, activityPlainText(value));
-	const local = relative(cwd, path);
-	return safeText(
-		local === ""
-			? "."
-			: local !== ".." && !local.startsWith("../") && !isAbsolute(local)
-				? local
-				: basename(path),
-	);
+	return safeText(localPath(path, cwd) ?? basename(path));
 }
 
 function safeWebUrl(value: string): string {
