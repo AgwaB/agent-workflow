@@ -10,8 +10,11 @@ import {
 } from "../../sdk/capabilities.js";
 
 /** CLI version the probed rows were verified with. */
-export const CODEX_VERIFIED_CLI_VERSION = "0.159.2";
-export const CODEX_VERIFIED_WITH = `codex-cli ${CODEX_VERIFIED_CLI_VERSION}, WP7 live 2026-10-26`;
+// 2026-11-01: the live tier (smoke + readonly_enforced, tool_allowlist, isolation,
+// session_ownership, resume) re-passed on 0.165.0 (test/fixtures/executors/codex/live-calls.md
+// "Re-verification on 0.165.0"); the MCP output limit was re-measured on it the same day.
+export const CODEX_VERIFIED_CLI_VERSION = "0.165.0";
+export const CODEX_VERIFIED_WITH = `codex-cli ${CODEX_VERIFIED_CLI_VERSION}, WP7 live 2026-10-26, re-verified 2026-11-01`;
 
 /**
  * Characters of one MCP tool result the model receives (R#9), measured live with the per-run

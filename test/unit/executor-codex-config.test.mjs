@@ -338,7 +338,11 @@ test("capabilities are valid, honest about web safety and below the artifact ser
 	assert.equal(caps.sessionBound, true);
 	for (const [name, entry] of Object.entries(caps))
 		if (entry?.source === "probed")
-			assert.match(entry.verifiedWith, /codex-cli 0\.159\.2/, name);
+			assert.match(
+				entry.verifiedWith,
+				/codex-cli 0\.165\.0, WP7 live 2026-10-26, re-verified 2026-11-01/,
+				name,
+			);
 	assert.ok(CODEX_MCP_OUTPUT_LIMIT_CHARS > DEFAULT_MCP_OUTPUT_LIMIT_CHARS);
 	assert.ok(CODEX_MCP_OUTPUT_LIMIT_CHARS <= 40_000);
 });

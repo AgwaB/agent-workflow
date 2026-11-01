@@ -72,3 +72,20 @@ tool_output_token_limit…}}`; `turn/start {threadId, input, model: "gpt-5.6-lun
 | 19 | Free mode accepted (non-readOnly, no write) | gpt-5.6-luna low | 8420 ms (wall) | 17201/91/15232 | not reported | completed `WP4E-LIVE-MARKER first line`; `head -n 1 NOTES.md` ran as a shell read; no approval request; no file created |
 
 Totals now 19 live calls (WP7: 18, WP4e: 1). The temp dirs were removed.
+
+## Re-verification on 0.165.0 (2026-11-01)
+
+The probe warned `codex-cli 0.165.0 differs from the verified 0.159.2; rerun the conformance kit
+(F3)`. Same login, `AGENT_WORKFLOW_LIVE=1 node --test test/unit/executor-codex-live.test.mjs`
+(real HOME), model `gpt-5.6-luna` effort `low` (still listed by `codex debug models`).
+
+| # | Purpose | Model | Duration | Outcome |
+|---|---|---|---|---|
+| 20 | Live test smoke: read-only turn with usage, no cost | gpt-5.6-luna low | 4775 ms | pass |
+| 21–26 | Kit live tier: `readonly_enforced`, `tool_allowlist`, `isolation`, `session_ownership`, `resume` (2 turns) | gpt-5.6-luna low | 24988 ms (all) | 5/5 pass |
+
+The two kept threads were deleted afterwards (`thread/delete`); the third `deleteOwnedSession` call
+returned `refused` because the resume check's second attempt record points at the thread already
+deleted and forgotten. `CODEX_VERIFIED_CLI_VERSION` is now 0.165.0. Earlier the same day: three
+Codex deep-research runs on 0.165.0 completed, and the MCP output limit was re-measured (see
+docs/executors/codex.md). Totals now 26 live calls.

@@ -5,7 +5,9 @@ convention: `createExecutor(config)`; descriptor
 `{ id: "codex", version: "0.1.0", contractVersion: "0.1.0", module: "@agwab/agent-workflow/executors/codex", config: {} }`.
 
 Verified against **codex-cli 0.159.2** (ChatGPT login) on 2026-10-26 with 18 live model calls
-(log: `test/fixtures/executors/codex/live-calls.md`). Model for every recording: `gpt-5.6-luna`,
+(log: `test/fixtures/executors/codex/live-calls.md`); the live tier re-passed on **codex-cli 0.165.0**
+on 2026-11-01 (7 calls), which is now the verified version. Protocol notes below still cite 0.159.2
+where they were established. Model for every recording: `gpt-5.6-luna`,
 effort `low` (cheapest tier listed by `model/list`; the CLI reports no prices).
 
 ## Transport: `codex app-server`
@@ -284,7 +286,8 @@ budget are not confirmed. `fetch_content` (open_page) not observed.
   `executor-codex-config.test.mjs`); fixture scrub (`executor-codex-fixtures-scrub.test.mjs`).
 - Live (`executor-codex-live.test.mjs`, `AGENT_WORKFLOW_LIVE=1`, real HOME): smoke + kit live tier,
   run once: 5/5 live checks pass (`readonly_enforced`, `tool_allowlist`, `isolation`,
-  `session_ownership`, `resume`).
+  `session_ownership`, `resume`). Re-run 2026-11-01 on **codex-cli 0.165.0**: smoke and 5/5 pass;
+  the verified version is now 0.165.0 (`live-calls.md` "Re-verification on 0.165.0").
 
 ## Known limits
 
