@@ -1968,6 +1968,105 @@ function renderGraph() {
 			if (replay) playReplay();
 		}
 	});
+	/**
+	 * Move cards and edges from the previous drawing's geometry to this one (FLIP). Runs in the
+	 * frame callback after this redraw's own resize/apply, so it knows the new view; a view that
+	 * re-centred the smaller graph is folded into each start position (screen continuity).
+	 */
+	function morph(previous) {
+		if (reducedMotion()) return;
+		requestAnimationFrame(() => {
+			if (!wrap.isConnected) return;
+			const motion = { duration: 400, easing: "cubic-bezier(.3,0,.2,1)" };
+			const parse = (value) => {
+				const m =
+					/translate\(([-\d.e]+)[ ,]+([-\d.e]+)\)\s*scale\(([-\d.e]+)\)/.exec(
+						value || "",
+					);
+				return m ? { x: Number(m[1]), y: Number(m[2]), k: Number(m[3]) } : null;
+			};
+			const before = parse(previous.view),
+				after = parse(viewport.getAttribute("transform"));
+			// Where an old user-space point lands in the new view's user space.
+			const map = (x, y) =>
+				before && after
+					? {
+							x: (before.x + before.k * x - after.x) / after.k,
+							y: (before.y + before.k * y - after.y) / after.k,
+						}
+					: { x, y };
+			const shift = map(0, 0);
+			for (const node of nodes.querySelectorAll(":scope > .node[data-stage]")) {
+				const now = positions.get(node.dataset.stage),
+					was = previous.nodes.get(node.dataset.stage);
+				if (!now) continue;
+				if (!was) {
+					node.animate(
+						[{ opacity: 0 }, { opacity: 0, offset: 0.4 }, { opacity: 1 }],
+						motion,
+					);
+					continue;
+				}
+				const from = map(was.x, was.y);
+				if (Math.abs(from.x - now.x) > 0.5 || Math.abs(from.y - now.y) > 0.5)
+					node.animate(
+						[
+							{ transform: `translate(${from.x}px, ${from.y}px)` },
+							{ transform: `translate(${now.x}px, ${now.y}px)` },
+						],
+						motion,
+					);
+				if (was.w === now.w && was.h === now.h) continue;
+				node.querySelector(":scope > rect.outline")?.animate(
+					[
+						{ width: `${was.w}px`, height: `${was.h}px` },
+						{ width: `${now.w}px`, height: `${now.h}px` },
+					],
+					motion,
+				);
+				// The card's new content arrives once the box has mostly reached its new size.
+				for (const child of node.children)
+					if (!child.matches("rect.outline, title"))
+						child.animate(
+							[{ opacity: 0 }, { opacity: 0, offset: 0.25 }, { opacity: 1 }],
+							motion,
+						);
+			}
+			const shape = (value) => value?.replace(/[-\d.e]+/g, "#");
+			for (const path of edges.querySelectorAll("path.edge[data-edge]")) {
+				const was = previous.edges.get(path.dataset.edge),
+					d = path.getAttribute("d"),
+					link = path.closest(".link");
+				const moved = Math.abs(shift.x) > 0.5 || Math.abs(shift.y) > 0.5;
+				if (was === d && !moved) continue;
+				if (was && shape(was) === shape(d)) {
+					// Same path shape: bend from the old path (in the old view) to the new one.
+					path.animate(
+						[{ d: `path("${was}")` }, { d: `path("${d}")` }],
+						motion,
+					);
+					if (moved && link)
+						link.animate(
+							[
+								{ transform: `translate(${shift.x}px, ${shift.y}px)` },
+								{ transform: "translate(0px, 0px)" },
+							],
+							motion,
+						);
+					for (const child of link?.children ?? [])
+						if (child !== path)
+							child.animate(
+								[{ opacity: 0 }, { opacity: 0, offset: 0.6 }, { opacity: 1 }],
+								motion,
+							);
+				} else
+					link?.animate(
+						[{ opacity: 0 }, { opacity: 0, offset: 0.5 }, { opacity: 1 }],
+						motion,
+					);
+			}
+		});
+	}
 	graphControl = {
 		destroy: () => {
 			observer.disconnect();
@@ -1976,8 +2075,33 @@ function renderGraph() {
 		fit,
 		reveal,
 		handoff,
+		morph,
 	};
 	return wrap;
+}
+/** Card boxes and edge paths of the drawn graph (user units), for a morphing redraw. */
+function graphGeometry() {
+	const canvas = $("canvas");
+	if (!canvas) return null;
+	const nodes = new Map(),
+		edges = new Map();
+	for (const node of canvas.querySelectorAll(".node[data-stage]")) {
+		const at = /translate\(([-\d.]+)[ ,]+([-\d.]+)\)/.exec(
+			node.getAttribute("transform") || "",
+		);
+		const outline = node.querySelector(":scope > rect.outline");
+		if (at && outline)
+			nodes.set(node.dataset.stage, {
+				x: Number(at[1]),
+				y: Number(at[2]),
+				w: Number(outline.getAttribute("width")),
+				h: Number(outline.getAttribute("height")),
+			});
+	}
+	for (const path of canvas.querySelectorAll("path.edge[data-edge]"))
+		edges.set(path.dataset.edge, path.getAttribute("d"));
+	const view = canvas.querySelector("svg.graph > g")?.getAttribute("transform");
+	return { nodes, edges, view };
 }
 function agentState(task) {
 	return taskState(task) === "retry"
@@ -2055,10 +2179,15 @@ function renderRun() {
 		$("center").prepend(renderHeader(), ...(banner ? [banner] : []));
 		refreshGraphTexts();
 	} else {
+		// A status change that reshapes the graph (a card collapses, rows appear) moves the cards
+		// from where they were instead of jumping: remember the drawn boxes before replacing them.
+		const previous =
+			canvas && graphControl?.runId === run.runId ? graphGeometry() : null;
 		$("center").replaceChildren(renderHeader(), ...(banner ? [banner] : []));
 		$("center").append(renderGraph());
 		graphControl.signature = signature;
 		graphControl.runId = run.runId;
+		if (previous) graphControl.morph(previous);
 	}
 	renderSelection();
 	renderModal();
