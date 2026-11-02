@@ -80,7 +80,7 @@ const configFor = (dir, command) => ({
 	command,
 	stateDir: join(dir, "state"),
 	killGraceMs: 200,
-	handshakeTimeoutMs: 10_000,
+	handshakeTimeoutMs: 60_000,
 });
 
 export function createAcpHarness(options = {}) {

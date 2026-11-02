@@ -32,6 +32,11 @@ const FAKE_AGENT = fileURLToPath(
 );
 const SECRET = "acp-secret-5c1d9e7a33";
 
+// Ceilings, not waits: a busy machine (load average 14-30, 2026-11-02) made the scripted agent's start
+// alone pass 5 s and failed the handshake of whichever tests ran then.
+const HANDSHAKE_MS = 60_000;
+const DRAIN_MS = 90_000;
+
 async function setup(t, scenario) {
 	const dir = await mkdtemp(join(tmpdir(), "aw-acp-"));
 	t.after(() =>
@@ -49,7 +54,7 @@ async function setup(t, scenario) {
 		command,
 		stateDir: join(dir, "state"),
 		killGraceMs: 200,
-		handshakeTimeoutMs: 5_000,
+		handshakeTimeoutMs: HANDSHAKE_MS,
 	});
 	const executor = createAcpExecutor({ config });
 	const agentLog = async () =>
@@ -102,7 +107,7 @@ test("acp: a prompt streams text, tool reports and usage, then completes", async
 	);
 	assert.equal(ref.executorId, "gemini");
 	const { events, terminal } = await drain(executor, ref, {
-		timeoutMs: 15_000,
+		timeoutMs: DRAIN_MS,
 	});
 	checkSequence(events);
 	assert.equal(terminal.type, "completed");
@@ -188,11 +193,11 @@ test("acp: launch flags follow readOnly and the permission mode; no engine serve
 	const write = await executor.submit(
 		request(dir, "acp-flags-1", { readOnly: false, model: "gemini-3.5-flash" }),
 	);
-	await drain(executor, write, { timeoutMs: 15_000 });
+	await drain(executor, write, { timeoutMs: DRAIN_MS });
 	const safe = await executor.submit(
 		request(dir, "acp-flags-2", { readOnly: false, permissionMode: "safe" }),
 	);
-	await drain(executor, safe, { timeoutMs: 15_000 });
+	await drain(executor, safe, { timeoutMs: DRAIN_MS });
 	const argvs = (await agentLog())
 		.filter((entry) => entry.argv)
 		.map((entry) => entry.argv);
@@ -220,7 +225,7 @@ test("acp: raw tool input/output are kept when the agent sends them", async (t) 
 	const { dir, executor } = await setup(t, "raw");
 	const ref = await executor.submit(request(dir, "acp-raw-1"));
 	const { events, terminal } = await drain(executor, ref, {
-		timeoutMs: 15_000,
+		timeoutMs: DRAIN_MS,
 	});
 	assert.equal(terminal.type, "completed");
 	const done = events.filter((e) => e.type === "tool_call").at(-1);
@@ -238,7 +243,7 @@ test("acp: permission requests go through respond(); allow picks allow_once, den
 			request(dir, key, { readOnly: false, permissionMode: "safe" }),
 		);
 		const { events, terminal } = await drain(executor, ref, {
-			timeoutMs: 15_000,
+			timeoutMs: DRAIN_MS,
 			onApproval: async (event) => {
 				assert.equal(event.kind, "edit");
 				assert.equal(event.detail, "WriteFile b.ts");
@@ -280,7 +285,7 @@ test("acp: an unanswered permission request is denied after the policy timeout",
 			approvalPolicy: defaultApprovalPolicy({ timeoutMs: 100 }),
 		}),
 	);
-	const { terminal } = await drain(executor, ref, { timeoutMs: 15_000 });
+	const { terminal } = await drain(executor, ref, { timeoutMs: DRAIN_MS });
 	assert.equal(terminal.finalText, "permission: cancel");
 });
 
@@ -288,14 +293,14 @@ test("acp: cancel sends session/cancel and ends as cancelled", async (t) => {
 	const { dir, executor, agentLog } = await setup(t, "hang");
 	const ref = await executor.submit(request(dir, "acp-cancel-1"));
 	const { terminal, events } = await drain(executor, ref, {
-		timeoutMs: 15_000,
+		timeoutMs: DRAIN_MS,
 		onApproval: async () => {},
 		until: (event) => event.type === "message_delta",
 	});
 	assert.equal(terminal, undefined);
 	assert.equal(events.at(-1).text, "working");
 	assert.equal(await executor.cancel(ref, "turn"), "cancelled");
-	const end = await drain(executor, ref, { timeoutMs: 15_000 });
+	const end = await drain(executor, ref, { timeoutMs: DRAIN_MS });
 	assert.equal(end.terminal.type, "failed");
 	assert.equal(end.terminal.class, "cancelled");
 	assert.ok(
@@ -310,7 +315,7 @@ test("acp: a prompt error is classified; the agent's fs requests are refused", a
 		request(failing.dir, "acp-error-1"),
 	);
 	const { terminal } = await drain(failing.executor, ref, {
-		timeoutMs: 15_000,
+		timeoutMs: DRAIN_MS,
 	});
 	assert.equal(terminal.type, "failed");
 	assert.equal(terminal.class, "auth");
@@ -318,7 +323,7 @@ test("acp: a prompt error is classified; the agent's fs requests are refused", a
 
 	const fs = await setup(t, "fs");
 	const fsRef = await fs.executor.submit(request(fs.dir, "acp-fs-1"));
-	const done = await drain(fs.executor, fsRef, { timeoutMs: 15_000 });
+	const done = await drain(fs.executor, fsRef, { timeoutMs: DRAIN_MS });
 	assert.equal(done.terminal.type, "completed");
 	assert.match(done.terminal.finalText, /^fs: /);
 	const refused = (await fs.agentLog()).find((entry) => entry.responseError);
@@ -328,7 +333,9 @@ test("acp: a prompt error is classified; the agent's fs requests are refused", a
 test("acp: an agent that dies mid-prompt fails; request env values are redacted from logs", async (t) => {
 	const crash = await setup(t, "crash");
 	const ref = await crash.executor.submit(request(crash.dir, "acp-crash-1"));
-	const { terminal } = await drain(crash.executor, ref, { timeoutMs: 15_000 });
+	const { terminal } = await drain(crash.executor, ref, {
+		timeoutMs: DRAIN_MS,
+	});
 	assert.equal(terminal.type, "failed");
 	assert.notEqual(terminal.class, "cancelled");
 
@@ -338,7 +345,7 @@ test("acp: an agent that dies mid-prompt fails; request env values are redacted 
 			env: { AGENT_WORKFLOW_ROLE: "worker", ECHO_SECRET: SECRET },
 		}),
 	);
-	const done = await drain(secret.executor, secretRef, { timeoutMs: 15_000 });
+	const done = await drain(secret.executor, secretRef, { timeoutMs: DRAIN_MS });
 	assert.equal(done.terminal.type, "completed");
 	const artifacts = join(secret.dir, "artifacts", "acp-secret-1");
 	for (const name of ["acp-stream.jsonl", "acp-stderr.log"]) {
@@ -356,7 +363,7 @@ test("acp: submit is idempotent; another instance reconciles and replays from th
 		executor.submit(req),
 	]);
 	assert.deepEqual(a, b);
-	await drain(executor, a, { timeoutMs: 15_000 });
+	await drain(executor, a, { timeoutMs: DRAIN_MS });
 	assert.deepEqual(await executor.submit(req), a);
 	assert.equal((await agentLog()).filter((entry) => entry.argv).length, 1);
 
@@ -415,7 +422,7 @@ test("acp antigravity preset: no launch flags; mode, model and effort are set on
 		command,
 		stateDir: join(dir, "agy-state"),
 		killGraceMs: 200,
-		handshakeTimeoutMs: 5_000,
+		handshakeTimeoutMs: HANDSHAKE_MS,
 	});
 	const executor = createAcpExecutor({ config });
 	assert.equal(executor.id, "antigravity");
@@ -423,14 +430,14 @@ test("acp antigravity preset: no launch flags; mode, model and effort are set on
 		request(dir, "agy-1", { model: "fake-model-b", effort: "xhigh" }),
 	);
 	assert.equal(
-		(await drain(executor, readOnly, { timeoutMs: 15_000 })).terminal.type,
+		(await drain(executor, readOnly, { timeoutMs: DRAIN_MS })).terminal.type,
 		"completed",
 	);
 	const writing = await executor.submit(
 		request(dir, "agy-2", { readOnly: false }),
 	);
 	assert.equal(
-		(await drain(executor, writing, { timeoutMs: 15_000 })).terminal.type,
+		(await drain(executor, writing, { timeoutMs: DRAIN_MS })).terminal.type,
 		"completed",
 	);
 	const log = await agentLog();
@@ -479,7 +486,7 @@ test("acp antigravity preset: no launch flags; mode, model and effort are set on
 	const unknown = await executor.submit(
 		request(dir, "agy-3", { model: "gemini-9" }),
 	);
-	const failed = await drain(executor, unknown, { timeoutMs: 15_000 });
+	const failed = await drain(executor, unknown, { timeoutMs: DRAIN_MS });
 	assert.equal(failed.terminal.type, "failed");
 	assert.equal(failed.terminal.class, "config");
 	assert.match(
@@ -500,7 +507,7 @@ test("acp antigravity: workers run in the engine-owned GEMINI_HOME unless they i
 		command,
 		stateDir: join(dir, "agy-state"),
 		killGraceMs: 200,
-		handshakeTimeoutMs: 5_000,
+		handshakeTimeoutMs: HANDSHAKE_MS,
 	});
 	assert.equal(config.agentHome, join(dir, "agy-state", "antigravity-home"));
 	const executor = createAcpExecutor({ config });
@@ -527,11 +534,11 @@ test("acp antigravity: workers run in the engine-owned GEMINI_HOME unless they i
 	assert.equal((await executor.probe()).auth, "ok");
 
 	const isolated = await executor.submit(request(dir, "agy-home-1"));
-	await drain(executor, isolated, { timeoutMs: 15_000 });
+	await drain(executor, isolated, { timeoutMs: DRAIN_MS });
 	const inherited = await executor.submit(
 		request(dir, "agy-home-2", { isolation: { inherit: true } }),
 	);
-	await drain(executor, inherited, { timeoutMs: 15_000 });
+	await drain(executor, inherited, { timeoutMs: DRAIN_MS });
 	const homes = (await agentLog())
 		.filter((entry) => entry.argv)
 		.map((entry) => entry.geminiHome);
@@ -550,7 +557,7 @@ test("acp antigravity: held MCP summaries get the transcript results; shell rawO
 		command,
 		stateDir: join(dir, "agy-state"),
 		killGraceMs: 200,
-		handshakeTimeoutMs: 5_000,
+		handshakeTimeoutMs: HANDSHAKE_MS,
 	});
 	const executor = createAcpExecutor({ config });
 	const mcpServers = [{ name: "aw_stub", command: "/bin/echo", args: ["x"] }];
@@ -558,7 +565,7 @@ test("acp antigravity: held MCP summaries get the transcript results; shell rawO
 		request(dir, "agy-tr-1", { mcpServers, readOnly: false }),
 	);
 	const { events, terminal } = await drain(executor, ref, {
-		timeoutMs: 15_000,
+		timeoutMs: DRAIN_MS,
 	});
 	assert.equal(terminal.type, "completed");
 	checkSequence(events);
@@ -605,7 +612,7 @@ test("acp antigravity: held MCP summaries get the transcript results; shell rawO
 			isolation: { inherit: true },
 		}),
 	);
-	const second = await drain(executor, inherited, { timeoutMs: 15_000 });
+	const second = await drain(executor, inherited, { timeoutMs: DRAIN_MS });
 	assert.equal(
 		second.events.find(
 			(e) =>
@@ -635,11 +642,11 @@ test("acp antigravity: inherited account/project variables are dropped for an is
 		command,
 		stateDir: join(dir, "agy-state"),
 		killGraceMs: 200,
-		handshakeTimeoutMs: 5_000,
+		handshakeTimeoutMs: HANDSHAKE_MS,
 	});
 	const executor = createAcpExecutor({ config });
 	const ref = await executor.submit(request(dir, "agy-env-1"));
-	const { terminal } = await drain(executor, ref, { timeoutMs: 15_000 });
+	const { terminal } = await drain(executor, ref, { timeoutMs: DRAIN_MS });
 	assert.equal(terminal.type, "failed");
 	assert.equal(terminal.class, "rate_limit");
 	assert.match(
@@ -660,7 +667,7 @@ test("acp antigravity: inherited account/project variables are dropped for an is
 	const inherited = await executor.submit(
 		request(dir, "agy-env-2", { isolation: { inherit: true } }),
 	);
-	await drain(executor, inherited, { timeoutMs: 15_000 });
+	await drain(executor, inherited, { timeoutMs: DRAIN_MS });
 	const launches = (await agentLog()).filter((e) => e.argv);
 	assert.deepEqual(launches.at(-2).blockedPresent, []);
 	assert.deepEqual(launches.at(-1).blockedPresent, [
@@ -735,7 +742,7 @@ test("acp: a shell permission request carries its command; a readOnly stage allo
 		command,
 		stateDir: join(dir, "agy-state"),
 		killGraceMs: 200,
-		handshakeTimeoutMs: 5_000,
+		handshakeTimeoutMs: HANDSHAKE_MS,
 	});
 	const executor = createAcpExecutor({ config });
 	const req = request(dir, "agy-shell-1", {
@@ -748,7 +755,7 @@ test("acp: a shell permission request carries its command; a readOnly stage allo
 	});
 	const ref = await executor.submit(req);
 	const { events, terminal } = await drain(executor, ref, {
-		timeoutMs: 15_000,
+		timeoutMs: DRAIN_MS,
 		onApproval: async (event) => {
 			await executor.respond(
 				ref,
@@ -820,7 +827,7 @@ test("acp antigravity: web tools get their names, a fetch kind for search, and t
 		command,
 		stateDir: join(dir, "agy-state"),
 		killGraceMs: 200,
-		handshakeTimeoutMs: 5_000,
+		handshakeTimeoutMs: HANDSHAKE_MS,
 	});
 	const executor = createAcpExecutor({ config });
 	const req = request(dir, "agy-web-1", {
@@ -830,7 +837,7 @@ test("acp antigravity: web tools get their names, a fetch kind for search, and t
 	});
 	const ref = await executor.submit(req);
 	const { events, terminal } = await drain(executor, ref, {
-		timeoutMs: 15_000,
+		timeoutMs: DRAIN_MS,
 		onApproval: async (event) => {
 			await executor.respond(
 				ref,
