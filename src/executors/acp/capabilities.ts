@@ -12,6 +12,27 @@ import type { AcpPresetId } from "./version.js";
 export function acpCapabilities(preset: AcpPresetId): ExecutorCapabilities {
 	const none = noneCapabilities();
 	switch (preset) {
+		case "antigravity":
+			return {
+				...none,
+				toolLoop: "agent",
+				context: "agent",
+				sessionBound: true,
+				// session/new mcpServers; the user's global MCP servers load as well (no allow list).
+				mcpInjection: level("native"),
+				// No read-only mode: mode `default` and the engine's answers to permission requests.
+				readOnly: level("emulated"),
+				toolAllowlist: { ...level("none"), detail: "none" },
+				systemPrompt: { ...level("emulated"), detail: "append" },
+				modelSelect: level("native"),
+				effortLevels: ["low", "medium", "high"],
+				partialStream: level("native"),
+				usage: { ...level("native"), detail: "tokens" },
+				toolTelemetry: level("native"),
+				cancel: { ...level("native"), detail: "notify" },
+				contextIsolation: level("none"),
+				webTools: { ...level("none"), detail: "none", safetyPolicy: "unknown" },
+			};
 		case "gemini":
 			return {
 				...none,

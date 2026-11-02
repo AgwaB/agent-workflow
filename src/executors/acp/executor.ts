@@ -171,6 +171,64 @@ function runCommand(
 	});
 }
 
+/** `agentInfo.version` from a bare ACP `initialize` (the agent process is ended right after). */
+async function initializeVersion(
+	command: string,
+	launchArgs: (req: SubmitRequest) => string[],
+	timeoutMs: number,
+): Promise<{ version: string | null; error: string }> {
+	let child: ReturnType<typeof spawn>;
+	try {
+		child = spawn(command, launchArgs({} as SubmitRequest), {
+			stdio: ["pipe", "pipe", "ignore"],
+		});
+	} catch (error) {
+		return {
+			version: null,
+			error: error instanceof Error ? error.message : String(error),
+		};
+	}
+	const spawnFailed = new Promise<never>((_, reject) =>
+		child.once("error", (error) => reject(error)),
+	);
+	try {
+		if (child.stdout === null || child.stdin === null)
+			throw new Error("no stdio");
+		const peer = new AcpPeer({ input: child.stdout, output: child.stdin });
+		const result = await Promise.race([
+			withTimeout(
+				peer.request("initialize", {
+					protocolVersion: ACP_PROTOCOL_VERSION,
+					clientCapabilities: {
+						fs: { readTextFile: false, writeTextFile: false },
+						terminal: false,
+					},
+				}),
+				timeoutMs,
+				"ACP initialize",
+			),
+			spawnFailed,
+		]);
+		const info =
+			isRecord(result) && isRecord(result.agentInfo)
+				? result.agentInfo
+				: undefined;
+		const version = typeof info?.version === "string" ? info.version : null;
+		return {
+			version,
+			error: version === null ? "initialize returned no agentInfo.version" : "",
+		};
+	} catch (error) {
+		return {
+			version: null,
+			error: error instanceof Error ? error.message : String(error),
+		};
+	} finally {
+		child.stdin?.end();
+		child.kill("SIGTERM");
+	}
+}
+
 export function createAcpExecutor(options: {
 	readonly config: AcpExecutorConfig;
 	readonly faults?: AcpExecutorFaults;
@@ -352,6 +410,15 @@ export function createAcpExecutor(options: {
 			if (sessionId === undefined)
 				throw new Error("ACP session/new returned no sessionId");
 			run.sessionId = sessionId;
+			for (const step of preset.afterSession?.(
+				req,
+				session as Record<string, unknown>,
+			) ?? [])
+				await withTimeout(
+					peer.request(step.method, step.params),
+					config.handshakeTimeoutMs,
+					`ACP ${step.method}`,
+				);
 			if (run.cancelRequested) {
 				for (const event of run.normalizer.prompt({ stopReason: "cancelled" }))
 					push(run, event);
@@ -632,22 +699,28 @@ export function createAcpExecutor(options: {
 		contractVersion: EXECUTOR_CONTRACT_VERSION,
 
 		async probe(): Promise<ExecutorProbe> {
-			const version = await runCommand(
-				config.command,
-				preset.versionArgs,
-				15_000,
-			);
-			const cliVersion =
-				version.code === 0
-					? (version.stdout.match(/\d+\.\d+\.\d+[\w.-]*/)?.[0] ?? null)
-					: null;
+			// A preset without a usable `--version` (Antigravity prints build info) is asked through
+			// ACP `initialize` (agentInfo.version); no session is created and no model is called.
+			const version =
+				preset.versionArgs === undefined
+					? await initializeVersion(config.command, preset.launchArgs, 15_000)
+					: await runCommand(config.command, preset.versionArgs, 15_000).then(
+							(run) => ({
+								version:
+									run.code === 0
+										? (run.stdout.match(/\d+\.\d+\.\d+[\w.-]*/)?.[0] ?? null)
+										: null,
+								error: run.error ?? `exit ${run.code}`,
+							}),
+						);
+			const cliVersion = version.version;
 			if (cliVersion === null)
 				return {
 					installed: false,
 					cliVersion: null,
 					auth: "unknown",
 					notes: [
-						`${preset.label} not runnable as ${config.command}: ${version.error ?? `exit ${version.code}`}`,
+						`${preset.label} not runnable as ${config.command}: ${version.error}`,
 					],
 				};
 			return {

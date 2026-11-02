@@ -17,9 +17,18 @@ export interface AcpPreset {
 	readonly command: string;
 	/** Display name in probes and errors. */
 	readonly label: string;
-	readonly versionArgs: readonly string[];
+	/** `--version` style probe args; absent: the probe asks the agent's ACP `initialize` instead. */
+	readonly versionArgs?: readonly string[];
 	/** Launch argv for one attempt (after the command). */
 	launchArgs(req: SubmitRequest): string[];
+	/**
+	 * Requests to send after `session/new` (mode, model, effort), built from the session it returned.
+	 * Throws to refuse what the agent does not offer (e.g. an unknown model).
+	 */
+	afterSession?(
+		req: SubmitRequest,
+		session: Readonly<Record<string, unknown>>,
+	): { method: string; params: Record<string, unknown> }[];
 	/** How the agent names an MCP tool for the model (prompts render the artifact tool with it). */
 	readonly mcpToolName: (server: string, tool: string) => string;
 }
@@ -62,8 +71,96 @@ const GEMINI: AcpPreset = {
 		`mcp_${server}_${tool}`.replace(/[^a-zA-Z0-9_\-.:]/g, "_"),
 };
 
+/** Values a `select` config option of the session offers (ACP `configOptions`). */
+export function sessionOptionValues(
+	session: Readonly<Record<string, unknown>>,
+	id: string,
+): string[] | undefined {
+	const options = Array.isArray(session.configOptions)
+		? session.configOptions
+		: [];
+	const option = options.find(
+		(item): item is Record<string, unknown> =>
+			item !== null &&
+			typeof item === "object" &&
+			(item as Record<string, unknown>).id === id,
+	);
+	if (option === undefined || !Array.isArray(option.options)) return undefined;
+	return option.options
+		.map((item) =>
+			item !== null && typeof item === "object"
+				? (item as Record<string, unknown>).value
+				: undefined,
+		)
+		.filter((value): value is string => typeof value === "string");
+}
+
+/** Effort → Antigravity `thinking_level` (low / medium / high), nearest, lower on a tie. */
+const ANTIGRAVITY_THINKING: Readonly<Record<string, string>> = {
+	off: "low",
+	minimal: "low",
+	low: "low",
+	medium: "medium",
+	high: "high",
+	xhigh: "high",
+	max: "high",
+	ultra: "high",
+};
+
+/**
+ * Google Antigravity's ACP server (`agy_acp_server`, ACP registry `antigravity-acp`; Google's
+ * answer to Gemini CLI's free tier being refused, 2026-11-02). Reference: agent-orchestrator
+ * `chatdriver/agyacp` (launch without args on macOS, `--uid=` on Linux; modes default / auto_edit /
+ * yolo). There is no read-only mode and no MCP allow list: readOnly relies on permission requests
+ * (mode `default`, the engine denies writing kinds), and the user's global MCP servers
+ * (`$GEMINI_HOME/config/mcp_config.json`) load too (`contextIsolation` none). Model and effort are
+ * session config options (`model`, `thinking_level`).
+ */
+const ANTIGRAVITY: AcpPreset = {
+	id: "antigravity",
+	command: "agy_acp_server",
+	label: "Google Antigravity ACP server",
+	launchArgs: () => (process.platform === "linux" ? ["--uid="] : []),
+	afterSession(req, session) {
+		const sessionId = session.sessionId as string;
+		const steps: { method: string; params: Record<string, unknown> }[] = [
+			{
+				method: "session/set_mode",
+				params: { sessionId, modeId: isUnrestricted(req) ? "yolo" : "default" },
+			},
+		];
+		if (req.model !== undefined && req.model !== "") {
+			const models = sessionOptionValues(session, "model");
+			if (models !== undefined && !models.includes(req.model))
+				throw new SdkError(
+					"INVALID_REQUEST",
+					`invalid model ${req.model} for antigravity; offered: ${models.join(", ")}`,
+				);
+			steps.push({
+				method: "session/set_config_option",
+				params: { sessionId, configId: "model", value: req.model },
+			});
+		}
+		const thinking =
+			req.effort === undefined ? undefined : ANTIGRAVITY_THINKING[req.effort];
+		if (
+			thinking !== undefined &&
+			sessionOptionValues(session, "thinking_level")?.includes(thinking)
+		)
+			steps.push({
+				method: "session/set_config_option",
+				params: { sessionId, configId: "thinking_level", value: thinking },
+			});
+		return steps;
+	},
+	// Same naming as Gemini CLI until the live tier shows otherwise.
+	mcpToolName: (server, tool) =>
+		`mcp_${server}_${tool}`.replace(/[^a-zA-Z0-9_\-.:]/g, "_"),
+};
+
 export const ACP_PRESETS: Readonly<Record<AcpPresetId, AcpPreset>> = {
 	gemini: GEMINI,
+	antigravity: ANTIGRAVITY,
 };
 
 export interface AcpExecutorConfig {

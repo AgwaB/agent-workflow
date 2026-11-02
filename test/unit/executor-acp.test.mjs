@@ -401,3 +401,77 @@ test("acp: a readOnly request that injects a server other than the artifact serv
 	assert.deepEqual(await agentLog(), []);
 	assert.deepEqual(await executor.reconcile("acp-foreign-1"), { absent: true });
 });
+
+test("acp antigravity preset: no launch flags; mode, model and effort are set on the session; an unknown model is refused", async (t) => {
+	const { dir, command, agentLog } = await setup(t, "complete");
+	const config = parseAcpConfig({
+		preset: "antigravity",
+		command,
+		stateDir: join(dir, "agy-state"),
+		killGraceMs: 200,
+		handshakeTimeoutMs: 5_000,
+	});
+	const executor = createAcpExecutor({ config });
+	assert.equal(executor.id, "antigravity");
+	const readOnly = await executor.submit(
+		request(dir, "agy-1", { model: "fake-model-b", effort: "xhigh" }),
+	);
+	assert.equal(
+		(await drain(executor, readOnly, { timeoutMs: 15_000 })).terminal.type,
+		"completed",
+	);
+	const writing = await executor.submit(
+		request(dir, "agy-2", { readOnly: false }),
+	);
+	assert.equal(
+		(await drain(executor, writing, { timeoutMs: 15_000 })).terminal.type,
+		"completed",
+	);
+	const log = await agentLog();
+	assert.deepEqual(
+		log.filter((entry) => entry.argv).map((entry) => entry.argv),
+		process.platform === "linux" ? [["--uid="], ["--uid="]] : [[], []],
+	);
+	assert.deepEqual(
+		log
+			.filter(
+				(entry) => entry.method?.startsWith("session/set_") && entry.params,
+			)
+			.map((entry) => [entry.method, entry.params]),
+		[
+			["session/set_mode", { sessionId: "fake-session-1", modeId: "default" }],
+			[
+				"session/set_config_option",
+				{
+					sessionId: "fake-session-1",
+					configId: "model",
+					value: "fake-model-b",
+				},
+			],
+			[
+				"session/set_config_option",
+				{
+					sessionId: "fake-session-1",
+					configId: "thinking_level",
+					value: "high",
+				},
+			],
+			["session/set_mode", { sessionId: "fake-session-1", modeId: "yolo" }],
+		],
+	);
+	const unknown = await executor.submit(
+		request(dir, "agy-3", { model: "gemini-9" }),
+	);
+	const failed = await drain(executor, unknown, { timeoutMs: 15_000 });
+	assert.equal(failed.terminal.type, "failed");
+	assert.equal(failed.terminal.class, "config");
+	assert.match(
+		failed.terminal.message,
+		/invalid model gemini-9 for antigravity; offered: fake-model-a, fake-model-b/,
+	);
+	// Probe through ACP initialize (agentInfo.version); no session, no model.
+	const probe = await executor.probe();
+	assert.equal(probe.installed, true);
+	assert.equal(probe.cliVersion, "9.9.9");
+	assert.equal(executor.capabilities().contextIsolation.level, "none");
+});

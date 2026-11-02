@@ -9,14 +9,18 @@ Entry point: `@agwab/agent-workflow/executors/acp`. Source: `src/executors/acp/`
   scripted ACP agent (`test/unit/executor-acp-conformance.test.mjs`); nothing is live-verified yet,
   so every capability is `declared`. Like other ACP hosts, an agent becomes a built-in only after its
   live conformance (handshake, MCP, streaming, permissions, cancel) passed on the real CLI.
-- Presets: `gemini` (Gemini CLI, `gemini --acp`).
+- Presets: `gemini` (Gemini CLI, `gemini --acp`) and `antigravity` (Google Antigravity's separate ACP
+  server `agy_acp_server`, ACP registry entry `antigravity-acp`). On 2026-11-02 Google refused Gemini
+  CLI's free "Code Assist for individuals" tier (`IneligibleTierError`, "migrate to Antigravity"); the
+  Antigravity server logs in with the same Google account (`authenticate` `oauth-personal`, a browser
+  login the user completes once).
 
 ## Config (descriptor `config`, JSON, no secrets)
 
 | Key | Default | Meaning |
 |---|---|---|
 | `preset` | `gemini` | Agent preset; also the executor id |
-| `command` | the preset's (`gemini`) | Agent executable |
+| `command` | the preset's (`gemini`, `agy_acp_server`) | Agent executable |
 | `stateDir` | `$AGENT_WORKFLOW_HOME/executors/acp` (`~/.agent-workflow/…`) | Attempt records (reconcile) |
 | `killGraceMs` | `2000` | Grace between closing the agent's stdin → SIGTERM → SIGKILL |
 | `handshakeTimeoutMs` | `60000` | Limit for `initialize` and `session/new` |
@@ -42,6 +46,18 @@ Unknown keys are refused (`DESCRIPTOR_INVALID`). To try it, register a descripto
    on disk) → one `session/prompt`. ACP has no system prompt field: the system prompt is put ahead
    of the task, separated by `---`.
 4. When the prompt settles the adapter closes the agent's stdin (SIGTERM / SIGKILL after the grace).
+
+## Antigravity preset
+
+- Launch: no arguments on macOS (`--uid=` on Linux), as agent-orchestrator's `agyacp` driver.
+- After `session/new`: `session/set_mode` (`yolo` for `free` on a writing stage, else `default`),
+  `session/set_config_option` `model` (refused when the session does not offer it, class `config`) and
+  `thinking_level` from the effort (low / medium / high, nearest).
+- No read-only mode and no MCP allow list: readOnly relies on the engine denying writing kinds in
+  permission requests, and the user's global MCP servers (`$GEMINI_HOME/config/mcp_config.json`) load
+  in every session (`contextIsolation` none).
+- `probe()` asks ACP `initialize` for `agentInfo.version` (its `--version` prints build data only); no
+  session, no model.
 
 ## Events
 

@@ -309,14 +309,41 @@ process.stdin.on("data", (text) => {
 							mcpCapabilities: { http: false, sse: false },
 						},
 						authMethods: [],
+						agentInfo: { name: "fake-acp-agent", version: "9.9.9" },
 					},
 				});
 				break;
 			case "session/new":
-				send({ id: message.id, result: { sessionId: "fake-session-1" } });
+				send({
+					id: message.id,
+					result: {
+						sessionId: "fake-session-1",
+						configOptions: [
+							{
+								id: "model",
+								type: "select",
+								options: [{ value: "fake-model-a" }, { value: "fake-model-b" }],
+							},
+							{
+								id: "thinking_level",
+								type: "select",
+								options: [
+									{ value: "low" },
+									{ value: "medium" },
+									{ value: "high" },
+								],
+							},
+						],
+					},
+				});
 				break;
 			case "session/prompt":
 				void prompt(message.id, params);
+				break;
+			case "session/set_mode":
+			case "session/set_config_option":
+				log({ method: message.method, params });
+				send({ id: message.id, result: {} });
 				break;
 			case "session/cancel":
 				cancelPrompt?.();
