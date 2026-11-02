@@ -414,8 +414,9 @@ exit 1, no run record):
 - **models**: a name is the executor's — the engine rewrites it to that tool's form
   (`openai-codex/gpt-6.1-sol` → `gpt-6.1-sol` on codex; `anthropic/claude-opus-5-5` →
   `claude-opus-5-5` on claude; a bare `gpt-6.1-sol` → `openai-codex/gpt-6.1-sol` on pi, found in
-  Pi's model list) and refuses a model the tool cannot run (a Claude model on codex, an OpenAI model
-  on claude, a malformed name such as `openai-codex/`). On pi a name that is not an exact Pi id
+  Pi's model list; `google/gemini-3.8-flash` → `gemini-3.8-flash` on antigravity) and refuses a model
+  the tool cannot run (a Claude model on codex, an OpenAI model on claude, anything but a Gemini model
+  on antigravity, a malformed name such as `openai-codex/`). On pi a name that is not an exact Pi id
   (`opus`) is passed on with a notice: Pi resolves such patterns itself. It never moves a stage to another executor by
   itself: use `--executor`, `--profile mixed` or a role for that. A name the probe list cannot
   confirm (Codex and Claude lists are not exhaustive) gets a one-line notice;

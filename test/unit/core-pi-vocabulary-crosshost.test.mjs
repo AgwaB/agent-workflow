@@ -199,8 +199,29 @@ test("model names are the executor's: rewritten to its form, refused when it can
 	);
 	assert.match(
 		resolveExecutorModel("claude", "google/gemini-3.5-flash").refused,
-		/is a google model; claude cannot run it \(use the pi executor/,
+		/is a google model; claude cannot run it \(use the antigravity executor/,
 	);
+	// antigravity runs Google models only (agy_acp_server 1.4.5 offers Gemini): a Pi Google provider
+	// id loses its prefix; OpenAI, Anthropic and other providers' names are refused before launch.
+	for (const [model, value] of [
+		["gemini-3.8-flash", "gemini-3.8-flash"],
+		["google/gemini-3.8-flash", "gemini-3.8-flash"],
+		["google-antigravity/gemini-4-argon", "gemini-4-argon"],
+	])
+		assert.equal(resolveExecutorModel("antigravity", model).value, value);
+	for (const [model, vendor, other] of [
+		["sonnet", "an Anthropic", "claude"],
+		["anthropic/claude-opus-5-5", "an Anthropic", "claude"],
+		["gpt-6.1-sol", "an OpenAI", "codex"],
+		["openai-codex/gpt-6.1-sol", "an OpenAI", "codex"],
+		["kimi/k3", "a kimi", "pi"],
+	])
+		assert.match(
+			resolveExecutorModel("antigravity", model).refused,
+			new RegExp(
+				`is ${vendor} model; antigravity cannot run it \\(use the ${other} executor`,
+			),
+		);
 	const arn = "arn:aws:bedrock:us-east-1:1:application-inference-profile/x";
 	assert.deepEqual(resolveExecutorModel("claude", arn), {
 		value: arn,

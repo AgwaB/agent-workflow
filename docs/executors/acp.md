@@ -66,7 +66,9 @@ Unknown keys are refused (`DESCRIPTOR_INVALID`). To try it, register a descripto
 
 - Launch: no arguments on macOS (`--uid=` on Linux), as agent-orchestrator's `agyacp` driver.
 - After `session/new`: `session/set_mode` (`yolo` for `free` on a writing stage, else `default`),
-  `session/set_config_option` `model` (refused when the session does not offer it, class `config`) and
+  `session/set_config_option` `model` (refused when the session does not offer it, class `config`;
+  an OpenAI, Anthropic or other non-Google name is refused before launch, since 1.4.5 offers only
+  Gemini models) and
   `thinking_level` from the effort (low / medium / high, nearest).
 - No read-only mode and no MCP allow list: readOnly relies on the engine denying writing kinds in
   permission requests.

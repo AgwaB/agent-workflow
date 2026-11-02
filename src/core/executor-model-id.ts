@@ -2,10 +2,11 @@
  * Model and effort names belong to an executor (2026-10-30 owner decision). The same model has a
  * different name in each agentic coding tool:
  *
- * | model            | codex          | claude                       | pi                          |
- * |------------------|----------------|------------------------------|-----------------------------|
- * | GPT-6.1 Sol      | `gpt-6.1-sol`  | —                            | `openai-codex/gpt-6.1-sol`  |
- * | Claude Opus 5.5  | —              | `opus`, `claude-opus-5-5`    | `anthropic/claude-opus-5-5` |
+ * | model            | codex          | claude                       | antigravity        | pi                          |
+ * |------------------|----------------|------------------------------|--------------------|-----------------------------|
+ * | GPT-6.1 Sol      | `gpt-6.1-sol`  | —                            | —                  | `openai-codex/gpt-6.1-sol`  |
+ * | Claude Opus 5.5  | —              | `opus`, `claude-opus-5-5`    | —                  | `anthropic/claude-opus-5-5` |
+ * | Gemini 3.8 Flash | —              | —                            | `gemini-3.8-flash` | `google/gemini-3.8-flash`   |
  *
  * A model written without an executor (spec `model`, agent `model:`, `--model`) is resolved for
  * the executor that runs the stage: its vendor is recognised, the name is rewritten to that tool's
@@ -18,21 +19,32 @@ export function modelVendor(model: string): string | undefined {
 	// Provider prefixes are matched without case ("OpenAI/gpt-…" is an OpenAI model).
 	const prefix = /^([a-z0-9][a-z0-9-]*)\//iu.exec(model)?.[1]?.toLowerCase();
 	if (prefix !== undefined)
-		return prefix === "openai-codex" || prefix === "openai" ? "openai" : prefix;
+		return prefix === "openai-codex" || prefix === "openai"
+			? "openai"
+			: // Pi's Google providers: google, google-gemini-cli, google-antigravity, google-vertex.
+				prefix === "google" || prefix.startsWith("google-")
+				? "google"
+				: prefix;
 	if (/^(?:gpt-|o\d|codex-)/iu.test(model)) return "openai";
 	if (/^(?:claude-|(?:opus|sonnet|haiku)$)/iu.test(model)) return "anthropic";
 	if (/^gemini-/iu.test(model)) return "google";
 	return undefined;
 }
 
-/** Vendors whose models each built-in CLI runs. */
+/**
+ * Vendors whose models each built-in CLI runs. Antigravity: agy_acp_server 1.4.5 offers only Gemini
+ * models in `session/new` (`gemini-4-argon`, `gemini-3.8-flash`, 2026-11-02), so an OpenAI or
+ * Anthropic name is refused before launch instead of failing the stage at session start.
+ */
 const EXECUTOR_VENDORS: Readonly<Record<string, string>> = {
 	codex: "openai",
 	claude: "anthropic",
+	antigravity: "google",
 };
 const VENDOR_EXECUTOR: Readonly<Record<string, string>> = {
 	openai: "codex",
 	anthropic: "claude",
+	google: "antigravity",
 };
 /** Pi providers preferred for a bare id of a vendor (ChatGPT login first, as Pi users have it). */
 const PI_PROVIDER_PREFERENCE: Readonly<Record<string, readonly string[]>> = {
