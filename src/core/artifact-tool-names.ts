@@ -31,7 +31,7 @@ const PREFIXED = mcpPrefixedToolName(
 );
 
 export const ARTIFACT_TOOL_NAME_MAPPINGS: Readonly<
-	Record<"claude" | "codex" | "pi", ArtifactToolNameMapping>
+	Record<"claude" | "codex" | "pi" | "antigravity", ArtifactToolNameMapping>
 > = {
 	claude: {
 		executorId: "claude",
@@ -57,13 +57,23 @@ export const ARTIFACT_TOOL_NAME_MAPPINGS: Readonly<
 			"Pi 1.1.0 docs/mcp.md and createMcpToolName; live WP6 #4 (docs/executors/pi.md): the model called mcp__workflow_artifact__workflow_artifact",
 		verified: true,
 	},
+	antigravity: {
+		executorId: "antigravity",
+		visibleName: PREFIXED,
+		rule: "MCP tools are called through call_mcp_tool(ServerName, ToolName, Arguments); the model resolves mcp__<server>__<tool> to them",
+		evidence:
+			"agy_acp_server 1.4.5 live 2026-11-02 (docs/executors/acp.md): told to call mcp__workflow_artifact__echo of a stub server named workflow_artifact, the model read the tool schema and called call_mcp_tool(ServerName workflow_artifact, ToolName echo); the stub logged the call",
+		verified: true,
+	},
 };
 
 export function artifactToolNameMapping(
 	executorId: string,
 ): ArtifactToolNameMapping | undefined {
 	return Object.hasOwn(ARTIFACT_TOOL_NAME_MAPPINGS, executorId)
-		? ARTIFACT_TOOL_NAME_MAPPINGS[executorId as "claude" | "codex" | "pi"]
+		? ARTIFACT_TOOL_NAME_MAPPINGS[
+				executorId as keyof typeof ARTIFACT_TOOL_NAME_MAPPINGS
+			]
 		: undefined;
 }
 
@@ -96,7 +106,7 @@ const LOGICAL_ARTIFACT_TOOL_MENTION =
  * extract-spec reported SPEC.md "unavailable").
  */
 export const WORKER_TOOL_NAME_MAPPINGS: Readonly<
-	Record<"claude" | "codex", Readonly<Record<string, string>>>
+	Record<"claude" | "codex" | "antigravity", Readonly<Record<string, string>>>
 > = {
 	codex: {
 		read: "the shell tool with a read-only command (cat, sed -n)",
@@ -120,6 +130,21 @@ export const WORKER_TOOL_NAME_MAPPINGS: Readonly<
 		web_search: "WebSearch",
 		fetch_content: "WebFetch",
 	},
+	// agy_acp_server 1.4.5 (live 2026-11-02): the model lists view_file, write_to_file,
+	// replace_file_content, run_command, search_web, read_url_content (no list/grep/find tool; asked
+	// to call list_dir/grep_search/find_by_name or list_directory/search_directory/find_file, it
+	// reported them unavailable). run_command is an execute request: denied on a read-only stage.
+	antigravity: {
+		read: "view_file",
+		grep: "run_command with rg or grep (asks permission; not available on a read-only stage)",
+		find: "run_command with find (asks permission; not available on a read-only stage)",
+		ls: "run_command with ls (asks permission; not available on a read-only stage)",
+		bash: "run_command",
+		edit: "replace_file_content",
+		write: "write_to_file",
+		web_search: "search_web",
+		fetch_content: "read_url_content",
+	},
 };
 
 const ENABLED_TOOLS_LINE =
@@ -136,7 +161,9 @@ export function workerToolMappingNote(
 	executorId: string,
 ): string | undefined {
 	const mapping = Object.hasOwn(WORKER_TOOL_NAME_MAPPINGS, executorId)
-		? WORKER_TOOL_NAME_MAPPINGS[executorId as "claude" | "codex"]
+		? WORKER_TOOL_NAME_MAPPINGS[
+				executorId as keyof typeof WORKER_TOOL_NAME_MAPPINGS
+			]
 		: undefined;
 	if (!mapping) return undefined;
 	const rows = tools

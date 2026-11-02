@@ -10,7 +10,7 @@ import {
 } from "../../dist/mcp/artifact-server/index.js";
 
 test("each executor surfaces workflow_artifact as mcp__workflow_artifact__workflow_artifact (verified live)", () => {
-	for (const id of ["claude", "codex", "pi"]) {
+	for (const id of ["claude", "codex", "pi", "antigravity"]) {
 		assert.equal(
 			artifactToolVisibleName(id),
 			"mcp__workflow_artifact__workflow_artifact",
@@ -22,6 +22,7 @@ test("each executor surfaces workflow_artifact as mcp__workflow_artifact__workfl
 		assert.match(mapping.evidence, /live/);
 	}
 	assert.deepEqual(Object.keys(ARTIFACT_TOOL_NAME_MAPPINGS).sort(), [
+		"antigravity",
 		"claude",
 		"codex",
 		"pi",

@@ -441,8 +441,30 @@ test("acp antigravity preset: no launch flags; mode, model and effort are set on
 			.filter((entry) => entry.method === "session/new")
 			.map((entry) => entry.meta),
 		[
-			{ agy: { disabledTools: ["run_workflow", "schedule"] } },
-			{ agy: { disabledTools: ["run_workflow", "schedule"] } },
+			{
+				agy: {
+					disabledTools: [
+						"run_workflow",
+						"schedule",
+						"invoke_subagent",
+						"define_subagent",
+						"send_message",
+						"manage_subagents",
+					],
+				},
+			},
+			{
+				agy: {
+					disabledTools: [
+						"run_workflow",
+						"schedule",
+						"invoke_subagent",
+						"define_subagent",
+						"send_message",
+						"manage_subagents",
+					],
+				},
+			},
 		],
 	);
 	assert.deepEqual(

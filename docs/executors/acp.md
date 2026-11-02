@@ -56,12 +56,21 @@ Unknown keys are refused (`DESCRIPTOR_INVALID`). To try it, register a descripto
   `thinking_level` from the effort (low / medium / high, nearest).
 - No read-only mode and no MCP allow list: readOnly relies on the engine denying writing kinds in
   permission requests.
-- `session/new` carries `_meta.agy.disabledTools: ["run_workflow", "schedule"]` (per-session tool
-  filter, ACP server 1.2.1+). `run_workflow` would start the agent's own background agents and
-  `schedule` timers or cron jobs, both outside the engine. Without it, 1.4.2+ also writes
-  `skills/system/run-workflow/SKILL.md` into the cwd at `session/new`, which lands in the user's
-  checkout or a worktree diff. Live (2026-11-02, 1.4.5): no file, and input tokens fall from 13,619 to
-  11,032 per request.
+- `session/new` carries `_meta.agy.disabledTools` (per-session tool filter, ACP server 1.2.1+) with
+  `run_workflow`, `schedule`, `invoke_subagent`, `define_subagent`, `send_message` and
+  `manage_subagents`. Each would start agents, timers or cron jobs outside the engine. Without the
+  filter, 1.4.2+ also writes `skills/system/run-workflow/SKILL.md` into the cwd at `session/new`,
+  which lands in the user's checkout or a worktree diff. Live (2026-11-02, 1.4.5): no file. Input
+  tokens per request: 13,619 with no filter, 11,032 with the first two off, 8,531 with all six off.
+- Tool names (live 2026-11-02): the model listed `view_file`, `write_to_file`,
+  `replace_file_content`, `run_command`, `search_web`, `read_url_content`, `call_mcp_tool`,
+  `list_resources`, `read_resource`, `manage_task`, `ask_question` and `generate_image`. It has
+  no list, grep or find tool, so those go through `run_command`. That is an `execute` request,
+  which the engine denies on a read-only stage. The worker prompt's tool note says so
+  (`WORKER_TOOL_NAME_MAPPINGS.antigravity`).
+- MCP tools are called through `call_mcp_tool(ServerName, ToolName, Arguments)`. Told to call
+  `mcp__workflow_artifact__echo`, the model read the tool schema and called it, so the artifact tool
+  keeps the common `mcp__workflow_artifact__workflow_artifact` name (`ARTIFACT_TOOL_NAME_MAPPINGS`).
 - Tool results: for an engine MCP tool the server's ACP `rawOutput` is a display summary ("Echo
   tool"). The adapter holds such a call's closing report back. After the turn it takes the result
   the server recorded in the worker home: the step after the call in

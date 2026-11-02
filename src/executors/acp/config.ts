@@ -77,8 +77,6 @@ export interface AcpPreset {
 		req: SubmitRequest,
 		session: Readonly<Record<string, unknown>>,
 	): { method: string; params: Record<string, unknown> }[];
-	/** How the agent names an MCP tool for the model (prompts render the artifact tool with it). */
-	readonly mcpToolName: (server: string, tool: string) => string;
 }
 
 /**
@@ -114,9 +112,6 @@ const GEMINI: AcpPreset = {
 		args.push("--approval-mode", mode);
 		return args;
 	},
-	// mcp-tool.ts:32-37, 725-749: `mcp_<server>_<tool>`, invalid characters → `_`.
-	mcpToolName: (server, tool) =>
-		`mcp_${server}_${tool}`.replace(/[^a-zA-Z0-9_\-.:]/g, "_"),
 };
 
 /** Values a `select` config option of the session offers (ACP `configOptions`). */
@@ -173,7 +168,21 @@ const ANTIGRAVITY: AcpPreset = {
 	// `run_workflow` also stops 1.4.2+ writing skills/system/run-workflow/SKILL.md into the cwd at
 	// session/new, and cuts ~2.6k input tokens per request (live 2026-11-02: 13,619 → 11,032).
 	// Documented since ACP server 1.2.1 (`_meta.agy.disabledTools` on session/new and session/load).
-	sessionMeta: { agy: { disabledTools: ["run_workflow", "schedule"] } },
+	// The subagent tools (invoke_subagent, define_subagent, send_message, manage_subagents) would also
+	// start agents outside the engine; disabling them cut another ~2.5k input tokens (live: 8,531
+	// with all six off vs 11,032 with two). Live, the model then listed none of the six.
+	sessionMeta: {
+		agy: {
+			disabledTools: [
+				"run_workflow",
+				"schedule",
+				"invoke_subagent",
+				"define_subagent",
+				"send_message",
+				"manage_subagents",
+			],
+		},
+	},
 	inheritedEnvBlocked: antigravityInheritedEnvBlocked,
 	answerFailure: antigravityAnswerFailure,
 	toolResults: {
@@ -231,9 +240,6 @@ const ANTIGRAVITY: AcpPreset = {
 			});
 		return steps;
 	},
-	// Same naming as Gemini CLI until the live tier shows otherwise.
-	mcpToolName: (server, tool) =>
-		`mcp_${server}_${tool}`.replace(/[^a-zA-Z0-9_\-.:]/g, "_"),
 };
 
 export const ACP_PRESETS: Readonly<Record<AcpPresetId, AcpPreset>> = {

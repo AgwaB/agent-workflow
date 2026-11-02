@@ -28,7 +28,7 @@ const BARE_TOOL_MENTION =
 
 test("the renderer emits each executor's verified visible artifact tool name", () => {
 	const prompt = `Call workflow_artifact with action=list. Use ${WORKFLOW_ARTIFACT_TOOL_PLACEHOLDER} again.`;
-	for (const id of ["pi", "codex", "claude"]) {
+	for (const id of ["pi", "codex", "claude", "antigravity"]) {
 		const mapping = ARTIFACT_TOOL_NAME_MAPPINGS[id];
 		assert.equal(mapping.verified, true, id);
 		assert.equal(artifactToolVisibleName(id), mapping.visibleName);
@@ -110,7 +110,7 @@ test("the renderer maps the enabled logical tool names for Codex and Claude, not
 	assert.equal(workerToolMappingNote([VISIBLE], "codex"), undefined);
 	assert.equal(workerToolMappingNote(["read"], "my-cli"), undefined);
 	// Every tool the adapters map (docs/executors/*.md "Tool mapping") has a row.
-	for (const id of ["codex", "claude"])
+	for (const id of ["codex", "claude", "antigravity"])
 		assert.deepEqual(Object.keys(WORKER_TOOL_NAME_MAPPINGS[id]).sort(), [
 			"bash",
 			"edit",
@@ -200,4 +200,12 @@ test("the task backend sends rendered prompts with the artifact guidelines and k
 			retryDelay: 10,
 		});
 	}
+});
+
+test("antigravity: the enabled-tools note names its tools and says shell search is not available read-only", () => {
+	const note = workerToolMappingNote(["read", "grep", "ls"], "antigravity");
+	assert.match(
+		note,
+		/^On this executor \(antigravity\) these tool names are provided as: read → view_file; grep → run_command with rg or grep \(asks permission; not available on a read-only stage\); ls → run_command with ls/,
+	);
 });
