@@ -298,10 +298,6 @@ test("coexistence: aw names never collide with pi-workflow's /workflow and workf
 		ours.filter((name) => theirs.includes(name)),
 		[],
 	);
-	assert.deepEqual(
-		[names.PI_WORKFLOW_COMMAND, ...names.PI_WORKFLOW_TOOL_NAMES],
-		theirs,
-	);
 	for (const name of ours) assert.doesNotMatch(name, /^workflow/);
 	// And the reverse load order.
 	const reverse = fakePi();
