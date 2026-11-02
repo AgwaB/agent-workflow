@@ -293,6 +293,37 @@ async function prompt(id, params) {
 			chunk(sessionId, "done");
 			return send({ id, result: { stopReason: "end_turn" } });
 		}
+		case "agy_shell": {
+			// Antigravity-shaped permission requests: run_command (always execute) and an MCP call (other).
+			const ask = async (toolCallId, title, kind, rawInput) => {
+				const answer = await request("session/request_permission", {
+					sessionId,
+					toolCall: { toolCallId, title, kind, status: "pending", rawInput },
+					options: [
+						{ optionId: "allow", name: "Allow", kind: "allow_once" },
+						{ optionId: "deny", name: "Deny", kind: "reject_once" },
+					],
+				});
+				log({
+					permission: toolCallId,
+					answer: answer?.outcome?.optionId ?? answer?.outcome?.outcome,
+				});
+			};
+			await ask("s1", "rg -n stop src", "execute", {
+				CommandLine: "rg -n stop src",
+				Cwd: "/w",
+			});
+			await ask("s2", "echo OK > f.txt", "execute", {
+				CommandLine: "echo OK > f.txt",
+				Cwd: "/w",
+			});
+			await ask("s3", "workflow_artifact_workflow_artifact", "other", {
+				arguments: { action: "list" },
+				action: "list",
+			});
+			chunk(sessionId, "done");
+			return send({ id, result: { stopReason: "end_turn" } });
+		}
 		case "agy_quota":
 			chunk(sessionId, "Usage Limit Reached\n\nYour quota resets in 3 days.");
 			return send({ id, result: { stopReason: "end_turn" } });

@@ -133,12 +133,13 @@ export const WORKER_TOOL_NAME_MAPPINGS: Readonly<
 	// agy_acp_server 1.4.5 (live 2026-11-02): the model lists view_file, write_to_file,
 	// replace_file_content, run_command, search_web, read_url_content (no list/grep/find tool; asked
 	// to call list_dir/grep_search/find_by_name or list_directory/search_directory/find_file, it
-	// reported them unavailable). run_command is an execute request: denied on a read-only stage.
+	// reported them unavailable). run_command is an execute request; on a read-only stage only a
+	// plain read-only command passes (sdk/shell-readonly.ts).
 	antigravity: {
 		read: "view_file",
-		grep: "run_command with rg or grep (asks permission; not available on a read-only stage)",
-		find: "run_command with find (asks permission; not available on a read-only stage)",
-		ls: "run_command with ls (asks permission; not available on a read-only stage)",
+		grep: "run_command with rg or grep (one plain command: no pipes, redirects, $ or globs on a read-only stage)",
+		find: "run_command with find (no -exec/-delete on a read-only stage; quote name patterns)",
+		ls: "run_command with ls or tree",
 		bash: "run_command",
 		edit: "replace_file_content",
 		write: "write_to_file",

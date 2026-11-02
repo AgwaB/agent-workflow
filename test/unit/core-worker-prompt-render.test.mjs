@@ -206,6 +206,6 @@ test("antigravity: the enabled-tools note names its tools and says shell search 
 	const note = workerToolMappingNote(["read", "grep", "ls"], "antigravity");
 	assert.match(
 		note,
-		/^On this executor \(antigravity\) these tool names are provided as: read → view_file; grep → run_command with rg or grep \(asks permission; not available on a read-only stage\); ls → run_command with ls/,
+		/^On this executor \(antigravity\) these tool names are provided as: read → view_file; grep → run_command with rg or grep \(one plain command: no pipes, redirects, \$ or globs on a read-only stage\); ls → run_command with ls or tree/,
 	);
 });

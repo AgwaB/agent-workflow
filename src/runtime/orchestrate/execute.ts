@@ -6,7 +6,11 @@
 // control mailbox (orchestrate/control.ts) up to approvalPolicy.timeoutMs, then deny
 // (default-timeout); every decision is audited in approvals.jsonl with who decided it; a mailbox
 // cancel(owned) takes the stop path, cancel(turn) is forwarded to the executor.
-import { type ApprovalDecision, decideApproval } from "../../sdk/approval.js";
+import {
+	type ApprovalDecision,
+	decideApproval,
+	effectiveApprovalKind,
+} from "../../sdk/approval.js";
 import type {
 	AuthorityDecision,
 	ExecutionAuthority,
@@ -720,6 +724,7 @@ export async function observeAttempt(
 				requestId: valid.requestId,
 				kind: valid.kind,
 				...(valid.detail === undefined ? {} : { detail: valid.detail }),
+				...(valid.command === undefined ? {} : { command: valid.command }),
 				at: requestedAt.toISOString(),
 				deadlineAt: waits
 					? new Date(
@@ -735,7 +740,12 @@ export async function observeAttempt(
 				const free = options.permissionMode === "free";
 				decision = asked;
 				by = free ? "engine-policy:free" : "engine-policy";
-				reason = policyReason(valid.kind, options.readOnly, asked, free);
+				const judgedAs = effectiveApprovalKind(valid, {
+					readOnly: options.readOnly,
+				});
+				reason = policyReason(judgedAs, options.readOnly, asked, free);
+				if (judgedAs !== valid.kind)
+					reason = `read-only command judged as ${judgedAs}: ${reason}`;
 				options.control?.markDecided(valid.requestId);
 			} else if (options.control === undefined) {
 				// No control channel in this process (e.g. reconcile adoption): fail closed (D2).

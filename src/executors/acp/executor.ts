@@ -430,14 +430,33 @@ export function createAcpExecutor(options: {
 				resolve,
 				timer,
 			});
+			const kind = acpToolKind(toolCall.kind);
+			const rawInput = isRecord(toolCall.rawInput) ? toolCall.rawInput : {};
+			// The exact command line of a shell execution (Antigravity `CommandLine`, others
+			// `command`): a readOnly stage allows a plain read-only inspection command.
+			const command =
+				kind === "execute"
+					? [rawInput.CommandLine, rawInput.command].find(
+							(value): value is string => typeof value === "string",
+						)
+					: undefined;
+			const title =
+				typeof toolCall.title === "string" ? toolCall.title : undefined;
+			// The engine's artifact server only reads (the same rule that admits it on readOnly
+			// requests); agents that report MCP calls as `other` (Antigravity: "<server>_<tool>")
+			// are judged as the read it is.
+			const artifactCall =
+				kind === "other" &&
+				title?.startsWith(`${ARTIFACT_MCP_SERVER_NAME}_`) === true &&
+				req.mcpServers.some(
+					(server) => server.name === ARTIFACT_MCP_SERVER_NAME,
+				);
 			push(run, {
 				type: "approval_request",
 				requestId,
-				kind: acpToolKind(toolCall.kind),
-				detail:
-					typeof toolCall.title === "string"
-						? toolCall.title
-						: "permission requested",
+				kind: artifactCall ? "read" : kind,
+				detail: title ?? "permission requested",
+				...(command === undefined ? {} : { command }),
 			});
 		});
 	}

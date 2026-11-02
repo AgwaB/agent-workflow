@@ -68,13 +68,17 @@ Unknown keys are refused (`DESCRIPTOR_INVALID`). To try it, register a descripto
   `thinking_level` from the effort (low / medium / high, nearest).
 - No read-only mode and no MCP allow list: readOnly relies on the engine denying writing kinds in
   permission requests.
-- `session/new` carries `_meta.agy.disabledTools` (per-session tool filter, ACP server 1.2.1+) with
-  `run_workflow`, `schedule`, `invoke_subagent`, `define_subagent` and `send_message`. Each would start
-  agents, timers or cron jobs outside the engine. The server warns about names it does not know (1.4.5:
-  `manage_subagents`). Without the
+- `session/new` carries `_meta.antigravity.disabledTools` with `run_workflow`, `schedule` and
+  `invoke_subagent`. This is the per-session tool filter, documented for ACP server 1.2.1+ as
+  `_meta.agy`, which 1.4.5 logs as legacy. Each of these tools would start agents, timers or cron jobs
+  outside the engine. The filter only knows the SDK `BuiltinTools` names and warns about any other
+  name. A no-model probe on 1.4.5 found 15 known names; `define_subagent`, `send_message` and
+  `manage_subagents` are not among them. `_meta.antigravity.enabledTools` is an allowlist (live: only
+  `view_file` was offered, 4,073 input tokens), but `list_directory`, `search_directory` and
+  `find_file` are not offered even when listed. Without the
   filter, 1.4.2+ also writes `skills/system/run-workflow/SKILL.md` into the cwd at `session/new`,
   which lands in the user's checkout or a worktree diff. Live (2026-11-02, 1.4.5): no file. Input
-  tokens per request: 13,619 with no filter, 11,032 with the first two off, 8,531 with the five off.
+  tokens per request: 13,619 with no filter, 11,032 with the first two off, 8,531 with `invoke_subagent` off too.
 - Not isolated: the workspace's own customizations. Antigravity reads `AGENTS.md`, `GEMINI.md` and
   `.agents/` (rules, skills) in the workspace folder and its parents up to the repository root
   (docs `customization-discovery`). No flag or `_meta` option to turn this off was found. In the

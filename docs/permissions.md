@@ -82,3 +82,18 @@ An adapter must:
 
 The engine's approval decision (`decideApproval(policy, request, {readOnly, permissionMode})`): `free`
 allows everything except mutating kinds on a readOnly stage; `safe` is unchanged (D2).
+
+Read-only shell commands (2026-11-02). An agent with no list, grep or find tool (Antigravity) runs
+`ls` or `rg` through its shell tool, which reports every command as `execute`. On a readOnly
+stage, an `execute` request whose `command` (the exact command line, when the adapter can see
+it) is one plain inspection command is judged as `search`. A plain command has no shell
+operators, `$`, backticks, unquoted globs or braces, word-initial `~`, backslashes or newlines.
+The inspection commands are `cat du file find git grep head ls pwd rg stat tail tree wc`, with git
+limited to `status log show diff blame rev-parse ls-files`. Options that write, run another program
+or never end are refused per command: `rg --pre/--pre-glob/--hostname-bin/-z`, `tree -o`,
+`file -C`, `find -exec/-execdir/-ok/-okdir/-delete/-fprint*/-fls`, `tail -f/-F`, and
+`git --output/--ext-diff/--textconv/--exec`. Everything else stays `execute` and is denied.
+The rule is ported from gajae-code's read-only bash profile (`src/sdk/shell-readonly.ts`). gjc
+rewrites a command before it runs it; an ACP client can only answer the agent's request, so the
+string must already be plain. The approval audit records the command and "read-only command judged
+as search".

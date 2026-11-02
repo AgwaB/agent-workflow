@@ -644,6 +644,8 @@ export interface ApprovalAuditRequested {
 	requestId: string;
 	kind: string;
 	detail?: string;
+	/** The shell command line of an execution request, when the agent sent one. */
+	command?: string;
 	at: string;
 	/** When the runtime applies the default (deny) if nobody answers; null = decided by policy. */
 	deadlineAt: string | null;

@@ -87,6 +87,11 @@ export interface ApprovalRequestEvent {
 	readonly requestId: string;
 	readonly kind: ToolKind;
 	readonly detail: string;
+	/**
+	 * For a shell execution: the exact command line the agent will run. A readOnly stage allows it
+	 * when it is a plain read-only inspection command (`shell-readonly.ts`).
+	 */
+	readonly command?: string;
 }
 export interface CompletedEvent {
 	readonly type: "completed";
@@ -220,6 +225,8 @@ export function validateExecEvent(value: unknown): string[] {
 				problems.push("approval_request.kind is not an ACP tool kind");
 			if (typeof value.detail !== "string")
 				problems.push("approval_request.detail must be a string");
+			if (value.command !== undefined && typeof value.command !== "string")
+				problems.push("approval_request.command must be a string when present");
 			break;
 		case "completed":
 			if (typeof value.finalText !== "string")

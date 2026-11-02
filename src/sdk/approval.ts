@@ -7,6 +7,7 @@
  */
 import type { ApprovalRequestEvent, ToolKind } from "./events.js";
 import { effectivePermissionMode, type PermissionMode } from "./permission.js";
+import { checkReadOnlyShellCommand } from "./shell-readonly.js";
 import { isMutatingKind } from "./tools.js";
 
 export type ApprovalDecision = "allow" | "deny";
@@ -34,6 +35,25 @@ export function defaultApprovalPolicy(
 }
 
 /**
+ * The kind a request is judged as. On a readOnly stage a shell execution whose command is a plain
+ * read-only inspection command (`rg`, `ls`, `git diff`, ...) is a `search`, not an `execute`
+ * (owner decision 2026-11-02; gajae-code's read-only bash profile). Everything else keeps its kind.
+ */
+export function effectiveApprovalKind(
+	request: Pick<ApprovalRequestEvent, "kind" | "command">,
+	stage: { readonly readOnly: boolean },
+): ToolKind {
+	if (
+		stage.readOnly &&
+		request.kind === "execute" &&
+		typeof request.command === "string" &&
+		checkReadOnlyShellCommand(request.command).ok
+	)
+		return "search";
+	return request.kind;
+}
+
+/**
  * Decide how to answer an approval request.
  * - `deny`: readOnly stage + mutating kind (both modes), or (safe) not allowed and nobody to ask.
  * - `allow`: `free` mode, or kind is in `allowKinds` (and not blocked by readOnly).
@@ -41,15 +61,16 @@ export function defaultApprovalPolicy(
  */
 export function decideApproval(
 	policy: ApprovalPolicy,
-	request: Pick<ApprovalRequestEvent, "kind">,
+	request: Pick<ApprovalRequestEvent, "kind" | "command">,
 	stage: {
 		readonly readOnly: boolean;
 		readonly permissionMode?: PermissionMode;
 	},
 ): ApprovalDecision | "ask" {
-	if (stage.readOnly && isMutatingKind(request.kind)) return "deny";
+	const kind = effectiveApprovalKind(request, stage);
+	if (stage.readOnly && isMutatingKind(kind)) return "deny";
 	if (effectivePermissionMode(stage) === "free") return "allow";
-	if (policy.allowKinds.includes(request.kind)) return "allow";
+	if (policy.allowKinds.includes(kind)) return "allow";
 	return policy.interactive ? "ask" : "deny";
 }
 

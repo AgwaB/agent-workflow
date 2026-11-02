@@ -12,5 +12,6 @@ export * from "./json.js";
 export * from "./mcp-delivery.js";
 export * from "./permission.js";
 export * from "./record.js";
+export * from "./shell-readonly.js";
 export * from "./requirements.js";
 export * from "./tools.js";

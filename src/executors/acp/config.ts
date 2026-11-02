@@ -175,20 +175,15 @@ const ANTIGRAVITY: AcpPreset = {
 	// the background, `schedule` sets timers/cron jobs that can fire after the attempt. Disabling
 	// `run_workflow` also stops 1.4.2+ writing skills/system/run-workflow/SKILL.md into the cwd at
 	// session/new, and cuts ~2.6k input tokens per request (live 2026-11-02: 13,619 → 11,032).
-	// Documented since ACP server 1.2.1 (`_meta.agy.disabledTools` on session/new and session/load).
-	// The subagent tools (invoke_subagent, define_subagent, send_message) would also start agents
-	// outside the engine; disabling them cut another ~2.5k input tokens (live: 8,531 with these off vs
-	// 11,032 with the first two). The server warns about unknown names ("Unknown tool name in
-	// disabledTools: 'manage_subagents'" on 1.4.5), so the list holds only names it knows.
+	// Documented since ACP server 1.2.1 as `_meta.agy.disabledTools`; 1.4.5 logs "Reading enabledTools
+	// from legacy _meta.agy", and `_meta.antigravity` works the same (live no-model check), so that key.
+	// `invoke_subagent` would also start agents outside the engine; disabling it cut another ~2.5k
+	// input tokens (live: 8,531 vs 11,032). The filter knows only the SDK BuiltinTools names
+	// (no-model probe: it warns "Unknown tool name" for define_subagent, send_message,
+	// manage_subagents), so the list holds only names it knows.
 	sessionMeta: {
-		agy: {
-			disabledTools: [
-				"run_workflow",
-				"schedule",
-				"invoke_subagent",
-				"define_subagent",
-				"send_message",
-			],
+		antigravity: {
+			disabledTools: ["run_workflow", "schedule", "invoke_subagent"],
 		},
 	},
 	inheritedEnvBlocked: antigravityInheritedEnvBlocked,

@@ -17,6 +17,7 @@ import {
 	selectPermissionOption,
 } from "../../dist/executors/acp/index.js";
 import { drain } from "../../dist/sdk/conformance/index.js";
+import { decideApproval } from "../../dist/sdk/index.js";
 import {
 	createAuthorityGate,
 	defaultApprovalPolicy,
@@ -443,25 +444,13 @@ test("acp antigravity preset: no launch flags; mode, model and effort are set on
 			.map((entry) => entry.meta),
 		[
 			{
-				agy: {
-					disabledTools: [
-						"run_workflow",
-						"schedule",
-						"invoke_subagent",
-						"define_subagent",
-						"send_message",
-					],
+				antigravity: {
+					disabledTools: ["run_workflow", "schedule", "invoke_subagent"],
 				},
 			},
 			{
-				agy: {
-					disabledTools: [
-						"run_workflow",
-						"schedule",
-						"invoke_subagent",
-						"define_subagent",
-						"send_message",
-					],
+				antigravity: {
+					disabledTools: ["run_workflow", "schedule", "invoke_subagent"],
 				},
 			},
 		],
@@ -743,4 +732,58 @@ test("acp antigravity: the server path can come from AGENT_WORKFLOW_AGY_ACP_SERV
 		ANTIGRAVITY_HARNESS_PATH: harness,
 	});
 	assert.deepEqual(await antigravityLaunchEnv("not-there-agy"), {});
+});
+
+test("acp: a shell permission request carries its command; a readOnly stage allows a plain read-only one; the artifact MCP call is a read", async (t) => {
+	const { dir, command, agentLog } = await setup(t, "agy_shell");
+	const config = parseAcpConfig({
+		preset: "antigravity",
+		command,
+		stateDir: join(dir, "agy-state"),
+		killGraceMs: 200,
+		handshakeTimeoutMs: 5_000,
+	});
+	const executor = createAcpExecutor({ config });
+	const req = request(dir, "agy-shell-1", {
+		readOnly: true,
+		permissionMode: "safe",
+		mcpServers: [
+			{ name: "workflow_artifact", command: "/bin/echo", args: ["x"] },
+		],
+		approvalPolicy: defaultApprovalPolicy({ allowKinds: ["read", "search"] }),
+	});
+	const ref = await executor.submit(req);
+	const { events, terminal } = await drain(executor, ref, {
+		timeoutMs: 15_000,
+		onApproval: async (event) => {
+			await executor.respond(
+				ref,
+				event.requestId,
+				decideApproval(req.approvalPolicy, event, req) === "allow"
+					? "allow"
+					: "deny",
+			);
+		},
+	});
+	assert.equal(terminal.type, "completed");
+	assert.deepEqual(
+		events
+			.filter((e) => e.type === "approval_request")
+			.map((e) => [e.kind, e.detail, e.command ?? null]),
+		[
+			["execute", "rg -n stop src", "rg -n stop src"],
+			["execute", "echo OK > f.txt", "echo OK > f.txt"],
+			["read", "workflow_artifact_workflow_artifact", null],
+		],
+	);
+	assert.deepEqual(
+		(await agentLog())
+			.filter((e) => e.permission)
+			.map((e) => [e.permission, e.answer]),
+		[
+			["s1", "allow"],
+			["s2", "deny"],
+			["s3", "allow"],
+		],
+	);
 });
