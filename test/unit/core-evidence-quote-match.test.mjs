@@ -225,3 +225,26 @@ test("HTML text extraction stays linear on unclosed tags, elements and comments 
 		{ rendered: "Hello world\nx", tex: "Hello world\n$x^2$ $y_1$" },
 	);
 });
+
+test("a quote cannot start or end inside a page's word or number (quality A/B 2026-11-02)", () => {
+	const cases = [
+		["12% of users", "In 2025, 112% of users returned.", false],
+		["12% of users", "In 2025, 12% of users returned.", true],
+		["GPT-4", "GPT-40 is newer", false],
+		["GPT-4", "GPT-4, then GPT-4o", true],
+		["the cat", "the cats sat", false],
+		["the cat", "(the cat)", true],
+		["at the top", "sat the top", false],
+		// normalized level too: folding must not hide a cut-off number
+		["“12% of users”", "a 112% of users", false],
+		// scripts without spaces between words stay substring-based
+		["컨텍스트 부패", "컨텍스트 부패가 생긴다", true],
+		["上下文", "长上下文窗口", true],
+	];
+	for (const [quote, page, expected] of cases)
+		assert.equal(
+			matchQuote(quote, [page]).matched,
+			expected,
+			`${quote} in ${page}`,
+		);
+});

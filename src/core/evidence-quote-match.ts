@@ -1,6 +1,7 @@
 // agent-workflow 2026-11-01: does a model's quote occur in a fetched page? Deterministic, strict.
 // Levels, tried in order:
-// - exact: the quote is a substring of a page view;
+// - exact: the quote is a substring of a page view that does not start or end inside a word or
+//   number of the page (exact and normalized levels; scripts without spaces between words exempt);
 // - normalized: after folding both sides — Unicode NFKC (𝑡→t, ₜ→t, ligatures), curly quotes,
 //   dashes and primes, zero-width characters, Markdown links/escapes/emphasis/code marks, `$`,
 //   table pipes, runs of whitespace and spaces before closing punctuation; a quote's own trailing
@@ -78,6 +79,45 @@ export class PreparedPage {
 	}
 }
 
+// A quote's first and last characters must not continue a word or number of the page: "12% of users"
+// is not in "112% of users" (quality A/B 2026-11-02 review finding). Letters of scripts written
+// without spaces between words (CJK, Hangul with its attached particles, Thai, …) are exempt.
+const WORD_CHAR = /[\p{L}\p{N}]/u;
+const UNSPACED_SCRIPT =
+	/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u;
+const joins = (char: string | undefined): boolean =>
+	char !== undefined && WORD_CHAR.test(char) && !UNSPACED_SCRIPT.test(char);
+
+function codePointBefore(text: string, index: number): string | undefined {
+	if (index <= 0) return undefined;
+	const low = text.charCodeAt(index - 1);
+	const start =
+		low >= 0xdc00 && low <= 0xdfff && index >= 2 ? index - 2 : index - 1;
+	return String.fromCodePoint(text.codePointAt(start) as number);
+}
+
+function codePointAtIndex(text: string, index: number): string | undefined {
+	const point = text.codePointAt(index);
+	return point === undefined ? undefined : String.fromCodePoint(point);
+}
+
+/** `needle` occurs in `text` without cutting a word or number at either end. */
+function containsWhole(text: string, needle: string): boolean {
+	const first = codePointAtIndex(needle, 0);
+	const last = codePointBefore(needle, needle.length);
+	for (
+		let at = text.indexOf(needle);
+		at >= 0;
+		at = text.indexOf(needle, at + 1)
+	) {
+		if (joins(first) && joins(codePointBefore(text, at))) continue;
+		if (joins(last) && joins(codePointAtIndex(text, at + needle.length)))
+			continue;
+		return true;
+	}
+	return false;
+}
+
 export function matchQuote(
 	quote: string,
 	page: PreparedPage | readonly string[],
@@ -86,7 +126,8 @@ export function matchQuote(
 	const needle = quote.trim();
 	if (needle === "") return { matched: false };
 	for (const [view, text] of prepared.views.entries())
-		if (text.includes(needle)) return { matched: true, level: "exact", view };
+		if (containsWhole(text, needle))
+			return { matched: true, level: "exact", view };
 	const folded = foldForMatch(needle);
 	if (folded === "") return { matched: false };
 	// A quote cut from the middle of a sentence often gets a closing period the page does not have
@@ -97,7 +138,7 @@ export function matchQuote(
 		body.length >= 8 && body !== folded ? [folded, body] : [folded];
 	for (const candidate of candidates)
 		for (const [view, text] of prepared.folded.entries())
-			if (text.includes(candidate))
+			if (containsWhole(text, candidate))
 				return { matched: true, level: "normalized", view };
 	if (!hasMathNotation(needle)) return { matched: false };
 	const squeezed = squeeze(candidates.at(-1) as string);
