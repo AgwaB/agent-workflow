@@ -94,19 +94,67 @@ export function decodeHtmlEntities(text: string): string {
 	);
 }
 
-// A tag, with quoted attribute values that may contain `>`.
-const TAG = /<(?:[^>"']|"[^"]*"|'[^']*')*>/g;
+// Every pattern here stays linear on hostile pages (the 2026-11-02 quality A/B reviews: unclosed
+// `<` made the old tag/element regexes quadratic — 160 KB took 15 s, blocking the event loop outside
+// the fetch timeout). A tag, with quoted attribute values that may contain `>`; neither a tag nor a
+// quoted value runs past the next `<`, so a failed match costs at most the distance to it.
+const TAG = /<(?:[^<>"']|"[^"<]*"|'[^'<]*')*>/g;
 const BLOCK_TAG =
 	/^<\/?(?:p|div|br|hr|li|ul|ol|dl|dt|dd|tr|td|th|thead|tbody|tfoot|table|caption|h[1-6]|section|article|header|footer|nav|aside|main|blockquote|pre|figure|figcaption|details|summary|form|fieldset|legend|address|center|option)\b/i;
 
+/**
+ * Replace each `<name …>…</name>` (up to the nearest closing tag) in one forward scan. Once no
+ * closing tag follows an opening one, none follows any later opening either, so the scan stops and
+ * the rest stays as it is (what the former lazy regex left unmatched).
+ */
+function replaceElements(
+	html: string,
+	name: string,
+	replace: (element: string, open: string, inner: string) => string,
+): string {
+	const open = new RegExp(`<${name}\\b(?:[^<>"']|"[^"<]*"|'[^'<]*')*>`, "gi");
+	const close = new RegExp(`<\\/${name}\\s*>`, "gi");
+	let out = "";
+	let from = 0;
+	for (;;) {
+		open.lastIndex = from;
+		const opened = open.exec(html);
+		if (opened === null) break;
+		const innerStart = opened.index + opened[0].length;
+		close.lastIndex = innerStart;
+		const closed = close.exec(html);
+		if (closed === null) break;
+		const end = closed.index + closed[0].length;
+		out +=
+			html.slice(from, opened.index) +
+			replace(
+				html.slice(opened.index, end),
+				opened[0],
+				html.slice(innerStart, closed.index),
+			);
+		from = end;
+	}
+	return out + html.slice(from);
+}
+
 function dropElements(html: string, names: readonly string[]): string {
 	let out = html;
-	for (const name of names)
-		out = out.replace(
-			new RegExp(`<${name}\\b[^>]*>[\\s\\S]*?<\\/${name}\\s*>`, "gi"),
-			" ",
-		);
+	for (const name of names) out = replaceElements(out, name, () => " ");
 	return out;
+}
+
+function dropComments(html: string): string {
+	let out = "";
+	let from = 0;
+	for (;;) {
+		const start = html.indexOf("<!--", from);
+		if (start < 0) break;
+		const end = html.indexOf("-->", start + 4);
+		if (end < 0) break;
+		out += `${html.slice(from, start)} `;
+		from = end + 3;
+	}
+	return out + html.slice(from);
 }
 
 function stripTags(html: string): string {
@@ -126,18 +174,30 @@ function attribute(tag: string, name: string): string | undefined {
 }
 
 function texOf(mathElement: string): string {
-	const open = mathElement.match(/^<math\b(?:[^>"']|"[^"]*"|'[^']*')*>/i)?.[0];
+	const open = mathElement.match(
+		/^<math\b(?:[^<>"']|"[^"<]*"|'[^'<]*')*>/i,
+	)?.[0];
 	const alt = open === undefined ? undefined : attribute(open, "alttext");
 	if (alt?.trim()) return alt.trim();
-	const annotation = mathElement.match(
-		/<annotation\b[^>]*encoding\s*=\s*["']application\/x-tex["'][^>]*>([\s\S]*?)<\/annotation\s*>/i,
-	)?.[1];
+	let annotation: string | undefined;
+	replaceElements(
+		mathElement,
+		"annotation",
+		(element, annotationOpen, inner) => {
+			if (
+				annotation === undefined &&
+				/\sencoding\s*=\s*["']application\/x-tex["']/i.test(annotationOpen)
+			)
+				annotation = inner;
+			return element;
+		},
+	);
 	if (annotation?.trim()) return decodeHtmlEntities(annotation.trim());
 	return stripTags(dropElements(mathElement, ["annotation", "annotation-xml"]));
 }
 
 export function htmlToTextViews(html: string): PageTextViews {
-	const body = dropElements(html.replace(/<!--[\s\S]*?-->/g, " "), [
+	const body = dropElements(dropComments(html), [
 		"script",
 		"style",
 		"template",
@@ -149,10 +209,7 @@ export function htmlToTextViews(html: string): PageTextViews {
 	);
 	if (!/<math\b/i.test(body)) return { rendered };
 	const tex = stripTags(
-		body.replace(
-			/<math\b[\s\S]*?<\/math\s*>/gi,
-			(math) => ` $${texOf(math)}$ `,
-		),
+		replaceElements(body, "math", (math) => ` $${texOf(math)}$ `),
 	);
 	return { rendered, tex };
 }

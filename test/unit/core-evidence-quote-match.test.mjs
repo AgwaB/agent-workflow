@@ -199,3 +199,29 @@ test("folding is idempotent", () => {
 		assert.equal(foldForMatch(once), once);
 	}
 });
+
+test("HTML text extraction stays linear on unclosed tags, elements and comments (quality A/B 2026-11-02)", () => {
+	// The former regexes rescanned to the end of the page from every unclosed `<`: 160 KB of "<a"
+	// took 15 s on the event loop, outside the fetch timeout. 200 KB inputs now take milliseconds.
+	for (const html of [
+		"<a".repeat(100_000),
+		'<a "'.repeat(50_000),
+		"<script>".repeat(25_000),
+		"<!--".repeat(50_000),
+		"<math>".repeat(33_000),
+		`<math>${'<annotation encoding="application/x-tex">'.repeat(5_000)}</math>`,
+	]) {
+		const started = performance.now();
+		htmlToTextViews(html);
+		const ms = performance.now() - started;
+		assert.ok(ms < 2_000, `${html.slice(0, 12)}… took ${Math.round(ms)} ms`);
+	}
+	// Ordinary markup still reads as before: quoted `>` inside a tag, dropped scripts/comments,
+	// formulas from alttext or the TeX annotation.
+	assert.deepEqual(
+		htmlToTextViews(
+			'<html><head><title>T</title></head><body><!-- c --><p title="a > b">Hello <b>world</b></p><script>var x = "<p>";</script><math alttext="x^2"><mi>x</mi></math><math><annotation encoding="application/x-tex">y_1</annotation></math></body></html>',
+		),
+		{ rendered: "Hello world\nx", tex: "Hello world\n$x^2$ $y_1$" },
+	);
+});
