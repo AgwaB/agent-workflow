@@ -5,7 +5,7 @@
 import { HostUsageError } from "./args.js";
 import { type HostResult, result } from "./types.js";
 
-const LAUNCH_FLAGS = `  --executor <id>              executor for this run (pi, codex, claude; run flag beats profiles;
+const LAUNCH_FLAGS = `  --executor <id>              executor for this run (pi, codex, claude, antigravity; run flag beats profiles;
                                default: first installed and logged-in of pi, claude, codex)
   --profile <name>             workflow-declared execution profile, else a saved user profile,
                                else a built-in preset (codex, claude, pi, mixed)

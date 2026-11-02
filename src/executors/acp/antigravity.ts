@@ -16,8 +16,8 @@
  * - Inherited environment that would switch the account, project or harness (Orca
  *   `antigravity-acp-environment.ts:10-28`).
  */
-import { readFile, realpath, stat } from "node:fs/promises";
-import { join, sep } from "node:path";
+import { access, readFile, realpath, stat } from "node:fs/promises";
+import { delimiter, dirname, isAbsolute, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { FailureClass } from "../../sdk/errors.js";
 import type { AgentToolResult, SummaryCall } from "./config.js";
@@ -186,6 +186,37 @@ export function antigravityAnswerFailure(
 		};
 	}
 	return undefined;
+}
+
+/**
+ * The server finds its `localharness_external` beside itself; started through a symlink (e.g.
+ * `~/.local/bin/agy_acp_server`) it needs ANTIGRAVITY_HARNESS_PATH (agent-orchestrator
+ * `agyacp/resolve.go`, which sets it the same way).
+ */
+export async function antigravityLaunchEnv(
+	command: string,
+): Promise<Record<string, string>> {
+	const candidates = isAbsolute(command)
+		? [command]
+		: command.includes(sep)
+			? []
+			: (process.env.PATH ?? "")
+					.split(delimiter)
+					.filter((dir) => dir !== "")
+					.map((dir) => join(dir, command));
+	for (const path of candidates) {
+		const real = await realpath(path).catch(() => undefined);
+		if (real === undefined) continue;
+		if (real === path) return {};
+		const harness = join(dirname(real), "localharness_external");
+		return (await access(harness).then(
+			() => true,
+			() => false,
+		))
+			? { ANTIGRAVITY_HARNESS_PATH: harness }
+			: {};
+	}
+	return {};
 }
 
 /** Inherited variables that would switch the account, project or harness of an isolated worker. */

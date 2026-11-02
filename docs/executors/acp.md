@@ -1,14 +1,26 @@
-# ACP executor (pilot)
+# ACP executor
 
 Entry point: `@agwab/agent-workflow/executors/acp`. Source: `src/executors/acp/`.
 
 - Factory: `createExecutor(config)` (descriptor convention, R#15); `createAcpExecutor({ config, faults })`
   is the typed form. `config.preset` picks the agent and the executor id.
 - Adapter version: `0.1.0`. SDK contract: `0.1.0`. ACP protocol version 1.
-- **Status: pilot, not a built-in executor.** Offline and runtime conformance pass against a
-  scripted ACP agent (`test/unit/executor-acp-conformance.test.mjs`); nothing is live-verified yet,
-  so every capability is `declared`. Like other ACP hosts, an agent becomes a built-in only after its
-  live conformance (handshake, MCP, streaming, permissions, cancel) passed on the real CLI.
+- **Status: `antigravity` is a built-in executor (`--executor antigravity`, 2026-11-02); `gemini` is
+  still a pilot preset.** Offline and runtime conformance pass against a scripted ACP agent
+  (`test/unit/executor-acp-conformance.test.mjs`). For Antigravity, the live tier
+  (`test/unit/executor-acp-antigravity-live.test.mjs`, `AGENT_WORKFLOW_LIVE=1`) passed on
+  agy_acp_server 1.4.5 with gemini-3.8-flash (low):
+  - smoke: a 200,000-char MCP result was delivered in full;
+  - `live.readonly_enforced` and `live.isolation` passed;
+  - `live.tool_allowlist`, `live.session_ownership` and `live.resume` skip (declared none).
+  
+  A two-stage AW run (`--executor antigravity`: a file read, then an artifact read through
+  `workflow_artifact`) completed cleanly. Capabilities stay `declared`.
+- Built-in descriptor: `{ id: "antigravity", module: <dist>/executors/acp/index.js, config: { preset:
+  "antigravity" } }`. The server must be on PATH as `agy_acp_server`, or named in
+  `AGENT_WORKFLOW_AGY_ACP_SERVER`. The registry ships it as an archive with no installer. When the
+  server is reached through a symlink, the adapter sets `ANTIGRAVITY_HARNESS_PATH` to the
+  `localharness_external` beside the real file, as agent-orchestrator does.
 - Presets: `gemini` (Gemini CLI, `gemini --acp`) and `antigravity` (Google Antigravity's separate ACP
   server `agy_acp_server`, ACP registry entry `antigravity-acp`). On 2026-11-02 Google refused Gemini
   CLI's free "Code Assist for individuals" tier (`IneligibleTierError`, "migrate to Antigravity"); the
@@ -20,7 +32,7 @@ Entry point: `@agwab/agent-workflow/executors/acp`. Source: `src/executors/acp/`
 | Key | Default | Meaning |
 |---|---|---|
 | `preset` | `gemini` | Agent preset; also the executor id |
-| `command` | the preset's (`gemini`, `agy_acp_server`) | Agent executable |
+| `command` | the preset's (`gemini`, `agy_acp_server`; antigravity: `$AGENT_WORKFLOW_AGY_ACP_SERVER` first) | Agent executable |
 | `agentHome` | `<stateDir>/<preset>-home` | Engine-owned agent home (presets that isolate through it) |
 | `stateDir` | `$AGENT_WORKFLOW_HOME/executors/acp` (`~/.agent-workflow/…`) | Attempt records (reconcile) |
 | `killGraceMs` | `2000` | Grace between closing the agent's stdin → SIGTERM → SIGKILL |
@@ -57,11 +69,21 @@ Unknown keys are refused (`DESCRIPTOR_INVALID`). To try it, register a descripto
 - No read-only mode and no MCP allow list: readOnly relies on the engine denying writing kinds in
   permission requests.
 - `session/new` carries `_meta.agy.disabledTools` (per-session tool filter, ACP server 1.2.1+) with
-  `run_workflow`, `schedule`, `invoke_subagent`, `define_subagent`, `send_message` and
-  `manage_subagents`. Each would start agents, timers or cron jobs outside the engine. Without the
+  `run_workflow`, `schedule`, `invoke_subagent`, `define_subagent` and `send_message`. Each would start
+  agents, timers or cron jobs outside the engine. The server warns about names it does not know (1.4.5:
+  `manage_subagents`). Without the
   filter, 1.4.2+ also writes `skills/system/run-workflow/SKILL.md` into the cwd at `session/new`,
   which lands in the user's checkout or a worktree diff. Live (2026-11-02, 1.4.5): no file. Input
-  tokens per request: 13,619 with no filter, 11,032 with the first two off, 8,531 with all six off.
+  tokens per request: 13,619 with no filter, 11,032 with the first two off, 8,531 with the five off.
+- Not isolated: the workspace's own customizations. Antigravity reads `AGENTS.md`, `GEMINI.md` and
+  `.agents/` (rules, skills) in the workspace folder and its parents up to the repository root
+  (docs `customization-discovery`). No flag or `_meta` option to turn this off was found. In the
+  AW run the worker read the playground's `.agents/skills/workflow-guide/SKILL.md`. The
+  `live.isolation` check passed once (an `AGENTS.md` instruction in the cwd was not followed). Workspace
+  hooks need workspace trust (`AGY_ACP_DISABLE_WORKSPACE_TRUST`, which the env scrub removes); that
+  they stay off is an inference from agent-orchestrator, not observed.
+- Built-in tool outputs (e.g. `view_file`) are display summaries in ACP ("Read workflow-stop.ts");
+  only engine MCP results are recovered from the transcript. Their inputs (path, line range) are real.
 - Tool names (live 2026-11-02): the model listed `view_file`, `write_to_file`,
   `replace_file_content`, `run_command`, `search_web`, `read_url_content`, `call_mcp_tool`,
   `list_resources`, `read_resource`, `manage_task`, `ask_question` and `generate_image`. It has

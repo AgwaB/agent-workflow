@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import {
 	acpPromptText,
+	antigravityLaunchEnv,
 	authenticateAcpAgent,
 	createAcpExecutor,
 	parseAcpConfig,
@@ -449,7 +450,6 @@ test("acp antigravity preset: no launch flags; mode, model and effort are set on
 						"invoke_subagent",
 						"define_subagent",
 						"send_message",
-						"manage_subagents",
 					],
 				},
 			},
@@ -461,7 +461,6 @@ test("acp antigravity preset: no launch flags; mode, model and effort are set on
 						"invoke_subagent",
 						"define_subagent",
 						"send_message",
-						"manage_subagents",
 					],
 				},
 			},
@@ -686,4 +685,62 @@ test("acp antigravity: inherited account/project variables are dropped for an is
 		"GOOGLE_CLOUD_PROJECT",
 		"AGY_ACP_TEST",
 	]);
+});
+
+test("acp antigravity: the server path can come from AGENT_WORKFLOW_AGY_ACP_SERVER; a symlinked server gets its harness path", async (t) => {
+	const { mkdir, symlink } = await import("node:fs/promises");
+	const dir = await mkdtemp(join(tmpdir(), "aw-agy-cmd-"));
+	t.after(() => rm(dir, { recursive: true, force: true }));
+	const saved = process.env.AGENT_WORKFLOW_AGY_ACP_SERVER;
+	t.after(() => {
+		if (saved === undefined) delete process.env.AGENT_WORKFLOW_AGY_ACP_SERVER;
+		else process.env.AGENT_WORKFLOW_AGY_ACP_SERVER = saved;
+	});
+	delete process.env.AGENT_WORKFLOW_AGY_ACP_SERVER;
+	assert.equal(
+		parseAcpConfig({ preset: "antigravity" }).command,
+		"agy_acp_server",
+	);
+	process.env.AGENT_WORKFLOW_AGY_ACP_SERVER = "/opt/agy/agy_acp_server.par";
+	assert.equal(
+		parseAcpConfig({ preset: "antigravity" }).command,
+		"/opt/agy/agy_acp_server.par",
+	);
+	// An explicit config command wins; the gemini preset ignores the variable.
+	assert.equal(
+		parseAcpConfig({ preset: "antigravity", command: "/x/agy" }).command,
+		"/x/agy",
+	);
+	assert.equal(parseAcpConfig({ preset: "gemini" }).command, "gemini");
+
+	const install = join(dir, "install");
+	await mkdir(install);
+	await writeFile(join(install, "agy_acp_server.par"), "", { mode: 0o755 });
+	await writeFile(join(install, "localharness_external"), "", { mode: 0o755 });
+	const bin = join(dir, "bin");
+	await mkdir(bin);
+	await symlink(
+		join(install, "agy_acp_server.par"),
+		join(bin, "agy_acp_server"),
+	);
+	const { realpath } = await import("node:fs/promises");
+	const harness = join(await realpath(install), "localharness_external");
+	assert.deepEqual(await antigravityLaunchEnv(join(bin, "agy_acp_server")), {
+		ANTIGRAVITY_HARNESS_PATH: harness,
+	});
+	assert.deepEqual(
+		await antigravityLaunchEnv(
+			join(await realpath(install), "agy_acp_server.par"),
+		),
+		{},
+	);
+	const path = process.env.PATH;
+	t.after(() => {
+		process.env.PATH = path;
+	});
+	process.env.PATH = `${bin}:${path}`;
+	assert.deepEqual(await antigravityLaunchEnv("agy_acp_server"), {
+		ANTIGRAVITY_HARNESS_PATH: harness,
+	});
+	assert.deepEqual(await antigravityLaunchEnv("not-there-agy"), {});
 });

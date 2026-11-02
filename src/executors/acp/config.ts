@@ -12,6 +12,7 @@ import type { JsonValue } from "../../sdk/json.js";
 import { isUnrestricted } from "../../sdk/permission.js";
 import {
 	antigravityAnswerFailure,
+	antigravityLaunchEnv,
 	antigravityInheritedEnvBlocked,
 	antigravitySummaryKey,
 	readAntigravityToolResults,
@@ -35,6 +36,10 @@ export interface AcpPreset {
 	readonly id: AcpPresetId;
 	/** Executable name or path (resolved on PATH). */
 	readonly command: string;
+	/** Env variable that names the executable when the config has no `command`. */
+	readonly commandEnv?: string;
+	/** Env the launch needs for this executable (e.g. where a symlinked server finds its helper). */
+	launchEnv?(command: string): Promise<Record<string, string>>;
 	/** Display name in probes and errors. */
 	readonly label: string;
 	/** `--version` style probe args; absent: the probe asks the agent's ACP `initialize` instead. */
@@ -162,15 +167,19 @@ const ANTIGRAVITY: AcpPreset = {
 	id: "antigravity",
 	command: "agy_acp_server",
 	label: "Google Antigravity ACP server",
+	// The registry ships the server as an archive, not an installer: name it on PATH or here.
+	commandEnv: "AGENT_WORKFLOW_AGY_ACP_SERVER",
+	launchEnv: antigravityLaunchEnv,
 	launchArgs: () => (process.platform === "linux" ? ["--uid="] : []),
 	// Built-in tools that would run work outside the engine: `run_workflow` starts its own agents in
 	// the background, `schedule` sets timers/cron jobs that can fire after the attempt. Disabling
 	// `run_workflow` also stops 1.4.2+ writing skills/system/run-workflow/SKILL.md into the cwd at
 	// session/new, and cuts ~2.6k input tokens per request (live 2026-11-02: 13,619 → 11,032).
 	// Documented since ACP server 1.2.1 (`_meta.agy.disabledTools` on session/new and session/load).
-	// The subagent tools (invoke_subagent, define_subagent, send_message, manage_subagents) would also
-	// start agents outside the engine; disabling them cut another ~2.5k input tokens (live: 8,531
-	// with all six off vs 11,032 with two). Live, the model then listed none of the six.
+	// The subagent tools (invoke_subagent, define_subagent, send_message) would also start agents
+	// outside the engine; disabling them cut another ~2.5k input tokens (live: 8,531 with these off vs
+	// 11,032 with the first two). The server warns about unknown names ("Unknown tool name in
+	// disabledTools: 'manage_subagents'" on 1.4.5), so the list holds only names it knows.
 	sessionMeta: {
 		agy: {
 			disabledTools: [
@@ -179,7 +188,6 @@ const ANTIGRAVITY: AcpPreset = {
 				"invoke_subagent",
 				"define_subagent",
 				"send_message",
-				"manage_subagents",
 			],
 		},
 	},
@@ -325,7 +333,12 @@ export function parseAcpConfig(raw: JsonValue = null): AcpExecutorConfig {
 	const stateDir = text("stateDir") ?? DEFAULT_STATE_DIR();
 	return {
 		preset,
-		command: text("command") ?? preset.command,
+		command:
+			text("command") ??
+			(preset.commandEnv === undefined
+				? undefined
+				: process.env[preset.commandEnv]?.trim() || undefined) ??
+			preset.command,
 		stateDir,
 		agentHome: text("agentHome") ?? join(stateDir, `${preset.id}-home`),
 		killGraceMs: millis("killGraceMs", 2_000),

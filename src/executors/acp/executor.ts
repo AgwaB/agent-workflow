@@ -665,9 +665,10 @@ export function createAcpExecutor(options: {
 			JSON.stringify({ ...invocation, envRemoved: envRemoved.sort() }, null, 2),
 			{ mode: 0o600 },
 		);
+		const launchEnv = (await preset.launchEnv?.(config.command)) ?? {};
 		const child = spawn(config.command, argv, {
 			cwd: req.cwd,
-			env: { ...inherited, ...isolatedEnv, ...req.env },
+			env: { ...inherited, ...launchEnv, ...isolatedEnv, ...req.env },
 			stdio: ["pipe", "pipe", "pipe"],
 		});
 		const ref: ExecRef = {

@@ -8,6 +8,7 @@ import { createAcpExecutor } from "./executor.js";
 
 export const MODULE = "src/executors/acp";
 
+export * from "./antigravity.js";
 export * from "./capabilities.js";
 export * from "./config.js";
 export * from "./executor.js";

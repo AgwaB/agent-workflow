@@ -2,6 +2,7 @@
 // registry that maps executor ids to ExecutorDescriptor modules. pi-workflow had exactly one
 // executor (pi-subagent headless Pi); here the run records which executor it uses, and an unknown or
 // unavailable executor fails the run before any launch (never a silent fallback).
+import { ACP_ADAPTER_VERSION } from "../executors/acp/version.js";
 import {
 	CLAUDE_ADAPTER_VERSION,
 	CLAUDE_EXECUTOR_ID,
@@ -26,8 +27,16 @@ import type {
 	WorkflowRunExecutorSource,
 } from "./types.js";
 
-/** Built-in executor ids. Their adapters land in WP6 (pi), WP7 (codex) and WP8 (claude). */
-export const BUILTIN_EXECUTOR_IDS = ["pi", "codex", "claude"] as const;
+/**
+ * Built-in executor ids. Their adapters land in WP6 (pi), WP7 (codex) and WP8 (claude);
+ * antigravity is the ACP adapter's Google Antigravity preset (live tier 2026-11-02).
+ */
+export const BUILTIN_EXECUTOR_IDS = [
+	"pi",
+	"codex",
+	"claude",
+	"antigravity",
+] as const;
 
 /**
  * Executor of a run record that carries no selection (created directly through the store, or a
@@ -68,6 +77,14 @@ const BUILTIN_DESCRIPTORS: Readonly<Record<string, () => ExecutorDescriptor>> =
 			contractVersion: EXECUTOR_CONTRACT_VERSION,
 			module: new URL("../executors/claude/index.js", import.meta.url).href,
 			config: null,
+		}),
+		// The ACP adapter serves several agents; the preset in config picks this one (and its id).
+		antigravity: () => ({
+			id: "antigravity",
+			version: ACP_ADAPTER_VERSION,
+			contractVersion: EXECUTOR_CONTRACT_VERSION,
+			module: new URL("../executors/acp/index.js", import.meta.url).href,
+			config: { preset: "antigravity" },
 		}),
 		[CODEX_EXECUTOR_ID]: () => ({
 			id: CODEX_EXECUTOR_ID,
