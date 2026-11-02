@@ -1263,7 +1263,9 @@ The core changes it needed:
    its spec tools are `read, grep, find, ls, web_search, fetch_content` (was the three
    `workflow_web_*` tools). The module refuses to rewrite an existing versioned bundle, so the changed
    payload needed the new version; existing v4 directories are left in place and no longer used. The
-   router's direct-dynamic catalog facts list the same tools.
+   router's direct-dynamic catalog facts list the same tools. 2026-11-02: v6, the spec description
+   names agent-workflow's commands (`agent-workflow dynamic`, `/aw dynamic`, `workflow_dynamic`)
+   instead of pi-workflow's `/workflow dynamic`.
 5. **B4 now sees web tools.** `workflow_web_*` were never inferred as web tools; `web_search` /
    `fetch_content` are, so web stages negotiate `webTools` (degraded `safetyPolicy: unknown`, or
    refused where the executor has none / only unverified rows). The unit harness' default `pi`

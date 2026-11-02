@@ -85,9 +85,8 @@ standalone supervisor that outlives the session. `supervise` is CLI-only (MCP: `
 
 Run texts name `/aw …` follow-up commands (`Open: /aw status <run>`, `Resume: /aw resume <run>`,
 `/aw logs <run> --task <task>`): the Pi host passes `host: "pi"` and the host API picks the hints
-(WP18b, [host-api.md](host-api.md#common-contract)). `piHostText` remains only as a fallback for the
-few ported core messages that still name pi-workflow's `/workflow` (for example the `auto`/profile
-messages): it points them at `/aw`, because `/workflow` belongs to pi-workflow and its own run store.
+(WP18b, [host-api.md](host-api.md#common-contract)). Core messages that cannot know the host (for
+example the `auto`/profile errors) name both forms: `agent-workflow auto (Pi: /aw auto)`.
 
 ## Tools
 
