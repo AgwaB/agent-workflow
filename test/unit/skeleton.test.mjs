@@ -17,6 +17,7 @@ const entries = [
 	["dist/executors/pi/index.js", "src/executors/pi"],
 	["dist/executors/codex/index.js", "src/executors/codex"],
 	["dist/executors/claude/index.js", "src/executors/claude"],
+	["dist/executors/acp/index.js", "src/executors/acp"],
 	["dist/mcp/artifact-server/index.js", "src/mcp/artifact-server"],
 	["dist/hosts/cli/index.js", "src/hosts/cli"],
 	["dist/hosts/pi/index.js", "src/hosts/pi"],
@@ -55,6 +56,7 @@ test("package exports resolve to built entry points", async () => {
 		"./executors/pi",
 		"./executors/codex",
 		"./executors/claude",
+		"./executors/acp",
 		"./hosts/cli",
 		"./hosts/pi",
 	];

@@ -59,6 +59,10 @@
       "types": "./dist/executors/claude/index.d.ts",
       "default": "./dist/executors/claude/index.js"
     },
+    "./executors/acp": {
+      "types": "./dist/executors/acp/index.d.ts",
+      "default": "./dist/executors/acp/index.js"
+    },
     "./hosts/api": {
       "types": "./dist/hosts/api.d.ts",
       "default": "./dist/hosts/api.js"

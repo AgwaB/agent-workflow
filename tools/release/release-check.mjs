@@ -34,6 +34,7 @@ const REQUIRED_FILES = [
 	"dist/executors/pi/index.js",
 	"dist/executors/codex/index.js",
 	"dist/executors/claude/index.js",
+	"dist/executors/acp/index.js",
 	"dist/hosts/cli/index.js",
 	"dist/hosts/pi/index.js",
 ];

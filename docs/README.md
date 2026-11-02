@@ -24,6 +24,7 @@
 | [`executors/pi.md`](executors/pi.md) | Pi executor: invocation, isolation, tool mapping, MCP, capabilities, errors, limits |
 | [`executors/codex.md`](executors/codex.md) | Codex executor (`codex app-server`) |
 | [`executors/claude.md`](executors/claude.md) | Claude Code executor (`claude -p` stream-json) |
+| [`executors/acp.md`](executors/acp.md) | ACP executor pilot (Gemini CLI preset; not a built-in yet) |
 
 ## Extending and integrating
 
