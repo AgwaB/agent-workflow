@@ -196,3 +196,39 @@ test("a slow server times out", async () => {
 		},
 	);
 });
+
+test("a compressed body cut off mid-stream or by the timeout settles (quality A/B 2026-11-02)", async () => {
+	// With `pipe`, the source's early close never reached the gunzip stream and safeFetch never
+	// settled, even past its timeout.
+	const body = gzipSync(Buffer.alloc(200_000, "a"));
+	// Fail instead of hanging when the fetch never settles.
+	const settled = (promise) =>
+		Promise.race([
+			promise,
+			new Promise((resolve) =>
+				setTimeout(() => resolve({ reason: "never settled" }), 4_000),
+			),
+		]);
+	await withServer(
+		(req, res) => {
+			res.writeHead(200, {
+				"Content-Type": "text/html",
+				"Content-Encoding": "gzip",
+			});
+			res.write(body.subarray(0, 100));
+			if (req.url === "/reset") setTimeout(() => res.socket.destroy(), 50);
+		},
+		async (base) => {
+			const reset = await settled(
+				safeFetch(`${base}/reset`, { ...local, timeoutMs: 5_000 }),
+			);
+			assert.equal(reset.ok, false);
+			assert.equal(reset.reason, "network-error");
+			const stalled = await settled(
+				safeFetch(`${base}/stall`, { ...local, timeoutMs: 300 }),
+			);
+			assert.equal(stalled.ok, false);
+			assert.equal(stalled.reason, "timeout");
+		},
+	);
+});

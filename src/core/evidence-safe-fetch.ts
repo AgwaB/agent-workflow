@@ -11,6 +11,7 @@ import { lookup as dnsLookup, type LookupAddress } from "node:dns";
 import { request as httpRequest, type IncomingMessage } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { BlockList, isIP } from "node:net";
+import { pipeline } from "node:stream";
 import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
 
 export const EVIDENCE_FETCH_USER_AGENT =
@@ -196,15 +197,25 @@ export function publicOnlyLookup(allowHosts: ReadonlySet<string> = new Set()) {
 	};
 }
 
+// `pipeline`, not `pipe`: a source error or early close (connection reset, the timeout aborting the
+// request) must reach the decoder. With `pipe` the decoder never ended and the fetch never settled,
+// timeout included (found by the 2026-11-02 quality A/B reviews, reproduced).
 function decoded(response: IncomingMessage): NodeJS.ReadableStream {
 	const encoding = String(response.headers["content-encoding"] ?? "")
 		.trim()
 		.toLowerCase();
-	if (encoding === "gzip" || encoding === "x-gzip")
-		return response.pipe(createGunzip());
-	if (encoding === "deflate") return response.pipe(createInflate());
-	if (encoding === "br") return response.pipe(createBrotliDecompress());
-	return response;
+	const decoder =
+		encoding === "gzip" || encoding === "x-gzip"
+			? createGunzip()
+			: encoding === "deflate"
+				? createInflate()
+				: encoding === "br"
+					? createBrotliDecompress()
+					: undefined;
+	if (decoder === undefined) return response;
+	// A source failure destroys the decoder with that error; the caller listens on the decoder.
+	pipeline(response, decoder, () => undefined);
+	return decoder;
 }
 
 function isPdfType(contentType: string): boolean {
@@ -285,6 +296,10 @@ function getOnce(
 				stream.on("error", (error: Error) => reject(error));
 				stream.on("end", () =>
 					resolve({ status, contentType, body: Buffer.concat(chunks) }),
+				);
+				// Closed without `end` and without an error: still settle (no-op after `end`).
+				stream.on("close", () =>
+					reject(new Error("response closed before its end")),
 				);
 			},
 		);
