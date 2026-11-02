@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import {
 	acpPromptText,
+	authenticateAcpAgent,
 	createAcpExecutor,
 	parseAcpConfig,
 	replayAcpLog,
@@ -473,5 +474,55 @@ test("acp antigravity preset: no launch flags; mode, model and effort are set on
 	const probe = await executor.probe();
 	assert.equal(probe.installed, true);
 	assert.equal(probe.cliVersion, "9.9.9");
-	assert.equal(executor.capabilities().contextIsolation.level, "none");
+	assert.equal(executor.capabilities().contextIsolation.level, "emulated");
+});
+
+test("acp antigravity: workers run in the engine-owned GEMINI_HOME unless they inherit; login is recorded there", async (t) => {
+	const { dir, command, agentLog } = await setup(t, "complete");
+	const config = parseAcpConfig({
+		preset: "antigravity",
+		command,
+		stateDir: join(dir, "agy-state"),
+		killGraceMs: 200,
+		handshakeTimeoutMs: 5_000,
+	});
+	assert.equal(config.agentHome, join(dir, "agy-state", "antigravity-home"));
+	const executor = createAcpExecutor({ config });
+	// No login recorded in the worker home yet: auth missing, with the way to log in.
+	const before = await executor.probe();
+	assert.equal(before.auth, "missing");
+	assert.ok(before.notes.some((note) => note.includes("authenticateAcpAgent")));
+	const lines = [];
+	await authenticateAcpAgent(
+		config,
+		"oauth-personal",
+		(line) => lines.push(line),
+		10_000,
+	);
+	assert.ok(
+		lines.some((line) => line.includes("https://example.invalid/login")),
+	);
+	const { mkdir } = await import("node:fs/promises");
+	await mkdir(join(config.agentHome, "antigravity-acp"), { recursive: true });
+	await writeFile(
+		join(config.agentHome, "antigravity-acp", "settings.json"),
+		JSON.stringify({ auth: { type: "oauth-personal" } }),
+	);
+	assert.equal((await executor.probe()).auth, "ok");
+
+	const isolated = await executor.submit(request(dir, "agy-home-1"));
+	await drain(executor, isolated, { timeoutMs: 15_000 });
+	const inherited = await executor.submit(
+		request(dir, "agy-home-2", { isolation: { inherit: true } }),
+	);
+	await drain(executor, inherited, { timeoutMs: 15_000 });
+	const homes = (await agentLog())
+		.filter((entry) => entry.argv)
+		.map((entry) => entry.geminiHome);
+	// probe ×2 and the login launch also ran in the worker home; the inheriting attempt did not.
+	assert.equal(homes.at(-2), config.agentHome);
+	assert.equal(homes.at(-1), process.env.GEMINI_HOME ?? null);
+	assert.ok(
+		(await agentLog()).some((entry) => entry.method === "authenticate"),
+	);
 });

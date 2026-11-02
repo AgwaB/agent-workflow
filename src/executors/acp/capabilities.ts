@@ -1,6 +1,6 @@
 /**
- * Declared capabilities of an ACP agent preset (pilot). Nothing here is probed or live-verified yet:
- * every row stays `declared` until the live tier ran (design note, phase B2).
+ * Declared capabilities of an ACP agent preset (pilot). Rows stay `declared`: only the antigravity
+ * preset had a manual live check (design note, phase B2, 2026-11-02), not the live conformance tier.
  */
 import {
 	type ExecutorCapabilities,
@@ -18,7 +18,8 @@ export function acpCapabilities(preset: AcpPresetId): ExecutorCapabilities {
 				toolLoop: "agent",
 				context: "agent",
 				sessionBound: true,
-				// session/new mcpServers; the user's global MCP servers load as well (no allow list).
+				// session/new mcpServers (live: started with its env, called, permission-gated). No allow
+				// list; the user's global MCP servers stay out through the worker home (contextIsolation).
 				mcpInjection: level("native"),
 				// No read-only mode: mode `default` and the engine's answers to permission requests.
 				readOnly: level("emulated"),
@@ -28,9 +29,12 @@ export function acpCapabilities(preset: AcpPresetId): ExecutorCapabilities {
 				effortLevels: ["low", "medium", "high"],
 				partialStream: level("native"),
 				usage: { ...level("native"), detail: "tokens" },
+				// Live: tool_call/tool_call_update with rawInput (arguments), but rawOutput is a display
+				// summary ("Conformance echo"), not the tool result — evidence needs engine-side capture.
 				toolTelemetry: level("native"),
 				cancel: { ...level("native"), detail: "notify" },
-				contextIsolation: level("none"),
+				// Engine-owned GEMINI_HOME: no user hooks, global MCP servers or GEMINI.md (B5).
+				contextIsolation: level("emulated"),
 				webTools: { ...level("none"), detail: "none", safetyPolicy: "unknown" },
 			};
 		case "gemini":

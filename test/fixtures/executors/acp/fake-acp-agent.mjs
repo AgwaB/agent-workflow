@@ -19,6 +19,7 @@ const log = (entry) => {
 log({
 	argv: process.argv.slice(2),
 	attempt: process.env.FAKE_ACP_ATTEMPT ?? null,
+	geminiHome: process.env.GEMINI_HOME ?? null,
 	pid: process.pid,
 	envKeys: Object.keys(process.env)
 		.filter((k) => k.startsWith("AGENT_WORKFLOW"))
@@ -339,6 +340,13 @@ process.stdin.on("data", (text) => {
 				break;
 			case "session/prompt":
 				void prompt(message.id, params);
+				break;
+			case "authenticate":
+				log({ method: message.method, params });
+				process.stderr.write(
+					"Open the following link to authenticate: https://example.invalid/login\n",
+				);
+				send({ id: message.id, result: {} });
 				break;
 			case "session/set_mode":
 			case "session/set_config_option":

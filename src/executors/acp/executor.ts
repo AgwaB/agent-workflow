@@ -229,6 +229,61 @@ async function initializeVersion(
 	}
 }
 
+/**
+ * One-time login of an agent in the engine-owned home (`authenticate`; e.g. `oauth-personal` opens
+ * the agent's own browser login, which the user completes). Stderr lines (the login link) go to
+ * `onLine`; nothing is stored by the engine.
+ */
+export async function authenticateAcpAgent(
+	config: AcpExecutorConfig,
+	methodId: string,
+	onLine: (line: string) => void = () => {},
+	timeoutMs = 600_000,
+): Promise<unknown> {
+	const env =
+		config.preset.isolatedEnv === undefined
+			? {}
+			: config.preset.isolatedEnv(config.agentHome);
+	if (Object.keys(env).length > 0)
+		await mkdir(config.agentHome, { recursive: true, mode: 0o700 });
+	const child = spawn(
+		config.command,
+		config.preset.launchArgs({} as SubmitRequest),
+		{
+			env: { ...process.env, ...env },
+			stdio: ["pipe", "pipe", "pipe"],
+		},
+	);
+	child.stderr?.on("data", (chunk: Buffer) => {
+		for (const line of chunk.toString("utf8").split("\n"))
+			if (line.trim() !== "") onLine(line);
+	});
+	try {
+		if (child.stdout === null || child.stdin === null)
+			throw new Error("no stdio");
+		const peer = new AcpPeer({ input: child.stdout, output: child.stdin });
+		await withTimeout(
+			peer.request("initialize", {
+				protocolVersion: ACP_PROTOCOL_VERSION,
+				clientCapabilities: {
+					fs: { readTextFile: false, writeTextFile: false },
+					terminal: false,
+				},
+			}),
+			60_000,
+			"ACP initialize",
+		);
+		return await withTimeout(
+			peer.request("authenticate", { methodId }),
+			timeoutMs,
+			"ACP authenticate",
+		);
+	} finally {
+		child.stdin?.end();
+		child.kill("SIGTERM");
+	}
+}
+
 export function createAcpExecutor(options: {
 	readonly config: AcpExecutorConfig;
 	readonly faults?: AcpExecutorFaults;
@@ -531,6 +586,10 @@ export function createAcpExecutor(options: {
 					})),
 					readOnly: req.readOnly,
 					permissionMode: req.permissionMode ?? null,
+					agentHome:
+						req.isolation.inherit || preset.isolatedEnv === undefined
+							? null
+							: config.agentHome,
 				},
 				null,
 				2,
@@ -544,9 +603,15 @@ export function createAcpExecutor(options: {
 		rawStream.on("error", () => {});
 		stderrStream.on("error", () => {});
 
+		const isolatedEnv =
+			req.isolation.inherit || preset.isolatedEnv === undefined
+				? {}
+				: preset.isolatedEnv(config.agentHome);
+		if (Object.keys(isolatedEnv).length > 0)
+			await mkdir(config.agentHome, { recursive: true, mode: 0o700 });
 		const child = spawn(config.command, argv, {
 			cwd: req.cwd,
-			env: { ...process.env, ...req.env },
+			env: { ...process.env, ...isolatedEnv, ...req.env },
 			stdio: ["pipe", "pipe", "pipe"],
 		});
 		const ref: ExecRef = {
@@ -723,13 +788,20 @@ export function createAcpExecutor(options: {
 						`${preset.label} not runnable as ${config.command}: ${version.error}`,
 					],
 				};
+			// ACP `initialize` lists auth methods, not whether one is set up. A preset that records its
+			// login in the engine-owned home says whether one exists (no credential is read).
+			const recorded = await preset.authRecorded?.(config.agentHome);
 			return {
 				installed: true,
 				cliVersion,
-				// ACP `initialize` lists auth methods, not whether one is set up; no model call here.
-				auth: "unknown",
+				auth: recorded === undefined ? "unknown" : recorded ? "ok" : "missing",
 				notes: [
 					`ACP pilot: capabilities are declared, not live-verified (${preset.label} ${cliVersion})`,
+					...(recorded === false
+						? [
+								`no login in the worker home ${config.agentHome}; log in once with authenticateAcpAgent (docs/executors/acp.md)`,
+							]
+						: []),
 				],
 			};
 		},

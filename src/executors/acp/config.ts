@@ -3,6 +3,7 @@
  * mode and how a request maps onto that agent's launch flags; everything after the launch is plain
  * ACP v1 (executor.ts). Config is persisted in descriptors: never put a secret here.
  */
+import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { SubmitRequest } from "../../sdk/contract.js";
@@ -21,6 +22,13 @@ export interface AcpPreset {
 	readonly versionArgs?: readonly string[];
 	/** Launch argv for one attempt (after the command). */
 	launchArgs(req: SubmitRequest): string[];
+	/**
+	 * Env that points the agent at the engine-owned home (B5: no user hooks, MCP servers or memory)
+	 * unless the request inherits context. Absent: the agent uses the user's own home.
+	 */
+	isolatedEnv?(agentHome: string): Record<string, string>;
+	/** Whether a login is recorded in the agent home (no credential is read); absent: unknown. */
+	authRecorded?(agentHome: string): Promise<boolean>;
 	/**
 	 * Requests to send after `session/new` (mode, model, effort), built from the session it returned.
 	 * Throws to refuse what the agent does not offer (e.g. an unknown model).
@@ -112,15 +120,33 @@ const ANTIGRAVITY_THINKING: Readonly<Record<string, string>> = {
  * answer to Gemini CLI's free tier being refused, 2026-11-02). Reference: agent-orchestrator
  * `chatdriver/agyacp` (launch without args on macOS, `--uid=` on Linux; modes default / auto_edit /
  * yolo). There is no read-only mode and no MCP allow list: readOnly relies on permission requests
- * (mode `default`, the engine denies writing kinds), and the user's global MCP servers
- * (`$GEMINI_HOME/config/mcp_config.json`) load too (`contextIsolation` none). Model and effort are
- * session config options (`model`, `thinking_level`).
+ * (mode `default`, the engine denies writing kinds), and isolation on an engine-owned `GEMINI_HOME`
+ * (`isolatedEnv`). Model and effort are session config options (`model`, `thinking_level`).
  */
 const ANTIGRAVITY: AcpPreset = {
 	id: "antigravity",
 	command: "agy_acp_server",
 	label: "Google Antigravity ACP server",
 	launchArgs: () => (process.platform === "linux" ? ["--uid="] : []),
+	// The server resolves its home from $GEMINI_HOME (log: "Gemini home resolved to …"); the user's
+	// home carries global hooks (`config/hooks.json`, e.g. a status hook that denied every tool call
+	// in the live check), global MCP servers (`config/mcp_config.json`) and GEMINI.md. Workers get an
+	// engine-owned home with its own one-time login instead (live check 2026-11-02).
+	isolatedEnv: (agentHome) => ({ GEMINI_HOME: agentHome }),
+	async authRecorded(agentHome) {
+		// `authenticate` records only the method in settings.json (the credentials are the server's).
+		try {
+			const settings = JSON.parse(
+				await readFile(
+					join(agentHome, "antigravity-acp", "settings.json"),
+					"utf8",
+				),
+			) as { auth?: { type?: unknown } };
+			return typeof settings.auth?.type === "string";
+		} catch {
+			return false;
+		}
+	},
 	afterSession(req, session) {
 		const sessionId = session.sessionId as string;
 		const steps: { method: string; params: Record<string, unknown> }[] = [
@@ -172,6 +198,8 @@ export interface AcpExecutorConfig {
 	readonly killGraceMs: number;
 	/** How long the ACP handshake (initialize + session/new) may take. */
 	readonly handshakeTimeoutMs: number;
+	/** Engine-owned agent home for isolated workers (presets with `isolatedEnv`). */
+	readonly agentHome: string;
 }
 
 const DEFAULT_STATE_DIR = () =>
@@ -187,6 +215,7 @@ const CONFIG_KEYS: ReadonlySet<string> = new Set([
 	"stateDir",
 	"killGraceMs",
 	"handshakeTimeoutMs",
+	"agentHome",
 ]);
 
 /** `{ preset: "gemini", command?, stateDir?, killGraceMs?, handshakeTimeoutMs? }`. */
@@ -235,10 +264,12 @@ export function parseAcpConfig(raw: JsonValue = null): AcpExecutorConfig {
 			);
 		return item;
 	};
+	const stateDir = text("stateDir") ?? DEFAULT_STATE_DIR();
 	return {
 		preset,
 		command: text("command") ?? preset.command,
-		stateDir: text("stateDir") ?? DEFAULT_STATE_DIR(),
+		stateDir,
+		agentHome: text("agentHome") ?? join(stateDir, `${preset.id}-home`),
 		killGraceMs: millis("killGraceMs", 2_000),
 		handshakeTimeoutMs: millis("handshakeTimeoutMs", 60_000),
 	};

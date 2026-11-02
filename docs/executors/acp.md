@@ -21,6 +21,7 @@ Entry point: `@agwab/agent-workflow/executors/acp`. Source: `src/executors/acp/`
 |---|---|---|
 | `preset` | `gemini` | Agent preset; also the executor id |
 | `command` | the preset's (`gemini`, `agy_acp_server`) | Agent executable |
+| `agentHome` | `<stateDir>/<preset>-home` | Engine-owned agent home (presets that isolate through it) |
 | `stateDir` | `$AGENT_WORKFLOW_HOME/executors/acp` (`~/.agent-workflow/…`) | Attempt records (reconcile) |
 | `killGraceMs` | `2000` | Grace between closing the agent's stdin → SIGTERM → SIGKILL |
 | `handshakeTimeoutMs` | `60000` | Limit for `initialize` and `session/new` |
@@ -54,8 +55,21 @@ Unknown keys are refused (`DESCRIPTOR_INVALID`). To try it, register a descripto
   `session/set_config_option` `model` (refused when the session does not offer it, class `config`) and
   `thinking_level` from the effort (low / medium / high, nearest).
 - No read-only mode and no MCP allow list: readOnly relies on the engine denying writing kinds in
-  permission requests, and the user's global MCP servers (`$GEMINI_HOME/config/mcp_config.json`) load
-  in every session (`contextIsolation` none).
+  permission requests.
+- Workers run with `GEMINI_HOME` set to an engine-owned home (`agentHome`, default
+  `<stateDir>/antigravity-home`), so the user's global hooks (`config/hooks.json`), MCP servers
+  (`config/mcp_config.json`), GEMINI.md and conversation history stay out (`contextIsolation`
+  emulated). An attempt with `isolation.inherit` uses the user's home. In the first live check
+  (2026-11-02) a user status hook in the shared home denied every tool call.
+- The worker home needs a one-time `authenticateAcpAgent(config, "oauth-personal")`. If the user has
+  already logged in to the Antigravity ACP server, no browser opens: the server keeps its Google
+  credentials outside `GEMINI_HOME` and only writes the method to
+  `<agentHome>/antigravity-acp/settings.json` (observed 2026-11-02, macOS). Otherwise it opens
+  Google's login (the link is printed on stderr). `probe()` reports `auth` missing until that file
+  records a method (only the method is read, never credentials).
+- Tool events carry the raw arguments (`rawInput`), but `rawOutput` is a display summary, not the
+  tool result (live check 2026-11-02): evidence from tool output must come from engine-side capture
+  (an engine MCP server), not from these events.
 - `probe()` asks ACP `initialize` for `agentInfo.version` (its `--version` prints build data only); no
   session, no model.
 
