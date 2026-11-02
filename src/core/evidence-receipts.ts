@@ -27,6 +27,9 @@ export interface WebReceipt {
 const TOOL_FORMS: Readonly<Record<string, WebReceiptForm>> = {
 	fetch_content: "page-text",
 	get_search_content: "page-text",
+	// Antigravity: the page as Markdown (from its step file); a grounded search summary with links.
+	read_url_content: "page-text",
+	search_web: "search-results",
 	WebFetch: "summary",
 	web_search: "search-results",
 	WebSearch: "search-results",
@@ -48,6 +51,7 @@ function urlsOf(input: unknown): string[] {
 	const record = input as Record<string, unknown>;
 	const out: string[] = [];
 	if (typeof record.url === "string") out.push(record.url);
+	if (typeof record.Url === "string") out.push(record.Url);
 	if (Array.isArray(record.urls))
 		for (const url of record.urls) if (typeof url === "string") out.push(url);
 	return out;

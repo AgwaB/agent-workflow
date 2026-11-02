@@ -45,11 +45,35 @@ function mcpKey(server: string, tool: string, args: unknown): string {
  * A completed call whose rawOutput is only a summary: an engine MCP tool (title `<server>_<tool>`,
  * rawInput `{ arguments }`) reporting a string. Returns its match key, else undefined.
  */
+/**
+ * The built-in a tool report is about: permission/tool titles read "Run read_url_content?" or
+ * "Running view_file" (live 1.4.5); MCP calls ("<server>_<tool>") and descriptive titles stay as
+ * they are. Lets evidence receipts and policies see the tool's real name.
+ */
+export function antigravityToolName(title: string): string {
+	const name = /^(?:Run|Running) ([a-z_]+)\??$/.exec(title.trim())?.[1];
+	return name !== undefined && ANTIGRAVITY_FILTER_TOOLS.includes(name)
+		? name
+		: title;
+}
+
+/** Engine kinds for built-ins whose ACP kind differs from the Pi tool they serve (web_search → fetch). */
+export function antigravityPermissionKind(title: string, kind: string): string {
+	return antigravityToolName(title) === "search_web" ? "fetch" : kind;
+}
+
+const urlKey = (url: string) => `read_url_content\u0000${url.trim()}`;
+
 export function antigravitySummaryKey(
 	call: SummaryCall,
 	mcpServers: readonly string[],
 ): string | undefined {
 	if (typeof call.rawOutput !== "string") return undefined;
+	// read_url_content reports a title ("Fetch globals docs"); the page is in a step file.
+	if (call.title === "read_url_content") {
+		const url = isRecord(call.input) ? call.input.Url : undefined;
+		return typeof url === "string" ? urlKey(url) : undefined;
+	}
 	const server = [...mcpServers]
 		.sort((a, b) => b.length - a.length)
 		.find((name) => call.title.startsWith(`${name}_`));
@@ -80,11 +104,16 @@ async function resultText(
 		/^Created At: [^\n]*\n(?:Completed At: [^\n]*\n)?\n?/,
 		"",
 	);
-	const saved =
-		/^The output was large and was saved to: (file:\/\/\S+)\s*$/.exec(body);
+	// "The output was large and was saved to: file://…" (MCP) or "…has been saved to: /abs/…/content.md"
+	// (read_url_content).
+	const saved = /saved to: (\S+)\s*$/.exec(body);
 	if (saved?.[1] === undefined) return body;
 	// Only the session's own step files, never a path elsewhere the transcript might name.
-	const path = await realpath(fileURLToPath(saved[1]));
+	const target = saved[1].startsWith("file://")
+		? fileURLToPath(saved[1])
+		: saved[1];
+	if (!isAbsolute(target)) return body;
+	const path = await realpath(target);
 	const root = await realpath(sessionDir);
 	if (!path.startsWith(`${root}${sep}`)) return body;
 	const info = await stat(path);
@@ -132,6 +161,20 @@ export async function readAntigravityToolResults(
 			continue;
 		}
 		const call = calls.shift();
+		if (
+			call?.name === "read_url_content" &&
+			row.type === "READ_URL_CONTENT" &&
+			row.status === "DONE" &&
+			typeof row.content === "string"
+		) {
+			const url = isRecord(call.args) ? jsonish(call.args.Url) : undefined;
+			const text = await resultText(row.content, sessionDir).catch(
+				() => undefined,
+			);
+			if (typeof url === "string" && text !== undefined)
+				results.push({ key: urlKey(url), text });
+			continue;
+		}
 		if (call === undefined || call.name !== "call_mcp_tool") continue;
 		if (
 			row.type !== "MCP_TOOL" ||
@@ -262,14 +305,10 @@ export const ANTIGRAVITY_TOOL_MAPPING: ToolMapping = {
 		bash: { type: "tool", names: ["run_command"] },
 		edit: { type: "tool", names: ["edit_file"] },
 		write: { type: "tool", names: ["create_file"] },
-		web_search: {
-			type: "none",
-			reason: "web results are not captured as evidence yet",
-		},
-		fetch_content: {
-			type: "none",
-			reason: "web results are not captured as evidence yet",
-		},
+		// search_web returns a grounded summary with links (receipt form search-results);
+		// read_url_content saves the page as Markdown in a step file, released as its output.
+		web_search: { type: "tool", names: ["search_web"] },
+		fetch_content: { type: "tool", names: ["read_url_content"] },
 		workflow_artifact: {
 			type: "mcp",
 			server: "workflow_artifact",

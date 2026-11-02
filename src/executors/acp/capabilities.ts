@@ -35,9 +35,21 @@ export function acpCapabilities(preset: AcpPresetId): ExecutorCapabilities {
 				// summary ("Conformance echo"), not the tool result — evidence needs engine-side capture.
 				toolTelemetry: level("native"),
 				cancel: { ...level("native"), detail: "notify" },
-				// Engine-owned GEMINI_HOME: no user hooks, global MCP servers or GEMINI.md (B5).
-				contextIsolation: level("emulated"),
-				webTools: { ...level("none"), detail: "none", safetyPolicy: "unknown" },
+				// Engine-owned GEMINI_HOME: no user hooks, global MCP servers or GEMINI.md (B5). Workspace
+				// customizations, measured on 1.4.5 (input tokens + markers): AGENTS.md, GEMINI.md and
+				// .agents/rules are not loaded into ACP sessions, but .agents/skills are offered (no switch).
+				contextIsolation: {
+					...level("emulated"),
+					warning:
+						"the workspace's .agents/skills are offered to Antigravity workers (no switch); user config, workspace AGENTS.md/GEMINI.md and .agents/rules are not loaded",
+				},
+				// search_web (grounded summary with links) + read_url_content (page as Markdown, released
+				// from its step file). Fetch safety (private addresses, credentials) is the server's: unknown.
+				webTools: {
+					...level("native"),
+					detail: "search+fetch",
+					safetyPolicy: "unknown",
+				},
 			};
 		case "gemini":
 			return {

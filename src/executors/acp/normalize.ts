@@ -90,6 +90,8 @@ export interface AcpNormalizerOptions {
 		callId: string,
 		call: { title: string; input: JsonValue | undefined; rawOutput: unknown },
 	) => string | undefined;
+	/** The tool a report is about, from its title (default: the title itself). */
+	readonly toolName?: (title: string) => string;
 	/** A final answer that is the agent's failure report. */
 	readonly answerFailure?: (
 		text: string,
@@ -193,7 +195,7 @@ export class AcpEventNormalizer {
 			denied: false,
 		};
 		if (typeof update.title === "string" && update.title !== "")
-			state.name = update.title;
+			state.name = this.options.toolName?.(update.title) ?? update.title;
 		if (update.kind !== undefined) state.kind = acpToolKind(update.kind);
 		if (
 			typeof update.status === "string" &&
@@ -376,6 +378,7 @@ export function replayAcpLog(
 		readonly ownedSession?: OwnedSession;
 		readonly sessionId?: string | null;
 		readonly answerFailure?: AcpNormalizerOptions["answerFailure"];
+		readonly toolName?: AcpNormalizerOptions["toolName"];
 	} = {},
 ): { events: ExecEvent[]; settled: boolean } {
 	// The executor's record of released outputs: hold exactly those calls, release the same text.
@@ -401,6 +404,7 @@ export function replayAcpLog(
 		...(options.answerFailure === undefined
 			? {}
 			: { answerFailure: options.answerFailure }),
+		...(options.toolName === undefined ? {} : { toolName: options.toolName }),
 		holdOutput: (callId) => (releasedCalls.has(callId) ? callId : undefined),
 	});
 	const events: ExecEvent[] = [

@@ -15,7 +15,9 @@ import {
 	ANTIGRAVITY_TOOL_MAPPING,
 	antigravityAnswerFailure,
 	antigravityLaunchEnv,
+	antigravityPermissionKind,
 	antigravitySessionMeta,
+	antigravityToolName,
 	antigravityInheritedEnvBlocked,
 	antigravitySummaryKey,
 	readAntigravityToolResults,
@@ -62,6 +64,10 @@ export interface AcpPreset {
 	readonly toolMapping?: ToolMapping;
 	/** Inherited (not request) variables dropped for an isolated worker; their names are recorded. */
 	inheritedEnvBlocked?(key: string): boolean;
+	/** The tool a report is about, from its title (agents that title calls "Run <tool>?"). */
+	toolName?(title: string): string;
+	/** The engine kind of a permission request, when the agent's kind differs from the Pi tool's. */
+	permissionKind?(title: string, kind: string): string;
 	/** A final answer that is the agent's failure report (quota, internal error), not work. */
 	answerFailure?(
 		text: string,
@@ -187,6 +193,8 @@ const ANTIGRAVITY: AcpPreset = {
 	// (no-model probe: it warns "Unknown tool name" for define_subagent, send_message,
 	// manage_subagents), so the list holds only names it knows.
 	sessionMeta: antigravitySessionMeta,
+	toolName: antigravityToolName,
+	permissionKind: antigravityPermissionKind,
 	toolMapping: ANTIGRAVITY_TOOL_MAPPING,
 	inheritedEnvBlocked: antigravityInheritedEnvBlocked,
 	answerFailure: antigravityAnswerFailure,

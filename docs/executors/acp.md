@@ -90,13 +90,27 @@ Unknown keys are refused (`DESCRIPTOR_INVALID`). To try it, register a descripto
     `session/new`, which lands in the user's checkout or a worktree diff. With it: no file.
   - Input tokens per request: 13,619 with no filter, 8,531 with five tools off, 4,073 with only
     `view_file`.
-- Not isolated: the workspace's own customizations. Antigravity reads `AGENTS.md`, `GEMINI.md` and
-  `.agents/` (rules, skills) in the workspace folder and its parents up to the repository root
-  (docs `customization-discovery`). No flag or `_meta` option to turn this off was found. In the
-  AW run the worker read the playground's `.agents/skills/workflow-guide/SKILL.md`. The
-  `live.isolation` check passed once (an `AGENTS.md` instruction in the cwd was not followed). Workspace
-  hooks need workspace trust (`AGY_ACP_DISABLE_WORKSPACE_TRUST`, which the env scrub removes); that
-  they stay off is an inference from agent-orchestrator, not observed.
+- Workspace customizations, measured on 1.4.5 by input tokens and marker instructions, with and
+  without a git repository:
+  - `AGENTS.md`, `GEMINI.md` and `.agents/rules` in the cwd are **not** loaded into ACP sessions, even
+    though the app/CLI docs list them.
+  - `.agents/skills` **are** offered: the skill list adds about 290 tokens per skill, and the model
+    can read the skill file.
+  - No switch turns skills off, so `contextIsolation` stays `emulated` with a warning, recorded as a
+    degradation on every run, like Codex's global `AGENTS.md`.
+  - Workspace hooks need workspace trust (`AGY_ACP_DISABLE_WORKSPACE_TRUST`, removed by the env
+    scrub). That they stay off is an inference from agent-orchestrator, not observed.
+- Web tools: `web_search` → `search_web`, `fetch_content` → `read_url_content`; `webTools`
+  search+fetch, safety unknown.
+  - `search_web` returns a grounded summary with links, and its rawOutput is that text (receipt form
+    search-results). Some links are `vertexaisearch.cloud.google.com/grounding-api-redirect/…`.
+  - `read_url_content` reports only a title. The adapter releases the page instead: the transcript
+    says "has been saved to: <session>/.system_generated/steps/<n>/content.md", and that Markdown
+    becomes the output (receipt form page-text, keyed by its `Url`).
+  - Titles "Run <tool>?" / "Running <tool>" are reported as the tool name. A `search_web` permission
+    request (ACP kind `search`) is judged as `fetch`, the kind of the Pi web tools.
+  - Live: one flash-low prompt asked for a verbatim quote and ran 36 tool calls (~0.97 M input tokens)
+    before answering; web-heavy stages can be costly.
 - Built-in tool outputs (e.g. `view_file`) are display summaries in ACP ("Read workflow-stop.ts");
   only engine MCP results are recovered from the transcript. Their inputs (path, line range) are real.
 - Tool names (live 2026-11-02): the model listed `view_file`, `write_to_file`,

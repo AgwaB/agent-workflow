@@ -377,6 +377,29 @@ test("receipts come from every attempt's tool calls, typed by what the tool retu
 	assert.deepEqual(await readTaskWebReceipts(cwd, "run-1", "missing"), []);
 });
 
+test("Antigravity's read_url_content (Url input) is page text; search_web is search results", async (t) => {
+	const cwd = mkdtempSync(join(tmpdir(), "aw-evidence-receipts-agy-"));
+	t.after(() => rmSync(cwd, { recursive: true, force: true }));
+	writeAttempt(cwd, "run-3", "task-1", "attempt_a", [
+		tool("read_url_content", "pending", "r1", {
+			input: { Url: "https://docs.example/api/globals" },
+		}),
+		tool("read_url_content", "completed", "r1", {
+			input: { Url: "https://docs.example/api/globals" },
+			output: "# Globals\n\nReturns a new AbortSignal.",
+		}),
+		tool("search_web", "completed", "s1", {
+			input: { query: "abort" },
+			output: "Summary: see https://docs.example/api/globals [1]",
+		}),
+	]);
+	const receipts = await readTaskWebReceipts(cwd, "run-3", "task-1");
+	assert.deepEqual(receipts.map((r) => [r.tool, r.form, r.targets]).sort(), [
+		["read_url_content", "page-text", ["docs.example/api/globals"]],
+		["search_web", "search-results", ["docs.example/api/globals"]],
+	]);
+});
+
 test("fetch_content of several URLs or in answer mode is not page text for any one URL (quality A/B 2026-11-02)", async (t) => {
 	// pi-web-access lists only titles and sizes for several URLs, and answer mode returns a
 	// model-written answer; a quote in either must not verify a page without fetching it.

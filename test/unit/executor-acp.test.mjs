@@ -792,11 +792,11 @@ test("acp antigravity: the session's built-in allowlist follows the stage's tool
 			enabledTools: ["create_file", "edit_file", "run_command", "view_file"],
 		},
 	});
-	// readOnly drops the writing tools even when listed; web tools and MCP tools are not built-ins.
+	// readOnly drops the writing tools even when listed; web_search maps to search_web; MCP tools are not built-ins.
 	assert.deepEqual(
 		meta(["read", "edit", "write", "web_search", "workflow_artifact"], true),
 		{
-			antigravity: { enabledTools: ["view_file"] },
+			antigravity: { enabledTools: ["search_web", "view_file"] },
 		},
 	);
 	// No built-in left: everything the filter knows is off (run_workflow, ask_question, ...).
@@ -807,4 +807,65 @@ test("acp antigravity: the session's built-in allowlist follows the stage's tool
 		ANTIGRAVITY_FILTER_TOOLS.includes("run_workflow") &&
 			ANTIGRAVITY_FILTER_TOOLS.includes("ask_question"),
 	);
+});
+
+test("acp antigravity: web tools get their names, a fetch kind for search, and the fetched page as output", async (t) => {
+	const { dir, command, agentLog } = await setup(t, "agy_web");
+	const config = parseAcpConfig({
+		preset: "antigravity",
+		command,
+		stateDir: join(dir, "agy-state"),
+		killGraceMs: 200,
+		handshakeTimeoutMs: 5_000,
+	});
+	const executor = createAcpExecutor({ config });
+	const req = request(dir, "agy-web-1", {
+		tools: ["read", "web_search", "fetch_content"],
+		permissionMode: "safe",
+		approvalPolicy: defaultApprovalPolicy({ allowKinds: ["read", "fetch"] }),
+	});
+	const ref = await executor.submit(req);
+	const { events, terminal } = await drain(executor, ref, {
+		timeoutMs: 15_000,
+		onApproval: async (event) => {
+			await executor.respond(
+				ref,
+				event.requestId,
+				decideApproval(req.approvalPolicy, event, req) === "allow"
+					? "allow"
+					: "deny",
+			);
+		},
+	});
+	assert.equal(terminal.type, "completed");
+	assert.deepEqual(
+		events.filter((e) => e.type === "approval_request").map((e) => e.kind),
+		["fetch", "fetch"],
+	);
+	assert.deepEqual(
+		(await agentLog()).filter((e) => e.permission).map((e) => e.answer),
+		["allow", "allow"],
+	);
+	const done = events.filter(
+		(e) => e.type === "tool_call" && e.status === "completed",
+	);
+	assert.deepEqual(
+		done.map((e) => e.name),
+		["search_web", "read_url_content"],
+	);
+	assert.equal(
+		done[0].output,
+		"Summary: see https://docs.example/api/globals [1]",
+	);
+	assert.equal(
+		done[1].output,
+		"# Globals\n\nReturns a new AbortSignal which will be aborted in delay milliseconds.\n",
+	);
+	// The session's allowlist carries the web built-ins.
+	const meta = (await agentLog()).find((e) => e.method === "session/new").meta;
+	assert.deepEqual(meta, {
+		antigravity: {
+			enabledTools: ["read_url_content", "search_web", "view_file"],
+		},
+	});
 });

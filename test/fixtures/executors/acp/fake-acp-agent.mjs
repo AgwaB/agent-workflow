@@ -324,6 +324,116 @@ async function prompt(id, params) {
 			chunk(sessionId, "done");
 			return send({ id, result: { stopReason: "end_turn" } });
 		}
+		case "agy_web": {
+			// Antigravity web tools: search_web reports a summary; read_url_content only a title, with the
+			// page saved to a step file the transcript names by absolute path.
+			const ask = async (toolCallId, title, kind) =>
+				request("session/request_permission", {
+					sessionId,
+					toolCall: { toolCallId, title, kind, status: "pending" },
+					options: [
+						{ optionId: "allow", name: "Allow", kind: "allow_once" },
+						{ optionId: "deny", name: "Deny", kind: "reject_once" },
+					],
+				});
+			update(sessionId, {
+				sessionUpdate: "tool_call",
+				toolCallId: "w1",
+				title: "Run search_web?",
+				kind: "search",
+				status: "pending",
+				rawInput: { query: "abort timeout" },
+			});
+			const a1 = await ask("w1", "Run search_web?", "search");
+			log({ permission: "w1", answer: a1?.outcome?.optionId });
+			update(sessionId, {
+				sessionUpdate: "tool_call_update",
+				toolCallId: "w1",
+				status: "completed",
+				rawOutput: "Summary: see https://docs.example/api/globals [1]",
+			});
+			update(sessionId, {
+				sessionUpdate: "tool_call",
+				toolCallId: "w2",
+				title: "Run read_url_content?",
+				kind: "fetch",
+				status: "pending",
+				rawInput: { Url: "https://docs.example/api/globals" },
+			});
+			const a2 = await ask("w2", "Run read_url_content?", "fetch");
+			log({ permission: "w2", answer: a2?.outcome?.optionId });
+			update(sessionId, {
+				sessionUpdate: "tool_call_update",
+				toolCallId: "w2",
+				status: "completed",
+				rawOutput: "Fetch globals docs",
+			});
+			const home = process.env.GEMINI_HOME;
+			if (home) {
+				const session = join(home, "antigravity-acp", "brain", sessionId);
+				const logs = join(session, ".system_generated", "logs");
+				const step = join(session, ".system_generated", "steps", "4");
+				mkdirSync(logs, { recursive: true });
+				mkdirSync(step, { recursive: true });
+				writeFileSync(
+					join(step, "content.md"),
+					"# Globals\n\nReturns a new AbortSignal which will be aborted in delay milliseconds.\n",
+				);
+				const header =
+					"Created At: 2026-11-02T00:00:00Z\nCompleted At: 2026-11-02T00:00:01Z\n";
+				const rows = [
+					{
+						step_index: 0,
+						type: "USER_INPUT",
+						status: "DONE",
+						content: "this turn",
+					},
+					{
+						step_index: 1,
+						type: "PLANNER_RESPONSE",
+						status: "DONE",
+						tool_calls: [
+							{ name: "search_web", args: { query: "abort timeout" } },
+						],
+					},
+					{
+						step_index: 2,
+						type: "SEARCH_WEB",
+						status: "DONE",
+						content: `${header}The search returned the following summary: …`,
+					},
+					{
+						step_index: 3,
+						type: "PLANNER_RESPONSE",
+						status: "DONE",
+						tool_calls: [
+							{
+								name: "read_url_content",
+								args: { Url: "https://docs.example/api/globals" },
+							},
+						],
+					},
+					{
+						step_index: 4,
+						type: "READ_URL_CONTENT",
+						status: "DONE",
+						content: `${header}Title: Globals\n\nThe full content of the article at https://docs.example/api/globals has been saved to: ${join(step, "content.md")}`,
+					},
+					{
+						step_index: 5,
+						type: "PLANNER_RESPONSE",
+						status: "DONE",
+						content: "done",
+					},
+				];
+				writeFileSync(
+					join(logs, "transcript_full.jsonl"),
+					rows.map((row) => JSON.stringify(row)).join("\n"),
+				);
+			}
+			chunk(sessionId, "done");
+			return send({ id, result: { stopReason: "end_turn" } });
+		}
 		case "agy_quota":
 			chunk(sessionId, "Usage Limit Reached\n\nYour quota resets in 3 days.");
 			return send({ id, result: { stopReason: "end_turn" } });

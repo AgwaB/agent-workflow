@@ -430,7 +430,12 @@ export function createAcpExecutor(options: {
 				resolve,
 				timer,
 			});
-			const kind = acpToolKind(toolCall.kind);
+			const kind = acpToolKind(
+				preset.permissionKind !== undefined &&
+					typeof toolCall.title === "string"
+					? preset.permissionKind(toolCall.title, String(toolCall.kind ?? ""))
+					: toolCall.kind,
+			);
 			const rawInput = isRecord(toolCall.rawInput) ? toolCall.rawInput : {};
 			// The exact command line of a shell execution (Antigravity `CommandLine`, others
 			// `command`): a readOnly stage allows a plain read-only inspection command.
@@ -703,6 +708,7 @@ export function createAcpExecutor(options: {
 			waiters: [],
 			child,
 			normalizer: new AcpEventNormalizer({
+				...(preset.toolName === undefined ? {} : { toolName: preset.toolName }),
 				...(preset.answerFailure === undefined
 					? {}
 					: {
@@ -842,12 +848,15 @@ export function createAcpExecutor(options: {
 			);
 		const { events, settled } = replayAcpLog(
 			(await readRaw(record.rawPath)) ?? [],
-			preset.answerFailure === undefined
-				? {}
-				: {
-						answerFailure: (text) =>
-							preset.answerFailure?.(text, classifyAcpFailure),
-					},
+			{
+				...(preset.answerFailure === undefined
+					? {}
+					: {
+							answerFailure: (text: string) =>
+								preset.answerFailure?.(text, classifyAcpFailure),
+						}),
+				...(preset.toolName === undefined ? {} : { toolName: preset.toolName }),
+			},
 		);
 		yield* events;
 		if (!settled)
