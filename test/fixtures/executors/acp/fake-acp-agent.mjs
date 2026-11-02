@@ -362,6 +362,19 @@ async function prompt(id, params) {
 			});
 			const a2 = await ask("w2", "Run read_url_content?", "fetch");
 			log({ permission: "w2", answer: a2?.outcome?.optionId });
+			// As live: the running update replaces rawInput with lower-case keys.
+			update(sessionId, {
+				sessionUpdate: "tool_call_update",
+				toolCallId: "w2",
+				status: "in_progress",
+				title: "Running read_url_content",
+				rawInput: {
+					url: "https://docs.example/api/globals",
+					title: "",
+					summary: "",
+					content_path: "",
+				},
+			});
 			update(sessionId, {
 				sessionUpdate: "tool_call_update",
 				toolCallId: "w2",
@@ -417,7 +430,7 @@ async function prompt(id, params) {
 						step_index: 4,
 						type: "READ_URL_CONTENT",
 						status: "DONE",
-						content: `${header}Title: Globals\n\nThe full content of the article at https://docs.example/api/globals has been saved to: ${join(step, "content.md")}`,
+						content: `${header}Title: Globals\n\nThe full content of the article at https://docs.example/api/globals has been saved to: ${join(step, "content.md")}\n\nYou can use the view_file tool to read specific sections if needed.`,
 					},
 					{
 						step_index: 5,

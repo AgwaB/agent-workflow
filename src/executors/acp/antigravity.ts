@@ -71,7 +71,11 @@ export function antigravitySummaryKey(
 	if (typeof call.rawOutput !== "string") return undefined;
 	// read_url_content reports a title ("Fetch globals docs"); the page is in a step file.
 	if (call.title === "read_url_content") {
-		const url = isRecord(call.input) ? call.input.Url : undefined;
+		// rawInput is {Url} on the tool_call and {url, title, summary, content_path} once it runs
+		// (live deep-research run, 2026-11-02).
+		const url = isRecord(call.input)
+			? (call.input.Url ?? call.input.url)
+			: undefined;
 		return typeof url === "string" ? urlKey(url) : undefined;
 	}
 	const server = [...mcpServers]
@@ -106,12 +110,16 @@ async function resultText(
 	);
 	// "The output was large and was saved to: file://…" (MCP) or "…has been saved to: /abs/…/content.md"
 	// (read_url_content).
-	const saved = /saved to: (\S+)\s*$/.exec(body);
+	// The read_url_content notice goes on: "…\n\nYou can use the view_file tool to read specific
+	// sections if needed." (live 2026-11-02).
+	const saved =
+		/(?:The output was large and was saved to|has been saved to): (\S+)/.exec(
+			body,
+		);
 	if (saved?.[1] === undefined) return body;
+	const named = saved[1].replace(/[.,;]$/, "");
 	// Only the session's own step files, never a path elsewhere the transcript might name.
-	const target = saved[1].startsWith("file://")
-		? fileURLToPath(saved[1])
-		: saved[1];
+	const target = named.startsWith("file://") ? fileURLToPath(named) : named;
 	if (!isAbsolute(target)) return body;
 	const path = await realpath(target);
 	const root = await realpath(sessionDir);
