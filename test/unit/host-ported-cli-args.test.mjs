@@ -42,7 +42,6 @@ import {
 	mkdtempSync,
 	readFileSync,
 	rmSync,
-	symlinkSync,
 	writeFileSync,
 } from "node:fs";
 import {
@@ -61,13 +60,6 @@ import { fileURLToPath } from "node:url";
 import { compileWorkflow } from "../../dist/core/compiler.js";
 import { parseWorkflow } from "../../dist/core/schema.js";
 import * as store from "../../dist/core/store.js";
-import {
-	createCustomProfileFromBuiltin,
-	loadWorkflowProfilePreference,
-	resolveSavedWorkflowExecutionProfile,
-	saveWorkflowProfilePreference,
-	workflowProfileIdentity,
-} from "../../dist/core/workflow-profile-settings.js";
 import {
 	listWorkflowsAction,
 	parseWorkflowDynamicArgs,
@@ -357,36 +349,6 @@ test("profile selection is explicit-first, default-aware, and supports base sele
 	);
 });
 
-const OTHER = "local/other";
-const MODELS = [
-	{
-		provider: "openai-codex",
-		id: "gpt-6.1-sol",
-		fullId: "openai-codex/gpt-6.1-sol",
-		reasoning: true,
-		thinkingLevelMap: { xhigh: "xhigh", max: "max" },
-	},
-	{
-		provider: "openai-codex",
-		id: "gpt-6-luna",
-		fullId: "openai-codex/gpt-6-luna",
-		reasoning: true,
-	},
-	{
-		provider: "anthropic",
-		id: "claude-opus-5-5",
-		fullId: "anthropic/claude-opus-5-5",
-		reasoning: true,
-	},
-	{
-		provider: "local",
-		id: "other",
-		fullId: OTHER,
-		reasoning: true,
-		thinkingLevelMap: { xhigh: "xhigh" },
-	},
-];
-
 function roleStage(id, profileRole) {
 	return { id, type: "single", profileRole, prompt: id, output: output() };
 }
@@ -422,157 +384,7 @@ function writeSpec(path, spec) {
 	writeFileSync(path, `${JSON.stringify(spec, null, 2)}\n`);
 }
 
-function context(spec, specPath, overrides = {}) {
-	return {
-		spec,
-		specPath,
-		availableModels: MODELS,
-		currentRuntime: { model: OTHER, thinking: "medium" },
-		...overrides,
-	};
-}
-
-test("invalid, corrupt, and simultaneous writes preserve complete unrelated settings", async () => {
-	const { agentDir, workflowPath } = setup("settings-failures");
-	const spec = roleSpec();
-	writeSpec(workflowPath, spec);
-	await saveWorkflowProfilePreference(
-		{ spec, specPath: workflowPath },
-		{ selectedProfile: "codex" },
-	);
-	const identity = await workflowProfileIdentity(spec, workflowPath);
-	const before = readFileSync(identity.settingsFile, "utf8");
-	await assert.rejects(
-		() =>
-			saveWorkflowProfilePreference(
-				{ spec, specPath: workflowPath },
-				{
-					selectedProfile: "custom",
-					custom: { baseProfile: "current", stages: {} },
-				},
-			),
-		/Custom workflow profile stage settings do not match/,
-	);
-	assert.equal(readFileSync(identity.settingsFile, "utf8"), before);
-	const malformedCustom = createCustomProfileFromBuiltin(spec, "codex");
-	malformedCustom.stages.plan.model = {
-		kind: "inherit",
-		unexpected: true,
-	};
-	await assert.rejects(
-		() =>
-			saveWorkflowProfilePreference(
-				{ spec, specPath: workflowPath },
-				{ selectedProfile: "custom", custom: malformedCustom },
-			),
-		/unknown field unexpected/,
-	);
-	assert.equal(readFileSync(identity.settingsFile, "utf8"), before);
-
-	const unrelatedFile = join(agentDir, "unrelated.json");
-	writeFileSync(unrelatedFile, "keep-me\n");
-	const concurrentCustom = createCustomProfileFromBuiltin(spec, "claude");
-	concurrentCustom.stages.plan.model = { kind: "fixed", value: OTHER };
-	await Promise.all([
-		saveWorkflowProfilePreference(
-			{ spec, specPath: workflowPath },
-			{ selectedProfile: "custom", custom: concurrentCustom },
-		),
-		saveWorkflowProfilePreference(
-			{ spec, specPath: workflowPath },
-			{ selectedProfile: "mixed" },
-		),
-	]);
-	const complete = JSON.parse(readFileSync(identity.settingsFile, "utf8"));
-	assert.ok(["custom", "mixed"].includes(complete.selectedProfile));
-	assert.equal(complete.stages.length, 5);
-	assert.equal(complete.custom.stages.plan.model.value, OTHER);
-	assert.equal(readFileSync(unrelatedFile, "utf8"), "keep-me\n");
-
-	const mismatched = structuredClone(complete);
-	mismatched.stages[0].profileRole = "verification";
-	writeFileSync(identity.settingsFile, JSON.stringify(mismatched));
-	const mismatchedBytes = readFileSync(identity.settingsFile, "utf8");
-	await assert.rejects(
-		() => loadWorkflowProfilePreference(spec, workflowPath),
-		/settings are corrupt.*stage metadata does not match.*file was not changed/s,
-	);
-	await assert.rejects(
-		() =>
-			saveWorkflowProfilePreference(
-				{ spec, specPath: workflowPath },
-				{ selectedProfile: "mixed" },
-			),
-		/settings are corrupt.*file was not changed/s,
-	);
-	assert.equal(readFileSync(identity.settingsFile, "utf8"), mismatchedBytes);
-
-	const unknownField = { ...complete, unexpected: true };
-	writeFileSync(identity.settingsFile, JSON.stringify(unknownField));
-	const unknownBytes = readFileSync(identity.settingsFile, "utf8");
-	await assert.rejects(
-		() => loadWorkflowProfilePreference(spec, workflowPath),
-		/unknown field unexpected.*file was not changed/s,
-	);
-	assert.equal(readFileSync(identity.settingsFile, "utf8"), unknownBytes);
-
-	const wrongFingerprint =
-		identity.definitionFingerprint === "0".repeat(64)
-			? "1".repeat(64)
-			: "0".repeat(64);
-	writeFileSync(
-		identity.settingsFile,
-		JSON.stringify({ ...complete, definitionFingerprint: wrongFingerprint }),
-	);
-	await assert.rejects(
-		() => loadWorkflowProfilePreference(spec, workflowPath),
-		/definitionFingerprint does not match the settings filename.*file was not changed/s,
-	);
-
-	writeFileSync(identity.settingsFile, Buffer.from([0xff]));
-	await assert.rejects(
-		() => loadWorkflowProfilePreference(spec, workflowPath),
-		/unreadable or invalid.*utf-8.*file was not changed/s,
-	);
-
-	writeFileSync(identity.settingsFile, "x".repeat(1_048_577));
-	await assert.rejects(
-		() => loadWorkflowProfilePreference(spec, workflowPath),
-		/exceeds size limit.*file was not changed/s,
-	);
-	rmSync(identity.settingsFile);
-	mkdirSync(identity.settingsFile);
-	await assert.rejects(
-		() => loadWorkflowProfilePreference(spec, workflowPath),
-		/not a stable regular file.*file was not changed/s,
-	);
-	rmSync(identity.settingsFile, { recursive: true });
-	symlinkSync(unrelatedFile, identity.settingsFile);
-	await assert.rejects(
-		() => loadWorkflowProfilePreference(spec, workflowPath),
-		/ELOOP|symbolic|too many symbolic links/i,
-	);
-	assert.equal(readFileSync(unrelatedFile, "utf8"), "keep-me\n");
-	rmSync(identity.settingsFile);
-
-	writeFileSync(identity.settingsFile, "{ definitely broken");
-	const corruptBytes = readFileSync(identity.settingsFile, "utf8");
-	await assert.rejects(
-		() => loadWorkflowProfilePreference(spec, workflowPath),
-		/unreadable or invalid.*file was not changed/s,
-	);
-	assert.deepEqual(
-		await resolveWorkflowExecutionProfileForLaunch(
-			workflowPath,
-			dirname(workflowPath),
-			"declared-recovery",
-		),
-		{ executionProfile: "declared-recovery" },
-	);
-	assert.equal(readFileSync(identity.settingsFile, "utf8"), corruptBytes);
-});
-
-test("launch precedence is explicit, then saved, then the legacy declared selector", async () => {
+test("launch precedence is explicit, then the declared selector", async () => {
 	const { workflowPath } = setup("launch-precedence");
 	const spec = roleSpec();
 	writeSpec(workflowPath, spec);
@@ -591,37 +403,22 @@ test("launch precedence is explicit, then saved, then the legacy declared select
 	assert.deepEqual(explicit, { executionProfile: "declared-fast" });
 	assert.equal(selected, 0);
 
-	await saveWorkflowProfilePreference(
-		{ spec, specPath: workflowPath },
-		{ selectedProfile: "claude" },
-	);
-	const loadedWorkflow = { spec, specPath: workflowPath };
-	const saved = await resolveWorkflowExecutionProfileForLaunch(
+	// 2026-11-02: no saved per-workflow Pi TUI profile store any more; without declared profiles
+	// there is nothing to choose.
+	const chosen = await resolveWorkflowExecutionProfileForLaunch(
 		workflowPath,
 		dirname(workflowPath),
 		undefined,
 		{
-			loadedWorkflow,
-			availableModels: MODELS,
-			currentRuntime: { model: OTHER, thinking: "medium" },
+			loadedWorkflow: { spec, specPath: workflowPath },
 			select: async () => {
 				selected += 1;
 				return undefined;
 			},
 		},
 	);
-	assert.equal(saved.executionProfileOverride.name, "Claude");
-	assert.equal(saved.executionProfile, undefined);
+	assert.deepEqual(chosen, {});
 	assert.equal(selected, 0);
-
-	const resolved = await resolveSavedWorkflowExecutionProfile(
-		context(spec, workflowPath),
-	);
-	assert.equal(
-		resolved.definitionFingerprint,
-		(await workflowProfileIdentity(spec, workflowPath)).definitionFingerprint,
-	);
-	assert.deepEqual(saved.executionProfileOverride, resolved);
 });
 
 // ---- inspect (workflow-authoring-gates) ----

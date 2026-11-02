@@ -420,9 +420,8 @@ declared-profile picker and launch precedence for hosts with a model registry),
 `{schema: "agent-workflow-user-profiles-v1", default?, profiles: {<name>: {executor?, model?,
 effort?, permissionMode?, strictCapabilities?, updatedAt}}}`. Names: 1-64 of `[A-Za-z0-9._-]`.
 Values are validated on every write and read (unknown fields, effort levels, modes and capability
-names are rejected); a malformed file is reported, never rewritten. pi-workflow's per-workflow
-built-in/custom stage preferences (`workflow-profiles/v1`, Pi TUI) are a separate store that the Pi
-host keeps (WP11b).
+names are rejected); a malformed file is reported, never rewritten. Per-workflow preferences are a
+separate store (`workflow-preferences/v1`, WP31).
 
 ## Test-executor hook
 

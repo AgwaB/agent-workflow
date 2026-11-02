@@ -266,8 +266,7 @@ A preference belongs to the workflow's `name` (`<workflow>` may be a name or a s
 `profile` (declared, saved or preset; checked when saved) is used when a launch names none; its
 roles apply to every launch of that workflow, from the CLI, MCP hosts and Pi, below the run flags
 and above the selected profile. Stored in
-`$AGENT_WORKFLOW_HOME/workflow-preferences/v1/preferences.json`. pi-workflow's
-`~/.pi/agent/workflow-profiles` is never read.
+`$AGENT_WORKFLOW_HOME/workflow-preferences/v1/preferences.json`.
 
 ## `doctor`
 

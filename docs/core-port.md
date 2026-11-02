@@ -378,7 +378,7 @@ The other 31 have `Changes: none.`
 | `<project>/.pi/workflow-subagents/` (worker mirrors) | `<project>/.agent-workflow/workflow-subagents/` | run-retention, workflow-raw-contract (WP4c must write the same path) |
 | `<project>/.pi/workflows` / `.pi/agents` discovery | `.agent-workflow/…` first, `.pi/…` read-only after | workflow-specs, agents |
 | `~/.pi/agent/workflows`, `~/.pi/agent/agents` | `~/.agent-workflow/…` first, Pi dir read-only after | workflow-specs, agents |
-| `~/.pi/agent/workflow-profiles/v1` | `~/.agent-workflow/workflow-profiles/v1` | workflow-profile-settings |
+| `~/.pi/agent/workflow-profiles/v1` | `~/.agent-workflow/workflow-profiles/v1` (module removed 2026-11-02: nothing wrote it; per-workflow preferences are WP31's `workflow-preferences/v1`) | workflow-profile-settings |
 | `PI_CODING_AGENT_DIR` (user dir) | `AGENT_WORKFLOW_HOME` (`PI_CODING_AGENT_DIR` only locates the legacy Pi dir) | home-dir |
 | `PI_WORKFLOW_NATIVE_HOST_CONTEXT` | `AGENT_WORKFLOW_HOST_CONTEXT` | host-context |
 | `PI_WORKFLOW_ROLE` (store lease checks) | `AGENT_WORKFLOW_ROLE` | store |

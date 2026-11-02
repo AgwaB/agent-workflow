@@ -52,7 +52,6 @@ import {
 	listWorkflows,
 	resolveWorkflowRef,
 } from "../../dist/core/workflow-specs.js";
-import { workflowProfileSettingsRoot } from "../../dist/core/workflow-profile-settings.js";
 
 const ENV_KEYS = [
 	AGENT_WORKFLOW_HOME_ENV,
@@ -119,14 +118,6 @@ test("home-dir: AGENT_WORKFLOW_HOME overrides ~/.agent-workflow; Pi dir is legac
 	assert.equal(
 		agentWorkflowHome({ PI_CODING_AGENT_DIR: "/x/pi" }),
 		join(homedir(), ".agent-workflow"),
-	);
-});
-
-test("workflow-profile-settings lives under the agent-workflow home", async (t) => {
-	const { root } = await scratch(t, "profiles");
-	assert.equal(
-		workflowProfileSettingsRoot(),
-		join(root, "home", ".agent-workflow", "workflow-profiles", "v1"),
 	);
 });
 

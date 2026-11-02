@@ -126,7 +126,7 @@ Project (`<cwd>/.agent-workflow/`, created on first run, never shared with pi-wo
 | `ocr-artifacts/` | deep-review OCR artifacts (trusted root) |
 
 User (`$AGENT_WORKFLOW_HOME`, default `~/.agent-workflow/`): `workflows/`, `agents/`,
-`user-profiles/v1/profiles.json`, `workflow-profiles/v1/`, `run-index/` (run locators),
+`user-profiles/v1/profiles.json`, `workflow-preferences/v1/`, `run-index/` (run locators),
 `executors/<id>/` (adapter state; session records only for sessions the engine asked to keep).
 
 Read-only legacy roots (F5): `<cwd>/.pi/workflows`, `~/.pi/agent/workflows`, `<cwd>/.pi/agents`,

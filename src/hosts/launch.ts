@@ -61,7 +61,6 @@ import type {
 	WorkflowRunCapabilityNegotiation,
 	WorkflowRunRecord,
 } from "../core/types.js";
-import { resolveSavedWorkflowExecutionProfile } from "../core/workflow-profile-settings.js";
 import type { WorkflowRuntimeDefaults } from "../core/workflow-runtime.js";
 import type { CapabilityPreview } from "../sdk/requirements.js";
 import { hostCommandHints, type WorkflowCommandHints } from "./hints.js";
@@ -157,7 +156,7 @@ export type RunDynamicRequest = LaunchRequestBase;
 export interface LaunchProfileInfo {
 	name: string;
 	/** WP31: `preset` = a built-in executor preset (executor-presets.ts). */
-	kind: "declared" | "user" | "workflow-preference" | "preset";
+	kind: "declared" | "user" | "preset";
 	/** `request`: named by the caller; the others were picked because none was named. */
 	source:
 		| "request"
@@ -264,22 +263,11 @@ export async function resolveWorkflowExecutionProfileForLaunch(
 	options: {
 		select?: WorkflowProfileSelector;
 		loadedWorkflow?: LoadedWorkflowSpec;
-		availableModels?: HostApiContext["availableModels"];
-		currentRuntime?: WorkflowRuntimeDefaults;
-		runtimeOverrides?: WorkflowRuntimeDefaults;
 	} = {},
 ): Promise<WorkflowExecutionProfileSelection> {
 	if (explicitProfile) return { executionProfile: explicitProfile };
 	const loaded =
 		options.loadedWorkflow ?? (await loadWorkflowSpec(workflow, cwd));
-	const saved = await resolveSavedWorkflowExecutionProfile({
-		spec: loaded.spec,
-		specPath: loaded.specPath,
-		availableModels: options.availableModels ?? [],
-		currentRuntime: options.currentRuntime ?? {},
-		runtimeOverrides: options.runtimeOverrides,
-	});
-	if (saved) return { executionProfileOverride: saved };
 	const executionProfile = await selectWorkflowExecutionProfile(
 		workflow,
 		cwd,
@@ -455,19 +443,18 @@ async function snapshotLaunchProfile(
 			: preference?.profile !== undefined
 				? { name: preference.profile, source: "workflow-preference" as const }
 				: undefined;
-	const snapshot = await snapshotProfileSelection(ctx, loaded, request, named);
+	const snapshot = await snapshotProfileSelection(ctx, loaded, named);
 	return preference ? { ...snapshot, preference } : snapshot;
 }
 
 /**
  * Profile for one launch. Named: a declared spec profile wins over a saved user profile of the
- * same name. Not named: (host with a model registry: saved per-workflow Pi preference) > declared
- * default (or the interactive declared chooser) > default saved user profile > none.
+ * same name. Not named: declared default (or the interactive declared chooser) > default saved user
+ * profile > none.
  */
 async function snapshotProfileSelection(
 	ctx: HostApiContext,
 	loaded: LoadedWorkflowSpec,
-	request: LaunchRequestBase,
 	named:
 		| { name: string; source: "request" | "workflow-preference" }
 		| undefined,
@@ -499,26 +486,6 @@ async function snapshotProfileSelection(
 		throw new HostUsageError(
 			`unknown profile "${named.name}"${named.source === "workflow-preference" ? ` (from the saved preference of workflow ${loaded.spec.name}; change it with: agent-workflow profile workflow set ${loaded.spec.name} --profile <name>)` : ""}: the workflow declares ${declaredNames.length ? declaredNames.join(", ") : "no execution profiles"}; saved user profiles: ${userNames.length ? userNames.join(", ") : "none"}; built-in presets: ${EXECUTOR_PRESET_IDS.join(", ")}`,
 		);
-	}
-	if (ctx.availableModels !== undefined) {
-		const saved = await resolveSavedWorkflowExecutionProfile({
-			spec: loaded.spec,
-			specPath: loaded.specPath,
-			availableModels: ctx.availableModels,
-			currentRuntime: ctx.runtimeDefaults ?? {},
-			runtimeOverrides: runtimeOverrides(request),
-		});
-		if (saved)
-			return {
-				resolved: {
-					selection: { executionProfileOverride: saved },
-					info: {
-						name: saved.name,
-						kind: "workflow-preference",
-						source: "workflow-preference",
-					},
-				},
-			};
 	}
 	if (Object.keys(declared).length > 0) {
 		// The saved user profiles only matter when the chooser picks no declared profile: an
@@ -1013,24 +980,18 @@ function launchExecutionIdentity(
 							? "user-profile"
 							: "user-default",
 				}
-			: resolved?.info?.kind === "workflow-preference"
+			: resolved?.info?.kind === "declared" || snapshot.declaredChoice
 				? {
-						id: override?.executor ?? "",
-						source: "workflow-preference",
+						id: "",
+						source: "workflow-profile",
+						...(userDefault?.executor
+							? { userDefault: userDefault.executor }
+							: {}),
 						fallback: hostDefault,
 					}
-				: resolved?.info?.kind === "declared" || snapshot.declaredChoice
-					? {
-							id: "",
-							source: "workflow-profile",
-							...(userDefault?.executor
-								? { userDefault: userDefault.executor }
-								: {}),
-							fallback: hostDefault,
-						}
-					: ctx.defaultExecutor
-						? { id: ctx.defaultExecutor, source: "default" }
-						: hostDefault;
+				: ctx.defaultExecutor
+					? { id: ctx.defaultExecutor, source: "default" }
+					: hostDefault;
 	return {
 		host,
 		executor,

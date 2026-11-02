@@ -273,10 +273,7 @@ verification. `low` is an explicit speed/cost-for-quality trade-off. No declared
 model. Evidence gates are the same in every profile.
 
 Every model-backed stage in a bundled workflow declares a semantic `profileRole` (`planning`,
-`research-execution`, `synthesis`, `verification`, `final-judgment`). The Pi host still honors a
-pi-workflow-style preference saved under `$AGENT_WORKFLOW_HOME/workflow-profiles/v1/` (Pi model ids)
-when no profile is named and no per-workflow preference (below) names one; pi-workflow's own
-`~/.pi/agent/workflow-profiles` is never read.
+`research-execution`, `synthesis`, `verification`, `final-judgment`).
 
 ### Roles, presets and mixed runs
 

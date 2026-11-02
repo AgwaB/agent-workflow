@@ -2,8 +2,7 @@
 // workflow-independent set of launch preferences (executor, model, effort, permissionMode,
 // strictCapabilities) kept in `$AGENT_WORKFLOW_HOME/user-profiles/v1/profiles.json`. It is the
 // "saved user profile" tier of the B2 precedence (run flag > workflow-declared profile > saved user
-// profile > default). pi-workflow's per-workflow Pi TUI preferences (workflow-profile-settings.ts)
-// are a different store and stay with the Pi host (WP11b).
+// profile > default). Per-workflow preferences are a separate store (workflow-preferences.ts, WP31).
 // WP31: a profile can map roles to `{executor?, model?, effort?}` (`roles`, role-profiles.ts) and can
 // be created from a built-in preset (`--preset`, executor-presets.ts). An unknown executor id (flat or
 // in a role) is refused when the profile is saved; role models are checked against the executor's
