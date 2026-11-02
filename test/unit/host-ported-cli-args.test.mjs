@@ -211,11 +211,11 @@ test("--profile parses from leading, trailing, and equals forms; quoted stays li
 test("explicit run and dynamic reject retired routing flags while preserving quoted task text", () => {
 	assert.throws(
 		() => parseWorkflowRunArgs('run --route target "task"'),
-		/use \/workflow auto/i,
+		/use agent-workflow auto/i,
 	);
 	assert.throws(
 		() => parseWorkflowDynamicArgs('dynamic --no-route "task"'),
-		/use \/workflow auto/i,
+		/use agent-workflow auto/i,
 	);
 	assert.equal(
 		parseWorkflowRunArgs('run target "literal --route is task text"').task,

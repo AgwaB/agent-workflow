@@ -2,7 +2,7 @@
 import { lstat } from "node:fs/promises";
 import { isAbsolute, relative } from "node:path";
 import {
-	PI_WORKFLOW_COMMAND_HINTS,
+	DEFAULT_COMMAND_HINTS,
 	type WorkflowCommandHints,
 } from "./command-hints.js";
 import { readFileLinesBounded } from "./workflow-preview.js";
@@ -160,7 +160,7 @@ export function formatRunStallWarning(
 	},
 	supervisor: WorkflowSupervisorRecord | undefined,
 	nowMs = Date.now(),
-	hints: WorkflowCommandHints = PI_WORKFLOW_COMMAND_HINTS,
+	hints: WorkflowCommandHints = DEFAULT_COMMAND_HINTS,
 ): string | undefined {
 	const stall = detectRunStall(run, supervisor, nowMs);
 	if (!stall) return undefined;
@@ -205,7 +205,7 @@ async function readRunSupervisor(
 
 export async function formatStatus(
 	cwd: string,
-	hints: WorkflowCommandHints = PI_WORKFLOW_COMMAND_HINTS,
+	hints: WorkflowCommandHints = DEFAULT_COMMAND_HINTS,
 ): Promise<string> {
 	const cached = await readFreshIndex(cwd);
 	if (cached) {
@@ -376,14 +376,14 @@ export function formatHumanRunResume(
 		...formatWarnings(run, options),
 		...taskSections(run),
 		"",
-		`Open: ${(options.hints ?? PI_WORKFLOW_COMMAND_HINTS).status(run.runId)}`,
+		`Open: ${(options.hints ?? DEFAULT_COMMAND_HINTS).status(run.runId)}`,
 	].join("\n");
 }
 
 export function formatHumanRunStop(
 	run: WorkflowRunRecord,
 	interruptedCount: number,
-	hints: WorkflowCommandHints = PI_WORKFLOW_COMMAND_HINTS,
+	hints: WorkflowCommandHints = DEFAULT_COMMAND_HINTS,
 ): string {
 	return [
 		`Workflow stopped: ${workflowName(run)}`,
@@ -445,7 +445,7 @@ function formatHumanRunCard(
 		includeUsage?: boolean;
 	},
 ): string {
-	const hints = options.hints ?? PI_WORKFLOW_COMMAND_HINTS;
+	const hints = options.hints ?? DEFAULT_COMMAND_HINTS;
 	const heading =
 		options.mode === "outcome"
 			? `Workflow ${run.status}: ${workflowName(run)}`

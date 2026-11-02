@@ -306,9 +306,9 @@ test("direct-dynamic v4 controller opts into final synthesis reservation", async
 });
 
 // WP10: the bundled direct-dynamic spec dropped the workflow_web_* tools (C2), so the immutable
-// bundle moved to v5 (a changed payload needs a new version). Was: v4 (and "not v3").
-test("direct-dynamic runtime bundle version label is bumped to v5", () => {
-	assert.equal(DIRECT_DYNAMIC_RUNTIME_VERSION, "direct-dynamic-runtime-v5");
-	assert.match(DIRECT_DYNAMIC_RUNTIME_VERSION, /-v5$/);
-	assert.equal(DIRECT_DYNAMIC_RUNTIME_VERSION.includes("v4"), false);
+// bundle moved to v5 (a changed payload needs a new version). 2026-11-02: v6, its description names
+// agent-workflow's commands instead of pi-workflow's /workflow. Was: v4 (and "not v3").
+test("direct-dynamic runtime bundle version label is bumped to v6", () => {
+	assert.equal(DIRECT_DYNAMIC_RUNTIME_VERSION, "direct-dynamic-runtime-v6");
+	assert.equal(DIRECT_DYNAMIC_RUNTIME_VERSION.includes("v5"), false);
 });

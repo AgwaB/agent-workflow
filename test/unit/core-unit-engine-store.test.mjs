@@ -5095,7 +5095,7 @@ test("formatRun appends stall warning when heartbeat is fresh but task transitio
 		});
 		assert.match(
 			text,
-			/⚠ no task progress for 14m \(heartbeat alive — possible stall; inspect \/workflow logs workflow_unit_stall_warn\)/,
+			/⚠ no task progress for 14m \(heartbeat alive — possible stall; inspect agent-workflow logs workflow_unit_stall_warn\)/,
 		);
 	} finally {
 		rmSync(cwd, {
@@ -5129,7 +5129,7 @@ test("formatRun surfaces supervisor heartbeat lost while run says running", asyn
 		});
 		assert.match(
 			text,
-			/⚠ supervisor heartbeat lost \(last heartbeat 3m ago while run says running; inspect \/workflow logs workflow_unit_stall_hb_lost\)/,
+			/⚠ supervisor heartbeat lost \(last heartbeat 3m ago while run says running; inspect agent-workflow logs workflow_unit_stall_hb_lost\)/,
 		);
 	} finally {
 		rmSync(cwd, {

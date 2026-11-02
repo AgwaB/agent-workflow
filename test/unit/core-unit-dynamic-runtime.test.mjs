@@ -9399,7 +9399,7 @@ test("spec-less direct dynamic run records provenance and launches planner", asy
 		assert.match(
 			run.provenance.runtimeBundle,
 			// WP10: bundle v5 (was v4).
-			/\.agent-workflow\/workflow-runtime\/direct-dynamic-runtime-v5\/spec\.json$/,
+			/\.agent-workflow\/workflow-runtime\/direct-dynamic-runtime-v6\/spec\.json$/,
 		);
 		assert.equal(run.tasks[0].kind, "dynamic");
 		assert.equal(launched.length, 1);

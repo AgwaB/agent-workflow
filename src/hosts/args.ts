@@ -207,7 +207,7 @@ function consumeLeadingRunOptionTokens(
 	}
 	if (token.text === "--route" || token.text === "--no-route") {
 		throw new HostUsageError(
-			`${token.text} is no longer supported: run and dynamic execute exactly what you selected. Use /workflow auto "<task>" for a recommendation.`,
+			`${token.text} is no longer supported: run and dynamic execute exactly what you selected. Use agent-workflow auto "<task>" (Pi: /aw auto "<task>") for a recommendation.`,
 		);
 	}
 	{

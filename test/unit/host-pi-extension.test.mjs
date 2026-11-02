@@ -36,7 +36,6 @@ process.env.AW_HOST_TEST_EXECUTOR_ID = HOOK_EXECUTOR;
 
 const ext = await import("../../dist/hosts/pi/extension.js");
 const names = await import("../../dist/hosts/pi/names.js");
-const { piHostText } = await import("../../dist/hosts/pi/host.js");
 const realApi = await import("../../dist/hosts/api.js");
 const core = await import("../../dist/core/index.js");
 const slots = await import("../../dist/core/launch-slots.js");
@@ -361,7 +360,7 @@ test("/aw catalog actions delegate to the host API and show the handler text", a
 		{ query: "deep", limit: 2 },
 	);
 	assert.deepEqual(lastNote(ctx), {
-		message: piHostText(listed.text),
+		message: listed.text,
 		type: "info",
 	});
 
@@ -517,10 +516,10 @@ test("/aw run, status, show, inspect, wait, resume, stop: delegation with launch
 		{ cwd, env },
 		{ runId, timeoutMs: 1_000 },
 	);
-	assert.equal(waitNote.message, piHostText(direct.text));
-	// Core `/workflow …` hints point at /aw in the Pi host (pi-workflow owns /workflow).
+	assert.equal(waitNote.message, direct.text);
+	// Run texts carry /aw hints in the Pi host; no core text names a /workflow command.
 	for (const note of ctx.notes)
-		assert.doesNotMatch(note.message, /\/workflow (?!auto)/);
+		assert.doesNotMatch(note.message, /\/workflow /);
 	assert.ok(
 		ctx.notes.some((note) =>
 			/\/aw (status|resume) workflow_/.test(note.message),
@@ -642,7 +641,7 @@ test("tools: aw_list, aw_run, aw_wait (long wait, semantic fields, preview) and 
 		{ cwd, env },
 		{ runId, timeoutMs: 1_000 },
 	);
-	assert.equal(result.content[0].text, piHostText(direct.text));
+	assert.equal(result.content[0].text, direct.text);
 	assert.equal(result.details.preview, direct.data.preview);
 
 	const refused = await pi.tools
@@ -799,28 +798,6 @@ function createHash(text) {
 		hash("sha256").update(text).digest("hex"),
 	);
 }
-
-test("piHostText: core /workflow hints become /aw hints", () => {
-	assert.equal(
-		piHostText(
-			"Open: /workflow workflow_ab_12\nResume: /workflow resume workflow_ab_12\nLogs: /workflow logs workflow_ab_12 <task-or-spec-id>\n(/workflow status)",
-		),
-		"Open: /aw status workflow_ab_12\nResume: /aw resume workflow_ab_12\nLogs: /aw logs workflow_ab_12\n(/aw status)",
-	);
-	// WP16: /aw logs exists; a named task becomes --task.
-	assert.equal(
-		piHostText("inspect /workflow logs workflow_x)"),
-		"inspect /aw logs workflow_x)",
-	);
-	assert.equal(
-		piHostText("see /workflow logs workflow_x task-2"),
-		"see /aw logs workflow_x --task task-2",
-	);
-	assert.equal(
-		piHostText("Run /workflow auto again."),
-		"Run /workflow auto again.",
-	);
-});
 
 test("session start: unfinished-run notice through the host API notices handler, deduplicated, non-blocking", async () => {
 	const { cwd, env } = await project();

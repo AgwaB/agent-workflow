@@ -189,6 +189,18 @@
 			"decision": "WP4b run state path rename (docs/core-port.md WP4b change log 1) inside a digest the record does not let us recompute",
 			"reason": "foreachBatches[].executionSurfaceSha256 is sha256 over the canonical prepared leader task (cwd, agent, runtime, safety, artifactGraph — foreach-batch-runtime.ts foreachBatchExecutionSurfaceSha256). The prepared artifactGraph names run-state paths under the renamed .agent-workflow/workflows; compiled.json, which holds the same compiled fields, compares equal after the literal renames. The prepared task itself is not recorded, so no binding check is possible; the entry is limited to this one key, the equality structure (all batches of one stage share one surface) must still match, and the batch prompts, receipts and outputs are compared exactly.",
 			"keys": ["executionSurfaceSha256"]
+		},
+		{
+			"id": "aw-does-not-know-pi-workflow",
+			"introducedBy": "2026-11-02",
+			"decision": "2026-11-02 owner decision: agent-workflow does not know pi-workflow; its texts name agent-workflow's own commands",
+			"reason": "The worker system prompt said the task was launched by pi-workflow's /workflow command; it names agent-workflow instead. Same sentence otherwise.",
+			"renames": [
+				[
+					"You were launched by agent-workflow",
+					"You were launched by /workflow"
+				]
+			]
 		}
 	]
 }

@@ -605,7 +605,7 @@ export async function runDynamicTask(
 ): Promise<WorkflowRunRecord> {
 	if (!options.task || options.task.trim() === "") {
 		throw new Error(
-			'This dynamic workflow needs a task. Usage: /workflow dynamic "<task>"',
+			'This dynamic workflow needs a task. Usage: agent-workflow dynamic "<task>" (Pi: /aw dynamic "<task>")',
 		);
 	}
 	if (
@@ -614,7 +614,7 @@ export async function runDynamicTask(
 		!options.autoLaunchBinding
 	)
 		throw new Error(
-			"Auto-confirmed dynamic launch is missing its in-memory selection binding. Run /workflow auto again.",
+			"Auto-confirmed dynamic launch is missing its in-memory selection binding. Run agent-workflow auto (Pi: /aw auto) again.",
 		);
 	options.launchSignal?.throwIfAborted();
 	const specPath = await ensureDirectDynamicRuntimeBundle(cwd);
@@ -677,13 +677,13 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 				: "named-workflow";
 		if (options.launch.requestKind !== actualRequestKind)
 			throw new Error(
-				"Auto-confirmed launch metadata does not match the requested execution path. Run /workflow auto again.",
+				"Auto-confirmed launch metadata does not match the requested execution path. Run agent-workflow auto (Pi: /aw auto) again.",
 			);
 		if (!options.autoLaunchBinding)
 			throw new Error(
 				options.launch.requestKind === "named-workflow"
-					? "Auto-confirmed named launch is missing its in-memory selection binding. Run /workflow auto again."
-					: "Auto-confirmed dynamic launch is missing its in-memory selection binding. Run /workflow auto again.",
+					? "Auto-confirmed named launch is missing its in-memory selection binding. Run agent-workflow auto (Pi: /aw auto) again."
+					: "Auto-confirmed dynamic launch is missing its in-memory selection binding. Run agent-workflow auto (Pi: /aw auto) again.",
 			);
 		if (
 			options.launch.requestKind === "direct-dynamic" &&
@@ -691,14 +691,14 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 				DIRECT_DYNAMIC_RUNTIME_VERSION
 		)
 			throw new Error(
-				"Auto selection is stale: direct dynamic runtime changed before launch. Run /workflow auto again.",
+				"Auto selection is stale: direct dynamic runtime changed before launch. Run agent-workflow auto (Pi: /aw auto) again.",
 			);
 		const taskSha256 = createHash("sha256")
 			.update(options.task?.trim() ?? "", "utf8")
 			.digest("hex");
 		if (taskSha256 !== options.launch.selection.taskSha256)
 			throw new Error(
-				"Auto selection is stale: task changed before launch. Run /workflow auto again.",
+				"Auto selection is stale: task changed before launch. Run agent-workflow auto (Pi: /aw auto) again.",
 			);
 		const effectiveFast =
 			options.runtimeOverrides?.fast === "on" ||
@@ -731,7 +731,7 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 			effectiveRuntime.fast !== options.launch.selection.effectiveRuntime.fast
 		)
 			throw new Error(
-				"Auto selection is stale: runtime changed before launch. Run /workflow auto again.",
+				"Auto selection is stale: runtime changed before launch. Run agent-workflow auto (Pi: /aw auto) again.",
 			);
 		if (
 			options.autoLaunchBinding &&
@@ -741,7 +741,7 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 					options.launch.selection.candidateIdentitySha256)
 		)
 			throw new Error(
-				"Auto selection is stale: candidate identity changed before launch. Run /workflow auto again.",
+				"Auto selection is stale: candidate identity changed before launch. Run agent-workflow auto (Pi: /aw auto) again.",
 			);
 	}
 	if (options.autoLaunchBinding)

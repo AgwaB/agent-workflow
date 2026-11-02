@@ -1,8 +1,7 @@
 // New in agent-workflow (WP18b): the next-command hints that core run texts print (`Open: …`,
-// `Resume: …`, `Logs: …`, stall warnings). Core formatters were ported from pi-workflow and printed
-// its `/workflow …` slash commands everywhere; hosts now pass their own vocabulary through the host
-// API (CLI `agent-workflow …`, Pi `/aw …`, MCP tool calls; src/hosts/hints.ts). The pi-workflow
-// form stays the default of the core formatters so the ported core tests keep their texts.
+// `Resume: …`, `Logs: …`, stall warnings). Hosts pass their own vocabulary through the host API
+// (CLI `agent-workflow …`, Pi `/aw …`, MCP tool calls; src/hosts/hints.ts); the CLI form is the
+// default of the core formatters.
 
 /** One host's way to name the follow-up actions of a run. */
 export interface WorkflowCommandHints {
@@ -22,17 +21,6 @@ export interface WorkflowCommandHints {
 	stop(runId: string): string;
 }
 
-/** pi-workflow's `/workflow …` slash commands (default of the core formatters). */
-export const PI_WORKFLOW_COMMAND_HINTS: WorkflowCommandHints = {
-	status: (runId) => `/workflow ${runId}`,
-	wait: (runId) => `/workflow status ${runId}`,
-	resume: (runId) => `/workflow resume ${runId}`,
-	logs: (runId, task) => `/workflow logs ${runId}${task ? ` ${task}` : ""}`,
-	raw: (runId) => `/workflow show --raw ${runId}`,
-	inspectFailures: (runId) => `/workflow logs ${runId}`,
-	stop: (runId) => `/workflow stop ${runId}`,
-};
-
 /** Command-line hints for a command prefix (`agent-workflow`, `/aw`). */
 export function commandLineHints(prefix: string): WorkflowCommandHints {
 	return {
@@ -47,10 +35,19 @@ export function commandLineHints(prefix: string): WorkflowCommandHints {
 	};
 }
 
+/** The CLI form: the default of the core formatters (and the CLI host's hints). */
+export const DEFAULT_COMMAND_HINTS: WorkflowCommandHints =
+	commandLineHints("agent-workflow");
+
 /**
- * Host-neutral resume hint for texts the engine persists (run/task messages are read later by any
- * host, so they cannot carry one host's vocabulary): the CLI command plus the Pi `/aw` form.
+ * Host-neutral command for texts that cannot know the host (core errors, persisted run/task
+ * messages read later by any host): the CLI command plus the Pi `/aw` form.
  */
+export function neutralCommand(args: string): string {
+	return `agent-workflow ${args} (Pi: /aw ${args})`;
+}
+
+/** Host-neutral resume hint for texts the engine persists. */
 export function persistedResumeHint(runId: string): string {
-	return `agent-workflow resume ${runId} (Pi: /aw resume ${runId})`;
+	return neutralCommand(`resume ${runId}`);
 }

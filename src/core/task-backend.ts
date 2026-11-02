@@ -1444,7 +1444,7 @@ function buildSystemPrompt(
 	].filter((line): line is string => typeof line === "string");
 	return [
 		`You are workflow subagent '${task.agent}'.`,
-		"You were launched by /workflow from a deterministic workflow spec.",
+		"You were launched by agent-workflow from a deterministic workflow spec.",
 		"Do not assume parent conversation history.",
 		"Do not launch other agents or orchestration workflows unless explicitly instructed.",
 		...toolPolicy,

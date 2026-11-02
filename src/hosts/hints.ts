@@ -6,14 +6,14 @@
 // MCP tool, so resume and the raw run view name `workflow_resume` and `workflow_show`.
 import {
 	commandLineHints,
+	DEFAULT_COMMAND_HINTS,
 	type WorkflowCommandHints,
 } from "../core/command-hints.js";
 import type { WorkflowHostId } from "../core/types.js";
 
 export type { WorkflowCommandHints } from "../core/command-hints.js";
 
-export const CLI_COMMAND_HINTS: WorkflowCommandHints =
-	commandLineHints("agent-workflow");
+export const CLI_COMMAND_HINTS: WorkflowCommandHints = DEFAULT_COMMAND_HINTS;
 export const PI_COMMAND_HINTS: WorkflowCommandHints = commandLineHints("/aw");
 
 function toolCall(tool: string, args: Record<string, unknown>): string {

@@ -36,12 +36,7 @@ import {
 	presentCompletion,
 	readFeedbackAudience,
 } from "./feedback.js";
-import {
-	hostContext,
-	launchHooks,
-	type PiHostDeps,
-	piHostText,
-} from "./host.js";
+import { hostContext, launchHooks, type PiHostDeps } from "./host.js";
 import {
 	AW_COMMAND,
 	AW_DYNAMIC_TOOL,
@@ -525,7 +520,7 @@ function toolResult<T>(
 ): PiToolResult {
 	const text = note ? `${outcome.text}\n${note}` : outcome.text;
 	return {
-		content: [{ type: "text", text: piHostText(text) }],
+		content: [{ type: "text", text }],
 		details: { ...details, outcome: outcome.outcome, ok: outcome.ok },
 		...(outcome.outcome === "refused" ? { isError: true } : {}),
 	};

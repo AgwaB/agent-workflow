@@ -83,13 +83,13 @@ export async function captureWorkflowAutoLaunchBinding(input: {
 }): Promise<WorkflowAutoLaunchBinding> {
 	const cwdPath = await realpath(input.cwd).catch(() => {
 		throw new Error(
-			"Auto selection is stale: current project directory is unavailable. Run /workflow auto again.",
+			"Auto selection is stale: current project directory is unavailable. Run agent-workflow auto (Pi: /aw auto) again.",
 		);
 	});
 	const cwdStat = await lstat(cwdPath);
 	if (!cwdStat.isDirectory() || cwdStat.isSymbolicLink())
 		throw new Error(
-			"Auto selection is stale: current project directory is unsafe. Run /workflow auto again.",
+			"Auto selection is stale: current project directory is unsafe. Run agent-workflow auto (Pi: /aw auto) again.",
 		);
 	const specPath = await realpath(input.specPath);
 	const sourceFiles = await collectWorkflowBundleSourceFiles(
@@ -186,15 +186,15 @@ export async function assertWorkflowAutoLaunchBindingCurrent(
 ): Promise<void> {
 	if (task === undefined || sha256(task.trim()) !== binding.taskSha256)
 		throw new Error(
-			"Auto selection is stale: task changed before launch. Run /workflow auto again.",
+			"Auto selection is stale: task changed before launch. Run agent-workflow auto (Pi: /aw auto) again.",
 		);
 	if (binding.launchSettingsSha256 !== sha256(stableJson(launchSettings ?? {})))
 		throw new Error(
-			"Auto selection is stale: profile or runtime changed before launch. Run /workflow auto again.",
+			"Auto selection is stale: profile or runtime changed before launch. Run agent-workflow auto (Pi: /aw auto) again.",
 		);
 	const currentCwdPath = await realpath(cwd).catch(() => {
 		throw new Error(
-			"Auto selection is stale: current project directory changed before launch. Run /workflow auto again.",
+			"Auto selection is stale: current project directory changed before launch. Run agent-workflow auto (Pi: /aw auto) again.",
 		);
 	});
 	const currentCwdStat = await lstat(currentCwdPath);
@@ -206,12 +206,12 @@ export async function assertWorkflowAutoLaunchBindingCurrent(
 		currentCwdStat.ino !== binding.cwdIdentity.ino
 	)
 		throw new Error(
-			"Auto selection is stale: current project directory changed before launch. Run /workflow auto again.",
+			"Auto selection is stale: current project directory changed before launch. Run agent-workflow auto (Pi: /aw auto) again.",
 		);
 	const resolvedActualSpecPath = await realpath(actualSpecPath);
 	if (resolvedActualSpecPath !== binding.specPath)
 		throw new Error(
-			"Auto selection is stale: selected workflow path changed. Run /workflow auto again.",
+			"Auto selection is stale: selected workflow path changed. Run agent-workflow auto (Pi: /aw auto) again.",
 		);
 	const current = await captureWorkflowAutoLaunchBinding({
 		cwd,
@@ -225,7 +225,7 @@ export async function assertWorkflowAutoLaunchBindingCurrent(
 	});
 	if (current.sourceIdentitySha256 !== binding.sourceIdentitySha256)
 		throw new Error(
-			"Auto selection is stale: workflow, schema, helper, or agent identity changed. Run /workflow auto again.",
+			"Auto selection is stale: workflow, schema, helper, or agent identity changed. Run agent-workflow auto (Pi: /aw auto) again.",
 		);
 }
 
@@ -240,7 +240,7 @@ export function sealWorkflowAutoLaunchBindingCompiled(
 		binding.compiledSettingsSha256 !== compiledSettingsSha256
 	)
 		throw new Error(
-			"Auto selection is stale: effective compiled settings changed before launch. Run /workflow auto again.",
+			"Auto selection is stale: effective compiled settings changed before launch. Run agent-workflow auto (Pi: /aw auto) again.",
 		);
 	return {
 		...binding,
@@ -288,7 +288,7 @@ export async function assertWorkflowAutoLaunchBindingFrozen(
 		}
 		if (sha256(bytes) !== resource.sha256)
 			throw new Error(
-				"Auto selection is stale: frozen bundle bytes changed. Run /workflow auto again.",
+				"Auto selection is stale: frozen bundle bytes changed. Run agent-workflow auto (Pi: /aw auto) again.",
 			);
 	}
 }

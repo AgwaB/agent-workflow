@@ -541,7 +541,7 @@ export function formatStaleWorkflowProfileError(
 			: [
 					"The workflow definition changed while its profile-role topology stayed the same.",
 				]),
-		"Run /workflow profile <workflow> to review and save a profile for the new definition. The old settings file was not changed or migrated.",
+		"Run agent-workflow profile workflow set <workflow> (Pi: /aw profile workflow set <workflow>) to save a profile for the new definition. The old settings file was not changed or migrated.",
 	].join(" ");
 }
 

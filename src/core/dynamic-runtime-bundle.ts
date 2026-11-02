@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import type { ArtifactGraphWorkflowSpec } from "./types.js";
 
-export const DIRECT_DYNAMIC_RUNTIME_VERSION = "direct-dynamic-runtime-v5";
+export const DIRECT_DYNAMIC_RUNTIME_VERSION = "direct-dynamic-runtime-v6";
 const DIRECT_DYNAMIC_RUNTIME_MAX_RUNTIME_MS = 7_200_000;
 const DIRECT_DYNAMIC_RUNTIME_TOOLS = [
 	"read",
@@ -87,7 +87,7 @@ export function directDynamicSpec(): ArtifactGraphWorkflowSpec {
 		schemaVersion: 1,
 		name: "dynamic",
 		description:
-			"Internal spec-less direct dynamic runtime. Users start this through /workflow dynamic or workflow_dynamic, not by selecting a workflow spec.",
+			"Internal spec-less direct dynamic runtime. Users start this through agent-workflow dynamic, /aw dynamic or workflow_dynamic, not by selecting a workflow spec.",
 		defaults: {
 			maxRuntimeMs: DIRECT_DYNAMIC_RUNTIME_MAX_RUNTIME_MS,
 			agent: "researcher",

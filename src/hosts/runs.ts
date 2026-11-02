@@ -370,11 +370,13 @@ export async function showRunAction(
 	const text =
 		launch && !request.raw
 			? [
-					details ?? formatHumanRunDetails(run),
+					details ??
+						formatHumanRunDetails(run, { hints: hostCommandHints(ctx.host) }),
 					"",
 					...formatLaunch(launch),
 				].join("\n")
-			: (details ?? formatHumanRunDetails(run));
+			: (details ??
+				formatHumanRunDetails(run, { hints: hostCommandHints(ctx.host) }));
 	return result(
 		"show",
 		"success",

@@ -2246,6 +2246,9 @@ function refUrlHostKey(href: string): string {
 	return parsed.host;
 }
 
+/** Sent when a workflow output's reference URLs are checked for availability. */
+const REF_VALIDATOR_USER_AGENT = "agent-workflow-ref-validator";
+
 async function checkRefUrlAvailability(
 	href: string,
 	timeoutMs: number,
@@ -2255,7 +2258,7 @@ async function checkRefUrlAvailability(
 	if (runningUnderNodeTest && globalThis.fetch !== defaultRefValidationFetch)
 		return checkInjectedRefUrlAvailability(href, timeoutMs);
 	const headers = {
-		"user-agent": "pi-workflow-ref-validator/0.2",
+		"user-agent": REF_VALIDATOR_USER_AGENT,
 		"accept-encoding": "identity",
 	};
 	for (const method of ["HEAD", "GET"] as const) {
@@ -2323,7 +2326,7 @@ async function checkInjectedRefUrlAvailability(
 	href: string,
 	timeoutMs: number,
 ): Promise<RefUrlAvailabilityResult> {
-	const headers = { "user-agent": "pi-workflow-ref-validator/0.2" };
+	const headers = { "user-agent": REF_VALIDATOR_USER_AGENT };
 	for (const method of ["HEAD", "GET"] as const) {
 		try {
 			const response = await globalThis.fetch(href, {

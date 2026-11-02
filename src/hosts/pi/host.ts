@@ -324,37 +324,15 @@ function printMode(ctx: PiExtensionContext): boolean {
 	);
 }
 
-/**
- * WP18b: run texts already carry `/aw …` hints (the Pi host passes `host: "pi"`, the host API picks
- * the hints; src/hosts/hints.ts). This remains a fallback for the few ported core messages that
- * still name pi-workflow's `/workflow …` (auto/profile/usage texts): in Pi, `/workflow` is
- * pi-workflow's command (its own run store), so they point at `/aw`; `/workflow <run>` becomes
- * `/aw status <run>` and `/workflow logs <run> [task]` becomes `/aw logs <run> [--task <task>]`.
- */
-export function piHostText(text: string): string {
-	return text
-		.replace(
-			/\/workflow logs ([A-Za-z0-9_-]+)(?: <task-or-spec-id>| ([\w.:-]+))?/g,
-			(_match, runId: string, task: string | undefined) =>
-				task ? `/aw logs ${runId} --task ${task}` : `/aw logs ${runId}`,
-		)
-		.replace(/\/workflow (workflow_[A-Za-z0-9_-]+)/g, "/aw status $1")
-		.replace(
-			/\/workflow (help|list|validate|roles|agents|profile|run|dynamic|status|show|inspect|logs|wait|resume|stop|prune|notices)\b/g,
-			"/aw $1",
-		);
-}
-
 /** Command output: a Pi notification with a UI, else stdout/stderr (print/json mode). */
 export function emit(
 	ctx: PiExtensionContext,
 	text: string,
 	level: PiNotifyLevel,
 ): void {
-	const shown = piHostText(text);
 	if (ctx.hasUI && !printMode(ctx)) {
-		ctx.ui.notify(shown, level);
+		ctx.ui.notify(text, level);
 		return;
 	}
-	(level === "error" ? process.stderr : process.stdout).write(`${shown}\n`);
+	(level === "error" ? process.stderr : process.stdout).write(`${text}\n`);
 }

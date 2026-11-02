@@ -1269,7 +1269,7 @@ export function assertWorkflowAutoResolvedCandidateSafety(
 	);
 	if (!revalidated.readiness.startAllowed)
 		throw new Error(
-			"Auto selection cannot start: resolved profile/runtime capability is incompatible with the requested safety constraints. Run /workflow auto again.",
+			"Auto selection cannot start: resolved profile/runtime capability is incompatible with the requested safety constraints. Run agent-workflow auto (Pi: /aw auto) again.",
 		);
 }
 
@@ -1325,7 +1325,7 @@ function candidateFromRecord(
 			startAllowed: record.ambiguousAliases.length === 0,
 			blockers: record.ambiguousAliases.length
 				? [
-						`Ambiguous workflow alias at ${record.scope} priority: ${record.ambiguousAliases.join(", ")}. Use an explicit path with /workflow run.`,
+						`Ambiguous workflow alias at ${record.scope} priority: ${record.ambiguousAliases.join(", ")}. Use an explicit path with agent-workflow run (Pi: /aw run).`,
 					]
 				: [],
 			cautions:
@@ -2158,10 +2158,12 @@ export function formatWorkflowAutoRecommendation(
 			isSafeWorkflowCommandRef(candidate.launchRef)
 		)
 			lines.push(
-				`  Follow-up: /workflow run ${candidate.launchRef} "${safeCommandTaskHint()}"`,
+				`  Follow-up: agent-workflow run ${candidate.launchRef} "${safeCommandTaskHint()}" (Pi: /aw run)`,
 			);
 		if (candidate.kind === "direct-dynamic" && candidate.readiness.startAllowed)
-			lines.push(`  Follow-up: /workflow dynamic "${safeCommandTaskHint()}"`);
+			lines.push(
+				`  Follow-up: agent-workflow dynamic "${safeCommandTaskHint()}" (Pi: /aw dynamic)`,
+			);
 		if (candidate.kind === "direct")
 			lines.push("  Follow-up: submit the task as a normal parent request.");
 	}
