@@ -2,7 +2,8 @@
 // Read from the attempts' normalized `exec-events.jsonl` (executor-neutral `tool_call` events; the
 // `running` event carries the input, the terminal one the output). The tool's output form decides
 // what a match in it proves:
-// - page-text: the page content itself (Pi `fetch_content`, `get_search_content`) — a quote found
+// - page-text: the page content itself (Pi `fetch_content` of one URL, not in answer mode;
+//   `get_search_content`) — a quote found
 //   here for the same URL is verified from the worker's own capture, no re-fetch needed;
 // - summary: a model-written summary of the page (Claude `WebFetch`) — a quote found only here is
 //   recorded as "in summary" and still needs the page;
@@ -58,6 +59,28 @@ function urlsInText(text: string): string[] {
 	);
 }
 
+/**
+ * What one call's output is (pi-web-access `web-tool-core.ts`): `fetch_content` of one URL returns
+ * that page's text, but for several URLs it lists titles and sizes only, and with `mode: "answer"`
+ * it returns a model-written answer. Neither is page text for any one URL; taking them as such let
+ * a quote from one page verify another (quality A/B 2026-11-02 review finding).
+ */
+function callForm(
+	name: string,
+	form: WebReceiptForm,
+	input: unknown,
+	urls: readonly string[],
+): WebReceiptForm {
+	if (name !== "fetch_content" || form !== "page-text") return form;
+	const mode =
+		input && typeof input === "object"
+			? (input as Record<string, unknown>).mode
+			: undefined;
+	if (mode === "answer") return "summary";
+	if (urls.length > 1) return "search-results";
+	return form;
+}
+
 function outputText(output: unknown): string {
 	if (typeof output === "string") return output;
 	return "";
@@ -110,7 +133,7 @@ export async function readTaskWebReceipts(
 					form === "search-results" ? urlsInText(text) : urlsOf(input);
 				receipts.push({
 					tool: name,
-					form,
+					form: callForm(name, form, input, targets),
 					targets: [...new Set(targets.map(receiptUrlKey))],
 					text,
 				});

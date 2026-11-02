@@ -377,6 +377,41 @@ test("receipts come from every attempt's tool calls, typed by what the tool retu
 	assert.deepEqual(await readTaskWebReceipts(cwd, "run-1", "missing"), []);
 });
 
+test("fetch_content of several URLs or in answer mode is not page text for any one URL (quality A/B 2026-11-02)", async (t) => {
+	// pi-web-access lists only titles and sizes for several URLs, and answer mode returns a
+	// model-written answer; a quote in either must not verify a page without fetching it.
+	const cwd = mkdtempSync(join(tmpdir(), "aw-evidence-receipts-"));
+	t.after(() => rmSync(cwd, { recursive: true, force: true }));
+	writeAttempt(cwd, "run-1", "task-4", "attempt_a", [
+		tool("fetch_content", "running", "m1", {
+			input: { urls: ["https://x.example/1", "https://x.example/2"] },
+		}),
+		tool("fetch_content", "completed", "m1", {
+			output:
+				"## Fetched URLs\n\n- Page one (1200 chars)\n- Page two (900 chars)\n",
+		}),
+		tool("fetch_content", "running", "a1", {
+			input: { url: "https://x.example/3", mode: "answer", prompt: "?" },
+		}),
+		tool("fetch_content", "completed", "a1", {
+			output: "The page says caching is optional.",
+		}),
+		tool("fetch_content", "running", "s1", {
+			input: { url: "https://x.example/4" },
+		}),
+		tool("fetch_content", "completed", "s1", { output: "Page four text." }),
+	]);
+	const receipts = await readTaskWebReceipts(cwd, "run-1", "task-4");
+	assert.deepEqual(
+		receipts.map((r) => [r.form, r.targets]),
+		[
+			["search-results", ["x.example/1", "x.example/2"]],
+			["summary", ["x.example/3"]],
+			["page-text", ["x.example/4"]],
+		],
+	);
+});
+
 test("a quote in the worker's own page text is verified without fetching; summaries are only noted", async (t) => {
 	const cwd = mkdtempSync(join(tmpdir(), "aw-evidence-receipts-"));
 	t.after(() => rmSync(cwd, { recursive: true, force: true }));
