@@ -62,6 +62,23 @@ Unknown keys are refused (`DESCRIPTOR_INVALID`). To try it, register a descripto
   `skills/system/run-workflow/SKILL.md` into the cwd at `session/new`, which lands in the user's
   checkout or a worktree diff. Live (2026-11-02, 1.4.5): no file, and input tokens fall from 13,619 to
   11,032 per request.
+- Tool results: for an engine MCP tool the server's ACP `rawOutput` is a display summary ("Echo
+  tool"). The adapter holds such a call's closing report back. After the turn it takes the result
+  the server recorded in the worker home: the step after the call in
+  `antigravity-acp/brain/<session>/.system_generated/logs/transcript_full.jsonl`, or the
+  `steps/<n>/output.txt` file that step names (only files inside that session's folder, at most
+  8 MiB). The call is then reported once, with the result. Calls are matched by server, tool and
+  arguments. An unmatched call closes without an output, and so does a call in an attempt that
+  inherits the user's home. Shell `rawOutput` is an object (`combinedOutput`, `exitCode`) and is
+  kept. The server itself truncates long shell output. What was released is written to the raw log
+  (`{"agentWorkflow":"tool-results"}`), so a replay releases the same.
+- Inherited variables that would switch the account, project or harness (`GEMINI_API_KEY`,
+  `GOOGLE_*`, `GCLOUD_PROJECT`, `CLOUDSDK_CORE_PROJECT`, `ANTIGRAVITY_HARNESS_PATH`, `AGY_ACP_*`;
+  Orca's list) are dropped for an isolated worker unless the request sets them. Their names are in
+  `acp-invocation.json` `envRemoved`.
+- An answer that is the server's failure report fails the attempt. "Usage Limit Reached" → class
+  `rate_limit`; "Agent execution error: …" → classified; "The MCP server '…' failed to initialize" →
+  `unknown`. The patterns come from OpenBot's 1.3.0/1.4.4 handling and have not been seen live here.
 - Workers run with `GEMINI_HOME` set to an engine-owned home (`agentHome`, default
   `<stateDir>/antigravity-home`), so the user's global hooks (`config/hooks.json`), MCP servers
   (`config/mcp_config.json`), GEMINI.md and conversation history stay out (`contextIsolation`

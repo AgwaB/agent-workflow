@@ -41,7 +41,13 @@ import { createSecretRedactor, requestSecrets } from "../redact.js";
 import { schedulePeriodicAdapterStatePrune } from "../state-retention.js";
 import { acpCapabilities } from "./capabilities.js";
 import type { AcpExecutorConfig } from "./config.js";
-import { AcpEventNormalizer, acpToolKind, replayAcpLog } from "./normalize.js";
+import {
+	ACP_TOOL_RESULTS_RECORD,
+	AcpEventNormalizer,
+	acpToolKind,
+	classifyAcpFailure,
+	replayAcpLog,
+} from "./normalize.js";
 import { AcpPeer, AcpRpcError, METHOD_NOT_FOUND } from "./rpc.js";
 import {
 	AcpStateStore,
@@ -82,6 +88,10 @@ interface Run {
 	readonly waiters: (() => void)[];
 	readonly child: ReturnType<typeof spawn>;
 	readonly normalizer: AcpEventNormalizer;
+	/** Appends one record to the attempt's raw log (redacted). */
+	readonly writeRaw: (line: string) => void;
+	/** The engine-owned agent home this attempt runs in; undefined when it inherits the user's. */
+	readonly agentHome: string | undefined;
 	peer: AcpPeer | undefined;
 	sessionId: string | undefined;
 	cancelRequested: boolean;
@@ -490,6 +500,7 @@ export function createAcpExecutor(options: {
 				isRecord(result) && typeof result.stopReason === "string"
 					? result.stopReason
 					: null;
+			await releaseHeldTools(run, sessionId);
 			for (const event of run.normalizer.prompt({
 				stopReason,
 				usage: isRecord(result) ? result.usage : undefined,
@@ -506,6 +517,40 @@ export function createAcpExecutor(options: {
 		} finally {
 			reap(run);
 		}
+	}
+
+	/**
+	 * Calls held back because ACP carried only a summary get the results the agent recorded in its
+	 * home (preset `toolResults`); what was released goes to the raw log for replays.
+	 */
+	async function releaseHeldTools(run: Run, sessionId: string): Promise<void> {
+		const held = run.normalizer.heldCalls();
+		if (held.length === 0) return;
+		const outputs = new Map<string, string>();
+		if (preset.toolResults !== undefined && run.agentHome !== undefined) {
+			const results = await preset.toolResults
+				.read(run.agentHome, sessionId)
+				.catch(() => []);
+			// Same key (server, tool, arguments): the n-th held call takes the n-th result.
+			const used = new Set<number>();
+			for (const call of held) {
+				const index = results.findIndex(
+					(result, i) => !used.has(i) && result.key === call.key,
+				);
+				const result = results[index];
+				if (result === undefined) continue;
+				used.add(index);
+				outputs.set(call.callId, result.text);
+			}
+		}
+		run.writeRaw(
+			JSON.stringify({
+				agentWorkflow: ACP_TOOL_RESULTS_RECORD,
+				held: held.map((call) => call.callId),
+				outputs: Object.fromEntries(outputs),
+			}),
+		);
+		for (const event of run.normalizer.release(outputs)) push(run, event);
 	}
 
 	async function launch(req: SubmitRequest): Promise<ExecRef> {
@@ -573,32 +618,24 @@ export function createAcpExecutor(options: {
 		await mkdir(filesDir, { recursive: true });
 		const rawPath = join(filesDir, ACP_RAW_STREAM_FILE);
 		const stderrPath = join(filesDir, ACP_RAW_STDERR_FILE);
-		await writeFile(
-			join(filesDir, ACP_INVOCATION_FILE),
-			JSON.stringify(
-				{
-					schema: "agent-workflow-acp-invocation-v1",
-					preset: preset.id,
-					command: config.command,
-					argv: argv.map(redact),
-					envKeys: Object.keys(req.env).sort(),
-					cwd: req.cwd,
-					mcpServers: req.mcpServers.map((server) => ({
-						name: server.name,
-						envKeys: Object.keys(server.env ?? {}).sort(),
-					})),
-					readOnly: req.readOnly,
-					permissionMode: req.permissionMode ?? null,
-					agentHome:
-						req.isolation.inherit || preset.isolatedEnv === undefined
-							? null
-							: config.agentHome,
-				},
-				null,
-				2,
-			),
-			{ mode: 0o600 },
-		);
+		const invocation = {
+			schema: "agent-workflow-acp-invocation-v1",
+			preset: preset.id,
+			command: config.command,
+			argv: argv.map(redact),
+			envKeys: Object.keys(req.env).sort(),
+			cwd: req.cwd,
+			mcpServers: req.mcpServers.map((server) => ({
+				name: server.name,
+				envKeys: Object.keys(server.env ?? {}).sort(),
+			})),
+			readOnly: req.readOnly,
+			permissionMode: req.permissionMode ?? null,
+			agentHome:
+				req.isolation.inherit || preset.isolatedEnv === undefined
+					? null
+					: config.agentHome,
+		};
 		const rawStream: WriteStream = createWriteStream(rawPath, { mode: 0o600 });
 		const stderrStream: WriteStream = createWriteStream(stderrPath, {
 			mode: 0o600,
@@ -610,11 +647,27 @@ export function createAcpExecutor(options: {
 			req.isolation.inherit || preset.isolatedEnv === undefined
 				? {}
 				: preset.isolatedEnv(config.agentHome);
-		if (Object.keys(isolatedEnv).length > 0)
+		const isolated = Object.keys(isolatedEnv).length > 0;
+		if (isolated)
 			await mkdir(config.agentHome, { recursive: true, mode: 0o700 });
+		// An isolated worker uses the login recorded for its home: inherited variables that would
+		// switch the account, project or harness are dropped (names in acp-invocation.json).
+		const inherited: NodeJS.ProcessEnv = { ...process.env };
+		const envRemoved: string[] = [];
+		if (isolated && preset.inheritedEnvBlocked !== undefined)
+			for (const key of Object.keys(inherited))
+				if (preset.inheritedEnvBlocked(key) && !(key in req.env)) {
+					delete inherited[key];
+					envRemoved.push(key);
+				}
+		await writeFile(
+			join(filesDir, ACP_INVOCATION_FILE),
+			JSON.stringify({ ...invocation, envRemoved: envRemoved.sort() }, null, 2),
+			{ mode: 0o600 },
+		);
 		const child = spawn(config.command, argv, {
 			cwd: req.cwd,
-			env: { ...process.env, ...isolatedEnv, ...req.env },
+			env: { ...inherited, ...isolatedEnv, ...req.env },
 			stdio: ["pipe", "pipe", "pipe"],
 		});
 		const ref: ExecRef = {
@@ -629,7 +682,25 @@ export function createAcpExecutor(options: {
 			exited: false,
 			waiters: [],
 			child,
-			normalizer: new AcpEventNormalizer(),
+			normalizer: new AcpEventNormalizer({
+				...(preset.answerFailure === undefined
+					? {}
+					: {
+							answerFailure: (text: string) =>
+								preset.answerFailure?.(text, classifyAcpFailure),
+						}),
+				...(preset.toolResults === undefined || !isolated
+					? {}
+					: {
+							holdOutput: (_callId, call) =>
+								preset.toolResults?.summaryKey(
+									call,
+									req.mcpServers.map((server) => server.name),
+								),
+						}),
+			}),
+			writeRaw: (line) => rawStream.write(`${redact(line)}\n`),
+			agentHome: isolated ? config.agentHome : undefined,
 			peer: undefined,
 			sessionId: undefined,
 			cancelRequested: false,
@@ -688,6 +759,8 @@ export function createAcpExecutor(options: {
 				onStderr(stderrRedact.flush());
 				stderrStream.end();
 				for (const [requestId] of run.pending) answer(run, requestId, "deny");
+				// Calls still held (the prompt failed or was cancelled) close without an output.
+				for (const event of run.normalizer.release(new Map())) push(run, event);
 				push(
 					run,
 					run.normalizer.finish({
@@ -749,6 +822,12 @@ export function createAcpExecutor(options: {
 			);
 		const { events, settled } = replayAcpLog(
 			(await readRaw(record.rawPath)) ?? [],
+			preset.answerFailure === undefined
+				? {}
+				: {
+						answerFailure: (text) =>
+							preset.answerFailure?.(text, classifyAcpFailure),
+					},
 		);
 		yield* events;
 		if (!settled)

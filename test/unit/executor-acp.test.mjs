@@ -538,3 +538,130 @@ test("acp antigravity: workers run in the engine-owned GEMINI_HOME unless they i
 		(await agentLog()).some((entry) => entry.method === "authenticate"),
 	);
 });
+
+test("acp antigravity: held MCP summaries get the transcript results; shell rawOutput stays; replay releases the same", async (t) => {
+	const { dir, command } = await setup(t, "agy_transcript");
+	const config = parseAcpConfig({
+		preset: "antigravity",
+		command,
+		stateDir: join(dir, "agy-state"),
+		killGraceMs: 200,
+		handshakeTimeoutMs: 5_000,
+	});
+	const executor = createAcpExecutor({ config });
+	const mcpServers = [{ name: "aw_stub", command: "/bin/echo", args: ["x"] }];
+	const ref = await executor.submit(
+		request(dir, "agy-tr-1", { mcpServers, readOnly: false }),
+	);
+	const { events, terminal } = await drain(executor, ref, {
+		timeoutMs: 15_000,
+	});
+	assert.equal(terminal.type, "completed");
+	checkSequence(events);
+	const closing = (id) =>
+		events.filter(
+			(e) =>
+				e.type === "tool_call" && e.callId === id && e.status === "completed",
+		);
+	// One closing report per call: the summary is never emitted as an output.
+	for (const id of ["t1", "t2", "t3", "t4"])
+		assert.equal(closing(id).length, 1, id);
+	assert.equal(closing("t1")[0].output, "hi-result");
+	assert.equal(closing("t2")[0].output, `big ${"x".repeat(5000)}`);
+	assert.deepEqual(closing("t3")[0].output, {
+		combinedOutput: "1\n2\n3\n",
+		exitCode: 0,
+	});
+	// A saved-file path outside the session is not read: the notice stays as the text.
+	assert.equal(
+		closing("t4")[0].output,
+		"The output was large and was saved to: file:///etc/hosts",
+	);
+	const raw = (
+		await readFile(
+			join(dir, "artifacts", "agy-tr-1", "acp-stream.jsonl"),
+			"utf8",
+		)
+	).split("\n");
+	const replayed = replayAcpLog(raw).events.filter(
+		(e) => e.type === "tool_call" && e.status === "completed",
+	);
+	assert.deepEqual(
+		replayed.map((e) => [e.callId, e.output]),
+		events
+			.filter((e) => e.type === "tool_call" && e.status === "completed")
+			.map((e) => [e.callId, e.output]),
+	);
+
+	// Inheriting the user's home: no transcript is read, the summary stays as it was reported.
+	const inherited = await executor.submit(
+		request(dir, "agy-tr-2", {
+			mcpServers,
+			readOnly: false,
+			isolation: { inherit: true },
+		}),
+	);
+	const second = await drain(executor, inherited, { timeoutMs: 15_000 });
+	assert.equal(
+		second.events.find(
+			(e) =>
+				e.type === "tool_call" && e.callId === "t1" && e.status === "completed",
+		).output,
+		"Echo tool",
+	);
+});
+
+test("acp antigravity: inherited account/project variables are dropped for an isolated worker; a quota answer fails", async (t) => {
+	const { dir, command, agentLog } = await setup(t, "agy_quota");
+	const saved = {
+		GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+		GOOGLE_CLOUD_PROJECT: process.env.GOOGLE_CLOUD_PROJECT,
+		AGY_ACP_TEST: process.env.AGY_ACP_TEST,
+	};
+	process.env.GEMINI_API_KEY = "fake-key-not-used";
+	process.env.GOOGLE_CLOUD_PROJECT = "fake-project";
+	process.env.AGY_ACP_TEST = "1";
+	t.after(() => {
+		for (const [key, value] of Object.entries(saved))
+			if (value === undefined) delete process.env[key];
+			else process.env[key] = value;
+	});
+	const config = parseAcpConfig({
+		preset: "antigravity",
+		command,
+		stateDir: join(dir, "agy-state"),
+		killGraceMs: 200,
+		handshakeTimeoutMs: 5_000,
+	});
+	const executor = createAcpExecutor({ config });
+	const ref = await executor.submit(request(dir, "agy-env-1"));
+	const { terminal } = await drain(executor, ref, { timeoutMs: 15_000 });
+	assert.equal(terminal.type, "failed");
+	assert.equal(terminal.class, "rate_limit");
+	assert.match(
+		terminal.message,
+		/usage limit reached: Your quota resets in 3 days/i,
+	);
+	const invocation = JSON.parse(
+		await readFile(
+			join(dir, "artifacts", "agy-env-1", "acp-invocation.json"),
+			"utf8",
+		),
+	);
+	assert.deepEqual(invocation.envRemoved, [
+		"AGY_ACP_TEST",
+		"GEMINI_API_KEY",
+		"GOOGLE_CLOUD_PROJECT",
+	]);
+	const inherited = await executor.submit(
+		request(dir, "agy-env-2", { isolation: { inherit: true } }),
+	);
+	await drain(executor, inherited, { timeoutMs: 15_000 });
+	const launches = (await agentLog()).filter((e) => e.argv);
+	assert.deepEqual(launches.at(-2).blockedPresent, []);
+	assert.deepEqual(launches.at(-1).blockedPresent, [
+		"GEMINI_API_KEY",
+		"GOOGLE_CLOUD_PROJECT",
+		"AGY_ACP_TEST",
+	]);
+});

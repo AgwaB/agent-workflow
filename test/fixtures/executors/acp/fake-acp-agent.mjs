@@ -3,7 +3,9 @@
 // conformance scenarios usage_unknown | slow | approval | mcp_tool | fail_*). FAKE_ACP_ATTEMPT (set by the
 // conformance harness through the request env) tags the launch record.
 // Every request it receives (method, params without env values) is appended to FAKE_ACP_LOG.
-import { appendFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { callMcpTool } from "../../../../dist/sdk/conformance/index.js";
 
 if (process.argv.includes("--version")) {
@@ -20,6 +22,11 @@ log({
 	argv: process.argv.slice(2),
 	attempt: process.env.FAKE_ACP_ATTEMPT ?? null,
 	geminiHome: process.env.GEMINI_HOME ?? null,
+	blockedPresent: [
+		"GEMINI_API_KEY",
+		"GOOGLE_CLOUD_PROJECT",
+		"AGY_ACP_TEST",
+	].filter((key) => key in process.env),
 	pid: process.pid,
 	envKeys: Object.keys(process.env)
 		.filter((k) => k.startsWith("AGENT_WORKFLOW"))
@@ -147,6 +154,148 @@ async function prompt(id, params) {
 			chunk(sessionId, "working");
 			cancelPrompt = () => send({ id, result: { stopReason: "cancelled" } });
 			return;
+		case "agy_transcript": {
+			// Antigravity: MCP rawOutput is a summary; the real results are in the home's transcript.
+			const call = (id, title, kind, rawInput, rawOutput) => {
+				update(sessionId, {
+					sessionUpdate: "tool_call",
+					toolCallId: id,
+					title,
+					kind,
+					status: "pending",
+					rawInput,
+				});
+				update(sessionId, {
+					sessionUpdate: "tool_call_update",
+					toolCallId: id,
+					status: "completed",
+					rawOutput,
+				});
+			};
+			call(
+				"t1",
+				"aw_stub_echo",
+				"other",
+				{ arguments: { text: "hi" }, text: "hi" },
+				"Echo tool",
+			);
+			call(
+				"t2",
+				"aw_stub_echo",
+				"other",
+				{ arguments: { text: "big" }, text: "big" },
+				"Echo tool",
+			);
+			call(
+				"t3",
+				"seq 1 3",
+				"execute",
+				{ CommandLine: "seq 1 3" },
+				{ combinedOutput: "1\n2\n3\n", exitCode: 0 },
+			);
+			call(
+				"t4",
+				"aw_stub_echo",
+				"other",
+				{ arguments: { text: "evil" }, text: "evil" },
+				"Echo tool",
+			);
+			const home = process.env.GEMINI_HOME;
+			if (home) {
+				const session = join(home, "antigravity-acp", "brain", sessionId);
+				const logs = join(session, ".system_generated", "logs");
+				const step = join(session, ".system_generated", "steps", "3");
+				mkdirSync(logs, { recursive: true });
+				mkdirSync(step, { recursive: true });
+				writeFileSync(join(step, "output.txt"), `big ${"x".repeat(5000)}`);
+				const header =
+					"Created At: 2026-11-02T00:00:00Z\nCompleted At: 2026-11-02T00:00:01Z\n";
+				const mcp = (text) => ({
+					name: "call_mcp_tool",
+					args: {
+						ServerName: "aw_stub",
+						ToolName: "echo",
+						Arguments: { text },
+					},
+				});
+				const rows = [
+					{
+						step_index: 0,
+						type: "USER_INPUT",
+						status: "DONE",
+						content: "earlier turn",
+					},
+					{
+						step_index: 1,
+						type: "PLANNER_RESPONSE",
+						status: "DONE",
+						tool_calls: [mcp("old")],
+					},
+					{
+						step_index: 2,
+						type: "MCP_TOOL",
+						status: "DONE",
+						content: `${header}old-result`,
+					},
+					{
+						step_index: 3,
+						type: "USER_INPUT",
+						status: "DONE",
+						content: "this turn",
+					},
+					{
+						step_index: 4,
+						type: "PLANNER_RESPONSE",
+						status: "DONE",
+						tool_calls: [
+							mcp("hi"),
+							mcp("big"),
+							{ name: "run_command", args: { CommandLine: "seq 1 3" } },
+							mcp("evil"),
+						],
+					},
+					{
+						step_index: 5,
+						type: "MCP_TOOL",
+						status: "DONE",
+						content: `${header}hi-result`,
+					},
+					{
+						step_index: 6,
+						type: "MCP_TOOL",
+						status: "DONE",
+						content: `${header}The output was large and was saved to: ${pathToFileURL(join(step, "output.txt")).href}`,
+					},
+					{
+						step_index: 7,
+						type: "RUN_COMMAND",
+						status: "DONE",
+						content: `${header}1\n2\n3`,
+					},
+					{
+						step_index: 8,
+						type: "MCP_TOOL",
+						status: "DONE",
+						content: `${header}The output was large and was saved to: file:///etc/hosts`,
+					},
+					{
+						step_index: 9,
+						type: "PLANNER_RESPONSE",
+						status: "DONE",
+						content: "done",
+					},
+				];
+				writeFileSync(
+					join(logs, "transcript_full.jsonl"),
+					rows.map((row) => JSON.stringify(row)).join("\n"),
+				);
+			}
+			chunk(sessionId, "done");
+			return send({ id, result: { stopReason: "end_turn" } });
+		}
+		case "agy_quota":
+			chunk(sessionId, "Usage Limit Reached\n\nYour quota resets in 3 days.");
+			return send({ id, result: { stopReason: "end_turn" } });
 		case "complete":
 			chunk(sessionId, "Hello ");
 			update(sessionId, {

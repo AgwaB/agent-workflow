@@ -7,10 +7,29 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { SubmitRequest } from "../../sdk/contract.js";
-import { SdkError } from "../../sdk/errors.js";
+import { type FailureClass, SdkError } from "../../sdk/errors.js";
 import type { JsonValue } from "../../sdk/json.js";
 import { isUnrestricted } from "../../sdk/permission.js";
+import {
+	antigravityAnswerFailure,
+	antigravityInheritedEnvBlocked,
+	antigravitySummaryKey,
+	readAntigravityToolResults,
+} from "./antigravity.js";
 import { ACP_PRESET_IDS, type AcpPresetId } from "./version.js";
+
+/** A completed tool report, as seen live, for deciding whether its rawOutput is only a summary. */
+export interface SummaryCall {
+	readonly title: string;
+	readonly input: JsonValue | undefined;
+	readonly rawOutput: unknown;
+}
+
+/** One real tool result the agent recorded outside ACP, keyed like the preset's summaryKey. */
+export interface AgentToolResult {
+	readonly key: string;
+	readonly text: string;
+}
 
 export interface AcpPreset {
 	readonly id: AcpPresetId;
@@ -31,6 +50,25 @@ export interface AcpPreset {
 	authRecorded?(agentHome: string): Promise<boolean>;
 	/** Agent-specific `_meta` sent with `session/new` (e.g. built-in tools to disable). */
 	readonly sessionMeta?: Readonly<Record<string, unknown>>;
+	/** Inherited (not request) variables dropped for an isolated worker; their names are recorded. */
+	inheritedEnvBlocked?(key: string): boolean;
+	/** A final answer that is the agent's failure report (quota, internal error), not work. */
+	answerFailure?(
+		text: string,
+		classify: (message: string) => FailureClass,
+	): { readonly class: FailureClass; readonly message: string } | undefined;
+	/**
+	 * Where real tool results come from when ACP only carries a summary: `summaryKey` picks the
+	 * completed calls to hold back, `read` returns the results the agent recorded in its home after
+	 * the turn (isolated workers only).
+	 */
+	readonly toolResults?: {
+		summaryKey(
+			call: SummaryCall,
+			mcpServers: readonly string[],
+		): string | undefined;
+		read(agentHome: string, sessionId: string): Promise<AgentToolResult[]>;
+	};
 	/**
 	 * Requests to send after `session/new` (mode, model, effort), built from the session it returned.
 	 * Throws to refuse what the agent does not offer (e.g. an unknown model).
@@ -136,6 +174,12 @@ const ANTIGRAVITY: AcpPreset = {
 	// session/new, and cuts ~2.6k input tokens per request (live 2026-11-02: 13,619 → 11,032).
 	// Documented since ACP server 1.2.1 (`_meta.agy.disabledTools` on session/new and session/load).
 	sessionMeta: { agy: { disabledTools: ["run_workflow", "schedule"] } },
+	inheritedEnvBlocked: antigravityInheritedEnvBlocked,
+	answerFailure: antigravityAnswerFailure,
+	toolResults: {
+		summaryKey: antigravitySummaryKey,
+		read: readAntigravityToolResults,
+	},
 	// The server resolves its home from $GEMINI_HOME (log: "Gemini home resolved to …"); the user's
 	// home carries global hooks (`config/hooks.json`, e.g. a status hook that denied every tool call
 	// in the live check), global MCP servers (`config/mcp_config.json`) and GEMINI.md. Workers get an

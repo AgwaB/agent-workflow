@@ -5,6 +5,10 @@
  *   Input/output are `rawInput`/`rawOutput` when the agent sends them; otherwise the display
  *   fields (title, locations, text content). Gemini sends display text only (design note D6).
  * - usage from the prompt response; the stop reason decides the terminal event.
+ * - A preset may hold back a completed call whose rawOutput is only a summary (`holdOutput`) and
+ *   release it after the turn with the result the agent recorded elsewhere (`release`). The
+ *   executor writes what it released to the raw log as one `{"agentWorkflow":"tool-results"}`
+ *   line, so a replay releases the same outputs.
  * The same class replays a recorded raw log (agent → client lines), so another process sees the
  * same events.
  */
@@ -76,6 +80,22 @@ export interface AcpPromptOutcome {
 	readonly error?: string;
 }
 
+/** The raw-log record of released tool outputs (written by the executor, read by the replay). */
+export const ACP_TOOL_RESULTS_RECORD = "tool-results";
+
+export interface AcpNormalizerOptions {
+	readonly ownedSession?: OwnedSession;
+	/** Key of a completed call to hold back (its rawOutput is only a summary), else undefined. */
+	readonly holdOutput?: (
+		callId: string,
+		call: { title: string; input: JsonValue | undefined; rawOutput: unknown },
+	) => string | undefined;
+	/** A final answer that is the agent's failure report. */
+	readonly answerFailure?: (
+		text: string,
+	) => { readonly class: FailureClass; readonly message: string } | undefined;
+}
+
 export interface AcpExitInfo {
 	readonly exitCode: number | null;
 	readonly signal: string | null;
@@ -89,12 +109,35 @@ export class AcpEventNormalizer {
 	private text = "";
 	private outcome: AcpPromptOutcome | undefined;
 	private readonly ownedSession: OwnedSession | undefined;
+	private readonly options: AcpNormalizerOptions;
+	/** Completed calls held back until their real output is known, in report order. */
+	private readonly held: {
+		callId: string;
+		key: string;
+		event: ToolCallEvent;
+	}[] = [];
 	/** Raw tool input/output were present on at least one tool report. */
 	rawToolFields = false;
 	toolReports = 0;
 
-	constructor(options: { readonly ownedSession?: OwnedSession } = {}) {
+	constructor(options: AcpNormalizerOptions = {}) {
 		this.ownedSession = options.ownedSession;
+		this.options = options;
+	}
+
+	/** The calls held back so far (call id and the preset's match key). */
+	heldCalls(): readonly { readonly callId: string; readonly key: string }[] {
+		return this.held.map(({ callId, key }) => ({ callId, key }));
+	}
+
+	/** Closing events of the held calls, with the output found for each (none when not found). */
+	release(outputs: ReadonlyMap<string, string>): ExecEvent[] {
+		const events = this.held.map(({ callId, event }) => {
+			const output = outputs.get(callId);
+			return output === undefined ? event : { ...event, output };
+		});
+		this.held.length = 0;
+		return events;
 	}
 
 	/** One `session/update` notification's params. */
@@ -182,6 +225,32 @@ export class AcpEventNormalizer {
 		this.tools.set(callId, state);
 		const status: ToolStatus =
 			state.denied && state.status !== "completed" ? "denied" : state.status;
+		const heldIndex = this.held.findIndex((entry) => entry.callId === callId);
+		const key =
+			status === "completed"
+				? heldIndex >= 0
+					? this.held[heldIndex]?.key
+					: this.options.holdOutput?.(callId, {
+							title: state.name,
+							input: state.input,
+							rawOutput: update.rawOutput,
+						})
+				: undefined;
+		if (key !== undefined) {
+			// The summary is not the result: hold the closing report without it until release().
+			const event: ToolCallEvent = {
+				type: "tool_call",
+				name: state.name,
+				kind: state.kind,
+				status,
+				callId,
+				...(state.input === undefined ? {} : { input: state.input }),
+			};
+			if (heldIndex >= 0)
+				this.held.splice(heldIndex, 1, { callId, key, event });
+			else this.held.push({ callId, key, event });
+			return [];
+		}
 		const event: ToolCallEvent = {
 			type: "tool_call",
 			name: state.name,
@@ -258,8 +327,11 @@ export class AcpEventNormalizer {
 			return failed("cancelled", "cancelled by request");
 		if (exit.spawnError !== undefined)
 			return failed("config", `agent could not start: ${exit.spawnError}`);
-		if (stop === "end_turn")
+		if (stop === "end_turn") {
+			const failure = this.options.answerFailure?.(this.text);
+			if (failure !== undefined) return failed(failure.class, failure.message);
 			return { type: "completed", finalText: this.text, ...owned };
+		}
 		if (
 			stop === "max_tokens" ||
 			stop === "max_turn_requests" ||
@@ -303,9 +375,34 @@ export function replayAcpLog(
 	options: {
 		readonly ownedSession?: OwnedSession;
 		readonly sessionId?: string | null;
+		readonly answerFailure?: AcpNormalizerOptions["answerFailure"];
 	} = {},
 ): { events: ExecEvent[]; settled: boolean } {
-	const normalizer = new AcpEventNormalizer(options);
+	// The executor's record of released outputs: hold exactly those calls, release the same text.
+	const releasedOutputs = new Map<string, string>();
+	const releasedCalls = new Set<string>();
+	for (const line of lines) {
+		if (!line.includes(ACP_TOOL_RESULTS_RECORD)) continue;
+		try {
+			const record = JSON.parse(line) as Record<string, unknown>;
+			if (record.agentWorkflow !== ACP_TOOL_RESULTS_RECORD) continue;
+			if (Array.isArray(record.held))
+				for (const id of record.held)
+					if (typeof id === "string") releasedCalls.add(id);
+			if (isRecord(record.outputs))
+				for (const [id, text] of Object.entries(record.outputs))
+					if (typeof text === "string") releasedOutputs.set(id, text);
+		} catch {}
+	}
+	const normalizer = new AcpEventNormalizer({
+		...(options.ownedSession === undefined
+			? {}
+			: { ownedSession: options.ownedSession }),
+		...(options.answerFailure === undefined
+			? {}
+			: { answerFailure: options.answerFailure }),
+		holdOutput: (callId) => (releasedCalls.has(callId) ? callId : undefined),
+	});
 	const events: ExecEvent[] = [
 		{ type: "started", sessionId: options.sessionId ?? null },
 	];
@@ -324,6 +421,7 @@ export function replayAcpLog(
 			isRecord(message.result) &&
 			typeof message.result.stopReason === "string"
 		) {
+			events.push(...normalizer.release(releasedOutputs));
 			events.push(
 				...normalizer.prompt({
 					stopReason: message.result.stopReason,
