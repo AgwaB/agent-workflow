@@ -121,6 +121,8 @@ Then start the run again, or choose one explicitly with --executor <id>. `agent-
 
 A chosen executor that is not installed or not logged in is refused the same way
 (`EXECUTOR_NOT_INSTALLED` names the install command, `EXECUTOR_AUTH_NOT_READY` the login command).
+A run that mixes executors (roles) probes all of them first and names every one it cannot use,
+with the stages that use it, in one refusal; nothing starts.
 Probe results that are usable are reused within one process for 60 s.
 
 ### Capability preview and confirmation (B4)

@@ -385,6 +385,49 @@ test("a stage whose executor lacks a required capability is refused before launc
 	assert.equal(submits(logs.claude).length, 2);
 });
 
+test("executors a mixed run cannot use are refused before launch, all of them, with their stages and fixes", async () => {
+	// 2026-11-02: e.g. a Pi-hosted run whose stages go to codex and claude names both logins at once.
+	const LOGGED_OUT = { installed: true, cliVersion: "1.0.0", auth: "missing" };
+	const logs = executors({
+		claude: { probe: LOGGED_OUT },
+		codex: { probe: { installed: false, cliVersion: null, auth: "unknown" } },
+	});
+	const { ctx } = await project(TWO_STAGES);
+	await saveProfile(ctx, { roles: MIXED_ROLES });
+	const both = await api.runWorkflowAction(ctx, {
+		workflow: "wf.json",
+		task: "both down",
+	});
+	assert.equal(both.outcome, "refused", both.text);
+	assert.match(both.text, /2 executors this run needs cannot be used:/);
+	assert.match(
+		both.text,
+		/- executor "claude" is not logged in \(auth missing\); run `claude auth login`, then start the run again \(used by stage plan\.main\)/,
+	);
+	assert.match(
+		both.text,
+		/- executor "codex" is not installed or not runnable .*\(used by stage check\.main\)/,
+	);
+	assert.match(both.text, /move their stages to another executor/);
+	assert.deepEqual(submits(logs.claude), []);
+	assert.deepEqual(submits(logs.codex), []);
+
+	// One of them down: its own error, plus the stage that uses it.
+	executors({ codex: { probe: LOGGED_OUT } });
+	const one = await api.runWorkflowAction(ctx, {
+		workflow: "wf.json",
+		task: "codex down",
+	});
+	assert.equal(one.outcome, "refused", one.text);
+	assert.equal(one.data.refusal.code, "EXECUTOR_AUTH_NOT_READY");
+	assert.equal(one.data.refusal.executorId, "codex");
+	assert.match(
+		one.text,
+		/executor "codex" is not logged in \(auth missing\); run `codex login`, then start the run again \(used by stage check\.main\)\. The run was not started\./,
+	);
+	assert.doesNotMatch(one.text, /executor "claude"/);
+});
+
 test("role models are checked against the executor's probe list: unknown is refused", async () => {
 	// WP31 follow-up: a missing model is refused only when the probe declares its list exhaustive.
 	const probe = (models, modelListComplete) => ({

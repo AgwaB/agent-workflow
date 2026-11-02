@@ -784,6 +784,53 @@ function resolveTaskNames(
 }
 
 /**
+ * The executors a run cannot use, in one refusal. One alone keeps its own error (code and text),
+ * plus the stages that use it in a mixed run; several are listed with each fix, e.g. a Pi-hosted run
+ * whose reviewers go to codex and claude names both logins at once.
+ */
+function notReadyError(
+	notReady: readonly { id: string; error: unknown }[],
+	input: NegotiateWorkflowRunInput,
+	runExecutorId: string,
+): WorkflowCapabilityError {
+	const stagesOf = new Map<string, string[]>();
+	for (const task of workflowNegotiationTargets(input.compiled)) {
+		const id = task.runtime.executor ?? runExecutorId;
+		stagesOf.set(id, [...(stagesOf.get(id) ?? []), task.id]);
+	}
+	const mixed = stagesOf.size > 1 || notReady.length > 1;
+	const reason = ({ id, error }: { id: string; error: unknown }) => {
+		const text = (error instanceof Error ? error.message : String(error))
+			.replace(/\s*The run was not started\.$/, "")
+			.replace(/\.$/, "");
+		const stages = stagesOf.get(id) ?? [];
+		return mixed && stages.length > 0
+			? `${text} (used by ${stages.length === 1 ? "stage" : "stages"} ${stages.join(", ")})`
+			: text;
+	};
+	const first = notReady[0]!;
+	const code =
+		first.error instanceof WorkflowCapabilityError
+			? first.error.code
+			: "EXECUTOR_PROBE_FAILED";
+	if (notReady.length === 1)
+		return new WorkflowCapabilityError(
+			code,
+			`${reason(first)}. The run was not started.`,
+			first.id,
+		);
+	return new WorkflowCapabilityError(
+		code,
+		[
+			`${notReady.length} executors this run needs cannot be used:`,
+			...notReady.map((entry) => `- ${reason(entry)}`),
+			"Fix them, or move their stages to another executor (--executor, or the profile's roles). The run was not started.",
+		].join("\n"),
+		first.id,
+	);
+}
+
+/**
  * Pre-launch negotiation for a whole run. Throws `WorkflowCapabilityError` (nothing launched,
  * no run record) on probe failure, any refusal, or declined/impossible confirmation.
  */
@@ -798,10 +845,17 @@ export async function negotiateWorkflowRun(
 			? {}
 			: { timeoutMs: input.probeTimeoutMs }),
 	};
-	const probed =
+	// WP31 (Q4): every executor of the run is probed once (the run's own first, then the others in a
+	// stable order). 2026-11-02: all of them before refusing, so a mixed run names every executor
+	// that is not installed or not logged in, with the stages that use it and how to fix it.
+	const otherDescriptors = Object.keys(input.executors ?? {})
+		.sort()
+		.filter((id) => id !== executor.id)
+		.map((id) => input.executors![id]!);
+	const settled = await Promise.allSettled([
 		input.recorded === undefined
-			? await probeWorkflowExecutor(descriptor, probeOptions)
-			: {
+			? probeWorkflowExecutor(descriptor, probeOptions)
+			: Promise.resolve({
 					summary: {
 						...input.recorded.probe,
 						...(input.recordedFromRunId === undefined
@@ -811,27 +865,29 @@ export async function negotiateWorkflowRun(
 					capabilities: input.recorded.capabilities,
 					models: null,
 					modelListComplete: false,
-				};
-	const probes = new Map<string, ProbedExecutor>([
-		[
-			executor.id,
-			{
-				version: executor.version,
-				contractVersion: descriptor.contractVersion,
-				...probed,
-			},
-		],
+				}),
+		...otherDescriptors.map((other) =>
+			probeWorkflowExecutor(other, probeOptions),
+		),
 	]);
-	// WP31 (Q4): each other executor of a mixed run is probed once, in a stable order.
-	for (const id of Object.keys(input.executors ?? {}).sort()) {
-		if (probes.has(id)) continue;
-		const other = input.executors![id]!;
-		probes.set(id, {
-			version: other.version,
-			contractVersion: other.contractVersion,
-			...(await probeWorkflowExecutor(other, probeOptions)),
+	const descriptors = [descriptor, ...otherDescriptors];
+	const notReady = settled.flatMap((result, index) =>
+		result.status === "rejected"
+			? [{ id: descriptors[index]!.id, error: result.reason as unknown }]
+			: [],
+	);
+	if (notReady.length > 0) throw notReadyError(notReady, input, executor.id);
+	const probes = new Map<string, ProbedExecutor>();
+	settled.forEach((result, index) => {
+		if (result.status !== "fulfilled") return;
+		const target = descriptors[index]!;
+		probes.set(target.id, {
+			version: target.version,
+			contractVersion: target.contractVersion,
+			...result.value,
 		});
-	}
+	});
+	const probed = probes.get(executor.id)!;
 	const mixed = probes.size > 1;
 	const stages = workflowNegotiationTargets(input.compiled).map((task) => {
 		const id = task.runtime.executor ?? executor.id;

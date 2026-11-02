@@ -117,7 +117,7 @@ const SETUP_HINTS: Readonly<Record<string, ExecutorSetupHints>> = {
 		install: null,
 		installDoc: "docs/executors/acp.md",
 		login:
-			"log the worker home in once with authenticateAcpAgent (docs/executors/acp.md)",
+			'sign the Antigravity worker home in to Google once (docs/executors/acp.md, "Antigravity preset")',
 		check:
 			"agy_acp_server on PATH or AGENT_WORKFLOW_AGY_ACP_SERVER (ACP initialize)",
 	},
