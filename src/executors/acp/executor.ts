@@ -454,6 +454,9 @@ export function createAcpExecutor(options: {
 				peer.request("session/new", {
 					cwd: req.cwd,
 					mcpServers: acpMcpServers(req),
+					...(preset.sessionMeta === undefined
+						? {}
+						: { _meta: preset.sessionMeta }),
 				}),
 				config.handshakeTimeoutMs,
 				"ACP session/new",

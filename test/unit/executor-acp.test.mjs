@@ -149,6 +149,7 @@ test("acp: a prompt streams text, tool reports and usage, then completes", async
 	);
 	const session = log.find((entry) => entry.method === "session/new");
 	assert.equal(session.cwd, dir);
+	assert.equal(session.meta, undefined, "the gemini preset sends no _meta");
 	assert.deepEqual(session.mcpServers, [
 		{
 			name: "workflow_artifact",
@@ -432,6 +433,17 @@ test("acp antigravity preset: no launch flags; mode, model and effort are set on
 	assert.deepEqual(
 		log.filter((entry) => entry.argv).map((entry) => entry.argv),
 		process.platform === "linux" ? [["--uid="], ["--uid="]] : [[], []],
+	);
+	// Built-in run_workflow/schedule are disabled per session (no startup SKILL.md write, no agents
+	// or timers outside the engine).
+	assert.deepEqual(
+		log
+			.filter((entry) => entry.method === "session/new")
+			.map((entry) => entry.meta),
+		[
+			{ agy: { disabledTools: ["run_workflow", "schedule"] } },
+			{ agy: { disabledTools: ["run_workflow", "schedule"] } },
+		],
 	);
 	assert.deepEqual(
 		log

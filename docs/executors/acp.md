@@ -56,6 +56,12 @@ Unknown keys are refused (`DESCRIPTOR_INVALID`). To try it, register a descripto
   `thinking_level` from the effort (low / medium / high, nearest).
 - No read-only mode and no MCP allow list: readOnly relies on the engine denying writing kinds in
   permission requests.
+- `session/new` carries `_meta.agy.disabledTools: ["run_workflow", "schedule"]` (per-session tool
+  filter, ACP server 1.2.1+). `run_workflow` would start the agent's own background agents and
+  `schedule` timers or cron jobs, both outside the engine. Without it, 1.4.2+ also writes
+  `skills/system/run-workflow/SKILL.md` into the cwd at `session/new`, which lands in the user's
+  checkout or a worktree diff. Live (2026-11-02, 1.4.5): no file, and input tokens fall from 13,619 to
+  11,032 per request.
 - Workers run with `GEMINI_HOME` set to an engine-owned home (`agentHome`, default
   `<stateDir>/antigravity-home`), so the user's global hooks (`config/hooks.json`), MCP servers
   (`config/mcp_config.json`), GEMINI.md and conversation history stay out (`contextIsolation`

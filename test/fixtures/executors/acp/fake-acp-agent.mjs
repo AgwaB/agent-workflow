@@ -291,6 +291,7 @@ process.stdin.on("data", (text) => {
 					args: s.args,
 					envNames: (s.env ?? []).map((e) => e.name),
 				})),
+				...(params._meta === undefined ? {} : { meta: params._meta }),
 			});
 		else
 			log({

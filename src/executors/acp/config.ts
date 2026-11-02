@@ -29,6 +29,8 @@ export interface AcpPreset {
 	isolatedEnv?(agentHome: string): Record<string, string>;
 	/** Whether a login is recorded in the agent home (no credential is read); absent: unknown. */
 	authRecorded?(agentHome: string): Promise<boolean>;
+	/** Agent-specific `_meta` sent with `session/new` (e.g. built-in tools to disable). */
+	readonly sessionMeta?: Readonly<Record<string, unknown>>;
 	/**
 	 * Requests to send after `session/new` (mode, model, effort), built from the session it returned.
 	 * Throws to refuse what the agent does not offer (e.g. an unknown model).
@@ -128,6 +130,12 @@ const ANTIGRAVITY: AcpPreset = {
 	command: "agy_acp_server",
 	label: "Google Antigravity ACP server",
 	launchArgs: () => (process.platform === "linux" ? ["--uid="] : []),
+	// Built-in tools that would run work outside the engine: `run_workflow` starts its own agents in
+	// the background, `schedule` sets timers/cron jobs that can fire after the attempt. Disabling
+	// `run_workflow` also stops 1.4.2+ writing skills/system/run-workflow/SKILL.md into the cwd at
+	// session/new, and cuts ~2.6k input tokens per request (live 2026-11-02: 13,619 → 11,032).
+	// Documented since ACP server 1.2.1 (`_meta.agy.disabledTools` on session/new and session/load).
+	sessionMeta: { agy: { disabledTools: ["run_workflow", "schedule"] } },
 	// The server resolves its home from $GEMINI_HOME (log: "Gemini home resolved to …"); the user's
 	// home carries global hooks (`config/hooks.json`, e.g. a status hook that denied every tool call
 	// in the live check), global MCP servers (`config/mcp_config.json`) and GEMINI.md. Workers get an
