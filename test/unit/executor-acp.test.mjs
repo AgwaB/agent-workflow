@@ -799,6 +799,10 @@ test("acp antigravity: the session's built-in allowlist follows the stage's tool
 			antigravity: { enabledTools: ["search_web", "view_file"] },
 		},
 	);
+	// read_url_content only names the file its page went to: fetch_content brings view_file along.
+	assert.deepEqual(meta(["fetch_content"], true), {
+		antigravity: { enabledTools: ["read_url_content", "view_file"] },
+	});
 	// No built-in left: everything the filter knows is off (run_workflow, ask_question, ...).
 	assert.deepEqual(meta(["workflow_artifact"], true), {
 		antigravity: { disabledTools: [...ANTIGRAVITY_FILTER_TOOLS] },

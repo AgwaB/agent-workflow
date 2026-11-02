@@ -100,7 +100,8 @@ Unknown keys are refused (`DESCRIPTOR_INVALID`). To try it, register a descripto
     degradation on every run, like Codex's global `AGENTS.md`.
   - Workspace hooks need workspace trust (`AGY_ACP_DISABLE_WORKSPACE_TRUST`, removed by the env
     scrub). That they stay off is an inference from agent-orchestrator, not observed.
-- Web tools: `web_search` → `search_web`, `fetch_content` → `read_url_content`; `webTools`
+- Web tools: `web_search` → `search_web`, `fetch_content` → `read_url_content` + `view_file` (the
+  model only gets the saved file's path, so it needs `view_file` to read the page); `webTools`
   search+fetch, safety unknown.
   - `search_web` returns a grounded summary with links, and its rawOutput is that text (receipt form
     search-results). Some links are `vertexaisearch.cloud.google.com/grounding-api-redirect/…`.
@@ -109,8 +110,10 @@ Unknown keys are refused (`DESCRIPTOR_INVALID`). To try it, register a descripto
     becomes the output (receipt form page-text, keyed by its `Url`).
   - Titles "Run <tool>?" / "Running <tool>" are reported as the tool name. A `search_web` permission
     request (ACP kind `search`) is judged as `fetch`, the kind of the Pi web tools.
-  - Live: one flash-low prompt asked for a verbatim quote and ran 36 tool calls (~0.97 M input tokens)
-    before answering; web-heavy stages can be costly.
+  - Live: a probe with `read_url_content` but no `view_file` could not read the saved page. It ran
+    35 `search_web` calls for a verbatim quote: 37 requests, 0.97 M input tokens counted cumulatively,
+    of which 0.76 M were cache reads. Hence the `view_file` pairing. With `read` in the stage (as in
+    deep-research), workers read the saved pages with `view_file`.
 - Built-in tool outputs (e.g. `view_file`) are display summaries in ACP ("Read workflow-stop.ts");
   only engine MCP results are recovered from the transcript. Their inputs (path, line range) are real.
 - Tool names (live 2026-11-02): the model listed `view_file`, `write_to_file`,

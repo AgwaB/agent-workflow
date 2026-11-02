@@ -314,9 +314,11 @@ export const ANTIGRAVITY_TOOL_MAPPING: ToolMapping = {
 		edit: { type: "tool", names: ["edit_file"] },
 		write: { type: "tool", names: ["create_file"] },
 		// search_web returns a grounded summary with links (receipt form search-results);
-		// read_url_content saves the page as Markdown in a step file, released as its output.
+		// read_url_content saves the page as Markdown in a step file, released as its output. The model
+		// itself only gets "saved to <path>; use view_file", so fetch_content brings view_file along: a
+		// probe with read_url_content but no view_file searched 35 times for a quote it could not read.
 		web_search: { type: "tool", names: ["search_web"] },
-		fetch_content: { type: "tool", names: ["read_url_content"] },
+		fetch_content: { type: "tool", names: ["read_url_content", "view_file"] },
 		workflow_artifact: {
 			type: "mcp",
 			server: "workflow_artifact",
