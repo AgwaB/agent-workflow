@@ -2,7 +2,7 @@
 
 Source: `@agwab/pi-workflow` 0.16.4, commit `b83cc4f` (MIT, same author). The owner decision on F5
 (plan §9 Q1) applies: the four bundled workflows are not a compatibility target, so they change as
-far as the executor-neutral engine needs. User-authored pi-workflow specs keep F5 (unchanged on Pi).
+far as the executor-neutral engine needs.
 
 ## Provenance
 
@@ -39,9 +39,8 @@ Paths and env:
 - **M3.** deep-review's trusted OCR artifact root is `.agent-workflow/ocr-artifacts/` (was `.pi/ocr-artifacts/`;
   helper constant, reviewer prompt and README). Existing OCR artifacts under `.pi/` are not read.
 - **M4.** No bundled asset used `PI_WORKFLOW_*`. Docs and skills name `.agent-workflow/workflows/`,
-  `~/.agent-workflow/workflows/` (`$AGENT_WORKFLOW_HOME`) and the `agent-workflow` CLI; the legacy
-  pi-workflow locations are mentioned only as "legacy pi-workflow locations (read-only)" (no path
-  literal), so `grep -rn "workflow_web_\|\.pi/workflows\|PI_WORKFLOW_" workflows skills agents` is empty.
+  `~/.agent-workflow/workflows/` (`$AGENT_WORKFLOW_HOME`) and the `agent-workflow` CLI; Pi's
+  locations are not mentioned (2026-10-30: they are not read), so `grep -rn "workflow_web_\|\.pi/workflows\|PI_WORKFLOW_" workflows skills agents` is empty.
 
 deep-research (C2: the executors' own web tools):
 
@@ -327,7 +326,6 @@ interactive host asks once in `safe` mode), **refuse** (the run is not started).
   unmeasured (plan §7: stage 1 checks completion and format only).
 - Pi needs `pi-web-access` for deep-research (refused otherwise). Codex shows `forcedReadOnly` only
   in `safe` mode; the default `free` mode records the coarse allowlist instead (table above).
-- agent-workflow does not know pi-workflow's `workflow_web_*` tool names (2026-11-02): a spec or agent
-  that lists them is refused before launch (an agent listing them does not grant `web_search` /
-  `fetch_content`; a stage asking for them has no executor mapping or needs review). Use
-  `web_search` and `fetch_content`.
+- The web tools are `web_search` and `fetch_content`. Any other name (for example `workflow_web_*`)
+  is an unknown tool (2026-11-02): an agent listing it does not grant the web tools, and a stage asking
+  for it is refused before launch (no executor mapping) or needs review.

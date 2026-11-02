@@ -51,8 +51,8 @@ stall warnings, the detached-launch and blocked-wait lines). Handlers choose the
 `/aw …`, `claude-code`/`codex`/`generic` → MCP tool calls (`workflow_status {"runId":…}`,
 `workflow_logs`, `workflow_inspect`, `workflow_stop`, WP28: `workflow_resume` and
 `workflow_show {"ref":…,"raw":true}`). Hosts print `text` unchanged; no host rewrites handler text for
-hints. The core formatters keep pi-workflow's `/workflow …` form only as their default for direct
-(ported) core callers.
+hints. The core formatters default to the CLI form (`agent-workflow …`) for direct core callers;
+core texts that cannot know the host name both forms (`agent-workflow auto (Pi: /aw auto)`).
 
 **Errors.** Caller mistakes throw `HostUsageError` (CLI exit 2; host MCP server: a tool result
 with `isError` and `error.kind: "usage"`, see `host-mcp.md`). Spec errors
@@ -90,7 +90,7 @@ throw `WorkflowValidationError`; `formatHostError(error)` renders any error. Lau
 | `doctorAction` (WP17) | `{prober?, probeTimeoutMs?, nodeVersion?}` (test seams) | `DoctorData`: `{host, executors[], defaultExecutor, permissionMode, node, home, warnings, runIndex, usable}` (no model call, nothing written) | success (an executor is usable), failed |
 | `executorModelsAction` (WP34) | `{executors?, prober?, timeoutMs?}` (default `pi`, `claude`, `codex`; `prober` is the test seam) | `{executors: [{id, usable, state, models: string[] \| null, modelListComplete, note, error?}]}`: each executor's probed model list (no model call; the shared 60 s probe cache) and what it means for a role model (`modelListComplete`: complete → another id is refused at launch, partial → only noted). Read-only; the Pi profile picker uses it | success |
 | `superviseAction` | `{runId? \| all, pollMs?, maxRuntimeMs?, onLog?, signal?, testHooks?}` | `{runIds, maxRuntimeMs, runs, result: completed \| failed \| blocked \| timeout}` | completed, failed, blocked, timeout |
-| `redriveRunsAction` (WP28) | — | `{redriven, skipped: [{runId, reason: "live-supervisor"}], errors}`: port of pi-workflow `resumeSupervisors` for a host process that outlives a run's launcher (Pi session start): schedules once and then watches (engine `watchRun`) every run with scheduler work that no *other* live process drives; only schedules, so blocked runs stay blocked and an `unknown` reconcile becomes `executor_needs_decision` (B3); binds no delivery audience | success |
+| `redriveRunsAction` (WP28) | — | `{redriven, skipped: [{runId, reason: "live-supervisor"}], errors}`: for a host process that outlives a run's launcher (Pi session start): schedules once and then watches (engine `watchRun`) every run with scheduler work that no *other* live process drives; only schedules, so blocked runs stay blocked and an `unknown` reconcile becomes `executor_needs_decision` (B3); binds no delivery audience | success |
 | `superviseDetachedAction` (WP28) | `{runId}` | `{runId, status, started, reason?: "not-running" \| "live-supervisor", detached?: {pid, logPath}}`: spawns the standalone `agent-workflow supervise <run>` and returns at once (MCP `workflow_supervise`); nothing for a run without scheduler work or one a live process drives (`isWorkflowRunLeaseLive`: a held run lease or a `supervisor.json` heartbeat < 30 s from a live pid) | running, or the run status when not running |
 
 `RunSummary` = `{runId, name?, status, type, createdAt, updatedAt, parentRunId?, executor?,
@@ -204,9 +204,8 @@ watcher (unref'd timer) for long-lived hosts; short-lived hosts either `wait` in
 `detach`.
 
 **Launch capture (WP33, parity row 35).** Every launch records host-neutral launch provenance:
-`run.launch` with schema `agent-workflow-run-launch-v1` — pi-workflow's v2 field set (`schema`,
-`source`, `requestKind`, `routingMode: "off"`, `profile`, `task: {characters, lines}`, `command`)
-without the `/workflow auto`-only `selection`, plus `entry` — and `<run dir>/launch-command.txt`
+`run.launch` with schema `agent-workflow-run-launch-v1` (`schema`, `source`, `entry`, `requestKind`,
+`routingMode: "off"`, `profile`, `task: {characters, lines}`, `command`) and `<run dir>/launch-command.txt`
 (mode 0600, written and read by the core's verified artifact code; `command` holds its size and
 SHA-256). `source` is the host: `cli` (the CLI, and callers without `ctx.host`), `pi`, or
 `mcp:<host>` (the host MCP server's `--host`: `mcp:claude-code`, `mcp:codex`, `mcp:generic`).
@@ -218,8 +217,8 @@ command is synthesized. The text is redacted before it is written (the host reda
 environment values, credential assignments and headers, bearer tokens, URL secrets) and the home
 directory is shown as `~`. `show <run>` (not `--raw`, whose `run.json` already holds the metadata)
 and `inspect <run>` end with `Launch: <source> · <entry> · <requestKind>, <profile>, task N chars/M
-lines` and `Launch command: <text>` and return it as `launch`. pi-workflow's v1/v2 records stay
-valid and are shown with source `pi-workflow`. The WP34 board will use the same reader.
+lines` and `Launch command: <text>` and return it as `launch`. Only these host launch records are
+valid (2026-11-02). The WP34 board uses the same reader.
 WP32: a confirmed `auto` launch records `agent-workflow-run-launch-v2` instead: `entry`
 `{kind: "command", action: "auto"}` or the tool, `routingMode: "auto-confirmed"`, and `selection`
 (`candidates` [{candidateId, kind, label}] as offered, `recommendation` {candidateId, confidence} or
@@ -242,7 +241,7 @@ characters (`… [N more chars]`); the text and the lines kept in `data` stop at
 assignments, `Authorization`/cookie headers, bearer tokens, URL secrets and credentials, home paths)
 and the values (8+ characters) of host environment variables with sensitive names (`*_KEY`,
 `*TOKEN*`, `*SECRET*`, `*PASSWORD*`, …) become `[REDACTED:<NAME>]`. The run is refreshed first, like
-`status`. Port in spirit of pi-workflow's `/workflow logs <run> [task] [lines]` (one task's output).
+`status`.
 
 WP19 (review #4): run records live in the workspace and can be tampered with, so every path read
 from them (`task.files.*`, the attempt dirs) must be project-relative, without `..`, and resolve
@@ -252,9 +251,7 @@ path, traversal, outside the artifact root, symlink escape) and the text says `(
 `inspect --results` applies the same check to `task.files.result`, and the wait/status result
 presentation requires the output task dir inside the artifact root (not only the project).
 Legacy `.pi/workflows/…` paths are refused too, by design: runs are only ever listed from
-`.agent-workflow/workflows/` (legacy discovery is for specs and agents; pi-workflow and
-agent-workflow each see their own runs, docs/usage.md), so only a pi-workflow run record copied in by
-hand can name them.
+`.agent-workflow/workflows/`, so only a foreign run record copied in by hand can name them.
 WP19 (review #7): one redactor (`hosts/redaction.ts`) covers all host text that can carry worker
 output: `logs`, the text of `status <run>`, `show`, `inspect`, `wait` (and `data.preview`), and the Pi
 completion message. Beyond the rules above it redacts quoted structured credentials, whitespace
@@ -289,7 +286,7 @@ scheduling and waits **at most 45 s** (`HOST_WAIT_MAX_TIMEOUT_MS`; default and c
 60 s), so a host calls `wait` again while `stillRunning` is true; the CLI loops. Cancelling (`signal`)
 cancels only the wait. WP28 (owner decision Q9): `longWait: true` is for hosts without per-call
 limits (the Pi host): default 30 min (`HOST_LONG_WAIT_DEFAULT_TIMEOUT_MS`), cap 4 h
-(`HOST_LONG_WAIT_MAX_TIMEOUT_MS`), pi-workflow's `workflow_wait` bounds; `data.timeoutMs` is the
+(`HOST_LONG_WAIT_MAX_TIMEOUT_MS`); `data.timeoutMs` is the
 effective bound. The MCP server never sets it.
 
 `WaitData`: `{runId, status, semanticStatus, terminal, actionRequired, stillRunning, timeoutMs,
@@ -320,15 +317,15 @@ the text then adds "Now waiting for scheduled retry at <time> (<reason>; <tasks>
 | blocked (needs inspect/resume) | false | true | false | blocked |
 | completed / failed / interrupted | true | false | false | completed / failed / interrupted |
 
-`preview` is the bounded authoritative result of the first completed output task (pi-workflow
-`readWorkflowResultPresentation`: `completionSummaryMarkdown` verbatim, else summaries/reports,
+`preview` is the bounded authoritative result of the first completed output task
+(`readWorkflowResultPresentation`: `completionSummaryMarkdown` verbatim, else summaries/reports,
 truncated to 6000 characters); `reportArtifacts` lists the final report and evidence audit paths.
-For a successful run with a preview, `text` is the preview alone (pi-workflow result-only success).
+For a successful run with a preview, `text` is the preview alone.
 
 ### `approve` (WP29)
 
 A dynamic stage whose controller declares `dynamic.permissions.approval: "ask"` runs only after the
-user's approval (pi-workflow semantics, [usage.md](usage.md#dynamic-approval)). With
+user's approval ([usage.md](usage.md#dynamic-approval)). With
 `ctx.dynamicUi` the scheduler asks while the call drives the run; without it the controller task
 blocks as `dynamic_ui_unavailable` (or `dynamic_approval_timeout` after an unanswered prompt) and
 `statusAction`/`waitAction` return `pendingApprovals: [{requestId, controllerSpecId, taskId, title,
@@ -339,7 +336,7 @@ an `Awaiting approval` block with the host's approve/reject commands (`hostAppro
 true | false | undefined, detach?}`. `requestId` (or a unique prefix of 8+ characters) is optional
 with one open approval. With `confirm` the user is asked first (title "Run dynamic workflow
 controller?" or "Reject dynamic workflow controller?", bounded to 5 minutes): `true` → as decided;
-`false` on the approval question → rejected (pi-workflow's no), on the rejection question → nothing;
+`false` on the approval question → rejected, on the rejection question → nothing;
 `undefined` (cancelled, failed, timed out) → nothing recorded, outcome `refused`. Without `confirm`
 the decision is final (CLI `--yes`). The decision is appended under the run lease as the
 `approval.resolved` dynamic event with `decidedBy: {host: ctx.host ?? "cli", via: "approve"}`
@@ -352,7 +349,7 @@ are not relaunched) unless the run also has failed, interrupted or other blocked
 
 ### `auto` (WP32, owner decision Q5, parity row 21)
 
-pi-workflow's `/workflow auto` for every host (CLI `auto`, Pi `/aw auto`, MCP `workflow_auto`).
+The `auto` flow for every host (CLI `auto`, Pi `/aw auto`, MCP `workflow_auto`).
 `AutoRequest`: the `run`/`dynamic` launch options without `workflow` (`task`, `executor`,
 `profile`, `permissionMode`, `allowUnverifiedCapabilities`, `model`, `effort`, `detach`, `forceNew`,
 `inputOverrides`, `interactive`, `confirmDegradations`, `selectProfile`, `launchOrigin`) plus:
@@ -396,7 +393,7 @@ one) holds the run lease, the engine reports the stop as pending; the handler re
 
 ### `supervise`
 
-Port of pi-workflow `cli.mjs supervise`: schedules until the run (or, with `all`, every run observed
+Schedules until the run (or, with `all`, every run observed
 running and top-level) is terminal; failure takes precedence over blocked; an empty batch succeeds.
 `maxRuntimeMs` 0 = unlimited; default 4 h, or unlimited for a single running run whose compiled
 workflow has a `maxRounds: null` loop. `onLog` receives each progress line. `testHooks` (`now`,
@@ -410,8 +407,8 @@ literal, duplicates and retired `--route/--no-route` rejected; options `--model 
 (--thinking/--reasoning) --executor --permission-mode --allow-unverified --detach --force-new`),
 `parseWorkflowPruneArgs`, `parseSuperviseArgs`, `tokenizeWorkflowArgs`, `parseDuration`,
 `parsePermissionMode`, `parseThinkingLevel`, `parseCapabilityList`. Also exported:
-`selectWorkflowExecutionProfile` and `resolveWorkflowExecutionProfileForLaunch` (pi-workflow's
-declared-profile picker and launch precedence for hosts with a model registry),
+`selectWorkflowExecutionProfile` and `resolveWorkflowExecutionProfileForLaunch` (the
+declared-profile picker and its launch precedence),
 `spawnDetachedSupervisor`, `agentWorkflowCliPath`, `readWorkflowResultPresentation`.
 
 ## Saved user profiles
@@ -457,7 +454,7 @@ in the host API or the CLI:
 | review-core-fixes: IR1-03 parent usage (4), IR1-04/IR1-05 schema tests | not ported here: parent usage is Pi host (WP11b); IR1-04/05 are core json-schema tests outside WP11a's scope |
 | execution-profiles: `--profile` parsing; profile selection | ported → `host-ported-cli-args` |
 | workflow-router: retired routing flags | ported → `host-ported-cli-args`; the other 7 (auto capture, TUI, foreground cancel) stay Pi host (WP11b) |
-| workflow-user-profiles: invalid/corrupt writes; launch precedence | ported → `host-ported-cli-args`; the 15 profile UI/TUI tests stay Pi host (WP11b). WP34: the picker flow (choices, Back/cancel write nothing, Custom editing, save) and the preview renderer are covered by `host-wp34-pi-profile-picker` over WP31 role profiles (pi-workflow's per-stage Pi model settings file has no counterpart) |
+| workflow-user-profiles: invalid/corrupt writes; launch precedence | ported → `host-ported-cli-args` (the store tests removed 2026-11-02 with the store; launch precedence kept); the 15 profile UI/TUI tests stay Pi host (WP11b). WP34: the picker flow (choices, Back/cancel write nothing, Custom editing, save) and the preview renderer are covered by `host-wp34-pi-profile-picker` over WP31 role profiles (pi-workflow's per-stage Pi model settings file has no counterpart) |
 | workflow-notice-acknowledgements: list/ack/clear, ineligible, concurrent CLI acks, validation, link escapes, empty list, commit fence (2), slash/standalone parity | ported → `host-ported-notices` (parity now CLI vs `noticesAction`; inspect `--json` wrapper; exit 2) |
 | workflow-notice-acknowledgements: suppression, changed-state dedup (3), malformed sidecars | not ported: need `notifyUnfinishedRuns` (Pi session start, WP11b) |
 | unit-engine-store: 4 Pi extension launch options | not ported: Pi executor/host options (WP6/WP11b) |

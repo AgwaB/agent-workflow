@@ -236,8 +236,8 @@ as `dynamic_ui_unavailable`, and the design is ask-on-answer:
 2. **Answer.** `workflow_approve {runId, requestId, decision}` sends one `elicitation/create` through
    `elicitConfirmation` with `Run dynamic workflow controller?` (or `Reject dynamic workflow
    controller?`) and the approval scope. For `approve`: `accept` records the approval and resumes the
-   run (detached by default; completed tasks are not relaunched); `decline` is pi-workflow's "no" and
-   rejects the controller for this run (`dynamic_approval_rejected`, never asked again). For
+   run (detached by default; completed tasks are not relaunched); `decline` rejects the
+   controller for this run (`dynamic_approval_rejected`, never asked again). For
    `reject`: `accept` rejects; `decline` changes nothing. `cancel`, an error response or a failed
    request record nothing (`decision: "unanswered"`, `isError`, `outcome: "refused"`).
 3. **No elicitation.** A client without form elicitation is refused before anything is read or
@@ -252,8 +252,7 @@ request id is the approval digest), and the decision is recorded on the run
 
 ## Auto workflow selection (WP32, owner decision Q5)
 
-`workflow_auto {task, …launch options}` is the MCP form of `agent-workflow auto` and pi-workflow's
-`/workflow auto`:
+`workflow_auto {task, …launch options}` is the MCP form of `agent-workflow auto`:
 
 1. **Local shortlist.** The dynamic workflow and the discoverable workflows (at most 24), ranked by
    the task's words against each spec's `routing` hints. No model call.

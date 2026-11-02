@@ -135,7 +135,7 @@ The table is `PI_EXECUTOR_TOOL_MAPPING`.
     Tests: `executor-wp35-web-access.test.mjs`.
 - **`inheritHostTools`** (descriptor config, host-level opt-in; core-port WP4b):
   - It adds `codemode, tool_search, mcp__*, list_mcp_resources, list_mcp_resource_templates,
-    read_mcp_resource`, exactly as pi-workflow `workflowNativeLaunchTools` did.
+    read_mcp_resource`.
   - Under isolation it also loads `builtin:mcp`, `builtin:codemode` and `builtin:tool-search`. These read the
     user's `mcp.json`: that is the point of inheriting host tools.
   - It is **ignored for readOnly requests**, because codemode can reach mutating tools.

@@ -201,7 +201,7 @@ former "needs live verification" items, by work package:
 | WP32/WP38b | Pi `/aw auto`: consent, loader with Escape, select, final confirm | **verified** after F4, F5 |
 | WP33 | `aw_run` + `aw_wait`: no duplicate completion message; `parent-usage.json` | **verified** |
 | WP33 | Active widget; `/aw wait` loader | widget **verified**; loader fixed (F5) and verified on `/aw auto` (same factory) |
-| WP33 | `aw-` skills next to pi-workflow's `workflow-guide`/`execution-router` | **verified** (loaded with `--skill`; no collision) |
+| WP33 | `aw-` skills next to another package's unprefixed `workflow-guide`/`execution-router` | **verified** (loaded with `--skill`; no collision) |
 | WP34 | Board: navigation, logs tabs, `v`, `c` (after F5), `s`/`u` on a running run, `q` repaint, narrow width | **verified**; `/aw <run-prefix>` **verified** in live 6; a mixed run's task rows in the board not checked |
 | WP34 | Profile picker: Mixed colour table, Edit a role (probed models), Save as new (`ctx.ui.input`), chooser `Custom…` → save preference → one launch | **verified** |
 | WP35 | Host tools: preview notice, worker tool list with `codemode`, `tool_search`, `mcp__*`; readOnly stage without them | **verified**; a worker actually calling them **not verified** (system prompt lists only stage tools, O8), **verified** in live 6 (`tool_search`, `list_mcp_resources`); project `.pi/mcp.json` servers do not reach workers (O9) |

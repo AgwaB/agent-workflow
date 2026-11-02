@@ -66,8 +66,8 @@ Why this shape:
   `plugins/pi/skills/aw-execution-router/`: renamed copies of `skills/workflow-guide` and
   `skills/execution-router` (frontmatter `name` with the `aw-` prefix, relative paths pointing into
   the package) for the Pi package manifest (`pi.skills`; `plugins/pi` is in package.json `files`).
-  Pi keeps the first skill of a name and pi-workflow ships the unprefixed names (owner decision
-  Q10). `check` also fails when `pi.skills` does not list exactly these directories.
+  Pi keeps the first skill of a name, so the copies are prefixed to stay distinct from same-named
+  skills of other packages (owner decision Q10). `check` also fails when `pi.skills` does not list exactly these directories.
 
 ## Server launch
 

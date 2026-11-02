@@ -9,7 +9,7 @@ freely by default. The original D2 behavior stays available as `safe`.
 |---|---|---|
 | Approval prompts | none: the worker CLI is started without them. A request that still arrives is answered `allow` by the engine and audited `engine-policy:free` | policy-based: kinds the stage's tools imply are allowed, everything else is denied (fail-closed) unless an interactive host answers |
 | Sandbox | none for stages that are not `readOnly` | the adapter's narrowest mapping (no bypass flags) |
-| Write-capable stage with spec `worktreePolicy: "off"` | runs in the shared checkout as written (pi-workflow behavior) | still gets a worktree (R#5) unless the run option `allowSharedCheckoutWrites` waives it |
+| Write-capable stage with spec `worktreePolicy: "off"` | runs in the shared checkout as written | still gets a worktree (R#5) unless the run option `allowSharedCheckoutWrites` waives it |
 | `worktreePolicy: "auto"` / `"on"` | as before: a worktree for write-capable stages | same |
 | Coarse tool allowlist (Codex) | accepted for every stage; recorded as a degradation `CAPABILITY_MISSING:toolAllowlist.fine` | refused, or run as readOnly when the spec sets `allowReadOnlyDowngrade` (B4) |
 | Environment warnings (Codex `~/.codex/rules` allow rules, global `AGENTS.md`) | recorded degradations; never refused (not even by a profile's `strictCapabilities`), no confirmation prompt | recorded degradations; interactive hosts confirm; `strictCapabilities` refuses |

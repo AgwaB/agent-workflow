@@ -111,7 +111,7 @@ server and Codex/Claude host plugins.
 
 ## Data layout
 
-Project (`<cwd>/.agent-workflow/`, created on first run, never shared with pi-workflow's `.pi/`):
+Project (`<cwd>/.agent-workflow/`, created on first run):
 
 | Path | Content |
 |---|---|

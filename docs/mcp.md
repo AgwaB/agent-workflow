@@ -111,7 +111,7 @@ compare text and rows against direct core calls on the same fixture run, ignorin
 whole reads, projections, core `maxBytes` truncation, raw reads, failures, the completed-read cache
 and duplicate suppression.
 
-**Dedup.** This is the same as pi-workflow. The core caches live for one server process, which is
+**Dedup.** The core caches live for one server process, which is
 one task attempt.
 
 - Completed sources are memoized, and every read still writes a full row.
@@ -148,7 +148,7 @@ output limit could therefore never satisfy it. Whole-artifact reads are now page
 - **Caches.** Paged reads never use the duplicate-read or completed-read caches, and they never
   populate the duplicate-read cache.
 - **Rows.** One row per page: `bytes` (artifact), `returnedBytes` (UTF-8 bytes of the page),
-  `truncated` (`true` unless the page covers the whole artifact, so a pi-workflow-style
+  `truncated` (`true` unless the page covers the whole artifact, so a
   `!truncated` check never takes one page for a whole read), the four range fields and
   `deliveryUnverified: false`. A page row the server had to cut anyway (it should not happen) gets
   `deliveryUnverified: true` like any cut read.
@@ -213,7 +213,7 @@ A CLI may cut an MCP result again after the server returns it. The server theref
   - The row gets `truncated: true`, `deliveryUnverified: true` and the delivered `returnedBytes`.
 - **Does not fit (list / failure):** the output is cut with a short notice. No row is written, because lists and failures are not ledgered.
 - **Unknown limit:** the default applies, and every row whose content was cut is marked `deliveryUnverified: true`.
-- **Engine rule (WP4c-1):** rows with `deliveryUnverified: true` never satisfy a required read. These rows also carry `truncated: true`, which pi-workflow's check already rejects. WP5b adds the page coverage rule (see Paged reads).
+- **Engine rule (WP4c-1):** rows with `deliveryUnverified: true` never satisfy a required read. These rows also carry `truncated: true`, which the check already rejects. WP5b adds the page coverage rule (see Paged reads).
 
 ## Security
 

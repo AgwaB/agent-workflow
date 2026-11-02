@@ -1974,3 +1974,27 @@ but three executor/engine bugs showed.
   
   On the saved attempts, the first two parse and pass the reviewer schema (7 findings); the third, an
   extra quote, still fails (`core-output-json-escape.test.mjs`).
+
+## 2026-11-02 — agent-workflow does not know pi-workflow
+
+Owner decision: agent-workflow keeps no pi-workflow compatibility and names nothing of pi-workflow's
+except in attributions (file headers, README, this document, `replay.md`).
+
+- **Texts.** Core texts that named pi-workflow's `/workflow …` commands (auto, dynamic usage, router
+  follow-ups, wait timeout, stale profile) name agent-workflow's: `agent-workflow <cmd> (Pi: /aw
+  <cmd>)` (`neutralCommand`); the core formatters default to the CLI hints; the Pi host's `/workflow`
+  → `/aw` rewrite is gone. The worker system prompt says it was launched by agent-workflow, so the
+  direct-dynamic bundle is v6. The ref validator's User-Agent is `agent-workflow-ref-validator`.
+- **Formats.** pi-workflow's launch records (`pi-workflow-run-launch-v1/v2`, slash-command sources,
+  `pi-extension-command-v1`) are not accepted; usage records have no `pi-subagent` source.
+- **Tool names.** `workflow_web_*` have no built-in classification and do not authorise
+  `web_search`/`fetch_content` (or back); a readOnly stage keeps an unknown tool, so it is refused or
+  needs review instead of running without it.
+- **Profile store.** `workflow-profile-settings` (`workflow-profiles/v1`, the Pi TUI per-workflow
+  store nothing wrote) is removed; per-workflow preferences are WP31's.
+- **Identifiers.** Records agent-workflow writes use `agent-workflow-*` schema, kind, issuer and
+  source names (was the ported `pi-workflow-*`); the state-root nonce file is `.state-root-v2.json`,
+  so runs started before keep their old identity and fail closed where they check it.
+- **Replay.** The recordings keep pi-workflow's names: rename rule `aw-does-not-know-pi-workflow`,
+  explained difference `aw-timing-source`, and the `engine-only` variants classify `workflow_web_*`
+  through a test seam (`setExtraBuiltinToolsForTests`).

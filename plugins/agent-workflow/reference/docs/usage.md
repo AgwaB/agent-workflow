@@ -6,8 +6,7 @@ reference: [`cli.md`](cli.md) (CLI) and [`pi-host.md`](pi-host.md) (Pi `/aw`). I
 start: [`../README.md`](../README.md).
 
 Examples use the CLI. In Pi, the same actions are `/aw <action> …` (and the `aw_list`, `aw_run`,
-`aw_dynamic`, `aw_wait` tools). pi-workflow's `/workflow …` commands belong to pi-workflow and its own
-run store; they do not drive agent-workflow runs.
+`aw_dynamic`, `aw_wait` tools).
 
 ## Workflows and specs
 
@@ -25,10 +24,9 @@ A name resolves from the first root that has a match:
 3. `$AGENT_WORKFLOW_HOME/workflows/` (default `~/.agent-workflow/workflows/`) — user
 4. the package's bundled `workflows/`
 
-Pi's directories (`~/.pi/agent/workflows/`, `<cwd>/.pi/workflows/`) are **not** read: they are
-Pi configuration, written for pi-workflow's tool and model names (2026-10-30 owner decision; the
-earlier read-only legacy roots are gone). To use a pi-workflow spec here, copy it into one of the
-roots above, or pass its path.
+Pi's directories (`~/.pi/agent/workflows/`, `<cwd>/.pi/workflows/`) are **not** read (2026-10-30
+owner decision). A spec from elsewhere runs when copied into one of the roots above or passed by
+path, written with agent-workflow's tool names (`web_search`, `fetch_content`, …).
 
 A higher root shadows lower ones; more than one match in the winning root (for example both
 `name.json` and `name/spec.json`) fails as ambiguous. Each root accepts a flat `<name>.json` or a
@@ -44,10 +42,9 @@ a copy in `$AGENT_WORKFLOW_HOME/agents/` or `.agent-workflow/agents/`. `agent-wo
 what resolves and from where.
 
 agent-workflow never reads or writes Pi's directories; its runs and settings live under
-`.agent-workflow/` and `$AGENT_WORKFLOW_HOME`. pi-workflow can stay installed next to it; each only
-sees its own specs, agents and runs. `logs`/`inspect` read only files inside `.agent-workflow/`, so a
-pi-workflow run copied into `.agent-workflow/workflows/` (its record still points at `.pi/…`) shows
-those files as `(not read: path is outside the project's artifact root …)`.
+`.agent-workflow/` and `$AGENT_WORKFLOW_HOME`. `logs`/`inspect` read only files inside
+`.agent-workflow/`; a file outside it shows as `(not read: path is outside the project's artifact
+root …)`.
 
 ### Bundled workflows
 
@@ -103,7 +100,7 @@ silently.
 agent-workflow auto "Review the current diff for reliability and test coverage."
 ```
 
-`auto` (WP32, pi-workflow's `/workflow auto`) recommends one of the existing workflows for a task
+`auto` (WP32) recommends one of the existing workflows for a task
 and starts the one you choose. It never chats instead of running a workflow and never starts
 anything on its own:
 
@@ -749,7 +746,7 @@ What prune removes and what it keeps (WP42):
 
 **Worktrees.** A write-capable stage that runs in a managed worktree
 (`.agent-workflow/workflows/<run>/worktrees/<task>`, branch `agent-workflow/<run>-<task>`) leaves it
-in place after the run, as pi-workflow does: there is no auto-merge, the worktree and its branch
+in place after the run: there is no auto-merge, the worktree and its branch
 hold the result for you to review and merge (`show`/`inspect`/`status` name the path and branch).
 The run's attempt state stays in the project's own `.agent-workflow/`, and the project's
 `.agent-workflow/` is never copied into a worktree (WP39b). To remove one yourself:

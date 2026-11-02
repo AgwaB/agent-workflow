@@ -153,7 +153,7 @@ when the time is up; a run still running then exits 1 with `data.stillRunning: t
 
 ### `auto` (WP32)
 
-`agent-workflow auto "<task>"` is pi-workflow's `/workflow auto` for the terminal. It compares the
+`agent-workflow auto "<task>"` recommends a workflow for a task in the terminal. It compares the
 trusted dynamic workflow and the discoverable workflows (at most 24) and starts the one you choose:
 
 1. **Local shortlist, no model call.** The candidates are ranked by the task's words against each
@@ -423,8 +423,8 @@ setup: [plugins.md](plugins.md#completion-check-hook).
 | 1 | A failed, interrupted or blocked run; a refused launch; a run still running at `--timeout`; a stop not confirmed in 15 s; any other error |
 | 2 | Usage error: unknown command or option, missing or invalid argument, misconfigured test-executor hook |
 
-`supervise` previously (pi-workflow) exited 2 for blocked runs; it now exits 1 like every other
-command. Its log lines and its structured result still say `blocked`.
+`supervise` exits 1 for blocked runs, like every other command. Its log lines and its structured
+result say `blocked`.
 
 **Non-passing domain verdicts exit 1 (CI semantics, WP18b).** A workflow whose final step reports a
 non-passing verdict as `failed` (for example deep-review's `PARTIAL_REVIEW`, statusDetail

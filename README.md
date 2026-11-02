@@ -67,8 +67,7 @@ Then in Pi: `/aw list`, `/aw run deep-review "Review the current diff" --executo
 `/aw wait <run>`. The agent can use the `aw_list`, `aw_run`, `aw_dynamic` and `aw_wait` tools
 (`awaitTerminal` and waits of up to 4 h; `AGENT_WORKFLOW_TOOL_EXPOSURE=deferred` defers them until
 `tool_search`). A new Pi session picks up attached runs a gone session left running. Pi is
-the parent agent; workers run on whichever executor is selected. `/aw` and `aw_*` do not collide with
-pi-workflow's `/workflow`. See [`docs/pi-host.md`](docs/pi-host.md).
+the parent agent; workers run on whichever executor is selected. See [`docs/pi-host.md`](docs/pi-host.md).
 
 ### Codex and Claude Code as hosts
 

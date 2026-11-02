@@ -23,7 +23,7 @@ otherwise.
 | `AGENT_WORKFLOW_RUN_LOCATOR_PRUNE_AFTER_MS` | Age after which stale run locators are pruned from the index. | 30 days |
 | `AGENT_WORKFLOW_STRICT_PROMPT_SCHEMA` | `1`: reject a named workflow before launch when its prompt/schema diagnostics are strict-blocking (direct dynamic runs are excluded). Ordinary validation applies either way. | off |
 | `AGENT_WORKFLOW_DYNAMIC_TOOL_RESULT_BUDGET_CHARS` | Tool-result budget for dynamic generated tasks (static stages keep their spec budgets). `0` or a negative value disables it. | `320000` |
-| `AGENT_WORKFLOW_TOOL_EXPOSURE` | Pi host only (WP28): `deferred` registers the `aw_*` tools with deferred exposure, so they stay out of every model request until Pi's `tool_search` loads them (enable it with `"defaultTools": ["+tool_search"]`). Any other value: normal registration. Port of pi-workflow's `PI_WORKFLOW_TOOL_EXPOSURE`. The `/aw` command and the host MCP server are unaffected (Claude Code already loads MCP tool schemas on demand). | unset (normal) |
+| `AGENT_WORKFLOW_TOOL_EXPOSURE` | Pi host only (WP28): `deferred` registers the `aw_*` tools with deferred exposure, so they stay out of every model request until Pi's `tool_search` loads them (enable it with `"defaultTools": ["+tool_search"]`). Any other value: normal registration. The `/aw` command and the host MCP server are unaffected (Claude Code already loads MCP tool schemas on demand). | unset (normal) |
 
 `PI_CODING_AGENT_DIR` (Pi's own variable) is honored only to locate the legacy Pi directory that
 workflow and agent discovery reads **read-only** (default `~/.pi/agent`). agent-workflow never writes
