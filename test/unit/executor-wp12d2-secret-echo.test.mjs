@@ -230,3 +230,47 @@ test("review #5 (pi): a value split across stderr chunks is redacted", async (t)
 	);
 	await assertNoSecrets("pi", [stateDir, artifactsDir], events);
 });
+
+test("pi: the engine's AGENT_WORKFLOW_ROLE=worker is not treated as a secret (quality A/B 2026-11-02)", async (t) => {
+	const dir = await mkdtemp(join(tmpdir(), "aw-pi-role-"));
+	t.after(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
+	const answer =
+		"Array.from({ length }, worker) starts each worker; token @SECRET@";
+	const piCommand = await echoScript(dir, "pi", [
+		JSON.stringify({ type: "session", id: "s" }),
+		JSON.stringify({
+			type: "message_end",
+			message: {
+				role: "assistant",
+				content: [{ type: "text", text: answer }],
+				stopReason: "stop",
+			},
+		}),
+		JSON.stringify({ type: "agent_end", messages: [] }),
+	]);
+	const stateDir = join(dir, "state");
+	const artifactsDir = join(dir, "artifacts");
+	const executor = createPiExecutor({ piCommand, stateDir });
+	const ref = await executor.submit(
+		request(dir, "pi-role-1", {
+			artifactsDir,
+			env: { ECHO_SECRET: ENV_SECRET, AGENT_WORKFLOW_ROLE: "worker" },
+		}),
+	);
+	const { events, terminal } = await drain(executor, ref, {
+		timeoutMs: 15_000,
+	});
+	assert.equal(terminal.type, "completed");
+	// The word stays in the answer the engine parses and in the raw transcript; real secrets do not.
+	assert.equal(
+		terminal.finalText,
+		"Array.from({ length }, worker) starts each worker; token [redacted]",
+	);
+	assert.match(
+		await readFile(join(artifactsDir, "pi-stdout.jsonl"), "utf8"),
+		/starts each worker; token \[redacted\]/,
+	);
+	await assertNoSecrets("pi role", [stateDir, artifactsDir], events);
+});

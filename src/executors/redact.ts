@@ -5,8 +5,17 @@
  * is never redacted. `stream()` handles a value split across chunks of one byte stream (stderr):
  * a chunk tail that could start a value is held back until the next chunk or `flush()`.
  */
+import { AGENT_WORKFLOW_ROLE_ENV } from "../core/process-role.js";
 import type { SubmitRequest } from "../sdk/contract.js";
 import type { JsonValue } from "../sdk/json.js";
+
+// Request env the engine sets itself with a public value. Redacting it would rewrite ordinary words
+// in worker output: `AGENT_WORKFLOW_ROLE=worker` (6 chars, Pi's minimum) turned every "worker" in
+// Pi transcripts and answers into `[redacted]`, so deep-review quotes stopped matching the file
+// (quality A/B 2026-11-02).
+const PUBLIC_ENGINE_ENV_KEYS: ReadonlySet<string> = new Set([
+	AGENT_WORKFLOW_ROLE_ENV,
+]);
 
 export interface StreamRedactor {
 	/** Redacted text safe to persist now (a possible value prefix at the end is held back). */
@@ -23,13 +32,17 @@ export interface SecretRedactor {
 	stream(): StreamRedactor;
 }
 
-/** `[value, label]` pairs: request env (`KEY`) and MCP server env (`server.KEY`). */
+/**
+ * `[value, label]` pairs: request env (`KEY`) and MCP server env (`server.KEY`), except the
+ * engine's own public request env (`PUBLIC_ENGINE_ENV_KEYS`).
+ */
 export function requestSecrets(
 	req: Pick<SubmitRequest, "env" | "mcpServers">,
 ): [string, string][] {
 	const secrets: [string, string][] = [];
 	for (const [key, value] of Object.entries(req.env ?? {}))
-		if (typeof value === "string") secrets.push([value, key]);
+		if (typeof value === "string" && !PUBLIC_ENGINE_ENV_KEYS.has(key))
+			secrets.push([value, key]);
 	for (const server of req.mcpServers ?? [])
 		for (const [key, value] of Object.entries(server.env ?? {}))
 			if (typeof value === "string")

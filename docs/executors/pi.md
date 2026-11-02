@@ -59,7 +59,8 @@ stdin: the prompt
 
 Raw output: `<artifactsDir>/pi-stdout.jsonl` and `pi-stderr.log`. They fall back to
 `<stateDir>/runs/<sha256(attemptKey)>/` when the request has no `artifactsDir`. Values of `req.env` and
-MCP env (≥ 6 chars) are redacted to `[redacted]` before writing and before normalizing. Normalized events
+MCP env (≥ 6 chars) are redacted to `[redacted]` before writing and before normalizing, except the
+engine's public `AGENT_WORKFLOW_ROLE` (its value `worker` is an ordinary word in answers). Normalized events
 are a view over the raw stream (D3).
 
 ## Isolation (B5)
