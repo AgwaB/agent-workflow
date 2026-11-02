@@ -306,3 +306,97 @@ test("error rules: every row classifies its own sample; unmatched text is unknow
 		PI_ERROR_RULES.filter((rule) => rule.evidence === "live").length >= 4,
 	);
 });
+
+test("an extension follow-up turn after the answer does not replace it (pi-web-access content-ready)", () => {
+	// Sequence of research-aw-1 task-13 (quality A/B 2026-11-02): notices while working, the answer,
+	// then a `web-search-content-ready` notice with triggerTurn and a short reply to it.
+	const assistant = (text, stopReason, extra = {}) =>
+		JSON.stringify({
+			type: "message_end",
+			message: {
+				role: "assistant",
+				content: text ? [{ type: "text", text }] : [],
+				stopReason,
+				provider: "openai-codex",
+				model: "gpt-6.1-sol",
+				usage: {
+					input: 10,
+					output: 5,
+					cacheRead: 0,
+					cacheWrite: 0,
+					totalTokens: 15,
+					cost: { total: 0.001 },
+				},
+				...extra,
+			},
+		});
+	const notice = JSON.stringify({
+		type: "message_end",
+		message: {
+			role: "custom",
+			customType: "web-search-content-ready",
+			content:
+				"Content fetched for 15/15 URLs [x]. Full page content now available.",
+			display: true,
+		},
+	});
+	const run = (lines) => {
+		const normalizer = new PiEventNormalizer({ sessionId: null });
+		const events = [normalizer.started()];
+		for (const line of lines) events.push(...normalizer.line(line));
+		events.push(
+			normalizer.finish({
+				exitCode: 0,
+				signal: null,
+				cancelled: false,
+				stderr: "",
+			}),
+		);
+		assert.deepEqual(validateEventSequence(events), []);
+		return { normalizer, events, terminal: events.at(-1) };
+	};
+	const user = JSON.stringify({
+		type: "message_end",
+		message: { role: "user", content: "task" },
+	});
+
+	const late = run([
+		user,
+		notice,
+		assistant("", "toolUse"),
+		notice,
+		assistant('<control>{"claims":[1,2,3]}</control>', "stop"),
+		notice,
+		assistant('<control>{"claims":[]}</control>', "stop"),
+		JSON.stringify({ type: "agent_end", messages: [] }),
+	]);
+	assert.equal(late.terminal.type, "completed");
+	assert.equal(
+		late.terminal.finalText,
+		'<control>{"claims":[1,2,3]}</control>',
+	);
+	assert.equal(late.normalizer.followUpTurns, 1);
+	// The follow-up's tokens were spent and still count.
+	assert.equal(late.events.filter((event) => event.type === "usage").length, 3);
+
+	// A follow-up turn that fails does not fail the answered run.
+	const failedLate = run([
+		user,
+		assistant("answer", "stop"),
+		notice,
+		assistant("", "error", { errorMessage: "rate limited" }),
+	]);
+	assert.equal(failedLate.terminal.type, "completed");
+	assert.equal(failedLate.terminal.finalText, "answer");
+
+	// Notices before the answer (while the worker is still working) change nothing.
+	const early = run([
+		user,
+		notice,
+		assistant("", "toolUse"),
+		notice,
+		assistant("final", "stop"),
+	]);
+	assert.equal(early.terminal.finalText, "final");
+	assert.equal(early.normalizer.followUpTurns, 0);
+});

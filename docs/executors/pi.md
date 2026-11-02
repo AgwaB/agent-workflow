@@ -249,6 +249,13 @@ Note: `ready` only means "credentials present". Live #1 got a 401 on a key that 
 Pi **exits 0** after a provider error. The terminal state comes from the last assistant `stopReason: "error"`
 plus `errorMessage`, then from the exit code and stderr.
 
+The answer is the last assistant message up to the first one that ends the turn (`stopReason: "stop"`).
+An extension message that arrives after it and starts another turn (pi-web-access sends
+`web-search-content-ready` with `triggerTurn` when `web_search` `includeContent` fetches finish) is a
+reply to that notice, not to the task: its tokens count, but its text does not replace the answer and
+its errors do not fail the attempt (quality A/B 2026-11-02: 3 of 7 research answers had been replaced
+by near-empty replies).
+
 | Text | Class | Evidence |
 |---|---|---|
 | context length / window exceeded (pi-subagent pattern) | permanent | source |

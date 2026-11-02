@@ -176,6 +176,15 @@ export class PiEventNormalizer {
 	private readonly options: PiNormalizerOptions;
 	private lastAssistant: Record<string, unknown> | undefined;
 	private finalText = "";
+	// The worker answered (an assistant message ended the turn with stopReason "stop").
+	private answered = false;
+	// After the answer, an extension message started an unsolicited turn (pi-web-access sends
+	// `web-search-content-ready` with `triggerTurn` when background page fetches finish). That turn
+	// replies to the notice, not to the task, so it must not replace the answer (quality A/B
+	// 2026-11-02: 3 of 7 research answers were replaced by near-empty replies).
+	private followUp = false;
+	/** Assistant messages after the answer that were not taken as the answer. */
+	followUpTurns = 0;
 	private settledAborted = false;
 	private readonly streamErrors: string[] = [];
 	parseErrors = 0;
@@ -228,19 +237,33 @@ export class PiEventNormalizer {
 				];
 			case "message_end": {
 				const message = event.message;
-				if (!isRecord(message) || message.role !== "assistant") return [];
-				this.lastAssistant = message;
-				this.finalText = textFromContent(message.content);
+				if (!isRecord(message)) return [];
+				if (message.role !== "assistant") {
+					if (
+						this.answered &&
+						(message.role === "custom" || message.role === "user")
+					)
+						this.followUp = true;
+					return [];
+				}
 				if (typeof message.provider === "string")
 					this.provider = message.provider;
 				if (typeof message.model === "string") this.model = message.model;
+				const usage = usageFromPi(message.usage, message.model);
+				if (this.followUp) {
+					// Spent tokens still count; the reply does not become the answer or fail the run.
+					this.followUpTurns += 1;
+					return usage === undefined ? [] : [usage];
+				}
+				this.lastAssistant = message;
+				this.finalText = textFromContent(message.content);
+				if (message.stopReason === "stop") this.answered = true;
 				if (message.stopReason === "error")
 					this.streamErrors.push(
 						errorText(message.errorMessage) ??
 							errorText(message.error) ??
 							"assistant stopped with an error",
 					);
-				const usage = usageFromPi(message.usage, message.model);
 				return usage === undefined ? [] : [usage];
 			}
 			case "agent_end": {
