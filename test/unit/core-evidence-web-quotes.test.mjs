@@ -450,3 +450,55 @@ test("a quote in the worker's own page text is verified without fetching; summar
 	assert.equal(summary.verifiedRefetched, 1);
 	assert.equal(typeof checker.checkWebQuotes, "function");
 });
+
+test("a cache write or PDF temp-file failure affects only that page (quality A/B 2026-11-02)", async (t) => {
+	const dir = mkdtempSync(join(tmpdir(), "aw-evidence-"));
+	t.after(() => rmSync(dir, { recursive: true, force: true }));
+	// Every write fails (disk full, permissions): the check still uses the fetched pages.
+	class BrokenCache extends EvidencePageCache {
+		async put() {
+			throw Object.assign(new Error("ENOSPC: no space left on device"), {
+				code: "ENOSPC",
+			});
+		}
+	}
+	const { results, summary } = await checkWebQuotes(
+		[
+			{
+				key: "html",
+				url: "https://docs.example.com/a",
+				quote: "The cache is invalidated when content is cleared.",
+			},
+			{
+				key: "md",
+				url: "https://docs.example.com/md",
+				quote: "persists across sessions, subtly altering",
+			},
+		],
+		{
+			cwd: dir,
+			cache: new BrokenCache(join(dir, "cache")),
+			fetch: fakeFetch([]),
+		},
+	);
+	assert.deepEqual(
+		results.map((result) => result.grade),
+		["verified-refetched", "verified-refetched"],
+	);
+	assert.match(results[0].page.bodySha256, /^[0-9a-f]{64}$/);
+	assert.equal(summary.verified, 2);
+
+	// No usable temp directory: the PDF gets a reason instead of an exception.
+	const previous = process.env.TMPDIR;
+	process.env.TMPDIR = join(dir, "missing", "tmp");
+	t.after(() => {
+		if (previous === undefined) delete process.env.TMPDIR;
+		else process.env.TMPDIR = previous;
+	});
+	const pdf = await pdfToText(Buffer.from("%PDF-1.4\n"), {
+		command: "/bin/echo",
+	});
+	assert.equal(pdf.ok, false);
+	assert.equal(pdf.reason, "pdf-extract-failed");
+	assert.match(pdf.detail, /temporary file/);
+});

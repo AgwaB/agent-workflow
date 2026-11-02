@@ -25,10 +25,29 @@ export async function pdfToText(
 	body: Buffer,
 	options: { signal?: AbortSignal; timeoutMs?: number; command?: string } = {},
 ): Promise<PdfTextResult> {
-	const dir = await mkdtemp(join(tmpdir(), "aw-evidence-pdf-"));
+	// A temp-file failure is this page's reason, not an error that fails the whole quote check
+	// (quality A/B 2026-11-02 review finding).
+	let dir: string;
+	try {
+		dir = await mkdtemp(join(tmpdir(), "aw-evidence-pdf-"));
+	} catch (error) {
+		return {
+			ok: false,
+			reason: "pdf-extract-failed",
+			detail: `temporary file: ${(error as Error).message}`.slice(0, 200),
+		};
+	}
 	try {
 		const file = join(dir, "page.pdf");
-		await writeFile(file, body);
+		try {
+			await writeFile(file, body);
+		} catch (error) {
+			return {
+				ok: false,
+				reason: "pdf-extract-failed",
+				detail: `temporary file: ${(error as Error).message}`.slice(0, 200),
+			};
+		}
 		return await new Promise<PdfTextResult>((resolve) => {
 			execFile(
 				options.command ?? "pdftotext",
@@ -60,7 +79,7 @@ export async function pdfToText(
 			);
 		});
 	} finally {
-		await rm(dir, { recursive: true, force: true });
+		await rm(dir, { recursive: true, force: true }).catch(() => undefined);
 	}
 }
 

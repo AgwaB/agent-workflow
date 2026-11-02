@@ -10,6 +10,7 @@
 // missing, blocked address, little page text, …) instead of a verdict: honest labelling, not a
 // gate (owner decision 2026-11-01; offline sample of 114 recorded quotes: 0 fabricated, 5 unchecked
 // — images 4, PDF table 1).
+import { createHash } from "node:crypto";
 import {
 	EvidencePageCache,
 	evidenceCacheDir,
@@ -243,16 +244,23 @@ async function loadPage(
 		});
 		if (!fetched.ok)
 			return { ok: false, reason: fetched.reason, detail: fetched.detail };
-		const entry: CachedPage = await cache.put(
-			{
-				url,
-				finalUrl: fetched.finalUrl,
-				status: fetched.status,
-				contentType: fetched.contentType,
-				redirects: fetched.redirects,
-			},
-			fetched.body,
-		);
+		const fetchedPage = {
+			url,
+			finalUrl: fetched.finalUrl,
+			status: fetched.status,
+			contentType: fetched.contentType,
+			redirects: fetched.redirects,
+		};
+		// The cache is an optimisation: a failed write (disk full, permissions) keeps the page for this
+		// check instead of rejecting every quote of the batch (quality A/B 2026-11-02 review finding).
+		const entry: CachedPage = await cache
+			.put(fetchedPage, fetched.body)
+			.catch(() => ({
+				...fetchedPage,
+				bodySha256: createHash("sha256").update(fetched.body).digest("hex"),
+				bytes: fetched.body.length,
+				fetchedAt: new Date().toISOString(),
+			}));
 		cached = { page: entry, body: fetched.body };
 		fromCache = false;
 	}
