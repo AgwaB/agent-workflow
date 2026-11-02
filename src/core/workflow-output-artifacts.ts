@@ -107,7 +107,8 @@ export type WorkflowOutputRepairCode =
 	| "control_fact_slot_coverage_string_fields"
 	| "control_final_synthesis_array_caps"
 	| "control_enum_near_miss"
-	| "control_object_row_from_string";
+	| "control_object_row_from_string"
+	| "json_invalid_escape";
 
 export interface WorkflowOutputRepair {
 	code: WorkflowOutputRepairCode;
@@ -298,6 +299,7 @@ export function parseWorkflowOutput(
 		sectionText(layout.sections, SECTION_REFS),
 		issues,
 		requirements,
+		repairs,
 	);
 	validateControlContract(control, issues, options.controlContract);
 	validateControlJsonSchema(control, issues, options.controlJsonSchema);
@@ -1043,7 +1045,7 @@ function parseControlSection(
 	options: ParseWorkflowOutputOptions,
 ): Record<string, unknown> | undefined {
 	if (text === undefined) return undefined;
-	const parsed = parseJsonSection(text, SECTION_CONTROL, issues);
+	const parsed = parseJsonSection(text, SECTION_CONTROL, issues, repairs);
 	if (parsed === undefined) return undefined;
 	if (!isPlainRecord(parsed)) {
 		issues.push({
@@ -1878,9 +1880,10 @@ function parseRefsSection(
 	text: string | undefined,
 	issues: WorkflowOutputIssue[],
 	requirements: SectionRequirements,
+	repairs: WorkflowOutputRepair[] = [],
 ): unknown[] | undefined {
 	if (text === undefined) return requirements.refsRequired ? undefined : [];
-	const parsed = parseJsonSection(text, SECTION_REFS, issues);
+	const parsed = parseJsonSection(text, SECTION_REFS, issues, repairs);
 	if (parsed === undefined) return undefined;
 	if (Array.isArray(parsed)) {
 		if (parsed.length < requirements.refsMinItems) {
@@ -2922,10 +2925,106 @@ function sectionText(
 	return matches.length === 1 ? matches[0]!.content.trim() : undefined;
 }
 
+/**
+ * Makes the escapes JSON does not have literal, inside strings only: a backslash before anything
+ * but a quote, backslash, slash, b, f, n, r, t, or u + 4 hex digits is doubled, and a raw control
+ * character is escaped. These invalid escapes come from quoting code and TeX (backslash-d,
+ * backslash-paren, backslash-u{1d400}, a backslash before a backtick: the three failed attempts
+ * of an Antigravity reviewer in the 2026-11-02 A/B), and none of them has a JSON meaning to lose.
+ * Structure is never guessed: no quote, comma or bracket is added (a truncated value stays
+ * invalid; cline's parseJsonStream refuses to repair those for the same reason). References: MetaGPT
+ * `repair_escape_error`; qwen-code and cline fall back to jsonrepair, which also repairs these.
+ */
+export function repairInvalidJsonEscapes(text: string): {
+	text: string;
+	count: number;
+} {
+	let out = "";
+	let inString = false;
+	let count = 0;
+	for (let i = 0; i < text.length; i += 1) {
+		const ch = text[i] as string;
+		if (!inString) {
+			if (ch === '"') inString = true;
+			out += ch;
+			continue;
+		}
+		if (ch === "\\") {
+			const next = text[i + 1];
+			if (next !== undefined && '"\\/bfnrt'.includes(next)) {
+				out += ch + next;
+				i += 1;
+			} else if (
+				next === "u" &&
+				/^[0-9a-fA-F]{4}$/.test(text.slice(i + 2, i + 6))
+			) {
+				out += text.slice(i, i + 6);
+				i += 5;
+			} else {
+				out += "\\\\";
+				count += 1;
+			}
+			continue;
+		}
+		if (ch === '"') inString = false;
+		const code = ch.charCodeAt(0);
+		if (code < 0x20) {
+			out +=
+				ch === "\n"
+					? "\\n"
+					: ch === "\t"
+						? "\\t"
+						: ch === "\r"
+							? "\\r"
+							: `\\u${code.toString(16).padStart(4, "0")}`;
+			count += 1;
+			continue;
+		}
+		out += ch;
+	}
+	return { text: out, count };
+}
+
+/**
+ * For a retry after "<section> must contain valid JSON: … at position N": the previous output
+ * around that position, so a fresh session sees what broke (the plain preview stops at 4,000
+ * chars, before most such errors), plus how to escape. Undefined when the message has no position.
+ */
+export function jsonErrorExcerpt(
+	previousOutput: string,
+	message: string,
+): string | undefined {
+	const match =
+		/(control|refs) must contain valid JSON: [^\n]*?position (\d+)/.exec(
+			message,
+		);
+	if (!match) return undefined;
+	const open = previousOutput.indexOf(`<${match[1]}>`);
+	if (open < 0) return undefined;
+	let start = open + match[1]!.length + 2;
+	while (
+		start < previousOutput.length &&
+		/\s/.test(previousOutput[start] as string)
+	)
+		start += 1;
+	const at = start + Number(match[2]);
+	if (at > previousOutput.length) return undefined;
+	const before = previousOutput.slice(Math.max(start, at - 240), at);
+	const after = previousOutput.slice(at, at + 120);
+	return [
+		`Where the ${match[1]} JSON broke (⟦HERE⟧ marks the position):`,
+		"```",
+		`${before}⟦HERE⟧${after}`,
+		"```",
+		"Inside JSON strings write every backslash as two backslashes (regexes, TeX and paths you quote: \\\\d, \\\\u{1d400}, \\\\(), every double quote as backslash-quote, and close each string with exactly one quote.",
+	].join("\n");
+}
+
 function parseJsonSection(
 	text: string,
 	section: typeof SECTION_CONTROL | typeof SECTION_REFS,
 	issues: WorkflowOutputIssue[],
+	repairs: WorkflowOutputRepair[] = [],
 ): unknown | undefined {
 	if (text.trim().length === 0) {
 		issues.push({
@@ -2941,6 +3040,26 @@ function parseJsonSection(
 		if (section === SECTION_CONTROL) {
 			const recovered = parseFirstBalancedControlJson(text);
 			if (recovered !== undefined) return recovered;
+		}
+		const escaped = repairInvalidJsonEscapes(text);
+		if (escaped.count > 0) {
+			let repaired: unknown;
+			try {
+				repaired = JSON.parse(escaped.text);
+			} catch {
+				repaired =
+					section === SECTION_CONTROL
+						? parseFirstBalancedControlJson(escaped.text)
+						: undefined;
+			}
+			if (repaired !== undefined) {
+				repairs.push({
+					code: "json_invalid_escape",
+					section,
+					message: `${escaped.count} invalid JSON escape(s) or raw control character(s) in ${section} made literal`,
+				});
+				return repaired;
+			}
 		}
 		issues.push({
 			code: "invalid_json",

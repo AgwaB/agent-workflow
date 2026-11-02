@@ -23,7 +23,10 @@ import {
 	type WorkflowSourceManifest,
 	type WorkflowSourceManifestSource,
 } from "./workflow-artifact-tool.js";
-import { writeWorkflowTaskArtifactBundle } from "./workflow-output-artifacts.js";
+import {
+	jsonErrorExcerpt,
+	writeWorkflowTaskArtifactBundle,
+} from "./workflow-output-artifacts.js";
 import {
 	hasFatalPartialOutputIssue,
 	readWorkflowPartialOutputLedger,
@@ -2018,6 +2021,9 @@ export async function prepareArtifactGraphRetryTask(
 				"Use workflow_artifact before producing the final answer.",
 			].join("\n")
 		: (task.outputRetry?.message ?? "workflow output was invalid");
+	const jsonExcerpt = task.outputRetry?.artifacts?.length
+		? undefined
+		: jsonErrorExcerpt(previousOutput, task.outputRetry?.message ?? "");
 
 	const readRetryHint =
 		preparedTask.artifactGraph?.artifactAccess === "none"
@@ -2027,6 +2033,7 @@ export async function prepareArtifactGraphRetryTask(
 		preparedTask.compiledPrompt,
 		"# Workflow Output Retry Instructions",
 		issueText,
+		jsonExcerpt,
 		"Return the final answer again using exactly <control>, <analysis>, and <refs> sections. The first byte must be '<' in <control>; do not include apologies, status text, Markdown headings, or prose outside the required sections.",
 		readRetryHint,
 		"# Previous Attempt Preview",

@@ -1957,3 +1957,16 @@ but three executor/engine bugs showed.
   probe lists what a worker-like session registers (exits in `session_start`, no model request).
   `agent-workflow doctor --fix [--yes]` turns such a Pi web tool back on after the user agreed
   (`docs/cli.md`).
+- **Invalid JSON escapes in output sections (Antigravity A/B, 2026-11-02).** A reviewer lost its lens
+  after three attempts. Its `<control>` JSON quoted regexes with backslash-u{1d400} and a backslash
+  before a backtick, and a fresh-session retry saw only the first 4,000 chars of the old output, so it
+  repeated the mistake. Now:
+  - a section that fails `JSON.parse` is parsed again with invalid escapes and raw control characters
+    made literal (`repairInvalidJsonEscapes`; repair code `json_invalid_escape` in
+    `outputValidation`). No quote, comma or bracket is ever added. MetaGPT `repair_escape_error`
+    does the same; qwen-code and cline fall back to jsonrepair;
+  - the retry prompt shows the previous output around the error position and how to escape
+    (`jsonErrorExcerpt`).
+  
+  On the saved attempts, the first two parse and pass the reviewer schema (7 findings); the third, an
+  extra quote, still fails (`core-output-json-escape.test.mjs`).
