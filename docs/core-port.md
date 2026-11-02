@@ -1929,3 +1929,23 @@ switched off mid-run. Flags that change what a run does are now decided at launc
 
 Replay: `run-scoped-experimental-flags` in `test/replay/explained-differences.json` (added field only).
 Tests: `core-run-scoped-flags.test.mjs`, `core-evidence-run-flag.test.mjs`.
+
+## 2026-11-02 — fixes from the quality A/B against pi-workflow
+
+Found by the same-model A/B (pi-workflow 0.16.4 vs agent-workflow on Pi, gpt-6.1-sol; deep-review
+3 + 3 runs): agent-workflow lost no review quality (0 false positives on both sides, ~30 % cheaper),
+but three executor/engine bugs showed.
+
+- **Pi redaction of `AGENT_WORKFLOW_ROLE=worker`.** Pi redacts request env values of 6+ chars from
+  persisted output; the engine's role marker made every "worker" in transcripts and answers
+  `[redacted]`, so verifier quotes failed the byte check. The engine's public role env is no longer
+  treated as a secret (`src/executors/redact.ts`; `executor-wp12d2-secret-echo.test.mjs`).
+- **Pi answer replaced by an extension follow-up turn.** pi-web-access `web_search` with
+  `includeContent` sends `web-search-content-ready` with `triggerTurn` after the answer; the reply to
+  that notice became the task answer. The answer is now the message that first ended the turn
+  (`docs/executors/pi.md` "Errors"; `executor-pi-parse.test.mjs`).
+- **Worktree output retry (inherited from pi-workflow).** The retry task kept the worktree as its
+  cwd, so `ensureManagedWorktree` used the worktree as the git root, removed it and ran
+  `git worktree add` inside it (`spawnSync git ENOENT`). The retry now starts from the worktree's
+  base checkout and reuses the worktree (`artifact-graph-runtime.ts` `prepareArtifactGraphRetryTask`;
+  `core-worktree-output-retry.test.mjs`).
