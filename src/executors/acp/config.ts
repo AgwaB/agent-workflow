@@ -10,9 +10,12 @@ import type { SubmitRequest } from "../../sdk/contract.js";
 import { type FailureClass, SdkError } from "../../sdk/errors.js";
 import type { JsonValue } from "../../sdk/json.js";
 import { isUnrestricted } from "../../sdk/permission.js";
+import type { ToolMapping } from "../../sdk/tools.js";
 import {
+	ANTIGRAVITY_TOOL_MAPPING,
 	antigravityAnswerFailure,
 	antigravityLaunchEnv,
+	antigravitySessionMeta,
 	antigravityInheritedEnvBlocked,
 	antigravitySummaryKey,
 	readAntigravityToolResults,
@@ -53,8 +56,10 @@ export interface AcpPreset {
 	isolatedEnv?(agentHome: string): Record<string, string>;
 	/** Whether a login is recorded in the agent home (no credential is read); absent: unknown. */
 	authRecorded?(agentHome: string): Promise<boolean>;
-	/** Agent-specific `_meta` sent with `session/new` (e.g. built-in tools to disable). */
-	readonly sessionMeta?: Readonly<Record<string, unknown>>;
+	/** Agent-specific `_meta` sent with `session/new` (e.g. which built-in tools are on). */
+	sessionMeta?(req: SubmitRequest): Record<string, unknown>;
+	/** Pi tool names → the agent's tools (pre-launch tool check, B4). */
+	readonly toolMapping?: ToolMapping;
 	/** Inherited (not request) variables dropped for an isolated worker; their names are recorded. */
 	inheritedEnvBlocked?(key: string): boolean;
 	/** A final answer that is the agent's failure report (quota, internal error), not work. */
@@ -181,11 +186,8 @@ const ANTIGRAVITY: AcpPreset = {
 	// input tokens (live: 8,531 vs 11,032). The filter knows only the SDK BuiltinTools names
 	// (no-model probe: it warns "Unknown tool name" for define_subagent, send_message,
 	// manage_subagents), so the list holds only names it knows.
-	sessionMeta: {
-		antigravity: {
-			disabledTools: ["run_workflow", "schedule", "invoke_subagent"],
-		},
-	},
+	sessionMeta: antigravitySessionMeta,
+	toolMapping: ANTIGRAVITY_TOOL_MAPPING,
 	inheritedEnvBlocked: antigravityInheritedEnvBlocked,
 	answerFailure: antigravityAnswerFailure,
 	toolResults: {

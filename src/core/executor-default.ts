@@ -112,6 +112,15 @@ const SETUP_HINTS: Readonly<Record<string, ExecutorSetupHints>> = {
 		login: "run `codex login`",
 		check: "codex --version",
 	},
+	antigravity: {
+		cli: "agy_acp_server",
+		install: null,
+		installDoc: "docs/executors/acp.md",
+		login:
+			"log the worker home in once with authenticateAcpAgent (docs/executors/acp.md)",
+		check:
+			"agy_acp_server on PATH or AGENT_WORKFLOW_AGY_ACP_SERVER (ACP initialize)",
+	},
 };
 
 /** Install/login commands for an executor id (generic wording for registered executors). */

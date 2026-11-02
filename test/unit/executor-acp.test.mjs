@@ -8,8 +8,10 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
+	ANTIGRAVITY_FILTER_TOOLS,
 	acpPromptText,
 	antigravityLaunchEnv,
+	antigravitySessionMeta,
 	authenticateAcpAgent,
 	createAcpExecutor,
 	parseAcpConfig,
@@ -436,23 +438,15 @@ test("acp antigravity preset: no launch flags; mode, model and effort are set on
 		log.filter((entry) => entry.argv).map((entry) => entry.argv),
 		process.platform === "linux" ? [["--uid="], ["--uid="]] : [[], []],
 	);
-	// Built-in run_workflow/schedule are disabled per session (no startup SKILL.md write, no agents
-	// or timers outside the engine).
+	// The built-in allowlist follows the stage's tools (read → view_file); run_workflow, schedule,
+	// invoke_subagent and ask_question stay off (no startup SKILL.md write, nothing outside the engine).
 	assert.deepEqual(
 		log
 			.filter((entry) => entry.method === "session/new")
 			.map((entry) => entry.meta),
 		[
-			{
-				antigravity: {
-					disabledTools: ["run_workflow", "schedule", "invoke_subagent"],
-				},
-			},
-			{
-				antigravity: {
-					disabledTools: ["run_workflow", "schedule", "invoke_subagent"],
-				},
-			},
+			{ antigravity: { enabledTools: ["view_file"] } },
+			{ antigravity: { enabledTools: ["view_file"] } },
 		],
 	);
 	assert.deepEqual(
@@ -785,5 +779,32 @@ test("acp: a shell permission request carries its command; a readOnly stage allo
 			["s2", "deny"],
 			["s3", "allow"],
 		],
+	);
+});
+
+test("acp antigravity: the session's built-in allowlist follows the stage's tools", () => {
+	const meta = (tools, readOnly) => antigravitySessionMeta({ tools, readOnly });
+	assert.deepEqual(meta(["read", "grep", "find", "ls"], true), {
+		antigravity: { enabledTools: ["run_command", "view_file"] },
+	});
+	assert.deepEqual(meta(["read", "edit", "write", "bash"], false), {
+		antigravity: {
+			enabledTools: ["create_file", "edit_file", "run_command", "view_file"],
+		},
+	});
+	// readOnly drops the writing tools even when listed; web tools and MCP tools are not built-ins.
+	assert.deepEqual(
+		meta(["read", "edit", "write", "web_search", "workflow_artifact"], true),
+		{
+			antigravity: { enabledTools: ["view_file"] },
+		},
+	);
+	// No built-in left: everything the filter knows is off (run_workflow, ask_question, ...).
+	assert.deepEqual(meta(["workflow_artifact"], true), {
+		antigravity: { disabledTools: [...ANTIGRAVITY_FILTER_TOOLS] },
+	});
+	assert.ok(
+		ANTIGRAVITY_FILTER_TOOLS.includes("run_workflow") &&
+			ANTIGRAVITY_FILTER_TOOLS.includes("ask_question"),
 	);
 });

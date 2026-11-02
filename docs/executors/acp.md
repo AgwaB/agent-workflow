@@ -11,11 +11,13 @@ Entry point: `@agwab/agent-workflow/executors/acp`. Source: `src/executors/acp/`
   (`test/unit/executor-acp-antigravity-live.test.mjs`, `AGENT_WORKFLOW_LIVE=1`) passed on
   agy_acp_server 1.4.5 with gemini-3.8-flash (low):
   - smoke: a 200,000-char MCP result was delivered in full;
-  - `live.readonly_enforced` and `live.isolation` passed;
-  - `live.tool_allowlist`, `live.session_ownership` and `live.resume` skip (declared none).
+  - `live.readonly_enforced` and `live.isolation` passed, and `live.tool_allowlist` too once the
+    allowlist existed (second run);
+  - `live.session_ownership` and `live.resume` skip (declared none).
   
   A two-stage AW run (`--executor antigravity`: a file read, then an artifact read through
   `workflow_artifact`) completed cleanly. Capabilities stay `declared`.
+- `doctor` lists it after pi, claude and codex (never the installed default); verified server 1.4.5.
 - Built-in descriptor: `{ id: "antigravity", module: <dist>/executors/acp/index.js, config: { preset:
   "antigravity" } }`. The server must be on PATH as `agy_acp_server`, or named in
   `AGENT_WORKFLOW_AGY_ACP_SERVER`. The registry ships it as an archive with no installer. When the
@@ -68,17 +70,26 @@ Unknown keys are refused (`DESCRIPTOR_INVALID`). To try it, register a descripto
   `thinking_level` from the effort (low / medium / high, nearest).
 - No read-only mode and no MCP allow list: readOnly relies on the engine denying writing kinds in
   permission requests.
-- `session/new` carries `_meta.antigravity.disabledTools` with `run_workflow`, `schedule` and
-  `invoke_subagent`. This is the per-session tool filter, documented for ACP server 1.2.1+ as
-  `_meta.agy`, which 1.4.5 logs as legacy. Each of these tools would start agents, timers or cron jobs
-  outside the engine. The filter only knows the SDK `BuiltinTools` names and warns about any other
-  name. A no-model probe on 1.4.5 found 15 known names; `define_subagent`, `send_message` and
-  `manage_subagents` are not among them. `_meta.antigravity.enabledTools` is an allowlist (live: only
-  `view_file` was offered, 4,073 input tokens), but `list_directory`, `search_directory` and
-  `find_file` are not offered even when listed. Without the
-  filter, 1.4.2+ also writes `skills/system/run-workflow/SKILL.md` into the cwd at `session/new`,
-  which lands in the user's checkout or a worktree diff. Live (2026-11-02, 1.4.5): no file. Input
-  tokens per request: 13,619 with no filter, 11,032 with the first two off, 8,531 with `invoke_subagent` off too.
+- `session/new` carries `_meta.antigravity` with a built-in tool allowlist built from the stage's
+  tools (`antigravitySessionMeta`, `ANTIGRAVITY_TOOL_MAPPING`):
+  - `read` → `view_file`; `grep`/`find`/`ls`/`bash` → `run_command`; `edit` → `edit_file`;
+    `write` → `create_file`. A readOnly stage drops the writing tools.
+  - Web tools are not mapped yet: their results are not captured as evidence, so `webTools` stays none.
+  - `enabledTools` lists the result. When nothing maps, `disabledTools` lists all 15 names the filter
+    knows instead, because what an empty allowlist does is not verified.
+  - Every unlisted built-in is off: `run_workflow`, `schedule`, `invoke_subagent`, `ask_question`,
+    `generate_image`. That means nothing starts agents or timers outside the engine, and nothing asks
+    a question no one answers.
+  - Live (2026-11-02, 1.4.5): `enabledTools` is a server-enforced allowlist (only the listed tools were
+    offered); engine MCP tools are not affected. `toolAllowlist` is native, coarse (`run_command`
+    covers several Pi tools).
+  - The filter knows only the SDK `BuiltinTools` names and warns about any other name. A no-model
+    probe found 15. `list_directory`, `search_directory` and `find_file` are not offered even when
+    enabled. `_meta.agy` (documented since ACP server 1.2.1) is logged as legacy.
+  - Without the filter, 1.4.2+ writes `skills/system/run-workflow/SKILL.md` into the cwd at
+    `session/new`, which lands in the user's checkout or a worktree diff. With it: no file.
+  - Input tokens per request: 13,619 with no filter, 8,531 with five tools off, 4,073 with only
+    `view_file`.
 - Not isolated: the workspace's own customizations. Antigravity reads `AGENTS.md`, `GEMINI.md` and
   `.agents/` (rules, skills) in the workspace folder and its parents up to the repository root
   (docs `customization-discovery`). No flag or `_meta` option to turn this off was found. In the

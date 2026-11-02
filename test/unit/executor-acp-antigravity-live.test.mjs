@@ -1,7 +1,7 @@
 // Live tier for the ACP adapter's antigravity preset. Skipped unless AGENT_WORKFLOW_LIVE=1. Each
-// run costs model calls (one smoke + the kit's live checks that are not skipped: readOnly and
-// isolation, so three prompts on gemini-3.8-flash), so run it deliberately and record the result in
-// docs/executors/acp.md.
+// run costs model calls (one smoke + the kit's live checks that are not skipped: readOnly,
+// tool_allowlist and isolation, so four prompts on gemini-3.8-flash), so run it deliberately and
+// record the result in docs/executors/acp.md.
 //
 // Must run with the real environment (the agy_acp_server login recorded in the worker home):
 // `AGENT_WORKFLOW_LIVE=1 node --test test/unit/executor-acp-antigravity-live.test.mjs` after

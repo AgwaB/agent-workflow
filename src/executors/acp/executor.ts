@@ -485,7 +485,7 @@ export function createAcpExecutor(options: {
 					mcpServers: acpMcpServers(req),
 					...(preset.sessionMeta === undefined
 						? {}
-						: { _meta: preset.sessionMeta }),
+						: { _meta: preset.sessionMeta(req) }),
 				}),
 				config.handshakeTimeoutMs,
 				"ACP session/new",
@@ -898,7 +898,9 @@ export function createAcpExecutor(options: {
 				cliVersion,
 				auth: recorded === undefined ? "unknown" : recorded ? "ok" : "missing",
 				notes: [
-					`ACP pilot: capabilities are declared, not live-verified (${preset.label} ${cliVersion})`,
+					preset.id === "antigravity"
+						? `${preset.label} ${cliVersion}: built-in; live tier passed on 1.4.5 (docs/executors/acp.md)`
+						: `ACP pilot: capabilities are declared, not live-verified (${preset.label} ${cliVersion})`,
 					...(recorded === false
 						? [
 								`no login in the worker home ${config.agentHome}; log in once with authenticateAcpAgent (docs/executors/acp.md)`,
@@ -909,6 +911,9 @@ export function createAcpExecutor(options: {
 		},
 
 		capabilities: (): ExecutorCapabilities => capabilities,
+		...(preset.toolMapping === undefined
+			? {}
+			: { toolMapping: preset.toolMapping }),
 
 		async submit(req: SubmitRequest): Promise<ExecRef> {
 			const problems = validateSubmitRequest(req);

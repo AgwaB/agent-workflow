@@ -125,6 +125,7 @@ test("doctorAction: executors, default and why, verified versions, fix commands 
 			pi: NOT_INSTALLED,
 			claude: READY,
 			codex: LOGGED_OUT,
+			antigravity: NOT_INSTALLED,
 		}),
 		nodeVersion: "24.1.0",
 	});
@@ -136,7 +137,7 @@ test("doctorAction: executors, default and why, verified versions, fix commands 
 	);
 	assert.deepEqual(
 		result.data.executors.map((entry) => entry.id),
-		["pi", "claude", "codex"],
+		["pi", "claude", "codex", "antigravity"],
 	);
 	assert.equal(byId.pi.state, "not-installed");
 	assert.match(
@@ -187,7 +188,7 @@ test("doctorAction: executors, default and why, verified versions, fix commands 
 	);
 	assert.match(result.text, /Permission mode default: free \(default\)/);
 	assert.match(result.text, /Node: v24\.1\.0 \(requires >=22\)/);
-	assert.match(result.text, /OK: 1 of 3 executors usable\./);
+	assert.match(result.text, /OK: 1 of 4 executors usable\./);
 	// Nothing was written by the check.
 	assert.equal(existsSync(join(cwd, "home")), false);
 	assert.equal(existsSync(join(cwd, ".agent-workflow", "workflows")), false);
@@ -365,6 +366,7 @@ test("CLI doctor: exit 1 when nothing is usable (shimmed CLIs), --json shape, ex
 	assert.match(none.out(), /pi\s+not usable\s+not installed/);
 	assert.match(none.out(), /claude\s+not usable\s+not installed/);
 	assert.match(none.out(), /codex\s+not usable\s+not installed/);
+	assert.match(none.out(), /antigravity\s+not usable/);
 	assert.match(none.out(), /No executor is usable/);
 
 	const json = capture(cwd, env);
@@ -374,7 +376,7 @@ test("CLI doctor: exit 1 when nothing is usable (shimmed CLIs), --json shape, ex
 	assert.equal(parsed.ok, false);
 	assert.equal(parsed.data.host, "cli");
 	assert.equal(parsed.data.defaultExecutor.id, null);
-	assert.equal(parsed.data.executors.length, 3);
+	assert.equal(parsed.data.executors.length, 4);
 
 	const usage = capture(cwd, env);
 	assert.equal(await cli.runAgentWorkflowCli(["doctor", "extra"], usage.io), 2);
@@ -383,7 +385,7 @@ test("CLI doctor: exit 1 when nothing is usable (shimmed CLIs), --json shape, ex
 	const ok = capture(cwd, env);
 	assert.equal(await cli.runAgentWorkflowCli(["doctor"], ok.io), 0);
 	assert.match(ok.out(), /Default executor here: codex \(installed-default\)/);
-	assert.match(ok.out(), /OK: 1 of 3 executors usable\./);
+	assert.match(ok.out(), /OK: 1 of 4 executors usable\./);
 	const help = capture(cwd, env);
 	assert.equal(await cli.runAgentWorkflowCli(["help", "doctor"], help.io), 0);
 	assert.match(help.out(), /Usage: agent-workflow doctor/);

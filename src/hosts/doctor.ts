@@ -37,6 +37,7 @@ import {
 	TERMINAL_INDEX_LIMIT,
 	workflowIndexPath,
 } from "../core/store.js";
+import { BUILTIN_EXECUTOR_IDS } from "../core/executor-registry.js";
 import type { WorkflowHostId } from "../core/types.js";
 import { inspectCodexEnvironment } from "../executors/codex/environment.js";
 import { readUserProfiles, userProfileFromFile } from "./user-profiles.js";
@@ -119,7 +120,7 @@ export interface DoctorData {
 }
 
 async function verifiedVersions(): Promise<Record<string, string | null>> {
-	const [claude, codex, pi] = await Promise.all([
+	const [claude, codex, pi, antigravity] = await Promise.all([
 		import("../executors/claude/config.js").then(
 			(module) => module.CLAUDE_VERIFIED_CLI_VERSION,
 			() => null,
@@ -133,8 +134,12 @@ async function verifiedVersions(): Promise<Record<string, string | null>> {
 				/^pi (\d+\.\d+\.\d+)/u.exec(module.PI_VERIFIED_WITH)?.[1] ?? null,
 			() => null,
 		),
+		import("../executors/acp/antigravity.js").then(
+			(module) => module.ANTIGRAVITY_VERIFIED_SERVER_VERSION,
+			() => null,
+		),
 	]);
-	return { pi, claude, codex };
+	return { pi, claude, codex, antigravity };
 }
 
 async function nearestExistingDir(path: string): Promise<string | undefined> {
@@ -373,6 +378,17 @@ export function applyDoctorFix(
 	return enablePiWebTool(fix.tool, env);
 }
 
+/**
+ * Executors the doctor reports: the default order first, then the other built-ins (antigravity),
+ * which never become the installed default.
+ */
+const DOCTOR_EXECUTOR_IDS: readonly string[] = [
+	...INSTALLED_DEFAULT_ORDER,
+	...BUILTIN_EXECUTOR_IDS.filter(
+		(id) => !(INSTALLED_DEFAULT_ORDER as readonly string[]).includes(id),
+	),
+];
+
 /** `doctor`: read-only environment check (no model calls, nothing written). */
 export async function doctorAction(
 	ctx: HostApiContext,
@@ -383,7 +399,7 @@ export async function doctorAction(
 	const host: WorkflowHostId = ctx.host ?? "cli";
 	const [readiness, verified, home, runIndex] = await Promise.all([
 		Promise.all(
-			INSTALLED_DEFAULT_ORDER.map((id) =>
+			DOCTOR_EXECUTOR_IDS.map((id) =>
 				probeExecutorReadiness(id, {
 					...(request.prober === undefined ? {} : { prober: request.prober }),
 					...(request.probeTimeoutMs === undefined

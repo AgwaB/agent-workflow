@@ -20,6 +20,7 @@ import { access, readFile, realpath, stat } from "node:fs/promises";
 import { delimiter, dirname, isAbsolute, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { FailureClass } from "../../sdk/errors.js";
+import type { ToolMapping } from "../../sdk/tools.js";
 import type { AgentToolResult, SummaryCall } from "./config.js";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -217,6 +218,89 @@ export async function antigravityLaunchEnv(
 			: {};
 	}
 	return {};
+}
+
+/** agy_acp_server version the live tier passed on (docs/executors/acp.md). */
+export const ANTIGRAVITY_VERIFIED_SERVER_VERSION = "1.4.5";
+
+/**
+ * Names the server's per-session tool filter knows (agy_acp_server 1.4.5 no-model probe: it warns
+ * "Unknown tool name" for anything else; they are the SDK BuiltinTools names, not the names the model
+ * sees, e.g. `create_file` is shown as write_to_file).
+ */
+export const ANTIGRAVITY_FILTER_TOOLS: readonly string[] = [
+	"ask_question",
+	"create_file",
+	"edit_file",
+	"find_file",
+	"finish",
+	"generate_image",
+	"invoke_subagent",
+	"list_directory",
+	"read_url_content",
+	"run_command",
+	"run_workflow",
+	"schedule",
+	"search_directory",
+	"search_web",
+	"view_file",
+];
+
+/**
+ * Pi tool names → Antigravity built-ins. grep/find/ls go through `run_command` (1.4.5 offers no
+ * list/search tool even when enabled), so the allowlist is coarse: a stage with grep can run any
+ * command it is allowed to (readOnly stages: plain read-only commands only, sdk/shell-readonly.ts).
+ * Web tools are not wired: their results are not captured as evidence yet (webTools none).
+ */
+export const ANTIGRAVITY_TOOL_MAPPING: ToolMapping = {
+	executorId: "antigravity",
+	entries: {
+		read: { type: "tool", names: ["view_file"] },
+		grep: { type: "tool", names: ["run_command"] },
+		find: { type: "tool", names: ["run_command"] },
+		ls: { type: "tool", names: ["run_command"] },
+		bash: { type: "tool", names: ["run_command"] },
+		edit: { type: "tool", names: ["edit_file"] },
+		write: { type: "tool", names: ["create_file"] },
+		web_search: {
+			type: "none",
+			reason: "web results are not captured as evidence yet",
+		},
+		fetch_content: {
+			type: "none",
+			reason: "web results are not captured as evidence yet",
+		},
+		workflow_artifact: {
+			type: "mcp",
+			server: "workflow_artifact",
+			tool: "workflow_artifact",
+		},
+	},
+};
+
+/**
+ * Session `_meta` for a request: `enabledTools` is an allowlist of built-ins (live 2026-11-02: only
+ * the listed tools were offered; engine MCP tools are not affected). It holds the request's mapped
+ * tools (readOnly: without the writing ones). Everything else is off, including run_workflow
+ * (its startup SKILL.md write), schedule, invoke_subagent and ask_question (no one answers an
+ * unattended worker). With no built-in left, every known tool is disabled instead (an empty
+ * allowlist's meaning is unverified). `_meta.agy` is logged as legacy; `_meta.antigravity` is used.
+ */
+export function antigravitySessionMeta(req: {
+	readonly tools: readonly string[];
+	readonly readOnly: boolean;
+}): Record<string, unknown> {
+	const enabled = new Set<string>();
+	for (const tool of req.tools) {
+		const entry = ANTIGRAVITY_TOOL_MAPPING.entries[tool];
+		if (entry?.type !== "tool") continue;
+		for (const name of entry.names)
+			if (!(req.readOnly && (name === "edit_file" || name === "create_file")))
+				enabled.add(name);
+	}
+	return enabled.size > 0
+		? { antigravity: { enabledTools: [...enabled].sort() } }
+		: { antigravity: { disabledTools: [...ANTIGRAVITY_FILTER_TOOLS] } };
 }
 
 /** Inherited variables that would switch the account, project or harness of an isolated worker. */

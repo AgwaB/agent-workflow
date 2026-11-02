@@ -143,8 +143,10 @@ export const WORKER_TOOL_NAME_MAPPINGS: Readonly<
 		bash: "run_command",
 		edit: "replace_file_content",
 		write: "write_to_file",
-		web_search: "search_web",
-		fetch_content: "read_url_content",
+		web_search:
+			"not available on this executor (web results are not captured yet)",
+		fetch_content:
+			"not available on this executor (web results are not captured yet)",
 	},
 };
 

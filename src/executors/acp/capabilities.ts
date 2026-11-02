@@ -23,7 +23,9 @@ export function acpCapabilities(preset: AcpPresetId): ExecutorCapabilities {
 				mcpInjection: level("native"),
 				// No read-only mode: mode `default` and the engine's answers to permission requests.
 				readOnly: level("emulated"),
-				toolAllowlist: { ...level("none"), detail: "none" },
+				// _meta.antigravity.enabledTools (server-enforced allowlist of built-ins; live: only the
+				// listed tools were offered). Coarse: grep/find/ls/bash all map to run_command.
+				toolAllowlist: { ...level("native"), detail: "coarse" },
 				systemPrompt: { ...level("emulated"), detail: "append" },
 				modelSelect: level("native"),
 				effortLevels: ["low", "medium", "high"],
