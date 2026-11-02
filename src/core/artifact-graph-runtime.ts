@@ -2045,7 +2045,14 @@ export async function prepareArtifactGraphRetryTask(
 		"(empty or unavailable)";
 	const retryTask = {
 		...preparedTask,
-		cwd: task.cwd,
+		// A managed worktree task's cwd is its worktree after the first attempt; the retry must start
+		// from the base checkout again. From the worktree, ensureManagedWorktree took the worktree as
+		// the git root, removed it and ran `git worktree add` inside it: spawnSync git ENOENT
+		// (inherited from pi-workflow 0.16.4; seen live there in the 2026-11-02 quality A/B).
+		cwd:
+			task.worktree?.enabled && task.worktree.baseCwd
+				? task.worktree.baseCwd
+				: task.cwd,
 		compiledPrompt: [...retrySections, preview].join("\n\n"),
 	};
 	assertFinalCompiledPromptWithinCap(retryTask);
