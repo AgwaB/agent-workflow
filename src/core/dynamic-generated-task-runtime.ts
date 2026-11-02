@@ -19,7 +19,6 @@ import {
 	classifyToolCapability,
 	effectiveToolClassification,
 	providersForSelectedTools,
-	toolAllowedByAuthorityCeiling,
 } from "./tool-metadata.js";
 import { resolveGeneratedTaskNames } from "./capability-negotiation.js";
 import { THINKING_LEVELS } from "./types.js";
@@ -174,9 +173,7 @@ export async function buildDynamicGeneratedCompiledTask(input: {
 	}
 	if (authoredTools && agentDefinition.tools) {
 		const allowed = new Set(agentDefinition.tools);
-		const missing = authoredTools.filter(
-			(tool) => !toolAllowedByAuthorityCeiling(tool, allowed),
-		);
+		const missing = authoredTools.filter((tool) => !allowed.has(tool));
 		if (missing.length > 0) {
 			throw new Error(
 				`dynamic agent requested tools not declared by ${requestedAgent}: ${missing.join(", ")}`,

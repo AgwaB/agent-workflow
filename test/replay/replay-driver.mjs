@@ -323,6 +323,7 @@ export async function replayFixture(name, options = {}) {
 	const engine = await import(dist("core/engine.js"));
 	const store = await import(dist("core/store.js"));
 	const registry = await import(dist("core/executor-registry.js"));
+	const toolMetadata = await import(dist("core/tool-metadata.js"));
 	const descriptor = replayExecutorDescriptor({
 		fixtureDir: loaded.fixtureDir,
 		roots,
@@ -346,6 +347,8 @@ export async function replayFixture(name, options = {}) {
 	);
 	// Explicit registration for this run: the replay stands in for the default executor `pi`.
 	const unregister = registry.registerWorkflowExecutor(descriptor);
+	// Tools the recording's engine knew and agent-workflow does not (engine-only variants).
+	toolMetadata.setExtraBuiltinToolsForTests(options.extraBuiltinTools ?? {});
 	let run;
 	let refusal;
 	try {
@@ -379,6 +382,7 @@ export async function replayFixture(name, options = {}) {
 		}
 	} finally {
 		unregister();
+		toolMetadata.setExtraBuiltinToolsForTests();
 		setEnv(saved, {});
 	}
 	return {

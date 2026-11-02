@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/tool-metadata.ts. MIT, same author. Changes: none.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/tool-metadata.ts. MIT, same author. Changes: the workflow_web_* tools are not built in (C2: web tools are each CLI's own); an agent's tools authorise exactly those names.
 import type {
 	CompiledToolProvider,
 	TaskCapability,
@@ -26,14 +26,37 @@ const BUILTIN_TOOL_METADATA: Record<string, CompiledToolProvider> = {
 	code_search: { classification: "read-only" },
 	fetch_content: { classification: "read-only" },
 	get_search_content: { classification: "read-only" },
-	workflow_web_search: { classification: "read-only" },
-	workflow_web_fetch_source: { classification: "read-only" },
-	workflow_web_source_read: { classification: "read-only" },
 	scrapling_fetch: { classification: "read-only" },
 	edit: { classification: "write-capable" },
 	write: { classification: "write-capable" },
 	bash: { classification: "mutation-capable" },
 };
+
+/**
+ * Test seam: tools classified as if built in, for replaying recordings made with another tool's
+ * names (test/replay engine-only variants). Empty in the product.
+ */
+let extraBuiltinTools: Readonly<
+	Record<string, { classification: TaskCapability; network?: boolean }>
+> = {};
+
+export function setExtraBuiltinToolsForTests(
+	tools: Record<
+		string,
+		{ classification: TaskCapability; network?: boolean }
+	> = {},
+): void {
+	extraBuiltinTools = { ...tools };
+}
+
+function builtinToolMetadata(tool: string): CompiledToolProvider | undefined {
+	if (Object.hasOwn(BUILTIN_TOOL_METADATA, tool))
+		return BUILTIN_TOOL_METADATA[tool];
+	const extra = extraBuiltinTools[tool];
+	return extra === undefined
+		? undefined
+		: { classification: extra.classification };
+}
 
 const NON_DOWNGRADABLE_TOOL_FLOORS: Record<string, TaskCapability> = {
 	edit: "write-capable",
@@ -51,9 +74,6 @@ const NETWORK_CAPABLE_TOOLS = new Set([
 	"code_search",
 	"fetch_content",
 	"get_search_content",
-	"workflow_web_search",
-	"workflow_web_fetch_source",
-	"workflow_web_source_read",
 	"scrapling_fetch",
 ]);
 const KNOWN_LOCAL_TOOLS = new Set([
@@ -67,19 +87,6 @@ const KNOWN_LOCAL_TOOLS = new Set([
 	"edit",
 	"write",
 ]);
-
-// pi-workflow's web tools (`workflow_web_*`) and agent-workflow's CLI web tools
-// (`web_search`, `fetch_content`) are the same capabilities under two names, so either
-// vocabulary authorises the other: an old spec runs under a current agent, and a current spec
-// runs under an agent written for pi-workflow (a project's `.pi/agents`, or a `~/.pi/agent/agents`
-// agent with a name agent-workflow does not ship).
-const TOOL_AUTHORITY_COMPAT_ALIASES: Record<string, string[]> = {
-	workflow_web_search: ["web_search"],
-	workflow_web_fetch_source: ["fetch_content"],
-	workflow_web_source_read: ["fetch_content", "get_search_content"],
-	web_search: ["workflow_web_search"],
-	fetch_content: ["workflow_web_fetch_source", "workflow_web_source_read"],
-};
 
 export interface ToolSelection {
 	tools?: string[];
@@ -220,7 +227,7 @@ export function effectiveToolClassification(
 	toolProviders: Record<string, CompiledToolProvider> | undefined,
 ): TaskCapability | undefined {
 	const providerClassification = toolProviders?.[tool]?.classification;
-	const builtinClassification = BUILTIN_TOOL_METADATA[tool]?.classification;
+	const builtinClassification = builtinToolMetadata(tool)?.classification;
 	const floor = NON_DOWNGRADABLE_TOOL_FLOORS[tool];
 	return maxClassification(
 		floor,
@@ -242,7 +249,8 @@ export function toolNetworkCapability(
 	tool: string,
 	toolProviders: Record<string, CompiledToolProvider> | undefined,
 ): "local" | "network" | "unknown" {
-	if (NETWORK_CAPABLE_TOOLS.has(tool)) return "network";
+	if (NETWORK_CAPABLE_TOOLS.has(tool) || extraBuiltinTools[tool]?.network)
+		return "network";
 	// An extension can change a normally local tool's behavior. Its network
 	// authority is not represented by tool classification, so fail closed.
 	if ((toolProviders?.[tool]?.extensions?.length ?? 0) > 0) return "unknown";
@@ -284,13 +292,16 @@ export function buildAvailableToolView(
 	tools?: readonly string[],
 	toolProviders?: Record<string, CompiledToolProvider>,
 ): AvailableToolViewItem[] {
-	const names = new Set<string>(Object.keys(BUILTIN_TOOL_METADATA));
+	const names = new Set<string>([
+		...Object.keys(BUILTIN_TOOL_METADATA),
+		...Object.keys(extraBuiltinTools),
+	]);
 	for (const tool of tools ?? []) names.add(tool);
 	for (const tool of Object.keys(toolProviders ?? {})) names.add(tool);
 	return [...names].sort().map((name) => {
 		const provider = toolProviders?.[name];
 		const merged = mergeToolProviders(
-			BUILTIN_TOOL_METADATA[name],
+			builtinToolMetadata(name),
 			provider ?? {},
 		);
 		return {
@@ -303,7 +314,7 @@ export function buildAvailableToolView(
 			...(merged.fallbackTools !== undefined
 				? { fallbackTools: [...merged.fallbackTools] }
 				: {}),
-			builtin: Object.hasOwn(BUILTIN_TOOL_METADATA, name),
+			builtin: builtinToolMetadata(name) !== undefined,
 			...(NON_DOWNGRADABLE_TOOL_FLOORS[name]
 				? { floor: NON_DOWNGRADABLE_TOOL_FLOORS[name] }
 				: {}),
@@ -321,7 +332,7 @@ export function validateToolAuthority(
 		? new Set(options.allowedTools)
 		: undefined;
 	for (const tool of tools) {
-		if (allowed && !toolAllowedByAuthorityCeiling(tool, allowed)) {
+		if (allowed && !allowed.has(tool)) {
 			errors.push(`tool "${tool}" is outside the allowed tool ceiling`);
 			continue;
 		}
@@ -333,18 +344,6 @@ export function validateToolAuthority(
 		}
 	}
 	return errors;
-}
-
-export function toolAllowedByAuthorityCeiling(
-	tool: string,
-	allowed: ReadonlySet<string>,
-): boolean {
-	return (
-		allowed.has(tool) ||
-		(TOOL_AUTHORITY_COMPAT_ALIASES[tool] ?? []).some((alias) =>
-			allowed.has(alias),
-		)
-	);
 }
 
 function maxClassification(

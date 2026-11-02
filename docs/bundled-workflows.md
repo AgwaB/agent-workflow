@@ -327,5 +327,7 @@ interactive host asks once in `safe` mode), **refuse** (the run is not started).
   unmeasured (plan §7: stage 1 checks completion and format only).
 - Pi needs `pi-web-access` for deep-research (refused otherwise). Codex shows `forcedReadOnly` only
   in `safe` mode; the default `free` mode records the coarse allowlist instead (table above).
-- User-authored pi-workflow specs that still list `workflow_web_*` compile and are refused at launch
-  (`CAPABILITY_MISSING`); they need the new tool names.
+- agent-workflow does not know pi-workflow's `workflow_web_*` tool names (2026-11-02): a spec or agent
+  that lists them is refused before launch (an agent listing them does not grant `web_search` /
+  `fetch_content`; a stage asking for them has no executor mapping or needs review). Use
+  `web_search` and `fetch_content`.

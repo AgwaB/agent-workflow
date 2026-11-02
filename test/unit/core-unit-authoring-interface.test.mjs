@@ -2429,55 +2429,52 @@ test("object-form tools cannot expand beyond agent-declared tool ceilings", asyn
 	}
 });
 
-test("web tools: an agent written for pi-workflow (workflow_web_*) authorises the CLI web tools, and back", async () => {
+test("an agent's tools authorise exactly those names (no aliases between tool vocabularies)", async () => {
 	const cwd = makeProject();
 	try {
-		// A legacy pi-workflow researcher shadowing the bundled one (the real failure: Codex ran
-		// the bundled deep-research, whose stages ask web_search/fetch_content).
+		// 2026-11-02: agent-workflow does not know other tools' names for its web tools; an agent
+		// listing workflow_web_* does not grant web_search/fetch_content, and back.
 		writeAgent(
 			cwd,
 			"unit-researcher",
 			"read, grep, find, ls, bash, workflow_web_search, workflow_web_fetch_source, workflow_web_source_read",
 		);
-		const current = await compileWorkflow(
-			workflowSpec("unit-researcher", {
-				readOnly: true,
-				tools: ["read", "web_search", "fetch_content"],
-			}),
-			{ cwd, task: "Research" },
-		);
-		assert.deepEqual(current.tasks[0].runtime.tools, [
-			"read",
-			"web_search",
-			"fetch_content",
-		]);
-		// Search alone does not authorise fetching.
-		writeAgent(cwd, "unit-searcher", "read, workflow_web_search");
 		await assert.rejects(
 			() =>
 				compileWorkflow(
-					workflowSpec("unit-searcher", {
+					workflowSpec("unit-researcher", {
 						readOnly: true,
-						tools: ["web_search", "fetch_content"],
+						tools: ["read", "web_search", "fetch_content"],
 					}),
 					{ cwd, task: "Research" },
 				),
 			(error) => {
 				assert(error instanceof WorkflowValidationError);
+				assertIssue(error, "$.defaults.tools", 'tool "web_search" expands');
 				assertIssue(error, "$.defaults.tools", 'tool "fetch_content" expands');
 				return true;
 			},
 		);
-		// The original direction still holds: an old spec under a current agent.
 		writeAgent(cwd, "unit-current", "read, web_search, fetch_content");
-		const old = await compileWorkflow(
-			workflowSpec("unit-current", {
-				readOnly: true,
-				tools: ["workflow_web_search", "workflow_web_fetch_source"],
-			}),
-			{ cwd, task: "Research" },
+		await assert.rejects(
+			() =>
+				compileWorkflow(
+					workflowSpec("unit-current", {
+						readOnly: true,
+						tools: ["workflow_web_search"],
+					}),
+					{ cwd, task: "Research" },
+				),
+			(error) => {
+				assert(error instanceof WorkflowValidationError);
+				assertIssue(
+					error,
+					"$.defaults.tools",
+					'tool "workflow_web_search" expands',
+				);
+				return true;
+			},
 		);
-		assert.equal(old.tasks.length, 1);
 	} finally {
 		rmSync(cwd, {
 			recursive: true,

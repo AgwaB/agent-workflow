@@ -10,8 +10,8 @@ import { loadFixture } from "../replay/replay-driver.mjs";
 import { listFixtureNames } from "../replay/replay-executor.mjs";
 import { FIXTURES_ROOT } from "../replay/replay-driver.mjs";
 
-const WEB_TOOLS_REFUSAL =
-	"Pi executor has no mapping for tools: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read";
+const WEB_TOOLS_REVIEW =
+	"unknown/custom tools require explicit review: workflow_web_search, workflow_web_fetch_source, workflow_web_source_read";
 
 /** Variants that record an expected different outcome (divergence entries assert the cause here). */
 const DIVERGENT = new Set(["spec-review:original", "deep-research:original"]);
@@ -105,38 +105,22 @@ const CHECKS = {
 		assert.deepEqual(report.exactMatchViolations, []);
 	},
 	"deep-research:original"(report) {
-		// C2: the original spec asks for the removed workflow_web_* tools; the Pi executor refuses
-		// those launches before any effect. That refusal is the expected result.
+		// C2: the original spec asks for pi-workflow's workflow_web_* tools, which agent-workflow does
+		// not know (2026-11-02: no built-in classification). They stay on the readOnly stages, so those
+		// tasks need review before any launch; nothing runs without the tools it asked for.
 		assert.equal(report.replayedStatus, "blocked");
-		assert.deepEqual(
-			report.worker.adapterRefusals
-				.map((refusal) => [refusal.taskId, refusal.code, refusal.message])
-				.sort(),
-			["task-11", "task-12", "task-13", "task-4", "task-9"].map((taskId) => [
-				taskId,
-				"CAPABILITY_MISSING",
-				WEB_TOOLS_REFUSAL,
-			]),
-		);
+		assert.deepEqual(report.worker.adapterRefusals, []);
 		assert.equal(report.worker.servedLaunches, 1);
 		assert.deepEqual(report.worker.misses, []);
 		const byId = new Map(report.tasks.map((task) => [task.taskId, task]));
-		assert.equal(byId.get("task-1").status, "completed");
-		for (const taskId of [
-			"task-11",
-			"task-12",
-			"task-13",
-			"task-4",
-			"task-9",
-		]) {
-			assert.equal(byId.get(taskId).status, "failed", taskId);
-			assert.equal(byId.get(taskId).statusDetail, "launch_failed", taskId);
+		for (const taskId of ["task-2", "task-4", "task-6", "task-9"]) {
+			assert.equal(byId.get(taskId).status, "blocked", taskId);
+			assert.equal(byId.get(taskId).statusDetail, "needs_attention", taskId);
 			assert.ok(
-				byId.get(taskId).lastMessage.endsWith(WEB_TOOLS_REFUSAL),
+				byId.get(taskId).lastMessage.endsWith(WEB_TOOLS_REVIEW),
 				taskId,
 			);
 		}
-		assert.equal(byId.get("task-10").status, "blocked");
 		assert.equal(report.counts.unexplained, 0);
 		assert.deepEqual(report.exactMatchViolations, []);
 	},

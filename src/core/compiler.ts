@@ -22,7 +22,6 @@ import {
 	providersForSelectedTools,
 	resolveToolSelection,
 	TOOL_NAME_PATTERN,
-	toolAllowedByAuthorityCeiling,
 	toolNameForSpec,
 	type ToolSelection,
 } from "./tool-metadata.js";
@@ -542,7 +541,7 @@ function validateToolSubset(
 
 	const allowed = new Set(agent.tools);
 	for (const tool of requestedTools) {
-		if (!toolAllowedByAuthorityCeiling(tool, allowed)) {
+		if (!allowed.has(tool)) {
 			issues.push({
 				path,
 				message: `tool "${tool}" expands agent ${agent.displayName}; allowed tools: ${agent.tools.join(", ")}`,
@@ -670,7 +669,9 @@ function filterToolSelection(selection: ToolSelection): ToolSelection {
  * WP12d-1 (review #1): keep only read-only tools on a stage that declares readOnly. Removed tools
  * produce a warning; an authored non-empty list with no read-only tool left is a compile issue.
  * An unspecified list stays unspecified (the executor gets `readOnly: true` and filters its own
- * defaults).
+ * defaults). A tool with no known classification is kept (2026-11-02): removing it would launch
+ * the stage without a tool it asked for; kept, it is refused before launch (no executor mapping)
+ * or needs review like on any other stage.
  */
 function filterReadOnlyToolSelection(
 	selection: ToolSelection,
@@ -680,11 +681,13 @@ function filterReadOnlyToolSelection(
 	warnings: string[],
 ): ToolSelection {
 	if (!selection.tools) return selection;
-	const removed = selection.tools.filter(
-		(tool) =>
-			effectiveToolClassification(tool, selection.toolProviders) !==
-			"read-only",
-	);
+	const removed = selection.tools.filter((tool) => {
+		const classification = effectiveToolClassification(
+			tool,
+			selection.toolProviders,
+		);
+		return classification !== undefined && classification !== "read-only";
+	});
 	if (removed.length === 0) return selection;
 	const tools = selection.tools.filter((tool) => !removed.includes(tool));
 	if (tools.length === 0) {

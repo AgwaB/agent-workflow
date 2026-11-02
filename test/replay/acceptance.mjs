@@ -45,6 +45,13 @@ export const REPORT_DIR = join(HERE, "acceptance");
  * Replay variants. `original` (every fixture) runs the recorded spec with the Pi adapter's request
  * checks; extra variants isolate one explained divergence so the rest of the run is still checked.
  */
+/** pi-workflow 0.16.4's own web tools as its tool metadata classified them (unknown to agent-workflow). */
+const PI_WORKFLOW_WEB_TOOLS = {
+	workflow_web_search: { classification: "read-only", network: true },
+	workflow_web_fetch_source: { classification: "read-only", network: true },
+	workflow_web_source_read: { classification: "read-only", network: true },
+};
+
 export const VARIANTS = {
 	"spec-review": [
 		{
@@ -58,14 +65,21 @@ export const VARIANTS = {
 		{
 			id: "engine-only",
 			description:
-				"The replay executor skips the Pi adapter's tool-mapping check, so the recorded workers are served although the original spec asks for the removed workflow_web_* tools. Shows how far the engine itself reproduces the recording past the C2 refusal.",
-			options: { adapterChecks: false },
+				"The original spec asks for pi-workflow's workflow_web_* tools, which agent-workflow does not know. This variant classifies them as pi-workflow did (read-only, network; a test seam) and the replay executor skips the Pi adapter's tool-mapping check, so the recorded workers are served. Shows how far the engine itself reproduces the recording past the C2 refusal.",
+			options: {
+				adapterChecks: false,
+				extraBuiltinTools: PI_WORKFLOW_WEB_TOOLS,
+			},
 		},
 		{
 			id: "engine-only-claude",
 			description:
 				"As engine-only, with the replay registered as executor `claude` (WP37): the task prompts are sent in Claude's tool vocabulary (WebSearch, WebFetch, Read/Grep/Glob), and the replay matches them against the recorded prompts rendered the same way (rule wp37-per-executor-task-prompt).",
-			options: { adapterChecks: false, executorId: "claude" },
+			options: {
+				adapterChecks: false,
+				executorId: "claude",
+				extraBuiltinTools: PI_WORKFLOW_WEB_TOOLS,
+			},
 		},
 	],
 	minimal: [

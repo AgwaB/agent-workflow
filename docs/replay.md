@@ -58,7 +58,9 @@ The replay executor is a normal executor module (`createExecutor(config)`) loade
   lists them. The engine reports the miss at once (core-port WP1b change log 5).
 - Before matching, the executor refuses requests exactly as the Pi adapter's pre-consume `plan()` does:
   it checks the thinking level, the tool mapping, MCP injection and server names, using the adapter's
-  own tables from `dist/executors/pi`. Variant `deep-research:engine-only` turns these checks off.
+  own tables from `dist/executors/pi`. Variant `deep-research:engine-only` turns these checks off
+  and classifies pi-workflow's `workflow_web_*` tools as pi-workflow did (a test seam,
+  `setExtraBuiltinToolsForTests`); agent-workflow itself does not know them.
 
 On a hit the executor consumes the authority, then reproduces what the engine can observe:
 
@@ -151,7 +153,7 @@ its cause separately.
 | impact-review:original | failed → failed | 597 / 394 / 0 | 12/12, 31/31 |
 | spec-review:original | failed → failed (divergent) | 292 / 459 / 0 | 5/6, 43/57 |
 | spec-review:state-path-migrated | failed → failed | 334 / 204 / 0 | 6/6, 57/57 |
-| deep-research:original | completed → blocked (expected refusal) | 174 / 2209 / 0 | 1/11, 0/10 |
+| deep-research:original | completed → blocked (expected: unknown tools need review) | — | — |
 | deep-research:engine-only | completed → completed | 578 / 422 / 0 | 11/11, 10/10 |
 | deep-research:engine-only-claude (WP37) | completed → completed | 578 / 431 / 0 | 11/11, 10/10 |
 
@@ -168,11 +170,12 @@ divergent variants:
   and the replay refuses it. Task 8 renders the degraded partition (core-port WP1b change log 6).
   Variant `state-path-migrated` changes only that one template literal in the copied bundle; the
   comparison renames it back. That variant matches with 20 proven digest bindings.
-- **deep-research (original).** This is the expected result for C2. The spec asks for the removed
-  `workflow_web_*` tools. The Pi executor refuses tasks 11, 12, 13, 4 and 9 before any effect
-  (`CAPABILITY_MISSING: Pi executor has no mapping for tools: workflow_web_search,
-  workflow_web_fetch_source, workflow_web_source_read`). The foreach stage then gets no items and the
-  final render blocks (core-port WP1b change log 7). Variant `engine-only` skips the adapter check.
+- **deep-research (original).** This is the expected result for C2. The spec asks for pi-workflow's
+  `workflow_web_*` tools, which agent-workflow does not know (since 2026-11-02 they have no built-in
+  classification; before, the Pi executor refused tasks 11, 12, 13, 4 and 9 with `CAPABILITY_MISSING`).
+  Unknown tools stay on the readOnly stages, so tasks 2, 4, 6 and 9 are blocked before launch with
+  `unknown/custom tools require explicit review: workflow_web_search, …` and only the planner was
+  served. Variant `engine-only` classifies those tools as pi-workflow did and skips the adapter check.
   With it, every task output matches; only C2 artifacts (wrapper files, web-source cache) and foreach
   batch telemetry differ, all classified.
 

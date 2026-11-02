@@ -2,7 +2,8 @@
 // `~/.pi/agent` agent or workflow shadows/joins the bundled ones on every host, and carries Pi's
 // names: pi-workflow web tools (`workflow_web_*`) and provider-qualified models
 // (`openai-codex/…`, `anthropic/…`). These tests pin the cross-host contract:
-// - authority: either web-tool vocabulary authorises the other (compile);
+// - authority: an agent's tools authorise exactly those names (2026-11-02: no aliases; agent-workflow
+//   does not know pi-workflow's names);
 // - tools an executor cannot map are refused BEFORE the run starts (was: run started, earlier
 //   stages spent model calls, then every web stage failed at submit);
 // - Pi provider prefixes the executor's own CLI owns are dropped, foreign ones refused before
@@ -51,14 +52,16 @@ after(async () => {
 		});
 });
 
-/** A project whose `researcher` is written for pi-workflow (as `~/.pi/agent/agents` is today). */
-async function project() {
+/** A project whose `researcher` lists pi-workflow's tool names (unknown to agent-workflow). */
+async function project(
+	tools = "read, grep, find, ls, bash, workflow_web_search, workflow_web_fetch_source, workflow_web_source_read",
+) {
 	const cwd = await mkdtemp(join(tmpdir(), "aw-pi-vocab-"));
 	roots.push(cwd);
 	await mkdir(join(cwd, ".agent-workflow", "agents"), { recursive: true });
 	await writeFile(
 		join(cwd, ".agent-workflow", "agents", "researcher.md"),
-		"---\nname: researcher\ndescription: pi researcher\ntools: read, grep, find, ls, bash, workflow_web_search, workflow_web_fetch_source, workflow_web_source_read\n---\nResearch.\n",
+		`---\nname: researcher\ndescription: pi researcher\ntools: ${tools}\n---\nResearch.\n`,
 	);
 	return cwd;
 }
@@ -111,24 +114,20 @@ function negotiate(compiled, id, { mapping = true, models = null } = {}) {
 	});
 }
 
-test("a pi-workflow researcher authorises the CLI web tools; the stage keeps the CLI names", async () => {
+test("an agent listing pi-workflow's web tools does not authorise the CLI web tools", async () => {
 	const cwd = await project();
-	const compiled = await compile(
-		cwd,
-		spec({ tools: ["read", "web_search", "fetch_content"] }),
+	await assert.rejects(
+		() =>
+			compile(cwd, spec({ tools: ["read", "web_search", "fetch_content"] })),
+		/tool "web_search" expands agent researcher/,
 	);
-	assert.deepEqual(compiled.tasks[0].runtime.tools, [
-		"read",
-		"web_search",
-		"fetch_content",
-	]);
-	for (const id of ["codex", "claude"]) await negotiate(compiled, id);
 });
 
 for (const id of ["codex", "claude", "pi"])
-	test(`${id}: tools without a mapping are refused before the run starts (named, with the pi-workflow hint)`, async () => {
+	test(`${id}: tools without a mapping are refused before the run starts (named)`, async () => {
 		const cwd = await project();
-		// No stage tools: the stage inherits the pi-workflow agent's list (minus bash: readOnly).
+		// No stage tools: the stage inherits the agent's list (minus bash: readOnly). The unknown
+		// names are kept on the readOnly stage, so the run is refused instead of losing them.
 		const compiled = await compile(cwd, spec({}));
 		assert.deepEqual(compiled.tasks[0].runtime.tools, [
 			"read",
@@ -148,7 +147,8 @@ for (const id of ["codex", "claude", "pi"])
 				assert.match(
 					error.message,
 					new RegExp(
-						`a\\.main: executor ${id} has no mapping for workflow_web_search, workflow_web_fetch_source, workflow_web_source_read \\(pi-workflow's web tools; agent-workflow uses web_search and fetch_content\\)`,
+						`a\\.main: executor ${id} has no mapping for workflow_web_search, workflow_web_fetch_source, workflow_web_source_read$`,
+						"m",
 					),
 				);
 				return true;
@@ -362,7 +362,7 @@ test("claude argv: anthropic/ is dropped, a foreign provider is refused before a
 });
 
 test("stages generated during a run (dynamic/auto) get the same tool, model and effort checks before submit", async () => {
-	const cwd = await project();
+	const cwd = await project("read, web_search");
 	const compiled = await compile(cwd, spec({ tools: ["read", "web_search"] }));
 	const negotiation = await negotiate(compiled, "codex", {
 		models: ["gpt-6.1-sol", "gpt-6-luna"],
@@ -378,7 +378,7 @@ test("stages generated during a run (dynamic/auto) get the same tool, model and 
 		Object.assign(task.runtime, patch);
 		return task;
 	};
-	// A pi-workflow tool name: refused before submit, with the reason.
+	// A tool name the executor cannot map: refused before submit, with the reason.
 	assert.throws(
 		() =>
 			workflowTaskCapabilityLaunch(

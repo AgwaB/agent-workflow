@@ -1269,9 +1269,11 @@ The core changes it needed:
    refused where the executor has none / only unverified rows). The unit harness' default `pi`
    fixture executor declares `webTools` native/search+fetch (`test/helpers/register-default-executor.mjs`).
 
-Left as is: `tool-metadata.ts` keeps the read-only/network classification of the three legacy
-`workflow_web_*` names (a user spec that still lists them compiles and is refused by the adapters
-before any effect, as the WP1b deep-research replay shows).
+Left as is at WP10: `tool-metadata.ts` kept the read-only/network classification of the three legacy
+`workflow_web_*` names. Removed 2026-11-02 with the authority aliases added on 2026-10-30
+(agent-workflow does not know pi-workflow's names): they are unknown tools now, a readOnly stage
+keeps an unknown tool instead of dropping it, and the run is refused or blocked before launch; the
+replay's `engine-only` variants classify them through a test seam.
 
 ### WP10 tests
 

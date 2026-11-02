@@ -616,15 +616,20 @@ test("auto derives inherited bash and unknown custom tools before local safety-b
 		availableAgentNames: ["inherited-bash", "unknown-custom"],
 	});
 	assert.equal(calls, 1);
-	// WP12d-1 (review #1): both readOnly stages keep no read-only tool and are refused at compile
-	// (no effective facts; were mutation-capable/network and unknown/unknown).
+	// WP12d-1 (review #1): the bash stage keeps no read-only tool and is refused at compile (no
+	// effective facts; was mutation-capable/network). 2026-11-02: a readOnly stage keeps an unknown
+	// tool (dropping it would run the stage without it), so that card has unknown facts. Both blocked.
+	const card = (label) =>
+		result.candidates.find((candidate) => candidate.label === label);
+	assert.equal(card("inherits-bash")?.facts.effective, undefined);
+	assert.deepEqual(card("unknown-custom-tool")?.facts.effective, {
+		capability: "unknown",
+		network: "unknown",
+		unknownTools: ["custom_capability"],
+	});
 	for (const label of ["inherits-bash", "unknown-custom-tool"]) {
-		const card = result.candidates.find(
-			(candidate) => candidate.label === label,
-		);
-		assert.equal(card?.facts.effective, undefined, label);
-		assert.equal(card?.readiness.startAllowed, false, label);
-		assert.equal(card?.readiness.status, "blocked", label);
+		assert.equal(card(label)?.readiness.startAllowed, false, label);
+		assert.equal(card(label)?.readiness.status, "blocked", label);
 	}
 });
 
