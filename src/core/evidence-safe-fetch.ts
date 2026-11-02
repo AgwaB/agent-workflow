@@ -95,6 +95,8 @@ for (const [net, prefix] of [
 	["2002::", 16],
 	["fc00::", 7],
 	["fe80::", 10],
+	// Deprecated site-local (RFC 3879); still routed inside some networks (quality A/B 2026-11-02).
+	["fec0::", 10],
 	["ff00::", 8],
 ] as const)
 	BLOCKED.addSubnet(net, prefix, "ipv6");

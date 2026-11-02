@@ -26,6 +26,7 @@ test("non-public addresses are blocked", () => {
 		"::",
 		"fe80::1",
 		"fd00::1",
+		"fec0::1",
 		"::ffff:127.0.0.1",
 		"::ffff:10.0.0.1",
 		"64:ff9b::a00:1",
