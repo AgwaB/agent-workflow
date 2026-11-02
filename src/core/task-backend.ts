@@ -194,9 +194,9 @@ export async function launchSubagentTask(
 	// task before any effect; runs recorded before WP4d carry none and are not checked.
 	let capabilityLaunch: ReturnType<typeof workflowTaskCapabilityLaunch>;
 	try {
-		// Runs created directly through the store (or imported records) carry no selection yet:
-		// they get the legacy record executor (pi-workflow records ran on Pi), which must itself be
-		// available (never a substitute). New runs always record a selection (WP17 host default).
+		// Runs created directly through the store carry no selection yet: they get the legacy record
+		// executor, which must itself be available (never a substitute). New runs always record a
+		// selection (WP17 host default).
 		if (run.executor === undefined) {
 			run.executor = resolveRunExecutorSelection({
 				defaultExecutor: LEGACY_RECORD_EXECUTOR_ID,

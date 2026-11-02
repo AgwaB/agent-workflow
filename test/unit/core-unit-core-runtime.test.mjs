@@ -4141,7 +4141,7 @@ test("workflow run metrics roll up provider-reported usage without mutation", ()
 					},
 				],
 				usage: {
-					source: "pi-subagent",
+					source: "executor",
 					capturedAt: "2026-06-08T00:01:30.000Z",
 					provider: "provider-a",
 					model: "actual-model-a",
@@ -4201,7 +4201,7 @@ test("workflow run metrics roll up provider-reported usage without mutation", ()
 				},
 				outputRetry: { attempts: 2, reason: "invalid_json" },
 				usage: {
-					source: "pi-subagent",
+					source: "executor",
 					capturedAt: "2026-06-08T00:02:00.000Z",
 					incomplete: true,
 					aggregate: {
@@ -4435,7 +4435,7 @@ test("workflow run metrics treat local support tasks as zero provider usage", ()
 					taskPrompt: "",
 				},
 				usage: {
-					source: "pi-subagent",
+					source: "executor",
 					capturedAt: "2026-06-08T00:00:30.000Z",
 					aggregate: {
 						attempts: 1,
@@ -4524,7 +4524,7 @@ test("workflow run metrics reject negative provider values and keep partial obse
 					taskPrompt: "",
 				},
 				usage: {
-					source: "pi-subagent",
+					source: "executor",
 					capturedAt: "2026-06-08T00:00:30.000Z",
 					aggregate: {
 						attempts: 1,
@@ -4566,7 +4566,7 @@ test("workflow run metrics reject negative provider values and keep partial obse
 					taskPrompt: "",
 				},
 				usage: {
-					source: "pi-subagent",
+					source: "executor",
 					capturedAt: "2026-06-08T00:00:45.000Z",
 					aggregate: {
 						attempts: 1,
@@ -4649,7 +4649,7 @@ test("workflow run metrics do not infer missing prices from token counts", () =>
 					taskPrompt: "",
 				},
 				usage: {
-					source: "pi-subagent",
+					source: "executor",
 					capturedAt: "2026-06-08T00:01:00.000Z",
 					aggregate: {
 						attempts: 1,

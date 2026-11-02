@@ -121,7 +121,7 @@ function syntheticTask({
 			? {}
 			: {
 					toolResultBudget: {
-						source: "pi-subagent",
+						source: "executor",
 						capturedAt: "2026-07-10T00:00:01.000Z",
 						aggregate: { attempts: attempts.length },
 						attempts,
@@ -186,7 +186,7 @@ test("dynamic child telemetry preserves launch config, result precedence, retrie
 		});
 		dynamicMetadata(fixture.task);
 		fixture.task.toolResultBudget = {
-			source: "pi-subagent",
+			source: "executor",
 			capturedAt: "2026-07-09T23:59:59.000Z",
 			aggregate: { attempts: 1 },
 			attempts: [

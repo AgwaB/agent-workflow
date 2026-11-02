@@ -168,15 +168,25 @@ test("worktree-cleanup", async () => {
 			),
 			"{}\n",
 		);
-		await mkdir(join(completedWorkspace.cwd, ".pi", "workflows"), {
+		await mkdir(join(completedWorkspace.cwd, ".agent-workflow", "workflows"), {
 			recursive: true,
 		});
 		await writeFile(
-			join(completedWorkspace.cwd, ".pi", "workflows", "index.json"),
+			join(
+				completedWorkspace.cwd,
+				".agent-workflow",
+				"workflows",
+				"index.json",
+			),
 			"{}\n",
 		);
 		await writeFile(
-			join(completedWorkspace.cwd, ".pi", "workflows", "my-spec.json"),
+			join(
+				completedWorkspace.cwd,
+				".agent-workflow",
+				"workflows",
+				"my-spec.json",
+			),
 			'{"name":"kept"}\n',
 		);
 		const completed = await syntheticResult(
@@ -264,7 +274,7 @@ test("worktree-cleanup", async () => {
 		assert.match(
 			completedDiff,
 			/my-spec\.json/,
-			"user files under .pi/workflows stay in the diff",
+			"user files under .agent-workflow/workflows stay in the diff",
 		);
 		assert.doesNotMatch(
 			completedDiff,

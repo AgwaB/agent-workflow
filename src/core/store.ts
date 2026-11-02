@@ -37,7 +37,6 @@ import {
 	type CompiledWorkflow,
 	type CompiledTask,
 	type CompiledLoopStageRecord,
-	THINKING_LEVELS,
 	WORKFLOW_RUN_TYPE,
 	type WorkflowIndexRecord,
 	type WorkflowRunDegradation,
@@ -441,7 +440,7 @@ export async function writeWorkflowLaunchCommandArtifact(
 	cwd: string,
 	runId: string,
 	text: string,
-	fidelity: WorkflowRunLaunchCommandFidelity = "pi-extension-command-v1",
+	fidelity: WorkflowRunLaunchCommandFidelity = "agent-workflow-host-command-v1",
 ): Promise<Extract<WorkflowRunLaunchCommandMetadata, { state: "captured" }>> {
 	assertSafeRunId(runId);
 	if (typeof text !== "string")
@@ -644,8 +643,6 @@ export function isWorkflowRunLaunchMetadata(
 	value: unknown,
 ): value is WorkflowRunLaunchMetadata {
 	return (
-		isWorkflowRunLaunchMetadataV1(value) ||
-		isWorkflowRunLaunchMetadataV2(value) ||
 		isWorkflowRunLaunchMetadataHostV1(value) ||
 		isWorkflowRunLaunchMetadataHostV2(value)
 	);
@@ -843,95 +840,6 @@ export function assertValidWorkflowRunLaunchCapture(
 		throw new Error("Invalid workflow launch metadata");
 }
 
-/** Keep the legacy shape isolated so historical v1 records stay strict/read-only. */
-function isWorkflowRunLaunchMetadataV1(value: unknown): boolean {
-	if (
-		!isPlainRecordWithKeys(value, [
-			"schema",
-			"source",
-			"requestKind",
-			"routingMode",
-			"profile",
-			"task",
-			"command",
-		])
-	)
-		return false;
-	if (value.schema !== "pi-workflow-run-launch-v1") return false;
-	if (!isWorkflowLaunchV1Source(value.source)) return false;
-	if (
-		value.requestKind !== "named-workflow" &&
-		value.requestKind !== "direct-dynamic"
-	)
-		return false;
-	if (
-		value.routingMode !== "default-on" &&
-		value.routingMode !== "explicit-on" &&
-		value.routingMode !== "off"
-	)
-		return false;
-	if (
-		!isWorkflowLaunchProfile(value.profile) ||
-		!isWorkflowLaunchTask(value.task)
-	)
-		return false;
-	if (!isWorkflowLaunchMetadataCommand(value.command)) return false;
-	return isWorkflowLaunchV1SemanticCombination(value);
-}
-
-function isWorkflowRunLaunchMetadataV2(value: unknown): boolean {
-	if (
-		!isPlainRecordWithKeys(value, [
-			"schema",
-			"source",
-			"requestKind",
-			"routingMode",
-			"profile",
-			"task",
-			"selection",
-			"command",
-		])
-	)
-		return false;
-	if (value.schema !== "pi-workflow-run-launch-v2") return false;
-	if (
-		!isPlainRecordWithKeys(value.source, ["kind", "action"]) ||
-		value.source.kind !== "slash-command" ||
-		value.source.action !== "auto"
-	)
-		return false;
-	if (
-		value.requestKind !== "named-workflow" &&
-		value.requestKind !== "direct-dynamic"
-	)
-		return false;
-	if (value.routingMode !== "auto-confirmed") return false;
-	if (
-		!isWorkflowLaunchProfile(value.profile) ||
-		!isWorkflowLaunchTask(value.task)
-	)
-		return false;
-	if (!isWorkflowAutoSelection(value.selection)) return false;
-	const command = value.command;
-	if (!isWorkflowLaunchMetadataCommand(command)) return false;
-	if (command.state !== "captured") return false;
-	const selection = value.selection as Record<string, unknown>;
-	if (
-		selection.selected === "named-workflow" &&
-		value.requestKind !== "named-workflow"
-	)
-		return false;
-	if (
-		selection.selected === "direct-dynamic" &&
-		value.requestKind !== "direct-dynamic"
-	)
-		return false;
-	const profile = value.profile as Record<string, unknown>;
-	return value.requestKind === "direct-dynamic"
-		? profile.kind === "not-applicable"
-		: profile.kind !== "not-applicable";
-}
-
 function isWorkflowRunLaunchCapture(
 	value: unknown,
 ): value is WorkflowRunLaunchCapture {
@@ -939,24 +847,6 @@ function isWorkflowRunLaunchCapture(
 	const record = value as Record<string, unknown>;
 	const command = record.command;
 	if (!isWorkflowLaunchCaptureCommand(command)) return false;
-	if (record.schema === "pi-workflow-run-launch-v1") {
-		if (
-			!isPlainRecordWithKeys(record, [
-				"schema",
-				"source",
-				"requestKind",
-				"routingMode",
-				"profile",
-				"task",
-				"command",
-			])
-		)
-			return false;
-		return isWorkflowRunLaunchMetadataV1({
-			...record,
-			command: captureCommandAsMetadata(command),
-		});
-	}
 	if (
 		record.schema === "agent-workflow-run-launch-v1" ||
 		record.schema === "agent-workflow-run-launch-v2"
@@ -991,37 +881,13 @@ function isWorkflowRunLaunchCapture(
 			auto,
 		);
 	}
-	if (record.schema === "pi-workflow-run-launch-v2") {
-		if (
-			!isPlainRecordWithKeys(record, [
-				"schema",
-				"source",
-				"requestKind",
-				"routingMode",
-				"profile",
-				"task",
-				"selection",
-				"command",
-			])
-		)
-			return false;
-		if (
-			command.state !== "captured" ||
-			!isWorkflowAutoSlashCommandText(command.text)
-		)
-			return false;
-		return isWorkflowRunLaunchMetadataV2({
-			...record,
-			command: captureCommandAsMetadata(command),
-		});
-	}
 	return false;
 }
 
 /* Capture validation needs semantic fields but must not persist/reveal the raw command. */
 function captureCommandAsMetadata(
 	command: Record<string, unknown>,
-	fidelity: WorkflowRunLaunchCommandFidelity = "pi-extension-command-v1",
+	fidelity: WorkflowRunLaunchCommandFidelity,
 ): Record<string, unknown> {
 	if (command.state === "captured") {
 		const text = command.text;
@@ -1039,10 +905,6 @@ function captureCommandAsMetadata(
 	return { state: "unavailable", reason: "not-a-command" };
 }
 
-function isWorkflowAutoSlashCommandText(value: string): boolean {
-	return /^\/workflow\s+auto(?:\s|$)/i.test(value);
-}
-
 function isWorkflowLaunchCaptureCommand(
 	value: unknown,
 ): value is
@@ -1055,20 +917,6 @@ function isWorkflowLaunchCaptureCommand(
 		value.state === "unavailable" &&
 		value.reason === "not-a-command"
 	);
-}
-
-function isWorkflowLaunchV1Source(value: unknown): boolean {
-	if (isPlainRecordWithKeys(value, ["kind", "action"]))
-		return (
-			value.kind === "slash-command" &&
-			(value.action === "run" || value.action === "dynamic")
-		);
-	if (isPlainRecordWithKeys(value, ["kind", "name"]))
-		return (
-			value.kind === "tool" &&
-			(value.name === "workflow_run" || value.name === "workflow_dynamic")
-		);
-	return false;
 }
 
 function isWorkflowLaunchProfile(value: unknown): boolean {
@@ -1090,82 +938,9 @@ function isWorkflowLaunchTask(value: unknown): boolean {
 	);
 }
 
-function isWorkflowAutoSelection(value: unknown): boolean {
-	if (
-		!isPlainRecordWithKeys(value, [
-			"recommendation",
-			"selected",
-			"candidateId",
-			"candidateIdentitySha256",
-			"taskSha256",
-			"confirmed",
-			"effectiveRuntime",
-		])
-	)
-		return false;
-	if (
-		value.recommendation !== null &&
-		value.recommendation !== "direct" &&
-		value.recommendation !== "named-workflow" &&
-		value.recommendation !== "direct-dynamic"
-	)
-		return false;
-	if (
-		value.selected !== "named-workflow" &&
-		value.selected !== "direct-dynamic"
-	)
-		return false;
-	// A non-null route is an accepted recommendation, not a historical
-	// alternative. Manual selection of any other local route is represented by
-	// null, so persisted provenance cannot imply a route the user did not take.
-	if (value.recommendation !== null && value.recommendation !== value.selected)
-		return false;
-	if (
-		typeof value.candidateId !== "string" ||
-		!/^[a-f0-9]{64}$/.test(value.candidateId)
-	)
-		return false;
-	if (
-		typeof value.candidateIdentitySha256 !== "string" ||
-		!/^[a-f0-9]{64}$/.test(value.candidateIdentitySha256)
-	)
-		return false;
-	if (
-		typeof value.taskSha256 !== "string" ||
-		!/^[a-f0-9]{64}$/.test(value.taskSha256)
-	)
-		return false;
-	if (value.confirmed !== true) return false;
-	if (
-		!value.effectiveRuntime ||
-		typeof value.effectiveRuntime !== "object" ||
-		Array.isArray(value.effectiveRuntime)
-	)
-		return false;
-	const runtime = value.effectiveRuntime as Record<string, unknown>;
-	if (
-		!Object.keys(runtime).every(
-			(key) => key === "model" || key === "thinking" || key === "fast",
-		)
-	)
-		return false;
-	return (
-		(runtime.model === undefined || typeof runtime.model === "string") &&
-		(runtime.thinking === undefined ||
-			(THINKING_LEVELS as readonly string[]).includes(
-				runtime.thinking as string,
-			)) &&
-		(runtime.fast === undefined ||
-			runtime.fast === "on" ||
-			runtime.fast === "off")
-	);
-}
-
 function isWorkflowLaunchMetadataCommand(
 	value: unknown,
-	fidelities: readonly WorkflowRunLaunchCommandFidelity[] = [
-		"pi-extension-command-v1",
-	],
+	fidelities: readonly WorkflowRunLaunchCommandFidelity[],
 ): value is
 	| { state: "unavailable"; reason: "not-a-command" }
 	| {
@@ -1200,34 +975,6 @@ function isWorkflowLaunchMetadataCommand(
 		fidelities.includes(value.fidelity as WorkflowRunLaunchCommandFidelity) &&
 		value.sensitivity === "user-input" &&
 		value.disclosure === "explicit-only"
-	);
-}
-
-function isWorkflowLaunchV1SemanticCombination(
-	value: Record<string, unknown>,
-): boolean {
-	const source = value.source as Record<string, unknown>;
-	const command = value.command as Record<string, unknown>;
-	if (source.kind === "slash-command") {
-		if (command.state !== "captured") return false;
-		if (source.action === "run" && value.requestKind !== "named-workflow")
-			return false;
-		if (source.action === "dynamic" && value.requestKind !== "direct-dynamic")
-			return false;
-		if (source.action === "dynamic" && value.routingMode === "default-on")
-			return false;
-		return true;
-	}
-	if (command.state !== "unavailable" || value.routingMode !== "off")
-		return false;
-	if (source.name === "workflow_run")
-		return (
-			value.requestKind === "named-workflow" &&
-			(value.profile as Record<string, unknown>).kind !== "not-applicable"
-		);
-	return (
-		value.requestKind === "direct-dynamic" &&
-		(value.profile as Record<string, unknown>).kind === "not-applicable"
 	);
 }
 

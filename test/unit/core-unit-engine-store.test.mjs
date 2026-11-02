@@ -1645,7 +1645,7 @@ test("subagent terminal observability aggregates distinct retry attempts", async
 		task.launchRetry = { attempts: 2, reason: "retry_model_failure" };
 		task.outputRetry = { attempts: 1, reason: "invalid_json" };
 		task.usage = {
-			source: "pi-subagent",
+			source: "executor",
 			capturedAt: firstCapturedAt,
 			inputTokens: 4,
 			outputTokens: 5,

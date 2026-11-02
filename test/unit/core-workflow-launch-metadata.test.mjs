@@ -1,6 +1,5 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-launch-metadata.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); run state root and agents dir .pi→.agent-workflow. The default executor id "pi" is registered to the test fixture executor (no Pi adapter until WP6).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-launch-metadata.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); run state root and agents dir .pi→.agent-workflow. The default executor id "pi" is registered to the test fixture executor (no Pi adapter until WP6). 2026-11-02: the records are agent-workflow's host launch metadata (agent-workflow-run-launch-v1/v2); pi-workflow's launch records (pi-workflow-run-launch-v1/v2, slash-command sources) are not accepted, so their v2 auto test is replaced by that refusal.
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import {
 	chmod,
 	link,
@@ -18,7 +17,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { runDynamicTask, runWorkflowSpec } from "../../dist/core/engine.js";
+import { runWorkflowSpec } from "../../dist/core/engine.js";
 import "../helpers/register-default-executor.mjs";
 
 import {
@@ -32,10 +31,11 @@ import {
 
 function launchWith(command) {
 	return {
-		schema: "pi-workflow-run-launch-v1",
-		source: { kind: "slash-command", action: "run" },
+		schema: "agent-workflow-run-launch-v1",
+		source: "cli",
+		entry: { kind: "command", action: "run" },
 		requestKind: "named-workflow",
-		routingMode: "default-on",
+		routingMode: "off",
 		profile: { kind: "named", name: "medium" },
 		task: { characters: 18, lines: 2 },
 		command,
@@ -45,7 +45,8 @@ function launchWith(command) {
 test("launch command artifact is exact, private, integrity-linked, and absent from metadata JSON", async () => {
 	const cwd = await mkdtemp(join(tmpdir(), "piwf-launch-"));
 	const runId = "workflow_launch_private";
-	const text = '/workflow run  --profile medium review "line one\nline two 🚀"';
+	const text =
+		'agent-workflow run  --profile medium review "line one\nline two 🚀"';
 	try {
 		const command = await writeWorkflowLaunchCommandArtifact(cwd, runId, text);
 		const run = { runId, launch: launchWith(command) };
@@ -75,19 +76,20 @@ test("launch metadata validation is closed and artifact reads fail closed on tam
 		const command = await writeWorkflowLaunchCommandArtifact(
 			cwd,
 			runId,
-			"/workflow dynamic secret",
+			"agent-workflow dynamic secret",
 		);
 		const launch = launchWith(command);
 		assert.equal(isWorkflowRunLaunchMetadata(launch), true);
 		assert.equal(
 			isWorkflowRunLaunchMetadata({
-				schema: "pi-workflow-run-launch-v1",
-				source: { kind: "tool", name: "workflow_dynamic" },
+				schema: "agent-workflow-run-launch-v1",
+				source: "mcp:codex",
+				entry: { kind: "tool", name: "workflow_dynamic" },
 				requestKind: "direct-dynamic",
 				routingMode: "off",
 				profile: { kind: "not-applicable" },
 				task: { characters: 12, lines: 1 },
-				command: { state: "unavailable", reason: "not-a-command" },
+				command: { ...command, fidelity: "agent-workflow-tool-call-v1" },
 			}),
 			true,
 		);
@@ -96,7 +98,8 @@ test("launch metadata validation is closed and artifact reads fail closed on tam
 			false,
 		);
 		for (const invalid of [
-			{ ...launch, source: { kind: "slash-command", action: "resume" } },
+			{ ...launch, entry: { kind: "command", action: "resume" } },
+			{ ...launch, command: { state: "unavailable", reason: "not-a-command" } },
 			{ ...launch, task: { characters: -1, lines: 2 } },
 			{ ...launch, command: { ...command, sha256: "A".repeat(64) } },
 			{ ...launch, command: { ...command, artifact: "../launch-command.txt" } },
@@ -125,7 +128,7 @@ test("launch metadata validation is closed and artifact reads fail closed on tam
 		await writeWorkflowLaunchCommandArtifact(
 			cwd,
 			runId,
-			"/workflow dynamic secret",
+			"agent-workflow dynamic secret",
 		);
 		await chmod(join(workflowRunDir(cwd, runId), "launch-command.txt"), 0o644);
 		await assert.rejects(
@@ -142,174 +145,36 @@ test("launch metadata validation is closed and artifact reads fail closed on tam
 	}
 });
 
-test("v2 auto launch metadata is distinct, strict, and cannot widen v1", async () => {
-	const cwd = await mkdtemp(join(tmpdir(), "piwf-launch-auto-v2-"));
-	const runId = "workflow_auto_v2";
-	try {
-		const command = await writeWorkflowLaunchCommandArtifact(
-			cwd,
-			runId,
-			'/workflow auto "review this"',
-		);
-		const task = "review this";
-		const launch = {
+test("pi-workflow's launch records are not accepted", () => {
+	const command = { state: "unavailable", reason: "not-a-command" };
+	for (const launch of [
+		{
+			schema: "pi-workflow-run-launch-v1",
+			source: { kind: "tool", name: "workflow_run" },
+			requestKind: "named-workflow",
+			routingMode: "off",
+			profile: { kind: "base" },
+			task: { characters: 1, lines: 1 },
+			command,
+		},
+		{
 			schema: "pi-workflow-run-launch-v2",
 			source: { kind: "slash-command", action: "auto" },
 			requestKind: "named-workflow",
 			routingMode: "auto-confirmed",
 			profile: { kind: "base" },
-			task: { characters: task.length, lines: 1 },
-			selection: {
-				recommendation: "named-workflow",
-				selected: "named-workflow",
-				candidateId: "a".repeat(64),
-				candidateIdentitySha256: "b".repeat(64),
-				taskSha256: createHash("sha256").update(task).digest("hex"),
-				confirmed: true,
-				effectiveRuntime: { thinking: "medium" },
-			},
+			task: { characters: 1, lines: 1 },
+			selection: {},
 			command,
-		};
-		assert.equal(isWorkflowRunLaunchMetadata(launch), true);
-		assert.equal(
-			isWorkflowRunLaunchMetadata({
-				...launch,
-				selection: { ...launch.selection, recommendation: null },
-			}),
-			true,
-			"an explicitly unranked local manual fallback is valid v2 provenance",
-		);
-		assert.equal(
-			isWorkflowRunLaunchMetadata({
-				...launch,
-				selection: { ...launch.selection, recommendation: "direct" },
-			}),
-			false,
-		);
-		assert.equal(
-			isWorkflowRunLaunchMetadata({
-				...launch,
-				selection: { ...launch.selection, confirmed: false },
-			}),
-			false,
-		);
-		assert.equal(
-			isWorkflowRunLaunchMetadata({
-				...launch,
-				source: { kind: "slash-command", action: "run" },
-			}),
-			false,
-		);
-		assert.equal(
-			isWorkflowRunLaunchMetadata({
-				...launch,
-				requestKind: "direct-dynamic",
-				selection: { ...launch.selection, selected: "named-workflow" },
-			}),
-			false,
-		);
-		assert.equal(
-			isWorkflowRunLaunchMetadata({
-				...launch,
-				schema: "pi-workflow-run-launch-v1",
-				routingMode: "auto-confirmed",
-			}),
-			false,
-		);
-		const specPath = join(cwd, "workflows", "missing-binding", "spec.json");
-		await mkdir(join(cwd, "workflows", "missing-binding"), { recursive: true });
-		await writeFile(
-			specPath,
-			JSON.stringify({
-				schemaVersion: 1,
-				name: "missing-binding",
-				defaults: { agent: "scout", readOnly: true, tools: ["read"] },
-				artifactGraph: {
-					stages: [{ id: "main", type: "single", prompt: "Check." }],
-				},
-			}),
-		);
-		await assert.rejects(
-			() =>
-				runWorkflowSpec(specPath, cwd, {
-					task,
-					launch: {
-						...launch,
-						command: {
-							state: "captured",
-							text: '/workflow auto "review this"',
-						},
-					},
-				}),
-			/missing its in-memory selection binding/,
-		);
-		await assert.rejects(
-			() =>
-				runWorkflowSpec(specPath, cwd, {
-					task,
-					launch: {
-						...launch,
-						command: {
-							state: "captured",
-							text: '/workflow run missing-binding "review this"',
-						},
-					},
-				}),
-			/Invalid workflow launch metadata/,
-		);
-		const forgedDynamic = {
-			...launch,
-			requestKind: "direct-dynamic",
-			profile: { kind: "not-applicable" },
-			selection: {
-				...launch.selection,
-				recommendation: "direct-dynamic",
-				selected: "direct-dynamic",
-			},
-		};
-		assert.equal(isWorkflowRunLaunchMetadata(forgedDynamic), true);
-		await assert.rejects(
-			() =>
-				runWorkflowSpec(specPath, cwd, {
-					task,
-					launch: {
-						...forgedDynamic,
-						command: {
-							state: "captured",
-							text: '/workflow auto "review this"',
-						},
-					},
-				}),
-			/does not match the requested execution path/,
-		);
-		await assert.rejects(
-			() =>
-				runDynamicTask(cwd, {
-					task,
-					launch: {
-						...forgedDynamic,
-						command: {
-							state: "captured",
-							text: '/workflow auto "review this"',
-						},
-					},
-				}),
-			/missing its in-memory selection binding/,
-		);
-	} finally {
-		await rm(cwd, {
-			recursive: true,
-			force: true,
-			maxRetries: 10,
-			retryDelay: 100,
-		});
-	}
+		},
+	])
+		assert.equal(isWorkflowRunLaunchMetadata(launch), false, launch.schema);
 });
 
 test("launch artifact rejects symlinked workflow roots, run directories, and artifacts", {
 	skip: process.platform === "win32",
 }, async () => {
-	const secret = "/workflow run symlink-sensitive";
+	const secret = "agent-workflow run symlink-sensitive";
 	const rootCwd = await mkdtemp(join(tmpdir(), "piwf-launch-root-link-"));
 	const runCwd = await mkdtemp(join(tmpdir(), "piwf-launch-run-link-"));
 	const artifactCwd = await mkdtemp(
@@ -410,8 +275,8 @@ test("launch artifact read and commit reject path swaps without disclosing comma
 	const outside = await mkdtemp(join(tmpdir(), "piwf-launch-swap-outside-"));
 	const readRunId = "workflow_read_swap";
 	const writeRunId = "workflow_write_swap";
-	const readSecret = "/workflow run original-read-command";
-	const writeSecret = "/workflow run original-write-command";
+	const readSecret = "agent-workflow run original-read-command";
+	const writeSecret = "agent-workflow run original-write-command";
 	try {
 		const command = await writeWorkflowLaunchCommandArtifact(
 			cwd,
@@ -477,7 +342,7 @@ test("launch artifact hard-link races fail closed and zero escaped command bytes
 	const outside = await mkdtemp(
 		join(tmpdir(), "piwf-launch-hardlink-outside-"),
 	);
-	const secret = "/workflow run hardlink-race-secret";
+	const secret = "agent-workflow run hardlink-race-secret";
 	try {
 		for (const phase of ["before", "after"]) {
 			const runId = `workflow_hardlink_${phase}`;
@@ -529,7 +394,7 @@ test("launch artifact hard-link races fail closed and zero escaped command bytes
 test("sidecar write failure prevents run record publication", async () => {
 	const cwd = await mkdtemp(join(tmpdir(), "piwf-launch-write-failure-"));
 	const runId = "workflow_sidecar_write_failure";
-	const exact = "/workflow run write-failure";
+	const exact = "agent-workflow run write-failure";
 	try {
 		await mkdir(join(cwd, ".agent-workflow", "agents"), { recursive: true });
 		await writeFile(
@@ -562,8 +427,9 @@ test("sidecar write failure prevents run record publication", async () => {
 					runId,
 					task: "Do work.",
 					launch: {
-						schema: "pi-workflow-run-launch-v1",
-						source: { kind: "slash-command", action: "run" },
+						schema: "agent-workflow-run-launch-v1",
+						source: "cli",
+						entry: { kind: "command", action: "run" },
 						requestKind: "named-workflow",
 						routingMode: "off",
 						profile: { kind: "base" },

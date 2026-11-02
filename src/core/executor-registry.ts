@@ -39,9 +39,8 @@ export const BUILTIN_EXECUTOR_IDS = [
 ] as const;
 
 /**
- * Executor of a run record that carries no selection (created directly through the store, or a
- * pi-workflow import: those ran on Pi). New runs never use it: their default is the host's own CLI
- * (WP17, executor-default.ts).
+ * Executor of a run record that carries no selection (created directly through the store). New runs
+ * never use it: their default is the host's own CLI (WP17, executor-default.ts).
  */
 export const LEGACY_RECORD_EXECUTOR_ID = "pi";
 
@@ -293,7 +292,7 @@ export function workflowDeclaredProfileExecutor(
 
 /**
  * Descriptor a run launches with. Uses the descriptor recorded at run creation (rediscovery,
- * R#15); a run without one (legacy pi-workflow record) cannot launch.
+ * R#15); a run without one cannot launch.
  */
 export function recordedRunExecutorDescriptor(
 	run: {

@@ -834,8 +834,7 @@ export interface WorkflowTaskUsageAggregateRecord
 }
 
 export interface WorkflowTaskUsageRecord extends WorkflowTaskUsageValues {
-	/** "executor" (agent-workflow); "pi-subagent" on records written by pi-workflow. */
-	source: "executor" | "pi-subagent";
+	source: "executor";
 	capturedAt: string;
 	provider?: string;
 	model?: string;
@@ -914,8 +913,7 @@ export interface WorkflowTaskToolResultBudgetAggregateRecord {
 }
 
 export interface WorkflowTaskToolResultBudgetRecord {
-	/** "executor" (agent-workflow); "pi-subagent" on records written by pi-workflow. */
-	source: "executor" | "pi-subagent";
+	source: "executor";
 	capturedAt: string;
 	incomplete?: boolean;
 	pendingConfiguration?: WorkflowTaskToolResultBudgetConfigurationRecord;
@@ -1715,15 +1713,6 @@ export interface WorkflowRunProvenance {
 	[key: string]: unknown;
 }
 
-export type WorkflowRunLaunchV1Source =
-	| { kind: "slash-command"; action: "run" | "dynamic" }
-	| { kind: "tool"; name: "workflow_run" | "workflow_dynamic" };
-
-/** Includes `auto` for consumers that render either launch-provenance generation. */
-export type WorkflowRunLaunchSource =
-	| WorkflowRunLaunchV1Source
-	| { kind: "slash-command"; action: "auto" };
-
 export type WorkflowRunLaunchProfile =
 	| { kind: "named"; name: string }
 	| { kind: "base" }
@@ -1737,9 +1726,8 @@ export type WorkflowRunLaunchCommandMetadata =
 			bytes: number;
 			sha256: string;
 			/**
-			 * `pi-extension-command-v1`: pi-workflow's verbatim slash command. WP33 (host-neutral
-			 * launch capture, schema `agent-workflow-run-launch-v1`): `agent-workflow-host-command-v1`
-			 * = the host's own command line (`agent-workflow run …`, `/aw run …`) and
+			 * WP33 (host-neutral launch capture, schema `agent-workflow-run-launch-v1`):
+			 * `agent-workflow-host-command-v1` = the host's own command line (`agent-workflow run …`, `/aw run …`) and
 			 * `agent-workflow-tool-call-v1` = a tool call rendered as `<tool> <JSON arguments>`; both
 			 * with credentials redacted and the home directory shown as `~`.
 			 */
@@ -1750,57 +1738,16 @@ export type WorkflowRunLaunchCommandMetadata =
 	| { state: "unavailable"; reason: "not-a-command" };
 
 export type WorkflowRunLaunchCommandFidelity =
-	| "pi-extension-command-v1"
 	| "agent-workflow-host-command-v1"
 	| "agent-workflow-tool-call-v1";
 
 export type WorkflowAutoRoute = "direct" | "named-workflow" | "direct-dynamic";
 
-/** Opaque selection facts recorded by a confirmed `/workflow auto` launch. */
-export interface WorkflowRunAutoSelectionMetadata {
-	/** Null means the user explicitly chose an unranked local manual fallback; non-null equals selected. */
-	recommendation: WorkflowAutoRoute | null;
-	selected: "named-workflow" | "direct-dynamic";
-	candidateId: string;
-	candidateIdentitySha256: string;
-	taskSha256: string;
-	confirmed: true;
-	effectiveRuntime: {
-		model?: string;
-		thinking?: ThinkingLevel;
-		fast?: Exclude<FastMode, "inherit">;
-	};
-}
-
-/** Legacy structured launch provenance. Keep this exact v1 shape readable forever. */
-export interface WorkflowRunLaunchMetadataV1 {
-	schema: "pi-workflow-run-launch-v1";
-	source: WorkflowRunLaunchV1Source;
-	requestKind: "named-workflow" | "direct-dynamic";
-	routingMode: "default-on" | "explicit-on" | "off";
-	profile: WorkflowRunLaunchProfile;
-	task: { characters: number; lines: number };
-	command: WorkflowRunLaunchCommandMetadata;
-}
-
-/** v2 is deliberately distinct from v1 rather than widening its strict enums. */
-export interface WorkflowRunLaunchMetadataV2 {
-	schema: "pi-workflow-run-launch-v2";
-	source: { kind: "slash-command"; action: "auto" };
-	requestKind: "named-workflow" | "direct-dynamic";
-	routingMode: "auto-confirmed";
-	profile: WorkflowRunLaunchProfile;
-	task: { characters: number; lines: number };
-	selection: WorkflowRunAutoSelectionMetadata;
-	command: WorkflowRunLaunchCommandMetadata;
-}
-
 /**
- * WP33 (parity row 35): host-neutral launch provenance of a run launched through the host API (CLI,
- * Pi host, host MCP server). pi-workflow's v2 field set (`schema`, `source`, `requestKind`,
- * `routingMode`, `profile`, `task`, `command`) without the `/workflow auto`-only `selection`;
- * `source` names the host (`cli`, `pi`, `mcp:<host>`) and `entry` how it was asked (a command line
- * or a tool call). The command text (redacted) lives in `launch-command.txt` like v1/v2.
+ * WP33 (parity row 35): launch provenance of a run launched through the host API (CLI, Pi host,
+ * host MCP server): `schema`, `source`, `entry`, `requestKind`, `routingMode`, `profile`,
+ * `task`, `command`. `source` names the host (`cli`, `pi`, `mcp:<host>`) and `entry` how it was
+ * asked (a command line or a tool call). The command text (redacted) lives in `launch-command.txt`.
  */
 export type WorkflowRunLaunchHostSource = "cli" | "pi" | `mcp:${string}`;
 
@@ -1853,7 +1800,7 @@ export interface WorkflowRunHostAutoSelectionMetadata {
 /**
  * WP32: host-neutral launch provenance of a confirmed `auto` launch (CLI `agent-workflow auto`,
  * Pi `/aw auto`, MCP `workflow_auto`). Distinct from `agent-workflow-run-launch-v1` rather than
- * widening its strict `routingMode: "off"`, as pi-workflow's v2 was distinct from its v1.
+ * widening its strict `routingMode: "off"`.
  */
 export interface WorkflowRunLaunchMetadataHostV2 {
 	schema: "agent-workflow-run-launch-v2";
@@ -1873,27 +1820,8 @@ export type WorkflowRunLaunchEntryAuto =
 
 /** Structured creation-launch provenance. Exact command text lives in a private sidecar. */
 export type WorkflowRunLaunchMetadata =
-	| WorkflowRunLaunchMetadataV1
-	| WorkflowRunLaunchMetadataV2
 	| WorkflowRunLaunchMetadataHostV1
 	| WorkflowRunLaunchMetadataHostV2;
-
-export type WorkflowRunLaunchCaptureV1 = Omit<
-	WorkflowRunLaunchMetadataV1,
-	"command"
-> & {
-	command:
-		| { state: "captured"; text: string }
-		| { state: "unavailable"; reason: "not-a-command" };
-};
-
-export type WorkflowRunLaunchCaptureV2 = Omit<
-	WorkflowRunLaunchMetadataV2,
-	"command"
-> & {
-	/** An auto launch is slash-command initiated and always retains its sidecar. */
-	command: { state: "captured"; text: string };
-};
 
 /** WP33: the host API's capture (the command text is always captured, already redacted). */
 export type WorkflowRunLaunchCaptureHostV1 = Omit<
@@ -1913,8 +1841,6 @@ export type WorkflowRunLaunchCaptureHostV2 = Omit<
 
 /** Non-persisted launch input carried from a launch surface to the engine. */
 export type WorkflowRunLaunchCapture =
-	| WorkflowRunLaunchCaptureV1
-	| WorkflowRunLaunchCaptureV2
 	| WorkflowRunLaunchCaptureHostV1
 	| WorkflowRunLaunchCaptureHostV2;
 
@@ -2014,7 +1940,7 @@ export interface WorkflowRunRecord {
 	provenance?: WorkflowRunProvenance;
 	routing?: WorkflowRunRouting;
 	executionProfile?: WorkflowRunExecutionProfile;
-	/** Executor selection frozen at creation; absent on legacy pi-workflow records. */
+	/** Executor selection frozen at creation; absent on records created directly through the store. */
 	executor?: WorkflowRunExecutorSelection;
 	/** WP31: per-stage executor/model/effort of a run with a role profile. */
 	roleExecution?: WorkflowRunRoleExecution;

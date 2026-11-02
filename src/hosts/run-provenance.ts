@@ -131,24 +131,11 @@ export async function launchSummary(
 			: launch.profile.kind === "base"
 				? "base profile"
 				: "no profile";
-	let source: string;
-	let entry: string;
-	if (
-		launch.schema === "agent-workflow-run-launch-v1" ||
-		launch.schema === "agent-workflow-run-launch-v2"
-	) {
-		source = launch.source;
-		entry =
-			launch.entry.kind === "tool"
-				? `tool ${launch.entry.name}`
-				: `command ${launch.entry.action}`;
-	} else {
-		source = "pi-workflow";
-		entry =
-			launch.source.kind === "tool"
-				? `tool ${launch.source.name}`
-				: `command ${launch.source.action}`;
-	}
+	const source: string = launch.source;
+	const entry =
+		launch.entry.kind === "tool"
+			? `tool ${launch.entry.name}`
+			: `command ${launch.entry.action}`;
 	let command: LaunchSummary["command"];
 	if (launch.command.state === "captured") {
 		command = {

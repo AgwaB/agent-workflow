@@ -36,7 +36,7 @@ function taskRecord(taskId, usageValues) {
 		...(usageValues
 			? {
 					usage: {
-						source: "pi-subagent",
+						source: "executor",
 						capturedAt: "2026-07-07T00:00:00.000Z",
 						...usageValues,
 						aggregate: { attempts: 1, ...usageValues },

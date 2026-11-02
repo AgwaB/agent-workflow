@@ -255,7 +255,7 @@ test("host MCP server: workflow_run records source mcp:<host>", async () => {
 	assertClean(text, home);
 });
 
-test("host API without an origin: a synthesized agent-workflow command; v1/v2 records stay valid", async () => {
+test("host API without an origin: a synthesized agent-workflow command; strict launch records", async () => {
 	const { cwd, env, executor } = await project();
 	const launched = await api.runWorkflowAction(
 		{ cwd, env },
@@ -294,8 +294,8 @@ test("host API without an origin: a synthesized agent-workflow command; v1/v2 re
 			false,
 			JSON.stringify(bad),
 		);
-	// pi-workflow's v1 shape is still accepted.
-	assert.ok(
+	// 2026-11-02: pi-workflow's launch records are not agent-workflow's (not accepted).
+	assert.equal(
 		store.isWorkflowRunLaunchMetadata({
 			schema: "pi-workflow-run-launch-v1",
 			source: { kind: "tool", name: "workflow_run" },
@@ -305,5 +305,6 @@ test("host API without an origin: a synthesized agent-workflow command; v1/v2 re
 			task: { characters: 1, lines: 1 },
 			command: { state: "unavailable", reason: "not-a-command" },
 		}),
+		false,
 	);
 });

@@ -1,6 +1,5 @@
 // Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine.ts. MIT, same author. Changes: the backend comes from the task-launch registry and the core task backend registers itself (was hard-wired pi-subagent); acknowledgeSubagentTaskInterrupted from task-cancellation.ts; run options executor/defaultExecutor (B2 executor selection before the run record exists, frozen as run.executor; nested runs copy the parent's) and inheritHostTools/allowSharedCheckoutWrites passed into compileWorkflow (nested runs follow the parent record); native host context → withHostContext(resolveHostContext()); foreach batch eligibility uses prepareWorkflowTaskToolPolicy with the run's host-tool and shared-checkout decisions (R#5); messages say agent-workflow. WP4d: B4 capability negotiation after executor selection and compile, before the run record (probe once, refuse/degrade/confirm, record run.capabilityNegotiation; run options interactive/confirmDegradations/allowUnverifiedCapabilities/executorProber/executorProbeTimeoutMs). WP4e: run option permissionMode resolved with B2 precedence (permission-mode.ts), passed to compile and negotiation, recorded as run.permissionMode (nested runs follow the parent). WP17: run option host; with no explicit executor the default is the host's own CLI (terminal: first usable of pi → claude → codex via cached probes, executor-default.ts), recorded as run.executor.source host-default/installed-default with the host; the cached prober is shared with negotiation. WP18b: re-exports scheduledRetryWait/formatScheduledRetryWait. WP35: the inheritHostTools run option takes effect only for tasks whose executor is pi (WP31 mixed runs: per task). WP31: role-level profiles (role-execution.ts): run options workflowPreference and roles on saved profiles; per-stage executor/model/effort recorded as run.roleExecution; mixed runs (Q4) compile runtime.executor per task and negotiate every stage against its own executor.
 import { releaseUnneededOwnedSessions } from "./owned-session-release.js";
-import { createHash } from "node:crypto";
 import {
 	appendFile,
 	mkdir,
@@ -608,14 +607,6 @@ export async function runDynamicTask(
 			'This dynamic workflow needs a task. Usage: agent-workflow dynamic "<task>" (Pi: /aw dynamic "<task>")',
 		);
 	}
-	if (
-		options.launch?.schema === "pi-workflow-run-launch-v2" &&
-		options.launch.requestKind === "direct-dynamic" &&
-		!options.autoLaunchBinding
-	)
-		throw new Error(
-			"Auto-confirmed dynamic launch is missing its in-memory selection binding. Run agent-workflow auto (Pi: /aw auto) again.",
-		);
 	options.launchSignal?.throwIfAborted();
 	const specPath = await ensureDirectDynamicRuntimeBundle(cwd);
 	options.launchSignal?.throwIfAborted();
@@ -670,80 +661,6 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 ): Promise<WorkflowRunRecord> {
 	options.launchSignal?.throwIfAborted();
 	if (options.launch) assertValidWorkflowRunLaunchCapture(options.launch);
-	if (options.launch?.schema === "pi-workflow-run-launch-v2") {
-		const actualRequestKind =
-			diagnosticsPolicy === "excluded-direct-dynamic"
-				? "direct-dynamic"
-				: "named-workflow";
-		if (options.launch.requestKind !== actualRequestKind)
-			throw new Error(
-				"Auto-confirmed launch metadata does not match the requested execution path. Run agent-workflow auto (Pi: /aw auto) again.",
-			);
-		if (!options.autoLaunchBinding)
-			throw new Error(
-				options.launch.requestKind === "named-workflow"
-					? "Auto-confirmed named launch is missing its in-memory selection binding. Run agent-workflow auto (Pi: /aw auto) again."
-					: "Auto-confirmed dynamic launch is missing its in-memory selection binding. Run agent-workflow auto (Pi: /aw auto) again.",
-			);
-		if (
-			options.launch.requestKind === "direct-dynamic" &&
-			options.autoLaunchBinding.runtimeVersion !==
-				DIRECT_DYNAMIC_RUNTIME_VERSION
-		)
-			throw new Error(
-				"Auto selection is stale: direct dynamic runtime changed before launch. Run agent-workflow auto (Pi: /aw auto) again.",
-			);
-		const taskSha256 = createHash("sha256")
-			.update(options.task?.trim() ?? "", "utf8")
-			.digest("hex");
-		if (taskSha256 !== options.launch.selection.taskSha256)
-			throw new Error(
-				"Auto selection is stale: task changed before launch. Run agent-workflow auto (Pi: /aw auto) again.",
-			);
-		const effectiveFast =
-			options.runtimeOverrides?.fast === "on" ||
-			options.runtimeOverrides?.fast === "off"
-				? options.runtimeOverrides.fast
-				: options.runtimeDefaults?.fast === "on" ||
-						options.runtimeDefaults?.fast === "off"
-					? options.runtimeDefaults.fast
-					: undefined;
-		const effectiveRuntime = {
-			...(options.runtimeDefaults?.model
-				? { model: options.runtimeDefaults.model }
-				: {}),
-			...(options.runtimeDefaults?.thinking
-				? { thinking: options.runtimeDefaults.thinking }
-				: {}),
-			...(options.runtimeOverrides?.model
-				? { model: options.runtimeOverrides.model }
-				: {}),
-			...(options.runtimeOverrides?.thinking
-				? { thinking: options.runtimeOverrides.thinking }
-				: {}),
-			...(effectiveFast ? { fast: effectiveFast } : {}),
-		};
-		if (
-			effectiveRuntime.model !==
-				options.launch.selection.effectiveRuntime.model ||
-			effectiveRuntime.thinking !==
-				options.launch.selection.effectiveRuntime.thinking ||
-			effectiveRuntime.fast !== options.launch.selection.effectiveRuntime.fast
-		)
-			throw new Error(
-				"Auto selection is stale: runtime changed before launch. Run agent-workflow auto (Pi: /aw auto) again.",
-			);
-		if (
-			options.autoLaunchBinding &&
-			(options.autoLaunchBinding.candidateId !==
-				options.launch.selection.candidateId ||
-				options.autoLaunchBinding.candidateIdentitySha256 !==
-					options.launch.selection.candidateIdentitySha256)
-		)
-			throw new Error(
-				"Auto selection is stale: candidate identity changed before launch. Run agent-workflow auto (Pi: /aw auto) again.",
-			);
-	}
 	if (options.autoLaunchBinding)
 		await assertWorkflowAutoLaunchBindingCurrent(
 			cwd,
@@ -1227,20 +1144,15 @@ async function persistWorkflowRunLaunch(
 	runId: string,
 	capture: WorkflowRunLaunchCapture,
 ): Promise<WorkflowRunLaunchMetadata> {
-	const command =
-		capture.command.state === "captured"
-			? await writeWorkflowLaunchCommandArtifact(
-					cwd,
-					runId,
-					capture.command.text,
-					capture.schema !== "agent-workflow-run-launch-v1" &&
-						capture.schema !== "agent-workflow-run-launch-v2"
-						? "pi-extension-command-v1"
-						: capture.entry.kind === "tool"
-							? "agent-workflow-tool-call-v1"
-							: "agent-workflow-host-command-v1",
-				)
-			: capture.command;
+	// Host API captures always carry the (redacted) command text.
+	const command = await writeWorkflowLaunchCommandArtifact(
+		cwd,
+		runId,
+		capture.command.text,
+		capture.entry.kind === "tool"
+			? "agent-workflow-tool-call-v1"
+			: "agent-workflow-host-command-v1",
+	);
 	// WP33: host-neutral launch metadata (CLI, Pi host, host MCP server).
 	if (capture.schema === "agent-workflow-run-launch-v1") {
 		return {
@@ -1255,38 +1167,15 @@ async function persistWorkflowRunLaunch(
 		};
 	}
 	// WP32: a confirmed host `auto` launch (selection facts, no task text).
-	if (capture.schema === "agent-workflow-run-launch-v2") {
-		return {
-			schema: capture.schema,
-			source: capture.source,
-			entry: capture.entry,
-			requestKind: capture.requestKind,
-			routingMode: capture.routingMode,
-			profile: capture.profile,
-			task: capture.task,
-			selection: capture.selection,
-			command,
-		};
-	}
-	if (capture.schema === "pi-workflow-run-launch-v2") {
-		return {
-			schema: capture.schema,
-			source: capture.source,
-			requestKind: capture.requestKind,
-			routingMode: capture.routingMode,
-			profile: capture.profile,
-			task: capture.task,
-			selection: capture.selection,
-			command,
-		};
-	}
 	return {
 		schema: capture.schema,
 		source: capture.source,
+		entry: capture.entry,
 		requestKind: capture.requestKind,
 		routingMode: capture.routingMode,
 		profile: capture.profile,
 		task: capture.task,
+		selection: capture.selection,
 		command,
 	};
 }
