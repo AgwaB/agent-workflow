@@ -3915,7 +3915,7 @@ export async function isWorkflowRunLeaseLive(
 export function supervisorLeasePath(cwd: string, runId: string): string {
 	return join(workflowRunDir(cwd, runId), "supervisor-lease.json");
 }
-const TEST_OWNER_ID = `pi-workflow-${process.pid}`;
+const TEST_OWNER_ID = `agent-workflow-${process.pid}`;
 export function workflowSupervisorOwnerIdForTests(): string {
 	return TEST_OWNER_ID;
 }

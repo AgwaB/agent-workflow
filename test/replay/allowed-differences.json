@@ -194,12 +194,21 @@
 			"id": "aw-does-not-know-pi-workflow",
 			"introducedBy": "2026-11-02",
 			"decision": "2026-11-02 owner decision: agent-workflow does not know pi-workflow; its texts name agent-workflow's own commands",
-			"reason": "The worker system prompt said the task was launched by pi-workflow's /workflow command; it names agent-workflow instead. Same sentence otherwise.",
+			"reason": "agent-workflow names its own commands and formats, not pi-workflow's: the worker system prompt says the task was launched by agent-workflow (was pi-workflow's /workflow command), and the launch authority/bootstrap provenance records carry agent-workflow schema and issuer names. Same content otherwise.",
 			"renames": [
 				[
 					"You were launched by agent-workflow",
 					"You were launched by /workflow"
-				]
+				],
+				[
+					"agent-workflow-launch-bootstrap-provenance-v2",
+					"pi-workflow-launch-bootstrap-provenance-v2"
+				],
+				[
+					"agent-workflow-launch-authority-v1",
+					"pi-workflow-launch-authority-v1"
+				],
+				["agent-workflow-engine", "pi-workflow-engine"]
 			]
 		}
 	]

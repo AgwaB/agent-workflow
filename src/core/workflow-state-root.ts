@@ -7,8 +7,11 @@ import { join, resolve } from "node:path";
 import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import { syncFileAndDirectory, workflowsRoot } from "./store.js";
 
-const ROOT_SCHEMA = "pi-workflow-state-root-v1" as const;
-const NONCE_FILE = ".state-root-v1.json";
+const ROOT_SCHEMA = "agent-workflow-state-root-v1" as const;
+// v2 (2026-11-02): the schema is agent-workflow-state-root-v1 (was pi-workflow-state-root-v1, whose
+// file .state-root-v1.json is left unread); a project gets a new nonce, so runs started before keep
+// their old state-root identity and fail closed where they check it.
+const NONCE_FILE = ".state-root-v2.json";
 const SHA256 = /^[a-f0-9]{64}$/u;
 const CAPABILITIES = new WeakMap<object, WorkflowStateRootIdentity>();
 
@@ -25,7 +28,7 @@ export interface WorkflowStateRootIdentity {
 }
 
 export interface WorkflowStateRootCapability {
-	readonly kind: "pi-workflow-private-state-root-capability-v1";
+	readonly kind: "agent-workflow-private-state-root-capability-v1";
 }
 
 function canonical(value: unknown): unknown {
@@ -148,7 +151,7 @@ export async function openWorkflowStateRootCapability(
 ): Promise<WorkflowStateRootCapability> {
 	const identity = await inspectStateRoot(cwd);
 	const capability = Object.freeze({
-		kind: "pi-workflow-private-state-root-capability-v1" as const,
+		kind: "agent-workflow-private-state-root-capability-v1" as const,
 	});
 	CAPABILITIES.set(capability, Object.freeze(identity));
 	return capability;

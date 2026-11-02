@@ -4159,7 +4159,7 @@ test("workflow run metrics roll up provider-reported usage without mutation", ()
 					},
 				},
 				timing: {
-					source: "pi-workflow",
+					source: "agent-workflow",
 					capturedAt: "2026-06-08T00:01:30.000Z",
 					executionCompletedAt: "2026-06-08T00:00:00.000Z",
 					launchSlotReleaseDelayMs: 0,
@@ -4218,7 +4218,7 @@ test("workflow run metrics roll up provider-reported usage without mutation", ()
 					},
 				},
 				timing: {
-					source: "pi-workflow",
+					source: "agent-workflow",
 					capturedAt: "2026-06-08T00:02:00.000Z",
 					aggregate: {
 						attempts: 1,
@@ -4663,7 +4663,7 @@ test("workflow run metrics do not infer missing prices from token counts", () =>
 					},
 				},
 				timing: {
-					source: "pi-workflow",
+					source: "agent-workflow",
 					capturedAt: "2026-06-08T00:01:00.000Z",
 					launchSlotReleaseDelayMs: 0,
 					aggregate: {

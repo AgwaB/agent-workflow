@@ -1380,7 +1380,7 @@ test("subagent terminal observability captures usage and separates launch timing
 		assert.equal(refreshedTask.usage.aggregate.outputTokens, null);
 		assert.equal(refreshedTask.usage.attempts.length, 1);
 		assert.equal(refreshedTask.usage.attempts[0].raw.output, null);
-		assert.equal(refreshedTask.timing.source, "pi-workflow");
+		assert.equal(refreshedTask.timing.source, "agent-workflow");
 		assert.equal(refreshedTask.timing.executionStartedAt, startedAt);
 		assert.equal(refreshedTask.timing.executionCompletedAt, completedAt);
 		assert.equal(refreshedTask.timing.executionMs, 1250);
@@ -1632,7 +1632,7 @@ test("subagent terminal observability aggregates distinct retry attempts", async
 		await launchSubagentTask(cwd, run, run.tasks[0], compiled.tasks[0]);
 
 		const task = run.tasks[0];
-		assert.equal(task.timing.source, "pi-workflow");
+		assert.equal(task.timing.source, "agent-workflow");
 		assert.ok(task.timing.launchQueuedAt);
 		assert.ok(task.timing.launchStartedAt);
 		assert.ok(task.timing.launchCompletedAt);
@@ -5208,7 +5208,7 @@ test("launch-bootstrap provenance is deterministic, attempt-scoped, and bounded 
 			/launch-bootstrap provenance is malformed/,
 		);
 		const incompleteIdentity = {
-			schema: "pi-workflow-launch-bootstrap-provenance-v1",
+			schema: "agent-workflow-launch-bootstrap-provenance-v1",
 			attempt: {
 				key: "launch-retry:0;output-retry:0;resume:0;session:none",
 				launchRetry: 0,

@@ -16,7 +16,7 @@ import type {
 } from "./types.js";
 
 export const WORKFLOW_LAUNCH_AUTHORITY_SCHEMA =
-	"pi-workflow-launch-authority-v1" as const;
+	"agent-workflow-launch-authority-v1" as const;
 
 const MAX_LAUNCH_AUTHORITY_RECORDS = 1_024;
 
@@ -43,7 +43,7 @@ export function createWorkflowLaunchAuthority(
 	assertCurrentProvenanceOwner(run, task, backendId, provenance);
 	const grant: Omit<WorkflowLaunchAuthorityGrant, "identitySha256"> = {
 		schema: WORKFLOW_LAUNCH_AUTHORITY_SCHEMA,
-		issuer: "pi-workflow-engine",
+		issuer: "agent-workflow-engine",
 		operation: "launch-task",
 		runId: run.runId,
 		task: {
@@ -363,7 +363,7 @@ function isWorkflowLaunchAuthorityGrant(
 			"launchBootstrapSha256",
 		]) ||
 		value.schema !== WORKFLOW_LAUNCH_AUTHORITY_SCHEMA ||
-		value.issuer !== "pi-workflow-engine" ||
+		value.issuer !== "agent-workflow-engine" ||
 		value.operation !== "launch-task" ||
 		!nonEmptyString(value.runId) ||
 		!nonEmptyString(value.attemptKey) ||

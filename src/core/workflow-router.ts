@@ -1300,7 +1300,7 @@ function candidateFromRecord(
 ): WorkflowAutoCandidate {
 	const facts = deriveWorkflowFacts(record.spec);
 	const id = sha256(
-		`pi-workflow-auto-candidate-v1\0${resolve(record.specPath)}`,
+		`agent-workflow-auto-candidate-v1\0${resolve(record.specPath)}`,
 	);
 	return {
 		candidateId: id,
@@ -1413,7 +1413,7 @@ function baseCandidate(
 		"candidateId" | "identitySha256" | "readiness"
 	>,
 ): WorkflowAutoCandidate {
-	const candidateId = sha256(`pi-workflow-auto-${input.kind}-v1`);
+	const candidateId = sha256(`agent-workflow-auto-${input.kind}-v1`);
 	return {
 		...input,
 		candidateId,
@@ -1711,7 +1711,7 @@ function buildWorkflowAutoComparisonPacket(
 	partialCatalog: boolean,
 ): string {
 	return JSON.stringify({
-		schema: "pi-workflow-auto-comparison-v1",
+		schema: "agent-workflow-auto-comparison-v1",
 		responseContract: {
 			status: ["recommendation", "needs-clarification", "no-fit"],
 			recommendation:

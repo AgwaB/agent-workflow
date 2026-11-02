@@ -21,7 +21,7 @@ const CAPABILITIES = new WeakMap<
 >();
 
 export interface WorkflowForeachBatchCapability {
-	readonly kind: "pi-workflow-private-foreach-batch-capability-v1";
+	readonly kind: "agent-workflow-private-foreach-batch-capability-v1";
 }
 
 function canonical(value: unknown): unknown {
@@ -98,7 +98,7 @@ export async function issueForeachBatchCapability(
 	if (subjectSha256 !== record.capabilitySubjectSha256)
 		throw new Error(`foreach batch ${record.batchId} capability subject drift`);
 	const capability = Object.freeze({
-		kind: "pi-workflow-private-foreach-batch-capability-v1" as const,
+		kind: "agent-workflow-private-foreach-batch-capability-v1" as const,
 	});
 	CAPABILITIES.set(capability, {
 		cwd,

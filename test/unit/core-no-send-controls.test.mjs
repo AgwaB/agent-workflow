@@ -136,7 +136,7 @@ test("workflow state-root capabilities are private, stable, and physically bound
 		);
 		await assert.rejects(
 			assertWorkflowStateRootCapability(cwd, {
-				kind: "pi-workflow-private-state-root-capability-v1",
+				kind: "agent-workflow-private-state-root-capability-v1",
 			}),
 			/private workflow state-root capability is required/,
 		);
@@ -315,7 +315,7 @@ test("subagent launch durably consumes authority before releasing the general wo
 			externalLaunchGrantSha256,
 		);
 		const releaseDigestInput = digested.find(
-			(value) => value.schema === "pi-workflow-consumed-launch-release-v1",
+			(value) => value.schema === "agent-workflow-consumed-launch-release-v1",
 		);
 		assert.ok(releaseDigestInput);
 		assert.equal(

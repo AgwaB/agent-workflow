@@ -90,7 +90,7 @@ test("WB-018 cursor self-heals after restart and external size change", async (t
 	assert.equal((await appendDynamicEvent(cwd, runId, input(2))).seq, 2);
 	assert.equal(dynamicEventAppendStatsForTests().fullLedgerReads, 1);
 	const external = {
-		schema: "pi-workflow-dynamic-event-v1",
+		schema: "agent-workflow-dynamic-event-v1",
 		seq: 3,
 		opId: "external",
 		requestHash: "external-hash",

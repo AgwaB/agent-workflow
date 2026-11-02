@@ -3422,7 +3422,7 @@ test("formatRun surfaces terminal capture lag separately from execution time", (
 					taskPrompt: "task.md",
 				},
 				timing: {
-					source: "pi-workflow",
+					source: "agent-workflow",
 					capturedAt: "2026-06-08T00:05:00.000Z",
 					executionCompletedAt: "2026-06-08T00:00:00.000Z",
 					aggregate: {

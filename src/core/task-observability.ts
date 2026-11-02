@@ -525,7 +525,7 @@ function normalizedToolResultBudgetAttempt(
 	if (normalized.reported === true) delete normalized.unavailable;
 	if (normalized.configured === false && normalized.reported !== true) {
 		delete normalized.unavailable;
-		normalized.source = "pi-workflow-budget-disabled";
+		normalized.source = "agent-workflow-budget-disabled";
 	}
 	return normalized;
 }
@@ -645,7 +645,7 @@ export function bindTaskToolResultBudgetPendingConfiguration(options: {
 	updateTaskToolResultBudget({
 		task: options.task,
 		attempt: {
-			source: "pi-workflow-launch",
+			source: "agent-workflow-launch",
 			capturedAt: options.capturedAt,
 			backendRunId: options.backendRunId,
 			backendAttemptId: options.backendAttemptId,
@@ -748,10 +748,10 @@ export function recordTaskTimingTelemetry(
 	if (Object.keys(sanitized).length === 0) return;
 	task.timing = {
 		...(task.timing ?? {
-			source: "pi-workflow" as const,
+			source: "agent-workflow" as const,
 			capturedAt: nowIso(),
 		}),
-		source: "pi-workflow",
+		source: "agent-workflow",
 		capturedAt: nowIso(),
 		...sanitized,
 	};
@@ -813,7 +813,7 @@ export function recordTaskLaunchTiming(
 	);
 	const launchControls = launchControlTelemetry();
 	task.timing = {
-		source: "pi-workflow",
+		source: "agent-workflow",
 		capturedAt,
 		launchQueuedAt: observation.launchQueuedAt,
 		...(observation.launchStartedAt === undefined
@@ -976,7 +976,7 @@ function recordTaskTerminalTiming(options: {
 		attempt,
 	);
 	options.task.timing = {
-		source: "pi-workflow",
+		source: "agent-workflow",
 		capturedAt: options.capturedAt,
 		...(attempt.launchQueuedAt === undefined
 			? {}

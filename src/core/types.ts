@@ -1028,13 +1028,13 @@ export interface LaunchBootstrapProvenanceRecordBase {
 /** Byte-compatible launch provenance for tasks compiled before resource policy. */
 export interface LaunchBootstrapProvenanceRecordV1
 	extends LaunchBootstrapProvenanceRecordBase {
-	schema: "pi-workflow-launch-bootstrap-provenance-v1";
+	schema: "agent-workflow-launch-bootstrap-provenance-v1";
 }
 
 /** Explicit sealed resource-policy capture for newly compiled tasks. */
 export interface LaunchBootstrapProvenanceRecordV2
 	extends LaunchBootstrapProvenanceRecordBase {
-	schema: "pi-workflow-launch-bootstrap-provenance-v2";
+	schema: "agent-workflow-launch-bootstrap-provenance-v2";
 	resourcePolicy: WorkflowResourcePolicy;
 }
 
@@ -1048,9 +1048,9 @@ export interface LaunchBootstrapProvenanceHistory {
 }
 
 export interface WorkflowLaunchAuthorityGrant {
-	schema: "pi-workflow-launch-authority-v1";
+	schema: "agent-workflow-launch-authority-v1";
 	identitySha256: string;
-	issuer: "pi-workflow-engine";
+	issuer: "agent-workflow-engine";
 	operation: "launch-task";
 	runId: string;
 	task: { taskId: string; specId: string; generation?: number };
@@ -1137,7 +1137,7 @@ export interface WorkflowDurableLaunchBarrierHistory {
 }
 
 export interface WorkflowTaskTimingRecord {
-	source: "pi-workflow";
+	source: "agent-workflow";
 	capturedAt: string;
 	launchQueuedAt?: string;
 	launchStartedAt?: string;

@@ -86,7 +86,7 @@ export function durableBarrierCancellationIdentity(
 		reasonSha256:
 			record.cancellation?.reasonSha256 ??
 			api.durableLaunchBarrierDigest({
-				schema: "pi-workflow-durable-launch-cancellation-v1",
+				schema: "agent-workflow-durable-launch-cancellation-v1",
 				runId: run.runId,
 				taskId: task.taskId,
 				attemptKey: record.attemptKey,
@@ -707,7 +707,7 @@ export async function settleDurableLaunchBarrier(options: {
 			launched.attemptId,
 		);
 		const releasePayloadSha256 = launchApi.durableLaunchBarrierDigest({
-			schema: "pi-workflow-consumed-launch-release-v1",
+			schema: "agent-workflow-consumed-launch-release-v1",
 			runId: run.runId,
 			taskId: task.taskId,
 			attemptKey: launchAuthority.attemptKey,

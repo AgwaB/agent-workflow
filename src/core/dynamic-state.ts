@@ -14,7 +14,7 @@ import { nowIso, readRunRecord, writeJsonAtomic } from "./store.js";
 import { observedDynamicNestedWorkflowDepth } from "./dynamic-nested-depth.js";
 import type { CompiledDynamicWorkflowTask } from "./types.js";
 
-export const DYNAMIC_STATE_SCHEMA = "pi-workflow-dynamic-state-v1";
+export const DYNAMIC_STATE_SCHEMA = "agent-workflow-dynamic-state-v1";
 
 export type DynamicControllerStatus =
 	| "pending"

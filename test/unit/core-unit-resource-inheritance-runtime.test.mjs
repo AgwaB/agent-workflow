@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/unit-resource-inheritance-runtime.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from task-backend, runtime-port, launch-slots); registers the default fixture executor; setSubagentApiForTests→setTaskRuntimeApiForTests (aliased); paths .pi/{workflows,agents}→.agent-workflow/…; backend id agent-workflow/runtime; provenance schema names unchanged (pi-workflow-launch-bootstrap-provenance-v1/v2). "sealed launch applies skills only for current false …" asserts the runtime launch request: extensions are not a runtime option (Pi executor, WP6), `effort` (was `thinking`), no kept session id (D3, WP12a), and the skill choice arrives as `isolation.inherit` (was the Pi option `skills: []`; B5: isolated unless inheritSkills is true).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/unit-resource-inheritance-runtime.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from task-backend, runtime-port, launch-slots); registers the default fixture executor; setSubagentApiForTests→setTaskRuntimeApiForTests (aliased); paths .pi/{workflows,agents}→.agent-workflow/…; backend id agent-workflow/runtime; provenance schema names unchanged (agent-workflow-launch-bootstrap-provenance-v1/v2). "sealed launch applies skills only for current false …" asserts the runtime launch request: extensions are not a runtime option (Pi executor, WP6), `effort` (was `thinking`), no kept session id (D3, WP12a), and the skill choice arrives as `isolation.inherit` (was the Pi option `skills: []`; B5: isolated unless inheritSkills is true).
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -339,8 +339,8 @@ test("sealed launch applies skills only for current false and preserves tools, e
 		assert.equal(
 			launched.task.launchBootstrap.records[0].schema,
 			item.resourcePolicyVersion === undefined
-				? "pi-workflow-launch-bootstrap-provenance-v1"
-				: "pi-workflow-launch-bootstrap-provenance-v2",
+				? "agent-workflow-launch-bootstrap-provenance-v1"
+				: "agent-workflow-launch-bootstrap-provenance-v2",
 		);
 	}
 });
@@ -433,7 +433,7 @@ test("legacy provenance stays v1 while current records require a closed v2 polic
 	);
 	assert.equal(
 		legacyDefault.schema,
-		"pi-workflow-launch-bootstrap-provenance-v1",
+		"agent-workflow-launch-bootstrap-provenance-v1",
 	);
 	assert.equal(Object.hasOwn(legacyDefault, "resourcePolicy"), false);
 	assert.deepEqual(
@@ -451,14 +451,14 @@ test("legacy provenance stays v1 while current records require a closed v2 polic
 	);
 	assert.equal(
 		legacyRetry.schema,
-		"pi-workflow-launch-bootstrap-provenance-v1",
+		"agent-workflow-launch-bootstrap-provenance-v1",
 	);
 	recordLaunchBootstrapProvenance(legacy.task, legacyRetry);
 	assert.deepEqual(
 		legacy.task.launchBootstrap.records.map((record) => record.schema),
 		[
-			"pi-workflow-launch-bootstrap-provenance-v1",
-			"pi-workflow-launch-bootstrap-provenance-v1",
+			"agent-workflow-launch-bootstrap-provenance-v1",
+			"agent-workflow-launch-bootstrap-provenance-v1",
 		],
 	);
 	assert.throws(
@@ -497,7 +497,7 @@ test("legacy provenance stays v1 while current records require a closed v2 polic
 	);
 	assert.equal(
 		currentRecord.schema,
-		"pi-workflow-launch-bootstrap-provenance-v2",
+		"agent-workflow-launch-bootstrap-provenance-v2",
 	);
 	assert.deepEqual(currentRecord.resourcePolicy, {
 		version: 1,

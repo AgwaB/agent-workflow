@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 import { ensureDir, nowIso, workflowRunDir } from "./store.js";
 
-export const DYNAMIC_EVENT_SCHEMA = "pi-workflow-dynamic-event-v1";
+export const DYNAMIC_EVENT_SCHEMA = "agent-workflow-dynamic-event-v1";
 
 export type DynamicWorkflowEventType =
 	| "controller.initialized"

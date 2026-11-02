@@ -41,9 +41,9 @@ import type {
 } from "./types.js";
 
 export const LAUNCH_BOOTSTRAP_PROVENANCE_SCHEMA =
-	"pi-workflow-launch-bootstrap-provenance-v1" as const;
+	"agent-workflow-launch-bootstrap-provenance-v1" as const;
 export const LAUNCH_BOOTSTRAP_RESOURCE_POLICY_PROVENANCE_SCHEMA =
-	"pi-workflow-launch-bootstrap-provenance-v2" as const;
+	"agent-workflow-launch-bootstrap-provenance-v2" as const;
 export const EXTERNAL_LAUNCH_GRANT_SHA256_ENV =
 	"AGENT_WORKFLOW_EXTERNAL_LAUNCH_GRANT_SHA256" as const;
 export const REQUIRE_EXTERNAL_LAUNCH_GRANT_ENV =

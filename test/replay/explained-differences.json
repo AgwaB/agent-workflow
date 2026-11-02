@@ -160,8 +160,8 @@
 		},
 		{
 			"id": "original-helper-legacy-sidecar",
-			"citation": "docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows \u2192 .agent-workflow/workflows)",
-			"reason": "The original bundled report helpers (deep-review, impact-review, spec-review, deep-research) write their sidecars with join(cwd, \".pi\", \"workflows\", runId, \"tasks\", taskId, \u2026). Under agent-workflow they land at the legacy path outside the run directory; the comparison found each one there, byte-identical to the recording (legacyIdentical). The sidecars are not ledger input (the helpers say so) and no task output depends on them.",
+			"citation": "docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows → .agent-workflow/workflows)",
+			"reason": "The original bundled report helpers (deep-review, impact-review, spec-review, deep-research) write their sidecars with join(cwd, \".pi\", \"workflows\", runId, \"tasks\", taskId, …). Under agent-workflow they land at the legacy path outside the run directory; the comparison found each one there, byte-identical to the recording (legacyIdentical). The sidecars are not ledger input (the helpers say so) and no task output depends on them.",
 			"differences": [
 				{
 					"file": "^tasks/[^/]+/(?:final-report\\.md|review\\.md|source-ledger\\.json|audit\\.md|executive\\.md)$",
@@ -172,7 +172,7 @@
 		},
 		{
 			"id": "original-spec-review-legacy-state-read",
-			"citation": "docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows \u2192 .agent-workflow/workflows, no fallback)",
+			"citation": "docs/core-port.md WP1b change log 6 (WP4b change log 1: run state .pi/workflows → .agent-workflow/workflows, no fallback)",
 			"divergence": true,
 			"fixtures": ["spec-review"],
 			"variants": ["original"],
@@ -282,7 +282,7 @@
 		},
 		{
 			"id": "run-capability-negotiation",
-			"citation": "docs/core-port.md \"WP4d \u2014 capability negotiation before launch\"",
+			"citation": "docs/core-port.md \"WP4d — capability negotiation before launch\"",
 			"reason": "WP4d records the pre-launch executor probe and per-stage B4 negotiation (effective capabilities, reports, degradations, preview) on the run as run.capabilityNegotiation; pi-workflow had no capability negotiation. The field is added only; no recorded content changes.",
 			"differences": [
 				{
@@ -318,13 +318,27 @@
 		},
 		{
 			"id": "run-scoped-experimental-flags",
-			"citation": "docs/core-port.md \"2026-11-01 \u2014 run-scoped experimental flags\"",
+			"citation": "docs/core-port.md \"2026-11-01 — run-scoped experimental flags\"",
 			"reason": "Run-scoped experimental flags (tool dedup, cache-stable foreach, same-session repair, per-item dispatch) are decided at launch and recorded as run.experimentalFlags (empty when none is set), so a later supervisor or resume does not read its own environment. Added only; replay launches set no flag, so no recorded behavior changes.",
 			"differences": [
 				{
 					"file": "^run\\.json$",
 					"path": "^experimentalFlags$",
 					"kind": "added"
+				}
+			]
+		},
+		{
+			"id": "aw-timing-source",
+			"citation": "2026-11-02 owner decision: agent-workflow does not know pi-workflow (its own schema, issuer and source names)",
+			"reason": "Task and foreach-batch timing records name their producer: agent-workflow (was the ported name pi-workflow). The timing values are unchanged.",
+			"differences": [
+				{
+					"file": "^run\\.json$",
+					"path": "^(?:tasks\\[\\]|foreachBatches\\[\\]\\.physicalExecution)\\.timing\\.source$",
+					"kind": "changed",
+					"recorded": "^pi-workflow$",
+					"replayed": "^agent-workflow$"
 				}
 			]
 		}

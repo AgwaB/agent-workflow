@@ -20,7 +20,7 @@ import type {
  * launch provenance retains opaque digests, not private source paths.
  */
 export interface WorkflowAutoLaunchBinding {
-	schema: "pi-workflow-auto-launch-binding-v1";
+	schema: "agent-workflow-auto-launch-binding-v1";
 	candidateId: string;
 	candidateIdentitySha256: string;
 	taskSha256: string;
@@ -157,7 +157,7 @@ export async function captureWorkflowAutoLaunchBinding(input: {
 		}),
 	);
 	return {
-		schema: "pi-workflow-auto-launch-binding-v1",
+		schema: "agent-workflow-auto-launch-binding-v1",
 		candidateId: input.candidateId,
 		candidateIdentitySha256:
 			input.selectionIdentitySha256 ??
