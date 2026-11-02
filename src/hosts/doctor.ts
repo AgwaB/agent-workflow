@@ -8,6 +8,12 @@
 // when at least one executor is usable. WP35: the executor's web-tools probe note (Pi: whether
 // pi-web-access is installed, with the install command when it is not) is shown and warned about.
 import { constants } from "node:fs";
+import {
+	enablePiWebTool,
+	PI_WEB_TOOL_CONFIG_KEYS,
+	type PiWebToolFixResult,
+	piWebAccessConfigPath,
+} from "../executors/pi/web-tools.js";
 import { access, stat } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
 
@@ -69,6 +75,8 @@ export interface DoctorExecutorReport {
 	/** Install/login command when not usable. */
 	fix?: string;
 	notes: string[];
+	/** Tools this executor cannot provide here (stages needing them are refused), with the fix. */
+	unavailableTools?: Record<string, string>;
 	error?: string;
 }
 
@@ -235,6 +243,9 @@ function executorReport(
 		usable: readiness.usable,
 		...(fix ? { fix } : {}),
 		notes: readiness.notes,
+		...(readiness.unavailableTools === undefined
+			? {}
+			: { unavailableTools: readiness.unavailableTools }),
 		...(readiness.error === undefined ? {} : { error: readiness.error }),
 	};
 }
@@ -321,6 +332,45 @@ function formatDoctor(data: DoctorData, cwd: string): string {
 			: `No executor is usable. Install and log in to one of ${INSTALLED_DEFAULT_ORDER.join(", ")} (fix lines above).`,
 	);
 	return lines.join("\n");
+}
+
+/** One change `doctor --fix` can make, after the user agreed (2026-11-02). */
+export interface DoctorFix {
+	readonly executor: string;
+	readonly tool: string;
+	/** What would change, for the question to the user. */
+	readonly description: string;
+}
+
+/**
+ * Fixes for tools an executor cannot provide here. Only Pi's web tools turned off in pi-web-access's
+ * own config are fixable (one key flips to true); everything else stays guidance.
+ */
+export function doctorFixes(
+	data: DoctorData,
+	env: NodeJS.ProcessEnv = process.env,
+): DoctorFix[] {
+	const fixes: DoctorFix[] = [];
+	for (const entry of data.executors) {
+		if (entry.id !== "pi") continue;
+		for (const tool of Object.keys(entry.unavailableTools ?? {})) {
+			const key = PI_WEB_TOOL_CONFIG_KEYS[tool];
+			if (key === undefined) continue;
+			fixes.push({
+				executor: entry.id,
+				tool,
+				description: `Turn on ${tool} in pi-web-access (set tools.${key}.enabled to true in ${piWebAccessConfigPath(env)})`,
+			});
+		}
+	}
+	return fixes;
+}
+
+export function applyDoctorFix(
+	fix: DoctorFix,
+	env: NodeJS.ProcessEnv = process.env,
+): Promise<PiWebToolFixResult> {
+	return enablePiWebTool(fix.tool, env);
 }
 
 /** `doctor`: read-only environment check (no model calls, nothing written). */

@@ -109,7 +109,8 @@ test("probe: pi-web-access listed → webTools native/probed, note names the pac
 	assert.equal(probe.capabilities.webTools.warning, undefined);
 	assert.ok(
 		probe.notes.includes(
-			"web tools: pi-web-access /x/node_modules/pi-web-access (web_search, fetch_content)",
+			// 2026-11-02: the stub cannot run the registered-tools session, so registration is unknown.
+			"web tools: pi-web-access /x/node_modules/pi-web-access (web_search, fetch_content; registration not checked)",
 		),
 	);
 });

@@ -140,6 +140,8 @@ export interface ExecutorReadiness extends WorkflowRunExecutorCandidate {
 	state: ExecutorReadinessState;
 	/** Probe notes (version drift, environment warnings); never secrets. */
 	notes: string[];
+	/** Tools the executor cannot provide here, with why and how to fix it (probe). */
+	unavailableTools?: Record<string, string>;
 	/** Probe failure or registry reason. */
 	error?: string;
 }
@@ -190,6 +192,11 @@ function cacheKey(descriptor: ExecutorDescriptor): string {
 		descriptor.module,
 		descriptor.config ?? null,
 	]);
+}
+
+/** Drop cached probes (after the environment changed, e.g. `doctor --fix`). */
+export function clearExecutorProbeCache(): void {
+	probeCache.clear();
 }
 
 /** Test seam: drop cached probes and (optionally) replace the cache clock. */
@@ -290,6 +297,10 @@ export async function probeExecutorReadiness(
 			notes: (probe.notes ?? [])
 				.filter((note): note is string => typeof note === "string")
 				.map((note) => note.slice(0, 500)),
+			...(probe.unavailableTools === undefined ||
+			Object.keys(probe.unavailableTools).length === 0
+				? {}
+				: { unavailableTools: { ...probe.unavailableTools } }),
 		};
 	} catch (error) {
 		return {

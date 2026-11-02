@@ -407,7 +407,10 @@ model call) and checks every stage against the executor that would run it (B4). 
 fail a stage mid-run stops the launch instead, with the reason and what to do (`Not started: …`,
 exit 1, no run record):
 
-- **tools** the executor has no mapping for (for example pi-workflow's `workflow_web_*`);
+- **tools** the executor has no mapping for (for example pi-workflow's `workflow_web_*`), or that its
+  probe reports unavailable on this machine (for example `fetch_content` turned off in pi-web-access's
+  own config): the stage would only return a weaker result, so the run is refused with the reason
+  and the fix; `agent-workflow doctor --fix` applies the fixable case after asking;
 - **models**: a name is the executor's — the engine rewrites it to that tool's form
   (`openai-codex/gpt-6.1-sol` → `gpt-6.1-sol` on codex; `anthropic/claude-opus-5-5` →
   `claude-opus-5-5` on claude; a bare `gpt-6.1-sol` → `openai-codex/gpt-6.1-sol` on pi, found in

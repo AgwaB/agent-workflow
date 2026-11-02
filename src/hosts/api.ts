@@ -75,10 +75,13 @@ export {
 	workflowRolesAction,
 } from "./catalog.js";
 export {
+	applyDoctorFix,
 	type DoctorData,
 	type DoctorExecutorReport,
+	type DoctorFix,
 	type DoctorRequest,
 	doctorAction,
+	doctorFixes,
 } from "./doctor.js";
 export {
 	type ExecutorModelList,

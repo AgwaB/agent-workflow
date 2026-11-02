@@ -124,6 +124,14 @@ The table is `PI_EXECUTOR_TOOL_MAPPING`.
     (`CAPABILITY_MISSING:webTools … ; Install it: …`) carry it (`negotiateCapabilities` now copies an
     observed warning into a refused entry's note). The submit-time refusal names the command too,
     and `agent-workflow doctor` prints the note under `pi` and lists a missing package as a warning.
+  - **2026-11-02: registered tools are checked.** pi-web-access can turn single tools off in its own
+    `web-search.json` (`tools.fetchContent.enabled: false`); Pi then drops the name from `--tools`
+    silently, and a deep-research verifier ran without `fetch_content` (claims left unverified). The
+    probe now starts Pi with the worker's isolation flags, `--tools web_search,fetch_content`,
+    pi-web-access and a generated extension that writes `getAllTools()` and exits in `session_start`
+    (before any model request; ~1 s). A missing tool goes to `unavailableTools` with the reason and the
+    fix, the `webTools` detail drops to `search` (or `none`), and the engine refuses stages that need it
+    before the run starts. `agent-workflow doctor --fix` turns the tool back on after asking.
     Tests: `executor-wp35-web-access.test.mjs`.
 - **`inheritHostTools`** (descriptor config, host-level opt-in; core-port WP4b):
   - It adds `codemode, tool_search, mcp__*, list_mcp_resources, list_mcp_resource_templates,

@@ -30,9 +30,11 @@ import { createInterface } from "node:readline";
 import {
 	type AutoChoicePrompt,
 	type AutoConsent,
+	applyDoctorFix,
 	approveAction,
 	autoAction,
 	doctorAction,
+	doctorFixes,
 	formatHostError,
 	HOST_WAIT_MAX_TIMEOUT_MS,
 	type HostApiContext,
@@ -74,6 +76,7 @@ import {
 import { assertNotifyStampName, notifyCheck } from "../notify-check.js";
 import { runWatch, WATCH_DEFAULT_INTERVAL_MS } from "../watch.js";
 import { runStatusLine } from "./statusline.js";
+import { clearExecutorProbeCache } from "../../core/executor-default.js";
 
 export const MODULE = "src/hosts/cli";
 
@@ -1059,9 +1062,44 @@ async function dispatch(
 			);
 		case "notices":
 			return emit(await noticesAction(ctx, { argv: [...argv] }), undefined);
-		case "doctor":
-			only(parseCommandArgs(argv, jsonOnly), 0, "doctor [--json]");
+		case "doctor": {
+			const parsed = parseCommandArgs(argv, {
+				flags: ["--json", "--fix", "--yes"],
+			});
+			only(parsed, 0, "doctor [--fix [--yes]] [--json]");
+			const report = await doctorAction(ctx);
+			if (!parsed.flags.has("--fix")) return emit(report);
+			// 2026-11-02: a tool an executor cannot provide refuses the run before it starts; the
+			// fixable ones change only after the user agreed (a question on a terminal, or --yes).
+			const fixes = doctorFixes(report.data, io.env);
+			if (fixes.length === 0) {
+				io.stderr("doctor --fix: nothing to fix automatically.\n");
+				return emit(report);
+			}
+			const prompt = io.prompt ?? defaultPrompt;
+			for (const fix of fixes) {
+				const agreed =
+					parsed.flags.has("--yes") ||
+					(io.isTTY &&
+						/^y(es)?$/i.test(
+							(await prompt(`${fix.description}? [y/N] `)).trim(),
+						));
+				if (!agreed) {
+					io.stderr(
+						`not changed (${io.isTTY ? "declined" : "no terminal to ask; add --yes to apply"}): ${fix.description}\n`,
+					);
+					continue;
+				}
+				const result = await applyDoctorFix(fix, io.env);
+				io.stderr(
+					result.changed
+						? `changed ${result.setting} in ${result.path}\n`
+						: `not changed: ${result.reason} (${result.path})\n`,
+				);
+			}
+			clearExecutorProbeCache();
 			return emit(await doctorAction(ctx));
+		}
 		case "statusline":
 			// Never fails loudly (the bin takes a faster path to the same function).
 			return runStatusLine({

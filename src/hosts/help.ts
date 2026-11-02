@@ -167,14 +167,16 @@ Drive scheduling from this process until the run(s) are terminal. The run lease 
 any other supervisor. --all includes only runs observed running; failure takes precedence over
 blocked; an empty batch succeeds. --max-runtime-ms 0 disables the deadline; by default a single
 run with an unlimited loop has none and other runs stop after 4 hours.`,
-	doctor: `Usage: agent-workflow doctor [--json]
+	doctor: `Usage: agent-workflow doctor [--fix [--yes]] [--json]
 
 Check this machine without calling a model: for pi, claude and codex whether the CLI is installed,
 its version against the verified one, its login state (and the install/login command when it is
 not usable); which executor a run here uses by default and why; the permission-mode default; the
 Node version; AGENT_WORKFLOW_HOME and whether it is writable; Codex environment warnings (allow
-rules, global AGENTS.md; counts only); stale run-index entries. Exit 0 when at least one executor is
-usable, 1 otherwise.`,
+rules, global AGENTS.md; counts only); tools an executor cannot provide here (stages needing them
+are refused before a run); stale run-index entries. Exit 0 when at least one executor is usable, 1
+otherwise. --fix offers the fixable changes (today: a Pi web tool turned off in pi-web-access's
+config), one question each on a terminal; --yes applies them without asking.`,
 	dashboard: `Usage: agent-workflow dashboard [--port <n>] [--readonly] [--open] [--detached | --status | --stop] [--project <dir>]
 
 Serve the local web dashboard on 127.0.0.1 only. Prints a private session URL; Ctrl-C stops

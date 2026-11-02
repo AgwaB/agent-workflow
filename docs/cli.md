@@ -40,7 +40,7 @@ npx agent-workflow --help
 | `watch [run] [--follow] [--once] [--interval S] [--bell]` | WP36: live terminal view of the project's active runs or one run (tasks, status, elapsed, pending approvals, verdict and report at the end). Read-only. Below. |
 | `statusline` | WP36: one line about the active runs for a status bar (Claude Code `statusLine`); empty when idle; always exit 0. Below. |
 | `notify-check [--host H] [--json] [--stamp N] [--follow [--interval S]]` | WP36: one line per run that finished (or needs the user) since the last check, each state once; for host hooks. Below. |
-| `doctor [--json]` | Check this machine without a model call: executors (installed, version vs verified, login), the default executor here and why, permission-mode default, Node, `AGENT_WORKFLOW_HOME`, Codex environment warnings, stale run-index entries. Exit 0 when at least one executor is usable. Below. |
+| `doctor [--fix [--yes]] [--json]` | Check this machine without a model call: executors (installed, version vs verified, login), the default executor here and why, permission-mode default, Node, `AGENT_WORKFLOW_HOME`, Codex environment warnings, stale run-index entries. Exit 0 when at least one executor is usable. Below. |
 | `help [command]`, `<command> --help`, `--version` | Help and version. |
 
 A run argument accepts the run id or an unambiguous prefix.
@@ -269,7 +269,7 @@ and above the selected profile. Stored in
 
 ## `doctor`
 
-`agent-workflow doctor [--json]` checks the machine without calling a model and writes nothing:
+`agent-workflow doctor [--fix [--yes]] [--json]` checks the machine without calling a model and writes nothing:
 
 - per executor (`pi`, `claude`, `codex`): installed, CLI version against the version the adapter's
   capabilities were verified with, login state (`ok`/`missing`/`expired`/`unknown`, never a
@@ -280,6 +280,9 @@ and above the selected profile. Stored in
 - the Node version (requires `>=22`); `AGENT_WORKFLOW_HOME` and whether it is writable;
 - Pi's web tools (WP35): whether `pi-web-access` is installed in the user's Pi (`pi list`), shown under
   `pi`; when it is missing, the install command `pi install npm:pi-web-access` (it is not bundled);
+  which of `web_search` / `fetch_content` it actually registers (2026-11-02: a Pi session that exits
+  before any model request lists them); a tool turned off in its config is a warning, and stages that
+  need it are refused before a run;
 - warnings: Codex allow rules under `$CODEX_HOME/rules` and a global `$CODEX_HOME/AGENTS.md`
   (counts and paths only, never rule contents), CLI versions that differ from the verified ones, an
   installed Pi without `pi-web-access`;
@@ -288,6 +291,12 @@ and above the selected profile. Stored in
 
 Exit 0 when at least one executor is usable, 1 otherwise. `--json` prints `{action: "doctor", ok,
 outcome, data}`.
+
+`doctor --fix` then offers the changes it can make, one question each on a terminal (`--yes`
+applies them without asking; without a terminal and `--yes` nothing changes): today only a Pi web
+tool turned off in pi-web-access's own config (`tools.<tool>.enabled: false` in its
+`web-search.json`; that one key becomes `true`, nothing else in the file changes or is printed).
+It re-runs the check afterwards.
 
 ## `dashboard`
 

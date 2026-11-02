@@ -110,6 +110,13 @@ export interface ExecutorProbe {
 	 * launch instead of the stage failing on the CLI.
 	 */
 	readonly modelEfforts?: Readonly<Record<string, readonly string[]>>;
+	/**
+	 * Workflow tool names (the names stages request) this CLI cannot provide here, each with why and
+	 * how to fix it. The engine refuses a run whose stages need one before anything starts: a stage
+	 * without a tool it relies on would only produce a weaker result (2026-11-02: Pi workers without
+	 * `fetch_content` left research claims unverified).
+	 */
+	readonly unavailableTools?: Readonly<Record<string, string>>;
 	readonly notes?: readonly string[];
 }
 

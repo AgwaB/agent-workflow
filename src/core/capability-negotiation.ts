@@ -185,6 +185,8 @@ export async function probeWorkflowExecutor(
 	modelListComplete: boolean;
 	toolMapping?: ToolMapping;
 	modelEfforts?: Readonly<Record<string, readonly string[]>>;
+	/** Tools the executor cannot provide here, with why and how to fix it (probe). */
+	unavailableTools?: Readonly<Record<string, string>>;
 }> {
 	const id = descriptor.id;
 	const timeoutMs = options.timeoutMs ?? DEFAULT_EXECUTOR_PROBE_TIMEOUT_MS;
@@ -249,6 +251,10 @@ export async function probeWorkflowExecutor(
 		...(result.probe.modelEfforts === undefined
 			? {}
 			: { modelEfforts: result.probe.modelEfforts }),
+		...(result.probe.unavailableTools === undefined ||
+		Object.keys(result.probe.unavailableTools).length === 0
+			? {}
+			: { unavailableTools: result.probe.unavailableTools }),
 	};
 }
 
@@ -569,6 +575,7 @@ interface ProbedExecutor {
 	toolMapping?: ToolMapping;
 	/** Effort levels per model from the probe (Codex, Pi), when the CLI reports them. */
 	modelEfforts?: Readonly<Record<string, readonly string[]>>;
+	unavailableTools?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -655,6 +662,39 @@ function unmappedToolRefusals(
 				}`,
 			);
 	return lines;
+}
+
+/**
+ * Stages that ask for a tool the executor's probe reports unavailable here (2026-11-02: a Pi whose
+ * pi-web-access has `fetch_content` turned off). Such a stage would run without the tool and return a
+ * weaker result, so the run is refused before anything starts, with the probe's reason and fix.
+ */
+function unavailableToolRefusals(
+	tasks: readonly CompiledTask[],
+	runExecutorId: string,
+	probes: ReadonlyMap<string, ProbedExecutor>,
+): string[] {
+	const byTool = new Map<
+		string,
+		{ id: string; reason: string; stages: string[] }
+	>();
+	for (const task of tasks) {
+		const id = task.runtime.executor ?? runExecutorId;
+		const unavailable = probes.get(id)?.unavailableTools;
+		if (unavailable === undefined) continue;
+		for (const tool of task.runtime.tools ?? []) {
+			const reason = unavailable[tool];
+			if (reason === undefined) continue;
+			const key = `${id}\0${tool}`;
+			const entry = byTool.get(key) ?? { id, reason, stages: [] };
+			if (!entry.stages.includes(task.id)) entry.stages.push(task.id);
+			byTool.set(key, entry);
+		}
+	}
+	return [...byTool.entries()].map(([key, entry]) => {
+		const tool = key.split("\0")[1];
+		return `  ✗ ${entry.stages.join(", ")}: executor ${entry.id} cannot provide ${tool} here: ${entry.reason}`;
+	});
 }
 
 /**
@@ -824,6 +864,7 @@ export async function negotiateWorkflowRun(
 	);
 	const toolRefusals = [
 		...unmappedToolRefusals(targets0, executor.id, probes),
+		...unavailableToolRefusals(targets0, executor.id, probes),
 		...names.refusals,
 	];
 	const notices = [...modelCheck.notices, ...names.notices];
@@ -1004,9 +1045,11 @@ function executorNamesField(target: ProbedExecutor | undefined): {
 		...(target.toolMapping === undefined
 			? {}
 			: {
+					// A tool the probe reports unavailable is not offered to generated stages either.
 					tools: Object.entries(target.toolMapping.entries)
 						.filter(([, entry]) => entry.type !== "none")
-						.map(([name]) => name),
+						.map(([name]) => name)
+						.filter((name) => target.unavailableTools?.[name] === undefined),
 				}),
 		...(target.models === null ? {} : { models: [...target.models] }),
 		...(target.modelListComplete ? { modelListComplete: true } : {}),

@@ -82,6 +82,10 @@ import {
 } from "../redact.js";
 
 import { PI_EXECUTOR_ID, PI_EXECUTOR_VERSION } from "./version.js";
+import {
+	listPiWebSessionTools,
+	piWebToolUnavailableGuidance,
+} from "./web-tools.js";
 
 export { PI_EXECUTOR_ID, PI_EXECUTOR_VERSION };
 /** Pi version the adapter was built and verified against (A2-4 native MCP needs 1.1). */
@@ -970,12 +974,43 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 				webAccess === null
 					? piWebAccessGuidance(list !== undefined && list.code !== 0)
 					: undefined;
+			// 2026-11-02: pi-web-access can turn single tools off in its own config, and Pi then drops
+			// them from --tools silently. List what a worker-like session registers (it exits before
+			// any model request) so a stage that needs a missing tool is refused before the run.
+			const modernPi =
+				installed && versionAtLeast(cliVersion as string, PI_MIN_CLI_VERSION);
+			const registered =
+				modernPi && webAccess !== null
+					? await listPiWebSessionTools(config.piCommand, webAccess, {
+							timeoutMs: PROBE_TIMEOUT_MS,
+						})
+					: null;
+			const missingWebTools =
+				registered === null
+					? []
+					: (PI_WEB_TOOLS as readonly string[]).filter(
+							(tool) => !registered.includes(tool),
+						);
+			const unavailableTools = Object.fromEntries(
+				missingWebTools.map((tool) => [
+					tool,
+					piWebToolUnavailableGuidance(tool),
+				]),
+			);
 			if (installed)
 				notes.push(
 					webGuidance === undefined
-						? `${PI_WEB_TOOLS_NOTE}pi-web-access ${webAccess} (web_search, fetch_content)`
+						? `${PI_WEB_TOOLS_NOTE}pi-web-access ${webAccess} (${
+								registered === null
+									? "web_search, fetch_content; registration not checked"
+									: (PI_WEB_TOOLS as readonly string[])
+											.filter((tool) => registered.includes(tool))
+											.join(", ") || "none registered"
+							})`
 						: `${PI_WEB_TOOLS_MISSING_NOTE}${webGuidance}`,
 				);
+			for (const [tool, guidance] of Object.entries(unavailableTools))
+				notes.push(`${PI_WEB_TOOLS_MISSING_NOTE}${tool}: ${guidance}`);
 			if (
 				installed &&
 				!versionAtLeast(cliVersion as string, PI_MIN_CLI_VERSION)
@@ -1002,6 +1037,7 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 				// missing from it is noted, Pi itself reports a model it cannot resolve).
 				modelListComplete: false,
 				webAccessExtension: webAccess,
+				...(missingWebTools.length > 0 ? { unavailableTools } : {}),
 				capabilities: {
 					...(modern ? {} : { mcpInjection: level("none", "probed") }),
 					webTools:
@@ -1014,11 +1050,27 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 										? {}
 										: { warning: webGuidance }),
 								}
-							: {
-									...level("native", "probed", `pi-web-access via pi list`),
-									detail: "search+fetch",
-									safetyPolicy: "unknown",
-								},
+							: missingWebTools.length === PI_WEB_TOOLS.length
+								? {
+										...level("none", "probed"),
+										detail: "none",
+										safetyPolicy: "unknown",
+										warning: piWebToolUnavailableGuidance("web_search"),
+									}
+								: {
+										...level("native", "probed", `pi-web-access via pi list`),
+										detail: missingWebTools.includes("fetch_content")
+											? "search"
+											: "search+fetch",
+										safetyPolicy: "unknown",
+										...(missingWebTools.length > 0
+											? {
+													warning: piWebToolUnavailableGuidance(
+														missingWebTools[0] as string,
+													),
+												}
+											: {}),
+									},
 				},
 				notes,
 			};

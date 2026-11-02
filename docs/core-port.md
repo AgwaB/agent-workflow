@@ -1949,3 +1949,11 @@ but three executor/engine bugs showed.
   `git worktree add` inside it (`spawnSync git ENOENT`). The retry now starts from the worktree's
   base checkout and reuses the worktree (`artifact-graph-runtime.ts` `prepareArtifactGraphRetryTask`;
   `core-worktree-output-retry.test.mjs`).
+- **Tools an executor cannot provide here (B6).** Rerunning AW deep-research on Pi after the fixes
+  left 7–9 claims per run `verification_blocked`: pi-web-access had `fetch_content` turned off in its
+  own config, Pi dropped the name from `--tools` silently and nothing noticed. `ExecutorProbe` gains
+  `unavailableTools` (tool → reason and fix); the engine refuses a run whose stages need one before
+  anything starts (`core-unavailable-tools.test.mjs`), and generated stages are not offered it. The Pi
+  probe lists what a worker-like session registers (exits in `session_start`, no model request).
+  `agent-workflow doctor --fix [--yes]` turns such a Pi web tool back on after the user agreed
+  (`docs/cli.md`).

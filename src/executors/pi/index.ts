@@ -63,6 +63,14 @@ export {
 	ToolResultBudgetEnforcer,
 	type ToolResultBudgetState,
 } from "./tool-result-budget.js";
+export {
+	enablePiWebTool,
+	listPiWebSessionTools,
+	PI_WEB_TOOL_CONFIG_KEYS,
+	type PiWebToolFixResult,
+	piWebAccessConfigPath,
+	piWebToolUnavailableGuidance,
+} from "./web-tools.js";
 
 /** Descriptor convention (`loadExecutor`): `{ id: "pi", module: "@agwab/agent-workflow/executors/pi", config }`. */
 export function createExecutor(config: JsonValue = null): PiExecutor {
