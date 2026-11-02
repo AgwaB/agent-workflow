@@ -188,6 +188,11 @@ After stage 2 (2026-11-01):
   on after a live comparison: three Claude Sonnet 5.5 runs, 77 quotes, 75 on the re-fetched page;
   69 were also in a `WebFetch` summary, 68 of them on the page; re-fetch costs no model tokens
   (about 2 s for 14 pages) and is the only check possible for Codex.
+  Since 2026-11-02 (quality A/B review findings, reproduced): an exact or folded match may not start
+  or end inside a word or number of the page ("12% of users" is not in "112% of users"; scripts
+  written without spaces between words are exempt; the 103 recorded quotes and 49 cached live Claude
+  and Pi quotes still match); HTML text extraction is linear on hostile markup; a compressed response
+  cut off mid-stream settles instead of hanging the stage.
 - **M23.** deep-research quote instructions (2026-11-01, after M22). Both specs' research and verifier
   prompts replace "Source verification is model-reported: no workflow tool re-reads source bytes" with
   what now happens: the engine looks for every quote on the cited page, so a quote must be one
