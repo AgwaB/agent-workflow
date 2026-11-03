@@ -684,11 +684,13 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		input.dispatchEvent(new Event("input", { bubbles: true }));
 	});
 	await browser.key("Enter");
-	assert.equal(
-		await browser.evaluate(() =>
-			new URLSearchParams(location.search).get("task"),
-		),
-		"triage.main",
+	// 2026-11-03: a one-agent stage opens its readable stage view (the raw agent is one click on).
+	assert.deepEqual(
+		await browser.evaluate(() => {
+			const params = new URLSearchParams(location.search);
+			return [params.get("stage"), params.get("task")];
+		}),
+		["triage", null],
 	);
 
 	// Exercise mappings not present in the exact fixture set without changing those files.
@@ -846,7 +848,7 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 				.classList.contains("selected"),
 			inspector: document.querySelector("#inspector h2")?.textContent,
 		})),
-		{ card: true, row: true, other: false, inspector: "impact.data.main" },
+		{ card: true, row: true, other: false, inspector: "Data" },
 	);
 
 	// A 240-item active foreach stays bounded in the graph; inspection is searchable.
@@ -1547,4 +1549,124 @@ test("dashboard Chrome: panels and dialogs share one motion family, both ways", 
 		features: [{ name: "prefers-reduced-motion", value: "reduce" }],
 	});
 	assert.equal((await motion()).layout, null, "no layout transition");
+});
+
+test("dashboard Chrome: a one-agent stage opens its readable result; a stage with no agents yet has no empty bar", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
+	timeout: 120_000,
+}, async (t) => {
+	// 2026-11-03 (owner): a many-agent stage opened as a readable list while a one-agent stage
+	// opened the raw agent (tabs, "untrusted output", and a stray "null"); a foreach stage whose
+	// agents were not generated yet drew an empty bar and "0/0" over its "Waiting" line.
+	const fixture = await createFixtureServer();
+	t.after(() => fixture.close());
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	const run = fixture.runs.get(running);
+	run.tasks = run.tasks.filter(
+		(task) => task.stageId !== "devil-advocate" || task.placeholder,
+	);
+	await browser.open(`${fixture.origin}/?run=${running}`, 1440, 900);
+	assert.deepEqual(
+		await browser.evaluate(() => {
+			const node = document.querySelector('.node[data-stage="devil-advocate"]');
+			return [
+				node.querySelector(".sub")?.textContent,
+				node.querySelectorAll(".fraction, .bar, .track").length,
+			];
+		}),
+		["Waiting", 0],
+	);
+	await browser.click('.node[data-stage="triage"]');
+	await browser.waitFor(() => document.querySelector(".item-expand.single"));
+	const single = await browser.evaluate(() => {
+		const inspector = document.getElementById("inspector");
+		return {
+			title: inspector.querySelector("h2")?.textContent,
+			tabs: inspector.querySelectorAll('[role="tablist"]').length,
+			open: inspector.querySelector(".item-open")?.textContent,
+			stray: [...inspector.childNodes].some(
+				(node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim(),
+			),
+			url: new URLSearchParams(location.search).get("stage"),
+		};
+	});
+	assert.deepEqual(single, {
+		title: "Triage",
+		tabs: 0,
+		open: "Open agent ›",
+		stray: false,
+		url: "triage",
+	});
+	// The raw agent is one click on, and its inspector has no stray text either.
+	await browser.click(".item-open");
+	await browser.waitFor(() => document.querySelector('[role="tablist"]'));
+	assert.equal(
+		await browser.evaluate(() =>
+			[...document.getElementById("inspector").childNodes].some(
+				(node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim(),
+			),
+		),
+		false,
+	);
+});
+
+test("dashboard Chrome: a report table of four or more columns reads as one entry per row", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
+	timeout: 120_000,
+}, async (t) => {
+	// 2026-11-03 (owner: the evidence table was hard to read — long links, wrapped Korean in narrow
+	// columns, the last column cut off).
+	const fixture = await createFixtureServer();
+	t.after(() => fixture.close());
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	fixture.reports.set(
+		complete,
+		[
+			"# Report",
+			"",
+			"| Area | Status | Evidence | Why it matters |",
+			"|---|---|---|---|",
+			"| 메모리와 상태 관리 | partial | [docs.langchain.com](<https://docs.langchain.com/oss/python/concepts/memory>), [arxiv.org](<https://arxiv.org/abs/2005.11401>) | 구현 사례를 일반화하지 않는다. |",
+			"",
+			"| A | B | C |",
+			"|---|---|---|",
+			"| 1 | 2 | 3 |",
+		].join("\n"),
+	);
+	await browser.open(
+		`${fixture.origin}/?run=${complete}&view=report`,
+		1440,
+		900,
+	);
+	await browser.waitFor(() => document.querySelector(".report-rows"));
+	assert.deepEqual(
+		await browser.evaluate(() => {
+			const row = document.querySelector(".report-row");
+			return {
+				title: row.querySelector(".report-row-title").textContent,
+				status: row.querySelector(".report-row-title .md-status")?.textContent,
+				labels: [...row.querySelectorAll("dt")].map((dt) => dt.textContent),
+				sources: [...row.querySelectorAll(".md-source")].map(
+					(source) => source.textContent,
+				),
+				tables: document.querySelectorAll("#report-content table").length,
+			};
+		}),
+		{
+			title: "메모리와 상태 관리Partly covered",
+			status: "Partly covered",
+			labels: ["Why it matters", "Evidence"],
+			sources: [
+				"docs.langchain.com/oss/python/concepts/memory",
+				"arxiv.org/abs/2005.11401",
+			],
+			tables: 1,
+		},
+	);
 });

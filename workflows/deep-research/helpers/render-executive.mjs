@@ -2176,18 +2176,101 @@ function renderResearchScopeAndMethod(report) {
 	return ["## Research scope and method", "", ...rows, ""];
 }
 
+// Why the pre-verifier sanitizer held a candidate claim back, in reader words (2026-11-03, owner:
+// the report listed "sanitized from verifier candidates: source_hint_claim_mismatch" per claim).
+const HELD_BACK_REASONS = {
+	source_hint_claim_mismatch: [
+		"the claim's wording did not match the quoted source passage",
+		"주장 문장이 인용된 출처 구절과 맞지 않음",
+	],
+	placeholder_source_hint: [
+		"the source page could not be read",
+		"출처 페이지를 읽지 못함",
+	],
+	overclaimed_source_inference: [
+		"the claim went beyond what the source says",
+		"출처가 말한 것보다 넓게 주장함",
+	],
+	unsupported_normative_prerequisite: [
+		"the claim added a requirement the source does not state",
+		"출처에 없는 조건을 덧붙임",
+	],
+	unquoted_named_mitigation: [
+		"a named fix was not in the quoted passage",
+		"인용 구절에 없는 대책 이름을 씀",
+	],
+	synthesized_recommendation_claim: [
+		"it was a recommendation, not a sourced fact",
+		"출처의 사실이 아니라 권고임",
+	],
+	source_broader_than_evidence_claim: [
+		"it generalized beyond the evidence",
+		"근거보다 넓게 일반화함",
+	],
+	missing_candidate_source: ["it had no source", "출처가 없음"],
+};
+
+function heldBackReasons(item) {
+	const reason = cleanText(isRecord(item) ? item.reason : "");
+	const match = /^sanitized from verifier candidates:\s*(.+)$/i.exec(reason);
+	return match
+		? match[1]
+				.split(",")
+				.map((code) => code.trim())
+				.filter(Boolean)
+		: null;
+}
+
+// "…; sanitized verifier candidates: claim-004, claim-005; …" is a pipeline note, not reader text.
+function withoutSanitizerNotes(text) {
+	return text
+		.replace(/;?\s*sanitized verifier candidates:\s*[^;]*/gi, "")
+		.replace(/\.;\s*/g, ". ")
+		.replace(/^;\s*|;\s*$/g, "")
+		.trim();
+}
+
 function renderCaveats(report) {
 	const selection = selectCaveats(report);
 	if (selection.total === 0) return [];
-	const out = ["## Caveats and remaining gaps", ""];
+	const korean = selection.selected.some(({ text }) => /[가-힣]/u.test(text));
+	const lines = [];
+	const held = { count: 0, reasons: new Map(), urls: [] };
 	for (const { kind, item, text } of selection.selected) {
+		const reasons = heldBackReasons(item);
+		if (reasons) {
+			// Claims held back before verification read as one line: how many, why, which sources.
+			held.count += 1;
+			for (const code of reasons)
+				held.reasons.set(code, (held.reasons.get(code) ?? 0) + 1);
+			for (const url of urlsOf(item, 3))
+				if (!held.urls.includes(url)) held.urls.push(url);
+			continue;
+		}
+		const readable = withoutSanitizerNotes(text);
+		if (!readable) continue;
 		const urls = referenceList(item, 3);
-		out.push(
-			`- **${escapeMarkdownText(kind)}:** ${text}${urls ? ` (${urls})` : ""}`,
+		lines.push(
+			`- **${escapeMarkdownText(kind)}:** ${readable}${urls ? ` (${urls})` : ""}`,
 		);
 	}
-	out.push("");
-	return out;
+	if (held.count > 0) {
+		const why = [...held.reasons.keys()]
+			.map((code) =>
+				escapeMarkdownText(
+					HELD_BACK_REASONS[code]?.[korean ? 1 : 0] ?? code.replaceAll("_", " "),
+				),
+			)
+			.join(korean ? ", " : "; ");
+		const sources = markdownLinkList(held.urls, 6);
+		const more = held.urls.length > 6 ? ` +${held.urls.length - 6}` : "";
+		lines.unshift(
+			korean
+				? `- **검증 전 보류:** 후보 주장 ${held.count}개가 검증 단계로 넘어가지 못했습니다 — ${why}. 자세한 내용은 Evidence audit에 있습니다.${sources ? ` (${sources}${more})` : ""}`
+				: `- **Held back before verification:** ${held.count} candidate claim${held.count === 1 ? "" : "s"} did not reach the verifiers — ${why}. The evidence audit has the details.${sources ? ` (${sources}${more})` : ""}`,
+		);
+	}
+	return ["## Caveats and remaining gaps", "", ...lines, ""];
 }
 
 function renderSourceIndex(sourceIndex) {

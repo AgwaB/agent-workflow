@@ -124,7 +124,13 @@ test("dashboard redesign: agent contracts, handoffs and reduced motion in Chrome
 			);
 			assert.equal(rows.rows[0].title, injection);
 			assert.equal(rows.rows[0].line, "Reading the cited paper");
-			assert.match(rows.rows[0].time, /^1\ds$/);
+			// A running agent's one-word time counts from its start (12 s before the fixture's
+			// clock, which runs on from there; a loaded machine reaches this check later).
+			assert.match(rows.rows[0].time, /^\d+s$/);
+			assert.ok(
+				Number.parseInt(rows.rows[0].time, 10) >= 12,
+				rows.rows[0].time,
+			);
 			assert.equal(rows.rows[1].line, "Partly · No significance test");
 			assert.equal(rows.rows[1].time, "10s");
 			assert.equal(rows.rows[2].line, `Not checked · ${injection}`);

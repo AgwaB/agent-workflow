@@ -1449,7 +1449,8 @@ function stageLine(stage) {
 		return (
 			[...[...flagged].map(([status, count]) => `${count} ${status}`), took]
 				.filter(Boolean)
-				.join(" · ") || `${stage.items.length} done`
+				.join(" · ") ||
+			(stage.items.length ? `${stage.items.length} done` : "No agents ran")
 		);
 	}
 	const only = stage.items[0];
@@ -1487,9 +1488,9 @@ function readablePairs(text) {
 }
 function chooseStage(stage) {
 	if (stage.ghost) return chooseStage(stage.parent);
-	if (stage.kind !== "foreach" && stage.items.length === 1)
-		go({ task: stage.items[0].specId });
-	else if (!stage.items.length && stage.tasks.length === 1)
+	// 2026-11-03 (owner): a one-agent stage opens like a many-agent one — its readable result
+	// first (renderSingle); "Open agent ›" leads to the raw output, logs and events.
+	if (!stage.items.length && stage.tasks.length === 1)
 		go({ task: stage.tasks[0].specId });
 	else go({ stage: stage.id });
 }
@@ -2029,7 +2030,9 @@ function renderGraph() {
 					),
 				);
 			});
-		} else if (stage.kind === "foreach") {
+		} else if (stage.kind === "foreach" && stage.items.length) {
+			// More than 48 agents: one bar and a count. A stage whose agents are not generated yet
+			// has neither (they sat on its "Waiting" line; owner, 2026-11-03).
 			const barWidth = p.w - 92,
 				completedWidth = stage.items.length
 					? (stage.done / stage.items.length) * barWidth
@@ -3035,7 +3038,7 @@ function renderSelection() {
 				? task.lastMessage || "A task failed. Inspect the logs before resuming."
 				: null);
 		inspector.append(
-			siblingNav(task),
+			...[siblingNav(task)].filter(Boolean),
 			inspectorHeader(task.title || name, status, [
 				taskAnnotation(task),
 				element(
@@ -3327,12 +3330,12 @@ function itemResult(task) {
 		);
 	return itemResults.get(key);
 }
-function itemExpansion(task, id, entering = false) {
+function itemExpansion(task, id, entering = false, variant = "") {
 	const open = button("Open agent ›", () => go({ task: task.specId }), {
 		class: "item-open",
 	});
 	const body = element("div", {
-		class: `item-expand${entering ? " entering" : ""}`,
+		class: `item-expand${entering ? " entering" : ""}${variant ? ` ${variant}` : ""}`,
 		id,
 		role: "region",
 		"aria-label": `Result of ${task.title || task.specId}`,
@@ -3439,7 +3442,27 @@ function siblingNav(task) {
 		}),
 	);
 }
+/** A one-agent stage: what it is doing or concluded, its result as text, then the raw agent. */
+function renderSingle(inspector, stage) {
+	const task = stage.items[0];
+	inspector.append(
+		// Running: what it is doing; failed: why. A finished agent's outcome is its result below.
+		inspectorHeader(humanize(stage.short || stage.id), taskState(task), [
+			task.status === "completed" ? null : taskAnnotation(task),
+		]),
+		element(
+			"p",
+			{ class: "agents-meta" },
+			[taskLine(task), task.executor || run.executor, task.model, task.effort]
+				.filter(Boolean)
+				.join(" · "),
+		),
+		itemExpansion(task, "stage-result", false, "single"),
+	);
+}
 function renderItems(inspector, stage, previous = new Map()) {
+	if (stage.kind !== "foreach" && stage.items.length === 1)
+		return renderSingle(inspector, stage);
 	inspector.append(
 		inspectorHeader(humanize(stage.id), stage.status),
 		element(
@@ -4474,7 +4497,79 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 		}
 	}
 	if (fence) closeFence();
+	for (const table of container.querySelectorAll("table.report-table"))
+		stackWideTable(table);
 	colourCode(container);
+}
+/**
+ * A table of four or more columns reads as one entry per row (2026-11-03, owner: the report's
+ * evidence table — long links, Korean wrapping in narrow columns, the last column cut off — was
+ * hard to read): the first cell is the entry's title with any status word beside it, the other
+ * columns follow as label and value, link lists last with one source per line.
+ */
+function stackWideTable(table) {
+	const rows = [...table.rows];
+	const head = [...(rows[0]?.cells ?? [])].map((cell) =>
+		cell.textContent.trim(),
+	);
+	if (head.length < 4 || rows.length < 2) return;
+	const list = element("div", { class: "report-rows" });
+	for (const row of rows.slice(1)) {
+		const cells = [...row.cells];
+		const status = (cell) =>
+			cell.childNodes.length === 1 && cell.firstChild.matches?.(".md-status");
+		const links = (cell) => cell.querySelectorAll(".md-url").length > 0;
+		const fields = cells
+			.slice(1)
+			.map((cell, index) => ({ cell, label: head[index + 1] }))
+			.filter(({ cell }) => !status(cell) && cell.textContent.trim())
+			.sort((a, b) => Number(links(a.cell)) - Number(links(b.cell)));
+		list.append(
+			element(
+				"section",
+				{ class: "report-row" },
+				element(
+					"p",
+					{ class: "report-row-title" },
+					...cells[0].childNodes,
+					...cells
+						.slice(1)
+						.filter(status)
+						.flatMap((cell) => [...cell.childNodes]),
+				),
+				fields.length
+					? element(
+							"dl",
+							{ class: "report-row-fields" },
+							fields.flatMap(({ cell, label }) => [
+								element("dt", {}, label),
+								element(
+									"dd",
+									{},
+									links(cell) ? sourceLines(cell) : [...cell.childNodes],
+								),
+							]),
+						)
+					: null,
+			),
+		);
+	}
+	table.replaceWith(list);
+}
+/** "host/path, host/path" → one source per line (the separators go). */
+function sourceLines(cell) {
+	const lines = [[]];
+	for (const node of [...cell.childNodes]) {
+		if (
+			node.nodeType === Node.TEXT_NODE &&
+			/^\s*[,;]\s*$/.test(node.textContent)
+		)
+			lines.push([]);
+		else lines.at(-1).push(node);
+	}
+	return lines
+		.filter((line) => line.length)
+		.map((line) => element("span", { class: "md-source" }, ...line));
 }
 /**
  * Each `###` part of the report (a finding, a summary part) is one section, set apart by a hairline

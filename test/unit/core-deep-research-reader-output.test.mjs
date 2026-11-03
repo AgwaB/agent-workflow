@@ -458,3 +458,37 @@ test("both research prompts ask for faithful translations of the shown audit tex
 		assert.match(prompt, /"translations":\{"claims":\[\{"id":"claim-001"/);
 	}
 });
+
+test("claims the sanitizer held back read as one reader line, and pipeline notes leave gap text", async () => {
+	// 2026-11-03 (owner: the report listed "sanitized from verifier candidates:
+	// source_hint_claim_mismatch" once per claim, and "sanitized verifier candidates: claim-004"
+	// inside gap text).
+	const sources = await inputs();
+	const packet = sources["final-audit-packet"].packet;
+	packet.remainingGaps = [
+		...Array.from({ length: 5 }, (_, i) => ({
+			claimId: `claim-10${i}`,
+			evidenceState: "not_sent_to_verifier",
+			reason: "sanitized from verifier candidates: source_hint_claim_mismatch",
+			sourceUrls: [`https://example.com/a${i % 2}`],
+		})),
+		{
+			gapId: "gap-slot",
+			gap: "Memory limits: decay rates were not found.; sanitized verifier candidates: claim-008, claim-009",
+		},
+	];
+	const result = await render({ sources });
+	const section = result.reportMarkdown.slice(
+		result.reportMarkdown.indexOf("## Caveats and remaining gaps"),
+	);
+	assert.doesNotMatch(section, /sanitized|source\\_hint|claim-00[89]/);
+	assert.match(
+		section,
+		/- \*\*Held back before verification:\*\* 5 candidate claims did not reach the verifiers — the claim's wording did not match the quoted source passage\. The evidence audit has the details\. \(\[example\.com\]\(<https:\/\/example\.com\/a0>\), \[example\.com\]\(<https:\/\/example\.com\/a1>\)\)/,
+	);
+	assert.match(section, /Memory limits: decay rates were not found\./);
+	assert.equal(
+		(section.match(/Held back before verification/g) ?? []).length,
+		1,
+	);
+});

@@ -341,6 +341,16 @@ interactive host asks once in `safe` mode), **refuse** (the run is not started).
   source-verification statement + support table in sync.
 - `test/unit/core-worker-prompt-render.test.mjs`: per-executor rendering and the task-backend launch.
 
+2026-11-03 (owner: the final report listed pipeline diagnostics per claim):
+
+- **Report caveats.** `render-executive.mjs` `renderCaveats`: claims the pre-verifier sanitizer held
+  back (`evidenceState: "not_sent_to_verifier"`, reason `sanitized from verifier candidates: …`)
+  read as one line — how many, why in reader words (`HELD_BACK_REASONS`, English or Korean with the
+  report), their sources (up to 6, then `+N`) — instead of one `Gap:` line each; `sanitized
+  verifier candidates: claim-…` notes leave slot gap text. The evidence audit keeps every row.
+  Test: `core-deep-research-reader-output.test.mjs` "claims the sanitizer held back read as one
+  reader line…".
+
 ## Open problems for the live bundle
 
 - Web tool names in prompts: prompts and the system prompt's tool list name `web_search` /
@@ -352,6 +362,13 @@ interactive host asks once in `safe` mode), **refuse** (the run is not started).
   unmeasured (plan §7: stage 1 checks completion and format only).
 - Pi needs `pi-web-access` for deep-research (refused otherwise). Codex shows `forcedReadOnly` only
   in `safe` mode; the default `free` mode records the coarse allowlist instead (table above).
+- Cross-language claims (2026-11-03, Codex run `workflow_mw0y4aje_c064c4`, a Korean task):
+  normalize-claims wrote its claims in Korean while the source evidence hints are English quotes,
+  so the sanitizer's lexical support check (`hintSupportsCandidate`: ≥ 4 shared tokens, ≥ 18 %)
+  demoted all 18 candidates as `source_hint_claim_mismatch`; no claim reached the verifiers and the
+  report was unverified. Open: keep claim text in the source's language (reader text is translated
+  at the final synthesis) and/or skip the lexical check when claim and evidence are in different
+  scripts.
 - The web tools are `web_search` and `fetch_content`. Any other name (for example `workflow_web_*`)
   is an unknown tool (2026-11-02): an agent listing it does not grant the web tools, and a stage asking
   for it is refused before launch (no executor mapping) or needs review.

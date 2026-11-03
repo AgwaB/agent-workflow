@@ -1572,6 +1572,50 @@ dialog.report footer .report-page {
 	color: var(--muted);
 	font-size: 14px;
 }
+/* A wide table read as entries: title (+ status), then label/value lines; sources last. */
+.report-rows {
+	margin: 12px 0 20px;
+	border-top: 1px solid var(--line2);
+}
+.report-row {
+	padding: 12px 0;
+	border-bottom: 1px solid var(--line);
+}
+.report-row-title {
+	font-weight: 600;
+	margin: 0 0 6px;
+}
+.report-row-title .md-status {
+	font-weight: 500;
+	margin-left: 10px;
+}
+.report-row-fields {
+	display: grid;
+	grid-template-columns: minmax(6em, max-content) minmax(0, 1fr);
+	align-items: baseline;
+	gap: 4px 16px;
+	margin: 0;
+}
+.report-row-fields dt {
+	color: var(--muted);
+	font-size: 13px;
+	padding-top: 2px;
+}
+.report-row-fields :is(dt, dd) {
+	margin: 0;
+}
+.md-source {
+	display: block;
+}
+@media (max-width: 600px) {
+	.report-row-fields {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 2px;
+	}
+	.report-row-fields dd + dt {
+		margin-top: 6px;
+	}
+}
 /* Reading aids (report and task result). */
 .md-label {
 	color: var(--muted);
@@ -1632,6 +1676,11 @@ dialog.report footer .report-page {
 	padding: 6px 8px 14px 48px;
 	border-bottom: 1px solid var(--line);
 	font-size: 14px;
+}
+/* A one-agent stage's result sits under its header, aligned with it. */
+.item-expand.single {
+	padding: 4px 22px 18px;
+	border-bottom: 0;
 }
 .item-expand .result-digest {
 	margin: 4px 0 8px;
