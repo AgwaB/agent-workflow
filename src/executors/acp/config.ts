@@ -67,6 +67,15 @@ export interface AcpPreset {
 	prepareAttemptHome?(loginHome: string, attemptHome: string): Promise<void>;
 	/** MCP result size the agent delivers inline (chars), declared by the probe (artifact server pages). */
 	readonly mcpOutputLimitChars?: number;
+	/**
+	 * Isolated attempts start one at a time per login home: the next agent is spawned once the
+	 * previous one's `session/new` returned (cross-process lock in the login home).
+	 */
+	readonly serializeSessionStart?: boolean;
+	/** Env for worker attempts only (not `authenticateAcpAgent`), e.g. no browser for a worker. */
+	readonly workerEnv?: Readonly<Record<string, string>>;
+	/** A stderr line saying the agent wants an interactive login: the attempt fails as `auth`. */
+	readonly loginRequiredPattern?: RegExp;
 	/** Agent-specific `_meta` sent with `session/new` (e.g. which built-in tools are on). */
 	sessionMeta?(req: SubmitRequest): Record<string, unknown>;
 	/** Pi tool names → the agent's tools (pre-launch tool check, B4). */
@@ -220,6 +229,14 @@ const ANTIGRAVITY: AcpPreset = {
 	// the shared home; each attempt now gets its own (the shared home keeps only the login).
 	prepareAttemptHome: prepareAntigravityAttemptHome,
 	mcpOutputLimitChars: ANTIGRAVITY_MCP_OUTPUT_LIMIT_CHARS,
+	// 2026-11-03: a Google login page opened during runs. Every server start refreshes the access
+	// token from the keychain login; 9 of 145 starts in six live runs logged "Credentials missing or
+	// invalid. Launching browser login flow…", all within bursts of 6–12 concurrent starts (foreach
+	// stages), none in sequential ones. Starts are serialized per login home, a worker gets no
+	// browser (Python webbrowser follows BROWSER), and a login request fails the attempt as auth.
+	serializeSessionStart: true,
+	workerEnv: { BROWSER: "true" },
+	loginRequiredPattern: /Launching browser login flow/,
 	async authRecorded(agentHome) {
 		// `authenticate` records only the method in settings.json (the credentials are the server's).
 		try {

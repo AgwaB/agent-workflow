@@ -22,6 +22,8 @@ log({
 	argv: process.argv.slice(2),
 	attempt: process.env.FAKE_ACP_ATTEMPT ?? null,
 	geminiHome: process.env.GEMINI_HOME ?? null,
+	browser: process.env.BROWSER ?? null,
+	at: Date.now(),
 	homeSettings:
 		process.env.GEMINI_HOME === undefined
 			? null
@@ -457,6 +459,7 @@ async function prompt(id, params) {
 			chunk(sessionId, "Usage Limit Reached\n\nYour quota resets in 3 days.");
 			return send({ id, result: { stopReason: "end_turn" } });
 		case "complete":
+		case "slow_start":
 			chunk(sessionId, "Hello ");
 			update(sessionId, {
 				sessionUpdate: "tool_call",
@@ -593,6 +596,8 @@ process.stdin.on("data", (text) => {
 		if (message.method === "session/new")
 			log({
 				method: message.method,
+				pid: process.pid,
+				at: Date.now(),
 				cwd: params.cwd,
 				mcpServers: (params.mcpServers ?? []).map((s) => ({
 					name: s.name,
@@ -625,7 +630,17 @@ process.stdin.on("data", (text) => {
 				});
 				break;
 			case "session/new":
-				send({
+				// login_required: the agent wants an interactive login and never answers.
+				if (scenario === "login_required") {
+					process.stderr.write(
+						"credential_manager.py:561] Credentials missing or invalid. Launching browser login flow...\n",
+					);
+					break;
+				}
+				// slow_start: the session takes a while (serialized-start check).
+				(scenario === "slow_start"
+					? (m) => setTimeout(() => send(m), 150)
+					: send)({
 					id: message.id,
 					result: {
 						sessionId: "fake-session-1",

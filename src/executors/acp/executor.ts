@@ -36,6 +36,7 @@ import {
 	type WorkflowExecutor,
 } from "../../sdk/contract.js";
 import { ARTIFACT_MCP_SERVER_NAME } from "../../core/artifact-access.js";
+import { acquireDirectoryLock } from "../../runtime/artifacts/dir-lock.js";
 import { SdkError } from "../../sdk/errors.js";
 import type { ExecEvent } from "../../sdk/events.js";
 import { createSecretRedactor, requestSecrets } from "../redact.js";
@@ -95,6 +96,10 @@ interface Run {
 	readonly agentHome: string | undefined;
 	/** A per-attempt home (preset `prepareAttemptHome`), removed when the agent exits. */
 	readonly attemptHome: string | undefined;
+	/** Releases the serialized-start lock (preset `serializeSessionStart`); idempotent. */
+	readonly releaseStart: () => void;
+	/** Set when the agent asked for an interactive login (preset `loginRequiredPattern`). */
+	loginRequired: string | undefined;
 	peer: AcpPeer | undefined;
 	sessionId: string | undefined;
 	cancelRequested: boolean;
@@ -505,6 +510,7 @@ export function createAcpExecutor(options: {
 			if (sessionId === undefined)
 				throw new Error("ACP session/new returned no sessionId");
 			run.sessionId = sessionId;
+			run.releaseStart();
 			for (const step of preset.afterSession?.(
 				req,
 				session as Record<string, unknown>,
@@ -539,9 +545,12 @@ export function createAcpExecutor(options: {
 		} catch (error) {
 			run.normalizer.prompt({
 				stopReason: null,
-				error: error instanceof Error ? error.message : String(error),
+				error:
+					run.loginRequired ??
+					(error instanceof Error ? error.message : String(error)),
 			});
 		} finally {
+			run.releaseStart();
 			reap(run);
 		}
 	}
@@ -710,9 +719,29 @@ export function createAcpExecutor(options: {
 			{ mode: 0o600 },
 		);
 		const launchEnv = (await preset.launchEnv?.(config.command)) ?? {};
+		// Serialized starts: wait (up to ~2 min) until no other attempt of this login home is between
+		// spawn and session/new; on timeout start anyway.
+		let releaseStartLock: (() => Promise<void>) | undefined;
+		if (isolating && preset.serializeSessionStart === true)
+			releaseStartLock = await acquireDirectoryLock(
+				join(config.agentHome, ".session-start.lock"),
+				{ retries: 600, retryMs: 200 },
+			).catch(() => undefined);
+		let startReleased = false;
+		const releaseStart = () => {
+			if (startReleased) return;
+			startReleased = true;
+			void releaseStartLock?.().catch(() => {});
+		};
 		const child = spawn(config.command, argv, {
 			cwd: req.cwd,
-			env: { ...inherited, ...launchEnv, ...isolatedEnv, ...req.env },
+			env: {
+				...inherited,
+				...launchEnv,
+				...isolatedEnv,
+				...(isolating ? (preset.workerEnv ?? {}) : {}),
+				...req.env,
+			},
 			stdio: ["pipe", "pipe", "pipe"],
 		});
 		const ref: ExecRef = {
@@ -748,6 +777,8 @@ export function createAcpExecutor(options: {
 			writeRaw: (line) => rawStream.write(`${redact(line)}\n`),
 			agentHome: isolated ? runHome : undefined,
 			attemptHome,
+			releaseStart,
+			loginRequired: undefined,
 			peer: undefined,
 			sessionId: undefined,
 			cancelRequested: false,
@@ -772,6 +803,14 @@ export function createAcpExecutor(options: {
 			if (text === "") return;
 			stderrStream.write(text);
 			stderr = (stderr + text).slice(-65_536);
+			if (
+				isolating &&
+				run.loginRequired === undefined &&
+				preset.loginRequiredPattern?.test(text) === true
+			) {
+				run.loginRequired = `${preset.label} asked for an interactive Google login; the worker home's login is missing or unreadable (sign it in again, docs/executors/acp.md)`;
+				reap(run);
+			}
 		};
 		child.stderr?.on("data", (chunk: Buffer) =>
 			onStderr(stderrRedact.push(chunk.toString("utf8"))),
@@ -793,6 +832,7 @@ export function createAcpExecutor(options: {
 			});
 		child.on("close", (code, signal) => {
 			run.exited = true;
+			run.releaseStart();
 			run.stdinOpen = false;
 			for (const timer of run.timers) clearTimeout(timer);
 			run.peer?.close(new Error("agent exited"));

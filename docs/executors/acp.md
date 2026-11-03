@@ -155,6 +155,16 @@ Unknown keys are refused (`DESCRIPTOR_INVALID`). To try it, register a descripto
   run before this, workers listed and opened other sessions' `conversations/` and `brain/` files
   in the shared home (view_file is not permission-gated over ACP, so the adapter cannot deny it).
   A fresh home opens a session with the same login (no-model check: 3 s).
+- Login prompts (2026-11-03): every server start refreshes the access token from the keychain
+  login. In six live runs 9 of 145 starts logged "Credentials missing or invalid. Launching browser
+  login flow…" and opened Google's login page; all were in bursts of 6–12 concurrent starts (foreach
+  stages), none in sequential starts. Now attempts of one login home start one at a time (a lock in
+  the worker home, held from spawn until `session/new` returns, at most ~2 min of waiting), so a
+  stage of 7 workers needs ~30 s more to start; no-model check: 30 starts in three bursts of 10, no
+  login. A worker also gets `BROWSER=true` (no browser window) and an attempt whose server asks for a
+  login fails at once as `auth` ("…asked for an interactive Google login…"); sign the worker home
+  in again then (`authenticateAcpAgent` opens the browser as before). Not checked live: that
+  `BROWSER=true` keeps the window closed.
 - MCP results reach the model inline up to `_meta.antigravity.mcpMaxOutputBytes` = 131,072 bytes
   (sent with every `session/new`; ACP server ≥ 1.4.0). Without it 1.4.5 saves an on-demand MCP result
   over 4 KB to a step file the model has to open. The probe declares `mcpOutputLimitChars` 32,768

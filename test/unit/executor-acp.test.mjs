@@ -574,6 +574,69 @@ test("acp antigravity: workers run in the engine-owned GEMINI_HOME unless they i
 	);
 });
 
+/** An antigravity executor over the fake agent with a login recorded in its worker home. */
+async function loggedInAntigravity(t, scenario) {
+	const { dir, command, agentLog } = await setup(t, scenario);
+	const config = parseAcpConfig({
+		preset: "antigravity",
+		command,
+		stateDir: join(dir, "agy-state"),
+		killGraceMs: 200,
+		handshakeTimeoutMs: HANDSHAKE_MS,
+	});
+	const { mkdir } = await import("node:fs/promises");
+	await mkdir(join(config.agentHome, "antigravity-acp"), { recursive: true });
+	await writeFile(
+		join(config.agentHome, "antigravity-acp", "settings.json"),
+		JSON.stringify({ auth: { type: "oauth-personal" } }),
+	);
+	return { dir, config, agentLog, executor: createAcpExecutor({ config }) };
+}
+
+test("acp antigravity: concurrent attempts start one at a time and get no browser", async (t) => {
+	// 2026-11-03: Google login pages opened in live runs only when 6–12 servers started at once.
+	const { dir, executor, agentLog } = await loggedInAntigravity(
+		t,
+		"slow_start",
+	);
+	const refs = await Promise.all(
+		["agy-burst-1", "agy-burst-2", "agy-burst-3"].map((key) =>
+			executor.submit(request(dir, key)),
+		),
+	);
+	for (const ref of refs) {
+		const { terminal } = await drain(executor, ref, { timeoutMs: DRAIN_MS });
+		assert.equal(terminal.type, "completed");
+	}
+	const log = await agentLog();
+	const spawns = log.filter((entry) => entry.argv).sort((a, b) => a.at - b.at);
+	const sessions = new Map(
+		log
+			.filter((entry) => entry.method === "session/new")
+			.map((entry) => [entry.pid, entry.at]),
+	);
+	assert.equal(spawns.length, 3);
+	for (let i = 1; i < spawns.length; i += 1) {
+		const previous = sessions.get(spawns[i - 1].pid);
+		assert.ok(previous !== undefined && spawns[i].at >= previous, "serialized");
+	}
+	for (const spawn of spawns) assert.equal(spawn.browser, "true");
+});
+
+test("acp antigravity: an agent asking for an interactive login fails the attempt as auth", async (t) => {
+	const { dir, executor } = await loggedInAntigravity(t, "login_required");
+	const ref = await executor.submit(request(dir, "agy-login-1"));
+	const { terminal } = await drain(executor, ref, { timeoutMs: DRAIN_MS });
+	assert.equal(terminal.type, "failed");
+	assert.equal(terminal.class, "auth");
+	assert.match(terminal.message, /asked for an interactive Google login/);
+	// The lock was released: a second attempt starts (and fails the same way) without waiting.
+	const started = Date.now();
+	const again = await executor.submit(request(dir, "agy-login-2"));
+	await drain(executor, again, { timeoutMs: DRAIN_MS });
+	assert.ok(Date.now() - started < 30_000);
+});
+
 test("acp antigravity: held MCP summaries get the transcript results; shell rawOutput stays; replay releases the same", async (t) => {
 	const { dir, command } = await setup(t, "agy_transcript");
 	const config = parseAcpConfig({
