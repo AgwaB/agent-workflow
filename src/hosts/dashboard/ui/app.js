@@ -49,6 +49,8 @@ const iconPaths = {
 	td: "M5 2.5h6v3H5zM5 10.5h6v3H5zM8 5.5v5",
 	lr: "M1.5 5h4v6h-4zM10.5 5h4v6h-4zM5.5 8h5",
 	fit: "M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10",
+	agent: "M8 1.8l1.6 4.6 4.6 1.6-4.6 1.6L8 14.2 6.4 9.6 1.8 8l4.6-1.6z",
+	code: "M5.5 4L1.8 8l3.7 4M10.5 4l3.7 4-3.7 4",
 };
 function markIcon(status, x = 0, y = 0, size = 16) {
 	const icon = svg("svg", {
@@ -83,6 +85,12 @@ function markIcon(status, x = 0, y = 0, size = 16) {
 			icon.append(svg("circle", { cx: 8, cy: 8, r: 6.25 }));
 		if (iconPaths[status]) icon.append(svg("path", { d: iconPaths[status] }));
 	}
+	return icon;
+}
+/** "✦" for an agent's work, "</>" for a step the engine runs itself (not a status mark). */
+function kindIcon(kind, x = 0, y = 0, size = 14) {
+	const icon = markIcon(kind, x, y, size);
+	icon.setAttribute("class", `kind-icon ${kind}`);
 	return icon;
 }
 const glyph = (status) =>
@@ -1013,7 +1021,16 @@ function renderHeader() {
 	);
 }
 // Stage grouping, transitive reduction and layered layout follow F v9-O.
-export function deriveGraph(projection) {
+/**
+ * `hideCode` (2026-11-03, owner's pick of the mock-ups): code steps leave the graph unless the
+ * switch shows them; one that failed, runs, waits on a person or is the selected stage (`keep`)
+ * stays in place. Its neighbours connect straight across it, so the graph never breaks.
+ * `stages` keeps every stage (the inspector and Jump to find hidden ones too).
+ */
+export function deriveGraph(
+	projection,
+	{ hideCode = false, keep = null } = {},
+) {
 	const stages = new Map(),
 		specStage = new Map();
 	for (const task of projection.tasks) {
@@ -1085,43 +1102,6 @@ export function deriveGraph(projection) {
 			});
 			stage.kids.add(id);
 		}
-	const edges = [];
-	for (const stage of stages.values())
-		for (const dep of stage.deps) {
-			const seen = new Set([dep]),
-				stack = [...stages.get(dep).kids].filter((id) => id !== stage.id);
-			let implied = false;
-			while (stack.length) {
-				const next = stack.pop();
-				if (next === stage.id) {
-					implied = true;
-					break;
-				}
-				if (seen.has(next)) continue;
-				seen.add(next);
-				stack.push(...stages.get(next).kids);
-			}
-			if (!implied) edges.push({ from: dep, to: stage.id });
-		}
-	const levels = new Map(),
-		visiting = new Set();
-	const level = (id) => {
-		if (levels.has(id)) return levels.get(id);
-		if (visiting.has(id)) return 0; // A malformed/cyclic projection cannot lock up the host UI.
-		visiting.add(id);
-		const value = Math.max(
-			0,
-			...[...stages.get(id).deps].map((dep) => level(dep) + 1),
-		);
-		visiting.delete(id);
-		levels.set(id, value);
-		return value;
-	};
-	for (const stage of stages.values()) level(stage.id);
-	// Stages that share the same inputs and the same outputs are parallel siblings: one stacked
-	// card with a row per stage (GitHub Actions stacks such jobs the same way), so a fan-out/join
-	// is one card and one edge instead of n×m crossing lines. Foreach, approval and ghost stages
-	// keep their own card.
 	// A dotted prefix every stage shares (`impact-analysis.` in a 13-stage review) says nothing
 	// on a card: cards show the part that differs; titles, labels and the inspector keep the
 	// full name.
@@ -1133,11 +1113,76 @@ export function deriveGraph(projection) {
 		stage.short = prefix
 			? (stage.name || stage.id).slice(prefix.length + 1)
 			: stage.name || stage.id;
+	const hidden = (stage) =>
+		hideCode &&
+		stage.kind === "support" &&
+		!stage.approval &&
+		stage.id !== keep &&
+		["completed", "skipped", "pending"].includes(stage.status);
+	const across = (ids, key, seen = new Set()) => {
+		const out = new Set();
+		for (const id of ids) {
+			if (seen.has(id)) continue;
+			seen.add(id);
+			const stage = stages.get(id);
+			if (hidden(stage))
+				for (const next of across(stage[key], key, seen)) out.add(next);
+			else out.add(id);
+		}
+		return out;
+	};
+	const codeSteps = [...stages.values()].filter((s) => s.kind === "support");
+	const shown = codeSteps.some(hidden) ? new Map() : stages;
+	if (shown !== stages)
+		for (const stage of stages.values())
+			if (!hidden(stage))
+				shown.set(stage.id, {
+					...stage,
+					deps: across(stage.deps, "deps"),
+					kids: across(stage.kids, "kids"),
+				});
+	const edges = [];
+	for (const stage of shown.values())
+		for (const dep of stage.deps) {
+			const seen = new Set([dep]),
+				stack = [...shown.get(dep).kids].filter((id) => id !== stage.id);
+			let implied = false;
+			while (stack.length) {
+				const next = stack.pop();
+				if (next === stage.id) {
+					implied = true;
+					break;
+				}
+				if (seen.has(next)) continue;
+				seen.add(next);
+				stack.push(...shown.get(next).kids);
+			}
+			if (!implied) edges.push({ from: dep, to: stage.id });
+		}
+	const levels = new Map(),
+		visiting = new Set();
+	const level = (id) => {
+		if (levels.has(id)) return levels.get(id);
+		if (visiting.has(id)) return 0; // A malformed/cyclic projection cannot lock up the host UI.
+		visiting.add(id);
+		const value = Math.max(
+			0,
+			...[...shown.get(id).deps].map((dep) => level(dep) + 1),
+		);
+		visiting.delete(id);
+		levels.set(id, value);
+		return value;
+	};
+	for (const stage of shown.values()) level(stage.id);
+	// Stages that share the same inputs and the same outputs are parallel siblings: one stacked
+	// card with a row per stage (GitHub Actions stacks such jobs the same way), so a fan-out/join
+	// is one card and one edge instead of n×m crossing lines. Foreach, approval and ghost stages
+	// keep their own card.
 	const nodes = new Map(),
 		groups = new Map(),
 		owner = new Map(),
 		buckets = new Map();
-	for (const stage of stages.values()) {
+	for (const stage of shown.values()) {
 		const key =
 			stage.kind === "foreach" || stage.approval || stage.ghost
 				? null
@@ -1168,12 +1213,12 @@ export function deriveGraph(projection) {
 		});
 		for (const stage of members) owner.set(stage.id, id);
 	}
-	for (const stage of stages.values())
+	for (const stage of shown.values())
 		if (!owner.has(stage.id)) owner.set(stage.id, stage.id);
 	// Cards in spec order. A stage that stands alone is its own card; its deps/kids are
 	// translated to card ids (a neighbour may now live inside a stacked card). The stage object
 	// itself stays untouched.
-	for (const stage of stages.values()) {
+	for (const stage of shown.values()) {
 		const id = owner.get(stage.id);
 		if (nodes.has(id)) continue;
 		nodes.set(
@@ -1212,6 +1257,8 @@ export function deriveGraph(projection) {
 		owner,
 		layers: orderLayers(layers.filter(Boolean)),
 		edges: nodeEdges,
+		codeSteps: codeSteps.length,
+		hiddenCode: stages.size - shown.size,
 	};
 }
 /** Longest common dotted prefix of stage names (`a.b.c`, `a.b.d` → `a.b`), else empty. */
@@ -1336,12 +1383,6 @@ function stageLine(stage) {
 				: "";
 	return [said, took].filter(Boolean).join(" · ") || "Done";
 }
-/**
- * A finished stage's mark says how it ended (2026-11-03, owner: every finished node had the same
- * faint check, so nothing stood out): a bright ✓ when it ended clean, an amber ! when an agent's
- * outcome leaves work to do (a finding that survived, a claim only partly supported, a verdict
- * such as "Needs work"). Failures keep the red ✕.
- */
 /** "dedup: raw=3, unique=3, duplicates=0" → "raw 3 · unique 3 · duplicates 0" (code-step results). */
 function readablePairs(text) {
 	const body = text.replace(/^[\w-]+:\s*/, "");
@@ -1462,7 +1503,8 @@ function renderGraph() {
 	const replay = graphControl?.runId !== run.runId;
 	graphControl?.destroy();
 	const model = graphModel;
-	const viewKey = `${run.runId}:${state.layout}`;
+	// Each graph shape keeps its own view: showing the code steps fits the taller graph anew.
+	const viewKey = `${run.runId}:${state.layout}:${showCode}`;
 	const savedView = graphViews.get(viewKey);
 	const wrap = element("div", { class: "canvas", id: "canvas" });
 	const drawing = svg("svg", {
@@ -1592,13 +1634,15 @@ function renderGraph() {
 		blocked: 3,
 		completed: 4,
 	};
+	const mixed = [...model.nodes.values()].some((n) => n.kind === "support");
 	for (const stage of model.nodes.values()) {
 		const p = positions.get(stage.id);
 		const group = stage.kind === "group";
 		const title = group
 			? `${stage.name ? `${stage.name} · ` : ""}${stage.members.length} in parallel`
 			: humanize(stage.short || stage.name || stage.id);
-		// "agent" / "N agents" for a stage agents work, "code" for a step the engine runs itself.
+		// Who did the work, at the card's right (owner's pick, 2026-11-03): "✦ agent" / "✦ 3 agents",
+		// "</> code". With no code step in view every card is an agent's, so a lone "agent" goes.
 		const tag =
 			group || stage.ghost || stage.approval
 				? null
@@ -1608,7 +1652,9 @@ function renderGraph() {
 						? stage.items.length
 							? `${stage.items.length} agent${stage.items.length === 1 ? "" : "s"}`
 							: "agents"
-						: "agent";
+						: mixed
+							? "agent"
+							: null;
 		const node = svg("g", {
 			class: `node ${stage.status}${stage.ghost ? " ghost" : ""}${stage.kind === "support" ? " support" : ""}${group ? " group" : ""}${nextStage(stage) ? " next" : ""}`,
 			transform: `translate(${p.x},${p.y})`,
@@ -1638,7 +1684,7 @@ function renderGraph() {
 					x: 36,
 					y: 24,
 					class: "node-name",
-					"data-fit": p.w - 48 - (tag ? tag.length * 7.5 + 22 : 0),
+					"data-fit": p.w - 48 - (tag ? tag.length * 7 + 30 : 0),
 				},
 				title,
 			),
@@ -1646,11 +1692,14 @@ function renderGraph() {
 				? svg(
 						"g",
 						{
-							class: `node-tag${stage.kind === "support" ? " code" : ""}`,
-							transform: "translate(36 0)",
+							class: `node-kind ${stage.kind === "support" ? "code" : "agent"}`,
 						},
-						svg("rect", { x: -5, y: 10, height: 18, rx: 4 }),
-						svg("text", { x: 0, y: 23 }, tag),
+						kindIcon(
+							stage.kind === "support" ? "code" : "agent",
+							p.w - 14 - tag.length * 7 - 20,
+							13,
+						),
+						svg("text", { x: p.w - 14, y: 24, "text-anchor": "end" }, tag),
 					)
 				: null,
 		);
@@ -2054,10 +2103,37 @@ function renderGraph() {
 			marker.setAttribute("markerWidth", 13 / view.k);
 			marker.setAttribute("markerHeight", 13 / view.k);
 		}
+		// A card's "✦ agent" / "</> code" sits at its right edge, sized like the other small text;
+		// the name gets what is left of the line.
+		for (const kind of nodes.querySelectorAll(".node-kind")) {
+			if (kind.closest(".morph-old")) continue;
+			const label = kind.querySelector("text"),
+				icon = kind.querySelector("svg");
+			const size = Math.max(12, 12 / Math.max(view.k, FIT_MIN_ZOOM));
+			// A class rule would override the presentation attribute: size a nested span.
+			if (!label.dataset.full) label.dataset.full = label.textContent;
+			label.replaceChildren(
+				svg("tspan", { "font-size": size }, label.dataset.full),
+			);
+			const width = label.getComputedTextLength(),
+				iconSize = size * 1.1;
+			icon.setAttribute("width", iconSize);
+			icon.setAttribute("height", iconSize);
+			const card = Number(
+				kind.parentNode
+					.querySelector(":scope > .outline")
+					?.getAttribute("width"),
+			);
+			icon.setAttribute("x", card - 14 - width - 5 - iconSize);
+			icon.setAttribute("y", 24 - iconSize * 0.85);
+			const name = kind.parentNode.querySelector(":scope > .node-name");
+			if (card && name)
+				name.dataset.fit = card - 36 - 14 - (width + 5 + iconSize) - 12;
+		}
 		// SVG presentation attributes keep text >=14px at Fit without inline CSS. Below the Fit
 		// floor (an explicit zoom-out) the text shrinks with the boxes instead of spilling over them.
 		for (const text of nodes.querySelectorAll("text")) {
-			if (text.closest(".morph-old")) continue; // a fading copy keeps its fitted text
+			if (text.closest(".morph-old, .node-kind")) continue; // a fading copy keeps its fitted text
 			const size = text.classList.contains("node-name") ? 15 : 14;
 			const fontSize = Math.max(size, size / Math.max(view.k, FIT_MIN_ZOOM));
 			text.setAttribute("font-size", fontSize);
@@ -2080,28 +2156,13 @@ function renderGraph() {
 				span.textContent = `${text.dataset.full.slice(0, low)}…`;
 			}
 		}
-		// A card's tag sits just after its name, sized with it; its second line keeps a line's
-		// distance below the name at any zoom (the text keeps >=14 px while the card scales).
+		// A card's second line keeps a line's distance below the name at any zoom (the text keeps
+		// >=14 px while the card scales).
 		for (const node of nodes.querySelectorAll(":scope > .node")) {
 			const name = node.querySelector(":scope > .node-name");
 			const nameSize = Number(name?.getAttribute("font-size")) || 15;
 			const sub = node.querySelector(":scope > .sub");
 			if (sub) sub.setAttribute("y", Math.max(44, 24 + nameSize * 1.3));
-			const tag = node.querySelector(":scope > .node-tag");
-			if (!tag) continue;
-			const label = tag.querySelector("text");
-			const size = Math.max(12, 12 / Math.max(view.k, FIT_MIN_ZOOM));
-			label.setAttribute("font-size", size);
-			label.setAttribute("y", 24);
-			tag.setAttribute(
-				"transform",
-				`translate(${36 + (name?.getComputedTextLength() ?? 0) + 12} 0)`,
-			);
-			const rect = tag.querySelector("rect");
-			rect.setAttribute("x", -5);
-			rect.setAttribute("width", label.getComputedTextLength() + 10);
-			rect.setAttribute("height", size * 1.4);
-			rect.setAttribute("y", 24 - size * 1.05);
 		}
 	}
 	function fit() {
@@ -2191,6 +2252,35 @@ function renderGraph() {
 	wrap.addEventListener("pointercancel", () => {
 		dragged = null;
 	});
+	// Code steps are hidden unless this switch shows them (owner's pick, 2026-11-03).
+	if (model.codeSteps)
+		wrap.append(
+			element(
+				"button",
+				{
+					type: "button",
+					class: "code-switch",
+					role: "switch",
+					"aria-checked": String(showCode),
+					title: showCode
+						? "Hide the steps the engine runs itself"
+						: "Show the steps the engine runs itself (no model)",
+				},
+				element("span", { class: "track", "aria-hidden": "true" }),
+				kindIcon("code"),
+				showCode
+					? `${model.codeSteps} code step${model.codeSteps === 1 ? "" : "s"} shown`
+					: model.hiddenCode
+						? `${model.hiddenCode} code step${model.hiddenCode === 1 ? "" : "s"} hidden`
+						: "Code steps",
+				element(
+					"span",
+					{ class: "code-switch-action" },
+					showCode ? "Hide" : "Show",
+				),
+			),
+		);
+	wrap.querySelector(".code-switch")?.addEventListener("click", toggleCode);
 	wrap.append(
 		element(
 			"div",
@@ -2484,6 +2574,24 @@ function agentState(task) {
 			? "done"
 			: (labels[task.status] || "Waiting").toLowerCase();
 }
+/** The graph's code-step switch: off by default, remembered in this browser. */
+const CODE_KEY = "agent-workflow:code-steps";
+let showCode = (() => {
+	try {
+		return localStorage.getItem(CODE_KEY) === "shown";
+	} catch {
+		return false;
+	}
+})();
+function toggleCode() {
+	showCode = !showCode;
+	try {
+		if (showCode) localStorage.setItem(CODE_KEY, "shown");
+		else localStorage.removeItem(CODE_KEY);
+	} catch {}
+	renderRun();
+	$("canvas")?.querySelector(".code-switch")?.focus();
+}
 function changeLayout(layout) {
 	state.layout = layout;
 	urlState();
@@ -2497,6 +2605,7 @@ function changeLayout(layout) {
 function graphSignature(model, layout) {
 	return JSON.stringify([
 		layout,
+		showCode,
 		[...model.nodes.values()].map((node) => [
 			node.id,
 			node.status,
@@ -2528,7 +2637,10 @@ function renderRun() {
 	const focusedHeader = active?.matches("#run-header button")
 		? headerKey(active)
 		: null;
-	graphModel = deriveGraph(run);
+	graphModel = deriveGraph(run, {
+		hideCode: !showCode,
+		keep: selectedStage(),
+	});
 	const signature = graphSignature(graphModel, state.layout);
 	const canvas = $("canvas");
 	const keepGraph =

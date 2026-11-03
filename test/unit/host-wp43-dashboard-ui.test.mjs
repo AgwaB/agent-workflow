@@ -69,6 +69,48 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		),
 		["ledger-double-write", "webhook-retry-path", "refund-idempotency"],
 	);
+	// 2026-11-03 (owner's pick of the mock-ups): code steps are hidden by default; agent stages
+	// connect straight across them, and the switch says how many are hidden.
+	assert.deepEqual(
+		await browser.evaluate(() => ({
+			cards: [...document.querySelectorAll(".node")].map(
+				(node) => node.dataset.stage,
+			),
+			edges: [...document.querySelectorAll(".edge")].map(
+				(edge) => `${edge.dataset.edge}:${edge.classList[1]}`,
+			),
+			next: [...document.querySelectorAll(".node.next")].map(
+				(node) => node.dataset.stage,
+			),
+			switch: [
+				document.querySelector(".code-switch").textContent,
+				document.querySelector(".code-switch").getAttribute("aria-checked"),
+			],
+		})),
+		{
+			cards: ["triage", "reviewers", "devil-advocate", "report"],
+			edges: [
+				"triage>reviewers:active",
+				"reviewers>devil-advocate:next",
+				"devil-advocate>report:later",
+			],
+			next: ["devil-advocate"],
+			switch: ["4 code steps hiddenShow", "false"],
+		},
+	);
+	await browser.evaluate(() => document.querySelector(".code-switch").click());
+	await browser.waitFor(() => document.querySelectorAll(".node").length === 8);
+	await new Promise((resolve) => setTimeout(resolve, 700)); // the cards slide apart, then fit
+	assert.deepEqual(
+		await browser.evaluate(() => [
+			document.querySelector(".code-switch").textContent,
+			document.querySelector(".code-switch").getAttribute("aria-checked"),
+			document.activeElement?.className,
+			localStorage.getItem("agent-workflow:code-steps"),
+		]),
+		["4 code steps shownHide", "true", "code-switch", "shown"],
+	);
+	// The rest of this test reads the full graph; the switch stays on across reloads.
 	assert.equal(
 		await browser.evaluate(() => document.querySelectorAll(".node").length),
 		8,
@@ -1182,50 +1224,87 @@ test("dashboard Chrome: a stage's agent opens in place, stays open through live 
 	);
 });
 
-test("dashboard Chrome: every stage is a card tagged agent / N agents / code, with a second line", {
+test("dashboard Chrome: code steps hide by default; one that failed or is selected stays; cards say who did the work", {
 	skip: chrome
 		? false
 		: "Chrome is not installed (set CHROME to a local executable)",
 	timeout: 120_000,
 }, async (t) => {
-	// 2026-11-03 (owner's pick of the graph mock-ups): code steps are full cards too, tagged "code";
-	// stages agents work are tagged "agent" / "N agents"; a check already says done, so the second
-	// line says what came out and how long it took; a waiting stage is a dashed card that says so.
+	// 2026-11-03 (owner's pick of the graph mock-ups): code steps leave the graph unless the switch
+	// shows them, but a failed one stays in place; a card says who did the work at its right —
+	// "✦ agent" / "✦ N agents" / "</> code" — and a lone "agent" goes when no code card is in view.
 	const fixture = await createFixtureServer();
 	t.after(() => fixture.close());
 	const browser = await createBrowser(chrome);
 	t.after(() => browser.close());
+	const dedup = fixture.runs
+		.get(running)
+		.tasks.find((task) => task.stageId === "dedup-findings");
+	Object.assign(dedup, {
+		status: "failed",
+		lastMessage: "verifier ids did not match",
+	});
+	const cards = () =>
+		browser.evaluate(() =>
+			Object.fromEntries(
+				[...document.querySelectorAll(".node[data-stage]")].map((node) => [
+					node.dataset.stage,
+					[
+						node.querySelector(".node-kind text")?.textContent ?? null,
+						node.querySelector(".node-kind .kind-icon")?.classList[1] ?? null,
+						node.querySelector(":scope > .sub")?.textContent ?? null,
+					],
+				]),
+			),
+		);
 	await browser.open(`${fixture.origin}/?run=${running}`);
-	await browser.waitFor(
-		() => document.querySelectorAll(".node-tag").length > 3,
-	);
-	const cards = await browser.evaluate(() =>
-		Object.fromEntries(
-			[...document.querySelectorAll(".node[data-stage]")].map((node) => [
-				node.dataset.stage,
-				[
-					node.querySelector(":scope > .node-tag text")?.textContent ?? null,
-					node
-						.querySelector(":scope > .node-tag")
-						?.classList.contains("code") ?? false,
-					node.querySelector(":scope > .sub")?.textContent ?? null,
-				],
-			]),
-		),
-	);
-	assert.deepEqual(cards.triage.slice(0, 2), ["agent", false]);
-	assert.match(cards.triage[2], /^\d+m \d{2}s$|^\d+s$/);
-	assert.deepEqual(cards["dedup-findings"], ["code", true, "Waiting"]);
-	assert.deepEqual(cards.final, ["code", true, "Waiting"]);
-	assert.match(cards.reviewers[0], /^\d+ agents$/);
-	// The tag sits after the name without overlapping it.
+	await browser.waitFor(() => document.querySelector(".code-switch"));
+	const failed = await cards();
+	assert.deepEqual(Object.keys(failed), [
+		"triage",
+		"reviewers",
+		"dedup-findings",
+		"devil-advocate",
+		"report",
+	]);
+	assert.deepEqual(failed["dedup-findings"], [
+		"code",
+		"code",
+		"Failed — verifier ids did not match",
+	]);
+	assert.deepEqual(failed.triage.slice(0, 2), ["agent", "agent"]);
+	assert.match(failed.reviewers[0], /^\d+ agents$/);
 	assert.equal(
+		await browser.evaluate(
+			() => document.querySelector(".code-switch").textContent,
+		),
+		"3 code steps hiddenShow",
+	);
+	// The mark sits at the card's right, clear of the name and inside the card.
+	assert.deepEqual(
 		await browser.evaluate(() => {
 			const node = document.querySelector('.node[data-stage="triage"]');
-			const name = node.querySelector(".node-name").getBoundingClientRect();
-			const tag = node.querySelector(".node-tag rect").getBoundingClientRect();
-			return tag.left > name.right;
+			const box = (selector) =>
+				node.querySelector(selector).getBoundingClientRect();
+			const card = box(".outline"),
+				name = box(".node-name"),
+				icon = box(".node-kind .kind-icon"),
+				label = box(".node-kind text");
+			return [icon.left > name.right, label.right <= card.right - 8];
 		}),
-		true,
+		[true, true],
 	);
+	// With no code card in view every card is an agent's: a lone "agent" goes, counts stay.
+	dedup.status = "pending";
+	await browser.open(`${fixture.origin}/?run=${running}`);
+	await browser.waitFor(() => document.querySelectorAll(".node").length === 4);
+	const quiet = await cards();
+	assert.deepEqual(quiet.triage.slice(0, 2), [null, null]);
+	assert.match(quiet.reviewers[0], /^\d+ agents$/);
+	// A hidden stage opened from Jump or a link appears in place while it is selected.
+	await browser.open(`${fixture.origin}/?run=${running}&stage=final`);
+	await browser.waitFor(() =>
+		document.querySelector('.node[data-stage="final"]'),
+	);
+	assert.deepEqual((await cards()).final, ["code", "code", "Waiting"]);
 });
