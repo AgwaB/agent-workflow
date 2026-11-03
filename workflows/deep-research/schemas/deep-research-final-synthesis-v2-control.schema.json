@@ -133,6 +133,40 @@
           "type": "array",
           "items": { "type": "string" },
           "maxItems": 12
+        },
+        "translations": {
+          "type": "object",
+          "properties": {
+            "claims": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "text"],
+                "properties": {
+                  "id": { "type": "string", "minLength": 1, "maxLength": 120 },
+                  "text": { "type": "string", "minLength": 1, "maxLength": 2000 },
+                  "explanation": { "type": "string", "minLength": 1, "maxLength": 2000 }
+                },
+                "additionalProperties": true
+              },
+              "maxItems": 96
+            },
+            "factSlots": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "area"],
+                "properties": {
+                  "id": { "type": "string", "minLength": 1, "maxLength": 120 },
+                  "area": { "type": "string", "minLength": 1, "maxLength": 400 },
+                  "whyItMatters": { "type": "string", "minLength": 1, "maxLength": 2000 }
+                },
+                "additionalProperties": true
+              },
+              "maxItems": 64
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

@@ -576,6 +576,15 @@ function modernDecisionValid(item) {
 	);
 }
 
+/** 2026-11-03: the container must have its shape; single entries are checked when applied. */
+function translationsValid(value) {
+	return (
+		exactKeys(value, ["claims", "factSlots"]) &&
+		(!hasOwn(value, "claims") || boundedArray(value.claims, 96, isRecord)) &&
+		(!hasOwn(value, "factSlots") || boundedArray(value.factSlots, 64, isRecord))
+	);
+}
+
 /** 2026-11-01: v2 declares its packet intake; v1 and older v2 outputs carry none. */
 function inputIntegrityValid(control) {
 	if (!hasOwn(control, "inputIntegrity")) return true;
@@ -606,6 +615,7 @@ function validModernFinalAudit(control) {
 		"parentDecisionNotes",
 		"notableUnsupportedClaimIds",
 		"contestedClaimIds",
+		"translations",
 	];
 	const modernSchema =
 		control?.schema === "deep-research-final-synthesis-v1" ||
@@ -629,7 +639,9 @@ function validModernFinalAudit(control) {
 			(!hasOwn(synthesis, "notableUnsupportedClaimIds") ||
 				boundedStringArray(synthesis.notableUnsupportedClaimIds, 12)) &&
 			(!hasOwn(synthesis, "contestedClaimIds") ||
-				boundedStringArray(synthesis.contestedClaimIds, 12)),
+				boundedStringArray(synthesis.contestedClaimIds, 12)) &&
+			(!hasOwn(synthesis, "translations") ||
+				translationsValid(synthesis.translations)),
 	);
 }
 
@@ -1442,6 +1454,59 @@ function coverageSummaryFromPacket(packet, fallback = {}) {
 	};
 }
 
+function translatedText(value, maxLength) {
+	if (typeof value !== "string") return undefined;
+	const text = cleanText(value);
+	return text && [...text].length <= maxLength ? text : undefined;
+}
+
+/**
+ * 2026-11-03 (owner decision): synthesis.translations puts the audit text the reader also sees —
+ * claim text and support, lead text, fact-slot area and impact — into the task's language. It is
+ * attached beside the original (readerText, readerExplanation, readerArea, readerImpact); section
+ * titles, labels, statuses, quotes and sources stay as they are, and the audit keeps the original
+ * rows. An entry with an unknown or repeated id or an empty or oversized text is ignored, so the
+ * original shows.
+ */
+function readerTranslations(synthesis, claimIds, slotIds) {
+	const claims = new Map();
+	const factSlots = new Map();
+	const ignored = [];
+	for (const row of asArray(synthesis?.translations?.claims)) {
+		const id = claimIdOf(row);
+		const text = translatedText(row?.text, 2000);
+		if (!claimIds.has(id) || !text || claims.has(id)) {
+			ignored.push(id || "(no id)");
+			continue;
+		}
+		claims.set(id, {
+			readerText: text,
+			readerExplanation: translatedText(row?.explanation, 2000),
+		});
+	}
+	for (const row of asArray(synthesis?.translations?.factSlots)) {
+		const id = cleanText(row?.id);
+		const area = translatedText(row?.area, 400);
+		if (!slotIds.has(id) || !area || factSlots.has(id)) {
+			ignored.push(id || "(no id)");
+			continue;
+		}
+		factSlots.set(id, {
+			readerArea: area,
+			readerImpact: translatedText(row?.whyItMatters, 2000),
+		});
+	}
+	return { claims, factSlots, ignored };
+}
+
+function withTranslation(item, translation) {
+	if (!translation) return item;
+	const fields = Object.fromEntries(
+		Object.entries(translation).filter(([, value]) => value !== undefined),
+	);
+	return { ...item, ...fields };
+}
+
 function composeResearchReport(control, packetSource) {
 	const packet = packetOf(packetSource);
 	const legacyReport = control?.finalReport ?? {};
@@ -1551,14 +1616,23 @@ function composeResearchReport(control, packetSource) {
 	const derivedContested = ledger
 		.filter((row) => normalizeClaimStatus(row?.status) === "conflicting")
 		.map(claimToFinding);
+	const translations = readerTranslations(
+		synthesis,
+		referenceIds,
+		new Set(asArray(packet.factSlotCoverage).map((slot) => cleanText(slot?.slotId))),
+	);
+	const translateClaims = (rows) =>
+		rows.map((row) => withTranslation(row, translations.claims.get(claimIdOf(row))));
 
 	return {
 		report: {
 			summary: synthesis.bottomLine ?? control?.digest,
 			researchMetadata: packet.researchMetadataSeed ?? {},
 			coverageSummary: coverageSummaryFromPacket(packet, {}),
-			factSlotCoverage: asArray(packet.factSlotCoverage),
-			mainFindings: keyFindingRows.map(claimToFinding),
+			factSlotCoverage: asArray(packet.factSlotCoverage).map((slot) =>
+				withTranslation(slot, translations.factSlots.get(cleanText(slot?.slotId))),
+			),
+			mainFindings: translateClaims(keyFindingRows.map(claimToFinding)),
 			comparisonRows: mapOverlayItems(
 				synthesis.comparisonRows,
 				"comparison snapshot",
@@ -1569,19 +1643,27 @@ function composeResearchReport(control, packetSource) {
 			),
 			actionPlan: mapOverlayItems(synthesis.actionPlan, "action plan"),
 			caveatedFindings: caveatNotes,
-			contestedAreas: optionalContested.length
-				? optionalContested
-				: derivedContested,
-			notableUnsupportedClaims: optionalUnsupported.length
-				? optionalUnsupported
-				: derivedUnsupported,
-			unverifiedButRelevant: asArray(packet.preservedClaims),
+			contestedAreas: translateClaims(
+				optionalContested.length ? optionalContested : derivedContested,
+			),
+			notableUnsupportedClaims: translateClaims(
+				optionalUnsupported.length ? optionalUnsupported : derivedUnsupported,
+			),
+			unverifiedButRelevant: translateClaims(asArray(packet.preservedClaims)),
 			parentDecisionNotes: mapOverlayItems(
 				synthesis.parentDecisionNotes,
 				"decision notes",
 			),
 			researchScopeCoverage: asArray(packet.researchScopeCoverage),
 			remainingGaps: gapRows,
+			...(hasOwn(synthesis, "translations")
+				? {
+						readerTranslations: {
+							applied: translations.claims.size + translations.factSlots.size,
+							ignored: translations.ignored,
+						},
+					}
+				: {}),
 		},
 		packet,
 		ledger,
@@ -1622,12 +1704,22 @@ function renderEvidenceStrength(report) {
 	const slots = sortedFactSlots(report);
 	const rows = slots.map((slot) => {
 		const area = escapeTableCell(
-			slot.label ?? slot.slotId ?? slot.bestValue ?? "Evidence area",
+			slot.readerArea ??
+				slot.label ??
+				slot.slotId ??
+				slot.bestValue ??
+				"Evidence area",
 		);
 		const status = escapeTableCell(evidenceStatusOf(slot));
-		const evidence = escapeTableCell(referenceList(slot, 2) || "—");
+		// referenceList is already Markdown (escaped host, <url>, `ref`): only the cell's pipes are
+		// escaped (2026-11-03: escaping it again printed \[host\](\<url\>) instead of a link).
+		const evidence = referenceList(slot, 2).replace(/\|/g, "\\|") || "—";
 		const impact = escapeTableCell(
-			slot.parentImpact ?? slot.whyItMatters ?? slot.notes ?? "",
+			slot.readerImpact ??
+				slot.parentImpact ??
+				slot.whyItMatters ??
+				slot.notes ??
+				"",
 		);
 		return `| ${area || "Evidence area"} | ${status || "—"} | ${evidence} | ${impact || "—"} |`;
 	});
@@ -1647,7 +1739,7 @@ function mainFindingEntries(report) {
 		item,
 		text: itemText(
 			item,
-			["finding", "summary", "bestValue", "claim"],
+			["readerText", "finding", "summary", "bestValue", "claim"],
 			stringifyItem(item),
 		),
 	}));
@@ -1725,6 +1817,7 @@ function renderMainFindings(report) {
 			for (const citation of citations) out.push(`- ${citation}`);
 		}
 		const explanation = itemText(finding, [
+			"readerExplanation",
 			"rationale",
 			"explanation",
 			"details",
@@ -1788,6 +1881,7 @@ function caveatText(item) {
 	return itemText(
 		item,
 		[
+			"readerText",
 			"gap",
 			"finding",
 			"claim",
@@ -1844,7 +1938,7 @@ function selectCaveats(report) {
 // helpers return already-escaped Markdown and must not be fed through this path.
 function completionItemText(item) {
 	if (typeof item === "string") return item;
-	for (const key of ["recommendation", "action", "step", "note", "finding", "summary", "bestValue", "claim"]) {
+	for (const key of ["recommendation", "action", "step", "note", "readerText", "finding", "summary", "bestValue", "claim"]) {
 		if (typeof item?.[key] === "string" && item[key].trim()) return item[key];
 	}
 	return "";
@@ -2474,12 +2568,21 @@ function renderAuditMarkdown(control, packetSource, rendered, quoteCheck = null)
 		`- Executive word count: ${countWords(rendered.markdown)}.`,
 		`- Rendered source URLs: ${rendered.sourceIndex.length}/${rendered.allSourceIndex.length}.`,
 		`- Render warnings: ${rendered.renderWarnings.length}.`,
+		...readerTranslationDiagnostics(rendered.report.readerTranslations),
 		"",
 	);
 	return out
 		.join("\n")
 		.replace(/\n{3,}/g, "\n\n")
 		.trim();
+}
+
+function readerTranslationDiagnostics(stats) {
+	if (!stats) return [];
+	const ignored = uniqueStrings(stats.ignored, 8);
+	return [
+		`- Reader translations: ${stats.applied} applied, ${stats.ignored.length} ignored${ignored.length ? ` (${ignored.map((id) => escapeMarkdownText(id)).join(", ")})` : ""}.`,
+	];
 }
 
 function blockedSourceResult(reason) {

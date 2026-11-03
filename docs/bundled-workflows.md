@@ -200,6 +200,17 @@ After stage 2 (2026-11-01):
   scanned table cannot be checked as text: prefer a text source, else name the figure/table in
   `excerptLocation`, which the audit's "Quote check" table shows next to the quote. The verify prompt
   stays under its 6,000-character ceiling (5,811).
+- **M24.** deep-research reader translations (owner decision 2026-11-03). Reports read in the task's
+  language except the repeated frame. `final-audit` (both specs) may add `synthesis.translations`:
+  `claims[{id, text, explanation?}]` for the claims and leads the report shows and
+  `factSlots[{id, area, whyItMatters?}]` for the evidence-strength rows, omitted when the text is
+  already in the task's language. No new stage or model call: the same final-audit output carries
+  them. `render-executive.mjs` shows them in Main findings, the Evidence strength table and the
+  Unsupported/Contested/Unverified-lead lines; section titles, field labels, statuses, quotes and
+  sources stay as rendered, and `audit.md` keeps the original claims plus a "Reader translations:
+  N applied, M ignored" line. An entry with an unknown or repeated id or empty text is ignored (the
+  original shows); a malformed container fails the schema and the renderer. The same change stops
+  the Evidence strength table from escaping its source links a second time.
 
 ## Worker prompt rendering (core)
 

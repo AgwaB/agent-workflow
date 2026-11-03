@@ -281,3 +281,142 @@ test("both research prompts separate plain reader notes from audit bookkeeping",
 		);
 	}
 });
+
+// 2026-11-03 (owner decision): the claim, lead and fact-slot text the reader sees follows the task's
+// language through synthesis.translations; titles, labels, statuses, quotes and sources stay as they
+// are and the audit keeps the original rows.
+function withTranslations(sources, translations) {
+	sources["final-audit"].synthesis.translations = translations;
+	return sources;
+}
+
+test("translations put claim, lead and fact-slot text into the task's language; the rest stays", async () => {
+	const sources = withTranslations(await inputs(), {
+		claims: [
+			{
+				id: "claim-001",
+				text: "리전-01은 캐시 항목에 21초 신선도 창을 적용한다.",
+				explanation: "리전-01 참조 문서가 이 값을 따로 명시한다.",
+			},
+			{
+				id: "lead-001",
+				text: "리전-01은 선택형 캐시 무효화를 제공할 수 있다.",
+			},
+		],
+		factSlots: [
+			{
+				id: "slot-001",
+				area: "지역 정책 차원 01",
+				whyItMatters: "지역 만료 정책을 일반화하지 않는다.",
+			},
+		],
+	});
+	assert.equal(validateJsonSchema(sources["final-audit"], schema).valid, true);
+	const original = (
+		await finalPacket({ sources: structuredClone(fixture.sources) })
+	).packet;
+	const claim = original.claimVerdictLedger.find(
+		(row) => row.id === "claim-001",
+	);
+	const result = await render({ sources });
+	assert.equal(result.status, "passed", JSON.stringify(result.gates));
+	const report = result.reportMarkdown;
+	assert.match(
+		report,
+		/### 1\. 리전-01은 캐시 항목에 21초 신선도 창을 적용한다\./,
+	);
+	assert.match(report, /\n리전-01 참조 문서가 이 값을 따로 명시한다\./);
+	assert.match(
+		report,
+		/\*\*Unverified lead:\*\* 리전-01은 선택형 캐시 무효화를/,
+	);
+	assert.match(
+		report,
+		/\| 지역 정책 차원 01 \| [^|]+ \| .+ \| 지역 만료 정책을 일반화하지 않는다\. \|/,
+	);
+	// Labels and statuses stay; untranslated rows keep their original text.
+	assert.match(
+		report,
+		/## Main findings[\s\S]*Evidence status: \*\*verified\*\*/,
+	);
+	assert.match(report, /\*\*Unverified lead:\*\* Region-02 may expose/);
+	assert.match(report, /\| Regional policy dimension 02 \|/);
+	// The audit keeps the original claim and reports what was applied.
+	assert.ok(result.auditMarkdown.includes(claim.claim.slice(0, 40)));
+	assert.doesNotMatch(result.auditMarkdown, /리전-01은 캐시/);
+	assert.match(
+		result.auditMarkdown,
+		/- Reader translations: 3 applied, 0 ignored\./,
+	);
+});
+
+test("a translation with an unknown or repeated id or empty text is ignored, not a failure", async () => {
+	const sources = withTranslations(await inputs(), {
+		claims: [
+			{ id: "claim-001", text: "번역된 주장." },
+			{ id: "claim-001", text: "두 번째 번역." },
+			{ id: "claim-999", text: "없는 주장." },
+			{ id: "lead-002", text: "   " },
+		],
+		factSlots: [{ id: "slot-999", area: "없는 영역" }],
+	});
+	assert.equal(validateJsonSchema(sources["final-audit"], schema).valid, true);
+	const result = await render({ sources });
+	assert.equal(result.status, "passed", JSON.stringify(result.gates));
+	assert.match(result.reportMarkdown, /### 1\. 번역된 주장\./);
+	assert.doesNotMatch(
+		result.reportMarkdown,
+		/두 번째 번역|없는 주장|없는 영역/,
+	);
+	assert.match(
+		result.reportMarkdown,
+		/\*\*Unverified lead:\*\* Region-02 may expose/,
+	);
+	assert.match(
+		result.auditMarkdown,
+		/- Reader translations: 1 applied, 4 ignored \(claim-001, claim-999, lead-002, slot-999\)\./,
+	);
+});
+
+test("a malformed translations container is rejected by schema and renderer", async () => {
+	for (const translations of [[], { claims: "x" }, { notes: [] }]) {
+		const sources = withTranslations(await inputs(), translations);
+		assert.equal(
+			validateJsonSchema(sources["final-audit"], schema).valid,
+			false,
+		);
+		const result = await render({ sources });
+		assert.equal(result.status, "blocked");
+	}
+});
+
+test("evidence-strength sources are links, not escaped Markdown", async () => {
+	const result = await render({ sources: await inputs() });
+	assert.equal(result.status, "passed");
+	const row = result.reportMarkdown
+		.split("\n")
+		.find((line) => line.startsWith("| Regional policy dimension 01 |"));
+	assert.match(
+		row,
+		/\[service-01\.example\.invalid\]\(<https:\/\/service-01\.example\.invalid\/[^>]+>\)/,
+	);
+	assert.doesNotMatch(row, /\\\[|\\</);
+});
+
+test("both research prompts ask for faithful translations of the shown audit text", async () => {
+	for (const name of ["spec.json", "tiered-verification.spec.json"]) {
+		const spec = JSON.parse(
+			await readFile(
+				new URL(`../../workflows/deep-research/${name}`, import.meta.url),
+				"utf8",
+			),
+		);
+		const prompt = spec.artifactGraph.stages.find(
+			(stage) => stage.id === "final-audit",
+		).prompt;
+		assert.match(prompt, /Optional synthesis\.translations/);
+		assert.match(prompt, /do not strengthen, merge or re-judge claims/);
+		assert.match(prompt, /Do not translate quotes, source titles, URLs or ids/);
+		assert.match(prompt, /"translations":\{"claims":\[\{"id":"claim-001"/);
+	}
+});
