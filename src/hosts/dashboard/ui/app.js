@@ -3495,10 +3495,15 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 		value.replace(/\\([\\`*_{}\[\]()#+\-.!|<>~])/g, (_, c) =>
 			String.fromCharCode(0xe000 + c.charCodeAt(0)),
 		);
+	// Report renderers write &, < and > as entities (2026-11-03: "cd sample &amp;&amp; npm test"
+	// showed literally); they become plain characters again — still text nodes, never markup.
+	const entities = { amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" };
 	const unpark = (value) =>
-		value.replace(/[\ue000-\ue07f]/g, (c) =>
-			String.fromCharCode(c.charCodeAt(0) - 0xe000),
-		);
+		value
+			.replace(/[\ue000-\ue07f]/g, (c) =>
+				String.fromCharCode(c.charCodeAt(0) - 0xe000),
+			)
+			.replace(/&(amp|lt|gt|quot|#39);/g, (_, name) => entities[name]);
 	const inline = (raw) => {
 		const value = park(raw);
 		const nodes = [];
@@ -3534,11 +3539,21 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 						? element("span", { class: "md-url" }, address)
 						: null,
 				);
-			} else if (m[4] !== undefined)
+			} else if (m[4] !== undefined) {
+				const bold = unpark(m[4]);
+				// A verdict code in bold (NEEDS_WORK, BLOCKED) reads in sentence case; the code is the title.
+				const verdict =
+					/^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/.test(bold) ||
+					/^(?:BLOCKED|READY|COMPLETE|INCOMPLETE|UNKNOWN|PASSED|FAILED)$/.test(
+						bold,
+					);
 				nodes.push(
-					statusBadge(unpark(m[4])) ?? element("strong", {}, unpark(m[4])),
+					statusBadge(bold) ??
+						(verdict
+							? element("strong", { title: bold }, verdictWord(bold))
+							: element("strong", {}, bold)),
 				);
-			else if (m[5] !== undefined)
+			} else if (m[5] !== undefined)
 				nodes.push(element("code", {}, unpark(m[5])));
 			else if (m[6] !== undefined) nodes.push(element("em", {}, unpark(m[6])));
 			else

@@ -466,6 +466,13 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		/not a link \(https:\/\/example\.invalid\)/,
 	);
 	assert.match(await text("#report-content"), /\[image: not an image\]/);
+	// Entities written by report renderers read as characters (still text, not markup).
+	assert.match(await text("#report-content"), /Run cd sample && npm test <ok>/);
+	// A bold verdict code reads in sentence case (the code is the title); other capitals stay.
+	assert.match(
+		await text("#report-content"),
+		/Verdict: Needs work; API stays\./,
+	);
 	assert.equal(
 		await browser.evaluate(() => document.querySelector(".report-toc")),
 		null,
