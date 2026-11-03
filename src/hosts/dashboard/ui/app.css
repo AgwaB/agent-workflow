@@ -1338,6 +1338,26 @@ dialog.report footer .report-page {
 .md-code + .md-code {
 	margin-top: -4px;
 }
+/* Code colours: four quiet hues, readable in both themes (no violet, no saturated fills). */
+.md-code :is(.tok-k, .tok-p) {
+	color: light-dark(#2b5d8f, #8ab0dc);
+}
+.md-code :is(.tok-s, .tok-r) {
+	color: light-dark(#3d6b2e, #a5c592);
+}
+.md-code .tok-n {
+	color: light-dark(#9a4f1d, #d99d77);
+}
+.md-code :is(.tok-c, .tok-hunk) {
+	color: var(--faint);
+	font-style: italic;
+}
+.md-code .tok-add {
+	color: light-dark(#3d6b2e, #a5c592);
+}
+.md-code .tok-del {
+	color: light-dark(#a33a2b, #e08a7e);
+}
 /* An agent of a many-agent stage: back to the list, and to its neighbours. */
 .item-nav {
 	display: flex;

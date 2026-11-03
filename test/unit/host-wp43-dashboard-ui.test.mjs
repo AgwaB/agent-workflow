@@ -473,19 +473,32 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		await text("#report-content"),
 		/Verdict: Needs work; API stays\./,
 	);
-	// 2026-11-03: fenced code shows verbatim (no Markdown inside, whitespace kept), and a row written
+	// 2026-11-03: fenced code shows verbatim (no Markdown inside, whitespace kept) with IDE-style
+	// token colours, and a row written
 	// as one flat JSON object reads as its main text and fields.
 	assert.deepEqual(
 		await browser.evaluate(() => ({
 			code: [...document.querySelectorAll("#report-content pre.md-code")].map(
 				(node) => [node.dataset.lang ?? null, node.textContent],
 			),
+			// Code colours are classed text spans, never markup.
+			tokens: [
+				...document.querySelectorAll(
+					"#report-content pre.md-code [class^=tok-]",
+				),
+			].map((node) => [node.className.slice(4), node.textContent]),
 			json: [...document.querySelectorAll("#report-content li")].find((node) =>
 				node.textContent.startsWith("Ship it"),
 			)?.textContent,
 		})),
 		{
-			code: [["ts", "\tif (a **b**) return;\n  <x>"]],
+			code: [["ts", '\tif (a **b**) return "ok"; // 2\n  <x>']],
+			tokens: [
+				["k", "if"],
+				["k", "return"],
+				["s", '"ok"'],
+				["c", "// 2"],
+			],
 			json: "Ship it — owner: release; blocking: true",
 		},
 	);

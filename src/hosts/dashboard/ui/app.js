@@ -3565,6 +3565,125 @@ const VERDICT_CODES =
 function readableCodes(value) {
 	return value.replace(VERDICT_CODES, (code) => verdictWord(code));
 }
+/**
+ * Code colouring for fenced blocks (2026-11-03, owner: "like an IDE"). The reference UIs use Shiki
+ * tokens rendered as text spans (opencode session-ui markdown.worker.ts codeToTokens); the
+ * dashboard ships no dependencies, so this is a small tokenizer in the same safe shape — text
+ * nodes in classed spans, never markup. It knows comments, strings, numbers, keywords, JSON/YAML
+ * keys, JS regex literals and diff lines for the common languages; others stay plain.
+ */
+const CODE_KEYWORDS = {
+	js: "as async await break case catch class const continue debugger default delete do else enum export extends false finally for from function get if implements import in instanceof interface let new null of private protected public readonly return satisfies set static super switch this throw true try type typeof undefined var void while with yield",
+	py: "and as assert async await break class continue def del elif else except False finally for from global if import in is lambda None nonlocal not or pass raise return True try while with yield",
+	go: "break case chan const continue default defer else fallthrough false for func go goto if import interface map nil package range return select struct switch true type var",
+	rs: "as async await break const continue crate else enum extern false fn for if impl in let loop match mod move mut pub ref return self Self static struct super trait true type unsafe use where while",
+	sh: "case do done elif else esac export fi for function if in local return set then unset until while",
+	json: "true false null",
+	yaml: "true false null yes no",
+};
+const CODE_LANGS = {
+	js: "js",
+	jsx: "js",
+	mjs: "js",
+	cjs: "js",
+	ts: "js",
+	tsx: "js",
+	javascript: "js",
+	typescript: "js",
+	json: "json",
+	jsonc: "json",
+	py: "py",
+	python: "py",
+	go: "go",
+	rs: "rs",
+	rust: "rs",
+	sh: "sh",
+	bash: "sh",
+	zsh: "sh",
+	shell: "sh",
+	console: "sh",
+	yaml: "yaml",
+	yml: "yaml",
+	diff: "diff",
+	patch: "diff",
+};
+function highlightCode(code, language) {
+	const lang = CODE_LANGS[(language || "").toLowerCase()];
+	if (!lang || code.length > 50_000) return [code];
+	if (lang === "diff")
+		return code.split(/(?<=\n)/).map((line) => {
+			const kind = /^@@/.test(line)
+				? "hunk"
+				: /^\+(?!\+\+)/.test(line)
+					? "add"
+					: /^-(?!--)/.test(line)
+						? "del"
+						: null;
+			return kind ? element("span", { class: `tok-${kind}` }, line) : line;
+		});
+	const keywords = new Set(CODE_KEYWORDS[lang].split(" "));
+	const hash = ["py", "sh", "yaml"].includes(lang);
+	const slashes = ["js", "go", "rs", "json"].includes(lang);
+	const pattern = new RegExp(
+		[
+			slashes ? String.raw`(?<c>\/\/[^\n]*|\/\*[\s\S]*?\*\/)` : null,
+			hash ? String.raw`(?<h>#[^\n]*)` : null,
+			lang === "py" ? String.raw`(?<t>"""[\s\S]*?"""|'''[\s\S]*?''')` : null,
+			String.raw`(?<s>"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'${lang === "js" || lang === "go" ? "|\`(?:\\\\.|[^\`\\\\])*\`" : ""})`,
+			lang === "js"
+				? String.raw`(?<r>\/(?![*/])(?:\\.|\[(?:\\.|[^\]\\\n])*\]|[^/\\\n])+\/[dgimsuyv]*)`
+				: null,
+			String.raw`(?<n>\b(?:0[xob][\da-f_]+|\d[\d_]*(?:\.\d+)?(?:e[+-]?\d+)?n?)\b)`,
+			String.raw`(?<w>[A-Za-z_$][\w$]*)`,
+		]
+			.filter(Boolean)
+			.join("|"),
+		"gi",
+	);
+	const out = [];
+	let last = 0;
+	const span = (kind, text) => element("span", { class: `tok-${kind}` }, text);
+	for (const m of code.matchAll(pattern)) {
+		const g = m.groups;
+		let node = null;
+		if (g.c || g.h) node = span("c", m[0]);
+		else if (g.t) node = span("s", m[0]);
+		else if (g.s)
+			// A JSON or YAML key (a string followed by ":") reads as a key, not a value.
+			node = span(
+				["json", "yaml"].includes(lang) &&
+					/^\s*:/.test(code.slice(m.index + m[0].length))
+					? "p"
+					: "s",
+				m[0],
+			);
+		else if (g.r) {
+			// "/" starts a regex only where a value may start (after "(", "=", ",", return, …).
+			const before = code.slice(0, m.index).trimEnd();
+			if (
+				!/(?:^|[(,=:[!&|?{};+\-*%<>~^]|\b(?:return|typeof|case|in|of))$/.test(
+					before,
+				)
+			)
+				continue;
+			node = span("r", m[0]);
+		} else if (g.n) node = span("n", m[0]);
+		else if (g.w) {
+			if (keywords.has(m[0])) node = span("k", m[0]);
+			else if (
+				lang === "yaml" &&
+				/^\s*:/.test(code.slice(m.index + m[0].length))
+			)
+				node = span("p", m[0]);
+			else continue;
+		}
+		if (m.index > last) out.push(code.slice(last, m.index));
+		out.push(node);
+		last = m.index + m[0].length;
+	}
+	if (last < code.length) out.push(code.slice(last));
+	return out;
+}
 /** Keys that name a report row's main text (same order as the impact-review report helper). */
 const ROW_MAIN_KEYS = [
 	"text",
@@ -3713,7 +3832,7 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 			element(
 				"pre",
 				{ class: "md-code", "data-lang": fence.lang || null },
-				element("code", {}, fence.lines.join("\n")),
+				element("code", {}, highlightCode(fence.lines.join("\n"), fence.lang)),
 			),
 		);
 		fence = null;
