@@ -17,7 +17,8 @@
 import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createWriteStream, type WriteStream } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ApprovalDecision } from "../../sdk/approval.js";
 import { requireReleased } from "../../sdk/authority.js";
@@ -92,6 +93,8 @@ interface Run {
 	readonly writeRaw: (line: string) => void;
 	/** The engine-owned agent home this attempt runs in; undefined when it inherits the user's. */
 	readonly agentHome: string | undefined;
+	/** A per-attempt home (preset `prepareAttemptHome`), removed when the agent exits. */
+	readonly attemptHome: string | undefined;
 	peer: AcpPeer | undefined;
 	sessionId: string | undefined;
 	cancelRequested: boolean;
@@ -659,6 +662,12 @@ export function createAcpExecutor(options: {
 				req.isolation.inherit || preset.isolatedEnv === undefined
 					? null
 					: config.agentHome,
+			attemptHome:
+				req.isolation.inherit ||
+				preset.isolatedEnv === undefined ||
+				preset.prepareAttemptHome === undefined
+					? null
+					: "per-attempt temporary home",
 		};
 		const rawStream: WriteStream = createWriteStream(rawPath, { mode: 0o600 });
 		const stderrStream: WriteStream = createWriteStream(stderrPath, {
@@ -667,13 +676,24 @@ export function createAcpExecutor(options: {
 		rawStream.on("error", () => {});
 		stderrStream.on("error", () => {});
 
-		const isolatedEnv =
-			req.isolation.inherit || preset.isolatedEnv === undefined
-				? {}
-				: preset.isolatedEnv(config.agentHome);
-		const isolated = Object.keys(isolatedEnv).length > 0;
-		if (isolated)
+		const isolating =
+			!req.isolation.inherit && preset.isolatedEnv !== undefined;
+		if (isolating)
 			await mkdir(config.agentHome, { recursive: true, mode: 0o700 });
+		// 2026-11-03: a fresh home per attempt (private temp dir) when the preset asks for one.
+		let attemptHome: string | undefined;
+		if (isolating && preset.prepareAttemptHome !== undefined) {
+			attemptHome = await mkdtemp(join(tmpdir(), `aw-${preset.id}-home-`));
+			try {
+				await preset.prepareAttemptHome(config.agentHome, attemptHome);
+			} catch (error) {
+				await rm(attemptHome, { recursive: true, force: true });
+				throw error;
+			}
+		}
+		const runHome = attemptHome ?? config.agentHome;
+		const isolatedEnv = isolating ? preset.isolatedEnv!(runHome) : {};
+		const isolated = Object.keys(isolatedEnv).length > 0;
 		// An isolated worker uses the login recorded for its home: inherited variables that would
 		// switch the account, project or harness are dropped (names in acp-invocation.json).
 		const inherited: NodeJS.ProcessEnv = { ...process.env };
@@ -726,7 +746,8 @@ export function createAcpExecutor(options: {
 						}),
 			}),
 			writeRaw: (line) => rawStream.write(`${redact(line)}\n`),
-			agentHome: isolated ? config.agentHome : undefined,
+			agentHome: isolated ? runHome : undefined,
+			attemptHome,
 			peer: undefined,
 			sessionId: undefined,
 			cancelRequested: false,
@@ -784,6 +805,10 @@ export function createAcpExecutor(options: {
 				});
 				onStderr(stderrRedact.flush());
 				stderrStream.end();
+				if (run.attemptHome !== undefined)
+					await rm(run.attemptHome, { recursive: true, force: true }).catch(
+						() => {},
+					);
 				for (const [requestId] of run.pending) answer(run, requestId, "deny");
 				// Calls still held (the prompt failed or was cancelled) close without an output.
 				for (const event of run.normalizer.release(new Map())) push(run, event);
@@ -906,6 +931,9 @@ export function createAcpExecutor(options: {
 				installed: true,
 				cliVersion,
 				auth: recorded === undefined ? "unknown" : recorded ? "ok" : "missing",
+				...(preset.mcpOutputLimitChars === undefined
+					? {}
+					: { mcpOutputLimitChars: preset.mcpOutputLimitChars }),
 				notes: [
 					preset.id === "antigravity"
 						? `${preset.label} ${cliVersion}: built-in; live tier passed on 1.4.5 (docs/executors/acp.md)`

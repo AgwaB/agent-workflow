@@ -16,7 +16,14 @@
  * - Inherited environment that would switch the account, project or harness (Orca
  *   `antigravity-acp-environment.ts:10-28`).
  */
-import { access, readFile, realpath, stat } from "node:fs/promises";
+import {
+	access,
+	copyFile,
+	mkdir,
+	readFile,
+	realpath,
+	stat,
+} from "node:fs/promises";
 import { delimiter, dirname, isAbsolute, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { FailureClass } from "../../sdk/errors.js";
@@ -335,6 +342,21 @@ export const ANTIGRAVITY_TOOL_MAPPING: ToolMapping = {
  * unattended worker). With no built-in left, every known tool is disabled instead (an empty
  * allowlist's meaning is unverified). `_meta.agy` is logged as legacy; `_meta.antigravity` is used.
  */
+/**
+ * Per-session MCP output bound sent as `_meta.antigravity.mcpMaxOutputBytes` (ACP server ≥ 1.4.0,
+ * changelog). Without it 1.4.5 saves an on-demand MCP result over 4 KB to a step file the model must
+ * open (10 KB from 1.4.7). Live 2026-11-03 (gemini-3.8-flash, one prompt): with 131,072 a
+ * 30,000-char result reached the model inline (transcript MCP_TOOL step of 30,078 chars, no "saved
+ * to"). The flash deep-research run before it lost final-audit to 8,192-char cut reads.
+ */
+export const ANTIGRAVITY_MCP_MAX_OUTPUT_BYTES = 131_072;
+/**
+ * The MCP output limit the probe declares (chars): the byte bound / 4 (UTF-8 worst case), so every
+ * workflow_artifact response the server cuts to this size stays inline.
+ */
+export const ANTIGRAVITY_MCP_OUTPUT_LIMIT_CHARS =
+	ANTIGRAVITY_MCP_MAX_OUTPUT_BYTES / 4;
+
 export function antigravitySessionMeta(req: {
 	readonly tools: readonly string[];
 	readonly readOnly: boolean;
@@ -347,9 +369,36 @@ export function antigravitySessionMeta(req: {
 			if (!(req.readOnly && (name === "edit_file" || name === "create_file")))
 				enabled.add(name);
 	}
+	const mcpMaxOutputBytes = ANTIGRAVITY_MCP_MAX_OUTPUT_BYTES;
 	return enabled.size > 0
-		? { antigravity: { enabledTools: [...enabled].sort() } }
-		: { antigravity: { disabledTools: [...ANTIGRAVITY_FILTER_TOOLS] } };
+		? { antigravity: { enabledTools: [...enabled].sort(), mcpMaxOutputBytes } }
+		: {
+				antigravity: {
+					disabledTools: [...ANTIGRAVITY_FILTER_TOOLS],
+					mcpMaxOutputBytes,
+				},
+			};
+}
+
+/**
+ * A fresh home for one attempt (2026-11-03): the login home's `antigravity-acp/settings.json` (the
+ * auth method; the credentials are the server's own, not in the home) and nothing else, so a worker
+ * cannot list or open other sessions' conversations and step files. Live no-model check: a home
+ * holding only that file opens a session in 3 s with the same login.
+ */
+export async function prepareAntigravityAttemptHome(
+	loginHome: string,
+	attemptHome: string,
+): Promise<void> {
+	const dir = join(attemptHome, "antigravity-acp");
+	await mkdir(dir, { recursive: true, mode: 0o700 });
+	await copyFile(
+		join(loginHome, "antigravity-acp", "settings.json"),
+		join(dir, "settings.json"),
+	).catch((error: NodeJS.ErrnoException) => {
+		// No login recorded: the attempt fails at session/new as it would in the login home.
+		if (error.code !== "ENOENT") throw error;
+	});
 }
 
 /** Inherited variables that would switch the account, project or harness of an isolated worker. */

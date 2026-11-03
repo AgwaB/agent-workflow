@@ -9423,7 +9423,9 @@ test("spec-less direct dynamic run records provenance and launches planner", asy
 		);
 		assert.match(
 			String(launched[0].systemPrompt),
-			/Use web_search\/fetch_content results and report evidence gaps/,
+			// 2026-11-03: the hint names the web tools positively (was "Full cached search-content
+			// hydration is unavailable here. Use web_search/fetch_content results …").
+			/Web tools are enabled for this task: use web_search to find sources and fetch_content to read a page\. Report evidence gaps/,
 		);
 		const materializedSpec = JSON.parse(
 			readFileSync(join(cwd, run.provenance.runtimeBundle), "utf8"),

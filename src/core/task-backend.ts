@@ -1371,6 +1371,18 @@ function launchHasArtifactTool(
 	);
 }
 
+/** The web tools of a task, named positively (never "unavailable"); undefined without any. */
+function webToolsHint(enabledTools: readonly string[]): string | undefined {
+	const search = enabledTools.includes("web_search");
+	const fetch = enabledTools.includes("fetch_content");
+	if (!search && !fetch) return undefined;
+	const use = [
+		search ? "web_search to find sources" : undefined,
+		fetch ? "fetch_content to read a page" : undefined,
+	].filter((part): part is string => part !== undefined);
+	return `Web tools are enabled for this task: use ${use.join(" and ")}. Report evidence gaps instead of broad raw document retrieval.`;
+}
+
 function buildSystemPrompt(
 	task: CompiledTask,
 	effectiveLaunchTools: readonly string[] | undefined,
@@ -1436,10 +1448,11 @@ function buildSystemPrompt(
 			? "mcp__* includes matching active MCP tools, not a literal callable name. Discover them through tool_search or codemode; trust, exposure and permission checks still apply."
 			: undefined,
 		// C2/WP10: the workflow_web_* source-card tools are gone; web tools are the CLI's own.
-		!enabledTools.includes("get_search_content") &&
-		(enabledTools.includes("web_search") ||
-			enabledTools.includes("fetch_content"))
-			? "Full cached search-content hydration is unavailable here. Use web_search/fetch_content results and report evidence gaps instead of broad raw document retrieval."
+		// 2026-11-03: the line said "Full cached search-content hydration is unavailable here" (a
+		// pi-web-access detail); on Antigravity 7 of 16 verifiers then reported the web tools as
+		// unavailable and made no web call. It now only says how to use them.
+		!enabledTools.includes("get_search_content")
+			? webToolsHint(enabledTools)
 			: undefined,
 	].filter((line): line is string => typeof line === "string");
 	return [

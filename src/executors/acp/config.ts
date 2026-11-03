@@ -12,14 +12,16 @@ import type { JsonValue } from "../../sdk/json.js";
 import { isUnrestricted } from "../../sdk/permission.js";
 import type { ToolMapping } from "../../sdk/tools.js";
 import {
+	ANTIGRAVITY_MCP_OUTPUT_LIMIT_CHARS,
 	ANTIGRAVITY_TOOL_MAPPING,
 	antigravityAnswerFailure,
+	antigravityInheritedEnvBlocked,
 	antigravityLaunchEnv,
 	antigravityPermissionKind,
 	antigravitySessionMeta,
-	antigravityToolName,
-	antigravityInheritedEnvBlocked,
 	antigravitySummaryKey,
+	antigravityToolName,
+	prepareAntigravityAttemptHome,
 	readAntigravityToolResults,
 } from "./antigravity.js";
 import { ACP_PRESET_IDS, type AcpPresetId } from "./version.js";
@@ -58,6 +60,13 @@ export interface AcpPreset {
 	isolatedEnv?(agentHome: string): Record<string, string>;
 	/** Whether a login is recorded in the agent home (no credential is read); absent: unknown. */
 	authRecorded?(agentHome: string): Promise<boolean>;
+	/**
+	 * Each isolated attempt runs in its own fresh home (a private temp directory, removed when the
+	 * agent exits) prepared from the login home; absent: attempts share the login home.
+	 */
+	prepareAttemptHome?(loginHome: string, attemptHome: string): Promise<void>;
+	/** MCP result size the agent delivers inline (chars), declared by the probe (artifact server pages). */
+	readonly mcpOutputLimitChars?: number;
 	/** Agent-specific `_meta` sent with `session/new` (e.g. which built-in tools are on). */
 	sessionMeta?(req: SubmitRequest): Record<string, unknown>;
 	/** Pi tool names → the agent's tools (pre-launch tool check, B4). */
@@ -207,6 +216,10 @@ const ANTIGRAVITY: AcpPreset = {
 	// in the live check), global MCP servers (`config/mcp_config.json`) and GEMINI.md. Workers get an
 	// engine-owned home with its own one-time login instead (live check 2026-11-02).
 	isolatedEnv: (agentHome) => ({ GEMINI_HOME: agentHome }),
+	// 2026-11-03 live run: workers listed and opened other sessions' conversations and step files in
+	// the shared home; each attempt now gets its own (the shared home keeps only the login).
+	prepareAttemptHome: prepareAntigravityAttemptHome,
+	mcpOutputLimitChars: ANTIGRAVITY_MCP_OUTPUT_LIMIT_CHARS,
 	async authRecorded(agentHome) {
 		// `authenticate` records only the method in settings.json (the credentials are the server's).
 		try {

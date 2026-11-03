@@ -3,7 +3,7 @@
 // conformance scenarios usage_unknown | slow | approval | mcp_tool | fail_*). FAKE_ACP_ATTEMPT (set by the
 // conformance harness through the request env) tags the launch record.
 // Every request it receives (method, params without env values) is appended to FAKE_ACP_LOG.
-import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { callMcpTool } from "../../../../dist/sdk/conformance/index.js";
@@ -22,6 +22,12 @@ log({
 	argv: process.argv.slice(2),
 	attempt: process.env.FAKE_ACP_ATTEMPT ?? null,
 	geminiHome: process.env.GEMINI_HOME ?? null,
+	homeSettings:
+		process.env.GEMINI_HOME === undefined
+			? null
+			: existsSync(
+					join(process.env.GEMINI_HOME, "antigravity-acp", "settings.json"),
+				),
 	blockedPresent: [
 		"GEMINI_API_KEY",
 		"GOOGLE_CLOUD_PROJECT",

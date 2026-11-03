@@ -149,6 +149,18 @@ Unknown keys are refused (`DESCRIPTOR_INVALID`). To try it, register a descripto
   (`config/mcp_config.json`), GEMINI.md and conversation history stay out (`contextIsolation`
   emulated). An attempt with `isolation.inherit` uses the user's home. In the first live check
   (2026-11-02) a user status hook in the shared home denied every tool call.
+- Each isolated attempt runs in its own fresh home (2026-11-03): a private temporary directory
+  (`aw-antigravity-home-*`) holding only a copy of the worker home's `antigravity-acp/settings.json`,
+  removed when the server exits. The worker home keeps only the login. In the flash deep-research
+  run before this, workers listed and opened other sessions' `conversations/` and `brain/` files
+  in the shared home (view_file is not permission-gated over ACP, so the adapter cannot deny it).
+  A fresh home opens a session with the same login (no-model check: 3 s).
+- MCP results reach the model inline up to `_meta.antigravity.mcpMaxOutputBytes` = 131,072 bytes
+  (sent with every `session/new`; ACP server ≥ 1.4.0). Without it 1.4.5 saves an on-demand MCP result
+  over 4 KB to a step file the model has to open. The probe declares `mcpOutputLimitChars` 32,768
+  (the byte bound / 4), so the workflow_artifact server pages fit (before: its 8,192-char default
+  cut every 16,000-char required read, and final-audit failed after three attempts and 9.9 M
+  tokens). Live 2026-11-03: a 30,000-char result arrived inline.
 - The worker home needs a one-time `authenticateAcpAgent(config, "oauth-personal")`. If the user has
   already logged in to the Antigravity ACP server, no browser opens: the server keeps its Google
   credentials outside `GEMINI_HOME` and only writes the method to

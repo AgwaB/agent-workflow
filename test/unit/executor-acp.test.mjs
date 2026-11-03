@@ -452,8 +452,18 @@ test("acp antigravity preset: no launch flags; mode, model and effort are set on
 			.filter((entry) => entry.method === "session/new")
 			.map((entry) => entry.meta),
 		[
-			{ antigravity: { enabledTools: ["view_file"] } },
-			{ antigravity: { enabledTools: ["view_file"] } },
+			{
+				antigravity: {
+					enabledTools: ["view_file"],
+					mcpMaxOutputBytes: 131_072,
+				},
+			},
+			{
+				antigravity: {
+					enabledTools: ["view_file"],
+					mcpMaxOutputBytes: 131_072,
+				},
+			},
 		],
 	);
 	assert.deepEqual(
@@ -531,7 +541,10 @@ test("acp antigravity: workers run in the engine-owned GEMINI_HOME unless they i
 		join(config.agentHome, "antigravity-acp", "settings.json"),
 		JSON.stringify({ auth: { type: "oauth-personal" } }),
 	);
-	assert.equal((await executor.probe()).auth, "ok");
+	const probed = await executor.probe();
+	assert.equal(probed.auth, "ok");
+	// 2026-11-03: the declared MCP output limit (131,072-byte session bound / 4), so artifact pages fit.
+	assert.equal(probed.mcpOutputLimitChars, 32_768);
 
 	const isolated = await executor.submit(request(dir, "agy-home-1"));
 	await drain(executor, isolated, { timeoutMs: DRAIN_MS });
@@ -542,9 +555,20 @@ test("acp antigravity: workers run in the engine-owned GEMINI_HOME unless they i
 	const homes = (await agentLog())
 		.filter((entry) => entry.argv)
 		.map((entry) => entry.geminiHome);
-	// probe ×2 and the login launch also ran in the worker home; the inheriting attempt did not.
-	assert.equal(homes.at(-2), config.agentHome);
+	// The login ran in the worker home; the isolated attempt ran in its own temporary home (2026-11-03:
+	// workers must not see other sessions' files), removed when the agent exited; the inheriting
+	// attempt used the user's.
+	const { existsSync } = await import("node:fs");
+	const attemptHome = homes.at(-2);
+	assert.notEqual(attemptHome, config.agentHome);
+	assert.match(attemptHome, /aw-antigravity-home-/);
+	assert.equal(existsSync(attemptHome), false);
 	assert.equal(homes.at(-1), process.env.GEMINI_HOME ?? null);
+	// The attempt home held the login's settings.json (the fake agent reports it).
+	const sessionHomes = (await agentLog()).filter(
+		(entry) => entry.argv && entry.geminiHome === attemptHome,
+	);
+	assert.equal(sessionHomes[0]?.homeSettings, true);
 	assert.ok(
 		(await agentLog()).some((entry) => entry.method === "authenticate"),
 	);
@@ -792,27 +816,40 @@ test("acp: a shell permission request carries its command; a readOnly stage allo
 test("acp antigravity: the session's built-in allowlist follows the stage's tools", () => {
 	const meta = (tools, readOnly) => antigravitySessionMeta({ tools, readOnly });
 	assert.deepEqual(meta(["read", "grep", "find", "ls"], true), {
-		antigravity: { enabledTools: ["run_command", "view_file"] },
+		antigravity: {
+			enabledTools: ["run_command", "view_file"],
+			mcpMaxOutputBytes: 131_072,
+		},
 	});
 	assert.deepEqual(meta(["read", "edit", "write", "bash"], false), {
 		antigravity: {
 			enabledTools: ["create_file", "edit_file", "run_command", "view_file"],
+			mcpMaxOutputBytes: 131_072,
 		},
 	});
 	// readOnly drops the writing tools even when listed; web_search maps to search_web; MCP tools are not built-ins.
 	assert.deepEqual(
 		meta(["read", "edit", "write", "web_search", "workflow_artifact"], true),
 		{
-			antigravity: { enabledTools: ["search_web", "view_file"] },
+			antigravity: {
+				enabledTools: ["search_web", "view_file"],
+				mcpMaxOutputBytes: 131_072,
+			},
 		},
 	);
 	// read_url_content only names the file its page went to: fetch_content brings view_file along.
 	assert.deepEqual(meta(["fetch_content"], true), {
-		antigravity: { enabledTools: ["read_url_content", "view_file"] },
+		antigravity: {
+			enabledTools: ["read_url_content", "view_file"],
+			mcpMaxOutputBytes: 131_072,
+		},
 	});
 	// No built-in left: everything the filter knows is off (run_workflow, ask_question, ...).
 	assert.deepEqual(meta(["workflow_artifact"], true), {
-		antigravity: { disabledTools: [...ANTIGRAVITY_FILTER_TOOLS] },
+		antigravity: {
+			disabledTools: [...ANTIGRAVITY_FILTER_TOOLS],
+			mcpMaxOutputBytes: 131_072,
+		},
 	});
 	assert.ok(
 		ANTIGRAVITY_FILTER_TOOLS.includes("run_workflow") &&
@@ -877,6 +914,7 @@ test("acp antigravity: web tools get their names, a fetch kind for search, and t
 	assert.deepEqual(meta, {
 		antigravity: {
 			enabledTools: ["read_url_content", "search_web", "view_file"],
+			mcpMaxOutputBytes: 131_072,
 		},
 	});
 });
