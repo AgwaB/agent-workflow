@@ -147,6 +147,20 @@ export async function createFixtureServer({
 					.lines.push(injection);
 				return json(data);
 			}
+			// 2026-11-03: a finished task's result (digest, analysis Markdown, refs, control JSON).
+			if (/^\/tasks\/[^/]+\/result$/.test(suffix))
+				return json({
+					digest: `Result digest ${injection}`,
+					analysis: `## Findings\n\n- **Bold** item with \`code\`\n- ${injection}\n\n[not a link](https://example.invalid)`,
+					refs: [
+						{
+							title: "Source title",
+							url: "https://example.invalid/source",
+							note: injection,
+						},
+					],
+					control: JSON.stringify({ digest: "x", note: injection }, null, 2),
+				});
 			if (suffix === "/report")
 				return json({
 					path: "reports/review.md",

@@ -640,6 +640,23 @@ export async function startDashboardServer(
 		}
 		if (
 			request.method === "GET" &&
+			parts.length === 6 &&
+			parts[3] === "tasks" &&
+			parts[5] === "result"
+		) {
+			const taskId = parts[4]!;
+			if (!validTaskId(taskId)) throw new HttpError(400, "invalid task id");
+			const shownRun = await getRun(runId);
+			if (!shownRun.tasks?.some((task) => task.taskId === taskId))
+				throw new HttpError(404, "task not found");
+			// A known task without result files (not finished, or none written) is an empty result,
+			// not an error: the UI says so without a failed request.
+			const result = (await source.taskResult?.(runId, taskId)) ?? {};
+			json(response, 200, safe(result));
+			return;
+		}
+		if (
+			request.method === "GET" &&
 			parts.length === 4 &&
 			parts[3] === "report"
 		) {

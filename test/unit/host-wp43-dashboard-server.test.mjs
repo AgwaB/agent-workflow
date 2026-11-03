@@ -31,6 +31,13 @@ function fake() {
 			return task === "task-11" ? logs : undefined;
 		},
 		report: async () => undefined,
+		taskResult: async (_id, task) =>
+			task === "task-11"
+				? {
+						digest: "done private-test-secret",
+						analysis: "# A",
+					}
+				: undefined,
 		stop: async () => ({
 			outcome: "success",
 			status: "interrupted",
@@ -451,11 +458,23 @@ test("invalid ids and bounds return 400; missing run/task/report and routes retu
 		"/api/runs/workflow_missing",
 		"/api/events?run=workflow_missing",
 		`/api/runs/${ID}/tasks/task-99/logs`,
+		`/api/runs/${ID}/tasks/task-99/result`,
 		`/api/runs/${ID}/report`,
 		"/elsewhere",
 		"/package.json",
 	])
 		assert.equal((await http(s, path)).status, 404, path);
+	assert.equal(
+		(await http(s, `/api/runs/${ID}/tasks/bad%2Fid/result`)).status,
+		400,
+	);
+	// 2026-11-03: a known task's result; a known task without one is an empty result, not a 404.
+	const result = await http(s, `/api/runs/${ID}/tasks/task-11/result`);
+	assert.equal(result.status, 200);
+	assert.equal(result.json().analysis, "# A");
+	const empty = await http(s, `/api/runs/${ID}/tasks/task-10/result`);
+	assert.equal(empty.status, 200);
+	assert.deepEqual(empty.json(), {});
 	assert.equal(validTaskId("reviewers.webhook-retry-path"), true);
 	assert.equal(validTaskId(".."), false);
 	assert.equal(
@@ -495,6 +514,10 @@ test("report is text, capped and redacted; failures do not escape request bounda
 	assert.match(res.json().text, /^<script>/);
 	assert.match(res.json().text, /Report truncated/);
 	assert.ok(Buffer.byteLength(res.json().text) < 256 * 1024 + 100);
+	// 2026-11-03: task results are redacted the same way.
+	const result = await http(s, `/api/runs/${ID}/tasks/task-11/result`);
+	assert.equal(result.status, 200);
+	assert.equal(result.text.includes("private-test-secret"), false);
 	source.run = async () => {
 		throw new Error("failed: private-test-secret");
 	};

@@ -231,6 +231,18 @@ test("output repair, elapsed zero, reported cost zero and rollup are retained wi
 	assert.equal(projectRun(run, shown).usage, null);
 });
 
+test("a task on the executor's default model shows the model its usage reported", () => {
+	// 2026-11-03: the inspector said "No model" for Claude tasks launched without a model.
+	const { run, shown } = data();
+	const task = shown.run.tasks[2];
+	assert.equal(projectRun(run, shown).tasks[2].model, undefined);
+	task.usage = { inputTokens: 1, outputTokens: 1, model: "claude-sonnet-5-5" };
+	assert.equal(projectRun(run, shown).tasks[2].model, "claude-sonnet-5-5");
+	// A model the run asked for still wins over the reported one.
+	task.runtime.model = "opus";
+	assert.equal(projectRun(run, shown).tasks[2].model, "opus");
+});
+
 test("log availability uses host-verified files, not merely planned paths", () => {
 	const { run, shown } = data();
 	shown.taskLogIds = [];

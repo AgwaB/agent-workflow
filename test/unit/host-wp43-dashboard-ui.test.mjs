@@ -454,6 +454,59 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 	);
 	assert.ok((await text("#report-content")).includes(injection));
 	await browser.key("Escape");
+
+	// 2026-11-03: a finished task opens on its Result: digest, analysis as text-only Markdown,
+	// references as text (no links), the control JSON folded away.
+	await open(`run=${complete}&task=triage.main`);
+	await browser.waitFor(
+		() =>
+			document.querySelector("#result-view .result-digest")?.textContent
+				.length > 0,
+	);
+	assert.equal(
+		await browser.evaluate(() =>
+			document
+				.querySelector('[data-tab="result"]')
+				.getAttribute("aria-selected"),
+		),
+		"true",
+	);
+	assert.equal(
+		await browser.evaluate(() => document.querySelector("#log-text").hidden),
+		true,
+	);
+	assert.equal(
+		await browser.evaluate(
+			() =>
+				document.querySelector("#result-view .result-analysis strong")
+					?.textContent,
+		),
+		"Bold",
+	);
+	assert.equal(
+		await browser.evaluate(
+			() =>
+				document.querySelectorAll(
+					"#result-view a, #result-view img, #result-view script",
+				).length,
+		),
+		0,
+	);
+	assert.ok((await text("#result-view")).includes(injection));
+	assert.match(
+		await text("#result-view .result-refs"),
+		/https:\/\/example\.invalid\/source/,
+	);
+	assert.equal(
+		await browser.evaluate(
+			() => document.querySelector(".result-control").open,
+		),
+		false,
+	);
+	assert.equal(
+		await browser.evaluate(() => globalThis.dashboardInjected),
+		undefined,
+	);
 	await browser.click('[aria-label="Run details"]');
 	assert.match(await text("#inspector"), /Launch command/);
 	assert.match(await text("#inspector"), /Permission mode/);

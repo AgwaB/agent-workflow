@@ -338,7 +338,7 @@ function readState() {
 		run: params.get("run"),
 		task: params.get("task"),
 		stage: params.get("stage"),
-		tab: choice("tab", ["output", "stderr", "events"]),
+		tab: choice("tab", ["result", "output", "stderr", "events"]),
 		view: choice("view", ["report", "details"]),
 		dialog: choice("dialog", ["stop", "resume", "approve", "reject"]),
 		layout: choice("layout", ["td", "lr"]) || "td",
@@ -365,6 +365,13 @@ let logController,
 	logData = null,
 	logError = "",
 	logLoading = false;
+// 2026-11-03: a finished task's result (digest, analysis, refs, control) for the Result tab.
+let resultController,
+	resultGeneration = 0,
+	resultKey = "",
+	resultData = null,
+	resultError = "",
+	resultLoading = false;
 let reportGeneration = 0,
 	modalKey = "",
 	returnFocus = null,
@@ -2591,7 +2598,7 @@ function renderSelection() {
 					{ class: "executor-line" },
 					[
 						task.executor || run.executor || "No executor",
-						task.model || "No model",
+						task.model || "default model",
 						task.effort || "default",
 					].join(" · "),
 				),
@@ -2621,14 +2628,12 @@ function renderSelection() {
 					),
 				),
 			);
-		const tab =
-			state.tab ||
-			(status === "retry" || status === "failed" ? "stderr" : "output");
+		const tab = state.tab || defaultTaskTab(task);
 		inspector.append(
 			element(
 				"div",
 				{ class: "tabs", role: "tablist", "aria-label": "Task logs" },
-				["output", "stderr", "events"].map((stream) =>
+				TASK_TABS.map((stream) =>
 					button(
 						stream[0].toUpperCase() + stream.slice(1),
 						() => go({ tab: stream }),
@@ -2642,12 +2647,12 @@ function renderSelection() {
 							onkeydown: (event) => {
 								if (["ArrowLeft", "ArrowRight"].includes(event.key)) {
 									event.preventDefault();
-									const tabs = ["output", "stderr", "events"];
+									const tabs = TASK_TABS;
 									go({
 										tab: tabs[
 											(tabs.indexOf(stream) +
-												(event.key === "ArrowRight" ? 1 : 2)) %
-												3
+												(event.key === "ArrowRight" ? 1 : tabs.length - 1)) %
+												tabs.length
 										],
 									});
 									document.querySelector(`[data-tab="${state.tab}"]`)?.focus();
@@ -2673,7 +2678,18 @@ function renderSelection() {
 					"untrusted output",
 					button("Copy", () => copy(logText(tab))),
 				),
-				element("pre", { class: "log", id: "log-text", tabindex: "0" }),
+				element("div", {
+					class: "task-result",
+					id: "result-view",
+					tabindex: "0",
+					hidden: tab !== "result" ? "" : null,
+				}),
+				element("pre", {
+					class: "log",
+					id: "log-text",
+					tabindex: "0",
+					hidden: tab === "result" ? "" : null,
+				}),
 				element("p", { class: "log-notice", id: "log-notice" }),
 			),
 		);
@@ -2719,6 +2735,13 @@ function renderSelection() {
 			logError = "";
 			loadLogs();
 		}
+		const resultStamp = `${key}:${taskState(task)}`;
+		if (tab === "result" && resultStamp !== resultKey) {
+			resultKey = resultStamp;
+			resultData = null;
+			resultError = "";
+			loadResult();
+		}
 		paintLogs();
 	} else if (stage) renderItems(inspector, stage, previousItems);
 	if (!task) {
@@ -2726,6 +2749,10 @@ function renderSelection() {
 		logGeneration++;
 		logKey = "";
 		logLoading = false;
+		resultController?.abort();
+		resultGeneration++;
+		resultKey = "";
+		resultLoading = false;
 	}
 	inspector.scrollTop = scroll;
 	if (inspector.querySelector(".log"))
@@ -3013,16 +3040,132 @@ function renderItems(inspector, stage, previous = new Map()) {
 	paint(previous);
 }
 
+const TASK_TABS = ["result", "output", "stderr", "events"];
+/** Failed/retrying → stderr; finished → result; otherwise the live output. */
+function defaultTaskTab(task) {
+	const status = taskState(task);
+	if (["retry", "failed"].includes(status)) return "stderr";
+	return status === "completed" ? "result" : "output";
+}
 function logText(tab) {
+	if (tab === "result")
+		return [resultData?.digest, resultData?.analysis]
+			.filter(Boolean)
+			.join("\n\n");
 	const stream = logData?.streams?.find((s) => s.kind === tab);
 	return stream?.lines?.join("\n") || "";
+}
+function paintResult() {
+	const view = $("result-view");
+	if (!view) return;
+	const task = selectedTask();
+	if (!resultData) {
+		view.replaceChildren(
+			element(
+				"p",
+				{ class: "muted" },
+				resultError ||
+					(resultLoading
+						? "Loading…"
+						: taskState(task) === "completed"
+							? "No result files for this task."
+							: "No result yet — the task has not finished."),
+			),
+		);
+		return;
+	}
+	const children = [];
+	if (resultData.digest)
+		children.push(element("p", { class: "result-digest" }, resultData.digest));
+	if (resultData.analysis) {
+		const analysis = element("div", { class: "result-analysis" });
+		renderTextMarkdown(analysis, resultData.analysis);
+		children.push(analysis);
+		if (resultData.analysisTruncated)
+			children.push(
+				element("p", { class: "muted" }, "Analysis truncated by the host."),
+			);
+	}
+	if (resultData.refs?.length)
+		children.push(
+			element("h4", {}, "References"),
+			element(
+				"ol",
+				{ class: "result-refs" },
+				...resultData.refs.map((ref) =>
+					element(
+						"li",
+						{},
+						ref.title ? element("strong", {}, ref.title) : null,
+						ref.url ? element("code", {}, ref.url) : null,
+						ref.note ? element("span", { class: "muted" }, ref.note) : null,
+					),
+				),
+			),
+			resultData.refsTruncated
+				? element("p", { class: "muted" }, "More references in refs.json.")
+				: null,
+		);
+	if (resultData.control) {
+		const control = element(
+			"details",
+			{ class: "result-control" },
+			element("summary", {}, "Control JSON"),
+			element("pre", { class: "log" }, resultData.control),
+		);
+		children.push(control);
+	}
+	view.replaceChildren(...children.filter(Boolean));
+}
+async function loadResult() {
+	const task = selectedTask();
+	if (!task || !run) return;
+	// Only a finished task has result files; others say so without a request.
+	if (taskState(task) !== "completed") {
+		resultData = null;
+		resultError = "";
+		resultLoading = false;
+		paintResult();
+		return;
+	}
+	resultController?.abort();
+	resultController = new AbortController();
+	const generation = ++resultGeneration,
+		key = resultKey,
+		id = run.runId;
+	resultLoading = true;
+	paintResult();
+	try {
+		const data = await api(
+			`/api/runs/${encodeURIComponent(id)}/tasks/${encodeURIComponent(task.taskId)}/result`,
+			{
+				signal: AbortSignal.any([
+					resultController.signal,
+					AbortSignal.timeout(20000),
+				]),
+			},
+		);
+		if (generation !== resultGeneration || key !== resultKey) return;
+		resultData = Object.keys(data || {}).length > 0 ? data : null;
+		resultError = "";
+	} catch (error) {
+		if (generation !== resultGeneration || error.name === "AbortError") return;
+		resultError = `Result unavailable: ${error.message}`;
+	}
+	if (generation === resultGeneration) {
+		resultLoading = false;
+		paintResult();
+	}
 }
 function paintLogs() {
 	if (!$("log-text")) return;
 	const task = selectedTask(),
-		tab =
-			state.tab ||
-			(["retry", "failed"].includes(taskState(task)) ? "stderr" : "output");
+		tab = state.tab || defaultTaskTab(task);
+	if (tab === "result") {
+		paintResult();
+		$("log-notice").textContent = "";
+		return;
+	}
 	const stream = logData?.streams?.find((s) => s.kind === tab);
 	const text = logText(tab);
 	$("log-text").textContent =
@@ -3298,6 +3441,87 @@ async function mutate(runId, kind, approval) {
 		}
 	}
 }
+/**
+ * Untrusted Markdown as text nodes: headings, bullet lists, pipe tables, paragraphs, inline
+ * `**bold**` / `` `code` ``. No links, HTML, images or content-derived URLs (report and task result).
+ */
+function renderTextMarkdown(container, text) {
+	let list = null;
+	// Deliberately text-only: no Markdown links, HTML, images or content-derived URLs. Inline
+	// `**bold**` / `*emphasis*` / `` `code` `` become <strong>/<em>/<code> text nodes; blank lines
+	// only end a block.
+	const inline = (text) => {
+		const nodes = [];
+		const re = /(\*\*([^*]+)\*\*|`([^`]+)`|\*([^*\s](?:[^*]*[^*\s])?)\*)/g;
+		let last = 0;
+		for (const m of text.matchAll(re)) {
+			if (m.index > last) nodes.push(text.slice(last, m.index));
+			nodes.push(
+				m[2] !== undefined
+					? element("strong", {}, m[2])
+					: m[3] !== undefined
+						? element("code", {}, m[3])
+						: element("em", {}, m[4]),
+			);
+			last = m.index + m[0].length;
+		}
+		if (last < text.length) nodes.push(text.slice(last));
+		return nodes;
+	};
+	let paragraph = null;
+	let table = null;
+	for (const line of text.split("\n")) {
+		const heading = /^#{1,6}\s+(.+)$/.exec(line),
+			item = /^\s*[-*+]\s+(.+)$/.exec(line),
+			numbered = /^\s*\d+[.)]\s+(.+)$/.exec(line),
+			rule = /^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line),
+			row = /^\s*\|(.+)\|\s*$/.exec(line);
+		if (row) {
+			// Pipe tables: a separator row (|---|:--:|) is skipped; cells are text nodes.
+			list = null;
+			paragraph = null;
+			const cells = row[1].split("|").map((c) => c.trim());
+			if (cells.every((c) => /^:?-{2,}:?$/.test(c))) continue;
+			if (!table) {
+				table = element("table", { class: "report-table" });
+				container.append(table);
+			}
+			const tag = table.childElementCount === 0 ? "th" : "td";
+			table.append(
+				element("tr", {}, ...cells.map((c) => element(tag, {}, ...inline(c)))),
+			);
+			continue;
+		}
+		table = null;
+		if (rule) {
+			list = null;
+			paragraph = null;
+			container.append(element("hr"));
+		} else if (heading) {
+			list = null;
+			paragraph = null;
+			container.append(element("h3", {}, ...inline(heading[1])));
+		} else if (item || numbered) {
+			paragraph = null;
+			const tag = item ? "ul" : "ol";
+			if (!list || list.tagName.toLowerCase() !== tag) {
+				list = element(tag);
+				container.append(list);
+			}
+			list.append(element("li", {}, ...inline((item ?? numbered)[1])));
+		} else if (!line.trim()) {
+			list = null;
+			paragraph = null;
+		} else {
+			list = null;
+			if (!paragraph) {
+				paragraph = element("p");
+				container.append(paragraph);
+			} else paragraph.append(" ");
+			append(paragraph, inline(line));
+		}
+	}
+}
 async function openReport() {
 	const id = run.runId,
 		generation = ++reportGeneration;
@@ -3323,75 +3547,7 @@ async function openReport() {
 		const data = await api(`/api/runs/${encodeURIComponent(id)}/report`);
 		if (generation !== reportGeneration || modalKey !== `report:${id}`) return;
 		body.replaceChildren();
-		let list = null;
-		// Deliberately text-only: no Markdown links, HTML, images or content-derived URLs. Inline
-		// `**bold**` / `` `code` `` become <strong>/<code> text nodes; blank lines only end a block.
-		const inline = (text) => {
-			const nodes = [];
-			const re = /(\*\*([^*]+)\*\*|`([^`]+)`)/g;
-			let last = 0;
-			for (const m of text.matchAll(re)) {
-				if (m.index > last) nodes.push(text.slice(last, m.index));
-				nodes.push(
-					m[2] !== undefined
-						? element("strong", {}, m[2])
-						: element("code", {}, m[3]),
-				);
-				last = m.index + m[0].length;
-			}
-			if (last < text.length) nodes.push(text.slice(last));
-			return nodes;
-		};
-		let paragraph = null;
-		let table = null;
-		for (const line of data.text.split("\n")) {
-			const heading = /^#{1,6}\s+(.+)$/.exec(line),
-				item = /^\s*[-*+]\s+(.+)$/.exec(line),
-				row = /^\s*\|(.+)\|\s*$/.exec(line);
-			if (row) {
-				// Pipe tables: a separator row (|---|:--:|) is skipped; cells are text nodes.
-				list = null;
-				paragraph = null;
-				const cells = row[1].split("|").map((c) => c.trim());
-				if (cells.every((c) => /^:?-{2,}:?$/.test(c))) continue;
-				if (!table) {
-					table = element("table", { class: "report-table" });
-					body.append(table);
-				}
-				const tag = table.childElementCount === 0 ? "th" : "td";
-				table.append(
-					element(
-						"tr",
-						{},
-						...cells.map((c) => element(tag, {}, ...inline(c))),
-					),
-				);
-				continue;
-			}
-			table = null;
-			if (heading) {
-				list = null;
-				paragraph = null;
-				body.append(element("h3", {}, ...inline(heading[1])));
-			} else if (item) {
-				paragraph = null;
-				if (!list) {
-					list = element("ul");
-					body.append(list);
-				}
-				list.append(element("li", {}, ...inline(item[1])));
-			} else if (!line.trim()) {
-				list = null;
-				paragraph = null;
-			} else {
-				list = null;
-				if (!paragraph) {
-					paragraph = element("p");
-					body.append(paragraph);
-				} else paragraph.append(" ");
-				append(paragraph, inline(line));
-			}
-		}
+		renderTextMarkdown(body, data.text);
 		if (data.truncated)
 			body.append(
 				element("p", { class: "muted" }, "Report truncated by the host."),

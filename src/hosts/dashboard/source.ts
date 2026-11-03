@@ -18,6 +18,7 @@ import {
 	type DashboardRun,
 	type DashboardRunSummary,
 } from "./projection.js";
+import { type DashboardTaskResult, readTaskResult } from "./task-result.js";
 import { attachTaskTexts } from "./task-text.js";
 
 export interface DashboardActionResult {
@@ -37,6 +38,11 @@ export interface DashboardSource {
 		options: Pick<LogsRequest, "stream" | "lines">,
 	): Promise<LogsTask | undefined>;
 	report(runId: string): Promise<RunReport | undefined>;
+	/** A finished task's digest, analysis, refs and control (2026-11-03); absent: not offered. */
+	taskResult?(
+		runId: string,
+		taskId: string,
+	): Promise<DashboardTaskResult | undefined>;
 	stop(runId: string): Promise<DashboardActionResult>;
 	resume(runId: string): Promise<DashboardActionResult>;
 	approve(
@@ -123,6 +129,15 @@ export function hostApiDashboardSource(ctx: HostApiContext): DashboardSource {
 					})
 				).data.tasks[0],
 			);
+		},
+		async taskResult(runId, taskId) {
+			const data = await detail(runId);
+			const record = data?.shown.run.tasks.find(
+				(task) => task.taskId === taskId,
+			);
+			if (!record) return undefined;
+			const result = await readTaskResult(ctx.cwd, record);
+			return result === undefined ? undefined : safe(result);
 		},
 		async report(runId) {
 			const shown = await showAction(ctx, {

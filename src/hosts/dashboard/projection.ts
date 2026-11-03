@@ -234,7 +234,8 @@ export function projectRun(
 		const generated = Boolean(task.foreachGenerated || task.dynamicGenerated);
 		const executor =
 			runtime?.executor ?? task.runtime?.executor ?? run.executor;
-		const model = runtime?.model ?? task.runtime?.model;
+		// 2026-11-03: a task launched with the executor's default model shows the model it reported.
+		const model = runtime?.model ?? task.runtime?.model ?? task.usage?.model;
 		const effort = runtime?.effort ?? task.runtime?.thinking;
 		const activity =
 			task.status === "running"
