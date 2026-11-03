@@ -3728,8 +3728,15 @@ function acceptRun(data) {
 	)
 		return;
 	const handoffs = taskHandoffs(run, data);
+	// 2026-11-03: a stage the user was watching stays selected after the run finishes and hides the
+	// result; when the run leaves `running`, a stage selection (not a task) is cleared.
+	const finishing = run?.status === "running" && data.status !== "running";
 	runRevision++;
 	run = data;
+	if (finishing && state.stage && !state.task) {
+		state.stage = null;
+		urlState(true);
+	}
 	if (!liveRun(run)) stoppingRuns.delete(run.runId);
 	const index = runs.findIndex((r) => r.runId === run.runId);
 	if (index >= 0) runs[index] = run;

@@ -80,8 +80,10 @@ Use whichever form your tool list shows.
    comes from the completion check (`agent-workflow notify-check`, run by the Claude Code plugin's
    prompt hook): tell the user, with the verdict and report path it names.
 5. `terminal: true`: the run finished. Quote the result preview and give the report paths verbatim
-   (the `reportArtifacts`/paths the tool prints). Do not paraphrase or re-summarize the report; read
-   the report file only if the user wants details.
+   (the `reportArtifacts`/paths the tool prints), plus the `Dashboard:` link when the result has one:
+   it opens the run's report in the local dashboard, where the user can read the report and each
+   agent's result. Do not paraphrase or re-summarize the report; read the report file only if the
+   user wants details.
 6. `actionRequired: true`: the run is blocked. Report the reason, call
    `workflow_inspect {runId, failures: true}` and tell the user that the run can be resumed after
    they fix the cause. Call `workflow_resume {runId}` only when the user asks (it starts new model

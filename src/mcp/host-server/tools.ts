@@ -1400,7 +1400,10 @@ function waitNext(data: WaitData): string {
 	const gate = data.verdictGate
 		? `\nThe run finished with the domain verdict ${data.verdict ?? "(not reported)"}; status=failed only means this verdict did not pass the workflow's final gate. Report it as the workflow's result (verdict and report), not as a workflow failure.`
 		: "";
-	return `${state}${verdict}${reports.length ? `\n${reports.join("\n")}` : ""}${gate}\nQuote the result preview and the report paths; do not paraphrase the report.`;
+	const dashboard = data.dashboard
+		? ` Give the user the Dashboard link above too: it opens this run's report in the dashboard${data.dashboard.auth ? ` (if it asks them to sign in, call ${WORKFLOW_DASHBOARD_TOOL} {"run":"${data.runId}"})` : ""}.`
+		: "";
+	return `${state}${verdict}${reports.length ? `\n${reports.join("\n")}` : ""}${gate}\nQuote the result preview and the report paths; do not paraphrase the report.${dashboard}`;
 }
 
 export interface HostMcpService {

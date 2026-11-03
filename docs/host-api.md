@@ -291,7 +291,9 @@ effective bound. The MCP server never sets it.
 
 `WaitData`: `{runId, status, semanticStatus, terminal, actionRequired, stillRunning, timeoutMs,
 blockedTaskIds, taskSummary, outputTaskIds, outputRetryAttempts, launchRetryAttempts, artifactRoot,
-nextRetry?, verdict?, preview?, reportArtifacts, usage?, degradation?, pendingApprovals?}`.
+nextRetry?, verdict?, preview?, reportArtifacts, usage?, degradation?, pendingApprovals?, dashboard?}`
+(`dashboard`: the project dashboard link once the run settles, `view=report` when it finished with a
+report; see [dashboard.md](dashboard.md)).
 `pendingApprovals` (WP29) lists the dynamic controllers a blocked run waits on (below). `verdict` (WP18b) is the
 workflow's domain verdict from the output task's control (for example `NEEDS_WORK`), not the run
 status. `verdictGate: true` (WP18b) marks a run whose only failure is the final verdict

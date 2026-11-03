@@ -109,6 +109,10 @@ import {
 	type WorkflowResultPresentation,
 } from "./result-presentation.js";
 import {
+	type RunDashboardLink,
+	runDashboardLink,
+} from "./run-dashboard-link.js";
+import {
 	assertActionAllowed,
 	HOST_LONG_WAIT_DEFAULT_TIMEOUT_MS,
 	HOST_LONG_WAIT_MAX_TIMEOUT_MS,
@@ -655,6 +659,11 @@ export interface WaitData {
 	 * `workflow_approve`); a host with an approval UI asks while it drives the run instead.
 	 */
 	pendingApprovals?: PendingDynamicApproval[];
+	/**
+	 * 2026-11-03: the project's dashboard for this run once the wait settles (`view=report` when the
+	 * run finished with a report), so the result can be read there, not only as report paths.
+	 */
+	dashboard?: RunDashboardLink;
 }
 
 export function boundedWaitTimeout(
@@ -765,6 +774,15 @@ export async function waitAction(
 		...(run.degradation ? { degradation: run.degradation } : {}),
 		...(pendingApprovals.length ? { pendingApprovals } : {}),
 	};
+	if (!stillRunning) {
+		const dashboard = await runDashboardLink(ctx, run.runId, {
+			start: true,
+			...(terminal.terminal && artifacts.length > 0
+				? { view: "report" as const }
+				: {}),
+		});
+		if (dashboard) data.dashboard = dashboard;
+	}
 	// WP36: a settled state this wait returns is not repeated by `notify-check`.
 	if (!stillRunning) await markRunNotifySeen(ctx.cwd, run).catch(() => {});
 	const hints = hostCommandHints(ctx.host);
@@ -801,6 +819,8 @@ export async function waitAction(
 			...pendingApprovalLines(ctx.host, run.runId, pendingApprovals),
 		].join("\n");
 	}
+	if (data.dashboard)
+		text += `\nDashboard: ${data.dashboard.url}${data.dashboard.auth ? " (sign-in required)" : ""}`;
 	return result(
 		"wait",
 		stillRunning ? "running" : outcomeForRunStatus(run.status),

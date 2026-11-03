@@ -12,12 +12,6 @@
 // WP31: built-in presets as `--profile <id>`; the saved per-workflow preference (workflow-
 // preferences.ts) applies to every host's launch (its profile when none is named, its role overrides
 // as the engine's workflowPreference layer); launch data/text show the per-stage role assignment.
-import {
-	dashboardStartBudgetMs,
-	ensureDashboard,
-	readDashboardDiscovery,
-} from "./dashboard/discovery.js";
-import { getWorkflowProcessRole } from "../core/process-role.js";
 import { spawn } from "node:child_process";
 import { closeSync, openSync } from "node:fs";
 import { join } from "node:path";
@@ -69,6 +63,10 @@ import {
 	isThinkingLevel,
 	parseCapabilityList,
 } from "./args.js";
+import {
+	type RunDashboardLink,
+	runDashboardLink,
+} from "./run-dashboard-link.js";
 import {
 	assertActionAllowed,
 	type HostAction,
@@ -167,7 +165,7 @@ export interface LaunchProfileInfo {
 
 export interface LaunchData {
 	/** WP43d: `auth` is set only when that dashboard requires sign-in (`--auth`). */
-	dashboard?: { url: string; port: number; started?: true; auth?: true };
+	dashboard?: RunDashboardLink;
 	mode: "named-workflow" | "direct-dynamic";
 	runId?: string;
 	status?: WorkflowRunRecord["status"];
@@ -1274,46 +1272,11 @@ async function launchClaimed(
 	await launch.onStarted(run.runId).catch(() => undefined);
 	const data = launchData(ctx, run, mode, profile.info);
 	// Dashboard discovery/start is best effort and adds at most the 3 s discovery budget
-	// (`dashboardStartBudgetMs`).
-	let dashboardTimer: ReturnType<typeof setTimeout> | undefined;
-	try {
-		data.dashboard = await Promise.race([
-			(async (): Promise<LaunchData["dashboard"]> => {
-				let dashboard = await readDashboardDiscovery(ctx.cwd);
-				let started = false;
-				if (
-					!dashboard &&
-					hostEnv(ctx).AGENT_WORKFLOW_DASHBOARD_AUTOSTART !== "0" &&
-					getWorkflowProcessRole(hostEnv(ctx)) === "supervisor" &&
-					!ctx.readonly &&
-					["running", "completed", "blocked"].includes(run.status)
-				) {
-					dashboard = await ensureDashboard(ctx.cwd, hostEnv(ctx), {
-						start: true,
-					});
-					started = Boolean(dashboard);
-				}
-				return dashboard
-					? {
-							url: `http://127.0.0.1:${dashboard.port}/?run=${run.runId}`,
-							port: dashboard.port,
-							...(started ? { started: true } : {}),
-							...(dashboard.auth ? { auth: true } : {}),
-						}
-					: undefined;
-			})(),
-			new Promise<undefined>((done) => {
-				dashboardTimer = setTimeout(
-					() => done(undefined),
-					dashboardStartBudgetMs(),
-				);
-			}),
-		]);
-	} catch {
-		/* A dashboard failure must never fail the workflow launch. */
-	} finally {
-		clearTimeout(dashboardTimer);
-	}
+	// (`dashboardStartBudgetMs`); a dashboard failure never fails the launch.
+	const dashboard = await runDashboardLink(ctx, run.runId, {
+		start: ["running", "completed", "blocked"].includes(run.status),
+	});
+	if (dashboard) data.dashboard = dashboard;
 	if (promptSchemaNotice) data.promptSchemaNotice = promptSchemaNotice;
 	let detachNote = "";
 	if (request.detach && run.status === "running") {

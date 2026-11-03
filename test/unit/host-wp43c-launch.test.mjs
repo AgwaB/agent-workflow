@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
 import { registerWorkflowExecutor } from "../../dist/core/index.js";
+import { waitAction } from "../../dist/hosts/api.js";
 import { setSubagentLaunchControlsForTests } from "../../dist/core/launch-slots.js";
 import { dashboardProject } from "../helpers/dashboard-project.mjs";
 import {
@@ -122,6 +123,21 @@ test("real fixture launch auto-starts a real detached dashboard and always print
 	);
 	assert.doesNotMatch(second.text, /first time in this browser/);
 	assert.equal((await readDashboardDiscovery(ctx.cwd)).pid, discovery.pid);
+	// 2026-11-03: the settled wait gives the link again (the report view when there is a report).
+	let waited;
+	do
+		waited = await waitAction(ctx, {
+			runId: first.data.runId,
+			timeoutMs: 10_000,
+		});
+	while (waited.data.stillRunning);
+	const view = waited.data.reportArtifacts.length > 0 ? "&view=report" : "";
+	const finished = `http://127.0.0.1:${discovery.port}/?run=${first.data.runId}${view}`;
+	assert.equal(waited.data.dashboard?.url, finished);
+	assert.ok(
+		waited.text.split("\n").includes(`Dashboard: ${finished}`),
+		waited.text,
+	);
 });
 
 test("AGENT_WORKFLOW_DASHBOARD_AUTH=1: the auto-started dashboard requires sign-in and the launch says so once", {

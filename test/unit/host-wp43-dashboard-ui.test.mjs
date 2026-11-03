@@ -826,3 +826,54 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		"all page requests remain same-origin",
 	);
 });
+
+test("dashboard Chrome: a stage selected while the run works is cleared when it finishes; a task stays", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
+	timeout: 120_000,
+}, async (t) => {
+	// 2026-11-03 (owner report): a finished run kept "Verify claims" selected, hiding the result.
+	const fixture = await createFixtureServer();
+	t.after(() => fixture.close());
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	const param = (key) =>
+		browser.evaluate(
+			(key) => new URLSearchParams(location.search).get(key),
+			key,
+		);
+	const finish = (run, status) => {
+		run.status = status;
+		run.updatedAt = new Date(Date.parse(run.updatedAt) + 1000).toISOString();
+		fixture.publish();
+	};
+	await browser.open(`${fixture.origin}/?run=${running}&stage=reviewers`);
+	await browser.waitFor(() =>
+		document.querySelector("#connection")?.textContent.includes("Live"),
+	);
+	assert.equal(await param("stage"), "reviewers");
+	const live = fixture.runs.get(running);
+	finish(live, "completed");
+	await browser.waitFor(
+		() => new URLSearchParams(location.search).get("stage") === null,
+	);
+	assert.equal(
+		await browser.evaluate(() => document.querySelector("#inspector").hidden),
+		true,
+	);
+	// A task the user opened is their reading, not a stale focus: it stays.
+	finish(live, "running");
+	await browser.open(
+		`${fixture.origin}/?run=${running}&task=reviewers.webhook-retry-path`,
+	);
+	await browser.waitFor(() =>
+		document.querySelector("#connection")?.textContent.includes("Live"),
+	);
+	finish(live, "completed");
+	await browser.waitFor(
+		() => document.getElementById("run-header")?.textContent.length > 0,
+	);
+	await new Promise((resolve) => setTimeout(resolve, 500));
+	assert.equal(await param("task"), "reviewers.webhook-retry-path");
+});
