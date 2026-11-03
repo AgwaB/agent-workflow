@@ -1338,25 +1338,28 @@ dialog.report footer .report-page {
 .md-code + .md-code {
 	margin-top: -4px;
 }
-/* Code colours: four quiet hues, readable in both themes (no violet, no saturated fills). */
-.md-code :is(.tok-k, .tok-p) {
-	color: light-dark(#2b5d8f, #8ab0dc);
+/* Code colours from Shiki (github-light / github-dark-dimmed): the page's scheme picks one. */
+.md-code span:is([class*="shl-"], [class*="shd-"]) {
+	color: light-dark(var(--shiki-light), var(--shiki-dark));
 }
-.md-code :is(.tok-s, .tok-r) {
-	color: light-dark(#3d6b2e, #a5c592);
+/* An agent's result opened in place under its row (no box: a hairline below, an indent). */
+.item-expand {
+	padding: 6px 8px 14px 48px;
+	border-bottom: 1px solid var(--line);
+	font-size: 14px;
 }
-.md-code .tok-n {
-	color: light-dark(#9a4f1d, #d99d77);
+.item-expand .result-digest {
+	margin: 4px 0 8px;
 }
-.md-code :is(.tok-c, .tok-hunk) {
-	color: var(--faint);
-	font-style: italic;
+.item-expand .result-analysis {
+	max-height: 28rem;
+	overflow-y: auto;
 }
-.md-code .tok-add {
-	color: light-dark(#3d6b2e, #a5c592);
+.item-expand .item-open {
+	margin-top: 10px;
 }
-.md-code .tok-del {
-	color: light-dark(#a33a2b, #e08a7e);
+.agent-item[aria-expanded="true"] {
+	border-bottom-color: transparent;
 }
 /* An agent of a many-agent stage: back to the list, and to its neighbours. */
 .item-nav {

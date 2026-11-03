@@ -570,6 +570,30 @@ export async function startDashboardServer(
 			);
 			return;
 		}
+		// Vendored Shiki for code colouring (tools/release/vendor-shiki.mjs): a fixed directory,
+		// its entry and hashed chunk names only.
+		const vendor =
+			request.method === "GET"
+				? /^\/vendor\/shiki\/((?:highlight|chunk-[A-Z0-9]+)\.js|colours\.css)$/.exec(
+						url.pathname,
+					)
+				: null;
+		if (vendor) {
+			const content = await readFile(
+				new URL(`./ui/vendor/shiki/${vendor[1]}`, import.meta.url),
+			).catch((error: NodeJS.ErrnoException) => {
+				if (error.code !== "ENOENT") throw error;
+				return undefined;
+			});
+			if (!content) throw new HttpError(404, "not found");
+			response.writeHead(200, {
+				"Content-Type": vendor[1].endsWith(".css")
+					? "text/css; charset=utf-8"
+					: "text/javascript; charset=utf-8",
+			});
+			response.end(content);
+			return;
+		}
 		// Browsers ask for a favicon on their own; answer "none" instead of a logged 404.
 		if (request.method === "GET" && url.pathname === "/favicon.ico") {
 			response.writeHead(204, { "Cache-Control": "max-age=86400" });

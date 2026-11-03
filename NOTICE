@@ -14,6 +14,9 @@ GPL, AGPL, and FSL licensed code is not reused in this package.
 Entries
 -------
 
+The dashboard vendors Shiki and the TextMate grammars and themes it uses (all MIT) under
+src/hosts/dashboard/ui/vendor/shiki/; their licence texts are in THIRD-PARTY-NOTICES.txt there.
+
 # No entries yet. Work packages that port Apache-2.0 code add entries here:
 #   - WP2b: codex-plugin-cc (app-server broker / broker endpoint)
 #   - WP7:  codex-plugin-cc (app-server client), ACP SDK (event vocabulary)

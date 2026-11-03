@@ -85,7 +85,8 @@ export async function createFixtureServer({
 		try {
 			if (
 				request.method === "GET" &&
-				["/", "/index.html", "/app.css", "/app.js"].includes(url.pathname)
+				(["/", "/index.html", "/app.css", "/app.js"].includes(url.pathname) ||
+					/^\/vendor\/shiki\/[\w-]+\.(?:js|css)$/.test(url.pathname))
 			) {
 				const name =
 					url.pathname === "/" ? "index.html" : url.pathname.slice(1);

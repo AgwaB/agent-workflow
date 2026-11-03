@@ -473,32 +473,35 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		await text("#report-content"),
 		/Verdict: Needs work; API stays\./,
 	);
-	// 2026-11-03: fenced code shows verbatim (no Markdown inside, whitespace kept) with IDE-style
-	// token colours, and a row written
-	// as one flat JSON object reads as its main text and fields.
+	// 2026-11-03: fenced code shows verbatim (no Markdown inside, whitespace kept) and is coloured
+	// by the vendored Shiki (text spans carrying --shiki-light/--shiki-dark, never markup); a row
+	// written as one flat JSON object reads as its main text and fields.
+	await browser.waitFor(() =>
+		document.querySelector("#report-content pre.md-code[data-coloured]"),
+	);
 	assert.deepEqual(
-		await browser.evaluate(() => ({
-			code: [...document.querySelectorAll("#report-content pre.md-code")].map(
-				(node) => [node.dataset.lang ?? null, node.textContent],
-			),
-			// Code colours are classed text spans, never markup.
-			tokens: [
-				...document.querySelectorAll(
-					"#report-content pre.md-code [class^=tok-]",
-				),
-			].map((node) => [node.className.slice(4), node.textContent]),
-			json: [...document.querySelectorAll("#report-content li")].find((node) =>
-				node.textContent.startsWith("Ship it"),
-			)?.textContent,
-		})),
+		await browser.evaluate(() => {
+			const pre = document.querySelector("#report-content pre.md-code");
+			const keyword = [...pre.querySelectorAll("span")].find(
+				(span) => span.textContent === "if",
+			);
+			return {
+				code: [pre.dataset.lang, pre.textContent],
+				markup: pre.querySelectorAll("code *:not(span)").length,
+				keyword: [
+					/\bshl-[0-9a-f]{6}\b/.test(keyword?.className),
+					/\bshd-[0-9a-f]{6}\b/.test(keyword?.className),
+					getComputedStyle(keyword).color !== getComputedStyle(pre).color,
+				],
+				json: [...document.querySelectorAll("#report-content li")].find(
+					(node) => node.textContent.startsWith("Ship it"),
+				)?.textContent,
+			};
+		}),
 		{
-			code: [["ts", '\tif (a **b**) return "ok"; // 2\n  <x>']],
-			tokens: [
-				["k", "if"],
-				["k", "return"],
-				["s", '"ok"'],
-				["c", "// 2"],
-			],
+			code: ["ts", '\tif (a **b**) return "ok"; // 2\n  <x>'],
+			markup: 0,
+			keyword: [true, true, true],
 			json: "Ship it — owner: release; blocking: true",
 		},
 	);
@@ -1017,7 +1020,14 @@ test("dashboard Chrome: an agent of a many-agent stage steps to its neighbours a
 			(row) => row.dataset.item,
 		),
 	);
+	// A row opens in place; "Open agent ›" leads to the full view.
 	await browser.evaluate(() => document.querySelector(".agent-item").click());
+	await browser.waitFor(() =>
+		document.querySelector(".item-expand .item-open"),
+	);
+	await browser.evaluate(() =>
+		document.querySelector(".item-expand .item-open").click(),
+	);
 	await browser.waitFor(
 		() => document.querySelector(".item-pos")?.textContent === "1 / 3",
 	);
@@ -1070,5 +1080,104 @@ test("dashboard Chrome: an agent of a many-agent stage steps to its neighbours a
 	assert.deepEqual(
 		{ ...(await where()), history: undefined },
 		{ task: null, stage: "reviewers", pos: null, history: undefined },
+	);
+});
+
+test("dashboard Chrome: a stage's agent opens in place, stays open through live updates, and closes again", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
+	timeout: 120_000,
+}, async (t) => {
+	// 2026-11-03 (owner's pick of three, compared on real runs): expand in place instead of
+	// open → Back → open.
+	const fixture = await createFixtureServer();
+	t.after(() => fixture.close());
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	await browser.open(`${fixture.origin}/?run=${running}&stage=reviewers`);
+	await browser.waitFor(
+		() => document.querySelectorAll(".agent-item").length === 3,
+	);
+	const row = (id) => `.agent-item[data-item="reviewers.${id}"]`;
+	await browser.evaluate(
+		(selector) => document.querySelector(selector).click(),
+		row("refund-idempotency"),
+	);
+	await browser.waitFor(() =>
+		document.querySelector(".item-expand .result-digest"),
+	);
+	const opened = await browser.evaluate((selector) => {
+		const button = document.querySelector(selector);
+		const region = document.getElementById(
+			button.getAttribute("aria-controls"),
+		);
+		return {
+			expanded: button.getAttribute("aria-expanded"),
+			follows: button.nextElementSibling === region,
+			digest: region.querySelector(".result-digest")?.textContent,
+			analysis: region.querySelector(".result-analysis .md-h2")?.textContent,
+			links: region.querySelectorAll("a, script").length,
+			focus: document.activeElement === button,
+			url: new URLSearchParams(location.search).get("task"),
+		};
+	}, row("refund-idempotency"));
+	assert.deepEqual(opened, {
+		expanded: "true",
+		follows: true,
+		digest: `Result digest ${injection}`,
+		analysis: "Findings",
+		links: 0,
+		focus: true,
+		url: null,
+	});
+	// A running agent opens to its state, without a result request.
+	const before = fixture.requests.filter((r) =>
+		r.path.endsWith("/result"),
+	).length;
+	await browser.evaluate(
+		(selector) => document.querySelector(selector).click(),
+		row("ledger-double-write"),
+	);
+	await browser.waitFor(
+		() => document.querySelectorAll(".item-expand").length === 2,
+	);
+	assert.match(
+		await browser.evaluate(
+			(selector) =>
+				document.querySelector(selector).nextElementSibling.textContent,
+			row("ledger-double-write"),
+		),
+		/no result yet\.Open agent ›$/,
+	);
+	assert.equal(
+		fixture.requests.filter((r) => r.path.endsWith("/result")).length,
+		before,
+	);
+	// A live update repaints the list; open rows stay open.
+	const live = fixture.runs.get(running);
+	live.updatedAt = new Date(Date.parse(live.updatedAt) + 1000).toISOString();
+	fixture.publish();
+	await new Promise((resolve) => setTimeout(resolve, 600));
+	assert.equal(
+		await browser.evaluate(
+			() => document.querySelectorAll(".item-expand").length,
+		),
+		2,
+	);
+	// A second click closes it.
+	await browser.evaluate(
+		(selector) => document.querySelector(selector).click(),
+		row("refund-idempotency"),
+	);
+	assert.deepEqual(
+		await browser.evaluate(
+			(selector) => [
+				document.querySelector(selector).getAttribute("aria-expanded"),
+				document.querySelectorAll(".item-expand").length,
+			],
+			row("refund-idempotency"),
+		),
+		["false", 1],
 	);
 });

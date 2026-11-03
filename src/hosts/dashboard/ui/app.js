@@ -2854,6 +2854,78 @@ function itemPositions(inspector) {
 		]),
 	);
 }
+/**
+ * A stage's agents open in place (2026-11-03, owner's pick after comparing tabs, a list beside the
+ * detail, and expanding in place on real runs): a row expands to show that agent's result — the
+ * digest and the analysis as text-only Markdown — or, before it finishes, its state; "Open agent ›"
+ * leads to the full view (logs, events, details). Open rows survive live updates; results are
+ * fetched once per agent state.
+ */
+const expandedItems = new Set();
+const itemResults = new Map();
+function itemResult(task) {
+	const key = `${run.runId}:${task.taskId}:${task.status}:${task.attempt ?? ""}`;
+	if (!itemResults.has(key))
+		itemResults.set(
+			key,
+			api(
+				`/api/runs/${encodeURIComponent(run.runId)}/tasks/${encodeURIComponent(task.taskId)}/result`,
+				{ signal: AbortSignal.timeout(20000) },
+			).then(
+				(data) => ({ data: Object.keys(data || {}).length ? data : null }),
+				(error) => {
+					itemResults.delete(key);
+					return { error: `Result unavailable: ${error.message}` };
+				},
+			),
+		);
+	return itemResults.get(key);
+}
+function itemExpansion(task, id) {
+	const open = button("Open agent ›", () => go({ task: task.specId }), {
+		class: "item-open",
+	});
+	const body = element("div", {
+		class: "item-expand",
+		id,
+		role: "region",
+		"aria-label": `Result of ${task.title || task.specId}`,
+	});
+	if (taskState(task) !== "completed") {
+		body.append(
+			element(
+				"p",
+				{ class: "muted" },
+				task.status === "failed"
+					? task.lastMessage || "A task failed. Open the agent for its logs."
+					: `${taskLine(task)} — no result yet.`,
+			),
+			open,
+		);
+		return body;
+	}
+	body.append(element("p", { class: "muted" }, "Loading…"));
+	itemResult(task).then(({ data, error }) => {
+		if (!body.isConnected) return;
+		const parts = [];
+		if (error) parts.push(element("p", { class: "muted" }, error));
+		else if (!data)
+			parts.push(
+				element("p", { class: "muted" }, "No result files for this task."),
+			);
+		else {
+			if (data.digest)
+				parts.push(element("p", { class: "result-digest" }, data.digest));
+			if (data.analysis) {
+				const analysis = element("div", { class: "result-analysis" });
+				renderTextMarkdown(analysis, data.analysis);
+				parts.push(analysis);
+			}
+		}
+		body.replaceChildren(...parts, open);
+	});
+	return body;
+}
 const ITEM_GROUPS = [
 	["running", "Running"],
 	["look", "Needs a look"],
@@ -3045,15 +3117,32 @@ function renderItems(inspector, stage, previous = new Map()) {
 					),
 					annotation,
 				);
+				const expandKey = `${run.runId}:${task.specId}`,
+					expanded = expandedItems.has(expandKey),
+					regionId = `expand-${stage.items.indexOf(task)}`;
 				list.append(
-					button(content, () => go({ task: task.specId }), {
-						class: `agent-item ${status}`,
-						"data-item": task.specId,
-						"data-row-group": group,
-						title: `${task.title || task.specId} · ${taskLine(task)}${task.outcome?.text ? ` · ${task.outcome.text}` : ""}`,
-						"aria-label": `${task.title || task.specId} · ${taskLine(task)}`,
-					}),
+					button(
+						content,
+						() => {
+							if (expandedItems.has(expandKey)) expandedItems.delete(expandKey);
+							else expandedItems.add(expandKey);
+							paint();
+							list
+								.querySelector(`[data-item="${CSS.escape(task.specId)}"]`)
+								?.focus({ preventScroll: true });
+						},
+						{
+							"aria-expanded": String(expanded),
+							"aria-controls": regionId,
+							class: `agent-item ${status}`,
+							"data-item": task.specId,
+							"data-row-group": group,
+							title: `${task.title || task.specId} · ${taskLine(task)}${task.outcome?.text ? ` · ${task.outcome.text}` : ""}`,
+							"aria-label": `${task.title || task.specId} · ${taskLine(task)}`,
+						},
+					),
 				);
+				if (expanded) list.append(itemExpansion(task, regionId));
 			}
 		}
 		if (!matches.length)
@@ -3566,123 +3655,55 @@ function readableCodes(value) {
 	return value.replace(VERDICT_CODES, (code) => verdictWord(code));
 }
 /**
- * Code colouring for fenced blocks (2026-11-03, owner: "like an IDE"). The reference UIs use Shiki
- * tokens rendered as text spans (opencode session-ui markdown.worker.ts codeToTokens); the
- * dashboard ships no dependencies, so this is a small tokenizer in the same safe shape — text
- * nodes in classed spans, never markup. It knows comments, strings, numbers, keywords, JSON/YAML
- * keys, JS regex literals and diff lines for the common languages; others stay plain.
+ * Code colouring for fenced blocks with Shiki (2026-11-03, owner decision after a side-by-side
+ * with the earlier built-in tokenizer). Shiki is vendored under ./vendor/shiki/ by
+ * tools/release/vendor-shiki.mjs and imported only when a page has a fenced block; each grammar
+ * is its own lazily loaded chunk. Like the reference UIs (opencode session-ui markdown.worker.ts
+ * codeToTokens), tokens become text spans — never markup. A span's light and dark theme colours
+ * are classes from vendor/shiki/colours.css (.shl-<hex>, .shd-<hex>: no inline styles), and the
+ * page's colour scheme picks one. The text shows plain until the tokens arrive, and stays plain
+ * for an unknown language or any failure.
  */
-const CODE_KEYWORDS = {
-	js: "as async await break case catch class const continue debugger default delete do else enum export extends false finally for from function get if implements import in instanceof interface let new null of private protected public readonly return satisfies set static super switch this throw true try type typeof undefined var void while with yield",
-	py: "and as assert async await break class continue def del elif else except False finally for from global if import in is lambda None nonlocal not or pass raise return True try while with yield",
-	go: "break case chan const continue default defer else fallthrough false for func go goto if import interface map nil package range return select struct switch true type var",
-	rs: "as async await break const continue crate else enum extern false fn for if impl in let loop match mod move mut pub ref return self Self static struct super trait true type unsafe use where while",
-	sh: "case do done elif else esac export fi for function if in local return set then unset until while",
-	json: "true false null",
-	yaml: "true false null yes no",
-};
-const CODE_LANGS = {
-	js: "js",
-	jsx: "js",
-	mjs: "js",
-	cjs: "js",
-	ts: "js",
-	tsx: "js",
-	javascript: "js",
-	typescript: "js",
-	json: "json",
-	jsonc: "json",
-	py: "py",
-	python: "py",
-	go: "go",
-	rs: "rs",
-	rust: "rs",
-	sh: "sh",
-	bash: "sh",
-	zsh: "sh",
-	shell: "sh",
-	console: "sh",
-	yaml: "yaml",
-	yml: "yaml",
-	diff: "diff",
-	patch: "diff",
-};
-function highlightCode(code, language) {
-	const lang = CODE_LANGS[(language || "").toLowerCase()];
-	if (!lang || code.length > 50_000) return [code];
-	if (lang === "diff")
-		return code.split(/(?<=\n)/).map((line) => {
-			const kind = /^@@/.test(line)
-				? "hunk"
-				: /^\+(?!\+\+)/.test(line)
-					? "add"
-					: /^-(?!--)/.test(line)
-						? "del"
-						: null;
-			return kind ? element("span", { class: `tok-${kind}` }, line) : line;
-		});
-	const keywords = new Set(CODE_KEYWORDS[lang].split(" "));
-	const hash = ["py", "sh", "yaml"].includes(lang);
-	const slashes = ["js", "go", "rs", "json"].includes(lang);
-	const pattern = new RegExp(
-		[
-			slashes ? String.raw`(?<c>\/\/[^\n]*|\/\*[\s\S]*?\*\/)` : null,
-			hash ? String.raw`(?<h>#[^\n]*)` : null,
-			lang === "py" ? String.raw`(?<t>"""[\s\S]*?"""|'''[\s\S]*?''')` : null,
-			String.raw`(?<s>"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'${lang === "js" || lang === "go" ? "|\`(?:\\\\.|[^\`\\\\])*\`" : ""})`,
-			lang === "js"
-				? String.raw`(?<r>\/(?![*/])(?:\\.|\[(?:\\.|[^\]\\\n])*\]|[^/\\\n])+\/[dgimsuyv]*)`
-				: null,
-			String.raw`(?<n>\b(?:0[xob][\da-f_]+|\d[\d_]*(?:\.\d+)?(?:e[+-]?\d+)?n?)\b)`,
-			String.raw`(?<w>[A-Za-z_$][\w$]*)`,
-		]
-			.filter(Boolean)
-			.join("|"),
-		"gi",
-	);
-	const out = [];
-	let last = 0;
-	const span = (kind, text) => element("span", { class: `tok-${kind}` }, text);
-	for (const m of code.matchAll(pattern)) {
-		const g = m.groups;
-		let node = null;
-		if (g.c || g.h) node = span("c", m[0]);
-		else if (g.t) node = span("s", m[0]);
-		else if (g.s)
-			// A JSON or YAML key (a string followed by ":") reads as a key, not a value.
-			node = span(
-				["json", "yaml"].includes(lang) &&
-					/^\s*:/.test(code.slice(m.index + m[0].length))
-					? "p"
-					: "s",
-				m[0],
-			);
-		else if (g.r) {
-			// "/" starts a regex only where a value may start (after "(", "=", ",", return, …).
-			const before = code.slice(0, m.index).trimEnd();
-			if (
-				!/(?:^|[(,=:[!&|?{};+\-*%<>~^]|\b(?:return|typeof|case|in|of))$/.test(
-					before,
-				)
-			)
+let shikiModule = null;
+function colourCode(container) {
+	const blocks = [...container.querySelectorAll("pre.md-code[data-lang]")];
+	if (!blocks.length) return;
+	shikiModule ??= import("./vendor/shiki/highlight.js").catch(() => null);
+	shikiModule.then(async (shiki) => {
+		if (!shiki) return;
+		for (const pre of blocks) {
+			const code = pre.firstElementChild;
+			const text = code?.textContent ?? "";
+			if (!shiki.language(pre.dataset.lang) || text.length > 50_000) continue;
+			let lines;
+			try {
+				lines = await shiki.tokens(text, pre.dataset.lang);
+			} catch {
 				continue;
-			node = span("r", m[0]);
-		} else if (g.n) node = span("n", m[0]);
-		else if (g.w) {
-			if (keywords.has(m[0])) node = span("k", m[0]);
-			else if (
-				lang === "yaml" &&
-				/^\s*:/.test(code.slice(m.index + m[0].length))
-			)
-				node = span("p", m[0]);
-			else continue;
+			}
+			if (!lines || !pre.isConnected || code.textContent !== text) continue;
+			code.replaceChildren(
+				...lines.flatMap((line, index) => [
+					...line.map((token) => {
+						const span = document.createElement("span");
+						span.textContent = token.content;
+						for (const [name, prefix] of [
+							["--shiki-light", "shl"],
+							["--shiki-dark", "shd"],
+						]) {
+							const hex = /^#([0-9a-f]{3,8})$/i.exec(
+								token.htmlStyle?.[name] ?? "",
+							)?.[1];
+							if (hex) span.classList.add(`${prefix}-${hex.toLowerCase()}`);
+						}
+						return span;
+					}),
+					...(index < lines.length - 1 ? ["\n"] : []),
+				]),
+			);
+			pre.dataset.coloured = "true";
 		}
-		if (m.index > last) out.push(code.slice(last, m.index));
-		out.push(node);
-		last = m.index + m[0].length;
-	}
-	if (last < code.length) out.push(code.slice(last));
-	return out;
+	});
 }
 /** Keys that name a report row's main text (same order as the impact-review report helper). */
 const ROW_MAIN_KEYS = [
@@ -3832,7 +3853,7 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 			element(
 				"pre",
 				{ class: "md-code", "data-lang": fence.lang || null },
-				element("code", {}, highlightCode(fence.lines.join("\n"), fence.lang)),
+				element("code", {}, fence.lines.join("\n")),
 			),
 		);
 		fence = null;
@@ -3976,6 +3997,7 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 		}
 	}
 	if (fence) closeFence();
+	colourCode(container);
 }
 /**
  * Each `###` part of the report (a finding, a summary part) is one section, set apart by a hairline

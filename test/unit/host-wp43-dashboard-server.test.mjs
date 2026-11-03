@@ -626,3 +626,37 @@ test("raw requests: an empty Host is refused, and two Host headers are a 400 eve
 		/ 200 /,
 	);
 });
+
+test("vendored Shiki: its entry, chunks and colour classes are served; other names are not", async (t) => {
+	// 2026-11-03 (owner decision): code colouring uses the vendored Shiki under ui/vendor/shiki/.
+	const s = await server(t);
+	const manifest = JSON.parse(
+		await readFile(
+			new URL(
+				"../../src/hosts/dashboard/ui/vendor/shiki/manifest.json",
+				import.meta.url,
+			),
+			"utf8",
+		),
+	);
+	const chunk = manifest.files.find((file) => file.name.startsWith("chunk-"));
+	for (const [path, type] of [
+		["/vendor/shiki/highlight.js", "text/javascript; charset=utf-8"],
+		[`/vendor/shiki/${chunk.name}`, "text/javascript; charset=utf-8"],
+		["/vendor/shiki/colours.css", "text/css; charset=utf-8"],
+	]) {
+		const response = await http(s, path);
+		assert.equal(response.status, 200, path);
+		assert.equal(response.headers["content-type"], type, path);
+		assert.equal(response.headers["content-security-policy"], DASHBOARD_CSP);
+		assert.ok(response.text.length > 0, path);
+	}
+	for (const path of [
+		"/vendor/shiki/manifest.json",
+		"/vendor/shiki/THIRD-PARTY-NOTICES.txt",
+		"/vendor/shiki/chunk-NOPE.js",
+		"/vendor/shiki/../app.js",
+		"/vendor/shiki/%2e%2e%2fapp.js",
+	])
+		assert.equal((await http(s, path)).status, 404, path);
+});

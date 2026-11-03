@@ -3,7 +3,7 @@
 // assets into dist/ so the compiled runtime finds them next to itself.
 // The Darwin process-identity helper must stay executable: process-identity.js
 // execFile()s it directly, and a lost exec bit fails every macOS identity check.
-import { chmod, copyFile, mkdir, stat } from "node:fs/promises";
+import { chmod, copyFile, mkdir, readdir, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -11,6 +11,16 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const assets = [
 	...["index.html", "app.js", "app.css"].map((file) => ({
 		path: `hosts/dashboard/ui/${file}`,
+		mode: 0o644,
+		optional: true,
+	})),
+	// Vendored Shiki for code colouring (tools/release/vendor-shiki.mjs).
+	...(
+		await readdir(join(root, "src/hosts/dashboard/ui/vendor/shiki")).catch(
+			() => [],
+		)
+	).map((file) => ({
+		path: `hosts/dashboard/ui/vendor/shiki/${file}`,
 		mode: 0o644,
 		optional: true,
 	})),

@@ -13,6 +13,7 @@
 			"!**/*.md",
 			"!test/replay/fixtures/**",
 			"!src/runtime/native/**",
+			"!src/hosts/dashboard/ui/vendor/**",
 			"!dist/**",
 			"!node_modules/**"
 		]
