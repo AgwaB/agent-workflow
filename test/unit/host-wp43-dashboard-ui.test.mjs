@@ -470,9 +470,11 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		await browser.evaluate(() => document.querySelector(".report-toc")),
 		null,
 	);
-	// 2026-11-03 reading aids: a finding is a card toned by its evidence, field labels are quiet,
-	// evidence words are badges (escaped or in a table too), line kinds are tags, quotes read as
-	// quotes, and a numbered list keeps counting across nested bullets.
+	// 2026-11-03 reading aids (owner's design rules: no filled cards, no tinted chips, status as
+	// glyph + word): a finding is a section with a hanging number, field labels are quiet, evidence
+	// words read as glyph + plain word (escaped or in a table too; the raw word is the title),
+	// same-label lines are grouped under that label with a count, quotes read as quotes, a link
+	// named by its host shows host + path, and a numbered list keeps counting across nested bullets.
 	assert.deepEqual(
 		await browser.evaluate(() => {
 			const all = (selector) =>
@@ -480,23 +482,33 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 					(node) => node.textContent,
 				);
 			return {
-				card: all('.md-block[data-tone="good"] > .md-h3'),
+				card: all(".md-block > .md-h3"),
+				index: all(".md-block .md-index"),
 				labels: all(".md-label").slice(0, 2),
 				badges: all(".md-status"),
-				tags: all('.md-tag[data-kind="gap"]'),
+				raw: [...document.querySelectorAll("#report-content .md-status")].map(
+					(node) => `${node.title}:${node.dataset.tone}`,
+				),
+				groups: all(".md-group"),
+				grouped: all(".md-grouped > li"),
+				address: all(".md-url").slice(-1),
 				quotes: all(".md-quote"),
 				numbered: all(".md-block > ol > li").length,
 				nested: all("ol > li > ul .md-status"),
 			};
 		}),
 		{
-			card: ["1. Retries are bounded"],
+			card: ["1Retries are bounded"],
+			index: ["1"],
 			labels: ["Evidence status:", "Sources:"],
-			badges: ["verified", "partially_supported", "derived"],
-			tags: ["Gap"],
+			badges: ["Verified", "Partly supported", "Proposal"],
+			raw: ["verified:done", "partially_supported:warn", "derived:neutral"],
+			groups: ["Gap 1"],
+			grouped: ["no load test"],
+			address: ["/a"],
 			quotes: ['"Retries stop after four attempts."'],
 			numbered: 2,
-			nested: ["derived"],
+			nested: ["Proposal"],
 		},
 	);
 	// The page colour is chosen in the report and kept in this browser.

@@ -1503,8 +1503,9 @@ function readerTranslations(synthesis, claimIds, slotIds) {
 /**
  * 2026-11-03: a coverage gap carries only ids and its scope item, so the report printed
  * "Coverage gap — gap-coverage-001 — related slots: slot-001". It now names each related area
- * (translated when the synthesis gave one), its status and what is missing; a gap without
- * related areas shows its scope item. The packet (final-audit-packet control) keeps the ids.
+ * (translated when the synthesis gave one) and what is missing (its status is in the Evidence
+ * strength table); a gap without related areas shows its scope item. The packet
+ * (final-audit-packet control) keeps the ids.
  */
 function withCoverageGapText(gap, slotById) {
 	const ownText = ["gap", "finding", "claim", "note", "reason"].some(
@@ -1516,13 +1517,12 @@ function withCoverageGapText(gap, slotById) {
 		.filter(Boolean)
 		.map((slot) => {
 			const area = cleanText(slot.readerArea ?? slot.label ?? slot.slotId);
-			const status = cleanText(slot.status);
 			// Parts are joined with "; ", so a part's own closing full stop is dropped.
 			const missing = cleanText(slot.readerGap ?? slot.gapReason).replace(
 				/[.。]$/u,
 				"",
 			);
-			return `${area}${status ? ` (${status})` : ""}${missing ? `: ${missing}` : ""}`;
+			return `${area}${missing ? `: ${missing}` : ""}`;
 		});
 	const text = parts.length ? parts.join("; ") : cleanText(gap?.scopeItem);
 	return text ? { ...gap, readerText: text } : gap;

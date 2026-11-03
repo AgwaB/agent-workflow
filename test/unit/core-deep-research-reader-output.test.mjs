@@ -408,7 +408,7 @@ test("a coverage gap without its own text names its areas, not its ids", async (
 	assert.equal(result.status, "passed", JSON.stringify(result.gates));
 	assert.ok(
 		result.reportMarkdown.includes(
-			`**Gap:** ${slot.label} (${slot.status}): ${slot.gapReason.replace(/[.]$/, "")}`,
+			`**Gap:** ${slot.label}: ${slot.gapReason.replace(/[.]$/, "")}`,
 		),
 		"named gap",
 	);
@@ -423,7 +423,7 @@ test("a coverage gap without its own text names its areas, not its ids", async (
 	result = await render({ sources });
 	assert.ok(
 		result.reportMarkdown.includes(
-			`**Gap:** 이전 범위 영역 (${slot.status}): 확인이 더 필요하다`,
+			`**Gap:** 이전 범위 영역: 확인이 더 필요하다`,
 		),
 	);
 });

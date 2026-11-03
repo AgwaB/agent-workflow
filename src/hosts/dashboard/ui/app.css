@@ -1156,8 +1156,15 @@ dialog footer .muted {
 	outline-offset: -1px;
 }
 .report {
-	width: min(900px, calc(100vw - 32px));
+	width: min(880px, calc(100vw - 32px));
 }
+/*
+ * Report reading (2026-11-03). Owner's rules from the dashboard briefs (F5, DIRECTIONS; "AI slop"
+ * review): neutral surfaces, no filled cards or boxes in boxes, hairlines and space instead of
+ * fills, status as glyph + short word with colour on the glyph only (amber/red where it changes a
+ * decision), no tinted chips, body 15 px+, nothing under 12 px, tabular numbers. Reference: the
+ * "Ledger"/"Editorial" directions (Linear issue view, a printed report).
+ */
 /* Report page colour chosen in the report (else the dashboard theme). */
 dialog.report[data-page="light"] {
 	color-scheme: light;
@@ -1178,35 +1185,57 @@ dialog.report footer .report-page {
 }
 .report-content {
 	overflow-wrap: anywhere;
+	/* Korean wraps between words, not inside them. */
+	word-break: keep-all;
+	font-size: 15.5px;
 	line-height: 1.7;
 	/* Body text a step softer than headings: less glare on a dark page. */
-	color: light-dark(#2e2d29, #d2d2d2);
+	color: light-dark(#2e2d29, #d0d0d0);
 }
-.report-content :is(h3, h4, h5, h6, strong) {
+.report-content :is(h1, h2, h3, h4, h5, h6, strong) {
 	color: var(--text);
 }
-.report-content :is(p, li) {
-	max-width: 76ch;
+.report-content :is(p, li, .md-group) {
+	max-width: 70ch;
 }
 /* Rendered Markdown (report and task result): heading sizes by Markdown level, quiet addresses. */
 .report-content :is(h3, h4, h5, h6) {
-	margin: 20px 0 8px;
-	line-height: 1.35;
+	margin: 24px 0 8px;
+	line-height: 1.4;
+	letter-spacing: -0.01em;
 }
 .report-content .md-h1 {
-	font-size: 22px;
+	font-size: 24px;
+	letter-spacing: -0.02em;
 }
 .report-content .md-h2 {
-	font-size: 19px;
-	padding-top: 8px;
-	border-top: 1px solid var(--line);
+	font-size: 20px;
+	letter-spacing: -0.015em;
+	margin-top: 40px;
+	padding-top: 16px;
+	border-top: 1px solid var(--line2);
 }
 .report-content .md-h3 {
-	font-size: 16px;
+	font-size: 17px;
 }
 .report-content :is(.md-h4, .md-h5, .md-h6) {
 	font-size: 15px;
 	color: var(--muted);
+}
+/* "1. Finding": a quiet number; in a report section it hangs in the margin. */
+.md-index {
+	margin-right: 0.4em;
+	color: var(--faint);
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
+}
+.md-index::after {
+	content: ".";
+}
+.report-content .md-block .md-index {
+	display: inline-block;
+	min-width: 1.6em;
+	margin: 0 0 0 -1.6em;
 }
 .report-content p,
 .report-content ul,
@@ -1218,7 +1247,14 @@ dialog.report footer .report-page {
 	padding-left: 22px;
 }
 .report-content li + li {
-	margin-top: 4px;
+	margin-top: 6px;
+}
+.report-content li::marker {
+	color: var(--faint);
+}
+/* A list item written all in bold (the report's recommendations) reads as a lead, not a shout. */
+.report-content li > strong:first-child {
+	font-weight: 560;
 }
 .report-content code {
 	font: 13px var(--mono);
@@ -1228,90 +1264,75 @@ dialog.report footer .report-page {
 	border-top: 1px solid var(--line);
 	margin: 16px 0;
 }
+/* Tables: horizontal hairlines only, quiet header. */
 .report-content .report-table {
 	border-collapse: collapse;
-	margin: 8px 0;
+	margin: 12px 0;
+	font-size: 14.5px;
 }
 .report-content .report-table th,
 .report-content .report-table td {
-	border: 1px solid var(--line2);
-	padding: 4px 8px;
+	border-bottom: 1px solid var(--line);
+	padding: 8px 12px 8px 0;
 	text-align: left;
 	vertical-align: top;
+}
+.report-content .report-table th {
+	color: var(--muted);
+	font-size: 13px;
+	font-weight: 600;
+	border-bottom-color: var(--line2);
 }
 .md-url {
 	color: var(--muted);
 	font-size: 14px;
 }
-/* Reading aids (report and task result): field labels, evidence badges, line tags, quotes. */
+/* Reading aids (report and task result). */
 .md-label {
 	color: var(--muted);
 	font-size: 14px;
 }
 .md-status {
-	display: inline-block;
-	padding: 0 8px;
-	border-radius: 999px;
-	font-size: 13px;
-	font-weight: 600;
-	line-height: 20px;
 	white-space: nowrap;
+	color: var(--text);
+	font-weight: 500;
+}
+.md-status[data-glyph]::before {
+	content: attr(data-glyph);
+	display: inline-block;
+	width: 1.2em;
 	color: var(--muted);
-	background: color-mix(in srgb, currentColor 14%, transparent);
+	font-weight: 600;
 }
-.md-status[data-tone="good"] {
-	color: var(--accent);
-}
-.md-status[data-tone="warn"] {
+.md-status[data-tone="warn"]::before {
 	color: var(--warn);
 }
-.md-status[data-tone="bad"] {
+.md-status[data-tone="bad"]::before {
 	color: var(--err);
 }
-.md-tag {
-	display: inline-block;
-	padding: 0 6px;
-	border-radius: 6px;
-	font-size: 12.5px;
+.md-group {
+	margin: 20px 0 4px;
 	font-weight: 600;
-	line-height: 20px;
-	white-space: nowrap;
-	color: var(--muted);
-	background: color-mix(in srgb, currentColor 12%, transparent);
+	color: var(--text);
 }
-.md-tag:is([data-kind="gap"], [data-kind="caveat"]) {
-	color: var(--warn);
-}
-.md-tag:is([data-kind="unsupported"], [data-kind="contested"]) {
-	color: var(--err);
-}
-.md-tag[data-kind="decision-note"] {
-	color: var(--accent);
+.md-count {
+	color: var(--faint);
+	font-weight: 400;
+	font-variant-numeric: tabular-nums;
 }
 .md-quote {
 	font-style: italic;
 	color: var(--muted);
 }
-/* A finding or summary part as a card; its evidence tone marks the left edge. */
+/* A finding or summary part: set apart by a hairline and space, not a box. */
+.report-content .md-block + .md-block {
+	border-top: 1px solid var(--line);
+}
 .report-content .md-block {
-	margin: 14px 0;
-	padding: 2px 18px 10px;
-	border: 1px solid var(--line);
-	border-left: 3px solid var(--line2);
-	border-radius: 10px;
-	background: var(--surface);
-}
-.report-content .md-block[data-tone="good"] {
-	border-left-color: var(--accent);
-}
-.report-content .md-block[data-tone="warn"] {
-	border-left-color: var(--warn);
-}
-.report-content .md-block[data-tone="bad"] {
-	border-left-color: var(--err);
+	padding: 4px 0 12px 1.6em;
 }
 .report-content .md-block > :first-child {
-	margin-top: 12px;
+	margin-top: 16px;
 }
 .report-toc {
 	position: sticky;
@@ -1321,14 +1342,21 @@ dialog.report footer .report-page {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 4px 12px;
-	padding: 8px 0 12px;
+	gap: 4px 14px;
+	padding: 10px 0 12px;
 	margin-bottom: 8px;
 	border-bottom: 1px solid var(--line);
+	font-size: 14px;
+}
+.report-toc > span {
+	color: var(--faint);
 }
 .report-toc button {
 	border: 0;
 	padding: 0;
+	color: var(--muted);
+}
+.report-toc button:hover {
 	color: var(--text);
 	text-decoration: underline;
 	text-underline-offset: 3px;

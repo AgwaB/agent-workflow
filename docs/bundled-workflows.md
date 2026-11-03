@@ -212,7 +212,7 @@ After stage 2 (2026-11-01):
   original shows); a malformed container fails the schema and the renderer. The same change stops
   the Evidence strength table from escaping its source links a second time.
   A coverage gap without its own text (it had only ids: `Coverage gap — gap-coverage-001 — related
-  slots: slot-001`) now names each related area (translated when given), its status and what is
+  slots: slot-001`) now names each related area (translated when given) and what is
   missing (the slot's `gapReason`, or the translated `gap`); one without related areas shows its scope
   item. The packet keeps the ids.
 

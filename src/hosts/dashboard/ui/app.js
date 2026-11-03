@@ -3443,29 +3443,40 @@ async function mutate(runId, kind, approval) {
 	}
 }
 /**
- * Evidence words shown as tone badges (2026-11-03, reading the report): a bold status, a table cell
- * or a field value that is exactly one of these. Tones reuse the status colours.
+ * Evidence words as a glyph and a plain word (2026-11-03, owner's design rules from the dashboard
+ * briefs: status lives in glyph + short text, colour only on the glyph and only where it changes a
+ * decision, no tinted chips, no status codes in reading text). The raw word stays as the title.
  */
-const STATUS_TONES = {
-	verified: "good",
-	filled: "good",
-	high: "good",
-	partial: "warn",
-	partially_supported: "warn",
-	medium: "warn",
-	unsupported: "bad",
-	conflicting: "bad",
-	verification_blocked: "bad",
-	missing: "bad",
-	low: "bad",
-	derived: "info",
-	unverified: "info",
+const STATUS_WORDS = {
+	verified: ["✓", "Verified", "done"],
+	filled: ["✓", "Covered", "done"],
+	partially_supported: ["◐", "Partly supported", "warn"],
+	partial: ["◐", "Partly covered", "warn"],
+	unsupported: ["✕", "Unsupported", "bad"],
+	conflicting: ["≠", "Sources disagree", "bad"],
+	verification_blocked: ["⊘", "Not checked", "bad"],
+	missing: ["✕", "Not covered", "bad"],
+	unverified: ["○", "Unverified", "neutral"],
+	derived: ["○", "Proposal", "neutral"],
+	high: ["", "High", "neutral"],
+	medium: ["", "Medium", "neutral"],
+	low: ["", "Low", "neutral"],
 };
 function statusBadge(word) {
-	const tone = STATUS_TONES[word.trim().toLowerCase()];
-	return tone
-		? element("span", { class: "md-status", "data-tone": tone }, word.trim())
-		: null;
+	const raw = word.trim();
+	const known = STATUS_WORDS[raw.toLowerCase()];
+	if (!known) return null;
+	const [glyph, label, tone] = known;
+	return element(
+		"span",
+		{
+			class: "md-status",
+			"data-tone": tone,
+			"data-glyph": glyph || null,
+			title: raw,
+		},
+		label,
+	);
 }
 /**
  * Untrusted Markdown as text nodes: headings (by level), bullet and numbered lists (an indented
@@ -3474,8 +3485,9 @@ function statusBadge(word) {
  * escapes. No links, HTML, images or content-derived URLs: a Markdown link shows its text with the
  * address as plain text, an image only its alt text (report and task result).
  * Reading aids (2026-11-03): a line that starts with a short English field label ("Sources:") shows
- * the label quietly, evidence words become tone badges, a list item that starts with a bold label
- * ("**Gap:**") gets a tag, and a long double-quoted passage reads as a quote.
+ * the label quietly, evidence words read as glyph + word, list items that start with the same bold
+ * label ("**Gap:**") are grouped under that label once, a numbered heading hangs its number, and a
+ * long double-quoted passage reads as a quote.
  */
 function renderTextMarkdown(container, text, headingBase = 3) {
 	// Escaped punctuation is parked in the private-use area so it is never read as Markdown.
@@ -3503,14 +3515,26 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 						`[image${m[1] ? `: ${unpark(m[1])}` : ""}]`,
 					),
 				);
-			else if (m[2] !== undefined)
+			else if (m[2] !== undefined) {
+				// A link named by its host reads as host + quiet path ("arxiv.org/abs/2307.03172");
+				// any other link keeps its whole address in brackets.
+				const label = unpark(m[2]),
+					target = unpark(m[3]);
+				let address = ` (${target})`;
+				try {
+					const url = new URL(target);
+					if (url.host.replace(/^www\./, "") === label.replace(/^www\./, ""))
+						address = `${url.pathname === "/" ? "" : url.pathname}${url.search}${url.hash}`;
+				} catch {
+					// Not an absolute URL: keep it as written.
+				}
 				nodes.push(
-					unpark(m[2]),
-					m[3] !== m[2]
-						? element("span", { class: "md-url" }, ` (${unpark(m[3])})`)
+					label,
+					target !== label && address
+						? element("span", { class: "md-url" }, address)
 						: null,
 				);
-			else if (m[4] !== undefined)
+			} else if (m[4] !== undefined)
 				nodes.push(
 					statusBadge(unpark(m[4])) ?? element("strong", {}, unpark(m[4])),
 				);
@@ -3536,20 +3560,11 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 			value ? (statusBadge(plain) ?? inline(value)) : null,
 		];
 	};
-	// "**Gap:** …" at the start of a list item: a tag naming the kind of line.
-	const itemNodes = (raw) => {
-		const m = /^\*\*([^*]{1,40}):\*\*\s*(.*)$/.exec(raw);
-		if (!m) return field(raw);
-		const kind = m[1].toLowerCase().replace(/[^a-z0-9]+/g, "-");
-		return [
-			element("span", { class: "md-tag", "data-kind": kind }, m[1]),
-			" ",
-			inline(m[2]),
-		];
-	};
 	let list = null;
 	let paragraph = null;
 	let table = null;
+	// Consecutive "- **Gap:** …" items: the label is said once, above them, with a count.
+	let group = null;
 	for (const line of text.split("\n")) {
 		const heading = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line),
 			item = /^\s*[-*+]\s+(.+)$/.exec(line),
@@ -3593,17 +3608,41 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 			list = null;
 			paragraph = null;
 			const level = Math.min(6, headingBase + heading[1].length - 1);
+			const numberedHeading = /^(\d+)\.\s+(.+)$/.exec(heading[2]);
 			container.append(
 				element(
 					`h${level}`,
 					{ class: `md-h${heading[1].length}` },
-					...inline(heading[2]),
+					numberedHeading
+						? [
+								element("span", { class: "md-index" }, numberedHeading[1]),
+								inline(numberedHeading[2]),
+							]
+						: inline(heading[2]),
 				),
 			);
 		} else if (item || numbered) {
 			paragraph = null;
 			const tag = item ? "ul" : "ol";
-			const entry = element("li", {}, ...itemNodes((item ?? numbered)[1]));
+			const labelled =
+				item && !/^\s{2,}/.test(line)
+					? /^\*\*([^*]{1,40}):\*\*\s*(.*)$/.exec(item[1])
+					: null;
+			if (labelled) {
+				if (!group || group.label !== labelled[1] || list !== group.list) {
+					const count = element("span", { class: "md-count" });
+					container.append(
+						element("p", { class: "md-group" }, labelled[1], " ", count),
+					);
+					list = element("ul", { class: "md-grouped" });
+					container.append(list);
+					group = { label: labelled[1], list, count, size: 0 };
+				}
+				group.count.textContent = String(++group.size);
+				list.append(element("li", {}, ...inline(labelled[2])));
+				continue;
+			}
+			const entry = element("li", {}, ...field((item ?? numbered)[1]));
 			const parent = list?.lastElementChild;
 			if (/^\s{2,}/.test(line) && parent) {
 				// An indented item nests under the item above (the numbered list keeps counting).
@@ -3615,7 +3654,7 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 				nested.append(entry);
 				continue;
 			}
-			if (!list || list.tagName.toLowerCase() !== tag) {
+			if (!list || list.tagName.toLowerCase() !== tag || list === group?.list) {
 				list = element(tag, {
 					start: numbered ? /^\s*(\d+)/.exec(line)[1] : null,
 				});
@@ -3637,8 +3676,8 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 	}
 }
 /**
- * Each `###` part of the report (a finding, a summary part) becomes a card; a card that shows an
- * evidence badge takes its tone on the left edge (2026-11-03: a long report read as one wall of text).
+ * Each `###` part of the report (a finding, a summary part) is one section, set apart by a hairline
+ * and space — not a filled card (owner's rules: no filled cards, no status-coloured edges).
  */
 function reportBlocks(container) {
 	let block = null;
@@ -3649,10 +3688,6 @@ function reportBlocks(container) {
 			node.before(block);
 		}
 		if (block && node !== block) block.append(node);
-	}
-	for (const card of container.querySelectorAll(".md-block")) {
-		const tone = card.querySelector(".md-status")?.dataset.tone;
-		if (tone) card.dataset.tone = tone;
 	}
 }
 /**
