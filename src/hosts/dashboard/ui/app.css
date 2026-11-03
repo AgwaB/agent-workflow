@@ -477,8 +477,27 @@ progress::-moz-progress-bar {
 .node.next .node-name {
 	fill: var(--text);
 }
-.node.selected .outline,
-.node:focus .outline {
+/*
+ * 2026-11-03 (owner: a white frame on one card looked like a signal): the outline colour means the
+ * outcome (amber: work left, red: failed). Selection lightens the card and thickens its own
+ * outline; hover lifts a quiet outline; only keyboard focus draws the text-colour frame.
+ */
+.node.selected .outline {
+	fill: var(--selected);
+	stroke-width: 2;
+	stroke-dasharray: none;
+}
+.node:is(.selected, :hover):not(
+		.outcome-warn,
+		.failed,
+		.blocked,
+		.retry,
+		.running
+	)
+	.outline {
+	stroke: var(--muted);
+}
+.node:focus-visible .outline {
 	stroke: var(--text);
 	stroke-width: 2;
 	stroke-dasharray: none;
@@ -1653,6 +1672,14 @@ main.signin code {
 }
 .node.support:not(.failed):not(.blocked):not(.running):not(.retry) .outline {
 	stroke: var(--line);
+}
+/* A code step answers hover and selection too (quiet otherwise). */
+.node.support:not(.failed):not(.blocked):not(.running):not(.retry):is(
+		:hover,
+		.selected
+	)
+	.outline {
+	stroke: var(--muted);
 }
 .node.support:not(.failed):not(.blocked):not(.running):not(.retry) .node-name {
 	fill: var(--faint);

@@ -1573,7 +1573,13 @@ function renderGraph() {
 		});
 		node.append(
 			svg("rect", { class: "outline", width: p.w, height: p.h, rx: 10 }),
-			svg("title", {}, group ? title : stage.name || stage.id),
+			svg(
+				"title",
+				{},
+				group
+					? title
+					: `${title}${stage.kind === "support" ? " · code step (no model)" : ""}`,
+			),
 			markIcon(stageMark(stage), 12, 12),
 			svg(
 				"text",
