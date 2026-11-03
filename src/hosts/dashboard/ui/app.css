@@ -137,8 +137,9 @@ h3 {
 .connection.live {
 	color: var(--accent);
 }
+/* 2026-11-03 (owner: "finished should look finished"): a clean finish is a green check. */
 .glyph.completed {
-	color: var(--faint);
+	color: var(--accent);
 }
 .glyph.blocked {
 	color: var(--warn);
@@ -333,7 +334,7 @@ progress::-moz-progress-bar {
 	stroke-linecap: round;
 }
 .hero-badge.completed .hero-ring {
-	stroke: var(--text);
+	stroke: var(--accent);
 }
 .hero-badge.interrupted .hero-ring {
 	stroke: var(--faint);
@@ -345,7 +346,7 @@ progress::-moz-progress-bar {
 	stroke: var(--err);
 }
 .hero-check {
-	stroke: var(--text);
+	stroke: var(--accent);
 	stroke-width: 2;
 	stroke-linecap: round;
 	stroke-linejoin: round;
@@ -1052,7 +1053,8 @@ dd {
 	padding-left: 12px;
 }
 .agent-item.running .agent-icon,
-.agent-item.running .agent-time {
+.agent-item.running .agent-time,
+.agent-item.completed .agent-icon.tone-ok {
 	color: var(--accent);
 }
 .agent-item.pending .agent-title {
@@ -1545,15 +1547,15 @@ dialog.report footer .report-page {
 	color: var(--accent);
 }
 .status-icon.completed {
-	color: var(--faint);
+	color: var(--accent);
+}
+.status-icon.completed path {
+	stroke-width: 2;
 }
 .status-icon:is(.blocked, .attention) {
 	color: var(--warn);
 }
-/* A finished agent stage's ✓ is bright: done is visible; support steps keep the quiet one. */
-.node.completed:not(.support) .status-icon.completed {
-	color: var(--text);
-}
+
 .status-icon.failed {
 	color: var(--err);
 }

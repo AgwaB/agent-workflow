@@ -346,7 +346,7 @@ test("dashboard redesign: agent contracts, handoffs and reduced motion in Chrome
 				},
 			);
 			// 2026-11-03: a finished stage's mark says how it ended — an amber ! where an agent's outcome
-			// leaves work to do, a bright check where it ended clean.
+			// leaves work to do, a green check where it ended clean (owner, 2026-11-03).
 			assert.deepEqual(
 				await browser.evaluate(() => ({
 					finalAudit: document
@@ -367,7 +367,7 @@ test("dashboard redesign: agent contracts, handoffs and reduced motion in Chrome
 				{
 					finalAudit: "status-icon attention",
 					clean: "status-icon completed",
-					cleanColour: "rgb(237, 237, 237)",
+					cleanColour: "rgb(111, 191, 142)",
 					text: "rgb(237, 237, 237)",
 				},
 			);
