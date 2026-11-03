@@ -168,9 +168,18 @@ h3 {
 	width: clamp(200px, 32vw, 450px);
 	margin-left: 24px;
 	display: flex;
-	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
 	text-align: left;
 	color: var(--muted);
+	white-space: nowrap;
+	min-width: 0;
+}
+.search-label {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 kbd {
 	font: 12px var(--mono);
@@ -205,7 +214,8 @@ kbd {
 .body.rail-folded.inspecting {
 	grid-template-columns: minmax(360px, 1fr) minmax(420px, 600px);
 }
-.rail[hidden] {
+.rail[hidden],
+.rail-scrim[hidden] {
 	display: none;
 }
 .rail-button {
@@ -271,6 +281,22 @@ kbd {
 }
 .run-row .glyph.running .status-icon {
 	animation: pulse 1.8s ease-in-out infinite;
+}
+.run-started {
+	flex: none;
+	font-size: 12px;
+}
+.run-task {
+	margin: 2px 0 0 28px;
+	font-size: 13px;
+	line-height: 1.4;
+	color: var(--muted);
+	overflow-wrap: anywhere;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	overflow: hidden;
 }
 .run-row .elapsed {
 	font-size: 13px;
@@ -1547,6 +1573,9 @@ dialog.report footer .report-page {
 .report-toc > span {
 	color: var(--faint);
 }
+.report-toc .toc-toggle {
+	display: none;
+}
 .report-toc button {
 	border: 0;
 	padding: 0;
@@ -1616,33 +1645,90 @@ dialog.report footer .report-page {
 		margin-left: auto;
 	}
 	.search .search-label,
-	.top .needs-button {
+	.search kbd,
+	.top .needs-button,
+	.brand-name {
 		display: none;
+	}
+	.search {
+		flex: none;
+	}
+	.top {
+		gap: 10px;
 	}
 	.project {
 		max-width: 120px;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
+	/* A phone: one column; the rail is a drawer over the page, opened by the sidebar button. */
 	.body,
-	.body.inspecting {
-		grid-template-columns: 200px minmax(0, 1fr);
-	}
+	.body.inspecting,
 	.body.rail-folded,
 	.body.rail-folded.inspecting {
 		grid-template-columns: minmax(0, 1fr);
+	}
+	.rail {
+		position: fixed;
+		top: 48px;
+		left: 0;
+		bottom: 0;
+		width: min(300px, 86vw);
+		z-index: 4;
+		background: var(--panel);
+		box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+	}
+	.rail-scrim {
+		position: fixed;
+		inset: 48px 0 0;
+		z-index: 3;
+		background: rgba(0, 0, 0, 0.45);
+	}
+	.code-switch-count {
+		font-size: 0;
+	}
+	.code-switch-count::before {
+		content: attr(data-short);
+		font-size: 13px;
+	}
+	.more.bottom {
+		bottom: 76px;
+	}
+	.report-toc .toc-label {
+		display: none;
+	}
+	.report-toc .toc-toggle {
+		display: inline-flex;
+		border: 0;
+		padding: 0;
+		color: var(--muted);
+	}
+	.report-toc .toc-toggle::after {
+		content: " ▾";
+	}
+	.report-toc.open .toc-toggle::after {
+		content: " ▴";
+	}
+	.report-toc:not(.open) .toc-entry {
+		display: none;
+	}
+	.report-toc.open {
+		flex-direction: column;
+		align-items: flex-start;
 	}
 	.inspector {
 		position: fixed;
 		top: 48px;
 		right: 0;
 		bottom: 0;
-		width: min(360px, calc(100vw - 24px));
+		width: min(440px, 100vw);
 		background: var(--bg);
 		z-index: 2;
 	}
+	/* The actions take their own line, so the title's sub line keeps its width. */
 	.title-row .actions {
 		margin-left: 0;
+		flex-basis: 100%;
 	}
 	.run-header {
 		grid-template-columns: minmax(0, 1fr);

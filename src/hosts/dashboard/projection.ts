@@ -31,6 +31,8 @@ export interface DashboardRunSummary {
 	statusDetail?: string;
 	createdAt: string;
 	updatedAt: string;
+	/** The user's task on one line, cut to TASK_PREVIEW_CHARS characters: tells runs of one workflow apart. */
+	taskPreview?: string;
 	executor?: string;
 	executors?: string[];
 	host?: string;
@@ -144,6 +146,15 @@ export function projectNeedsYou(
 	return needs;
 }
 
+/** Bound of a run summary's one-line task preview (the full task is on the run's own page). */
+export const TASK_PREVIEW_CHARS = 140;
+function taskPreview(task: string | undefined): string | undefined {
+	const line = task?.replace(/\s+/gu, " ").trim();
+	if (!line) return undefined;
+	return line.length > TASK_PREVIEW_CHARS
+		? `${line.slice(0, TASK_PREVIEW_CHARS - 1).trimEnd()}…`
+		: line;
+}
 export function projectRunSummary(
 	run: RunSummary | DashboardStatusRun,
 	shown?: DashboardShownRun,
@@ -173,6 +184,7 @@ export function projectRunSummary(
 				!task.dynamicGenerated
 			),
 	);
+	const preview = taskPreview(shown?.runtimeTask);
 	return {
 		runId: run.runId,
 		name: run.name ?? "workflow",
@@ -180,6 +192,7 @@ export function projectRunSummary(
 		...(run.status === "blocked" && statusDetail ? { statusDetail } : {}),
 		createdAt: run.createdAt,
 		updatedAt: run.updatedAt,
+		...(preview ? { taskPreview: preview } : {}),
 		...(run.executor ? { executor: run.executor } : {}),
 		...(executors.length > 1 ? { executors } : {}),
 		...(shown?.launch ? { host: shown.launch.source } : {}),

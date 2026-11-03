@@ -185,8 +185,14 @@ function cycleTheme() {
 }
 let themeOverride = null;
 applyTheme(themeChoice());
-/** The runs rail can fold away (owner, 2026-11-03); the choice is kept in this browser. */
+/**
+ * The runs rail (owner, 2026-11-03): it folds away with the top bar's sidebar button, kept in this
+ * browser. Below 1440 px it steps aside while the inspector is open (the button brings it back for
+ * that inspection); on a phone it is a drawer over the page, closed until asked for.
+ */
 const RAIL_KEY = "agent-workflow:rail";
+const phone = matchMedia("(max-width: 800px)"),
+	roomy = matchMedia("(min-width: 1440px)");
 let railFolded = (() => {
 	try {
 		return localStorage.getItem(RAIL_KEY) === "folded";
@@ -194,27 +200,47 @@ let railFolded = (() => {
 		return false;
 	}
 })();
-function applyRail() {
-	$("body").classList.toggle("rail-folded", railFolded);
-	$("rail").hidden = railFolded;
+let railOpen = false, // phone drawer, never kept
+	railForced = false; // shown beside the inspector although the screen is narrow
+const inspecting = () => $("body").classList.contains("inspecting");
+function railShown() {
+	if (phone.matches) return railOpen;
+	return !railFolded && (roomy.matches || !inspecting() || railForced);
 }
-function toggleRail(open = railFolded) {
-	railFolded = !open;
+function applyRail() {
+	if (!inspecting()) railForced = false;
+	const shown = railShown();
+	$("body").classList.toggle("rail-folded", !shown && !phone.matches);
+	$("body").classList.toggle("rail-open", shown && phone.matches);
+	$("rail").hidden = !shown;
+	$("rail-scrim").hidden = !(shown && phone.matches);
+	const control = $("top").querySelector(".rail-button");
+	if (control) {
+		control.setAttribute("aria-expanded", String(shown));
+		control.setAttribute("aria-label", shown ? "Hide runs" : "Show runs");
+		control.title = shown ? "Hide runs" : "Show runs";
+	}
+}
+function toggleRail(open = !railShown()) {
+	if (phone.matches) railOpen = open;
+	else if (open) {
+		railFolded = false;
+		railForced = inspecting();
+	} else if (inspecting() && !roomy.matches && !railForced) railFolded = true;
+	else if (inspecting() && !roomy.matches) railForced = false;
+	else railFolded = true;
 	try {
 		if (railFolded) localStorage.setItem(RAIL_KEY, "folded");
 		else localStorage.removeItem(RAIL_KEY);
 	} catch {}
 	applyRail();
-	renderTop();
-	graphControl?.fit?.();
 }
+for (const query of [phone, roomy]) query.addEventListener("change", applyRail);
+$("rail-scrim").addEventListener("click", () => toggleRail(false));
 function railButton() {
 	return button(markIcon("sidebar"), () => toggleRail(), {
 		class: "rail-button",
-		"aria-label": railFolded ? "Show runs" : "Hide runs",
-		"aria-expanded": String(!railFolded),
 		"aria-controls": "rail",
-		title: railFolded ? "Show runs" : "Hide runs",
 	});
 }
 function themeButton() {
@@ -473,6 +499,7 @@ function go(patch, replace = false) {
 	if (patch.task || patch.stage) state.view = null;
 	state = { ...state, ...patch };
 	urlState(replace);
+	if (railOpen) toggleRail(false);
 	if (switching) loadRun();
 	else {
 		renderSelection();
@@ -485,7 +512,6 @@ function renderTop() {
 		: null;
 	const needs = visibleNeeds().length;
 	$("top").replaceChildren();
-	applyRail();
 	append($("top"), [
 		railButton(),
 		element(
@@ -498,7 +524,8 @@ function renderTop() {
 		element("span", { class: "project", id: "project" }, session.project.name),
 		button(
 			[
-				element("span", { class: "search-label" }, "⌕  Jump to run, stage…"),
+				element("span", { class: "search-icon", "aria-hidden": "true" }, "⌕"),
+				element("span", { class: "search-label" }, "Jump to run, stage…"),
 				element("kbd", {}, "⌘K"),
 			],
 			openPalette,
@@ -509,7 +536,7 @@ function renderTop() {
 			// Amber only when something waits for you; "Needs you 0" stays neutral.
 			[needs ? glyph("blocked") : null, `Needs you  ${needs}`],
 			() => {
-				if (railFolded) toggleRail(true);
+				if (!railShown()) toggleRail(true);
 				$("rail").querySelector(".need")?.focus();
 			},
 			{ class: `needs-button${needs ? "" : " none"}` },
@@ -520,6 +547,7 @@ function renderTop() {
 		themeButton(),
 		element("span", { id: "connection", class: "connection", role: "status" }),
 	]);
+	applyRail();
 	updateConnection();
 	if (focusedLabel)
 		$("top")
@@ -783,7 +811,24 @@ function renderRail() {
 					{ class: "grow truncate", title: summary.name },
 					summary.name,
 				),
+				// When it started, and below, the task it was given: four "deep-review" rows read
+				// apart (owner, 2026-11-03).
+				element(
+					"span",
+					{
+						class: "run-started muted",
+						title: `Started ${new Date(date(summary.createdAt)).toLocaleString()}`,
+					},
+					ago(summary.createdAt),
+				),
 			),
+			summary.taskPreview
+				? element(
+						"p",
+						{ class: "run-task", title: summary.taskPreview },
+						summary.taskPreview,
+					)
+				: null,
 			element(
 				"div",
 				{ class: "row run-progress" },
@@ -2309,11 +2354,22 @@ function renderGraph() {
 				},
 				element("span", { class: "track", "aria-hidden": "true" }),
 				kindIcon("code"),
-				showCode
-					? `${model.codeSteps} code step${model.codeSteps === 1 ? "" : "s"} shown`
-					: model.hiddenCode
-						? `${model.hiddenCode} code step${model.hiddenCode === 1 ? "" : "s"} hidden`
-						: "Code steps",
+				element(
+					"span",
+					{
+						class: "code-switch-count",
+						"data-short": showCode
+							? `${model.codeSteps} shown`
+							: model.hiddenCode
+								? `${model.hiddenCode} hidden`
+								: "Code",
+					},
+					showCode
+						? `${model.codeSteps} code step${model.codeSteps === 1 ? "" : "s"} shown`
+						: model.hiddenCode
+							? `${model.hiddenCode} code step${model.hiddenCode === 1 ? "" : "s"} hidden`
+							: "Code steps",
+				),
 				element(
 					"span",
 					{ class: "code-switch-action" },
@@ -2845,6 +2901,7 @@ function renderSelection() {
 	inspector.dataset.key = key;
 	inspector.hidden = !visible;
 	$("body").classList.toggle("inspecting", visible);
+	applyRail();
 	for (const node of document.querySelectorAll(".node"))
 		node.classList.toggle(
 			"selected",
@@ -4371,16 +4428,33 @@ function reportPageButton(dialog) {
 function reportContents(container) {
 	const sections = [...container.querySelectorAll(".md-h2")];
 	if (sections.length < 3) return null;
-	return element(
+	// On a phone the list folds behind "Contents" (it took half the first screen).
+	const nav = element(
 		"nav",
 		{ class: "report-toc", "aria-label": "Report sections" },
-		element("span", { class: "muted" }, "Contents"),
+		element("span", { class: "muted toc-label" }, "Contents"),
+		button("Contents", () => toggle(), {
+			class: "toc-toggle",
+			"aria-expanded": "false",
+		}),
 		...sections.map((heading) =>
-			button(heading.textContent, () =>
-				heading.scrollIntoView({ block: "start", behavior: "smooth" }),
+			button(
+				heading.textContent,
+				() => {
+					toggle(false);
+					heading.scrollIntoView({ block: "start", behavior: "smooth" });
+				},
+				{ class: "toc-entry" },
 			),
 		),
 	);
+	const toggle = (open = !nav.classList.contains("open")) => {
+		nav.classList.toggle("open", open);
+		nav
+			.querySelector(".toc-toggle")
+			.setAttribute("aria-expanded", String(open));
+	};
+	return nav;
 }
 async function openReport() {
 	const id = run.runId,
@@ -4748,6 +4822,7 @@ async function loadRun() {
 	if (modalKey) dismissDialog(false);
 	$("inspector").hidden = true;
 	$("body").classList.remove("inspecting");
+	applyRail();
 	$("center").replaceChildren(element("p", { class: "empty" }, "Loading run…"));
 	connection = "Reconnecting";
 	lastEvent = 0;
@@ -4806,7 +4881,8 @@ document.addEventListener("keydown", (event) => {
 		return;
 	}
 	if (event.key === "Escape" && !$("dialog").open) {
-		closeInspector();
+		if (railOpen) toggleRail(false);
+		else closeInspector();
 		return;
 	}
 	if (

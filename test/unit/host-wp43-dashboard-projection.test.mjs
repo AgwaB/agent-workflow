@@ -104,6 +104,19 @@ test("projection preserves retry countdown, foreach/dynamic items, runtime and a
 	assert.equal(result.live, true);
 	assert.deepEqual(result.executors, ["claude", "codex"]);
 	assert.equal(result.task, "Review the checkout");
+	// 2026-11-03 (owner: four "deep-review" rows looked the same): summaries carry the task on
+	// one line, bounded.
+	assert.equal(result.taskPreview, "Review the checkout");
+	const long = projectRunSummary(run, {
+		...shown,
+		runtimeTask: `  Review\n\n the   checkout ${"x".repeat(300)}`,
+	}).taskPreview;
+	assert.equal(long.length, 140);
+	assert.match(long, /^Review the checkout x+…$/);
+	assert.equal(
+		projectRunSummary(run, { ...shown, runtimeTask: undefined }).taskPreview,
+		undefined,
+	);
 	assert.equal(
 		projectRun(run, { ...shown, runtimeTask: undefined }).task,
 		undefined,

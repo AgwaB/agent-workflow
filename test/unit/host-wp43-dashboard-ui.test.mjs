@@ -1373,3 +1373,117 @@ test("dashboard Chrome: the runs rail folds and stays folded; graph controls lin
 		null,
 	);
 });
+
+test("dashboard Chrome: the rail steps aside for the inspector on narrower screens and is a drawer on phones", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
+	timeout: 120_000,
+}, async (t) => {
+	// 2026-11-03 (owner review: "include mobile"): below 1440 px the rail folds while the inspector
+	// is open (the sidebar button brings it back for that inspection); on a phone the rail is a
+	// drawer, closed until asked for, closed again by a pick, the scrim or Escape. Rows say when a
+	// run started and what it was asked.
+	const fixture = await createFixtureServer();
+	t.after(() => fixture.close());
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	fixture.runs.get(running).taskPreview = "Review the ledger's retry path";
+	const state = () =>
+		browser.evaluate(() => ({
+			rail: !document.getElementById("rail").hidden,
+			scrim: !document.getElementById("rail-scrim").hidden,
+			expanded: document
+				.querySelector(".rail-button")
+				.getAttribute("aria-expanded"),
+			width: document.documentElement.scrollWidth,
+			center: Math.round(
+				document.getElementById("center").getBoundingClientRect().width,
+			),
+		}));
+	await browser.open(
+		`${fixture.origin}/?run=${running}&stage=triage`,
+		1280,
+		800,
+	);
+	await browser.waitFor(() => !document.getElementById("inspector").hidden);
+	assert.deepEqual((await state()).rail, false);
+	await browser.evaluate(() => document.querySelector(".rail-button").click());
+	assert.deepEqual((await state()).rail, true);
+	assert.equal(
+		await browser.evaluate(() => localStorage.getItem("agent-workflow:rail")),
+		null,
+		"bringing it back beside the inspector is not a kept choice",
+	);
+	const [task, started] = await browser.evaluate(() => {
+		const row = document.querySelector(".run-row[aria-current='true']");
+		return [
+			row.querySelector(".run-task")?.textContent,
+			row.querySelector(".run-started")?.textContent,
+		];
+	});
+	assert.equal(task, "Review the ledger's retry path");
+	assert.match(started, /^\d+m ago$/);
+	// A phone: one column, the rail closed until asked for.
+	await browser.send("Emulation.setDeviceMetricsOverride", {
+		width: 390,
+		height: 844,
+		deviceScaleFactor: 1,
+		mobile: true,
+	});
+	await browser.open(`${fixture.origin}/?run=${running}`, 390, 844);
+	const closed = await state();
+	assert.deepEqual(
+		{ ...closed, center: undefined },
+		{
+			rail: false,
+			scrim: false,
+			expanded: "false",
+			width: 390,
+			center: undefined,
+		},
+	);
+	assert.equal(closed.center, 390);
+	await browser.evaluate(() => document.querySelector(".rail-button").click());
+	assert.deepEqual(
+		await state().then(({ rail, scrim, expanded }) => [rail, scrim, expanded]),
+		[true, true, "true"],
+	);
+	await browser.evaluate(() => document.getElementById("rail-scrim").click());
+	assert.equal((await state()).rail, false);
+	await browser.evaluate(() => document.querySelector(".rail-button").click());
+	await browser.key("Escape");
+	assert.equal((await state()).rail, false);
+	await browser.evaluate(() => document.querySelector(".rail-button").click());
+	await browser.evaluate(() =>
+		document.querySelector(".run-row:not([aria-current='true'])").click(),
+	);
+	assert.equal((await state()).rail, false);
+	// A long report's contents fold behind "Contents" on a phone; a pick folds them again.
+	fixture.reports.set(
+		complete,
+		"# Report\n\n## One\n\nA.\n\n## Two\n\nB.\n\n## Three\n\nC.",
+	);
+	await browser.open(
+		`${fixture.origin}/?run=${complete}&view=report`,
+		390,
+		844,
+	);
+	await browser.waitFor(() => document.querySelector(".report-toc"));
+	const contents = () =>
+		browser.evaluate(() => ({
+			expanded: document
+				.querySelector(".toc-toggle")
+				.getAttribute("aria-expanded"),
+			entries: [...document.querySelectorAll(".toc-entry")].filter(
+				(entry) => entry.getClientRects().length,
+			).length,
+		}));
+	assert.deepEqual(await contents(), { expanded: "false", entries: 0 });
+	await browser.evaluate(() => document.querySelector(".toc-toggle").click());
+	assert.deepEqual(await contents(), { expanded: "true", entries: 3 });
+	await browser.evaluate(() =>
+		document.querySelectorAll(".toc-entry")[1].click(),
+	);
+	assert.deepEqual(await contents(), { expanded: "false", entries: 0 });
+});
