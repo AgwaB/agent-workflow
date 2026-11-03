@@ -403,6 +403,32 @@ function hintEvidenceText(hint) {
 	return `${stringOf(hint?.value)} ${stringOf(hint?.quote)}`.trim();
 }
 
+// Share of CJK/Hangul characters among letters. A Korean claim can carry English names
+// ("LangChain은 … write, select …"), so a syllable counts twice (it stands for several letters).
+const CJK_CHAR_RE =
+	/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu;
+const LATIN_LETTER_RE = /\p{Script=Latin}/gu;
+function cjkShare(text) {
+	const value = String(text ?? "");
+	const cjk = (value.match(CJK_CHAR_RE) ?? []).length * 2;
+	const latin = (value.match(LATIN_LETTER_RE) ?? []).length;
+	return cjk + latin === 0 ? 0 : cjk / (cjk + latin);
+}
+
+/**
+ * The lexical support check compares words, so it only means something when the claim and the
+ * evidence are written in the same script. 2026-11-03 (Codex run workflow_mw0y4aje_c064c4): a
+ * Korean task's claims against English source quotes shared no words and all 18 were demoted as
+ * source_hint_claim_mismatch, so nothing reached the verifiers. Across scripts the check is
+ * skipped and the verifier judges the claim against the source.
+ */
+function lexicallyComparable(candidate, hint) {
+	return (
+		Math.abs(cjkShare(claimText(candidate)) - cjkShare(hintEvidenceText(hint))) <
+		0.3
+	);
+}
+
 function hintSupportsCandidate(candidate, hint) {
 	const evidenceTokens = tokenSet(hintEvidenceText(hint));
 	const candidateTokens = tokenSet(claimText(candidate));
@@ -497,6 +523,10 @@ function classifyCandidate(candidate, seenIds, hints = [], options = {}) {
 			hints.length > 0 &&
 			hasSourceLocator(candidate) &&
 			!hints.every(isPlaceholderHint) &&
+			// A hint in another script cannot be compared word for word: the verifier decides.
+			hints.every(
+				(hint) => isPlaceholderHint(hint) || lexicallyComparable(candidate, hint),
+			) &&
 			!hints.some((hint) => hintSupportsCandidate(candidate, hint))
 		) {
 			reasons.push("source_hint_claim_mismatch");
@@ -746,12 +776,20 @@ export default async function sanitizeVerificationCandidates({
 	const rewriteReasonCounts = {};
 	const demotedCandidateIds = [];
 	const rewrittenCandidateIds = [];
+	const crossScriptCandidateIds = [];
 	const seenIds = new Set();
 
 	for (const [index, candidate] of originalCandidates.entries()) {
 		const id = candidateId(candidate);
 		const hints = evidenceHintsForCandidate(candidate, evidenceHintRows);
 		const reasons = classifyCandidate(candidate, seenIds, hints, options);
+		if (
+			hints.some(
+				(hint) =>
+					!isPlaceholderHint(hint) && !lexicallyComparable(candidate, hint),
+			)
+		)
+			crossScriptCandidateIds.push(id || `index-${index}`);
 		if (id) seenIds.add(id);
 		if (reasons.length === 0) {
 			keptCandidates.push(sanitizedCandidate(candidate, hints, urlToSourceRef));
@@ -862,6 +900,9 @@ export default async function sanitizeVerificationCandidates({
 			rewrittenCandidateCount: rewrittenCandidateIds.length,
 			webUrlOnlyDemotedCount: webUrlOnlyDemotedIds.length,
 			promotedCandidateCount: promotedCandidateIds.length,
+			// Candidates whose evidence is in another script: no word-for-word support check.
+			crossScriptCandidateCount: crossScriptCandidateIds.length,
+			crossScriptCandidateIds,
 			demotionReasonCounts,
 			rewriteReasonCounts,
 			keptCandidateIds: keptCandidates.map((candidate) => candidate.id),

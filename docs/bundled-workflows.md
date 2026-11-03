@@ -351,6 +351,20 @@ interactive host asks once in `safe` mode), **refuse** (the run is not started).
   Test: `core-deep-research-reader-output.test.mjs` "claims the sanitizer held back read as one
   reader line…".
 
+- **Cross-language claims.** In Codex run `workflow_mw0y4aje_c064c4` (a Korean task) normalize-claims
+  wrote its claims in Korean while the source evidence hints are English quotes, so the
+  sanitizer's word check (`hintSupportsCandidate`: ≥ 4 shared tokens, ≥ 18 %) demoted all 18
+  candidates as `source_hint_claim_mismatch` and nothing was verified. Two changes: (B) the
+  sanitizer skips the word check when a claim and its evidence are in different scripts
+  (`lexicallyComparable`: CJK/Hangul share among letters differs by 0.3 or more, a syllable
+  counting twice) and records them (`sanitizerDiagnostics.crossScriptCandidateIds`); the verifier
+  judges them against the source; replaying that run's sanitizer input keeps all 18. (A) normalize-input-packet adds
+  `packet.instructions.claimLanguage` (the normalize-claims prompt already follows packet.instructions
+  and is at its T6 length ceiling): write each claim's text in the language of its source evidence; the
+  final synthesis translates what the reader sees. Test:
+  `core-deep-research-sanitizer-followup.test.mjs` "claims in another script than their source
+  quotes reach the verifiers". A live Korean run with (A) is not yet done.
+
 ## Open problems for the live bundle
 
 - Web tool names in prompts: prompts and the system prompt's tool list name `web_search` /
@@ -362,13 +376,6 @@ interactive host asks once in `safe` mode), **refuse** (the run is not started).
   unmeasured (plan §7: stage 1 checks completion and format only).
 - Pi needs `pi-web-access` for deep-research (refused otherwise). Codex shows `forcedReadOnly` only
   in `safe` mode; the default `free` mode records the coarse allowlist instead (table above).
-- Cross-language claims (2026-11-03, Codex run `workflow_mw0y4aje_c064c4`, a Korean task):
-  normalize-claims wrote its claims in Korean while the source evidence hints are English quotes,
-  so the sanitizer's lexical support check (`hintSupportsCandidate`: ≥ 4 shared tokens, ≥ 18 %)
-  demoted all 18 candidates as `source_hint_claim_mismatch`; no claim reached the verifiers and the
-  report was unverified. Open: keep claim text in the source's language (reader text is translated
-  at the final synthesis) and/or skip the lexical check when claim and evidence are in different
-  scripts.
 - The web tools are `web_search` and `fetch_content`. Any other name (for example `workflow_web_*`)
   is an unknown tool (2026-11-02): an agent listing it does not grant the web tools, and a stage asking
   for it is refused before launch (no executor mapping) or needs review.

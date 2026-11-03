@@ -777,6 +777,11 @@ export default async function normalizeInputPacket({ sources, context } = {}) {
 					"If ledgers.overflow has non-zero counts, summarize omitted material in normalizationNotes instead of implying full coverage.",
 				precisionGuard:
 					"Use precisionGuard to split or demote broad, normative, bundled, source-weak, retrieval-gap, or derived-recommendation claims before verification; use slotPreservation so required/critical slot evidence is selected, preserved, or marked as an explicit gap.",
+				// 2026-11-03: Korean claims against English quotes failed the sanitizer's word check (all
+				// 18 demoted). The prompt is at its length ceiling, so the rule rides in the packet the
+				// prompt already tells the normalizer to follow.
+				claimLanguage:
+					"Write each claim's text (verificationCandidates[].claim, preservedClaims[].claim) in the language of its source evidence, normally that of the quoted passage, even when the runtime task uses another language, so it can be checked word for word against its source; the final synthesis translates what the reader sees. whyItMatters and reasonToVerify may follow the task's language.",
 			},
 		},
 	};

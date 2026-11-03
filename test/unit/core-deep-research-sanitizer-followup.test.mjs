@@ -112,3 +112,73 @@ test("deep-research sanitizer rewrites configured unquoted obligations without s
 	});
 	assert.equal(result.sanitizerDiagnostics.rewrittenCandidateCount, 2);
 });
+
+test("deep-research sanitizer: claims in another script than their source quotes reach the verifiers", async () => {
+	// 2026-11-03 (Codex run workflow_mw0y4aje_c064c4, a Korean task): Korean claims against English
+	// source quotes share no words, so every candidate was demoted as source_hint_claim_mismatch and
+	// nothing was verified. Across scripts the word check is skipped; within one script it stays.
+	const { default: helper } = await import(
+		`../../workflows/deep-research/helpers/sanitize-verification-candidates.mjs?test=${Date.now()}`
+	);
+	const url = "https://www.langchain.test/blog/context-engineering-for-agents";
+	const fact = (slotId, quote) => ({
+		slotId,
+		quote,
+		sourceUrls: [url],
+		sourceQuality: "primary",
+	});
+	const candidate = (id, slotId, claim) => ({
+		id,
+		claim,
+		factSlotIds: [slotId],
+		sourceUrls: [url],
+	});
+	const result = await helper({
+		sources: {
+			"normalize-input-packet.main": {
+				packet: {
+					research: {
+						extractedFacts: [
+							fact(
+								"slot-ko",
+								"We group common strategies for agent context engineering into four buckets: write, select, compress, and isolate.",
+							),
+							fact(
+								"slot-en",
+								"Memory lets an agent persist information across separate conversation threads for later reuse.",
+							),
+						],
+					},
+				},
+			},
+			"normalize-claims.main": {
+				claimInventory: {
+					verificationCandidates: [
+						candidate(
+							"claim-ko",
+							"slot-ko",
+							"LangChain은 에이전트 컨텍스트 관리 전략을 write, select, compress, isolate의 네 범주로 묶는다.",
+						),
+						candidate(
+							"claim-en",
+							"slot-en",
+							"Retrieval augmented generation always outperforms fine tuning on every benchmark task.",
+						),
+					],
+					preservedClaims: [],
+					duplicates: [],
+				},
+				factSlotCoverage: [],
+				coverageGaps: [],
+			},
+		},
+	});
+	const diagnostics = result.sanitizerDiagnostics;
+	assert.deepEqual(diagnostics.keptCandidateIds, ["claim-ko"]);
+	assert.deepEqual(diagnostics.demotedCandidateIds, ["claim-en"]);
+	assert.deepEqual(diagnostics.demotionReasonCounts, {
+		source_hint_claim_mismatch: 1,
+	});
+	assert.deepEqual(diagnostics.crossScriptCandidateIds, ["claim-ko"]);
+	assert.equal(diagnostics.crossScriptCandidateCount, 1);
+});
