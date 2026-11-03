@@ -728,6 +728,52 @@ test("degradation confirmation: elicitation accept / decline / error; absent or 
 	}
 	assert.equal(elicitations.length, 4);
 	assert.ok(client.logs.some((line) => /treated as declined/.test(line)));
+
+	// 2026-11-03 (the Claude desktop app's Code tab = Claude Code print mode answers every dialog with
+	// cancel): a cancelled or failed dialog tells the agent to ask the user in the conversation; with
+	// the user's yes the agent calls again with acceptDegradations and the run starts, recorded as
+	// confirmed in chat. A decline stays a plain no.
+	answer = { action: "cancel" };
+	const unasked = await client.call("workflow_run", {
+		...base,
+		task: "unasked",
+	});
+	assert.equal(unasked.isError, true);
+	assert.match(text(unasked), /did not show the confirmation dialog/);
+	assert.match(text(unasked), /acceptDegradations: \["contextIsolation"\]/);
+	assert.match(text(unasked), /Needs your OK:/);
+	answer = { action: "decline" };
+	const refusedNo = await client.call("workflow_run", {
+		...base,
+		task: "said no",
+	});
+	assert.doesNotMatch(text(refusedNo), /acceptDegradations/);
+	const asked = elicitations.length;
+	const wrongKey = await client.call("workflow_run", {
+		...base,
+		task: "unasked",
+		acceptDegradations: ["webTools"],
+	});
+	assert.equal(wrongKey.isError, true, "the keys must cover what needs an OK");
+	const inChat = await client.call("workflow_run", {
+		...base,
+		task: "unasked",
+		acceptDegradations: ["contextIsolation"],
+	});
+	assert.equal(inChat.isError, false, text(inChat));
+	assert.equal(
+		elicitations.length,
+		asked,
+		"no dialog when the user agreed in chat",
+	);
+	assert.deepEqual(
+		[
+			inChat.structuredContent.data.capability.confirmation,
+			inChat.structuredContent.data.capability.confirmedVia,
+		],
+		["confirmed", "chat"],
+	);
+	await waitLoop(client, inChat.structuredContent.data.runId);
 	await waitLoop(client, accepted.structuredContent.data.runId);
 
 	// 2025-11-25 form mode carries mode: "form".

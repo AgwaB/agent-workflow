@@ -495,7 +495,9 @@ export interface WorkflowRunOptions {
 	 * B4 (WP4d): called before launch only when `interactive` and a stage
 	 * degrades. Resolving anything but `true` fails the run before launch.
 	 */
-	confirmDegradations?: (preview: CapabilityPreview) => Promise<boolean>;
+	confirmDegradations?: (
+		preview: CapabilityPreview,
+	) => Promise<boolean | "chat">;
 	/** B4 (WP4d) user opt-in: treat these `unverified` capabilities as available. */
 	allowUnverifiedCapabilities?: string[];
 	/** WP4d test/host seam: replaces `loadExecutor(descriptor)` + `probe()`. */

@@ -1580,6 +1580,11 @@ export interface WorkflowRunCapabilityNegotiation {
 	};
 	/** `confirmed`: an interactive host accepted the degradations before launch. */
 	confirmation: "not-needed" | "confirmed" | "non-interactive";
+	/**
+	 * How a `confirmed` run was confirmed: the host's dialog, or (2026-11-03) the user's answer in
+	 * the conversation relayed by the agent (`acceptDegradations`) where the client cannot show one.
+	 */
+	confirmedVia?: "dialog" | "chat";
 	stages: WorkflowStageCapabilityNegotiation[];
 	/** `<stage>: <code>` for every degraded entry. */
 	degradations: string[];

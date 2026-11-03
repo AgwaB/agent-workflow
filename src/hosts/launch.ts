@@ -123,7 +123,9 @@ export interface LaunchRequestBase {
 	preflightOnly?: boolean;
 	/** B4 (WP4d): the host can ask the user; degradations then need confirmDegradations. */
 	interactive?: boolean;
-	confirmDegradations?: (preview: CapabilityPreview) => Promise<boolean>;
+	confirmDegradations?: (
+		preview: CapabilityPreview,
+	) => Promise<boolean | "chat">;
 	/** Interactive chooser between declared profiles when none is named (Pi host). */
 	selectProfile?: WorkflowProfileSelector;
 	/** Overrides for inputs the spec declares (for example depth). */
@@ -195,6 +197,8 @@ export interface LaunchData {
 	capability?: {
 		preview: string;
 		confirmation: string;
+		/** `chat`: the user agreed in the conversation (`acceptDegradations`), not in a dialog. */
+		confirmedVia?: "dialog" | "chat";
 		degradations: string[];
 		forcedReadOnly: string[];
 		/** WP12a: one-line notices (legacy agents shadowing bundled agents). */
@@ -890,6 +894,9 @@ function launchData(
 					capability: {
 						preview: negotiation.preview,
 						confirmation: negotiation.confirmation,
+						...(negotiation.confirmedVia
+							? { confirmedVia: negotiation.confirmedVia }
+							: {}),
 						degradations: [...negotiation.degradations],
 						forcedReadOnly: [...negotiation.forcedReadOnly],
 						...(negotiation.notices

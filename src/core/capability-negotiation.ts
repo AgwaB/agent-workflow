@@ -555,7 +555,9 @@ export interface NegotiateWorkflowRunInput {
 	prober?: WorkflowExecutorProber;
 	probeTimeoutMs?: number;
 	/** B4 confirmation hook; called only when interactive and a stage needs confirmation. */
-	confirmDegradations?: (preview: CapabilityPreview) => Promise<boolean>;
+	confirmDegradations?: (
+		preview: CapabilityPreview,
+	) => Promise<boolean | "chat">;
 	/**
 	 * WP31 (Q4): descriptors of every other executor of a mixed run. A task runs on
 	 * `task.runtime.executor` (absent: `descriptor`).
@@ -1011,6 +1013,7 @@ export async function negotiateWorkflowRun(
 		);
 	let confirmation: WorkflowRunCapabilityNegotiation["confirmation"] =
 		"not-needed";
+	let confirmedVia: WorkflowRunCapabilityNegotiation["confirmedVia"];
 	if (preview.degradations.length > 0)
 		confirmation = preview.needsConfirmation
 			? "confirmed"
@@ -1027,7 +1030,9 @@ export async function negotiateWorkflowRun(
 				preview.text,
 			);
 		const accepted = await input.confirmDegradations(preview);
-		if (accepted !== true)
+		if (accepted === "chat") confirmedVia = "chat";
+		else if (accepted === true) confirmedVia = "dialog";
+		if (accepted !== true && accepted !== "chat")
 			throw new WorkflowCapabilityError(
 				"CAPABILITY_DEGRADATION_DECLINED",
 				`capability degradations were declined (${preview.degradations.join(", ")}); the run was not started.`,
@@ -1054,6 +1059,7 @@ export async function negotiateWorkflowRun(
 			permissionMode: policy.permissionMode ?? "safe",
 		},
 		confirmation,
+		...(confirmedVia ? { confirmedVia } : {}),
 		stages,
 		degradations: [...preview.degradations],
 		forcedReadOnly: [...preview.forcedReadOnly],

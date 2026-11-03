@@ -184,6 +184,12 @@ const LAUNCH_OPTION_PROPERTIES = {
 		description:
 			"Optional executor capability keys to accept although unverified (same as --allow-unverified).",
 	},
+	acceptDegradations: {
+		type: "array",
+		items: { type: "string" },
+		description:
+			"Only after a launch was refused because the client could not show the confirmation dialog: the capability keys the refusal listed (for example webTools) that the user accepted in this conversation after you showed them the limits. Never set it on your own.",
+	},
 	model: {
 		type: "string",
 		description: "Optional model override for every stage of this run.",
@@ -1429,9 +1435,34 @@ export function createHostMcpService(
 		host: options.host,
 	});
 
+	/**
+	 * Degradation confirmation (WP4d). A client that shows dialogs is asked (elicitation); its
+	 * `decline` is the user's no. 2026-11-03 (the Claude desktop app's Code tab = Claude Code print mode): the
+	 * client declares elicitation but answers every dialog with `cancel` at once, so a run that
+	 * needs an OK could never start. A `cancel` or failed dialog now leaves a note (`confirmNext`)
+	 * telling the agent to show the user the limits and, when they agree, call again with
+	 * `acceptDegradations` naming the keys; such a run records `confirmedVia: "chat"`.
+	 */
 	const confirmHooks = (
 		call: McpToolCallContext,
+		args: Record<string, unknown>,
+		state: { unanswered?: CapabilityPreview } = {},
 	): Pick<LaunchRequestBase, "interactive" | "confirmDegradations"> => {
+		const accepted = args.acceptDegradations;
+		if (
+			accepted !== undefined &&
+			(!Array.isArray(accepted) ||
+				accepted.some((key) => typeof key !== "string"))
+		)
+			throw new UsageError("acceptDegradations must be an array of strings");
+		if (Array.isArray(accepted) && accepted.length > 0)
+			return {
+				interactive: true,
+				confirmDegradations: async (preview: CapabilityPreview) =>
+					preview.needsOk.every((key) => accepted.includes(key))
+						? "chat"
+						: false,
+			};
 		if (
 			!clientSupportsFormElicitation(
 				call.protocolVersion,
@@ -1441,14 +1472,27 @@ export function createHostMcpService(
 			return {};
 		return {
 			interactive: true,
-			confirmDegradations: async (preview: CapabilityPreview) =>
-				(await elicitConfirmation(
+			confirmDegradations: async (preview: CapabilityPreview) => {
+				const answer = await elicitConfirmation(
 					call,
 					`${DEGRADATION_ELICITATION_TITLE}\n\n${preview.prompt}`,
 					"degradation confirmation",
 					log,
-				)) === "accept",
+				);
+				if (answer === "cancel" || answer === "error")
+					state.unanswered = preview;
+				return answer === "accept";
+			},
 		};
+	};
+	/** The next step of a launch whose confirmation the client could not ask (see confirmHooks). */
+	const confirmNext = (
+		tool: string,
+		state: { unanswered?: CapabilityPreview },
+	): string | undefined => {
+		const preview = state.unanswered;
+		if (!preview) return undefined;
+		return `The client did not show the confirmation dialog (it answered without the user; Claude Code print mode, for example the Claude desktop app's Code tab, does this), so nothing started. Show the user these limits and ask whether to proceed:\n\n${preview.prompt}\n\nOnly if they agree, call ${tool} again with the same arguments plus acceptDegradations: ${JSON.stringify(preview.needsOk)}. If they do not, start nothing.`;
 	};
 
 	/**
@@ -1791,6 +1835,7 @@ export function createHostMcpService(
 		},
 		[WORKFLOW_RUN_TOOL]: async (args, call) => {
 			const ctx = await context(args);
+			const confirmation: { unanswered?: CapabilityPreview } = {};
 			const workflow = requiredString(args, "workflow");
 			const launched = await api.runWorkflowAction(ctx, {
 				workflow,
@@ -1801,12 +1846,19 @@ export function createHostMcpService(
 					name: WORKFLOW_RUN_TOOL,
 					arguments: { ...args },
 				},
-				...confirmHooks(call),
+				...confirmHooks(call, args, confirmation),
 			});
-			return finish(call, launched, launched.data, launchNext(launched.data));
+			return finish(
+				call,
+				launched,
+				launched.data,
+				confirmNext(WORKFLOW_RUN_TOOL, confirmation) ??
+					launchNext(launched.data),
+			);
 		},
 		[WORKFLOW_DYNAMIC_TOOL]: async (args, call) => {
 			const ctx = await context(args);
+			const confirmation: { unanswered?: CapabilityPreview } = {};
 			const launched = await api.runDynamicAction(ctx, {
 				...launchRequestFromArguments(args),
 				launchOrigin: {
@@ -1814,9 +1866,15 @@ export function createHostMcpService(
 					name: WORKFLOW_DYNAMIC_TOOL,
 					arguments: { ...args },
 				},
-				...confirmHooks(call),
+				...confirmHooks(call, args, confirmation),
 			});
-			return finish(call, launched, launched.data, launchNext(launched.data));
+			return finish(
+				call,
+				launched,
+				launched.data,
+				confirmNext(WORKFLOW_DYNAMIC_TOOL, confirmation) ??
+					launchNext(launched.data),
+			);
 		},
 		[WORKFLOW_AUTO_TOOL]: async (args, call) => {
 			const ctx = await context(args);
@@ -1831,7 +1889,7 @@ export function createHostMcpService(
 					name: WORKFLOW_AUTO_TOOL,
 					arguments: { ...args },
 				},
-				...confirmHooks(call),
+				...confirmHooks(call, args),
 				...(call.signal ? { signal: call.signal } : {}),
 				...(elicitation
 					? {

@@ -544,6 +544,8 @@ export interface CapabilityPreview {
 	 * stages, and in one line what is only recorded. `text` stays the full report (terminal, record).
 	 */
 	readonly prompt: string;
+	/** Capability keys (e.g. `webTools`) whose degradation needs the user's OK, once each. */
+	readonly needsOk: readonly string[];
 }
 
 /** Plain words for a capability limit in a confirmation dialog; unknown keys show their name. */
@@ -681,6 +683,20 @@ export function buildCapabilityPreview(
 		degradations,
 		forcedReadOnly,
 		text: lines.join("\n"),
+		needsOk: [
+			...new Set(
+				stages.flatMap(({ report }) =>
+					report.entries
+						.filter(
+							(entry) =>
+								entry.outcome === "degraded" &&
+								entry.acceptedByFreeMode !== true &&
+								entry.recordOnly !== true,
+						)
+						.map((entry) => entry.key),
+				),
+			),
+		],
 		prompt: confirmationPrompt(
 			stages,
 			`${executor} · ${stagesText}${options.permissionMode === undefined ? "" : ` · permission mode ${options.permissionMode}`}${forcedReadOnly.length > 0 ? ` · runs read-only: ${stageList(forcedReadOnly, stages.length)}` : ""}`,

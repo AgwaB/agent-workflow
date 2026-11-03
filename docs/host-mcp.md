@@ -184,6 +184,17 @@ A launch whose capability check needs confirmation (WP4d; for example environmen
   `accept` proceeds (`capability.confirmation: "confirmed"`); `decline`, `cancel`, an error
   response, a cancelled tool call or a disconnect refuse the launch
   (`CAPABILITY_DEGRADATION_DECLINED`).
+  `decline` is the user's no. A `cancel` or an error response is the client's: Claude Code in print
+  mode (the Claude desktop app's Code tab, the Agent SDK without an `onElicitation` callback) declares
+  elicitation but answers every dialog with `cancel` at once (its MCP log: "Elicitation request
+  received in print mode"; claude-agent-acp `src/acp-agent.ts` keeps "the SDK's default
+  (auto-decline) behavior" for such clients). 2026-11-03: the refusal then says so and tells the
+  agent to show the user the short limits text and, only if they agree, call again with
+  `acceptDegradations` naming the keys it lists (`preview.needsOk`, e.g. `["webTools"]`). With
+  keys that cover every limit that needs an OK the server asks nothing and the run starts with
+  `capability.confirmation: "confirmed"` and `confirmedVia: "chat"` (run record and launch
+  result); keys that do not cover them refuse the launch. The tool description tells the agent never
+  to set it on its own.
 - Otherwise (no elicitation, URL-only elicitation, older revision) the launch is non-interactive:
   degradations are recorded (`confirmation: "non-interactive"`) and the run proceeds.
 
