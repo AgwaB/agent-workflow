@@ -1207,11 +1207,12 @@ test("dashboard Chrome: a stage's agent opens in place, stays open through live 
 		),
 		2,
 	);
-	// A second click closes it.
+	// A second click closes it (the result folds away first, 160 ms).
 	await browser.evaluate(
 		(selector) => document.querySelector(selector).click(),
 		row("refund-idempotency"),
 	);
+	await new Promise((resolve) => setTimeout(resolve, 400));
 	assert.deepEqual(
 		await browser.evaluate(
 			(selector) => [
@@ -1487,4 +1488,63 @@ test("dashboard Chrome: the rail steps aside for the inspector on narrower scree
 		document.querySelectorAll(".toc-entry")[1].click(),
 	);
 	assert.deepEqual(await contents(), { expanded: "false", entries: 0 });
+});
+
+test("dashboard Chrome: panels and dialogs share one motion family, both ways", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
+	timeout: 120_000,
+}, async (t) => {
+	// 2026-11-03 (owner: "run details should be smooth too; check consistency"): the inspector's
+	// column grows and narrows like the rail's (it stays drawn, inert, while it closes), dialogs
+	// rise in and sink out, all on the same tokens; reduced motion turns them off.
+	const fixture = await createFixtureServer();
+	t.after(() => fixture.close());
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	await browser.open(`${fixture.origin}/?run=${running}`, 1500, 900);
+	// The first drawing places the panels without motion; later changes move.
+	await browser.waitFor(() => document.body.dataset.ready === "1");
+	const motion = () =>
+		browser.evaluate(() => {
+			const style = (el) => getComputedStyle(el);
+			const body = style(document.getElementById("body"));
+			const pick = (s, property) => {
+				const names = s.transitionProperty.split(", ");
+				const durations = s.transitionDuration.split(", ");
+				return durations[names.indexOf(property)] ?? null;
+			};
+			return {
+				layout: pick(body, "grid-template-columns"),
+				dialog: pick(style(document.getElementById("dialog")), "opacity"),
+				tokens: ["--t-fast", "--t-base", "--t-layout", "--t-leave"].map((n) =>
+					style(document.documentElement).getPropertyValue(n).trim(),
+				),
+			};
+		});
+	assert.deepEqual(await motion(), {
+		layout: "0.28s",
+		dialog: "0.16s",
+		tokens: ["0.15s", "0.22s", "0.28s", "0.16s"],
+	});
+	await browser.click('#run-header [aria-label="Run details"]');
+	await browser.waitFor(() => !document.getElementById("inspector").hidden);
+	await browser.key("Escape");
+	// Closing: hidden and inert at once, still drawn while its column narrows.
+	assert.deepEqual(
+		await browser.evaluate(() => {
+			const inspector = document.getElementById("inspector");
+			return [
+				inspector.hidden,
+				inspector.inert,
+				getComputedStyle(inspector).display,
+			];
+		}),
+		[true, true, "block"],
+	);
+	await browser.send("Emulation.setEmulatedMedia", {
+		features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+	});
+	assert.equal((await motion()).layout, null, "no layout transition");
 });

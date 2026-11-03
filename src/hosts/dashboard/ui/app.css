@@ -28,6 +28,17 @@
 	--backdrop: light-dark(rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.65));
 	--shadow: light-dark(rgba(0, 0, 0, 0.28), #000);
 	--mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	/*
+	 * Motion (2026-11-03, owner: "smoother", "one family"): every movement uses these. Hover and
+	 * colour changes are fast; things that enter or leave (dialogs, results, scrims) are base;
+	 * panels that change the layout (rail, inspector, drawers) are layout; the graph's reshape is
+	 * longer (app.js MOTION.graph). Enter and move ease out; leaving is quicker.
+	 */
+	--t-fast: 0.15s;
+	--t-base: 0.22s;
+	--t-layout: 0.28s;
+	--t-leave: 0.16s;
+	--ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
 	font:
 		15px / 1.5 system-ui,
 		-apple-system,
@@ -206,14 +217,20 @@ kbd {
 .body {
 	--rail-open: 260px;
 	--rail: var(--rail-open);
-	--ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+	/* The inspector's column, open: at most 600 px, leaving the graph at least 360 px. */
+	--insp-open: clamp(420px, calc(100vw - var(--rail) - 360px), 600px);
+	--insp: 0px;
 	display: grid;
-	grid-template-columns: var(--rail) minmax(0, 1fr);
+	grid-template-columns: var(--rail) minmax(0, 1fr) var(--insp);
 	height: calc(100dvh - 48px);
-	transition: grid-template-columns 0.28s var(--ease-out);
+	overflow: hidden;
+	transition: grid-template-columns var(--t-layout) var(--ease-out);
 }
 .body.inspecting {
-	grid-template-columns: var(--rail) minmax(360px, 1fr) minmax(420px, 600px);
+	--insp: var(--insp-open);
+}
+body:not([data-ready]) :is(.body, .rail, .inspector) {
+	transition: none;
 }
 .body.rail-folded {
 	--rail: 0px;
@@ -221,7 +238,7 @@ kbd {
 .rail {
 	overflow-x: hidden;
 	transition:
-		opacity 0.2s ease,
+		opacity var(--t-base) ease,
 		visibility 0s;
 }
 .rail > * {
@@ -233,9 +250,9 @@ kbd {
 	padding-inline: 0;
 	border-right-color: transparent;
 	transition:
-		opacity 0.16s ease,
-		visibility 0s 0.28s,
-		padding 0.28s var(--ease-out);
+		opacity var(--t-leave) ease,
+		visibility 0s var(--t-layout),
+		padding var(--t-layout) var(--ease-out);
 }
 .rail-scrim {
 	display: none;
@@ -292,7 +309,7 @@ kbd {
 	border-bottom: 1px solid var(--line);
 	padding: 8px 4px;
 	cursor: pointer;
-	transition: background 0.15s ease;
+	transition: background var(--t-fast) ease;
 }
 .run-row:hover {
 	background: var(--surface);
@@ -372,7 +389,7 @@ progress::-moz-progress-bar {
 }
 .center.switching {
 	opacity: 0.4;
-	transition: opacity 0.12s ease;
+	transition: opacity var(--t-fast) ease;
 }
 .run-header {
 	padding: 22px 28px 16px;
@@ -638,8 +655,8 @@ progress::-moz-progress-bar {
 	font-size: 13px;
 	cursor: pointer;
 	transition:
-		border-color 0.15s ease,
-		color 0.15s ease;
+		border-color var(--t-fast) ease,
+		color var(--t-fast) ease;
 }
 .code-switch:hover {
 	color: var(--text);
@@ -651,7 +668,7 @@ progress::-moz-progress-bar {
 	height: 14px;
 	border-radius: 7px;
 	background: var(--line2);
-	transition: background 0.2s;
+	transition: background var(--t-fast) ease;
 }
 .code-switch .track::after {
 	content: "";
@@ -663,8 +680,8 @@ progress::-moz-progress-bar {
 	border-radius: 50%;
 	background: var(--muted);
 	transition:
-		transform 0.2s var(--ease-out),
-		background 0.2s;
+		transform var(--t-fast) var(--ease-out),
+		background var(--t-fast) ease;
 }
 .code-switch[aria-checked="true"] .track {
 	background: color-mix(in srgb, var(--accent) 40%, transparent);
@@ -726,7 +743,7 @@ progress::-moz-progress-bar {
 /* Tracing: hovering/focusing a card keeps its edges and neighbours lit; the rest steps back. */
 .link,
 .node {
-	transition: opacity 0.15s ease;
+	transition: opacity var(--t-fast) ease;
 }
 .graph.tracing .link:not(.lit) {
 	opacity: 0.18;
@@ -952,12 +969,31 @@ progress::-moz-progress-bar {
 .toolbar button[aria-pressed="true"] {
 	border-color: var(--line);
 }
+/* Like the rail: the column grows or narrows, the content keeps its width and fades. */
 .inspector {
 	border-left: 1px solid var(--line);
 	background: var(--panel);
 	overflow-y: auto;
+	overflow-x: hidden;
 	min-width: 0;
 	min-height: 0;
+	transition:
+		opacity var(--t-base) ease,
+		visibility 0s;
+}
+.inspector > * {
+	min-width: calc(var(--insp-open) - 1px);
+}
+/* Closed (hidden, inert) it stays drawn while its column narrows; the global [hidden] rule would
+ * drop it at once. */
+.inspector[hidden] {
+	display: block !important;
+	opacity: 0;
+	visibility: hidden;
+	border-left-color: transparent;
+	transition:
+		opacity var(--t-leave) ease,
+		visibility 0s var(--t-layout);
 }
 .inspector-head {
 	padding: 20px 22px 10px;
@@ -1298,34 +1334,54 @@ dialog::backdrop {
 	background: var(--backdrop);
 	backdrop-filter: blur(3px);
 }
-/* Entrances (owner: smoother): a dialog rises in, the inspector slides in, a result unfolds. */
-dialog[open] {
-	animation: rise-in 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+/*
+ * Dialogs rise in and sink out (owner: smoother, and the same both ways); the backdrop fades with
+ * them. The closing state keeps the dialog drawn until its transition ends (allow-discrete).
+ */
+dialog {
+	transition:
+		opacity var(--t-base) var(--ease-out),
+		transform var(--t-base) var(--ease-out),
+		background-color var(--t-base) ease,
+		color var(--t-base) ease,
+		overlay var(--t-base) allow-discrete,
+		display var(--t-base) allow-discrete;
 }
-dialog[open]::backdrop {
-	animation: fade-in 0.22s ease-out;
+dialog:not([open]) {
+	opacity: 0;
+	transform: translateY(6px) scale(0.985);
+	transition-duration: var(--t-leave);
 }
-.inspector:not([hidden]) {
-	animation: slide-in 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
-}
-.item-expand.entering {
-	animation: unfold 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
-}
-@keyframes rise-in {
-	from {
+@starting-style {
+	dialog[open] {
 		opacity: 0;
 		transform: translateY(8px) scale(0.985);
 	}
 }
-@keyframes fade-in {
-	from {
+dialog::backdrop {
+	transition:
+		opacity var(--t-base) ease,
+		overlay var(--t-base) allow-discrete,
+		display var(--t-base) allow-discrete;
+}
+dialog:not([open])::backdrop {
+	opacity: 0;
+}
+@starting-style {
+	dialog[open]::backdrop {
 		opacity: 0;
 	}
 }
-@keyframes slide-in {
+/* An opened agent result unfolds; another tab's panel fades in. */
+.item-expand.entering {
+	animation: unfold var(--t-base) var(--ease-out);
+}
+.output.swap {
+	animation: fade-in var(--t-fast) ease-out;
+}
+@keyframes fade-in {
 	from {
 		opacity: 0;
-		transform: translateX(16px);
 	}
 }
 @keyframes unfold {
@@ -1684,9 +1740,7 @@ dialog.report footer .report-page {
 	}
 	.body {
 		--rail-open: 232px;
-	}
-	.body.inspecting {
-		grid-template-columns: var(--rail) minmax(260px, 1fr) 400px;
+		--insp-open: 400px;
 	}
 	.code-switch,
 	.toolbar {
@@ -1753,8 +1807,8 @@ dialog.report footer .report-page {
 		transform: translateX(-104%);
 		visibility: hidden;
 		transition:
-			transform 0.26s var(--ease-out),
-			visibility 0s 0.26s;
+			transform var(--t-layout) var(--ease-out),
+			visibility 0s var(--t-layout);
 	}
 	.rail > * {
 		min-width: 0;
@@ -1762,7 +1816,7 @@ dialog.report footer .report-page {
 	.body.rail-open > .rail {
 		transform: none;
 		visibility: visible;
-		transition: transform 0.26s var(--ease-out);
+		transition: transform var(--t-layout) var(--ease-out);
 	}
 	.rail-scrim {
 		display: block;
@@ -1773,13 +1827,13 @@ dialog.report footer .report-page {
 		opacity: 0;
 		visibility: hidden;
 		transition:
-			opacity 0.22s ease,
-			visibility 0s 0.22s;
+			opacity var(--t-base) ease,
+			visibility 0s var(--t-base);
 	}
 	.body.rail-open + .rail-scrim {
 		opacity: 1;
 		visibility: visible;
-		transition: opacity 0.22s ease;
+		transition: opacity var(--t-base) ease;
 	}
 	.code-switch-count {
 		font-size: 0;
@@ -1813,7 +1867,8 @@ dialog.report footer .report-page {
 		flex-direction: column;
 		align-items: flex-start;
 	}
-	.inspector {
+	.inspector,
+	.inspector[hidden] {
 		position: fixed;
 		top: 48px;
 		right: 0;
@@ -1821,6 +1876,19 @@ dialog.report footer .report-page {
 		width: min(440px, 100vw);
 		background: var(--bg);
 		z-index: 2;
+		opacity: 1;
+		transform: none;
+		transition: transform var(--t-layout) var(--ease-out);
+	}
+	.inspector[hidden] {
+		transform: translateX(104%);
+		visibility: hidden;
+		transition:
+			transform var(--t-layout) var(--ease-out),
+			visibility 0s var(--t-layout);
+	}
+	.inspector > * {
+		min-width: 0;
 	}
 	/* The actions take their own line, so the title's sub line keeps its width. */
 	.title-row .actions {

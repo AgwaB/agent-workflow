@@ -884,6 +884,14 @@ function sentenceParts() {
 		? [text]
 		: [element("strong", {}, text.slice(0, end + 1)), text.slice(end + 1)];
 }
+/** Motion tokens (ms), the same as app.css's --t-* and --ease-out: one family of movement. */
+const MOTION = {
+	fast: 150,
+	base: 220,
+	layout: 280,
+	graph: 460,
+	ease: "cubic-bezier(.22,.61,.36,1)",
+};
 const reducedMotion = () =>
 	matchMedia("(prefers-reduced-motion: reduce)").matches;
 matchMedia("(prefers-reduced-motion: reduce)").addEventListener(
@@ -2514,10 +2522,7 @@ function renderGraph() {
 		if (reducedMotion()) return;
 		requestAnimationFrame(() => {
 			if (!wrap.isConnected) return;
-			const motion = {
-				duration: 460,
-				easing: "cubic-bezier(.22,.61,.36,1)",
-			};
+			const motion = { duration: MOTION.graph, easing: MOTION.ease };
 			const parse = (value) => {
 				const m =
 					/translate\(([-\d.e]+)[ ,]+([-\d.e]+)\)\s*scale\(([-\d.e]+)\)/.exec(
@@ -2602,7 +2607,7 @@ function renderGraph() {
 				const copy = exitCopy(element);
 				layer.append(copy);
 				copy.animate([{ opacity: 1 }, { opacity: 0 }], {
-					duration: 200,
+					duration: MOTION.base,
 					easing: "ease-out",
 					fill: "forwards",
 				}).onfinish = () => copy.remove();
@@ -2915,7 +2920,25 @@ function commandBlock(command) {
 	);
 }
 const shellArg = (text) => `'${String(text).replaceAll("'", "'\\''")}'`;
+/** No task is shown: its log and result requests stop. */
+function stopTaskLoads() {
+	logController?.abort();
+	logGeneration++;
+	logKey = "";
+	logLoading = false;
+	resultController?.abort();
+	resultGeneration++;
+	resultKey = "";
+	resultLoading = false;
+}
 function renderSelection() {
+	// The first drawing of a page puts the panels in place; only later changes move.
+	if (!document.body.dataset.ready)
+		requestAnimationFrame(() =>
+			requestAnimationFrame(() => {
+				document.body.dataset.ready = "1";
+			}),
+		);
 	if (!run) return;
 	const task = selectedTask(),
 		stage = graphModel?.stages.get(state.stage);
@@ -2946,8 +2969,12 @@ function renderSelection() {
 	const focusedTab = inspector.contains(document.activeElement)
 		? document.activeElement?.dataset.tab
 		: null;
+	// The inspector opens and closes like the rail: its column grows or narrows (CSS). Closing
+	// keeps its last content while it fades; a new subject in an open inspector slides in.
+	const swapped = !same && visible && !inspector.hidden;
 	inspector.dataset.key = key;
 	inspector.hidden = !visible;
+	inspector.inert = !visible;
 	$("body").classList.toggle("inspecting", visible);
 	applyRail();
 	for (const node of document.querySelectorAll(".node"))
@@ -2958,6 +2985,15 @@ function renderSelection() {
 		);
 	for (const row of document.querySelectorAll(".stage-row"))
 		row.classList.toggle("selected", row.dataset.stage === selectedStage());
+	if (!visible) return stopTaskLoads();
+	if (swapped && !reducedMotion())
+		inspector.animate(
+			[
+				{ opacity: 0, transform: "translateX(8px)" },
+				{ opacity: 1, transform: "none" },
+			],
+			{ duration: MOTION.base, easing: MOTION.ease },
+		);
 	inspector.replaceChildren();
 	if (state.view === "details") {
 		inspector.append(
@@ -3044,6 +3080,10 @@ function renderSelection() {
 				),
 			);
 		const tab = state.tab || defaultTaskTab(task);
+		// Another tab of the same task: its panel fades in (live updates of a tab do not).
+		const tabSwapped =
+			same && inspector.dataset.panel && inspector.dataset.panel !== tab;
+		inspector.dataset.panel = tab;
 		inspector.append(
 			element(
 				"div",
@@ -3082,7 +3122,7 @@ function renderSelection() {
 			element(
 				"div",
 				{
-					class: "output",
+					class: `output${tabSwapped ? " swap" : ""}`,
 					id: "log-panel",
 					role: "tabpanel",
 					"aria-labelledby": `tab-${tab}`,
@@ -3159,16 +3199,7 @@ function renderSelection() {
 		}
 		paintLogs();
 	} else if (stage) renderItems(inspector, stage, previousItems);
-	if (!task) {
-		logController?.abort();
-		logGeneration++;
-		logKey = "";
-		logLoading = false;
-		resultController?.abort();
-		resultGeneration++;
-		resultKey = "";
-		resultLoading = false;
-	}
+	if (!task) stopTaskLoads();
 	inspector.scrollTop = scroll;
 	if (inspector.querySelector(".log"))
 		inspector.querySelector(".log").scrollTop = logScroll;
@@ -3539,6 +3570,30 @@ function renderItems(inspector, stage, previous = new Map()) {
 					button(
 						content,
 						() => {
+							// Closing folds the result away the way it unfolded, then the list closes up.
+							const region = document.getElementById(regionId);
+							if (
+								expandedItems.has(expandKey) &&
+								region &&
+								!region.classList.contains("leaving") &&
+								!reducedMotion()
+							) {
+								region.classList.add("leaving");
+								region.animate(
+									[
+										{ opacity: 1, transform: "none" },
+										{ opacity: 0, transform: "translateY(-4px)" },
+									],
+									{ duration: 160, easing: "ease-in", fill: "forwards" },
+								).onfinish = () => {
+									expandedItems.delete(expandKey);
+									paint();
+									list
+										.querySelector(`[data-item="${CSS.escape(task.specId)}"]`)
+										?.focus({ preventScroll: true });
+								};
+								return;
+							}
 							if (expandedItems.has(expandKey)) expandedItems.delete(expandKey);
 							else {
 								expandedItems.add(expandKey);
@@ -3595,7 +3650,7 @@ function renderItems(inspector, stage, previous = new Map()) {
 							},
 							{ transform: "translateY(0)", opacity: 1 },
 						],
-						{ duration: 260, easing: "ease-out" },
+						{ duration: MOTION.base, easing: MOTION.ease },
 					);
 				else if (nudge)
 					row.firstElementChild.animate(
@@ -3603,7 +3658,7 @@ function renderItems(inspector, stage, previous = new Map()) {
 							{ transform: `translateY(${nudge}px)` },
 							{ transform: "translateY(0)" },
 						],
-						{ duration: 200, easing: "ease-out" },
+						{ duration: MOTION.base, easing: MOTION.ease },
 					);
 			}
 	}
@@ -4877,6 +4932,7 @@ async function loadRun() {
 	logLoading = false;
 	if (modalKey) dismissDialog(false);
 	$("inspector").hidden = true;
+	$("inspector").inert = true;
 	$("body").classList.remove("inspecting");
 	applyRail();
 	// Switching runs (owner: smoother): the previous run stays, dimmed and inert, until the next
@@ -4898,7 +4954,7 @@ async function loadRun() {
 		center.inert = false;
 		if (!reducedMotion())
 			center.animate([{ opacity: 0.4 }, { opacity: 1 }], {
-				duration: 180,
+				duration: MOTION.base,
 				easing: "ease-out",
 			});
 	};

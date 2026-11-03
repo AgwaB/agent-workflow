@@ -179,14 +179,25 @@ export async function createBrowser(executable) {
 				!!document.querySelector("#task-count"),
 		);
 	};
+	// Two frames, then any layout transition (a panel opening or closing moves what is clicked)
+	// runs out — at most a second; endless status animations are not transitions.
 	const settle = () =>
 		evaluate(
 			() =>
-				new Promise((resolve) =>
-					requestAnimationFrame(() =>
-						requestAnimationFrame(() => resolve(true)),
-					),
-				),
+				new Promise((resolve) => {
+					const started = performance.now();
+					const check = () =>
+						document
+							.getAnimations()
+							.some(
+								(animation) =>
+									animation instanceof CSSTransition &&
+									animation.playState === "running",
+							) && performance.now() - started < 1000
+							? requestAnimationFrame(check)
+							: resolve(true);
+					requestAnimationFrame(() => requestAnimationFrame(check));
+				}),
 		);
 	const click = async (selector) => {
 		await settle();
