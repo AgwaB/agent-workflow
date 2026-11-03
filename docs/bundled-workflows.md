@@ -219,8 +219,13 @@ After stage 2 (2026-11-01):
   task got an English result). Their `report` stage prompts gain impact-review's rule: write the
   summary, risks (spec-review: and scope-limitation text) and recommended next action in the runtime
   task's requested language, or the task's language when none is requested, keeping verdict tokens,
-  ids, file paths, symbols and code unchanged. Finding titles and evidence still come from the
-  reviewers as written.
+  ids, file paths, symbols and code unchanged. deep-review's devil-advocate verifiers also write
+  their own prose (digest, recommended action, counter-evidence, evidence-unavailable reason) in that
+  language and add `readerTitle` / `readerRationale`, faithful translations of the finding's title and
+  rationale, when those are in another language (schema: optional, 800 / 4000 characters). The
+  partition carries them beside the reviewer's originals, which stay the identity and the ledger
+  text; the report shows them in finding headings, rationales and the key-findings list. A missing,
+  empty or oversized value is ignored. Evidence quotes, code and paths are never translated.
 
 ## Worker prompt rendering (core)
 

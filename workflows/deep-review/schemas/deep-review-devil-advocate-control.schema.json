@@ -30,7 +30,9 @@
       "items": { "type": "string", "minLength": 1, "maxLength": 2000 }
     },
     "recommendedAction": { "type": "string", "minLength": 1, "maxLength": 2000 },
-    "evidenceUnavailableReason": { "type": "string", "minLength": 1, "maxLength": 1200 }
+    "evidenceUnavailableReason": { "type": "string", "minLength": 1, "maxLength": 1200 },
+    "readerTitle": { "type": "string", "minLength": 1, "maxLength": 800 },
+    "readerRationale": { "type": "string", "minLength": 1, "maxLength": 4000 }
   },
   "oneOf": [
     {

@@ -345,6 +345,32 @@ test("dashboard redesign: agent contracts, handoffs and reduced motion in Chrome
 					foreachWarn: false,
 				},
 			);
+			// 2026-11-03: a finished stage's mark says how it ended — an amber ! where an agent's outcome
+			// leaves work to do, a bright check where it ended clean.
+			assert.deepEqual(
+				await browser.evaluate(() => ({
+					finalAudit: document
+						.querySelector('[data-stage="final-audit"] > .status-icon')
+						?.getAttribute("class"),
+					clean: document
+						.querySelector(
+							".node.completed:not(.support) > .status-icon.completed",
+						)
+						?.getAttribute("class"),
+					cleanColour: getComputedStyle(
+						document.querySelector(
+							".node.completed:not(.support) > .status-icon.completed",
+						),
+					).color,
+					text: getComputedStyle(document.body).color,
+				})),
+				{
+					finalAudit: "status-icon attention",
+					clean: "status-icon completed",
+					cleanColour: "rgb(237, 237, 237)",
+					text: "rgb(237, 237, 237)",
+				},
+			);
 			// A clean verdict with an agent's caveat finishes "with caveats" under a check.
 			await publish(() => {
 				run.verdict = "complete";

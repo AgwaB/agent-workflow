@@ -42,6 +42,7 @@ const iconPaths = {
 	completed: "M3.5 8.5l3 3 6-7",
 	failed: "M4 4l8 8M12 4l-8 8",
 	blocked: "M8 3v6M8 12h.01",
+	attention: "M8 3v6M8 12h.01",
 	retry: "M13 6a6 6 0 1 0 1 3M8 5v3.2l2 1.2M11 2l3 1-1 3",
 	interrupted: "M5.5 5.5h5v5h-5z",
 	skipped: "M4 12l8-8",
@@ -1294,6 +1295,20 @@ function stageLine(stage) {
 		return taskLine(only).replace(/^Done\b/, only.outcome.status);
 	return only ? taskLine(only) : labels[stage.status] || "Waiting";
 }
+/**
+ * A finished stage's mark says how it ended (2026-11-03, owner: every finished node had the same
+ * faint check, so nothing stood out): a bright ✓ when it ended clean, an amber ! when an agent's
+ * outcome leaves work to do (a finding that survived, a claim only partly supported, a verdict
+ * such as "Needs work"). Failures keep the red ✕.
+ */
+function stageMark(stage) {
+	if (stage.status !== "completed") return stage.status;
+	return stage.items.some(
+		(task) => task.outcome?.tone && task.outcome.tone !== "ok",
+	)
+		? "attention"
+		: "completed";
+}
 function chooseStage(stage) {
 	if (stage.ghost) return chooseStage(stage.parent);
 	if (stage.kind !== "foreach" && stage.items.length === 1)
@@ -1559,7 +1574,7 @@ function renderGraph() {
 		node.append(
 			svg("rect", { class: "outline", width: p.w, height: p.h, rx: 10 }),
 			svg("title", {}, group ? title : stage.name || stage.id),
-			markIcon(stage.status, 12, 12),
+			markIcon(stageMark(stage), 12, 12),
 			svg(
 				"text",
 				{ x: 36, y: 24, class: "node-name", "data-fit": p.w - 48 },

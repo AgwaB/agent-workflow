@@ -138,6 +138,11 @@ function titleOf(finding) {
 	);
 }
 
+/** The title a reader sees: the verifier's translation into the task's language, else the original. */
+function readerTitleOf(finding) {
+	return cleanText(finding?.readerTitle) || titleOf(finding);
+}
+
 function findingIdOf(finding, index) {
 	return cleanText(
 		finding?.findingId ??
@@ -1126,7 +1131,7 @@ function renderFindingCard(finding) {
 	const reviewerQuotes = reviewerEvidenceQuotesOf(finding);
 	const verifierQuotes = verifierEvidenceQuotesOf(finding);
 	const out = [
-		`### ${escapeHeadingText(finding.findingId)} — ${escapeHeadingText(finding.title)}`,
+		`### ${escapeHeadingText(finding.findingId)} — ${escapeHeadingText(readerTitleOf(finding))}`,
 		"",
 		`Severity: **${escapeMarkdownText(finding.severity)}**  `,
 		...(finding.rootCauseId
@@ -1153,7 +1158,9 @@ function renderFindingCard(finding) {
 			: []),
 		...renderMergedProvenance(finding),
 	];
-	const rationale = escapeMarkdownText(finding.rationale ?? "");
+	const rationale = escapeMarkdownText(
+		finding.readerRationale ?? finding.rationale ?? "",
+	);
 	if (rationale) out.push("Rationale:", "", rationale, "");
 	const note = escapeMarkdownText(
 		finding.note ?? finding.evidenceUnavailableReason ?? "",
@@ -1345,13 +1352,15 @@ function renderSupportNotes(partition) {
 		representedRows += 1;
 		const noteId = findingIdOf(note, 0);
 		out.push(
-			`### ${noteId ? `${inlineCode(noteId)} — ` : ""}${escapeMarkdownText(titleOf(note))}`,
+			`### ${noteId ? `${inlineCode(noteId)} — ` : ""}${escapeMarkdownText(readerTitleOf(note))}`,
 			"",
 			`Severity: **${escapeMarkdownText(severityOf(note))}**  `,
 		);
 		const reason = cleanText(note?.reason);
 		if (reason) out.push(`Reason: ${escapeMarkdownText(reason)}  `);
-		const rationale = escapeMarkdownText(note?.rationale ?? "");
+		const rationale = escapeMarkdownText(
+			note?.readerRationale ?? note?.rationale ?? "",
+		);
 		if (rationale) out.push("Rationale:", "", rationale, "");
 		const related = cleanText(note?.supportingFindingOf);
 		if (related) out.push(`Supports: ${escapeMarkdownText(related)}  `);
@@ -1646,12 +1655,12 @@ function renderCompletionSummary({
 		...findings.map((finding) => ({
 			label: finding.verdict,
 			severity: finding.severity,
-			title: finding.title,
+			title: readerTitleOf(finding),
 		})),
 		...needsHuman.map((finding) => ({
 			label: "NEEDS_HUMAN",
 			severity: severityOf(finding),
-			title: titleOf(finding),
+			title: readerTitleOf(finding),
 		})),
 	].slice(0, 6);
 	const out = [

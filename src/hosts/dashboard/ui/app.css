@@ -1528,8 +1528,12 @@ dialog.report footer .report-page {
 .status-icon.completed {
 	color: var(--faint);
 }
-.status-icon.blocked {
+.status-icon:is(.blocked, .attention) {
 	color: var(--warn);
+}
+/* A finished agent stage's ✓ is bright: done is visible; support steps keep the quiet one. */
+.node.completed:not(.support) .status-icon.completed {
+	color: var(--text);
 }
 .status-icon.failed {
 	color: var(--err);

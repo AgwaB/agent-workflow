@@ -3683,7 +3683,29 @@ const SINGLETON_VERDICT_KEYS = new Set([
 	"counterEvidence",
 	"recommendedAction",
 	"evidenceUnavailableReason",
+	"readerTitle",
+	"readerRationale",
 ]);
+
+/**
+ * 2026-11-03 (owner: reports should read in the task's language): a verifier may add readerTitle /
+ * readerRationale — its finding's title and rationale in the task's language. They travel beside
+ * the reviewer's originals (which stay the identity and the audit text); a missing, empty or
+ * oversized value is ignored, so the original shows.
+ */
+function readerTextOf(entry) {
+	const text = (value, max) => {
+		if (typeof value !== "string") return undefined;
+		const clean = value.trim();
+		return clean && [...clean].length <= max ? clean : undefined;
+	};
+	const readerTitle = text(entry?.readerTitle, 800)?.replace(/\s+/gu, " ");
+	const readerRationale = text(entry?.readerRationale, 4000);
+	return {
+		...(readerTitle ? { readerTitle } : {}),
+		...(readerRationale ? { readerRationale } : {}),
+	};
+}
 
 function singletonVerdictMalformedReason(entry) {
 	if (!entry || typeof entry !== "object" || Array.isArray(entry))
@@ -4175,6 +4197,7 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 				? verifierEvidenceRows
 				: (entry.evidence ?? reviewerFinding?.evidence ?? []),
 			rationale: reviewerFinding?.rationale ?? "",
+			...readerTextOf(entry),
 			verifierEvidence: verifierEvidenceQuotes,
 			counterEvidence: dedupeStrings(quoteStrings(entry.counterEvidence)),
 			recommendedAction,
