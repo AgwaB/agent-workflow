@@ -130,7 +130,7 @@ throw, so Pi reports a failed tool result with the host API message.
 
 When the session has a dialog-capable UI (`ctx.hasUI`: TUI and RPC), launches from `/aw` and the
 tools are interactive: a capability degradation that needs confirmation (WP4d) asks
-`ctx.ui.confirm("Proceed with these executor capability degradations?", <preview>)`; declining
+`ctx.ui.confirm("Proceed with these executor capability degradations?", <preview.prompt>)` (the short dialog text: each limit once, with its stages; the full report is saved with the run); declining
 refuses the launch (`CAPABILITY_DEGRADATION_DECLINED`, no run). A workflow that declares execution
 profiles and none is named offers them through `ctx.ui.select`. Without a UI (print/JSON mode)
 launches are non-interactive: degradations are recorded (`non-interactive`) and the run proceeds.

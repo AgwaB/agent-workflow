@@ -538,6 +538,85 @@ export interface CapabilityPreview {
 	readonly forcedReadOnly: readonly string[];
 	/** Human-readable pre-start preview (design §8.3). */
 	readonly text: string;
+	/**
+	 * The same check, short, for a confirmation dialog (2026-11-03, owner: the dialog showed every
+	 * stage's full report — 30+ lines for one reason to ask): what needs the user's OK, once across
+	 * stages, and in one line what is only recorded. `text` stays the full report (terminal, record).
+	 */
+	readonly prompt: string;
+}
+
+/** Plain words for a capability limit in a confirmation dialog; unknown keys show their name. */
+const LIMIT_WORDS: Readonly<Record<string, string>> = {
+	readOnly: "read-only is not strictly enforced",
+	mcpInjection: "required reads cannot be injected",
+	toolAllowlist: "the stage's tool list is not enforced",
+	"toolAllowlist.fine": "the stage's tool list is enforced only coarsely",
+	"usage.cost": "cost is recorded as unknown (tokens only)",
+	partialStream: "results arrive only when a worker finishes",
+	resume: "a repair starts a new session",
+	contextIsolation: "workers are not fully isolated from your own setup",
+	contextIsolationInherit: "workers inherit your context",
+	toolResultBudget: "no overall budget for tool output",
+	fastTier: "runs without the fast tier",
+	webTools: "web search safety rules are not enforced by the engine",
+};
+
+/** Stages a limit applies to: "all 4 stages", or up to three names. */
+function stageList(labels: readonly string[], total: number): string {
+	const names = [
+		...new Set(labels.map((label) => label.replace(/\.(main|item)$/u, ""))),
+	];
+	if (total > 1 && labels.length === total) return `all ${total} stages`;
+	return names.length <= 3
+		? names.join(", ")
+		: `${names.slice(0, 3).join(", ")} +${names.length - 3} more`;
+}
+
+/** The dialog text of {@link CapabilityPreview.prompt}. */
+function confirmationPrompt(
+	stages: readonly StageNegotiation[],
+	heading: string,
+): string {
+	const ask = new Map<string, { words: string; labels: string[] }>();
+	const asked = new Set<string>();
+	const recorded = new Map<string, string>();
+	for (const { label, report } of stages)
+		for (const entry of report.entries) {
+			if (entry.outcome !== "degraded") continue;
+			const words = LIMIT_WORDS[entry.key] ?? entry.key;
+			if (entry.acceptedByFreeMode === true || entry.recordOnly === true) {
+				recorded.set(entry.key, words);
+				continue;
+			}
+			// An environment warning names what was found (a rules file, a global AGENTS.md).
+			const found =
+				entry.code?.startsWith("CAPABILITY_WARNING:") === true &&
+				entry.note !== undefined
+					? `${words}: ${entry.note}`
+					: words;
+			const group = ask.get(found) ?? { words: found, labels: [] };
+			group.labels.push(label);
+			ask.set(found, group);
+			asked.add(entry.key);
+		}
+	const lines = [heading];
+	if (ask.size > 0) {
+		lines.push("", "Needs your OK:");
+		for (const { words, labels } of ask.values())
+			lines.push(`• ${words} (${stageList(labels, stages.length)})`);
+	}
+	// A limit that some stage asks about is not repeated as recorded-only for the others.
+	const quiet = [...recorded.entries()]
+		.filter(([key]) => !asked.has(key))
+		.map(([, words]) => words);
+	if (quiet.length > 0)
+		lines.push("", "Recorded only, no OK needed:", `• ${quiet.join("; ")}`);
+	lines.push(
+		"",
+		"If you accept, the full per-stage report is saved with the run.",
+	);
+	return lines.join("\n");
 }
 
 /**
@@ -602,5 +681,9 @@ export function buildCapabilityPreview(
 		degradations,
 		forcedReadOnly,
 		text: lines.join("\n"),
+		prompt: confirmationPrompt(
+			stages,
+			`${executor} · ${stagesText}${options.permissionMode === undefined ? "" : ` · permission mode ${options.permissionMode}`}${forcedReadOnly.length > 0 ? ` · runs read-only: ${stageList(forcedReadOnly, stages.length)}` : ""}`,
+		),
 	};
 }

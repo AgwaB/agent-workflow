@@ -701,6 +701,9 @@ test("degradation confirmation: elicitation accept / decline / error; absent or 
 		/^Proceed with these executor capability degradations\?\n\n/,
 	);
 	assert.match(request.params.message, /global AGENTS\.md loaded/);
+	// The short dialog text (preview.prompt), not the full per-stage report.
+	assert.match(request.params.message, /\nNeeds your OK:\n/);
+	assert.doesNotMatch(request.params.message, /CAPABILITY_/);
 	assert.deepEqual(request.params.requestedSchema, {
 		type: "object",
 		properties: {},

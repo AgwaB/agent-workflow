@@ -1444,7 +1444,7 @@ export function createHostMcpService(
 			confirmDegradations: async (preview: CapabilityPreview) =>
 				(await elicitConfirmation(
 					call,
-					`${DEGRADATION_ELICITATION_TITLE}\n\n${preview.text}`,
+					`${DEGRADATION_ELICITATION_TITLE}\n\n${preview.prompt}`,
 					"degradation confirmation",
 					log,
 				)) === "accept",

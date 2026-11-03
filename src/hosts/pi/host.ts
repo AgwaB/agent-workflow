@@ -262,7 +262,7 @@ export function launchHooks(
 			hooks: {
 				interactive: true,
 				confirmDegradations: async (preview) =>
-					(await ctx.ui.confirm(DEGRADATION_CONFIRM_TITLE, preview.text)) ===
+					(await ctx.ui.confirm(DEGRADATION_CONFIRM_TITLE, preview.prompt)) ===
 					true,
 				selectProfile: async (title, choices) => {
 					const offered = options.customProfile

@@ -175,7 +175,11 @@ A launch whose capability check needs confirmation (WP4d; for example environmen
 
 - If the client declared `capabilities.elicitation` with form mode (`{}` or `{form: …}`) and the
   session is `2025-06-18` or later, the server sends `elicitation/create` with message
-  `Proceed with these executor capability degradations?` plus the capability preview and an empty
+  `Proceed with these executor capability degradations?` plus the preview's short `prompt` (2026-11-03,
+  owner: the full per-stage report made a 30+ line dialog): executor · stages · permission mode, the
+  limits that need the user's OK once each with the stages they cover (an environment warning names
+  what was found), one line of limits that are only recorded, and a note that the full report is
+  saved with the run (`capabilityNegotiation`; the terminal CLI still prints it) — and an empty
   form (`requestedSchema: {type: "object", properties: {}}`; `mode: "form"` on `2025-11-25`).
   `accept` proceeds (`capability.confirmation: "confirmed"`); `decline`, `cancel`, an error
   response, a cancelled tool call or a disconnect refuse the launch
