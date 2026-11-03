@@ -338,7 +338,7 @@ progress::-moz-progress-bar {
 .hero-badge.interrupted .hero-ring {
 	stroke: var(--faint);
 }
-.hero-badge.blocked .hero-ring {
+.hero-badge:is(.blocked, .attention) .hero-ring {
 	stroke: var(--warn);
 }
 .hero-badge.failed .hero-ring {
@@ -359,7 +359,7 @@ progress::-moz-progress-bar {
 .hero-badge.failed .hero-number {
 	fill: var(--err);
 }
-.hero-badge.blocked .hero-number {
+.hero-badge:is(.blocked, .attention) .hero-number {
 	fill: var(--warn);
 }
 .result {

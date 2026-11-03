@@ -308,30 +308,79 @@ test("dashboard redesign: agent contracts, handoffs and reduced motion in Chrome
 					text: "Held back the synthesis",
 				};
 			});
-			await browser.waitFor(() => document.querySelector(".hero-check"));
+			// 2026-11-03 (owner: a NEEDS_WORK review read like a success): a verdict that is not a
+			// clean pass is the headline, with the amber "!"; no "Incomplete" tag (the work finished).
+			await browser.waitFor(
+				() => document.querySelector("h1")?.textContent === "Incomplete",
+			);
+			const attention = await browser.evaluate(() => ({
+				title: document.querySelector("h1").textContent,
+				badge: document.querySelector(".hero-badge").getAttribute("class"),
+				mark: document.querySelector(".hero-number")?.textContent ?? "check",
+				ringOffset: document
+					.querySelector(".hero-ring")
+					.getAttribute("stroke-dashoffset"),
+				result: document.querySelector(".result").textContent,
+				rail:
+					document.querySelector(".run-row .muted, .run-row p")?.textContent ??
+					null,
+				stageWarn: document
+					.querySelector('[data-stage="final-audit"]')
+					.classList.contains("outcome-warn"),
+				foreachWarn: document
+					.querySelector('[data-stage="verify-claims"]')
+					.classList.contains("outcome-warn"),
+			}));
 			assert.deepEqual(
-				await browser.evaluate(() => ({
-					title: document.querySelector("h1").textContent,
-					ringOffset: document
-						.querySelector(".hero-ring")
-						.getAttribute("stroke-dashoffset"),
-					colour: getComputedStyle(document.querySelector(".hero-ring")).stroke,
-					result: document.querySelector(".result").textContent,
-					stageWarn: document
-						.querySelector('[data-stage="final-audit"]')
-						.classList.contains("outcome-warn"),
-					foreachWarn: document
-						.querySelector('[data-stage="verify-claims"]')
-						.classList.contains("outcome-warn"),
-				})),
+				{ ...attention, rail: undefined },
 				{
-					title: "Finished",
+					title: "Incomplete",
+					badge: "hero-badge attention",
+					mark: "!",
 					ringOffset: "0",
-					colour: "rgb(237, 237, 237)",
 					result:
-						"ResultIncompleteHeld back the synthesisFinished just now with verdict incomplete. Report is ready.",
+						"ResultHeld back the synthesisFinished just now with verdict incomplete. Report is ready.",
+					rail: undefined,
 					stageWarn: true,
 					foreachWarn: false,
+				},
+			);
+			// A clean verdict with an agent's caveat finishes "with caveats" under a check.
+			await publish(() => {
+				run.verdict = "complete";
+			});
+			await browser.waitFor(() => document.querySelector(".hero-check"));
+			const caveats = await browser.evaluate(() => ({
+				title: document.querySelector("h1").textContent,
+				badge: document.querySelector(".hero-badge").getAttribute("class"),
+				mark: document.querySelector(".hero-number")?.textContent ?? "check",
+				ringOffset: document
+					.querySelector(".hero-ring")
+					.getAttribute("stroke-dashoffset"),
+				result: document.querySelector(".result").textContent,
+				rail:
+					document.querySelector(".run-row .muted, .run-row p")?.textContent ??
+					null,
+				stageWarn: document
+					.querySelector('[data-stage="final-audit"]')
+					.classList.contains("outcome-warn"),
+				foreachWarn: document
+					.querySelector('[data-stage="verify-claims"]')
+					.classList.contains("outcome-warn"),
+			}));
+			assert.deepEqual(
+				{
+					title: caveats.title,
+					badge: caveats.badge,
+					mark: caveats.mark,
+					result: caveats.result,
+				},
+				{
+					title: "Finished",
+					badge: "hero-badge completed",
+					mark: "check",
+					result:
+						"ResultWith caveatsHeld back the synthesisFinished just now with verdict complete. Report is ready.",
 				},
 			);
 		},

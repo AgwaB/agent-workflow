@@ -516,10 +516,15 @@ function verdictWord(value) {
 		: text.charAt(0) + text.slice(1).toLowerCase();
 }
 function railLine(summary) {
-	if (summary.status === "completed")
-		return `Finished${incomplete(summary) ? " · incomplete" : summary.verdict ? ` · ${verdictWord(summary.verdict)}` : ""}`;
-	if (summary.status === "failed" && summary.verdictGate)
-		return `Finished · ${summary.verdict ? verdictWord(summary.verdict) : "gate not passed"}`;
+	if (
+		summary.status === "completed" ||
+		(summary.status === "failed" && summary.verdictGate)
+	) {
+		const outcome = finishedOutcome(summary);
+		if (outcome.caveats) return "Finished · with caveats";
+		if (!outcome.clean) return outcome.word;
+		return `Finished${summary.verdict ? ` · ${verdictWord(summary.verdict)}` : ""}`;
+	}
 	if (summary.status === "failed")
 		return summary.needsYou?.[0]?.title || "A task failed";
 	if (rejected(summary)) return "Controller rejected";
@@ -801,17 +806,36 @@ const agentTasks = (run) =>
 	run.tasks.filter(
 		(t) => !t.placeholder && !["support", "dynamic", "loop"].includes(t.kind),
 	);
-const incomplete = (run) =>
-	Boolean(
-		run.verdictGate ||
-			(run.verdict &&
-				!/^(?:pass(?:ed)?|ok|success|complete(?:d)?)$/i.test(run.verdict)) ||
-			run.tasks?.some((t) => t.outcome && t.outcome.tone !== "ok"),
-	);
+/**
+ * A finished run's outcome (2026-11-03, owner: a deep-review that ended NEEDS_WORK read like a
+ * success — "Finished", a check, and an "Incomplete" tag although the review was complete). A
+ * workflow verdict that is not a clean pass becomes the headline in plain words ("Needs work",
+ * "Partial review", "Blocked") with the amber "!" of things that need a person; a run without a
+ * verdict whose agents left caveats finishes "with caveats". A clean verdict stays "Finished".
+ */
+const CLEAN_VERDICT =
+	/^(?:pass(?:ed)?|ok|success|complete(?:d)?|review[ _-]?complete|ready)$/i;
+function finishedOutcome(run) {
+	const word = (text) => {
+		const plain = verdictWord(text);
+		return plain.charAt(0).toUpperCase() + plain.slice(1);
+	};
+	if (run.verdict && !CLEAN_VERDICT.test(run.verdict))
+		return { clean: false, word: word(run.verdict) };
+	if (run.verdictGate) return { clean: false, word: "Gate not passed" };
+	if (run.tasks?.some((t) => t.outcome && t.outcome.tone !== "ok"))
+		return { clean: false, caveats: true, word: "Finished with caveats" };
+	return { clean: true, word: "Finished" };
+}
+const incomplete = (run) => !finishedOutcome(run).clean;
 function heroState(run) {
 	if (run.status === "failed" && !run.verdictGate) return ["failed", "Failed"];
-	if (run.status === "completed" || run.verdictGate)
-		return ["completed", "Finished"];
+	if (run.status === "completed" || run.verdictGate) {
+		const outcome = finishedOutcome(run);
+		return outcome.clean || outcome.caveats
+			? ["completed", "Finished"]
+			: ["attention", outcome.word];
+	}
 	if (run.status === "blocked" || run.needsYou?.length)
 		return ["blocked", "Needs you"];
 	return [run.status, labels[run.status] || "Waiting"];
@@ -848,7 +872,9 @@ function renderBadge(status) {
 			role: "img",
 			"aria-label": finished
 				? "Finished"
-				: `${done} of ${tasks.length} agents done`,
+				: status === "attention"
+					? "Finished; needs attention"
+					: `${done} of ${tasks.length} agents done`,
 		},
 		svg("circle", { class: "hero-track", cx: 17, cy: 17, r: 15.5 }),
 		ring,
@@ -877,7 +903,11 @@ function renderBadge(status) {
 			svg(
 				"text",
 				{ x: 17, y: 21, "text-anchor": "middle", class: "hero-number" },
-				status === "failed" ? "✕" : status === "blocked" ? "!" : done,
+				status === "failed"
+					? "✕"
+					: status === "blocked" || status === "attention"
+						? "!"
+						: done,
 			),
 		);
 	badgeStates.set(run.runId, status);
@@ -940,8 +970,8 @@ function renderHeader() {
 				"div",
 				{ class: "result-label" },
 				result ? "Result" : liveRun(run) ? "Now" : "Status",
-				result && incomplete(run)
-					? element("span", { class: "incomplete" }, "Incomplete")
+				result && finishedOutcome(run).caveats
+					? element("span", { class: "incomplete" }, "With caveats")
 					: null,
 			),
 			summary && result
