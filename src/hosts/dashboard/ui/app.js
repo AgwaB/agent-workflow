@@ -3442,36 +3442,59 @@ async function mutate(runId, kind, approval) {
 	}
 }
 /**
- * Untrusted Markdown as text nodes: headings, bullet lists, pipe tables, paragraphs, inline
- * `**bold**` / `` `code` ``. No links, HTML, images or content-derived URLs (report and task result).
+ * Untrusted Markdown as text nodes: headings (by level), bullet and numbered lists, pipe tables,
+ * rules, paragraphs whose single line breaks are kept, inline `**bold**` / `*emphasis*` /
+ * `` `code` `` and backslash escapes. No links, HTML, images or content-derived URLs: a Markdown link
+ * shows its text with the address as plain text, an image only its alt text (report and task result).
  */
-function renderTextMarkdown(container, text) {
-	let list = null;
-	// Deliberately text-only: no Markdown links, HTML, images or content-derived URLs. Inline
-	// `**bold**` / `*emphasis*` / `` `code` `` become <strong>/<em>/<code> text nodes; blank lines
-	// only end a block.
-	const inline = (text) => {
+function renderTextMarkdown(container, text, headingBase = 3) {
+	// Escaped punctuation is parked in the private-use area so it is never read as Markdown.
+	const park = (value) =>
+		value.replace(/\\([\\`*_{}\[\]()#+\-.!|<>~])/g, (_, c) =>
+			String.fromCharCode(0xe000 + c.charCodeAt(0)),
+		);
+	const unpark = (value) =>
+		value.replace(/[\ue000-\ue07f]/g, (c) =>
+			String.fromCharCode(c.charCodeAt(0) - 0xe000),
+		);
+	const inline = (raw) => {
+		const value = park(raw);
 		const nodes = [];
-		const re = /(\*\*([^*]+)\*\*|`([^`]+)`|\*([^*\s](?:[^*]*[^*\s])?)\*)/g;
+		const re =
+			/!\[([^\]]*)\]\(<?[^)>\s]*>?\)|\[([^\]]+)\]\(<?([^)>\s]+)>?\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*\s](?:[^*]*[^*\s])?)\*/g;
 		let last = 0;
-		for (const m of text.matchAll(re)) {
-			if (m.index > last) nodes.push(text.slice(last, m.index));
-			nodes.push(
-				m[2] !== undefined
-					? element("strong", {}, m[2])
-					: m[3] !== undefined
-						? element("code", {}, m[3])
-						: element("em", {}, m[4]),
-			);
+		for (const m of value.matchAll(re)) {
+			if (m.index > last) nodes.push(unpark(value.slice(last, m.index)));
+			if (m[0].startsWith("!"))
+				nodes.push(
+					element(
+						"span",
+						{ class: "muted" },
+						`[image${m[1] ? `: ${unpark(m[1])}` : ""}]`,
+					),
+				);
+			else if (m[2] !== undefined)
+				nodes.push(
+					unpark(m[2]),
+					m[3] !== m[2]
+						? element("span", { class: "md-url" }, ` (${unpark(m[3])})`)
+						: null,
+				);
+			else if (m[4] !== undefined)
+				nodes.push(element("strong", {}, unpark(m[4])));
+			else if (m[5] !== undefined)
+				nodes.push(element("code", {}, unpark(m[5])));
+			else nodes.push(element("em", {}, unpark(m[6])));
 			last = m.index + m[0].length;
 		}
-		if (last < text.length) nodes.push(text.slice(last));
+		if (last < value.length) nodes.push(unpark(value.slice(last)));
 		return nodes;
 	};
+	let list = null;
 	let paragraph = null;
 	let table = null;
 	for (const line of text.split("\n")) {
-		const heading = /^#{1,6}\s+(.+)$/.exec(line),
+		const heading = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line),
 			item = /^\s*[-*+]\s+(.+)$/.exec(line),
 			numbered = /^\s*\d+[.)]\s+(.+)$/.exec(line),
 			rule = /^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line),
@@ -3500,7 +3523,14 @@ function renderTextMarkdown(container, text) {
 		} else if (heading) {
 			list = null;
 			paragraph = null;
-			container.append(element("h3", {}, ...inline(heading[1])));
+			const level = Math.min(6, headingBase + heading[1].length - 1);
+			container.append(
+				element(
+					`h${level}`,
+					{ class: `md-h${heading[1].length}` },
+					...inline(heading[2]),
+				),
+			);
 		} else if (item || numbered) {
 			paragraph = null;
 			const tag = item ? "ul" : "ol";
@@ -3514,13 +3544,29 @@ function renderTextMarkdown(container, text) {
 			paragraph = null;
 		} else {
 			list = null;
+			// A paragraph keeps its line breaks: generated reports put one fact per line.
 			if (!paragraph) {
 				paragraph = element("p");
 				container.append(paragraph);
-			} else paragraph.append(" ");
-			append(paragraph, inline(line));
+			} else paragraph.append(element("br"));
+			append(paragraph, inline(line.trimEnd()));
 		}
 	}
+}
+/** The report's sections (its `##` headings) as a contents list; nothing for a short report. */
+function reportContents(container) {
+	const sections = [...container.querySelectorAll(".md-h2")];
+	if (sections.length < 3) return null;
+	return element(
+		"nav",
+		{ class: "report-toc", "aria-label": "Report sections" },
+		element("span", { class: "muted" }, "Contents"),
+		...sections.map((heading) =>
+			button(heading.textContent, () =>
+				heading.scrollIntoView({ block: "start", behavior: "smooth" }),
+			),
+		),
+	);
 }
 async function openReport() {
 	const id = run.runId,
@@ -3548,6 +3594,8 @@ async function openReport() {
 		if (generation !== reportGeneration || modalKey !== `report:${id}`) return;
 		body.replaceChildren();
 		renderTextMarkdown(body, data.text);
+		const contents = reportContents(body);
+		if (contents) body.prepend(contents);
 		if (data.truncated)
 			body.append(
 				element("p", { class: "muted" }, "Report truncated by the host."),

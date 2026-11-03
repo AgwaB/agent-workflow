@@ -453,6 +453,23 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		0,
 	);
 	assert.ok((await text("#report-content")).includes(injection));
+	// 2026-11-03: heading levels follow Markdown; a link shows its text and its address as plain
+	// text, an image only its alt text.
+	assert.equal(
+		await browser.evaluate(
+			() => document.querySelector("#report-content .md-h1")?.textContent,
+		),
+		"Review report",
+	);
+	assert.match(
+		await text("#report-content"),
+		/not a link \(https:\/\/example\.invalid\)/,
+	);
+	assert.match(await text("#report-content"), /\[image: not an image\]/);
+	assert.equal(
+		await browser.evaluate(() => document.querySelector(".report-toc")),
+		null,
+	);
 	await browser.key("Escape");
 
 	// 2026-11-03: a finished task opens on its Result: digest, analysis as text-only Markdown,

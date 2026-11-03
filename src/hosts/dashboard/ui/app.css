@@ -859,9 +859,19 @@ pre {
 	border-bottom: 1px solid var(--line);
 	font-weight: 600;
 }
-.result-analysis h3 {
+.result-analysis :is(h3, h4, h5, h6) {
 	margin: 16px 0 6px;
+	font-size: 15px;
+	line-height: 1.4;
+}
+.result-analysis .md-h1 {
+	font-size: 17px;
+}
+.result-analysis .md-h2 {
 	font-size: 16px;
+}
+.result-analysis :is(.md-h4, .md-h5, .md-h6) {
+	color: var(--muted);
 }
 .result-analysis p,
 .result-analysis ul,
@@ -1149,15 +1159,79 @@ dialog footer .muted {
 	width: min(900px, calc(100vw - 32px));
 }
 .report-content {
-	white-space: pre-wrap;
 	overflow-wrap: anywhere;
+	line-height: 1.65;
 }
-.report-content h3 {
-	margin-top: 20px;
-	font-size: 18px;
+/* Rendered Markdown (report and task result): heading sizes by Markdown level, quiet addresses. */
+.report-content :is(h3, h4, h5, h6) {
+	margin: 20px 0 8px;
+	line-height: 1.35;
 }
-.report-content p {
+.report-content .md-h1 {
+	font-size: 22px;
+}
+.report-content .md-h2 {
+	font-size: 19px;
+	padding-top: 8px;
+	border-top: 1px solid var(--line);
+}
+.report-content .md-h3 {
+	font-size: 16px;
+}
+.report-content :is(.md-h4, .md-h5, .md-h6) {
+	font-size: 15px;
+	color: var(--muted);
+}
+.report-content p,
+.report-content ul,
+.report-content ol {
 	margin: 8px 0;
+}
+.report-content ul,
+.report-content ol {
+	padding-left: 22px;
+}
+.report-content li + li {
+	margin-top: 4px;
+}
+.report-content code {
+	font: 13px var(--mono);
+}
+.report-content hr {
+	border: 0;
+	border-top: 1px solid var(--line);
+	margin: 16px 0;
+}
+.report-content .report-table {
+	border-collapse: collapse;
+	margin: 8px 0;
+}
+.report-content .report-table th,
+.report-content .report-table td {
+	border: 1px solid var(--line2);
+	padding: 4px 8px;
+	text-align: left;
+	vertical-align: top;
+}
+.md-url {
+	color: var(--muted);
+	font-size: 14px;
+}
+.report-toc {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 12px;
+	padding: 8px 0 12px;
+	margin-bottom: 8px;
+	border-bottom: 1px solid var(--line);
+}
+.report-toc button {
+	border: 0;
+	padding: 0;
+	color: var(--text);
+	text-decoration: underline;
+	text-underline-offset: 3px;
 }
 #notice {
 	position: fixed;
