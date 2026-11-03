@@ -3224,6 +3224,7 @@ function openDialog(key, children, className = "") {
 	const dialog = $("dialog");
 	if (!dialog.open) returnFocus = document.activeElement;
 	dialog.className = className;
+	delete dialog.dataset.page;
 	dialog.replaceChildren(...children);
 	modalKey = key;
 	if (!dialog.open) dialog.showModal();
@@ -3442,10 +3443,39 @@ async function mutate(runId, kind, approval) {
 	}
 }
 /**
- * Untrusted Markdown as text nodes: headings (by level), bullet and numbered lists, pipe tables,
- * rules, paragraphs whose single line breaks are kept, inline `**bold**` / `*emphasis*` /
- * `` `code` `` and backslash escapes. No links, HTML, images or content-derived URLs: a Markdown link
- * shows its text with the address as plain text, an image only its alt text (report and task result).
+ * Evidence words shown as tone badges (2026-11-03, reading the report): a bold status, a table cell
+ * or a field value that is exactly one of these. Tones reuse the status colours.
+ */
+const STATUS_TONES = {
+	verified: "good",
+	filled: "good",
+	high: "good",
+	partial: "warn",
+	partially_supported: "warn",
+	medium: "warn",
+	unsupported: "bad",
+	conflicting: "bad",
+	verification_blocked: "bad",
+	missing: "bad",
+	low: "bad",
+	derived: "info",
+	unverified: "info",
+};
+function statusBadge(word) {
+	const tone = STATUS_TONES[word.trim().toLowerCase()];
+	return tone
+		? element("span", { class: "md-status", "data-tone": tone }, word.trim())
+		: null;
+}
+/**
+ * Untrusted Markdown as text nodes: headings (by level), bullet and numbered lists (an indented
+ * bullet nests under the item above, a list keeps its first number), pipe tables, rules, paragraphs
+ * whose single line breaks are kept, inline `**bold**` / `*emphasis*` / `` `code` `` and backslash
+ * escapes. No links, HTML, images or content-derived URLs: a Markdown link shows its text with the
+ * address as plain text, an image only its alt text (report and task result).
+ * Reading aids (2026-11-03): a line that starts with a short English field label ("Sources:") shows
+ * the label quietly, evidence words become tone badges, a list item that starts with a bold label
+ * ("**Gap:**") gets a tag, and a long double-quoted passage reads as a quote.
  */
 function renderTextMarkdown(container, text, headingBase = 3) {
 	// Escaped punctuation is parked in the private-use area so it is never read as Markdown.
@@ -3461,7 +3491,7 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 		const value = park(raw);
 		const nodes = [];
 		const re =
-			/!\[([^\]]*)\]\(<?[^)>\s]*>?\)|\[([^\]]+)\]\(<?([^)>\s]+)>?\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*\s](?:[^*]*[^*\s])?)\*/g;
+			/!\[([^\]]*)\]\(<?[^)>\s]*>?\)|\[([^\]]+)\]\(<?([^)>\s]+)>?\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*\s](?:[^*]*[^*\s])?)\*|"([^"]{8,})"/g;
 		let last = 0;
 		for (const m of value.matchAll(re)) {
 			if (m.index > last) nodes.push(unpark(value.slice(last, m.index)));
@@ -3481,14 +3511,41 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 						: null,
 				);
 			else if (m[4] !== undefined)
-				nodes.push(element("strong", {}, unpark(m[4])));
+				nodes.push(
+					statusBadge(unpark(m[4])) ?? element("strong", {}, unpark(m[4])),
+				);
 			else if (m[5] !== undefined)
 				nodes.push(element("code", {}, unpark(m[5])));
-			else nodes.push(element("em", {}, unpark(m[6])));
+			else if (m[6] !== undefined) nodes.push(element("em", {}, unpark(m[6])));
+			else
+				nodes.push(element("span", { class: "md-quote" }, `"${unpark(m[7])}"`));
 			last = m.index + m[0].length;
 		}
 		if (last < value.length) nodes.push(unpark(value.slice(last)));
 		return nodes;
+	};
+	// "Evidence status: verified", "Sources: …": a short English label, then its value.
+	const field = (raw) => {
+		const m = /^([A-Z][A-Za-z]*(?: [A-Za-z]+){0,3}):(?:\s+(.*))?$/.exec(raw);
+		if (!m) return inline(raw);
+		const value = (m[2] ?? "").trim();
+		const plain = unpark(park(value.replace(/^\*\*(.+)\*\*$/, "$1")));
+		return [
+			element("span", { class: "md-label" }, `${m[1]}:`),
+			value ? " " : null,
+			value ? (statusBadge(plain) ?? inline(value)) : null,
+		];
+	};
+	// "**Gap:** …" at the start of a list item: a tag naming the kind of line.
+	const itemNodes = (raw) => {
+		const m = /^\*\*([^*]{1,40}):\*\*\s*(.*)$/.exec(raw);
+		if (!m) return field(raw);
+		const kind = m[1].toLowerCase().replace(/[^a-z0-9]+/g, "-");
+		return [
+			element("span", { class: "md-tag", "data-kind": kind }, m[1]),
+			" ",
+			inline(m[2]),
+		];
 	};
 	let list = null;
 	let paragraph = null;
@@ -3511,7 +3568,19 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 			}
 			const tag = table.childElementCount === 0 ? "th" : "td";
 			table.append(
-				element("tr", {}, ...cells.map((c) => element(tag, {}, ...inline(c)))),
+				element(
+					"tr",
+					{},
+					...cells.map((c) =>
+						element(
+							tag,
+							{},
+							...(tag === "td"
+								? [statusBadge(unpark(park(c))) ?? inline(c)]
+								: inline(c)),
+						),
+					),
+				),
 			);
 			continue;
 		}
@@ -3534,11 +3603,25 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 		} else if (item || numbered) {
 			paragraph = null;
 			const tag = item ? "ul" : "ol";
+			const entry = element("li", {}, ...itemNodes((item ?? numbered)[1]));
+			const parent = list?.lastElementChild;
+			if (/^\s{2,}/.test(line) && parent) {
+				// An indented item nests under the item above (the numbered list keeps counting).
+				let nested = parent.lastElementChild;
+				if (nested?.tagName.toLowerCase() !== tag) {
+					nested = element(tag);
+					parent.append(nested);
+				}
+				nested.append(entry);
+				continue;
+			}
 			if (!list || list.tagName.toLowerCase() !== tag) {
-				list = element(tag);
+				list = element(tag, {
+					start: numbered ? /^\s*(\d+)/.exec(line)[1] : null,
+				});
 				container.append(list);
 			}
-			list.append(element("li", {}, ...inline((item ?? numbered)[1])));
+			list.append(entry);
 		} else if (!line.trim()) {
 			list = null;
 			paragraph = null;
@@ -3549,9 +3632,72 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 				paragraph = element("p");
 				container.append(paragraph);
 			} else paragraph.append(element("br"));
-			append(paragraph, inline(line.trimEnd()));
+			append(paragraph, field(line.trimEnd()));
 		}
 	}
+}
+/**
+ * Each `###` part of the report (a finding, a summary part) becomes a card; a card that shows an
+ * evidence badge takes its tone on the left edge (2026-11-03: a long report read as one wall of text).
+ */
+function reportBlocks(container) {
+	let block = null;
+	for (const node of [...container.children]) {
+		if (node.matches(".md-h1, .md-h2, nav")) block = null;
+		else if (node.matches(".md-h3")) {
+			block = element("section", { class: "md-block" });
+			node.before(block);
+		}
+		if (block && node !== block) block.append(node);
+	}
+	for (const card of container.querySelectorAll(".md-block")) {
+		const tone = card.querySelector(".md-status")?.dataset.tone;
+		if (tone) card.dataset.tone = tone;
+	}
+}
+/**
+ * Report page colour (2026-11-03, owner: white text on black is hard to read at length): the
+ * report can be read on a light page while the dashboard stays dark, or the other way round.
+ * Kept in this browser; without a choice the page follows the dashboard theme.
+ */
+const REPORT_PAGE_KEY = "agent-workflow:report-page";
+function storedReportPage() {
+	try {
+		const value = localStorage.getItem(REPORT_PAGE_KEY);
+		return value === "light" || value === "dark" ? value : null;
+	} catch {
+		return null; // Storage unavailable: follow the dashboard.
+	}
+}
+function reportPage(dialog) {
+	const page = dialog.dataset.page ?? document.documentElement.dataset.theme;
+	if (page === "light" || page === "dark") return page;
+	return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+/** Called once the report dialog is open (openDialog clears the previous page choice). */
+function reportPageButton(dialog) {
+	const stored = storedReportPage();
+	if (stored) dialog.dataset.page = stored;
+	const control = button(
+		"",
+		() => {
+			const next = reportPage(dialog) === "dark" ? "light" : "dark";
+			try {
+				localStorage.setItem(REPORT_PAGE_KEY, next);
+			} catch {
+				// The choice then lasts for this report only.
+			}
+			dialog.dataset.page = next;
+			label();
+		},
+		{ class: "report-page" },
+	);
+	const label = () => {
+		control.textContent =
+			reportPage(dialog) === "dark" ? "Light page" : "Dark page";
+	};
+	label();
+	return control;
 }
 /** The report's sections (its `##` headings) as a contents list; nothing for a short report. */
 function reportContents(container) {
@@ -3589,11 +3735,14 @@ async function openReport() {
 		],
 		"report",
 	);
+	const footer = $("dialog").querySelector("footer");
+	footer.prepend(reportPageButton($("dialog")));
 	try {
 		const data = await api(`/api/runs/${encodeURIComponent(id)}/report`);
 		if (generation !== reportGeneration || modalKey !== `report:${id}`) return;
 		body.replaceChildren();
 		renderTextMarkdown(body, data.text);
+		reportBlocks(body);
 		const contents = reportContents(body);
 		if (contents) body.prepend(contents);
 		if (data.truncated)

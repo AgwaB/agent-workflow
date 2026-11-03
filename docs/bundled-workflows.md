@@ -203,7 +203,7 @@ After stage 2 (2026-11-01):
 - **M24.** deep-research reader translations (owner decision 2026-11-03). Reports read in the task's
   language except the repeated frame. `final-audit` (both specs) may add `synthesis.translations`:
   `claims[{id, text, explanation?}]` for the claims and leads the report shows and
-  `factSlots[{id, area, whyItMatters?}]` for the evidence-strength rows, omitted when the text is
+  `factSlots[{id, area, whyItMatters?, gap?}]` for the evidence-strength rows and gaps, omitted when the text is
   already in the task's language. No new stage or model call: the same final-audit output carries
   them. `render-executive.mjs` shows them in Main findings, the Evidence strength table and the
   Unsupported/Contested/Unverified-lead lines; section titles, field labels, statuses, quotes and
@@ -211,6 +211,10 @@ After stage 2 (2026-11-01):
   N applied, M ignored" line. An entry with an unknown or repeated id or empty text is ignored (the
   original shows); a malformed container fails the schema and the renderer. The same change stops
   the Evidence strength table from escaping its source links a second time.
+  A coverage gap without its own text (it had only ids: `Coverage gap — gap-coverage-001 — related
+  slots: slot-001`) now names each related area (translated when given), its status and what is
+  missing (the slot's `gapReason`, or the translated `gap`); one without related areas shows its scope
+  item. The packet keeps the ids.
 
 ## Worker prompt rendering (core)
 

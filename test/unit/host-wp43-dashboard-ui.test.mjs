@@ -470,6 +470,60 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		await browser.evaluate(() => document.querySelector(".report-toc")),
 		null,
 	);
+	// 2026-11-03 reading aids: a finding is a card toned by its evidence, field labels are quiet,
+	// evidence words are badges (escaped or in a table too), line kinds are tags, quotes read as
+	// quotes, and a numbered list keeps counting across nested bullets.
+	assert.deepEqual(
+		await browser.evaluate(() => {
+			const all = (selector) =>
+				[...document.querySelectorAll(`#report-content ${selector}`)].map(
+					(node) => node.textContent,
+				);
+			return {
+				card: all('.md-block[data-tone="good"] > .md-h3'),
+				labels: all(".md-label").slice(0, 2),
+				badges: all(".md-status"),
+				tags: all('.md-tag[data-kind="gap"]'),
+				quotes: all(".md-quote"),
+				numbered: all(".md-block > ol > li").length,
+				nested: all("ol > li > ul .md-status"),
+			};
+		}),
+		{
+			card: ["1. Retries are bounded"],
+			labels: ["Evidence status:", "Sources:"],
+			badges: ["verified", "partially_supported", "derived"],
+			tags: ["Gap"],
+			quotes: ['"Retries stop after four attempts."'],
+			numbered: 2,
+			nested: ["derived"],
+		},
+	);
+	// The page colour is chosen in the report and kept in this browser.
+	const page = () =>
+		browser.evaluate(() => [
+			document.querySelector("dialog").dataset.page ?? null,
+			document.querySelector(".report-page")?.textContent,
+		]);
+	const [initialPage] = await page();
+	await browser.evaluate(() => document.querySelector(".report-page").click());
+	const chosen = (await page())[0];
+	assert.notEqual(chosen, initialPage);
+	assert.deepEqual(await page(), [
+		chosen,
+		chosen === "light" ? "Dark page" : "Light page",
+	]);
+	await browser.key("Escape");
+	await open(`run=${complete}&view=report`);
+	await browser.waitFor(() =>
+		document
+			.querySelector("#report-content")
+			?.textContent.includes("Review report"),
+	);
+	assert.equal((await page())[0], chosen);
+	await browser.evaluate(() =>
+		localStorage.removeItem("agent-workflow:report-page"),
+	);
 	await browser.key("Escape");
 
 	// 2026-11-03: a finished task opens on its Result: digest, analysis as text-only Markdown,

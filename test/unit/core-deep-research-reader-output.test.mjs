@@ -24,10 +24,10 @@ const schema = JSON.parse(
 		"utf8",
 	),
 );
-async function inputs() {
-	const packet = await finalPacket({
-		sources: structuredClone(fixture.sources),
-	});
+async function inputs(edit = (_sources) => {}) {
+	const packetSources = structuredClone(fixture.sources);
+	edit(packetSources);
+	const packet = await finalPacket({ sources: packetSources });
 	const synthesis = {
 		bottomLine:
 			"문서상 기능은 확인했지만 실제 수요와 기능 부재는 확인하지 못했습니다.",
@@ -388,6 +388,44 @@ test("a malformed translations container is rejected by schema and renderer", as
 		const result = await render({ sources });
 		assert.equal(result.status, "blocked");
 	}
+});
+
+test("a coverage gap without its own text names its areas, not its ids", async () => {
+	const sources = await inputs((packetSources) => {
+		const [named, bare] = packetSources["normalize-claims"].coverageGaps;
+		for (const gap of [named, bare]) {
+			delete gap.reason;
+			delete gap.nextStep;
+		}
+		bare.relatedFactSlotIds = [];
+	});
+	const packet = sources["final-audit-packet"].packet;
+	const [named, bare] = packet.coverageGaps;
+	const slot = packet.factSlotCoverage.find(
+		(row) => row.slotId === named.relatedFactSlotIds[0],
+	);
+	let result = await render({ sources });
+	assert.equal(result.status, "passed", JSON.stringify(result.gates));
+	assert.ok(
+		result.reportMarkdown.includes(
+			`**Gap:** ${slot.label} (${slot.status}): ${slot.gapReason.replace(/[.]$/, "")}`,
+		),
+		"named gap",
+	);
+	assert.ok(result.reportMarkdown.includes(`**Gap:** ${bare.scopeItem}`));
+	assert.doesNotMatch(result.reportMarkdown, /related slots: slot-/);
+	// With a translated slot the gap reads in the task's language.
+	withTranslations(sources, {
+		factSlots: [
+			{ id: slot.slotId, area: "이전 범위 영역", gap: "확인이 더 필요하다." },
+		],
+	});
+	result = await render({ sources });
+	assert.ok(
+		result.reportMarkdown.includes(
+			`**Gap:** 이전 범위 영역 (${slot.status}): 확인이 더 필요하다`,
+		),
+	);
 });
 
 test("evidence-strength sources are links, not escaped Markdown", async () => {

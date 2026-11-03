@@ -1494,9 +1494,38 @@ function readerTranslations(synthesis, claimIds, slotIds) {
 		factSlots.set(id, {
 			readerArea: area,
 			readerImpact: translatedText(row?.whyItMatters, 2000),
+			readerGap: translatedText(row?.gap, 2000),
 		});
 	}
 	return { claims, factSlots, ignored };
+}
+
+/**
+ * 2026-11-03: a coverage gap carries only ids and its scope item, so the report printed
+ * "Coverage gap — gap-coverage-001 — related slots: slot-001". It now names each related area
+ * (translated when the synthesis gave one), its status and what is missing; a gap without
+ * related areas shows its scope item. The packet (final-audit-packet control) keeps the ids.
+ */
+function withCoverageGapText(gap, slotById) {
+	const ownText = ["gap", "finding", "claim", "note", "reason"].some(
+		(key) => typeof gap?.[key] === "string" && gap[key].trim(),
+	);
+	if (ownText) return gap;
+	const parts = asArray(gap?.relatedFactSlotIds)
+		.map((id) => slotById.get(cleanText(id)))
+		.filter(Boolean)
+		.map((slot) => {
+			const area = cleanText(slot.readerArea ?? slot.label ?? slot.slotId);
+			const status = cleanText(slot.status);
+			// Parts are joined with "; ", so a part's own closing full stop is dropped.
+			const missing = cleanText(slot.readerGap ?? slot.gapReason).replace(
+				/[.。]$/u,
+				"",
+			);
+			return `${area}${status ? ` (${status})` : ""}${missing ? `: ${missing}` : ""}`;
+		});
+	const text = parts.length ? parts.join("; ") : cleanText(gap?.scopeItem);
+	return text ? { ...gap, readerText: text } : gap;
 }
 
 function withTranslation(item, translation) {
@@ -1623,15 +1652,17 @@ function composeResearchReport(control, packetSource) {
 	);
 	const translateClaims = (rows) =>
 		rows.map((row) => withTranslation(row, translations.claims.get(claimIdOf(row))));
+	const factSlotCoverage = asArray(packet.factSlotCoverage).map((slot) =>
+		withTranslation(slot, translations.factSlots.get(cleanText(slot?.slotId))),
+	);
+	const slotById = mapById(factSlotCoverage, (slot) => cleanText(slot?.slotId));
 
 	return {
 		report: {
 			summary: synthesis.bottomLine ?? control?.digest,
 			researchMetadata: packet.researchMetadataSeed ?? {},
 			coverageSummary: coverageSummaryFromPacket(packet, {}),
-			factSlotCoverage: asArray(packet.factSlotCoverage).map((slot) =>
-				withTranslation(slot, translations.factSlots.get(cleanText(slot?.slotId))),
-			),
+			factSlotCoverage,
 			mainFindings: translateClaims(keyFindingRows.map(claimToFinding)),
 			comparisonRows: mapOverlayItems(
 				synthesis.comparisonRows,
@@ -1655,7 +1686,7 @@ function composeResearchReport(control, packetSource) {
 				"decision notes",
 			),
 			researchScopeCoverage: asArray(packet.researchScopeCoverage),
-			remainingGaps: gapRows,
+			remainingGaps: gapRows.map((gap) => withCoverageGapText(gap, slotById)),
 			...(hasOwn(synthesis, "translations")
 				? {
 						readerTranslations: {

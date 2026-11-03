@@ -1158,9 +1158,35 @@ dialog footer .muted {
 .report {
 	width: min(900px, calc(100vw - 32px));
 }
+/* Report page colour chosen in the report (else the dashboard theme). */
+dialog.report[data-page="light"] {
+	color-scheme: light;
+}
+dialog.report[data-page="dark"] {
+	color-scheme: dark;
+}
+/* The report's footer stays in view while reading; the page button sits on the left. */
+dialog.report footer {
+	position: sticky;
+	bottom: -24px;
+	margin: 16px -24px -24px;
+	padding: 12px 24px;
+	background: var(--overlay);
+}
+dialog.report footer .report-page {
+	margin-right: auto;
+}
 .report-content {
 	overflow-wrap: anywhere;
-	line-height: 1.65;
+	line-height: 1.7;
+	/* Body text a step softer than headings: less glare on a dark page. */
+	color: light-dark(#2e2d29, #d2d2d2);
+}
+.report-content :is(h3, h4, h5, h6, strong) {
+	color: var(--text);
+}
+.report-content :is(p, li) {
+	max-width: 76ch;
 }
 /* Rendered Markdown (report and task result): heading sizes by Markdown level, quiet addresses. */
 .report-content :is(h3, h4, h5, h6) {
@@ -1217,7 +1243,81 @@ dialog footer .muted {
 	color: var(--muted);
 	font-size: 14px;
 }
+/* Reading aids (report and task result): field labels, evidence badges, line tags, quotes. */
+.md-label {
+	color: var(--muted);
+	font-size: 14px;
+}
+.md-status {
+	display: inline-block;
+	padding: 0 8px;
+	border-radius: 999px;
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 20px;
+	white-space: nowrap;
+	color: var(--muted);
+	background: color-mix(in srgb, currentColor 14%, transparent);
+}
+.md-status[data-tone="good"] {
+	color: var(--accent);
+}
+.md-status[data-tone="warn"] {
+	color: var(--warn);
+}
+.md-status[data-tone="bad"] {
+	color: var(--err);
+}
+.md-tag {
+	display: inline-block;
+	padding: 0 6px;
+	border-radius: 6px;
+	font-size: 12.5px;
+	font-weight: 600;
+	line-height: 20px;
+	white-space: nowrap;
+	color: var(--muted);
+	background: color-mix(in srgb, currentColor 12%, transparent);
+}
+.md-tag:is([data-kind="gap"], [data-kind="caveat"]) {
+	color: var(--warn);
+}
+.md-tag:is([data-kind="unsupported"], [data-kind="contested"]) {
+	color: var(--err);
+}
+.md-tag[data-kind="decision-note"] {
+	color: var(--accent);
+}
+.md-quote {
+	font-style: italic;
+	color: var(--muted);
+}
+/* A finding or summary part as a card; its evidence tone marks the left edge. */
+.report-content .md-block {
+	margin: 14px 0;
+	padding: 2px 18px 10px;
+	border: 1px solid var(--line);
+	border-left: 3px solid var(--line2);
+	border-radius: 10px;
+	background: var(--surface);
+}
+.report-content .md-block[data-tone="good"] {
+	border-left-color: var(--accent);
+}
+.report-content .md-block[data-tone="warn"] {
+	border-left-color: var(--warn);
+}
+.report-content .md-block[data-tone="bad"] {
+	border-left-color: var(--err);
+}
+.report-content .md-block > :first-child {
+	margin-top: 12px;
+}
 .report-toc {
+	position: sticky;
+	top: -24px;
+	z-index: 1;
+	background: var(--overlay);
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
