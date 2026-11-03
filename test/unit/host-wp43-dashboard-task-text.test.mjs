@@ -42,6 +42,11 @@ test("status words become a tone and a readable word", () => {
 	assert.equal(outcomeOf({ status: "partially_supported" }).tone, "warn");
 	assert.equal(outcomeOf({ status: "verification_blocked" }).tone, "err");
 	assert.equal(outcomeOf({ verdict: "refuted" }).tone, "err");
+	// 2026-11-03: outcomes that leave review work to do are warnings.
+	for (const status of ["NEEDS_WORK", "GAPS_FOUND", "Keep", "WEAKEN"])
+		assert.equal(outcomeOf({ status }).tone, "warn", status);
+	assert.equal(outcomeOf({ status: "Drop" }).tone, "ok");
+	assert.equal(outcomeOf({ verdict: "REVIEW_COMPLETE" }).tone, "ok");
 	// A long or odd status value is not a status word.
 	assert.equal(
 		outcomeOf({ status: "x".repeat(80), summary: "S" }).status,

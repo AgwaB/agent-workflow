@@ -215,6 +215,12 @@ After stage 2 (2026-11-01):
   slots: slot-001`) now names each related area (translated when given) and what is
   missing (the slot's `gapReason`, or the translated `gap`); one without related areas shows its scope
   item. The packet keeps the ids.
+- **M25.** Report language for deep-review and spec-review (2026-11-03, owner: a Korean deep-review
+  task got an English result). Their `report` stage prompts gain impact-review's rule: write the
+  summary, risks (spec-review: and scope-limitation text) and recommended next action in the runtime
+  task's requested language, or the task's language when none is requested, keeping verdict tokens,
+  ids, file paths, symbols and code unchanged. Finding titles and evidence still come from the
+  reviewers as written.
 
 ## Worker prompt rendering (core)
 

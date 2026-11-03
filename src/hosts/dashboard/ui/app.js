@@ -1261,16 +1261,38 @@ function stageLine(stage) {
 	if (stage.approval) return "Awaiting your approval";
 	if (stage.kind === "dynamic" && stage.items.length > 1)
 		return `${stage.done} of ${stage.items.length} agents done`;
+	// 2026-11-03 (owner: "where did it fail?" — every node of a NEEDS_WORK review read "Done"): a
+	// finished stage names the outcomes that leave work to do — "3 agents · 1 keep · 2 weaken",
+	// "Needs work · 10s" — instead of only its agent count and time.
 	if (stage.kind === "foreach" && stage.status === "completed") {
+		const flagged = new Map();
+		for (const task of stage.items)
+			if (
+				task.outcome?.status &&
+				task.outcome.tone &&
+				task.outcome.tone !== "ok"
+			)
+				flagged.set(
+					task.outcome.status.toLowerCase(),
+					(flagged.get(task.outcome.status.toLowerCase()) ?? 0) + 1,
+				);
+		if (flagged.size)
+			return `${stage.items.length} agents · ${[...flagged].map(([status, count]) => `${count} ${status}`).join(" · ")}`;
 		const starts = stage.items.map((t) => date(t.startedAt)).filter(Boolean),
 			ends = stage.items.map((t) => date(t.completedAt)).filter(Boolean);
 		return starts.length && ends.length
 			? `${stage.items.length} agents · ${duration(Math.max(...ends) - Math.min(...starts))}`
 			: `${stage.items.length} agents done`;
 	}
-	return stage.items[0]
-		? taskLine(stage.items[0])
-		: labels[stage.status] || "Waiting";
+	const only = stage.items[0];
+	if (
+		only?.status === "completed" &&
+		only.outcome?.status &&
+		only.outcome.tone &&
+		only.outcome.tone !== "ok"
+	)
+		return taskLine(only).replace(/^Done\b/, only.outcome.status);
+	return only ? taskLine(only) : labels[stage.status] || "Waiting";
 }
 function chooseStage(stage) {
 	if (stage.ghost) return chooseStage(stage.parent);
