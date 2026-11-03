@@ -212,8 +212,8 @@ function applyRail() {
 	const shown = railShown();
 	$("body").classList.toggle("rail-folded", !shown && !phone.matches);
 	$("body").classList.toggle("rail-open", shown && phone.matches);
-	$("rail").hidden = !shown;
-	$("rail-scrim").hidden = !(shown && phone.matches);
+	// Folded, the rail slides away (CSS) and is inert; it keeps its place in the page.
+	$("rail").inert = !shown;
 	const control = $("top").querySelector(".rail-button");
 	if (control) {
 		control.setAttribute("aria-expanded", String(shown));
@@ -2504,11 +2504,20 @@ function renderGraph() {
 	 * frame callback after this redraw's own resize/apply, so it knows the new view; a view that
 	 * re-centred the smaller graph is folded into each start position (screen continuity).
 	 */
+	/**
+	 * Move from the previous drawing to this one (FLIP). Runs in the frame callback after this
+	 * redraw's own resize/apply, so it knows the new view. 2026-11-03 (owner: showing and hiding the
+	 * code steps jumped): the view itself glides from the old zoom/pan to the new one while cards
+	 * move to their new places, cards that leave fade out where they were, and new ones settle in.
+	 */
 	function morph(previous) {
 		if (reducedMotion()) return;
 		requestAnimationFrame(() => {
 			if (!wrap.isConnected) return;
-			const motion = { duration: 400, easing: "cubic-bezier(.3,0,.2,1)" };
+			const motion = {
+				duration: 460,
+				easing: "cubic-bezier(.22,.61,.36,1)",
+			};
 			const parse = (value) => {
 				const m =
 					/translate\(([-\d.e]+)[ ,]+([-\d.e]+)\)\s*scale\(([-\d.e]+)\)/.exec(
@@ -2518,31 +2527,44 @@ function renderGraph() {
 			};
 			const before = parse(previous.view),
 				after = parse(viewport.getAttribute("transform"));
-			// Where an old user-space point lands in the new view's user space.
-			const map = (x, y) =>
-				before && after
-					? {
-							x: (before.x + before.k * x - after.x) / after.k,
-							y: (before.y + before.k * y - after.y) / after.k,
-						}
-					: { x, y };
-			const shift = map(0, 0);
+			const css = (v) => `translate(${v.x}px, ${v.y}px) scale(${v.k})`;
+			if (
+				before &&
+				after &&
+				(Math.abs(before.x - after.x) > 0.5 ||
+					Math.abs(before.y - after.y) > 0.5 ||
+					Math.abs(before.k - after.k) > 0.001)
+			)
+				viewport.animate(
+					[{ transform: css(before) }, { transform: css(after) }],
+					motion,
+				);
 			for (const node of nodes.querySelectorAll(":scope > .node[data-stage]")) {
 				const now = positions.get(node.dataset.stage),
 					was = previous.nodes.get(node.dataset.stage);
 				if (!now) continue;
 				if (!was) {
 					node.animate(
-						[{ opacity: 0 }, { opacity: 0, offset: 0.4 }, { opacity: 1 }],
+						[
+							{
+								opacity: 0,
+								transform: `translate(${now.x}px, ${now.y - 8}px)`,
+							},
+							{
+								opacity: 0,
+								transform: `translate(${now.x}px, ${now.y - 8}px)`,
+								offset: 0.35,
+							},
+							{ opacity: 1, transform: `translate(${now.x}px, ${now.y}px)` },
+						],
 						motion,
 					);
 					continue;
 				}
-				const from = map(was.x, was.y);
-				if (Math.abs(from.x - now.x) > 0.5 || Math.abs(from.y - now.y) > 0.5)
+				if (Math.abs(was.x - now.x) > 0.5 || Math.abs(was.y - now.y) > 0.5)
 					node.animate(
 						[
-							{ transform: `translate(${from.x}px, ${from.y}px)` },
+							{ transform: `translate(${was.x}px, ${was.y}px)` },
 							{ transform: `translate(${now.x}px, ${now.y}px)` },
 						],
 						motion,
@@ -2574,27 +2596,34 @@ function renderGraph() {
 					).onfinish = () => ghost.remove();
 				}
 			}
+			// Cards and edges that are gone fade out where they were (a hidden code step, a group
+			// that split) instead of vanishing.
+			const leave = (element, layer) => {
+				const copy = exitCopy(element);
+				layer.append(copy);
+				copy.animate([{ opacity: 1 }, { opacity: 0 }], {
+					duration: 200,
+					easing: "ease-out",
+					fill: "forwards",
+				}).onfinish = () => copy.remove();
+			};
+			for (const [id, was] of previous.nodes)
+				if (!positions.has(id) && was.element) leave(was.element, nodes);
+			for (const [id, link] of previous.links ?? [])
+				if (!edges.querySelector(`path.edge[data-edge="${CSS.escape(id)}"]`))
+					leave(link, edges);
 			const shape = (value) => value?.replace(/[-\d.e]+/g, "#");
 			for (const path of edges.querySelectorAll("path.edge[data-edge]")) {
 				const was = previous.edges.get(path.dataset.edge),
 					d = path.getAttribute("d"),
 					link = path.closest(".link");
-				const moved = Math.abs(shift.x) > 0.5 || Math.abs(shift.y) > 0.5;
-				if (was === d && !moved) continue;
+				if (was === d || path.closest(".morph-old")) continue;
 				if (was && shape(was) === shape(d)) {
-					// Same path shape: bend from the old path (in the old view) to the new one.
+					// Same path shape: bend from the old path to the new one.
 					path.animate(
 						[{ d: `path("${was}")` }, { d: `path("${d}")` }],
 						motion,
 					);
-					if (moved && link)
-						link.animate(
-							[
-								{ transform: `translate(${shift.x}px, ${shift.y}px)` },
-								{ transform: "translate(0px, 0px)" },
-							],
-							motion,
-						);
 					for (const child of link?.children ?? [])
 						if (child !== path)
 							child.animate(
@@ -2635,6 +2664,20 @@ function staleCopy(children) {
 	group.querySelectorAll("title, foreignObject").forEach((el) => el.remove());
 	return group;
 }
+/** An inert copy of a card or edge that is leaving the graph, faded out where it was. */
+function exitCopy(element) {
+	const copy = element.cloneNode(true);
+	for (const el of [copy, ...copy.querySelectorAll("*")]) {
+		for (const name of [...el.getAttributeNames()])
+			if (/^(?:id|tabindex|role|data-.*|aria-(?!hidden).*)$/.test(name))
+				el.removeAttribute(name);
+		el.classList?.remove("selected", "lit", "next", "agent-row", "stage-row");
+	}
+	copy.classList.add("morph-old", "leaving");
+	copy.setAttribute("aria-hidden", "true");
+	copy.querySelectorAll("title, foreignObject").forEach((el) => el.remove());
+	return copy;
+}
 /** Card boxes and edge paths of the drawn graph (user units), for a morphing redraw. */
 function graphGeometry() {
 	const canvas = $("canvas");
@@ -2655,12 +2698,17 @@ function graphGeometry() {
 				content: [...node.children].filter(
 					(child) => !child.matches("rect.outline, title"),
 				),
+				element: node,
 			});
 	}
-	for (const path of canvas.querySelectorAll("path.edge[data-edge]"))
+	const links = new Map();
+	for (const path of canvas.querySelectorAll("path.edge[data-edge]")) {
 		edges.set(path.dataset.edge, path.getAttribute("d"));
+		if (path.closest(".link"))
+			links.set(path.dataset.edge, path.closest(".link"));
+	}
 	const view = canvas.querySelector("svg.graph > g")?.getAttribute("transform");
-	return { nodes, edges, view };
+	return { nodes, edges, links, view };
 }
 function agentState(task) {
 	return taskState(task) === "retry"
@@ -3228,6 +3276,7 @@ function itemPositions(inspector) {
  * fetched once per agent state.
  */
 const expandedItems = new Set();
+let justExpanded = null; // the row opened by this click: only its result animates in
 const itemResults = new Map();
 function itemResult(task) {
 	const key = `${run.runId}:${task.taskId}:${task.status}:${task.attempt ?? ""}`;
@@ -3247,12 +3296,12 @@ function itemResult(task) {
 		);
 	return itemResults.get(key);
 }
-function itemExpansion(task, id) {
+function itemExpansion(task, id, entering = false) {
 	const open = button("Open agent ›", () => go({ task: task.specId }), {
 		class: "item-open",
 	});
 	const body = element("div", {
-		class: "item-expand",
+		class: `item-expand${entering ? " entering" : ""}`,
 		id,
 		role: "region",
 		"aria-label": `Result of ${task.title || task.specId}`,
@@ -3491,8 +3540,12 @@ function renderItems(inspector, stage, previous = new Map()) {
 						content,
 						() => {
 							if (expandedItems.has(expandKey)) expandedItems.delete(expandKey);
-							else expandedItems.add(expandKey);
+							else {
+								expandedItems.add(expandKey);
+								justExpanded = expandKey;
+							}
 							paint();
+							justExpanded = null;
 							list
 								.querySelector(`[data-item="${CSS.escape(task.specId)}"]`)
 								?.focus({ preventScroll: true });
@@ -3508,7 +3561,10 @@ function renderItems(inspector, stage, previous = new Map()) {
 						},
 					),
 				);
-				if (expanded) list.append(itemExpansion(task, regionId));
+				if (expanded)
+					list.append(
+						itemExpansion(task, regionId, expandKey === justExpanded),
+					);
 			}
 		}
 		if (!matches.length)
@@ -4823,16 +4879,35 @@ async function loadRun() {
 	$("inspector").hidden = true;
 	$("body").classList.remove("inspecting");
 	applyRail();
-	$("center").replaceChildren(element("p", { class: "empty" }, "Loading run…"));
+	// Switching runs (owner: smoother): the previous run stays, dimmed and inert, until the next
+	// one is drawn, instead of flashing an empty "Loading run…" page.
+	const center = $("center");
+	if (center.querySelector(".run-header")) {
+		center.classList.add("switching");
+		center.inert = true;
+	} else
+		center.replaceChildren(element("p", { class: "empty" }, "Loading run…"));
 	connection = "Reconnecting";
 	lastEvent = 0;
 	updateConnection();
 	renderRail();
 	const generation = loadGeneration;
+	const settle = () => {
+		if (!center.classList.contains("switching")) return;
+		center.classList.remove("switching");
+		center.inert = false;
+		if (!reducedMotion())
+			center.animate([{ opacity: 0.4 }, { opacity: 1 }], {
+				duration: 180,
+				easing: "ease-out",
+			});
+	};
 	try {
 		await refreshRun();
+		if (generation === loadGeneration) settle();
 	} catch (error) {
 		if (generation !== loadGeneration || error.name === "AbortError") return;
+		settle();
 		$("center").replaceChildren(
 			element(
 				"div",

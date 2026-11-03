@@ -198,24 +198,46 @@ kbd {
 	border-radius: 6px;
 	white-space: nowrap;
 }
-/* The runs rail (wider since 2026-11-03, owner) folds away with the top bar's sidebar button. */
+/*
+ * The runs rail (wider since 2026-11-03, owner) folds away with the top bar's sidebar button: its
+ * column narrows to nothing (a transition, owner: "smoother"), its content keeps its width and
+ * fades, so nothing reflows while it goes.
+ */
 .body {
-	--rail: 260px;
+	--rail-open: 260px;
+	--rail: var(--rail-open);
+	--ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
 	display: grid;
 	grid-template-columns: var(--rail) minmax(0, 1fr);
 	height: calc(100dvh - 48px);
+	transition: grid-template-columns 0.28s var(--ease-out);
 }
 .body.inspecting {
 	grid-template-columns: var(--rail) minmax(360px, 1fr) minmax(420px, 600px);
 }
 .body.rail-folded {
-	grid-template-columns: minmax(0, 1fr);
+	--rail: 0px;
 }
-.body.rail-folded.inspecting {
-	grid-template-columns: minmax(360px, 1fr) minmax(420px, 600px);
+.rail {
+	overflow-x: hidden;
+	transition:
+		opacity 0.2s ease,
+		visibility 0s;
 }
-.rail[hidden],
-.rail-scrim[hidden] {
+.rail > * {
+	min-width: calc(var(--rail-open) - 20px);
+}
+.body.rail-folded > .rail {
+	opacity: 0;
+	visibility: hidden;
+	padding-inline: 0;
+	border-right-color: transparent;
+	transition:
+		opacity 0.16s ease,
+		visibility 0s 0.28s,
+		padding 0.28s var(--ease-out);
+}
+.rail-scrim {
 	display: none;
 }
 .rail-button {
@@ -286,6 +308,10 @@ kbd {
 	flex: none;
 	font-size: 12px;
 }
+/* A run row's lines sit under its name, past the glyph. */
+.run-row > :not(:first-child) {
+	margin-left: 28px;
+}
 .run-task {
 	margin: 2px 0 0 28px;
 	font-size: 13px;
@@ -343,6 +369,10 @@ progress::-moz-progress-bar {
 	flex-direction: column;
 	min-width: 0;
 	min-height: 0;
+}
+.center.switching {
+	opacity: 0.4;
+	transition: opacity 0.12s ease;
 }
 .run-header {
 	padding: 22px 28px 16px;
@@ -591,6 +621,7 @@ progress::-moz-progress-bar {
 }
 /* The graph's code-step switch (top left of the canvas): off by default, remembered. */
 /* Left edges line up with the run header's (28 px; 16 px on narrower screens). */
+/* Owner: in its off state the switch was hard to see — a framed control with a clear "Show". */
 .code-switch {
 	position: absolute;
 	left: 28px;
@@ -599,17 +630,20 @@ progress::-moz-progress-bar {
 	display: inline-flex;
 	align-items: center;
 	gap: 7px;
-	padding: 5px 10px 5px 8px;
-	border: 1px solid transparent;
+	padding: 5px 12px 5px 8px;
+	border: 1px solid var(--line2);
 	border-radius: 8px;
-	background: var(--overlay);
-	color: var(--faint);
+	background: var(--panel);
+	color: var(--muted);
 	font-size: 13px;
 	cursor: pointer;
+	transition:
+		border-color 0.15s ease,
+		color 0.15s ease;
 }
 .code-switch:hover {
-	color: var(--muted);
-	border-color: var(--line);
+	color: var(--text);
+	border-color: var(--muted);
 }
 .code-switch .track {
 	position: relative;
@@ -627,9 +661,9 @@ progress::-moz-progress-bar {
 	width: 10px;
 	height: 10px;
 	border-radius: 50%;
-	background: var(--faint);
+	background: var(--muted);
 	transition:
-		transform 0.2s,
+		transform 0.2s var(--ease-out),
 		background 0.2s;
 }
 .code-switch[aria-checked="true"] .track {
@@ -643,7 +677,8 @@ progress::-moz-progress-bar {
 	color: inherit;
 }
 .code-switch-action {
-	color: var(--muted);
+	color: var(--text);
+	font-weight: 500;
 	text-decoration: underline;
 	text-underline-offset: 2px;
 }
@@ -1263,6 +1298,45 @@ dialog::backdrop {
 	background: var(--backdrop);
 	backdrop-filter: blur(3px);
 }
+/* Entrances (owner: smoother): a dialog rises in, the inspector slides in, a result unfolds. */
+dialog[open] {
+	animation: rise-in 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+dialog[open]::backdrop {
+	animation: fade-in 0.22s ease-out;
+}
+.inspector:not([hidden]) {
+	animation: slide-in 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.item-expand.entering {
+	animation: unfold 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+@keyframes rise-in {
+	from {
+		opacity: 0;
+		transform: translateY(8px) scale(0.985);
+	}
+}
+@keyframes fade-in {
+	from {
+		opacity: 0;
+	}
+}
+@keyframes slide-in {
+	from {
+		opacity: 0;
+		transform: translateX(16px);
+	}
+}
+@keyframes unfold {
+	from {
+		opacity: 0;
+		transform: translateY(-4px);
+	}
+}
+.leaving {
+	pointer-events: none;
+}
 dialog h2 {
 	font-size: 22px;
 	margin-bottom: 12px;
@@ -1609,13 +1683,10 @@ dialog.report footer .report-page {
 		margin-left: 0;
 	}
 	.body {
-		--rail: 232px;
+		--rail-open: 232px;
 	}
 	.body.inspecting {
 		grid-template-columns: var(--rail) minmax(260px, 1fr) 400px;
-	}
-	.body.rail-folded.inspecting {
-		grid-template-columns: minmax(260px, 1fr) 400px;
 	}
 	.code-switch,
 	.toolbar {
@@ -1663,26 +1734,52 @@ dialog.report footer .report-page {
 	}
 	/* A phone: one column; the rail is a drawer over the page, opened by the sidebar button. */
 	.body,
-	.body.inspecting,
-	.body.rail-folded,
-	.body.rail-folded.inspecting {
+	.body.inspecting {
 		grid-template-columns: minmax(0, 1fr);
+		transition: none;
 	}
-	.rail {
+	.rail,
+	.body.rail-folded > .rail {
 		position: fixed;
 		top: 48px;
 		left: 0;
 		bottom: 0;
 		width: min(300px, 86vw);
+		padding: 0 10px 12px;
 		z-index: 4;
 		background: var(--panel);
 		box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+		opacity: 1;
+		transform: translateX(-104%);
+		visibility: hidden;
+		transition:
+			transform 0.26s var(--ease-out),
+			visibility 0s 0.26s;
+	}
+	.rail > * {
+		min-width: 0;
+	}
+	.body.rail-open > .rail {
+		transform: none;
+		visibility: visible;
+		transition: transform 0.26s var(--ease-out);
 	}
 	.rail-scrim {
+		display: block;
 		position: fixed;
 		inset: 48px 0 0;
 		z-index: 3;
 		background: rgba(0, 0, 0, 0.45);
+		opacity: 0;
+		visibility: hidden;
+		transition:
+			opacity 0.22s ease,
+			visibility 0s 0.22s;
+	}
+	.body.rail-open + .rail-scrim {
+		opacity: 1;
+		visibility: visible;
+		transition: opacity 0.22s ease;
 	}
 	.code-switch-count {
 		font-size: 0;

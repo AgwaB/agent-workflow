@@ -1335,7 +1335,7 @@ test("dashboard Chrome: the runs rail folds and stays folded; graph controls lin
 				rail: Math.round(
 					document.getElementById("rail").getBoundingClientRect().width,
 				),
-				hidden: document.getElementById("rail").hidden,
+				hidden: document.getElementById("rail").inert,
 				lefts: [left(".result"), left(".code-switch"), left(".toolbar")],
 				button: document
 					.querySelector(".rail-button")
@@ -1351,7 +1351,8 @@ test("dashboard Chrome: the runs rail folds and stays folded; graph controls lin
 	assert.equal(open.button, "true");
 	assert.deepEqual(open.sentence, ["block", "14px"]);
 	await browser.evaluate(() => document.querySelector(".rail-button").click());
-	await browser.waitFor(() => document.getElementById("rail").hidden);
+	await browser.waitFor(() => document.getElementById("rail").inert);
+	await new Promise((resolve) => setTimeout(resolve, 450)); // the column narrows (0.28 s)
 	const folded = await layout();
 	assert.equal(folded.button, "false");
 	assert.equal(new Set(folded.lefts).size, 1, JSON.stringify(folded.lefts));
@@ -1363,11 +1364,11 @@ test("dashboard Chrome: the runs rail folds and stays folded; graph controls lin
 	// It stays folded across a reload; "Needs you" opens it again.
 	await browser.open(`${fixture.origin}/?run=${running}`, 1440, 900);
 	assert.equal(
-		await browser.evaluate(() => document.getElementById("rail").hidden),
+		await browser.evaluate(() => document.getElementById("rail").inert),
 		true,
 	);
 	await browser.evaluate(() => document.querySelector(".needs-button").click());
-	await browser.waitFor(() => !document.getElementById("rail").hidden);
+	await browser.waitFor(() => !document.getElementById("rail").inert);
 	assert.equal(
 		await browser.evaluate(() => localStorage.getItem("agent-workflow:rail")),
 		null,
@@ -1391,8 +1392,8 @@ test("dashboard Chrome: the rail steps aside for the inspector on narrower scree
 	fixture.runs.get(running).taskPreview = "Review the ledger's retry path";
 	const state = () =>
 		browser.evaluate(() => ({
-			rail: !document.getElementById("rail").hidden,
-			scrim: !document.getElementById("rail-scrim").hidden,
+			rail: !document.getElementById("rail").inert,
+			scrim: document.getElementById("body").classList.contains("rail-open"),
 			expanded: document
 				.querySelector(".rail-button")
 				.getAttribute("aria-expanded"),
