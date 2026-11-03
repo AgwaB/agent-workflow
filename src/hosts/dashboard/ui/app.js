@@ -1250,12 +1250,12 @@ const activeAgents = (stage) =>
 function nodeHeight(stage) {
 	if (stage.kind === "group") return 55 + stage.members.length * 25;
 	if (stage.ghost) return 58;
-	if (stage.kind === "support" && !stage.approval) return 34;
 	if (stage.approval) return 94;
 	if (activeAgents(stage))
 		return stage.items.length <= 6 ? 55 + stage.items.length * 25 : 76;
-	if (stage.status === "pending") return stage.kind === "foreach" ? 54 : 42;
-	return stage.kind === "foreach" ? 76 : 58;
+	// 2026-11-03 (owner's pick of the graph mock-ups): every stage is a full card with a second
+	// line — code steps and waiting stages included; a many-agent stage adds its bar.
+	return stage.kind === "foreach" && stage.items.length ? 76 : 58;
 }
 function stageLine(stage) {
 	if (stage.ghost) return "After approval";
@@ -1265,6 +1265,7 @@ function stageLine(stage) {
 	// 2026-11-03 (owner: "where did it fail?" — every node of a NEEDS_WORK review read "Done"): a
 	// finished stage names the outcomes that leave work to do — "3 agents · 1 keep · 2 weaken",
 	// "Needs work · 10s" — instead of only its agent count and time.
+	if (stage.status === "pending") return "Waiting";
 	if (stage.kind === "foreach" && stage.status === "completed") {
 		const flagged = new Map();
 		for (const task of stage.items)
@@ -1277,23 +1278,42 @@ function stageLine(stage) {
 					task.outcome.status.toLowerCase(),
 					(flagged.get(task.outcome.status.toLowerCase()) ?? 0) + 1,
 				);
-		if (flagged.size)
-			return `${stage.items.length} agents · ${[...flagged].map(([status, count]) => `${count} ${status}`).join(" · ")}`;
 		const starts = stage.items.map((t) => date(t.startedAt)).filter(Boolean),
 			ends = stage.items.map((t) => date(t.completedAt)).filter(Boolean);
-		return starts.length && ends.length
-			? `${stage.items.length} agents · ${duration(Math.max(...ends) - Math.min(...starts))}`
-			: `${stage.items.length} agents done`;
+		const took =
+			starts.length && ends.length
+				? duration(Math.max(...ends) - Math.min(...starts))
+				: "";
+		return (
+			[...[...flagged].map(([status, count]) => `${count} ${status}`), took]
+				.filter(Boolean)
+				.join(" · ") || `${stage.items.length} done`
+		);
 	}
 	const only = stage.items[0];
-	if (
-		only?.status === "completed" &&
-		only.outcome?.status &&
-		only.outcome.tone &&
-		only.outcome.tone !== "ok"
-	)
-		return taskLine(only).replace(/^Done\b/, only.outcome.status);
-	return only ? taskLine(only) : labels[stage.status] || "Waiting";
+	if (!only) return labels[stage.status] || "Waiting";
+	if (only.status === "failed" && stage.kind === "support" && only.lastMessage)
+		return `Failed — ${only.lastMessage}`;
+	if (only.status !== "completed") return taskLine(only);
+	const took =
+		only.startedAt && only.completedAt
+			? duration(
+					only.elapsedMs ?? date(only.completedAt) - date(only.startedAt),
+				)
+			: "";
+	// A check already says "done": the line says what came out — a warning's word, a code step's
+	// short result (never a bare hash) — and how long it took.
+	const said =
+		only.outcome?.tone && only.outcome.tone !== "ok" && only.outcome.status
+			? only.outcome.status
+			: stage.kind === "support" &&
+					only.outcome?.text &&
+					!/^[0-9a-f]{16,}$|^#|##|^support helper completed\.?$/i.test(
+						only.outcome.text.trim(),
+					)
+				? readablePairs(only.outcome.text.trim())
+				: "";
+	return [said, took].filter(Boolean).join(" · ") || "Done";
 }
 /**
  * A finished stage's mark says how it ended (2026-11-03, owner: every finished node had the same
@@ -1308,6 +1328,14 @@ function stageMark(stage) {
 	)
 		? "attention"
 		: "completed";
+}
+/** "dedup: raw=3, unique=3, duplicates=0" → "raw 3 · unique 3 · duplicates 0" (code-step results). */
+function readablePairs(text) {
+	const body = text.replace(/^[\w-]+:\s*/, "");
+	const pairs = body.split(/,\s*/);
+	return pairs.length > 1 && pairs.every((pair) => /^[\w-]+=\S+$/.test(pair))
+		? pairs.map((pair) => pair.replace("=", " ")).join(" · ")
+		: text;
 }
 function chooseStage(stage) {
 	if (stage.ghost) return chooseStage(stage.parent);
@@ -1497,10 +1525,7 @@ function renderGraph() {
 		}
 		// Room between layers so the edges and their arrowheads read as a path, not a seam; the
 		// rail every edge of this channel shares runs through its middle.
-		const helpers =
-			layer.every((stage) => stage.kind === "support") ||
-			model.layers[n + 1]?.every((stage) => stage.kind === "support");
-		const gap = horizontal ? 80 : helpers ? 26 : 56,
+		const gap = horizontal ? 80 : 34,
 			end = axis + (horizontal ? width : height);
 		rails.push(end + gap / 2);
 		axis = end + gap;
@@ -1560,6 +1585,17 @@ function renderGraph() {
 		const title = group
 			? `${stage.name ? `${stage.name} · ` : ""}${stage.members.length} in parallel`
 			: humanize(stage.short || stage.name || stage.id);
+		// "agent" / "N agents" for a stage agents work, "code" for a step the engine runs itself.
+		const tag =
+			group || stage.ghost || stage.approval
+				? null
+				: stage.kind === "support"
+					? "code"
+					: stage.kind === "foreach"
+						? stage.items.length
+							? `${stage.items.length} agent${stage.items.length === 1 ? "" : "s"}`
+							: "agents"
+						: "agent";
 		const node = svg("g", {
 			class: `node ${stage.status}${stage.ghost ? " ghost" : ""}${stage.kind === "support" ? " support" : ""}${!group && stage.kind !== "foreach" && stage.status === "completed" && stage.items[0]?.outcome?.tone === "warn" ? " outcome-warn" : ""}${group ? " group" : ""}${nextStage(stage) ? " next" : ""}`,
 			transform: `translate(${p.x},${p.y})`,
@@ -1583,9 +1619,25 @@ function renderGraph() {
 			markIcon(stageMark(stage), 12, 12),
 			svg(
 				"text",
-				{ x: 36, y: 24, class: "node-name", "data-fit": p.w - 48 },
+				{
+					x: 36,
+					y: 24,
+					class: "node-name",
+					"data-fit": p.w - 48 - (tag ? tag.length * 7.5 + 22 : 0),
+				},
 				title,
 			),
+			tag
+				? svg(
+						"g",
+						{
+							class: `node-tag${stage.kind === "support" ? " code" : ""}`,
+							transform: "translate(36 0)",
+						},
+						svg("rect", { x: -5, y: 10, height: 18, rx: 4 }),
+						svg("text", { x: 0, y: 23 }, tag),
+					)
+				: null,
 		);
 		node.addEventListener("mouseenter", () => trace(stage.id));
 		node.addEventListener("mouseleave", () => trace(null));
@@ -1771,10 +1823,7 @@ function renderGraph() {
 						: `${stage.done} of ${stage.items.length} done · ${count("running")} running`,
 				),
 			);
-		} else if (
-			(stage.status !== "pending" || stage.ghost) &&
-			stage.kind !== "support"
-		)
+		} else if (!group)
 			node.append(
 				svg(
 					"text",
@@ -2019,6 +2068,29 @@ function renderGraph() {
 				}
 				span.textContent = `${text.dataset.full.slice(0, low)}…`;
 			}
+		}
+		// A card's tag sits just after its name, sized with it; its second line keeps a line's
+		// distance below the name at any zoom (the text keeps >=14 px while the card scales).
+		for (const node of nodes.querySelectorAll(":scope > .node")) {
+			const name = node.querySelector(":scope > .node-name");
+			const nameSize = Number(name?.getAttribute("font-size")) || 15;
+			const sub = node.querySelector(":scope > .sub");
+			if (sub) sub.setAttribute("y", Math.max(44, 24 + nameSize * 1.3));
+			const tag = node.querySelector(":scope > .node-tag");
+			if (!tag) continue;
+			const label = tag.querySelector("text");
+			const size = Math.max(12, 12 / Math.max(view.k, FIT_MIN_ZOOM));
+			label.setAttribute("font-size", size);
+			label.setAttribute("y", 24);
+			tag.setAttribute(
+				"transform",
+				`translate(${36 + (name?.getComputedTextLength() ?? 0) + 12} 0)`,
+			);
+			const rect = tag.querySelector("rect");
+			rect.setAttribute("x", -5);
+			rect.setAttribute("width", label.getComputedTextLength() + 10);
+			rect.setAttribute("height", size * 1.4);
+			rect.setAttribute("y", 24 - size * 1.05);
 		}
 	}
 	function fit() {

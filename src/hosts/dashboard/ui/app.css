@@ -516,11 +516,29 @@ progress::-moz-progress-bar {
 	fill: var(--muted);
 	font-size: 14px;
 }
+/* No visible fill, but the canvas colour hides edges passing behind the card. */
 .node.pending .outline {
 	stroke: var(--line2);
-	fill: transparent;
+	stroke-dasharray: 5 4;
+	fill: var(--bg);
 }
-.node.pending .node-name {
+.node.pending :is(.node-name, .sub) {
+	fill: var(--faint);
+}
+/* "agent" / "N agents" / "code" after a card's name (owner's pick, 2026-11-03). */
+.node-tag rect {
+	fill: none;
+	stroke: var(--line2);
+	vector-effect: non-scaling-stroke;
+}
+.node-tag text {
+	fill: var(--muted);
+	font-size: 12px;
+}
+.node-tag.code rect {
+	stroke-dasharray: 3 2;
+}
+.node-tag.code text {
 	fill: var(--faint);
 }
 .node .mark {
@@ -1672,8 +1690,13 @@ main.signin code {
 .morph-old {
 	pointer-events: none;
 }
+/* A code step: the same card, no fill, a quieter frame and text, so agent stages read first. */
 .node.support:not(.failed):not(.blocked):not(.running):not(.retry) .outline {
 	stroke: var(--line);
+	fill: var(--bg);
+}
+.node.support:not(.failed):not(.blocked):not(.running):not(.retry) .sub {
+	fill: var(--faint);
 }
 /* A code step answers hover and selection too (quiet otherwise). */
 .node.support:not(.failed):not(.blocked):not(.running):not(.retry):is(
@@ -1684,7 +1707,7 @@ main.signin code {
 	stroke: var(--muted);
 }
 .node.support:not(.failed):not(.blocked):not(.running):not(.retry) .node-name {
-	fill: var(--faint);
+	fill: var(--muted);
 }
 .node.support:not(.failed):not(.blocked):not(.running):not(.retry)
 	.status-icon {

@@ -1181,3 +1181,51 @@ test("dashboard Chrome: a stage's agent opens in place, stays open through live 
 		["false", 1],
 	);
 });
+
+test("dashboard Chrome: every stage is a card tagged agent / N agents / code, with a second line", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
+	timeout: 120_000,
+}, async (t) => {
+	// 2026-11-03 (owner's pick of the graph mock-ups): code steps are full cards too, tagged "code";
+	// stages agents work are tagged "agent" / "N agents"; a check already says done, so the second
+	// line says what came out and how long it took; a waiting stage is a dashed card that says so.
+	const fixture = await createFixtureServer();
+	t.after(() => fixture.close());
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	await browser.open(`${fixture.origin}/?run=${running}`);
+	await browser.waitFor(
+		() => document.querySelectorAll(".node-tag").length > 3,
+	);
+	const cards = await browser.evaluate(() =>
+		Object.fromEntries(
+			[...document.querySelectorAll(".node[data-stage]")].map((node) => [
+				node.dataset.stage,
+				[
+					node.querySelector(":scope > .node-tag text")?.textContent ?? null,
+					node
+						.querySelector(":scope > .node-tag")
+						?.classList.contains("code") ?? false,
+					node.querySelector(":scope > .sub")?.textContent ?? null,
+				],
+			]),
+		),
+	);
+	assert.deepEqual(cards.triage.slice(0, 2), ["agent", false]);
+	assert.match(cards.triage[2], /^\d+m \d{2}s$|^\d+s$/);
+	assert.deepEqual(cards["dedup-findings"], ["code", true, "Waiting"]);
+	assert.deepEqual(cards.final, ["code", true, "Waiting"]);
+	assert.match(cards.reviewers[0], /^\d+ agents$/);
+	// The tag sits after the name without overlapping it.
+	assert.equal(
+		await browser.evaluate(() => {
+			const node = document.querySelector('.node[data-stage="triage"]');
+			const name = node.querySelector(".node-name").getBoundingClientRect();
+			const tag = node.querySelector(".node-tag rect").getBoundingClientRect();
+			return tag.left > name.right;
+		}),
+		true,
+	);
+});
