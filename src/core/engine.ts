@@ -189,13 +189,6 @@ import {
 	ensureDirectDynamicRuntimeBundle,
 } from "./dynamic-runtime-bundle.js";
 import {
-	assertWorkflowAutoLaunchBindingCurrent,
-	assertWorkflowAutoLaunchBindingFrozen,
-	sealWorkflowAutoLaunchBindingCompiled,
-	workflowAutoLaunchBindingSettings,
-	type WorkflowAutoLaunchBinding,
-} from "./workflow-auto-binding.js";
-import {
 	hasFatalPartialOutputIssue,
 	readWorkflowPartialOutputLedger,
 	writeWorkflowPartialOutputLedgerFromFile,
@@ -432,8 +425,6 @@ export interface WorkflowRunOptions {
 	routing?: WorkflowRunRouting;
 	/** Creation-surface provenance; exact command text is persisted only in a private sidecar. */
 	launch?: WorkflowRunLaunchCapture;
-	/** In-memory auto-selection snapshot, checked before any substantive dispatch. */
-	autoLaunchBinding?: WorkflowAutoLaunchBinding;
 	/** Owned foreground cancellation, never persisted with run authority. */
 	launchSignal?: AbortSignal;
 	/**
@@ -661,20 +652,6 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 ): Promise<WorkflowRunRecord> {
 	options.launchSignal?.throwIfAborted();
 	if (options.launch) assertValidWorkflowRunLaunchCapture(options.launch);
-	if (options.autoLaunchBinding)
-		await assertWorkflowAutoLaunchBindingCurrent(
-			cwd,
-			options.autoLaunchBinding,
-			spec,
-			options.task,
-			specPath,
-			workflowAutoLaunchBindingSettings({
-				executionProfile: options.executionProfile,
-				executionProfileOverride: options.executionProfileOverride,
-				runtimeDefaults: options.runtimeDefaults,
-				runtimeOverrides: options.runtimeOverrides,
-			}),
-		);
 	const capturedProfile = !options.executionProfile
 		? options.executionProfileOverride
 		: undefined;
@@ -911,12 +888,6 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 			capabilityNegotiation,
 			workflowNegotiationTargets(compiled).length,
 		);
-	if (options.autoLaunchBinding)
-		options.autoLaunchBinding = sealWorkflowAutoLaunchBindingCompiled(
-			options.autoLaunchBinding,
-			compiled,
-		);
-
 	// Diagnostics are an explicit named-workflow policy. Direct-dynamic uses its
 	// approved runtime bundle and intentionally does not adopt named-spec warnings.
 	if (promptSchemaDiagnosticsApply(diagnosticsPolicy)) {
@@ -1000,29 +971,6 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 			await assertRunLeaseOwnership(cwd, run.runId, leaseSignal);
 			await writeStaticRunArtifacts(cwd, run, compiled, spec);
 			options.launchSignal?.throwIfAborted();
-			if (options.autoLaunchBinding) {
-				// Agent files are not copied into the workflow bundle, so recheck the
-				// complete accepted source set before the first scheduler dispatch too.
-				await assertWorkflowAutoLaunchBindingCurrent(
-					cwd,
-					options.autoLaunchBinding,
-					spec,
-					options.task,
-					specPath,
-					workflowAutoLaunchBindingSettings({
-						executionProfile: options.executionProfile,
-						executionProfileOverride: options.executionProfileOverride,
-						runtimeDefaults: options.runtimeDefaults,
-						runtimeOverrides: options.runtimeOverrides,
-					}),
-				);
-				await assertWorkflowAutoLaunchBindingFrozen(
-					cwd,
-					run.runId,
-					options.autoLaunchBinding,
-				);
-			}
-			options.launchSignal?.throwIfAborted();
 			await writeRunRecord(cwd, run, leaseSignal);
 			const persisted = await readRunRecord(cwd, run.runId);
 			if (
@@ -1037,7 +985,7 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 		});
 	} catch (error) {
 		// WP42: a foreground-cancelled launch leaves no unpublished run directory behind either.
-		if (options.autoLaunchBinding || options.launchSignal?.aborted)
+		if (options.launchSignal?.aborted)
 			await removeUnpublishedAutoRunDirectory(cwd, run.runId);
 		throw error;
 	}

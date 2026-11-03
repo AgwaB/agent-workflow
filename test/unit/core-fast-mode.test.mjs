@@ -20,7 +20,6 @@ import {
 	resolveWorkflowFastModeConfig,
 	workflowFastEligibleModelIds,
 } from "../../dist/core/fast-tier.js";
-import { workflowAutoLaunchBindingSettings } from "../../dist/core/workflow-auto-binding.js";
 import { selectWorkflowRuntime } from "../../dist/core/workflow-runtime.js";
 
 const ROOT = mkdtempSync(join(tmpdir(), "pi-workflow-fast-mode-"));
@@ -132,26 +131,6 @@ test("fast:on parses and runtime layering preserves explicit inherit/off semanti
 			model: "gpt-5.4",
 			api: "openai-responses",
 			serviceTier: "priority",
-		},
-	);
-	assert.deepEqual(
-		workflowAutoLaunchBindingSettings({
-			runtimeDefaults: { model: CODEX_FAST_MODEL.fullId, fast: "on" },
-			runtimeOverrides: { fast: "inherit" },
-		}),
-		{
-			executionProfile: null,
-			executionProfileOverride: null,
-			runtimeDefaults: {
-				model: CODEX_FAST_MODEL.fullId,
-				thinking: null,
-				fast: "on",
-			},
-			runtimeOverrides: {
-				model: null,
-				thinking: null,
-				fast: "inherit",
-			},
 		},
 	);
 });

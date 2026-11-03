@@ -138,7 +138,7 @@ imported modules. I did not read every test body.
 | workflow-artifact-footprint.test.mjs [9] | Snapshot inodes, dedup of raw output | port-as-is |
 | workflow-authoring-corrective.test.mjs [3] | Foreach agent/runtime compile, schema rejects | port-as-is |
 | workflow-authoring-gates.test.mjs [7] | Bundle dir resolution, inspect fallbacks | port-as-is |
-| workflow-auto-binding.test.mjs [5] | `/workflow auto` binding identity | port-adapted (auto router host-coupled) |
+| workflow-auto-binding.test.mjs [5] | `/workflow auto` binding identity | port-adapted (auto router host-coupled); removed 2026-11-02 with the module (no host passed a binding) |
 | workflow-auto-negative-boundaries.test.mjs [7] | Auto routing negative cases | port-adapted (router) |
 | workflow-command-actions.test.mjs [2] | Slash-command action list vs help | drop(Pi slash command; hosts/pi) |
 | workflow-contract-findings-006-008.test.mjs [17] | Bundled spec-review/deep-research batch contracts | port-adapted (WP10) |

@@ -1139,7 +1139,7 @@ dispositions of the WP38 work: section "WP38" at the end.
 | workflow-artifact-footprint.test.mjs | ported-WP4b (`test/unit/core-workflow-artifact-footprint.test.mjs`) | WP4b; .pi→.agent-workflow paths |
 | workflow-authoring-corrective.test.mjs | ported-WP4b (`test/unit/core-workflow-authoring-corrective.test.mjs`) | WP4b; agent path |
 | workflow-authoring-gates.test.mjs | ported-WP4b (`test/unit/core-workflow-authoring-gates.test.mjs`) | WP4b; 2 of 7 dropped (cli.mjs inspect → WP11a) |
-| workflow-auto-binding.test.mjs | ported-WP4b (`test/unit/core-workflow-auto-binding.test.mjs`) | WP4b; .pi→.agent-workflow paths |
+| workflow-auto-binding.test.mjs | ported-WP4b (`test/unit/core-workflow-auto-binding.test.mjs`); removed 2026-11-02 with the module | WP4b; .pi→.agent-workflow paths |
 | workflow-auto-negative-boundaries.test.mjs | ported-WP4c1 (`test/unit/core-workflow-auto-negative-boundaries.test.mjs`) | WP4c-1; setTaskRuntimeApiForTests, default executor fixture |
 | workflow-command-actions.test.mjs | dropped | INVENTORY: drop(Pi slash command; hosts/pi) |
 | workflow-contract-findings-006-008.test.mjs | ported-WP10 (`test/unit/core-workflow-contract-findings-006-008.test.mjs`) | WP10 bundled workflows; fixture helper moved to test/helpers/impact-review-fixtures.mjs; 17 of 17 tests |
@@ -1992,6 +1992,9 @@ except in attributions (file headers, README, this document, `replay.md`).
   needs review instead of running without it.
 - **Profile store.** `workflow-profile-settings` (`workflow-profiles/v1`, the Pi TUI per-workflow
   store nothing wrote) is removed; per-workflow preferences are WP31's.
+- **Auto launch binding.** `workflow-auto-binding` (pi-workflow's `/workflow auto` selection snapshot,
+  rechecked before dispatch) is removed: no host passed `autoLaunchBinding`; agent-workflow's `auto`
+  refuses a named spec that changed since the comparison instead (`src/hosts/auto.ts`).
 - **Identifiers.** Records agent-workflow writes use `agent-workflow-*` schema, kind, issuer and
   source names (was the ported `pi-workflow-*`); the state-root nonce file is `.state-root-v2.json`,
   so runs started before keep their old identity and fail closed where they check it.

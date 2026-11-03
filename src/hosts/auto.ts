@@ -27,9 +27,8 @@
 // TUI): cancelling it aborts the in-flight classifier request and starts nothing, and `signal`
 // (Pi: the session ended) cancels every step before the launch. Changes from pi-workflow: one action for every host (CLI, Pi, MCP) instead of a TUI-only
 // slash command; the consent prompt names the classifier executor/model and shows the task; the
-// final choice is a single host dialog (Pi adds a separate confirmation); the selected workflow's
-// launch-binding capture (workflow-auto-binding.ts) is not applied, a stale named spec (changed
-// since the comparison) is refused instead.
+// final choice is a single host dialog (Pi adds a separate confirmation); a stale named spec
+// (changed since the comparison) is refused.
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
