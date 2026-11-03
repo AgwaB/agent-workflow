@@ -49,6 +49,7 @@ const iconPaths = {
 	td: "M5 2.5h6v3H5zM5 10.5h6v3H5zM8 5.5v5",
 	lr: "M1.5 5h4v6h-4zM10.5 5h4v6h-4zM5.5 8h5",
 	fit: "M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10",
+	sidebar: "M2.5 3.5h11v9h-11zM6.5 3.5v9",
 	agent: "M8 1.8l1.6 4.6 4.6 1.6-4.6 1.6L8 14.2 6.4 9.6 1.8 8l4.6-1.6z",
 	code: "M5.5 4L1.8 8l3.7 4M10.5 4l3.7 4-3.7 4",
 };
@@ -184,6 +185,38 @@ function cycleTheme() {
 }
 let themeOverride = null;
 applyTheme(themeChoice());
+/** The runs rail can fold away (owner, 2026-11-03); the choice is kept in this browser. */
+const RAIL_KEY = "agent-workflow:rail";
+let railFolded = (() => {
+	try {
+		return localStorage.getItem(RAIL_KEY) === "folded";
+	} catch {
+		return false;
+	}
+})();
+function applyRail() {
+	$("body").classList.toggle("rail-folded", railFolded);
+	$("rail").hidden = railFolded;
+}
+function toggleRail(open = railFolded) {
+	railFolded = !open;
+	try {
+		if (railFolded) localStorage.setItem(RAIL_KEY, "folded");
+		else localStorage.removeItem(RAIL_KEY);
+	} catch {}
+	applyRail();
+	renderTop();
+	graphControl?.fit?.();
+}
+function railButton() {
+	return button(markIcon("sidebar"), () => toggleRail(), {
+		class: "rail-button",
+		"aria-label": railFolded ? "Show runs" : "Hide runs",
+		"aria-expanded": String(!railFolded),
+		"aria-controls": "rail",
+		title: railFolded ? "Show runs" : "Hide runs",
+	});
+}
 function themeButton() {
 	const choice = themeOverride ?? themeChoice();
 	const name = { auto: "Auto", light: "Light", dark: "Dark" }[choice];
@@ -452,8 +485,15 @@ function renderTop() {
 		: null;
 	const needs = visibleNeeds().length;
 	$("top").replaceChildren();
+	applyRail();
 	append($("top"), [
-		element("span", { class: "brand row" }, logo(), "agent-workflow"),
+		railButton(),
+		element(
+			"span",
+			{ class: "brand row" },
+			logo(),
+			element("span", { class: "brand-name" }, "agent-workflow"),
+		),
 		element("span", { class: "muted", "aria-hidden": "true" }, "/"),
 		element("span", { class: "project", id: "project" }, session.project.name),
 		button(
@@ -469,6 +509,7 @@ function renderTop() {
 			// Amber only when something waits for you; "Needs you 0" stays neutral.
 			[needs ? glyph("blocked") : null, `Needs you  ${needs}`],
 			() => {
+				if (railFolded) toggleRail(true);
 				$("rail").querySelector(".need")?.focus();
 			},
 			{ class: `needs-button${needs ? "" : " none"}` },

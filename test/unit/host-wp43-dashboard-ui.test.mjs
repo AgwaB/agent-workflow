@@ -1308,3 +1308,68 @@ test("dashboard Chrome: code steps hide by default; one that failed or is select
 	);
 	assert.deepEqual((await cards()).final, ["code", "code", "Waiting"]);
 });
+
+test("dashboard Chrome: the runs rail folds and stays folded; graph controls line up with the header", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
+	timeout: 120_000,
+}, async (t) => {
+	// 2026-11-03 (owner: "the left margin doesn't line up", "a wider rail, and a way to fold it").
+	const fixture = await createFixtureServer();
+	t.after(() => fixture.close());
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	await browser.open(`${fixture.origin}/?run=${running}`, 1440, 900);
+	await browser.waitFor(() => document.querySelector(".code-switch"));
+	const layout = () =>
+		browser.evaluate(() => {
+			const left = (selector) =>
+				Math.round(
+					document.querySelector(selector).getBoundingClientRect().left,
+				);
+			const sentence = getComputedStyle(
+				document.querySelector("#status-sentence"),
+			);
+			return {
+				rail: Math.round(
+					document.getElementById("rail").getBoundingClientRect().width,
+				),
+				hidden: document.getElementById("rail").hidden,
+				lefts: [left(".result"), left(".code-switch"), left(".toolbar")],
+				button: document
+					.querySelector(".rail-button")
+					.getAttribute("aria-expanded"),
+				// Regression (2026-11-03): a misplaced selector laid the sentence out as a 17 px flex row.
+				sentence: [sentence.display, sentence.fontSize],
+			};
+		});
+	const open = await layout();
+	assert.equal(open.rail, 260);
+	assert.equal(open.hidden, false);
+	assert.equal(new Set(open.lefts).size, 1, JSON.stringify(open.lefts));
+	assert.equal(open.button, "true");
+	assert.deepEqual(open.sentence, ["block", "14px"]);
+	await browser.evaluate(() => document.querySelector(".rail-button").click());
+	await browser.waitFor(() => document.getElementById("rail").hidden);
+	const folded = await layout();
+	assert.equal(folded.button, "false");
+	assert.equal(new Set(folded.lefts).size, 1, JSON.stringify(folded.lefts));
+	assert.equal(folded.lefts[0], 28);
+	assert.equal(
+		await browser.evaluate(() => localStorage.getItem("agent-workflow:rail")),
+		"folded",
+	);
+	// It stays folded across a reload; "Needs you" opens it again.
+	await browser.open(`${fixture.origin}/?run=${running}`, 1440, 900);
+	assert.equal(
+		await browser.evaluate(() => document.getElementById("rail").hidden),
+		true,
+	);
+	await browser.evaluate(() => document.querySelector(".needs-button").click());
+	await browser.waitFor(() => !document.getElementById("rail").hidden);
+	assert.equal(
+		await browser.evaluate(() => localStorage.getItem("agent-workflow:rail")),
+		null,
+	);
+});
