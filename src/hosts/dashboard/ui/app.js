@@ -281,7 +281,7 @@ export function statusSentence(run, time = now(), stopping = false) {
 			? `Stopped at ${failed.stageId}. ${/contract/.test(failed.statusDetail || "") ? "Output didn't match the contract." : "A task failed."} Inspect and resume when ready.`
 			: "A task failed. Inspect and resume when ready.";
 	if (run.status === "completed")
-		return `Finished ${ago(run.updatedAt, time).replace(/(\d)([mhd])/, "$1 $2")}${run.verdict ? ` with verdict ${verdictWord(run.verdict)}` : ""}.${run.reportAvailable ? " Report is ready." : ""}`;
+		return `Finished ${ago(run.updatedAt, time).replace(/(\d)([mhd])/, "$1 $2")}.${run.reportAvailable ? " Report is ready." : ""}`;
 	if (tasks.some((t) => t.statusDetail === "dynamic_approval_approved"))
 		return "Approved by you. Resume separately to run the controller.";
 	if (run.status === "blocked")
@@ -523,7 +523,7 @@ function railLine(summary) {
 	) {
 		const outcome = finishedOutcome(summary);
 		if (outcome.caveats) return "Finished · with caveats";
-		if (!outcome.clean) return outcome.word;
+		if (shortfall(summary)) return outcome.word;
 		return `Finished${summary.verdict ? ` · ${verdictWord(summary.verdict)}` : ""}`;
 	}
 	if (summary.status === "failed")
@@ -725,7 +725,7 @@ function renderRail() {
 						? "failed"
 						: display.needsYou?.length ||
 								display.status === "blocked" ||
-								(!liveRun(display) && incomplete(display))
+								(!liveRun(display) && shortfall(display))
 							? "blocked"
 							: summary.status,
 				),
@@ -808,11 +808,13 @@ const agentTasks = (run) =>
 		(t) => !t.placeholder && !["support", "dynamic", "loop"].includes(t.kind),
 	);
 /**
- * A finished run's outcome (2026-11-03, owner: a deep-review that ended NEEDS_WORK read like a
- * success — "Finished", a check, and an "Incomplete" tag although the review was complete). A
- * workflow verdict that is not a clean pass becomes the headline in plain words ("Needs work",
- * "Partial review", "Blocked") with the amber "!" of things that need a person; a run without a
- * verdict whose agents left caveats finishes "with caveats". A clean verdict stays "Finished".
+ * A finished run's result (2026-11-03, owner: NEEDS_WORK is what the report concludes about the
+ * work, not how the run went). The run itself — header, rail glyph, graph — shows the process:
+ * a completed run is "Finished" with a green check. The verdict is the result: the Result block
+ * leads with it ("Needs work" with an amber "!", a clean verdict with a check) and the rail line
+ * names it. A verdict that says the run itself fell short — a gate the workflow made its success
+ * condition (the run ends failed), or a partial/incomplete review — stays in the header. A run without a verdict whose agents left caveats is
+ * "Finished" with a "With caveats" tag.
  */
 const CLEAN_VERDICT =
 	/^(?:pass(?:ed)?|ok|success|complete(?:d)?|review[ _-]?complete|ready)$/i;
@@ -828,15 +830,16 @@ function finishedOutcome(run) {
 		return { clean: false, caveats: true, word: "Finished with caveats" };
 	return { clean: true, word: "Finished" };
 }
-const incomplete = (run) => !finishedOutcome(run).clean;
+const PROCESS_VERDICT = /partial|incomplete/i;
+/** The run fell short of its own work (not: its work found problems). */
+const shortfall = (run) =>
+	run.verdictGate
+		? !finishedOutcome(run).clean
+		: run.status === "completed" && PROCESS_VERDICT.test(run.verdict || "");
 function heroState(run) {
 	if (run.status === "failed" && !run.verdictGate) return ["failed", "Failed"];
-	if (run.status === "completed" || run.verdictGate) {
-		const outcome = finishedOutcome(run);
-		return outcome.clean || outcome.caveats
-			? ["completed", "Finished"]
-			: ["attention", outcome.word];
-	}
+	if (shortfall(run)) return ["attention", finishedOutcome(run).word];
+	if (run.status === "completed") return ["completed", "Finished"];
 	if (run.status === "blocked" || run.needsYou?.length)
 		return ["blocked", "Needs you"];
 	return [run.status, labels[run.status] || "Waiting"];
@@ -975,6 +978,24 @@ function renderHeader() {
 					? element("span", { class: "incomplete" }, "With caveats")
 					: null,
 			),
+			result && run.verdict
+				? element(
+						"p",
+						{
+							class: `result-verdict ${CLEAN_VERDICT.test(run.verdict) ? "clean" : "attention"}`,
+							title: run.verdict,
+						},
+						glyph(CLEAN_VERDICT.test(run.verdict) ? "completed" : "attention"),
+						element(
+							"strong",
+							{},
+							(() => {
+								const word = verdictWord(run.verdict);
+								return word.charAt(0).toUpperCase() + word.slice(1);
+							})(),
+						),
+					)
+				: null,
 			summary && result
 				? element("p", { class: "result-summary" }, summary)
 				: null,
@@ -1321,14 +1342,6 @@ function stageLine(stage) {
  * outcome leaves work to do (a finding that survived, a claim only partly supported, a verdict
  * such as "Needs work"). Failures keep the red ✕.
  */
-function stageMark(stage) {
-	if (stage.status !== "completed") return stage.status;
-	return stage.items.some(
-		(task) => task.outcome?.tone && task.outcome.tone !== "ok",
-	)
-		? "attention"
-		: "completed";
-}
 /** "dedup: raw=3, unique=3, duplicates=0" → "raw 3 · unique 3 · duplicates 0" (code-step results). */
 function readablePairs(text) {
 	const body = text.replace(/^[\w-]+:\s*/, "");
@@ -1597,7 +1610,7 @@ function renderGraph() {
 							: "agents"
 						: "agent";
 		const node = svg("g", {
-			class: `node ${stage.status}${stage.ghost ? " ghost" : ""}${stage.kind === "support" ? " support" : ""}${!group && stage.kind !== "foreach" && stage.status === "completed" && stage.items[0]?.outcome?.tone === "warn" ? " outcome-warn" : ""}${group ? " group" : ""}${nextStage(stage) ? " next" : ""}`,
+			class: `node ${stage.status}${stage.ghost ? " ghost" : ""}${stage.kind === "support" ? " support" : ""}${group ? " group" : ""}${nextStage(stage) ? " next" : ""}`,
 			transform: `translate(${p.x},${p.y})`,
 			tabindex: "0",
 			role: "button",
@@ -1616,7 +1629,9 @@ function renderGraph() {
 					? title
 					: `${title}${stage.kind === "support" ? " · code step (no model)" : ""}`,
 			),
-			markIcon(stageMark(stage), 12, 12),
+			// 2026-11-03 (owner): the graph shows the process; what agents concluded ("2 weaken ·
+			// 1 keep", "Needs work") stays in the card's text and in the result, not in its mark.
+			markIcon(stage.status, 12, 12),
 			svg(
 				"text",
 				{
@@ -1848,11 +1863,7 @@ function renderGraph() {
 			stage.items.forEach((task, i) => {
 				const status = taskState(task),
 					tone =
-						status === "failed"
-							? "err"
-							: status === "completed"
-								? task.outcome?.tone || "ok"
-								: "";
+						status === "failed" ? "err" : status === "completed" ? "ok" : "";
 				node.append(
 					svg(
 						"rect",
@@ -1865,7 +1876,7 @@ function renderGraph() {
 							class: `segment ${status} ${tone} stagger-${i % 6}`,
 							...(tone === "err" ? { fill: "url(#failure-hatch)" } : {}),
 							"data-segment": task.specId,
-							"aria-label": `${task.title || task.specId}, ${labels[status] || "Waiting"}${tone === "warn" || tone === "err" ? `, ${task.outcome?.status || tone}` : ""}`,
+							"aria-label": `${task.title || task.specId}, ${labels[status] || "Waiting"}${tone === "err" ? ", failed" : task.outcome?.status && task.outcome.tone !== "ok" ? `, ${task.outcome.status}` : ""}`,
 						},
 						svg(
 							"title",

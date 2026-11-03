@@ -241,7 +241,8 @@ export function outcomeOf(
 			? "err"
 			: // 2026-11-03: review outcomes that leave work to do read as warnings too: a report's
 				// "needs work" / "gaps found", and a deep-review verifier's "keep" / "weaken" (the finding
-				// survived), so the graph shows where a NEEDS_WORK review's findings stand.
+				// survived), so the agent list shows where a NEEDS_WORK review's findings stand (the
+				// graph shows the process only; owner, 2026-11-03).
 				/\b(partly|partial|uncertain|unclear|mixed|warning|degraded|inconclusive|incomplete|needs work|needs changes|changes requested|gaps found|keep|weaken)\b/u.test(
 						word,
 					)

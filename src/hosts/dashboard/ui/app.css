@@ -141,7 +141,8 @@ h3 {
 .glyph.completed {
 	color: var(--accent);
 }
-.glyph.blocked {
+.glyph.blocked,
+.glyph.attention {
 	color: var(--warn);
 }
 .glyph.failed {
@@ -386,6 +387,14 @@ progress::-moz-progress-bar {
 	font-size: 12px;
 }
 .sentence,
+/* The verdict leads the result (the run's own state is in the header). */
+.result-verdict {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 2px 0 6px;
+	font-size: 17px;
+}
 .result-summary {
 	overflow-wrap: anywhere;
 	font-size: 14px;
@@ -450,12 +459,6 @@ progress::-moz-progress-bar {
 		stroke-opacity: 0.5;
 	}
 }
-.node.outcome-warn .outline {
-	stroke: var(--warn);
-}
-.node.outcome-warn .status-icon {
-	color: var(--warn);
-}
 .node.retry .outline {
 	stroke: var(--warn);
 	stroke-width: 1.5;
@@ -488,14 +491,7 @@ progress::-moz-progress-bar {
 	stroke-width: 2;
 	stroke-dasharray: none;
 }
-.node:is(.selected, :hover):not(
-		.outcome-warn,
-		.failed,
-		.blocked,
-		.retry,
-		.running
-	)
-	.outline {
+.node:is(.selected, :hover):not(.failed, .blocked, .retry, .running) .outline {
 	stroke: var(--muted);
 }
 .node:focus-visible .outline {
@@ -654,9 +650,6 @@ progress::-moz-progress-bar {
 .segment.running {
 	fill: var(--accent);
 	animation: breathe-segment 1.8s ease-in-out infinite;
-}
-.segment.warn {
-	fill: var(--warn);
 }
 .hatch-base {
 	fill: var(--err);

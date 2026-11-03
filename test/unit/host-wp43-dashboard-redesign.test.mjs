@@ -181,7 +181,7 @@ test("dashboard redesign: agent contracts, handoffs and reduced motion in Chrome
 	);
 
 	await t.test(
-		"stage strips encode waiting, running, neutral done, warning and hatched errors",
+		"stage strips encode waiting, running, done and hatched errors; outcomes stay in labels",
 		async () => {
 			const strip = await browser.evaluate(() => ({
 				title: document.querySelector('[data-stage="verify-claims"] .node-name')
@@ -197,8 +197,10 @@ test("dashboard redesign: agent contracts, handoffs and reduced motion in Chrome
 			assert.equal(strip.title, "Verify claims");
 			assert.equal(strip.segments.length, 6);
 			assert.match(strip.segments[0].classes, /running/);
-			assert.match(strip.segments[1].classes, /completed warn/);
-			assert.equal(strip.segments[2].fill, "url(#failure-hatch)");
+			// 2026-11-03 (owner): the graph shows the process; a partly supported claim is done.
+			assert.match(strip.segments[1].classes, /completed ok/);
+			assert.match(strip.segments[2].classes, /completed ok/);
+			assert.equal(strip.segments[2].fill, null);
 			assert.match(strip.segments[3].classes, /pending/);
 			assert.match(strip.segments[4].classes, /completed ok/);
 			assert.equal(strip.segments[5].fill, "url(#failure-hatch)");
@@ -299,64 +301,67 @@ test("dashboard redesign: agent contracts, handoffs and reduced motion in Chrome
 			);
 			await publish(() => {
 				run.status = "completed";
-				run.verdict = "incomplete";
+				run.verdict = "NEEDS_WORK";
 				run.reportAvailable = true;
 				for (const task of run.tasks) task.status = "completed";
 				run.tasks.at(-1).outcome = {
-					status: "incomplete",
+					status: "Needs work",
 					tone: "warn",
 					text: "Held back the synthesis",
 				};
 			});
-			// 2026-11-03 (owner: a NEEDS_WORK review read like a success): a verdict that is not a
-			// clean pass is the headline, with the amber "!"; no "Incomplete" tag (the work finished).
+			// 2026-11-03 (owner: "NEEDS_WORK belongs in the report, not the process"): the run that did
+			// all its work is Finished under a green check, in the header, the rail and the graph; the
+			// Result block leads with the verdict under the amber "!".
 			await browser.waitFor(
-				() => document.querySelector("h1")?.textContent === "Incomplete",
+				() => document.querySelector("h1")?.textContent === "Finished",
 			);
-			const attention = await browser.evaluate(() => ({
+			const finished = await browser.evaluate(() => ({
 				title: document.querySelector("h1").textContent,
 				badge: document.querySelector(".hero-badge").getAttribute("class"),
 				mark: document.querySelector(".hero-number")?.textContent ?? "check",
-				ringOffset: document
-					.querySelector(".hero-ring")
-					.getAttribute("stroke-dashoffset"),
-				result: document.querySelector(".result").textContent,
-				rail:
-					document.querySelector(".run-row .muted, .run-row p")?.textContent ??
-					null,
-				stageWarn: document
-					.querySelector('[data-stage="final-audit"]')
-					.classList.contains("outcome-warn"),
-				foreachWarn: document
-					.querySelector('[data-stage="verify-claims"]')
-					.classList.contains("outcome-warn"),
+				verdict: document.querySelector(".result-verdict")?.textContent,
+				verdictMark: document
+					.querySelector(".result-verdict > :first-child")
+					?.getAttribute("class"),
+				sentence: document.querySelector("#status-sentence").textContent,
+				finalAudit: document
+					.querySelector('[data-stage="final-audit"] > .status-icon')
+					?.getAttribute("class"),
+				finalAuditOutline: getComputedStyle(
+					document.querySelector('[data-stage="final-audit"] .outline'),
+				).stroke,
+				warnSegments: document.querySelectorAll(".segment.warn").length,
 			}));
-			assert.deepEqual(
-				{ ...attention, rail: undefined },
-				{
-					title: "Incomplete",
-					badge: "hero-badge attention",
-					mark: "!",
-					ringOffset: "0",
-					result:
-						"ResultHeld back the synthesisFinished just now with verdict incomplete. Report is ready.",
-					rail: undefined,
-					stageWarn: true,
-					foreachWarn: false,
-				},
+			assert.deepEqual(finished, {
+				title: "Finished",
+				badge: "hero-badge completed",
+				mark: "check",
+				verdict: finished.verdict,
+				verdictMark: finished.verdictMark,
+				sentence: "Finished just now. Report is ready.",
+				finalAudit: "status-icon completed",
+				finalAuditOutline: finished.finalAuditOutline,
+				warnSegments: 0,
+			});
+			assert.match(finished.verdict, /Needs work$/);
+			assert.match(finished.verdictMark, /attention/);
+			assert.doesNotMatch(
+				finished.finalAuditOutline,
+				/rgb\(2[0-9]{2}, 1[0-9]{2}, [0-9]{1,2}\)/,
 			);
-			// 2026-11-03: a finished stage's mark says how it ended — an amber ! where an agent's outcome
-			// leaves work to do, a green check where it ended clean (owner, 2026-11-03).
+			// The agent's text still says how it ended.
+			assert.match(
+				await browser.evaluate(
+					() =>
+						document.querySelector('[data-stage="final-audit"] .sub')
+							?.textContent,
+				),
+				/Needs work/,
+			);
+			// A finished stage's check is green.
 			assert.deepEqual(
 				await browser.evaluate(() => ({
-					finalAudit: document
-						.querySelector('[data-stage="final-audit"] > .status-icon')
-						?.getAttribute("class"),
-					clean: document
-						.querySelector(
-							".node.completed:not(.support) > .status-icon.completed",
-						)
-						?.getAttribute("class"),
 					cleanColour: getComputedStyle(
 						document.querySelector(
 							".node.completed:not(.support) > .status-icon.completed",
@@ -364,12 +369,24 @@ test("dashboard redesign: agent contracts, handoffs and reduced motion in Chrome
 					).color,
 					text: getComputedStyle(document.body).color,
 				})),
-				{
-					finalAudit: "status-icon attention",
-					clean: "status-icon completed",
-					cleanColour: "rgb(111, 191, 142)",
-					text: "rgb(237, 237, 237)",
-				},
+				{ cleanColour: "rgb(111, 191, 142)", text: "rgb(237, 237, 237)" },
+			);
+			// A verdict that says the run itself fell short stays in the header.
+			await publish(() => {
+				run.verdict = "PARTIAL_REVIEW";
+			});
+			await browser.waitFor(
+				() => document.querySelector("h1")?.textContent === "Partial review",
+			);
+			assert.deepEqual(
+				await browser.evaluate(() => ({
+					badge: document.querySelector(".hero-badge").getAttribute("class"),
+					mark: document.querySelector(".hero-number")?.textContent,
+					ringOffset: document
+						.querySelector(".hero-ring")
+						.getAttribute("stroke-dashoffset"),
+				})),
+				{ badge: "hero-badge attention", mark: "!", ringOffset: "0" },
 			);
 			// A clean verdict with an agent's caveat finishes "with caveats" under a check.
 			await publish(() => {
@@ -380,35 +397,18 @@ test("dashboard redesign: agent contracts, handoffs and reduced motion in Chrome
 				title: document.querySelector("h1").textContent,
 				badge: document.querySelector(".hero-badge").getAttribute("class"),
 				mark: document.querySelector(".hero-number")?.textContent ?? "check",
-				ringOffset: document
-					.querySelector(".hero-ring")
-					.getAttribute("stroke-dashoffset"),
-				result: document.querySelector(".result").textContent,
-				rail:
-					document.querySelector(".run-row .muted, .run-row p")?.textContent ??
-					null,
-				stageWarn: document
-					.querySelector('[data-stage="final-audit"]')
-					.classList.contains("outcome-warn"),
-				foreachWarn: document
-					.querySelector('[data-stage="verify-claims"]')
-					.classList.contains("outcome-warn"),
+				label: document.querySelector(".result-label").textContent,
+				verdict: document
+					.querySelector(".result-verdict")
+					?.getAttribute("class"),
 			}));
-			assert.deepEqual(
-				{
-					title: caveats.title,
-					badge: caveats.badge,
-					mark: caveats.mark,
-					result: caveats.result,
-				},
-				{
-					title: "Finished",
-					badge: "hero-badge completed",
-					mark: "check",
-					result:
-						"ResultWith caveatsHeld back the synthesisFinished just now with verdict complete. Report is ready.",
-				},
-			);
+			assert.deepEqual(caveats, {
+				title: "Finished",
+				badge: "hero-badge completed",
+				mark: "check",
+				label: "ResultWith caveats",
+				verdict: "result-verdict clean",
+			});
 		},
 	);
 
