@@ -1324,6 +1324,50 @@ dialog.report footer .report-page {
 	font-style: italic;
 	color: var(--muted);
 }
+/* Fenced code: verbatim, a hairline rule at the left, no fill; stacked snippets sit close. */
+.md-code {
+	margin: 8px 0;
+	padding: 6px 0 6px 14px;
+	border-left: 2px solid var(--line2);
+	font: 13px / 1.6 var(--mono);
+	color: var(--text);
+	white-space: pre;
+	overflow-x: auto;
+	tab-size: 2;
+}
+.md-code + .md-code {
+	margin-top: -4px;
+}
+/* An agent of a many-agent stage: back to the list, and to its neighbours. */
+.item-nav {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 14px 22px 0;
+	font-size: 14px;
+}
+.item-nav + .inspector-head {
+	padding-top: 10px;
+}
+.item-nav .item-back {
+	border: 0;
+	padding: 4px 0;
+	color: var(--muted);
+}
+.item-nav .item-back:hover {
+	color: var(--text);
+}
+.item-nav [data-nav="previous"],
+.item-nav [data-nav="next"] {
+	min-width: 32px;
+	padding: 2px 8px;
+}
+.item-nav .item-pos {
+	min-width: 4.5em;
+	text-align: center;
+	color: var(--muted);
+	font-variant-numeric: tabular-nums;
+}
 /* A finding or summary part: set apart by a hairline and space, not a box. */
 .report-content .md-block + .md-block {
 	border-top: 1px solid var(--line);

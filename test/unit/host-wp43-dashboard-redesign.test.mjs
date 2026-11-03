@@ -132,7 +132,8 @@ test("dashboard redesign: agent contracts, handoffs and reduced motion in Chrome
 			assert.equal(rows.rows[3].time, "11s");
 			assert.equal(rows.rows[4].time, "");
 			assert.equal(rows.rows[4].title, "four");
-			assert.equal(rows.rows[5].line, null);
+			// 2026-11-03: a finished agent shows its one-line outcome too (scan without opening each).
+			assert.equal(rows.rows[5].line, "Verified · Source agrees");
 			assert.equal(rows.rows[3].index, "6");
 			assert.ok(rows.rows.every((r) => r.button === "BUTTON"));
 			assert.equal(rows.injected, false);

@@ -2585,6 +2585,7 @@ function renderSelection() {
 				? task.lastMessage || "A task failed. Inspect the logs before resuming."
 				: null);
 		inspector.append(
+			siblingNav(task),
 			inspectorHeader(task.title || name, status, [
 				taskAnnotation(task),
 				element(
@@ -2853,6 +2854,73 @@ function itemPositions(inspector) {
 		]),
 	);
 }
+const ITEM_GROUPS = [
+	["running", "Running"],
+	["look", "Needs a look"],
+	["waiting", "Waiting"],
+	["done", "Done"],
+];
+/** The stage's agents in the order its list shows them: the list's filter, then its groups. */
+function listedItems(stage, ignoreFilter = false) {
+	const filter = ignoreFilter
+		? { query: "", status: "all" }
+		: itemFilters.get(`${run.runId}:${stage.id}`) || {
+				query: "",
+				status: "all",
+			};
+	const query = filter.query.toLowerCase();
+	const matches = stage.items.filter(
+		(task) =>
+			`${task.specId} ${task.title || ""}`.toLowerCase().includes(query) &&
+			(filter.status === "all" || taskState(task) === filter.status),
+	);
+	return ITEM_GROUPS.flatMap(([group]) =>
+		matches.filter((task) => itemGroup(task) === group),
+	);
+}
+/**
+ * An agent of a many-agent stage gets a way back to the list and to its neighbours (2026-11-03,
+ * owner: open, back, open, back was tedious). ‹ / › and the j / k keys follow the list's order
+ * and filter and replace the history entry, so the browser's Back still returns to the list.
+ */
+function siblingNav(task) {
+	const stage = graphModel?.stages.get(task.stageId);
+	if (!stage?.items || stage.items.length < 2) return null;
+	let order = listedItems(stage);
+	if (!order.some((item) => item.specId === task.specId))
+		order = listedItems(stage, true);
+	const index = order.findIndex((item) => item.specId === task.specId);
+	if (index < 0) return null;
+	const step = (delta, nav) => () => {
+		const next = order[index + delta];
+		if (!next) return;
+		go({ task: next.specId }, true);
+		$("inspector").querySelector(`[data-nav="${nav}"]`)?.focus();
+	};
+	return element(
+		"nav",
+		{ class: "item-nav", "aria-label": "Agents in this stage" },
+		button(
+			`‹ ${humanize(stage.id)} · ${stage.items.length} agents`,
+			() => go({ stage: stage.id }),
+			{ class: "item-back", "data-nav": "list" },
+		),
+		element("span", { class: "grow" }),
+		button("‹", step(-1, "previous"), {
+			"data-nav": "previous",
+			"aria-label": "Previous agent (k)",
+			title: "Previous agent (k)",
+			disabled: index === 0,
+		}),
+		element("span", { class: "item-pos" }, `${index + 1} / ${order.length}`),
+		button("›", step(1, "next"), {
+			"data-nav": "next",
+			"aria-label": "Next agent (j)",
+			title: "Next agent (j)",
+			disabled: index === order.length - 1,
+		}),
+	);
+}
 function renderItems(inspector, stage, previous = new Map()) {
 	inspector.append(
 		inspectorHeader(humanize(stage.id), stage.status),
@@ -2915,19 +2983,9 @@ function renderItems(inspector, stage, previous = new Map()) {
 				];
 			}),
 		);
-		const query = filter.query.toLowerCase();
-		const matches = stage.items.filter(
-			(task) =>
-				`${task.specId} ${task.title || ""}`.toLowerCase().includes(query) &&
-				(filter.status === "all" || taskState(task) === filter.status),
-		);
+		const matches = listedItems(stage);
 		list.replaceChildren();
-		for (const [group, title] of [
-			["running", "Running"],
-			["look", "Needs a look"],
-			["waiting", "Waiting"],
-			["done", "Done"],
-		]) {
+		for (const [group, title] of ITEM_GROUPS) {
 			const tasks = matches.filter((task) => itemGroup(task) === group);
 			if (!tasks.length) continue;
 			list.append(
@@ -2946,7 +3004,14 @@ function renderItems(inspector, stage, previous = new Map()) {
 							: task.status === "completed"
 								? task.outcome?.tone || "ok"
 								: "";
-				const annotation = group === "done" ? null : taskAnnotation(task);
+				// A finished agent shows its one-line outcome when it has one, so the list can be
+				// scanned without opening every agent.
+				const annotation =
+					group === "done"
+						? task.outcome?.text
+							? taskAnnotation(task)
+							: null
+						: taskAnnotation(task);
 				const content = element(
 					"span",
 					{ class: "agent-content" },
@@ -3484,11 +3549,39 @@ function statusBadge(word) {
  * whose single line breaks are kept, inline `**bold**` / `*emphasis*` / `` `code` `` and backslash
  * escapes. No links, HTML, images or content-derived URLs: a Markdown link shows its text with the
  * address as plain text, an image only its alt text (report and task result).
+ * Fenced code blocks show verbatim (whitespace kept, no Markdown inside); a list item that is one
+ * flat JSON object reads as its main text and "key: value" fields.
  * Reading aids (2026-11-03): a line that starts with a short English field label ("Sources:") shows
  * the label quietly, evidence words read as glyph + word, list items that start with the same bold
  * label ("**Gap:**") are grouped under that label once, a numbered heading hangs its number, and a
  * long double-quoted passage reads as a quote.
  */
+/**
+ * Workflow verdict codes inside reading text (NEEDS_WORK, BLOCKED, WEAKEN) read in sentence case;
+ * other capitals (API, SSRF) stay. Used for bold text and group labels.
+ */
+const VERDICT_CODES =
+	/\b(?:[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+|BLOCKED|READY|COMPLETE|INCOMPLETE|UNKNOWN|PASSED|FAILED|KEEP|WEAKEN|DROP|PARTIAL)\b/g;
+function readableCodes(value) {
+	return value.replace(VERDICT_CODES, (code) => verdictWord(code));
+}
+/** Keys that name a report row's main text (same order as the impact-review report helper). */
+const ROW_MAIN_KEYS = [
+	"text",
+	"issue",
+	"title",
+	"summary",
+	"description",
+	"detail",
+	"question",
+	"item",
+	"note",
+	"check",
+	"action",
+	"validation",
+	"assumption",
+	"area",
+];
 function renderTextMarkdown(container, text, headingBase = 3) {
 	// Escaped punctuation is parked in the private-use area so it is never read as Markdown.
 	const park = (value) =>
@@ -3541,17 +3634,14 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 				);
 			} else if (m[4] !== undefined) {
 				const bold = unpark(m[4]);
-				// A verdict code in bold (NEEDS_WORK, BLOCKED) reads in sentence case; the code is the title.
-				const verdict =
-					/^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/.test(bold) ||
-					/^(?:BLOCKED|READY|COMPLETE|INCOMPLETE|UNKNOWN|PASSED|FAILED)$/.test(
-						bold,
-					);
+				const readable = readableCodes(bold);
 				nodes.push(
 					statusBadge(bold) ??
-						(verdict
-							? element("strong", { title: bold }, verdictWord(bold))
-							: element("strong", {}, bold)),
+						element(
+							"strong",
+							{ title: readable === bold ? null : bold },
+							readable,
+						),
 				);
 			} else if (m[5] !== undefined)
 				nodes.push(element("code", {}, unpark(m[5])));
@@ -3575,12 +3665,79 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 			value ? (statusBadge(plain) ?? inline(value)) : null,
 		];
 	};
+	// An older report row written as one flat JSON object ({"item":…,"owner":…}) reads as its main
+	// text, then "key: value" fields (2026-11-03; current report helpers already write rows so).
+	const jsonRow = (raw) => {
+		const textValue = unpark(park(raw)).trim();
+		if (!/^\{.*\}$/.test(textValue)) return null;
+		let row;
+		try {
+			row = JSON.parse(textValue);
+		} catch {
+			return null;
+		}
+		const scalar = (value) =>
+			["string", "number", "boolean"].includes(typeof value);
+		if (
+			!row ||
+			Array.isArray(row) ||
+			typeof row !== "object" ||
+			!Object.values(row).every(
+				(value) =>
+					scalar(value) || (Array.isArray(value) && value.every(scalar)),
+			)
+		)
+			return null;
+		const main = ROW_MAIN_KEYS.find(
+			(key) => typeof row[key] === "string" && row[key].trim(),
+		);
+		const fields = Object.keys(row)
+			.filter((key) => key !== main)
+			.flatMap((key, index) => [
+				index ? "; " : main ? " — " : "",
+				element("span", { class: "md-label" }, `${key}:`),
+				" ",
+				Array.isArray(row[key]) ? row[key].join(", ") : String(row[key]),
+			]);
+		return [main ? inline(row[main]) : null, ...fields];
+	};
 	let list = null;
 	let paragraph = null;
 	let table = null;
 	// Consecutive "- **Gap:** …" items: the label is said once, above them, with a count.
 	let group = null;
+	// A fenced block (```ts … ```) is shown verbatim, whitespace kept, no Markdown inside.
+	let fence = null;
+	const closeFence = () => {
+		container.append(
+			element(
+				"pre",
+				{ class: "md-code", "data-lang": fence.lang || null },
+				element("code", {}, fence.lines.join("\n")),
+			),
+		);
+		fence = null;
+	};
 	for (const line of text.split("\n")) {
+		const fenceMark = /^\s*(`{3,}|~{3,})\s*([\w+.#-]*)\s*$/.exec(line);
+		if (fence) {
+			if (
+				fenceMark &&
+				!fenceMark[2] &&
+				fenceMark[1][0] === fence.mark[0] &&
+				fenceMark[1].length >= fence.mark.length
+			)
+				closeFence();
+			else fence.lines.push(line);
+			continue;
+		}
+		if (fenceMark) {
+			list = null;
+			paragraph = null;
+			table = null;
+			fence = { mark: fenceMark[1], lang: fenceMark[2], lines: [] };
+			continue;
+		}
 		const heading = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line),
 			item = /^\s*[-*+]\s+(.+)$/.exec(line),
 			numbered = /^\s*\d+[.)]\s+(.+)$/.exec(line),
@@ -3647,7 +3804,13 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 				if (!group || group.label !== labelled[1] || list !== group.list) {
 					const count = element("span", { class: "md-count" });
 					container.append(
-						element("p", { class: "md-group" }, labelled[1], " ", count),
+						element(
+							"p",
+							{ class: "md-group" },
+							readableCodes(labelled[1]),
+							" ",
+							count,
+						),
 					);
 					list = element("ul", { class: "md-grouped" });
 					container.append(list);
@@ -3657,7 +3820,11 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 				list.append(element("li", {}, ...inline(labelled[2])));
 				continue;
 			}
-			const entry = element("li", {}, ...field((item ?? numbered)[1]));
+			const entry = element(
+				"li",
+				{},
+				...(jsonRow((item ?? numbered)[1]) ?? field((item ?? numbered)[1])),
+			);
 			const parent = list?.lastElementChild;
 			if (/^\s{2,}/.test(line) && parent) {
 				// An indented item nests under the item above (the numbered list keeps counting).
@@ -3689,6 +3856,7 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 			append(paragraph, field(line.trimEnd()));
 		}
 	}
+	if (fence) closeFence();
 }
 /**
  * Each `###` part of the report (a finding, a summary part) is one section, set apart by a hairline
@@ -4200,6 +4368,12 @@ document.addEventListener("keydown", (event) => {
 	)
 		return;
 	if (event.key.toLowerCase() === "f") graphControl?.fit();
+	if (["j", "k"].includes(event.key) && selectedTask())
+		$("inspector")
+			.querySelector(
+				`[data-nav="${event.key === "j" ? "next" : "previous"}"]:not([disabled])`,
+			)
+			?.click();
 	if (["ArrowDown", "ArrowUp"].includes(event.key)) {
 		const selector = event.target.closest(".item-list")
 			? ".item-list button"

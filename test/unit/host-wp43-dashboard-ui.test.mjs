@@ -473,6 +473,22 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		await text("#report-content"),
 		/Verdict: Needs work; API stays\./,
 	);
+	// 2026-11-03: fenced code shows verbatim (no Markdown inside, whitespace kept), and a row written
+	// as one flat JSON object reads as its main text and fields.
+	assert.deepEqual(
+		await browser.evaluate(() => ({
+			code: [...document.querySelectorAll("#report-content pre.md-code")].map(
+				(node) => [node.dataset.lang ?? null, node.textContent],
+			),
+			json: [...document.querySelectorAll("#report-content li")].find((node) =>
+				node.textContent.startsWith("Ship it"),
+			)?.textContent,
+		})),
+		{
+			code: [["ts", "\tif (a **b**) return;\n  <x>"]],
+			json: "Ship it — owner: release; blocking: true",
+		},
+	);
 	assert.equal(
 		await browser.evaluate(() => document.querySelector(".report-toc")),
 		null,
@@ -966,4 +982,80 @@ test("dashboard Chrome: a stage selected while the run works is cleared when it 
 	);
 	await new Promise((resolve) => setTimeout(resolve, 500));
 	assert.equal(await param("task"), "reviewers.webhook-retry-path");
+});
+
+test("dashboard Chrome: an agent of a many-agent stage steps to its neighbours and back to the list", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
+	timeout: 120_000,
+}, async (t) => {
+	// 2026-11-03 (owner): open an agent, Back, open the next, Back… was tedious.
+	const fixture = await createFixtureServer();
+	t.after(() => fixture.close());
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	await browser.open(`${fixture.origin}/?run=${running}&stage=reviewers`);
+	await browser.waitFor(
+		() => document.querySelectorAll(".agent-item").length === 3,
+	);
+	const listed = await browser.evaluate(() =>
+		[...document.querySelectorAll(".agent-item")].map(
+			(row) => row.dataset.item,
+		),
+	);
+	await browser.evaluate(() => document.querySelector(".agent-item").click());
+	await browser.waitFor(
+		() => document.querySelector(".item-pos")?.textContent === "1 / 3",
+	);
+	const where = () =>
+		browser.evaluate(() => ({
+			task: new URLSearchParams(location.search).get("task"),
+			stage: new URLSearchParams(location.search).get("stage"),
+			pos: document.querySelector(".item-pos")?.textContent ?? null,
+			history: history.length,
+		}));
+	const start = await where();
+	assert.deepEqual(
+		{ task: start.task, pos: start.pos },
+		{ task: listed[0], pos: "1 / 3" },
+	);
+	assert.equal(
+		await browser.evaluate(
+			() => document.querySelector('[data-nav="previous"]').disabled,
+		),
+		true,
+	);
+	// j / › move on in the list's order and replace the history entry.
+	await browser.key("j");
+	await browser.waitFor(
+		() => document.querySelector(".item-pos")?.textContent === "2 / 3",
+	);
+	await browser.evaluate(() =>
+		document.querySelector('[data-nav="next"]').click(),
+	);
+	await browser.waitFor(
+		() => document.querySelector(".item-pos")?.textContent === "3 / 3",
+	);
+	const last = await where();
+	assert.deepEqual(
+		{ task: last.task, history: last.history },
+		{ task: listed[2], history: start.history },
+	);
+	await browser.key("k");
+	await browser.waitFor(
+		() => document.querySelector(".item-pos")?.textContent === "2 / 3",
+	);
+	assert.equal((await where()).task, listed[1]);
+	// The stage link goes back to the list.
+	await browser.evaluate(() =>
+		document.querySelector('[data-nav="list"]').click(),
+	);
+	await browser.waitFor(
+		() => document.querySelectorAll(".agent-item").length === 3,
+	);
+	assert.deepEqual(
+		{ ...(await where()), history: undefined },
+		{ task: null, stage: "reviewers", pos: null, history: undefined },
+	);
 });

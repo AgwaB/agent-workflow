@@ -164,7 +164,7 @@ export async function createFixtureServer({
 			if (suffix === "/report")
 				return json({
 					path: "reports/review.md",
-					text: `# Review report\n\n- A finding\n- ${injection}\n\n[not a link](https://example.invalid)\n![not an image](https://example.invalid/image.png)\n\n## Main findings\n\n### 1. Retries are bounded\n\nEvidence status: **verified**\nSources: [example.invalid](<https://example.invalid/a>)\n- Retry doc: quote "Retries stop after four attempts."\n\n| Area | Status |\n|---|---|\n| Retry | partially\\_supported |\n\n1. **Add a jitter test.**\n   - Evidence status: derived\n2. **Log the final failure.**\n\n- **Gap:** no load test\n\nRun cd sample &amp;&amp; npm test &lt;ok&gt;\nVerdict: **NEEDS_WORK**; **API** stays.`,
+					text: `# Review report\n\n- A finding\n- ${injection}\n\n[not a link](https://example.invalid)\n![not an image](https://example.invalid/image.png)\n\n## Main findings\n\n### 1. Retries are bounded\n\nEvidence status: **verified**\nSources: [example.invalid](<https://example.invalid/a>)\n- Retry doc: quote "Retries stop after four attempts."\n\n| Area | Status |\n|---|---|\n| Retry | partially\\_supported |\n\n1. **Add a jitter test.**\n   - Evidence status: derived\n2. **Log the final failure.**\n\n- **Gap:** no load test\n\nRun cd sample &amp;&amp; npm test &lt;ok&gt;\nVerdict: **NEEDS_WORK**; **API** stays.\n\n\`\`\`ts\n\tif (a **b**) return;\n  <x>\n\`\`\`\n\n- \\{\"item\":\"Ship it\",\"owner\":\"release\",\"blocking\":true\\}`,
 					truncated: false,
 				});
 			if (
