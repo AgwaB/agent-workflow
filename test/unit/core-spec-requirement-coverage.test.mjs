@@ -40,6 +40,10 @@ const positives = [
 	"zero-clean",
 	"uppercase-id",
 	"report-risks",
+	// agent-workflow 2026-11-04 (owner decision): a grounded KEEP is GAPS_FOUND even when its
+	// requirement row stayed unclear or carries a bad extra citation; those are listed as not settled.
+	"unclear-keep",
+	"bad-extra-gap-citation",
 ];
 const modes = [
 	...positives,
@@ -455,10 +459,15 @@ for (const mode of modes)
 			const expectedVerdict =
 				p.evidenceGate.requirementReconciliation?.complete === false ||
 				mode === "missing-proof"
-					? "INCONCLUSIVE"
+					? keep && ["unclear-keep", "bad-extra-gap-citation"].includes(mode)
+						? "GAPS_FOUND"
+						: "INCONCLUSIVE"
 					: keep
 						? "GAPS_FOUND"
 						: "CONFORMS";
+			// The partition hands the report stage this verdict to copy (2026-11-04).
+			if (positives.includes(mode))
+				assert.equal(p.readProjection.ledgerVerdict, expectedVerdict, mode);
 			const report = {
 				schema: "spec-review-report-v1",
 				summary: "Coverage fixture",
@@ -617,7 +626,10 @@ for (const mode of modes)
 					"test-task-stale",
 				].includes(mode)
 			)
-				assert.equal(pristine.evidenceGate.complete, passed);
+				assert.equal(
+					pristine.evidenceGate.complete,
+					passed && !["unclear-keep", "bad-extra-gap-citation"].includes(mode),
+				);
 		} finally {
 			h.setTaskRuntimeApiForTests(undefined);
 			await rm(cwd, {
@@ -746,6 +758,7 @@ test("SR-FINAL-S07 escaped max-schema projections and empty tails stay readable"
 				finalIds: maxProjectionIds(64),
 				droppedIds: maxProjectionIds(64),
 				needsHumanIds: maxProjectionIds(256),
+				ledgerVerdict: "INCONCLUSIVE",
 			},
 		};
 		const sources = [
@@ -884,6 +897,7 @@ test("SR-FINAL-S07 escaped max-schema projections and empty tails stay readable"
 					finalIds: [],
 					droppedIds: [],
 					needsHumanIds: [],
+					ledgerVerdict: "CONFORMS",
 				},
 			},
 		};

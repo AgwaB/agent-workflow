@@ -261,6 +261,26 @@ After stage 2 (2026-11-01):
   the live run: its three partial sources become one (a quote missing a Markdown backtick, still a
   content difference); keep 2 → 4, needs-human 3 → 1. Tests:
   `core-deep-review-line-corrections.test.mjs`, `core-review-helper-byte-gates.test.mjs`.
+- **M29.** Confirmed findings decide the verdict first (owner decision 2026-11-04, after the live run
+  of every workflow: all six non-clean verdicts had 2–6 grounded findings but read
+  INCONCLUSIVE or PARTIAL_REVIEW because one or two requirements stayed "unclear" or two reviewers
+  could not read their planned lines, so one review gave different verdicts on different
+  executors). spec-review: grounded KEEP/WEAKEN gaps on an intact ledger (dispositions and coverage
+  rows as saved, requirement set proven) with complete source and verifier coverage are
+  GAPS_FOUND; unresolved requirements and needs-human rows are listed as limitations ("Requirements
+  not settled by this review: REQ-005 (unclear) …") and the run passes. Without such gaps an
+  unresolved requirement still makes INCONCLUSIVE; CONFORMS still needs every requirement covered;
+  stage failures and ledger integrity failures are unchanged. deep-review: kept or weakened findings
+  make NEEDS_WORK even when part of the review is incomplete (named in the report); a partial review
+  without them stays PARTIAL_REVIEW. The verdict is no longer worked out by the report model from
+  prose rules: the partition computes it (`readProjection.ledgerVerdict`, a new required read;
+  deep-review: the report packet's `expectedVerdict`) with the same function the renderer uses
+  (`specReviewVerdict` in `spec-evidence-gate.mjs`; `review-verdict.mjs`), and the report stage
+  copies it. Replaying the 13 live spec-review and deep-review runs through every support step with
+  the recorded model outputs: spec-review 8 runs → all GAPS_FOUND, passed (5 were INCONCLUSIVE);
+  deep-review 5 runs → all NEEDS_WORK, passed (1 was PARTIAL_REVIEW). Tests:
+  `core-review-verdict-precedence.test.mjs`, IRCF-01 `unclear-keep` and `bad-extra-gap-citation` in
+  `core-spec-requirement-coverage.test.mjs`, `core-review-helper-byte-gates.test.mjs`.
 
 ## Worker prompt rendering (core)
 

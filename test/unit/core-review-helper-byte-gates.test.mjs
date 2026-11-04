@@ -548,10 +548,19 @@ test("positive requirement coverage needs bytes; gap is not a coverage proof", (
 				},
 			],
 		};
-		assert.notEqual(
-			(await roundtrip(cwd, [citation], "KEEP", [], analysis)).result.status,
-			"passed",
+		// agent-workflow 2026-11-04: the grounded KEEP still stands (GAPS_FOUND), but the covered row
+		// without bytes is not counted as covered: it is listed as not settled. Without a gap the same
+		// row can never make CONFORMS.
+		const unproven = await roundtrip(cwd, [citation], "KEEP", [], analysis);
+		assert.equal(unproven.result.status, "passed");
+		assert.equal(unproven.result.verdict, "GAPS_FOUND");
+		assert.match(
+			unproven.result.markdown,
+			/Requirements not settled by this review: REQ-1 \(covered\)/u,
 		);
+		const noGap = await roundtrip(cwd, [], "DROP", [citation], analysis);
+		assert.notEqual(noGap.result.status, "passed");
+		assert.notEqual(noGap.result.verdict, "CONFORMS");
 		analysis.requirementCoverage[0].evidence = [citation];
 		assert.equal(
 			(await roundtrip(cwd, [citation], "KEEP", [], analysis)).result.status,

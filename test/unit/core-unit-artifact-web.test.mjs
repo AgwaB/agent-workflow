@@ -2682,6 +2682,7 @@ test("deep-review artifact-graph support lifecycle retains adverse needs-human a
 		for (const helperName of [
 			"finding-pipeline.mjs",
 			"render-review-report.mjs",
+			"review-verdict.mjs",
 		]) {
 			writeFileSync(
 				join(helperDir, helperName),

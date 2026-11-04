@@ -7,7 +7,11 @@
 import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { auditPartitionEvidence } from "./spec-evidence-gate.mjs";
+import {
+	auditPartitionEvidence,
+	sourceStatusComplete,
+	specReviewVerdict,
+} from "./spec-evidence-gate.mjs";
 import { rendererCandidateUniverse } from "./spec-requirement-source.mjs";
 
 const REPORT_VERDICTS = new Set([
@@ -127,16 +131,7 @@ function reportAvailable(report) {
 }
 
 function partitionSourceCoverageComplete(partition) {
-	const summary = partition?.sourceStatusSummary;
-	if (!isRecord(summary) || summary.metadataAvailable !== true) return false;
-	const total = Number(summary.total);
-	const completed = Number(summary.completed);
-	const nonCompleted = Number(summary.nonCompleted);
-	if (![total, completed, nonCompleted].every(Number.isInteger)) return false;
-	if (total < 1 || completed < 0 || nonCompleted < 0) return false;
-	if (completed + nonCompleted !== total) return false;
-	if (completed !== total || nonCompleted !== 0) return false;
-	return asArray(summary.partialFailures).length === 0;
+	return sourceStatusComplete(partition?.sourceStatusSummary);
 }
 
 const FINAL_SOURCE_STAGES = ["partition-findings", "report"];
@@ -493,25 +488,24 @@ function requiredVerdict(
 	sourceCoverageComplete,
 	verifierCoverageIsComplete,
 	requirementReconciliation,
+	gapsGrounded,
 ) {
-	if (!sourceCoverageComplete || !requirementReconciliation.complete)
-		return "INCONCLUSIVE";
 	const coverage = partition?.verifierCoverage ?? {};
-	const integrityRows =
-		asArray(partition?.missingVerifications).length +
-		asArray(partition?.invalidVerifierResults).length +
-		asArray(partition?.orphanVerifierResults).length +
-		asArray(partition?.batchIntegrityIssues).length +
-		asArray(coverage.duplicateCandidateIds).length +
-		asArray(coverage.duplicateVerifierIds).length;
-	const unresolvedRows = asArray(partition?.needsHuman).length;
-	if (!verifierCoverageIsComplete)
-		return integrityRows > 0 || unresolvedRows > 0
-			? "NEEDS_HUMAN"
-			: "INCONCLUSIVE";
-	if (asArray(partition?.finalFindings).length > 0) return "GAPS_FOUND";
-	if (integrityRows > 0 || unresolvedRows > 0) return "NEEDS_HUMAN";
-	return requirementReconciliation.allCovered ? "CONFORMS" : "INCONCLUSIVE";
+	return specReviewVerdict({
+		sourceCoverageComplete,
+		verifierCoverageComplete: verifierCoverageIsComplete,
+		requirementReconciliation,
+		gapsGrounded,
+		finalCount: asArray(partition?.finalFindings).length,
+		integrityRows:
+			asArray(partition?.missingVerifications).length +
+			asArray(partition?.invalidVerifierResults).length +
+			asArray(partition?.orphanVerifierResults).length +
+			asArray(partition?.batchIntegrityIssues).length +
+			asArray(coverage.duplicateCandidateIds).length +
+			asArray(coverage.duplicateVerifierIds).length,
+		unresolvedRows: asArray(partition?.needsHuman).length,
+	});
 }
 
 function renderEvidence(evidence) {
@@ -707,6 +701,9 @@ function limitationRows({
 	reportPresent,
 	verdictConsistent,
 	reportOwnerLedgerConsistent,
+	gapsStand = false,
+	partition = {},
+	requirementReconciliation = {},
 }) {
 	const rows = [];
 	if (!sourceCoverageComplete)
@@ -721,7 +718,33 @@ function limitationRows({
 		rows.push(
 			`Canonical disposition IDs are duplicated: ${duplicates.join(", ")}.`,
 		);
-	if (!evidenceComplete)
+	if (!evidenceComplete && gapsStand) {
+		const statusOf = new Map(
+			asArray(partition.requirementCoverage).map((row) => [
+				cleanText(row?.requirementId),
+				cleanText(row?.status) || "unknown",
+			]),
+		);
+		const unresolved = asArray(requirementReconciliation.unresolvedIds)
+			.map(cleanText)
+			.filter(Boolean);
+		if (unresolved.length > 0)
+			rows.push(
+				`Requirements not settled by this review: ${unresolved
+					.slice(0, 16)
+					.map((id) => `${id} (${statusOf.get(id) ?? "unresolved"})`)
+					.join(", ")}${unresolved.length > 16 ? `, and ${unresolved.length - 16} more` : ""}. The confirmed gaps stand; whether these requirements are met was not decided.`,
+			);
+		const needsHuman = asArray(partition.needsHuman).length;
+		if (needsHuman > 0)
+			rows.push(
+				`${needsHuman} needs-human row(s) remain unresolved (see Needs human review).`,
+			);
+		if (unresolved.length === 0 && needsHuman === 0)
+			rows.push(
+				"Some evidence rows outside the confirmed gaps are incomplete or unverified; the confirmed gaps stand.",
+			);
+	} else if (!evidenceComplete)
 		rows.push(
 			"Local byte evidence or exact extracted-requirement reconciliation is incomplete, changed, or unverified; legacy locators cannot establish support or justify removal.",
 		);
@@ -971,7 +994,11 @@ export default async function renderSpecReviewReport({
 		sourceCoverageComplete,
 		coverageComplete,
 		requirementReconciliation,
+		evidenceAudit.gapsGrounded,
 	);
+	// agent-workflow 2026-11-04: confirmed gaps on an intact ledger pass with the unresolved
+	// requirements and needs-human rows listed as limitations (specReviewVerdict).
+	const gapsStand = ledgerVerdict === "GAPS_FOUND" && evidenceAudit.gapsGrounded;
 	const verdict =
 		!evidenceComplete && ledgerVerdict === "CONFORMS"
 			? "INCONCLUSIVE"
@@ -988,6 +1015,9 @@ export default async function renderSpecReviewReport({
 		reportPresent,
 		verdictConsistent,
 		reportOwnerLedgerConsistent,
+		gapsStand,
+		partition,
+		requirementReconciliation,
 	});
 	const passed =
 		reportPresent &&
@@ -996,7 +1026,7 @@ export default async function renderSpecReviewReport({
 		verdictConsistent &&
 		renderedAllCanonicalRows &&
 		duplicates.length === 0 &&
-		evidenceComplete;
+		(evidenceComplete || gapsStand);
 	const completionSummaryMarkdown = passed
 		? renderCompletionSummary({ verdict, report, partition, limitations })
 		: "";

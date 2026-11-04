@@ -385,13 +385,14 @@
      "testExecutionAttested": { "type": "boolean", "const": false },
      "readProjection": {
        "type": "object",
-       "required": ["candidateIds", "requirementIds", "finalIds", "droppedIds", "needsHumanIds"],
+       "required": ["candidateIds", "requirementIds", "finalIds", "droppedIds", "needsHumanIds", "ledgerVerdict"],
        "properties": {
          "candidateIds": { "type": "array", "items": { "type": "string", "maxLength": 96 }, "maxItems": 30 },
          "requirementIds": { "type": "array", "items": { "type": "string", "maxLength": 96 }, "maxItems": 40 },
          "finalIds": { "type": "array", "items": { "type": "string", "maxLength": 96 }, "maxItems": 64 },
          "droppedIds": { "type": "array", "items": { "type": "string", "maxLength": 96 }, "maxItems": 64 },
-         "needsHumanIds": { "type": "array", "items": { "type": "string", "maxLength": 96 }, "maxItems": 256 }
+         "needsHumanIds": { "type": "array", "items": { "type": "string", "maxLength": 96 }, "maxItems": 256 },
+         "ledgerVerdict": { "type": "string", "enum": ["CONFORMS", "GAPS_FOUND", "NEEDS_HUMAN", "INCONCLUSIVE"] }
        },
        "additionalProperties": false
      }

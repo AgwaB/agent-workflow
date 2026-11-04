@@ -23,6 +23,9 @@ import {
 	gateDisposition,
 	gateRequirementCoverage,
 	reconcileRequirementCoverage,
+	requirementSetProven,
+	sourceStatusComplete,
+	specReviewVerdict,
 	isLocalCitation,
 } from "./spec-evidence-gate.mjs";
 import { candidateUpstreamFailures } from "./spec-requirement-source.mjs";
@@ -714,6 +717,29 @@ async function partitionFindings(sources, options = {}, context = {}) {
 			finalIds: finalFindings.map((row) => row.id),
 			droppedIds: droppedFindings.map((row) => row.id),
 			needsHumanIds: needsHuman.map((row) => row.id).filter(Boolean),
+			// agent-workflow 2026-11-04: the verdict the report stage copies; the renderer recomputes
+			// it from the same rule (specReviewVerdict) and rejects a report that differs.
+			ledgerVerdict: specReviewVerdict({
+				sourceCoverageComplete: sourceStatusComplete(sourceStatusSummary),
+				verifierCoverageComplete:
+					ownerLedgerReconciliation.passed === true &&
+					candidateUniverseIssues.length === 0 &&
+					missingVerifications.length === 0,
+				requirementReconciliation,
+				// Final rows passed the byte gate above (unverified ones became needs-human).
+				gapsGrounded:
+					finalFindings.length > 0 &&
+					requirementSetProven(requirementReconciliation),
+				finalCount: finalFindings.length,
+				integrityRows:
+					missingVerifications.length +
+					invalidVerifierResults.length +
+					orphanVerifierResults.length +
+					(batchMode ? batchIntegrityIssues.length : 0) +
+					duplicateCandidateIds.length +
+					duplicateVerifierIds.length,
+				unresolvedRows: needsHuman.length,
+			}),
 		},
 	};
 	return {

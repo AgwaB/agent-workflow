@@ -353,14 +353,14 @@ async function requirementCoverageAudit(partition, context = {}) {
     partition?.finalFindings ?? [],
     source,
   );
+  const matchesSaved =
+    canonical(actual) ===
+    canonical(partition?.evidenceGate?.requirementReconciliation);
   const requirementReconciliation = {
     ...actual,
-    complete:
-      actual.complete &&
-      canonical(actual) ===
-        canonical(partition?.evidenceGate?.requirementReconciliation),
+    complete: actual.complete && matchesSaved,
   };
-  return { checked, requirementReconciliation };
+  return { checked, requirementReconciliation, actual, matchesSaved };
 }
 
 export async function partitionRequirementReconciliation(
@@ -371,28 +371,88 @@ export async function partitionRequirementReconciliation(
     .requirementReconciliation;
 }
 
+/**
+ * The requirement set itself is proven (sources verified, every id known and present); only
+ * unresolved rows (unclear, needsHuman, an unaccounted gap) may remain. agent-workflow 2026-11-04.
+ */
+export function requirementSetProven(reconciliation) {
+  return (
+    reconciliation !== null &&
+    typeof reconciliation === "object" &&
+    Array.isArray(reconciliation.issues) &&
+    reconciliation.issues.length === 0 &&
+    Array.isArray(reconciliation.missingIds) &&
+    reconciliation.missingIds.length === 0
+  );
+}
+
+/** Every partition source task completed and none reported a partial failure. */
+export function sourceStatusComplete(summary) {
+  if (summary === null || typeof summary !== "object" || summary.metadataAvailable !== true)
+    return false;
+  const total = Number(summary.total);
+  const completed = Number(summary.completed);
+  const nonCompleted = Number(summary.nonCompleted);
+  if (![total, completed, nonCompleted].every(Number.isInteger)) return false;
+  if (total < 1 || completed < 0 || nonCompleted < 0) return false;
+  if (completed + nonCompleted !== total) return false;
+  if (completed !== total || nonCompleted !== 0) return false;
+  return (Array.isArray(summary.partialFailures) ? summary.partialFailures : []).length === 0;
+}
+
+/**
+ * The deterministic verdict, shared by the partition (which hands it to the report stage to copy)
+ * and the renderer (which recomputes it). agent-workflow 2026-11-04 (owner decision, live run of
+ * every workflow: all five INCONCLUSIVE spec-reviews had 4–6 confirmed gaps but a requirement the
+ * candidate stage left "unclear" or cited badly, so the same review read GAPS_FOUND on one executor
+ * and INCONCLUSIVE on another): confirmed gaps decide first. A gap is proven by its own grounded
+ * evidence whatever the unresolved requirements turn out to be, so `gapsGrounded` (grounded
+ * KEEP/WEAKEN rows, an intact ledger and a proven requirement set) with complete source and
+ * verifier coverage is GAPS_FOUND; the unresolved requirements are reported as limitations.
+ * CONFORMS still needs every requirement covered.
+ */
+export function specReviewVerdict({
+  sourceCoverageComplete,
+  verifierCoverageComplete,
+  requirementReconciliation,
+  gapsGrounded,
+  finalCount,
+  integrityRows,
+  unresolvedRows,
+}) {
+  if (!sourceCoverageComplete) return "INCONCLUSIVE";
+  if (gapsGrounded && verifierCoverageComplete) return "GAPS_FOUND";
+  if (!requirementReconciliation?.complete) return "INCONCLUSIVE";
+  if (!verifierCoverageComplete)
+    return integrityRows > 0 || unresolvedRows > 0 ? "NEEDS_HUMAN" : "INCONCLUSIVE";
+  if (finalCount > 0) return "GAPS_FOUND";
+  if (integrityRows > 0 || unresolvedRows > 0) return "NEEDS_HUMAN";
+  return requirementReconciliation.allCovered ? "CONFORMS" : "INCONCLUSIVE";
+}
+
 export async function auditPartitionEvidence(partition, context = {}) {
   const gate = partition?.evidenceGate;
-  const { checked: coverage, requirementReconciliation } =
-    await requirementCoverageAudit(partition, context);
-  let evidenceComplete =
+  const {
+    checked: coverage,
+    requirementReconciliation,
+    actual,
+    matchesSaved,
+  } = await requirementCoverageAudit(partition, context);
+  const ledgerShape =
     gate?.protocol === EVIDENCE_PROTOCOL &&
-    gate.complete === true &&
     Array.isArray(gate.findings) &&
     Array.isArray(gate.coverage) &&
-    Array.isArray(partition?.needsHuman) &&
-    partition.needsHuman.length === 0;
-  const dispositions = [
-    ...(partition?.finalFindings ?? []),
-    ...(partition?.droppedFindings ?? []),
-  ];
-  if (
-    evidenceComplete &&
-    (gate.findings.length !== dispositions.length ||
-      new Set(gate.findings.map((row) => row.id)).size !== dispositions.length)
-  )
-    evidenceComplete = false;
-  for (const finding of evidenceComplete ? dispositions : []) {
+    Array.isArray(partition?.needsHuman);
+  const finalFindings = partition?.finalFindings ?? [];
+  const dispositions = [...finalFindings, ...(partition?.droppedFindings ?? [])];
+  let dispositionsExact =
+    ledgerShape &&
+    gate.findings.length === dispositions.length &&
+    new Set(gate.findings.map((row) => row.id)).size === dispositions.length;
+  let dispositionsComplete = true;
+  const finalIds = new Set(finalFindings.map((row) => row?.id));
+  let finalsGrounded = finalFindings.length > 0;
+  for (const finding of dispositionsExact ? dispositions : []) {
     const verdict = finding.verdict ?? "DROP";
     const saved = gate.findings.find((row) => row.id === finding.id);
     const checkedFinding = await gateDisposition(
@@ -402,18 +462,31 @@ export async function auditPartitionEvidence(partition, context = {}) {
       finding.counterEvidence,
       context,
     );
-    if (
-      !checkedFinding.complete ||
-      canonical(saved) !== canonical(checkedFinding)
-    )
-      evidenceComplete = false;
+    if (canonical(saved) !== canonical(checkedFinding)) dispositionsExact = false;
+    if (!checkedFinding.complete) {
+      dispositionsComplete = false;
+      if (finalIds.has(finding.id)) finalsGrounded = false;
+    }
   }
-  evidenceComplete =
-    evidenceComplete &&
+  const coverageExact = ledgerShape && canonical(gate.coverage) === canonical(coverage);
+  const evidenceComplete =
+    ledgerShape &&
+    gate.complete === true &&
+    partition.needsHuman.length === 0 &&
+    dispositionsExact &&
+    dispositionsComplete &&
     requirementReconciliation.complete &&
     coverage.every((row) => row.complete) &&
-    canonical(gate.coverage) === canonical(coverage);
-  return { evidenceComplete, requirementReconciliation };
+    coverageExact;
+  // agent-workflow 2026-11-04: the confirmed gaps stand on an intact ledger even when some
+  // requirements stayed unresolved (see specReviewVerdict).
+  const gapsGrounded =
+    dispositionsExact &&
+    finalsGrounded &&
+    coverageExact &&
+    matchesSaved &&
+    requirementSetProven(actual);
+  return { evidenceComplete, requirementReconciliation, gapsGrounded };
 }
 
 // The renderer reconciles canonical rows and recomputes actual bytes. It does

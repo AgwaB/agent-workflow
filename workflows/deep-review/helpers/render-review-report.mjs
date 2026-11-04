@@ -8,6 +8,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { hasPartialFailures, requiredReportVerdict } from "./review-verdict.mjs";
 
 const SEVERITY_ORDER = ["critical", "high", "medium", "low", "info", "unknown"];
 const REPORT_VERDICTS = new Set([
@@ -1475,20 +1476,6 @@ function hasReportSynthesis(report) {
 	);
 }
 
-function hasPartialFailures(partition) {
-	const summaryCount = Number(partition?.partitionSummary?.partialFailures);
-	const sourceStatus = partition?.sourceStatusSummary;
-	const nonCompleted = Number(sourceStatus?.nonCompleted);
-	const total = Number(sourceStatus?.total);
-	const completed = Number(sourceStatus?.completed);
-	return Boolean(
-		asArray(sourceStatus?.partialFailures).length > 0 ||
-			asArray(partition?.reportContext?.partialFailures).length > 0 ||
-			(Number.isFinite(summaryCount) && summaryCount > 0) ||
-			(Number.isFinite(nonCompleted) && nonCompleted > 0) ||
-			(Number.isFinite(total) && Number.isFinite(completed) && completed < total),
-	);
-}
 
 function sourceCoverageGaps(partition) {
 	const rows = [
@@ -1526,45 +1513,6 @@ function renderSourceCoverageGaps(partition) {
 	return lines;
 }
 
-function requiredReportVerdict(partition, findings) {
-	if (hasPartialFailures(partition)) return "PARTIAL_REVIEW";
-	const requiredLedgers = [
-		partition?.reviewerLedger,
-		partition?.dedupSummary,
-		partition?.verifierCoverage,
-	];
-	if (
-		requiredLedgers.some(
-			(ledger) =>
-				!ledger || typeof ledger !== "object" || ledger.complete !== true,
-		)
-	)
-		return "NEEDS_WORK";
-	const ledger = partition?.partitions ?? partition?.reportContext;
-	const summary = partition?.partitionSummary;
-	const integrityCounts = [
-		summary?.batchIntegrityIssues,
-		summary?.verdictIntegrityIssues,
-		summary?.reviewerCoverageIssues,
-		summary?.missingVerdicts,
-	].some((value) => Number(value) > 0);
-	const reviewer = partition?.reviewerLedger;
-	const reviewerGap =
-		reviewer &&
-		(asArray(reviewer.missingPlannedLensIds).length > 0 ||
-			asArray(reviewer.unexpectedMaterializedReviewerIds).length > 0 ||
-			asArray(reviewer.invalidAttestations).length > 0);
-	const verifier = partition?.verifierCoverage;
-	const verifierGap =
-		verifier &&
-		(asArray(verifier.missingFindingIds).length > 0 ||
-			asArray(verifier.orphanFindingIds).length > 0 ||
-			asArray(verifier.duplicateFindingIds).length > 0);
-	if (integrityCounts || reviewerGap || verifierGap) return "NEEDS_WORK";
-	if (findings.length > 0 || asArray(ledger?.needsHuman).length > 0)
-		return "NEEDS_WORK";
-	return "REVIEW_COMPLETE";
-}
 
 function deterministicSummary(partition, findings) {
 	const ledger = partition?.partitions ?? partition?.reportContext;
@@ -2105,7 +2053,7 @@ export default async function renderReviewReport({ sources, context = {} }) {
 	const supportNoteCountMismatch = supportNotes.expected !== supportNotes.actual;
 	const supportNoteMetadataMissing = supportNotes.metadataMissing;
 	const supportNoteEvidenceIncomplete = supportNotes.incompleteEvidence > 0;
-	let effectiveVerdict = requiredReportVerdict(partition, all);
+	let effectiveVerdict = requiredReportVerdict(partition, all.length);
 	const reportVerdictConsistent =
 		reportAvailable && cleanText(report.verdict) === effectiveVerdict;
 	let rendererIntegrityFailed = false;

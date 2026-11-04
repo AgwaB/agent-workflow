@@ -21,6 +21,7 @@
 //                 finding.
 
 import { createHash } from "node:crypto";
+import { requiredReportVerdict } from "./review-verdict.mjs";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -3045,6 +3046,9 @@ function buildReportPacket({
 	sourceStatusSummary: statusSummary,
 	partitionSummary,
 	normalizationNotes,
+	reviewerLedger,
+	dedupSummary,
+	verifierCoverage,
 }) {
 	const truncation = { truncatedStrings: 0, omittedStringChars: 0 };
 	const keep = partitions.keep
@@ -3137,6 +3141,18 @@ function buildReportPacket({
 		digest,
 		maxChars: REPORT_PACKET_MAX_CHARS,
 		actualChars: 0,
+		// agent-workflow 2026-11-04: the verdict the report stage copies (review-verdict.mjs).
+		expectedVerdict: requiredReportVerdict(
+			{
+				partitions,
+				sourceStatusSummary: statusSummary,
+				partitionSummary,
+				reviewerLedger,
+				dedupSummary,
+				verifierCoverage,
+			},
+			partitions.keep.length + partitions.weaken.length,
+		),
 		partitionSummary: exactPartitionSummary,
 		sourceStatusSummary: exactSourceStatusSummary,
 		reportContext: {
@@ -4693,6 +4709,9 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 		sourceStatusSummary: mergedSourceStatusSummary,
 		partitionSummary,
 		normalizationNotes,
+		reviewerLedger,
+		dedupSummary,
+		verifierCoverage,
 	});
 
 	return {

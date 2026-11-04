@@ -359,6 +359,7 @@
         "digest",
         "maxChars",
         "actualChars",
+        "expectedVerdict",
         "partitionSummary",
         "sourceStatusSummary",
         "reportContext",
@@ -369,6 +370,10 @@
         "schema": {
           "type": "string",
           "const": "deep-review-report-packet-v1"
+        },
+        "expectedVerdict": {
+          "type": "string",
+          "enum": ["REVIEW_COMPLETE", "NEEDS_WORK", "PARTIAL_REVIEW"]
         },
         "digest": {
           "type": "string",
