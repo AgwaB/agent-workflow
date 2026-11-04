@@ -207,6 +207,25 @@ function ownerKey(owner) {
 		.join("\u001f");
 }
 
+/**
+ * agent-workflow 2026-11-04 (live claude/haiku spec-review: the report stage copied the first owner
+ * row with source "verify-findings.finding-001", its real alias is the bare stage id
+ * "verify-findings", and a correct GAPS_FOUND review failed): the report's copy of the owner ledger
+ * is compared on the identity fields, without the source alias. The alias is a routing name, not
+ * identity; the partition's own ledger, which the report renders from, is still checked with it
+ * against the runtime source statuses (verifierOwnerLedgerComplete).
+ */
+function ownerIdentityRows(rows) {
+	return Array.isArray(rows)
+		? rows.map((row) => {
+				if (!isRecord(row)) return row;
+				const { source, ...identity } = row;
+				void source;
+				return identity;
+			})
+		: rows;
+}
+
 function exactOwnerShape(owner) {
 	return (
 		isRecord(owner) &&
@@ -995,8 +1014,8 @@ export default async function renderSpecReviewReport({
 	const requirementReconciliation = evidenceAudit.requirementReconciliation;
 	const reportOwnerLedgerConsistent =
 		reportPresent &&
-		stableStringify(report.ownerLedger) ===
-			stableStringify(partition.verifierCoverage?.ownerLedger) &&
+		stableStringify(ownerIdentityRows(report.ownerLedger)) ===
+			stableStringify(ownerIdentityRows(partition.verifierCoverage?.ownerLedger)) &&
 		stableStringify(report.ownerLedgerReconciliation) ===
 			stableStringify(partition.verifierCoverage?.ownerLedgerReconciliation);
 	const ledgerVerdict = requiredVerdict(

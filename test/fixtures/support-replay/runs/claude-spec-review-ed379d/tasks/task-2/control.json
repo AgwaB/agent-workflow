@@ -1,0 +1,158 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "src/ has 3 TS files (stop, cancellation, terminal) and no test files. Several spec deviations are visible on read: S3 default poll 200ms, S6 message-prefix match, C1 extra cancellation tokens, T3 field named launchRetries, and no Q1 tests.",
+  "implementationMap": [
+    {
+      "component": "Stop signal creation and polling",
+      "file": "src/workflow-stop.ts",
+      "evidence": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "observedBehavior": "Default poll is 200ms with a 1ms floor; S3 requires default 50ms and a 10ms floor.",
+      "relatedSignals": [
+        "S3",
+        "createWorkflowStopSignal",
+        "pollMs default 200"
+      ]
+    },
+    {
+      "component": "Stop error classification",
+      "file": "src/workflow-stop.ts",
+      "evidence": "error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME || error.message.startsWith(\"workflow stop requested\")",
+      "observedBehavior": "Also matches by message prefix, which S6 forbids.",
+      "relatedSignals": [
+        "S6",
+        "isWorkflowStopRequestedError",
+        "message prefix match"
+      ]
+    },
+    {
+      "component": "Stop intent and launch signal detection",
+      "file": "src/workflow-stop.ts",
+      "evidence": "if (intent || launchStopRequested(cwd, runId)) controller.abort(createWorkflowStopRequestedError(runId));",
+      "observedBehavior": "Stop triggers from disk intent or any aborted registered launch signal for the run path; S1 and S2 error name and message look satisfied.",
+      "relatedSignals": [
+        "S1",
+        "S2",
+        "readWorkflowStopIntent",
+        "WorkflowStopRequested name"
+      ]
+    },
+    {
+      "component": "Disk-read error policy in stop paths",
+      "file": "src/workflow-stop.ts",
+      "evidence": "readWorkflowStopIntent(cwd, runId).catch(() => undefined)  /  await readWorkflowStopIntent(cwd, runId);",
+      "observedBehavior": "Watch path swallows read errors (S4 ok); throwIfWorkflowStopRequested propagates them (S4 ok).",
+      "relatedSignals": [
+        "S4",
+        "throwIfWorkflowStopRequested",
+        "catch to undefined"
+      ]
+    },
+    {
+      "component": "Stop signal dispose",
+      "file": "src/workflow-stop.ts",
+      "evidence": "dispose: () => clearInterval(timer),",
+      "observedBehavior": "Clears the interval so no periodic reads start; no disposed flag, so an in-flight check can still finish (S5 likely ok, not fully guarded).",
+      "relatedSignals": [
+        "S5",
+        "dispose clearInterval",
+        "no disposed flag"
+      ]
+    },
+    {
+      "component": "Foreground signal registration",
+      "file": "src/workflow-stop.ts",
+      "evidence": "signals.delete(signal);\nif (signals.size === 0 && launchSignals.get(key) === signals)\n  launchSignals.delete(key);",
+      "observedBehavior": "Returned unregister removes the signal and deletes the map entry when empty (S7 looks satisfied); no test covers it.",
+      "relatedSignals": [
+        "S7",
+        "bindWorkflowLaunchSignal",
+        "launchSignals Map cleanup"
+      ]
+    },
+    {
+      "component": "Provider cancellation detection",
+      "file": "src/workflow-cancellation.ts",
+      "evidence": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "observedBehavior": "Accepts \"cancelled\" and \"timeout\" beyond the three exact markers C1 allows.",
+      "relatedSignals": [
+        "C1",
+        "\"cancelled\" and \"timeout\" accepted",
+        "isWorkflowReturnedCancellation"
+      ]
+    },
+    {
+      "component": "Provider cancellation flags",
+      "file": "src/workflow-cancellation.ts",
+      "evidence": "if (value.cancelled === true) return true;  /  if (details?.cancelled === true) return true;",
+      "observedBehavior": "Boolean cancelled flags count as cancellation, which C1 does not list (C1 covers error and reason strings only).",
+      "relatedSignals": [
+        "C1",
+        "cancelled:true flag",
+        "details.cancelled"
+      ]
+    },
+    {
+      "component": "Nested JSON content cancellation check",
+      "file": "src/workflow-cancellation.ts",
+      "evidence": "const parsed: unknown = JSON.parse(entry.text);\nif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+      "observedBehavior": "Recurses into JSON text parts (C2). JSON.parse yields fresh objects and nesting is finite, so the guard is effectively redundant but no infinite recursion is possible.",
+      "relatedSignals": [
+        "C2",
+        "content JSON recursion",
+        "parsed !== value guard"
+      ]
+    },
+    {
+      "component": "Terminal semantic status for non-dynamic runs",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "if (run.status === \"completed\") return run.degradation ? \"completed_degraded\" : \"completed\";",
+      "observedBehavior": "Maps completed with degradation to completed_degraded (T1 ok for non-dynamic runs).",
+      "relatedSignals": [
+        "T1",
+        "nonDynamicSemanticStatus",
+        "completed_degraded"
+      ]
+    },
+    {
+      "component": "Direct-dynamic terminal semantics",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "else semanticStatus = \"completed_without_semantic_result\";  (reached when control is undefined)",
+      "observedBehavior": "An unreadable controller control.json yields completed_without_semantic_result (T2 ok). Direct-dynamic path overwrites the T1 degraded status.",
+      "relatedSignals": [
+        "T2",
+        "readDynamicControllerControl catch",
+        "direct-dynamic overwrites T1"
+      ]
+    },
+    {
+      "component": "Terminal summary retry counters",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "outputRetryAttempts: run.tasks.reduce(...outputRetry?.attempts...), launchRetries: run.tasks.reduce(...launchRetry?.attempts...)",
+      "observedBehavior": "Sums per-task retries (T3 sum ok), but the launch field is named launchRetries; T3 requires launchRetryAttempts.",
+      "relatedSignals": [
+        "T3",
+        "launchRetries vs launchRetryAttempts",
+        "public field name"
+      ]
+    },
+    {
+      "component": "Test suite",
+      "file": "src/ (no test files)",
+      "evidence": "Glob src/**, test/**, tests/**, __tests__/** returned only the 3 src .ts files; Grep for test/spec/vitest/jest found no files",
+      "observedBehavior": "No unit tests for S, C, or T items exist in the repo, so Q1 is not met.",
+      "relatedSignals": [
+        "Q1",
+        "no test files found",
+        "package.json has only typecheck"
+      ]
+    }
+  ],
+  "unmappedAreas": [
+    "store.js and types.js are imported but not in the repo (SPEC says excluded)",
+    "tsconfig.json and node_modules not inspected; typecheck not run"
+  ],
+  "notes": [
+    "Recent commit 654f639 (poll less often; treat cancelled/timeout as cancellation; shorter retry field name) appears to be the source of the S3, C1, and T3 deviations.",
+    "Stage maps evidence only; conformance is not claimed here."
+  ]
+}

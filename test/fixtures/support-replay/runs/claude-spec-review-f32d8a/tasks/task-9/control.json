@@ -1,0 +1,122 @@
+{
+  "schema": "spec-review-report-v1",
+  "digest": "partition-findings sha256:0c7b8ee0c5b4de4e4ef586185e941581fd57bdec10b1f7c0f2edc7e256d558c5 기준 SPEC 준수 리뷰. 판정 GAPS_FOUND, 확정 gap 5건, NEEDS_HUMAN 2건.",
+  "summary": "SPEC.md의 요구사항 13건(S1–S7, C1–C2, T1–T3, Q1) 중 7건은 구현 근거가 확인되었다(S1, S2, S4, S5, S7, C2, T2). 5건은 확정 gap이다(S3 pollMs 기본값·하한, S6 메시지 접두사 판별, C1 추가 취소 문자열, T3 launchRetries 명칭, Q1 단위 테스트 부재). T1은 partial이며 NEEDS_HUMAN 2건으로 명세 우선순위가 미해결이다. 테스트는 실행하지 않았다.",
+  "verdict": "GAPS_FOUND",
+  "ownerLedger": [
+    {
+      "source": "verify-findings",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-001",
+      "taskId": "task-11",
+      "itemIdentity": "finding-001",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-002",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-002",
+      "taskId": "task-12",
+      "itemIdentity": "finding-002",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-003",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-003",
+      "taskId": "task-13",
+      "itemIdentity": "finding-003",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-004",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-004",
+      "taskId": "task-14",
+      "itemIdentity": "finding-004",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-005",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-005",
+      "taskId": "task-15",
+      "itemIdentity": "finding-005",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-006",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-006",
+      "taskId": "task-16",
+      "itemIdentity": "finding-006",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    }
+  ],
+  "ownerLedgerReconciliation": {
+    "ownerRowCount": 6,
+    "verifierRowCount": 6,
+    "ownerIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "verifierIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "duplicateOwnerIds": [],
+    "duplicateVerifierIds": [],
+    "missingOwnerRows": [],
+    "orphanOwnerRows": [],
+    "statusMismatches": [],
+    "cardinalityPassed": true,
+    "passed": true
+  },
+  "risks": [
+    "S3(REQ-003) 확정 gap: src/workflow-stop.ts:67의 pollMs 기본값 200ms·하한 1ms가 명세의 50ms·10ms와 다르다 (finding-001, WEAKEN).",
+    "S6(REQ-006) 확정 gap: isWorkflowStopRequestedError가 이름 외에 메시지 접두사 'workflow stop requested'로도 판별한다 (finding-002, KEEP).",
+    "C1(REQ-008) 확정 gap: isWorkflowReturnedCancellation이 'cancelled'·'timeout' 문자열을 취소로 인정한다 (finding-003, WEAKEN). cancelled 불리언 플래그는 C1 문언상 명확한 위반으로 확정되지 않았다.",
+    "T3(REQ-012) 확정 gap: 요약 필드가 launchRetries로 노출되어 명세 공개 계약명 launchRetryAttempts와 다르다 (finding-005, KEEP). 커밋 654f639의 의도적 변경으로 보이며 소비자 의존 여부는 미확인이다.",
+    "Q1(REQ-013) 확정 gap: 저장소에 단위 테스트 파일과 test 스크립트가 없어 S·C·T 항목별 테스트 근거가 없다 (finding-006, KEEP).",
+    "미해결 NEEDS_HUMAN(REQ-010, T1, finding-004): direct-dynamic 경로에서 completed+degradation 실행이 completed_degraded로 매핑되지 않는다. T1과 T2 중 우선순위가 명세에 명시되지 않아 준수 여부가 settled되지 않았다.",
+    "미해결 NEEDS_HUMAN(REQ-010, T1, nh-001): T1 적용 여부와 dynamic 의미 상태 우선순위에 대한 명세 의도가 불명확하며 증거 상태는 unavailable이다. requirementReconciliation의 unresolvedIds에 REQ-010이 남아 있다."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "Tests were inspected by file search only; test execution was not performed by this read-only stage.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "Test-file search used *.test/*.spec suffix globs; non-suffixed test directories were not exhaustively enumerated beyond upstream inspect-tests.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "SPEC.md was not re-read directly; requirement wording relies on extract-spec quotes and is consistent with them.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "src/ review covered workflow-stop.ts, workflow-cancellation.ts, workflow-terminal.ts; other src files were not examined.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "recommendedNextAction": "finding-001(기본값 50ms·하한 10ms), finding-002(메시지 접두사 제거), finding-003(cancelled·timeout 제거), finding-005(launchRetryAttempts 개명), finding-006(단위 테스트와 test 스크립트 추가)을 수정한다. T1과 T2의 우선순위를 명세 담당자에게 확인한 뒤 재검토한다."
+}

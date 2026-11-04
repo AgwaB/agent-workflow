@@ -1,0 +1,41 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "저장소 안에 테스트 파일과 테스트 러너 설정이 없어 Q1이 이 저장소에서는 미충족이다. 다만 발췌본이라 상위 저장소에 테스트가 있을 수 있어 주장 범위를 좁혔다.",
+  "id": "finding-006",
+  "verdict": "WEAKEN",
+  "severity": "low",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 40,
+      "lineEnd": 40,
+      "quote": "단위 테스트가 있어야 한다.",
+      "relevance": "Q1 requires a unit test for each S/C/T item"
+    },
+    {
+      "file": "package.json",
+      "lineStart": 7,
+      "lineEnd": 7,
+      "quote": "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+      "relevance": "The only declared script is typecheck; no test runner or test script is configured"
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 4,
+      "lineEnd": 4,
+      "quote": "이 발췌에 포함되지 않는다.",
+      "relevance": "Scope note: the repository is an excerpt, so tests may exist outside this snapshot; the finding should not claim tests are absent everywhere"
+    },
+    {
+      "file": "package.json",
+      "lineStart": 6,
+      "lineEnd": 6,
+      "quote": "Excerpt of pi-workflow stop/cancel handling",
+      "relevance": "The package describes itself as an excerpt of a larger project"
+    }
+  ],
+  "finalClaim": "이 저장소 스냅샷에는 테스트 파일과 테스트 스크립트가 없어, S1–S7, C1–C2, T1–T3 각각에 대한 단위 테스트가 있어야 한다는 Q1을 이 저장소 안에서는 확인할 수 없다.",
+  "recommendedAction": "S·C·T 항목별 단위 테스트를 추가하고 package.json에 test 스크립트를 설정하거나, 테스트가 있는 상위 저장소 위치를 명세 또는 리포트에 명시한다."
+}

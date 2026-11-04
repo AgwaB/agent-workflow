@@ -1,0 +1,231 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw2h7aoi_ed379d",
+  "taskId": "task-8",
+  "sources": [
+    {
+      "source": "candidate-findings",
+      "displayName": "candidate-findings.main",
+      "taskId": "task-4",
+      "specId": "candidate-findings.main",
+      "stageId": "candidate-findings",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "14개 요구사항 중 S1·S2·S4·S5·S7·C2·T2가 구현 근거로 충족되고, S3·S6·C1·T1·T3는 부분 충족, Q1은 테스트 부재로 미충족이다. 테스트는 실행하지 않았다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-4/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-4/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-4/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-4/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings",
+      "displayName": "verify-findings.finding-001",
+      "taskId": "task-11",
+      "specId": "verify-findings.finding-001",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "finding-001",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "기본 pollMs 200ms·하한 1ms가 SPEC S3(기본 50ms, 하한 10ms)와 어긋나는 것을 코드와 명세 본문으로 확인했고 반증 근거는 없다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-11/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-11/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-11/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-11/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.finding-002",
+      "displayName": "verify-findings.finding-002",
+      "taskId": "task-12",
+      "specId": "verify-findings.finding-002",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "finding-002",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "finding-002 유지: isWorkflowStopRequestedError가 메시지 접두사로도 참을 반환해 S6에 어긋난다. 실제 영향은 제한적이라 severity를 medium으로 낮춤.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-12/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-12/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-12/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-12/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.finding-003",
+      "displayName": "verify-findings.finding-003",
+      "taskId": "task-13",
+      "specId": "verify-findings.finding-003",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "finding-003",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "C1 위반 실재: error/reason 문자열 'cancelled'·'timeout'을 취소로 인정함(명세는 aborted/AbortError/ABORT_ERR만). 불리언 cancelled 플래그 부분은 문언상 경계 사례.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-13/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-13/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-13/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-13/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.finding-004",
+      "displayName": "verify-findings.finding-004",
+      "taskId": "task-14",
+      "specId": "verify-findings.finding-004",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "finding-004",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "finding-004 KEEP: SPEC T3 names launchRetryAttempts as a public contract field, but src/workflow-terminal.ts exposes launchRetries and nothing in the repo defines launchRetryAttempts.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-14/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-14/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-14/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-14/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.finding-005",
+      "displayName": "verify-findings.finding-005",
+      "taskId": "task-15",
+      "specId": "verify-findings.finding-005",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "finding-005",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "T1 literal wording is contradicted when a direct-dynamic run ends completed with degradation, because the direct-dynamic branch overwrites semanticStatus; SPEC T1 and T2 conflict, so WEAKEN to low and ask for a spec decision.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-15/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-15/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-15/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-15/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.finding-006",
+      "displayName": "verify-findings.finding-006",
+      "taskId": "task-16",
+      "specId": "verify-findings.finding-006",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "finding-006",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "저장소 안에 테스트 파일과 테스트 러너 설정이 없어 Q1이 이 저장소에서는 미충족이다. 다만 발췌본이라 상위 저장소에 테스트가 있을 수 있어 주장 범위를 좁혔다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-16/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-16/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-16/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2h7aoi_ed379d/tasks/task-16/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

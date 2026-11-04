@@ -1,0 +1,33 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "finding-001 is confirmed: the default pollMs is 200 and the floor is 1, while SPEC S3 requires 50 and 10. Recommend WEAKEN to medium because the impact is stop-detection latency, not correctness.",
+  "id": "finding-001",
+  "verdict": "WEAKEN",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 13,
+      "lineEnd": 13,
+      "quote": "의 기본값은 50ms이고",
+      "relevance": "Spec requires a 50ms default pollMs"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 13,
+      "lineEnd": 13,
+      "quote": "10ms보다",
+      "relevance": "Spec states the minimum pollMs must not go below 10ms"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 67,
+      "lineEnd": 67,
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "relevance": "Implementation defaults to 200ms and clamps the floor to 1ms"
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "src/workflow-stop.ts:67 uses a 200ms default and a 1ms floor for pollMs, which deviates from SPEC S3 (50ms default, 10ms minimum). The impact is slower stop detection and a looser lower bound, not a change in stop semantics.",
+  "recommendedAction": "Change the default to 50 and the floor to 10 in createWorkflowStopSignal, then add a unit test for the default and the clamp."
+}

@@ -1,0 +1,48 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "finding-003 is real for the string values \"cancelled\" and \"timeout\" (C1 says exactly three), but the boolean cancelled flags fall outside C1's stated scope, so the claim is narrowed.",
+  "id": "finding-003",
+  "verdict": "WEAKEN",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 20,
+      "lineEnd": 20,
+      "quote": "candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "relevance": "Accepts two strings beyond the exact C1 set (aborted, AbortError, ABORT_ERR) in the error/reason candidates."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 10,
+      "lineEnd": 11,
+      "quote": "Keep this check deliberately exact: arbitrary provider errors must not be",
+      "relevance": "Code comment states the intended exactness, so the extra strings are drift from the author's own intent."
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 25,
+      "lineEnd": 26,
+      "quote": "오류·사유 문자열은 정확히 `aborted`,",
+      "relevance": "C1 explicitly limits the exact three-value rule to error and reason strings and says other provider errors must not be promoted."
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 25,
+      "lineEnd": 25,
+      "quote": "오류·사유 문자열은 정확히",
+      "relevance": "C1 scope is error and reason strings. It does not explicitly address non-string boolean flags, so the cancelled===true branch is not clearly a violation of the quoted rule."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 16,
+      "lineEnd": 16,
+      "quote": "if (value.cancelled === true) return true;",
+      "relevance": "Boolean flag check; outside the string-value rule as written in C1, so it should not be the basis of the finding."
+    }
+  ],
+  "finalClaim": "isWorkflowReturnedCancellation treats the strings \"cancelled\" and \"timeout\" (in error or reason fields, including details) as cancellation, although C1 allows exactly aborted, AbortError, and ABORT_ERR. This violates C1's explicit rule against promoting other provider errors to cancellation. The cancelled boolean flags are not clearly covered by C1 and should not be counted as this violation.",
+  "recommendedAction": "Remove \"cancelled\" and \"timeout\" from the string list at src/workflow-cancellation.ts:20 so only aborted, AbortError, and ABORT_ERR remain. Decide separately whether the cancelled boolean flags are intended and, if they are, document them in SPEC.md. Add a unit test covering \"cancelled\" and \"timeout\" strings returning false. The repository has no test files at all (no *.test.* or *.spec.* matches), so Q1 coverage for C1 is absent."
+}

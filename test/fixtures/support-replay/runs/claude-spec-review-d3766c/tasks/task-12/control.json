@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "REQ-006 위반 확인: isWorkflowStopRequestedError가 오류 이름 외에 메시지 접두사로도 중지 오류를 인정함(src/workflow-stop.ts:57).",
+  "id": "finding-002",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 57,
+      "lineEnd": 57,
+      "quote": "error.message.startsWith(\"workflow stop requested\"))",
+      "relevance": "구현이 메시지 접두사만으로도 WorkflowStopRequested 오류로 판별함. SPEC S6은 메시지 내용 판별을 금지함."
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 18,
+      "lineEnd": 19,
+      "quote": "메시지 내용으로 판별해서는 안 된다.",
+      "relevance": "명세 S6: 이름이 WorkflowStopRequested인 오류만 인정하고 메시지로 판별하지 말아야 함."
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "isWorkflowStopRequestedError는 오류 이름이 WorkflowStopRequested가 아니어도 메시지가 'workflow stop requested'로 시작하면 true를 반환하여 SPEC S6(이름만 인정, 메시지 판별 금지)을 위반한다.",
+  "recommendedAction": "src/workflow-stop.ts:53-59의 조건에서 message.startsWith 분기를 제거하고 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME만 남긴다. 메시지-only 거부를 검증하는 단위 테스트를 추가한다(Q1)."
+}

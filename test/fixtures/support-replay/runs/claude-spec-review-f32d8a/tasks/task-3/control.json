@@ -1,0 +1,39 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "저장소에 테스트 파일이 없어 S1–S7, C1–C2, T1–T3, Q1 모두 테스트 근거가 확인되지 않음.",
+  "testMap": [],
+  "coverageGapsSuspected": [
+    "S1: 중지 감지(디스크 중지 의도 또는 foreground AbortSignal) 단위 테스트 없음 (src/workflow-stop.ts)",
+    "S2: WorkflowStopRequested 이름·메시지 형식 테스트 없음 (src/workflow-stop.ts)",
+    "S3: pollMs 기본 50ms 및 10ms 하한 테스트 없음 (src/workflow-stop.ts)",
+    "S4: 감시 경로 읽기 실패 무시와 throwIfWorkflowStopRequested 오류 전파 테스트 없음 (src/workflow-stop.ts)",
+    "S5: dispose 이후 새 디스크 읽기 금지 테스트 없음 (src/workflow-stop.ts)",
+    "S6: 오류 이름만으로 중지 판별, 메시지 기반 판별 금지 테스트 없음 (src/workflow-stop.ts)",
+    "S7: foreground signal 등록 해제 및 빈 항목 정리 테스트 없음 (src/workflow-stop.ts)",
+    "C1: aborted/AbortError/ABORT_ERR 세 값만 취소로 인정하는 테스트 없음 (src/workflow-cancellation.ts)",
+    "C2: content 내 JSON 텍스트 판별 및 무한 재귀 방지 테스트 없음 (src/workflow-cancellation.ts)",
+    "T1: completed + degradation → completed_degraded 테스트 없음 (src/workflow-terminal.ts)",
+    "T2: direct-dynamic에서 control.json 읽기 실패 → completed_without_semantic_result 테스트 없음 (src/workflow-terminal.ts)",
+    "T3: outputRetryAttempts/launchRetryAttempts 합계 및 필드명 테스트 없음 (src/workflow-terminal.ts)",
+    "Q1: SPEC의 S·C·T 항목별 단위 테스트가 존재하지 않음 (테스트 파일, describe/it/expect 흔적 없음)"
+  ],
+  "notes": [
+    "**/*.{test,spec}.{ts,js,mjs,tsx} 글롭 결과 없음. src/ 하위에는 구현 파일 3개만 있음.",
+    "src/ 외 디렉터리(test, tests, __tests__, fixtures 등) 없음. .agent-workflow 하위 파일은 워크플로 산출물이며 저장소 테스트로 취급하지 않음.",
+    "package.json 스크립트는 typecheck(tsc --noEmit)뿐이며 테스트 러너가 없음.",
+    "SPEC.md 명시 발췌에 따르면 store.js, types.js는 이 저장소에 포함되지 않음. 관련 테스트가 있더라도 이 저장소 밖에 있을 수 있음."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "Tests were inspected but not executed by this read-only stage.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "Store/types modules are excluded from this excerpt; external tests for them were not inspected.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false
+}

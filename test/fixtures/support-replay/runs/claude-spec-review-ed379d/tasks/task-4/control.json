@@ -1,0 +1,381 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "14개 요구사항 중 S1·S2·S4·S5·S7·C2·T2가 구현 근거로 충족되고, S3·S6·C1·T1·T3는 부분 충족, Q1은 테스트 부재로 미충족이다. 테스트는 실행하지 않았다.",
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "읽기 전용 단계이므로 테스트를 실행하지 않았다. 테스트 파일이 저장소에 없어 행위 근거는 구현 코드 읽기에만 의존한다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "src/workflow-stop.ts와 src/workflow-terminal.ts가 import하는 ./store.js, ./types.js는 저장소에 없다. SPEC.md 4행이 이 두 파일을 발췌 범위에서 제외했으므로, 해당 함수의 디스크 읽기 동작은 확인하지 않았다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "테스트 근거 탐색은 test/tests/__tests__/spec 디렉터리와 src/ 내 *.test/*.spec 파일 글롭으로 수행했다. 전체 저장소 글롭은 .agent-workflow 하위 결과가 많아 잘렸다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "requirementCoverage": [
+    {
+      "requirementId": "REQ-S1",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 77,
+          "lineEnd": 77,
+          "quote": "if (intent || launchStopRequested(cwd, runId))",
+          "relevance": "디스크 의도 또는 등록된 launch signal 중 하나라도 있으면 중지 abort"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-S2",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 44,
+          "lineEnd": 44,
+          "quote": "return `workflow stop requested for ${runId}`;",
+          "relevance": "메시지 형식"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 49,
+          "lineEnd": 49,
+          "quote": "error.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME;",
+          "relevance": "오류 이름 WorkflowStopRequested"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-S3",
+      "status": "partial",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 67,
+          "lineEnd": 67,
+          "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+          "relevance": "기본값 200ms, 하한 1ms (명세는 50ms, 10ms)"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-S4",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 74,
+          "lineEnd": 74,
+          "quote": "readWorkflowStopIntent(cwd, runId).catch(",
+          "relevance": "감시 경로에서 읽기 오류를 undefined로 흡수"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 95,
+          "lineEnd": 95,
+          "quote": "const intent = await readWorkflowStopIntent(cwd, runId);",
+          "relevance": "throwIfWorkflowStopRequested는 읽기 오류를 전파"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-S5",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 85,
+          "lineEnd": 85,
+          "quote": "dispose: () => clearInterval(timer),",
+          "relevance": "dispose는 주기 감시를 중단하여 새 읽기를 막는다"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-S6",
+      "status": "partial",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 56,
+          "lineEnd": 57,
+          "quote": "error.message.startsWith(\"workflow stop requested\"))",
+          "relevance": "이름 외에 메시지 접두사로도 중지 오류로 인정"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-S7",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 18,
+          "lineEnd": 18,
+          "quote": "signals.delete(signal);",
+          "relevance": "해제 함수가 signal 제거"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 20,
+          "lineEnd": 20,
+          "quote": "launchSignals.delete(key);",
+          "relevance": "마지막 signal 해제 시 실행 항목 삭제"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-C1",
+      "status": "partial",
+      "evidence": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "lineStart": 20,
+          "lineEnd": 20,
+          "quote": "candidate === \"cancelled\" || candidate === \"timeout\"",
+          "relevance": "명세에 없는 두 문자열을 취소로 인정"
+        },
+        {
+          "file": "src/workflow-cancellation.ts",
+          "lineStart": 16,
+          "lineEnd": 16,
+          "quote": "if (value.cancelled === true) return true;",
+          "relevance": "명세에 없는 cancelled 불리언 플래그를 취소로 인정"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-C2",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "lineStart": 27,
+          "lineEnd": 27,
+          "quote": "const parsed: unknown = JSON.parse(entry.text);",
+          "relevance": "content 텍스트 JSON 파싱"
+        },
+        {
+          "file": "src/workflow-cancellation.ts",
+          "lineStart": 28,
+          "lineEnd": 28,
+          "quote": "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+          "relevance": "같은 규칙으로 재귀 검사, 값 동일성 가드"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-T1",
+      "status": "partial",
+      "evidence": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 68,
+          "lineEnd": 68,
+          "quote": "return run.degradation ? \"completed_degraded\" : \"completed\";",
+          "relevance": "비동적 실행은 degradation이면 completed_degraded"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 80,
+          "lineEnd": 80,
+          "quote": "if (terminal && run.provenance?.mode === \"direct-dynamic\") {",
+          "relevance": "direct-dynamic 경로가 degradation 상태를 덮어씀"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-T2",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 61,
+          "lineEnd": 61,
+          "quote": ").catch(() => undefined);",
+          "relevance": "control.json 읽기 실패를 undefined로 처리"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 95,
+          "lineEnd": 95,
+          "quote": "else semanticStatus = \"completed_without_semantic_result\";",
+          "relevance": "control 없음 시 completed_without_semantic_result"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-T3",
+      "status": "partial",
+      "evidence": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 107,
+          "lineEnd": 107,
+          "quote": "launchRetries: run.tasks.reduce(",
+          "relevance": "공개 필드명이 launchRetryAttempts가 아님"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 103,
+          "lineEnd": 104,
+          "quote": "outputRetryAttempts: run.tasks.reduce(",
+          "relevance": "재시도 합계 계산은 명세와 일치"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-Q1",
+      "status": "gap",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 1,
+          "lineEnd": 1,
+          "quote": "import { readWorkflowStopIntent, workflowRunPath } from \"./store.js\";",
+          "relevance": "src/ 3개 파일만 존재하며 테스트 파일은 없음"
+        }
+      ]
+    }
+  ],
+  "candidateFindings": [
+    {
+      "id": "finding-001",
+      "requirementIds": [
+        "REQ-S3"
+      ],
+      "severity": "medium",
+      "title": "기본 pollMs와 하한이 명세와 다름",
+      "claim": "기본 pollMs가 200ms이고 하한이 1ms이다. 명세는 기본 50ms, 하한 10ms를 요구한다.",
+      "specEvidence": [
+        "SPEC.md 13-14행: 기본값 50ms, 10ms보다 짧아지면 안 됨"
+      ],
+      "implementationEvidence": [
+        "src/workflow-stop.ts:67 Math.max(1, options.pollMs ?? 200)"
+      ],
+      "testEvidence": [
+        "저장소에 테스트 없음"
+      ],
+      "uncertainty": "기본값 변경이 외부 호출자 동작에 영향을 줄 수 있으나 코드 근거는 명확하다."
+    },
+    {
+      "id": "finding-002",
+      "requirementIds": [
+        "REQ-S6"
+      ],
+      "severity": "high",
+      "title": "메시지 접두사로 중지 오류를 판별함",
+      "claim": "isWorkflowStopRequestedError가 이름이 아니라 메시지 접두사로도 참을 반환한다. 명세는 이름만 인정하고 메시지 내용 판별을 금지한다.",
+      "specEvidence": [
+        "SPEC.md 18-19행: 이름이 WorkflowStopRequested인 오류만 인정, 메시지 내용으로 판별 금지"
+      ],
+      "implementationEvidence": [
+        "src/workflow-stop.ts:56-57 error.name === ... || error.message.startsWith(\"workflow stop requested\")"
+      ],
+      "testEvidence": [
+        "저장소에 테스트 없음"
+      ],
+      "uncertainty": "다른 코드가 메시지 접두사에 의존하는지는 발췌 밖이라 확인하지 못했다."
+    },
+    {
+      "id": "finding-003",
+      "requirementIds": [
+        "REQ-C1"
+      ],
+      "severity": "high",
+      "title": "명세 밖 취소 토큰과 cancelled 플래그를 취소로 인정함",
+      "claim": "명세는 오류·사유 문자열을 aborted, AbortError, ABORT_ERR 세 가지로만 한정한다. 구현은 cancelled, timeout 문자열과 cancelled===true 불리언 플래그도 취소로 판정하여 다른 provider 오류를 취소로 승격할 수 있다.",
+      "specEvidence": [
+        "SPEC.md 25-26행: 정확히 aborted, AbortError, ABORT_ERR 세 가지만 취소로 인정"
+      ],
+      "implementationEvidence": [
+        "src/workflow-cancellation.ts:16 if (value.cancelled === true) return true;",
+        "src/workflow-cancellation.ts:20 candidate === \"cancelled\" || candidate === \"timeout\""
+      ],
+      "testEvidence": [
+        "저장소에 테스트 없음"
+      ],
+      "uncertainty": "주석은 '엄격한 검사'를 표방하지만 실제 코드는 명세보다 넓다. provider 호환을 위한 의도적 확장일 가능성은 배제하지 못했다."
+    },
+    {
+      "id": "finding-004",
+      "requirementIds": [
+        "REQ-T3"
+      ],
+      "severity": "high",
+      "title": "공개 필드명 launchRetryAttempts 대신 launchRetries 사용",
+      "claim": "요약 필드가 launchRetries로 노출된다. 명세는 launchRetryAttempts를 외부 도구가 읽는 공개 계약 이름으로 명시한다.",
+      "specEvidence": [
+        "SPEC.md 35-36행: outputRetryAttempts와 launchRetryAttempts는 공개 계약 이름"
+      ],
+      "implementationEvidence": [
+        "src/workflow-terminal.ts:33 launchRetries: number;",
+        "src/workflow-terminal.ts:107 launchRetries: run.tasks.reduce("
+      ],
+      "testEvidence": [
+        "저장소에 테스트 없음"
+      ],
+      "uncertainty": "외부 소비자가 실제로 launchRetries를 읽는지는 저장소에서 확인하지 못했다. 명세 위반 자체는 확인되었다."
+    },
+    {
+      "id": "finding-005",
+      "requirementIds": [
+        "REQ-T1"
+      ],
+      "severity": "medium",
+      "title": "direct-dynamic 경로가 completed_degraded를 덮어씀",
+      "claim": "T1은 completed 실행에 degradation이 있으면 completed_degraded라고 일반적으로 규정한다. 그러나 direct-dynamic 종료 경로는 provenance 모드만으로 semanticStatus를 재설정하므로, degradation이 있는 completed 실행도 synthesized, exhausted_*, completed_without_semantic_result 등으로 바뀔 수 있다.",
+      "specEvidence": [
+        "SPEC.md 32행: completed 실행에 degradation 기록이 있으면 의미 상태는 completed_degraded"
+      ],
+      "implementationEvidence": [
+        "src/workflow-terminal.ts:68 return run.degradation ? \"completed_degraded\" : \"completed\";",
+        "src/workflow-terminal.ts:80 if (terminal && run.provenance?.mode === \"direct-dynamic\") {",
+        "src/workflow-terminal.ts:95 else semanticStatus = \"completed_without_semantic_result\";"
+      ],
+      "testEvidence": [
+        "저장소에 테스트 없음"
+      ],
+      "uncertainty": "명세가 direct-dynamic에서 제어 파일 기준 상태를 우선하도록 의도했을 수 있다. 이 경우 T1 문구와의 충돌을 명세 쪽에서 정리해야 한다."
+    },
+    {
+      "id": "finding-006",
+      "requirementIds": [
+        "REQ-Q1"
+      ],
+      "severity": "low",
+      "title": "S·C·T 항목에 대응하는 단위 테스트가 없음",
+      "claim": "저장소에 테스트 파일이 없어 S1–S7, C1–C2, T1–T3 어느 항목도 단위 테스트로 검증되지 않는다.",
+      "specEvidence": [
+        "SPEC.md 40행: 위 S·C·T 항목마다 동작을 확인하는 단위 테스트가 있어야 함"
+      ],
+      "implementationEvidence": [
+        "src/에는 workflow-stop.ts, workflow-cancellation.ts, workflow-terminal.ts 3개 파일만 있다"
+      ],
+      "testEvidence": [
+        "test/tests/__tests__/spec 디렉터리 글롭 결과 없음",
+        "src/ 내 *.test/*.spec 글롭 결과 없음"
+      ],
+      "uncertainty": "테스트가 다른 위치나 외부 저장소에 있을 가능성은 배제하지 못했다. 저장소 안에서는 찾지 못했다."
+    }
+  ],
+  "needsHuman": [],
+  "noIssueNotes": [
+    "REQ-S1: 디스크 의도와 launch signal 두 경로 모두 중지 판정에 쓰인다(workflow-stop.ts:77).",
+    "REQ-S2: 오류 이름과 메시지 형식이 명세와 일치한다(workflow-stop.ts:44, 49).",
+    "REQ-S4: 감시 경로는 읽기 오류를 무시하고, throwIf 경로는 전파한다(workflow-stop.ts:74, 95).",
+    "REQ-S5: dispose는 interval만 정리하며 새 읽기 시작을 막는다. 이미 진행 중인 check는 끝날 수 있으나 명세가 금지하는 것은 새 읽기 시작이다.",
+    "REQ-S7: 해제 시 signal을 제거하고 빈 항목을 삭제한다(workflow-stop.ts:18-20). 오래된 Set에 대한 해제는 다른 항목을 지우지 않는다.",
+    "REQ-C2: JSON 텍스트는 유한 파싱이므로 재귀가 끝난다(workflow-cancellation.ts:27-28).",
+    "REQ-T2: control.json 읽기 실패는 undefined가 되어 completed_without_semantic_result로 이어진다(workflow-terminal.ts:61, 95).",
+    "REQ-T3 합계 부분: outputRetryAttempts와 launchRetries 모두 작업별 재시도 합계이다(workflow-terminal.ts:103-110)."
+  ]
+}

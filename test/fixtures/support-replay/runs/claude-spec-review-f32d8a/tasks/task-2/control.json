@@ -1,0 +1,135 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "src/ has 3 TS files mapped to S1-S7, C1-C2, T1-T3; no test files exist for Q1. Visible gaps: default poll 200ms, min clamp 1ms, message-prefix matching, extra cancel markers, and launchRetries naming.",
+  "implementationMap": [
+    {
+      "component": "Stop signal creation and detection (S1, S2)",
+      "file": "src/workflow-stop.ts:61-87",
+      "evidence": "if (intent || launchStopRequested(cwd, runId)) controller.abort(createWorkflowStopRequestedError(runId));",
+      "observedBehavior": "Abort fires on either a disk stop intent or a registered aborted launch signal; error is named WorkflowStopRequested with message 'workflow stop requested for <runId>'.",
+      "relatedSignals": [
+        "S1 disk intent or foreground signal",
+        "S2 error name and message format"
+      ]
+    },
+    {
+      "component": "Launch signal registry (S7)",
+      "file": "src/workflow-stop.ts:7-22",
+      "evidence": "if (signals.size === 0 && launchSignals.get(key) === signals) launchSignals.delete(key);",
+      "observedBehavior": "bindWorkflowLaunchSignal returns an unbind closure that removes the signal and deletes the map entry when the last signal is removed.",
+      "relatedSignals": [
+        "S7 unbind removes empty registration"
+      ]
+    },
+    {
+      "component": "Poll interval defaults (S3)",
+      "file": "src/workflow-stop.ts:67",
+      "evidence": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "observedBehavior": "Default poll is 200ms, not the spec's 50ms; minimum clamp is 1ms, not the spec's 10ms.",
+      "relatedSignals": [
+        "S3 default 50ms expected, found 200",
+        "S3 floor 10ms expected, found 1"
+      ]
+    },
+    {
+      "component": "Disk read failure handling (S4)",
+      "file": "src/workflow-stop.ts:74-76 and 95",
+      "evidence": ".catch(() => undefined,) in check path; readWorkflowStopIntent(cwd, runId) without catch in throwIfWorkflowStopRequested",
+      "observedBehavior": "Watch path treats read errors as no stop; throwIfWorkflowStopRequested propagates read errors to the caller.",
+      "relatedSignals": [
+        "S4 watch path swallows read errors",
+        "S4 throwIf propagates errors"
+      ]
+    },
+    {
+      "component": "Dispose behavior (S5)",
+      "file": "src/workflow-stop.ts:81-86",
+      "evidence": "const timer = setInterval(() => void check(), pollMs); ... dispose: () => clearInterval(timer),",
+      "observedBehavior": "dispose clears the interval so no new periodic reads start; the initial check() call is not gated by a disposed flag.",
+      "relatedSignals": [
+        "S5 interval cleared on dispose",
+        "initial check not gated"
+      ]
+    },
+    {
+      "component": "Stop error classifier (S6)",
+      "file": "src/workflow-stop.ts:53-59",
+      "evidence": "error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME || error.message.startsWith(\"workflow stop requested\")",
+      "observedBehavior": "Classifier also accepts errors identified only by message prefix, contrary to the spec's name-only rule.",
+      "relatedSignals": [
+        "S6 message-based match present",
+        "name-only rule expected"
+      ]
+    },
+    {
+      "component": "Returned-cancellation classifier (C1)",
+      "file": "src/workflow-cancellation.ts:13-21",
+      "evidence": "candidate === \"cancelled\" || candidate === \"timeout\"; value.cancelled === true; details?.cancelled === true",
+      "observedBehavior": "Accepts 'cancelled' and 'timeout' as reason strings and cancelled boolean flags beyond the spec's three exact strings aborted, AbortError, ABORT_ERR.",
+      "relatedSignals": [
+        "C1 extra strings cancelled and timeout",
+        "C1 boolean cancelled flags"
+      ]
+    },
+    {
+      "component": "JSON content cancellation recursion (C2)",
+      "file": "src/workflow-cancellation.ts:23-31",
+      "evidence": "const parsed: unknown = JSON.parse(entry.text); if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+      "observedBehavior": "Parses text entries in content arrays and recurses on the parsed value; the parsed !== value guard can never be true for freshly parsed JSON, and recursion depth is bounded by nesting in the string.",
+      "relatedSignals": [
+        "C2 recursion on parsed JSON content",
+        "parsed !== value guard is effectively dead"
+      ]
+    },
+    {
+      "component": "Terminal semantic status for non-dynamic runs (T1)",
+      "file": "src/workflow-terminal.ts:64-70",
+      "evidence": "if (run.status === \"completed\") return run.degradation ? \"completed_degraded\" : \"completed\";",
+      "observedBehavior": "Completed runs with degradation map to completed_degraded; this path is overwritten for direct-dynamic runs.",
+      "relatedSignals": [
+        "T1 degradation maps to completed_degraded",
+        "direct-dynamic path overrides T1 result"
+      ]
+    },
+    {
+      "component": "Dynamic controller control.json read and semantic status (T2)",
+      "file": "src/workflow-terminal.ts:48-62 and 80-95",
+      "evidence": "return await readJson<DynamicControllerControl>(join(dirname(taskOutput), \"control.json\")).catch(() => undefined);",
+      "observedBehavior": "Unreadable or missing control.json yields undefined, so the else branch sets completed_without_semantic_result; a dynamic_incomplete task sets dynamic_incomplete first.",
+      "relatedSignals": [
+        "T2 unreadable control maps to completed_without_semantic_result",
+        "dynamic_incomplete check precedes T2"
+      ]
+    },
+    {
+      "component": "Retry totals in terminal summary (T3)",
+      "file": "src/workflow-terminal.ts:32-33 and 103-110",
+      "evidence": "outputRetryAttempts: run.tasks.reduce(...); launchRetries: run.tasks.reduce((total, task) => total + (task.launchRetry?.attempts ?? 0), 0,",
+      "observedBehavior": "Output retries are summed as outputRetryAttempts, but launch retries are exposed as launchRetries, not the public-contract name launchRetryAttempts.",
+      "relatedSignals": [
+        "T3 field name mismatch launchRetries",
+        "commit 654f639 shortened the name"
+      ]
+    },
+    {
+      "component": "Unit test coverage (Q1)",
+      "file": "package.json:7",
+      "evidence": "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+      "observedBehavior": "Only a typecheck script exists; no test runner or test files were found in the repo outside .agent-workflow and .git.",
+      "relatedSignals": [
+        "Q1 no unit tests found",
+        "no test script in package.json"
+      ]
+    }
+  ],
+  "unmappedAreas": [
+    "src/store.js and src/types.js are excluded from the excerpt but imported (readWorkflowStopIntent, workflowRunPath, finalStageTasks, readJson, isTerminalWorkflowStatus); their behavior cannot be verified here",
+    "tsconfig.json was not inspected",
+    "No test directory or test file was found under the repository"
+  ],
+  "notes": [
+    "SPEC S3 says default 50ms and floor 10ms; the code uses 200ms and 1ms. Recorded as observed divergence, not a conformance verdict.",
+    "SPEC T3 names launchRetryAttempts as public contract; the code exposes launchRetries. Recorded as observed divergence.",
+    "The schema file under workflow_mw2hhh4h_f32d8a was read successfully for validation; this control conforms to its required fields and limits."
+  ]
+}

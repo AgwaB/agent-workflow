@@ -1,0 +1,33 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "finding-005 유지(KEEP, low): SPEC Q1이 요구하는 S·C·T 단위 테스트가 저장소 어디에도 없고, package.json에는 typecheck 스크립트만 있어 테스트 실행 경로도 없다.",
+  "id": "finding-005",
+  "verdict": "KEEP",
+  "severity": "low",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 40,
+      "lineEnd": 40,
+      "quote": "단위 테스트가 있어야 한다.",
+      "relevance": "Q1 requires a unit test for each S/C/T item"
+    },
+    {
+      "file": "package.json",
+      "lineStart": 7,
+      "lineEnd": 7,
+      "quote": "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+      "relevance": "The only npm script is typecheck; there is no test script or test runner configured"
+    },
+    {
+      "file": "tsconfig.json",
+      "lineStart": 10,
+      "lineEnd": 10,
+      "quote": "\"include\": [\"src/**/*.ts\"]",
+      "relevance": "Build/typecheck scope covers only src/*.ts with no test-specific include or exclude"
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "Q1 is unmet locally: no test files (*.test.*, *.spec.*, __tests__, *_test.*) and no test runner or test script exist in the repository, so the S1–S7, C1–C2, and T1–T3 behaviors have no unit-test coverage here.",
+  "recommendedAction": "Add unit tests covering S1–S7, C1–C2, and T1–T3 (one or more per item) and add a test script to package.json. If the tests live in an upstream repository outside this excerpt, confirm that and note it in the spec."
+}

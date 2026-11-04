@@ -1,0 +1,320 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC.md 대비 src/ 검토: S1·S2·S4·S5·S7·C2·T1·T2는 구현 근거가 있고, S3·S6·C1·T3(launchRetries 명칭)은 명세 위반 후보, Q1(단위 테스트 부재)은 미충족. 테스트는 실행하지 않음.",
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "Read-only review; no tests were executed. testExecutionAttested is false.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "Implementation judged by static reading of src/workflow-stop.ts, workflow-cancellation.ts, workflow-terminal.ts only; no runtime behavior observed.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "store.js (readWorkflowStopIntent, readJson, workflowRunPath) is absent from src/, so its reject/throw semantics were not verified.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "inspect-tests returned zero testMap entries; no upstream test-based coverage evidence was available. Glob found no test files by name in src/ or repo.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "requirementCoverage": [
+    {
+      "requirementId": "REQ-001",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 70,
+          "lineEnd": 70,
+          "quote": "if (launchStopRequested(cwd, runId)) {",
+          "relevance": "foreground aborted signal path"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 77,
+          "lineEnd": 77,
+          "quote": "if (intent || launchStopRequested(cwd, runId))",
+          "relevance": "disk intent or foreground signal"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-002",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 44,
+          "lineEnd": 44,
+          "quote": "return `workflow stop requested for ${runId}`;",
+          "relevance": "message format"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 49,
+          "lineEnd": 49,
+          "quote": "error.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME;",
+          "relevance": "error name"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-003",
+      "status": "gap"
+    },
+    {
+      "requirementId": "REQ-004",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 74,
+          "lineEnd": 74,
+          "quote": "const intent = await readWorkflowStopIntent(cwd, runId).catch(",
+          "relevance": "watch path read failure swallowed"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 95,
+          "lineEnd": 95,
+          "quote": "const intent = await readWorkflowStopIntent(cwd, runId);",
+          "relevance": "throw-check read not caught"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-005",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 81,
+          "lineEnd": 81,
+          "quote": "const timer = setInterval(() => void check(), pollMs);",
+          "relevance": "reads only from interval/initial check"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 85,
+          "lineEnd": 85,
+          "quote": "dispose: () => clearInterval(timer),",
+          "relevance": "dispose stops ticks"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-006",
+      "status": "partial"
+    },
+    {
+      "requirementId": "REQ-007",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 17,
+          "lineEnd": 18,
+          "quote": "signals.delete(signal);",
+          "relevance": "unregister removes signal"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 19,
+          "lineEnd": 20,
+          "quote": "launchSignals.delete(key);",
+          "relevance": "last signal removes run entry"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-008",
+      "status": "partial"
+    },
+    {
+      "requirementId": "REQ-009",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "lineStart": 27,
+          "lineEnd": 27,
+          "quote": "const parsed: unknown = JSON.parse(entry.text);",
+          "relevance": "content text parsed once per level"
+        },
+        {
+          "file": "src/workflow-cancellation.ts",
+          "lineStart": 28,
+          "lineEnd": 28,
+          "quote": "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+          "relevance": "recursion on strictly shorter nested text"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-010",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 67,
+          "lineEnd": 67,
+          "quote": "if (run.status === \"completed\")",
+          "relevance": "completed branch"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 68,
+          "lineEnd": 68,
+          "quote": "return run.degradation ? \"completed_degraded\" : \"completed\";",
+          "relevance": "degradation maps to completed_degraded"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-011",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 61,
+          "lineEnd": 61,
+          "quote": ").catch(() => undefined);",
+          "relevance": "unreadable control.json becomes undefined"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 95,
+          "lineEnd": 95,
+          "quote": "else semanticStatus = \"completed_without_semantic_result\";",
+          "relevance": "fallthrough status"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-012",
+      "status": "partial"
+    },
+    {
+      "requirementId": "REQ-013",
+      "status": "gap"
+    }
+  ],
+  "candidateFindings": [
+    {
+      "id": "finding-001",
+      "requirementIds": [
+        "REQ-003"
+      ],
+      "severity": "high",
+      "title": "pollMs default and floor differ from spec",
+      "claim": "Default pollMs is 200 and the minimum clamp is 1, but the spec requires default 50ms and no value below 10ms.",
+      "specEvidence": [
+        "SPEC.md line 13: 중지 감시 주기(`pollMs`)의 기본값은 50ms이고",
+        "SPEC.md line 14: 10ms보다 짧아지면 안 된다."
+      ],
+      "implementationEvidence": [
+        "src/workflow-stop.ts:67 const pollMs = Math.max(1, options.pollMs ?? 200);"
+      ],
+      "testEvidence": [
+        "No test files found in src/ or repo; no default or floor test exists."
+      ],
+      "uncertainty": "Static reading only; behavior not executed."
+    },
+    {
+      "id": "finding-002",
+      "requirementIds": [
+        "REQ-006"
+      ],
+      "severity": "high",
+      "title": "isWorkflowStopRequestedError also matches by message",
+      "claim": "The predicate accepts errors by message prefix, which the spec forbids; only the WorkflowStopRequested name may qualify.",
+      "specEvidence": [
+        "SPEC.md line 18: isWorkflowStopRequestedError는 이름이 WorkflowStopRequested인 오류만 중지 오류로",
+        "SPEC.md line 19: 메시지 내용으로 판별해서는 안 된다."
+      ],
+      "implementationEvidence": [
+        "src/workflow-stop.ts:56 (error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||",
+        "src/workflow-stop.ts:57 error.message.startsWith(\"workflow stop requested\"))"
+      ],
+      "testEvidence": [
+        "No test covers message-only rejection."
+      ],
+      "uncertainty": "Low; the clause is explicit in the code."
+    },
+    {
+      "id": "finding-003",
+      "requirementIds": [
+        "REQ-008"
+      ],
+      "severity": "high",
+      "title": "Cancellation classifier accepts extra markers",
+      "claim": "Beyond aborted, AbortError and ABORT_ERR, the classifier treats cancelled and timeout strings and cancelled:true flags as cancellation, contrary to the exact-three rule.",
+      "specEvidence": [
+        "SPEC.md line 25-26: 정확히 aborted, AbortError, ABORT_ERR 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다."
+      ],
+      "implementationEvidence": [
+        "src/workflow-cancellation.ts:16 if (value.cancelled === true) return true;",
+        "src/workflow-cancellation.ts:18 if (details?.cancelled === true) return true;",
+        "src/workflow-cancellation.ts:20 candidate === \"cancelled\" || candidate === \"timeout\""
+      ],
+      "testEvidence": [
+        "No test files exist to check the rejected-marker cases."
+      ],
+      "uncertainty": "Code comment states intent to be exact; whether the extra markers are deliberate for provider compatibility is a product question."
+    },
+    {
+      "id": "finding-004",
+      "requirementIds": [
+        "REQ-012"
+      ],
+      "severity": "high",
+      "title": "Public launch retry field is named launchRetries",
+      "claim": "The summary exposes launchRetries instead of the public contract name launchRetryAttempts; the sum logic itself matches the spec.",
+      "specEvidence": [
+        "SPEC.md line 35-36: outputRetryAttempts와 launchRetryAttempts ... 이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+      ],
+      "implementationEvidence": [
+        "src/workflow-terminal.ts:33 launchRetries: number;",
+        "src/workflow-terminal.ts:107 launchRetries: run.tasks.reduce("
+      ],
+      "testEvidence": [
+        "No test checks field names."
+      ],
+      "uncertainty": "Whether external consumers already read launchRetries should be confirmed; the spec is explicit that the name is public."
+    },
+    {
+      "id": "finding-005",
+      "requirementIds": [
+        "REQ-013"
+      ],
+      "severity": "low",
+      "title": "No unit tests for S, C, T items",
+      "claim": "The spec requires a unit test per S/C/T item, but no test files exist in src/ or the repository.",
+      "specEvidence": [
+        "SPEC.md line 40: 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+      ],
+      "implementationEvidence": [
+        "Glob src/**/* returns only workflow-cancellation.ts, workflow-stop.ts, workflow-terminal.ts."
+      ],
+      "testEvidence": [
+        "Glob for *.test.* and *.spec.* in src/ and repo returned no files."
+      ],
+      "uncertainty": "Tests could use a naming convention not covered by the glob (for example __tests__ or *_test.*)."
+    }
+  ],
+  "needsHuman": [],
+  "noIssueNotes": [
+    "S2 error name and message format match the spec (src/workflow-stop.ts:44, :49).",
+    "S5 dispose clears the only interval, so no further reads start from ticks (src/workflow-stop.ts:81, :85).",
+    "S7 unregister removes the signal and deletes the empty run entry (src/workflow-stop.ts:17-20).",
+    "C2 recursion terminates because each level parses a strictly shorter nested string; the identity guard at :28 is effectively dead code.",
+    "T1 and T2 match the spec on inspection; for T2 incomplete tasks take precedence over an unreadable control.json, which the spec does not address."
+  ]
+}

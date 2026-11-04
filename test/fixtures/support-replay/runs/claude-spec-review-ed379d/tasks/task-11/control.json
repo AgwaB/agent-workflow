@@ -1,0 +1,33 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "기본 pollMs 200ms·하한 1ms가 SPEC S3(기본 50ms, 하한 10ms)와 어긋나는 것을 코드와 명세 본문으로 확인했고 반증 근거는 없다.",
+  "id": "finding-001",
+  "verdict": "KEEP",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 13,
+      "lineEnd": 14,
+      "quote": "기본값은 50ms이고",
+      "relevance": "S3 명세: pollMs 기본값은 50ms"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 13,
+      "lineEnd": 14,
+      "quote": "짧아지면 안 된다.",
+      "relevance": "S3 명세: 호출자가 준 값이라도 10ms보다 짧아지면 안 됨"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 67,
+      "lineEnd": 67,
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "relevance": "구현: 기본값 200ms, 하한 1ms로 명세와 불일치"
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "createWorkflowStopSignal의 pollMs 기본값(200ms)과 하한(1ms)이 SPEC S3의 기본 50ms·하한 10ms와 다르다.",
+  "recommendedAction": "src/workflow-stop.ts:67의 기본값을 50으로, 하한을 10으로 바꾸고 기본값·하한을 확인하는 단위 테스트를 추가한다. 외부 호출자가 200ms 기본 주기에 의존하는지 확인한다."
+}

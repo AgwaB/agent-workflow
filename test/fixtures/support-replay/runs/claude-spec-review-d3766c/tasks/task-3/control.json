@@ -1,0 +1,29 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "src/ has no test files or fixtures; no S1–S7, C1–C2, T1–T3 behavior is covered by test evidence, so Q1 is unmet.",
+  "testMap": [],
+  "coverageGapsSuspected": [
+    "Q1: no unit tests exist anywhere in the repo for any S/C/T item; the only src/ files are workflow-stop.ts, workflow-cancellation.ts, workflow-terminal.ts.",
+    "S1–S7 (src/workflow-stop.ts): no test evidence for stop detection, error name/message, pollMs default and floor, read-failure semantics, dispose behavior, or signal registration cleanup.",
+    "C1–C2 (src/workflow-cancellation.ts): no test evidence for the exact three-token cancellation set or JSON-in-content recursion guard.",
+    "T1–T3 (src/workflow-terminal.ts): no test evidence for completed_degraded, completed_without_semantic_result, or retry-count summation and public field names."
+  ],
+  "notes": [
+    "Searched the repo for test/spec/fixtures directories, *.test.* / *.spec.* files, and describe/it/test/assert/expect calls in src/; none found outside .agent-workflow and .git.",
+    "SPEC.md is the only requirements source; S/C/T/Q1 IDs are its own labels.",
+    "Behavioral coverage is judged from actual test code; no test code exists to judge."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "Tests were inspected but not executed by this read-only stage.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "SPEC.md excerpt states store.js and types.js are excluded, so tests for those dependencies were out of scope here.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false
+}

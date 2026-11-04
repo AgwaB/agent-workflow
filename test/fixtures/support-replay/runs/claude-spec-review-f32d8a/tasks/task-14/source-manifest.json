@@ -1,0 +1,39 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw2hhh4h_f32d8a",
+  "taskId": "task-14",
+  "sources": [
+    {
+      "source": "candidate-findings",
+      "displayName": "candidate-findings.main",
+      "taskId": "task-4",
+      "specId": "candidate-findings.main",
+      "stageId": "candidate-findings",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "SPEC 요구사항 13건(REQ-001~013) 중 7건 covered, 6건 gap/partial. 확인된 gap은 pollMs 기본값·하한, 메시지 기반 중지 판별, C1 취소 문자열 과잉 인정, T3 launchRetries 명칭, Q1 테스트 부재, T1 direct-dynamic 우선 경로. 테스트는 실행하지 않았다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2hhh4h_f32d8a/tasks/task-4/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2hhh4h_f32d8a/tasks/task-4/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2hhh4h_f32d8a/tasks/task-4/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2hhh4h_f32d8a/tasks/task-4/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "T1 literal wording is contradicted when a direct-dynamic run ends completed with degradation, because the direct-dynamic branch overwrites semanticStatus; SPEC T1 and T2 conflict, so WEAKEN to low and ask for a spec decision.",
+  "id": "finding-005",
+  "verdict": "WEAKEN",
+  "severity": "low",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 32,
+      "lineEnd": 32,
+      "quote": "`completed` 실행에 degradation 기록이 있으면 의미 상태는 `completed_degraded`이다.",
+      "relevance": "T1 states unconditionally that a completed run with degradation has semantic status completed_degraded, with no exception for direct-dynamic runs."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 68,
+      "lineEnd": 68,
+      "quote": "return run.degradation ? \"completed_degraded\" : \"completed\";",
+      "relevance": "Non-dynamic path implements T1 correctly."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 80,
+      "lineEnd": 80,
+      "quote": "if (terminal && run.provenance?.mode === \"direct-dynamic\") {",
+      "relevance": "For terminal direct-dynamic runs the branch below replaces the semantic status computed from run.status and degradation, regardless of degradation."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 87,
+      "lineEnd": 87,
+      "quote": "else if (control?.status === \"synthesized\") semanticStatus = \"synthesized\";",
+      "relevance": "Example of a completed direct-dynamic run with degradation being overwritten to synthesized."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 95,
+      "lineEnd": 95,
+      "quote": "else semanticStatus = \"completed_without_semantic_result\";",
+      "relevance": "Fallback that also overwrites a degraded completed run when the control status is unrecognized or unreadable."
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 33,
+      "lineEnd": 33,
+      "quote": "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는",
+      "relevance": "T2 gives a direct-dynamic-specific rule that takes precedence over the general status, which supports the implementation's dynamic-first ordering and shows the spec is internally ambiguous."
+    }
+  ],
+  "finalClaim": "In the direct-dynamic terminal path, a run with engine status completed and a degradation record gets a dynamic semantic status (synthesized, exhausted_*, dynamic_*, or completed_without_semantic_result) instead of completed_degraded, which literally departs from T1. SPEC T1 and T2 conflict for direct-dynamic runs with degradation and unreadable control, and the spec does not say which wins. No tests cover this path.",
+  "recommendedAction": "Decide the precedence in SPEC.md. If T1 wins, keep completed_degraded when run.status is completed and degradation is set, before the direct-dynamic overrides. If the dynamic-first rule is intended, add a sentence to T1 that excludes direct-dynamic runs, and add a unit test for the chosen precedence."
+}

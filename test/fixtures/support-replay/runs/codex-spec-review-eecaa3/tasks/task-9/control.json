@@ -1,0 +1,100 @@
+{
+  "schema": "spec-review-report-v1",
+  "digest": "sha256:5f444b179a849780df9a6af20433bfa8ae71a921e226cce1242d1dd9c51046cd",
+  "summary": "S3·S6·C1/C2·T3·Q1에서 명세 불일치가 확인되었고 S1은 검증 자료 부족으로 미결이다.",
+  "verdict": "GAPS_FOUND",
+  "ownerLedger": [
+    {
+      "source": "verify-findings",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-s3-poll-interval",
+      "taskId": "task-11",
+      "itemIdentity": "finding-s3-poll-interval",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-c1-c2-extra-cancellation-values",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-c1-c2-extra-cancellation-values",
+      "taskId": "task-13",
+      "itemIdentity": "finding-c1-c2-extra-cancellation-values",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-q1-unit-tests-absent",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-q1-unit-tests-absent",
+      "taskId": "task-15",
+      "itemIdentity": "finding-q1-unit-tests-absent",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-s6-name-only-check",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-s6-name-only-check",
+      "taskId": "task-12",
+      "itemIdentity": "finding-s6-name-only-check",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-t3-public-field-name",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-t3-public-field-name",
+      "taskId": "task-14",
+      "itemIdentity": "finding-t3-public-field-name",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    }
+  ],
+  "ownerLedgerReconciliation": {
+    "ownerRowCount": 5,
+    "verifierRowCount": 5,
+    "ownerIds": [
+      "finding-s3-poll-interval",
+      "finding-c1-c2-extra-cancellation-values",
+      "finding-q1-unit-tests-absent",
+      "finding-s6-name-only-check",
+      "finding-t3-public-field-name"
+    ],
+    "verifierIds": [
+      "finding-s3-poll-interval",
+      "finding-c1-c2-extra-cancellation-values",
+      "finding-q1-unit-tests-absent",
+      "finding-s6-name-only-check",
+      "finding-t3-public-field-name"
+    ],
+    "duplicateOwnerIds": [],
+    "duplicateVerifierIds": [],
+    "missingOwnerRows": [],
+    "orphanOwnerRows": [],
+    "statusMismatches": [],
+    "cardinalityPassed": true,
+    "passed": true
+  },
+  "risks": [
+    "S3: src/workflow-stop.ts:67의 pollMs 기본값·하한이 각각 200ms·1ms로 명세의 50ms·10ms와 다르다.",
+    "S6: src/workflow-stop.ts:56-57이 오류 이름 외에 메시지 prefix도 검사한다.",
+    "C1/C2: src/workflow-cancellation.ts가 cancelled·timeout 및 cancelled=true를 취소로 인정한다.",
+    "T3: 공개 필드가 launchRetryAttempts가 아니라 launchRetries다.",
+    "Q1: S·C·T 각 항목을 검증하는 단위 테스트 근거가 없다.",
+    "S1/REQ-001은 store.js와 types.js 부재로 실제 디스크 중지 의도를 검증하지 못해 미결이다."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "테스트를 실행하지 않았으며 테스트 파일·fixture는 발견되지 않았다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "검토 대상은 제공된 src 발췌이며 store.js와 types.js는 저장소에 없다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "recommendedNextAction": "S3·S6·C1/C2·T3를 수정하고 각 요구사항별 단위 테스트를 추가한 뒤, store.js 또는 동등한 readWorkflowStopIntent 구현을 제공해 S1을 재검토한다."
+}

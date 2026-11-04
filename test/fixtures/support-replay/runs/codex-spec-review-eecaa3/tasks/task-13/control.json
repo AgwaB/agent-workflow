@@ -1,0 +1,47 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "구현은 C1 허용 목록 외 값과 이를 JSON content에서 재귀적으로 취소로 판정하므로 후보를 유지한다.",
+  "id": "finding-c1-c2-extra-cancellation-values",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 26,
+      "lineEnd": 26,
+      "quote": "  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.",
+      "relevance": "C1 허용 문자열을 세 값으로 제한"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 16,
+      "lineEnd": 16,
+      "quote": "if (value.cancelled === true) return true;",
+      "relevance": "허용 문자열이 아닌 boolean 필드를 취소로 판정"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 18,
+      "lineEnd": 18,
+      "quote": "if (details?.cancelled === true) return true;",
+      "relevance": "details 내부의 추가 boolean 필드도 취소로 판정"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 20,
+      "lineEnd": 20,
+      "quote": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "relevance": "cancelled와 timeout을 허용 목록에 추가"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 28,
+      "lineEnd": 28,
+      "quote": "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+      "relevance": "content JSON에도 동일한 과허용 판별을 재귀 적용"
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "isWorkflowReturnedCancellation은 C1의 세 허용 문자열 외에 cancelled·timeout 문자열과 cancelled=true를 취소로 판정한다. content의 JSON도 같은 판별기를 호출하므로 C2 경로에서도 이 과허용이 재현된다.",
+  "recommendedAction": "취소 문자열과 boolean 플래그의 허용 여부를 C1에 맞게 제한하고, content JSON 경계값 테스트를 추가한다."
+}

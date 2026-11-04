@@ -1,0 +1,55 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "C1 위반 실재: error/reason 문자열 'cancelled'·'timeout'을 취소로 인정함(명세는 aborted/AbortError/ABORT_ERR만). 불리언 cancelled 플래그 부분은 문언상 경계 사례.",
+  "id": "finding-003",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 25,
+      "lineEnd": 25,
+      "quote": "오류·사유 문자열은 정확히 `aborted`,",
+      "relevance": "명세: 오류·사유 문자열 취소 인정 목록은 정확히 3개로 한정"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 26,
+      "lineEnd": 26,
+      "quote": "`AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다.",
+      "relevance": "명세: 나머지 문자열은 취소로 인정되지 않음"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 20,
+      "lineEnd": 20,
+      "quote": "candidate === \"cancelled\" || candidate === \"timeout\"",
+      "relevance": "구현: 명세 밖 문자열 'cancelled'·'timeout'을 error/reason/details.error/details.reason에서 취소로 판정"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 16,
+      "lineEnd": 16,
+      "quote": "if (value.cancelled === true) return true;",
+      "relevance": "구현: 명세에 없는 cancelled 불리언 플래그를 취소로 판정(문자열 목록 외 경로)"
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 16,
+      "lineEnd": 16,
+      "quote": "if (value.cancelled === true) return true;",
+      "relevance": "반례 가능성: C1 문언은 '오류·사유 문자열'을 한정하므로 불리언 플래그는 문자 그대로는 범위 밖일 수 있음"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 18,
+      "lineEnd": 18,
+      "quote": "if (details?.cancelled === true) return true;",
+      "relevance": "반례 가능성: details 내부 불리언 플래그도 문자열 목록과 별개의 경로"
+    }
+  ],
+  "finalClaim": "C1 위반: isWorkflowReturnedCancellation이 명세에 없는 문자열 'cancelled'와 'timeout'(error/reason/details.error/details.reason 위치)을 취소로 판정해 다른 provider 오류를 취소로 승격할 수 있다. 불리언 cancelled 플래그(16·18행)는 문언상 경계 사례로 별도 판단이 필요하다.",
+  "recommendedAction": "src/workflow-cancellation.ts 20행에서 'cancelled'·'timeout'을 제거해 명세의 3개 문자열로 한정. 16·18행 불리언 플래그 허용 여부는 provider 호환 요구를 확인한 뒤 명세에 명시하거나 제거. 해당 판별에 대한 단위 테스트 추가(현재 저장소에 테스트 없음)."
+}

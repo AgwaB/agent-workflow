@@ -1,0 +1,104 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "src 구현과 SPEC 요구사항의 대응 영역 및 테스트 부재를 매핑함",
+  "implementationMap": [
+    {
+      "component": "중지 감지 및 실행별 foreground signal",
+      "file": "src/workflow-stop.ts",
+      "evidence": "launchSignals는 workflowRunPath(cwd, runId)를 키로 사용하고, launchStopRequested는 등록된 AbortSignal의 aborted 상태를 검사한다.",
+      "observedBehavior": "디스크 중지 의도와 실행별 foreground signal을 초기 및 주기 검사에서 함께 확인한다.",
+      "relatedSignals": [
+        "S1",
+        "S7"
+      ]
+    },
+    {
+      "component": "중지 오류 생성 및 판별",
+      "file": "src/workflow-stop.ts",
+      "evidence": "createWorkflowStopRequestedError는 name을 WorkflowStopRequested로 설정하고 workflow stop requested for <runId> 메시지를 생성한다.",
+      "observedBehavior": "isWorkflowStopRequestedError는 오류 이름 검사와 함께 메시지 prefix도 검사한다.",
+      "relatedSignals": [
+        "S2",
+        "S6"
+      ]
+    },
+    {
+      "component": "중지 감시 주기 및 읽기 오류 처리",
+      "file": "src/workflow-stop.ts",
+      "evidence": "pollMs는 Math.max(1, options.pollMs ?? 200)으로 계산되고, 감시 경로의 readWorkflowStopIntent 오류는 catch(() => undefined)으로 무시된다.",
+      "observedBehavior": "기본 주기와 최소 주기 계산이 명세 수치와 다르며, throwIfWorkflowStopRequested는 읽기 오류를 전파한다.",
+      "relatedSignals": [
+        "S3",
+        "S4"
+      ]
+    },
+    {
+      "component": "중지 감시 dispose",
+      "file": "src/workflow-stop.ts",
+      "evidence": "dispose는 clearInterval(timer)만 호출한다.",
+      "observedBehavior": "dispose 이후 새 interval 실행은 막지만 이미 실행 중인 비동기 check의 읽기 완료까지 별도 취소하지 않는다.",
+      "relatedSignals": [
+        "S5"
+      ]
+    },
+    {
+      "component": "foreground signal 등록 해제",
+      "file": "src/workflow-stop.ts",
+      "evidence": "반환된 해제 함수가 signal을 Set에서 삭제하고, 마지막 signal이면 launchSignals.delete(key)를 호출한다.",
+      "observedBehavior": "마지막 등록 signal 해제 시 실행별 registry 항목을 제거한다.",
+      "relatedSignals": [
+        "S7"
+      ]
+    },
+    {
+      "component": "provider 취소 판별",
+      "file": "src/workflow-cancellation.ts",
+      "evidence": "value.cancelled, details.cancelled, cancelled 및 timeout 문자열까지 true로 처리한다.",
+      "observedBehavior": "AbortError 계열 외에도 cancelled/timeout과 boolean cancelled를 취소로 승격한다.",
+      "relatedSignals": [
+        "C1"
+      ]
+    },
+    {
+      "component": "content JSON 취소 판별",
+      "file": "src/workflow-cancellation.ts",
+      "evidence": "content entry의 text를 JSON.parse한 뒤 parsed !== value 조건에서 isWorkflowReturnedCancellation(parsed)를 재호출한다.",
+      "observedBehavior": "content 텍스트 JSON을 재검사하며 동일 객체에 대한 직접 재귀는 건너뛴다.",
+      "relatedSignals": [
+        "C2"
+      ]
+    },
+    {
+      "component": "terminal semantic status",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "completed 상태에서 run.degradation이 있으면 completed_degraded를 반환하고, direct-dynamic control 판독 실패 등은 completed_without_semantic_result로 귀결된다.",
+      "observedBehavior": "degradation과 direct-dynamic controller 상태에 따라 semanticStatus를 분기한다.",
+      "relatedSignals": [
+        "T1",
+        "T2"
+      ]
+    },
+    {
+      "component": "terminal retry 요약",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "outputRetryAttempts와 launchRetries가 각각 모든 task의 outputRetry.attempts 및 launchRetry.attempts를 reduce한다.",
+      "observedBehavior": "재시도 횟수는 작업별 합산되지만 공개 필드명은 launchRetryAttempts가 아니라 launchRetries다.",
+      "relatedSignals": [
+        "T3"
+      ]
+    },
+    {
+      "component": "요구사항 단위 테스트",
+      "file": "package.json",
+      "evidence": "scripts에는 typecheck만 있고 저장소 파일 목록에 테스트 파일이 없다.",
+      "observedBehavior": "S1–S7, C1–C2, T1–T3 각각을 확인하는 테스트 구현 근거가 발견되지 않는다.",
+      "relatedSignals": [
+        "Q1"
+      ]
+    }
+  ],
+  "unmappedAreas": [
+    "src/store.js 및 src/types.js가 발췌에 없어 readWorkflowStopIntent, workflowRunPath, readJson, 모델 필드의 실제 동작은 확인 불가",
+    "S1–S7, C1–C2, T1–T3별 단위 테스트 파일과 테스트 러너가 저장소에 없음"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "finding-006 유지: 저장소에 테스트 파일이 없고 package.json에는 typecheck 스크립트만 있어 Q1 미충족(low).",
+  "id": "finding-006",
+  "verdict": "KEEP",
+  "severity": "low",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 40,
+      "lineEnd": 40,
+      "quote": "**Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+      "relevance": "Q1 requires a unit test for each S, C, and T item"
+    },
+    {
+      "file": "package.json",
+      "lineStart": 7,
+      "lineEnd": 7,
+      "quote": "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+      "relevance": "The only declared script is typecheck; no test script exists"
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "Q1 is unmet: the repository has no unit-test files and no test script, so no S, C, or T item has a unit test.",
+  "recommendedAction": "Add unit tests covering S1–S7, C1–C2, and T1–T3, and add a test script to package.json."
+}

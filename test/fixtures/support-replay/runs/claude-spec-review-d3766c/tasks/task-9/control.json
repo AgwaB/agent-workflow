@@ -1,0 +1,111 @@
+{
+  "schema": "spec-review-report-v1",
+  "digest": "sha256:ca41ba8e08dd89c675dbe8cff217020e6f34b997589db78a6d540d99625dfe4c",
+  "summary": "SPEC.md 대비 src/ 구현은 13개 요구사항 중 8개(REQ-001, 002, 004, 005, 007, 009, 010, 011)가 충족되고, REQ-003(gap), REQ-006·REQ-008·REQ-012(partial), REQ-013(gap)에서 격차가 확인되었다. 판정은 GAPS_FOUND이며 테스트는 실행되지 않았다.",
+  "verdict": "GAPS_FOUND",
+  "ownerLedger": [
+    {
+      "source": "verify-findings.finding-001",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-001",
+      "taskId": "task-11",
+      "itemIdentity": "finding-001",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-002",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-002",
+      "taskId": "task-12",
+      "itemIdentity": "finding-002",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-003",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-003",
+      "taskId": "task-13",
+      "itemIdentity": "finding-003",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-004",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-004",
+      "taskId": "task-14",
+      "itemIdentity": "finding-004",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-005",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-005",
+      "taskId": "task-15",
+      "itemIdentity": "finding-005",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    }
+  ],
+  "ownerLedgerReconciliation": {
+    "ownerRowCount": 5,
+    "verifierRowCount": 5,
+    "ownerIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "verifierIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "duplicateOwnerIds": [],
+    "duplicateVerifierIds": [],
+    "missingOwnerRows": [],
+    "orphanOwnerRows": [],
+    "statusMismatches": [],
+    "cardinalityPassed": true,
+    "passed": true
+  },
+  "risks": [
+    "REQ-003 gap(finding-001, WEAKEN): pollMs 기본값 200ms·하한 1ms로 명세 50ms·10ms와 불일치(src/workflow-stop.ts:67).",
+    "REQ-006 partial(finding-002, KEEP): isWorkflowStopRequestedError가 메시지 접두사로도 중지 오류를 판별함(src/workflow-stop.ts:57).",
+    "REQ-008 partial(finding-003, WEAKEN): 'cancelled'·'timeout' 문자열을 취소로 인정함(src/workflow-cancellation.ts:20). cancelled:true 플래그 승격(:16,:18)은 C1 문자열 규칙 밖이라 확정 위반은 아님.",
+    "REQ-012 partial(finding-004, KEEP): 공개 요약 필드명이 launchRetries이며 명세의 launchRetryAttempts와 다름(src/workflow-terminal.ts:33,:107). 합산 로직은 명세와 일치.",
+    "REQ-013 gap(finding-005, KEEP): 테스트 파일·테스트 러너·test 스크립트가 없어 S/C/T 단위 테스트 근거가 없음(package.json:7).",
+    "finding-003 후속 확인: cancelled:true 플래그 승격을 유지할지 제품 측 결정이 필요함.",
+    "finding-004 후속 확인: 외부 소비자가 이미 launchRetries를 읽고 있는지 확인이 필요함."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "읽기 전용 검토이며 테스트는 실행되지 않았다. testExecutionAttested는 false이다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "판단은 src/workflow-stop.ts, src/workflow-cancellation.ts, src/workflow-terminal.ts의 정적 읽기에 근거하며 런타임 동작은 관찰되지 않았다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "store.js(readWorkflowStopIntent, readJson, workflowRunPath)가 src/에 없어 reject/throw 의미는 검증되지 않았다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "inspect-tests가 testMap 항목을 0건 반환했고, src/ 및 저장소에서 이름 기준으로 찾은 테스트 파일도 없어 테스트 기반 상향 근거가 없다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "recommendedNextAction": "finding-001~004 수정(기본값 50ms·하한 10ms 설정, 메시지 판별 분기 제거, 취소 문자열 세 가지로 축소, launchRetryAttempts로 개명)을 적용하고, S·C·T 항목별 단위 테스트와 package.json의 test 스크립트를 추가한 뒤 재검토한다."
+}

@@ -1,0 +1,355 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC.md에서 S1–S7, C1–C2, T1–T3, Q1에 해당하는 요구사항 13개를 원문 인용과 함께 추출했다. 구현·테스트 검증은 아직 하지 않았다.",
+  "specSources": [
+    "SPEC.md"
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "requirement": "실행 중지는 디스크에 기록된 중지 의도 또는 같은 실행에 등록된 foreground AbortSignal 중 abort된 것, 둘 중 하나라도 있으면 감지되어야 한다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 8,
+          "lineEnd": 8,
+          "quote": "실행 중지는 두 경로 중 하나라도 있으면 감지되어야 한다"
+        },
+        {
+          "file": "SPEC.md",
+          "lineStart": 10,
+          "lineEnd": 10,
+          "quote": "abort된 것"
+        }
+      ],
+      "priority": "high",
+      "implementationSignals": [
+        "readWorkflowStopIntent",
+        "workflowRunPath(cwd, runId)",
+        "foreground AbortSignal registry"
+      ],
+      "testSignals": [
+        "disk stop intent detected",
+        "aborted foreground signal detected"
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "requirement": "중지가 감지되면 신호는 이름이 WorkflowStopRequested인 오류로 abort되고, 메시지는 'workflow stop requested for <runId>' 형식이어야 한다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 11,
+          "lineEnd": 11,
+          "quote": "중지가 감지되면 신호는 이름이 `WorkflowStopRequested`인 오류로 abort되어야 하며"
+        },
+        {
+          "file": "SPEC.md",
+          "lineStart": 12,
+          "lineEnd": 12,
+          "quote": "`workflow stop requested for <runId>` 형식이다."
+        }
+      ],
+      "priority": "high",
+      "implementationSignals": [
+        "WorkflowStopRequested error name",
+        "abort reason message format"
+      ],
+      "testSignals": [
+        "error name is WorkflowStopRequested",
+        "message includes runId"
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "requirement": "중지 감시 주기 pollMs의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다 짧아지면 안 된다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 13,
+          "lineEnd": 13,
+          "quote": "중지 감시 주기(`pollMs`)의 기본값은 50ms이고"
+        },
+        {
+          "file": "SPEC.md",
+          "lineStart": 14,
+          "lineEnd": 14,
+          "quote": "짧아지면 안 된다."
+        }
+      ],
+      "priority": "high",
+      "implementationSignals": [
+        "pollMs default 50",
+        "pollMs minimum clamp 10"
+      ],
+      "testSignals": [
+        "default poll interval",
+        "poll interval below 10 clamped"
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "requirement": "감시 경로 createWorkflowStopSignal에서 디스크 읽기 실패는 중지로 간주하지 않고, throwIfWorkflowStopRequested에서는 읽기 오류가 호출자에게 그대로 전달되어야 한다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 15,
+          "lineEnd": 15,
+          "quote": "감시 경로(`createWorkflowStopSignal`)에서 디스크 읽기 실패는 중지로 간주하지 않는다"
+        },
+        {
+          "file": "SPEC.md",
+          "lineStart": 16,
+          "lineEnd": 16,
+          "quote": "`throwIfWorkflowStopRequested`에서는 읽기 오류가 호출자에게 그대로 전달되어야 한다."
+        }
+      ],
+      "priority": "high",
+      "implementationSignals": [
+        "createWorkflowStopSignal read failure handling",
+        "throwIfWorkflowStopRequested error propagation"
+      ],
+      "testSignals": [
+        "watcher read error is not stop",
+        "throwIf propagates read error"
+      ]
+    },
+    {
+      "id": "REQ-005",
+      "requirement": "dispose()를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 17,
+          "lineEnd": 17,
+          "quote": "`dispose()`를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다."
+        }
+      ],
+      "priority": "high",
+      "implementationSignals": [
+        "dispose()",
+        "disk read scheduling after dispose"
+      ],
+      "testSignals": [
+        "no disk read after dispose"
+      ]
+    },
+    {
+      "id": "REQ-006",
+      "requirement": "isWorkflowStopRequestedError는 이름이 WorkflowStopRequested인 오류만 중지 오류로 인정하며, 메시지 내용으로 판별해서는 안 된다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 18,
+          "lineEnd": 18,
+          "quote": "`isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로"
+        },
+        {
+          "file": "SPEC.md",
+          "lineStart": 19,
+          "lineEnd": 19,
+          "quote": "메시지 내용으로 판별해서는 안 된다."
+        }
+      ],
+      "priority": "high",
+      "implementationSignals": [
+        "isWorkflowStopRequestedError name check",
+        "message-based matching must not exist"
+      ],
+      "testSignals": [
+        "name match accepted",
+        "message-only match rejected"
+      ]
+    },
+    {
+      "id": "REQ-007",
+      "requirement": "foreground signal 등록은 해제 함수로 되돌릴 수 있어야 하며, 마지막 signal이 해제되면 그 실행의 등록 항목이 남지 않아야 한다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 20,
+          "lineEnd": 20,
+          "quote": "foreground signal 등록은 해제 함수로 되돌릴 수 있어야 하며, 마지막 signal이 해제되면 그"
+        },
+        {
+          "file": "SPEC.md",
+          "lineStart": 21,
+          "lineEnd": 21,
+          "quote": "실행의 등록 항목이 남지 않아야 한다."
+        }
+      ],
+      "priority": "high",
+      "implementationSignals": [
+        "foreground signal register returns unregister function",
+        "per-run registry cleanup"
+      ],
+      "testSignals": [
+        "unregister removes signal",
+        "last signal removes run entry"
+      ]
+    },
+    {
+      "id": "REQ-008",
+      "requirement": "provider 값의 취소 판별은 오류·사유 문자열이 정확히 aborted, AbortError, ABORT_ERR 세 가지일 때만 취소로 인정하고, 다른 provider 오류를 취소로 승격해서는 안 된다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 25,
+          "lineEnd": 25,
+          "quote": "오류·사유 문자열은 정확히 `aborted`,"
+        },
+        {
+          "file": "SPEC.md",
+          "lineStart": 26,
+          "lineEnd": 26,
+          "quote": "`AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다."
+        },
+        {
+          "file": "SPEC.md",
+          "lineStart": 26,
+          "lineEnd": 26,
+          "quote": "다른 provider 오류를 취소로 승격해서는 안 된다."
+        }
+      ],
+      "priority": "high",
+      "implementationSignals": [
+        "cancellation classifier allowlist",
+        "provider error reason mapping"
+      ],
+      "testSignals": [
+        "exact aborted AbortError ABORT_ERR accepted",
+        "other provider error not cancelled"
+      ]
+    },
+    {
+      "id": "REQ-009",
+      "requirement": "content 배열 안의 텍스트가 JSON이면 그 내용도 같은 규칙으로 판별하되, 같은 값을 다시 검사하는 무한 재귀가 없어야 한다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 27,
+          "lineEnd": 27,
+          "quote": "`content` 배열 안의 텍스트가 JSON이면 그 내용도 같은 규칙으로 판별하되, 같은 값을 다시"
+        },
+        {
+          "file": "SPEC.md",
+          "lineStart": 28,
+          "lineEnd": 28,
+          "quote": "검사하는 무한 재귀가 없어야 한다."
+        }
+      ],
+      "priority": "high",
+      "implementationSignals": [
+        "content array text JSON parsing",
+        "recursion guard for cancellation check"
+      ],
+      "testSignals": [
+        "JSON text content classified",
+        "self-referencing value terminates"
+      ]
+    },
+    {
+      "id": "REQ-010",
+      "requirement": "completed 실행에 degradation 기록이 있으면 의미 상태는 completed_degraded이어야 한다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 32,
+          "lineEnd": 32,
+          "quote": "`completed` 실행에 degradation 기록이 있으면 의미 상태는 `completed_degraded`이다."
+        }
+      ],
+      "priority": "high",
+      "implementationSignals": [
+        "terminal summary semantic status",
+        "degradation record check"
+      ],
+      "testSignals": [
+        "completed with degradation yields completed_degraded"
+      ]
+    },
+    {
+      "id": "REQ-011",
+      "requirement": "direct-dynamic 실행에서 controller의 control.json을 읽을 수 없으면 의미 상태는 completed_without_semantic_result이어야 한다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 33,
+          "lineEnd": 33,
+          "quote": "direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는"
+        },
+        {
+          "file": "SPEC.md",
+          "lineStart": 34,
+          "lineEnd": 34,
+          "quote": "`completed_without_semantic_result`이다."
+        }
+      ],
+      "priority": "high",
+      "implementationSignals": [
+        "direct-dynamic control.json read",
+        "completed_without_semantic_result status"
+      ],
+      "testSignals": [
+        "unreadable control.json yields completed_without_semantic_result"
+      ]
+    },
+    {
+      "id": "REQ-012",
+      "requirement": "요약의 outputRetryAttempts와 launchRetryAttempts는 모든 작업의 재시도 횟수 합이며, 이 두 필드 이름은 외부 도구가 읽는 공개 계약이다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 35,
+          "lineEnd": 35,
+          "quote": "요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,"
+        },
+        {
+          "file": "SPEC.md",
+          "lineStart": 36,
+          "lineEnd": 36,
+          "quote": "이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+        }
+      ],
+      "priority": "high",
+      "implementationSignals": [
+        "outputRetryAttempts summary field",
+        "launchRetryAttempts summary field"
+      ],
+      "testSignals": [
+        "retry counts summed across tasks",
+        "field names exact"
+      ]
+    },
+    {
+      "id": "REQ-013",
+      "requirement": "S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 40,
+          "lineEnd": 40,
+          "quote": "위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+        }
+      ],
+      "priority": "medium",
+      "implementationSignals": [
+        "unit test files for stop, cancellation, terminal"
+      ],
+      "testSignals": [
+        "one unit test per S C T item"
+      ]
+    }
+  ],
+  "ambiguities": [
+    "S4: '감시 경로'와 throwIfWorkflowStopRequested의 경계가 명세 발췌만으로는 어느 함수가 감시 경로인지 확정되지 않는다.",
+    "S1: '같은 실행'의 판별 기준은 workflowRunPath(cwd, runId) 일치로 보이나 구체 비교 방식이 명시되지 않았다.",
+    "C2: JSON 중첩 깊이나 재귀 제한 방식은 명시되지 않았고 '같은 값을 다시 검사'의 의미가 모호하다.",
+    "T2: 'direct-dynamic 실행'과 controller의 control.json 위치·정의가 이 발췌에 없다.",
+    "S7: '그 실행의 등록 항목'의 자료구조는 명시되지 않았다."
+  ],
+  "outOfScope": [
+    "store.js와 types.js는 이 발췌에 포함되지 않아 명세 범위 밖이다(SPEC.md 4행).",
+    "src/ 구현 검증과 테스트 실행은 extract-spec 단계의 범위가 아니다."
+  ]
+}

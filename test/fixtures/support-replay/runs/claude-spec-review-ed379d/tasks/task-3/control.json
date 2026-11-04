@@ -1,0 +1,38 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "저장소에 테스트 파일이 없어 Q1과 S1–S7, C1–C2, T1–T3의 테스트 근거가 전혀 없다. 코드 검토에서 S3, S6, C1, T3에 명세와 어긋나는 구현이 확인되었다.",
+  "testMap": [],
+  "coverageGapsSuspected": [
+    "Q1: 저장소 전체에 단위 테스트 파일이 없다(*.test/*.spec 없음, describe/it/test 호출 없음). S1–S7, C1–C2, T1–T3 모두 테스트 근거 없음.",
+    "S3: 기본 pollMs가 200이다(src/workflow-stop.ts:67). 명세는 50ms. 하한도 Math.max(1, …)이라 명세의 10ms 하한과 다르다.",
+    "S6: isWorkflowStopRequestedError가 메시지 접두사 'workflow stop requested'로도 참을 반환한다(src/workflow-stop.ts:56-57). 명세는 이름만 인정하라고 한다.",
+    "C1: isWorkflowReturnedCancellation가 'cancelled'와 'timeout'을 취소로 인정한다(src/workflow-cancellation.ts:20). 명세는 aborted/AbortError/ABORT_ERR 세 가지만 허용한다.",
+    "T3: 요약 필드명이 launchRetries이다(src/workflow-terminal.ts:33,107). 명세는 공개 계약인 launchRetryAttempts를 요구한다. 최근 커밋 654f639가 이름을 줄였다.",
+    "S7 가능성: 같은 signal을 두 번 등록한 뒤 해제 하나만 해도 Set에서 signal이 빠진다(src/workflow-stop.ts:14-18). 중복 등록 동작을 검증하는 테스트가 없다.",
+    "C2: 재귀 가드 parsed !== value는 사실상 항상 참이다. 재귀는 텍스트 길이로 제한되어 종료는 보장되지만 이를 검증하는 테스트는 없다.",
+    "S4/S5: 구현은 명세와 맞아 보이나(catch 후 undefined, dispose 후 interval 해제) 이를 확인하는 테스트가 없다."
+  ],
+  "notes": [
+    "src/에는 workflow-stop.ts, workflow-cancellation.ts, workflow-terminal.ts 세 파일만 있다. package.json에는 typecheck 스크립트만 있고 테스트 러너가 없다.",
+    "store.js와 types.js가 발췌에 없어 readWorkflowStopIntent, workflowRunPath, finalStageTasks, isTerminalWorkflowStatus의 동작은 검증할 수 없다.",
+    "T2는 실행 상태와 무관하게 control.json을 읽지 못하면 completed_without_semantic_result가 된다. 명세 문구를 그대로 따른 것이며 의도와의 일치 여부는 확인하지 못했다."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "This read-only stage inspected tests and sources but executed no tests or commands.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "store.js and types.js are excluded from the excerpt; their behavior is not verified.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "Unspecified input domains (e.g., non-string provider values, extreme pollMs) were not enumerated.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false
+}

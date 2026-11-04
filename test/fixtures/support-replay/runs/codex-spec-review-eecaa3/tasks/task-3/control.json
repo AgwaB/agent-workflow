@@ -1,0 +1,22 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "테스트·fixture를 읽지 못해 요구사항별 테스트 근거를 매핑할 수 없음",
+  "testMap": [],
+  "coverageGapsSuspected": [
+    "S1-S7",
+    "C1-C2",
+    "T1-T3",
+    "Q1"
+  ],
+  "notes": [
+    "상류 workflow artifact가 없고, 이 단계는 명령 실행이 금지되어 테스트 파일을 확인할 수 없었음."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "테스트를 실행하지 않았으며, 저장소 테스트·fixture의 존재와 내용도 확인하지 못함.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false
+}

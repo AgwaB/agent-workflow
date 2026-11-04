@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "finding-002 유지: isWorkflowStopRequestedError가 메시지 접두사로도 참을 반환해 S6에 어긋난다. 실제 영향은 제한적이라 severity를 medium으로 낮춤.",
+  "id": "finding-002",
+  "verdict": "KEEP",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 53,
+      "lineEnd": 59,
+      "quote": "error.message.startsWith(\"workflow stop requested\")",
+      "relevance": "isWorkflowStopRequestedError가 이름 검사 외에 메시지 접두사 검사를 OR로 허용한다. S6은 이름만 인정하고 메시지 판별을 금지한다."
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 18,
+      "lineEnd": 19,
+      "quote": "메시지 내용으로 판별해서는 안 된다.",
+      "relevance": "S6 명세: 이름이 WorkflowStopRequested인 오류만 중지 오류로 인정하고 메시지 내용 판별을 금지한다."
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "src/workflow-stop.ts의 isWorkflowStopRequestedError(53–59행)는 error.name 검사 외에 error.message.startsWith(\"workflow stop requested\")도 허용하므로, 이름이 아닌 메시지 내용으로 중지 오류를 판별하며 S6 명세를 위반한다. 저장소 내 자체 생성 오류는 이름도 함께 설정하므로 실제 오탐 범위는 외부에서 같은 접두사 메시지를 가진 오류로 한정된다.",
+  "recommendedAction": "isWorkflowStopRequestedError에서 message 접두사 검사를 제거하고 name 비교만 남긴다. 이름만 인정하는 회귀 테스트(접두사 메시지 + 다른 이름 → false, 이름 일치 → true)를 추가한다."
+}

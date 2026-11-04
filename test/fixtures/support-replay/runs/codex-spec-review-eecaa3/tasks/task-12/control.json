@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "S6 위반이 구현 코드와 명세에서 직접 확인된다.",
+  "id": "finding-s6-name-only-check",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 19,
+      "lineEnd": 19,
+      "quote": "  인정한다. 메시지 내용으로 판별해서는 안 된다.",
+      "relevance": "S6는 오류 메시지를 판별 기준으로 사용하지 못하게 한다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 56,
+      "lineEnd": 57,
+      "quote": "error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\")",
+      "relevance": "이름이 달라도 메시지 prefix가 일치하면 true가 되는 OR 조건이다."
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "isWorkflowStopRequestedError가 오류 이름뿐 아니라 메시지 prefix도 검사하므로 S6를 위반한다.",
+  "recommendedAction": "메시지 조건을 제거하고 이름이 WorkflowStopRequested인지로만 판별하며, 이름 불일치·동일 prefix 오류가 거부되는 회귀 테스트를 추가한다."
+}

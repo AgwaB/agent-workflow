@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "finding-002 KEEP: isWorkflowStopRequestedError also matches a message prefix, which violates the name-only rule in S6; no test covers it.",
+  "id": "finding-002",
+  "verdict": "KEEP",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 53,
+      "lineEnd": 58,
+      "quote": "error.message.startsWith(\"workflow stop requested\"))",
+      "relevance": "Implementation also classifies errors by message prefix, not only by name"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 18,
+      "lineEnd": 19,
+      "quote": "메시지 내용으로 판별해서는 안 된다.",
+      "relevance": "S6 explicitly forbids message-based discrimination"
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "isWorkflowStopRequestedError (src/workflow-stop.ts:53-59) returns true for any Error whose message starts with 'workflow stop requested', contrary to S6's name-only rule. No test exercises this path, and no src caller depends on it.",
+  "recommendedAction": "Drop the message-prefix clause so the check is name-only, and add a unit test that a plain Error with a stop-prefixed message returns false."
+}

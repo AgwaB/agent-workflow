@@ -1,0 +1,48 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "C1 위반은 맞음: error/reason 문자열 'cancelled'·'timeout'을 취소로 승격함. cancelled:true 플래그 부분은 C1의 '문자열' 규칙 밖이라 약화.",
+  "id": "finding-003",
+  "verdict": "WEAKEN",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 20,
+      "lineEnd": 20,
+      "quote": "candidate === \"cancelled\" || candidate === \"timeout\"",
+      "relevance": "error/reason 문자열 'cancelled'와 'timeout'을 취소로 인정함. SPEC C1의 정확히 세 가지 문자열 규칙에 어긋남"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 26,
+      "lineEnd": 26,
+      "quote": "다른 provider 오류를 취소로 승격해서는 안 된다.",
+      "relevance": "명세의 금지 문장. 문자열 마커 확장은 이를 직접 위반함"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 16,
+      "lineEnd": 16,
+      "quote": "if (value.cancelled === true) return true;",
+      "relevance": "cancelled:true 플래그도 취소로 인정함. C1 문자열 규칙 밖이므로 확정 위반으로 보기 어려움"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 18,
+      "lineEnd": 18,
+      "quote": "if (details?.cancelled === true) return true;",
+      "relevance": "details 내 cancelled:true 플래그. 위와 같은 이유로 약화된 근거"
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 25,
+      "lineEnd": 25,
+      "quote": "오류·사유 문자열은 정확히",
+      "relevance": "C1의 적용 범위는 오류·사유 '문자열'로 한정됨. boolean 플래그는 규칙 대상이 아닐 수 있음"
+    }
+  ],
+  "finalClaim": "C1 위반: src/workflow-cancellation.ts:20이 error/reason 문자열 'cancelled'와 'timeout'을 취소로 인정함. 명세는 aborted, AbortError, ABORT_ERR 세 문자열만 허용함. cancelled:true 플래그 승격(16, 18행)은 C1 문자열 규칙 밖이라 확정 위반이 아님.",
+  "recommendedAction": "20행에서 'cancelled'와 'timeout' 비교를 제거하고, 세 문자열만 허용하도록 바꿈. 플래그 승격을 유지할지 명세에 명시하도록 제품 측과 확인함. 금지 마커 케이스(cancelled, timeout, cancelled:true)를 검증하는 단위 테스트를 추가함."
+}

@@ -317,6 +317,25 @@ After stage 2 (2026-11-01):
   model call). Tests: IRCF-01 `unclear-rechecked-covered` (CONFORMS), `unclear-recheck-bad-evidence`
   and `unclear-recheck-wrong-id` (INCONCLUSIVE), `unclear-keep` (recheck says gap; GAPS_FOUND as
   before) in `core-spec-requirement-coverage.test.mjs`.
+  Live (2026-11-04, after M31): four spec-review runs (claude haiku ×3, codex gpt-5.6-luna) on the
+  same project left no requirement `unclear` (codex used `needsHuman`, which is not rechecked), so
+  `recheck-requirements` had no items and cost nothing (claude runs $0.08–0.09 each); three of
+  the 13 earlier recorded runs had one or two unclear rows. The non-empty recheck path is so far
+  covered offline only (IRCF-01, the real scheduler).
+- **M32.** spec-review report owner-ledger copy (2026-11-04, live claude/haiku run
+  `workflow_mw2hhe44_d3766c`): the report stage copied the first owner row with `source:
+  "verify-findings.finding-001"`; that row's alias is the bare stage id `verify-findings` (a
+  foreach's first item, see `docs/usage.md` "Source names"), so a correct GAPS_FOUND review failed
+  ("The narrative report owner ledger … does not match"). The prompt's own example showed the wrong
+  form (`"source":"verify-findings.F-001"` for a single item, and a `specId` the renderer's shape
+  check rejects). Now: the example shows `"source":"verify-findings"`, `"specId":"verify-findings.f-001"`
+  and the prompt says the first item's source is the bare stage id; the renderer compares the
+  report's copy on the identity fields only (`ownerIdentityRows`: stage, spec, task, item,
+  placeholder, batch, status), not the routing alias. The partition's own ledger, which the report
+  is rendered from, is still checked with its aliases against the runtime source statuses. Replaying
+  all 30 recorded runs: only that run changes (failed → passed). Test:
+  `core-spec-review-owner-alias.test.mjs` (another alias passes; another task, item, spec id or
+  status, or a missing row, still fails; the first case fails on the old renderer).
 
 ## Worker prompt rendering (core)
 
@@ -432,7 +451,7 @@ interactive host asks once in `safe` mode), **refuse** (the run is not started).
   source-verification statement + support table in sync.
 - `test/unit/core-worker-prompt-render.test.mjs`: per-executor rendering and the task-backend launch.
 - `test/unit/support-replay-golden.test.mjs` (2026-11-04, regression net before refactoring the
-  helpers): 26 recorded live runs of the four bundled workflows on pi, claude, codex and antigravity
+  helpers): 30 recorded live runs of the four bundled workflows on pi, claude, codex and antigravity
   (`test/fixtures/support-replay/`: worker controls, source manifests and the reviewed project files)
   are replayed through every support stage with the current helpers and must give the committed
   golden controls (verdict, report Markdown, ledgers). Intended change:

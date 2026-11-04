@@ -1,0 +1,55 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "finding-004: 명세 T1 문언과 direct-dynamic 분기가 충돌하지만, 같은 명세의 T2가 direct-dynamic 우선 적용을 전제하므로 우선순위는 사람이 판단해야 함(NEEDS_HUMAN).",
+  "id": "finding-004",
+  "verdict": "NEEDS_HUMAN",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 32,
+      "lineEnd": 32,
+      "quote": "`completed` 실행에 degradation 기록이 있으면 의미 상태는",
+      "relevance": "T1: completed 실행에 degradation이 있으면 completed_degraded여야 한다는 문언(조건 없음)"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 67,
+      "lineEnd": 68,
+      "quote": "if (run.status === \"completed\")",
+      "relevance": "비-dynamic 경로에서는 T1을 충족하는 분기"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 80,
+      "lineEnd": 80,
+      "quote": "if (terminal && run.provenance?.mode === \"direct-dynamic\") {",
+      "relevance": "direct-dynamic 분기 진입 조건은 run.status와 무관하게 terminal 여부만 본다"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 87,
+      "lineEnd": 87,
+      "quote": "else if (control?.status === \"synthesized\") semanticStatus = \"synthesized\";",
+      "relevance": "completed이고 degradation이 있어도 control.status가 synthesized면 completed_degraded가 덮어써져 사라짐"
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 33,
+      "lineEnd": 33,
+      "quote": "direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는",
+      "relevance": "명세 자체가 direct-dynamic 경로에서 completed 실행의 의미 상태를 control.json 기반으로 정하도록 규정(T2) — dynamic 상태 우선을 전제로 보임"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 34,
+      "lineEnd": 34,
+      "quote": "`completed_without_semantic_result`이다.",
+      "relevance": "T2 결과값도 completed 실행에 대해 degradation과 무관하게 적용되므로 T1과 동일 조건에서 충돌함; 우선순위가 명세에 명시되지 않음"
+    }
+  ],
+  "finalClaim": "direct-dynamic 경로는 completed+degradation 실행을 completed_degraded로 매핑하지 않고 control.json 기반 상태로 덮어쓴다. T1 문언상 위반 가능성이 있으나, T2가 dynamic 상태 우선을 전제하므로 준수 여부는 명세 의도 확인이 필요하다.",
+  "recommendedAction": "명세 담당자에게 T1과 T2의 우선순위(direct-dynamic completed+degradation일 때 completed_degraded vs dynamic 상태)를 확인. T1을 우선한다면 workflow-terminal.ts:80-96 분기에서 run.status==='completed' && run.degradation일 때 completed_degraded를 유지하도록 수정하고, 해당 조합 테스트를 추가. 테스트 자체는 저장소에 summarizeWorkflowTerminal 테스트가 없어 Q1 관점에서도 gap이다."
+}

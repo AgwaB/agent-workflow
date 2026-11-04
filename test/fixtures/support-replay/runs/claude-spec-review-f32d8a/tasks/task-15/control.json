@@ -1,0 +1,40 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "finding-005 KEEP: SPEC T3 fixes the public summary field name launchRetryAttempts, but src/workflow-terminal.ts exposes launchRetries; no repo evidence refutes the mismatch.",
+  "id": "finding-005",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 33,
+      "lineEnd": 33,
+      "quote": "launchRetries: number;",
+      "relevance": "Summary interface exposes launchRetries, not the spec-fixed launchRetryAttempts"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 107,
+      "lineEnd": 107,
+      "quote": "launchRetries: run.tasks.reduce(",
+      "relevance": "Summary return value populates launchRetries instead of launchRetryAttempts"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 35,
+      "lineEnd": 35,
+      "quote": "`launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+      "relevance": "Spec T3 requires the summary field launchRetryAttempts as the sum of task retry attempts"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 36,
+      "lineEnd": 36,
+      "quote": "이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).",
+      "relevance": "Spec T3 declares both field names a public contract read by external tools, so the rename is a conformance break"
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "The workflow terminal summary exposes launchRetries where SPEC T3 requires launchRetryAttempts as a public contract field name.",
+  "recommendedAction": "Rename the summary field and its interface property to launchRetryAttempts (or amend SPEC T3 with an explicit decision if the rename is intended), and add a unit test asserting both public summary field names."
+}

@@ -1,0 +1,7 @@
+{
+  "schema": "spec-review-unclear-requirements-v1",
+  "digest": "sha256:4671be1bc665e762b989d6e4ef3876316f0b943a47cee38966fc29db6cfaf3a8",
+  "requirements": [],
+  "analysis": "No requirement was left unclear; nothing to recheck.",
+  "refs": []
+}

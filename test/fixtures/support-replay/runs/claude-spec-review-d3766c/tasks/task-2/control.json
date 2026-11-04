@@ -1,0 +1,182 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "src/ has 3 files (workflow-stop.ts, workflow-cancellation.ts, workflow-terminal.ts); no tests exist. Several spec mismatches are visible: S3 poll defaults, S6 message fallback, C1 extra cancel markers, T3 field name.",
+  "implementationMap": [
+    {
+      "component": "Stop intent / stop signal creation",
+      "file": "src/workflow-stop.ts",
+      "evidence": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "observedBehavior": "Default poll is 200ms and the floor is 1ms. The spec requires a 50ms default and a 10ms floor.",
+      "relatedSignals": [
+        "S3"
+      ]
+    },
+    {
+      "component": "Stop signal detection (disk + launch signals)",
+      "file": "src/workflow-stop.ts",
+      "evidence": "if (intent || launchStopRequested(cwd, runId)) controller.abort(createWorkflowStopRequestedError(runId));",
+      "observedBehavior": "Abort happens on either a disk stop intent or an aborted foreground launch signal for the same run path key.",
+      "relatedSignals": [
+        "S1",
+        "S2"
+      ]
+    },
+    {
+      "component": "Watch-path disk read error handling",
+      "file": "src/workflow-stop.ts",
+      "evidence": "const intent = await readWorkflowStopIntent(cwd, runId).catch(() => undefined);",
+      "observedBehavior": "Read errors in the watcher are swallowed and do not count as stop, matching S4.",
+      "relatedSignals": [
+        "S4"
+      ]
+    },
+    {
+      "component": "Direct throw-check read error handling",
+      "file": "src/workflow-stop.ts",
+      "evidence": "const intent = await readWorkflowStopIntent(cwd, runId);",
+      "observedBehavior": "No catch, so read errors propagate to the caller, matching S4.",
+      "relatedSignals": [
+        "S4"
+      ]
+    },
+    {
+      "component": "Dispose of stop watcher",
+      "file": "src/workflow-stop.ts",
+      "evidence": "dispose: () => clearInterval(timer),",
+      "observedBehavior": "Only clears the interval. The initial check plus interval ticks are the only read starters, so no new reads start after dispose. Matches S5 by inspection.",
+      "relatedSignals": [
+        "S5"
+      ]
+    },
+    {
+      "component": "isWorkflowStopRequestedError",
+      "file": "src/workflow-stop.ts",
+      "evidence": "(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME || error.message.startsWith(\"workflow stop requested\"))",
+      "observedBehavior": "Also matches by message prefix, which violates S6 (only the error name may qualify).",
+      "relatedSignals": [
+        "S6"
+      ]
+    },
+    {
+      "component": "Stop error construction",
+      "file": "src/workflow-stop.ts",
+      "evidence": "error.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME;",
+      "observedBehavior": "Creates an Error named WorkflowStopRequested with message workflow stop requested for <runId>, matching S2.",
+      "relatedSignals": [
+        "S2"
+      ]
+    },
+    {
+      "component": "Foreground launch signal registry",
+      "file": "src/workflow-stop.ts",
+      "evidence": "if (signals.size === 0 && launchSignals.get(key) === signals) launchSignals.delete(key);",
+      "observedBehavior": "Disposer removes the signal and deletes the map entry when the last one goes; guards against stale sets. Matches S7 by inspection.",
+      "relatedSignals": [
+        "S7"
+      ]
+    },
+    {
+      "component": "Foreground abort fencing",
+      "file": "src/workflow-stop.ts",
+      "evidence": "const launchSignals = new Map<string, Set<AbortSignal>>();",
+      "observedBehavior": "Map keyed by workflowRunPath(cwd, runId) holds aborted-check sources for S1 path (b).",
+      "relatedSignals": [
+        "S1"
+      ]
+    },
+    {
+      "component": "Returned-cancellation classifier",
+      "file": "src/workflow-cancellation.ts",
+      "evidence": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "observedBehavior": "Accepts cancelled and timeout in addition to the three required strings, which violates C1.",
+      "relatedSignals": [
+        "C1"
+      ]
+    },
+    {
+      "component": "Returned-cancellation classifier flags",
+      "file": "src/workflow-cancellation.ts",
+      "evidence": "if (value.cancelled === true) return true;",
+      "observedBehavior": "Also treats cancelled:true and details.cancelled:true as cancellation, beyond the exact string rule in C1.",
+      "relatedSignals": [
+        "C1"
+      ]
+    },
+    {
+      "component": "Returned-cancellation JSON recursion",
+      "file": "src/workflow-cancellation.ts",
+      "evidence": "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+      "observedBehavior": "Recurses on parsed JSON from content text. Each parse yields a fresh object, so the identity guard is effectively dead. Recursion depth is bounded by finite nesting, so there is no infinite loop by inspection.",
+      "relatedSignals": [
+        "C2"
+      ]
+    },
+    {
+      "component": "Abort error check",
+      "file": "src/workflow-cancellation.ts",
+      "evidence": "return isRecord(value) && value.name === \"AbortError\";",
+      "observedBehavior": "Matches AbortError by name for DOMException or plain records.",
+      "relatedSignals": [
+        "C1"
+      ]
+    },
+    {
+      "component": "Terminal semantic status for completed runs",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "if (run.status === \"completed\") return run.degradation ? \"completed_degraded\" : \"completed\";",
+      "observedBehavior": "Completed run with a degradation record maps to completed_degraded, matching T1.",
+      "relatedSignals": [
+        "T1"
+      ]
+    },
+    {
+      "component": "Direct-dynamic controller control read",
+      "file": "src/workflow-terminal.ts",
+      "evidence": ".catch(() => undefined);",
+      "observedBehavior": "Unreadable control.json yields undefined, falling through to completed_without_semantic_result, matching T2.",
+      "relatedSignals": [
+        "T2"
+      ]
+    },
+    {
+      "component": "Dynamic semantic status fallthrough",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "else semanticStatus = \"completed_without_semantic_result\";",
+      "observedBehavior": "Unknown or missing control status maps to completed_without_semantic_result. Incomplete tasks take precedence over control status.",
+      "relatedSignals": [
+        "T2"
+      ]
+    },
+    {
+      "component": "Retry totals in summary",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "launchRetries: run.tasks.reduce(",
+      "observedBehavior": "outputRetryAttempts sums across all tasks (matches T3). The launch count is exposed as launchRetries, not the public contract name launchRetryAttempts required by T3.",
+      "relatedSignals": [
+        "T3"
+      ]
+    },
+    {
+      "component": "Summary public type",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "launchRetries: number;",
+      "observedBehavior": "Interface field name launchRetries diverges from the required launchRetryAttempts public contract.",
+      "relatedSignals": [
+        "T3"
+      ]
+    }
+  ],
+  "unmappedAreas": [
+    "store.js functions (readWorkflowStopIntent, workflowRunPath, finalStageTasks, readJson, fromProjectPath, isTerminalWorkflowStatus, workflowRunDir) are not in the repo",
+    "types.js (WorkflowRunRecord) is not in the repo",
+    "No unit test files found anywhere in the repo (Q1 unmapped)"
+  ],
+  "notes": [
+    "SPEC S3 requires 50ms default and 10ms floor; src uses 200ms default and 1ms floor.",
+    "SPEC T3 requires launchRetryAttempts; src uses launchRetries.",
+    "SPEC C1 allows only aborted, AbortError, ABORT_ERR; src also accepts cancelled and timeout plus cancelled flags.",
+    "SPEC S6 forbids message-based matching; src has a message-prefix fallback.",
+    "tsconfig includes src/**/*.ts; typecheck will fail on unresolved imports because store.js and types.js are absent.",
+    "Stage maps evidence only; no conformance claimed."
+  ]
+}
