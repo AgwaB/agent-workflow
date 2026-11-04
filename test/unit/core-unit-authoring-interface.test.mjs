@@ -2813,10 +2813,21 @@ test("bundled spec-review workflow compiles flat analysis and verification fanou
 		assert.deepEqual(partition.dependsOn, [
 			"candidate-findings.main",
 			"verify-findings.item",
+			"recheck-requirements.item",
 		]);
 		assert.deepEqual(partition.support, {
 			uses: "./helpers/spec-review-pipeline.mjs",
 			options: { mode: "partition" },
+		});
+		// 2026-11-04: unclear requirements are rechecked once (select-unclear -> foreach).
+		const recheck = compiled.tasks.find(
+			(task) => task.key === "recheck-requirements.item",
+		);
+		assert.equal(recheck.kind, "foreach");
+		assert.deepEqual(recheck.dependsOn, ["select-unclear.main"]);
+		assert.deepEqual(recheck.foreach.from, {
+			stage: "select-unclear",
+			path: "$.requirements",
 		});
 		assert.ok(
 			partition.artifactGraph.output.controlSchemaPath.endsWith(
@@ -3135,14 +3146,18 @@ test("bundled spec-review workflow materializes verifier and partitions verified
 				"candidate-findings.main",
 				"verify-findings.item",
 				"verify-findings.finding-001",
+				"select-unclear.main",
+				"recheck-requirements.item",
 				"partition-findings.main",
 				"report.main",
 				"final.main",
 			],
 		);
+		// No requirement was left unclear: the recheck foreach has no items.
 		assert.deepEqual(taskBySpec(current, "partition-findings.main").dependsOn, [
 			"candidate-findings.main",
 			"verify-findings.finding-001",
+			"recheck-requirements.item",
 		]);
 		const candidateTask = taskBySpec(current, "candidate-findings.main");
 		const upstreamManifestSources = [

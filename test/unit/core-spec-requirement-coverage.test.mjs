@@ -44,6 +44,8 @@ const positives = [
 	// requirement row stayed unclear or carries a bad extra citation; those are listed as not settled.
 	"unclear-keep",
 	"bad-extra-gap-citation",
+	// agent-workflow 2026-11-04: recheck-requirements settles an unclear row with verified evidence.
+	"unclear-rechecked-covered",
 ];
 const modes = [
 	...positives,
@@ -80,6 +82,9 @@ const modes = [
 	"runtime-universe-forged",
 	"unverified-spec-source",
 	"needs-human-shape",
+	// A recheck whose evidence does not verify, or that echoes another requirement, changes nothing.
+	"unclear-recheck-bad-evidence",
+	"unclear-recheck-wrong-id",
 	"map-source-stale",
 	"test-source-stale",
 	"map-task-stale",
@@ -229,7 +234,8 @@ for (const mode of modes)
 			)
 				coverage[0] = { requirementId: "REQ-001", status: "gap" };
 			if (mode.startsWith("partial-")) coverage[0].status = "partial";
-			if (mode === "unclear-keep") coverage[0].status = "unclear";
+			if (mode === "unclear-keep" || mode.startsWith("unclear-re"))
+				coverage[0].status = "unclear";
 			if (
 				[
 					"all-covered-reordered-drop",
@@ -319,6 +325,32 @@ for (const mode of modes)
 						mode === "needs-human-lineage" ? "Distinct human claim" : "Fixture",
 					recommendedAction:
 						mode === "needs-human-lineage" ? "Distinct next action" : "Inspect",
+				});
+			}
+			const rechecker = current.tasks.find(
+				(task) =>
+					task.foreachGenerated?.placeholderSpecId ===
+					"recheck-requirements.item",
+			);
+			const rechecks = mode === "unclear-keep" || mode.startsWith("unclear-re");
+			assert.equal(
+				Boolean(rechecker),
+				rechecks,
+				"recheck task only for an unclear row",
+			);
+			if (rechecks) {
+				assert.equal(rechecker.foreachGenerated.itemIdentity, "REQ-001");
+				await complete(rechecker, {
+					requirementId:
+						mode === "unclear-recheck-wrong-id" ? "REQ-OTHER" : "REQ-001",
+					status: mode === "unclear-keep" ? "gap" : "covered",
+					evidence:
+						mode === "unclear-recheck-bad-evidence"
+							? [{ ...citation, quote: "invented" }]
+							: mode === "unclear-keep"
+								? []
+								: [citation],
+					reason: "Fixture recheck.",
 				});
 			}
 			if (mode === "missing-proof")
@@ -560,11 +592,26 @@ for (const mode of modes)
 			if (passed) {
 				assert.equal(result?.status, "passed");
 				assert.equal(result.verdict, expectedVerdict);
-				assert.equal(current.tasks.length, isZero ? 8 : 9);
+				// 2026-11-04: + select-unclear and the recheck-requirements foreach task, + one recheck
+				// item for an unclear row.
+				const tasks = (isZero ? 10 : 11) + (rechecks ? 1 : 0);
+				assert.equal(current.tasks.length, tasks);
 				assert.equal(
 					current.tasks.filter((task) => task.status === "completed").length,
-					isZero ? 8 : 9,
+					tasks,
 				);
+				if (mode === "unclear-rechecked-covered") {
+					assert.deepEqual(p.requirementRechecks, {
+						rechecked: ["REQ-001"],
+						resolved: ["REQ-001"],
+					});
+					assert.match(
+						direct.markdown,
+						/unclear, re-checked: covered — Fixture recheck\./u,
+					);
+				}
+				if (mode === "unclear-keep")
+					assert.match(direct.markdown, /unclear, re-checked: gap/u);
 			} else {
 				if (mode !== "sidecar-failure")
 					assert.notEqual(result?.status, "passed");

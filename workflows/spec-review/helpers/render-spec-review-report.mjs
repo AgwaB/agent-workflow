@@ -586,6 +586,14 @@ function renderDispositionRows(heading, rows, prefix, emptyText) {
 	return out;
 }
 
+/** agent-workflow 2026-11-04: what the recheck-requirements stage found for a row left unclear. */
+function recheckNote(row) {
+	const recheck = isRecord(row?.recheck) ? row.recheck : null;
+	if (!recheck) return "";
+	const reason = cleanText(recheck.reason);
+	return `${recheck.from === "unclear" ? "unclear, re-checked: covered" : `re-checked: ${cleanText(recheck.status) || "unknown"}`}${reason ? ` — ${reason}` : ""}`;
+}
+
 function renderRequirementCoverage(rows) {
 	const out = ["## Requirement coverage", ""];
 	if (rows.length === 0)
@@ -593,7 +601,7 @@ function renderRequirementCoverage(rows) {
 	out.push("| Requirement | Status | Notes |", "|---|---|---|");
 	for (const row of rows) {
 		out.push(
-			`| ${tableCell(row?.requirementId ?? row?.id ?? "unknown")} | ${tableCell(row?.status ?? "unknown")} | ${tableCell(row?.reason ?? row?.note ?? row?.summary ?? "")} |`,
+			`| ${tableCell(row?.requirementId ?? row?.id ?? "unknown")} | ${tableCell(row?.status ?? "unknown")} | ${tableCell(recheckNote(row) || (row?.reason ?? row?.note ?? row?.summary ?? ""))} |`,
 		);
 	}
 	out.push("");
@@ -724,7 +732,7 @@ function limitationRows({
 		const statusOf = new Map(
 			asArray(partition.requirementCoverage).map((row) => [
 				cleanText(row?.requirementId),
-				cleanText(row?.status) || "unknown",
+				`${cleanText(row?.status) || "unknown"}${isRecord(row?.recheck) && row.recheck.from !== "unclear" ? `, re-checked: ${cleanText(row.recheck.status) || "unknown"}` : ""}`,
 			]),
 		);
 		const unresolved = asArray(requirementReconciliation.unresolvedIds)

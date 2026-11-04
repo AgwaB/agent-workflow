@@ -305,6 +305,10 @@
         }, "additionalProperties": false }
       ] } }
     } }, "maxItems": 80 },
+    "requirementRechecks": { "type": "object", "required": ["rechecked", "resolved"], "properties": {
+      "rechecked": { "type": "array", "items": { "type": "string" }, "maxItems": 8 },
+      "resolved": { "type": "array", "items": { "type": "string" }, "maxItems": 8 }
+    }, "additionalProperties": false },
     "evidenceCorrections": { "type": "array", "items": { "type": "object" } },
     "finalFindings": { "type": "array", "items": { "type": "object", "properties": {
       "evidence": { "type": "array", "items": { "anyOf": [

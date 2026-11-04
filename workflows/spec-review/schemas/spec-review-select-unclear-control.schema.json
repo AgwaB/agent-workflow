@@ -1,0 +1,61 @@
+{
+  "type": "object",
+  "required": [
+    "schema",
+    "digest",
+    "requirements"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "spec-review-unclear-requirements-v1"
+    },
+    "digest": {
+      "type": "string",
+      "minLength": 1
+    },
+    "requirements": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "requirement"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "requirement": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "specEvidence": {},
+          "candidateEvidence": {
+            "type": "array",
+            "maxItems": 16
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "omittedIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 40
+    },
+    "analysis": {
+      "type": "string"
+    },
+    "refs": {
+      "type": "array",
+      "maxItems": 0
+    }
+  },
+  "additionalProperties": false
+}

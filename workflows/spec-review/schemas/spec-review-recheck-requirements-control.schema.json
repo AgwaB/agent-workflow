@@ -1,0 +1,78 @@
+{
+  "type": "object",
+  "required": [
+    "schema",
+    "digest",
+    "requirementId",
+    "status"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "minLength": 1
+    },
+    "digest": {
+      "type": "string",
+      "minLength": 1
+    },
+    "requirementId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "covered",
+        "gap",
+        "partial",
+        "unclear"
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "object",
+            "required": [
+              "file",
+              "lineStart",
+              "lineEnd",
+              "quote"
+            ],
+            "properties": {
+              "file": {
+                "type": "string",
+                "minLength": 1
+              },
+              "lineStart": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "lineEnd": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "quote": {
+                "type": "string",
+                "minLength": 1
+              },
+              "relevance": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 1200
+    }
+  }
+}

@@ -7,7 +7,10 @@ import {
   readLocalText,
   localRange,
 } from "./local-evidence-reader.mjs";
-import { rendererRequirementSource } from "./spec-requirement-source.mjs";
+import {
+  applyRechecks,
+  rendererRequirementSource,
+} from "./spec-requirement-source.mjs";
 
 export const EVIDENCE_PROTOCOL = "spec-local-evidence-v1";
 function canonical(value) {
@@ -296,7 +299,11 @@ export function reconcileRequirementCoverage(
   }
   const missingIds = requirementIds.filter((id) => !coverageIds.includes(id));
   if (missingIds.length) issues.push("missing_requirement_coverage");
-  if (canonical(coverage) !== canonical(source?.candidate?.requirementCoverage))
+  // The candidate's rows with the rechecks applied (applyRechecks); with no rechecks, its rows as written.
+  if (
+    canonical(coverage) !==
+    canonical(applyRechecks(source?.candidate?.requirementCoverage, source?.rechecks))
+  )
     issues.push("coverage_differs_from_candidate_control");
   // Accounted gaps must use the candidate's exact explicit linkage, not a
   // post-hoc forged finding link, alias, title or inferred positional ID.

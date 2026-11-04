@@ -664,7 +664,10 @@ semantic entailment, that a worker read the file, or isolation from a racing sam
 The partition keeps per-row `evidenceGate` results and file SHA-256 values; ungrounded dispositions
 stay `needsHuman`. Requirement reconciliation needs exactly one explicit `requirementId`/`status` row
 per unique extracted requirement id (`covered`, `gap`, `partial`, `unclear`, `needsHuman`); `CONFORMS`
-needs every requirement covered by typed bytes, and anything unresolved stays `INCONCLUSIVE`. The
+needs every requirement covered by typed bytes, and anything unresolved stays `INCONCLUSIVE`.
+Requirements the candidate stage leaves `unclear` (at most 8) get one more look in
+`recheck-requirements`: a recheck that finds the behavior with verified citations makes the row
+`covered`; any other answer stays `unclear` and is shown beside it in the coverage table. The
 renderer rereads the source chain and rechecks citations before `passed`. `deep-review` applies the
 same idea to reviewer `sourceCoverage` (`read`, `ocr-extracted`, `metadata-only`, `unreadable`):
 unverifiable required sources force `PARTIAL_REVIEW`.

@@ -11,6 +11,9 @@
 //                        { schema, digest, results[] } batch carriers and are
 //                        flattened with fail-closed membership, duplicate,
 //                        orphan, and title-echo gates before the id join.
+//   "select-unclear"   — the requirements the candidate stage left "unclear", with
+//                        their extracted statements, for the recheck-requirements
+//                        foreach (at most MAX_RECHECKS).
 //   "batch-candidates" — opt-in only. Plans deterministic batches of candidate
 //                        findings for a batched verify-findings foreach. The
 //                        default spec-review workflow still verifies one
@@ -28,11 +31,17 @@ import {
 	specReviewVerdict,
 	isLocalCitation,
 } from "./spec-evidence-gate.mjs";
-import { candidateUpstreamFailures } from "./spec-requirement-source.mjs";
+import {
+	applyRechecks,
+	candidateUpstreamFailures,
+	RECHECK_STAGE,
+	recheckRows,
+} from "./spec-requirement-source.mjs";
 
 const VERDICTS = new Set(["KEEP", "WEAKEN", "DROP", "NEEDS_HUMAN"]);
 const SEVERITIES = new Set(["high", "medium", "low", "info"]);
 const MAX_PARTIAL_FAILURES = 64;
+const MAX_RECHECKS = 8;
 
 const BATCH_PLAN_SCHEMA = "spec-review-verification-batches-v1";
 const BATCH_CONTROL_SCHEMA = "spec-review-verify-findings-batch-v1";
@@ -55,8 +64,55 @@ export default async function specReviewPipeline({
 	const mode = options?.mode ?? "partition";
 	if (mode === "batch-candidates")
 		return batchCandidateFindings(sources, options);
+	if (mode === "select-unclear") return selectUnclearRequirements(sources);
 	if (mode === "partition") return partitionFindings(sources, options, context);
 	throw new Error(`unknown spec-review pipeline mode: ${mode}`);
+}
+
+// --- unclear requirements for the recheck stage ------------------------------
+
+function selectUnclearRequirements(sources) {
+	const candidate = findStageSource(sources, "candidate-findings") ?? {};
+	const extracted = findStageSource(sources, "extract-spec") ?? {};
+	const statements = new Map(
+		(Array.isArray(extracted.requirements) ? extracted.requirements : [])
+			.filter((row) => typeof row?.id === "string" && row.id)
+			.map((row) => [row.id, row]),
+	);
+	const seen = new Set();
+	const unclear = [];
+	for (const row of Array.isArray(candidate.requirementCoverage)
+		? candidate.requirementCoverage
+		: []) {
+		const id = row?.requirementId;
+		if (row?.status !== "unclear" || !statements.has(id) || seen.has(id)) continue;
+		if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/u.test(id)) continue;
+		seen.add(id);
+		const statement = statements.get(id);
+		unclear.push({
+			id,
+			requirement: String(statement.requirement ?? "").slice(0, 2000),
+			specEvidence: statement.specEvidence ?? null,
+			candidateEvidence: (Array.isArray(row.evidence) ? row.evidence : []).slice(0, 16),
+		});
+	}
+	const requirements = unclear.slice(0, MAX_RECHECKS);
+	const control = {
+		schema: "spec-review-unclear-requirements-v1",
+		requirements,
+		...(unclear.length > requirements.length
+			? { omittedIds: unclear.slice(MAX_RECHECKS).map((row) => row.id) }
+			: {}),
+	};
+	return {
+		...control,
+		digest: `sha256:${createHash("sha256").update(stableStringify(control)).digest("hex")}`,
+		analysis:
+			requirements.length === 0
+				? "No requirement was left unclear; nothing to recheck."
+				: `Rechecking ${requirements.length} unclear requirement(s): ${requirements.map((row) => row.id).join(", ")}${control.omittedIds ? ` (not rechecked: ${control.omittedIds.join(", ")})` : ""}.`,
+		refs: [],
+	};
 }
 
 // --- batch planning (opt-in) -------------------------------------------------
@@ -145,9 +201,7 @@ async function partitionFindings(sources, options = {}, context = {}) {
 	const candidateFindings = Array.isArray(analysis?.candidateFindings)
 		? analysis.candidateFindings
 		: [];
-	const requirementCoverage = Array.isArray(analysis?.requirementCoverage)
-		? analysis.requirementCoverage
-		: [];
+	const candidateCoverage = analysis?.requirementCoverage;
 	const candidateNeedsHuman = Array.isArray(analysis?.needsHuman)
 		? analysis.needsHuman
 		: [];
@@ -230,6 +284,11 @@ async function partitionFindings(sources, options = {}, context = {}) {
 			candidateStatuses[0],
 		);
 		requirementSource = upstream.requirementSource;
+		if (requirementSource)
+			requirementSource.rechecks = await recheckRows(
+				context,
+				context.sourceStatuses,
+			);
 		runtimeCandidateUniverse = upstream.runtimeCandidateUniverse;
 		const failures = upstream.failures;
 		sourceStatusSummary.total += failures.length;
@@ -239,6 +298,19 @@ async function partitionFindings(sources, options = {}, context = {}) {
 			...failures,
 		].slice(0, MAX_PARTIAL_FAILURES);
 	}
+
+	// The rechecked rows replace unclear candidate rows (applyRechecks); the renderer recomputes them.
+	const rechecks = requirementSource?.rechecks ?? new Map();
+	const effectiveCoverage = applyRechecks(candidateCoverage, rechecks);
+	const requirementCoverage = Array.isArray(effectiveCoverage)
+		? effectiveCoverage
+		: [];
+	const requirementRechecks = {
+		rechecked: [...rechecks.keys()].sort(),
+		resolved: requirementCoverage
+			.filter((row) => row?.recheck?.from === "unclear")
+			.map((row) => row.requirementId),
+	};
 
 	const verifierById = new Map();
 	const duplicateVerifierIds = [];
@@ -609,7 +681,7 @@ async function partitionFindings(sources, options = {}, context = {}) {
 		finalFindings,
 	);
 	const requirementReconciliation = reconcileRequirementCoverage(
-		analysis.requirementCoverage,
+		effectiveCoverage,
 		evidenceCoverage,
 		finalFindings,
 		requirementSource,
@@ -697,6 +769,7 @@ async function partitionFindings(sources, options = {}, context = {}) {
 		},
 		verdictCounts,
 		requirementCoverage,
+		...(requirementRechecks.rechecked.length > 0 ? { requirementRechecks } : {}),
 		...(evidenceCorrections.length > 0 ? { evidenceCorrections } : {}),
 		finalFindings,
 		droppedFindings,
@@ -1442,8 +1515,12 @@ function needsHumanRecord(candidate, verifier, extra = {}) {
 
 function summarizeSourceStatuses(context) {
 	const metadataAvailable = Array.isArray(context?.sourceStatuses);
+	// A failed recheck leaves its requirement unclear; it is not a failed source of the review, so
+	// the recheck tasks are not counted here (requirementRechecks lists what they settled).
 	const normalized = metadataAvailable
-		? context.sourceStatuses.map((status) => {
+		? context.sourceStatuses
+				.filter((status) => status?.stageId !== RECHECK_STAGE)
+				.map((status) => {
 				if (!status || typeof status !== "object" || Array.isArray(status)) {
 					return {
 						status: "invalid_source_status_metadata",

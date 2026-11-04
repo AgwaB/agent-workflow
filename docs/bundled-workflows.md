@@ -299,6 +299,24 @@ After stage 2 (2026-11-01):
   in spec-review and impact-review), task ids `task-<n>`, the sidecar names `final-report.md`,
   `audit.md`, `executive.md`, and `refs.json` / `control.json` only stage- or path-qualified
   (`final-audit.control.json`, `…/control.json`). Test: `core-impact-review-row-text.test.mjs`.
+- **M31.** spec-review rechecks unclear requirements (2026-11-04, after the same live runs: two
+  spec-review runs read INCONCLUSIVE only because the candidate stage left one or two requirements
+  "unclear"). Two new stages between `candidate-findings` and `partition-findings`: the support
+  stage `select-unclear` lists the requirements with status `unclear` and their extracted statements
+  (at most 8; more are named as not rechecked), and the foreach `recheck-requirements`
+  (`profileRole: verification`) answers `covered`, `gap`, `partial` or `unclear` per requirement
+  with typed citations. The partition reads each recheck from the task's own `control.json`
+  through the runtime source statuses (a control that names another requirement than its item, or a
+  requirement rechecked twice, is ignored). Only `covered` changes a row: the unclear row becomes
+  covered with the recheck's evidence, which then has to pass the same byte gate as any covered row;
+  other answers keep it unclear and are shown in the coverage table (`unclear, re-checked: gap — …`).
+  `needsHuman` rows are not rechecked (they ask about the spec's intent). The renderer rebuilds the
+  rows from the candidate control and the rechecks found through the partition manifest
+  (`applyRechecks`) and rejects a partition that differs. A failed recheck task leaves its row
+  unclear and does not count as a failed source. With no unclear row the foreach has no items (no
+  model call). Tests: IRCF-01 `unclear-rechecked-covered` (CONFORMS), `unclear-recheck-bad-evidence`
+  and `unclear-recheck-wrong-id` (INCONCLUSIVE), `unclear-keep` (recheck says gap; GAPS_FOUND as
+  before) in `core-spec-requirement-coverage.test.mjs`.
 
 ## Worker prompt rendering (core)
 
@@ -396,12 +414,12 @@ interactive host asks once in `safe` mode), **refuse** (the run is not started).
 | `impact-review/spec.json` | codex | safe | 12 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly` |
 | `impact-review/spec.json` | claude | free | 12 | accept | accept |
 | `impact-review/spec.json` | claude | safe | 12 | accept | accept |
-| `spec-review/spec.json` | pi | free | 6 | accept | accept |
-| `spec-review/spec.json` | pi | safe | 6 | accept | accept |
-| `spec-review/spec.json` | codex | free | 6 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost` |
-| `spec-review/spec.json` | codex | safe | 6 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly` |
-| `spec-review/spec.json` | claude | free | 6 | accept | accept |
-| `spec-review/spec.json` | claude | safe | 6 | accept | accept |
+| `spec-review/spec.json` | pi | free | 7 | accept | accept |
+| `spec-review/spec.json` | pi | safe | 7 | accept | accept |
+| `spec-review/spec.json` | codex | free | 7 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost` |
+| `spec-review/spec.json` | codex | safe | 7 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly` |
+| `spec-review/spec.json` | claude | free | 7 | accept | accept |
+| `spec-review/spec.json` | claude | safe | 7 | accept | accept |
 
 <!-- bundled-support-table:end -->
 

@@ -94,6 +94,55 @@ async function verifyRequirementSources(control, context) {
   return rows;
 }
 
+// agent-workflow 2026-11-04 (live runs: a requirement the candidate stage left "unclear" kept a review
+// INCONCLUSIVE although nothing else was open): the recheck-requirements stage looks at each unclear
+// requirement once more. Its rows are read from the recheck tasks' own control.json files, found
+// through runtime-owned status rows (the partition's source statuses, or the partition manifest when
+// the renderer checks it); a control that echoes another requirement than its item, or a requirement
+// rechecked twice, is ignored. Only "covered" changes a row, and only by replacing the unclear row's
+// evidence, which then goes through the same byte gate as any covered row.
+export const RECHECK_STAGE = "recheck-requirements";
+const RECHECK_STATUSES = ["covered", "gap", "partial", "unclear"];
+
+export async function recheckRows(context, rows) {
+  const byId = new Map();
+  const duplicates = new Set();
+  for (const row of Array.isArray(rows) ? rows : []) {
+    if (row?.stageId !== RECHECK_STAGE || row.status !== "completed" || !safeId(row.taskId)) continue;
+    let control;
+    try {
+      control = JSON.parse(await readLocalText(context.cwd, taskPath(context, row.taskId, "control.json"), context.signal));
+    } catch (error) {
+      context.signal?.throwIfAborted();
+      void error;
+      continue;
+    }
+    const id = control?.requirementId;
+    if (typeof id !== "string" || !id || id !== row.itemIdentity || !RECHECK_STATUSES.includes(control.status)) continue;
+    if (byId.has(id)) duplicates.add(id);
+    byId.set(id, {
+      status: control.status,
+      evidence: Array.isArray(control.evidence) ? control.evidence : [],
+      reason: typeof control.reason === "string" ? control.reason.replace(/\s+/g, " ").trim().slice(0, 600) : "",
+    });
+  }
+  for (const id of duplicates) byId.delete(id);
+  return byId;
+}
+
+/** The coverage rows after the rechecks: an unclear row becomes covered with the recheck's evidence,
+ * or keeps its status and records what the recheck found. Other rows are unchanged. */
+export function applyRechecks(coverage, rechecks) {
+  if (!Array.isArray(coverage) || !(rechecks instanceof Map) || rechecks.size === 0) return coverage;
+  return coverage.map((row) => {
+    const recheck = row?.status === "unclear" ? rechecks.get(row.requirementId) : undefined;
+    if (!recheck) return row;
+    if (recheck.status === "covered")
+      return { requirementId: row.requirementId, status: "covered", evidence: recheck.evidence, recheck: { from: "unclear", status: "covered", reason: recheck.reason } };
+    return { ...row, recheck: { status: recheck.status, reason: recheck.reason } };
+  });
+}
+
 export async function candidateUpstreamFailures(context, owner) {
   try {
     if (owner?.stageId !== "candidate-findings" || owner.specId !== "candidate-findings.main" || owner.status !== "completed") throw new Error("invalid candidate owner");
@@ -156,7 +205,8 @@ export async function rendererRequirementSource(context) {
     if (owners.length !== 1 || owners[0].status !== "completed") return null;
     const { manifest } = await readManifest(context, owners[0].taskId);
     const candidate = exactSource(manifest.sources, "candidate-findings");
-    return (await candidateUpstreamFailures(context, candidate)).requirementSource;
+    const source = (await candidateUpstreamFailures(context, candidate)).requirementSource;
+    return source ? { ...source, rechecks: await recheckRows(context, manifest.sources) } : source;
   } catch (error) {
     context.signal?.throwIfAborted();
     void error;
