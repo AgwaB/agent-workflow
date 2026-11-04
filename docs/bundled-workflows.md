@@ -278,7 +278,10 @@ After stage 2 (2026-11-01):
   (`specReviewVerdict` in `spec-evidence-gate.mjs`; `review-verdict.mjs`), and the report stage
   copies it. Replaying the 13 live spec-review and deep-review runs through every support step with
   the recorded model outputs: spec-review 8 runs → all GAPS_FOUND, passed (5 were INCONCLUSIVE);
-  deep-review 5 runs → all NEEDS_WORK, passed (1 was PARTIAL_REVIEW). Tests:
+  deep-review 5 runs → all NEEDS_WORK, passed (1 was PARTIAL_REVIEW). A first live Claude run after the
+  change still failed: a verifier said NEEDS_HUMAN, its gate row sat beside the final rows and the
+  renderer counted that as a broken ledger; the ledger check now allows gate rows of needs-human
+  findings (every final and dropped row must still be present and recomputed equal). Tests:
   `core-review-verdict-precedence.test.mjs`, IRCF-01 `unclear-keep` and `bad-extra-gap-citation` in
   `core-spec-requirement-coverage.test.mjs`, `core-review-helper-byte-gates.test.mjs`.
 

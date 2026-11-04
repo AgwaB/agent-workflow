@@ -445,14 +445,29 @@ export async function auditPartitionEvidence(partition, context = {}) {
     Array.isArray(partition?.needsHuman);
   const finalFindings = partition?.finalFindings ?? [];
   const dispositions = [...finalFindings, ...(partition?.droppedFindings ?? [])];
+  const gateIds = ledgerShape ? gate.findings.map((row) => row?.id) : [];
   let dispositionsExact =
     ledgerShape &&
     gate.findings.length === dispositions.length &&
-    new Set(gate.findings.map((row) => row.id)).size === dispositions.length;
+    new Set(gateIds).size === dispositions.length;
+  // agent-workflow 2026-11-04: the saved gate also holds a row for every verifier verdict that ended
+  // as needs-human (NEEDS_HUMAN, or demoted by the byte gate). Those rows may stay unresolved for
+  // confirmed gaps to stand; every final/dropped row must still be present, recomputed and equal.
+  const needsHumanIds = new Set(
+    (ledgerShape ? partition.needsHuman : []).map((row) => row?.id),
+  );
+  let dispositionsIntact =
+    ledgerShape &&
+    new Set(gateIds).size === gateIds.length &&
+    dispositions.every((row) => gateIds.includes(row?.id)) &&
+    gateIds.every(
+      (id) =>
+        dispositions.some((row) => row?.id === id) || needsHumanIds.has(id),
+    );
   let dispositionsComplete = true;
   const finalIds = new Set(finalFindings.map((row) => row?.id));
   let finalsGrounded = finalFindings.length > 0;
-  for (const finding of dispositionsExact ? dispositions : []) {
+  for (const finding of dispositionsIntact ? dispositions : []) {
     const verdict = finding.verdict ?? "DROP";
     const saved = gate.findings.find((row) => row.id === finding.id);
     const checkedFinding = await gateDisposition(
@@ -462,7 +477,10 @@ export async function auditPartitionEvidence(partition, context = {}) {
       finding.counterEvidence,
       context,
     );
-    if (canonical(saved) !== canonical(checkedFinding)) dispositionsExact = false;
+    if (canonical(saved) !== canonical(checkedFinding)) {
+      dispositionsExact = false;
+      dispositionsIntact = false;
+    }
     if (!checkedFinding.complete) {
       dispositionsComplete = false;
       if (finalIds.has(finding.id)) finalsGrounded = false;
@@ -481,7 +499,7 @@ export async function auditPartitionEvidence(partition, context = {}) {
   // agent-workflow 2026-11-04: the confirmed gaps stand on an intact ledger even when some
   // requirements stayed unresolved (see specReviewVerdict).
   const gapsGrounded =
-    dispositionsExact &&
+    dispositionsIntact &&
     finalsGrounded &&
     coverageExact &&
     matchesSaved &&

@@ -228,3 +228,198 @@ test("deep-review end to end: an incomplete reviewer plus a grounded KEEP render
 	assert.equal(out.status, "passed");
 	assert.match(out.markdown, /Coverage: partial|partial/u);
 });
+
+// Live 2026-11-04 (Claude spec-review after the change): one verifier said NEEDS_HUMAN. Its gate row
+// stays in the saved ledger beside the final rows; the renderer must still see the confirmed gap as
+// grounded, or it computes INCONCLUSIVE while the partition handed the report GAPS_FOUND.
+test("spec-review end to end: a KEEP gap and a NEEDS_HUMAN verifier give GAPS_FOUND, passed, with the open row listed", async (t) => {
+	const { mkdir, writeFile } = await import("node:fs/promises");
+	const partitionStep = (
+		await helper("spec-review", "spec-review-pipeline.mjs")
+	).default;
+	const renderSpec = (
+		await helper("spec-review", "render-spec-review-report.mjs")
+	).default;
+	const cwd = mkdtempSync(join(tmpdir(), "aw-verdict-spec-"));
+	t.after(() => rmSync(cwd, { recursive: true, force: true }));
+	writeFileSync(join(cwd, "source.ts"), "export const enabled = false;\n");
+	writeFileSync(
+		join(cwd, "SPEC.md"),
+		"The implementation must preserve the local behavior.\nIt must log every stop.\n",
+	);
+	const runId = "unit-verdict";
+	const save = async (taskId, file, value) => {
+		const dir = join(cwd, ".agent-workflow/workflows", runId, "tasks", taskId);
+		await mkdir(dir, { recursive: true });
+		await writeFile(join(dir, file), JSON.stringify(value));
+	};
+	const source = (stage) => ({
+		source: stage,
+		stageId: stage,
+		specId: `${stage}.main`,
+		taskId: `task-${stage}`,
+		status: "completed",
+		artifacts: { control: { path: "control.json" } },
+	});
+	const upstream = ["extract-spec", "map-implementation", "inspect-tests"].map(
+		source,
+	);
+	const requirement = (id, line, text) => ({
+		id,
+		requirement: text,
+		specEvidence: {
+			file: "SPEC.md",
+			lineStart: line,
+			lineEnd: line,
+			quote: text,
+		},
+		priority: "high",
+		implementationSignals: ["source.ts:1"],
+		testSignals: [],
+	});
+	for (const row of upstream)
+		await save(
+			row.taskId,
+			"control.json",
+			row.stageId === "extract-spec"
+				? {
+						specSources: ["SPEC.md"],
+						requirements: [
+							requirement(
+								"REQ-1",
+								1,
+								"The implementation must preserve the local behavior.",
+							),
+							requirement("REQ-2", 2, "It must log every stop."),
+						],
+					}
+				: {},
+		);
+	const candidateRow = (id, requirementId) => ({
+		id,
+		title: `Gap ${id}`,
+		claim: "A gap exists",
+		severity: "medium",
+		requirementIds: [requirementId],
+		specEvidence: [],
+		implementationEvidence: [],
+		testEvidence: [],
+		uncertainty: "Verify",
+	});
+	const analysis = {
+		schema: "stage-control-v1",
+		digest: "candidate",
+		candidateFindings: [
+			candidateRow("finding-001", "REQ-1"),
+			candidateRow("finding-002", "REQ-2"),
+		],
+		requirementCoverage: [
+			{ requirementId: "REQ-1", status: "gap" },
+			{ requirementId: "REQ-2", status: "unclear" },
+		],
+		needsHuman: [],
+		noIssueNotes: [],
+	};
+	await save("task-candidate", "control.json", analysis);
+	await save("task-candidate", "source-manifest.json", {
+		schema: "workflow-source-manifest-v1",
+		runId,
+		taskId: "task-candidate",
+		sources: upstream,
+	});
+	await save("task-partition-findings", "source-manifest.json", {
+		schema: "workflow-source-manifest-v1",
+		runId,
+		taskId: "task-partition-findings",
+		sources: [{ ...source("candidate-findings"), taskId: "task-candidate" }],
+	});
+	const verifierStatus = (id, taskId) => ({
+		source: `verify-findings.${id}`,
+		stageId: "verify-findings",
+		specId: `verify-findings.${id}`,
+		taskId,
+		itemIdentity: id,
+		placeholderSpecId: "verify-findings.item",
+		status: "completed",
+	});
+	const statuses = [
+		{
+			source: "candidate-findings",
+			stageId: "candidate-findings",
+			specId: "candidate-findings.main",
+			taskId: "task-candidate",
+			status: "completed",
+		},
+		verifierStatus("finding-001", "task-v1"),
+		verifierStatus("finding-002", "task-v2"),
+	];
+	const verifier = (id, verdict, evidence) => ({
+		schema: "stage-control-v1",
+		digest: "verify",
+		id,
+		verdict,
+		severity: "medium",
+		evidence,
+		counterEvidence: [],
+		finalClaim: "A gap exists",
+		recommendedAction: "Inspect",
+	});
+	const p = await partitionStep({
+		sources: {
+			"candidate-findings": analysis,
+			"verify-findings.finding-001": verifier("finding-001", "KEEP", [
+				{
+					file: "source.ts",
+					lineStart: 1,
+					lineEnd: 1,
+					quote: "export const enabled = false;",
+				},
+			]),
+			"verify-findings.finding-002": verifier("finding-002", "NEEDS_HUMAN", []),
+		},
+		context: { cwd, runId, sourceStatuses: statuses },
+	});
+	assert.equal(p.finalFindings.length, 1);
+	assert.ok(p.needsHuman.some((row) => row.id === "finding-002"));
+	assert.ok(p.evidenceGate.findings.some((row) => row.id === "finding-002"));
+	assert.equal(p.readProjection.ledgerVerdict, "GAPS_FOUND");
+	const result = await renderSpec({
+		sources: {
+			"partition-findings": p,
+			report: {
+				schema: "spec-review-report-v1",
+				digest: "report",
+				summary: "One confirmed gap; one requirement open.",
+				verdict: p.readProjection.ledgerVerdict,
+				risks: [],
+				recommendedNextAction: "Fix the gap; decide REQ-2.",
+				ownerLedger: p.verifierCoverage.ownerLedger,
+				ownerLedgerReconciliation: p.verifierCoverage.ownerLedgerReconciliation,
+			},
+		},
+		context: {
+			cwd,
+			runId,
+			sourceStatuses: ["partition-findings", "report"].map((name) => ({
+				source: name,
+				stageId: name,
+				specId: `${name}.main`,
+				taskId: `task-${name}`,
+				status: "completed",
+			})),
+		},
+	});
+	assert.deepEqual(
+		[result.verdict, result.status],
+		["GAPS_FOUND", "passed"],
+		JSON.stringify(result.blockers),
+	);
+	assert.match(
+		result.completionSummaryMarkdown,
+		/Requirements not settled by this review: REQ-2 \(unclear\)/u,
+	);
+	assert.match(
+		result.completionSummaryMarkdown,
+		/1 needs-human row\(s\) remain unresolved/u,
+	);
+});
