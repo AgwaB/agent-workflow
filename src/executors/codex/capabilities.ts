@@ -13,7 +13,8 @@ import {
 // 2026-11-01: the live tier (smoke + readonly_enforced, tool_allowlist, isolation,
 // session_ownership, resume) re-passed on 0.165.0 (test/fixtures/executors/codex/live-calls.md
 // "Re-verification on 0.165.0"); the MCP output limit was re-measured on it the same day. Again on
-// 0.166.0 on 2026-11-04 ("Re-verification on 0.166.0"; the output limit was not re-measured).
+// 0.166.0 on 2026-11-04 ("Re-verification on 0.166.0"); the output limit was re-measured on it the
+// same day (docs/executors/codex.md, unchanged).
 export const CODEX_VERIFIED_CLI_VERSION = "0.166.0";
 export const CODEX_VERIFIED_WITH = `codex-cli ${CODEX_VERIFIED_CLI_VERSION}, WP7 live 2026-10-26, re-verified 2026-11-04`;
 

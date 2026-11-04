@@ -102,6 +102,6 @@ docs/executors/codex.md). Totals now 26 live calls.
 | 28–33 | Kit live tier: `readonly_enforced`, `tool_allowlist`, `isolation`, `session_ownership`, `resume` (2 turns) | 36211 ms (all) | 5/5 pass |
 
 Deleted threads: `deleted`, `deleted`, `refused` (as on 0.165.0: the resume check's second attempt
-points at the thread already deleted). `CODEX_VERIFIED_CLI_VERSION` is now 0.166.0; the MCP output
-limit was not re-measured. The same day 0.166.0 ran the live run of every bundled workflow. Totals now
+points at the thread already deleted). `CODEX_VERIFIED_CLI_VERSION` is now 0.166.0. The MCP output
+limit was re-measured the same day without a model call (mock Responses API): unchanged. The same day 0.166.0 ran the live run of every bundled workflow. Totals now
 33 live calls.

@@ -217,6 +217,18 @@ confirmation is required, ask; otherwise skip"):
   tells the agent never to set it on its own. Verified with agy: the agent asked in chat, the user
   agreed, the second call started `workflow_mw1fr3yo_b1f2d6` (`confirmedVia: "chat"`).
 
+## Antigravity CLI (agy) as a host (2026-11-04)
+
+agy loads the converted plugin (`agy plugin install`; skills and reference) and the MCP server
+registered in `~/.gemini/config/mcp_config.json`; the model calls the tools through
+`call_mcp_tool`. Interactive agy asks before each command. **Headless** (`agy -p`) cannot ask: a
+tool that needs the `command` permission is auto-denied ("no output produced — a tool required the
+command permission that headless mode cannot prompt for"). For unattended use, add allow rules
+(`permissions.allow` in agy's `settings.json`, for example `command(node …)`) or run with
+`--dangerously-skip-permissions`, preferably with `--sandbox`. Observed in an authoring test: agy
+also applies the user's own global agy rules (one wrote an `AGENTS.md` into the project), and
+`gemini-3.8-flash` did not offer the workflow-guide smoke run on its own.
+
 ## Confirmed changes (WP28, owner decision Q7)
 
 `workflow_prune` with `dryRun: false`, `workflow_profile` `set`/`delete`/`default`/`clear-default`/

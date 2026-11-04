@@ -26,10 +26,34 @@ did not start the run). Quality is not compared.
 | `codex` | 0.1.0 | codex-cli 0.159.2 | ChatGPT login | `gpt-5.6-luna` | [`executors/codex.md`](executors/codex.md) |
 | `claude` | 0.1.0 | claude-code 2.1.310 | claude.ai subscription | `haiku` (`claude-haiku-5-5`) | [`executors/claude.md`](executors/claude.md) |
 
+Re-verified since (executor live tiers): codex-cli 0.165.0 and claude-code 2.1.314 (2026-11-01),
+**codex-cli 0.166.0 and claude-code 2.1.318 (2026-11-04)**, which are the verified versions now.
+**`antigravity` (experimental, 2026-11-02):** the ACP adapter for Antigravity's `agy_acp_server`
+1.4.5, Antigravity login, live model `gemini-3.8-flash` — [`executors/acp.md`](executors/acp.md).
+Experimental: capabilities stay `declared`, workspace `AGENTS.md`/`GEMINI.md` are not isolated,
+no session ownership or resume.
+
 All on macOS. SDK contract 0.1.0. `probe()` adds a note when the installed CLI version differs from
 the verified one; rerun the conformance kit then ([`conformance.md`](conformance.md)).
 
-## Live matrix (default `free` mode)
+## Live matrix, 2026-11-04 (four executors, current verdict rules)
+
+Every bundled workflow on each executor, Korean tasks, latest run per cell. Models: pi default (`gpt-6.1-sol`), claude
+`haiku`, codex `gpt-5.6-luna`, antigravity `gemini-3.8-flash`. All runs completed; codex and
+antigravity cells carry recorded capability degradations (`toolAllowlist.fine`, the test machine's
+`readOnly`/`contextIsolation` warnings, `usage.cost`; antigravity also `webTools.safetyPolicy`).
+
+| Executor | deep-review | spec-review | impact-review | deep-research |
+|---|---|---|---|---|
+| **pi** | completed (`NEEDS_WORK`) | completed (`GAPS_FOUND`) | completed (`BLOCKED`) | completed |
+| **codex** | completed (`NEEDS_WORK`) | completed (`GAPS_FOUND`) | completed (`BLOCKED`) | completed; also the tiered-verification variant |
+| **claude** | completed (`NEEDS_WORK`) | completed (`GAPS_FOUND`) | completed (`BLOCKED`) | completed (2026-11-03) |
+| **antigravity** (experimental) | completed (`NEEDS_WORK`) | completed (`GAPS_FOUND`) | completed (`BLOCKED`) | completed (2026-11-03, flash) |
+
+Fixes made during these runs are in [`bundled-workflows.md`](bundled-workflows.md) M26–M29 and M28b
+(impact-review summary bound, evidence tolerance, Korean requirement statements, verdict precedence).
+
+## Live matrix, 2026-10-27 (default `free` mode)
 
 | Executor | deep-review | spec-review | impact-review | deep-research |
 |---|---|---|---|---|

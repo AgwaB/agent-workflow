@@ -98,6 +98,7 @@ and notice changes ask the user to confirm in a dialog first. Local development
 | `pi` | `pi --mode json` | Native MCP and tool allowlist; deep-research needs the `pi-web-access` extension. |
 | `codex` | `codex app-server` | Coarse tool allowlist (sandbox modes); global `AGENTS.md` and exec-policy rules apply. |
 | `claude` | `claude -p` stream-json | Fine tool allowlist, native read-only mode. |
+| `antigravity` (experimental) | `agy_acp_server` (ACP) | Antigravity login, Gemini models; capabilities declared, workspace `AGENTS.md`/`GEMINI.md` not isolated. See [`docs/executors/acp.md`](docs/executors/acp.md). |
 
 Choose with `--executor <id>`, with a profile (`--profile <name>`: one the workflow declares, else a
 saved one, see `agent-workflow profile`), or with a saved default profile. Precedence for the executor

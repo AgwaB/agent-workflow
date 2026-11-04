@@ -162,6 +162,9 @@ opens only `rules/*.rules` and `AGENTS.md`, never `auth.json` or other credentia
   size, so the estimate is still byte-based. Seventeen parallel results totalling 61,810 chars
   (the deep-research final-audit pages) all arrived intact through the app-server adapter. The
   30,400-char/-byte server limit stays below both versions' bounds; no change was needed.
+  Re-measured 2026-11-04 on **codex-cli 0.166.0** the same way (Codex now lists MCP tools as a
+  `namespace` tool): 47,500 B intact, 48,500 B and larger arrive as 47,988 B with head, tail and the
+  truncation marker; Korean cut at the same byte size. No change.
 - Tool timeout: `tool_timeout_sec` per server is honored (2 s → "timed out awaiting tools/call
   after 2s", measured offline with `mcpServer/tool/call`); with no value, a direct call did not time
   out within 200 s. The adapter sets 300 s.
@@ -290,7 +293,7 @@ budget are not confirmed. `fetch_content` (open_page) not observed.
   `session_ownership`, `resume`). Re-run 2026-11-01 on **codex-cli 0.165.0**: smoke and 5/5 pass;
   the verified version became 0.165.0 (`live-calls.md` "Re-verification on 0.165.0"). Re-run
   2026-11-04 on **codex-cli 0.166.0**: smoke and 5/5 pass; verified version now 0.166.0 (the MCP
-  output limit was not re-measured).
+  output limit was re-measured the same day, unchanged).
 
 ## Known limits
 
