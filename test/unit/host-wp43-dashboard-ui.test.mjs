@@ -100,7 +100,26 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 	);
 	await browser.evaluate(() => document.querySelector(".code-switch").click());
 	await browser.waitFor(() => document.querySelectorAll(".node").length === 8);
-	await new Promise((resolve) => setTimeout(resolve, 700)); // the cards slide apart, then fit
+	// The cards slide apart and the view glides to the new fit (Web Animations, not CSS transitions):
+	// wait until every finite animation has run out — a fixed sleep raced it under a loaded suite.
+	await browser.waitFor(
+		() =>
+			new Promise((resolve) =>
+				requestAnimationFrame(() =>
+					requestAnimationFrame(() =>
+						resolve(
+							document
+								.getAnimations()
+								.every(
+									(animation) =>
+										animation.playState !== "running" ||
+										animation.effect?.getTiming().iterations === Infinity,
+								),
+						),
+					),
+				),
+			),
+	);
 	assert.deepEqual(
 		await browser.evaluate(() => [
 			document.querySelector(".code-switch").textContent,
