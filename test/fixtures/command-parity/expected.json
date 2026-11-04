@@ -2,7 +2,8 @@
  "pi": {
   "list": {
    "name": "listWorkflowsAction",
-   "request": {}
+   "request": {},
+   "hostRead": true
   },
   "list --query deep --offset 1 --limit 2": {
    "name": "listWorkflowsAction",
@@ -10,60 +11,73 @@
     "query": "deep",
     "offset": 1,
     "limit": 2
-   }
+   },
+   "hostRead": true
   },
   "list extra": {
-   "error": "Usage: /aw list [--query <text>] [--offset N] [--limit N]"
+   "error": "Usage: /aw list [--query <text>] [--offset N] [--limit N]",
+   "hostRead": false
   },
   "list --limit x": {
-   "error": "--limit requires a non-negative integer"
+   "error": "--limit requires a non-negative integer",
+   "hostRead": false
   },
   "list --json": {
-   "error": "Unknown option --json"
+   "error": "Unknown option --json",
+   "hostRead": false
   },
   "validate wf.json": {
    "name": "validateWorkflowAction",
    "request": {
     "workflow": "wf.json"
-   }
+   },
+   "hostRead": true
   },
   "roles wf.json": {
    "name": "workflowRolesAction",
    "request": {
     "workflow": "wf.json"
-   }
+   },
+   "hostRead": true
   },
   "validate": {
-   "error": "Usage: /aw validate <workflow-name-or-path>"
+   "error": "Usage: /aw validate <workflow-name-or-path>",
+   "hostRead": false
   },
   "agents": {
    "name": "listAgentsAction",
-   "request": null
+   "request": null,
+   "hostRead": true
   },
   "agents extra": {
-   "error": "Usage: /aw agents"
+   "error": "Usage: /aw agents",
+   "hostRead": false
   },
   "profile list": {
    "name": "profileAction",
    "request": {
     "op": "list"
-   }
+   },
+   "hostRead": true
   },
   "profile show": {
    "name": "profileAction",
    "request": {
     "op": "show"
-   }
+   },
+   "hostRead": true
   },
   "profile show p1": {
    "name": "profileAction",
    "request": {
     "op": "show",
     "name": "p1"
-   }
+   },
+   "hostRead": true
   },
   "profile show a b": {
-   "error": "Usage: /aw profile show [<name>]"
+   "error": "Usage: /aw profile show [<name>]",
+   "hostRead": false
   },
   "profile set p1 --executor codex --model gpt-x --effort high --permission-mode safe --strict-capabilities toolAllowlist.fine --role verification=claude:haiku:low --unset model --default": {
    "name": "profileAction",
@@ -90,69 +104,83 @@
      "model"
     ],
     "makeDefault": true
-   }
+   },
+   "hostRead": true
   },
   "profile set": {
-   "error": "Usage: /aw profile set <name> [options]"
+   "error": "Usage: /aw profile set <name> [options]",
+   "hostRead": false
   },
   "profile presets": {
    "name": "profileAction",
    "request": {
     "op": "presets"
-   }
+   },
+   "hostRead": true
   },
   "profile delete p1": {
    "name": "profileAction",
    "request": {
     "op": "delete",
     "name": "p1"
-   }
+   },
+   "hostRead": true
   },
   "profile delete": {
-   "error": "Usage: /aw profile delete <name>"
+   "error": "Usage: /aw profile delete <name>",
+   "hostRead": false
   },
   "profile default p1": {
    "name": "profileAction",
    "request": {
     "op": "default",
     "name": "p1"
-   }
+   },
+   "hostRead": true
   },
   "profile default --clear": {
    "name": "profileAction",
    "request": {
     "op": "default",
     "name": null
-   }
+   },
+   "hostRead": true
   },
   "profile default": {
-   "error": "Usage: /aw profile default <name> | --clear"
+   "error": "Usage: /aw profile default <name> | --clear",
+   "hostRead": false
   },
   "profile bogus": {
-   "error": "Unknown profile operation \"bogus\". Usage: /aw profile list|show|set|delete|default|presets|workflow"
+   "error": "Unknown profile operation \"bogus\". Usage: /aw profile list|show|set|delete|default|presets|workflow",
+   "hostRead": false
   },
   "status": {
    "name": "statusAction",
-   "request": {}
+   "request": {},
+   "hostRead": true
   },
   "status r1": {
    "name": "statusAction",
    "request": {
     "runId": "r1"
-   }
+   },
+   "hostRead": true
   },
   "status a b": {
-   "error": "Usage: /aw status [<run-id-or-prefix>]"
+   "error": "Usage: /aw status [<run-id-or-prefix>]",
+   "hostRead": false
   },
   "show r1 --raw": {
    "name": "showAction",
    "request": {
     "ref": "r1",
     "raw": true
-   }
+   },
+   "hostRead": true
   },
   "show": {
-   "error": "Usage: /aw show <run-id-or-workflow> [--raw]"
+   "error": "Usage: /aw show <run-id-or-workflow> [--raw]",
+   "hostRead": false
   },
   "inspect r1 --failures --results": {
    "name": "inspectAction",
@@ -160,10 +188,12 @@
     "runId": "r1",
     "failures": true,
     "results": true
-   }
+   },
+   "hostRead": true
   },
   "inspect": {
-   "error": "Usage: /aw inspect <run-id-or-prefix>"
+   "error": "Usage: /aw inspect <run-id-or-prefix>",
+   "hostRead": false
   },
   "logs r1 --task t1 --lines 5 --stream stderr": {
    "name": "logsAction",
@@ -172,32 +202,39 @@
     "task": "t1",
     "lines": 5,
     "stream": "stderr"
-   }
+   },
+   "hostRead": true
   },
   "logs r1 --lines -1": {
-   "error": "--lines requires a non-negative integer"
+   "error": "--lines requires a non-negative integer",
+   "hostRead": false
   },
   "logs": {
-   "error": "Usage: /aw logs <run-id-or-prefix> [--task <id>] [--lines N] [--stream output|stderr|events|all]"
+   "error": "Usage: /aw logs <run-id-or-prefix> [--task <id>] [--lines N] [--stream output|stderr|events|all]",
+   "hostRead": false
   },
   "stop r1": {
    "name": "stopAction",
    "request": {
     "runId": "r1"
-   }
+   },
+   "hostRead": true
   },
   "stop": {
-   "error": "Usage: /aw stop <run-id-or-prefix>"
+   "error": "Usage: /aw stop <run-id-or-prefix>",
+   "hostRead": false
   },
   "resume r1 --detach": {
    "name": "resumeAction",
    "request": {
     "runId": "r1",
     "detach": true
-   }
+   },
+   "hostRead": true
   },
   "resume": {
-   "error": "Usage: /aw resume <run-id-or-prefix> [--detach]"
+   "error": "Usage: /aw resume <run-id-or-prefix> [--detach]",
+   "hostRead": false
   },
   "approve r1 --request req-1 --reject --yes": {
    "name": "approveAction",
@@ -205,7 +242,8 @@
     "runId": "r1",
     "decision": "reject",
     "requestId": "req-1"
-   }
+   },
+   "hostRead": true
   },
   "prune --keep 3": {
    "name": "pruneAction",
@@ -214,7 +252,8 @@
      "--keep",
      "3"
     ]
-   }
+   },
+   "hostRead": true
   },
   "notices list": {
    "name": "noticesAction",
@@ -222,10 +261,12 @@
     "argv": [
      "list"
     ]
-   }
+   },
+   "hostRead": true
   },
   "bogus": {
-   "error": "Unknown /aw action \"bogus\". Try /aw help."
+   "error": "Unknown /aw action \"bogus\". Try /aw help.",
+   "hostRead": false
   }
  },
  "cli": {

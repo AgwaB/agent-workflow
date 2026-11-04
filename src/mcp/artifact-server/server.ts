@@ -2,7 +2,6 @@
 // New in agent-workflow (WP5): stdio MCP server entry for workflow_artifact.
 //   node dist/mcp/artifact-server/server.js --config <artifact-access.json> [--max-output-chars <n>]
 // stdout carries only MCP protocol messages; every diagnostic goes to stderr.
-import {} from "node:fs";
 import { parseArgs } from "node:util";
 import { packageVersion } from "../package-version.js";
 

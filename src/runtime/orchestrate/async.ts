@@ -29,8 +29,8 @@ import {
 	mergeTaskInput,
 	SubagentToolAuthorityError,
 	type ParallelRunResult,
-	parallelConcurrency,
 } from "./run.js";
+import { executionMode, parallelConcurrency } from "./run-options.js";
 import { writeRunLocator } from "./run-ref.js";
 import { readRunResult, waitForRun } from "./status.js";
 import { DURABLE_WORKER_REQUEST_ENV, splitEnvValues } from "./env-values.js";
@@ -45,12 +45,6 @@ export interface StartAsyncSubagentRunOptions {
 		result: ResultEnvelope,
 		mode: ExecutionMode,
 	) => number | Promise<number>;
-}
-
-export function executionMode(input: RuntimeRunInput): ExecutionMode {
-	if (input.mode !== undefined) return input.mode;
-	if (input.tasks !== undefined) return "parallel";
-	return "single";
 }
 
 function sandboxEnabled(input: RuntimeRunInput): boolean {

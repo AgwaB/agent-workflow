@@ -56,10 +56,14 @@ import {
 	type SubmitRequestFields,
 } from "./request.js";
 import { writeRunLocator } from "./run-ref.js";
+import { parallelConcurrency } from "./run-options.js";
 
-export const DEFAULT_PARALLEL_CONCURRENCY = 4;
 export const MAX_PARALLEL_TASKS = 12;
-export const MAX_PARALLEL_CONCURRENCY = 10;
+// Public through the runtime index (unchanged); defined beside parallelConcurrency.
+export {
+	DEFAULT_PARALLEL_CONCURRENCY,
+	MAX_PARALLEL_CONCURRENCY,
+} from "./run-options.js";
 
 export interface RunSubagentTaskOptions {
 	input: RuntimeRunInput;
@@ -160,11 +164,6 @@ function workspaceMeta(workspace: ResolvedWorkspace) {
 		cwd: workspace.baseCwd,
 		worktreePath: workspace.worktreePath,
 	};
-}
-
-export function parallelConcurrency(input: RuntimeRunInput): number {
-	const requested = input.concurrency ?? DEFAULT_PARALLEL_CONCURRENCY;
-	return Math.max(1, Math.min(MAX_PARALLEL_CONCURRENCY, requested));
 }
 
 function failureKindFromError(error: unknown): FailureKind {

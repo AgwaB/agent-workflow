@@ -75,16 +75,23 @@ export async function characterize() {
 		};
 		const out = { pi: {}, cli: {}, cliJson: {} };
 		const calls = [];
+		// Reads of the host context (thinking level, model registry): a malformed command should be
+		// rejected before any of them (2026-11-04 review of refactor D).
+		let hostReads = 0;
 		const commands = new Map();
 		ext.createAgentWorkflowPiExtension({ api: recordingApi(calls), env })({
 			registerCommand: (name, options) => commands.set(name, options),
 			registerTool() {},
 			on: () => () => undefined,
-			getThinkingLevel: () => "medium",
+			getThinkingLevel: () => {
+				hostReads += 1;
+				return "medium";
+			},
 		});
 		const command = commands.get("aw");
 		for (const args of PI_CASES) {
 			calls.length = 0;
+			hostReads = 0;
 			const notes = [];
 			const exitCode = process.exitCode;
 			await command.handler(args, {
@@ -92,7 +99,12 @@ export async function characterize() {
 				hasUI: true,
 				mode: "rpc",
 				model: { provider: "test", id: "test" },
-				modelRegistry: { getAvailable: () => [] },
+				modelRegistry: {
+					getAvailable: () => {
+						hostReads += 1;
+						return [];
+					},
+				},
 				ui: {
 					notify: (message, type) => notes.push({ message, type }),
 					confirm: async () => true,
@@ -100,7 +112,10 @@ export async function characterize() {
 				},
 			});
 			process.exitCode = exitCode;
-			out.pi[args] = calls.at(-1) ?? { error: notes.at(-1)?.message ?? null };
+			out.pi[args] = {
+				...(calls.at(-1) ?? { error: notes.at(-1)?.message ?? null }),
+				hostRead: hostReads > 0,
+			};
 		}
 		const run = async (argv) => {
 			const stdout = [];

@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 
 import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import { syncFileAndDirectory, workflowsRoot } from "./store.js";
-import { canonical } from "./json-values.js";
+import { canonicalWithoutUndefined } from "./json-values.js";
 
 const ROOT_SCHEMA = "agent-workflow-state-root-v1" as const;
 // v2 (2026-11-02): the schema is agent-workflow-state-root-v1 (was pi-workflow-state-root-v1, whose
@@ -34,7 +34,7 @@ export interface WorkflowStateRootCapability {
 
 function digest(value: unknown): string {
 	return createHash("sha256")
-		.update(JSON.stringify(canonical(value)))
+		.update(JSON.stringify(canonicalWithoutUndefined(value)))
 		.digest("hex");
 }
 

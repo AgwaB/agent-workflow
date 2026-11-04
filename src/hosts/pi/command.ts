@@ -177,8 +177,11 @@ async function dispatch(
 	const api = deps.api;
 	const host = () => hostContext(deps, ctx);
 	switch (action) {
-		case "list":
-			return api.listWorkflowsAction(host(), listRequest(rest, PI_SYNTAX));
+		case "list": {
+			// Arguments first: a malformed command never reads the host context.
+			const request = listRequest(rest, PI_SYNTAX);
+			return api.listWorkflowsAction(host(), request);
+		}
 		case "validate":
 		case "roles": {
 			const request = workflowRefRequest(action, rest, PI_SYNTAX);
@@ -223,12 +226,14 @@ async function dispatch(
 				};
 			}
 			// WP31: `/aw profile workflow …` manages saved per-workflow preferences.
-			if (rest[0] === "workflow")
-				return api.workflowPreferenceAction(
-					host(),
-					workflowPreferenceRequest(rest.slice(1)),
-				);
-			return api.profileAction(host(), profileRequest(rest, PI_SYNTAX));
+			if (rest[0] === "workflow") {
+				const request = workflowPreferenceRequest(rest.slice(1));
+				return api.workflowPreferenceAction(host(), request);
+			}
+			{
+				const request = profileRequest(rest, PI_SYNTAX);
+				return api.profileAction(host(), request);
+			}
 		case "run": {
 			const parsed = parseWorkflowRunArgs(args);
 			if (!parsed.specPath)
@@ -348,14 +353,22 @@ async function dispatch(
 			);
 			return { ...auto, note: hooks.note() };
 		}
-		case "status":
-			return api.statusAction(host(), statusRequest(rest, PI_SYNTAX));
-		case "show":
-			return api.showAction(host(), showRequest(rest, PI_SYNTAX));
-		case "inspect":
-			return api.inspectAction(host(), inspectRequest(rest, PI_SYNTAX));
-		case "logs":
-			return api.logsAction(host(), logsCommandRequest(rest, PI_SYNTAX));
+		case "status": {
+			const request = statusRequest(rest, PI_SYNTAX);
+			return api.statusAction(host(), request);
+		}
+		case "show": {
+			const request = showRequest(rest, PI_SYNTAX);
+			return api.showAction(host(), request);
+		}
+		case "inspect": {
+			const request = inspectRequest(rest, PI_SYNTAX);
+			return api.inspectAction(host(), request);
+		}
+		case "logs": {
+			const request = logsCommandRequest(rest, PI_SYNTAX);
+			return api.logsAction(host(), request);
+		}
 		case "wait": {
 			const parsed = parseCommandArgs(rest, { values: ["--timeout"] });
 			const usage = "wait <run-id-or-prefix> [timeout | --timeout <duration>]";
@@ -439,8 +452,10 @@ async function dispatch(
 					: {}),
 			});
 		}
-		case "stop":
-			return api.stopAction(host(), stopRequest(rest, PI_SYNTAX));
+		case "stop": {
+			const request = stopRequest(rest, PI_SYNTAX);
+			return api.stopAction(host(), request);
+		}
 		case "prune":
 			return api.pruneAction(host(), { argv: rest });
 		case "notices":

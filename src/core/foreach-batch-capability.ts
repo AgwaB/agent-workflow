@@ -7,7 +7,7 @@ import {
 	openWorkflowStateRootCapability,
 	type WorkflowStateRootCapability,
 } from "./workflow-state-root.js";
-import { canonical } from "./json-values.js";
+import { canonicalWithoutUndefined } from "./json-values.js";
 
 const SHA256 = /^[a-f0-9]{64}$/u;
 const CAPABILITIES = new WeakMap<
@@ -39,7 +39,7 @@ export function foreachBatchCapabilitySubjectSha256(
 	return createHash("sha256")
 		.update(
 			JSON.stringify(
-				canonical({
+				canonicalWithoutUndefined({
 					version: record.version,
 					batchId: record.batchId,
 					placeholderSpecId: record.placeholderSpecId,

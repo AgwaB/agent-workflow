@@ -2018,3 +2018,9 @@ except in attributions (file headers, README, this document, `replay.md`).
   (`parseCommandArgs` and the request builders, `CommandSyntax` for the usage prefix and the CLI's
   `--json`); `cli/index.ts` re-exports `parseCommandArgs`, `logsRequest`, `parseRoleFlags` and
   `workflowPreferenceRequest`. Characterized first by `host-command-parity.test.mjs`.
+- Review fixes (typescript-expert review of the refactor, no blocker): `parallelConcurrency` and
+  `executionMode` live in `runtime/orchestrate/run-options.ts`, which the runtime index does not
+  re-export (the public surface of all 10 entry points equals `d5c96d8`); `/aw` builds the request
+  before it reads the host context, so a malformed command is rejected first (before, `profile …` and
+  `logs --lines` errors read the thinking level and model registry first; tested);
+  `json-values.ts` `canonical` is now `canonicalWithoutUndefined`, with both contracts documented.

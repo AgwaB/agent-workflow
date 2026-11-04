@@ -7,7 +7,11 @@ import { dynamicRunDir } from "./dynamic-events.js";
 import type { DynamicOutputProfile } from "./dynamic-profiles.js";
 import { ensureDir, writeJsonAtomic } from "./store.js";
 import { hasTopLevelClaimSupportFields } from "./claim-support-fields.js";
-import { pruneUndefined, toStableJson } from "./json-values.js";
+import {
+	pruneUndefined,
+	toJsonNormalizedValue,
+	toStableJson,
+} from "./json-values.js";
 
 export const DYNAMIC_ARTIFACT_EXTRACT_SCHEMA =
 	"dynamic-artifact-extract-v1" as const;
@@ -1078,13 +1082,8 @@ function optionalStringArray(value: unknown): string[] | undefined {
 
 function hashStable(value: unknown): string {
 	return createHash("sha256")
-		.update(JSON.stringify(toStableJson(toJson(value))))
+		.update(JSON.stringify(toStableJson(toJsonNormalizedValue(value))))
 		.digest("hex");
-}
-
-function toJson(value: unknown): unknown {
-	const text = JSON.stringify(value);
-	return text === undefined ? null : JSON.parse(text);
 }
 
 function sanitizeSegment(value: string): string {

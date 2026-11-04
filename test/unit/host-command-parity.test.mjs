@@ -21,4 +21,10 @@ test("/aw and agent-workflow handle the recorded command lines as before", async
 	assert.deepEqual(Object.keys(actual.pi), Object.keys(expected.pi));
 	assert.deepEqual(Object.keys(actual.cli), Object.keys(expected.cli));
 	assert.deepEqual(Object.keys(actual.cliJson), Object.keys(expected.cliJson));
+	// Review of refactor D: a malformed /aw command is rejected before the host context is read
+	// (thinking level, model registry). Before D, profile and logs errors read it first.
+	const readBeforeError = Object.entries(actual.pi)
+		.filter(([, row]) => row.error && row.hostRead)
+		.map(([args]) => args);
+	assert.deepEqual(readBeforeError, []);
 });

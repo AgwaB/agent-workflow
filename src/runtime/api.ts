@@ -19,8 +19,8 @@ import type { FailureKind, ResolvedBackend, Status } from "./core/constants.js";
 import {
 	startAsyncParallelSubagentRuns,
 	startAsyncSubagentRun,
-	executionMode,
 } from "./orchestrate/async.js";
+import { executionMode } from "./orchestrate/run-options.js";
 import {
 	type ApprovalAuditRequested,
 	type ControlAck,

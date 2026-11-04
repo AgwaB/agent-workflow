@@ -303,7 +303,7 @@ export function parseRoleFlags(
 	return roles;
 }
 
-export const WORKFLOW_PREFERENCE_USAGE =
+const WORKFLOW_PREFERENCE_USAGE =
 	"profile workflow list | show <workflow> | set <workflow> [--profile <name>] [--role <role>=<executor>[:<model>[:<effort>]]]... [--unset profile,roles,roles.<role>] | clear <workflow>";
 
 /** WP31: `profile workflow …` → a per-workflow preference request (CLI wording on both hosts). */
