@@ -781,3 +781,41 @@ test("requirement statements in any script; a requirement quote joining a wrappe
 			),
 		);
 	}));
+
+// agent-workflow 2026-11-04: the scaffold gate uses the bundled reviews' rule (a quote a few lines
+// off, or different only in whitespace, is matched against the file and stored as its bytes).
+test("scaffold gate: a nearby or whitespace-only different quote is verified and corrected; other text still fails", () =>
+	fixture(async (cwd) => {
+		await writeFile(
+			join(cwd, "source.ts"),
+			"// header\n\nexport function stop(error) {\n\treturn error.name === 'Stop' ||\n\t\terror.message.startsWith('stop');\n}\n",
+		);
+		const spaced =
+			"return error.name === 'Stop' ||\n    error.message.startsWith('stop');";
+		const out = await scaffold(cwd, "source.ts", spaced);
+		assert.equal(out.value.evidenceGate.integrity, "complete");
+		assert.equal(out.value.partitions.keep.length, 1);
+		assert.equal(
+			out.value.partitions.keep[0].evidenceGate,
+			"verified-corrected",
+		);
+		assert.equal(
+			out.value.partitions.keep[0].evidenceQuotes[0],
+			"\treturn error.name === 'Stop' ||\n\t\terror.message.startsWith('stop');",
+		);
+		assert.deepEqual(
+			[
+				out.value.evidenceGate.rows[0].line,
+				out.value.evidenceGate.rows[0].lineEnd,
+				out.value.evidenceGate.rows[0].corrected.reason,
+			],
+			[4, 5, "whitespace"],
+		);
+		const wrong = await scaffold(
+			cwd,
+			"source.ts",
+			"return error.code === 'Stop' ||",
+		);
+		assert.equal(wrong.value.evidenceGate.integrity, "partial");
+		assert.equal(wrong.value.partitions.keep.length, 0);
+	}));

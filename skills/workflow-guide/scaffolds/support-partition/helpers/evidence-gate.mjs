@@ -13,7 +13,7 @@
 // Read-only: it only reads files under the workflow cwd; it never writes.
 
 import { resolve } from "node:path";
-import { readLocalText, localRange } from "./local-evidence-reader.mjs";
+import { locateEvidence, readLocalText, localRange } from "./local-evidence-reader.mjs";
 
 const DEFAULT_BUCKETS = ["keep", "weaken"];
 
@@ -42,7 +42,7 @@ async function readRange(root, location, signal) {
     const text = await readLocalText(root, location.file, signal);
     const start = location.line ?? 1;
     const end = location.lineEnd ?? (location.line === undefined ? text.split("\n").length : start);
-    return { status: "ok", text: localRange(text, start, end) };
+    return { status: "ok", text: localRange(text, start, end), file: text, start, end };
   } catch (error) {
     signal?.throwIfAborted();
     return { status: "unreadable", reason: error?.code ?? error.message };
@@ -73,12 +73,33 @@ async function gateFinding(finding, root, signal) {
         break;
       }
     }
+    // agent-workflow 2026-11-04 (a workflow authored from this scaffold went partial on a cheap
+    // model's tab count and a line number a few lines off): the bundled reviews' rule. A quote
+    // that is not inside a cited range is matched once more against that file — a unique exact
+    // occurrence, else a unique whitespace-only difference (line breaks and indentation as one
+    // space) — at most 10 lines from the range. The row then carries the actual lines and the
+    // file's own text; `corrected` records it. Different words, farther lines and repeated text
+    // still mismatch.
+    let corrected;
+    for (const { location, range } of status === "verified" ? [] : ranges) {
+      if (range.status !== "ok") continue;
+      const found = locateEvidence(range.file, quote, range.start, range.end);
+      if (!found) continue;
+      status = "verified";
+      matchedIn = { file: location.file, line: found.line, lineEnd: found.lineEnd };
+      corrected = {
+        citedLines: `${range.start}-${range.end}`,
+        reason: found.reason,
+        ...(found.reason === "whitespace" ? { fileText: found.text } : {}),
+      };
+      break;
+    }
     if (status === "mismatch" && ranges.length > 0 && ranges.every((entry) => entry.range.status !== "ok")) status = "unreadable";
     if (ranges.length === 0) {
       status = "unreadable";
       reason = "finding cites no locations";
     }
-    rows.push({ quote, status, ...(matchedIn ? { file: matchedIn.file, line: matchedIn.line ?? null, lineEnd: matchedIn.lineEnd ?? null } : {}), ...(reason ? { reason } : {}) });
+    rows.push({ quote, status, ...(matchedIn ? { file: matchedIn.file, line: matchedIn.line ?? null, lineEnd: matchedIn.lineEnd ?? null } : {}), ...(corrected ? { corrected } : {}), ...(reason && status !== "verified" ? { reason } : {}) });
   }
   for (const { location, range } of ranges) {
     if (range.status !== "ok" && !rows.some(row => row.status === "unreadable" && row.reason?.includes(`${location.file}:`))) {
@@ -132,7 +153,14 @@ export default async function helper({ sources, options = {}, context = {} }) {
       }
       const failed = rows.filter((row) => row.status !== "verified");
       if (failed.length === 0) {
-        kept.push({ ...finding, evidenceGate: "verified" });
+        const fixed = rows.filter((row) => row.corrected?.fileText);
+        kept.push({
+          ...finding,
+          ...(fixed.length > 0
+            ? { evidenceQuotes: quotes(finding.evidenceQuotes).map((quote) => fixed.find((row) => row.quote === quote)?.corrected.fileText ?? quote) }
+            : {}),
+          evidenceGate: rows.some((row) => row.corrected) ? "verified-corrected" : "verified",
+        });
         continue;
       }
       demoted.push(findingId);
