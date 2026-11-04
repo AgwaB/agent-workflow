@@ -9,6 +9,13 @@ npm install @agwab/agent-workflow      # provides the agent-workflow bin
 npx agent-workflow --help
 ```
 
+**Project directory.** Every command takes the current directory as the project: its
+`workflows/` and `.agent-workflow/workflows/` are searched, and runs are recorded in its
+`.agent-workflow/`. There is no search upward (Codex, by contrast, takes the nearest ancestor with
+`.git`). Run from the project root; a workflow name that only an ancestor project has fails with
+"not found in <dir>; the project <ancestor> has it — … run from <ancestor> (or pass the spec path)"
+(2026-11-04). A spec path works from anywhere and the run is recorded in the current directory.
+
 ## Commands
 
 | Command | What it does |

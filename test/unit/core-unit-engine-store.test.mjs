@@ -6128,3 +6128,48 @@ test("registered launch authority defers replay and fails closed when recovery i
 		});
 	}
 });
+
+// agent-workflow 2026-11-04 (edge-case test): the current directory is the project, so a project
+// workflow is not found from a subdirectory; the error names the ancestor project that has it.
+test("a project workflow asked for from a subdirectory: the error names the ancestor project", async () => {
+	const cwd = makeProject();
+	try {
+		mkdirSync(join(cwd, ".agent-workflow", "workflows", "local-review"), {
+			recursive: true,
+		});
+		writeFileSync(
+			join(cwd, ".agent-workflow", "workflows", "local-review", "spec.json"),
+			JSON.stringify(artifactGraphWorkflowSpec({ name: "local-review" })),
+		);
+		mkdirSync(join(cwd, "src", "deep"), { recursive: true });
+		await assert.rejects(
+			() => resolveWorkflowRef("local-review", join(cwd, "src", "deep")),
+			(error) => {
+				assert.match(
+					error.message,
+					/not found in .*src\/deep; the project .* has it — the current directory is the project, so run from /u,
+				);
+				assert.ok(error.message.includes(cwd));
+				return true;
+			},
+		);
+		// Unknown everywhere: the plain message.
+		await assert.rejects(
+			() => resolveWorkflowRef("nowhere-review", join(cwd, "src")),
+			(error) => {
+				assert.match(error.message, /workflow name or spec file not found/u);
+				assert.doesNotMatch(error.message, /the project/u);
+				return true;
+			},
+		);
+		// From the project itself it resolves.
+		assert.ok((await resolveWorkflowRef("local-review", cwd)).specPath);
+	} finally {
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 5,
+			retryDelay: 10,
+		});
+	}
+});

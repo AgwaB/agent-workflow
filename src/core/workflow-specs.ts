@@ -158,6 +158,34 @@ export interface WorkflowRoutingCatalog {
 	issues: Array<{ specPath?: string; reason: string }>;
 }
 
+/**
+ * agent-workflow 2026-11-04 (edge-case test: `run todo-triage` from `src/` said only "not found"):
+ * the current directory is the project, so a project workflow is not found from a subdirectory.
+ * The nearest ancestor that has the named workflow in its project roots is named in the error.
+ */
+async function ancestorProjectWithWorkflow(
+	name: string,
+	cwd: string,
+): Promise<string | undefined> {
+	let dir = dirname(resolve(cwd));
+	for (let depth = 0; depth < 32; depth++) {
+		for (const root of [
+			join(dir, PROJECT_STATE_DIRECTORY, "workflows"),
+			join(dir, "workflows"),
+		]) {
+			if (
+				(await isFile(join(root, name, "spec.json"))) ||
+				(await isFile(join(root, `${name}.json`)))
+			)
+				return dir;
+		}
+		const parent = dirname(dir);
+		if (parent === dir) return undefined;
+		dir = parent;
+	}
+	return undefined;
+}
+
 export async function resolveWorkflowRef(
 	ref: string,
 	cwd: string,
@@ -197,8 +225,14 @@ export async function resolveWorkflowRef(
 	validateWorkflowName(trimmed);
 	const matches = await findWorkflowCandidates(trimmed, cwd);
 	if (matches.length === 0) {
+		const ancestor = await ancestorProjectWithWorkflow(trimmed, cwd);
 		throw new WorkflowValidationError([
-			{ path: trimmed, message: "workflow name or spec file not found" },
+			{
+				path: trimmed,
+				message: ancestor
+					? `workflow name or spec file not found in ${cwd}; the project ${ancestor} has it — the current directory is the project, so run from ${ancestor} (or pass the spec path)`
+					: "workflow name or spec file not found",
+			},
 		]);
 	}
 	if (matches.length > 1) {
