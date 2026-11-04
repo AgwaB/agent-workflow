@@ -134,23 +134,28 @@ export const DEGRADATION_ELICITATION_TITLE =
 
 const WAIT_SECONDS = hostApi.HOST_WAIT_MAX_TIMEOUT_MS / 1000;
 
+/**
+ * Server instructions. Claude Code keeps only the first 4,096 characters ("Server instructions
+ * truncated from 4508 to 4096 chars" in its MCP log, 2026-11-03), so they stay under that and the
+ * rules a person notices come first. 2026-11-03 (owner, the Claude desktop app's chat: the agent
+ * said "you can follow it in the dashboard" without the link): some apps fold tool results, so the
+ * agent's own message must carry the run id and the dashboard link.
+ */
 export const HOST_MCP_INSTRUCTIONS = [
 	"agent-workflow runs multi-agent workflows (for example deep-review, deep-research) whose workers are coding-agent CLIs. Use these tools only when the user asks to run or manage an agent-workflow workflow.",
 	"Call protocol:",
 	`1. ${WORKFLOW_LIST_TOOL} when the workflow name is uncertain; never guess workflow names.`,
-	`2. ${WORKFLOW_RUN_TOOL} {workflow, task} (or ${WORKFLOW_DYNAMIC_TOOL} {task} for a spec-less dynamic workflow) starts a run and returns its runId at once. Runs are detached by default, so they keep going between calls and after this server stops.`,
-	`3. ${WORKFLOW_WAIT_TOOL} {runId} waits at most ${WAIT_SECONDS} s per call. While stillRunning is true, call ${WORKFLOW_WAIT_TOOL} again with the same runId. terminal=true means finished; actionRequired=true means blocked: report it and use ${WORKFLOW_INSPECT_TOOL}.`,
-	'4. When the run finished, quote the result preview and give the report paths verbatim; do not paraphrase or re-summarize the report. Read the report file for details. A result headed "Workflow finished — verdict: X (report ready)" (verdictGate=true) is the workflow\'s result with a non-passing domain verdict, not a workflow failure: report the verdict and the report.',
-	`5. You get no completion push: a run only reports through ${WORKFLOW_WAIT_TOOL}/${WORKFLOW_STATUS_TOOL}. If it is still running when you stop waiting (for example a long rate-limit backoff, nextRetry in the ${WORKFLOW_WAIT_TOOL} result), tell the user the runId, what the run is waiting for, that they can ask you again later, and that they can follow it live in a terminal with \`agent-workflow watch <runId>\` (in Claude Code, \`agent-workflow statusline\` as the statusLine command shows active runs). A line containing "agent-workflow: workflow … finished — …" in a later turn's context (a host may prefix it, for example "UserPromptSubmit hook success: ") comes from the completion check (agent-workflow notify-check): relay it to the user with the report path.`,
-	`${WORKFLOW_STATUS_TOOL} lists runs or shows one; ${WORKFLOW_LOGS_TOOL} shows a bounded, redacted tail of task output, stderr and executor events; ${WORKFLOW_STOP_TOOL} interrupts a run (cancelling ${WORKFLOW_WAIT_TOOL} only stops waiting); ${WORKFLOW_VALIDATE_TOOL} checks a workflow spec.`,
-	`More tools (the CLI commands): ${WORKFLOW_SHOW_TOOL} (a workflow spec or a run record), ${WORKFLOW_ROLES_TOOL}, ${WORKFLOW_AGENTS_TOOL}, ${WORKFLOW_DOCTOR_TOOL} (environment check) are read-only. ${WORKFLOW_RESUME_TOOL} continues a failed, interrupted or blocked run and ${WORKFLOW_SUPERVISE_TOOL} starts a background supervisor for a running run without one: both start model calls (cost), so call them only when the user asks.`,
-	`Dynamic approvals: a run whose dynamic controller needs the user's approval stops with actionRequired=true and pendingApprovals (the question and a requestId) in ${WORKFLOW_WAIT_TOOL}/${WORKFLOW_STATUS_TOOL}. Show the user the question; only when the user decides, call ${WORKFLOW_APPROVE_TOOL} {runId, requestId, decision} (it asks the user to confirm in a dialog; an approval continues the run, which starts model calls).`,
-	`Choosing a workflow: when the user asks you to pick a workflow for a task (rather than naming one), call ${WORKFLOW_AUTO_TOOL} {task}. It asks the user in a dialog before it sends the task to one classifier request, then lets the user choose the workflow to start in a second dialog; never call it without the user's request. Without dialog support it sends nothing and returns a local shortlist: show it and let the user pick, then call ${WORKFLOW_RUN_TOOL}/${WORKFLOW_DYNAMIC_TOOL}.`,
-	`Changes that need the user's confirmation in an MCP dialog: ${CONFIRMED_CHANGES.join("; ")}. Without dialog support they are refused with the terminal command to run instead. ${WORKFLOW_PRUNE_TOOL} without dryRun=false only previews.`,
-	'Permission mode: "free" by default (workers run without approval prompts; stages the workflow declares read-only stay read-only). Set permissionMode "safe" only when the user asks for approvals/sandboxing.',
-	'Executor: omit executor to use the workflow profile or this host\'s default executor; set executor ("claude", "codex", "pi") or profile only when the user asks (for example "run it on codex").',
-	`${WORKFLOW_DASHBOARD_TOOL} starts the local dashboard on request and opens it in the user's browser after the user consents in a dialog (URL elicitation, else a form dialog); clients without dialogs get terminal instructions. It never returns a sign-in URL or changes a run.`,
-	"Every tool takes an optional cwd (a directory inside the project this server was started in); omit it to use the project root.",
+	`2. ${WORKFLOW_RUN_TOOL} {workflow, task} (or ${WORKFLOW_DYNAMIC_TOOL} {task}) starts a run (detached: it keeps going between calls) and returns its runId and a "Dashboard:" link at once. Put both in your next message, the link verbatim: some apps fold tool results, so your message is what the user sees.`,
+	`3. ${WORKFLOW_WAIT_TOOL} {runId} waits at most ${WAIT_SECONDS} s per call; call it again while stillRunning is true. terminal=true: finished; actionRequired=true: blocked, report it and use ${WORKFLOW_INSPECT_TOOL}.`,
+	'4. When it finished, quote the result preview and the report paths verbatim (do not re-summarize the report) and give the Dashboard link again. "Workflow finished — verdict: X (report ready)" (verdictGate=true) is the workflow\'s result with a non-passing verdict, not a failure.',
+	`5. There is no completion push. If you stop waiting while it runs (for example a rate-limit backoff, nextRetry), tell the user the runId, what it waits for, the Dashboard link, and that they can ask you again or run \`agent-workflow watch <runId>\`. A line containing "agent-workflow: workflow … finished — …" in a later turn (maybe prefixed by a hook) comes from the completion check: relay it with the report path.`,
+	`${WORKFLOW_STATUS_TOOL} lists runs or shows one; ${WORKFLOW_LOGS_TOOL} shows a redacted tail of task output; ${WORKFLOW_STOP_TOOL} interrupts a run (cancelling ${WORKFLOW_WAIT_TOOL} only stops waiting); ${WORKFLOW_VALIDATE_TOOL} checks a spec. ${WORKFLOW_SHOW_TOOL}, ${WORKFLOW_ROLES_TOOL}, ${WORKFLOW_AGENTS_TOOL}, ${WORKFLOW_DOCTOR_TOOL} are read-only. ${WORKFLOW_RESUME_TOOL} continues a failed, interrupted or blocked run and ${WORKFLOW_SUPERVISE_TOOL} supervises a running one: both start model calls, so only when the user asks.`,
+	`A launch refused because the client could not show its confirmation dialog says which limits to show the user; only if they agree, call again with acceptDegradations as it says.`,
+	`Dynamic approvals: a run stopped with actionRequired=true and pendingApprovals (a question and requestId): show the question; only when the user decides, call ${WORKFLOW_APPROVE_TOOL} {runId, requestId, decision} (it confirms in a dialog; approving starts model calls).`,
+	`Choosing a workflow: only when the user asks you to pick one for a task, call ${WORKFLOW_AUTO_TOOL} {task}: it asks in a dialog before one classifier request, then lets the user choose; without dialogs it returns a local shortlist to show the user.`,
+	`Changes that need the user's confirmation in an MCP dialog (refused with the terminal command without dialogs): ${CONFIRMED_CHANGES.join("; ")}. ${WORKFLOW_PRUNE_TOOL} without dryRun=false only previews.`,
+	'Permission mode is "free" by default (workers run without approval prompts; read-only stages stay read-only); set permissionMode "safe", executor ("claude", "codex", "pi") or profile only when the user asks.',
+	`${WORKFLOW_DASHBOARD_TOOL} opens the dashboard in the user's browser after a dialog; it never returns a sign-in URL. Every tool takes an optional cwd inside the project root.`,
 ].join("\n");
 
 const CWD_PROPERTY = {
@@ -1372,7 +1377,9 @@ function profileSetFromArguments(params: Record<string, unknown>): {
 
 function launchNext(data: LaunchData): string | undefined {
 	if (data.runId && data.status === "running")
-		return `First tell the user the run id and the Dashboard link above (${data.dashboard?.auth ? "if they say it asks them to sign in" : "if they want it opened for them"}, call ${WORKFLOW_DASHBOARD_TOOL}). Then call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.`;
+		return data.dashboard
+			? `Now tell the user, in your own message (some apps fold tool results): run ${data.runId}, Dashboard: ${data.dashboard.url} — the link as is${data.dashboard.auth ? `; if it asks them to sign in, call ${WORKFLOW_DASHBOARD_TOOL}` : ""}. Then call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.`
+			: `Now tell the user the run id ${data.runId} in your own message; the dashboard is not running (${WORKFLOW_DASHBOARD_TOOL} opens it when they want it). Then call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.`;
 	if (data.duplicateOf)
 		return `Next: call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.duplicateOf}"} for the active run, or ${WORKFLOW_RUN_TOOL} with forceNew=true to really start another run.`;
 	return undefined;
@@ -1407,7 +1414,7 @@ function waitNext(data: WaitData): string {
 		? `\nThe run finished with the domain verdict ${data.verdict ?? "(not reported)"}; status=failed only means this verdict did not pass the workflow's final gate. Report it as the workflow's result (verdict and report), not as a workflow failure.`
 		: "";
 	const dashboard = data.dashboard
-		? ` Give the user the Dashboard link above too: it opens this run's report in the dashboard${data.dashboard.auth ? ` (if it asks them to sign in, call ${WORKFLOW_DASHBOARD_TOOL} {"run":"${data.runId}"})` : ""}.`
+		? ` Include the link ${data.dashboard.url} in your message as is: it opens this run's report in the dashboard${data.dashboard.auth ? ` (if it asks them to sign in, call ${WORKFLOW_DASHBOARD_TOOL} {"run":"${data.runId}"})` : ""}.`
 		: "";
 	return `${state}${verdict}${reports.length ? `\n${reports.join("\n")}` : ""}${gate}\nQuote the result preview and the report paths; do not paraphrase the report.${dashboard}`;
 }

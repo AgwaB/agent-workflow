@@ -168,6 +168,17 @@ content this tool returns the compact top-level `{running, port, opened, method}
 (an exception to host API text-only results). Startup failures return `isError: true` with a reason.
 This tool is not a confirmed run change: it starts a local process but changes nothing in runs.
 
+## Run id and dashboard link in the agent's message (2026-11-03)
+
+Owner (the Claude desktop app's chat): after a launch the agent said "you can follow it in the
+dashboard" without the link; the app folds tool results, so the link in the result was not seen.
+A launch result's next step now names the run and the link itself ("Now tell the user, in your own
+message (some apps fold tool results): run <id>, Dashboard: <url> — the link as is. Then call
+workflow_wait …"; without a dashboard: the run id and that `workflow_dashboard` opens it), and a
+finished `workflow_wait` asks to include the link as is. The server instructions say the same and
+stay under 4,096 characters: Claude Code keeps only that much ("Server instructions truncated from
+4508 to 4096 chars" in its MCP log), which had cut the dashboard and `cwd` lines.
+
 ## Degradation confirmation (elicitation)
 
 A launch whose capability check needs confirmation (WP4d; for example environment warnings in

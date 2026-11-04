@@ -159,12 +159,15 @@ test("initialize and tools/list: server name, instructions, every tool gated per
 	assert.equal(instructions, hostServer.HOST_MCP_INSTRUCTIONS);
 	for (const pattern of [
 		/workflow_wait \{runId\} waits at most 45 s/,
-		/While stillRunning is true, call workflow_wait again/,
-		/do not paraphrase/,
+		/call it again while stillRunning is true/,
+		/do not re-summarize the report/,
 		/"free" by default/,
-		/omit executor/,
+		/executor \("claude", "codex", "pi"\) or profile only when the user asks/,
+		/returns its runId and a "Dashboard:" link at once\. Put both in your next message, the link verbatim/,
 	])
 		assert.match(instructions, pattern);
+	// Claude Code keeps only the first 4,096 characters of server instructions.
+	assert.ok(instructions.length <= 4096, String(instructions.length));
 	const { tools } = (await client.request("tools/list")).result;
 	assert.deepEqual(
 		tools.map((tool) => tool.name),

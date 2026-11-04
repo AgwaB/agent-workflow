@@ -456,9 +456,13 @@ test("real workflow_run preserves the token-free dashboard link only while a das
 		assert.equal(result.isError, false, result.content[0].text);
 		const { runId, dashboard } = result.structuredContent.data;
 		assert.ok(runId);
+		// 2026-11-03 (owner, the Claude desktop app's chat: "you can follow it in the dashboard"
+		// without the link): the next step names the run and the link itself.
 		assert.ok(
 			result.content[0].text.includes(
-				`First tell the user the run id and the Dashboard link above (if they want it opened for them, call workflow_dashboard). Then call workflow_wait {"runId":"${runId}"} and repeat while stillRunning is true.`,
+				running
+					? `Now tell the user, in your own message (some apps fold tool results): run ${runId}, Dashboard: http://127.0.0.1:${p.dashboard.port}/?run=${runId} — the link as is. Then call workflow_wait {"runId":"${runId}"} and repeat while stillRunning is true.`
+					: `Now tell the user the run id ${runId} in your own message; the dashboard is not running (workflow_dashboard opens it when they want it). Then call workflow_wait {"runId":"${runId}"} and repeat while stillRunning is true.`,
 			),
 			result.content[0].text,
 		);
