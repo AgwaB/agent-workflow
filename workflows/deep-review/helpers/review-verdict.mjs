@@ -2,7 +2,7 @@
 // puts it in the report packet for the report stage to copy) and the renderer (which recomputes it
 // and rejects a report that differs). Moved out of render-review-report.mjs.
 
-function asArray(value) {
+export function asArray(value) {
 	return Array.isArray(value) ? value : [];
 }
 

@@ -847,3 +847,20 @@ test("spec-review: a Markdown requirement quote without backticks is verified", 
 		assert.deepEqual(out.p.evidenceGate.requirementReconciliation.issues, []);
 		assert.equal(out.result.status, "passed");
 	}));
+
+// Refactor 2026-11-04: the spec-review bundle and the support-partition scaffold each carry the
+// local evidence reader (a bundle may not import outside itself). They stay one implementation:
+// every change goes to both, and this test fails when they drift apart.
+test("spec-review and the support-partition scaffold carry the same local evidence reader", async () => {
+	const body = async (path) =>
+		(await readFile(new URL(path, import.meta.url), "utf8"))
+			.split("\n")
+			.slice(1)
+			.join("\n");
+	assert.equal(
+		await body(
+			"../../skills/workflow-guide/scaffolds/support-partition/helpers/local-evidence-reader.mjs",
+		),
+		await body("../../workflows/spec-review/helpers/local-evidence-reader.mjs"),
+	);
+});

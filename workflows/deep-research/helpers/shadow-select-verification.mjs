@@ -1,3 +1,4 @@
+import { findSource as canonicalSource } from "./source-access.mjs";
 // Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) workflows/deep-research/helpers/shadow-select-verification.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 // Shadow-only selective verification reporter for deep-research.
 //
@@ -17,18 +18,6 @@ function asArray(value) {
 		if (Array.isArray(value.items)) return value.items;
 	}
 	return [];
-}
-
-function canonicalSource(sources, stageId) {
-	const matches = Object.entries(sources ?? {}).filter(
-		([specId]) => specId === stageId || specId.startsWith(`${stageId}.`),
-	);
-	if (matches.length > 1) {
-		throw new Error(
-			`deep-research: ambiguous ${stageId} source (${matches.map(([specId]) => specId).join(", ")})`,
-		);
-	}
-	return matches[0]?.[1] ?? null;
 }
 
 function findCandidates(sources) {

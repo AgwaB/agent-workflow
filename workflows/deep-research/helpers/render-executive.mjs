@@ -12,22 +12,7 @@ import { validateSynthesisPages } from "./synthesis-pages.mjs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { canonicalVerificationStatus } from "./verification-ontology.mjs";
-
-function findSource(sources, stageId) {
-	const matches = Object.entries(sources ?? {}).filter(
-		([specId]) => specId === stageId || specId.startsWith(`${stageId}.`),
-	);
-	if (matches.length > 1) {
-		throw new Error(
-			`deep-research: ambiguous ${stageId} source (${matches.map(([specId]) => specId).join(", ")})`,
-		);
-	}
-	return matches[0]?.[1] ?? null;
-}
-
-function asArray(value) {
-	return Array.isArray(value) ? value : [];
-}
+import { findSource, asArray } from "./source-access.mjs";
 
 function isRecord(value) {
 	return Boolean(value && typeof value === "object" && !Array.isArray(value));

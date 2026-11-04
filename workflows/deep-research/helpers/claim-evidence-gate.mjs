@@ -10,6 +10,7 @@ import {
 	VERIFICATION_STATUS_BUCKETS,
 	canonicalVerificationStatus,
 } from "./verification-ontology.mjs";
+import { findSource } from "./source-access.mjs";
 
 // Deterministic claim audit for deep-research.
 //
@@ -1395,18 +1396,6 @@ function buildBatchAdoptionReadiness({ gateSummary, candidateCount }) {
 }
 
 const STATUS_BUCKETS = VERIFICATION_STATUS_BUCKETS;
-
-function findSource(sources, stageId) {
-	const matches = Object.entries(sources ?? {}).filter(
-		([specId]) => specId === stageId || specId.startsWith(`${stageId}.`),
-	);
-	if (matches.length > 1) {
-		throw new Error(
-			`deep-research: ambiguous ${stageId} source (${matches.map(([specId]) => specId).join(", ")})`,
-		);
-	}
-	return matches[0]?.[1] ?? null;
-}
 
 export default async function claimEvidenceGate({
 	sources,

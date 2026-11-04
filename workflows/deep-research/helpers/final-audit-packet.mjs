@@ -1,5 +1,6 @@
 // Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) workflows/deep-research/helpers/final-audit-packet.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 import { buildSynthesisPages } from "./synthesis-pages.mjs";
+import { findSource, asArray, asObject, stringOf } from "./source-access.mjs";
 
 // Deterministic compact input packet for deep-research final-audit.
 //
@@ -10,32 +11,6 @@ import { buildSynthesisPages } from "./synthesis-pages.mjs";
 // consuming these code-computed ledgers as ground truth for counts and buckets.
 
 const SCHEMA = "deep-research-final-audit-packet-v1";
-
-function findSource(sources, stageId) {
-	const matches = Object.entries(sources ?? {}).filter(
-		([specId]) => specId === stageId || specId.startsWith(`${stageId}.`),
-	);
-	if (matches.length > 1) {
-		throw new Error(
-			`deep-research: ambiguous ${stageId} source (${matches.map(([specId]) => specId).join(", ")})`,
-		);
-	}
-	return matches[0]?.[1] ?? null;
-}
-
-function asArray(value) {
-	return Array.isArray(value) ? value : [];
-}
-
-function asObject(value) {
-	return value && typeof value === "object" && !Array.isArray(value)
-		? value
-		: {};
-}
-
-function stringOf(value) {
-	return typeof value === "string" ? value : undefined;
-}
 
 function idOf(value) {
 	return stringOf(value?.id) ?? stringOf(value?.claimId) ?? null;

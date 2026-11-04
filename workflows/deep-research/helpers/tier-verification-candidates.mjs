@@ -17,6 +17,7 @@
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { asObject, findSource as canonicalSource } from "./source-access.mjs";
 
 const HELPER_DIR = dirname(fileURLToPath(import.meta.url));
 const SANITIZE_SCHEMA_PATH = join(
@@ -29,12 +30,6 @@ const FALLBACK_CANDIDATE_CAP = 48;
 const DEFAULT_CORE_TIER_SIZE = 8;
 const VERIFICATION_NEEDS = new Set(["core", "useful", "optional"]);
 let candidateCapCache;
-
-function asObject(value) {
-	return value && typeof value === "object" && !Array.isArray(value)
-		? value
-		: {};
-}
 
 function arrayMaxItems(schema) {
 	const value = asObject(schema).maxItems;
@@ -66,18 +61,6 @@ function asArray(value) {
 		if (Array.isArray(value.items)) return value.items;
 	}
 	return [];
-}
-
-function canonicalSource(sources, stageId) {
-	const matches = Object.entries(sources ?? {}).filter(
-		([specId]) => specId === stageId || specId.startsWith(`${stageId}.`),
-	);
-	if (matches.length > 1) {
-		throw new Error(
-			`deep-research: ambiguous ${stageId} source (${matches.map(([specId]) => specId).join(", ")})`,
-		);
-	}
-	return matches[0]?.[1] ?? null;
 }
 
 function findCandidates(sources) {

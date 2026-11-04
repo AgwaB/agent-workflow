@@ -2,6 +2,7 @@
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { findSource, asArray, asObject } from "./source-access.mjs";
 
 // Deterministic sanitizer between normalize-claims and verify-claims.
 //
@@ -28,16 +29,6 @@ const FALLBACK_SCHEMA_CAPS = {
 	factSlotCoverage: 64,
 };
 let schemaCapsCache;
-
-function asArray(value) {
-	return Array.isArray(value) ? value : [];
-}
-
-function asObject(value) {
-	return value && typeof value === "object" && !Array.isArray(value)
-		? value
-		: {};
-}
 
 async function loadSchemaCaps() {
 	if (schemaCapsCache) return schemaCapsCache;
@@ -83,18 +74,6 @@ function compactStrings(values, limit = 12) {
 		if (out.length >= limit) break;
 	}
 	return out;
-}
-
-function findSource(sources, stageId) {
-	const matches = Object.entries(sources ?? {}).filter(
-		([specId]) => specId === stageId || specId.startsWith(`${stageId}.`),
-	);
-	if (matches.length > 1) {
-		throw new Error(
-			`deep-research: ambiguous ${stageId} source (${matches.map(([specId]) => specId).join(", ")})`,
-		);
-	}
-	return matches[0]?.[1] ?? null;
 }
 
 function claimText(candidate) {

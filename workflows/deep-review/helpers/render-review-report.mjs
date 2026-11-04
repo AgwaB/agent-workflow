@@ -8,7 +8,11 @@
 import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { hasPartialFailures, requiredReportVerdict } from "./review-verdict.mjs";
+import {
+	asArray,
+	hasPartialFailures,
+	requiredReportVerdict,
+} from "./review-verdict.mjs";
 
 const SEVERITY_ORDER = ["critical", "high", "medium", "low", "info", "unknown"];
 const REPORT_VERDICTS = new Set([
@@ -27,10 +31,6 @@ function findSource(sources, stageId) {
 		);
 	}
 	return matches[0]?.[1] ?? null;
-}
-
-function asArray(value) {
-	return Array.isArray(value) ? value : [];
 }
 
 function canonicalJsonValue(value) {

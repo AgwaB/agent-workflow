@@ -1,3 +1,4 @@
+import { findSource, asArray, asObject, stringOf } from "./source-access.mjs";
 // Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) workflows/deep-research/helpers/normalize-input-packet.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 // Deterministic compact input packet for deep-research normalize-claims.
 //
@@ -8,18 +9,6 @@
 
 const SCHEMA = "deep-research-normalize-input-packet-v2";
 
-function findSource(sources, stageId) {
-	const matches = Object.entries(sources ?? {}).filter(
-		([specId]) => specId === stageId || specId.startsWith(`${stageId}.`),
-	);
-	if (matches.length > 1) {
-		throw new Error(
-			`deep-research: ambiguous ${stageId} source (${matches.map(([specId]) => specId).join(", ")})`,
-		);
-	}
-	return matches[0]?.[1] ?? null;
-}
-
 function researchSources(sources) {
 	return Object.entries(sources ?? {})
 		.filter(
@@ -27,20 +16,6 @@ function researchSources(sources) {
 				specId === "research-questions" || specId.startsWith("research-questions."),
 		)
 		.map(([sourceId, source]) => ({ sourceId, source: asObject(source) }));
-}
-
-function asArray(value) {
-	return Array.isArray(value) ? value : [];
-}
-
-function asObject(value) {
-	return value && typeof value === "object" && !Array.isArray(value)
-		? value
-		: {};
-}
-
-function stringOf(value) {
-	return typeof value === "string" ? value : undefined;
 }
 
 function compactStrings(values, limit = 8) {
