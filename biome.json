@@ -13,6 +13,7 @@
 			"!**/*.md",
 			"!test/replay/fixtures/**",
 			"!test/fixtures/support-replay/**",
+			"!test/fixtures/command-parity/**",
 			"!src/runtime/native/**",
 			"!src/hosts/dashboard/ui/vendor/**",
 			"!dist/**",

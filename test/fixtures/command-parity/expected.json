@@ -1,0 +1,722 @@
+{
+ "pi": {
+  "list": {
+   "name": "listWorkflowsAction",
+   "request": {}
+  },
+  "list --query deep --offset 1 --limit 2": {
+   "name": "listWorkflowsAction",
+   "request": {
+    "query": "deep",
+    "offset": 1,
+    "limit": 2
+   }
+  },
+  "list extra": {
+   "error": "Usage: /aw list [--query <text>] [--offset N] [--limit N]"
+  },
+  "list --limit x": {
+   "error": "--limit requires a non-negative integer"
+  },
+  "list --json": {
+   "error": "Unknown option --json"
+  },
+  "validate wf.json": {
+   "name": "validateWorkflowAction",
+   "request": {
+    "workflow": "wf.json"
+   }
+  },
+  "roles wf.json": {
+   "name": "workflowRolesAction",
+   "request": {
+    "workflow": "wf.json"
+   }
+  },
+  "validate": {
+   "error": "Usage: /aw validate <workflow-name-or-path>"
+  },
+  "agents": {
+   "name": "listAgentsAction",
+   "request": null
+  },
+  "agents extra": {
+   "error": "Usage: /aw agents"
+  },
+  "profile list": {
+   "name": "profileAction",
+   "request": {
+    "op": "list"
+   }
+  },
+  "profile show": {
+   "name": "profileAction",
+   "request": {
+    "op": "show"
+   }
+  },
+  "profile show p1": {
+   "name": "profileAction",
+   "request": {
+    "op": "show",
+    "name": "p1"
+   }
+  },
+  "profile show a b": {
+   "error": "Usage: /aw profile show [<name>]"
+  },
+  "profile set p1 --executor codex --model gpt-x --effort high --permission-mode safe --strict-capabilities toolAllowlist.fine --role verification=claude:haiku:low --unset model --default": {
+   "name": "profileAction",
+   "request": {
+    "op": "set",
+    "name": "p1",
+    "values": {
+     "executor": "codex",
+     "model": "gpt-x",
+     "effort": "high",
+     "permissionMode": "safe",
+     "strictCapabilities": [
+      "toolAllowlist.fine"
+     ],
+     "roles": {
+      "verification": {
+       "executor": "claude",
+       "model": "haiku",
+       "effort": "low"
+      }
+     }
+    },
+    "unset": [
+     "model"
+    ],
+    "makeDefault": true
+   }
+  },
+  "profile set": {
+   "error": "Usage: /aw profile set <name> [options]"
+  },
+  "profile presets": {
+   "name": "profileAction",
+   "request": {
+    "op": "presets"
+   }
+  },
+  "profile delete p1": {
+   "name": "profileAction",
+   "request": {
+    "op": "delete",
+    "name": "p1"
+   }
+  },
+  "profile delete": {
+   "error": "Usage: /aw profile delete <name>"
+  },
+  "profile default p1": {
+   "name": "profileAction",
+   "request": {
+    "op": "default",
+    "name": "p1"
+   }
+  },
+  "profile default --clear": {
+   "name": "profileAction",
+   "request": {
+    "op": "default",
+    "name": null
+   }
+  },
+  "profile default": {
+   "error": "Usage: /aw profile default <name> | --clear"
+  },
+  "profile bogus": {
+   "error": "Unknown profile operation \"bogus\". Usage: /aw profile list|show|set|delete|default|presets|workflow"
+  },
+  "status": {
+   "name": "statusAction",
+   "request": {}
+  },
+  "status r1": {
+   "name": "statusAction",
+   "request": {
+    "runId": "r1"
+   }
+  },
+  "status a b": {
+   "error": "Usage: /aw status [<run-id-or-prefix>]"
+  },
+  "show r1 --raw": {
+   "name": "showAction",
+   "request": {
+    "ref": "r1",
+    "raw": true
+   }
+  },
+  "show": {
+   "error": "Usage: /aw show <run-id-or-workflow> [--raw]"
+  },
+  "inspect r1 --failures --results": {
+   "name": "inspectAction",
+   "request": {
+    "runId": "r1",
+    "failures": true,
+    "results": true
+   }
+  },
+  "inspect": {
+   "error": "Usage: /aw inspect <run-id-or-prefix>"
+  },
+  "logs r1 --task t1 --lines 5 --stream stderr": {
+   "name": "logsAction",
+   "request": {
+    "runId": "r1",
+    "task": "t1",
+    "lines": 5,
+    "stream": "stderr"
+   }
+  },
+  "logs r1 --lines -1": {
+   "error": "--lines requires a non-negative integer"
+  },
+  "logs": {
+   "error": "Usage: /aw logs <run-id-or-prefix> [--task <id>] [--lines N] [--stream output|stderr|events|all]"
+  },
+  "stop r1": {
+   "name": "stopAction",
+   "request": {
+    "runId": "r1"
+   }
+  },
+  "stop": {
+   "error": "Usage: /aw stop <run-id-or-prefix>"
+  },
+  "resume r1 --detach": {
+   "name": "resumeAction",
+   "request": {
+    "runId": "r1",
+    "detach": true
+   }
+  },
+  "resume": {
+   "error": "Usage: /aw resume <run-id-or-prefix> [--detach]"
+  },
+  "approve r1 --request req-1 --reject --yes": {
+   "name": "approveAction",
+   "request": {
+    "runId": "r1",
+    "decision": "reject",
+    "requestId": "req-1"
+   }
+  },
+  "prune --keep 3": {
+   "name": "pruneAction",
+   "request": {
+    "argv": [
+     "--keep",
+     "3"
+    ]
+   }
+  },
+  "notices list": {
+   "name": "noticesAction",
+   "request": {
+    "argv": [
+     "list"
+    ]
+   }
+  },
+  "bogus": {
+   "error": "Unknown /aw action \"bogus\". Try /aw help."
+  }
+ },
+ "cli": {
+  "list extra": {
+   "code": 2,
+   "error": "Usage: list [--query <text>] [--offset N] [--limit N]"
+  },
+  "list --limit x": {
+   "code": 2,
+   "error": "--limit requires a non-negative integer"
+  },
+  "validate": {
+   "code": 2,
+   "error": "Usage: validate <workflow-name-or-path>"
+  },
+  "agents extra": {
+   "code": 2,
+   "error": "Usage: agents"
+  },
+  "profile show a b": {
+   "code": 2,
+   "error": "Usage: profile show [<name>]"
+  },
+  "profile set": {
+   "code": 2,
+   "error": "Usage: profile set <name> [options]"
+  },
+  "profile delete": {
+   "code": 2,
+   "error": "Usage: profile delete <name>"
+  },
+  "profile default": {
+   "code": 2,
+   "error": "Usage: profile default <name> | --clear"
+  },
+  "profile bogus": {
+   "code": 2,
+   "error": "Unknown profile operation \"bogus\". Usage: profile list|show|set|delete|default|presets|workflow"
+  },
+  "status a b": {
+   "code": 2,
+   "error": "Usage: status [<run-id-or-prefix>]"
+  },
+  "show": {
+   "code": 2,
+   "error": "Usage: show <run-id-or-workflow> [--raw]"
+  },
+  "inspect": {
+   "code": 2,
+   "error": "Usage: inspect <run-id-or-prefix>"
+  },
+  "logs": {
+   "code": 2,
+   "error": "Usage: logs <run-id-or-prefix> [--task <id>] [--lines N] [--stream output|stderr|events|all]"
+  },
+  "logs r1 --lines -1": {
+   "code": 2,
+   "error": "--lines requires a non-negative integer"
+  },
+  "stop": {
+   "code": 2,
+   "error": "Usage: stop <run-id-or-prefix>"
+  },
+  "resume": {
+   "code": 2,
+   "error": "Usage: resume <run-id-or-prefix> [--detach]"
+  },
+  "resume r1 --detach --timeout 5s": {
+   "code": 2,
+   "error": "--timeout cannot be combined with --detach"
+  },
+  "wait": {
+   "code": 2,
+   "error": "Usage: wait <run-id-or-prefix> [--timeout <duration>]"
+  },
+  "approve": {
+   "code": 2,
+   "error": "Usage: approve <run-id-or-prefix> [--request <id>] [--reject] [--yes] [--detach] [--timeout <duration>]"
+  },
+  "bogus": {
+   "code": 2,
+   "error": "Unknown command \"bogus\". Run agent-workflow help."
+  },
+  "list --bogus": {
+   "code": 2,
+   "error": "Unknown option --bogus"
+  },
+  "status --json --json": {
+   "code": 2,
+   "error": "Duplicate option --json"
+  }
+ },
+ "cliJson": {
+  "list --query review --offset 1 --limit 2 --json": {
+   "code": 0,
+   "action": "list",
+   "ok": true,
+   "outcome": "success",
+   "data": {
+    "workflows": [
+     {
+      "name": "impact-review",
+      "aliases": [
+       "impact-review"
+      ],
+      "specPath": "@@REPO@@/workflows/impact-review/spec.json",
+      "description": "Read-only DAG impact review: map a proposed or applied change, analyze contract, state/data, validation, docs/release, and security/performance impact in parallel, then join those lenses into ship-risk and action-plan synthesis without editing files.",
+      "agent": "scout",
+      "readOnly": true
+     },
+     {
+      "name": "spec-review",
+      "aliases": [
+       "spec-review"
+      ],
+      "specPath": "@@REPO@@/workflows/spec-review/spec.json",
+      "description": "Read-only spec conformance review: extract requirements from a referenced spec, map implementation and tests in parallel, verify candidate gaps, and produce an evidence-backed report without editing files.",
+      "agent": "scout",
+      "readOnly": true
+     }
+    ],
+    "total": 3,
+    "omitted": 0
+   }
+  },
+  "validate deep-review --json": {
+   "code": 0,
+   "action": "validate",
+   "ok": true,
+   "outcome": "success",
+   "data": {
+    "valid": true,
+    "name": "deep-review",
+    "specPath": "@@REPO@@/workflows/deep-review/spec.json",
+    "workflowName": "deep-review",
+    "type": "artifact-graph",
+    "tasks": 8,
+    "roles": 0,
+    "maxConcurrency": 16,
+    "blockedPermissionPreviews": [],
+    "warnings": []
+   }
+  },
+  "roles deep-review --json": {
+   "code": 0,
+   "action": "roles",
+   "ok": true,
+   "outcome": "success",
+   "data": {
+    "specPath": "@@REPO@@/workflows/deep-review/spec.json",
+    "roles": []
+   }
+  },
+  "agents --json": {
+   "code": 0,
+   "action": "agents",
+   "ok": true,
+   "outcome": "success",
+   "data": {
+    "agents": [
+     {
+      "name": "researcher",
+      "displayName": "researcher",
+      "description": "Read-only source-backed research agent.",
+      "scope": "bundled",
+      "tools": [
+       "read",
+       "grep",
+       "find",
+       "ls",
+       "web_search",
+       "fetch_content"
+      ],
+      "readOnly": true,
+      "sourcePath": "@@REPO@@/agents/researcher.md"
+     },
+     {
+      "name": "scout",
+      "displayName": "scout",
+      "description": "Read-only codebase explorer for repo maps and context.",
+      "scope": "bundled",
+      "tools": [
+       "read",
+       "grep",
+       "find",
+       "ls"
+      ],
+      "readOnly": true,
+      "sourcePath": "@@REPO@@/agents/scout.md"
+     }
+    ]
+   }
+  },
+  "status --json": {
+   "code": 0,
+   "action": "status",
+   "ok": true,
+   "outcome": "success",
+   "data": {
+    "runs": []
+   }
+  },
+  "profile list --json": {
+   "code": 0,
+   "action": "profile",
+   "ok": true,
+   "outcome": "success",
+   "data": {
+    "op": "list",
+    "path": "@@PROJECT@@/home/user-profiles/v1/profiles.json",
+    "profiles": []
+   }
+  },
+  "profile set p1 --executor codex --model gpt-x --effort high --permission-mode safe --strict-capabilities toolAllowlist.fine --role verification=claude:haiku:low --default --json": {
+   "code": 0,
+   "action": "profile",
+   "ok": true,
+   "outcome": "success",
+   "data": {
+    "op": "set",
+    "path": "@@PROJECT@@/home/user-profiles/v1/profiles.json",
+    "default": "p1",
+    "profile": {
+     "name": "p1",
+     "executor": "codex",
+     "model": "gpt-x",
+     "effort": "high",
+     "permissionMode": "safe",
+     "strictCapabilities": [
+      "toolAllowlist.fine"
+     ],
+     "roles": {
+      "verification": {
+       "executor": "claude",
+       "model": "haiku",
+       "effort": "low"
+      }
+     },
+     "updatedAt": "@@TIME@@"
+    }
+   }
+  },
+  "profile show p1 --json": {
+   "code": 0,
+   "action": "profile",
+   "ok": true,
+   "outcome": "success",
+   "data": {
+    "op": "show",
+    "path": "@@PROJECT@@/home/user-profiles/v1/profiles.json",
+    "default": "p1",
+    "profile": {
+     "name": "p1",
+     "executor": "codex",
+     "model": "gpt-x",
+     "effort": "high",
+     "permissionMode": "safe",
+     "strictCapabilities": [
+      "toolAllowlist.fine"
+     ],
+     "roles": {
+      "verification": {
+       "executor": "claude",
+       "model": "haiku",
+       "effort": "low"
+      }
+     },
+     "updatedAt": "@@TIME@@"
+    }
+   }
+  },
+  "profile show --json": {
+   "code": 0,
+   "action": "profile",
+   "ok": true,
+   "outcome": "success",
+   "data": {
+    "op": "show",
+    "path": "@@PROJECT@@/home/user-profiles/v1/profiles.json",
+    "default": "p1",
+    "profile": {
+     "name": "p1",
+     "executor": "codex",
+     "model": "gpt-x",
+     "effort": "high",
+     "permissionMode": "safe",
+     "strictCapabilities": [
+      "toolAllowlist.fine"
+     ],
+     "roles": {
+      "verification": {
+       "executor": "claude",
+       "model": "haiku",
+       "effort": "low"
+      }
+     },
+     "updatedAt": "@@TIME@@"
+    }
+   }
+  },
+  "profile presets --json": {
+   "code": 0,
+   "action": "profile",
+   "ok": true,
+   "outcome": "success",
+   "data": {
+    "op": "presets",
+    "path": "@@PROJECT@@/home/user-profiles/v1/profiles.json",
+    "presets": [
+     {
+      "id": "codex",
+      "description": "every role on codex (gpt-5.6-luna)",
+      "executor": "codex",
+      "roles": {
+       "default": {
+        "executor": "codex",
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+       },
+       "planning": {
+        "executor": "codex",
+        "model": "gpt-5.6-luna",
+        "effort": "high"
+       },
+       "research-execution": {
+        "executor": "codex",
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+       },
+       "synthesis": {
+        "executor": "codex",
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+       },
+       "verification": {
+        "executor": "codex",
+        "model": "gpt-5.6-luna",
+        "effort": "high"
+       },
+       "final-judgment": {
+        "executor": "codex",
+        "model": "gpt-5.6-luna",
+        "effort": "high"
+       }
+      }
+     },
+     {
+      "id": "claude",
+      "description": "every role on claude (sonnet)",
+      "executor": "claude",
+      "roles": {
+       "default": {
+        "executor": "claude",
+        "model": "sonnet",
+        "effort": "medium"
+       },
+       "planning": {
+        "executor": "claude",
+        "model": "sonnet",
+        "effort": "high"
+       },
+       "research-execution": {
+        "executor": "claude",
+        "model": "sonnet",
+        "effort": "medium"
+       },
+       "synthesis": {
+        "executor": "claude",
+        "model": "sonnet",
+        "effort": "medium"
+       },
+       "verification": {
+        "executor": "claude",
+        "model": "sonnet",
+        "effort": "high"
+       },
+       "final-judgment": {
+        "executor": "claude",
+        "model": "sonnet",
+        "effort": "high"
+       }
+      }
+     },
+     {
+      "id": "pi",
+      "description": "every role on pi (Pi's configured default model)",
+      "executor": "pi",
+      "roles": {
+       "default": {
+        "executor": "pi",
+        "effort": "medium"
+       },
+       "planning": {
+        "executor": "pi",
+        "effort": "high"
+       },
+       "research-execution": {
+        "executor": "pi",
+        "effort": "medium"
+       },
+       "synthesis": {
+        "executor": "pi",
+        "effort": "medium"
+       },
+       "verification": {
+        "executor": "pi",
+        "effort": "high"
+       },
+       "final-judgment": {
+        "executor": "pi",
+        "effort": "high"
+       }
+      }
+     },
+     {
+      "id": "mixed",
+      "description": "planning, synthesis, verification and final judgment on claude (sonnet); research/implementation on codex (gpt-5.6-luna)",
+      "executor": "claude",
+      "roles": {
+       "default": {
+        "executor": "claude",
+        "model": "sonnet",
+        "effort": "medium"
+       },
+       "planning": {
+        "executor": "claude",
+        "model": "sonnet",
+        "effort": "high"
+       },
+       "research-execution": {
+        "executor": "codex",
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+       },
+       "synthesis": {
+        "executor": "claude",
+        "model": "sonnet",
+        "effort": "medium"
+       },
+       "verification": {
+        "executor": "claude",
+        "model": "sonnet",
+        "effort": "high"
+       },
+       "final-judgment": {
+        "executor": "claude",
+        "model": "sonnet",
+        "effort": "high"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "profile default --clear --json": {
+   "code": 0,
+   "action": "profile",
+   "ok": true,
+   "outcome": "success",
+   "data": {
+    "op": "default",
+    "path": "@@PROJECT@@/home/user-profiles/v1/profiles.json"
+   }
+  },
+  "profile default p1 --json": {
+   "code": 0,
+   "action": "profile",
+   "ok": true,
+   "outcome": "success",
+   "data": {
+    "op": "default",
+    "path": "@@PROJECT@@/home/user-profiles/v1/profiles.json",
+    "default": "p1"
+   }
+  },
+  "profile delete p1 --json": {
+   "code": 0,
+   "action": "profile",
+   "ok": true,
+   "outcome": "success",
+   "data": {
+    "op": "delete",
+    "path": "@@PROJECT@@/home/user-profiles/v1/profiles.json",
+    "deleted": true
+   }
+  },
+  "profile workflow --json": {
+   "code": 2,
+   "action": "profile",
+   "ok": false,
+   "outcome": "usage"
+  }
+ }
+}
