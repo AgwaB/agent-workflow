@@ -246,58 +246,8 @@ async function partitionFindings(sources, options = {}, context = {}) {
 	const needsHuman = candidateNeedsHuman.map((item) =>
 		normalizeNeedsHumanEntry(item, "candidate-source"),
 	);
-	const sourceStatusSummary = summarizeSourceStatuses(context);
-	const candidateStatuses = (
-		Array.isArray(context.sourceStatuses) ? context.sourceStatuses : []
-	).filter(
-		(row) =>
-			row?.stageId === candidateStage &&
-			(row.source === candidateStage ||
-				row.source?.startsWith(`${candidateStage}.`)) &&
-			row.specId === `${candidateStage}.main` &&
-			typeof row.taskId === "string" &&
-			row.taskId.trim(),
-	);
-	if (
-		candidateStatuses.length !== 1 ||
-		candidateStatuses[0].status !== "completed"
-	) {
-		sourceStatusSummary.total += 1;
-		sourceStatusSummary.nonCompleted += 1;
-		sourceStatusSummary.partialFailures = [
-			...sourceStatusSummary.partialFailures,
-			{
-				source: candidateStage,
-				status: "missing_or_inconsistent_candidate_source_status",
-			},
-		].slice(0, MAX_PARTIAL_FAILURES);
-	}
-
-	// In a scheduler run, the candidate reducer's runtime-written manifest is
-	// the authority for its three required mapping sources. A model cannot
-	// hide a failed mapping stage by emitting a clean candidate control.
-	let requirementSource = null;
-	let runtimeCandidateUniverse = null;
-	if (context.runId && candidateStatuses.length === 1) {
-		const upstream = await candidateUpstreamFailures(
-			context,
-			candidateStatuses[0],
-		);
-		requirementSource = upstream.requirementSource;
-		if (requirementSource)
-			requirementSource.rechecks = await recheckRows(
-				context,
-				context.sourceStatuses,
-			);
-		runtimeCandidateUniverse = upstream.runtimeCandidateUniverse;
-		const failures = upstream.failures;
-		sourceStatusSummary.total += failures.length;
-		sourceStatusSummary.nonCompleted += failures.length;
-		sourceStatusSummary.partialFailures = [
-			...sourceStatusSummary.partialFailures,
-			...failures,
-		].slice(0, MAX_PARTIAL_FAILURES);
-	}
+	const { sourceStatusSummary, requirementSource, runtimeCandidateUniverse } =
+		await readSourceAuthority(context, candidateStage);
 
 	// The rechecked rows replace unclear candidate rows (applyRechecks); the renderer recomputes them.
 	const rechecks = requirementSource?.rechecks ?? new Map();
@@ -312,325 +262,45 @@ async function partitionFindings(sources, options = {}, context = {}) {
 			.map((row) => row.requirementId),
 	};
 
-	const verifierById = new Map();
-	const duplicateVerifierIds = [];
-	const invalidVerifierResults = [];
-	const orphanVerifierResults = [];
-	const batchIntegrityIssues = [];
-	const issueCoveredIds = new Set();
-	let verifierCount = 0;
-	let batchOwnerLedgerRows = [];
-	const verifierRowLedger = [];
-
-	if (batchMode) {
-		const batchIdBySourceName = buildBatchIdBySourceName(
-			context?.sourceStatuses,
-			verifyStage,
-		);
-		const collected = collectBatchVerifierRows({
-			sources,
-			verifyStage,
-			batchMembership,
-			batchIdBySourceName,
-		});
-		const ownerAudit = batchSourceStatusIssues(
-			sources,
-			verifyStage,
-			context?.sourceStatuses,
-			batchMembership,
-		);
-		batchOwnerLedgerRows = ownerAudit.ownerLedger;
-		collected.issues.unshift(...ownerAudit.issues);
-		for (const row of collected.rows) {
-			const owner = batchOwnerLedgerRows.find(
-				(candidate) =>
-					candidate.source === row.sourceId && candidate.batchId === row.batchId,
-			);
-			verifierRowLedger.push({
-				id: row.id,
-				verdict: row.entry.verdict,
-				severity: row.entry.severity,
-				...(owner ? { owner: { ...owner } } : {}),
+	const verifiers = batchMode
+		? collectBatchVerifiers({
+				sources,
+				context,
+				verifyStage,
+				batchMembership,
+				joinCandidates,
+				needsHuman,
+			})
+		: collectSingletonVerifiers({
+				sources,
+				context,
+				verifyStage,
+				joinCandidates,
+				needsHuman,
 			});
-		}
-		// An owner defect invalidates every row carried by that source. Add the
-		// row id to the issue so the later fail-closed loop can quarantine the
-		// candidate rather than merely recording a generic source warning.
-		for (const issue of ownerAudit.issues) {
-			for (const row of collected.rows) {
-				if (row.sourceId !== issue.sourceId || !normalizeId(row.id)) continue;
-				collected.issues.push({
-					...issue,
-					id: normalizeId(row.id),
-					reason: "verifier_source_status_identity_mismatch",
-				});
-			}
-		}
-		// Membership defects are planning/join defects, not verifier rows. Keep
-		// them in the same fail-closed integrity path so a malformed or
-		// unplanned id-less candidate cannot certify a batch.
-		collected.issues.unshift(...batchMembership.issues);
-		verifierCount = collected.rowCount;
+	const {
+		verifierById,
+		duplicateVerifierIds,
+		invalidVerifierResults,
+		orphanVerifierResults,
+		batchIntegrityIssues,
+		verifierRowLedger,
+	} = verifiers;
+	const verifierCount = verifiers.verifierCount;
+	const batchOwnerLedgerRows = verifiers.ownerLedgerRows;
 
-		const rowsById = new Map();
-		for (const row of collected.rows) {
-			const group = rowsById.get(row.id) ?? [];
-			group.push(row);
-			rowsById.set(row.id, group);
-		}
-		for (const [id, group] of rowsById.entries()) {
-			if (group.length > 1) {
-				duplicateVerifierIds.push(id);
-				collected.issues.push({
-					reason: "duplicate_batch_row_for_candidate",
-					id,
-					batchId: group[0].batchId,
-					sourceId: group[0].sourceId,
-					rowCount: group.length,
-				});
-				continue;
-			}
-			verifierById.set(id, group[0].entry);
-		}
-
-		for (const issue of collected.issues) {
-			batchIntegrityIssues.push(issue);
-			const id = normalizeId(issue.id);
-			if (id && joinCandidates.has(id)) {
-				// Any integrity anomaly touching a candidate id voids its verifier
-				// rows: the candidate is routed to NEEDS_HUMAN, never joined.
-				issueCoveredIds.add(id);
-				verifierById.delete(id);
-				needsHuman.push(
-					needsHumanRecord(joinCandidates.get(id), null, {
-						source: "batch-integrity",
-						id,
-						status: "batch_integrity_issue",
-						reason: `verifier batch integrity issue: ${issue.reason}`,
-						batchIntegrityIssue: issue,
-					}),
-				);
-			} else if (id) {
-				orphanVerifierResults.push({ id, verdict: issue.verdict ?? null });
-				needsHuman.push({
-					source: "orphan-verifier",
-					id,
-					verifierResult: issue,
-					reason: `verifier batch row did not match any candidate finding id (${issue.reason})`,
-					recommendedAction:
-						"Reconcile the verifier row with a planned candidate identity.",
-				});
-			} else {
-				needsHuman.push({
-					source: "batch-integrity",
-					reason: `verifier batch integrity issue: ${issue.reason}`,
-					batchIntegrityIssue: issue,
-					recommendedAction:
-						"Reconcile the verifier batch before relying on the review.",
-				});
-			}
-		}
-	} else {
-		const verifierResults = findVerifierResults(sources, verifyStage);
-		verifierCount = verifierResults.length;
-		const strictMaterializedStatusMode = true;
-		for (const { sourceId, value: result } of verifierResults) {
-			const id = normalizeId(result?.id);
-			if (!id) {
-				const invalid = { reason: "missing_id", sourceId, result };
-				invalidVerifierResults.push(invalid);
-				needsHuman.push({
-					source: "verifier-integrity",
-					sourceId,
-					verifierResult: result,
-					reason: "verifier result cannot be joined without an id",
-					recommendedAction:
-						"Provide the exact candidate id and rerun verification.",
-				});
-				continue;
-			}
-			// The source alias is only a routing hint. In a real artifact-graph
-			// run the result is admissible only after its exact materialized task
-			// status proves the stage/spec/placeholder/item/task binding.
-			if (strictMaterializedStatusMode) {
-				const expectedSpecId = runtimeSpecId(verifyStage, id);
-				const owners = singletonVerifierStatuses(
-					context.sourceStatuses,
-					sourceId,
-					expectedSpecId,
-				);
-				if (
-					owners.length !== 1 ||
-					!singletonVerifierStatusIsExact(owners[0], verifyStage, id, sourceId)
-				) {
-					const reason =
-						owners.length === 1
-							? "verifier_source_status_identity_mismatch"
-							: "verifier_alias_not_bound_to_exactly_one_materialized_status";
-					invalidVerifierResults.push({ reason, sourceId, id, result });
-					needsHuman.push(
-						needsHumanRecord(joinCandidates.get(id), result, {
-							source: "verifier-integrity",
-							sourceId,
-							id,
-							reason,
-						}),
-					);
-					continue;
-				}
-				const owner = singletonOwnerFromStatus(owners[0]);
-				if (verifierById.has(id)) {
-					duplicateVerifierIds.push(id);
-					continue;
-				}
-				batchOwnerLedgerRows.push(owner);
-				verifierRowLedger.push({
-					id,
-					verdict: result.verdict,
-					severity: result.severity,
-					owner,
-				});
-			}
-			if (verifierById.has(id)) {
-				duplicateVerifierIds.push(id);
-				continue;
-			}
-			verifierById.set(id, result);
-		}
-	}
-
-	const evidenceFindings = [];
-	const evidenceCorrections = [];
-	const finalFindings = [];
-	const droppedFindings = [];
-	const missingVerifications = [];
-
-	for (const [id, candidate] of joinCandidates.entries()) {
-		if (issueCoveredIds.has(id)) continue;
-		const verifier = verifierById.get(id);
-		if (!verifier) {
-			const missing = findingSummary(candidate, {
-				id,
-				status: "missing_verification",
-				reason: "candidate finding did not receive a verifier result",
-			});
-			missingVerifications.push(missing);
-			needsHuman.push(
-				needsHumanRecord(candidate, null, {
-					source: "missing-verification",
-					...missing,
-					recommendedAction:
-						"Obtain a verifier result for this candidate and rerun the review.",
-				}),
-			);
-			continue;
-		}
-
-		const rawVerdict = String(verifier.verdict ?? "")
-			.trim()
-			.toUpperCase();
-		if (!VERDICTS.has(rawVerdict)) {
-			const invalid = {
-				reason: "invalid_verdict",
-				id,
-				verdict: verifier.verdict ?? null,
-				result: verifier,
-			};
-			invalidVerifierResults.push(invalid);
-			needsHuman.push(
-				needsHumanRecord(candidate, verifier, {
-					source: "invalid-verdict",
-					id,
-					title: candidate.title ?? id,
-					reason: `invalid verifier verdict: ${String(verifier.verdict ?? "")}`,
-					invalidVerifierResult: invalid,
-				}),
-			);
-			continue;
-		}
-		const verdict = normalizeVerdict(rawVerdict);
-		const severity = normalizeSeverity(verifier.severity, candidate.severity);
-		const evidence = Array.isArray(verifier.evidence)
-			? await correctCitations(
-					verifier.evidence,
-					"evidence",
-					id,
-					context,
-					evidenceCorrections,
-				)
-			: [];
-		const counterEvidence = Array.isArray(verifier.counterEvidence)
-			? await correctCitations(
-					verifier.counterEvidence,
-					"counterEvidence",
-					id,
-					context,
-					evidenceCorrections,
-				)
-			: [];
-		const evidenceGate = await gateDisposition(
-			id,
-			verdict,
-			evidence,
-			counterEvidence,
-			context,
-		);
-		evidenceFindings.push(evidenceGate);
-		if (verdict !== "NEEDS_HUMAN" && !evidenceGate.complete) {
-			needsHuman.push(
-				needsHumanRecord(candidate, verifier, {
-					source: "evidence-gate",
-					id,
-					title: candidate.title ?? id,
-					verdict: "NEEDS_HUMAN",
-					originalVerdict: verdict,
-					evidence,
-					counterEvidence,
-					reason: `Unverified ${verdict}: exact local byte evidence required${verdict === "DROP" ? " in counterEvidence before removal" : ""}`,
-					evidenceGate,
-				}),
-			);
-			continue;
-		}
-
-		if (verdict === "KEEP" || verdict === "WEAKEN") {
-			finalFindings.push({
-				id,
-				verdict,
-				severity,
-				title: candidate.title ?? verifier.finding?.title ?? id,
-				requirementIds: arrayOfStrings(candidate.requirementIds),
-				claim: verifier.finalClaim ?? candidate.claim ?? "",
-				evidence,
-				counterEvidence,
-				recommendedAction:
-					verifier.recommendedAction ?? candidate.recommendedAction ?? "",
-				originalCandidate: candidate,
-			});
-		} else if (verdict === "DROP") {
-			droppedFindings.push({
-				id,
-				title: candidate.title ?? id,
-				reason: summarizeCounterEvidence(verifier),
-				verdict,
-				evidence,
-				counterEvidence,
-				originalCandidate: candidate,
-			});
-		} else {
-			needsHuman.push(
-				needsHumanRecord(candidate, verifier, {
-					source: "verifier",
-					id,
-					title: candidate.title ?? id,
-					reason:
-						verifier.finalClaim ??
-						verifier.recommendedAction ??
-						"verifier requested human review",
-				}),
-			);
-		}
-	}
+	const {
+		evidenceFindings,
+		evidenceCorrections,
+		finalFindings,
+		droppedFindings,
+		missingVerifications,
+	} = await joinCandidateVerdicts({
+		joinCandidates,
+		verifiers,
+		needsHuman,
+		context,
+	});
 
 	if (!batchMode) {
 		for (const [id, verifier] of verifierById.entries()) {
@@ -650,22 +320,12 @@ async function partitionFindings(sources, options = {}, context = {}) {
 		needsHuman.length,
 		...needsHuman.map((row) => normalizeNeedsHumanEntry(row, row?.source ?? "scope")),
 	);
-	const sourceCandidateIds = [...joinCandidates.keys()].sort();
-	const runtimeCandidateIds = Array.isArray(runtimeCandidateUniverse?.ids)
-		? [...runtimeCandidateUniverse.ids].sort()
-		: [];
-	const candidateUniverseIssues = [];
-	if (!runtimeCandidateUniverse) candidateUniverseIssues.push("missing_runtime_candidate_universe_proof");
-	else {
-		if (runtimeCandidateUniverse.count !== candidateFindings.length)
-			candidateUniverseIssues.push("candidate_count_differs_from_runtime_control");
-		if (runtimeCandidateUniverse.uniqueCount !== joinCandidates.size)
-			candidateUniverseIssues.push("candidate_unique_count_differs_from_runtime_control");
-		if (runtimeCandidateUniverse.duplicateIds?.length || runtimeCandidateUniverse.invalidRowCount)
-			candidateUniverseIssues.push("runtime_candidate_control_has_invalid_or_duplicate_ids");
-		if (stableStringify(sourceCandidateIds) !== stableStringify(runtimeCandidateIds))
-			candidateUniverseIssues.push("candidate_id_set_differs_from_runtime_control");
-	}
+	const { sourceCandidateIds, runtimeCandidateIds, candidateUniverseIssues } =
+		reconcileCandidateUniverse({
+			runtimeCandidateUniverse,
+			candidateFindings,
+			joinCandidates,
+		});
 	if (candidateUniverseIssues.length > 0) {
 		needsHuman.push(normalizeNeedsHumanEntry({
 			source: "candidate-universe-integrity",
@@ -819,6 +479,469 @@ async function partitionFindings(sources, options = {}, context = {}) {
 		...partition,
 		digest: `sha256:${createHash("sha256").update(stableStringify(partition)).digest("hex")}`,
 	};
+}
+
+/** Source lifecycle of the partition's inputs and, in a scheduler run, the candidate stage's own
+ * manifest chain: the authority for the extracted requirements, the candidate universe and the
+ * rechecks. A failed upstream source counts as a failed source here. */
+async function readSourceAuthority(context, candidateStage) {
+	const sourceStatusSummary = summarizeSourceStatuses(context);
+	const candidateStatuses = (
+		Array.isArray(context.sourceStatuses) ? context.sourceStatuses : []
+	).filter(
+		(row) =>
+			row?.stageId === candidateStage &&
+			(row.source === candidateStage ||
+				row.source?.startsWith(`${candidateStage}.`)) &&
+			row.specId === `${candidateStage}.main` &&
+			typeof row.taskId === "string" &&
+			row.taskId.trim(),
+	);
+	if (
+		candidateStatuses.length !== 1 ||
+		candidateStatuses[0].status !== "completed"
+	) {
+		sourceStatusSummary.total += 1;
+		sourceStatusSummary.nonCompleted += 1;
+		sourceStatusSummary.partialFailures = [
+			...sourceStatusSummary.partialFailures,
+			{
+				source: candidateStage,
+				status: "missing_or_inconsistent_candidate_source_status",
+			},
+		].slice(0, MAX_PARTIAL_FAILURES);
+	}
+
+	// In a scheduler run, the candidate reducer's runtime-written manifest is
+	// the authority for its three required mapping sources. A model cannot
+	// hide a failed mapping stage by emitting a clean candidate control.
+	let requirementSource = null;
+	let runtimeCandidateUniverse = null;
+	if (context.runId && candidateStatuses.length === 1) {
+		const upstream = await candidateUpstreamFailures(
+			context,
+			candidateStatuses[0],
+		);
+		requirementSource = upstream.requirementSource;
+		if (requirementSource)
+			requirementSource.rechecks = await recheckRows(
+				context,
+				context.sourceStatuses,
+			);
+		runtimeCandidateUniverse = upstream.runtimeCandidateUniverse;
+		const failures = upstream.failures;
+		sourceStatusSummary.total += failures.length;
+		sourceStatusSummary.nonCompleted += failures.length;
+		sourceStatusSummary.partialFailures = [
+			...sourceStatusSummary.partialFailures,
+			...failures,
+		].slice(0, MAX_PARTIAL_FAILURES);
+	}
+	return { sourceStatusSummary, requirementSource, runtimeCandidateUniverse };
+}
+
+/** Batched verifier rows (opt-in): flattened with fail-closed membership, owner, duplicate and
+ * orphan checks; every integrity issue routes its candidate to needs-human. */
+function collectBatchVerifiers({
+	sources,
+	context,
+	verifyStage,
+	batchMembership,
+	joinCandidates,
+	needsHuman,
+}) {
+	const verifiers = emptyVerifierCollection();
+	const {
+		verifierById,
+		duplicateVerifierIds,
+		orphanVerifierResults,
+		batchIntegrityIssues,
+		issueCoveredIds,
+		verifierRowLedger,
+	} = verifiers;
+	const batchIdBySourceName = buildBatchIdBySourceName(
+		context?.sourceStatuses,
+		verifyStage,
+	);
+	const collected = collectBatchVerifierRows({
+		sources,
+		verifyStage,
+		batchMembership,
+		batchIdBySourceName,
+	});
+	const ownerAudit = batchSourceStatusIssues(
+		sources,
+		verifyStage,
+		context?.sourceStatuses,
+		batchMembership,
+	);
+	verifiers.ownerLedgerRows = ownerAudit.ownerLedger;
+	const batchOwnerLedgerRows = verifiers.ownerLedgerRows;
+	collected.issues.unshift(...ownerAudit.issues);
+	for (const row of collected.rows) {
+		const owner = batchOwnerLedgerRows.find(
+			(candidate) =>
+				candidate.source === row.sourceId && candidate.batchId === row.batchId,
+		);
+		verifierRowLedger.push({
+			id: row.id,
+			verdict: row.entry.verdict,
+			severity: row.entry.severity,
+			...(owner ? { owner: { ...owner } } : {}),
+		});
+	}
+	// An owner defect invalidates every row carried by that source. Add the
+	// row id to the issue so the later fail-closed loop can quarantine the
+	// candidate rather than merely recording a generic source warning.
+	for (const issue of ownerAudit.issues) {
+		for (const row of collected.rows) {
+			if (row.sourceId !== issue.sourceId || !normalizeId(row.id)) continue;
+			collected.issues.push({
+				...issue,
+				id: normalizeId(row.id),
+				reason: "verifier_source_status_identity_mismatch",
+			});
+		}
+	}
+	// Membership defects are planning/join defects, not verifier rows. Keep
+	// them in the same fail-closed integrity path so a malformed or
+	// unplanned id-less candidate cannot certify a batch.
+	collected.issues.unshift(...batchMembership.issues);
+	verifiers.verifierCount = collected.rowCount;
+
+	const rowsById = new Map();
+	for (const row of collected.rows) {
+		const group = rowsById.get(row.id) ?? [];
+		group.push(row);
+		rowsById.set(row.id, group);
+	}
+	for (const [id, group] of rowsById.entries()) {
+		if (group.length > 1) {
+			duplicateVerifierIds.push(id);
+			collected.issues.push({
+				reason: "duplicate_batch_row_for_candidate",
+				id,
+				batchId: group[0].batchId,
+				sourceId: group[0].sourceId,
+				rowCount: group.length,
+			});
+			continue;
+		}
+		verifierById.set(id, group[0].entry);
+	}
+
+	for (const issue of collected.issues) {
+		batchIntegrityIssues.push(issue);
+		const id = normalizeId(issue.id);
+		if (id && joinCandidates.has(id)) {
+			// Any integrity anomaly touching a candidate id voids its verifier
+			// rows: the candidate is routed to NEEDS_HUMAN, never joined.
+			issueCoveredIds.add(id);
+			verifierById.delete(id);
+			needsHuman.push(
+				needsHumanRecord(joinCandidates.get(id), null, {
+					source: "batch-integrity",
+					id,
+					status: "batch_integrity_issue",
+					reason: `verifier batch integrity issue: ${issue.reason}`,
+					batchIntegrityIssue: issue,
+				}),
+			);
+		} else if (id) {
+			orphanVerifierResults.push({ id, verdict: issue.verdict ?? null });
+			needsHuman.push({
+				source: "orphan-verifier",
+				id,
+				verifierResult: issue,
+				reason: `verifier batch row did not match any candidate finding id (${issue.reason})`,
+				recommendedAction:
+					"Reconcile the verifier row with a planned candidate identity.",
+			});
+		} else {
+			needsHuman.push({
+				source: "batch-integrity",
+				reason: `verifier batch integrity issue: ${issue.reason}`,
+				batchIntegrityIssue: issue,
+				recommendedAction:
+					"Reconcile the verifier batch before relying on the review.",
+			});
+		}
+	}
+	return verifiers;
+}
+
+/** One verifier per candidate: admissible only through its exact materialized task status. */
+function collectSingletonVerifiers({
+	sources,
+	context,
+	verifyStage,
+	joinCandidates,
+	needsHuman,
+}) {
+	const verifiers = emptyVerifierCollection();
+	const {
+		verifierById,
+		duplicateVerifierIds,
+		invalidVerifierResults,
+		verifierRowLedger,
+	} = verifiers;
+	const batchOwnerLedgerRows = verifiers.ownerLedgerRows;
+	const verifierResults = findVerifierResults(sources, verifyStage);
+	verifiers.verifierCount = verifierResults.length;
+	const strictMaterializedStatusMode = true;
+	for (const { sourceId, value: result } of verifierResults) {
+		const id = normalizeId(result?.id);
+		if (!id) {
+			const invalid = { reason: "missing_id", sourceId, result };
+			invalidVerifierResults.push(invalid);
+			needsHuman.push({
+				source: "verifier-integrity",
+				sourceId,
+				verifierResult: result,
+				reason: "verifier result cannot be joined without an id",
+				recommendedAction:
+					"Provide the exact candidate id and rerun verification.",
+			});
+			continue;
+		}
+		// The source alias is only a routing hint. In a real artifact-graph
+		// run the result is admissible only after its exact materialized task
+		// status proves the stage/spec/placeholder/item/task binding.
+		if (strictMaterializedStatusMode) {
+			const expectedSpecId = runtimeSpecId(verifyStage, id);
+			const owners = singletonVerifierStatuses(
+				context.sourceStatuses,
+				sourceId,
+				expectedSpecId,
+			);
+			if (
+				owners.length !== 1 ||
+				!singletonVerifierStatusIsExact(owners[0], verifyStage, id, sourceId)
+			) {
+				const reason =
+					owners.length === 1
+						? "verifier_source_status_identity_mismatch"
+						: "verifier_alias_not_bound_to_exactly_one_materialized_status";
+				invalidVerifierResults.push({ reason, sourceId, id, result });
+				needsHuman.push(
+					needsHumanRecord(joinCandidates.get(id), result, {
+						source: "verifier-integrity",
+						sourceId,
+						id,
+						reason,
+					}),
+				);
+				continue;
+			}
+			const owner = singletonOwnerFromStatus(owners[0]);
+			if (verifierById.has(id)) {
+				duplicateVerifierIds.push(id);
+				continue;
+			}
+			batchOwnerLedgerRows.push(owner);
+			verifierRowLedger.push({
+				id,
+				verdict: result.verdict,
+				severity: result.severity,
+				owner,
+			});
+		}
+		if (verifierById.has(id)) {
+			duplicateVerifierIds.push(id);
+			continue;
+		}
+		verifierById.set(id, result);
+	}
+	return verifiers;
+}
+
+function emptyVerifierCollection() {
+	return {
+		verifierById: new Map(),
+		duplicateVerifierIds: [],
+		invalidVerifierResults: [],
+		orphanVerifierResults: [],
+		batchIntegrityIssues: [],
+		issueCoveredIds: new Set(),
+		verifierCount: 0,
+		ownerLedgerRows: [],
+		verifierRowLedger: [],
+	};
+}
+
+/** Join each candidate with its verifier verdict through the byte gate: final, dropped, or needs-human
+ * (missing or invalid verdicts and unverifiable evidence included). */
+async function joinCandidateVerdicts({
+	joinCandidates,
+	verifiers,
+	needsHuman,
+	context,
+}) {
+	const { verifierById, invalidVerifierResults, issueCoveredIds } = verifiers;
+	const evidenceFindings = [];
+	const evidenceCorrections = [];
+	const finalFindings = [];
+	const droppedFindings = [];
+	const missingVerifications = [];
+
+	for (const [id, candidate] of joinCandidates.entries()) {
+		if (issueCoveredIds.has(id)) continue;
+		const verifier = verifierById.get(id);
+		if (!verifier) {
+			const missing = findingSummary(candidate, {
+				id,
+				status: "missing_verification",
+				reason: "candidate finding did not receive a verifier result",
+			});
+			missingVerifications.push(missing);
+			needsHuman.push(
+				needsHumanRecord(candidate, null, {
+					source: "missing-verification",
+					...missing,
+					recommendedAction:
+						"Obtain a verifier result for this candidate and rerun the review.",
+				}),
+			);
+			continue;
+		}
+
+		const rawVerdict = String(verifier.verdict ?? "")
+			.trim()
+			.toUpperCase();
+		if (!VERDICTS.has(rawVerdict)) {
+			const invalid = {
+				reason: "invalid_verdict",
+				id,
+				verdict: verifier.verdict ?? null,
+				result: verifier,
+			};
+			invalidVerifierResults.push(invalid);
+			needsHuman.push(
+				needsHumanRecord(candidate, verifier, {
+					source: "invalid-verdict",
+					id,
+					title: candidate.title ?? id,
+					reason: `invalid verifier verdict: ${String(verifier.verdict ?? "")}`,
+					invalidVerifierResult: invalid,
+				}),
+			);
+			continue;
+		}
+		const verdict = normalizeVerdict(rawVerdict);
+		const severity = normalizeSeverity(verifier.severity, candidate.severity);
+		const evidence = Array.isArray(verifier.evidence)
+			? await correctCitations(
+					verifier.evidence,
+					"evidence",
+					id,
+					context,
+					evidenceCorrections,
+				)
+			: [];
+		const counterEvidence = Array.isArray(verifier.counterEvidence)
+			? await correctCitations(
+					verifier.counterEvidence,
+					"counterEvidence",
+					id,
+					context,
+					evidenceCorrections,
+				)
+			: [];
+		const evidenceGate = await gateDisposition(
+			id,
+			verdict,
+			evidence,
+			counterEvidence,
+			context,
+		);
+		evidenceFindings.push(evidenceGate);
+		if (verdict !== "NEEDS_HUMAN" && !evidenceGate.complete) {
+			needsHuman.push(
+				needsHumanRecord(candidate, verifier, {
+					source: "evidence-gate",
+					id,
+					title: candidate.title ?? id,
+					verdict: "NEEDS_HUMAN",
+					originalVerdict: verdict,
+					evidence,
+					counterEvidence,
+					reason: `Unverified ${verdict}: exact local byte evidence required${verdict === "DROP" ? " in counterEvidence before removal" : ""}`,
+					evidenceGate,
+				}),
+			);
+			continue;
+		}
+
+		if (verdict === "KEEP" || verdict === "WEAKEN") {
+			finalFindings.push({
+				id,
+				verdict,
+				severity,
+				title: candidate.title ?? verifier.finding?.title ?? id,
+				requirementIds: arrayOfStrings(candidate.requirementIds),
+				claim: verifier.finalClaim ?? candidate.claim ?? "",
+				evidence,
+				counterEvidence,
+				recommendedAction:
+					verifier.recommendedAction ?? candidate.recommendedAction ?? "",
+				originalCandidate: candidate,
+			});
+		} else if (verdict === "DROP") {
+			droppedFindings.push({
+				id,
+				title: candidate.title ?? id,
+				reason: summarizeCounterEvidence(verifier),
+				verdict,
+				evidence,
+				counterEvidence,
+				originalCandidate: candidate,
+			});
+		} else {
+			needsHuman.push(
+				needsHumanRecord(candidate, verifier, {
+					source: "verifier",
+					id,
+					title: candidate.title ?? id,
+					reason:
+						verifier.finalClaim ??
+						verifier.recommendedAction ??
+						"verifier requested human review",
+				}),
+			);
+		}
+	}
+	return {
+		evidenceFindings,
+		evidenceCorrections,
+		finalFindings,
+		droppedFindings,
+		missingVerifications,
+	};
+}
+
+/** The candidate ids this partition joined, checked against the runtime candidate control. */
+function reconcileCandidateUniverse({
+	runtimeCandidateUniverse,
+	candidateFindings,
+	joinCandidates,
+}) {
+	const sourceCandidateIds = [...joinCandidates.keys()].sort();
+	const runtimeCandidateIds = Array.isArray(runtimeCandidateUniverse?.ids)
+		? [...runtimeCandidateUniverse.ids].sort()
+		: [];
+	const candidateUniverseIssues = [];
+	if (!runtimeCandidateUniverse) candidateUniverseIssues.push("missing_runtime_candidate_universe_proof");
+	else {
+		if (runtimeCandidateUniverse.count !== candidateFindings.length)
+			candidateUniverseIssues.push("candidate_count_differs_from_runtime_control");
+		if (runtimeCandidateUniverse.uniqueCount !== joinCandidates.size)
+			candidateUniverseIssues.push("candidate_unique_count_differs_from_runtime_control");
+		if (runtimeCandidateUniverse.duplicateIds?.length || runtimeCandidateUniverse.invalidRowCount)
+			candidateUniverseIssues.push("runtime_candidate_control_has_invalid_or_duplicate_ids");
+		if (stableStringify(sourceCandidateIds) !== stableStringify(runtimeCandidateIds))
+			candidateUniverseIssues.push("candidate_id_set_differs_from_runtime_control");
+	}
+	return { sourceCandidateIds, runtimeCandidateIds, candidateUniverseIssues };
 }
 
 // --- batched verifier row collection ------------------------------------------
