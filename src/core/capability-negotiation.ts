@@ -557,7 +557,7 @@ export interface NegotiateWorkflowRunInput {
 	/** B4 confirmation hook; called only when interactive and a stage needs confirmation. */
 	confirmDegradations?: (
 		preview: CapabilityPreview,
-	) => Promise<boolean | "chat">;
+	) => Promise<boolean | "chat" | "unasked">;
 	/**
 	 * WP31 (Q4): descriptors of every other executor of a mixed run. A task runs on
 	 * `task.runtime.executor` (absent: `descriptor`).
@@ -1032,6 +1032,14 @@ export async function negotiateWorkflowRun(
 		const accepted = await input.confirmDegradations(preview);
 		if (accepted === "chat") confirmedVia = "chat";
 		else if (accepted === true) confirmedVia = "dialog";
+		// The host could not ask the user (no dialog, or one answered without them): not a "no".
+		if (accepted === "unasked")
+			throw new WorkflowCapabilityError(
+				"CAPABILITY_CONFIRMATION_REQUIRED",
+				`capability degradations need the user's OK (${preview.needsOk.join(", ")}); the user was not asked yet, so the run was not started.`,
+				executor.id,
+				preview.text,
+			);
 		if (accepted !== true && accepted !== "chat")
 			throw new WorkflowCapabilityError(
 				"CAPABILITY_DEGRADATION_DECLINED",

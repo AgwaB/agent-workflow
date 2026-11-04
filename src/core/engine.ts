@@ -497,7 +497,7 @@ export interface WorkflowRunOptions {
 	 */
 	confirmDegradations?: (
 		preview: CapabilityPreview,
-	) => Promise<boolean | "chat">;
+	) => Promise<boolean | "chat" | "unasked">;
 	/** B4 (WP4d) user opt-in: treat these `unverified` capabilities as available. */
 	allowUnverifiedCapabilities?: string[];
 	/** WP4d test/host seam: replaces `loadExecutor(descriptor)` + `probe()`. */

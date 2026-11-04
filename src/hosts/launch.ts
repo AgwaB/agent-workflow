@@ -125,7 +125,7 @@ export interface LaunchRequestBase {
 	interactive?: boolean;
 	confirmDegradations?: (
 		preview: CapabilityPreview,
-	) => Promise<boolean | "chat">;
+	) => Promise<boolean | "chat" | "unasked">;
 	/** Interactive chooser between declared profiles when none is named (Pi host). */
 	selectProfile?: WorkflowProfileSelector;
 	/** Overrides for inputs the spec declares (for example depth). */

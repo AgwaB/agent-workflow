@@ -545,8 +545,14 @@ test("host identity, detach default true, launch options and cwd reach the host 
 	assert.equal(run.ctx.cwd, join(cwd, "sub"));
 	assert.equal(run.ctx.env, env);
 	const { confirmDegradations, interactive, ...request } = run.request;
-	assert.equal(interactive, undefined, "no elicitation capability");
-	assert.equal(confirmDegradations, undefined);
+	// 2026-11-04: a client without dialogs is still asked, in the conversation: the launch is
+	// interactive and the hook answers "unasked" (the agent then asks the user).
+	assert.equal(interactive, true, "no elicitation capability");
+	assert.equal(typeof confirmDegradations, "function");
+	assert.equal(
+		await confirmDegradations({ needsOk: ["webTools"], prompt: "x" }),
+		"unasked",
+	);
 	assert.deepEqual(request, {
 		workflow: "deep-review",
 		task: "review this",
@@ -579,7 +585,14 @@ test("host identity, detach default true, launch options and cwd reach the host 
 		},
 	});
 	assert.equal(dynamic.ctx.host, "claude-code");
-	assert.deepEqual(dynamic.request, {
+	const {
+		confirmDegradations: dynamicConfirm,
+		interactive: dynamicInteractive,
+		...dynamicRequest
+	} = dynamic.request;
+	assert.equal(dynamicInteractive, true);
+	assert.equal(typeof dynamicConfirm, "function");
+	assert.deepEqual(dynamicRequest, {
 		task: "explore",
 		launchOrigin: {
 			kind: "tool",
@@ -662,7 +675,7 @@ test("wait: bounded per call (cap 45 s), stillRunning until the loop reaches ter
 	);
 });
 
-test("degradation confirmation: elicitation accept / decline / error; absent or unsupported → non-interactive", async () => {
+test("degradation confirmation: a dialog where the client shows one; otherwise the agent asks in the conversation; no question when nothing needs an OK", async () => {
 	const { cwd, env } = await project();
 	const executor = fixture({ capabilities: DEGRADED });
 	const base = {
@@ -724,9 +737,12 @@ test("degradation confirmation: elicitation accept / decline / error; absent or 
 		});
 		assert.equal(declined.isError, true);
 		assert.equal(declined.structuredContent.outcome, "refused");
+		// decline is the user's no; cancel or an error means nobody asked the user.
 		assert.equal(
 			declined.structuredContent.data.refusal.code,
-			"CAPABILITY_DEGRADATION_DECLINED",
+			reply.action === "decline"
+				? "CAPABILITY_DEGRADATION_DECLINED"
+				: "CAPABILITY_CONFIRMATION_REQUIRED",
 		);
 	}
 	assert.equal(elicitations.length, 4);
@@ -742,7 +758,12 @@ test("degradation confirmation: elicitation accept / decline / error; absent or 
 		task: "unasked",
 	});
 	assert.equal(unasked.isError, true);
-	assert.match(text(unasked), /did not show the confirmation dialog/);
+	assert.match(
+		text(unasked),
+		/Nothing started: this run needs the user's OK, and this client could not ask them in a dialog/,
+	);
+	assert.match(text(unasked), /the user was not asked yet/);
+	assert.doesNotMatch(text(unasked), /were declined/);
 	assert.match(text(unasked), /acceptDegradations: \["contextIsolation"\]/);
 	assert.match(text(unasked), /Needs your OK:/);
 	answer = { action: "decline" };
@@ -804,8 +825,10 @@ test("degradation confirmation: elicitation accept / decline / error; absent or 
 	);
 	await waitLoop(modern, modernRun.structuredContent.data.runId);
 
-	// No elicitation capability, URL-only elicitation, or a pre-2025-06-18 revision: recorded and
-	// the run proceeds (non-interactive); nothing is asked.
+	// No elicitation capability, URL-only elicitation, or a pre-2025-06-18 revision (2026-11-04,
+	// owner: "if confirmation is required, ask; otherwise skip"): a run that needs an OK starts nothing
+	// and the agent asks in the conversation; with the user's yes (acceptDegradations) it starts. No
+	// dialog is ever sent to such a client.
 	for (const [version, capabilities] of [
 		["2025-06-18", {}],
 		["2025-11-25", { elicitation: { url: {} } }],
@@ -824,9 +847,18 @@ test("degradation confirmation: elicitation accept / decline / error; absent or 
 			version,
 			capabilities,
 		);
+		const task = `headless ${version} ${JSON.stringify(capabilities)}`;
+		const unaskedHere = await headless.call("workflow_run", { ...base, task });
+		assert.equal(unaskedHere.isError, true, text(unaskedHere));
+		assert.match(text(unaskedHere), /could not ask them in a dialog/);
+		assert.match(
+			text(unaskedHere),
+			/acceptDegradations: \["contextIsolation"\]/,
+		);
 		const quiet = await headless.call("workflow_run", {
 			...base,
-			task: `headless ${version} ${JSON.stringify(capabilities)}`,
+			task,
+			acceptDegradations: ["contextIsolation"],
 		});
 		assert.equal(quiet.isError, false, text(quiet));
 		assert.deepEqual(asked, []);
@@ -834,7 +866,11 @@ test("degradation confirmation: elicitation accept / decline / error; absent or 
 			quiet.structuredContent?.data ??
 			// 2025-03-26 has no structuredContent: the text carries the capability preview.
 			undefined;
-		if (data) assert.equal(data.capability.confirmation, "non-interactive");
+		if (data)
+			assert.deepEqual(
+				[data.capability.confirmation, data.capability.confirmedVia],
+				["confirmed", "chat"],
+			);
 		else assert.match(text(quiet), /Capability check/);
 		const runId = data?.runId ?? /Run: (workflow_\S+)/.exec(text(quiet))?.[1];
 		assert.ok(runId);

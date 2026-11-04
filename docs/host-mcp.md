@@ -182,7 +182,9 @@ stay under 4,096 characters: Claude Code keeps only that much ("Server instructi
 ## Degradation confirmation (elicitation)
 
 A launch whose capability check needs confirmation (WP4d; for example environment warnings in
-`safe` mode):
+`safe` mode) is asked; one whose limits are only recorded (free-mode-accepted, record-only such as
+unknown cost) starts without a question (`confirmation: "not-needed"`). 2026-11-04 (owner: "if
+confirmation is required, ask; otherwise skip"):
 
 - If the client declared `capabilities.elicitation` with form mode (`{}` or `{form: …}`) and the
   session is `2025-06-18` or later, the server sends `elicitation/create` with message
@@ -192,22 +194,28 @@ A launch whose capability check needs confirmation (WP4d; for example environmen
   what was found), one line of limits that are only recorded, and a note that the full report is
   saved with the run (`capabilityNegotiation`; the terminal CLI still prints it) — and an empty
   form (`requestedSchema: {type: "object", properties: {}}`; `mode: "form"` on `2025-11-25`).
-  `accept` proceeds (`capability.confirmation: "confirmed"`); `decline`, `cancel`, an error
-  response, a cancelled tool call or a disconnect refuse the launch
-  (`CAPABILITY_DEGRADATION_DECLINED`).
-  `decline` is the user's no. A `cancel` or an error response is the client's: Claude Code in print
-  mode (the Claude desktop app's Code tab, the Agent SDK without an `onElicitation` callback) declares
+  `accept` proceeds (`capability.confirmation: "confirmed"`, `confirmedVia: "dialog"`); `decline`
+  is the user's no (`CAPABILITY_DEGRADATION_DECLINED`).
+  A `cancel` or an error response is the client's, not the user's: Claude Code in print mode (the
+  Claude desktop app's Code tab, the Agent SDK without an `onElicitation` callback) declares
   elicitation but answers every dialog with `cancel` at once (its MCP log: "Elicitation request
   received in print mode"; claude-agent-acp `src/acp-agent.ts` keeps "the SDK's default
-  (auto-decline) behavior" for such clients). 2026-11-03: the refusal then says so and tells the
-  agent to show the user the short limits text and, only if they agree, call again with
-  `acceptDegradations` naming the keys it lists (`preview.needsOk`, e.g. `["webTools"]`). With
-  keys that cover every limit that needs an OK the server asks nothing and the run starts with
-  `capability.confirmation: "confirmed"` and `confirmedVia: "chat"` (run record and launch
-  result); keys that do not cover them refuse the launch. The tool description tells the agent never
-  to set it on its own.
-- Otherwise (no elicitation, URL-only elicitation, older revision) the launch is non-interactive:
-  degradations are recorded (`confirmation: "non-interactive"`) and the run proceeds.
+  (auto-decline) behavior" for such clients); agy (Antigravity CLI, 2026-11-04 session
+  `fad55d42…`) does the same. That launch is not started (`CAPABILITY_CONFIRMATION_REQUIRED`, "the
+  user was not asked yet") and is asked in the conversation (below).
+- Otherwise (no elicitation, URL-only elicitation, older revision — the Claude desktop app's chat)
+  the server sends no dialog and the launch is not started (`CAPABILITY_CONFIRMATION_REQUIRED`)
+  either. Before 2026-11-04 it was non-interactive: recorded (`confirmation: "non-interactive"`)
+  and started unasked.
+- Asking in the conversation (2026-11-03, generalized 2026-11-04): the refusal says "Nothing
+  started: this run needs the user's OK, and this client could not ask them in a dialog", carries
+  the short limits text, and tells the agent to ask the user in its reply and, only if they agree,
+  call again with `acceptDegradations` naming the keys it lists (`preview.needsOk`, e.g.
+  `["webTools"]`). With keys that cover every limit that needs an OK the server asks nothing and
+  the run starts with `capability.confirmation: "confirmed"` and `confirmedVia: "chat"` (run
+  record and launch result); keys that do not cover them refuse the launch. The tool description
+  tells the agent never to set it on its own. Verified with agy: the agent asked in chat, the user
+  agreed, the second call started `workflow_mw1fr3yo_b1f2d6` (`confirmedVia: "chat"`).
 
 ## Confirmed changes (WP28, owner decision Q7)
 

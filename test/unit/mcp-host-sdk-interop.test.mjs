@@ -248,21 +248,56 @@ test("official SDK client: elicitation accept and decline for a degraded safe-mo
 	);
 	assert.equal(asked.length, 2);
 
-	// Same launch from a client without elicitation: recorded, not asked.
+	// Same launch from a client without elicitation (2026-11-04): nothing starts until the user
+	// agrees in the conversation; then it starts, confirmed in chat. In free mode nothing needs an
+	// OK, so nothing is asked.
 	const headless = await sdkClient(t, { cwd, config });
-	const quiet = await call(headless.client, "workflow_run", {
+	const unasked = await call(headless.client, "workflow_run", {
 		workflow: "wf.json",
 		task: "headless",
 		executor: "test-fixture",
 		permissionMode: "safe",
 	});
+	assert.equal(unasked.isError, true);
+	assert.equal(
+		unasked.structuredContent.data.refusal.code,
+		"CAPABILITY_CONFIRMATION_REQUIRED",
+	);
+	const keys = JSON.parse(
+		/acceptDegradations: (\[[^\]]*\])/.exec(unasked.content[0].text)[1],
+	);
+	const quiet = await call(headless.client, "workflow_run", {
+		workflow: "wf.json",
+		task: "headless",
+		executor: "test-fixture",
+		permissionMode: "safe",
+		acceptDegradations: keys,
+	});
 	detachedPids.push(quiet.structuredContent.data.detached?.pid);
 	trackProcess(quiet.structuredContent.data.detached?.pid);
-	assert.equal(
-		quiet.structuredContent.data.capability.confirmation,
-		"non-interactive",
+	assert.deepEqual(
+		[
+			quiet.structuredContent.data.capability.confirmation,
+			quiet.structuredContent.data.capability.confirmedVia,
+		],
+		["confirmed", "chat"],
 	);
 	await waitUntilSettled(headless.client, quiet.structuredContent.data.runId);
+	const free = await call(headless.client, "workflow_run", {
+		workflow: "wf.json",
+		task: "headless free",
+		executor: "test-fixture",
+		permissionMode: "free",
+	});
+	assert.equal(free.isError, false, free.content[0].text);
+	detachedPids.push(free.structuredContent.data.detached?.pid);
+	trackProcess(free.structuredContent.data.detached?.pid);
+	assert.equal(
+		free.structuredContent.data.capability.confirmation,
+		"not-needed",
+	);
+	await waitUntilSettled(headless.client, free.structuredContent.data.runId);
+	assert.equal(asked.length, 2, "a client without dialogs is never sent one");
 });
 
 test("WP28 official SDK client: confirmed profile changes (accept, decline, no elicitation), dry-run prune asks nothing", async (t) => {
