@@ -223,11 +223,17 @@ async function collectWorkflowResultArtifacts(
 	taskDir: string,
 	control: Record<string, unknown> | undefined,
 	maxBytes?: number,
+	supportMarkdownReport = false,
 ): Promise<WorkflowResultArtifact[]> {
 	const artifacts: WorkflowResultArtifact[] = [];
 	const reportCandidates = [
 		stringValue(control?.sidecarPath),
 		"final-report.md",
+		// agent-workflow 2026-11-04 (a workflow authored with the workflow-guide skill rendered its
+		// report as the final support stage's `markdown`/`analysis`, which the engine writes to
+		// analysis.md as documented; with no final-report.md the run had no report in any host):
+		// that markdown is the run's report.
+		...(supportMarkdownReport ? ["analysis.md"] : []),
 	].filter((candidate): candidate is string => Boolean(candidate));
 	for (const candidate of reportCandidates) {
 		if (isRawProtocolArtifactPath(candidate)) continue;
@@ -339,6 +345,9 @@ export async function readWorkflowResultPresentation(
 		taskDir,
 		control,
 		maxArtifactBytes,
+		task.kind === "support" &&
+			(typeof control?.markdown === "string" ||
+				typeof control?.analysis === "string"),
 	);
 	const verdict = domainVerdict(control?.verdict);
 	// WP19 (review #10): explicit verdict-gate evidence, else this is a real failure.

@@ -567,3 +567,57 @@ test("launch claims: stale claim files are pruned on launch and by prune; fresh 
 		await new Promise((resolve) => setTimeout(resolve, 20));
 	assert.deepEqual(await readdir(dir), [`${FRESH}.json`]);
 });
+
+// agent-workflow 2026-11-04 (a workflow authored with the workflow-guide skill): a final support
+// renderer that returns only \`markdown\` (written to analysis.md, as documented) has a report too.
+test("a final support stage's markdown is the run's report when it writes no final-report.md", async () => {
+	const { cwd, env } = await project();
+	await writeFile(
+		join(cwd, "render-md.mjs"),
+		`export default async function render() {
+	return { schema: "stage-control-v1", digest: "rendered", verdict: "ORIENTATION_COMPLETE", completionSummaryMarkdown: "Done.", markdown: "# Orientation\\n\\nThree subsystems." };
+}
+`,
+	);
+	await writeFile(
+		join(cwd, "md.json"),
+		JSON.stringify({
+			schemaVersion: 1,
+			name: "wp18b-markdown-report",
+			defaults: { agent: "reader", readOnly: true, tools: ["read"] },
+			artifactGraph: {
+				stages: [
+					{ id: "a", type: "single", prompt: "Collect facts." },
+					{ id: "final", from: "a", support: { uses: "./render-md.mjs" } },
+				],
+			},
+		}),
+	);
+	const ctx = { cwd, env, host: "cli" };
+	const launched = await api.runWorkflowAction(ctx, {
+		workflow: "md.json",
+		task: "orient",
+		executor: fixture(),
+	});
+	let waited;
+	do
+		waited = await api.waitAction(ctx, {
+			runId: launched.data.runId,
+			timeoutMs: 10_000,
+		});
+	while (waited.data.stillRunning);
+	assert.equal(waited.data.status, "completed", waited.text);
+	assert.equal(waited.data.reportArtifacts.length, 1);
+	assert.match(
+		waited.data.reportArtifacts[0].path,
+		/tasks\/[^/]+\/analysis\.md$/u,
+	);
+	const shown = await api.showAction(ctx, {
+		ref: launched.data.runId,
+		includeReport: true,
+	});
+	assert.match(
+		shown.data.report?.text ?? JSON.stringify(shown.data.report),
+		/Three subsystems/u,
+	);
+});

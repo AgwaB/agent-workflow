@@ -542,12 +542,33 @@ and must not change in the final control. Downstream reducers still wait for eve
 
 ```js
 export default async function helper({ sources, options, context }) {
-  // sources: upstream control.json values keyed by stable source names (foreach items as
-  // "<stage>.<item id>"); context: specPath, runId, taskId, stageId, cwd, signal, sourceStatuses,
-  // evidence (experimental engine-side web quote check, below)
+  // sources: upstream control.json values keyed by source names (see below); context: specPath,
+  // runId, taskId, stageId, cwd, signal, sourceStatuses, evidence (experimental engine-side web
+  // quote check, below)
   return { schema: "my-merge-control-v1", digest: "merged 3 reviews", items: [/* … */] };
 }
 ```
+
+**Source names.** A `single`/`reduce` stage's control is keyed by its stage id. Foreach items are
+keyed by name too, but **the first item takes the bare stage id** and the others
+`<stage>.<item id>` (`analyze`, `analyze.durable-runtime`, …). Do not collect a stage's items by key
+prefix: use `context.sourceStatuses`, one row per source with `source` (the key in `sources`),
+`stageId`, `specId` (`<stage>.<item id>` for every item), `taskId`, `status` and, for foreach
+items, `itemIdentity` and `placeholderSpecId`:
+
+```js
+const items = context.sourceStatuses
+  .filter((row) => row.stageId === "analyze" && row.itemIdentity !== undefined)
+  .map((row) => ({ id: row.itemIdentity, status: row.status, control: sources[row.source] }));
+```
+
+(2026-11-04: a workflow authored with the workflow-guide skill filtered `analyze.` keys and lost its
+first subsystem.)
+
+**Report.** A final support stage publishes the run's report as its `markdown` (or `analysis`)
+field — hosts and the dashboard open that `analysis.md` as the report — or by writing
+`final-report.md` into its own task directory and returning `sidecarPath: "final-report.md"` (the
+bundled renders do both). `completionSummaryMarkdown` is the short result hosts print first.
 
 In an artifact-graph workflow the returned object is the support node's `control.json` (a missing
 `schema` becomes `stage-control-v1`, a missing `digest` a fixed text) and is validated against the
