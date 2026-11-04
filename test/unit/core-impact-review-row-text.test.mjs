@@ -152,3 +152,30 @@ test("the completion summary stays within its schema limit however many action r
 	for (let i = 0; i < 6; i++)
 		assert.match(result.markdown, new RegExp(`next ${i}:`, "u"));
 });
+
+// agent-workflow 2026-11-04 (live runs): the summary hid reviewed file names — "workflow-stop.ts"
+// became "[run omitted]" and a reviewed "control.json" became "[artifact omitted]". Only this
+// engine's own names are hidden now.
+test("the completion summary keeps reviewed file names and hides only engine artifacts, run ids and task ids", async () => {
+	const sources = blockedControls();
+	sources["impact-analysis.impact-synthesis"].summary =
+		"src/workflow-stop.ts and src/workflow-terminal.ts read control.json; see run workflow_mw1rwnkc_7f6ae1 task-12, .agent-workflow/workflows/x/tasks/task-3/control.json and final-audit.control.json.";
+	const summary = (await renderImpactReport({ sources, context }))
+		.completionSummaryMarkdown;
+	for (const kept of [
+		"workflow-stop.ts",
+		"workflow-terminal.ts",
+		"read control.json",
+	])
+		assert.ok(summary.includes(kept), kept);
+	for (const hidden of [
+		"workflow_mw1rwnkc_7f6ae1",
+		"task-12",
+		".agent-workflow/workflows",
+		"final-audit.control.json",
+	])
+		assert.ok(!summary.includes(hidden), hidden);
+	assert.match(summary, /\[run omitted\]/u);
+	assert.match(summary, /\[task omitted\]/u);
+	assert.match(summary, /final-audit\.\[artifact omitted\]/u);
+});

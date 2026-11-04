@@ -284,6 +284,16 @@ After stage 2 (2026-11-01):
   findings (every final and dropped row must still be present and recomputed equal). Tests:
   `core-review-verdict-precedence.test.mjs`, IRCF-01 `unclear-keep` and `bad-extra-gap-citation` in
   `core-spec-requirement-coverage.test.mjs`, `core-review-helper-byte-gates.test.mjs`.
+- **M30.** Completion-summary sanitizer (2026-11-04, same live runs). The four renderers
+  (`render-spec-review-report.mjs`, `render-impact-report.mjs`, `render-review-report.mjs`,
+  `render-executive.mjs`) hid engine names with patterns that also hit reviewed content:
+  `workflow[_-]…` turned `src/workflow-stop.ts` into `src/[run omitted]`, bare `control.json` /
+  `refs.json` / `review.md` became `[artifact omitted]` when the reviewed code had such a file, and
+  the `.pi/workflows` path rule was pi-workflow's. Now hidden: paths under `.agent-workflow/workflows`,
+  run ids `workflow_<id>_<hex6>` (also after Markdown escaping, which had kept real run ids visible
+  in spec-review and impact-review), task ids `task-<n>`, the sidecar names `final-report.md`,
+  `audit.md`, `executive.md`, and `refs.json` / `control.json` only stage- or path-qualified
+  (`final-audit.control.json`, `…/control.json`). Test: `core-impact-review-row-text.test.mjs`.
 
 ## Worker prompt rendering (core)
 

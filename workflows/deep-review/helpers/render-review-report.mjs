@@ -104,17 +104,21 @@ function inlineCode(value) {
 
 function completionText(value) {
 	const withoutArtifactPaths = cleanText(value)
+		// agent-workflow 2026-11-04 (live runs: "workflow-stop.ts" became "[run omitted]", a reviewed
+		// file's "control.json" became "[artifact omitted]"): only this engine's own names are hidden —
+		// paths under .agent-workflow/workflows, run ids (workflow_<id>_<hex6>), task ids (task-<n>),
+		// sidecar names, and refs/control JSON only as a stage-qualified or path-qualified name.
 		.replace(
-			/(?:^|[\\/])\.pi[\\/]workflows(?:[\\/][^\s]*)?/gi,
-			" [artifact omitted]",
-		)
-		.replace(/\b(?:final-report|review|audit)\.md\b/gi, "[artifact omitted]")
-		.replace(
-			/\b(?:refs|control|partition-verdicts\.control|report\.control)\.json\b/gi,
+			/(?<![\w-])\.agent-workflow[\\/]workflows(?:[\\/][^\s]*)?/gi,
 			"[artifact omitted]",
 		)
-		.replace(/\bworkflow[_-][\w.-]+\b/gi, "[run omitted]")
-		.replace(/\btask[_-][\w.-]+\b/gi, "[task omitted]");
+		.replace(/\b(?:final-report|audit)\.md\b/gi, "[artifact omitted]")
+		.replace(
+			/\b(?:partition-verdicts\.control|report\.control)\.json\b|(?<=[.\\/])(?:refs|control)\.json\b/gi,
+			"[artifact omitted]",
+		)
+		.replace(/\bworkflow\\?_[a-z0-9]+\\?_[a-f0-9]{6}\b/gi, "[run omitted]")
+		.replace(/\btask-\d+\b/gi, "[task omitted]");
 	return cleanText(withoutArtifactPaths)
 		.replace(/&/g, "&amp;")
 		.replace(/</g, "&lt;")
