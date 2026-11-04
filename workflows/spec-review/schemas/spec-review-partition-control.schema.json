@@ -106,7 +106,8 @@
             "positive": { "type": "boolean" },
             "status": { "type": "string" },
             "accountedBy": { "type": "array", "items": { "type": "string" } },
-            "rows": { "type": "array", "items": { "type": "object" } }
+            "rows": { "type": "array", "items": { "type": "object" } },
+            "corrections": { "type": "array", "items": { "type": "object" } }
           }, "additionalProperties": false
         } }
       }, "additionalProperties": false

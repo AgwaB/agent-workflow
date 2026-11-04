@@ -178,6 +178,28 @@ export async function roundtrip(
 	});
 	return { p, result };
 }
+// agent-workflow 2026-11-04 (live: a coverage correction broke the partition schema): the outputs of
+// the correction tests must satisfy their own control schemas.
+async function assertSchemas({ p, result }) {
+	for (const [name, control] of [
+		["partition", p],
+		["render", result],
+	]) {
+		const schema = JSON.parse(
+			await readFile(
+				new URL(
+					`../../workflows/spec-review/schemas/spec-review-${name}-control.schema.json`,
+					import.meta.url,
+				),
+			),
+		);
+		const validation = validateJsonSchema(control, schema);
+		assert.ok(
+			validation.valid,
+			`${name}: ${JSON.stringify(validation.issues)}`,
+		);
+	}
+}
 async function fixture(fn) {
 	const cwd = await mkdtemp(join(tmpdir(), "review-byte-gate-"));
 	try {
@@ -426,6 +448,7 @@ for (const [change, actual] of [
 	test(`a quote outside its range is moved to its one occurrence: ${JSON.stringify(change)}`, () =>
 		fixture(async (cwd) => {
 			const { p, result } = await roundtrip(cwd, [{ ...citation, ...change }]);
+			await assertSchemas({ p, result });
 			assert.equal(result.status, "passed");
 			assert.deepEqual(
 				[p.evidenceCorrections[0].actual, p.evidenceCorrections[0].reason],
@@ -448,6 +471,7 @@ test("CRLF and whitespace differences are corrected to the file's bytes; other d
 		);
 		for (const quote of ["first\n  second  ", "first\r\nsecond"]) {
 			const { p, result } = await roundtrip(cwd, [{ ...exact, quote }]);
+			await assertSchemas({ p, result });
 			assert.equal(result.status, "passed", quote);
 			assert.equal(
 				p.finalFindings[0].evidence[0].quote,
@@ -472,6 +496,7 @@ test("a tab-indented quote given with spaces, a few lines off, is matched (live 
 		const { p, result } = await roundtrip(cwd, [
 			{ ...citation, lineStart: 1, lineEnd: 6, quote: spaced },
 		]);
+		await assertSchemas({ p, result });
 		assert.equal(result.status, "passed");
 		assert.deepEqual(
 			[p.evidenceCorrections[0].cited, p.evidenceCorrections[0].actual],
@@ -678,6 +703,7 @@ test("requirement-coverage citations get the same correction; the rows stay as w
 			coverage(spaced),
 		);
 		assert.equal(exact.result.status, relaxed.result.status);
+		await assertSchemas(relaxed);
 		assert.equal(relaxed.p.requirementCoverage[0].evidence[0].quote, spaced);
 		assert.equal(
 			relaxed.p.evidenceGate.coverage[0].corrections[0].reason,
@@ -717,6 +743,7 @@ test("requirement statements in any script; a requirement quote joining a wrappe
 			},
 		};
 		const ok = await roundtrip(cwd, [citation], "KEEP", [], candidates, korean);
+		await assertSchemas(ok);
 		assert.equal(
 			ok.p.evidenceGate.requirementReconciliation.issues.length,
 			0,
