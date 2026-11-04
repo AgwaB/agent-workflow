@@ -352,6 +352,10 @@ export function adaptWorkflowGuide(text, version) {
 			"Always validate the workflow (the `workflow_validate` tool with the workflow name or spec path, or `agent-workflow validate <workflow-or-file>` run non-interactively from the project directory) before handing off or running a reusable workflow. Both report the summary and `Warnings:` list; an invalid spec is a tool error or a non-zero CLI exit.",
 		],
 		[
+			"Run the launch preflight first (`agent-workflow check <workflow> --executor <id> --model <id>`, `/aw check` in Pi; no run, no model call).",
+			"Run the launch preflight first (the `workflow_check` tool, or `agent-workflow check <workflow> --executor <id> --model <id>`; no run, no model call).",
+		],
+		[
 			"(for example Pi's `question` tool)",
 			"(for example Claude Code's `AskUserQuestion` tool)",
 		],

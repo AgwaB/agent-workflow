@@ -38,6 +38,10 @@ Copy their proven conventions (see "Quality design patterns"), not just their st
 - For synthesis/fan-in, use `reduce.from` and require/encourage `workflow_artifact` reads for detailed upstream artifacts (write the logical name `workflow_artifact` in prompts, never an executor-specific `mcp__…` name).
 - For deterministic local post-processing, declare a `support` object with `support.uses` pointing to a bundle-local `./*.mjs` helper; support is trusted local code, not sandboxed subagent work and does not use a separate `type` value.
 - In a support helper, collect a foreach stage's items through `context.sourceStatuses` (rows with that `stageId` and an `itemIdentity`; read `sources[row.source]`), never by `<stage>.` key prefix: the first item is keyed by the bare stage id. See "Source names" in `docs/usage.md`.
+- Bound fan-out and scope in code. Cap every foreach source (`maxItems` in the planning schema and a
+  support check), cap per-item work, and when the user's goal names a path or area, have a support
+  step clip discovery to it rather than trusting the planning model to respect it. Whatever a cap or
+  the scope drops is reported (and makes the result partial), never silently lost.
 - The final support render publishes the run's report: return it as `markdown` (hosts and the dashboard open it as the report) or write `final-report.md` in the task directory and return `sidecarPath`; return `completionSummaryMarkdown` as the short result. See "Report" in `docs/usage.md`.
 - Put already-known, caller-authorized inventory, canonical task binding, IDs, schemas, joins, counts, escaping, and rendering in static code instead of asking a model to restate or transform them. Keep models for requirements, topology, unknown discovery, domain semantics, and substantive judgment. Never substitute a fixed inventory when the workflow must discover the inventory.
 - For iteration, use `loop` with fixed child stages, `maxRounds`, and deterministic `until`. A positive `maxRounds` bounds rounds; explicit `maxRounds: null` removes the round cap. For unlimited loops, omit `progressPath` to terminate only by `until`, blocking failure, or explicit stop; an explicit `progressPath` opts into no-progress stopping. Model-task time limits are separate (`maxRuntimeMs: 0` disables them). Loop children are `single`/`reduce` only, run serially, and must not declare `from`/`after`: each child implicitly sources the earlier children of its round (for example `<loop>.r01.compare`), and the first child of every later round sources the previous round plus a `# Loop Carry-Forward Context` block. `until` must target the final child (`{ "stage": "<final-child>", "path": "$.field", "equals": true }`, or `all`/`any` combinators; predicates `equals`, `notEquals`, `lengthEquals`, `exists`), and that path must exist in the final child's control schema and few-shot example. Loops cannot be resumed; start a fresh run after changing the spec. See "Loop behavior" in `docs/usage.md` for the exact contract.
@@ -108,10 +112,29 @@ When creating or changing a workflow:
     alignment, few-shot skeletons, support helpers, or reducer splits before
     running.
 12. Report the exact validation result, every warning, and any remaining safety notes.
+13. Offer a smoke run before handing off (see "Runtime acceptance dry run", "Keep it cheap"). Validation
+    and helper fixtures never meet real data: in a 2026-11-04 test, two workflows authored this way
+    passed both and then lost their first foreach item, ignored the path limit in the user's goal,
+    exploded to 121 tasks on a large repository, and broke JSON on a small model — all on the first
+    real run. Propose one run to the user with its input, executor, model and expected task count;
+    start it only after they agree (it costs model calls). Hand off with the run id and what it
+    showed, or say plainly that the workflow is validation-only because the user declined.
 
 ## Runtime acceptance dry run
 
 `agent-workflow validate` checks form, not behavior. Before treating a new or materially changed workflow as trustworthy, run a bounded representative task and prove the workflow's runtime invariants. Do not turn one observed workflow's values into universal constants; declare the expected counts, identities, and completion rules for the workflow being authored.
+
+**Keep it cheap.** Run the launch preflight first (`agent-workflow check <workflow> --executor <id> --model <id>`, `/aw check` in Pi; no run, no model call). Then use the smallest
+real input that still reaches every stage (one directory instead of the repository, a narrow goal,
+the lowest declared depth input) and the cheapest model the executor offers, through the run's
+`model`/`effort` options (for example `haiku` on claude, `gpt-5.6-luna` with
+`effort: "low"` on codex, a flash model on antigravity; Pi runs its configured default, so say what
+that costs). Estimate the model tasks before asking (planned fan-out items × model stages). A cheap
+model is also the robustness check: when it breaks a control (invalid JSON, a field over its
+schema bound), simplify that control (see "Control schema and output gotchas") instead of requiring a
+stronger model. After the run check at least: no failed task, planned item ids = materialized ids =
+ids in the report, the verdict and coverage counts the renderer computed, and that the report opens
+(the wait result lists a report artifact).
 
 1. **Declare acceptance invariants before launch.** Record the expected fan-out count and stable item ids, permitted resolved agents/models/tools, required evidence shape, planned fan-in counts, tolerated failure policy, and final status/verdict rule. Static validation does not prove provider credentials, quota, model availability, or model output conformance; classify those separately from graph/helper defects.
 2. **Inspect materialization, not only the plan.** Use `agent-workflow inspect <run-id> --results` (Pi: `/aw inspect <run-id> --results`), then inspect `run.json`, the plan `control.json`, and relevant `source-manifest.json` files. Reconcile planned items against materialized task `specId`/`displayName` values and against the stable identity echoed in each worker control. Treat manifest `source` names and in-memory source-map keys as routing aliases, not business identity; an alias may be a bare stage name and need not equal the foreach item id. Never derive assignment identity from alias shape, object enumeration order, title text, or array position. Prefer `each.itemIdentityPath` plus an explicit id in the item and worker output.
@@ -228,6 +251,11 @@ Validation passing means the spec is well-formed, not that it is good. These pat
 
 - Workflow specs are JSON-only; `.yaml` and `.yml` specs are not supported.
 - Keep `<control>` small and machine-readable. Put detailed reasoning, evidence, and caveats in `<analysis>`.
+- Make every model control safe for small models (2026-11-04: gemini flash closed a four-level nested
+  plan with one bracket too many on all three repair attempts): flat objects, arrays of strings or of
+  one-level objects, `maxLength`/`maxItems` on every string and array with the same limits stated in
+  the prompt, one-line quotes. Let support code build structure (ordering, joins, grouping,
+  rendering) and have the model refer to ids instead of restating lists.
 - Put compact few-shot `<control>` examples in prompts when the schema has
   required nested object keys; examples should be schema-valid and use exact
   field names plus exact container shapes (`"arrayField": []`,
@@ -268,6 +296,8 @@ Prioritize issues that can break scheduling, drop upstream data, bypass evidence
 Before handing off or recommending a reusable workflow run, verify or report as a blocker:
 
 - `agent-workflow validate <workflow-or-file>` result and all warnings.
+- The smoke run: its run id, input, executor/model and outcome — or that the user declined and the
+  workflow is validation-only.
 - Required agents exist and their declared tool ceilings allow the workflow tools.
 - `readOnly` and tool lists match the intended side-effect policy.
 - Every `single.from`, `foreach.from`, `reduce.from`, support `from`, and `dag.outputFrom` reference resolves.
