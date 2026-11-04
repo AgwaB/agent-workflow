@@ -20,10 +20,7 @@ import {
 	type HostResult,
 	HostUsageError,
 	formatHostError,
-	type ProfileRequest,
-	parseCapabilityList,
 	parseDuration,
-	parsePermissionMode,
 	parseThinkingLevel,
 	parseWorkflowAutoArgs,
 	parseWorkflowDynamicArgs,
@@ -31,11 +28,20 @@ import {
 	tokenizeWorkflowArgs,
 } from "../api.js";
 import {
-	logsRequest,
+	agentsRequest,
+	type CommandSyntax,
+	inspectRequest,
+	listRequest,
+	logsCommandRequest,
 	parseCommandArgs,
-	parseRoleFlags,
+	profileRequest,
+	showRequest,
+	statusRequest,
+	stopRequest,
+	usageError,
 	workflowPreferenceRequest,
-} from "../cli/index.js";
+	workflowRefRequest,
+} from "../command-args.js";
 import { FOREGROUND_CANCELLED, withForegroundLoader } from "./active-ui.js";
 import { boardAvailable, showAwBoard } from "./board.js";
 import { piBoardSource } from "./board-source.js";
@@ -128,106 +134,15 @@ Agent tools: ${AW_TOOL_NAMES.join(", ")}. /aw help <action> shows the agent-work
 Dashboard:
   /aw dashboard [<run-id-or-prefix>]                   open the local web dashboard in your browser (starts it when needed; never prints the token)`;
 
+/** `/aw` usage texts: "Usage: /aw …"; no `--json` (CLI only). */
+const PI_SYNTAX: CommandSyntax = {
+	usagePrefix: `/${AW_COMMAND} `,
+	commonFlags: [],
+};
+
 function only(positionals: string[], count: number, usage: string): string[] {
-	if (positionals.length !== count)
-		throw new HostUsageError(`Usage: /${AW_COMMAND} ${usage}`);
+	if (positionals.length !== count) throw usageError(PI_SYNTAX, usage);
 	return positionals;
-}
-
-function intValue(raw: string | undefined, option: string): number | undefined {
-	if (raw === undefined) return undefined;
-	if (!/^\d+$/.test(raw) || !Number.isSafeInteger(Number(raw)))
-		throw new HostUsageError(`${option} requires a non-negative integer`);
-	return Number(raw);
-}
-
-function profileRequest(argv: string[]): ProfileRequest {
-	const [op = "list", ...rest] = argv;
-	if (op === "list") {
-		only(parseCommandArgs(rest, {}).positionals, 0, "profile list");
-		return { op: "list" };
-	}
-	if (op === "show") {
-		const { positionals } = parseCommandArgs(rest, {});
-		if (positionals.length > 1)
-			throw new HostUsageError(`Usage: /${AW_COMMAND} profile show [<name>]`);
-		return positionals[0]
-			? { op: "show", name: positionals[0] }
-			: { op: "show" };
-	}
-	if (op === "set") {
-		const parsed = parseCommandArgs(rest, {
-			flags: ["--default"],
-			values: [
-				"--executor",
-				"--model",
-				"--effort",
-				"--permission-mode",
-				"--strict-capabilities",
-				"--unset",
-				"--preset",
-			],
-			repeatable: ["--role"],
-			aliases: { "--thinking": "--effort" },
-		});
-		const [name] = only(parsed.positionals, 1, "profile set <name> [options]");
-		const v = parsed.values;
-		const values: Record<string, unknown> = {};
-		if (v.has("--executor")) values.executor = v.get("--executor");
-		if (v.has("--model")) values.model = v.get("--model");
-		if (v.has("--effort"))
-			values.effort = parseThinkingLevel(v.get("--effort")!);
-		if (v.has("--permission-mode"))
-			values.permissionMode = parsePermissionMode(v.get("--permission-mode")!);
-		if (v.has("--strict-capabilities"))
-			values.strictCapabilities = parseCapabilityList(
-				v.get("--strict-capabilities")!,
-				"--strict-capabilities",
-			);
-		// WP31: roles and presets (same syntax as the CLI).
-		const roles = parseRoleFlags(parsed.lists.get("--role"));
-		if (roles) values.roles = roles;
-		const unset = v
-			.get("--unset")
-			?.split(",")
-			.map((field) => field.trim())
-			.filter(Boolean);
-		return {
-			op: "set",
-			name: name!,
-			values,
-			...(unset ? { unset } : {}),
-			...(parsed.flags.has("--default") ? { makeDefault: true } : {}),
-			...(v.has("--preset") ? { preset: v.get("--preset")! } : {}),
-		};
-	}
-	if (op === "presets") {
-		only(parseCommandArgs(rest, {}).positionals, 0, "profile presets");
-		return { op: "presets" };
-	}
-	if (op === "delete")
-		return {
-			op: "delete",
-			name: only(
-				parseCommandArgs(rest, {}).positionals,
-				1,
-				"profile delete <name>",
-			)[0]!,
-		};
-	if (op === "default") {
-		const parsed = parseCommandArgs(rest, { flags: ["--clear"] });
-		if (parsed.flags.has("--clear")) {
-			only(parsed.positionals, 0, "profile default <name> | --clear");
-			return { op: "default", name: null };
-		}
-		return {
-			op: "default",
-			name: only(parsed.positionals, 1, "profile default <name> | --clear")[0]!,
-		};
-	}
-	throw new HostUsageError(
-		`Unknown profile operation "${op}". Usage: /${AW_COMMAND} profile list|show|set|delete|default|presets|workflow`,
-	);
 }
 
 /** `/aw help [action]`: the Pi command list, or the shared help of one action. */
@@ -262,35 +177,14 @@ async function dispatch(
 	const api = deps.api;
 	const host = () => hostContext(deps, ctx);
 	switch (action) {
-		case "list": {
-			const parsed = parseCommandArgs(rest, {
-				values: ["--query", "--offset", "--limit"],
-			});
-			only(
-				parsed.positionals,
-				0,
-				"list [--query <text>] [--offset N] [--limit N]",
-			);
-			const offset = intValue(parsed.values.get("--offset"), "--offset");
-			const limit = intValue(parsed.values.get("--limit"), "--limit");
-			return api.listWorkflowsAction(host(), {
-				...(parsed.values.has("--query")
-					? { query: parsed.values.get("--query")! }
-					: {}),
-				...(offset === undefined ? {} : { offset }),
-				...(limit === undefined ? {} : { limit }),
-			});
-		}
+		case "list":
+			return api.listWorkflowsAction(host(), listRequest(rest, PI_SYNTAX));
 		case "validate":
 		case "roles": {
-			const [workflow] = only(
-				parseCommandArgs(rest, {}).positionals,
-				1,
-				`${action} <workflow-name-or-path>`,
-			);
+			const request = workflowRefRequest(action, rest, PI_SYNTAX);
 			return action === "validate"
-				? api.validateWorkflowAction(host(), { workflow: workflow! })
-				: api.workflowRolesAction(host(), { workflow: workflow! });
+				? api.validateWorkflowAction(host(), request)
+				: api.workflowRolesAction(host(), request);
 		}
 		case "check": {
 			// The launch preflight only: `/aw run` options, task optional, no run.
@@ -311,7 +205,7 @@ async function dispatch(
 			);
 		}
 		case "agents":
-			only(parseCommandArgs(rest, {}).positionals, 0, "agents");
+			agentsRequest(rest, PI_SYNTAX);
 			return api.listAgentsAction(host());
 		case "profile":
 			// WP34: `/aw profile` alone opens the picker in the TUI (the text operations stay).
@@ -334,7 +228,7 @@ async function dispatch(
 					host(),
 					workflowPreferenceRequest(rest.slice(1)),
 				);
-			return api.profileAction(host(), profileRequest(rest));
+			return api.profileAction(host(), profileRequest(rest, PI_SYNTAX));
 		case "run": {
 			const parsed = parseWorkflowRunArgs(args);
 			if (!parsed.specPath)
@@ -454,51 +348,14 @@ async function dispatch(
 			);
 			return { ...auto, note: hooks.note() };
 		}
-		case "status": {
-			const { positionals } = parseCommandArgs(rest, {});
-			if (positionals.length > 1)
-				throw new HostUsageError(
-					`Usage: /${AW_COMMAND} status [<run-id-or-prefix>]`,
-				);
-			return api.statusAction(
-				host(),
-				positionals[0] ? { runId: positionals[0] } : {},
-			);
-		}
-		case "show": {
-			const parsed = parseCommandArgs(rest, { flags: ["--raw"] });
-			const [ref] = only(
-				parsed.positionals,
-				1,
-				"show <run-id-or-workflow> [--raw]",
-			);
-			return api.showAction(host(), {
-				ref: ref!,
-				...(parsed.flags.has("--raw") ? { raw: true } : {}),
-			});
-		}
-		case "inspect": {
-			const parsed = parseCommandArgs(rest, {
-				flags: ["--failures", "--results"],
-			});
-			const [runId] = only(parsed.positionals, 1, "inspect <run-id-or-prefix>");
-			return api.inspectAction(host(), {
-				runId: runId!,
-				failures: parsed.flags.has("--failures"),
-				results: parsed.flags.has("--results"),
-			});
-		}
-		case "logs": {
-			const parsed = parseCommandArgs(rest, {
-				values: ["--task", "--lines", "--stream"],
-			});
-			const [runId] = only(
-				parsed.positionals,
-				1,
-				"logs <run-id-or-prefix> [--task <id>] [--lines N] [--stream output|stderr|events|all]",
-			);
-			return api.logsAction(host(), logsRequest(runId!, parsed.values));
-		}
+		case "status":
+			return api.statusAction(host(), statusRequest(rest, PI_SYNTAX));
+		case "show":
+			return api.showAction(host(), showRequest(rest, PI_SYNTAX));
+		case "inspect":
+			return api.inspectAction(host(), inspectRequest(rest, PI_SYNTAX));
+		case "logs":
+			return api.logsAction(host(), logsCommandRequest(rest, PI_SYNTAX));
 		case "wait": {
 			const parsed = parseCommandArgs(rest, { values: ["--timeout"] });
 			const usage = "wait <run-id-or-prefix> [timeout | --timeout <duration>]";
@@ -582,14 +439,8 @@ async function dispatch(
 					: {}),
 			});
 		}
-		case "stop": {
-			const [runId] = only(
-				parseCommandArgs(rest, {}).positionals,
-				1,
-				"stop <run-id-or-prefix>",
-			);
-			return api.stopAction(host(), { runId: runId! });
-		}
+		case "stop":
+			return api.stopAction(host(), stopRequest(rest, PI_SYNTAX));
 		case "prune":
 			return api.pruneAction(host(), { argv: rest });
 		case "notices":

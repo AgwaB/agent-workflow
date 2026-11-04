@@ -22,7 +22,6 @@ import {
 } from "../dashboard/discovery.js";
 import { resolve } from "node:path";
 import { startDashboardServer } from "../dashboard/server.js";
-import { parseRoleAssignmentText } from "../../core/role-profiles.js";
 import { addWorkflowInputAssignment } from "../args.js";
 import { cliLaunchCommand } from "../launch-capture.js";
 import { createInterface } from "node:readline";
@@ -46,9 +45,7 @@ import {
 	listAgentsAction,
 	listWorkflowsAction,
 	logsAction,
-	type LogsRequest,
 	noticesAction,
-	type ProfileRequest,
 	parseCapabilityList,
 	parseDuration,
 	parsePermissionMode,
@@ -69,7 +66,6 @@ import {
 	type WaitData,
 	validateWorkflowAction,
 	waitAction,
-	type WorkflowPreferenceRequest,
 	workflowPreferenceAction,
 	workflowRolesAction,
 } from "../api.js";
@@ -78,6 +74,32 @@ import { runWatch, WATCH_DEFAULT_INTERVAL_MS } from "../watch.js";
 import { runStatusLine } from "./statusline.js";
 import { findProjectRoot } from "../project-root.js";
 import { clearExecutorProbeCache } from "../../core/executor-default.js";
+import {
+	agentsRequest,
+	CLI_SYNTAX,
+	inspectRequest,
+	intValue,
+	listRequest,
+	logsCommandRequest,
+	type OptionSpec,
+	onlyPositionals,
+	type ParsedArgs,
+	parseCommandArgs,
+	profileRequest,
+	showRequest,
+	statusRequest,
+	stopRequest,
+	workflowPreferenceRequest,
+	workflowRefRequest,
+} from "../command-args.js";
+
+// The Pi host and tests import these from the CLI module.
+export {
+	logsRequest,
+	parseCommandArgs,
+	parseRoleFlags,
+	workflowPreferenceRequest,
+} from "../command-args.js";
 
 export const MODULE = "src/hosts/cli";
 
@@ -226,76 +248,6 @@ export function processCliIo(): CliIo {
 	};
 }
 
-interface OptionSpec {
-	/** Boolean flags. */
-	flags?: readonly string[];
-	/** Options taking one value. */
-	values?: readonly string[];
-	/** Options taking one value that may be given more than once (WP12a: `--input`). */
-	repeatable?: readonly string[];
-	/** Option aliases → canonical name. */
-	aliases?: Readonly<Record<string, string>>;
-}
-
-interface ParsedArgs {
-	positionals: string[];
-	flags: Set<string>;
-	values: Map<string, string>;
-	lists: Map<string, string[]>;
-}
-
-/** Strict argv parser: `--name value`, `--name=value`, `--` ends options, duplicates rejected. */
-export function parseCommandArgs(
-	argv: readonly string[],
-	spec: OptionSpec,
-): ParsedArgs {
-	const flags = new Set<string>();
-	const values = new Map<string, string>();
-	const lists = new Map<string, string[]>();
-	const positionals: string[] = [];
-	const known = new Set([
-		...(spec.flags ?? []),
-		...(spec.values ?? []),
-		...(spec.repeatable ?? []),
-	]);
-	for (let index = 0; index < argv.length; index += 1) {
-		const arg = argv[index]!;
-		if (arg === "--") {
-			positionals.push(...argv.slice(index + 1));
-			break;
-		}
-		if (!arg.startsWith("--") || arg === "--") {
-			positionals.push(arg);
-			continue;
-		}
-		const eq = arg.indexOf("=");
-		let name = eq < 0 ? arg : arg.slice(0, eq);
-		name = spec.aliases?.[name] ?? name;
-		if (!known.has(name))
-			throw new HostUsageError(`Unknown option ${arg.split("=")[0]}`);
-		if (spec.flags?.includes(name)) {
-			if (eq >= 0) throw new HostUsageError(`${name} takes no value`);
-			if (flags.has(name)) throw new HostUsageError(`Duplicate option ${name}`);
-			flags.add(name);
-			continue;
-		}
-		const value = eq >= 0 ? arg.slice(eq + 1) : argv[++index];
-		if (
-			value === undefined ||
-			value === "" ||
-			(eq < 0 && value.startsWith("--"))
-		)
-			throw new HostUsageError(`${name} requires a value`);
-		if (spec.repeatable?.includes(name)) {
-			lists.set(name, [...(lists.get(name) ?? []), value]);
-			continue;
-		}
-		if (values.has(name)) throw new HostUsageError(`Duplicate option ${name}`);
-		values.set(name, value);
-	}
-	return { positionals, flags, values, lists };
-}
-
 function packageVersion(): string {
 	try {
 		const raw = readFileSync(
@@ -309,17 +261,8 @@ function packageVersion(): string {
 	}
 }
 
-function intValue(raw: string | undefined, option: string): number | undefined {
-	if (raw === undefined) return undefined;
-	if (!/^\d+$/.test(raw) || !Number.isSafeInteger(Number(raw)))
-		throw new HostUsageError(`${option} requires a non-negative integer`);
-	return Number(raw);
-}
-
 function only(parsed: ParsedArgs, count: number, usage: string): string[] {
-	if (parsed.positionals.length !== count)
-		throw new HostUsageError(`Usage: ${usage}`);
-	return parsed.positionals;
+	return onlyPositionals(parsed, count, usage, CLI_SYNTAX);
 }
 
 const LAUNCH_SPEC: OptionSpec = {
@@ -646,78 +589,6 @@ async function autoCommand(
 	return followLaunch("auto", out, out.data.launch, options, ctx, io, emit);
 }
 
-/** WP31: `--role` values → a role map (each `<role>=<executor>[:<model>[:<effort>]]`). */
-export function parseRoleFlags(
-	values: readonly string[] | undefined,
-): Record<string, unknown> | undefined {
-	if (values === undefined || values.length === 0) return undefined;
-	const roles: Record<string, unknown> = {};
-	for (const value of values) {
-		let parsed: ReturnType<typeof parseRoleAssignmentText>;
-		try {
-			parsed = parseRoleAssignmentText(value, "--role");
-		} catch (error) {
-			throw new HostUsageError(
-				error instanceof Error ? error.message : String(error),
-			);
-		}
-		if (Object.hasOwn(roles, parsed[0]))
-			throw new HostUsageError(`--role ${parsed[0]} is given twice`);
-		roles[parsed[0]] = parsed[1];
-	}
-	return roles;
-}
-
-const WORKFLOW_PREFERENCE_USAGE =
-	"profile workflow list | show <workflow> | set <workflow> [--profile <name>] [--role <role>=<executor>[:<model>[:<effort>]]]... [--unset profile,roles,roles.<role>] | clear <workflow>";
-
-/** WP31: `profile workflow …` → a per-workflow preference request (also the Pi `/aw` command). */
-export function workflowPreferenceRequest(
-	argv: readonly string[],
-): WorkflowPreferenceRequest {
-	const [op = "list", ...rest] = argv;
-	if (op === "list") {
-		only(
-			parseCommandArgs(rest, { flags: ["--json"] }),
-			0,
-			WORKFLOW_PREFERENCE_USAGE,
-		);
-		return { op: "list" };
-	}
-	if (op === "show" || op === "clear") {
-		const [workflow] = only(
-			parseCommandArgs(rest, { flags: ["--json"] }),
-			1,
-			WORKFLOW_PREFERENCE_USAGE,
-		);
-		return { op, workflow: workflow! };
-	}
-	if (op === "set") {
-		const parsed = parseCommandArgs(rest, {
-			flags: ["--json"],
-			values: ["--profile", "--unset"],
-			repeatable: ["--role"],
-		});
-		const [workflow] = only(parsed, 1, WORKFLOW_PREFERENCE_USAGE);
-		const roles = parseRoleFlags(parsed.lists.get("--role"));
-		const unset = parsed.values
-			.get("--unset")
-			?.split(",")
-			.map((field) => field.trim())
-			.filter(Boolean);
-		return {
-			op: "set",
-			workflow: workflow!,
-			...(parsed.values.has("--profile")
-				? { profile: parsed.values.get("--profile")! }
-				: {}),
-			...(roles ? { roles } : {}),
-			...(unset ? { unset } : {}),
-		};
-	}
-	throw new HostUsageError(`Usage: ${WORKFLOW_PREFERENCE_USAGE}`);
-}
-
 /**
  * WP29: `approve <run> [--request <id>] [--reject] [--yes] [--detach] [--timeout <d>] [--json]`.
  * On a terminal the approval question is asked y/n (n rejects, no answer records nothing); without
@@ -793,91 +664,14 @@ async function profileCommand(
 	ctx: HostApiContext,
 	emit: Emit,
 ): Promise<number> {
-	const [op = "list", ...rest] = argv;
-	let request: ProfileRequest;
-	if (op === "list") {
-		only(parseCommandArgs(rest, { flags: ["--json"] }), 0, "profile list");
-		request = { op: "list" };
-	} else if (op === "show") {
-		const parsed = parseCommandArgs(rest, { flags: ["--json"] });
-		if (parsed.positionals.length > 1)
-			throw new HostUsageError("Usage: profile show [<name>]");
-		request = parsed.positionals[0]
-			? { op: "show", name: parsed.positionals[0] }
-			: { op: "show" };
-	} else if (op === "set") {
-		const parsed = parseCommandArgs(rest, {
-			flags: ["--json", "--default"],
-			values: [
-				"--executor",
-				"--model",
-				"--effort",
-				"--permission-mode",
-				"--strict-capabilities",
-				"--unset",
-				"--preset",
-			],
-			repeatable: ["--role"],
-			aliases: { "--thinking": "--effort" },
-		});
-		const [name] = only(parsed, 1, "profile set <name> [options]");
-		const values: Record<string, unknown> = {};
-		const v = parsed.values;
-		if (v.has("--executor")) values.executor = v.get("--executor");
-		if (v.has("--model")) values.model = v.get("--model");
-		if (v.has("--effort"))
-			values.effort = parseThinkingLevel(v.get("--effort")!);
-		if (v.has("--permission-mode"))
-			values.permissionMode = parsePermissionMode(v.get("--permission-mode")!);
-		if (v.has("--strict-capabilities"))
-			values.strictCapabilities = parseCapabilityList(
-				v.get("--strict-capabilities")!,
-				"--strict-capabilities",
-			);
-		// WP31: `--role <role>=<executor>[:<model>[:<effort>]]` (repeatable) and `--preset <id>`.
-		const roles = parseRoleFlags(parsed.lists.get("--role"));
-		if (roles) values.roles = roles;
-		const unset = v
-			.get("--unset")
-			?.split(",")
-			.map((field) => field.trim())
-			.filter(Boolean);
-		request = {
-			op: "set",
-			name: name!,
-			values,
-			...(unset ? { unset } : {}),
-			...(parsed.flags.has("--default") ? { makeDefault: true } : {}),
-			...(v.has("--preset") ? { preset: v.get("--preset")! } : {}),
-		};
-	} else if (op === "presets") {
-		only(parseCommandArgs(rest, { flags: ["--json"] }), 0, "profile presets");
-		request = { op: "presets" };
-	} else if (op === "workflow") {
+	if (argv[0] === "workflow")
 		return emit(
-			await workflowPreferenceAction(ctx, workflowPreferenceRequest(rest)),
+			await workflowPreferenceAction(
+				ctx,
+				workflowPreferenceRequest(argv.slice(1)),
+			),
 		);
-	} else if (op === "delete") {
-		const parsed = parseCommandArgs(rest, { flags: ["--json"] });
-		request = {
-			op: "delete",
-			name: only(parsed, 1, "profile delete <name>")[0]!,
-		};
-	} else if (op === "default") {
-		const parsed = parseCommandArgs(rest, { flags: ["--json", "--clear"] });
-		if (parsed.flags.has("--clear")) {
-			only(parsed, 0, "profile default <name> | --clear");
-			request = { op: "default", name: null };
-		} else
-			request = {
-				op: "default",
-				name: only(parsed, 1, "profile default <name> | --clear")[0]!,
-			};
-	} else
-		throw new HostUsageError(
-			`Unknown profile operation "${op}". Usage: profile list|show|set|delete|default|presets|workflow`,
-		);
-	return emit(await profileAction(ctx, request));
+	return emit(await profileAction(ctx, profileRequest(argv, CLI_SYNTAX)));
 }
 
 async function dispatch(
@@ -887,37 +681,18 @@ async function dispatch(
 	io: CliIo,
 	emit: Emit,
 ): Promise<number> {
-	const jsonOnly: OptionSpec = { flags: ["--json"] };
 	switch (command) {
-		case "list": {
-			const parsed = parseCommandArgs(argv, {
-				flags: ["--json"],
-				values: ["--query", "--offset", "--limit"],
-			});
-			only(parsed, 0, "list [--query <text>] [--offset N] [--limit N]");
-			const offset = intValue(parsed.values.get("--offset"), "--offset");
-			const limit = intValue(parsed.values.get("--limit"), "--limit");
+		case "list":
 			return emit(
-				await listWorkflowsAction(ctx, {
-					...(parsed.values.has("--query")
-						? { query: parsed.values.get("--query")! }
-						: {}),
-					...(offset === undefined ? {} : { offset }),
-					...(limit === undefined ? {} : { limit }),
-				}),
+				await listWorkflowsAction(ctx, listRequest(argv, CLI_SYNTAX)),
 			);
-		}
 		case "validate":
 		case "roles": {
-			const [workflow] = only(
-				parseCommandArgs(argv, jsonOnly),
-				1,
-				`${command} <workflow-name-or-path>`,
-			);
+			const request = workflowRefRequest(command, argv, CLI_SYNTAX);
 			return emit(
 				command === "validate"
-					? await validateWorkflowAction(ctx, { workflow: workflow! })
-					: await workflowRolesAction(ctx, { workflow: workflow! }),
+					? await validateWorkflowAction(ctx, request)
+					: await workflowRolesAction(ctx, request),
 			);
 		}
 		case "check": {
@@ -937,7 +712,7 @@ async function dispatch(
 			return emit(checked);
 		}
 		case "agents":
-			only(parseCommandArgs(argv, jsonOnly), 0, "agents");
+			agentsRequest(argv, CLI_SYNTAX);
 			return emit(await listAgentsAction(ctx));
 		case "profile":
 			return profileCommand(argv, ctx, emit);
@@ -946,52 +721,14 @@ async function dispatch(
 			return launchCommand(command, argv, ctx, io, emit);
 		case "auto":
 			return autoCommand(argv, ctx, io, emit);
-		case "status": {
-			const parsed = parseCommandArgs(argv, jsonOnly);
-			if (parsed.positionals.length > 1)
-				throw new HostUsageError("Usage: status [<run-id-or-prefix>]");
-			return emit(
-				await statusAction(
-					ctx,
-					parsed.positionals[0] ? { runId: parsed.positionals[0] } : {},
-				),
-			);
-		}
-		case "show": {
-			const parsed = parseCommandArgs(argv, { flags: ["--json", "--raw"] });
-			const [ref] = only(parsed, 1, "show <run-id-or-workflow> [--raw]");
-			return emit(
-				await showAction(ctx, {
-					ref: ref!,
-					...(parsed.flags.has("--raw") ? { raw: true } : {}),
-				}),
-			);
-		}
-		case "inspect": {
-			const parsed = parseCommandArgs(argv, {
-				flags: ["--json", "--failures", "--results"],
-			});
-			const [runId] = only(parsed, 1, "inspect <run-id-or-prefix>");
-			return emit(
-				await inspectAction(ctx, {
-					runId: runId!,
-					failures: parsed.flags.has("--failures"),
-					results: parsed.flags.has("--results"),
-				}),
-			);
-		}
-		case "logs": {
-			const parsed = parseCommandArgs(argv, {
-				flags: ["--json"],
-				values: ["--task", "--lines", "--stream"],
-			});
-			const [runId] = only(
-				parsed,
-				1,
-				"logs <run-id-or-prefix> [--task <id>] [--lines N] [--stream output|stderr|events|all]",
-			);
-			return emit(await logsAction(ctx, logsRequest(runId!, parsed.values)));
-		}
+		case "status":
+			return emit(await statusAction(ctx, statusRequest(argv, CLI_SYNTAX)));
+		case "show":
+			return emit(await showAction(ctx, showRequest(argv, CLI_SYNTAX)));
+		case "inspect":
+			return emit(await inspectAction(ctx, inspectRequest(argv, CLI_SYNTAX)));
+		case "logs":
+			return emit(await logsAction(ctx, logsCommandRequest(argv, CLI_SYNTAX)));
 		case "wait": {
 			const parsed = parseCommandArgs(argv, {
 				flags: ["--json"],
@@ -1047,14 +784,8 @@ async function dispatch(
 		}
 		case "approve":
 			return approveCommand(argv, ctx, io, emit);
-		case "stop": {
-			const [runId] = only(
-				parseCommandArgs(argv, jsonOnly),
-				1,
-				"stop <run-id-or-prefix>",
-			);
-			return emit(await stopAction(ctx, { runId: runId! }));
-		}
+		case "stop":
+			return emit(await stopAction(ctx, stopRequest(argv, CLI_SYNTAX)));
 		case "prune":
 			return emit(
 				await pruneAction(ctx, {
@@ -1398,23 +1129,6 @@ async function dispatch(
 				`Unknown command "${command}". Run agent-workflow help.`,
 			);
 	}
-}
-
-/** `logs` options shared by the CLI and `/aw logs`. */
-export function logsRequest(
-	runId: string,
-	values: ReadonlyMap<string, string>,
-): LogsRequest {
-	const lines = intValue(values.get("--lines"), "--lines");
-	const stream = values.get("--stream");
-	return {
-		runId,
-		...(values.has("--task") ? { task: values.get("--task")! } : {}),
-		...(lines === undefined ? {} : { lines }),
-		...(stream === undefined
-			? {}
-			: { stream: stream as NonNullable<LogsRequest["stream"]> }),
-	};
 }
 
 /** Run one CLI invocation; resolves with the process exit code. */
