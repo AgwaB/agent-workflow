@@ -1670,3 +1670,55 @@ test("dashboard Chrome: a report table of four or more columns reads as one entr
 		},
 	);
 });
+
+test("dashboard Chrome: a click on the empty canvas closes the inspector; a drag only pans", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
+	timeout: 120_000,
+}, async (t) => {
+	// 2026-11-04 (owner): open a stage by clicking its card, close it by clicking empty space.
+	const fixture = await createFixtureServer();
+	t.after(() => fixture.close());
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	await browser.open(
+		`${fixture.origin}/?run=${running}&stage=triage`,
+		1500,
+		900,
+	);
+	await browser.waitFor(() => !document.getElementById("inspector").hidden);
+	// A point on the canvas away from the cards, the switch and the toolbar.
+	const spot = await browser.evaluate(() => {
+		const canvas = document.getElementById("canvas").getBoundingClientRect();
+		return { x: canvas.right - 30, y: canvas.top + canvas.height / 2 };
+	});
+	const mouse = async (type, x, y) =>
+		browser.send("Input.dispatchMouseEvent", {
+			type,
+			x,
+			y,
+			button: "left",
+			buttons: type === "mouseReleased" ? 0 : 1,
+			clickCount: 1,
+		});
+	const state = () =>
+		browser.evaluate(() => [
+			document.getElementById("inspector").hidden,
+			new URLSearchParams(location.search).get("stage"),
+		]);
+	// A drag that starts on empty canvas pans and keeps the inspector.
+	await mouse("mousePressed", spot.x, spot.y);
+	await mouse("mouseMoved", spot.x - 60, spot.y - 20);
+	await mouse("mouseReleased", spot.x - 60, spot.y - 20);
+	assert.deepEqual(await state(), [false, "triage"]);
+	// A click closes it.
+	await mouse("mousePressed", spot.x, spot.y);
+	await mouse("mouseReleased", spot.x, spot.y);
+	await browser.waitFor(() => document.getElementById("inspector").hidden);
+	assert.deepEqual(await state(), [true, null]);
+	// Clicking a card opens it again (the card is not "empty space").
+	await browser.click('.node[data-stage="triage"]');
+	await browser.waitFor(() => !document.getElementById("inspector").hidden);
+	assert.deepEqual(await state(), [false, "triage"]);
+});

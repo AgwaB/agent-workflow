@@ -2336,7 +2336,13 @@ function renderGraph() {
 		wrap.setPointerCapture(event.pointerId);
 	});
 	wrap.addEventListener("pointermove", (event) => {
-		if (dragged) {
+		// A press that barely moves is a click, not a pan (it keeps the view as it was).
+		if (
+			dragged &&
+			Math.hypot(event.clientX - dragged.x, event.clientY - dragged.y) >= 4
+		)
+			dragged.moved = true;
+		if (dragged?.moved) {
 			view.manual = true;
 			view.x = dragged.vx + event.clientX - dragged.x;
 			view.y = dragged.vy + event.clientY - dragged.y;
@@ -2344,6 +2350,9 @@ function renderGraph() {
 		}
 	});
 	wrap.addEventListener("pointerup", () => {
+		// 2026-11-04 (owner): a click on the empty canvas closes the open inspector (a stage, an
+		// agent or Run details); a drag only pans.
+		if (dragged && !dragged.moved && !$("inspector").hidden) closeInspector();
 		dragged = null;
 	});
 	wrap.addEventListener("pointercancel", () => {
