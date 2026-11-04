@@ -1,0 +1,33 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "S6 위반은 소스상 확인되며 KEEP한다.",
+  "id": "candidate-S6",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 18,
+      "lineEnd": 19,
+      "quote": "- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로",
+      "relevance": "이름만으로 판별하고 메시지 내용은 사용하지 않아야 한다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 56,
+      "lineEnd": 56,
+      "quote": "(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||",
+      "relevance": "이름 검사에 추가 조건을 OR로 결합한다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 57,
+      "lineEnd": 57,
+      "quote": "error.message.startsWith(\"workflow stop requested\"))",
+      "relevance": "오류 이름이 달라도 메시지 prefix만으로 true가 될 수 있다."
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "isWorkflowStopRequestedError는 WorkflowStopRequested 이름이 없는 Error도 메시지가 \"workflow stop requested\"로 시작하면 중지 오류로 인정하여 S6를 위반한다.",
+  "recommendedAction": "메시지 prefix 조건을 제거하고 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME만 검사하도록 수정한 뒤, 잘못된 이름과 일치하는 메시지를 함께 검증하는 단위 테스트를 추가한다."
+}

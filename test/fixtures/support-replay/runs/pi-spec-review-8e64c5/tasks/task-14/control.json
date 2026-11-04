@@ -1,0 +1,41 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "제공된 제품 파일을 독립적으로 조사한 결과 단위 테스트가 없어 Q1 미충족 판단을 유지한다.",
+  "id": "candidate-006",
+  "verdict": "KEEP",
+  "severity": "low",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 40,
+      "lineEnd": 40,
+      "quote": "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+      "relevance": "요구사항별 단위 테스트를 명시적으로 요구한다."
+    },
+    {
+      "file": "package.json",
+      "lineStart": 7,
+      "lineEnd": 7,
+      "quote": "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+      "relevance": "등록된 검증 명령은 타입 검사뿐이다. 테스트 부재의 단독 근거로 사용하지 않았다."
+    },
+    {
+      "file": ".gitignore",
+      "lineStart": 1,
+      "lineEnd": 2,
+      "quote": "node_modules/\n.agent-workflow/",
+      "relevance": "제품 테스트 경로를 별도로 제외하는 저장소 ignore 규칙은 없다."
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 3,
+      "lineEnd": 4,
+      "quote": "이 저장소의 `src/`는 워크플로 실행의 중지(stop)·취소(cancel) 처리와 종료 요약을 담당한다.\n`store.js`, `types.js`는 이 발췌에 포함되지 않는다.",
+      "relevance": "저장소가 발췌임을 명시하므로 결론은 제공된 제품 스냅샷에 한정한다. Q1을 면제하거나 외부 테스트를 지정하지는 않는다."
+    }
+  ],
+  "finalClaim": "제공된 제품 저장소에는 S1–S7·C1–C2·T1–T3의 동작을 확인하는 단위 테스트가 없어 Q1을 충족하지 못한다.",
+  "recommendedAction": "각 S·C·T 요구사항을 확인하는 단위 테스트를 제공된 저장소에 추가한다."
+}

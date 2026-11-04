@@ -1,0 +1,106 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "커밋 변경 귀속은 미확인이다. 현행 중지 폴링·취소 분류·재시도 지표의 계약 불일치가 있어 배포 승인을 보류한다.",
+  "status": "unknown",
+  "impacts": [
+    {
+      "id": "SP1",
+      "dimensions": [
+        "performance",
+        "reliability"
+      ],
+      "severity": "medium",
+      "finding": "폴링 기본값 200ms와 최소값 1ms가 명세의 50ms·10ms와 다르다. 중지 인지 지연과 작은 간격에서의 중첩 디스크 읽기 위험이 있다.",
+      "evidenceRefs": [
+        "R3",
+        "R6"
+      ]
+    },
+    {
+      "id": "SP2",
+      "dimensions": [
+        "security",
+        "reliability",
+        "observability"
+      ],
+      "severity": "medium",
+      "finding": "timeout·cancelled 문자열과 오류 메시지 접두사를 취소·중지로 인정한다. 호출자가 이 분류를 신뢰하면 실제 실패의 진단이나 재시도가 생략될 수 있다.",
+      "evidenceRefs": [
+        "R3",
+        "R4",
+        "R6"
+      ]
+    },
+    {
+      "id": "SP3",
+      "dimensions": [
+        "observability",
+        "reliability"
+      ],
+      "severity": "medium",
+      "finding": "공개 필드 launchRetryAttempts 대신 launchRetries를 반환한다. 명세 기반 외부 도구에서 재시도 지표가 누락될 수 있다.",
+      "evidenceRefs": [
+        "R5",
+        "R6"
+      ]
+    },
+    {
+      "id": "SP4",
+      "dimensions": [
+        "observability",
+        "reliability"
+      ],
+      "severity": "low",
+      "finding": "중지 의도와 controller control.json 읽기 실패를 이 모듈에서는 기록하지 않는다. 상위 계층에도 기록이 없다면 감시 장애와 정상적인 값 부재를 구분하기 어렵다.",
+      "evidenceRefs": [
+        "R3",
+        "R5",
+        "R6"
+      ]
+    },
+    {
+      "id": "SP5",
+      "dimensions": [
+        "security",
+        "performance"
+      ],
+      "severity": "low",
+      "finding": "provider content 텍스트를 크기·누적 작업량 제한 없이 동기 JSON 파싱한다. 상위 응답 제한이 없고 큰 입력이 유입될 때 이벤트 루프 지연이 가능하다.",
+      "evidenceRefs": [
+        "R4"
+      ]
+    },
+    {
+      "id": "SP6",
+      "dimensions": [
+        "security",
+        "privacy"
+      ],
+      "severity": "unknown",
+      "finding": "controller 출력 경로에서 control.json을 읽는 경계의 안전성은 누락된 store 구현에 의존한다. 경로 이탈이나 정보 유출은 입증되지 않았으며, 격리 여부도 확인하지 못했다.",
+      "evidenceRefs": [
+        "R2",
+        "R5",
+        "R6"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A1",
+      "detail": "필수 upstream control 두 개를 path=$로 잘림 없이 읽었다. originalChars는 각각 5271과 9383이다."
+    },
+    {
+      "id": "A2",
+      "detail": "main ref는 요청한 654f639를 가리키지만 부모 대비 diff와 작업 트리 일치 여부는 확인하지 못했다. 모든 발견은 현행 코드 관찰이며 이번 커밋의 회귀로 확정하지 않는다."
+    },
+    {
+      "id": "A3",
+      "detail": "SPEC.md를 현행 계약으로 사용했다. 외부 호출자, store/types 구현, provider 입력 제한과 상위 로깅은 제공되지 않았다."
+    },
+    {
+      "id": "A4",
+      "detail": "테스트·typecheck·성능 측정은 실행하지 않았다. 제어 객체는 제공된 스키마의 필수 키·타입·status enum에 수동 대조했으며 자동 검증기는 실행하지 않았다."
+    }
+  ]
+}

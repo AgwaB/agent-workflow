@@ -1,0 +1,84 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Mapped stop, cancellation, terminal-summary, and test evidence; identified missing dependencies/tests and spec-sensitive timing, classifier, and public-field paths.",
+  "implementationMap": [
+    {
+      "component": "Stop detection and signal registration",
+      "file": "src/workflow-stop.ts:5-27,68-98",
+      "evidence": "launchSignals is keyed by workflowRunPath; launchStopRequested checks aborted signals; createWorkflowStopSignal checks launch and disk intent; throwIfWorkflowStopRequested checks both paths.",
+      "observedBehavior": "Both stop sources are wired. Watcher read errors are swallowed, while direct checking propagates read errors. Registration cleanup deletes the map entry when its last signal is removed.",
+      "relatedSignals": [
+        "S1",
+        "S4",
+        "S7"
+      ]
+    },
+    {
+      "component": "Stop error construction and classification",
+      "file": "src/workflow-stop.ts:30-59",
+      "evidence": "createWorkflowStopRequestedError sets name to WorkflowStopRequested and message to workflow stop requested for <runId>. isWorkflowStopRequestedError also accepts messages starting with workflow stop requested.",
+      "observedBehavior": "The required error shape is constructed, but classification is broader than name-only because message prefix matching is present.",
+      "relatedSignals": [
+        "S2",
+        "S6"
+      ]
+    },
+    {
+      "component": "Stop polling and disposal",
+      "file": "src/workflow-stop.ts:61-86",
+      "evidence": "pollMs is calculated as Math.max(1, options.pollMs ?? 200); check starts immediately; dispose only calls clearInterval(timer).",
+      "observedBehavior": "The implementation has an immediate check and interval cleanup, but its configured default/minimum and post-dispose in-flight-read guard are the key spec-sensitive paths.",
+      "relatedSignals": [
+        "S3",
+        "S5"
+      ]
+    },
+    {
+      "component": "Provider cancellation detection",
+      "file": "src/workflow-cancellation.ts:2-32",
+      "evidence": "The function checks AbortError objects, cancelled booleans, error/reason candidates, and parses JSON text in content entries recursively.",
+      "observedBehavior": "The three specified strings are recognized and parsed content is rechecked with a parsed !== value guard, but cancelled, timeout, and cancelled:true are also promoted to cancellation.",
+      "relatedSignals": [
+        "C1",
+        "C2"
+      ]
+    },
+    {
+      "component": "Terminal semantic status mapping",
+      "file": "src/workflow-terminal.ts:64-96",
+      "evidence": "nonDynamicSemanticStatus maps completed plus degradation to completed_degraded. Direct-dynamic control read failures become undefined and fall through to completed_without_semantic_result.",
+      "observedBehavior": "The relevant completed/degraded and direct-dynamic fallback branches are implemented in summarizeWorkflowTerminal.",
+      "relatedSignals": [
+        "T1",
+        "T2"
+      ]
+    },
+    {
+      "component": "Retry summary contract",
+      "file": "src/workflow-terminal.ts:27-34,98-111",
+      "evidence": "outputRetryAttempts reduces task.outputRetry.attempts across all tasks; the second reduction is returned under the property launchRetries.",
+      "observedBehavior": "Both retry totals are aggregated across tasks, but the exposed launch field is launchRetries rather than the specified launchRetryAttempts name.",
+      "relatedSignals": [
+        "T3"
+      ]
+    },
+    {
+      "component": "Unit-test coverage surface",
+      "file": "package.json:7; repository file list",
+      "evidence": "package.json defines only a typecheck script, and the tracked repository contains no test files or test configuration.",
+      "observedBehavior": "No repository-local unit-test implementation was found to establish Q1 coverage for S1-S7, C1-C2, and T1-T3.",
+      "relatedSignals": [
+        "Q1"
+      ]
+    }
+  ],
+  "unmappedAreas": [
+    "store.js and types.js are intentionally absent, so workflowRunPath, readWorkflowStopIntent, readJson, terminal-status, and task-record semantics cannot be traced end to end.",
+    "No unit-test files or test runner configuration are present, so per-requirement test evidence is unavailable.",
+    "External consumers of the terminal summary public contract are absent; launchRetryAttempts usage cannot be traced outside this excerpt."
+  ],
+  "notes": [
+    "This is an implementation-evidence map only, not a final conformance verdict.",
+    "The strongest review targets are polling constants, dispose/read races, name-only stop-error classification, cancellation overmatching, and the launch retry field name."
+  ]
+}

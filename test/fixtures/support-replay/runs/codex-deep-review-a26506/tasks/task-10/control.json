@@ -1,0 +1,71 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "종료 요약이 공개 계약의 launchRetryAttempts 대신 launchRetries를 노출한다.",
+  "lens": "api-compatibility",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "종료 요약의 launch 재시도 필드명이 공개 계약과 불일치함",
+      "file": "src/workflow-terminal.ts",
+      "locations": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 33,
+          "symbol": "WorkflowTerminalSummary"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 107,
+          "symbol": "summarizeWorkflowTerminal"
+        }
+      ],
+      "evidence": "인터페이스와 반환 객체 모두 launchRetries를 사용하지만 SPEC.md의 공개 계약은 launchRetryAttempts를 요구한다.",
+      "evidenceQuotes": [
+        "\tlaunchRetries: number;",
+        "\t\tlaunchRetries: run.tasks.reduce(",
+        "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,"
+      ],
+      "rationale": "외부 도구가 계약된 launchRetryAttempts를 읽으면 필드가 없어 재시도 요약을 얻지 못한다. 현재 저장소에 launchRetryAttempts 사용처가 없더라도 외부 소비자는 저장소 검색에 포함되지 않으므로 호환성 위험이 남는다.",
+      "recommendedAction": "인터페이스와 반환 객체의 필드를 launchRetryAttempts로 통일하고 관련 소비자·테스트를 갱신한다. 이미 launchRetries를 사용하는 외부 소비자를 지원해야 한다면 전환 기간 동안 명시적인 호환 alias를 검토한다.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-terminal.ts:27",
+    "src/workflow-terminal.ts:98",
+    "src/workflow-terminal.ts:107",
+    "SPEC.md:31",
+    "SPEC.md:35-36"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-terminal.ts:27",
+      "status": "read",
+      "evidence": "export interface WorkflowTerminalSummary {",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-terminal.ts:98",
+      "status": "read",
+      "evidence": "\treturn {",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-terminal.ts:107",
+      "status": "read",
+      "evidence": "\t\tlaunchRetries: run.tasks.reduce(",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:31",
+      "status": "metadata-only",
+      "evidence": "",
+      "artifact": "",
+      "reason": "요청된 정확한 31행은 빈 줄이어서 비어 있지 않은 exact quote를 제공할 수 없다. 계약 문구는 SPEC.md 35-36행에서 확인했다."
+    }
+  ],
+  "noIssueNotes": []
+}

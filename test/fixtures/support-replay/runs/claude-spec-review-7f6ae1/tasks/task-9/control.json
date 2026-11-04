@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC S3 기본값 50ms·하한 10ms와 src/workflow-stop.ts의 200ms·1ms 불일치를 확인했고 관련 테스트는 없다.",
+  "id": "finding-001",
+  "verdict": "KEEP",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 13,
+      "lineEnd": 13,
+      "quote": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다",
+      "relevance": "S3 requires default pollMs of 50ms and no value below 10ms"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 67,
+      "lineEnd": 67,
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "relevance": "Implementation defaults pollMs to 200 and floors it at 1, both contrary to S3"
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "src/workflow-stop.ts의 createWorkflowStopSignal은 pollMs 기본값을 200ms, 하한을 1ms로 두어 SPEC S3(기본 50ms, 하한 10ms)와 어긋난다. 이 값을 검증하는 테스트도 없다.",
+  "recommendedAction": "pollMs 기본값을 50으로, 하한을 10으로 맞추고(Math.max(10, options.pollMs ?? 50)), 기본값과 하한을 확인하는 단위 테스트를 추가한다."
+}

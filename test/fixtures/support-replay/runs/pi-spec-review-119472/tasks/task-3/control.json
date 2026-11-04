@@ -1,0 +1,42 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "단위 테스트와 픽스처가 발견되지 않아 S1–S7·C1–C2·T1–T3의 테스트 근거가 없으며, 제공된 저장소에서 Q1은 미충족이다.",
+  "testMap": [],
+  "coverageGapsSuspected": [
+    "S1: 디스크 중지 의도와 동일 실행의 aborted foreground signal을 각각 검증하는 테스트가 없다.",
+    "S2: abort reason의 오류 이름과 runId를 포함한 정확한 메시지를 검증하는 테스트가 없다.",
+    "S3: 기본 50ms 및 최소 10ms를 검증하는 테스트가 없다. 구현은 기본 200ms, 최소 1ms다.",
+    "S4: 감시 경로의 읽기 실패 무시와 throwIf 경로의 동일 오류 전파를 검증하는 테스트가 없다.",
+    "S5: dispose 이후 새 디스크 읽기가 시작되지 않는지 검증하는 테스트가 없다.",
+    "S6: 이름이 다른 오류를 메시지만으로 중지 오류로 인정하지 않는지 검증하는 테스트가 없다.",
+    "S7: 등록 해제 효과와 마지막 signal 해제 후 실행별 등록 항목 제거를 검증하는 테스트가 없다.",
+    "C1: 허용 문자열 세 가지와 timeout·cancelled 등 비허용 오류 문자열을 구분하는 테스트가 없다.",
+    "C2: content의 JSON을 동일 규칙으로 판별하고 같은 값을 반복 검사하지 않는지 확인하는 테스트가 없다.",
+    "T1: completed 실행의 degradation 유무에 따른 의미 상태를 검증하는 테스트가 없다.",
+    "T2: controller control.json 읽기 실패 시 의미 상태와 dynamic_incomplete 분기의 우선순위를 검증하는 테스트가 없다.",
+    "T3: 여러 작업의 재시도 합계와 공개 필드명 outputRetryAttempts·launchRetryAttempts를 검증하는 테스트가 없다.",
+    "Q1: 프로젝트 파일에서 단위 테스트가 발견되지 않았다. S·C·T 각 항목의 테스트 요구를 충족하는 근거가 없다."
+  ],
+  "notes": [
+    "testMap은 실제 발견한 테스트·픽스처만 기록하므로 빈 배열이다. 구현 파일이나 명세를 테스트로 간주하지 않았다.",
+    "루트와 src 목록, 테스트·픽스처 파일명 검색, 테스트 관련 본문 검색 및 src 전체 읽기를 대조했다.",
+    "package.json에는 typecheck 스크립트만 있다. 테스트 스크립트 부재 자체가 아니라 실제 단위 테스트 부재가 Q1 판단 근거다.",
+    "정적 반례 후보: 일반 Error의 메시지가 workflow stop requested로 시작하면 S6과 달리 true를 반환한다.",
+    "정적 반례 후보: {error:\"timeout\"}와 {reason:\"cancelled\"}는 C1과 달리 취소로 인정된다.",
+    "T3 구현은 launchRetryAttempts 대신 launchRetries를 반환한다. 재시도 합계 계산과 공개 필드명 검증을 구분해야 한다.",
+    "제어 객체는 제공된 스키마의 필수 필드, 허용 키, 자료형 및 항목 제한과 정적으로 대조했다."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "이 단계는 명령 실행을 금지하므로 테스트나 타입 검사를 실행하지 않았다. 실행하지 않았다는 사실 자체를 요구사항 결함으로 분류하지 않았다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "검토 범위는 제공된 프로젝트 파일이다. SPEC.md가 발췌에서 제외했다고 명시한 store.js와 types.js의 실제 동작은 확인하지 못했다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false
+}

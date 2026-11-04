@@ -1,0 +1,97 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1jd2yb_4b0b88",
+  "taskId": "task-7",
+  "sources": [
+    {
+      "source": "impact-analysis.change-scope",
+      "displayName": "impact-analysis.change-scope.main",
+      "taskId": "task-1",
+      "specId": "impact-analysis.change-scope.main",
+      "stageId": "impact-analysis.change-scope",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "654f639:3-files-4-lines",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-1/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-1/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-1/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-1/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.implementation-map",
+      "displayName": "impact-analysis.implementation-map.main",
+      "taskId": "task-2",
+      "specId": "impact-analysis.implementation-map.main",
+      "stageId": "impact-analysis.implementation-map",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "654f639:3-files:4-insertions:4-deletions",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-2/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-2/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-2/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-2/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.validation-map",
+      "displayName": "impact-analysis.validation-map.main",
+      "taskId": "task-3",
+      "specId": "impact-analysis.validation-map.main",
+      "stageId": "impact-analysis.validation-map",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "no-validation-evidence-available",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-3/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-3/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-3/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-3/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

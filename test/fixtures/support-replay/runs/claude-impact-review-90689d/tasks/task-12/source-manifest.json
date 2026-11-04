@@ -1,0 +1,126 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1jd3b3_90689d",
+  "taskId": "task-12",
+  "sources": [
+    {
+      "source": "impact-analysis.change-scope",
+      "displayName": "impact-analysis.change-scope.main",
+      "taskId": "task-1",
+      "specId": "impact-analysis.change-scope.main",
+      "stageId": "impact-analysis.change-scope",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "HEAD 654f639 touches the stop/cancel/terminal-summary code in src/; the code contradicts SPEC.md in several places (poll default, cancellation keywords, stop-error detection, launchRetries rename) and no unit tests exist. Scope is changed-file-level only; the diff itself could not be read.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd3b3_90689d/tasks/task-1/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd3b3_90689d/tasks/task-1/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd3b3_90689d/tasks/task-1/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd3b3_90689d/tasks/task-1/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.contract-consistency",
+      "displayName": "impact-analysis.contract-consistency.main",
+      "taskId": "task-9",
+      "specId": "impact-analysis.contract-consistency.main",
+      "stageId": "impact-analysis.contract-consistency",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "HEAD 654f639 is not deployable as-is. It renames the public summary field launchRetryAttempts to launchRetries with no alias, widens cancellation markers to 'cancelled'/'timeout' against SPEC C1, and changes the stop poll default to 200ms against SPEC S3. SPEC.md still describes the old behavior, and no tests cover any of it.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd3b3_90689d/tasks/task-9/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd3b3_90689d/tasks/task-9/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd3b3_90689d/tasks/task-9/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd3b3_90689d/tasks/task-9/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.regression-risk",
+      "displayName": "impact-analysis.regression-risk.main",
+      "taskId": "task-10",
+      "specId": "impact-analysis.regression-risk.main",
+      "stageId": "impact-analysis.regression-risk",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "HEAD 654f639 is not deployable as-is. It renames the public summary field launchRetryAttempts to launchRetries with no alias, widens cancellation matching to 'cancelled' and 'timeout', and changes the stop-poll default from 50ms to 200ms. SPEC.md contradicts all three, and no test covers any of them. Upstream lenses rate the API and state impact high and the security/performance impact low. Validation coverage is none.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd3b3_90689d/tasks/task-10/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd3b3_90689d/tasks/task-10/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd3b3_90689d/tasks/task-10/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd3b3_90689d/tasks/task-10/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.ship-readiness",
+      "displayName": "impact-analysis.ship-readiness.main",
+      "taskId": "task-11",
+      "specId": "impact-analysis.ship-readiness.main",
+      "stageId": "impact-analysis.ship-readiness",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "HEAD 654f639은 배포 보류 권고. 공개 필드 launchRetryAttempts→launchRetries 이름 변경(별칭·마이그레이션 없음), SPEC와 불일치하는 취소 키워드 확장 및 pollMs 기본값 변경, 그리고 자동 검증 부재 때문에 차단 상태.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd3b3_90689d/tasks/task-11/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd3b3_90689d/tasks/task-11/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd3b3_90689d/tasks/task-11/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd3b3_90689d/tasks/task-11/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

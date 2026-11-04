@@ -1,0 +1,33 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "T3 launch-retry total is summed correctly but exported as launchRetries, not the spec's public name launchRetryAttempts; keep as high-severity conformance gap.",
+  "id": "finding-005",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 36,
+      "lineEnd": 36,
+      "quote": "이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).",
+      "relevance": "Spec states both retry field names are a public contract read by external tools"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 33,
+      "lineEnd": 33,
+      "quote": "launchRetries: number;",
+      "relevance": "Summary interface exports launchRetries, not launchRetryAttempts"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 107,
+      "lineEnd": 107,
+      "quote": "launchRetries: run.tasks.reduce(",
+      "relevance": "Summary object populates launchRetries; the sum over launchRetry.attempts is correct but under the wrong name"
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "src/workflow-terminal.ts exports the launch retry total as launchRetries (interface line 33, object line 107), while SPEC.md T3 requires the public field name launchRetryAttempts. No alias or launchRetryAttempts export exists in the repository, so the public contract is broken. The sum itself matches T3.",
+  "recommendedAction": "Rename the exported field to launchRetryAttempts (or add it alongside launchRetries as a deprecated alias) and update SPEC/consumers. If the commit 654f639 rename was deliberate, the spec must be changed by the owner first; this review treats SPEC.md as authoritative."
+}

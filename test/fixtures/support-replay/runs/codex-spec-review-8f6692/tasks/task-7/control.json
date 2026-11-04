@@ -1,0 +1,111 @@
+{
+  "schema": "spec-review-report-v1",
+  "digest": "sha256:5d8c1c1e34771089c76652ed913cf7bb111ef23dce2b0d7060c863c3703a1492",
+  "summary": "S3, S6, C1, T3, Q1에서 구현 또는 테스트 공백이 확인되었고 C2는 미해결이다.",
+  "verdict": "GAPS_FOUND",
+  "ownerLedger": [
+    {
+      "source": "verify-findings",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-001",
+      "taskId": "task-9",
+      "itemIdentity": "finding-001",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-002",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-002",
+      "taskId": "task-10",
+      "itemIdentity": "finding-002",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-003",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-003",
+      "taskId": "task-11",
+      "itemIdentity": "finding-003",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-004",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-004",
+      "taskId": "task-12",
+      "itemIdentity": "finding-004",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-005",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-005",
+      "taskId": "task-13",
+      "itemIdentity": "finding-005",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-006",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-006",
+      "taskId": "task-14",
+      "itemIdentity": "finding-006",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    }
+  ],
+  "ownerLedgerReconciliation": {
+    "ownerRowCount": 6,
+    "verifierRowCount": 6,
+    "ownerIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "verifierIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "duplicateOwnerIds": [],
+    "duplicateVerifierIds": [],
+    "missingOwnerRows": [],
+    "orphanOwnerRows": [],
+    "statusMismatches": [],
+    "cardinalityPassed": true,
+    "passed": true
+  },
+  "risks": [
+    "finding-001: S3의 pollMs가 기본 200ms·최소 1ms로 구현되어 명세의 50ms·10ms와 불일치한다.",
+    "finding-002: S6가 오류 이름 외에 workflow stop requested 메시지 prefix도 인정한다.",
+    "finding-003: C1이 허용 목록 밖의 cancelled·timeout 문자열을 취소로 승격한다.",
+    "finding-005: T3 공개 필드명이 launchRetryAttempts가 아니라 launchRetries이다.",
+    "finding-006: S·C·T 항목별 단위 테스트 근거가 없어 Q1을 충족하지 못한다.",
+    "REQ-009: C2는 JSON 재귀 종료의 실제 무한 재귀 여부가 검증되지 않아 미해결이다."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "테스트는 읽기 전용 단계 제한으로 실행하지 않았다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "store.js와 types.js는 upstream 범위에서 제외되어 내부 계약은 검증하지 않았다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "recommendedNextAction": "S3·S6·C1·T3를 수정하고 S·C·T별 단위 테스트를 추가한 뒤 C2 재귀 종료를 실행 검증한다."
+}

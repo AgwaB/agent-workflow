@@ -1,0 +1,29 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "저장소에는 타입 검사만 있고 S·C·T 단위 테스트나 실행 명령이 없어 Q1 검증 공백이 확인된다.",
+  "findingId": "finding-005",
+  "finding": "S·C·T 요구사항을 검증하는 단위 테스트와 테스트 명령이 없음",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "package.json",
+      "line": 7,
+      "symbol": "scripts",
+      "quote": "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }"
+    },
+    {
+      "file": "tsconfig.json",
+      "line": 10,
+      "symbol": "include",
+      "quote": "\"include\": [\"src/**/*.ts\"]"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 40,
+      "symbol": "Q1",
+      "quote": "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "테스트 러너와 test 스크립트를 추가하고 S1-S7, C1-C2, T1-T3 및 경쟁·오류 경로의 단위 테스트를 CI에서 실행하세요."
+}

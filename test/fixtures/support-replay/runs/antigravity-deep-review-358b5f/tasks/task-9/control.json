@@ -1,0 +1,127 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "src/workflow-stop.ts exhibits four runtime defects violating S3, S5, and S6: incorrect poll interval default and clamp bounds, overlapping asynchronous poll invocations without in-flight fencing, post-dispose abort mutations, and matching error messages instead of exact error names.",
+  "lens": "runtime-correctness",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "Polling interval defaults to 200ms instead of 50ms and clamps minimum to 1ms instead of 10ms violating S3",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 67,
+          "lineEnd": 67,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "evidence": "In createWorkflowStopSignal, pollMs is set using Math.max(1, options.pollMs ?? 200), defaulting to 200ms and clamping at 1ms.",
+      "evidenceQuotes": [
+        "\tconst pollMs = Math.max(1, options.pollMs ?? 200);"
+      ],
+      "rationale": "SPEC.md S3 explicitly mandates that pollMs defaults to 50ms and must not be shorter than 10ms even if the caller specifies a smaller value. Using a 200ms default delays stop detection by up to 4x, while allowing intervals down to 1ms causes excessive disk reads and CPU contention.",
+      "recommendedAction": "Change line 67 to Math.max(10, options.pollMs ?? 50).",
+      "confidence": "high"
+    },
+    {
+      "severity": "high",
+      "title": "Asynchronous check function in createWorkflowStopSignal lacks overlapping execution protection",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 68,
+          "lineEnd": 81,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "evidence": "check is an async function called by setInterval every pollMs without tracking whether a previous invocation is still awaiting readWorkflowStopIntent.",
+      "evidenceQuotes": [
+        "\tconst check = async (): Promise<void> => {",
+        "\tconst timer = setInterval(() => void check(), pollMs);"
+      ],
+      "rationale": "If disk I/O latency or system load causes readWorkflowStopIntent to take longer than pollMs, multiple asynchronous check executions will overlap, causing concurrent disk reads, I/O thrashing, and potential out-of-order race conditions.",
+      "recommendedAction": "Add an in-flight check guard boolean or chain the next poll timer execution only after the preceding asynchronous check finishes.",
+      "confidence": "high"
+    },
+    {
+      "severity": "high",
+      "title": "dispose() fails to fence in-flight async checks, permitting post-dispose disk reads and controller abort mutations",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 68,
+          "lineEnd": 86,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "evidence": "dispose() only invokes clearInterval(timer), leaving in-flight check executions running to completion where they can read disk or abort controller.signal after disposal.",
+      "evidenceQuotes": [
+        "\tdispose: () => clearInterval(timer),",
+        "\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch("
+      ],
+      "rationale": "SPEC.md S5 requires that after dispose() is called, no new disk reads should begin. Furthermore, mutating controller state or aborting the signal after disposal violates expected lifecycle semantics.",
+      "recommendedAction": "Track a disposed state flag set by dispose() and check it prior to invoking readWorkflowStopIntent and before controller.abort().",
+      "confidence": "high"
+    },
+    {
+      "severity": "high",
+      "title": "isWorkflowStopRequestedError checks error.message instead of checking only error.name",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 53,
+          "lineEnd": 59,
+          "symbol": "isWorkflowStopRequestedError"
+        }
+      ],
+      "evidence": "isWorkflowStopRequestedError uses error.message.startsWith(\"workflow stop requested\") as an alternative condition to matching error.name.",
+      "evidenceQuotes": [
+        "\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||",
+        "\t\t\terror.message.startsWith(\"workflow stop requested\"))"
+      ],
+      "rationale": "SPEC.md S6 specifies: 'isWorkflowStopRequestedError는 이름이 WorkflowStopRequested인 오류만 중지 오류로 인정한다. 메시지 내용으로 판별해서는 안 된다.' Inspecting error.message leads to false positives if other errors have messages starting with that phrase.",
+      "recommendedAction": "Remove the error.message check so only error instanceof Error && error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME is evaluated.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-stop.ts:53-59",
+    "src/workflow-stop.ts:67-86",
+    "src/workflow-stop.ts:89-99",
+    "SPEC.md:6-22"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-stop.ts:53-59",
+      "status": "read",
+      "evidence": "export function isWorkflowStopRequestedError(error: unknown): boolean {",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-stop.ts:67-86",
+      "status": "read",
+      "evidence": "\tconst pollMs = Math.max(1, options.pollMs ?? 200);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-stop.ts:89-99",
+      "status": "read",
+      "evidence": "\tconst intent = await readWorkflowStopIntent(cwd, runId);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:6-22",
+      "status": "read",
+      "evidence": "## 중지 감지 (`src/workflow-stop.ts`)",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": []
+}

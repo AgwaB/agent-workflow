@@ -1,0 +1,117 @@
+{
+  "schema": "spec-review-report-v1",
+  "digest": "GAPS_FOUND: S3, S6, C1, T3 and Q1 have grounded gaps; T1 direct-dynamic scope needs a human decision; no tests were executed.",
+  "summary": "SPEC.md 기준 src/ 구현은 명세를 완전히 지키지 않는다. 확정 gap은 S3(pollMs 기본값·하한), S6(메시지 접두사 기반 분류), C1(취소 마커 확장), T3(launchRetryAttempts 필드 누락), Q1(단위 테스트 부재)이다. T1은 direct-dynamic 실행의 적용 범위가 불명확해 사람 판단이 필요하며 미해결로 남긴다. S1, S2, S4, S5, S7, C2, T2는 정적 코드 근거상 충족으로 판정되지만 테스트는 실행되지 않았고 단위 테스트 근거도 없다.",
+  "verdict": "GAPS_FOUND",
+  "ownerLedger": [
+    {
+      "source": "verify-findings",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-001",
+      "taskId": "task-9",
+      "itemIdentity": "finding-001",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-002",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-002",
+      "taskId": "task-10",
+      "itemIdentity": "finding-002",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-003",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-003",
+      "taskId": "task-11",
+      "itemIdentity": "finding-003",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-004",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-004",
+      "taskId": "task-12",
+      "itemIdentity": "finding-004",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-005",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-005",
+      "taskId": "task-13",
+      "itemIdentity": "finding-005",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-006",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-006",
+      "taskId": "task-14",
+      "itemIdentity": "finding-006",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    }
+  ],
+  "ownerLedgerReconciliation": {
+    "ownerRowCount": 6,
+    "verifierRowCount": 6,
+    "ownerIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "verifierIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "duplicateOwnerIds": [],
+    "duplicateVerifierIds": [],
+    "missingOwnerRows": [],
+    "orphanOwnerRows": [],
+    "statusMismatches": [],
+    "cardinalityPassed": true,
+    "passed": true
+  },
+  "risks": [
+    "S3 gap (finding-001, KEEP): src/workflow-stop.ts:67 uses a 200ms default and 1ms floor; SPEC requires 50ms default and no value below 10ms.",
+    "S6 gap (finding-002, WEAKEN): src/workflow-stop.ts:56-57 accepts errors whose message starts with 'workflow stop requested'; latent impact because no src caller was found.",
+    "C1 gap (finding-003, WEAKEN): src/workflow-cancellation.ts:20 accepts 'cancelled' and 'timeout' as cancellation markers; SPEC allows only aborted, AbortError, ABORT_ERR. The cancelled:true flag at line 16 is arguable and excluded from the narrowed claim.",
+    "T3 gap (finding-004, KEEP): src/workflow-terminal.ts:33 and :107 expose and populate launchRetries instead of the public field launchRetryAttempts.",
+    "Q1 gap (finding-005, KEEP): no unit tests exist for any S, C, or T item; package.json declares only a typecheck script.",
+    "T1 NOT SETTLED (nh-001 and finding-006, NEEDS_HUMAN): direct-dynamic completed runs may skip completed_degraded at src/workflow-terminal.ts:80-87. It is unresolved whether T1 applies to direct-dynamic runs, given T2's scope.",
+    "REQ-010 remains unresolved in requirementReconciliation (unresolvedIds: REQ-010, complete: false)."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "Read-only review; no tests were executed, so testExecutionAttested is false.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "No test files found by upstream inspect-tests or by repo globs (*.test/spec, test/tests/__tests__/spec dirs); no test-behavior evidence exists.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "store.js (readWorkflowStopIntent, workflowRunPath, readJson) and types.js are outside the SPEC excerpt and were not inspected; S1(a)/S4 read semantics are judged from call sites only.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "recommendedNextAction": "S3 기본값과 하한, S6 분류를 이름 전용으로 바꾸기, C1 마커를 aborted·AbortError·ABORT_ERR로 제한하기, T3 필드명을 launchRetryAttempts로 맞추기를 수정하고 각 항목에 단위 테스트를 추가하라. T1은 direct-dynamic 적용 범위를 스펙 담당자에게 확인한 뒤 결정하라."
+}

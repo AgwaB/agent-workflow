@@ -1,0 +1,306 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "WHATWG·MDN은 timeout을 active time으로 정의하고 TimeoutError DOMException 및 비취소·GC 주의점을 설명하며, Node 문서는 delay 기반 API만 명시한다.",
+  "questionId": "question-006",
+  "question": "WHATWG DOM 표준과 Node.js·MDN 문서는 AbortSignal.timeout()의 시간 측정 방식, abort reason/예외 형태, 타이머 및 이벤트 루프 관련 주의점을 어떻게 설명하는가?",
+  "covers": [
+    "AbortSignal.timeout()의 알려진 주의점"
+  ],
+  "extractedFacts": [
+    {
+      "slotId": "slot-014",
+      "slotLabel": "AbortSignal.timeout() 알려진 동작 주의점",
+      "entity": "WHATWG DOM",
+      "value": "timeout()은 timer task source에 작업을 큐잉하여 지정된 milliseconds 후 signal을 abort한다.",
+      "factType": "timing_and_event_loop",
+      "sourceUrls": [
+        "https://dom.spec.whatwg.org/"
+      ],
+      "sourceTitleOrPublisher": "WHATWG DOM Standard",
+      "dateOrYear": "living standard",
+      "sourceQuality": "primary",
+      "confidence": "high",
+      "quote": "Queue a global task on the timer task source given global to signal abort given signal and a new “TimeoutError” DOMException.",
+      "notes": "표준 알고리즘은 HTML의 ‘run steps after a timeout’과 timer task source를 사용한다."
+    },
+    {
+      "slotId": "slot-014",
+      "slotLabel": "AbortSignal.timeout() 알려진 동작 주의점",
+      "entity": "WHATWG DOM",
+      "value": "시간 만료 시 signal.reason은 TimeoutError DOMException이며 throwIfAborted()는 그 abort reason을 throw한다.",
+      "factType": "abort_reason_and_exception",
+      "sourceUrls": [
+        "https://dom.spec.whatwg.org/"
+      ],
+      "sourceTitleOrPublisher": "WHATWG DOM Standard",
+      "dateOrYear": "living standard",
+      "sourceQuality": "primary",
+      "confidence": "high",
+      "quote": "Its abort reason will be set to a “TimeoutError” DOMException.",
+      "notes": "실제 API가 Promise를 reject하는 형태는 관찰 API에 따라 달라질 수 있지만, signal 자체의 reason은 표준상 TimeoutError DOMException이다."
+    },
+    {
+      "slotId": "slot-014",
+      "slotLabel": "AbortSignal.timeout() 알려진 동작 주의점",
+      "entity": "MDN",
+      "value": "브라우저에서 timeout의 인자는 elapsed time이 아니라 active time이며, suspended worker 또는 bfcache에서는 사실상 일시정지된다.",
+      "factType": "timing_semantics",
+      "sourceUrls": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+      ],
+      "sourceTitleOrPublisher": "MDN",
+      "dateOrYear": "2026",
+      "sourceQuality": "primary_preferred",
+      "confidence": "high",
+      "quote": "The timeout is based on active rather than elapsed time, and will effectively be paused if the code is running in a suspended worker, or while the document is in a back-forward cache (“bfcache”).",
+      "notes": "브라우저 표준 동작을 일반적인 wall-clock setTimeout과 동일하게 해석하면 안 된다."
+    },
+    {
+      "slotId": "slot-014",
+      "slotLabel": "AbortSignal.timeout() 알려진 동작 주의점",
+      "entity": "MDN",
+      "value": "AbortSignal.timeout() 자체에는 timeout을 취소하는 방법이 없으며, 작업 조기 완료나 AbortSignal.any()를 통한 다른 signal의 abort도 내부 timeout을 취소하지 않는다.",
+      "factType": "cancellation",
+      "sourceUrls": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+      ],
+      "sourceTitleOrPublisher": "MDN",
+      "dateOrYear": "2026",
+      "sourceQuality": "primary_preferred",
+      "confidence": "high",
+      "quote": "AbortSignal.timeout() does not provide a way to cancel its timeout.",
+      "notes": "조기 취소가 확실히 필요하면 AbortController와 setTimeout()/clearTimeout() 조합을 사용한다."
+    },
+    {
+      "slotId": "slot-014",
+      "slotLabel": "AbortSignal.timeout() 알려진 동작 주의점",
+      "entity": "MDN",
+      "value": "pending timeout에 abort 이벤트 리스너가 붙어 있으면 signal이 살아 있으며, 긴 timeout과 리스너는 애플리케이션이 참조를 버린 뒤에도 GC를 막을 수 있다.",
+      "factType": "lifetime_and_gc",
+      "sourceUrls": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+      ],
+      "sourceTitleOrPublisher": "MDN",
+      "dateOrYear": "2026",
+      "sourceQuality": "primary_preferred",
+      "confidence": "high",
+      "quote": "Creating long timeouts with listeners can prevent garbage collection even after application code drops its references to the signal.",
+      "notes": "직접 추가한 리스너는 작업 종료 시 제거해야 한다."
+    },
+    {
+      "slotId": "slot-014",
+      "slotLabel": "AbortSignal.timeout() 알려진 동작 주의점",
+      "entity": "MDN",
+      "value": "timeout 신호가 unreachable이 되어도 timeout 취소가 보장되지 않는다.",
+      "factType": "lifetime_and_cancellation",
+      "sourceUrls": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+      ],
+      "sourceTitleOrPublisher": "MDN",
+      "dateOrYear": "2026",
+      "sourceQuality": "primary_preferred",
+      "confidence": "high",
+      "quote": "The AbortSignal becoming unreachable is not guaranteed to cancel the timeout.",
+      "notes": "리소스 제약 상황에서 명시적 조기 취소가 필요하면 AbortController와 clearTimeout()을 사용한다."
+    },
+    {
+      "slotId": "slot-014",
+      "slotLabel": "AbortSignal.timeout() 알려진 동작 주의점",
+      "entity": "Node.js",
+      "value": "Node.js 공식 문서는 AbortSignal.timeout(delay)를 delay milliseconds 후 abort하는 API로 설명하며, 브라우저의 active-time 일시정지 semantics는 별도로 명시하지 않는다.",
+      "factType": "runtime_semantics",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+      ],
+      "sourceTitleOrPublisher": "Node.js Global objects API",
+      "dateOrYear": "v24.22.2",
+      "sourceQuality": "primary",
+      "confidence": "high",
+      "quote": "The number of milliseconds to wait before triggering the AbortSignal.",
+      "notes": "따라서 Node.js에서는 WHATWG/MDN의 suspended worker·bfcache 규칙을 그대로 적용한다고 단정하지 말고, Node 문서가 명시한 delay semantics와 실제 런타임 동작을 구분해야 한다."
+    },
+    {
+      "slotId": "slot-014",
+      "slotLabel": "AbortSignal.timeout() 알려진 동작 주의점",
+      "entity": "Node.js",
+      "value": "Node.js의 일반 timer는 기본적으로 event loop를 유지하며 ref()/unref()로 제어할 수 있지만, AbortSignal.timeout() 문서 항목 자체에는 해당 timer의 ref 상태를 설명하는 API가 없다.",
+      "factType": "event_loop_caveat",
+      "sourceUrls": [
+        "https://nodejs.org/api/timers.html"
+      ],
+      "sourceTitleOrPublisher": "Node.js Timers API",
+      "dateOrYear": "v26.13.0",
+      "sourceQuality": "primary",
+      "confidence": "medium",
+      "quote": "By default, when a timer is scheduled using either setTimeout() or setInterval(), the Node.js event loop will continue running as long as the timer is active.",
+      "notes": "이는 일반 Node timer에 대한 공식 설명이다. AbortSignal.timeout()이 동일한 ref 정책을 보장한다고 문서만으로 확정할 수는 없다."
+    }
+  ],
+  "claims": [
+    {
+      "claim": "WHATWG DOM은 AbortSignal.timeout() 만료 시 reason을 TimeoutError DOMException으로 설정한다.",
+      "sourceUrls": [
+        "https://dom.spec.whatwg.org/"
+      ],
+      "sourceTitleOrPublisher": "WHATWG DOM Standard",
+      "dateOrYear": "living standard",
+      "sourceQuality": "primary",
+      "scopeItems": [
+        "AbortSignal.timeout()의 알려진 동작 주의점"
+      ],
+      "factSlotIds": [
+        "slot-014"
+      ]
+    },
+    {
+      "claim": "MDN은 브라우저의 AbortSignal.timeout()을 elapsed time이 아닌 active time으로 설명하며 suspended worker와 bfcache에서 일시정지될 수 있다고 명시한다.",
+      "sourceUrls": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+      ],
+      "sourceTitleOrPublisher": "MDN",
+      "dateOrYear": "2026",
+      "sourceQuality": "primary_preferred",
+      "scopeItems": [
+        "AbortSignal.timeout()의 알려진 동작 주의점"
+      ],
+      "factSlotIds": [
+        "slot-014"
+      ]
+    },
+    {
+      "claim": "AbortSignal.timeout()은 자체 취소 API가 없으므로 조기 완료 후에도 내부 timeout이 자동 취소된다고 가정하면 안 된다.",
+      "sourceUrls": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+      ],
+      "sourceTitleOrPublisher": "MDN",
+      "dateOrYear": "2026",
+      "sourceQuality": "primary_preferred",
+      "scopeItems": [
+        "AbortSignal.timeout()의 알려진 동작 주의점"
+      ],
+      "factSlotIds": [
+        "slot-014"
+      ]
+    },
+    {
+      "claim": "pending timeout에 직접 abort 리스너를 등록하면 signal 수명이 연장될 수 있으므로 작업 종료 시 리스너를 제거해야 한다.",
+      "sourceUrls": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+      ],
+      "sourceTitleOrPublisher": "MDN",
+      "dateOrYear": "2026",
+      "sourceQuality": "primary_preferred",
+      "scopeItems": [
+        "AbortSignal.timeout()의 알려진 동작 주의점"
+      ],
+      "factSlotIds": [
+        "slot-014"
+      ]
+    },
+    {
+      "claim": "Node.js 공식 문서는 timeout()을 delay milliseconds 후 abort하는 API로 기술하지만, 브라우저의 active-time·bfcache semantics나 timeout의 ref/unref 정책은 해당 항목에서 명시하지 않는다.",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+        "https://nodejs.org/api/timers.html"
+      ],
+      "sourceTitleOrPublisher": "Node.js Global objects and Timers API",
+      "dateOrYear": "v24.22.2/v26.13.0",
+      "sourceQuality": "primary",
+      "scopeItems": [
+        "AbortSignal.timeout()의 알려진 동작 주의점"
+      ],
+      "factSlotIds": [
+        "slot-014"
+      ]
+    }
+  ],
+  "additionalUnverifiedLeads": [
+    {
+      "lead": "Node.js AbortSignal.timeout() 내부 timer의 정확한 ref/unref 및 event-loop 종료 정책",
+      "whyUnverified": "Node.js globals 문서는 delay와 abort 동작만 설명하고, timeout() 내부 timer의 ref 상태를 명시하지 않는다.",
+      "nextStep": "필요하면 해당 Node.js 버전의 lib/internal/abort_controller 구현과 회귀 테스트를 별도로 검토한다."
+    },
+    {
+      "lead": "Node.js에서 active time과 elapsed time이 실제로 어떻게 매핑되는지",
+      "whyUnverified": "MDN의 active-time 설명은 브라우저 문맥이며 Node.js 문서는 단순 delay만 명시한다.",
+      "nextStep": "지원 대상 Node.js LTS 버전별 실행 실험 또는 공식 소스 구현 교차검증이 필요하다."
+    }
+  ],
+  "sources": [
+    {
+      "sourceUrl": "https://dom.spec.whatwg.org/",
+      "sourceType": "WHATWG DOM standard",
+      "sourceTitleOrPublisher": "WHATWG",
+      "dateOrYear": "living standard",
+      "supports": [
+        "timer task source",
+        "TimeoutError DOMException",
+        "abort reason"
+      ],
+      "confidence": "high",
+      "quote": "Its abort reason will be set to a “TimeoutError” DOMException."
+    },
+    {
+      "sourceUrl": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+      "sourceType": "MDN",
+      "sourceTitleOrPublisher": "MDN Web Docs",
+      "dateOrYear": "2026",
+      "supports": [
+        "active time",
+        "suspended worker/bfcache",
+        "no cancellation",
+        "listener lifetime and GC",
+        "TimeoutError handling"
+      ],
+      "confidence": "high",
+      "quote": "The timeout is based on active rather than elapsed time, and will effectively be paused if the code is running in a suspended worker, or while the document is in a back-forward cache (“bfcache”)."
+    },
+    {
+      "sourceUrl": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+      "sourceType": "Node.js official API documentation",
+      "sourceTitleOrPublisher": "Node.js",
+      "dateOrYear": "v24.22.2",
+      "supports": [
+        "delay argument",
+        "abort after delay"
+      ],
+      "confidence": "high",
+      "quote": "Returns a new AbortSignal which will be aborted in delay milliseconds."
+    },
+    {
+      "sourceUrl": "https://nodejs.org/api/timers.html",
+      "sourceType": "Node.js official API documentation",
+      "sourceTitleOrPublisher": "Node.js",
+      "dateOrYear": "v26.13.0",
+      "supports": [
+        "general timer event-loop ref/unref behavior"
+      ],
+      "confidence": "medium",
+      "quote": "If true, the Timeout object will keep the Node.js event loop active."
+    }
+  ],
+  "caveats": [
+    "WHATWG DOM 표준의 timeout 알고리즘은 HTML의 ‘run steps after a timeout’을 참조하므로, active-time 세부 semantics는 DOM 표준 한 문장만으로 완결되지 않는다.",
+    "Node.js 공식 globals 문서에는 TimeoutError DOMException의 명시적 설명이 없으므로, Node에서 소비 API가 반환하는 예외 객체의 구체적 형태는 API별 문서를 함께 확인해야 한다.",
+    "MDN의 예외 처리 예시는 fetch 소비 API 기준이다. 모든 Node.js 비동기 API가 동일한 예외 타입·name을 반환한다고 일반화하면 안 된다."
+  ],
+  "sourceQualityNotes": [
+    "WHATWG DOM과 Node.js 문서는 primary source로 사용했다.",
+    "MDN은 표준 링크와 브라우저 동작 주의점을 제공하는 공식 문서 보조 자료로 사용했다.",
+    "Node.js의 AbortSignal.timeout() 내부 event-loop ref 정책은 공식 globals 문서에서 확인되지 않아 미확인으로 남겼다."
+  ],
+  "budgetLedger": {
+    "searchBudget": 3,
+    "searchCallsUsed": 2,
+    "searchQueriesAttempted": [
+      "WHATWG DOM AbortSignal.timeout active time abort reason official",
+      "MDN AbortSignal.timeout TimeoutError active time",
+      "Node.js AbortSignal.timeout documentation",
+      "Node.js AbortSignal.timeout unref event loop timers",
+      "Node.js globals AbortSignal.timeout event loop"
+    ],
+    "omittedSearchQueries": [],
+    "budgetExhausted": false,
+    "gapRecorded": true
+  }
+}

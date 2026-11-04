@@ -1,0 +1,68 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1jd7gm_dbd63f",
+  "taskId": "task-8",
+  "sources": [
+    {
+      "source": "impact-analysis.change-scope",
+      "displayName": "impact-analysis.change-scope.main",
+      "taskId": "task-1",
+      "specId": "impact-analysis.change-scope.main",
+      "stageId": "impact-analysis.change-scope",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "654f639의 HEAD는 확인했으나 diff는 확보하지 못했다. 중지·취소·종료 요약의 세 모듈을 검토 범위로 식별했으며, 현재 구현에서 명세와 다른 공개 필드·분류·폴링 동작이 관찰된다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-1/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-1/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-1/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-1/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.implementation-map",
+      "displayName": "impact-analysis.implementation-map.main",
+      "taskId": "task-2",
+      "specId": "impact-analysis.implementation-map.main",
+      "stageId": "impact-analysis.implementation-map",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "654f639를 가리키는 체크아웃의 중지·취소·종료 요약 및 검증 표면을 매핑했다. 부모 커밋 대비 변경 귀속과 배포 판단은 포함하지 않는다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-2/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-2/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-2/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-2/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

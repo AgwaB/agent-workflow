@@ -1,0 +1,221 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC.md에서 S1–S7, C1–C2, T1–T3, Q1의 13개 요구사항을 추출했다.",
+  "specSources": [
+    "SPEC.md"
+  ],
+  "requirements": [
+    {
+      "id": "REQ-S1",
+      "requirement": "디스크 중지 의도 또는 동일 실행의 abort된 foreground AbortSignal 중 하나가 있으면 중지를 감지해야 한다.",
+      "specEvidence": {
+        "file": "SPEC.md",
+        "lineStart": 8,
+        "lineEnd": 10,
+        "quote": "실행 중지는 두 경로 중 하나라도 있으면 감지되어야 한다"
+      },
+      "priority": "high",
+      "implementationSignals": [
+        "readWorkflowStopIntent",
+        "launchStopRequested",
+        "workflowRunPath"
+      ],
+      "testSignals": []
+    },
+    {
+      "id": "REQ-S2",
+      "requirement": "중지 감지 시 WorkflowStopRequested 오류로 abort하고 지정된 runId 메시지를 사용해야 한다.",
+      "specEvidence": {
+        "file": "SPEC.md",
+        "lineStart": 11,
+        "lineEnd": 12,
+        "quote": "이름이 `WorkflowStopRequested`인 오류로 abort되어야 하며"
+      },
+      "priority": "high",
+      "implementationSignals": [
+        "createWorkflowStopRequestedError",
+        "WORKFLOW_STOP_REQUESTED_ERROR_NAME"
+      ],
+      "testSignals": []
+    },
+    {
+      "id": "REQ-S3",
+      "requirement": "중지 감시 기본 주기는 50ms이며 pollMs가 작아도 10ms 미만으로 낮아지면 안 된다.",
+      "specEvidence": {
+        "file": "SPEC.md",
+        "lineStart": 13,
+        "lineEnd": 14,
+        "quote": "중지 감시 주기(`pollMs`)의 기본값은 50ms이고"
+      },
+      "priority": "high",
+      "implementationSignals": [
+        "createWorkflowStopSignal",
+        "pollMs"
+      ],
+      "testSignals": []
+    },
+    {
+      "id": "REQ-S4",
+      "requirement": "감시 경로의 디스크 읽기 실패는 중지가 아니며 명시적 검사 경로는 읽기 오류를 전달해야 한다.",
+      "specEvidence": {
+        "file": "SPEC.md",
+        "lineStart": 15,
+        "lineEnd": 16,
+        "quote": "감시 경로(`createWorkflowStopSignal`)에서 디스크 읽기 실패는 중지로 간주하지 않는다."
+      },
+      "priority": "high",
+      "implementationSignals": [
+        "readWorkflowStopIntent.catch",
+        "throwIfWorkflowStopRequested"
+      ],
+      "testSignals": []
+    },
+    {
+      "id": "REQ-S5",
+      "requirement": "dispose() 호출 이후에는 새로운 디스크 읽기가 시작되지 않아야 한다.",
+      "specEvidence": {
+        "file": "SPEC.md",
+        "lineStart": 17,
+        "lineEnd": 17,
+        "quote": "`dispose()`를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다."
+      },
+      "priority": "high",
+      "implementationSignals": [
+        "dispose",
+        "setInterval"
+      ],
+      "testSignals": []
+    },
+    {
+      "id": "REQ-S6",
+      "requirement": "중지 오류 판별은 오류 이름이 WorkflowStopRequested인지로만 결정해야 한다.",
+      "specEvidence": {
+        "file": "SPEC.md",
+        "lineStart": 18,
+        "lineEnd": 19,
+        "quote": "메시지 내용으로 판별해서는 안 된다."
+      },
+      "priority": "high",
+      "implementationSignals": [
+        "isWorkflowStopRequestedError"
+      ],
+      "testSignals": []
+    },
+    {
+      "id": "REQ-S7",
+      "requirement": "foreground signal 등록은 해제 가능하고 마지막 해제 후 실행별 등록 항목이 없어야 한다.",
+      "specEvidence": {
+        "file": "SPEC.md",
+        "lineStart": 20,
+        "lineEnd": 21,
+        "quote": "foreground signal 등록은 해제 함수로 되돌릴 수 있어야 하며"
+      },
+      "priority": "high",
+      "implementationSignals": [
+        "bindWorkflowLaunchSignal",
+        "launchSignals Map"
+      ],
+      "testSignals": []
+    },
+    {
+      "id": "REQ-C1",
+      "requirement": "취소 문자열은 aborted, AbortError, ABORT_ERR 세 값만 인정하고 다른 provider 오류는 취소로 만들지 않아야 한다.",
+      "specEvidence": {
+        "file": "SPEC.md",
+        "lineStart": 25,
+        "lineEnd": 26,
+        "quote": "정확히 `aborted`, `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다."
+      },
+      "priority": "high",
+      "implementationSignals": [
+        "isWorkflowReturnedCancellation",
+        "isWorkflowAbortError"
+      ],
+      "testSignals": []
+    },
+    {
+      "id": "REQ-C2",
+      "requirement": "content 텍스트가 JSON이면 동일 규칙으로 판별하되 같은 값을 무한 재검사하지 않아야 한다.",
+      "specEvidence": {
+        "file": "SPEC.md",
+        "lineStart": 27,
+        "lineEnd": 28,
+        "quote": "같은 값을 다시 검사하는 무한 재귀가 없어야 한다."
+      },
+      "priority": "high",
+      "implementationSignals": [
+        "JSON.parse(entry.text)",
+        "parsed !== value"
+      ],
+      "testSignals": []
+    },
+    {
+      "id": "REQ-T1",
+      "requirement": "completed 실행에 degradation 기록이 있으면 의미 상태를 completed_degraded로 표시해야 한다.",
+      "specEvidence": {
+        "file": "SPEC.md",
+        "lineStart": 32,
+        "lineEnd": 32,
+        "quote": "`completed` 실행에 degradation 기록이 있으면 의미 상태는 `completed_degraded`이다."
+      },
+      "priority": "high",
+      "implementationSignals": [
+        "nonDynamicSemanticStatus",
+        "completed_degraded"
+      ],
+      "testSignals": []
+    },
+    {
+      "id": "REQ-T2",
+      "requirement": "direct-dynamic 실행에서 controller control.json을 읽지 못하면 completed_without_semantic_result 상태여야 한다.",
+      "specEvidence": {
+        "file": "SPEC.md",
+        "lineStart": 33,
+        "lineEnd": 34,
+        "quote": "`control.json`을 읽을 수 없으면 의미 상태는 `completed_without_semantic_result`이다."
+      },
+      "priority": "high",
+      "implementationSignals": [
+        "readDynamicControllerControl",
+        "completed_without_semantic_result"
+      ],
+      "testSignals": []
+    },
+    {
+      "id": "REQ-T3",
+      "requirement": "outputRetryAttempts와 launchRetryAttempts는 모든 작업의 재시도 횟수 합이고 공개 필드명이어야 한다.",
+      "specEvidence": {
+        "file": "SPEC.md",
+        "lineStart": 35,
+        "lineEnd": 36,
+        "quote": "이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+      },
+      "priority": "high",
+      "implementationSignals": [
+        "outputRetryAttempts",
+        "launchRetries"
+      ],
+      "testSignals": []
+    },
+    {
+      "id": "REQ-Q1",
+      "requirement": "S1부터 S7, C1부터 C2, T1부터 T3 각각을 검증하는 단위 테스트가 있어야 한다.",
+      "specEvidence": {
+        "file": "SPEC.md",
+        "lineStart": 38,
+        "lineEnd": 40,
+        "quote": "위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+      },
+      "priority": "medium",
+      "implementationSignals": [],
+      "testSignals": []
+    }
+  ],
+  "ambiguities": [
+    "S3의 NaN, 무한대 등 비정상 pollMs 처리 방식은 명시되지 않았다.",
+    "Q1은 테스트 존재를 요구하지만 테스트 프레임워크와 파일 위치는 지정하지 않는다."
+  ],
+  "outOfScope": [
+    "SPEC.md가 발췌에서 제외한 store.js와 types.js 내부 구현"
+  ]
+}

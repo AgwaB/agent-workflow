@@ -1,0 +1,29 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "finding-003은 유지: 20행이 SPEC C1의 정확히 세 값 목록에 'cancelled'와 'timeout'을 추가해 명세를 위반하며, 저장소 안에 이를 정당화하는 호출자·테스트·문서는 없다.",
+  "findingId": "finding-003",
+  "finding": "C1 위반: 취소 허용 목록에 'cancelled'와 'timeout'이 추가됨",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 20,
+      "lineEnd": 20,
+      "symbol": "isWorkflowReturnedCancellation",
+      "quote": "candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 26,
+      "lineEnd": 26,
+      "symbol": "C1",
+      "quote": "`AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다."
+    }
+  ],
+  "counterEvidence": [
+    "isWorkflowReturnedCancellation의 9~12행 주석은 '의도적으로 엄격하게' 유지하라고만 말하며, 'cancelled'/'timeout' 추가를 명시적으로 승인하지 않는다.",
+    "C1 본문은 문자열 규칙을 다루므로 16행·18행의 boolean `cancelled === true` 플래그는 C1 문언상 위반이라 단정할 수 없고 명세 공백에 가깝다.",
+    "저장소 검색 결과 이 함수를 호출하는 코드나 'cancelled'/'timeout' 값을 검사하는 테스트는 보이지 않아, 실제 런타임 영향(진단 억제 여부)은 이 범위에서 확인되지 않았다."
+  ],
+  "recommendedAction": "candidate 비교를 'aborted', 'AbortError', 'ABORT_ERR'로 되돌리고, 'cancelled'와 'timeout'은 SPEC C1을 먼저 수정해 근거를 남긴 뒤에만 추가한다. 16행·18행의 boolean 플래그는 계약에 포함할지 SPEC에 명시하거나 제거한다."
+}

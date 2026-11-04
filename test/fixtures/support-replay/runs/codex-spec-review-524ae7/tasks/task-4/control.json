@@ -1,0 +1,265 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "13개 요구사항 중 6개는 구현상 충족, 6개는 명확한 결함, 1개는 부분 충족으로 판단했다.",
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "테스트 파일이 발견되지 않아 테스트를 실행하지 못했다. 구현 판단은 upstream 구현 매핑의 인용 범위에 근거한다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "requirementCoverage": [
+    {
+      "requirementId": "REQ-S1",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 5,
+          "lineEnd": 27,
+          "quote": "launchStopRequested",
+          "relevance": "등록된 foreground signal의 abort 상태를 검사한다."
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 68,
+          "lineEnd": 98,
+          "quote": "createWorkflowStopSignal",
+          "relevance": "foreground signal과 디스크 중지 의도를 함께 감시한다."
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-S2",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 30,
+          "lineEnd": 59,
+          "quote": "WorkflowStopRequested",
+          "relevance": "중지 오류의 이름을 지정한다."
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 30,
+          "lineEnd": 59,
+          "quote": "workflow stop requested for",
+          "relevance": "runId 기반 메시지를 구성한다."
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-S3",
+      "status": "gap",
+      "evidence": []
+    },
+    {
+      "requirementId": "REQ-S4",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 5,
+          "lineEnd": 27,
+          "quote": "throwIfWorkflowStopRequested",
+          "relevance": "직접 검사 경로가 존재한다."
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 68,
+          "lineEnd": 98,
+          "quote": "createWorkflowStopSignal",
+          "relevance": "감시 경로와 직접 검사 경로가 분리되어 있다."
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-S5",
+      "status": "gap",
+      "evidence": []
+    },
+    {
+      "requirementId": "REQ-S6",
+      "status": "gap",
+      "evidence": []
+    },
+    {
+      "requirementId": "REQ-S7",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 5,
+          "lineEnd": 27,
+          "quote": "launchSignals.delete",
+          "relevance": "마지막 signal 해제 시 실행별 등록 항목을 제거한다."
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-C1",
+      "status": "gap",
+      "evidence": []
+    },
+    {
+      "requirementId": "REQ-C2",
+      "status": "partial",
+      "evidence": []
+    },
+    {
+      "requirementId": "REQ-T1",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 64,
+          "lineEnd": 96,
+          "quote": "completed_degraded",
+          "relevance": "completed와 degradation 조합의 의미 상태를 설정한다."
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-T2",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 64,
+          "lineEnd": 96,
+          "quote": "completed_without_semantic_result",
+          "relevance": "direct-dynamic control.json 읽기 실패의 fallback 상태다."
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-T3",
+      "status": "gap",
+      "evidence": []
+    },
+    {
+      "requirementId": "REQ-Q1",
+      "status": "gap",
+      "evidence": []
+    }
+  ],
+  "candidateFindings": [
+    {
+      "id": "finding-S3",
+      "requirementIds": [
+        "REQ-S3"
+      ],
+      "severity": "high",
+      "title": "중지 감시 주기 기본값과 최소값이 명세와 다름",
+      "claim": "pollMs가 기본 200ms, 최소 1ms로 계산되어 명세의 기본 50ms 및 최소 10ms를 지키지 않는다.",
+      "specEvidence": [
+        "SPEC.md 13–14행은 기본값 50ms와 최소 10ms를 요구한다."
+      ],
+      "implementationEvidence": [
+        "src/workflow-stop.ts:61-86에서 Math.max(1, options.pollMs ?? 200)을 사용한다."
+      ],
+      "testEvidence": [],
+      "uncertainty": "구현 매핑의 해당 줄 범위와 관찰을 독립적인 원문 검토로 재확인할 필요가 있다."
+    },
+    {
+      "id": "finding-S5",
+      "requirementIds": [
+        "REQ-S5"
+      ],
+      "severity": "medium",
+      "title": "dispose 이후 읽기 방지 가드가 없음",
+      "claim": "dispose()가 interval만 해제하고 post-dispose 읽기를 차단하는 상태 가드를 두지 않아 이미 예약되었거나 진행 중인 비동기 검사에서 새 디스크 읽기가 발생할 가능성이 있다.",
+      "specEvidence": [
+        "SPEC.md 17행은 dispose 이후 새로운 디스크 읽기 시작 금지를 요구한다."
+      ],
+      "implementationEvidence": [
+        "src/workflow-stop.ts:61-86에서 dispose는 clearInterval(timer)만 호출한다."
+      ],
+      "testEvidence": [],
+      "uncertainty": "읽기 함수의 동기/비동기 경계와 이벤트 루프 타이밍에 대한 추가 원문 검증이 필요하다."
+    },
+    {
+      "id": "finding-S6",
+      "requirementIds": [
+        "REQ-S6"
+      ],
+      "severity": "high",
+      "title": "중지 오류 판별이 메시지까지 허용함",
+      "claim": "isWorkflowStopRequestedError가 오류 이름뿐 아니라 'workflow stop requested' 메시지 prefix도 인정한다.",
+      "specEvidence": [
+        "SPEC.md 18–19행은 WorkflowStopRequested 이름만 판별 기준으로 요구한다."
+      ],
+      "implementationEvidence": [
+        "src/workflow-stop.ts:30-59에서 이름 검사와 함께 메시지 prefix matching을 수행한다."
+      ],
+      "testEvidence": [],
+      "uncertainty": "메시지 prefix 분기의 실제 호출 영향은 추가 실행 검증이 필요하다."
+    },
+    {
+      "id": "finding-C1C2",
+      "requirementIds": [
+        "REQ-C1",
+        "REQ-C2"
+      ],
+      "severity": "high",
+      "title": "provider 취소 판별이 허용 목록보다 넓음",
+      "claim": "aborted, AbortError, ABORT_ERR 외에 cancelled, timeout, cancelled:true도 취소로 승격하며, content JSON에도 이 넓은 규칙이 적용된다.",
+      "specEvidence": [
+        "SPEC.md 25–28행은 세 문자열만 인정하고 content JSON에도 동일 규칙을 적용하도록 요구한다."
+      ],
+      "implementationEvidence": [
+        "src/workflow-cancellation.ts:2-32에서 cancelled boolean, timeout, cancelled:true를 취소로 처리하고 content JSON을 재귀적으로 검사한다.",
+        "parsed !== value guard로 동일 값 무한 재귀는 방지한다."
+      ],
+      "testEvidence": [],
+      "uncertainty": "재귀 방지 자체는 구현 매핑에서 확인되지만, 추가 취소 조건의 모든 입력 형태는 실행 검증이 필요하다."
+    },
+    {
+      "id": "finding-T3",
+      "requirementIds": [
+        "REQ-T3"
+      ],
+      "severity": "high",
+      "title": "공개 retry 필드명이 계약과 다름",
+      "claim": "작업별 retry 합계는 계산하지만 launch 합계를 launchRetryAttempts가 아닌 launchRetries로 반환한다.",
+      "specEvidence": [
+        "SPEC.md 35–36행은 outputRetryAttempts와 launchRetryAttempts를 공개 필드명으로 요구한다."
+      ],
+      "implementationEvidence": [
+        "src/workflow-terminal.ts:27-34,98-111에서 outputRetryAttempts는 합산하지만 두 번째 합계를 launchRetries로 반환한다."
+      ],
+      "testEvidence": [],
+      "uncertainty": "외부 소비자가 실제로 launchRetryAttempts를 읽는 경로는 추가 확인이 필요하지만 명세상 필드명 불일치는 명확하다."
+    },
+    {
+      "id": "finding-Q1",
+      "requirementIds": [
+        "REQ-Q1"
+      ],
+      "severity": "medium",
+      "title": "요구된 단위 테스트가 없음",
+      "claim": "S1–S7, C1–C2, T1–T3 동작을 확인하는 repository-local 단위 테스트 근거가 없다.",
+      "specEvidence": [
+        "SPEC.md 38–40행은 모든 S·C·T 항목별 단위 테스트를 요구한다."
+      ],
+      "implementationEvidence": [
+        "package.json에는 typecheck script만 있고 tracked repository에 테스트 파일 또는 테스트 설정이 없다."
+      ],
+      "testEvidence": [
+        "inspect-tests의 모든 testMap 슬라이스가 빈 배열이다."
+      ],
+      "uncertainty": "숨겨진 외부 테스트가 있을 가능성은 배제할 수 없지만 repository 내 근거는 없다."
+    }
+  ],
+  "needsHuman": [],
+  "noIssueNotes": [
+    "REQ-S1은 두 중지 감지 경로가 연결되어 있다.",
+    "REQ-S2는 요구된 오류 이름과 runId 메시지를 구성한다.",
+    "REQ-S4는 감시 경로의 읽기 오류를 삼키고 직접 검사 경로의 오류를 전달한다.",
+    "REQ-S7은 마지막 foreground signal 해제 시 실행별 등록을 정리한다.",
+    "REQ-T1과 REQ-T2의 의미 상태 분기 구현이 매핑되어 있다.",
+    "REQ-C2는 parsed !== value guard로 동일 값 무한 재귀를 피하지만 C1의 과도한 취소 규칙 때문에 부분 충족으로 분류했다."
+  ]
+}

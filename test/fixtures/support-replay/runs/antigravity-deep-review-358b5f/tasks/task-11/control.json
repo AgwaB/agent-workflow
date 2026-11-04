@@ -1,0 +1,95 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Workflow terminal summary violates contract T3 with launchRetries instead of launchRetryAttempts and risks uncaught TypeError on missing controller.files.",
+  "lens": "api-contract-compatibility",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "WorkflowTerminalSummary exposes launchRetries instead of public contract property launchRetryAttempts (T3 violation)",
+      "file": "src/workflow-terminal.ts",
+      "locations": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 27,
+          "lineEnd": 35,
+          "symbol": "WorkflowTerminalSummary"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 107,
+          "lineEnd": 110,
+          "symbol": "summarizeWorkflowTerminal"
+        }
+      ],
+      "evidence": "SPEC.md T3 stipulates: '요약의 outputRetryAttempts와 launchRetryAttempts는 모든 작업의 재시도 횟수 합이며, 이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).' However, WorkflowTerminalSummary interface defines launchRetries: number (line 33) and summarizeWorkflowTerminal returns launchRetries (line 107).",
+      "evidenceQuotes": [
+        "\tlaunchRetries: number;",
+        "\t\tlaunchRetries: run.tasks.reduce(",
+        "\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),",
+        "\t\t\t0,",
+        "\t\t),",
+        "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+      ],
+      "rationale": "External tools and contract consumers expect launchRetryAttempts according to SPEC.md T3. Using launchRetries breaks compatibility with consumers relying on the public contract, resulting in missing or undefined retry counts for external callers.",
+      "recommendedAction": "Rename launchRetries to launchRetryAttempts in WorkflowTerminalSummary and summarizeWorkflowTerminal (or retain launchRetries as an alias/deprecated property alongside launchRetryAttempts for backwards compatibility).",
+      "confidence": "high"
+    },
+    {
+      "severity": "high",
+      "title": "Unchecked task file descriptors in readDynamicControllerControl cause runtime TypeError when controller.files or output is undefined",
+      "file": "src/workflow-terminal.ts",
+      "locations": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 48,
+          "lineEnd": 62,
+          "symbol": "readDynamicControllerControl"
+        }
+      ],
+      "evidence": "In readDynamicControllerControl, controller.files.output is accessed directly without optional chaining or verification: 'const taskOutput = fromProjectPath(cwd, controller.files.output);'. If a controller task has undefined files or output (e.g. malformed or incomplete run record), it throws an uncaught TypeError instead of resolving gracefully.",
+      "evidenceQuotes": [
+        "\tconst controller = run.tasks.find(\n\t\t(task) =>\n\t\t\ttask.specId === \"dynamic.controller\" ||\n\t\t\ttask.statusDetail === \"dynamic_completed\",\n\t);\n\tif (!controller) return undefined;\n\tconst taskOutput = fromProjectPath(cwd, controller.files.output);"
+      ],
+      "rationale": "SPEC.md T2 requires that when control.json cannot be read in a direct-dynamic run, the semantic status falls back to completed_without_semantic_result. An unhandled exception during controller path resolution bubbles up and crashes summarizeWorkflowTerminal instead of safely treating the control as unreadable.",
+      "recommendedAction": "Safely check controller.files?.output before calling fromProjectPath and dirname, returning undefined if output is not present.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-terminal.ts:27-35",
+    "src/workflow-terminal.ts:48-62",
+    "src/workflow-terminal.ts:72-113",
+    "SPEC.md:30-37"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-terminal.ts:27-35",
+      "status": "read",
+      "evidence": "\tlaunchRetries: number;",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-terminal.ts:48-62",
+      "status": "read",
+      "evidence": "\tconst taskOutput = fromProjectPath(cwd, controller.files.output);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-terminal.ts:72-113",
+      "status": "read",
+      "evidence": "\t\tlaunchRetries: run.tasks.reduce(",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:30-37",
+      "status": "read",
+      "evidence": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": []
+}

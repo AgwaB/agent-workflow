@@ -1,0 +1,91 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "구현 근거는 세 모듈에 매핑되며, 테스트 파일과 store/types 구현은 확인되지 않는다.",
+  "implementationMap": [
+    {
+      "component": "중지 감지·foreground signal 등록",
+      "file": "src/workflow-stop.ts:5-27,68-78",
+      "evidence": "launchSignals를 workflowRunPath 키로 관리하고, AbortSignal 상태와 readWorkflowStopIntent 결과를 모두 검사한다.",
+      "observedBehavior": "디스크 의도와 등록된 foreground abort를 감지하며 해제 함수가 마지막 등록 항목을 삭제한다.",
+      "relatedSignals": [
+        "S1",
+        "S7"
+      ]
+    },
+    {
+      "component": "중지 오류 생성·판별",
+      "file": "src/workflow-stop.ts:43-59",
+      "evidence": "오류 생성 시 name은 WorkflowStopRequested이고 메시지는 workflow stop requested for ${runId}이다.",
+      "observedBehavior": "판별 함수가 오류 이름뿐 아니라 메시지 prefix도 허용한다.",
+      "relatedSignals": [
+        "S2",
+        "S6"
+      ]
+    },
+    {
+      "component": "중지 polling·읽기 오류·dispose",
+      "file": "src/workflow-stop.ts:61-86,89-99",
+      "evidence": "pollMs는 Math.max(1, options.pollMs ?? 200)이며 감시 읽기는 catch하고 직접 검사 함수는 읽기 오류를 전파한다.",
+      "observedBehavior": "초기 검사와 interval 검사를 시작하고 dispose는 interval만 해제한다.",
+      "relatedSignals": [
+        "S3",
+        "S4",
+        "S5"
+      ]
+    },
+    {
+      "component": "provider 취소 판별",
+      "file": "src/workflow-cancellation.ts:2-22",
+      "evidence": "AbortError와 세 문자열 외에도 cancelled=true 및 cancelled/timeout 문자열을 취소로 인정한다.",
+      "observedBehavior": "오류 객체의 name, details, error/reason 후보를 검사한다.",
+      "relatedSignals": [
+        "C1"
+      ]
+    },
+    {
+      "component": "content JSON 취소 판별",
+      "file": "src/workflow-cancellation.ts:23-31",
+      "evidence": "content.entry.text를 JSON.parse한 뒤 parsed !== value 조건으로 재귀 검사한다.",
+      "observedBehavior": "JSON 텍스트를 재귀적으로 검사하며 동일 객체 재검사만 차단한다.",
+      "relatedSignals": [
+        "C2"
+      ]
+    },
+    {
+      "component": "종료 semantic status",
+      "file": "src/workflow-terminal.ts:64-96",
+      "evidence": "completed와 degradation을 completed_degraded로 매핑하고, direct-dynamic control 부재 시 completed_without_semantic_result를 선택한다.",
+      "observedBehavior": "control.json 읽기 실패는 undefined로 처리되어 fallback 상태로 이어진다.",
+      "relatedSignals": [
+        "T1",
+        "T2"
+      ]
+    },
+    {
+      "component": "종료 retry 합계·공개 필드",
+      "file": "src/workflow-terminal.ts:27-35,98-110",
+      "evidence": "outputRetryAttempts는 합산하지만 공개 launch 필드 이름은 launchRetries로 선언·반환된다.",
+      "observedBehavior": "모든 task의 outputRetry.attempts와 launchRetry.attempts를 각각 합산한다.",
+      "relatedSignals": [
+        "T3"
+      ]
+    },
+    {
+      "component": "단위 테스트 커버리지",
+      "file": "테스트 파일 없음",
+      "evidence": "저장소 파일 목록에는 SPEC.md, package.json, tsconfig.json, src/*.ts만 확인되고 테스트 파일이 없다.",
+      "observedBehavior": "package.json에는 typecheck 스크립트만 있으며 S·C·T 동작을 확인하는 테스트 근거가 없다.",
+      "relatedSignals": [
+        "Q1"
+      ]
+    }
+  ],
+  "unmappedAreas": [
+    "store.js와 types.js가 저장소 발췌에서 제외되어 import된 경로·타입 구현은 확인할 수 없음",
+    "S1-S7, C1-C2, T1-T3별 단위 테스트 구현 및 실행 결과 없음"
+  ],
+  "notes": [
+    "본 단계는 명세 충족 여부가 아니라 구현 영역과 관찰 가능한 동작을 매핑함",
+    "SPEC.md의 요구사항별 상세 판정에는 위 구현의 경계 동작과 테스트 부재를 추가 검토해야 함"
+  ]
+}

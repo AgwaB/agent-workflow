@@ -1,0 +1,126 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1kjsev_fc59a8",
+  "taskId": "task-12",
+  "sources": [
+    {
+      "source": "impact-analysis.change-scope",
+      "displayName": "impact-analysis.change-scope.main",
+      "taskId": "task-1",
+      "specId": "impact-analysis.change-scope.main",
+      "stageId": "impact-analysis.change-scope",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "HEAD 654f639 scope: src/workflow-stop.ts, src/workflow-cancellation.ts, src/workflow-terminal.ts; SPEC.md mismatches on stop poll interval, cancellation tokens, stop-error matching, and renamed public field launchRetries.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-1/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-1/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-1/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-1/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.contract-consistency",
+      "displayName": "impact-analysis.contract-consistency.main",
+      "taskId": "task-9",
+      "specId": "impact-analysis.contract-consistency.main",
+      "stageId": "impact-analysis.contract-consistency",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "HEAD 654f639은 배포 비권장(fail). 공개 필드 rename(launchRetryAttempts→launchRetries)에 별칭·SPEC·마이그레이션 노트가 없고, 취소 분류 확장과 중지 감시 주기 변경이 SPEC.md(S3/S6/C1/T3)와 어긋나며, 테스트가 없어 어떤 변경도 검증되지 않았다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-9/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-9/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-9/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-9/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.regression-risk",
+      "displayName": "impact-analysis.regression-risk.main",
+      "taskId": "task-10",
+      "specId": "impact-analysis.regression-risk.main",
+      "stageId": "impact-analysis.regression-risk",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "HEAD 654f639는 배포 비권장. 공개 필드 rename(launchRetryAttempts→launchRetries)에 호환 별칭이 없고, 취소 분류가 SPEC 밖으로 넓어졌으며, 중지 감지가 SPEC과 어긋나고, 이를 검증할 테스트가 전혀 없다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-10/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-10/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-10/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-10/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.ship-readiness",
+      "displayName": "impact-analysis.ship-readiness.main",
+      "taskId": "task-11",
+      "specId": "impact-analysis.ship-readiness.main",
+      "stageId": "impact-analysis.ship-readiness",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "HEAD 654f639은 배포 비권장(blocked). 공개 필드 rename(launchRetryAttempts→launchRetries)에 호환 alias·SPEC·변경 기록이 없고, stop/cancel 동작이 SPEC과 어긋나며, 테스트가 없고 typecheck도 검증되지 않았다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-11/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-11/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-11/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-11/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

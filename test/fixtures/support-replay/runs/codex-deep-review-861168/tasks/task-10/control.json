@@ -1,0 +1,66 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "종료 요약의 공개 재시도 필드명이 명세와 불일치해 외부 도구 호환성이 깨집니다.",
+  "lens": "api-contract",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "공개 필드 launchRetryAttempts가 launchRetries로 변경되어 계약이 깨짐",
+      "file": "src/workflow-terminal.ts",
+      "locations": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 33,
+          "symbol": "WorkflowTerminalSummary"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 107,
+          "lineEnd": 110,
+          "symbol": "summarizeWorkflowTerminal"
+        }
+      ],
+      "evidence": "종료 요약 인터페이스와 반환 객체가 모두 launchRetries를 사용하지만, 명세가 외부 공개 계약으로 요구하는 필드는 launchRetryAttempts입니다.",
+      "evidenceQuotes": [
+        "\tlaunchRetries: number;",
+        "\t\tlaunchRetries: run.tasks.reduce(",
+        "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,"
+      ],
+      "rationale": "외부 도구는 명세에 따라 launchRetryAttempts를 읽으므로 현재 반환값에서는 해당 키가 존재하지 않아 재시도 횟수가 누락되거나 undefined가 됩니다. 내부 호출자가 현재 새 이름을 사용하지 않더라도 공개 계약 변경으로 인한 호환성 회귀입니다.",
+      "recommendedAction": "WorkflowTerminalSummary와 summarizeWorkflowTerminal의 공개 필드명을 launchRetryAttempts로 복원하고, 모든 작업의 launchRetry.attempts 합산 로직은 유지하십시오. 이미 launchRetries를 사용하는 소비자가 있다면 별도 마이그레이션을 검토하되 명세의 launchRetryAttempts를 계속 제공해야 합니다.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-terminal.ts:27-35",
+    "src/workflow-terminal.ts:64-112",
+    "SPEC.md:30-36"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-terminal.ts:27-35",
+      "status": "read",
+      "evidence": "\tlaunchRetries: number;",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-terminal.ts:64-112",
+      "status": "read",
+      "evidence": "\t\tlaunchRetries: run.tasks.reduce(",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:30-36",
+      "status": "read",
+      "evidence": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "completed 실행의 degradation을 completed_degraded로 매핑하는 로직은 명세 T1과 일치합니다.",
+    "direct-dynamic에서 control.json을 읽지 못하거나 의미 상태를 확인하지 못할 때 completed_without_semantic_result로 귀결되는 로직은 명세 T2와 일치합니다."
+  ]
+}

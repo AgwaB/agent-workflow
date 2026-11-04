@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "S6 is directly contradicted by the predicate's message-prefix fallback.",
+  "id": "finding-S6",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 18,
+      "lineEnd": 19,
+      "quote": "- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로\n  인정한다. 메시지 내용으로 판별해서는 안 된다.",
+      "relevance": "S6 requires name-only classification."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 53,
+      "lineEnd": 57,
+      "quote": "export function isWorkflowStopRequestedError(error: unknown): boolean {\n\treturn (\n\t\terror instanceof Error &&\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))",
+      "relevance": "The implementation accepts the message prefix independently of the error name."
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "S6 위반이 확인된다. 이름이 WorkflowStopRequested가 아닌 Error라도 메시지가 'workflow stop requested'로 시작하면 중지 오류로 판정된다.",
+  "recommendedAction": "메시지 prefix 조건을 제거하고 오류 이름이 WorkflowStopRequested인지로만 판정하도록 수정한다."
+}

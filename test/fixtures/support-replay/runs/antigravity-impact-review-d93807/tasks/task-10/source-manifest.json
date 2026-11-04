@@ -1,0 +1,126 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1kjw3t_d93807",
+  "taskId": "task-10",
+  "sources": [
+    {
+      "source": "impact-analysis.api-contract-impact",
+      "displayName": "impact-analysis.api-contract-impact.main",
+      "taskId": "task-4",
+      "specId": "impact-analysis.api-contract-impact.main",
+      "stageId": "impact-analysis.api-contract-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "커밋 654f639는 외부 공개 계약(SPEC.md T3)을 파괴하는 필드 이름 변경(launchRetryAttempts -> launchRetries)과 SPEC.md(S3, C1) 명세를 직접 위반하는 폴링 주기 변경 및 타임아웃 오류의 취소 오분류를 포함하여 배포 차단 수준(high)의 영향을 초래합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-4/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-4/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-4/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-4/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.state-data-impact",
+      "displayName": "impact-analysis.state-data-impact.main",
+      "taskId": "task-5",
+      "specId": "impact-analysis.state-data-impact.main",
+      "stageId": "impact-analysis.state-data-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "커밋 654f639는 요약 데이터 계약 필드명 변경(launchRetries), 프로바이더 타임아웃의 취소 오분류, 디스크 폴링 주기/경계 변경으로 인해 상태 라이프사이클 및 외부 연동 데이터 무결성에 높은(high) 수준의 영향을 미칩니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-5/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-5/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-5/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-5/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.validation-impact",
+      "displayName": "impact-analysis.validation-impact.main",
+      "taskId": "task-6",
+      "specId": "impact-analysis.validation-impact.main",
+      "stageId": "impact-analysis.validation-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "Test and validation coverage for commit 654f639 is completely absent (coverageStatus: none); no test suite exists (violating SPEC Q1), leaving breaking contract changes and SPEC S3/C1 regressions entirely unvalidated.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-6/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-6/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-6/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-6/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.security-performance-impact",
+      "displayName": "impact-analysis.security-performance-impact.main",
+      "taskId": "task-8",
+      "specId": "impact-analysis.security-performance-impact.main",
+      "stageId": "impact-analysis.security-performance-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "보안·성능·안정성·관측가능성 분석 결과 심각도 high: SPEC 위반 3건(S3, C1, T3), pollMs=1ms 허용에 따른 디스크 I/O 고갈 위험, timeout의 취소 승격에 따른 장애 은폐, launchRetryAttempts 필드 삭제로 인한 외부 모니터링 계약 파괴로 배포 불가",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-8/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-8/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-8/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-8/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

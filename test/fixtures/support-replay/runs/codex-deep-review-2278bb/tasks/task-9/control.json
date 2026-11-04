@@ -1,0 +1,109 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "중지 주기·오류 판별·provider 취소 분류에서 명세와 불일치하는 고위험 문제가 확인됨.",
+  "lens": "runtime-correctness",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "중지 감시 주기 기본값과 최소값이 명세보다 느림",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 67,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "evidence": "pollMs가 기본 200ms이고 최소 1ms로 제한되어, 명세의 기본 50ms 및 최소 10ms 계약을 위반한다.",
+      "evidenceQuotes": [
+        "const pollMs = Math.max(1, options.pollMs ?? 200);",
+        "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다"
+      ],
+      "rationale": "중지 감지가 최대 200ms까지 지연될 수 있고, 지나치게 작은 pollMs가 허용되어 실행·취소 타이밍의 예측 가능성이 떨어진다.",
+      "recommendedAction": "기본값을 50ms로 변경하고 최소값을 10ms로 clamp하라.",
+      "confidence": "high"
+    },
+    {
+      "severity": "high",
+      "title": "중지 오류 판별이 오류 이름 외의 메시지까지 신뢰함",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 53,
+          "lineEnd": 58,
+          "symbol": "isWorkflowStopRequestedError"
+        }
+      ],
+      "evidence": "오류 이름이 일치하지 않아도 메시지가 지정된 접두사로 시작하면 중지 오류로 판별한다.",
+      "evidenceQuotes": [
+        "(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||",
+        "error.message.startsWith(\"workflow stop requested\")",
+        "- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로"
+      ],
+      "rationale": "provider나 일반 작업 오류가 동일한 메시지 접두사를 사용하면 중지로 오인되어 종료 상태와 진단 흐름이 잘못 바뀔 수 있다.",
+      "recommendedAction": "`error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME`만 판별 조건으로 유지하라.",
+      "confidence": "high"
+    },
+    {
+      "severity": "high",
+      "title": "provider의 cancelled·timeout 사유를 취소로 승격함",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 19,
+          "lineEnd": 21,
+          "symbol": "isWorkflowReturnedCancellation"
+        }
+      ],
+      "evidence": "오류·사유 문자열에 명세에 없는 `cancelled`와 `timeout`을 포함해 취소로 판정한다.",
+      "evidenceQuotes": [
+        "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+        "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,"
+      ],
+      "rationale": "timeout 또는 provider의 일반 cancelled 문자열이 실제 중지·취소 흐름으로 분류되어 종료 요약과 진단이 달라질 수 있다. 특히 timeout은 별도 실패 원인일 수 있다.",
+      "recommendedAction": "문자열 비교를 `aborted`, `AbortError`, `ABORT_ERR` 세 값으로 제한하고, timeout은 별도 오류 경로로 처리하라.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-stop.ts:53-86",
+    "src/workflow-stop.ts:89-99",
+    "src/workflow-cancellation.ts:13-32",
+    "SPEC.md:8-28"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-stop.ts:53-86",
+      "status": "read",
+      "evidence": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-stop.ts:89-99",
+      "status": "read",
+      "evidence": "const intent = await readWorkflowStopIntent(cwd, runId);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-cancellation.ts:13-32",
+      "status": "read",
+      "evidence": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:8-28",
+      "status": "read",
+      "evidence": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "요청된 범위에서 디스크 읽기 실패 전달과 foreground signal 재확인 로직은 명세와 부합한다."
+  ]
+}

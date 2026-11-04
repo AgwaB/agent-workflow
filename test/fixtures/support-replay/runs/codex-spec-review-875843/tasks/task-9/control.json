@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "S3 위반은 구현 코드와 명세의 직접 비교로 확인된다.",
+  "id": "candidate-REQ-003",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 13,
+      "lineEnd": 14,
+      "quote": "기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다",
+      "relevance": "S3 requires a 50ms default and a 10ms minimum."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 67,
+      "lineEnd": 67,
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "relevance": "Implementation uses a 200ms default and a 1ms minimum."
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "S3 is violated: createWorkflowStopSignal uses a 200ms default and clamps pollMs to 1ms, instead of the required 50ms default and 10ms minimum.",
+  "recommendedAction": "Change the calculation to use a 50ms default and Math.max(10, ...), then add tests for the default and lower-bound behavior."
+}

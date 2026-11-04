@@ -1,0 +1,99 @@
+{
+  "schema": "deep-review-report-packet-v1",
+  "digest": "78755415c8a0fef7c5499e84ec3605ea4c11a48872e2b9fb1359c991dbbee9fa",
+  "maxChars": 15000,
+  "actualChars": 2751,
+  "partitionSummary": {
+    "keep": 2,
+    "weaken": 0,
+    "drop": 0,
+    "needsHuman": 3,
+    "supportNotes": 0,
+    "mergedFindings": 0,
+    "verdictsReceived": 5,
+    "batchIntegrityIssues": 0,
+    "verdictIntegrityIssues": 0,
+    "reviewerCoverageIssues": 0,
+    "reviewerFindings": 5,
+    "missingVerdicts": 0,
+    "partialFailures": 3
+  },
+  "sourceStatusSummary": {
+    "total": 9,
+    "completed": 6,
+    "nonCompleted": 3,
+    "partialFailureCount": 3,
+    "partialFailures": [
+      {
+        "source": "reviewers.api-compatibility",
+        "status": "source_coverage_incomplete",
+        "statusDetail": "api-compatibility: SPEC.md:31: metadata-only (요청된 정확한 31행은 빈 줄이어서 비어 있지 않은 exact quote를 제공할 수 없다. 계약 문구는 SPEC.md 35-36행에서 확인했다.)"
+      },
+      {
+        "source": "reviewers.test-validation",
+        "status": "source_coverage_incomplete",
+        "statusDetail": "test-validation: SPEC.md:37: metadata-only (요청된 정확한 line 37은 빈 줄이므로 read 상태에 필요한 비어 있지 않은 정확한 인용을 만들 수 없습니다.)"
+      },
+      {
+        "source": "devil-advocate.finding-003",
+        "status": "verifier_evidence_unverified",
+        "statusDetail": "verifier evidence was not grounded: SPEC.md:25-26 did not contain the exact verifier quote"
+      }
+    ]
+  },
+  "reportContext": {
+    "keep": [
+      {
+        "findingId": "finding-001",
+        "title": "중지 감시 폴링 주기가 명세보다 느리고 최소값도 너무 낮음",
+        "severity": "high",
+        "recommendedAction": "기본값을 50ms로 변경하고 최소값을 10ms로 제한하며, 기본값과 경계값을 검증하는 단위 테스트를 추가하라."
+      },
+      {
+        "findingId": "finding-002",
+        "title": "중지 오류 판별이 오류 메시지만으로도 성공하여 오탐 가능",
+        "severity": "high",
+        "recommendedAction": "메시지 접두사 조건을 제거하고 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME 조건만 사용하라."
+      }
+    ],
+    "weaken": [],
+    "drop": [],
+    "needsHuman": [
+      {
+        "findingId": "finding-003",
+        "title": "허용 목록 외 취소 문자열을 취소로 오분류",
+        "severity": "high",
+        "recommendedAction": "문자열 후보 비교를 `aborted`, `AbortError`, `ABORT_ERR` 세 값으로 제한하고 `cancelled`와 `timeout` 회귀 테스트를 추가하라."
+      },
+      {
+        "findingId": "finding-004",
+        "title": "종료 요약의 launch 재시도 필드명이 공개 계약과 불일치함",
+        "severity": "high",
+        "recommendedAction": "인터페이스와 반환 객체를 launchRetryAttempts로 통일하고 회귀 테스트를 추가한다. 기존 외부 소비자 호환이 필요하면 명시적인 호환 alias를 검토한다."
+      },
+      {
+        "findingId": "finding-005",
+        "title": "S·C·T 요구사항을 검증하는 단위 테스트와 테스트 명령이 없음",
+        "severity": "medium",
+        "recommendedAction": "테스트 러너와 test 스크립트를 추가하고 S1-S7, C1-C2, T1-T3 및 경쟁·오류 경로의 단위 테스트를 CI에서 실행하세요."
+      }
+    ],
+    "supportNoteSummaries": []
+  },
+  "normalizationNotes": [
+    "verdict for \"허용 목록 외 취소 문자열을 취소로 오분류\" had ungrounded verifier evidence; routed to NEEDS_HUMAN instead of KEEP",
+    "verdict for \"종료 요약의 launch 재시도 필드명이 공개 계약과 불일치함\" came from incomplete source coverage; routed to NEEDS_HUMAN instead of KEEP",
+    "verdict for \"S·C·T 요구사항을 검증하는 단위 테스트와 테스트 명령이 없음\" came from incomplete source coverage; routed to NEEDS_HUMAN instead of KEEP"
+  ],
+  "overflowCounts": {
+    "keep": 0,
+    "weaken": 0,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "partialFailures": 0,
+    "normalizationNotes": 0,
+    "truncatedStrings": 0,
+    "omittedStringChars": 0
+  }
+}

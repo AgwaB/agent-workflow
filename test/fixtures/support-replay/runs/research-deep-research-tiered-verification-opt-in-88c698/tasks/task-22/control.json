@@ -1,0 +1,28 @@
+{
+  "schema": "stage-control-v1",
+  "id": "claim-003",
+  "status": "verified",
+  "confidence": 0.99,
+  "digest": "Node.js 공식 문서가 AbortSignal.timeout()의 추가 버전을 v17.3.0 및 v16.14.0으로 직접 명시하고, v17 변경 로그가 기능 추가를 확인한다.",
+  "verdictDigest": "정확한 도입 및 백포트 버전이 두 공식 Node.js 자료에서 확인된다.",
+  "evidence": [
+    {
+      "source": "Node.js v24 API documentation",
+      "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+      "dateOrYear": "current",
+      "quote": "Added in: v17.3.0, v16.14.0",
+      "relevance": "AbortSignal.timeout()의 정확한 추가 버전을 직접 명시한다."
+    },
+    {
+      "source": "Node.js v17 CHANGELOG",
+      "url": "https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md",
+      "dateOrYear": "2021",
+      "quote": "**(SEMVER-MINOR)** **lib**: add AbortSignal.timeout",
+      "relevance": "Node.js v17.3.0 변경 로그에서 기능 추가를 확인한다."
+    }
+  ],
+  "caveats": [
+    "'Added in'은 도입·백포트 버전이며 별도의 안정성 등급을 직접 의미하지 않는다."
+  ],
+  "correctionOrCounterclaim": ""
+}

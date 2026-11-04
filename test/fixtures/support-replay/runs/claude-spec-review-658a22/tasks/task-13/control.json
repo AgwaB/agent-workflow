@@ -1,0 +1,69 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "finding-005 KEEP(medium): direct-dynamic 터미널 분기는 run.status·degradation과 무관하게 semanticStatus를 재할당해 completed+degradation 실행이 completed_degraded를 잃을 수 있다(T1 문언 위반). 도달 가능성은 repo 밖 degradation 기록 경로에 의존.",
+  "id": "finding-005",
+  "verdict": "KEEP",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 68,
+      "lineEnd": 68,
+      "quote": "return run.degradation ? \"completed_degraded\" : \"completed\";",
+      "relevance": "비동적 경로만 degradation을 보고 completed_degraded를 반환"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 77,
+      "lineEnd": 77,
+      "quote": "let semanticStatus: WorkflowSemanticStatus = nonDynamicSemanticStatus(run);",
+      "relevance": "기본값은 degradation을 반영한 값으로 설정됨"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 80,
+      "lineEnd": 80,
+      "quote": "if (terminal && run.provenance?.mode === \"direct-dynamic\") {",
+      "relevance": "direct-dynamic 터미널 실행은 run.status 'completed' 검사 없이 이 분기로 진입"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 86,
+      "lineEnd": 86,
+      "quote": "if (incomplete) semanticStatus = \"dynamic_incomplete\";",
+      "relevance": "degradation 값과 무관하게 기존 semanticStatus를 덮어씀"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 87,
+      "lineEnd": 87,
+      "quote": "else if (control?.status === \"synthesized\") semanticStatus = \"synthesized\";",
+      "relevance": "controller 상태가 synthesized이면 completed_degraded 기록이 있어도 synthesized로 덮어씀"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 95,
+      "lineEnd": 95,
+      "quote": "else semanticStatus = \"completed_without_semantic_result\";",
+      "relevance": "fallback도 degradation을 확인하지 않고 재할당"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 32,
+      "lineEnd": 32,
+      "quote": "**T1.** `completed` 실행에 degradation 기록이 있으면",
+      "relevance": "T1은 dynamic 예외 없이 completed 실행 전체에 적용되는 문언"
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 33,
+      "lineEnd": 33,
+      "quote": "**T2.** direct-dynamic 실행에서 controller의",
+      "relevance": "dynamic 실행은 자체 의미 상태 규칙(T2)을 가져 덮어쓰기가 의도된 설계일 수 있음(단, T1에 예외 조항은 없음)"
+    }
+  ],
+  "finalClaim": "direct-dynamic 터미널 분기(src/workflow-terminal.ts:80–95)는 run.status와 run.degradation을 확인하지 않고 semanticStatus를 무조건 재할당한다. 따라서 completed이면서 degradation 기록이 있는 dynamic 실행이 synthesized/exhausted_*/dynamic_*/completed_without_semantic_result로 보고될 수 있어 SPEC T1 문언을 지키지 못한다. 실제 발생 여부는 degradation을 기록하는 repo 밖 store/types 코드에 달려 있다.",
+  "recommendedAction": "dynamic 분기에서 run.status==='completed' && run.degradation인 경우의 우선순위를 명시하고(예: dynamic_incomplete/dynamic_blocked 등은 유지, 나머지 completed 계열은 completed_degraded), 해당 케이스 단위 테스트 추가. 또한 degradation을 dynamic 실행에 기록하는 경로가 있는지 store/types에서 확인하고 SPEC에 dynamic 예외 여부를 명시."
+}

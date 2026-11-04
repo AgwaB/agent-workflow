@@ -1,0 +1,105 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "현재 구현에서 상태 오분류와 공개 요약 필드 불일치가 확인되어 상태·데이터 관점의 배포 보류를 권고한다. 다만 diff가 없어 654f639의 회귀로 귀속할 수는 없다.",
+  "status": "high",
+  "impacts": [
+    {
+      "id": "SD1",
+      "severity": "high",
+      "blocker": true,
+      "area": "data-contract",
+      "summary": "공개 계약 launchRetryAttempts 대신 launchRetries를 반환한다.",
+      "refs": [
+        "terminal-summary",
+        "spec"
+      ]
+    },
+    {
+      "id": "SD2",
+      "severity": "high",
+      "blocker": true,
+      "area": "state-classification",
+      "summary": "timeout을 취소로, 메시지 접두사가 일치하는 일반 오류를 중지로 판별한다.",
+      "refs": [
+        "cancellation",
+        "stop-classification",
+        "spec"
+      ]
+    },
+    {
+      "id": "SD3",
+      "severity": "medium",
+      "blocker": true,
+      "area": "polling-and-concurrency",
+      "summary": "폴링 기본값·최솟값이 명세와 다르며 느린 읽기는 중첩될 수 있다.",
+      "refs": [
+        "stop-watcher",
+        "spec"
+      ]
+    },
+    {
+      "id": "SD4",
+      "severity": "medium",
+      "blocker": true,
+      "area": "artifact-state",
+      "summary": "controller 파일을 읽지 못해도 dynamic_incomplete가 fallback보다 우선하여 T2와 충돌한다.",
+      "refs": [
+        "terminal-artifact",
+        "terminal-summary",
+        "spec"
+      ]
+    },
+    {
+      "id": "SD5",
+      "severity": "medium",
+      "blocker": false,
+      "area": "ownership-and-lifecycle",
+      "summary": "중복 signal 등록은 소유권별 참조 계수가 없고, dispose는 진행 중인 읽기와 후속 abort를 막지 않는다.",
+      "refs": [
+        "stop-registration",
+        "stop-watcher"
+      ]
+    },
+    {
+      "id": "SD6",
+      "severity": "medium",
+      "blocker": false,
+      "area": "artifact-consistency",
+      "summary": "이 모듈에는 controller 아티팩트의 실행 세대·스키마·출력 ID 검증이나 run 스냅샷 보장이 없다.",
+      "refs": [
+        "terminal-artifact",
+        "terminal-summary"
+      ]
+    },
+    {
+      "id": "SD7",
+      "severity": "unknown",
+      "blocker": true,
+      "area": "verification-gap",
+      "summary": "부모 대비 diff, 저장 계층, 실제 호출자와 검증 결과가 없어 커밋별 영속화·마이그레이션 안전성을 확인할 수 없다.",
+      "refs": [
+        "upstream-scope",
+        "upstream-map",
+        "package"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A1",
+      "summary": "high는 관측된 현재 구현의 위험도이며 이번 커밋이 해당 문제를 도입했다는 의미는 아니다."
+    },
+    {
+      "id": "A2",
+      "summary": "SPEC.md를 계약 근거로 삼았다. 작업 트리와 HEAD의 일치 여부 및 명세의 커밋 간 변경은 미확인이다."
+    },
+    {
+      "id": "A3",
+      "summary": "상태 판별 결과를 실제 실행 상태·재시도에 반영하는 호출자는 발췌에 없어 후속 영향은 조건부다."
+    },
+    {
+      "id": "A4",
+      "summary": "읽기 전용 정적 검토다. control은 제공된 스키마의 필수 필드·타입·열거값에 대조했으며 자동 검증기와 테스트는 실행하지 않았다."
+    }
+  ]
+}

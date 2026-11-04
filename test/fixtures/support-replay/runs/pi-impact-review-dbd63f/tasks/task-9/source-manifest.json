@@ -1,0 +1,97 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1jd7gm_dbd63f",
+  "taskId": "task-9",
+  "sources": [
+    {
+      "source": "impact-analysis.api-contract-impact",
+      "displayName": "impact-analysis.api-contract-impact.main",
+      "taskId": "task-4",
+      "specId": "impact-analysis.api-contract-impact.main",
+      "stageId": "impact-analysis.api-contract-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "현재 구현에 공개 필드·오류 분류·폴링 계약 불일치가 있어 계약 관점의 배포 승인은 보류한다. 654f639 변경 귀속은 diff 부재로 미확인이다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-4/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-4/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-4/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-4/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.state-data-impact",
+      "displayName": "impact-analysis.state-data-impact.main",
+      "taskId": "task-5",
+      "specId": "impact-analysis.state-data-impact.main",
+      "stageId": "impact-analysis.state-data-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "현재 구현에서 상태 오분류와 공개 요약 필드 불일치가 확인되어 상태·데이터 관점의 배포 보류를 권고한다. 다만 diff가 없어 654f639의 회귀로 귀속할 수는 없다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-5/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-5/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-5/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-5/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.docs-release-impact",
+      "displayName": "impact-analysis.docs-release-impact.main",
+      "taskId": "task-7",
+      "specId": "impact-analysis.docs-release-impact.main",
+      "stageId": "impact-analysis.docs-release-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "공개 필드·행동 명세 불일치와 배포 검증 공백으로 배포 보류를 권고한다. 해당 문제가 654f639에서 발생했는지는 미확인이다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-7/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-7/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-7/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-7/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

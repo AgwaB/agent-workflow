@@ -1,0 +1,394 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "654f639를 가리키는 체크아웃의 중지·취소·종료 요약 및 검증 표면을 매핑했다. 부모 커밋 대비 변경 귀속과 배포 판단은 포함하지 않는다.",
+  "scope": {
+    "requestedRange": "HEAD~1..HEAD",
+    "headRef": "654f639606913ae2ea7b2465cf1bdcae71c03ff2",
+    "basis": "현재 작업 트리의 파일 직접 관찰",
+    "diffVerified": false,
+    "workingTreeMatchesHeadVerified": false
+  },
+  "components": [
+    {
+      "id": "stop",
+      "path": "src/workflow-stop.ts",
+      "symbols": [
+        "bindWorkflowLaunchSignal",
+        "launchStopRequested",
+        "WORKFLOW_STOP_REQUESTED_ERROR_NAME",
+        "createWorkflowStopPendingError",
+        "isWorkflowStopPendingError",
+        "workflowStopRequestedMessage",
+        "createWorkflowStopRequestedError",
+        "isWorkflowStopRequestedError",
+        "createWorkflowStopSignal",
+        "throwIfWorkflowStopRequested"
+      ],
+      "dependencies": [
+        "./store.js:readWorkflowStopIntent",
+        "./store.js:workflowRunPath",
+        "AbortController",
+        "AbortSignal",
+        "setInterval"
+      ],
+      "state": "모듈 범위 launchSignals: Map<string, Set<AbortSignal>>; 각 watcher의 AbortController와 interval",
+      "observedBehavior": [
+        "등록 키는 workflowRunPath(cwd, runId); 해제 시 signal을 제거하고 마지막 signal이면 Map 항목을 제거한다.",
+        "중지 오류 생성 시 name은 WorkflowStopRequested, message는 workflow stop requested for <runId>이다.",
+        "중지 오류 판별은 Error 인스턴스의 name 또는 메시지 접두사를 인정한다.",
+        "pollMs는 Math.max(1, options.pollMs ?? 200)이다.",
+        "watcher는 즉시 검사 후 interval로 반복하며 디스크 읽기 실패를 undefined로 바꾼다.",
+        "dispose는 clearInterval만 수행하며 진행 중인 읽기를 취소하지 않는다.",
+        "throwIfWorkflowStopRequested는 디스크 읽기 오류를 그대로 전파한다."
+      ],
+      "refs": [
+        "r-stop-registration",
+        "r-stop-errors",
+        "r-stop-watcher"
+      ]
+    },
+    {
+      "id": "cancellation",
+      "path": "src/workflow-cancellation.ts",
+      "symbols": [
+        "isWorkflowAbortError",
+        "isWorkflowReturnedCancellation",
+        "isRecord"
+      ],
+      "dependencies": [
+        "DOMException",
+        "JSON.parse"
+      ],
+      "observedBehavior": [
+        "name이 AbortError인 DOMException 또는 비배열 객체를 abort로 인정한다.",
+        "value.cancelled 또는 details.cancelled가 true이면 취소로 인정한다.",
+        "error/reason 및 details.error/details.reason 문자열은 aborted, AbortError, ABORT_ERR, cancelled, timeout을 인정한다.",
+        "content 배열의 객체형 entry.text를 JSON.parse한 뒤 재귀적으로 판별한다.",
+        "재귀 진입 조건은 parsed !== value이며 별도의 깊이·크기 제한이나 방문 집합은 없다.",
+        "JSON 파싱 또는 재귀 호출에서 발생한 예외는 해당 entry의 catch에서 무시한다."
+      ],
+      "refs": [
+        "r-cancellation"
+      ]
+    },
+    {
+      "id": "terminal",
+      "path": "src/workflow-terminal.ts",
+      "symbols": [
+        "WorkflowSemanticStatus",
+        "WorkflowTerminalSummary",
+        "summarizeWorkflowTerminal",
+        "readDynamicControllerControl",
+        "nonDynamicSemanticStatus",
+        "stringArray"
+      ],
+      "dependencies": [
+        "node:path:dirname",
+        "node:path:join",
+        "./store.js",
+        "./types.js:WorkflowRunRecord"
+      ],
+      "summaryFields": [
+        "terminal",
+        "engineStatus",
+        "semanticStatus",
+        "outputTaskIds",
+        "outputRetryAttempts",
+        "launchRetries",
+        "artifactRoot"
+      ],
+      "observedBehavior": [
+        "일반 completed 실행은 degradation의 truthiness에 따라 completed_degraded 또는 completed로 요약한다.",
+        "terminal이고 provenance.mode가 direct-dynamic일 때 controller control.json으로 의미 상태와 outputTaskIds를 재계산한다.",
+        "dynamic_incomplete 작업 존재 여부를 controller status보다 먼저 적용한다.",
+        "controller status는 synthesized, exhausted, blocked, stopped를 분기하며 나머지는 completed_without_semantic_result이다.",
+        "outputRetryAttempts와 launchRetries는 모든 작업의 각 attempts ?? 0을 합산한다."
+      ],
+      "refs": [
+        "r-terminal-contract",
+        "r-terminal-control",
+        "r-terminal-summary"
+      ]
+    },
+    {
+      "id": "external-store-and-record",
+      "paths": [
+        "src/store.js",
+        "src/types.js"
+      ],
+      "availability": "저장소 발췌에 포함되지 않음",
+      "requiredStoreSymbols": [
+        "readWorkflowStopIntent",
+        "workflowRunPath",
+        "finalStageTasks",
+        "fromProjectPath",
+        "isTerminalWorkflowStatus",
+        "readJson",
+        "workflowRunDir"
+      ],
+      "consumedRunFields": [
+        "runId",
+        "status",
+        "degradation",
+        "provenance.mode",
+        "tasks"
+      ],
+      "consumedTaskFields": [
+        "specId",
+        "statusDetail",
+        "files.output",
+        "outputRetry.attempts",
+        "launchRetry.attempts"
+      ],
+      "refs": [
+        "r-stop-registration",
+        "r-terminal-control",
+        "r-terminal-summary",
+        "r-spec"
+      ]
+    },
+    {
+      "id": "package-and-validation",
+      "paths": [
+        "package.json",
+        "tsconfig.json"
+      ],
+      "package": {
+        "name": "workflow-stop-sample",
+        "version": "0.0.0",
+        "private": true,
+        "type": "module"
+      },
+      "commands": [
+        "npm run typecheck"
+      ],
+      "typecheckCommand": "tsc --noEmit",
+      "compilerOptions": {
+        "target": "ES2022",
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "strict": true,
+        "noEmit": true,
+        "skipLibCheck": true
+      },
+      "include": [
+        "src/**/*.ts"
+      ],
+      "observations": [
+        "package.json에 dependencies/devDependencies, test/build/release 스크립트, exports/main 선언이 없다.",
+        "관찰한 저장소 파일에는 단위 테스트, lockfile, CI 설정, README, changelog가 없다.",
+        "명령 실행 및 타입 검사 결과는 확보하지 않았다."
+      ],
+      "refs": [
+        "r-package",
+        "r-tsconfig",
+        "r-inventory"
+      ]
+    },
+    {
+      "id": "documented-contract",
+      "path": "SPEC.md",
+      "requirements": {
+        "S1-S7": "중지 감지 경로, 오류 식별, polling, 읽기 오류, dispose, signal 해제",
+        "C1-C2": "provider 취소 문자열과 JSON 내용 재귀 판별",
+        "T1-T3": "의미 상태와 공개 재시도 집계 필드",
+        "Q1": "각 S/C/T 항목에 대한 단위 테스트"
+      },
+      "comparisonPoints": [
+        {
+          "requirement": "S3",
+          "documented": "pollMs 기본 50ms, 최소 10ms",
+          "observed": "기본 200ms, 최소 1ms",
+          "implementation": "src/workflow-stop.ts:67"
+        },
+        {
+          "requirement": "S6",
+          "documented": "오류 이름만으로 판별",
+          "observed": "이름 또는 메시지 접두사로 판별",
+          "implementation": "src/workflow-stop.ts:53-58"
+        },
+        {
+          "requirement": "C1",
+          "documented": "오류·사유 문자열 aborted, AbortError, ABORT_ERR만 인정",
+          "observed": "cancelled와 timeout도 인정",
+          "implementation": "src/workflow-cancellation.ts:19-21"
+        },
+        {
+          "requirement": "T3",
+          "documented": "공개 필드 outputRetryAttempts, launchRetryAttempts",
+          "observed": "인터페이스와 반환 객체는 outputRetryAttempts, launchRetries",
+          "implementation": "src/workflow-terminal.ts:27-35,103-110"
+        }
+      ],
+      "refs": [
+        "r-spec",
+        "r-stop-errors",
+        "r-stop-watcher",
+        "r-cancellation",
+        "r-terminal-contract",
+        "r-terminal-summary"
+      ]
+    }
+  ],
+  "entryPoints": [
+    {
+      "symbol": "bindWorkflowLaunchSignal(cwd, runId, signal)",
+      "path": "src/workflow-stop.ts:7",
+      "input": "AbortSignal | undefined",
+      "output": "등록 해제 함수",
+      "callers": "발췌 내 외부 호출부 없음"
+    },
+    {
+      "symbol": "createWorkflowStopSignal(cwd, runId, options)",
+      "path": "src/workflow-stop.ts:61",
+      "input": "{ pollMs?: number }",
+      "output": "{ signal: AbortSignal; dispose: () => void }",
+      "callers": "발췌 내 호출부 없음"
+    },
+    {
+      "symbol": "throwIfWorkflowStopRequested(cwd, runId)",
+      "path": "src/workflow-stop.ts:89",
+      "output": "Promise<void>; 중지 또는 저장소 읽기 오류를 throw",
+      "callers": "발췌 내 호출부 없음"
+    },
+    {
+      "symbols": [
+        "createWorkflowStopPendingError",
+        "isWorkflowStopPendingError",
+        "workflowStopRequestedMessage",
+        "createWorkflowStopRequestedError",
+        "isWorkflowStopRequestedError",
+        "WORKFLOW_STOP_REQUESTED_ERROR_NAME"
+      ],
+      "path": "src/workflow-stop.ts:30-59",
+      "boundary": "호출자와 주고받는 오류 이름·메시지·판별 결과"
+    },
+    {
+      "symbols": [
+        "isWorkflowAbortError(value)",
+        "isWorkflowReturnedCancellation(value)"
+      ],
+      "path": "src/workflow-cancellation.ts:2-33",
+      "input": "unknown provider 반환값",
+      "output": "boolean",
+      "callers": "발췌 내 provider adapter 없음; 자기 재귀만 확인"
+    },
+    {
+      "symbol": "summarizeWorkflowTerminal(cwd, run)",
+      "path": "src/workflow-terminal.ts:72",
+      "input": "WorkflowRunRecord",
+      "output": "Promise<WorkflowTerminalSummary>",
+      "callers": "발췌 내 외부 호출부 없음"
+    },
+    {
+      "command": "npm run typecheck",
+      "path": "package.json:7",
+      "invokes": "tsc --noEmit",
+      "execution": "미실행"
+    }
+  ],
+  "dataFlows": [
+    {
+      "id": "foreground-stop",
+      "from": "foreground AbortSignal 등록",
+      "via": [
+        "workflowRunPath(cwd, runId)",
+        "launchSignals Map/Set",
+        "launchStopRequested"
+      ],
+      "to": [
+        "watcher AbortController.abort",
+        "throwIfWorkflowStopRequested의 throw"
+      ],
+      "details": "중지 검사는 디스크 읽기 전후에 수행된다. Map은 프로세스 메모리에만 있으며 디스크 쓰기는 이 발췌에 없다."
+    },
+    {
+      "id": "durable-stop",
+      "from": "readWorkflowStopIntent(cwd, runId)",
+      "via": "반환값 truthiness로 중지 판정",
+      "to": "WorkflowStopRequested 오류",
+      "errorHandling": "watcher에서는 읽기 실패 무시; throwIf에서는 전파",
+      "resourceSurface": "즉시 읽기와 interval 읽기; 진행 중 검사 직렬화 플래그가 없어 읽기가 polling보다 느리면 중첩 가능"
+    },
+    {
+      "id": "provider-cancellation",
+      "from": "unknown provider 객체 및 content[].text",
+      "via": [
+        "객체/배열 구분",
+        "name 및 cancelled 검사",
+        "error/reason 정확 문자열 비교",
+        "JSON.parse 후 재귀"
+      ],
+      "to": "취소 여부 boolean",
+      "resourceSurface": "입력 text 길이, content 개수, 중첩 JSON 깊이에 따라 파싱·순회량이 달라짐"
+    },
+    {
+      "id": "dynamic-controller-artifact",
+      "from": "run.tasks의 첫 dynamic.controller 또는 dynamic_completed 작업",
+      "via": [
+        "controller.files.output",
+        "fromProjectPath(cwd, ...)",
+        "join(dirname(taskOutput), 'control.json')",
+        "readJson"
+      ],
+      "to": [
+        "semanticStatus",
+        "outputTaskIds"
+      ],
+      "artifactFields": [
+        "schema?: unknown",
+        "status?: unknown",
+        "outputTasks?: unknown"
+      ],
+      "details": "schema 값은 사용하지 않으며 outputTasks는 문자열 원소만 남긴다. 읽기 실패는 undefined로 바꾼다.",
+      "trustBoundary": "경로 해석·JSON 읽기의 실제 검증은 누락된 store 구현에 의존"
+    },
+    {
+      "id": "terminal-summary",
+      "from": "WorkflowRunRecord와 전체 tasks",
+      "via": [
+        "isTerminalWorkflowStatus",
+        "nonDynamicSemanticStatus",
+        "finalStageTasks",
+        "두 retry reduce",
+        "workflowRunDir"
+      ],
+      "to": "WorkflowTerminalSummary",
+      "details": "초기 outputTaskIds는 finalStageTasks의 specId이며 terminal direct-dynamic이면 control.outputTasks로 대체된다. run 자체를 수정하거나 저장하는 코드는 없다."
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "commit-delta",
+      "question": "HEAD~1..HEAD의 실제 변경 파일·행과 작업 트리 일치 여부",
+      "known": ".git/HEAD와 refs/heads/main은 요청한 654f639를 가리킨다.",
+      "limitation": "사용 가능한 도구에 git 실행이 없고 upstream artifact도 없다. 부모 커밋·diff·작업 트리 상태를 확인하지 못했다.",
+      "neededEvidence": "git diff HEAD~1 HEAD 및 git status --short 결과",
+      "confidence": "현재 파일 동작 관찰은 높음; 커밋 변경 귀속은 미확인"
+    },
+    {
+      "id": "missing-runtime-dependencies",
+      "question": "stop intent 스키마, 경로 격리, JSON 검증, terminal 상태 집합, finalStageTasks 정의",
+      "limitation": "store.js와 types.js가 발췌에 없음",
+      "neededEvidence": "원본 store/types 구현과 WorkflowRunRecord 정의"
+    },
+    {
+      "id": "external-consumers",
+      "question": "launchRetryAttempts 및 오류·의미 상태를 읽는 외부 도구와 실제 호출 경로",
+      "limitation": "외부 소비자, provider adapter, dispatch 및 launch 소유자 구현이 없음",
+      "neededEvidence": "전체 프로젝트의 import/call sites와 요약 직렬화·소비 코드"
+    },
+    {
+      "id": "validation-and-lifecycle",
+      "question": "S1-S7/C1-C2/T1-T3 테스트, dispose 경계, 느린 읽기, 중첩 provider JSON의 실행 결과",
+      "limitation": "테스트 파일·테스트 스크립트를 발견하지 못했고 명령은 실행하지 않음",
+      "neededEvidence": "단위 테스트와 실행 로그, TypeScript 및 Node 타입 제공 방식"
+    },
+    {
+      "id": "release-context",
+      "question": "실제 배포 단위, 호환성 정책, 릴리스 문서와 CI gate",
+      "limitation": "확인 가능한 package는 private 0.0.0 발췌이며 release/build 설정은 없음",
+      "neededEvidence": "원본 프로젝트의 package/export 설정, 배포 구성 및 릴리스 기록"
+    }
+  ]
+}

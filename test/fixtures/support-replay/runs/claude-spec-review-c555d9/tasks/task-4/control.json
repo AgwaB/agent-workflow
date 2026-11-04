@@ -1,0 +1,374 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "13 spec items (S1–S7, C1–C2, T1–T3, Q1) checked against src/ and found no test files; 6 candidate findings: S3 pollMs default/clamp, S6 message-prefix match, C1 extra cancellation markers, T1 direct-dynamic degradation, T3 launchRetries name, Q1 missing tests.",
+  "requirementCoverage": [
+    {
+      "requirementId": "REQ-001",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 70,
+          "lineEnd": 70,
+          "quote": "if (launchStopRequested(cwd, runId)) {",
+          "relevance": "foreground AbortSignal path"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 74,
+          "lineEnd": 78,
+          "quote": "if (intent || launchStopRequested(cwd, runId))",
+          "relevance": "disk stop-intent path combined with launch signal"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-002",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 44,
+          "lineEnd": 44,
+          "quote": "return `workflow stop requested for ${runId}`;",
+          "relevance": "message format"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 49,
+          "lineEnd": 49,
+          "quote": "error.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME;",
+          "relevance": "error name"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-003",
+      "status": "gap",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 67,
+          "lineEnd": 67,
+          "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+          "relevance": "default 200 instead of 50; floor 1 instead of 10"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-004",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 74,
+          "lineEnd": 76,
+          "quote": "readWorkflowStopIntent(cwd, runId).catch(",
+          "relevance": "watch path swallows read errors"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 95,
+          "lineEnd": 95,
+          "quote": "const intent = await readWorkflowStopIntent(cwd, runId);",
+          "relevance": "throw path has no catch, errors propagate"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-005",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 81,
+          "lineEnd": 81,
+          "quote": "const timer = setInterval(() => void check(), pollMs);",
+          "relevance": "only recurring read source"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 85,
+          "lineEnd": 85,
+          "quote": "dispose: () => clearInterval(timer),",
+          "relevance": "dispose stops further polling"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-006",
+      "status": "gap",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 56,
+          "lineEnd": 57,
+          "quote": "error.message.startsWith(\"workflow stop requested\"))",
+          "relevance": "message-prefix acceptance that S6 forbids"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-007",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 18,
+          "lineEnd": 18,
+          "quote": "signals.delete(signal);",
+          "relevance": "unregister"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 19,
+          "lineEnd": 20,
+          "quote": "if (signals.size === 0 && launchSignals.get(key) === signals)",
+          "relevance": "empty entry removed on last release"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-008",
+      "status": "gap",
+      "evidence": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "lineStart": 16,
+          "lineEnd": 16,
+          "quote": "if (value.cancelled === true) return true;",
+          "relevance": "extra boolean shape beyond C1"
+        },
+        {
+          "file": "src/workflow-cancellation.ts",
+          "lineStart": 20,
+          "lineEnd": 20,
+          "quote": "candidate === \"cancelled\" || candidate === \"timeout\"",
+          "relevance": "markers beyond aborted/AbortError/ABORT_ERR"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-009",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "lineStart": 27,
+          "lineEnd": 28,
+          "quote": "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+          "relevance": "JSON content re-check; recursion descends into strictly shorter nested text"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-010",
+      "status": "partial",
+      "evidence": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 67,
+          "lineEnd": 68,
+          "quote": "return run.degradation ? \"completed_degraded\" : \"completed\";",
+          "relevance": "non-dynamic path maps degradation to completed_degraded"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 95,
+          "lineEnd": 95,
+          "quote": "else semanticStatus = \"completed_without_semantic_result\";",
+          "relevance": "direct-dynamic branch overwrites semantic status"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-011",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 59,
+          "lineEnd": 61,
+          "quote": ").catch(() => undefined);",
+          "relevance": "unreadable control.json yields undefined"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 95,
+          "lineEnd": 95,
+          "quote": "else semanticStatus = \"completed_without_semantic_result\";",
+          "relevance": "fallback status"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-012",
+      "status": "partial",
+      "evidence": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 103,
+          "lineEnd": 103,
+          "quote": "outputRetryAttempts: run.tasks.reduce(",
+          "relevance": "output retry sum correct"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 107,
+          "lineEnd": 107,
+          "quote": "launchRetries: run.tasks.reduce(",
+          "relevance": "exported as launchRetries, not launchRetryAttempts"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-013",
+      "status": "gap",
+      "evidence": []
+    }
+  ],
+  "candidateFindings": [
+    {
+      "id": "finding-001",
+      "requirementIds": [
+        "REQ-003"
+      ],
+      "severity": "medium",
+      "title": "Stop poll default and minimum deviate from S3",
+      "claim": "The default pollMs is 200ms instead of 50ms, and the floor is 1ms instead of 10ms.",
+      "specEvidence": [
+        "SPEC.md S3: pollMs default 50ms; caller values below 10ms must not be used"
+      ],
+      "implementationEvidence": [
+        "src/workflow-stop.ts:67 const pollMs = Math.max(1, options.pollMs ?? 200);"
+      ],
+      "testEvidence": [
+        "No test files exist to exercise the default or clamp."
+      ],
+      "uncertainty": "Observable effect is only polling latency; the spec default is explicit, so this is a deviation."
+    },
+    {
+      "id": "finding-002",
+      "requirementIds": [
+        "REQ-006"
+      ],
+      "severity": "high",
+      "title": "isWorkflowStopRequestedError accepts messages by prefix",
+      "claim": "The predicate returns true for any Error whose message starts with 'workflow stop requested', which S6 forbids.",
+      "specEvidence": [
+        "SPEC.md S6: only an error named WorkflowStopRequested is a stop error; message content must not be used"
+      ],
+      "implementationEvidence": [
+        "src/workflow-stop.ts:56-57 (error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME || error.message.startsWith(\"workflow stop requested\"))"
+      ],
+      "testEvidence": [
+        "No test covers same-message-different-name rejection."
+      ],
+      "uncertainty": "Low; the spec wording is direct. Callers that rely on the prefix could be affected."
+    },
+    {
+      "id": "finding-003",
+      "requirementIds": [
+        "REQ-008"
+      ],
+      "severity": "high",
+      "title": "Returned-cancellation predicate promotes extra markers",
+      "claim": "The predicate treats 'cancelled' and 'timeout' strings and cancelled===true booleans as cancellation, but C1 allows exactly aborted, AbortError, ABORT_ERR.",
+      "specEvidence": [
+        "SPEC.md C1: exactly aborted, AbortError, ABORT_ERR; other provider errors must not be promoted"
+      ],
+      "implementationEvidence": [
+        "src/workflow-cancellation.ts:16 if (value.cancelled === true) return true;",
+        "src/workflow-cancellation.ts:18 if (details?.cancelled === true) return true;",
+        "src/workflow-cancellation.ts:20 candidate === \"cancelled\" || candidate === \"timeout\""
+      ],
+      "testEvidence": [
+        "No test covers other provider errors not being promoted."
+      ],
+      "uncertainty": "Commit 654f639 message indicates related cancel/timeout handling was intentional; whether the spec or the code is authoritative needs confirmation."
+    },
+    {
+      "id": "finding-004",
+      "requirementIds": [
+        "REQ-010"
+      ],
+      "severity": "medium",
+      "title": "Direct-dynamic completed runs can lose completed_degraded",
+      "claim": "For direct-dynamic terminal runs, the dynamic branch overwrites the semantic status, so a completed run with degradation is not reported as completed_degraded unless the controller-status branch yields it.",
+      "specEvidence": [
+        "SPEC.md T1: completed run with degradation record has semantic state completed_degraded"
+      ],
+      "implementationEvidence": [
+        "src/workflow-terminal.ts:67-68 degradation mapping only in nonDynamicSemanticStatus",
+        "src/workflow-terminal.ts:80-95 direct-dynamic branch reassigns semanticStatus; else falls to completed_without_semantic_result"
+      ],
+      "testEvidence": [
+        "No test files exist for terminal summaries."
+      ],
+      "uncertainty": "Depends on whether direct-dynamic runs with degradation are in T1 scope; spec wording is unconditional."
+    },
+    {
+      "id": "finding-005",
+      "requirementIds": [
+        "REQ-012"
+      ],
+      "severity": "high",
+      "title": "Launch retry total exported under a different field name",
+      "claim": "The summary exports launchRetries, not launchRetryAttempts; the spec says both names are a public contract that must not change.",
+      "specEvidence": [
+        "SPEC.md T3: outputRetryAttempts and launchRetryAttempts are sums across tasks; field names are a public contract"
+      ],
+      "implementationEvidence": [
+        "src/workflow-terminal.ts:107 launchRetries: run.tasks.reduce(",
+        "src/workflow-terminal.ts:33 launchRetries: number;"
+      ],
+      "testEvidence": [
+        "No test checks exported field names."
+      ],
+      "uncertainty": "Commit 654f639 message mentions a shorter retry field name, so the rename looks intentional and conflicts with the spec. Confirm which is authoritative."
+    },
+    {
+      "id": "finding-006",
+      "requirementIds": [
+        "REQ-013"
+      ],
+      "severity": "low",
+      "title": "No unit tests exist for any requirement",
+      "claim": "Q1 requires a unit test per S/C/T item; the repo has no test files and no test script.",
+      "specEvidence": [
+        "SPEC.md Q1: each S, C, T item has a unit test confirming it"
+      ],
+      "implementationEvidence": [
+        "package.json scripts contain only typecheck"
+      ],
+      "testEvidence": [
+        "Glob found no *.test.* or *.spec.* files; inspect-tests reports no test files outside .agent-workflow."
+      ],
+      "uncertainty": "Tests may live outside the repo or be planned; the absence is confirmed only within this checkout."
+    }
+  ],
+  "needsHuman": [],
+  "noIssueNotes": [
+    "REQ-001, REQ-002, REQ-004, REQ-005, REQ-007, REQ-009, REQ-011 have positive implementation evidence in src/ but no test evidence; their coverage is implementation-only.",
+    "T2 (REQ-011) holds only for terminal direct-dynamic runs without incomplete/synthesized/exhausted/blocked/stopped controller status, as the code is written.",
+    "C2 (REQ-009): JSON.parse nesting shrinks each recursion step; the parsed!==value guard is effectively unreachable but does not cause unbounded recursion."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "Tests were inspected but not executed by this read-only stage.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "No test files exist in the checkout, so all test-evidence claims are absence-based.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "Coverage uses map-implementation artifacts plus direct reads of src/workflow-stop.ts, src/workflow-cancellation.ts, src/workflow-terminal.ts; other src files were not reviewed.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false
+}

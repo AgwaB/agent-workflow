@@ -1,0 +1,178 @@
+{
+ "runId": "workflow_mw1rwnkc_7f6ae1",
+ "name": "spec-review",
+ "bundle": "spec-review",
+ "project": "694bf24b8b07",
+ "evidenceRefetch": true,
+ "status": "completed",
+ "tasks": [
+  {
+   "taskId": "task-1",
+   "specId": "extract-spec.main",
+   "stageId": "extract-spec",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-2",
+   "specId": "map-implementation.main",
+   "stageId": "map-implementation",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-3",
+   "specId": "inspect-tests.main",
+   "stageId": "inspect-tests",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-4",
+   "specId": "candidate-findings.main",
+   "stageId": "candidate-findings",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-5",
+   "specId": "verify-findings.item",
+   "stageId": "verify-findings",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-9",
+   "specId": "verify-findings.finding-001",
+   "stageId": "verify-findings",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-findings.item",
+    "itemIdentity": "finding-001",
+    "itemHash": "d1050e505f91f0f0988f187294338c2b7c88fc25eca4d0e91cf5b59d4d74fb72",
+    "itemSourceTaskId": "task-4",
+    "itemSourceSpecId": "candidate-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "candidate-findings.main:control:$.candidateFindings[0]"
+   }
+  },
+  {
+   "taskId": "task-10",
+   "specId": "verify-findings.finding-002",
+   "stageId": "verify-findings",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-findings.item",
+    "itemIdentity": "finding-002",
+    "itemHash": "d79cbc754129e41d3d34fc71cba6ae5916f81e4573f07af6b6642e44dcb202ed",
+    "itemSourceTaskId": "task-4",
+    "itemSourceSpecId": "candidate-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "candidate-findings.main:control:$.candidateFindings[1]"
+   }
+  },
+  {
+   "taskId": "task-11",
+   "specId": "verify-findings.finding-003",
+   "stageId": "verify-findings",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-findings.item",
+    "itemIdentity": "finding-003",
+    "itemHash": "53f7cbe469d1d049ee1020bf19c69a1b0b5720274e39eac78634276ea7367323",
+    "itemSourceTaskId": "task-4",
+    "itemSourceSpecId": "candidate-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "candidate-findings.main:control:$.candidateFindings[2]"
+   }
+  },
+  {
+   "taskId": "task-12",
+   "specId": "verify-findings.finding-004",
+   "stageId": "verify-findings",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-findings.item",
+    "itemIdentity": "finding-004",
+    "itemHash": "5706b148403bf2d1cb4a9427b2f201fa6c23a75843a91655b423c1a8e45f6d7a",
+    "itemSourceTaskId": "task-4",
+    "itemSourceSpecId": "candidate-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "candidate-findings.main:control:$.candidateFindings[3]"
+   }
+  },
+  {
+   "taskId": "task-13",
+   "specId": "verify-findings.finding-005",
+   "stageId": "verify-findings",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-findings.item",
+    "itemIdentity": "finding-005",
+    "itemHash": "48e187e9da0a41d730725a4255e8c93981d0c4c353defc83a6b9b3b8eedf8a2e",
+    "itemSourceTaskId": "task-4",
+    "itemSourceSpecId": "candidate-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "candidate-findings.main:control:$.candidateFindings[4]"
+   }
+  },
+  {
+   "taskId": "task-14",
+   "specId": "verify-findings.finding-006",
+   "stageId": "verify-findings",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-findings.item",
+    "itemIdentity": "finding-006",
+    "itemHash": "10f4e3550eb3501a75b77a2942c37da2444daac3eb4ea23e443e581f8f3c99bf",
+    "itemSourceTaskId": "task-4",
+    "itemSourceSpecId": "candidate-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "candidate-findings.main:control:$.candidateFindings[5]"
+   }
+  },
+  {
+   "taskId": "task-6",
+   "specId": "partition-findings.main",
+   "stageId": "partition-findings",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-7",
+   "specId": "report.main",
+   "stageId": "report",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-8",
+   "specId": "final.main",
+   "stageId": "final",
+   "status": "completed"
+  }
+ ],
+ "supportTasks": [
+  {
+   "specId": "partition-findings.main",
+   "dependsOn": [
+    "candidate-findings.main",
+    "verify-findings.finding-001",
+    "verify-findings.finding-002",
+    "verify-findings.finding-003",
+    "verify-findings.finding-004",
+    "verify-findings.finding-005",
+    "verify-findings.finding-006"
+   ],
+   "support": {
+    "uses": "./helpers/spec-review-pipeline.mjs",
+    "options": {
+     "mode": "partition"
+    }
+   }
+  },
+  {
+   "specId": "final.main",
+   "dependsOn": [
+    "report.main",
+    "partition-findings.main"
+   ],
+   "support": {
+    "uses": "./helpers/render-spec-review-report.mjs"
+   }
+  }
+ ]
+}

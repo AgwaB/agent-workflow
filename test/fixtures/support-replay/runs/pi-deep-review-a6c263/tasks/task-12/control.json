@@ -1,0 +1,48 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "동일 signal의 중복 등록은 Set에서 합쳐지고 첫 해제가 공유 원소를 삭제하므로, 남은 등록의 중지 감지가 사라지는 문제를 확인했다.",
+  "findingId": "finding-001",
+  "finding": "동일 signal의 한 등록을 해제하면 다른 등록의 중지 감지도 사라짐",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 14,
+      "lineEnd": 20,
+      "symbol": "bindWorkflowLaunchSignal",
+      "quote": "\tconst signals = launchSignals.get(key) ?? new Set<AbortSignal>();\n\tsignals.add(signal);\n\tlaunchSignals.set(key, signals);\n\treturn () => {\n\t\tsignals.delete(signal);\n\t\tif (signals.size === 0 && launchSignals.get(key) === signals)\n\t\t\tlaunchSignals.delete(key);"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 24,
+      "lineEnd": 27,
+      "symbol": "launchStopRequested",
+      "quote": "function launchStopRequested(cwd: string, runId: string): boolean {\n\treturn [...(launchSignals.get(workflowRunPath(cwd, runId)) ?? [])].some(\n\t\t(signal) => signal.aborted,\n\t);"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 93,
+      "lineEnd": 98,
+      "symbol": "throwIfWorkflowStopRequested",
+      "quote": "\tif (launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);\n\tconst intent = await readWorkflowStopIntent(cwd, runId);\n\t// Cancellation may have arrived while the disk read was in flight.\n\tif (intent || launchStopRequested(cwd, runId))\n\t\tthrow createWorkflowStopRequestedError(runId);"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 69,
+      "lineEnd": 78,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "\t\tif (controller.signal.aborted) return;\n\t\tif (launchStopRequested(cwd, runId)) {\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));\n\t\t\treturn;\n\t\t}\n\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);\n\t\tif (intent || launchStopRequested(cwd, runId))\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 8,
+      "lineEnd": 10,
+      "quote": "- **S1.** 실행 중지는 두 경로 중 하나라도 있으면 감지되어야 한다: (a) 디스크에 기록된 중지 의도\n  (`readWorkflowStopIntent`), (b) 같은 실행(`workflowRunPath(cwd, runId)`)에 등록된 foreground\n  `AbortSignal` 중 abort된 것."
+    }
+  ],
+  "counterEvidence": [
+    "이미 abort된 감시 신호는 등록 해제로 되돌아가지 않으며, 디스크 중지 의도가 있으면 별도 경로로 계속 감지된다. 따라서 모든 취소가 유실되는 것은 아니다.",
+    "해제 시 Map의 Set 동일성을 확인하므로 오래된 해제가 새 Set을 삭제하는 것은 방지한다. 그러나 동일 Set 안의 중복 등록은 구별하지 못한다."
+  ],
+  "recommendedAction": "등록별 독립 토큰 또는 signal별 참조 횟수로 등록 수명을 관리하고, 각 해제 함수를 멱등적으로 만든다. 동일 signal을 두 번 등록한 뒤 하나만 해제하고 abort해도 중지가 감지되는 회귀 테스트를 추가한다."
+}

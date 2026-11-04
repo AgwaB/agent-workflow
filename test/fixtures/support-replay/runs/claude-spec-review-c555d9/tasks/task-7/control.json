@@ -1,0 +1,116 @@
+{
+  "schema": "spec-review-report-v1",
+  "digest": "spec-review:GAPS_FOUND:6-findings:partition-d64c0ca4",
+  "summary": "SPEC.md 대비 src/ 구현에는 확인된 명세 위반 6건(S3, S6, C1, T1, T3, Q1)이 있어 GAPS_FOUND다. S1·S2·S4·S5·S7·C2·T2는 구현 근거가 있으나 테스트 근거는 체크아웃 안에서 확인되지 않았다.",
+  "verdict": "GAPS_FOUND",
+  "ownerLedger": [
+    {
+      "source": "verify-findings",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-001",
+      "taskId": "task-9",
+      "itemIdentity": "finding-001",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-002",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-002",
+      "taskId": "task-10",
+      "itemIdentity": "finding-002",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-003",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-003",
+      "taskId": "task-11",
+      "itemIdentity": "finding-003",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-004",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-004",
+      "taskId": "task-12",
+      "itemIdentity": "finding-004",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-005",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-005",
+      "taskId": "task-13",
+      "itemIdentity": "finding-005",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-006",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-006",
+      "taskId": "task-14",
+      "itemIdentity": "finding-006",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    }
+  ],
+  "ownerLedgerReconciliation": {
+    "ownerRowCount": 6,
+    "verifierRowCount": 6,
+    "ownerIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "verifierIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "duplicateOwnerIds": [],
+    "duplicateVerifierIds": [],
+    "missingOwnerRows": [],
+    "orphanOwnerRows": [],
+    "statusMismatches": [],
+    "cardinalityPassed": true,
+    "passed": true
+  },
+  "risks": [
+    "finding-001 (REQ-003/S3): createWorkflowStopSignal의 pollMs 기본값 200ms, 하한 1ms가 명세의 50ms 기본값, 10ms 하한과 다르다 (src/workflow-stop.ts:67).",
+    "finding-002 (REQ-006/S6): isWorkflowStopRequestedError가 메시지 접두사 'workflow stop requested'로도 중지 오류를 판별한다 (src/workflow-stop.ts:56-57). 현재 호출자 없음.",
+    "finding-003 (REQ-008/C1): isWorkflowReturnedCancellation이 'cancelled'·'timeout' 문자열을 취소로 승격한다 (src/workflow-cancellation.ts:20). 커밋 654f639와 명세 중 어느 쪽이 권위인지 확인 필요.",
+    "finding-004 (REQ-010/T1): direct-dynamic 종료 실행에서 degradation이 있어도 completed_degraded가 나오지 않는다 (src/workflow-terminal.ts:80-95). T2와의 우선순위 규칙이 명세에 없다.",
+    "finding-005 (REQ-012/T3): 요약 필드가 launchRetryAttempts가 아닌 launchRetries로 노출된다 (src/workflow-terminal.ts:33,107). 합계 계산 자체는 맞다. 공개 계약 위반 가능성이 높다.",
+    "finding-006 (REQ-013/Q1): 체크아웃에 단위 테스트 파일과 test 스크립트가 없다. 전체 저장소에 테스트가 있는지는 확인되지 않았다."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "Tests were inspected but not executed by this read-only stage.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "No test files exist in the checkout, so all test-evidence claims are absence-based.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "Coverage uses map-implementation artifacts plus direct reads of src/workflow-stop.ts, src/workflow-cancellation.ts, src/workflow-terminal.ts; other src files were not reviewed.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "recommendedNextAction": "finding-001, 002, 003, 005를 우선 수정한다. 명세 권위를 먼저 확인한 뒤 finding-004와 finding-003을 처리하고, 각 수정에 대응하는 단위 테스트를 추가한다. 테스트 위치는 전체 pi-workflow 저장소에서 먼저 확인한다."
+}

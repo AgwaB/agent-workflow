@@ -1,0 +1,73 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "커밋 654f639는 외부 공개 계약 파괴(T3), 타임아웃 오류의 취소 오분류(C1), 디스크 I/O 고갈 위험 완화 및 지연시간 증가(S3), 단위 테스트 전무(Q1)로 인해 배포 차단 수준(high)의 심각한 회귀 위험을 안고 있습니다.",
+  "riskLevel": "high",
+  "risks": [
+    {
+      "id": "RISK-01",
+      "area": "api_contract_and_observability",
+      "severity": "high",
+      "blocker": true,
+      "specClause": "SPEC.md T3",
+      "target": "src/workflow-terminal.ts",
+      "title": "공개 계약 필드명 임의 변경으로 인한 외부 관측·모니터링 도구 장애",
+      "description": "WorkflowTerminalSummary 인터페이스 및 summarizeWorkflowTerminal에서 launchRetryAttempts를 launchRetries로 이름 변경하여 하위 호환성 없이 공개 계약(SPEC.md T3)을 파괴함. 외부 모니터링 시스템에서 undefined를 참조하게 되어 재시도 관측성 및 알림 체계가 훼손됨.",
+      "validationStatus": "unvalidated"
+    },
+    {
+      "id": "RISK-02",
+      "area": "state_lifecycle_and_reliability",
+      "severity": "high",
+      "blocker": true,
+      "specClause": "SPEC.md C1",
+      "target": "src/workflow-cancellation.ts",
+      "title": "프로바이더 타임아웃 오류를 취소로 승격시켜 장애 진단 은폐 및 재시도 차단",
+      "description": "isWorkflowReturnedCancellation에 'cancelled' 및 'timeout'을 취소 판별 사유로 추가하여 SPEC.md C1(aborted, AbortError, ABORT_ERR 3개만 허용)을 위반함. 프로바이더 네트워크 타임아웃이 취소로 오분류되어 오류 로그 및 재시도 로직이 누락되고 장애 복원력이 저하됨.",
+      "validationStatus": "unvalidated"
+    },
+    {
+      "id": "RISK-03",
+      "area": "concurrency_performance_and_security",
+      "severity": "high",
+      "blocker": true,
+      "specClause": "SPEC.md S3",
+      "target": "src/workflow-stop.ts",
+      "title": "폴링 주기 변경에 따른 디스크 I/O 고갈 위험(DoS) 및 중지 반응 지연",
+      "description": "createWorkflowStopSignal에서 pollMs 기본값을 50ms에서 200ms로 변경하여 중지 반응 속도가 4배 지연되고, 최소 클램프를 10ms에서 1ms로 완화하여(Math.max(1, ...)) 호출자에 의한 초당 최대 1,000회의 디스크 I/O 발생 및 이벤트 루프 고갈 위험을 초래함.",
+      "validationStatus": "unvalidated"
+    },
+    {
+      "id": "RISK-04",
+      "area": "validation_and_quality_gates",
+      "severity": "high",
+      "blocker": true,
+      "specClause": "SPEC.md Q1",
+      "target": "package.json",
+      "title": "단위 테스트 및 검증 프레임워크 완전 부재로 회귀 결함 미감지",
+      "description": "저장소에 테스트 러너 및 테스트 코드가 전혀 없어 SPEC.md Q1 명세를 위반함. 계약 파괴 및 명세 위반 결함들이 CI/테스트 파이프라인에서 전혀 감지되지 못한 채 방치됨.",
+      "validationStatus": "none"
+    }
+  ],
+  "riskReducers": [
+    {
+      "id": "REDUCE-01",
+      "target": "src/workflow-terminal.ts",
+      "action": "SPEC.md T3 준수를 위해 WorkflowTerminalSummary.launchRetries를 launchRetryAttempts로 원복하거나 하위 호환성 별칭(alias/getter) 제공"
+    },
+    {
+      "id": "REDUCE-02",
+      "target": "src/workflow-cancellation.ts",
+      "action": "SPEC.md C1 준수를 위해 isWorkflowReturnedCancellation 후보군에서 'cancelled'와 'timeout'을 제거하고 strict 3종(aborted, AbortError, ABORT_ERR)만 유지"
+    },
+    {
+      "id": "REDUCE-03",
+      "target": "src/workflow-stop.ts",
+      "action": "SPEC.md S3 준수를 위해 pollMs 기본값을 50ms로 복구하고 Math.max(10, ...) 클램프 경계 적용"
+    },
+    {
+      "id": "REDUCE-04",
+      "target": "package.json",
+      "action": "SPEC.md Q1 요구사항에 맞춰 node:test/vitest 등의 테스트 러너를 구축하고 S1~S7, C1~C2, T1~T3 전반에 대한 단위 테스트 스위트 작성"
+    }
+  ]
+}

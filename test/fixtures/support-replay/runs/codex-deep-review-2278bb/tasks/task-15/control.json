@@ -1,0 +1,33 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "명세와 구현 모두 공개 필드명 불일치를 직접 확인했으므로 finding-004를 유지한다.",
+  "findingId": "finding-004",
+  "finding": "공개 계약의 launchRetryAttempts 필드가 launchRetries로 구현됨",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 33,
+      "quote": "launchRetries: number;",
+      "symbol": "WorkflowTerminalSummary.launchRetries"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 107,
+      "lineEnd": 110,
+      "quote": "launchRetries: run.tasks.reduce(",
+      "symbol": "summarizeWorkflowTerminal"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 35,
+      "lineEnd": 36,
+      "quote": "`outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,"
+    }
+  ],
+  "counterEvidence": [
+    "저장소 내 launchRetries를 읽는 호출자는 검색되지 않아 현재 인리포지토리 사용처에서 즉시 드러나는 영향은 확인되지 않는다.",
+    "그러나 명세가 필드명을 외부 공개 계약으로 명시하므로 내부 호출자 부재는 계약 위반을 반박하지 못한다."
+  ],
+  "recommendedAction": "WorkflowTerminalSummary와 summarizeWorkflowTerminal 반환 객체의 키를 launchRetryAttempts로 변경하고, 해당 공개 필드를 검증하는 회귀 테스트를 추가한다."
+}

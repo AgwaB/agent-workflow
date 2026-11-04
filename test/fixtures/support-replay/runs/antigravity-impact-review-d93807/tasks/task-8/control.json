@@ -1,0 +1,45 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "보안·성능·안정성·관측가능성 분석 결과 심각도 high: SPEC 위반 3건(S3, C1, T3), pollMs=1ms 허용에 따른 디스크 I/O 고갈 위험, timeout의 취소 승격에 따른 장애 은폐, launchRetryAttempts 필드 삭제로 인한 외부 모니터링 계약 파괴로 배포 불가",
+  "status": "high",
+  "impacts": [
+    {
+      "category": "performance",
+      "severity": "high",
+      "target": "src/workflow-stop.ts (createWorkflowStopSignal)",
+      "description": "pollMs 최소 클램프를 10ms에서 1ms로 완화하여(Math.max(1, ...)) 호출자가 과도한 고주파(최대 1000Hz) 디스크 I/O 폴링을 유발할 수 있으며, 이벤트 루프 지연 및 I/O 고갈(DoS/자원 고갈) 위험을 초래함 (SPEC.md S3 명백한 위반). 또한 기본 폴링 주기가 50ms에서 200ms로 증가하여 디스크 중지 의도 감지 지연시간이 최대 4배 증가함."
+    },
+    {
+      "category": "reliability",
+      "severity": "high",
+      "target": "src/workflow-cancellation.ts (isWorkflowReturnedCancellation)",
+      "description": "프로바이더 응답에서 'cancelled' 및 'timeout'을 취소로 승격 처리하여 네트워크 타임아웃, 업스트림 장애 등의 실제 오류가 취소로 오분류됨 (SPEC.md C1 위반). 타임아웃 발생 시 재시도 로직이 누락되거나 오류 진단 정보가 은폐되어 시스템 복원력 및 신뢰성이 저하됨."
+    },
+    {
+      "category": "observability",
+      "severity": "high",
+      "target": "src/workflow-terminal.ts (WorkflowTerminalSummary, summarizeWorkflowTerminal)",
+      "description": "공개 계약 필드인 launchRetryAttempts를 launchRetries로 무단 변경하여(SPEC.md T3 위반) 외부 모니터링 도구, 대시보드 및 지표 수집 시스템에서 launchRetryAttempts 값이 undefined로 조회되어 태스크 재시도 관측성 및 알림 파이프라인이 파괴됨."
+    },
+    {
+      "category": "security",
+      "severity": "medium",
+      "target": "src/workflow-stop.ts & src/workflow-cancellation.ts",
+      "description": "1ms 폴링을 통한 로컬 I/O 자원 고갈(DoS) 가능성 및 타임아웃 오류를 단순 취소로 은폐함으로써 보안 이상 징후나 서비스 거부 상태를 진단하기 어렵게 만드는 간접 보안 리스크 존재. 개인정보(Privacy) 유출 영향은 없음."
+    }
+  ],
+  "assumptions": [
+    {
+      "topic": "spec_authority",
+      "assumption": "SPEC.md는 시스템의 중지(S1-S7), 취소(C1-C2), 종료 요약(T1-T3) 동작을 정의하는 단일 진실 공급원(SSOT)이며, 이를 위반하는 변경은 배포 차단 사유임."
+    },
+    {
+      "topic": "external_tool_contract",
+      "assumption": "launchRetryAttempts 필드는 SPEC.md T3에 명시된 바와 같이 외부 관측/모니터링 도구가 직접 참조하는 공개 계약이므로 하위 호환성 없이 변경할 수 없음."
+    },
+    {
+      "topic": "unmodified_files_scope",
+      "assumption": "커밋 654f639에서 수정된 파일은 src/workflow-stop.ts, src/workflow-cancellation.ts, src/workflow-terminal.ts 3개 파일이며 다른 파일에는 수정이 발생하지 않았음."
+    }
+  ]
+}

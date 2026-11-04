@@ -1,0 +1,135 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1rd241_2278bb",
+  "taskId": "task-3",
+  "sources": [
+    {
+      "source": "triage",
+      "displayName": "triage.main",
+      "taskId": "task-1",
+      "specId": "triage.main",
+      "stageId": "triage",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "중지 주기·오류 식별자가 명세와 다르고, 취소 판별이 과잉 포착하며, 종료 요약의 공개 재시도 필드명이 불일치한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1rd241_2278bb/tasks/task-1/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1rd241_2278bb/tasks/task-1/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1rd241_2278bb/tasks/task-1/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1rd241_2278bb/tasks/task-1/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "reviewers",
+      "displayName": "reviewers.runtime-correctness",
+      "taskId": "task-9",
+      "specId": "reviewers.runtime-correctness",
+      "stageId": "reviewers",
+      "status": "completed",
+      "itemIdentity": "runtime-correctness",
+      "placeholderSpecId": "reviewers.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "중지 주기·오류 판별·provider 취소 분류에서 명세와 불일치하는 고위험 문제가 확인됨.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1rd241_2278bb/tasks/task-9/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1rd241_2278bb/tasks/task-9/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1rd241_2278bb/tasks/task-9/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1rd241_2278bb/tasks/task-9/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "reviewers.api-contract",
+      "displayName": "reviewers.api-contract",
+      "taskId": "task-10",
+      "specId": "reviewers.api-contract",
+      "stageId": "reviewers",
+      "status": "completed",
+      "itemIdentity": "api-contract",
+      "placeholderSpecId": "reviewers.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "종료 요약의 launch retry 공개 필드명이 명세와 불일치해 외부 소비자가 값을 읽지 못할 수 있다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1rd241_2278bb/tasks/task-10/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1rd241_2278bb/tasks/task-10/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1rd241_2278bb/tasks/task-10/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1rd241_2278bb/tasks/task-10/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "reviewers.verification-hygiene",
+      "displayName": "reviewers.verification-hygiene",
+      "taskId": "task-11",
+      "specId": "reviewers.verification-hygiene",
+      "stageId": "reviewers",
+      "status": "completed",
+      "itemIdentity": "verification-hygiene",
+      "placeholderSpecId": "reviewers.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "Required boundary tests are absent; only typechecking is configured.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1rd241_2278bb/tasks/task-11/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1rd241_2278bb/tasks/task-11/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1rd241_2278bb/tasks/task-11/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1rd241_2278bb/tasks/task-11/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

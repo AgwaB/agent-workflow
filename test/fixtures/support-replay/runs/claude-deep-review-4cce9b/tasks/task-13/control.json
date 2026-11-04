@@ -1,0 +1,36 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "launchRetryAttempts를 launchRetries로 바꾼 것은 SPEC T3의 공개 필드 이름 계약을 깨뜨리며, 저장소 안에서 반박 근거를 찾지 못했다.",
+  "findingId": "finding-001",
+  "finding": "T3 위반: 공개 요약 필드 launchRetryAttempts가 launchRetries로 rename됨",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 33,
+      "lineEnd": 33,
+      "symbol": "WorkflowTerminalSummary",
+      "quote": "launchRetries: number;"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 107,
+      "lineEnd": 107,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "launchRetries: run.tasks.reduce("
+    },
+    {
+      "file": "SPEC.md",
+      "line": 35,
+      "lineEnd": 36,
+      "symbol": "T3",
+      "quote": "`outputRetryAttempts`와 `launchRetryAttempts`는"
+    }
+  ],
+  "counterEvidence": [
+    "저장소 안에서 launchRetryAttempts나 launchRetries를 읽는 코드는 검색되지 않았다. 외부 소비자가 없다면 실제 피해는 줄어든다.",
+    "커밋 654f639 메시지 'shorter retry field name'으로 보아 rename은 우연이 아니라 의도적이다.",
+    "SPEC의 '외부 도구가 읽는다'는 문구는 저장소 밖 소비자를 가리키므로 저장소 안에서는 실제 소비 여부를 확인할 수 없다."
+  ],
+  "recommendedAction": "33행과 107행의 launchRetries를 launchRetryAttempts로 되돌린다. 짧은 이름이 필요하면 SPEC T3을 먼저 고치고, 기존 이름을 deprecated 별칭으로 한 릴리스 동안 함께 출력한 뒤 테스트로 두 필드가 같은 값을 갖는지 확인한다."
+}

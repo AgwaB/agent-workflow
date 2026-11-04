@@ -1,0 +1,23 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC.md Q1에 명시된 단위 테스트 요구사항 및 package.json의 테스트 스크립트 부재가 확인되어 원 제안을 KEEP으로 유지합니다.",
+  "findingId": "finding-009",
+  "finding": "SPEC.md Q1 요구사항에 명시된 중지·취소·종료 동작 검증 단위 테스트 스위트 및 실행 스크립트 부재",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "package.json",
+      "line": 7,
+      "symbol": "scripts",
+      "quote": "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 40,
+      "symbol": "Q1",
+      "quote": "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "package.json에 테스트 스크립트(예: node --test 또는 vitest)와 의존성을 추가하고, SPEC.md S1~S7, C1~C2, T1~T3 요구사항을 검증하는 단위 테스트 스위트를 작성하십시오."
+}

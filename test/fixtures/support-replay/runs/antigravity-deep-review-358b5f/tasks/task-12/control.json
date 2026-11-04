@@ -1,0 +1,53 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC.md Q1에서 규정한 S·C·T 요구사항에 대한 단위 테스트 스위트 및 package.json 내 test 실행 스크립트가 부재함을 확인했습니다.",
+  "lens": "test-hygiene",
+  "findings": [
+    {
+      "severity": "medium",
+      "title": "SPEC.md Q1 요구사항에 명시된 중지·취소·종료 동작 검증 단위 테스트 스위트 및 실행 스크립트 부재",
+      "file": "package.json",
+      "locations": [
+        {
+          "file": "package.json",
+          "line": 7,
+          "symbol": "scripts"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 40,
+          "symbol": "Q1"
+        }
+      ],
+      "evidence": "package.json에는 'typecheck' 스크립트(\"scripts\": { \"typecheck\": \"tsc --noEmit\" })만 정의되어 있으며, 테스트 프레임워크 의존성 및 'test' 스크립트가 전혀 구성되어 있지 않습니다. 또한 저장소 내에 SPEC.md의 중지(S1~S7), 취소(C1~C2), 종료(T1~T3) 사양을 검증하는 단위 테스트 파일이 전혀 존재하지 않습니다.",
+      "evidenceQuotes": [
+        "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+        "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+      ],
+      "rationale": "SPEC.md의 요구사항 Q1은 S·C·T 모든 항목에 대해 동작을 확인하는 단위 테스트를 필수로 규정하고 있습니다. 자동화된 단위 테스트 체계가 없으면 디스크 중지 감지 및 폴링 하한선(S1~S7), 프로바이더 취소 파싱 및 JSON 재귀 방지(C1~C2), 종료 요약 텔레메트리 공개 계약(T1~T3)의 런타임 결함이나 회귀를 사전에 감지할 수 없어 신뢰성에 중대한 결손이 발생합니다.",
+      "recommendedAction": "package.json에 테스트 프레임워크(예: node:test 또는 Vitest)와 'test' 스크립트를 추가하고, SPEC.md S1~S7, C1~C2, T1~T3 요구사항을 전수 검증하는 단위 테스트 스위트를 작성하십시오.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "SPEC.md:38-41",
+    "package.json:1-9"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "SPEC.md:38-41",
+      "status": "read",
+      "evidence": "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "package.json:1-9",
+      "status": "read",
+      "evidence": "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": []
+}

@@ -1,0 +1,249 @@
+{
+  "schema": "deep-review-render-v1",
+  "digest": "Rendered 9 findings: high=8, medium=1.",
+  "status": "passed",
+  "verdict": "NEEDS_WORK",
+  "completionSummaryMarkdown": "## Core conclusion\n\nVerdict: **NEEDS_WORK**. The deterministic ledger contains 9 kept or weakened findings and 0 needs-human items.\n\n## Key findings\n\n- **high / KEEP:** 폴링 주기가 50ms 대신 200ms를 기본값으로 사용하고 최소값을 10ms 대신 1ms로 제한하여 S3을 위반함\n- **high / WEAKEN:** createWorkflowStopSignal의 비동기 check 함수에 중복 실행 방지가 누락됨\n- **high / WEAKEN:** dispose()가 실행 중인 비동기 검사를 차단하지 못하여 dispose 후 디스크 읽기 및 controller 중단 변이를 허용함\n- **high / KEEP:** isWorkflowStopRequestedError가 error.name만 확인하는 대신 error.message를 검사함\n- **high / KEEP:** Provider 오류 문자열 'cancelled'와 'timeout'이 취소로 잘못 처리됨 (C1 위반)\n- **high / KEEP:** 참조 불일치 검사(parsed!== value)가 순환적이거나 반복되는 JSON 구조에서 무한 재귀를 방지하지 못함 (C2 위반)\n- 3 additional finding row(s) are included in the full report.\n\n## Evidence level\n\n- Canonical rows: 9 kept or weakened findings, 0 needs-human items, and 0 supporting observations.\n- Coverage: complete according to source-status accounting.\n\n## Important limitations\n\n- Evidence and quotes are bound to the reviewed snapshot available to the partition stage; final rendering does not re-read repository files and therefore does not attest current-tree bytes.",
+  "markdown": "# Deep review report\n\n## Executive summary\n\n### Core conclusion\n\nVerdict: **NEEDS_WORK**. The deterministic ledger contains 9 kept or weakened findings and 0 needs-human items.\n\n### Key findings\n\n- **high / KEEP:** 폴링 주기가 50ms 대신 200ms를 기본값으로 사용하고 최소값을 10ms 대신 1ms로 제한하여 S3을 위반함\n- **high / WEAKEN:** createWorkflowStopSignal의 비동기 check 함수에 중복 실행 방지가 누락됨\n- **high / WEAKEN:** dispose()가 실행 중인 비동기 검사를 차단하지 못하여 dispose 후 디스크 읽기 및 controller 중단 변이를 허용함\n- **high / KEEP:** isWorkflowStopRequestedError가 error.name만 확인하는 대신 error.message를 검사함\n- **high / KEEP:** Provider 오류 문자열 'cancelled'와 'timeout'이 취소로 잘못 처리됨 (C1 위반)\n- **high / KEEP:** 참조 불일치 검사(parsed!== value)가 순환적이거나 반복되는 JSON 구조에서 무한 재귀를 방지하지 못함 (C2 위반)\n- 3 additional finding row(s) are included in the full report.\n\n### Evidence level\n\n- Canonical rows: 9 kept or weakened findings, 0 needs-human items, and 0 supporting observations.\n- Coverage: complete according to source-status accounting.\n\n### Important limitations\n\n- Evidence and quotes are bound to the reviewed snapshot available to the partition stage; final rendering does not re-read repository files and therefore does not attest current-tree bytes.\n\n## Finding summary\n\n| Severity | Count |\n|---|---:|\n| high | 8 |\n| medium | 1 |\n\n## Synthesis narrative\n\nSummary: src 디렉터리의 중지·취소 처리와 종료 요약 코드에 대한 정밀 검토 결과, 중지 신호 폴링 주기 기본값 및 클램핑 규격 위반, 오류 분류 로직의 과도한 문자열 매칭, 순환 구조에서의 무한 재귀 가능성, 비동기 I/O 실행 중복 및 해제 시점의 경쟁 조건 등 총 9건(유지 7건, 완화 2건)의 버그와 신뢰성 문제가 확인되었습니다. 검토 대상 소스는 전원 성공적으로 분석되었으나 확인된 결함들이 런타임 안정성에 직접적인 영향을 미치므로 코드 개선이 요구됩니다.\n\n## Risks and partial-review limitations\n\n- 보고서 패킷의 내러티브 컨텍스트는 상한으로 인해 일부 결함이 샘플링(유지 대상 7건 중 4건 표시)되었으며, 전체 검토 원장은 최종 렌더러에 완전히 보존되어 있습니다.\n- 비동기 중지 신호 감지 시 디스크 I/O 지연에 따른 중복 실행 및 리소스 해제(dispose) 경합으로 인해 상태 불일치가 유발될 수 있습니다.\n- 취소 오류 분류 시 과도한 문자열 일치 및 순환 JSON 데이터 처리 시의 재귀 가드 부재로 인해 예상치 못한 런타임 예외가 발생할 위험이 있습니다.\n\nRecommended synthesis action: 유지(keep) 판정을 받은 7건의 고위험 결함(폴링 간격/최소 클램핑 수정, 오류 타입 검증 강화, 취소 판정 문자열 축소, 재귀 깊이 제한 등)을 우선적으로 조치하고, 완화(weaken) 판정을 받은 비동기 중복 실행 방지 가드 및 dispose 경쟁 조건 방지 로직을 반영하십시오.\n\n## High findings\n\n### finding-001 — 폴링 주기가 50ms 대신 200ms를 기본값으로 사용하고 최소값을 10ms 대신 1ms로 제한하여 S3을 위반함\n\nSeverity: **high**  \nRoot cause: `root-001`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/workflow-stop.ts` | 67 | `createWorkflowStopSignal` |\n\nReviewer/source evidence:\n\n```ts\n\tconst pollMs = Math.max(1, options.pollMs ?? 200);\n```\n\nVerifier evidence:\n\n```ts\n\tconst pollMs = Math.max(1, options.pollMs ?? 200);\n```\n\n```text\n- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n```\n\nRationale:\n\nSPEC.md S3은 pollMs의 기본값이 50ms여야 하며 호출자가 더 작은 값을 지정하더라도 10ms보다 짧아서는 안 된다고 명시적으로 규정하고 있습니다. 기본값으로 200ms를 사용하면 중지 감지가 최대 4배까지 지연되며, 주기를 1ms까지 허용하면 과도한 디스크 읽기 및 CPU 경합이 발생합니다.\n\nRecommended action:\n\nsrc/workflow-stop.ts 67행을 Math.max(10, options.pollMs?? 50)으로 수정합니다.\n\n### finding-002 — createWorkflowStopSignal의 비동기 check 함수에 중복 실행 방지가 누락됨\n\nSeverity: **high**  \nRoot cause: `root-002`  \nVerifier verdict: **WEAKEN**  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/workflow-stop.ts` | 68-81 | `createWorkflowStopSignal` |\n\nReviewer/source evidence:\n\n```ts\n\tconst check = async (): Promise<void> => {\n```\n\n```ts\n\tconst timer = setInterval(() => void check(), pollMs);\n```\n\nVerifier evidence:\n\n```ts\n\tconst check = async (): Promise<void> => {\n```\n\n```ts\n\t\tif (controller.signal.aborted) return;\n```\n\n```ts\n\tconst timer = setInterval(() => void check(), pollMs);\n```\n\nRationale:\n\n디스크 I/O 지연이나 시스템 부하로 인해 readWorkflowStopIntent가 pollMs보다 오래 걸릴 경우 여러 비동기 check 실행이 중첩되어 동시 디스크 읽기, I/O 스래싱 및 잠재적인 순서 역전 경쟁 조건을 유발할 수 있습니다.\n\nRecommended action:\n\n디스크 I/O 지연 시 불필요한 비동기 작업 누적을 방지하기 위해 check 내부에 inFlight 불리언 가드를 적용하거나, setInterval 대신 선행 check가 완전히 완료된 후 다음 실행을 예약하는 setTimeout 재귀 패턴으로 리팩터링하십시오.\n\nCaveat / counter-evidence:\n\n- \\`readWorkflowStopIntent\\`는 파일 시스템에서 의도 정보를 조회하는 비변이(read-only) 작업이며, 중지 감지 시 호출되는 \\`controller.abort()\\`는 멱등적(idempotent)으로 동작하므로 호출 순서가 역전되더라도 상태 불일치나 기능 오류를 유발하지 않습니다.\n- \\`check\\` 함수 시작 부분에서 \\`if (controller.signal.aborted) return;\\`으로 이미 중단된 신호에 대한 불필요한 후속 검사를 즉시 차단하므로 선행 검사가 중단 처리를 완료한 후에는 추가 I/O가 억제됩니다.\n- 따라서 I/O 병목 시 동시 디스크 읽기가 누적되는 자원 낭비(anti-pattern)는 존재하지만, 치명적인 경쟁 조건(race condition)이나 신호 누락은 발생하지 않으므로 High 심각도는 과장되어 있으며 Medium/Low 수준으로 완화(WEAKEN)되어야 합니다.\n\n### finding-003 — dispose()가 실행 중인 비동기 검사를 차단하지 못하여 dispose 후 디스크 읽기 및 controller 중단 변이를 허용함\n\nSeverity: **high**  \nRoot cause: `root-003`  \nVerifier verdict: **WEAKEN**  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/workflow-stop.ts` | 68-86 | `createWorkflowStopSignal` |\n\nReviewer/source evidence:\n\n```text\n\tdispose: () => clearInterval(timer),\n```\n\n```ts\n\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n```\n\nVerifier evidence:\n\n```ts\n\tconst check = async (): Promise<void> => {\n\t\tif (controller.signal.aborted) return;\n\t\tif (launchStopRequested(cwd, runId)) {\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));\n\t\t\treturn;\n\t\t}\n\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);\n```\n\n```ts\n\t\tif (intent || launchStopRequested(cwd, runId))\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));\n```\n\n```text\n\t\tdispose: () => clearInterval(timer),\n```\n\n```text\n- **S5.** `dispose()`를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다.\n```\n\nRationale:\n\nSPEC.md S5에 따르면 dispose()가 호출된 후에는 새로운 디스크 읽기가 시작되지 않아야 합니다. 또한 폐기 후 controller 상태를 변경하거나 신호를 중단하는 것은 예상되는 수명주기 의미론을 위반합니다.\n\nRecommended action:\n\ndispose() 호출 후 새로운 디스크 읽기가 시작되는 것은 이미 방지되어 있으므로 readWorkflowStopIntent 이전의 불필요한 플래그 검사는 생략하고, dispose 호출 여부를 추적하는 disposed 플래그를 추가하여 in-flight 검사 완료 시 controller.abort() 호출 직전에만 확인하도록 조치하십시오.\n\nCaveat / counter-evidence:\n\n- \\`check\\` 함수는 실행 시 첫 비동기 대기 지점(\\`await readWorkflowStopIntent\\`) 이전까지 동기적으로 실행되므로, \\`check\\`가 호출된 틱에서는 \\`readWorkflowStopIntent\\` 디스크 읽기가 즉시 시작됩니다. JavaScript 단일 스레드 런-투-컴플리션(run-to-completion) 특성상 \\`check\\` 시작과 디스크 읽기 호출 사이에 \\`dispose()\\`가 실행되어 끼어들 수 없습니다.\n- \\`dispose()\\` 호출 시 \\`clearInterval(timer)\\`가 실행되어 이후 타이머 콜백이 완전히 취소되므로, \\`dispose()\\` 호출 이후에 새로운 \\`check()\\`가 실행되거나 새로운 디스크 읽기가 시작되는 일은 불가능하여 SPEC.md S5 명세(\\`dispose() 호출 후 새로운 디스크 읽기 금지\\`)를 위반하지 않습니다.\n- 다만 선행 비동기 읽기가 이미 파일 I/O를 대기 중인 상태에서 \\`dispose()\\`가 호출된 경우, 디스크 읽기 완료 후 라인 78의 \\`controller.abort()\\`가 실행되어 이미 해제된 controller의 signal을 abort 상태로 변경할 수는 있습니다. 그러나 이는 프로세스 충돌이나 데이터 오염을 유발하지 않으며 S5 위반도 아니므로 High 심각도는 과장되었으며 Low 수준으로 완화(WEAKEN)되어야 합니다.\n\n### finding-004 — isWorkflowStopRequestedError가 error.name만 확인하는 대신 error.message를 검사함\n\nSeverity: **high**  \nRoot cause: `root-004`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/workflow-stop.ts` | 53-59 | `isWorkflowStopRequestedError` |\n\nReviewer/source evidence:\n\n```text\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n```\n\n```text\n\t\t\terror.message.startsWith(\"workflow stop requested\"))\n```\n\nVerifier evidence:\n\n```text\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))\n```\n\n```text\n- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로\n  인정한다. 메시지 내용으로 판별해서는 안 된다.\n```\n\nRationale:\n\nSPEC.md S6 명세: 'isWorkflowStopRequestedError는 이름이 WorkflowStopRequested인 오류만 중지 오류로 인정한다. 메시지 내용으로 판별해서는 안 된다.' error.message를 검사하면 해당 문구로 시작하는 메시지를 가진 다른 오류가 있을 때 오탐(false positive)을 초래합니다.\n\nRecommended action:\n\nsrc/workflow-stop.ts의 isWorkflowStopRequestedError에서 error.message.startsWith(...) 검사 조건을 제거하고, error instanceof Error &amp;&amp; error.name === WORKFLOW\\_STOP\\_REQUESTED\\_ERROR\\_NAME 조건만 평가하도록 수정합니다.\n\n### finding-005 — Provider 오류 문자열 'cancelled'와 'timeout'이 취소로 잘못 처리됨 (C1 위반)\n\nSeverity: **high**  \nRoot cause: `root-005`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/workflow-cancellation.ts` | 20 | `isWorkflowReturnedCancellation` |\n\nReviewer/source evidence:\n\n```ts\n\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;\n```\n\nVerifier evidence:\n\n```ts\n\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;\n```\n\n```text\n- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.\n```\n\nRationale:\n\nSPEC.md 요구사항 C1은 'provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 aborted, AbortError, ABORT\\_ERR 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.'라고 명시적으로 규정하고 있습니다. 'cancelled' 또는 'timeout' 오류를 취소로 승격하는 것은 C1을 위반하며, 실제 타임아웃 상황을 은폐하고 일반적인 타임아웃이나 범용 provider 오류를 워크플로 취소로 부적절하게 처리하게 만듭니다.\n\nRecommended action:\n\nsrc/workflow-cancellation.ts 20행에서 'candidate === \"cancelled\"'와 'candidate === \"timeout\"' 조건을 제거하여 'aborted', 'AbortError', 'ABORT\\_ERR' 세 가지 문자열만 취소 오류로 분류되도록 수정합니다.\n\n### finding-006 — 참조 불일치 검사(parsed!== value)가 순환적이거나 반복되는 JSON 구조에서 무한 재귀를 방지하지 못함 (C2 위반)\n\nSeverity: **high**  \nRoot cause: `root-006`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/workflow-cancellation.ts` | 27-28 | `isWorkflowReturnedCancellation` |\n\nReviewer/source evidence:\n\n```ts\n\t\t\t\tconst parsed: unknown = JSON.parse(entry.text);\n```\n\n```ts\n\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;\n```\n\nVerifier evidence:\n\n```ts\n\t\t\t\tconst parsed: unknown = JSON.parse(entry.text);\n\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;\n```\n\n```text\n- **C2.** `content` 배열 안의 텍스트가 JSON이면 그 내용도 같은 규칙으로 판별하되, 같은 값을 다시\n  검사하는 무한 재귀가 없어야 한다.\n```\n\nRationale:\n\nSPEC.md 요구사항 C2에는 'content 배열 안의 텍스트가 JSON이면 그 내용도 같은 규칙으로 판별하되, 같은 값을 다시 검사하는 무한 재귀가 없어야 한다'고 명시되어 있다. JSON.parse는 호출할 때마다 메모리에 새로운 고유 객체를 생성하므로 부모 value와의 참조 일치성 비교는 결코 일치하지 않는다. 프로바이더 메시지의 content 항목 내에 자기 참조적이거나 반복되는 직렬화된 JSON 문자열이 포함되어 있으면, isWorkflowReturnedCancellation은 콜 스택 오버플로(RangeError)가 발생할 때까지 무한 재귀를 수행한다.\n\nRecommended action:\n\nisWorkflowReturnedCancellation에 원시 JSON 문자열을 추적하는 visited Set을 도입하거나 재귀 호출 시 최대 탐색 깊이를 제한하는 bounded depth 매개변수를 추가하여 무한 재귀를 방지해야 합니다.\n\n### finding-007 — WorkflowTerminalSummary가 공개 계약 속성 launchRetryAttempts 대신 launchRetries를 노출함 (T3 위반)\n\nSeverity: **high**  \nRoot cause: `root-007`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/workflow-terminal.ts` | 27-35 | `WorkflowTerminalSummary` |\n| `src/workflow-terminal.ts` | 107-110 | `summarizeWorkflowTerminal` |\n\nReviewer/source evidence:\n\n```text\n\tlaunchRetries: number;\n```\n\n```text\n\t\tlaunchRetries: run.tasks.reduce(\n```\n\n```text\n\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),\n```\n\n```text\n\t\t\t0,\n```\n\n```text\n\t\t),\n```\n\n```text\n- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).\n```\n\nVerifier evidence:\n\n```text\n\tlaunchRetries: number;\n```\n\n```text\n\t\tlaunchRetries: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),\n```\n\n```text\n- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).\n```\n\nRationale:\n\n외부 도구 및 계약 소비자는 SPEC.md T3에 따라 요약 객체에서 launchRetryAttempts 필드를 기대합니다. 현재 코드베이스는 launchRetries라는 다른 이름을 사용하므로 공개 계약과의 호환성이 깨지며 외부 호출자에게 재시도 횟수가 누락되거나 undefined로 전달됩니다.\n\nRecommended action:\n\nWorkflowTerminalSummary 인터페이스 및 summarizeWorkflowTerminal 함수에서 launchRetries 속성을 SPEC.md T3에 명시된 공개 계약 이름인 launchRetryAttempts로 변경(또는 하위 호환성을 위해 별칭으로 병행 제공)해야 합니다.\n\n### finding-008 — readDynamicControllerControl에서 태스크 파일 디스크립터 미검증으로 인해 controller.files 또는 output이 undefined일 때 런타임 TypeError 발생\n\nSeverity: **high**  \nRoot cause: `root-008`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/workflow-terminal.ts` | 48-62 | `readDynamicControllerControl` |\n\nReviewer/source evidence:\n\n```ts\n\tconst controller = run.tasks.find(\n\t\t(task) =>\n\t\t\ttask.specId === \"dynamic.controller\" ||\n\t\t\ttask.statusDetail === \"dynamic_completed\",\n\t);\n\tif (!controller) return undefined;\n\tconst taskOutput = fromProjectPath(cwd, controller.files.output);\n```\n\nVerifier evidence:\n\n```ts\n\tif (!controller) return undefined;\n\tconst taskOutput = fromProjectPath(cwd, controller.files.output);\n```\n\n```text\n- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는\n  `completed_without_semantic_result`이다.\n```\n\nRationale:\n\nSPEC.md T2는 direct-dynamic 실행에서 control.json을 읽을 수 없을 때 의미 상태를 completed\\_without\\_semantic\\_result로 대체할 것을 요구한다. 컨트롤러 경로 확인 중 처리되지 않은 예외가 발생하면 요약을 안전하게 읽을 수 없는 control로 처리하지 않고 summarizeWorkflowTerminal을 비정상 종료시킨다.\n\nRecommended action:\n\nreadDynamicControllerControl에서 controller.files?.output을 안전하게 확인하고, output 경로가 없으면 undefined를 반환하여 control.json 읽기 실패 시 summarizeWorkflowTerminal이 completed\\_without\\_semantic\\_result로 안전하게 폴백되도록 수정해야 합니다.\n\n## Medium findings\n\n### finding-009 — SPEC.md Q1 요구사항에 명시된 중지·취소·종료 동작 검증 단위 테스트 스위트 및 실행 스크립트 부재\n\nSeverity: **medium**  \nRoot cause: `root-009`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `package.json` | 7 | `scripts` |\n| `SPEC.md` | 40 | `Q1` |\n\nReviewer/source evidence:\n\n```text\n  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }\n```\n\n```text\n- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.\n```\n\nVerifier evidence:\n\n```text\n  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }\n```\n\n```text\n- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.\n```\n\nRationale:\n\nSPEC.md의 요구사항 Q1은 S·C·T 모든 항목에 대해 동작을 확인하는 단위 테스트를 필수로 규정하고 있습니다. 자동화된 단위 테스트 체계가 없으면 디스크 중지 감지 및 폴링 하한선(S1~S7), 프로바이더 취소 파싱 및 JSON 재귀 방지(C1~C2), 종료 요약 텔레메트리 공개 계약(T1~T3)의 런타임 결함이나 회귀를 사전에 감지할 수 없어 신뢰성에 중대한 결손이 발생합니다.\n\nRecommended action:\n\npackage.json에 테스트 스크립트(예: node --test 또는 vitest)와 의존성을 추가하고, SPEC.md S1~S7, C1~C2, T1~T3 요구사항을 검증하는 단위 테스트 스위트를 작성하십시오.\n\n## Recommended next action\n\nAddress kept or weakened findings and resolve needs-human items before release.\n\n## Evidence and review coverage\n\n- Canonical ledger rows rendered: 9 kept or weakened findings, 0 needs-human items, and 0 supporting observations.\n- Source coverage: complete according to deterministic source-status accounting.\n- Finding cards preserve ledger locations, evidence quotes, verifier dispositions, counter-evidence, and recommended actions where present.\n- Counts, dispositions, and the effective verdict come from deterministic partition state; narrative synthesis cannot override them.\n\n## Limitations\n\n- Evidence and quotes are bound to the reviewed snapshot available to the partition stage; final rendering does not re-read repository files and therefore does not attest current-tree bytes.\n\n## Related artifacts\n\n- [Machine-readable report](control.json) — structured renderer output and completion-summary contract.\n- [Structured source references](refs.json) — source pointers retained by the final workflow task.\n- [Legacy compatibility report](review.md) — byte-identical copy of this report.",
+  "findingSummary": {
+    "total": 9,
+    "bySeverity": {
+      "high": 8,
+      "medium": 1
+    }
+  },
+  "renderedFindingIds": [
+    "finding-001",
+    "finding-002",
+    "finding-003",
+    "finding-004",
+    "finding-005",
+    "finding-006",
+    "finding-007",
+    "finding-008",
+    "finding-009"
+  ],
+  "renderedNeedsHumanIds": [],
+  "renderedDroppedIds": [],
+  "renderedLineageIds": [],
+  "emissionRows": [
+    {
+      "kind": "top-level",
+      "id": "finding-001"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-004"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-005"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-006"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-007"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-008"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-009"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-002"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-003"
+    }
+  ],
+  "expectedEmissionRows": [
+    {
+      "kind": "top-level",
+      "id": "finding-001"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-004"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-005"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-006"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-007"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-008"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-009"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-002"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-003"
+    }
+  ],
+  "expectedFindingCount": 9,
+  "rawReviewerFindingIds": [
+    "finding-001",
+    "finding-002",
+    "finding-003",
+    "finding-004",
+    "finding-005",
+    "finding-006",
+    "finding-007",
+    "finding-008",
+    "finding-009"
+  ],
+  "dedupFindingIds": [
+    "finding-001",
+    "finding-002",
+    "finding-003",
+    "finding-004",
+    "finding-005",
+    "finding-006",
+    "finding-007",
+    "finding-008",
+    "finding-009"
+  ],
+  "rawDuplicateLineageIssues": [],
+  "independentlyDispositionedRawDuplicates": [],
+  "duplicateLedgerRawIdsMismatch": false,
+  "verdictsReceived": 9,
+  "verifierCoverage": {
+    "expectedFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007",
+      "finding-008",
+      "finding-009"
+    ],
+    "verdictFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007",
+      "finding-008",
+      "finding-009"
+    ],
+    "missingFindingIds": [],
+    "orphanFindingIds": [],
+    "duplicateFindingIds": [],
+    "ownershipIssues": [],
+    "statusIssues": []
+  },
+  "expectedMergedFindingCount": 0,
+  "mergedFindingCount": 0,
+  "needsHumanSummary": {
+    "actual": 0,
+    "expected": 0,
+    "metadataMissing": false,
+    "incompleteEvidence": 0,
+    "verifierEvidenceIncomplete": 0,
+    "verifierEvidenceUnavailable": 0
+  },
+  "supportNoteSummary": {
+    "actual": 0,
+    "expected": 0,
+    "metadataMissing": false,
+    "incompleteEvidence": 0
+  },
+  "sourceArtifacts": [
+    "partition-verdicts.control.json",
+    "report.control.json"
+  ],
+  "gates": {
+    "renderedAllFindings": true,
+    "renderedAllNeedsHuman": true,
+    "renderedAllSupportNotes": true,
+    "findingCountMismatch": false,
+    "duplicateCountMismatch": false,
+    "duplicateLedgerReconciled": true,
+    "duplicateLedgerPairsMismatch": false,
+    "duplicateLedgerIssues": [],
+    "rawDuplicateIdsMissing": [],
+    "rawDuplicateLineageIssues": [],
+    "independentlyDispositionedRawDuplicates": [],
+    "duplicateLedgerRawIdsMismatch": false,
+    "verdictsReceivedMismatch": false,
+    "partitionVerdictsReceived": 9,
+    "verifierVerdictsReceived": 9,
+    "ledgerTopLevelCountMismatch": false,
+    "uniqueLedgerIds": true,
+    "duplicateLedgerIds": [],
+    "mergedFindingCountMismatch": false,
+    "rawReviewerFindingIdsMissing": [],
+    "dedupFindingIdsMissing": [],
+    "rawReviewerIdsMismatch": false,
+    "dedupIdsMismatch": false,
+    "rawCountMismatch": false,
+    "uniqueCountMismatch": false,
+    "reviewerCoverageReconciled": true,
+    "requiredLedgersPresent": true,
+    "ledgerCompleteness": true,
+    "idLedgerExact": true,
+    "provenanceOwnerIssues": [],
+    "supportRelationIssues": [],
+    "reviewerFindingOwnerIssues": [],
+    "verifierExpectedMismatch": false,
+    "verifierDeclaredRowsMismatch": false,
+    "verifierStatusIssues": [],
+    "reviewerOwnerMapIssues": [],
+    "reviewerMissingAttestedLensIds": [],
+    "reviewerUnexpectedAttestedIds": [],
+    "reviewerMissingLensIds": [],
+    "reviewerUnexpectedIds": [],
+    "reviewerDuplicateIds": [],
+    "verifierCoverageExact": true,
+    "verifierDigestMatches": true,
+    "verifierMissingIds": [],
+    "verifierOrphanIds": [],
+    "verifierDuplicateIds": [],
+    "verifierOwnershipIssues": [],
+    "renderedAllLineage": true,
+    "renderedAllTopLevel": true,
+    "renderedAllDropped": true,
+    "needsHumanCountMismatch": false,
+    "needsHumanMetadataMissing": false,
+    "needsHumanEvidenceIncomplete": false,
+    "needsHumanEvidenceUnavailable": false,
+    "reportSynthesisAvailable": true,
+    "reportVerdictConsistent": true,
+    "supportNoteCountMismatch": false,
+    "supportNoteMetadataMissing": false,
+    "supportNoteEvidenceIncomplete": false,
+    "supportProvenanceIssues": [],
+    "supportProvenanceValid": true,
+    "reviewedSnapshotOnly": true,
+    "currentTreeBytesAttested": false,
+    "sidecarWriteFailed": false,
+    "passed": true
+  },
+  "sidecarPath": "final-report.md"
+}

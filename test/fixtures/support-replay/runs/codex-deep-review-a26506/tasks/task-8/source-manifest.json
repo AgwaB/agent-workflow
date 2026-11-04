@@ -1,0 +1,68 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1jwsdu_a26506",
+  "taskId": "task-8",
+  "sources": [
+    {
+      "source": "report",
+      "displayName": "report.main",
+      "taskId": "task-7",
+      "specId": "report.main",
+      "stageId": "report",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "78755415c8a0fef7c5499e84ec3605ea4c11a48872e2b9fb1359c991dbbee9fa",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsdu_a26506/tasks/task-7/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsdu_a26506/tasks/task-7/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsdu_a26506/tasks/task-7/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsdu_a26506/tasks/task-7/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "partition-verdicts",
+      "displayName": "partition-verdicts.main",
+      "taskId": "task-5",
+      "specId": "partition-verdicts.main",
+      "stageId": "partition-verdicts",
+      "status": "completed",
+      "statusDetail": "support_completed",
+      "lastMessage": "support completed",
+      "digest": "partition: keep=2, weaken=0, drop=0, needsHuman=3, missingVerdicts=0, partialFailures=3, supportNotes=0, ledgerDigest=78755415c8a0fef7c5499e84ec3605ea4c11a48872e2b9fb1359c991dbbee9fa",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsdu_a26506/tasks/task-5/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsdu_a26506/tasks/task-5/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsdu_a26506/tasks/task-5/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsdu_a26506/tasks/task-5/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

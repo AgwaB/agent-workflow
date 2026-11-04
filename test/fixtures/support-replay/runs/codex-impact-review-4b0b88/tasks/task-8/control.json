@@ -1,0 +1,46 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "654f639:security-performance-impact",
+  "status": "high",
+  "impacts": [
+    {
+      "domain": "security",
+      "severity": "medium",
+      "effect": "Provider가 반환한 timeout/cancelled 문자열이 취소로 승격되어 실패 처리·재시도·진단 경로를 우회할 수 있다.",
+      "evidence": "src/workflow-cancellation.ts:19-21"
+    },
+    {
+      "domain": "privacy",
+      "severity": "none",
+      "effect": "새로운 개인정보 수집, 저장, 로그 출력 또는 데이터 외부 전송은 확인되지 않았다."
+    },
+    {
+      "domain": "performance",
+      "severity": "medium",
+      "effect": "기본 polling이 50ms에서 200ms로 늘어 stop 감지가 늦어지고, 최소값 1ms 허용으로 호출자가 매우 높은 디스크 polling 및 겹치는 비동기 읽기를 유발할 수 있다.",
+      "evidence": "src/workflow-stop.ts:67-81"
+    },
+    {
+      "domain": "reliability",
+      "severity": "high",
+      "effect": "timeout을 취소로 분류하면 실제 실패가 정상 취소처럼 처리될 수 있으며, stop 감지 지연 중 추가 작업이 실행될 수 있다."
+    },
+    {
+      "domain": "observability",
+      "severity": "high",
+      "effect": "launchRetryAttempts가 launchRetries로 변경되어 기존 외부 도구·메트릭 소비자가 재시도 정보를 잃을 수 있고, timeout 실패가 취소로 집계될 수 있다.",
+      "evidence": "src/workflow-terminal.ts:27-34,107-110; SPEC.md:35-36"
+    }
+  ],
+  "assumptions": [
+    {
+      "item": "SPEC.md의 T3 및 upstream 분석이 명시한 외부 도구 소비자를 공개 계약으로 간주했다."
+    },
+    {
+      "item": "provider 반환값과 timeout 의미는 외부 시스템에서 유입될 수 있어 오분류 가능성을 고려했다."
+    },
+    {
+      "item": "로컬 테스트 파일·테스트 스크립트가 없고 npm run typecheck는 tsc 미설치로 검증되지 않았다."
+    }
+  ]
+}

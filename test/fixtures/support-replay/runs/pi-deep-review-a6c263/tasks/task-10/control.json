@@ -1,0 +1,75 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "provider 취소 판별기가 명세 밖의 timeout·cancelled 문자열을 인정하며, 중첩 JSON에도 같은 오분류가 전파된다.",
+  "lens": "provider-cancellation",
+  "findings": [
+    {
+      "severity": "medium",
+      "title": "허용 목록 밖의 timeout·cancelled 문자열을 취소로 오분류",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 19,
+          "lineEnd": 20,
+          "symbol": "isWorkflowReturnedCancellation"
+        },
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 27,
+          "lineEnd": 29,
+          "symbol": "isWorkflowReturnedCancellation"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 25,
+          "lineEnd": 28
+        }
+      ],
+      "evidence": "오류·사유 후보를 검사하는 조건에 명세의 세 문자열 외에 cancelled와 timeout이 포함된다. 따라서 {error:\"timeout\"}, {details:{reason:\"cancelled\"}}는 명시적 취소 표시가 없어도 true가 된다. content의 JSON도 같은 함수를 재호출하므로 동일한 오분류가 발생한다.",
+      "evidenceQuotes": [
+        "\tfor (const candidate of [value.error, details?.error, value.reason, details?.reason]) {",
+        "\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+        "\t\t\t\tconst parsed: unknown = JSON.parse(entry.text);",
+        "\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+        "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다."
+      ],
+      "rationale": "특히 provider 시간 초과를 사용자 취소와 구분할 수 없게 만들어, 반환값을 사용하는 외부 호출자가 실제 오류를 취소 경로로 처리할 수 있다. 이는 C1의 명시적 허용 목록 위반이며 C2의 중첩 JSON 경로에도 영향을 준다. 발췌에는 호출부가 없어 실제 진단 누락이나 재시도 생략까지는 확인할 수 없다.",
+      "recommendedAction": "오류·사유 문자열 허용 목록을 aborted, AbortError, ABORT_ERR로 제한하되 명시적 cancelled === true 및 AbortError 객체 처리는 유지한다. 직접 필드, details, 중첩 content JSON에서 허용 문자열의 양성 사례와 timeout·cancelled의 음성 사례를 회귀 테스트한다. 기존 별칭에 의존하는 외부 provider의 호환성 영향도 확인한다.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-cancellation.ts:1-37",
+    "SPEC.md:25-28",
+    "SPEC.md:38-40",
+    "package.json:1-8"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-cancellation.ts:2-36",
+      "status": "read",
+      "evidence": "\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:25-28",
+      "status": "read",
+      "evidence": "  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:38-40",
+      "status": "read",
+      "evidence": "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "명시적 취소 플래그는 === true로, AbortError 객체는 name의 정확한 일치로 검사한다. 이 경로에서 별도의 결함은 확인하지 못했다.",
+    "content의 JSON은 동일 판별기를 재사용하고 JSON 파싱 실패는 건너뛴다. 중첩 경로의 허용 목록 문제는 동일 근본 원인이므로 별도 발견 사항으로 중복 보고하지 않았다."
+  ]
+}

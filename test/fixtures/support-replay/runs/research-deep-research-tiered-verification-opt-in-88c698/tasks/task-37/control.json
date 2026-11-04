@@ -1,0 +1,36 @@
+{
+  "schema": "stage-control-v1",
+  "id": "claim-018",
+  "status": "verified",
+  "confidence": 0.99,
+  "digest": "MDN directly confirms that AbortSignal.timeout() cannot be cancelled, and documents listener/GC and active-time caveats.",
+  "verdictDigest": "MDN explicitly states that AbortSignal.timeout() provides no cancellation mechanism and recommends AbortController with setTimeout()/clearTimeout() for definitive early cancellation. Source: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+  "evidence": [
+    {
+      "source": "MDN",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+      "dateOrYear": "2026",
+      "quote": "AbortSignal.timeout() does not provide a way to cancel its timeout.",
+      "relevance": "Directly verifies the claim."
+    },
+    {
+      "source": "MDN",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+      "dateOrYear": "2026",
+      "quote": "The AbortSignal becoming unreachable is not guaranteed to cancel the timeout.",
+      "relevance": "Clarifies that garbage collection or losing references does not reliably cancel the timeout."
+    },
+    {
+      "source": "MDN",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+      "dateOrYear": "2026",
+      "quote": "The timeout is based on active rather than elapsed time, and will effectively be paused if the code is running in a suspended worker, or while the document is in a back-forward cache (“bfcache”).",
+      "relevance": "Documents an important lifecycle and timing caveat."
+    }
+  ],
+  "caveats": [
+    "While pending, abort listeners can keep the signal alive and prevent garbage collection; remove listeners when no longer needed.",
+    "For definitive early cancellation, MDN recommends AbortController with setTimeout() and clearTimeout()."
+  ],
+  "correctionOrCounterclaim": ""
+}

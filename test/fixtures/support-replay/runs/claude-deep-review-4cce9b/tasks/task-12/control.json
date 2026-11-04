@@ -1,0 +1,63 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC C1 allows only aborted/AbortError/ABORT_ERR, but isWorkflowReturnedCancellation also promotes cancelled and timeout, and no unit tests exist under src/ to cover SPEC Q1.",
+  "lens": "release-test-hygiene",
+  "findings": [
+    {
+      "severity": "medium",
+      "title": "Timeout and 'cancelled' strings promoted to cancellation, contrary to SPEC C1, with no test coverage",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 20,
+          "symbol": "isWorkflowReturnedCancellation"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 25,
+          "lineEnd": 26,
+          "symbol": "C1"
+        }
+      ],
+      "evidence": "Line 20 treats the strings \"cancelled\" and \"timeout\" as cancellation in addition to the three values SPEC C1 permits. SPEC C1 says only aborted, AbortError and ABORT_ERR may be treated as cancellation and that other provider errors must not be promoted. The recent commit 654f639 ('treat cancelled/timeout as cancellation') appears to have introduced this deliberately. SPEC Q1 requires a unit test for each S/C/T item, but no *.test.* or *.spec.* file exists in the repository (Glob returned none), so neither the C1 boundary nor the timeout-to-cancel promotion is verified.",
+      "evidenceQuotes": [
+        "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+        "정확히 `aborted`,",
+        "다른 provider 오류를 취소로 승격해서는 안 된다."
+      ],
+      "rationale": "Root defect: the cancellation classifier is broader than the public SPEC contract, so a provider timeout or any error with reason 'cancelled' is reported as cancellation. That changes downstream stop/terminal state and can hide real provider failures. The absence of tests for C1 and for the timeout promotion (SPEC Q1) is a support symptom; it is why the drift was not caught. Fixing the classifier or updating the SPEC is the primary action; adding tests is the verification step.",
+      "recommendedAction": "Decide whether timeout and 'cancelled' are intended cancellation signals. If not, remove them from line 20 to match C1. If they are intended, amend SPEC C1 and document the change. Either way, add src unit tests (for example workflow-cancellation.test.ts) covering each accepted value, rejected provider errors, the content-JSON recursion in C2, and the timeout case, so SPEC Q1 can be verified.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "SPEC.md:38-40",
+    "src/workflow-cancellation.ts:19-21",
+    "SPEC.md:20-29",
+    "src/workflow-cancellation.ts:13-33",
+    "repo-wide grep for isWorkflowReturnedCancellation",
+    "repo-wide glob for **/*.{test,spec}.{ts,js,mjs,tsx} (no results)"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "SPEC.md:38-40",
+      "status": "read",
+      "evidence": "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-cancellation.ts:19-21",
+      "status": "read",
+      "evidence": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "No test files were found under src/ or elsewhere in the repo, so the Q1 check fails for every S/C/T item, not only the timeout case. Recorded as a support symptom of the finding above.",
+    "The C2 recursion guard (parsed !== value) prevents direct self-reference. Each JSON.parse yields fresh objects and the nesting is finite, so no unbounded recursion was found.",
+    "isWorkflowAbortError (lines 2-6) matches the AbortError name for DOMException and plain records as C1 requires."
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "schema": "spec-review-report-v1",
+  "digest": "sha256:c1d493af62f852a0a90ffd6fa8da1c7f72f6b1b79f55ecbd97042c8b8e4f2576",
+  "summary": "구현상 5개 요구사항 위반이 확인됐지만 요구사항 재조정이 완료되지 않아 최종 판정은 INCONCLUSIVE이다.",
+  "verdict": "INCONCLUSIVE",
+  "ownerLedger": [
+    {
+      "source": "verify-findings",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-req-003",
+      "taskId": "task-9",
+      "itemIdentity": "candidate-REQ-003",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.candidate-req-006",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-req-006",
+      "taskId": "task-10",
+      "itemIdentity": "candidate-REQ-006",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.candidate-req-008",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-req-008",
+      "taskId": "task-11",
+      "itemIdentity": "candidate-REQ-008",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.candidate-req-012",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-req-012",
+      "taskId": "task-12",
+      "itemIdentity": "candidate-REQ-012",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.candidate-req-013",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-req-013",
+      "taskId": "task-13",
+      "itemIdentity": "candidate-REQ-013",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    }
+  ],
+  "ownerLedgerReconciliation": {
+    "ownerRowCount": 5,
+    "verifierRowCount": 5,
+    "ownerIds": [
+      "candidate-REQ-003",
+      "candidate-REQ-006",
+      "candidate-REQ-008",
+      "candidate-REQ-012",
+      "candidate-REQ-013"
+    ],
+    "verifierIds": [
+      "candidate-REQ-003",
+      "candidate-REQ-006",
+      "candidate-REQ-008",
+      "candidate-REQ-012",
+      "candidate-REQ-013"
+    ],
+    "duplicateOwnerIds": [],
+    "duplicateVerifierIds": [],
+    "missingOwnerRows": [],
+    "orphanOwnerRows": [],
+    "statusMismatches": [],
+    "cardinalityPassed": true,
+    "passed": true
+  },
+  "risks": [
+    "S3: src/workflow-stop.ts:67의 기본 pollMs 200ms 및 최소 1ms가 명세의 50ms 및 10ms와 다르다.",
+    "S6: src/workflow-stop.ts:57이 오류 이름 외 메시지 prefix로도 중지 오류를 인정한다.",
+    "C1: src/workflow-cancellation.ts:20이 cancelled와 timeout을 추가 취소 값으로 인정하고 boolean marker도 승격한다.",
+    "T3: src/workflow-terminal.ts:33,107이 공개 필드 launchRetryAttempts 대신 launchRetries를 사용한다.",
+    "Q1: S·C·T별 단위 테스트와 테스트 실행 스크립트가 확인되지 않는다."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "테스트 파일이 없어 테스트를 실행하지 않았으며, read-only 검토만 수행했다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "SPEC.md가 store.js와 types.js를 발췌 범위에서 제외한다고 명시한다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "recommendedNextAction": "S3, S6, C1, T3 구현을 수정하고 S·C·T별 단위 테스트를 추가한 뒤, 요구사항 재조정과 전체 검토를 다시 수행한다."
+}

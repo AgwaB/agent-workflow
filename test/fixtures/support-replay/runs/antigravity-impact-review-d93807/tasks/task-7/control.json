@@ -1,0 +1,51 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "High documentation and release impact: commit 654f639 introduces breaking public contract change (launchRetryAttempts -> launchRetries) and behavioral divergences violating SPEC.md (S3, C1, T3) with zero documentation updates, missing migration guidance, and absent test coverage.",
+  "status": "high",
+  "impacts": [
+    {
+      "area": "documentation_drift",
+      "severity": "high",
+      "target": "SPEC.md",
+      "description": "Commit 654f639 causes severe specification drift across three core clauses: SPEC.md S3 (default pollMs raised from 50ms to 200ms, minimum clamp reduced from 10ms to 1ms), SPEC.md C1 (added 'cancelled' and 'timeout' to cancellation candidate list, violating prohibition against promoting arbitrary provider errors), and SPEC.md T3 (renamed public contract field launchRetryAttempts to launchRetries). No updates to SPEC.md or code comments were made to reconcile this divergence."
+    },
+    {
+      "area": "packaging_and_release",
+      "severity": "high",
+      "target": "WorkflowTerminalSummary / package.json",
+      "description": "WorkflowTerminalSummary is an explicitly declared public contract read by external tools (SPEC.md T3). Renaming launchRetryAttempts to launchRetries without backwards-compatible getters, aliases, or deprecation warnings constitutes an uncoordinated breaking change. Package version remains at 0.0.0 with private: true and no release artifacts or changelog entries."
+    },
+    {
+      "area": "migration_hazard",
+      "severity": "high",
+      "target": "external_contract_consumers",
+      "description": "External consumers relying on WorkflowTerminalSummary.launchRetryAttempts will silently receive undefined at runtime (or face compile-time breakages in TypeScript projects). There is no migration guide, deprecation timeline, or fallback mapping provided."
+    },
+    {
+      "area": "operational_runtime_impact",
+      "severity": "medium",
+      "target": "runtime_stop_and_cancellation",
+      "description": "Stop latency increased by 4x due to default polling interval moving from 50ms to 200ms. Treating 'timeout' as cancellation in isWorkflowReturnedCancellation suppresses provider diagnostics and inappropriately alters semantic termination states for failed/timed-out tasks."
+    },
+    {
+      "area": "ci_and_publish_pipeline",
+      "severity": "medium",
+      "target": "CI / typecheck",
+      "description": "The repository lacks test harnesses and fixtures (SPEC.md Q1 unfulfilled). Standalone typecheck (tsc --noEmit) requires external stubs for ./store.js and ./types.js. Releasing this commit without test coverage or spec alignment presents high operational deployment risk."
+    }
+  ],
+  "assumptions": [
+    {
+      "topic": "specification_authority",
+      "assumption": "SPEC.md is the authoritative single source of truth for workflow stop, cancellation, and terminal summary requirements."
+    },
+    {
+      "topic": "public_contract_status",
+      "assumption": "SPEC.md T3 explicitly designates launchRetryAttempts as an immutable public contract consumed by external tools."
+    },
+    {
+      "topic": "repository_boundary",
+      "assumption": "workflow-stop-sample is a private excerpt (package.json private: true, version 0.0.0); changes must maintain contract parity with external caller ecosystems."
+    }
+  ]
+}

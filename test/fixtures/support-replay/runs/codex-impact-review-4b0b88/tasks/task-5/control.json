@@ -1,0 +1,42 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "배포 보류: 공개 요약 필드 단절과 취소·중지 상태 의미 변경 위험",
+  "status": "high",
+  "impacts": [
+    {
+      "area": "공개 데이터 계약",
+      "severity": "high",
+      "evidence": "src/workflow-terminal.ts:27-35,103-110",
+      "impact": "launchRetryAttempts가 launchRetries로 즉시 변경되어 기존 소비자가 값을 잃거나 런타임 오류가 발생한다. 호환 별칭·버전 전환·마이그레이션이 없다."
+    },
+    {
+      "area": "상태 전이",
+      "severity": "medium",
+      "evidence": "src/workflow-cancellation.ts:19-21",
+      "impact": "error/reason이 cancelled 또는 timeout인 provider 결과가 실패·재시도 대신 취소로 분류될 수 있어 workflow 상태와 후속 재시도·진단 흐름이 달라진다."
+    },
+    {
+      "area": "중지 감지 수명주기",
+      "severity": "medium",
+      "evidence": "src/workflow-stop.ts:64-80",
+      "impact": "기본 polling이 50ms에서 200ms로 늘어 stop 반영 지연이 증가한다. 1-9ms 설정은 느린 파일 읽기의 동시 중첩과 I/O 부하를 키울 수 있다."
+    },
+    {
+      "area": "문서·검증",
+      "severity": "high",
+      "evidence": "SPEC.md:13-14,35-36; package.json:7",
+      "impact": "SPEC.md가 이전 polling 기본값과 launchRetryAttempts를 계속 명시한다. 테스트 스크립트·테스트 파일이 없고 typecheck만 선언되어 변경 계약을 검증할 근거가 부족하다."
+    }
+  ],
+  "assumptions": [
+    {
+      "item": "store.js와 types.js 및 실제 외부 소비자는 저장소 발췌에 없어 stop-intent 영속 형식과 소비자 호환성을 완전히 확인할 수 없다."
+    },
+    {
+      "item": "launchRetryAttempts는 SPEC.md T3에 따라 외부 공개 계약으로 취급한다."
+    },
+    {
+      "item": "커밋은 stop intent, WorkflowRunRecord, artifact/control.json 저장 형식을 변경하지 않으며 변경된 terminal summary 객체가 외부에 전달되는 지점은 저장소 밖에 있다."
+    }
+  ]
+}

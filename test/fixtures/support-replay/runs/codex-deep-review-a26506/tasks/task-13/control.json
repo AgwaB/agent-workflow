@@ -1,0 +1,31 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "메시지 접두사만 일치하는 일반 오류가 중지 오류로 오분류될 수 있으므로 원래 발견을 유지한다.",
+  "findingId": "finding-002",
+  "finding": "중지 오류 판별이 오류 메시지만으로도 성공하여 오탐 가능",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 56,
+      "symbol": "isWorkflowStopRequestedError",
+      "quote": "error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 57,
+      "symbol": "isWorkflowStopRequestedError",
+      "quote": "error.message.startsWith(\"workflow stop requested\")"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 18,
+      "symbol": "S6",
+      "quote": "이름이 `WorkflowStopRequested`인 오류만 중지 오류로"
+    }
+  ],
+  "counterEvidence": [
+    "내부 생성 함수는 오류 이름을 WorkflowStopRequested로 설정하므로 내부적으로 생성된 중지 오류 자체는 정상 판별된다."
+  ],
+  "recommendedAction": "메시지 접두사 조건을 제거하고 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME 조건만 사용하라."
+}

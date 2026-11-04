@@ -1,0 +1,146 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "src/ 세 모듈(workflow-stop, workflow-cancellation, workflow-terminal)을 SPEC 항목별로 매핑했다. 관찰된 잠재 불일치는 S3, S6, C1, T3이며, 테스트 파일은 저장소에서 찾지 못했다. 적합성 판단은 아직 하지 않았다.",
+  "implementationMap": [
+    {
+      "component": "Stop signal polling default and floor",
+      "file": "src/workflow-stop.ts",
+      "evidence": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "observedBehavior": "기본 polling 주기는 200ms이고 하한은 1ms이다. SPEC의 기본 50ms, 하한 10ms와 다르다.",
+      "relatedSignals": [
+        "S3",
+        "createWorkflowStopSignal",
+        "pollMs default 200"
+      ]
+    },
+    {
+      "component": "Stop requested error predicate",
+      "file": "src/workflow-stop.ts",
+      "evidence": "error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME || error.message.startsWith(\"workflow stop requested\")",
+      "observedBehavior": "이름 검사 외에 메시지 접두사로도 중지 오류로 판별한다. SPEC의 name-only 규칙과 다르다.",
+      "relatedSignals": [
+        "S6",
+        "isWorkflowStopRequestedError",
+        "message fallback"
+      ]
+    },
+    {
+      "component": "Stop intent and launch signal detection",
+      "file": "src/workflow-stop.ts",
+      "evidence": "const intent = await readWorkflowStopIntent(cwd, runId).catch(() => undefined); if (intent || launchStopRequested(cwd, runId)) controller.abort(...)",
+      "observedBehavior": "감시 경로는 디스크 읽기 오류를 삼켜 중지로 보지 않고, 디스크 intent 또는 launch signal이면 abort한다.",
+      "relatedSignals": [
+        "S1",
+        "S4",
+        "watcher swallows read error"
+      ]
+    },
+    {
+      "component": "throwIfWorkflowStopRequested",
+      "file": "src/workflow-stop.ts",
+      "evidence": "const intent = await readWorkflowStopIntent(cwd, runId);",
+      "observedBehavior": "catch 없이 호출하므로 읽기 오류가 호출자에게 전달된다.",
+      "relatedSignals": [
+        "S4",
+        "S1",
+        "throw path propagates"
+      ]
+    },
+    {
+      "component": "Stop signal dispose",
+      "file": "src/workflow-stop.ts",
+      "evidence": "dispose: () => clearInterval(timer),",
+      "observedBehavior": "interval만 정리한다. 이미 시작된 check()를 막는 상태 플래그는 없다.",
+      "relatedSignals": [
+        "S5",
+        "dispose clears interval only"
+      ]
+    },
+    {
+      "component": "Stop error message format",
+      "file": "src/workflow-stop.ts",
+      "evidence": "return `workflow stop requested for ${runId}`;",
+      "observedBehavior": "SPEC의 메시지 형식과 일치하는 문자열을 만든다.",
+      "relatedSignals": [
+        "S2",
+        "message template"
+      ]
+    },
+    {
+      "component": "Launch signal registration and unbind",
+      "file": "src/workflow-stop.ts",
+      "evidence": "if (signals.size === 0 && launchSignals.get(key) === signals) launchSignals.delete(key);",
+      "observedBehavior": "해제 함수가 마지막 signal을 제거하면 실행 키 항목도 삭제한다. 같은 signal을 두 번 등록하면 Set이 중복을 합쳐 한 번의 해제로 모두 제거된다.",
+      "relatedSignals": [
+        "S7",
+        "bindWorkflowLaunchSignal",
+        "Set dedupe"
+      ]
+    },
+    {
+      "component": "Cancellation exact-marker check",
+      "file": "src/workflow-cancellation.ts",
+      "evidence": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "observedBehavior": "SPEC의 3개 정확한 값 외에 cancelled, timeout도 취소로 인정한다. value.cancelled와 details.cancelled 플래그도 취소로 본다.",
+      "relatedSignals": [
+        "C1",
+        "extra markers cancelled timeout",
+        "cancelled flag true"
+      ]
+    },
+    {
+      "component": "Cancellation JSON recursion",
+      "file": "src/workflow-cancellation.ts",
+      "evidence": "const parsed: unknown = JSON.parse(entry.text);\nif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+      "observedBehavior": "content 텍스트를 JSON으로 파싱해 재귀한다. JSON.parse는 매번 새 객체를 만들어 자기 참조 사이클이 생기지 않으므로, 무한 재귀 가능성은 낮아 보인다.",
+      "relatedSignals": [
+        "C2",
+        "recursion on parsed content",
+        "parsed !== value guard"
+      ]
+    },
+    {
+      "component": "Degraded completion semantic status",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "if (run.status === \"completed\") return run.degradation ? \"completed_degraded\" : \"completed\";",
+      "observedBehavior": "비동적 completed 실행에 degradation이 있으면 completed_degraded를 반환한다. direct-dynamic 분기는 이 값을 덮어쓴다.",
+      "relatedSignals": [
+        "T1",
+        "completed_degraded",
+        "direct-dynamic overrides"
+      ]
+    },
+    {
+      "component": "Direct-dynamic control.json read and semantic status",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "return await readJson<DynamicControllerControl>(join(dirname(taskOutput), \"control.json\")).catch(() => undefined);",
+      "observedBehavior": "control.json 읽기 실패 또는 controller 작업 부재 시 control이 undefined가 되어 completed_without_semantic_result로 떨어진다.",
+      "relatedSignals": [
+        "T2",
+        "completed_without_semantic_result",
+        "controller missing also undefined"
+      ]
+    },
+    {
+      "component": "Retry totals in terminal summary",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "launchRetries: number;",
+      "observedBehavior": "요약 필드 이름이 launchRetries이다. SPEC 공개 계약의 launchRetryAttempts와 다르다. outputRetryAttempts는 이름이 일치하며 모든 task의 attempts를 합산한다.",
+      "relatedSignals": [
+        "T3",
+        "launchRetryAttempts mismatch",
+        "field name public contract"
+      ]
+    }
+  ],
+  "unmappedAreas": [
+    "src/store.ts 및 src/types.ts 부재: readWorkflowStopIntent, workflowRunPath, readJson, finalStageTasks 구현 확인 불가",
+    "저장소 내 *.test.* 또는 *.spec.* 파일 없음: Q1 단위 테스트 근거 확인 불가"
+  ],
+  "notes": [
+    "SPEC 발췌는 store.js, types.js가 빠져 있다고 명시한다. 해당 함수 동작은 이 단계에서 검증하지 못했다.",
+    "Q1은 테스트 파일 부재로 충족 여부를 판단할 근거가 없다. 다른 위치의 테스트 존재 여부는 확인하지 않았다.",
+    "T1의 degradation 처리는 direct-dynamic 실행에서 적용되지 않는다. 명세 해석에 따라 쟁점이 될 수 있다.",
+    "relatedSignals 중 일부는 코드 식별자 그대로 옮겼다."
+  ]
+}

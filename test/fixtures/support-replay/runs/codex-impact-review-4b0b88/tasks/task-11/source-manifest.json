@@ -1,0 +1,97 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1jd2yb_4b0b88",
+  "taskId": "task-11",
+  "sources": [
+    {
+      "source": "impact-analysis.validation-impact",
+      "displayName": "impact-analysis.validation-impact.main",
+      "taskId": "task-6",
+      "specId": "impact-analysis.validation-impact.main",
+      "stageId": "impact-analysis.validation-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "검증 근거가 없어 변경 범위를 배포 승인할 수 없음",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-6/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-6/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-6/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-6/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.docs-release-impact",
+      "displayName": "impact-analysis.docs-release-impact.main",
+      "taskId": "task-7",
+      "specId": "impact-analysis.docs-release-impact.main",
+      "stageId": "impact-analysis.docs-release-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "654f639:docs-release-high:contract-drift",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-7/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-7/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-7/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-7/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.security-performance-impact",
+      "displayName": "impact-analysis.security-performance-impact.main",
+      "taskId": "task-8",
+      "specId": "impact-analysis.security-performance-impact.main",
+      "stageId": "impact-analysis.security-performance-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "654f639:security-performance-impact",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-8/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-8/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-8/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd2yb_4b0b88/tasks/task-8/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

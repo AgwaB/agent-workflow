@@ -1,0 +1,32 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "명세 S3와 구현이 직접 불일치하므로 finding을 유지한다.",
+  "findingId": "finding-001",
+  "finding": "중지 감시 폴링 주기가 명세보다 느리고 최소값도 너무 낮음",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 67,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 81,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "const timer = setInterval(() => void check(), pollMs);"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 13,
+      "lineEnd": 14,
+      "quote": "중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다"
+    }
+  ],
+  "counterEvidence": [
+    "초기 `void check()`가 즉시 실행되므로 최초 감지는 폴링 주기만큼 항상 지연되지는 않는다.",
+    "foreground AbortSignal 경로는 폴링과 별도로 확인되므로 지연 문제는 주로 디스크 중지 의도 감시 경로에 해당한다."
+  ],
+  "recommendedAction": "기본값을 50ms로 변경하고 최소값을 10ms로 제한하며, 기본값과 경계값을 검증하는 단위 테스트를 추가하라."
+}

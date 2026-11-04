@@ -1,0 +1,162 @@
+{
+ "runId": "workflow_mw1ipzw6_f0c985",
+ "name": "spec-review",
+ "bundle": "spec-review",
+ "project": "694bf24b8b07",
+ "evidenceRefetch": true,
+ "status": "completed",
+ "tasks": [
+  {
+   "taskId": "task-1",
+   "specId": "extract-spec.main",
+   "stageId": "extract-spec",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-2",
+   "specId": "map-implementation.main",
+   "stageId": "map-implementation",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-3",
+   "specId": "inspect-tests.main",
+   "stageId": "inspect-tests",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-4",
+   "specId": "candidate-findings.main",
+   "stageId": "candidate-findings",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-5",
+   "specId": "verify-findings.item",
+   "stageId": "verify-findings",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-9",
+   "specId": "verify-findings.candidate-finding-s3",
+   "stageId": "verify-findings",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-findings.item",
+    "itemIdentity": "candidate-finding-s3",
+    "itemHash": "0d382c445b17081262a5028e087cbeb238dfa5c00e4f9bc892160274ae3d45b3",
+    "itemSourceTaskId": "task-4",
+    "itemSourceSpecId": "candidate-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "candidate-findings.main:control:$.candidateFindings[0]"
+   }
+  },
+  {
+   "taskId": "task-10",
+   "specId": "verify-findings.candidate-finding-s6",
+   "stageId": "verify-findings",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-findings.item",
+    "itemIdentity": "candidate-finding-s6",
+    "itemHash": "f137bb07bd888b39268460cf6d896e8421542ac7965dd25690ebdff0b6f9c785",
+    "itemSourceTaskId": "task-4",
+    "itemSourceSpecId": "candidate-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "candidate-findings.main:control:$.candidateFindings[1]"
+   }
+  },
+  {
+   "taskId": "task-11",
+   "specId": "verify-findings.candidate-finding-c1",
+   "stageId": "verify-findings",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-findings.item",
+    "itemIdentity": "candidate-finding-c1",
+    "itemHash": "1472e633d5567cd4289fca9af8018cf91ddd9fe16ac218a8646f73ee4404997d",
+    "itemSourceTaskId": "task-4",
+    "itemSourceSpecId": "candidate-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "candidate-findings.main:control:$.candidateFindings[2]"
+   }
+  },
+  {
+   "taskId": "task-12",
+   "specId": "verify-findings.candidate-finding-t3",
+   "stageId": "verify-findings",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-findings.item",
+    "itemIdentity": "candidate-finding-t3",
+    "itemHash": "3a151f41a1361e5a85d45572c58e4801aad6bb4450c74bafe6024196ecd760a6",
+    "itemSourceTaskId": "task-4",
+    "itemSourceSpecId": "candidate-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "candidate-findings.main:control:$.candidateFindings[3]"
+   }
+  },
+  {
+   "taskId": "task-13",
+   "specId": "verify-findings.candidate-finding-q1",
+   "stageId": "verify-findings",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-findings.item",
+    "itemIdentity": "candidate-finding-q1",
+    "itemHash": "2a8ea2d17d09867b6ff2fc2400dd77a7a56be36f6c213e02db419dd3cb088325",
+    "itemSourceTaskId": "task-4",
+    "itemSourceSpecId": "candidate-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "candidate-findings.main:control:$.candidateFindings[4]"
+   }
+  },
+  {
+   "taskId": "task-6",
+   "specId": "partition-findings.main",
+   "stageId": "partition-findings",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-7",
+   "specId": "report.main",
+   "stageId": "report",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-8",
+   "specId": "final.main",
+   "stageId": "final",
+   "status": "completed"
+  }
+ ],
+ "supportTasks": [
+  {
+   "specId": "partition-findings.main",
+   "dependsOn": [
+    "candidate-findings.main",
+    "verify-findings.candidate-finding-s3",
+    "verify-findings.candidate-finding-s6",
+    "verify-findings.candidate-finding-c1",
+    "verify-findings.candidate-finding-t3",
+    "verify-findings.candidate-finding-q1"
+   ],
+   "support": {
+    "uses": "./helpers/spec-review-pipeline.mjs",
+    "options": {
+     "mode": "partition"
+    }
+   }
+  },
+  {
+   "specId": "final.main",
+   "dependsOn": [
+    "report.main",
+    "partition-findings.main"
+   ],
+   "support": {
+    "uses": "./helpers/render-spec-review-report.mjs"
+   }
+  }
+ ]
+}

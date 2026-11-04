@@ -1,0 +1,33 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "공개 계약·상태 의미 변경과 검증 부재로 배포를 보류해야 한다.",
+  "riskLevel": "high",
+  "risks": [
+    {
+      "note": "launchRetryAttempts가 launchRetries로 변경되어 기존 소비자의 데이터 손실 또는 런타임 오류가 발생할 수 있음"
+    },
+    {
+      "note": "timeout/cancelled 결과가 취소로 분류되어 실패·재시도·진단 상태가 왜곡될 수 있음"
+    },
+    {
+      "note": "polling 기본값 및 최소값 변경에 따른 중지 지연과 과도한 I/O 가능성"
+    },
+    {
+      "note": "계약·경계·성능·문서 검증 근거가 없음"
+    }
+  ],
+  "riskReducers": [
+    {
+      "note": "하위 호환 필드 또는 버전 전환·마이그레이션 제공"
+    },
+    {
+      "note": "timeout과 cancelled의 상태 분류 및 재시도 동작에 대한 테스트 추가"
+    },
+    {
+      "note": "pollMs 경계·중첩 I/O 성능 검증"
+    },
+    {
+      "note": "SPEC.md와 구현 계약 정합성 수정 후 typecheck 및 전체 테스트 실행"
+    }
+  ]
+}

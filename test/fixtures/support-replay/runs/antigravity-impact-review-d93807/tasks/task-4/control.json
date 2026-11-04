@@ -1,0 +1,38 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "커밋 654f639는 외부 공개 계약(SPEC.md T3)을 파괴하는 필드 이름 변경(launchRetryAttempts -> launchRetries)과 SPEC.md(S3, C1) 명세를 직접 위반하는 폴링 주기 변경 및 타임아웃 오류의 취소 오분류를 포함하여 배포 차단 수준(high)의 영향을 초래합니다.",
+  "status": "high",
+  "impacts": [
+    {
+      "area": "workflow-terminal",
+      "surface": "WorkflowTerminalSummary.launchRetries / summarizeWorkflowTerminal",
+      "type": "breaking_change",
+      "severity": "high",
+      "description": "WorkflowTerminalSummary 인터페이스 및 summarizeWorkflowTerminal 반환 객체에서 launchRetryAttempts가 launchRetries로 이름이 변경되었습니다. 이는 SPEC.md T3('outputRetryAttempts와 launchRetryAttempts는 공개 계약이며 외부 도구가 읽는다')를 명면으로 위반하며, 기존 외부 소비 도구에서 undefined를 참조하게 만드는 중대한 하위 호환성 파괴(Breaking Change)입니다."
+    },
+    {
+      "area": "workflow-stop",
+      "surface": "createWorkflowStopSignal (pollMs default / min clamp)",
+      "type": "contract_drift",
+      "severity": "medium",
+      "description": "createWorkflowStopSignal 옵션 기본값이 50ms에서 200ms로 변경되어 디스크 중지 의도 감지 반응성이 4배 지연되며, 최소 클램프가 10ms에서 1ms로 완화되어 SPEC.md S3('기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다 짧아지면 안 된다') 명세를 위반하고 과도한 I/O 폴링 위험을 유발합니다."
+    },
+    {
+      "area": "workflow-cancellation",
+      "surface": "isWorkflowReturnedCancellation (candidate matching)",
+      "type": "contract_drift",
+      "severity": "high",
+      "description": "취소 사유 문자열 후보에 'cancelled' 및 'timeout'이 추가되었습니다. 이는 SPEC.md C1('정확히 aborted, AbortError, ABORT_ERR 세 가지만 취소로 인정하며 다른 provider 오류를 취소로 승격해서는 안 된다')을 정면으로 위반하며, 프로바이더 타임아웃 실패가 취소로 오분류되어 오류 진단이 억제되고 워크플로 제어 흐름이 왜곡됩니다."
+    }
+  ],
+  "assumptions": [
+    {
+      "topic": "external_consumer_reliance",
+      "assumption": "SPEC.md T3에 명시된 바와 같이 외부 도구 및 모니터링 시스템은 WorkflowTerminalSummary.launchRetryAttempts 필드명을 신뢰하고 직접 참조합니다."
+    },
+    {
+      "topic": "specification_authority",
+      "assumption": "SPEC.md의 S1~S7, C1~C2, T1~T3는 워크플로 중지·취소·종료 요약에 대한 불변의 표준 계약(Ground Truth)입니다."
+    }
+  ]
+}

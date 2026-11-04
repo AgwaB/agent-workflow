@@ -1,0 +1,120 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Commit 654f639 alters 3 files: changes pollMs default/minimum in workflow-stop.ts, expands cancellation candidate strings in workflow-cancellation.ts, and renames launchRetryAttempts to launchRetries in workflow-terminal.ts.",
+  "changeSummary": "Commit 654f639 ('stop: poll less often; treat cancelled/timeout as cancellation; shorter retry field name') introduces three distinct functional and contract modifications: (1) In src/workflow-stop.ts, createWorkflowStopSignal raises the default pollMs interval from 50ms to 200ms and relaxes the minimum clamp from 10ms to 1ms; (2) In src/workflow-cancellation.ts, isWorkflowReturnedCancellation adds 'cancelled' and 'timeout' as recognized cancellation strings alongside existing markers; (3) In src/workflow-terminal.ts, WorkflowTerminalSummary and summarizeWorkflowTerminal rename the public contract field launchRetryAttempts to launchRetries.",
+  "changeInputs": [
+    {
+      "type": "git_commit",
+      "commitId": "654f639606913ae2ea7b2465cf1bdcae71c03ff2",
+      "parentCommitId": "11bc671dfaf405e184f83cecae1aca7182250de9",
+      "commitMessage": "stop: poll less often; treat cancelled/timeout as cancellation; shorter retry field name",
+      "description": "The target change under review (HEAD~1..HEAD, 654f639)."
+    },
+    {
+      "type": "specification",
+      "path": "SPEC.md",
+      "description": "Ground-truth specification detailing stop detection (S1-S7), cancellation detection (C1-C2), terminal summary (T1-T3), and test coverage (Q1)."
+    }
+  ],
+  "affectedFiles": [
+    {
+      "path": "src/workflow-stop.ts",
+      "changeType": "modified",
+      "linesChanged": 2,
+      "diff": "- const pollMs = Math.max(10, options.pollMs ?? 50);\n+ const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "description": "Altered stop polling timing and boundary clamp in createWorkflowStopSignal."
+    },
+    {
+      "path": "src/workflow-cancellation.ts",
+      "changeType": "modified",
+      "linesChanged": 2,
+      "diff": "- if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\") return true;\n+ if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "description": "Expanded candidate matching in isWorkflowReturnedCancellation to recognize 'cancelled' and 'timeout'."
+    },
+    {
+      "path": "src/workflow-terminal.ts",
+      "changeType": "modified",
+      "linesChanged": 4,
+      "diff": "In WorkflowTerminalSummary:\n- launchRetryAttempts: number;\n+ launchRetries: number;\nIn summarizeWorkflowTerminal:\n- launchRetryAttempts: run.tasks.reduce(...)\n+ launchRetries: run.tasks.reduce(...)",
+      "description": "Renamed property launchRetryAttempts to launchRetries in both the interface and the return object."
+    }
+  ],
+  "affectedComponents": [
+    {
+      "name": "workflow-stop",
+      "path": "src/workflow-stop.ts",
+      "symbols": [
+        "createWorkflowStopSignal"
+      ],
+      "description": "Handles workflow stop signal creation, disk polling, and foreground signal coordination."
+    },
+    {
+      "name": "workflow-cancellation",
+      "path": "src/workflow-cancellation.ts",
+      "symbols": [
+        "isWorkflowReturnedCancellation"
+      ],
+      "description": "Inspects provider returns, error strings, and structured content for cancellation markers."
+    },
+    {
+      "name": "workflow-terminal",
+      "path": "src/workflow-terminal.ts",
+      "symbols": [
+        "WorkflowTerminalSummary",
+        "summarizeWorkflowTerminal"
+      ],
+      "description": "Summarizes terminal workflow state, degradation status, and task retry counts for external callers."
+    }
+  ],
+  "publicSurfaces": [
+    {
+      "surface": "WorkflowTerminalSummary.launchRetries",
+      "component": "workflow-terminal",
+      "type": "interface_property_rename",
+      "isBreaking": true,
+      "description": "Renaming launchRetryAttempts to launchRetries breaks external consumers reading the summary contract specified in SPEC.md T3."
+    },
+    {
+      "surface": "createWorkflowStopSignal(cwd, runId, options)",
+      "component": "workflow-stop",
+      "type": "runtime_behavior",
+      "isBreaking": false,
+      "description": "Default polling latency increased from 50ms to 200ms; lower bound clamp decreased from 10ms to 1ms, violating SPEC.md S3."
+    },
+    {
+      "surface": "isWorkflowReturnedCancellation(value)",
+      "component": "workflow-cancellation",
+      "type": "runtime_classification",
+      "isBreaking": false,
+      "description": "Treats 'cancelled' and 'timeout' as cancellation, directly violating SPEC.md C1 rule prohibiting promoting non-standard provider errors."
+    }
+  ],
+  "assumptions": [
+    {
+      "topic": "repository_scope",
+      "assumption": "The repository is a focused excerpt of workflow stop and cancellation handling, containing SPEC.md and three TypeScript source modules in src/."
+    },
+    {
+      "topic": "commit_evidence",
+      "assumption": "Commit 654f639 is the single target commit on top of base commit 11bc671 (HEAD~1..HEAD), containing diffs in exactly src/workflow-stop.ts, src/workflow-cancellation.ts, and src/workflow-terminal.ts."
+    },
+    {
+      "topic": "excluded_modules",
+      "assumption": "store.js and types.js are intentionally omitted from this repository excerpt per package.json and SPEC.md."
+    }
+  ],
+  "outOfScope": [
+    {
+      "item": "Unmodified files (package.json, tsconfig.json, .gitignore)",
+      "reason": "No modifications were introduced to build configurations or project manifests in commit 654f639."
+    },
+    {
+      "item": "store.js and types.js implementations",
+      "reason": "External to this code excerpt; mocked or imported as external boundaries."
+    },
+    {
+      "item": "Direct code modification or patching",
+      "reason": "This workflow stage is strictly a read-only impact scope mapping."
+    }
+  ]
+}

@@ -1,0 +1,148 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Stop-watch fence mostly holds, but the post-await recheck depends on launch registration staying alive, and the poll path fails open on read errors.",
+  "lens": "runtime-race",
+  "findings": [
+    {
+      "severity": "medium",
+      "title": "Foreground abort can be lost if its launch binding is released during the disk read",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 93,
+          "lineEnd": 98,
+          "symbol": "throwIfWorkflowStopRequested"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 17,
+          "lineEnd": 21,
+          "symbol": "bindWorkflowLaunchSignal"
+        }
+      ],
+      "evidence": "The synchronous launch check at line 93 runs before the await at line 95. The only check after the disk read is the launch-registry check at line 97, which is valid only if the signal is still registered. The unbind closure at lines 17-21 can delete the signal during the await, so an abort that arrived during the read is not seen.",
+      "evidenceQuotes": [
+        "if (launchStopRequested(cwd, runId))",
+        "const intent = await readWorkflowStopIntent(cwd, runId);",
+        "// Cancellation may have arrived while the disk read was in flight.",
+        "if (intent || launchStopRequested(cwd, runId))",
+        "signals.delete(signal);"
+      ],
+      "rationale": "The comment at lines 3-4 says the foreground abort fence is synchronous. The fence only holds for the sync read before the await and for the post-await read while the binding exists. If the binding is released during the read, the stop is dropped. The window is narrow and depends on how callers order bind and dispose, which is not visible in src/.",
+      "recommendedAction": "Capture the signal's aborted state in a local before the await, or re-check after the await against the captured signal instead of the mutable registry. Alternatively, make the unbind closure wait for in-flight throw checks. Add a test where the abort fires during the mocked read and the binding is released before the read resolves.",
+      "confidence": "medium"
+    },
+    {
+      "severity": "low",
+      "title": "Poll-based stop watcher fails open on intent read errors",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 74,
+          "lineEnd": 77,
+          "symbol": "createWorkflowStopSignal"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 95,
+          "lineEnd": 98,
+          "symbol": "throwIfWorkflowStopRequested"
+        }
+      ],
+      "evidence": "The polling watcher converts any read failure into 'no intent' via .catch(() => undefined). The one-shot throw path lets the same read error propagate. The two paths disagree on what a read failure means.",
+      "evidenceQuotes": [
+        "const intent = await readWorkflowStopIntent(cwd, runId).catch(",
+        "() => undefined,",
+        "if (intent || launchStopRequested(cwd, runId))"
+      ],
+      "rationale": "A transient or corrupt read in the poll loop means a stop request is silently ignored until a later poll succeeds. The poll loop is the only watcher for a long-running launch, so a sustained read error means the stop is never seen.",
+      "recommendedAction": "Log or count poll read failures, and retry or surface them when they persist. Keep the behavior consistent with throwIfWorkflowStopRequested, or document the intentional difference.",
+      "confidence": "medium"
+    },
+    {
+      "severity": "low",
+      "title": "Dispose does not stop an in-flight check, and checks can overlap",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 68,
+          "lineEnd": 80,
+          "symbol": "createWorkflowStopSignal"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 85,
+          "lineEnd": 85,
+          "symbol": "dispose"
+        }
+      ],
+      "evidence": "dispose() only calls clearInterval. An async check() already in flight can still call controller.abort() after dispose. The interval also starts a new check every pollMs without a guard, so slow reads can pile up.",
+      "evidenceQuotes": [
+        "const timer = setInterval(() => void check(), pollMs);",
+        "dispose: () => clearInterval(timer),"
+      ],
+      "rationale": "abort() is idempotent, so the main risk is a late abort on a signal the caller considers finished, plus extra disk reads under load. The impact is limited but this is a real post-dispose effect.",
+      "recommendedAction": "Add a disposed flag checked before each abort, and skip a tick while a previous check is still pending.",
+      "confidence": "medium"
+    },
+    {
+      "severity": "low",
+      "title": "Launch registry dedupes by signal, so a double bind of the same signal is released early",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 14,
+          "lineEnd": 18,
+          "symbol": "bindWorkflowLaunchSignal"
+        }
+      ],
+      "evidence": "The registry is a Set keyed by signal. If the same signal is bound twice for one run, the first unbind removes it for both bindings, and the second binding loses its stop registration while still active.",
+      "evidenceQuotes": [
+        "signals.add(signal);",
+        "signals.delete(signal);"
+      ],
+      "rationale": "Whether this is reachable depends on callers, and no callers exist under src/. The risk is a silently missed foreground stop for a launch that is still running.",
+      "recommendedAction": "Use a per-bind token, or a count per signal, so each unbind removes only its own registration.",
+      "confidence": "low"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-stop.ts:5-28",
+    "src/workflow-stop.ts:61-87",
+    "src/workflow-stop.ts:89-99",
+    "Grep for bindWorkflowLaunchSignal, throwIfWorkflowStopRequested, createWorkflowStopSignal, readWorkflowStopIntent under src/: only definitions in src/workflow-stop.ts; no callers in src/"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-stop.ts:5-28",
+      "status": "read",
+      "evidence": "const launchSignals = new Map<string, Set<AbortSignal>>();",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-stop.ts:61-87",
+      "status": "read",
+      "evidence": "const timer = setInterval(() => void check(), pollMs);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-stop.ts:89-99",
+      "status": "read",
+      "evidence": "const intent = await readWorkflowStopIntent(cwd, runId);",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "The launch check at line 69 and the post-await check at line 77 both run in createWorkflowStopSignal, so an abort that is already set before the read is still caught.",
+    "The sync check at line 93 runs before any await, so an already-aborted launch signal is honored synchronously.",
+    "The min-1ms clamp on pollMs and the unref'd timer are reasonable.",
+    "No caller in src/ uses these functions, so the real bind/dispose ordering could not be verified from this tree."
+  ]
+}

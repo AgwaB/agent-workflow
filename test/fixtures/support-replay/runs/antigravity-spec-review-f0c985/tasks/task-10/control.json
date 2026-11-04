@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "S6 명세 위반 검증 완료: isWorkflowStopRequestedError가 오류 메시지 접두사를 참조하여 명세를 위반함을 확인하여 KEEP으로 판정합니다.",
+  "id": "candidate-finding-s6",
+  "verdict": "KEEP",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 53,
+      "lineEnd": 59,
+      "quote": "export function isWorkflowStopRequestedError(error: unknown): boolean {\n\treturn (\n\t\terror instanceof Error &&\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))\n\t);\n}",
+      "relevance": "isWorkflowStopRequestedError 구현에 error.message.startsWith 조건 분기가 포함되어 메시지 내용으로 중지 오류를 판정함"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 18,
+      "lineEnd": 19,
+      "quote": "- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로\n  인정한다. 메시지 내용으로 판별해서는 안 된다.",
+      "relevance": "S6 명세에서 이름이 WorkflowStopRequested인 오류만 중지 오류로 인정하고 메시지 내용 판별을 명시적으로 금지함"
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "isWorkflowStopRequestedError가 오류 이름(WorkflowStopRequested) 외에도 오류 메시지 접두사(error.message.startsWith('workflow stop requested'))를 검사하여 명세 S6의 '메시지 내용으로 판별해서는 안 된다'는 규칙을 위반합니다.",
+  "recommendedAction": "src/workflow-stop.ts의 isWorkflowStopRequestedError 구현에서 error.message.startsWith 검사 분기를 제거하고 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME 조건만 검사하도록 수정합니다."
+}

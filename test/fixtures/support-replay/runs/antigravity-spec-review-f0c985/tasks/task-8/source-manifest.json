@@ -1,0 +1,68 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1ipzw6_f0c985",
+  "taskId": "task-8",
+  "sources": [
+    {
+      "source": "report",
+      "displayName": "report.main",
+      "taskId": "task-7",
+      "specId": "report.main",
+      "stageId": "report",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "SPEC.md 검토 결과 5건의 명세 불일치(S3, S6, C1, T3, Q1)가 확인되어 GAPS_FOUND로 판정되었습니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-7/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-7/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-7/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-7/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "partition-findings",
+      "displayName": "partition-findings.main",
+      "taskId": "task-6",
+      "specId": "partition-findings.main",
+      "stageId": "partition-findings",
+      "status": "completed",
+      "statusDetail": "support_completed",
+      "lastMessage": "support completed",
+      "digest": "sha256:a3993303d90aa4884dc4978e2331f8985c63ae8ac2d348624a327f75ab970d2a",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-6/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-6/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-6/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-6/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

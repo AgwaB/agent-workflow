@@ -1,0 +1,347 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "13개 요구사항 중 7개는 구현상 충족, 5개는 구현 불일치, Q1은 테스트 부재로 미충족 후보다.",
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "테스트는 읽기 전용 단계 제한으로 실행하지 않았다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "store.js와 types.js는 upstream 범위에서 제외되어 내부 계약은 검증하지 않았다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "requirementCoverage": [
+    {
+      "requirementId": "REQ-001",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 24,
+          "lineEnd": 27,
+          "quote": "return [...(launchSignals.get(workflowRunPath(cwd, runId)) ?? [])].some(",
+          "relevance": "foreground AbortSignal 감지"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 74,
+          "lineEnd": 78,
+          "quote": "const intent = await readWorkflowStopIntent(cwd, runId).catch(",
+          "relevance": "디스크 stop intent 감지"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-002",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 47,
+          "lineEnd": 50,
+          "quote": "error.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME;",
+          "relevance": "오류 이름과 runId 메시지 생성"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 70,
+          "lineEnd": 72,
+          "quote": "controller.abort(createWorkflowStopRequestedError(runId));",
+          "relevance": "감지 시 abort"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-003",
+      "status": "gap",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 67,
+          "lineEnd": 67,
+          "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+          "relevance": "기본값과 하한이 명세와 다름"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-004",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 74,
+          "lineEnd": 76,
+          "quote": "const intent = await readWorkflowStopIntent(cwd, runId).catch(",
+          "relevance": "감시 경로에서 읽기 실패 무시"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 93,
+          "lineEnd": 95,
+          "quote": "const intent = await readWorkflowStopIntent(cwd, runId);",
+          "relevance": "명시적 검사에서 오류 전파"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-005",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 80,
+          "lineEnd": 85,
+          "quote": "const timer = setInterval(() => void check(), pollMs);",
+          "relevance": "감시 타이머 등록"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 83,
+          "lineEnd": 85,
+          "quote": "dispose: () => clearInterval(timer),",
+          "relevance": "dispose 시 후속 interval 제거"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-006",
+      "status": "gap",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 53,
+          "lineEnd": 58,
+          "quote": "error.message.startsWith(\"workflow stop requested\")",
+          "relevance": "오류 이름 외 메시지 prefix도 인정"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-007",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 17,
+          "lineEnd": 21,
+          "quote": "signals.delete(signal);",
+          "relevance": "해제 시 signal 제거 및 마지막 등록 삭제"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-008",
+      "status": "partial",
+      "evidence": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "lineStart": 19,
+          "lineEnd": 21,
+          "quote": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+          "relevance": "명세 외 문자열도 취소로 판정"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-009",
+      "status": "partial",
+      "evidence": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "lineStart": 27,
+          "lineEnd": 28,
+          "quote": "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+          "relevance": "JSON content 재귀는 있으나 방문 집합이나 깊이 제한 없음"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-010",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 67,
+          "lineEnd": 69,
+          "quote": "return run.degradation ? \"completed_degraded\" : \"completed\";",
+          "relevance": "completed degradation 상태 매핑"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-011",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 59,
+          "lineEnd": 61,
+          "quote": ").catch(() => undefined);",
+          "relevance": "controller control.json 읽기 실패를 undefined로 처리"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 93,
+          "lineEnd": 95,
+          "quote": "else semanticStatus = \"completed_without_semantic_result\";",
+          "relevance": "semantic result 부재 상태 매핑"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-012",
+      "status": "partial",
+      "evidence": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 27,
+          "lineEnd": 34,
+          "quote": "launchRetries: number;",
+          "relevance": "공개 필드명이 명세와 다름"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 107,
+          "lineEnd": 110,
+          "quote": "launchRetries: run.tasks.reduce(",
+          "relevance": "launch retry 합계는 계산하지만 잘못된 이름으로 반환"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-013",
+      "status": "gap",
+      "evidence": []
+    }
+  ],
+  "candidateFindings": [
+    {
+      "id": "finding-001",
+      "requirementIds": [
+        "REQ-003"
+      ],
+      "severity": "medium",
+      "title": "중지 감시 polling 계약 불일치",
+      "claim": "pollMs 기본값이 50ms가 아니라 200ms이고 하한도 10ms가 아닌 1ms다.",
+      "specEvidence": [
+        "SPEC.md S3는 기본 50ms와 최소 10ms를 요구한다."
+      ],
+      "implementationEvidence": [
+        "src/workflow-stop.ts:67은 options.pollMs ?? 200을 Math.max(1, ...)로 제한한다."
+      ],
+      "testEvidence": [
+        "polling 기본값과 10ms 미만 입력을 검증하는 테스트가 없다."
+      ],
+      "uncertainty": "실행 테스트는 하지 않았지만 구현값 자체는 명세와 직접 불일치한다."
+    },
+    {
+      "id": "finding-002",
+      "requirementIds": [
+        "REQ-006"
+      ],
+      "severity": "high",
+      "title": "중지 오류 판별이 메시지 prefix를 사용함",
+      "claim": "isWorkflowStopRequestedError가 오류 이름이 달라도 메시지가 workflow stop requested로 시작하면 중지 오류로 인정한다.",
+      "specEvidence": [
+        "SPEC.md S6는 이름이 WorkflowStopRequested인 오류만 인정하고 메시지 판별을 금지한다."
+      ],
+      "implementationEvidence": [
+        "src/workflow-stop.ts:56-57은 error.name 조건과 함께 error.message.startsWith(...) 조건을 사용한다."
+      ],
+      "testEvidence": [
+        "오류 이름이 다르고 동일한 메시지를 가진 반례 테스트가 없다."
+      ],
+      "uncertainty": "해당 함수의 실제 호출 결과는 실행하지 않았으나 조건식상 false positive가 가능하다."
+    },
+    {
+      "id": "finding-003",
+      "requirementIds": [
+        "REQ-008"
+      ],
+      "severity": "high",
+      "title": "허용되지 않은 provider 취소 표식 수용",
+      "claim": "provider 반환값의 cancelled, timeout 등 명세에 없는 표식도 취소로 승격한다.",
+      "specEvidence": [
+        "SPEC.md C1은 aborted, AbortError, ABORT_ERR 세 문자열만 인정한다."
+      ],
+      "implementationEvidence": [
+        "src/workflow-cancellation.ts:16-20은 cancelled 플래그와 cancelled 및 timeout 문자열을 true로 반환한다."
+      ],
+      "testEvidence": [
+        "명세 외 provider 오류가 취소로 승격되지 않는 테스트가 없다."
+      ],
+      "uncertainty": "AbortError 객체 형태의 허용 여부는 발췌 명세에 없지만, 추가 문자열과 플래그 수용은 명시된 문자열 규칙과 충돌한다."
+    },
+    {
+      "id": "finding-004",
+      "requirementIds": [
+        "REQ-009"
+      ],
+      "severity": "high",
+      "title": "JSON content 재귀 종료 조건이 구조적 자기재귀를 막지 못함",
+      "claim": "parsed !== value는 identity만 비교하므로 동등한 JSON content가 새 객체로 반복 파싱되는 자기재귀를 차단하지 못할 수 있다.",
+      "specEvidence": [
+        "SPEC.md C2는 JSON content도 검사하되 같은 값을 다시 검사하는 무한 재귀를 피하도록 요구한다."
+      ],
+      "implementationEvidence": [
+        "src/workflow-cancellation.ts:27-28은 JSON.parse 후 identity 비교만 하고 방문 집합이나 재귀 깊이 제한을 두지 않는다."
+      ],
+      "testEvidence": [
+        "자기 재귀 또는 반복 JSON content를 검증하는 테스트가 없다."
+      ],
+      "uncertainty": "실제 입력 형태에 따른 재귀 발생 여부는 실행 검증이 필요하지만, 현재 종료 장치는 identity 비교뿐이다."
+    },
+    {
+      "id": "finding-005",
+      "requirementIds": [
+        "REQ-012"
+      ],
+      "severity": "high",
+      "title": "공개 launch retry 필드명 불일치",
+      "claim": "모든 작업의 launch retry 합계는 계산하지만 공개 필드가 launchRetryAttempts가 아니라 launchRetries다.",
+      "specEvidence": [
+        "SPEC.md T3는 outputRetryAttempts와 launchRetryAttempts를 공개 계약으로 요구한다."
+      ],
+      "implementationEvidence": [
+        "src/workflow-terminal.ts:33과 107-110은 launchRetries라는 이름으로 값을 반환한다."
+      ],
+      "testEvidence": [
+        "공개 요약 필드명과 모든 작업 합계를 확인하는 테스트가 없다."
+      ],
+      "uncertainty": "합산 로직은 명세와 일치하지만 외부 소비자가 요구된 필드명을 읽는 계약은 충족하지 않는다."
+    },
+    {
+      "id": "finding-006",
+      "requirementIds": [
+        "REQ-013"
+      ],
+      "severity": "low",
+      "title": "S·C·T 요구사항별 단위 테스트 부재",
+      "claim": "S1–S7, C1–C2, T1–T3 각각의 동작을 확인하는 단위 테스트 파일이나 fixture가 발견되지 않았다.",
+      "specEvidence": [
+        "SPEC.md Q1은 위 각 항목마다 동작 확인 단위 테스트를 요구한다."
+      ],
+      "implementationEvidence": [
+        "upstream 구현 맵은 package.json에 typecheck만 있고 tracked test directory/unit-test file이 없다고 기록한다."
+      ],
+      "testEvidence": [
+        "inspect-tests의 testMap이 비어 있고 테스트 근거가 없다."
+      ],
+      "uncertainty": "현재 저장소 범위에서 검색된 테스트 부재에 근거한 후보이며, 실행은 하지 않았다."
+    }
+  ],
+  "needsHuman": [],
+  "noIssueNotes": [
+    "REQ-001은 foreground signal과 디스크 intent 양쪽 경로가 구현되어 있다.",
+    "REQ-002는 WorkflowStopRequested 이름과 runId 포함 메시지로 abort한다.",
+    "REQ-004는 감시 읽기 실패를 무시하고 명시적 검사에서는 전파한다.",
+    "REQ-005는 감시 timer를 dispose에서 해제한다.",
+    "REQ-007은 signal 해제와 마지막 실행 등록 삭제를 구현한다.",
+    "REQ-010과 REQ-011의 terminal semantic status 분기는 구현되어 있다."
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "finding-002 is real: src/workflow-stop.ts:57 accepts message-prefix matches, which SPEC S6 forbids. Severity lowered to medium because no in-repo caller or test depends on it.",
+  "id": "finding-002",
+  "verdict": "WEAKEN",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 53,
+      "lineEnd": 59,
+      "quote": "error.message.startsWith(\"workflow stop requested\"))",
+      "relevance": "isWorkflowStopRequestedError also accepts errors whose message starts with the stop prefix, contrary to S6's name-only rule"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 18,
+      "lineEnd": 19,
+      "quote": "인정한다. 메시지 내용으로 판별해서는 안 된다.",
+      "relevance": "S6 requires name-only recognition and forbids message-content discrimination"
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 47,
+      "lineEnd": 50,
+      "quote": "error.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME;",
+      "relevance": "Internal producers always set the name, so in-repo stop errors do not rely on the message fallback; this lowers practical impact, not the spec violation"
+    }
+  ],
+  "finalClaim": "S6 violation: isWorkflowStopRequestedError returns true for any Error whose message starts with 'workflow stop requested', not only for name WorkflowStopRequested. No test covers the message-only rejection, and no in-repo caller was found.",
+  "recommendedAction": "Remove the message-prefix branch at src/workflow-stop.ts:57 so only the error name is checked, and add a unit test that a plain Error with a matching message returns false."
+}

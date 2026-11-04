@@ -1,0 +1,19 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "no-validation-evidence-available",
+  "tests": [],
+  "docs": [],
+  "releaseArtifacts": [],
+  "validationCommandsMentioned": [],
+  "knownGaps": [
+    {
+      "note": "HEAD~1..HEAD 변경과 저장소 파일을 읽지 못해 테스트·fixture·문서·릴리스 산출물·검증 명령을 매핑할 근거가 없음"
+    },
+    {
+      "note": "상위 workflow artifact가 제공되지 않음"
+    },
+    {
+      "note": "배포 위험 최종 판정은 수행하지 않음"
+    }
+  ]
+}

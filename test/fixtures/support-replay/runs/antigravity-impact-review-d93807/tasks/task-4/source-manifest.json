@@ -1,0 +1,68 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1kjw3t_d93807",
+  "taskId": "task-4",
+  "sources": [
+    {
+      "source": "impact-analysis.change-scope",
+      "displayName": "impact-analysis.change-scope.main",
+      "taskId": "task-1",
+      "specId": "impact-analysis.change-scope.main",
+      "stageId": "impact-analysis.change-scope",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "Commit 654f639 alters 3 files: changes pollMs default/minimum in workflow-stop.ts, expands cancellation candidate strings in workflow-cancellation.ts, and renames launchRetryAttempts to launchRetries in workflow-terminal.ts.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-1/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-1/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-1/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-1/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.implementation-map",
+      "displayName": "impact-analysis.implementation-map.main",
+      "taskId": "task-2",
+      "specId": "impact-analysis.implementation-map.main",
+      "stageId": "impact-analysis.implementation-map",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "커밋 654f639 변경에 대응하여 3개 소스 모듈(workflow-stop, workflow-cancellation, workflow-terminal)과 설정/명세 표면, 7개 진입점, 4개 데이터 흐름, 4개 미확인 영역을 식별했습니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-2/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-2/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-2/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-2/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

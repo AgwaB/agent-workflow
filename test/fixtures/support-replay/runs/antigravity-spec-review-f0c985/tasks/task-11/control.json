@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "isWorkflowReturnedCancellation 구현에서 명세 C1에 허용된 3개 문자열 외에 cancelled와 timeout을 취소로 승격하는 결함이 확인되어 KEEP으로 판정합니다.",
+  "id": "candidate-finding-c1",
+  "verdict": "KEEP",
+  "severity": "high",
+  "finalClaim": "isWorkflowReturnedCancellation 함수에서 provider 오류·사유 문자열 검사 시 명세 C1에서 엄격하게 규정한 3개 문자열(aborted, AbortError, ABORT_ERR) 외에 cancelled 및 timeout을 취소로 인정하고 있어, 타임아웃과 같은 비취소 provider 오류가 취소로 잘못 승격됩니다.",
+  "recommendedAction": "src/workflow-cancellation.ts line 20의 candidate 조건식에서 'cancelled' 및 'timeout' 비교를 제거하여 정확히 'aborted', 'AbortError', 'ABORT_ERR' 세 가지만 취소 오류·사유로 판정하도록 수정하십시오.",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 25,
+      "lineEnd": 26,
+      "quote": "provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.",
+      "relevance": "명세 C1은 취소로 인정하는 오류·사유 문자열을 정확히 세 가지로 제한하며 타 provider 오류의 승격을 금지함"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 20,
+      "lineEnd": 20,
+      "quote": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "relevance": "isWorkflowReturnedCancellation 함수가 명세에 없는 cancelled 및 timeout 문자열을 취소로 인정함"
+    }
+  ],
+  "counterEvidence": []
+}

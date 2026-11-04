@@ -1,0 +1,198 @@
+{
+  "schema": "deep-research-final-synthesis-v2",
+  "digest": "AbortSignal.any()와 timeout은 주요 환경에서 사용 가능하지만 Firefox, Edge timeout, Node.js 안정성·타이머 의미에는 검증 한계가 남아 있다.",
+  "inputIntegrity": {
+    "status": "complete"
+  },
+  "synthesis": {
+    "bottomLine": "AbortSignal.any()와 AbortSignal.timeout()은 주요 런타임에서 사용할 수 있지만 환경별 기준이 다르다. Node.js any는 v20.3.0/v18.17.0, timeout은 v17.3.0/v16.14.0부터 문서화되어 있다. any는 Chrome·Edge 116과 Safari 17.4에서 확인되었고, timeout은 Chrome 전체 지원 124와 Safari 16에서 확인되었다. Firefox 기준과 Edge timeout 124는 추가 확인이 필요하다. any는 먼저 관찰한 abort reason을 보존하고 입력 신호를 취소하지 않으며, 브라우저 timeout은 active time·TimeoutError·무취소 API semantics를 따르므로 Node.js와 구분해야 한다.",
+    "comparisonRows": [],
+    "keyFindingIds": [
+      "claim-001",
+      "claim-003",
+      "claim-005",
+      "claim-006",
+      "claim-008",
+      "claim-009",
+      "claim-012",
+      "claim-013",
+      "claim-014",
+      "claim-015",
+      "claim-016",
+      "claim-017"
+    ],
+    "recommendations": [
+      {
+        "recommendation": "Node.js 배포 기준은 any를 18.17+/20.3+, timeout을 16.14+/17.3+로 설정하되 메서드별 안정화 이력은 별도로 확인한다.",
+        "supportingClaimIds": [
+          "claim-001",
+          "claim-003",
+          "claim-002",
+          "claim-004"
+        ]
+      },
+      {
+        "recommendation": "브라우저 any의 기준은 Chrome·Edge 116 및 Safari 17.4로 삼고 Firefox 124는 잠정값으로 취급한다.",
+        "supportingClaimIds": [
+          "claim-005",
+          "claim-006",
+          "claim-008",
+          "claim-007"
+        ]
+      },
+      {
+        "recommendation": "timeout은 Chrome 124 이상과 Safari 16을 확인된 기준으로 사용하고, Edge 124와 Firefox 100은 독립 확인 전까지 feature detection 또는 fallback을 적용한다.",
+        "supportingClaimIds": [
+          "claim-009",
+          "claim-012",
+          "claim-010",
+          "claim-011"
+        ]
+      },
+      {
+        "recommendation": "abort reason 전달과 신호 비연쇄성을 전제로 설계하고, 브라우저 timeout semantics를 Node.js에 그대로 적용하지 않는다.",
+        "supportingClaimIds": [
+          "claim-013",
+          "claim-014",
+          "claim-015",
+          "claim-016",
+          "claim-017",
+          "claim-018"
+        ]
+      }
+    ],
+    "actionPlan": [
+      {
+        "action": "Firefox any/timeout 및 Edge timeout 버전을 별도 검증 항목으로 남기고 확인 전 fallback을 적용한다.",
+        "supportingClaimIds": [
+          "claim-007",
+          "claim-010",
+          "claim-011"
+        ]
+      },
+      {
+        "action": "Node.js에서 timeout 지연, active-time mapping, timer lifecycle과 process-exit 동작을 직접 테스트한다.",
+        "supportingClaimIds": [
+          "claim-016",
+          "claim-018"
+        ]
+      },
+      {
+        "action": "Node.js 메서드별 안정화 전환 버전이 필요하면 별도의 공식 이력 자료를 확보한다.",
+        "supportingClaimIds": [
+          "claim-002",
+          "claim-004"
+        ]
+      },
+      {
+        "action": "이미 중단된 입력, 이후 abort reason 전달, returned signal의 비연쇄성을 회귀 테스트에 포함한다.",
+        "supportingClaimIds": [
+          "claim-013",
+          "claim-014",
+          "claim-017"
+        ]
+      }
+    ],
+    "caveatNotes": [
+      {
+        "note": "Node.js 최신 Global objects 문서의 \"Stable\" 표시는 섹션 수준이며 any와 timeout 각각의 안정화 전환 버전은 제시하지 않는다.",
+        "readerNote": "Stable이라는 문구만으로 메서드별 안정화 시점을 확정할 수 없으므로 버전 기준과 안정성 기준을 분리해 관리해야 한다.",
+        "relatedClaimIds": [
+          "claim-002",
+          "claim-004"
+        ],
+        "gapIds": [
+          "gap-001",
+          "gap-002"
+        ]
+      },
+      {
+        "note": "Firefox 124(any)와 Firefox 100(timeout)은 감사에서 로컬 파일과 원격 URL의 증거 식별자 충돌이 확인되어 partially_supported로 남아 있다.",
+        "readerNote": "Firefox 기준은 검증된 호환성 약속이 아니므로 최소 브라우저 버전으로 확정하기 전에 직접 확인해야 한다.",
+        "relatedClaimIds": [
+          "claim-007",
+          "claim-011"
+        ],
+        "gapIds": [
+          "gap-remaining-001",
+          "gap-remaining-002"
+        ]
+      },
+      {
+        "note": "Edge timeout 124는 Chrome 호환성 미러에서 추론되었고 직접적인 Edge 문구가 추출되지 않았다. Chrome·Safari 공식 릴리스 문서의 직접 대조도 남아 있다.",
+        "readerNote": "Edge timeout을 하드 baseline으로 삼기 전에 독립적인 Edge 확인이 필요하다.",
+        "relatedClaimIds": [
+          "claim-009",
+          "claim-010",
+          "claim-012"
+        ],
+        "gapIds": [
+          "gap-003",
+          "gap-004"
+        ]
+      },
+      {
+        "note": "WHATWG와 MDN의 브라우저 timeout semantics는 확인되지만 Node.js의 active-time 대응과 내부 timer ref/unref 정책은 해결되지 않았다.",
+        "readerNote": "브라우저에서 관찰한 timeout 수명이나 프로세스 동작이 Node.js에서도 같다고 가정하지 말고 런타임별 테스트를 수행해야 한다.",
+        "relatedClaimIds": [
+          "claim-015",
+          "claim-016",
+          "claim-018"
+        ],
+        "gapIds": [
+          "gap-005"
+        ]
+      },
+      {
+        "note": "감사 인계 상태에서는 연구 질문과 검증 후보의 대응이 완료되었지만 verifier batch adoption은 blocked로 남아 있다.",
+        "relatedClaimIds": [],
+        "gapIds": []
+      }
+    ],
+    "parentDecisionNotes": [
+      {
+        "note": "Node.js 도입 버전은 명확하지만 메서드별 안정화 이력은 별도 확인이 필요하다.",
+        "whyItMatters": "버전 호환성과 안정성 보장을 동일한 근거로 판단할 수 없다.",
+        "evidenceStatus": "partially_supported",
+        "supportingClaimIds": [
+          "claim-001",
+          "claim-003",
+          "claim-002",
+          "claim-004"
+        ],
+        "suggestedParentDecision": "도입 버전은 문서화된 기준으로 채택하고 안정성 주장은 제한적으로 표현한다."
+      },
+      {
+        "note": "AbortSignal.any()의 브라우저 지원은 Chrome·Edge·Safari에서 확인되지만 Firefox 기준은 미확정이다.",
+        "whyItMatters": "Firefox를 포함한 브라우저 baseline 결정에 영향을 준다.",
+        "evidenceStatus": "partially_supported",
+        "supportingClaimIds": [
+          "claim-005",
+          "claim-006",
+          "claim-008",
+          "claim-007"
+        ],
+        "suggestedParentDecision": "Firefox는 feature detection 또는 fallback을 유지한다."
+      },
+      {
+        "note": "AbortSignal.timeout()의 Chrome·Safari 기준은 확인되지만 Edge와 Firefox는 추가 검증이 필요하다.",
+        "whyItMatters": "브라우저별 timeout 기능 의존성의 출시 기준이 달라진다.",
+        "evidenceStatus": "partially_supported",
+        "supportingClaimIds": [
+          "claim-009",
+          "claim-010",
+          "claim-011",
+          "claim-012"
+        ],
+        "suggestedParentDecision": "직접 검증 전까지 Edge와 Firefox를 확정 지원 대상으로 선언하지 않는다."
+      },
+      {
+        "note": "감사 패킷의 verifier batch adoption이 blocked 상태다.",
+        "whyItMatters": "개별 판정과 별개로 자동 인계 완료로 간주할 수 없다.",
+        "evidenceStatus": "verification_blocked",
+        "supportingClaimIds": [],
+        "suggestedParentDecision": "최종 배포 전 수동 검토를 거친다."
+      }
+    ]
+  }
+}

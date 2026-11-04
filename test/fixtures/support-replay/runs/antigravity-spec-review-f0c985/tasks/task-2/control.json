@@ -1,0 +1,87 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "src/ 내 중지 감지, 취소 판별, 종료 요약 모듈 구현 현황 및 단위 테스트 부재 영역 매핑을 완료했습니다.",
+  "implementationMap": [
+    {
+      "component": "bindWorkflowLaunchSignal",
+      "file": "src/workflow-stop.ts",
+      "evidence": "signals.add(signal); launchSignals.set(key, signals); return () => { signals.delete(signal); if (signals.size === 0 && launchSignals.get(key) === signals) launchSignals.delete(key); };",
+      "observedBehavior": "동일 runId에 대해 foreground AbortSignal을 Set에 등록하고 해제 시 크기가 0이 되면 맵에서 항목을 삭제함",
+      "relatedSignals": [
+        "S1",
+        "S7"
+      ]
+    },
+    {
+      "component": "createWorkflowStopSignal",
+      "file": "src/workflow-stop.ts",
+      "evidence": "const pollMs = Math.max(1, options.pollMs ?? 200); ... const intent = await readWorkflowStopIntent(cwd, runId).catch(() => undefined); if (intent || launchStopRequested(cwd, runId)) controller.abort(createWorkflowStopRequestedError(runId));",
+      "observedBehavior": "기본 주기 200ms 및 최소값 1ms로 폴링하며 디스크 오류 무시 후 중지 감지 시 WorkflowStopRequested 오류로 중단",
+      "relatedSignals": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5"
+      ]
+    },
+    {
+      "component": "throwIfWorkflowStopRequested",
+      "file": "src/workflow-stop.ts",
+      "evidence": "if (launchStopRequested(cwd, runId)) throw createWorkflowStopRequestedError(runId); const intent = await readWorkflowStopIntent(cwd, runId); if (intent || launchStopRequested(cwd, runId)) throw createWorkflowStopRequestedError(runId);",
+      "observedBehavior": "foreground abort 또는 디스크 intent 확인 시 오류를 던지며, 디스크 읽기 실패는 catch하지 않고 호출자에게 전파",
+      "relatedSignals": [
+        "S1",
+        "S2",
+        "S4"
+      ]
+    },
+    {
+      "component": "isWorkflowStopRequestedError",
+      "file": "src/workflow-stop.ts",
+      "evidence": "return error instanceof Error && (error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME || error.message.startsWith(\"workflow stop requested\"));",
+      "observedBehavior": "오류 이름이 WorkflowStopRequested인지뿐만 아니라 메시지 접두사도 확인하여 중지 여부를 판별함",
+      "relatedSignals": [
+        "S6"
+      ]
+    },
+    {
+      "component": "isWorkflowReturnedCancellation",
+      "file": "src/workflow-cancellation.ts",
+      "evidence": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true; ... parsed !== value && isWorkflowReturnedCancellation(parsed)",
+      "observedBehavior": "오류/사유 문자열 검사 시 aborted, AbortError, ABORT_ERR 외에 cancelled, timeout도 취소로 간주하며 content 내부 JSON을 재귀 탐색함",
+      "relatedSignals": [
+        "C1",
+        "C2"
+      ]
+    },
+    {
+      "component": "nonDynamicSemanticStatus",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "if (run.status === \"completed\") return run.degradation ? \"completed_degraded\" : \"completed\"; return run.status;",
+      "observedBehavior": "엔진 상태가 completed일 때 degradation 존재 여부에 따라 completed_degraded 또는 completed를 반환함",
+      "relatedSignals": [
+        "T1"
+      ]
+    },
+    {
+      "component": "summarizeWorkflowTerminal",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "outputRetryAttempts: run.tasks.reduce((total, task) => total + (task.outputRetry?.attempts ?? 0), 0), launchRetries: run.tasks.reduce((total, task) => total + (task.launchRetry?.attempts ?? 0), 0),",
+      "observedBehavior": "direct-dynamic 실행 시 control.json 실패를 completed_without_semantic_result로 처리하나 launch 재시도 횟수 필드명이 launchRetries로 제공됨",
+      "relatedSignals": [
+        "T1",
+        "T2",
+        "T3"
+      ]
+    }
+  ],
+  "unmappedAreas": [
+    "Q1 (단위 테스트): 저장소 내 테스트 코드 및 테스트 실행 스크립트가 전무함",
+    "외부 의존 모듈 (src/store.js, src/types.js): 명세 안내대로 발췌에서 제외되어 있어 실제 파일 부재"
+  ],
+  "notes": [
+    "S3, S6, C1, T3에서 명세와 구현 간의 명시적 차이가 발견되었습니다.",
+    "이 단계는 구현 매핑 단계이므로 최종 적합성 단정은 다음 검토 단계로 위임합니다."
+  ]
+}

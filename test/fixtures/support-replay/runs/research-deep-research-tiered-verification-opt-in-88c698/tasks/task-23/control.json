@@ -1,0 +1,28 @@
+{
+  "schema": "stage-control-v1",
+  "id": "claim-004",
+  "status": "partially_supported",
+  "confidence": 0.96,
+  "digest": "Section-level stability is confirmed, but the source does not establish AbortSignal.timeout()’s method-specific stable version.",
+  "verdictDigest": "Node.js v24 docs mark Global objects Stable and list AbortSignal.timeout() as added in v17.3.0/v16.14.0, but provide no method-specific stability-version declaration.",
+  "evidence": [
+    {
+      "source": "Node.js v24.22.2 Global objects documentation",
+      "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+      "dateOrYear": "2026",
+      "quote": "Stability: 2 - Stable",
+      "relevance": "Applies to the Global objects section, not explicitly to AbortSignal.timeout()."
+    },
+    {
+      "source": "Node.js v24.22.2 Global objects documentation",
+      "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+      "dateOrYear": "2026",
+      "quote": "Added in: v17.3.0, v16.14.0",
+      "relevance": "Specifies the Node.js versions that introduced AbortSignal.timeout()."
+    }
+  ],
+  "caveats": [
+    "The cited documentation does not state the exact version in which AbortSignal.timeout() became stable; section-level stability cannot establish method-level stability."
+  ],
+  "correctionOrCounterclaim": "The source supports that AbortSignal.timeout() was added in Node.js v17.3.0 and v16.14.0, but does not verify a specific stable-transition version."
+}

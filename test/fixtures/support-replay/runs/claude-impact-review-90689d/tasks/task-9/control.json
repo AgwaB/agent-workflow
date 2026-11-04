@@ -1,0 +1,53 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "HEAD 654f639 is not deployable as-is. It renames the public summary field launchRetryAttempts to launchRetries with no alias, widens cancellation markers to 'cancelled'/'timeout' against SPEC C1, and changes the stop poll default to 200ms against SPEC S3. SPEC.md still describes the old behavior, and no tests cover any of it.",
+  "status": "fail",
+  "issues": [
+    {
+      "id": "cc-1",
+      "severity": "high",
+      "area": "public-contract+docs-spec-drift",
+      "location": "src/workflow-terminal.ts:33,107; SPEC.md:35",
+      "description": "SPEC T3 names launchRetryAttempts as a public field read by external tools. The code now emits only launchRetries (grep finds no launchRetryAttempts in src/), and SPEC.md still names the old field. Consumers reading the old name get undefined with no alias, deprecation, or migration note.",
+      "migration": "Emit both launchRetryAttempts (deprecated) and launchRetries for one release, or revert the rename. Update SPEC T3 and add a changelog or migration note to match the decision."
+    },
+    {
+      "id": "cc-2",
+      "severity": "high",
+      "area": "behavior-contract+docs-spec-drift",
+      "location": "src/workflow-cancellation.ts:20; SPEC.md:25-26",
+      "description": "Line 20 accepts 'cancelled' and 'timeout' as cancellation markers. SPEC C1 allows only aborted, AbortError, and ABORT_ERR and forbids promoting other provider errors to cancellation. A provider timeout can now be reclassified as user cancellation, which changes terminal status and retry behavior. Whether real provider payloads use these markers is unverified.",
+      "migration": "Confirm the provider payload shapes. Drop 'timeout' unless it is intentionally a cancel. Either way, add a test and update SPEC C1 to match."
+    },
+    {
+      "id": "cc-3",
+      "severity": "medium",
+      "area": "lifecycle-ordering+docs-spec-drift",
+      "location": "src/workflow-stop.ts:67; SPEC.md:13",
+      "description": "The default pollMs changed from 50ms (SPEC S3) to 200ms. Stop-request latency rises by up to about 200ms. The clamp is Math.max(1, ...), while S3 specifies a 10ms floor, so the spec and code disagree on the floor as well.",
+      "migration": "Decide whether 200ms is intended. If yes, update S3 and the clamp floor. If not, restore 50. Document the default as part of the exported signature."
+    },
+    {
+      "id": "cc-4",
+      "severity": "high",
+      "area": "validation",
+      "location": "package.json:7; repo-wide",
+      "description": "No test files exist, and the only script is typecheck. SPEC Q1 requires a unit test per S/C/T item, so none of the three behavior changes is verified. The upstream notes also say store.js and types.js are absent from the repo, so typecheck may not resolve.",
+      "migration": "Add contract tests for the launchRetries field name, the cancellation marker set, and the poll default before release, and confirm typecheck runs in a complete tree."
+    }
+  ],
+  "confirmedConsistencies": [
+    {
+      "area": "code-grep",
+      "evidence": "src/workflow-stop.ts:67 uses Math.max(1, options.pollMs ?? 200). src/workflow-terminal.ts:33,107 declare and populate launchRetries. src/workflow-cancellation.ts:20 includes 'cancelled' and 'timeout'. All three match the upstream claims."
+    },
+    {
+      "area": "spec-text",
+      "evidence": "SPEC.md:13 gives the 50ms default, SPEC.md:25-26 gives the exact three-marker set, and SPEC.md:35 names launchRetryAttempts. The spec still states the pre-commit contract, so it is consistent with the old code and contradicts HEAD."
+    },
+    {
+      "area": "upstream-artifacts",
+      "evidence": "All three upstream control artifacts were read with path=$ and were complete (charsTruncated=false). Their findings are consistent with each other and with the grep evidence."
+    }
+  ]
+}

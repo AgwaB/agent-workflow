@@ -1,0 +1,126 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1kjsev_fc59a8",
+  "taskId": "task-10",
+  "sources": [
+    {
+      "source": "impact-analysis.api-contract-impact",
+      "displayName": "impact-analysis.api-contract-impact.main",
+      "taskId": "task-4",
+      "specId": "impact-analysis.api-contract-impact.main",
+      "stageId": "impact-analysis.api-contract-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "HEAD 654f639 is not safe to ship as-is. The public terminal summary field was renamed from launchRetryAttempts to launchRetries, which SPEC T3 names as a public contract, with no alias. Cancellation and stop-detection behavior also changed in ways SPEC.md forbids or does not describe.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-4/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-4/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-4/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-4/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.state-data-impact",
+      "displayName": "impact-analysis.state-data-impact.main",
+      "taskId": "task-5",
+      "specId": "impact-analysis.state-data-impact.main",
+      "stageId": "impact-analysis.state-data-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "HEAD 654f639은 공개 필드 이름 변경(launchRetryAttempts→launchRetries), 취소 분류 확장, 중지 감시 주기 변경을 포함하며 SPEC.md와 어긋난다. 테스트가 없어 검증되지 않았다. 현 상태로는 배포 비권장이며, 호환성 별칭 또는 명시적 breaking 공지와 SPEC 갱신, 취소 분류 축소 또는 근거 확보, 회귀 테스트 추가가 선행돼야 한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-5/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-5/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-5/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-5/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.validation-impact",
+      "displayName": "impact-analysis.validation-impact.main",
+      "taskId": "task-6",
+      "specId": "impact-analysis.validation-impact.main",
+      "stageId": "impact-analysis.validation-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "Validation coverage for HEAD 654f639 is none: the repo has no test files, the only check is a typecheck script that is not expected to pass, and nothing exercises the changed stop, cancellation, or terminal-summary behavior. The change should not be treated as validated.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-6/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-6/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-6/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-6/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.security-performance-impact",
+      "displayName": "impact-analysis.security-performance-impact.main",
+      "taskId": "task-8",
+      "specId": "impact-analysis.security-performance-impact.main",
+      "stageId": "impact-analysis.security-performance-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "HEAD 654f639 stop/cancel 변경은 공개 필드 rename(launchRetryAttempts→launchRetries)과 SPEC 대비 세 가지 계약 이탈(pollMs, 취소 토큰, 메시지 기반 중지 판별)을 포함하며 테스트가 없어 배포 비권장.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-8/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-8/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-8/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-8/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

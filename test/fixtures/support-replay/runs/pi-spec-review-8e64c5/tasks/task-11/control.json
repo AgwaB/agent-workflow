@@ -1,0 +1,54 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "C1의 허용 목록 밖 문자열이 직접 입력과 content JSON 모두에서 취소로 판정되는 것을 확인해 후보를 유지한다.",
+  "id": "candidate-003",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 25,
+      "lineEnd": 26,
+      "quote": "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.",
+      "relevance": "오류·사유 문자열의 취소 허용 목록을 명시적으로 제한한다."
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 27,
+      "lineEnd": 28,
+      "quote": "- **C2.** `content` 배열 안의 텍스트가 JSON이면 그 내용도 같은 규칙으로 판별하되, 같은 값을 다시\n  검사하는 무한 재귀가 없어야 한다.",
+      "relevance": "JSON 내용에도 C1의 판별 규칙이 적용되어야 한다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 19,
+      "lineEnd": 19,
+      "quote": "for (const candidate of [value.error, details?.error, value.reason, details?.reason]) {",
+      "relevance": "직접 입력과 details의 error·reason을 검사한다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 20,
+      "lineEnd": 20,
+      "quote": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "relevance": "명세에 없는 cancelled와 timeout도 취소로 인정한다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 27,
+      "lineEnd": 27,
+      "quote": "const parsed: unknown = JSON.parse(entry.text);",
+      "relevance": "content 텍스트를 JSON으로 파싱한다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 28,
+      "lineEnd": 28,
+      "quote": "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+      "relevance": "파싱 결과에도 동일한 오분류 분기를 적용한다."
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "isWorkflowReturnedCancellation은 {reason:'timeout'}과 {error:'cancelled'}를 true로 판정해 C1의 문자열 허용 목록을 위반한다. 이 객체들을 content[].text의 JSON으로 제공해도 true가 되어 C2의 동일 규칙 요구 역시 위반한다.",
+  "recommendedAction": "error·reason 문자열 판별에서 cancelled와 timeout을 제거하고, 직접 객체·details·content JSON에서 두 문자열이 false가 되는 회귀 테스트와 허용된 세 문자열의 양성 테스트를 추가한다."
+}

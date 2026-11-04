@@ -1,0 +1,67 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Required boundary tests are absent; only typechecking is configured.",
+  "lens": "verification-hygiene",
+  "findings": [
+    {
+      "severity": "medium",
+      "title": "중지·취소·종료 요약 경계 조건을 검증하는 테스트가 없다",
+      "file": "package.json",
+      "locations": [
+        {
+          "file": "package.json",
+          "line": 7,
+          "symbol": "scripts"
+        },
+        {
+          "file": "tsconfig.json",
+          "line": 10,
+          "symbol": "include"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 40,
+          "symbol": "Q1"
+        }
+      ],
+      "evidence": "SPEC.md explicitly requires unit tests for every S/C/T requirement, but the repository contains no test files or test script. package.json exposes only typecheck, and tsconfig includes only src/**/*.ts.",
+      "evidenceQuotes": [
+        "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+        "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+        "\"include\": [\"src/**/*.ts\"]"
+      ],
+      "rationale": "This is a direct verification requirement, not merely a style preference. Without executable tests, critical boundaries such as dispose-versus-in-flight disk reads, exact cancellation classification, recursive content handling, and dynamic terminal fallback cannot be regression-checked or reliably reviewed.",
+      "recommendedAction": "Add a runnable unit-test command and tests covering each S1-S7, C1-C2, and T1-T3 boundary, including concurrent/in-flight read cases and exact public summary field names.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "SPEC.md:38-40",
+    "package.json:6-7",
+    "tsconfig.json:1-10"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "SPEC.md:38-40",
+      "status": "read",
+      "evidence": "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "package.json:6-7",
+      "status": "read",
+      "evidence": "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "tsconfig.json:1-10",
+      "status": "read",
+      "evidence": "\"include\": [\"src/**/*.ts\"]",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": []
+}

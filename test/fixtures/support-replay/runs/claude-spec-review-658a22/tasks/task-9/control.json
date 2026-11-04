@@ -1,0 +1,55 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "C1 위반은 실재한다: cancelled·timeout 문자열이 취소로 인정되며 명세의 세 값 외 승격이다. 단 불리언 cancelled 플래그는 명세의 '문자열' 규칙 밖이라 claim을 좁힌다.",
+  "id": "finding-001",
+  "verdict": "WEAKEN",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 20,
+      "lineEnd": 20,
+      "quote": "candidate === \"cancelled\" || candidate === \"timeout\"",
+      "relevance": "error/reason 문자열 cancelled·timeout을 취소로 인정 — SPEC C1의 정확히 세 값 제한 위반"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 25,
+      "lineEnd": 25,
+      "quote": "오류·사유 문자열은 정확히",
+      "relevance": "C1: 오류·사유 문자열은 정확히 aborted, AbortError, ABORT_ERR 세 값만 취소로 인정"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 26,
+      "lineEnd": 26,
+      "quote": "다른 provider 오류를 취소로 승격해서는 안 된다.",
+      "relevance": "C1: 다른 provider 오류 승격 금지 — timeout 문자열 승격이 이를 직접 위반"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 10,
+      "lineEnd": 10,
+      "quote": "Keep this check deliberately exact:",
+      "relevance": "코드 주석 자체가 엄격 일치를 선언하므로 cancelled/timeout 포함은 의도와도 모순"
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 16,
+      "lineEnd": 16,
+      "quote": "if (value.cancelled === true) return true;",
+      "relevance": "불리언 cancelled 플래그 경로: 명세 C1은 '오류·사유 문자열'을 규정하므로 문자열 규칙 밖일 수 있음 — claim에서 제외하는 근거"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 18,
+      "lineEnd": 18,
+      "quote": "if (details?.cancelled === true) return true;",
+      "relevance": "details.cancelled 불리언 플래그도 동일한 이유로 C1 문자열 규칙 위반으로 단정할 수 없음"
+    }
+  ],
+  "finalClaim": "src/workflow-cancellation.ts:20의 isWorkflowReturnedCancellation이 오류·사유 문자열 'cancelled'와 'timeout'을 취소로 인정해 SPEC C1의 정확히 세 값(aborted, AbortError, ABORT_ERR) 제한과 '다른 provider 오류를 취소로 승격하지 말 것' 요구를 위반한다. 불리언 cancelled 플래그(16·18행)의 명세 적합성은 별도 판단이 필요하다.",
+  "recommendedAction": "line 20의 cancelled/timeout 비교를 제거하고 aborted/AbortError/ABORT_ERR만 남길 것. 불리언 플래그 경로를 C1 위반으로 볼지 SPEC에서 명확히 할 것. C1 음성 테스트(cancelled/timeout 문자열 및 일반 provider 오류는 취소 아님)를 추가할 것 — 현재 테스트 파일이 저장소에 없다."
+}

@@ -1,0 +1,33 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC T3이 launchRetryAttempts를 공개 계약 이름으로 명시하지만 구현 요약 필드는 launchRetries이며, 반례가 없어 KEEP.",
+  "id": "finding-004",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 35,
+      "lineEnd": 36,
+      "quote": "이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).",
+      "relevance": "명세가 launchRetryAttempts를 외부 도구가 읽는 공개 필드 이름으로 고정함"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 33,
+      "lineEnd": 33,
+      "quote": "launchRetries: number;",
+      "relevance": "요약 인터페이스의 필드명이 명세와 다름"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 107,
+      "lineEnd": 107,
+      "quote": "launchRetries: run.tasks.reduce(",
+      "relevance": "반환 객체도 같은 잘못된 이름으로 값을 채움"
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "종료 요약의 launch 재시도 합계 필드가 명세 T3의 공개 계약 이름 launchRetryAttempts가 아니라 launchRetries로 노출된다. 합계 계산 자체(task.launchRetry?.attempts 합)는 명세와 맞다.",
+  "recommendedAction": "src/workflow-terminal.ts의 인터페이스 필드(33행)와 반환 객체(107행)를 launchRetryAttempts로 바꾸고, 해당 필드명과 합계를 검증하는 단위 테스트를 추가한다. 외부 소비자가 launchRetries를 쓰는지 repo 밖에서 확인하고, 호환이 필요하면 과도기 별칭을 둔다."
+}

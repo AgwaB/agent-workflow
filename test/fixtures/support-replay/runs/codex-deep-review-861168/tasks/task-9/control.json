@@ -1,0 +1,132 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Found polling defaults/clamping, stop-error classification, cancellation overclassification, and a dispose race risk.",
+  "lens": "runtime-correctness",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "Polling default and minimum violate S3",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 67,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "evidence": "pollMs defaults to 200ms and is clamped to 1ms, while the specification requires a 50ms default and a 10ms minimum.",
+      "evidenceQuotes": [
+        "const pollMs = Math.max(1, options.pollMs ?? 200);",
+        "**S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다"
+      ],
+      "rationale": "Stop detection can be four times slower than the contract by default, and callers can request a 1ms interval, causing excessive polling and violating the stated lower bound.",
+      "recommendedAction": "Use a 50ms fallback and clamp with Math.max(10, ...), including appropriate handling for invalid numeric inputs.",
+      "confidence": "high"
+    },
+    {
+      "severity": "high",
+      "title": "Stop-error classifier accepts message text instead of name only",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 53,
+          "lineEnd": 58,
+          "symbol": "isWorkflowStopRequestedError"
+        }
+      ],
+      "evidence": "The classifier returns true when an Error message merely starts with the stop-request prefix, regardless of its error name.",
+      "evidenceQuotes": [
+        "error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||",
+        "error.message.startsWith(\"workflow stop requested\")"
+      ],
+      "rationale": "S6 requires recognition only when the error name is WorkflowStopRequested. Message-based matching can misclassify unrelated provider or application errors as workflow stops and suppress diagnostics.",
+      "recommendedAction": "Remove the message-prefix condition and require error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME.",
+      "confidence": "high"
+    },
+    {
+      "severity": "high",
+      "title": "Cancellation classifier promotes non-contract provider markers",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 16,
+          "lineEnd": 20,
+          "symbol": "isWorkflowReturnedCancellation"
+        }
+      ],
+      "evidence": "The implementation treats cancelled booleans and the strings cancelled and timeout as cancellation, while C1 permits only aborted, AbortError, and ABORT_ERR for error/reason strings.",
+      "evidenceQuotes": [
+        "if (value.cancelled === true) return true;",
+        "if (details?.cancelled === true) return true;",
+        "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+      ],
+      "rationale": "A provider error or timeout represented by these extra markers can be promoted to workflow cancellation, violating the exact classification contract and potentially suppressing real failures.",
+      "recommendedAction": "Restrict error/reason string matching to the three specified values and confirm whether boolean cancelled fields are explicitly part of the provider contract before retaining them.",
+      "confidence": "high"
+    },
+    {
+      "severity": "medium",
+      "title": "dispose has no lifecycle fence for an already-queued polling callback",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 68,
+          "lineEnd": 85,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "evidence": "dispose only clears the interval; the polling callback and check function have no disposed state check before invoking readWorkflowStopIntent.",
+      "evidenceQuotes": [
+        "const check = async (): Promise<void> => {",
+        "const timer = setInterval(() => void check(), pollMs);",
+        "dispose: () => clearInterval(timer),"
+      ],
+      "rationale": "If an interval callback has already been queued when dispose runs, clearing the timer alone does not fence that callback from entering check and starting a new disk read, conflicting with S5. The async read also remains active after disposal.",
+      "recommendedAction": "Track a disposed boolean, set it before clearing the timer, and check it at the start of check (and before any subsequent polling work).",
+      "confidence": "medium"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-stop.ts:53-86",
+    "src/workflow-stop.ts:89-99",
+    "src/workflow-cancellation.ts:13-32",
+    "SPEC.md:8-28"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-stop.ts:53-86",
+      "status": "read",
+      "evidence": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-stop.ts:89-99",
+      "status": "read",
+      "evidence": "const intent = await readWorkflowStopIntent(cwd, runId);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-cancellation.ts:13-32",
+      "status": "read",
+      "evidence": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:8-28",
+      "status": "read",
+      "evidence": "**S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "S4 is satisfied: the monitoring path catches read failures, while throwIfWorkflowStopRequested propagates them.",
+    "S1, S2, S7, and C2 have no additional defect evident in the inspected ranges."
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "S6 위반은 코드와 SPEC으로 확인되지만, src 내 호출자가 없어 현재 실행 영향은 잠재적이므로 high를 낮춰야 한다.",
+  "findingId": "finding-002",
+  "finding": "S6 위반: 중지 오류 판별이 메시지 접두사에 의존함",
+  "verdict": "WEAKEN",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 53,
+      "lineEnd": 59,
+      "symbol": "isWorkflowStopRequestedError",
+      "quote": "error.message.startsWith(\"workflow stop requested\"))"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 18,
+      "lineEnd": 19,
+      "symbol": "S6",
+      "quote": "메시지 내용으로 판별해서는 안 된다."
+    }
+  ],
+  "counterEvidence": [
+    "저장소 전체 검색 결과 isWorkflowStopRequestedError의 호출자가 src/workflow-stop.ts 정의부 외에는 없다(SPEC.md 언급만 존재). 따라서 현재 코드 경로에서 잘못 분류되어 실행이 중지 상태로 끝나는 영향은 확인되지 않았다.",
+    "finding의 '실행이 중지 상태로 끝나고 진단 정보가 가려진다'는 시나리오는 외부 소비자 또는 향후 호출자를 가정한 것이며 저장소 안에서는 재현되지 않는다.",
+    "WORKFLOW_STOP_REQUESTED_ERROR_NAME 외의 메시지 문자열 생성은 workflowStopRequestedMessage 한 곳에서만 이루어져 중지 오류 메시지는 일관되지만, 외부 provider 오류가 같은 접두사를 가질 가능성 자체는 코드로 배제되지 않는다."
+  ],
+  "recommendedAction": "57행의 message 접두사 검사를 제거하고 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME만 확인하도록 바꾸고, 일반 Error에 같은 메시지를 넣어도 중지로 판별되지 않는 단위 테스트를 추가한다. 심각도는 현재 호출자가 없으므로 high에서 medium 이하로 조정하는 것이 적절하다."
+}

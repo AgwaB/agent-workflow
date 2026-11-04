@@ -1,0 +1,110 @@
+{
+ "runId": "workflow_mw1kjw3t_d93807",
+ "name": "impact-review",
+ "bundle": "impact-review",
+ "project": "694bf24b8b07",
+ "evidenceRefetch": true,
+ "status": "completed",
+ "tasks": [
+  {
+   "taskId": "task-1",
+   "specId": "impact-analysis.change-scope.main",
+   "stageId": "impact-analysis.change-scope",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-2",
+   "specId": "impact-analysis.implementation-map.main",
+   "stageId": "impact-analysis.implementation-map",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-3",
+   "specId": "impact-analysis.validation-map.main",
+   "stageId": "impact-analysis.validation-map",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-4",
+   "specId": "impact-analysis.api-contract-impact.main",
+   "stageId": "impact-analysis.api-contract-impact",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-5",
+   "specId": "impact-analysis.state-data-impact.main",
+   "stageId": "impact-analysis.state-data-impact",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-6",
+   "specId": "impact-analysis.validation-impact.main",
+   "stageId": "impact-analysis.validation-impact",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-7",
+   "specId": "impact-analysis.docs-release-impact.main",
+   "stageId": "impact-analysis.docs-release-impact",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-8",
+   "specId": "impact-analysis.security-performance-impact.main",
+   "stageId": "impact-analysis.security-performance-impact",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-9",
+   "specId": "impact-analysis.contract-consistency.main",
+   "stageId": "impact-analysis.contract-consistency",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-10",
+   "specId": "impact-analysis.regression-risk.main",
+   "stageId": "impact-analysis.regression-risk",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-11",
+   "specId": "impact-analysis.ship-readiness.main",
+   "stageId": "impact-analysis.ship-readiness",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-12",
+   "specId": "impact-analysis.impact-synthesis.main",
+   "stageId": "impact-analysis.impact-synthesis",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-13",
+   "specId": "impact-analysis.final.main",
+   "stageId": "impact-analysis.final",
+   "status": "completed"
+  }
+ ],
+ "supportTasks": [
+  {
+   "specId": "impact-analysis.final.main",
+   "dependsOn": [
+    "impact-analysis.change-scope.main",
+    "impact-analysis.implementation-map.main",
+    "impact-analysis.validation-map.main",
+    "impact-analysis.api-contract-impact.main",
+    "impact-analysis.state-data-impact.main",
+    "impact-analysis.validation-impact.main",
+    "impact-analysis.docs-release-impact.main",
+    "impact-analysis.security-performance-impact.main",
+    "impact-analysis.contract-consistency.main",
+    "impact-analysis.regression-risk.main",
+    "impact-analysis.ship-readiness.main",
+    "impact-analysis.impact-synthesis.main"
+   ],
+   "support": {
+    "uses": "./helpers/render-impact-report.mjs"
+   }
+  }
+ ]
+}

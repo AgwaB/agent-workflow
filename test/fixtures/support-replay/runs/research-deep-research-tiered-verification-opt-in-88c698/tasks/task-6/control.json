@@ -1,0 +1,880 @@
+{
+  "schema": "deep-research-verification-tiers-v1",
+  "digest": "16 core / 2 tail of 18 candidate(s), coreTierSize=8, mode=verificationNeed",
+  "coreTierSize": 8,
+  "candidateCap": 48,
+  "tieringMode": "verificationNeed",
+  "tieringModeCounts": {
+    "verificationNeed": 18,
+    "position": 0
+  },
+  "candidateCount": 18,
+  "coreCount": 16,
+  "tailCount": 2,
+  "coreCandidates": [
+    {
+      "id": "claim-001",
+      "claim": "Added in: v20.3.0, v18.17.0",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+      ],
+      "sourceRefs": [
+        "research-questions.fact-001",
+        "research-questions.source-001"
+      ],
+      "sourceQuality": "primary_official",
+      "reasonToVerify": "Deterministically rewritten to a source-backed atom from Node.js Global objects documentation.",
+      "scopeItems": [
+        "Node.js에서 AbortSignal.any()의 안정적 지원 버전"
+      ],
+      "factSlotIds": [
+        "slot-001"
+      ],
+      "verificationNeed": "core",
+      "originalClaim": "Node.js docs list AbortSignal.any() as added in v20.3.0 and v18.17.0.",
+      "sanitizerRewriteReasons": [
+        "source_hint_claim_mismatch"
+      ],
+      "sourceEvidenceHints": [
+        {
+          "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+          "sourceTitleOrPublisher": "Node.js Global objects documentation",
+          "dateOrYear": "2026",
+          "quote": "Added in: v20.3.0, v18.17.0",
+          "factSlotIds": [
+            "slot-001"
+          ],
+          "sourceQuality": "primary_official",
+          "relevance": "v20.3.0이 최초 도입 라인이고 v18.17.0은 지원 라인으로 추가된 backport 버전이다."
+        }
+      ],
+      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+      "verifierTier": "core"
+    },
+    {
+      "id": "claim-002",
+      "claim": "Stability: 2 - Stable",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+      ],
+      "sourceRefs": [
+        "research-questions.fact-002",
+        "research-questions.source-001"
+      ],
+      "sourceQuality": "primary_official",
+      "reasonToVerify": "Deterministically rewritten to a source-backed atom from Node.js Global objects documentation.",
+      "scopeItems": [
+        "Node.js에서 AbortSignal.any()의 안정적 지원 버전"
+      ],
+      "factSlotIds": [
+        "slot-002"
+      ],
+      "verificationNeed": "core",
+      "originalClaim": "Node.js Global objects documentation displays “Stability: 2 - Stable”.",
+      "sanitizerRewriteReasons": [
+        "source_hint_claim_mismatch"
+      ],
+      "sourceEvidenceHints": [
+        {
+          "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+          "sourceTitleOrPublisher": "Node.js Global objects documentation",
+          "dateOrYear": "2026",
+          "quote": "Stability: 2 - Stable",
+          "factSlotIds": [
+            "slot-002"
+          ],
+          "sourceQuality": "primary_official",
+          "relevance": "해당 문구는 Global objects 섹션의 안정성 표기이며 AbortSignal.any() 메서드 바로 아래의 개별 표기는 아니다."
+        },
+        {
+          "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+          "sourceTitleOrPublisher": "Node.js v24 공식 API 문서",
+          "dateOrYear": "2026",
+          "quote": "Stability: 2 - Stable",
+          "factSlotIds": [
+            "slot-004"
+          ],
+          "sourceQuality": "primary",
+          "relevance": "문서상 Global objects 섹션이 Stable이다. AbortSignal.timeout() 항목 자체에는 별도 Experimental 표기가 보이지 않는다."
+        }
+      ],
+      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+      "verifierTier": "core"
+    },
+    {
+      "id": "claim-003",
+      "claim": "Added in: v17.3.0, v16.14.0",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+        "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md"
+      ],
+      "sourceRefs": [
+        "research-questions.question-002.fact-001",
+        "research-questions.question-002.source-002"
+      ],
+      "sourceQuality": "primary_official",
+      "reasonToVerify": "Deterministically rewritten to a source-backed atom from Node.js 공식 API 문서; Node.js v17 변경 로그.",
+      "scopeItems": [
+        "Node.js에서 AbortSignal.timeout()의 안정적 지원 버전"
+      ],
+      "factSlotIds": [
+        "slot-003"
+      ],
+      "verificationNeed": "core",
+      "originalClaim": "Node.js docs list AbortSignal.timeout() as added in v17.3.0 and v16.14.0.",
+      "sanitizerRewriteReasons": [
+        "source_hint_claim_mismatch"
+      ],
+      "sourceEvidenceHints": [
+        {
+          "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+          "sourceTitleOrPublisher": "Node.js 공식 API 문서; Node.js v17 변경 로그",
+          "dateOrYear": "2021",
+          "quote": "Added in: v17.3.0, v16.14.0",
+          "factSlotIds": [
+            "slot-003"
+          ],
+          "sourceQuality": "primary",
+          "relevance": "v17.3.0에서 도입되었고 v16.14.0으로 백포트되었다."
+        },
+        {
+          "url": "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md",
+          "sourceTitleOrPublisher": "Node.js v17 변경 로그",
+          "dateOrYear": "2021",
+          "quote": "(SEMVER-MINOR) lib: add AbortSignal.timeout",
+          "factSlotIds": [
+            "slot-003"
+          ],
+          "sourceQuality": "primary",
+          "relevance": "공식 릴리스 변경 로그의 기능 추가 항목이다."
+        }
+      ],
+      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+      "verifierTier": "core"
+    },
+    {
+      "id": "claim-004",
+      "claim": "Stability: 2 - Stable",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+      ],
+      "sourceRefs": [
+        "research-questions.question-002.fact-003",
+        "research-questions.question-002.source-001"
+      ],
+      "sourceQuality": "primary_official",
+      "reasonToVerify": "Deterministically rewritten to a source-backed atom from Node.js v24 공식 API 문서.",
+      "scopeItems": [
+        "Node.js에서 AbortSignal.timeout()의 안정적 지원 버전"
+      ],
+      "factSlotIds": [
+        "slot-004"
+      ],
+      "verificationNeed": "core",
+      "originalClaim": "Node.js Global objects documentation displays “Stability: 2 - Stable”.",
+      "sanitizerRewriteReasons": [
+        "source_hint_claim_mismatch"
+      ],
+      "sourceEvidenceHints": [
+        {
+          "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+          "sourceTitleOrPublisher": "Node.js v24 공식 API 문서",
+          "dateOrYear": "2026",
+          "quote": "Stability: 2 - Stable",
+          "factSlotIds": [
+            "slot-004"
+          ],
+          "sourceQuality": "primary",
+          "relevance": "문서상 Global objects 섹션이 Stable이다. AbortSignal.timeout() 항목 자체에는 별도 Experimental 표기가 보이지 않는다."
+        },
+        {
+          "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+          "sourceTitleOrPublisher": "Node.js Global objects documentation",
+          "dateOrYear": "2026",
+          "quote": "Stability: 2 - Stable",
+          "factSlotIds": [
+            "slot-002"
+          ],
+          "sourceQuality": "primary_official",
+          "relevance": "해당 문구는 Global objects 섹션의 안정성 표기이며 AbortSignal.any() 메서드 바로 아래의 개별 표기는 아니다."
+        },
+        {
+          "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+          "sourceTitleOrPublisher": "Node.js v24 공식 API 문서",
+          "dateOrYear": "2026",
+          "quote": "Returns a new `AbortSignal` which will be aborted in `delay` milliseconds.",
+          "factSlotIds": [
+            "slot-004"
+          ],
+          "sourceQuality": "primary",
+          "relevance": "메서드별 Stability 라벨은 없으므로 Global objects의 Stable 표기와 Experimental 부재를 근거로 한 문서 해석이다."
+        }
+      ],
+      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+      "verifierTier": "core"
+    },
+    {
+      "id": "claim-005",
+      "claim": "\"chrome\": {\n                \"version_added\": \"116\"\n              }",
+      "sourceUrls": [
+        "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json"
+      ],
+      "sourceRefs": [
+        "research-questions.question-003.fact-001",
+        "research-questions.question-003.source-001"
+      ],
+      "sourceQuality": "primary_compatibility",
+      "reasonToVerify": "Deterministically rewritten to a source-backed atom from MDN Browser Compatibility Data; Chromium blink-dev.",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.any() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-005"
+      ],
+      "verificationNeed": "core",
+      "originalClaim": "MDN BCD lists Chrome version_added as 116 for AbortSignal.any().",
+      "sanitizerRewriteReasons": [
+        "source_hint_claim_mismatch"
+      ],
+      "sourceEvidenceHints": [
+        {
+          "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+          "sourceTitleOrPublisher": "MDN Browser Compatibility Data; Chromium blink-dev",
+          "dateOrYear": "2023",
+          "quote": "\"chrome\": {\n                \"version_added\": \"116\"\n              }",
+          "factSlotIds": [
+            "slot-005"
+          ],
+          "sourceQuality": "primary_preferred",
+          "relevance": "Chromium 공식 Intent to Ship도 데스크톱·Android·WebView의 shipping milestone을 116으로 기록한다."
+        }
+      ],
+      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+      "verifierTier": "core"
+    },
+    {
+      "id": "claim-006",
+      "claim": "\"edge\": \"mirror\"",
+      "sourceUrls": [
+        "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+        "https://caniuse.com/wf-abortsignal-any"
+      ],
+      "sourceRefs": [
+        "research-questions.question-003.source-005"
+      ],
+      "sourceQuality": "secondary_compatibility",
+      "reasonToVerify": "Deterministically rewritten to a source-backed atom from MDN Browser Compatibility Data; Can I use.",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.any() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-006"
+      ],
+      "verificationNeed": "core",
+      "originalClaim": "The compatibility table lists Edge 116–154 as supported for AbortSignal.any().",
+      "sanitizerRewriteReasons": [
+        "source_hint_claim_mismatch"
+      ],
+      "sourceEvidenceHints": [
+        {
+          "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+          "sourceTitleOrPublisher": "MDN Browser Compatibility Data; Can I use",
+          "dateOrYear": "2023",
+          "quote": "\"edge\": \"mirror\"",
+          "factSlotIds": [
+            "slot-006"
+          ],
+          "sourceQuality": "primary_preferred",
+          "relevance": "BCD는 Edge를 Chromium upstream의 mirror로 표시하며, 호환성 표에서 Edge 115 이하 미지원·116부터 지원으로 확인된다."
+        }
+      ],
+      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+      "verifierTier": "core"
+    },
+    {
+      "id": "claim-007",
+      "claim": "\"firefox\": {\n                \"version_added\": \"124\"\n              }",
+      "sourceUrls": [
+        "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+        "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124"
+      ],
+      "sourceRefs": [
+        "research-questions.question-003.fact-003",
+        "research-questions.question-003.source-004"
+      ],
+      "sourceQuality": "primary_release_notes",
+      "reasonToVerify": "Deterministically rewritten to a source-backed atom from MDN Browser Compatibility Data; Mozilla/MDN Firefox 124 release notes.",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.any() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-007"
+      ],
+      "verificationNeed": "core",
+      "originalClaim": "Firefox 124 release notes state that AbortSignal.any() is now supported.",
+      "sanitizerRewriteReasons": [
+        "source_hint_claim_mismatch"
+      ],
+      "sourceEvidenceHints": [
+        {
+          "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+          "sourceTitleOrPublisher": "MDN Browser Compatibility Data; Mozilla/MDN Firefox 124 release notes",
+          "dateOrYear": "2024",
+          "quote": "\"firefox\": {\n                \"version_added\": \"124\"\n              }",
+          "factSlotIds": [
+            "slot-007"
+          ],
+          "sourceQuality": "primary_preferred",
+          "relevance": "Firefox 124 릴리스 노트가 AbortSignal.any() 지원을 명시한다."
+        }
+      ],
+      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+      "verifierTier": "core"
+    },
+    {
+      "id": "claim-008",
+      "claim": "\"safari\": {\n                \"version_added\": \"17.4\"\n              }",
+      "sourceUrls": [
+        "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+        "https://webkit.org/blog/15063/webkit-features-in-safari-17-4/"
+      ],
+      "sourceRefs": [
+        "research-questions.question-003.fact-004",
+        "research-questions.question-003.source-003"
+      ],
+      "sourceQuality": "primary_browser_official",
+      "reasonToVerify": "Deterministically rewritten to a source-backed atom from MDN Browser Compatibility Data; WebKit.",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.any() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-008"
+      ],
+      "verificationNeed": "core",
+      "originalClaim": "WebKit states Safari 17.4 adds support for AbortSignal.any().",
+      "sanitizerRewriteReasons": [
+        "source_hint_claim_mismatch"
+      ],
+      "sourceEvidenceHints": [
+        {
+          "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+          "sourceTitleOrPublisher": "MDN Browser Compatibility Data; WebKit",
+          "dateOrYear": "2024",
+          "quote": "\"safari\": {\n                \"version_added\": \"17.4\"\n              }",
+          "factSlotIds": [
+            "slot-008"
+          ],
+          "sourceQuality": "primary_preferred",
+          "relevance": "WebKit 공식 Safari 17.4 기능 문서가 AbortSignal.any() 추가를 명시한다."
+        }
+      ],
+      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+      "verifierTier": "core"
+    },
+    {
+      "id": "claim-009",
+      "claim": "\"version_added\": \"124\"",
+      "sourceUrls": [
+        "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+      ],
+      "sourceRefs": [
+        "research-questions.question-004.fact-001",
+        "research-questions.question-004.source-001"
+      ],
+      "sourceQuality": "primary_compatibility",
+      "reasonToVerify": "Deterministically rewritten to a source-backed atom from MDN Browser Compatibility Data.",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.timeout() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-009"
+      ],
+      "verificationNeed": "core",
+      "originalClaim": "MDN BCD lists Chrome version_added as 124 for AbortSignal.timeout().",
+      "sanitizerRewriteReasons": [
+        "source_hint_claim_mismatch"
+      ],
+      "sourceEvidenceHints": [
+        {
+          "url": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+          "sourceTitleOrPublisher": "MDN Browser Compatibility Data",
+          "dateOrYear": "2026 snapshot",
+          "quote": "\"version_added\": \"124\"",
+          "factSlotIds": [
+            "slot-009"
+          ],
+          "sourceQuality": "primary compatibility data",
+          "relevance": "BCD는 Chrome 103–123을 partial_implementation으로 기록하며, 해당 구간은 TimeoutError가 아니라 AbortError를 사용한다고 명시한다."
+        }
+      ],
+      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+      "verifierTier": "core"
+    },
+    {
+      "id": "claim-010",
+      "claim": "\"edge\": \"mirror\"",
+      "sourceUrls": [
+        "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+      ],
+      "sourceRefs": [
+        "research-questions.question-004.fact-002",
+        "research-questions.question-004.source-001"
+      ],
+      "sourceQuality": "primary_compatibility_mirror",
+      "reasonToVerify": "Deterministically rewritten to a source-backed atom from MDN Browser Compatibility Data.",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.timeout() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-010"
+      ],
+      "verificationNeed": "core",
+      "originalClaim": "MDN BCD marks Edge’s timeout() entry as a mirror of Chrome compatibility data.",
+      "sanitizerRewriteReasons": [
+        "source_hint_claim_mismatch"
+      ],
+      "sourceEvidenceHints": [
+        {
+          "url": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+          "sourceTitleOrPublisher": "MDN Browser Compatibility Data",
+          "dateOrYear": "2026 snapshot",
+          "quote": "\"edge\": \"mirror\"",
+          "factSlotIds": [
+            "slot-010"
+          ],
+          "sourceQuality": "primary compatibility data",
+          "relevance": "BCD가 Edge를 Chrome 데이터의 mirror로 표시하므로 Chrome의 완전 지원 시작 버전 124를 Edge에도 적용한다."
+        }
+      ],
+      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+      "verifierTier": "core"
+    },
+    {
+      "id": "claim-011",
+      "claim": "\"version_added\": \"100\"",
+      "sourceUrls": [
+        "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+        "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100"
+      ],
+      "sourceRefs": [
+        "research-questions.question-004.fact-003",
+        "research-questions.question-004.source-003"
+      ],
+      "sourceQuality": "primary_compatibility_release",
+      "reasonToVerify": "Deterministically rewritten to a source-backed atom from MDN Browser Compatibility Data; Mozilla/MDN Firefox 100 release notes.",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.timeout() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-011"
+      ],
+      "verificationNeed": "core",
+      "originalClaim": "MDN BCD lists Firefox version_added as 100 for AbortSignal.timeout().",
+      "sanitizerRewriteReasons": [
+        "source_hint_claim_mismatch"
+      ],
+      "sourceEvidenceHints": [
+        {
+          "url": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+          "sourceTitleOrPublisher": "MDN Browser Compatibility Data; Mozilla/MDN Firefox 100 release notes",
+          "dateOrYear": "2022",
+          "quote": "\"version_added\": \"100\"",
+          "factSlotIds": [
+            "slot-011"
+          ],
+          "sourceQuality": "primary compatibility data and official release notes",
+          "relevance": "Firefox 100 릴리스 노트도 AbortSignal.timeout() 사용 가능 및 TimeoutError 동작을 확인한다."
+        }
+      ],
+      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+      "verifierTier": "core"
+    },
+    {
+      "id": "claim-012",
+      "claim": "\"version_added\": \"16\"",
+      "sourceUrls": [
+        "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+      ],
+      "sourceRefs": [
+        "research-questions.question-004.fact-004",
+        "research-questions.question-004.source-001"
+      ],
+      "sourceQuality": "primary_compatibility",
+      "reasonToVerify": "Deterministically rewritten to a source-backed atom from MDN Browser Compatibility Data.",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.timeout() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-012"
+      ],
+      "verificationNeed": "core",
+      "originalClaim": "MDN BCD lists Safari version_added as 16 for AbortSignal.timeout().",
+      "sanitizerRewriteReasons": [
+        "source_hint_claim_mismatch"
+      ],
+      "sourceEvidenceHints": [
+        {
+          "url": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+          "sourceTitleOrPublisher": "MDN Browser Compatibility Data",
+          "dateOrYear": "2026 snapshot",
+          "quote": "\"version_added\": \"16\"",
+          "factSlotIds": [
+            "slot-012"
+          ],
+          "sourceQuality": "primary compatibility data",
+          "relevance": "Safari iOS는 BCD에서 Safari 데이터를 mirror한다."
+        }
+      ],
+      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+      "verifierTier": "core"
+    },
+    {
+      "id": "claim-013",
+      "claim": "For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
+      "sourceUrls": [
+        "https://dom.spec.whatwg.org/"
+      ],
+      "sourceRefs": [
+        "research-questions.question-005.fact-001",
+        "research-questions.question-005.source-001"
+      ],
+      "sourceQuality": "primary_standard",
+      "reasonToVerify": "Deterministically rewritten to a source-backed atom from WHATWG DOM Standard; MDN.",
+      "scopeItems": [
+        "AbortSignal.any()의 알려진 동작 주의점"
+      ],
+      "factSlotIds": [
+        "slot-013"
+      ],
+      "verificationNeed": "core",
+      "originalClaim": "WHATWG sets the result signal’s reason to an already-aborted input’s reason and returns it.",
+      "sanitizerRewriteReasons": [
+        "source_hint_claim_mismatch"
+      ],
+      "sourceEvidenceHints": [
+        {
+          "url": "https://dom.spec.whatwg.org/",
+          "sourceTitleOrPublisher": "WHATWG DOM Standard; MDN",
+          "dateOrYear": "2026",
+          "quote": "For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
+          "factSlotIds": [
+            "slot-013"
+          ],
+          "sourceQuality": "primary/authoritative",
+          "relevance": "표준 알고리즘은 iterable 순회 중 첫 번째 이미 취소된 신호에서 반환한다."
+        },
+        {
+          "url": "https://dom.spec.whatwg.org/",
+          "sourceTitleOrPublisher": "WHATWG DOM Standard; MDN",
+          "dateOrYear": "2026",
+          "quote": "The returned AbortSignal's reason will be already set to the reason of the first abort signal that was already aborted.",
+          "factSlotIds": [
+            "slot-013"
+          ],
+          "sourceQuality": "primary/authoritative",
+          "relevance": "따라서 배열 순서가 이미 취소된 입력들의 reason 선택에 영향을 준다."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+          "sourceTitleOrPublisher": "MDN; WHATWG DOM Standard",
+          "dateOrYear": "2026",
+          "quote": "If your code adds abort listeners to the combined signal, remove them when the operation finishes, just as you would for any other AbortSignal.",
+          "factSlotIds": [
+            "slot-013"
+          ],
+          "sourceQuality": "authoritative/credible-reference",
+          "relevance": "표준은 source signals와 listener/abort algorithm이 있는 비취소 dependent signal의 GC 보존 조건도 정의한다."
+        }
+      ],
+      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+      "verifierTier": "core"
+    },
+    {
+      "id": "claim-014",
+      "claim": "MDN says aborting any()’s returned signal does not abort inputs or cancel their timeouts.",
+      "sourceUrls": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static"
+      ],
+      "sourceRefs": [
+        "research-questions.question-005.fact-004",
+        "research-questions.question-005.source-003"
+      ],
+      "sourceQuality": "primary_reference",
+      "reasonToVerify": "Required slot-013; verifies non-cascading cancellation.",
+      "scopeItems": [
+        "AbortSignal.any()의 알려진 동작 주의점"
+      ],
+      "factSlotIds": [
+        "slot-013"
+      ],
+      "verificationNeed": "core",
+      "sourceEvidenceHints": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+          "sourceTitleOrPublisher": "MDN",
+          "dateOrYear": "2026",
+          "quote": "Aborting the returned signal does not abort the other input signals or cancel their timeouts.",
+          "factSlotIds": [
+            "slot-013"
+          ],
+          "sourceQuality": "credible-reference",
+          "relevance": "결합 신호는 입력으로 향하는 취소 제어기가 아니라 입력 취소를 관찰하는 dependent signal이다."
+        },
+        {
+          "url": "https://dom.spec.whatwg.org/",
+          "sourceTitleOrPublisher": "WHATWG DOM Standard; MDN",
+          "dateOrYear": "2026",
+          "quote": "The returned AbortSignal's reason will be already set to the reason of the first abort signal that was already aborted.",
+          "factSlotIds": [
+            "slot-013"
+          ],
+          "sourceQuality": "primary/authoritative",
+          "relevance": "따라서 배열 순서가 이미 취소된 입력들의 reason 선택에 영향을 준다."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+          "sourceTitleOrPublisher": "MDN; WHATWG DOM Standard",
+          "dateOrYear": "2026",
+          "quote": "If your code adds abort listeners to the combined signal, remove them when the operation finishes, just as you would for any other AbortSignal.",
+          "factSlotIds": [
+            "slot-013"
+          ],
+          "sourceQuality": "authoritative/credible-reference",
+          "relevance": "표준은 source signals와 listener/abort algorithm이 있는 비취소 dependent signal의 GC 보존 조건도 정의한다."
+        }
+      ],
+      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+      "verifierTier": "core"
+    },
+    {
+      "id": "claim-015",
+      "claim": "WHATWG sets timeout()’s abort reason to a TimeoutError DOMException.",
+      "sourceUrls": [
+        "https://dom.spec.whatwg.org/"
+      ],
+      "sourceRefs": [
+        "research-questions.question-006.fact-002",
+        "research-questions.question-006.source-001"
+      ],
+      "sourceQuality": "primary_standard",
+      "reasonToVerify": "Required slot-014; verifies the standardized abort reason.",
+      "scopeItems": [
+        "AbortSignal.timeout()의 알려진 동작 주의점"
+      ],
+      "factSlotIds": [
+        "slot-014"
+      ],
+      "verificationNeed": "core",
+      "sourceEvidenceHints": [
+        {
+          "url": "https://dom.spec.whatwg.org/",
+          "sourceTitleOrPublisher": "WHATWG DOM Standard",
+          "dateOrYear": "living standard",
+          "quote": "Its abort reason will be set to a “TimeoutError” DOMException.",
+          "factSlotIds": [
+            "slot-014"
+          ],
+          "sourceQuality": "primary",
+          "relevance": "실제 API가 Promise를 reject하는 형태는 관찰 API에 따라 달라질 수 있지만, signal 자체의 reason은 표준상 TimeoutError DOMException이다."
+        },
+        {
+          "url": "https://dom.spec.whatwg.org/",
+          "sourceTitleOrPublisher": "WHATWG DOM Standard",
+          "dateOrYear": "living standard",
+          "quote": "Queue a global task on the timer task source given global to signal abort given signal and a new “TimeoutError” DOMException.",
+          "factSlotIds": [
+            "slot-014"
+          ],
+          "sourceQuality": "primary",
+          "relevance": "표준 알고리즘은 HTML의 ‘run steps after a timeout’과 timer task source를 사용한다."
+        },
+        {
+          "url": "https://dom.spec.whatwg.org/",
+          "sourceTitleOrPublisher": "WHATWG DOM Standard; MDN",
+          "dateOrYear": "2026",
+          "quote": "For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
+          "factSlotIds": [
+            "slot-013"
+          ],
+          "sourceQuality": "primary/authoritative",
+          "relevance": "표준 알고리즘은 iterable 순회 중 첫 번째 이미 취소된 신호에서 반환한다."
+        }
+      ],
+      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+      "verifierTier": "core"
+    },
+    {
+      "id": "claim-016",
+      "claim": "MDN defines browser timeout() in active time; suspended workers or bfcache can pause it.",
+      "sourceUrls": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+      ],
+      "sourceRefs": [
+        "research-questions.question-006.fact-003",
+        "research-questions.question-006.source-002"
+      ],
+      "sourceQuality": "primary_reference",
+      "reasonToVerify": "Required slot-014; separates browser active time from delay wording.",
+      "scopeItems": [
+        "AbortSignal.timeout()의 알려진 동작 주의점"
+      ],
+      "factSlotIds": [
+        "slot-014"
+      ],
+      "verificationNeed": "core",
+      "sourceEvidenceHints": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+          "sourceTitleOrPublisher": "MDN",
+          "dateOrYear": "2026",
+          "quote": "The timeout is based on active rather than elapsed time, and will effectively be paused if the code is running in a suspended worker, or while the document is in a back-forward cache (“bfcache”).",
+          "factSlotIds": [
+            "slot-014"
+          ],
+          "sourceQuality": "primary_preferred",
+          "relevance": "브라우저 표준 동작을 일반적인 wall-clock setTimeout과 동일하게 해석하면 안 된다."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+          "sourceTitleOrPublisher": "MDN",
+          "dateOrYear": "2026",
+          "quote": "AbortSignal.timeout() does not provide a way to cancel its timeout.",
+          "factSlotIds": [
+            "slot-014"
+          ],
+          "sourceQuality": "primary_preferred",
+          "relevance": "조기 취소가 확실히 필요하면 AbortController와 setTimeout()/clearTimeout() 조합을 사용한다."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+          "sourceTitleOrPublisher": "MDN",
+          "dateOrYear": "2026",
+          "quote": "Creating long timeouts with listeners can prevent garbage collection even after application code drops its references to the signal.",
+          "factSlotIds": [
+            "slot-014"
+          ],
+          "sourceQuality": "primary_preferred",
+          "relevance": "직접 추가한 리스너는 작업 종료 시 제거해야 한다."
+        }
+      ],
+      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+      "verifierTier": "core"
+    }
+  ],
+  "tailCandidates": [
+    {
+      "id": "claim-017",
+      "claim": "MDN advises removing application-added abort listeners when the combined operation finishes.",
+      "sourceUrls": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static"
+      ],
+      "sourceRefs": [
+        "research-questions.question-005.fact-005",
+        "research-questions.question-005.source-003"
+      ],
+      "sourceQuality": "primary_reference",
+      "reasonToVerify": "Useful slot-013 lifecycle caveat affecting cleanup.",
+      "scopeItems": [
+        "AbortSignal.any()의 알려진 동작 주의점"
+      ],
+      "factSlotIds": [
+        "slot-013"
+      ],
+      "verificationNeed": "useful",
+      "sourceEvidenceHints": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+          "sourceTitleOrPublisher": "MDN; WHATWG DOM Standard",
+          "dateOrYear": "2026",
+          "quote": "If your code adds abort listeners to the combined signal, remove them when the operation finishes, just as you would for any other AbortSignal.",
+          "factSlotIds": [
+            "slot-013"
+          ],
+          "sourceQuality": "authoritative/credible-reference",
+          "relevance": "표준은 source signals와 listener/abort algorithm이 있는 비취소 dependent signal의 GC 보존 조건도 정의한다."
+        },
+        {
+          "url": "https://dom.spec.whatwg.org/",
+          "sourceTitleOrPublisher": "WHATWG DOM Standard; MDN",
+          "dateOrYear": "2026",
+          "quote": "The returned AbortSignal's reason will be already set to the reason of the first abort signal that was already aborted.",
+          "factSlotIds": [
+            "slot-013"
+          ],
+          "sourceQuality": "primary/authoritative",
+          "relevance": "따라서 배열 순서가 이미 취소된 입력들의 reason 선택에 영향을 준다."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+          "sourceTitleOrPublisher": "MDN",
+          "dateOrYear": "2026",
+          "quote": "Aborting the returned signal does not abort the other input signals or cancel their timeouts.",
+          "factSlotIds": [
+            "slot-013"
+          ],
+          "sourceQuality": "credible-reference",
+          "relevance": "결합 신호는 입력으로 향하는 취소 제어기가 아니라 입력 취소를 관찰하는 dependent signal이다."
+        }
+      ],
+      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+      "verifierTier": "tail"
+    },
+    {
+      "id": "claim-018",
+      "claim": "MDN says timeout() provides no way to cancel its timeout.",
+      "sourceUrls": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+      ],
+      "sourceRefs": [
+        "research-questions.question-006.fact-004",
+        "research-questions.question-006.source-002"
+      ],
+      "sourceQuality": "primary_reference",
+      "reasonToVerify": "Useful slot-014 lifecycle caveat affecting resource behavior.",
+      "scopeItems": [
+        "AbortSignal.timeout()의 알려진 동작 주의점"
+      ],
+      "factSlotIds": [
+        "slot-014"
+      ],
+      "verificationNeed": "useful",
+      "sourceEvidenceHints": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+          "sourceTitleOrPublisher": "MDN",
+          "dateOrYear": "2026",
+          "quote": "AbortSignal.timeout() does not provide a way to cancel its timeout.",
+          "factSlotIds": [
+            "slot-014"
+          ],
+          "sourceQuality": "primary_preferred",
+          "relevance": "조기 취소가 확실히 필요하면 AbortController와 setTimeout()/clearTimeout() 조합을 사용한다."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+          "sourceTitleOrPublisher": "MDN",
+          "dateOrYear": "2026",
+          "quote": "The AbortSignal becoming unreachable is not guaranteed to cancel the timeout.",
+          "factSlotIds": [
+            "slot-014"
+          ],
+          "sourceQuality": "primary_preferred",
+          "relevance": "리소스 제약 상황에서 명시적 조기 취소가 필요하면 AbortController와 clearTimeout()을 사용한다."
+        },
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+          "sourceTitleOrPublisher": "MDN",
+          "dateOrYear": "2026",
+          "quote": "The timeout is based on active rather than elapsed time, and will effectively be paused if the code is running in a suspended worker, or while the document is in a back-forward cache (“bfcache”).",
+          "factSlotIds": [
+            "slot-014"
+          ],
+          "sourceQuality": "primary_preferred",
+          "relevance": "브라우저 표준 동작을 일반적인 wall-clock setTimeout과 동일하게 해석하면 안 된다."
+        }
+      ],
+      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+      "verifierTier": "tail"
+    }
+  ]
+}

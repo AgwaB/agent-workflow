@@ -1,0 +1,32 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "C1 드리프트(L20의 cancelled·timeout 승격)와 SPEC Q1 테스트 부재는 저장소에서 확인되지만, 하위 중지·종료 상태 전이 영향은 src 내 호출자가 없어 검증되지 않아 WEAKEN.",
+  "findingId": "finding-010",
+  "finding": "Timeout and 'cancelled' strings promoted to cancellation, contrary to SPEC C1, with no test coverage",
+  "verdict": "WEAKEN",
+  "evidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 20,
+      "quote": "candidate === \"cancelled\" || candidate === \"timeout\""
+    },
+    {
+      "file": "SPEC.md",
+      "line": 25,
+      "lineEnd": 26,
+      "quote": "다른 provider 오류를 취소로 승격해서는 안 된다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 10,
+      "quote": "Keep this check deliberately exact"
+    }
+  ],
+  "counterEvidence": [
+    "src/ 안에서 isWorkflowReturnedCancellation의 호출자를 찾지 못했다(Grep 결과는 정의와 자기 재귀 호출뿐). 따라서 finding이 말하는 하위 stop/terminal 상태 변화는 저장소 안에서 입증되지 않았고, 외부 소비자 존재 여부는 확인 불가다.",
+    "L10-11 주석과 커밋 654f639 메시지('treat cancelled/timeout as cancellation')는 timeout·cancelled 승격이 의도된 변경임을 시사하므로, 버그인지 SPEC 누락인지는 사람이 확인해야 한다."
+  ],
+  "recommendedAction": "timeout·cancelled 승격이 의도인지 확인하라. 의도가 아니면 src/workflow-cancellation.ts L20에서 제거하고, 의도라면 SPEC C1을 개정해 문서화하라. 어느 쪽이든 허용 값 세 가지, 거부되는 provider 오류, C2 content JSON 재귀, timeout 사례를 덮는 단위 테스트(예: workflow-cancellation.test.ts)를 추가하라.",
+  "readerTitle": "타임아웃과 'cancelled' 문자열을 취소로 승격해 SPEC C1에 어긋나며 테스트가 없음",
+  "readerRationale": "근본 결함: 취소 판별기가 공개 명세 SPEC보다 넓어서, provider 타임아웃이나 사유가 'cancelled'인 모든 오류가 취소로 보고된다. 이는 하위의 중지·종료 상태를 바꾸고 실제 provider 실패를 가릴 수 있다. C1 경계와 SPEC Q1 테스트 부재는 이 드리프트가 잡히지 않은 원인이다. 분류기를 고치거나 SPEC을 갱신하는 것이 1차 조치이고, 테스트 추가는 검증 단계다."
+}

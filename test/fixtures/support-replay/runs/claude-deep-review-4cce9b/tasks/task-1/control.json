@@ -1,0 +1,59 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "src/ stop/cancel/terminal 코드 검토: SPEC.md 계약과 어긋나는 항목 여러 개(폴링 기본값, 취소 판별 범위, 중지 오류 판별, 재시도 필드 이름) 확인. 공개 계약 변경 가능성이 있어 위험도 high.",
+  "reviewLenses": [
+    {
+      "id": "contract-compat",
+      "focus": "SPEC.md 계약과 공개 필드 이름 대비 실제 구현 차이, 재시도 필드 rename 호환성",
+      "whyNeeded": "T3 필드 이름이 SPEC과 다르고 외부 도구가 읽는 공개 계약이며, C1·S6·S3 위반이 확인됨",
+      "evidenceToInspect": [
+        "SPEC.md:13-14",
+        "SPEC.md:18-19",
+        "SPEC.md:25-26",
+        "SPEC.md:35-36",
+        "src/workflow-terminal.ts:103-110",
+        "src/workflow-cancellation.ts:19-21",
+        "src/workflow-stop.ts:53-59",
+        "src/workflow-stop.ts:67"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "runtime-race",
+      "focus": "중지 감시 경쟁 조건: 디스크 의도 읽기와 launch signal 등록/해제, dispose 이후 in-flight check, 폴링 주기",
+      "whyNeeded": "foreground abort fence가 동기적이라는 주석과 비동기 디스크 읽기 사이의 순서가 실제로 보장되는지 확인 필요",
+      "evidenceToInspect": [
+        "src/workflow-stop.ts:5-28",
+        "src/workflow-stop.ts:61-87",
+        "src/workflow-stop.ts:89-99"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "terminal-status-masking",
+      "focus": "종료 요약에서 control.json 부재·읽기 실패가 failed/cancelled 상태를 completed_without_semantic_result로 가리는지",
+      "whyNeeded": "T2 준수 여부와 실패·중지 실행의 의미 상태 손실 가능성 확인",
+      "evidenceToInspect": [
+        "src/workflow-terminal.ts:48-62",
+        "src/workflow-terminal.ts:80-96"
+      ],
+      "severityBias": "medium"
+    },
+    {
+      "id": "release-test-hygiene",
+      "focus": "SPEC Q1 단위 테스트 존재 여부, 타임아웃을 취소로 승격한 동작의 테스트 커버리지",
+      "whyNeeded": "src/ 내 테스트 파일이 발견되지 않아 S·C·T 항목 검증 여부를 확인할 수 없음",
+      "evidenceToInspect": [
+        "SPEC.md:38-40",
+        "src/workflow-cancellation.ts:19-21"
+      ],
+      "severityBias": "medium"
+    }
+  ],
+  "triageSummary": "src/의 중지 감지, 취소 판별, 종료 요약 3개 파일과 SPEC.md를 검토했다. SPEC과 불일치: 기본 pollMs(코드 200/최소 1, SPEC 50/최소 10), 취소 판별에 'cancelled'·'timeout' 추가(C1 위반, 최근 커밋에서 추가), 중지 오류를 메시지 접두사로도 판별(S6 위반), 재시도 필드명 launchRetries(SPEC은 launchRetryAttempts, 공개 계약). 또한 store.js·types.js가 저장소에 없어 readWorkflowStopIntent 동작은 검증 불가.",
+  "riskLevel": "high",
+  "skippedLenses": [
+    "safety-security: 입력이 로컬 상태 파일과 provider 반환값에 한정되고 외부 노출 경로가 확인되지 않음",
+    "api-docs-product: contract-compat 렌즈에 포함됨"
+  ]
+}

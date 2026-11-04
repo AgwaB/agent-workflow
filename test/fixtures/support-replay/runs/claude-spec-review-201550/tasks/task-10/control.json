@@ -1,0 +1,55 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "isWorkflowStopRequestedError accepts message-prefix matches, violating S6's name-only rule; real but latent because no src caller exists.",
+  "id": "finding-002",
+  "verdict": "WEAKEN",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 53,
+      "lineEnd": 59,
+      "quote": "export function isWorkflowStopRequestedError(error: unknown): boolean {",
+      "relevance": "Classifier is the function under review; its body spans lines 53-59"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 57,
+      "lineEnd": 57,
+      "quote": "error.message.startsWith(\"workflow stop requested\"))",
+      "relevance": "Message-prefix branch that S6 forbids as a classification basis"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 18,
+      "lineEnd": 19,
+      "quote": "이름이 `WorkflowStopRequested`인 오류만 중지 오류로",
+      "relevance": "S6 requires name-only classification (line 18)"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 18,
+      "lineEnd": 19,
+      "quote": "메시지 내용으로 판별해서는 안 된다.",
+      "relevance": "S6 explicitly prohibits message-content classification (line 19)"
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 47,
+      "lineEnd": 50,
+      "quote": "error.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME;",
+      "relevance": "In-repo creator always sets the name, so the message branch matters only for foreign errors with the same prefix; this narrows impact but does not remove the spec violation"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 53,
+      "lineEnd": 59,
+      "quote": "export function isWorkflowStopRequestedError(error: unknown): boolean {",
+      "relevance": "No src caller of isWorkflowStopRequestedError was found, so no current behavior depends on the message branch"
+    }
+  ],
+  "finalClaim": "isWorkflowStopRequestedError (src/workflow-stop.ts:53-59) also classifies any Error whose message starts with 'workflow stop requested' as a stop error, contrary to SPEC S6 (name-only, no message-based classification). No test covers the classifier. Impact is latent: no src caller exists and in-repo errors always carry the name.",
+  "recommendedAction": "Remove the message-prefix disjunct so the function checks only error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME, and add a test that a plain Error with the matching message returns false and a WorkflowStopRequested-named error returns true."
+}

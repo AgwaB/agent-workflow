@@ -1,0 +1,95 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Mapped stop, cancellation, terminal-summary, and test areas; implementation shows several spec-sensitive behaviors and no visible unit-test files.",
+  "implementationMap": [
+    {
+      "component": "Stop signal registration",
+      "file": "src/workflow-stop.ts",
+      "evidence": "Lines 5-27 map signals by workflowRunPath(cwd, runId); lines 17-21 unregister and delete empty sets.",
+      "observedBehavior": "Foreground AbortSignals are tracked per run and returned cleanup removes registrations.",
+      "relatedSignals": [
+        "S1",
+        "S7"
+      ]
+    },
+    {
+      "component": "Stop polling and disk intent",
+      "file": "src/workflow-stop.ts",
+      "evidence": "Lines 61-86 create a controller, invoke check immediately, poll with setInterval, catch read failures, and dispose via clearInterval.",
+      "observedBehavior": "Default pollMs is 200 and minimum is 1; checks foreground signals and readWorkflowStopIntent; dispose only clears the interval.",
+      "relatedSignals": [
+        "S1",
+        "S3",
+        "S4",
+        "S5"
+      ]
+    },
+    {
+      "component": "Stop error construction and predicate",
+      "file": "src/workflow-stop.ts",
+      "evidence": "Lines 43-59 construct name WorkflowStopRequested and message workflow stop requested for <runId>; predicate also accepts a message prefix.",
+      "observedBehavior": "Abort reason uses the required name/message, while the classifier considers either name or message prefix.",
+      "relatedSignals": [
+        "S2",
+        "S6"
+      ]
+    },
+    {
+      "component": "Throwing stop check",
+      "file": "src/workflow-stop.ts",
+      "evidence": "Lines 89-99 call readWorkflowStopIntent without catch and throw the requested error when intent or foreground abort is present.",
+      "observedBehavior": "Synchronous foreground checks surround the disk read, and read failures propagate from this path.",
+      "relatedSignals": [
+        "S1",
+        "S4"
+      ]
+    },
+    {
+      "component": "Provider cancellation detection",
+      "file": "src/workflow-cancellation.ts",
+      "evidence": "Lines 13-32 inspect AbortError, cancelled flags, error/reason values, and recursively parse content[].text JSON with parsed !== value.",
+      "observedBehavior": "Recognizes the three named strings plus cancelled/timeout and boolean cancellation markers; JSON content is recursively inspected with a self-reference guard.",
+      "relatedSignals": [
+        "C1",
+        "C2"
+      ]
+    },
+    {
+      "component": "Terminal semantic status",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "Lines 64-69 map completed plus degradation to completed_degraded; lines 80-95 handle direct-dynamic control absence via the final fallback.",
+      "observedBehavior": "Non-dynamic degradation and missing/unrecognized dynamic control produce dedicated semantic statuses.",
+      "relatedSignals": [
+        "T1",
+        "T2"
+      ]
+    },
+    {
+      "component": "Retry summary fields",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "Lines 27-34 expose outputRetryAttempts and launchRetries; lines 103-109 sum attempts across all tasks.",
+      "observedBehavior": "Output retries are summed under the specified outputRetryAttempts field, but launch retries are exposed as launchRetries.",
+      "relatedSignals": [
+        "T3"
+      ]
+    },
+    {
+      "component": "Unit-test coverage",
+      "file": "No test files found under the repository",
+      "evidence": "Repository file listing contains SPEC.md, tsconfig/package.json, and three src/*.ts files only.",
+      "observedBehavior": "No visible unit-test implementation provides evidence for S1-S7, C1-C2, or T1-T3.",
+      "relatedSignals": [
+        "Q1"
+      ]
+    }
+  ],
+  "unmappedAreas": [
+    "Q1 unit tests for each S, C, and T requirement",
+    "External implementations of ./store.js and ./types.js are absent from this excerpt",
+    "Runtime tests for in-flight dispose behavior are absent"
+  ],
+  "notes": [
+    "This stage maps evidence only; it does not make final conformance judgments.",
+    "Most relevant review points are poll defaults/floor, error predicates, cancellation allowlist, public retry field naming, and missing tests."
+  ]
+}

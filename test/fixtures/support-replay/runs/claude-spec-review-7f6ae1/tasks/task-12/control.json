@@ -1,0 +1,55 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "finding-004 WEAKEN: direct-dynamic 분기가 completed+degradation 결과를 control.json 상태로 덮어쓰는 것은 확인되나, SPEC T1의 dynamic 적용 범위가 명세 발췌로 확정되지 않아 severity를 낮춘다.",
+  "id": "finding-004",
+  "verdict": "WEAKEN",
+  "severity": "low",
+  "evidence": [
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 68,
+      "lineEnd": 68,
+      "quote": "return run.degradation ? \"completed_degraded\" : \"completed\";",
+      "relevance": "non-dynamic 경로는 completed+degradation을 completed_degraded로 매핑한다"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 80,
+      "lineEnd": 80,
+      "quote": "if (terminal && run.provenance?.mode === \"direct-dynamic\") {",
+      "relevance": "direct-dynamic 분기가 nonDynamicSemanticStatus 결과를 뒤에서 덮어쓴다"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 87,
+      "lineEnd": 87,
+      "quote": "else if (control?.status === \"synthesized\") semanticStatus = \"synthesized\";",
+      "relevance": "run.degradation과 무관하게 control.json 상태로 semanticStatus가 synthesized가 된다(completed_degraded가 남지 않는 경로)"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 32,
+      "lineEnd": 32,
+      "quote": "- **T1.** `completed` 실행에 degradation 기록이 있으면 의미 상태는 `completed_degraded`이다.",
+      "relevance": "T1은 completed 실행 일반에 대한 무조건적 규칙으로 쓰여 있다"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 33,
+      "lineEnd": 33,
+      "quote": "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는",
+      "relevance": "direct-dynamic 전용 규칙은 T2(읽기 불가 시)뿐이며 T1 예외를 명시하지 않는다"
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 22,
+      "lineEnd": 22,
+      "quote": "| \"dynamic_blocked\"",
+      "relevance": "dynamic 전용 의미 상태 어휘가 존재해 dynamic 분기의 덮어쓰기가 설계상 의도일 가능성을 시사한다"
+    }
+  ],
+  "finalClaim": "direct-dynamic 분기는 terminal completed 실행이라도 run.degradation을 무시하고 control.json 상태(synthesized 등)로 semanticStatus를 덮어써 completed_degraded가 남지 않을 수 있다. 다만 SPEC 발췌상 T1이 dynamic 실행에 적용되는지는 확정되지 않아 조건부 결함이다.",
+  "recommendedAction": "SPEC에 T1의 dynamic 적용 여부를 명시받은 뒤, 적용된다면 direct-dynamic 분기에서 completed+degradation일 때 completed_degraded를 우선하도록 수정하고 해당 케이스 단위 테스트를 추가한다. 예외라면 SPEC에 예외를 명시한다."
+}

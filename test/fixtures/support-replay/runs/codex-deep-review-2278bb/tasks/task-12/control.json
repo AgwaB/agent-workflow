@@ -1,0 +1,22 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "명세와 구현이 모두 확인되어 finding을 유지한다.",
+  "findingId": "finding-001",
+  "finding": "중지 감시 주기 기본값과 최소값이 명세보다 느림",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 67,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 13,
+      "quote": "**S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다"
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "pollMs 기본값을 50ms로 변경하고 최소값을 10ms로 clamp하며, 해당 계약을 검증하는 회귀 테스트를 추가하라."
+}

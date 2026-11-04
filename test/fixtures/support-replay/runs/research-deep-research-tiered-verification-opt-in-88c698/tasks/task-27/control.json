@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "id": "claim-008",
+  "status": "verified",
+  "confidence": 0.99,
+  "digest": "Safari 17.4 지원은 MDN BCD와 WebKit 공식 문서에서 동일하게 확인된다.",
+  "verdictDigest": "Safari 17.4의 AbortSignal.any() 지원이 MDN BCD의 정확한 version_added 값과 WebKit 공식 릴리스 문서로 직접 확인된다.",
+  "evidence": [
+    {
+      "source": "MDN Browser Compatibility Data",
+      "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+      "dateOrYear": "2026",
+      "quote": "\"safari\": {\n                \"version_added\": \"17.4\"\n              }",
+      "relevance": "AbortSignal.any()의 any_static 호환성 항목이 Safari 추가 버전을 17.4로 명시한다."
+    },
+    {
+      "source": "WebKit",
+      "url": "https://webkit.org/blog/15063/webkit-features-in-safari-17-4/",
+      "dateOrYear": "2024",
+      "quote": "Lastly, WebKit for Safari 17.4 adds support for the 【92†`AbortSignal.any()`†developer.mozilla.org】",
+      "relevance": "WebKit의 Safari 17.4 공식 기능 문서가 해당 API 지원 추가를 직접 확인한다."
+    }
+  ],
+  "caveats": "Safari 17.4부터의 지원 여부를 검증한 것이며, 구현 세부 동작이나 이전 버전의 부분 지원 여부까지 의미하지 않는다.",
+  "correctionOrCounterclaim": ""
+}

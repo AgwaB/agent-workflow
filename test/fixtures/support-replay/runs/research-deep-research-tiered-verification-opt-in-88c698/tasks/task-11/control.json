@@ -1,0 +1,4786 @@
+{
+  "schema": "deep-research-final-audit-packet-v1",
+  "digest": "Prepared final-audit packet with 18 audited claim(s), 14 fact slot(s), and 7 gap row(s).",
+  "packet": {
+    "researchMetadataSeed": {
+      "depth": "standard",
+      "taskType": "api_reference",
+      "expectedFinalShape": "research_brief",
+      "researchQuestions": 6,
+      "sourcePolicy": {
+        "preferredSourceClasses": [
+          "Node.js 공식 API 문서 및 릴리스 문서",
+          "MDN 및 MDN Browser Compatibility Data",
+          "WHATWG DOM 표준",
+          "각 브라우저 엔진의 공식 릴리스 문서"
+        ],
+        "primaryRequiredFor": [
+          "Node.js 버전·안정성",
+          "API 동작·예외·abort reason",
+          "브라우저 지원 시작 버전이 논쟁적인 경우"
+        ],
+        "secondaryAllowedFor": [
+          "검색 보조 및 교차검증용 호환성 표"
+        ],
+        "sourceQualityRules": [
+          "버전 숫자는 공식 문서의 History 또는 릴리스 자료에서 확인한다.",
+          "‘지원 시작’과 ‘Stable’ 표기를 분리한다.",
+          "브라우저 호환성은 MDN/BCD와 가능하면 브라우저 공식 자료를 대조한다.",
+          "주의점은 표준 정의와 Node.js 구현을 구분해 기록한다."
+        ]
+      },
+      "plannedFactSlots": 14,
+      "filledFactSlots": 8,
+      "partialFactSlots": 6,
+      "missingOnlyFactSlots": 0,
+      "missingFactSlots": 0,
+      "missingFactSlotsIncludesConflicting": true,
+      "conflictingFactSlots": 0
+    },
+    "verdictCounts": {
+      "verified": 14,
+      "partiallySupported": 4,
+      "unsupported": 0,
+      "conflicting": 0,
+      "verificationBlocked": 0,
+      "other": 0
+    },
+    "statusPartitions": {
+      "verified": [
+        "claim-001",
+        "claim-003",
+        "claim-005",
+        "claim-006",
+        "claim-008",
+        "claim-009",
+        "claim-010",
+        "claim-012",
+        "claim-013",
+        "claim-014",
+        "claim-015",
+        "claim-016",
+        "claim-017",
+        "claim-018"
+      ],
+      "partiallySupported": [
+        "claim-002",
+        "claim-004",
+        "claim-007",
+        "claim-011"
+      ],
+      "unsupported": [],
+      "conflicting": [],
+      "verificationBlocked": [],
+      "other": []
+    },
+    "factSlotCoverage": [
+      {
+        "slotId": "slot-001",
+        "label": "Node.js AbortSignal.any() 최초 지원 버전",
+        "status": "filled",
+        "bestValue": "Added in v20.3.0 and v18.17.0.",
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+        ],
+        "sourceRefs": [],
+        "sourceQuality": "primary_official",
+        "verificationCandidateIds": [
+          "claim-001"
+        ],
+        "gapReason": "",
+        "parentImpact": "Critical Node.js compatibility baseline."
+      },
+      {
+        "slotId": "slot-002",
+        "label": "Node.js AbortSignal.any() 안정성 상태",
+        "status": "partial",
+        "bestValue": "Global objects documentation is Stability 2 - Stable; method-specific stability history is not shown.",
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+        ],
+        "sourceRefs": [],
+        "sourceQuality": "primary_official",
+        "verificationCandidateIds": [
+          "claim-002"
+        ],
+        "gapReason": "No method-level stability transition record was retrieved.",
+        "parentImpact": "Limits how strongly method-level Stable can be stated."
+      },
+      {
+        "slotId": "slot-003",
+        "label": "Node.js AbortSignal.timeout() 최초 지원 버전",
+        "status": "filled",
+        "bestValue": "Added in v17.3.0 and backported to v16.14.0.",
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+          "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md"
+        ],
+        "sourceRefs": [],
+        "sourceQuality": "primary_official",
+        "verificationCandidateIds": [
+          "claim-003"
+        ],
+        "gapReason": "",
+        "parentImpact": "Critical Node.js compatibility baseline."
+      },
+      {
+        "slotId": "slot-004",
+        "label": "Node.js AbortSignal.timeout() 안정성 상태",
+        "status": "partial",
+        "bestValue": "Global objects documentation is Stability 2 - Stable; method-specific promotion history is not shown.",
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+        ],
+        "sourceRefs": [],
+        "sourceQuality": "primary_official",
+        "verificationCandidateIds": [
+          "claim-004"
+        ],
+        "gapReason": "No method-level Stability 2 promotion record was retrieved.",
+        "parentImpact": "Stability conclusion must remain documentation-scoped."
+      },
+      {
+        "slotId": "slot-005",
+        "label": "AbortSignal.any() Chrome 지원 버전",
+        "status": "filled",
+        "bestValue": "Chrome 116.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json"
+        ],
+        "sourceRefs": [],
+        "sourceQuality": "primary_compatibility",
+        "verificationCandidateIds": [
+          "claim-005"
+        ],
+        "gapReason": "",
+        "parentImpact": "Browser compatibility matrix entry."
+      },
+      {
+        "slotId": "slot-006",
+        "label": "AbortSignal.any() Edge 지원 버전",
+        "status": "filled",
+        "bestValue": "Edge 116 is listed as supported in the compatibility table.",
+        "sourceUrls": [
+          "https://caniuse.com/wf-abortsignal-any"
+        ],
+        "sourceRefs": [],
+        "sourceQuality": "secondary_compatibility",
+        "verificationCandidateIds": [
+          "claim-006"
+        ],
+        "gapReason": "",
+        "parentImpact": "Browser compatibility matrix entry."
+      },
+      {
+        "slotId": "slot-007",
+        "label": "AbortSignal.any() Firefox 지원 버전",
+        "status": "partial",
+        "bestValue": "Firefox 124.",
+        "sourceUrls": [
+          "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124"
+        ],
+        "sourceRefs": [],
+        "sourceQuality": "primary_release_notes",
+        "verificationCandidateIds": [
+          "claim-007"
+        ],
+        "gapReason": "no audited verified claim (claim-007)",
+        "parentImpact": "Browser compatibility matrix entry."
+      },
+      {
+        "slotId": "slot-008",
+        "label": "AbortSignal.any() Safari 지원 버전",
+        "status": "filled",
+        "bestValue": "Safari 17.4.",
+        "sourceUrls": [
+          "https://webkit.org/blog/15063/webkit-features-in-safari-17-4/"
+        ],
+        "sourceRefs": [],
+        "sourceQuality": "primary_browser_official",
+        "verificationCandidateIds": [
+          "claim-008"
+        ],
+        "gapReason": "",
+        "parentImpact": "Browser compatibility matrix entry."
+      },
+      {
+        "slotId": "slot-009",
+        "label": "AbortSignal.timeout() Chrome 지원 버전",
+        "status": "filled",
+        "bestValue": "Full support at Chrome 124; Chrome 103–123 is partial.",
+        "sourceUrls": [
+          "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+        ],
+        "sourceRefs": [],
+        "sourceQuality": "primary_compatibility",
+        "verificationCandidateIds": [
+          "claim-009"
+        ],
+        "gapReason": "",
+        "parentImpact": "Exact support threshold and exception behavior matter."
+      },
+      {
+        "slotId": "slot-010",
+        "label": "AbortSignal.timeout() Edge 지원 버전",
+        "status": "partial",
+        "bestValue": "Edge is a mirror of Chrome compatibility data; 124 is inferred from that mirror.",
+        "sourceUrls": [
+          "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+        ],
+        "sourceRefs": [],
+        "sourceQuality": "primary_compatibility_mirror",
+        "verificationCandidateIds": [
+          "claim-010"
+        ],
+        "gapReason": "Direct Edge version wording was not extracted.",
+        "parentImpact": "Edge threshold needs explicit verification before firm recommendation."
+      },
+      {
+        "slotId": "slot-011",
+        "label": "AbortSignal.timeout() Firefox 지원 버전",
+        "status": "partial",
+        "bestValue": "Firefox 100.",
+        "sourceUrls": [
+          "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100",
+          "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+        ],
+        "sourceRefs": [],
+        "sourceQuality": "primary_compatibility_release",
+        "verificationCandidateIds": [
+          "claim-011"
+        ],
+        "gapReason": "no audited verified claim (claim-011)",
+        "parentImpact": "Browser compatibility matrix entry."
+      },
+      {
+        "slotId": "slot-012",
+        "label": "AbortSignal.timeout() Safari 지원 버전",
+        "status": "filled",
+        "bestValue": "Safari 16.",
+        "sourceUrls": [
+          "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+        ],
+        "sourceRefs": [],
+        "sourceQuality": "primary_compatibility",
+        "verificationCandidateIds": [
+          "claim-012"
+        ],
+        "gapReason": "",
+        "parentImpact": "Browser compatibility matrix entry."
+      },
+      {
+        "slotId": "slot-013",
+        "label": "AbortSignal.any() 알려진 동작 주의점",
+        "status": "filled",
+        "bestValue": "Already-aborted inputs determine the result reason during iteration; later aborts propagate their reason, but returned-signal abort does not cascade.",
+        "sourceUrls": [
+          "https://dom.spec.whatwg.org/",
+          "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static"
+        ],
+        "sourceRefs": [],
+        "sourceQuality": "primary_standard+primary_reference",
+        "verificationCandidateIds": [
+          "claim-013",
+          "claim-014",
+          "claim-017"
+        ],
+        "gapReason": "",
+        "parentImpact": "Controls reason handling and listener/resource cleanup."
+      },
+      {
+        "slotId": "slot-014",
+        "label": "AbortSignal.timeout() 알려진 동작 주의점",
+        "status": "partial",
+        "bestValue": "WHATWG gives TimeoutError; browser MDN uses active time and has no cancellation API; Node docs state delay milliseconds.",
+        "sourceUrls": [
+          "https://dom.spec.whatwg.org/",
+          "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+        ],
+        "sourceRefs": [],
+        "sourceQuality": "primary_standard+primary_reference",
+        "verificationCandidateIds": [
+          "claim-015",
+          "claim-016",
+          "claim-018"
+        ],
+        "gapReason": "Node-specific active-time mapping and internal timer ref/unref policy remain unresolved.",
+        "parentImpact": "Runtime-specific timeout guidance must distinguish browser and Node.js behavior."
+      }
+    ],
+    "factSlotStatusCounts": {
+      "filled": 8,
+      "partial": 6
+    },
+    "coverageGaps": [
+      {
+        "id": "gap-001",
+        "reason": "Latest docs provide section-level Stable wording but no method-level stability transition record.",
+        "sourceUrls": [],
+        "sourceRefs": [],
+        "relatedFactSlotIds": [
+          "slot-002"
+        ]
+      },
+      {
+        "id": "gap-002",
+        "reason": "No method-specific Stability 2 promotion record was retrieved.",
+        "sourceUrls": [],
+        "sourceRefs": [],
+        "relatedFactSlotIds": [
+          "slot-004"
+        ]
+      },
+      {
+        "id": "gap-003",
+        "reason": "Edge 124 is inferred through the BCD Chrome mirror; direct Edge wording was not extracted.",
+        "sourceUrls": [],
+        "sourceRefs": [],
+        "relatedFactSlotIds": [
+          "slot-010"
+        ]
+      },
+      {
+        "id": "gap-004",
+        "reason": "Direct Chrome and Safari official release documents were not retrieved; BCD remains the primary compatibility evidence.",
+        "sourceUrls": [],
+        "sourceRefs": [],
+        "relatedFactSlotIds": [
+          "slot-009",
+          "slot-012"
+        ]
+      },
+      {
+        "id": "gap-005",
+        "reason": "Node.js active-time mapping and internal timer ref/unref behavior remain unverified.",
+        "sourceUrls": [],
+        "sourceRefs": [],
+        "relatedFactSlotIds": [
+          "slot-014"
+        ]
+      }
+    ],
+    "remainingGaps": [
+      {
+        "id": "gap-remaining-001",
+        "claimId": "claim-007",
+        "evidenceState": "local_file_and_remote_url_conflict",
+        "reason": "evidence row declared both a local file identity and a remote URL without a known coherent mapping",
+        "nextStep": "Fetch or inspect primary source evidence for the exact claim before using it as verified.",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+          "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124",
+          "Mozilla/MDN Firefox 124 release notes"
+        ],
+        "sourceRefs": [
+          "research-questions.question-003.fact-003",
+          "research-questions.question-003.source-004"
+        ],
+        "relatedFactSlotIds": []
+      },
+      {
+        "id": "gap-remaining-002",
+        "claimId": "claim-011",
+        "evidenceState": "local_file_and_remote_url_conflict",
+        "reason": "evidence row declared both a local file identity and a remote URL without a known coherent mapping",
+        "nextStep": "Fetch or inspect primary source evidence for the exact claim before using it as verified.",
+        "sourceUrls": [
+          "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+          "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100",
+          "Mozilla/MDN Firefox 100 release notes"
+        ],
+        "sourceRefs": [
+          "research-questions.question-004.fact-003",
+          "research-questions.question-004.source-003"
+        ],
+        "relatedFactSlotIds": []
+      }
+    ],
+    "sourceRefJoinFailures": [],
+    "claimVerdictLedger": [
+      {
+        "id": "claim-001",
+        "claim": "Added in: v20.3.0, v18.17.0",
+        "status": "verified",
+        "factSlotIds": [
+          "slot-001"
+        ],
+        "sourceRefs": [
+          "research-questions.fact-001",
+          "research-questions.source-001"
+        ],
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+        ],
+        "verifierOwner": {
+          "source": "verify-core-claims",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-001",
+          "taskId": "task-20",
+          "itemIdentity": "claim-001",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        "support": "Node.js 공식 문서가 AbortSignal.any()의 추가 버전을 v20.3.0 및 v18.17.0으로 명시한다. sourceUrls: https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html caveat: 별도의 안정화 전환 버전은 명시하지 않는다.",
+        "correctionOrCounterclaim": "",
+        "evidence": [
+          {
+            "source": "Node.js Global objects documentation",
+            "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+            "dateOrYear": "2026",
+            "quote": "Added in: v20.3.0, v18.17.0",
+            "relevance": "AbortSignal.any()의 Node.js 추가 버전을 직접 명시한다."
+          }
+        ]
+      },
+      {
+        "id": "claim-002",
+        "claim": "Stability: 2 - Stable",
+        "status": "partially_supported",
+        "factSlotIds": [
+          "slot-002"
+        ],
+        "sourceRefs": [
+          "research-questions.fact-002",
+          "research-questions.source-001"
+        ],
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+        ],
+        "verifierOwner": {
+          "source": "verify-core-claims.claim-002",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-002",
+          "taskId": "task-21",
+          "itemIdentity": "claim-002",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        "support": "Global objects 섹션의 Stable 표기는 확인되지만 AbortSignal.any()의 개별 안정화 버전은 확인되지 않는다. sourceUrls: https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+        "correctionOrCounterclaim": "문서가 직접 뒷받침하는 값은 AbortSignal.any()의 도입 버전 v20.3.0 및 v18.17.0이며, 개별 안정화 버전은 명시되지 않는다.",
+        "evidence": [
+          {
+            "source": "Node.js v24.22.2 Global objects documentation",
+            "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+            "dateOrYear": "2026",
+            "quote": "Stability: 2 - Stable",
+            "relevance": "Global objects 섹션 전체의 안정성 표기이며 AbortSignal.any() 개별 메서드의 안정성 표기는 아니다."
+          },
+          {
+            "source": "Node.js v24.22.2 Global objects documentation",
+            "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+            "dateOrYear": "2026",
+            "quote": "Added in: v20.3.0, v18.17.0",
+            "relevance": "AbortSignal.any() 항목에 명시된 도입 버전이다."
+          }
+        ]
+      },
+      {
+        "id": "claim-003",
+        "claim": "Added in: v17.3.0, v16.14.0",
+        "status": "verified",
+        "factSlotIds": [
+          "slot-003"
+        ],
+        "sourceRefs": [
+          "research-questions.question-002.fact-001",
+          "research-questions.question-002.source-002"
+        ],
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+          "https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md"
+        ],
+        "verifierOwner": {
+          "source": "verify-core-claims.claim-003",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-003",
+          "taskId": "task-22",
+          "itemIdentity": "claim-003",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        "correctionOrCounterclaim": "",
+        "evidence": [
+          {
+            "source": "Node.js v24 API documentation",
+            "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+            "dateOrYear": "current",
+            "quote": "Added in: v17.3.0, v16.14.0",
+            "relevance": "AbortSignal.timeout()의 정확한 추가 버전을 직접 명시한다."
+          },
+          {
+            "source": "Node.js v17 CHANGELOG",
+            "url": "https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md",
+            "dateOrYear": "2021",
+            "quote": "**(SEMVER-MINOR)** **lib**: add AbortSignal.timeout",
+            "relevance": "Node.js v17.3.0 변경 로그에서 기능 추가를 확인한다."
+          }
+        ]
+      },
+      {
+        "id": "claim-004",
+        "claim": "Stability: 2 - Stable",
+        "status": "partially_supported",
+        "factSlotIds": [
+          "slot-004"
+        ],
+        "sourceRefs": [
+          "research-questions.question-002.fact-003",
+          "research-questions.question-002.source-001"
+        ],
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+        ],
+        "verifierOwner": {
+          "source": "verify-core-claims.claim-004",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-004",
+          "taskId": "task-23",
+          "itemIdentity": "claim-004",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        "support": "Node.js v24 docs mark Global objects Stable and list AbortSignal.timeout() as added in v17.3.0/v16.14.0, but provide no method-specific stability-version declaration.",
+        "correctionOrCounterclaim": "The source supports that AbortSignal.timeout() was added in Node.js v17.3.0 and v16.14.0, but does not verify a specific stable-transition version.",
+        "evidence": [
+          {
+            "source": "Node.js v24.22.2 Global objects documentation",
+            "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+            "dateOrYear": "2026",
+            "quote": "Stability: 2 - Stable",
+            "relevance": "Applies to the Global objects section, not explicitly to AbortSignal.timeout()."
+          },
+          {
+            "source": "Node.js v24.22.2 Global objects documentation",
+            "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+            "dateOrYear": "2026",
+            "quote": "Added in: v17.3.0, v16.14.0",
+            "relevance": "Specifies the Node.js versions that introduced AbortSignal.timeout()."
+          }
+        ]
+      },
+      {
+        "id": "claim-005",
+        "claim": "\"chrome\": {\n                \"version_added\": \"116\"\n              }",
+        "status": "verified",
+        "factSlotIds": [
+          "slot-005"
+        ],
+        "sourceRefs": [
+          "research-questions.question-003.fact-001",
+          "research-questions.question-003.source-001"
+        ],
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json"
+        ],
+        "verifierOwner": {
+          "source": "verify-core-claims.claim-005",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-005",
+          "taskId": "task-24",
+          "itemIdentity": "claim-005",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        "support": "Verified: MDN Browser Compatibility Data lists AbortSignal.any() Chrome version_added as 116. Source: https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+        "correctionOrCounterclaim": "",
+        "evidence": [
+          {
+            "source": "MDN Browser Compatibility Data",
+            "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+            "dateOrYear": "undated; fetched 2026-11-04",
+            "quote": "\"chrome\": {\n                \"version_added\": \"116\"\n              }",
+            "relevance": "Within the any_static compatibility block, this directly states Chrome support was added in version 116."
+          }
+        ]
+      },
+      {
+        "id": "claim-006",
+        "claim": "\"edge\": \"mirror\"",
+        "status": "verified",
+        "confidence": "high",
+        "factSlotIds": [
+          "slot-006"
+        ],
+        "sourceRefs": [
+          "research-questions.question-003.source-005"
+        ],
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+          "https://caniuse.com/wf-abortsignal-any"
+        ],
+        "verifierOwner": {
+          "source": "verify-core-claims.claim-006",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-006",
+          "taskId": "task-25",
+          "itemIdentity": "claim-006",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        "support": "Verified: MDN BCD records Edge as a Chromium mirror for AbortSignal.any(), while Can I Use specifies Edge 116–154 as supported.",
+        "correctionOrCounterclaim": "",
+        "evidence": [
+          {
+            "source": "MDN Browser Compatibility Data",
+            "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+            "dateOrYear": "2026-11-04",
+            "quote": "\"edge\": \"mirror\",",
+            "relevance": "The any_static compatibility entry marks Edge as mirroring Chromium support."
+          },
+          {
+            "source": "Can I use",
+            "url": "https://caniuse.com/wf-abortsignal-any",
+            "dateOrYear": "2026-11-04",
+            "quote": "#### Edge\n\n  1. ❌ 12 - 115: Not supported\n  2. ✅ 116 - 154: Supported",
+            "relevance": "Confirms the concrete Edge support boundary."
+          }
+        ]
+      },
+      {
+        "id": "claim-007",
+        "claim": "\"firefox\": {\n                \"version_added\": \"124\"\n              }",
+        "status": "partially_supported",
+        "confidence": "high",
+        "factSlotIds": [
+          "slot-007"
+        ],
+        "sourceRefs": [
+          "research-questions.question-003.fact-003",
+          "research-questions.question-003.source-004"
+        ],
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+          "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124",
+          "Mozilla/MDN Firefox 124 release notes"
+        ],
+        "verifierOwner": {
+          "source": "verify-core-claims.claim-007",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-007",
+          "taskId": "task-26",
+          "itemIdentity": "claim-007",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        "evidence": [
+          {
+            "source": "MDN Browser Compatibility Data",
+            "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+            "dateOrYear": "2024",
+            "quote": "\"firefox\": {\n                \"version_added\": \"124\"\n              }",
+            "relevance": "Direct compatibility data for AbortSignal.any()."
+          },
+          {
+            "source": "Mozilla/MDN Firefox 124 release notes",
+            "url": "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124",
+            "dateOrYear": "2024",
+            "quote": "AbortSignal.any() is now supported, allowing a composite signal to be created that can be used to abort an operation from multiple signal sources.",
+            "relevance": "Release notes explicitly confirm support in Firefox 124."
+          }
+        ]
+      },
+      {
+        "id": "claim-008",
+        "claim": "\"safari\": {\n                \"version_added\": \"17.4\"\n              }",
+        "status": "verified",
+        "factSlotIds": [
+          "slot-008"
+        ],
+        "sourceRefs": [
+          "research-questions.question-003.fact-004",
+          "research-questions.question-003.source-003"
+        ],
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+          "https://webkit.org/blog/15063/webkit-features-in-safari-17-4/"
+        ],
+        "verifierOwner": {
+          "source": "verify-core-claims.claim-008",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-008",
+          "taskId": "task-27",
+          "itemIdentity": "claim-008",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        "support": "Safari 17.4의 AbortSignal.any() 지원이 MDN BCD의 정확한 version_added 값과 WebKit 공식 릴리스 문서로 직접 확인된다.",
+        "correctionOrCounterclaim": "",
+        "evidence": [
+          {
+            "source": "MDN Browser Compatibility Data",
+            "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+            "dateOrYear": "2026",
+            "quote": "\"safari\": {\n                \"version_added\": \"17.4\"\n              }",
+            "relevance": "AbortSignal.any()의 any_static 호환성 항목이 Safari 추가 버전을 17.4로 명시한다."
+          },
+          {
+            "source": "WebKit",
+            "url": "https://webkit.org/blog/15063/webkit-features-in-safari-17-4/",
+            "dateOrYear": "2024",
+            "quote": "Lastly, WebKit for Safari 17.4 adds support for the 【92†`AbortSignal.any()`†developer.mozilla.org】",
+            "relevance": "WebKit의 Safari 17.4 공식 기능 문서가 해당 API 지원 추가를 직접 확인한다."
+          }
+        ]
+      },
+      {
+        "id": "claim-009",
+        "claim": "\"version_added\": \"124\"",
+        "status": "verified",
+        "factSlotIds": [
+          "slot-009"
+        ],
+        "sourceRefs": [
+          "research-questions.question-004.fact-001",
+          "research-questions.question-004.source-001"
+        ],
+        "sourceUrls": [
+          "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+        ],
+        "verifierOwner": {
+          "source": "verify-core-claims.claim-009",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-009",
+          "taskId": "task-28",
+          "itemIdentity": "claim-009",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        "support": "MDN BCD는 Chrome의 AbortSignal.timeout()을 124부터 지원하고, 103–123은 AbortError를 사용하는 부분 구현으로 기록한다. Source: https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+        "correctionOrCounterclaim": "Chrome 103–123은 부분 구현이며, TimeoutError를 사용하는 지원 항목은 Chrome 124부터다.",
+        "evidence": [
+          {
+            "source": "MDN Browser Compatibility Data",
+            "url": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+            "dateOrYear": "2026 snapshot",
+            "quote": "\"chrome\": [\n{\n\"version_added\": \"124\"\n},\n{\n\"version_added\": \"103\",\n\"version_removed\": \"124\",\n\"partial_implementation\": true,\n\"notes\": \"Always aborts with an `AbortError` on timeout, not a `TimeoutError`.\"\n}\n]",
+            "relevance": "AbortSignal.timeout()의 Chrome 완전 지원 시작 버전 124와 Chrome 103–123의 부분 구현 및 예외 타입 차이를 직접 명시한다."
+          }
+        ]
+      },
+      {
+        "id": "claim-010",
+        "claim": "\"edge\": \"mirror\"",
+        "status": "verified",
+        "factSlotIds": [
+          "slot-010"
+        ],
+        "sourceRefs": [
+          "research-questions.question-004.fact-002",
+          "research-questions.question-004.source-001"
+        ],
+        "sourceUrls": [
+          "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+        ],
+        "verifierOwner": {
+          "source": "verify-core-claims.claim-010",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-010",
+          "taskId": "task-29",
+          "itemIdentity": "claim-010",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        "support": "MDN BCD의 timeout() 지원 객체는 Edge를 \"mirror\"로 명시한다.",
+        "correctionOrCounterclaim": "Edge의 구체적인 지원 버전은 이 항목에 직접 기재되지 않으며 Chrome 데이터의 mirror 관계로 해석된다.",
+        "evidence": [
+          {
+            "source": "MDN Browser Compatibility Data",
+            "url": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+            "dateOrYear": "2026 snapshot",
+            "quote": "\"edge\": \"mirror\",",
+            "relevance": "AbortSignal.timeout() 호환성 데이터에서 Edge 항목이 mirror로 지정되어 있다."
+          }
+        ]
+      },
+      {
+        "id": "claim-011",
+        "claim": "\"version_added\": \"100\"",
+        "status": "partially_supported",
+        "factSlotIds": [
+          "slot-011"
+        ],
+        "sourceRefs": [
+          "research-questions.question-004.fact-003",
+          "research-questions.question-004.source-003"
+        ],
+        "sourceUrls": [
+          "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+          "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100",
+          "Mozilla/MDN Firefox 100 release notes"
+        ],
+        "verifierOwner": {
+          "source": "verify-core-claims.claim-011",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-011",
+          "taskId": "task-30",
+          "itemIdentity": "claim-011",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        "correctionOrCounterclaim": "",
+        "evidence": [
+          {
+            "source": "MDN Browser Compatibility Data",
+            "url": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+            "dateOrYear": "2022",
+            "quote": "\"version_added\": \"100\"",
+            "relevance": "The timeout_static compatibility entry lists Firefox support as version 100."
+          },
+          {
+            "source": "Mozilla/MDN Firefox 100 release notes",
+            "url": "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100",
+            "dateOrYear": "2022",
+            "quote": "Code can now use the static method `AbortSignal.timeout()`.",
+            "relevance": "Firefox 100 release notes explicitly announce AbortSignal.timeout() support."
+          }
+        ]
+      },
+      {
+        "id": "claim-012",
+        "claim": "\"version_added\": \"16\"",
+        "status": "verified",
+        "confidence": "high",
+        "factSlotIds": [
+          "slot-012"
+        ],
+        "sourceRefs": [
+          "research-questions.question-004.fact-004",
+          "research-questions.question-004.source-001"
+        ],
+        "sourceUrls": [
+          "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json.",
+          "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+        ],
+        "verifierOwner": {
+          "source": "verify-core-claims.claim-012",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-012",
+          "taskId": "task-31",
+          "itemIdentity": "claim-012",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        "support": "The cited MDN Browser Compatibility Data entry for timeout_static lists Safari version_added as 16. Source: https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json. Caveat: this verifies timeout(), not any().",
+        "correctionOrCounterclaim": "",
+        "evidence": [
+          {
+            "source": "MDN Browser Compatibility Data",
+            "url": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+            "dateOrYear": "2026 snapshot",
+            "quote": "\"safari\": {\n  \"version_added\": \"16\"\n},",
+            "relevance": "Within timeout_static support data, this directly records Safari support beginning in version 16; safari_ios is marked mirror."
+          }
+        ]
+      },
+      {
+        "id": "claim-013",
+        "claim": "For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
+        "status": "verified",
+        "factSlotIds": [
+          "slot-013"
+        ],
+        "sourceRefs": [
+          "research-questions.question-005.fact-001",
+          "research-questions.question-005.source-001"
+        ],
+        "sourceUrls": [
+          "https://dom.spec.whatwg.org/",
+          "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static"
+        ],
+        "verifierOwner": {
+          "source": "verify-core-claims.claim-013",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-013",
+          "taskId": "task-32",
+          "itemIdentity": "claim-013",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        "support": "The normative algorithm exactly supports reason propagation and early return; MDN independently confirms that the first already-aborted input determines the returned signal’s reason.",
+        "correctionOrCounterclaim": "",
+        "evidence": [
+          {
+            "source": "WHATWG DOM Standard",
+            "url": "https://dom.spec.whatwg.org/",
+            "dateOrYear": "2026",
+            "quote": "For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
+            "relevance": "Normative dependent abort signal creation algorithm directly matches the claim."
+          },
+          {
+            "source": "MDN",
+            "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+            "dateOrYear": "2026",
+            "quote": "The returned AbortSignal's reason will be already set to the reason of the first abort signal that was already aborted.",
+            "relevance": "Authoritative reference confirms first-already-aborted input reason selection."
+          }
+        ]
+      },
+      {
+        "id": "claim-014",
+        "claim": "MDN says aborting any()’s returned signal does not abort inputs or cancel their timeouts.",
+        "status": "verified",
+        "factSlotIds": [
+          "slot-013"
+        ],
+        "sourceRefs": [
+          "research-questions.question-005.fact-004",
+          "research-questions.question-005.source-003"
+        ],
+        "sourceUrls": [
+          "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static"
+        ],
+        "verifierOwner": {
+          "source": "verify-core-claims.claim-014",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-014",
+          "taskId": "task-33",
+          "itemIdentity": "claim-014",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        "support": "MDN directly states that aborting AbortSignal.any()'s returned signal neither aborts input signals nor cancels their timeouts.",
+        "correctionOrCounterclaim": "",
+        "evidence": [
+          {
+            "source": "MDN",
+            "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+            "dateOrYear": "2026",
+            "quote": "Aborting the returned signal does not abort the other input signals or cancel their timeouts.",
+            "relevance": "Directly verifies the non-cascading cancellation behavior."
+          }
+        ]
+      },
+      {
+        "id": "claim-015",
+        "claim": "WHATWG sets timeout()’s abort reason to a TimeoutError DOMException.",
+        "status": "verified",
+        "factSlotIds": [
+          "slot-014"
+        ],
+        "sourceRefs": [
+          "research-questions.question-006.fact-002",
+          "research-questions.question-006.source-001"
+        ],
+        "sourceUrls": [
+          "https://dom.spec.whatwg.org/"
+        ],
+        "verifierOwner": {
+          "source": "verify-core-claims.claim-015",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-015",
+          "taskId": "task-34",
+          "itemIdentity": "claim-015",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        "support": "The WHATWG DOM Standard directly specifies TimeoutError DOMException as timeout()’s abort reason, both descriptively and in the normative algorithm. Source: https://dom.spec.whatwg.org/",
+        "correctionOrCounterclaim": "",
+        "evidence": [
+          {
+            "source": "WHATWG DOM Standard",
+            "url": "https://dom.spec.whatwg.org/",
+            "dateOrYear": "2026 living standard",
+            "quote": "Returns an AbortSignal instance which will be aborted in milliseconds milliseconds. Its abort reason will be set to a “TimeoutError” DOMException.",
+            "relevance": "Direct normative description of AbortSignal.timeout()’s abort reason."
+          },
+          {
+            "source": "WHATWG DOM Standard",
+            "url": "https://dom.spec.whatwg.org/",
+            "dateOrYear": "2026 living standard",
+            "quote": "Queue a global task on the timer task source given global to signal abort given signal and a new “TimeoutError” DOMException.",
+            "relevance": "Normative timeout algorithm constructs and applies the TimeoutError DOMException."
+          }
+        ]
+      },
+      {
+        "id": "claim-016",
+        "claim": "MDN defines browser timeout() in active time; suspended workers or bfcache can pause it.",
+        "status": "verified",
+        "factSlotIds": [
+          "slot-014"
+        ],
+        "sourceRefs": [
+          "research-questions.question-006.fact-003",
+          "research-questions.question-006.source-002"
+        ],
+        "sourceUrls": [
+          "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+        ],
+        "verifierOwner": {
+          "source": "verify-core-claims.claim-016",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-016",
+          "taskId": "task-35",
+          "itemIdentity": "claim-016",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        "support": "MDN은 AbortSignal.timeout()이 경과 시간이 아닌 active time을 기준으로 하며, suspended worker 또는 bfcache에서 사실상 일시정지된다고 명시한다. 출처: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+        "correctionOrCounterclaim": "",
+        "evidence": [
+          {
+            "source": "MDN",
+            "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+            "dateOrYear": "2026",
+            "quote": "The timeout is based on active rather than elapsed time, and will effectively be paused if the code is running in a suspended worker, or while the document is in a back-forward cache (\"bfcache\").",
+            "relevance": "브라우저의 timeout은 일반적인 wall-clock 경과 시간과 다를 수 있음을 직접 입증한다."
+          }
+        ]
+      },
+      {
+        "id": "claim-017",
+        "claim": "MDN advises removing application-added abort listeners when the combined operation finishes.",
+        "status": "verified",
+        "factSlotIds": [
+          "slot-013"
+        ],
+        "sourceRefs": [
+          "research-questions.question-005.fact-005",
+          "research-questions.question-005.source-003"
+        ],
+        "sourceUrls": [
+          "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static"
+        ],
+        "verifierOwner": {
+          "source": "verify-tail-claims",
+          "stageId": "verify-tail-claims",
+          "specId": "verify-tail-claims.claim-017",
+          "taskId": "task-36",
+          "itemIdentity": "claim-017",
+          "placeholderSpecId": "verify-tail-claims.item",
+          "status": "completed"
+        },
+        "support": "MDN directly supports the lifecycle cleanup advice for listeners added to AbortSignal.any()'s combined signal. Source: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+        "correctionOrCounterclaim": "",
+        "evidence": [
+          {
+            "source": "MDN",
+            "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+            "dateOrYear": "2026",
+            "quote": "If your code adds `abort` listeners to the combined signal, remove them when the operation finishes, just as you would for any other `AbortSignal`.",
+            "relevance": "Directly states the recommended cleanup action."
+          }
+        ]
+      },
+      {
+        "id": "claim-018",
+        "claim": "MDN says timeout() provides no way to cancel its timeout.",
+        "status": "verified",
+        "factSlotIds": [
+          "slot-014"
+        ],
+        "sourceRefs": [
+          "research-questions.question-006.fact-004",
+          "research-questions.question-006.source-002"
+        ],
+        "sourceUrls": [
+          "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+        ],
+        "verifierOwner": {
+          "source": "verify-tail-claims.claim-018",
+          "stageId": "verify-tail-claims",
+          "specId": "verify-tail-claims.claim-018",
+          "taskId": "task-37",
+          "itemIdentity": "claim-018",
+          "placeholderSpecId": "verify-tail-claims.item",
+          "status": "completed"
+        },
+        "support": "MDN explicitly states that AbortSignal.timeout() provides no cancellation mechanism and recommends AbortController with setTimeout()/clearTimeout() for definitive early cancellation. Source: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+        "correctionOrCounterclaim": "",
+        "evidence": [
+          {
+            "source": "MDN",
+            "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+            "dateOrYear": "2026",
+            "quote": "AbortSignal.timeout() does not provide a way to cancel its timeout.",
+            "relevance": "Directly verifies the claim."
+          },
+          {
+            "source": "MDN",
+            "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+            "dateOrYear": "2026",
+            "quote": "The AbortSignal becoming unreachable is not guaranteed to cancel the timeout.",
+            "relevance": "Clarifies that garbage collection or losing references does not reliably cancel the timeout."
+          },
+          {
+            "source": "MDN",
+            "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+            "dateOrYear": "2026",
+            "quote": "The timeout is based on active rather than elapsed time, and will effectively be paused if the code is running in a suspended worker, or while the document is in a back-forward cache (“bfcache”).",
+            "relevance": "Documents an important lifecycle and timing caveat."
+          }
+        ]
+      }
+    ],
+    "verifierIntegrity": {
+      "gateSummary": {
+        "total": 18,
+        "unchanged": 16,
+        "downgraded": 2,
+        "identityRejoined": 18,
+        "sourceRefsRejoined": 0,
+        "sourceRefsBackfilledFromUrls": 0,
+        "sourceRefJoinFailures": 0,
+        "verifierRowsTotal": 18,
+        "validVerifierRows": 18,
+        "invalidVerifierRows": 0,
+        "missingVerifierResults": 0,
+        "duplicateVerifierClaims": 0,
+        "duplicateVerifierRows": 0,
+        "duplicateStatusConflicts": 0,
+        "invalidNormalizedCandidates": 0,
+        "refsNoneMultiClaimBatches": 0,
+        "sourceEvidenceCompatibilityFailures": 2,
+        "sourceEvidenceCompatibilityMismatches": 2,
+        "verifierOwnerIssues": 0,
+        "additionalEvidenceSourceDowngrades": 0,
+        "zeroCandidateFloorBlockers": 0
+      },
+      "researchQuestionIntegrity": {
+        "plannedIds": [
+          "question-001",
+          "question-002",
+          "question-003",
+          "question-004",
+          "question-005",
+          "question-006"
+        ],
+        "completedIds": [
+          "question-001",
+          "question-002",
+          "question-003",
+          "question-004",
+          "question-005",
+          "question-006"
+        ],
+        "missingIds": [],
+        "duplicateIds": [],
+        "extraIds": [],
+        "failedIds": [],
+        "invalidPlannedQuestionCount": 0,
+        "plannedDuplicateIds": [],
+        "invalidOutputSourceIds": [],
+        "rows": [
+          {
+            "questionId": "question-001",
+            "status": "completed",
+            "sourceIds": [
+              "research-questions"
+            ]
+          },
+          {
+            "questionId": "question-002",
+            "status": "completed",
+            "sourceIds": [
+              "research-questions.question-002"
+            ]
+          },
+          {
+            "questionId": "question-003",
+            "status": "completed",
+            "sourceIds": [
+              "research-questions.question-003"
+            ]
+          },
+          {
+            "questionId": "question-004",
+            "status": "completed",
+            "sourceIds": [
+              "research-questions.question-004"
+            ]
+          },
+          {
+            "questionId": "question-005",
+            "status": "completed",
+            "sourceIds": [
+              "research-questions.question-005"
+            ]
+          },
+          {
+            "questionId": "question-006",
+            "status": "completed",
+            "sourceIds": [
+              "research-questions.question-006"
+            ]
+          }
+        ],
+        "passed": true
+      },
+      "invalidVerifierRows": [],
+      "duplicateVerifierRows": [],
+      "invalidNormalizedCandidateCount": 0,
+      "invalidNormalizedCandidateRows": [],
+      "verifierOwnerLedger": [
+        {
+          "source": "verify-core-claims",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-001",
+          "taskId": "task-20",
+          "itemIdentity": "claim-001",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        {
+          "source": "verify-core-claims.claim-002",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-002",
+          "taskId": "task-21",
+          "itemIdentity": "claim-002",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        {
+          "source": "verify-core-claims.claim-003",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-003",
+          "taskId": "task-22",
+          "itemIdentity": "claim-003",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        {
+          "source": "verify-core-claims.claim-004",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-004",
+          "taskId": "task-23",
+          "itemIdentity": "claim-004",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        {
+          "source": "verify-core-claims.claim-005",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-005",
+          "taskId": "task-24",
+          "itemIdentity": "claim-005",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        {
+          "source": "verify-core-claims.claim-006",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-006",
+          "taskId": "task-25",
+          "itemIdentity": "claim-006",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        {
+          "source": "verify-core-claims.claim-007",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-007",
+          "taskId": "task-26",
+          "itemIdentity": "claim-007",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        {
+          "source": "verify-core-claims.claim-008",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-008",
+          "taskId": "task-27",
+          "itemIdentity": "claim-008",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        {
+          "source": "verify-core-claims.claim-009",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-009",
+          "taskId": "task-28",
+          "itemIdentity": "claim-009",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        {
+          "source": "verify-core-claims.claim-010",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-010",
+          "taskId": "task-29",
+          "itemIdentity": "claim-010",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        {
+          "source": "verify-core-claims.claim-011",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-011",
+          "taskId": "task-30",
+          "itemIdentity": "claim-011",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        {
+          "source": "verify-core-claims.claim-012",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-012",
+          "taskId": "task-31",
+          "itemIdentity": "claim-012",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        {
+          "source": "verify-core-claims.claim-013",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-013",
+          "taskId": "task-32",
+          "itemIdentity": "claim-013",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        {
+          "source": "verify-core-claims.claim-014",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-014",
+          "taskId": "task-33",
+          "itemIdentity": "claim-014",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        {
+          "source": "verify-core-claims.claim-015",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-015",
+          "taskId": "task-34",
+          "itemIdentity": "claim-015",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        {
+          "source": "verify-core-claims.claim-016",
+          "stageId": "verify-core-claims",
+          "specId": "verify-core-claims.claim-016",
+          "taskId": "task-35",
+          "itemIdentity": "claim-016",
+          "placeholderSpecId": "verify-core-claims.item",
+          "status": "completed"
+        },
+        {
+          "source": "verify-tail-claims",
+          "stageId": "verify-tail-claims",
+          "specId": "verify-tail-claims.claim-017",
+          "taskId": "task-36",
+          "itemIdentity": "claim-017",
+          "placeholderSpecId": "verify-tail-claims.item",
+          "status": "completed"
+        },
+        {
+          "source": "verify-tail-claims.claim-018",
+          "stageId": "verify-tail-claims",
+          "specId": "verify-tail-claims.claim-018",
+          "taskId": "task-37",
+          "itemIdentity": "claim-018",
+          "placeholderSpecId": "verify-tail-claims.item",
+          "status": "completed"
+        }
+      ],
+      "verifierOwnerIssues": [],
+      "batchAdoptionReadiness": {
+        "status": "blocked",
+        "adopted": false,
+        "canaryRequired": true,
+        "reason": "Batch adoption is blocked until verifier identity/sourceRef integrity issues are resolved.",
+        "blockers": [
+          {
+            "reason": "source_evidence_compatibility_failures",
+            "count": 2
+          }
+        ]
+      }
+    },
+    "normalizerDiagnostics": {
+      "precisionGuard": {
+        "totalClaims": 33,
+        "flaggedClaims": 14,
+        "issueCounts": {
+          "overbroad_quantifier": 13,
+          "bundled_slots": 2
+        }
+      },
+      "sanitizer": {
+        "inputCandidateCount": 18,
+        "keptCandidateCount": 18,
+        "demotedCandidateCount": 0,
+        "rewrittenCandidateCount": 13,
+        "webUrlOnlyDemotedCount": 0,
+        "promotedCandidateCount": 0,
+        "crossScriptCandidateCount": 0,
+        "crossScriptCandidateIds": [],
+        "demotionReasonCounts": {},
+        "rewriteReasonCounts": {
+          "source_hint_claim_mismatch": 13
+        },
+        "keptCandidateIds": [
+          "claim-001",
+          "claim-002",
+          "claim-003",
+          "claim-004",
+          "claim-005",
+          "claim-006",
+          "claim-007",
+          "claim-008",
+          "claim-009",
+          "claim-010",
+          "claim-011",
+          "claim-012",
+          "claim-013",
+          "claim-014",
+          "claim-015",
+          "claim-016",
+          "claim-017",
+          "claim-018"
+        ],
+        "demotedCandidateIds": [],
+        "webUrlOnlyDemotedIds": [],
+        "promotedCandidateIds": [],
+        "rewrittenCandidateIds": [
+          "claim-001",
+          "claim-002",
+          "claim-003",
+          "claim-004",
+          "claim-005",
+          "claim-006",
+          "claim-007",
+          "claim-008",
+          "claim-009",
+          "claim-010",
+          "claim-011",
+          "claim-012",
+          "claim-013"
+        ],
+        "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+        "sourceEvidenceHintRows": 28,
+        "schemaCaps": {
+          "verificationCandidates": 48,
+          "preservedClaims": 24,
+          "factSlotCoverage": 64
+        },
+        "schemaCapDrops": [],
+        "degraded": false,
+        "degradationReasons": []
+      }
+    },
+    "preservedClaims": [
+      {
+        "id": "preserved-001",
+        "claim": "Node.js v20.3.0 release notes were found, but an exact AbortSignal.any() quote was not captured.",
+        "factSlotIds": [
+          "slot-001"
+        ],
+        "sourceRefs": [
+          "research-questions.source-002"
+        ],
+        "sourceUrls": [
+          "https://nodejs.org/en/blog/release/v20.3.0"
+        ],
+        "whyItMatters": "Independent confirmation of the Node.js introduction version."
+      },
+      {
+        "id": "preserved-002",
+        "claim": "The latest Node.js docs do not show a method-specific Stability transition row for AbortSignal.any().",
+        "factSlotIds": [
+          "slot-002"
+        ],
+        "sourceRefs": [
+          "research-questions.evidenceGap-001"
+        ],
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+        ],
+        "whyItMatters": "Prevents section-level Stable wording from being treated as method-level history."
+      },
+      {
+        "id": "preserved-003",
+        "claim": "No method-specific Stability 2 promotion record was found for AbortSignal.timeout().",
+        "factSlotIds": [
+          "slot-004"
+        ],
+        "sourceRefs": [
+          "research-questions.question-002.gap-001"
+        ],
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+        ],
+        "whyItMatters": "The stability conclusion remains bounded by the available documentation."
+      },
+      {
+        "id": "preserved-004",
+        "claim": "MDN BCD marks Chrome 103–123 timeout() as partial and notes AbortError instead of TimeoutError.",
+        "factSlotIds": [
+          "slot-009"
+        ],
+        "sourceRefs": [
+          "research-questions.question-004.fact-001"
+        ],
+        "sourceUrls": [
+          "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+        ],
+        "whyItMatters": "Important compatibility carve-out before Chrome 124."
+      },
+      {
+        "id": "preserved-005",
+        "claim": "Node.js docs describe timeout() as aborting after delay milliseconds, not browser active-time or bfcache semantics.",
+        "factSlotIds": [
+          "slot-014"
+        ],
+        "sourceRefs": [
+          "research-questions.question-006.fact-007"
+        ],
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+        ],
+        "whyItMatters": "Keeps browser and Node.js timing semantics distinct."
+      },
+      {
+        "id": "preserved-006",
+        "claim": "The exact ref/unref policy of Node.js AbortSignal.timeout()’s internal timer remains unverified.",
+        "factSlotIds": [
+          "slot-014"
+        ],
+        "sourceRefs": [
+          "research-questions.question-006.gap-001"
+        ],
+        "sourceUrls": [
+          "https://nodejs.org/api/timers.html",
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+        ],
+        "whyItMatters": "Could affect event-loop exit behavior in Node.js."
+      },
+      {
+        "id": "preserved-007",
+        "claim": "WHATWG requires abortable promise APIs to reject immediately when given an already-aborted signal.",
+        "factSlotIds": [],
+        "sourceRefs": [
+          "research-questions.question-005.fact-006"
+        ],
+        "sourceUrls": [
+          "https://dom.spec.whatwg.org/"
+        ],
+        "whyItMatters": "Useful consumer-side contract beyond any() construction."
+      },
+      {
+        "id": "preserved-008",
+        "claim": "An unreachable timeout signal is not guaranteed to cancel its timeout.",
+        "factSlotIds": [
+          "slot-014"
+        ],
+        "sourceRefs": [
+          "research-questions.question-006.fact-006"
+        ],
+        "sourceUrls": [
+          "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+        ],
+        "whyItMatters": "Clarifies why dropping references is not explicit cancellation."
+      },
+      {
+        "id": "preserved-claim-001",
+        "claim": "Node.js docs list AbortSignal.any() as added in v20.3.0 and v18.17.0.",
+        "factSlotIds": [
+          "slot-001"
+        ],
+        "sourceRefs": [
+          "research-questions.fact-001",
+          "research-questions.source-001"
+        ],
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+        ],
+        "whyItMatters": "Required slot-001; confirms exact Node.js introduction lines."
+      },
+      {
+        "id": "preserved-claim-002",
+        "claim": "Node.js Global objects documentation displays “Stability: 2 - Stable”.",
+        "factSlotIds": [
+          "slot-002"
+        ],
+        "sourceRefs": [
+          "research-questions.fact-002",
+          "research-questions.source-001"
+        ],
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+        ],
+        "whyItMatters": "Critical slot-002; separates section-level Stable from method-level status."
+      },
+      {
+        "id": "preserved-claim-003",
+        "claim": "Node.js docs list AbortSignal.timeout() as added in v17.3.0 and v16.14.0.",
+        "factSlotIds": [
+          "slot-003"
+        ],
+        "sourceRefs": [
+          "research-questions.question-002.fact-001",
+          "research-questions.question-002.source-002"
+        ],
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+          "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md"
+        ],
+        "whyItMatters": "Required slot-003; confirms both introduction and backport versions."
+      },
+      {
+        "id": "preserved-claim-004",
+        "claim": "Node.js Global objects documentation displays “Stability: 2 - Stable”.",
+        "factSlotIds": [
+          "slot-004"
+        ],
+        "sourceRefs": [
+          "research-questions.question-002.fact-003",
+          "research-questions.question-002.source-001"
+        ],
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+        ],
+        "whyItMatters": "Critical slot-004; checks the available stability context."
+      },
+      {
+        "id": "preserved-claim-005",
+        "claim": "MDN BCD lists Chrome version_added as 116 for AbortSignal.any().",
+        "factSlotIds": [
+          "slot-005"
+        ],
+        "sourceRefs": [
+          "research-questions.question-003.fact-001",
+          "research-questions.question-003.source-001"
+        ],
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json"
+        ],
+        "whyItMatters": "Required slot-005; verifies the exact Chrome milestone."
+      },
+      {
+        "id": "preserved-claim-006",
+        "claim": "The compatibility table lists Edge 116–154 as supported for AbortSignal.any().",
+        "factSlotIds": [
+          "slot-006"
+        ],
+        "sourceRefs": [
+          "research-questions.question-003.source-005"
+        ],
+        "sourceUrls": [
+          "https://caniuse.com/wf-abortsignal-any"
+        ],
+        "whyItMatters": "Required slot-006; isolates Edge support from Chromium claims."
+      },
+      {
+        "id": "preserved-claim-007",
+        "claim": "Firefox 124 release notes state that AbortSignal.any() is now supported.",
+        "factSlotIds": [
+          "slot-007"
+        ],
+        "sourceRefs": [
+          "research-questions.question-003.fact-003",
+          "research-questions.question-003.source-004"
+        ],
+        "sourceUrls": [
+          "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124"
+        ],
+        "whyItMatters": "Required slot-007; confirms the Firefox release milestone."
+      },
+      {
+        "id": "preserved-claim-008",
+        "claim": "WebKit states Safari 17.4 adds support for AbortSignal.any().",
+        "factSlotIds": [
+          "slot-008"
+        ],
+        "sourceRefs": [
+          "research-questions.question-003.fact-004",
+          "research-questions.question-003.source-003"
+        ],
+        "sourceUrls": [
+          "https://webkit.org/blog/15063/webkit-features-in-safari-17-4/"
+        ],
+        "whyItMatters": "Required slot-008; confirms the Safari milestone directly."
+      },
+      {
+        "id": "preserved-claim-009",
+        "claim": "MDN BCD lists Chrome version_added as 124 for AbortSignal.timeout().",
+        "factSlotIds": [
+          "slot-009"
+        ],
+        "sourceRefs": [
+          "research-questions.question-004.fact-001",
+          "research-questions.question-004.source-001"
+        ],
+        "sourceUrls": [
+          "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+        ],
+        "whyItMatters": "Required slot-009; distinguishes full support from earlier partial support."
+      },
+      {
+        "id": "preserved-claim-010",
+        "claim": "MDN BCD marks Edge’s timeout() entry as a mirror of Chrome compatibility data.",
+        "factSlotIds": [
+          "slot-010"
+        ],
+        "sourceRefs": [
+          "research-questions.question-004.fact-002",
+          "research-questions.question-004.source-001"
+        ],
+        "sourceUrls": [
+          "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+        ],
+        "whyItMatters": "Required slot-010; checks the mirror-based Edge version inference."
+      },
+      {
+        "id": "preserved-claim-011",
+        "claim": "MDN BCD lists Firefox version_added as 100 for AbortSignal.timeout().",
+        "factSlotIds": [
+          "slot-011"
+        ],
+        "sourceRefs": [
+          "research-questions.question-004.fact-003",
+          "research-questions.question-004.source-003"
+        ],
+        "sourceUrls": [
+          "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+          "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100"
+        ],
+        "whyItMatters": "Required slot-011; confirms Firefox support and exception behavior context."
+      },
+      {
+        "id": "preserved-claim-012",
+        "claim": "MDN BCD lists Safari version_added as 16 for AbortSignal.timeout().",
+        "factSlotIds": [
+          "slot-012"
+        ],
+        "sourceRefs": [
+          "research-questions.question-004.fact-004",
+          "research-questions.question-004.source-001"
+        ],
+        "sourceUrls": [
+          "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+        ],
+        "whyItMatters": "Required slot-012; verifies the exact Safari milestone."
+      },
+      {
+        "id": "preserved-claim-013",
+        "claim": "WHATWG sets the result signal’s reason to an already-aborted input’s reason and returns it.",
+        "factSlotIds": [
+          "slot-013"
+        ],
+        "sourceRefs": [
+          "research-questions.question-005.fact-001",
+          "research-questions.question-005.source-001"
+        ],
+        "sourceUrls": [
+          "https://dom.spec.whatwg.org/"
+        ],
+        "whyItMatters": "Required slot-013; verifies already-aborted input handling."
+      }
+    ],
+    "researchScopeCoverage": [
+      {
+        "scopeItem": "Node.js에서 AbortSignal.any()의 안정적 지원 버전",
+        "status": "partial",
+        "factSlotIds": [
+          "slot-001",
+          "slot-002"
+        ],
+        "verificationCandidateIds": [
+          "claim-001",
+          "claim-002"
+        ],
+        "gapReason": "Method-level stability history is absent."
+      },
+      {
+        "scopeItem": "Node.js에서 AbortSignal.timeout()의 안정적 지원 버전",
+        "status": "partial",
+        "factSlotIds": [
+          "slot-003",
+          "slot-004"
+        ],
+        "verificationCandidateIds": [
+          "claim-003",
+          "claim-004"
+        ],
+        "gapReason": "Method-level stability history is absent."
+      },
+      {
+        "scopeItem": "주요 브라우저의 AbortSignal.any() 지원 현황",
+        "status": "covered",
+        "factSlotIds": [
+          "slot-005",
+          "slot-006",
+          "slot-007",
+          "slot-008"
+        ],
+        "verificationCandidateIds": [
+          "claim-005",
+          "claim-006",
+          "claim-007",
+          "claim-008"
+        ],
+        "gapReason": ""
+      },
+      {
+        "scopeItem": "주요 브라우저의 AbortSignal.timeout() 지원 현황",
+        "status": "partial",
+        "factSlotIds": [
+          "slot-009",
+          "slot-010",
+          "slot-011",
+          "slot-012"
+        ],
+        "verificationCandidateIds": [
+          "claim-009",
+          "claim-010",
+          "claim-011",
+          "claim-012"
+        ],
+        "gapReason": "Edge threshold relies on mirror inference; direct Chrome/Safari release cross-check is absent."
+      },
+      {
+        "scopeItem": "AbortSignal.any()의 알려진 동작 주의점",
+        "status": "covered",
+        "factSlotIds": [
+          "slot-013"
+        ],
+        "verificationCandidateIds": [
+          "claim-013",
+          "claim-014",
+          "claim-017"
+        ],
+        "gapReason": ""
+      },
+      {
+        "scopeItem": "AbortSignal.timeout()의 알려진 동작 주의점",
+        "status": "partial",
+        "factSlotIds": [
+          "slot-014"
+        ],
+        "verificationCandidateIds": [
+          "claim-015",
+          "claim-016",
+          "claim-018"
+        ],
+        "gapReason": "Node-specific timer semantics remain unresolved."
+      }
+    ],
+    "researchQuestionCoverage": [
+      {
+        "questionId": "question-001",
+        "status": "completed",
+        "sourceIds": [
+          "research-questions"
+        ]
+      },
+      {
+        "questionId": "question-002",
+        "status": "completed",
+        "sourceIds": [
+          "research-questions.question-002"
+        ]
+      },
+      {
+        "questionId": "question-003",
+        "status": "completed",
+        "sourceIds": [
+          "research-questions.question-003"
+        ]
+      },
+      {
+        "questionId": "question-004",
+        "status": "completed",
+        "sourceIds": [
+          "research-questions.question-004"
+        ]
+      },
+      {
+        "questionId": "question-005",
+        "status": "completed",
+        "sourceIds": [
+          "research-questions.question-005"
+        ]
+      },
+      {
+        "questionId": "question-006",
+        "status": "completed",
+        "sourceIds": [
+          "research-questions.question-006"
+        ]
+      }
+    ],
+    "factSlotReconciliation": {
+      "source": "canonical normalized claim factSlotIds",
+      "addedReverseBindings": [],
+      "preservedReverseBindings": [],
+      "invalidCanonicalMemberships": []
+    },
+    "invariantChecks": {
+      "candidateCount": 18,
+      "factSlotReconciliation": {
+        "source": "canonical normalized claim factSlotIds",
+        "addedReverseBindings": [],
+        "preservedReverseBindings": [],
+        "invalidCanonicalMemberships": []
+      },
+      "auditedClaimCount": 18,
+      "candidateIds": [
+        "claim-001",
+        "claim-002",
+        "claim-003",
+        "claim-004",
+        "claim-005",
+        "claim-006",
+        "claim-007",
+        "claim-008",
+        "claim-009",
+        "claim-010",
+        "claim-011",
+        "claim-012",
+        "claim-013",
+        "claim-014",
+        "claim-015",
+        "claim-016",
+        "claim-017",
+        "claim-018"
+      ],
+      "auditedClaimIds": [
+        "claim-001",
+        "claim-002",
+        "claim-003",
+        "claim-004",
+        "claim-005",
+        "claim-006",
+        "claim-007",
+        "claim-008",
+        "claim-009",
+        "claim-010",
+        "claim-011",
+        "claim-012",
+        "claim-013",
+        "claim-014",
+        "claim-015",
+        "claim-016",
+        "claim-017",
+        "claim-018"
+      ],
+      "statusPartitionIds": {
+        "verified": [
+          "claim-001",
+          "claim-003",
+          "claim-005",
+          "claim-006",
+          "claim-008",
+          "claim-009",
+          "claim-010",
+          "claim-012",
+          "claim-013",
+          "claim-014",
+          "claim-015",
+          "claim-016",
+          "claim-017",
+          "claim-018"
+        ],
+        "partiallySupported": [
+          "claim-002",
+          "claim-004",
+          "claim-007",
+          "claim-011"
+        ],
+        "unsupported": [],
+        "conflicting": [],
+        "verificationBlocked": [],
+        "other": []
+      },
+      "omittedCandidateIds": [],
+      "droppedSlotIds": [],
+      "researchQuestionIntegrity": {
+        "plannedIds": [
+          "question-001",
+          "question-002",
+          "question-003",
+          "question-004",
+          "question-005",
+          "question-006"
+        ],
+        "completedIds": [
+          "question-001",
+          "question-002",
+          "question-003",
+          "question-004",
+          "question-005",
+          "question-006"
+        ],
+        "missingIds": [],
+        "duplicateIds": [],
+        "extraIds": [],
+        "failedIds": [],
+        "invalidPlannedQuestionCount": 0,
+        "plannedDuplicateIds": [],
+        "invalidOutputSourceIds": [],
+        "rows": [
+          {
+            "questionId": "question-001",
+            "status": "completed",
+            "sourceIds": [
+              "research-questions"
+            ]
+          },
+          {
+            "questionId": "question-002",
+            "status": "completed",
+            "sourceIds": [
+              "research-questions.question-002"
+            ]
+          },
+          {
+            "questionId": "question-003",
+            "status": "completed",
+            "sourceIds": [
+              "research-questions.question-003"
+            ]
+          },
+          {
+            "questionId": "question-004",
+            "status": "completed",
+            "sourceIds": [
+              "research-questions.question-004"
+            ]
+          },
+          {
+            "questionId": "question-005",
+            "status": "completed",
+            "sourceIds": [
+              "research-questions.question-005"
+            ]
+          },
+          {
+            "questionId": "question-006",
+            "status": "completed",
+            "sourceIds": [
+              "research-questions.question-006"
+            ]
+          }
+        ],
+        "passed": true
+      },
+      "sourceRefCoverage": {
+        "verificationCandidatesWithSourceRefs": 18,
+        "auditedClaimsWithSourceRefs": 18,
+        "sourceRefJoinFailures": 0
+      },
+      "verifierIntegrity": {
+        "invalidVerifierRows": 0,
+        "researchQuestionIntegrity": {
+          "plannedIds": [
+            "question-001",
+            "question-002",
+            "question-003",
+            "question-004",
+            "question-005",
+            "question-006"
+          ],
+          "completedIds": [
+            "question-001",
+            "question-002",
+            "question-003",
+            "question-004",
+            "question-005",
+            "question-006"
+          ],
+          "missingIds": [],
+          "duplicateIds": [],
+          "extraIds": [],
+          "failedIds": [],
+          "invalidPlannedQuestionCount": 0,
+          "plannedDuplicateIds": [],
+          "invalidOutputSourceIds": [],
+          "rows": [
+            {
+              "questionId": "question-001",
+              "status": "completed",
+              "sourceIds": [
+                "research-questions"
+              ]
+            },
+            {
+              "questionId": "question-002",
+              "status": "completed",
+              "sourceIds": [
+                "research-questions.question-002"
+              ]
+            },
+            {
+              "questionId": "question-003",
+              "status": "completed",
+              "sourceIds": [
+                "research-questions.question-003"
+              ]
+            },
+            {
+              "questionId": "question-004",
+              "status": "completed",
+              "sourceIds": [
+                "research-questions.question-004"
+              ]
+            },
+            {
+              "questionId": "question-005",
+              "status": "completed",
+              "sourceIds": [
+                "research-questions.question-005"
+              ]
+            },
+            {
+              "questionId": "question-006",
+              "status": "completed",
+              "sourceIds": [
+                "research-questions.question-006"
+              ]
+            }
+          ],
+          "passed": true
+        },
+        "duplicateVerifierRows": 0,
+        "invalidNormalizedCandidateCount": 0,
+        "verifierOwnerIssues": 0,
+        "missingVerifierResults": 0,
+        "zeroCandidateFloorBlockers": 0,
+        "batchAdoptionStatus": "blocked"
+      }
+    },
+    "overflowLedger": {
+      "preservedClaimCount": 21,
+      "coverageGapCount": 5,
+      "remainingGapCount": 2,
+      "omittedVerificationCandidateCount": 0,
+      "invalidVerifierRowCount": 0,
+      "duplicateVerifierRowCount": 0,
+      "invalidNormalizedCandidateCount": 0,
+      "verifierOwnerIssueCount": 0
+    },
+    "synthesisInput": {
+      "header": {
+        "schema": "deep-research-synthesis-pages-v1",
+        "pageCount": 16,
+        "maxChars": 16000,
+        "fields": [
+          {
+            "field": "researchMetadataSeed",
+            "kind": "value",
+            "count": 1
+          },
+          {
+            "field": "verdictCounts",
+            "kind": "value",
+            "count": 1
+          },
+          {
+            "field": "statusPartitions",
+            "kind": "value",
+            "count": 1
+          },
+          {
+            "field": "factSlotCoverage",
+            "kind": "array",
+            "count": 14
+          },
+          {
+            "field": "factSlotStatusCounts",
+            "kind": "value",
+            "count": 1
+          },
+          {
+            "field": "coverageGaps",
+            "kind": "array",
+            "count": 5
+          },
+          {
+            "field": "remainingGaps",
+            "kind": "array",
+            "count": 2
+          },
+          {
+            "field": "sourceRefJoinFailures",
+            "kind": "array",
+            "count": 0
+          },
+          {
+            "field": "claimVerdictLedger",
+            "kind": "array",
+            "count": 18
+          },
+          {
+            "field": "verifierIntegrity",
+            "kind": "value",
+            "count": 1
+          },
+          {
+            "field": "normalizerDiagnostics",
+            "kind": "value",
+            "count": 1
+          },
+          {
+            "field": "preservedClaims",
+            "kind": "array",
+            "count": 21
+          },
+          {
+            "field": "researchScopeCoverage",
+            "kind": "array",
+            "count": 6
+          },
+          {
+            "field": "researchQuestionCoverage",
+            "kind": "array",
+            "count": 6
+          },
+          {
+            "field": "factSlotReconciliation",
+            "kind": "value",
+            "count": 1
+          },
+          {
+            "field": "invariantChecks",
+            "kind": "value",
+            "count": 1
+          },
+          {
+            "field": "overflowLedger",
+            "kind": "value",
+            "count": 1
+          }
+        ],
+        "pageEntryCounts": [
+          28,
+          10,
+          10,
+          33,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "pages": [
+        {
+          "index": 0,
+          "entries": [
+            {
+              "field": "researchMetadataSeed",
+              "value": {
+                "depth": "standard",
+                "taskType": "api_reference",
+                "expectedFinalShape": "research_brief",
+                "researchQuestions": 6,
+                "sourcePolicy": {
+                  "preferredSourceClasses": [
+                    "Node.js 공식 API 문서 및 릴리스 문서",
+                    "MDN 및 MDN Browser Compatibility Data",
+                    "WHATWG DOM 표준",
+                    "각 브라우저 엔진의 공식 릴리스 문서"
+                  ],
+                  "primaryRequiredFor": [
+                    "Node.js 버전·안정성",
+                    "API 동작·예외·abort reason",
+                    "브라우저 지원 시작 버전이 논쟁적인 경우"
+                  ],
+                  "secondaryAllowedFor": [
+                    "검색 보조 및 교차검증용 호환성 표"
+                  ],
+                  "sourceQualityRules": [
+                    "버전 숫자는 공식 문서의 History 또는 릴리스 자료에서 확인한다.",
+                    "‘지원 시작’과 ‘Stable’ 표기를 분리한다.",
+                    "브라우저 호환성은 MDN/BCD와 가능하면 브라우저 공식 자료를 대조한다.",
+                    "주의점은 표준 정의와 Node.js 구현을 구분해 기록한다."
+                  ]
+                },
+                "plannedFactSlots": 14,
+                "filledFactSlots": 8,
+                "partialFactSlots": 6,
+                "missingOnlyFactSlots": 0,
+                "missingFactSlots": 0,
+                "missingFactSlotsIncludesConflicting": true,
+                "conflictingFactSlots": 0
+              }
+            },
+            {
+              "field": "verdictCounts",
+              "value": {
+                "verified": 14,
+                "partiallySupported": 4,
+                "unsupported": 0,
+                "conflicting": 0,
+                "verificationBlocked": 0,
+                "other": 0
+              }
+            },
+            {
+              "field": "statusPartitions",
+              "value": {
+                "verified": [
+                  "claim-001",
+                  "claim-003",
+                  "claim-005",
+                  "claim-006",
+                  "claim-008",
+                  "claim-009",
+                  "claim-010",
+                  "claim-012",
+                  "claim-013",
+                  "claim-014",
+                  "claim-015",
+                  "claim-016",
+                  "claim-017",
+                  "claim-018"
+                ],
+                "partiallySupported": [
+                  "claim-002",
+                  "claim-004",
+                  "claim-007",
+                  "claim-011"
+                ],
+                "unsupported": [],
+                "conflicting": [],
+                "verificationBlocked": [],
+                "other": []
+              }
+            },
+            {
+              "field": "factSlotCoverage",
+              "index": 0,
+              "value": {
+                "slotId": "slot-001",
+                "label": "Node.js AbortSignal.any() 최초 지원 버전",
+                "status": "filled",
+                "bestValue": "Added in v20.3.0 and v18.17.0.",
+                "sourceUrls": [
+                  "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+                ],
+                "sourceRefs": [],
+                "sourceQuality": "primary_official",
+                "verificationCandidateIds": [
+                  "claim-001"
+                ],
+                "gapReason": "",
+                "parentImpact": "Critical Node.js compatibility baseline."
+              }
+            },
+            {
+              "field": "factSlotCoverage",
+              "index": 1,
+              "value": {
+                "slotId": "slot-002",
+                "label": "Node.js AbortSignal.any() 안정성 상태",
+                "status": "partial",
+                "bestValue": "Global objects documentation is Stability 2 - Stable; method-specific stability history is not shown.",
+                "sourceUrls": [
+                  "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+                ],
+                "sourceRefs": [],
+                "sourceQuality": "primary_official",
+                "verificationCandidateIds": [
+                  "claim-002"
+                ],
+                "gapReason": "No method-level stability transition record was retrieved.",
+                "parentImpact": "Limits how strongly method-level Stable can be stated."
+              }
+            },
+            {
+              "field": "factSlotCoverage",
+              "index": 2,
+              "value": {
+                "slotId": "slot-003",
+                "label": "Node.js AbortSignal.timeout() 최초 지원 버전",
+                "status": "filled",
+                "bestValue": "Added in v17.3.0 and backported to v16.14.0.",
+                "sourceUrls": [
+                  "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+                  "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md"
+                ],
+                "sourceRefs": [],
+                "sourceQuality": "primary_official",
+                "verificationCandidateIds": [
+                  "claim-003"
+                ],
+                "gapReason": "",
+                "parentImpact": "Critical Node.js compatibility baseline."
+              }
+            },
+            {
+              "field": "factSlotCoverage",
+              "index": 3,
+              "value": {
+                "slotId": "slot-004",
+                "label": "Node.js AbortSignal.timeout() 안정성 상태",
+                "status": "partial",
+                "bestValue": "Global objects documentation is Stability 2 - Stable; method-specific promotion history is not shown.",
+                "sourceUrls": [
+                  "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+                ],
+                "sourceRefs": [],
+                "sourceQuality": "primary_official",
+                "verificationCandidateIds": [
+                  "claim-004"
+                ],
+                "gapReason": "No method-level Stability 2 promotion record was retrieved.",
+                "parentImpact": "Stability conclusion must remain documentation-scoped."
+              }
+            },
+            {
+              "field": "factSlotCoverage",
+              "index": 4,
+              "value": {
+                "slotId": "slot-005",
+                "label": "AbortSignal.any() Chrome 지원 버전",
+                "status": "filled",
+                "bestValue": "Chrome 116.",
+                "sourceUrls": [
+                  "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json"
+                ],
+                "sourceRefs": [],
+                "sourceQuality": "primary_compatibility",
+                "verificationCandidateIds": [
+                  "claim-005"
+                ],
+                "gapReason": "",
+                "parentImpact": "Browser compatibility matrix entry."
+              }
+            },
+            {
+              "field": "factSlotCoverage",
+              "index": 5,
+              "value": {
+                "slotId": "slot-006",
+                "label": "AbortSignal.any() Edge 지원 버전",
+                "status": "filled",
+                "bestValue": "Edge 116 is listed as supported in the compatibility table.",
+                "sourceUrls": [
+                  "https://caniuse.com/wf-abortsignal-any"
+                ],
+                "sourceRefs": [],
+                "sourceQuality": "secondary_compatibility",
+                "verificationCandidateIds": [
+                  "claim-006"
+                ],
+                "gapReason": "",
+                "parentImpact": "Browser compatibility matrix entry."
+              }
+            },
+            {
+              "field": "factSlotCoverage",
+              "index": 6,
+              "value": {
+                "slotId": "slot-007",
+                "label": "AbortSignal.any() Firefox 지원 버전",
+                "status": "partial",
+                "bestValue": "Firefox 124.",
+                "sourceUrls": [
+                  "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124"
+                ],
+                "sourceRefs": [],
+                "sourceQuality": "primary_release_notes",
+                "verificationCandidateIds": [
+                  "claim-007"
+                ],
+                "gapReason": "no audited verified claim (claim-007)",
+                "parentImpact": "Browser compatibility matrix entry."
+              }
+            },
+            {
+              "field": "factSlotCoverage",
+              "index": 7,
+              "value": {
+                "slotId": "slot-008",
+                "label": "AbortSignal.any() Safari 지원 버전",
+                "status": "filled",
+                "bestValue": "Safari 17.4.",
+                "sourceUrls": [
+                  "https://webkit.org/blog/15063/webkit-features-in-safari-17-4/"
+                ],
+                "sourceRefs": [],
+                "sourceQuality": "primary_browser_official",
+                "verificationCandidateIds": [
+                  "claim-008"
+                ],
+                "gapReason": "",
+                "parentImpact": "Browser compatibility matrix entry."
+              }
+            },
+            {
+              "field": "factSlotCoverage",
+              "index": 8,
+              "value": {
+                "slotId": "slot-009",
+                "label": "AbortSignal.timeout() Chrome 지원 버전",
+                "status": "filled",
+                "bestValue": "Full support at Chrome 124; Chrome 103–123 is partial.",
+                "sourceUrls": [
+                  "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+                ],
+                "sourceRefs": [],
+                "sourceQuality": "primary_compatibility",
+                "verificationCandidateIds": [
+                  "claim-009"
+                ],
+                "gapReason": "",
+                "parentImpact": "Exact support threshold and exception behavior matter."
+              }
+            },
+            {
+              "field": "factSlotCoverage",
+              "index": 9,
+              "value": {
+                "slotId": "slot-010",
+                "label": "AbortSignal.timeout() Edge 지원 버전",
+                "status": "partial",
+                "bestValue": "Edge is a mirror of Chrome compatibility data; 124 is inferred from that mirror.",
+                "sourceUrls": [
+                  "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+                ],
+                "sourceRefs": [],
+                "sourceQuality": "primary_compatibility_mirror",
+                "verificationCandidateIds": [
+                  "claim-010"
+                ],
+                "gapReason": "Direct Edge version wording was not extracted.",
+                "parentImpact": "Edge threshold needs explicit verification before firm recommendation."
+              }
+            },
+            {
+              "field": "factSlotCoverage",
+              "index": 10,
+              "value": {
+                "slotId": "slot-011",
+                "label": "AbortSignal.timeout() Firefox 지원 버전",
+                "status": "partial",
+                "bestValue": "Firefox 100.",
+                "sourceUrls": [
+                  "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100",
+                  "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+                ],
+                "sourceRefs": [],
+                "sourceQuality": "primary_compatibility_release",
+                "verificationCandidateIds": [
+                  "claim-011"
+                ],
+                "gapReason": "no audited verified claim (claim-011)",
+                "parentImpact": "Browser compatibility matrix entry."
+              }
+            },
+            {
+              "field": "factSlotCoverage",
+              "index": 11,
+              "value": {
+                "slotId": "slot-012",
+                "label": "AbortSignal.timeout() Safari 지원 버전",
+                "status": "filled",
+                "bestValue": "Safari 16.",
+                "sourceUrls": [
+                  "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+                ],
+                "sourceRefs": [],
+                "sourceQuality": "primary_compatibility",
+                "verificationCandidateIds": [
+                  "claim-012"
+                ],
+                "gapReason": "",
+                "parentImpact": "Browser compatibility matrix entry."
+              }
+            },
+            {
+              "field": "factSlotCoverage",
+              "index": 12,
+              "value": {
+                "slotId": "slot-013",
+                "label": "AbortSignal.any() 알려진 동작 주의점",
+                "status": "filled",
+                "bestValue": "Already-aborted inputs determine the result reason during iteration; later aborts propagate their reason, but returned-signal abort does not cascade.",
+                "sourceUrls": [
+                  "https://dom.spec.whatwg.org/",
+                  "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static"
+                ],
+                "sourceRefs": [],
+                "sourceQuality": "primary_standard+primary_reference",
+                "verificationCandidateIds": [
+                  "claim-013",
+                  "claim-014",
+                  "claim-017"
+                ],
+                "gapReason": "",
+                "parentImpact": "Controls reason handling and listener/resource cleanup."
+              }
+            },
+            {
+              "field": "factSlotCoverage",
+              "index": 13,
+              "value": {
+                "slotId": "slot-014",
+                "label": "AbortSignal.timeout() 알려진 동작 주의점",
+                "status": "partial",
+                "bestValue": "WHATWG gives TimeoutError; browser MDN uses active time and has no cancellation API; Node docs state delay milliseconds.",
+                "sourceUrls": [
+                  "https://dom.spec.whatwg.org/",
+                  "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+                ],
+                "sourceRefs": [],
+                "sourceQuality": "primary_standard+primary_reference",
+                "verificationCandidateIds": [
+                  "claim-015",
+                  "claim-016",
+                  "claim-018"
+                ],
+                "gapReason": "Node-specific active-time mapping and internal timer ref/unref policy remain unresolved.",
+                "parentImpact": "Runtime-specific timeout guidance must distinguish browser and Node.js behavior."
+              }
+            },
+            {
+              "field": "factSlotStatusCounts",
+              "value": {
+                "filled": 8,
+                "partial": 6
+              }
+            },
+            {
+              "field": "coverageGaps",
+              "index": 0,
+              "value": {
+                "id": "gap-001",
+                "reason": "Latest docs provide section-level Stable wording but no method-level stability transition record.",
+                "sourceUrls": [],
+                "sourceRefs": [],
+                "relatedFactSlotIds": [
+                  "slot-002"
+                ]
+              }
+            },
+            {
+              "field": "coverageGaps",
+              "index": 1,
+              "value": {
+                "id": "gap-002",
+                "reason": "No method-specific Stability 2 promotion record was retrieved.",
+                "sourceUrls": [],
+                "sourceRefs": [],
+                "relatedFactSlotIds": [
+                  "slot-004"
+                ]
+              }
+            },
+            {
+              "field": "coverageGaps",
+              "index": 2,
+              "value": {
+                "id": "gap-003",
+                "reason": "Edge 124 is inferred through the BCD Chrome mirror; direct Edge wording was not extracted.",
+                "sourceUrls": [],
+                "sourceRefs": [],
+                "relatedFactSlotIds": [
+                  "slot-010"
+                ]
+              }
+            },
+            {
+              "field": "coverageGaps",
+              "index": 3,
+              "value": {
+                "id": "gap-004",
+                "reason": "Direct Chrome and Safari official release documents were not retrieved; BCD remains the primary compatibility evidence.",
+                "sourceUrls": [],
+                "sourceRefs": [],
+                "relatedFactSlotIds": [
+                  "slot-009",
+                  "slot-012"
+                ]
+              }
+            },
+            {
+              "field": "coverageGaps",
+              "index": 4,
+              "value": {
+                "id": "gap-005",
+                "reason": "Node.js active-time mapping and internal timer ref/unref behavior remain unverified.",
+                "sourceUrls": [],
+                "sourceRefs": [],
+                "relatedFactSlotIds": [
+                  "slot-014"
+                ]
+              }
+            },
+            {
+              "field": "remainingGaps",
+              "index": 0,
+              "value": {
+                "id": "gap-remaining-001",
+                "claimId": "claim-007",
+                "evidenceState": "local_file_and_remote_url_conflict",
+                "reason": "evidence row declared both a local file identity and a remote URL without a known coherent mapping",
+                "nextStep": "Fetch or inspect primary source evidence for the exact claim before using it as verified.",
+                "sourceUrls": [
+                  "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+                  "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124",
+                  "Mozilla/MDN Firefox 124 release notes"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-003.fact-003",
+                  "research-questions.question-003.source-004"
+                ],
+                "relatedFactSlotIds": []
+              }
+            },
+            {
+              "field": "remainingGaps",
+              "index": 1,
+              "value": {
+                "id": "gap-remaining-002",
+                "claimId": "claim-011",
+                "evidenceState": "local_file_and_remote_url_conflict",
+                "reason": "evidence row declared both a local file identity and a remote URL without a known coherent mapping",
+                "nextStep": "Fetch or inspect primary source evidence for the exact claim before using it as verified.",
+                "sourceUrls": [
+                  "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+                  "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100",
+                  "Mozilla/MDN Firefox 100 release notes"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-004.fact-003",
+                  "research-questions.question-004.source-003"
+                ],
+                "relatedFactSlotIds": []
+              }
+            },
+            {
+              "field": "claimVerdictLedger",
+              "index": 0,
+              "value": {
+                "id": "claim-001",
+                "claim": "Added in: v20.3.0, v18.17.0",
+                "status": "verified",
+                "factSlotIds": [
+                  "slot-001"
+                ],
+                "sourceRefs": [
+                  "research-questions.fact-001",
+                  "research-questions.source-001"
+                ],
+                "sourceUrls": [
+                  "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+                ],
+                "verifierOwner": {
+                  "source": "verify-core-claims",
+                  "stageId": "verify-core-claims",
+                  "specId": "verify-core-claims.claim-001",
+                  "taskId": "task-20",
+                  "itemIdentity": "claim-001",
+                  "placeholderSpecId": "verify-core-claims.item",
+                  "status": "completed"
+                },
+                "support": "Node.js 공식 문서가 AbortSignal.any()의 추가 버전을 v20.3.0 및 v18.17.0으로 명시한다. sourceUrls: https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html caveat: 별도의 안정화 전환 버전은 명시하지 않는다.",
+                "correctionOrCounterclaim": "",
+                "evidence": [
+                  {
+                    "source": "Node.js Global objects documentation",
+                    "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+                    "dateOrYear": "2026",
+                    "quote": "Added in: v20.3.0, v18.17.0",
+                    "relevance": "AbortSignal.any()의 Node.js 추가 버전을 직접 명시한다."
+                  }
+                ]
+              }
+            },
+            {
+              "field": "claimVerdictLedger",
+              "index": 1,
+              "value": {
+                "id": "claim-002",
+                "claim": "Stability: 2 - Stable",
+                "status": "partially_supported",
+                "factSlotIds": [
+                  "slot-002"
+                ],
+                "sourceRefs": [
+                  "research-questions.fact-002",
+                  "research-questions.source-001"
+                ],
+                "sourceUrls": [
+                  "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+                ],
+                "verifierOwner": {
+                  "source": "verify-core-claims.claim-002",
+                  "stageId": "verify-core-claims",
+                  "specId": "verify-core-claims.claim-002",
+                  "taskId": "task-21",
+                  "itemIdentity": "claim-002",
+                  "placeholderSpecId": "verify-core-claims.item",
+                  "status": "completed"
+                },
+                "support": "Global objects 섹션의 Stable 표기는 확인되지만 AbortSignal.any()의 개별 안정화 버전은 확인되지 않는다. sourceUrls: https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+                "correctionOrCounterclaim": "문서가 직접 뒷받침하는 값은 AbortSignal.any()의 도입 버전 v20.3.0 및 v18.17.0이며, 개별 안정화 버전은 명시되지 않는다.",
+                "evidence": [
+                  {
+                    "source": "Node.js v24.22.2 Global objects documentation",
+                    "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+                    "dateOrYear": "2026",
+                    "quote": "Stability: 2 - Stable",
+                    "relevance": "Global objects 섹션 전체의 안정성 표기이며 AbortSignal.any() 개별 메서드의 안정성 표기는 아니다."
+                  },
+                  {
+                    "source": "Node.js v24.22.2 Global objects documentation",
+                    "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+                    "dateOrYear": "2026",
+                    "quote": "Added in: v20.3.0, v18.17.0",
+                    "relevance": "AbortSignal.any() 항목에 명시된 도입 버전이다."
+                  }
+                ]
+              }
+            },
+            {
+              "field": "claimVerdictLedger",
+              "index": 2,
+              "value": {
+                "id": "claim-003",
+                "claim": "Added in: v17.3.0, v16.14.0",
+                "status": "verified",
+                "factSlotIds": [
+                  "slot-003"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-002.fact-001",
+                  "research-questions.question-002.source-002"
+                ],
+                "sourceUrls": [
+                  "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+                  "https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md"
+                ],
+                "verifierOwner": {
+                  "source": "verify-core-claims.claim-003",
+                  "stageId": "verify-core-claims",
+                  "specId": "verify-core-claims.claim-003",
+                  "taskId": "task-22",
+                  "itemIdentity": "claim-003",
+                  "placeholderSpecId": "verify-core-claims.item",
+                  "status": "completed"
+                },
+                "correctionOrCounterclaim": "",
+                "evidence": [
+                  {
+                    "source": "Node.js v24 API documentation",
+                    "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+                    "dateOrYear": "current",
+                    "quote": "Added in: v17.3.0, v16.14.0",
+                    "relevance": "AbortSignal.timeout()의 정확한 추가 버전을 직접 명시한다."
+                  },
+                  {
+                    "source": "Node.js v17 CHANGELOG",
+                    "url": "https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md",
+                    "dateOrYear": "2021",
+                    "quote": "**(SEMVER-MINOR)** **lib**: add AbortSignal.timeout",
+                    "relevance": "Node.js v17.3.0 변경 로그에서 기능 추가를 확인한다."
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "index": 1,
+          "entries": [
+            {
+              "field": "claimVerdictLedger",
+              "index": 3,
+              "value": {
+                "id": "claim-004",
+                "claim": "Stability: 2 - Stable",
+                "status": "partially_supported",
+                "factSlotIds": [
+                  "slot-004"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-002.fact-003",
+                  "research-questions.question-002.source-001"
+                ],
+                "sourceUrls": [
+                  "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+                ],
+                "verifierOwner": {
+                  "source": "verify-core-claims.claim-004",
+                  "stageId": "verify-core-claims",
+                  "specId": "verify-core-claims.claim-004",
+                  "taskId": "task-23",
+                  "itemIdentity": "claim-004",
+                  "placeholderSpecId": "verify-core-claims.item",
+                  "status": "completed"
+                },
+                "support": "Node.js v24 docs mark Global objects Stable and list AbortSignal.timeout() as added in v17.3.0/v16.14.0, but provide no method-specific stability-version declaration.",
+                "correctionOrCounterclaim": "The source supports that AbortSignal.timeout() was added in Node.js v17.3.0 and v16.14.0, but does not verify a specific stable-transition version.",
+                "evidence": [
+                  {
+                    "source": "Node.js v24.22.2 Global objects documentation",
+                    "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+                    "dateOrYear": "2026",
+                    "quote": "Stability: 2 - Stable",
+                    "relevance": "Applies to the Global objects section, not explicitly to AbortSignal.timeout()."
+                  },
+                  {
+                    "source": "Node.js v24.22.2 Global objects documentation",
+                    "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+                    "dateOrYear": "2026",
+                    "quote": "Added in: v17.3.0, v16.14.0",
+                    "relevance": "Specifies the Node.js versions that introduced AbortSignal.timeout()."
+                  }
+                ]
+              }
+            },
+            {
+              "field": "claimVerdictLedger",
+              "index": 4,
+              "value": {
+                "id": "claim-005",
+                "claim": "\"chrome\": {\n                \"version_added\": \"116\"\n              }",
+                "status": "verified",
+                "factSlotIds": [
+                  "slot-005"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-003.fact-001",
+                  "research-questions.question-003.source-001"
+                ],
+                "sourceUrls": [
+                  "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json"
+                ],
+                "verifierOwner": {
+                  "source": "verify-core-claims.claim-005",
+                  "stageId": "verify-core-claims",
+                  "specId": "verify-core-claims.claim-005",
+                  "taskId": "task-24",
+                  "itemIdentity": "claim-005",
+                  "placeholderSpecId": "verify-core-claims.item",
+                  "status": "completed"
+                },
+                "support": "Verified: MDN Browser Compatibility Data lists AbortSignal.any() Chrome version_added as 116. Source: https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+                "correctionOrCounterclaim": "",
+                "evidence": [
+                  {
+                    "source": "MDN Browser Compatibility Data",
+                    "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+                    "dateOrYear": "undated; fetched 2026-11-04",
+                    "quote": "\"chrome\": {\n                \"version_added\": \"116\"\n              }",
+                    "relevance": "Within the any_static compatibility block, this directly states Chrome support was added in version 116."
+                  }
+                ]
+              }
+            },
+            {
+              "field": "claimVerdictLedger",
+              "index": 5,
+              "value": {
+                "id": "claim-006",
+                "claim": "\"edge\": \"mirror\"",
+                "status": "verified",
+                "confidence": "high",
+                "factSlotIds": [
+                  "slot-006"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-003.source-005"
+                ],
+                "sourceUrls": [
+                  "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+                  "https://caniuse.com/wf-abortsignal-any"
+                ],
+                "verifierOwner": {
+                  "source": "verify-core-claims.claim-006",
+                  "stageId": "verify-core-claims",
+                  "specId": "verify-core-claims.claim-006",
+                  "taskId": "task-25",
+                  "itemIdentity": "claim-006",
+                  "placeholderSpecId": "verify-core-claims.item",
+                  "status": "completed"
+                },
+                "support": "Verified: MDN BCD records Edge as a Chromium mirror for AbortSignal.any(), while Can I Use specifies Edge 116–154 as supported.",
+                "correctionOrCounterclaim": "",
+                "evidence": [
+                  {
+                    "source": "MDN Browser Compatibility Data",
+                    "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+                    "dateOrYear": "2026-11-04",
+                    "quote": "\"edge\": \"mirror\",",
+                    "relevance": "The any_static compatibility entry marks Edge as mirroring Chromium support."
+                  },
+                  {
+                    "source": "Can I use",
+                    "url": "https://caniuse.com/wf-abortsignal-any",
+                    "dateOrYear": "2026-11-04",
+                    "quote": "#### Edge\n\n  1. ❌ 12 - 115: Not supported\n  2. ✅ 116 - 154: Supported",
+                    "relevance": "Confirms the concrete Edge support boundary."
+                  }
+                ]
+              }
+            },
+            {
+              "field": "claimVerdictLedger",
+              "index": 6,
+              "value": {
+                "id": "claim-007",
+                "claim": "\"firefox\": {\n                \"version_added\": \"124\"\n              }",
+                "status": "partially_supported",
+                "confidence": "high",
+                "factSlotIds": [
+                  "slot-007"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-003.fact-003",
+                  "research-questions.question-003.source-004"
+                ],
+                "sourceUrls": [
+                  "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+                  "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124",
+                  "Mozilla/MDN Firefox 124 release notes"
+                ],
+                "verifierOwner": {
+                  "source": "verify-core-claims.claim-007",
+                  "stageId": "verify-core-claims",
+                  "specId": "verify-core-claims.claim-007",
+                  "taskId": "task-26",
+                  "itemIdentity": "claim-007",
+                  "placeholderSpecId": "verify-core-claims.item",
+                  "status": "completed"
+                },
+                "evidence": [
+                  {
+                    "source": "MDN Browser Compatibility Data",
+                    "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+                    "dateOrYear": "2024",
+                    "quote": "\"firefox\": {\n                \"version_added\": \"124\"\n              }",
+                    "relevance": "Direct compatibility data for AbortSignal.any()."
+                  },
+                  {
+                    "source": "Mozilla/MDN Firefox 124 release notes",
+                    "url": "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124",
+                    "dateOrYear": "2024",
+                    "quote": "AbortSignal.any() is now supported, allowing a composite signal to be created that can be used to abort an operation from multiple signal sources.",
+                    "relevance": "Release notes explicitly confirm support in Firefox 124."
+                  }
+                ]
+              }
+            },
+            {
+              "field": "claimVerdictLedger",
+              "index": 7,
+              "value": {
+                "id": "claim-008",
+                "claim": "\"safari\": {\n                \"version_added\": \"17.4\"\n              }",
+                "status": "verified",
+                "factSlotIds": [
+                  "slot-008"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-003.fact-004",
+                  "research-questions.question-003.source-003"
+                ],
+                "sourceUrls": [
+                  "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+                  "https://webkit.org/blog/15063/webkit-features-in-safari-17-4/"
+                ],
+                "verifierOwner": {
+                  "source": "verify-core-claims.claim-008",
+                  "stageId": "verify-core-claims",
+                  "specId": "verify-core-claims.claim-008",
+                  "taskId": "task-27",
+                  "itemIdentity": "claim-008",
+                  "placeholderSpecId": "verify-core-claims.item",
+                  "status": "completed"
+                },
+                "support": "Safari 17.4의 AbortSignal.any() 지원이 MDN BCD의 정확한 version_added 값과 WebKit 공식 릴리스 문서로 직접 확인된다.",
+                "correctionOrCounterclaim": "",
+                "evidence": [
+                  {
+                    "source": "MDN Browser Compatibility Data",
+                    "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+                    "dateOrYear": "2026",
+                    "quote": "\"safari\": {\n                \"version_added\": \"17.4\"\n              }",
+                    "relevance": "AbortSignal.any()의 any_static 호환성 항목이 Safari 추가 버전을 17.4로 명시한다."
+                  },
+                  {
+                    "source": "WebKit",
+                    "url": "https://webkit.org/blog/15063/webkit-features-in-safari-17-4/",
+                    "dateOrYear": "2024",
+                    "quote": "Lastly, WebKit for Safari 17.4 adds support for the 【92†`AbortSignal.any()`†developer.mozilla.org】",
+                    "relevance": "WebKit의 Safari 17.4 공식 기능 문서가 해당 API 지원 추가를 직접 확인한다."
+                  }
+                ]
+              }
+            },
+            {
+              "field": "claimVerdictLedger",
+              "index": 8,
+              "value": {
+                "id": "claim-009",
+                "claim": "\"version_added\": \"124\"",
+                "status": "verified",
+                "factSlotIds": [
+                  "slot-009"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-004.fact-001",
+                  "research-questions.question-004.source-001"
+                ],
+                "sourceUrls": [
+                  "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+                ],
+                "verifierOwner": {
+                  "source": "verify-core-claims.claim-009",
+                  "stageId": "verify-core-claims",
+                  "specId": "verify-core-claims.claim-009",
+                  "taskId": "task-28",
+                  "itemIdentity": "claim-009",
+                  "placeholderSpecId": "verify-core-claims.item",
+                  "status": "completed"
+                },
+                "support": "MDN BCD는 Chrome의 AbortSignal.timeout()을 124부터 지원하고, 103–123은 AbortError를 사용하는 부분 구현으로 기록한다. Source: https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+                "correctionOrCounterclaim": "Chrome 103–123은 부분 구현이며, TimeoutError를 사용하는 지원 항목은 Chrome 124부터다.",
+                "evidence": [
+                  {
+                    "source": "MDN Browser Compatibility Data",
+                    "url": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+                    "dateOrYear": "2026 snapshot",
+                    "quote": "\"chrome\": [\n{\n\"version_added\": \"124\"\n},\n{\n\"version_added\": \"103\",\n\"version_removed\": \"124\",\n\"partial_implementation\": true,\n\"notes\": \"Always aborts with an `AbortError` on timeout, not a `TimeoutError`.\"\n}\n]",
+                    "relevance": "AbortSignal.timeout()의 Chrome 완전 지원 시작 버전 124와 Chrome 103–123의 부분 구현 및 예외 타입 차이를 직접 명시한다."
+                  }
+                ]
+              }
+            },
+            {
+              "field": "claimVerdictLedger",
+              "index": 9,
+              "value": {
+                "id": "claim-010",
+                "claim": "\"edge\": \"mirror\"",
+                "status": "verified",
+                "factSlotIds": [
+                  "slot-010"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-004.fact-002",
+                  "research-questions.question-004.source-001"
+                ],
+                "sourceUrls": [
+                  "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+                ],
+                "verifierOwner": {
+                  "source": "verify-core-claims.claim-010",
+                  "stageId": "verify-core-claims",
+                  "specId": "verify-core-claims.claim-010",
+                  "taskId": "task-29",
+                  "itemIdentity": "claim-010",
+                  "placeholderSpecId": "verify-core-claims.item",
+                  "status": "completed"
+                },
+                "support": "MDN BCD의 timeout() 지원 객체는 Edge를 \"mirror\"로 명시한다.",
+                "correctionOrCounterclaim": "Edge의 구체적인 지원 버전은 이 항목에 직접 기재되지 않으며 Chrome 데이터의 mirror 관계로 해석된다.",
+                "evidence": [
+                  {
+                    "source": "MDN Browser Compatibility Data",
+                    "url": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+                    "dateOrYear": "2026 snapshot",
+                    "quote": "\"edge\": \"mirror\",",
+                    "relevance": "AbortSignal.timeout() 호환성 데이터에서 Edge 항목이 mirror로 지정되어 있다."
+                  }
+                ]
+              }
+            },
+            {
+              "field": "claimVerdictLedger",
+              "index": 10,
+              "value": {
+                "id": "claim-011",
+                "claim": "\"version_added\": \"100\"",
+                "status": "partially_supported",
+                "factSlotIds": [
+                  "slot-011"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-004.fact-003",
+                  "research-questions.question-004.source-003"
+                ],
+                "sourceUrls": [
+                  "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+                  "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100",
+                  "Mozilla/MDN Firefox 100 release notes"
+                ],
+                "verifierOwner": {
+                  "source": "verify-core-claims.claim-011",
+                  "stageId": "verify-core-claims",
+                  "specId": "verify-core-claims.claim-011",
+                  "taskId": "task-30",
+                  "itemIdentity": "claim-011",
+                  "placeholderSpecId": "verify-core-claims.item",
+                  "status": "completed"
+                },
+                "correctionOrCounterclaim": "",
+                "evidence": [
+                  {
+                    "source": "MDN Browser Compatibility Data",
+                    "url": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+                    "dateOrYear": "2022",
+                    "quote": "\"version_added\": \"100\"",
+                    "relevance": "The timeout_static compatibility entry lists Firefox support as version 100."
+                  },
+                  {
+                    "source": "Mozilla/MDN Firefox 100 release notes",
+                    "url": "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100",
+                    "dateOrYear": "2022",
+                    "quote": "Code can now use the static method `AbortSignal.timeout()`.",
+                    "relevance": "Firefox 100 release notes explicitly announce AbortSignal.timeout() support."
+                  }
+                ]
+              }
+            },
+            {
+              "field": "claimVerdictLedger",
+              "index": 11,
+              "value": {
+                "id": "claim-012",
+                "claim": "\"version_added\": \"16\"",
+                "status": "verified",
+                "confidence": "high",
+                "factSlotIds": [
+                  "slot-012"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-004.fact-004",
+                  "research-questions.question-004.source-001"
+                ],
+                "sourceUrls": [
+                  "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json.",
+                  "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+                ],
+                "verifierOwner": {
+                  "source": "verify-core-claims.claim-012",
+                  "stageId": "verify-core-claims",
+                  "specId": "verify-core-claims.claim-012",
+                  "taskId": "task-31",
+                  "itemIdentity": "claim-012",
+                  "placeholderSpecId": "verify-core-claims.item",
+                  "status": "completed"
+                },
+                "support": "The cited MDN Browser Compatibility Data entry for timeout_static lists Safari version_added as 16. Source: https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json. Caveat: this verifies timeout(), not any().",
+                "correctionOrCounterclaim": "",
+                "evidence": [
+                  {
+                    "source": "MDN Browser Compatibility Data",
+                    "url": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+                    "dateOrYear": "2026 snapshot",
+                    "quote": "\"safari\": {\n  \"version_added\": \"16\"\n},",
+                    "relevance": "Within timeout_static support data, this directly records Safari support beginning in version 16; safari_ios is marked mirror."
+                  }
+                ]
+              }
+            },
+            {
+              "field": "claimVerdictLedger",
+              "index": 12,
+              "value": {
+                "id": "claim-013",
+                "claim": "For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
+                "status": "verified",
+                "factSlotIds": [
+                  "slot-013"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-005.fact-001",
+                  "research-questions.question-005.source-001"
+                ],
+                "sourceUrls": [
+                  "https://dom.spec.whatwg.org/",
+                  "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static"
+                ],
+                "verifierOwner": {
+                  "source": "verify-core-claims.claim-013",
+                  "stageId": "verify-core-claims",
+                  "specId": "verify-core-claims.claim-013",
+                  "taskId": "task-32",
+                  "itemIdentity": "claim-013",
+                  "placeholderSpecId": "verify-core-claims.item",
+                  "status": "completed"
+                },
+                "support": "The normative algorithm exactly supports reason propagation and early return; MDN independently confirms that the first already-aborted input determines the returned signal’s reason.",
+                "correctionOrCounterclaim": "",
+                "evidence": [
+                  {
+                    "source": "WHATWG DOM Standard",
+                    "url": "https://dom.spec.whatwg.org/",
+                    "dateOrYear": "2026",
+                    "quote": "For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
+                    "relevance": "Normative dependent abort signal creation algorithm directly matches the claim."
+                  },
+                  {
+                    "source": "MDN",
+                    "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+                    "dateOrYear": "2026",
+                    "quote": "The returned AbortSignal's reason will be already set to the reason of the first abort signal that was already aborted.",
+                    "relevance": "Authoritative reference confirms first-already-aborted input reason selection."
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "index": 2,
+          "entries": [
+            {
+              "field": "claimVerdictLedger",
+              "index": 13,
+              "value": {
+                "id": "claim-014",
+                "claim": "MDN says aborting any()’s returned signal does not abort inputs or cancel their timeouts.",
+                "status": "verified",
+                "factSlotIds": [
+                  "slot-013"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-005.fact-004",
+                  "research-questions.question-005.source-003"
+                ],
+                "sourceUrls": [
+                  "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static"
+                ],
+                "verifierOwner": {
+                  "source": "verify-core-claims.claim-014",
+                  "stageId": "verify-core-claims",
+                  "specId": "verify-core-claims.claim-014",
+                  "taskId": "task-33",
+                  "itemIdentity": "claim-014",
+                  "placeholderSpecId": "verify-core-claims.item",
+                  "status": "completed"
+                },
+                "support": "MDN directly states that aborting AbortSignal.any()'s returned signal neither aborts input signals nor cancels their timeouts.",
+                "correctionOrCounterclaim": "",
+                "evidence": [
+                  {
+                    "source": "MDN",
+                    "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+                    "dateOrYear": "2026",
+                    "quote": "Aborting the returned signal does not abort the other input signals or cancel their timeouts.",
+                    "relevance": "Directly verifies the non-cascading cancellation behavior."
+                  }
+                ]
+              }
+            },
+            {
+              "field": "claimVerdictLedger",
+              "index": 14,
+              "value": {
+                "id": "claim-015",
+                "claim": "WHATWG sets timeout()’s abort reason to a TimeoutError DOMException.",
+                "status": "verified",
+                "factSlotIds": [
+                  "slot-014"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-006.fact-002",
+                  "research-questions.question-006.source-001"
+                ],
+                "sourceUrls": [
+                  "https://dom.spec.whatwg.org/"
+                ],
+                "verifierOwner": {
+                  "source": "verify-core-claims.claim-015",
+                  "stageId": "verify-core-claims",
+                  "specId": "verify-core-claims.claim-015",
+                  "taskId": "task-34",
+                  "itemIdentity": "claim-015",
+                  "placeholderSpecId": "verify-core-claims.item",
+                  "status": "completed"
+                },
+                "support": "The WHATWG DOM Standard directly specifies TimeoutError DOMException as timeout()’s abort reason, both descriptively and in the normative algorithm. Source: https://dom.spec.whatwg.org/",
+                "correctionOrCounterclaim": "",
+                "evidence": [
+                  {
+                    "source": "WHATWG DOM Standard",
+                    "url": "https://dom.spec.whatwg.org/",
+                    "dateOrYear": "2026 living standard",
+                    "quote": "Returns an AbortSignal instance which will be aborted in milliseconds milliseconds. Its abort reason will be set to a “TimeoutError” DOMException.",
+                    "relevance": "Direct normative description of AbortSignal.timeout()’s abort reason."
+                  },
+                  {
+                    "source": "WHATWG DOM Standard",
+                    "url": "https://dom.spec.whatwg.org/",
+                    "dateOrYear": "2026 living standard",
+                    "quote": "Queue a global task on the timer task source given global to signal abort given signal and a new “TimeoutError” DOMException.",
+                    "relevance": "Normative timeout algorithm constructs and applies the TimeoutError DOMException."
+                  }
+                ]
+              }
+            },
+            {
+              "field": "claimVerdictLedger",
+              "index": 15,
+              "value": {
+                "id": "claim-016",
+                "claim": "MDN defines browser timeout() in active time; suspended workers or bfcache can pause it.",
+                "status": "verified",
+                "factSlotIds": [
+                  "slot-014"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-006.fact-003",
+                  "research-questions.question-006.source-002"
+                ],
+                "sourceUrls": [
+                  "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+                ],
+                "verifierOwner": {
+                  "source": "verify-core-claims.claim-016",
+                  "stageId": "verify-core-claims",
+                  "specId": "verify-core-claims.claim-016",
+                  "taskId": "task-35",
+                  "itemIdentity": "claim-016",
+                  "placeholderSpecId": "verify-core-claims.item",
+                  "status": "completed"
+                },
+                "support": "MDN은 AbortSignal.timeout()이 경과 시간이 아닌 active time을 기준으로 하며, suspended worker 또는 bfcache에서 사실상 일시정지된다고 명시한다. 출처: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+                "correctionOrCounterclaim": "",
+                "evidence": [
+                  {
+                    "source": "MDN",
+                    "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+                    "dateOrYear": "2026",
+                    "quote": "The timeout is based on active rather than elapsed time, and will effectively be paused if the code is running in a suspended worker, or while the document is in a back-forward cache (\"bfcache\").",
+                    "relevance": "브라우저의 timeout은 일반적인 wall-clock 경과 시간과 다를 수 있음을 직접 입증한다."
+                  }
+                ]
+              }
+            },
+            {
+              "field": "claimVerdictLedger",
+              "index": 16,
+              "value": {
+                "id": "claim-017",
+                "claim": "MDN advises removing application-added abort listeners when the combined operation finishes.",
+                "status": "verified",
+                "factSlotIds": [
+                  "slot-013"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-005.fact-005",
+                  "research-questions.question-005.source-003"
+                ],
+                "sourceUrls": [
+                  "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static"
+                ],
+                "verifierOwner": {
+                  "source": "verify-tail-claims",
+                  "stageId": "verify-tail-claims",
+                  "specId": "verify-tail-claims.claim-017",
+                  "taskId": "task-36",
+                  "itemIdentity": "claim-017",
+                  "placeholderSpecId": "verify-tail-claims.item",
+                  "status": "completed"
+                },
+                "support": "MDN directly supports the lifecycle cleanup advice for listeners added to AbortSignal.any()'s combined signal. Source: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+                "correctionOrCounterclaim": "",
+                "evidence": [
+                  {
+                    "source": "MDN",
+                    "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+                    "dateOrYear": "2026",
+                    "quote": "If your code adds `abort` listeners to the combined signal, remove them when the operation finishes, just as you would for any other `AbortSignal`.",
+                    "relevance": "Directly states the recommended cleanup action."
+                  }
+                ]
+              }
+            },
+            {
+              "field": "claimVerdictLedger",
+              "index": 17,
+              "value": {
+                "id": "claim-018",
+                "claim": "MDN says timeout() provides no way to cancel its timeout.",
+                "status": "verified",
+                "factSlotIds": [
+                  "slot-014"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-006.fact-004",
+                  "research-questions.question-006.source-002"
+                ],
+                "sourceUrls": [
+                  "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+                ],
+                "verifierOwner": {
+                  "source": "verify-tail-claims.claim-018",
+                  "stageId": "verify-tail-claims",
+                  "specId": "verify-tail-claims.claim-018",
+                  "taskId": "task-37",
+                  "itemIdentity": "claim-018",
+                  "placeholderSpecId": "verify-tail-claims.item",
+                  "status": "completed"
+                },
+                "support": "MDN explicitly states that AbortSignal.timeout() provides no cancellation mechanism and recommends AbortController with setTimeout()/clearTimeout() for definitive early cancellation. Source: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+                "correctionOrCounterclaim": "",
+                "evidence": [
+                  {
+                    "source": "MDN",
+                    "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+                    "dateOrYear": "2026",
+                    "quote": "AbortSignal.timeout() does not provide a way to cancel its timeout.",
+                    "relevance": "Directly verifies the claim."
+                  },
+                  {
+                    "source": "MDN",
+                    "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+                    "dateOrYear": "2026",
+                    "quote": "The AbortSignal becoming unreachable is not guaranteed to cancel the timeout.",
+                    "relevance": "Clarifies that garbage collection or losing references does not reliably cancel the timeout."
+                  },
+                  {
+                    "source": "MDN",
+                    "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+                    "dateOrYear": "2026",
+                    "quote": "The timeout is based on active rather than elapsed time, and will effectively be paused if the code is running in a suspended worker, or while the document is in a back-forward cache (“bfcache”).",
+                    "relevance": "Documents an important lifecycle and timing caveat."
+                  }
+                ]
+              }
+            },
+            {
+              "field": "verifierIntegrity",
+              "value": {
+                "gateSummary": {
+                  "total": 18,
+                  "unchanged": 16,
+                  "downgraded": 2,
+                  "identityRejoined": 18,
+                  "sourceRefsRejoined": 0,
+                  "sourceRefsBackfilledFromUrls": 0,
+                  "sourceRefJoinFailures": 0,
+                  "verifierRowsTotal": 18,
+                  "validVerifierRows": 18,
+                  "invalidVerifierRows": 0,
+                  "missingVerifierResults": 0,
+                  "duplicateVerifierClaims": 0,
+                  "duplicateVerifierRows": 0,
+                  "duplicateStatusConflicts": 0,
+                  "invalidNormalizedCandidates": 0,
+                  "refsNoneMultiClaimBatches": 0,
+                  "sourceEvidenceCompatibilityFailures": 2,
+                  "sourceEvidenceCompatibilityMismatches": 2,
+                  "verifierOwnerIssues": 0,
+                  "additionalEvidenceSourceDowngrades": 0,
+                  "zeroCandidateFloorBlockers": 0
+                },
+                "researchQuestionIntegrity": {
+                  "plannedIds": [
+                    "question-001",
+                    "question-002",
+                    "question-003",
+                    "question-004",
+                    "question-005",
+                    "question-006"
+                  ],
+                  "completedIds": [
+                    "question-001",
+                    "question-002",
+                    "question-003",
+                    "question-004",
+                    "question-005",
+                    "question-006"
+                  ],
+                  "missingIds": [],
+                  "duplicateIds": [],
+                  "extraIds": [],
+                  "failedIds": [],
+                  "invalidPlannedQuestionCount": 0,
+                  "plannedDuplicateIds": [],
+                  "invalidOutputSourceIds": [],
+                  "rows": [
+                    {
+                      "questionId": "question-001",
+                      "status": "completed",
+                      "sourceIds": [
+                        "research-questions"
+                      ]
+                    },
+                    {
+                      "questionId": "question-002",
+                      "status": "completed",
+                      "sourceIds": [
+                        "research-questions.question-002"
+                      ]
+                    },
+                    {
+                      "questionId": "question-003",
+                      "status": "completed",
+                      "sourceIds": [
+                        "research-questions.question-003"
+                      ]
+                    },
+                    {
+                      "questionId": "question-004",
+                      "status": "completed",
+                      "sourceIds": [
+                        "research-questions.question-004"
+                      ]
+                    },
+                    {
+                      "questionId": "question-005",
+                      "status": "completed",
+                      "sourceIds": [
+                        "research-questions.question-005"
+                      ]
+                    },
+                    {
+                      "questionId": "question-006",
+                      "status": "completed",
+                      "sourceIds": [
+                        "research-questions.question-006"
+                      ]
+                    }
+                  ],
+                  "passed": true
+                },
+                "invalidVerifierRows": [],
+                "duplicateVerifierRows": [],
+                "invalidNormalizedCandidateCount": 0,
+                "invalidNormalizedCandidateRows": [],
+                "verifierOwnerLedger": [
+                  {
+                    "source": "verify-core-claims",
+                    "stageId": "verify-core-claims",
+                    "specId": "verify-core-claims.claim-001",
+                    "taskId": "task-20",
+                    "itemIdentity": "claim-001",
+                    "placeholderSpecId": "verify-core-claims.item",
+                    "status": "completed"
+                  },
+                  {
+                    "source": "verify-core-claims.claim-002",
+                    "stageId": "verify-core-claims",
+                    "specId": "verify-core-claims.claim-002",
+                    "taskId": "task-21",
+                    "itemIdentity": "claim-002",
+                    "placeholderSpecId": "verify-core-claims.item",
+                    "status": "completed"
+                  },
+                  {
+                    "source": "verify-core-claims.claim-003",
+                    "stageId": "verify-core-claims",
+                    "specId": "verify-core-claims.claim-003",
+                    "taskId": "task-22",
+                    "itemIdentity": "claim-003",
+                    "placeholderSpecId": "verify-core-claims.item",
+                    "status": "completed"
+                  },
+                  {
+                    "source": "verify-core-claims.claim-004",
+                    "stageId": "verify-core-claims",
+                    "specId": "verify-core-claims.claim-004",
+                    "taskId": "task-23",
+                    "itemIdentity": "claim-004",
+                    "placeholderSpecId": "verify-core-claims.item",
+                    "status": "completed"
+                  },
+                  {
+                    "source": "verify-core-claims.claim-005",
+                    "stageId": "verify-core-claims",
+                    "specId": "verify-core-claims.claim-005",
+                    "taskId": "task-24",
+                    "itemIdentity": "claim-005",
+                    "placeholderSpecId": "verify-core-claims.item",
+                    "status": "completed"
+                  },
+                  {
+                    "source": "verify-core-claims.claim-006",
+                    "stageId": "verify-core-claims",
+                    "specId": "verify-core-claims.claim-006",
+                    "taskId": "task-25",
+                    "itemIdentity": "claim-006",
+                    "placeholderSpecId": "verify-core-claims.item",
+                    "status": "completed"
+                  },
+                  {
+                    "source": "verify-core-claims.claim-007",
+                    "stageId": "verify-core-claims",
+                    "specId": "verify-core-claims.claim-007",
+                    "taskId": "task-26",
+                    "itemIdentity": "claim-007",
+                    "placeholderSpecId": "verify-core-claims.item",
+                    "status": "completed"
+                  },
+                  {
+                    "source": "verify-core-claims.claim-008",
+                    "stageId": "verify-core-claims",
+                    "specId": "verify-core-claims.claim-008",
+                    "taskId": "task-27",
+                    "itemIdentity": "claim-008",
+                    "placeholderSpecId": "verify-core-claims.item",
+                    "status": "completed"
+                  },
+                  {
+                    "source": "verify-core-claims.claim-009",
+                    "stageId": "verify-core-claims",
+                    "specId": "verify-core-claims.claim-009",
+                    "taskId": "task-28",
+                    "itemIdentity": "claim-009",
+                    "placeholderSpecId": "verify-core-claims.item",
+                    "status": "completed"
+                  },
+                  {
+                    "source": "verify-core-claims.claim-010",
+                    "stageId": "verify-core-claims",
+                    "specId": "verify-core-claims.claim-010",
+                    "taskId": "task-29",
+                    "itemIdentity": "claim-010",
+                    "placeholderSpecId": "verify-core-claims.item",
+                    "status": "completed"
+                  },
+                  {
+                    "source": "verify-core-claims.claim-011",
+                    "stageId": "verify-core-claims",
+                    "specId": "verify-core-claims.claim-011",
+                    "taskId": "task-30",
+                    "itemIdentity": "claim-011",
+                    "placeholderSpecId": "verify-core-claims.item",
+                    "status": "completed"
+                  },
+                  {
+                    "source": "verify-core-claims.claim-012",
+                    "stageId": "verify-core-claims",
+                    "specId": "verify-core-claims.claim-012",
+                    "taskId": "task-31",
+                    "itemIdentity": "claim-012",
+                    "placeholderSpecId": "verify-core-claims.item",
+                    "status": "completed"
+                  },
+                  {
+                    "source": "verify-core-claims.claim-013",
+                    "stageId": "verify-core-claims",
+                    "specId": "verify-core-claims.claim-013",
+                    "taskId": "task-32",
+                    "itemIdentity": "claim-013",
+                    "placeholderSpecId": "verify-core-claims.item",
+                    "status": "completed"
+                  },
+                  {
+                    "source": "verify-core-claims.claim-014",
+                    "stageId": "verify-core-claims",
+                    "specId": "verify-core-claims.claim-014",
+                    "taskId": "task-33",
+                    "itemIdentity": "claim-014",
+                    "placeholderSpecId": "verify-core-claims.item",
+                    "status": "completed"
+                  },
+                  {
+                    "source": "verify-core-claims.claim-015",
+                    "stageId": "verify-core-claims",
+                    "specId": "verify-core-claims.claim-015",
+                    "taskId": "task-34",
+                    "itemIdentity": "claim-015",
+                    "placeholderSpecId": "verify-core-claims.item",
+                    "status": "completed"
+                  },
+                  {
+                    "source": "verify-core-claims.claim-016",
+                    "stageId": "verify-core-claims",
+                    "specId": "verify-core-claims.claim-016",
+                    "taskId": "task-35",
+                    "itemIdentity": "claim-016",
+                    "placeholderSpecId": "verify-core-claims.item",
+                    "status": "completed"
+                  },
+                  {
+                    "source": "verify-tail-claims",
+                    "stageId": "verify-tail-claims",
+                    "specId": "verify-tail-claims.claim-017",
+                    "taskId": "task-36",
+                    "itemIdentity": "claim-017",
+                    "placeholderSpecId": "verify-tail-claims.item",
+                    "status": "completed"
+                  },
+                  {
+                    "source": "verify-tail-claims.claim-018",
+                    "stageId": "verify-tail-claims",
+                    "specId": "verify-tail-claims.claim-018",
+                    "taskId": "task-37",
+                    "itemIdentity": "claim-018",
+                    "placeholderSpecId": "verify-tail-claims.item",
+                    "status": "completed"
+                  }
+                ],
+                "verifierOwnerIssues": [],
+                "batchAdoptionReadiness": {
+                  "status": "blocked",
+                  "adopted": false,
+                  "canaryRequired": true,
+                  "reason": "Batch adoption is blocked until verifier identity/sourceRef integrity issues are resolved.",
+                  "blockers": [
+                    {
+                      "reason": "source_evidence_compatibility_failures",
+                      "count": 2
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "field": "normalizerDiagnostics",
+              "value": {
+                "precisionGuard": {
+                  "totalClaims": 33,
+                  "flaggedClaims": 14,
+                  "issueCounts": {
+                    "overbroad_quantifier": 13,
+                    "bundled_slots": 2
+                  }
+                },
+                "sanitizer": {
+                  "inputCandidateCount": 18,
+                  "keptCandidateCount": 18,
+                  "demotedCandidateCount": 0,
+                  "rewrittenCandidateCount": 13,
+                  "webUrlOnlyDemotedCount": 0,
+                  "promotedCandidateCount": 0,
+                  "crossScriptCandidateCount": 0,
+                  "crossScriptCandidateIds": [],
+                  "demotionReasonCounts": {},
+                  "rewriteReasonCounts": {
+                    "source_hint_claim_mismatch": 13
+                  },
+                  "keptCandidateIds": [
+                    "claim-001",
+                    "claim-002",
+                    "claim-003",
+                    "claim-004",
+                    "claim-005",
+                    "claim-006",
+                    "claim-007",
+                    "claim-008",
+                    "claim-009",
+                    "claim-010",
+                    "claim-011",
+                    "claim-012",
+                    "claim-013",
+                    "claim-014",
+                    "claim-015",
+                    "claim-016",
+                    "claim-017",
+                    "claim-018"
+                  ],
+                  "demotedCandidateIds": [],
+                  "webUrlOnlyDemotedIds": [],
+                  "promotedCandidateIds": [],
+                  "rewrittenCandidateIds": [
+                    "claim-001",
+                    "claim-002",
+                    "claim-003",
+                    "claim-004",
+                    "claim-005",
+                    "claim-006",
+                    "claim-007",
+                    "claim-008",
+                    "claim-009",
+                    "claim-010",
+                    "claim-011",
+                    "claim-012",
+                    "claim-013"
+                  ],
+                  "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+                  "sourceEvidenceHintRows": 28,
+                  "schemaCaps": {
+                    "verificationCandidates": 48,
+                    "preservedClaims": 24,
+                    "factSlotCoverage": 64
+                  },
+                  "schemaCapDrops": [],
+                  "degraded": false,
+                  "degradationReasons": []
+                }
+              }
+            },
+            {
+              "field": "preservedClaims",
+              "index": 0,
+              "value": {
+                "id": "preserved-001",
+                "claim": "Node.js v20.3.0 release notes were found, but an exact AbortSignal.any() quote was not captured.",
+                "factSlotIds": [
+                  "slot-001"
+                ],
+                "sourceRefs": [
+                  "research-questions.source-002"
+                ],
+                "sourceUrls": [
+                  "https://nodejs.org/en/blog/release/v20.3.0"
+                ],
+                "whyItMatters": "Independent confirmation of the Node.js introduction version."
+              }
+            },
+            {
+              "field": "preservedClaims",
+              "index": 1,
+              "value": {
+                "id": "preserved-002",
+                "claim": "The latest Node.js docs do not show a method-specific Stability transition row for AbortSignal.any().",
+                "factSlotIds": [
+                  "slot-002"
+                ],
+                "sourceRefs": [
+                  "research-questions.evidenceGap-001"
+                ],
+                "sourceUrls": [
+                  "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+                ],
+                "whyItMatters": "Prevents section-level Stable wording from being treated as method-level history."
+              }
+            },
+            {
+              "field": "preservedClaims",
+              "index": 2,
+              "value": {
+                "id": "preserved-003",
+                "claim": "No method-specific Stability 2 promotion record was found for AbortSignal.timeout().",
+                "factSlotIds": [
+                  "slot-004"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-002.gap-001"
+                ],
+                "sourceUrls": [
+                  "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+                ],
+                "whyItMatters": "The stability conclusion remains bounded by the available documentation."
+              }
+            }
+          ]
+        },
+        {
+          "index": 3,
+          "entries": [
+            {
+              "field": "preservedClaims",
+              "index": 3,
+              "value": {
+                "id": "preserved-004",
+                "claim": "MDN BCD marks Chrome 103–123 timeout() as partial and notes AbortError instead of TimeoutError.",
+                "factSlotIds": [
+                  "slot-009"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-004.fact-001"
+                ],
+                "sourceUrls": [
+                  "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+                ],
+                "whyItMatters": "Important compatibility carve-out before Chrome 124."
+              }
+            },
+            {
+              "field": "preservedClaims",
+              "index": 4,
+              "value": {
+                "id": "preserved-005",
+                "claim": "Node.js docs describe timeout() as aborting after delay milliseconds, not browser active-time or bfcache semantics.",
+                "factSlotIds": [
+                  "slot-014"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-006.fact-007"
+                ],
+                "sourceUrls": [
+                  "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+                ],
+                "whyItMatters": "Keeps browser and Node.js timing semantics distinct."
+              }
+            },
+            {
+              "field": "preservedClaims",
+              "index": 5,
+              "value": {
+                "id": "preserved-006",
+                "claim": "The exact ref/unref policy of Node.js AbortSignal.timeout()’s internal timer remains unverified.",
+                "factSlotIds": [
+                  "slot-014"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-006.gap-001"
+                ],
+                "sourceUrls": [
+                  "https://nodejs.org/api/timers.html",
+                  "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+                ],
+                "whyItMatters": "Could affect event-loop exit behavior in Node.js."
+              }
+            },
+            {
+              "field": "preservedClaims",
+              "index": 6,
+              "value": {
+                "id": "preserved-007",
+                "claim": "WHATWG requires abortable promise APIs to reject immediately when given an already-aborted signal.",
+                "factSlotIds": [],
+                "sourceRefs": [
+                  "research-questions.question-005.fact-006"
+                ],
+                "sourceUrls": [
+                  "https://dom.spec.whatwg.org/"
+                ],
+                "whyItMatters": "Useful consumer-side contract beyond any() construction."
+              }
+            },
+            {
+              "field": "preservedClaims",
+              "index": 7,
+              "value": {
+                "id": "preserved-008",
+                "claim": "An unreachable timeout signal is not guaranteed to cancel its timeout.",
+                "factSlotIds": [
+                  "slot-014"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-006.fact-006"
+                ],
+                "sourceUrls": [
+                  "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+                ],
+                "whyItMatters": "Clarifies why dropping references is not explicit cancellation."
+              }
+            },
+            {
+              "field": "preservedClaims",
+              "index": 8,
+              "value": {
+                "id": "preserved-claim-001",
+                "claim": "Node.js docs list AbortSignal.any() as added in v20.3.0 and v18.17.0.",
+                "factSlotIds": [
+                  "slot-001"
+                ],
+                "sourceRefs": [
+                  "research-questions.fact-001",
+                  "research-questions.source-001"
+                ],
+                "sourceUrls": [
+                  "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+                ],
+                "whyItMatters": "Required slot-001; confirms exact Node.js introduction lines."
+              }
+            },
+            {
+              "field": "preservedClaims",
+              "index": 9,
+              "value": {
+                "id": "preserved-claim-002",
+                "claim": "Node.js Global objects documentation displays “Stability: 2 - Stable”.",
+                "factSlotIds": [
+                  "slot-002"
+                ],
+                "sourceRefs": [
+                  "research-questions.fact-002",
+                  "research-questions.source-001"
+                ],
+                "sourceUrls": [
+                  "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+                ],
+                "whyItMatters": "Critical slot-002; separates section-level Stable from method-level status."
+              }
+            },
+            {
+              "field": "preservedClaims",
+              "index": 10,
+              "value": {
+                "id": "preserved-claim-003",
+                "claim": "Node.js docs list AbortSignal.timeout() as added in v17.3.0 and v16.14.0.",
+                "factSlotIds": [
+                  "slot-003"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-002.fact-001",
+                  "research-questions.question-002.source-002"
+                ],
+                "sourceUrls": [
+                  "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+                  "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md"
+                ],
+                "whyItMatters": "Required slot-003; confirms both introduction and backport versions."
+              }
+            },
+            {
+              "field": "preservedClaims",
+              "index": 11,
+              "value": {
+                "id": "preserved-claim-004",
+                "claim": "Node.js Global objects documentation displays “Stability: 2 - Stable”.",
+                "factSlotIds": [
+                  "slot-004"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-002.fact-003",
+                  "research-questions.question-002.source-001"
+                ],
+                "sourceUrls": [
+                  "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+                ],
+                "whyItMatters": "Critical slot-004; checks the available stability context."
+              }
+            },
+            {
+              "field": "preservedClaims",
+              "index": 12,
+              "value": {
+                "id": "preserved-claim-005",
+                "claim": "MDN BCD lists Chrome version_added as 116 for AbortSignal.any().",
+                "factSlotIds": [
+                  "slot-005"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-003.fact-001",
+                  "research-questions.question-003.source-001"
+                ],
+                "sourceUrls": [
+                  "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json"
+                ],
+                "whyItMatters": "Required slot-005; verifies the exact Chrome milestone."
+              }
+            },
+            {
+              "field": "preservedClaims",
+              "index": 13,
+              "value": {
+                "id": "preserved-claim-006",
+                "claim": "The compatibility table lists Edge 116–154 as supported for AbortSignal.any().",
+                "factSlotIds": [
+                  "slot-006"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-003.source-005"
+                ],
+                "sourceUrls": [
+                  "https://caniuse.com/wf-abortsignal-any"
+                ],
+                "whyItMatters": "Required slot-006; isolates Edge support from Chromium claims."
+              }
+            },
+            {
+              "field": "preservedClaims",
+              "index": 14,
+              "value": {
+                "id": "preserved-claim-007",
+                "claim": "Firefox 124 release notes state that AbortSignal.any() is now supported.",
+                "factSlotIds": [
+                  "slot-007"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-003.fact-003",
+                  "research-questions.question-003.source-004"
+                ],
+                "sourceUrls": [
+                  "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124"
+                ],
+                "whyItMatters": "Required slot-007; confirms the Firefox release milestone."
+              }
+            },
+            {
+              "field": "preservedClaims",
+              "index": 15,
+              "value": {
+                "id": "preserved-claim-008",
+                "claim": "WebKit states Safari 17.4 adds support for AbortSignal.any().",
+                "factSlotIds": [
+                  "slot-008"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-003.fact-004",
+                  "research-questions.question-003.source-003"
+                ],
+                "sourceUrls": [
+                  "https://webkit.org/blog/15063/webkit-features-in-safari-17-4/"
+                ],
+                "whyItMatters": "Required slot-008; confirms the Safari milestone directly."
+              }
+            },
+            {
+              "field": "preservedClaims",
+              "index": 16,
+              "value": {
+                "id": "preserved-claim-009",
+                "claim": "MDN BCD lists Chrome version_added as 124 for AbortSignal.timeout().",
+                "factSlotIds": [
+                  "slot-009"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-004.fact-001",
+                  "research-questions.question-004.source-001"
+                ],
+                "sourceUrls": [
+                  "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+                ],
+                "whyItMatters": "Required slot-009; distinguishes full support from earlier partial support."
+              }
+            },
+            {
+              "field": "preservedClaims",
+              "index": 17,
+              "value": {
+                "id": "preserved-claim-010",
+                "claim": "MDN BCD marks Edge’s timeout() entry as a mirror of Chrome compatibility data.",
+                "factSlotIds": [
+                  "slot-010"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-004.fact-002",
+                  "research-questions.question-004.source-001"
+                ],
+                "sourceUrls": [
+                  "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+                ],
+                "whyItMatters": "Required slot-010; checks the mirror-based Edge version inference."
+              }
+            },
+            {
+              "field": "preservedClaims",
+              "index": 18,
+              "value": {
+                "id": "preserved-claim-011",
+                "claim": "MDN BCD lists Firefox version_added as 100 for AbortSignal.timeout().",
+                "factSlotIds": [
+                  "slot-011"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-004.fact-003",
+                  "research-questions.question-004.source-003"
+                ],
+                "sourceUrls": [
+                  "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+                  "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100"
+                ],
+                "whyItMatters": "Required slot-011; confirms Firefox support and exception behavior context."
+              }
+            },
+            {
+              "field": "preservedClaims",
+              "index": 19,
+              "value": {
+                "id": "preserved-claim-012",
+                "claim": "MDN BCD lists Safari version_added as 16 for AbortSignal.timeout().",
+                "factSlotIds": [
+                  "slot-012"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-004.fact-004",
+                  "research-questions.question-004.source-001"
+                ],
+                "sourceUrls": [
+                  "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+                ],
+                "whyItMatters": "Required slot-012; verifies the exact Safari milestone."
+              }
+            },
+            {
+              "field": "preservedClaims",
+              "index": 20,
+              "value": {
+                "id": "preserved-claim-013",
+                "claim": "WHATWG sets the result signal’s reason to an already-aborted input’s reason and returns it.",
+                "factSlotIds": [
+                  "slot-013"
+                ],
+                "sourceRefs": [
+                  "research-questions.question-005.fact-001",
+                  "research-questions.question-005.source-001"
+                ],
+                "sourceUrls": [
+                  "https://dom.spec.whatwg.org/"
+                ],
+                "whyItMatters": "Required slot-013; verifies already-aborted input handling."
+              }
+            },
+            {
+              "field": "researchScopeCoverage",
+              "index": 0,
+              "value": {
+                "scopeItem": "Node.js에서 AbortSignal.any()의 안정적 지원 버전",
+                "status": "partial",
+                "factSlotIds": [
+                  "slot-001",
+                  "slot-002"
+                ],
+                "verificationCandidateIds": [
+                  "claim-001",
+                  "claim-002"
+                ],
+                "gapReason": "Method-level stability history is absent."
+              }
+            },
+            {
+              "field": "researchScopeCoverage",
+              "index": 1,
+              "value": {
+                "scopeItem": "Node.js에서 AbortSignal.timeout()의 안정적 지원 버전",
+                "status": "partial",
+                "factSlotIds": [
+                  "slot-003",
+                  "slot-004"
+                ],
+                "verificationCandidateIds": [
+                  "claim-003",
+                  "claim-004"
+                ],
+                "gapReason": "Method-level stability history is absent."
+              }
+            },
+            {
+              "field": "researchScopeCoverage",
+              "index": 2,
+              "value": {
+                "scopeItem": "주요 브라우저의 AbortSignal.any() 지원 현황",
+                "status": "covered",
+                "factSlotIds": [
+                  "slot-005",
+                  "slot-006",
+                  "slot-007",
+                  "slot-008"
+                ],
+                "verificationCandidateIds": [
+                  "claim-005",
+                  "claim-006",
+                  "claim-007",
+                  "claim-008"
+                ],
+                "gapReason": ""
+              }
+            },
+            {
+              "field": "researchScopeCoverage",
+              "index": 3,
+              "value": {
+                "scopeItem": "주요 브라우저의 AbortSignal.timeout() 지원 현황",
+                "status": "partial",
+                "factSlotIds": [
+                  "slot-009",
+                  "slot-010",
+                  "slot-011",
+                  "slot-012"
+                ],
+                "verificationCandidateIds": [
+                  "claim-009",
+                  "claim-010",
+                  "claim-011",
+                  "claim-012"
+                ],
+                "gapReason": "Edge threshold relies on mirror inference; direct Chrome/Safari release cross-check is absent."
+              }
+            },
+            {
+              "field": "researchScopeCoverage",
+              "index": 4,
+              "value": {
+                "scopeItem": "AbortSignal.any()의 알려진 동작 주의점",
+                "status": "covered",
+                "factSlotIds": [
+                  "slot-013"
+                ],
+                "verificationCandidateIds": [
+                  "claim-013",
+                  "claim-014",
+                  "claim-017"
+                ],
+                "gapReason": ""
+              }
+            },
+            {
+              "field": "researchScopeCoverage",
+              "index": 5,
+              "value": {
+                "scopeItem": "AbortSignal.timeout()의 알려진 동작 주의점",
+                "status": "partial",
+                "factSlotIds": [
+                  "slot-014"
+                ],
+                "verificationCandidateIds": [
+                  "claim-015",
+                  "claim-016",
+                  "claim-018"
+                ],
+                "gapReason": "Node-specific timer semantics remain unresolved."
+              }
+            },
+            {
+              "field": "researchQuestionCoverage",
+              "index": 0,
+              "value": {
+                "questionId": "question-001",
+                "status": "completed",
+                "sourceIds": [
+                  "research-questions"
+                ]
+              }
+            },
+            {
+              "field": "researchQuestionCoverage",
+              "index": 1,
+              "value": {
+                "questionId": "question-002",
+                "status": "completed",
+                "sourceIds": [
+                  "research-questions.question-002"
+                ]
+              }
+            },
+            {
+              "field": "researchQuestionCoverage",
+              "index": 2,
+              "value": {
+                "questionId": "question-003",
+                "status": "completed",
+                "sourceIds": [
+                  "research-questions.question-003"
+                ]
+              }
+            },
+            {
+              "field": "researchQuestionCoverage",
+              "index": 3,
+              "value": {
+                "questionId": "question-004",
+                "status": "completed",
+                "sourceIds": [
+                  "research-questions.question-004"
+                ]
+              }
+            },
+            {
+              "field": "researchQuestionCoverage",
+              "index": 4,
+              "value": {
+                "questionId": "question-005",
+                "status": "completed",
+                "sourceIds": [
+                  "research-questions.question-005"
+                ]
+              }
+            },
+            {
+              "field": "researchQuestionCoverage",
+              "index": 5,
+              "value": {
+                "questionId": "question-006",
+                "status": "completed",
+                "sourceIds": [
+                  "research-questions.question-006"
+                ]
+              }
+            },
+            {
+              "field": "factSlotReconciliation",
+              "value": {
+                "source": "canonical normalized claim factSlotIds",
+                "addedReverseBindings": [],
+                "preservedReverseBindings": [],
+                "invalidCanonicalMemberships": []
+              }
+            },
+            {
+              "field": "invariantChecks",
+              "value": {
+                "candidateCount": 18,
+                "factSlotReconciliation": {
+                  "source": "canonical normalized claim factSlotIds",
+                  "addedReverseBindings": [],
+                  "preservedReverseBindings": [],
+                  "invalidCanonicalMemberships": []
+                },
+                "auditedClaimCount": 18,
+                "candidateIds": [
+                  "claim-001",
+                  "claim-002",
+                  "claim-003",
+                  "claim-004",
+                  "claim-005",
+                  "claim-006",
+                  "claim-007",
+                  "claim-008",
+                  "claim-009",
+                  "claim-010",
+                  "claim-011",
+                  "claim-012",
+                  "claim-013",
+                  "claim-014",
+                  "claim-015",
+                  "claim-016",
+                  "claim-017",
+                  "claim-018"
+                ],
+                "auditedClaimIds": [
+                  "claim-001",
+                  "claim-002",
+                  "claim-003",
+                  "claim-004",
+                  "claim-005",
+                  "claim-006",
+                  "claim-007",
+                  "claim-008",
+                  "claim-009",
+                  "claim-010",
+                  "claim-011",
+                  "claim-012",
+                  "claim-013",
+                  "claim-014",
+                  "claim-015",
+                  "claim-016",
+                  "claim-017",
+                  "claim-018"
+                ],
+                "statusPartitionIds": {
+                  "verified": [
+                    "claim-001",
+                    "claim-003",
+                    "claim-005",
+                    "claim-006",
+                    "claim-008",
+                    "claim-009",
+                    "claim-010",
+                    "claim-012",
+                    "claim-013",
+                    "claim-014",
+                    "claim-015",
+                    "claim-016",
+                    "claim-017",
+                    "claim-018"
+                  ],
+                  "partiallySupported": [
+                    "claim-002",
+                    "claim-004",
+                    "claim-007",
+                    "claim-011"
+                  ],
+                  "unsupported": [],
+                  "conflicting": [],
+                  "verificationBlocked": [],
+                  "other": []
+                },
+                "omittedCandidateIds": [],
+                "droppedSlotIds": [],
+                "researchQuestionIntegrity": {
+                  "plannedIds": [
+                    "question-001",
+                    "question-002",
+                    "question-003",
+                    "question-004",
+                    "question-005",
+                    "question-006"
+                  ],
+                  "completedIds": [
+                    "question-001",
+                    "question-002",
+                    "question-003",
+                    "question-004",
+                    "question-005",
+                    "question-006"
+                  ],
+                  "missingIds": [],
+                  "duplicateIds": [],
+                  "extraIds": [],
+                  "failedIds": [],
+                  "invalidPlannedQuestionCount": 0,
+                  "plannedDuplicateIds": [],
+                  "invalidOutputSourceIds": [],
+                  "rows": [
+                    {
+                      "questionId": "question-001",
+                      "status": "completed",
+                      "sourceIds": [
+                        "research-questions"
+                      ]
+                    },
+                    {
+                      "questionId": "question-002",
+                      "status": "completed",
+                      "sourceIds": [
+                        "research-questions.question-002"
+                      ]
+                    },
+                    {
+                      "questionId": "question-003",
+                      "status": "completed",
+                      "sourceIds": [
+                        "research-questions.question-003"
+                      ]
+                    },
+                    {
+                      "questionId": "question-004",
+                      "status": "completed",
+                      "sourceIds": [
+                        "research-questions.question-004"
+                      ]
+                    },
+                    {
+                      "questionId": "question-005",
+                      "status": "completed",
+                      "sourceIds": [
+                        "research-questions.question-005"
+                      ]
+                    },
+                    {
+                      "questionId": "question-006",
+                      "status": "completed",
+                      "sourceIds": [
+                        "research-questions.question-006"
+                      ]
+                    }
+                  ],
+                  "passed": true
+                },
+                "sourceRefCoverage": {
+                  "verificationCandidatesWithSourceRefs": 18,
+                  "auditedClaimsWithSourceRefs": 18,
+                  "sourceRefJoinFailures": 0
+                },
+                "verifierIntegrity": {
+                  "invalidVerifierRows": 0,
+                  "researchQuestionIntegrity": {
+                    "plannedIds": [
+                      "question-001",
+                      "question-002",
+                      "question-003",
+                      "question-004",
+                      "question-005",
+                      "question-006"
+                    ],
+                    "completedIds": [
+                      "question-001",
+                      "question-002",
+                      "question-003",
+                      "question-004",
+                      "question-005",
+                      "question-006"
+                    ],
+                    "missingIds": [],
+                    "duplicateIds": [],
+                    "extraIds": [],
+                    "failedIds": [],
+                    "invalidPlannedQuestionCount": 0,
+                    "plannedDuplicateIds": [],
+                    "invalidOutputSourceIds": [],
+                    "rows": [
+                      {
+                        "questionId": "question-001",
+                        "status": "completed",
+                        "sourceIds": [
+                          "research-questions"
+                        ]
+                      },
+                      {
+                        "questionId": "question-002",
+                        "status": "completed",
+                        "sourceIds": [
+                          "research-questions.question-002"
+                        ]
+                      },
+                      {
+                        "questionId": "question-003",
+                        "status": "completed",
+                        "sourceIds": [
+                          "research-questions.question-003"
+                        ]
+                      },
+                      {
+                        "questionId": "question-004",
+                        "status": "completed",
+                        "sourceIds": [
+                          "research-questions.question-004"
+                        ]
+                      },
+                      {
+                        "questionId": "question-005",
+                        "status": "completed",
+                        "sourceIds": [
+                          "research-questions.question-005"
+                        ]
+                      },
+                      {
+                        "questionId": "question-006",
+                        "status": "completed",
+                        "sourceIds": [
+                          "research-questions.question-006"
+                        ]
+                      }
+                    ],
+                    "passed": true
+                  },
+                  "duplicateVerifierRows": 0,
+                  "invalidNormalizedCandidateCount": 0,
+                  "verifierOwnerIssues": 0,
+                  "missingVerifierResults": 0,
+                  "zeroCandidateFloorBlockers": 0,
+                  "batchAdoptionStatus": "blocked"
+                }
+              }
+            },
+            {
+              "field": "overflowLedger",
+              "value": {
+                "preservedClaimCount": 21,
+                "coverageGapCount": 5,
+                "remainingGapCount": 2,
+                "omittedVerificationCandidateCount": 0,
+                "invalidVerifierRowCount": 0,
+                "duplicateVerifierRowCount": 0,
+                "invalidNormalizedCandidateCount": 0,
+                "verifierOwnerIssueCount": 0
+              }
+            }
+          ]
+        },
+        {
+          "index": 4,
+          "entries": []
+        },
+        {
+          "index": 5,
+          "entries": []
+        },
+        {
+          "index": 6,
+          "entries": []
+        },
+        {
+          "index": 7,
+          "entries": []
+        },
+        {
+          "index": 8,
+          "entries": []
+        },
+        {
+          "index": 9,
+          "entries": []
+        },
+        {
+          "index": 10,
+          "entries": []
+        },
+        {
+          "index": 11,
+          "entries": []
+        },
+        {
+          "index": 12,
+          "entries": []
+        },
+        {
+          "index": 13,
+          "entries": []
+        },
+        {
+          "index": 14,
+          "entries": []
+        },
+        {
+          "index": 15,
+          "entries": []
+        }
+      ]
+    }
+  }
+}

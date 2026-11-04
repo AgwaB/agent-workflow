@@ -1,0 +1,33 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "S3 위반을 원문과 구현에서 확인했다.",
+  "id": "finding-S3",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 13,
+      "lineEnd": 14,
+      "quote": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다.",
+      "relevance": "S3는 기본 50ms와 최소 10ms를 명시한다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 67,
+      "lineEnd": 67,
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "relevance": "구현은 기본값 200ms와 최소값 1ms를 사용한다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 81,
+      "lineEnd": 81,
+      "quote": "const timer = setInterval(() => void check(), pollMs);",
+      "relevance": "계산된 pollMs가 실제 감시 주기에 사용된다."
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "createWorkflowStopSignal의 pollMs 기본값과 최소값이 각각 명세의 50ms 및 10ms가 아닌 200ms 및 1ms로 구현되어 S3를 위반한다.",
+  "recommendedAction": "pollMs 계산을 Math.max(10, options.pollMs ?? 50)로 수정하고 경계값 테스트를 추가한다."
+}

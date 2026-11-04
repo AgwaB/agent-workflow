@@ -1,0 +1,28 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "공개 계약과 구현 필드명이 직접 불일치하므로 원 finding을 유지한다.",
+  "findingId": "finding-004",
+  "finding": "종료 요약의 launch 재시도 필드명이 공개 계약과 불일치함",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 33,
+      "symbol": "WorkflowTerminalSummary",
+      "quote": "launchRetries: number;"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 107,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "launchRetries: run.tasks.reduce("
+    },
+    {
+      "file": "SPEC.md",
+      "line": 35,
+      "quote": "outputRetryAttempts와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며"
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "인터페이스와 반환 객체를 launchRetryAttempts로 통일하고 회귀 테스트를 추가한다. 기존 외부 소비자 호환이 필요하면 명시적인 호환 alias를 검토한다."
+}

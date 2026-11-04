@@ -1,0 +1,28 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Verified: the WHATWG DOM Standard explicitly assigns AbortSignal.timeout() a TimeoutError DOMException reason.",
+  "id": "claim-015",
+  "status": "verified",
+  "confidence": 0.99,
+  "verdictDigest": "The WHATWG DOM Standard directly specifies TimeoutError DOMException as timeout()’s abort reason, both descriptively and in the normative algorithm. Source: https://dom.spec.whatwg.org/",
+  "evidence": [
+    {
+      "source": "WHATWG DOM Standard",
+      "url": "https://dom.spec.whatwg.org/",
+      "dateOrYear": "2026 living standard",
+      "quote": "Returns an AbortSignal instance which will be aborted in milliseconds milliseconds. Its abort reason will be set to a “TimeoutError” DOMException.",
+      "relevance": "Direct normative description of AbortSignal.timeout()’s abort reason."
+    },
+    {
+      "source": "WHATWG DOM Standard",
+      "url": "https://dom.spec.whatwg.org/",
+      "dateOrYear": "2026 living standard",
+      "quote": "Queue a global task on the timer task source given global to signal abort given signal and a new “TimeoutError” DOMException.",
+      "relevance": "Normative timeout algorithm constructs and applies the TimeoutError DOMException."
+    }
+  ],
+  "caveats": [
+    "The standard specifies the signal.reason value; whether an observing API rejects a Promise, and how, depends on that API."
+  ],
+  "correctionOrCounterclaim": ""
+}

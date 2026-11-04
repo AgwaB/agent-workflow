@@ -1,0 +1,48 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "controller control 읽기 실패보다 incomplete 판정이 우선하여 T2의 fallback을 우회하므로 finding-006을 유지한다.",
+  "id": "finding-006",
+  "verdict": "KEEP",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 33,
+      "lineEnd": 34,
+      "quote": "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는\n  `completed_without_semantic_result`이다.",
+      "relevance": "control 읽기 실패 시 요구되는 의미 상태"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 59,
+      "lineEnd": 61,
+      "quote": "return await readJson<DynamicControllerControl>(\n\t\tjoin(dirname(taskOutput), \"control.json\"),\n\t).catch(() => undefined);",
+      "relevance": "control.json 읽기 거부를 undefined로 변환한다."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 80,
+      "lineEnd": 86,
+      "quote": "if (terminal && run.provenance?.mode === \"direct-dynamic\") {\n\t\tconst control = await readDynamicControllerControl(cwd, run);\n\t\toutputTaskIds = stringArray(control?.outputTasks);\n\t\tconst incomplete = run.tasks.some(\n\t\t\t(task) => task.statusDetail === \"dynamic_incomplete\",\n\t\t);\n\t\tif (incomplete) semanticStatus = \"dynamic_incomplete\";",
+      "relevance": "control이 undefined여도 incomplete 작업이 있으면 dynamic_incomplete를 선택한다."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 98,
+      "lineEnd": 102,
+      "quote": "return {\n\t\tterminal,\n\t\tengineStatus: run.status,\n\t\tsemanticStatus,\n\t\toutputTaskIds,",
+      "relevance": "선택한 의미 상태가 그대로 요약에 반환된다."
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 95,
+      "lineEnd": 95,
+      "quote": "else semanticStatus = \"completed_without_semantic_result\";",
+      "relevance": "incomplete가 없으면 읽기 실패 fallback은 존재한다. 결함은 두 조건이 겹치는 경로에 한정된다."
+    }
+  ],
+  "finalClaim": "degradation 없는 completed direct-dynamic 실행에서도 controller control.json 읽기가 실패하고 dynamic_incomplete 작업이 있으면, T2가 요구하는 completed_without_semantic_result 대신 dynamic_incomplete가 반환된다.",
+  "recommendedAction": "control 읽기 실패 시 fallback을 incomplete 판정보다 먼저 적용하고, completed·degradation 없음 조건에서 읽기 실패와 incomplete 작업이 공존하는 회귀 테스트를 추가한다."
+}

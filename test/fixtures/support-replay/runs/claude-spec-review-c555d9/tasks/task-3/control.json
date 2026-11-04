@@ -1,0 +1,38 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "No test files exist in the repo (no test/, tests/, __tests__/, or *.test/*.spec files outside .agent-workflow), so no S/C/T/Q1 requirement has test evidence.",
+  "testMap": [],
+  "coverageGapsSuspected": [
+    "Q1: no unit tests exist for any S/C/T item; the repo has no test directory or test files, and package.json only defines a typecheck script.",
+    "S1: no test found for stop detection via disk intent (readWorkflowStopIntent) or a matching foreground AbortSignal in src/workflow-stop.ts.",
+    "S2: no test found for WorkflowStopRequested error name or the 'workflow stop requested for <runId>' message format.",
+    "S3: no test found for the 50ms pollMs default or the 10ms minimum clamp.",
+    "S4: no test found for disk-read failures being ignored in createWorkflowStopSignal but propagated in throwIfWorkflowStopRequested.",
+    "S5: no test found for no new disk reads after dispose().",
+    "S6: no test found that isWorkflowStopRequestedError keys on error name and ignores message content.",
+    "S7: no test found for foreground signal unregistration or cleanup of empty run registrations.",
+    "C1: no test found for the exact-match set {aborted, AbortError, ABORT_ERR} in src/workflow-cancellation.ts.",
+    "C2: no test found for JSON text inside content arrays or for absence of infinite recursion.",
+    "T1: no test found for completed+degradation mapping to completed_degraded in src/workflow-terminal.ts.",
+    "T2: no test found for unreadable control.json mapping to completed_without_semantic_result on direct-dynamic runs.",
+    "T3: no test found that outputRetryAttempts and launchRetryAttempts sum retries across all tasks."
+  ],
+  "notes": [
+    "Searched the repo excluding .agent-workflow for test directories and test/spec file patterns; none found.",
+    "Grep for test/spec/fixture keywords in src/ found only unrelated matches (specId and finalStageTasks in workflow-terminal.ts).",
+    "No fixtures found. The SPEC.md excerpt omits store.js and types.js, so behavior depending on them cannot be traced."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "Tests were inspected but not executed by this read-only stage; no test commands were run.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "store.js and types.js are excluded from the spec excerpt and were not available for tracing.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false
+}

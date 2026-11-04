@@ -1,0 +1,48 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "finding-003 WEAKEN: 'cancelled'/'timeout' error and reason strings violate SPEC C1's exact three-marker rule; the cancelled:true flag is arguable and is dropped from the claim.",
+  "id": "finding-003",
+  "verdict": "WEAKEN",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 20,
+      "lineEnd": 20,
+      "quote": "candidate === \"cancelled\" || candidate === \"timeout\"",
+      "relevance": "Error/reason string candidates 'cancelled' and 'timeout' are accepted as cancellation, beyond the exact aborted, AbortError, ABORT_ERR markers SPEC C1 allows"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 25,
+      "lineEnd": 25,
+      "quote": "오류·사유 문자열은 정확히 `aborted`,",
+      "relevance": "SPEC C1 limits the accepted error/reason strings to exactly aborted, AbortError, ABORT_ERR"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 26,
+      "lineEnd": 26,
+      "quote": "다른 provider 오류를 취소로 승격해서는 안 된다.",
+      "relevance": "SPEC C1 prohibits promoting other provider errors to cancellation"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 10,
+      "lineEnd": 10,
+      "quote": "Keep this check deliberately exact: arbitrary provider errors must not be",
+      "relevance": "Code comment states the intent to match exactly, which the 'cancelled'/'timeout' extension contradicts"
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 16,
+      "lineEnd": 16,
+      "quote": "if (value.cancelled === true) return true;",
+      "relevance": "Boolean cancelled:true flag is not a string marker; SPEC C1 scopes the rule to error/reason strings, so the flag branch is arguable and is excluded from the narrowed claim"
+    }
+  ],
+  "finalClaim": "src/workflow-cancellation.ts:20 accepts the error/reason strings 'cancelled' and 'timeout' as cancellation, which SPEC C1 forbids (only aborted, AbortError, ABORT_ERR are allowed). No test in the repository exercises this marker set.",
+  "recommendedAction": "Remove the 'cancelled' and 'timeout' string candidates from the check at src/workflow-cancellation.ts:20, and add a test covering each of the three allowed markers plus a non-marker provider error (e.g. 'timeout') that must not be classified as cancellation. Decide separately whether the cancelled:true flag matches the spec's intent."
+}

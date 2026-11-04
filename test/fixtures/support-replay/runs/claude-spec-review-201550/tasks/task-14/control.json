@@ -1,0 +1,48 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "finding-006 is a real divergence between code and the literal T1 wording for direct-dynamic runs, but T1's scope against T2 is ambiguous, so it needs a human scope decision rather than a KEEP.",
+  "id": "finding-006",
+  "verdict": "NEEDS_HUMAN",
+  "severity": "low",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 32,
+      "lineEnd": 32,
+      "quote": "**T1.** `completed` 실행에 degradation 기록이 있으면 의미 상태는",
+      "relevance": "T1 is worded unconditionally: any completed run with degradation should be completed_degraded."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 80,
+      "lineEnd": 80,
+      "quote": "if (terminal && run.provenance?.mode === \"direct-dynamic\") {",
+      "relevance": "For direct-dynamic terminal runs the controller-status branch runs and reassigns semanticStatus, with no check of run.degradation."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 87,
+      "lineEnd": 87,
+      "quote": "else if (control?.status === \"synthesized\") semanticStatus = \"synthesized\";",
+      "relevance": "A completed+degraded direct-dynamic run whose controller status is synthesized ends as synthesized, not completed_degraded, which contradicts literal T1."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 68,
+      "lineEnd": 68,
+      "quote": "return run.degradation ? \"completed_degraded\" : \"completed\";",
+      "relevance": "The non-dynamic path does honor T1, so the gap is specific to the direct-dynamic branch."
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 33,
+      "lineEnd": 34,
+      "quote": "direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는",
+      "relevance": "T2 defines a direct-dynamic-specific semantic rule, which suggests the dynamic branch may have its own taxonomy and T1 may be meant for non-dynamic runs only."
+    }
+  ],
+  "finalClaim": "For direct-dynamic runs, the controller-status branch can overwrite a completed run's degradation-derived state, so literal T1 may not hold. Whether T1 applies to direct-dynamic runs is an unresolved spec scope question.",
+  "recommendedAction": "Ask the spec owner whether T1 applies to direct-dynamic runs. If yes, gate the dynamic branch so completed+degraded runs keep completed_degraded, and add a test. If no, amend T1 to scope it to non-dynamic runs and document the precedence against T2."
+}

@@ -1,0 +1,38 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "비동기 check의 중첩 호출로 인한 디스크 I/O 누적 가능성은 인정되나, 중지 신호의 멱등성과 단조성으로 인해 데이터 오염이나 순서 역전 경쟁 조건은 발생하지 않으므로 심각도를 완화합니다.",
+  "findingId": "finding-002",
+  "finding": "Asynchronous check function in createWorkflowStopSignal lacks overlapping execution protection",
+  "verdict": "WEAKEN",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 68,
+      "lineEnd": 68,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "\tconst check = async (): Promise<void> => {"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 69,
+      "lineEnd": 69,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "\t\tif (controller.signal.aborted) return;"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 81,
+      "lineEnd": 81,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "\tconst timer = setInterval(() => void check(), pollMs);"
+    }
+  ],
+  "counterEvidence": [
+    "`readWorkflowStopIntent`는 파일 시스템에서 의도 정보를 조회하는 비변이(read-only) 작업이며, 중지 감지 시 호출되는 `controller.abort()`는 멱등적(idempotent)으로 동작하므로 호출 순서가 역전되더라도 상태 불일치나 기능 오류를 유발하지 않습니다.",
+    "`check` 함수 시작 부분에서 `if (controller.signal.aborted) return;`으로 이미 중단된 신호에 대한 불필요한 후속 검사를 즉시 차단하므로 선행 검사가 중단 처리를 완료한 후에는 추가 I/O가 억제됩니다.",
+    "따라서 I/O 병목 시 동시 디스크 읽기가 누적되는 자원 낭비(anti-pattern)는 존재하지만, 치명적인 경쟁 조건(race condition)이나 신호 누락은 발생하지 않으므로 High 심각도는 과장되어 있으며 Medium/Low 수준으로 완화(WEAKEN)되어야 합니다."
+  ],
+  "recommendedAction": "디스크 I/O 지연 시 불필요한 비동기 작업 누적을 방지하기 위해 check 내부에 inFlight 불리언 가드를 적용하거나, setInterval 대신 선행 check가 완전히 완료된 후 다음 실행을 예약하는 setTimeout 재귀 패턴으로 리팩터링하십시오.",
+  "readerTitle": "createWorkflowStopSignal의 비동기 check 함수에 중복 실행 방지가 누락됨",
+  "readerRationale": "디스크 I/O 지연이나 시스템 부하로 인해 readWorkflowStopIntent가 pollMs보다 오래 걸릴 경우 여러 비동기 check 실행이 중첩되어 동시 디스크 읽기, I/O 스래싱 및 잠재적인 순서 역전 경쟁 조건을 유발할 수 있습니다."
+}

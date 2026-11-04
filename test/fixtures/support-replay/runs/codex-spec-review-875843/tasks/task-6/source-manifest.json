@@ -1,0 +1,199 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1l3dfm_875843",
+  "taskId": "task-6",
+  "sources": [
+    {
+      "source": "candidate-findings",
+      "displayName": "candidate-findings.main",
+      "taskId": "task-4",
+      "specId": "candidate-findings.main",
+      "stageId": "candidate-findings",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "구현은 S3·S6·C1·T3와 Q1에서 명세 위반 또는 테스트 부재가 확인된다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-4/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-4/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-4/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-4/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings",
+      "displayName": "verify-findings.candidate-req-003",
+      "taskId": "task-9",
+      "specId": "verify-findings.candidate-req-003",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "candidate-REQ-003",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "S3 위반은 구현 코드와 명세의 직접 비교로 확인된다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-9/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-9/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-9/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-9/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.candidate-req-006",
+      "displayName": "verify-findings.candidate-req-006",
+      "taskId": "task-10",
+      "specId": "verify-findings.candidate-req-006",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "candidate-REQ-006",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "S6는 메시지 prefix가 다른 오류를 중지 오류로 인정하지 말 것을 요구하지만 구현이 이를 허용하므로 finding을 유지한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-10/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-10/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-10/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-10/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.candidate-req-008",
+      "displayName": "verify-findings.candidate-req-008",
+      "taskId": "task-11",
+      "specId": "verify-findings.candidate-req-008",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "candidate-REQ-008",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "C1의 허용 문자열 목록을 구현이 확장하므로 해당 위반을 유지한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-11/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-11/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-11/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-11/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.candidate-req-012",
+      "displayName": "verify-findings.candidate-req-012",
+      "taskId": "task-12",
+      "specId": "verify-findings.candidate-req-012",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "candidate-REQ-012",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "T3의 합산 로직은 있으나 공개 필드명이 계약과 다르므로 finding을 유지한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-12/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-12/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-12/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-12/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.candidate-req-013",
+      "displayName": "verify-findings.candidate-req-013",
+      "taskId": "task-13",
+      "specId": "verify-findings.candidate-req-013",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "candidate-REQ-013",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "로컬 프로젝트에는 Q1을 충족하는 테스트 파일이나 테스트 스크립트가 없다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-13/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-13/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-13/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1l3dfm_875843/tasks/task-13/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

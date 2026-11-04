@@ -1,0 +1,91 @@
+{
+  "schema": "deep-review-report-packet-v1",
+  "digest": "0cc44e2f96d2448fbff247a0015e8ebd6d370e1466850c3c4ac13b0f7e99d9c7",
+  "maxChars": 15000,
+  "actualChars": 2862,
+  "partitionSummary": {
+    "keep": 3,
+    "weaken": 7,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "mergedFindings": 0,
+    "verdictsReceived": 10,
+    "batchIntegrityIssues": 0,
+    "verdictIntegrityIssues": 0,
+    "reviewerCoverageIssues": 0,
+    "reviewerFindings": 10,
+    "missingVerdicts": 0,
+    "partialFailures": 0
+  },
+  "sourceStatusSummary": {
+    "total": 11,
+    "completed": 11,
+    "nonCompleted": 0,
+    "partialFailureCount": 0,
+    "partialFailures": []
+  },
+  "reportContext": {
+    "keep": [
+      {
+        "findingId": "finding-001",
+        "title": "T3 위반: 공개 요약 필드 launchRetryAttempts가 launchRetries로 rename됨",
+        "severity": "high",
+        "recommendedAction": "33행과 107행의 launchRetries를 launchRetryAttempts로 되돌린다. 짧은 이름이 필요하면 SPEC T3을 먼저 고치고, 기존 이름을 deprecated 별칭으로 한 릴리스 동안 함께 출력한 뒤 테스트로 두 필드가 같은 값을 갖는지 확인한다."
+      },
+      {
+        "findingId": "finding-003",
+        "title": "C1 위반: 취소 허용 목록에 'cancelled'와 'timeout'이 추가됨",
+        "severity": "high",
+        "recommendedAction": "candidate 비교를 'aborted', 'AbortError', 'ABORT_ERR'로 되돌리고, 'cancelled'와 'timeout'은 SPEC C1을 먼저 수정해 근거를 남긴 뒤에만 추가한다. 16행·18행의 boolean 플래그는 계약에 포함할지 SPEC에 명시하거나 제거한다."
+      },
+      {
+        "findingId": "finding-004",
+        "title": "S3 위반: 중지 감시 기본 주기와 하한이 SPEC과 다름",
+        "severity": "high",
+        "recommendedAction": "의도를 확정한다. 느린 폴링이 의도라면 SPEC S3을 200ms 기본값과 새 하한으로 명시 갱신하고, 의도가 아니라면 기본값을 50으로, 하한을 Math.max(10, ...)로 되돌린다. 선택한 값은 한 곳에서만 강제하고 테스트로 고정한다."
+      }
+    ],
+    "weaken": [
+      {
+        "findingId": "finding-002",
+        "title": "S6 위반: 중지 오류 판별이 메시지 접두사에 의존함",
+        "severity": "high",
+        "recommendedAction": "57행의 message 접두사 검사를 제거하고 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME만 확인하도록 바꾸고, 일반 Error에 같은 메시지를 넣어도 중지로 판별되지 않는 단위 테스트를 추가한다. 심각도는 현재 호출자가 없으므로 high에서 medium 이하로 조정하는 것이 적절하다."
+      },
+      {
+        "findingId": "finding-005",
+        "title": "Foreground abort can be lost if its launch binding is released during the disk read",
+        "severity": "medium",
+        "recommendedAction": "await 전에 signal을 지역 변수로 캡처하고 await 뒤에는 레지스트리 대신 캡처한 signal의 aborted 상태를 다시 확인한다. 또는 해제 클로저가 진행 중인 throw 검사를 기다리게 한다. 모킹된 읽기 중에 abort가 발생하고 읽기가 끝나기 전에 바인딩이 해제되는 테스트를 추가한다. 호출자 쪽 해제 순서를 먼저 확인하고, 실제 영향이 없으면 심각도를 낮춘다."
+      },
+      {
+        "findingId": "finding-006",
+        "title": "Poll-based stop watcher fails open on intent read errors",
+        "severity": "low",
+        "recommendedAction": "폴링 catch에서 읽기 실패를 카운트하거나 로그로 남기고, 연속 실패가 임계치를 넘으면 중지 상태를 가정하거나 오류를 표면화하라. 또는 차이를 의도된 설계로 주석에 명시하라. 저장소 밖 호출처와 store.js의 실패 의미를 먼저 확인할 것."
+      },
+      {
+        "findingId": "finding-007",
+        "title": "Dispose does not stop an in-flight check, and checks can overlap",
+        "severity": "low",
+        "recommendedAction": "dispose 플래그를 두어 dispose 이후에는 abort를 호출하지 않도록 하고, 이전 점검이 대기 중이면 주기 틱을 건너뛰는 가드를 추가할 것. 우선순위는 낮으며, 먼저 src/ 밖을 포함한 호출부가 dispose 이후 신호를 사용하는지 확인할 것."
+      }
+    ],
+    "drop": [],
+    "needsHuman": [],
+    "supportNoteSummaries": []
+  },
+  "normalizationNotes": [],
+  "overflowCounts": {
+    "keep": 0,
+    "weaken": 3,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "partialFailures": 0,
+    "normalizationNotes": 0,
+    "truncatedStrings": 0,
+    "omittedStringChars": 0
+  }
+}

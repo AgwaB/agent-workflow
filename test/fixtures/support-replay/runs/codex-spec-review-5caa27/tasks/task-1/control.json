@@ -1,0 +1,287 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC.md의 S1–S7, C1–C2, T1–T3, Q1 요구사항을 추출했다.",
+  "specSources": [
+    "SPEC.md"
+  ],
+  "requirements": [
+    {
+      "id": "REQ-S1",
+      "requirement": "디스크 중지 의도 또는 동일 실행의 abort된 foreground AbortSignal을 감지해야 한다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 8,
+          "lineEnd": 8,
+          "quote": "실행 중지는 두 경로 중 하나라도 있으면 감지되어야 한다"
+        },
+        {
+          "file": "SPEC.md",
+          "lineStart": 9,
+          "lineEnd": 10,
+          "quote": "(`readWorkflowStopIntent`), (b) 같은 실행(`workflowRunPath(cwd, runId)`)에 등록된 foreground"
+        }
+      ],
+      "priority": "high",
+      "implementationSignals": [
+        "readWorkflowStopIntent",
+        "workflowRunPath(cwd, runId)",
+        "foreground AbortSignal"
+      ],
+      "testSignals": [
+        "disk stop intent",
+        "aborted foreground signal"
+      ]
+    },
+    {
+      "id": "REQ-S2",
+      "requirement": "중지 감지 시 지정된 이름과 runId 포함 메시지로 신호를 abort해야 한다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 11,
+          "lineEnd": 12,
+          "quote": "중지가 감지되면 신호는 이름이 `WorkflowStopRequested`인 오류로 abort되어야 하며, 메시지는"
+        }
+      ],
+      "priority": "high",
+      "implementationSignals": [
+        "WorkflowStopRequested",
+        "workflow stop requested for <runId>"
+      ],
+      "testSignals": [
+        "error name assertion",
+        "runId message assertion"
+      ]
+    },
+    {
+      "id": "REQ-S3",
+      "requirement": "중지 감시 기본 주기는 50ms이며 최소 주기는 10ms여야 한다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 13,
+          "lineEnd": 14,
+          "quote": "중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다"
+        }
+      ],
+      "priority": "high",
+      "implementationSignals": [
+        "pollMs default 50ms",
+        "pollMs lower bound 10ms"
+      ],
+      "testSignals": [
+        "default polling interval",
+        "sub-10ms polling clamp"
+      ]
+    },
+    {
+      "id": "REQ-S4",
+      "requirement": "감시 경로는 디스크 읽기 실패를 무시하고 직접 검사 경로는 오류를 전달해야 한다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 15,
+          "lineEnd": 16,
+          "quote": "감시 경로(`createWorkflowStopSignal`)에서 디스크 읽기 실패는 중지로 간주하지 않는다."
+        }
+      ],
+      "priority": "high",
+      "implementationSignals": [
+        "createWorkflowStopSignal read failure",
+        "throwIfWorkflowStopRequested read error"
+      ],
+      "testSignals": [
+        "watcher read failure",
+        "direct check propagates error"
+      ]
+    },
+    {
+      "id": "REQ-S5",
+      "requirement": "dispose() 호출 이후에는 새로운 디스크 읽기를 시작하지 않아야 한다.",
+      "specEvidence": {
+        "file": "SPEC.md",
+        "lineStart": 17,
+        "lineEnd": 17,
+        "quote": "`dispose()`를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다."
+      },
+      "priority": "high",
+      "implementationSignals": [
+        "dispose",
+        "stop polling reads"
+      ],
+      "testSignals": [
+        "dispose prevents subsequent read"
+      ]
+    },
+    {
+      "id": "REQ-S6",
+      "requirement": "중지 오류 판별은 오류 이름만 사용하고 메시지 내용은 사용하지 않아야 한다.",
+      "specEvidence": {
+        "file": "SPEC.md",
+        "lineStart": 18,
+        "lineEnd": 19,
+        "quote": "`isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로 인정한다."
+      },
+      "priority": "high",
+      "implementationSignals": [
+        "isWorkflowStopRequestedError",
+        "WorkflowStopRequested name check"
+      ],
+      "testSignals": [
+        "matching name",
+        "misleading message rejected"
+      ]
+    },
+    {
+      "id": "REQ-S7",
+      "requirement": "Foreground signal 등록은 해제 가능하고 마지막 해제 후 실행 등록 항목을 제거해야 한다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 20,
+          "lineEnd": 21,
+          "quote": "foreground signal 등록은 해제 함수로 되돌릴 수 있어야 하며, 마지막 signal이 해제되면 그 실행의 등록 항목이 남지 않아야 한다."
+        }
+      ],
+      "priority": "high",
+      "implementationSignals": [
+        "unbind registration function",
+        "remove empty execution entry"
+      ],
+      "testSignals": [
+        "signal unregister",
+        "last signal removes entry"
+      ]
+    },
+    {
+      "id": "REQ-C1",
+      "requirement": "Provider 오류·사유 문자열은 aborted, AbortError, ABORT_ERR만 취소로 인정해야 한다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 25,
+          "lineEnd": 26,
+          "quote": "오류·사유 문자열은 정확히 `aborted`, `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다."
+        }
+      ],
+      "priority": "high",
+      "implementationSignals": [
+        "exact cancellation strings",
+        "reject other provider errors"
+      ],
+      "testSignals": [
+        "three accepted markers",
+        "other provider error rejected"
+      ]
+    },
+    {
+      "id": "REQ-C2",
+      "requirement": "content 텍스트의 JSON도 같은 취소 규칙으로 검사하되 무한 재귀를 방지해야 한다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 27,
+          "lineEnd": 28,
+          "quote": "`content` 배열 안의 텍스트가 JSON이면 그 내용도 같은 규칙으로 판별하되, 같은 값을 다시 검사하는 무한 재귀가 없어야 한다."
+        }
+      ],
+      "priority": "high",
+      "implementationSignals": [
+        "content text JSON parsing",
+        "recursion guard"
+      ],
+      "testSignals": [
+        "JSON content cancellation",
+        "self-referential value terminates"
+      ]
+    },
+    {
+      "id": "REQ-T1",
+      "requirement": "degradation 기록이 있는 completed 실행의 의미 상태는 completed_degraded여야 한다.",
+      "specEvidence": {
+        "file": "SPEC.md",
+        "lineStart": 32,
+        "lineEnd": 32,
+        "quote": "`completed` 실행에 degradation 기록이 있으면 의미 상태는 `completed_degraded`이다."
+      },
+      "priority": "high",
+      "implementationSignals": [
+        "completed status",
+        "degradation record",
+        "completed_degraded"
+      ],
+      "testSignals": [
+        "completed with degradation"
+      ]
+    },
+    {
+      "id": "REQ-T2",
+      "requirement": "direct-dynamic 실행에서 controller control.json을 읽지 못하면 의미 상태를 지정해야 한다.",
+      "specEvidence": {
+        "file": "SPEC.md",
+        "lineStart": 33,
+        "lineEnd": 34,
+        "quote": "direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는"
+      },
+      "priority": "high",
+      "implementationSignals": [
+        "direct-dynamic provenance",
+        "controller control.json",
+        "completed_without_semantic_result"
+      ],
+      "testSignals": [
+        "missing control.json"
+      ]
+    },
+    {
+      "id": "REQ-T3",
+      "requirement": "요약의 두 공개 retry 필드는 모든 작업 retry 횟수의 합계를 제공해야 한다.",
+      "specEvidence": [
+        {
+          "file": "SPEC.md",
+          "lineStart": 35,
+          "lineEnd": 36,
+          "quote": "요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,"
+        }
+      ],
+      "priority": "high",
+      "implementationSignals": [
+        "outputRetryAttempts aggregate",
+        "launchRetryAttempts aggregate",
+        "public field names"
+      ],
+      "testSignals": [
+        "sum retries across tasks",
+        "external field contract"
+      ]
+    },
+    {
+      "id": "REQ-Q1",
+      "requirement": "S·C·T 각 요구사항의 동작을 확인하는 단위 테스트가 있어야 한다.",
+      "specEvidence": {
+        "file": "SPEC.md",
+        "lineStart": 40,
+        "lineEnd": 40,
+        "quote": "위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+      },
+      "priority": "high",
+      "implementationSignals": [
+        "unit tests for S1-S7",
+        "unit tests for C1-C2",
+        "unit tests for T1-T3"
+      ],
+      "testSignals": [
+        "coverage for every S/C/T item"
+      ]
+    }
+  ],
+  "ambiguities": [
+    "S5는 dispose 시점에 이미 진행 중인 디스크 읽기의 완료 처리까지 중단해야 하는지는 명시하지 않는다.",
+    "T1의 degradation 기록 구조와 T2의 controller 탐색 조건은 SPEC.md에서 정의하지 않는다."
+  ],
+  "outOfScope": [
+    "SPEC.md는 store.js와 types.js를 발췌에 포함하지 않는다고 명시한다.",
+    "구현의 실제 충족 여부와 현재 테스트 존재 여부의 최종 판정은 후속 검토 단계 범위다."
+  ]
+}

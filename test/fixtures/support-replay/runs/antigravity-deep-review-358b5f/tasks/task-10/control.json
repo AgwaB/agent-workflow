@@ -1,0 +1,69 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Identified high-severity violations of SPEC C1 and C2 in src/workflow-cancellation.ts regarding erroneous cancellation classification of timeout/cancelled strings and ineffective recursion protection on cyclical JSON.",
+  "lens": "cancellation-reliability",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "Provider error strings 'cancelled' and 'timeout' are incorrectly treated as cancellation (C1 violation)",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 20,
+          "lineEnd": 20,
+          "symbol": "isWorkflowReturnedCancellation"
+        }
+      ],
+      "evidence": "In src/workflow-cancellation.ts line 20, candidate error and reason values are checked against 'cancelled' and 'timeout', returning true if either matches.",
+      "evidenceQuotes": [
+        "\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+      ],
+      "rationale": "SPEC.md requirement C1 explicitly mandates: 'provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 aborted, AbortError, ABORT_ERR 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.' Promoting 'cancelled' or 'timeout' errors to cancellation violates C1, masks actual timeout conditions, and inappropriately treats normal timeouts or generic provider errors as workflow cancellations.",
+      "recommendedAction": "Remove 'candidate === \"cancelled\"' and 'candidate === \"timeout\"' from line 20 so that only 'aborted', 'AbortError', and 'ABORT_ERR' strings are classified as cancellation errors.",
+      "confidence": "high"
+    },
+    {
+      "severity": "high",
+      "title": "Reference inequality check (parsed !== value) fails to prevent infinite recursion on cyclical or repeating JSON structures (C2 violation)",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 27,
+          "lineEnd": 28,
+          "symbol": "isWorkflowReturnedCancellation"
+        }
+      ],
+      "evidence": "In src/workflow-cancellation.ts lines 27-28, parsed JSON from entry.text is checked via 'if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;'. Because JSON.parse always allocates a fresh object reference, parsed !== value is unconditionally true, offering zero recursion protection.",
+      "evidenceQuotes": [
+        "\t\t\t\tconst parsed: unknown = JSON.parse(entry.text);",
+        "\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;"
+      ],
+      "rationale": "SPEC.md requirement C2 states: 'content 배열 안의 텍스트가 JSON이면 그 내용도 같은 규칙으로 판별하되, 같은 값을 다시 검사하는 무한 재귀가 없어야 한다.' Because JSON.parse creates a distinct object in memory on every call, reference identity comparison against the parent value never matches. If a provider message contains self-referential or repeating serialized JSON strings within content entries, isWorkflowReturnedCancellation recurses indefinitely until a call stack overflow (RangeError) occurs.",
+      "recommendedAction": "Implement proper recursion tracking using a visited Set of raw JSON strings or a bounded recursion depth parameter passed across recursive calls to isWorkflowReturnedCancellation.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-cancellation.ts:13-33",
+    "SPEC.md:23-29"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-cancellation.ts:13-33",
+      "status": "read",
+      "evidence": "export function isWorkflowReturnedCancellation(value: unknown): boolean {",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:23-29",
+      "status": "read",
+      "evidence": "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": []
+}

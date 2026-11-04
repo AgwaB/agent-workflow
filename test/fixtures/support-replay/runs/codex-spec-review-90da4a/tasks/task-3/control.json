@@ -1,0 +1,29 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "테스트·fixture가 없어 S1–S7, C1–C2, T1–T3의 행동 근거와 Q1 충족 증거가 없다.",
+  "testMap": [],
+  "coverageGapsSuspected": [
+    "S1–S7 각각을 검증하는 단위 테스트가 없다.",
+    "C1–C2 각각을 검증하는 단위 테스트가 없다.",
+    "T1–T3 각각을 검증하는 단위 테스트가 없다.",
+    "Q1 요구사항을 충족하는 테스트 스위트 자체가 없다."
+  ],
+  "notes": [
+    "저장소에는 SPEC.md, src/**/*.ts, package.json만 있으며 test/tests/fixture 파일이 없다.",
+    "package.json에는 typecheck만 정의되어 있고 테스트 실행 스크립트가 없다.",
+    "구현 파일은 존재하지만 테스트 근거로는 사용할 수 없다."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "이 단계에서는 테스트를 실행하지 않고 테스트·fixture 파일만 점검했다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "store.js와 types.js가 발췌에 없어 통합 테스트 fixture 존재 여부를 외부 범위까지 확인할 수 없다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false
+}

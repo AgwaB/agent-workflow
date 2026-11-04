@@ -1,0 +1,34 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1lk5mv_524ae7",
+  "taskId": "task-8",
+  "sources": [
+    {
+      "source": "report",
+      "displayName": "report.main",
+      "taskId": "task-7",
+      "specId": "report.main",
+      "stageId": "report",
+      "status": "skipped",
+      "statusDetail": "skipped_after_dependency_failure",
+      "lastMessage": "skipped because dependency partition-findings.main did not complete",
+      "errorType": "skipped",
+      "artifacts": {}
+    },
+    {
+      "source": "partition-findings",
+      "displayName": "partition-findings.main",
+      "taskId": "task-6",
+      "specId": "partition-findings.main",
+      "stageId": "partition-findings",
+      "status": "failed",
+      "statusDetail": "support_failed",
+      "lastMessage": "support control failed workflow output validation: control JSON schema failed: additional property is not allowed; control JSON schema failed: additional property is not allowed",
+      "errorType": "schema_violation",
+      "artifacts": {}
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "HEAD 654f639 docs/release impact: high. Renamed public field launchRetryAttempts to launchRetries has no migration note, changelog, or SPEC update. SPEC defaults for pollMs and cancel tokens also drift. Package is private 0.0.0 with no publish or CI artifacts in repo; typecheck likely fails on missing store.js/types.js.",
+  "status": "high",
+  "impacts": [
+    {
+      "id": "docs-1",
+      "area": "public-contract-docs",
+      "severity": "high",
+      "summary": "The public summary field was renamed to launchRetries, but SPEC.md T3 still requires launchRetryAttempts. External consumers reading the old name would break silently. No CHANGELOG, README, or migration note exists in the repo.",
+      "evidence": [
+        "src/workflow-terminal.ts:33",
+        "src/workflow-terminal.ts:107",
+        "SPEC.md:35"
+      ],
+      "recommendation": "Before release, either keep launchRetryAttempts as an alias or update SPEC T3 and add a breaking-change migration note to a changelog."
+    },
+    {
+      "id": "docs-2",
+      "area": "spec-drift",
+      "severity": "medium",
+      "summary": "Code deviates from SPEC.md: pollMs default is 200ms (SPEC S3: 50ms) and minimum is 1ms (SPEC S3: 10ms). Cancellation accepts extra 'cancelled' and 'timeout' markers and cancelled flags (SPEC C1 allows only aborted, AbortError, ABORT_ERR). Stop detection also matches message prefixes (SPEC S6 forbids this). SPEC.md was not updated in HEAD.",
+      "evidence": [
+        "src/workflow-stop.ts:67",
+        "SPEC.md:13",
+        "SPEC.md:35"
+      ],
+      "recommendation": "Update SPEC.md to match the intended behavior, or revert the code. Record the intent so the spec and code agree before release."
+    },
+    {
+      "id": "release-1",
+      "area": "packaging-release",
+      "severity": "low",
+      "summary": "package.json is private, version 0.0.0, with no publish config, release tooling, or CI config in the repo. The only script is typecheck (tsc --noEmit). Nothing here publishes, so the release hazard is limited to the docs and contract drift above.",
+      "evidence": [
+        "package.json:2-7",
+        "tsconfig.json"
+      ],
+      "recommendation": "Bump the version and write release notes when the repo is published or the field rename ships."
+    },
+    {
+      "id": "validation-1",
+      "area": "validation-docs",
+      "severity": "medium",
+      "summary": "No test files exist, so changed behavior has no tests and SPEC Q1 is unmet. The typecheck script likely fails because tsconfig imports ./store.js and ./types.js, which are absent from the repo. The impact cannot be fully verified from this excerpt.",
+      "evidence": [
+        "package.json:7",
+        "tsconfig.json"
+      ],
+      "recommendation": "Add tests for S3 poll default and minimum, C1 tokens, T3 field names, and S6 matching. Confirm typecheck runs in the full repo before release."
+    },
+    {
+      "id": "ops-1",
+      "area": "operational-behavior",
+      "severity": "medium",
+      "summary": "Stop poll interval is now 200ms, so stop latency rises from the spec's 50ms. Treating 'timeout' as cancellation may reclassify provider timeouts as cancellations, which changes retry and terminal semantics. Neither change is documented as a behavior change.",
+      "evidence": [
+        "src/workflow-stop.ts:67",
+        "src/workflow-cancellation.ts"
+      ],
+      "recommendation": "Document both behavior changes in release notes and confirm that timeout-as-cancellation is intended."
+    }
+  ],
+  "assumptions": [
+    {
+      "note": "The diff of 654f639 was not directly inspected; the change is inferred from the commit message and comparison of current code with SPEC.md."
+    },
+    {
+      "note": "The working tree matches HEAD."
+    },
+    {
+      "note": "No external consumers of launchRetries were found in this repo; external consumers are unknown."
+    },
+    {
+      "note": "No CI or publish configuration was observed in the Glob output; this was not exhaustively verified."
+    },
+    {
+      "note": "store.js and types.js are absent from the repo, so typecheck and runtime behavior were not verified."
+    }
+  ]
+}

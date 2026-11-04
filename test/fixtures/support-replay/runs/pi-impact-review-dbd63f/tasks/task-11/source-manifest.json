@@ -1,0 +1,97 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1jd7gm_dbd63f",
+  "taskId": "task-11",
+  "sources": [
+    {
+      "source": "impact-analysis.validation-impact",
+      "displayName": "impact-analysis.validation-impact.main",
+      "taskId": "task-6",
+      "specId": "impact-analysis.validation-impact.main",
+      "stageId": "impact-analysis.validation-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "배포 보류. 요구사항 매핑은 있으나 테스트·fixture·실행 증거가 없고, 현재 구현에서 공개 계약 불일치 4건이 확인된다. diff 부재로 이번 커밋의 회귀인지는 미확인이다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-6/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-6/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-6/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-6/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.docs-release-impact",
+      "displayName": "impact-analysis.docs-release-impact.main",
+      "taskId": "task-7",
+      "specId": "impact-analysis.docs-release-impact.main",
+      "stageId": "impact-analysis.docs-release-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "공개 필드·행동 명세 불일치와 배포 검증 공백으로 배포 보류를 권고한다. 해당 문제가 654f639에서 발생했는지는 미확인이다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-7/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-7/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-7/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-7/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.security-performance-impact",
+      "displayName": "impact-analysis.security-performance-impact.main",
+      "taskId": "task-8",
+      "specId": "impact-analysis.security-performance-impact.main",
+      "stageId": "impact-analysis.security-performance-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "커밋 변경 귀속은 미확인이다. 현행 중지 폴링·취소 분류·재시도 지표의 계약 불일치가 있어 배포 승인을 보류한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-8/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-8/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-8/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd7gm_dbd63f/tasks/task-8/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

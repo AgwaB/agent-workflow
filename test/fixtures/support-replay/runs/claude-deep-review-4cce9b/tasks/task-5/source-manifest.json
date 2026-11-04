@@ -1,0 +1,359 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1jwsm7_4cce9b",
+  "taskId": "task-5",
+  "sources": [
+    {
+      "source": "dedup-findings",
+      "displayName": "dedup-findings.main",
+      "taskId": "task-3",
+      "specId": "dedup-findings.main",
+      "stageId": "dedup-findings",
+      "status": "completed",
+      "statusDetail": "support_completed",
+      "lastMessage": "support completed",
+      "digest": "dedup: raw=10, unique=10, duplicates=0, partialFailures=0",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-3/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-3/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-3/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-3/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate",
+      "displayName": "devil-advocate.finding-001",
+      "taskId": "task-13",
+      "specId": "devil-advocate.finding-001",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-001",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "launchRetryAttempts를 launchRetries로 바꾼 것은 SPEC T3의 공개 필드 이름 계약을 깨뜨리며, 저장소 안에서 반박 근거를 찾지 못했다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-13/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-13/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-13/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-13/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-002",
+      "displayName": "devil-advocate.finding-002",
+      "taskId": "task-14",
+      "specId": "devil-advocate.finding-002",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-002",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "S6 위반은 코드와 SPEC으로 확인되지만, src 내 호출자가 없어 현재 실행 영향은 잠재적이므로 high를 낮춰야 한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-14/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-14/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-14/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-14/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-003",
+      "displayName": "devil-advocate.finding-003",
+      "taskId": "task-15",
+      "specId": "devil-advocate.finding-003",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-003",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "finding-003은 유지: 20행이 SPEC C1의 정확히 세 값 목록에 'cancelled'와 'timeout'을 추가해 명세를 위반하며, 저장소 안에 이를 정당화하는 호출자·테스트·문서는 없다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-15/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-15/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-15/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-15/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-004",
+      "displayName": "devil-advocate.finding-004",
+      "taskId": "task-16",
+      "specId": "devil-advocate.finding-004",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-004",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "SPEC S3과 코드의 pollMs 기본값(200ms)·하한(1ms) 불일치는 저장소에서 확인되며, 결함은 스펙 드리프트이고 영향은 주로 중지 감지 지연이다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-16/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-16/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-16/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-16/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-005",
+      "displayName": "devil-advocate.finding-005",
+      "taskId": "task-17",
+      "specId": "devil-advocate.finding-005",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-005",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "finding-005의 경쟁 조건은 실제 코드 경로로 확인되지만, 바인딩 해제 순서가 src/ 밖에 있어 영향이 좁다. 심각도를 medium에서 low로 낮춰 WEAKEN한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-17/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-17/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-17/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-17/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-006",
+      "displayName": "devil-advocate.finding-006",
+      "taskId": "task-18",
+      "specId": "devil-advocate.finding-006",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-006",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "poll 경로와 one-shot 경로가 intent 읽기 오류를 다르게 처리하는 것은 코드에서 확인되지만, 호출처가 없고 store.js 구현을 볼 수 없어 영향은 과장된 것으로 보임.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-18/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-18/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-18/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-18/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-007",
+      "displayName": "devil-advocate.finding-007",
+      "taskId": "task-19",
+      "specId": "devil-advocate.finding-007",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-007",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "finding-007의 코드 사실(dispose()가 진행 중인 check()를 막지 않고, 주기 실행에 중첩 방지 가드가 없음)은 확인되지만, src/ 안에 호출부가 없고 abort()가 멱등이라 실제 영향이 낮아 WEAKEN으로 판정.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-19/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-19/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-19/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-19/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-008",
+      "displayName": "devil-advocate.finding-008",
+      "taskId": "task-20",
+      "specId": "devil-advocate.finding-008",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-008",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "결함의 메커니즘(Set 기반 중복 제거로 같은 신호의 첫 해제가 두 번째 등록을 지움)은 코드에서 확인되지만, src/에 호출자가 없고 영향은 동기식 fence 창에 한정되며 디스크 기반 중지 감지는 유지되므로 WEAKEN한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-20/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-20/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-20/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-20/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-009",
+      "displayName": "devil-advocate.finding-009",
+      "taskId": "task-21",
+      "specId": "devil-advocate.finding-009",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-009",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "마스킹 동작 자체는 코드에 실제로 존재하지만 SPEC T2가 명시적으로 요구하고 engineStatus 필드가 원래 실패 상태를 보존하므로, 결함보다는 우선순위·명세 설계 문제로 약화한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-21/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-21/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-21/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-21/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-010",
+      "displayName": "devil-advocate.finding-010",
+      "taskId": "task-22",
+      "specId": "devil-advocate.finding-010",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-010",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "C1 드리프트(L20의 cancelled·timeout 승격)와 SPEC Q1 테스트 부재는 저장소에서 확인되지만, 하위 중지·종료 상태 전이 영향은 src 내 호출자가 없어 검증되지 않아 WEAKEN.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-22/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-22/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-22/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-22/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

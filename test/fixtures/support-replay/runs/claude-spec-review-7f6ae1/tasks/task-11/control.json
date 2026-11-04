@@ -1,0 +1,48 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "C1 위반은 확인됨: error/reason 문자열 'cancelled'·'timeout'을 취소로 승격. boolean 플래그 부분은 C1 문언 범위 밖이라 축소, 테스트 없음.",
+  "id": "finding-003",
+  "verdict": "WEAKEN",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 20,
+      "lineEnd": 20,
+      "quote": "candidate === \"cancelled\" || candidate === \"timeout\"",
+      "relevance": "error/reason 문자열 'cancelled'와 'timeout'을 취소로 판정. SPEC C1의 정확한 세 값 목록에 없음"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 26,
+      "lineEnd": 26,
+      "quote": "세 가지만 취소로 인정한다",
+      "relevance": "C1: 세 값만 취소로 인정, 다른 provider 오류를 취소로 승격 금지"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 25,
+      "lineEnd": 25,
+      "quote": "오류·사유 문자열은 정확히",
+      "relevance": "C1 적용 대상은 오류·사유 문자열로 한정됨"
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 25,
+      "lineEnd": 25,
+      "quote": "오류·사유 문자열은 정확히",
+      "relevance": "C1의 '정확히 세 가지' 제한은 문자열 값에 대한 것이며 boolean 플래그(value.cancelled, details.cancelled)는 문언상 직접 다루지 않음"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 16,
+      "lineEnd": 16,
+      "quote": "if (value.cancelled === true) return true;",
+      "relevance": "boolean 플래그 검사는 문자열이 아니므로 C1 문언 위반으로 보기 어려움"
+    }
+  ],
+  "finalClaim": "src/workflow-cancellation.ts:20이 error/reason 문자열 'cancelled'와 'timeout'을 취소로 승격하여 SPEC C1의 정확한 세 값(aborted, AbortError, ABORT_ERR) 제한을 위반한다. 관련 테스트는 없다.",
+  "recommendedAction": "line 20의 'cancelled'·'timeout' 비교를 제거하고 세 값만 남긴다. 'timeout'을 의도된 확장으로 본다면 SPEC C1을 먼저 개정한다. 플래그(16·18행) 처리는 SPEC 해석을 확인한 뒤 결정한다. C1 단위 테스트를 추가한다."
+}

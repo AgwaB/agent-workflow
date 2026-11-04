@@ -1,0 +1,29 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "명세와 구현 모두 필드명 불일치를 확인하므로 원 발견을 유지합니다.",
+  "findingId": "finding-005",
+  "finding": "공개 필드 launchRetryAttempts가 launchRetries로 변경되어 계약이 깨짐",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 33,
+      "symbol": "WorkflowTerminalSummary",
+      "quote": "launchRetries: number;"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 107,
+      "lineEnd": 110,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "launchRetries: run.tasks.reduce("
+    },
+    {
+      "file": "SPEC.md",
+      "line": 35,
+      "quote": "`outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,"
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "공개 필드명을 launchRetryAttempts로 복원하고 재시도 횟수 합산 로직은 유지하십시오. 기존 launchRetries 소비자가 있다면 호환성을 위해 별도 마이그레이션을 검토하십시오."
+}

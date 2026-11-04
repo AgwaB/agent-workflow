@@ -1,0 +1,33 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "구현과 명세를 직접 대조한 결과, pollMs 기본값과 최솟값 모두 S3를 위반하므로 finding-S3를 유지한다.",
+  "id": "finding-S3",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 13,
+      "lineEnd": 13,
+      "quote": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다",
+      "relevance": "S3가 기본값 50ms 및 최소 10ms를 요구한다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 67,
+      "lineEnd": 67,
+      "quote": "\tconst pollMs = Math.max(1, options.pollMs ?? 200);",
+      "relevance": "실제 구현은 기본값 200ms, 최솟값 1ms를 사용한다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 81,
+      "lineEnd": 81,
+      "quote": "\tconst timer = setInterval(() => void check(), pollMs);",
+      "relevance": "계산된 pollMs가 실제 감시 주기에 사용된다."
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "createWorkflowStopSignal은 pollMs 기본값을 200ms로 사용하고 1ms까지 허용하므로, S3의 기본 50ms 및 10ms 미만 금지 조건을 모두 충족하지 않는다.",
+  "recommendedAction": "pollMs를 기본 50ms, 최솟값 10ms로 clamp하고 해당 경계값을 검증하는 단위 테스트를 추가한다."
+}

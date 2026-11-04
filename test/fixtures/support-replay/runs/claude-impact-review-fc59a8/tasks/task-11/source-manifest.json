@@ -1,0 +1,97 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1kjsev_fc59a8",
+  "taskId": "task-11",
+  "sources": [
+    {
+      "source": "impact-analysis.validation-impact",
+      "displayName": "impact-analysis.validation-impact.main",
+      "taskId": "task-6",
+      "specId": "impact-analysis.validation-impact.main",
+      "stageId": "impact-analysis.validation-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "Validation coverage for HEAD 654f639 is none: the repo has no test files, the only check is a typecheck script that is not expected to pass, and nothing exercises the changed stop, cancellation, or terminal-summary behavior. The change should not be treated as validated.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-6/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-6/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-6/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-6/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.docs-release-impact",
+      "displayName": "impact-analysis.docs-release-impact.main",
+      "taskId": "task-7",
+      "specId": "impact-analysis.docs-release-impact.main",
+      "stageId": "impact-analysis.docs-release-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "HEAD 654f639 docs/release impact: high. Renamed public field launchRetryAttempts to launchRetries has no migration note, changelog, or SPEC update. SPEC defaults for pollMs and cancel tokens also drift. Package is private 0.0.0 with no publish or CI artifacts in repo; typecheck likely fails on missing store.js/types.js.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-7/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-7/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-7/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-7/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.security-performance-impact",
+      "displayName": "impact-analysis.security-performance-impact.main",
+      "taskId": "task-8",
+      "specId": "impact-analysis.security-performance-impact.main",
+      "stageId": "impact-analysis.security-performance-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "HEAD 654f639 stop/cancel 변경은 공개 필드 rename(launchRetryAttempts→launchRetries)과 SPEC 대비 세 가지 계약 이탈(pollMs, 취소 토큰, 메시지 기반 중지 판별)을 포함하며 테스트가 없어 배포 비권장.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-8/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-8/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-8/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjsev_fc59a8/tasks/task-8/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

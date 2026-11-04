@@ -1,0 +1,21 @@
+{
+  "schema": "stage-control-v1",
+  "id": "claim-009",
+  "status": "verified",
+  "confidence": 0.99,
+  "digest": "Chrome의 AbortSignal.timeout() 완전 지원 시작 버전 124는 MDN BCD 원문으로 확인되며, 103–123은 부분 구현이었다.",
+  "verdictDigest": "MDN BCD는 Chrome의 AbortSignal.timeout()을 124부터 지원하고, 103–123은 AbortError를 사용하는 부분 구현으로 기록한다. Source: https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+  "evidence": [
+    {
+      "source": "MDN Browser Compatibility Data",
+      "url": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+      "dateOrYear": "2026 snapshot",
+      "quote": "\"chrome\": [\n{\n\"version_added\": \"124\"\n},\n{\n\"version_added\": \"103\",\n\"version_removed\": \"124\",\n\"partial_implementation\": true,\n\"notes\": \"Always aborts with an `AbortError` on timeout, not a `TimeoutError`.\"\n}\n]",
+      "relevance": "AbortSignal.timeout()의 Chrome 완전 지원 시작 버전 124와 Chrome 103–123의 부분 구현 및 예외 타입 차이를 직접 명시한다."
+    }
+  ],
+  "caveats": [
+    "Chrome 103부터 기능 일부가 제공됐지만, 103–123에서는 타임아웃 시 TimeoutError가 아닌 AbortError를 사용했다."
+  ],
+  "correctionOrCounterclaim": "Chrome 103–123은 부분 구현이며, TimeoutError를 사용하는 지원 항목은 Chrome 124부터다."
+}

@@ -1,0 +1,21 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Safari support for AbortSignal.timeout() is directly verified as version 16 in the cited MDN BCD snapshot.",
+  "id": "claim-012",
+  "status": "verified",
+  "confidence": "high",
+  "verdictDigest": "The cited MDN Browser Compatibility Data entry for timeout_static lists Safari version_added as 16. Source: https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json. Caveat: this verifies timeout(), not any().",
+  "evidence": [
+    {
+      "source": "MDN Browser Compatibility Data",
+      "url": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+      "dateOrYear": "2026 snapshot",
+      "quote": "\"safari\": {\n  \"version_added\": \"16\"\n},",
+      "relevance": "Within timeout_static support data, this directly records Safari support beginning in version 16; safari_ios is marked mirror."
+    }
+  ],
+  "caveats": [
+    "The evidence applies specifically to AbortSignal.timeout(), not AbortSignal.any()."
+  ],
+  "correctionOrCounterclaim": ""
+}

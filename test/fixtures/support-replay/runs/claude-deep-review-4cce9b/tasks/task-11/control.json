@@ -1,0 +1,65 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "control.json 읽기 실패 시 dynamic 분기가 engine status failed/interrupted/cancelled 등을 덮어쓰고 completed_without_semantic_result로 바꾼다(T2 문구상 허용되지만 의미 손실 위험).",
+  "lens": "terminal-status-masking",
+  "findings": [
+    {
+      "severity": "medium",
+      "title": "control.json 부재·읽기 실패가 비정상 종료 상태를 completed_without_semantic_result로 덮어씀",
+      "file": "src/workflow-terminal.ts",
+      "locations": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 80,
+          "lineEnd": 96,
+          "symbol": "summarizeWorkflowTerminal"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 95,
+          "symbol": "summarizeWorkflowTerminal"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 59,
+          "lineEnd": 61,
+          "symbol": "readDynamicControllerControl"
+        }
+      ],
+      "evidence": "direct-dynamic 분기(80행)는 run.status가 failed, interrupted, cancelled 등 비정상 종료여도 진입한다. 이 분기는 nonDynamicSemanticStatus 결과를 무조건 재할당하며, dynamic_incomplete 태스크가 없고 control.status가 synthesized/exhausted/blocked/stopped 중 하나가 아니면 마지막 else(95행)에서 completed_without_semantic_result를 설정한다. readDynamicControllerControl은 controller 태스크가 없거나 readJson이 어떤 오류든 던지면 undefined를 돌려주므로(59-61행), 파일 부재·권한 오류·JSON 파싱 오류가 모두 같은 결과로 합쳐진다. 결과적으로 engine 상태 failed 또는 interrupted인 실행이 control.json이 없으면 의미 상태에서 실패/중단 정보가 사라진다.",
+      "evidenceQuotes": [
+        "else semanticStatus = \"completed_without_semantic_result\";",
+        ").catch(() => undefined);"
+      ],
+      "rationale": "SPEC T2는 'direct-dynamic 실행에서 control.json을 읽을 수 없으면 completed_without_semantic_result'라고 적고 실행 상태에 대한 제한을 두지 않아, 코드가 문구를 그대로 따른다. 그러나 그 결과 failed/cancelled 실행이 'completed' 계열 상태로 보이게 되어 소비자가 실패·중지를 놓칠 수 있다. 또 catch가 모든 오류를 삼켜 손상된 파일과 부재를 구분하지 못한다. 근본 원인은 dynamic 분기가 engine 종료 상태보다 우선한다는 점이다. 테스트 누락과 SPEC 설명 부재는 이 결함의 지원 증상으로만 언급한다.",
+      "recommendedAction": "engine status가 completed가 아닌 경우 dynamic 분기가 run.status 기반 의미 상태(failed/interrupted/cancelled)를 유지하도록 우선순위를 정하고, T2는 completed 실행에만 적용되도록 SPEC과 코드를 맞춘다. 또는 T2를 그대로 유지한다면 SPEC에 비정상 종료 시 덮어쓰기를 명시한다. readJson의 catch는 ENOENT(부재)와 파싱·권한 오류를 구분해 로그나 별도 상태로 남긴다.",
+      "confidence": "medium"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-terminal.ts:48-62",
+    "src/workflow-terminal.ts:80-96",
+    "SPEC.md:33-34",
+    "src/workflow-cancellation.ts:20"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-terminal.ts:48-62",
+      "status": "read",
+      "evidence": ").catch(() => undefined);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-terminal.ts:80-96",
+      "status": "read",
+      "evidence": "else semanticStatus = \"completed_without_semantic_result\";",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "T1(completed + degradation → completed_degraded)은 nonDynamicSemanticStatus에서 확인되며 이 렌즈의 결함은 아니다.",
+    "store.ts의 readJson과 isTerminalWorkflowStatus 정의는 src 아래 검색에서 찾지 못해 확인하지 못했다. readJson이 부재 시 던지는지 여부에 따라 결론의 세부가 달라질 수 있다."
+  ]
+}

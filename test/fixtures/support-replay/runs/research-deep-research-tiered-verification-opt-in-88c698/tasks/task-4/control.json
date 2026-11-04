@@ -1,0 +1,916 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Normalized 18 source-backed candidates with all required slots preserved; method-level stability and Node timer semantics remain explicit gaps.",
+  "claimInventory": {
+    "verificationCandidates": [
+      {
+        "id": "claim-001",
+        "claim": "Node.js docs list AbortSignal.any() as added in v20.3.0 and v18.17.0.",
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+        ],
+        "sourceRefs": [
+          "research-questions.fact-001",
+          "research-questions.source-001"
+        ],
+        "sourceQuality": "primary_official",
+        "reasonToVerify": "Required slot-001; confirms exact Node.js introduction lines.",
+        "scopeItems": [
+          "Node.js에서 AbortSignal.any()의 안정적 지원 버전"
+        ],
+        "factSlotIds": [
+          "slot-001"
+        ],
+        "verificationNeed": "core"
+      },
+      {
+        "id": "claim-002",
+        "claim": "Node.js Global objects documentation displays “Stability: 2 - Stable”.",
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+        ],
+        "sourceRefs": [
+          "research-questions.fact-002",
+          "research-questions.source-001"
+        ],
+        "sourceQuality": "primary_official",
+        "reasonToVerify": "Critical slot-002; separates section-level Stable from method-level status.",
+        "scopeItems": [
+          "Node.js에서 AbortSignal.any()의 안정적 지원 버전"
+        ],
+        "factSlotIds": [
+          "slot-002"
+        ],
+        "verificationNeed": "core"
+      },
+      {
+        "id": "claim-003",
+        "claim": "Node.js docs list AbortSignal.timeout() as added in v17.3.0 and v16.14.0.",
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+          "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md"
+        ],
+        "sourceRefs": [
+          "research-questions.question-002.fact-001",
+          "research-questions.question-002.source-002"
+        ],
+        "sourceQuality": "primary_official",
+        "reasonToVerify": "Required slot-003; confirms both introduction and backport versions.",
+        "scopeItems": [
+          "Node.js에서 AbortSignal.timeout()의 안정적 지원 버전"
+        ],
+        "factSlotIds": [
+          "slot-003"
+        ],
+        "verificationNeed": "core"
+      },
+      {
+        "id": "claim-004",
+        "claim": "Node.js Global objects documentation displays “Stability: 2 - Stable”.",
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+        ],
+        "sourceRefs": [
+          "research-questions.question-002.fact-003",
+          "research-questions.question-002.source-001"
+        ],
+        "sourceQuality": "primary_official",
+        "reasonToVerify": "Critical slot-004; checks the available stability context.",
+        "scopeItems": [
+          "Node.js에서 AbortSignal.timeout()의 안정적 지원 버전"
+        ],
+        "factSlotIds": [
+          "slot-004"
+        ],
+        "verificationNeed": "core"
+      },
+      {
+        "id": "claim-005",
+        "claim": "MDN BCD lists Chrome version_added as 116 for AbortSignal.any().",
+        "sourceUrls": [
+          "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json"
+        ],
+        "sourceRefs": [
+          "research-questions.question-003.fact-001",
+          "research-questions.question-003.source-001"
+        ],
+        "sourceQuality": "primary_compatibility",
+        "reasonToVerify": "Required slot-005; verifies the exact Chrome milestone.",
+        "scopeItems": [
+          "주요 브라우저의 AbortSignal.any() 지원 현황"
+        ],
+        "factSlotIds": [
+          "slot-005"
+        ],
+        "verificationNeed": "core"
+      },
+      {
+        "id": "claim-006",
+        "claim": "The compatibility table lists Edge 116–154 as supported for AbortSignal.any().",
+        "sourceUrls": [
+          "https://caniuse.com/wf-abortsignal-any"
+        ],
+        "sourceRefs": [
+          "research-questions.question-003.source-005"
+        ],
+        "sourceQuality": "secondary_compatibility",
+        "reasonToVerify": "Required slot-006; isolates Edge support from Chromium claims.",
+        "scopeItems": [
+          "주요 브라우저의 AbortSignal.any() 지원 현황"
+        ],
+        "factSlotIds": [
+          "slot-006"
+        ],
+        "verificationNeed": "core"
+      },
+      {
+        "id": "claim-007",
+        "claim": "Firefox 124 release notes state that AbortSignal.any() is now supported.",
+        "sourceUrls": [
+          "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124"
+        ],
+        "sourceRefs": [
+          "research-questions.question-003.fact-003",
+          "research-questions.question-003.source-004"
+        ],
+        "sourceQuality": "primary_release_notes",
+        "reasonToVerify": "Required slot-007; confirms the Firefox release milestone.",
+        "scopeItems": [
+          "주요 브라우저의 AbortSignal.any() 지원 현황"
+        ],
+        "factSlotIds": [
+          "slot-007"
+        ],
+        "verificationNeed": "core"
+      },
+      {
+        "id": "claim-008",
+        "claim": "WebKit states Safari 17.4 adds support for AbortSignal.any().",
+        "sourceUrls": [
+          "https://webkit.org/blog/15063/webkit-features-in-safari-17-4/"
+        ],
+        "sourceRefs": [
+          "research-questions.question-003.fact-004",
+          "research-questions.question-003.source-003"
+        ],
+        "sourceQuality": "primary_browser_official",
+        "reasonToVerify": "Required slot-008; confirms the Safari milestone directly.",
+        "scopeItems": [
+          "주요 브라우저의 AbortSignal.any() 지원 현황"
+        ],
+        "factSlotIds": [
+          "slot-008"
+        ],
+        "verificationNeed": "core"
+      },
+      {
+        "id": "claim-009",
+        "claim": "MDN BCD lists Chrome version_added as 124 for AbortSignal.timeout().",
+        "sourceUrls": [
+          "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+        ],
+        "sourceRefs": [
+          "research-questions.question-004.fact-001",
+          "research-questions.question-004.source-001"
+        ],
+        "sourceQuality": "primary_compatibility",
+        "reasonToVerify": "Required slot-009; distinguishes full support from earlier partial support.",
+        "scopeItems": [
+          "주요 브라우저의 AbortSignal.timeout() 지원 현황"
+        ],
+        "factSlotIds": [
+          "slot-009"
+        ],
+        "verificationNeed": "core"
+      },
+      {
+        "id": "claim-010",
+        "claim": "MDN BCD marks Edge’s timeout() entry as a mirror of Chrome compatibility data.",
+        "sourceUrls": [
+          "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+        ],
+        "sourceRefs": [
+          "research-questions.question-004.fact-002",
+          "research-questions.question-004.source-001"
+        ],
+        "sourceQuality": "primary_compatibility_mirror",
+        "reasonToVerify": "Required slot-010; checks the mirror-based Edge version inference.",
+        "scopeItems": [
+          "주요 브라우저의 AbortSignal.timeout() 지원 현황"
+        ],
+        "factSlotIds": [
+          "slot-010"
+        ],
+        "verificationNeed": "core"
+      },
+      {
+        "id": "claim-011",
+        "claim": "MDN BCD lists Firefox version_added as 100 for AbortSignal.timeout().",
+        "sourceUrls": [
+          "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+          "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100"
+        ],
+        "sourceRefs": [
+          "research-questions.question-004.fact-003",
+          "research-questions.question-004.source-003"
+        ],
+        "sourceQuality": "primary_compatibility_release",
+        "reasonToVerify": "Required slot-011; confirms Firefox support and exception behavior context.",
+        "scopeItems": [
+          "주요 브라우저의 AbortSignal.timeout() 지원 현황"
+        ],
+        "factSlotIds": [
+          "slot-011"
+        ],
+        "verificationNeed": "core"
+      },
+      {
+        "id": "claim-012",
+        "claim": "MDN BCD lists Safari version_added as 16 for AbortSignal.timeout().",
+        "sourceUrls": [
+          "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+        ],
+        "sourceRefs": [
+          "research-questions.question-004.fact-004",
+          "research-questions.question-004.source-001"
+        ],
+        "sourceQuality": "primary_compatibility",
+        "reasonToVerify": "Required slot-012; verifies the exact Safari milestone.",
+        "scopeItems": [
+          "주요 브라우저의 AbortSignal.timeout() 지원 현황"
+        ],
+        "factSlotIds": [
+          "slot-012"
+        ],
+        "verificationNeed": "core"
+      },
+      {
+        "id": "claim-013",
+        "claim": "WHATWG sets the result signal’s reason to an already-aborted input’s reason and returns it.",
+        "sourceUrls": [
+          "https://dom.spec.whatwg.org/"
+        ],
+        "sourceRefs": [
+          "research-questions.question-005.fact-001",
+          "research-questions.question-005.source-001"
+        ],
+        "sourceQuality": "primary_standard",
+        "reasonToVerify": "Required slot-013; verifies already-aborted input handling.",
+        "scopeItems": [
+          "AbortSignal.any()의 알려진 동작 주의점"
+        ],
+        "factSlotIds": [
+          "slot-013"
+        ],
+        "verificationNeed": "core"
+      },
+      {
+        "id": "claim-014",
+        "claim": "MDN says aborting any()’s returned signal does not abort inputs or cancel their timeouts.",
+        "sourceUrls": [
+          "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static"
+        ],
+        "sourceRefs": [
+          "research-questions.question-005.fact-004",
+          "research-questions.question-005.source-003"
+        ],
+        "sourceQuality": "primary_reference",
+        "reasonToVerify": "Required slot-013; verifies non-cascading cancellation.",
+        "scopeItems": [
+          "AbortSignal.any()의 알려진 동작 주의점"
+        ],
+        "factSlotIds": [
+          "slot-013"
+        ],
+        "verificationNeed": "core"
+      },
+      {
+        "id": "claim-015",
+        "claim": "WHATWG sets timeout()’s abort reason to a TimeoutError DOMException.",
+        "sourceUrls": [
+          "https://dom.spec.whatwg.org/"
+        ],
+        "sourceRefs": [
+          "research-questions.question-006.fact-002",
+          "research-questions.question-006.source-001"
+        ],
+        "sourceQuality": "primary_standard",
+        "reasonToVerify": "Required slot-014; verifies the standardized abort reason.",
+        "scopeItems": [
+          "AbortSignal.timeout()의 알려진 동작 주의점"
+        ],
+        "factSlotIds": [
+          "slot-014"
+        ],
+        "verificationNeed": "core"
+      },
+      {
+        "id": "claim-016",
+        "claim": "MDN defines browser timeout() in active time; suspended workers or bfcache can pause it.",
+        "sourceUrls": [
+          "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+        ],
+        "sourceRefs": [
+          "research-questions.question-006.fact-003",
+          "research-questions.question-006.source-002"
+        ],
+        "sourceQuality": "primary_reference",
+        "reasonToVerify": "Required slot-014; separates browser active time from delay wording.",
+        "scopeItems": [
+          "AbortSignal.timeout()의 알려진 동작 주의점"
+        ],
+        "factSlotIds": [
+          "slot-014"
+        ],
+        "verificationNeed": "core"
+      },
+      {
+        "id": "claim-017",
+        "claim": "MDN advises removing application-added abort listeners when the combined operation finishes.",
+        "sourceUrls": [
+          "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static"
+        ],
+        "sourceRefs": [
+          "research-questions.question-005.fact-005",
+          "research-questions.question-005.source-003"
+        ],
+        "sourceQuality": "primary_reference",
+        "reasonToVerify": "Useful slot-013 lifecycle caveat affecting cleanup.",
+        "scopeItems": [
+          "AbortSignal.any()의 알려진 동작 주의점"
+        ],
+        "factSlotIds": [
+          "slot-013"
+        ],
+        "verificationNeed": "useful"
+      },
+      {
+        "id": "claim-018",
+        "claim": "MDN says timeout() provides no way to cancel its timeout.",
+        "sourceUrls": [
+          "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+        ],
+        "sourceRefs": [
+          "research-questions.question-006.fact-004",
+          "research-questions.question-006.source-002"
+        ],
+        "sourceQuality": "primary_reference",
+        "reasonToVerify": "Useful slot-014 lifecycle caveat affecting resource behavior.",
+        "scopeItems": [
+          "AbortSignal.timeout()의 알려진 동작 주의점"
+        ],
+        "factSlotIds": [
+          "slot-014"
+        ],
+        "verificationNeed": "useful"
+      }
+    ],
+    "preservedClaims": [
+      {
+        "id": "preserved-001",
+        "claim": "Node.js v20.3.0 release notes were found, but an exact AbortSignal.any() quote was not captured.",
+        "factSlotIds": [
+          "slot-001"
+        ],
+        "sourceUrls": [
+          "https://nodejs.org/en/blog/release/v20.3.0"
+        ],
+        "sourceRefs": [
+          "research-questions.source-002"
+        ],
+        "whyItMatters": "Independent confirmation of the Node.js introduction version.",
+        "reason": "quote_gap"
+      },
+      {
+        "id": "preserved-002",
+        "claim": "The latest Node.js docs do not show a method-specific Stability transition row for AbortSignal.any().",
+        "factSlotIds": [
+          "slot-002"
+        ],
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+        ],
+        "sourceRefs": [
+          "research-questions.evidenceGap-001"
+        ],
+        "whyItMatters": "Prevents section-level Stable wording from being treated as method-level history.",
+        "reason": "unverified_slot_fact"
+      },
+      {
+        "id": "preserved-003",
+        "claim": "No method-specific Stability 2 promotion record was found for AbortSignal.timeout().",
+        "factSlotIds": [
+          "slot-004"
+        ],
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+        ],
+        "sourceRefs": [
+          "research-questions.question-002.gap-001"
+        ],
+        "whyItMatters": "The stability conclusion remains bounded by the available documentation.",
+        "reason": "unverified_slot_fact"
+      },
+      {
+        "id": "preserved-004",
+        "claim": "MDN BCD marks Chrome 103–123 timeout() as partial and notes AbortError instead of TimeoutError.",
+        "factSlotIds": [
+          "slot-009"
+        ],
+        "sourceUrls": [
+          "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+        ],
+        "sourceRefs": [
+          "research-questions.question-004.fact-001"
+        ],
+        "whyItMatters": "Important compatibility carve-out before Chrome 124.",
+        "reason": "budget_overflow"
+      },
+      {
+        "id": "preserved-005",
+        "claim": "Node.js docs describe timeout() as aborting after delay milliseconds, not browser active-time or bfcache semantics.",
+        "factSlotIds": [
+          "slot-014"
+        ],
+        "sourceUrls": [
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+        ],
+        "sourceRefs": [
+          "research-questions.question-006.fact-007"
+        ],
+        "whyItMatters": "Keeps browser and Node.js timing semantics distinct.",
+        "reason": "unverified_slot_fact"
+      },
+      {
+        "id": "preserved-006",
+        "claim": "The exact ref/unref policy of Node.js AbortSignal.timeout()’s internal timer remains unverified.",
+        "factSlotIds": [
+          "slot-014"
+        ],
+        "sourceUrls": [
+          "https://nodejs.org/api/timers.html",
+          "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+        ],
+        "sourceRefs": [
+          "research-questions.question-006.gap-001"
+        ],
+        "whyItMatters": "Could affect event-loop exit behavior in Node.js.",
+        "reason": "retrieval_gap"
+      },
+      {
+        "id": "preserved-007",
+        "claim": "WHATWG requires abortable promise APIs to reject immediately when given an already-aborted signal.",
+        "factSlotIds": [],
+        "sourceUrls": [
+          "https://dom.spec.whatwg.org/"
+        ],
+        "sourceRefs": [
+          "research-questions.question-005.fact-006"
+        ],
+        "whyItMatters": "Useful consumer-side contract beyond any() construction.",
+        "reason": "out_of_scope"
+      },
+      {
+        "id": "preserved-008",
+        "claim": "An unreachable timeout signal is not guaranteed to cancel its timeout.",
+        "factSlotIds": [
+          "slot-014"
+        ],
+        "sourceUrls": [
+          "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+        ],
+        "sourceRefs": [
+          "research-questions.question-006.fact-006"
+        ],
+        "whyItMatters": "Clarifies why dropping references is not explicit cancellation.",
+        "reason": "budget_overflow"
+      }
+    ],
+    "duplicates": [
+      {
+        "id": "research-questions.claim-002",
+        "canonicalClaimId": "claim-001",
+        "reason": "same v20.3.0 introduction fact"
+      },
+      {
+        "id": "research-questions.claim-003",
+        "canonicalClaimId": "claim-001",
+        "reason": "same v18.17.0 backport fact"
+      },
+      {
+        "id": "research-questions.question-002.claim-002",
+        "canonicalClaimId": "claim-003",
+        "reason": "same timeout introduction fact"
+      },
+      {
+        "id": "research-questions.question-002.claim-004",
+        "canonicalClaimId": "claim-004",
+        "reason": "same Stable section context"
+      },
+      {
+        "id": "research-questions.question-003.claim-002",
+        "canonicalClaimId": "claim-005",
+        "reason": "same Chrome 116 milestone"
+      },
+      {
+        "id": "research-questions.question-003.claim-005",
+        "canonicalClaimId": "claim-007",
+        "reason": "same Firefox 124 support"
+      },
+      {
+        "id": "research-questions.question-003.claim-007",
+        "canonicalClaimId": "claim-008",
+        "reason": "same Safari 17.4 support"
+      },
+      {
+        "id": "research-questions.question-005.claim-003",
+        "canonicalClaimId": "claim-013",
+        "reason": "overlapping reason propagation"
+      },
+      {
+        "id": "research-questions.question-006.claim-001",
+        "canonicalClaimId": "claim-015",
+        "reason": "same TimeoutError reason"
+      }
+    ]
+  },
+  "factSlotCoverage": [
+    {
+      "slotId": "slot-001",
+      "label": "Node.js AbortSignal.any() 최초 지원 버전",
+      "status": "filled",
+      "bestValue": "Added in v20.3.0 and v18.17.0.",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+      ],
+      "sourceQuality": "primary_official",
+      "verificationCandidateIds": [
+        "claim-001"
+      ],
+      "gapReason": "",
+      "parentImpact": "Critical Node.js compatibility baseline."
+    },
+    {
+      "slotId": "slot-002",
+      "label": "Node.js AbortSignal.any() 안정성 상태",
+      "status": "partial",
+      "bestValue": "Global objects documentation is Stability 2 - Stable; method-specific stability history is not shown.",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+      ],
+      "sourceQuality": "primary_official",
+      "verificationCandidateIds": [
+        "claim-002"
+      ],
+      "gapReason": "No method-level stability transition record was retrieved.",
+      "parentImpact": "Limits how strongly method-level Stable can be stated."
+    },
+    {
+      "slotId": "slot-003",
+      "label": "Node.js AbortSignal.timeout() 최초 지원 버전",
+      "status": "filled",
+      "bestValue": "Added in v17.3.0 and backported to v16.14.0.",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+        "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md"
+      ],
+      "sourceQuality": "primary_official",
+      "verificationCandidateIds": [
+        "claim-003"
+      ],
+      "gapReason": "",
+      "parentImpact": "Critical Node.js compatibility baseline."
+    },
+    {
+      "slotId": "slot-004",
+      "label": "Node.js AbortSignal.timeout() 안정성 상태",
+      "status": "partial",
+      "bestValue": "Global objects documentation is Stability 2 - Stable; method-specific promotion history is not shown.",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+      ],
+      "sourceQuality": "primary_official",
+      "verificationCandidateIds": [
+        "claim-004"
+      ],
+      "gapReason": "No method-level Stability 2 promotion record was retrieved.",
+      "parentImpact": "Stability conclusion must remain documentation-scoped."
+    },
+    {
+      "slotId": "slot-005",
+      "label": "AbortSignal.any() Chrome 지원 버전",
+      "status": "filled",
+      "bestValue": "Chrome 116.",
+      "sourceUrls": [
+        "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json"
+      ],
+      "sourceQuality": "primary_compatibility",
+      "verificationCandidateIds": [
+        "claim-005"
+      ],
+      "gapReason": "",
+      "parentImpact": "Browser compatibility matrix entry."
+    },
+    {
+      "slotId": "slot-006",
+      "label": "AbortSignal.any() Edge 지원 버전",
+      "status": "filled",
+      "bestValue": "Edge 116 is listed as supported in the compatibility table.",
+      "sourceUrls": [
+        "https://caniuse.com/wf-abortsignal-any"
+      ],
+      "sourceQuality": "secondary_compatibility",
+      "verificationCandidateIds": [
+        "claim-006"
+      ],
+      "gapReason": "",
+      "parentImpact": "Browser compatibility matrix entry."
+    },
+    {
+      "slotId": "slot-007",
+      "label": "AbortSignal.any() Firefox 지원 버전",
+      "status": "filled",
+      "bestValue": "Firefox 124.",
+      "sourceUrls": [
+        "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124"
+      ],
+      "sourceQuality": "primary_release_notes",
+      "verificationCandidateIds": [
+        "claim-007"
+      ],
+      "gapReason": "",
+      "parentImpact": "Browser compatibility matrix entry."
+    },
+    {
+      "slotId": "slot-008",
+      "label": "AbortSignal.any() Safari 지원 버전",
+      "status": "filled",
+      "bestValue": "Safari 17.4.",
+      "sourceUrls": [
+        "https://webkit.org/blog/15063/webkit-features-in-safari-17-4/"
+      ],
+      "sourceQuality": "primary_browser_official",
+      "verificationCandidateIds": [
+        "claim-008"
+      ],
+      "gapReason": "",
+      "parentImpact": "Browser compatibility matrix entry."
+    },
+    {
+      "slotId": "slot-009",
+      "label": "AbortSignal.timeout() Chrome 지원 버전",
+      "status": "filled",
+      "bestValue": "Full support at Chrome 124; Chrome 103–123 is partial.",
+      "sourceUrls": [
+        "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+      ],
+      "sourceQuality": "primary_compatibility",
+      "verificationCandidateIds": [
+        "claim-009"
+      ],
+      "gapReason": "",
+      "parentImpact": "Exact support threshold and exception behavior matter."
+    },
+    {
+      "slotId": "slot-010",
+      "label": "AbortSignal.timeout() Edge 지원 버전",
+      "status": "partial",
+      "bestValue": "Edge is a mirror of Chrome compatibility data; 124 is inferred from that mirror.",
+      "sourceUrls": [
+        "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+      ],
+      "sourceQuality": "primary_compatibility_mirror",
+      "verificationCandidateIds": [
+        "claim-010"
+      ],
+      "gapReason": "Direct Edge version wording was not extracted.",
+      "parentImpact": "Edge threshold needs explicit verification before firm recommendation."
+    },
+    {
+      "slotId": "slot-011",
+      "label": "AbortSignal.timeout() Firefox 지원 버전",
+      "status": "filled",
+      "bestValue": "Firefox 100.",
+      "sourceUrls": [
+        "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100",
+        "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+      ],
+      "sourceQuality": "primary_compatibility_release",
+      "verificationCandidateIds": [
+        "claim-011"
+      ],
+      "gapReason": "",
+      "parentImpact": "Browser compatibility matrix entry."
+    },
+    {
+      "slotId": "slot-012",
+      "label": "AbortSignal.timeout() Safari 지원 버전",
+      "status": "filled",
+      "bestValue": "Safari 16.",
+      "sourceUrls": [
+        "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+      ],
+      "sourceQuality": "primary_compatibility",
+      "verificationCandidateIds": [
+        "claim-012"
+      ],
+      "gapReason": "",
+      "parentImpact": "Browser compatibility matrix entry."
+    },
+    {
+      "slotId": "slot-013",
+      "label": "AbortSignal.any() 알려진 동작 주의점",
+      "status": "filled",
+      "bestValue": "Already-aborted inputs determine the result reason during iteration; later aborts propagate their reason, but returned-signal abort does not cascade.",
+      "sourceUrls": [
+        "https://dom.spec.whatwg.org/",
+        "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static"
+      ],
+      "sourceQuality": "primary_standard+primary_reference",
+      "verificationCandidateIds": [
+        "claim-013",
+        "claim-014",
+        "claim-017"
+      ],
+      "gapReason": "",
+      "parentImpact": "Controls reason handling and listener/resource cleanup."
+    },
+    {
+      "slotId": "slot-014",
+      "label": "AbortSignal.timeout() 알려진 동작 주의점",
+      "status": "partial",
+      "bestValue": "WHATWG gives TimeoutError; browser MDN uses active time and has no cancellation API; Node docs state delay milliseconds.",
+      "sourceUrls": [
+        "https://dom.spec.whatwg.org/",
+        "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static"
+      ],
+      "sourceQuality": "primary_standard+primary_reference",
+      "verificationCandidateIds": [
+        "claim-015",
+        "claim-016",
+        "claim-018"
+      ],
+      "gapReason": "Node-specific active-time mapping and internal timer ref/unref policy remain unresolved.",
+      "parentImpact": "Runtime-specific timeout guidance must distinguish browser and Node.js behavior."
+    }
+  ],
+  "coverageGaps": [
+    {
+      "id": "gap-001",
+      "researchScopeItems": [
+        "Node.js에서 AbortSignal.any()의 안정적 지원 버전"
+      ],
+      "relatedFactSlotIds": [
+        "slot-002"
+      ],
+      "status": "partial",
+      "gapReason": "Latest docs provide section-level Stable wording but no method-level stability transition record."
+    },
+    {
+      "id": "gap-002",
+      "researchScopeItems": [
+        "Node.js에서 AbortSignal.timeout()의 안정적 지원 버전"
+      ],
+      "relatedFactSlotIds": [
+        "slot-004"
+      ],
+      "status": "partial",
+      "gapReason": "No method-specific Stability 2 promotion record was retrieved."
+    },
+    {
+      "id": "gap-003",
+      "researchScopeItems": [
+        "주요 브라우저의 AbortSignal.timeout() 지원 현황"
+      ],
+      "relatedFactSlotIds": [
+        "slot-010"
+      ],
+      "status": "partial",
+      "gapReason": "Edge 124 is inferred through the BCD Chrome mirror; direct Edge wording was not extracted."
+    },
+    {
+      "id": "gap-004",
+      "researchScopeItems": [
+        "주요 브라우저의 AbortSignal.timeout() 지원 현황"
+      ],
+      "relatedFactSlotIds": [
+        "slot-009",
+        "slot-012"
+      ],
+      "status": "gap",
+      "gapReason": "Direct Chrome and Safari official release documents were not retrieved; BCD remains the primary compatibility evidence."
+    },
+    {
+      "id": "gap-005",
+      "researchScopeItems": [
+        "AbortSignal.timeout()의 알려진 동작 주의점"
+      ],
+      "relatedFactSlotIds": [
+        "slot-014"
+      ],
+      "status": "partial",
+      "gapReason": "Node.js active-time mapping and internal timer ref/unref behavior remain unverified."
+    }
+  ],
+  "researchScopeCoverage": [
+    {
+      "scopeItem": "Node.js에서 AbortSignal.any()의 안정적 지원 버전",
+      "status": "partial",
+      "factSlotIds": [
+        "slot-001",
+        "slot-002"
+      ],
+      "verificationCandidateIds": [
+        "claim-001",
+        "claim-002"
+      ],
+      "gapReason": "Method-level stability history is absent."
+    },
+    {
+      "scopeItem": "Node.js에서 AbortSignal.timeout()의 안정적 지원 버전",
+      "status": "partial",
+      "factSlotIds": [
+        "slot-003",
+        "slot-004"
+      ],
+      "verificationCandidateIds": [
+        "claim-003",
+        "claim-004"
+      ],
+      "gapReason": "Method-level stability history is absent."
+    },
+    {
+      "scopeItem": "주요 브라우저의 AbortSignal.any() 지원 현황",
+      "status": "covered",
+      "factSlotIds": [
+        "slot-005",
+        "slot-006",
+        "slot-007",
+        "slot-008"
+      ],
+      "verificationCandidateIds": [
+        "claim-005",
+        "claim-006",
+        "claim-007",
+        "claim-008"
+      ],
+      "gapReason": ""
+    },
+    {
+      "scopeItem": "주요 브라우저의 AbortSignal.timeout() 지원 현황",
+      "status": "partial",
+      "factSlotIds": [
+        "slot-009",
+        "slot-010",
+        "slot-011",
+        "slot-012"
+      ],
+      "verificationCandidateIds": [
+        "claim-009",
+        "claim-010",
+        "claim-011",
+        "claim-012"
+      ],
+      "gapReason": "Edge threshold relies on mirror inference; direct Chrome/Safari release cross-check is absent."
+    },
+    {
+      "scopeItem": "AbortSignal.any()의 알려진 동작 주의점",
+      "status": "covered",
+      "factSlotIds": [
+        "slot-013"
+      ],
+      "verificationCandidateIds": [
+        "claim-013",
+        "claim-014",
+        "claim-017"
+      ],
+      "gapReason": ""
+    },
+    {
+      "scopeItem": "AbortSignal.timeout()의 알려진 동작 주의점",
+      "status": "partial",
+      "factSlotIds": [
+        "slot-014"
+      ],
+      "verificationCandidateIds": [
+        "claim-015",
+        "claim-016",
+        "claim-018"
+      ],
+      "gapReason": "Node-specific timer semantics remain unresolved."
+    }
+  ],
+  "normalizationNotes": {
+    "precisionGuard": "Narrowed 13 overbroad claims and split 2 bundled claims; method-level stability assertions were demoted to section-level evidence or preserved gaps.",
+    "budget": "question-002 and question-003 exhausted their search budgets; question-001, question-004, question-005, and question-006 were not exhausted. No packet overflow counts were present.",
+    "selection": "All 14 required slots retain a candidate or explicit preserved/gap evidence. Two source-backed lifecycle candidates were retained as useful surplus.",
+    "evidencePolicy": "Exact numeric claims use visible HTTP evidence; retrieval-gap and negative evidence remain preserved or in coverageGaps."
+  },
+  "precisionGuardNotes": {
+    "flaggedClaims": 14,
+    "issueCounts": {
+      "overbroad_quantifier": 13,
+      "bundled_slots": 2
+    }
+  }
+}

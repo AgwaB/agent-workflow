@@ -1,0 +1,358 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1jd6bs_7c0acf",
+  "taskId": "task-13",
+  "sources": [
+    {
+      "source": "impact-analysis.change-scope",
+      "displayName": "impact-analysis.change-scope.main",
+      "taskId": "task-1",
+      "specId": "impact-analysis.change-scope.main",
+      "stageId": "impact-analysis.change-scope",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "커밋 654f639(HEAD~1..HEAD) 대상 변경 범위를 워크플로 중지(stop), 취소(cancellation), 종료 요약(terminal) 모듈과 관련 계약 및 명세로 한정하여 도출했습니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-1/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-1/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-1/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-1/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.implementation-map",
+      "displayName": "impact-analysis.implementation-map.main",
+      "taskId": "task-2",
+      "specId": "impact-analysis.implementation-map.main",
+      "stageId": "impact-analysis.implementation-map",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "Mapped implementation architecture across 3 core source modules (workflow-stop, workflow-cancellation, workflow-terminal), config/package surfaces, 7 public entry points, 4 primary data flows, and identified 4 key environment/structural unknowns.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-2/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-2/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-2/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-2/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.validation-map",
+      "displayName": "impact-analysis.validation-map.main",
+      "taskId": "task-3",
+      "specId": "impact-analysis.validation-map.main",
+      "stageId": "impact-analysis.validation-map",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "validation-map:tests=0:docs=1:releaseArtifacts=2:commands=1:knownGaps=6",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-3/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-3/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-3/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-3/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.api-contract-impact",
+      "displayName": "impact-analysis.api-contract-impact.main",
+      "taskId": "task-4",
+      "specId": "impact-analysis.api-contract-impact.main",
+      "stageId": "impact-analysis.api-contract-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "마지막 커밋(654f639) 기준 공개 API 및 명세(SPEC.md) 대비 4건의 심각한 계약 불일치(T3 필드명 불일치, C1 provider 취소 판별 범위 초과, S6 에러 판별 규칙 위반, S3 폴링 주기 기본값 및 클램프 오류)가 확인되어 배포 차단 수준의 높은 계약 영향(high)이 식별되었습니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-4/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-4/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-4/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-4/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.state-data-impact",
+      "displayName": "impact-analysis.state-data-impact.main",
+      "taskId": "task-5",
+      "specId": "impact-analysis.state-data-impact.main",
+      "stageId": "impact-analysis.state-data-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "상태·데이터 영향 분석 결과 배포 위험도 High: 공개 계약 필드명 불일치(launchRetries vs launchRetryAttempts), 프로바이더 타임아웃의 취소 상태 오승격, 에러 판별 메시지 검사 의존, 감시 폴링 주기 및 dispose 상태 누수 결함이 식별되었습니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-5/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-5/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-5/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-5/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.validation-impact",
+      "displayName": "impact-analysis.validation-impact.main",
+      "taskId": "task-6",
+      "specId": "impact-analysis.validation-impact.main",
+      "stageId": "impact-analysis.validation-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "검증 커버리지 상태는 'none'입니다. 단위/통합 테스트 스위트 및 테스트 러너가 전무하여(SPEC Q1 위반) 변경 범위의 런타임 동작 및 명세 요구사항(S1~S7, C1~C2, T1~T3)이 전혀 검증되지 않으며, 유일한 정적 검증 스크립트인 tsc --noEmit도 의존성 부재(node_modules 미설치)로 실행 불가능합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-6/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-6/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-6/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-6/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.docs-release-impact",
+      "displayName": "impact-analysis.docs-release-impact.main",
+      "taskId": "task-7",
+      "specId": "impact-analysis.docs-release-impact.main",
+      "stageId": "impact-analysis.docs-release-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "Docs and release impact assessed as high: 4 specification drift points including public contract break (launchRetryAttempts vs launchRetries), private unbuilt package hazards, and missing CI/test verification.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-7/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-7/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-7/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-7/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.security-performance-impact",
+      "displayName": "impact-analysis.security-performance-impact.main",
+      "taskId": "task-8",
+      "specId": "impact-analysis.security-performance-impact.main",
+      "stageId": "impact-analysis.security-performance-impact",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "커밋 654f639는 취소 판별 DoS(재귀 JSON 파싱 스택 오버플로), 1ms 과도한 디스크 폴링에 따른 I/O 경합 및 이벤트 루프 포화, timeout 오류의 취소 오분류, 공개 텔레메트리 필드명 불일치(launchRetries vs launchRetryAttempts) 등 보안·성능·신뢰성·관측성 전반에서 중대한 결함이 확인되어 배포 불가(High Impact)로 판정합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-8/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-8/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-8/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-8/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.contract-consistency",
+      "displayName": "impact-analysis.contract-consistency.main",
+      "taskId": "task-9",
+      "specId": "impact-analysis.contract-consistency.main",
+      "stageId": "impact-analysis.contract-consistency",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "마지막 커밋(654f639) 검토 결과, 공개 API 계약 파괴(T3), 프로바이더 타임아웃 취소 오승격(C1), 감시 폴링 지연 및 I/O 안전클램프 결함(S3), 에러 판별 규칙 위반(S6), 테스트 및 빌드 인프라 부재(Q1) 등 다수의 교차 렌즈 계약 불일치가 확인되어 현재 상태에서의 배포는 불가(fail)합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-9/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-9/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-9/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-9/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.regression-risk",
+      "displayName": "impact-analysis.regression-risk.main",
+      "taskId": "task-10",
+      "specId": "impact-analysis.regression-risk.main",
+      "stageId": "impact-analysis.regression-risk",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "마지막 커밋(654f639)에 대한 종합 회귀 위험도는 High입니다. 테스트 및 검증 스위트 전무(coverage: none) 상태에서 DoS 취약점, 프로바이더 타임아웃 오분류, 디스크 I/O 고갈 위험, 공개 텔레메트리 계약 파괴가 복합적으로 식별되어 프로덕션 배포가 불가능합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-10/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-10/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-10/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-10/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.ship-readiness",
+      "displayName": "impact-analysis.ship-readiness.main",
+      "taskId": "task-11",
+      "specId": "impact-analysis.ship-readiness.main",
+      "stageId": "impact-analysis.ship-readiness",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "마지막 커밋(654f639) 검토 결과 배포 판정은 'blocked'(배포 불가)입니다. 공개 인터페이스 계약 파괴(T3), 프로바이더 타임아웃 취소 오승격(C1), 디스크 I/O 고갈 및 중지 지연(S3), 에러 판별 규칙 위반(S6), 재귀 JSON 파싱 DoS 취약점(C2), 단위 테스트 및 검증 환경 전무(Q1, coverage none) 등 중대한 결함이 확인되어 프로덕션 배포가 안전하지 않습니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-11/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-11/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-11/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-11/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.impact-synthesis",
+      "displayName": "impact-analysis.impact-synthesis.main",
+      "taskId": "task-12",
+      "specId": "impact-analysis.impact-synthesis.main",
+      "stageId": "impact-analysis.impact-synthesis",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "커밋 654f639 종합 검토 결과 배포 불가(BLOCKED, high risk)로 판정되었습니다. 공개 인터페이스 계약 파괴(T3), 재귀 JSON 파싱 DoS 취약점(C2), 프로바이더 타임아웃 취소 오승격(C1), 디스크 I/O 스레싱 및 중지 지연(S3), 에러 판별 규칙 위반(S6), 단위 테스트 및 검증 환경 전무(Q1)가 해결되어야 합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-12/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-12/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-12/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jd6bs_7c0acf/tasks/task-12/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

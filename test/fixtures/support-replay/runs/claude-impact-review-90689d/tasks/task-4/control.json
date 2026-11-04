@@ -1,0 +1,57 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "HEAD 654f639 changes three externally observable behaviors: it renames the public terminal-summary field launchRetryAttempts to launchRetries, widens cancellation classification to accept 'cancelled' and 'timeout', and changes the stop-poll default to 200ms. The rename is a breaking change for consumers, and the cancellation widening is a behavior change. Neither is covered by a test, and SPEC.md contradicts the code. Not deployable as-is without a compatibility decision.",
+  "status": "high",
+  "impacts": [
+    {
+      "id": "api-1",
+      "area": "public-contract",
+      "severity": "high",
+      "location": "src/workflow-terminal.ts:33,107",
+      "description": "WorkflowTerminalSummary.launchRetryAttempts was renamed to launchRetries. SPEC T3 declares launchRetryAttempts a public contract read by external tools. The old field no longer appears in src/, so any consumer reading it gets undefined, a silent break.",
+      "migration": "Emit both fields for one release (launchRetryAttempts deprecated, launchRetries new), or revert the rename and document the new name separately. Update SPEC T3 to match whichever is chosen."
+    },
+    {
+      "id": "api-2",
+      "area": "behavior-contract",
+      "severity": "medium",
+      "location": "src/workflow-cancellation.ts:20",
+      "description": "isWorkflowReturnedCancellation now treats the strings 'cancelled' and 'timeout' as cancellation. SPEC C1 allows only aborted, AbortError, and ABORT_ERR. A provider timeout error may now be reclassified as a user cancellation, which changes downstream terminal status. Whether real provider payloads use these markers is unverified (u5 in implementation-map).",
+      "migration": "Confirm the provider payload shapes that produce 'cancelled'/'timeout'. If 'timeout' is a failure rather than a cancel, drop it from the accepted set. Otherwise add a test and update SPEC C1."
+    },
+    {
+      "id": "api-3",
+      "area": "behavior-contract",
+      "severity": "medium",
+      "location": "src/workflow-stop.ts:67",
+      "description": "createWorkflowStopSignal default pollMs is now 200ms. SPEC S3 says 50ms, and says values below 10ms are clamped. Code clamps with Math.max(1, ...), not 10. Stop-request latency rises up to about 200ms. Callers relying on the spec default see different timing.",
+      "migration": "Decide whether 200ms is intended. If yes, update S3 and the clamp floor; if no, restore 50. Document the default as part of the exported signature."
+    },
+    {
+      "id": "api-4",
+      "area": "test-coverage",
+      "severity": "medium",
+      "location": "repo-wide (no *.test/*.spec files found)",
+      "description": "SPEC Q1 requires a unit test per S/C/T item. None were found, so the contract changes above have no automated guard against drift.",
+      "migration": "Add contract tests for the launchRetries field name, cancellation marker set, and poll default before release."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "a1",
+      "note": "The changed-file list comes from the commit message and grep, not from git diff. The exact diff of 654f639 was not read."
+    },
+    {
+      "id": "a2",
+      "note": "store.js and types.js are not in the repo, so readWorkflowStopIntent and WorkflowRunRecord shape are unverified."
+    },
+    {
+      "id": "a3",
+      "note": "No external consumer of launchRetryAttempts or launchRetries was visible from this repo. Consumer impact is inferred from SPEC T3."
+    },
+    {
+      "id": "a4",
+      "note": "Whether SPEC.md was changed by HEAD is unconfirmed. Mismatches are treated as code-vs-spec drift."
+    }
+  ]
+}

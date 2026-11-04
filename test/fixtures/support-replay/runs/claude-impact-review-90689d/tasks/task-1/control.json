@@ -1,0 +1,89 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "HEAD 654f639 touches the stop/cancel/terminal-summary code in src/; the code contradicts SPEC.md in several places (poll default, cancellation keywords, stop-error detection, launchRetries rename) and no unit tests exist. Scope is changed-file-level only; the diff itself could not be read.",
+  "changeSummary": "Commit 654f639 ('stop: poll less often; treat cancelled/timeout as cancellation; shorter retry field name') changes the workflow stop-detection poll interval, widens provider cancellation detection to 'cancelled' and 'timeout', and renames the terminal summary field launchRetryAttempts to launchRetries. The committed SPEC.md (added in 11bc671) still specifies the old behavior.",
+  "changeInputs": [
+    {
+      "note": "commit 654f639 (HEAD, parent 11bc671)"
+    },
+    {
+      "note": "commit message: 'stop: poll less often; treat cancelled/timeout as cancellation; shorter retry field name'"
+    },
+    {
+      "note": "SPEC.md (S1-S7, C1-C2, T1-T3, Q1)"
+    }
+  ],
+  "affectedFiles": [
+    {
+      "note": "src/workflow-stop.ts"
+    },
+    {
+      "note": "src/workflow-cancellation.ts"
+    },
+    {
+      "note": "src/workflow-terminal.ts"
+    },
+    {
+      "note": "SPEC.md (spec contract only; not confirmed changed by 654f639)"
+    }
+  ],
+  "affectedComponents": [
+    {
+      "note": "workflow stop detection (createWorkflowStopSignal, throwIfWorkflowStopRequested, isWorkflowStopRequestedError)"
+    },
+    {
+      "note": "provider cancellation classification (isWorkflowReturnedCancellation)"
+    },
+    {
+      "note": "terminal summary (summarizeWorkflowTerminal, WorkflowTerminalSummary)"
+    }
+  ],
+  "publicSurfaces": [
+    {
+      "note": "WorkflowTerminalSummary.launchRetries (renamed from launchRetryAttempts per SPEC T3; SPEC T3 says the name is public and read by external tools)"
+    },
+    {
+      "note": "WorkflowTerminalSummary.outputRetryAttempts (unchanged)"
+    },
+    {
+      "note": "createWorkflowStopSignal pollMs option and default (200ms in code vs 50ms in SPEC S3)"
+    },
+    {
+      "note": "isWorkflowReturnedCancellation accepted values (adds 'cancelled' and 'timeout' vs SPEC C1 exact set of three)"
+    },
+    {
+      "note": "error name WorkflowStopRequested and message prefix 'workflow stop requested'"
+    }
+  ],
+  "assumptions": [
+    {
+      "note": "Changed-file list is inferred from the commit message and grep, not from git diff: git objects are compressed and no shell/git tool was available, so the exact diff is unverified."
+    },
+    {
+      "note": "SPEC.md was not confirmed as modified by 654f639; mismatches are read as code-vs-spec drift."
+    },
+    {
+      "note": "store.js and types.js are not in the repo (per SPEC preamble and package.json), so readWorkflowStopIntent, finalStageTasks, and the WorkflowRunRecord types could not be checked."
+    },
+    {
+      "note": "Only the typecheck script exists in package.json; no test files were found by Glob (**/*.{test,spec}.{ts,js,mjs}), so the SPEC Q1 test requirement is unmet in this excerpt."
+    }
+  ],
+  "outOfScope": [
+    {
+      "note": "Editing any file (read-only stage)"
+    },
+    {
+      "note": "Running typecheck or tests (no shell tool)"
+    },
+    {
+      "note": "Reviewing store.js/types.js internals (absent from repo)"
+    },
+    {
+      "note": "Upstream consumers of launchRetryAttempts outside this repo"
+    },
+    {
+      "note": "Security and performance judgments beyond the code paths listed above"
+    }
+  ]
+}

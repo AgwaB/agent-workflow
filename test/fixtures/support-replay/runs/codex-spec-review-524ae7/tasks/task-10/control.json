@@ -1,0 +1,41 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "S5 위반은 구현상 입증되지 않으므로 후보를 제거한다.",
+  "id": "finding-S5",
+  "verdict": "DROP",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 17,
+      "lineEnd": 17,
+      "quote": "- **S5.** `dispose()`를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다.",
+      "relevance": "검토 대상 요구사항"
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 74,
+      "lineEnd": 74,
+      "quote": "\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(",
+      "relevance": "검사는 await 이전에 읽기 함수를 호출하므로 진행 중인 검사의 읽기는 dispose 전에 이미 시작된다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 81,
+      "lineEnd": 81,
+      "quote": "\tconst timer = setInterval(() => void check(), pollMs);",
+      "relevance": "dispose 이후 새 검사를 유발할 수 있는 경로는 interval이다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 85,
+      "lineEnd": 85,
+      "quote": "\t\tdispose: () => clearInterval(timer),",
+      "relevance": "dispose가 interval을 해제해 이후 interval 기반 검사 호출을 차단한다."
+    }
+  ],
+  "finalClaim": "현재 코드만으로 dispose 이후 새 디스크 읽기가 발생한다는 S5 위반은 입증되지 않는다. 진행 중인 검사는 읽기를 이미 시작했고, 이후 검사는 clearInterval로 차단된다.",
+  "recommendedAction": "finding-S5를 제거한다. 별도 회귀 테스트 추가는 선택 사항이다."
+}

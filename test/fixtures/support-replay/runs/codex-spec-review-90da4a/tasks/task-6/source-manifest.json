@@ -1,0 +1,231 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1ipu44_90da4a",
+  "taskId": "task-6",
+  "sources": [
+    {
+      "source": "candidate-findings",
+      "displayName": "candidate-findings.main",
+      "taskId": "task-4",
+      "specId": "candidate-findings.main",
+      "stageId": "candidate-findings",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "구현 맵과 테스트 맵을 대조한 결과, 13개 요구사항 중 7개는 구현상 충족, 1개는 부분 충족, 5개는 후보 격차로 판단했다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-4/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-4/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-4/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-4/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings",
+      "displayName": "verify-findings.finding-s3",
+      "taskId": "task-9",
+      "specId": "verify-findings.finding-s3",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "finding-S3",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "구현과 명세를 직접 대조한 결과, pollMs 기본값과 최솟값 모두 S3를 위반하므로 finding-S3를 유지한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-9/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-9/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-9/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-9/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.finding-s5",
+      "displayName": "verify-findings.finding-s5",
+      "taskId": "task-10",
+      "specId": "verify-findings.finding-s5",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "finding-S5",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "S5 위반을 입증할 실행 경로가 없으므로 후보를 기각한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-10/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-10/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-10/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-10/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.finding-s6",
+      "displayName": "verify-findings.finding-s6",
+      "taskId": "task-11",
+      "specId": "verify-findings.finding-s6",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "finding-S6",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "S6 위반을 유지한다. 판별자가 오류 이름 외에 메시지 prefix도 허용한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-11/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-11/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-11/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-11/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.finding-c1",
+      "displayName": "verify-findings.finding-c1",
+      "taskId": "task-12",
+      "specId": "verify-findings.finding-c1",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "finding-C1",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "C1 위반은 구현 코드에서 직접 확인되며 KEEP한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-12/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-12/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-12/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-12/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.finding-t3",
+      "displayName": "verify-findings.finding-t3",
+      "taskId": "task-13",
+      "specId": "verify-findings.finding-t3",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "finding-T3",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "T3 위반을 유지한다. 공개 요약 타입과 반환 객체 모두 launchRetries를 사용한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-13/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-13/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-13/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-13/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.finding-q1",
+      "displayName": "verify-findings.finding-q1",
+      "taskId": "task-14",
+      "specId": "verify-findings.finding-q1",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "finding-Q1",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "저장소 내 테스트 파일과 테스트 실행 설정이 없어 Q1 격차를 유지한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-14/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-14/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-14/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu44_90da4a/tasks/task-14/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

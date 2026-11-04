@@ -1,0 +1,22 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "코드와 명세가 모두 메시지 기반 판별을 문제로 확인하므로 finding을 유지한다.",
+  "findingId": "finding-002",
+  "finding": "중지 오류 판별이 오류 이름 외의 메시지까지 신뢰함",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 57,
+      "symbol": "isWorkflowStopRequestedError",
+      "quote": "error.message.startsWith(\"workflow stop requested\")"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 19,
+      "quote": "메시지 내용으로 판별해서는 안 된다."
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "isWorkflowStopRequestedError에서 메시지 접두사 조건을 제거하고 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME만 사용하며, 다른 이름과 동일한 메시지를 가진 오류가 중지 오류로 판별되지 않는 회귀 테스트를 추가하라."
+}

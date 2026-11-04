@@ -1,0 +1,97 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1lzfyk_a9771c",
+  "taskId": "task-4",
+  "sources": [
+    {
+      "source": "extract-spec",
+      "displayName": "extract-spec.main",
+      "taskId": "task-1",
+      "specId": "extract-spec.main",
+      "stageId": "extract-spec",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "SPEC.md defines 13 requirements across stop detection, cancellation, terminal summaries, and required unit tests.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzfyk_a9771c/tasks/task-1/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzfyk_a9771c/tasks/task-1/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzfyk_a9771c/tasks/task-1/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzfyk_a9771c/tasks/task-1/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "map-implementation",
+      "displayName": "map-implementation.main",
+      "taskId": "task-2",
+      "specId": "map-implementation.main",
+      "stageId": "map-implementation",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "Mapped stop, cancellation, terminal-summary implementations and found no unit-test files.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzfyk_a9771c/tasks/task-2/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzfyk_a9771c/tasks/task-2/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzfyk_a9771c/tasks/task-2/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzfyk_a9771c/tasks/task-2/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "inspect-tests",
+      "displayName": "inspect-tests.main",
+      "taskId": "task-3",
+      "specId": "inspect-tests.main",
+      "stageId": "inspect-tests",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "테스트와 fixture 근거를 확인할 수 없어 커버리지를 판정하지 못함",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzfyk_a9771c/tasks/task-3/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzfyk_a9771c/tasks/task-3/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzfyk_a9771c/tasks/task-3/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzfyk_a9771c/tasks/task-3/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

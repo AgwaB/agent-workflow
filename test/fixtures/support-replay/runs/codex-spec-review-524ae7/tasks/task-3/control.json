@@ -1,0 +1,23 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "No test or fixture files are present; Q1 evidence is absent for every S/C/T requirement.",
+  "testMap": [],
+  "coverageGapsSuspected": [
+    "No tests cover S1-S7 stop detection, errors, polling, disposal, classification, or signal cleanup.",
+    "No tests cover C1-C2 cancellation classification and bounded JSON recursion.",
+    "No tests cover T1-T3 terminal semantic statuses and retry-field contracts.",
+    "Q1 is not satisfied by available repository evidence."
+  ],
+  "notes": [
+    "package.json defines only a typecheck script; no test runner or test script exists.",
+    "Source-level risks include poll default/minimum mismatch, message-based stop-error classification, overly broad cancellation markers, disposal race potential, and launchRetries versus the specified launchRetryAttempts field."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "Tests were inspected but not executed because this stage forbids commands.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false
+}

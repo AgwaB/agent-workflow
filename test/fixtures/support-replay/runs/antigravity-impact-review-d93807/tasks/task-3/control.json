@@ -1,0 +1,87 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "No automated test suite or fixtures exist (SPEC Q1 violated); only typecheck is defined in package.json; commit 654f639 introduces changes that directly contradict SPEC.md clauses S3, C1, and T3 without any test coverage.",
+  "tests": [
+    {
+      "name": "unit-tests",
+      "status": "missing",
+      "mandate": "SPEC.md Q1",
+      "targetFiles": [
+        "src/workflow-stop.ts",
+        "src/workflow-cancellation.ts",
+        "src/workflow-terminal.ts"
+      ],
+      "description": "SPEC.md section Q1 mandates unit tests for each S, C, and T requirement. However, no test directory (e.g., test/, __tests__/), test files (*.test.ts, *.spec.ts), or test runner configuration exists in the repository."
+    }
+  ],
+  "docs": [
+    {
+      "path": "SPEC.md",
+      "type": "specification",
+      "description": "Defines core requirements: stop detection (S1-S7), cancellation classification (C1-C2), terminal summary contract (T1-T3), and test coverage mandate (Q1).",
+      "relevance": "Direct specification against which the changes in commit 654f639 must be validated. Changes in commit 654f639 conflict with S3, C1, and T3."
+    },
+    {
+      "path": "package.json",
+      "type": "manifest",
+      "description": "Specifies package metadata (workflow-stop-sample v0.0.0, private: true, type: module) and notes missing dependencies (store.js and types.js are excluded).",
+      "relevance": "Identifies the execution boundary and lack of test dependencies/scripts."
+    }
+  ],
+  "releaseArtifacts": [
+    {
+      "name": "workflow-stop-sample",
+      "type": "private-source-package",
+      "packageFile": "package.json",
+      "isPrivate": true,
+      "buildArtifacts": "none",
+      "description": "Package is marked private: true with version 0.0.0; tsconfig.json has noEmit: true, meaning no compiled or distributed npm release artifacts are produced."
+    }
+  ],
+  "validationCommandsMentioned": [
+    {
+      "command": "npm run typecheck",
+      "rawCommand": "tsc --noEmit",
+      "source": "package.json:scripts.typecheck",
+      "purpose": "Static TypeScript type checking across src/**/*.ts.",
+      "operationalStatus": "Defined script in package.json; standalone execution in isolation would fail unless external stubs for ./store.js and ./types.js are provided as indicated in package description."
+    }
+  ],
+  "knownGaps": [
+    {
+      "category": "specification-divergence",
+      "component": "src/workflow-stop.ts",
+      "specRef": "SPEC.md S3",
+      "summary": "Polling interval clamp changed from Math.max(10, options.pollMs ?? 50) to Math.max(1, options.pollMs ?? 200), violating the S3 requirement that default pollMs must be 50ms and lower-bounded at 10ms.",
+      "validationState": "No test exists to verify pollMs default or clamp bounds."
+    },
+    {
+      "category": "specification-divergence",
+      "component": "src/workflow-cancellation.ts",
+      "specRef": "SPEC.md C1",
+      "summary": "Cancellation candidate match expanded to accept 'cancelled' and 'timeout', violating C1 which restricts accepted cancellation reasons strictly to 'aborted', 'AbortError', and 'ABORT_ERR'.",
+      "validationState": "No test exists to enforce strict candidate rejection for non-abort provider errors."
+    },
+    {
+      "category": "breaking-public-contract",
+      "component": "src/workflow-terminal.ts",
+      "specRef": "SPEC.md T3",
+      "summary": "WorkflowTerminalSummary property renamed from launchRetryAttempts to launchRetries, violating T3 which establishes launchRetryAttempts as an immutable public contract consumed by external tools.",
+      "validationState": "No contract test or schema snapshot exists to prevent regression on public summary property names."
+    },
+    {
+      "category": "test-infrastructure",
+      "component": "repository-wide",
+      "specRef": "SPEC.md Q1",
+      "summary": "Total absence of automated test harness, fixtures, mocks, or test scripts (Q1 unfulfilled).",
+      "validationState": "Zero test coverage across all units."
+    },
+    {
+      "category": "environment-completeness",
+      "component": "build-and-typecheck",
+      "specRef": "package.json",
+      "summary": "Omission of store.js and types.js in the excerpt prevents clean standalone static type checking without mocked dependencies.",
+      "validationState": "Typecheck cannot run standalone without mocked modules."
+    }
+  ]
+}

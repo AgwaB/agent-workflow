@@ -1,0 +1,1042 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "partition: keep=2, weaken=0, drop=0, needsHuman=3, missingVerdicts=0, partialFailures=3, supportNotes=0, ledgerDigest=78755415c8a0fef7c5499e84ec3605ea4c11a48872e2b9fb1359c991dbbee9fa",
+  "partitions": {
+    "keep": [
+      {
+        "findingId": "finding-001",
+        "originalFindingId": "finding-001",
+        "rootCauseId": "root-001",
+        "title": "중지 감시 폴링 주기가 명세보다 느리고 최소값도 너무 낮음",
+        "originalSeverity": "high",
+        "source": "reviewers",
+        "reviewerIdentity": {
+          "source": "reviewers",
+          "specId": "reviewers.runtime-correctness",
+          "taskId": "task-9",
+          "itemIdentity": "runtime-correctness",
+          "placeholderSpecId": "reviewers.item"
+        },
+        "sourceLineage": [
+          "reviewers"
+        ],
+        "generatedRootCauseId": true,
+        "verdict": "KEEP",
+        "originalVerdict": "KEEP",
+        "severity": "high",
+        "file": "src/workflow-stop.ts",
+        "locations": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 67,
+            "symbol": "createWorkflowStopSignal"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 81,
+            "symbol": "createWorkflowStopSignal"
+          }
+        ],
+        "reviewerEvidenceQuotes": [
+          "const pollMs = Math.max(1, options.pollMs ?? 200);",
+          "const timer = setInterval(() => void check(), pollMs);"
+        ],
+        "evidenceQuotes": [
+          "const pollMs = Math.max(1, options.pollMs ?? 200);",
+          "const timer = setInterval(() => void check(), pollMs);",
+          "중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다"
+        ],
+        "evidence": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 67,
+            "symbol": "createWorkflowStopSignal",
+            "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 81,
+            "symbol": "createWorkflowStopSignal",
+            "quote": "const timer = setInterval(() => void check(), pollMs);"
+          },
+          {
+            "file": "SPEC.md",
+            "line": 13,
+            "lineEnd": 14,
+            "quote": "중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다"
+          }
+        ],
+        "rationale": "중지 의도와 foreground abort의 디스크·폴링 경로 전파가 최대 약 200ms 지연될 수 있어, 중지 후 작업 디스패치가 계속될 수 있다. 또한 호출자가 1~9ms를 지정하면 과도한 폴링으로 I/O 부하가 커진다.",
+        "verifierEvidence": [
+          "const pollMs = Math.max(1, options.pollMs ?? 200);",
+          "const timer = setInterval(() => void check(), pollMs);",
+          "중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다"
+        ],
+        "counterEvidence": [
+          "초기 `void check()`가 즉시 실행되므로 최초 감지는 폴링 주기만큼 항상 지연되지는 않는다.",
+          "foreground AbortSignal 경로는 폴링과 별도로 확인되므로 지연 문제는 주로 디스크 중지 의도 감시 경로에 해당한다."
+        ],
+        "recommendedAction": "기본값을 50ms로 변경하고 최소값을 10ms로 제한하며, 기본값과 경계값을 검증하는 단위 테스트를 추가하라.",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "verifierOwner": {
+          "source": "devil-advocate",
+          "specId": "devil-advocate.finding-001",
+          "taskId": "task-12",
+          "itemIdentity": "finding-001",
+          "placeholderSpecId": "devil-advocate.item"
+        }
+      },
+      {
+        "findingId": "finding-002",
+        "originalFindingId": "finding-002",
+        "rootCauseId": "root-002",
+        "title": "중지 오류 판별이 오류 메시지만으로도 성공하여 오탐 가능",
+        "originalSeverity": "high",
+        "source": "reviewers",
+        "reviewerIdentity": {
+          "source": "reviewers",
+          "specId": "reviewers.runtime-correctness",
+          "taskId": "task-9",
+          "itemIdentity": "runtime-correctness",
+          "placeholderSpecId": "reviewers.item"
+        },
+        "sourceLineage": [
+          "reviewers"
+        ],
+        "generatedRootCauseId": true,
+        "verdict": "KEEP",
+        "originalVerdict": "KEEP",
+        "severity": "high",
+        "file": "src/workflow-stop.ts",
+        "locations": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 53,
+            "symbol": "isWorkflowStopRequestedError"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 57,
+            "symbol": "isWorkflowStopRequestedError"
+          }
+        ],
+        "reviewerEvidenceQuotes": [
+          "export function isWorkflowStopRequestedError(error: unknown): boolean {",
+          "error.message.startsWith(\"workflow stop requested\")"
+        ],
+        "evidenceQuotes": [
+          "export function isWorkflowStopRequestedError(error: unknown): boolean {",
+          "error.message.startsWith(\"workflow stop requested\")",
+          "error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||",
+          "이름이 `WorkflowStopRequested`인 오류만 중지 오류로"
+        ],
+        "evidence": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 56,
+            "symbol": "isWorkflowStopRequestedError",
+            "quote": "error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 57,
+            "symbol": "isWorkflowStopRequestedError",
+            "quote": "error.message.startsWith(\"workflow stop requested\")"
+          },
+          {
+            "file": "SPEC.md",
+            "line": 18,
+            "symbol": "S6",
+            "quote": "이름이 `WorkflowStopRequested`인 오류만 중지 오류로"
+          }
+        ],
+        "rationale": "일반 provider 오류가 해당 메시지 접두사를 포함하면 정상 오류가 중지로 오분류되어 후속 처리와 종료 요약이 왜곡될 수 있다. S6은 이름만 확인하도록 요구한다.",
+        "verifierEvidence": [
+          "error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||",
+          "error.message.startsWith(\"workflow stop requested\")",
+          "이름이 `WorkflowStopRequested`인 오류만 중지 오류로"
+        ],
+        "counterEvidence": [
+          "내부 생성 함수는 오류 이름을 WorkflowStopRequested로 설정하므로 내부적으로 생성된 중지 오류 자체는 정상 판별된다."
+        ],
+        "recommendedAction": "메시지 접두사 조건을 제거하고 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME 조건만 사용하라.",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "verifierOwner": {
+          "source": "devil-advocate.finding-002",
+          "specId": "devil-advocate.finding-002",
+          "taskId": "task-13",
+          "itemIdentity": "finding-002",
+          "placeholderSpecId": "devil-advocate.item"
+        }
+      }
+    ],
+    "weaken": [],
+    "drop": [],
+    "needsHuman": [
+      {
+        "findingId": "finding-003",
+        "originalFindingId": "finding-003",
+        "rootCauseId": "root-003",
+        "title": "허용 목록 외 취소 문자열을 취소로 오분류",
+        "originalSeverity": "high",
+        "source": "reviewers",
+        "reviewerIdentity": {
+          "source": "reviewers",
+          "specId": "reviewers.runtime-correctness",
+          "taskId": "task-9",
+          "itemIdentity": "runtime-correctness",
+          "placeholderSpecId": "reviewers.item"
+        },
+        "sourceLineage": [
+          "reviewers"
+        ],
+        "generatedRootCauseId": true,
+        "verdict": "NEEDS_HUMAN",
+        "originalVerdict": "KEEP",
+        "severity": "high",
+        "file": "src/workflow-cancellation.ts",
+        "locations": [
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 13,
+            "symbol": "isWorkflowReturnedCancellation"
+          },
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 20,
+            "symbol": "isWorkflowReturnedCancellation"
+          }
+        ],
+        "reviewerEvidenceQuotes": [
+          "export function isWorkflowReturnedCancellation(value: unknown): boolean {",
+          "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+        ],
+        "evidenceQuotes": [
+          "export function isWorkflowReturnedCancellation(value: unknown): boolean {",
+          "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+          "오류·사유 문자열은 정확히 `aborted`, `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다."
+        ],
+        "evidence": [
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 20,
+            "symbol": "isWorkflowReturnedCancellation",
+            "quote": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+          },
+          {
+            "file": "SPEC.md",
+            "line": 25,
+            "lineEnd": 26,
+            "symbol": "C1",
+            "quote": "오류·사유 문자열은 정확히 `aborted`, `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다."
+          }
+        ],
+        "rationale": "timeout 또는 provider가 임의로 반환한 cancelled 문자열이 실제 취소로 승격되어 진단 오류가 억제되거나 작업 상태가 중지로 잘못 기록될 수 있다. C1은 세 문자열만 허용한다.",
+        "verifierEvidence": [
+          "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+          "오류·사유 문자열은 정확히 `aborted`, `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다."
+        ],
+        "counterEvidence": [],
+        "recommendedAction": "문자열 후보 비교를 `aborted`, `AbortError`, `ABORT_ERR` 세 값으로 제한하고 `cancelled`와 `timeout` 회귀 테스트를 추가하라.",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "verifierOwner": {
+          "source": "devil-advocate.finding-003",
+          "specId": "devil-advocate.finding-003",
+          "taskId": "task-14",
+          "itemIdentity": "finding-003",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "note": "verifier evidence was not grounded: SPEC.md:25-26 did not contain the exact verifier quote"
+      },
+      {
+        "findingId": "finding-004",
+        "originalFindingId": "finding-004",
+        "rootCauseId": "root-004",
+        "title": "종료 요약의 launch 재시도 필드명이 공개 계약과 불일치함",
+        "originalSeverity": "high",
+        "source": "reviewers.api-compatibility",
+        "reviewerIdentity": {
+          "source": "reviewers.api-compatibility",
+          "specId": "reviewers.api-compatibility",
+          "taskId": "task-10",
+          "itemIdentity": "api-compatibility",
+          "placeholderSpecId": "reviewers.item"
+        },
+        "sourceLineage": [
+          "reviewers.api-compatibility"
+        ],
+        "generatedRootCauseId": true,
+        "verdict": "NEEDS_HUMAN",
+        "originalVerdict": "KEEP",
+        "severity": "high",
+        "file": "src/workflow-terminal.ts",
+        "locations": [
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 33,
+            "symbol": "WorkflowTerminalSummary"
+          },
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 107,
+            "symbol": "summarizeWorkflowTerminal"
+          }
+        ],
+        "reviewerEvidenceQuotes": [
+          "\tlaunchRetries: number;",
+          "\t\tlaunchRetries: run.tasks.reduce(",
+          "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,"
+        ],
+        "evidenceQuotes": [
+          "\tlaunchRetries: number;",
+          "\t\tlaunchRetries: run.tasks.reduce(",
+          "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+          "launchRetries: number;",
+          "launchRetries: run.tasks.reduce(",
+          "outputRetryAttempts와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며"
+        ],
+        "evidence": [
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 33,
+            "symbol": "WorkflowTerminalSummary",
+            "quote": "launchRetries: number;"
+          },
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 107,
+            "symbol": "summarizeWorkflowTerminal",
+            "quote": "launchRetries: run.tasks.reduce("
+          },
+          {
+            "file": "SPEC.md",
+            "line": 35,
+            "quote": "outputRetryAttempts와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며"
+          }
+        ],
+        "rationale": "외부 도구가 계약된 launchRetryAttempts를 읽으면 필드가 없어 재시도 요약을 얻지 못한다. 현재 저장소에 launchRetryAttempts 사용처가 없더라도 외부 소비자는 저장소 검색에 포함되지 않으므로 호환성 위험이 남는다.",
+        "verifierEvidence": [
+          "launchRetries: number;",
+          "launchRetries: run.tasks.reduce(",
+          "outputRetryAttempts와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며"
+        ],
+        "counterEvidence": [],
+        "recommendedAction": "인터페이스와 반환 객체를 launchRetryAttempts로 통일하고 회귀 테스트를 추가한다. 기존 외부 소비자 호환이 필요하면 명시적인 호환 alias를 검토한다.",
+        "sourceCoverageComplete": false,
+        "sourceCoverageIssuePaths": [
+          "SPEC.md:31"
+        ],
+        "verifierOwner": {
+          "source": "devil-advocate.finding-004",
+          "specId": "devil-advocate.finding-004",
+          "taskId": "task-15",
+          "itemIdentity": "finding-004",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "note": "originating reviewer did not complete required source coverage: SPEC.md:31"
+      },
+      {
+        "findingId": "finding-005",
+        "originalFindingId": "finding-005",
+        "rootCauseId": "root-005",
+        "title": "S·C·T 요구사항을 검증하는 단위 테스트와 테스트 명령이 없음",
+        "originalSeverity": "medium",
+        "source": "reviewers.test-validation",
+        "reviewerIdentity": {
+          "source": "reviewers.test-validation",
+          "specId": "reviewers.test-validation",
+          "taskId": "task-11",
+          "itemIdentity": "test-validation",
+          "placeholderSpecId": "reviewers.item"
+        },
+        "sourceLineage": [
+          "reviewers.test-validation"
+        ],
+        "generatedRootCauseId": true,
+        "verdict": "NEEDS_HUMAN",
+        "originalVerdict": "KEEP",
+        "severity": "medium",
+        "file": "package.json",
+        "locations": [
+          {
+            "file": "package.json",
+            "line": 7,
+            "symbol": "scripts"
+          },
+          {
+            "file": "tsconfig.json",
+            "line": 10,
+            "symbol": "include"
+          }
+        ],
+        "reviewerEvidenceQuotes": [
+          "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+          "\"include\": [\"src/**/*.ts\"]"
+        ],
+        "evidenceQuotes": [
+          "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+          "\"include\": [\"src/**/*.ts\"]",
+          "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+        ],
+        "evidence": [
+          {
+            "file": "package.json",
+            "line": 7,
+            "symbol": "scripts",
+            "quote": "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }"
+          },
+          {
+            "file": "tsconfig.json",
+            "line": 10,
+            "symbol": "include",
+            "quote": "\"include\": [\"src/**/*.ts\"]"
+          },
+          {
+            "file": "SPEC.md",
+            "line": 40,
+            "symbol": "Q1",
+            "quote": "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+          }
+        ],
+        "rationale": "SPEC의 Q1은 모든 S·C·T 항목에 대한 단위 테스트를 요구하지만 현재 검증은 소스 타입 검사에 한정됩니다. 특히 stop 감시의 dispose/동시 읽기, cancellation JSON 재귀, terminal summary의 degradation·control.json·retry 합산 동작이 회귀되어도 탐지되지 않습니다.",
+        "verifierEvidence": [
+          "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+          "\"include\": [\"src/**/*.ts\"]",
+          "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+        ],
+        "counterEvidence": [],
+        "recommendedAction": "테스트 러너와 test 스크립트를 추가하고 S1-S7, C1-C2, T1-T3 및 경쟁·오류 경로의 단위 테스트를 CI에서 실행하세요.",
+        "sourceCoverageComplete": false,
+        "sourceCoverageIssuePaths": [
+          "SPEC.md:37"
+        ],
+        "verifierOwner": {
+          "source": "devil-advocate.finding-005",
+          "specId": "devil-advocate.finding-005",
+          "taskId": "task-16",
+          "itemIdentity": "finding-005",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "note": "originating reviewer did not complete required source coverage: SPEC.md:37"
+      }
+    ]
+  },
+  "supportNotes": [],
+  "reportContext": {
+    "keep": [
+      {
+        "findingId": "finding-001",
+        "rootCauseId": "root-001",
+        "title": "중지 감시 폴링 주기가 명세보다 느리고 최소값도 너무 낮음",
+        "severity": "high",
+        "recommendedAction": "기본값을 50ms로 변경하고 최소값을 10ms로 제한하며, 기본값과 경계값을 검증하는 단위 테스트를 추가하라."
+      },
+      {
+        "findingId": "finding-002",
+        "rootCauseId": "root-002",
+        "title": "중지 오류 판별이 오류 메시지만으로도 성공하여 오탐 가능",
+        "severity": "high",
+        "recommendedAction": "메시지 접두사 조건을 제거하고 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME 조건만 사용하라."
+      }
+    ],
+    "weaken": [],
+    "drop": [],
+    "needsHuman": [
+      {
+        "findingId": "finding-003",
+        "rootCauseId": "root-003",
+        "title": "허용 목록 외 취소 문자열을 취소로 오분류",
+        "severity": "high",
+        "recommendedAction": "문자열 후보 비교를 `aborted`, `AbortError`, `ABORT_ERR` 세 값으로 제한하고 `cancelled`와 `timeout` 회귀 테스트를 추가하라."
+      },
+      {
+        "findingId": "finding-004",
+        "rootCauseId": "root-004",
+        "title": "종료 요약의 launch 재시도 필드명이 공개 계약과 불일치함",
+        "severity": "high",
+        "recommendedAction": "인터페이스와 반환 객체를 launchRetryAttempts로 통일하고 회귀 테스트를 추가한다. 기존 외부 소비자 호환이 필요하면 명시적인 호환 alias를 검토한다."
+      },
+      {
+        "findingId": "finding-005",
+        "rootCauseId": "root-005",
+        "title": "S·C·T 요구사항을 검증하는 단위 테스트와 테스트 명령이 없음",
+        "severity": "medium",
+        "recommendedAction": "테스트 러너와 test 스크립트를 추가하고 S1-S7, C1-C2, T1-T3 및 경쟁·오류 경로의 단위 테스트를 CI에서 실행하세요."
+      }
+    ],
+    "supportNoteSummaries": [],
+    "partialFailures": [
+      {
+        "source": "reviewers.api-compatibility",
+        "displayName": "reviewers.api-compatibility",
+        "specId": "reviewers.api-compatibility",
+        "stageId": "reviewers",
+        "sourcePath": "SPEC.md:31",
+        "coverageStatus": "metadata-only",
+        "status": "source_coverage_incomplete",
+        "statusDetail": "api-compatibility: SPEC.md:31: metadata-only (요청된 정확한 31행은 빈 줄이어서 비어 있지 않은 exact quote를 제공할 수 없다. 계약 문구는 SPEC.md 35-36행에서 확인했다.)",
+        "errorType": "source_coverage"
+      },
+      {
+        "source": "reviewers.test-validation",
+        "displayName": "reviewers.test-validation",
+        "specId": "reviewers.test-validation",
+        "stageId": "reviewers",
+        "sourcePath": "SPEC.md:37",
+        "coverageStatus": "metadata-only",
+        "status": "source_coverage_incomplete",
+        "statusDetail": "test-validation: SPEC.md:37: metadata-only (요청된 정확한 line 37은 빈 줄이므로 read 상태에 필요한 비어 있지 않은 정확한 인용을 만들 수 없습니다.)",
+        "errorType": "source_coverage"
+      },
+      {
+        "source": "devil-advocate.finding-003",
+        "specId": "devil-advocate.finding-003",
+        "stageId": "devil-advocate",
+        "status": "verifier_evidence_unverified",
+        "statusDetail": "verifier evidence was not grounded: SPEC.md:25-26 did not contain the exact verifier quote",
+        "errorType": "verifier_evidence"
+      }
+    ]
+  },
+  "reportPacket": {
+    "schema": "deep-review-report-packet-v1",
+    "digest": "78755415c8a0fef7c5499e84ec3605ea4c11a48872e2b9fb1359c991dbbee9fa",
+    "maxChars": 15000,
+    "actualChars": 2751,
+    "partitionSummary": {
+      "keep": 2,
+      "weaken": 0,
+      "drop": 0,
+      "needsHuman": 3,
+      "supportNotes": 0,
+      "mergedFindings": 0,
+      "verdictsReceived": 5,
+      "batchIntegrityIssues": 0,
+      "verdictIntegrityIssues": 0,
+      "reviewerCoverageIssues": 0,
+      "reviewerFindings": 5,
+      "missingVerdicts": 0,
+      "partialFailures": 3
+    },
+    "sourceStatusSummary": {
+      "total": 9,
+      "completed": 6,
+      "nonCompleted": 3,
+      "partialFailureCount": 3,
+      "partialFailures": [
+        {
+          "source": "reviewers.api-compatibility",
+          "status": "source_coverage_incomplete",
+          "statusDetail": "api-compatibility: SPEC.md:31: metadata-only (요청된 정확한 31행은 빈 줄이어서 비어 있지 않은 exact quote를 제공할 수 없다. 계약 문구는 SPEC.md 35-36행에서 확인했다.)"
+        },
+        {
+          "source": "reviewers.test-validation",
+          "status": "source_coverage_incomplete",
+          "statusDetail": "test-validation: SPEC.md:37: metadata-only (요청된 정확한 line 37은 빈 줄이므로 read 상태에 필요한 비어 있지 않은 정확한 인용을 만들 수 없습니다.)"
+        },
+        {
+          "source": "devil-advocate.finding-003",
+          "status": "verifier_evidence_unverified",
+          "statusDetail": "verifier evidence was not grounded: SPEC.md:25-26 did not contain the exact verifier quote"
+        }
+      ]
+    },
+    "reportContext": {
+      "keep": [
+        {
+          "findingId": "finding-001",
+          "title": "중지 감시 폴링 주기가 명세보다 느리고 최소값도 너무 낮음",
+          "severity": "high",
+          "recommendedAction": "기본값을 50ms로 변경하고 최소값을 10ms로 제한하며, 기본값과 경계값을 검증하는 단위 테스트를 추가하라."
+        },
+        {
+          "findingId": "finding-002",
+          "title": "중지 오류 판별이 오류 메시지만으로도 성공하여 오탐 가능",
+          "severity": "high",
+          "recommendedAction": "메시지 접두사 조건을 제거하고 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME 조건만 사용하라."
+        }
+      ],
+      "weaken": [],
+      "drop": [],
+      "needsHuman": [
+        {
+          "findingId": "finding-003",
+          "title": "허용 목록 외 취소 문자열을 취소로 오분류",
+          "severity": "high",
+          "recommendedAction": "문자열 후보 비교를 `aborted`, `AbortError`, `ABORT_ERR` 세 값으로 제한하고 `cancelled`와 `timeout` 회귀 테스트를 추가하라."
+        },
+        {
+          "findingId": "finding-004",
+          "title": "종료 요약의 launch 재시도 필드명이 공개 계약과 불일치함",
+          "severity": "high",
+          "recommendedAction": "인터페이스와 반환 객체를 launchRetryAttempts로 통일하고 회귀 테스트를 추가한다. 기존 외부 소비자 호환이 필요하면 명시적인 호환 alias를 검토한다."
+        },
+        {
+          "findingId": "finding-005",
+          "title": "S·C·T 요구사항을 검증하는 단위 테스트와 테스트 명령이 없음",
+          "severity": "medium",
+          "recommendedAction": "테스트 러너와 test 스크립트를 추가하고 S1-S7, C1-C2, T1-T3 및 경쟁·오류 경로의 단위 테스트를 CI에서 실행하세요."
+        }
+      ],
+      "supportNoteSummaries": []
+    },
+    "normalizationNotes": [
+      "verdict for \"허용 목록 외 취소 문자열을 취소로 오분류\" had ungrounded verifier evidence; routed to NEEDS_HUMAN instead of KEEP",
+      "verdict for \"종료 요약의 launch 재시도 필드명이 공개 계약과 불일치함\" came from incomplete source coverage; routed to NEEDS_HUMAN instead of KEEP",
+      "verdict for \"S·C·T 요구사항을 검증하는 단위 테스트와 테스트 명령이 없음\" came from incomplete source coverage; routed to NEEDS_HUMAN instead of KEEP"
+    ],
+    "overflowCounts": {
+      "keep": 0,
+      "weaken": 0,
+      "drop": 0,
+      "needsHuman": 0,
+      "supportNotes": 0,
+      "partialFailures": 0,
+      "normalizationNotes": 0,
+      "truncatedStrings": 0,
+      "omittedStringChars": 0
+    }
+  },
+  "dedupSummary": {
+    "complete": true,
+    "rawCount": 5,
+    "uniqueCount": 5,
+    "duplicateCount": 0,
+    "rawFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "dedupFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "dispositionFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "supportFindingIds": [],
+    "lineageFindingIds": [],
+    "duplicates": []
+  },
+  "reviewerLedger": {
+    "plannedLensIds": [
+      "runtime-correctness",
+      "api-compatibility",
+      "test-validation"
+    ],
+    "materializedReviewerIds": [
+      "runtime-correctness",
+      "api-compatibility",
+      "test-validation"
+    ],
+    "attestedLensIds": [
+      "runtime-correctness",
+      "api-compatibility",
+      "test-validation"
+    ],
+    "materializedReviewerSourceIds": [
+      "reviewers",
+      "reviewers.api-compatibility",
+      "reviewers.test-validation"
+    ],
+    "validAttestationSourceIds": [
+      "reviewers",
+      "reviewers.api-compatibility",
+      "reviewers.test-validation"
+    ],
+    "ownerMap": [
+      {
+        "source": "reviewers",
+        "specId": "reviewers.runtime-correctness",
+        "taskId": "task-9",
+        "itemIdentity": "runtime-correctness",
+        "placeholderSpecId": "reviewers.item"
+      },
+      {
+        "source": "reviewers.api-compatibility",
+        "specId": "reviewers.api-compatibility",
+        "taskId": "task-10",
+        "itemIdentity": "api-compatibility",
+        "placeholderSpecId": "reviewers.item"
+      },
+      {
+        "source": "reviewers.test-validation",
+        "specId": "reviewers.test-validation",
+        "taskId": "task-11",
+        "itemIdentity": "test-validation",
+        "placeholderSpecId": "reviewers.item"
+      }
+    ],
+    "invalidAttestations": [],
+    "missingPlannedLensIds": [],
+    "missingAttestedLensIds": [],
+    "unexpectedMaterializedReviewerIds": [],
+    "unexpectedAttestedLensIds": [],
+    "duplicateMaterializedReviewerIds": [],
+    "setEquality": true,
+    "sourceStatuses": [
+      {
+        "source": "triage",
+        "displayName": "triage.main",
+        "taskId": "task-1",
+        "specId": "triage.main",
+        "stageId": "triage",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers",
+        "displayName": "reviewers.runtime-correctness",
+        "taskId": "task-9",
+        "specId": "reviewers.runtime-correctness",
+        "stageId": "reviewers",
+        "itemIdentity": "runtime-correctness",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers.api-compatibility",
+        "displayName": "reviewers.api-compatibility",
+        "taskId": "task-10",
+        "specId": "reviewers.api-compatibility",
+        "stageId": "reviewers",
+        "itemIdentity": "api-compatibility",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers.test-validation",
+        "displayName": "reviewers.test-validation",
+        "taskId": "task-11",
+        "specId": "reviewers.test-validation",
+        "stageId": "reviewers",
+        "itemIdentity": "test-validation",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      }
+    ],
+    "sourceCoverageFailures": [
+      {
+        "source": "reviewers.api-compatibility",
+        "displayName": "reviewers.api-compatibility",
+        "specId": "reviewers.api-compatibility",
+        "stageId": "reviewers",
+        "status": "source_coverage_incomplete",
+        "statusDetail": "api-compatibility: SPEC.md:31: metadata-only (요청된 정확한 31행은 빈 줄이어서 비어 있지 않은 exact quote를 제공할 수 없다. 계약 문구는 SPEC.md 35-36행에서 확인했다.)",
+        "errorType": "source_coverage",
+        "sourcePath": "SPEC.md:31",
+        "coverageStatus": "metadata-only"
+      },
+      {
+        "source": "reviewers.test-validation",
+        "displayName": "reviewers.test-validation",
+        "specId": "reviewers.test-validation",
+        "stageId": "reviewers",
+        "status": "source_coverage_incomplete",
+        "statusDetail": "test-validation: SPEC.md:37: metadata-only (요청된 정확한 line 37은 빈 줄이므로 read 상태에 필요한 비어 있지 않은 정확한 인용을 만들 수 없습니다.)",
+        "errorType": "source_coverage",
+        "sourcePath": "SPEC.md:37",
+        "coverageStatus": "metadata-only"
+      }
+    ],
+    "complete": true,
+    "rawFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "dedupFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "validFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "invalidFindingIds": [],
+    "dispositionFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "supportFindingIds": [],
+    "lineageFindingIds": [],
+    "provenanceOwnerFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ]
+  },
+  "verifierCoverage": {
+    "verdictsReceived": 5,
+    "complete": true,
+    "expectedFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "verdictFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "missingFindingIds": [],
+    "orphanFindingIds": [],
+    "duplicateFindingIds": [],
+    "ownerIssues": [],
+    "statusIssues": [],
+    "exactSetEquality": true,
+    "rows": [
+      {
+        "sourceId": "devil-advocate",
+        "index": 0,
+        "findingId": "finding-001",
+        "owner": {
+          "source": "devil-advocate",
+          "specId": "devil-advocate.finding-001",
+          "taskId": "task-12",
+          "itemIdentity": "finding-001",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "ownerSource": "devil-advocate",
+        "ownerSpecId": "devil-advocate.finding-001",
+        "ownerTaskId": "task-12",
+        "ownerItemIdentity": "finding-001",
+        "valid": true
+      },
+      {
+        "sourceId": "devil-advocate.finding-002",
+        "index": 1,
+        "findingId": "finding-002",
+        "owner": {
+          "source": "devil-advocate.finding-002",
+          "specId": "devil-advocate.finding-002",
+          "taskId": "task-13",
+          "itemIdentity": "finding-002",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "ownerSource": "devil-advocate.finding-002",
+        "ownerSpecId": "devil-advocate.finding-002",
+        "ownerTaskId": "task-13",
+        "ownerItemIdentity": "finding-002",
+        "valid": true
+      },
+      {
+        "sourceId": "devil-advocate.finding-003",
+        "index": 2,
+        "findingId": "finding-003",
+        "owner": {
+          "source": "devil-advocate.finding-003",
+          "specId": "devil-advocate.finding-003",
+          "taskId": "task-14",
+          "itemIdentity": "finding-003",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "ownerSource": "devil-advocate.finding-003",
+        "ownerSpecId": "devil-advocate.finding-003",
+        "ownerTaskId": "task-14",
+        "ownerItemIdentity": "finding-003",
+        "valid": true
+      },
+      {
+        "sourceId": "devil-advocate.finding-004",
+        "index": 3,
+        "findingId": "finding-004",
+        "owner": {
+          "source": "devil-advocate.finding-004",
+          "specId": "devil-advocate.finding-004",
+          "taskId": "task-15",
+          "itemIdentity": "finding-004",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "ownerSource": "devil-advocate.finding-004",
+        "ownerSpecId": "devil-advocate.finding-004",
+        "ownerTaskId": "task-15",
+        "ownerItemIdentity": "finding-004",
+        "valid": true
+      },
+      {
+        "sourceId": "devil-advocate.finding-005",
+        "index": 4,
+        "findingId": "finding-005",
+        "owner": {
+          "source": "devil-advocate.finding-005",
+          "specId": "devil-advocate.finding-005",
+          "taskId": "task-16",
+          "itemIdentity": "finding-005",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "ownerSource": "devil-advocate.finding-005",
+        "ownerSpecId": "devil-advocate.finding-005",
+        "ownerTaskId": "task-16",
+        "ownerItemIdentity": "finding-005",
+        "valid": true
+      }
+    ],
+    "sourceStatuses": [
+      {
+        "source": "dedup-findings",
+        "displayName": "dedup-findings.main",
+        "taskId": "task-3",
+        "specId": "dedup-findings.main",
+        "stageId": "dedup-findings",
+        "status": "completed",
+        "statusDetail": "support_completed",
+        "lastMessage": "support completed"
+      },
+      {
+        "source": "devil-advocate",
+        "displayName": "devil-advocate.finding-001",
+        "taskId": "task-12",
+        "specId": "devil-advocate.finding-001",
+        "stageId": "devil-advocate",
+        "itemIdentity": "finding-001",
+        "placeholderSpecId": "devil-advocate.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "devil-advocate.finding-002",
+        "displayName": "devil-advocate.finding-002",
+        "taskId": "task-13",
+        "specId": "devil-advocate.finding-002",
+        "stageId": "devil-advocate",
+        "itemIdentity": "finding-002",
+        "placeholderSpecId": "devil-advocate.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "devil-advocate.finding-003",
+        "displayName": "devil-advocate.finding-003",
+        "taskId": "task-14",
+        "specId": "devil-advocate.finding-003",
+        "stageId": "devil-advocate",
+        "itemIdentity": "finding-003",
+        "placeholderSpecId": "devil-advocate.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "devil-advocate.finding-004",
+        "displayName": "devil-advocate.finding-004",
+        "taskId": "task-15",
+        "specId": "devil-advocate.finding-004",
+        "stageId": "devil-advocate",
+        "itemIdentity": "finding-004",
+        "placeholderSpecId": "devil-advocate.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "devil-advocate.finding-005",
+        "displayName": "devil-advocate.finding-005",
+        "taskId": "task-16",
+        "specId": "devil-advocate.finding-005",
+        "stageId": "devil-advocate",
+        "itemIdentity": "finding-005",
+        "placeholderSpecId": "devil-advocate.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      }
+    ],
+    "digest": "7191dd51ab8eac2895d057f362f4569772e395b814e80f4a0834410ceccd4cd8"
+  },
+  "sourceStatusSummary": {
+    "total": 9,
+    "completed": 6,
+    "nonCompleted": 3,
+    "partialFailures": [
+      {
+        "source": "reviewers.api-compatibility",
+        "displayName": "reviewers.api-compatibility",
+        "specId": "reviewers.api-compatibility",
+        "stageId": "reviewers",
+        "sourcePath": "SPEC.md:31",
+        "coverageStatus": "metadata-only",
+        "status": "source_coverage_incomplete",
+        "statusDetail": "api-compatibility: SPEC.md:31: metadata-only (요청된 정확한 31행은 빈 줄이어서 비어 있지 않은 exact quote를 제공할 수 없다. 계약 문구는 SPEC.md 35-36행에서 확인했다.)",
+        "errorType": "source_coverage"
+      },
+      {
+        "source": "reviewers.test-validation",
+        "displayName": "reviewers.test-validation",
+        "specId": "reviewers.test-validation",
+        "stageId": "reviewers",
+        "sourcePath": "SPEC.md:37",
+        "coverageStatus": "metadata-only",
+        "status": "source_coverage_incomplete",
+        "statusDetail": "test-validation: SPEC.md:37: metadata-only (요청된 정확한 line 37은 빈 줄이므로 read 상태에 필요한 비어 있지 않은 정확한 인용을 만들 수 없습니다.)",
+        "errorType": "source_coverage"
+      },
+      {
+        "source": "devil-advocate.finding-003",
+        "specId": "devil-advocate.finding-003",
+        "stageId": "devil-advocate",
+        "status": "verifier_evidence_unverified",
+        "statusDetail": "verifier evidence was not grounded: SPEC.md:25-26 did not contain the exact verifier quote",
+        "errorType": "verifier_evidence"
+      }
+    ]
+  },
+  "partitionSummary": {
+    "keep": 2,
+    "weaken": 0,
+    "drop": 0,
+    "needsHuman": 3,
+    "supportNotes": 0,
+    "mergedFindings": 0,
+    "verdictsReceived": 5,
+    "batchIntegrityIssues": 0,
+    "verdictIntegrityIssues": 0,
+    "reviewerCoverageIssues": 0,
+    "reviewerFindings": 5,
+    "missingVerdicts": 0,
+    "partialFailures": 3
+  },
+  "normalizationNotes": [
+    "verdict for \"허용 목록 외 취소 문자열을 취소로 오분류\" had ungrounded verifier evidence; routed to NEEDS_HUMAN instead of KEEP",
+    "verdict for \"종료 요약의 launch 재시도 필드명이 공개 계약과 불일치함\" came from incomplete source coverage; routed to NEEDS_HUMAN instead of KEEP",
+    "verdict for \"S·C·T 요구사항을 검증하는 단위 테스트와 테스트 명령이 없음\" came from incomplete source coverage; routed to NEEDS_HUMAN instead of KEEP"
+  ]
+}

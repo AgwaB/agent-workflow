@@ -1,0 +1,8 @@
+{
+  "name": "workflow-stop-sample",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Excerpt of pi-workflow stop/cancel handling (store.js and types.js are not included).",
+  "scripts": { "typecheck": "tsc --noEmit" }
+}

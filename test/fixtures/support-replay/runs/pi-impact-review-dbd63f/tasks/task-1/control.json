@@ -1,0 +1,207 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "654f639의 HEAD는 확인했으나 diff는 확보하지 못했다. 중지·취소·종료 요약의 세 모듈을 검토 범위로 식별했으며, 현재 구현에서 명세와 다른 공개 필드·분류·폴링 동작이 관찰된다.",
+  "changeSummary": "요청 범위는 HEAD~1..HEAD(654f639)이다. 현재 소스는 워크플로 중지 신호, provider 취소 판별, 종료 요약을 담당한다. 변경 전후 diff와 확정 변경 파일 목록이 없어 아래 파일은 실제 변경 파일이 아니라 영향 검토 후보로 분류한다.",
+  "changeInputs": [
+    {
+      "kind": "runtime-task",
+      "range": "HEAD~1..HEAD",
+      "requestedCommit": "654f639",
+      "reviewDimensions": [
+        "공개 계약",
+        "상태·데이터",
+        "검증",
+        "문서·릴리스",
+        "보안·성능"
+      ]
+    },
+    {
+      "kind": "repository-head",
+      "path": ".git/refs/heads/main",
+      "value": "654f639606913ae2ea7b2465cf1bdcae71c03ff2"
+    },
+    {
+      "kind": "diff-availability",
+      "status": "unavailable",
+      "detail": "입력에 diff가 없고 허용 도구에 Git 명령 실행 기능이 없다. 부모 커밋과의 비교는 수행하지 못했다."
+    },
+    {
+      "kind": "local-specification",
+      "path": "SPEC.md",
+      "detail": "S1–S7, C1–C2, T1–T3, Q1을 현재 구현과 비교할 계약 근거로 사용했다."
+    }
+  ],
+  "affectedFiles": [
+    {
+      "path": "src/workflow-stop.ts",
+      "role": "inferred-impact-candidate",
+      "changeStatus": "unverified",
+      "scope": "실행별 foreground AbortSignal 등록, 디스크 중지 의도 조회, 오류 판별, 폴링과 해제",
+      "evidence": [
+        "5: const launchSignals = new Map<string, Set<AbortSignal>>();",
+        "57: error.message.startsWith(\"workflow stop requested\")",
+        "67: const pollMs = Math.max(1, options.pollMs ?? 200);"
+      ]
+    },
+    {
+      "path": "src/workflow-cancellation.ts",
+      "role": "inferred-impact-candidate",
+      "changeStatus": "unverified",
+      "scope": "provider 응답의 취소 판별과 content 텍스트 JSON 재귀 검사",
+      "evidence": [
+        "13: export function isWorkflowReturnedCancellation(value: unknown): boolean",
+        "20: 허용 후보에 \"cancelled\", \"timeout\"도 포함"
+      ]
+    },
+    {
+      "path": "src/workflow-terminal.ts",
+      "role": "inferred-impact-candidate",
+      "changeStatus": "unverified",
+      "scope": "종료 의미 상태, controller control.json 조회, 결과 작업 ID와 재시도 합계",
+      "evidence": [
+        "27: export interface WorkflowTerminalSummary",
+        "33: launchRetries: number;",
+        "107: launchRetries: run.tasks.reduce("
+      ]
+    },
+    {
+      "path": "SPEC.md",
+      "role": "contract-context",
+      "changeStatus": "unverified",
+      "scope": "중지·취소·종료 요약의 요구사항과 단위 테스트 요구"
+    },
+    {
+      "path": "package.json",
+      "role": "validation-release-context",
+      "changeStatus": "unverified",
+      "scope": "private 패키지, 버전 0.0.0, typecheck 스크립트만 선언"
+    },
+    {
+      "path": "tsconfig.json",
+      "role": "validation-context",
+      "changeStatus": "unverified",
+      "scope": "strict NodeNext TypeScript 검사, src/**/*.ts 포함"
+    }
+  ],
+  "affectedComponents": [
+    {
+      "name": "workflow-stop",
+      "entryPoints": [
+        "bindWorkflowLaunchSignal",
+        "createWorkflowStopSignal",
+        "throwIfWorkflowStopRequested",
+        "isWorkflowStopRequestedError"
+      ],
+      "state": "workflowRunPath(cwd, runId)로 구분하는 메모리 Map/Set, AbortController, 폴링 타이머",
+      "dependencies": [
+        "./store.js: readWorkflowStopIntent, workflowRunPath"
+      ],
+      "impact": "중지 감지 지연, 오류의 중지 오분류, 감시 I/O 빈도와 정리 수명주기"
+    },
+    {
+      "name": "provider-cancellation",
+      "entryPoints": [
+        "isWorkflowAbortError",
+        "isWorkflowReturnedCancellation"
+      ],
+      "state": "영속 상태 없음; provider 응답과 중첩 JSON을 검사",
+      "impact": "일반 provider 오류가 취소로 분류되어 진단이나 실패 처리가 달라질 수 있음"
+    },
+    {
+      "name": "workflow-terminal",
+      "entryPoints": [
+        "summarizeWorkflowTerminal"
+      ],
+      "dependencies": [
+        "./store.js: finalStageTasks, fromProjectPath, isTerminalWorkflowStatus, readJson, workflowRunDir",
+        "./types.js: WorkflowRunRecord",
+        "node:path"
+      ],
+      "state": "run 레코드와 controller 출력 옆 control.json을 읽어 요약 생성",
+      "impact": "외부 소비자의 필드 조회, 의미 상태, 결과 작업 목록과 재시도 집계"
+    },
+    {
+      "name": "validation-and-release",
+      "entryPoints": [
+        "package.json: scripts.typecheck",
+        "SPEC.md: Q1"
+      ],
+      "impact": "단위 테스트·통합 검증 증거와 배포 계약 확인이 필요하며 발췌 의존성이 누락됨"
+    }
+  ],
+  "publicSurfaces": [
+    {
+      "surface": "WorkflowTerminalSummary",
+      "path": "src/workflow-terminal.ts",
+      "contract": "SPEC.md T3은 outputRetryAttempts와 launchRetryAttempts를 외부 도구가 읽는 공개 필드로 지정",
+      "observation": "현재 타입과 반환 객체는 launchRetryAttempts 대신 launchRetries를 사용",
+      "changeAttribution": "diff 부재로 이번 커밋에서 발생했는지는 미확인"
+    },
+    {
+      "surface": "createWorkflowStopSignal(cwd, runId, { pollMs })",
+      "path": "src/workflow-stop.ts",
+      "contract": "SPEC.md S3: 기본 50ms, 최소 10ms",
+      "observation": "현재 구현은 기본 200ms, 최소 1ms"
+    },
+    {
+      "surface": "WorkflowStopRequested 오류 판별",
+      "path": "src/workflow-stop.ts",
+      "contract": "SPEC.md S6: 오류 이름만으로 판별",
+      "observation": "현재 구현은 메시지 접두사도 허용"
+    },
+    {
+      "surface": "provider 오류·사유 문자열의 취소 판별",
+      "path": "src/workflow-cancellation.ts",
+      "contract": "SPEC.md C1: aborted, AbortError, ABORT_ERR 세 문자열만 허용",
+      "observation": "현재 구현은 cancelled와 timeout도 허용"
+    },
+    {
+      "surface": "종료 의미 상태와 결과 작업 목록",
+      "path": "src/workflow-terminal.ts",
+      "contract": "WorkflowSemanticStatus, semanticStatus, outputTaskIds 및 controller control.json의 status/outputTasks",
+      "observation": "direct-dynamic 분기에서 controller 결과와 dynamic_incomplete 상태가 요약을 결정"
+    },
+    {
+      "surface": "중지 관련 나머지 export",
+      "path": "src/workflow-stop.ts",
+      "contract": "bindWorkflowLaunchSignal, WORKFLOW_STOP_REQUESTED_ERROR_NAME, 오류 생성·판별 함수, 메시지 형식, dispose 반환값",
+      "observation": "실제 호출자는 이 발췌에 없어 저장소 밖 소비자 영향은 확인하지 못함"
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A1",
+      "detail": "확정 변경 파일 목록이 없으므로 affectedFiles의 항목을 커밋 변경 사실로 해석해서는 안 된다."
+    },
+    {
+      "id": "A2",
+      "detail": "명세 불일치는 현재 파일에서 확인한 사실이며, 이번 커밋의 회귀인지 기존 문제인지는 판단할 수 없다."
+    },
+    {
+      "id": "A3",
+      "detail": "SPEC.md를 검토 계약 근거로 사용했으나, 해당 문서의 커밋 간 변경 여부도 미확인이다."
+    },
+    {
+      "id": "A4",
+      "detail": "store.js와 types.js는 SPEC.md와 package.json이 명시한 대로 발췌에 없다. 저장 경로 안전성, 실제 레코드 스키마와 호출 흐름은 확인할 수 없다."
+    },
+    {
+      "id": "A5",
+      "detail": "단위 테스트 파일·테스트 스크립트는 발견하지 못했고 typecheck나 실행 테스트는 수행하지 않았다. 제어 JSON은 읽은 스키마의 필수 키와 타입에 대조했으며 자동 검증기는 실행하지 않았다."
+    }
+  ],
+  "outOfScope": [
+    {
+      "scope": "실제 변경 전후 비교",
+      "reason": "부모 버전과 diff를 확보하지 못함"
+    },
+    {
+      "scope": "누락된 store/types 및 외부 호출자 구현",
+      "reason": "이 발췌에 없으므로 영속화·경로 제한·호환성의 종단 검증 불가"
+    },
+    {
+      "scope": "파일 수정, 테스트 실행, 실제 배포",
+      "reason": "읽기 전용 범위 탐색 단계이며 허용 도구도 읽기·검색으로 제한됨"
+    }
+  ]
+}

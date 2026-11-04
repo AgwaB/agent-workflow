@@ -1,0 +1,66 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "커밋 654f639의 검증 범위는 없음에 가깝다. 테스트 파일과 test 스크립트가 없고, 선언된 typecheck도 실행되지 않았으며 store.js/types.js 누락으로 실패할 가능성이 높다. SPEC.md 대비 편차 4건(S3 poll 기본값, C1 취소 키워드, S6 stop 오류 감지, T3 launchRetries 명명)이 자동 검증되지 않은 채 남아 있다.",
+  "coverageStatus": "none",
+  "coveredAreas": [],
+  "missingValidation": [
+    {
+      "note": "src/workflow-stop.ts: createWorkflowStopSignal의 pollMs 기본값이 SPEC S3(50ms)과 다르게 200ms인지 확인하는 단위 테스트가 없다."
+    },
+    {
+      "note": "src/workflow-cancellation.ts: isWorkflowReturnedCancellation이 'cancelled'와 'timeout'을 허용하는지 확인하는 테스트가 없다. SPEC C1의 정확한 3개 값 집합과 비교하는 테스트도 필요하다."
+    },
+    {
+      "note": "src/workflow-stop.ts: WorkflowStopRequested 오류 이름과 'workflow stop requested' 메시지 접두사, isWorkflowStopRequestedError 판별 동작을 고정하는 테스트가 없다."
+    },
+    {
+      "note": "src/workflow-terminal.ts: summarizeWorkflowTerminal이 launchRetries를 내보내고 launchRetryAttempts는 내보내지 않는지, outputRetryAttempts는 그대로인지 검증하는 테스트나 fixture가 없다. 이름 변경은 외부 소비자 계약에 영향을 주므로 스냅샷 테스트가 필요하다."
+    },
+    {
+      "note": "SPEC Q1이 요구하는 테스트 파일과 test 스크립트가 package.json에 없다. 변경 동작을 자동 검증할 수 없다."
+    },
+    {
+      "note": "커밋 654f639의 실제 diff를 이 단계에서 읽지 못했다. 변경 파일 목록과 줄 단위 영향은 커밋 메시지와 HEAD 코드 대조에 의존한다."
+    },
+    {
+      "note": "store.js/types.js가 저장소에 없어 WorkflowRunRecord/finalStageTasks 등 관련 타입 계약을 검증할 수 없다."
+    },
+    {
+      "note": "docs/examples/fixtures 디렉터리가 없어 launchRetries 계약을 고정할 예시나 픽스처가 없다."
+    },
+    {
+      "note": "launchRetryAttempts 소비처가 저장소 밖에 있을 수 있어 파급 범위를 확인할 수 없다."
+    }
+  ],
+  "recommendedCommands": [
+    {
+      "note": "git show --stat 654f639 && git diff 11bc671 654f639 -- src/ : 실제 변경 파일과 줄을 먼저 확인"
+    },
+    {
+      "note": "rg -n \"launchRetryAttempts|launchRetries\" src SPEC.md : 필드명 변경 잔존 참조 확인"
+    },
+    {
+      "note": "rg -n \"pollMs|200|50\" src/workflow-stop.ts SPEC.md : poll 기본값 편차 확인"
+    },
+    {
+      "note": "rg -n \"cancelled|timeout\" src/workflow-cancellation.ts : 취소 키워드 편차 확인"
+    },
+    {
+      "note": "npm run typecheck : 선언된 검증이지만 실행 전 store.js/types.js 누락 여부를 확인해야 함"
+    },
+    {
+      "note": "package.json에 test 스크립트와 단위 테스트를 추가한 뒤 위 4개 편차를 고정하는 테스트를 실행해야 함(현재 미구현, 추가 권장)"
+    }
+  ],
+  "assumptions": [
+    {
+      "note": "change-scope와 validation-map의 control 산출물을 신뢰하되, 두 단계 모두 git diff를 직접 읽지 못했다는 한계를 그대로 따랐다."
+    },
+    {
+      "note": "SPEC.md는 654f639에서 변경되지 않았다고 가정했다(11bc671에서 추가됨). 편차는 코드 대 명세의 드리프트로 본다."
+    },
+    {
+      "note": "typecheck 실패 가능성은 추정이며 실행으로 확인하지 않았다."
+    }
+  ]
+}

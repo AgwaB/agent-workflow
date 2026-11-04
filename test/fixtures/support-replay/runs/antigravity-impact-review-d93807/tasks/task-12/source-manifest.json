@@ -1,0 +1,126 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1kjw3t_d93807",
+  "taskId": "task-12",
+  "sources": [
+    {
+      "source": "impact-analysis.change-scope",
+      "displayName": "impact-analysis.change-scope.main",
+      "taskId": "task-1",
+      "specId": "impact-analysis.change-scope.main",
+      "stageId": "impact-analysis.change-scope",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "Commit 654f639 alters 3 files: changes pollMs default/minimum in workflow-stop.ts, expands cancellation candidate strings in workflow-cancellation.ts, and renames launchRetryAttempts to launchRetries in workflow-terminal.ts.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-1/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-1/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-1/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-1/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.contract-consistency",
+      "displayName": "impact-analysis.contract-consistency.main",
+      "taskId": "task-9",
+      "specId": "impact-analysis.contract-consistency.main",
+      "stageId": "impact-analysis.contract-consistency",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "공개 계약(API), 상태/데이터 모델, 문서(SPEC.md) 간의 직접적인 불일치(launchRetries 필드 파괴, pollMs 기본값/클램프 변경, provider timeout의 취소 오분류, 에러 메시지 검사 위반)가 확인되어 배포 불가(fail) 판정을 내립니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-9/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-9/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-9/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-9/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.regression-risk",
+      "displayName": "impact-analysis.regression-risk.main",
+      "taskId": "task-10",
+      "specId": "impact-analysis.regression-risk.main",
+      "stageId": "impact-analysis.regression-risk",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "커밋 654f639는 외부 공개 계약 파괴(T3), 타임아웃 오류의 취소 오분류(C1), 디스크 I/O 고갈 위험 완화 및 지연시간 증가(S3), 단위 테스트 전무(Q1)로 인해 배포 차단 수준(high)의 심각한 회귀 위험을 안고 있습니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-10/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-10/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-10/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-10/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "impact-analysis.ship-readiness",
+      "displayName": "impact-analysis.ship-readiness.main",
+      "taskId": "task-11",
+      "specId": "impact-analysis.ship-readiness.main",
+      "stageId": "impact-analysis.ship-readiness",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "커밋 654f639는 SPEC.md 핵심 명세(S3, C1, T3, Q1) 위반, 공개 계약 파괴(launchRetryAttempts -> launchRetries), 단위 테스트 전무, 디스크 I/O 고갈 및 타임아웃 오류 은폐 위험으로 인해 배포 불가(blocked) 상태임",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-11/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-11/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-11/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1kjw3t_d93807/tasks/task-11/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

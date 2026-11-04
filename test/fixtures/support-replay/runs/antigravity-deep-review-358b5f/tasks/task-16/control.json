@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC.md S6 명세에 따라 isWorkflowStopRequestedError는 메시지가 아닌 error.name으로만 판별해야 하므로 지적 사항이 타당하여 KEEP으로 판정합니다.",
+  "findingId": "finding-004",
+  "finding": "isWorkflowStopRequestedError checks error.message instead of checking only error.name",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 56,
+      "lineEnd": 57,
+      "symbol": "isWorkflowStopRequestedError",
+      "quote": "\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 18,
+      "lineEnd": 19,
+      "quote": "- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로\n  인정한다. 메시지 내용으로 판별해서는 안 된다."
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "src/workflow-stop.ts의 isWorkflowStopRequestedError에서 error.message.startsWith(...) 검사 조건을 제거하고, error instanceof Error && error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME 조건만 평가하도록 수정합니다.",
+  "readerTitle": "isWorkflowStopRequestedError가 error.name만 확인하는 대신 error.message를 검사함",
+  "readerRationale": "SPEC.md S6 명세: 'isWorkflowStopRequestedError는 이름이 WorkflowStopRequested인 오류만 중지 오류로 인정한다. 메시지 내용으로 판별해서는 안 된다.' error.message를 검사하면 해당 문구로 시작하는 메시지를 가진 다른 오류가 있을 때 오탐(false positive)을 초래합니다."
+}

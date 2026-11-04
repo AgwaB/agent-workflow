@@ -12,6 +12,7 @@
 			"tools/**",
 			"!**/*.md",
 			"!test/replay/fixtures/**",
+			"!test/fixtures/support-replay/**",
 			"!src/runtime/native/**",
 			"!src/hosts/dashboard/ui/vendor/**",
 			"!dist/**",

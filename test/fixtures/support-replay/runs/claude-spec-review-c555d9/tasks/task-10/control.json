@@ -1,0 +1,33 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "finding-002 is real: isWorkflowStopRequestedError also matches by message prefix, which S6 forbids. Downgraded to medium because no in-repo callers or tests exercise it.",
+  "id": "finding-002",
+  "verdict": "WEAKEN",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 53,
+      "lineEnd": 59,
+      "quote": "export function isWorkflowStopRequestedError(error: unknown): boolean {",
+      "relevance": "Predicate body accepts errors by name or by message prefix"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 57,
+      "lineEnd": 57,
+      "quote": "error.message.startsWith(\"workflow stop requested\")",
+      "relevance": "Message-content check that S6 forbids"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 19,
+      "lineEnd": 19,
+      "quote": "메시지 내용으로 판별해서는 안 된다.",
+      "relevance": "S6: message content must not be used to classify stop errors"
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "isWorkflowStopRequestedError returns true for any Error whose message starts with 'workflow stop requested', contrary to S6, which allows only the WorkflowStopRequested error name. Current impact is latent: no caller or test in the repository references this predicate.",
+  "recommendedAction": "Remove the message-prefix branch so the predicate checks only error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME, and add a test that an Error with the stop message but a different name is rejected."
+}

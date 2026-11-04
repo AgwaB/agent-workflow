@@ -1,0 +1,62 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "공개 계약(API), 상태/데이터 모델, 문서(SPEC.md) 간의 직접적인 불일치(launchRetries 필드 파괴, pollMs 기본값/클램프 변경, provider timeout의 취소 오분류, 에러 메시지 검사 위반)가 확인되어 배포 불가(fail) 판정을 내립니다.",
+  "status": "fail",
+  "issues": [
+    {
+      "id": "MISMATCH-01-TERMINAL-SUMMARY-FIELD",
+      "severity": "high",
+      "category": "contract_vs_code_vs_docs",
+      "target": "WorkflowTerminalSummary.launchRetries vs SPEC.md T3",
+      "description": "코드(src/workflow-terminal.ts)는 launchRetryAttempts를 launchRetries로 변경하였으나, SPEC.md T3은 launchRetryAttempts가 외부 도구가 소비하는 불변의 공개 계약임을 명시하고 있으며 문서 및 하위 호환성 레이어(alias/getter)가 전혀 제공되지 않아 런타임 데이터 파괴 및 통합 장애를 유발합니다."
+    },
+    {
+      "id": "MISMATCH-02-CANCELLATION-SEMANTICS-PROMOTION",
+      "severity": "high",
+      "category": "state_lifecycle_vs_spec",
+      "target": "isWorkflowReturnedCancellation vs SPEC.md C1",
+      "description": "코드(src/workflow-cancellation.ts)에 'timeout' 및 'cancelled'가 취소 사유 후보로 추가되어 프로바이더 타임아웃 오류가 사용자 의도 취소로 승격됩니다. 이는 '정확히 aborted, AbortError, ABORT_ERR 세 가지만 취소로 인정하며 다른 provider 오류를 취소로 승격해서는 안 된다'는 SPEC.md C1 규정과 정면으로 충돌하며 재시도/실패 진단 생명주기를 왜곡합니다."
+    },
+    {
+      "id": "MISMATCH-03-STOP-POLLING-TIMING-DEVIATION",
+      "severity": "medium",
+      "category": "runtime_behavior_vs_spec",
+      "target": "createWorkflowStopSignal vs SPEC.md S3",
+      "description": "코드(src/workflow-stop.ts)에서 pollMs 기본값을 200ms로 변경하고 최소 클램프를 1ms로 완화(Math.max(1, options.pollMs ?? 200))했습니다. 이는 SPEC.md S3('기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다 짧아지면 안 된다') 명세와 완전히 불일치하며 중지 반응성 4배 지연 및 디스크 I/O 과부하 위험을 초래합니다."
+    },
+    {
+      "id": "MISMATCH-04-STOP-ERROR-NAME-INSPECTION-VIOLATION",
+      "severity": "medium",
+      "category": "error_handling_vs_spec",
+      "target": "isWorkflowStopRequestedError vs SPEC.md S6",
+      "description": "코드(src/workflow-stop.ts)의 isWorkflowStopRequestedError가 error.message.startsWith('workflow stop requested')를 검사하도록 구현되어 있습니다. 이는 SPEC.md S6('이름이 WorkflowStopRequested인 오류만 중지 오류로 인정한다. 메시지 내용으로 판별해서는 안 된다') 명세를 위반하여 에러 식별 계약의 일관성을 깨뜨립니다."
+    },
+    {
+      "id": "MISMATCH-05-SPEC-DRIFT-AND-TEST-ABSENCE",
+      "severity": "medium",
+      "category": "docs_release_vs_spec",
+      "target": "SPEC.md Q1 vs Repository Test Harness",
+      "description": "커밋 654f639는 세 가지 핵심 모듈의 동작 및 데이터 계약을 변경했음에도 SPEC.md 업데이트, 릴리스 마이그레이션 안내, 변경 사항을 검증할 단위 테스트(SPEC.md Q1 위배)를 일체 포함하지 않아 검증되지 않은 위험 상태입니다."
+    }
+  ],
+  "confirmedConsistencies": [
+    {
+      "clause": "SPEC.md T1",
+      "target": "summarizeWorkflowTerminal degradation handling",
+      "status": "consistent",
+      "details": "completed 실행에서 degradation 발생 시 completed_degraded 상태를 부여하는 로직이 정상 유지됨."
+    },
+    {
+      "clause": "SPEC.md T2",
+      "target": "summarizeWorkflowTerminal direct-dynamic handling",
+      "status": "consistent",
+      "details": "direct-dynamic 실행에서 controller의 control.json을 읽을 수 없을 때 completed_without_semantic_result로 판별하는 로직이 명세와 일치함."
+    },
+    {
+      "clause": "SPEC.md S1/S2/S4/S5",
+      "target": "workflow-stop basic signal flow",
+      "status": "consistent",
+      "details": "디스크 의도 감지 및 foreground signal 연계, WorkflowStopRequested 이름의 abort 처리, dispose() 시 타이머 해제 등 기본 흐름 골격은 유지됨."
+    }
+  ]
+}

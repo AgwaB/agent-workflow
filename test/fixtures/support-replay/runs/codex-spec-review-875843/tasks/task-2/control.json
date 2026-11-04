@@ -1,0 +1,93 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "구현은 세 모듈에 집중되며 테스트 파일과 store/types 구현은 확인되지 않음.",
+  "implementationMap": [
+    {
+      "component": "Foreground signal registry",
+      "file": "src/workflow-stop.ts:5-27",
+      "evidence": "launchSignals는 workflowRunPath 키별 Set<AbortSignal>을 보관하고 해제 시 빈 항목을 삭제한다.",
+      "observedBehavior": "등록된 signal의 aborted 상태를 실행별로 검사하며 반환된 해제 함수가 signal을 제거한다.",
+      "relatedSignals": [
+        "S1",
+        "S7"
+      ]
+    },
+    {
+      "component": "Stop monitor",
+      "file": "src/workflow-stop.ts:61-86",
+      "evidence": "createWorkflowStopSignal이 즉시 check를 실행하고 setInterval로 반복하며 readWorkflowStopIntent 오류를 undefined로 바꾼다.",
+      "observedBehavior": "현재 pollMs 계산, 디스크 오류 처리, dispose의 timer 정리, 초기·주기적 읽기 동작이 구현되어 있다.",
+      "relatedSignals": [
+        "S1",
+        "S3",
+        "S4",
+        "S5"
+      ]
+    },
+    {
+      "component": "Stop error helpers",
+      "file": "src/workflow-stop.ts:43-59",
+      "evidence": "생성자는 지정된 name과 workflow stop requested for <runId> 메시지를 설정하고 판별자는 name 또는 메시지 prefix를 검사한다.",
+      "observedBehavior": "중지 오류 생성과 판별 규칙이 별도로 구현되어 있다.",
+      "relatedSignals": [
+        "S2",
+        "S6"
+      ]
+    },
+    {
+      "component": "Synchronous stop check",
+      "file": "src/workflow-stop.ts:89-99",
+      "evidence": "throwIfWorkflowStopRequested는 foreground signal을 먼저 검사한 뒤 readWorkflowStopIntent를 catch 없이 await한다.",
+      "observedBehavior": "읽기 실패가 호출자에게 전파되는 직접 검사 경로가 있다.",
+      "relatedSignals": [
+        "S1",
+        "S4"
+      ]
+    },
+    {
+      "component": "Provider cancellation classifier",
+      "file": "src/workflow-cancellation.ts:2-32",
+      "evidence": "error/reason 후보 문자열과 AbortError 객체를 검사하고 content.text JSON을 재귀 검사하며 parsed !== value를 적용한다.",
+      "observedBehavior": "cancelled/timeout 문자열과 boolean marker도 취소로 처리하고 content JSON을 재귀적으로 탐색한다.",
+      "relatedSignals": [
+        "C1",
+        "C2"
+      ]
+    },
+    {
+      "component": "Terminal semantic status",
+      "file": "src/workflow-terminal.ts:64-96",
+      "evidence": "completed와 degradation을 completed_degraded로 매핑하고 direct-dynamic control 읽기 실패를 undefined로 처리한 뒤 기본 상태를 설정한다.",
+      "observedBehavior": "동적 control.status 및 dynamic_incomplete에 따라 semanticStatus를 선택한다.",
+      "relatedSignals": [
+        "T1",
+        "T2"
+      ]
+    },
+    {
+      "component": "Retry summary contract",
+      "file": "src/workflow-terminal.ts:27-35,98-110",
+      "evidence": "모든 task의 outputRetry.attempts와 launchRetry.attempts를 reduce하며 공개 필드는 outputRetryAttempts와 launchRetries로 선언된다.",
+      "observedBehavior": "재시도 합계를 반환하지만 launch 관련 반환 필드명은 SPEC의 launchRetryAttempts와 다르다.",
+      "relatedSignals": [
+        "T3"
+      ]
+    },
+    {
+      "component": "Test surface",
+      "file": "package.json; repository test tree",
+      "evidence": "package.json에는 typecheck만 있고 rg --files 결과에 테스트 파일이 없다.",
+      "observedBehavior": "S·C·T 항목별 단위 테스트 구현 위치를 확인할 수 없다.",
+      "relatedSignals": [
+        "Q1"
+      ]
+    }
+  ],
+  "unmappedAreas": [
+    "src/store.js 및 src/types.js는 import되지만 저장소 발췌에 없어 경로·자료형 동작을 직접 검증할 수 없음",
+    "S·C·T 요구사항을 확인하는 단위 테스트 파일과 테스트 스크립트가 보이지 않음"
+  ],
+  "notes": [
+    "이 단계는 구현 위치와 관찰된 동작만 매핑하며 명세 충족 여부를 최종 판정하지 않음"
+  ]
+}

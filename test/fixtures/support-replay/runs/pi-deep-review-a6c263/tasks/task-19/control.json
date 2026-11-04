@@ -1,0 +1,37 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "현재 코드에서도 control 읽기 실패 시 dynamic_incomplete가 T2의 fallback을 덮어쓰므로 지적을 유지한다.",
+  "findingId": "finding-008",
+  "finding": "control 읽기 실패의 fallback보다 dynamic_incomplete가 우선한다",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "line": 33,
+      "lineEnd": 34,
+      "quote": "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는\n  `completed_without_semantic_result`이다."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 59,
+      "lineEnd": 61,
+      "symbol": "readDynamicControllerControl",
+      "quote": "\treturn await readJson<DynamicControllerControl>(\n\t\tjoin(dirname(taskOutput), \"control.json\"),\n\t).catch(() => undefined);"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 80,
+      "lineEnd": 86,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "\tif (terminal && run.provenance?.mode === \"direct-dynamic\") {\n\t\tconst control = await readDynamicControllerControl(cwd, run);\n\t\toutputTaskIds = stringArray(control?.outputTasks);\n\t\tconst incomplete = run.tasks.some(\n\t\t\t(task) => task.statusDetail === \"dynamic_incomplete\",\n\t\t);\n\t\tif (incomplete) semanticStatus = \"dynamic_incomplete\";"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 95,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "\t\telse semanticStatus = \"completed_without_semantic_result\";"
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "control이 undefined인 경우 completed_without_semantic_result를 먼저 적용하고, 읽기에 성공한 경우에만 dynamic_incomplete 우선순위를 평가한다. control 읽기 실패와 dynamic_incomplete 표식이 동시에 있는 종료 실행의 회귀 테스트를 추가한다."
+}

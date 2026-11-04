@@ -1,0 +1,231 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1lzg8c_c555d9",
+  "taskId": "task-6",
+  "sources": [
+    {
+      "source": "candidate-findings",
+      "displayName": "candidate-findings.main",
+      "taskId": "task-4",
+      "specId": "candidate-findings.main",
+      "stageId": "candidate-findings",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "13 spec items (S1–S7, C1–C2, T1–T3, Q1) checked against src/ and found no test files; 6 candidate findings: S3 pollMs default/clamp, S6 message-prefix match, C1 extra cancellation markers, T1 direct-dynamic degradation, T3 launchRetries name, Q1 missing tests.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-4/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-4/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-4/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-4/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings",
+      "displayName": "verify-findings.finding-001",
+      "taskId": "task-9",
+      "specId": "verify-findings.finding-001",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "finding-001",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "finding-001 KEEP: src/workflow-stop.ts:67 uses a 200ms default and a 1ms floor, but SPEC S3 requires a 50ms default and no value below 10ms.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-9/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-9/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-9/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-9/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.finding-002",
+      "displayName": "verify-findings.finding-002",
+      "taskId": "task-10",
+      "specId": "verify-findings.finding-002",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "finding-002",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "finding-002 is real: isWorkflowStopRequestedError also matches by message prefix, which S6 forbids. Downgraded to medium because no in-repo callers or tests exercise it.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-10/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-10/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-10/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-10/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.finding-003",
+      "displayName": "verify-findings.finding-003",
+      "taskId": "task-11",
+      "specId": "verify-findings.finding-003",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "finding-003",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "Real C1 deviation: line 20 accepts the strings 'cancelled' and 'timeout' beyond the three spec markers. The 'cancelled===true' boolean claim is not covered by C1's string-only wording, so the finding is narrowed.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-11/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-11/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-11/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-11/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.finding-004",
+      "displayName": "verify-findings.finding-004",
+      "taskId": "task-12",
+      "specId": "verify-findings.finding-004",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "finding-004",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "T1 degradation is overwritten by the direct-dynamic branch in src/workflow-terminal.ts, so completed_degraded is never produced for direct-dynamic runs; the candidate's 'unless the controller branch yields it' wording is wrong.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-12/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-12/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-12/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-12/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.finding-005",
+      "displayName": "verify-findings.finding-005",
+      "taskId": "task-13",
+      "specId": "verify-findings.finding-005",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "finding-005",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "T3 launch-retry total is summed correctly but exported as launchRetries, not the spec's public name launchRetryAttempts; keep as high-severity conformance gap.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-13/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-13/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-13/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-13/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.finding-006",
+      "displayName": "verify-findings.finding-006",
+      "taskId": "task-14",
+      "specId": "verify-findings.finding-006",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "finding-006",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "finding-006 is real in this checkout (no unit tests or test script for Q1), but scope is uncertain because the repo is an excerpt; downgraded to WEAKEN.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-14/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-14/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-14/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzg8c_c555d9/tasks/task-14/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

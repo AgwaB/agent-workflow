@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "id": "claim-006",
+  "status": "verified",
+  "confidence": "high",
+  "digest": "MDN BCD marks Edge as mirroring Chromium, and Can I Use confirms AbortSignal.any() support from Edge 116.",
+  "verdictDigest": "Verified: MDN BCD records Edge as a Chromium mirror for AbortSignal.any(), while Can I Use specifies Edge 116–154 as supported.",
+  "evidence": [
+    {
+      "source": "MDN Browser Compatibility Data",
+      "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+      "dateOrYear": "2026-11-04",
+      "quote": "\"edge\": \"mirror\",",
+      "relevance": "The any_static compatibility entry marks Edge as mirroring Chromium support."
+    },
+    {
+      "source": "Can I use",
+      "url": "https://caniuse.com/wf-abortsignal-any",
+      "dateOrYear": "2026-11-04",
+      "quote": "#### Edge\n\n  1. ❌ 12 - 115: Not supported\n  2. ✅ 116 - 154: Supported",
+      "relevance": "Confirms the concrete Edge support boundary."
+    }
+  ],
+  "caveats": "",
+  "correctionOrCounterclaim": ""
+}

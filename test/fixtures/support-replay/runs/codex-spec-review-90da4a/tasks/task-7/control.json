@@ -1,0 +1,104 @@
+{
+  "schema": "spec-review-report-v1",
+  "digest": "sha256:db5e2a57acc5b6a92fbdac3ec4f811f007bf2d385f64a319b5d810e95acbb77f",
+  "summary": "구현에는 S3, C1, T3, Q1의 확인된 갭이 있고 S6는 추가 확인이 필요하다. 요구사항 reconciliation도 완료되지 않아 최종 판정은 INCONCLUSIVE다.",
+  "verdict": "INCONCLUSIVE",
+  "ownerLedger": [
+    {
+      "source": "verify-findings",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-s3",
+      "taskId": "task-9",
+      "itemIdentity": "finding-S3",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-c1",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-c1",
+      "taskId": "task-12",
+      "itemIdentity": "finding-C1",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-q1",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-q1",
+      "taskId": "task-14",
+      "itemIdentity": "finding-Q1",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-s5",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-s5",
+      "taskId": "task-10",
+      "itemIdentity": "finding-S5",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-s6",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-s6",
+      "taskId": "task-11",
+      "itemIdentity": "finding-S6",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-t3",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-t3",
+      "taskId": "task-13",
+      "itemIdentity": "finding-T3",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    }
+  ],
+  "ownerLedgerReconciliation": {
+    "ownerRowCount": 6,
+    "verifierRowCount": 6,
+    "ownerIds": [
+      "finding-S3",
+      "finding-C1",
+      "finding-Q1",
+      "finding-S5",
+      "finding-S6",
+      "finding-T3"
+    ],
+    "verifierIds": [
+      "finding-S3",
+      "finding-C1",
+      "finding-Q1",
+      "finding-S5",
+      "finding-S6",
+      "finding-T3"
+    ],
+    "duplicateOwnerIds": [],
+    "duplicateVerifierIds": [],
+    "missingOwnerRows": [],
+    "orphanOwnerRows": [],
+    "statusMismatches": [],
+    "cardinalityPassed": true,
+    "passed": true
+  },
+  "risks": [
+    "S3: pollMs 기본값과 최솟값이 명세와 다르다.",
+    "C1: 취소 판정 허용값이 명세보다 넓다.",
+    "T3: 공개 필드명이 launchRetryAttempts 대신 launchRetries다.",
+    "Q1: S·C·T 항목별 단위 테스트 근거가 없다."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "읽기 전용 단계이며 테스트를 실행하지 않았다. 테스트 맵과 구현 맵만 검토했다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "recommendedNextAction": "S3·C1·T3·Q1을 수정하고 S6 및 S5의 경계 조건을 독립 검증한 뒤, 전체 단위 테스트를 추가·실행하여 reconciliation을 완료한다."
+}

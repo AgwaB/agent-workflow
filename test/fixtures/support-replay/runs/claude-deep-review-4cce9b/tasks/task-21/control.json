@@ -1,0 +1,50 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "마스킹 동작 자체는 코드에 실제로 존재하지만 SPEC T2가 명시적으로 요구하고 engineStatus 필드가 원래 실패 상태를 보존하므로, 결함보다는 우선순위·명세 설계 문제로 약화한다.",
+  "findingId": "finding-009",
+  "finding": "control.json 부재·읽기 실패가 비정상 종료 상태를 completed_without_semantic_result로 덮어씀",
+  "verdict": "WEAKEN",
+  "evidence": [
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 80,
+      "lineEnd": 80,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "if (terminal && run.provenance?.mode === \"direct-dynamic\") {"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 95,
+      "lineEnd": 95,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "else semanticStatus = \"completed_without_semantic_result\";"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 61,
+      "lineEnd": 61,
+      "symbol": "readDynamicControllerControl",
+      "quote": ").catch(() => undefined);"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 100,
+      "lineEnd": 100,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "engineStatus: run.status,"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 34,
+      "lineEnd": 34,
+      "quote": "`completed_without_semantic_result`이다."
+    }
+  ],
+  "counterEvidence": [
+    "SPEC.md T2는 direct-dynamic 실행에서 control.json을 읽을 수 없으면 completed_without_semantic_result라고 run 상태 제한 없이 명시하므로, 코드는 명세를 따르고 있다.",
+    "요약 객체의 engineStatus(src/workflow-terminal.ts:100)가 run.status를 그대로 보존하므로 failed/interrupted 정보는 완전히 사라지지 않는다.",
+    "readDynamicControllerControl은 controller 태스크가 없을 때도 undefined를 반환하므로, 덮어쓰기는 direct-dynamic 실행 전체에 적용되는 설계 선택이다.",
+    "src/와 테스트 어디에도 summarizeWorkflowTerminal 테스트가 없어 실제 소비자 영향은 저장소만으로 확인되지 않는다."
+  ],
+  "recommendedAction": "명세 결정을 먼저 확정한다. 비정상 종료(engine status가 completed가 아님)에서는 run.status 기반 의미 상태(failed/interrupted/cancelled)를 유지하도록 80행 분기 전에 조건을 두고 SPEC T2를 completed 실행으로 한정하거나, T2를 유지한다면 SPEC에 비정상 종료 덮어쓰기를 명시한다. readJson의 catch는 ENOENT와 파싱·권한 오류를 구분해 기록하고, T2 단위 테스트를 추가한다. 심각도는 medium에서 low~medium으로 낮추는 것이 타당하다."
+}

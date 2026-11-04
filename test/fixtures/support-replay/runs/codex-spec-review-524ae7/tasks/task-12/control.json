@@ -1,0 +1,40 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "구현이 명세의 세 문자열 허용 목록을 넘어 cancelled와 timeout을 취소로 판정하며, content JSON에도 동일한 과잉 판정이 재귀 적용된다.",
+  "id": "finding-C1C2",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 25,
+      "lineEnd": 26,
+      "quote": "오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다.",
+      "relevance": "취소 문자열 허용 목록을 세 가지로 제한한다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 16,
+      "lineEnd": 16,
+      "quote": "if (value.cancelled === true) return true;",
+      "relevance": "명세에 없는 cancelled:true를 취소로 판정한다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 18,
+      "lineEnd": 20,
+      "quote": "for (const candidate of [value.error, details?.error, value.reason, details?.reason]) {\n\t\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "relevance": "cancelled와 timeout을 추가 취소 사유로 인정한다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 23,
+      "lineEnd": 28,
+      "quote": "if (Array.isArray(value.content)) {\n\t\tfor (const entry of value.content) {\n\t\t\tif (!isRecord(entry) || typeof entry.text !== \"string\") continue;\n\t\t\ttry {\n\t\t\t\tconst parsed: unknown = JSON.parse(entry.text);\n\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+      "relevance": "content JSON에 동일한 넓은 판별 함수를 재귀 적용한다."
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "REQ-C1과 REQ-C2 위반을 유지한다. provider 값과 content JSON에서 cancelled:true, cancelled, timeout을 취소로 승격한다.",
+  "recommendedAction": "허용 목록을 aborted, AbortError, ABORT_ERR로 제한하고 content JSON에도 동일한 제한을 적용한다."
+}

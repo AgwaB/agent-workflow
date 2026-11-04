@@ -1,0 +1,206 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "커밋 654f639(HEAD~1..HEAD) 대상 변경 범위를 워크플로 중지(stop), 취소(cancellation), 종료 요약(terminal) 모듈과 관련 계약 및 명세로 한정하여 도출했습니다.",
+  "changeSummary": "런타임 태스크에 명시된 마지막 커밋(HEAD~1..HEAD, 654f639)을 대상으로 변경 범위를 조사했습니다. 읽기 전용 실행 환경에서 별도의 git diff 패치 파일이나 외부 변경 목록 아티팩트가 제공되지 않으므로, 지침에 따라 가상 파일을 생성하지 않고 태스크 및 저장소 내 유효 파일(src/ 하위 3개 모듈, SPEC.md, package.json, tsconfig.json)을 기준으로 가장 좁은 범위를 도출했습니다.",
+  "changeInputs": [
+    {
+      "id": "runtime-task",
+      "text": "이 저장소의 마지막 커밋(HEAD~1..HEAD, 654f639) 변경이 미치는 영향을 검토해 줘. 공개 계약, 상태·데이터, 검증, 문서·릴리스, 보안·성능 측면에서 배포해도 되는지 판단해 줘.",
+      "type": "prompt"
+    },
+    {
+      "id": "commit-reference",
+      "text": "commit 654f639 (HEAD, 654f639606913ae2ea7b2465cf1bdcae71c03ff2)",
+      "type": "git-ref"
+    },
+    {
+      "id": "spec-document",
+      "text": "SPEC.md: 워크플로 중지·취소 처리 명세 (S1–S7, C1–C2, T1–T3, Q1)",
+      "type": "specification"
+    }
+  ],
+  "affectedFiles": [
+    {
+      "id": "file-src-workflow-stop",
+      "path": "src/workflow-stop.ts",
+      "text": "src/workflow-stop.ts: 중지 신호 등록, 감시 루프(pollMs), 디스크 중지 의도 확인 및 중지 에러 판별",
+      "role": "stop-detection"
+    },
+    {
+      "id": "file-src-workflow-cancellation",
+      "path": "src/workflow-cancellation.ts",
+      "text": "src/workflow-cancellation.ts: 프로바이더 반환값 취소 판별 및 재귀적 JSON 파싱",
+      "role": "cancellation-classification"
+    },
+    {
+      "id": "file-src-workflow-terminal",
+      "path": "src/workflow-terminal.ts",
+      "text": "src/workflow-terminal.ts: 워크플로 종료 요약, 의미적 상태(WorkflowSemanticStatus) 결정 및 재시도 집계",
+      "role": "terminal-summary"
+    },
+    {
+      "id": "file-spec",
+      "path": "SPEC.md",
+      "text": "SPEC.md: 중지 감지(S1–S7), 취소 판별(C1–C2), 종료 요약(T1–T3), 단위 테스트(Q1) 명세",
+      "role": "specification"
+    },
+    {
+      "id": "file-package-json",
+      "path": "package.json",
+      "text": "package.json: 모듈 메타데이터 및 빌드/타입스크립트 스크립트 정의",
+      "role": "package-manifest"
+    },
+    {
+      "id": "file-tsconfig-json",
+      "path": "tsconfig.json",
+      "text": "tsconfig.json: TypeScript 컴파일러 구성 (include: src/**/*.ts)",
+      "role": "build-config"
+    }
+  ],
+  "affectedComponents": [
+    {
+      "id": "component-stop-detection",
+      "name": "Stop Detection & Signal Binding",
+      "text": "src/workflow-stop.ts: launchSignals 맵을 통한 foreground AbortSignal 관리, readWorkflowStopIntent 감시 및 에러 래핑",
+      "files": [
+        "src/workflow-stop.ts"
+      ]
+    },
+    {
+      "id": "component-cancellation-classifier",
+      "name": "Cancellation Classifier",
+      "text": "src/workflow-cancellation.ts: isWorkflowAbortError 및 isWorkflowReturnedCancellation을 통한 프로바이더 응답 취소 분류",
+      "files": [
+        "src/workflow-cancellation.ts"
+      ]
+    },
+    {
+      "id": "component-terminal-summary",
+      "name": "Terminal Summary & Retries",
+      "text": "src/workflow-terminal.ts: summarizeWorkflowTerminal, dynamic controller control.json 파싱, outputRetry/launchRetry 집계",
+      "files": [
+        "src/workflow-terminal.ts"
+      ]
+    },
+    {
+      "id": "component-testing-and-validation",
+      "name": "Test & Quality Verification",
+      "text": "package.json 및 프로젝트 루트: 단위 테스트 러너 부재 및 Q1 요구사항 검증 영역",
+      "files": [
+        "package.json",
+        "SPEC.md"
+      ]
+    }
+  ],
+  "publicSurfaces": [
+    {
+      "id": "surface-bindWorkflowLaunchSignal",
+      "symbol": "bindWorkflowLaunchSignal",
+      "file": "src/workflow-stop.ts",
+      "text": "export function bindWorkflowLaunchSignal(cwd: string, runId: string, signal: AbortSignal | undefined): () => void"
+    },
+    {
+      "id": "surface-createWorkflowStopPendingError",
+      "symbol": "createWorkflowStopPendingError",
+      "file": "src/workflow-stop.ts",
+      "text": "export function createWorkflowStopPendingError(message: string): Error"
+    },
+    {
+      "id": "surface-isWorkflowStopPendingError",
+      "symbol": "isWorkflowStopPendingError",
+      "file": "src/workflow-stop.ts",
+      "text": "export function isWorkflowStopPendingError(error: unknown): error is Error"
+    },
+    {
+      "id": "surface-workflowStopRequestedMessage",
+      "symbol": "workflowStopRequestedMessage",
+      "file": "src/workflow-stop.ts",
+      "text": "export function workflowStopRequestedMessage(runId: string): string"
+    },
+    {
+      "id": "surface-createWorkflowStopRequestedError",
+      "symbol": "createWorkflowStopRequestedError",
+      "file": "src/workflow-stop.ts",
+      "text": "export function createWorkflowStopRequestedError(runId: string): Error"
+    },
+    {
+      "id": "surface-isWorkflowStopRequestedError",
+      "symbol": "isWorkflowStopRequestedError",
+      "file": "src/workflow-stop.ts",
+      "text": "export function isWorkflowStopRequestedError(error: unknown): boolean"
+    },
+    {
+      "id": "surface-createWorkflowStopSignal",
+      "symbol": "createWorkflowStopSignal",
+      "file": "src/workflow-stop.ts",
+      "text": "export function createWorkflowStopSignal(cwd: string, runId: string, options?: { pollMs?: number }): { signal: AbortSignal; dispose: () => void }"
+    },
+    {
+      "id": "surface-throwIfWorkflowStopRequested",
+      "symbol": "throwIfWorkflowStopRequested",
+      "file": "src/workflow-stop.ts",
+      "text": "export async function throwIfWorkflowStopRequested(cwd: string, runId: string): Promise<void>"
+    },
+    {
+      "id": "surface-isWorkflowAbortError",
+      "symbol": "isWorkflowAbortError",
+      "file": "src/workflow-cancellation.ts",
+      "text": "export function isWorkflowAbortError(value: unknown): boolean"
+    },
+    {
+      "id": "surface-isWorkflowReturnedCancellation",
+      "symbol": "isWorkflowReturnedCancellation",
+      "file": "src/workflow-cancellation.ts",
+      "text": "export function isWorkflowReturnedCancellation(value: unknown): boolean"
+    },
+    {
+      "id": "surface-summarizeWorkflowTerminal",
+      "symbol": "summarizeWorkflowTerminal",
+      "file": "src/workflow-terminal.ts",
+      "text": "export async function summarizeWorkflowTerminal(cwd: string, run: WorkflowRunRecord): Promise<WorkflowTerminalSummary>"
+    },
+    {
+      "id": "surface-type-WorkflowTerminalSummary",
+      "symbol": "WorkflowTerminalSummary",
+      "file": "src/workflow-terminal.ts",
+      "text": "export interface WorkflowTerminalSummary { terminal: boolean; engineStatus: WorkflowRunRecord['status']; semanticStatus: WorkflowSemanticStatus; outputTaskIds: string[]; outputRetryAttempts: number; launchRetries: number; artifactRoot: string; }"
+    },
+    {
+      "id": "surface-type-WorkflowSemanticStatus",
+      "symbol": "WorkflowSemanticStatus",
+      "file": "src/workflow-terminal.ts",
+      "text": "export type WorkflowSemanticStatus = 'running' | 'blocked' | 'failed' | 'interrupted' | 'completed' | 'completed_degraded' | 'synthesized' | 'exhausted_with_output' | 'exhausted_without_output' | 'dynamic_blocked' | 'dynamic_incomplete' | 'dynamic_stopped' | 'completed_without_semantic_result'"
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "assumption-diff-availability",
+      "text": "도구 정책상 git CLI 명령이 비활성화되어 있고 별도 패치 파일이 인계되지 않았으므로, 저장소의 현재 코드와 명세 문서 전체를 대상 변경 범위의 실질적 경계로 간주함"
+    },
+    {
+      "id": "assumption-external-store-types",
+      "text": "발췌에서 제외된 store.js 및 types.js는 외부 안정 계약으로 간주하며 src/ 내부 변경 분석 범위에서 직접 수정되지 않음"
+    },
+    {
+      "id": "assumption-scope-evaluation",
+      "text": "하위 분석 단계(api-contract-impact, state-data-impact, validation-impact, docs-release-impact, security-performance-impact)는 식별된 공개 함수와 인터페이스를 기준으로 계약 일치 및 배포 위험을 검증함"
+    }
+  ],
+  "outOfScope": [
+    {
+      "id": "out-of-scope-external-modules",
+      "text": "SPEC.md에 언급된 제외 대상인 ./store.js 및 ./types.js 내부 구현",
+      "reason": "명세 4행에 명시된 대로 저장소 발췌에 포함되지 않음"
+    },
+    {
+      "id": "out-of-scope-file-edits",
+      "text": "저장소 파일 수정 또는 패치 적용",
+      "reason": "해당 워크플로 및 단계는 읽기 전용(read-only) 분석으로 제한됨"
+    },
+    {
+      "id": "out-of-scope-deployment-execution",
+      "text": "실제 배포 실행 또는 CI 파이프라인 외부 트리거",
+      "reason": "영향 분석 및 배포 가부 판단 리포트 작성이 목적임"
+    }
+  ]
+}

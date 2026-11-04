@@ -1,0 +1,55 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "읽을 수 있는 controller 결과가 synthesized인 direct-dynamic 경로에서 completed_degraded가 덮어써지므로 T1 위반을 유지한다.",
+  "id": "finding-005",
+  "verdict": "KEEP",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 32,
+      "lineEnd": 32,
+      "quote": "- **T1.** `completed` 실행에 degradation 기록이 있으면 의미 상태는 `completed_degraded`이다.",
+      "relevance": "direct-dynamic을 제외하지 않는 의미 상태 요구사항"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 76,
+      "lineEnd": 87,
+      "quote": "const terminal = isTerminalWorkflowStatus(run.status);\n\tlet semanticStatus: WorkflowSemanticStatus = nonDynamicSemanticStatus(run);\n\tlet outputTaskIds = finalStageTasks(run.tasks).map((task) => task.specId);\n\n\tif (terminal && run.provenance?.mode === \"direct-dynamic\") {\n\t\tconst control = await readDynamicControllerControl(cwd, run);\n\t\toutputTaskIds = stringArray(control?.outputTasks);\n\t\tconst incomplete = run.tasks.some(\n\t\t\t(task) => task.statusDetail === \"dynamic_incomplete\",\n\t\t);\n\t\tif (incomplete) semanticStatus = \"dynamic_incomplete\";\n\t\telse if (control?.status === \"synthesized\") semanticStatus = \"synthesized\";",
+      "relevance": "degradation 여부를 확인하지 않고 기존 의미 상태를 synthesized로 재할당한다."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 98,
+      "lineEnd": 101,
+      "quote": "return {\n\t\tterminal,\n\t\tengineStatus: run.status,\n\t\tsemanticStatus,",
+      "relevance": "재할당된 의미 상태가 요약에 그대로 반환된다."
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 67,
+      "lineEnd": 69,
+      "quote": "if (run.status === \"completed\")\n\t\treturn run.degradation ? \"completed_degraded\" : \"completed\";\n\treturn run.status;",
+      "relevance": "초기 상태 계산은 T1을 준수하므로 모든 완료 경로가 잘못된 것은 아니다."
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 33,
+      "lineEnd": 34,
+      "quote": "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는\n  `completed_without_semantic_result`이다.",
+      "relevance": "읽기 실패 상황에는 별도 요구가 있지만, 읽기 성공·synthesized인 반례에는 적용되지 않는다."
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 4,
+      "lineEnd": 4,
+      "quote": "`store.js`, `types.js`는 이 발췌에 포함되지 않는다.",
+      "relevance": "실제 생산자의 입력 불변식과 통합 실행 가능성은 이 저장소만으로 확인할 수 없다."
+    }
+  ],
+  "finalClaim": "terminal로 판정된 completed 실행에 degradation 기록이 있고, direct-dynamic controller의 읽기 가능한 control.status가 synthesized이며 dynamic_incomplete 작업이 없으면, 요약은 T1의 completed_degraded 대신 synthesized를 반환한다.",
+  "recommendedAction": "control 읽기 성공 경로에서 completed와 degradation의 의미 상태를 보존하고, direct-dynamic·synthesized 조합의 회귀 테스트를 추가한다. 읽기 실패에 대한 T2는 별도로 다룬다."
+}

@@ -1,0 +1,184 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "AbortSignal.any()은 Node.js v20.3.0에서 최초 도입되었고 v18.17.0으로 backport되었으며, 최신 Node.js 문서의 Global objects 표기는 Stable이다.",
+  "questionId": "question-001",
+  "question": "Node.js 공식 문서와 릴리스 자료에서 AbortSignal.any()의 최초 도입 버전과 현재 안정성 표기는 무엇인가?",
+  "covers": [
+    "Node.js에서 AbortSignal.any()의 안정적 지원 버전"
+  ],
+  "extractedFacts": [
+    {
+      "slotId": "slot-001",
+      "slotLabel": "Node.js AbortSignal.any() 최초 지원 버전",
+      "entity": "Node.js AbortSignal.any()",
+      "value": "v20.3.0 최초 도입; v18.17.0으로 backport",
+      "factType": "version",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+      ],
+      "sourceTitleOrPublisher": "Node.js Global objects documentation",
+      "dateOrYear": "2026",
+      "sourceQuality": "primary_official",
+      "confidence": "high",
+      "quote": "Added in: v20.3.0, v18.17.0",
+      "notes": "v20.3.0이 최초 도입 라인이고 v18.17.0은 지원 라인으로 추가된 backport 버전이다."
+    },
+    {
+      "slotId": "slot-002",
+      "slotLabel": "Node.js AbortSignal.any() 안정성 상태",
+      "entity": "Node.js AbortSignal.any()",
+      "value": "현재 Stable 문서 체계에서 제공됨; 최신 문서는 Global objects에 Stability: 2 - Stable을 표기하며 AbortSignal.any() 자체에는 별도 Stability 행이 없다.",
+      "factType": "policy",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+      ],
+      "sourceTitleOrPublisher": "Node.js Global objects documentation",
+      "dateOrYear": "2026",
+      "sourceQuality": "primary_official",
+      "confidence": "medium",
+      "quote": "Stability: 2 - Stable",
+      "notes": "해당 문구는 Global objects 섹션의 안정성 표기이며 AbortSignal.any() 메서드 바로 아래의 개별 표기는 아니다."
+    }
+  ],
+  "claims": [
+    {
+      "claim": "Node.js 공식 최신 문서는 AbortSignal.any()의 지원 버전을 v20.3.0 및 v18.17.0으로 기록한다.",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+      ],
+      "sourceTitleOrPublisher": "Node.js",
+      "dateOrYear": "2026",
+      "sourceQuality": "primary_official",
+      "scopeItems": [
+        "Node.js에서 AbortSignal.any()의 안정적 지원 버전"
+      ],
+      "factSlotIds": [
+        "slot-001"
+      ]
+    },
+    {
+      "claim": "최초 도입 기준으로는 Node.js v20.3.0이 기준 버전이다.",
+      "sourceUrls": [
+        "https://nodejs.org/en/blog/release/v20.3.0",
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+      ],
+      "sourceTitleOrPublisher": "Node.js v20.3.0 release notes; Node.js API documentation",
+      "dateOrYear": "2023",
+      "sourceQuality": "primary_official",
+      "scopeItems": [
+        "Node.js에서 AbortSignal.any()의 안정적 지원 버전"
+      ],
+      "factSlotIds": [
+        "slot-001"
+      ]
+    },
+    {
+      "claim": "AbortSignal.any()는 Node.js v18.17.0 계열에도 제공된다.",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+      ],
+      "sourceTitleOrPublisher": "Node.js",
+      "dateOrYear": "2026",
+      "sourceQuality": "primary_official",
+      "scopeItems": [
+        "Node.js에서 AbortSignal.any()의 안정적 지원 버전"
+      ],
+      "factSlotIds": [
+        "slot-001"
+      ]
+    },
+    {
+      "claim": "최신 Node.js 문서의 Global objects 섹션은 Stability: 2 - Stable로 표시된다.",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+      ],
+      "sourceTitleOrPublisher": "Node.js",
+      "dateOrYear": "2026",
+      "sourceQuality": "primary_official",
+      "scopeItems": [
+        "Node.js에서 AbortSignal.any()의 안정적 지원 버전"
+      ],
+      "factSlotIds": [
+        "slot-002"
+      ]
+    },
+    {
+      "claim": "최신 문서에는 AbortSignal.any() 메서드 자체에 별도의 안정성 변경 이력 행은 보이지 않는다.",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+      ],
+      "sourceTitleOrPublisher": "Node.js",
+      "dateOrYear": "2026",
+      "sourceQuality": "primary_official",
+      "scopeItems": [
+        "Node.js에서 AbortSignal.any()의 안정적 지원 버전"
+      ],
+      "factSlotIds": [
+        "slot-002"
+      ]
+    }
+  ],
+  "additionalUnverifiedLeads": [
+    {
+      "lead": "AbortSignal.any() 메서드가 특정 Node.js 버전에서 개별적으로 Stable로 전환되었다는 별도 릴리스 기록",
+      "whyUnverified": "최신 API 문서는 전역 섹션의 Stable 표기는 제공하지만 메서드별 안정성 전환 행은 제공하지 않는다.",
+      "nextStep": "Node.js git history 또는 해당 버전 changelog에서 method-level stability 변경 커밋을 별도로 확인"
+    }
+  ],
+  "sources": [
+    {
+      "sourceType": "official_api_documentation",
+      "sourceRef": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+      "title": "Global objects | Node.js v24.22.2 Documentation",
+      "publisher": "Node.js",
+      "quote": "Added in: v20.3.0, v18.17.0",
+      "supports": [
+        "AbortSignal.any() 지원 버전",
+        "현재 문서 안정성 맥락"
+      ],
+      "confidence": "high",
+      "factSlotIds": [
+        "slot-001",
+        "slot-002"
+      ]
+    },
+    {
+      "sourceType": "official_release_documentation",
+      "sourceRef": "https://nodejs.org/en/blog/release/v20.3.0",
+      "title": "Node.js 20.3.0 (Current)",
+      "publisher": "Node.js",
+      "quote": "",
+      "supports": [
+        "v20.3.0 릴리스 시점 확인"
+      ],
+      "confidence": "medium",
+      "factSlotIds": [
+        "slot-001"
+      ],
+      "notes": "페이지 본문 추출에서 AbortSignal.any() 커밋 행의 정확한 인용문은 확보하지 못함."
+    }
+  ],
+  "caveats": [
+    "‘최초 도입’은 v20.3.0을 의미하며, v18.17.0은 이후 backport 지원 버전이다.",
+    "Stable 표기는 최신 문서의 Global objects 섹션 기준이며 메서드별 별도 Stability 행과는 구분해야 한다."
+  ],
+  "sourceQualityNotes": [
+    "Node.js 공식 API 문서와 공식 릴리스 문서만 사용했다.",
+    "v20.3.0 릴리스 페이지의 관련 커밋 문구는 정확한 contiguous quote를 확보하지 못해 인용하지 않았다."
+  ],
+  "budgetLedger": {
+    "searchBudget": 3,
+    "searchCallsUsed": 2,
+    "searchQueriesAttempted": [
+      "site:nodejs.org/api/globals.html AbortSignal.any added v20.3.0 stability",
+      "site:nodejs.org/en/blog/release AbortSignal.any Node.js 20.3.0",
+      "Node.js AbortSignal.any history stability official",
+      "site:nodejs.org/docs/latest/api/globals.html AbortSignal.any Stability",
+      "site:github.com/nodejs/node AbortSignal.any Stability: 2",
+      "site:nodejs.org/api/globals.html AbortSignal.any Stability: 2 - Stable"
+    ],
+    "omittedSearchQueries": [],
+    "budgetExhausted": false,
+    "gapRecorded": true
+  }
+}

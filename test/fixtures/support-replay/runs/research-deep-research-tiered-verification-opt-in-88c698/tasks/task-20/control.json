@@ -1,0 +1,19 @@
+{
+  "schema": "stage-control-v1",
+  "id": "claim-001",
+  "status": "verified",
+  "confidence": 0.99,
+  "verdictDigest": "Node.js 공식 문서가 AbortSignal.any()의 추가 버전을 v20.3.0 및 v18.17.0으로 명시한다. sourceUrls: https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html caveat: 별도의 안정화 전환 버전은 명시하지 않는다.",
+  "evidence": [
+    {
+      "source": "Node.js Global objects documentation",
+      "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+      "dateOrYear": "2026",
+      "quote": "Added in: v20.3.0, v18.17.0",
+      "relevance": "AbortSignal.any()의 Node.js 추가 버전을 직접 명시한다."
+    }
+  ],
+  "caveats": "문서의 해당 문구는 API 추가 버전을 의미하며, 메서드 자체의 별도 안정화 전환 이력은 제시하지 않는다.",
+  "correctionOrCounterclaim": "",
+  "digest": "공식 Node.js 문서에서 AbortSignal.any()의 추가 버전 v20.3.0 및 v18.17.0을 직접 확인했다."
+}

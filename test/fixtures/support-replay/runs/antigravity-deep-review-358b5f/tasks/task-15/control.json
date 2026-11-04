@@ -1,0 +1,44 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "dispose() 호출 후 새로운 디스크 읽기가 시작되지 않아 SPEC.md S5를 위반하지 않으나, 진행 중인 비동기 작업이 해제 후 controller.abort()를 호출할 수 있는 사소한 수명주기 문제는 존재하므로 심각도를 완화(WEAKEN)합니다.",
+  "findingId": "finding-003",
+  "finding": "dispose() fails to fence in-flight async checks, permitting post-dispose disk reads and controller abort mutations",
+  "verdict": "WEAKEN",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 68,
+      "lineEnd": 76,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "\tconst check = async (): Promise<void> => {\n\t\tif (controller.signal.aborted) return;\n\t\tif (launchStopRequested(cwd, runId)) {\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));\n\t\t\treturn;\n\t\t}\n\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 77,
+      "lineEnd": 78,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "\t\tif (intent || launchStopRequested(cwd, runId))\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 85,
+      "lineEnd": 85,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "\t\tdispose: () => clearInterval(timer),"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 17,
+      "lineEnd": 17,
+      "quote": "- **S5.** `dispose()`를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다."
+    }
+  ],
+  "counterEvidence": [
+    "`check` 함수는 실행 시 첫 비동기 대기 지점(`await readWorkflowStopIntent`) 이전까지 동기적으로 실행되므로, `check`가 호출된 틱에서는 `readWorkflowStopIntent` 디스크 읽기가 즉시 시작됩니다. JavaScript 단일 스레드 런-투-컴플리션(run-to-completion) 특성상 `check` 시작과 디스크 읽기 호출 사이에 `dispose()`가 실행되어 끼어들 수 없습니다.",
+    "`dispose()` 호출 시 `clearInterval(timer)`가 실행되어 이후 타이머 콜백이 완전히 취소되므로, `dispose()` 호출 이후에 새로운 `check()`가 실행되거나 새로운 디스크 읽기가 시작되는 일은 불가능하여 SPEC.md S5 명세(`dispose() 호출 후 새로운 디스크 읽기 금지`)를 위반하지 않습니다.",
+    "다만 선행 비동기 읽기가 이미 파일 I/O를 대기 중인 상태에서 `dispose()`가 호출된 경우, 디스크 읽기 완료 후 라인 78의 `controller.abort()`가 실행되어 이미 해제된 controller의 signal을 abort 상태로 변경할 수는 있습니다. 그러나 이는 프로세스 충돌이나 데이터 오염을 유발하지 않으며 S5 위반도 아니므로 High 심각도는 과장되었으며 Low 수준으로 완화(WEAKEN)되어야 합니다."
+  ],
+  "recommendedAction": "dispose() 호출 후 새로운 디스크 읽기가 시작되는 것은 이미 방지되어 있으므로 readWorkflowStopIntent 이전의 불필요한 플래그 검사는 생략하고, dispose 호출 여부를 추적하는 disposed 플래그를 추가하여 in-flight 검사 완료 시 controller.abort() 호출 직전에만 확인하도록 조치하십시오.",
+  "readerTitle": "dispose()가 실행 중인 비동기 검사를 차단하지 못하여 dispose 후 디스크 읽기 및 controller 중단 변이를 허용함",
+  "readerRationale": "SPEC.md S5에 따르면 dispose()가 호출된 후에는 새로운 디스크 읽기가 시작되지 않아야 합니다. 또한 폐기 후 controller 상태를 변경하거나 신호를 중단하는 것은 예상되는 수명주기 의미론을 위반합니다."
+}

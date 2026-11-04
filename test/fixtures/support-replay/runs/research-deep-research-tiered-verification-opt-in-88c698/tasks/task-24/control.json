@@ -1,0 +1,19 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "MDN BCD directly confirms Chrome 116 support for AbortSignal.any().",
+  "id": "claim-005",
+  "status": "verified",
+  "confidence": 0.99,
+  "verdictDigest": "Verified: MDN Browser Compatibility Data lists AbortSignal.any() Chrome version_added as 116. Source: https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+  "evidence": [
+    {
+      "source": "MDN Browser Compatibility Data",
+      "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+      "dateOrYear": "undated; fetched 2026-11-04",
+      "quote": "\"chrome\": {\n                \"version_added\": \"116\"\n              }",
+      "relevance": "Within the any_static compatibility block, this directly states Chrome support was added in version 116."
+    }
+  ],
+  "caveats": [],
+  "correctionOrCounterclaim": ""
+}

@@ -1,0 +1,19 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "구현에 해제 함수와 마지막 signal 제거 시 run registry 삭제가 명시되어 있어 후보를 기각한다.",
+  "id": "finding-s7-registry-cleanup",
+  "verdict": "DROP",
+  "severity": "low",
+  "evidence": [],
+  "counterEvidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 17,
+      "lineEnd": 20,
+      "quote": "return () => {\n\t\tsignals.delete(signal);\n\t\tif (signals.size === 0 && launchSignals.get(key) === signals)\n\t\t\tlaunchSignals.delete(key);",
+      "relevance": "bindWorkflowLaunchSignal이 반환하는 해제 함수가 signal을 제거하고 마지막 signal이면 해당 run의 registry entry도 삭제한다."
+    }
+  ],
+  "finalClaim": "S7의 reversible registration과 마지막 signal 해제 시 registry cleanup은 구현에 충족되어 있으므로 후보 finding은 성립하지 않는다.",
+  "recommendedAction": "Drop finding; 추가 수정 불필요."
+}

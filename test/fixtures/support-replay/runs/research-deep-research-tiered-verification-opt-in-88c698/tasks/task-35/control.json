@@ -1,0 +1,19 @@
+{
+  "schema": "stage-control-v1",
+  "id": "claim-016",
+  "status": "verified",
+  "confidence": 0.99,
+  "verdictDigest": "MDN은 AbortSignal.timeout()이 경과 시간이 아닌 active time을 기준으로 하며, suspended worker 또는 bfcache에서 사실상 일시정지된다고 명시한다. 출처: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+  "evidence": [
+    {
+      "source": "MDN",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+      "dateOrYear": "2026",
+      "quote": "The timeout is based on active rather than elapsed time, and will effectively be paused if the code is running in a suspended worker, or while the document is in a back-forward cache (\"bfcache\").",
+      "relevance": "브라우저의 timeout은 일반적인 wall-clock 경과 시간과 다를 수 있음을 직접 입증한다."
+    }
+  ],
+  "caveats": [],
+  "correctionOrCounterclaim": "",
+  "digest": "MDN의 직접적인 문구가 active time 기준과 suspended worker/bfcache 일시정지를 모두 확인하므로 검증됨."
+}

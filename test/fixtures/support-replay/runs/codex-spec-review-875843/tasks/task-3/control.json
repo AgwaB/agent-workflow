@@ -1,0 +1,23 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "No test or fixture files are present; S1–S7, C1–C2, T1–T3, and Q1 have no repository test evidence.",
+  "testMap": [],
+  "coverageGapsSuspected": [
+    "No tests cover S1–S7 stop detection, errors, polling, disposal, or signal registration.",
+    "No tests cover C1–C2 cancellation classification or JSON content recursion.",
+    "No tests cover T1–T3 terminal semantic statuses and retry aggregation.",
+    "Q1 is unmet by available repository evidence: no unit-test files or fixtures exist."
+  ],
+  "notes": [
+    "Repository file inventory contains only SPEC.md, src/*.ts, package.json, and tsconfig.json.",
+    "Test names, fixtures, and executable test configuration were not found."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "Tests were inspected but not executed because this stage forbids command execution.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false
+}

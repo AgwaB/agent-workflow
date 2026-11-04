@@ -1,0 +1,21 @@
+{
+  "schema": "stage-control-v1",
+  "id": "claim-010",
+  "status": "verified",
+  "confidence": 0.99,
+  "digest": "Edge의 timeout() 항목이 BCD에서 mirror로 표시됨을 원문이 직접 확인한다.",
+  "verdictDigest": "MDN BCD의 timeout() 지원 객체는 Edge를 \"mirror\"로 명시한다.",
+  "evidence": [
+    {
+      "source": "MDN Browser Compatibility Data",
+      "url": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+      "dateOrYear": "2026 snapshot",
+      "quote": "\"edge\": \"mirror\",",
+      "relevance": "AbortSignal.timeout() 호환성 데이터에서 Edge 항목이 mirror로 지정되어 있다."
+    }
+  ],
+  "caveats": [
+    "mirror 표기는 Edge의 독립 버전 번호가 아니라 BCD의 호환성 데이터 상속 표기다."
+  ],
+  "correctionOrCounterclaim": "Edge의 구체적인 지원 버전은 이 항목에 직접 기재되지 않으며 Chrome 데이터의 mirror 관계로 해석된다."
+}

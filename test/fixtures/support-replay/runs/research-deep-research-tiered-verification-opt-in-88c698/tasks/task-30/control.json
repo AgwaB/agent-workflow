@@ -1,0 +1,28 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Claim verified: MDN BCD records Firefox AbortSignal.timeout() support from version 100, corroborated by Firefox 100 release notes.",
+  "id": "claim-011",
+  "status": "verified",
+  "confidence": 0.99,
+  "verdictDigest": "Firefox support is exactly version_added 100 in MDN BCD and is independently announced in Firefox 100 release notes. Sources: BCD and MDN Firefox 100. Caveat: this verifies Firefox only.",
+  "evidence": [
+    {
+      "source": "MDN Browser Compatibility Data",
+      "url": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+      "dateOrYear": "2022",
+      "quote": "\"version_added\": \"100\"",
+      "relevance": "The timeout_static compatibility entry lists Firefox support as version 100."
+    },
+    {
+      "source": "Mozilla/MDN Firefox 100 release notes",
+      "url": "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100",
+      "dateOrYear": "2022",
+      "quote": "Code can now use the static method `AbortSignal.timeout()`.",
+      "relevance": "Firefox 100 release notes explicitly announce AbortSignal.timeout() support."
+    }
+  ],
+  "caveats": [
+    "The evidence verifies Firefox 100 support, not all browsers or Node.js."
+  ],
+  "correctionOrCounterclaim": ""
+}

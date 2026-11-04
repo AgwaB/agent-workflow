@@ -1,0 +1,32 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "저장소에 테스트 파일이 없어 Q1 미충족; 구현에서 S3·S6·C1·T3이 명세와 어긋나는 것으로 의심됨 (실행 없이 읽기만 함).",
+  "testMap": [],
+  "coverageGapsSuspected": [
+    "Q1: 저장소 전체에 테스트 파일이 없다 (*.test.*/*.spec.* 없음, 테스트 프레임워크 import 없음, package.json에는 typecheck 스크립트만 있음). S1–S7, C1–C2, T1–T3 모두 단위 테스트 근거 없음.",
+    "S3: 기본 pollMs가 200(src/workflow-stop.ts:67)이고 명세는 50ms; 하한이 Math.max(1, …)(src/workflow-stop.ts:67)이고 명세는 10ms.",
+    "S6: isWorkflowStopRequestedError가 메시지 prefix로도 판별(src/workflow-stop.ts:56-57); 명세는 이름만 인정하고 메시지 판별 금지.",
+    "C1: 'cancelled','timeout' 토큰과 value.cancelled/details.cancelled를 취소로 인정(src/workflow-cancellation.ts:16-20); 명세는 aborted, AbortError, ABORT_ERR 세 가지만 인정.",
+    "T3: 요약 필드명이 launchRetries(src/workflow-terminal.ts:33,107); 명세의 공개 계약 이름은 launchRetryAttempts.",
+    "C2 무한 재귀: parsed !== value 가드와 JSON 중첩 축소로 종료는 보장되나 이를 검증하는 테스트가 없다."
+  ],
+  "notes": [
+    "store.js와 types.js가 저장소에 없어 readWorkflowStopIntent, workflowRunPath, finalStageTasks, readJson 등 의존 동작은 검증할 수 없다.",
+    "src/workflow-stop.ts의 launchSignals 등록/해제(S7)와 dispose 후 디스크 읽기 중단(S5)은 코드상 명세와 맞아 보이나 테스트 근거가 없다.",
+    "T1·T2는 코드상 명세와 맞아 보이나 테스트 근거가 없다. T2에서 controller task가 없으면 control이 undefined가 되어 같은 결과가 된다.",
+    "commit 654f639 메시지에 'poll less often'과 'shorter retry field name'이 있어, 명세와 어긋나는 값이 최근 변경으로 들어왔을 가능성이 있다."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "테스트는 읽기만 했고 실행하지 않았다 (이 단계는 명령 실행 금지).",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "store.js와 types.js가 발췌에 없어 의존 함수의 동작은 확인하지 못했다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false
+}

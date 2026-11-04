@@ -1,0 +1,87 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "검증 커버리지 상태는 'none'입니다. 단위/통합 테스트 스위트 및 테스트 러너가 전무하여(SPEC Q1 위반) 변경 범위의 런타임 동작 및 명세 요구사항(S1~S7, C1~C2, T1~T3)이 전혀 검증되지 않으며, 유일한 정적 검증 스크립트인 tsc --noEmit도 의존성 부재(node_modules 미설치)로 실행 불가능합니다.",
+  "coverageStatus": "none",
+  "coveredAreas": [],
+  "missingValidation": [
+    {
+      "id": "VAL-MISSING-01-STOP-DETECTION",
+      "targetFile": "src/workflow-stop.ts",
+      "specRequirements": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6",
+        "S7"
+      ],
+      "description": "중지 감지 모듈의 이중 경로 감지(S1), 에러 명칭 및 메시지 포맷(S2), 감시 주기 50ms 기본값 및 10ms 하한(S3, 현재 200ms/1ms 버그), 디스크 읽기 실패 분기(S4), dispose 후 신규 읽기 방지(S5), 에러명 단독 판별(S6, 현재 메시지 매칭 버그), foreground signal 해제 시 맵 정리(S7)에 대한 단위 테스트 전무"
+    },
+    {
+      "id": "VAL-MISSING-02-CANCELLATION-CLASSIFIER",
+      "targetFile": "src/workflow-cancellation.ts",
+      "specRequirements": [
+        "C1",
+        "C2"
+      ],
+      "description": "취소 판별 모듈의 인가된 사유('aborted', 'AbortError', 'ABORT_ERR') 외 비인가 사유('cancelled', 'timeout') 불인정 검증(C1, 현재 오인식 버그) 및 content 배열 내 재귀 JSON 파싱 시 순환 참조/무한 재귀 방지 검증(C2) 단위 테스트 전무"
+    },
+    {
+      "id": "VAL-MISSING-03-TERMINAL-SUMMARY",
+      "targetFile": "src/workflow-terminal.ts",
+      "specRequirements": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "description": "종료 요약 모듈의 degradation 시 completed_degraded 상태 전이(T1), dynamic controller control.json 부재 시 completed_without_semantic_result 전이(T2), 공개 계약 필드명 launchRetryAttempts 및 outputRetryAttempts 집계 검증(T3, 현재 launchRetries 계약 불일치 버그)에 대한 단위 테스트 전무"
+    },
+    {
+      "id": "VAL-MISSING-04-TEST-HARNESS",
+      "targetFile": "package.json",
+      "specRequirements": [
+        "Q1"
+      ],
+      "description": "단위 테스트 프레임워크(예: vitest 또는 node:test) 및 실행 스크립트('npm test')의 매니페스트 내 부재"
+    },
+    {
+      "id": "VAL-MISSING-05-CI-WORKFLOW",
+      "targetFile": ".github/workflows",
+      "specRequirements": [],
+      "description": "커밋 및 PR 단계에서 정적 분석 및 단위 테스트를 강제하는 자동화 CI 파이프라인 구성 부재"
+    }
+  ],
+  "recommendedCommands": [
+    {
+      "command": "npm install",
+      "purpose": "TypeScript 컴파일러 및 테스트 러너 실행을 위한 node_modules 패키지 의존성 설치"
+    },
+    {
+      "command": "npm run typecheck",
+      "purpose": "tsc --noEmit을 통한 src/**/*.ts 전반의 정적 타입 및 인터페이스 무결성 검사 (의존성 설치 후)"
+    },
+    {
+      "command": "npm test",
+      "purpose": "신규 작성될 S1~S7, C1~C2, T1~T3 요구사항 단위 테스트 스위트 일괄 실행"
+    },
+    {
+      "command": "npx vitest run --coverage",
+      "purpose": "SPEC Q1 의무 준수 여부를 확인하기 위한 변경 모듈 대상 코드 커버리지 측정"
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "assumption-coverage-definition",
+      "text": "명세 요구사항(S1~S7, C1~C2, T1~T3)과 런타임 동작을 보증하는 테스트 코드가 전무하고, 정적 타입 검사(tsc) 또한 실행 환경 미비 및 런타임 회귀 감지 불가 상태이므로 coverageStatus를 'none'으로 판정함"
+    },
+    {
+      "id": "assumption-external-dependencies",
+      "text": "SPEC.md에 명시된 제외 파일인 store.js 및 types.js는 외부에서 제공되는 안정 계약으로 가정하며 이번 검증 영향 범위에서는 제외함"
+    },
+    {
+      "id": "assumption-read-only-environment",
+      "text": "현재 단계는 읽기 전용 분석 단계로 파일 수정이나 임의 명령어 실행을 수행하지 않고 아티팩트 및 정적 코드 분석 결과만을 기반으로 평가함"
+    }
+  ]
+}

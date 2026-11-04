@@ -1,0 +1,141 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "HEAD 654f639 touches the stop/cancel sample: src/workflow-stop.ts poll interval, src/workflow-cancellation.ts timeout/cancelled markers, src/workflow-terminal.ts retry field names. SPEC.md (11bc671) contradicts the code in 4 places. No tests or store.js/types.js in the excerpt.",
+  "components": [
+    {
+      "id": "stop-detection",
+      "path": "src/workflow-stop.ts",
+      "symbols": [
+        "bindWorkflowLaunchSignal",
+        "createWorkflowStopSignal",
+        "throwIfWorkflowStopRequested",
+        "isWorkflowStopRequestedError",
+        "createWorkflowStopPendingError",
+        "isWorkflowStopPendingError"
+      ],
+      "dependsOn": [
+        "./store.js: readWorkflowStopIntent, workflowRunPath"
+      ],
+      "changedByHead": "likely (pollMs default 200 at line 67; SPEC S3 says 50)"
+    },
+    {
+      "id": "cancellation-classification",
+      "path": "src/workflow-cancellation.ts",
+      "symbols": [
+        "isWorkflowAbortError",
+        "isWorkflowReturnedCancellation"
+      ],
+      "dependsOn": [],
+      "changedByHead": "likely (line 20 accepts 'cancelled' and 'timeout'; SPEC C1 allows only aborted/AbortError/ABORT_ERR)"
+    },
+    {
+      "id": "terminal-summary",
+      "path": "src/workflow-terminal.ts",
+      "symbols": [
+        "summarizeWorkflowTerminal",
+        "WorkflowTerminalSummary",
+        "WorkflowSemanticStatus",
+        "readDynamicControllerControl"
+      ],
+      "dependsOn": [
+        "./store.js: finalStageTasks, fromProjectPath, isTerminalWorkflowStatus, readJson, workflowRunDir",
+        "./types.js: WorkflowRunRecord"
+      ],
+      "changedByHead": "likely (field launchRetries at line 33/107; SPEC T3 names launchRetryAttempts as public contract)"
+    },
+    {
+      "id": "spec-doc",
+      "path": "SPEC.md",
+      "symbols": [
+        "S1-S7",
+        "C1-C2",
+        "T1-T3",
+        "Q1"
+      ],
+      "changedByHead": "no (introduced at 11bc671; HEAD expected to diverge from it)"
+    },
+    {
+      "id": "package-manifest",
+      "path": "package.json",
+      "symbols": [
+        "scripts.typecheck=tsc --noEmit"
+      ],
+      "dependsOn": [
+        "tsconfig.json"
+      ],
+      "changedByHead": "unknown"
+    }
+  ],
+  "entryPoints": [
+    {
+      "kind": "exported-function",
+      "path": "src/workflow-stop.ts",
+      "symbol": "createWorkflowStopSignal(cwd, runId, {pollMs?})"
+    },
+    {
+      "kind": "exported-function",
+      "path": "src/workflow-stop.ts",
+      "symbol": "throwIfWorkflowStopRequested(cwd, runId)"
+    },
+    {
+      "kind": "exported-function",
+      "path": "src/workflow-stop.ts",
+      "symbol": "bindWorkflowLaunchSignal(cwd, runId, signal)"
+    },
+    {
+      "kind": "exported-function",
+      "path": "src/workflow-cancellation.ts",
+      "symbol": "isWorkflowReturnedCancellation(value)"
+    },
+    {
+      "kind": "exported-function",
+      "path": "src/workflow-terminal.ts",
+      "symbol": "summarizeWorkflowTerminal(cwd, run)"
+    },
+    {
+      "kind": "command",
+      "path": "package.json",
+      "symbol": "npm run typecheck"
+    }
+  ],
+  "dataFlows": [
+    {
+      "from": "on-disk stop intent (store.js readWorkflowStopIntent)",
+      "to": "createWorkflowStopSignal check() interval -> AbortController.abort(WorkflowStopRequested)"
+    },
+    {
+      "from": "foreground AbortSignal registry (module-level Map keyed by workflowRunPath)",
+      "to": "createWorkflowStopSignal / throwIfWorkflowStopRequested"
+    },
+    {
+      "from": "provider return value / thrown error",
+      "to": "isWorkflowReturnedCancellation (string match on error/reason/details/content JSON)"
+    },
+    {
+      "from": "WorkflowRunRecord.tasks[].outputRetry/launchRetry.attempts + control.json (controller)",
+      "to": "WorkflowTerminalSummary (outputRetryAttempts, launchRetries)"
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "u1",
+      "question": "Exact diff of 654f639 cannot be read here (git objects are zlib-compressed, no git tool); divergences are inferred from HEAD source vs SPEC.md at 11bc671."
+    },
+    {
+      "id": "u2",
+      "question": "store.js and types.js are absent; readWorkflowStopIntent, WorkflowRunRecord, and the retry field shapes are unverified."
+    },
+    {
+      "id": "u3",
+      "question": "No test files found in the excerpt; SPEC Q1 requires a unit test per S/C/T item. Whether tests exist elsewhere in the full repo is unknown."
+    },
+    {
+      "id": "u4",
+      "question": "Whether any external consumer reads launchRetries vs launchRetryAttempts (SPEC T3 calls the name a public contract)."
+    },
+    {
+      "id": "u5",
+      "question": "Whether the 'cancelled'/'timeout' markers in C1 come from a real provider shape, which determines whether widening is a bug fix or a false-positive risk."
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "현재 구현은 명세 T3의 공개 키 launchRetryAttempts를 제공하지 않으므로 지적을 유지한다.",
+  "findingId": "finding-007",
+  "finding": "공개 계약의 launchRetryAttempts 대신 launchRetries를 반환한다",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "line": 35,
+      "lineEnd": 36,
+      "quote": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 33,
+      "symbol": "WorkflowTerminalSummary",
+      "quote": "\tlaunchRetries: number;"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 107,
+      "lineEnd": 110,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "\t\tlaunchRetries: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),"
+    }
+  ],
+  "counterEvidence": [
+    "재시도 값은 모든 작업의 launchRetry.attempts를 합산한다. 집계 방식은 명세에 부합하지만 공개 키 불일치를 해소하지는 않는다."
+  ],
+  "recommendedAction": "인터페이스와 반환 객체에 launchRetryAttempts를 제공하고, 다중 작업의 합계와 정확한 공개 키를 검증하는 회귀 테스트를 추가한다. 기존 launchRetries가 필요하면 호환 별칭으로 유지한다."
+}

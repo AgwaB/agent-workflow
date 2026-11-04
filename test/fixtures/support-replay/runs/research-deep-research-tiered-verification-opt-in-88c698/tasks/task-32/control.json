@@ -1,0 +1,28 @@
+{
+  "schema": "stage-control-v1",
+  "id": "claim-013",
+  "status": "verified",
+  "confidence": 0.99,
+  "digest": "WHATWG DOM Standard directly specifies propagating the first already-aborted input’s reason to the result signal and returning it immediately.",
+  "verdictDigest": "The normative algorithm exactly supports reason propagation and early return; MDN independently confirms that the first already-aborted input determines the returned signal’s reason.",
+  "evidence": [
+    {
+      "source": "WHATWG DOM Standard",
+      "url": "https://dom.spec.whatwg.org/",
+      "dateOrYear": "2026",
+      "quote": "For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
+      "relevance": "Normative dependent abort signal creation algorithm directly matches the claim."
+    },
+    {
+      "source": "MDN",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+      "dateOrYear": "2026",
+      "quote": "The returned AbortSignal's reason will be already set to the reason of the first abort signal that was already aborted.",
+      "relevance": "Authoritative reference confirms first-already-aborted input reason selection."
+    }
+  ],
+  "caveats": [
+    "This claim covers reason propagation and early return; listener cleanup and garbage-collection behavior are separate considerations."
+  ],
+  "correctionOrCounterclaim": ""
+}

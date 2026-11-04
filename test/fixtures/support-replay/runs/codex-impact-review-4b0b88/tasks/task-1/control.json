@@ -1,0 +1,102 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "654f639:3-files-4-lines",
+  "changeSummary": "커밋 654f639는 취소 판별 문자열을 확대하고, 중지 polling 기본값·최솟값을 변경하며, 종료 요약의 공개 필드명을 변경한다.",
+  "changeInputs": [
+    {
+      "commit": "654f639606913ae2ea7b2465cf1bdcae71c03ff2",
+      "range": "HEAD~1..HEAD"
+    },
+    {
+      "filesChanged": 3,
+      "insertions": 4,
+      "deletions": 4
+    }
+  ],
+  "affectedFiles": [
+    {
+      "path": "src/workflow-cancellation.ts",
+      "lines": "19-21",
+      "change": "error/reason에 cancelled와 timeout을 취소 마커로 추가"
+    },
+    {
+      "path": "src/workflow-stop.ts",
+      "lines": "61-67",
+      "change": "pollMs 기본값을 50ms에서 200ms로, 최솟값을 10ms에서 1ms로 변경"
+    },
+    {
+      "path": "src/workflow-terminal.ts",
+      "lines": "27-35,103-110",
+      "change": "launchRetryAttempts 공개 필드와 반환 키를 launchRetries로 변경"
+    },
+    {
+      "path": "SPEC.md",
+      "change": "변경되지 않았으나 기존 S3, C1, T3 계약과 현재 구현이 불일치"
+    }
+  ],
+  "affectedComponents": [
+    {
+      "component": "provider cancellation classification",
+      "risk": "중간",
+      "impact": "timeout 또는 cancelled 오류가 실패 대신 취소로 분류될 수 있음"
+    },
+    {
+      "component": "workflow stop detection",
+      "risk": "중간",
+      "impact": "기본 중지 감지 지연이 증가하고, 1-9ms 사용자 설정은 polling/I/O 부하를 증가시킬 수 있음"
+    },
+    {
+      "component": "terminal summary API",
+      "risk": "높음",
+      "impact": "기존 launchRetryAttempts 소비자가 필드를 잃음"
+    }
+  ],
+  "publicSurfaces": [
+    {
+      "surface": "isWorkflowReturnedCancellation",
+      "type": "behavioral contract",
+      "evidence": "src/workflow-cancellation.ts:19-21"
+    },
+    {
+      "surface": "createWorkflowStopSignal options.pollMs",
+      "type": "timing/performance contract",
+      "evidence": "src/workflow-stop.ts:64-67"
+    },
+    {
+      "surface": "WorkflowTerminalSummary.launchRetryAttempts",
+      "type": "TypeScript/object field contract",
+      "evidence": "SPEC.md T3; src/workflow-terminal.ts:27-35"
+    },
+    {
+      "surface": "terminal summary returned object",
+      "type": "runtime data shape",
+      "evidence": "src/workflow-terminal.ts:98-111"
+    }
+  ],
+  "assumptions": [
+    {
+      "item": "저장소는 의도적으로 축약된 샘플이며 store.js, types.js와 외부 소비자는 포함되지 않음",
+      "evidence": "SPEC.md:4"
+    },
+    {
+      "item": "외부 도구가 launchRetryAttempts를 읽는다는 SPEC.md T3를 공개 계약으로 취급함"
+    },
+    {
+      "item": "검증은 실행 환경에 의존하며 npm run typecheck는 tsc 미설치로 실행되지 않음"
+    },
+    {
+      "item": "저장소에 단위 테스트 파일이 없어 Q1 요구사항을 확인할 수 없음"
+    }
+  ],
+  "outOfScope": [
+    {
+      "item": "store.js/types.js 내부 구현 및 실제 provider 호출자"
+    },
+    {
+      "item": "외부 소비자·배포 파이프라인의 호환성 검증"
+    },
+    {
+      "item": "커밋에 포함되지 않은 기존 stop/cancel 동작"
+    }
+  ]
+}

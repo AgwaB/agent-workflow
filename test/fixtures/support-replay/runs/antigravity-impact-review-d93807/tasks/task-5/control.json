@@ -1,0 +1,53 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "커밋 654f639는 요약 데이터 계약 필드명 변경(launchRetries), 프로바이더 타임아웃의 취소 오분류, 디스크 폴링 주기/경계 변경으로 인해 상태 라이프사이클 및 외부 연동 데이터 무결성에 높은(high) 수준의 영향을 미칩니다.",
+  "status": "high",
+  "impacts": [
+    {
+      "id": "IMP-01-terminal-summary-contract-break",
+      "area": "data_shape_and_persistence",
+      "severity": "high",
+      "component": "workflow-terminal",
+      "target": "WorkflowTerminalSummary.launchRetries",
+      "description": "WorkflowTerminalSummary 인터페이스 및 summarizeWorkflowTerminal 반환 객체에서 'launchRetryAttempts'가 'launchRetries'로 이름 변경되어, 외부 도구 및 지속성 리포트가 참조하는 공개 계약(SPEC.md T3) 데이터 형태가 깨짐.",
+      "breaking": true
+    },
+    {
+      "id": "IMP-02-timeout-promoted-to-cancellation",
+      "area": "state_lifecycle_and_data_flow",
+      "severity": "high",
+      "component": "workflow-cancellation",
+      "target": "isWorkflowReturnedCancellation",
+      "description": "'timeout' 및 'cancelled' 문자열을 취소로 승격하여 재시도/실패 대상이어야 할 네트워크·프로바이더 타임아웃을 사용자/엔진 취소 상태로 오분류하며 SPEC.md C1을 직접 위배함.",
+      "breaking": true
+    },
+    {
+      "id": "IMP-03-stop-polling-latency-and-io-stress",
+      "area": "concurrency_timing_and_persistence",
+      "severity": "medium",
+      "component": "workflow-stop",
+      "target": "createWorkflowStopSignal",
+      "description": "기본 폴링 간격이 50ms에서 200ms로 증가하여 디스크 중지 감지 지연시간이 4배 늘어나고 태스크 중지 레이스 윈도우가 확대되며, 최소 제한 클램프가 10ms에서 1ms로 완화되어 디스크 I/O 과부하 위험이 발생함(SPEC.md S3 위배).",
+      "breaking": false
+    },
+    {
+      "id": "IMP-04-missing-schema-migration",
+      "area": "migration_and_compatibility",
+      "severity": "high",
+      "component": "workflow-terminal",
+      "target": "WorkflowTerminalSummary",
+      "description": "필드명 변경에 대한 이전 버전 호환성(getter, alias, deprecation shim)이 전혀 제공되지 않아 기존 소비자는 undefined/NaN을 수신하게 되며, 이력 데이터와의 스키마 불일치가 발생함.",
+      "breaking": true
+    }
+  ],
+  "assumptions": [
+    {
+      "topic": "external_consumers",
+      "assumption": "SPEC.md T3에 명시된 대로 WorkflowTerminalSummary의 필드(launchRetryAttempts)는 외부 모니터링/리포팅 도구가 소비하는 공개 계약이다."
+    },
+    {
+      "topic": "provider_error_handling",
+      "assumption": "프로바이더 타임아웃은 일반적인 실패/재시도 경로를 거쳐야 하며 취소 상태로 처리되면 정상적인 복구/재시도 루프가 차단된다."
+    }
+  ]
+}

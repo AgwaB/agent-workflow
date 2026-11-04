@@ -1,0 +1,28 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "문자열 확장은 명세 위반이지만 boolean cancelled 필드까지 비계약 마커로 단정한 부분은 범위를 좁혀야 합니다.",
+  "findingId": "finding-003",
+  "finding": "Cancellation classifier promotes non-contract provider markers",
+  "verdict": "WEAKEN",
+  "evidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 20,
+      "quote": "candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\"",
+      "symbol": "isWorkflowReturnedCancellation"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 25,
+      "lineEnd": 26,
+      "quote": "오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다."
+    }
+  ],
+  "counterEvidence": [
+    "C1은 오류·사유 문자열에 대해서만 세 가지 허용값을 명시하며, value.cancelled 또는 details.cancelled boolean 필드의 허용 여부는 규정하지 않습니다.",
+    "따라서 cancelled와 timeout 문자열의 승격은 명세 위반 근거가 충분하지만, boolean cancelled 처리까지 비계약 동작이라고 단정할 repository 근거는 없습니다."
+  ],
+  "recommendedAction": "오류·사유 문자열 매칭은 `aborted`, `AbortError`, `ABORT_ERR`로 제한하고, boolean cancelled 필드는 provider 계약을 확인한 뒤 유지 여부를 별도로 결정하십시오.",
+  "readerTitle": "취소 판별기가 계약에 없는 provider 마커를 취소로 승격함",
+  "readerRationale": "이러한 추가 마커로 표현된 provider 오류 또는 타임아웃이 워크플로 취소로 승격되어 실제 실패가 억제될 수 있습니다."
+}

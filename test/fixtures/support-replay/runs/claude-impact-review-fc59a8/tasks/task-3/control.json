@@ -1,0 +1,70 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "HEAD 654f639: no test files, docs, or release artifacts in repo; typecheck script only (store.js/types.js missing); HEAD code deviates from SPEC.md on S3 poll default/min, C1 extra cancellation tokens, T3 field name, and S6 message matching.",
+  "tests": [
+    {
+      "path": "SPEC.md",
+      "kind": "spec-requirements",
+      "covers": [
+        "S1-S7",
+        "C1-C2",
+        "T1-T3"
+      ],
+      "status": "requirements-only",
+      "note": "Q1 requires a unit test per S/C/T item; no test files exist in the repository (glob **/*.{test,spec}.* returned none)."
+    }
+  ],
+  "docs": [
+    {
+      "path": "SPEC.md",
+      "kind": "behavioral-spec",
+      "note": "Korean-language spec; declares public contract T3 field names outputRetryAttempts and launchRetryAttempts. Code emits launchRetries, so spec and code disagree."
+    },
+    {
+      "path": "package.json",
+      "kind": "package-metadata",
+      "note": "description says excerpt; store.js and types.js are not included."
+    }
+  ],
+  "releaseArtifacts": [
+    {
+      "path": "package.json",
+      "kind": "package",
+      "name": "workflow-stop-sample",
+      "version": "0.0.0",
+      "private": true,
+      "note": "No release/publish artifacts; version unchanged at 0.0.0."
+    },
+    {
+      "path": "tsconfig.json",
+      "kind": "typecheck-config",
+      "note": "strict, NodeNext, include src/**/*.ts; imports ./store.js and ./types.js cannot be resolved in this excerpt."
+    }
+  ],
+  "validationCommandsMentioned": [
+    {
+      "command": "npm run typecheck (tsc --noEmit)",
+      "source": "package.json scripts.typecheck",
+      "status": "not-run",
+      "expectedOutcome": "likely fails: ./store.js, ./types.js missing from repository"
+    }
+  ],
+  "knownGaps": [
+    {
+      "id": "G1",
+      "description": "No unit tests for S3 (poll default 50ms / min 10ms), C1 (exact three tokens), T3 (field names), S6 (name-only matching)."
+    },
+    {
+      "id": "G2",
+      "description": "git diff HEAD~1..HEAD not inspected directly (no shell); deltas inferred from current file contents vs SPEC.md and the commit message."
+    },
+    {
+      "id": "G3",
+      "description": "store.js and types.js absent, so typecheck and runtime behavior of readWorkflowStopIntent, workflowRunPath, finalStageTasks, readJson cannot be verified."
+    },
+    {
+      "id": "G4",
+      "description": "No CHANGELOG, README, or migration note for the renamed retry field."
+    }
+  ]
+}

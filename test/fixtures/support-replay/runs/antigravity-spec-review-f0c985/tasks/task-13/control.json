@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "저장소 내 테스트 파일 및 테스트 러너 구성 부재로 인해 명세 Q1 요구사항 위반이 확인되어 candidate-finding-q1을 KEEP으로 판정합니다.",
+  "id": "candidate-finding-q1",
+  "verdict": "KEEP",
+  "severity": "low",
+  "finalClaim": "저장소 내에 단위 테스트 파일 및 테스트 프레임워크가 전혀 구성되어 있지 않아, 명세 Q1(모든 S·C·T 항목에 대한 단위 테스트 존재) 요구사항을 충족하지 못하고 있습니다.",
+  "recommendedAction": "테스트 프레임워크(예: Vitest 또는 Node.js 기본 test runner)를 설정하고, S1–S7, C1–C2, T1–T3의 명세 및 경계 조건을 검증하는 단위 테스트 스위트를 작성하십시오.",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 40,
+      "lineEnd": 40,
+      "quote": "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+      "relevance": "명세 Q1은 모든 S·C·T 항목에 대한 단위 테스트 작성을 요구함"
+    },
+    {
+      "file": "package.json",
+      "lineStart": 7,
+      "lineEnd": 7,
+      "quote": "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+      "relevance": "package.json에 테스트 스크립트 및 테스트 러너 의존성이 전혀 정의되지 않음"
+    }
+  ],
+  "counterEvidence": []
+}

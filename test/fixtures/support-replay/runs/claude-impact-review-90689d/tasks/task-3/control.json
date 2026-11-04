@@ -1,0 +1,56 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "HEAD 654f639: src/ 3개 파일 + SPEC.md 대비 검증 맵. 테스트 파일·테스트 스크립트 없음, typecheck만 선언(store.js/types.js 누락으로 실행 불가 추정). 명세 위반 후보 4건(S3, C1, S6, T3).",
+  "tests": [],
+  "docs": [
+    {
+      "path": "SPEC.md",
+      "covers": [
+        "S1-S7",
+        "C1-C2",
+        "T1-T3",
+        "Q1"
+      ],
+      "note": "명세 항목이 테스트로 연결되어 있지 않음(Q1 요구 미충족)"
+    }
+  ],
+  "releaseArtifacts": [
+    {
+      "path": "package.json",
+      "note": "private, version 0.0.0, 릴리스 산출물 없음. scripts에는 typecheck만 있음"
+    },
+    {
+      "path": "tsconfig.json",
+      "note": "strict, noEmit, include src/**/*.ts"
+    }
+  ],
+  "validationCommandsMentioned": [
+    {
+      "command": "npm run typecheck (tsc --noEmit)",
+      "source": "package.json",
+      "executed": false
+    }
+  ],
+  "knownGaps": [
+    {
+      "gap": "테스트 파일 및 test 스크립트 없음",
+      "impact": "SPEC Q1 위반, 변경 동작 자동 검증 불가"
+    },
+    {
+      "gap": "src/store.js, src/types.js가 저장소에 없음",
+      "impact": "typecheck가 모듈 해석에서 실패할 가능성이 높음; 타입 검증 불가"
+    },
+    {
+      "gap": "git diff를 직접 확인할 도구가 없어 654f639의 정확한 변경 줄을 확인하지 못함",
+      "impact": "변경 전후 비교는 커밋 메시지와 HEAD 코드·SPEC 대조에 의존"
+    },
+    {
+      "gap": "docs/examples/fixtures 디렉터리 없음",
+      "impact": "사용 예시나 픽스처 기반 계약 검증 자료 없음"
+    },
+    {
+      "gap": "launchRetryAttempts 소비 도구 및 외부 계약 사용처가 저장소 내에 없음",
+      "impact": "필드명 변경의 실제 파급 범위 확인 불가"
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Mapped stop, cancellation, and terminal-summary implementations; no unit tests are present, and store/types dependencies are omitted.",
+  "implementationMap": [
+    {
+      "component": "Stop detection and foreground registration",
+      "file": "src/workflow-stop.ts:1-27,61-99",
+      "evidence": "launchStopRequested checks registered signals by workflowRunPath; check() reads readWorkflowStopIntent; throwIfWorkflowStopRequested reads the same intent.",
+      "observedBehavior": "Both stop sources are wired. Monitoring catches disk-read errors, while throwIfWorkflowStopRequested does not. pollMs defaults to 200 and is clamped to 1. dispose only clears the interval.",
+      "relatedSignals": [
+        "S1",
+        "S3",
+        "S4",
+        "S5",
+        "S7"
+      ]
+    },
+    {
+      "component": "Stop-requested error construction and classification",
+      "file": "src/workflow-stop.ts:30-59,70-79,93-98",
+      "evidence": "createWorkflowStopRequestedError sets name WorkflowStopRequested and message workflow stop requested for <runId>.",
+      "observedBehavior": "Abort reasons use the specified name/message. isWorkflowStopRequestedError also accepts any Error whose message starts with workflow stop requested.",
+      "relatedSignals": [
+        "S2",
+        "S6"
+      ]
+    },
+    {
+      "component": "Provider cancellation detection",
+      "file": "src/workflow-cancellation.ts:2-32",
+      "evidence": "Candidate strings are checked at lines 19-21; content text is JSON.parsed and recursively passed back at lines 23-29.",
+      "observedBehavior": "Recognizes the three specified strings but also cancelled, timeout, cancelled flags, and AbortError-shaped values. The parsed !== value guard does not prevent repeated equivalent JSON recursion.",
+      "relatedSignals": [
+        "C1",
+        "C2"
+      ]
+    },
+    {
+      "component": "Terminal semantic status mapping",
+      "file": "src/workflow-terminal.ts:64-95",
+      "evidence": "completed with run.degradation maps to completed_degraded; direct-dynamic control-read failure falls through to completed_without_semantic_result.",
+      "observedBehavior": "The requested semantic-status branches are implemented, alongside dynamic control status branches.",
+      "relatedSignals": [
+        "T1",
+        "T2"
+      ]
+    },
+    {
+      "component": "Retry summary contract",
+      "file": "src/workflow-terminal.ts:27-35,98-110",
+      "evidence": "outputRetryAttempts sums task.outputRetry.attempts; launch retry sum is returned under launchRetries.",
+      "observedBehavior": "Both retry values are summed across tasks, but the public launch field is named launchRetries rather than launchRetryAttempts.",
+      "relatedSignals": [
+        "T3"
+      ]
+    },
+    {
+      "component": "Test coverage",
+      "file": "package.json:7",
+      "evidence": "The only script is typecheck; tracked files contain no test directory or unit-test files.",
+      "observedBehavior": "No implementation evidence for per-requirement unit tests is present.",
+      "relatedSignals": [
+        "Q1"
+      ]
+    }
+  ],
+  "unmappedAreas": [
+    "Q1 unit tests for S1-S7, C1-C2, and T1-T3 are absent.",
+    "store.js and types.js are imported by src but intentionally omitted, so dependency behavior cannot be inspected."
+  ],
+  "notes": [
+    "This stage maps observed implementation evidence only; it does not issue final conformance judgments.",
+    "SPEC.md is the sole declared upstream requirement source; no workflow artifacts were available."
+  ]
+}

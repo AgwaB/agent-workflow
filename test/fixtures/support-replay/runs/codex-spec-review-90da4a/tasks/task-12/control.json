@@ -1,0 +1,33 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "C1 위반은 구현 코드에서 직접 확인되며 KEEP한다.",
+  "id": "finding-C1",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 26,
+      "lineEnd": 26,
+      "quote": "  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.",
+      "relevance": "C1은 세 문자열만 허용하고 다른 provider 오류의 승격을 금지한다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 16,
+      "lineEnd": 16,
+      "quote": "\tif (value.cancelled === true) return true;",
+      "relevance": "boolean cancelled marker를 문자열 규칙과 무관하게 취소로 인정한다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 18,
+      "lineEnd": 20,
+      "quote": "\tif (details?.cancelled === true) return true;\n\tfor (const candidate of [value.error, details?.error, value.reason, details?.reason]) {\n\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "relevance": "details.cancelled와 cancelled/timeout 문자열을 추가 취소값으로 인정한다."
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "isWorkflowReturnedCancellation은 명세의 세 문자열 외에 cancelled와 timeout 문자열 및 cancelled boolean marker를 취소로 판정한다. 이는 다른 provider 오류를 취소로 승격할 수 있는 C1 위반이다.",
+  "recommendedAction": "세 지정 문자열과 명세가 허용하는 오류 객체만 남기고 추가 marker를 제거한 뒤, cancelled·timeout·boolean marker가 false가 되는 반례 테스트를 추가한다."
+}

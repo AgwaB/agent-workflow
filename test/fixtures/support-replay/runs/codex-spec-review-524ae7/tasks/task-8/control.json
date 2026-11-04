@@ -1,0 +1,34 @@
+{
+  "schema": "spec-review-render-v1",
+  "digest": "Spec review rendering blocked: missing partition-findings control source.",
+  "status": "blocked",
+  "blockers": [
+    "missing partition-findings control source"
+  ],
+  "completionSummaryMarkdown": "",
+  "markdown": "",
+  "verdict": "INCONCLUSIVE",
+  "findingSummary": {
+    "final": 0,
+    "needsHuman": 0,
+    "dropped": 0
+  },
+  "scopeLimitations": [],
+  "testExecutionAttested": false,
+  "renderedFindingIds": [],
+  "renderedNeedsHumanIds": [],
+  "renderedDroppedFindingIds": [],
+  "sourceArtifacts": [],
+  "gates": {
+    "partitionAvailable": false,
+    "reportSynthesisAvailable": false,
+    "ownerLedgerReconciliationPassed": false,
+    "sourceCoverageComplete": false,
+    "verifierCoverageComplete": false,
+    "reportVerdictConsistent": false,
+    "renderedAllCanonicalRows": false,
+    "duplicateCanonicalIds": [],
+    "actionableEvidenceComplete": false,
+    "passed": false
+  }
+}

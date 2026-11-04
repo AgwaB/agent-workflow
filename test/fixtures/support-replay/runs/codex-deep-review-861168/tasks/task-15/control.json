@@ -1,0 +1,35 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "S5 위반 가능성이 실제로 존재하므로 finding을 유지한다.",
+  "findingId": "finding-004",
+  "finding": "dispose has no lifecycle fence for an already-queued polling callback",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 68,
+      "lineEnd": 78,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "const check = async (): Promise<void> => {"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 81,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "const timer = setInterval(() => void check(), pollMs);"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 85,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "dispose: () => clearInterval(timer),"
+    }
+  ],
+  "counterEvidence": [
+    "clearInterval(timer)는 이후의 새로운 interval 발생은 막으므로, 문제 범위는 이미 큐에 들어간 콜백과 이미 진행 중인 비동기 읽기이다.",
+    "check의 controller.signal.aborted 검사는 존재하지만 dispose가 controller를 abort하지 않으므로 dispose 자체의 수명 주기 펜스가 되지 못한다."
+  ],
+  "recommendedAction": "disposed 플래그를 추가하고 dispose에서 타이머를 지우기 전에 이를 설정한 뒤, check 시작 시와 비동기 읽기 이후에 플래그를 확인해 dispose 이후의 폴링 작업을 차단한다.",
+  "readerTitle": "dispose에는 이미 큐에 대기된 폴링 콜백에 대한 수명 주기 펜스가 없다",
+  "readerRationale": "dispose가 실행될 때 interval 콜백이 이미 큐에 들어가 있다면, 타이머를 지우는 것만으로는 해당 콜백이 check에 진입해 새 디스크 읽기를 시작하는 것을 막지 못하므로 S5와 충돌한다. 비동기 읽기도 dispose 이후에 계속 활성 상태로 남는다."
+}

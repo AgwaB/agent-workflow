@@ -1,0 +1,142 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "배포 승인 보류. 현행 공개 계약 불일치와 검증 공백이 확인되며, 654f639의 변경 귀속은 diff 확보 후 확정해야 한다.",
+  "status": "blocked",
+  "requiredBeforeShip": [
+    {
+      "id": "G1",
+      "area": "commit-scope",
+      "ownerHint": "커밋 작성자·릴리스 담당",
+      "action": "부모 대비 전체 diff와 작업 트리 상태를 확보해 실제 변경 파일·호출자·배포 범위를 확정한다.",
+      "commands": [
+        "git rev-parse HEAD",
+        "git status --short",
+        "git diff --name-status HEAD~1 HEAD",
+        "git diff --no-ext-diff HEAD~1 HEAD",
+        "git diff --check HEAD~1 HEAD"
+      ],
+      "acceptance": "HEAD가 654f639인지 확인하고, 아래 발견을 신규 회귀와 기존 문제로 구분한다.",
+      "evidenceRefs": [
+        "F8",
+        "U1",
+        "U2",
+        "U3"
+      ]
+    },
+    {
+      "id": "G2",
+      "area": "behavior-contract",
+      "ownerHint": "워크플로 런타임 담당",
+      "action": "폴링 기본 50ms·최소 10ms, 중지 오류의 이름 기반 판별, 취소 문자열의 aborted·AbortError·ABORT_ERR 한정이라는 명세와 구현을 일치시킨다.",
+      "acceptance": "기본값·하한·명시값 테스트와 일반 Error 메시지 접두사, timeout·cancelled 문자열의 거부 테스트가 통과한다. 의도적 계약 변경이면 기존 호출자 영향과 호환성 승인이 필요하다.",
+      "evidenceRefs": [
+        "F1",
+        "F2",
+        "F3"
+      ]
+    },
+    {
+      "id": "G3",
+      "area": "public-summary-contract",
+      "ownerHint": "요약 API·외부 도구 담당",
+      "action": "공개 필드 launchRetryAttempts를 복원하거나, 소비자 확인을 거친 호환 별칭·전환 계획을 제공한다. SPEC 변경만으로 호환성을 해결한 것으로 보지 않는다.",
+      "acceptance": "직렬화 결과와 실제 소비자에서 필드 이름을 검증하고, 두 재시도 합계가 모든 작업을 포함하며 누락 attempts는 0으로 처리되는지 테스트한다.",
+      "evidenceRefs": [
+        "F1",
+        "F4"
+      ]
+    },
+    {
+      "id": "G4",
+      "area": "executable-validation",
+      "ownerHint": "테스트·CI 담당",
+      "action": "실제 배포 프로젝트에서 store/types, TypeScript·Node 타입 도구체인과 Q1 테스트 러너·fixture를 확보하고 실행 증거를 남긴다.",
+      "commands": [
+        {
+          "command": "npm run typecheck",
+          "precondition": "실제 의존성과 누락 모듈 확보"
+        },
+        {
+          "command": "npm test",
+          "precondition": "현재 없는 test script·러너·fixture를 구성하거나 실제 프로젝트의 대응 명령 사용"
+        }
+      ],
+      "requiredCases": [
+        "S1-S7·C1-C2·T1-T3의 단위 테스트",
+        "디스크 중지·foreground abort, 실행 간 격리, 읽기 중 abort",
+        "읽기 실패의 감시/throw 경로 차이, dispose 이후 새 읽기 방지, 마지막 signal 등록 정리",
+        "provider 객체·details·JSON content의 판별과 종료성",
+        "degradation, control.json 누락·손상, dynamic_incomplete 우선순위",
+        "실제 store 및 외부 요약 소비자 통합, 배포 산출물의 ESM import"
+      ],
+      "acceptance": "타입검사·계약 테스트·실제 배포 단위의 빌드 또는 패키징 검증 결과가 확보된다.",
+      "evidenceRefs": [
+        "U1",
+        "F1",
+        "F5",
+        "F6",
+        "F7"
+      ]
+    },
+    {
+      "id": "G5",
+      "area": "state-docs-release",
+      "ownerHint": "런타임·운영·릴리스 담당",
+      "action": "공개 필드·폴링·오류 분류의 변경 및 호환성 결정을 릴리스 문서에 반영한다. control.json의 위치·보존·누락 시 결과와 dynamic_incomplete 우선순위를 명세 및 fixture와 맞춘다.",
+      "acceptance": "T2의 읽기 실패 규칙과 우선순위가 일관되고, 아티팩트 수집·이관 후 종료 요약이 검증된다. private 0.0.0 발췌가 아닌 실제 배포 대상·버전·검증 게이트가 확인된다.",
+      "evidenceRefs": [
+        "U2",
+        "F1",
+        "F4",
+        "F5"
+      ]
+    }
+  ],
+  "niceToHave": [
+    {
+      "id": "N1",
+      "area": "performance",
+      "action": "느린 디스크·다중 실행에서 중지 감지 지연과 동시 읽기 수를 측정하고, 필요하면 폴링 single-flight와 명시적 disposed 상태를 도입한다.",
+      "qualification": "중첩 읽기 가능성은 있으나 실제 성능 회귀나 누수는 측정되지 않았다."
+    },
+    {
+      "id": "N2",
+      "area": "input-hardening",
+      "action": "상위 응답 제한을 확인하고 필요하면 provider JSON의 크기·중첩·누적 파싱 예산을 제한한다.",
+      "qualification": "현재 코드의 무제한 동기 파싱만으로 악용 가능성이 입증된 것은 아니다."
+    },
+    {
+      "id": "N3",
+      "area": "observability",
+      "action": "중지 의도 및 control.json 읽기 실패를 정상적인 값 부재와 구분할 수 있도록 상위 계층의 로그·지표를 확인한다."
+    },
+    {
+      "id": "N4",
+      "area": "security-boundary",
+      "action": "실제 store의 경로 정규화·허용 범위와 controller 출력 경로의 신뢰 경계를 점검한다.",
+      "qualification": "경로 이탈은 입증되지 않았다. 비신뢰 사용자가 경로를 제어할 수 있는 배포라면 이 검증을 배포 전 필수 보안 게이트로 승격한다."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A1",
+      "detail": "SPEC.md를 현행 계약으로 사용했다. 관찰된 불일치가 이번 커밋에서 도입됐다고 단정하지 않는다."
+    },
+    {
+      "id": "A2",
+      "detail": "HEAD는 main을 통해 654f639606913ae2ea7b2465cf1bdcae71c03ff2를 가리킨다. 부모 대비 diff와 작업 트리 일치 여부는 미확인이다."
+    },
+    {
+      "id": "A3",
+      "detail": "이 저장소는 store/types가 빠진 의도적인 private 발췌다. 테스트·CI·릴리스 증거의 부재를 원본 프로젝트 전체의 부재로 일반화하지 않는다."
+    },
+    {
+      "id": "A4",
+      "detail": "세 필수 upstream control을 path=$로 읽었으며 모두 charsTruncated=false였다."
+    },
+    {
+      "id": "A5",
+      "detail": "파일 수정, 명령 실행, 성능 측정은 하지 않았다. 제어 객체는 제공된 JSON 스키마의 필수 키·자료형·status enum에 수동 대조했으며 자동 검증기는 실행하지 않았다."
+    }
+  ]
+}

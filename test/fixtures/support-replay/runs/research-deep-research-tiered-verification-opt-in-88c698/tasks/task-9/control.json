@@ -1,0 +1,486 @@
+{
+  "schema": "deep-research-web-quote-check-v1",
+  "digest": "Web quote check: 23 of 29 quotes found (0 in the verifier's own fetched page text, 23 on the engine's re-fetch of 11 pages); 6 not checked.",
+  "enabled": true,
+  "summary": {
+    "quotes": 29,
+    "pages": 11,
+    "verified": 23,
+    "verifiedCaptured": 0,
+    "verifiedRefetched": 23,
+    "unverified": 6,
+    "inWorkerSummary": {
+      "total": 0,
+      "onPage": 0,
+      "notOnPage": 0,
+      "unchecked": 0
+    },
+    "byLevel": {
+      "exact": 14,
+      "normalized": 9
+    },
+    "byReason": {
+      "quote-not-on-page": 6
+    }
+  },
+  "results": [
+    {
+      "claimId": "claim-001",
+      "evidenceIndex": 0,
+      "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+      "quote": "Added in: v20.3.0, v18.17.0",
+      "grade": "verified-refetched",
+      "level": "exact",
+      "view": "rendered",
+      "page": {
+        "finalUrl": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+        "status": 200,
+        "contentType": "text/html; charset=utf-8",
+        "bodySha256": "5d13465434f1c9ca7ae83bd8e3ddf8231c13b409affc6bb05642476fc97b2a10",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-002",
+      "evidenceIndex": 0,
+      "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+      "quote": "Stability: 2 - Stable",
+      "grade": "verified-refetched",
+      "level": "exact",
+      "view": "rendered",
+      "page": {
+        "finalUrl": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+        "status": 200,
+        "contentType": "text/html; charset=utf-8",
+        "bodySha256": "5d13465434f1c9ca7ae83bd8e3ddf8231c13b409affc6bb05642476fc97b2a10",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-002",
+      "evidenceIndex": 1,
+      "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+      "quote": "Added in: v20.3.0, v18.17.0",
+      "grade": "verified-refetched",
+      "level": "exact",
+      "view": "rendered",
+      "page": {
+        "finalUrl": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+        "status": 200,
+        "contentType": "text/html; charset=utf-8",
+        "bodySha256": "5d13465434f1c9ca7ae83bd8e3ddf8231c13b409affc6bb05642476fc97b2a10",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-003",
+      "evidenceIndex": 0,
+      "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+      "quote": "Added in: v17.3.0, v16.14.0",
+      "grade": "verified-refetched",
+      "level": "exact",
+      "view": "rendered",
+      "page": {
+        "finalUrl": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+        "status": 200,
+        "contentType": "text/html; charset=utf-8",
+        "bodySha256": "5d13465434f1c9ca7ae83bd8e3ddf8231c13b409affc6bb05642476fc97b2a10",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-003",
+      "evidenceIndex": 1,
+      "url": "https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md",
+      "quote": "**(SEMVER-MINOR)** **lib**: add AbortSignal.timeout",
+      "grade": "verified-refetched",
+      "level": "exact",
+      "view": "text",
+      "page": {
+        "finalUrl": "https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md",
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "bodySha256": "b04e8fa72ddae7235568ebbcda29eb4c67e5efd8dfb272f98cbc5e9ad053ff04",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-004",
+      "evidenceIndex": 0,
+      "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+      "quote": "Stability: 2 - Stable",
+      "grade": "verified-refetched",
+      "level": "exact",
+      "view": "rendered",
+      "page": {
+        "finalUrl": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+        "status": 200,
+        "contentType": "text/html; charset=utf-8",
+        "bodySha256": "5d13465434f1c9ca7ae83bd8e3ddf8231c13b409affc6bb05642476fc97b2a10",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-004",
+      "evidenceIndex": 1,
+      "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+      "quote": "Added in: v17.3.0, v16.14.0",
+      "grade": "verified-refetched",
+      "level": "exact",
+      "view": "rendered",
+      "page": {
+        "finalUrl": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+        "status": 200,
+        "contentType": "text/html; charset=utf-8",
+        "bodySha256": "5d13465434f1c9ca7ae83bd8e3ddf8231c13b409affc6bb05642476fc97b2a10",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-005",
+      "evidenceIndex": 0,
+      "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+      "quote": "\"chrome\": {\n                \"version_added\": \"116\"\n              }",
+      "grade": "verified-refetched",
+      "level": "normalized",
+      "view": "text",
+      "page": {
+        "finalUrl": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "bodySha256": "d1b22a309727598cf86ef798c52e8d1e7d2108fef2d482da73e86e0abd2e96c8",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-006",
+      "evidenceIndex": 0,
+      "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+      "quote": "\"edge\": \"mirror\",",
+      "grade": "verified-refetched",
+      "level": "exact",
+      "view": "text",
+      "page": {
+        "finalUrl": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "bodySha256": "d1b22a309727598cf86ef798c52e8d1e7d2108fef2d482da73e86e0abd2e96c8",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-006",
+      "evidenceIndex": 1,
+      "url": "https://caniuse.com/wf-abortsignal-any",
+      "quote": "#### Edge\n\n  1. ❌ 12 - 115: Not supported\n  2. ✅ 116 - 154: Supported",
+      "grade": "unverified",
+      "reason": "quote-not-on-page",
+      "page": {
+        "finalUrl": "https://caniuse.com/wf-abortsignal-any",
+        "status": 200,
+        "contentType": "text/html; charset=UTF-8",
+        "bodySha256": "ae6306d358ab079c9bb7c8986cf44d3a0bc6ac71f4c0c2607e54bd27a833b54d",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-007",
+      "evidenceIndex": 0,
+      "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+      "quote": "\"firefox\": {\n                \"version_added\": \"124\"\n              }",
+      "grade": "verified-refetched",
+      "level": "normalized",
+      "view": "text",
+      "page": {
+        "finalUrl": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "bodySha256": "d1b22a309727598cf86ef798c52e8d1e7d2108fef2d482da73e86e0abd2e96c8",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-007",
+      "evidenceIndex": 1,
+      "url": "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124",
+      "quote": "AbortSignal.any() is now supported, allowing a composite signal to be created that can be used to abort an operation from multiple signal sources.",
+      "grade": "verified-refetched",
+      "level": "exact",
+      "view": "rendered",
+      "page": {
+        "finalUrl": "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124",
+        "status": 200,
+        "contentType": "text/html",
+        "bodySha256": "15ea65c3c122c1ad97070afaed781a9bccd41d36dbaecfeae44944a52b5fa773",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-008",
+      "evidenceIndex": 0,
+      "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+      "quote": "\"safari\": {\n                \"version_added\": \"17.4\"\n              }",
+      "grade": "verified-refetched",
+      "level": "normalized",
+      "view": "text",
+      "page": {
+        "finalUrl": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "bodySha256": "d1b22a309727598cf86ef798c52e8d1e7d2108fef2d482da73e86e0abd2e96c8",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-008",
+      "evidenceIndex": 1,
+      "url": "https://webkit.org/blog/15063/webkit-features-in-safari-17-4/",
+      "quote": "Lastly, WebKit for Safari 17.4 adds support for the 【92†`AbortSignal.any()`†developer.mozilla.org】",
+      "grade": "unverified",
+      "reason": "quote-not-on-page",
+      "page": {
+        "finalUrl": "https://webkit.org/blog/15063/webkit-features-in-safari-17-4/",
+        "status": 200,
+        "contentType": "text/html; charset=UTF-8",
+        "bodySha256": "5c5ffbdf4b9c986c6461e523cf72bba6a3970dcc1f6b2c2764a9a85835823e89",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-009",
+      "evidenceIndex": 0,
+      "url": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+      "quote": "\"chrome\": [\n{\n\"version_added\": \"124\"\n},\n{\n\"version_added\": \"103\",\n\"version_removed\": \"124\",\n\"partial_implementation\": true,\n\"notes\": \"Always aborts with an `AbortError` on timeout, not a `TimeoutError`.\"\n}\n]",
+      "grade": "unverified",
+      "reason": "quote-not-on-page",
+      "page": {
+        "finalUrl": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "bodySha256": "aea7dddad95fc16e8e3ad75f71db80760801671bd170afcea7f38f1c66d9cba2",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-010",
+      "evidenceIndex": 0,
+      "url": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+      "quote": "\"edge\": \"mirror\",",
+      "grade": "unverified",
+      "reason": "quote-not-on-page",
+      "page": {
+        "finalUrl": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "bodySha256": "aea7dddad95fc16e8e3ad75f71db80760801671bd170afcea7f38f1c66d9cba2",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-011",
+      "evidenceIndex": 0,
+      "url": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+      "quote": "\"version_added\": \"100\"",
+      "grade": "unverified",
+      "reason": "quote-not-on-page",
+      "page": {
+        "finalUrl": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "bodySha256": "aea7dddad95fc16e8e3ad75f71db80760801671bd170afcea7f38f1c66d9cba2",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-011",
+      "evidenceIndex": 1,
+      "url": "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100",
+      "quote": "Code can now use the static method `AbortSignal.timeout()`.",
+      "grade": "verified-refetched",
+      "level": "normalized",
+      "view": "rendered",
+      "page": {
+        "finalUrl": "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100",
+        "status": 200,
+        "contentType": "text/html",
+        "bodySha256": "bfc4f4310cf2cbf6cd20499f586ed851a4fd8c7276dee75de93e27a1dd0b5ed5",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-012",
+      "evidenceIndex": 0,
+      "url": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+      "quote": "\"safari\": {\n  \"version_added\": \"16\"\n},",
+      "grade": "unverified",
+      "reason": "quote-not-on-page",
+      "page": {
+        "finalUrl": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+        "status": 200,
+        "contentType": "text/plain; charset=utf-8",
+        "bodySha256": "aea7dddad95fc16e8e3ad75f71db80760801671bd170afcea7f38f1c66d9cba2",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-013",
+      "evidenceIndex": 0,
+      "url": "https://dom.spec.whatwg.org/",
+      "quote": "For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
+      "grade": "verified-refetched",
+      "level": "normalized",
+      "view": "rendered",
+      "page": {
+        "finalUrl": "https://dom.spec.whatwg.org/",
+        "status": 200,
+        "contentType": "text/html; charset=utf-8",
+        "bodySha256": "9b797e186fca784bce79a6d627e4e7827c3d9dd1aadf529265c61768b43a2153",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-013",
+      "evidenceIndex": 1,
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+      "quote": "The returned AbortSignal's reason will be already set to the reason of the first abort signal that was already aborted.",
+      "grade": "verified-refetched",
+      "level": "exact",
+      "view": "rendered",
+      "page": {
+        "finalUrl": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+        "status": 200,
+        "contentType": "text/html",
+        "bodySha256": "7fe3923348830c15fd6dbae5ea777705a5c566e53dd743d439ed7c0ef52a9b62",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-014",
+      "evidenceIndex": 0,
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+      "quote": "Aborting the returned signal does not abort the other input signals or cancel their timeouts.",
+      "grade": "verified-refetched",
+      "level": "exact",
+      "view": "rendered",
+      "page": {
+        "finalUrl": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+        "status": 200,
+        "contentType": "text/html",
+        "bodySha256": "7fe3923348830c15fd6dbae5ea777705a5c566e53dd743d439ed7c0ef52a9b62",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-015",
+      "evidenceIndex": 0,
+      "url": "https://dom.spec.whatwg.org/",
+      "quote": "Returns an AbortSignal instance which will be aborted in milliseconds milliseconds. Its abort reason will be set to a “TimeoutError” DOMException.",
+      "grade": "verified-refetched",
+      "level": "normalized",
+      "view": "rendered",
+      "page": {
+        "finalUrl": "https://dom.spec.whatwg.org/",
+        "status": 200,
+        "contentType": "text/html; charset=utf-8",
+        "bodySha256": "9b797e186fca784bce79a6d627e4e7827c3d9dd1aadf529265c61768b43a2153",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-015",
+      "evidenceIndex": 1,
+      "url": "https://dom.spec.whatwg.org/",
+      "quote": "Queue a global task on the timer task source given global to signal abort given signal and a new “TimeoutError” DOMException.",
+      "grade": "verified-refetched",
+      "level": "normalized",
+      "view": "rendered",
+      "page": {
+        "finalUrl": "https://dom.spec.whatwg.org/",
+        "status": 200,
+        "contentType": "text/html; charset=utf-8",
+        "bodySha256": "9b797e186fca784bce79a6d627e4e7827c3d9dd1aadf529265c61768b43a2153",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-016",
+      "evidenceIndex": 0,
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+      "quote": "The timeout is based on active rather than elapsed time, and will effectively be paused if the code is running in a suspended worker, or while the document is in a back-forward cache (\"bfcache\").",
+      "grade": "verified-refetched",
+      "level": "exact",
+      "view": "rendered",
+      "page": {
+        "finalUrl": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+        "status": 200,
+        "contentType": "text/html",
+        "bodySha256": "3f64b2a83e51210bea7fe22095d1a3b5f3bb03a57333b3de4f3632cee6f8c482",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-017",
+      "evidenceIndex": 0,
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+      "quote": "If your code adds `abort` listeners to the combined signal, remove them when the operation finishes, just as you would for any other `AbortSignal`.",
+      "grade": "verified-refetched",
+      "level": "normalized",
+      "view": "rendered",
+      "page": {
+        "finalUrl": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+        "status": 200,
+        "contentType": "text/html",
+        "bodySha256": "7fe3923348830c15fd6dbae5ea777705a5c566e53dd743d439ed7c0ef52a9b62",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-018",
+      "evidenceIndex": 0,
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+      "quote": "AbortSignal.timeout() does not provide a way to cancel its timeout.",
+      "grade": "verified-refetched",
+      "level": "exact",
+      "view": "rendered",
+      "page": {
+        "finalUrl": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+        "status": 200,
+        "contentType": "text/html",
+        "bodySha256": "3f64b2a83e51210bea7fe22095d1a3b5f3bb03a57333b3de4f3632cee6f8c482",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-018",
+      "evidenceIndex": 1,
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+      "quote": "The AbortSignal becoming unreachable is not guaranteed to cancel the timeout.",
+      "grade": "verified-refetched",
+      "level": "exact",
+      "view": "rendered",
+      "page": {
+        "finalUrl": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+        "status": 200,
+        "contentType": "text/html",
+        "bodySha256": "3f64b2a83e51210bea7fe22095d1a3b5f3bb03a57333b3de4f3632cee6f8c482",
+        "fromCache": false
+      }
+    },
+    {
+      "claimId": "claim-018",
+      "evidenceIndex": 2,
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+      "quote": "The timeout is based on active rather than elapsed time, and will effectively be paused if the code is running in a suspended worker, or while the document is in a back-forward cache (“bfcache”).",
+      "grade": "verified-refetched",
+      "level": "normalized",
+      "view": "rendered",
+      "page": {
+        "finalUrl": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+        "status": 200,
+        "contentType": "text/html",
+        "bodySha256": "3f64b2a83e51210bea7fe22095d1a3b5f3bb03a57333b3de4f3632cee6f8c482",
+        "fromCache": false
+      }
+    }
+  ]
+}

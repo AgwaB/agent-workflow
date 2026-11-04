@@ -1,0 +1,301 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "13개 요구사항 중 8개는 구현상 충족, 5개는 구현·테스트 갭 후보다.",
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "읽기 전용 검토로 테스트를 실행하지 않았다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "SPEC.md에 store.js와 types.js가 제외되어 의존 모듈 계약은 독립 검증하지 못했다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "requirementCoverage": [
+    {
+      "requirementId": "REQ-S1",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 25,
+          "lineEnd": 25,
+          "quote": "return [...(launchSignals.get(workflowRunPath(cwd, runId)) ?? [])].some(",
+          "relevance": "등록된 foreground signal을 실행 경로별로 검사한다."
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 74,
+          "lineEnd": 74,
+          "quote": "const intent = await readWorkflowStopIntent(cwd, runId).catch(",
+          "relevance": "디스크 중지 의도를 검사한다."
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-S2",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 44,
+          "lineEnd": 44,
+          "quote": "return `workflow stop requested for ${runId}`;"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 49,
+          "lineEnd": 49,
+          "quote": "error.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME;"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-S3",
+      "status": "gap",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 67,
+          "lineEnd": 67,
+          "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-S4",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 74,
+          "lineEnd": 76,
+          "quote": "const intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 95,
+          "lineEnd": 95,
+          "quote": "const intent = await readWorkflowStopIntent(cwd, runId);"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-S5",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 85,
+          "lineEnd": 85,
+          "quote": "dispose: () => clearInterval(timer),"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-S6",
+      "status": "partial",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 56,
+          "lineEnd": 57,
+          "quote": "(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\t\terror.message.startsWith(\"workflow stop requested\"))"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-S7",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 17,
+          "lineEnd": 20,
+          "quote": "return () => {\n\t\tsignals.delete(signal);\n\t\tif (signals.size === 0 && launchSignals.get(key) === signals)\n\t\t\tlaunchSignals.delete(key);"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-C1",
+      "status": "partial",
+      "evidence": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "lineStart": 20,
+          "lineEnd": 20,
+          "quote": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-C2",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "lineStart": 27,
+          "lineEnd": 28,
+          "quote": "const parsed: unknown = JSON.parse(entry.text);\n\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-T1",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 68,
+          "lineEnd": 68,
+          "quote": "return run.degradation ? \"completed_degraded\" : \"completed\";"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-T2",
+      "status": "covered",
+      "evidence": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 59,
+          "lineEnd": 61,
+          "quote": "return await readJson<DynamicControllerControl>(\n\t\tjoin(dirname(taskOutput), \"control.json\"),\n\t).catch(() => undefined);"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 95,
+          "lineEnd": 95,
+          "quote": "else semanticStatus = \"completed_without_semantic_result\";"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-T3",
+      "status": "partial",
+      "evidence": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 33,
+          "lineEnd": 33,
+          "quote": "launchRetries: number;"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "lineStart": 107,
+          "lineEnd": 110,
+          "quote": "launchRetries: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),"
+        }
+      ]
+    },
+    {
+      "requirementId": "REQ-Q1",
+      "status": "gap",
+      "evidence": []
+    }
+  ],
+  "candidateFindings": [
+    {
+      "id": "candidate-S3",
+      "requirementIds": [
+        "REQ-S3"
+      ],
+      "severity": "high",
+      "title": "중지 polling 기본값과 하한 불일치",
+      "claim": "pollMs 구현은 명세의 기본 50ms·최소 10ms가 아니라 기본 200ms·최소 1ms다.",
+      "specEvidence": [
+        "SPEC.md S3는 기본값 50ms, 최소 10ms를 요구한다."
+      ],
+      "implementationEvidence": [
+        "src/workflow-stop.ts:67은 Math.max(1, options.pollMs ?? 200)을 사용한다."
+      ],
+      "testEvidence": [
+        "inspect-tests 결과 테스트 파일과 testMap 항목이 없다."
+      ],
+      "uncertainty": "상수와 clamp가 직접 확인되지만 테스트 실행으로 런타임 동작은 검증하지 않았다."
+    },
+    {
+      "id": "candidate-S6",
+      "requirementIds": [
+        "REQ-S6"
+      ],
+      "severity": "high",
+      "title": "중지 오류 판별이 메시지까지 허용",
+      "claim": "isWorkflowStopRequestedError가 오류 이름이 달라도 메시지 prefix만 맞으면 중지 오류로 인정한다.",
+      "specEvidence": [
+        "SPEC.md S6는 이름만 사용하고 메시지 내용은 사용하지 말 것을 요구한다."
+      ],
+      "implementationEvidence": [
+        "src/workflow-stop.ts:56-57은 이름 검사와 함께 error.message.startsWith(\"workflow stop requested\")를 검사한다."
+      ],
+      "testEvidence": [
+        "해당 조건을 반증하거나 확인하는 테스트가 발견되지 않았다."
+      ],
+      "uncertainty": "소스상 명백한 추가 판별 경로이며, 외부 호출자가 오분류를 관찰할 수 있다."
+    },
+    {
+      "id": "candidate-C1",
+      "requirementIds": [
+        "REQ-C1"
+      ],
+      "severity": "high",
+      "title": "허용되지 않은 provider 취소 문자열",
+      "claim": "provider 오류·사유 문자열로 명세의 세 값 외에 cancelled와 timeout도 취소로 승격한다.",
+      "specEvidence": [
+        "SPEC.md C1은 문자열로 aborted, AbortError, ABORT_ERR만 인정하도록 요구한다."
+      ],
+      "implementationEvidence": [
+        "src/workflow-cancellation.ts:20은 세 값 외에 cancelled와 timeout도 true로 처리한다."
+      ],
+      "testEvidence": [
+        "추가 문자열을 거부하는 테스트가 발견되지 않았다."
+      ],
+      "uncertainty": "boolean cancelled와 AbortError 객체 지원의 범위는 명세가 덜 구체적이지만, 추가 문자열 허용은 직접 확인된다."
+    },
+    {
+      "id": "candidate-T3",
+      "requirementIds": [
+        "REQ-T3"
+      ],
+      "severity": "high",
+      "title": "공개 launch retry 필드명 불일치",
+      "claim": "launch retry 횟수는 합산하지만 공개 필드가 명세의 launchRetryAttempts가 아니라 launchRetries다.",
+      "specEvidence": [
+        "SPEC.md T3는 공개 계약 필드명을 launchRetryAttempts로 지정한다."
+      ],
+      "implementationEvidence": [
+        "src/workflow-terminal.ts:33과 107-110은 launchRetries를 선언·반환한다."
+      ],
+      "testEvidence": [
+        "공개 필드명을 검증하는 테스트가 발견되지 않았다."
+      ],
+      "uncertainty": "합산 로직 자체는 존재하지만 외부 소비자는 요구된 필드명을 받지 못한다."
+    },
+    {
+      "id": "candidate-Q1",
+      "requirementIds": [
+        "REQ-Q1"
+      ],
+      "severity": "medium",
+      "title": "S·C·T 요구사항별 단위 테스트 부재",
+      "claim": "S1-S7, C1-C2, T1-T3 동작을 확인하는 단위 테스트 근거가 없다.",
+      "specEvidence": [
+        "SPEC.md Q1은 모든 S·C·T 항목별 단위 테스트를 요구한다."
+      ],
+      "implementationEvidence": [
+        "저장소에는 SPEC.md, package.json, tsconfig.json, src/*.ts만 확인되며 테스트 파일이 없다."
+      ],
+      "testEvidence": [
+        "inspect-tests 결과 testMap이 비어 있고 테스트·fixture가 발견되지 않았다."
+      ],
+      "uncertainty": "파일 탐색 결과와 upstream 테스트 검토에 근거한 후보이며, 테스트가 외부에 존재하는지는 확인하지 못했다."
+    }
+  ],
+  "needsHuman": [],
+  "noIssueNotes": [
+    "S1, S2, S4, S5, S7, C2, T1, T2는 소스의 해당 분기와 반환값이 명세와 일치하는 근거가 확인됐다."
+  ]
+}

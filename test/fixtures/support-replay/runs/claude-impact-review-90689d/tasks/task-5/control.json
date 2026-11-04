@@ -1,0 +1,79 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "HEAD 654f639 changes three public-facing behaviors in the stop/cancel/terminal path: the summary field launchRetryAttempts is renamed to launchRetries (SPEC T3 calls the old name public), the stop poll default moves from 50ms to 200ms, and cancellation detection widens to 'cancelled'/'timeout'. The code now contradicts SPEC.md, and no tests exist to catch it. Not safe to ship until the rename is resolved and tests cover these paths.",
+  "status": "high",
+  "impacts": [
+    {
+      "id": "i1",
+      "area": "public-contract",
+      "severity": "high",
+      "component": "src/workflow-terminal.ts:33,107 WorkflowTerminalSummary",
+      "change": "launchRetryAttempts renamed to launchRetries with no alias or deprecation path. SPEC T3 names launchRetryAttempts as a public contract read by external tools.",
+      "risk": "Any external consumer reading launchRetryAttempts gets undefined or a parse failure. This is a silent breaking change to a shared data shape.",
+      "evidence": "grep: no in-repo reader of launchRetryAttempts; SPEC.md:35 names it as public"
+    },
+    {
+      "id": "i2",
+      "area": "lifecycle-ordering",
+      "severity": "medium",
+      "component": "src/workflow-stop.ts:67,81 createWorkflowStopSignal",
+      "change": "Default pollMs changed from 50ms (SPEC S3) to 200ms in code.",
+      "risk": "Stop intent is noticed up to 200ms later, which can slow stop-to-abort latency and widens the window where a stop request races with stage completion. Callers that pass pollMs explicitly are unaffected. SPEC S3 also sets a 10ms floor that the code does not appear to enforce; it uses Math.max(1, ...).",
+      "evidence": "workflow-stop.ts:67 Math.max(1, options.pollMs ?? 200); SPEC.md:13"
+    },
+    {
+      "id": "i3",
+      "area": "data-flow-classification",
+      "severity": "medium",
+      "component": "src/workflow-cancellation.ts:20 isWorkflowReturnedCancellation",
+      "change": "Accepted markers widened from SPEC C1 exact set (aborted/AbortError/ABORT_ERR) to include 'cancelled' and 'timeout'.",
+      "risk": "Provider returns or errors containing 'timeout' are now classified as cancellation. That can change retry, terminal status, and summary counts for non-cancel failures (false positives). Whether the widening is a fix depends on real provider shapes, which are unverified.",
+      "evidence": "implementation-map control: changedByHead likely; u5 unresolved"
+    },
+    {
+      "id": "i4",
+      "area": "validation",
+      "severity": "high",
+      "component": "repo test suite / SPEC Q1",
+      "change": "No unit test files exist (Glob over **/*.{test,spec}.{ts,js,mjs} returned nothing). The only verification script is typecheck. SPEC Q1 requires a test per S/C/T item.",
+      "risk": "None of the three behavior changes is verified. Typecheck cannot catch a runtime field rename or a marker-set change.",
+      "evidence": "change-scope control assumptions; package.json scripts.typecheck only"
+    },
+    {
+      "id": "i5",
+      "area": "docs-spec-drift",
+      "severity": "medium",
+      "component": "SPEC.md S3, C1, T3 vs src/",
+      "change": "Code diverges from the spec in four places. The spec was not updated by HEAD and is the stated contract.",
+      "risk": "Consumers and reviewers using SPEC.md will assume the old behavior.",
+      "evidence": "implementation-map control: SPEC contradicts code in 4 places"
+    },
+    {
+      "id": "i6",
+      "area": "state-persistence",
+      "severity": "low",
+      "component": "store.js readWorkflowStopIntent / WorkflowRunRecord types",
+      "change": "Not changed as far as the evidence shows. store.js and types.js are absent from the repo, so the on-disk stop-intent format and record shapes could not be checked.",
+      "risk": "Unknown whether persisted run records or control.json consumers depend on the renamed field.",
+      "evidence": "change-scope control assumptions"
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "a1",
+      "text": "The changed-file list (workflow-stop.ts, workflow-cancellation.ts, workflow-terminal.ts) is inferred from the commit message and grep, not from git diff. The git diff could not be read in this run, so the exact line-level delta is unverified."
+    },
+    {
+      "id": "a2",
+      "text": "SPEC.md was not modified by 654f639. Mismatches are treated as code-vs-spec drift, not as a spec update."
+    },
+    {
+      "id": "a3",
+      "text": "WorkflowTerminalSummary is computed on read (summarizeWorkflowTerminal) and not persisted. This was not verified because store.js is absent."
+    },
+    {
+      "id": "a4",
+      "text": "Stop-latency and false-positive effects are inferred from the code. No runtime measurement was taken."
+    }
+  ]
+}

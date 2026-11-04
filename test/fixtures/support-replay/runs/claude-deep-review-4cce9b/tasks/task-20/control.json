@@ -1,0 +1,35 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "결함의 메커니즘(Set 기반 중복 제거로 같은 신호의 첫 해제가 두 번째 등록을 지움)은 코드에서 확인되지만, src/에 호출자가 없고 영향은 동기식 fence 창에 한정되며 디스크 기반 중지 감지는 유지되므로 WEAKEN한다.",
+  "findingId": "finding-008",
+  "finding": "Launch registry dedupes by signal, so a double bind of the same signal is released early",
+  "verdict": "WEAKEN",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 15,
+      "lineEnd": 15,
+      "quote": "signals.add(signal);"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 18,
+      "lineEnd": 18,
+      "quote": "signals.delete(signal);"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 19,
+      "lineEnd": 20,
+      "quote": "if (signals.size === 0 && launchSignals.get(key) === signals)"
+    }
+  ],
+  "counterEvidence": [
+    "src/ 안에서 bindWorkflowLaunchSignal의 호출자가 없다(grep 결과에는 정의 줄 src/workflow-stop.ts:7만 나타남). 같은 신호가 한 실행에 두 번 바인딩되는 경로가 현재 코드에서 확인되지 않는다.",
+    "손실되는 것은 동기식 dispatch fence뿐이다. createWorkflowStopSignal의 폴링(check)과 throwIfWorkflowStopRequested는 디스크의 중지 intent를 계속 읽으므로, durable 중지 요청은 여전히 감지된다.",
+    "Set.add는 같은 객체를 한 번만 저장하므로 두 바인딩이 별도 항목으로 남지 않는다. 이 점은 결함 설명과 일치하며, 반증 요소가 아니라 결함의 근거다."
+  ],
+  "recommendedAction": "각 바인딩에 고유 토큰을 부여하거나 신호별 참조 카운트를 사용해, 해제가 자신의 등록만 제거하도록 바꾸고, 같은 신호를 두 번 바인딩하는 경우에 대한 회귀 테스트를 추가하라.",
+  "readerTitle": "런치 레지스트리가 신호 기준으로 중복 제거되어, 같은 신호의 이중 바인딩이 조기에 해제된다",
+  "readerRationale": "도달 가능성은 호출자에 달려 있으며 src/ 아래에는 호출자가 없다. 위험은 아직 실행 중인 launch에 대한 foreground 중지가 조용히 누락되는 것이다."
+}

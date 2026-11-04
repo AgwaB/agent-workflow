@@ -1,0 +1,56 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Triage identified high-severity specification violations, public API contract mismatch, and race conditions across stop handling, cancellation, and terminal summary modules.",
+  "reviewLenses": [
+    {
+      "id": "runtime-correctness",
+      "focus": "Stop signal timing, polling bounds, disk read error propagation, and concurrency/race condition handling",
+      "whyNeeded": "src/workflow-stop.ts violates S3 with incorrect poll interval defaults (200ms vs 50ms) and minimum clamps (1ms vs 10ms), lacks overlapping async poll protection, permits post-dispose abort mutations violating S5, and matches error messages instead of exact error names violating S6.",
+      "evidenceToInspect": [
+        "src/workflow-stop.ts:53-59",
+        "src/workflow-stop.ts:67-86",
+        "src/workflow-stop.ts:89-99",
+        "SPEC.md:6-22"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "cancellation-reliability",
+      "focus": "Provider cancellation error classification and recursive JSON parsing safety",
+      "whyNeeded": "src/workflow-cancellation.ts treats 'cancelled' and 'timeout' as cancellations violating C1, and relies on reference identity comparison (parsed !== value) which fails to prevent infinite recursion on cyclical parsed JSON structures violating C2.",
+      "evidenceToInspect": [
+        "src/workflow-cancellation.ts:13-33",
+        "SPEC.md:23-29"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "api-contract-compatibility",
+      "focus": "Workflow terminal summary schema contract and dynamic mode semantic status resolution",
+      "whyNeeded": "src/workflow-terminal.ts exposes 'launchRetries' instead of the public contract property 'launchRetryAttempts' violating T3, and risks runtime exceptions if task file descriptors are missing.",
+      "evidenceToInspect": [
+        "src/workflow-terminal.ts:27-35",
+        "src/workflow-terminal.ts:48-62",
+        "src/workflow-terminal.ts:72-113",
+        "SPEC.md:30-37"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "test-hygiene",
+      "focus": "Absence of automated unit test suite verifying stop, cancellation, and terminal behaviors",
+      "whyNeeded": "SPEC.md requirement Q1 mandates unit tests covering all S, C, and T specification items, but no test suite currently exists in the repository.",
+      "evidenceToInspect": [
+        "SPEC.md:38-41",
+        "package.json:1-9"
+      ],
+      "severityBias": "medium"
+    }
+  ],
+  "triageSummary": "Triage of src/ against SPEC.md revealed multiple critical and high-priority defects: (1) workflow-stop.ts uses pollMs default of 200ms and minimum of 1ms instead of 50ms/10ms (S3), evaluates error messages rather than strict error names (S6), allows overlapping async setInterval executions, and lacks a disposed guard for in-flight disk reads (S5); (2) workflow-cancellation.ts accepts 'cancelled' and 'timeout' as cancellation strings (C1) and uses ineffective reference comparison to avoid cycle recursion (C2); (3) workflow-terminal.ts breaks the public API contract by naming the retry property 'launchRetries' instead of 'launchRetryAttempts' (T3); and (4) no unit tests are present (Q1).",
+  "riskLevel": "high",
+  "skippedLenses": [
+    "safety/security: No remote untrusted input execution or credential handling in scope",
+    "migration/cross-repo: Scope is strictly self-contained within src/ and SPEC.md"
+  ]
+}

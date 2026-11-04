@@ -1,0 +1,25 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "C1 명세와 구현이 불일치하므로 finding을 유지한다.",
+  "findingId": "finding-003",
+  "finding": "provider의 cancelled·timeout 사유를 취소로 승격함",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 20,
+      "quote": "candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\"",
+      "lineEnd": 20,
+      "symbol": "isWorkflowReturnedCancellation"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 25,
+      "quote": "오류·사유 문자열은 정확히 `aborted`,",
+      "lineEnd": 26,
+      "symbol": "C1"
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "문자열 비교를 `aborted`, `AbortError`, `ABORT_ERR` 세 값으로 제한하고, `cancelled`와 `timeout`은 별도 오류 경로로 처리하라."
+}

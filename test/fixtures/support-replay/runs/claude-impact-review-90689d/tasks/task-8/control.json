@@ -1,0 +1,51 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "HEAD 654f639 changes stop/cancel behavior with no tests and a renamed public field. Medium overall impact: the rename and the widened cancellation match can break consumers or misclassify real timeouts. Security and performance impact is low.",
+  "status": "medium",
+  "impacts": [
+    {
+      "area": "public-contract",
+      "severity": "medium",
+      "summary": "WorkflowTerminalSummary.launchRetryAttempts was renamed to launchRetries (src/workflow-terminal.ts:33,107). SPEC T3 names the old field as public, so external readers of the summary will break unless a compatibility alias is kept."
+    },
+    {
+      "area": "reliability-observability",
+      "severity": "medium",
+      "summary": "isWorkflowReturnedCancellation (src/workflow-cancellation.ts:20) now treats 'cancelled' and 'timeout' as cancellation. A provider timeout can be recorded as a user cancellation, which hides the failure cause and can change retry or terminal-status handling."
+    },
+    {
+      "area": "verification",
+      "severity": "medium",
+      "summary": "No test files exist (Glob for *.test/*.spec found none), and package.json has only typecheck. SPEC Q1 requires a unit test per S/C/T item, so none of the three behavior changes is covered by a test."
+    },
+    {
+      "area": "spec-consistency",
+      "severity": "medium",
+      "summary": "HEAD diverges from SPEC.md in four places: pollMs default 200 vs S3's 50, the extra cancellation keywords vs C1, the retry field name vs T3, and stop-error detection. Either the code or the spec is wrong, and the release contract is unclear."
+    },
+    {
+      "area": "performance",
+      "severity": "low",
+      "summary": "createWorkflowStopSignal polls with setInterval at a 200ms default (src/workflow-stop.ts:67,81). The change lowers polling frequency, so stop requests take up to about 200ms to take effect. Disk load drops, which is the intended effect."
+    },
+    {
+      "area": "security-privacy",
+      "severity": "low",
+      "summary": "The change adds no new input source, secret handling, or network path. Cancellation matching is a string match on error, reason, details, and content fields, so widening the keyword set is a classification risk, not an injection path."
+    }
+  ],
+  "assumptions": [
+    {
+      "note": "The exact diff of 654f639 was not readable. Changed files were inferred from the commit message, the upstream control artifacts, and a grep of src/ (verified: pollMs at workflow-stop.ts:67, keywords at workflow-cancellation.ts:16-20, launchRetries at workflow-terminal.ts:33,107)."
+    },
+    {
+      "note": "store.js and types.js are not in the repo, so readWorkflowStopIntent and the WorkflowRunRecord shapes could not be checked."
+    },
+    {
+      "note": "No external consumer of launchRetries or launchRetryAttempts was found inside this repo."
+    },
+    {
+      "note": "The previous pollMs value is not known from the upstream artifacts; the 50ms figure comes from SPEC S3, not from the parent commit."
+    }
+  ]
+}

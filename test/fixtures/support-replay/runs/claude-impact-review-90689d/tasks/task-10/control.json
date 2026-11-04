@@ -1,0 +1,36 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "HEAD 654f639 is not deployable as-is. It renames the public summary field launchRetryAttempts to launchRetries with no alias, widens cancellation matching to 'cancelled' and 'timeout', and changes the stop-poll default from 50ms to 200ms. SPEC.md contradicts all three, and no test covers any of them. Upstream lenses rate the API and state impact high and the security/performance impact low. Validation coverage is none.",
+  "riskLevel": "high",
+  "risks": [
+    {
+      "note": "Breaking public contract: WorkflowTerminalSummary.launchRetryAttempts was renamed to launchRetries with no alias (src/workflow-terminal.ts:33,107). SPEC T3 (SPEC.md:35) names launchRetryAttempts as a public field, so external readers get undefined silently. No in-repo reader exists, so consumers outside the repo are unknown."
+    },
+    {
+      "note": "Cancellation misclassification: isWorkflowReturnedCancellation (src/workflow-cancellation.ts:20) now accepts 'cancelled' and 'timeout' beyond the SPEC C1 set (aborted, AbortError, ABORT_ERR). Provider timeouts can be recorded as user cancellations, changing retry, terminal status, and summary counts. Real provider payload shapes are unverified."
+    },
+    {
+      "note": "Spec/code drift with no tests: SPEC S3 says 50ms and a 10ms floor, but code uses 200ms with Math.max(1, ...) (src/workflow-stop.ts:67). SPEC Q1 requires a test per S/C/T item, yet no test files or test script exist. Four drifts (S3, C1, S6, T3) are unguarded."
+    },
+    {
+      "note": "Unverifiable validation: the only declared check is typecheck, and it is unexecuted. store.js and types.js are missing from the repo, so the stop-intent format and WorkflowRunRecord shape cannot be checked, and typecheck may fail on import."
+    }
+  ],
+  "riskReducers": [
+    {
+      "note": "Decide the launchRetries compatibility path: emit both launchRetryAttempts (deprecated) and launchRetries for one release, or revert the rename. Update SPEC T3 to match."
+    },
+    {
+      "note": "Confirm the real provider payloads that produce 'cancelled'/'timeout'. Drop 'timeout' from the accepted set unless it is verified as a cancel, and update SPEC C1 to match."
+    },
+    {
+      "note": "Confirm the intended pollMs default (200 vs 50). Update SPEC S3 and the clamp floor to match, or restore 50."
+    },
+    {
+      "note": "Add contract tests before release: a launchRetries snapshot with no launchRetryAttempts, the exact cancellation marker set, the poll default, and the WorkflowStopRequested error and message. Add a test script to package.json."
+    },
+    {
+      "note": "Run npm run typecheck and confirm store.js/types.js are present or stubbed. Re-read git diff 11bc671..654f639 -- src/ to confirm the changed-file list, since the upstream diff was not read directly."
+    }
+  ]
+}

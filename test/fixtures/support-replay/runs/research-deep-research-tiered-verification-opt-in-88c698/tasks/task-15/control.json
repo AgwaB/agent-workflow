@@ -1,0 +1,214 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Node.js 공식 문서는 AbortSignal.timeout()을 v17.3.0 및 v16.14.0에 추가했고, 현재 Global objects를 Stable로 표시한다.",
+  "questionId": "question-002",
+  "question": "Node.js 공식 문서와 릴리스 자료에서 AbortSignal.timeout()의 최초 도입 버전과 현재 안정성 표기는 무엇인가?",
+  "covers": [
+    "Node.js에서 AbortSignal.timeout()의 안정적 지원 버전"
+  ],
+  "extractedFacts": [
+    {
+      "slotId": "slot-003",
+      "slotLabel": "Node.js AbortSignal.timeout() 최초 지원 버전",
+      "entity": "Node.js AbortSignal.timeout()",
+      "value": "v17.3.0 및 v16.14.0",
+      "factType": "introduced_version",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+        "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md"
+      ],
+      "sourceTitleOrPublisher": "Node.js 공식 API 문서; Node.js v17 변경 로그",
+      "dateOrYear": "2021",
+      "sourceQuality": "primary",
+      "confidence": "high",
+      "quote": "Added in: v17.3.0, v16.14.0",
+      "notes": "v17.3.0에서 도입되었고 v16.14.0으로 백포트되었다."
+    },
+    {
+      "slotId": "slot-003",
+      "slotLabel": "Node.js AbortSignal.timeout() 최초 지원 버전",
+      "entity": "Node.js AbortSignal.timeout()",
+      "value": "v17 계열 변경 로그에서 기능 추가 기록",
+      "factType": "release_record",
+      "sourceUrls": [
+        "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md"
+      ],
+      "sourceTitleOrPublisher": "Node.js v17 변경 로그",
+      "dateOrYear": "2021",
+      "sourceQuality": "primary",
+      "confidence": "high",
+      "quote": "(SEMVER-MINOR) lib: add AbortSignal.timeout",
+      "notes": "공식 릴리스 변경 로그의 기능 추가 항목이다."
+    },
+    {
+      "slotId": "slot-004",
+      "slotLabel": "Node.js AbortSignal.timeout() 안정성 상태",
+      "entity": "Node.js Global objects",
+      "value": "Stability: 2 - Stable",
+      "factType": "stability",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+      ],
+      "sourceTitleOrPublisher": "Node.js v24 공식 API 문서",
+      "dateOrYear": "2026",
+      "sourceQuality": "primary",
+      "confidence": "high",
+      "quote": "Stability: 2 - Stable",
+      "notes": "문서상 Global objects 섹션이 Stable이다. AbortSignal.timeout() 항목 자체에는 별도 Experimental 표기가 보이지 않는다."
+    },
+    {
+      "slotId": "slot-004",
+      "slotLabel": "Node.js AbortSignal.timeout() 안정성 상태",
+      "entity": "Node.js AbortSignal.timeout()",
+      "value": "현재 공식 문서 기준 안정 API로 취급",
+      "factType": "stability_inference",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+      ],
+      "sourceTitleOrPublisher": "Node.js v24 공식 API 문서",
+      "dateOrYear": "2026",
+      "sourceQuality": "primary",
+      "confidence": "medium_high",
+      "quote": "Returns a new `AbortSignal` which will be aborted in `delay` milliseconds.",
+      "notes": "메서드별 Stability 라벨은 없으므로 Global objects의 Stable 표기와 Experimental 부재를 근거로 한 문서 해석이다."
+    }
+  ],
+  "claims": [
+    {
+      "claim": "AbortSignal.timeout()은 Node.js v17.3.0에서 처음 추가되었다.",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+      ],
+      "sourceTitleOrPublisher": "Node.js 공식 API 문서",
+      "dateOrYear": "2026",
+      "sourceQuality": "primary",
+      "scopeItems": [
+        "Node.js에서 AbortSignal.timeout()의 안정적 지원 버전"
+      ],
+      "factSlotIds": [
+        "slot-003"
+      ]
+    },
+    {
+      "claim": "AbortSignal.timeout()은 Node.js v16.14.0 LTS 계열에도 백포트되어 제공되었다.",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+      ],
+      "sourceTitleOrPublisher": "Node.js 공식 API 문서",
+      "dateOrYear": "2026",
+      "sourceQuality": "primary",
+      "scopeItems": [
+        "Node.js에서 AbortSignal.timeout()의 안정적 지원 버전"
+      ],
+      "factSlotIds": [
+        "slot-003"
+      ]
+    },
+    {
+      "claim": "Node.js v17 변경 로그는 AbortSignal.timeout() 추가를 SEMVER-MINOR 변경으로 기록한다.",
+      "sourceUrls": [
+        "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md"
+      ],
+      "sourceTitleOrPublisher": "Node.js v17 변경 로그",
+      "dateOrYear": "2021",
+      "sourceQuality": "primary",
+      "scopeItems": [
+        "Node.js에서 AbortSignal.timeout()의 안정적 지원 버전"
+      ],
+      "factSlotIds": [
+        "slot-003"
+      ]
+    },
+    {
+      "claim": "현재 Node.js v24 공식 문서의 Global objects 섹션은 Stability 2 - Stable로 표시된다.",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html"
+      ],
+      "sourceTitleOrPublisher": "Node.js v24 공식 API 문서",
+      "dateOrYear": "2026",
+      "sourceQuality": "primary",
+      "scopeItems": [
+        "Node.js에서 AbortSignal.timeout()의 안정적 지원 버전"
+      ],
+      "factSlotIds": [
+        "slot-004"
+      ]
+    },
+    {
+      "claim": "따라서 호환성 최소선은 v16.14.0 이상이며, 현재 문서 기준 AbortSignal.timeout()은 안정 API로 사용하는 것이 타당하다.",
+      "sourceUrls": [
+        "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+        "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md"
+      ],
+      "sourceTitleOrPublisher": "Node.js 공식 API 문서 및 v17 변경 로그",
+      "dateOrYear": "2026",
+      "sourceQuality": "primary",
+      "scopeItems": [
+        "Node.js에서 AbortSignal.timeout()의 안정적 지원 버전"
+      ],
+      "factSlotIds": [
+        "slot-003",
+        "slot-004"
+      ]
+    }
+  ],
+  "additionalUnverifiedLeads": [
+    {
+      "lead": "AbortSignal.timeout()의 메서드 자체가 어느 특정 Node.js 버전에서 Stability 2로 승격되었는지에 대한 별도 변경 기록",
+      "whyUnverified": "현재 공식 globals 문서에는 메서드별 Stability 승격 이력이 없고, Global objects 수준의 Stable 표기만 확인된다.",
+      "nextStep": "Node.js git history에서 globals.md의 해당 JSDoc stability 변경 커밋을 별도로 추적한다."
+    }
+  ],
+  "sources": [
+    {
+      "sourceType": "official_api_docs",
+      "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
+      "title": "Global objects | Node.js v24 Documentation",
+      "publisher": "Node.js",
+      "supports": [
+        "v17.3.0 및 v16.14.0 도입",
+        "Global objects의 Stable 표기"
+      ],
+      "confidence": "high",
+      "factSlotIds": [
+        "slot-003",
+        "slot-004"
+      ],
+      "quote": "Added in: v17.3.0, v16.14.0"
+    },
+    {
+      "sourceType": "official_release_notes",
+      "url": "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md",
+      "title": "Node.js v17 Changelog",
+      "publisher": "Node.js",
+      "supports": [
+        "v17 계열에서 AbortSignal.timeout() 추가"
+      ],
+      "confidence": "high",
+      "factSlotIds": [
+        "slot-003"
+      ],
+      "quote": "(SEMVER-MINOR) lib: add AbortSignal.timeout"
+    }
+  ],
+  "caveats": [
+    "Node.js 공식 문서는 AbortSignal.timeout() 항목에 별도 Stability 라벨이나 승격 버전을 현재 표시하지 않는다.",
+    "v16.14.0은 기능이 사용 가능한 최소 백포트 버전이며, 실제 운영에서는 지원 종료 여부와 배포 중인 Node.js 유지보수 라인을 별도로 확인해야 한다."
+  ],
+  "sourceQualityNotes": "버전과 도입 사실은 Node.js 공식 API 문서와 공식 변경 로그로 확인했다. 안정성은 메서드별 라벨이 아닌 Global objects의 Stability 2 - Stable 표기에서 판단했으며, 이 부분은 문서 구조에 따른 제한적 추론이다.",
+  "budgetLedger": {
+    "searchBudget": 3,
+    "searchCallsUsed": 3,
+    "searchQueriesAttempted": [
+      "site:nodejs.org/api/globals.html AbortSignal.timeout added version Stability",
+      "site:nodejs.org/en/blog/release AbortSignal.timeout Node.js",
+      "Node.js AbortSignal.timeout history stability official",
+      "site:github.com/nodejs/node \"AbortSignal.timeout\" \"No longer experimental\"",
+      "site:nodejs.org/download/release \"AbortSignal.timeout\" \"Stability\"",
+      "site:github.com/nodejs/node/blob \"AbortSignal.timeout\" \"stability\""
+    ],
+    "omittedSearchQueries": [],
+    "budgetExhausted": true,
+    "gapRecorded": true
+  }
+}

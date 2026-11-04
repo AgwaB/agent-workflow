@@ -1,0 +1,127 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "공개 필드·행동 명세 불일치와 배포 검증 공백으로 배포 보류를 권고한다. 해당 문제가 654f639에서 발생했는지는 미확인이다.",
+  "status": "high",
+  "impacts": [
+    {
+      "id": "DR1",
+      "area": "public-contract-and-migration",
+      "severity": "high",
+      "documentedField": "launchRetryAttempts",
+      "implementedField": "launchRetries",
+      "risk": "외부 도구의 공개 필드 조회 및 재시도 통계 호환성 위험",
+      "releaseGate": "공개 필드 복원 또는 소비자 확인·호환 별칭·전환 계획 마련",
+      "refs": [
+        "R1",
+        "R2"
+      ]
+    },
+    {
+      "id": "DR2",
+      "area": "behavior-documentation",
+      "severity": "high",
+      "discrepancies": [
+        "pollMs 명세: 기본 50ms·최소 10ms; 구현: 기본 200ms·최소 1ms",
+        "중지 오류 명세: 이름만 판별; 구현: 메시지 접두사도 인정",
+        "취소 문자열 명세 외 cancelled·timeout도 구현에서 인정"
+      ],
+      "risk": "운영 지연·I/O 빈도 및 오류 분류에 대한 사용자 기대 불일치",
+      "releaseGate": "계약과 구현 정합성 확보 및 경계 사례 테스트; 의도적 변경이면 호환성 설명 제공",
+      "refs": [
+        "R1",
+        "R3",
+        "R4"
+      ]
+    },
+    {
+      "id": "DR3",
+      "area": "package-and-publish",
+      "severity": "medium",
+      "observations": [
+        "private=true, version=0.0.0인 발췌 패키지",
+        "store.js·types.js 누락을 패키지 설명에 명시",
+        "빌드·배포 스크립트와 의존성·도구체인 선언 없음",
+        "typecheck는 noEmit이며 배포 산출물을 만들지 않음"
+      ],
+      "risk": "독립 배포물로서의 완결성과 재현 가능한 검증·빌드 경로 미확립",
+      "releaseGate": "실제 배포 패키지에서 누락 모듈·도구체인·ESM 산출물과 소비자 import 검증",
+      "refs": [
+        "R5",
+        "R6",
+        "R7"
+      ]
+    },
+    {
+      "id": "DR4",
+      "area": "ci-and-release-gates",
+      "severity": "high",
+      "observations": [
+        "Q1이 요구하는 단위 테스트를 발견하지 못함",
+        "테스트 스크립트·CI·lockfile·릴리스 설정을 발견하지 못함",
+        "typecheck 및 실행 검증 결과 없음"
+      ],
+      "releaseGate": "실제 배포 환경에서 S/C/T 계약 테스트·typecheck·패키징 검증 결과 확보",
+      "refs": [
+        "U3",
+        "R1",
+        "R5",
+        "R7"
+      ]
+    },
+    {
+      "id": "DR5",
+      "area": "operational-artifacts-and-guides",
+      "severity": "medium",
+      "observations": [
+        "direct-dynamic 종료 요약이 controller 출력 옆 control.json에 의존",
+        "control 읽기 실패 시 outputTaskIds가 빈 배열로 대체됨",
+        "dynamic_incomplete가 control 상태 및 일반 fallback보다 우선",
+        "README·예제·변경 이력·마이그레이션 안내를 발견하지 못함"
+      ],
+      "risk": "아티팩트 수집·이관 과정에서 결과 목록과 의미 상태가 사용자 예상과 달라질 수 있음",
+      "releaseGate": "control.json 배치·보존·필드·누락 시 동작과 우선순위를 운영 문서 및 fixture로 검증",
+      "refs": [
+        "R1",
+        "R2",
+        "R7"
+      ]
+    },
+    {
+      "id": "DR6",
+      "area": "commit-and-release-attribution",
+      "severity": "unknown",
+      "observations": [
+        "main 참조는 요청한 654f639를 가리킴",
+        "HEAD~1..HEAD diff와 작업 트리 일치 여부는 미확인"
+      ],
+      "releaseGate": "실제 diff·작업 트리 상태·배포 대상 확보 후 변경 귀속과 릴리스 범위 재확인",
+      "refs": [
+        "U1",
+        "U2",
+        "R8"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A1",
+      "detail": "high는 현재 스냅샷의 문서·릴리스 위험도이며, 이번 커밋이 문제를 도입했다는 판정이 아니다."
+    },
+    {
+      "id": "A2",
+      "detail": "SPEC.md를 계약 근거로 사용했다. 명세 변경만으로 기존 소비자의 호환성이 보장되지는 않는다."
+    },
+    {
+      "id": "A3",
+      "detail": "이 저장소는 의도적으로 불완전한 private 발췌다. 원본 프로젝트에도 배포·CI 구성이 없다고 일반화하지 않는다."
+    },
+    {
+      "id": "A4",
+      "detail": "파일 수정과 명령 실행은 하지 않았다. 누락된 store/types와 외부 소비자의 동작은 확인하지 못했다."
+    },
+    {
+      "id": "A5",
+      "detail": "관찰한 모듈에서 영속 데이터 쓰기나 마이그레이션은 발견하지 못했지만, 전체 시스템의 데이터 이전 불필요를 보증하지 않는다."
+    }
+  ]
+}

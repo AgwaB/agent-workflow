@@ -1,0 +1,39 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "HEAD 654f639 is not safe to ship as-is. The public terminal summary field was renamed from launchRetryAttempts to launchRetries, which SPEC T3 names as a public contract, with no alias. Cancellation and stop-detection behavior also changed in ways SPEC.md forbids or does not describe.",
+  "status": "high",
+  "impacts": [
+    {
+      "note": "Breaking public field rename: WorkflowTerminalSummary.launchRetryAttempts is now launchRetries (src/workflow-terminal.ts:33,107). SPEC T3 names launchRetryAttempts as a public contract read by external tools. No alias or migration note exists, and no in-repo consumer was found."
+    },
+    {
+      "note": "Widened cancellation classification: src/workflow-cancellation.ts:16-20 adds 'cancelled' and 'timeout' string tokens and cancelled flags. SPEC C1 allows only aborted/AbortError/ABORT_ERR. Provider results that carry these words may now be treated as cancellation, which changes retry and semantic-status outcomes for consumers."
+    },
+    {
+      "note": "Stop detection by message: isWorkflowStopRequestedError also matches a message prefix. SPEC S6 forbids message matching, so errors whose message starts with 'workflow stop requested' may be misclassified."
+    },
+    {
+      "note": "Stop poll default changed: createWorkflowStopSignal uses pollMs ?? 200 (src/workflow-stop.ts:67), while SPEC S3 says 50ms with a 10ms floor. Code uses a 1ms floor. Stop-request latency rises up to about 200ms, and callers passing small values see different clamping."
+    },
+    {
+      "note": "Contract documentation drift: SPEC.md (S3, S6, C1, T3) is unchanged in HEAD and no longer describes the code. Consumers and reviewers relying on the spec will get wrong expectations."
+    },
+    {
+      "note": "No tests exist in the repo (package.json has only typecheck), so none of these changed behaviors is covered by a regression check."
+    }
+  ],
+  "assumptions": [
+    {
+      "note": "The HEAD diff could not be read directly; the change set was inferred from the commit message, the upstream artifacts, and grep confirmation of current code (launchRetries, pollMs default 200, 'cancelled'/'timeout' tokens)."
+    },
+    {
+      "note": "No external consumers of launchRetries or launchRetryAttempts were found in this repo; their existence and count are unknown."
+    },
+    {
+      "note": "store.js and types.js are absent, so runtime behavior of the disk stop-intent path was not verified."
+    },
+    {
+      "note": "Intent behind the renames and widened matching (for example, whether 200ms was deliberate) is unknown."
+    }
+  ]
+}

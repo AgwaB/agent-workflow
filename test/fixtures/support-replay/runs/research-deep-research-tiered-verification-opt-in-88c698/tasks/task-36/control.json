@@ -1,0 +1,19 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "MDN explicitly advises removing application-added abort listeners from the combined signal when the operation finishes; claim verified.",
+  "id": "claim-017",
+  "status": "verified",
+  "confidence": 0.99,
+  "verdictDigest": "MDN directly supports the lifecycle cleanup advice for listeners added to AbortSignal.any()'s combined signal. Source: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+  "evidence": [
+    {
+      "source": "MDN",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+      "dateOrYear": "2026",
+      "quote": "If your code adds `abort` listeners to the combined signal, remove them when the operation finishes, just as you would for any other `AbortSignal`.",
+      "relevance": "Directly states the recommended cleanup action."
+    }
+  ],
+  "caveats": "This applies to abort listeners added by application code; it is a lifecycle and garbage-collection consideration, not a requirement to cancel the input signals.",
+  "correctionOrCounterclaim": ""
+}

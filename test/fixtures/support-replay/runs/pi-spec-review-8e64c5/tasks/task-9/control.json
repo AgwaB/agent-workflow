@@ -1,0 +1,48 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "S3의 기본 50ms·최소 10ms 요구와 달리 구현은 기본 200ms·최소 1ms를 사용하므로 후보를 유지한다.",
+  "id": "candidate-001",
+  "verdict": "KEEP",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 13,
+      "lineEnd": 14,
+      "quote": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다.",
+      "relevance": "기본 주기와 최소 주기를 명시한다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 64,
+      "lineEnd": 64,
+      "quote": "options: { pollMs?: number } = {},",
+      "relevance": "옵션을 생략하는 호출을 허용한다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 67,
+      "lineEnd": 67,
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "relevance": "생략 시 200, 입력 1이면 1로 계산한다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 81,
+      "lineEnd": 81,
+      "quote": "const timer = setInterval(() => void check(), pollMs);",
+      "relevance": "계산한 값을 추가 보정 없이 interval에 전달한다."
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 80,
+      "lineEnd": 80,
+      "quote": "void check();",
+      "relevance": "첫 검사는 즉시 시작하지만 이후 반복 감시 주기를 보정하지는 않는다."
+    }
+  ],
+  "finalClaim": "S3 위반: pollMs 생략 시 setInterval에 200ms를, pollMs=1이면 1ms를 전달한다. 명세의 기본 50ms 및 최소 10ms와 모두 불일치한다.",
+  "recommendedAction": "주기 계산을 Math.max(10, options.pollMs ?? 50)으로 수정하고, 옵션 생략과 10ms 미만 입력에서 interval에 전달되는 값을 검증하는 단위 테스트를 추가한다."
+}

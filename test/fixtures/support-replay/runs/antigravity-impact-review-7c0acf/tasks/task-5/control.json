@@ -1,0 +1,95 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "상태·데이터 영향 분석 결과 배포 위험도 High: 공개 계약 필드명 불일치(launchRetries vs launchRetryAttempts), 프로바이더 타임아웃의 취소 상태 오승격, 에러 판별 메시지 검사 의존, 감시 폴링 주기 및 dispose 상태 누수 결함이 식별되었습니다.",
+  "status": "high",
+  "impacts": [
+    {
+      "id": "DATA-BREAK-T3",
+      "category": "data-shape",
+      "severity": "high",
+      "file": "src/workflow-terminal.ts",
+      "symbols": [
+        "WorkflowTerminalSummary",
+        "summarizeWorkflowTerminal"
+      ],
+      "specRef": "SPEC.md T3",
+      "description": "공개 데이터 계약 불일치: SPEC T3는 외부 도구가 요약 데이터에서 'outputRetryAttempts'와 'launchRetryAttempts'를 읽도록 명시하고 있으나, 코드 인터페이스 및 반환 객체는 'launchRetries'로 명명되어 있습니다. 외부 소비 도구에서 launch retry 집계 필드가 undefined로 처리되어 호환성 파괴가 발생합니다.",
+      "remediation": "WorkflowTerminalSummary 인터페이스 및 summarizeWorkflowTerminal 반환 객체의 필드명을 launchRetryAttempts로 변경하거나 점진적 호환성을 위해 둘 다 제공해야 합니다."
+    },
+    {
+      "id": "STATE-MISCLASSIFY-C1",
+      "category": "state-transition",
+      "severity": "high",
+      "file": "src/workflow-cancellation.ts",
+      "symbols": [
+        "isWorkflowReturnedCancellation"
+      ],
+      "specRef": "SPEC.md C1",
+      "description": "취소 상태 오분류: SPEC C1은 취소 사유로 'aborted', 'AbortError', 'ABORT_ERR' 세 가지만 허용하고 다른 오류를 취소로 승격하지 못하도록 규정합니다. 그러나 코드는 'timeout'과 'cancelled'까지 매칭하여 프로바이더 타임아웃 오류를 취소(cancellation) 상태로 오판단함으로써 워크플로 재시도 및 오류 복구 흐름을 왜곡합니다.",
+      "remediation": "candidate 검사 목록에서 'timeout'과 'cancelled'를 제거하고 정확히 'aborted', 'AbortError', 'ABORT_ERR' 및 AbortError 인스턴스/이름만 허용하도록 수정해야 합니다."
+    },
+    {
+      "id": "STATE-ERROR-S6",
+      "category": "state-classification",
+      "severity": "medium",
+      "file": "src/workflow-stop.ts",
+      "symbols": [
+        "isWorkflowStopRequestedError"
+      ],
+      "specRef": "SPEC.md S6",
+      "description": "에러 상태 판별 규칙 위반: SPEC S6은 이름이 'WorkflowStopRequested'인 오류만 중지 오류로 인정하도록 제한하고 메시지 내용 판별을 금지합니다. 그러나 구현체는 error.message.startsWith('workflow stop requested')를 OR 조건으로 검사하여 일반 Error나 다른 컴포넌트의 메시지가 중지 에러로 오인식될 위험이 있습니다.",
+      "remediation": "error.message 접두사 검사를 제거하고 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME 조건만 평가하도록 변경해야 합니다."
+    },
+    {
+      "id": "CONCURRENCY-POLL-S3",
+      "category": "concurrency-lifecycle",
+      "severity": "medium",
+      "file": "src/workflow-stop.ts",
+      "symbols": [
+        "createWorkflowStopSignal"
+      ],
+      "specRef": "SPEC.md S3",
+      "description": "감시 주기 기본값 및 최소 클램프 불일치: SPEC S3는 pollMs 기본값을 50ms, 하한 클램프를 10ms로 명시합니다. 현재 코드는 기본값 200ms, 하한 Math.max(1, ...)로 설정되어 있어 기본 설정 시 중지 감지가 4배 지연되고, 잘못된 입력(0 이하) 시 밀리초 단위의 극단적 디스크 I/O 스레싱이 발생합니다.",
+      "remediation": "Math.max(10, options.pollMs ?? 50) 형태로 기본값 50ms와 하한 10ms를 강제해야 합니다."
+    },
+    {
+      "id": "LIFECYCLE-DISPOSE-S5",
+      "category": "persistence-lifecycle",
+      "severity": "medium",
+      "file": "src/workflow-stop.ts",
+      "symbols": [
+        "createWorkflowStopSignal"
+      ],
+      "specRef": "SPEC.md S5",
+      "description": "디스크 읽기 라이프사이클 누수: SPEC S5는 dispose() 호출 이후 새로운 디스크 읽기가 시작되지 않아야 한다고 규정합니다. 그러나 createWorkflowStopSignal의 dispose는 clearInterval(timer)만 수행하며, 내부 disposed 플래그가 없어 즉시 실행된 void check() 비동기 틱이나 대기 중이던 비동기 디스크 I/O 완료 시점의 abort 처리를 차단하지 못합니다.",
+      "remediation": "클로저 내부에 let disposed = false 상태를 두고 dispose() 시 true로 전환하며, check() 진입부 및 await 직후 disposed 여부를 확인하도록 보강해야 합니다."
+    },
+    {
+      "id": "DATAFLOW-DYNAMIC-T1-T2",
+      "category": "data-flow",
+      "severity": "low",
+      "file": "src/workflow-terminal.ts",
+      "symbols": [
+        "summarizeWorkflowTerminal",
+        "readDynamicControllerControl"
+      ],
+      "specRef": "SPEC.md T1, T2",
+      "description": "동적 컨트롤러 제어 흐름 및 퇴행 상태 우선순위: direct-dynamic 모드에서 dynamic_incomplete 태스크가 존재하는 경우 control.json 읽기 실패 여부와 무관하게 dynamic_incomplete가 우선 할당됩니다. 또한 dynamic 실행의 경우 degradation 플래그가 semanticStatus에 반영되지 않고 dynamic 제어기 상태로 덮어써집니다.",
+      "remediation": "T1(degradation -> completed_degraded)과 T2(control.json 미존재 -> completed_without_semantic_result)의 상호작용 및 direct-dynamic 실행에서의 degradation 보존 규칙을 명세에 따라 명확히 정립해야 합니다."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "ASM-STORE-CONTRACT",
+      "text": "store.js의 readWorkflowStopIntent는 중지 의도가 없을 때 null/undefined 또는 빈 값을 반환하고, I/O 실패 시 에러를 reject하며, readJson은 파일 부재 시 catch 가능한 거부를 발생시킨다고 가정함."
+    },
+    {
+      "id": "ASM-EXTERNAL-CONSUMERS",
+      "text": "외부 대시보드 및 모니터링 CLI 도구들은 SPEC T3에 명시된 launchRetryAttempts 필드명을 기준으로 재시도 메트릭을 수집한다고 가정함."
+    },
+    {
+      "id": "ASM-IN-MEMORY-SCOPE",
+      "text": "launchSignals 맵은 Node.js 프로세스 메모리 범위 내에서만 공유되며, 멀티 프로세스 분산 환경에서는 디스크 stop intent(readWorkflowStopIntent)가 유일한 상호작용 경로라고 가정함."
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "dispose가 interval만 해제하고 callback 실행을 fence하지 않아 S5 finding은 유지하되, in-flight read 주장은 좁힌다.",
+  "id": "finding-s5-dispose-read-boundary",
+  "verdict": "WEAKEN",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 17,
+      "lineEnd": 17,
+      "quote": "- **S5.** `dispose()`를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다.",
+      "relevance": "dispose 이후 새 디스크 읽기 금지 요구"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 68,
+      "lineEnd": 75,
+      "quote": "const check = async (): Promise<void> => {\n\t\tif (controller.signal.aborted) return;\n\t\tif (launchStopRequested(cwd, runId)) {\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));\n\t\t\treturn;\n\t\t}\n\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(",
+      "relevance": "disposed 상태를 검사하지 않고 디스크 읽기를 시작함"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 81,
+      "lineEnd": 86,
+      "quote": "const timer = setInterval(() => void check(), pollMs);\n\ttimer.unref?.();\n\treturn {\n\t\tsignal: controller.signal,\n\t\tdispose: () => clearInterval(timer),\n\t};",
+      "relevance": "dispose 구현이 interval 해제에만 의존함"
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 69,
+      "lineEnd": 69,
+      "quote": "\t\tif (controller.signal.aborted) return;",
+      "relevance": "abort된 signal에 대한 시작 guard는 있으나 dispose와 연결되지 않음"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 80,
+      "lineEnd": 80,
+      "quote": "\tvoid check();",
+      "relevance": "최초 check는 dispose 반환 전 실행되므로 그 read 자체는 S5 위반으로 볼 수 없음"
+    }
+  ],
+  "finalClaim": "dispose 이전에 시작된 최초 또는 진행 중인 read 자체가 아니라, dispose 후 실행될 수 있는 이미 예약된 callback을 차단할 disposed guard가 없어 새 read 발생을 배제할 수 있다는 보장이 부족하다.",
+  "recommendedAction": "disposed 플래그를 두고 dispose에서 먼저 설정한 뒤, check 시작 시 이를 검사하도록 하며 해당 경계와 queued callback을 검증하는 단위 테스트를 추가한다."
+}

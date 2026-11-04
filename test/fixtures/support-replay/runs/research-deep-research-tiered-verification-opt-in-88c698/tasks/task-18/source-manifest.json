@@ -1,0 +1,350 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1ipu5z_88c698",
+  "taskId": "task-18",
+  "sources": [
+    {
+      "source": "plan",
+      "displayName": "plan.main",
+      "taskId": "task-1",
+      "specId": "plan.main",
+      "stageId": "plan",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "Node.js 버전·안정성, 주요 브라우저 호환성, API별 동작 주의점을 공식 문서 중심으로 검증한다.",
+      "controlProjection": {
+        "factSlots": [
+          {
+            "id": "slot-001",
+            "label": "Node.js AbortSignal.any() 최초 지원 버전",
+            "type": "version",
+            "required": true,
+            "entities": [
+              "Node.js",
+              "AbortSignal.any()"
+            ],
+            "sourcePriority": "primary_required",
+            "verificationPriority": "critical"
+          },
+          {
+            "id": "slot-002",
+            "label": "Node.js AbortSignal.any() 안정성 상태",
+            "type": "policy",
+            "required": true,
+            "entities": [
+              "Node.js",
+              "AbortSignal.any()"
+            ],
+            "sourcePriority": "primary_required",
+            "verificationPriority": "critical"
+          },
+          {
+            "id": "slot-003",
+            "label": "Node.js AbortSignal.timeout() 최초 지원 버전",
+            "type": "version",
+            "required": true,
+            "entities": [
+              "Node.js",
+              "AbortSignal.timeout()"
+            ],
+            "sourcePriority": "primary_required",
+            "verificationPriority": "critical"
+          },
+          {
+            "id": "slot-004",
+            "label": "Node.js AbortSignal.timeout() 안정성 상태",
+            "type": "policy",
+            "required": true,
+            "entities": [
+              "Node.js",
+              "AbortSignal.timeout()"
+            ],
+            "sourcePriority": "primary_required",
+            "verificationPriority": "critical"
+          },
+          {
+            "id": "slot-005",
+            "label": "AbortSignal.any() Chrome 지원 버전",
+            "type": "version",
+            "required": true,
+            "entities": [
+              "Chrome",
+              "AbortSignal.any()"
+            ],
+            "sourcePriority": "primary_preferred",
+            "verificationPriority": "high"
+          },
+          {
+            "id": "slot-006",
+            "label": "AbortSignal.any() Edge 지원 버전",
+            "type": "version",
+            "required": true,
+            "entities": [
+              "Edge",
+              "AbortSignal.any()"
+            ],
+            "sourcePriority": "primary_preferred",
+            "verificationPriority": "high"
+          },
+          {
+            "id": "slot-007",
+            "label": "AbortSignal.any() Firefox 지원 버전",
+            "type": "version",
+            "required": true,
+            "entities": [
+              "Firefox",
+              "AbortSignal.any()"
+            ],
+            "sourcePriority": "primary_preferred",
+            "verificationPriority": "high"
+          },
+          {
+            "id": "slot-008",
+            "label": "AbortSignal.any() Safari 지원 버전",
+            "type": "version",
+            "required": true,
+            "entities": [
+              "Safari",
+              "AbortSignal.any()"
+            ],
+            "sourcePriority": "primary_preferred",
+            "verificationPriority": "high"
+          },
+          {
+            "id": "slot-009",
+            "label": "AbortSignal.timeout() Chrome 지원 버전",
+            "type": "version",
+            "required": true,
+            "entities": [
+              "Chrome",
+              "AbortSignal.timeout()"
+            ],
+            "sourcePriority": "primary_preferred",
+            "verificationPriority": "high"
+          },
+          {
+            "id": "slot-010",
+            "label": "AbortSignal.timeout() Edge 지원 버전",
+            "type": "version",
+            "required": true,
+            "entities": [
+              "Edge",
+              "AbortSignal.timeout()"
+            ],
+            "sourcePriority": "primary_preferred",
+            "verificationPriority": "high"
+          },
+          {
+            "id": "slot-011",
+            "label": "AbortSignal.timeout() Firefox 지원 버전",
+            "type": "version",
+            "required": true,
+            "entities": [
+              "Firefox",
+              "AbortSignal.timeout()"
+            ],
+            "sourcePriority": "primary_preferred",
+            "verificationPriority": "high"
+          },
+          {
+            "id": "slot-012",
+            "label": "AbortSignal.timeout() Safari 지원 버전",
+            "type": "version",
+            "required": true,
+            "entities": [
+              "Safari",
+              "AbortSignal.timeout()"
+            ],
+            "sourcePriority": "primary_preferred",
+            "verificationPriority": "high"
+          },
+          {
+            "id": "slot-013",
+            "label": "AbortSignal.any() 알려진 동작 주의점",
+            "type": "caveat",
+            "required": true,
+            "entities": [
+              "AbortSignal.any()"
+            ],
+            "sourcePriority": "primary_required",
+            "verificationPriority": "high"
+          },
+          {
+            "id": "slot-014",
+            "label": "AbortSignal.timeout() 알려진 동작 주의점",
+            "type": "caveat",
+            "required": true,
+            "entities": [
+              "AbortSignal.timeout()"
+            ],
+            "sourcePriority": "primary_required",
+            "verificationPriority": "high"
+          }
+        ],
+        "sourcePolicy": {
+          "preferredSourceClasses": [
+            "Node.js 공식 API 문서 및 릴리스 문서",
+            "MDN 및 MDN Browser Compatibility Data",
+            "WHATWG DOM 표준",
+            "각 브라우저 엔진의 공식 릴리스 문서"
+          ],
+          "primaryRequiredFor": [
+            "Node.js 버전·안정성",
+            "API 동작·예외·abort reason",
+            "브라우저 지원 시작 버전이 논쟁적인 경우"
+          ],
+          "secondaryAllowedFor": [
+            "검색 보조 및 교차검증용 호환성 표"
+          ],
+          "sourceQualityRules": [
+            "버전 숫자는 공식 문서의 History 또는 릴리스 자료에서 확인한다.",
+            "‘지원 시작’과 ‘Stable’ 표기를 분리한다.",
+            "브라우저 호환성은 MDN/BCD와 가능하면 브라우저 공식 자료를 대조한다.",
+            "주의점은 표준 정의와 Node.js 구현을 구분해 기록한다."
+          ]
+        },
+        "verificationPriorities": [
+          {
+            "id": "verify-001",
+            "targetSlots": [
+              "slot-001",
+              "slot-002",
+              "slot-003",
+              "slot-004"
+            ],
+            "claimFamily": "Node.js version and stability",
+            "priority": "critical",
+            "reason": "질문의 핵심 숫자·정책 사실이며 도입 버전과 안정화 버전을 혼동하기 쉽다.",
+            "evidenceRequirement": "Node.js 공식 문서 또는 릴리스 기록에서 정확한 버전과 안정성 표기를 확인하고, 필요하면 두 번째 공식 자료로 대조한다."
+          },
+          {
+            "id": "verify-002",
+            "targetSlots": [
+              "slot-005",
+              "slot-006",
+              "slot-007",
+              "slot-008",
+              "slot-009",
+              "slot-010",
+              "slot-011",
+              "slot-012"
+            ],
+            "claimFamily": "browser compatibility",
+            "priority": "high",
+            "reason": "주요 브라우저별 지원 버전은 브라우저 엔진과 릴리스 시점에 따라 다르다.",
+            "evidenceRequirement": "API별로 MDN/BCD의 브라우저별 시작 버전을 기록하고, 불확실하거나 예외적인 값은 공식 브라우저 자료로 교차검증한다."
+          },
+          {
+            "id": "verify-003",
+            "targetSlots": [
+              "slot-013",
+              "slot-014"
+            ],
+            "claimFamily": "behavioral caveats",
+            "priority": "high",
+            "reason": "실제 구현에서 취소 원인, 시간 측정 방식, 예외 형태가 오용을 유발할 수 있다.",
+            "evidenceRequirement": "WHATWG 표준과 Node.js 공식 문서의 동작 설명을 우선 확인하고, 브라우저와 Node.js 차이가 있으면 명시한다."
+          }
+        ],
+        "researchScope": [
+          {
+            "scopeItem": "Node.js에서 AbortSignal.any()의 안정적 지원 버전",
+            "sourceText": "Node.js에서 AbortSignal.any()은 각각 어느 버전부터 안정적으로 지원되며",
+            "whyIncluded": "질문의 첫 번째 버전·안정성 요구사항이다."
+          },
+          {
+            "scopeItem": "Node.js에서 AbortSignal.timeout()의 안정적 지원 버전",
+            "sourceText": "Node.js에서 AbortSignal.any()와 AbortSignal.timeout()은 각각 어느 버전부터 안정적으로 지원되며",
+            "whyIncluded": "질문의 두 번째 버전·안정성 요구사항이다."
+          },
+          {
+            "scopeItem": "주요 브라우저의 AbortSignal.any() 지원 현황",
+            "sourceText": "주요 브라우저 지원 현황",
+            "whyIncluded": "API별 브라우저 호환성 표가 필요하다."
+          },
+          {
+            "scopeItem": "주요 브라우저의 AbortSignal.timeout() 지원 현황",
+            "sourceText": "주요 브라우저 지원 현황",
+            "whyIncluded": "API별 브라우저 호환성 표가 필요하다."
+          },
+          {
+            "scopeItem": "AbortSignal.any()의 알려진 주의점",
+            "sourceText": "알려진 주의점은 무엇인가?",
+            "whyIncluded": "복합 취소 신호의 reason·취소 전파 등 실사용 caveat를 확인해야 한다."
+          },
+          {
+            "scopeItem": "AbortSignal.timeout()의 알려진 주의점",
+            "sourceText": "알려진 주의점은 무엇인가?",
+            "whyIncluded": "timeout 취소·시간 측정·예외 동작 등 실사용 caveat를 확인해야 한다."
+          }
+        ],
+        "researchScopeCoverage": [
+          {
+            "scopeItem": "Node.js에서 AbortSignal.any()의 안정적 지원 버전",
+            "coveredBy": [
+              "question-001"
+            ],
+            "status": "covered"
+          },
+          {
+            "scopeItem": "Node.js에서 AbortSignal.timeout()의 안정적 지원 버전",
+            "coveredBy": [
+              "question-002"
+            ],
+            "status": "covered"
+          },
+          {
+            "scopeItem": "주요 브라우저의 AbortSignal.any() 지원 현황",
+            "coveredBy": [
+              "question-003"
+            ],
+            "status": "covered"
+          },
+          {
+            "scopeItem": "주요 브라우저의 AbortSignal.timeout() 지원 현황",
+            "coveredBy": [
+              "question-004"
+            ],
+            "status": "covered"
+          },
+          {
+            "scopeItem": "AbortSignal.any()의 알려진 주의점",
+            "coveredBy": [
+              "question-005"
+            ],
+            "status": "covered"
+          },
+          {
+            "scopeItem": "AbortSignal.timeout()의 알려진 주의점",
+            "coveredBy": [
+              "question-006"
+            ],
+            "status": "covered"
+          }
+        ]
+      },
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-1/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-1/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-1/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-1/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

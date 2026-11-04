@@ -1,0 +1,68 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1lzfyk_a9771c",
+  "taskId": "task-8",
+  "sources": [
+    {
+      "source": "report",
+      "displayName": "report.main",
+      "taskId": "task-7",
+      "specId": "report.main",
+      "stageId": "report",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "sha256:79d7345f32aa3a6878c2f7d17a9443ec313ad0b185c30f9676e634cd20b998d1",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzfyk_a9771c/tasks/task-7/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzfyk_a9771c/tasks/task-7/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzfyk_a9771c/tasks/task-7/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzfyk_a9771c/tasks/task-7/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "partition-findings",
+      "displayName": "partition-findings.main",
+      "taskId": "task-6",
+      "specId": "partition-findings.main",
+      "stageId": "partition-findings",
+      "status": "completed",
+      "statusDetail": "support_completed",
+      "lastMessage": "support completed",
+      "digest": "sha256:79d7345f32aa3a6878c2f7d17a9443ec313ad0b185c30f9676e634cd20b998d1",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzfyk_a9771c/tasks/task-6/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzfyk_a9771c/tasks/task-6/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzfyk_a9771c/tasks/task-6/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1lzfyk_a9771c/tasks/task-6/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "src/workflow-stop.ts 67행의 pollMs 기본값(200ms)과 최소값 제한(1ms)은 SPEC.md S3 명세를 명백히 위반하므로 지적을 유지(KEEP)합니다.",
+  "findingId": "finding-001",
+  "finding": "Polling interval defaults to 200ms instead of 50ms and clamps minimum to 1ms instead of 10ms violating S3",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 67,
+      "lineEnd": 67,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "\tconst pollMs = Math.max(1, options.pollMs ?? 200);"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 13,
+      "lineEnd": 13,
+      "quote": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다"
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "src/workflow-stop.ts 67행을 Math.max(10, options.pollMs ?? 50)으로 수정합니다.",
+  "readerTitle": "폴링 주기가 50ms 대신 200ms를 기본값으로 사용하고 최소값을 10ms 대신 1ms로 제한하여 S3을 위반함",
+  "readerRationale": "SPEC.md S3은 pollMs의 기본값이 50ms여야 하며 호출자가 더 작은 값을 지정하더라도 10ms보다 짧아서는 안 된다고 명시적으로 규정하고 있습니다. 기본값으로 200ms를 사용하면 중지 감지가 최대 4배까지 지연되며, 주기를 1ms까지 허용하면 과도한 디스크 읽기 및 CPU 경합이 발생합니다."
+}

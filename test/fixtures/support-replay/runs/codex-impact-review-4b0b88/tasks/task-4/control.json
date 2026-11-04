@@ -1,0 +1,30 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "공개 요약 필드명 변경과 취소 분류 확대가 호환성 위험을 만든다.",
+  "status": "high",
+  "impacts": [
+    {
+      "note": "launchRetryAttempts가 launchRetries로 변경되어 기존 TypeScript 및 런타임 소비자가 값을 잃는 호환성 단절"
+    },
+    {
+      "note": "timeout 및 cancelled 오류가 취소로 분류되어 실패·재시도·상태 보고 의미가 달라질 수 있음"
+    },
+    {
+      "note": "pollMs 기본값 변경은 중지 감지 지연을 증가시키고 1ms 설정은 polling/I/O 부하를 높일 수 있음"
+    },
+    {
+      "note": "SPEC.md가 이전 필드명과 polling 계약을 계속 문서화하여 공개 계약과 구현이 불일치함"
+    }
+  ],
+  "assumptions": [
+    {
+      "note": "외부 소비자가 launchRetryAttempts를 공개 계약으로 사용한다고 판단함"
+    },
+    {
+      "note": "외부 workflow engine, provider adapter, 도구 소비자는 저장소에 포함되지 않아 호환성을 직접 검증할 수 없음"
+    },
+    {
+      "note": "package.json에 exports/build/test가 없어 배포 표면은 주로 내부 모듈과 문서화된 workflow 계약임"
+    }
+  ]
+}

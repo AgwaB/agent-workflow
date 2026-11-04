@@ -1,0 +1,2197 @@
+{
+ "partition-findings.main": {
+  "schema": "spec-review-partition-v1",
+  "evidenceGate": {
+   "protocol": "spec-local-evidence-v1",
+   "complete": false,
+   "findings": [
+    {
+     "id": "finding-001",
+     "verdict": "KEEP",
+     "complete": true,
+     "rows": [
+      {
+       "field": "evidence",
+       "index": 0,
+       "citation": {
+        "file": "SPEC.md",
+        "lineStart": 13,
+        "lineEnd": 13,
+        "quote": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다",
+        "relevance": "S3 requires default pollMs of 50ms and no value below 10ms"
+       },
+       "status": "verified",
+       "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+      },
+      {
+       "field": "evidence",
+       "index": 1,
+       "citation": {
+        "file": "src/workflow-stop.ts",
+        "lineStart": 67,
+        "lineEnd": 67,
+        "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+        "relevance": "Implementation defaults pollMs to 200 and floors it at 1, both contrary to S3"
+       },
+       "status": "verified",
+       "sha256": "64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0"
+      }
+     ]
+    },
+    {
+     "id": "finding-002",
+     "verdict": "WEAKEN",
+     "complete": true,
+     "rows": [
+      {
+       "field": "evidence",
+       "index": 0,
+       "citation": {
+        "file": "src/workflow-stop.ts",
+        "lineStart": 53,
+        "lineEnd": 59,
+        "quote": "error.message.startsWith(\"workflow stop requested\"))",
+        "relevance": "Implementation accepts a message prefix as well as the error name, contrary to S6's name-only rule."
+       },
+       "status": "verified",
+       "sha256": "64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0"
+      },
+      {
+       "field": "evidence",
+       "index": 1,
+       "citation": {
+        "file": "SPEC.md",
+        "lineStart": 18,
+        "lineEnd": 19,
+        "quote": "메시지 내용으로 판별해서는 안 된다.",
+        "relevance": "S6 explicitly forbids identifying stop errors by message content."
+       },
+       "status": "verified",
+       "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+      }
+     ]
+    },
+    {
+     "id": "finding-003",
+     "verdict": "WEAKEN",
+     "complete": true,
+     "rows": [
+      {
+       "field": "evidence",
+       "index": 0,
+       "citation": {
+        "file": "src/workflow-cancellation.ts",
+        "lineStart": 20,
+        "lineEnd": 20,
+        "quote": "candidate === \"cancelled\" || candidate === \"timeout\"",
+        "relevance": "error/reason 문자열 'cancelled'와 'timeout'을 취소로 판정. SPEC C1의 정확한 세 값 목록에 없음"
+       },
+       "status": "verified",
+       "sha256": "e74c61f65c535b5f08993815d94e81ee7cd0aebfdd357555a133a9a381b627e3"
+      },
+      {
+       "field": "evidence",
+       "index": 1,
+       "citation": {
+        "file": "SPEC.md",
+        "lineStart": 26,
+        "lineEnd": 26,
+        "quote": "세 가지만 취소로 인정한다",
+        "relevance": "C1: 세 값만 취소로 인정, 다른 provider 오류를 취소로 승격 금지"
+       },
+       "status": "verified",
+       "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+      },
+      {
+       "field": "evidence",
+       "index": 2,
+       "citation": {
+        "file": "SPEC.md",
+        "lineStart": 25,
+        "lineEnd": 25,
+        "quote": "오류·사유 문자열은 정확히",
+        "relevance": "C1 적용 대상은 오류·사유 문자열로 한정됨"
+       },
+       "status": "verified",
+       "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+      },
+      {
+       "field": "counterEvidence",
+       "index": 0,
+       "citation": {
+        "file": "SPEC.md",
+        "lineStart": 25,
+        "lineEnd": 25,
+        "quote": "오류·사유 문자열은 정확히",
+        "relevance": "C1의 '정확히 세 가지' 제한은 문자열 값에 대한 것이며 boolean 플래그(value.cancelled, details.cancelled)는 문언상 직접 다루지 않음"
+       },
+       "status": "verified",
+       "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+      },
+      {
+       "field": "counterEvidence",
+       "index": 1,
+       "citation": {
+        "file": "src/workflow-cancellation.ts",
+        "lineStart": 16,
+        "lineEnd": 16,
+        "quote": "if (value.cancelled === true) return true;",
+        "relevance": "boolean 플래그 검사는 문자열이 아니므로 C1 문언 위반으로 보기 어려움"
+       },
+       "status": "verified",
+       "sha256": "e74c61f65c535b5f08993815d94e81ee7cd0aebfdd357555a133a9a381b627e3"
+      }
+     ]
+    },
+    {
+     "id": "finding-004",
+     "verdict": "WEAKEN",
+     "complete": true,
+     "rows": [
+      {
+       "field": "evidence",
+       "index": 0,
+       "citation": {
+        "file": "src/workflow-terminal.ts",
+        "lineStart": 68,
+        "lineEnd": 68,
+        "quote": "return run.degradation ? \"completed_degraded\" : \"completed\";",
+        "relevance": "non-dynamic 경로는 completed+degradation을 completed_degraded로 매핑한다"
+       },
+       "status": "verified",
+       "sha256": "c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1"
+      },
+      {
+       "field": "evidence",
+       "index": 1,
+       "citation": {
+        "file": "src/workflow-terminal.ts",
+        "lineStart": 80,
+        "lineEnd": 80,
+        "quote": "if (terminal && run.provenance?.mode === \"direct-dynamic\") {",
+        "relevance": "direct-dynamic 분기가 nonDynamicSemanticStatus 결과를 뒤에서 덮어쓴다"
+       },
+       "status": "verified",
+       "sha256": "c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1"
+      },
+      {
+       "field": "evidence",
+       "index": 2,
+       "citation": {
+        "file": "src/workflow-terminal.ts",
+        "lineStart": 87,
+        "lineEnd": 87,
+        "quote": "else if (control?.status === \"synthesized\") semanticStatus = \"synthesized\";",
+        "relevance": "run.degradation과 무관하게 control.json 상태로 semanticStatus가 synthesized가 된다(completed_degraded가 남지 않는 경로)"
+       },
+       "status": "verified",
+       "sha256": "c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1"
+      },
+      {
+       "field": "evidence",
+       "index": 3,
+       "citation": {
+        "file": "SPEC.md",
+        "lineStart": 32,
+        "lineEnd": 32,
+        "quote": "- **T1.** `completed` 실행에 degradation 기록이 있으면 의미 상태는 `completed_degraded`이다.",
+        "relevance": "T1은 completed 실행 일반에 대한 무조건적 규칙으로 쓰여 있다"
+       },
+       "status": "verified",
+       "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+      },
+      {
+       "field": "evidence",
+       "index": 4,
+       "citation": {
+        "file": "SPEC.md",
+        "lineStart": 33,
+        "lineEnd": 33,
+        "quote": "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는",
+        "relevance": "direct-dynamic 전용 규칙은 T2(읽기 불가 시)뿐이며 T1 예외를 명시하지 않는다"
+       },
+       "status": "verified",
+       "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+      },
+      {
+       "field": "counterEvidence",
+       "index": 0,
+       "citation": {
+        "file": "src/workflow-terminal.ts",
+        "lineStart": 22,
+        "lineEnd": 22,
+        "quote": "| \"dynamic_blocked\"",
+        "relevance": "dynamic 전용 의미 상태 어휘가 존재해 dynamic 분기의 덮어쓰기가 설계상 의도일 가능성을 시사한다"
+       },
+       "status": "verified",
+       "sha256": "c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1"
+      }
+     ]
+    },
+    {
+     "id": "finding-005",
+     "verdict": "KEEP",
+     "complete": true,
+     "rows": [
+      {
+       "field": "evidence",
+       "index": 0,
+       "citation": {
+        "file": "SPEC.md",
+        "lineStart": 35,
+        "lineEnd": 35,
+        "quote": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+        "relevance": "SPEC T3 names launchRetryAttempts as a summary field"
+       },
+       "status": "verified",
+       "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+      },
+      {
+       "field": "evidence",
+       "index": 1,
+       "citation": {
+        "file": "SPEC.md",
+        "lineStart": 36,
+        "lineEnd": 36,
+        "quote": "이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).",
+        "relevance": "SPEC states both field names are a public contract read by external tools"
+       },
+       "status": "verified",
+       "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+      },
+      {
+       "field": "evidence",
+       "index": 2,
+       "citation": {
+        "file": "src/workflow-terminal.ts",
+        "lineStart": 33,
+        "lineEnd": 33,
+        "quote": "launchRetries: number;",
+        "relevance": "WorkflowTerminalSummary interface exposes launchRetries, not launchRetryAttempts"
+       },
+       "status": "verified",
+       "sha256": "c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1"
+      },
+      {
+       "field": "evidence",
+       "index": 3,
+       "citation": {
+        "file": "src/workflow-terminal.ts",
+        "lineStart": 107,
+        "lineEnd": 107,
+        "quote": "launchRetries: run.tasks.reduce(",
+        "relevance": "summarizeWorkflowTerminal populates launchRetries, so the returned summary uses the wrong name"
+       },
+       "status": "verified",
+       "sha256": "c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1"
+      }
+     ]
+    },
+    {
+     "id": "finding-006",
+     "verdict": "KEEP",
+     "complete": true,
+     "rows": [
+      {
+       "field": "evidence",
+       "index": 0,
+       "citation": {
+        "file": "SPEC.md",
+        "lineStart": 40,
+        "lineEnd": 40,
+        "quote": "단위 테스트가 있어야 한다",
+        "relevance": "Q1 requires a unit test for each S/C/T item in the repository"
+       },
+       "status": "verified",
+       "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+      },
+      {
+       "field": "evidence",
+       "index": 1,
+       "citation": {
+        "file": "package.json",
+        "lineStart": 7,
+        "lineEnd": 7,
+        "quote": "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+        "relevance": "The only declared script is typecheck; no test runner or test script is declared"
+       },
+       "status": "verified",
+       "sha256": "e44e456cb032f9bf04440c6ac7eb12da856656b5deb9641ece339d97e28b2fc3"
+      },
+      {
+       "field": "counterEvidence",
+       "index": 0,
+       "citation": {
+        "file": "SPEC.md",
+        "lineStart": 4,
+        "lineEnd": 4,
+        "quote": "이 발췌에 포함되지 않는다",
+        "relevance": "Scope caveat: this is an excerpt, so tests may exist outside the provided repository content; this does not show tests exist"
+       },
+       "status": "verified",
+       "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+      }
+     ]
+    }
+   ],
+   "coverage": [
+    {
+     "index": 0,
+     "id": "REQ-001",
+     "verdict": "KEEP",
+     "complete": true,
+     "rows": [
+      {
+       "field": "evidence",
+       "index": 0,
+       "citation": {
+        "file": "src/workflow-stop.ts",
+        "lineStart": 77,
+        "lineEnd": 78,
+        "quote": "if (intent || launchStopRequested(cwd, runId))",
+        "relevance": "디스크 intent 또는 launch signal 감지 시 abort"
+       },
+       "status": "verified",
+       "sha256": "64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0"
+      },
+      {
+       "field": "evidence",
+       "index": 1,
+       "citation": {
+        "file": "src/workflow-stop.ts",
+        "lineStart": 70,
+        "lineEnd": 71,
+        "quote": "if (launchStopRequested(cwd, runId)) {",
+        "relevance": "foreground signal 경로"
+       },
+       "status": "verified",
+       "sha256": "64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0"
+      }
+     ],
+     "status": "covered",
+     "positive": true,
+     "accountedBy": []
+    },
+    {
+     "index": 1,
+     "id": "REQ-002",
+     "verdict": "KEEP",
+     "complete": true,
+     "rows": [
+      {
+       "field": "evidence",
+       "index": 0,
+       "citation": {
+        "file": "src/workflow-stop.ts",
+        "lineStart": 49,
+        "lineEnd": 49,
+        "quote": "error.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME;",
+        "relevance": "오류 이름 설정"
+       },
+       "status": "verified",
+       "sha256": "64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0"
+      },
+      {
+       "field": "evidence",
+       "index": 1,
+       "citation": {
+        "file": "src/workflow-stop.ts",
+        "lineStart": 44,
+        "lineEnd": 44,
+        "quote": "workflow stop requested for ${runId}",
+        "relevance": "메시지 형식"
+       },
+       "status": "verified",
+       "sha256": "64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0"
+      }
+     ],
+     "status": "covered",
+     "positive": true,
+     "accountedBy": []
+    },
+    {
+     "index": 2,
+     "id": "REQ-003",
+     "verdict": "KEEP",
+     "complete": true,
+     "rows": [
+      {
+       "field": "evidence",
+       "index": 0,
+       "citation": {
+        "file": "src/workflow-stop.ts",
+        "lineStart": 67,
+        "lineEnd": 67,
+        "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+        "relevance": "기본값 200, 하한 1 (SPEC: 50, 하한 10)"
+       },
+       "status": "verified",
+       "sha256": "64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0"
+      }
+     ],
+     "status": "gap",
+     "positive": false,
+     "accountedBy": [
+      "finding-001"
+     ]
+    },
+    {
+     "index": 3,
+     "id": "REQ-004",
+     "verdict": "KEEP",
+     "complete": true,
+     "rows": [
+      {
+       "field": "evidence",
+       "index": 0,
+       "citation": {
+        "file": "src/workflow-stop.ts",
+        "lineStart": 74,
+        "lineEnd": 76,
+        "quote": "const intent = await readWorkflowStopIntent(cwd, runId).catch(",
+        "relevance": "감시 경로에서 읽기 오류 삼킴"
+       },
+       "status": "verified",
+       "sha256": "64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0"
+      },
+      {
+       "field": "evidence",
+       "index": 1,
+       "citation": {
+        "file": "src/workflow-stop.ts",
+        "lineStart": 95,
+        "lineEnd": 95,
+        "quote": "const intent = await readWorkflowStopIntent(cwd, runId);",
+        "relevance": "throwIfWorkflowStopRequested는 catch 없음"
+       },
+       "status": "verified",
+       "sha256": "64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0"
+      }
+     ],
+     "status": "covered",
+     "positive": true,
+     "accountedBy": []
+    },
+    {
+     "index": 4,
+     "id": "REQ-005",
+     "verdict": "KEEP",
+     "complete": true,
+     "rows": [
+      {
+       "field": "evidence",
+       "index": 0,
+       "citation": {
+        "file": "src/workflow-stop.ts",
+        "lineStart": 81,
+        "lineEnd": 81,
+        "quote": "const timer = setInterval(() => void check(), pollMs);",
+        "relevance": "타이머 기반 반복 읽기"
+       },
+       "status": "verified",
+       "sha256": "64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0"
+      },
+      {
+       "field": "evidence",
+       "index": 1,
+       "citation": {
+        "file": "src/workflow-stop.ts",
+        "lineStart": 85,
+        "lineEnd": 85,
+        "quote": "dispose: () => clearInterval(timer),",
+        "relevance": "dispose는 interval 정리, 새 타이머 읽기 없음"
+       },
+       "status": "verified",
+       "sha256": "64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0"
+      }
+     ],
+     "status": "covered",
+     "positive": true,
+     "accountedBy": []
+    },
+    {
+     "index": 5,
+     "id": "REQ-006",
+     "verdict": "KEEP",
+     "complete": true,
+     "rows": [
+      {
+       "field": "evidence",
+       "index": 0,
+       "citation": {
+        "file": "src/workflow-stop.ts",
+        "lineStart": 53,
+        "lineEnd": 57,
+        "quote": "error.message.startsWith(",
+        "relevance": "메시지 접두사로도 중지 판별"
+       },
+       "status": "verified",
+       "sha256": "64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0"
+      }
+     ],
+     "status": "gap",
+     "positive": false,
+     "accountedBy": [
+      "finding-002"
+     ]
+    },
+    {
+     "index": 6,
+     "id": "REQ-007",
+     "verdict": "KEEP",
+     "complete": true,
+     "rows": [
+      {
+       "field": "evidence",
+       "index": 0,
+       "citation": {
+        "file": "src/workflow-stop.ts",
+        "lineStart": 17,
+        "lineEnd": 21,
+        "quote": "signals.delete(signal);",
+        "relevance": "해제 함수가 signal 제거"
+       },
+       "status": "verified",
+       "sha256": "64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0"
+      },
+      {
+       "field": "evidence",
+       "index": 1,
+       "citation": {
+        "file": "src/workflow-stop.ts",
+        "lineStart": 19,
+        "lineEnd": 20,
+        "quote": "if (signals.size === 0 && launchSignals.get(key) === signals)",
+        "relevance": "마지막 signal 해제 시 실행 키 삭제"
+       },
+       "status": "verified",
+       "sha256": "64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0"
+      }
+     ],
+     "status": "covered",
+     "positive": true,
+     "accountedBy": []
+    },
+    {
+     "index": 7,
+     "id": "REQ-008",
+     "verdict": "KEEP",
+     "complete": true,
+     "rows": [
+      {
+       "field": "evidence",
+       "index": 0,
+       "citation": {
+        "file": "src/workflow-cancellation.ts",
+        "lineStart": 20,
+        "lineEnd": 20,
+        "quote": "candidate === \"cancelled\" || candidate === \"timeout\"",
+        "relevance": "SPEC 외 취소 마커 2개 추가"
+       },
+       "status": "verified",
+       "sha256": "e74c61f65c535b5f08993815d94e81ee7cd0aebfdd357555a133a9a381b627e3"
+      },
+      {
+       "field": "evidence",
+       "index": 1,
+       "citation": {
+        "file": "src/workflow-cancellation.ts",
+        "lineStart": 16,
+        "lineEnd": 16,
+        "quote": "if (value.cancelled === true) return true;",
+        "relevance": "SPEC에 없는 boolean 플래그도 취소로 인정"
+       },
+       "status": "verified",
+       "sha256": "e74c61f65c535b5f08993815d94e81ee7cd0aebfdd357555a133a9a381b627e3"
+      },
+      {
+       "field": "evidence",
+       "index": 2,
+       "citation": {
+        "file": "src/workflow-cancellation.ts",
+        "lineStart": 18,
+        "lineEnd": 18,
+        "quote": "if (details?.cancelled === true) return true;",
+        "relevance": "details 플래그도 취소로 인정"
+       },
+       "status": "verified",
+       "sha256": "e74c61f65c535b5f08993815d94e81ee7cd0aebfdd357555a133a9a381b627e3"
+      }
+     ],
+     "status": "gap",
+     "positive": false,
+     "accountedBy": [
+      "finding-003"
+     ]
+    },
+    {
+     "index": 8,
+     "id": "REQ-009",
+     "verdict": "KEEP",
+     "complete": true,
+     "rows": [
+      {
+       "field": "evidence",
+       "index": 0,
+       "citation": {
+        "file": "src/workflow-cancellation.ts",
+        "lineStart": 27,
+        "lineEnd": 28,
+        "quote": "const parsed: unknown = JSON.parse(entry.text);",
+        "relevance": "content 텍스트 JSON 파싱 후 재귀"
+       },
+       "status": "verified",
+       "sha256": "e74c61f65c535b5f08993815d94e81ee7cd0aebfdd357555a133a9a381b627e3"
+      },
+      {
+       "field": "evidence",
+       "index": 1,
+       "citation": {
+        "file": "src/workflow-cancellation.ts",
+        "lineStart": 28,
+        "lineEnd": 28,
+        "quote": "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+        "relevance": "재귀 호출, 파싱 결과는 항상 더 짧은 문자열에서 생성"
+       },
+       "status": "verified",
+       "sha256": "e74c61f65c535b5f08993815d94e81ee7cd0aebfdd357555a133a9a381b627e3"
+      }
+     ],
+     "status": "covered",
+     "positive": true,
+     "accountedBy": []
+    },
+    {
+     "index": 9,
+     "id": "REQ-010",
+     "verdict": "KEEP",
+     "complete": true,
+     "rows": [
+      {
+       "field": "evidence",
+       "index": 0,
+       "citation": {
+        "file": "src/workflow-terminal.ts",
+        "lineStart": 68,
+        "lineEnd": 68,
+        "quote": "return run.degradation ? \"completed_degraded\" : \"completed\";",
+        "relevance": "비동적 completed 경로의 degradation 처리"
+       },
+       "status": "verified",
+       "sha256": "c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1"
+      },
+      {
+       "field": "evidence",
+       "index": 1,
+       "citation": {
+        "file": "src/workflow-terminal.ts",
+        "lineStart": 80,
+        "lineEnd": 80,
+        "quote": "if (terminal && run.provenance?.mode === \"direct-dynamic\") {",
+        "relevance": "direct-dynamic 분기가 아래에서 semanticStatus를 덮어씀"
+       },
+       "status": "verified",
+       "sha256": "c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1"
+      }
+     ],
+     "status": "partial",
+     "positive": false,
+     "accountedBy": [
+      "finding-004"
+     ]
+    },
+    {
+     "index": 10,
+     "id": "REQ-011",
+     "verdict": "KEEP",
+     "complete": true,
+     "rows": [
+      {
+       "field": "evidence",
+       "index": 0,
+       "citation": {
+        "file": "src/workflow-terminal.ts",
+        "lineStart": 59,
+        "lineEnd": 61,
+        "quote": "return await readJson<DynamicControllerControl>(",
+        "relevance": "control.json 읽기"
+       },
+       "status": "verified",
+       "sha256": "c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1"
+      },
+      {
+       "field": "evidence",
+       "index": 1,
+       "citation": {
+        "file": "src/workflow-terminal.ts",
+        "lineStart": 95,
+        "lineEnd": 95,
+        "quote": "else semanticStatus = \"completed_without_semantic_result\";",
+        "relevance": "control undefined일 때 폴백"
+       },
+       "status": "verified",
+       "sha256": "c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1"
+      }
+     ],
+     "status": "covered",
+     "positive": true,
+     "accountedBy": []
+    },
+    {
+     "index": 11,
+     "id": "REQ-012",
+     "verdict": "KEEP",
+     "complete": true,
+     "rows": [
+      {
+       "field": "evidence",
+       "index": 0,
+       "citation": {
+        "file": "src/workflow-terminal.ts",
+        "lineStart": 103,
+        "lineEnd": 106,
+        "quote": "outputRetryAttempts: run.tasks.reduce(",
+        "relevance": "outputRetryAttempts 합산은 이름 일치"
+       },
+       "status": "verified",
+       "sha256": "c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1"
+      },
+      {
+       "field": "evidence",
+       "index": 1,
+       "citation": {
+        "file": "src/workflow-terminal.ts",
+        "lineStart": 33,
+        "lineEnd": 33,
+        "quote": "launchRetries: number;",
+        "relevance": "SPEC 공개 필드명 launchRetryAttempts와 불일치"
+       },
+       "status": "verified",
+       "sha256": "c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1"
+      }
+     ],
+     "status": "partial",
+     "positive": false,
+     "accountedBy": [
+      "finding-005"
+     ]
+    },
+    {
+     "index": 12,
+     "id": "REQ-013",
+     "verdict": "KEEP",
+     "complete": true,
+     "rows": [],
+     "status": "gap",
+     "positive": false,
+     "accountedBy": [
+      "finding-006"
+     ]
+    }
+   ],
+   "requirementReconciliation": {
+    "protocol": "spec-requirement-reconciliation-v1",
+    "proof": {
+     "runId": "workflow_mw1rwnkc_7f6ae1",
+     "candidateTaskId": "task-4",
+     "candidateControlSha256": "3e0f62ea7cb8404963efabf9bc476e38f69aed3a6792915e4c5f7c3bf17c4072",
+     "candidateManifestSha256": "157088781be71ed9193df9b8d1056396968a782e07c25054f23be23899727ac9",
+     "extractTaskId": "task-1",
+     "extractControlSha256": "42d2717e6abd72b6b82c2d6f071bbaaa727fbd1f7e85dbde12e163e78cc88ef1",
+     "mapTaskId": "task-2",
+     "mapControlSha256": "968c0c3209891b772a1050fd0e57311fb9b820bcf4c52ea2366106e8e1ffba06",
+     "inspectTestsTaskId": "task-3",
+     "inspectTestsControlSha256": "d599588f2718398253c3af903616637fb0896c690248b11e7eb79dd0e5a9ab10"
+    },
+    "sourceEvidence": [
+     {
+      "id": "REQ-001",
+      "complete": true,
+      "checked": [
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 8,
+         "lineEnd": 8,
+         "quote": "실행 중지는 두 경로 중 하나라도 있으면 감지되어야 한다"
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       }
+      ]
+     },
+     {
+      "id": "REQ-002",
+      "complete": true,
+      "checked": [
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 11,
+         "lineEnd": 11,
+         "quote": "신호는 이름이 `WorkflowStopRequested`인 오류로 abort되어야 하며"
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       }
+      ]
+     },
+     {
+      "id": "REQ-003",
+      "complete": true,
+      "checked": [
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 13,
+         "lineEnd": 13,
+         "quote": "중지 감시 주기(`pollMs`)의 기본값은 50ms이고"
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       },
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 14,
+         "lineEnd": 14,
+         "quote": "짧아지면 안 된다."
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       }
+      ]
+     },
+     {
+      "id": "REQ-004",
+      "complete": true,
+      "checked": [
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 15,
+         "lineEnd": 15,
+         "quote": "디스크 읽기 실패는 중지로 간주하지 않는다."
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       },
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 16,
+         "lineEnd": 16,
+         "quote": "`throwIfWorkflowStopRequested`에서는 읽기 오류가 호출자에게 그대로 전달되어야 한다."
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       }
+      ]
+     },
+     {
+      "id": "REQ-005",
+      "complete": true,
+      "checked": [
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 17,
+         "lineEnd": 17,
+         "quote": "`dispose()`를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다."
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       }
+      ]
+     },
+     {
+      "id": "REQ-006",
+      "complete": true,
+      "checked": [
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 18,
+         "lineEnd": 18,
+         "quote": "`isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로"
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       },
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 19,
+         "lineEnd": 19,
+         "quote": "메시지 내용으로 판별해서는 안 된다."
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       }
+      ]
+     },
+     {
+      "id": "REQ-007",
+      "complete": true,
+      "checked": [
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 20,
+         "lineEnd": 20,
+         "quote": "foreground signal 등록은 해제 함수로 되돌릴 수 있어야 하며"
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       },
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 21,
+         "lineEnd": 21,
+         "quote": "실행의 등록 항목이 남지 않아야 한다."
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       }
+      ]
+     },
+     {
+      "id": "REQ-008",
+      "complete": true,
+      "checked": [
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 25,
+         "lineEnd": 25,
+         "quote": "정확히 `aborted`,"
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       },
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 26,
+         "lineEnd": 26,
+         "quote": "다른 provider 오류를 취소로 승격해서는 안 된다."
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       }
+      ]
+     },
+     {
+      "id": "REQ-009",
+      "complete": true,
+      "checked": [
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 27,
+         "lineEnd": 27,
+         "quote": "`content` 배열 안의 텍스트가 JSON이면 그 내용도 같은 규칙으로 판별하되"
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       },
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 28,
+         "lineEnd": 28,
+         "quote": "검사하는 무한 재귀가 없어야 한다."
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       }
+      ]
+     },
+     {
+      "id": "REQ-010",
+      "complete": true,
+      "checked": [
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 32,
+         "lineEnd": 32,
+         "quote": "`completed` 실행에 degradation 기록이 있으면 의미 상태는 `completed_degraded`이다."
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       }
+      ]
+     },
+     {
+      "id": "REQ-011",
+      "complete": true,
+      "checked": [
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 33,
+         "lineEnd": 33,
+         "quote": "direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는"
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       },
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 34,
+         "lineEnd": 34,
+         "quote": "`completed_without_semantic_result`이다."
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       }
+      ]
+     },
+     {
+      "id": "REQ-012",
+      "complete": true,
+      "checked": [
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 35,
+         "lineEnd": 35,
+         "quote": "요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,"
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       },
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 36,
+         "lineEnd": 36,
+         "quote": "이 두 필드 이름은 공개 계약이다"
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       }
+      ]
+     },
+     {
+      "id": "REQ-013",
+      "complete": true,
+      "checked": [
+       {
+        "citation": {
+         "file": "SPEC.md",
+         "lineStart": 40,
+         "lineEnd": 40,
+         "quote": "그 동작을 확인하는 단위 테스트가 있어야 한다."
+        },
+        "status": "verified",
+        "sha256": "51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5"
+       }
+      ]
+     }
+    ],
+    "requirementIds": [
+     "REQ-001",
+     "REQ-002",
+     "REQ-003",
+     "REQ-004",
+     "REQ-005",
+     "REQ-006",
+     "REQ-007",
+     "REQ-008",
+     "REQ-009",
+     "REQ-010",
+     "REQ-011",
+     "REQ-012",
+     "REQ-013"
+    ],
+    "coverageIds": [
+     "REQ-001",
+     "REQ-002",
+     "REQ-003",
+     "REQ-004",
+     "REQ-005",
+     "REQ-006",
+     "REQ-007",
+     "REQ-008",
+     "REQ-009",
+     "REQ-010",
+     "REQ-011",
+     "REQ-012",
+     "REQ-013"
+    ],
+    "missingIds": [],
+    "unresolvedIds": [],
+    "issues": [],
+    "complete": true,
+    "allCovered": false
+   }
+  },
+  "sourceStatusSummary": {
+   "metadataAvailable": true,
+   "total": 7,
+   "completed": 7,
+   "nonCompleted": 0,
+   "partialFailures": []
+  },
+  "verifierCoverage": {
+   "candidateUniverse": {
+    "schema": "spec-review-runtime-candidate-universe-v1",
+    "count": 6,
+    "uniqueCount": 6,
+    "ids": [
+     "finding-001",
+     "finding-002",
+     "finding-003",
+     "finding-004",
+     "finding-005",
+     "finding-006"
+    ],
+    "duplicateIds": [],
+    "invalidRowCount": 0,
+    "proof": {
+     "runId": "workflow_mw1rwnkc_7f6ae1",
+     "candidateTaskId": "task-4",
+     "candidateControlSha256": "3e0f62ea7cb8404963efabf9bc476e38f69aed3a6792915e4c5f7c3bf17c4072",
+     "candidateManifestSha256": "157088781be71ed9193df9b8d1056396968a782e07c25054f23be23899727ac9",
+     "extractTaskId": "task-1",
+     "extractControlSha256": "42d2717e6abd72b6b82c2d6f071bbaaa727fbd1f7e85dbde12e163e78cc88ef1",
+     "mapTaskId": "task-2",
+     "mapControlSha256": "968c0c3209891b772a1050fd0e57311fb9b820bcf4c52ea2366106e8e1ffba06",
+     "inspectTestsTaskId": "task-3",
+     "inspectTestsControlSha256": "d599588f2718398253c3af903616637fb0896c690248b11e7eb79dd0e5a9ab10"
+    }
+   },
+   "complete": true,
+   "candidateCount": 6,
+   "uniqueCandidateCount": 6,
+   "verifierCount": 6,
+   "uniqueVerifierCount": 6,
+   "verifiedCandidateCount": 6,
+   "missingIds": [],
+   "duplicateCandidateIds": [],
+   "duplicateVerifierIds": [],
+   "orphanVerifierIds": [],
+   "ownerLedger": [
+    {
+     "source": "verify-findings",
+     "stageId": "verify-findings",
+     "specId": "verify-findings.finding-001",
+     "taskId": "task-9",
+     "itemIdentity": "finding-001",
+     "placeholderSpecId": "verify-findings.item",
+     "status": "completed"
+    },
+    {
+     "source": "verify-findings.finding-002",
+     "stageId": "verify-findings",
+     "specId": "verify-findings.finding-002",
+     "taskId": "task-10",
+     "itemIdentity": "finding-002",
+     "placeholderSpecId": "verify-findings.item",
+     "status": "completed"
+    },
+    {
+     "source": "verify-findings.finding-003",
+     "stageId": "verify-findings",
+     "specId": "verify-findings.finding-003",
+     "taskId": "task-11",
+     "itemIdentity": "finding-003",
+     "placeholderSpecId": "verify-findings.item",
+     "status": "completed"
+    },
+    {
+     "source": "verify-findings.finding-004",
+     "stageId": "verify-findings",
+     "specId": "verify-findings.finding-004",
+     "taskId": "task-12",
+     "itemIdentity": "finding-004",
+     "placeholderSpecId": "verify-findings.item",
+     "status": "completed"
+    },
+    {
+     "source": "verify-findings.finding-005",
+     "stageId": "verify-findings",
+     "specId": "verify-findings.finding-005",
+     "taskId": "task-13",
+     "itemIdentity": "finding-005",
+     "placeholderSpecId": "verify-findings.item",
+     "status": "completed"
+    },
+    {
+     "source": "verify-findings.finding-006",
+     "stageId": "verify-findings",
+     "specId": "verify-findings.finding-006",
+     "taskId": "task-14",
+     "itemIdentity": "finding-006",
+     "placeholderSpecId": "verify-findings.item",
+     "status": "completed"
+    }
+   ],
+   "batchOwnerLedger": [
+    {
+     "source": "verify-findings",
+     "stageId": "verify-findings",
+     "specId": "verify-findings.finding-001",
+     "taskId": "task-9",
+     "itemIdentity": "finding-001",
+     "placeholderSpecId": "verify-findings.item",
+     "status": "completed"
+    },
+    {
+     "source": "verify-findings.finding-002",
+     "stageId": "verify-findings",
+     "specId": "verify-findings.finding-002",
+     "taskId": "task-10",
+     "itemIdentity": "finding-002",
+     "placeholderSpecId": "verify-findings.item",
+     "status": "completed"
+    },
+    {
+     "source": "verify-findings.finding-003",
+     "stageId": "verify-findings",
+     "specId": "verify-findings.finding-003",
+     "taskId": "task-11",
+     "itemIdentity": "finding-003",
+     "placeholderSpecId": "verify-findings.item",
+     "status": "completed"
+    },
+    {
+     "source": "verify-findings.finding-004",
+     "stageId": "verify-findings",
+     "specId": "verify-findings.finding-004",
+     "taskId": "task-12",
+     "itemIdentity": "finding-004",
+     "placeholderSpecId": "verify-findings.item",
+     "status": "completed"
+    },
+    {
+     "source": "verify-findings.finding-005",
+     "stageId": "verify-findings",
+     "specId": "verify-findings.finding-005",
+     "taskId": "task-13",
+     "itemIdentity": "finding-005",
+     "placeholderSpecId": "verify-findings.item",
+     "status": "completed"
+    },
+    {
+     "source": "verify-findings.finding-006",
+     "stageId": "verify-findings",
+     "specId": "verify-findings.finding-006",
+     "taskId": "task-14",
+     "itemIdentity": "finding-006",
+     "placeholderSpecId": "verify-findings.item",
+     "status": "completed"
+    }
+   ],
+   "verifierRows": [
+    {
+     "id": "finding-001",
+     "verdict": "KEEP",
+     "severity": "medium",
+     "owner": {
+      "source": "verify-findings",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-001",
+      "taskId": "task-9",
+      "itemIdentity": "finding-001",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+     }
+    },
+    {
+     "id": "finding-002",
+     "verdict": "WEAKEN",
+     "severity": "medium",
+     "owner": {
+      "source": "verify-findings.finding-002",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-002",
+      "taskId": "task-10",
+      "itemIdentity": "finding-002",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+     }
+    },
+    {
+     "id": "finding-003",
+     "verdict": "WEAKEN",
+     "severity": "high",
+     "owner": {
+      "source": "verify-findings.finding-003",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-003",
+      "taskId": "task-11",
+      "itemIdentity": "finding-003",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+     }
+    },
+    {
+     "id": "finding-004",
+     "verdict": "WEAKEN",
+     "severity": "low",
+     "owner": {
+      "source": "verify-findings.finding-004",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-004",
+      "taskId": "task-12",
+      "itemIdentity": "finding-004",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+     }
+    },
+    {
+     "id": "finding-005",
+     "verdict": "KEEP",
+     "severity": "high",
+     "owner": {
+      "source": "verify-findings.finding-005",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-005",
+      "taskId": "task-13",
+      "itemIdentity": "finding-005",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+     }
+    },
+    {
+     "id": "finding-006",
+     "verdict": "KEEP",
+     "severity": "low",
+     "owner": {
+      "source": "verify-findings.finding-006",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-006",
+      "taskId": "task-14",
+      "itemIdentity": "finding-006",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+     }
+    }
+   ],
+   "ownerLedgerReconciliation": {
+    "ownerRowCount": 6,
+    "verifierRowCount": 6,
+    "ownerIds": [
+     "finding-001",
+     "finding-002",
+     "finding-003",
+     "finding-004",
+     "finding-005",
+     "finding-006"
+    ],
+    "verifierIds": [
+     "finding-001",
+     "finding-002",
+     "finding-003",
+     "finding-004",
+     "finding-005",
+     "finding-006"
+    ],
+    "duplicateOwnerIds": [],
+    "duplicateVerifierIds": [],
+    "missingOwnerRows": [],
+    "orphanOwnerRows": [],
+    "statusMismatches": [],
+    "cardinalityPassed": true,
+    "passed": true
+   },
+   "candidateUniverseReconciliation": {
+    "issues": [],
+    "passed": true,
+    "runtimeIds": [
+     "finding-001",
+     "finding-002",
+     "finding-003",
+     "finding-004",
+     "finding-005",
+     "finding-006"
+    ],
+    "sourceIds": [
+     "finding-001",
+     "finding-002",
+     "finding-003",
+     "finding-004",
+     "finding-005",
+     "finding-006"
+    ]
+   }
+  },
+  "verdictCounts": {
+   "keep": 3,
+   "weaken": 3,
+   "drop": 0,
+   "needsHuman": 1,
+   "missingVerification": 0,
+   "invalidVerifier": 0,
+   "orphanVerifier": 0
+  },
+  "requirementCoverage": [
+   {
+    "requirementId": "REQ-001",
+    "status": "covered",
+    "evidence": [
+     {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 77,
+      "lineEnd": 78,
+      "quote": "if (intent || launchStopRequested(cwd, runId))",
+      "relevance": "디스크 intent 또는 launch signal 감지 시 abort"
+     },
+     {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 70,
+      "lineEnd": 71,
+      "quote": "if (launchStopRequested(cwd, runId)) {",
+      "relevance": "foreground signal 경로"
+     }
+    ]
+   },
+   {
+    "requirementId": "REQ-002",
+    "status": "covered",
+    "evidence": [
+     {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 49,
+      "lineEnd": 49,
+      "quote": "error.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME;",
+      "relevance": "오류 이름 설정"
+     },
+     {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 44,
+      "lineEnd": 44,
+      "quote": "workflow stop requested for ${runId}",
+      "relevance": "메시지 형식"
+     }
+    ]
+   },
+   {
+    "requirementId": "REQ-003",
+    "status": "gap",
+    "evidence": [
+     {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 67,
+      "lineEnd": 67,
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "relevance": "기본값 200, 하한 1 (SPEC: 50, 하한 10)"
+     }
+    ]
+   },
+   {
+    "requirementId": "REQ-004",
+    "status": "covered",
+    "evidence": [
+     {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 74,
+      "lineEnd": 76,
+      "quote": "const intent = await readWorkflowStopIntent(cwd, runId).catch(",
+      "relevance": "감시 경로에서 읽기 오류 삼킴"
+     },
+     {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 95,
+      "lineEnd": 95,
+      "quote": "const intent = await readWorkflowStopIntent(cwd, runId);",
+      "relevance": "throwIfWorkflowStopRequested는 catch 없음"
+     }
+    ]
+   },
+   {
+    "requirementId": "REQ-005",
+    "status": "covered",
+    "evidence": [
+     {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 81,
+      "lineEnd": 81,
+      "quote": "const timer = setInterval(() => void check(), pollMs);",
+      "relevance": "타이머 기반 반복 읽기"
+     },
+     {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 85,
+      "lineEnd": 85,
+      "quote": "dispose: () => clearInterval(timer),",
+      "relevance": "dispose는 interval 정리, 새 타이머 읽기 없음"
+     }
+    ]
+   },
+   {
+    "requirementId": "REQ-006",
+    "status": "gap",
+    "evidence": [
+     {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 53,
+      "lineEnd": 57,
+      "quote": "error.message.startsWith(",
+      "relevance": "메시지 접두사로도 중지 판별"
+     }
+    ]
+   },
+   {
+    "requirementId": "REQ-007",
+    "status": "covered",
+    "evidence": [
+     {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 17,
+      "lineEnd": 21,
+      "quote": "signals.delete(signal);",
+      "relevance": "해제 함수가 signal 제거"
+     },
+     {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 19,
+      "lineEnd": 20,
+      "quote": "if (signals.size === 0 && launchSignals.get(key) === signals)",
+      "relevance": "마지막 signal 해제 시 실행 키 삭제"
+     }
+    ]
+   },
+   {
+    "requirementId": "REQ-008",
+    "status": "gap",
+    "evidence": [
+     {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 20,
+      "lineEnd": 20,
+      "quote": "candidate === \"cancelled\" || candidate === \"timeout\"",
+      "relevance": "SPEC 외 취소 마커 2개 추가"
+     },
+     {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 16,
+      "lineEnd": 16,
+      "quote": "if (value.cancelled === true) return true;",
+      "relevance": "SPEC에 없는 boolean 플래그도 취소로 인정"
+     },
+     {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 18,
+      "lineEnd": 18,
+      "quote": "if (details?.cancelled === true) return true;",
+      "relevance": "details 플래그도 취소로 인정"
+     }
+    ]
+   },
+   {
+    "requirementId": "REQ-009",
+    "status": "covered",
+    "evidence": [
+     {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 27,
+      "lineEnd": 28,
+      "quote": "const parsed: unknown = JSON.parse(entry.text);",
+      "relevance": "content 텍스트 JSON 파싱 후 재귀"
+     },
+     {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 28,
+      "lineEnd": 28,
+      "quote": "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+      "relevance": "재귀 호출, 파싱 결과는 항상 더 짧은 문자열에서 생성"
+     }
+    ]
+   },
+   {
+    "requirementId": "REQ-010",
+    "status": "partial",
+    "evidence": [
+     {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 68,
+      "lineEnd": 68,
+      "quote": "return run.degradation ? \"completed_degraded\" : \"completed\";",
+      "relevance": "비동적 completed 경로의 degradation 처리"
+     },
+     {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 80,
+      "lineEnd": 80,
+      "quote": "if (terminal && run.provenance?.mode === \"direct-dynamic\") {",
+      "relevance": "direct-dynamic 분기가 아래에서 semanticStatus를 덮어씀"
+     }
+    ]
+   },
+   {
+    "requirementId": "REQ-011",
+    "status": "covered",
+    "evidence": [
+     {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 59,
+      "lineEnd": 61,
+      "quote": "return await readJson<DynamicControllerControl>(",
+      "relevance": "control.json 읽기"
+     },
+     {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 95,
+      "lineEnd": 95,
+      "quote": "else semanticStatus = \"completed_without_semantic_result\";",
+      "relevance": "control undefined일 때 폴백"
+     }
+    ]
+   },
+   {
+    "requirementId": "REQ-012",
+    "status": "partial",
+    "evidence": [
+     {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 103,
+      "lineEnd": 106,
+      "quote": "outputRetryAttempts: run.tasks.reduce(",
+      "relevance": "outputRetryAttempts 합산은 이름 일치"
+     },
+     {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 33,
+      "lineEnd": 33,
+      "quote": "launchRetries: number;",
+      "relevance": "SPEC 공개 필드명 launchRetryAttempts와 불일치"
+     }
+    ]
+   },
+   {
+    "requirementId": "REQ-013",
+    "status": "gap",
+    "evidence": []
+   }
+  ],
+  "finalFindings": [
+   {
+    "id": "finding-001",
+    "verdict": "KEEP",
+    "severity": "medium",
+    "title": "중지 감시 주기 기본값과 하한이 SPEC과 다름",
+    "requirementIds": [
+     "REQ-003"
+    ],
+    "claim": "src/workflow-stop.ts의 createWorkflowStopSignal은 pollMs 기본값을 200ms, 하한을 1ms로 두어 SPEC S3(기본 50ms, 하한 10ms)와 어긋난다. 이 값을 검증하는 테스트도 없다.",
+    "evidence": [
+     {
+      "file": "SPEC.md",
+      "lineStart": 13,
+      "lineEnd": 13,
+      "quote": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다",
+      "relevance": "S3 requires default pollMs of 50ms and no value below 10ms"
+     },
+     {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 67,
+      "lineEnd": 67,
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "relevance": "Implementation defaults pollMs to 200 and floors it at 1, both contrary to S3"
+     }
+    ],
+    "counterEvidence": [],
+    "recommendedAction": "pollMs 기본값을 50으로, 하한을 10으로 맞추고(Math.max(10, options.pollMs ?? 50)), 기본값과 하한을 확인하는 단위 테스트를 추가한다.",
+    "originalCandidate": {
+     "id": "finding-001",
+     "requirementIds": [
+      "REQ-003"
+     ],
+     "severity": "medium",
+     "title": "중지 감시 주기 기본값과 하한이 SPEC과 다름",
+     "claim": "createWorkflowStopSignal의 pollMs 기본값은 200ms이고 하한은 1ms다. SPEC은 기본 50ms, 하한 10ms를 요구한다.",
+     "specEvidence": [
+      "SPEC.md L13-14: 기본값 50ms, 10ms보다 짧아지면 안 된다"
+     ],
+     "implementationEvidence": [
+      "src/workflow-stop.ts:67 Math.max(1, options.pollMs ?? 200)"
+     ],
+     "testEvidence": [
+      "테스트 없음"
+     ],
+     "uncertainty": "실행 지연 차이의 외부 영향 정도는 실행하지 않아 확인하지 못했다."
+    }
+   },
+   {
+    "id": "finding-002",
+    "verdict": "WEAKEN",
+    "severity": "medium",
+    "title": "isWorkflowStopRequestedError가 메시지 접두사로도 판별함",
+    "requirementIds": [
+     "REQ-006"
+    ],
+    "claim": "isWorkflowStopRequestedError (src/workflow-stop.ts:53-59) returns true for any Error whose message starts with 'workflow stop requested', not only for name WorkflowStopRequested, which violates SPEC S6. The repository has no callers of this function and no test covering S6, so practical impact is limited.",
+    "evidence": [
+     {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 53,
+      "lineEnd": 59,
+      "quote": "error.message.startsWith(\"workflow stop requested\"))",
+      "relevance": "Implementation accepts a message prefix as well as the error name, contrary to S6's name-only rule."
+     },
+     {
+      "file": "SPEC.md",
+      "lineStart": 18,
+      "lineEnd": 19,
+      "quote": "메시지 내용으로 판별해서는 안 된다.",
+      "relevance": "S6 explicitly forbids identifying stop errors by message content."
+     }
+    ],
+    "counterEvidence": [],
+    "recommendedAction": "Remove the message-prefix branch so only error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME counts, and add a unit test that a non-named error with the stop message is rejected (Q1 coverage for S6).",
+    "originalCandidate": {
+     "id": "finding-002",
+     "requirementIds": [
+      "REQ-006"
+     ],
+     "severity": "high",
+     "title": "isWorkflowStopRequestedError가 메시지 접두사로도 판별함",
+     "claim": "이름이 WorkflowStopRequested가 아니어도 메시지가 workflow stop requested로 시작하면 중지 오류로 인정된다. SPEC은 이름만으로 판별하고 메시지 내용으로 판별하지 말라고 명시한다.",
+     "specEvidence": [
+      "SPEC.md L18-19: 이름이 WorkflowStopRequested인 오류만 인정, 메시지 내용으로 판별해서는 안 된다"
+     ],
+     "implementationEvidence": [
+      "src/workflow-stop.ts:53-58 isWorkflowStopRequestedError",
+      "src/workflow-stop.ts:57 error.message.startsWith(\"workflow stop requested\")"
+     ],
+     "testEvidence": [
+      "테스트 없음"
+     ],
+     "uncertainty": "외부 provider 오류가 이 접두사를 가질 가능성의 실제 빈도는 확인하지 못했다."
+    }
+   },
+   {
+    "id": "finding-003",
+    "verdict": "WEAKEN",
+    "severity": "high",
+    "title": "취소 판별이 SPEC의 정확한 세 마커 외 값과 플래그를 취소로 승격함",
+    "requirementIds": [
+     "REQ-008"
+    ],
+    "claim": "src/workflow-cancellation.ts:20이 error/reason 문자열 'cancelled'와 'timeout'을 취소로 승격하여 SPEC C1의 정확한 세 값(aborted, AbortError, ABORT_ERR) 제한을 위반한다. 관련 테스트는 없다.",
+    "evidence": [
+     {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 20,
+      "lineEnd": 20,
+      "quote": "candidate === \"cancelled\" || candidate === \"timeout\"",
+      "relevance": "error/reason 문자열 'cancelled'와 'timeout'을 취소로 판정. SPEC C1의 정확한 세 값 목록에 없음"
+     },
+     {
+      "file": "SPEC.md",
+      "lineStart": 26,
+      "lineEnd": 26,
+      "quote": "세 가지만 취소로 인정한다",
+      "relevance": "C1: 세 값만 취소로 인정, 다른 provider 오류를 취소로 승격 금지"
+     },
+     {
+      "file": "SPEC.md",
+      "lineStart": 25,
+      "lineEnd": 25,
+      "quote": "오류·사유 문자열은 정확히",
+      "relevance": "C1 적용 대상은 오류·사유 문자열로 한정됨"
+     }
+    ],
+    "counterEvidence": [
+     {
+      "file": "SPEC.md",
+      "lineStart": 25,
+      "lineEnd": 25,
+      "quote": "오류·사유 문자열은 정확히",
+      "relevance": "C1의 '정확히 세 가지' 제한은 문자열 값에 대한 것이며 boolean 플래그(value.cancelled, details.cancelled)는 문언상 직접 다루지 않음"
+     },
+     {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 16,
+      "lineEnd": 16,
+      "quote": "if (value.cancelled === true) return true;",
+      "relevance": "boolean 플래그 검사는 문자열이 아니므로 C1 문언 위반으로 보기 어려움"
+     }
+    ],
+    "recommendedAction": "line 20의 'cancelled'·'timeout' 비교를 제거하고 세 값만 남긴다. 'timeout'을 의도된 확장으로 본다면 SPEC C1을 먼저 개정한다. 플래그(16·18행) 처리는 SPEC 해석을 확인한 뒤 결정한다. C1 단위 테스트를 추가한다.",
+    "originalCandidate": {
+     "id": "finding-003",
+     "requirementIds": [
+      "REQ-008"
+     ],
+     "severity": "high",
+     "title": "취소 판별이 SPEC의 정확한 세 마커 외 값과 플래그를 취소로 승격함",
+     "claim": "cancelled와 timeout 문자열, value.cancelled 및 details.cancelled 플래그를 취소로 본다. SPEC은 aborted, AbortError, ABORT_ERR 세 값만 취소로 인정하고 다른 provider 오류를 취소로 승격하지 말라고 명시한다.",
+     "specEvidence": [
+      "SPEC.md L25-26: 정확히 aborted, AbortError, ABORT_ERR 세 가지만 취소로 인정, 다른 provider 오류 승격 금지"
+     ],
+     "implementationEvidence": [
+      "src/workflow-cancellation.ts:16 value.cancelled === true",
+      "src/workflow-cancellation.ts:18 details?.cancelled === true",
+      "src/workflow-cancellation.ts:20 candidate === \"cancelled\" || candidate === \"timeout\""
+     ],
+     "testEvidence": [
+      "테스트 없음"
+     ],
+     "uncertainty": "timeout을 취소로 보는 것이 의도된 확장인지 SPEC 작성 의도는 확인하지 못했다."
+    }
+   },
+   {
+    "id": "finding-004",
+    "verdict": "WEAKEN",
+    "severity": "low",
+    "title": "direct-dynamic completed+degradation 실행이 completed_degraded로 남지 않을 수 있음",
+    "requirementIds": [
+     "REQ-010"
+    ],
+    "claim": "direct-dynamic 분기는 terminal completed 실행이라도 run.degradation을 무시하고 control.json 상태(synthesized 등)로 semanticStatus를 덮어써 completed_degraded가 남지 않을 수 있다. 다만 SPEC 발췌상 T1이 dynamic 실행에 적용되는지는 확정되지 않아 조건부 결함이다.",
+    "evidence": [
+     {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 68,
+      "lineEnd": 68,
+      "quote": "return run.degradation ? \"completed_degraded\" : \"completed\";",
+      "relevance": "non-dynamic 경로는 completed+degradation을 completed_degraded로 매핑한다"
+     },
+     {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 80,
+      "lineEnd": 80,
+      "quote": "if (terminal && run.provenance?.mode === \"direct-dynamic\") {",
+      "relevance": "direct-dynamic 분기가 nonDynamicSemanticStatus 결과를 뒤에서 덮어쓴다"
+     },
+     {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 87,
+      "lineEnd": 87,
+      "quote": "else if (control?.status === \"synthesized\") semanticStatus = \"synthesized\";",
+      "relevance": "run.degradation과 무관하게 control.json 상태로 semanticStatus가 synthesized가 된다(completed_degraded가 남지 않는 경로)"
+     },
+     {
+      "file": "SPEC.md",
+      "lineStart": 32,
+      "lineEnd": 32,
+      "quote": "- **T1.** `completed` 실행에 degradation 기록이 있으면 의미 상태는 `completed_degraded`이다.",
+      "relevance": "T1은 completed 실행 일반에 대한 무조건적 규칙으로 쓰여 있다"
+     },
+     {
+      "file": "SPEC.md",
+      "lineStart": 33,
+      "lineEnd": 33,
+      "quote": "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는",
+      "relevance": "direct-dynamic 전용 규칙은 T2(읽기 불가 시)뿐이며 T1 예외를 명시하지 않는다"
+     }
+    ],
+    "counterEvidence": [
+     {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 22,
+      "lineEnd": 22,
+      "quote": "| \"dynamic_blocked\"",
+      "relevance": "dynamic 전용 의미 상태 어휘가 존재해 dynamic 분기의 덮어쓰기가 설계상 의도일 가능성을 시사한다"
+     }
+    ],
+    "recommendedAction": "SPEC에 T1의 dynamic 적용 여부를 명시받은 뒤, 적용된다면 direct-dynamic 분기에서 completed+degradation일 때 completed_degraded를 우선하도록 수정하고 해당 케이스 단위 테스트를 추가한다. 예외라면 SPEC에 예외를 명시한다.",
+    "originalCandidate": {
+     "id": "finding-004",
+     "requirementIds": [
+      "REQ-010"
+     ],
+     "severity": "medium",
+     "title": "direct-dynamic completed+degradation 실행이 completed_degraded로 남지 않을 수 있음",
+     "claim": "direct-dynamic 실행에서는 terminal 분기가 nonDynamicSemanticStatus 결과를 덮어쓴다. completed이고 degradation이 있어도 control.json 상태에 따라 synthesized 등으로 바뀔 수 있다. SPEC T1은 completed 실행에 degradation이 있으면 completed_degraded라고만 쓴다.",
+     "specEvidence": [
+      "SPEC.md L32: completed 실행에 degradation 기록이 있으면 의미 상태는 completed_degraded이다"
+     ],
+     "implementationEvidence": [
+      "src/workflow-terminal.ts:68 completed_degraded 반환",
+      "src/workflow-terminal.ts:80-95 direct-dynamic 분기가 semanticStatus를 덮어씀"
+     ],
+     "testEvidence": [
+      "테스트 없음"
+     ],
+     "uncertainty": "T1이 dynamic 실행에도 적용되는지 SPEC 발췌만으로는 확정할 수 없다. 의도된 예외일 수 있다."
+    }
+   },
+   {
+    "id": "finding-005",
+    "verdict": "KEEP",
+    "severity": "high",
+    "title": "launchRetryAttempts 공개 필드명 누락, launchRetries로 노출됨",
+    "requirementIds": [
+     "REQ-012"
+    ],
+    "claim": "summarizeWorkflowTerminal's summary field is named launchRetries, but SPEC T3 requires the public field name launchRetryAttempts, which is absent from src/workflow-terminal.ts. outputRetryAttempts matches the spec name and sums the same way.",
+    "evidence": [
+     {
+      "file": "SPEC.md",
+      "lineStart": 35,
+      "lineEnd": 35,
+      "quote": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+      "relevance": "SPEC T3 names launchRetryAttempts as a summary field"
+     },
+     {
+      "file": "SPEC.md",
+      "lineStart": 36,
+      "lineEnd": 36,
+      "quote": "이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).",
+      "relevance": "SPEC states both field names are a public contract read by external tools"
+     },
+     {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 33,
+      "lineEnd": 33,
+      "quote": "launchRetries: number;",
+      "relevance": "WorkflowTerminalSummary interface exposes launchRetries, not launchRetryAttempts"
+     },
+     {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 107,
+      "lineEnd": 107,
+      "quote": "launchRetries: run.tasks.reduce(",
+      "relevance": "summarizeWorkflowTerminal populates launchRetries, so the returned summary uses the wrong name"
+     }
+    ],
+    "counterEvidence": [],
+    "recommendedAction": "Rename the launchRetries field in WorkflowTerminalSummary and its return object to launchRetryAttempts, then update any consumers. Add a unit test that asserts the summary field name and the per-task sum of launchRetry.attempts (T3, Q1).",
+    "originalCandidate": {
+     "id": "finding-005",
+     "requirementIds": [
+      "REQ-012"
+     ],
+     "severity": "high",
+     "title": "launchRetryAttempts 공개 필드명 누락, launchRetries로 노출됨",
+     "claim": "요약 필드가 launchRetries이고 SPEC이 공개 계약으로 지정한 launchRetryAttempts가 없다. 외부 도구가 읽는 필드명이 달라진다. outputRetryAttempts는 이름과 합산 모두 일치한다.",
+     "specEvidence": [
+      "SPEC.md L35-36: outputRetryAttempts와 launchRetryAttempts는 모든 작업 재시도 합, 두 이름은 공개 계약이다"
+     ],
+     "implementationEvidence": [
+      "src/workflow-terminal.ts:33 launchRetries: number;",
+      "src/workflow-terminal.ts:107 launchRetries: run.tasks.reduce("
+     ],
+     "testEvidence": [
+      "테스트 없음"
+     ],
+     "uncertainty": "외부 소비자가 실제로 launchRetries를 읽는지는 확인하지 못했다."
+    }
+   },
+   {
+    "id": "finding-006",
+    "verdict": "KEEP",
+    "severity": "low",
+    "title": "S·C·T 항목에 대한 단위 테스트가 저장소에 없음",
+    "requirementIds": [
+     "REQ-013"
+    ],
+    "claim": "Q1 requires per-item unit tests for S1–S7, C1–C2, T1–T3, but the repository has no test files (no *.test/*.spec files and no test directories) and package.json declares no test runner or test script (only typecheck). The requirement is therefore unevidenced in this repository.",
+    "evidence": [
+     {
+      "file": "SPEC.md",
+      "lineStart": 40,
+      "lineEnd": 40,
+      "quote": "단위 테스트가 있어야 한다",
+      "relevance": "Q1 requires a unit test for each S/C/T item in the repository"
+     },
+     {
+      "file": "package.json",
+      "lineStart": 7,
+      "lineEnd": 7,
+      "quote": "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+      "relevance": "The only declared script is typecheck; no test runner or test script is declared"
+     }
+    ],
+    "counterEvidence": [
+     {
+      "file": "SPEC.md",
+      "lineStart": 4,
+      "lineEnd": 4,
+      "quote": "이 발췌에 포함되지 않는다",
+      "relevance": "Scope caveat: this is an excerpt, so tests may exist outside the provided repository content; this does not show tests exist"
+     }
+    ],
+    "recommendedAction": "Add unit tests covering S1–S7, C1–C2, and T1–T3 to the repository and add a test script to package.json, or confirm the tests live in a location outside this excerpt.",
+    "originalCandidate": {
+     "id": "finding-006",
+     "requirementIds": [
+      "REQ-013"
+     ],
+     "severity": "low",
+     "title": "S·C·T 항목에 대한 단위 테스트가 저장소에 없음",
+     "claim": "Q1은 S·C·T 항목마다 단위 테스트를 요구하지만 저장소에서 테스트 파일이나 테스트 러너 사용 흔적을 찾지 못했다.",
+     "specEvidence": [
+      "SPEC.md L40: S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다"
+     ],
+     "implementationEvidence": [
+      "src/workflow-stop.ts, src/workflow-cancellation.ts, src/workflow-terminal.ts에 테스트 관련 export나 import 없음"
+     ],
+     "testEvidence": [
+      "Glob **/*.{test,spec}.{ts,js,mjs,cjs,tsx}: 결과 없음",
+      "Grep describe( / node:test / vitest / jest 패턴(node_modules 제외): 결과 없음"
+     ],
+     "uncertainty": "테스트가 저장소 밖이나 다른 명명 규칙에 있을 가능성은 배제하지 못했다."
+    }
+   }
+  ],
+  "droppedFindings": [],
+  "needsHuman": [
+   {
+    "source": "candidate-source",
+    "id": "needs-001",
+    "requirementIds": [
+     "REQ-010"
+    ],
+    "origin": {
+     "kind": "candidate-source"
+    },
+    "reason": "T1이 direct-dynamic completed 실행에도 적용되는지 SPEC 발췌만으로 판단할 수 없다.",
+    "uncertainty": "dynamic 분기 덮어쓰기가 의도된 예외인지 불명확하다.",
+    "finalClaim": "No final verifier claim was supplied; the item remains unresolved.",
+    "recommendedAction": "SPEC 작성자에게 dynamic 실행의 T1 적용 범위를 확인한다.",
+    "evidenceStatus": "unavailable"
+   }
+  ],
+  "missingVerifications": [],
+  "invalidVerifierResults": [],
+  "orphanVerifierResults": [],
+  "noIssueNotes": [
+   "S1: 디스크 intent와 launch signal 두 경로를 모두 감시한다(workflow-stop.ts:70-78).",
+   "S4: 감시 경로는 읽기 오류를 삼키고, throwIfWorkflowStopRequested는 catch 없이 전달한다(:74-76, :95).",
+   "S5: dispose는 interval만 정리하고 새 타이머 읽기를 만들지 않는다(:81, :85).",
+   "S7: 같은 signal을 두 번 등록해도 Set이 합치며, 마지막 해제 시 실행 키를 삭제한다(:14-21).",
+   "C2: parsed !== value 가드는 사실상 죽은 코드지만, 재귀는 문자열이 매번 짧아져 종료된다.",
+   "T2: control 읽기 실패나 controller 부재 시 control이 undefined가 되어 completed_without_semantic_result로 떨어진다(terminal.ts:57-61, :95)."
+  ],
+  "scopeLimitations": [
+   {
+    "kind": "NONBLOCKING",
+    "text": "src/ 세 모듈(workflow-stop, workflow-cancellation, workflow-terminal)만 직접 읽었다. store.js·types.js와 readWorkflowStopIntent 등 의존 구현은 확인하지 않았다.",
+    "blocking": false
+   },
+   {
+    "kind": "NONBLOCKING",
+    "text": "테스트는 실행하지 않았다(read-only). 테스트 부재는 Grep/Glob 탐색 결과로만 판단했고, Q1 근거로만 사용했다.",
+    "blocking": false
+   },
+   {
+    "kind": "NONBLOCKING",
+    "text": "REQ-001~013과 S/C/T/Q 라벨의 대응은 추출 순서와 implementationMap 라벨을 따른 추정이다. extract-spec 행에는 라벨 필드가 없다.",
+    "blocking": false
+   },
+   {
+    "kind": "NONBLOCKING",
+    "text": "C2 무한 재귀 없음은 JSON.parse 결과가 매 단계 더 짧은 문자열을 파싱한다는 논리로 판단했고, 실행으로 검증하지 않았다.",
+    "blocking": false
+   }
+  ],
+  "testExecutionAttested": false,
+  "readProjection": {
+   "candidateIds": [
+    "finding-001",
+    "finding-002",
+    "finding-003",
+    "finding-004",
+    "finding-005",
+    "finding-006"
+   ],
+   "requirementIds": [
+    "REQ-001",
+    "REQ-002",
+    "REQ-003",
+    "REQ-004",
+    "REQ-005",
+    "REQ-006",
+    "REQ-007",
+    "REQ-008",
+    "REQ-009",
+    "REQ-010",
+    "REQ-011",
+    "REQ-012",
+    "REQ-013"
+   ],
+   "finalIds": [
+    "finding-001",
+    "finding-002",
+    "finding-003",
+    "finding-004",
+    "finding-005",
+    "finding-006"
+   ],
+   "droppedIds": [],
+   "needsHumanIds": [
+    "needs-001"
+   ],
+   "ledgerVerdict": "GAPS_FOUND"
+  },
+  "digest": "sha256:c4e893e9f7f6feab44f9124e707c8abd2675f2c05ddb2f4ce780587922d7999e"
+ },
+ "final.main": {
+  "schema": "spec-review-render-v1",
+  "digest": "sha256:9c4c3a3df5b57bc705e28d5c97caac0a41995e13f69b6e9c63dd521dc7f87795",
+  "status": "passed",
+  "blockers": [
+   "1 needs-human row(s) remain unresolved (see Needs human review)."
+  ],
+  "completionSummaryMarkdown": "## Core conclusion\n\nVerdict: **GAPS_FOUND**. 6개 후보가 모두 검증되었습니다(KEEP 3, WEAKEN 3). S3·S6·C1·T1·T3·Q1에 gap 또는 partial이 있고, S1·S2·S4·S5·S7·C2·T2는 충족으로 판단됩니다. T1의 direct-dynamic 적용 범위는 needs-001로 미해결입니다.\n\n## Key gaps and actions\n\n- **KEEP:** 중지 감시 주기 기본값과 하한이 SPEC과 다름 — Action: pollMs 기본값을 50으로, 하한을 10으로 맞추고(Math.max(10, options.pollMs ?? 50)), 기본값과 하한을 확인하는 단위 테스트를 추가한다.\n- **WEAKEN:** isWorkflowStopRequestedError가 메시지 접두사로도 판별함 — Action: Remove the message-prefix branch so only error.name === WORKFLOW\\_STOP\\_REQUESTED\\_ERROR\\_NAME counts, and add a unit test that a non-named error with the stop message is rejected (Q1 coverage for S6).\n- **WEAKEN:** 취소 판별이 SPEC의 정확한 세 마커 외 값과 플래그를 취소로 승격함 — Action: line 20의 'cancelled'·'timeout' 비교를 제거하고 세 값만 남긴다. 'timeout'을 의도된 확장으로 본다면 SPEC C1을 먼저 개정한다. 플래그(16·18행) 처리는 SPEC 해석을 확인한 뒤 결정한다. C1 단위 테스트를 추가한다.\n- **WEAKEN:** direct-dynamic completed\\+degradation 실행이 completed\\_degraded로 남지 않을 수 있음 — Action: SPEC에 T1의 dynamic 적용 여부를 명시받은 뒤, 적용된다면 direct-dynamic 분기에서 completed\\+degradation일 때 completed\\_degraded를 우선하도록 수정하고 해당 케이스 단위 테스트를 추가한다. 예외라면 SPEC에 예외를 명시한다.\n- **Next action:** S3는 pollMs 기본값을 50ms, 하한을 10ms로 맞추고 테스트를 추가하십시오. S6는 메시지 접두사 분기를 제거하십시오. C1은 'cancelled'·'timeout' 비교와 플래그 처리를 SPEC 해석에 맞게 정리하십시오. T3는 launchRetries를 launchRetryAttempts로 바꾸십시오. T1의 dynamic 적용 범위는 SPEC 작성자에게 확인하십시오. 마지막으로 단위 테스트와 test 스크립트를 추가하십시오.\n- 3 additional disposition row(s) are covered in the full report.\n\n## Evidence level\n\n- 6 actionable, 1 needs-human, and 0 dropped canonical disposition row(s).\n- Source lifecycle and candidate/verifier accounting passed deterministic completeness checks.\n\n## Important limitations\n\n- 1 needs-human row(s) remain unresolved (see Needs human review).\n- NONBLOCKING scope limitation: src/ 세 모듈(workflow-stop, workflow-cancellation, workflow-terminal)만 직접 읽었다. store.js·types.js와 readWorkflowStopIntent 등 의존 구현은 확인하지 않았다.\n- NONBLOCKING scope limitation: 테스트는 실행하지 않았다(read-only). 테스트 부재는 Grep/Glob 탐색 결과로만 판단했고, Q1 근거로만 사용했다.\n- NONBLOCKING scope limitation: REQ-001~013과 S/C/T/Q 라벨의 대응은 추출 순서와 implementationMap 라벨을 따른 추정이다. extract-spec 행에는 라벨 필드가 없다.\n- NONBLOCKING scope limitation: C2 무한 재귀 없음은 JSON.parse 결과가 매 단계 더 짧은 문자열을 파싱한다는 논리로 판단했고, 실행으로 검증하지 않았다.\n- S3: pollMs 기본값이 200ms, 하한이 1ms로 SPEC(50ms, 하한 10ms)과 다르며 이를 검증하는 테스트가 없음 (finding-001, KEEP, medium)",
+  "markdown": "# Spec review report\n\n## Executive summary\n\n### Core conclusion\n\nVerdict: **GAPS_FOUND**. 6개 후보가 모두 검증되었습니다(KEEP 3, WEAKEN 3). S3·S6·C1·T1·T3·Q1에 gap 또는 partial이 있고, S1·S2·S4·S5·S7·C2·T2는 충족으로 판단됩니다. T1의 direct-dynamic 적용 범위는 needs-001로 미해결입니다.\n\n### Key gaps and actions\n\n- **KEEP:** 중지 감시 주기 기본값과 하한이 SPEC과 다름 — Action: pollMs 기본값을 50으로, 하한을 10으로 맞추고(Math.max(10, options.pollMs ?? 50)), 기본값과 하한을 확인하는 단위 테스트를 추가한다.\n- **WEAKEN:** isWorkflowStopRequestedError가 메시지 접두사로도 판별함 — Action: Remove the message-prefix branch so only error.name === WORKFLOW\\_STOP\\_REQUESTED\\_ERROR\\_NAME counts, and add a unit test that a non-named error with the stop message is rejected (Q1 coverage for S6).\n- **WEAKEN:** 취소 판별이 SPEC의 정확한 세 마커 외 값과 플래그를 취소로 승격함 — Action: line 20의 'cancelled'·'timeout' 비교를 제거하고 세 값만 남긴다. 'timeout'을 의도된 확장으로 본다면 SPEC C1을 먼저 개정한다. 플래그(16·18행) 처리는 SPEC 해석을 확인한 뒤 결정한다. C1 단위 테스트를 추가한다.\n- **WEAKEN:** direct-dynamic completed\\+degradation 실행이 completed\\_degraded로 남지 않을 수 있음 — Action: SPEC에 T1의 dynamic 적용 여부를 명시받은 뒤, 적용된다면 direct-dynamic 분기에서 completed\\+degradation일 때 completed\\_degraded를 우선하도록 수정하고 해당 케이스 단위 테스트를 추가한다. 예외라면 SPEC에 예외를 명시한다.\n- **Next action:** S3는 pollMs 기본값을 50ms, 하한을 10ms로 맞추고 테스트를 추가하십시오. S6는 메시지 접두사 분기를 제거하십시오. C1은 'cancelled'·'timeout' 비교와 플래그 처리를 SPEC 해석에 맞게 정리하십시오. T3는 launchRetries를 launchRetryAttempts로 바꾸십시오. T1의 dynamic 적용 범위는 SPEC 작성자에게 확인하십시오. 마지막으로 단위 테스트와 test 스크립트를 추가하십시오.\n- 3 additional disposition row(s) are covered in the full report.\n\n### Evidence level\n\n- 6 actionable, 1 needs-human, and 0 dropped canonical disposition row(s).\n- Source lifecycle and candidate/verifier accounting passed deterministic completeness checks.\n\n### Important limitations\n\n- 1 needs-human row(s) remain unresolved (see Needs human review).\n- NONBLOCKING scope limitation: src/ 세 모듈(workflow-stop, workflow-cancellation, workflow-terminal)만 직접 읽었다. store.js·types.js와 readWorkflowStopIntent 등 의존 구현은 확인하지 않았다.\n- NONBLOCKING scope limitation: 테스트는 실행하지 않았다(read-only). 테스트 부재는 Grep/Glob 탐색 결과로만 판단했고, Q1 근거로만 사용했다.\n- NONBLOCKING scope limitation: REQ-001~013과 S/C/T/Q 라벨의 대응은 추출 순서와 implementationMap 라벨을 따른 추정이다. extract-spec 행에는 라벨 필드가 없다.\n- NONBLOCKING scope limitation: C2 무한 재귀 없음은 JSON.parse 결과가 매 단계 더 짧은 문자열을 파싱한다는 논리로 판단했고, 실행으로 검증하지 않았다.\n- S3: pollMs 기본값이 200ms, 하한이 1ms로 SPEC(50ms, 하한 10ms)과 다르며 이를 검증하는 테스트가 없음 (finding-001, KEEP, medium)\n\n## Conformance conclusion\n\n- Effective verdict: **GAPS_FOUND**\n- Narrative summary: 6개 후보가 모두 검증되었습니다(KEEP 3, WEAKEN 3). S3·S6·C1·T1·T3·Q1에 gap 또는 partial이 있고, S1·S2·S4·S5·S7·C2·T2는 충족으로 판단됩니다. T1의 direct-dynamic 적용 범위는 needs-001로 미해결입니다.\n\n## Actionable conformance gaps\n\n### finding-001 — 중지 감시 주기 기본값과 하한이 SPEC과 다름\n\n- Disposition: **KEEP**\n- Severity: **medium**\n- Requirements: REQ-003\n- Claim: src/workflow-stop.ts의 createWorkflowStopSignal은 pollMs 기본값을 200ms, 하한을 1ms로 두어 SPEC S3(기본 50ms, 하한 10ms)와 어긋난다. 이 값을 검증하는 테스트도 없다.\n- Recommended action: pollMs 기본값을 50으로, 하한을 10으로 맞추고(Math.max(10, options.pollMs ?? 50)), 기본값과 하한을 확인하는 단위 테스트를 추가한다.\n\nEvidence:\n\n```json\n{\"file\":\"SPEC.md\",\"lineEnd\":13,\"lineStart\":13,\"quote\":\"- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\",\"relevance\":\"S3 requires default pollMs of 50ms and no value below 10ms\"}\n```\n\n```json\n{\"file\":\"src/workflow-stop.ts\",\"lineEnd\":67,\"lineStart\":67,\"quote\":\"const pollMs = Math.max(1, options.pollMs ?? 200);\",\"relevance\":\"Implementation defaults pollMs to 200 and floors it at 1, both contrary to S3\"}\n```\n\n### finding-002 — isWorkflowStopRequestedError가 메시지 접두사로도 판별함\n\n- Disposition: **WEAKEN**\n- Severity: **medium**\n- Requirements: REQ-006\n- Claim: isWorkflowStopRequestedError (src/workflow-stop.ts:53-59) returns true for any Error whose message starts with 'workflow stop requested', not only for name WorkflowStopRequested, which violates SPEC S6. The repository has no callers of this function and no test covering S6, so practical impact is limited.\n- Recommended action: Remove the message-prefix branch so only error.name === WORKFLOW\\_STOP\\_REQUESTED\\_ERROR\\_NAME counts, and add a unit test that a non-named error with the stop message is rejected (Q1 coverage for S6).\n\nEvidence:\n\n```json\n{\"file\":\"src/workflow-stop.ts\",\"lineEnd\":59,\"lineStart\":53,\"quote\":\"error.message.startsWith(\\\"workflow stop requested\\\"))\",\"relevance\":\"Implementation accepts a message prefix as well as the error name, contrary to S6's name-only rule.\"}\n```\n\n```json\n{\"file\":\"SPEC.md\",\"lineEnd\":19,\"lineStart\":18,\"quote\":\"메시지 내용으로 판별해서는 안 된다.\",\"relevance\":\"S6 explicitly forbids identifying stop errors by message content.\"}\n```\n\n### finding-003 — 취소 판별이 SPEC의 정확한 세 마커 외 값과 플래그를 취소로 승격함\n\n- Disposition: **WEAKEN**\n- Severity: **high**\n- Requirements: REQ-008\n- Claim: src/workflow-cancellation.ts:20이 error/reason 문자열 'cancelled'와 'timeout'을 취소로 승격하여 SPEC C1의 정확한 세 값(aborted, AbortError, ABORT\\_ERR) 제한을 위반한다. 관련 테스트는 없다.\n- Recommended action: line 20의 'cancelled'·'timeout' 비교를 제거하고 세 값만 남긴다. 'timeout'을 의도된 확장으로 본다면 SPEC C1을 먼저 개정한다. 플래그(16·18행) 처리는 SPEC 해석을 확인한 뒤 결정한다. C1 단위 테스트를 추가한다.\n\nEvidence:\n\n```json\n{\"file\":\"src/workflow-cancellation.ts\",\"lineEnd\":20,\"lineStart\":20,\"quote\":\"candidate === \\\"cancelled\\\" || candidate === \\\"timeout\\\"\",\"relevance\":\"error/reason 문자열 'cancelled'와 'timeout'을 취소로 판정. SPEC C1의 정확한 세 값 목록에 없음\"}\n```\n\n```json\n{\"file\":\"SPEC.md\",\"lineEnd\":26,\"lineStart\":26,\"quote\":\"세 가지만 취소로 인정한다\",\"relevance\":\"C1: 세 값만 취소로 인정, 다른 provider 오류를 취소로 승격 금지\"}\n```\n\n```json\n{\"file\":\"SPEC.md\",\"lineEnd\":25,\"lineStart\":25,\"quote\":\"오류·사유 문자열은 정확히\",\"relevance\":\"C1 적용 대상은 오류·사유 문자열로 한정됨\"}\n```\n\n### finding-004 — direct-dynamic completed\\+degradation 실행이 completed\\_degraded로 남지 않을 수 있음\n\n- Disposition: **WEAKEN**\n- Severity: **low**\n- Requirements: REQ-010\n- Claim: direct-dynamic 분기는 terminal completed 실행이라도 run.degradation을 무시하고 control.json 상태(synthesized 등)로 semanticStatus를 덮어써 completed\\_degraded가 남지 않을 수 있다. 다만 SPEC 발췌상 T1이 dynamic 실행에 적용되는지는 확정되지 않아 조건부 결함이다.\n- Recommended action: SPEC에 T1의 dynamic 적용 여부를 명시받은 뒤, 적용된다면 direct-dynamic 분기에서 completed\\+degradation일 때 completed\\_degraded를 우선하도록 수정하고 해당 케이스 단위 테스트를 추가한다. 예외라면 SPEC에 예외를 명시한다.\n\nEvidence:\n\n```json\n{\"file\":\"src/workflow-terminal.ts\",\"lineEnd\":68,\"lineStart\":68,\"quote\":\"return run.degradation ? \\\"completed_degraded\\\" : \\\"completed\\\";\",\"relevance\":\"non-dynamic 경로는 completed+degradation을 completed_degraded로 매핑한다\"}\n```\n\n```json\n{\"file\":\"src/workflow-terminal.ts\",\"lineEnd\":80,\"lineStart\":80,\"quote\":\"if (terminal && run.provenance?.mode === \\\"direct-dynamic\\\") {\",\"relevance\":\"direct-dynamic 분기가 nonDynamicSemanticStatus 결과를 뒤에서 덮어쓴다\"}\n```\n\n```json\n{\"file\":\"src/workflow-terminal.ts\",\"lineEnd\":87,\"lineStart\":87,\"quote\":\"else if (control?.status === \\\"synthesized\\\") semanticStatus = \\\"synthesized\\\";\",\"relevance\":\"run.degradation과 무관하게 control.json 상태로 semanticStatus가 synthesized가 된다(completed_degraded가 남지 않는 경로)\"}\n```\n\n```json\n{\"file\":\"SPEC.md\",\"lineEnd\":32,\"lineStart\":32,\"quote\":\"- **T1.** `completed` 실행에 degradation 기록이 있으면 의미 상태는 `completed_degraded`이다.\",\"relevance\":\"T1은 completed 실행 일반에 대한 무조건적 규칙으로 쓰여 있다\"}\n```\n\n```json\n{\"file\":\"SPEC.md\",\"lineEnd\":33,\"lineStart\":33,\"quote\":\"- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는\",\"relevance\":\"direct-dynamic 전용 규칙은 T2(읽기 불가 시)뿐이며 T1 예외를 명시하지 않는다\"}\n```\n\n### finding-005 — launchRetryAttempts 공개 필드명 누락, launchRetries로 노출됨\n\n- Disposition: **KEEP**\n- Severity: **high**\n- Requirements: REQ-012\n- Claim: summarizeWorkflowTerminal's summary field is named launchRetries, but SPEC T3 requires the public field name launchRetryAttempts, which is absent from src/workflow-terminal.ts. outputRetryAttempts matches the spec name and sums the same way.\n- Recommended action: Rename the launchRetries field in WorkflowTerminalSummary and its return object to launchRetryAttempts, then update any consumers. Add a unit test that asserts the summary field name and the per-task sum of launchRetry.attempts (T3, Q1).\n\nEvidence:\n\n```json\n{\"file\":\"SPEC.md\",\"lineEnd\":35,\"lineStart\":35,\"quote\":\"- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\",\"relevance\":\"SPEC T3 names launchRetryAttempts as a summary field\"}\n```\n\n```json\n{\"file\":\"SPEC.md\",\"lineEnd\":36,\"lineStart\":36,\"quote\":\"이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).\",\"relevance\":\"SPEC states both field names are a public contract read by external tools\"}\n```\n\n```json\n{\"file\":\"src/workflow-terminal.ts\",\"lineEnd\":33,\"lineStart\":33,\"quote\":\"launchRetries: number;\",\"relevance\":\"WorkflowTerminalSummary interface exposes launchRetries, not launchRetryAttempts\"}\n```\n\n```json\n{\"file\":\"src/workflow-terminal.ts\",\"lineEnd\":107,\"lineStart\":107,\"quote\":\"launchRetries: run.tasks.reduce(\",\"relevance\":\"summarizeWorkflowTerminal populates launchRetries, so the returned summary uses the wrong name\"}\n```\n\n### finding-006 — S·C·T 항목에 대한 단위 테스트가 저장소에 없음\n\n- Disposition: **KEEP**\n- Severity: **low**\n- Requirements: REQ-013\n- Claim: Q1 requires per-item unit tests for S1–S7, C1–C2, T1–T3, but the repository has no test files (no \\*.test/\\*.spec files and no test directories) and package.json declares no test runner or test script (only typecheck). The requirement is therefore unevidenced in this repository.\n- Recommended action: Add unit tests covering S1–S7, C1–C2, and T1–T3 to the repository and add a test script to package.json, or confirm the tests live in a location outside this excerpt.\n\nEvidence:\n\n```json\n{\"file\":\"SPEC.md\",\"lineEnd\":40,\"lineStart\":40,\"quote\":\"단위 테스트가 있어야 한다\",\"relevance\":\"Q1 requires a unit test for each S/C/T item in the repository\"}\n```\n\n```json\n{\"file\":\"package.json\",\"lineEnd\":7,\"lineStart\":7,\"quote\":\"\\\"scripts\\\": { \\\"typecheck\\\": \\\"tsc --noEmit\\\" }\",\"relevance\":\"The only declared script is typecheck; no test runner or test script is declared\"}\n```\n\n## Requirement coverage\n\n| Requirement | Status | Notes |\n|---|---|---|\n| REQ-001 | covered |  |\n| REQ-002 | covered |  |\n| REQ-003 | gap |  |\n| REQ-004 | covered |  |\n| REQ-005 | covered |  |\n| REQ-006 | gap |  |\n| REQ-007 | covered |  |\n| REQ-008 | gap |  |\n| REQ-009 | covered |  |\n| REQ-010 | partial |  |\n| REQ-011 | covered |  |\n| REQ-012 | partial |  |\n| REQ-013 | gap |  |\n\n## Nonblocking scope limitations\n\n- src/ 세 모듈(workflow-stop, workflow-cancellation, workflow-terminal)만 직접 읽었다. store.js·types.js와 readWorkflowStopIntent 등 의존 구현은 확인하지 않았다.\n- 테스트는 실행하지 않았다(read-only). 테스트 부재는 Grep/Glob 탐색 결과로만 판단했고, Q1 근거로만 사용했다.\n- REQ-001~013과 S/C/T/Q 라벨의 대응은 추출 순서와 implementationMap 라벨을 따른 추정이다. extract-spec 행에는 라벨 필드가 없다.\n- C2 무한 재귀 없음은 JSON.parse 결과가 매 단계 더 짧은 문자열을 파싱한다는 논리로 판단했고, 실행으로 검증하지 않았다.\n\n## Needs human review\n\n### needs-001 — Needs human review\n\n- Source/disposition: candidate-source\n- Reason: T1이 direct-dynamic completed 실행에도 적용되는지 SPEC 발췌만으로 판단할 수 없다.\n- Requirements: REQ-010\n- Uncertainty: dynamic 분기 덮어쓰기가 의도된 예외인지 불명확하다.\n- Recommended action: SPEC 작성자에게 dynamic 실행의 T1 적용 범위를 확인한다.\n\n## Dropped findings\n\nNo dropped finding is present in the canonical ledger.\n\n## Preliminary no-issue observations (unverified)\n\nThese model-authored notes are not independent conformance evidence.\n\n- S1: 디스크 intent와 launch signal 두 경로를 모두 감시한다(workflow-stop.ts:70-78).\n- S4: 감시 경로는 읽기 오류를 삼키고, throwIfWorkflowStopRequested는 catch 없이 전달한다(:74-76, :95).\n- S5: dispose는 interval만 정리하고 새 타이머 읽기를 만들지 않는다(:81, :85).\n- S7: 같은 signal을 두 번 등록해도 Set이 합치며, 마지막 해제 시 실행 키를 삭제한다(:14-21).\n- C2: parsed !== value 가드는 사실상 죽은 코드지만, 재귀는 문자열이 매번 짧아져 종료된다.\n- T2: control 읽기 실패나 controller 부재 시 control이 undefined가 되어 completed\\_without\\_semantic\\_result로 떨어진다(terminal.ts:57-61, :95).\n\n## Narrative risks and limitations\n\n- S3: pollMs 기본값이 200ms, 하한이 1ms로 SPEC(50ms, 하한 10ms)과 다르며 이를 검증하는 테스트가 없음 (finding-001, KEEP, medium)\n- S6: isWorkflowStopRequestedError가 메시지 접두사로도 중지 오류를 판별함. SPEC은 이름만 허용 (finding-002, WEAKEN, medium). 호출자와 테스트 없음\n- C1: 'cancelled'와 'timeout' 문자열 및 value.cancelled·details.cancelled 플래그를 취소로 승격함. SPEC은 세 값만 허용 (finding-003, WEAKEN, high)\n- T1: direct-dynamic 분기가 completed\\+degradation 결과를 덮어써 completed\\_degraded가 남지 않을 수 있음 (finding-004, WEAKEN, low). 조건부 결함\n- T3: 요약 필드가 launchRetries로 노출되고 SPEC의 공개 계약명 launchRetryAttempts가 없음 (finding-005, KEEP, high)\n- Q1: 저장소에 테스트 파일과 테스트 스크립트가 없음. 단위 테스트 근거 없음 (finding-006, KEEP, low)\n- needs-001: T1이 direct-dynamic completed 실행에도 적용되는지 SPEC 발췌만으로 확정되지 않음. 해결되지 않은 상태 (REQ-010)\n\n## Verifier integrity\n\n- Candidates: 6 total; 6 unique.\n- Verifier rows: 6 total; 6 unique.\n- Missing verification rows: 0 (their dispositions are rendered once under Needs human review).\n- Orphan verifier rows: 0 (their dispositions are rendered once under Needs human review).\n- Invalid verifier rows: 0.\n- Batch-integrity rows: 0 (affected dispositions are rendered once under Needs human review).\n- Owner ledger: 6 owner row(s), 6 verifier row(s); reconciliation passed.\n\n## Byte evidence audit\n\n```json\n{\"complete\":false,\"coverage\":[{\"accountedBy\":[],\"complete\":true,\"id\":\"REQ-001\",\"index\":0,\"positive\":true,\"rows\":[{\"citation\":{\"file\":\"src/workflow-stop.ts\",\"lineEnd\":78,\"lineStart\":77,\"quote\":\"if (intent || launchStopRequested(cwd, runId))\",\"relevance\":\"디스크 intent 또는 launch signal 감지 시 abort\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/workflow-stop.ts\",\"lineEnd\":71,\"lineStart\":70,\"quote\":\"if (launchStopRequested(cwd, runId)) {\",\"relevance\":\"foreground signal 경로\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0\",\"status\":\"verified\"}],\"status\":\"covered\",\"verdict\":\"KEEP\"},{\"accountedBy\":[],\"complete\":true,\"id\":\"REQ-002\",\"index\":1,\"positive\":true,\"rows\":[{\"citation\":{\"file\":\"src/workflow-stop.ts\",\"lineEnd\":49,\"lineStart\":49,\"quote\":\"error.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME;\",\"relevance\":\"오류 이름 설정\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/workflow-stop.ts\",\"lineEnd\":44,\"lineStart\":44,\"quote\":\"workflow stop requested for ${runId}\",\"relevance\":\"메시지 형식\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0\",\"status\":\"verified\"}],\"status\":\"covered\",\"verdict\":\"KEEP\"},{\"accountedBy\":[\"finding-001\"],\"complete\":true,\"id\":\"REQ-003\",\"index\":2,\"positive\":false,\"rows\":[{\"citation\":{\"file\":\"src/workflow-stop.ts\",\"lineEnd\":67,\"lineStart\":67,\"quote\":\"const pollMs = Math.max(1, options.pollMs ?? 200);\",\"relevance\":\"기본값 200, 하한 1 (SPEC: 50, 하한 10)\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0\",\"status\":\"verified\"}],\"status\":\"gap\",\"verdict\":\"KEEP\"},{\"accountedBy\":[],\"complete\":true,\"id\":\"REQ-004\",\"index\":3,\"positive\":true,\"rows\":[{\"citation\":{\"file\":\"src/workflow-stop.ts\",\"lineEnd\":76,\"lineStart\":74,\"quote\":\"const intent = await readWorkflowStopIntent(cwd, runId).catch(\",\"relevance\":\"감시 경로에서 읽기 오류 삼킴\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/workflow-stop.ts\",\"lineEnd\":95,\"lineStart\":95,\"quote\":\"const intent = await readWorkflowStopIntent(cwd, runId);\",\"relevance\":\"throwIfWorkflowStopRequested는 catch 없음\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0\",\"status\":\"verified\"}],\"status\":\"covered\",\"verdict\":\"KEEP\"},{\"accountedBy\":[],\"complete\":true,\"id\":\"REQ-005\",\"index\":4,\"positive\":true,\"rows\":[{\"citation\":{\"file\":\"src/workflow-stop.ts\",\"lineEnd\":81,\"lineStart\":81,\"quote\":\"const timer = setInterval(() => void check(), pollMs);\",\"relevance\":\"타이머 기반 반복 읽기\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/workflow-stop.ts\",\"lineEnd\":85,\"lineStart\":85,\"quote\":\"dispose: () => clearInterval(timer),\",\"relevance\":\"dispose는 interval 정리, 새 타이머 읽기 없음\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0\",\"status\":\"verified\"}],\"status\":\"covered\",\"verdict\":\"KEEP\"},{\"accountedBy\":[\"finding-002\"],\"complete\":true,\"id\":\"REQ-006\",\"index\":5,\"positive\":false,\"rows\":[{\"citation\":{\"file\":\"src/workflow-stop.ts\",\"lineEnd\":57,\"lineStart\":53,\"quote\":\"error.message.startsWith(\",\"relevance\":\"메시지 접두사로도 중지 판별\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0\",\"status\":\"verified\"}],\"status\":\"gap\",\"verdict\":\"KEEP\"},{\"accountedBy\":[],\"complete\":true,\"id\":\"REQ-007\",\"index\":6,\"positive\":true,\"rows\":[{\"citation\":{\"file\":\"src/workflow-stop.ts\",\"lineEnd\":21,\"lineStart\":17,\"quote\":\"signals.delete(signal);\",\"relevance\":\"해제 함수가 signal 제거\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/workflow-stop.ts\",\"lineEnd\":20,\"lineStart\":19,\"quote\":\"if (signals.size === 0 && launchSignals.get(key) === signals)\",\"relevance\":\"마지막 signal 해제 시 실행 키 삭제\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0\",\"status\":\"verified\"}],\"status\":\"covered\",\"verdict\":\"KEEP\"},{\"accountedBy\":[\"finding-003\"],\"complete\":true,\"id\":\"REQ-008\",\"index\":7,\"positive\":false,\"rows\":[{\"citation\":{\"file\":\"src/workflow-cancellation.ts\",\"lineEnd\":20,\"lineStart\":20,\"quote\":\"candidate === \\\"cancelled\\\" || candidate === \\\"timeout\\\"\",\"relevance\":\"SPEC 외 취소 마커 2개 추가\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"e74c61f65c535b5f08993815d94e81ee7cd0aebfdd357555a133a9a381b627e3\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/workflow-cancellation.ts\",\"lineEnd\":16,\"lineStart\":16,\"quote\":\"if (value.cancelled === true) return true;\",\"relevance\":\"SPEC에 없는 boolean 플래그도 취소로 인정\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"e74c61f65c535b5f08993815d94e81ee7cd0aebfdd357555a133a9a381b627e3\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/workflow-cancellation.ts\",\"lineEnd\":18,\"lineStart\":18,\"quote\":\"if (details?.cancelled === true) return true;\",\"relevance\":\"details 플래그도 취소로 인정\"},\"field\":\"evidence\",\"index\":2,\"sha256\":\"e74c61f65c535b5f08993815d94e81ee7cd0aebfdd357555a133a9a381b627e3\",\"status\":\"verified\"}],\"status\":\"gap\",\"verdict\":\"KEEP\"},{\"accountedBy\":[],\"complete\":true,\"id\":\"REQ-009\",\"index\":8,\"positive\":true,\"rows\":[{\"citation\":{\"file\":\"src/workflow-cancellation.ts\",\"lineEnd\":28,\"lineStart\":27,\"quote\":\"const parsed: unknown = JSON.parse(entry.text);\",\"relevance\":\"content 텍스트 JSON 파싱 후 재귀\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"e74c61f65c535b5f08993815d94e81ee7cd0aebfdd357555a133a9a381b627e3\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/workflow-cancellation.ts\",\"lineEnd\":28,\"lineStart\":28,\"quote\":\"if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;\",\"relevance\":\"재귀 호출, 파싱 결과는 항상 더 짧은 문자열에서 생성\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"e74c61f65c535b5f08993815d94e81ee7cd0aebfdd357555a133a9a381b627e3\",\"status\":\"verified\"}],\"status\":\"covered\",\"verdict\":\"KEEP\"},{\"accountedBy\":[\"finding-004\"],\"complete\":true,\"id\":\"REQ-010\",\"index\":9,\"positive\":false,\"rows\":[{\"citation\":{\"file\":\"src/workflow-terminal.ts\",\"lineEnd\":68,\"lineStart\":68,\"quote\":\"return run.degradation ? \\\"completed_degraded\\\" : \\\"completed\\\";\",\"relevance\":\"비동적 completed 경로의 degradation 처리\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/workflow-terminal.ts\",\"lineEnd\":80,\"lineStart\":80,\"quote\":\"if (terminal && run.provenance?.mode === \\\"direct-dynamic\\\") {\",\"relevance\":\"direct-dynamic 분기가 아래에서 semanticStatus를 덮어씀\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1\",\"status\":\"verified\"}],\"status\":\"partial\",\"verdict\":\"KEEP\"},{\"accountedBy\":[],\"complete\":true,\"id\":\"REQ-011\",\"index\":10,\"positive\":true,\"rows\":[{\"citation\":{\"file\":\"src/workflow-terminal.ts\",\"lineEnd\":61,\"lineStart\":59,\"quote\":\"return await readJson<DynamicControllerControl>(\",\"relevance\":\"control.json 읽기\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/workflow-terminal.ts\",\"lineEnd\":95,\"lineStart\":95,\"quote\":\"else semanticStatus = \\\"completed_without_semantic_result\\\";\",\"relevance\":\"control undefined일 때 폴백\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1\",\"status\":\"verified\"}],\"status\":\"covered\",\"verdict\":\"KEEP\"},{\"accountedBy\":[\"finding-005\"],\"complete\":true,\"id\":\"REQ-012\",\"index\":11,\"positive\":false,\"rows\":[{\"citation\":{\"file\":\"src/workflow-terminal.ts\",\"lineEnd\":106,\"lineStart\":103,\"quote\":\"outputRetryAttempts: run.tasks.reduce(\",\"relevance\":\"outputRetryAttempts 합산은 이름 일치\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/workflow-terminal.ts\",\"lineEnd\":33,\"lineStart\":33,\"quote\":\"launchRetries: number;\",\"relevance\":\"SPEC 공개 필드명 launchRetryAttempts와 불일치\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1\",\"status\":\"verified\"}],\"status\":\"partial\",\"verdict\":\"KEEP\"},{\"accountedBy\":[\"finding-006\"],\"complete\":true,\"id\":\"REQ-013\",\"index\":12,\"positive\":false,\"rows\":[],\"status\":\"gap\",\"verdict\":\"KEEP\"}],\"findings\":[{\"complete\":true,\"id\":\"finding-001\",\"rows\":[{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":13,\"lineStart\":13,\"quote\":\"- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\",\"relevance\":\"S3 requires default pollMs of 50ms and no value below 10ms\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/workflow-stop.ts\",\"lineEnd\":67,\"lineStart\":67,\"quote\":\"const pollMs = Math.max(1, options.pollMs ?? 200);\",\"relevance\":\"Implementation defaults pollMs to 200 and floors it at 1, both contrary to S3\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0\",\"status\":\"verified\"}],\"verdict\":\"KEEP\"},{\"complete\":true,\"id\":\"finding-002\",\"rows\":[{\"citation\":{\"file\":\"src/workflow-stop.ts\",\"lineEnd\":59,\"lineStart\":53,\"quote\":\"error.message.startsWith(\\\"workflow stop requested\\\"))\",\"relevance\":\"Implementation accepts a message prefix as well as the error name, contrary to S6's name-only rule.\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"64b82a7bfbeb86d3854a90c12442822153a4ef546106f355d1e8dbefd63225f0\",\"status\":\"verified\"},{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":19,\"lineStart\":18,\"quote\":\"메시지 내용으로 판별해서는 안 된다.\",\"relevance\":\"S6 explicitly forbids identifying stop errors by message content.\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"}],\"verdict\":\"WEAKEN\"},{\"complete\":true,\"id\":\"finding-003\",\"rows\":[{\"citation\":{\"file\":\"src/workflow-cancellation.ts\",\"lineEnd\":20,\"lineStart\":20,\"quote\":\"candidate === \\\"cancelled\\\" || candidate === \\\"timeout\\\"\",\"relevance\":\"error/reason 문자열 'cancelled'와 'timeout'을 취소로 판정. SPEC C1의 정확한 세 값 목록에 없음\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"e74c61f65c535b5f08993815d94e81ee7cd0aebfdd357555a133a9a381b627e3\",\"status\":\"verified\"},{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":26,\"lineStart\":26,\"quote\":\"세 가지만 취소로 인정한다\",\"relevance\":\"C1: 세 값만 취소로 인정, 다른 provider 오류를 취소로 승격 금지\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"},{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":25,\"lineStart\":25,\"quote\":\"오류·사유 문자열은 정확히\",\"relevance\":\"C1 적용 대상은 오류·사유 문자열로 한정됨\"},\"field\":\"evidence\",\"index\":2,\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"},{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":25,\"lineStart\":25,\"quote\":\"오류·사유 문자열은 정확히\",\"relevance\":\"C1의 '정확히 세 가지' 제한은 문자열 값에 대한 것이며 boolean 플래그(value.cancelled, details.cancelled)는 문언상 직접 다루지 않음\"},\"field\":\"counterEvidence\",\"index\":0,\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/workflow-cancellation.ts\",\"lineEnd\":16,\"lineStart\":16,\"quote\":\"if (value.cancelled === true) return true;\",\"relevance\":\"boolean 플래그 검사는 문자열이 아니므로 C1 문언 위반으로 보기 어려움\"},\"field\":\"counterEvidence\",\"index\":1,\"sha256\":\"e74c61f65c535b5f08993815d94e81ee7cd0aebfdd357555a133a9a381b627e3\",\"status\":\"verified\"}],\"verdict\":\"WEAKEN\"},{\"complete\":true,\"id\":\"finding-004\",\"rows\":[{\"citation\":{\"file\":\"src/workflow-terminal.ts\",\"lineEnd\":68,\"lineStart\":68,\"quote\":\"return run.degradation ? \\\"completed_degraded\\\" : \\\"completed\\\";\",\"relevance\":\"non-dynamic 경로는 completed+degradation을 completed_degraded로 매핑한다\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/workflow-terminal.ts\",\"lineEnd\":80,\"lineStart\":80,\"quote\":\"if (terminal && run.provenance?.mode === \\\"direct-dynamic\\\") {\",\"relevance\":\"direct-dynamic 분기가 nonDynamicSemanticStatus 결과를 뒤에서 덮어쓴다\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/workflow-terminal.ts\",\"lineEnd\":87,\"lineStart\":87,\"quote\":\"else if (control?.status === \\\"synthesized\\\") semanticStatus = \\\"synthesized\\\";\",\"relevance\":\"run.degradation과 무관하게 control.json 상태로 semanticStatus가 synthesized가 된다(completed_degraded가 남지 않는 경로)\"},\"field\":\"evidence\",\"index\":2,\"sha256\":\"c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1\",\"status\":\"verified\"},{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":32,\"lineStart\":32,\"quote\":\"- **T1.** `completed` 실행에 degradation 기록이 있으면 의미 상태는 `completed_degraded`이다.\",\"relevance\":\"T1은 completed 실행 일반에 대한 무조건적 규칙으로 쓰여 있다\"},\"field\":\"evidence\",\"index\":3,\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"},{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":33,\"lineStart\":33,\"quote\":\"- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는\",\"relevance\":\"direct-dynamic 전용 규칙은 T2(읽기 불가 시)뿐이며 T1 예외를 명시하지 않는다\"},\"field\":\"evidence\",\"index\":4,\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/workflow-terminal.ts\",\"lineEnd\":22,\"lineStart\":22,\"quote\":\"| \\\"dynamic_blocked\\\"\",\"relevance\":\"dynamic 전용 의미 상태 어휘가 존재해 dynamic 분기의 덮어쓰기가 설계상 의도일 가능성을 시사한다\"},\"field\":\"counterEvidence\",\"index\":0,\"sha256\":\"c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1\",\"status\":\"verified\"}],\"verdict\":\"WEAKEN\"},{\"complete\":true,\"id\":\"finding-005\",\"rows\":[{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":35,\"lineStart\":35,\"quote\":\"- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\",\"relevance\":\"SPEC T3 names launchRetryAttempts as a summary field\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"},{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":36,\"lineStart\":36,\"quote\":\"이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).\",\"relevance\":\"SPEC states both field names are a public contract read by external tools\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/workflow-terminal.ts\",\"lineEnd\":33,\"lineStart\":33,\"quote\":\"launchRetries: number;\",\"relevance\":\"WorkflowTerminalSummary interface exposes launchRetries, not launchRetryAttempts\"},\"field\":\"evidence\",\"index\":2,\"sha256\":\"c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/workflow-terminal.ts\",\"lineEnd\":107,\"lineStart\":107,\"quote\":\"launchRetries: run.tasks.reduce(\",\"relevance\":\"summarizeWorkflowTerminal populates launchRetries, so the returned summary uses the wrong name\"},\"field\":\"evidence\",\"index\":3,\"sha256\":\"c5476aea7827735326b3688b1be09609f92e5c29bbfe45adfa5f47bd3a8899b1\",\"status\":\"verified\"}],\"verdict\":\"KEEP\"},{\"complete\":true,\"id\":\"finding-006\",\"rows\":[{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":40,\"lineStart\":40,\"quote\":\"단위 테스트가 있어야 한다\",\"relevance\":\"Q1 requires a unit test for each S/C/T item in the repository\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"},{\"citation\":{\"file\":\"package.json\",\"lineEnd\":7,\"lineStart\":7,\"quote\":\"\\\"scripts\\\": { \\\"typecheck\\\": \\\"tsc --noEmit\\\" }\",\"relevance\":\"The only declared script is typecheck; no test runner or test script is declared\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"e44e456cb032f9bf04440c6ac7eb12da856656b5deb9641ece339d97e28b2fc3\",\"status\":\"verified\"},{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":4,\"lineStart\":4,\"quote\":\"이 발췌에 포함되지 않는다\",\"relevance\":\"Scope caveat: this is an excerpt, so tests may exist outside the provided repository content; this does not show tests exist\"},\"field\":\"counterEvidence\",\"index\":0,\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"}],\"verdict\":\"KEEP\"}],\"protocol\":\"spec-local-evidence-v1\",\"requirementReconciliation\":{\"allCovered\":false,\"complete\":true,\"coverageIds\":[\"REQ-001\",\"REQ-002\",\"REQ-003\",\"REQ-004\",\"REQ-005\",\"REQ-006\",\"REQ-007\",\"REQ-008\",\"REQ-009\",\"REQ-010\",\"REQ-011\",\"REQ-012\",\"REQ-013\"],\"issues\":[],\"missingIds\":[],\"proof\":{\"candidateControlSha256\":\"3e0f62ea7cb8404963efabf9bc476e38f69aed3a6792915e4c5f7c3bf17c4072\",\"candidateManifestSha256\":\"157088781be71ed9193df9b8d1056396968a782e07c25054f23be23899727ac9\",\"candidateTaskId\":\"task-4\",\"extractControlSha256\":\"42d2717e6abd72b6b82c2d6f071bbaaa727fbd1f7e85dbde12e163e78cc88ef1\",\"extractTaskId\":\"task-1\",\"inspectTestsControlSha256\":\"d599588f2718398253c3af903616637fb0896c690248b11e7eb79dd0e5a9ab10\",\"inspectTestsTaskId\":\"task-3\",\"mapControlSha256\":\"968c0c3209891b772a1050fd0e57311fb9b820bcf4c52ea2366106e8e1ffba06\",\"mapTaskId\":\"task-2\",\"runId\":\"workflow_mw1rwnkc_7f6ae1\"},\"protocol\":\"spec-requirement-reconciliation-v1\",\"requirementIds\":[\"REQ-001\",\"REQ-002\",\"REQ-003\",\"REQ-004\",\"REQ-005\",\"REQ-006\",\"REQ-007\",\"REQ-008\",\"REQ-009\",\"REQ-010\",\"REQ-011\",\"REQ-012\",\"REQ-013\"],\"sourceEvidence\":[{\"checked\":[{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":8,\"lineStart\":8,\"quote\":\"실행 중지는 두 경로 중 하나라도 있으면 감지되어야 한다\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-001\"},{\"checked\":[{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":11,\"lineStart\":11,\"quote\":\"신호는 이름이 `WorkflowStopRequested`인 오류로 abort되어야 하며\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-002\"},{\"checked\":[{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":13,\"lineStart\":13,\"quote\":\"중지 감시 주기(`pollMs`)의 기본값은 50ms이고\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"},{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":14,\"lineStart\":14,\"quote\":\"짧아지면 안 된다.\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-003\"},{\"checked\":[{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":15,\"lineStart\":15,\"quote\":\"디스크 읽기 실패는 중지로 간주하지 않는다.\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"},{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":16,\"lineStart\":16,\"quote\":\"`throwIfWorkflowStopRequested`에서는 읽기 오류가 호출자에게 그대로 전달되어야 한다.\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-004\"},{\"checked\":[{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":17,\"lineStart\":17,\"quote\":\"`dispose()`를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다.\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-005\"},{\"checked\":[{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":18,\"lineStart\":18,\"quote\":\"`isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"},{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":19,\"lineStart\":19,\"quote\":\"메시지 내용으로 판별해서는 안 된다.\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-006\"},{\"checked\":[{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":20,\"lineStart\":20,\"quote\":\"foreground signal 등록은 해제 함수로 되돌릴 수 있어야 하며\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"},{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":21,\"lineStart\":21,\"quote\":\"실행의 등록 항목이 남지 않아야 한다.\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-007\"},{\"checked\":[{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":25,\"lineStart\":25,\"quote\":\"정확히 `aborted`,\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"},{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":26,\"lineStart\":26,\"quote\":\"다른 provider 오류를 취소로 승격해서는 안 된다.\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-008\"},{\"checked\":[{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":27,\"lineStart\":27,\"quote\":\"`content` 배열 안의 텍스트가 JSON이면 그 내용도 같은 규칙으로 판별하되\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"},{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":28,\"lineStart\":28,\"quote\":\"검사하는 무한 재귀가 없어야 한다.\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-009\"},{\"checked\":[{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":32,\"lineStart\":32,\"quote\":\"`completed` 실행에 degradation 기록이 있으면 의미 상태는 `completed_degraded`이다.\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-010\"},{\"checked\":[{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":33,\"lineStart\":33,\"quote\":\"direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"},{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":34,\"lineStart\":34,\"quote\":\"`completed_without_semantic_result`이다.\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-011\"},{\"checked\":[{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":35,\"lineStart\":35,\"quote\":\"요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"},{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":36,\"lineStart\":36,\"quote\":\"이 두 필드 이름은 공개 계약이다\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-012\"},{\"checked\":[{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":40,\"lineStart\":40,\"quote\":\"그 동작을 확인하는 단위 테스트가 있어야 한다.\"},\"sha256\":\"51bed3884d65e52d68f0a894e68c8379bf27de85a68ad6b8c7a804b18baf82e5\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-013\"}],\"unresolvedIds\":[]}}\n```\n\n## Recommended next action\n\nS3는 pollMs 기본값을 50ms, 하한을 10ms로 맞추고 테스트를 추가하십시오. S6는 메시지 접두사 분기를 제거하십시오. C1은 'cancelled'·'timeout' 비교와 플래그 처리를 SPEC 해석에 맞게 정리하십시오. T3는 launchRetries를 launchRetryAttempts로 바꾸십시오. T1의 dynamic 적용 범위는 SPEC 작성자에게 확인하십시오. 마지막으로 단위 테스트와 test 스크립트를 추가하십시오.\n\n## Evidence and limitations\n\n- Partition source lifecycle: complete.\n- Canonical counts: 6 actionable, 1 needs-human, 0 dropped.\n- Test execution attested: false (read-only inspection).\n- The deterministic partition ledger controls findings, dispositions, counts, and the effective verdict; narrative synthesis cannot override it.\n- 1 needs-human row(s) remain unresolved (see Needs human review).\n\n## Related artifacts\n\n- [Machine-readable renderer control](control.json)\n- [Structured source references](refs.json)\n- [Canonical disposition ledger](source-ledger.json)",
+  "verdict": "GAPS_FOUND",
+  "findingSummary": {
+   "final": 6,
+   "needsHuman": 1,
+   "dropped": 0
+  },
+  "scopeLimitations": [
+   {
+    "kind": "NONBLOCKING",
+    "text": "src/ 세 모듈(workflow-stop, workflow-cancellation, workflow-terminal)만 직접 읽었다. store.js·types.js와 readWorkflowStopIntent 등 의존 구현은 확인하지 않았다.",
+    "blocking": false
+   },
+   {
+    "kind": "NONBLOCKING",
+    "text": "테스트는 실행하지 않았다(read-only). 테스트 부재는 Grep/Glob 탐색 결과로만 판단했고, Q1 근거로만 사용했다.",
+    "blocking": false
+   },
+   {
+    "kind": "NONBLOCKING",
+    "text": "REQ-001~013과 S/C/T/Q 라벨의 대응은 추출 순서와 implementationMap 라벨을 따른 추정이다. extract-spec 행에는 라벨 필드가 없다.",
+    "blocking": false
+   },
+   {
+    "kind": "NONBLOCKING",
+    "text": "C2 무한 재귀 없음은 JSON.parse 결과가 매 단계 더 짧은 문자열을 파싱한다는 논리로 판단했고, 실행으로 검증하지 않았다.",
+    "blocking": false
+   }
+  ],
+  "testExecutionAttested": false,
+  "renderedFindingIds": [
+   "finding-001",
+   "finding-002",
+   "finding-003",
+   "finding-004",
+   "finding-005",
+   "finding-006"
+  ],
+  "renderedNeedsHumanIds": [
+   "needs-001"
+  ],
+  "renderedDroppedFindingIds": [],
+  "sourceArtifacts": [
+   "partition-findings.control.json",
+   "report.control.json"
+  ],
+  "gates": {
+   "partitionAvailable": true,
+   "reportSynthesisAvailable": true,
+   "sourceCoverageComplete": true,
+   "verifierCoverageComplete": true,
+   "ownerLedgerReconciliationPassed": true,
+   "reportVerdictConsistent": true,
+   "renderedAllCanonicalRows": true,
+   "duplicateCanonicalIds": [],
+   "actionableEvidenceComplete": false,
+   "passed": true
+  },
+  "sidecarPath": "final-report.md",
+  "ledgerSidecarPath": "source-ledger.json"
+ }
+}

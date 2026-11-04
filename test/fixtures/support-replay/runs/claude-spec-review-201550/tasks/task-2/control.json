@@ -1,0 +1,153 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "src/ 파일 3개(workflow-stop.ts, workflow-cancellation.ts, workflow-terminal.ts)와 SPEC.md 대응 구현을 매핑했다. 테스트 파일은 저장소에 없다.",
+  "implementationMap": [
+    {
+      "component": "Stop detection: intent and launch-signal check",
+      "file": "src/workflow-stop.ts",
+      "evidence": "if (intent || launchStopRequested(cwd, runId)) controller.abort(createWorkflowStopRequestedError(runId));",
+      "observedBehavior": "Stop is detected from the disk intent (readWorkflowStopIntent) or from a launch-registered AbortSignal that has aborted. Both are checked in createWorkflowStopSignal and throwIfWorkflowStopRequested.",
+      "relatedSignals": [
+        "S1",
+        "S4",
+        "S5"
+      ]
+    },
+    {
+      "component": "Stop error name and message",
+      "file": "src/workflow-stop.ts",
+      "evidence": "error.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME; return `workflow stop requested for ${runId}`;",
+      "observedBehavior": "Creates an Error named WorkflowStopRequested with message 'workflow stop requested for <runId>'.",
+      "relatedSignals": [
+        "S2"
+      ]
+    },
+    {
+      "component": "Stop error classifier",
+      "file": "src/workflow-stop.ts",
+      "evidence": "error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME || error.message.startsWith(\"workflow stop requested\")",
+      "observedBehavior": "Also accepts errors by message prefix, not only by name.",
+      "relatedSignals": [
+        "S6"
+      ]
+    },
+    {
+      "component": "Poll interval default and floor",
+      "file": "src/workflow-stop.ts",
+      "evidence": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "observedBehavior": "Default poll is 200ms and the floor is 1ms; the code does not match the spec's default of 50ms or 10ms minimum.",
+      "relatedSignals": [
+        "S3"
+      ]
+    },
+    {
+      "component": "Stop watcher disk-read error handling",
+      "file": "src/workflow-stop.ts",
+      "evidence": "const intent = await readWorkflowStopIntent(cwd, runId).catch(() => undefined);",
+      "observedBehavior": "Watcher swallows read errors, so a failed read is not treated as stop. throwIfWorkflowStopRequested has no catch, so read errors propagate.",
+      "relatedSignals": [
+        "S4"
+      ]
+    },
+    {
+      "component": "Stop watcher dispose",
+      "file": "src/workflow-stop.ts",
+      "evidence": "dispose: () => clearInterval(timer),",
+      "observedBehavior": "dispose only clears the interval. There is no disposed flag, so an in-flight check can still start a disk read after dispose.",
+      "relatedSignals": [
+        "S5"
+      ]
+    },
+    {
+      "component": "Foreground signal registration",
+      "file": "src/workflow-stop.ts",
+      "evidence": "return () => { signals.delete(signal); if (signals.size === 0 && launchSignals.get(key) === signals) launchSignals.delete(key); };",
+      "observedBehavior": "Registration returns an unbind function that removes the empty set entry for the run key.",
+      "relatedSignals": [
+        "S7"
+      ]
+    },
+    {
+      "component": "Returned-cancellation classifier",
+      "file": "src/workflow-cancellation.ts",
+      "evidence": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "observedBehavior": "Accepts 'cancelled' and 'timeout' as cancellation strings in addition to the three values in the spec.",
+      "relatedSignals": [
+        "C1"
+      ]
+    },
+    {
+      "component": "Returned-cancellation flags",
+      "file": "src/workflow-cancellation.ts",
+      "evidence": "if (value.cancelled === true) return true; ... if (details?.cancelled === true) return true;",
+      "observedBehavior": "Treats cancelled:true flags as cancellation. The spec only lists error and reason strings, so this goes beyond it.",
+      "relatedSignals": [
+        "C1"
+      ]
+    },
+    {
+      "component": "JSON content recursion guard",
+      "file": "src/workflow-cancellation.ts",
+      "evidence": "const parsed: unknown = JSON.parse(entry.text); if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+      "observedBehavior": "Parses content[].text JSON and recurses. Each parse yields a new finite object, so recursion is bounded. The parsed !== value check is effectively always true.",
+      "relatedSignals": [
+        "C2"
+      ]
+    },
+    {
+      "component": "Abort error detection",
+      "file": "src/workflow-cancellation.ts",
+      "evidence": "if (typeof DOMException !== \"undefined\" && value instanceof DOMException) return value.name === \"AbortError\";",
+      "observedBehavior": "Treats an error with name AbortError as cancellation, including DOMException.",
+      "relatedSignals": [
+        "C1"
+      ]
+    },
+    {
+      "component": "Terminal semantic status",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "if (run.status === \"completed\") return run.degradation ? \"completed_degraded\" : \"completed\";",
+      "observedBehavior": "A completed run with a degradation value gets completed_degraded.",
+      "relatedSignals": [
+        "T1"
+      ]
+    },
+    {
+      "component": "Direct-dynamic controller control read",
+      "file": "src/workflow-terminal.ts",
+      "evidence": ".catch(() => undefined); ... else semanticStatus = \"completed_without_semantic_result\";",
+      "observedBehavior": "An unreadable control.json gives control undefined, and the final else sets completed_without_semantic_result.",
+      "relatedSignals": [
+        "T2"
+      ]
+    },
+    {
+      "component": "Retry count fields in summary",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "outputRetryAttempts: run.tasks.reduce(...); launchRetries: run.tasks.reduce(...launchRetry?.attempts...)",
+      "observedBehavior": "outputRetryAttempts is summed over tasks. The launch field is named launchRetries, not launchRetryAttempts, which SPEC T3 names as the public contract.",
+      "relatedSignals": [
+        "T3"
+      ]
+    },
+    {
+      "component": "Test coverage",
+      "file": "src/",
+      "evidence": "Glob **/*.test.* and **/{test,tests,__tests__,spec}/**/* returned no files",
+      "observedBehavior": "The repo has no unit test files for S, C, or T items.",
+      "relatedSignals": [
+        "Q1"
+      ]
+    }
+  ],
+  "unmappedAreas": [
+    "store.js (readWorkflowStopIntent, workflowRunPath, readJson, fromProjectPath, finalStageTasks, isTerminalWorkflowStatus, workflowRunDir) is imported but not in the repo",
+    "types.js (WorkflowRunRecord) is imported but not in the repo",
+    "Test files: none found in the repo"
+  ],
+  "notes": [
+    "Mapping only. No conformance verdict is given here.",
+    "Observed deviations to verify in the next stage: S3 default and floor, S6 message-prefix match, C1 extra strings and flags, T3 field name launchRetries, Q1 missing tests.",
+    "store.js is not available, so the stop-intent read and workflowRunPath behavior are unverified."
+  ]
+}

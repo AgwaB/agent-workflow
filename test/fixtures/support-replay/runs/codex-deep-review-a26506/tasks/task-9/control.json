@@ -1,0 +1,154 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "중지 폴링 주기, 중지 오류 판별, 취소 문자열 판별에서 명세 위반을 확인했다.",
+  "lens": "runtime-correctness",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "중지 감시 폴링 주기가 명세보다 느리고 최소값도 너무 낮음",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 67,
+          "symbol": "createWorkflowStopSignal"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 81,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "evidence": "기본 폴링 주기가 200ms이고 최소값이 1ms로 설정되어, 명세의 기본 50ms 및 최소 10ms 제한을 따르지 않는다.",
+      "evidenceQuotes": [
+        "const pollMs = Math.max(1, options.pollMs ?? 200);",
+        "const timer = setInterval(() => void check(), pollMs);"
+      ],
+      "rationale": "중지 의도와 foreground abort의 디스크·폴링 경로 전파가 최대 약 200ms 지연될 수 있어, 중지 후 작업 디스패치가 계속될 수 있다. 또한 호출자가 1~9ms를 지정하면 과도한 폴링으로 I/O 부하가 커진다.",
+      "recommendedAction": "기본값을 50ms로 바꾸고 최소값을 10ms로 제한하라.",
+      "confidence": "high"
+    },
+    {
+      "severity": "high",
+      "title": "중지 오류 판별이 오류 메시지만으로도 성공하여 오탐 가능",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 53,
+          "symbol": "isWorkflowStopRequestedError"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 57,
+          "symbol": "isWorkflowStopRequestedError"
+        }
+      ],
+      "evidence": "오류 이름이 WorkflowStopRequested가 아니어도 메시지가 특정 접두사로 시작하면 중지 오류로 인정한다.",
+      "evidenceQuotes": [
+        "export function isWorkflowStopRequestedError(error: unknown): boolean {",
+        "error.message.startsWith(\"workflow stop requested\")"
+      ],
+      "rationale": "일반 provider 오류가 해당 메시지 접두사를 포함하면 정상 오류가 중지로 오분류되어 후속 처리와 종료 요약이 왜곡될 수 있다. S6은 이름만 확인하도록 요구한다.",
+      "recommendedAction": "error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME 조건만 사용하라.",
+      "confidence": "high"
+    },
+    {
+      "severity": "high",
+      "title": "허용 목록 외 취소 문자열을 취소로 오분류",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 13,
+          "symbol": "isWorkflowReturnedCancellation"
+        },
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 20,
+          "symbol": "isWorkflowReturnedCancellation"
+        }
+      ],
+      "evidence": "provider의 error/reason 후보에서 명세에 없는 cancelled와 timeout도 취소로 인정한다.",
+      "evidenceQuotes": [
+        "export function isWorkflowReturnedCancellation(value: unknown): boolean {",
+        "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+      ],
+      "rationale": "timeout 또는 provider가 임의로 반환한 cancelled 문자열이 실제 취소로 승격되어 진단 오류가 억제되거나 작업 상태가 중지로 잘못 기록될 수 있다. C1은 세 문자열만 허용한다.",
+      "recommendedAction": "문자열 후보 비교를 aborted, AbortError, ABORT_ERR 세 값으로만 제한하라.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-stop.ts:53",
+    "src/workflow-stop.ts:67",
+    "src/workflow-stop.ts:68",
+    "src/workflow-stop.ts:81",
+    "src/workflow-stop.ts:85",
+    "src/workflow-cancellation.ts:13",
+    "SPEC.md:8",
+    "SPEC.md:23"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-stop.ts:53",
+      "status": "read",
+      "evidence": "export function isWorkflowStopRequestedError(error: unknown): boolean {",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-stop.ts:67",
+      "status": "read",
+      "evidence": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-stop.ts:68",
+      "status": "read",
+      "evidence": "const check = async (): Promise<void> => {",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-stop.ts:81",
+      "status": "read",
+      "evidence": "const timer = setInterval(() => void check(), pollMs);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-stop.ts:85",
+      "status": "read",
+      "evidence": "dispose: () => clearInterval(timer),",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-cancellation.ts:13",
+      "status": "read",
+      "evidence": "export function isWorkflowReturnedCancellation(value: unknown): boolean {",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:8",
+      "status": "read",
+      "evidence": "- **S1.** 실행 중지는 두 경로 중 하나라도 있으면 감지되어야 한다: (a) 디스크에 기록된 중지 의도",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:23",
+      "status": "read",
+      "evidence": "## 취소 판별 (`src/workflow-cancellation.ts`)",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "검토한 코드에서 디스크 읽기 실패를 감시 경로에서 삼키고 throwIfWorkflowStopRequested 경로에서는 전파하는 S4 동작은 명세와 일치한다.",
+    "content JSON은 재귀 검사하지만 검토 범위에서 무한 재귀를 유발하는 순환 JSON 생성 경로는 확인되지 않았다."
+  ]
+}

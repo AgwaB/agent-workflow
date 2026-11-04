@@ -1,0 +1,39 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1ipzw6_f0c985",
+  "taskId": "task-9",
+  "sources": [
+    {
+      "source": "candidate-findings",
+      "displayName": "candidate-findings.main",
+      "taskId": "task-4",
+      "specId": "candidate-findings.main",
+      "stageId": "candidate-findings",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "SPEC.md 대비 src/ 구현 검토 결과 S1·S2·S4·S5·S7·C2·T1·T2는 명세를 충족하나, S3(pollMs 기본값 및 최소 주기)·S6(메시지 내용 기반 오류 판별)·C1(허용 외 문자열 및 timeout 승격)·T3(launchRetries 필드명 불일치)에서 명세 위반 결함이 확인되었고, Q1 단위 테스트가 부재합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-4/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-4/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-4/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-4/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

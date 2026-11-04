@@ -1,0 +1,51 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "중지 감시·취소 판별·종료 요약에서 명세 불일치를 확인했으며, 경쟁 조건과 공개 API 계약을 중심으로 세 렌즈의 후속 검토가 필요하다.",
+  "reviewLenses": [
+    {
+      "id": "stop-runtime",
+      "focus": "중지 감지의 정확성, 폴링 동시성, signal 등록·해제 및 dispose 수명주기",
+      "whyNeeded": "폴링 주기와 중지 오류 판별이 명세와 다르다. 비동기 interval의 읽기 중첩, dispose 이전에 시작된 읽기의 후속 효과, 동일 signal 중복 등록도 검증해야 한다.",
+      "evidenceToInspect": [
+        "src/workflow-stop.ts:7-28",
+        "src/workflow-stop.ts:53-85",
+        "src/workflow-stop.ts:89-99",
+        "SPEC.md:8-21",
+        "SPEC.md:38-40"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "provider-cancellation",
+      "focus": "provider 취소 판별의 정확성, 허용 문자열 계약 및 중첩 JSON 처리",
+      "whyNeeded": "명세 밖의 cancelled와 timeout 문자열도 취소로 인정하여 실제 provider 오류를 숨길 수 있다. 판별기는 제공자 호환성 경계이므로 허용 목록과 중첩 입력의 회귀 테스트가 필요하다.",
+      "evidenceToInspect": [
+        "src/workflow-cancellation.ts:2-36",
+        "SPEC.md:25-28",
+        "SPEC.md:38-40"
+      ],
+      "severityBias": "medium"
+    },
+    {
+      "id": "terminal-api-contract",
+      "focus": "종료 의미 상태의 우선순위, 재시도 합계 및 공개 요약 필드 호환성",
+      "whyNeeded": "공개 계약의 launchRetryAttempts 대신 launchRetries를 반환한다. control 파일 읽기 실패와 dynamic_incomplete가 함께 발생하면 명세의 fallback보다 incomplete가 우선한다. 종료 기록과 control 파일의 일관성도 확인해야 한다.",
+      "evidenceToInspect": [
+        "src/workflow-terminal.ts:27-40",
+        "src/workflow-terminal.ts:48-69",
+        "src/workflow-terminal.ts:72-113",
+        "SPEC.md:32-40",
+        "package.json:1-8",
+        "tsconfig.json:1-11"
+      ],
+      "severityBias": "high"
+    }
+  ],
+  "triageSummary": "src의 세 파일과 SPEC.md를 대조했다. 폴링 기본값·최솟값, 메시지 기반 중지 오류 판별, 취소 문자열 허용 범위, 공개 재시도 필드명에 명확한 불일치가 있다. control 읽기 실패 시 의미 상태 우선순위도 검토 대상이다. 경쟁 조건은 읽기 중첩과 dispose·등록 해제 경계를 중심으로 재현이 필요하다. 테스트 파일은 발견되지 않았고 package.json에는 typecheck만 있다. store.js·types.js 및 호출부는 발췌에 없어 저장소 구현·외부 소비자까지 검증할 수 없으며 실행 검증은 수행하지 않았다.",
+  "riskLevel": "high",
+  "skippedLenses": [
+    "독립 보안 렌즈: 인증·권한·비밀정보 처리 근거가 없어 생략하며 입력 강건성은 취소 판별 렌즈에서 검토한다.",
+    "독립 릴리스·테스트 렌즈: 좁은 발췌이므로 테스트 공백과 회귀 시나리오는 각 기능 렌즈에 통합한다.",
+    "저장소 밖 구현·외부 소비자 검토: store.js·types.js와 호출부가 없어 지원되지 않으며 공개 계약은 SPEC.md 기준으로만 평가한다."
+  ]
+}

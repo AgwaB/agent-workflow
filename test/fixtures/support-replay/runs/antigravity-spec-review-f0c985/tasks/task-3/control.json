@@ -1,0 +1,38 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "No test files or test suites exist in the repository; unit test requirement Q1 and all behavioral requirements (S1–S7, C1–C2, T1–T3) lack test coverage.",
+  "testMap": [],
+  "coverageGapsSuspected": [
+    "Requirement Q1: No unit tests exist in the repository to verify S, C, or T requirements.",
+    "Requirement S1: No test coverage for stop intent detection via disk or foreground AbortSignal.",
+    "Requirement S2: No test coverage for WorkflowStopRequested error name and message format.",
+    "Requirement S3: No test coverage for pollMs default (50ms) and minimum floor (10ms).",
+    "Requirement S4: No test coverage for disk read failure handling in signal vs throwIfWorkflowStopRequested.",
+    "Requirement S5: No test coverage ensuring no disk reads occur after dispose().",
+    "Requirement S6: No test coverage for isWorkflowStopRequestedError checking name only, not message.",
+    "Requirement S7: No test coverage for unbinding foreground signal and cleaning up empty map entries.",
+    "Requirement C1: No test coverage for exact provider cancellation strings (aborted, AbortError, ABORT_ERR).",
+    "Requirement C2: No test coverage for recursive JSON content parsing and infinite recursion protection.",
+    "Requirement T1: No test coverage for mapping completed run with degradation to completed_degraded.",
+    "Requirement T2: No test coverage for direct-dynamic unreadable control.json mapped to completed_without_semantic_result.",
+    "Requirement T3: No test coverage for outputRetryAttempts and launchRetryAttempts summing all task retries."
+  ],
+  "notes": [
+    "Repository inspection found only package.json, tsconfig.json, SPEC.md, and src/ (*.ts).",
+    "package.json scripts define only 'typecheck' ('tsc --noEmit') and no test runner or test framework is configured.",
+    "No test directories (test/, tests/, __tests__/) or test files (*.test.ts, *.spec.ts) exist in the repository."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "Tests were inspected but not executed by this read-only stage.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "No test files or fixtures exist in the repository.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false
+}

@@ -1,0 +1,122 @@
+{
+  "schema": "spec-review-report-v1",
+  "digest": "sha256:31f38c5109d3553f6b786504644f1ae2ba6d9b97e64a32c824ac5a0c93df0bc7",
+  "summary": "6개 후보가 모두 검증되었습니다(KEEP 3, WEAKEN 3). S3·S6·C1·T1·T3·Q1에 gap 또는 partial이 있고, S1·S2·S4·S5·S7·C2·T2는 충족으로 판단됩니다. T1의 direct-dynamic 적용 범위는 needs-001로 미해결입니다.",
+  "verdict": "GAPS_FOUND",
+  "ownerLedger": [
+    {
+      "source": "verify-findings",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-001",
+      "taskId": "task-9",
+      "itemIdentity": "finding-001",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-002",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-002",
+      "taskId": "task-10",
+      "itemIdentity": "finding-002",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-003",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-003",
+      "taskId": "task-11",
+      "itemIdentity": "finding-003",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-004",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-004",
+      "taskId": "task-12",
+      "itemIdentity": "finding-004",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-005",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-005",
+      "taskId": "task-13",
+      "itemIdentity": "finding-005",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-006",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-006",
+      "taskId": "task-14",
+      "itemIdentity": "finding-006",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    }
+  ],
+  "ownerLedgerReconciliation": {
+    "ownerRowCount": 6,
+    "verifierRowCount": 6,
+    "ownerIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "verifierIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "duplicateOwnerIds": [],
+    "duplicateVerifierIds": [],
+    "missingOwnerRows": [],
+    "orphanOwnerRows": [],
+    "statusMismatches": [],
+    "cardinalityPassed": true,
+    "passed": true
+  },
+  "risks": [
+    "S3: pollMs 기본값이 200ms, 하한이 1ms로 SPEC(50ms, 하한 10ms)과 다르며 이를 검증하는 테스트가 없음 (finding-001, KEEP, medium)",
+    "S6: isWorkflowStopRequestedError가 메시지 접두사로도 중지 오류를 판별함. SPEC은 이름만 허용 (finding-002, WEAKEN, medium). 호출자와 테스트 없음",
+    "C1: 'cancelled'와 'timeout' 문자열 및 value.cancelled·details.cancelled 플래그를 취소로 승격함. SPEC은 세 값만 허용 (finding-003, WEAKEN, high)",
+    "T1: direct-dynamic 분기가 completed+degradation 결과를 덮어써 completed_degraded가 남지 않을 수 있음 (finding-004, WEAKEN, low). 조건부 결함",
+    "T3: 요약 필드가 launchRetries로 노출되고 SPEC의 공개 계약명 launchRetryAttempts가 없음 (finding-005, KEEP, high)",
+    "Q1: 저장소에 테스트 파일과 테스트 스크립트가 없음. 단위 테스트 근거 없음 (finding-006, KEEP, low)",
+    "needs-001: T1이 direct-dynamic completed 실행에도 적용되는지 SPEC 발췌만으로 확정되지 않음. 해결되지 않은 상태 (REQ-010)"
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "src/ 세 모듈(workflow-stop, workflow-cancellation, workflow-terminal)만 직접 읽었다. store.js·types.js와 readWorkflowStopIntent 등 의존 구현은 확인하지 않았다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "테스트는 실행하지 않았다(read-only). 테스트 부재는 Grep/Glob 탐색 결과로만 판단했고, Q1 근거로만 사용했다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "REQ-001~013과 S/C/T/Q 라벨의 대응은 추출 순서와 implementationMap 라벨을 따른 추정이다. extract-spec 행에는 라벨 필드가 없다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "C2 무한 재귀 없음은 JSON.parse 결과가 매 단계 더 짧은 문자열을 파싱한다는 논리로 판단했고, 실행으로 검증하지 않았다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "recommendedNextAction": "S3는 pollMs 기본값을 50ms, 하한을 10ms로 맞추고 테스트를 추가하십시오. S6는 메시지 접두사 분기를 제거하십시오. C1은 'cancelled'·'timeout' 비교와 플래그 처리를 SPEC 해석에 맞게 정리하십시오. T3는 launchRetries를 launchRetryAttempts로 바꾸십시오. T1의 dynamic 적용 범위는 SPEC 작성자에게 확인하십시오. 마지막으로 단위 테스트와 test 스크립트를 추가하십시오."
+}

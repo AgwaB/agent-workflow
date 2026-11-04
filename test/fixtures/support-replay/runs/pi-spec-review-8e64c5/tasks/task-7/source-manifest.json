@@ -1,0 +1,39 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1iq232_8e64c5",
+  "taskId": "task-7",
+  "sources": [
+    {
+      "source": "partition-findings",
+      "displayName": "partition-findings.main",
+      "taskId": "task-6",
+      "specId": "partition-findings.main",
+      "stageId": "partition-findings",
+      "status": "completed",
+      "statusDetail": "support_completed",
+      "lastMessage": "support completed",
+      "digest": "sha256:976bcfb7c467acb7c141d6ecc9223657b6fcd5d2b4dc0c7248a9b37a506a5485",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1iq232_8e64c5/tasks/task-6/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1iq232_8e64c5/tasks/task-6/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1iq232_8e64c5/tasks/task-6/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1iq232_8e64c5/tasks/task-6/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

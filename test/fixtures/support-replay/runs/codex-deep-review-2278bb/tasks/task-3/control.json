@@ -1,0 +1,425 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "dedup: raw=5, unique=5, duplicates=0, partialFailures=0",
+  "findings": [
+    {
+      "id": "finding-001",
+      "findingId": "finding-001",
+      "originalFindingId": "finding-001",
+      "rootCauseId": "root-001",
+      "generatedRootCauseId": true,
+      "severity": "high",
+      "originalSeverity": "high",
+      "title": "중지 감시 주기 기본값과 최소값이 명세보다 느림",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 67,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "evidence": "pollMs가 기본 200ms이고 최소 1ms로 제한되어, 명세의 기본 50ms 및 최소 10ms 계약을 위반한다.",
+      "evidenceQuotes": [
+        "const pollMs = Math.max(1, options.pollMs ?? 200);",
+        "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다"
+      ],
+      "reviewerEvidenceQuotes": [
+        "const pollMs = Math.max(1, options.pollMs ?? 200);",
+        "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다"
+      ],
+      "rationale": "중지 감지가 최대 200ms까지 지연될 수 있고, 지나치게 작은 pollMs가 허용되어 실행·취소 타이밍의 예측 가능성이 떨어진다.",
+      "recommendedAction": "기본값을 50ms로 변경하고 최소값을 10ms로 clamp하라.",
+      "confidence": "high",
+      "source": "reviewers",
+      "sourceLineage": [
+        "reviewers"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers",
+        "specId": "reviewers.runtime-correctness",
+        "taskId": "task-9",
+        "itemIdentity": "runtime-correctness",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-002",
+      "findingId": "finding-002",
+      "originalFindingId": "finding-002",
+      "rootCauseId": "root-002",
+      "generatedRootCauseId": true,
+      "severity": "high",
+      "originalSeverity": "high",
+      "title": "중지 오류 판별이 오류 이름 외의 메시지까지 신뢰함",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 53,
+          "lineEnd": 58,
+          "symbol": "isWorkflowStopRequestedError"
+        }
+      ],
+      "evidence": "오류 이름이 일치하지 않아도 메시지가 지정된 접두사로 시작하면 중지 오류로 판별한다.",
+      "evidenceQuotes": [
+        "(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||",
+        "error.message.startsWith(\"workflow stop requested\")",
+        "- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로"
+      ],
+      "reviewerEvidenceQuotes": [
+        "(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||",
+        "error.message.startsWith(\"workflow stop requested\")",
+        "- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로"
+      ],
+      "rationale": "provider나 일반 작업 오류가 동일한 메시지 접두사를 사용하면 중지로 오인되어 종료 상태와 진단 흐름이 잘못 바뀔 수 있다.",
+      "recommendedAction": "`error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME`만 판별 조건으로 유지하라.",
+      "confidence": "high",
+      "source": "reviewers",
+      "sourceLineage": [
+        "reviewers"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers",
+        "specId": "reviewers.runtime-correctness",
+        "taskId": "task-9",
+        "itemIdentity": "runtime-correctness",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-003",
+      "findingId": "finding-003",
+      "originalFindingId": "finding-003",
+      "rootCauseId": "root-003",
+      "generatedRootCauseId": true,
+      "severity": "high",
+      "originalSeverity": "high",
+      "title": "provider의 cancelled·timeout 사유를 취소로 승격함",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 19,
+          "lineEnd": 21,
+          "symbol": "isWorkflowReturnedCancellation"
+        }
+      ],
+      "evidence": "오류·사유 문자열에 명세에 없는 `cancelled`와 `timeout`을 포함해 취소로 판정한다.",
+      "evidenceQuotes": [
+        "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+        "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,"
+      ],
+      "reviewerEvidenceQuotes": [
+        "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+        "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,"
+      ],
+      "rationale": "timeout 또는 provider의 일반 cancelled 문자열이 실제 중지·취소 흐름으로 분류되어 종료 요약과 진단이 달라질 수 있다. 특히 timeout은 별도 실패 원인일 수 있다.",
+      "recommendedAction": "문자열 비교를 `aborted`, `AbortError`, `ABORT_ERR` 세 값으로 제한하고, timeout은 별도 오류 경로로 처리하라.",
+      "confidence": "high",
+      "source": "reviewers",
+      "sourceLineage": [
+        "reviewers"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers",
+        "specId": "reviewers.runtime-correctness",
+        "taskId": "task-9",
+        "itemIdentity": "runtime-correctness",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-004",
+      "findingId": "finding-004",
+      "originalFindingId": "finding-004",
+      "rootCauseId": "root-004",
+      "generatedRootCauseId": true,
+      "severity": "high",
+      "originalSeverity": "high",
+      "title": "공개 계약의 launchRetryAttempts 필드가 launchRetries로 구현됨",
+      "file": "src/workflow-terminal.ts",
+      "locations": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 33,
+          "symbol": "WorkflowTerminalSummary.launchRetries"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 107,
+          "lineEnd": 110,
+          "symbol": "summarizeWorkflowTerminal"
+        }
+      ],
+      "evidence": "명세는 launchRetryAttempts를 공개 필드로 요구하지만 인터페이스와 반환 객체는 launchRetries를 사용한다.",
+      "evidenceQuotes": [
+        "\tlaunchRetries: number;",
+        "\t\tlaunchRetries: run.tasks.reduce(",
+        "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,"
+      ],
+      "reviewerEvidenceQuotes": [
+        "\tlaunchRetries: number;",
+        "\t\tlaunchRetries: run.tasks.reduce(",
+        "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,"
+      ],
+      "rationale": "재시도 합계 자체는 계산되지만 공개 키가 명세와 달라 외부 도구가 launchRetryAttempts를 읽으면 필드가 누락된 것으로 관찰된다. 이는 인리포지토리 호출자가 없어도 외부 소비자와의 호환성을 깨는 API 계약 위반이다.",
+      "recommendedAction": "WorkflowTerminalSummary와 summarizeWorkflowTerminal 반환 객체의 launchRetries를 공개 계약인 launchRetryAttempts로 통일하고, 외부 소비자 호환성을 확인한다.",
+      "confidence": "high",
+      "source": "reviewers.api-contract",
+      "sourceLineage": [
+        "reviewers.api-contract"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers.api-contract",
+        "specId": "reviewers.api-contract",
+        "taskId": "task-10",
+        "itemIdentity": "api-contract",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-005",
+      "findingId": "finding-005",
+      "originalFindingId": "finding-005",
+      "rootCauseId": "root-005",
+      "generatedRootCauseId": true,
+      "severity": "medium",
+      "originalSeverity": "medium",
+      "title": "중지·취소·종료 요약 경계 조건을 검증하는 테스트가 없다",
+      "file": "package.json",
+      "locations": [
+        {
+          "file": "package.json",
+          "line": 7,
+          "symbol": "scripts"
+        },
+        {
+          "file": "tsconfig.json",
+          "line": 10,
+          "symbol": "include"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 40,
+          "symbol": "Q1"
+        }
+      ],
+      "evidence": "SPEC.md explicitly requires unit tests for every S/C/T requirement, but the repository contains no test files or test script. package.json exposes only typecheck, and tsconfig includes only src/**/*.ts.",
+      "evidenceQuotes": [
+        "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+        "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+        "\"include\": [\"src/**/*.ts\"]"
+      ],
+      "reviewerEvidenceQuotes": [
+        "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+        "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+        "\"include\": [\"src/**/*.ts\"]"
+      ],
+      "rationale": "This is a direct verification requirement, not merely a style preference. Without executable tests, critical boundaries such as dispose-versus-in-flight disk reads, exact cancellation classification, recursive content handling, and dynamic terminal fallback cannot be regression-checked or reliably reviewed.",
+      "recommendedAction": "Add a runnable unit-test command and tests covering each S1-S7, C1-C2, and T1-T3 boundary, including concurrent/in-flight read cases and exact public summary field names.",
+      "confidence": "high",
+      "source": "reviewers.verification-hygiene",
+      "sourceLineage": [
+        "reviewers.verification-hygiene"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers.verification-hygiene",
+        "specId": "reviewers.verification-hygiene",
+        "taskId": "task-11",
+        "itemIdentity": "verification-hygiene",
+        "placeholderSpecId": "reviewers.item"
+      }
+    }
+  ],
+  "coverageIssues": [],
+  "reviewerLedger": {
+    "plannedLensIds": [
+      "runtime-correctness",
+      "api-contract",
+      "verification-hygiene"
+    ],
+    "materializedReviewerIds": [
+      "runtime-correctness",
+      "api-contract",
+      "verification-hygiene"
+    ],
+    "attestedLensIds": [
+      "runtime-correctness",
+      "api-contract",
+      "verification-hygiene"
+    ],
+    "materializedReviewerSourceIds": [
+      "reviewers",
+      "reviewers.api-contract",
+      "reviewers.verification-hygiene"
+    ],
+    "validAttestationSourceIds": [
+      "reviewers",
+      "reviewers.api-contract",
+      "reviewers.verification-hygiene"
+    ],
+    "ownerMap": [
+      {
+        "source": "reviewers",
+        "specId": "reviewers.runtime-correctness",
+        "taskId": "task-9",
+        "itemIdentity": "runtime-correctness",
+        "placeholderSpecId": "reviewers.item"
+      },
+      {
+        "source": "reviewers.api-contract",
+        "specId": "reviewers.api-contract",
+        "taskId": "task-10",
+        "itemIdentity": "api-contract",
+        "placeholderSpecId": "reviewers.item"
+      },
+      {
+        "source": "reviewers.verification-hygiene",
+        "specId": "reviewers.verification-hygiene",
+        "taskId": "task-11",
+        "itemIdentity": "verification-hygiene",
+        "placeholderSpecId": "reviewers.item"
+      }
+    ],
+    "invalidAttestations": [],
+    "missingPlannedLensIds": [],
+    "missingAttestedLensIds": [],
+    "unexpectedMaterializedReviewerIds": [],
+    "unexpectedAttestedLensIds": [],
+    "duplicateMaterializedReviewerIds": [],
+    "setEquality": true,
+    "sourceStatuses": [
+      {
+        "source": "triage",
+        "displayName": "triage.main",
+        "taskId": "task-1",
+        "specId": "triage.main",
+        "stageId": "triage",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers",
+        "displayName": "reviewers.runtime-correctness",
+        "taskId": "task-9",
+        "specId": "reviewers.runtime-correctness",
+        "stageId": "reviewers",
+        "itemIdentity": "runtime-correctness",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers.api-contract",
+        "displayName": "reviewers.api-contract",
+        "taskId": "task-10",
+        "specId": "reviewers.api-contract",
+        "stageId": "reviewers",
+        "itemIdentity": "api-contract",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers.verification-hygiene",
+        "displayName": "reviewers.verification-hygiene",
+        "taskId": "task-11",
+        "specId": "reviewers.verification-hygiene",
+        "stageId": "reviewers",
+        "itemIdentity": "verification-hygiene",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      }
+    ],
+    "sourceCoverageFailures": [],
+    "complete": true,
+    "rawFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "dedupFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "validFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "invalidFindingIds": []
+  },
+  "rawFindingIds": [
+    "finding-001",
+    "finding-002",
+    "finding-003",
+    "finding-004",
+    "finding-005"
+  ],
+  "dedupFindingIds": [
+    "finding-001",
+    "finding-002",
+    "finding-003",
+    "finding-004",
+    "finding-005"
+  ],
+  "sourceStatusSummary": {
+    "total": 4,
+    "completed": 4,
+    "nonCompleted": 0,
+    "partialFailures": []
+  },
+  "dedupSummary": {
+    "complete": true,
+    "rawCount": 5,
+    "uniqueCount": 5,
+    "duplicateCount": 0,
+    "rawFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "dedupFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "dispositionFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "supportFindingIds": [],
+    "lineageFindingIds": [],
+    "duplicates": []
+  }
+}

@@ -1,0 +1,160 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "세 구현 파일에서 S·C·T 요구사항의 관련 분기와 공개 필드를 매핑했으며, 테스트 파일과 제공되지 않은 의존성은 검증 공백으로 기록했다.",
+  "implementationMap": [
+    {
+      "component": "bindWorkflowLaunchSignal / launchStopRequested",
+      "file": "src/workflow-stop.ts",
+      "evidence": "L5: const launchSignals = new Map<string, Set<AbortSignal>>(); L13: const key = workflowRunPath(cwd, runId); L18–20: signals.delete(signal); if (signals.size === 0 && launchSignals.get(key) === signals) launchSignals.delete(key);",
+      "observedBehavior": "실행 경로별 Set에 foreground signal을 등록한다. 반환된 함수는 signal을 제거하고, 같은 Set이 비었으면 Map 항목도 삭제한다. 감지는 등록된 signal 중 aborted인 것이 있는지 확인한다.",
+      "relatedSignals": [
+        "S1",
+        "S7"
+      ]
+    },
+    {
+      "component": "createWorkflowStopSignal: 중지 감지",
+      "file": "src/workflow-stop.ts",
+      "evidence": "L70–78: foreground 확인 후 readWorkflowStopIntent(cwd, runId).catch(() => undefined)를 호출한다. if (intent || launchStopRequested(cwd, runId)) controller.abort(createWorkflowStopRequestedError(runId));",
+      "observedBehavior": "디스크 읽기 전후에 foreground 상태를 검사하며, 읽은 intent가 truthy여도 abort한다. 디스크 Promise의 rejection은 undefined로 바꾼다.",
+      "relatedSignals": [
+        "S1",
+        "S2",
+        "S4"
+      ]
+    },
+    {
+      "component": "throwIfWorkflowStopRequested",
+      "file": "src/workflow-stop.ts",
+      "evidence": "L93–98: if (launchStopRequested(cwd, runId)) throw createWorkflowStopRequestedError(runId); const intent = await readWorkflowStopIntent(cwd, runId); if (intent || launchStopRequested(cwd, runId)) throw createWorkflowStopRequestedError(runId);",
+      "observedBehavior": "foreground를 먼저 확인하고, 디스크 읽기 후에도 재확인한다. 디스크 읽기의 예외를 잡는 catch는 없다.",
+      "relatedSignals": [
+        "S1",
+        "S4"
+      ]
+    },
+    {
+      "component": "중지 오류 생성과 abort reason",
+      "file": "src/workflow-stop.ts",
+      "evidence": "L30: WORKFLOW_STOP_REQUESTED_ERROR_NAME = \"WorkflowStopRequested\"; L44: return `workflow stop requested for ${runId}`; L49: error.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME; L71,78: controller.abort(createWorkflowStopRequestedError(runId));",
+      "observedBehavior": "중지 오류 생성 함수가 이름과 runId 포함 메시지를 설정한다. 감시기의 두 abort 분기는 이 오류를 reason으로 전달한다.",
+      "relatedSignals": [
+        "S2"
+      ]
+    },
+    {
+      "component": "createWorkflowStopSignal: polling 설정",
+      "file": "src/workflow-stop.ts",
+      "evidence": "L67: const pollMs = Math.max(1, options.pollMs ?? 200); L80–82: void check(); const timer = setInterval(() => void check(), pollMs); timer.unref?.();",
+      "observedBehavior": "즉시 한 번 검사하고 반복 타이머를 설치한다. 코드에 기록된 기본 주기는 200ms, 하한은 1ms다.",
+      "relatedSignals": [
+        "S3"
+      ]
+    },
+    {
+      "component": "createWorkflowStopSignal: dispose 수명주기",
+      "file": "src/workflow-stop.ts",
+      "evidence": "L69: if (controller.signal.aborted) return; L74: const intent = await readWorkflowStopIntent(cwd, runId).catch(...); L85: dispose: () => clearInterval(timer),",
+      "observedBehavior": "dispose는 타이머만 해제한다. 별도의 disposed 상태나 check 진입 가드는 없으며, 이미 시작된 디스크 읽기를 취소하지 않는다. dispose 이후 새 읽기 여부는 타이머 동작과 구분해 검증할 지점이다.",
+      "relatedSignals": [
+        "S5"
+      ]
+    },
+    {
+      "component": "isWorkflowStopRequestedError",
+      "file": "src/workflow-stop.ts",
+      "evidence": "L54–58: error instanceof Error && (error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME || error.message.startsWith(\"workflow stop requested\"))",
+      "observedBehavior": "Error 인스턴스에 대해 이름 일치 또는 메시지 접두사 일치를 인정한다.",
+      "relatedSignals": [
+        "S6"
+      ]
+    },
+    {
+      "component": "isWorkflowAbortError",
+      "file": "src/workflow-cancellation.ts",
+      "evidence": "L3–5: if (typeof DOMException !== \"undefined\" && value instanceof DOMException) return value.name === \"AbortError\"; return isRecord(value) && value.name === \"AbortError\";",
+      "observedBehavior": "DOMException 또는 배열이 아닌 객체의 name이 AbortError이면 취소 오류로 분류한다. provider 반환값과 내부 error/reason 후보에서 재사용된다.",
+      "relatedSignals": [
+        "C1",
+        "C2"
+      ]
+    },
+    {
+      "component": "isWorkflowReturnedCancellation: 취소 후보 판별",
+      "file": "src/workflow-cancellation.ts",
+      "evidence": "L16,18: cancelled === true 검사. L19: [value.error, details?.error, value.reason, details?.reason]. L20: candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\"",
+      "observedBehavior": "최상위 및 details의 error/reason을 검사한다. 문자열 후보는 aborted, AbortError, ABORT_ERR, cancelled, timeout이며, cancelled 불리언과 AbortError 객체도 별도로 인정한다.",
+      "relatedSignals": [
+        "C1"
+      ]
+    },
+    {
+      "component": "isWorkflowReturnedCancellation: content JSON 재귀",
+      "file": "src/workflow-cancellation.ts",
+      "evidence": "L23–29: Array.isArray(value.content); typeof entry.text !== \"string\"이면 건너뜀; const parsed: unknown = JSON.parse(entry.text); if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+      "observedBehavior": "content 항목의 문자열 text를 JSON으로 파싱하고 같은 판별 함수로 재검사한다. 재귀 앞에는 parsed !== value 동일성 검사가 있으며 별도 방문 집합은 없다. 파싱과 재귀 호출은 같은 try/catch 안에 있다.",
+      "relatedSignals": [
+        "C1",
+        "C2"
+      ]
+    },
+    {
+      "component": "nonDynamicSemanticStatus",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "L67–69: if (run.status === \"completed\") return run.degradation ? \"completed_degraded\" : \"completed\"; return run.status; L77: let semanticStatus: WorkflowSemanticStatus = nonDynamicSemanticStatus(run);",
+      "observedBehavior": "completed 실행의 degradation truthiness로 기본 의미 상태를 정한다. 이 결과는 이후 direct-dynamic 분기에서 덮어쓸 수 있다.",
+      "relatedSignals": [
+        "T1"
+      ]
+    },
+    {
+      "component": "readDynamicControllerControl",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "L52–61: task.specId === \"dynamic.controller\" || task.statusDetail === \"dynamic_completed\"; if (!controller) return undefined; readJson<DynamicControllerControl>(join(dirname(taskOutput), \"control.json\")).catch(() => undefined);",
+      "observedBehavior": "첫 controller 후보의 output과 같은 디렉터리에서 control.json을 읽는다. 후보가 없거나 readJson Promise가 reject하면 undefined를 반환한다.",
+      "relatedSignals": [
+        "T2"
+      ]
+    },
+    {
+      "component": "summarizeWorkflowTerminal: direct-dynamic 상태 우선순위",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "L80: if (terminal && run.provenance?.mode === \"direct-dynamic\"); L86: if (incomplete) semanticStatus = \"dynamic_incomplete\"; L87–95: control.status별 분기 후 else semanticStatus = \"completed_without_semantic_result\";",
+      "observedBehavior": "terminal direct-dynamic에서 기본 상태를 재계산한다. dynamic_incomplete 작업 존재 여부가 controller 상태보다 우선한다. 그다음 synthesized/exhausted/blocked/stopped를 처리하고 나머지는 completed_without_semantic_result로 정한다.",
+      "relatedSignals": [
+        "T1",
+        "T2"
+      ]
+    },
+    {
+      "component": "WorkflowTerminalSummary / 재시도 집계",
+      "file": "src/workflow-terminal.ts",
+      "evidence": "L32–33: outputRetryAttempts: number; launchRetries: number; L104: (total, task) => total + (task.outputRetry?.attempts ?? 0), L108: (total, task) => total + (task.launchRetry?.attempts ?? 0),",
+      "observedBehavior": "두 집계는 전체 run.tasks를 초기값 0으로 reduce하며 누락 attempts는 0으로 계산한다. 인터페이스와 반환 객체의 필드명은 outputRetryAttempts 및 launchRetries다. src에서 launchRetryAttempts 선언은 발견되지 않았다.",
+      "relatedSignals": [
+        "T3"
+      ]
+    },
+    {
+      "component": "단위 테스트 및 실행 설정 탐색",
+      "file": "package.json",
+      "evidence": "L7: \"scripts\": { \"typecheck\": \"tsc --noEmit\" }. 파일 검색 **/*test* 결과 없음; **/*spec* 결과는 SPEC.md만 존재. src에는 구현 파일 세 개만 존재.",
+      "observedBehavior": "제공된 저장소에서 요구사항별 단위 테스트, 테스트 실행 스크립트 또는 테스트 러너 설정을 찾지 못했다. tsconfig.json의 include는 src/**/*.ts다.",
+      "relatedSignals": [
+        "Q1"
+      ]
+    }
+  ],
+  "unmappedAreas": [
+    "src/store.js가 제공되지 않아 디스크 읽기, 실행 경로 키, terminal 판정, finalStageTasks의 실제 구현은 추적할 수 없다.",
+    "src/types.js가 제공되지 않아 WorkflowRunRecord 및 degradation·retry 데이터의 타입 계약은 확인할 수 없다.",
+    "S1–S7, C1–C2, T1–T3에 대응하는 단위 테스트 파일을 제공된 저장소에서 찾지 못했다.",
+    "요약 필드를 읽는 외부 도구가 제공되지 않아 공개 필드 소비 경로는 추적할 수 없다."
+  ],
+  "notes": [
+    "이 단계는 구현 근거 지도이며 요구사항별 최종 충족 판정은 하지 않는다.",
+    "읽기와 검색만 수행했다. 테스트, 타입검사, 런타임 재현은 실행하지 않았다.",
+    "후속 검토 지점은 polling 수치, 메시지 기반 오류 인식, 취소 문자열 집합, dispose 경계, dynamic 상태 우선순위, launch 집계 필드명이다.",
+    "테스트 검색은 .gitignore를 따랐으며 .agent-workflow와 node_modules는 제외된다."
+  ]
+}

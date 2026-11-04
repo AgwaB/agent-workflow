@@ -1,0 +1,41 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "공개 계약·상태 의미·문서가 불일치하며 검증과 릴리스 근거가 부족해 배포 불가",
+  "status": "fail",
+  "issues": [
+    {
+      "severity": "high",
+      "area": "API·데이터·문서",
+      "mismatch": "구현은 launchRetries를 발행하지만 SPEC.md와 기존 소비자는 launchRetryAttempts를 기대한다.",
+      "impact": "기존 소비자의 값 누락 또는 런타임 오류가 발생할 수 있으며 호환 별칭·마이그레이션이 없다."
+    },
+    {
+      "severity": "high",
+      "area": "상태 의미·검증",
+      "mismatch": "구현은 cancelled와 timeout을 취소로 분류하지만 SPEC.md는 세 가지 기존 표식만 허용한다.",
+      "impact": "실패·재시도·진단 흐름이 달라질 수 있고 변경 계약을 검증할 테스트가 없다."
+    },
+    {
+      "severity": "medium",
+      "area": "운영·문서",
+      "mismatch": "pollMs 구현은 기본 200ms, 최소 1ms인데 SPEC.md는 기본 50ms, 최소 10ms로 남아 있다.",
+      "impact": "중지 감지가 늦어지고 1~9ms 설정은 파일/I/O 부하를 증가시킬 수 있다."
+    },
+    {
+      "severity": "high",
+      "area": "릴리스",
+      "mismatch": "package.json은 private이며 typecheck만 제공하고 테스트·빌드·exports·배포 메타데이터가 없다.",
+      "impact": "배포 산출물과 변경 계약의 검증 가능성을 확인할 수 없다."
+    }
+  ],
+  "confirmedConsistencies": [
+    {
+      "area": "변경 범위",
+      "finding": "커밋은 workflow-cancellation.ts, workflow-stop.ts, workflow-terminal.ts의 세 파일만 수정했으며 영속 저장 형식 자체의 직접 변경은 확인되지 않는다."
+    },
+    {
+      "area": "재시도 집계",
+      "finding": "launchRetries와 outputRetryAttempts 모두 기존처럼 모든 작업의 재시도 횟수를 합산한다."
+    }
+  ]
+}

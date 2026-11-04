@@ -1,0 +1,538 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Node.js 버전·안정성, 주요 브라우저 호환성, API별 동작 주의점을 공식 문서 중심으로 검증한다.",
+  "depth": "standard",
+  "taskType": "api_reference",
+  "researchAxes": [
+    {
+      "id": "axis-001",
+      "axis": "Node.js API별 버전 및 안정성",
+      "dimensions": [
+        "최초 도입 버전",
+        "안정화 상태",
+        "LTS별 지원 여부"
+      ],
+      "whyItMatters": "사용자가 요구한 Node.js의 안정적 지원 시작점을 정확히 구분해야 한다.",
+      "expectedOutputs": [
+        "AbortSignal.any()의 Node.js 버전·안정성",
+        "AbortSignal.timeout()의 Node.js 버전·안정성"
+      ]
+    },
+    {
+      "id": "axis-002",
+      "axis": "브라우저별 API 호환성",
+      "dimensions": [
+        "Chrome",
+        "Edge",
+        "Firefox",
+        "Safari",
+        "지원 시작 버전"
+      ],
+      "whyItMatters": "주요 브라우저 지원 현황을 API별로 비교해야 한다.",
+      "expectedOutputs": [
+        "API별 브라우저 지원 표",
+        "지원되지 않거나 부분 지원되는 환경"
+      ]
+    },
+    {
+      "id": "axis-003",
+      "axis": "API 동작 및 주의점",
+      "dimensions": [
+        "abort reason",
+        "timeout semantics",
+        "활성 시간",
+        "이벤트·예외 동작",
+        "호환성 함정"
+      ],
+      "whyItMatters": "버전 정보만으로는 실제 사용 시 발생하는 오해와 오류를 설명할 수 없다.",
+      "expectedOutputs": [
+        "AbortSignal.any() 주의점",
+        "AbortSignal.timeout() 주의점"
+      ]
+    }
+  ],
+  "factSlots": [
+    {
+      "id": "slot-001",
+      "label": "Node.js AbortSignal.any() 최초 지원 버전",
+      "type": "version",
+      "required": true,
+      "entities": [
+        "Node.js",
+        "AbortSignal.any()"
+      ],
+      "sourcePriority": "primary_required",
+      "verificationPriority": "critical"
+    },
+    {
+      "id": "slot-002",
+      "label": "Node.js AbortSignal.any() 안정성 상태",
+      "type": "policy",
+      "required": true,
+      "entities": [
+        "Node.js",
+        "AbortSignal.any()"
+      ],
+      "sourcePriority": "primary_required",
+      "verificationPriority": "critical"
+    },
+    {
+      "id": "slot-003",
+      "label": "Node.js AbortSignal.timeout() 최초 지원 버전",
+      "type": "version",
+      "required": true,
+      "entities": [
+        "Node.js",
+        "AbortSignal.timeout()"
+      ],
+      "sourcePriority": "primary_required",
+      "verificationPriority": "critical"
+    },
+    {
+      "id": "slot-004",
+      "label": "Node.js AbortSignal.timeout() 안정성 상태",
+      "type": "policy",
+      "required": true,
+      "entities": [
+        "Node.js",
+        "AbortSignal.timeout()"
+      ],
+      "sourcePriority": "primary_required",
+      "verificationPriority": "critical"
+    },
+    {
+      "id": "slot-005",
+      "label": "AbortSignal.any() Chrome 지원 버전",
+      "type": "version",
+      "required": true,
+      "entities": [
+        "Chrome",
+        "AbortSignal.any()"
+      ],
+      "sourcePriority": "primary_preferred",
+      "verificationPriority": "high"
+    },
+    {
+      "id": "slot-006",
+      "label": "AbortSignal.any() Edge 지원 버전",
+      "type": "version",
+      "required": true,
+      "entities": [
+        "Edge",
+        "AbortSignal.any()"
+      ],
+      "sourcePriority": "primary_preferred",
+      "verificationPriority": "high"
+    },
+    {
+      "id": "slot-007",
+      "label": "AbortSignal.any() Firefox 지원 버전",
+      "type": "version",
+      "required": true,
+      "entities": [
+        "Firefox",
+        "AbortSignal.any()"
+      ],
+      "sourcePriority": "primary_preferred",
+      "verificationPriority": "high"
+    },
+    {
+      "id": "slot-008",
+      "label": "AbortSignal.any() Safari 지원 버전",
+      "type": "version",
+      "required": true,
+      "entities": [
+        "Safari",
+        "AbortSignal.any()"
+      ],
+      "sourcePriority": "primary_preferred",
+      "verificationPriority": "high"
+    },
+    {
+      "id": "slot-009",
+      "label": "AbortSignal.timeout() Chrome 지원 버전",
+      "type": "version",
+      "required": true,
+      "entities": [
+        "Chrome",
+        "AbortSignal.timeout()"
+      ],
+      "sourcePriority": "primary_preferred",
+      "verificationPriority": "high"
+    },
+    {
+      "id": "slot-010",
+      "label": "AbortSignal.timeout() Edge 지원 버전",
+      "type": "version",
+      "required": true,
+      "entities": [
+        "Edge",
+        "AbortSignal.timeout()"
+      ],
+      "sourcePriority": "primary_preferred",
+      "verificationPriority": "high"
+    },
+    {
+      "id": "slot-011",
+      "label": "AbortSignal.timeout() Firefox 지원 버전",
+      "type": "version",
+      "required": true,
+      "entities": [
+        "Firefox",
+        "AbortSignal.timeout()"
+      ],
+      "sourcePriority": "primary_preferred",
+      "verificationPriority": "high"
+    },
+    {
+      "id": "slot-012",
+      "label": "AbortSignal.timeout() Safari 지원 버전",
+      "type": "version",
+      "required": true,
+      "entities": [
+        "Safari",
+        "AbortSignal.timeout()"
+      ],
+      "sourcePriority": "primary_preferred",
+      "verificationPriority": "high"
+    },
+    {
+      "id": "slot-013",
+      "label": "AbortSignal.any() 알려진 동작 주의점",
+      "type": "caveat",
+      "required": true,
+      "entities": [
+        "AbortSignal.any()"
+      ],
+      "sourcePriority": "primary_required",
+      "verificationPriority": "high"
+    },
+    {
+      "id": "slot-014",
+      "label": "AbortSignal.timeout() 알려진 동작 주의점",
+      "type": "caveat",
+      "required": true,
+      "entities": [
+        "AbortSignal.timeout()"
+      ],
+      "sourcePriority": "primary_required",
+      "verificationPriority": "high"
+    }
+  ],
+  "sourcePolicy": {
+    "preferredSourceClasses": [
+      "Node.js 공식 API 문서 및 릴리스 문서",
+      "MDN 및 MDN Browser Compatibility Data",
+      "WHATWG DOM 표준",
+      "각 브라우저 엔진의 공식 릴리스 문서"
+    ],
+    "primaryRequiredFor": [
+      "Node.js 버전·안정성",
+      "API 동작·예외·abort reason",
+      "브라우저 지원 시작 버전이 논쟁적인 경우"
+    ],
+    "secondaryAllowedFor": [
+      "검색 보조 및 교차검증용 호환성 표"
+    ],
+    "sourceQualityRules": [
+      "버전 숫자는 공식 문서의 History 또는 릴리스 자료에서 확인한다.",
+      "‘지원 시작’과 ‘Stable’ 표기를 분리한다.",
+      "브라우저 호환성은 MDN/BCD와 가능하면 브라우저 공식 자료를 대조한다.",
+      "주의점은 표준 정의와 Node.js 구현을 구분해 기록한다."
+    ]
+  },
+  "verificationPriorities": [
+    {
+      "id": "verify-001",
+      "targetSlots": [
+        "slot-001",
+        "slot-002",
+        "slot-003",
+        "slot-004"
+      ],
+      "claimFamily": "Node.js version and stability",
+      "priority": "critical",
+      "reason": "질문의 핵심 숫자·정책 사실이며 도입 버전과 안정화 버전을 혼동하기 쉽다.",
+      "evidenceRequirement": "Node.js 공식 문서 또는 릴리스 기록에서 정확한 버전과 안정성 표기를 확인하고, 필요하면 두 번째 공식 자료로 대조한다."
+    },
+    {
+      "id": "verify-002",
+      "targetSlots": [
+        "slot-005",
+        "slot-006",
+        "slot-007",
+        "slot-008",
+        "slot-009",
+        "slot-010",
+        "slot-011",
+        "slot-012"
+      ],
+      "claimFamily": "browser compatibility",
+      "priority": "high",
+      "reason": "주요 브라우저별 지원 버전은 브라우저 엔진과 릴리스 시점에 따라 다르다.",
+      "evidenceRequirement": "API별로 MDN/BCD의 브라우저별 시작 버전을 기록하고, 불확실하거나 예외적인 값은 공식 브라우저 자료로 교차검증한다."
+    },
+    {
+      "id": "verify-003",
+      "targetSlots": [
+        "slot-013",
+        "slot-014"
+      ],
+      "claimFamily": "behavioral caveats",
+      "priority": "high",
+      "reason": "실제 구현에서 취소 원인, 시간 측정 방식, 예외 형태가 오용을 유발할 수 있다.",
+      "evidenceRequirement": "WHATWG 표준과 Node.js 공식 문서의 동작 설명을 우선 확인하고, 브라우저와 Node.js 차이가 있으면 명시한다."
+    }
+  ],
+  "expectedFinalShape": "research_brief",
+  "planRisks": [
+    {
+      "risk": "최초 도입 버전과 안정화 버전이 다를 수 있음",
+      "mitigation": "Node.js History와 Stability 표기를 별도 factSlot으로 수집한다."
+    },
+    {
+      "risk": "브라우저 호환성 자료의 Baseline·실험적 지원 표기가 버전 숫자만으로 충분하지 않을 수 있음",
+      "mitigation": "지원 시작 버전, 부분 지원, 실험적 상태를 পৃথ개 기록한다."
+    },
+    {
+      "risk": "AbortSignal.timeout()의 시간 semantics가 브라우저와 Node.js에서 다르게 해석될 수 있음",
+      "mitigation": "표준 정의와 Node.js 구현 문서를 각각 확인해 런타임별로 구분한다."
+    },
+    {
+      "risk": "‘주요 브라우저’ 범위가 모호함",
+      "mitigation": "Chrome·Edge·Firefox·Safari를 기본 범위로 명시한다."
+    },
+    {
+      "risk": "검색 결과나 커뮤니티 글이 오래되었거나 부정확할 수 있음",
+      "mitigation": "공식 문서와 표준을 우선하고 커뮤니티 자료는 보조 근거로만 사용한다."
+    }
+  ],
+  "researchScope": [
+    {
+      "scopeItem": "Node.js에서 AbortSignal.any()의 안정적 지원 버전",
+      "sourceText": "Node.js에서 AbortSignal.any()은 각각 어느 버전부터 안정적으로 지원되며",
+      "whyIncluded": "질문의 첫 번째 버전·안정성 요구사항이다."
+    },
+    {
+      "scopeItem": "Node.js에서 AbortSignal.timeout()의 안정적 지원 버전",
+      "sourceText": "Node.js에서 AbortSignal.any()와 AbortSignal.timeout()은 각각 어느 버전부터 안정적으로 지원되며",
+      "whyIncluded": "질문의 두 번째 버전·안정성 요구사항이다."
+    },
+    {
+      "scopeItem": "주요 브라우저의 AbortSignal.any() 지원 현황",
+      "sourceText": "주요 브라우저 지원 현황",
+      "whyIncluded": "API별 브라우저 호환성 표가 필요하다."
+    },
+    {
+      "scopeItem": "주요 브라우저의 AbortSignal.timeout() 지원 현황",
+      "sourceText": "주요 브라우저 지원 현황",
+      "whyIncluded": "API별 브라우저 호환성 표가 필요하다."
+    },
+    {
+      "scopeItem": "AbortSignal.any()의 알려진 주의점",
+      "sourceText": "알려진 주의점은 무엇인가?",
+      "whyIncluded": "복합 취소 신호의 reason·취소 전파 등 실사용 caveat를 확인해야 한다."
+    },
+    {
+      "scopeItem": "AbortSignal.timeout()의 알려진 주의점",
+      "sourceText": "알려진 주의점은 무엇인가?",
+      "whyIncluded": "timeout 취소·시간 측정·예외 동작 등 실사용 caveat를 확인해야 한다."
+    }
+  ],
+  "researchQuestions": [
+    {
+      "id": "question-001",
+      "question": "Node.js 공식 문서와 릴리스 자료에서 AbortSignal.any()의 최초 도입 버전과 현재 안정성 표기는 무엇인가?",
+      "covers": [
+        "Node.js에서 AbortSignal.any()의 안정적 지원 버전"
+      ],
+      "coversFactSlots": [
+        "slot-001",
+        "slot-002"
+      ],
+      "whyItMatters": "도입 버전과 Stable 전환 여부를 정확히 구분하기 위해 필요하다.",
+      "searchQueries": [
+        "Node.js AbortSignal.any history stability official",
+        "site:nodejs.org AbortSignal.any added version",
+        "site:nodejs.org/api/globals.html AbortSignal.any"
+      ],
+      "expectedSourceTypes": [
+        "Node.js 공식 API 문서",
+        "Node.js 공식 릴리스 문서"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "question-002",
+      "question": "Node.js 공식 문서와 릴리스 자료에서 AbortSignal.timeout()의 최초 도입 버전과 현재 안정성 표기는 무엇인가?",
+      "covers": [
+        "Node.js에서 AbortSignal.timeout()의 안정적 지원 버전"
+      ],
+      "coversFactSlots": [
+        "slot-003",
+        "slot-004"
+      ],
+      "whyItMatters": "timeout API의 최소 안전 버전과 안정화 상태를 확정하기 위해 필요하다.",
+      "searchQueries": [
+        "Node.js AbortSignal.timeout history stability official",
+        "site:nodejs.org AbortSignal.timeout added version",
+        "site:nodejs.org/api/globals.html AbortSignal.timeout"
+      ],
+      "expectedSourceTypes": [
+        "Node.js 공식 API 문서",
+        "Node.js 공식 릴리스 문서"
+      ],
+      "priority": "critical"
+    },
+    {
+      "id": "question-003",
+      "question": "MDN Browser Compatibility Data와 브라우저 공식 자료에서 AbortSignal.any()의 Chrome·Edge·Firefox·Safari 지원 시작 버전은 각각 무엇인가?",
+      "covers": [
+        "주요 브라우저의 AbortSignal.any() 지원 현황"
+      ],
+      "coversFactSlots": [
+        "slot-005",
+        "slot-006",
+        "slot-007",
+        "slot-008"
+      ],
+      "whyItMatters": "주요 브라우저에서 사용 가능한 최소 환경을 API별로 제시하기 위해 필요하다.",
+      "searchQueries": [
+        "MDN AbortSignal.any browser compatibility",
+        "BCD AbortSignal.any Chrome Firefox Safari",
+        "AbortSignal.any browser release official"
+      ],
+      "expectedSourceTypes": [
+        "MDN",
+        "MDN Browser Compatibility Data",
+        "브라우저 공식 릴리스 문서"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "question-004",
+      "question": "MDN Browser Compatibility Data와 브라우저 공식 자료에서 AbortSignal.timeout()의 Chrome·Edge·Firefox·Safari 지원 시작 버전은 각각 무엇인가?",
+      "covers": [
+        "주요 브라우저의 AbortSignal.timeout() 지원 현황"
+      ],
+      "coversFactSlots": [
+        "slot-009",
+        "slot-010",
+        "slot-011",
+        "slot-012"
+      ],
+      "whyItMatters": "timeout API의 브라우저별 배포 범위를 정확히 비교하기 위해 필요하다.",
+      "searchQueries": [
+        "MDN AbortSignal.timeout browser compatibility",
+        "BCD AbortSignal.timeout Chrome Firefox Safari",
+        "AbortSignal.timeout browser release official"
+      ],
+      "expectedSourceTypes": [
+        "MDN",
+        "MDN Browser Compatibility Data",
+        "브라우저 공식 릴리스 문서"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "question-005",
+      "question": "WHATWG DOM 표준과 Node.js 공식 문서는 AbortSignal.any()의 입력 신호 처리, abort reason 전파, 이미 취소된 신호 처리에 대해 어떤 동작을 정의하는가?",
+      "covers": [
+        "AbortSignal.any()의 알려진 주의점"
+      ],
+      "coversFactSlots": [
+        "slot-013"
+      ],
+      "whyItMatters": "복수 신호를 결합할 때 reason과 즉시 취소 동작을 잘못 가정하는 문제를 예방한다.",
+      "searchQueries": [
+        "WHATWG DOM AbortSignal.any reason official",
+        "MDN AbortSignal.any reason already aborted",
+        "Node.js AbortSignal.any documentation reason"
+      ],
+      "expectedSourceTypes": [
+        "WHATWG DOM 표준",
+        "MDN",
+        "Node.js 공식 API 문서"
+      ],
+      "priority": "high"
+    },
+    {
+      "id": "question-006",
+      "question": "WHATWG DOM 표준과 Node.js·MDN 문서는 AbortSignal.timeout()의 시간 측정 방식, abort reason/예외 형태, 타이머 및 이벤트 루프 관련 주의점을 어떻게 설명하는가?",
+      "covers": [
+        "AbortSignal.timeout()의 알려진 주의점"
+      ],
+      "coversFactSlots": [
+        "slot-014"
+      ],
+      "whyItMatters": "timeout을 일반 타이머와 동일하게 해석하거나 예외를 잘못 처리하는 실수를 방지한다.",
+      "searchQueries": [
+        "WHATWG DOM AbortSignal.timeout active time official",
+        "MDN AbortSignal.timeout TimeoutError active time",
+        "Node.js AbortSignal.timeout documentation"
+      ],
+      "expectedSourceTypes": [
+        "WHATWG DOM 표준",
+        "MDN",
+        "Node.js 공식 API 문서"
+      ],
+      "priority": "high"
+    }
+  ],
+  "researchScopeCoverage": [
+    {
+      "scopeItem": "Node.js에서 AbortSignal.any()의 안정적 지원 버전",
+      "coveredBy": [
+        "question-001"
+      ],
+      "status": "covered"
+    },
+    {
+      "scopeItem": "Node.js에서 AbortSignal.timeout()의 안정적 지원 버전",
+      "coveredBy": [
+        "question-002"
+      ],
+      "status": "covered"
+    },
+    {
+      "scopeItem": "주요 브라우저의 AbortSignal.any() 지원 현황",
+      "coveredBy": [
+        "question-003"
+      ],
+      "status": "covered"
+    },
+    {
+      "scopeItem": "주요 브라우저의 AbortSignal.timeout() 지원 현황",
+      "coveredBy": [
+        "question-004"
+      ],
+      "status": "covered"
+    },
+    {
+      "scopeItem": "AbortSignal.any()의 알려진 주의점",
+      "coveredBy": [
+        "question-005"
+      ],
+      "status": "covered"
+    },
+    {
+      "scopeItem": "AbortSignal.timeout()의 알려진 주의점",
+      "coveredBy": [
+        "question-006"
+      ],
+      "status": "covered"
+    }
+  ],
+  "verificationRubric": {
+    "sourceQuality": "Node.js 버전과 안정성은 Node.js 공식 문서를 필수로 사용하고, 브라우저 지원은 MDN/BCD를 기본으로 하며 표준 또는 브라우저 공식 자료로 보강한다.",
+    "corroboration": "핵심 버전 숫자와 브라우저 예외 사례는 가능하면 서로 독립적인 2개 이상의 1차 자료에서 일치 여부를 확인한다.",
+    "exactness": "버전은 major.minor.patch 또는 원자료가 제공하는 정확한 최소 버전으로 기록하고, ‘도입됨’, ‘실험적’, ‘Stable’을 서로 바꾸어 쓰지 않는다.",
+    "behavioralClaims": "주의점은 표준 동작과 Node.js 구현을 분리하고, 확인되지 않은 커뮤니티 주장이나 일반화는 사실로 제시하지 않는다.",
+    "blockingEvidenceGap": "Node.js 공식 자료에서 안정성 또는 버전 표기를 확인하지 못하거나, 브라우저별 지원 버전이 신뢰할 수 있는 호환성 자료에서 확인되지 않으면 해당 주장을 확정하지 않고 증거 공백으로 표시한다."
+  },
+  "notes": [
+    "최종 결과는 Node.js 버전 표와 브라우저별 지원 표를 분리한다.",
+    "브라우저 범위는 Chrome·Edge·Firefox·Safari로 고정한다.",
+    "Node.js의 최초 지원 버전과 안정적으로 사용할 수 있는 버전이 다르면 둘 다 보고한다."
+  ]
+}

@@ -1,0 +1,170 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "커밋 654f639 종합 검토 결과 배포 불가(BLOCKED, high risk)로 판정되었습니다. 공개 인터페이스 계약 파괴(T3), 재귀 JSON 파싱 DoS 취약점(C2), 프로바이더 타임아웃 취소 오승격(C1), 디스크 I/O 스레싱 및 중지 지연(S3), 에러 판별 규칙 위반(S6), 단위 테스트 및 검증 환경 전무(Q1)가 해결되어야 합니다.",
+  "summary": "커밋 654f639(HEAD~1..HEAD)에 대한 공개 계약, 상태·데이터, 검증, 문서·릴리스, 보안·성능 5대 관점의 종합 영향 분석 결과, 현재 상태로는 프로덕션 배포가 불가능(BLOCKED)합니다. 명세(SPEC.md)에 정의된 공개 텔레메트리 필드명 임의 변경(T3)으로 인한 외부 호환성 파괴, 중첩 JSON 파싱 시 스택 오버플로 프로세스 크래시 DoS 취약점(C2), 일시적 타임아웃 오류를 사용자 취소로 오인하여 자동 재시도를 무력화하는 결함(C1), 1ms 극단적 폴링 허용으로 인한 디스크 I/O 고갈 위험(S3), 그리고 명세가 강제하는 단위 테스트 및 CI 검증 체계 전무(Q1) 등 다수의 치명적 블로커가 확인되었습니다.",
+  "verdict": "BLOCKED",
+  "riskLevel": "high",
+  "blockingIssues": [
+    {
+      "id": "BLOCKER-01-API-CONTRACT",
+      "lens": "공개 계약",
+      "specRef": "SPEC.md T3",
+      "file": "src/workflow-terminal.ts",
+      "title": "공개 텔레메트리 인터페이스 필드명 파괴 (launchRetryAttempts -> launchRetries)",
+      "description": "SPEC T3에서 외부 도구가 참조하는 공개 계약으로 규정한 'launchRetryAttempts' 필드가 'launchRetries'로 변경되어, 외부 API 컨슈머 및 모니터링 대시보드에서 undefined가 참조되는 하위 호환성 파괴가 발생합니다.",
+      "impact": "외부 모니터링 시스템의 재시도 지표 누락 및 텔레메트리 연동 장애"
+    },
+    {
+      "id": "BLOCKER-02-SECURITY-DOS",
+      "lens": "보안·성능",
+      "specRef": "SPEC.md C2",
+      "file": "src/workflow-cancellation.ts",
+      "title": "재귀 JSON 파싱 시 스택 오버플로 프로세스 크래시(DoS) 취약점",
+      "description": "isWorkflowReturnedCancellation 함수에서 content[].text의 재귀 JSON 파싱 방지 가드가 'parsed !== value'로 구현되어 있어 매 파싱마다 새 객체가 생성되므로 조건이 항상 참이 됩니다. 이로 인해 중첩 JSON 입력 시 RangeError가 발생하여 워크플로 프로세스가 비정상 종료됩니다.",
+      "impact": "악의적이거나 복합적인 프로바이더 응답 수신 시 엔진 전체 셧다운 및 서비스 거부(DoS)"
+    },
+    {
+      "id": "BLOCKER-03-STATE-TIMEOUT",
+      "lens": "상태·데이터",
+      "specRef": "SPEC.md C1",
+      "file": "src/workflow-cancellation.ts",
+      "title": "프로바이더 타임아웃 오류의 취소 오승격으로 인한 자동 재시도 무력화",
+      "description": "SPEC C1은 취소 사유를 'aborted', 'AbortError', 'ABORT_ERR' 3종으로만 한정하고 있으나, 코드에 'cancelled'와 'timeout'이 추가되었습니다. 이로 인해 일시적 네트워크/서비스 타임아웃이 영구적 사용자 취소로 오분류되어 자동 재시도가 차단되고 장애가 은폐됩니다.",
+      "impact": "일시적 네트워크 장애에 대한 자동 복구 실패 및 장애 상태 왜곡"
+    },
+    {
+      "id": "BLOCKER-04-PERF-POLLING",
+      "lens": "보안·성능",
+      "specRef": "SPEC.md S3",
+      "file": "src/workflow-stop.ts",
+      "title": "중지 감시 주기 기본값 지연(200ms) 및 최소 하한(1ms) 완화로 인한 디스크 I/O 고갈",
+      "description": "SPEC S3의 50ms 기본값과 10ms 최소 하한 규정과 달리, 구현체는 200ms 기본값을 적용하여 반응을 지연시키고 하한선을 Math.max(1, ...)로 완화하여 초당 수천 회의 디스크 읽기 및 이벤트 루프 포화를 유발할 수 있습니다.",
+      "impact": "중지 요청 반응성 저하 및 극단적 디스크 I/O 스레싱으로 인한 성능 저하"
+    },
+    {
+      "id": "BLOCKER-05-RELIABILITY-ERROR",
+      "lens": "공개 계약",
+      "specRef": "SPEC.md S6",
+      "file": "src/workflow-stop.ts",
+      "title": "중지 오류 판별 시 에러 메시지 내용 검사 위반",
+      "description": "SPEC S6은 에러 이름이 'WorkflowStopRequested'인 경우만 중지 오류로 인정하도록 명시하고 있으나, 코드에서 error.message.startsWith(...)를 검사하여 서드파티나 일반 오류가 중지 상태로 오판단될 위험이 있습니다.",
+      "impact": "일반 런타임 예외가 중지 요청으로 오분류되어 의도치 않은 워크플로 중단 유발"
+    },
+    {
+      "id": "BLOCKER-06-VALIDATION-GAP",
+      "lens": "검증",
+      "specRef": "SPEC.md Q1",
+      "file": "package.json",
+      "title": "명세 요구 단위 테스트 스위트 및 자동화 검증 체계 전무",
+      "description": "SPEC Q1에 규정된 S1~S7, C1~C2, T1~T3에 대한 단위 테스트 코드가 전혀 없고, package.json에 test 스크립트 및 CI 파이프라인이 부재하여 코드 회귀 및 결함을 사전에 탐지할 수 없습니다.",
+      "impact": "품질 보증 부재 상태로 프로덕션 환경에 잠재 결함이 여과 없이 노출"
+    },
+    {
+      "id": "BLOCKER-07-BUILD-DEPLOY",
+      "lens": "문서·릴리스",
+      "specRef": "SPEC.md Q1",
+      "file": "package.json, tsconfig.json",
+      "title": "의존성 미설치 및 빌드/타입 검증 불가 상태",
+      "description": "저장소에 node_modules가 없어 npm run typecheck를 실행할 수 없으며, tsconfig.json의 noEmit 설정 및 배포 엔트리포인트 부재로 인해 독립 라이브러리 형태의 배포 산출물이 생성되지 않습니다.",
+      "impact": "타입 정적 안정성 미검증 및 실제 배포 산출물 빌드 불가"
+    }
+  ],
+  "nonBlockingIssues": [
+    {
+      "id": "NON-BLOCKER-01-ASYNC-PILEUP",
+      "lens": "보안·성능",
+      "file": "src/workflow-stop.ts",
+      "title": "중지 감시 setInterval 내 비동기 호출 누적(Promise Pileup) 가능성",
+      "description": "setInterval 내부에서 async readWorkflowStopIntent 호출이 완료되지 않은 채 다음 주기가 실행되어 비동기 프로미스가 누적될 수 있습니다."
+    },
+    {
+      "id": "NON-BLOCKER-02-DISK-LOGGING",
+      "lens": "상태·데이터",
+      "file": "src/workflow-stop.ts",
+      "title": "디스크 읽기 실패 시 진단 로깅 부재",
+      "description": "readWorkflowStopIntent 실패 시 catch 블록에서 조용히 undefined를 반환하여 권한 오류나 디스크 장애에 대한 모니터링 추적성이 부족합니다."
+    },
+    {
+      "id": "NON-BLOCKER-03-PACKAGING",
+      "lens": "문서·릴리스",
+      "file": "package.json",
+      "title": "외부 배포 메타데이터 미비",
+      "description": "현재 package.json이 private: true (0.0.0) 상태로, 외부 독립 배포 시 version, exports, types 정의 등 정비가 필요합니다."
+    }
+  ],
+  "confirmedSafeAreas": [
+    {
+      "id": "SAFE-01-STOP-SIGNAL",
+      "specRef": "SPEC.md S1, S2",
+      "description": "createWorkflowStopSignal 및 throwIfWorkflowStopRequested에서 디스크 의도 및 포그라운드 등록 신호를 감지하고, abort 시 에러 이름 'WorkflowStopRequested' 및 지정된 메시지 형식을 일관되게 생성합니다."
+    },
+    {
+      "id": "SAFE-02-DEGRADED-TRANSITION",
+      "specRef": "SPEC.md T1",
+      "description": "WorkflowTerminalSummary 및 summarizeWorkflowTerminal에서 completed 실행 중 degradation 항목이 존재할 때 semanticStatus를 'completed_degraded'로 올바르게 전이합니다."
+    },
+    {
+      "id": "SAFE-03-SIGNAL-CLEANUP",
+      "specRef": "SPEC.md S7",
+      "description": "registerWorkflowForegroundSignal이 반환하는 해제 함수를 통해 마지막 신호 해제 시 launchSignals 맵에서 runId 항목을 완전히 정리(delete)하여 메모리 누수를 방지합니다."
+    },
+    {
+      "id": "SAFE-04-DYNAMIC-CONTROLLER",
+      "specRef": "SPEC.md T2",
+      "description": "dynamic controller 제어 파일(control.json) 파싱 실패 또는 부재 시 정상적인 fallback 처리가 수행됩니다."
+    }
+  ],
+  "recommendedNextActions": [
+    {
+      "priority": 1,
+      "action": "공개 텔레메트리 인터페이스 복원: src/workflow-terminal.ts의 WorkflowTerminalSummary 및 summarizeWorkflowTerminal 반환값의 'launchRetries'를 명세에 명시된 공개 계약 'launchRetryAttempts'로 즉시 환원"
+    },
+    {
+      "priority": 2,
+      "action": "취소 판별 로직 수정: src/workflow-cancellation.ts의 isWorkflowReturnedCancellation에서 'cancelled', 'timeout' 및 details.cancelled 검사를 제거하고 SPEC C1에 명시된 3대 토큰('aborted', 'AbortError', 'ABORT_ERR')만 취소로 인정하도록 수정"
+    },
+    {
+      "priority": 3,
+      "action": "중지 감시 주기 및 하한 복원: src/workflow-stop.ts의 createWorkflowStopSignal에서 pollMs 기본값을 50ms로 되돌리고 최소 하한을 10ms로 강제(Math.max(10, options?.pollMs ?? 50))"
+    },
+    {
+      "priority": 4,
+      "action": "중지 에러 판별 규칙 정합화: src/workflow-stop.ts의 isWorkflowStopRequestedError에서 error.message 검사를 제거하고 error.name === 'WorkflowStopRequested'만 단독 검사"
+    },
+    {
+      "priority": 5,
+      "action": "DoS 방지 가드 구현: src/workflow-cancellation.ts의 재귀 JSON 파싱 로직에 최대 깊이 제한(maxDepth) 카운터 도입 또는 올바른 참조 방문 추적을 적용하여 스택 오버플로 방지"
+    },
+    {
+      "priority": 6,
+      "action": "검증 인프라 및 단위 테스트 구축: 테스트 프레임워크(vitest 등)를 설치하고 package.json에 test 스크립트를 구성한 뒤 SPEC S1~S7, C1~C2, T1~T3 전반에 대한 단위 테스트 작성 및 통과 확인"
+    }
+  ],
+  "validationToRun": [
+    {
+      "name": "Typecheck Verification",
+      "command": "npm install && npm run typecheck",
+      "purpose": "TypeScript 의존성 설치 후 컴파일러 정적 타입 오류 및 공개 인터페이스 계약 정합성 검증"
+    },
+    {
+      "name": "Unit Test Suite Execution",
+      "command": "npm test",
+      "purpose": "SPEC S1~S7(중지), C1~C2(취소), T1~T3(종료 요약) 요구사항을 검증하는 신규 단위 테스트 스위트 전원 통과 확인"
+    },
+    {
+      "name": "DoS & Deep Recursion Test",
+      "command": "node -e 'require(\"./dist/workflow-cancellation\").isWorkflowReturnedCancellation({content:[{text:\"{\\\"a\\\":1}\"}]})'",
+      "purpose": "중첩 JSON 및 반복 파싱 입력 시 호출 스택 초과(RangeError) 없이 안전하게 파싱 종료되는지 확인"
+    }
+  ],
+  "needsHuman": [
+    {
+      "topic": "패키지 배포 의도 및 범위 확인",
+      "question": "본 패키지가 외부 npm 레지스트리로 배포되는 독립 라이브러리인지, 아니면 모노레포 내부 비공개 엔진으로만 사용되는지 배포 의도 확인 필요 (package.json의 private: true 유지 여부 및 dist 산출물 요구사항 결정)"
+    },
+    {
+      "topic": "launchRetries 명칭 변경 의도 확인",
+      "question": "SPEC T3의 'launchRetryAttempts' 대신 커밋에서 'launchRetries'로 변경한 것이 의도된 메이저 API 변경(Breaking Change)인지, 아니면 단순 오탈자인지 프로덕트/클라이언트 요구사항 확인 필요"
+    }
+  ]
+}

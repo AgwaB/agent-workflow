@@ -1,0 +1,199 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1ipzw6_f0c985",
+  "taskId": "task-6",
+  "sources": [
+    {
+      "source": "candidate-findings",
+      "displayName": "candidate-findings.main",
+      "taskId": "task-4",
+      "specId": "candidate-findings.main",
+      "stageId": "candidate-findings",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "SPEC.md 대비 src/ 구현 검토 결과 S1·S2·S4·S5·S7·C2·T1·T2는 명세를 충족하나, S3(pollMs 기본값 및 최소 주기)·S6(메시지 내용 기반 오류 판별)·C1(허용 외 문자열 및 timeout 승격)·T3(launchRetries 필드명 불일치)에서 명세 위반 결함이 확인되었고, Q1 단위 테스트가 부재합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-4/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-4/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-4/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-4/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings",
+      "displayName": "verify-findings.candidate-finding-s3",
+      "taskId": "task-9",
+      "specId": "verify-findings.candidate-finding-s3",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "candidate-finding-s3",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "createWorkflowStopSignal의 pollMs 기본값(200ms vs 50ms) 및 최소 주기(1ms vs 10ms) 불일치가 코드상 명확히 확인되어 candidate-finding-s3을 KEEP으로 판정합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-9/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-9/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-9/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-9/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.candidate-finding-s6",
+      "displayName": "verify-findings.candidate-finding-s6",
+      "taskId": "task-10",
+      "specId": "verify-findings.candidate-finding-s6",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "candidate-finding-s6",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "S6 명세 위반 검증 완료: isWorkflowStopRequestedError가 오류 메시지 접두사를 참조하여 명세를 위반함을 확인하여 KEEP으로 판정합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-10/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-10/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-10/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-10/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.candidate-finding-c1",
+      "displayName": "verify-findings.candidate-finding-c1",
+      "taskId": "task-11",
+      "specId": "verify-findings.candidate-finding-c1",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "candidate-finding-c1",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "isWorkflowReturnedCancellation 구현에서 명세 C1에 허용된 3개 문자열 외에 cancelled와 timeout을 취소로 승격하는 결함이 확인되어 KEEP으로 판정합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-11/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-11/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-11/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-11/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.candidate-finding-t3",
+      "displayName": "verify-findings.candidate-finding-t3",
+      "taskId": "task-12",
+      "specId": "verify-findings.candidate-finding-t3",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "candidate-finding-t3",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "T3 명세는 외부 도구가 읽는 공개 계약 필드명을 launchRetryAttempts로 규정하고 있으나, 구현에서는 launchRetries로 명명되어 불일치함이 확인되었습니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-12/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-12/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-12/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-12/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-findings.candidate-finding-q1",
+      "displayName": "verify-findings.candidate-finding-q1",
+      "taskId": "task-13",
+      "specId": "verify-findings.candidate-finding-q1",
+      "stageId": "verify-findings",
+      "status": "completed",
+      "itemIdentity": "candidate-finding-q1",
+      "placeholderSpecId": "verify-findings.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "저장소 내 테스트 파일 및 테스트 러너 구성 부재로 인해 명세 Q1 요구사항 위반이 확인되어 candidate-finding-q1을 KEEP으로 판정합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-13/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-13/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-13/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipzw6_f0c985/tasks/task-13/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

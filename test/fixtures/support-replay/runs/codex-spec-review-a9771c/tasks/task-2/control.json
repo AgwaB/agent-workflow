@@ -1,0 +1,66 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Mapped stop, cancellation, terminal-summary implementations and found no unit-test files.",
+  "implementationMap": [
+    {
+      "component": "Workflow stop detection and signal registry",
+      "file": "src/workflow-stop.ts:5-27,61-99",
+      "evidence": "launchSignals is keyed by workflowRunPath; checks registered aborted signals and readWorkflowStopIntent; polling and throw paths are separate.",
+      "observedBehavior": "Monitor catches disk-read errors, throwIfWorkflowStopRequested propagates them. Poll default is 200ms with a 1ms minimum. dispose only clears the interval.",
+      "relatedSignals": [
+        "S1",
+        "S3",
+        "S4",
+        "S5",
+        "S7"
+      ]
+    },
+    {
+      "component": "Stop error creation and classification",
+      "file": "src/workflow-stop.ts:43-58",
+      "evidence": "createWorkflowStopRequestedError sets name WorkflowStopRequested and message workflow stop requested for <runId>.",
+      "observedBehavior": "Classifier accepts the required name but also accepts any Error whose message starts with workflow stop requested.",
+      "relatedSignals": [
+        "S2",
+        "S6"
+      ]
+    },
+    {
+      "component": "Provider cancellation detection",
+      "file": "src/workflow-cancellation.ts:2-33",
+      "evidence": "Checks AbortError objects, cancelled flags, selected error/reason fields, and recursively parses JSON text in content entries with parsed !== value.",
+      "observedBehavior": "Recognizes aborted, AbortError, and ABORT_ERR, but also cancelled, timeout, and boolean cancelled markers; JSON content is recursively inspected with a self-reference guard.",
+      "relatedSignals": [
+        "C1",
+        "C2"
+      ]
+    },
+    {
+      "component": "Workflow terminal summary",
+      "file": "src/workflow-terminal.ts:64-112",
+      "evidence": "Maps completed plus degradation to completed_degraded; reads dynamic control.json and falls back to completed_without_semantic_result; sums retry attempts across tasks.",
+      "observedBehavior": "Public summary exposes outputRetryAttempts and launchRetries, while SPEC names launchRetryAttempts.",
+      "relatedSignals": [
+        "T1",
+        "T2",
+        "T3"
+      ]
+    },
+    {
+      "component": "Test coverage inventory",
+      "file": "package.json; repository file list",
+      "evidence": "package.json defines only a typecheck script, and no test files are present in the repository file list.",
+      "observedBehavior": "No located unit-test evidence covers the S, C, or T requirements.",
+      "relatedSignals": [
+        "Q1"
+      ]
+    }
+  ],
+  "unmappedAreas": [
+    "store.js and types.js are referenced by src but intentionally absent from this excerpt; their contracts cannot be inspected.",
+    "No unit-test files or test script were found for Q1 evidence."
+  ],
+  "notes": [
+    "This stage maps implementation evidence only; it does not conclude specification conformance."
+  ]
+}

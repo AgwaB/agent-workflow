@@ -1,0 +1,48 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "명세 위반과 공개 계약 변경이 확인되어 중지·취소 런타임 및 종료 요약 API를 우선 검토한다.",
+  "reviewLenses": [
+    {
+      "id": "runtime-correctness",
+      "focus": "중지·취소 감지의 정확성, 경쟁 조건, polling lifecycle",
+      "whyNeeded": "현재 구현에 polling 기본값·하한 및 취소 분류 명세 위반이 보이며 dispose와 비동기 읽기 경계를 추가 확인해야 한다.",
+      "evidenceToInspect": [
+        "src/workflow-stop.ts:53-86",
+        "src/workflow-stop.ts:89-99",
+        "src/workflow-cancellation.ts:13-32",
+        "SPEC.md:8-28"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "api-contract",
+      "focus": "종료 요약의 의미 상태와 공개 필드 호환성",
+      "whyNeeded": "외부 도구가 읽는 launchRetryAttempts가 launchRetries로 변경되어 계약 회귀 가능성이 높다.",
+      "evidenceToInspect": [
+        "src/workflow-terminal.ts:27-35",
+        "src/workflow-terminal.ts:64-112",
+        "SPEC.md:30-36"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "test-hygiene",
+      "focus": "명세 항목별 회귀 테스트와 검증 가능성",
+      "whyNeeded": "Q1은 모든 S·C·T 항목의 단위 테스트를 요구하지만 테스트 파일과 test 스크립트가 발견되지 않았다.",
+      "evidenceToInspect": [
+        "package.json:1-8",
+        "SPEC.md:38-40",
+        "src/workflow-stop.ts:61-99",
+        "src/workflow-cancellation.ts:13-32",
+        "src/workflow-terminal.ts:72-112"
+      ],
+      "severityBias": "medium"
+    }
+  ],
+  "triageSummary": "우선순위는 high이다. 즉시 확인할 명세·계약 회귀는 (1) stop polling이 기본 200ms·최소 1ms로 되어 S3의 50ms·최소 10ms를 위반하고, (2) cancellation이 cancelled·timeout까지 취소로 승격해 C1을 위반하며, (3) isWorkflowStopRequestedError가 오류 이름 외에 메시지 prefix도 인정해 S6을 위반하고, (4) 종료 요약 공개 필드 launchRetryAttempts를 launchRetries로 변경한 점이다. dispose 이후 비동기 polling 읽기와 중복 signal 등록도 경쟁 조건 관점에서 확인한다. store.js/types.js가 발췌에서 제외되어 실제 파일 I/O 의미와 타입 계약은 이 저장소 범위에서 완전히 검증할 수 없다.",
+  "riskLevel": "high",
+  "skippedLenses": [
+    "security: 인증·권한 경계가 발췌 범위에 없어 별도 보안 검토 근거가 부족함",
+    "migration: launchRetryAttempts 계약은 API lens에서 다루며 별도 마이그레이션 자료는 없음"
+  ]
+}

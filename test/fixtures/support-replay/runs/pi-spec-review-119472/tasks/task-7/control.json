@@ -1,0 +1,127 @@
+{
+  "schema": "spec-review-report-v1",
+  "digest": "검증된 명세 불일치 7건으로 GAPS_FOUND이며, T1·T2 교집합의 상태 우선순위는 별도 미해결이다.",
+  "summary": "정적 구현 근거상 5항목은 충족, 7항목은 부분 충족이며 Q1은 미충족이다. 검증된 결함 7건과 별도의 상태 우선순위 미해결 항목 1건이 있다.",
+  "verdict": "GAPS_FOUND",
+  "ownerLedger": [
+    {
+      "source": "verify-findings",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-001",
+      "taskId": "task-9",
+      "itemIdentity": "finding-001",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-002",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-002",
+      "taskId": "task-10",
+      "itemIdentity": "finding-002",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-003",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-003",
+      "taskId": "task-11",
+      "itemIdentity": "finding-003",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-004",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-004",
+      "taskId": "task-12",
+      "itemIdentity": "finding-004",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-005",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-005",
+      "taskId": "task-13",
+      "itemIdentity": "finding-005",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-006",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-006",
+      "taskId": "task-14",
+      "itemIdentity": "finding-006",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-007",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-007",
+      "taskId": "task-15",
+      "itemIdentity": "finding-007",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    }
+  ],
+  "ownerLedgerReconciliation": {
+    "ownerRowCount": 7,
+    "verifierRowCount": 7,
+    "ownerIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "verifierIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "duplicateOwnerIds": [],
+    "duplicateVerifierIds": [],
+    "missingOwnerRows": [],
+    "orphanOwnerRows": [],
+    "statusMismatches": [],
+    "cardinalityPassed": true,
+    "passed": true
+  },
+  "risks": [
+    "중지 감시 반복 주기의 기본값과 하한이 명세와 다르다.",
+    "일반 오류를 중지 오류로, timeout·cancelled 문자열을 취소로 오인한다.",
+    "공개 필드 launchRetryAttempts가 없어 계약된 이름으로 합계를 읽을 수 없다.",
+    "T1·T2의 분리된 반례에서 요구된 의미 상태 대신 다른 상태를 반환한다.",
+    "Q1 미충족으로 S·C·T 전체의 단위 테스트 근거가 없다.",
+    "terminal-status-priority(T1·T2)의 교집합 우선순위는 아직 확정되지 않았다."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "이 단계는 명령 실행을 금지하므로 테스트나 타입 검사를 실행하지 않았다. 실행하지 않았다는 사실 자체를 요구사항 결함으로 분류하지 않았다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "검토 범위는 제공된 프로젝트 파일이다. SPEC.md가 발췌에서 제외했다고 명시한 store.js와 types.js의 실제 동작은 확인하지 못했다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "파일 검색은 .gitignore를 따랐다. 제외된 node_modules와 .agent-workflow는 프로젝트 단위 테스트의 근거로 취급하지 않았다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "recommendedNextAction": "확인된 주기·오류 판별·공개 필드명·종료 상태 결함을 수정하고, terminal-status-priority의 우선순위를 명세에 명시한 뒤 S·C·T 전체의 단위 테스트를 추가한다."
+}

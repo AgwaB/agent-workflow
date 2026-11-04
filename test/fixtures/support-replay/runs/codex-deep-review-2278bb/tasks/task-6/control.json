@@ -1,0 +1,73 @@
+{
+  "schema": "deep-review-report-packet-v1",
+  "digest": "ce5599a18d3ba4bf0ba783849fa8a72c2d47b9c160699d94d9b448fefa272f73",
+  "maxChars": 15000,
+  "actualChars": 1736,
+  "expectedVerdict": "NEEDS_WORK",
+  "partitionSummary": {
+    "keep": 5,
+    "weaken": 0,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "mergedFindings": 0,
+    "verdictsReceived": 5,
+    "batchIntegrityIssues": 0,
+    "verdictIntegrityIssues": 0,
+    "reviewerCoverageIssues": 0,
+    "reviewerFindings": 5,
+    "missingVerdicts": 0,
+    "partialFailures": 0
+  },
+  "sourceStatusSummary": {
+    "total": 6,
+    "completed": 6,
+    "nonCompleted": 0,
+    "partialFailureCount": 0,
+    "partialFailures": []
+  },
+  "reportContext": {
+    "keep": [
+      {
+        "findingId": "finding-001",
+        "title": "중지 감시 주기 기본값과 최소값이 명세보다 느림",
+        "severity": "high",
+        "recommendedAction": "pollMs 기본값을 50ms로 변경하고 최소값을 10ms로 clamp하며, 해당 계약을 검증하는 회귀 테스트를 추가하라."
+      },
+      {
+        "findingId": "finding-002",
+        "title": "중지 오류 판별이 오류 이름 외의 메시지까지 신뢰함",
+        "severity": "high",
+        "recommendedAction": "isWorkflowStopRequestedError에서 메시지 접두사 조건을 제거하고 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME만 사용하며, 다른 이름과 동일한 메시지를 가진 오류가 중지 오류로 판별되지 않는 회귀 테스트를 추가하라."
+      },
+      {
+        "findingId": "finding-003",
+        "title": "provider의 cancelled·timeout 사유를 취소로 승격함",
+        "severity": "high",
+        "recommendedAction": "문자열 비교를 `aborted`, `AbortError`, `ABORT_ERR` 세 값으로 제한하고, `cancelled`와 `timeout`은 별도 오류 경로로 처리하라."
+      },
+      {
+        "findingId": "finding-004",
+        "title": "공개 계약의 launchRetryAttempts 필드가 launchRetries로 구현됨",
+        "severity": "high",
+        "recommendedAction": "WorkflowTerminalSummary와 summarizeWorkflowTerminal 반환 객체의 키를 launchRetryAttempts로 변경하고, 해당 공개 필드를 검증하는 회귀 테스트를 추가한다."
+      }
+    ],
+    "weaken": [],
+    "drop": [],
+    "needsHuman": [],
+    "supportNoteSummaries": []
+  },
+  "normalizationNotes": [],
+  "overflowCounts": {
+    "keep": 1,
+    "weaken": 0,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "partialFailures": 0,
+    "normalizationNotes": 0,
+    "truncatedStrings": 0,
+    "omittedStringChars": 0
+  }
+}

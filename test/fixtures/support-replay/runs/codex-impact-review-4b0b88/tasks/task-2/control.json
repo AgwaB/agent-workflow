@@ -1,0 +1,141 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "654f639:3-files:4-insertions:4-deletions",
+  "components": [
+    {
+      "id": "cancellation-classifier",
+      "files": [
+        "src/workflow-cancellation.ts:13-33"
+      ],
+      "exports": [
+        "isWorkflowAbortError",
+        "isWorkflowReturnedCancellation"
+      ],
+      "surface": "Provider-returned cancellation classification now accepts error/reason values cancelled and timeout in addition to aborted, AbortError, and ABORT_ERR; recursive content[].text JSON parsing remains active."
+    },
+    {
+      "id": "stop-signal-polling",
+      "files": [
+        "src/workflow-stop.ts:61-86"
+      ],
+      "exports": [
+        "createWorkflowStopSignal",
+        "bindWorkflowLaunchSignal",
+        "throwIfWorkflowStopRequested"
+      ],
+      "surface": "createWorkflowStopSignal pollMs default changes from 50ms to 200ms and minimum clamp from 10ms to 1ms; timer polling and immediate check remain the execution path.",
+      "dependencies": [
+        "./store.js:readWorkflowStopIntent",
+        "./store.js:workflowRunPath"
+      ]
+    },
+    {
+      "id": "terminal-summary-contract",
+      "files": [
+        "src/workflow-terminal.ts:27-35",
+        "src/workflow-terminal.ts:72-112"
+      ],
+      "exports": [
+        "WorkflowTerminalSummary",
+        "summarizeWorkflowTerminal"
+      ],
+      "surface": "Public summary property launchRetryAttempts is renamed to launchRetries; value still sums task.launchRetry.attempts across all tasks.",
+      "dependencies": [
+        "./store.js:finalStageTasks",
+        "./store.js:fromProjectPath",
+        "./store.js:isTerminalWorkflowStatus",
+        "./store.js:readJson",
+        "./store.js:workflowRunDir",
+        "./types.js:WorkflowRunRecord",
+        "node:path"
+      ]
+    },
+    {
+      "id": "spec-and-package-surface",
+      "files": [
+        "SPEC.md:13-14",
+        "SPEC.md:25-36",
+        "package.json:1-7"
+      ],
+      "surface": "SPEC.md documents the previous poll defaults and previous launchRetryAttempts contract. package.json exposes only npm run typecheck, has no build/test script, no exports field, and is private."
+    }
+  ],
+  "entryPoints": [
+    {
+      "kind": "function",
+      "symbol": "isWorkflowReturnedCancellation",
+      "file": "src/workflow-cancellation.ts:13",
+      "input": "unknown provider return value",
+      "downstream": "provider boundary callers outside this excerpt"
+    },
+    {
+      "kind": "function",
+      "symbol": "createWorkflowStopSignal",
+      "file": "src/workflow-stop.ts:61",
+      "input": "cwd, runId, options.pollMs",
+      "downstream": "AbortSignal consumers and filesystem stop-intent polling"
+    },
+    {
+      "kind": "function",
+      "symbol": "summarizeWorkflowTerminal",
+      "file": "src/workflow-terminal.ts:72",
+      "input": "cwd, WorkflowRunRecord",
+      "downstream": "terminal-status and retry-summary consumers"
+    },
+    {
+      "kind": "command",
+      "command": "npm run typecheck",
+      "file": "package.json:7",
+      "downstream": "TypeScript validation"
+    }
+  ],
+  "dataFlows": [
+    {
+      "from": "provider adapter result fields error/details.error/reason/details.reason, cancelled/details.cancelled, content[].text",
+      "to": "isWorkflowReturnedCancellation",
+      "effect": "boolean cancellation classification"
+    },
+    {
+      "from": "foreground AbortSignal registrations plus readWorkflowStopIntent(cwd,runId)",
+      "to": "createWorkflowStopSignal",
+      "effect": "AbortController signal aborted with WorkflowStopRequested error"
+    },
+    {
+      "from": "WorkflowRunRecord.tasks[].launchRetry.attempts",
+      "to": "summarizeWorkflowTerminal",
+      "effect": "aggregate emitted as WorkflowTerminalSummary.launchRetries"
+    },
+    {
+      "from": "direct-dynamic controller task output/control.json",
+      "to": "summarizeWorkflowTerminal",
+      "effect": "semantic status and outputTaskIds derivation"
+    },
+    {
+      "from": "SPEC.md and external consumers",
+      "to": "changed runtime/type surfaces",
+      "effect": "documented polling and summary-field contracts may diverge from implementation"
+    }
+  ],
+  "unknowns": [
+    {
+      "area": "consumers",
+      "detail": "No local callers of the changed exports or launchRetryAttempts/launchRetries were found; external workflow engine, provider adapters, and tools are outside this excerpt."
+    },
+    {
+      "area": "dependency sources",
+      "detail": "store.js and types.js are referenced but absent from the repository tree, so persistence schemas and WorkflowRunRecord definitions cannot be traced here."
+    },
+    {
+      "area": "validation",
+      "detail": "No test files or test script are present; only npm run typecheck is declared."
+    },
+    {
+      "area": "release surface",
+      "detail": "No package exports, build configuration, lockfile, or release metadata is present; distribution/import paths are therefore not observable."
+    },
+    {
+      "area": "payload contracts",
+      "detail": "The provider schemas for cancelled and timeout markers are not included, so their intended classification semantics require downstream review."
+    }
+  ]
+}

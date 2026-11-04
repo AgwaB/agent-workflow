@@ -1,0 +1,121 @@
+{
+  "schema": "spec-review-report-v1",
+  "digest": "partition-findings 기준 최종 판정은 INCONCLUSIVE이며, 요구사항 조정이 미완료(REQ-005, REQ-011 unclear)이고 확정 finding 6건(WEAKEN 2, KEEP 4)이 기록되어 있다.",
+  "summary": "SPEC.md 대비 src/ 구현은 명세를 완전히 충족하지 않는다. S1, S2, S4, S7은 정적 근거상 충족으로 보이지만 S3, S6, C1, T3, Q1에서 명세 위반 또는 근거 부재가 확인되었고, C2와 T1은 부분 충족이다. S5와 T2는 판정 불가(unclear)이며 requirementReconciliation이 complete가 아니어서 최종 판정은 INCONCLUSIVE이다. 테스트는 실행하지 않았다.",
+  "verdict": "INCONCLUSIVE",
+  "ownerLedger": [
+    {
+      "source": "verify-findings",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-001",
+      "taskId": "task-9",
+      "itemIdentity": "finding-001",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-002",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-002",
+      "taskId": "task-10",
+      "itemIdentity": "finding-002",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-003",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-003",
+      "taskId": "task-11",
+      "itemIdentity": "finding-003",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-004",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-004",
+      "taskId": "task-12",
+      "itemIdentity": "finding-004",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-005",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-005",
+      "taskId": "task-13",
+      "itemIdentity": "finding-005",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-006",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-006",
+      "taskId": "task-14",
+      "itemIdentity": "finding-006",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    }
+  ],
+  "ownerLedgerReconciliation": {
+    "ownerRowCount": 6,
+    "verifierRowCount": 6,
+    "ownerIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "verifierIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "duplicateOwnerIds": [],
+    "duplicateVerifierIds": [],
+    "missingOwnerRows": [],
+    "orphanOwnerRows": [],
+    "statusMismatches": [],
+    "cardinalityPassed": true,
+    "passed": true
+  },
+  "risks": [
+    "C1: cancelled/timeout 문자열을 취소로 인정해 명세의 세 값 제한과 다른 provider 오류 승격 금지를 위반 (finding-001, src/workflow-cancellation.ts:20)",
+    "C2: 같은 규칙 집합을 재사용하므로 cancelled 마커 문제가 C2에도 전파됨 (REQ-009 partial, finding-001)",
+    "S6: 메시지 접두사 'workflow stop requested'로 중지 오류를 판별해 이름 전용 규칙 위반 (finding-002, src/workflow-stop.ts:53-59)",
+    "S3: pollMs 기본값 200ms, 하한 1ms로 명세의 50ms 및 10ms와 불일치 (finding-003, src/workflow-stop.ts:67)",
+    "T3: 요약 필드가 launchRetries로 노출되어 공개 계약명 launchRetryAttempts와 다름 (finding-004, src/workflow-terminal.ts:33,107)",
+    "T1: direct-dynamic 터미널 분기가 completed_degraded를 덮어쓸 수 있음 (REQ-010 partial, finding-005, src/workflow-terminal.ts:80-95)",
+    "Q1: 테스트 파일과 test 스크립트가 저장소에 없어 S·C·T 단위 테스트 근거 없음 (finding-006)",
+    "S5: dispose 후 새 디스크 읽기 발생 여부 미확정 (needs-001, unclear)",
+    "T2: control.json 읽기 실패 fallback의 명세 일치 여부 불명확 (needs-002, unclear)",
+    "requirementReconciliation 미완료: REQ-005, REQ-011이 unresolved이고 complete=false",
+    "evidenceGate 미완료(complete=false)이므로 완전 적합 주장 불가"
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "테스트를 실행하지 않았고 읽기 전용으로 정적 검토만 수행했다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "map-implementation 결과가 excerpt 기반이며 store.js/types.js는 excerpt에 없어 확인하지 않았다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "T1 dynamic 덮어쓰기와 T2 fallback 조건은 upstream 요약 기준이며 src/workflow-terminal.ts 전체 흐름은 재확인하지 않았다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "recommendedNextAction": "먼저 needs-001(S5)과 needs-002(T2)를 검증해 requirementReconciliation의 REQ-005, REQ-011을 해소한 뒤 재판정한다. 확정 finding은 다음 순서로 고친다. (1) src/workflow-cancellation.ts:20에서 cancelled/timeout을 제거하고 불리언 플래그 경로의 C1 적용 여부를 SPEC에 명확히 한다. (2) src/workflow-stop.ts:57의 메시지 접두사 분기를 제거한다. (3) src/workflow-stop.ts:67의 기본값을 50, 하한을 10으로 바꾼다. (4) src/workflow-terminal.ts의 launchRetries를 launchRetryAttempts로 바꾸고 외부 소비자를 확인한다. (5) direct-dynamic 분기의 degradation 우선순위를 명세에 맞춘다. 각 항목과 S·C·T 전체에 대한 단위 테스트를 추가하고 test 스크립트를 package.json에 등록한 뒤 실행해 재검토한다."
+}

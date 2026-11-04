@@ -1,0 +1,167 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "validation-map:tests=0:docs=1:releaseArtifacts=2:commands=1:knownGaps=6",
+  "tests": [],
+  "docs": [
+    {
+      "path": "SPEC.md",
+      "type": "specification",
+      "title": "워크플로 중지·취소 처리 명세",
+      "description": "Specification defining requirements for stop detection (S1–S7), cancellation determination (C1–C2), terminal execution summary (T1–T3), and unit testing obligations (Q1).",
+      "sections": [
+        {
+          "heading": "중지 감지 (`src/workflow-stop.ts`)",
+          "requirements": [
+            "S1",
+            "S2",
+            "S3",
+            "S4",
+            "S5",
+            "S6",
+            "S7"
+          ]
+        },
+        {
+          "heading": "취소 판별 (`src/workflow-cancellation.ts`)",
+          "requirements": [
+            "C1",
+            "C2"
+          ]
+        },
+        {
+          "heading": "종료 요약 (`src/workflow-terminal.ts`)",
+          "requirements": [
+            "T1",
+            "T2",
+            "T3"
+          ]
+        },
+        {
+          "heading": "테스트",
+          "requirements": [
+            "Q1"
+          ]
+        }
+      ]
+    }
+  ],
+  "releaseArtifacts": [
+    {
+      "path": "package.json",
+      "type": "npm_package_manifest",
+      "packageName": "workflow-stop-sample",
+      "version": "0.0.0",
+      "private": true,
+      "moduleType": "module",
+      "description": "Excerpt of pi-workflow stop/cancel handling (store.js and types.js are not included)."
+    },
+    {
+      "path": "tsconfig.json",
+      "type": "typescript_config",
+      "target": "ES2022",
+      "module": "NodeNext",
+      "moduleResolution": "NodeNext",
+      "strict": true,
+      "noEmit": true,
+      "include": [
+        "src/**/*.ts"
+      ]
+    }
+  ],
+  "validationCommandsMentioned": [
+    {
+      "name": "typecheck",
+      "command": "tsc --noEmit",
+      "npmScript": "npm run typecheck",
+      "source": "package.json#scripts.typecheck",
+      "purpose": "Static TypeScript type checking across all files matched by src/**/*.ts",
+      "executableEnvironment": {
+        "nodeModulesPresent": false,
+        "notes": "Requires node_modules installation (npm install) before local shell execution."
+      }
+    }
+  ],
+  "knownGaps": [
+    {
+      "id": "GAP-VAL-01-MISSING-TESTS",
+      "category": "tests",
+      "title": "Complete absence of automated test suite and test harness (SPEC Q1 violation)",
+      "description": "SPEC.md Q1 mandates that unit tests must exist for every requirement under S (S1–S7), C (C1–C2), and T (T1–T3). However, no test directories (e.g. test/, tests/, __tests__) or test files (*.test.ts, *.spec.ts) exist in the repository. package.json specifies no test runner dependencies (vitest, jest, mocha, etc.) or test scripts.",
+      "affectedRequirements": [
+        "Q1",
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6",
+        "S7",
+        "C1",
+        "C2",
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "affectedFiles": []
+    },
+    {
+      "id": "GAP-VAL-02-CONTRACT-NAME-MISMATCH",
+      "category": "public_contract",
+      "title": "Public contract field name mismatch in WorkflowTerminalSummary (SPEC T3)",
+      "description": "SPEC.md T3 explicitly declares that outputRetryAttempts and launchRetryAttempts are public contracts consumed by external tools. In src/workflow-terminal.ts lines 33 and 107, the property is defined and returned as launchRetries rather than launchRetryAttempts. Without automated contract/schema tests, breaking contract regressions cannot be caught.",
+      "affectedRequirements": [
+        "T3"
+      ],
+      "affectedFiles": [
+        "src/workflow-terminal.ts"
+      ]
+    },
+    {
+      "id": "GAP-VAL-03-STOP-POLL-MISMATCH",
+      "category": "behavioral_divergence",
+      "title": "Stop polling interval default and minimum bound discrepancy (SPEC S3)",
+      "description": "SPEC.md S3 requires a default pollMs of 50ms and a lower bound of not less than 10ms. In src/workflow-stop.ts line 67, the implementation sets Math.max(1, options.pollMs ?? 200), defaulting to 200ms and clamping to a minimum of 1ms. No unit tests or timing validation exists.",
+      "affectedRequirements": [
+        "S3"
+      ],
+      "affectedFiles": [
+        "src/workflow-stop.ts"
+      ]
+    },
+    {
+      "id": "GAP-VAL-04-STOP-ERROR-HEURISTIC",
+      "category": "behavioral_divergence",
+      "title": "isWorkflowStopRequestedError uses message matching contrary to spec (SPEC S6)",
+      "description": "SPEC.md S6 states that isWorkflowStopRequestedError must recognize only errors whose name is WorkflowStopRequested and must not evaluate message contents. In src/workflow-stop.ts lines 56–58, it includes error.message.startsWith('workflow stop requested'). No validation tests exist to safeguard against message-heuristic false positives.",
+      "affectedRequirements": [
+        "S6"
+      ],
+      "affectedFiles": [
+        "src/workflow-stop.ts"
+      ]
+    },
+    {
+      "id": "GAP-VAL-05-CANCELLATION-STRING-OVEREXTENSION",
+      "category": "behavioral_divergence",
+      "title": "Cancellation classification accepts unauthorized provider error values (SPEC C1)",
+      "description": "SPEC.md C1 dictates that error and reason strings must be strictly limited to 'aborted', 'AbortError', and 'ABORT_ERR', explicitly forbidding promoting other provider errors to cancellations. In src/workflow-cancellation.ts line 20, candidate === 'cancelled' and candidate === 'timeout' are recognized as cancellations. No unit tests verify provider cancellation boundaries.",
+      "affectedRequirements": [
+        "C1"
+      ],
+      "affectedFiles": [
+        "src/workflow-cancellation.ts"
+      ]
+    },
+    {
+      "id": "GAP-VAL-06-BUILD-RELEASE-HARNESS",
+      "category": "release_artifacts",
+      "title": "Lack of distribution build, package bundling, or CI validation workflows",
+      "description": "tsconfig.json has noEmit set to true, package.json lacks build scripts or npm publishing configuration (private: true), and no CI workflow configurations (e.g. .github/workflows) exist in the repository to validate commits automatically.",
+      "affectedRequirements": [],
+      "affectedFiles": [
+        "package.json",
+        "tsconfig.json"
+      ]
+    }
+  ]
+}

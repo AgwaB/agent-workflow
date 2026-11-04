@@ -1,0 +1,48 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "이름이 다른 일반 Error도 메시지 접두사만으로 수락하므로 S6 위반 후보를 유지한다.",
+  "id": "candidate-002",
+  "verdict": "KEEP",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 18,
+      "lineEnd": 19,
+      "quote": "- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로\n  인정한다. 메시지 내용으로 판별해서는 안 된다.",
+      "relevance": "이름 기반 판별만 허용하고 메시지 판별을 명시적으로 금지한다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 55,
+      "lineEnd": 56,
+      "quote": "error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||",
+      "relevance": "이름 일치는 필수 조건이 아니라 OR의 한쪽 조건이다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 57,
+      "lineEnd": 57,
+      "quote": "error.message.startsWith(\"workflow stop requested\")",
+      "relevance": "일반 Error도 메시지 접두사가 일치하면 수락된다."
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 55,
+      "lineEnd": 55,
+      "quote": "error instanceof Error &&",
+      "relevance": "Error 인스턴스 검사는 존재하지만 후보의 일반 Error도 이를 통과한다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 47,
+      "lineEnd": 50,
+      "quote": "error.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME;",
+      "relevance": "정상 중지 오류 생성기는 이름을 지정한다. 정상 경로의 존재는 판별 함수의 오탐을 해소하지 않는다."
+    }
+  ],
+  "finalClaim": "S6 위반: isWorkflowStopRequestedError는 이름이 Error인 new Error('workflow stop requested for run-x')도 메시지 접두사 조건으로 true 처리한다.",
+  "recommendedAction": "메시지 접두사 OR 조건을 제거하고, 일반 Error의 일치 메시지는 거부하며 올바른 이름의 오류는 메시지와 무관하게 수락하는 회귀 테스트를 추가한다."
+}

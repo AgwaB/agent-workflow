@@ -1,0 +1,97 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "마지막 커밋(654f639) 검토 결과, 공개 API 계약 파괴(T3), 프로바이더 타임아웃 취소 오승격(C1), 감시 폴링 지연 및 I/O 안전클램프 결함(S3), 에러 판별 규칙 위반(S6), 테스트 및 빌드 인프라 부재(Q1) 등 다수의 교차 렌즈 계약 불일치가 확인되어 현재 상태에서의 배포는 불가(fail)합니다.",
+  "status": "fail",
+  "issues": [
+    {
+      "id": "CONSISTENCY-ISSUE-01",
+      "severity": "breaking",
+      "lensMismatch": [
+        "api-contract",
+        "state-data",
+        "docs-release"
+      ],
+      "specRef": "SPEC.md T3",
+      "codeLocation": "src/workflow-terminal.ts#L33,L107",
+      "title": "공개 계약 및 데이터 형태 필드명 불일치 (launchRetryAttempts vs launchRetries)",
+      "description": "SPEC.md T3는 요약 객체의 'launchRetryAttempts' 필드가 외부 도구에서 참조하는 공개 계약(public contract)임을 명시하고 있으나, 커밋 654f639에서 인터페이스 정의와 런타임 반환값을 'launchRetries'로 변경하였습니다. 이는 외부 API 컨슈머와 모니터링 도구에서 필드 조회 시 undefined를 반환하게 만드는 중대한 하위 호환성 파괴(Breaking Change)입니다."
+    },
+    {
+      "id": "CONSISTENCY-ISSUE-02",
+      "severity": "high",
+      "lensMismatch": [
+        "api-contract",
+        "state-data",
+        "docs-release"
+      ],
+      "specRef": "SPEC.md C1",
+      "codeLocation": "src/workflow-cancellation.ts#L20",
+      "title": "프로바이더 취소 판별 범위 초과 및 타임아웃 오류 오승격",
+      "description": "SPEC.md C1은 취소 사유를 'aborted', 'AbortError', 'ABORT_ERR' 3가지로만 한정하고 다른 프로바이더 오류의 취소 승격을 금지하고 있으나, 코드에 'cancelled'와 'timeout'을 추가하였습니다. 이로 인해 프로바이더의 일시적 네트워크/서비스 타임아웃 오류가 사용자 명시적 취소 상태로 오분류되어 재시도 복구 로직이 억제되고 모니터링 진단이 왜곡됩니다."
+    },
+    {
+      "id": "CONSISTENCY-ISSUE-03",
+      "severity": "medium",
+      "lensMismatch": [
+        "api-contract",
+        "state-data",
+        "docs-release"
+      ],
+      "specRef": "SPEC.md S3",
+      "codeLocation": "src/workflow-stop.ts#L67",
+      "title": "중지 감시 폴링 주기 기본값 및 최소 클램프 불일치",
+      "description": "SPEC.md S3은 감시 주기(pollMs) 기본값을 50ms, 하한 클램프를 10ms로 규정하고 있으나, 구현체는 기본값을 200ms로 4배 지연시키고 하한선을 Math.max(1, ...)로 완화하였습니다. 이는 중지 감지 반응 지연을 유발할 뿐만 아니라 비정상 입력 시 1ms 단위의 극단적인 디스크 I/O 스레싱(thrashing) 위험을 초래합니다."
+    },
+    {
+      "id": "CONSISTENCY-ISSUE-04",
+      "severity": "medium",
+      "lensMismatch": [
+        "api-contract",
+        "state-data",
+        "docs-release"
+      ],
+      "specRef": "SPEC.md S6",
+      "codeLocation": "src/workflow-stop.ts#L56-L58",
+      "title": "중지 에러 판별 규칙의 메시지 내용 검사 위반",
+      "description": "SPEC.md S6은 이름이 'WorkflowStopRequested'인 에러만 중지 에러로 판별하고 메시지 내용으로 판별하지 않도록 명시하고 있으나, 코드에서 error.message.startsWith('workflow stop requested')를 검사하도록 구현되어 있어 타 컴포넌트의 일반 오류가 중지 상태로 오판단될 위험이 잔존합니다."
+    },
+    {
+      "id": "CONSISTENCY-ISSUE-05",
+      "severity": "high",
+      "lensMismatch": [
+        "docs-release",
+        "verification"
+      ],
+      "specRef": "SPEC.md Q1",
+      "codeLocation": "package.json, tsconfig.json",
+      "title": "명세 요구 검증 체계 및 릴리스 배포 인프라 부재",
+      "description": "SPEC.md Q1은 S, C, T의 모든 요구사항에 대해 단위 테스트가 존재해야 한다고 명시하고 있으나 저장소 내 테스트 코드, 러너 및 CI 파이프라인이 전무합니다. 또한 tsconfig.json의 noEmit 설정 및 package.json의 private: true, 엔트리포인트 부재로 인해 배포 가능한 빌드 산출물이 생성되지 않는 상태입니다."
+    }
+  ],
+  "confirmedConsistencies": [
+    {
+      "id": "CONSISTENCY-CHECK-01",
+      "specRef": "SPEC.md S1, S2",
+      "title": "중지 감지 신호 생성 및 포그라운드/디스크 경로 분기 일치",
+      "description": "createWorkflowStopSignal 및 throwIfWorkflowStopRequested에서 디스크 의도(readWorkflowStopIntent) 및 포그라운드 등록 신호(launchStopRequested)를 감지하고, abort 시 에러 이름 'WorkflowStopRequested' 및 지정된 메시지 형식을 일관되게 생성합니다."
+    },
+    {
+      "id": "CONSISTENCY-CHECK-02",
+      "specRef": "SPEC.md T1",
+      "title": "종료 요약 실행 상태 전이 (completed_degraded) 일치",
+      "description": "WorkflowTerminalSummary 인터페이스 및 summarizeWorkflowTerminal에서 completed 실행 중 degradation 항목이 존재할 때 semanticStatus를 'completed_degraded'로 올바르게 부여합니다."
+    },
+    {
+      "id": "CONSISTENCY-CHECK-03",
+      "specRef": "SPEC.md C2",
+      "title": "취소 판별 시 중첩 JSON 파싱 및 순환 참조 방지 일치",
+      "description": "isWorkflowReturnedCancellation 함수에서 content 배열 내 JSON 텍스트 파싱을 지원하며, visited Set을 사용하여 동일 객체에 대한 무한 재귀 참조를 방지하도록 구현되어 있습니다."
+    },
+    {
+      "id": "CONSISTENCY-CHECK-04",
+      "specRef": "SPEC.md S7",
+      "title": "포그라운드 신호 등록 해제 및 메모리 맵 정리 일치",
+      "description": "registerWorkflowForegroundSignal이 반환하는 해제 함수를 통해 마지막 신호가 제거될 때 launchSignals 맵에서 runId 항목을 완전히 정리(delete)합니다."
+    }
+  ]
+}

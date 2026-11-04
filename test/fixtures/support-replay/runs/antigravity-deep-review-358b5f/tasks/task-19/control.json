@@ -1,0 +1,33 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC.md T3에 명시된 공개 계약 필드명 launchRetryAttempts 대신 launchRetries가 정의 및 반환되고 있음을 확인하여 finding-007을 유지(KEEP)합니다.",
+  "findingId": "finding-007",
+  "finding": "WorkflowTerminalSummary exposes launchRetries instead of public contract property launchRetryAttempts (T3 violation)",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 33,
+      "lineEnd": 33,
+      "symbol": "WorkflowTerminalSummary",
+      "quote": "\tlaunchRetries: number;"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 107,
+      "lineEnd": 110,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "\t\tlaunchRetries: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 35,
+      "lineEnd": 36,
+      "quote": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "WorkflowTerminalSummary 인터페이스 및 summarizeWorkflowTerminal 함수에서 launchRetries 속성을 SPEC.md T3에 명시된 공개 계약 이름인 launchRetryAttempts로 변경(또는 하위 호환성을 위해 별칭으로 병행 제공)해야 합니다.",
+  "readerTitle": "WorkflowTerminalSummary가 공개 계약 속성 launchRetryAttempts 대신 launchRetries를 노출함 (T3 위반)",
+  "readerRationale": "외부 도구 및 계약 소비자는 SPEC.md T3에 따라 요약 객체에서 launchRetryAttempts 필드를 기대합니다. 현재 코드베이스는 launchRetries라는 다른 이름을 사용하므로 공개 계약과의 호환성이 깨지며 외부 호출자에게 재시도 횟수가 누락되거나 undefined로 전달됩니다."
+}

@@ -1,0 +1,61 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "요구사항별 단위 테스트가 없고 검증 스크립트도 타입 검사만 수행합니다.",
+  "lens": "test-validation",
+  "findings": [
+    {
+      "severity": "medium",
+      "title": "S·C·T 요구사항을 검증하는 단위 테스트와 테스트 명령이 없음",
+      "file": "package.json",
+      "locations": [
+        {
+          "file": "package.json",
+          "line": 7,
+          "symbol": "scripts"
+        },
+        {
+          "file": "tsconfig.json",
+          "line": 10,
+          "symbol": "include"
+        }
+      ],
+      "evidence": "저장소에 테스트 파일이 없으며 package.json에는 typecheck만 정의되어 있고 tsconfig.json도 src/**/*.ts만 포함합니다. 따라서 S1-S7, C1-C2, T1-T3 및 경쟁·오류 경로를 자동 검증할 수 없습니다.",
+      "evidenceQuotes": [
+        "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+        "\"include\": [\"src/**/*.ts\"]"
+      ],
+      "rationale": "SPEC의 Q1은 모든 S·C·T 항목에 대한 단위 테스트를 요구하지만 현재 검증은 소스 타입 검사에 한정됩니다. 특히 stop 감시의 dispose/동시 읽기, cancellation JSON 재귀, terminal summary의 degradation·control.json·retry 합산 동작이 회귀되어도 탐지되지 않습니다.",
+      "recommendedAction": "테스트 러너와 test 스크립트를 추가하고 테스트를 tsconfig 또는 별도 테스트 설정에 포함하세요. S1-S7, C1-C2, T1-T3 각각에 정상·오류·경쟁 조건 테스트를 작성한 뒤 CI에서 실행하세요.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "SPEC.md:38-40",
+    "package.json:7",
+    "tsconfig.json:10"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "SPEC.md:37",
+      "status": "metadata-only",
+      "evidence": "",
+      "artifact": "",
+      "reason": "요청된 정확한 line 37은 빈 줄이므로 read 상태에 필요한 비어 있지 않은 정확한 인용을 만들 수 없습니다."
+    },
+    {
+      "path": "package.json",
+      "status": "read",
+      "evidence": "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "tsconfig.json",
+      "status": "read",
+      "evidence": "  \"include\": [\"src/**/*.ts\"]",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": []
+}

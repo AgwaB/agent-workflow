@@ -1,0 +1,30 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "구현과 S6 명세가 모두 메시지 기반 오판을 확인하므로 KEEP.",
+  "findingId": "finding-002",
+  "finding": "Stop-error classifier accepts message text instead of name only",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 56,
+      "lineEnd": 57,
+      "symbol": "isWorkflowStopRequestedError",
+      "quote": "error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\t\terror.message.startsWith(\"workflow stop requested\")"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 18,
+      "lineEnd": 19,
+      "symbol": "S6",
+      "quote": "메시지 내용으로 판별해서는 안 된다."
+    }
+  ],
+  "counterEvidence": [
+    "error instanceof Error 검사는 비-Error 값의 오판을 막지만, 이름이 다른 Error의 메시지 기반 오판은 막지 못한다.",
+    "생성 함수가 올바른 name을 설정하는 사실은 외부에서 동일한 접두사 메시지를 가진 오류가 분류되는 문제를 반박하지 못한다."
+  ],
+  "recommendedAction": "메시지 접두사 조건을 제거하고 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME만 요구하며, 다른 이름과 동일 접두사 메시지를 검증하는 회귀 테스트를 추가한다.",
+  "readerTitle": "이름만이 아니라 메시지 텍스트도 허용하는 중지 오류 분류기",
+  "readerRationale": "S6은 오류 이름이 WorkflowStopRequested인 경우에만 인식하도록 요구한다. 메시지 기반 매칭은 관련 없는 provider 또는 애플리케이션 오류를 워크플로 중지로 잘못 분류하고 진단 정보를 억제할 수 있다."
+}

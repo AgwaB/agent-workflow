@@ -1,0 +1,91 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "HEAD 654f639은 배포 보류 권고. 공개 필드 launchRetryAttempts→launchRetries 이름 변경(별칭·마이그레이션 없음), SPEC와 불일치하는 취소 키워드 확장 및 pollMs 기본값 변경, 그리고 자동 검증 부재 때문에 차단 상태.",
+  "status": "blocked",
+  "requiredBeforeShip": [
+    {
+      "id": "R1",
+      "area": "public-contract",
+      "title": "launchRetryAttempts 이름 변경 되돌리기 또는 호환 별칭 유지",
+      "evidence": "src/workflow-terminal.ts:33,107 launchRetries만 존재, SPEC.md:35-36(T3)은 launchRetryAttempts를 외부 도구가 읽는 공개 계약으로 명시",
+      "action": "launchRetryAttempts를 유지하거나 전환 기간 동안 두 이름을 모두 내보내고, 이름 변경을 택한다면 SPEC T3와 마이그레이션 노트를 함께 갱신. 외부 소비자 목록을 확인할 것.",
+      "ownerHint": "WorkflowTerminalSummary 소비자(외부 도구) 담당자와 SPEC 작성자"
+    },
+    {
+      "id": "R2",
+      "area": "security-reliability",
+      "title": "isWorkflowReturnedCancellation의 'cancelled'/'timeout' 확장 결정",
+      "evidence": "src/workflow-cancellation.ts:20이 'cancelled'와 'timeout'을 허용. 같은 파일 9-11행 주석은 임의 제공자 오류를 취소로 승격하지 말라고 명시. SPEC C1은 aborted/AbortError/ABORT_ERR 세 값만 허용",
+      "action": "C1 정확 집합으로 되돌리거나, SPEC C1을 수정하고 제공자 타임아웃이 사용자 취소로 잘못 분류되지 않는다는 근거와 테스트를 추가. 'timeout'은 실제 타임아웃을 취소로 기록할 위험이 있어 우선 제외를 권장.",
+      "ownerHint": "workflow 취소 분류를 담당하는 엔지니어와 제공자 어댑터 담당자"
+    },
+    {
+      "id": "R3",
+      "area": "spec-code-drift",
+      "title": "stop 감시 주기 S3 편차 해소",
+      "evidence": "src/workflow-stop.ts:67 pollMs 기본값 200, Math.max(1,...) 하한 1ms. SPEC.md:13-14(S3)는 기본 50ms, 하한 10ms",
+      "action": "코드를 S3(50ms, 하한 10ms)에 맞추거나 SPEC S3를 200ms로 갱신. 하한도 함께 맞출 것. 중지 지연이 최대 200ms까지 늘어나는 영향을 소비자에게 알릴 것.",
+      "ownerHint": "workflow-stop 모듈 담당자"
+    },
+    {
+      "id": "R4",
+      "area": "validation",
+      "title": "자동 검증 체계 최소 구축과 실행 증거 확보",
+      "evidence": "package.json:7에 typecheck만 있고 test 스크립트와 테스트 파일이 없음. store.js/types.js 누락으로 typecheck가 해석되지 않을 가능성이 높음(추정, 미실행)",
+      "action": "(1) npm run typecheck를 실행해 실제 결과를 확보하고 누락 모듈 문제를 해결. (2) package.json에 test 스크립트 추가. (3) C1 집합, S3 기본값·하한, T3 요약 필드(launchRetries/launchRetryAttempts 정책), stop 오류 이름과 메시지 접두사를 고정하는 단위 테스트 추가. 최소한 R1-R3의 결정 사항을 테스트로 고정할 것.",
+      "ownerHint": "빌드·검증 담당자. 실행 명령: npm run typecheck, npm test(추가 후)"
+    }
+  ],
+  "niceToHave": [
+    {
+      "id": "N1",
+      "area": "docs-release",
+      "title": "변경 기록 및 마이그레이션 노트",
+      "action": "CHANGELOG 또는 릴리스 노트에 필드 이름 변경, 취소 키워드, stop 주기 변경을 기록. 현재 저장소에는 README/CHANGELOG/docs가 없음(private 패키지라 배포 영향은 낮음)."
+    },
+    {
+      "id": "N2",
+      "area": "fixtures",
+      "title": "T3 요약 스냅샷 픽스처 추가",
+      "action": "summarizeWorkflowTerminal 출력 스냅샷을 만들어 이후 필드 변경을 감지. docs/examples 디렉터리는 현재 없음."
+    },
+    {
+      "id": "N3",
+      "area": "performance",
+      "title": "stop 지연 특성 문서화",
+      "action": "감시 주기 200ms(또는 R3 결정 후 50ms)가 중지 응답 지연과 디스크 부하에 주는 영향을 간단히 기록. 보안 영향은 낮음(새 입력원, 비밀 처리, 네트워크 경로 없음)."
+    },
+    {
+      "id": "N4",
+      "area": "verification-scope",
+      "title": "커밋 diff 직접 확인",
+      "action": "git show --stat 654f639 및 git diff 11bc671 654f639 -- src/로 변경 범위를 직접 확인. 본 분석은 업스트림 산출물과 현재 소스 grep에 의존."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A1",
+      "text": "654f639의 실제 diff는 직접 읽지 못했다. 변경 사항은 커밋 메시지, 업스트림 control 산출물, 현재 소스 확인으로 추론했다."
+    },
+    {
+      "id": "A2",
+      "text": "SPEC.md는 654f639에서 변경되지 않았다고 가정했다(11bc671에서 추가됨). 편차는 코드와 명세 사이의 드리프트로 본다."
+    },
+    {
+      "id": "A3",
+      "text": "typecheck와 테스트는 실행하지 않았다. 실패 가능성은 누락 파일로부터의 추정이다."
+    },
+    {
+      "id": "A4",
+      "text": "업스트림의 S6(stop 오류 감지) 편차는 본 스카우트가 소스로 직접 확인하지 않았다. src/workflow-stop.ts 전체 읽기로 확인이 필요하다."
+    },
+    {
+      "id": "A5",
+      "text": "launchRetryAttempts 외부 소비자의 존재와 범위는 저장소 밖이라 확인할 수 없다(SPEC T3 기준으로 존재한다고 가정)."
+    },
+    {
+      "id": "A6",
+      "text": "업스트림 control 3건은 projection.charsTruncated=false로 완전히 읽었다(originalChars 2136, 3257, 2754)."
+    }
+  ]
+}

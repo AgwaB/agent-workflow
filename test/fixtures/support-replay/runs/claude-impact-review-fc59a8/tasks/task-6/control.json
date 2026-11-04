@@ -1,0 +1,54 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Validation coverage for HEAD 654f639 is none: the repo has no test files, the only check is a typecheck script that is not expected to pass, and nothing exercises the changed stop, cancellation, or terminal-summary behavior. The change should not be treated as validated.",
+  "coverageStatus": "none",
+  "coveredAreas": [],
+  "missingValidation": [
+    {
+      "note": "Unit tests for createWorkflowStopSignal default pollMs (SPEC S3 says 50ms, code default is 200ms) and the minimum clamp (SPEC says 10ms)."
+    },
+    {
+      "note": "Unit tests for isWorkflowReturnedCancellation: accepted markers must match SPEC C1 exactly (aborted/AbortError/ABORT_ERR). The code also accepts 'cancelled', 'timeout', and cancelled flags, so tests should assert the spec set and flag the extras as a decision."
+    },
+    {
+      "note": "Unit tests for summarizeWorkflowTerminal field names (SPEC T3 requires launchRetryAttempts and outputRetryAttempts; code emits launchRetries). A contract test should fail until the spec or code is reconciled."
+    },
+    {
+      "note": "Unit tests for isWorkflowStopRequestedError: SPEC S6 forbids name-only or message-based matching, but the code also matches a message prefix. Tests should cover a non-matching message with the stop error name and a message-only error."
+    },
+    {
+      "note": "A regression test that checks the stop poll cadence actually changed from the previous default, since the pre-commit value is unknown and only inferred."
+    },
+    {
+      "note": "Run npm run typecheck (tsc --noEmit). It is expected to fail because ./store.js and ./types.js are not in the repo; record the failure output rather than assuming a pass."
+    },
+    {
+      "note": "A backward-compatibility check or changelog entry for the renamed public field (launchRetryAttempts to launchRetries) for any external readers."
+    }
+  ],
+  "recommendedCommands": [
+    {
+      "note": "npm run typecheck"
+    },
+    {
+      "note": "git show 654f639 -- src/workflow-stop.ts src/workflow-cancellation.ts src/workflow-terminal.ts SPEC.md"
+    },
+    {
+      "note": "git diff HEAD~1 HEAD --stat"
+    }
+  ],
+  "assumptions": [
+    {
+      "note": "The diff for 654f639 was not read directly; the change is inferred from the commit message and current tree, so the recommended git show command is needed to confirm the actual deltas."
+    },
+    {
+      "note": "store.js and types.js are absent from the repo, so runtime tests that touch readWorkflowStopIntent or workflowRunPath cannot run here without those files."
+    },
+    {
+      "note": "The working tree matches HEAD, so current file contents reflect the post-commit state."
+    },
+    {
+      "note": "Glob found no *.test.* or *.spec.* files and no test runner config was confirmed."
+    }
+  ]
+}

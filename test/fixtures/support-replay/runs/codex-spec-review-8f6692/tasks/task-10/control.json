@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "S6 위반이 구현 조건식과 명세 양쪽에서 확인되어 finding-002를 유지한다.",
+  "id": "finding-002",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 18,
+      "lineEnd": 19,
+      "quote": "- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로\n  인정한다. 메시지 내용으로 판별해서는 안 된다.",
+      "relevance": "오류 이름만 인정하고 메시지 판별을 금지하는 명시적 요구사항"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 53,
+      "lineEnd": 58,
+      "quote": "export function isWorkflowStopRequestedError(error: unknown): boolean {\n\treturn (\n\t\terror instanceof Error &&\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))\n\t);\n}",
+      "relevance": "오류 이름 조건과 메시지 prefix 조건을 OR로 결합"
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "오류 이름이 WorkflowStopRequested가 아니어도 메시지가 workflow stop requested로 시작하면 true를 반환하므로 S6를 위반한다.",
+  "recommendedAction": "메시지 prefix 조건을 제거하고 오류 이름의 정확한 일치만 인정하도록 수정하며, 다른 이름과 동일 prefix 메시지의 회귀 테스트를 추가한다."
+}

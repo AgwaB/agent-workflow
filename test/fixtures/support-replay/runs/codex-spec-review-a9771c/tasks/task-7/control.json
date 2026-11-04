@@ -1,0 +1,117 @@
+{
+  "schema": "spec-review-report-v1",
+  "digest": "sha256:79d7345f32aa3a6878c2f7d17a9443ec313ad0b185c30f9676e634cd20b998d1",
+  "summary": "S3·S5·S6·C1·T3·Q1에서 명세 불일치 또는 충족 근거 부족이 확인되어 전체적으로 GAPS_FOUND입니다.",
+  "verdict": "GAPS_FOUND",
+  "ownerLedger": [
+    {
+      "source": "verify-findings",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-s3-poll-interval",
+      "taskId": "task-9",
+      "itemIdentity": "finding-s3-poll-interval",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-c1-extra-cancellation-values",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-c1-extra-cancellation-values",
+      "taskId": "task-12",
+      "itemIdentity": "finding-c1-extra-cancellation-values",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-q1-missing-tests",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-q1-missing-tests",
+      "taskId": "task-15",
+      "itemIdentity": "finding-q1-missing-tests",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-s5-dispose-read-boundary",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-s5-dispose-read-boundary",
+      "taskId": "task-10",
+      "itemIdentity": "finding-s5-dispose-read-boundary",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-s6-error-classification",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-s6-error-classification",
+      "taskId": "task-11",
+      "itemIdentity": "finding-s6-error-classification",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-s7-registry-cleanup",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-s7-registry-cleanup",
+      "taskId": "task-14",
+      "itemIdentity": "finding-s7-registry-cleanup",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-t3-public-retry-field",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-t3-public-retry-field",
+      "taskId": "task-13",
+      "itemIdentity": "finding-t3-public-retry-field",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    }
+  ],
+  "ownerLedgerReconciliation": {
+    "ownerRowCount": 7,
+    "verifierRowCount": 7,
+    "ownerIds": [
+      "finding-s3-poll-interval",
+      "finding-c1-extra-cancellation-values",
+      "finding-q1-missing-tests",
+      "finding-s5-dispose-read-boundary",
+      "finding-s6-error-classification",
+      "finding-s7-registry-cleanup",
+      "finding-t3-public-retry-field"
+    ],
+    "verifierIds": [
+      "finding-s3-poll-interval",
+      "finding-c1-extra-cancellation-values",
+      "finding-q1-missing-tests",
+      "finding-s5-dispose-read-boundary",
+      "finding-s6-error-classification",
+      "finding-s7-registry-cleanup",
+      "finding-t3-public-retry-field"
+    ],
+    "duplicateOwnerIds": [],
+    "duplicateVerifierIds": [],
+    "missingOwnerRows": [],
+    "orphanOwnerRows": [],
+    "statusMismatches": [],
+    "cardinalityPassed": true,
+    "passed": true
+  },
+  "risks": [
+    "S3: pollMs 기본값과 하한이 200ms·1ms로 구현됨",
+    "S5: dispose 이후 새 디스크 읽기 차단 근거가 부족함",
+    "S6: 오류 메시지 prefix로 중지 오류를 추가 분류함",
+    "C1: cancelled·timeout 및 boolean marker를 취소로 승격함",
+    "T3: 공개 필드명이 launchRetryAttempts가 아니라 launchRetries임",
+    "Q1: S·C·T 항목별 단위 테스트 근거가 없음"
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "읽기 전용 단계이며 테스트를 실행하지 않았다. upstream test inventory에 testMap 항목과 저장소 내 테스트 파일이 없다고 기록되어 있다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "recommendedNextAction": "S3·S5·S6·C1·T3 구현을 명세에 맞게 수정하고 S1–S7·C1–C2·T1–T3 각각의 단위 테스트와 실행 스크립트를 추가한 뒤 재검토하십시오."
+}

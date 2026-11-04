@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "C1 위반은 소스에서 직접 확인되므로 KEEP한다.",
+  "id": "candidate-C1",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 25,
+      "lineEnd": 26,
+      "quote": "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.",
+      "relevance": "오류·사유 문자열 허용 목록을 세 값으로 제한한다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 20,
+      "lineEnd": 20,
+      "quote": "\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "relevance": "error/reason 후보에서 명세에 없는 cancelled와 timeout 문자열도 true로 처리한다."
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "isWorkflowReturnedCancellation은 provider의 error 또는 reason 위치에서 \"cancelled\"와 \"timeout\"을 취소로 인정해 C1의 문자열 허용 목록을 위반한다. boolean cancelled 및 AbortError 객체 처리는 이 finding의 범위가 아니다.",
+  "recommendedAction": "error/reason 문자열 비교에서 \"cancelled\"와 \"timeout\"을 제거하고 C1의 세 문자열만 허용한다."
+}

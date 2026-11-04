@@ -1,0 +1,39 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "No test files or fixtures exist under the repo (outside .agent-workflow); S1–S7, C1–C2, T1–T3, and Q1 have no test evidence.",
+  "testMap": [],
+  "coverageGapsSuspected": [
+    "S1 stop detection (disk intent or aborted foreground signal): no test found",
+    "S2 WorkflowStopRequested error name and message format: no test found",
+    "S3 pollMs default 50ms and 10ms floor: no test found",
+    "S4 read-failure handling in createWorkflowStopSignal vs throwIfWorkflowStopRequested: no test found",
+    "S5 no new disk reads after dispose(): no test found",
+    "S6 isWorkflowStopRequestedError name-only matching: no test found",
+    "S7 foreground signal unregister and empty registry on last release: no test found",
+    "C1 exact cancellation set aborted/AbortError/ABORT_ERR: no test found",
+    "C2 JSON-in-content recognition without infinite recursion: no test found",
+    "T1 completed with degradation gives completed_degraded: no test found",
+    "T2 direct-dynamic unreadable control.json gives completed_without_semantic_result: no test found",
+    "T3 outputRetryAttempts/launchRetryAttempts summed across tasks: no test found",
+    "Q1 unit test per S/C/T item: unmet because no tests exist"
+  ],
+  "notes": [
+    "Searched the whole repo for *.test.*, *.spec.*, test/tests/__tests__ directories, fixtures, and test-framework imports (describe/it/test, node:test, vitest, bun:test, assert); none found.",
+    "package.json has only a typecheck script (tsc --noEmit) and no test script.",
+    "src/ contains only workflow-cancellation.ts, workflow-stop.ts, and workflow-terminal.ts.",
+    "SPEC.md says store.js and types.js are excluded from this excerpt, so behavior depending on them cannot be checked here."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "Tests were inspected but not executed by this read-only stage.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "Implementation files were not reviewed in depth; this stage only maps test evidence.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false
+}

@@ -1,0 +1,23 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "No tests or fixtures were found, so no S/C/T requirement has behavioral test evidence.",
+  "testMap": [],
+  "coverageGapsSuspected": [
+    "S1-S7 have no discovered unit-test or fixture evidence.",
+    "C1-C2 have no discovered unit-test or fixture evidence.",
+    "T1-T3 have no discovered unit-test or fixture evidence.",
+    "Q1 cannot be satisfied from the repository contents inspected."
+  ],
+  "notes": [
+    "package.json exposes only a typecheck script; no test runner is configured.",
+    "Implementation files exist under src/, but they are not tests or fixtures."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "Tests were inspected but not executed because this stage forbids command execution.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false
+}

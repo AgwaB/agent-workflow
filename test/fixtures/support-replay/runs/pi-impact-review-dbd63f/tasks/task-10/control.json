@@ -1,0 +1,134 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "현행 구현의 공개 계약 불일치와 검증 공백 때문에 배포 보류를 권고한다. 위험도는 high이나, 부모 대비 diff가 없어 654f639가 도입한 회귀인지는 미확인이다.",
+  "riskLevel": "high",
+  "risks": [
+    {
+      "id": "R1",
+      "severity": "high",
+      "releaseBlocker": true,
+      "area": "public-contract",
+      "finding": "공개 계약 launchRetryAttempts 대신 launchRetries를 반환하여 명세 기반 외부 소비자의 재시도 지표가 누락될 수 있다.",
+      "validationGap": "직렬화 필드 및 실제 소비자 호환성 테스트 증거 없음",
+      "evidenceRefs": [
+        "F-spec",
+        "F-terminal",
+        "U-api",
+        "U-validation"
+      ]
+    },
+    {
+      "id": "R2",
+      "severity": "medium",
+      "releaseBlocker": true,
+      "area": "state-classification",
+      "finding": "timeout·cancelled 문자열을 취소로, 메시지 접두사가 일치하는 일반 Error를 중지로 인정한다. 호출자가 분류를 신뢰하면 실제 실패의 진단·재시도가 생략될 수 있다.",
+      "validationGap": "허용·거부 오류 형태와 중첩 provider 응답의 회귀 테스트 없음",
+      "evidenceRefs": [
+        "F-spec",
+        "F-cancellation",
+        "F-stop",
+        "U-state"
+      ]
+    },
+    {
+      "id": "R3",
+      "severity": "medium",
+      "releaseBlocker": true,
+      "area": "stop-performance",
+      "finding": "폴링 기본값·하한이 명세의 50ms·10ms가 아니라 200ms·1ms이다. 중지 인지가 늦어지고, 작은 간격과 느린 저장소가 결합하면 읽기가 중첩될 수 있다.",
+      "validationGap": "fake timer 검증, 느린 읽기 경합 테스트 및 동시 읽기·감지 지연 측정 없음",
+      "evidenceRefs": [
+        "F-spec",
+        "F-stop",
+        "U-security"
+      ]
+    },
+    {
+      "id": "R4",
+      "severity": "medium",
+      "releaseBlocker": true,
+      "area": "terminal-state",
+      "finding": "terminal direct-dynamic 실행에서 controller를 읽지 못해도 dynamic_incomplete 작업이 있으면 명세의 completed_without_semantic_result 대신 dynamic_incomplete를 반환한다.",
+      "validationGap": "controller 부재·읽기 실패와 상태 우선순위 조합 테스트 없음",
+      "evidenceRefs": [
+        "F-spec",
+        "F-terminal",
+        "U-state"
+      ]
+    },
+    {
+      "id": "R5",
+      "severity": "high",
+      "releaseBlocker": true,
+      "area": "validation-and-release-evidence",
+      "finding": "현재 발췌에는 Q1이 요구하는 테스트·fixture·실행 결과가 없다. store/types와 도구체인 의존성도 제공되지 않아 종단 검증이 불가능하다. HEAD~1..HEAD diff, 실제 호출자 및 배포·이행 경로도 미확인이다.",
+      "validationGap": "커밋별 변경 귀속, 타입 검사·테스트 통과, 영속화 호환성과 릴리스 준비를 입증할 수 없음",
+      "evidenceRefs": [
+        "U-validation",
+        "F-package",
+        "F-tsconfig",
+        "F-spec",
+        "F-head"
+      ]
+    },
+    {
+      "id": "R6",
+      "severity": "unknown",
+      "releaseBlocker": false,
+      "area": "security-boundaries",
+      "finding": "provider JSON의 동기 파싱에는 로컬 크기 제한이 없고 controller 경로·아티팩트 격리는 누락된 store와 상위 계층에 의존한다. 자원 고갈이나 경로 이탈 취약점은 입증되지 않았다.",
+      "validationGap": "상위 입력 제한, 실제 store 경계 및 부하·격리 검증 미확인",
+      "evidenceRefs": [
+        "F-cancellation",
+        "F-terminal",
+        "U-security"
+      ]
+    }
+  ],
+  "riskReducers": [
+    {
+      "id": "M1",
+      "status": "observed-static-only",
+      "finding": "실행별 signal 등록 키, await 전후 foreground 중지 확인, 타이머 정리와 두 재시도 합산은 구현돼 있다. 다만 실행 검증된 보장은 아니다.",
+      "evidenceRefs": [
+        "F-stop",
+        "F-terminal"
+      ]
+    },
+    {
+      "id": "M2",
+      "status": "required",
+      "action": "요청 커밋과 작업 트리 일치 및 부모 대비 전체 diff를 확보하고 실제 store/types·호출자·공개 소비자까지 변경 영향을 다시 매핑한다.",
+      "addresses": [
+        "R1",
+        "R2",
+        "R4",
+        "R5",
+        "R6"
+      ]
+    },
+    {
+      "id": "M3",
+      "status": "required",
+      "action": "명세와 구현의 불일치를 해소하고 정확한 공개 필드, 오류 허용·거부 행렬, 폴링 주기, controller 실패 우선순위와 수명주기 경합을 회귀 테스트로 고정한다.",
+      "addresses": [
+        "R1",
+        "R2",
+        "R3",
+        "R4"
+      ]
+    },
+    {
+      "id": "M4",
+      "status": "required",
+      "action": "완전한 환경에서 타입 검사·단위·통합 테스트를 실행하고 느린 저장소 부하를 측정한다. 공개 필드 호환성 결정과 필요한 이행·릴리스 안내를 문서화한다.",
+      "addresses": [
+        "R1",
+        "R3",
+        "R5",
+        "R6"
+      ]
+    }
+  ]
+}

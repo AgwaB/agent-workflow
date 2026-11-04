@@ -1,0 +1,115 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "HEAD 654f639 stop/cancel 변경은 공개 필드 rename(launchRetryAttempts→launchRetries)과 SPEC 대비 세 가지 계약 이탈(pollMs, 취소 토큰, 메시지 기반 중지 판별)을 포함하며 테스트가 없어 배포 비권장.",
+  "status": "high",
+  "impacts": [
+    {
+      "id": "public-contract-rename",
+      "area": "public-contract",
+      "severity": "high",
+      "summary": "WorkflowTerminalSummary.launchRetryAttempts가 launchRetries로 바뀌었고 호환 alias나 버전 표시가 없다. SPEC T3는 두 필드명을 외부 도구가 읽는 공개 계약으로 명시하므로 외부 소비자는 조용히 undefined를 읽게 된다.",
+      "evidence": [
+        "src/workflow-terminal.ts:33",
+        "SPEC.md:35-36"
+      ]
+    },
+    {
+      "id": "cancellation-broadened",
+      "area": "reliability-data",
+      "severity": "medium",
+      "summary": "isWorkflowReturnedCancellation이 'cancelled', 'timeout' 문자열과 cancelled 플래그를 취소로 인정한다. SPEC C1은 aborted/AbortError/ABORT_ERR만 허용하고 다른 provider 오류를 취소로 승격하지 말라고 한다. 일반 provider timeout이 사용자 취소로 분류되어 재시도·진단 결정과 종료 상태가 바뀔 수 있다.",
+      "evidence": [
+        "src/workflow-cancellation.ts:16-21",
+        "SPEC.md:25-26"
+      ]
+    },
+    {
+      "id": "stop-message-matching",
+      "area": "security-reliability",
+      "severity": "medium",
+      "summary": "isWorkflowStopRequestedError가 message prefix 'workflow stop requested'로도 중지를 판정한다. SPEC S6은 이름만 인정하라고 한다. provider나 외부에서 온 오류 문자열이 같은 prefix를 가지면 실행이 중지로 잘못 처리된다. 권한 상승은 아니고 실행 중단 오분류 위험이다.",
+      "evidence": [
+        "src/workflow-stop.ts:53-59",
+        "SPEC.md:18-19"
+      ]
+    },
+    {
+      "id": "poll-interval-latency",
+      "area": "performance-reliability",
+      "severity": "low",
+      "summary": "pollMs 기본값이 200ms(SPEC S3는 50ms)로 늘어 중지 감지 지연이 최대 약 200ms 증가한다. 중지 감지 자체는 디스크 의도와 AbortSignal 두 경로로 유지된다. 최소값도 1ms로 낮아져 호출자가 작은 값을 주면 디스크 읽기 빈도가 크게 올라간다. setInterval이 비동기 check를 기다리지 않아 읽기가 겹칠 수 있다.",
+      "evidence": [
+        "src/workflow-stop.ts:67",
+        "src/workflow-stop.ts:81",
+        "SPEC.md:13-14"
+      ]
+    },
+    {
+      "id": "json-recursion-cost",
+      "area": "performance-security",
+      "severity": "low",
+      "summary": "content 텍스트를 JSON.parse하고 재귀 검사한다. 무한 재귀는 막혀 있지만, 중첩 JSON이 깊으면 레벨마다 재파싱이 일어나 최악의 경우 입력 길이에 대해 준이차 비용이 된다. provider 출력은 준신뢰 입력이므로 대용량 출력에서 지연이 생길 수 있다.",
+      "evidence": [
+        "src/workflow-cancellation.ts:23-31",
+        "SPEC.md:27-28"
+      ]
+    },
+    {
+      "id": "no-test-coverage",
+      "area": "verification",
+      "severity": "medium",
+      "summary": "저장소에 테스트 파일이 없고 scripts에는 typecheck만 있다. SPEC Q1은 S·C·T 항목마다 단위 테스트를 요구한다. store.js/types.js가 없어 typecheck도 이 발췌만으로는 통과하기 어렵다. 위 이탈 중 어느 것도 회귀 테스트로 잡히지 않는다.",
+      "evidence": [
+        "package.json",
+        "SPEC.md:40-41"
+      ]
+    },
+    {
+      "id": "docs-spec-drift",
+      "area": "docs-release",
+      "severity": "medium",
+      "summary": "SPEC.md는 HEAD에서 갱신되지 않았고 README/CHANGELOG도 없다. 코드와 명세가 서로 어긋나 있어 어느 쪽이 의도인지 릴리스 노트로 확인할 수 없다.",
+      "evidence": [
+        "SPEC.md",
+        "package.json"
+      ]
+    },
+    {
+      "id": "observability",
+      "area": "observability",
+      "severity": "low",
+      "summary": "중지·취소 분류 변경에 로그나 메트릭이 추가되지 않았다. 원인이 provider timeout인지 사용자 취소인지 운영자가 구분할 수 없다. 필드 rename은 대시보드나 집계를 깨뜨릴 수 있다.",
+      "evidence": [
+        "src/workflow-cancellation.ts:13-33",
+        "src/workflow-terminal.ts:98-112"
+      ]
+    },
+    {
+      "id": "privacy-none",
+      "area": "privacy",
+      "severity": "none",
+      "summary": "개인정보나 비밀 값을 새로 노출하거나 저장하는 변경은 확인되지 않았다. artifactRoot 경로 노출은 HEAD 이전부터 있던 것으로 보인다.",
+      "evidence": [
+        "src/workflow-terminal.ts:34",
+        "src/workflow-terminal.ts:111"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "note": "커밋 diff 본문은 읽을 수 없었다. 변경 내용은 커밋 메시지와 현재 워킹트리, SPEC.md 비교로 추론했다. 이전 값(poll 50ms 등)은 확정하지 못했다."
+    },
+    {
+      "note": "store.js와 types.js는 저장소에 없어 readWorkflowStopIntent 등 디스크 경로의 런타임 동작은 검증하지 못했다."
+    },
+    {
+      "note": "외부 소비자가 launchRetryAttempts를 읽는지는 확인할 수 없다. 저장소 안에는 두 이름의 소비자가 없다."
+    },
+    {
+      "note": "bindWorkflowLaunchSignal은 Set을 쓰므로 같은 signal을 두 번 바인딩한 뒤 한 번 해제하면 둘 다 빠질 수 있다. 이는 검증하지 못한 엣지 케이스다."
+    },
+    {
+      "note": "upstream 아티팩트(impact-analysis.change-scope, impact-analysis.implementation-map)의 control 전체 projection을 originalChars와 charsTruncated=false로 확인했다. 두 소스 모두 잘림 없이 완전하다."
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "T3 결함은 명세와 구현의 공개 필드명 불일치로 확인된다.",
+  "id": "finding-T3",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 35,
+      "lineEnd": 36,
+      "quote": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+      "relevance": "명세가 공개 필드명을 launchRetryAttempts로 규정한다."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 27,
+      "lineEnd": 34,
+      "quote": "\toutputRetryAttempts: number;\n\tlaunchRetries: number;",
+      "relevance": "요약 인터페이스가 launchRetryAttempts 대신 launchRetries를 노출한다."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 103,
+      "lineEnd": 110,
+      "quote": "\t\toutputRetryAttempts: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.outputRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),\n\t\tlaunchRetries: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),",
+      "relevance": "두 retry 합계는 계산하지만 launch 합계의 반환 키가 계약과 다르다."
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "모든 작업의 launch retry 합계는 계산되지만 공개 필드명이 launchRetryAttempts가 아니라 launchRetries여서 T3를 위반한다.",
+  "recommendedAction": "WorkflowTerminalSummary와 반환 객체의 launchRetries를 launchRetryAttempts로 변경하고 관련 소비자 및 테스트를 갱신한다."
+}

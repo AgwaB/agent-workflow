@@ -1,0 +1,55 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "654f639 renames the public summary field launchRetryAttempts to launchRetries, changes the stop poll default to 200ms, and widens cancellation markers. The repo has no README, CHANGELOG, docs, examples, CI, or release config, and no tests. Status high: a public-field rename with no compatibility alias or migration note, and the code contradicts SPEC.md. Do not ship as-is.",
+  "status": "high",
+  "impacts": [
+    {
+      "area": "public-contract",
+      "severity": "high",
+      "evidence": "SPEC.md:35-36 (T3) declares launchRetryAttempts a public contract read by external tools; src/workflow-terminal.ts:33,107 now exposes launchRetries; grep finds no launchRetryAttempts left in src/",
+      "impact": "Breaking rename of an externally read field with no alias, no version bump, and no migration note."
+    },
+    {
+      "area": "docs-spec-drift",
+      "severity": "high",
+      "evidence": "SPEC.md:13-14 (S3, 50ms default, floor 10ms) vs src/workflow-stop.ts:67 (200ms); SPEC.md:25-26 (C1, exactly aborted/AbortError/ABORT_ERR) vs src/workflow-cancellation.ts (adds cancelled/timeout per upstream); SPEC.md:35-36 (T3) vs renamed field",
+      "impact": "SPEC.md, the only spec document, now describes behavior the code no longer has. Anyone relying on it gets wrong poll timing and wrong cancellation classification."
+    },
+    {
+      "area": "validation-release",
+      "severity": "medium",
+      "evidence": "package.json:7 declares only typecheck; no test script; no test files found; tsconfig includes src/**/*.ts; package is private 0.0.0 with no release artifacts",
+      "impact": "Nothing automated checks the changed behavior. SPEC Q1 (a unit test per S/C/T item) is unmet. The release path is only typecheck, and upstream says store.js/types.js are absent, so typecheck likely cannot resolve."
+    },
+    {
+      "area": "release-packaging",
+      "severity": "low",
+      "evidence": "Repo glob found no README*, CHANGELOG*, RELEASE*, docs/**, examples/**, or .github/** files",
+      "impact": "No user-facing docs, changelog entry, or migration note exists to record the rename or behavior change. No publish step is affected because the package is private."
+    },
+    {
+      "area": "security-cancellation",
+      "severity": "medium",
+      "evidence": "Widening C1 to 'cancelled' and 'timeout' is read from upstream artifacts (implementation-map u5); not re-verified here because the diff could not be read",
+      "impact": "Unlisted provider errors can be promoted to cancellation, which changes control flow for those runs. C1 forbids this. Needs a provider shape check before shipping."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "a1",
+      "text": "The 654f639 diff was not read directly. Changed files and the rename are inferred from the commit message, upstream artifacts, and current source. Current source matches those inferences for launchRetries, pollMs=200, and the absence of launchRetryAttempts in src/."
+    },
+    {
+      "id": "a2",
+      "text": "External consumers of launchRetryAttempts exist, as SPEC T3 states. Their identity and count are unknown from this repo."
+    },
+    {
+      "id": "a3",
+      "text": "Typecheck and tests were not run (no shell tool). Their status is inferred from missing files."
+    },
+    {
+      "id": "a4",
+      "text": "Recommendation: keep launchRetryAttempts (or emit both names during a transition), align SPEC S3/C1 with the code or revert the code, add a changelog or migration note, and add unit tests for S3, C1, and T3 before release."
+    }
+  ]
+}

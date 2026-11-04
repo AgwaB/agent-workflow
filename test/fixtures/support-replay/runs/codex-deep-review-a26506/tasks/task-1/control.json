@@ -1,0 +1,50 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "중지 감시 지연, 취소 오판, 종료 요약 공개 필드 변경이 핵심 고위험 검토 대상이다.",
+  "reviewLenses": [
+    {
+      "id": "runtime-correctness",
+      "focus": "중지·취소 처리의 정확성 및 비동기 경쟁 조건",
+      "whyNeeded": "폴링 지연과 비동기 감시 수명주기가 중지 전파와 작업 디스패치에 영향을 줄 수 있다.",
+      "evidenceToInspect": [
+        "src/workflow-stop.ts:53",
+        "src/workflow-stop.ts:67",
+        "src/workflow-stop.ts:68",
+        "src/workflow-stop.ts:81",
+        "src/workflow-stop.ts:85",
+        "src/workflow-cancellation.ts:13",
+        "SPEC.md:8",
+        "SPEC.md:23"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "api-compatibility",
+      "focus": "종료 요약 공개 계약 호환성",
+      "whyNeeded": "외부 도구가 읽는 재시도 필드명이 변경되어 소비자 장애가 발생할 수 있다.",
+      "evidenceToInspect": [
+        "src/workflow-terminal.ts:27",
+        "src/workflow-terminal.ts:98",
+        "src/workflow-terminal.ts:107",
+        "SPEC.md:31"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "test-validation",
+      "focus": "요구사항별 테스트 및 검증 공백",
+      "whyNeeded": "중지·취소·종료 요약 요구사항을 검증하는 테스트가 없고, 발췌 저장소의 검증 범위도 제한적이다.",
+      "evidenceToInspect": [
+        "SPEC.md:37",
+        "package.json",
+        "tsconfig.json"
+      ],
+      "severityBias": "medium"
+    }
+  ],
+  "triageSummary": "현재 구현은 명세와 비교해 pollMs 기본값/최솟값, 중지 오류 판별, 취소 문자열, launch retry 공개 필드에서 명확한 회귀가 보인다. dispose와 queued interval callback 사이의 수명주기 경쟁 조건도 심층 검토가 필요하다.",
+  "riskLevel": "high",
+  "skippedLenses": [
+    "security: 인증·권한 경계가 포함된 코드가 없어 별도 보안 렌즈는 제외"
+  ]
+}

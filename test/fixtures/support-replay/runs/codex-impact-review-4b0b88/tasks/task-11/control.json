@@ -1,0 +1,57 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "blocked:contract-drift-unvalidated-cancellation-and-polling",
+  "status": "blocked",
+  "requiredBeforeShip": [
+    {
+      "id": "contract-migration",
+      "action": "Update SPEC.md and either preserve launchRetryAttempts as a compatibility alias or publish an explicit breaking migration for launchRetries.",
+      "verification": "Add consumer/serialization contract tests covering both fields and confirm downstream metrics/tools."
+    },
+    {
+      "id": "cancellation-correctness",
+      "action": "Decide and test whether provider timeout is truly cancellation; otherwise remove timeout from cancellation markers.",
+      "verification": "Unit tests prove timeout failures remain failures while cancelled/aborted values remain cancellations."
+    },
+    {
+      "id": "polling-validation",
+      "action": "Validate the 200ms default and 1ms minimum under realistic filesystem load, including overlapping async reads and stop-detection latency.",
+      "verification": "Run focused boundary, latency, and load tests; document the operational limits."
+    },
+    {
+      "id": "baseline-validation",
+      "action": "Provide a reproducible clean-environment validation path.",
+      "verification": "Run npm run, npm run typecheck, and npm test; add the missing test script/tests or document the CI-equivalent commands and required TypeScript dependency."
+    },
+    {
+      "id": "release-contract",
+      "action": "Define the deployment artifact and release procedure for this private repository/excerpt.",
+      "verification": "Confirm build/export/version metadata and produce an artifact from a clean checkout, or explicitly classify this as internal source-only deployment."
+    }
+  ],
+  "niceToHave": [
+    {
+      "id": "release-notes",
+      "action": "Add release notes describing poll latency/load tradeoffs and the launchRetries migration."
+    },
+    {
+      "id": "observability",
+      "action": "Add metrics distinguishing timeout, cancellation, retry counts, and stop-detection latency."
+    },
+    {
+      "id": "preexisting-spec-drift",
+      "action": "Separately reconcile the pre-existing isWorkflowStopRequestedError behavior with SPEC.md S6."
+    }
+  ],
+  "assumptions": [
+    {
+      "item": "654f639 changes are evaluated as a public contract because terminal summaries and SPEC.md are consumed externally."
+    },
+    {
+      "item": "The repository is an intentionally incomplete excerpt; absent store.js, types.js, tests, and release pipeline limit downstream verification."
+    },
+    {
+      "item": "The pre-existing message-based stop-error classification is outside 654f639 and is not counted as a newly introduced regression."
+    }
+  ]
+}

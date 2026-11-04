@@ -1,0 +1,28 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "미완료 읽기가 있어도 다음 interval이 새 check를 시작하므로 중첩 호출 가능성은 확인된다. abort와 dispose는 이후 호출만 제한한다.",
+  "findingId": "finding-004",
+  "finding": "비동기 interval이 이전 읽기 완료를 기다리지 않아 읽기가 누적됨",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 68,
+      "lineEnd": 76,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "\tconst check = async (): Promise<void> => {\n\t\tif (controller.signal.aborted) return;\n\t\tif (launchStopRequested(cwd, runId)) {\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));\n\t\t\treturn;\n\t\t}\n\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 80,
+      "lineEnd": 85,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);\n\ttimer.unref?.();\n\treturn {\n\t\tsignal: controller.signal,\n\t\tdispose: () => clearInterval(timer),"
+    }
+  ],
+  "counterEvidence": [
+    "src/workflow-stop.ts:69–72의 검사로 abort가 감지된 이후에는 새 읽기를 시작하지 않는다. 따라서 누적 가능성은 중지가 감지되지 않은 기간에 해당한다.",
+    "dispose는 interval을 해제하고 unref는 타이머가 프로세스 종료를 막지 않게 한다. dispose 이후에도 새 폴링이 계속된다는 주장이나 정상적인 빠른 읽기에서도 무한 누적된다는 주장은 성립하지 않는다."
+  ],
+  "recommendedAction": "foreground 중지 검사를 먼저 수행한 뒤 진행 중 읽기가 있으면 추가 읽기를 건너뛰고, finally에서 진행 상태를 해제하라. 지연된 읽기로 여러 폴링 주기를 넘겨도 읽기는 하나만 진행되며 foreground abort는 감지되는 회귀 테스트를 추가하라."
+}

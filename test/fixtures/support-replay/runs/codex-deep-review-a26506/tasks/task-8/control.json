@@ -1,0 +1,197 @@
+{
+  "schema": "deep-review-render-v1",
+  "digest": "Rendered 2 findings: high=2.",
+  "status": "failed",
+  "verdict": "PARTIAL_REVIEW",
+  "completionSummaryMarkdown": "",
+  "markdown": "# Deep review report\n\n## Executive summary\n\n### Core conclusion\n\nVerdict: **PARTIAL_REVIEW**. Review coverage is partial. The deterministic ledger contains 2 kept or weakened findings and 3 needs-human items.\n\n### Key findings\n\n- **high / KEEP:** 중지 감시 폴링 주기가 명세보다 느리고 최소값도 너무 낮음\n- **high / KEEP:** 중지 오류 판별이 오류 메시지만으로도 성공하여 오탐 가능\n- **high / NEEDS\\_HUMAN:** 허용 목록 외 취소 문자열을 취소로 오분류\n- **high / NEEDS\\_HUMAN:** 종료 요약의 launch 재시도 필드명이 공개 계약과 불일치함\n- **medium / NEEDS\\_HUMAN:** S·C·T 요구사항을 검증하는 단위 테스트와 테스트 명령이 없음\n\n### Evidence level\n\n- Canonical rows: 2 kept or weakened findings, 3 needs-human items, and 0 supporting observations.\n- Coverage: partial.\n\n### Important limitations\n\n- Evidence and quotes are bound to the reviewed snapshot available to the partition stage; final rendering does not re-read repository files and therefore does not attest current-tree bytes.\n- Review coverage is partial because a task did not complete or required source content was unavailable.\n\n## Finding summary\n\n| Severity | Count |\n|---|---:|\n| high | 2 |\n\n## Synthesis narrative\n\nSummary: 중지·취소 처리와 종료 요약 검토에서 신뢰도 높은 중대 이슈 2건과 추가 확인이 필요한 이슈 3건이 식별되었습니다.\n\n## Risks and partial-review limitations\n\n- 전체 검토 대상 9개 중 3개가 불완전하여 일부 판단의 근거 범위가 제한되었습니다.\n- 추가 확인 대상에는 취소 판별, 공개 반환 계약, 테스트·CI 검증 공백이 포함됩니다.\n- 서로 다른 경쟁·오류 경로에 대한 회귀 검증이 충분하지 않을 가능성이 있습니다.\n- Partial source: reviewers.api-compatibility (source\\_coverage\\_incomplete)\n- Partial source: reviewers.test-validation (source\\_coverage\\_incomplete)\n- Partial source: devil-advocate.finding-003 (verifier\\_evidence\\_unverified)\n- Partial source: reviewers.api-compatibility (source\\_coverage\\_incomplete)\n- Partial source: reviewers.test-validation (source\\_coverage\\_incomplete)\n- Partial source: devil-advocate.finding-003 (verifier\\_evidence\\_unverified)\n- Normalization note: verdict for \"허용 목록 외 취소 문자열을 취소로 오분류\" had ungrounded verifier evidence; routed to NEEDS\\_HUMAN instead of KEEP\n- Normalization note: verdict for \"종료 요약의 launch 재시도 필드명이 공개 계약과 불일치함\" came from incomplete source coverage; routed to NEEDS\\_HUMAN instead of KEEP\n- Normalization note: verdict for \"S·C·T 요구사항을 검증하는 단위 테스트와 테스트 명령이 없음\" came from incomplete source coverage; routed to NEEDS\\_HUMAN instead of KEEP\n\nRecommended synthesis action: 확정된 중대 이슈를 우선 수정하고, 추가 확인 대상은 원자료와 외부 호환성 검토로 판정한 뒤 중지·취소·종료 요약의 경계값, 경쟁 상황, 오류 경로를 검증하는 단위 테스트와 CI 명령을 추가하십시오.\n\n## High findings\n\n### finding-001 — 중지 감시 폴링 주기가 명세보다 느리고 최소값도 너무 낮음\n\nSeverity: **high**  \nRoot cause: `root-001`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/workflow-stop.ts` | 67 | `createWorkflowStopSignal` |\n| `src/workflow-stop.ts` | 81 | `createWorkflowStopSignal` |\n\nReviewer/source evidence:\n\n```ts\nconst pollMs = Math.max(1, options.pollMs ?? 200);\n```\n\n```ts\nconst timer = setInterval(() => void check(), pollMs);\n```\n\nVerifier evidence:\n\n```ts\nconst pollMs = Math.max(1, options.pollMs ?? 200);\n```\n\n```ts\nconst timer = setInterval(() => void check(), pollMs);\n```\n\n```text\n중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n```\n\nRationale:\n\n중지 의도와 foreground abort의 디스크·폴링 경로 전파가 최대 약 200ms 지연될 수 있어, 중지 후 작업 디스패치가 계속될 수 있다. 또한 호출자가 1~9ms를 지정하면 과도한 폴링으로 I/O 부하가 커진다.\n\nRecommended action:\n\n기본값을 50ms로 변경하고 최소값을 10ms로 제한하며, 기본값과 경계값을 검증하는 단위 테스트를 추가하라.\n\nCaveat / counter-evidence:\n\n- 초기 \\`void check()\\`가 즉시 실행되므로 최초 감지는 폴링 주기만큼 항상 지연되지는 않는다.\n- foreground AbortSignal 경로는 폴링과 별도로 확인되므로 지연 문제는 주로 디스크 중지 의도 감시 경로에 해당한다.\n\n### finding-002 — 중지 오류 판별이 오류 메시지만으로도 성공하여 오탐 가능\n\nSeverity: **high**  \nRoot cause: `root-002`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/workflow-stop.ts` | 53 | `isWorkflowStopRequestedError` |\n| `src/workflow-stop.ts` | 57 | `isWorkflowStopRequestedError` |\n\nReviewer/source evidence:\n\n```ts\nexport function isWorkflowStopRequestedError(error: unknown): boolean {\n```\n\n```text\nerror.message.startsWith(\"workflow stop requested\")\n```\n\nVerifier evidence:\n\n```text\nerror.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n```\n\n```text\nerror.message.startsWith(\"workflow stop requested\")\n```\n\n```text\n이름이 `WorkflowStopRequested`인 오류만 중지 오류로\n```\n\nRationale:\n\n일반 provider 오류가 해당 메시지 접두사를 포함하면 정상 오류가 중지로 오분류되어 후속 처리와 종료 요약이 왜곡될 수 있다. S6은 이름만 확인하도록 요구한다.\n\nRecommended action:\n\n메시지 접두사 조건을 제거하고 error.name === WORKFLOW\\_STOP\\_REQUESTED\\_ERROR\\_NAME 조건만 사용하라.\n\nCaveat / counter-evidence:\n\n- 내부 생성 함수는 오류 이름을 WorkflowStopRequested로 설정하므로 내부적으로 생성된 중지 오류 자체는 정상 판별된다.\n\n## Needs human review\n\n### finding-003 — 허용 목록 외 취소 문자열을 취소로 오분류\n\nSeverity: **high**  \nRoot cause: `root-003`  \nVerifier verdict: **NEEDS\\_HUMAN**  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/workflow-cancellation.ts` | 13 | `isWorkflowReturnedCancellation` |\n| `src/workflow-cancellation.ts` | 20 | `isWorkflowReturnedCancellation` |\n\nReviewer/source evidence:\n\n```ts\nexport function isWorkflowReturnedCancellation(value: unknown): boolean {\n```\n\n```ts\nif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;\n```\n\nVerifier evidence:\n\n```ts\nif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;\n```\n\n```text\n오류·사유 문자열은 정확히 `aborted`, `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.\n```\n\nRationale:\n\ntimeout 또는 provider가 임의로 반환한 cancelled 문자열이 실제 취소로 승격되어 진단 오류가 억제되거나 작업 상태가 중지로 잘못 기록될 수 있다. C1은 세 문자열만 허용한다.\n\nReview note:\n\nverifier evidence was not grounded: SPEC.md:25-26 did not contain the exact verifier quote\n\nRecommended action:\n\n문자열 후보 비교를 \\`aborted\\`, \\`AbortError\\`, \\`ABORT\\_ERR\\` 세 값으로 제한하고 \\`cancelled\\`와 \\`timeout\\` 회귀 테스트를 추가하라.\n\nCaveat / counter-evidence:\n\n- verifier evidence was not grounded: SPEC.md:25-26 did not contain the exact verifier quote\n\n### finding-004 — 종료 요약의 launch 재시도 필드명이 공개 계약과 불일치함\n\nSeverity: **high**  \nRoot cause: `root-004`  \nVerifier verdict: **NEEDS\\_HUMAN**  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/workflow-terminal.ts` | 33 | `WorkflowTerminalSummary` |\n| `src/workflow-terminal.ts` | 107 | `summarizeWorkflowTerminal` |\n\nReviewer/source evidence:\n\n```text\n\tlaunchRetries: number;\n```\n\n```text\n\t\tlaunchRetries: run.tasks.reduce(\n```\n\n```text\n- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n```\n\nVerifier evidence:\n\n```text\nlaunchRetries: number;\n```\n\n```text\nlaunchRetries: run.tasks.reduce(\n```\n\n```text\noutputRetryAttempts와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며\n```\n\nRationale:\n\n외부 도구가 계약된 launchRetryAttempts를 읽으면 필드가 없어 재시도 요약을 얻지 못한다. 현재 저장소에 launchRetryAttempts 사용처가 없더라도 외부 소비자는 저장소 검색에 포함되지 않으므로 호환성 위험이 남는다.\n\nReview note:\n\noriginating reviewer did not complete required source coverage: SPEC.md:31\n\nRecommended action:\n\n인터페이스와 반환 객체를 launchRetryAttempts로 통일하고 회귀 테스트를 추가한다. 기존 외부 소비자 호환이 필요하면 명시적인 호환 alias를 검토한다.\n\nCaveat / counter-evidence:\n\n- originating reviewer did not complete required source coverage: SPEC.md:31\n\n### finding-005 — S·C·T 요구사항을 검증하는 단위 테스트와 테스트 명령이 없음\n\nSeverity: **medium**  \nRoot cause: `root-005`  \nVerifier verdict: **NEEDS\\_HUMAN**  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `package.json` | 7 | `scripts` |\n| `tsconfig.json` | 10 | `include` |\n\nReviewer/source evidence:\n\n```text\n\"scripts\": { \"typecheck\": \"tsc --noEmit\" }\n```\n\n```text\n\"include\": [\"src/**/*.ts\"]\n```\n\nVerifier evidence:\n\n```text\n\"scripts\": { \"typecheck\": \"tsc --noEmit\" }\n```\n\n```text\n\"include\": [\"src/**/*.ts\"]\n```\n\n```text\n- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.\n```\n\nRationale:\n\nSPEC의 Q1은 모든 S·C·T 항목에 대한 단위 테스트를 요구하지만 현재 검증은 소스 타입 검사에 한정됩니다. 특히 stop 감시의 dispose/동시 읽기, cancellation JSON 재귀, terminal summary의 degradation·control.json·retry 합산 동작이 회귀되어도 탐지되지 않습니다.\n\nReview note:\n\noriginating reviewer did not complete required source coverage: SPEC.md:37\n\nRecommended action:\n\n테스트 러너와 test 스크립트를 추가하고 S1-S7, C1-C2, T1-T3 및 경쟁·오류 경로의 단위 테스트를 CI에서 실행하세요.\n\nCaveat / counter-evidence:\n\n- originating reviewer did not complete required source coverage: SPEC.md:37\n\n## Recommended next action\n\nComplete failed or missing review work, then rerun the review before release.\n\n## Evidence and review coverage\n\n- Canonical ledger rows rendered: 2 kept or weakened findings, 3 needs-human items, and 0 supporting observations.\n- Source coverage: partial; see limitations below.\n- Finding cards preserve ledger locations, evidence quotes, verifier dispositions, counter-evidence, and recommended actions where present.\n- Counts, dispositions, and the effective verdict come from deterministic partition state; narrative synthesis cannot override them.\n\n## Required source coverage gaps\n\n| Reviewer source | Required source | Status | Extraction artifact | Detail |\n|---|---|---|---|---|\n| reviewers.api-compatibility | SPEC.md:31 | metadata-only | — | api-compatibility: SPEC.md:31: metadata-only (요청된 정확한 31행은 빈 줄이어서 비어 있지 않은 exact quote를 제공할 수 없다. 계약 문구는 SPEC.md 35-36행에서 확인했다.) |\n| reviewers.test-validation | SPEC.md:37 | metadata-only | — | test-validation: SPEC.md:37: metadata-only (요청된 정확한 line 37은 빈 줄이므로 read 상태에 필요한 비어 있지 않은 정확한 인용을 만들 수 없습니다.) |\n\n## Limitations\n\n- Evidence and quotes are bound to the reviewed snapshot available to the partition stage; final rendering does not re-read repository files and therefore does not attest current-tree bytes.\n- Review coverage is partial because a task did not complete or required source content was unavailable.\n\n## Related artifacts\n\n- [Machine-readable report](control.json) — structured renderer output and completion-summary contract.\n- [Structured source references](refs.json) — source pointers retained by the final workflow task.\n- [Legacy compatibility report](review.md) — byte-identical copy of this report.",
+  "findingSummary": {
+    "total": 2,
+    "bySeverity": {
+      "high": 2
+    }
+  },
+  "renderedFindingIds": [
+    "finding-001",
+    "finding-002"
+  ],
+  "renderedNeedsHumanIds": [
+    "finding-003",
+    "finding-004",
+    "finding-005"
+  ],
+  "renderedDroppedIds": [],
+  "renderedLineageIds": [],
+  "emissionRows": [
+    {
+      "kind": "top-level",
+      "id": "finding-001"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-002"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-003"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-004"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-005"
+    }
+  ],
+  "expectedEmissionRows": [
+    {
+      "kind": "top-level",
+      "id": "finding-001"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-002"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-003"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-004"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-005"
+    }
+  ],
+  "expectedFindingCount": 2,
+  "rawReviewerFindingIds": [
+    "finding-001",
+    "finding-002",
+    "finding-003",
+    "finding-004",
+    "finding-005"
+  ],
+  "dedupFindingIds": [
+    "finding-001",
+    "finding-002",
+    "finding-003",
+    "finding-004",
+    "finding-005"
+  ],
+  "rawDuplicateLineageIssues": [],
+  "independentlyDispositionedRawDuplicates": [],
+  "duplicateLedgerRawIdsMismatch": false,
+  "verdictsReceived": 5,
+  "verifierCoverage": {
+    "expectedFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "verdictFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "missingFindingIds": [],
+    "orphanFindingIds": [],
+    "duplicateFindingIds": [],
+    "ownershipIssues": [],
+    "statusIssues": []
+  },
+  "expectedMergedFindingCount": 0,
+  "mergedFindingCount": 0,
+  "needsHumanSummary": {
+    "actual": 3,
+    "expected": 3,
+    "metadataMissing": false,
+    "incompleteEvidence": 0,
+    "verifierEvidenceIncomplete": 0,
+    "verifierEvidenceUnavailable": 0
+  },
+  "supportNoteSummary": {
+    "actual": 0,
+    "expected": 0,
+    "metadataMissing": false,
+    "incompleteEvidence": 0
+  },
+  "sourceArtifacts": [
+    "partition-verdicts.control.json",
+    "report.control.json"
+  ],
+  "gates": {
+    "renderedAllFindings": true,
+    "renderedAllNeedsHuman": true,
+    "renderedAllSupportNotes": true,
+    "findingCountMismatch": false,
+    "duplicateCountMismatch": false,
+    "duplicateLedgerReconciled": true,
+    "duplicateLedgerPairsMismatch": false,
+    "duplicateLedgerIssues": [],
+    "rawDuplicateIdsMissing": [],
+    "rawDuplicateLineageIssues": [],
+    "independentlyDispositionedRawDuplicates": [],
+    "duplicateLedgerRawIdsMismatch": false,
+    "verdictsReceivedMismatch": false,
+    "partitionVerdictsReceived": 5,
+    "verifierVerdictsReceived": 5,
+    "ledgerTopLevelCountMismatch": false,
+    "uniqueLedgerIds": true,
+    "duplicateLedgerIds": [],
+    "mergedFindingCountMismatch": false,
+    "rawReviewerFindingIdsMissing": [],
+    "dedupFindingIdsMissing": [],
+    "rawReviewerIdsMismatch": false,
+    "dedupIdsMismatch": false,
+    "rawCountMismatch": false,
+    "uniqueCountMismatch": false,
+    "reviewerCoverageReconciled": true,
+    "requiredLedgersPresent": true,
+    "ledgerCompleteness": true,
+    "idLedgerExact": true,
+    "provenanceOwnerIssues": [],
+    "supportRelationIssues": [],
+    "reviewerFindingOwnerIssues": [],
+    "verifierExpectedMismatch": false,
+    "verifierDeclaredRowsMismatch": false,
+    "verifierStatusIssues": [],
+    "reviewerOwnerMapIssues": [],
+    "reviewerMissingAttestedLensIds": [],
+    "reviewerUnexpectedAttestedIds": [],
+    "reviewerMissingLensIds": [],
+    "reviewerUnexpectedIds": [],
+    "reviewerDuplicateIds": [],
+    "verifierCoverageExact": true,
+    "verifierDigestMatches": true,
+    "verifierMissingIds": [],
+    "verifierOrphanIds": [],
+    "verifierDuplicateIds": [],
+    "verifierOwnershipIssues": [],
+    "renderedAllLineage": true,
+    "renderedAllTopLevel": true,
+    "renderedAllDropped": true,
+    "needsHumanCountMismatch": false,
+    "needsHumanMetadataMissing": false,
+    "needsHumanEvidenceIncomplete": false,
+    "needsHumanEvidenceUnavailable": false,
+    "reportSynthesisAvailable": true,
+    "reportVerdictConsistent": true,
+    "supportNoteCountMismatch": false,
+    "supportNoteMetadataMissing": false,
+    "supportNoteEvidenceIncomplete": false,
+    "supportProvenanceIssues": [],
+    "supportProvenanceValid": true,
+    "reviewedSnapshotOnly": true,
+    "currentTreeBytesAttested": false,
+    "sidecarWriteFailed": false,
+    "passed": false
+  },
+  "sidecarPath": "final-report.md"
+}

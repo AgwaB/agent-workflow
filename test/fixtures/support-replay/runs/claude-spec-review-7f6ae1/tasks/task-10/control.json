@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "finding-002 WEAKEN: isWorkflowStopRequestedError also accepts a message prefix, contrary to SPEC S6; no in-repo callers or tests, so severity narrowed to medium.",
+  "id": "finding-002",
+  "verdict": "WEAKEN",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 53,
+      "lineEnd": 59,
+      "quote": "error.message.startsWith(\"workflow stop requested\"))",
+      "relevance": "Implementation accepts a message prefix as well as the error name, contrary to S6's name-only rule."
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 18,
+      "lineEnd": 19,
+      "quote": "메시지 내용으로 판별해서는 안 된다.",
+      "relevance": "S6 explicitly forbids identifying stop errors by message content."
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "isWorkflowStopRequestedError (src/workflow-stop.ts:53-59) returns true for any Error whose message starts with 'workflow stop requested', not only for name WorkflowStopRequested, which violates SPEC S6. The repository has no callers of this function and no test covering S6, so practical impact is limited.",
+  "recommendedAction": "Remove the message-prefix branch so only error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME counts, and add a unit test that a non-named error with the stop message is rejected (Q1 coverage for S6)."
+}

@@ -1,0 +1,209 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "signal 중복 등록 시 중지 감지 손실, 오류 오분류, 폴링 주기 불일치, 읽기 중첩 및 dispose 후 abort 위험을 확인했다.",
+  "lens": "stop-runtime",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "동일 signal의 한 등록을 해제하면 다른 등록의 중지 감지도 사라짐",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 14,
+          "lineEnd": 20,
+          "symbol": "bindWorkflowLaunchSignal"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 24,
+          "lineEnd": 27,
+          "symbol": "launchStopRequested"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 8,
+          "lineEnd": 10
+        },
+        {
+          "file": "SPEC.md",
+          "line": 20,
+          "lineEnd": 21
+        }
+      ],
+      "evidence": "동일 실행에 같은 signal을 두 번 등록해도 Set 원소는 하나다. 어느 해제 함수를 호출하든 그 원소가 삭제되어 남은 등록이 중지를 전달하지 못한다.",
+      "evidenceQuotes": [
+        "\tconst signals = launchSignals.get(key) ?? new Set<AbortSignal>();",
+        "\tsignals.add(signal);",
+        "\t\tsignals.delete(signal);",
+        "\t\tif (signals.size === 0 && launchSignals.get(key) === signals)\n\t\t\tlaunchSignals.delete(key);"
+      ],
+      "rationale": "디스크 중지 의도가 아직 없는 동안 foreground abort가 유일한 중지 경로일 수 있다. 다른 등록이 살아 있어도 이 경로가 사라지므로 취소 이후 작업이 계속될 수 있다.",
+      "recommendedAction": "등록마다 독립 토큰을 보관하거나 signal별 참조 횟수를 관리한다. 각 해제 함수도 한 번만 효력을 갖게 하여 중복 해제가 다른 등록을 제거하지 않도록 한다.",
+      "confidence": "high"
+    },
+    {
+      "severity": "high",
+      "title": "메시지 접두사만 일치하는 일반 오류를 중지 오류로 오분류함",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 53,
+          "lineEnd": 58,
+          "symbol": "isWorkflowStopRequestedError"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 18,
+          "lineEnd": 19
+        }
+      ],
+      "evidence": "오류 이름이 WorkflowStopRequested가 아니어도 메시지가 workflow stop requested로 시작하면 true를 반환한다.",
+      "evidenceQuotes": [
+        "\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))",
+        "- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로\n  인정한다. 메시지 내용으로 판별해서는 안 된다."
+      ],
+      "rationale": "S6의 명시적 판별 계약을 위반한다. 실제 실패가 요청된 중지로 분류되어 소비자의 실패 처리에서 누락될 위험이 있다. 구체적인 소비자 처리 코드는 제공되지 않았다.",
+      "recommendedAction": "메시지 접두사 조건을 제거하고 Error 여부와 정확한 오류 이름으로만 판별한다. 같은 메시지를 가진 일반 Error가 false인지 검증한다.",
+      "confidence": "high"
+    },
+    {
+      "severity": "medium",
+      "title": "폴링 기본값과 최소값이 모두 명세와 다름",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 67,
+          "symbol": "createWorkflowStopSignal"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 81,
+          "symbol": "createWorkflowStopSignal"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 13,
+          "lineEnd": 14
+        }
+      ],
+      "evidence": "구현은 기본값 200ms, 최소값 1ms를 사용하지만 S3은 각각 50ms와 10ms를 요구한다.",
+      "evidenceQuotes": [
+        "\tconst pollMs = Math.max(1, options.pollMs ?? 200);",
+        "\tconst timer = setInterval(() => void check(), pollMs);",
+        "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다."
+      ],
+      "rationale": "기본 설정에서는 중지 확인 기회가 명세보다 네 배 드물다. 작은 값을 전달하면 허용 최소 간격보다 최대 열 배 자주 디스크 읽기를 시도하여 읽기 중첩과 부하를 증폭한다.",
+      "recommendedAction": "기본값을 50ms, 하한을 10ms로 변경하고 기본 옵션 및 10ms 미만 입력의 실제 스케줄링을 검증한다.",
+      "confidence": "high"
+    },
+    {
+      "severity": "medium",
+      "title": "비동기 interval이 이전 읽기 완료를 기다리지 않아 읽기가 누적됨",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 68,
+          "lineEnd": 81,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "evidence": "check는 디스크 읽기를 await하지만 interval은 check의 Promise를 버린다. 진행 중 읽기를 나타내는 상태나 동시성 제한이 없다.",
+      "evidenceQuotes": [
+        "\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);",
+        "\tvoid check();",
+        "\tconst timer = setInterval(() => void check(), pollMs);"
+      ],
+      "rationale": "읽기가 폴링 간격보다 느리면 같은 실행의 읽기가 겹친다. 읽기 Promise가 장시간 완료되지 않으면 대기 중 호출이 계속 늘어나며 dispose도 이미 시작된 호출을 정리하지 않는다.",
+      "recommendedAction": "진행 중 읽기를 하나로 제한하고 finally에서 상태를 해제하거나 완료 후 다음 폴링을 예약한다. foreground abort 감지는 느린 디스크 읽기에 묶이지 않도록 유지한다.",
+      "confidence": "high"
+    },
+    {
+      "severity": "medium",
+      "title": "dispose 이전에 시작한 읽기가 dispose 이후에도 signal을 abort할 수 있음",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 74,
+          "lineEnd": 78,
+          "symbol": "createWorkflowStopSignal"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 85,
+          "symbol": "createWorkflowStopSignal.dispose"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 17
+        }
+      ],
+      "evidence": "dispose는 interval만 해제한다. 읽기 완료 이후의 중지 판정에는 disposed 상태 검사가 없어 이미 시작한 읽기가 나중에 abort를 발생시킬 수 있다.",
+      "evidenceQuotes": [
+        "\t\tdispose: () => clearInterval(timer),",
+        "\t\tif (intent || launchStopRequested(cwd, runId))\n\t\t\tcontroller.abort(createWorkflowStopRequestedError(runId));"
+      ],
+      "rationale": "dispose를 감시 수명주기의 종료로 사용하는 소비자에게 해제 후 abort 이벤트가 전달될 수 있다. 이는 S5의 새 읽기 금지 위반과는 별개인 후속 효과 위험이며, 소비자 구현과 dispose 이후 이벤트 계약은 발췌에 없다.",
+      "recommendedAction": "dispose에서 종료 상태를 설정하고 check 진입 및 await 이후에 확인하여 종료된 감시자의 결과를 무시한다. 진행 중 읽기를 보류한 채 dispose한 뒤 완료시키는 순서를 검증한다.",
+      "confidence": "medium"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-stop.ts:1-99",
+    "src/workflow-stop.ts:7-28",
+    "src/workflow-stop.ts:53-85",
+    "src/workflow-stop.ts:89-99",
+    "SPEC.md:4",
+    "SPEC.md:8-21",
+    "SPEC.md:38-40",
+    "package.json"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-stop.ts:7-28",
+      "status": "read",
+      "evidence": "\t\tsignals.delete(signal);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-stop.ts:53-85",
+      "status": "read",
+      "evidence": "\tconst pollMs = Math.max(1, options.pollMs ?? 200);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-stop.ts:89-99",
+      "status": "read",
+      "evidence": "\tconst intent = await readWorkflowStopIntent(cwd, runId);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:8-21",
+      "status": "read",
+      "evidence": "- **S5.** `dispose()`를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다.",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:38-40",
+      "status": "read",
+      "evidence": "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "S2: 생성되는 중지 오류의 이름과 메시지 형식은 명세와 일치한다(src/workflow-stop.ts:43-50).",
+    "S4: 감시 경로는 읽기 실패를 undefined로 처리하고, throwIfWorkflowStopRequested는 읽기 오류를 잡지 않아 그대로 전파한다.",
+    "throwIfWorkflowStopRequested는 읽기 전후 foreground signal을 확인하므로 정상적으로 읽기가 완료되는 동안 도착한 abort도 감지한다.",
+    "S5의 새 읽기 금지에 대해서는 clearInterval이 이후 interval 실행을 취소한다. 확인된 dispose 위험은 새 읽기 시작이 아니라 기존 읽기의 후속 abort다.",
+    "서로 다른 signal의 등록과 마지막 해제, 이전 Set의 해제 함수가 새 Set의 등록 항목을 삭제하지 않도록 하는 동일성 검사는 구현되어 있다."
+  ]
+}

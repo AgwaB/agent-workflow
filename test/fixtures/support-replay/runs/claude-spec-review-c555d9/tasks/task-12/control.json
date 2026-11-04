@@ -1,0 +1,55 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "T1 degradation is overwritten by the direct-dynamic branch in src/workflow-terminal.ts, so completed_degraded is never produced for direct-dynamic runs; the candidate's 'unless the controller branch yields it' wording is wrong.",
+  "id": "finding-004",
+  "verdict": "WEAKEN",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 32,
+      "lineEnd": 32,
+      "quote": "`completed` 실행에 degradation 기록이 있으면 의미 상태는 `completed_degraded`이다.",
+      "relevance": "T1 is stated unconditionally, with no direct-dynamic exception."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 67,
+      "lineEnd": 68,
+      "quote": "return run.degradation ? \"completed_degraded\" : \"completed\";",
+      "relevance": "Degradation mapping exists only in nonDynamicSemanticStatus."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 80,
+      "lineEnd": 80,
+      "quote": "if (terminal && run.provenance?.mode === \"direct-dynamic\") {",
+      "relevance": "Direct-dynamic branch runs for terminal direct-dynamic runs regardless of run.degradation."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 87,
+      "lineEnd": 87,
+      "quote": "else if (control?.status === \"synthesized\") semanticStatus = \"synthesized\";",
+      "relevance": "A degraded completed run whose controller status is synthesized is reassigned to synthesized, losing completed_degraded."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 95,
+      "lineEnd": 95,
+      "quote": "else semanticStatus = \"completed_without_semantic_result\";",
+      "relevance": "Fallback reassigns semanticStatus even when run.degradation is set, so no branch in this block yields completed_degraded."
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 33,
+      "lineEnd": 33,
+      "quote": "direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는",
+      "relevance": "Only dynamic-specific rule is T2; it does not exempt degradation, so this is a weak scope argument, not a refutation."
+    }
+  ],
+  "finalClaim": "For direct-dynamic terminal runs with status completed and a degradation record, summarizeWorkflowTerminal reassigns semanticStatus in the dynamic branch (synthesized, exhausted_*, dynamic_*, incomplete, or completed_without_semantic_result) and never yields completed_degraded. This contradicts the unconditional T1 wording. No tests cover it; the spec has no precedence rule for dynamic runs, so the gap rests on reading T1 literally.",
+  "recommendedAction": "Decide whether degradation takes precedence over dynamic statuses. If yes, apply the degradation check after the dynamic branch or preserve completed_degraded when run.status is completed and run.degradation is set. If no, add a SPEC.md clause scoping T1 to non-dynamic runs. Then add a terminal-summary test for a degraded direct-dynamic run."
+}

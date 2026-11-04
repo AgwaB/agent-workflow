@@ -1,0 +1,231 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1ipu5z_88c698",
+  "taskId": "task-3",
+  "sources": [
+    {
+      "source": "plan",
+      "displayName": "plan.main",
+      "taskId": "task-1",
+      "specId": "plan.main",
+      "stageId": "plan",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "Node.js 버전·안정성, 주요 브라우저 호환성, API별 동작 주의점을 공식 문서 중심으로 검증한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-1/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-1/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-1/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-1/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "research-questions",
+      "displayName": "research-questions.question-001",
+      "taskId": "task-14",
+      "specId": "research-questions.question-001",
+      "stageId": "research-questions",
+      "status": "completed",
+      "itemIdentity": "question-001",
+      "placeholderSpecId": "research-questions.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "AbortSignal.any()은 Node.js v20.3.0에서 최초 도입되었고 v18.17.0으로 backport되었으며, 최신 Node.js 문서의 Global objects 표기는 Stable이다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-14/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-14/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-14/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-14/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "research-questions.question-002",
+      "displayName": "research-questions.question-002",
+      "taskId": "task-15",
+      "specId": "research-questions.question-002",
+      "stageId": "research-questions",
+      "status": "completed",
+      "itemIdentity": "question-002",
+      "placeholderSpecId": "research-questions.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "Node.js 공식 문서는 AbortSignal.timeout()을 v17.3.0 및 v16.14.0에 추가했고, 현재 Global objects를 Stable로 표시한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-15/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-15/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-15/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-15/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "research-questions.question-003",
+      "displayName": "research-questions.question-003",
+      "taskId": "task-16",
+      "specId": "research-questions.question-003",
+      "stageId": "research-questions",
+      "status": "completed",
+      "itemIdentity": "question-003",
+      "placeholderSpecId": "research-questions.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "MDN BCD와 Chromium·WebKit·Mozilla 자료를 교차검증해 Chrome 116, Edge 116, Firefox 124, Safari 17.4의 AbortSignal.any() 지원을 확인했다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-16/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-16/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-16/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-16/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "research-questions.question-004",
+      "displayName": "research-questions.question-004",
+      "taskId": "task-17",
+      "specId": "research-questions.question-004",
+      "stageId": "research-questions",
+      "status": "completed",
+      "itemIdentity": "question-004",
+      "placeholderSpecId": "research-questions.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "MDN BCD 기준 AbortSignal.timeout()의 완전 지원은 Chrome/Edge 124, Firefox 100, Safari 16부터이며 Chrome 103–123은 TimeoutError 차이로 부분 지원이다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-17/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-17/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-17/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-17/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "research-questions.question-005",
+      "displayName": "research-questions.question-005",
+      "taskId": "task-18",
+      "specId": "research-questions.question-005",
+      "stageId": "research-questions",
+      "status": "completed",
+      "itemIdentity": "question-005",
+      "placeholderSpecId": "research-questions.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "AbortSignal.any()은 입력 순서상 첫 이미 취소된 신호의 reason으로 즉시 취소되고, 이후에는 먼저 abort한 신호의 reason을 전파한다. 결합 신호 취소는 원본 신호나 timeout을 취소하지 않으며 listener 정리가 필요하다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-18/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-18/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-18/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-18/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "research-questions.question-006",
+      "displayName": "research-questions.question-006",
+      "taskId": "task-19",
+      "specId": "research-questions.question-006",
+      "stageId": "research-questions",
+      "status": "completed",
+      "itemIdentity": "question-006",
+      "placeholderSpecId": "research-questions.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "WHATWG·MDN은 timeout을 active time으로 정의하고 TimeoutError DOMException 및 비취소·GC 주의점을 설명하며, Node 문서는 delay 기반 API만 명시한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-19/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-19/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-19/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-19/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

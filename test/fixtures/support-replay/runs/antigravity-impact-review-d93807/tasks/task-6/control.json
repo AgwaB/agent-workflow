@@ -1,0 +1,67 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Test and validation coverage for commit 654f639 is completely absent (coverageStatus: none); no test suite exists (violating SPEC Q1), leaving breaking contract changes and SPEC S3/C1 regressions entirely unvalidated.",
+  "coverageStatus": "none",
+  "coveredAreas": [],
+  "missingValidation": [
+    {
+      "component": "workflow-stop",
+      "targetFile": "src/workflow-stop.ts",
+      "specClause": "SPEC.md S3",
+      "missingTest": "Unit test verifying default pollMs interval (50ms) and minimum clamp boundary (10ms) in createWorkflowStopSignal",
+      "description": "Commit 654f639 altered default pollMs from 50ms to 200ms and clamp from 10ms to 1ms, directly violating SPEC.md S3. No test exists to detect or prevent this timing regression."
+    },
+    {
+      "component": "workflow-cancellation",
+      "targetFile": "src/workflow-cancellation.ts",
+      "specClause": "SPEC.md C1",
+      "missingTest": "Unit test verifying strict cancellation classification in isWorkflowReturnedCancellation",
+      "description": "Commit 654f639 added 'cancelled' and 'timeout' to accepted cancellation markers, directly contradicting SPEC.md C1 which requires strictly matching standard abort markers ('aborted', 'AbortError', 'ABORT_ERR') and rejecting provider errors. No unit test exists to enforce this restriction."
+    },
+    {
+      "component": "workflow-terminal",
+      "targetFile": "src/workflow-terminal.ts",
+      "specClause": "SPEC.md T3",
+      "missingTest": "Contract test verifying public interface WorkflowTerminalSummary and return value of summarizeWorkflowTerminal",
+      "description": "Commit 654f639 renamed launchRetryAttempts to launchRetries. SPEC.md T3 mandates launchRetryAttempts as an immutable public contract consumed by downstream tools. No contract test, snapshot, or type assertion test prevents this breaking change."
+    },
+    {
+      "component": "test-infrastructure",
+      "targetFile": "package.json",
+      "specClause": "SPEC.md Q1",
+      "missingTest": "Automated unit test framework and harness",
+      "description": "SPEC.md Q1 explicitly mandates unit test coverage for each S, C, and T requirement. Currently, the repository contains zero test files, no test runner dependency, and no test script in package.json."
+    },
+    {
+      "component": "typecheck-and-build",
+      "targetFile": "package.json",
+      "specClause": "N/A",
+      "missingTest": "Type definitions/stubs for external boundaries (store.js, types.js)",
+      "description": "Static typecheck ('npm run typecheck') is configured in package.json but cannot pass in isolation without stubs or ambient declarations for excluded dependencies ./store.js and ./types.js."
+    }
+  ],
+  "recommendedCommands": [
+    {
+      "command": "npm test",
+      "purpose": "Execute automated test runner (e.g. node --test, vitest, or jest) once unit test suite is established to enforce SPEC S, C, and T clauses."
+    },
+    {
+      "command": "npm run typecheck",
+      "purpose": "Verify static TypeScript types with tsc --noEmit (requires stubs for ./store.js and ./types.js)."
+    },
+    {
+      "command": "npm run test:contract",
+      "purpose": "Verify backward compatibility of public interfaces and exported symbols against API specification."
+    }
+  ],
+  "assumptions": [
+    {
+      "topic": "coverage_assessment",
+      "assumption": "Because there are no test files, test fixtures, or test scripts in the repository, automated test coverage for the changes in commit 654f639 is evaluated as 'none'."
+    },
+    {
+      "topic": "authoritative_specification",
+      "assumption": "SPEC.md is the ground truth for contract compliance and quality gates across stop, cancellation, and terminal summary logic."
+    }
+  ]
+}

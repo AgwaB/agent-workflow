@@ -1,0 +1,353 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "단위 테스트·fixture·CI가 없는 발췌 저장소다. SPEC의 S/C/T 계약을 검증 항목에 연결했으며, 유일한 검증 스크립트는 미실행 typecheck다. HEAD~1 대비 변경 귀속은 확인하지 못했다.",
+  "tests": [
+    {
+      "id": "stop-contract",
+      "implementation": "src/workflow-stop.ts",
+      "status": "test-files-not-found",
+      "requirements": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6",
+        "S7"
+      ],
+      "requiredCases": {
+        "S1": [
+          "disk-stop-intent",
+          "foreground-abort",
+          "run-isolation",
+          "abort-during-disk-read"
+        ],
+        "S2": [
+          "abort-reason-name",
+          "exact-run-specific-message"
+        ],
+        "S3": [
+          "default-50ms",
+          "minimum-10ms",
+          "explicit-poll-interval"
+        ],
+        "S4": [
+          "watcher-ignores-read-failure",
+          "thrower-propagates-read-failure"
+        ],
+        "S5": [
+          "no-new-read-after-dispose",
+          "dispose-with-read-in-flight"
+        ],
+        "S6": [
+          "exact-error-name-positive",
+          "message-only-negative",
+          "other-error-negative"
+        ],
+        "S7": [
+          "unbind-signal",
+          "retain-other-signals",
+          "remove-last-registration"
+        ]
+      },
+      "fixturesNeeded": [
+        "mock-store",
+        "fake-timers",
+        "AbortController",
+        "deferred-read-promises"
+      ],
+      "evidence": [
+        "R2",
+        "R5",
+        "R6"
+      ]
+    },
+    {
+      "id": "cancellation-contract",
+      "implementation": "src/workflow-cancellation.ts",
+      "status": "test-files-not-found",
+      "requirements": [
+        "C1",
+        "C2"
+      ],
+      "requiredCases": {
+        "C1": [
+          "exact-marker-matrix",
+          "top-level-and-details-error-reason",
+          "reject-timeout-and-cancelled-strings",
+          "AbortError-object-and-DOMException",
+          "explicit-cancelled-boolean"
+        ],
+        "C2": [
+          "JSON-content-positive-and-negative",
+          "ordinary-text-and-malformed-JSON",
+          "nested-content-termination"
+        ]
+      },
+      "fixturesNeeded": [
+        "provider-result-shapes",
+        "nested-content-JSON",
+        "non-cancellation-provider-errors"
+      ],
+      "evidence": [
+        "R3",
+        "R7"
+      ]
+    },
+    {
+      "id": "terminal-contract",
+      "implementation": "src/workflow-terminal.ts",
+      "status": "test-files-not-found",
+      "requirements": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "requiredCases": {
+        "T1": [
+          "completed-with-degradation",
+          "completed-without-degradation",
+          "non-completed-status"
+        ],
+        "T2": [
+          "controller-absent",
+          "control-missing-unreadable-or-malformed",
+          "dynamic-incomplete-precedence",
+          "controller-status-and-outputTasks-matrix"
+        ],
+        "T3": [
+          "multi-task-retry-sums",
+          "missing-attempts-default-zero",
+          "exact-outputRetryAttempts-and-launchRetryAttempts-keys"
+        ]
+      },
+      "fixturesNeeded": [
+        "WorkflowRunRecord",
+        "task-retry-records",
+        "controller-control.json",
+        "mock-store-and-readJson"
+      ],
+      "evidence": [
+        "R4",
+        "R8",
+        "R9"
+      ]
+    }
+  ],
+  "docs": [
+    {
+      "path": "SPEC.md",
+      "kind": "behavior-contract",
+      "coverage": [
+        "S1-S7",
+        "C1-C2",
+        "T1-T3",
+        "Q1-unit-tests-required"
+      ],
+      "evidence": [
+        "R2",
+        "R3",
+        "R4"
+      ]
+    },
+    {
+      "path": "package.json",
+      "kind": "package-description",
+      "coverage": [
+        "excerpt-only",
+        "store.js-and-types.js-omitted"
+      ],
+      "evidence": [
+        "R10"
+      ]
+    },
+    {
+      "kind": "additional-documentation-inventory",
+      "status": "not-found",
+      "items": [
+        "README",
+        "examples",
+        "CHANGELOG",
+        "migration-guide",
+        "release-notes"
+      ],
+      "evidence": [
+        "R12"
+      ]
+    }
+  ],
+  "releaseArtifacts": [
+    {
+      "path": "package.json",
+      "name": "workflow-stop-sample",
+      "version": "0.0.0",
+      "private": true,
+      "moduleType": "module",
+      "scripts": [
+        "typecheck"
+      ],
+      "declaredDependencies": [],
+      "evidence": [
+        "R10"
+      ]
+    },
+    {
+      "path": "tsconfig.json",
+      "target": "ES2022",
+      "module": "NodeNext",
+      "strict": true,
+      "noEmit": true,
+      "skipLibCheck": true,
+      "include": [
+        "src/**/*.ts"
+      ],
+      "evidence": [
+        "R11"
+      ]
+    },
+    {
+      "kind": "release-infrastructure-inventory",
+      "status": "not-found",
+      "items": [
+        "lockfile",
+        "build-script",
+        "test-script",
+        "CI-configuration",
+        "distribution-output",
+        "release-configuration"
+      ],
+      "evidence": [
+        "R10",
+        "R12"
+      ]
+    }
+  ],
+  "validationCommandsMentioned": [
+    {
+      "command": "tsc --noEmit",
+      "source": "package.json",
+      "script": "typecheck",
+      "status": "not-run",
+      "scope": "static-typecheck-only",
+      "evidence": [
+        "R10",
+        "R11"
+      ]
+    }
+  ],
+  "knownGaps": [
+    {
+      "id": "G1",
+      "kind": "change-attribution",
+      "status": "unverified",
+      "target": "HEAD~1..HEAD",
+      "confirmedHead": "654f639606913ae2ea7b2465cf1bdcae71c03ff2",
+      "missingEvidence": [
+        "parent-snapshot",
+        "commit-diff"
+      ],
+      "evidence": [
+        "R1"
+      ]
+    },
+    {
+      "id": "G2",
+      "kind": "coverage",
+      "status": "missing",
+      "items": [
+        "Q1-required-unit-tests",
+        "fixtures",
+        "test-runner",
+        "coverage-results"
+      ],
+      "evidence": [
+        "R4",
+        "R12"
+      ]
+    },
+    {
+      "id": "G3",
+      "kind": "standalone-validation-prerequisites",
+      "status": "incomplete",
+      "items": [
+        "store.js",
+        "types.js",
+        "declared-TypeScript-toolchain",
+        "declared-Node-type-dependencies"
+      ],
+      "evidence": [
+        "R10",
+        "R12"
+      ]
+    },
+    {
+      "id": "G4",
+      "kind": "execution-evidence",
+      "status": "not-run",
+      "items": [
+        "typecheck",
+        "unit-tests",
+        "runtime-integration",
+        "package-build",
+        "security-performance-tests"
+      ]
+    },
+    {
+      "id": "G5",
+      "kind": "snapshot-contract-discrepancies",
+      "status": "static-observation-not-executed",
+      "items": [
+        {
+          "requirement": "S3",
+          "expected": "default=50ms,min=10ms",
+          "observed": "default=200ms,min=1ms"
+        },
+        {
+          "requirement": "S6",
+          "expected": "error-name-only",
+          "observed": "error-name-or-message-prefix"
+        },
+        {
+          "requirement": "C1",
+          "expected": "aborted|AbortError|ABORT_ERR",
+          "observedAdditionalStrings": [
+            "cancelled",
+            "timeout"
+          ]
+        },
+        {
+          "requirement": "T3",
+          "expectedKey": "launchRetryAttempts",
+          "observedKey": "launchRetries"
+        }
+      ],
+      "evidence": [
+        "R2",
+        "R3",
+        "R4",
+        "R5",
+        "R7",
+        "R8"
+      ]
+    },
+    {
+      "id": "G6",
+      "kind": "integration-and-stress",
+      "status": "no-evidence-found",
+      "items": [
+        "external-summary-consumer-compatibility",
+        "real-store-stop-persistence",
+        "timer-and-registration-lifecycle",
+        "slow-read-overlap",
+        "large-or-deep-provider-content"
+      ],
+      "evidence": [
+        "R5",
+        "R6",
+        "R7",
+        "R8",
+        "R12"
+      ]
+    }
+  ]
+}

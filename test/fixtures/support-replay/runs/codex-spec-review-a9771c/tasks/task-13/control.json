@@ -1,0 +1,33 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "T3 위반을 구현 원문으로 확인함.",
+  "id": "finding-t3-public-retry-field",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 35,
+      "lineEnd": 36,
+      "quote": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).",
+      "relevance": "launchRetryAttempts가 공개 계약 필드임을 명시한다."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 33,
+      "lineEnd": 33,
+      "quote": "\tlaunchRetries: number;",
+      "relevance": "public summary 타입이 launchRetryAttempts가 아닌 launchRetries를 선언한다."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 107,
+      "lineEnd": 110,
+      "quote": "\t\tlaunchRetries: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),",
+      "relevance": "모든 task의 launchRetry.attempts 합산 자체는 수행하지만 잘못된 공개 필드명으로 반환한다."
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "재시도 합산 로직은 존재하지만 공개 summary 필드명이 명세의 launchRetryAttempts 대신 launchRetries로 구현되어 T3를 위반한다.",
+  "recommendedAction": "WorkflowTerminalSummary와 반환 객체의 launchRetries를 launchRetryAttempts로 변경하고 호환성 영향을 검토한다."
+}

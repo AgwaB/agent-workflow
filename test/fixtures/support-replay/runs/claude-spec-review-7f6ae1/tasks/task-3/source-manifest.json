@@ -1,0 +1,9 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1rwnkc_7f6ae1",
+  "taskId": "task-3",
+  "sources": [],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

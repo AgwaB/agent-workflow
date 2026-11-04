@@ -1,0 +1,79 @@
+{
+  "schema": "deep-review-report-packet-v1",
+  "digest": "c2f11a0f687b932acb14861cc51b0ce732c58ffe784dbef718c5a7b13b71e819",
+  "maxChars": 15000,
+  "actualChars": 2020,
+  "partitionSummary": {
+    "keep": 7,
+    "weaken": 1,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "mergedFindings": 0,
+    "verdictsReceived": 8,
+    "batchIntegrityIssues": 0,
+    "verdictIntegrityIssues": 0,
+    "reviewerCoverageIssues": 0,
+    "reviewerFindings": 8,
+    "missingVerdicts": 0,
+    "partialFailures": 0
+  },
+  "sourceStatusSummary": {
+    "total": 9,
+    "completed": 9,
+    "nonCompleted": 0,
+    "partialFailureCount": 0,
+    "partialFailures": []
+  },
+  "reportContext": {
+    "keep": [
+      {
+        "findingId": "finding-001",
+        "title": "동일 signal의 한 등록을 해제하면 다른 등록의 중지 감지도 사라짐",
+        "severity": "high",
+        "recommendedAction": "등록별 독립 토큰 또는 signal별 참조 횟수로 등록 수명을 관리하고, 각 해제 함수를 멱등적으로 만든다. 동일 signal을 두 번 등록한 뒤 하나만 해제하고 abort해도 중지가 감지되는 회귀 테스트를 추가한다."
+      },
+      {
+        "findingId": "finding-002",
+        "title": "메시지 접두사만 일치하는 일반 오류를 중지 오류로 오분류함",
+        "severity": "high",
+        "recommendedAction": "메시지 접두사 조건을 제거하고 Error 인스턴스 여부와 정확한 오류 이름만 확인한다. 같은 메시지의 일반 Error는 false, 생성 함수가 반환한 중지 오류는 true인지 회귀 테스트를 추가한다."
+      },
+      {
+        "findingId": "finding-003",
+        "title": "폴링 기본값과 최소값이 모두 명세와 다름",
+        "severity": "medium",
+        "recommendedAction": "Math.max(10, options.pollMs ?? 50)로 변경하고, 옵션 생략 시 50ms와 10ms 미만 입력 시 10ms가 setInterval에 전달되는지 회귀 테스트를 추가한다."
+      },
+      {
+        "findingId": "finding-004",
+        "title": "비동기 interval이 이전 읽기 완료를 기다리지 않아 읽기가 누적됨",
+        "severity": "medium",
+        "recommendedAction": "foreground 중지 검사를 먼저 수행한 뒤 진행 중 읽기가 있으면 추가 읽기를 건너뛰고, finally에서 진행 상태를 해제하라. 지연된 읽기로 여러 폴링 주기를 넘겨도 읽기는 하나만 진행되며 foreground abort는 감지되는 회귀 테스트를 추가하라."
+      }
+    ],
+    "weaken": [
+      {
+        "findingId": "finding-005",
+        "title": "dispose 이전에 시작한 읽기가 dispose 이후에도 signal을 abort할 수 있음",
+        "severity": "medium",
+        "recommendedAction": "dispose가 진행 중인 검사 결과까지 무효화해야 하는지 계약을 명시하라. 그 보장이 필요하다면 disposed 상태를 check 진입과 await 이후에 확인하고, 읽기를 보류한 상태에서 dispose한 뒤 완료시키는 회귀 테스트를 추가하라."
+      }
+    ],
+    "drop": [],
+    "needsHuman": [],
+    "supportNoteSummaries": []
+  },
+  "normalizationNotes": [],
+  "overflowCounts": {
+    "keep": 3,
+    "weaken": 0,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "partialFailures": 0,
+    "normalizationNotes": 0,
+    "truncatedStrings": 0,
+    "omittedStringChars": 0
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "createWorkflowStopSignal의 pollMs 기본값(200ms vs 50ms) 및 최소 주기(1ms vs 10ms) 불일치가 코드상 명확히 확인되어 candidate-finding-s3을 KEEP으로 판정합니다.",
+  "id": "candidate-finding-s3",
+  "verdict": "KEEP",
+  "severity": "medium",
+  "finalClaim": "createWorkflowStopSignal의 pollMs 기본값이 명세의 50ms 대신 200ms로 설정되어 있고, 최소 주기 제한 또한 명세의 10ms 대신 1ms로 완화되어 있어 명세 S3을 위반합니다.",
+  "recommendedAction": "src/workflow-stop.ts 67행의 `const pollMs = Math.max(1, options.pollMs ?? 200);`를 `const pollMs = Math.max(10, options.pollMs ?? 50);`로 수정하고, pollMs 기본값(50ms) 및 하한값(10ms) clamping 동작을 검증하는 단위 테스트를 추가합니다.",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 13,
+      "lineEnd": 14,
+      "quote": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다.",
+      "relevance": "명세 S3: pollMs 기본값은 50ms이며 최소 주기 하한은 10ms로 명시됨"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 67,
+      "lineEnd": 67,
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "relevance": "기본값이 200ms로 설정되어 있고 최소 주기 하한이 1ms로 완화되어 명세 S3과 직접 불일치"
+    }
+  ],
+  "counterEvidence": []
+}

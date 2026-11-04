@@ -1,0 +1,41 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "T3의 합산 로직은 맞지만 공개 필드명이 launchRetryAttempts와 불일치한다.",
+  "id": "finding-005",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 35,
+      "lineEnd": 36,
+      "quote": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+      "relevance": "T3가 launchRetryAttempts를 공개 계약으로 명시한다."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 27,
+      "lineEnd": 34,
+      "quote": "export interface WorkflowTerminalSummary {\n\tterminal: boolean;\n\tengineStatus: WorkflowRunRecord[\"status\"];\n\tsemanticStatus: WorkflowSemanticStatus;\n\toutputTaskIds: string[];\n\toutputRetryAttempts: number;\n\tlaunchRetries: number;",
+      "relevance": "공개 요약 타입이 요구된 launchRetryAttempts 대신 launchRetries를 선언한다."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 107,
+      "lineEnd": 110,
+      "quote": "launchRetries: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),",
+      "relevance": "반환 객체도 잘못된 공개 필드명 launchRetries를 사용한다."
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 107,
+      "lineEnd": 110,
+      "quote": "launchRetries: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),",
+      "relevance": "모든 작업의 launchRetry.attempts를 합산하는 계산 자체는 T3와 일치한다."
+    }
+  ],
+  "finalClaim": "모든 작업의 launch retry 합산은 구현되어 있으나, 공개 계약 필드명이 launchRetryAttempts가 아닌 launchRetries라서 T3를 위반한다.",
+  "recommendedAction": "WorkflowTerminalSummary와 반환 객체의 launchRetries를 launchRetryAttempts로 변경하고 공개 필드명과 합산 동작을 검증하는 테스트를 추가한다."
+}

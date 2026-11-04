@@ -1,0 +1,28 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "No test or fixture files were found; S1–S7, C1–C2, and T1–T3 have no test evidence, so Q1 is unsupported.",
+  "testMap": [],
+  "coverageGapsSuspected": [
+    "No tests cover S1–S7 stop detection, error, polling, disposal, or signal-registration behavior.",
+    "No tests cover C1–C2 cancellation markers or recursive JSON content handling.",
+    "No tests cover T1–T3 terminal semantic statuses or retry aggregation.",
+    "Q1 is not evidenced because the repository contains no unit-test files or fixtures."
+  ],
+  "notes": [
+    "Repository inventory contained SPEC.md, src/, package.json, and tsconfig.json only.",
+    "Source symbol references are implementation evidence, not behavioral test evidence."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "Tests were inspected but not executed because this stage forbids test execution.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "This stage maps available test evidence; implementation conformance requires separate source review.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false
+}

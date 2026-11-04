@@ -1,0 +1,588 @@
+{
+ "runId": "workflow_mw1ipu5z_88c698",
+ "name": "deep-research-tiered-verification-opt-in",
+ "bundle": "deep-research",
+ "project": "95ad71ee2327",
+ "evidenceRefetch": true,
+ "status": "completed",
+ "tasks": [
+  {
+   "taskId": "task-1",
+   "specId": "plan.main",
+   "stageId": "plan",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-2",
+   "specId": "research-questions.item",
+   "stageId": "research-questions",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-14",
+   "specId": "research-questions.question-001",
+   "stageId": "research-questions",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "research-questions.item",
+    "itemIdentity": "question-001",
+    "itemHash": "1d5d28d9b8f22df68e7cdccc0add55c9055826212f129bd270db98409b7d21f3",
+    "itemSourceTaskId": "task-1",
+    "itemSourceSpecId": "plan.main",
+    "itemSourceKind": "control",
+    "itemRef": "plan.main:control:$.researchQuestions[0]"
+   }
+  },
+  {
+   "taskId": "task-15",
+   "specId": "research-questions.question-002",
+   "stageId": "research-questions",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "research-questions.item",
+    "itemIdentity": "question-002",
+    "itemHash": "d34b64c4e77c556b7d8b9d01af3082db1c4a037020b3d538a3571d083708884b",
+    "itemSourceTaskId": "task-1",
+    "itemSourceSpecId": "plan.main",
+    "itemSourceKind": "control",
+    "itemRef": "plan.main:control:$.researchQuestions[1]"
+   }
+  },
+  {
+   "taskId": "task-16",
+   "specId": "research-questions.question-003",
+   "stageId": "research-questions",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "research-questions.item",
+    "itemIdentity": "question-003",
+    "itemHash": "0477b78f307e5e1585cb12e458037785ecc0990ad56442d88d6856c44bb09c4a",
+    "itemSourceTaskId": "task-1",
+    "itemSourceSpecId": "plan.main",
+    "itemSourceKind": "control",
+    "itemRef": "plan.main:control:$.researchQuestions[2]"
+   }
+  },
+  {
+   "taskId": "task-17",
+   "specId": "research-questions.question-004",
+   "stageId": "research-questions",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "research-questions.item",
+    "itemIdentity": "question-004",
+    "itemHash": "31aed9f9c1e3dfe4e72ab6eb3d6de3a7206cc3321204c48fdc741ac41dd9d417",
+    "itemSourceTaskId": "task-1",
+    "itemSourceSpecId": "plan.main",
+    "itemSourceKind": "control",
+    "itemRef": "plan.main:control:$.researchQuestions[3]"
+   }
+  },
+  {
+   "taskId": "task-18",
+   "specId": "research-questions.question-005",
+   "stageId": "research-questions",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "research-questions.item",
+    "itemIdentity": "question-005",
+    "itemHash": "2e8e35f5a997a36c206c940188536a50f587fcb10dbb844d692603dae583d592",
+    "itemSourceTaskId": "task-1",
+    "itemSourceSpecId": "plan.main",
+    "itemSourceKind": "control",
+    "itemRef": "plan.main:control:$.researchQuestions[4]"
+   }
+  },
+  {
+   "taskId": "task-19",
+   "specId": "research-questions.question-006",
+   "stageId": "research-questions",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "research-questions.item",
+    "itemIdentity": "question-006",
+    "itemHash": "54a9fa94885a8e15b797ba6ee6db695b3a9f213a650ddb96a4d3280748993ef5",
+    "itemSourceTaskId": "task-1",
+    "itemSourceSpecId": "plan.main",
+    "itemSourceKind": "control",
+    "itemRef": "plan.main:control:$.researchQuestions[5]"
+   }
+  },
+  {
+   "taskId": "task-3",
+   "specId": "normalize-input-packet.main",
+   "stageId": "normalize-input-packet",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-4",
+   "specId": "normalize-claims.main",
+   "stageId": "normalize-claims",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-5",
+   "specId": "sanitize-claims.main",
+   "stageId": "sanitize-claims",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-6",
+   "specId": "verification-tiers.main",
+   "stageId": "verification-tiers",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-7",
+   "specId": "verify-core-claims.item",
+   "stageId": "verify-core-claims",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-20",
+   "specId": "verify-core-claims.claim-001",
+   "stageId": "verify-core-claims",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-core-claims.item",
+    "itemIdentity": "claim-001",
+    "itemHash": "e4b3ac59f3707a8746231dca9d7d9cb757fed4daf705d091ae121543f268a6c9",
+    "itemSourceTaskId": "task-6",
+    "itemSourceSpecId": "verification-tiers.main",
+    "itemSourceKind": "control",
+    "itemRef": "verification-tiers.main:control:$.coreCandidates[0]"
+   }
+  },
+  {
+   "taskId": "task-21",
+   "specId": "verify-core-claims.claim-002",
+   "stageId": "verify-core-claims",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-core-claims.item",
+    "itemIdentity": "claim-002",
+    "itemHash": "4bdf8aeeb413d3db954f4e7a9ab8b3afc1af2a6dcfe28ec73a74a9da93c8f828",
+    "itemSourceTaskId": "task-6",
+    "itemSourceSpecId": "verification-tiers.main",
+    "itemSourceKind": "control",
+    "itemRef": "verification-tiers.main:control:$.coreCandidates[1]"
+   }
+  },
+  {
+   "taskId": "task-22",
+   "specId": "verify-core-claims.claim-003",
+   "stageId": "verify-core-claims",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-core-claims.item",
+    "itemIdentity": "claim-003",
+    "itemHash": "b192628ddbb4367b57c522c9c7c64c065a84d2c6035b07229d7ca35fa7c72fdd",
+    "itemSourceTaskId": "task-6",
+    "itemSourceSpecId": "verification-tiers.main",
+    "itemSourceKind": "control",
+    "itemRef": "verification-tiers.main:control:$.coreCandidates[2]"
+   }
+  },
+  {
+   "taskId": "task-23",
+   "specId": "verify-core-claims.claim-004",
+   "stageId": "verify-core-claims",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-core-claims.item",
+    "itemIdentity": "claim-004",
+    "itemHash": "dcfae94d8bd842b6f37cc1d9c486632a6da135693685bcef55b343b7774ff304",
+    "itemSourceTaskId": "task-6",
+    "itemSourceSpecId": "verification-tiers.main",
+    "itemSourceKind": "control",
+    "itemRef": "verification-tiers.main:control:$.coreCandidates[3]"
+   }
+  },
+  {
+   "taskId": "task-24",
+   "specId": "verify-core-claims.claim-005",
+   "stageId": "verify-core-claims",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-core-claims.item",
+    "itemIdentity": "claim-005",
+    "itemHash": "800df40512a13bfd6c2e7ec97e8a0ca4f236564263884eeb19cd2b8bb4d90ae1",
+    "itemSourceTaskId": "task-6",
+    "itemSourceSpecId": "verification-tiers.main",
+    "itemSourceKind": "control",
+    "itemRef": "verification-tiers.main:control:$.coreCandidates[4]"
+   }
+  },
+  {
+   "taskId": "task-25",
+   "specId": "verify-core-claims.claim-006",
+   "stageId": "verify-core-claims",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-core-claims.item",
+    "itemIdentity": "claim-006",
+    "itemHash": "2e6f40bcdfca5ee2d54a2cd4ab2d2b202514beada8c5a232849dabbdb699fe2a",
+    "itemSourceTaskId": "task-6",
+    "itemSourceSpecId": "verification-tiers.main",
+    "itemSourceKind": "control",
+    "itemRef": "verification-tiers.main:control:$.coreCandidates[5]"
+   }
+  },
+  {
+   "taskId": "task-26",
+   "specId": "verify-core-claims.claim-007",
+   "stageId": "verify-core-claims",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-core-claims.item",
+    "itemIdentity": "claim-007",
+    "itemHash": "0724cc9b5e471459287beab4ef8ba2f077f932af63c73e01c3109c9f247e2faf",
+    "itemSourceTaskId": "task-6",
+    "itemSourceSpecId": "verification-tiers.main",
+    "itemSourceKind": "control",
+    "itemRef": "verification-tiers.main:control:$.coreCandidates[6]"
+   }
+  },
+  {
+   "taskId": "task-27",
+   "specId": "verify-core-claims.claim-008",
+   "stageId": "verify-core-claims",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-core-claims.item",
+    "itemIdentity": "claim-008",
+    "itemHash": "f77172640617b4fb4254e7573b158ff06fc3ab0a9bfd8bd089b88c0f3dd52b91",
+    "itemSourceTaskId": "task-6",
+    "itemSourceSpecId": "verification-tiers.main",
+    "itemSourceKind": "control",
+    "itemRef": "verification-tiers.main:control:$.coreCandidates[7]"
+   }
+  },
+  {
+   "taskId": "task-28",
+   "specId": "verify-core-claims.claim-009",
+   "stageId": "verify-core-claims",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-core-claims.item",
+    "itemIdentity": "claim-009",
+    "itemHash": "6d4df206ad2ef8fb0c5aaf0aeff98bb91af045c163795b88377ce42854b630fe",
+    "itemSourceTaskId": "task-6",
+    "itemSourceSpecId": "verification-tiers.main",
+    "itemSourceKind": "control",
+    "itemRef": "verification-tiers.main:control:$.coreCandidates[8]"
+   }
+  },
+  {
+   "taskId": "task-29",
+   "specId": "verify-core-claims.claim-010",
+   "stageId": "verify-core-claims",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-core-claims.item",
+    "itemIdentity": "claim-010",
+    "itemHash": "143e3e5602b6aeefe157f617c721ff9a6b5cdbf81d05ffad36a3ac8bb8cc36d1",
+    "itemSourceTaskId": "task-6",
+    "itemSourceSpecId": "verification-tiers.main",
+    "itemSourceKind": "control",
+    "itemRef": "verification-tiers.main:control:$.coreCandidates[9]"
+   }
+  },
+  {
+   "taskId": "task-30",
+   "specId": "verify-core-claims.claim-011",
+   "stageId": "verify-core-claims",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-core-claims.item",
+    "itemIdentity": "claim-011",
+    "itemHash": "d693f6c7964628133c040eb0ff787ef848124f6d792fb837057caffa48b0c302",
+    "itemSourceTaskId": "task-6",
+    "itemSourceSpecId": "verification-tiers.main",
+    "itemSourceKind": "control",
+    "itemRef": "verification-tiers.main:control:$.coreCandidates[10]"
+   }
+  },
+  {
+   "taskId": "task-31",
+   "specId": "verify-core-claims.claim-012",
+   "stageId": "verify-core-claims",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-core-claims.item",
+    "itemIdentity": "claim-012",
+    "itemHash": "204f43cadc5ac428682e8487a0b5fa304a9927c363a6815bcce752c689e5b9c2",
+    "itemSourceTaskId": "task-6",
+    "itemSourceSpecId": "verification-tiers.main",
+    "itemSourceKind": "control",
+    "itemRef": "verification-tiers.main:control:$.coreCandidates[11]"
+   }
+  },
+  {
+   "taskId": "task-32",
+   "specId": "verify-core-claims.claim-013",
+   "stageId": "verify-core-claims",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-core-claims.item",
+    "itemIdentity": "claim-013",
+    "itemHash": "75086da9d5f5f7938108184749afebccc027e3fdc15d987fd42134ff4f8345b0",
+    "itemSourceTaskId": "task-6",
+    "itemSourceSpecId": "verification-tiers.main",
+    "itemSourceKind": "control",
+    "itemRef": "verification-tiers.main:control:$.coreCandidates[12]"
+   }
+  },
+  {
+   "taskId": "task-33",
+   "specId": "verify-core-claims.claim-014",
+   "stageId": "verify-core-claims",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-core-claims.item",
+    "itemIdentity": "claim-014",
+    "itemHash": "a43c72b9e5f4ad4d981098dd40d5b191f51c8bd45a0db73c837111b7c4fd2788",
+    "itemSourceTaskId": "task-6",
+    "itemSourceSpecId": "verification-tiers.main",
+    "itemSourceKind": "control",
+    "itemRef": "verification-tiers.main:control:$.coreCandidates[13]"
+   }
+  },
+  {
+   "taskId": "task-34",
+   "specId": "verify-core-claims.claim-015",
+   "stageId": "verify-core-claims",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-core-claims.item",
+    "itemIdentity": "claim-015",
+    "itemHash": "76d28d31f99bde9e9462934d1160c7d23d445406357873d9d954b1178b98a7a1",
+    "itemSourceTaskId": "task-6",
+    "itemSourceSpecId": "verification-tiers.main",
+    "itemSourceKind": "control",
+    "itemRef": "verification-tiers.main:control:$.coreCandidates[14]"
+   }
+  },
+  {
+   "taskId": "task-35",
+   "specId": "verify-core-claims.claim-016",
+   "stageId": "verify-core-claims",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-core-claims.item",
+    "itemIdentity": "claim-016",
+    "itemHash": "a8825157c01371e9c2ab2656cd0e8442daa502b7440fdd8b9f535e3206768e81",
+    "itemSourceTaskId": "task-6",
+    "itemSourceSpecId": "verification-tiers.main",
+    "itemSourceKind": "control",
+    "itemRef": "verification-tiers.main:control:$.coreCandidates[15]"
+   }
+  },
+  {
+   "taskId": "task-8",
+   "specId": "verify-tail-claims.item",
+   "stageId": "verify-tail-claims",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-36",
+   "specId": "verify-tail-claims.claim-017",
+   "stageId": "verify-tail-claims",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-tail-claims.item",
+    "itemIdentity": "claim-017",
+    "itemHash": "3bedc597777382ee8dab0206bf5c5f48cb1831d54cd483169f20c32bf97f9a45",
+    "itemSourceTaskId": "task-6",
+    "itemSourceSpecId": "verification-tiers.main",
+    "itemSourceKind": "control",
+    "itemRef": "verification-tiers.main:control:$.tailCandidates[0]"
+   }
+  },
+  {
+   "taskId": "task-37",
+   "specId": "verify-tail-claims.claim-018",
+   "stageId": "verify-tail-claims",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "verify-tail-claims.item",
+    "itemIdentity": "claim-018",
+    "itemHash": "e7af19c224d6758b114c8163f78a3c294b922f2d450c346489904e302365943a",
+    "itemSourceTaskId": "task-6",
+    "itemSourceSpecId": "verification-tiers.main",
+    "itemSourceKind": "control",
+    "itemRef": "verification-tiers.main:control:$.tailCandidates[1]"
+   }
+  },
+  {
+   "taskId": "task-9",
+   "specId": "check-web-quotes.main",
+   "stageId": "check-web-quotes",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-10",
+   "specId": "audit-claims.main",
+   "stageId": "audit-claims",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-11",
+   "specId": "final-audit-packet.main",
+   "stageId": "final-audit-packet",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-12",
+   "specId": "final-audit.main",
+   "stageId": "final-audit",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-13",
+   "specId": "final.main",
+   "stageId": "final",
+   "status": "completed"
+  }
+ ],
+ "supportTasks": [
+  {
+   "specId": "normalize-input-packet.main",
+   "dependsOn": [
+    "plan.main",
+    "research-questions.question-001",
+    "research-questions.question-002",
+    "research-questions.question-003",
+    "research-questions.question-004",
+    "research-questions.question-005",
+    "research-questions.question-006"
+   ],
+   "support": {
+    "uses": "./helpers/normalize-input-packet.mjs"
+   }
+  },
+  {
+   "specId": "sanitize-claims.main",
+   "dependsOn": [
+    "normalize-claims.main",
+    "normalize-input-packet.main"
+   ],
+   "support": {
+    "uses": "./helpers/sanitize-verification-candidates.mjs",
+    "options": {
+     "overclaimedSourceInferencePhrases": [
+      "primary viable defense",
+      "primary viable defence",
+      "canonical audit log primitive",
+      "canonical primitive",
+      "regardless of prompt instructions",
+      "gen_ai.system",
+      "gen_ai.request.model",
+      "interrupt()",
+      "before or after specified nodes"
+     ],
+     "unquotedNamedMitigationTerms": [
+      "delimiters"
+     ]
+    }
+   }
+  },
+  {
+   "specId": "verification-tiers.main",
+   "dependsOn": [
+    "sanitize-claims.main"
+   ],
+   "support": {
+    "uses": "./helpers/tier-verification-candidates.mjs",
+    "options": {
+     "coreTierSize": 8
+    }
+   }
+  },
+  {
+   "specId": "check-web-quotes.main",
+   "dependsOn": [
+    "verify-core-claims.claim-001",
+    "verify-core-claims.claim-002",
+    "verify-core-claims.claim-003",
+    "verify-core-claims.claim-004",
+    "verify-core-claims.claim-005",
+    "verify-core-claims.claim-006",
+    "verify-core-claims.claim-007",
+    "verify-core-claims.claim-008",
+    "verify-core-claims.claim-009",
+    "verify-core-claims.claim-010",
+    "verify-core-claims.claim-011",
+    "verify-core-claims.claim-012",
+    "verify-core-claims.claim-013",
+    "verify-core-claims.claim-014",
+    "verify-core-claims.claim-015",
+    "verify-core-claims.claim-016",
+    "verify-tail-claims.claim-017",
+    "verify-tail-claims.claim-018"
+   ],
+   "support": {
+    "uses": "./helpers/check-web-quotes.mjs"
+   }
+  },
+  {
+   "specId": "audit-claims.main",
+   "dependsOn": [
+    "plan.main",
+    "normalize-input-packet.main",
+    "normalize-claims.main",
+    "sanitize-claims.main",
+    "verify-core-claims.claim-001",
+    "verify-core-claims.claim-002",
+    "verify-core-claims.claim-003",
+    "verify-core-claims.claim-004",
+    "verify-core-claims.claim-005",
+    "verify-core-claims.claim-006",
+    "verify-core-claims.claim-007",
+    "verify-core-claims.claim-008",
+    "verify-core-claims.claim-009",
+    "verify-core-claims.claim-010",
+    "verify-core-claims.claim-011",
+    "verify-core-claims.claim-012",
+    "verify-core-claims.claim-013",
+    "verify-core-claims.claim-014",
+    "verify-core-claims.claim-015",
+    "verify-core-claims.claim-016",
+    "verify-tail-claims.claim-017",
+    "verify-tail-claims.claim-018"
+   ],
+   "support": {
+    "uses": "./helpers/claim-evidence-gate.mjs",
+    "options": {
+     "downgradeExactQuantitativeWithoutSource": true,
+     "requireFetchedEvidenceForVerified": true,
+     "allowAdditionalCorroboratingSourcesForVerified": true
+    }
+   }
+  },
+  {
+   "specId": "final-audit-packet.main",
+   "dependsOn": [
+    "plan.main",
+    "normalize-input-packet.main",
+    "normalize-claims.main",
+    "sanitize-claims.main",
+    "audit-claims.main"
+   ],
+   "support": {
+    "uses": "./helpers/final-audit-packet.mjs"
+   }
+  },
+  {
+   "specId": "final.main",
+   "dependsOn": [
+    "final-audit.main",
+    "final-audit-packet.main",
+    "check-web-quotes.main"
+   ],
+   "support": {
+    "uses": "./helpers/render-executive.mjs"
+   }
+  }
+ ]
+}

@@ -1,0 +1,62 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "직접 객체와 content JSON 모두에서 timeout·cancelled 문자열을 취소로 오분류하므로 finding-003을 유지한다.",
+  "id": "finding-003",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 25,
+      "lineEnd": 26,
+      "quote": "오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다.",
+      "relevance": "C1의 문자열 허용 목록은 세 가지로 한정된다."
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 27,
+      "lineEnd": 28,
+      "quote": "`content` 배열 안의 텍스트가 JSON이면 그 내용도 같은 규칙으로 판별하되, 같은 값을 다시\n  검사하는 무한 재귀가 없어야 한다.",
+      "relevance": "C2는 JSON 내부에도 동일한 취소 규칙을 적용한다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 19,
+      "lineEnd": 20,
+      "quote": "for (const candidate of [value.error, details?.error, value.reason, details?.reason]) {",
+      "relevance": "직접 오류·사유와 details 내부 오류·사유가 동일한 비교 분기로 진입한다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 20,
+      "lineEnd": 20,
+      "quote": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "relevance": "명세에서 허용하지 않은 cancelled와 timeout도 명시적으로 취소로 반환한다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 27,
+      "lineEnd": 28,
+      "quote": "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+      "relevance": "JSON.parse 결과에 같은 판별 함수를 적용하여 잘못된 허용 목록이 JSON 객체에도 전파된다."
+    },
+    {
+      "file": "package.json",
+      "lineStart": 7,
+      "lineEnd": 7,
+      "quote": "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+      "relevance": "테스트 실행 스크립트는 없으며, 제공된 스크립트는 타입 검사뿐이다."
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 15,
+      "lineEnd": 15,
+      "quote": "if (!isRecord(value)) return false;",
+      "relevance": "최상위 문자열 자체는 거부한다. 다만 후보가 지목한 error/reason을 가진 객체에는 이 방어가 적용되지 않는다."
+    }
+  ],
+  "finalClaim": "isWorkflowReturnedCancellation은 error/reason 문자열 timeout과 cancelled를 true로 판정하여 C1을 위반한다. content 텍스트가 같은 객체를 표현하는 JSON인 경우에도 재귀 판별로 동일하게 오분류하여 C2의 동일 규칙 적용 요구를 위반한다.",
+  "recommendedAction": "오류·사유 문자열 허용 목록에서 timeout과 cancelled를 제거한다. 직접 객체와 content JSON 양쪽에서 두 문자열은 false, aborted·AbortError·ABORT_ERR는 true인지 확인하는 단위 테스트를 추가한다."
+}

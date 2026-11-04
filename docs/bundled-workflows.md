@@ -431,6 +431,14 @@ interactive host asks once in `safe` mode), **refuse** (the run is not started).
 - `test/unit/bundled-workflows.test.mjs`: compile + no forbidden references + no Pi-only capability +
   source-verification statement + support table in sync.
 - `test/unit/core-worker-prompt-render.test.mjs`: per-executor rendering and the task-backend launch.
+- `test/unit/support-replay-golden.test.mjs` (2026-11-04, regression net before refactoring the
+  helpers): 26 recorded live runs of the four bundled workflows on pi, claude, codex and antigravity
+  (`test/fixtures/support-replay/`: worker controls, source manifests and the reviewed project files)
+  are replayed through every support stage with the current helpers and must give the committed
+  golden controls (verdict, report Markdown, ledgers). Intended change:
+  `node test/helpers/support-replay.mjs --write` and review the golden diff; more runs:
+  `--capture <project dir>`. On the replay alone the helpers are 56–100 % line-covered, with the
+  whole unit suite 86–100 % (`test/helpers/coverage-report.mjs`, merged V8 coverage).
 
 2026-11-03 (owner: the final report listed pipeline diagnostics per claim):
 

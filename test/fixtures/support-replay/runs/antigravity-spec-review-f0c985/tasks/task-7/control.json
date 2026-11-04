@@ -1,0 +1,94 @@
+{
+  "schema": "spec-review-report-v1",
+  "digest": "SPEC.md 검토 결과 5건의 명세 불일치(S3, S6, C1, T3, Q1)가 확인되어 GAPS_FOUND로 판정되었습니다.",
+  "summary": "SPEC.md 대비 src/ 구현 검토 결과, S1–S7, C1–C2, T1–T3, Q1 중 총 5개 항목(S3, S6, C1, T3, Q1)에서 불일치 결함이 확인되었습니다.",
+  "verdict": "GAPS_FOUND",
+  "ownerLedger": [
+    {
+      "source": "verify-findings",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-finding-s3",
+      "taskId": "task-9",
+      "itemIdentity": "candidate-finding-s3",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.candidate-finding-c1",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-finding-c1",
+      "taskId": "task-11",
+      "itemIdentity": "candidate-finding-c1",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.candidate-finding-q1",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-finding-q1",
+      "taskId": "task-13",
+      "itemIdentity": "candidate-finding-q1",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.candidate-finding-s6",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-finding-s6",
+      "taskId": "task-10",
+      "itemIdentity": "candidate-finding-s6",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.candidate-finding-t3",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-finding-t3",
+      "taskId": "task-12",
+      "itemIdentity": "candidate-finding-t3",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    }
+  ],
+  "ownerLedgerReconciliation": {
+    "ownerRowCount": 5,
+    "verifierRowCount": 5,
+    "ownerIds": [
+      "candidate-finding-s3",
+      "candidate-finding-c1",
+      "candidate-finding-q1",
+      "candidate-finding-s6",
+      "candidate-finding-t3"
+    ],
+    "verifierIds": [
+      "candidate-finding-s3",
+      "candidate-finding-c1",
+      "candidate-finding-q1",
+      "candidate-finding-s6",
+      "candidate-finding-t3"
+    ],
+    "duplicateOwnerIds": [],
+    "duplicateVerifierIds": [],
+    "missingOwnerRows": [],
+    "orphanOwnerRows": [],
+    "statusMismatches": [],
+    "cardinalityPassed": true,
+    "passed": true
+  },
+  "risks": [
+    "S3: pollMs 기본값(200ms) 및 최소 하한(1ms)이 명세(기본 50ms, 최소 10ms)와 불일치",
+    "S6: isWorkflowStopRequestedError가 명세를 위반하여 error.message 접두사로 중지 여부를 판정",
+    "C1: isWorkflowReturnedCancellation에서 명세 외 문자열(cancelled, timeout)을 취소로 승격",
+    "T3: WorkflowTerminalSummary 공개 계약 필드명이 launchRetryAttempts 대신 launchRetries로 선언됨",
+    "Q1: 요구사항 검증을 위한 단위 테스트 스위트 및 테스트 실행 러너가 저장소에 부재"
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "테스트 파일 부재를 정적으로 확인하였으며 본 읽기 전용 단계에서는 테스트 실행을 수행하지 않았습니다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "recommendedNextAction": "확인된 5개 결함 항목(S3, S6, C1, T3, Q1)에 대해 구현 코드를 수정하고 단위 테스트를 추가 작성하십시오."
+}

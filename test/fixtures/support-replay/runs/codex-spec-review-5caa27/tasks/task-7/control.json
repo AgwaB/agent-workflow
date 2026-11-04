@@ -1,0 +1,99 @@
+{
+  "schema": "spec-review-report-v1",
+  "digest": "sha256:44125d4906ec94a611b3164734b0719e05c4bd1ff4b38fb34372e7e455735e56",
+  "summary": "S3, S6, C1, T3, Q1에서 명세 위반 또는 테스트 부재가 확인되었습니다. 다만 요구사항 reconciliation이 완료되지 않아 전체 판정은 INCONCLUSIVE입니다.",
+  "verdict": "INCONCLUSIVE",
+  "ownerLedger": [
+    {
+      "source": "verify-findings",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-s3",
+      "taskId": "task-9",
+      "itemIdentity": "candidate-S3",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.candidate-c1",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-c1",
+      "taskId": "task-11",
+      "itemIdentity": "candidate-C1",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.candidate-q1",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-q1",
+      "taskId": "task-13",
+      "itemIdentity": "candidate-Q1",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.candidate-s6",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-s6",
+      "taskId": "task-10",
+      "itemIdentity": "candidate-S6",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.candidate-t3",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-t3",
+      "taskId": "task-12",
+      "itemIdentity": "candidate-T3",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    }
+  ],
+  "ownerLedgerReconciliation": {
+    "ownerRowCount": 5,
+    "verifierRowCount": 5,
+    "ownerIds": [
+      "candidate-S3",
+      "candidate-C1",
+      "candidate-Q1",
+      "candidate-S6",
+      "candidate-T3"
+    ],
+    "verifierIds": [
+      "candidate-S3",
+      "candidate-C1",
+      "candidate-Q1",
+      "candidate-S6",
+      "candidate-T3"
+    ],
+    "duplicateOwnerIds": [],
+    "duplicateVerifierIds": [],
+    "missingOwnerRows": [],
+    "orphanOwnerRows": [],
+    "statusMismatches": [],
+    "cardinalityPassed": true,
+    "passed": true
+  },
+  "risks": [
+    "S3: pollMs가 기본 200ms·최소 1ms로 구현되어 명세의 50ms·10ms와 다릅니다.",
+    "S6: 오류 이름이 달라도 메시지 prefix만으로 중지 오류로 판정합니다.",
+    "C1: cancelled와 timeout 문자열까지 provider 취소로 인정합니다.",
+    "T3: 공개 필드명이 launchRetryAttempts가 아니라 launchRetries입니다.",
+    "Q1: S·C·T 요구사항별 단위 테스트 근거와 테스트 실행 구성이 없습니다."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "읽기 전용 검토로 테스트를 실행하지 않았다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "SPEC.md에 store.js와 types.js가 제외되어 의존 모듈 계약은 독립 검증하지 못했다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "recommendedNextAction": "S3·S6·C1·T3 구현을 수정하고 S·C·T 각 요구사항별 단위 테스트를 추가한 뒤 reconciliation을 완료하여 재검토하십시오."
+}

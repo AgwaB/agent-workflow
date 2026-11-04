@@ -1,0 +1,45 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "No test files, fixtures, or test script exist in the repo, so no requirement (S1–S7, C1–C2, T1–T3, Q1) has test evidence.",
+  "testMap": [],
+  "coverageGapsSuspected": [
+    "S1: no test covers stop detection via disk intent or an aborted foreground signal for the same workflowRunPath.",
+    "S2: no test checks the WorkflowStopRequested error name or the 'workflow stop requested for <runId>' message.",
+    "S3: no test checks the 50ms default pollMs or the 10ms floor for smaller caller values.",
+    "S4: no test checks that watch-path read failures are not stops while throwIfWorkflowStopRequested propagates them.",
+    "S5: no test checks that no new disk read starts after dispose().",
+    "S6: no test checks that only the WorkflowStopRequested name counts and message content is ignored.",
+    "S7: no test checks that the unregister function removes the run entry once its last signal is released.",
+    "C1: no test checks that only aborted, AbortError, and ABORT_ERR count as cancellation while other provider errors do not.",
+    "C2: no test checks JSON text inside content arrays or the absence of infinite recursion.",
+    "T1: no test checks completed_degraded when degradation records exist.",
+    "T2: no test checks completed_without_semantic_result when direct-dynamic control.json is unreadable.",
+    "T3: no test checks that outputRetryAttempts and launchRetryAttempts sum retries across all tasks.",
+    "Q1: the spec requires a unit test for each S/C/T item, and none exists; this is itself a non-conformance with the spec."
+  ],
+  "notes": [
+    "Repo has src/workflow-stop.ts, src/workflow-cancellation.ts, and src/workflow-terminal.ts, but no *.test.* or *.spec.* files and no test directory.",
+    "package.json defines only a 'typecheck' script (tsc --noEmit); there is no test runner configured.",
+    "Grep for describe/it/test/assert calls found no matches outside .agent-workflow and .git.",
+    "Git log entries reference a 'stop/cancel sample'; the workspace is a sample excerpt, and no test files appear in the working tree.",
+    "SPEC.md states store.js and types.js are excluded from this excerpt, so behaviors depending on them cannot be traced to tests here."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "Tests were inspected but not executed because this stage is read-only and forbids commands.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "Implementation and behavior of src/ were not analyzed in this stage; only test evidence was mapped.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "store.js and types.js are excluded from the spec excerpt, so their behavior is outside the reviewable scope.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false
+}

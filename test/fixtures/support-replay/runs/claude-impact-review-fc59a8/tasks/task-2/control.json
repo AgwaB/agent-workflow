@@ -1,0 +1,179 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "HEAD(654f639) touches src/workflow-stop.ts, src/workflow-cancellation.ts, src/workflow-terminal.ts; SPEC.md contract diverges (pollMs, cancel tokens, launchRetryAttempts rename, message-based stop detection); no tests in repo; store.ts/types.ts absent.",
+  "components": [
+    {
+      "id": "stop-signal",
+      "path": "src/workflow-stop.ts",
+      "symbols": [
+        "createWorkflowStopSignal",
+        "throwIfWorkflowStopRequested",
+        "bindWorkflowLaunchSignal",
+        "isWorkflowStopRequestedError",
+        "createWorkflowStopRequestedError",
+        "createWorkflowStopPendingError",
+        "isWorkflowStopPendingError",
+        "WORKFLOW_STOP_REQUESTED_ERROR_NAME"
+      ],
+      "role": "stop detection via disk stop intent and foreground AbortSignal registry; emits WorkflowStopRequested error",
+      "observedBehavior": {
+        "pollMsDefault": 200,
+        "pollMsMinimum": 1,
+        "isStopRequestedErrorMatch": "name OR message startsWith 'workflow stop requested'"
+      },
+      "touchedByHead": true
+    },
+    {
+      "id": "cancellation-classifier",
+      "path": "src/workflow-cancellation.ts",
+      "symbols": [
+        "isWorkflowAbortError",
+        "isWorkflowReturnedCancellation"
+      ],
+      "role": "classifies provider-returned values as cancellation at provider boundaries",
+      "observedBehavior": {
+        "stringTokens": [
+          "aborted",
+          "AbortError",
+          "ABORT_ERR",
+          "cancelled",
+          "timeout"
+        ],
+        "flagFields": [
+          "cancelled",
+          "details.cancelled"
+        ],
+        "recursesIntoJsonContentText": true
+      },
+      "touchedByHead": true
+    },
+    {
+      "id": "terminal-summary",
+      "path": "src/workflow-terminal.ts",
+      "symbols": [
+        "summarizeWorkflowTerminal",
+        "WorkflowTerminalSummary",
+        "WorkflowSemanticStatus"
+      ],
+      "role": "public terminal summary of a workflow run (semantic status, output task ids, retry totals, artifact root)",
+      "publicFields": [
+        "terminal",
+        "engineStatus",
+        "semanticStatus",
+        "outputTaskIds",
+        "outputRetryAttempts",
+        "launchRetries",
+        "artifactRoot"
+      ],
+      "touchedByHead": true
+    },
+    {
+      "id": "spec-doc",
+      "path": "SPEC.md",
+      "role": "behavioral contract S1-S7, C1-C2, T1-T3, Q1 for the stop/cancel/terminal modules",
+      "touchedByHead": false
+    },
+    {
+      "id": "build-config",
+      "path": "package.json",
+      "role": "scripts.typecheck = tsc --noEmit; no test script, no dependencies declared",
+      "touchedByHead": false
+    },
+    {
+      "id": "tsconfig",
+      "path": "tsconfig.json",
+      "role": "strict, NodeNext, include src/**/*.ts",
+      "touchedByHead": false
+    }
+  ],
+  "entryPoints": [
+    {
+      "symbol": "createWorkflowStopSignal",
+      "file": "src/workflow-stop.ts",
+      "signature": "(cwd, runId, {pollMs?}) => {signal, dispose}"
+    },
+    {
+      "symbol": "throwIfWorkflowStopRequested",
+      "file": "src/workflow-stop.ts",
+      "signature": "(cwd, runId) => Promise<void>"
+    },
+    {
+      "symbol": "bindWorkflowLaunchSignal",
+      "file": "src/workflow-stop.ts",
+      "signature": "(cwd, runId, signal?) => unbind fn"
+    },
+    {
+      "symbol": "isWorkflowReturnedCancellation",
+      "file": "src/workflow-cancellation.ts",
+      "signature": "(value: unknown) => boolean"
+    },
+    {
+      "symbol": "isWorkflowAbortError",
+      "file": "src/workflow-cancellation.ts",
+      "signature": "(value: unknown) => boolean"
+    },
+    {
+      "symbol": "summarizeWorkflowTerminal",
+      "file": "src/workflow-terminal.ts",
+      "signature": "(cwd, run: WorkflowRunRecord) => Promise<WorkflowTerminalSummary>"
+    }
+  ],
+  "dataFlows": [
+    {
+      "from": "disk stop intent (store.readWorkflowStopIntent)",
+      "to": "createWorkflowStopSignal check() -> AbortController.abort(WorkflowStopRequested)",
+      "via": "src/workflow-stop.ts setInterval poll (default 200ms)"
+    },
+    {
+      "from": "foreground AbortSignal (bindWorkflowLaunchSignal registry, keyed by workflowRunPath)",
+      "to": "launchStopRequested -> abort/throw",
+      "via": "src/workflow-stop.ts Map<string, Set<AbortSignal>>"
+    },
+    {
+      "from": "provider return value / thrown error",
+      "to": "isWorkflowReturnedCancellation -> cancellation decision",
+      "via": "src/workflow-cancellation.ts incl. JSON-in-content recursion"
+    },
+    {
+      "from": "WorkflowRunRecord.tasks[].outputRetry.attempts / launchRetry.attempts",
+      "to": "WorkflowTerminalSummary.outputRetryAttempts / launchRetries",
+      "via": "src/workflow-terminal.ts reduce sums"
+    },
+    {
+      "from": "dynamic controller control.json (sibling of controller output file)",
+      "to": "semanticStatus (dynamic_* / completed_without_semantic_result)",
+      "via": "src/workflow-terminal.ts readDynamicControllerControl"
+    },
+    {
+      "from": "run.degradation + run.status",
+      "to": "semanticStatus completed / completed_degraded",
+      "via": "src/workflow-terminal.ts nonDynamicSemanticStatus"
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "u-diff",
+      "question": "Exact line diff of HEAD 654f639 not directly inspected; no git command available (object store is compressed). Changes inferred from commit message and comparison of current code with SPEC.md."
+    },
+    {
+      "id": "u-external-consumers",
+      "question": "SPEC T3 says launchRetryAttempts is a public contract read by external tools; no in-repo consumer found for either name. External consumers of the renamed field are unknown."
+    },
+    {
+      "id": "u-store-types",
+      "question": "store.js and types.js (readWorkflowStopIntent, workflowRunPath, finalStageTasks, isTerminalWorkflowStatus, readJson, fromProjectPath, workflowRunDir, WorkflowRunRecord) are absent, so typecheck likely cannot pass in this excerpt and runtime behavior of the disk path is unverified."
+    },
+    {
+      "id": "u-tests",
+      "question": "No test files found (*.test.*, *.spec.*, test dirs). SPEC Q1 requires unit tests per S/C/T item; coverage for the changed behavior is absent."
+    },
+    {
+      "id": "u-intent",
+      "question": "Whether pollMs default 200ms (spec 50ms), minimum 1ms (spec 10ms), extra cancel tokens cancelled/timeout and cancelled flags, and message-prefix stop matching were intentional; SPEC not updated in HEAD."
+    },
+    {
+      "id": "u-dedupe",
+      "question": "bindWorkflowLaunchSignal uses a Set, so binding the same AbortSignal twice and unbinding once removes the registration for both bindings (edge case, not verified by test)."
+    }
+  ]
+}

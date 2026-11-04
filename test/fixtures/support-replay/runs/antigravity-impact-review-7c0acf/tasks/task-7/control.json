@@ -1,0 +1,101 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Docs and release impact assessed as high: 4 specification drift points including public contract break (launchRetryAttempts vs launchRetries), private unbuilt package hazards, and missing CI/test verification.",
+  "status": "high",
+  "impacts": [
+    {
+      "id": "DOCS-DRIFT-01-TERMINAL-FIELD",
+      "category": "documentation_drift",
+      "severity": "high",
+      "sourceDocument": "SPEC.md#T3",
+      "implementationLocation": "src/workflow-terminal.ts#L33,L107",
+      "summary": "Public contract field name divergence in WorkflowTerminalSummary (launchRetryAttempts vs launchRetries)",
+      "description": "SPEC.md requirement T3 explicitly states that 'outputRetryAttempts' and 'launchRetryAttempts' are public contracts consumed by external tools. In src/workflow-terminal.ts, the interface definition and return value use 'launchRetries' instead of 'launchRetryAttempts'. Any external consumer or tool relying on the documented specification will encounter undefined property access.",
+      "migrationRequired": true
+    },
+    {
+      "id": "DOCS-DRIFT-02-STOP-POLL-INTERVAL",
+      "category": "documentation_drift",
+      "severity": "medium",
+      "sourceDocument": "SPEC.md#S3",
+      "implementationLocation": "src/workflow-stop.ts#L67",
+      "summary": "Stop polling interval default and lower-bound clamping diverge from specification",
+      "description": "SPEC.md requirement S3 defines a default pollMs of 50ms and mandates that caller-provided intervals cannot be less than 10ms. The implementation in src/workflow-stop.ts sets Math.max(1, options.pollMs ?? 200), introducing a 4x slower default response (200ms vs 50ms) and an unsafe minimum bound of 1ms.",
+      "migrationRequired": false
+    },
+    {
+      "id": "DOCS-DRIFT-03-STOP-ERROR-MATCHING",
+      "category": "documentation_drift",
+      "severity": "medium",
+      "sourceDocument": "SPEC.md#S6",
+      "implementationLocation": "src/workflow-stop.ts#L56-L58",
+      "summary": "isWorkflowStopRequestedError inspects message prefix contrary to specification",
+      "description": "SPEC.md requirement S6 specifies that isWorkflowStopRequestedError must only identify errors where name === 'WorkflowStopRequested' and must not evaluate message contents. The implementation includes error.message.startsWith('workflow stop requested'), violating the spec and risking false-positive error classifications.",
+      "migrationRequired": false
+    },
+    {
+      "id": "DOCS-DRIFT-04-CANCELLATION-STRING-SCOPE",
+      "category": "documentation_drift",
+      "severity": "medium",
+      "sourceDocument": "SPEC.md#C1",
+      "implementationLocation": "src/workflow-cancellation.ts#L20",
+      "summary": "Cancellation classifier promotes unauthorized error strings ('cancelled', 'timeout')",
+      "description": "SPEC.md requirement C1 strictly restricts cancellation identification strings to 'aborted', 'AbortError', and 'ABORT_ERR', explicitly forbidding promoting other provider errors to cancellations. The implementation also accepts 'cancelled' and 'timeout', which masks genuine provider timeouts as user cancellations.",
+      "migrationRequired": false
+    },
+    {
+      "id": "RELEASE-HAZARD-01-PACKAGE-PUBLISH-CONFIG",
+      "category": "packaging_and_release",
+      "severity": "high",
+      "sourceDocument": "package.json",
+      "implementationLocation": "package.json#L4,L7",
+      "summary": "Package is marked private with version 0.0.0 and lacks distribution entrypoints",
+      "description": "package.json is configured with 'private': true and 'version': '0.0.0'. Furthermore, it lacks entrypoint manifests ('main', 'module', 'types', 'exports', 'files'). It cannot be published or distributed as an npm library in its current state without packaging infrastructure overhaul.",
+      "migrationRequired": false
+    },
+    {
+      "id": "RELEASE-HAZARD-02-NO-EMIT-BUILD",
+      "category": "packaging_and_release",
+      "severity": "high",
+      "sourceDocument": "tsconfig.json",
+      "implementationLocation": "tsconfig.json#L7",
+      "summary": "TypeScript build configuration suppresses JavaScript and declaration emission",
+      "description": "tsconfig.json specifies 'noEmit': true and package.json only contains a 'typecheck' script ('tsc --noEmit'). There is no compilation pipeline to output runnable JavaScript artifacts or type definitions into a distribution directory (e.g., dist/).",
+      "migrationRequired": false
+    },
+    {
+      "id": "CI-PUBLISH-01-MISSING-PIPELINE-AND-TESTS",
+      "category": "ci_and_publishing",
+      "severity": "high",
+      "sourceDocument": "SPEC.md#Q1",
+      "implementationLocation": "package.json",
+      "summary": "Complete absence of CI workflows, test runner, and automated verification suites",
+      "description": "SPEC.md requirement Q1 mandates unit tests for all requirements under S, C, and T. The repository contains zero test files, no test runner dependency, no test script, and no CI automation (such as GitHub Actions). Commits and releases cannot be validated automatically.",
+      "migrationRequired": false
+    },
+    {
+      "id": "OPERATIONAL-01-DIAGNOSTIC-AND-LATENCY-IMPACT",
+      "category": "operational_impact",
+      "severity": "medium",
+      "sourceDocument": "SPEC.md#S3,C1",
+      "implementationLocation": "src/workflow-stop.ts, src/workflow-cancellation.ts",
+      "summary": "Operational diagnostics distortion and stop latency variability",
+      "description": "Provider timeouts treated as cancellations will distort SLO and error monitoring metrics. Meanwhile, the 200ms polling default increases teardown latency in workflow cancellation flows, and the 1ms clamp allows excessive I/O polling loops if misconfigured by callers.",
+      "migrationRequired": false
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "ASM-DOCS-01",
+      "statement": "SPEC.md represents the authoritative specification and user/caller contract for the workflow subcomponents."
+    },
+    {
+      "id": "ASM-DOCS-02",
+      "statement": "External tools and orchestrators interact with WorkflowTerminalSummary across module boundaries expecting compliance with SPEC.md T3."
+    },
+    {
+      "id": "ASM-DOCS-03",
+      "statement": "The repository is intended as a distributable or integrated module, making packaging, build emission, and CI validation essential deployment criteria."
+    }
+  ]
+}

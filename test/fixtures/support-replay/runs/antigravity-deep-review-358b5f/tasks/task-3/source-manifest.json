@@ -1,0 +1,167 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1jwuy5_358b5f",
+  "taskId": "task-3",
+  "sources": [
+    {
+      "source": "triage",
+      "displayName": "triage.main",
+      "taskId": "task-1",
+      "specId": "triage.main",
+      "stageId": "triage",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "Triage identified high-severity specification violations, public API contract mismatch, and race conditions across stop handling, cancellation, and terminal summary modules.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwuy5_358b5f/tasks/task-1/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwuy5_358b5f/tasks/task-1/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwuy5_358b5f/tasks/task-1/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwuy5_358b5f/tasks/task-1/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "reviewers",
+      "displayName": "reviewers.runtime-correctness",
+      "taskId": "task-9",
+      "specId": "reviewers.runtime-correctness",
+      "stageId": "reviewers",
+      "status": "completed",
+      "itemIdentity": "runtime-correctness",
+      "placeholderSpecId": "reviewers.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "src/workflow-stop.ts exhibits four runtime defects violating S3, S5, and S6: incorrect poll interval default and clamp bounds, overlapping asynchronous poll invocations without in-flight fencing, post-dispose abort mutations, and matching error messages instead of exact error names.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwuy5_358b5f/tasks/task-9/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwuy5_358b5f/tasks/task-9/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwuy5_358b5f/tasks/task-9/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwuy5_358b5f/tasks/task-9/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "reviewers.cancellation-reliability",
+      "displayName": "reviewers.cancellation-reliability",
+      "taskId": "task-10",
+      "specId": "reviewers.cancellation-reliability",
+      "stageId": "reviewers",
+      "status": "completed",
+      "itemIdentity": "cancellation-reliability",
+      "placeholderSpecId": "reviewers.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "Identified high-severity violations of SPEC C1 and C2 in src/workflow-cancellation.ts regarding erroneous cancellation classification of timeout/cancelled strings and ineffective recursion protection on cyclical JSON.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwuy5_358b5f/tasks/task-10/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwuy5_358b5f/tasks/task-10/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwuy5_358b5f/tasks/task-10/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwuy5_358b5f/tasks/task-10/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "reviewers.api-contract-compatibility",
+      "displayName": "reviewers.api-contract-compatibility",
+      "taskId": "task-11",
+      "specId": "reviewers.api-contract-compatibility",
+      "stageId": "reviewers",
+      "status": "completed",
+      "itemIdentity": "api-contract-compatibility",
+      "placeholderSpecId": "reviewers.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "Workflow terminal summary violates contract T3 with launchRetries instead of launchRetryAttempts and risks uncaught TypeError on missing controller.files.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwuy5_358b5f/tasks/task-11/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwuy5_358b5f/tasks/task-11/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwuy5_358b5f/tasks/task-11/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwuy5_358b5f/tasks/task-11/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "reviewers.test-hygiene",
+      "displayName": "reviewers.test-hygiene",
+      "taskId": "task-12",
+      "specId": "reviewers.test-hygiene",
+      "stageId": "reviewers",
+      "status": "completed",
+      "itemIdentity": "test-hygiene",
+      "placeholderSpecId": "reviewers.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "SPEC.md Q1에서 규정한 S·C·T 요구사항에 대한 단위 테스트 스위트 및 package.json 내 test 실행 스크립트가 부재함을 확인했습니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwuy5_358b5f/tasks/task-12/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwuy5_358b5f/tasks/task-12/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwuy5_358b5f/tasks/task-12/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwuy5_358b5f/tasks/task-12/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

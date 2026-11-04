@@ -1,0 +1,81 @@
+{
+  "schema": "deep-review-report-packet-v1",
+  "digest": "11ec5b823c4143b322ba07d9c7fef70f89b3ee29b9aaabc7c14b99321b796f18",
+  "maxChars": 15000,
+  "actualChars": 2236,
+  "partitionSummary": {
+    "keep": 5,
+    "weaken": 1,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "mergedFindings": 0,
+    "verdictsReceived": 6,
+    "batchIntegrityIssues": 0,
+    "verdictIntegrityIssues": 0,
+    "reviewerCoverageIssues": 0,
+    "reviewerFindings": 6,
+    "missingVerdicts": 0,
+    "partialFailures": 0
+  },
+  "sourceStatusSummary": {
+    "total": 7,
+    "completed": 7,
+    "nonCompleted": 0,
+    "partialFailureCount": 0,
+    "partialFailures": []
+  },
+  "reportContext": {
+    "keep": [
+      {
+        "findingId": "finding-001",
+        "title": "Polling default and minimum violate S3",
+        "severity": "high",
+        "recommendedAction": "pollMs 기본값을 50으로 변경하고 Math.max(10, ...)으로 하한을 적용하며, NaN·Infinity 등 유효하지 않은 숫자 입력도 안전하게 처리하는 회귀 테스트를 추가한다."
+      },
+      {
+        "findingId": "finding-002",
+        "title": "Stop-error classifier accepts message text instead of name only",
+        "severity": "high",
+        "recommendedAction": "메시지 접두사 조건을 제거하고 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME만 요구하며, 다른 이름과 동일 접두사 메시지를 검증하는 회귀 테스트를 추가한다."
+      },
+      {
+        "findingId": "finding-004",
+        "title": "dispose has no lifecycle fence for an already-queued polling callback",
+        "severity": "medium",
+        "recommendedAction": "disposed 플래그를 추가하고 dispose에서 타이머를 지우기 전에 이를 설정한 뒤, check 시작 시와 비동기 읽기 이후에 플래그를 확인해 dispose 이후의 폴링 작업을 차단한다."
+      },
+      {
+        "findingId": "finding-005",
+        "title": "공개 필드 launchRetryAttempts가 launchRetries로 변경되어 계약이 깨짐",
+        "severity": "high",
+        "recommendedAction": "공개 필드명을 launchRetryAttempts로 복원하고 재시도 횟수 합산 로직은 유지하십시오. 기존 launchRetries 소비자가 있다면 호환성을 위해 별도 마이그레이션을 검토하십시오."
+      }
+    ],
+    "weaken": [
+      {
+        "findingId": "finding-003",
+        "title": "Cancellation classifier promotes non-contract provider markers",
+        "severity": "high",
+        "recommendedAction": "오류·사유 문자열 매칭은 `aborted`, `AbortError`, `ABORT_ERR`로 제한하고, boolean cancelled 필드는 provider 계약을 확인한 뒤 유지 여부를 별도로 결정하십시오."
+      }
+    ],
+    "drop": [],
+    "needsHuman": [],
+    "supportNoteSummaries": []
+  },
+  "normalizationNotes": [
+    "verifier evidence for \"Stop-error classifier accepts message text instead of name only\" matched src/workflow-stop.ts:56-57 except whitespace or quote/dash characters; the file text was stored"
+  ],
+  "overflowCounts": {
+    "keep": 1,
+    "weaken": 0,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "partialFailures": 0,
+    "normalizationNotes": 0,
+    "truncatedStrings": 0,
+    "omittedStringChars": 0
+  }
+}

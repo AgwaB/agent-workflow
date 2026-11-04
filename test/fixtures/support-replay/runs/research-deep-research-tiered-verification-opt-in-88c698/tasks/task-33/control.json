@@ -1,0 +1,19 @@
+{
+  "schema": "stage-control-v1",
+  "id": "claim-014",
+  "status": "verified",
+  "confidence": 0.99,
+  "verdictDigest": "MDN directly states that aborting AbortSignal.any()'s returned signal neither aborts input signals nor cancels their timeouts.",
+  "evidence": [
+    {
+      "source": "MDN",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
+      "dateOrYear": "2026",
+      "quote": "Aborting the returned signal does not abort the other input signals or cancel their timeouts.",
+      "relevance": "Directly verifies the non-cascading cancellation behavior."
+    }
+  ],
+  "caveats": [],
+  "correctionOrCounterclaim": "",
+  "digest": "Verified by MDN's direct statement about non-cascading cancellation."
+}

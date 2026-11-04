@@ -1,0 +1,650 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "dedup: raw=9, unique=9, duplicates=0, partialFailures=0",
+  "findings": [
+    {
+      "id": "finding-001",
+      "findingId": "finding-001",
+      "originalFindingId": "finding-001",
+      "rootCauseId": "root-001",
+      "generatedRootCauseId": true,
+      "severity": "high",
+      "originalSeverity": "high",
+      "title": "Polling interval defaults to 200ms instead of 50ms and clamps minimum to 1ms instead of 10ms violating S3",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 67,
+          "lineEnd": 67,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "evidence": "In createWorkflowStopSignal, pollMs is set using Math.max(1, options.pollMs ?? 200), defaulting to 200ms and clamping at 1ms.",
+      "evidenceQuotes": [
+        "\tconst pollMs = Math.max(1, options.pollMs ?? 200);"
+      ],
+      "reviewerEvidenceQuotes": [
+        "\tconst pollMs = Math.max(1, options.pollMs ?? 200);"
+      ],
+      "rationale": "SPEC.md S3 explicitly mandates that pollMs defaults to 50ms and must not be shorter than 10ms even if the caller specifies a smaller value. Using a 200ms default delays stop detection by up to 4x, while allowing intervals down to 1ms causes excessive disk reads and CPU contention.",
+      "recommendedAction": "Change line 67 to Math.max(10, options.pollMs ?? 50).",
+      "confidence": "high",
+      "source": "reviewers",
+      "sourceLineage": [
+        "reviewers"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers",
+        "specId": "reviewers.runtime-correctness",
+        "taskId": "task-9",
+        "itemIdentity": "runtime-correctness",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-002",
+      "findingId": "finding-002",
+      "originalFindingId": "finding-002",
+      "rootCauseId": "root-002",
+      "generatedRootCauseId": true,
+      "severity": "high",
+      "originalSeverity": "high",
+      "title": "Asynchronous check function in createWorkflowStopSignal lacks overlapping execution protection",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 68,
+          "lineEnd": 81,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "evidence": "check is an async function called by setInterval every pollMs without tracking whether a previous invocation is still awaiting readWorkflowStopIntent.",
+      "evidenceQuotes": [
+        "\tconst check = async (): Promise<void> => {",
+        "\tconst timer = setInterval(() => void check(), pollMs);"
+      ],
+      "reviewerEvidenceQuotes": [
+        "\tconst check = async (): Promise<void> => {",
+        "\tconst timer = setInterval(() => void check(), pollMs);"
+      ],
+      "rationale": "If disk I/O latency or system load causes readWorkflowStopIntent to take longer than pollMs, multiple asynchronous check executions will overlap, causing concurrent disk reads, I/O thrashing, and potential out-of-order race conditions.",
+      "recommendedAction": "Add an in-flight check guard boolean or chain the next poll timer execution only after the preceding asynchronous check finishes.",
+      "confidence": "high",
+      "source": "reviewers",
+      "sourceLineage": [
+        "reviewers"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers",
+        "specId": "reviewers.runtime-correctness",
+        "taskId": "task-9",
+        "itemIdentity": "runtime-correctness",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-003",
+      "findingId": "finding-003",
+      "originalFindingId": "finding-003",
+      "rootCauseId": "root-003",
+      "generatedRootCauseId": true,
+      "severity": "high",
+      "originalSeverity": "high",
+      "title": "dispose() fails to fence in-flight async checks, permitting post-dispose disk reads and controller abort mutations",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 68,
+          "lineEnd": 86,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "evidence": "dispose() only invokes clearInterval(timer), leaving in-flight check executions running to completion where they can read disk or abort controller.signal after disposal.",
+      "evidenceQuotes": [
+        "\tdispose: () => clearInterval(timer),",
+        "\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch("
+      ],
+      "reviewerEvidenceQuotes": [
+        "\tdispose: () => clearInterval(timer),",
+        "\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch("
+      ],
+      "rationale": "SPEC.md S5 requires that after dispose() is called, no new disk reads should begin. Furthermore, mutating controller state or aborting the signal after disposal violates expected lifecycle semantics.",
+      "recommendedAction": "Track a disposed state flag set by dispose() and check it prior to invoking readWorkflowStopIntent and before controller.abort().",
+      "confidence": "high",
+      "source": "reviewers",
+      "sourceLineage": [
+        "reviewers"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers",
+        "specId": "reviewers.runtime-correctness",
+        "taskId": "task-9",
+        "itemIdentity": "runtime-correctness",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-004",
+      "findingId": "finding-004",
+      "originalFindingId": "finding-004",
+      "rootCauseId": "root-004",
+      "generatedRootCauseId": true,
+      "severity": "high",
+      "originalSeverity": "high",
+      "title": "isWorkflowStopRequestedError checks error.message instead of checking only error.name",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 53,
+          "lineEnd": 59,
+          "symbol": "isWorkflowStopRequestedError"
+        }
+      ],
+      "evidence": "isWorkflowStopRequestedError uses error.message.startsWith(\"workflow stop requested\") as an alternative condition to matching error.name.",
+      "evidenceQuotes": [
+        "\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||",
+        "\t\t\terror.message.startsWith(\"workflow stop requested\"))"
+      ],
+      "reviewerEvidenceQuotes": [
+        "\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||",
+        "\t\t\terror.message.startsWith(\"workflow stop requested\"))"
+      ],
+      "rationale": "SPEC.md S6 specifies: 'isWorkflowStopRequestedError는 이름이 WorkflowStopRequested인 오류만 중지 오류로 인정한다. 메시지 내용으로 판별해서는 안 된다.' Inspecting error.message leads to false positives if other errors have messages starting with that phrase.",
+      "recommendedAction": "Remove the error.message check so only error instanceof Error && error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME is evaluated.",
+      "confidence": "high",
+      "source": "reviewers",
+      "sourceLineage": [
+        "reviewers"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers",
+        "specId": "reviewers.runtime-correctness",
+        "taskId": "task-9",
+        "itemIdentity": "runtime-correctness",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-005",
+      "findingId": "finding-005",
+      "originalFindingId": "finding-005",
+      "rootCauseId": "root-005",
+      "generatedRootCauseId": true,
+      "severity": "high",
+      "originalSeverity": "high",
+      "title": "Provider error strings 'cancelled' and 'timeout' are incorrectly treated as cancellation (C1 violation)",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 20,
+          "lineEnd": 20,
+          "symbol": "isWorkflowReturnedCancellation"
+        }
+      ],
+      "evidence": "In src/workflow-cancellation.ts line 20, candidate error and reason values are checked against 'cancelled' and 'timeout', returning true if either matches.",
+      "evidenceQuotes": [
+        "\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+      ],
+      "reviewerEvidenceQuotes": [
+        "\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+      ],
+      "rationale": "SPEC.md requirement C1 explicitly mandates: 'provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 aborted, AbortError, ABORT_ERR 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.' Promoting 'cancelled' or 'timeout' errors to cancellation violates C1, masks actual timeout conditions, and inappropriately treats normal timeouts or generic provider errors as workflow cancellations.",
+      "recommendedAction": "Remove 'candidate === \"cancelled\"' and 'candidate === \"timeout\"' from line 20 so that only 'aborted', 'AbortError', and 'ABORT_ERR' strings are classified as cancellation errors.",
+      "confidence": "high",
+      "source": "reviewers.cancellation-reliability",
+      "sourceLineage": [
+        "reviewers.cancellation-reliability"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers.cancellation-reliability",
+        "specId": "reviewers.cancellation-reliability",
+        "taskId": "task-10",
+        "itemIdentity": "cancellation-reliability",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-006",
+      "findingId": "finding-006",
+      "originalFindingId": "finding-006",
+      "rootCauseId": "root-006",
+      "generatedRootCauseId": true,
+      "severity": "high",
+      "originalSeverity": "high",
+      "title": "Reference inequality check (parsed !== value) fails to prevent infinite recursion on cyclical or repeating JSON structures (C2 violation)",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 27,
+          "lineEnd": 28,
+          "symbol": "isWorkflowReturnedCancellation"
+        }
+      ],
+      "evidence": "In src/workflow-cancellation.ts lines 27-28, parsed JSON from entry.text is checked via 'if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;'. Because JSON.parse always allocates a fresh object reference, parsed !== value is unconditionally true, offering zero recursion protection.",
+      "evidenceQuotes": [
+        "\t\t\t\tconst parsed: unknown = JSON.parse(entry.text);",
+        "\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;"
+      ],
+      "reviewerEvidenceQuotes": [
+        "\t\t\t\tconst parsed: unknown = JSON.parse(entry.text);",
+        "\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;"
+      ],
+      "rationale": "SPEC.md requirement C2 states: 'content 배열 안의 텍스트가 JSON이면 그 내용도 같은 규칙으로 판별하되, 같은 값을 다시 검사하는 무한 재귀가 없어야 한다.' Because JSON.parse creates a distinct object in memory on every call, reference identity comparison against the parent value never matches. If a provider message contains self-referential or repeating serialized JSON strings within content entries, isWorkflowReturnedCancellation recurses indefinitely until a call stack overflow (RangeError) occurs.",
+      "recommendedAction": "Implement proper recursion tracking using a visited Set of raw JSON strings or a bounded recursion depth parameter passed across recursive calls to isWorkflowReturnedCancellation.",
+      "confidence": "high",
+      "source": "reviewers.cancellation-reliability",
+      "sourceLineage": [
+        "reviewers.cancellation-reliability"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers.cancellation-reliability",
+        "specId": "reviewers.cancellation-reliability",
+        "taskId": "task-10",
+        "itemIdentity": "cancellation-reliability",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-007",
+      "findingId": "finding-007",
+      "originalFindingId": "finding-007",
+      "rootCauseId": "root-007",
+      "generatedRootCauseId": true,
+      "severity": "high",
+      "originalSeverity": "high",
+      "title": "WorkflowTerminalSummary exposes launchRetries instead of public contract property launchRetryAttempts (T3 violation)",
+      "file": "src/workflow-terminal.ts",
+      "locations": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 27,
+          "lineEnd": 35,
+          "symbol": "WorkflowTerminalSummary"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 107,
+          "lineEnd": 110,
+          "symbol": "summarizeWorkflowTerminal"
+        }
+      ],
+      "evidence": "SPEC.md T3 stipulates: '요약의 outputRetryAttempts와 launchRetryAttempts는 모든 작업의 재시도 횟수 합이며, 이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).' However, WorkflowTerminalSummary interface defines launchRetries: number (line 33) and summarizeWorkflowTerminal returns launchRetries (line 107).",
+      "evidenceQuotes": [
+        "\tlaunchRetries: number;",
+        "\t\tlaunchRetries: run.tasks.reduce(",
+        "\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),",
+        "\t\t\t0,",
+        "\t\t),",
+        "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+      ],
+      "reviewerEvidenceQuotes": [
+        "\tlaunchRetries: number;",
+        "\t\tlaunchRetries: run.tasks.reduce(",
+        "\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),",
+        "\t\t\t0,",
+        "\t\t),",
+        "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+      ],
+      "rationale": "External tools and contract consumers expect launchRetryAttempts according to SPEC.md T3. Using launchRetries breaks compatibility with consumers relying on the public contract, resulting in missing or undefined retry counts for external callers.",
+      "recommendedAction": "Rename launchRetries to launchRetryAttempts in WorkflowTerminalSummary and summarizeWorkflowTerminal (or retain launchRetries as an alias/deprecated property alongside launchRetryAttempts for backwards compatibility).",
+      "confidence": "high",
+      "source": "reviewers.api-contract-compatibility",
+      "sourceLineage": [
+        "reviewers.api-contract-compatibility"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers.api-contract-compatibility",
+        "specId": "reviewers.api-contract-compatibility",
+        "taskId": "task-11",
+        "itemIdentity": "api-contract-compatibility",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-008",
+      "findingId": "finding-008",
+      "originalFindingId": "finding-008",
+      "rootCauseId": "root-008",
+      "generatedRootCauseId": true,
+      "severity": "high",
+      "originalSeverity": "high",
+      "title": "Unchecked task file descriptors in readDynamicControllerControl cause runtime TypeError when controller.files or output is undefined",
+      "file": "src/workflow-terminal.ts",
+      "locations": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 48,
+          "lineEnd": 62,
+          "symbol": "readDynamicControllerControl"
+        }
+      ],
+      "evidence": "In readDynamicControllerControl, controller.files.output is accessed directly without optional chaining or verification: 'const taskOutput = fromProjectPath(cwd, controller.files.output);'. If a controller task has undefined files or output (e.g. malformed or incomplete run record), it throws an uncaught TypeError instead of resolving gracefully.",
+      "evidenceQuotes": [
+        "\tconst controller = run.tasks.find(\n\t\t(task) =>\n\t\t\ttask.specId === \"dynamic.controller\" ||\n\t\t\ttask.statusDetail === \"dynamic_completed\",\n\t);\n\tif (!controller) return undefined;\n\tconst taskOutput = fromProjectPath(cwd, controller.files.output);"
+      ],
+      "reviewerEvidenceQuotes": [
+        "\tconst controller = run.tasks.find(\n\t\t(task) =>\n\t\t\ttask.specId === \"dynamic.controller\" ||\n\t\t\ttask.statusDetail === \"dynamic_completed\",\n\t);\n\tif (!controller) return undefined;\n\tconst taskOutput = fromProjectPath(cwd, controller.files.output);"
+      ],
+      "rationale": "SPEC.md T2 requires that when control.json cannot be read in a direct-dynamic run, the semantic status falls back to completed_without_semantic_result. An unhandled exception during controller path resolution bubbles up and crashes summarizeWorkflowTerminal instead of safely treating the control as unreadable.",
+      "recommendedAction": "Safely check controller.files?.output before calling fromProjectPath and dirname, returning undefined if output is not present.",
+      "confidence": "high",
+      "source": "reviewers.api-contract-compatibility",
+      "sourceLineage": [
+        "reviewers.api-contract-compatibility"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers.api-contract-compatibility",
+        "specId": "reviewers.api-contract-compatibility",
+        "taskId": "task-11",
+        "itemIdentity": "api-contract-compatibility",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-009",
+      "findingId": "finding-009",
+      "originalFindingId": "finding-009",
+      "rootCauseId": "root-009",
+      "generatedRootCauseId": true,
+      "severity": "medium",
+      "originalSeverity": "medium",
+      "title": "SPEC.md Q1 요구사항에 명시된 중지·취소·종료 동작 검증 단위 테스트 스위트 및 실행 스크립트 부재",
+      "file": "package.json",
+      "locations": [
+        {
+          "file": "package.json",
+          "line": 7,
+          "symbol": "scripts"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 40,
+          "symbol": "Q1"
+        }
+      ],
+      "evidence": "package.json에는 'typecheck' 스크립트(\"scripts\": { \"typecheck\": \"tsc --noEmit\" })만 정의되어 있으며, 테스트 프레임워크 의존성 및 'test' 스크립트가 전혀 구성되어 있지 않습니다. 또한 저장소 내에 SPEC.md의 중지(S1~S7), 취소(C1~C2), 종료(T1~T3) 사양을 검증하는 단위 테스트 파일이 전혀 존재하지 않습니다.",
+      "evidenceQuotes": [
+        "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+        "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+      ],
+      "reviewerEvidenceQuotes": [
+        "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+        "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+      ],
+      "rationale": "SPEC.md의 요구사항 Q1은 S·C·T 모든 항목에 대해 동작을 확인하는 단위 테스트를 필수로 규정하고 있습니다. 자동화된 단위 테스트 체계가 없으면 디스크 중지 감지 및 폴링 하한선(S1~S7), 프로바이더 취소 파싱 및 JSON 재귀 방지(C1~C2), 종료 요약 텔레메트리 공개 계약(T1~T3)의 런타임 결함이나 회귀를 사전에 감지할 수 없어 신뢰성에 중대한 결손이 발생합니다.",
+      "recommendedAction": "package.json에 테스트 프레임워크(예: node:test 또는 Vitest)와 'test' 스크립트를 추가하고, SPEC.md S1~S7, C1~C2, T1~T3 요구사항을 전수 검증하는 단위 테스트 스위트를 작성하십시오.",
+      "confidence": "high",
+      "source": "reviewers.test-hygiene",
+      "sourceLineage": [
+        "reviewers.test-hygiene"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers.test-hygiene",
+        "specId": "reviewers.test-hygiene",
+        "taskId": "task-12",
+        "itemIdentity": "test-hygiene",
+        "placeholderSpecId": "reviewers.item"
+      }
+    }
+  ],
+  "coverageIssues": [],
+  "reviewerLedger": {
+    "plannedLensIds": [
+      "runtime-correctness",
+      "cancellation-reliability",
+      "api-contract-compatibility",
+      "test-hygiene"
+    ],
+    "materializedReviewerIds": [
+      "runtime-correctness",
+      "cancellation-reliability",
+      "api-contract-compatibility",
+      "test-hygiene"
+    ],
+    "attestedLensIds": [
+      "runtime-correctness",
+      "cancellation-reliability",
+      "api-contract-compatibility",
+      "test-hygiene"
+    ],
+    "materializedReviewerSourceIds": [
+      "reviewers",
+      "reviewers.cancellation-reliability",
+      "reviewers.api-contract-compatibility",
+      "reviewers.test-hygiene"
+    ],
+    "validAttestationSourceIds": [
+      "reviewers",
+      "reviewers.cancellation-reliability",
+      "reviewers.api-contract-compatibility",
+      "reviewers.test-hygiene"
+    ],
+    "ownerMap": [
+      {
+        "source": "reviewers",
+        "specId": "reviewers.runtime-correctness",
+        "taskId": "task-9",
+        "itemIdentity": "runtime-correctness",
+        "placeholderSpecId": "reviewers.item"
+      },
+      {
+        "source": "reviewers.cancellation-reliability",
+        "specId": "reviewers.cancellation-reliability",
+        "taskId": "task-10",
+        "itemIdentity": "cancellation-reliability",
+        "placeholderSpecId": "reviewers.item"
+      },
+      {
+        "source": "reviewers.api-contract-compatibility",
+        "specId": "reviewers.api-contract-compatibility",
+        "taskId": "task-11",
+        "itemIdentity": "api-contract-compatibility",
+        "placeholderSpecId": "reviewers.item"
+      },
+      {
+        "source": "reviewers.test-hygiene",
+        "specId": "reviewers.test-hygiene",
+        "taskId": "task-12",
+        "itemIdentity": "test-hygiene",
+        "placeholderSpecId": "reviewers.item"
+      }
+    ],
+    "invalidAttestations": [],
+    "missingPlannedLensIds": [],
+    "missingAttestedLensIds": [],
+    "unexpectedMaterializedReviewerIds": [],
+    "unexpectedAttestedLensIds": [],
+    "duplicateMaterializedReviewerIds": [],
+    "setEquality": true,
+    "sourceStatuses": [
+      {
+        "source": "triage",
+        "displayName": "triage.main",
+        "taskId": "task-1",
+        "specId": "triage.main",
+        "stageId": "triage",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers",
+        "displayName": "reviewers.runtime-correctness",
+        "taskId": "task-9",
+        "specId": "reviewers.runtime-correctness",
+        "stageId": "reviewers",
+        "itemIdentity": "runtime-correctness",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers.cancellation-reliability",
+        "displayName": "reviewers.cancellation-reliability",
+        "taskId": "task-10",
+        "specId": "reviewers.cancellation-reliability",
+        "stageId": "reviewers",
+        "itemIdentity": "cancellation-reliability",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers.api-contract-compatibility",
+        "displayName": "reviewers.api-contract-compatibility",
+        "taskId": "task-11",
+        "specId": "reviewers.api-contract-compatibility",
+        "stageId": "reviewers",
+        "itemIdentity": "api-contract-compatibility",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers.test-hygiene",
+        "displayName": "reviewers.test-hygiene",
+        "taskId": "task-12",
+        "specId": "reviewers.test-hygiene",
+        "stageId": "reviewers",
+        "itemIdentity": "test-hygiene",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      }
+    ],
+    "sourceCoverageFailures": [],
+    "complete": true,
+    "rawFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007",
+      "finding-008",
+      "finding-009"
+    ],
+    "dedupFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007",
+      "finding-008",
+      "finding-009"
+    ],
+    "validFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007",
+      "finding-008",
+      "finding-009"
+    ],
+    "invalidFindingIds": []
+  },
+  "rawFindingIds": [
+    "finding-001",
+    "finding-002",
+    "finding-003",
+    "finding-004",
+    "finding-005",
+    "finding-006",
+    "finding-007",
+    "finding-008",
+    "finding-009"
+  ],
+  "dedupFindingIds": [
+    "finding-001",
+    "finding-002",
+    "finding-003",
+    "finding-004",
+    "finding-005",
+    "finding-006",
+    "finding-007",
+    "finding-008",
+    "finding-009"
+  ],
+  "sourceStatusSummary": {
+    "total": 5,
+    "completed": 5,
+    "nonCompleted": 0,
+    "partialFailures": []
+  },
+  "dedupSummary": {
+    "complete": true,
+    "rawCount": 9,
+    "uniqueCount": 9,
+    "duplicateCount": 0,
+    "rawFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007",
+      "finding-008",
+      "finding-009"
+    ],
+    "dedupFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007",
+      "finding-008",
+      "finding-009"
+    ],
+    "dispositionFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007",
+      "finding-008",
+      "finding-009"
+    ],
+    "supportFindingIds": [],
+    "lineageFindingIds": [],
+    "duplicates": []
+  }
+}

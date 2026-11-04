@@ -1,0 +1,27 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "S3와 구현이 직접 불일치하므로 finding을 유지한다.",
+  "findingId": "finding-001",
+  "finding": "Polling default and minimum violate S3",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 67,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 13,
+      "quote": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다"
+    }
+  ],
+  "counterEvidence": [
+    "실제 JavaScript 타이머의 해상도와 이벤트 루프 부하 때문에 1ms 요청이 항상 1ms 폴링으로 실행된다고 단정할 수는 없다.",
+    "그러나 타이머 실행 정밀도와 무관하게 기본값 200ms 및 하한 1ms 자체가 명세의 50ms 기본값과 10ms 최소값에 불일치한다."
+  ],
+  "recommendedAction": "pollMs 기본값을 50으로 변경하고 Math.max(10, ...)으로 하한을 적용하며, NaN·Infinity 등 유효하지 않은 숫자 입력도 안전하게 처리하는 회귀 테스트를 추가한다.",
+  "readerTitle": "폴링 기본값과 최소값이 S3를 위반함",
+  "readerRationale": "기본값 때문에 중지 감지가 계약보다 최대 네 배 느려질 수 있고, 호출자가 1ms 주기를 요청할 수 있어 과도한 폴링이 발생하며 명시된 하한을 위반한다."
+}

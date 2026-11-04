@@ -1,0 +1,85 @@
+{
+  "schema": "deep-review-report-packet-v1",
+  "digest": "9e28a6149308f1831ccc451c73f86895d0d6f91a74b1d54456710b21461ba3b4",
+  "maxChars": 15000,
+  "actualChars": 2822,
+  "partitionSummary": {
+    "keep": 7,
+    "weaken": 2,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "mergedFindings": 0,
+    "verdictsReceived": 9,
+    "batchIntegrityIssues": 0,
+    "verdictIntegrityIssues": 0,
+    "reviewerCoverageIssues": 0,
+    "reviewerFindings": 9,
+    "missingVerdicts": 0,
+    "partialFailures": 0
+  },
+  "sourceStatusSummary": {
+    "total": 10,
+    "completed": 10,
+    "nonCompleted": 0,
+    "partialFailureCount": 0,
+    "partialFailures": []
+  },
+  "reportContext": {
+    "keep": [
+      {
+        "findingId": "finding-001",
+        "title": "Polling interval defaults to 200ms instead of 50ms and clamps minimum to 1ms instead of 10ms violating S3",
+        "severity": "high",
+        "recommendedAction": "src/workflow-stop.ts 67행을 Math.max(10, options.pollMs ?? 50)으로 수정합니다."
+      },
+      {
+        "findingId": "finding-004",
+        "title": "isWorkflowStopRequestedError checks error.message instead of checking only error.name",
+        "severity": "high",
+        "recommendedAction": "src/workflow-stop.ts의 isWorkflowStopRequestedError에서 error.message.startsWith(...) 검사 조건을 제거하고, error instanceof Error && error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME 조건만 평가하도록 수정합니다."
+      },
+      {
+        "findingId": "finding-005",
+        "title": "Provider error strings 'cancelled' and 'timeout' are incorrectly treated as cancellation (C1 violation)",
+        "severity": "high",
+        "recommendedAction": "src/workflow-cancellation.ts 20행에서 'candidate === \"cancelled\"'와 'candidate === \"timeout\"' 조건을 제거하여 'aborted', 'AbortError', 'ABORT_ERR' 세 가지 문자열만 취소 오류로 분류되도록 수정합니다."
+      },
+      {
+        "findingId": "finding-006",
+        "title": "Reference inequality check (parsed !== value) fails to prevent infinite recursion on cyclical or repeating JSON structures (C2 violation)",
+        "severity": "high",
+        "recommendedAction": "isWorkflowReturnedCancellation에 원시 JSON 문자열을 추적하는 visited Set을 도입하거나 재귀 호출 시 최대 탐색 깊이를 제한하는 bounded depth 매개변수를 추가하여 무한 재귀를 방지해야 합니다."
+      }
+    ],
+    "weaken": [
+      {
+        "findingId": "finding-002",
+        "title": "Asynchronous check function in createWorkflowStopSignal lacks overlapping execution protection",
+        "severity": "high",
+        "recommendedAction": "디스크 I/O 지연 시 불필요한 비동기 작업 누적을 방지하기 위해 check 내부에 inFlight 불리언 가드를 적용하거나, setInterval 대신 선행 check가 완전히 완료된 후 다음 실행을 예약하는 setTimeout 재귀 패턴으로 리팩터링하십시오."
+      },
+      {
+        "findingId": "finding-003",
+        "title": "dispose() fails to fence in-flight async checks, permitting post-dispose disk reads and controller abort mutations",
+        "severity": "high",
+        "recommendedAction": "dispose() 호출 후 새로운 디스크 읽기가 시작되는 것은 이미 방지되어 있으므로 readWorkflowStopIntent 이전의 불필요한 플래그 검사는 생략하고, dispose 호출 여부를 추적하는 disposed 플래그를 추가하여 in-flight 검사 완료 시 controller.abort() 호출 직전에만 확인하도록 조치하십시오."
+      }
+    ],
+    "drop": [],
+    "needsHuman": [],
+    "supportNoteSummaries": []
+  },
+  "normalizationNotes": [],
+  "overflowCounts": {
+    "keep": 3,
+    "weaken": 0,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "partialFailures": 0,
+    "normalizationNotes": 0,
+    "truncatedStrings": 0,
+    "omittedStringChars": 0
+  }
+}

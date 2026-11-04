@@ -1,0 +1,54 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "HEAD 654f639는 배포 비권장. 공개 필드 rename(launchRetryAttempts→launchRetries)에 호환 별칭이 없고, 취소 분류가 SPEC 밖으로 넓어졌으며, 중지 감지가 SPEC과 어긋나고, 이를 검증할 테스트가 전혀 없다.",
+  "riskLevel": "high",
+  "risks": [
+    {
+      "note": "공개 계약 파손: WorkflowTerminalSummary.launchRetryAttempts가 launchRetries로 바뀌었고 별칭·마이그레이션 노트가 없다. SPEC T3는 이 이름을 외부 도구가 읽는 공개 계약으로 정의한다. 옛 이름을 읽는 소비자는 오류 없이 undefined를 받아 재시도 수가 0으로 집계될 수 있다. (src/workflow-terminal.ts:33,107 확인)"
+    },
+    {
+      "note": "취소 분류 과확장: isWorkflowReturnedCancellation이 'cancelled'와 'timeout' 토큰 및 cancelled 플래그를 취소로 인정한다. SPEC C1은 aborted/AbortError/ABORT_ERR만 허용한다. 일반 provider timeout이 취소로 분류되어 재시도·종료 상태가 바뀔 수 있다. 파일 주석은 '엄격 유지'라고 되어 있어 주석과 코드도 모순된다. (src/workflow-cancellation.ts:16-20 확인)"
+    },
+    {
+      "note": "메시지 기반 중지 판별: isWorkflowStopRequestedError가 'workflow stop requested' 접두사로도 중지를 판정한다. SPEC S6은 이름 기반 매칭만 허용한다. 외부 오류 문자열이 같은 접두사를 가지면 실행이 중지로 잘못 처리된다. (src/workflow-stop.ts:53-59, 57 확인)"
+    },
+    {
+      "note": "중지 감시 주기 변경: createWorkflowStopSignal의 pollMs 기본값이 200ms(SPEC S3는 50ms), 최소값은 1ms(SPEC은 10ms)다. 디스크 경로의 중지 반영 지연이 최대 약 200ms 늘고, 작은 값을 주면 디스크 읽기 빈도가 크게 올라간다. (src/workflow-stop.ts:67 확인)"
+    },
+    {
+      "note": "검증 공백: 테스트 파일과 test 스크립트가 없고 package.json 검증은 tsc --noEmit뿐이다. SPEC Q1은 S/C/T 항목마다 단위 테스트를 요구한다. 위 변경 중 어느 것도 회귀 테스트로 잡히지 않는다. store.js와 types.js가 저장소에 없어 typecheck 통과도 확인되지 않는다."
+    },
+    {
+      "note": "문서 드리프트: SPEC.md(S3, S6, C1, T3)가 HEAD에서 갱신되지 않았고 CHANGELOG/README도 없다. 코드와 명세 중 어느 쪽이 의도인지 릴리스 노트로 확인할 수 없다. 관측성 측면에서도 취소·중지 분류 변경을 식별할 로그나 메트릭이 없다."
+    },
+    {
+      "note": "낮은 위험: launchSignals가 모듈 전역 Map<runPath, Set<AbortSignal>>이라 같은 signal을 두 번 bind한 뒤 한 번 unbind하면 둘 다 해제될 수 있다. 재사용 signal에서만 발생하며 테스트가 없어 확인되지 않았다. (src/workflow-stop.ts:5,14-21)"
+    },
+    {
+      "note": "낮은 위험: 중첩 JSON 재파싱·재귀 검사가 깊은 provider 출력에서 준이차 비용이 될 수 있다. 무한 재귀는 막혀 있다. (src/workflow-cancellation.ts:23-31)"
+    }
+  ],
+  "riskReducers": [
+    {
+      "note": "launchRetryAttempts를 launchRetries와 함께 유지하는 호환 별칭을 추가하고 SPEC T3를 갱신하거나, breaking 변경으로 명시해 CHANGELOG/릴리스 노트에 공지한다"
+    },
+    {
+      "note": "isWorkflowReturnedCancellation을 SPEC C1 집합(aborted/AbortError/ABORT_ERR)으로 축소하거나, 'cancelled'/'timeout' 확장의 근거를 SPEC에 명시한다"
+    },
+    {
+      "note": "isWorkflowStopRequestedError에서 메시지 접두사 매칭을 제거하고 이름 기반 매칭만 남긴다"
+    },
+    {
+      "note": "pollMs 기본값을 SPEC S3(50ms)에 맞추거나 SPEC을 200ms로 갱신하고, 최소값(1ms 대 10ms)도 같은 기준으로 맞춘다"
+    },
+    {
+      "note": "SPEC S3/S6/C1/T3 항목별 단위 테스트를 추가한다: 필드 이름, 취소 토큰 집합, 중지 매칭, pollMs 기본값과 clamp. 실패하는 계약 테스트는 명세와 코드 중 하나를 정하기 전까지 그대로 둔다"
+    },
+    {
+      "note": "npm run typecheck를 실행해 결과를 기록한다. store.js/types.js 누락으로 실패할 것으로 예상하며, 실패 출력을 근거로 남긴다"
+    },
+    {
+      "note": "git show 654f639 -- src/workflow-stop.ts src/workflow-cancellation.ts src/workflow-terminal.ts SPEC.md로 실제 diff를 확인해 이전 값(예: 이전 pollMs)을 확정한다"
+    }
+  ]
+}

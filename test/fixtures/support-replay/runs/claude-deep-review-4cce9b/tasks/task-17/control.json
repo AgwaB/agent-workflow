@@ -1,0 +1,54 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "finding-005의 경쟁 조건은 실제 코드 경로로 확인되지만, 바인딩 해제 순서가 src/ 밖에 있어 영향이 좁다. 심각도를 medium에서 low로 낮춰 WEAKEN한다.",
+  "findingId": "finding-005",
+  "finding": "Foreground abort can be lost if its launch binding is released during the disk read",
+  "verdict": "WEAKEN",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 93,
+      "lineEnd": 94,
+      "symbol": "throwIfWorkflowStopRequested",
+      "quote": "if (launchStopRequested(cwd, runId))"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 95,
+      "lineEnd": 95,
+      "symbol": "throwIfWorkflowStopRequested",
+      "quote": "const intent = await readWorkflowStopIntent(cwd, runId);"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 97,
+      "lineEnd": 97,
+      "symbol": "throwIfWorkflowStopRequested",
+      "quote": "if (intent || launchStopRequested(cwd, runId))"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 18,
+      "lineEnd": 18,
+      "symbol": "bindWorkflowLaunchSignal",
+      "quote": "signals.delete(signal);"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 20,
+      "lineEnd": 21,
+      "symbol": "S7",
+      "quote": "foreground signal 등록은 해제 함수로 되돌릴 수 있어야 하며"
+    }
+  ],
+  "counterEvidence": [
+    "src/ 안에 bindWorkflowLaunchSignal이나 throwIfWorkflowStopRequested를 호출하는 곳이 없어서, 해제가 언제 일어나는지(예: 실행 종료 뒤인지 진행 중인지)를 확인할 수 없다.",
+    "라인 97의 재확인은 등록 레지스트리에만 의존하지만, 호출자가 같은 AbortSignal 객체를 들고 있으면 abort 상태는 그대로 남아 있다. 해제 뒤에도 그 신호를 확인하는 경로가 있을 수 있다.",
+    "SPEC.md S7은 마지막 signal이 해제되면 등록 항목이 남지 않아야 한다고만 정한다. 해제 뒤에는 그 launch의 fence가 끝난 것으로 보는 것이 설계 의도일 수 있어, 해제 후 중지를 놓치는 것이 곧 명세 위반은 아니다.",
+    "영속 중지 의도(readWorkflowStopIntent) 경로는 이 바인딩 해제의 영향을 받지 않는다. 디스크에 intent가 먼저 기록되었다면 라인 97 이전 읽기에서 이미 잡힌다.",
+    "라인 3-4의 주석은 동기 dispatch fence를 말하며, 라인 93의 동기 검사는 finding이 인정하듯 그대로 유효하다."
+  ],
+  "recommendedAction": "await 전에 signal을 지역 변수로 캡처하고 await 뒤에는 레지스트리 대신 캡처한 signal의 aborted 상태를 다시 확인한다. 또는 해제 클로저가 진행 중인 throw 검사를 기다리게 한다. 모킹된 읽기 중에 abort가 발생하고 읽기가 끝나기 전에 바인딩이 해제되는 테스트를 추가한다. 호출자 쪽 해제 순서를 먼저 확인하고, 실제 영향이 없으면 심각도를 낮춘다.",
+  "readerTitle": "외부 해제 시점에 따라 디스크 읽기 중 발생한 foreground abort가 누락될 수 있음",
+  "readerRationale": "동기 검사 뒤 await 중에 바인딩 해제 클로저가 signal을 레지스트리에서 지우면, 라인 97의 재확인은 abort를 보지 못한다. 이 경쟁은 코드 경로로 확인되지만, 바인딩 해제 순서가 src/ 밖의 호출자에 달려 있어 영향 범위가 좁고 심각도는 낮게 본다."
+}

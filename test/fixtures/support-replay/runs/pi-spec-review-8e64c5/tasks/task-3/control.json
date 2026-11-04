@@ -1,0 +1,38 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "제공된 저장소에서 단위 테스트·fixture를 찾지 못했다. S1–S7·C1–C2·T1–T3 전체의 테스트 근거가 없으므로 Q1은 미충족이다.",
+  "testMap": [],
+  "coverageGapsSuspected": [
+    "S1: 디스크 stop intent와 동일 실행의 foreground abort 각각에 대한 감지 및 실행 간 격리 테스트가 없다.",
+    "S2: abort reason의 오류 이름과 runId를 포함한 정확한 메시지를 검증하는 테스트가 없다.",
+    "S3: 기본 50ms와 최소 10ms를 확인하는 테스트가 없다. 구현은 기본 200ms·최소 1ms다.",
+    "S4: 감시 경로의 읽기 오류 무시와 throw 경로의 원래 오류 전파를 구분하는 테스트가 없다.",
+    "S5: dispose 이후 새 디스크 읽기가 시작되지 않는지 확인하는 테스트가 없다.",
+    "S6: 이름만으로 중지 오류를 판별하고 메시지만 일치하는 일반 오류를 거부하는 테스트가 없다.",
+    "S7: 등록 해제, 여러 signal 중 일부 해제, 마지막 등록 제거를 확인하는 테스트가 없다.",
+    "C1: 허용된 세 문자열의 수락과 timeout·cancelled 등 다른 오류 문자열의 거부 테스트가 없다.",
+    "C2: content의 JSON 내부 판별, 일반 텍스트 처리, 중첩 값의 유한 종료를 확인하는 테스트가 없다.",
+    "T1: completed 실행의 degradation 유무에 따른 의미 상태 테스트가 없다.",
+    "T2: direct-dynamic controller control.json 읽기 실패 시 의미 상태 테스트가 없다. dynamic_incomplete와의 우선순위도 확인이 필요하다.",
+    "T3: 여러 작업의 재시도 합계와 공개 필드명 outputRetryAttempts·launchRetryAttempts를 확인하는 테스트가 없다."
+  ],
+  "notes": [
+    "testMap은 실제 테스트·fixture가 발견되지 않아 빈 배열이다. 제안한 사례를 기존 테스트로 기록하지 않았다.",
+    "package.json에는 typecheck 스크립트만 있으며, 테스트 파일이나 테스트 실행 설정은 발견되지 않았다.",
+    "SPEC.md:40의 Q1은 각 S·C·T 동작의 단위 테스트를 요구하므로, 테스트 부재 자체가 명세 미충족이다.",
+    "구현을 읽어 회귀 테스트 후보를 확인했으나 실행 결과나 테스트 통과를 주장하지 않는다."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "이 단계는 읽기 전용이며 명령 실행이 금지되어 테스트와 타입 검사를 실행하지 않았다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "명세에 명시된 발췌 범위대로 store.js와 types.js가 제공되지 않았다. 의존성의 실제 동작과 실행 환경은 검증하지 않았다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false
+}

@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "readDynamicControllerControl에서 controller.files.output에 안전 검사 없이 직접 접근하여 controller.files 또는 output이 없을 경우 비정상 종료(TypeError)되며 SPEC.md T2 폴백 동작을 방해하므로 지적을 유지(KEEP)합니다.",
+  "findingId": "finding-008",
+  "finding": "Unchecked task file descriptors in readDynamicControllerControl cause runtime TypeError when controller.files or output is undefined",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 57,
+      "lineEnd": 58,
+      "symbol": "readDynamicControllerControl",
+      "quote": "\tif (!controller) return undefined;\n\tconst taskOutput = fromProjectPath(cwd, controller.files.output);"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 33,
+      "lineEnd": 34,
+      "quote": "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는\n  `completed_without_semantic_result`이다."
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "readDynamicControllerControl에서 controller.files?.output을 안전하게 확인하고, output 경로가 없으면 undefined를 반환하여 control.json 읽기 실패 시 summarizeWorkflowTerminal이 completed_without_semantic_result로 안전하게 폴백되도록 수정해야 합니다.",
+  "readerTitle": "readDynamicControllerControl에서 태스크 파일 디스크립터 미검증으로 인해 controller.files 또는 output이 undefined일 때 런타임 TypeError 발생",
+  "readerRationale": "SPEC.md T2는 direct-dynamic 실행에서 control.json을 읽을 수 없을 때 의미 상태를 completed_without_semantic_result로 대체할 것을 요구한다. 컨트롤러 경로 확인 중 처리되지 않은 예외가 발생하면 요약을 안전하게 읽을 수 없는 control로 처리하지 않고 summarizeWorkflowTerminal을 비정상 종료시킨다."
+}

@@ -1,0 +1,41 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Real C1 deviation: line 20 accepts the strings 'cancelled' and 'timeout' beyond the three spec markers. The 'cancelled===true' boolean claim is not covered by C1's string-only wording, so the finding is narrowed.",
+  "id": "finding-003",
+  "verdict": "WEAKEN",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 20,
+      "lineEnd": 20,
+      "quote": "candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "relevance": "String reason/error markers 'cancelled' and 'timeout' are accepted as cancellation, beyond the three markers C1 permits"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 25,
+      "lineEnd": 25,
+      "quote": "오류·사유 문자열은 정확히 `aborted`,",
+      "relevance": "C1 limits error/reason strings to exactly the listed markers"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 26,
+      "lineEnd": 26,
+      "quote": "다른 provider 오류를 취소로 승격해서는 안 된다.",
+      "relevance": "C1 prohibits promoting other provider errors to cancellation"
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 16,
+      "lineEnd": 16,
+      "quote": "if (value.cancelled === true) return true;",
+      "relevance": "Boolean cancelled flags are not error/reason strings, so C1's exact-string list does not directly govern them; the candidate's boolean claim is not established by C1 wording"
+    }
+  ],
+  "finalClaim": "isWorkflowReturnedCancellation accepts the reason/error strings 'cancelled' and 'timeout' (src/workflow-cancellation.ts:20) as cancellation, although C1 allows exactly 'aborted', 'AbortError', and 'ABORT_ERR' for error/reason strings and forbids promoting other provider errors. No test covers this.",
+  "recommendedAction": "Remove 'cancelled' and 'timeout' from the string check at src/workflow-cancellation.ts:20, or amend SPEC.md C1 if commit 654f639's intent is authoritative. Add a unit test asserting that {error:'timeout'} and {reason:'cancelled'} are not returned cancellation. Confirm which of spec or code is authoritative before changing."
+}

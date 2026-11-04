@@ -1,0 +1,158 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "현행 명세와 구현의 네 가지 불일치로 배포 보류. 654f639의 신규 회귀인지는 diff 부재로 미확정이다.",
+  "summary": "현재 스냅샷 기준 배포를 권고하지 않는다. 공개 재시도 필드, 취소·중지 판별, 폴링 설정, 종료 상태가 SPEC.md와 충돌한다. 부모 대비 diff와 실행 검증은 확보하지 못했다.",
+  "verdict": "BLOCKED",
+  "riskLevel": "high",
+  "blockingIssues": [
+    {
+      "id": "B1",
+      "severity": "high",
+      "area": "공개 계약",
+      "issue": "공개 필드 launchRetryAttempts 대신 launchRetries를 반환하여 명세 기반 외부 도구가 값을 읽지 못할 수 있다.",
+      "action": "launchRetryAttempts를 복원하거나, 기존 소비자가 유지되는 호환 별칭·전환을 검증한다.",
+      "evidenceRefs": [
+        "U-CONTRACT",
+        "F-SPEC",
+        "F-TERMINAL"
+      ]
+    },
+    {
+      "id": "B2",
+      "severity": "medium",
+      "area": "상태 분류",
+      "issue": "timeout·cancelled 문자열도 취소로 인정하고, 일반 Error도 메시지 접두사만으로 중지로 분류하여 C1·S6을 위반한다.",
+      "action": "명세의 허용 문자열·오류 이름으로 판별을 제한하고 유사 오류의 거부 테스트를 추가한다.",
+      "evidenceRefs": [
+        "U-CONTRACT",
+        "F-SPEC",
+        "F-CANCEL",
+        "F-STOP"
+      ]
+    },
+    {
+      "id": "B3",
+      "severity": "medium",
+      "area": "중지 감지·성능",
+      "issue": "폴링 기본값·하한이 명세의 50ms·10ms가 아니라 200ms·1ms다. 기본 감지 간격이 길고 과도한 읽기 빈도를 허용한다.",
+      "action": "기본값·하한을 계약에 맞추고 타이머 경계와 읽기 빈도를 검증한다.",
+      "evidenceRefs": [
+        "U-CONTRACT",
+        "F-SPEC",
+        "F-STOP"
+      ]
+    },
+    {
+      "id": "B4",
+      "severity": "medium",
+      "area": "종료 상태",
+      "issue": "terminal direct-dynamic 실행에서 control.json 읽기 실패와 dynamic_incomplete가 겹치면 T2의 completed_without_semantic_result 대신 dynamic_incomplete를 반환한다.",
+      "action": "읽기 실패 시 상태 우선순위를 명세에 맞추고 조합 테스트로 고정한다.",
+      "evidenceRefs": [
+        "U-CONTRACT",
+        "F-SPEC",
+        "F-TERMINAL"
+      ]
+    }
+  ],
+  "nonBlockingIssues": [
+    {
+      "id": "N1",
+      "issue": "비동기 폴링에 중복 실행 방지가 없어 느린 저장소에서는 읽기가 겹칠 수 있다. 실제 성능 회귀는 측정되지 않았다.",
+      "action": "동시 읽기 수·중지 지연을 측정하고 필요하면 읽기를 직렬화한다.",
+      "evidenceRefs": [
+        "U-RISK",
+        "F-STOP"
+      ]
+    },
+    {
+      "id": "N2",
+      "issue": "provider JSON의 동기 파싱에 로컬 크기 제한이 없다. 이것만으로 자원 고갈 취약점이 입증되지는 않는다.",
+      "action": "상위 입력 제한을 확인하고 필요하면 파싱 예산을 제한한다.",
+      "evidenceRefs": [
+        "U-RISK",
+        "F-CANCEL"
+      ]
+    }
+  ],
+  "confirmedSafeAreas": [
+    {
+      "area": "재시도 집계",
+      "finding": "outputRetryAttempts 이름과 전체 작업 합산은 유지된다. launch 재시도 합산도 구현돼 있으며 확인된 문제는 공개 필드 이름이다.",
+      "confidence": "정적 확인",
+      "evidenceRefs": [
+        "U-CONTRACT",
+        "F-TERMINAL"
+      ]
+    },
+    {
+      "area": "중지 처리 일부",
+      "finding": "생성 오류의 이름·메시지, 감시 경로의 읽기 오류 무시와 직접 확인 경로의 오류 전달, 마지막 signal 해제 시 등록 정리가 구현돼 있다.",
+      "confidence": "정적 확인이며 실행 보장은 아님",
+      "evidenceRefs": [
+        "U-CONTRACT",
+        "U-RISK",
+        "F-STOP"
+      ]
+    }
+  ],
+  "recommendedNextActions": [
+    {
+      "priority": 1,
+      "action": "실제 변경 범위·계약 의도를 확인하고 B1–B4를 해소한다. 의도적 변경이라도 문서 수정만으로 소비자 호환성이 해결되지는 않는다."
+    },
+    {
+      "priority": 2,
+      "action": "완전한 프로젝트에서 아래 검증을 실행하고 CI·소비자 호환성 결과를 확보한다."
+    },
+    {
+      "priority": 3,
+      "action": "확정된 공개 계약과 전환 절차를 릴리스 문서에 반영한 뒤 배포를 재심사한다."
+    }
+  ],
+  "validationToRun": [
+    {
+      "id": "V1",
+      "validation": "실제 프로젝트에서 npm run typecheck와 대응 테스트 명령을 실행한다.",
+      "precondition": "발췌에서 제외된 store/types 및 도구체인·테스트 러너 확보",
+      "expected": "타입검사와 계약 테스트 통과"
+    },
+    {
+      "id": "V2",
+      "validation": "S1–S7·C1–C2: 50/10ms 경계, 오류 허용·거부, 실행 간 격리, 등록 해제·dispose, 읽기 중 abort, JSON 판별 종료성을 테스트한다.",
+      "expected": "명세대로 분류·정리되고 dispose 후 새 읽기가 시작되지 않음"
+    },
+    {
+      "id": "V3",
+      "validation": "T1–T3: 공개 필드 직렬화, 모든 작업의 재시도 합계와 누락값 0 처리, degradation, control.json 누락·손상과 incomplete 조합을 테스트한다.",
+      "expected": "공개 필드·집계·상태 우선순위가 계약과 일치"
+    },
+    {
+      "id": "V4",
+      "validation": "실제 store·외부 요약 소비자 통합, 배포 산출물의 ESM import, 느린 저장소·다중 실행의 중지 지연과 동시 읽기를 검증한다.",
+      "expected": "호환성·패키징 통과 및 허용 가능한 운영 부하 확인"
+    }
+  ],
+  "needsHuman": [
+    {
+      "id": "H1",
+      "owner": "커밋 작성자",
+      "request": "HEAD~1..HEAD 전체 diff와 작업 트리 상태를 제공해 발견 사항이 654f639의 신규 회귀인지 기존 문제인지 구분해 달라."
+    },
+    {
+      "id": "H2",
+      "owner": "계약·제품 담당",
+      "request": "SPEC.md가 실제 배포 계약인지와 네 불일치가 의도적 변경인지 확인하고, 변경 의도라면 외부 소비자 호환성과 전환을 승인해 달라."
+    },
+    {
+      "id": "H3",
+      "owner": "CI·릴리스 담당",
+      "request": "실제 프로젝트의 테스트 결과, 배포 대상·버전, 아티팩트 보존·이관 및 릴리스 절차를 확인해 달라. private 0.0.0 발췌만으로 판단할 수 없다."
+    },
+    {
+      "id": "H4",
+      "owner": "런타임·보안 담당",
+      "request": "누락된 store의 경로 격리와 provider 입력 제한을 확인해 달라. 비신뢰 사용자가 경로를 제어한다면 배포 전 보안 검증이 필요하다."
+    }
+  ]
+}

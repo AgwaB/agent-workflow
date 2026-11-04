@@ -1,0 +1,81 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "커밋 654f639는 SPEC.md 핵심 명세(S3, C1, T3, Q1) 위반, 공개 계약 파괴(launchRetryAttempts -> launchRetries), 단위 테스트 전무, 디스크 I/O 고갈 및 타임아웃 오류 은폐 위험으로 인해 배포 불가(blocked) 상태임",
+  "status": "blocked",
+  "requiredBeforeShip": [
+    {
+      "id": "R1",
+      "target": "src/workflow-terminal.ts",
+      "category": "public_contract",
+      "specClause": "SPEC.md T3",
+      "action": "공개 계약 필드명 원복 또는 하위 호환성 유지",
+      "details": "WorkflowTerminalSummary 인터페이스 및 summarizeWorkflowTerminal 반환값에서 launchRetries를 launchRetryAttempts로 원복하거나 호환 게터/별칭을 제공하여 외부 모니터링/대시보드 계약 파괴 방지"
+    },
+    {
+      "id": "R2",
+      "target": "src/workflow-stop.ts",
+      "category": "performance_and_spec",
+      "specClause": "SPEC.md S3",
+      "action": "중지 감시 주기(pollMs) 기본값 및 클램프 하한 원복",
+      "details": "createWorkflowStopSignal의 기본 pollMs를 50ms로 복구하고, Math.max(1, ...) 클램프 하한을 10ms(Math.max(10, ...))로 복구하여 초고주파 디스크 I/O 고갈(DoS) 방지 및 감지 지연 단축"
+    },
+    {
+      "id": "R3",
+      "target": "src/workflow-cancellation.ts",
+      "category": "reliability_and_spec",
+      "specClause": "SPEC.md C1",
+      "action": "취소 판별 규칙 엄격성 복구 및 타임아웃/오류 은폐 제거",
+      "details": "isWorkflowReturnedCancellation에서 'cancelled' 및 'timeout' 검사를 제거하고 SPEC C1에 명시된 엄격한 취소 마커('aborted', 'AbortError', 'ABORT_ERR')만 취소로 분류하도록 원복하여 네트워크 타임아웃/프로바이더 오류 마스킹 차단"
+    },
+    {
+      "id": "R4",
+      "target": "package.json / tests",
+      "category": "validation_infrastructure",
+      "specClause": "SPEC.md Q1",
+      "action": "단위 테스트 인프라 구축 및 S, C, T 명세 검증 테스트 작성",
+      "details": "테스트 러너(node:test 등) 및 테스트 스크립트(npm test)를 설정하고 SPEC.md S1~S7, C1~C2, T1~T3을 검증하는 단위 테스트 스위트 작성"
+    },
+    {
+      "id": "R5",
+      "target": "tsconfig.json / types",
+      "category": "build_and_ci",
+      "specClause": "N/A",
+      "action": "타입체크 의존성 스텁 구비 및 npm run typecheck 통과 검증",
+      "details": "외부 의존성인 ./store.js 및 ./types.js에 대한 앰비언트 타입 정의(.d.ts) 또는 스텁을 마련하여 npm run typecheck가 독립적으로 통과하도록 보장"
+    }
+  ],
+  "niceToHave": [
+    {
+      "id": "N1",
+      "category": "documentation",
+      "action": "공개 계약 마이그레이션 가이드 및 Deprecation 정책 수립",
+      "details": "향후 launchRetries로 용어 변경이 필요한 경우 SPEC.md 개정, 사전 deprecation 경고 기간 부여 및 마이그레이션 문서 작성"
+    },
+    {
+      "id": "N2",
+      "category": "contract_testing",
+      "action": "WorkflowTerminalSummary 공개 인터페이스 회귀 방지 계약 테스트 추가",
+      "details": "런타임 직렬화 스냅샷 또는 TypeScript AST assertion을 통해 외부 계약 필드 누락/변경을 자동 감지하는 CI 테스트 추가"
+    },
+    {
+      "id": "N3",
+      "category": "performance",
+      "action": "디스크 I/O 폴링 최적화 및 백오프 메커니즘 검토",
+      "details": "장시간 실행되는 워크플로에 대해 고정 폴링 대신 파일시스템 이벤트 감시 또는 지수 백오프 도입 검토"
+    }
+  ],
+  "assumptions": [
+    {
+      "topic": "spec_authority",
+      "assumption": "SPEC.md는 중지(S1-S7), 취소(C1-C2), 종료 요약(T1-T3), 품질(Q1)에 관한 유일한 진실 공급원(SSOT)이다."
+    },
+    {
+      "topic": "public_contract_immutability",
+      "assumption": "SPEC.md T3에 명시된 WorkflowTerminalSummary.launchRetryAttempts 필드는 외부 도구에 노출된 공개 계약이므로 하위 호환성 없는 변경은 금지된다."
+    },
+    {
+      "topic": "scope_integrity",
+      "assumption": "커밋 654f639에서 수정된 범위는 src/의 3개 파일(workflow-stop.ts, workflow-cancellation.ts, workflow-terminal.ts)이며, 별도의 문서나 테스트 변경은 동반되지 않았다."
+    }
+  ]
+}

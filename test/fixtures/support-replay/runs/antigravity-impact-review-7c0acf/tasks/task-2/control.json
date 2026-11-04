@@ -1,0 +1,260 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Mapped implementation architecture across 3 core source modules (workflow-stop, workflow-cancellation, workflow-terminal), config/package surfaces, 7 public entry points, 4 primary data flows, and identified 4 key environment/structural unknowns.",
+  "components": [
+    {
+      "name": "workflow-stop",
+      "path": "src/workflow-stop.ts",
+      "role": "Execution stop intent detection, foreground signal registration, periodic polling, and stop error construction.",
+      "exports": [
+        "bindWorkflowLaunchSignal",
+        "WORKFLOW_STOP_REQUESTED_ERROR_NAME",
+        "createWorkflowStopPendingError",
+        "isWorkflowStopPendingError",
+        "workflowStopRequestedMessage",
+        "createWorkflowStopRequestedError",
+        "isWorkflowStopRequestedError",
+        "createWorkflowStopSignal",
+        "throwIfWorkflowStopRequested"
+      ],
+      "internalState": [
+        "launchSignals (module-scoped Map<string, Set<AbortSignal>> keyed by workflowRunPath(cwd, runId))"
+      ],
+      "externalDependencies": [
+        "./store.js (readWorkflowStopIntent, workflowRunPath)"
+      ],
+      "concreteSurfaces": {
+        "pollMsDefault": 200,
+        "pollMsMinClamp": 1,
+        "errorName": "WorkflowStopRequested",
+        "errorMessagePrefix": "workflow stop requested"
+      }
+    },
+    {
+      "name": "workflow-cancellation",
+      "path": "src/workflow-cancellation.ts",
+      "role": "Provider boundary cancellation classification and nested response content inspection.",
+      "exports": [
+        "isWorkflowAbortError",
+        "isWorkflowReturnedCancellation"
+      ],
+      "internalState": [],
+      "externalDependencies": [
+        "DOMException (optional global)",
+        "JSON.parse (native)"
+      ],
+      "concreteSurfaces": {
+        "cancellationStrings": [
+          "aborted",
+          "AbortError",
+          "ABORT_ERR",
+          "cancelled",
+          "timeout"
+        ],
+        "contentField": "content (Array<{text: string}>)",
+        "recursionGuard": "parsed !== value"
+      }
+    },
+    {
+      "name": "workflow-terminal",
+      "path": "src/workflow-terminal.ts",
+      "role": "Terminal workflow execution summary, dynamic controller status evaluation, and retry metrics aggregation.",
+      "exports": [
+        "WorkflowSemanticStatus",
+        "WorkflowTerminalSummary",
+        "summarizeWorkflowTerminal"
+      ],
+      "internalState": [],
+      "externalDependencies": [
+        "node:path (dirname, join)",
+        "./store.js (finalStageTasks, fromProjectPath, isTerminalWorkflowStatus, readJson, workflowRunDir)",
+        "./types.js (WorkflowRunRecord)"
+      ],
+      "concreteSurfaces": {
+        "summaryFields": [
+          "terminal",
+          "engineStatus",
+          "semanticStatus",
+          "outputTaskIds",
+          "outputRetryAttempts",
+          "launchRetries",
+          "artifactRoot"
+        ],
+        "semanticStatuses": [
+          "running",
+          "blocked",
+          "failed",
+          "interrupted",
+          "completed",
+          "completed_degraded",
+          "synthesized",
+          "exhausted_with_output",
+          "exhausted_without_output",
+          "dynamic_blocked",
+          "dynamic_incomplete",
+          "dynamic_stopped",
+          "completed_without_semantic_result"
+        ]
+      }
+    },
+    {
+      "name": "package-and-build-config",
+      "path": "package.json",
+      "role": "Package metadata, execution module type, and typecheck script specification.",
+      "exports": [],
+      "internalState": [],
+      "externalDependencies": [
+        "tsconfig.json"
+      ],
+      "concreteSurfaces": {
+        "packageName": "workflow-stop-sample",
+        "version": "0.0.0",
+        "type": "module",
+        "scripts": {
+          "typecheck": "tsc --noEmit"
+        },
+        "compilerTarget": "ES2022",
+        "moduleResolution": "NodeNext"
+      }
+    },
+    {
+      "name": "spec-definition",
+      "path": "SPEC.md",
+      "role": "Ground-truth specification covering stop detection (S1-S7), cancellation classification (C1-C2), terminal summary (T1-T3), and test coverage (Q1).",
+      "exports": [],
+      "internalState": [],
+      "externalDependencies": [],
+      "concreteSurfaces": {
+        "requirements": [
+          "S1",
+          "S2",
+          "S3",
+          "S4",
+          "S5",
+          "S6",
+          "S7",
+          "C1",
+          "C2",
+          "T1",
+          "T2",
+          "T3",
+          "Q1"
+        ]
+      }
+    }
+  ],
+  "entryPoints": [
+    {
+      "name": "bindWorkflowLaunchSignal",
+      "file": "src/workflow-stop.ts",
+      "signature": "(cwd: string, runId: string, signal: AbortSignal | undefined): () => void",
+      "callerRole": "Workflow launcher / foreground execution manager",
+      "purpose": "Registers a foreground AbortSignal for the exact run execution path and returns an unbind cleanup function."
+    },
+    {
+      "name": "createWorkflowStopSignal",
+      "file": "src/workflow-stop.ts",
+      "signature": "(cwd: string, runId: string, options?: { pollMs?: number }): { signal: AbortSignal; dispose: () => void }",
+      "callerRole": "Long-running step runner / loop controller",
+      "purpose": "Spawns an AbortSignal monitored against foreground registrations and periodic disk stop-intent reads."
+    },
+    {
+      "name": "throwIfWorkflowStopRequested",
+      "file": "src/workflow-stop.ts",
+      "signature": "(cwd: string, runId: string): Promise<void>",
+      "callerRole": "Step dispatcher / pre-execution checkpoint",
+      "purpose": "Eagerly asserts that neither foreground nor durable stop intent has been flagged, propagating disk read errors directly."
+    },
+    {
+      "name": "isWorkflowStopRequestedError",
+      "file": "src/workflow-stop.ts",
+      "signature": "(error: unknown): boolean",
+      "callerRole": "Error handler / catch block in workflow execution engine",
+      "purpose": "Identifies whether an unhandled rejection / error corresponds to a user-initiated stop request."
+    },
+    {
+      "name": "isWorkflowReturnedCancellation",
+      "file": "src/workflow-cancellation.ts",
+      "signature": "(value: unknown): boolean",
+      "callerRole": "LLM / tool provider adapter",
+      "purpose": "Classifies provider result payloads and nested JSON content strings as cancellations vs normal errors/completions."
+    },
+    {
+      "name": "summarizeWorkflowTerminal",
+      "file": "src/workflow-terminal.ts",
+      "signature": "(cwd: string, run: WorkflowRunRecord): Promise<WorkflowTerminalSummary>",
+      "callerRole": "Workflow engine exit handler / CLI summary presenter",
+      "purpose": "Computes semantic execution status, resolves dynamic controller status, and sums retry metrics across tasks."
+    },
+    {
+      "name": "typecheck",
+      "file": "package.json",
+      "signature": "npm run typecheck",
+      "callerRole": "CI / Developer build verification",
+      "purpose": "Executes TypeScript compilation check (tsc --noEmit)."
+    }
+  ],
+  "dataFlows": [
+    {
+      "id": "DF-01-foreground-abort",
+      "name": "Foreground Signal Abort Flow",
+      "source": "bindWorkflowLaunchSignal(cwd, runId, signal)",
+      "target": "createWorkflowStopSignal / throwIfWorkflowStopRequested",
+      "path": "AbortSignal registered in module-scoped launchSignals Map -> checked by launchStopRequested(cwd, runId) -> aborts controller with createWorkflowStopRequestedError(runId) or throws directly.",
+      "stateMutations": [
+        "launchSignals.set(key, signals)",
+        "launchSignals.delete(key) on unbind"
+      ]
+    },
+    {
+      "id": "DF-02-disk-stop-intent",
+      "name": "Durable Disk Stop Intent Flow",
+      "source": "readWorkflowStopIntent(cwd, runId)",
+      "target": "createWorkflowStopSignal / throwIfWorkflowStopRequested",
+      "path": "External stop command writes intent file -> polled via setInterval(check, pollMs) in createWorkflowStopSignal (disk errors caught and suppressed) or awaited in throwIfWorkflowStopRequested (disk errors propagated) -> triggers WorkflowStopRequested abort/error.",
+      "stateMutations": []
+    },
+    {
+      "id": "DF-03-provider-cancellation",
+      "name": "Provider Boundary Cancellation Inspection",
+      "source": "Provider execution return payload (object | unknown)",
+      "target": "isWorkflowReturnedCancellation(value)",
+      "path": "Value inspected for DOMException AbortError -> value.cancelled flag -> value.details.cancelled flag -> error/reason candidate matching ('aborted', 'AbortError', 'ABORT_ERR', 'cancelled', 'timeout') -> value.content array iteration -> JSON.parse text -> recursive isWorkflowReturnedCancellation check guarded by parsed !== value.",
+      "stateMutations": []
+    },
+    {
+      "id": "DF-04-terminal-summary-aggregation",
+      "name": "Terminal Workflow Summary and Metrics Aggregation",
+      "source": "WorkflowRunRecord (run)",
+      "target": "summarizeWorkflowTerminal(cwd, run)",
+      "path": "run.status checked via isTerminalWorkflowStatus -> non-dynamic semanticStatus resolved (completed + run.degradation -> completed_degraded) -> if direct-dynamic and terminal, reads dynamic.controller task output control.json (synthesized, exhausted, blocked, stopped, or completed_without_semantic_result) -> aggregates task.outputRetry?.attempts into outputRetryAttempts and task.launchRetry?.attempts into launchRetries.",
+      "stateMutations": []
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "UNK-01-store-types-external",
+      "area": "External Module Dependencies",
+      "description": "Modules './store.js' and './types.js' are excluded from the repository excerpt per package.json and SPEC.md. Exact implementations of readWorkflowStopIntent, workflowRunPath, workflowRunDir, fromProjectPath, isTerminalWorkflowStatus, finalStageTasks, readJson, and WorkflowRunRecord are unavailable in local files.",
+      "impact": "Downstream lenses must rely on imported signatures, call patterns, and SPEC.md statements rather than inspect store internals."
+    },
+    {
+      "id": "UNK-02-git-commit-diff-harness",
+      "area": "Git Commit Range Access",
+      "description": "Direct execution of git diff/log commands is constrained by the stage tool whitelist (read, grep, find, ls). Inspection is performed on working tree state representing commit 654f639.",
+      "impact": "Code changes between HEAD~1 and HEAD are mapped via working tree surfaces and SPEC.md contracts."
+    },
+    {
+      "id": "UNK-03-test-runner-and-test-files",
+      "area": "Test Suite and Fixtures",
+      "description": "No unit test files (*.test.ts, *.spec.ts), test fixtures, or test script entries in package.json exist in the repository.",
+      "impact": "Downstream validation stages cannot run automated regression suites; validation is limited to static typechecking and code inspection."
+    },
+    {
+      "id": "UNK-04-external-summary-consumers",
+      "area": "Public Consumer Implementations",
+      "description": "SPEC.md T3 identifies outputRetryAttempts and launchRetryAttempts as public contracts read by external tools, but external caller codebases are not in this repository.",
+      "impact": "Field renaming or compatibility impact must be assessed against the explicit SPEC.md T3 definition."
+    }
+  ]
+}

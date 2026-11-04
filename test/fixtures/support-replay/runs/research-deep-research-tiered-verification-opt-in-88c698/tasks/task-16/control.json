@@ -1,0 +1,288 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "MDN BCD와 Chromium·WebKit·Mozilla 자료를 교차검증해 Chrome 116, Edge 116, Firefox 124, Safari 17.4의 AbortSignal.any() 지원을 확인했다.",
+  "questionId": "question-003",
+  "question": "MDN Browser Compatibility Data와 브라우저 공식 자료에서 AbortSignal.any()의 Chrome·Edge·Firefox·Safari 지원 시작 버전은 각각 무엇인가?",
+  "covers": [
+    "주요 브라우저의 AbortSignal.any() 지원 현황"
+  ],
+  "extractedFacts": [
+    {
+      "slotId": "slot-005",
+      "slotLabel": "AbortSignal.any() Chrome 지원 버전",
+      "entity": "Chrome",
+      "value": "116",
+      "factType": "version_added",
+      "sourceUrls": [
+        "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+        "https://groups.google.com/a/chromium.org/g/blink-dev/c/-tY85-WOCD8/m/kxAtJJL9BwAJ"
+      ],
+      "sourceTitleOrPublisher": "MDN Browser Compatibility Data; Chromium blink-dev",
+      "dateOrYear": "2023",
+      "sourceQuality": "primary_preferred",
+      "confidence": "high",
+      "quote": "\"chrome\": {\n                \"version_added\": \"116\"\n              }",
+      "notes": "Chromium 공식 Intent to Ship도 데스크톱·Android·WebView의 shipping milestone을 116으로 기록한다."
+    },
+    {
+      "slotId": "slot-006",
+      "slotLabel": "AbortSignal.any() Edge 지원 버전",
+      "entity": "Edge",
+      "value": "116",
+      "factType": "version_added",
+      "sourceUrls": [
+        "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+        "https://caniuse.com/wf-abortsignal-any"
+      ],
+      "sourceTitleOrPublisher": "MDN Browser Compatibility Data; Can I use",
+      "dateOrYear": "2023",
+      "sourceQuality": "primary_preferred",
+      "confidence": "high",
+      "quote": "\"edge\": \"mirror\"",
+      "notes": "BCD는 Edge를 Chromium upstream의 mirror로 표시하며, 호환성 표에서 Edge 115 이하 미지원·116부터 지원으로 확인된다."
+    },
+    {
+      "slotId": "slot-007",
+      "slotLabel": "AbortSignal.any() Firefox 지원 버전",
+      "entity": "Firefox",
+      "value": "124",
+      "factType": "version_added",
+      "sourceUrls": [
+        "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+        "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124"
+      ],
+      "sourceTitleOrPublisher": "MDN Browser Compatibility Data; Mozilla/MDN Firefox 124 release notes",
+      "dateOrYear": "2024",
+      "sourceQuality": "primary_preferred",
+      "confidence": "high",
+      "quote": "\"firefox\": {\n                \"version_added\": \"124\"\n              }",
+      "notes": "Firefox 124 릴리스 노트가 AbortSignal.any() 지원을 명시한다."
+    },
+    {
+      "slotId": "slot-008",
+      "slotLabel": "AbortSignal.any() Safari 지원 버전",
+      "entity": "Safari",
+      "value": "17.4",
+      "factType": "version_added",
+      "sourceUrls": [
+        "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+        "https://webkit.org/blog/15063/webkit-features-in-safari-17-4/"
+      ],
+      "sourceTitleOrPublisher": "MDN Browser Compatibility Data; WebKit",
+      "dateOrYear": "2024",
+      "sourceQuality": "primary_preferred",
+      "confidence": "high",
+      "quote": "\"safari\": {\n                \"version_added\": \"17.4\"\n              }",
+      "notes": "WebKit 공식 Safari 17.4 기능 문서가 AbortSignal.any() 추가를 명시한다."
+    }
+  ],
+  "claims": [
+    {
+      "claim": "MDN BCD는 AbortSignal.any()의 Chrome 지원 시작 버전을 116으로 기록한다.",
+      "sourceUrls": [
+        "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json"
+      ],
+      "sourceTitleOrPublisher": "MDN Browser Compatibility Data",
+      "dateOrYear": "2026",
+      "sourceQuality": "primary_preferred",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.any() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-005"
+      ]
+    },
+    {
+      "claim": "Chromium 공식 Intent to Ship는 AbortSignal.any()의 데스크톱·Android·WebView shipping milestone을 116으로 제시한다.",
+      "sourceUrls": [
+        "https://groups.google.com/a/chromium.org/g/blink-dev/c/-tY85-WOCD8/m/kxAtJJL9BwAJ"
+      ],
+      "sourceTitleOrPublisher": "Chromium blink-dev",
+      "dateOrYear": "2023",
+      "sourceQuality": "primary",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.any() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-005"
+      ]
+    },
+    {
+      "claim": "Edge는 BCD에서 Chromium 지원 데이터를 mirror하며, 호환성 표 기준 Edge 116부터 지원된다.",
+      "sourceUrls": [
+        "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+        "https://caniuse.com/wf-abortsignal-any"
+      ],
+      "sourceTitleOrPublisher": "MDN Browser Compatibility Data; Can I use",
+      "dateOrYear": "2023",
+      "sourceQuality": "primary_preferred",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.any() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-006"
+      ]
+    },
+    {
+      "claim": "MDN BCD는 AbortSignal.any()의 Firefox 지원 시작 버전을 124로 기록한다.",
+      "sourceUrls": [
+        "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json"
+      ],
+      "sourceTitleOrPublisher": "MDN Browser Compatibility Data",
+      "dateOrYear": "2024",
+      "sourceQuality": "primary_preferred",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.any() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-007"
+      ]
+    },
+    {
+      "claim": "Mozilla의 Firefox 124 릴리스 노트는 AbortSignal.any()가 지원되기 시작했다고 명시한다.",
+      "sourceUrls": [
+        "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124"
+      ],
+      "sourceTitleOrPublisher": "Mozilla/MDN",
+      "dateOrYear": "2024",
+      "sourceQuality": "primary",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.any() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-007"
+      ]
+    },
+    {
+      "claim": "MDN BCD는 AbortSignal.any()의 Safari 지원 시작 버전을 17.4로 기록한다.",
+      "sourceUrls": [
+        "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json"
+      ],
+      "sourceTitleOrPublisher": "MDN Browser Compatibility Data",
+      "dateOrYear": "2024",
+      "sourceQuality": "primary_preferred",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.any() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-008"
+      ]
+    },
+    {
+      "claim": "WebKit 공식 문서는 Safari 17.4에서 AbortSignal.any() 지원이 추가됐다고 발표한다.",
+      "sourceUrls": [
+        "https://webkit.org/blog/15063/webkit-features-in-safari-17-4/"
+      ],
+      "sourceTitleOrPublisher": "WebKit",
+      "dateOrYear": "2024",
+      "sourceQuality": "primary",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.any() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-008"
+      ]
+    },
+    {
+      "claim": "MDN은 AbortSignal.any()가 브라우저 전반에서 2024년 3월부터 이용 가능하다고 분류한다.",
+      "sourceUrls": [
+        "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static"
+      ],
+      "sourceTitleOrPublisher": "MDN",
+      "dateOrYear": "2024",
+      "sourceQuality": "primary_preferred",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.any() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-005",
+        "slot-006",
+        "slot-007",
+        "slot-008"
+      ]
+    }
+  ],
+  "additionalUnverifiedLeads": [],
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+      "titleOrPublisher": "MDN Browser Compatibility Data",
+      "sourceType": "MDN BCD",
+      "quote": "\"any_static\": {\n        \"__compat\": {",
+      "supports": [
+        "slot-005",
+        "slot-006",
+        "slot-007",
+        "slot-008"
+      ],
+      "confidence": "high"
+    },
+    {
+      "url": "https://groups.google.com/a/chromium.org/g/blink-dev/c/-tY85-WOCD8/m/kxAtJJL9BwAJ",
+      "titleOrPublisher": "Chromium blink-dev",
+      "sourceType": "browser_official",
+      "quote": "Shipping on desktop  | 116",
+      "supports": [
+        "slot-005"
+      ],
+      "confidence": "high"
+    },
+    {
+      "url": "https://webkit.org/blog/15063/webkit-features-in-safari-17-4/",
+      "titleOrPublisher": "WebKit",
+      "sourceType": "browser_official",
+      "quote": "WebKit for Safari 17.4 adds support for `AbortSignal.any()`",
+      "supports": [
+        "slot-008"
+      ],
+      "confidence": "high"
+    },
+    {
+      "url": "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124",
+      "titleOrPublisher": "Mozilla/MDN",
+      "sourceType": "browser_official_release",
+      "quote": "`AbortSignal.any()` is now supported",
+      "supports": [
+        "slot-007"
+      ],
+      "confidence": "high"
+    },
+    {
+      "url": "https://caniuse.com/wf-abortsignal-any",
+      "titleOrPublisher": "Can I use",
+      "sourceType": "compatibility_secondary",
+      "quote": "✅ 116 - 154: Supported",
+      "supports": [
+        "slot-006"
+      ],
+      "confidence": "medium"
+    }
+  ],
+  "caveats": [
+    "BCD의 Edge 값은 직접적인 숫자가 아니라 Chromium upstream mirror 표기이므로 Edge 116 숫자는 Chromium 버전 매핑 및 호환성 표로 교차확인했다.",
+    "지원 시작 버전은 API가 존재하는 최초 버전 기준이며, 구형 브라우저/WebView를 지원해야 한다면 기능 감지와 폴리필을 고려해야 한다."
+  ],
+  "sourceQualityNotes": [
+    "MDN BCD를 핵심 호환성 데이터로 사용했다.",
+    "Chrome·Safari·Firefox는 각 엔진/브라우저의 공식 자료로 교차검증했다.",
+    "Edge는 공식 Edge 릴리스 문서에서 직접적인 AbortSignal.any() 항목을 찾지 못해 BCD mirror와 보조 호환성 표를 사용했다."
+  ],
+  "budgetLedger": {
+    "searchBudget": 3,
+    "searchCallsUsed": 3,
+    "searchQueriesAttempted": [
+      "site:developer.mozilla.org AbortSignal.any browser compatibility Chrome Edge Firefox Safari",
+      "site:github.com/mdn/browser-compat-data AbortSignal.any.json",
+      "site:chromestatus.com AbortSignal.any Chrome",
+      "site:learn.microsoft.com Edge 116 AbortSignal.any",
+      "AbortSignal.any Edge 116 support",
+      "site:chromestatus.com/features AbortSignal.any",
+      "site:webkit.org/blog Safari 17.4 AbortSignal.any",
+      "site:developer.apple.com Safari 17.4 AbortSignal.any",
+      "site:mozilla.org Firefox 124 AbortSignal.any"
+    ],
+    "omittedSearchQueries": [],
+    "budgetExhausted": true,
+    "gapRecorded": true
+  }
+}

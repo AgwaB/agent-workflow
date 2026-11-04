@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "id": "claim-007",
+  "status": "verified",
+  "confidence": "high",
+  "verdictDigest": "MDN Browser Compatibility Data records Firefox support for AbortSignal.any() beginning in version 124, and Firefox 124 release notes explicitly announce the feature.",
+  "evidence": [
+    {
+      "source": "MDN Browser Compatibility Data",
+      "url": "https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json",
+      "dateOrYear": "2024",
+      "quote": "\"firefox\": {\n                \"version_added\": \"124\"\n              }",
+      "relevance": "Direct compatibility data for AbortSignal.any()."
+    },
+    {
+      "source": "Mozilla/MDN Firefox 124 release notes",
+      "url": "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124",
+      "dateOrYear": "2024",
+      "quote": "AbortSignal.any() is now supported, allowing a composite signal to be created that can be used to abort an operation from multiple signal sources.",
+      "relevance": "Release notes explicitly confirm support in Firefox 124."
+    }
+  ],
+  "caveats": [],
+  "correctionOrCounterclaim": null,
+  "digest": "Firefox 124 support for AbortSignal.any() is directly confirmed by MDN compatibility data and Mozilla’s Firefox 124 release notes."
+}

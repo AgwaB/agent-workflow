@@ -1,0 +1,124 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "공개 요약 필드·상태 분류·폴링 계약이 구현과 충돌하므로 배포 보류를 권고한다. 654f639가 이를 도입했는지는 diff 부재로 미확인이다.",
+  "status": "fail",
+  "issues": [
+    {
+      "id": "CC1",
+      "severity": "high",
+      "lenses": [
+        "api-contract",
+        "state-data",
+        "docs-release"
+      ],
+      "summary": "공개 재시도 집계 필드가 문서와 다르다.",
+      "expected": "launchRetryAttempts",
+      "observed": "타입과 반환 객체 모두 launchRetries",
+      "impact": "문서화된 필드를 읽는 외부 도구가 집계값을 얻지 못할 수 있다.",
+      "releaseGate": "공개 필드를 복원하거나 호환 별칭과 소비자 전환을 검증한다.",
+      "refs": [
+        "F-SPEC",
+        "F-TERMINAL",
+        "U-API",
+        "U-STATE",
+        "U-DOCS"
+      ]
+    },
+    {
+      "id": "CC2",
+      "severity": "high",
+      "lenses": [
+        "api-contract",
+        "state-data",
+        "docs-release"
+      ],
+      "summary": "취소·중지 판별이 명세보다 넓어 일반 오류를 다른 상태로 분류한다.",
+      "expected": "C1의 세 취소 문자열과 S6의 오류 이름만 인정",
+      "observed": "cancelled·timeout 문자열도 취소로 인정하고, 일반 Error의 메시지 접두사도 중지로 인정",
+      "impact": "명세와 다른 상태 분류가 발생한다. 실제 재시도·진단 처리에 미치는 영향은 누락된 호출자에 달려 있다.",
+      "releaseGate": "판별 규칙을 계약에 맞추고 정상·유사 오류의 경계 테스트를 추가한다.",
+      "refs": [
+        "F-SPEC",
+        "F-CANCEL",
+        "F-STOP",
+        "U-API",
+        "U-STATE",
+        "U-DOCS"
+      ]
+    },
+    {
+      "id": "CC3",
+      "severity": "medium",
+      "lenses": [
+        "api-contract",
+        "state-data",
+        "docs-release"
+      ],
+      "summary": "폴링 설정의 공개 기본값·하한과 구현이 다르다.",
+      "expected": {
+        "defaultMs": 50,
+        "minimumMs": 10
+      },
+      "observed": {
+        "defaultMs": 200,
+        "minimumMs": 1
+      },
+      "impact": "기본 중지 감지 주기가 길어지고, 명세보다 짧은 주기의 디스크 읽기가 허용된다.",
+      "releaseGate": "설정을 계약과 일치시키고 타이머 경계·읽기 빈도를 검증한다.",
+      "refs": [
+        "F-SPEC",
+        "F-STOP",
+        "U-API",
+        "U-STATE",
+        "U-DOCS"
+      ]
+    },
+    {
+      "id": "CC4",
+      "severity": "medium",
+      "lenses": [
+        "api-contract",
+        "state-data",
+        "docs-release"
+      ],
+      "summary": "controller 아티팩트 누락 시 의미 상태의 우선순위가 T2와 충돌한다.",
+      "expected": "control.json을 읽지 못하면 completed_without_semantic_result",
+      "observed": "terminal direct-dynamic 실행에 dynamic_incomplete 작업이 있으면 dynamic_incomplete가 우선",
+      "impact": "같은 아티팩트 누락 조건에서 공개 의미 상태가 문서와 달라진다.",
+      "releaseGate": "누락·손상된 control.json과 incomplete 조합의 우선순위를 확정하고 fixture로 검증한다.",
+      "refs": [
+        "F-SPEC",
+        "F-TERMINAL",
+        "U-API",
+        "U-STATE",
+        "U-DOCS"
+      ]
+    }
+  ],
+  "confirmedConsistencies": [
+    {
+      "id": "CONS1",
+      "summary": "outputRetryAttempts는 문서의 공개 이름을 유지하며 모든 작업의 outputRetry.attempts를 합산한다. launch 재시도도 합산 자체는 수행하며 문제는 공개 필드 이름이다.",
+      "refs": [
+        "F-SPEC",
+        "F-TERMINAL"
+      ]
+    },
+    {
+      "id": "CONS2",
+      "summary": "S2·S4와 같이 생성되는 중지 오류의 이름·메시지는 명세와 일치하고, 감시 경로는 디스크 읽기 오류를 무시하지만 throwIfWorkflowStopRequested는 전달한다.",
+      "refs": [
+        "F-SPEC",
+        "F-STOP"
+      ]
+    },
+    {
+      "id": "CONS3",
+      "summary": "SPEC과 package.json은 모두 store/types가 빠진 발췌임을 명시한다. 이를 원본 프로젝트의 패키징 결함으로 일반화할 근거는 없다.",
+      "refs": [
+        "F-SPEC",
+        "F-PACKAGE"
+      ]
+    }
+  ]
+}

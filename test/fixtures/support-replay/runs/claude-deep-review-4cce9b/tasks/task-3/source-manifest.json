@@ -1,0 +1,167 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1jwsm7_4cce9b",
+  "taskId": "task-3",
+  "sources": [
+    {
+      "source": "triage",
+      "displayName": "triage.main",
+      "taskId": "task-1",
+      "specId": "triage.main",
+      "stageId": "triage",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "src/ stop/cancel/terminal 코드 검토: SPEC.md 계약과 어긋나는 항목 여러 개(폴링 기본값, 취소 판별 범위, 중지 오류 판별, 재시도 필드 이름) 확인. 공개 계약 변경 가능성이 있어 위험도 high.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-1/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-1/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-1/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-1/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "reviewers",
+      "displayName": "reviewers.contract-compat",
+      "taskId": "task-9",
+      "specId": "reviewers.contract-compat",
+      "stageId": "reviewers",
+      "status": "completed",
+      "itemIdentity": "contract-compat",
+      "placeholderSpecId": "reviewers.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "SPEC 대비 네 가지 계약 위반을 확인했다: 재시도 필드 rename(T3), 메시지 접두사 기반 중지 판별(S6), 취소 허용 목록 확장(C1), 폴링 기본값·하한(S3).",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-9/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-9/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-9/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-9/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "reviewers.runtime-race",
+      "displayName": "reviewers.runtime-race",
+      "taskId": "task-10",
+      "specId": "reviewers.runtime-race",
+      "stageId": "reviewers",
+      "status": "completed",
+      "itemIdentity": "runtime-race",
+      "placeholderSpecId": "reviewers.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "Stop-watch fence mostly holds, but the post-await recheck depends on launch registration staying alive, and the poll path fails open on read errors.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-10/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-10/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-10/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-10/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "reviewers.terminal-status-masking",
+      "displayName": "reviewers.terminal-status-masking",
+      "taskId": "task-11",
+      "specId": "reviewers.terminal-status-masking",
+      "stageId": "reviewers",
+      "status": "completed",
+      "itemIdentity": "terminal-status-masking",
+      "placeholderSpecId": "reviewers.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "control.json 읽기 실패 시 dynamic 분기가 engine status failed/interrupted/cancelled 등을 덮어쓰고 completed_without_semantic_result로 바꾼다(T2 문구상 허용되지만 의미 손실 위험).",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-11/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-11/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-11/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-11/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "reviewers.release-test-hygiene",
+      "displayName": "reviewers.release-test-hygiene",
+      "taskId": "task-12",
+      "specId": "reviewers.release-test-hygiene",
+      "stageId": "reviewers",
+      "status": "completed",
+      "itemIdentity": "release-test-hygiene",
+      "placeholderSpecId": "reviewers.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "SPEC C1 allows only aborted/AbortError/ABORT_ERR, but isWorkflowReturnedCancellation also promotes cancelled and timeout, and no unit tests exist under src/ to cover SPEC Q1.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-12/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-12/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-12/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1jwsm7_4cce9b/tasks/task-12/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

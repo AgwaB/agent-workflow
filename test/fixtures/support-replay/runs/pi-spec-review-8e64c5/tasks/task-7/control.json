@@ -1,0 +1,111 @@
+{
+  "schema": "spec-review-report-v1",
+  "digest": "13개 요구사항을 검토했으며, 검증된 명세 차이 6건에 따라 GAPS_FOUND로 판단했다.",
+  "summary": "구현 기준으로 충족 5개, 부분 충족 6개, 미충족 2개입니다. 확정된 지적 사항은 6건이며, 제공된 저장소에는 요구 동작별 단위 테스트가 없습니다.",
+  "verdict": "GAPS_FOUND",
+  "ownerLedger": [
+    {
+      "source": "verify-findings",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-001",
+      "taskId": "task-9",
+      "itemIdentity": "candidate-001",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.candidate-002",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-002",
+      "taskId": "task-10",
+      "itemIdentity": "candidate-002",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.candidate-003",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-003",
+      "taskId": "task-11",
+      "itemIdentity": "candidate-003",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.candidate-004",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-004",
+      "taskId": "task-12",
+      "itemIdentity": "candidate-004",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.candidate-005",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-005",
+      "taskId": "task-13",
+      "itemIdentity": "candidate-005",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.candidate-006",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.candidate-006",
+      "taskId": "task-14",
+      "itemIdentity": "candidate-006",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    }
+  ],
+  "ownerLedgerReconciliation": {
+    "ownerRowCount": 6,
+    "verifierRowCount": 6,
+    "ownerIds": [
+      "candidate-001",
+      "candidate-002",
+      "candidate-003",
+      "candidate-004",
+      "candidate-005",
+      "candidate-006"
+    ],
+    "verifierIds": [
+      "candidate-001",
+      "candidate-002",
+      "candidate-003",
+      "candidate-004",
+      "candidate-005",
+      "candidate-006"
+    ],
+    "duplicateOwnerIds": [],
+    "duplicateVerifierIds": [],
+    "missingOwnerRows": [],
+    "orphanOwnerRows": [],
+    "statusMismatches": [],
+    "cardinalityPassed": true,
+    "passed": true
+  },
+  "risks": [
+    "S3: 감시 주기의 기본값과 하한이 명세와 다릅니다.",
+    "S6: 일반 오류가 메시지만으로 중지 오류로 오인됩니다.",
+    "C1·C2: timeout·cancelled 오류가 직접 값과 content JSON에서 취소로 오인됩니다.",
+    "T1·T2: direct-dynamic 분기가 요구된 의미 상태를 덮어씁니다.",
+    "T3: 공개 필드 launchRetryAttempts가 누락되어 있습니다.",
+    "Q1: 요구 동작별 단위 테스트가 제공된 저장소에 없습니다."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "이 단계는 읽기 전용이며 명령 실행이 금지되어 테스트와 타입 검사를 실행하지 않았다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "명세에 명시된 발췌 범위대로 store.js와 types.js가 제공되지 않았다. 의존성의 실제 동작과 실행 환경은 검증하지 않았다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "recommendedNextAction": "취소 문자열 허용 목록과 launchRetryAttempts 공개 키를 우선 수정하고, 감시 주기·중지 오류 판별·의미 상태 분기를 바로잡으세요. 이어 S·C·T 각 요구사항의 단위 테스트를 추가하고 실행하세요."
+}

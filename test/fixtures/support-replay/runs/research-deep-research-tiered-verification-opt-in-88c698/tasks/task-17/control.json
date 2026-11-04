@@ -1,0 +1,227 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "MDN BCD 기준 AbortSignal.timeout()의 완전 지원은 Chrome/Edge 124, Firefox 100, Safari 16부터이며 Chrome 103–123은 TimeoutError 차이로 부분 지원이다.",
+  "questionId": "question-004",
+  "question": "MDN Browser Compatibility Data와 브라우저 공식 자료에서 AbortSignal.timeout()의 Chrome·Edge·Firefox·Safari 지원 시작 버전은 각각 무엇인가?",
+  "covers": [
+    "주요 브라우저의 AbortSignal.timeout() 지원 현황"
+  ],
+  "extractedFacts": [
+    {
+      "slotId": "slot-009",
+      "slotLabel": "AbortSignal.timeout() Chrome 지원 버전",
+      "entity": "Chrome",
+      "value": "124부터 완전 지원; 103–123은 부분 지원",
+      "factType": "version",
+      "sourceUrls": [
+        "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+      ],
+      "sourceTitleOrPublisher": "MDN Browser Compatibility Data",
+      "dateOrYear": "2026 snapshot",
+      "sourceQuality": "primary compatibility data",
+      "confidence": "high",
+      "quote": "\"version_added\": \"124\"",
+      "notes": "BCD는 Chrome 103–123을 partial_implementation으로 기록하며, 해당 구간은 TimeoutError가 아니라 AbortError를 사용한다고 명시한다."
+    },
+    {
+      "slotId": "slot-010",
+      "slotLabel": "AbortSignal.timeout() Edge 지원 버전",
+      "entity": "Edge",
+      "value": "124부터 완전 지원",
+      "factType": "version",
+      "sourceUrls": [
+        "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+      ],
+      "sourceTitleOrPublisher": "MDN Browser Compatibility Data",
+      "dateOrYear": "2026 snapshot",
+      "sourceQuality": "primary compatibility data",
+      "confidence": "high",
+      "quote": "\"edge\": \"mirror\"",
+      "notes": "BCD가 Edge를 Chrome 데이터의 mirror로 표시하므로 Chrome의 완전 지원 시작 버전 124를 Edge에도 적용한다."
+    },
+    {
+      "slotId": "slot-011",
+      "slotLabel": "AbortSignal.timeout() Firefox 지원 버전",
+      "entity": "Firefox",
+      "value": "100부터 지원",
+      "factType": "version",
+      "sourceUrls": [
+        "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+        "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100"
+      ],
+      "sourceTitleOrPublisher": "MDN Browser Compatibility Data; Mozilla/MDN Firefox 100 release notes",
+      "dateOrYear": "2022",
+      "sourceQuality": "primary compatibility data and official release notes",
+      "confidence": "high",
+      "quote": "\"version_added\": \"100\"",
+      "notes": "Firefox 100 릴리스 노트도 AbortSignal.timeout() 사용 가능 및 TimeoutError 동작을 확인한다."
+    },
+    {
+      "slotId": "slot-012",
+      "slotLabel": "AbortSignal.timeout() Safari 지원 버전",
+      "entity": "Safari",
+      "value": "16부터 지원",
+      "factType": "version",
+      "sourceUrls": [
+        "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+      ],
+      "sourceTitleOrPublisher": "MDN Browser Compatibility Data",
+      "dateOrYear": "2026 snapshot",
+      "sourceQuality": "primary compatibility data",
+      "confidence": "high",
+      "quote": "\"version_added\": \"16\"",
+      "notes": "Safari iOS는 BCD에서 Safari 데이터를 mirror한다."
+    }
+  ],
+  "claims": [
+    {
+      "claim": "MDN BCD는 AbortSignal.timeout()의 Chrome 완전 지원 시작을 124로 기록한다.",
+      "sourceUrls": [
+        "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+      ],
+      "sourceTitleOrPublisher": "MDN Browser Compatibility Data",
+      "dateOrYear": "2026 snapshot",
+      "sourceQuality": "primary compatibility data",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.timeout() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-009"
+      ]
+    },
+    {
+      "claim": "Chrome 103–123에는 AbortSignal.timeout()의 부분 구현이 있었지만 timeout 시 AbortError를 사용하므로 표준적인 TimeoutError 동작과 다르다.",
+      "sourceUrls": [
+        "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+      ],
+      "sourceTitleOrPublisher": "MDN Browser Compatibility Data",
+      "dateOrYear": "2026 snapshot",
+      "sourceQuality": "primary compatibility data",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.timeout() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-009"
+      ]
+    },
+    {
+      "claim": "Edge는 MDN BCD에서 Chrome 호환 데이터의 mirror로 표시되므로 완전 지원 기준은 Edge 124이다.",
+      "sourceUrls": [
+        "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+      ],
+      "sourceTitleOrPublisher": "MDN Browser Compatibility Data",
+      "dateOrYear": "2026 snapshot",
+      "sourceQuality": "primary compatibility data",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.timeout() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-010"
+      ]
+    },
+    {
+      "claim": "Firefox는 Firefox 100부터 AbortSignal.timeout()을 지원한다.",
+      "sourceUrls": [
+        "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+        "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100"
+      ],
+      "sourceTitleOrPublisher": "MDN Browser Compatibility Data; Mozilla/MDN",
+      "dateOrYear": "2022",
+      "sourceQuality": "primary compatibility data and official release notes",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.timeout() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-011"
+      ]
+    },
+    {
+      "claim": "Safari는 Safari 16부터 AbortSignal.timeout()을 지원한다.",
+      "sourceUrls": [
+        "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
+      ],
+      "sourceTitleOrPublisher": "MDN Browser Compatibility Data",
+      "dateOrYear": "2026 snapshot",
+      "sourceQuality": "primary compatibility data",
+      "scopeItems": [
+        "주요 브라우저의 AbortSignal.timeout() 지원 현황"
+      ],
+      "factSlotIds": [
+        "slot-012"
+      ]
+    }
+  ],
+  "additionalUnverifiedLeads": [
+    {
+      "lead": "Chrome 및 Safari의 자체 공식 릴리스 문서에서 AbortSignal.timeout() 도입 버전을 별도로 교차검증할 수 있다.",
+      "whyUnverified": "이번 검색에서 MDN/BCD와 Firefox 공식 릴리스 자료는 확인했지만 Chrome·Safari의 직접 릴리스 문서는 확보하지 못했다.",
+      "nextStep": "ChromeStatus 또는 Chromium 릴리스 노트와 WebKit/Safari 릴리스 노트를 직접 확인한다."
+    }
+  ],
+  "sources": [
+    {
+      "sourceUrl": "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
+      "sourceType": "MDN Browser Compatibility Data",
+      "title": "api/AbortSignal.json",
+      "publisher": "MDN",
+      "dateOrYear": "2026 snapshot",
+      "supports": [
+        "Chrome 124 full, Chrome 103 partial, Edge mirror, Firefox 100, Safari 16"
+      ],
+      "quote": "\"timeout_static\": { \"__compat\": { \"description\": \"`timeout()` static method\""
+    },
+    {
+      "sourceUrl": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
+      "sourceType": "MDN",
+      "title": "AbortSignal: timeout() static method",
+      "publisher": "MDN",
+      "dateOrYear": "2026",
+      "supports": [
+        "cross-browser availability since April 2024",
+        "TimeoutError behavior"
+      ],
+      "quote": "It’s been available across browsers since April 2024."
+    },
+    {
+      "sourceUrl": "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100",
+      "sourceType": "official release notes",
+      "title": "Firefox 100 release notes for developers",
+      "publisher": "Mozilla/MDN",
+      "dateOrYear": "2022",
+      "supports": [
+        "Firefox 100 support"
+      ],
+      "quote": "Code can now use the static method `AbortSignal.timeout()`."
+    }
+  ],
+  "caveats": [
+    "Chrome 103–123은 API가 존재하지만 TimeoutError 대신 AbortError를 발생시키는 부분 구현이므로 호환성 표에서 완전 지원과 구분해야 한다.",
+    "Edge 124는 BCD의 mirror 표기를 통한 판정이며, 독립적인 Edge 릴리스 문서는 이번 조사에서 확인하지 못했다.",
+    "MDN은 Safari 16, Firefox 100, Chrome/Edge 124를 기준으로 현재의 완전 호환성을 제시한다."
+  ],
+  "sourceQualityNotes": [
+    "버전 판정은 MDN Browser Compatibility Data의 version_added 및 partial_implementation 필드를 우선 사용했다.",
+    "Firefox 100은 Mozilla/MDN 공식 릴리스 노트로 교차검증했다.",
+    "Chrome·Safari·Edge의 브라우저별 독립 릴리스 문서는 추가 검증 여지가 있다."
+  ],
+  "budgetLedger": {
+    "searchBudget": 3,
+    "searchCallsUsed": 2,
+    "searchQueriesAttempted": [
+      "MDN AbortSignal.timeout browser compatibility Chrome Edge Firefox Safari",
+      "BCD AbortSignal.timeout Chrome Firefox Safari",
+      "AbortSignal.timeout browser release official",
+      "site:chromestatus.com AbortSignal.timeout Chrome 124",
+      "site:developer.mozilla.org AbortSignal.timeout Firefox 100 Safari 16 Edge 124"
+    ],
+    "omittedSearchQueries": [],
+    "budgetExhausted": false,
+    "gapRecorded": true
+  },
+  "coversFactSlots": [
+    "slot-009",
+    "slot-010",
+    "slot-011",
+    "slot-012"
+  ]
+}

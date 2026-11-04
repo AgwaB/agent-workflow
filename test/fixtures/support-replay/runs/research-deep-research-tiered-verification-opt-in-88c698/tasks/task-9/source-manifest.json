@@ -1,0 +1,586 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw1ipu5z_88c698",
+  "taskId": "task-9",
+  "sources": [
+    {
+      "source": "verify-core-claims",
+      "displayName": "verify-core-claims.claim-001",
+      "taskId": "task-20",
+      "specId": "verify-core-claims.claim-001",
+      "stageId": "verify-core-claims",
+      "status": "completed",
+      "itemIdentity": "claim-001",
+      "placeholderSpecId": "verify-core-claims.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "공식 Node.js 문서에서 AbortSignal.any()의 추가 버전 v20.3.0 및 v18.17.0을 직접 확인했다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-20/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-20/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-20/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-20/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-core-claims.claim-002",
+      "displayName": "verify-core-claims.claim-002",
+      "taskId": "task-21",
+      "specId": "verify-core-claims.claim-002",
+      "stageId": "verify-core-claims",
+      "status": "completed",
+      "itemIdentity": "claim-002",
+      "placeholderSpecId": "verify-core-claims.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "Node.js 공식 문서는 Global objects를 Stable로 표시하지만 AbortSignal.any()의 개별 안정화 버전은 명시하지 않는다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-21/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-21/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-21/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-21/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-core-claims.claim-003",
+      "displayName": "verify-core-claims.claim-003",
+      "taskId": "task-22",
+      "specId": "verify-core-claims.claim-003",
+      "stageId": "verify-core-claims",
+      "status": "completed",
+      "itemIdentity": "claim-003",
+      "placeholderSpecId": "verify-core-claims.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "Node.js 공식 문서가 AbortSignal.timeout()의 추가 버전을 v17.3.0 및 v16.14.0으로 직접 명시하고, v17 변경 로그가 기능 추가를 확인한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-22/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-22/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-22/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-22/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-core-claims.claim-004",
+      "displayName": "verify-core-claims.claim-004",
+      "taskId": "task-23",
+      "specId": "verify-core-claims.claim-004",
+      "stageId": "verify-core-claims",
+      "status": "completed",
+      "itemIdentity": "claim-004",
+      "placeholderSpecId": "verify-core-claims.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "Section-level stability is confirmed, but the source does not establish AbortSignal.timeout()’s method-specific stable version.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-23/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-23/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-23/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-23/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-core-claims.claim-005",
+      "displayName": "verify-core-claims.claim-005",
+      "taskId": "task-24",
+      "specId": "verify-core-claims.claim-005",
+      "stageId": "verify-core-claims",
+      "status": "completed",
+      "itemIdentity": "claim-005",
+      "placeholderSpecId": "verify-core-claims.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "MDN BCD directly confirms Chrome 116 support for AbortSignal.any().",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-24/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-24/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-24/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-24/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-core-claims.claim-006",
+      "displayName": "verify-core-claims.claim-006",
+      "taskId": "task-25",
+      "specId": "verify-core-claims.claim-006",
+      "stageId": "verify-core-claims",
+      "status": "completed",
+      "itemIdentity": "claim-006",
+      "placeholderSpecId": "verify-core-claims.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "MDN BCD marks Edge as mirroring Chromium, and Can I Use confirms AbortSignal.any() support from Edge 116.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-25/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-25/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-25/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-25/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-core-claims.claim-007",
+      "displayName": "verify-core-claims.claim-007",
+      "taskId": "task-26",
+      "specId": "verify-core-claims.claim-007",
+      "stageId": "verify-core-claims",
+      "status": "completed",
+      "itemIdentity": "claim-007",
+      "placeholderSpecId": "verify-core-claims.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "Firefox 124 support for AbortSignal.any() is directly confirmed by MDN compatibility data and Mozilla’s Firefox 124 release notes.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-26/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-26/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-26/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-26/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-core-claims.claim-008",
+      "displayName": "verify-core-claims.claim-008",
+      "taskId": "task-27",
+      "specId": "verify-core-claims.claim-008",
+      "stageId": "verify-core-claims",
+      "status": "completed",
+      "itemIdentity": "claim-008",
+      "placeholderSpecId": "verify-core-claims.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "Safari 17.4 지원은 MDN BCD와 WebKit 공식 문서에서 동일하게 확인된다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-27/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-27/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-27/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-27/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-core-claims.claim-009",
+      "displayName": "verify-core-claims.claim-009",
+      "taskId": "task-28",
+      "specId": "verify-core-claims.claim-009",
+      "stageId": "verify-core-claims",
+      "status": "completed",
+      "itemIdentity": "claim-009",
+      "placeholderSpecId": "verify-core-claims.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "Chrome의 AbortSignal.timeout() 완전 지원 시작 버전 124는 MDN BCD 원문으로 확인되며, 103–123은 부분 구현이었다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-28/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-28/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-28/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-28/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-core-claims.claim-010",
+      "displayName": "verify-core-claims.claim-010",
+      "taskId": "task-29",
+      "specId": "verify-core-claims.claim-010",
+      "stageId": "verify-core-claims",
+      "status": "completed",
+      "itemIdentity": "claim-010",
+      "placeholderSpecId": "verify-core-claims.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "Edge의 timeout() 항목이 BCD에서 mirror로 표시됨을 원문이 직접 확인한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-29/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-29/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-29/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-29/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-core-claims.claim-011",
+      "displayName": "verify-core-claims.claim-011",
+      "taskId": "task-30",
+      "specId": "verify-core-claims.claim-011",
+      "stageId": "verify-core-claims",
+      "status": "completed",
+      "itemIdentity": "claim-011",
+      "placeholderSpecId": "verify-core-claims.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "Claim verified: MDN BCD records Firefox AbortSignal.timeout() support from version 100, corroborated by Firefox 100 release notes.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-30/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-30/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-30/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-30/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-core-claims.claim-012",
+      "displayName": "verify-core-claims.claim-012",
+      "taskId": "task-31",
+      "specId": "verify-core-claims.claim-012",
+      "stageId": "verify-core-claims",
+      "status": "completed",
+      "itemIdentity": "claim-012",
+      "placeholderSpecId": "verify-core-claims.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "Safari support for AbortSignal.timeout() is directly verified as version 16 in the cited MDN BCD snapshot.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-31/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-31/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-31/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-31/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-core-claims.claim-013",
+      "displayName": "verify-core-claims.claim-013",
+      "taskId": "task-32",
+      "specId": "verify-core-claims.claim-013",
+      "stageId": "verify-core-claims",
+      "status": "completed",
+      "itemIdentity": "claim-013",
+      "placeholderSpecId": "verify-core-claims.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "WHATWG DOM Standard directly specifies propagating the first already-aborted input’s reason to the result signal and returning it immediately.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-32/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-32/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-32/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-32/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-core-claims.claim-014",
+      "displayName": "verify-core-claims.claim-014",
+      "taskId": "task-33",
+      "specId": "verify-core-claims.claim-014",
+      "stageId": "verify-core-claims",
+      "status": "completed",
+      "itemIdentity": "claim-014",
+      "placeholderSpecId": "verify-core-claims.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "Verified by MDN's direct statement about non-cascading cancellation.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-33/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-33/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-33/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-33/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-core-claims.claim-015",
+      "displayName": "verify-core-claims.claim-015",
+      "taskId": "task-34",
+      "specId": "verify-core-claims.claim-015",
+      "stageId": "verify-core-claims",
+      "status": "completed",
+      "itemIdentity": "claim-015",
+      "placeholderSpecId": "verify-core-claims.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "Verified: the WHATWG DOM Standard explicitly assigns AbortSignal.timeout() a TimeoutError DOMException reason.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-34/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-34/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-34/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-34/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-core-claims.claim-016",
+      "displayName": "verify-core-claims.claim-016",
+      "taskId": "task-35",
+      "specId": "verify-core-claims.claim-016",
+      "stageId": "verify-core-claims",
+      "status": "completed",
+      "itemIdentity": "claim-016",
+      "placeholderSpecId": "verify-core-claims.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "MDN의 직접적인 문구가 active time 기준과 suspended worker/bfcache 일시정지를 모두 확인하므로 검증됨.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-35/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-35/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-35/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-35/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-tail-claims",
+      "displayName": "verify-tail-claims.claim-017",
+      "taskId": "task-36",
+      "specId": "verify-tail-claims.claim-017",
+      "stageId": "verify-tail-claims",
+      "status": "completed",
+      "itemIdentity": "claim-017",
+      "placeholderSpecId": "verify-tail-claims.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "MDN explicitly advises removing application-added abort listeners from the combined signal when the operation finishes; claim verified.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-36/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-36/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-36/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-36/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "verify-tail-claims.claim-018",
+      "displayName": "verify-tail-claims.claim-018",
+      "taskId": "task-37",
+      "specId": "verify-tail-claims.claim-018",
+      "stageId": "verify-tail-claims",
+      "status": "completed",
+      "itemIdentity": "claim-018",
+      "placeholderSpecId": "verify-tail-claims.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "MDN directly confirms that AbortSignal.timeout() cannot be cancelled, and documents listener/GC and active-time caveats.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-37/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-37/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-37/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw1ipu5z_88c698/tasks/task-37/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

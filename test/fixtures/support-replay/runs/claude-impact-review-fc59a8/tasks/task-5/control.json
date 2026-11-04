@@ -1,0 +1,103 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "HEAD 654f639은 공개 필드 이름 변경(launchRetryAttempts→launchRetries), 취소 분류 확장, 중지 감시 주기 변경을 포함하며 SPEC.md와 어긋난다. 테스트가 없어 검증되지 않았다. 현 상태로는 배포 비권장이며, 호환성 별칭 또는 명시적 breaking 공지와 SPEC 갱신, 취소 분류 축소 또는 근거 확보, 회귀 테스트 추가가 선행돼야 한다.",
+  "status": "high",
+  "impacts": [
+    {
+      "id": "i-public-rename",
+      "area": "public-contract/state-data",
+      "severity": "high",
+      "blocker": true,
+      "description": "WorkflowTerminalSummary.launchRetryAttempts가 launchRetries로 바뀌었다. 저장소 안에 옛 이름을 읽는 소비자는 없지만 SPEC T3는 이를 외부 도구가 읽는 공개 계약으로 정의한다. 옛 이름으로 읽는 소비자는 오류 없이 undefined를 받아 재시도 횟수가 0으로 잘못 집계될 수 있다.",
+      "evidence": [
+        "src/workflow-terminal.ts:33",
+        "src/workflow-terminal.ts:107-110",
+        "SPEC.md:35"
+      ]
+    },
+    {
+      "id": "i-cancel-overbroad",
+      "area": "state-lifecycle",
+      "severity": "high",
+      "blocker": true,
+      "description": "isWorkflowReturnedCancellation이 문자열 'cancelled'와 'timeout'을 취소로 판정하고, content[].text의 JSON을 재귀 파싱한다. 공급자의 일반 timeout 오류가 취소로 분류되면 실행 상태가 failed/retry 대신 cancelled 경로로 가 재시도·요약 집계가 달라질 수 있다. 파일 주석은 '의도적으로 엄격하게 유지'한다고 명시하므로 주석과 코드가 모순된다.",
+      "evidence": [
+        "src/workflow-cancellation.ts:10-11",
+        "src/workflow-cancellation.ts:20",
+        "src/workflow-cancellation.ts:23-30",
+        "SPEC.md (C1: aborted/AbortError/ABORT_ERR만 허용)"
+      ]
+    },
+    {
+      "id": "i-stop-latency",
+      "area": "concurrency/timing",
+      "severity": "medium",
+      "blocker": false,
+      "description": "디스크 중지 의도 감시 기본 주기가 50ms(SPEC S3)에서 200ms로 늘었다. 디스크 경로의 중지 반영 지연이 최대 약 200ms 늘어난다. 포그라운드 AbortSignal 경로는 launchSignals 레지스트리로 동기 확인하므로 영향이 적다. 최소값도 SPEC의 10ms에서 1ms로 낮아졌다.",
+      "evidence": [
+        "src/workflow-stop.ts:67",
+        "src/workflow-stop.ts:81",
+        "src/workflow-stop.ts:24-28",
+        "SPEC.md:13"
+      ]
+    },
+    {
+      "id": "i-stop-message-match",
+      "area": "idempotency/error-classification",
+      "severity": "medium",
+      "blocker": false,
+      "description": "isWorkflowStopRequestedError가 메시지 접두사 'workflow stop requested'도 중지로 본다. SPEC S6은 이름 기반 매칭만 허용한다. 같은 접두사를 가진 다른 오류가 중지로 오분류될 수 있다. 저장소 안에 이 함수의 호출자는 없어 실제 영향 범위는 외부 호출자에 달려 있다.",
+      "evidence": [
+        "src/workflow-stop.ts:53-59",
+        "SPEC.md:18"
+      ]
+    },
+    {
+      "id": "i-signal-set-dedupe",
+      "area": "shared-state/concurrency",
+      "severity": "low",
+      "blocker": false,
+      "description": "launchSignals는 모듈 전역 Map<runPath, Set<AbortSignal>>이다. 같은 AbortSignal을 두 번 bind하면 Set에 한 번만 들어가므로, 한 번 unbind하면 두 바인딩 모두 해제된다. 같은 시그널을 재사용하는 경우에만 발생하며 테스트가 없어 확인되지 않았다.",
+      "evidence": [
+        "src/workflow-stop.ts:5",
+        "src/workflow-stop.ts:14-21"
+      ]
+    },
+    {
+      "id": "i-no-tests",
+      "area": "verification",
+      "severity": "high",
+      "blocker": true,
+      "description": "*.test.*·*.spec.* 파일과 test 스크립트가 없다. package.json의 검증은 tsc --noEmit뿐이다. SPEC Q1은 S/C/T 항목마다 단위 테스트를 요구하므로 변경된 동작의 회귀 검증이 없다. store.js와 types.js가 저장소에 없어 typecheck 통과와 디스크 경로 동작도 확인되지 않았다.",
+      "evidence": [
+        "SPEC.md (Q1)",
+        "package.json (scripts.typecheck)"
+      ]
+    },
+    {
+      "id": "i-dispose-inflight",
+      "area": "lifecycle",
+      "severity": "low",
+      "blocker": false,
+      "description": "dispose()는 interval만 해제한다. 진행 중인 check()가 dispose 이후에 controller.abort를 호출할 수 있다. 중지 의도 읽기 실패는 undefined로 삼켜지며 SPEC S4와 일치한다.",
+      "evidence": [
+        "src/workflow-stop.ts:74-78",
+        "src/workflow-stop.ts:83-86"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "note": "654f639의 실제 diff는 읽지 못했다. 변경 내용은 커밋 메시지와 현재 작업 트리(HEAD와 동일, clean)로 추론했다. 이 scout도 diff를 직접 확인하지 못했다."
+    },
+    {
+      "note": "store.js/types.js가 없어 readWorkflowStopIntent, workflowRunPath, WorkflowRunRecord의 디스크 상태 형식은 검증하지 못했다."
+    },
+    {
+      "note": "launchRetryAttempts를 읽는 외부 소비자의 존재와 수는 알 수 없다."
+    },
+    {
+      "note": "summarizeWorkflowTerminal과 isWorkflowStopRequestedError는 저장소 안에서 호출되지 않으므로 실제 호출 경로는 외부에 있다고 가정했다."
+    }
+  ]
+}

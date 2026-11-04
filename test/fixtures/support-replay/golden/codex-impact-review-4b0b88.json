@@ -1,0 +1,2902 @@
+{
+ "impact-analysis.final.main": {
+  "schema": "impact-review-render-v1",
+  "digest": "sha256:96251a3997bbaa02608910d29ddf2d9dea86a30da51d2b863199aea0aed417c2",
+  "status": "passed",
+  "blockers": [
+   "Known canonical impact risk floor is high.",
+   "Impact review does not attest historical source-file bytes; content hashes cover host-supplied control values only, and citations are unverified unless an authoritative byte snapshot is supplied."
+  ],
+  "completionSummaryMarkdown": "## Core conclusion\n\nVerdict: **BLOCKED**; risk: **high**. 공개 계약 변경, 취소 상태 의미 변경, polling 변경이 문서·검증·릴리스 근거 없이 포함되어 배포할 수 없다.\n\n## Key actions\n\n- Update SPEC.md and either preserve launchRetryAttempts as a compatibility alias or publish an explicit breaking migration for launchRetries. — id: contract-migration; verification: Add consumer/serialization contract tests covering both fields and confirm downstream metrics/tools.\n- Decide and test whether provider timeout is truly cancellation; otherwise remove timeout from cancellation markers. — id: cancellation-correctness; verification: Unit tests prove timeout failures remain failures while cancelled/aborted values remain cancellations.\n- Validate the 200ms default and 1ms minimum under realistic filesystem load, including overlapping async reads and stop-detection latency. — id: polling-validation; verification: Run focused boundary, latency, and load tests; document the operational limits.\n- Provide a reproducible clean-environment validation path. — id: baseline-validation; verification: Run npm run, npm run typecheck, and npm test; add the missing test script/tests or document the CI-equivalent commands and required TypeScript dependency.\n- 18 additional action row(s) are covered in the full report.\n\n## Evidence level\n\n- Deterministic joins recorded 4 contract issue(s), 4 regression risk(s), and 5 required-before-ship row(s).\n- Contract consistency, regression risk, ship readiness, and synthesis controls passed source-completeness checks.\n\n## Important limitations\n\n- Known canonical impact risk floor is high.\n- Impact review does not attest historical source-file bytes; content hashes cover host-supplied control values only, and citations are unverified unless an authoritative byte snapshot is supplied.\n- timeout을 공개적으로 취소 상태로 분류하는 것이 제품 의도인가? — reason: 의도에 따라 구현과 상태·재시도 계약이 달라진다.\n- launchRetryAttempts 변경을 breaking change로 허용할 것인가? — reason: 외부 소비자와 배포 버전 정책이 확인되지 않았다.\n- 이 저장소는 패키지 배포 대상인가, 내부 source-only 배포인가? — reason: private 저장소에서 artifact·exports·릴리스 검증 기준이 달라진다.\n- 654f639 changes are evaluated as a public contract because terminal summaries and SPEC.md are consumed externally.\n- The repository is an intentionally incomplete excerpt; absent store.js, types.js, tests, and release pipeline limit downstream verification.\n- The pre-existing message-based stop-error classification is outside 654f639 and is not counted as a newly introduced regression.",
+  "markdown": "# Impact review report\n\n## Executive summary\n\n### Core conclusion\n\nVerdict: **BLOCKED**; risk: **high**. 공개 계약 변경, 취소 상태 의미 변경, polling 변경이 문서·검증·릴리스 근거 없이 포함되어 배포할 수 없다.\n\n### Key actions\n\n- Update SPEC.md and either preserve launchRetryAttempts as a compatibility alias or publish an explicit breaking migration for launchRetries. — id: contract-migration; verification: Add consumer/serialization contract tests covering both fields and confirm downstream metrics/tools.\n- Decide and test whether provider timeout is truly cancellation; otherwise remove timeout from cancellation markers. — id: cancellation-correctness; verification: Unit tests prove timeout failures remain failures while cancelled/aborted values remain cancellations.\n- Validate the 200ms default and 1ms minimum under realistic filesystem load, including overlapping async reads and stop-detection latency. — id: polling-validation; verification: Run focused boundary, latency, and load tests; document the operational limits.\n- Provide a reproducible clean-environment validation path. — id: baseline-validation; verification: Run npm run, npm run typecheck, and npm test; add the missing test script/tests or document the CI-equivalent commands and required TypeScript dependency.\n- 18 additional action row(s) are covered in the full report.\n\n### Evidence level\n\n- Deterministic joins recorded 4 contract issue(s), 4 regression risk(s), and 5 required-before-ship row(s).\n- Contract consistency, regression risk, ship readiness, and synthesis controls passed source-completeness checks.\n\n### Important limitations\n\n- Known canonical impact risk floor is high.\n- Impact review does not attest historical source-file bytes; content hashes cover host-supplied control values only, and citations are unverified unless an authoritative byte snapshot is supplied.\n- timeout을 공개적으로 취소 상태로 분류하는 것이 제품 의도인가? — reason: 의도에 따라 구현과 상태·재시도 계약이 달라진다.\n- launchRetryAttempts 변경을 breaking change로 허용할 것인가? — reason: 외부 소비자와 배포 버전 정책이 확인되지 않았다.\n- 이 저장소는 패키지 배포 대상인가, 내부 source-only 배포인가? — reason: private 저장소에서 artifact·exports·릴리스 검증 기준이 달라진다.\n- 654f639 changes are evaluated as a public contract because terminal summaries and SPEC.md are consumed externally.\n- The repository is an intentionally incomplete excerpt; absent store.js, types.js, tests, and release pipeline limit downstream verification.\n- The pre-existing message-based stop-error classification is outside 654f639 and is not counted as a newly introduced regression.\n\n## Impact conclusion\n\n- Effective verdict: **BLOCKED**\n- Effective risk level: **high**\n- Synthesis verdict/risk: **BLOCKED** / **high**\n- Ship readiness: **blocked**\n- Contract consistency: **fail**\n\n## Findings and actions\n\n### Blocking issues\n\n- launchRetryAttempts가 launchRetries로 변경되어 기존 소비자와 SPEC.md 계약이 깨진다. — action: 호환 별칭을 유지하거나 명시적 breaking migration을 제공하고 소비자·직렬화 계약 테스트를 추가한다.\n- cancelled와 timeout을 모두 취소로 분류해 실패·재시도·진단 상태가 왜곡될 수 있다. — action: timeout을 취소로 볼지 결정하고, 취소·timeout·실패·재시도 경계를 검증하는 테스트를 추가한다.\n- pollMs 기본값과 최솟값 변경의 지연·I/O 부하 영향이 검증되지 않았다. — action: 경계값, 중지 감지 지연, 중첩 비동기 읽기 및 실제 파일시스템 부하를 측정하고 운영 한계를 문서화한다.\n- 재현 가능한 typecheck·test·build 및 배포 산출물 검증 경로가 없다. — action: 필요 의존성을 포함한 clean-environment 검증과 배포 artifact·버전·export 절차를 정의한다.\n\n### Non-blocking issues\n\n- 릴리스 노트와 관측 지표가 없어 변경 영향 추적성이 낮다. — action: polling 부하, 중지 지연, timeout·취소·재시도 지표와 migration 내용을 기록한다.\n- 기존 stop-error 문서 불일치는 이번 커밋의 직접 변경은 아니지만 별도 정리가 필요하다. — action: 이번 배포 차단 이슈와 분리해 후속 계약 정합성 작업으로 처리한다.\n\n### Recommended next actions\n\n- 공개 필드 호환성과 timeout 취소 의미를 먼저 확정하고 계약·상태 테스트를 추가한다. — priority: P0\n- polling 성능 및 경계 동작을 검증한다. — priority: P0\n- clean checkout에서 typecheck·test·build와 배포 산출물을 재현한다. — priority: P1\n- SPEC.md와 릴리스 문서를 구현 계약에 맞게 갱신한다. — priority: P1\n\n### Validation to run\n\n- 소비자·직렬화 계약 테스트 — expected: launchRetryAttempts 호환 또는 의도한 breaking migration이 검증된다.\n- 취소·timeout 상태 테스트 — expected: timeout 실패가 의도치 않게 취소·재시도로 바뀌지 않는다.\n- polling 부하·지연 테스트 — expected: 200ms 기본값과 1ms 최솟값의 운영 영향이 수용 가능하다.\n- clean-environment npm run, typecheck, test, build 검증 — expected: 필요한 명령과 의존성이 재현 가능하고 artifact가 생성된다.\n\n### Needs human review\n\n- timeout을 공개적으로 취소 상태로 분류하는 것이 제품 의도인가? — reason: 의도에 따라 구현과 상태·재시도 계약이 달라진다.\n- launchRetryAttempts 변경을 breaking change로 허용할 것인가? — reason: 외부 소비자와 배포 버전 정책이 확인되지 않았다.\n- 이 저장소는 패키지 배포 대상인가, 내부 source-only 배포인가? — reason: private 저장소에서 artifact·exports·릴리스 검증 기준이 달라진다.\n\n### Confirmed safe areas\n\n- 변경 범위 — finding: 직접 변경은 세 파일의 소규모 변경으로 제한되어 있다.\n- 영속 데이터 — finding: 영속 저장 형식 자체의 직접 변경은 확인되지 않았다.\n- 재시도 집계 — finding: 변경된 retry 필드도 기존과 동일하게 작업별 재시도 횟수를 합산한다.\n\n## Contract consistency\n\n### Contract issues\n\n- API·데이터·문서 — impact: 기존 소비자의 값 누락 또는 런타임 오류가 발생할 수 있으며 호환 별칭·마이그레이션이 없다.; mismatch: 구현은 launchRetries를 발행하지만 SPEC.md와 기존 소비자는 launchRetryAttempts를 기대한다.; severity: high\n- 상태 의미·검증 — impact: 실패·재시도·진단 흐름이 달라질 수 있고 변경 계약을 검증할 테스트가 없다.; mismatch: 구현은 cancelled와 timeout을 취소로 분류하지만 SPEC.md는 세 가지 기존 표식만 허용한다.; severity: high\n- 운영·문서 — impact: 중지 감지가 늦어지고 1~9ms 설정은 파일/I/O 부하를 증가시킬 수 있다.; mismatch: pollMs 구현은 기본 200ms, 최소 1ms인데 SPEC.md는 기본 50ms, 최소 10ms로 남아 있다.; severity: medium\n- 릴리스 — impact: 배포 산출물과 변경 계약의 검증 가능성을 확인할 수 없다.; mismatch: package.json은 private이며 typecheck만 제공하고 테스트·빌드·exports·배포 메타데이터가 없다.; severity: high\n\n### Confirmed consistencies\n\n- 변경 범위 — finding: 커밋은 workflow-cancellation.ts, workflow-stop.ts, workflow-terminal.ts의 세 파일만 수정했으며 영속 저장 형식 자체의 직접 변경은 확인되지 않는다.\n- 재시도 집계 — finding: launchRetries와 outputRetryAttempts 모두 기존처럼 모든 작업의 재시도 횟수를 합산한다.\n\n## Regression risk\n\nCanonical risk level: **high**\n\n### Regression risks\n\n- launchRetryAttempts가 launchRetries로 변경되어 기존 소비자의 데이터 손실 또는 런타임 오류가 발생할 수 있음\n- timeout/cancelled 결과가 취소로 분류되어 실패·재시도·진단 상태가 왜곡될 수 있음\n- polling 기본값 및 최소값 변경에 따른 중지 지연과 과도한 I/O 가능성\n- 계약·경계·성능·문서 검증 근거가 없음\n\n### Risk reducers\n\n- 하위 호환 필드 또는 버전 전환·마이그레이션 제공\n- timeout과 cancelled의 상태 분류 및 재시도 동작에 대한 테스트 추가\n- pollMs 경계·중첩 I/O 성능 검증\n- SPEC.md와 구현 계약 정합성 수정 후 typecheck 및 전체 테스트 실행\n\n## Ship readiness\n\n### Required before ship\n\n- Update SPEC.md and either preserve launchRetryAttempts as a compatibility alias or publish an explicit breaking migration for launchRetries. — id: contract-migration; verification: Add consumer/serialization contract tests covering both fields and confirm downstream metrics/tools.\n- Decide and test whether provider timeout is truly cancellation; otherwise remove timeout from cancellation markers. — id: cancellation-correctness; verification: Unit tests prove timeout failures remain failures while cancelled/aborted values remain cancellations.\n- Validate the 200ms default and 1ms minimum under realistic filesystem load, including overlapping async reads and stop-detection latency. — id: polling-validation; verification: Run focused boundary, latency, and load tests; document the operational limits.\n- Provide a reproducible clean-environment validation path. — id: baseline-validation; verification: Run npm run, npm run typecheck, and npm test; add the missing test script/tests or document the CI-equivalent commands and required TypeScript dependency.\n- Define the deployment artifact and release procedure for this private repository/excerpt. — id: release-contract; verification: Confirm build/export/version metadata and produce an artifact from a clean checkout, or explicitly classify this as internal source-only deployment.\n\n### Nice to have\n\n- Add release notes describing poll latency/load tradeoffs and the launchRetries migration. — id: release-notes\n- Add metrics distinguishing timeout, cancellation, retry counts, and stop-detection latency. — id: observability\n- Separately reconcile the pre-existing isWorkflowStopRequestedError behavior with SPEC.md S6. — id: preexisting-spec-drift\n\n### Readiness assumptions\n\n- 654f639 changes are evaluated as a public contract because terminal summaries and SPEC.md are consumed externally.\n- The repository is an intentionally incomplete excerpt; absent store.js, types.js, tests, and release pipeline limit downstream verification.\n- The pre-existing message-based stop-error classification is outside 654f639 and is not counted as a newly introduced regression.\n\n## Evidence and limitations\n\n- The three joined controls are authoritative for contract state, regression risk, and ship readiness; synthesis cannot lower their verdict or risk floor.\n- Known canonical impact risk floor is high.\n- Impact review does not attest historical source-file bytes; content hashes cover host-supplied control values only, and citations are unverified unless an authoritative byte snapshot is supplied.\n\n## Related artifacts\n\n- [Machine-readable renderer control](control.json)\n- [Structured source references](refs.json)\n- [Canonical impact source ledger](source-ledger.json)",
+  "verdict": "BLOCKED",
+  "riskLevel": "high",
+  "riskUncertainty": {
+   "present": false,
+   "knownFloor": "high",
+   "observationIds": []
+  },
+  "issueSummary": {
+   "blockingIssues": 4,
+   "nonBlockingIssues": 2,
+   "recommendedNextActions": 4,
+   "validationToRun": 4,
+   "needsHuman": 3,
+   "confirmedSafeAreas": 3,
+   "contractIssues": 4,
+   "confirmedConsistencies": 2,
+   "regressionRisks": 4,
+   "riskReducers": 4,
+   "requiredBeforeShip": 5,
+   "niceToHave": 3,
+   "readinessAssumptions": 3
+  },
+  "sourceCoverage": {
+   "available": true,
+   "expected": [
+    {
+     "stageId": "change-scope",
+     "source": "impact-analysis.change-scope"
+    },
+    {
+     "stageId": "implementation-map",
+     "source": "impact-analysis.implementation-map"
+    },
+    {
+     "stageId": "validation-map",
+     "source": "impact-analysis.validation-map"
+    },
+    {
+     "stageId": "api-contract-impact",
+     "source": "impact-analysis.api-contract-impact"
+    },
+    {
+     "stageId": "state-data-impact",
+     "source": "impact-analysis.state-data-impact"
+    },
+    {
+     "stageId": "validation-impact",
+     "source": "impact-analysis.validation-impact"
+    },
+    {
+     "stageId": "docs-release-impact",
+     "source": "impact-analysis.docs-release-impact"
+    },
+    {
+     "stageId": "security-performance-impact",
+     "source": "impact-analysis.security-performance-impact"
+    },
+    {
+     "stageId": "contract-consistency",
+     "source": "impact-analysis.contract-consistency"
+    },
+    {
+     "stageId": "regression-risk",
+     "source": "impact-analysis.regression-risk"
+    },
+    {
+     "stageId": "ship-readiness",
+     "source": "impact-analysis.ship-readiness"
+    },
+    {
+     "stageId": "impact-synthesis",
+     "source": "impact-analysis.impact-synthesis"
+    }
+   ],
+   "assignments": [
+    {
+     "sourceId": "impact-analysis.change-scope",
+     "stageId": "change-scope",
+     "statusSpecId": "impact-analysis.change-scope.main",
+     "statusSource": "impact-analysis.change-scope",
+     "taskId": "task-1"
+    },
+    {
+     "sourceId": "impact-analysis.implementation-map",
+     "stageId": "implementation-map",
+     "statusSpecId": "impact-analysis.implementation-map.main",
+     "statusSource": "impact-analysis.implementation-map",
+     "taskId": "task-2"
+    },
+    {
+     "sourceId": "impact-analysis.validation-map",
+     "stageId": "validation-map",
+     "statusSpecId": "impact-analysis.validation-map.main",
+     "statusSource": "impact-analysis.validation-map",
+     "taskId": "task-3"
+    },
+    {
+     "sourceId": "impact-analysis.api-contract-impact",
+     "stageId": "api-contract-impact",
+     "statusSpecId": "impact-analysis.api-contract-impact.main",
+     "statusSource": "impact-analysis.api-contract-impact",
+     "taskId": "task-4"
+    },
+    {
+     "sourceId": "impact-analysis.state-data-impact",
+     "stageId": "state-data-impact",
+     "statusSpecId": "impact-analysis.state-data-impact.main",
+     "statusSource": "impact-analysis.state-data-impact",
+     "taskId": "task-5"
+    },
+    {
+     "sourceId": "impact-analysis.validation-impact",
+     "stageId": "validation-impact",
+     "statusSpecId": "impact-analysis.validation-impact.main",
+     "statusSource": "impact-analysis.validation-impact",
+     "taskId": "task-6"
+    },
+    {
+     "sourceId": "impact-analysis.docs-release-impact",
+     "stageId": "docs-release-impact",
+     "statusSpecId": "impact-analysis.docs-release-impact.main",
+     "statusSource": "impact-analysis.docs-release-impact",
+     "taskId": "task-7"
+    },
+    {
+     "sourceId": "impact-analysis.security-performance-impact",
+     "stageId": "security-performance-impact",
+     "statusSpecId": "impact-analysis.security-performance-impact.main",
+     "statusSource": "impact-analysis.security-performance-impact",
+     "taskId": "task-8"
+    },
+    {
+     "sourceId": "impact-analysis.contract-consistency",
+     "stageId": "contract-consistency",
+     "statusSpecId": "impact-analysis.contract-consistency.main",
+     "statusSource": "impact-analysis.contract-consistency",
+     "taskId": "task-9"
+    },
+    {
+     "sourceId": "impact-analysis.regression-risk",
+     "stageId": "regression-risk",
+     "statusSpecId": "impact-analysis.regression-risk.main",
+     "statusSource": "impact-analysis.regression-risk",
+     "taskId": "task-10"
+    },
+    {
+     "sourceId": "impact-analysis.ship-readiness",
+     "stageId": "ship-readiness",
+     "statusSpecId": "impact-analysis.ship-readiness.main",
+     "statusSource": "impact-analysis.ship-readiness",
+     "taskId": "task-11"
+    },
+    {
+     "sourceId": "impact-analysis.impact-synthesis",
+     "stageId": "impact-synthesis",
+     "statusSpecId": "impact-analysis.impact-synthesis.main",
+     "statusSource": "impact-analysis.impact-synthesis",
+     "taskId": "task-12"
+    }
+   ],
+   "missing": [],
+   "duplicate": [],
+   "wrongStage": [],
+   "orphan": [],
+   "duplicateTaskIds": [],
+   "statusCount": 12,
+   "expectedCount": 12,
+   "bijection": true
+  },
+  "sourceArtifacts": [
+   "impact-synthesis.control.json",
+   "contract-consistency.control.json",
+   "regression-risk.control.json",
+   "ship-readiness.control.json"
+  ],
+  "impactLedger": [
+   {
+    "id": "impact-analysis.change-scope:changeInputs:payload-2a95ce0f40441a51e6c210633287d38ff28618ee11212986bb59db6a5e2c367c",
+    "text": "{\"commit\":\"654f639606913ae2ea7b2465cf1bdcae71c03ff2\",\"range\":\"HEAD~1..HEAD\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original changeInputs row.",
+    "origin": "change-scope",
+    "sourceIds": [
+     "impact-analysis.change-scope"
+    ],
+    "provenance": {
+     "source": "impact-analysis.change-scope",
+     "stage": "change-scope",
+     "taskId": "task-1",
+     "field": "changeInputs",
+     "index": 0
+    },
+    "contentHash": "sha256:2a95ce0f40441a51e6c210633287d38ff28618ee11212986bb59db6a5e2c367c"
+   },
+   {
+    "id": "impact-analysis.change-scope:changeInputs:payload-a98460de8ac19c9bc68da3895ffcad0e468d81e9fa5d0a335ce1731baf9bb8d5",
+    "text": "{\"deletions\":4,\"filesChanged\":3,\"insertions\":4}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original changeInputs row.",
+    "origin": "change-scope",
+    "sourceIds": [
+     "impact-analysis.change-scope"
+    ],
+    "provenance": {
+     "source": "impact-analysis.change-scope",
+     "stage": "change-scope",
+     "taskId": "task-1",
+     "field": "changeInputs",
+     "index": 1
+    },
+    "contentHash": "sha256:a98460de8ac19c9bc68da3895ffcad0e468d81e9fa5d0a335ce1731baf9bb8d5"
+   },
+   {
+    "id": "impact-analysis.change-scope:affectedFiles:payload-81a100355a28e3d5e5615f885005e75e0dd3b9caff629eba57dd0d3ab27fec72",
+    "text": "{\"change\":\"error/reason에 cancelled와 timeout을 취소 마커로 추가\",\"lines\":\"19-21\",\"path\":\"src/workflow-cancellation.ts\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original affectedFiles row.",
+    "origin": "change-scope",
+    "sourceIds": [
+     "impact-analysis.change-scope"
+    ],
+    "provenance": {
+     "source": "impact-analysis.change-scope",
+     "stage": "change-scope",
+     "taskId": "task-1",
+     "field": "affectedFiles",
+     "index": 0
+    },
+    "contentHash": "sha256:81a100355a28e3d5e5615f885005e75e0dd3b9caff629eba57dd0d3ab27fec72"
+   },
+   {
+    "id": "impact-analysis.change-scope:affectedFiles:payload-08b2c3ab6f8457e9c573e342e620166413c583450640b60816db8fca783aa724",
+    "text": "{\"change\":\"pollMs 기본값을 50ms에서 200ms로, 최솟값을 10ms에서 1ms로 변경\",\"lines\":\"61-67\",\"path\":\"src/workflow-stop.ts\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original affectedFiles row.",
+    "origin": "change-scope",
+    "sourceIds": [
+     "impact-analysis.change-scope"
+    ],
+    "provenance": {
+     "source": "impact-analysis.change-scope",
+     "stage": "change-scope",
+     "taskId": "task-1",
+     "field": "affectedFiles",
+     "index": 1
+    },
+    "contentHash": "sha256:08b2c3ab6f8457e9c573e342e620166413c583450640b60816db8fca783aa724"
+   },
+   {
+    "id": "impact-analysis.change-scope:affectedFiles:payload-2d1f1ae250b005a079121a30c361d63e0df6dea55f4dc2d495d2f7093608e0ac",
+    "text": "{\"change\":\"launchRetryAttempts 공개 필드와 반환 키를 launchRetries로 변경\",\"lines\":\"27-35,103-110\",\"path\":\"src/workflow-terminal.ts\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original affectedFiles row.",
+    "origin": "change-scope",
+    "sourceIds": [
+     "impact-analysis.change-scope"
+    ],
+    "provenance": {
+     "source": "impact-analysis.change-scope",
+     "stage": "change-scope",
+     "taskId": "task-1",
+     "field": "affectedFiles",
+     "index": 2
+    },
+    "contentHash": "sha256:2d1f1ae250b005a079121a30c361d63e0df6dea55f4dc2d495d2f7093608e0ac"
+   },
+   {
+    "id": "impact-analysis.change-scope:affectedFiles:payload-a12ef5c6b8fbc17fc8f35acbe5cf2019154d2c386fa07ff62937e4de3197862c",
+    "text": "{\"change\":\"변경되지 않았으나 기존 S3, C1, T3 계약과 현재 구현이 불일치\",\"path\":\"SPEC.md\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original affectedFiles row.",
+    "origin": "change-scope",
+    "sourceIds": [
+     "impact-analysis.change-scope"
+    ],
+    "provenance": {
+     "source": "impact-analysis.change-scope",
+     "stage": "change-scope",
+     "taskId": "task-1",
+     "field": "affectedFiles",
+     "index": 3
+    },
+    "contentHash": "sha256:a12ef5c6b8fbc17fc8f35acbe5cf2019154d2c386fa07ff62937e4de3197862c"
+   },
+   {
+    "id": "impact-analysis.change-scope:affectedComponents:payload-359cb837ea34d5b7ec29998ee49e9281605989aa1cd241a6207bc7c14019cf02",
+    "text": "{\"component\":\"provider cancellation classification\",\"impact\":\"timeout 또는 cancelled 오류가 실패 대신 취소로 분류될 수 있음\",\"risk\":\"중간\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original affectedComponents row.",
+    "origin": "change-scope",
+    "sourceIds": [
+     "impact-analysis.change-scope"
+    ],
+    "provenance": {
+     "source": "impact-analysis.change-scope",
+     "stage": "change-scope",
+     "taskId": "task-1",
+     "field": "affectedComponents",
+     "index": 0
+    },
+    "contentHash": "sha256:359cb837ea34d5b7ec29998ee49e9281605989aa1cd241a6207bc7c14019cf02"
+   },
+   {
+    "id": "impact-analysis.change-scope:affectedComponents:payload-921e96bc2e4dced158cea829beaf070e53e30f99006b04b6a6ca0e795f411562",
+    "text": "{\"component\":\"workflow stop detection\",\"impact\":\"기본 중지 감지 지연이 증가하고, 1-9ms 사용자 설정은 polling/I/O 부하를 증가시킬 수 있음\",\"risk\":\"중간\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original affectedComponents row.",
+    "origin": "change-scope",
+    "sourceIds": [
+     "impact-analysis.change-scope"
+    ],
+    "provenance": {
+     "source": "impact-analysis.change-scope",
+     "stage": "change-scope",
+     "taskId": "task-1",
+     "field": "affectedComponents",
+     "index": 1
+    },
+    "contentHash": "sha256:921e96bc2e4dced158cea829beaf070e53e30f99006b04b6a6ca0e795f411562"
+   },
+   {
+    "id": "impact-analysis.change-scope:affectedComponents:payload-346888f07a133065cb5d34881abacfc775a515951a5463f139ea0977b2d2320c",
+    "text": "{\"component\":\"terminal summary API\",\"impact\":\"기존 launchRetryAttempts 소비자가 필드를 잃음\",\"risk\":\"높음\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original affectedComponents row.",
+    "origin": "change-scope",
+    "sourceIds": [
+     "impact-analysis.change-scope"
+    ],
+    "provenance": {
+     "source": "impact-analysis.change-scope",
+     "stage": "change-scope",
+     "taskId": "task-1",
+     "field": "affectedComponents",
+     "index": 2
+    },
+    "contentHash": "sha256:346888f07a133065cb5d34881abacfc775a515951a5463f139ea0977b2d2320c"
+   },
+   {
+    "id": "impact-analysis.change-scope:publicSurfaces:payload-a8306a6b43c78b2c9072fe4629d496602480cb1f422ec4086e387883b9cf6cbc",
+    "text": "{\"evidence\":\"src/workflow-cancellation.ts:19-21\",\"surface\":\"isWorkflowReturnedCancellation\",\"type\":\"behavioral contract\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original publicSurfaces row.",
+    "origin": "change-scope",
+    "sourceIds": [
+     "impact-analysis.change-scope"
+    ],
+    "provenance": {
+     "source": "impact-analysis.change-scope",
+     "stage": "change-scope",
+     "taskId": "task-1",
+     "field": "publicSurfaces",
+     "index": 0
+    },
+    "contentHash": "sha256:a8306a6b43c78b2c9072fe4629d496602480cb1f422ec4086e387883b9cf6cbc"
+   },
+   {
+    "id": "impact-analysis.change-scope:publicSurfaces:payload-410b190f12b6d0ea9e55827c6ff850eacbe8fb94a08f427a2278a1fa1d15deb5",
+    "text": "{\"evidence\":\"src/workflow-stop.ts:64-67\",\"surface\":\"createWorkflowStopSignal options.pollMs\",\"type\":\"timing/performance contract\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original publicSurfaces row.",
+    "origin": "change-scope",
+    "sourceIds": [
+     "impact-analysis.change-scope"
+    ],
+    "provenance": {
+     "source": "impact-analysis.change-scope",
+     "stage": "change-scope",
+     "taskId": "task-1",
+     "field": "publicSurfaces",
+     "index": 1
+    },
+    "contentHash": "sha256:410b190f12b6d0ea9e55827c6ff850eacbe8fb94a08f427a2278a1fa1d15deb5"
+   },
+   {
+    "id": "impact-analysis.change-scope:publicSurfaces:payload-8c6c48cd3933badb6cbd72b2730ed3c8b0a1396096fecd0625e2f1a5eec9b213",
+    "text": "{\"evidence\":\"SPEC.md T3; src/workflow-terminal.ts:27-35\",\"surface\":\"WorkflowTerminalSummary.launchRetryAttempts\",\"type\":\"TypeScript/object field contract\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original publicSurfaces row.",
+    "origin": "change-scope",
+    "sourceIds": [
+     "impact-analysis.change-scope"
+    ],
+    "provenance": {
+     "source": "impact-analysis.change-scope",
+     "stage": "change-scope",
+     "taskId": "task-1",
+     "field": "publicSurfaces",
+     "index": 2
+    },
+    "contentHash": "sha256:8c6c48cd3933badb6cbd72b2730ed3c8b0a1396096fecd0625e2f1a5eec9b213"
+   },
+   {
+    "id": "impact-analysis.change-scope:publicSurfaces:payload-95dabcb4f8e59db5291ca71ec3dd07bb1af1a509a4dd89efa541fed7cf7b19da",
+    "text": "{\"evidence\":\"src/workflow-terminal.ts:98-111\",\"surface\":\"terminal summary returned object\",\"type\":\"runtime data shape\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original publicSurfaces row.",
+    "origin": "change-scope",
+    "sourceIds": [
+     "impact-analysis.change-scope"
+    ],
+    "provenance": {
+     "source": "impact-analysis.change-scope",
+     "stage": "change-scope",
+     "taskId": "task-1",
+     "field": "publicSurfaces",
+     "index": 3
+    },
+    "contentHash": "sha256:95dabcb4f8e59db5291ca71ec3dd07bb1af1a509a4dd89efa541fed7cf7b19da"
+   },
+   {
+    "id": "impact-analysis.change-scope:assumptions:payload-378c31bcb587c2cdf09b7d9a995e352b9ef9cc1b26f45906dbb31cbd66241140",
+    "text": "{\"evidence\":\"SPEC.md:4\",\"item\":\"저장소는 의도적으로 축약된 샘플이며 store.js, types.js와 외부 소비자는 포함되지 않음\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "change-scope",
+    "sourceIds": [
+     "impact-analysis.change-scope"
+    ],
+    "provenance": {
+     "source": "impact-analysis.change-scope",
+     "stage": "change-scope",
+     "taskId": "task-1",
+     "field": "assumptions",
+     "index": 0
+    },
+    "contentHash": "sha256:378c31bcb587c2cdf09b7d9a995e352b9ef9cc1b26f45906dbb31cbd66241140"
+   },
+   {
+    "id": "impact-analysis.change-scope:assumptions:payload-5373231e632f16d1f7810a3f961353b300e550b16df8f31057ab66b99f319283",
+    "text": "{\"item\":\"외부 도구가 launchRetryAttempts를 읽는다는 SPEC.md T3를 공개 계약으로 취급함\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "change-scope",
+    "sourceIds": [
+     "impact-analysis.change-scope"
+    ],
+    "provenance": {
+     "source": "impact-analysis.change-scope",
+     "stage": "change-scope",
+     "taskId": "task-1",
+     "field": "assumptions",
+     "index": 1
+    },
+    "contentHash": "sha256:5373231e632f16d1f7810a3f961353b300e550b16df8f31057ab66b99f319283"
+   },
+   {
+    "id": "impact-analysis.change-scope:assumptions:payload-12740fd9566bde014a1846f548df5ec71b74b0566709005981885ec08e4dafa5",
+    "text": "{\"item\":\"검증은 실행 환경에 의존하며 npm run typecheck는 tsc 미설치로 실행되지 않음\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "change-scope",
+    "sourceIds": [
+     "impact-analysis.change-scope"
+    ],
+    "provenance": {
+     "source": "impact-analysis.change-scope",
+     "stage": "change-scope",
+     "taskId": "task-1",
+     "field": "assumptions",
+     "index": 2
+    },
+    "contentHash": "sha256:12740fd9566bde014a1846f548df5ec71b74b0566709005981885ec08e4dafa5"
+   },
+   {
+    "id": "impact-analysis.change-scope:assumptions:payload-76c69965d92d5003ccb7b9c1bd3451477037882088e591d1f609319045fdd557",
+    "text": "{\"item\":\"저장소에 단위 테스트 파일이 없어 Q1 요구사항을 확인할 수 없음\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "change-scope",
+    "sourceIds": [
+     "impact-analysis.change-scope"
+    ],
+    "provenance": {
+     "source": "impact-analysis.change-scope",
+     "stage": "change-scope",
+     "taskId": "task-1",
+     "field": "assumptions",
+     "index": 3
+    },
+    "contentHash": "sha256:76c69965d92d5003ccb7b9c1bd3451477037882088e591d1f609319045fdd557"
+   },
+   {
+    "id": "impact-analysis.change-scope:outOfScope:payload-969ff56bdebe05202df1ffe0d46b09b9f1f817d6c09f599757a64dc4fd02a835",
+    "text": "{\"item\":\"store.js/types.js 내부 구현 및 실제 provider 호출자\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original outOfScope row.",
+    "origin": "change-scope",
+    "sourceIds": [
+     "impact-analysis.change-scope"
+    ],
+    "provenance": {
+     "source": "impact-analysis.change-scope",
+     "stage": "change-scope",
+     "taskId": "task-1",
+     "field": "outOfScope",
+     "index": 0
+    },
+    "contentHash": "sha256:969ff56bdebe05202df1ffe0d46b09b9f1f817d6c09f599757a64dc4fd02a835"
+   },
+   {
+    "id": "impact-analysis.change-scope:outOfScope:payload-e338c05b4efb35d5bffa114507c9c70f93a43b3532cd9bca1a2970d6e4df91eb",
+    "text": "{\"item\":\"외부 소비자·배포 파이프라인의 호환성 검증\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original outOfScope row.",
+    "origin": "change-scope",
+    "sourceIds": [
+     "impact-analysis.change-scope"
+    ],
+    "provenance": {
+     "source": "impact-analysis.change-scope",
+     "stage": "change-scope",
+     "taskId": "task-1",
+     "field": "outOfScope",
+     "index": 1
+    },
+    "contentHash": "sha256:e338c05b4efb35d5bffa114507c9c70f93a43b3532cd9bca1a2970d6e4df91eb"
+   },
+   {
+    "id": "impact-analysis.change-scope:outOfScope:payload-ba3cb0dd3108e0d4961d847b482dc77675957b5169a1b981e10359cffdc4ab7f",
+    "text": "{\"item\":\"커밋에 포함되지 않은 기존 stop/cancel 동작\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original outOfScope row.",
+    "origin": "change-scope",
+    "sourceIds": [
+     "impact-analysis.change-scope"
+    ],
+    "provenance": {
+     "source": "impact-analysis.change-scope",
+     "stage": "change-scope",
+     "taskId": "task-1",
+     "field": "outOfScope",
+     "index": 2
+    },
+    "contentHash": "sha256:ba3cb0dd3108e0d4961d847b482dc77675957b5169a1b981e10359cffdc4ab7f"
+   },
+   {
+    "id": "impact-analysis.implementation-map:components:cancellation-classifier",
+    "text": "{\"exports\":[\"isWorkflowAbortError\",\"isWorkflowReturnedCancellation\"],\"files\":[\"src/workflow-cancellation.ts:13-33\"],\"id\":\"cancellation-classifier\",\"surface\":\"Provider-returned cancellation classification now accepts error/reason values cancelled and timeout in addition to aborted, AbortError, and ABORT_ERR; recursive content[].text JSON parsing remains active.\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original components row.",
+    "origin": "implementation-map",
+    "sourceIds": [
+     "impact-analysis.implementation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.implementation-map",
+     "stage": "implementation-map",
+     "taskId": "task-2",
+     "field": "components",
+     "index": 0
+    },
+    "contentHash": "sha256:facad8ce04a10e70774a6077617b66a0343c8548055ee46dc37d7ea1a3be84b7"
+   },
+   {
+    "id": "impact-analysis.implementation-map:components:stop-signal-polling",
+    "text": "{\"dependencies\":[\"./store.js:readWorkflowStopIntent\",\"./store.js:workflowRunPath\"],\"exports\":[\"createWorkflowStopSignal\",\"bindWorkflowLaunchSignal\",\"throwIfWorkflowStopRequested\"],\"files\":[\"src/workflow-stop.ts:61-86\"],\"id\":\"stop-signal-polling\",\"surface\":\"createWorkflowStopSignal pollMs default changes from 50ms to 200ms and minimum clamp from 10ms to 1ms; timer polling and immediate check remain the execution path.\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original components row.",
+    "origin": "implementation-map",
+    "sourceIds": [
+     "impact-analysis.implementation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.implementation-map",
+     "stage": "implementation-map",
+     "taskId": "task-2",
+     "field": "components",
+     "index": 1
+    },
+    "contentHash": "sha256:8631b14dd37cce206bca0b6ac33f624d011d627a0f3f2332f145fa5b93ba19e4"
+   },
+   {
+    "id": "impact-analysis.implementation-map:components:terminal-summary-contract",
+    "text": "{\"dependencies\":[\"./store.js:finalStageTasks\",\"./store.js:fromProjectPath\",\"./store.js:isTerminalWorkflowStatus\",\"./store.js:readJson\",\"./store.js:workflowRunDir\",\"./types.js:WorkflowRunRecord\",\"node:path\"],\"exports\":[\"WorkflowTerminalSummary\",\"summarizeWorkflowTerminal\"],\"files\":[\"src/workflow-terminal.ts:27-35\",\"src/workflow-terminal.ts:72-112\"],\"id\":\"terminal-summary-contract\",\"surface\":\"Public summary property launchRetryAttempts is renamed to launchRetries; value still sums task.launchRetry.attempts across all tasks.\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original components row.",
+    "origin": "implementation-map",
+    "sourceIds": [
+     "impact-analysis.implementation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.implementation-map",
+     "stage": "implementation-map",
+     "taskId": "task-2",
+     "field": "components",
+     "index": 2
+    },
+    "contentHash": "sha256:b95fee2d252999b89ee62d48d5e4dfa8550c7cf6848f601151792d17680cd27e"
+   },
+   {
+    "id": "impact-analysis.implementation-map:components:spec-and-package-surface",
+    "text": "{\"files\":[\"SPEC.md:13-14\",\"SPEC.md:25-36\",\"package.json:1-7\"],\"id\":\"spec-and-package-surface\",\"surface\":\"SPEC.md documents the previous poll defaults and previous launchRetryAttempts contract. package.json exposes only npm run typecheck, has no build/test script, no exports field, and is private.\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original components row.",
+    "origin": "implementation-map",
+    "sourceIds": [
+     "impact-analysis.implementation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.implementation-map",
+     "stage": "implementation-map",
+     "taskId": "task-2",
+     "field": "components",
+     "index": 3
+    },
+    "contentHash": "sha256:c34106f1ae1c6a12c23b57d49f1c1c339649496034638937c5b5e86cf9ce0acc"
+   },
+   {
+    "id": "impact-analysis.implementation-map:entryPoints:payload-8a911f130062095a0820a6fc0d1518270d6dab11129a669e4f90bc2282c20cef",
+    "text": "{\"downstream\":\"provider boundary callers outside this excerpt\",\"file\":\"src/workflow-cancellation.ts:13\",\"input\":\"unknown provider return value\",\"kind\":\"function\",\"symbol\":\"isWorkflowReturnedCancellation\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original entryPoints row.",
+    "origin": "implementation-map",
+    "sourceIds": [
+     "impact-analysis.implementation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.implementation-map",
+     "stage": "implementation-map",
+     "taskId": "task-2",
+     "field": "entryPoints",
+     "index": 0
+    },
+    "contentHash": "sha256:8a911f130062095a0820a6fc0d1518270d6dab11129a669e4f90bc2282c20cef"
+   },
+   {
+    "id": "impact-analysis.implementation-map:entryPoints:payload-da9a95bf0c32ece1a9fbe951898a89f6f0bee83830044f38073a07d644051181",
+    "text": "{\"downstream\":\"AbortSignal consumers and filesystem stop-intent polling\",\"file\":\"src/workflow-stop.ts:61\",\"input\":\"cwd, runId, options.pollMs\",\"kind\":\"function\",\"symbol\":\"createWorkflowStopSignal\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original entryPoints row.",
+    "origin": "implementation-map",
+    "sourceIds": [
+     "impact-analysis.implementation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.implementation-map",
+     "stage": "implementation-map",
+     "taskId": "task-2",
+     "field": "entryPoints",
+     "index": 1
+    },
+    "contentHash": "sha256:da9a95bf0c32ece1a9fbe951898a89f6f0bee83830044f38073a07d644051181"
+   },
+   {
+    "id": "impact-analysis.implementation-map:entryPoints:payload-201d9c2d17407cecfba95c862e544e4ff512a9505d71236c0af551c9c1888b14",
+    "text": "{\"downstream\":\"terminal-status and retry-summary consumers\",\"file\":\"src/workflow-terminal.ts:72\",\"input\":\"cwd, WorkflowRunRecord\",\"kind\":\"function\",\"symbol\":\"summarizeWorkflowTerminal\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original entryPoints row.",
+    "origin": "implementation-map",
+    "sourceIds": [
+     "impact-analysis.implementation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.implementation-map",
+     "stage": "implementation-map",
+     "taskId": "task-2",
+     "field": "entryPoints",
+     "index": 2
+    },
+    "contentHash": "sha256:201d9c2d17407cecfba95c862e544e4ff512a9505d71236c0af551c9c1888b14"
+   },
+   {
+    "id": "impact-analysis.implementation-map:entryPoints:payload-7026cdb3d2a11a1e45692ab988805074bb4b81ee2489e2237efba158ce6532c2",
+    "text": "{\"command\":\"npm run typecheck\",\"downstream\":\"TypeScript validation\",\"file\":\"package.json:7\",\"kind\":\"command\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original entryPoints row.",
+    "origin": "implementation-map",
+    "sourceIds": [
+     "impact-analysis.implementation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.implementation-map",
+     "stage": "implementation-map",
+     "taskId": "task-2",
+     "field": "entryPoints",
+     "index": 3
+    },
+    "contentHash": "sha256:7026cdb3d2a11a1e45692ab988805074bb4b81ee2489e2237efba158ce6532c2"
+   },
+   {
+    "id": "impact-analysis.implementation-map:dataFlows:payload-2ae361e39678767282295ac3f6fa01e14fc0cb6fb2328d8cba758ff128996937",
+    "text": "{\"effect\":\"boolean cancellation classification\",\"from\":\"provider adapter result fields error/details.error/reason/details.reason, cancelled/details.cancelled, content[].text\",\"to\":\"isWorkflowReturnedCancellation\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original dataFlows row.",
+    "origin": "implementation-map",
+    "sourceIds": [
+     "impact-analysis.implementation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.implementation-map",
+     "stage": "implementation-map",
+     "taskId": "task-2",
+     "field": "dataFlows",
+     "index": 0
+    },
+    "contentHash": "sha256:2ae361e39678767282295ac3f6fa01e14fc0cb6fb2328d8cba758ff128996937"
+   },
+   {
+    "id": "impact-analysis.implementation-map:dataFlows:payload-024bab6085275f43ac5454f967afa06995653cb74060c63e498ad999ab0bc0b9",
+    "text": "{\"effect\":\"AbortController signal aborted with WorkflowStopRequested error\",\"from\":\"foreground AbortSignal registrations plus readWorkflowStopIntent(cwd,runId)\",\"to\":\"createWorkflowStopSignal\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original dataFlows row.",
+    "origin": "implementation-map",
+    "sourceIds": [
+     "impact-analysis.implementation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.implementation-map",
+     "stage": "implementation-map",
+     "taskId": "task-2",
+     "field": "dataFlows",
+     "index": 1
+    },
+    "contentHash": "sha256:024bab6085275f43ac5454f967afa06995653cb74060c63e498ad999ab0bc0b9"
+   },
+   {
+    "id": "impact-analysis.implementation-map:dataFlows:payload-480cb4806215aeec1003a6f04f18dbbc8d0823e5db740884030c65363227c12f",
+    "text": "{\"effect\":\"aggregate emitted as WorkflowTerminalSummary.launchRetries\",\"from\":\"WorkflowRunRecord.tasks[].launchRetry.attempts\",\"to\":\"summarizeWorkflowTerminal\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original dataFlows row.",
+    "origin": "implementation-map",
+    "sourceIds": [
+     "impact-analysis.implementation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.implementation-map",
+     "stage": "implementation-map",
+     "taskId": "task-2",
+     "field": "dataFlows",
+     "index": 2
+    },
+    "contentHash": "sha256:480cb4806215aeec1003a6f04f18dbbc8d0823e5db740884030c65363227c12f"
+   },
+   {
+    "id": "impact-analysis.implementation-map:dataFlows:payload-8c110010576939112f0d9b382c19e979e512f7ee24352b5d9a4b34cd500708f2",
+    "text": "{\"effect\":\"semantic status and outputTaskIds derivation\",\"from\":\"direct-dynamic controller task output/control.json\",\"to\":\"summarizeWorkflowTerminal\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original dataFlows row.",
+    "origin": "implementation-map",
+    "sourceIds": [
+     "impact-analysis.implementation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.implementation-map",
+     "stage": "implementation-map",
+     "taskId": "task-2",
+     "field": "dataFlows",
+     "index": 3
+    },
+    "contentHash": "sha256:8c110010576939112f0d9b382c19e979e512f7ee24352b5d9a4b34cd500708f2"
+   },
+   {
+    "id": "impact-analysis.implementation-map:dataFlows:payload-c3aae3139d42b326797f18590033609fdaca181dc5ed77bbf065b2911a689a29",
+    "text": "{\"effect\":\"documented polling and summary-field contracts may diverge from implementation\",\"from\":\"SPEC.md and external consumers\",\"to\":\"changed runtime/type surfaces\"}",
+    "kind": "scope",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original dataFlows row.",
+    "origin": "implementation-map",
+    "sourceIds": [
+     "impact-analysis.implementation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.implementation-map",
+     "stage": "implementation-map",
+     "taskId": "task-2",
+     "field": "dataFlows",
+     "index": 4
+    },
+    "contentHash": "sha256:c3aae3139d42b326797f18590033609fdaca181dc5ed77bbf065b2911a689a29"
+   },
+   {
+    "id": "impact-analysis.implementation-map:unknowns:payload-0862be8c2ef94eb7739b443e839bcb29a7f10b4b3ece2dfb778b408877f5eda7",
+    "text": "{\"area\":\"consumers\",\"detail\":\"No local callers of the changed exports or launchRetryAttempts/launchRetries were found; external workflow engine, provider adapters, and tools are outside this excerpt.\"}",
+    "kind": "gap",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original unknowns row.",
+    "origin": "implementation-map",
+    "sourceIds": [
+     "impact-analysis.implementation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.implementation-map",
+     "stage": "implementation-map",
+     "taskId": "task-2",
+     "field": "unknowns",
+     "index": 0
+    },
+    "contentHash": "sha256:0862be8c2ef94eb7739b443e839bcb29a7f10b4b3ece2dfb778b408877f5eda7"
+   },
+   {
+    "id": "impact-analysis.implementation-map:unknowns:payload-2d1f86a76089477747b9a53d8ba577ae6b0825fc2c2525a3f88250af46a3f1ce",
+    "text": "{\"area\":\"dependency sources\",\"detail\":\"store.js and types.js are referenced but absent from the repository tree, so persistence schemas and WorkflowRunRecord definitions cannot be traced here.\"}",
+    "kind": "gap",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original unknowns row.",
+    "origin": "implementation-map",
+    "sourceIds": [
+     "impact-analysis.implementation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.implementation-map",
+     "stage": "implementation-map",
+     "taskId": "task-2",
+     "field": "unknowns",
+     "index": 1
+    },
+    "contentHash": "sha256:2d1f86a76089477747b9a53d8ba577ae6b0825fc2c2525a3f88250af46a3f1ce"
+   },
+   {
+    "id": "impact-analysis.implementation-map:unknowns:payload-886cd665d2568193ad175d1d9b68760064511d4ebe70c0f3533411c10d1bd3ee",
+    "text": "{\"area\":\"validation\",\"detail\":\"No test files or test script are present; only npm run typecheck is declared.\"}",
+    "kind": "gap",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original unknowns row.",
+    "origin": "implementation-map",
+    "sourceIds": [
+     "impact-analysis.implementation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.implementation-map",
+     "stage": "implementation-map",
+     "taskId": "task-2",
+     "field": "unknowns",
+     "index": 2
+    },
+    "contentHash": "sha256:886cd665d2568193ad175d1d9b68760064511d4ebe70c0f3533411c10d1bd3ee"
+   },
+   {
+    "id": "impact-analysis.implementation-map:unknowns:payload-6560b8417af33df65b376546313a2e3700523cff415dd7a5fbcbc6586ff35daf",
+    "text": "{\"area\":\"release surface\",\"detail\":\"No package exports, build configuration, lockfile, or release metadata is present; distribution/import paths are therefore not observable.\"}",
+    "kind": "gap",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original unknowns row.",
+    "origin": "implementation-map",
+    "sourceIds": [
+     "impact-analysis.implementation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.implementation-map",
+     "stage": "implementation-map",
+     "taskId": "task-2",
+     "field": "unknowns",
+     "index": 3
+    },
+    "contentHash": "sha256:6560b8417af33df65b376546313a2e3700523cff415dd7a5fbcbc6586ff35daf"
+   },
+   {
+    "id": "impact-analysis.implementation-map:unknowns:payload-0988f822cdd242eb634c9dd3d7517c3838860283cea7d78cf7a941efde80fc90",
+    "text": "{\"area\":\"payload contracts\",\"detail\":\"The provider schemas for cancelled and timeout markers are not included, so their intended classification semantics require downstream review.\"}",
+    "kind": "gap",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original unknowns row.",
+    "origin": "implementation-map",
+    "sourceIds": [
+     "impact-analysis.implementation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.implementation-map",
+     "stage": "implementation-map",
+     "taskId": "task-2",
+     "field": "unknowns",
+     "index": 4
+    },
+    "contentHash": "sha256:0988f822cdd242eb634c9dd3d7517c3838860283cea7d78cf7a941efde80fc90"
+   },
+   {
+    "id": "impact-analysis.validation-map:knownGaps:payload-0af140985cd323a3d1cb10384e7d1012da503668d693830fb82884abd6c1a75d",
+    "text": "{\"note\":\"HEAD~1..HEAD 변경과 저장소 파일을 읽지 못해 테스트·fixture·문서·릴리스 산출물·검증 명령을 매핑할 근거가 없음\"}",
+    "kind": "gap",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original knownGaps row.",
+    "origin": "validation-map",
+    "sourceIds": [
+     "impact-analysis.validation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.validation-map",
+     "stage": "validation-map",
+     "taskId": "task-3",
+     "field": "knownGaps",
+     "index": 0
+    },
+    "contentHash": "sha256:0af140985cd323a3d1cb10384e7d1012da503668d693830fb82884abd6c1a75d"
+   },
+   {
+    "id": "impact-analysis.validation-map:knownGaps:payload-6e761e7c1cd89fb0c2eba6eb9cc30a567933d7e255b822075041d46126fa17b9",
+    "text": "{\"note\":\"상위 workflow artifact가 제공되지 않음\"}",
+    "kind": "gap",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original knownGaps row.",
+    "origin": "validation-map",
+    "sourceIds": [
+     "impact-analysis.validation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.validation-map",
+     "stage": "validation-map",
+     "taskId": "task-3",
+     "field": "knownGaps",
+     "index": 1
+    },
+    "contentHash": "sha256:6e761e7c1cd89fb0c2eba6eb9cc30a567933d7e255b822075041d46126fa17b9"
+   },
+   {
+    "id": "impact-analysis.validation-map:knownGaps:payload-6d15677ebc5d7de538530ab9d7134b4e4d6fd14a8ef3f14faf6d46aef76fa09c",
+    "text": "{\"note\":\"배포 위험 최종 판정은 수행하지 않음\"}",
+    "kind": "gap",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original knownGaps row.",
+    "origin": "validation-map",
+    "sourceIds": [
+     "impact-analysis.validation-map"
+    ],
+    "provenance": {
+     "source": "impact-analysis.validation-map",
+     "stage": "validation-map",
+     "taskId": "task-3",
+     "field": "knownGaps",
+     "index": 2
+    },
+    "contentHash": "sha256:6d15677ebc5d7de538530ab9d7134b4e4d6fd14a8ef3f14faf6d46aef76fa09c"
+   },
+   {
+    "id": "impact-analysis.api-contract-impact:impacts:payload-10540caa8f0948264f34213d0fa0357c72b7b1314bc16525f4aa12414f525b4e",
+    "text": "{\"note\":\"launchRetryAttempts가 launchRetries로 변경되어 기존 TypeScript 및 런타임 소비자가 값을 잃는 호환성 단절\"}",
+    "kind": "issue",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original impacts row.",
+    "origin": "api-contract-impact",
+    "sourceIds": [
+     "impact-analysis.api-contract-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.api-contract-impact",
+     "stage": "api-contract-impact",
+     "taskId": "task-4",
+     "field": "impacts",
+     "index": 0
+    },
+    "contentHash": "sha256:10540caa8f0948264f34213d0fa0357c72b7b1314bc16525f4aa12414f525b4e"
+   },
+   {
+    "id": "impact-analysis.api-contract-impact:impacts:payload-37eb4ef4acea094f36909714108f9d442a49b6d1d29a988d502dd3b6d3febdc3",
+    "text": "{\"note\":\"timeout 및 cancelled 오류가 취소로 분류되어 실패·재시도·상태 보고 의미가 달라질 수 있음\"}",
+    "kind": "issue",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original impacts row.",
+    "origin": "api-contract-impact",
+    "sourceIds": [
+     "impact-analysis.api-contract-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.api-contract-impact",
+     "stage": "api-contract-impact",
+     "taskId": "task-4",
+     "field": "impacts",
+     "index": 1
+    },
+    "contentHash": "sha256:37eb4ef4acea094f36909714108f9d442a49b6d1d29a988d502dd3b6d3febdc3"
+   },
+   {
+    "id": "impact-analysis.api-contract-impact:impacts:payload-f56bf3c349c87b218f18d534ad1f47e75d212b31d6ade6d92dda230dc565d411",
+    "text": "{\"note\":\"pollMs 기본값 변경은 중지 감지 지연을 증가시키고 1ms 설정은 polling/I/O 부하를 높일 수 있음\"}",
+    "kind": "issue",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original impacts row.",
+    "origin": "api-contract-impact",
+    "sourceIds": [
+     "impact-analysis.api-contract-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.api-contract-impact",
+     "stage": "api-contract-impact",
+     "taskId": "task-4",
+     "field": "impacts",
+     "index": 2
+    },
+    "contentHash": "sha256:f56bf3c349c87b218f18d534ad1f47e75d212b31d6ade6d92dda230dc565d411"
+   },
+   {
+    "id": "impact-analysis.api-contract-impact:impacts:payload-1b0efe431ef0ec9f1054111771cd8479cdb81214571f328c4f565c2f43edcf1d",
+    "text": "{\"note\":\"SPEC.md가 이전 필드명과 polling 계약을 계속 문서화하여 공개 계약과 구현이 불일치함\"}",
+    "kind": "issue",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original impacts row.",
+    "origin": "api-contract-impact",
+    "sourceIds": [
+     "impact-analysis.api-contract-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.api-contract-impact",
+     "stage": "api-contract-impact",
+     "taskId": "task-4",
+     "field": "impacts",
+     "index": 3
+    },
+    "contentHash": "sha256:1b0efe431ef0ec9f1054111771cd8479cdb81214571f328c4f565c2f43edcf1d"
+   },
+   {
+    "id": "impact-analysis.api-contract-impact:assumptions:payload-923c427e47ece0a3bd6226d0193d9baca69950d6c04c51f20eaaa97b3f104df0",
+    "text": "{\"note\":\"외부 소비자가 launchRetryAttempts를 공개 계약으로 사용한다고 판단함\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "api-contract-impact",
+    "sourceIds": [
+     "impact-analysis.api-contract-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.api-contract-impact",
+     "stage": "api-contract-impact",
+     "taskId": "task-4",
+     "field": "assumptions",
+     "index": 0
+    },
+    "contentHash": "sha256:923c427e47ece0a3bd6226d0193d9baca69950d6c04c51f20eaaa97b3f104df0"
+   },
+   {
+    "id": "impact-analysis.api-contract-impact:assumptions:payload-05e9a991dae55633fddd682c999fa18ffdaa4c0d08be4d1cdff19cbb6c2a74e5",
+    "text": "{\"note\":\"외부 workflow engine, provider adapter, 도구 소비자는 저장소에 포함되지 않아 호환성을 직접 검증할 수 없음\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "api-contract-impact",
+    "sourceIds": [
+     "impact-analysis.api-contract-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.api-contract-impact",
+     "stage": "api-contract-impact",
+     "taskId": "task-4",
+     "field": "assumptions",
+     "index": 1
+    },
+    "contentHash": "sha256:05e9a991dae55633fddd682c999fa18ffdaa4c0d08be4d1cdff19cbb6c2a74e5"
+   },
+   {
+    "id": "impact-analysis.api-contract-impact:assumptions:payload-86869cbd801ed7d9566f761ae1e47155af11ac15b61cb2a71586a2d8219e2b9e",
+    "text": "{\"note\":\"package.json에 exports/build/test가 없어 배포 표면은 주로 내부 모듈과 문서화된 workflow 계약임\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "api-contract-impact",
+    "sourceIds": [
+     "impact-analysis.api-contract-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.api-contract-impact",
+     "stage": "api-contract-impact",
+     "taskId": "task-4",
+     "field": "assumptions",
+     "index": 2
+    },
+    "contentHash": "sha256:86869cbd801ed7d9566f761ae1e47155af11ac15b61cb2a71586a2d8219e2b9e"
+   },
+   {
+    "id": "impact-analysis.state-data-impact:impacts:payload-e7cb69b8bdd51b059e8d807f495f7f574f2eb210b7a8cb04fe80d21f14e6e5e9",
+    "text": "{\"area\":\"공개 데이터 계약\",\"evidence\":\"src/workflow-terminal.ts:27-35,103-110\",\"impact\":\"launchRetryAttempts가 launchRetries로 즉시 변경되어 기존 소비자가 값을 잃거나 런타임 오류가 발생한다. 호환 별칭·버전 전환·마이그레이션이 없다.\",\"severity\":\"high\"}",
+    "kind": "issue",
+    "severity": "high",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original impacts row.",
+    "origin": "state-data-impact",
+    "sourceIds": [
+     "impact-analysis.state-data-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.state-data-impact",
+     "stage": "state-data-impact",
+     "taskId": "task-5",
+     "field": "impacts",
+     "index": 0
+    },
+    "contentHash": "sha256:e7cb69b8bdd51b059e8d807f495f7f574f2eb210b7a8cb04fe80d21f14e6e5e9"
+   },
+   {
+    "id": "impact-analysis.state-data-impact:impacts:payload-dcc3b62a67aa5aa1a6efea7c67d5edb90030ccf31346709decb25c2567ebe358",
+    "text": "{\"area\":\"상태 전이\",\"evidence\":\"src/workflow-cancellation.ts:19-21\",\"impact\":\"error/reason이 cancelled 또는 timeout인 provider 결과가 실패·재시도 대신 취소로 분류될 수 있어 workflow 상태와 후속 재시도·진단 흐름이 달라진다.\",\"severity\":\"medium\"}",
+    "kind": "issue",
+    "severity": "medium",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original impacts row.",
+    "origin": "state-data-impact",
+    "sourceIds": [
+     "impact-analysis.state-data-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.state-data-impact",
+     "stage": "state-data-impact",
+     "taskId": "task-5",
+     "field": "impacts",
+     "index": 1
+    },
+    "contentHash": "sha256:dcc3b62a67aa5aa1a6efea7c67d5edb90030ccf31346709decb25c2567ebe358"
+   },
+   {
+    "id": "impact-analysis.state-data-impact:impacts:payload-9a75ef18d6c24187d1c2cafe9ddfa0294de36e159ba43dbbf9129335be2aec7b",
+    "text": "{\"area\":\"중지 감지 수명주기\",\"evidence\":\"src/workflow-stop.ts:64-80\",\"impact\":\"기본 polling이 50ms에서 200ms로 늘어 stop 반영 지연이 증가한다. 1-9ms 설정은 느린 파일 읽기의 동시 중첩과 I/O 부하를 키울 수 있다.\",\"severity\":\"medium\"}",
+    "kind": "issue",
+    "severity": "medium",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original impacts row.",
+    "origin": "state-data-impact",
+    "sourceIds": [
+     "impact-analysis.state-data-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.state-data-impact",
+     "stage": "state-data-impact",
+     "taskId": "task-5",
+     "field": "impacts",
+     "index": 2
+    },
+    "contentHash": "sha256:9a75ef18d6c24187d1c2cafe9ddfa0294de36e159ba43dbbf9129335be2aec7b"
+   },
+   {
+    "id": "impact-analysis.state-data-impact:impacts:payload-26b6f70452cd136beff9a12d8fa00065abed60e2bff022d952ca07f122f0f682",
+    "text": "{\"area\":\"문서·검증\",\"evidence\":\"SPEC.md:13-14,35-36; package.json:7\",\"impact\":\"SPEC.md가 이전 polling 기본값과 launchRetryAttempts를 계속 명시한다. 테스트 스크립트·테스트 파일이 없고 typecheck만 선언되어 변경 계약을 검증할 근거가 부족하다.\",\"severity\":\"high\"}",
+    "kind": "issue",
+    "severity": "high",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original impacts row.",
+    "origin": "state-data-impact",
+    "sourceIds": [
+     "impact-analysis.state-data-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.state-data-impact",
+     "stage": "state-data-impact",
+     "taskId": "task-5",
+     "field": "impacts",
+     "index": 3
+    },
+    "contentHash": "sha256:26b6f70452cd136beff9a12d8fa00065abed60e2bff022d952ca07f122f0f682"
+   },
+   {
+    "id": "impact-analysis.state-data-impact:assumptions:payload-bd20e8f06787f336f1654e185e13af4fa36300eb367738988b2ad943eff03247",
+    "text": "{\"item\":\"store.js와 types.js 및 실제 외부 소비자는 저장소 발췌에 없어 stop-intent 영속 형식과 소비자 호환성을 완전히 확인할 수 없다.\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "state-data-impact",
+    "sourceIds": [
+     "impact-analysis.state-data-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.state-data-impact",
+     "stage": "state-data-impact",
+     "taskId": "task-5",
+     "field": "assumptions",
+     "index": 0
+    },
+    "contentHash": "sha256:bd20e8f06787f336f1654e185e13af4fa36300eb367738988b2ad943eff03247"
+   },
+   {
+    "id": "impact-analysis.state-data-impact:assumptions:payload-4e4aa255b41a2e9189333b4a846b92e42c31484a63f0fa5a91dd03d6f211d7aa",
+    "text": "{\"item\":\"launchRetryAttempts는 SPEC.md T3에 따라 외부 공개 계약으로 취급한다.\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "state-data-impact",
+    "sourceIds": [
+     "impact-analysis.state-data-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.state-data-impact",
+     "stage": "state-data-impact",
+     "taskId": "task-5",
+     "field": "assumptions",
+     "index": 1
+    },
+    "contentHash": "sha256:4e4aa255b41a2e9189333b4a846b92e42c31484a63f0fa5a91dd03d6f211d7aa"
+   },
+   {
+    "id": "impact-analysis.state-data-impact:assumptions:payload-06442d3eb2e28e19e1cb6da03d3604f904c189a6533c54fcaa9e85c7b55c34c9",
+    "text": "{\"item\":\"커밋은 stop intent, WorkflowRunRecord, artifact/control.json 저장 형식을 변경하지 않으며 변경된 terminal summary 객체가 외부에 전달되는 지점은 저장소 밖에 있다.\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "state-data-impact",
+    "sourceIds": [
+     "impact-analysis.state-data-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.state-data-impact",
+     "stage": "state-data-impact",
+     "taskId": "task-5",
+     "field": "assumptions",
+     "index": 2
+    },
+    "contentHash": "sha256:06442d3eb2e28e19e1cb6da03d3604f904c189a6533c54fcaa9e85c7b55c34c9"
+   },
+   {
+    "id": "impact-analysis.validation-impact:missingValidation:payload-f36ff27d86540f414633fa59181631f5fe585a830b78bfce0287968aaa36d069",
+    "text": "{\"note\":\"취소 마커(cancelled·timeout) 분류 단위 테스트\"}",
+    "kind": "gap",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original missingValidation row.",
+    "origin": "validation-impact",
+    "sourceIds": [
+     "impact-analysis.validation-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.validation-impact",
+     "stage": "validation-impact",
+     "taskId": "task-6",
+     "field": "missingValidation",
+     "index": 0
+    },
+    "contentHash": "sha256:f36ff27d86540f414633fa59181631f5fe585a830b78bfce0287968aaa36d069"
+   },
+   {
+    "id": "impact-analysis.validation-impact:missingValidation:payload-4118a634536e36ef035e6db7cd487d43e0ad91e804d4595ce66874fa18452c71",
+    "text": "{\"note\":\"pollMs 기본값 200ms 및 최솟값 1ms 경계 테스트와 고빈도 polling 성능 검증\"}",
+    "kind": "gap",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original missingValidation row.",
+    "origin": "validation-impact",
+    "sourceIds": [
+     "impact-analysis.validation-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.validation-impact",
+     "stage": "validation-impact",
+     "taskId": "task-6",
+     "field": "missingValidation",
+     "index": 1
+    },
+    "contentHash": "sha256:4118a634536e36ef035e6db7cd487d43e0ad91e804d4595ce66874fa18452c71"
+   },
+   {
+    "id": "impact-analysis.validation-impact:missingValidation:payload-4a96e5ed16f2420f502197fb2619f8f3a9b7273dd150f8d0fe8124b069dec06a",
+    "text": "{\"note\":\"launchRetries 공개 필드·반환 키 계약 테스트 및 기존 launchRetryAttempts 소비자 호환성 검증\"}",
+    "kind": "gap",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original missingValidation row.",
+    "origin": "validation-impact",
+    "sourceIds": [
+     "impact-analysis.validation-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.validation-impact",
+     "stage": "validation-impact",
+     "taskId": "task-6",
+     "field": "missingValidation",
+     "index": 2
+    },
+    "contentHash": "sha256:4a96e5ed16f2420f502197fb2619f8f3a9b7273dd150f8d0fe8124b069dec06a"
+   },
+   {
+    "id": "impact-analysis.validation-impact:missingValidation:payload-45c1f78c32ed4a830de6744b6e65fa3b445a19160b4fad33067e3c669fabb8ae",
+    "text": "{\"note\":\"SPEC.md와 실제 공개 API의 불일치 해소 및 문서 검증\"}",
+    "kind": "gap",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original missingValidation row.",
+    "origin": "validation-impact",
+    "sourceIds": [
+     "impact-analysis.validation-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.validation-impact",
+     "stage": "validation-impact",
+     "taskId": "task-6",
+     "field": "missingValidation",
+     "index": 3
+    },
+    "contentHash": "sha256:45c1f78c32ed4a830de6744b6e65fa3b445a19160b4fad33067e3c669fabb8ae"
+   },
+   {
+    "id": "impact-analysis.validation-impact:missingValidation:payload-264857ebc2dfe63885cea2de4e61663cdcc5cf419a2db11c77c942af79f757fc",
+    "text": "{\"note\":\"의존성 설치 후 타입 검사와 전체 테스트 실행\"}",
+    "kind": "gap",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original missingValidation row.",
+    "origin": "validation-impact",
+    "sourceIds": [
+     "impact-analysis.validation-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.validation-impact",
+     "stage": "validation-impact",
+     "taskId": "task-6",
+     "field": "missingValidation",
+     "index": 4
+    },
+    "contentHash": "sha256:264857ebc2dfe63885cea2de4e61663cdcc5cf419a2db11c77c942af79f757fc"
+   },
+   {
+    "id": "impact-analysis.validation-impact:recommendedCommands:payload-398f7092ddb55f6c02d3a84ed50efa987c78b289731f8a99be36a13aeca89fe2",
+    "text": "{\"note\":\"npm run\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original recommendedCommands row.",
+    "origin": "validation-impact",
+    "sourceIds": [
+     "impact-analysis.validation-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.validation-impact",
+     "stage": "validation-impact",
+     "taskId": "task-6",
+     "field": "recommendedCommands",
+     "index": 0
+    },
+    "contentHash": "sha256:398f7092ddb55f6c02d3a84ed50efa987c78b289731f8a99be36a13aeca89fe2"
+   },
+   {
+    "id": "impact-analysis.validation-impact:recommendedCommands:payload-0ea1fe4e963e2432e5660fbe9e84d920e24bd89b9360e594c3c5cb91d15c1a60",
+    "text": "{\"note\":\"npm run typecheck\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original recommendedCommands row.",
+    "origin": "validation-impact",
+    "sourceIds": [
+     "impact-analysis.validation-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.validation-impact",
+     "stage": "validation-impact",
+     "taskId": "task-6",
+     "field": "recommendedCommands",
+     "index": 1
+    },
+    "contentHash": "sha256:0ea1fe4e963e2432e5660fbe9e84d920e24bd89b9360e594c3c5cb91d15c1a60"
+   },
+   {
+    "id": "impact-analysis.validation-impact:recommendedCommands:payload-91b293f3ff739b2ca47b413c097904998fda625b74887eaf6e1b28b46269dca4",
+    "text": "{\"note\":\"npm test\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original recommendedCommands row.",
+    "origin": "validation-impact",
+    "sourceIds": [
+     "impact-analysis.validation-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.validation-impact",
+     "stage": "validation-impact",
+     "taskId": "task-6",
+     "field": "recommendedCommands",
+     "index": 2
+    },
+    "contentHash": "sha256:91b293f3ff739b2ca47b413c097904998fda625b74887eaf6e1b28b46269dca4"
+   },
+   {
+    "id": "impact-analysis.validation-impact:assumptions:payload-baee1b1dc53cbab55934fbfc4e2bce264c3c7dfc17df8412c8d8ff3ac18080a9",
+    "text": "{\"note\":\"validation-map에 테스트·fixture·문서·릴리스 산출물·검증 명령 매핑이 전혀 없음\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "validation-impact",
+    "sourceIds": [
+     "impact-analysis.validation-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.validation-impact",
+     "stage": "validation-impact",
+     "taskId": "task-6",
+     "field": "assumptions",
+     "index": 0
+    },
+    "contentHash": "sha256:baee1b1dc53cbab55934fbfc4e2bce264c3c7dfc17df8412c8d8ff3ac18080a9"
+   },
+   {
+    "id": "impact-analysis.validation-impact:assumptions:payload-6bfd2ff4721c04d77ca7a859cbe95577d8d07eb4e0c966946796d04ec52a5b35",
+    "text": "{\"note\":\"현재 npm run typecheck는 tsc 미설치로 실행되지 않는 상태임\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "validation-impact",
+    "sourceIds": [
+     "impact-analysis.validation-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.validation-impact",
+     "stage": "validation-impact",
+     "taskId": "task-6",
+     "field": "assumptions",
+     "index": 1
+    },
+    "contentHash": "sha256:6bfd2ff4721c04d77ca7a859cbe95577d8d07eb4e0c966946796d04ec52a5b35"
+   },
+   {
+    "id": "impact-analysis.validation-impact:assumptions:payload-df8a008b5147115af47cb416a71679b763a7d75672ce3af3796620320227f297",
+    "text": "{\"note\":\"launchRetryAttempts에서 launchRetries로의 변경은 외부 소비자에 영향을 주는 공개 계약 변경임\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "validation-impact",
+    "sourceIds": [
+     "impact-analysis.validation-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.validation-impact",
+     "stage": "validation-impact",
+     "taskId": "task-6",
+     "field": "assumptions",
+     "index": 2
+    },
+    "contentHash": "sha256:df8a008b5147115af47cb416a71679b763a7d75672ce3af3796620320227f297"
+   },
+   {
+    "id": "impact-analysis.docs-release-impact:impacts:payload-ce27c599b6be6707615844f9deed53c98dffb52be25824513a2e6f585c3c06b8",
+    "text": "{\"area\":\"documentation\",\"finding\":\"SPEC.md remains stale: it documents pollMs 50ms/10ms, cancellation markers limited to three values, and launchRetryAttempts, while implementation uses 200ms/1ms, adds cancelled/timeout, and emits launchRetries.\",\"severity\":\"high\"}",
+    "kind": "issue",
+    "severity": "high",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original impacts row.",
+    "origin": "docs-release-impact",
+    "sourceIds": [
+     "impact-analysis.docs-release-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.docs-release-impact",
+     "stage": "docs-release-impact",
+     "taskId": "task-7",
+     "field": "impacts",
+     "index": 0
+    },
+    "contentHash": "sha256:ce27c599b6be6707615844f9deed53c98dffb52be25824513a2e6f585c3c06b8"
+   },
+   {
+    "id": "impact-analysis.docs-release-impact:impacts:payload-c3307aa9b3030a89c0f9dab2a22d982ea8a31a3ea98b6485fef9828fd369535a",
+    "text": "{\"area\":\"migration\",\"finding\":\"Renaming launchRetryAttempts to launchRetries is a breaking public data/API change with no compatibility alias or migration note.\",\"severity\":\"high\"}",
+    "kind": "issue",
+    "severity": "high",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original impacts row.",
+    "origin": "docs-release-impact",
+    "sourceIds": [
+     "impact-analysis.docs-release-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.docs-release-impact",
+     "stage": "docs-release-impact",
+     "taskId": "task-7",
+     "field": "impacts",
+     "index": 1
+    },
+    "contentHash": "sha256:c3307aa9b3030a89c0f9dab2a22d982ea8a31a3ea98b6485fef9828fd369535a"
+   },
+   {
+    "id": "impact-analysis.docs-release-impact:impacts:payload-14deca6712c9dc6feedd5a23fc747fadb71f0f80a1e03d710a9a7d570703815e",
+    "text": "{\"area\":\"release\",\"finding\":\"package.json is private and exposes only typecheck; no build, test, exports, lockfile, or publish/release metadata is present. Distribution impact cannot be verified.\",\"severity\":\"medium\"}",
+    "kind": "issue",
+    "severity": "medium",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original impacts row.",
+    "origin": "docs-release-impact",
+    "sourceIds": [
+     "impact-analysis.docs-release-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.docs-release-impact",
+     "stage": "docs-release-impact",
+     "taskId": "task-7",
+     "field": "impacts",
+     "index": 2
+    },
+    "contentHash": "sha256:14deca6712c9dc6feedd5a23fc747fadb71f0f80a1e03d710a9a7d570703815e"
+   },
+   {
+    "id": "impact-analysis.docs-release-impact:impacts:payload-f0f5d3696a6c3f1240fba01e326c58969f49eceb3e5ab5f46958b5db46903652",
+    "text": "{\"area\":\"validation\",\"finding\":\"No tests or test script exist. Upstream evidence reports typecheck unavailable because tsc is not installed.\",\"severity\":\"high\"}",
+    "kind": "issue",
+    "severity": "high",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original impacts row.",
+    "origin": "docs-release-impact",
+    "sourceIds": [
+     "impact-analysis.docs-release-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.docs-release-impact",
+     "stage": "docs-release-impact",
+     "taskId": "task-7",
+     "field": "impacts",
+     "index": 3
+    },
+    "contentHash": "sha256:f0f5d3696a6c3f1240fba01e326c58969f49eceb3e5ab5f46958b5db46903652"
+   },
+   {
+    "id": "impact-analysis.docs-release-impact:impacts:payload-da1e0343f7d0e23e514133da259205ac2fc6c6bfbbab95daed0844e2098afa2c",
+    "text": "{\"area\":\"operational\",\"finding\":\"The new 200ms default increases stop-detection latency; allowing 1-9ms polling can increase filesystem/I/O load. No operational guidance documents this tradeoff.\",\"severity\":\"medium\"}",
+    "kind": "issue",
+    "severity": "medium",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original impacts row.",
+    "origin": "docs-release-impact",
+    "sourceIds": [
+     "impact-analysis.docs-release-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.docs-release-impact",
+     "stage": "docs-release-impact",
+     "taskId": "task-7",
+     "field": "impacts",
+     "index": 4
+    },
+    "contentHash": "sha256:da1e0343f7d0e23e514133da259205ac2fc6c6bfbbab95daed0844e2098afa2c"
+   },
+   {
+    "id": "impact-analysis.docs-release-impact:impacts:payload-5b3c6b8e5507d769639a6f918ded99612ac44ec3293fc77d6cb6264954d2aae6",
+    "text": "{\"area\":\"decision\",\"finding\":\"Do not release without updating the public specification, documenting migration/compatibility for launchRetries, and adding or executing validation for changed contracts.\",\"severity\":\"high\"}",
+    "kind": "issue",
+    "severity": "high",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original impacts row.",
+    "origin": "docs-release-impact",
+    "sourceIds": [
+     "impact-analysis.docs-release-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.docs-release-impact",
+     "stage": "docs-release-impact",
+     "taskId": "task-7",
+     "field": "impacts",
+     "index": 5
+    },
+    "contentHash": "sha256:5b3c6b8e5507d769639a6f918ded99612ac44ec3293fc77d6cb6264954d2aae6"
+   },
+   {
+    "id": "impact-analysis.docs-release-impact:assumptions:payload-d4d285c193e06d2b8808f9f55e8fb4521c6e88ad085fe22dcbd6f6455afa2395",
+    "text": "{\"item\":\"SPEC.md T3 is treated as an external consumer contract because it explicitly states that tools read launchRetryAttempts.\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "docs-release-impact",
+    "sourceIds": [
+     "impact-analysis.docs-release-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.docs-release-impact",
+     "stage": "docs-release-impact",
+     "taskId": "task-7",
+     "field": "assumptions",
+     "index": 0
+    },
+    "contentHash": "sha256:d4d285c193e06d2b8808f9f55e8fb4521c6e88ad085fe22dcbd6f6455afa2395"
+   },
+   {
+    "id": "impact-analysis.docs-release-impact:assumptions:payload-210182ff153227f7e45058f9254eb9761aedb9035150564cb61f7ae1fd223e03",
+    "text": "{\"item\":\"The repository is an intentionally incomplete excerpt; absent store.js, types.js, consumers, and release pipeline prevent full downstream compatibility verification.\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "docs-release-impact",
+    "sourceIds": [
+     "impact-analysis.docs-release-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.docs-release-impact",
+     "stage": "docs-release-impact",
+     "taskId": "task-7",
+     "field": "assumptions",
+     "index": 1
+    },
+    "contentHash": "sha256:210182ff153227f7e45058f9254eb9761aedb9035150564cb61f7ae1fd223e03"
+   },
+   {
+    "id": "impact-analysis.docs-release-impact:assumptions:payload-df989d6df8964de6ff8da7db2cbb07490f071f56ee98df5a80d5f60a0e5bb5e1",
+    "text": "{\"item\":\"No publish artifact is generated by this repository because package.json is private and has no publish/build configuration.\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "docs-release-impact",
+    "sourceIds": [
+     "impact-analysis.docs-release-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.docs-release-impact",
+     "stage": "docs-release-impact",
+     "taskId": "task-7",
+     "field": "assumptions",
+     "index": 2
+    },
+    "contentHash": "sha256:df989d6df8964de6ff8da7db2cbb07490f071f56ee98df5a80d5f60a0e5bb5e1"
+   },
+   {
+    "id": "impact-analysis.security-performance-impact:impacts:payload-4fe3cb76be9f9d4dfae86f9503a5b6a53fef2ad538e063cf15158dc80e4df20c",
+    "text": "{\"domain\":\"security\",\"effect\":\"Provider가 반환한 timeout/cancelled 문자열이 취소로 승격되어 실패 처리·재시도·진단 경로를 우회할 수 있다.\",\"evidence\":\"src/workflow-cancellation.ts:19-21\",\"severity\":\"medium\"}",
+    "kind": "risk",
+    "severity": "medium",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original impacts row.",
+    "origin": "security-performance-impact",
+    "sourceIds": [
+     "impact-analysis.security-performance-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.security-performance-impact",
+     "stage": "security-performance-impact",
+     "taskId": "task-8",
+     "field": "impacts",
+     "index": 0
+    },
+    "contentHash": "sha256:4fe3cb76be9f9d4dfae86f9503a5b6a53fef2ad538e063cf15158dc80e4df20c"
+   },
+   {
+    "id": "impact-analysis.security-performance-impact:impacts:payload-502765c1c341764cc0e37d1b04098e8f8c3cb29b4ba9faeeade49138baac1136",
+    "text": "{\"domain\":\"privacy\",\"effect\":\"새로운 개인정보 수집, 저장, 로그 출력 또는 데이터 외부 전송은 확인되지 않았다.\",\"severity\":\"none\"}",
+    "kind": "risk",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original impacts row.",
+    "origin": "security-performance-impact",
+    "sourceIds": [
+     "impact-analysis.security-performance-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.security-performance-impact",
+     "stage": "security-performance-impact",
+     "taskId": "task-8",
+     "field": "impacts",
+     "index": 1
+    },
+    "contentHash": "sha256:502765c1c341764cc0e37d1b04098e8f8c3cb29b4ba9faeeade49138baac1136"
+   },
+   {
+    "id": "impact-analysis.security-performance-impact:impacts:payload-fabf89ad8b99e9d95e5f95ef4355b9ad853937d7bc2d513c2a8ba48cef01f3ef",
+    "text": "{\"domain\":\"performance\",\"effect\":\"기본 polling이 50ms에서 200ms로 늘어 stop 감지가 늦어지고, 최소값 1ms 허용으로 호출자가 매우 높은 디스크 polling 및 겹치는 비동기 읽기를 유발할 수 있다.\",\"evidence\":\"src/workflow-stop.ts:67-81\",\"severity\":\"medium\"}",
+    "kind": "risk",
+    "severity": "medium",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original impacts row.",
+    "origin": "security-performance-impact",
+    "sourceIds": [
+     "impact-analysis.security-performance-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.security-performance-impact",
+     "stage": "security-performance-impact",
+     "taskId": "task-8",
+     "field": "impacts",
+     "index": 2
+    },
+    "contentHash": "sha256:fabf89ad8b99e9d95e5f95ef4355b9ad853937d7bc2d513c2a8ba48cef01f3ef"
+   },
+   {
+    "id": "impact-analysis.security-performance-impact:impacts:payload-e3622f3bf3d52ae3202fc28c18e810f966b14e191c9c36a6223fbcc8e9c8a449",
+    "text": "{\"domain\":\"reliability\",\"effect\":\"timeout을 취소로 분류하면 실제 실패가 정상 취소처럼 처리될 수 있으며, stop 감지 지연 중 추가 작업이 실행될 수 있다.\",\"severity\":\"high\"}",
+    "kind": "risk",
+    "severity": "high",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original impacts row.",
+    "origin": "security-performance-impact",
+    "sourceIds": [
+     "impact-analysis.security-performance-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.security-performance-impact",
+     "stage": "security-performance-impact",
+     "taskId": "task-8",
+     "field": "impacts",
+     "index": 3
+    },
+    "contentHash": "sha256:e3622f3bf3d52ae3202fc28c18e810f966b14e191c9c36a6223fbcc8e9c8a449"
+   },
+   {
+    "id": "impact-analysis.security-performance-impact:impacts:payload-de6ab3273f430479a79b9e706057e8e1711557ffd3bf3e8027346dd1f41b3d60",
+    "text": "{\"domain\":\"observability\",\"effect\":\"launchRetryAttempts가 launchRetries로 변경되어 기존 외부 도구·메트릭 소비자가 재시도 정보를 잃을 수 있고, timeout 실패가 취소로 집계될 수 있다.\",\"evidence\":\"src/workflow-terminal.ts:27-34,107-110; SPEC.md:35-36\",\"severity\":\"high\"}",
+    "kind": "risk",
+    "severity": "high",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original impacts row.",
+    "origin": "security-performance-impact",
+    "sourceIds": [
+     "impact-analysis.security-performance-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.security-performance-impact",
+     "stage": "security-performance-impact",
+     "taskId": "task-8",
+     "field": "impacts",
+     "index": 4
+    },
+    "contentHash": "sha256:de6ab3273f430479a79b9e706057e8e1711557ffd3bf3e8027346dd1f41b3d60"
+   },
+   {
+    "id": "impact-analysis.security-performance-impact:assumptions:payload-bc97eb50424524c2e979083ec833057c0d6d923664558ea137e496342eeec348",
+    "text": "{\"item\":\"SPEC.md의 T3 및 upstream 분석이 명시한 외부 도구 소비자를 공개 계약으로 간주했다.\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "security-performance-impact",
+    "sourceIds": [
+     "impact-analysis.security-performance-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.security-performance-impact",
+     "stage": "security-performance-impact",
+     "taskId": "task-8",
+     "field": "assumptions",
+     "index": 0
+    },
+    "contentHash": "sha256:bc97eb50424524c2e979083ec833057c0d6d923664558ea137e496342eeec348"
+   },
+   {
+    "id": "impact-analysis.security-performance-impact:assumptions:payload-1ebd8e180137c72a314fa873b840c3235d8baa73792265bf532afbf79597a3aa",
+    "text": "{\"item\":\"provider 반환값과 timeout 의미는 외부 시스템에서 유입될 수 있어 오분류 가능성을 고려했다.\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "security-performance-impact",
+    "sourceIds": [
+     "impact-analysis.security-performance-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.security-performance-impact",
+     "stage": "security-performance-impact",
+     "taskId": "task-8",
+     "field": "assumptions",
+     "index": 1
+    },
+    "contentHash": "sha256:1ebd8e180137c72a314fa873b840c3235d8baa73792265bf532afbf79597a3aa"
+   },
+   {
+    "id": "impact-analysis.security-performance-impact:assumptions:payload-9d06cc2fee12bda06e388ee5c0007facdc0e51c452f1d5b1dba7eaffc4bf92ee",
+    "text": "{\"item\":\"로컬 테스트 파일·테스트 스크립트가 없고 npm run typecheck는 tsc 미설치로 검증되지 않았다.\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "security-performance-impact",
+    "sourceIds": [
+     "impact-analysis.security-performance-impact"
+    ],
+    "provenance": {
+     "source": "impact-analysis.security-performance-impact",
+     "stage": "security-performance-impact",
+     "taskId": "task-8",
+     "field": "assumptions",
+     "index": 2
+    },
+    "contentHash": "sha256:9d06cc2fee12bda06e388ee5c0007facdc0e51c452f1d5b1dba7eaffc4bf92ee"
+   },
+   {
+    "id": "impact-analysis.contract-consistency:issues:payload-9eaef1228ff83b2f4dc89e8ca218fa0281cd4aa7297afc75952ba8f703170921",
+    "text": "{\"area\":\"API·데이터·문서\",\"impact\":\"기존 소비자의 값 누락 또는 런타임 오류가 발생할 수 있으며 호환 별칭·마이그레이션이 없다.\",\"mismatch\":\"구현은 launchRetries를 발행하지만 SPEC.md와 기존 소비자는 launchRetryAttempts를 기대한다.\",\"severity\":\"high\"}",
+    "kind": "issue",
+    "severity": "high",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original issues row.",
+    "origin": "contract-consistency",
+    "sourceIds": [
+     "impact-analysis.contract-consistency"
+    ],
+    "provenance": {
+     "source": "impact-analysis.contract-consistency",
+     "stage": "contract-consistency",
+     "taskId": "task-9",
+     "field": "issues",
+     "index": 0
+    },
+    "contentHash": "sha256:9eaef1228ff83b2f4dc89e8ca218fa0281cd4aa7297afc75952ba8f703170921"
+   },
+   {
+    "id": "impact-analysis.contract-consistency:issues:payload-3d4c532127572f20ed547dec85d08c0478d6554528c00b42e9193d5eef91d869",
+    "text": "{\"area\":\"상태 의미·검증\",\"impact\":\"실패·재시도·진단 흐름이 달라질 수 있고 변경 계약을 검증할 테스트가 없다.\",\"mismatch\":\"구현은 cancelled와 timeout을 취소로 분류하지만 SPEC.md는 세 가지 기존 표식만 허용한다.\",\"severity\":\"high\"}",
+    "kind": "issue",
+    "severity": "high",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original issues row.",
+    "origin": "contract-consistency",
+    "sourceIds": [
+     "impact-analysis.contract-consistency"
+    ],
+    "provenance": {
+     "source": "impact-analysis.contract-consistency",
+     "stage": "contract-consistency",
+     "taskId": "task-9",
+     "field": "issues",
+     "index": 1
+    },
+    "contentHash": "sha256:3d4c532127572f20ed547dec85d08c0478d6554528c00b42e9193d5eef91d869"
+   },
+   {
+    "id": "impact-analysis.contract-consistency:issues:payload-16e038c0b09af9ca40279fec6da62674fb06e3279b30e860aefc66dac35b2e99",
+    "text": "{\"area\":\"운영·문서\",\"impact\":\"중지 감지가 늦어지고 1~9ms 설정은 파일/I/O 부하를 증가시킬 수 있다.\",\"mismatch\":\"pollMs 구현은 기본 200ms, 최소 1ms인데 SPEC.md는 기본 50ms, 최소 10ms로 남아 있다.\",\"severity\":\"medium\"}",
+    "kind": "issue",
+    "severity": "medium",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original issues row.",
+    "origin": "contract-consistency",
+    "sourceIds": [
+     "impact-analysis.contract-consistency"
+    ],
+    "provenance": {
+     "source": "impact-analysis.contract-consistency",
+     "stage": "contract-consistency",
+     "taskId": "task-9",
+     "field": "issues",
+     "index": 2
+    },
+    "contentHash": "sha256:16e038c0b09af9ca40279fec6da62674fb06e3279b30e860aefc66dac35b2e99"
+   },
+   {
+    "id": "impact-analysis.contract-consistency:issues:payload-48192d63e0e71d1f936ee73570b158fa95472e4f6947b5b664e682cdfcf69c5c",
+    "text": "{\"area\":\"릴리스\",\"impact\":\"배포 산출물과 변경 계약의 검증 가능성을 확인할 수 없다.\",\"mismatch\":\"package.json은 private이며 typecheck만 제공하고 테스트·빌드·exports·배포 메타데이터가 없다.\",\"severity\":\"high\"}",
+    "kind": "issue",
+    "severity": "high",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original issues row.",
+    "origin": "contract-consistency",
+    "sourceIds": [
+     "impact-analysis.contract-consistency"
+    ],
+    "provenance": {
+     "source": "impact-analysis.contract-consistency",
+     "stage": "contract-consistency",
+     "taskId": "task-9",
+     "field": "issues",
+     "index": 3
+    },
+    "contentHash": "sha256:48192d63e0e71d1f936ee73570b158fa95472e4f6947b5b664e682cdfcf69c5c"
+   },
+   {
+    "id": "impact-analysis.contract-consistency:confirmedConsistencies:payload-c302eef9d0d5cef16b1f5001f1576ee0fced1d5e0dc036d3d18d9926497c947f",
+    "text": "{\"area\":\"변경 범위\",\"finding\":\"커밋은 workflow-cancellation.ts, workflow-stop.ts, workflow-terminal.ts의 세 파일만 수정했으며 영속 저장 형식 자체의 직접 변경은 확인되지 않는다.\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original confirmedConsistencies row.",
+    "origin": "contract-consistency",
+    "sourceIds": [
+     "impact-analysis.contract-consistency"
+    ],
+    "provenance": {
+     "source": "impact-analysis.contract-consistency",
+     "stage": "contract-consistency",
+     "taskId": "task-9",
+     "field": "confirmedConsistencies",
+     "index": 0
+    },
+    "contentHash": "sha256:c302eef9d0d5cef16b1f5001f1576ee0fced1d5e0dc036d3d18d9926497c947f"
+   },
+   {
+    "id": "impact-analysis.contract-consistency:confirmedConsistencies:payload-8f7a60ebbb5a8082cce768b9701ac1989cf16b9571fb9ad2391d8923134d5c1f",
+    "text": "{\"area\":\"재시도 집계\",\"finding\":\"launchRetries와 outputRetryAttempts 모두 기존처럼 모든 작업의 재시도 횟수를 합산한다.\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original confirmedConsistencies row.",
+    "origin": "contract-consistency",
+    "sourceIds": [
+     "impact-analysis.contract-consistency"
+    ],
+    "provenance": {
+     "source": "impact-analysis.contract-consistency",
+     "stage": "contract-consistency",
+     "taskId": "task-9",
+     "field": "confirmedConsistencies",
+     "index": 1
+    },
+    "contentHash": "sha256:8f7a60ebbb5a8082cce768b9701ac1989cf16b9571fb9ad2391d8923134d5c1f"
+   },
+   {
+    "id": "impact-analysis.regression-risk:risks:payload-d5dae58fe44bde9240ff603c9a4843581b86ca2ee3d629dbd7ab2f487b18c2c3",
+    "text": "{\"note\":\"launchRetryAttempts가 launchRetries로 변경되어 기존 소비자의 데이터 손실 또는 런타임 오류가 발생할 수 있음\"}",
+    "kind": "risk",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original risks row.",
+    "origin": "regression-risk",
+    "sourceIds": [
+     "impact-analysis.regression-risk"
+    ],
+    "provenance": {
+     "source": "impact-analysis.regression-risk",
+     "stage": "regression-risk",
+     "taskId": "task-10",
+     "field": "risks",
+     "index": 0
+    },
+    "contentHash": "sha256:d5dae58fe44bde9240ff603c9a4843581b86ca2ee3d629dbd7ab2f487b18c2c3"
+   },
+   {
+    "id": "impact-analysis.regression-risk:risks:payload-62034309aaae3d437fe39a6a0d44cc114635ce851115f179fc500f40576fa728",
+    "text": "{\"note\":\"timeout/cancelled 결과가 취소로 분류되어 실패·재시도·진단 상태가 왜곡될 수 있음\"}",
+    "kind": "risk",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original risks row.",
+    "origin": "regression-risk",
+    "sourceIds": [
+     "impact-analysis.regression-risk"
+    ],
+    "provenance": {
+     "source": "impact-analysis.regression-risk",
+     "stage": "regression-risk",
+     "taskId": "task-10",
+     "field": "risks",
+     "index": 1
+    },
+    "contentHash": "sha256:62034309aaae3d437fe39a6a0d44cc114635ce851115f179fc500f40576fa728"
+   },
+   {
+    "id": "impact-analysis.regression-risk:risks:payload-b178b02caec9f181069a2870ff3e605109f0cb46e2d041cc08b04c6aa1dd3f27",
+    "text": "{\"note\":\"polling 기본값 및 최소값 변경에 따른 중지 지연과 과도한 I/O 가능성\"}",
+    "kind": "risk",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original risks row.",
+    "origin": "regression-risk",
+    "sourceIds": [
+     "impact-analysis.regression-risk"
+    ],
+    "provenance": {
+     "source": "impact-analysis.regression-risk",
+     "stage": "regression-risk",
+     "taskId": "task-10",
+     "field": "risks",
+     "index": 2
+    },
+    "contentHash": "sha256:b178b02caec9f181069a2870ff3e605109f0cb46e2d041cc08b04c6aa1dd3f27"
+   },
+   {
+    "id": "impact-analysis.regression-risk:risks:payload-8de2749c7ad1dbae6d3545a6eaf55082407bcf52bbe19eb790bc15e1ac70cdb8",
+    "text": "{\"note\":\"계약·경계·성능·문서 검증 근거가 없음\"}",
+    "kind": "risk",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original risks row.",
+    "origin": "regression-risk",
+    "sourceIds": [
+     "impact-analysis.regression-risk"
+    ],
+    "provenance": {
+     "source": "impact-analysis.regression-risk",
+     "stage": "regression-risk",
+     "taskId": "task-10",
+     "field": "risks",
+     "index": 3
+    },
+    "contentHash": "sha256:8de2749c7ad1dbae6d3545a6eaf55082407bcf52bbe19eb790bc15e1ac70cdb8"
+   },
+   {
+    "id": "impact-analysis.regression-risk:riskReducers:payload-06d446e7b8ccd61145ef1c5860aa1161cd31b1a888747c1015627f98541885c1",
+    "text": "{\"note\":\"하위 호환 필드 또는 버전 전환·마이그레이션 제공\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original riskReducers row.",
+    "origin": "regression-risk",
+    "sourceIds": [
+     "impact-analysis.regression-risk"
+    ],
+    "provenance": {
+     "source": "impact-analysis.regression-risk",
+     "stage": "regression-risk",
+     "taskId": "task-10",
+     "field": "riskReducers",
+     "index": 0
+    },
+    "contentHash": "sha256:06d446e7b8ccd61145ef1c5860aa1161cd31b1a888747c1015627f98541885c1"
+   },
+   {
+    "id": "impact-analysis.regression-risk:riskReducers:payload-74c14118eb915ca2798d7ad9fee8338483adc332b38f11fdb19dd2606a74927c",
+    "text": "{\"note\":\"timeout과 cancelled의 상태 분류 및 재시도 동작에 대한 테스트 추가\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original riskReducers row.",
+    "origin": "regression-risk",
+    "sourceIds": [
+     "impact-analysis.regression-risk"
+    ],
+    "provenance": {
+     "source": "impact-analysis.regression-risk",
+     "stage": "regression-risk",
+     "taskId": "task-10",
+     "field": "riskReducers",
+     "index": 1
+    },
+    "contentHash": "sha256:74c14118eb915ca2798d7ad9fee8338483adc332b38f11fdb19dd2606a74927c"
+   },
+   {
+    "id": "impact-analysis.regression-risk:riskReducers:payload-85024d7fd538d58889428beaf8ff26aa002dcbb8b4a1d4b5b631f5218d069443",
+    "text": "{\"note\":\"pollMs 경계·중첩 I/O 성능 검증\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original riskReducers row.",
+    "origin": "regression-risk",
+    "sourceIds": [
+     "impact-analysis.regression-risk"
+    ],
+    "provenance": {
+     "source": "impact-analysis.regression-risk",
+     "stage": "regression-risk",
+     "taskId": "task-10",
+     "field": "riskReducers",
+     "index": 2
+    },
+    "contentHash": "sha256:85024d7fd538d58889428beaf8ff26aa002dcbb8b4a1d4b5b631f5218d069443"
+   },
+   {
+    "id": "impact-analysis.regression-risk:riskReducers:payload-fce6188bed2844c2aa8a0d3d2fcdb2694a9dc0c65a0533c61375c4b23fcd662a",
+    "text": "{\"note\":\"SPEC.md와 구현 계약 정합성 수정 후 typecheck 및 전체 테스트 실행\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original riskReducers row.",
+    "origin": "regression-risk",
+    "sourceIds": [
+     "impact-analysis.regression-risk"
+    ],
+    "provenance": {
+     "source": "impact-analysis.regression-risk",
+     "stage": "regression-risk",
+     "taskId": "task-10",
+     "field": "riskReducers",
+     "index": 3
+    },
+    "contentHash": "sha256:fce6188bed2844c2aa8a0d3d2fcdb2694a9dc0c65a0533c61375c4b23fcd662a"
+   },
+   {
+    "id": "impact-analysis.ship-readiness:requiredBeforeShip:contract-migration",
+    "text": "{\"action\":\"Update SPEC.md and either preserve launchRetryAttempts as a compatibility alias or publish an explicit breaking migration for launchRetries.\",\"id\":\"contract-migration\",\"verification\":\"Add consumer/serialization contract tests covering both fields and confirm downstream metrics/tools.\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original requiredBeforeShip row.",
+    "origin": "ship-readiness",
+    "sourceIds": [
+     "impact-analysis.ship-readiness"
+    ],
+    "provenance": {
+     "source": "impact-analysis.ship-readiness",
+     "stage": "ship-readiness",
+     "taskId": "task-11",
+     "field": "requiredBeforeShip",
+     "index": 0
+    },
+    "contentHash": "sha256:d5f05cac670bd4ba1a45cce5321613a3560ad0df7fb9156245afb23a8041b6e1"
+   },
+   {
+    "id": "impact-analysis.ship-readiness:requiredBeforeShip:cancellation-correctness",
+    "text": "{\"action\":\"Decide and test whether provider timeout is truly cancellation; otherwise remove timeout from cancellation markers.\",\"id\":\"cancellation-correctness\",\"verification\":\"Unit tests prove timeout failures remain failures while cancelled/aborted values remain cancellations.\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original requiredBeforeShip row.",
+    "origin": "ship-readiness",
+    "sourceIds": [
+     "impact-analysis.ship-readiness"
+    ],
+    "provenance": {
+     "source": "impact-analysis.ship-readiness",
+     "stage": "ship-readiness",
+     "taskId": "task-11",
+     "field": "requiredBeforeShip",
+     "index": 1
+    },
+    "contentHash": "sha256:344672b263bcfb14d775c58846cfc329430c66a47f5b9e964f819019446b287b"
+   },
+   {
+    "id": "impact-analysis.ship-readiness:requiredBeforeShip:polling-validation",
+    "text": "{\"action\":\"Validate the 200ms default and 1ms minimum under realistic filesystem load, including overlapping async reads and stop-detection latency.\",\"id\":\"polling-validation\",\"verification\":\"Run focused boundary, latency, and load tests; document the operational limits.\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original requiredBeforeShip row.",
+    "origin": "ship-readiness",
+    "sourceIds": [
+     "impact-analysis.ship-readiness"
+    ],
+    "provenance": {
+     "source": "impact-analysis.ship-readiness",
+     "stage": "ship-readiness",
+     "taskId": "task-11",
+     "field": "requiredBeforeShip",
+     "index": 2
+    },
+    "contentHash": "sha256:b40cd49ed6d7d630f94d8b1766d7dfba24b094515e7d4009d80d878f89e1ebe9"
+   },
+   {
+    "id": "impact-analysis.ship-readiness:requiredBeforeShip:baseline-validation",
+    "text": "{\"action\":\"Provide a reproducible clean-environment validation path.\",\"id\":\"baseline-validation\",\"verification\":\"Run npm run, npm run typecheck, and npm test; add the missing test script/tests or document the CI-equivalent commands and required TypeScript dependency.\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original requiredBeforeShip row.",
+    "origin": "ship-readiness",
+    "sourceIds": [
+     "impact-analysis.ship-readiness"
+    ],
+    "provenance": {
+     "source": "impact-analysis.ship-readiness",
+     "stage": "ship-readiness",
+     "taskId": "task-11",
+     "field": "requiredBeforeShip",
+     "index": 3
+    },
+    "contentHash": "sha256:20c206722c7785300adb8aafb1ee80833651d6a7066f19f338a8b835128b8310"
+   },
+   {
+    "id": "impact-analysis.ship-readiness:requiredBeforeShip:release-contract",
+    "text": "{\"action\":\"Define the deployment artifact and release procedure for this private repository/excerpt.\",\"id\":\"release-contract\",\"verification\":\"Confirm build/export/version metadata and produce an artifact from a clean checkout, or explicitly classify this as internal source-only deployment.\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original requiredBeforeShip row.",
+    "origin": "ship-readiness",
+    "sourceIds": [
+     "impact-analysis.ship-readiness"
+    ],
+    "provenance": {
+     "source": "impact-analysis.ship-readiness",
+     "stage": "ship-readiness",
+     "taskId": "task-11",
+     "field": "requiredBeforeShip",
+     "index": 4
+    },
+    "contentHash": "sha256:5aa4c94460eed1c0feb85d8f2d82ff7788ecf0c55546d579fff4d72bf5788980"
+   },
+   {
+    "id": "impact-analysis.ship-readiness:niceToHave:release-notes",
+    "text": "{\"action\":\"Add release notes describing poll latency/load tradeoffs and the launchRetries migration.\",\"id\":\"release-notes\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original niceToHave row.",
+    "origin": "ship-readiness",
+    "sourceIds": [
+     "impact-analysis.ship-readiness"
+    ],
+    "provenance": {
+     "source": "impact-analysis.ship-readiness",
+     "stage": "ship-readiness",
+     "taskId": "task-11",
+     "field": "niceToHave",
+     "index": 0
+    },
+    "contentHash": "sha256:c4316153b6f2d9fe20240ddc483dcb7c372b804e39fa31de0c702f51150dfc45"
+   },
+   {
+    "id": "impact-analysis.ship-readiness:niceToHave:observability",
+    "text": "{\"action\":\"Add metrics distinguishing timeout, cancellation, retry counts, and stop-detection latency.\",\"id\":\"observability\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original niceToHave row.",
+    "origin": "ship-readiness",
+    "sourceIds": [
+     "impact-analysis.ship-readiness"
+    ],
+    "provenance": {
+     "source": "impact-analysis.ship-readiness",
+     "stage": "ship-readiness",
+     "taskId": "task-11",
+     "field": "niceToHave",
+     "index": 1
+    },
+    "contentHash": "sha256:e17b2b93cf126921200e1e8ed78c10dba33e72f3ec27a567304332a253118dfa"
+   },
+   {
+    "id": "impact-analysis.ship-readiness:niceToHave:preexisting-spec-drift",
+    "text": "{\"action\":\"Separately reconcile the pre-existing isWorkflowStopRequestedError behavior with SPEC.md S6.\",\"id\":\"preexisting-spec-drift\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original niceToHave row.",
+    "origin": "ship-readiness",
+    "sourceIds": [
+     "impact-analysis.ship-readiness"
+    ],
+    "provenance": {
+     "source": "impact-analysis.ship-readiness",
+     "stage": "ship-readiness",
+     "taskId": "task-11",
+     "field": "niceToHave",
+     "index": 2
+    },
+    "contentHash": "sha256:f7cb0b0ea9c78c29310d1975edd504e843342e09480d541eb86e37b00f99e41e"
+   },
+   {
+    "id": "impact-analysis.ship-readiness:assumptions:payload-c734e21226c671a00217bc7ef6ee5b2aafe815828eda8e5337a502b9b4807500",
+    "text": "{\"item\":\"654f639 changes are evaluated as a public contract because terminal summaries and SPEC.md are consumed externally.\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "ship-readiness",
+    "sourceIds": [
+     "impact-analysis.ship-readiness"
+    ],
+    "provenance": {
+     "source": "impact-analysis.ship-readiness",
+     "stage": "ship-readiness",
+     "taskId": "task-11",
+     "field": "assumptions",
+     "index": 0
+    },
+    "contentHash": "sha256:c734e21226c671a00217bc7ef6ee5b2aafe815828eda8e5337a502b9b4807500"
+   },
+   {
+    "id": "impact-analysis.ship-readiness:assumptions:payload-26cf43fc1c9a3f82071e878b8640bdd2c7605c785421f77620ee6b47d7842880",
+    "text": "{\"item\":\"The repository is an intentionally incomplete excerpt; absent store.js, types.js, tests, and release pipeline limit downstream verification.\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "ship-readiness",
+    "sourceIds": [
+     "impact-analysis.ship-readiness"
+    ],
+    "provenance": {
+     "source": "impact-analysis.ship-readiness",
+     "stage": "ship-readiness",
+     "taskId": "task-11",
+     "field": "assumptions",
+     "index": 1
+    },
+    "contentHash": "sha256:26cf43fc1c9a3f82071e878b8640bdd2c7605c785421f77620ee6b47d7842880"
+   },
+   {
+    "id": "impact-analysis.ship-readiness:assumptions:payload-0a54b7737c96a04e5d7892d2fc93f884308c9a6f104b835979b5a0eb469edbf6",
+    "text": "{\"item\":\"The pre-existing message-based stop-error classification is outside 654f639 and is not counted as a newly introduced regression.\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original assumptions row.",
+    "origin": "ship-readiness",
+    "sourceIds": [
+     "impact-analysis.ship-readiness"
+    ],
+    "provenance": {
+     "source": "impact-analysis.ship-readiness",
+     "stage": "ship-readiness",
+     "taskId": "task-11",
+     "field": "assumptions",
+     "index": 2
+    },
+    "contentHash": "sha256:0a54b7737c96a04e5d7892d2fc93f884308c9a6f104b835979b5a0eb469edbf6"
+   },
+   {
+    "id": "impact-analysis.impact-synthesis:blockingIssues:payload-ca3211c1ab3daaa6833d46c55204fcf4bc43be7e755b0084138522114e03bc0d",
+    "text": "{\"action\":\"호환 별칭을 유지하거나 명시적 breaking migration을 제공하고 소비자·직렬화 계약 테스트를 추가한다.\",\"issue\":\"launchRetryAttempts가 launchRetries로 변경되어 기존 소비자와 SPEC.md 계약이 깨진다.\"}",
+    "kind": "blocker",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original blockingIssues row.",
+    "origin": "impact-synthesis",
+    "sourceIds": [
+     "impact-analysis.impact-synthesis"
+    ],
+    "provenance": {
+     "source": "impact-analysis.impact-synthesis",
+     "stage": "impact-synthesis",
+     "taskId": "task-12",
+     "field": "blockingIssues",
+     "index": 0
+    },
+    "contentHash": "sha256:ca3211c1ab3daaa6833d46c55204fcf4bc43be7e755b0084138522114e03bc0d"
+   },
+   {
+    "id": "impact-analysis.impact-synthesis:blockingIssues:payload-d3cbd736b5abb6a82af9aa5b7a9aed05e75430028f67dec2271c4806dac2c0bf",
+    "text": "{\"action\":\"timeout을 취소로 볼지 결정하고, 취소·timeout·실패·재시도 경계를 검증하는 테스트를 추가한다.\",\"issue\":\"cancelled와 timeout을 모두 취소로 분류해 실패·재시도·진단 상태가 왜곡될 수 있다.\"}",
+    "kind": "blocker",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original blockingIssues row.",
+    "origin": "impact-synthesis",
+    "sourceIds": [
+     "impact-analysis.impact-synthesis"
+    ],
+    "provenance": {
+     "source": "impact-analysis.impact-synthesis",
+     "stage": "impact-synthesis",
+     "taskId": "task-12",
+     "field": "blockingIssues",
+     "index": 1
+    },
+    "contentHash": "sha256:d3cbd736b5abb6a82af9aa5b7a9aed05e75430028f67dec2271c4806dac2c0bf"
+   },
+   {
+    "id": "impact-analysis.impact-synthesis:blockingIssues:payload-277702fad1cec0f4d2233428129b8ba72a39ee6e225594f55a50a81e00206551",
+    "text": "{\"action\":\"경계값, 중지 감지 지연, 중첩 비동기 읽기 및 실제 파일시스템 부하를 측정하고 운영 한계를 문서화한다.\",\"issue\":\"pollMs 기본값과 최솟값 변경의 지연·I/O 부하 영향이 검증되지 않았다.\"}",
+    "kind": "blocker",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original blockingIssues row.",
+    "origin": "impact-synthesis",
+    "sourceIds": [
+     "impact-analysis.impact-synthesis"
+    ],
+    "provenance": {
+     "source": "impact-analysis.impact-synthesis",
+     "stage": "impact-synthesis",
+     "taskId": "task-12",
+     "field": "blockingIssues",
+     "index": 2
+    },
+    "contentHash": "sha256:277702fad1cec0f4d2233428129b8ba72a39ee6e225594f55a50a81e00206551"
+   },
+   {
+    "id": "impact-analysis.impact-synthesis:blockingIssues:payload-9074ab3c88424050b2367b49b7d54c5299de9cc278ccd53f55ab223eb2272a6f",
+    "text": "{\"action\":\"필요 의존성을 포함한 clean-environment 검증과 배포 artifact·버전·export 절차를 정의한다.\",\"issue\":\"재현 가능한 typecheck·test·build 및 배포 산출물 검증 경로가 없다.\"}",
+    "kind": "blocker",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original blockingIssues row.",
+    "origin": "impact-synthesis",
+    "sourceIds": [
+     "impact-analysis.impact-synthesis"
+    ],
+    "provenance": {
+     "source": "impact-analysis.impact-synthesis",
+     "stage": "impact-synthesis",
+     "taskId": "task-12",
+     "field": "blockingIssues",
+     "index": 3
+    },
+    "contentHash": "sha256:9074ab3c88424050b2367b49b7d54c5299de9cc278ccd53f55ab223eb2272a6f"
+   },
+   {
+    "id": "impact-analysis.impact-synthesis:nonBlockingIssues:payload-8b3088b83c3e9678f08299bab29ba8bcde835172a939359785c8702d681871e9",
+    "text": "{\"action\":\"polling 부하, 중지 지연, timeout·취소·재시도 지표와 migration 내용을 기록한다.\",\"issue\":\"릴리스 노트와 관측 지표가 없어 변경 영향 추적성이 낮다.\"}",
+    "kind": "issue",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original nonBlockingIssues row.",
+    "origin": "impact-synthesis",
+    "sourceIds": [
+     "impact-analysis.impact-synthesis"
+    ],
+    "provenance": {
+     "source": "impact-analysis.impact-synthesis",
+     "stage": "impact-synthesis",
+     "taskId": "task-12",
+     "field": "nonBlockingIssues",
+     "index": 0
+    },
+    "contentHash": "sha256:8b3088b83c3e9678f08299bab29ba8bcde835172a939359785c8702d681871e9"
+   },
+   {
+    "id": "impact-analysis.impact-synthesis:nonBlockingIssues:payload-e49bfdf24f171bf70edf9eb8caae52d8007284112f8a9fbae8a95e116637a1b4",
+    "text": "{\"action\":\"이번 배포 차단 이슈와 분리해 후속 계약 정합성 작업으로 처리한다.\",\"issue\":\"기존 stop-error 문서 불일치는 이번 커밋의 직접 변경은 아니지만 별도 정리가 필요하다.\"}",
+    "kind": "issue",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original nonBlockingIssues row.",
+    "origin": "impact-synthesis",
+    "sourceIds": [
+     "impact-analysis.impact-synthesis"
+    ],
+    "provenance": {
+     "source": "impact-analysis.impact-synthesis",
+     "stage": "impact-synthesis",
+     "taskId": "task-12",
+     "field": "nonBlockingIssues",
+     "index": 1
+    },
+    "contentHash": "sha256:e49bfdf24f171bf70edf9eb8caae52d8007284112f8a9fbae8a95e116637a1b4"
+   },
+   {
+    "id": "impact-analysis.impact-synthesis:confirmedSafeAreas:payload-058cf2390bd11108d70847483fbb75e4bdee6930308b82f7c71ba8ced9d4fe6a",
+    "text": "{\"area\":\"변경 범위\",\"finding\":\"직접 변경은 세 파일의 소규모 변경으로 제한되어 있다.\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original confirmedSafeAreas row.",
+    "origin": "impact-synthesis",
+    "sourceIds": [
+     "impact-analysis.impact-synthesis"
+    ],
+    "provenance": {
+     "source": "impact-analysis.impact-synthesis",
+     "stage": "impact-synthesis",
+     "taskId": "task-12",
+     "field": "confirmedSafeAreas",
+     "index": 0
+    },
+    "contentHash": "sha256:058cf2390bd11108d70847483fbb75e4bdee6930308b82f7c71ba8ced9d4fe6a"
+   },
+   {
+    "id": "impact-analysis.impact-synthesis:confirmedSafeAreas:payload-8315f65ef940e8667e23052d2e43072471dda0ab2b8d29e913426f8a2400e0c5",
+    "text": "{\"area\":\"영속 데이터\",\"finding\":\"영속 저장 형식 자체의 직접 변경은 확인되지 않았다.\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original confirmedSafeAreas row.",
+    "origin": "impact-synthesis",
+    "sourceIds": [
+     "impact-analysis.impact-synthesis"
+    ],
+    "provenance": {
+     "source": "impact-analysis.impact-synthesis",
+     "stage": "impact-synthesis",
+     "taskId": "task-12",
+     "field": "confirmedSafeAreas",
+     "index": 1
+    },
+    "contentHash": "sha256:8315f65ef940e8667e23052d2e43072471dda0ab2b8d29e913426f8a2400e0c5"
+   },
+   {
+    "id": "impact-analysis.impact-synthesis:confirmedSafeAreas:payload-5e249bef4509151e98639379a83c19d4664378ff4fddea8eb7921279e88add55",
+    "text": "{\"area\":\"재시도 집계\",\"finding\":\"변경된 retry 필드도 기존과 동일하게 작업별 재시도 횟수를 합산한다.\"}",
+    "kind": "assumption",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original confirmedSafeAreas row.",
+    "origin": "impact-synthesis",
+    "sourceIds": [
+     "impact-analysis.impact-synthesis"
+    ],
+    "provenance": {
+     "source": "impact-analysis.impact-synthesis",
+     "stage": "impact-synthesis",
+     "taskId": "task-12",
+     "field": "confirmedSafeAreas",
+     "index": 2
+    },
+    "contentHash": "sha256:5e249bef4509151e98639379a83c19d4664378ff4fddea8eb7921279e88add55"
+   },
+   {
+    "id": "impact-analysis.impact-synthesis:recommendedNextActions:payload-6f58cd645688748609f3adcd7acc5c598176930d7f2aa51e3dbc927620173301",
+    "text": "{\"action\":\"공개 필드 호환성과 timeout 취소 의미를 먼저 확정하고 계약·상태 테스트를 추가한다.\",\"priority\":\"P0\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original recommendedNextActions row.",
+    "origin": "impact-synthesis",
+    "sourceIds": [
+     "impact-analysis.impact-synthesis"
+    ],
+    "provenance": {
+     "source": "impact-analysis.impact-synthesis",
+     "stage": "impact-synthesis",
+     "taskId": "task-12",
+     "field": "recommendedNextActions",
+     "index": 0
+    },
+    "contentHash": "sha256:6f58cd645688748609f3adcd7acc5c598176930d7f2aa51e3dbc927620173301"
+   },
+   {
+    "id": "impact-analysis.impact-synthesis:recommendedNextActions:payload-d1b0c2d953bf3f29daec437ceab4a6f4c2a64572659e843414167a8efd0667c8",
+    "text": "{\"action\":\"polling 성능 및 경계 동작을 검증한다.\",\"priority\":\"P0\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original recommendedNextActions row.",
+    "origin": "impact-synthesis",
+    "sourceIds": [
+     "impact-analysis.impact-synthesis"
+    ],
+    "provenance": {
+     "source": "impact-analysis.impact-synthesis",
+     "stage": "impact-synthesis",
+     "taskId": "task-12",
+     "field": "recommendedNextActions",
+     "index": 1
+    },
+    "contentHash": "sha256:d1b0c2d953bf3f29daec437ceab4a6f4c2a64572659e843414167a8efd0667c8"
+   },
+   {
+    "id": "impact-analysis.impact-synthesis:recommendedNextActions:payload-ab4158c2c8d5010592a0725d28f4ee3e8f6c893041beac60662f10f29e5fd0e6",
+    "text": "{\"action\":\"clean checkout에서 typecheck·test·build와 배포 산출물을 재현한다.\",\"priority\":\"P1\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original recommendedNextActions row.",
+    "origin": "impact-synthesis",
+    "sourceIds": [
+     "impact-analysis.impact-synthesis"
+    ],
+    "provenance": {
+     "source": "impact-analysis.impact-synthesis",
+     "stage": "impact-synthesis",
+     "taskId": "task-12",
+     "field": "recommendedNextActions",
+     "index": 2
+    },
+    "contentHash": "sha256:ab4158c2c8d5010592a0725d28f4ee3e8f6c893041beac60662f10f29e5fd0e6"
+   },
+   {
+    "id": "impact-analysis.impact-synthesis:recommendedNextActions:payload-955655db1d0b78529d40586787fc335bd67008f6313f08ec9cb2812bde01ea34",
+    "text": "{\"action\":\"SPEC.md와 릴리스 문서를 구현 계약에 맞게 갱신한다.\",\"priority\":\"P1\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original recommendedNextActions row.",
+    "origin": "impact-synthesis",
+    "sourceIds": [
+     "impact-analysis.impact-synthesis"
+    ],
+    "provenance": {
+     "source": "impact-analysis.impact-synthesis",
+     "stage": "impact-synthesis",
+     "taskId": "task-12",
+     "field": "recommendedNextActions",
+     "index": 3
+    },
+    "contentHash": "sha256:955655db1d0b78529d40586787fc335bd67008f6313f08ec9cb2812bde01ea34"
+   },
+   {
+    "id": "impact-analysis.impact-synthesis:validationToRun:payload-d5d78290c230bd3919ffd336c6c98f65e20907d2c3701665e3266bf72aded15c",
+    "text": "{\"check\":\"소비자·직렬화 계약 테스트\",\"expected\":\"launchRetryAttempts 호환 또는 의도한 breaking migration이 검증된다.\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original validationToRun row.",
+    "origin": "impact-synthesis",
+    "sourceIds": [
+     "impact-analysis.impact-synthesis"
+    ],
+    "provenance": {
+     "source": "impact-analysis.impact-synthesis",
+     "stage": "impact-synthesis",
+     "taskId": "task-12",
+     "field": "validationToRun",
+     "index": 0
+    },
+    "contentHash": "sha256:d5d78290c230bd3919ffd336c6c98f65e20907d2c3701665e3266bf72aded15c"
+   },
+   {
+    "id": "impact-analysis.impact-synthesis:validationToRun:payload-d766f192838cfa21781021ac72ed9bf7fd36f9cf1270b14d8ad46cbc368454c7",
+    "text": "{\"check\":\"취소·timeout 상태 테스트\",\"expected\":\"timeout 실패가 의도치 않게 취소·재시도로 바뀌지 않는다.\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original validationToRun row.",
+    "origin": "impact-synthesis",
+    "sourceIds": [
+     "impact-analysis.impact-synthesis"
+    ],
+    "provenance": {
+     "source": "impact-analysis.impact-synthesis",
+     "stage": "impact-synthesis",
+     "taskId": "task-12",
+     "field": "validationToRun",
+     "index": 1
+    },
+    "contentHash": "sha256:d766f192838cfa21781021ac72ed9bf7fd36f9cf1270b14d8ad46cbc368454c7"
+   },
+   {
+    "id": "impact-analysis.impact-synthesis:validationToRun:payload-779f3297528ae8c14d96e2f4f7e71cf29d501522ae7cc686c09a906d0b61b579",
+    "text": "{\"check\":\"polling 부하·지연 테스트\",\"expected\":\"200ms 기본값과 1ms 최솟값의 운영 영향이 수용 가능하다.\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original validationToRun row.",
+    "origin": "impact-synthesis",
+    "sourceIds": [
+     "impact-analysis.impact-synthesis"
+    ],
+    "provenance": {
+     "source": "impact-analysis.impact-synthesis",
+     "stage": "impact-synthesis",
+     "taskId": "task-12",
+     "field": "validationToRun",
+     "index": 2
+    },
+    "contentHash": "sha256:779f3297528ae8c14d96e2f4f7e71cf29d501522ae7cc686c09a906d0b61b579"
+   },
+   {
+    "id": "impact-analysis.impact-synthesis:validationToRun:payload-6b1df23931f03ed0ecd9b16bc614763b20e7996a6fa9c2d17ba2594b39436916",
+    "text": "{\"check\":\"clean-environment npm run, typecheck, test, build 검증\",\"expected\":\"필요한 명령과 의존성이 재현 가능하고 artifact가 생성된다.\"}",
+    "kind": "action",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original validationToRun row.",
+    "origin": "impact-synthesis",
+    "sourceIds": [
+     "impact-analysis.impact-synthesis"
+    ],
+    "provenance": {
+     "source": "impact-analysis.impact-synthesis",
+     "stage": "impact-synthesis",
+     "taskId": "task-12",
+     "field": "validationToRun",
+     "index": 3
+    },
+    "contentHash": "sha256:6b1df23931f03ed0ecd9b16bc614763b20e7996a6fa9c2d17ba2594b39436916"
+   },
+   {
+    "id": "impact-analysis.impact-synthesis:needsHuman:payload-8482df45fee7ac5366371d69cd7b5e020978c6afae0b6608f786ce1207030c4e",
+    "text": "{\"question\":\"timeout을 공개적으로 취소 상태로 분류하는 것이 제품 의도인가?\",\"reason\":\"의도에 따라 구현과 상태·재시도 계약이 달라진다.\"}",
+    "kind": "gap",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original needsHuman row.",
+    "origin": "impact-synthesis",
+    "sourceIds": [
+     "impact-analysis.impact-synthesis"
+    ],
+    "provenance": {
+     "source": "impact-analysis.impact-synthesis",
+     "stage": "impact-synthesis",
+     "taskId": "task-12",
+     "field": "needsHuman",
+     "index": 0
+    },
+    "contentHash": "sha256:8482df45fee7ac5366371d69cd7b5e020978c6afae0b6608f786ce1207030c4e"
+   },
+   {
+    "id": "impact-analysis.impact-synthesis:needsHuman:payload-9ec237afe7281d8bf5d4678a051845c9cbe59e2e817cf734796231eb0cdbc71c",
+    "text": "{\"question\":\"launchRetryAttempts 변경을 breaking change로 허용할 것인가?\",\"reason\":\"외부 소비자와 배포 버전 정책이 확인되지 않았다.\"}",
+    "kind": "gap",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original needsHuman row.",
+    "origin": "impact-synthesis",
+    "sourceIds": [
+     "impact-analysis.impact-synthesis"
+    ],
+    "provenance": {
+     "source": "impact-analysis.impact-synthesis",
+     "stage": "impact-synthesis",
+     "taskId": "task-12",
+     "field": "needsHuman",
+     "index": 1
+    },
+    "contentHash": "sha256:9ec237afe7281d8bf5d4678a051845c9cbe59e2e817cf734796231eb0cdbc71c"
+   },
+   {
+    "id": "impact-analysis.impact-synthesis:needsHuman:payload-f9ded7ad82e0b641f228e46c2a626537f3bc481d6d47d88c44dcc22b85eca169",
+    "text": "{\"question\":\"이 저장소는 패키지 배포 대상인가, 내부 source-only 배포인가?\",\"reason\":\"private 저장소에서 artifact·exports·릴리스 검증 기준이 달라진다.\"}",
+    "kind": "gap",
+    "severity": "none",
+    "scope": "known",
+    "resolution": "unresolved",
+    "resolutionNote": "No resolution was established for original needsHuman row.",
+    "origin": "impact-synthesis",
+    "sourceIds": [
+     "impact-analysis.impact-synthesis"
+    ],
+    "provenance": {
+     "source": "impact-analysis.impact-synthesis",
+     "stage": "impact-synthesis",
+     "taskId": "task-12",
+     "field": "needsHuman",
+     "index": 2
+    },
+    "contentHash": "sha256:f9ded7ad82e0b641f228e46c2a626537f3bc481d6d47d88c44dcc22b85eca169"
+   }
+  ],
+  "ledgerCoverage": {
+   "mode": "ledger",
+   "status": "complete",
+   "missingIds": [],
+   "duplicateIds": [],
+   "fabricatedSourceIds": [],
+   "stageFailures": []
+  },
+  "gates": {
+   "allLedgerSourcesAvailable": true,
+   "sourceCoverageComplete": true,
+   "verdictConsistent": true,
+   "riskFloorConsistent": true,
+   "synthesisRiskUnknown": false,
+   "regressionRiskUnknown": false,
+   "riskGatePassed": true,
+   "renderedAllStructuredItems": true,
+   "ledgerComplete": true,
+   "sidecarPublished": true,
+   "byteAssuranceLimited": true,
+   "passed": true
+  },
+  "sidecarPath": "final-report.md",
+  "ledgerSidecarPath": "source-ledger.json"
+ }
+}

@@ -1,0 +1,33 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "C1의 허용 문자열 목록을 구현이 확장하므로 해당 위반을 유지한다.",
+  "id": "candidate-REQ-008",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 26,
+      "lineEnd": 26,
+      "quote": "  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.",
+      "relevance": "C1은 세 문자열만 허용한다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 20,
+      "lineEnd": 20,
+      "quote": "candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\"",
+      "relevance": "구현이 cancelled와 timeout을 추가 취소 문자열로 인정한다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 16,
+      "lineEnd": 18,
+      "quote": "if (value.cancelled === true) return true;\n\tconst details = isRecord(value.details) ? value.details : undefined;\n\tif (details?.cancelled === true) return true;",
+      "relevance": "문자열 외에도 cancelled boolean marker를 취소로 승격한다."
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "구현은 C1의 세 허용 문자열 외에 error/reason 값 cancelled와 timeout을 취소로 판정하며, cancelled marker도 추가로 허용한다.",
+  "recommendedAction": "취소 문자열 비교를 aborted, AbortError, ABORT_ERR로 제한하고, 명세 범위를 벗어난 marker 허용 여부를 제거하거나 명시적으로 재검토한다."
+}

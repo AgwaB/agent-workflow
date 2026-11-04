@@ -1,0 +1,40 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "S6 위반 확인: 일반 Error도 메시지 접두사가 일치하면 중지 오류로 인정되며, 이를 배제하는 입력 제한은 없다.",
+  "id": "finding-002",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 18,
+      "lineEnd": 19,
+      "quote": "- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로\n  인정한다. 메시지 내용으로 판별해서는 안 된다.",
+      "relevance": "이름만으로 판별하고 메시지 기반 인정을 금지하는 명시적 계약이다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 30,
+      "lineEnd": 30,
+      "quote": "export const WORKFLOW_STOP_REQUESTED_ERROR_NAME = \"WorkflowStopRequested\";"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 53,
+      "lineEnd": 59,
+      "quote": "export function isWorkflowStopRequestedError(error: unknown): boolean {\n\treturn (\n\t\terror instanceof Error &&\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))\n\t);\n}",
+      "relevance": "입력은 unknown이며 이름이 달라도 메시지 접두사가 일치하는 Error를 인정한다."
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 47,
+      "lineEnd": 51,
+      "quote": "export function createWorkflowStopRequestedError(runId: string): Error {\n\tconst error = new Error(workflowStopRequestedMessage(runId));\n\terror.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME;\n\treturn error;\n}",
+      "relevance": "내부 생성기는 올바른 이름을 설정한다. 하지만 공개 판별기의 입력을 이 생성기의 결과로 제한하지는 않는다."
+    }
+  ],
+  "finalClaim": "S6 위반: isWorkflowStopRequestedError는 이름이 Error인 new Error(\"workflow stop requested for r\")도 메시지 접두사 때문에 true로 판별한다.",
+  "recommendedAction": "메시지 접두사에 의한 인정 분기를 제거한다. 이름이 다른 오류는 메시지가 일치해도 false이고, 이름이 WorkflowStopRequested인 오류는 메시지와 무관하게 true인 단위 테스트를 추가한다."
+}

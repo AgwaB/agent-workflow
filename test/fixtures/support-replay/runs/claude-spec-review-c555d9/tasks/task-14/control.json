@@ -1,0 +1,34 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "finding-006 is real in this checkout (no unit tests or test script for Q1), but scope is uncertain because the repo is an excerpt; downgraded to WEAKEN.",
+  "id": "finding-006",
+  "verdict": "WEAKEN",
+  "severity": "low",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 40,
+      "lineEnd": 40,
+      "quote": "**Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+      "relevance": "Spec requires a unit test per S/C/T item"
+    },
+    {
+      "file": "package.json",
+      "lineStart": 7,
+      "lineEnd": 7,
+      "quote": "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+      "relevance": "Only script is typecheck; no test script declared"
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "package.json",
+      "lineStart": 6,
+      "lineEnd": 6,
+      "quote": "\"description\": \"Excerpt of pi-workflow stop/cancel handling (store.js and types.js are not included).\"",
+      "relevance": "Checkout is declared an excerpt, so tests may live in the full upstream repo outside this checkout"
+    }
+  ],
+  "finalClaim": "Within this checkout, Q1 (a unit test per S/C/T item) is unmet: no test files and no test script exist; the spec does not say where tests must live.",
+  "recommendedAction": "Confirm whether the full pi-workflow repository holds the S/C/T unit tests; if not, add tests for S1–S7, C1–C2, T1–T3 or mark Q1 as out of scope for this excerpt."
+}

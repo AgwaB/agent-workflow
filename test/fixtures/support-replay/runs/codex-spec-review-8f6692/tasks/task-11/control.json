@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "C1 위반은 확인되지만 boolean cancelled 플래그까지 금지된다는 해석은 불명확하므로 주장을 좁힌다.",
+  "id": "finding-003",
+  "verdict": "WEAKEN",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 25,
+      "lineEnd": 26,
+      "quote": "오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.",
+      "relevance": "C1이 허용하는 오류·사유 문자열을 세 가지로 제한한다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 20,
+      "lineEnd": 20,
+      "quote": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "relevance": "명세에 없는 cancelled와 timeout 문자열을 취소로 판정한다."
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "error 또는 reason 위치의 cancelled와 timeout 문자열은 C1의 허용 목록 밖인데도 취소로 승격된다. 반면 boolean cancelled 플래그와 AbortError 객체 형태가 C1에 의해 명시적으로 금지되는지는 불명확하다.",
+  "recommendedAction": "error/reason 문자열 비교에서 cancelled와 timeout을 제거하고, 해당 입력이 취소로 판정되지 않는 회귀 테스트를 추가한다."
+}

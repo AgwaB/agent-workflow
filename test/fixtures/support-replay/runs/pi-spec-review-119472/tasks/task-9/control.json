@@ -1,0 +1,48 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "S3의 기본값·하한 위반은 확인되지만, 초기 즉시 검사가 있어 영향 표현과 심각도를 medium으로 조정한다.",
+  "id": "finding-001",
+  "verdict": "WEAKEN",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 13,
+      "lineEnd": 14,
+      "quote": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다.",
+      "relevance": "기본값 50ms와 최소 주기 10ms를 명시한다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 64,
+      "lineEnd": 67,
+      "quote": "\toptions: { pollMs?: number } = {},\n): { signal: AbortSignal; dispose: () => void } {\n\tconst controller = new AbortController();\n\tconst pollMs = Math.max(1, options.pollMs ?? 200);",
+      "relevance": "옵션 생략 시 200, pollMs=1이면 1을 계산한다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 81,
+      "lineEnd": 81,
+      "quote": "\tconst timer = setInterval(() => void check(), pollMs);",
+      "relevance": "계산값을 추가 보정 없이 반복 타이머에 전달한다."
+    },
+    {
+      "file": "package.json",
+      "lineStart": 7,
+      "lineEnd": 7,
+      "quote": "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+      "relevance": "제공된 실행 스크립트에는 단위 테스트 실행 항목이 없다."
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 80,
+      "lineEnd": 81,
+      "quote": "\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);",
+      "relevance": "최초 검사는 즉시 시작된다. 따라서 모든 중지 검사가 최초부터 200ms 지연된다는 해석은 성립하지 않지만 반복 주기의 위반은 남는다."
+    }
+  ],
+  "finalClaim": "S3 위반: createWorkflowStopSignal은 pollMs 생략 시 반복 주기를 요구된 50ms 대신 200ms로 설정하고, pollMs=1이면 최소 10ms로 보정하지 않고 1ms를 setInterval에 전달한다.",
+  "recommendedAction": "주기 계산을 Math.max(10, options.pollMs ?? 50)으로 수정하고, 옵션 생략·pollMs=1·경계값 10·10보다 큰 값에 대한 타이머 인자 회귀 테스트를 추가한다."
+}

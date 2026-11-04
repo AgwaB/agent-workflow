@@ -1,0 +1,132 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "마지막 커밋(654f639) 검토 결과 배포 판정은 'blocked'(배포 불가)입니다. 공개 인터페이스 계약 파괴(T3), 프로바이더 타임아웃 취소 오승격(C1), 디스크 I/O 고갈 및 중지 지연(S3), 에러 판별 규칙 위반(S6), 재귀 JSON 파싱 DoS 취약점(C2), 단위 테스트 및 검증 환경 전무(Q1, coverage none) 등 중대한 결함이 확인되어 프로덕션 배포가 안전하지 않습니다.",
+  "status": "blocked",
+  "requiredBeforeShip": [
+    {
+      "id": "SHIP-BLOCKER-01-PUBLIC-CONTRACT",
+      "title": "공개 텔레메트리 인터페이스 계약 복원 (launchRetryAttempts)",
+      "area": "api-contract",
+      "severity": "breaking",
+      "file": "src/workflow-terminal.ts",
+      "specRef": "SPEC.md#T3",
+      "action": "WorkflowTerminalSummary 인터페이스 및 summarizeWorkflowTerminal 반환 객체의 필드명을 'launchRetries'에서 명세에 정의된 공개 계약인 'launchRetryAttempts'로 즉시 환원",
+      "command": "npm run typecheck",
+      "ownerHint": "Core SDK / API Contract Owner"
+    },
+    {
+      "id": "SHIP-BLOCKER-02-CANCELLATION-CLASSIFICATION",
+      "title": "프로바이더 타임아웃 및 일반 취소 오승격 제거",
+      "area": "reliability",
+      "severity": "high",
+      "file": "src/workflow-cancellation.ts",
+      "specRef": "SPEC.md#C1",
+      "action": "isWorkflowReturnedCancellation에서 'cancelled', 'timeout' 및 details.cancelled 판별 조건을 제거하고 SPEC C1에 명시된 3대 토큰('aborted', 'AbortError', 'ABORT_ERR')만 취소로 인정하도록 수정하여 일시적 타임아웃의 재시도 로직 무력화 방지",
+      "ownerHint": "Workflow Engine / Reliability Owner"
+    },
+    {
+      "id": "SHIP-BLOCKER-03-STOP-POLLING-INTERVAL",
+      "title": "중지 감시 주기 기본값 및 최소 클램프 복원",
+      "area": "performance",
+      "severity": "high",
+      "file": "src/workflow-stop.ts",
+      "specRef": "SPEC.md#S3",
+      "action": "createWorkflowStopSignal의 pollMs 기본값을 50ms로 복원하고 최소 하한을 10ms로 강제(Math.max(10, options.pollMs ?? 50))하여 초당 수천 회의 디스크 I/O 경합 및 이벤트 루프 포화 방지",
+      "ownerHint": "Runtime / Resource Governance Owner"
+    },
+    {
+      "id": "SHIP-BLOCKER-04-STOP-ERROR-NAME-CHECK",
+      "title": "중지 오류 판별 시 에러 메시지 내용 검사 제거",
+      "area": "reliability",
+      "severity": "medium",
+      "file": "src/workflow-stop.ts",
+      "specRef": "SPEC.md#S6",
+      "action": "isWorkflowStopRequestedError에서 error.message.startsWith(...) 검사를 삭제하고 error.name === 'WorkflowStopRequested' 조건만 단독으로 검증하도록 수정하여 일반 런타임 오류의 중지 오인 방지",
+      "ownerHint": "Error Handling / Runtime Owner"
+    },
+    {
+      "id": "SHIP-BLOCKER-05-JSON-PARSING-DOS",
+      "title": "재귀 JSON 파싱 시 스택 오버플로(DoS) 방지 가드 구현",
+      "area": "security",
+      "severity": "high",
+      "file": "src/workflow-cancellation.ts",
+      "specRef": "SPEC.md#C2",
+      "action": "isWorkflowReturnedCancellation의 content 배열 재귀 파싱 시 객체 참조 비교(parsed !== value) 대신 최대 깊이 제한(maxDepth) 카운터 또는 WeakSet 기반 방문 추적을 도입하여 프로세스 비정상 종료 차단",
+      "ownerHint": "Security / Runtime Owner"
+    },
+    {
+      "id": "SHIP-BLOCKER-06-TEST-SUITE-IMPLEMENTATION",
+      "title": "명세 요구사항(S1~S7, C1~C2, T1~T3) 단위 테스트 작성 및 실행 스크립트 구축",
+      "area": "validation",
+      "severity": "high",
+      "file": "package.json",
+      "specRef": "SPEC.md#Q1",
+      "action": "테스트 프레임워크(예: vitest)를 devDependencies에 추가하고 package.json에 'test' 스크립트를 정의한 후 SPEC Q1에 명시된 모든 S/C/T 동작 검증 단위 테스트 작성",
+      "command": "npm install && npm test",
+      "ownerHint": "QA / Testing Infrastructure Owner"
+    },
+    {
+      "id": "SHIP-BLOCKER-07-DEPENDENCY-AND-TYPECHECK-VERIFICATION",
+      "title": "의존성 패키지 설치 및 타입스크립트 정적 검사 통과 검증",
+      "area": "validation",
+      "severity": "high",
+      "file": "package.json",
+      "action": "node_modules를 온전히 설치하여 tsc 컴파일러 실행 환경을 갖추고 npm run typecheck를 성공적으로 통과",
+      "command": "npm install && npm run typecheck",
+      "ownerHint": "Platform / Build Owner"
+    }
+  ],
+  "niceToHave": [
+    {
+      "id": "SHIP-NICE-01-ASYNC-POLLING-PROTECTION",
+      "title": "비동기 디스크 감시 중복 실행(Promise Pileup) 방지",
+      "area": "performance",
+      "file": "src/workflow-stop.ts",
+      "action": "setInterval 대신 재귀적 setTimeout 패턴이나 inFlight boolean 락을 적용하여 디스크 I/O 응답 지연 시 비동기 작업 누적 방지",
+      "ownerHint": "Runtime Performance Owner"
+    },
+    {
+      "id": "SHIP-NICE-02-DISK-ERROR-DIAGNOSTICS",
+      "title": "중지 감시 중 디스크 읽기 실패 시 진단 로깅 보강",
+      "area": "observability",
+      "file": "src/workflow-stop.ts",
+      "specRef": "SPEC.md#S4",
+      "action": "createWorkflowStopSignal 내부의 readWorkflowStopIntent catch 블록에 디버그 로깅 또는 지표 수집 코드를 추가하여 권한 오류(EACCES) 등 비정상 상황 추적성 확보",
+      "ownerHint": "Observability / SRE Owner"
+    },
+    {
+      "id": "SHIP-NICE-03-CI-PIPELINE-SETUP",
+      "title": "자동화 CI 파이프라인(GitHub Actions) 구축",
+      "area": "ci-release",
+      "file": ".github/workflows/ci.yml",
+      "action": "PR 및 커밋 시 npm run typecheck 및 npm test를 자동으로 강제하는 CI 워크플로 구성",
+      "ownerHint": "DevOps / CI Infrastructure Owner"
+    },
+    {
+      "id": "SHIP-NICE-04-PACKAGE-DISTRIBUTION-CONFIG",
+      "title": "패키지 배포 매니페스트 및 빌드 파이프라인 정비",
+      "area": "packaging",
+      "file": "package.json",
+      "action": "독립 라이브러리로 배포 시 package.json의 version 갱신, private 해제, 진입점(main, module, types, exports) 명시 및 tsconfig.json 빌드(dist 산출물 생성) 스크립트 구성",
+      "ownerHint": "Release Engineering Owner"
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "ASM-SHIP-01-SPEC-AUTHORITY",
+      "assumption": "SPEC.md에 명시된 요구사항(S1~S7, C1~C2, T1~T3, Q1)이 본 프로젝트의 단일 진실 원천(Single Source of Truth)이자 릴리스 적합성을 판별하는 절대 기준임"
+    },
+    {
+      "id": "ASM-SHIP-02-EXTERNAL-MODULES",
+      "assumption": "store.js 및 types.js는 저장소 발췌에서 제외된 외부 제공 안정 모듈로 가정하며, 기존 계약대로 정상 동작한다고 전제함"
+    },
+    {
+      "id": "ASM-SHIP-03-DEPLOYMENT-BLOCK-CRITERIA",
+      "assumption": "공개 텔레메트리 계약 파기(Breaking Change), 원격 DoS 취약점, 프로바이더 타임아웃의 취소 오분류, 단위 테스트 전무(검증 부재) 상태는 프로덕션 배포를 차단(blocked)하는 결격 사유임"
+    },
+    {
+      "id": "ASM-SHIP-04-PACKAGING-SCOPE",
+      "assumption": "현재 패키지는 private: true(0.0.0) 상태이므로 외부 npm 배포 설정은 nice-to-have로 분류 가능하나, 모노레포 내부 런타임 배포 관점에서도 테스트와 계약 정합성은 필수 차단 요건임"
+    }
+  ]
+}

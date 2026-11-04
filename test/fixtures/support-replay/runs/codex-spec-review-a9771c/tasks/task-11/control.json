@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "REQ-006 위반을 구현 원문으로 재확인함.",
+  "id": "finding-s6-error-classification",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 18,
+      "lineEnd": 19,
+      "quote": "WorkflowStopRequested`인 오류만 중지 오류로\n  인정한다. 메시지 내용으로 판별해서는 안 된다.",
+      "relevance": "S6는 오류 이름만 판별 기준으로 허용한다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 56,
+      "lineEnd": 57,
+      "quote": "error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\t\terror.message.startsWith(\"workflow stop requested\"))",
+      "relevance": "이름이 일치하지 않아도 메시지 prefix가 일치하면 true가 된다."
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "isWorkflowStopRequestedError는 이름이 WorkflowStopRequested가 아닌 Error도 메시지가 workflow stop requested로 시작하면 중지 오류로 분류한다.",
+  "recommendedAction": "메시지 startsWith 분기를 제거하고 Error의 name이 WorkflowStopRequested인지로만 판별한다."
+}

@@ -1,0 +1,26 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "JSON.parse는 매번 새 객체 참조를 생성하므로 parsed !== value 검사로는 재귀를 방지할 수 없으며 SPEC.md C2 요구사항 위반이 확인되므로 지적을 유지(KEEP)합니다.",
+  "findingId": "finding-006",
+  "finding": "Reference inequality check (parsed !== value) fails to prevent infinite recursion on cyclical or repeating JSON structures (C2 violation)",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 27,
+      "lineEnd": 28,
+      "symbol": "isWorkflowReturnedCancellation",
+      "quote": "\t\t\t\tconst parsed: unknown = JSON.parse(entry.text);\n\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 27,
+      "lineEnd": 28,
+      "quote": "- **C2.** `content` 배열 안의 텍스트가 JSON이면 그 내용도 같은 규칙으로 판별하되, 같은 값을 다시\n  검사하는 무한 재귀가 없어야 한다."
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "isWorkflowReturnedCancellation에 원시 JSON 문자열을 추적하는 visited Set을 도입하거나 재귀 호출 시 최대 탐색 깊이를 제한하는 bounded depth 매개변수를 추가하여 무한 재귀를 방지해야 합니다.",
+  "readerTitle": "참조 불일치 검사(parsed !== value)가 순환적이거나 반복되는 JSON 구조에서 무한 재귀를 방지하지 못함 (C2 위반)",
+  "readerRationale": "SPEC.md 요구사항 C2에는 'content 배열 안의 텍스트가 JSON이면 그 내용도 같은 규칙으로 판별하되, 같은 값을 다시 검사하는 무한 재귀가 없어야 한다'고 명시되어 있다. JSON.parse는 호출할 때마다 메모리에 새로운 고유 객체를 생성하므로 부모 value와의 참조 일치성 비교는 결코 일치하지 않는다. 프로바이더 메시지의 content 항목 내에 자기 참조적이거나 반복되는 직렬화된 JSON 문자열이 포함되어 있으면, isWorkflowReturnedCancellation은 콜 스택 오버플로(RangeError)가 발생할 때까지 무한 재귀를 수행한다."
+}

@@ -1,0 +1,48 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "S5 위반을 입증할 실행 경로가 없으므로 후보를 기각한다.",
+  "id": "finding-S5",
+  "verdict": "DROP",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 17,
+      "lineEnd": 17,
+      "quote": "- **S5.** `dispose()`를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다.",
+      "relevance": "검토 대상 요구사항"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 85,
+      "lineEnd": 85,
+      "quote": "dispose: () => clearInterval(timer),",
+      "relevance": "dispose가 interval을 취소한다는 후보 근거"
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 74,
+      "lineEnd": 74,
+      "quote": "\t\tconst intent = await readWorkflowStopIntent(cwd, runId).catch(",
+      "relevance": "poll callback은 첫 await 전에 readWorkflowStopIntent 호출을 시작한다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 80,
+      "lineEnd": 81,
+      "quote": "\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);",
+      "relevance": "초기 check는 timer와 dispose가 반환되기 전에 시작된다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 85,
+      "lineEnd": 85,
+      "quote": "\t\tdispose: () => clearInterval(timer),",
+      "relevance": "dispose는 아직 시작되지 않은 후속 interval callback을 취소한다."
+    }
+  ],
+  "finalClaim": "현재 코드만으로 dispose 이후 새로운 읽기가 시작되는 경쟁 조건은 입증되지 않는다. check는 첫 await 전에 읽기 호출을 시작하므로 실행 중 callback과 dispose 사이에 읽기 시작 지점이 놓이지 않는다.",
+  "recommendedAction": "S5 finding은 제거한다. 경계 회귀 테스트를 추가한다면 별도의 테스트 커버리지(Q1) 개선으로 다룬다."
+}

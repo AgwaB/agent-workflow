@@ -1,0 +1,143 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "HEAD 654f639는 배포 차단. 공개 필드 launchRetryAttempts→launchRetries 이름 변경(별칭 없음), 취소 키워드 확장('cancelled'/'timeout'), stop 폴링 기본값 변경(50→200ms)이 SPEC.md와 충돌하고, 테스트가 없어 검증되지 않음.",
+  "summary": "HEAD 654f639는 배포하지 않는 것이 맞다(BLOCKED, 위험도 high). 공개 요약 필드 이름 변경이 별칭 없이 이뤄져 외부 소비자가 조용히 undefined를 받게 되고, 취소 분류 확장으로 제공자 타임아웃이 사용자 취소로 잘못 기록될 수 있으며, SPEC과 맞지 않는 폴링 값이 들어갔다. 자동 테스트가 없어 이 변경들을 검증할 수 없다. 보안 영향은 낮다(업스트림 판단). 단, 실제 diff는 직접 읽지 못했고 업스트림 산출물과 grep 근거에 의존한다.",
+  "verdict": "BLOCKED",
+  "riskLevel": "high",
+  "blockingIssues": [
+    {
+      "id": "BI-1",
+      "area": "public-contract",
+      "issue": "WorkflowTerminalSummary.launchRetryAttempts가 launchRetries로 별칭 없이 바뀌었다. SPEC T3는 이 필드를 외부 도구가 읽는 공개 계약으로 명시한다.",
+      "action": "launchRetryAttempts를 유지하거나, 전환 기간 동안 두 필드를 함께 내보낸다. 이름 변경을 택하면 SPEC T3와 마이그레이션 노트를 함께 갱신한다.",
+      "evidence": "src/workflow-terminal.ts:33,107; SPEC.md:35-36(T3); contract-consistency cc-1; ship-readiness R1"
+    },
+    {
+      "id": "BI-2",
+      "area": "behavior-contract+security-reliability",
+      "issue": "isWorkflowReturnedCancellation이 'cancelled'와 'timeout'을 취소로 인정한다. SPEC C1은 aborted/AbortError/ABORT_ERR 세 값만 허용하고 임의 제공자 오류의 취소 승격을 금지한다. 제공자 타임아웃이 사용자 취소로 분류되면 terminal 상태, 재시도, 요약 집계가 바뀐다.",
+      "action": "'timeout'은 제외하는 것을 우선 권장한다. 'cancelled'를 유지하려면 실제 제공자 페이로드로 근거를 확인하고, C1을 수정하고, 테스트를 추가한다. 정확한 C1 집합으로 되돌리는 것도 가능하다.",
+      "evidence": "src/workflow-cancellation.ts:9-11,20; SPEC.md:25-26(C1); contract-consistency cc-2; regression-risk; ship-readiness R2"
+    },
+    {
+      "id": "BI-3",
+      "area": "spec-code-drift",
+      "issue": "stop 감시 기본 pollMs가 50ms(SPEC S3)에서 200ms로 바뀌었고, 하한도 SPEC의 10ms와 다른 Math.max(1, …)이다. 중지 응답 지연이 최대 약 200ms 늘어난다.",
+      "action": "의도한 값인지 확인한다. 의도했다면 SPEC S3와 하한을 갱신하고 export 시그니처 문서를 맞춘다. 의도하지 않았다면 50ms와 10ms 하한으로 되돌린다.",
+      "evidence": "src/workflow-stop.ts:67; SPEC.md:13-14(S3); contract-consistency cc-3; ship-readiness R3"
+    },
+    {
+      "id": "BI-4",
+      "area": "validation",
+      "issue": "테스트 파일과 test 스크립트가 없다(package.json에는 typecheck만 있음). SPEC Q1의 항목별 테스트 요구를 충족하지 못했고, store.js와 types.js가 저장소에 없어 typecheck가 해석되지 않을 수 있다(미실행 추정).",
+      "action": "npm run typecheck를 실제로 실행해 결과를 확보한다. package.json에 test 스크립트를 추가하고, 필드 이름, 취소 집합, 폴링 기본값·하한, stop 오류 이름과 메시지를 고정하는 계약 테스트를 추가한다.",
+      "evidence": "package.json:7; contract-consistency cc-4; regression-risk risk 4; ship-readiness R4"
+    }
+  ],
+  "nonBlockingIssues": [
+    {
+      "id": "NB-1",
+      "area": "docs-release",
+      "issue": "변경 기록과 마이그레이션 노트가 없다. 저장소에 README, CHANGELOG, docs가 없고 private 패키지라 배포 영향은 낮다.",
+      "action": "릴리스 노트에 필드 이름, 취소 키워드, stop 주기 변경을 기록한다."
+    },
+    {
+      "id": "NB-2",
+      "area": "fixtures",
+      "issue": "summarizeWorkflowTerminal 출력 스냅샷 픽스처가 없어 이후 필드 변경을 감지할 수 없다.",
+      "action": "T3 요약 스냅샷 테스트를 추가한다."
+    },
+    {
+      "id": "NB-3",
+      "area": "performance",
+      "issue": "폴링 간격 변경의 지연 특성이 문서화되어 있지 않다. 보안 영향은 낮다(업스트림 판단: 새 입력원, 비밀 처리, 네트워크 경로 없음).",
+      "action": "BI-3 결정 후 중지 지연 특성을 짧게 기록한다."
+    }
+  ],
+  "confirmedSafeAreas": [
+    {
+      "note": "grep으로 확인된 세 가지 계약 편차(launchRetries 이름, 취소 집합, pollMs 기본값)는 업스트림 주장과 일치한다"
+    },
+    {
+      "note": "src/에 launchRetryAttempts 참조가 없어 저장소 안 소비자는 확인되지 않았다"
+    },
+    {
+      "note": "보안 영향은 낮다는 업스트림 판단(새 입력원, 비밀 처리, 네트워크 경로 변경 없음). 직접 검증은 하지 않았다"
+    },
+    {
+      "note": "SPEC.md는 11bc671에서 추가되었고 654f639에서 변경되지 않았다고 가정했다(미확인)"
+    }
+  ],
+  "recommendedNextActions": [
+    {
+      "note": "1순위: BI-1 결정(별칭 유지 또는 되돌리기)과 외부 소비자 확인"
+    },
+    {
+      "note": "2순위: BI-2 결정. 'timeout' 제외를 우선 권장하며 실제 제공자 페이로드를 확인한다"
+    },
+    {
+      "note": "3순위: BI-3 결정. 의도하지 않았다면 50ms와 10ms 하한으로 복구한다"
+    },
+    {
+      "note": "4순위: BI-4 검증 체계 구축(typecheck 실행, test 스크립트, 계약 테스트)"
+    },
+    {
+      "note": "5순위: 실제 diff 확인(git show --stat 654f639, git diff 11bc671 654f639 -- src/) 후 재심사"
+    }
+  ],
+  "validationToRun": [
+    {
+      "command": "git show --stat 654f639 && git diff 11bc671 654f639 -- src/",
+      "purpose": "변경 파일 목록을 직접 확인한다. 현재 근거는 커밋 메시지, 업스트림 산출물, grep에 의존한다.",
+      "expected": "src/workflow-stop.ts, src/workflow-cancellation.ts, src/workflow-terminal.ts 변경과 기타 변경 여부 확인"
+    },
+    {
+      "command": "npm run typecheck",
+      "purpose": "store.js와 types.js 누락으로 typecheck가 실패하는지 확인한다.",
+      "expected": "통과 또는 누락 모듈 오류의 정확한 내용 확보"
+    },
+    {
+      "command": "contract tests (to be added) + npm test",
+      "purpose": "launchRetries/launchRetryAttempts 정책, C1 정확 집합, S3 기본값과 하한, stop 오류 이름과 메시지 접두사를 고정한다.",
+      "expected": "BI-1~BI-3 결정 사항이 테스트로 고정되고 통과한다"
+    },
+    {
+      "command": "read src/workflow-stop.ts 전체",
+      "purpose": "업스트림이 언급한 S6(stop 오류 감지) 편차를 직접 확인한다. 현재 근거는 없다(A4 미검증).",
+      "expected": "S6 편차 확인 또는 해소"
+    }
+  ],
+  "needsHuman": [
+    {
+      "id": "NH-1",
+      "question": "launchRetries 이름 변경은 의도한 결정인가? launchRetryAttempts를 읽는 외부 도구는 누구이고 몇 개인가?",
+      "reason": "저장소 밖 소비자는 확인할 수 없다. SPEC T3 기준으로 존재한다고 가정했다.",
+      "owner": "WorkflowTerminalSummary 소비자 담당자와 SPEC 작성자"
+    },
+    {
+      "id": "NH-2",
+      "question": "'timeout'을 취소로 취급하는 것이 의도인가? 실제 제공자 페이로드에서 이 마커가 나오는가?",
+      "reason": "제공자 페이로드 형태는 검증되지 않았다. 잘못 분류되면 재시도와 terminal 상태가 바뀐다.",
+      "owner": "workflow 취소 분류 담당자와 제공자 어댑터 담당자"
+    },
+    {
+      "id": "NH-3",
+      "question": "pollMs 200ms 기본값과 1ms 하한은 의도한 값인가, 아니면 SPEC의 50ms와 10ms로 되돌릴 것인가?",
+      "reason": "SPEC과 코드가 다르다. 업스트림이 의도 여부를 확인하지 못했다.",
+      "owner": "workflow-stop 모듈 담당자"
+    },
+    {
+      "id": "NH-4",
+      "question": "업스트림 ship-readiness의 A6가 적은 원본 크기(2136, 3257, 2754)가 이번에 읽은 projection의 originalChars(3033, 3544, 2659)와 다르다. 업스트림 산출물이 재생성되었거나 다른 버전을 본 것인가?",
+      "reason": "업스트림 산출물 간 불일치다. 근거의 버전을 확인해야 한다.",
+      "owner": "워크플로 운영자"
+    },
+    {
+      "id": "NH-5",
+      "question": "S6(stop 오류 감지) 편차가 실제로 존재하는가?",
+      "reason": "change-scope는 편차를 언급하지만 근거 항목이 없고, ship-readiness A4도 직접 확인하지 않았다.",
+      "owner": "stop 모듈 담당자 또는 리뷰어"
+    }
+  ],
+  "needsHumanNote": "verdict 판단은 업스트림 control 산출물 4건(모두 charsTruncated=false로 완전히 읽음)과 grep 근거에 기반한다. 실제 git diff, typecheck, 테스트는 이 스카우트 단계에서 실행하지 않았다."
+}

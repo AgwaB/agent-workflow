@@ -1,0 +1,53 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "마지막 커밋(654f639) 기준 공개 API 및 명세(SPEC.md) 대비 4건의 심각한 계약 불일치(T3 필드명 불일치, C1 provider 취소 판별 범위 초과, S6 에러 판별 규칙 위반, S3 폴링 주기 기본값 및 클램프 오류)가 확인되어 배포 차단 수준의 높은 계약 영향(high)이 식별되었습니다.",
+  "status": "high",
+  "impacts": [
+    {
+      "id": "IMPACT-API-01",
+      "severity": "breaking",
+      "component": "workflow-terminal",
+      "title": "공개 인터페이스 WorkflowTerminalSummary 필드명 불일치 (T3 위반)",
+      "contractElement": "WorkflowTerminalSummary.launchRetries vs launchRetryAttempts",
+      "breaking": true,
+      "description": "SPEC.md T3에서 명시된 공개 계약 필드명은 'launchRetryAttempts'이나, src/workflow-terminal.ts에서는 'launchRetries'로 정의 및 반환되어 외부 도구 및 다운스트림 컨슈머에서 필드를 읽을 때 undefined가 반환되는 파괴적 변경(Breaking Change)이 발생합니다."
+    },
+    {
+      "id": "IMPACT-API-02",
+      "severity": "high",
+      "component": "workflow-cancellation",
+      "title": "Provider 취소 사유 판별 범위 초과 (C1 위반)",
+      "contractElement": "isWorkflowReturnedCancellation",
+      "breaking": true,
+      "description": "SPEC.md C1은 provider 오류/사유 문자열로 'aborted', 'AbortError', 'ABORT_ERR'의 3가지만 취소로 인정하고 다른 오류의 승격을 금지하고 있으나, src/workflow-cancellation.ts는 'cancelled' 및 'timeout'까지 취소로 판별하여 프로바이더의 타임아웃 오류를 취소로 잘못 분류하고 진단 정보를 억제하는 계약 드리프트가 존재합니다."
+    },
+    {
+      "id": "IMPACT-API-03",
+      "severity": "medium",
+      "component": "workflow-stop",
+      "title": "중지 에러 판별 규칙의 메시지 내용 의존 (S6 위반)",
+      "contractElement": "isWorkflowStopRequestedError",
+      "breaking": false,
+      "description": "SPEC.md S6은 이름이 'WorkflowStopRequested'인 오류만 중지 오류로 인정하고 메시지 내용으로 판별하지 않도록 규정하고 있으나, src/workflow-stop.ts는 error.message.startsWith('workflow stop requested') 조건을 포함하여 외부 임의의 오류가 중지 오류로 오판별될 위험을 초래합니다."
+    },
+    {
+      "id": "IMPACT-API-04",
+      "severity": "medium",
+      "component": "workflow-stop",
+      "title": "중지 감시 주기 기본값 및 하한선 불일치 (S3 위반)",
+      "contractElement": "createWorkflowStopSignal(options.pollMs)",
+      "breaking": false,
+      "description": "SPEC.md S3은 pollMs 기본값을 50ms, 하한 클램프를 10ms로 명시했으나, src/workflow-stop.ts는 기본값 200ms, 하한선 Math.max(1, ...)을 적용하여 감시 반응 속도가 명세 대비 4배 지연되고 최소값 보호가 정상 작동하지 않습니다."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "ASSUME-01",
+      "text": "SPEC.md에 명시된 요구사항(S1~S7, C1~C2, T1~T3)이 최신 확정 명세이며, 소스 코드 구현이 이에 맞춰 수정되어야 하는 기준 진실(ground truth)입니다."
+    },
+    {
+      "id": "ASSUME-02",
+      "text": "외부 의존 모듈(store.js, types.js)은 저장소 발췌에서 제외되었으나 기존 공개 인터페이스와 안정적으로 연동된다고 가정합니다."
+    }
+  ]
+}
