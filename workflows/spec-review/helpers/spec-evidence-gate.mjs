@@ -2,7 +2,11 @@
 // Typed local citations are the only byte evidence protocol. Strings are
 // display-only, including file:line, URLs and opaque source refs. No network.
 import { createHash } from "node:crypto";
-import { readLocalText, localRange } from "./local-evidence-reader.mjs";
+import {
+  locateEvidence,
+  readLocalText,
+  localRange,
+} from "./local-evidence-reader.mjs";
 import { rendererRequirementSource } from "./spec-requirement-source.mjs";
 
 export const EVIDENCE_PROTOCOL = "spec-local-evidence-v1";
@@ -41,77 +45,6 @@ export function isLocalCitation(row) {
  * every correction is recorded. A quote that differs in words, sits farther away, or occurs more than
  * once is left as it was (and fails the gate).
  */
-const EVIDENCE_LINE_TOLERANCE = 10;
-
-function foldEvidenceLine(line) {
-  return line
-    .replace(/\r$/u, "")
-    .replace(/[\u2018\u2019\u201A\u201B]/gu, "'")
-    .replace(/[\u201C\u201D\u201E\u201F]/gu, '"')
-    .replace(/[\u2010-\u2015\u2212]/gu, "-")
-    .replace(/[\u00A0\u2002-\u200A\u202F\u205F\u3000]/gu, " ")
-    .trim();
-}
-
-/** As deep-review's (2026-11-04): a line break with its indentation counts as one space. */
-function locateJoined(text, quote) {
-  const wanted = quote.split("\n").map(foldEvidenceLine).join(" ");
-  if (wanted.length < 8) return null;
-  const starts = [];
-  let joined = "";
-  for (const [index, line] of text.split("\n").entries()) {
-    if (index > 0) joined += " ";
-    starts.push(joined.length);
-    joined += foldEvidenceLine(line);
-  }
-  const at = joined.indexOf(wanted);
-  if (at < 0 || joined.indexOf(wanted, at + 1) >= 0) return null;
-  const lineOf = (offset) => {
-    let line = 0;
-    while (line + 1 < starts.length && starts[line + 1] <= offset) line++;
-    return line + 1;
-  };
-  return { line: lineOf(at), lineEnd: lineOf(at + wanted.length - 1) };
-}
-
-function locateEvidence(text, quote, citedStart, citedEnd) {
-  const lines = text.split("\n");
-  const span = quote.split("\n").length;
-  let found = null;
-  let reason = "line";
-  const exact = [];
-  for (let at = text.indexOf(quote); at >= 0; at = text.indexOf(quote, at + 1)) {
-    const line = text.slice(0, at).split("\n").length;
-    exact.push({ line, lineEnd: line + span - 1 });
-    if (exact.length > 1) return null;
-  }
-  if (exact.length === 1) found = exact[0];
-  else {
-    const folded = quote.split("\n").map(foldEvidenceLine).join("\n");
-    if (folded.length < 8) return null;
-    for (let start = 1; start + span - 1 <= lines.length; start++) {
-      const window = lines
-        .slice(start - 1, start - 1 + span)
-        .map(foldEvidenceLine)
-        .join("\n");
-      if (!window.includes(folded)) continue;
-      if (found) return null;
-      found = { line: start, lineEnd: start + span - 1 };
-    }
-    found ??= locateJoined(text, quote);
-    if (!found) return null;
-    reason = "whitespace";
-    found.text = lines.slice(found.line - 1, found.lineEnd).join("\n");
-  }
-  const distance =
-    found.lineEnd < citedStart
-      ? citedStart - found.lineEnd
-      : citedEnd < found.line
-        ? found.line - citedEnd
-        : 0;
-  return distance > EVIDENCE_LINE_TOLERANCE ? null : { ...found, reason };
-}
-
 /** The citations of one verifier field, corrected where {@link locateEvidence} finds them. */
 export async function correctCitations(value, field, id, context, corrections) {
   if (!Array.isArray(value)) return value;
@@ -331,7 +264,8 @@ export function reconcileRequirementCoverage(
     if (
       typeof row?.requirement !== "string" ||
       row.requirement.trim().length < 8 ||
-      !/[A-Za-z0-9]/u.test(row.requirement)
+      // agent-workflow 2026-11-04: any script's letters or digits (a Korean statement was "meaningless").
+      !/[\p{L}\p{N}]/u.test(row.requirement)
     )
       issues.push(`missing_or_meaningless_requirement_statement:${row?.id ?? "unknown"}`);
     const sourceCheck = sourceEvidence.find((item) => item?.id === row?.id);

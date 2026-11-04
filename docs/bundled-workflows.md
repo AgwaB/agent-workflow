@@ -239,7 +239,12 @@ After stage 2 (2026-11-01):
   the check only (a second live Codex run left REQ-S6 unresolved on indentation): the coverage rows
   stay as the candidate control wrote them, since their bytes are bound to it; the gate's coverage
   rows carry `corrections`, which the renderer recomputes from the same file bytes and lists too.
-  Tests: `core-review-helper-byte-gates.test.mjs`.
+  extract-spec's requirement quotes are checked the same way (a third live run: two quotes joined
+  soft-wrapped spec lines), recorded as `correction` on the requirement-source rows. The same run
+  found a multilingual bug: a requirement statement without ASCII letters or digits was
+  `missing_or_meaningless_requirement_statement`; any script's letters or digits now count. The
+  locate helpers live in `local-evidence-reader.mjs`. Replaying that run: its three
+  reconciliation issues are gone. Tests: `core-review-helper-byte-gates.test.mjs`.
 - **M27.** impact-review completion summary (2026-11-04, same live runs). Claude and Antigravity
   runs failed at the final render: `completionSummaryMarkdown` (7,132 and 9,209 characters) broke the
   render control schema's 6,000. The summary now lists the first four action rows (blocking first,

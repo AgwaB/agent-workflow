@@ -2,7 +2,7 @@
 // Only runtime-owned manifest chains locate requirement controls. Saved gate
 // metadata, model aliases, titles and row positions are never source authority.
 import { createHash } from "node:crypto";
-import { readLocalText, localRange } from "./local-evidence-reader.mjs";
+import { readLocalText, localRange, locateEvidence } from "./local-evidence-reader.mjs";
 
 const safeId = value => typeof value === "string" && /^[a-zA-Z0-9_-]+$/.test(value);
 const normalizeId = value => typeof value === "string" && value.trim() ? value.trim() : "";
@@ -70,9 +70,18 @@ async function verifyRequirementSources(control, context) {
       try {
         const text = await readLocalText(context.cwd, citation.file, context.signal);
         const range = localRange(text, citation.lineStart, citation.lineEnd);
+        // agent-workflow 2026-11-04 (live Codex spec-review: requirement quotes joining soft-wrapped
+        // spec lines): a few lines off or whitespace only, as for verifier citations; checked here,
+        // the extract-spec control itself is left as written (its bytes are bound).
+        const found = range.includes(citation.quote)
+          ? null
+          : locateEvidence(text, citation.quote, citation.lineStart, citation.lineEnd);
         checked.push({
           citation,
-          status: range.includes(citation.quote) ? "verified" : "mismatch",
+          status: range.includes(citation.quote) || found ? "verified" : "mismatch",
+          ...(found
+            ? { correction: { actual: `${found.line}-${found.lineEnd}`, reason: found.reason } }
+            : {}),
           sha256: sha256(text),
         });
       } catch (error) {

@@ -94,6 +94,7 @@ export async function roundtrip(
 	verdict = "KEEP",
 	counterEvidence = [],
 	analysis = candidates,
+	requirement = {},
 ) {
 	// Explicit unit fixture for the runtime-owned source chain. End-to-end
 	// ownership is separately exercised by the real materialized scheduler tests.
@@ -135,6 +136,7 @@ export async function roundtrip(
 								priority: "high",
 								implementationSignals: ["source.ts:1"],
 								testSignals: ["test.ts:1"],
+								...requirement,
 							},
 						],
 					}
@@ -694,4 +696,52 @@ test("requirement-coverage citations get the same correction; the rows stay as w
 			coverage("  if (go ||\n      done) return;"),
 		);
 		assert.equal(wrong.p.evidenceGate.coverage[0].rows[0].status, "mismatch");
+	}));
+
+// agent-workflow 2026-11-04 (live Codex spec-review, third run): a Korean requirement statement was
+// "meaningless" (ASCII-only check) and requirement quotes joining soft-wrapped spec lines were
+// unverified, so the verdict stayed INCONCLUSIVE.
+test("requirement statements in any script; a requirement quote joining a wrapped spec line is verified", () =>
+	fixture(async (cwd) => {
+		await writeFile(
+			join(cwd, "SPEC.md"),
+			"구현은 로컬 동작을\n  유지해야 한다.\n",
+		);
+		const korean = {
+			requirement: "구현은 로컬 동작을 유지해야 한다.",
+			specEvidence: {
+				file: "SPEC.md",
+				lineStart: 1,
+				lineEnd: 2,
+				quote: "구현은 로컬 동작을 유지해야 한다.",
+			},
+		};
+		const ok = await roundtrip(cwd, [citation], "KEEP", [], candidates, korean);
+		assert.equal(
+			ok.p.evidenceGate.requirementReconciliation.issues.length,
+			0,
+			JSON.stringify(ok.p.evidenceGate.requirementReconciliation.issues),
+		);
+		assert.equal(ok.result.status, "passed");
+		const changed = await roundtrip(cwd, [citation], "KEEP", [], candidates, {
+			...korean,
+			specEvidence: {
+				...korean.specEvidence,
+				quote: "구현은 원격 동작을 유지해야 한다.",
+			},
+		});
+		assert.ok(
+			changed.p.evidenceGate.requirementReconciliation.issues.includes(
+				"unverified_requirement_source:REQ-1",
+			),
+		);
+		const symbols = await roundtrip(cwd, [citation], "KEEP", [], candidates, {
+			...korean,
+			requirement: "—— · ——",
+		});
+		assert.ok(
+			symbols.p.evidenceGate.requirementReconciliation.issues.includes(
+				"missing_or_meaningless_requirement_statement:REQ-1",
+			),
+		);
 	}));
