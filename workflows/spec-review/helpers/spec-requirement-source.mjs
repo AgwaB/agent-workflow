@@ -75,7 +75,7 @@ async function verifyRequirementSources(control, context) {
         // the extract-spec control itself is left as written (its bytes are bound).
         const found = range.includes(citation.quote)
           ? null
-          : locateEvidence(text, citation.quote, citation.lineStart, citation.lineEnd);
+          : locateEvidence(text, citation.quote, citation.lineStart, citation.lineEnd, citation.file);
         checked.push({
           citation,
           status: range.includes(citation.quote) || found ? "verified" : "mismatch",

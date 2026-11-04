@@ -438,3 +438,35 @@ test("normalization notes name the finding by its reader title", async (t) => {
 		!out.normalizationNotes.some((note) => note.includes(finding.title)),
 	);
 });
+
+// agent-workflow 2026-11-04: a quote of Markdown prose that drops inline-code backticks or emphasis
+// asterisks matches (only in Markdown files); other text still has to match.
+test("Markdown quotes may drop backticks and asterisks; code files may not", async (t) => {
+	const cwd = project(t);
+	writeFileSync(
+		join(cwd, "SPEC.md"),
+		"# Spec\n\n- **T3.** `outputRetryAttempts`와 `launchRetryAttempts`는 공개 계약이다.\n",
+	);
+	writeFileSync(
+		join(cwd, "src", "b.ts"),
+		"const name = `launchRetryAttempts`;\n",
+	);
+	const base = await dedup(cwd, "src/a.ts:1-6", "danger = true;");
+	const md = await partition(cwd, base, [
+		{ file: "src/a.ts", line: 4, quote: "danger = true;" },
+		{
+			file: "SPEC.md",
+			line: 3,
+			quote: "T3. outputRetryAttempts와 launchRetryAttempts는 공개 계약이다.",
+		},
+	]);
+	assert.equal(md.partitionSummary.keep, 1);
+	assert.equal(
+		md.partitions.keep[0].evidence[1].quote,
+		"- **T3.** `outputRetryAttempts`와 `launchRetryAttempts`는 공개 계약이다.",
+	);
+	const code = await partition(cwd, base, [
+		{ file: "src/b.ts", line: 1, quote: "const name = launchRetryAttempts;" },
+	]);
+	assert.equal(code.partitionSummary.keep, 0, "not in a code file");
+});

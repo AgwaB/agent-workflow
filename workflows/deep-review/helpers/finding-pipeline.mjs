@@ -311,15 +311,20 @@ function foldEvidenceLine(line) {
  * folded as above; spacing inside a line still has to match. Tried only after the per-line folding
  * finds nothing. Returns lines, else null.
  */
-function locateJoined(text, quote) {
-	const wanted = quote.split("\n").map(foldEvidenceLine).join(" ");
+function locateJoined(text, quote, markdown = false) {
+	// With `markdown`, inline-code backticks and emphasis asterisks are ignored on both sides
+	// (2026-11-04: a Codex verifier quoted "outputRetryAttempts와" for "`outputRetryAttempts`와").
+	const fold = markdown
+		? (line) => foldEvidenceLine(line).replace(/[`*]/gu, "")
+		: foldEvidenceLine;
+	const wanted = quote.split("\n").map(fold).join(" ");
 	if (wanted.length < 8) return null;
 	const starts = [];
 	let joined = "";
 	for (const [index, line] of text.split("\n").entries()) {
 		if (index > 0) joined += " ";
 		starts.push(joined.length);
-		joined += foldEvidenceLine(line);
+		joined += fold(line);
 	}
 	const at = joined.indexOf(wanted);
 	if (at < 0 || joined.indexOf(wanted, at + 1) >= 0) return null;
@@ -341,7 +346,7 @@ function rangeDistance(line, lineEnd, otherLine, otherEnd) {
  * Where `quote` is in the file: a unique exact occurrence, else a unique occurrence after folding
  * each line. Returns null when absent, ambiguous, or farther than the tolerance from the cited range.
  */
-function locateEvidence(text, quote, citedLine, citedEnd) {
+function locateEvidence(text, quote, citedLine, citedEnd, file = "") {
 	const exact = [];
 	for (let at = text.indexOf(quote); at >= 0; at = text.indexOf(quote, at + 1)) {
 		const line = lineNumberOfOffset(text, at);
@@ -369,7 +374,11 @@ function locateEvidence(text, quote, citedLine, citedEnd) {
 			}
 		}
 		if (hits.length === 0) {
-			const joined = locateJoined(text, quote);
+			const joined =
+				locateJoined(text, quote) ??
+				(/\.(md|markdown|mdx)$/iu.test(file)
+					? locateJoined(text, quote, true)
+					: null);
 			if (!joined) return null;
 			hits.push(joined);
 		}
@@ -422,7 +431,7 @@ function verifierEvidenceGroundingIssues(rows, context = {}, corrections = null)
 		)
 			continue;
 		const found = corrections
-			? locateEvidence(source.text, row.quote, row.line, lineEnd)
+			? locateEvidence(source.text, row.quote, row.line, lineEnd, row.file)
 			: null;
 		if (found) {
 			corrections.push({
@@ -1067,7 +1076,7 @@ function exactSourceQuoteIssue(row, path, context, corrections = null) {
 		const clamped = pointer.lineEnd > lines.length;
 		const found = scopedText.includes(row.evidence)
 			? null
-			: locateEvidence(source.text, row.evidence, pointer.line, lineEnd);
+			: locateEvidence(source.text, row.evidence, pointer.line, lineEnd, pointer.file);
 		if (!scopedText.includes(row.evidence) && !found)
 			return "content quote was not found in required source range";
 		if (clamped)
@@ -1087,7 +1096,13 @@ function exactSourceQuoteIssue(row, path, context, corrections = null) {
 		return "";
 	}
 	if (scopedText.includes(row.evidence)) return "";
-	const found = locateEvidence(source.text, row.evidence, 1, Number.MAX_SAFE_INTEGER);
+	const found = locateEvidence(
+		source.text,
+		row.evidence,
+		1,
+		Number.MAX_SAFE_INTEGER,
+		pointer.file ?? path,
+	);
 	if (!found) return "content quote was not found in required source range";
 	corrections?.push({
 		kind: "coverage-quote",

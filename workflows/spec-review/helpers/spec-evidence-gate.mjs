@@ -68,7 +68,7 @@ export async function correctCitations(value, field, id, context, corrections) {
     } catch {}
     const found = inRange
       ? null
-      : locateEvidence(text, citation.quote, citation.lineStart, citation.lineEnd);
+      : locateEvidence(text, citation.quote, citation.lineStart, citation.lineEnd, citation.file);
     if (!found) {
       out.push(citation);
       continue;

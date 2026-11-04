@@ -79,16 +79,23 @@ function foldEvidenceLine(line) {
     .trim();
 }
 
-/** As deep-review's (2026-11-04): a line break with its indentation counts as one space. */
-function locateJoined(text, quote) {
-  const wanted = quote.split("\n").map(foldEvidenceLine).join(" ");
+/**
+ * As deep-review's (2026-11-04): a line break with its indentation counts as one space. With
+ * `markdown`, inline-code backticks and emphasis asterisks are ignored on both sides too (a quote
+ * of Markdown prose often drops them: "outputRetryAttempts와" for "`outputRetryAttempts`와").
+ */
+function locateJoined(text, quote, markdown = false) {
+  const fold = markdown
+    ? (line) => foldEvidenceLine(line).replace(/[`*]/gu, "")
+    : foldEvidenceLine;
+  const wanted = quote.split("\n").map(fold).join(" ");
   if (wanted.length < 8) return null;
   const starts = [];
   let joined = "";
   for (const [index, line] of text.split("\n").entries()) {
     if (index > 0) joined += " ";
     starts.push(joined.length);
-    joined += foldEvidenceLine(line);
+    joined += fold(line);
   }
   const at = joined.indexOf(wanted);
   if (at < 0 || joined.indexOf(wanted, at + 1) >= 0) return null;
@@ -100,7 +107,7 @@ function locateJoined(text, quote) {
   return { line: lineOf(at), lineEnd: lineOf(at + wanted.length - 1) };
 }
 
-export function locateEvidence(text, quote, citedStart, citedEnd) {
+export function locateEvidence(text, quote, citedStart, citedEnd, file = "") {
   const lines = text.split("\n");
   const span = quote.split("\n").length;
   let found = null;
@@ -125,6 +132,7 @@ export function locateEvidence(text, quote, citedStart, citedEnd) {
       found = { line: start, lineEnd: start + span - 1 };
     }
     found ??= locateJoined(text, quote);
+    if (!found && /\.(md|markdown|mdx)$/iu.test(file)) found = locateJoined(text, quote, true);
     if (!found) return null;
     reason = "whitespace";
     found.text = lines.slice(found.line - 1, found.lineEnd).join("\n");

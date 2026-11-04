@@ -261,6 +261,11 @@ After stage 2 (2026-11-01):
   the live run: its three partial sources become one (a quote missing a Markdown backtick, still a
   content difference); keep 2 → 4, needs-human 3 → 1. Tests:
   `core-deep-review-line-corrections.test.mjs`, `core-review-helper-byte-gates.test.mjs`.
+- **M28b.** Markdown quotes (2026-11-04): in a `.md`/`.markdown`/`.mdx` file, a quote that drops
+  inline-code backticks or emphasis asterisks matches as a whitespace-class difference (deep-review,
+  spec-review, the support-partition scaffold); code files keep them significant. The Codex
+  deep-review run whose last partial source was such a quote replays with no partial source (keep 5).
+  Tests: `core-deep-review-line-corrections.test.mjs`, `core-review-helper-byte-gates.test.mjs`.
 - **M29.** Confirmed findings decide the verdict first (owner decision 2026-11-04, after the live run
   of every workflow: all six non-clean verdicts had 2–6 grounded findings but read
   INCONCLUSIVE or PARTIAL_REVIEW because one or two requirements stayed "unclear" or two reviewers

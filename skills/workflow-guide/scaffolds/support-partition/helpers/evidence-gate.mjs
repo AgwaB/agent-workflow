@@ -83,7 +83,7 @@ async function gateFinding(finding, root, signal) {
     let corrected;
     for (const { location, range } of status === "verified" ? [] : ranges) {
       if (range.status !== "ok") continue;
-      const found = locateEvidence(range.file, quote, range.start, range.end);
+      const found = locateEvidence(range.file, quote, range.start, range.end, location.file);
       if (!found) continue;
       status = "verified";
       matchedIn = { file: location.file, line: found.line, lineEnd: found.lineEnd };

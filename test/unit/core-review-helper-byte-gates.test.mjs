@@ -819,3 +819,31 @@ test("scaffold gate: a nearby or whitespace-only different quote is verified and
 		assert.equal(wrong.value.evidenceGate.integrity, "partial");
 		assert.equal(wrong.value.partitions.keep.length, 0);
 	}));
+
+// agent-workflow 2026-11-04: a requirement quote of Markdown that drops backticks is verified.
+test("spec-review: a Markdown requirement quote without backticks is verified", () =>
+	fixture(async (cwd) => {
+		await writeFile(
+			join(cwd, "SPEC.md"),
+			"- **T3.** 요약의 `launchRetryAttempts` 필드 이름은 공개 계약이다.\n",
+		);
+		const requirement = {
+			requirement: "launchRetryAttempts 필드 이름은 공개 계약이다.",
+			specEvidence: {
+				file: "SPEC.md",
+				lineStart: 1,
+				lineEnd: 1,
+				quote: "요약의 launchRetryAttempts 필드 이름은 공개 계약이다.",
+			},
+		};
+		const out = await roundtrip(
+			cwd,
+			[citation],
+			"KEEP",
+			[],
+			candidates,
+			requirement,
+		);
+		assert.deepEqual(out.p.evidenceGate.requirementReconciliation.issues, []);
+		assert.equal(out.result.status, "passed");
+	}));
