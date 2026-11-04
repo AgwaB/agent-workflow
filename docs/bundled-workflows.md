@@ -439,6 +439,15 @@ interactive host asks once in `safe` mode), **refuse** (the run is not started).
   `node test/helpers/support-replay.mjs --write` and review the golden diff; more runs:
   `--capture <project dir>`. On the replay alone the helpers are 56–100 % line-covered, with the
   whole unit suite 86–100 % (`test/helpers/coverage-report.mjs`, merged V8 coverage).
+- Refactor 2026-11-04 (behavior unchanged; golden replay and coverage before/after equal or higher):
+  deep-research helpers share `source-access.mjs` (`findSource`, `asArray`, `asObject`,
+  `stringOf`); deep-review's renderer takes `asArray` from `review-verdict.mjs`; spec-review's
+  `partitionFindings` is split into `readSourceAuthority`, `collectBatchVerifiers` /
+  `collectSingletonVerifiers`, `joinCandidateVerdicts` and `reconcileCandidateUniverse`. A bundle
+  cannot import another bundle, so the spec-review and scaffold evidence readers stay two copies;
+  `core-review-helper-byte-gates.test.mjs` fails when they differ. Same-named functions that do
+  different things (deep-review `normalizeFinding`/`locationsOf` in the pipeline and the renderer,
+  spec-review `ownerKey`) were left alone.
 
 2026-11-03 (owner: the final report listed pipeline diagnostics per claim):
 

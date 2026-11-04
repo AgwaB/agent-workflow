@@ -2005,3 +2005,16 @@ except in attributions (file headers, README, this document, `replay.md`).
 - **Replay.** The recordings keep pi-workflow's names: rename rule `aw-does-not-know-pi-workflow`,
   explained difference `aw-timing-source`, and the `engine-only` variants classify `workflow_web_*`
   through a test seam (`setExtraBuiltinToolsForTests`).
+
+## 2026-11-04 — refactor (no behavior change)
+
+- Identical copies of internal helpers now live once: `src/core/dynamic-fields.ts` (dynamic
+  ctx field checks), `claim-support-fields.ts`, `json-values.ts` (`pruneUndefined`,
+  `toStableJson`, `toJsonNormalizedValue`, `canonical`, `hasRequiredKeys`), `isInsidePath` in
+  `physical-paths.ts`; `src/runtime/core/paths.ts` (`assertSafeId`, `isInsideOrEqual`,
+  `toSafeRelativePath`) and `isTerminalStatus` in `runtime/core/constants.ts` (still exported from
+  `orchestrate/status.ts`); `src/mcp/package-version.ts`; `src/executors/state-files.ts`.
+- The terminal CLI and Pi `/aw` share one argument layer, `src/hosts/command-args.ts`
+  (`parseCommandArgs` and the request builders, `CommandSyntax` for the usage prefix and the CLI's
+  `--json`); `cli/index.ts` re-exports `parseCommandArgs`, `logsRequest`, `parseRoleFlags` and
+  `workflowPreferenceRequest`. Characterized first by `host-command-parity.test.mjs`.
