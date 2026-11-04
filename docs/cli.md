@@ -9,12 +9,16 @@ npm install @agwab/agent-workflow      # provides the agent-workflow bin
 npx agent-workflow --help
 ```
 
-**Project directory.** Every command takes the current directory as the project: its
-`workflows/` and `.agent-workflow/workflows/` are searched, and runs are recorded in its
-`.agent-workflow/`. There is no search upward (Codex, by contrast, takes the nearest ancestor with
-`.git`). Run from the project root; a workflow name that only an ancestor project has fails with
-"not found in <dir>; the project <ancestor> has it — … run from <ancestor> (or pass the spec path)"
-(2026-11-04). A spec path works from anywhere and the run is recorded in the current directory.
+**Project directory.** The CLI works on the nearest enclosing project: walking up from the current
+directory, the first directory with a `.agent-workflow/` or a `.git` (never the one that holds the
+user-level `~/.agent-workflow`), else the current directory — like Codex's project-root markers
+(2026-11-04). Its `workflows/` and `.agent-workflow/workflows/` are searched and runs are recorded
+in its `.agent-workflow/`; workers run there, so paths in a task are read from the project root.
+When that is not the current directory the CLI says so on stderr ("agent-workflow: project <dir> (the
+current directory is inside it …)"). To make a subdirectory its own project, create
+`.agent-workflow/` in it. The MCP server and the Pi host use the directory their host gives them; a
+workflow name that only an enclosing project has then fails with "not found in <dir>; the project
+<ancestor> has it — … run from <ancestor> (or pass the spec path)".
 
 ## Commands
 

@@ -76,6 +76,7 @@ import {
 import { assertNotifyStampName, notifyCheck } from "../notify-check.js";
 import { runWatch, WATCH_DEFAULT_INTERVAL_MS } from "../watch.js";
 import { runStatusLine } from "./statusline.js";
+import { findProjectRoot } from "../project-root.js";
 import { clearExecutorProbeCache } from "../../core/executor-default.js";
 
 export const MODULE = "src/hosts/cli";
@@ -1437,6 +1438,15 @@ export async function runAgentWorkflowCli(
 		if (command === "--version" || command === "-v") {
 			io.stdout(`${packageVersion()}\n`);
 			return EXIT_OK;
+		}
+		// 2026-11-04: the nearest enclosing project (src/hosts/project-root.ts) is the project.
+		const projectRoot = findProjectRoot(io.cwd, io.env);
+		if (projectRoot !== resolve(io.cwd)) {
+			if (command !== "statusline" && command !== "notify-check")
+				io.stderr(
+					`agent-workflow: project ${projectRoot} (the current directory is inside it; paths in a task are read from there)\n`,
+				);
+			io = { ...io, cwd: projectRoot };
 		}
 		if (rest.includes("--help") || rest.includes("-h")) {
 			io.stdout(`${helpAction(command).text}\n`);
