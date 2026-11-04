@@ -235,8 +235,11 @@ After stage 2 (2026-11-01):
   the actual lines and, for a folded match, the file's own text, so the byte gate and the renderer's
   re-audit stay exact; the partition carries `evidenceCorrections` (only when there are any) and
   the report lists them under "Evidence corrections". Invalid ranges, different words, farther
-  positions and repeated text still fail; requirement-coverage citations are not corrected (their
-  bytes are bound to the candidate control). Tests: `core-review-helper-byte-gates.test.mjs`.
+  positions and repeated text still fail. Requirement-coverage citations get the same correction for
+  the check only (a second live Codex run left REQ-S6 unresolved on indentation): the coverage rows
+  stay as the candidate control wrote them, since their bytes are bound to it; the gate's coverage
+  rows carry `corrections`, which the renderer recomputes from the same file bytes and lists too.
+  Tests: `core-review-helper-byte-gates.test.mjs`.
 - **M27.** impact-review completion summary (2026-11-04, same live runs). Claude and Antigravity
   runs failed at the final render: `completionSummaryMarkdown` (7,132 and 9,209 characters) broke the
   render control schema's 6,000. The summary now lists the first four action rows (blocking first,

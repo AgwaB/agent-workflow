@@ -638,3 +638,60 @@ test("unverified DROP cannot silently remove a candidate", () =>
 		assert.notEqual(result.verdict, "CONFORMS");
 		assert.notEqual(result.status, "passed");
 	}));
+
+// agent-workflow 2026-11-04 (live Codex spec-review, second run): a requirement-coverage citation
+// with different indentation left REQ-S6 unresolved. It is checked with the same correction; the
+// coverage row itself stays as the candidate control wrote it.
+test("requirement-coverage citations get the same correction; the rows stay as written", () =>
+	fixture(async (cwd) => {
+		await writeFile(
+			join(cwd, "source.ts"),
+			"\t\tif (stop ||\n\t\t\tdone) return;\n",
+		);
+		const quote = "\t\tif (stop ||\n\t\t\tdone) return;";
+		const spaced = "  if (stop ||\n      done) return;";
+		const coverage = (q) => ({
+			...candidates,
+			requirementCoverage: [
+				{
+					requirementId: "REQ-1",
+					status: "covered",
+					evidence: [{ file: "source.ts", lineStart: 1, lineEnd: 2, quote: q }],
+				},
+			],
+		});
+		const citationRow = [{ ...citation, lineEnd: 2, quote }];
+		const exact = await roundtrip(
+			cwd,
+			citationRow,
+			"KEEP",
+			[],
+			coverage(quote),
+		);
+		const relaxed = await roundtrip(
+			cwd,
+			citationRow,
+			"KEEP",
+			[],
+			coverage(spaced),
+		);
+		assert.equal(exact.result.status, relaxed.result.status);
+		assert.equal(relaxed.p.requirementCoverage[0].evidence[0].quote, spaced);
+		assert.equal(
+			relaxed.p.evidenceGate.coverage[0].corrections[0].reason,
+			"whitespace",
+		);
+		assert.equal(relaxed.p.evidenceGate.coverage[0].rows[0].status, "verified");
+		assert.match(
+			relaxed.result.markdown,
+			/REQ-1 coverage: source\.ts lines 1-2 → 1-2/u,
+		);
+		const wrong = await roundtrip(
+			cwd,
+			citationRow,
+			"KEEP",
+			[],
+			coverage("  if (go ||\n      done) return;"),
+		);
+		assert.equal(wrong.p.evidenceGate.coverage[0].rows[0].status, "mismatch");
+	}));

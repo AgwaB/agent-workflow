@@ -649,12 +649,17 @@ function renderNoIssueNotes(rows) {
 
 /** agent-workflow 2026-11-04: verifier citations the partition matched with a correction. */
 function renderEvidenceCorrections(partition) {
-	const corrections = asArray(partition.evidenceCorrections).filter(isRecord);
+	const corrections = [
+		...asArray(partition.evidenceCorrections),
+		...asArray(partition.evidenceGate?.coverage).flatMap((row) =>
+			asArray(row?.corrections),
+		),
+	].filter(isRecord);
 	if (corrections.length === 0) return [];
 	const out = [
 		"## Evidence corrections",
 		"",
-		"Verifier evidence that differed from the file only in its cited lines or whitespace was matched against the file; the stored evidence is the file's own text.",
+		"Verifier and requirement-coverage evidence that differed from the file only in its cited lines or whitespace was matched against the file; verifier evidence is stored as the file's own text.",
 		"",
 	];
 	for (const row of corrections)

@@ -256,10 +256,14 @@ export async function gateRequirementCoverage(
   ).entries()) {
     const id = exactRequirementId(row?.requirementId) ? row.requirementId : "";
     const positive = row?.status === "covered";
+    // agent-workflow 2026-11-04: corrected like verifier citations (above), but only for this check:
+    // the coverage rows themselves stay as the candidate control wrote them (their bytes are bound
+    // to it); the renderer recomputes the same corrections from the same file bytes.
+    const corrections = [];
     const result = await gateDisposition(
       id,
       "KEEP",
-      row?.evidence,
+      await correctCitations(row?.evidence, "coverage", id, context, corrections),
       [],
       context,
     );
@@ -292,6 +296,7 @@ export async function gateRequirementCoverage(
       complete,
       positive,
       accountedBy,
+      ...(corrections.length > 0 ? { corrections } : {}),
     });
   }
   return rows;
