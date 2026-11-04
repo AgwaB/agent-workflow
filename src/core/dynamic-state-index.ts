@@ -6,6 +6,8 @@ import { join } from "node:path";
 import { dynamicRunDir } from "./dynamic-events.js";
 import type { DynamicOutputProfile } from "./dynamic-profiles.js";
 import { ensureDir, writeJsonAtomic } from "./store.js";
+import { hasTopLevelClaimSupportFields } from "./claim-support-fields.js";
+import { pruneUndefined, toStableJson } from "./json-values.js";
 
 export const DYNAMIC_ARTIFACT_EXTRACT_SCHEMA =
 	"dynamic-artifact-extract-v1" as const;
@@ -775,20 +777,6 @@ function claimSupportEntries(
 	return false;
 }
 
-function hasTopLevelClaimSupportFields(
-	control: Record<string, unknown>,
-): boolean {
-	return [
-		"claim",
-		"sourceLocators",
-		"locators",
-		"sources",
-		"sourceRefs",
-		"excerpt",
-		"quote",
-	].some((key) => control[key] !== undefined);
-}
-
 function claimSupportStatusField(
 	value: unknown,
 	verificationStatus: DynamicStateVerification["status"],
@@ -1097,26 +1085,6 @@ function hashStable(value: unknown): string {
 function toJson(value: unknown): unknown {
 	const text = JSON.stringify(value);
 	return text === undefined ? null : JSON.parse(text);
-}
-
-function toStableJson(value: unknown): unknown {
-	if (Array.isArray(value)) return value.map((item) => toStableJson(item));
-	if (!isRecord(value)) return value;
-	const result: Record<string, unknown> = {};
-	for (const key of Object.keys(value).sort())
-		result[key] = toStableJson(value[key]);
-	return result;
-}
-
-function pruneUndefined<T>(value: T): T {
-	if (Array.isArray(value))
-		return value.map((item) => pruneUndefined(item)) as T;
-	if (!isRecord(value)) return value;
-	const result: Record<string, unknown> = {};
-	for (const [key, item] of Object.entries(value)) {
-		if (item !== undefined) result[key] = pruneUndefined(item);
-	}
-	return result as T;
 }
 
 function sanitizeSegment(value: string): string {

@@ -162,7 +162,7 @@ function workspaceMeta(workspace: ResolvedWorkspace) {
 	};
 }
 
-function parallelConcurrency(input: RuntimeRunInput): number {
+export function parallelConcurrency(input: RuntimeRunInput): number {
 	const requested = input.concurrency ?? DEFAULT_PARALLEL_CONCURRENCY;
 	return Math.max(1, Math.min(MAX_PARALLEL_CONCURRENCY, requested));
 }

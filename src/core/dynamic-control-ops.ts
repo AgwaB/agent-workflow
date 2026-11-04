@@ -18,10 +18,7 @@ import {
 	normalizeDynamicAgentRequest,
 	type DynamicAgentRequest,
 } from "./dynamic-generated-task-runtime.js";
-import {
-	isDynamicOutputProfile,
-	type DynamicOutputProfile,
-} from "./dynamic-profiles.js";
+import type { DynamicOutputProfile } from "./dynamic-profiles.js";
 import { recordDynamicEventAndUpdateState } from "./dynamic-state.js";
 import {
 	assembleDynamicStateIndex,
@@ -40,6 +37,13 @@ import type {
 	WorkflowTaskRunRecord,
 } from "./types.js";
 import type { WorkflowSourceManifestSource } from "./workflow-artifact-tool.js";
+import {
+	requiredDynamicString,
+	optionalDynamicString,
+	optionalDynamicStringArray,
+	requiredDynamicOutputProfile,
+	isPlainDynamicRecord,
+} from "./dynamic-fields.js";
 
 export async function runDynamicDecisionPersistCall(input: {
 	cwd: string;
@@ -856,42 +860,6 @@ function normalizeDynamicResultPath(path: string): string {
 	return normalized;
 }
 
-function requiredDynamicString(
-	value: unknown,
-	field: string,
-	api = "ctx.agent()",
-): string {
-	if (typeof value !== "string" || value.trim() === "") {
-		throw new Error(`${api} ${field} must be a non-empty string`);
-	}
-	return value.trim();
-}
-
-function optionalDynamicString(
-	value: unknown,
-	field: string,
-): string | undefined {
-	if (value === undefined) return undefined;
-	return requiredDynamicString(value, field);
-}
-
-function optionalDynamicStringArray(
-	value: unknown,
-	field: string,
-): string[] | undefined {
-	if (value === undefined) return undefined;
-	if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
-		throw new Error(`ctx.agent() ${field} must be an array of strings`);
-	}
-	return value.map((item) => item.trim()).filter(Boolean);
-}
-
-function isPlainDynamicRecord(
-	value: unknown,
-): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function optionalDynamicPositiveInteger(
 	value: unknown,
 	field: string,
@@ -901,18 +869,6 @@ function optionalDynamicPositiveInteger(
 		throw new Error(`ctx.agent() ${field} must be a positive integer`);
 	}
 	return value;
-}
-
-function requiredDynamicOutputProfile(
-	value: unknown,
-	field: string,
-	api: string,
-): DynamicOutputProfile {
-	const profile = requiredDynamicString(value, field, api);
-	if (!isDynamicOutputProfile(profile)) {
-		throw new Error(`${api} ${field} has an unsupported output profile`);
-	}
-	return profile;
 }
 
 function requiredDynamicNonNegativeInteger(

@@ -20,6 +20,7 @@ import {
 	type HostResult,
 	result,
 } from "./types.js";
+import { withTimeout } from "../core/executor-default.js";
 
 export interface ExecutorModelsRequest {
 	/** Executor ids (default: pi, claude, codex). */
@@ -66,20 +67,6 @@ export function modelListNote(
 	if (complete)
 		return `${models.length} models; the list is complete (modelListComplete): another id is refused at launch`;
 	return `${models.length} models listed; the list is partial (modelListComplete: false): another id is only noted at launch, not refused`;
-}
-
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-	let timer: NodeJS.Timeout | undefined;
-	return Promise.race([
-		promise,
-		new Promise<T>((_, reject) => {
-			timer = setTimeout(
-				() => reject(new Error(`probe did not finish within ${timeoutMs} ms`)),
-				timeoutMs,
-			);
-			timer.unref?.();
-		}),
-	]).finally(() => clearTimeout(timer));
 }
 
 async function probeModels(

@@ -248,7 +248,10 @@ export const cachedExecutorProber: ExecutorReadinessProber = (descriptor) => {
 	return value;
 };
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+export function withTimeout<T>(
+	promise: Promise<T>,
+	timeoutMs: number,
+): Promise<T> {
 	let timer: NodeJS.Timeout | undefined;
 	return Promise.race([
 		promise,

@@ -52,6 +52,7 @@ import {
 	type JsonSchemaIssue,
 	type JsonSchemaObject,
 } from "./json-schema.js";
+import { isPositiveClaimSupportStatus } from "./claim-support-fields.js";
 
 export const VNEXT_OUTPUT_PROTOCOL = "workflow-output-sections-v1" as const;
 export const VNEXT_TASK_RESULT_SCHEMA = "workflow-task-result-v1" as const;
@@ -2078,15 +2079,6 @@ function refLocatorsField(value: unknown): string[] {
 		const locator = refLocator(item);
 		return locator ? [locator] : [];
 	});
-}
-
-function isPositiveClaimSupportStatus(value: unknown): boolean {
-	return (
-		value === "supports" ||
-		value === "partial" ||
-		value === "verified" ||
-		value === "weakened"
-	);
 }
 
 function refLocatorAliases(locator: string): string[] {

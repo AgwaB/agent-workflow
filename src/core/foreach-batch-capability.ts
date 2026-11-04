@@ -7,6 +7,7 @@ import {
 	openWorkflowStateRootCapability,
 	type WorkflowStateRootCapability,
 } from "./workflow-state-root.js";
+import { canonical } from "./json-values.js";
 
 const SHA256 = /^[a-f0-9]{64}$/u;
 const CAPABILITIES = new WeakMap<
@@ -22,19 +23,6 @@ const CAPABILITIES = new WeakMap<
 
 export interface WorkflowForeachBatchCapability {
 	readonly kind: "agent-workflow-private-foreach-batch-capability-v1";
-}
-
-function canonical(value: unknown): unknown {
-	if (Array.isArray(value)) return value.map(canonical);
-	if (value && typeof value === "object") {
-		return Object.fromEntries(
-			Object.entries(value)
-				.filter(([, entry]) => entry !== undefined)
-				.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-				.map(([key, entry]) => [key, canonical(entry)]),
-		);
-	}
-	return value;
 }
 
 function deepFreeze<T>(value: T): T {

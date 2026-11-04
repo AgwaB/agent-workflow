@@ -14,6 +14,7 @@ import type {
 	WorkflowRunRecord,
 	WorkflowTaskRunRecord,
 } from "./types.js";
+import { hasRequiredKeys } from "./json-values.js";
 
 export const WORKFLOW_LAUNCH_AUTHORITY_SCHEMA =
 	"agent-workflow-launch-authority-v1" as const;
@@ -449,13 +450,6 @@ function hasAllowedKeys(
 ): boolean {
 	const allowed = new Set(keys);
 	return Object.keys(value).every((key) => allowed.has(key));
-}
-
-function hasRequiredKeys(
-	value: Record<string, unknown>,
-	keys: readonly string[],
-): boolean {
-	return keys.every((key) => Object.hasOwn(value, key));
 }
 
 function nonEmptyString(value: unknown): value is string {

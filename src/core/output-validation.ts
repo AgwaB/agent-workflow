@@ -37,6 +37,10 @@ import {
 	writeWorkflowTaskArtifactBundle,
 } from "./workflow-output-artifacts.js";
 import { writeWorkflowPartialOutputLedgerFromFile } from "./workflow-partial-output.js";
+import {
+	hasTopLevelClaimSupportFields,
+	isPositiveClaimSupportStatus,
+} from "./claim-support-fields.js";
 
 function artifactGraphRetrySession(
 	run: WorkflowRunRecord,
@@ -523,20 +527,6 @@ function claimSupportEntries(
 	return hasTopLevelClaimSupportFields(control) ? [control] : [];
 }
 
-function hasTopLevelClaimSupportFields(
-	control: Record<string, unknown>,
-): boolean {
-	return [
-		"claim",
-		"sourceLocators",
-		"locators",
-		"sources",
-		"sourceRefs",
-		"excerpt",
-		"quote",
-	].some((key) => control[key] !== undefined);
-}
-
 function claimSupportLocators(
 	entry: Record<string, unknown>,
 	fallbackStatus: unknown,
@@ -560,15 +550,6 @@ function claimSupportLocators(
 		...refLocatorsField(entry.urls),
 		...(workflowRefLocator(entry) ? [workflowRefLocator(entry)!] : []),
 	];
-}
-
-function isPositiveClaimSupportStatus(value: unknown): boolean {
-	return (
-		value === "supports" ||
-		value === "partial" ||
-		value === "verified" ||
-		value === "weakened"
-	);
 }
 
 function refLocatorsField(value: unknown): string[] {

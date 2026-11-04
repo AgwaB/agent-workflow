@@ -11,7 +11,7 @@ import {
 	stat,
 	writeFile,
 } from "node:fs/promises";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import {
 	DEFAULT_RUNS_DIR,
 	type AsyncDependency,
@@ -27,12 +27,17 @@ import type {
 	ResultTmuxMetadata,
 	ResultWorkspace,
 } from "./result.js";
+import {
+	assertSafeId,
+	isInsideOrEqual,
+	toSafeRelativePath,
+} from "../core/paths.js";
+import { isTerminalStatus } from "../core/constants.js";
 
 /** Hidden directory under a runs dir that holds per-run lock directories. */
 export const RUN_LOCKS_DIR = ".locks";
 const RUN_RECORD_SCHEMA_VERSION = 2 as const;
 const RUN_EVENT_SCHEMA_VERSION = 2 as const;
-const SAFE_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
 const LOCK_RETRY_MS = 25;
 const LOCK_TIMEOUT_MS = 5_000;
 
@@ -215,21 +220,6 @@ export type UpsertTaskOptions = Omit<UpsertAttemptOptions, "attemptId"> & {
 	taskId: string;
 };
 
-function assertSafeId(name: string, value: string): void {
-	if (!SAFE_ID_PATTERN.test(value))
-		throw new Error(
-			`${name} must contain only letters, numbers, dots, underscores, or dashes.`,
-		);
-}
-
-function isInsideOrEqual(parent: string, child: string): boolean {
-	const childRelative = relative(parent, child);
-	return (
-		childRelative === "" ||
-		(!childRelative.startsWith("..") && !isAbsolute(childRelative))
-	);
-}
-
 function toIso(
 	value: Date | string | undefined,
 	fallback = new Date(),
@@ -243,20 +233,6 @@ function toIso(
 	if (Number.isNaN(date.getTime()))
 		throw new Error("timestamp must be a valid ISO timestamp or Date.");
 	return date.toISOString();
-}
-
-function toSafeRelativePath(cwd: string, artifactPath: string): string {
-	const artifactRelative = relative(cwd, artifactPath);
-	if (
-		artifactRelative === "" ||
-		artifactRelative.startsWith("..") ||
-		isAbsolute(artifactRelative)
-	) {
-		throw new Error(
-			"artifact path must stay inside cwd to be exposed as a relative tool path.",
-		);
-	}
-	return artifactRelative.split(sep).join("/");
 }
 
 function artifactPath(
@@ -292,12 +268,6 @@ function aggregateStatus(
 		failureKind: active.failureKind ?? null,
 		completedAt: active.completedAt,
 	};
-}
-
-function isTerminalStatus(status: Status): boolean {
-	return (
-		status === "completed" || status === "failed" || status === "cancelled"
-	);
 }
 
 function mergeDefined<T extends object>(base: T, patch: Partial<T>): T {

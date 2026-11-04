@@ -1,6 +1,6 @@
 // Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/schema.ts. MIT, same author. Changes: none.
 import { readFile, realpath } from "node:fs/promises";
-import { dirname, extname, isAbsolute, relative, resolve } from "node:path";
+import { dirname, extname, resolve } from "node:path";
 
 import { parseArtifactGraphWorkflowSpec } from "./artifact-graph-schema.js";
 import { validateJsonSchemaSubset } from "./json-schema.js";
@@ -13,6 +13,7 @@ import {
 	type ResolvedWorkflowSpecRef,
 	resolveWorkflowRef,
 } from "./workflow-specs.js";
+import { isInsidePath } from "./physical-paths.js";
 
 export interface LoadedWorkflowSpec extends ResolvedWorkflowSpecRef {
 	spec: ArtifactGraphWorkflowSpec;
@@ -88,11 +89,6 @@ async function validateArtifactGraphControlSchemaFiles(
 		}
 	}
 	if (issues.length > 0) throw new WorkflowValidationError(issues);
-}
-
-function isInsidePath(parent: string, child: string): boolean {
-	const rel = relative(parent, child);
-	return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
 }
 
 function flattenArtifactGraphStages(stages: readonly any[]): any[] {

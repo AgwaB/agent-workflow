@@ -282,6 +282,10 @@ import {
 	sleep,
 	stillRunningAfterWaitMessage,
 } from "./engine-wait.js";
+import {
+	requiredDynamicString,
+	remainingDynamicRuntimeMs,
+} from "./dynamic-fields.js";
 
 export { buildRunSourceContext } from "./workflow-source-context-runtime.js";
 export { evaluateLoopUntilCondition } from "./loop-runtime.js";
@@ -6951,17 +6955,6 @@ function isDynamicReplayInvariantError(error: unknown): boolean {
 	);
 }
 
-function requiredDynamicString(
-	value: unknown,
-	field: string,
-	api = "ctx.agent()",
-): string {
-	if (typeof value !== "string" || value.trim() === "") {
-		throw new Error(`${api} ${field} must be a non-empty string`);
-	}
-	return value.trim();
-}
-
 function requiredDynamicPositiveInteger(
 	value: unknown,
 	field: string,
@@ -7086,13 +7079,6 @@ function dynamicBudgetRemaining(
 			dynamic.budget.maxHelperRuns - (counters?.helperRuns ?? 0),
 		),
 	};
-}
-
-function remainingDynamicRuntimeMs(
-	dynamic: CompiledDynamicWorkflowTask,
-	consumedRuntimeMs: number,
-): number {
-	return Math.max(0, dynamic.budget.maxRuntimeMs - consumedRuntimeMs);
 }
 
 async function runDynamicHelperWorker(input: {

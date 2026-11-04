@@ -9,15 +9,15 @@ import {
 	writeFile,
 } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { DEFAULT_RUNS_DIR } from "../core/constants.js";
+import { assertSafeId, isInsideOrEqual } from "../core/paths.js";
 
 /** Per-user run locator index (global; run records themselves stay project-local). */
 export const DEFAULT_RUN_INDEX_DIR_SEGMENTS = [
 	".agent-workflow",
 	"run-index",
 ] as const;
-const SAFE_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
 const RUN_LOCATOR_SCHEMA_VERSION = 1 as const;
 
 export interface RunRefLocator {
@@ -47,21 +47,6 @@ export interface RunLocatorListResult {
 	invalidCount: number;
 	skippedCount: number;
 	prunedCount: number;
-}
-
-function assertSafeId(name: string, value: string): void {
-	if (!SAFE_ID_PATTERN.test(value))
-		throw new Error(
-			`${name} must contain only letters, numbers, dots, underscores, or dashes.`,
-		);
-}
-
-function isInsideOrEqual(parent: string, child: string): boolean {
-	const childRelative = relative(parent, child);
-	return (
-		childRelative === "" ||
-		(!childRelative.startsWith("..") && !isAbsolute(childRelative))
-	);
 }
 
 function normalizeCwd(cwd: string): string {

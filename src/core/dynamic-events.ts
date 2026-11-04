@@ -4,6 +4,7 @@ import { appendFile, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 
 import { ensureDir, nowIso, workflowRunDir } from "./store.js";
+import { toJsonNormalizedValue } from "./json-values.js";
 
 export const DYNAMIC_EVENT_SCHEMA = "agent-workflow-dynamic-event-v1";
 
@@ -277,11 +278,6 @@ function stableStringify(value: unknown): string {
 		.sort()
 		.map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`)
 		.join(",")}}`;
-}
-
-function toJsonNormalizedValue(value: unknown): unknown {
-	const text = JSON.stringify(value);
-	return text === undefined ? null : JSON.parse(text);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

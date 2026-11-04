@@ -10,11 +10,12 @@ import {
 	unlink,
 	writeFile,
 } from "node:fs/promises";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { workflowTaskSessionId } from "./launch-session.js";
 import { elapsedSince } from "./task-observability.js";
 import { type WorkflowRunRecord, type WorkflowTaskRunRecord } from "./types.js";
 import { type WorkflowTaskFailedToolCallSummary } from "./workflow-output-artifacts.js";
+import { isInsidePath } from "./physical-paths.js";
 
 /** Runtime runs directory root for workflow tasks (was `.pi/workflow-subagents`). */
 export const DEFAULT_SUBAGENT_RUNS_ROOT = ".agent-workflow/workflow-subagents";
@@ -240,11 +241,6 @@ export function safeArtifactPath(
 		throw new Error("subagent artifact path must stay inside the task runsDir");
 	}
 	return artifactPath;
-}
-
-function isInsidePath(parent: string, child: string): boolean {
-	const rel = relative(parent, child);
-	return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
 }
 
 export async function readJsonLoose<T>(file: string): Promise<T | undefined> {

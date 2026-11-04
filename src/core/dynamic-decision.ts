@@ -12,6 +12,11 @@ import {
 	validateToolAuthority,
 } from "./tool-metadata.js";
 import type { CompiledToolProvider } from "./types.js";
+import {
+	pruneUndefined,
+	toStableJson,
+	toJsonNormalizedValue,
+} from "./json-values.js";
 
 export const DYNAMIC_DECISION_SCHEMA = "dynamic-decision-v1" as const;
 export const DYNAMIC_DECISION_VALIDATOR_VERSION =
@@ -868,33 +873,8 @@ function enumString(
 	return value;
 }
 
-function pruneUndefined<T>(value: T): T {
-	if (Array.isArray(value))
-		return value.map((item) => pruneUndefined(item)) as T;
-	if (!isRecord(value)) return value;
-	const result: Record<string, unknown> = {};
-	for (const [key, item] of Object.entries(value)) {
-		if (item !== undefined) result[key] = pruneUndefined(item);
-	}
-	return result as T;
-}
-
 function stableStringify(value: unknown): string {
 	return JSON.stringify(toStableJson(value));
-}
-
-function toJsonNormalizedValue(value: unknown): unknown {
-	const text = JSON.stringify(value);
-	return text === undefined ? null : JSON.parse(text);
-}
-
-function toStableJson(value: unknown): unknown {
-	if (Array.isArray(value)) return value.map((item) => toStableJson(item));
-	if (!isRecord(value)) return value;
-	const result: Record<string, unknown> = {};
-	for (const key of Object.keys(value).sort())
-		result[key] = toStableJson(value[key]);
-	return result;
 }
 
 function slugId(value: string): string {

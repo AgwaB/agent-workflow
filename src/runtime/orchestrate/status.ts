@@ -4,7 +4,7 @@ import {
 } from "../../core/task-activity.js";
 // Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/orchestrate/status.ts. MIT, same author. Changes: default runs dir ".agent-workflow/runs"; result backend check accepts any executor id; missing backend reported as "unknown" instead of "headless".
 import { readdir, readFile } from "node:fs/promises";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { isAbsolute, join, resolve, sep } from "node:path";
 import {
 	readRunEvents,
 	readRunRecord,
@@ -30,10 +30,12 @@ import {
 	type Status,
 } from "../core/constants.js";
 import { resolveRunRef } from "./run-ref.js";
+import { assertSafeId, isInsideOrEqual } from "../core/paths.js";
+import { isTerminalStatus } from "../core/constants.js";
+export { isTerminalStatus } from "../core/constants.js";
 
 /** Backend reported for records that never stored one (was "headless" in pi-subagent). */
 export const UNKNOWN_BACKEND = "unknown";
-const SAFE_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
 const EVENT_TAIL_LIMIT = 20;
 const CHILD_EVENT_SCAN_LIMIT = Number.POSITIVE_INFINITY;
 
@@ -139,22 +141,6 @@ export interface WaitForRunResult {
 	status: "completed" | "timeout";
 	outcome: "terminal" | "timeout";
 	snapshot: RunStatusSnapshot | null;
-}
-
-function assertSafeId(name: string, value: string): void {
-	if (!SAFE_ID_PATTERN.test(value)) {
-		throw new Error(
-			`${name} must contain only letters, numbers, dots, underscores, or dashes.`,
-		);
-	}
-}
-
-function isInsideOrEqual(parent: string, child: string): boolean {
-	const childRelative = relative(parent, child);
-	return (
-		childRelative === "" ||
-		(!childRelative.startsWith("..") && !isAbsolute(childRelative))
-	);
 }
 
 function pathsFor(ref: RunStatusRef): {
@@ -264,12 +250,6 @@ function durationFrom(
 	return Number.isFinite(start) && Number.isFinite(end)
 		? Math.max(0, end - start)
 		: null;
-}
-
-export function isTerminalStatus(status: Status): boolean {
-	return (
-		status === "completed" || status === "failed" || status === "cancelled"
-	);
 }
 
 export function statusSucceeded(status: Status): boolean {

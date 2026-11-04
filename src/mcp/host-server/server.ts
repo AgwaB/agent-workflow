@@ -4,8 +4,9 @@
 //   node dist/mcp/host-server/server.js --host <claude-code|codex|generic>
 // The project is the server's working directory. stdout carries only MCP protocol messages; every
 // diagnostic goes to stderr. docs/host-mcp.md.
-import { readFileSync, realpathSync } from "node:fs";
+import { realpathSync } from "node:fs";
 import { parseArgs } from "node:util";
+import { packageVersion } from "../package-version.js";
 
 // Keep stdout protocol-only even if a dependency logs: route console output to stderr.
 for (const method of ["log", "info", "debug", "warn"] as const)
@@ -83,17 +84,6 @@ async function main(): Promise<void> {
 			server.shutdown();
 			setTimeout(() => exit(0), 5_000).unref();
 		});
-}
-
-function packageVersion(): string {
-	try {
-		const pkg = JSON.parse(
-			readFileSync(new URL("../../../package.json", import.meta.url), "utf8"),
-		) as { version?: unknown };
-		return typeof pkg.version === "string" ? pkg.version : "0.0.0";
-	} catch {
-		return "0.0.0";
-	}
 }
 
 process.on("uncaughtException", (error) => {

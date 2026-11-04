@@ -25,12 +25,11 @@ import {
 	type RuntimeRunInput,
 } from "./request.js";
 import {
-	DEFAULT_PARALLEL_CONCURRENCY,
-	MAX_PARALLEL_CONCURRENCY,
 	MAX_PARALLEL_TASKS,
 	mergeTaskInput,
 	SubagentToolAuthorityError,
 	type ParallelRunResult,
+	parallelConcurrency,
 } from "./run.js";
 import { writeRunLocator } from "./run-ref.js";
 import { readRunResult, waitForRun } from "./status.js";
@@ -48,15 +47,10 @@ export interface StartAsyncSubagentRunOptions {
 	) => number | Promise<number>;
 }
 
-function executionMode(input: RuntimeRunInput): ExecutionMode {
+export function executionMode(input: RuntimeRunInput): ExecutionMode {
 	if (input.mode !== undefined) return input.mode;
 	if (input.tasks !== undefined) return "parallel";
 	return "single";
-}
-
-function parallelConcurrency(input: RuntimeRunInput): number {
-	const requested = input.concurrency ?? DEFAULT_PARALLEL_CONCURRENCY;
-	return Math.max(1, Math.min(MAX_PARALLEL_CONCURRENCY, requested));
 }
 
 function sandboxEnabled(input: RuntimeRunInput): boolean {

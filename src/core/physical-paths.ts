@@ -3,7 +3,7 @@
 // is a real directory (no symlink anywhere in the chain), so no lexical project path can lead a
 // recursive removal or a git mutation outside the project.
 import { lstat, realpath } from "node:fs/promises";
-import { join, resolve, sep } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 export interface PhysicalDirectoryChain {
 	/** The checked path (equal to its physical path when it exists). */
@@ -60,4 +60,9 @@ export async function physicalDirectoryChain(
 	if ((await realpath(path)) !== path)
 		throw new Error(`unsafe path chain: ${path} changed while checked`);
 	return { path, exists: true };
+}
+
+export function isInsidePath(parent: string, child: string): boolean {
+	const rel = relative(parent, child);
+	return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
 }

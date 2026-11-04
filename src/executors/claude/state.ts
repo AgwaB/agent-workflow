@@ -7,7 +7,7 @@
  * window are pruned (`classifyClaudeAttemptRecord`, ../state-retention.ts).
  */
 import { createHash, randomBytes } from "node:crypto";
-import { link, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { link, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ExecRef } from "../../sdk/contract.js";
 import {
@@ -17,6 +17,7 @@ import {
 	parseAttemptTombstone,
 	processAlive,
 } from "../state-retention.js";
+import { writeAtomic } from "../state-files.js";
 
 export interface AttemptRecord {
 	readonly schema: "agent-workflow-claude-attempt-v1";
@@ -59,12 +60,6 @@ const ATTEMPT_PHASES: ReadonlySet<unknown> = new Set([
 
 const keyHash = (attemptKey: string) =>
 	createHash("sha256").update(attemptKey).digest("hex").slice(0, 40);
-
-async function writeAtomic(path: string, value: unknown): Promise<void> {
-	const tmp = `${path}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`;
-	await writeFile(tmp, `${JSON.stringify(value)}\n`, { mode: 0o600 });
-	await rename(tmp, path);
-}
 
 async function readJson<T>(path: string): Promise<T | undefined> {
 	try {

@@ -39,6 +39,7 @@ import type {
 	WorkflowRunRecord,
 	WorkflowTaskRunRecord,
 } from "./types.js";
+import { hasRequiredKeys } from "./json-values.js";
 
 export const LAUNCH_BOOTSTRAP_PROVENANCE_SCHEMA =
 	"agent-workflow-launch-bootstrap-provenance-v1" as const;
@@ -767,13 +768,6 @@ function hasAllowedKeys(
 		Object.keys(value).every((key) => keys.includes(key)) &&
 		Object.values(value).every((entry) => entry !== undefined)
 	);
-}
-
-function hasRequiredKeys(
-	value: Record<string, unknown>,
-	keys: readonly string[],
-): boolean {
-	return keys.every((key) => Object.hasOwn(value, key));
 }
 
 function nonEmptyString(value: unknown): value is string {

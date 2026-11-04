@@ -8,7 +8,7 @@
 // the core's hardened writer (`appendWorkflowArtifactReadLedger`: no-follow open, descriptor
 // type/link-count/identity checks) plus a descriptor containment check against the run directory.
 import { lstat, realpath } from "node:fs/promises";
-import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 
 import {
 	type ArtifactAccessConfig,
@@ -29,6 +29,7 @@ import {
 	genericCutNotice,
 	readCutNotice,
 } from "./delivery.js";
+import { isInsidePath } from "../../core/physical-paths.js";
 
 /**
  * Ledger row written by this server: the core record. `deliveryUnverified` is `true` when the
@@ -300,11 +301,6 @@ async function assertRegularFile(path: string, label: string): Promise<void> {
 	});
 	if (stat.isSymbolicLink()) throw new Error(`${label} must not be a symlink`);
 	if (!stat.isFile()) throw new Error(`${label} is not a regular file`);
-}
-
-function isInsidePath(parent: string, child: string): boolean {
-	const rel = relative(parent, child);
-	return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
 }
 
 function errorMessage(error: unknown): string {

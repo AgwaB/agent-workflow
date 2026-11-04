@@ -2,8 +2,9 @@
 // New in agent-workflow (WP5): stdio MCP server entry for workflow_artifact.
 //   node dist/mcp/artifact-server/server.js --config <artifact-access.json> [--max-output-chars <n>]
 // stdout carries only MCP protocol messages; every diagnostic goes to stderr.
-import { readFileSync } from "node:fs";
+import {} from "node:fs";
 import { parseArgs } from "node:util";
+import { packageVersion } from "../package-version.js";
 
 // Keep stdout protocol-only even if a dependency logs: route console output to stderr.
 for (const method of ["log", "info", "debug", "warn"] as const)
@@ -78,17 +79,6 @@ async function main(): Promise<void> {
 			// In-flight reads get a bounded grace period to answer and record their ledger rows.
 			setTimeout(() => exit(0), 5_000).unref();
 		});
-}
-
-function packageVersion(): string {
-	try {
-		const pkg = JSON.parse(
-			readFileSync(new URL("../../../package.json", import.meta.url), "utf8"),
-		) as { version?: unknown };
-		return typeof pkg.version === "string" ? pkg.version : "0.0.0";
-	} catch {
-		return "0.0.0";
-	}
 }
 
 process.on("uncaughtException", (error) => {

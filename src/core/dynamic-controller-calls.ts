@@ -28,6 +28,11 @@ import type {
 	WorkflowRunRecord,
 	WorkflowTaskRunRecord,
 } from "./types.js";
+import {
+	requiredDynamicString,
+	isPlainDynamicRecord,
+	remainingDynamicRuntimeMs,
+} from "./dynamic-fields.js";
 
 type DynamicNestedWorkflowRunOptions = {
 	task?: string;
@@ -56,30 +61,6 @@ type DynamicHelperWorkerRunner = (input: {
 	runId?: string;
 	stopSignal?: AbortSignal;
 }) => Promise<unknown>;
-
-function requiredDynamicString(
-	value: unknown,
-	field: string,
-	api = "ctx.agent()",
-): string {
-	if (typeof value !== "string" || value.trim() === "") {
-		throw new Error(`${api} ${field} must be a non-empty string`);
-	}
-	return value.trim();
-}
-
-function isPlainDynamicRecord(
-	value: unknown,
-): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function remainingDynamicRuntimeMs(
-	dynamic: CompiledDynamicWorkflowTask,
-	consumedRuntimeMs: number,
-): number {
-	return Math.max(0, dynamic.budget.maxRuntimeMs - consumedRuntimeMs);
-}
 
 interface DynamicHelperCallInput {
 	sources: Record<string, unknown>;

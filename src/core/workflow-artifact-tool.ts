@@ -10,7 +10,7 @@ import {
 	stat,
 	type FileHandle,
 } from "node:fs/promises";
-import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
 import {
 	assertNoRawIntegrityAnchor,
 	checkRawLinks,
@@ -36,6 +36,7 @@ import {
 } from "../sdk/mcp-delivery.js";
 import { stringifyPromptJson } from "./prompt-json.js";
 import { isSimpleJsonPath, readSimpleJsonPath } from "./workflow-runtime.js";
+import { isInsidePath } from "./physical-paths.js";
 
 export const WORKFLOW_SOURCE_MANIFEST_SCHEMA =
 	"workflow-source-manifest-v1" as const;
@@ -1722,11 +1723,6 @@ function assertArtifactKind(
 		throw new Error(
 			`${field} must be one of: ${WORKFLOW_ARTIFACT_KINDS.join(", ")}`,
 		);
-}
-
-function isInsidePath(parent: string, child: string): boolean {
-	const rel = relative(parent, child);
-	return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
 }
 
 async function readUtf8Prefix(

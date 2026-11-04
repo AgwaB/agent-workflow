@@ -8,7 +8,7 @@ import {
 	stat,
 	writeFile,
 } from "node:fs/promises";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { join, resolve, sep } from "node:path";
 import {
 	createResultEnvelope,
 	mergeArtifactRefs,
@@ -18,8 +18,11 @@ import {
 	type ResultEnvelopeInput,
 } from "./result.js";
 import { DEFAULT_RUNS_DIR } from "../core/constants.js";
-
-const SAFE_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
+import {
+	assertSafeId,
+	isInsideOrEqual,
+	toSafeRelativePath,
+} from "../core/paths.js";
 
 const ARTIFACT_FILENAMES: Record<ArtifactType, string> = {
 	result: "result.json",
@@ -82,36 +85,6 @@ export interface AttemptArtifactStore {
 
 export type CreateTaskArtifactStoreOptions = CreateAttemptArtifactStoreOptions;
 export type TaskArtifactStore = AttemptArtifactStore;
-
-function assertSafeId(name: string, value: string): void {
-	if (!SAFE_ID_PATTERN.test(value)) {
-		throw new Error(
-			`${name} must contain only letters, numbers, dots, underscores, or dashes.`,
-		);
-	}
-}
-
-function isInsideOrEqual(parent: string, child: string): boolean {
-	const childRelative = relative(parent, child);
-	return (
-		childRelative === "" ||
-		(!childRelative.startsWith("..") && !isAbsolute(childRelative))
-	);
-}
-
-function toSafeRelativePath(cwd: string, artifactPath: string): string {
-	const artifactRelative = relative(cwd, artifactPath);
-	if (
-		artifactRelative === "" ||
-		artifactRelative.startsWith("..") ||
-		isAbsolute(artifactRelative)
-	) {
-		throw new Error(
-			"artifact path must stay inside cwd to be exposed as a relative tool path.",
-		);
-	}
-	return artifactRelative.split(sep).join("/");
-}
 
 function byteLength(content: string | Uint8Array): number {
 	return typeof content === "string"

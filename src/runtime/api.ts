@@ -15,15 +15,11 @@ import {
 	type RunEvent,
 	runPaths,
 } from "./artifacts/index.js";
-import type {
-	ExecutionMode,
-	FailureKind,
-	ResolvedBackend,
-	Status,
-} from "./core/constants.js";
+import type { FailureKind, ResolvedBackend, Status } from "./core/constants.js";
 import {
 	startAsyncParallelSubagentRuns,
 	startAsyncSubagentRun,
+	executionMode,
 } from "./orchestrate/async.js";
 import {
 	type ApprovalAuditRequested,
@@ -137,12 +133,6 @@ export class SubagentValidationError extends Error {
 		this.name = "SubagentValidationError";
 		this.backend = backend;
 	}
-}
-
-function executionMode(input: RuntimeRunInput): ExecutionMode {
-	if (input.mode !== undefined) return input.mode;
-	if (input.tasks !== undefined) return "parallel";
-	return "single";
 }
 
 function validateRunnableInput(

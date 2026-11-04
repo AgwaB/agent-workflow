@@ -87,6 +87,12 @@ export type Backend = string;
 /** Executor id that produced (or will produce) a run attempt. Never `"auto"`. */
 export type ResolvedBackend = string;
 export type Status = (typeof STATUSES)[number];
+
+export function isTerminalStatus(status: Status): boolean {
+	return (
+		status === "completed" || status === "failed" || status === "cancelled"
+	);
+}
 export type FailureKind = (typeof FAILURE_KINDS)[number];
 
 /**

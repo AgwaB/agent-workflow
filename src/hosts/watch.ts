@@ -19,7 +19,12 @@ import { CLI_COMMAND_HINTS, pendingApprovalLines } from "./hints.js";
 import { isSettledRun } from "./notify-check.js";
 import { hostTextRedactor } from "./redaction.js";
 import { readWorkflowResultPresentation } from "./result-presentation.js";
-import { formatElapsed, listActiveRuns, shortRunName } from "./run-progress.js";
+import {
+	formatElapsed,
+	listActiveRuns,
+	shortRunName,
+	timeMs,
+} from "./run-progress.js";
 
 export const WATCH_DEFAULT_INTERVAL_MS = 2_000;
 export const WATCH_MIN_INTERVAL_MS = 1_000;
@@ -37,11 +42,6 @@ export interface WatchRunView {
 	verdictGate?: true;
 	reportPaths: string[];
 	pendingApprovals: PendingDynamicApproval[];
-}
-
-function timeMs(value: string | undefined): number {
-	const parsed = value ? Date.parse(value) : Number.NaN;
-	return Number.isFinite(parsed) ? parsed : 0;
 }
 
 /** One run as the watch shows it (fresh from `run.json`). */

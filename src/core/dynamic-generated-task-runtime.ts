@@ -2,10 +2,7 @@
 import { loadAgentByName } from "./agents.js";
 import { readArtifactGraphControl } from "./artifact-graph-runtime.js";
 import { DynamicControllerBudgetBlocked } from "./dynamic-controller-errors.js";
-import {
-	isDynamicOutputProfile,
-	type DynamicOutputProfile,
-} from "./dynamic-profiles.js";
+import type { DynamicOutputProfile } from "./dynamic-profiles.js";
 import { isModelTaskMaxRuntimeMs } from "./model-task-runtime.js";
 import { readOrRebuildDynamicState } from "./dynamic-state.js";
 import { sanitizeTaskId } from "./engine-run-graph.js";
@@ -44,6 +41,13 @@ import {
 	INHERITED_HOST_TOOLS_CLASSIFICATION,
 	runInheritsHostToolsForTask,
 } from "./tool-policy.js";
+import {
+	requiredDynamicString,
+	optionalDynamicString,
+	optionalDynamicStringArray,
+	requiredDynamicOutputProfile,
+	isPlainDynamicRecord,
+} from "./dynamic-fields.js";
 
 const DYNAMIC_OUTPUT_MAX_DIGEST_CHARS = 1000;
 const DYNAMIC_DELEGATION_TOOLS = new Set([
@@ -845,17 +849,6 @@ export function normalizeDynamicAgentRequest(
 	};
 }
 
-function requiredDynamicString(
-	value: unknown,
-	field: string,
-	api = "ctx.agent()",
-): string {
-	if (typeof value !== "string" || value.trim() === "") {
-		throw new Error(`${api} ${field} must be a non-empty string`);
-	}
-	return value.trim();
-}
-
 function runtimeSettings(value: unknown): WorkflowRuntimeDefaults | undefined {
 	if (!value || typeof value !== "object" || Array.isArray(value))
 		return undefined;
@@ -873,25 +866,6 @@ function runtimeSettings(value: unknown): WorkflowRuntimeDefaults | undefined {
 			? record.fast
 			: undefined;
 	return model || thinking || fast ? { model, thinking, fast } : undefined;
-}
-
-function optionalDynamicString(
-	value: unknown,
-	field: string,
-): string | undefined {
-	if (value === undefined) return undefined;
-	return requiredDynamicString(value, field);
-}
-
-function optionalDynamicStringArray(
-	value: unknown,
-	field: string,
-): string[] | undefined {
-	if (value === undefined) return undefined;
-	if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
-		throw new Error(`ctx.agent() ${field} must be an array of strings`);
-	}
-	return value.map((item) => item.trim()).filter(Boolean);
 }
 
 function normalizeDynamicArtifactInputs(
@@ -935,12 +909,6 @@ function normalizeDynamicArtifactInput(
 	};
 }
 
-function isPlainDynamicRecord(
-	value: unknown,
-): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function optionalDynamicBoolean(
 	value: unknown,
 	field: string,
@@ -977,18 +945,6 @@ function optionalDynamicThinking(value: unknown): ThinkingLevel | undefined {
 	throw new Error(
 		`ctx.agent() thinking has an unsupported value (use one of: ${THINKING_LEVELS.join(", ")})`,
 	);
-}
-
-function requiredDynamicOutputProfile(
-	value: unknown,
-	field: string,
-	api: string,
-): DynamicOutputProfile {
-	const profile = requiredDynamicString(value, field, api);
-	if (!isDynamicOutputProfile(profile)) {
-		throw new Error(`${api} ${field} has an unsupported output profile`);
-	}
-	return profile;
 }
 
 function optionalDynamicOutputProfile(

@@ -32,7 +32,6 @@ import {
 	readWorkflowPartialOutputLedger,
 	writeWorkflowPartialOutputLedgerFromFile,
 } from "./workflow-partial-output.js";
-import { type JsonSchema, validateJsonSchemaSubset } from "./json-schema.js";
 import {
 	buildRunSourceContext,
 	readOutputText,
@@ -68,6 +67,7 @@ import {
 	dynamicOutputSourceName,
 	dynamicOutputTaskSpecIds,
 } from "./workflow-source-alias.js";
+import { readTaskControlJsonSchema } from "./output-validation.js";
 export {
 	sourceNameForTask,
 	dynamicOutputSourceName,
@@ -944,32 +944,6 @@ export async function writeArtifactGraphSupportResult(
 				.join("; ")}`,
 		);
 	}
-}
-
-async function readTaskControlJsonSchema(
-	task: WorkflowTaskRunRecord,
-): Promise<JsonSchema | undefined> {
-	const schemaPath = task.artifactGraph?.output.controlSchemaPath;
-	if (!schemaPath) return undefined;
-	const source = await readFile(schemaPath, "utf8");
-	let schema: unknown;
-	try {
-		schema = JSON.parse(source);
-	} catch (error) {
-		throw new Error(`task ${task.taskId} control schema is not valid JSON`, {
-			cause: error,
-		});
-	}
-	const validation = validateJsonSchemaSubset(schema);
-	if (!validation.valid) {
-		throw new Error(
-			`task ${task.taskId} control schema is not supported: ${validation.issues
-				.map((issue) => `${issue.path}: ${issue.message}`)
-				.join("; ")}`,
-		);
-	}
-	// SAFETY: the recursive subset validator has verified every supported schema node.
-	return schema as JsonSchema;
 }
 
 export function normalizeDynamicControllerOutput(value: unknown): {

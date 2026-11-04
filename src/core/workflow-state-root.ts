@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 
 import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import { syncFileAndDirectory, workflowsRoot } from "./store.js";
+import { canonical } from "./json-values.js";
 
 const ROOT_SCHEMA = "agent-workflow-state-root-v1" as const;
 // v2 (2026-11-02): the schema is agent-workflow-state-root-v1 (was pi-workflow-state-root-v1, whose
@@ -29,19 +30,6 @@ export interface WorkflowStateRootIdentity {
 
 export interface WorkflowStateRootCapability {
 	readonly kind: "agent-workflow-private-state-root-capability-v1";
-}
-
-function canonical(value: unknown): unknown {
-	if (Array.isArray(value)) return value.map(canonical);
-	if (value && typeof value === "object") {
-		return Object.fromEntries(
-			Object.entries(value)
-				.filter(([, entry]) => entry !== undefined)
-				.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-				.map(([key, entry]) => [key, canonical(entry)]),
-		);
-	}
-	return value;
 }
 
 function digest(value: unknown): string {
