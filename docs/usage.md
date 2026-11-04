@@ -628,6 +628,22 @@ classification, optional, fallbackTools}`) describe custom tools; unclassified c
 blocked. `readOnly: true` is a safety declaration (read-only tools, read-only sandbox where the
 executor has one), not filesystem isolation.
 
+**Write-capable stages.** A stage that is not `readOnly` and keeps a mutating tool (`edit`, `write`,
+`bash`; the agent's frontmatter must declare it) can change files. Where it writes is the stage's (or
+`defaults`') `worktreePolicy`: `"auto"` (default) and `"on"` give each write-capable task its own
+managed git worktree (`.agent-workflow/workflows/<run>/worktrees/<task>`, branch
+`agent-workflow/<run>-<task>`); `"off"` writes in the shared checkout in `free` mode only — `safe`
+still uses a worktree unless the run sets `allowSharedCheckoutWrites` (docs/permissions.md). There is
+no auto-merge: the user reviews and merges the branch (see "Worktrees" under Retention). A worktree
+needs a git repository: outside one a task that needs a worktree does not start (`managed worktree
+required … is not inside a git repository`); only `"off"` in `free` mode writes in the live
+directory there. A later stage does not see
+a worktree's changes through the project files, so put the check where the change is: let the
+writing task run the build or tests in its worktree and report the result in its control, or give a
+separate verification stage that worktree's path. Workers never commit.
+(2026-11-04: a workflow authored with the workflow-guide skill could not find these keys in this
+guide and left its write stage without a policy or a check.)
+
 ### Local review evidence
 
 `spec-review` verifiers cite typed local evidence rows `{file, lineStart, lineEnd, quote,
