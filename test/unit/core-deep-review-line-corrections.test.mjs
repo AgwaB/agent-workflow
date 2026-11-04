@@ -301,3 +301,106 @@ test("the report lists the corrections; without corrections there is no section"
 	});
 	assert.equal(plain.markdown.includes("## Evidence corrections"), false);
 });
+
+// agent-workflow 2026-11-04 (live run of every bundled workflow, Codex deep-review PARTIAL_REVIEW):
+// a verifier quoted a soft-wrapped Markdown sentence as one line; triage planned two blank lines.
+test("a quote joining a wrapped line, and a metadata-only row for blank planned lines, are recorded corrections", async (t) => {
+	const cwd = project(t);
+	writeFileSync(
+		join(cwd, "SPEC.md"),
+		"# Spec\n\n- **C1.** Only `aborted`,\n  `AbortError` and `ABORT_ERR` count as cancellation.\n\n\n- **C2.** Next.\n",
+	);
+	const base = await dedup(cwd, "src/a.ts:1-6", "danger = true;");
+	const joined = await partition(cwd, base, [
+		{ file: "src/a.ts", line: 4, quote: "danger = true;" },
+		{
+			file: "SPEC.md",
+			line: 3,
+			lineEnd: 4,
+			quote:
+				"Only `aborted`, `AbortError` and `ABORT_ERR` count as cancellation.",
+		},
+	]);
+	assert.equal(joined.partitionSummary.keep, 1);
+	assert.deepEqual(joined.partitions.keep[0].evidence[1], {
+		file: "SPEC.md",
+		line: 3,
+		lineEnd: 4,
+		quote:
+			"- **C1.** Only `aborted`,\n  `AbortError` and `ABORT_ERR` count as cancellation.",
+	});
+	assert.equal(joined.evidenceCorrections[0].reason, "whitespace");
+	// Spacing inside a line is still content; a wrapped quote with other words still fails.
+	const changed = await partition(cwd, base, [
+		{
+			file: "SPEC.md",
+			line: 3,
+			quote:
+				"Only `aborted`, `AbortError` or `ABORT_ERR` count as cancellation.",
+		},
+	]);
+	assert.equal(changed.partitionSummary.keep, 0);
+
+	const blankReview = (planned) =>
+		pipeline({
+			sources: {
+				triage: {
+					reviewLenses: [{ id: "runtime", evidenceToInspect: [planned] }],
+				},
+				"reviewers.runtime": {
+					lens: "runtime",
+					findings: [finding],
+					evidenceChecked: [planned],
+					sourceCoverage: [
+						{
+							path: planned,
+							status: "metadata-only",
+							evidence: "",
+							artifact: "",
+							reason: "the planned line is blank",
+						},
+					],
+					noIssueNotes: [],
+				},
+			},
+			context: { cwd, sourceStatuses: statuses.slice(0, 2) },
+			options: { mode: "dedup" },
+		});
+	const blank = await blankReview("SPEC.md:5-6");
+	assert.equal(blank.findings[0].sourceCoverageComplete, true);
+	assert.deepEqual(blank.reviewerLedger.plannedRangeCorrections, [
+		{
+			source: "reviewers.runtime",
+			lens: "runtime",
+			kind: "blank-planned-range",
+			path: "SPEC.md:5-6",
+		},
+	]);
+	for (const planned of ["SPEC.md:4-5", "SPEC.md", "SPEC.md:40"])
+		assert.equal(
+			(await blankReview(planned)).findings[0].sourceCoverageComplete,
+			false,
+			planned,
+		);
+	const out = await render({
+		sources: {
+			"partition-verdicts.main": await partition(cwd, blank, [
+				{ file: "src/a.ts", line: 4, quote: "danger = true;" },
+			]),
+			report: {
+				summary: "Fix it",
+				verdict: "NEEDS_WORK",
+				risks: [],
+				recommendedNextAction: "Fix it",
+			},
+		},
+	});
+	assert.equal(out.verdict, "NEEDS_WORK");
+	assert.ok(
+		out.markdown
+			.split("\n")
+			.includes(
+				"| triage plan for runtime | SPEC.md | 5-6 | — | the planned lines are blank, so there was nothing to quote |",
+			),
+	);
+});

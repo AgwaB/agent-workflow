@@ -113,3 +113,42 @@ test("flat rows render as readable text with every field; nested rows stay JSON"
 		/Store contract is missing — action: Restore it/u,
 	);
 });
+
+test("the completion summary stays within its schema limit however many action rows there are", async () => {
+	// Live 2026-11-04: 7,132 chars (Claude, Antigravity) failed the render control schema (6,000).
+	const sources = blockedControls();
+	const long = (label, i) =>
+		`${label} ${i}: ${"변경된 공개 계약과 상태 처리를 확인해야 합니다. ".repeat(20)}`;
+	Object.assign(sources["impact-analysis.impact-synthesis"], {
+		summary: long("summary", 0),
+		blockingIssues: Array.from({ length: 6 }, (_, i) => ({
+			issue: long("blocking", i),
+			action: "fix",
+		})),
+		recommendedNextActions: Array.from({ length: 6 }, (_, i) =>
+			long("next", i),
+		),
+		validationToRun: Array.from({ length: 6 }, (_, i) => long("check", i)),
+		needsHuman: Array.from({ length: 10 }, (_, i) => long("question", i)),
+	});
+	Object.assign(sources["impact-analysis.ship-readiness"], {
+		requiredBeforeShip: Array.from({ length: 6 }, (_, i) =>
+			long("required", i),
+		),
+		assumptions: Array.from({ length: 6 }, (_, i) => long("assumption", i)),
+	});
+	const result = await renderImpactReport({ sources, context });
+	const summary = result.completionSummaryMarkdown;
+	assert.ok(summary.length > 0, "the summary is rendered");
+	assert.ok(
+		Array.from(summary).length <= 6000,
+		`${Array.from(summary).length} chars`,
+	);
+	assert.match(
+		summary,
+		/- 30 additional action row\(s\) are covered in the full report\./u,
+	);
+	// The full report keeps every row.
+	for (let i = 0; i < 6; i++)
+		assert.match(result.markdown, new RegExp(`next ${i}:`, "u"));
+});

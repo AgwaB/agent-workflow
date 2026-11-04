@@ -304,6 +304,7 @@
         }, "additionalProperties": false }
       ] } }
     } }, "maxItems": 80 },
+    "evidenceCorrections": { "type": "array", "items": { "type": "object" } },
     "finalFindings": { "type": "array", "items": { "type": "object", "properties": {
       "evidence": { "type": "array", "items": { "anyOf": [
         { "type": "string" },

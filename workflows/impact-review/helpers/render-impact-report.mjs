@@ -734,6 +734,9 @@ function actionSummaryRows(synthesis, ship) {
 		});
 }
 
+/** Worst case with the 850/420/300-char caps: about 5,500 of the schema's 6,000 chars. */
+const COMPLETION_ACTION_ROWS = 4;
+
 function renderCompletionSummary({
 	verdict,
 	riskLevel,
@@ -755,12 +758,20 @@ function renderCompletionSummary({
 		out.push(
 			"- No blocking issue, follow-up action, or validation command was recorded.",
 		);
-	else
-		actions.forEach((row) =>
+	else {
+		// agent-workflow 2026-11-04 (live: Claude and Antigravity runs failed their own control schema,
+		// completionSummaryMarkdown 7,132 > 6,000 chars): the summary lists the first rows like
+		// spec-review's (blocking first); the full report keeps every row.
+		actions
+			.slice(0, COMPLETION_ACTION_ROWS)
+			.forEach((row) =>
+				out.push(`- ${completionText(readableRow(row), 420)}`),
+			);
+		if (actions.length > COMPLETION_ACTION_ROWS)
 			out.push(
-				`- ${completionText(readableRow(row), 420)}`,
-			),
-		);
+				`- ${actions.length - COMPLETION_ACTION_ROWS} additional action row(s) are covered in the full report.`,
+			);
+	}
 	out.push(
 		"",
 		"## Evidence level",

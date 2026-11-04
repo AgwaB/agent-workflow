@@ -226,6 +226,33 @@ After stage 2 (2026-11-01):
   partition carries them beside the reviewer's originals, which stay the identity and the ledger
   text; the report shows them in finding headings, rationales and the key-findings list. A missing,
   empty or oversized value is ignored. Evidence quotes, code and paths are never translated.
+- **M26.** spec-review evidence tolerance (2026-11-04, live run of every bundled workflow; M21's
+  owner decision applied to spec-review). A Codex verifier quoted a tab-indented function with spaces,
+  so a real S6 gap became needs-human and the run INCONCLUSIVE. The partition now matches a verifier
+  citation (`evidence`, `counterEvidence`) whose quote is not inside its cited lines once more: a
+  unique exact occurrence, else a unique occurrence after folding each line as in M21, at most 10
+  lines from the cited range (`spec-evidence-gate.mjs` `correctCitations`). The citation then holds
+  the actual lines and, for a folded match, the file's own text, so the byte gate and the renderer's
+  re-audit stay exact; the partition carries `evidenceCorrections` (only when there are any) and
+  the report lists them under "Evidence corrections". Invalid ranges, different words, farther
+  positions and repeated text still fail; requirement-coverage citations are not corrected (their
+  bytes are bound to the candidate control). Tests: `core-review-helper-byte-gates.test.mjs`.
+- **M27.** impact-review completion summary (2026-11-04, same live runs). Claude and Antigravity
+  runs failed at the final render: `completionSummaryMarkdown` (7,132 and 9,209 characters) broke the
+  render control schema's 6,000. The summary now lists the first four action rows (blocking first,
+  as spec-review's lists four) and counts the rest ("N additional action row(s) are covered in the
+  full report"); the full report keeps every row. Replaying the four live renders: 2,444–3,406
+  characters, statuses and verdicts unchanged. Test: `core-impact-review-row-text.test.mjs`.
+- **M28.** deep-review and spec-review: two more trivial differences (2026-11-04, same live runs; a
+  Codex deep-review ended PARTIAL_REVIEW on them). (1) A quote that joins a soft-wrapped line — the
+  file's line break and indentation given as one space — is matched as a whitespace difference
+  (`locateJoined`, after M21's per-line folding finds nothing); spacing inside a line still has to
+  match, and the stored evidence is the file's lines. (2) deep-review: a `metadata-only` coverage
+  row for a planned range whose lines are all blank (triage planned `SPEC.md:31` and `:37`) counts
+  as covered and is listed under "Evidence corrections" ("the planned lines are blank"). Replaying
+  the live run: its three partial sources become one (a quote missing a Markdown backtick, still a
+  content difference); keep 2 → 4, needs-human 3 → 1. Tests:
+  `core-deep-review-line-corrections.test.mjs`, `core-review-helper-byte-gates.test.mjs`.
 
 ## Worker prompt rendering (core)
 

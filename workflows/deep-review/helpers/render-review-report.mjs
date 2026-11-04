@@ -1740,6 +1740,8 @@ function renderEvidenceCorrections(partition) {
 	const why = (correction) => {
 		if (correction.kind === "planned-range-end")
 			return `the planned range ends past the file (${correction.fileLines} lines)`;
+		if (correction.kind === "blank-planned-range")
+			return "the planned lines are blank, so there was nothing to quote";
 		if (correction.reason === "whitespace")
 			return "matches the file except whitespace or quote/dash characters; the file's text is stored";
 		return correction.kind === "coverage-quote"
@@ -1756,13 +1758,21 @@ function renderEvidenceCorrections(partition) {
 	];
 	for (const correction of corrections) {
 		const pointer = /^(.*):(\d+(?:-\d+)?)$/u.exec(String(correction.path ?? ""));
-		const isPlan = correction.kind === "planned-range-end" || correction.kind === "coverage-quote";
+		const isPlan =
+			correction.kind === "planned-range-end" ||
+			correction.kind === "coverage-quote" ||
+			correction.kind === "blank-planned-range";
 		const stage = isPlan
-			? `${correction.kind === "planned-range-end" ? "triage plan" : "reviewer"} for ${correction.lens || correction.source || "unknown"}`
+			? `${correction.kind === "coverage-quote" ? "reviewer" : "triage plan"} for ${correction.lens || correction.source || "unknown"}`
 			: `verifier of ${correction.findingId || correction.source || "unknown"}`;
 		const file = isPlan ? (pointer?.[1] ?? correction.path ?? "unknown") : (correction.file ?? "unknown");
 		const given = isPlan ? (pointer?.[2] ?? "whole file") : (correction.cited ?? "");
-		const checked = correction.kind === "planned-range-end" ? correction.checked : correction.actual;
+		const checked =
+			correction.kind === "planned-range-end"
+				? correction.checked
+				: correction.kind === "blank-planned-range"
+					? "—"
+					: correction.actual;
 		lines.push(
 			`| ${escapeTableCell(stage)} | ${escapeTableCell(file)} | ${escapeTableCell(given)} | ${escapeTableCell(checked ?? "")} | ${escapeTableCell(why(correction))} |`,
 		);

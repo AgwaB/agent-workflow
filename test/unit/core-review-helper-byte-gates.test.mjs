@@ -408,19 +408,34 @@ for (const [label, read] of [
 			}
 		}));
 }
-for (const change of [
-	{ lineEnd: 99 },
-	{ lineStart: 0 },
-	{ lineStart: 2, lineEnd: 1 },
-	{ quote: "export const enabled = false;\n" },
-]) {
+for (const change of [{ lineStart: 0 }, { lineStart: 2, lineEnd: 1 }]) {
 	test(`exact range rejects ${JSON.stringify(change)}`, () =>
 		fixture(async (cwd) => {
 			const { result } = await roundtrip(cwd, [{ ...citation, ...change }]);
 			assert.notEqual(result.status, "passed");
 		}));
 }
-test("CRLF and whitespace remain significant; mixed legacy display is not authority", () =>
+// agent-workflow 2026-11-04: a range past the file's end, or a quote that crosses its range, is
+// moved to the quote's one exact occurrence (recorded); the stored range then holds it exactly.
+for (const [change, actual] of [
+	[{ lineEnd: 99 }, "1-1"],
+	[{ quote: "export const enabled = false;\n" }, "1-2"],
+]) {
+	test(`a quote outside its range is moved to its one occurrence: ${JSON.stringify(change)}`, () =>
+		fixture(async (cwd) => {
+			const { p, result } = await roundtrip(cwd, [{ ...citation, ...change }]);
+			assert.equal(result.status, "passed");
+			assert.deepEqual(
+				[p.evidenceCorrections[0].actual, p.evidenceCorrections[0].reason],
+				[actual, "line"],
+			);
+		}));
+}
+// agent-workflow 2026-11-04 (deep-review's 2026-11-01 rule, live Codex spec-review): a quote that
+// differs from its lines only in CR/whitespace is matched against the file and stored as the file's
+// own bytes (recorded in evidenceCorrections), so the stored evidence stays exact; different words
+// still fail.
+test("CRLF and whitespace differences are corrected to the file's bytes; other differences fail; legacy display is not authority", () =>
 	fixture(async (cwd) => {
 		await writeFile(join(cwd, "source.ts"), "first\r\n  second  \r\n");
 		const exact = { ...citation, lineEnd: 2, quote: "first\r\n  second  \r" };
@@ -429,14 +444,58 @@ test("CRLF and whitespace remain significant; mixed legacy display is not author
 				.status,
 			"passed",
 		);
+		for (const quote of ["first\n  second  ", "first\r\nsecond"]) {
+			const { p, result } = await roundtrip(cwd, [{ ...exact, quote }]);
+			assert.equal(result.status, "passed", quote);
+			assert.equal(
+				p.finalFindings[0].evidence[0].quote,
+				"first\r\n  second  \r",
+			);
+			assert.equal(p.evidenceCorrections[0].reason, "whitespace");
+			assert.match(result.markdown, /## Evidence corrections/u);
+		}
 		assert.notEqual(
-			(await roundtrip(cwd, [{ ...exact, quote: "first\n  second  " }])).result
-				.status,
+			(await roundtrip(cwd, [{ ...exact, quote: "first\r\n  third  \r" }]))
+				.result.status,
 			"passed",
 		);
+	}));
+test("a tab-indented quote given with spaces, a few lines off, is matched (live Codex S6)", () =>
+	fixture(async (cwd) => {
+		const body =
+			"// header\n\nexport function stop(error) {\n\treturn (\n\t\terror.name === 'Stop' ||\n\t\terror.message.startsWith('stop')\n\t);\n}\n";
+		await writeFile(join(cwd, "source.ts"), body);
+		const spaced =
+			"export function stop(error) {\n  return (\n    error.name === 'Stop' ||\n      error.message.startsWith('stop')\n  );\n}";
+		const { p, result } = await roundtrip(cwd, [
+			{ ...citation, lineStart: 1, lineEnd: 6, quote: spaced },
+		]);
+		assert.equal(result.status, "passed");
+		assert.deepEqual(
+			[p.evidenceCorrections[0].cited, p.evidenceCorrections[0].actual],
+			["1-6", "3-8"],
+		);
+		assert.equal(
+			p.finalFindings[0].evidence[0].quote,
+			body.split("\n").slice(2, 8).join("\n"),
+		);
+		// Twice in the file, or farther than ten lines away: not matched.
+		await writeFile(join(cwd, "source.ts"), `${body}${body}`);
 		assert.notEqual(
-			(await roundtrip(cwd, [{ ...exact, quote: "first\r\nsecond" }])).result
-				.status,
+			(
+				await roundtrip(cwd, [
+					{ ...citation, lineStart: 1, lineEnd: 6, quote: spaced },
+				])
+			).result.status,
+			"passed",
+		);
+		await writeFile(join(cwd, "source.ts"), `${"\n".repeat(20)}${body}`);
+		assert.notEqual(
+			(
+				await roundtrip(cwd, [
+					{ ...citation, lineStart: 1, lineEnd: 6, quote: spaced },
+				])
+			).result.status,
 			"passed",
 		);
 	}));

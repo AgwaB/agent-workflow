@@ -19,6 +19,7 @@
 import { createHash } from "node:crypto";
 import {
 	EVIDENCE_PROTOCOL,
+	correctCitations,
 	gateDisposition,
 	gateRequirementCoverage,
 	reconcileRequirementCoverage,
@@ -424,6 +425,7 @@ async function partitionFindings(sources, options = {}, context = {}) {
 	}
 
 	const evidenceFindings = [];
+	const evidenceCorrections = [];
 	const finalFindings = [];
 	const droppedFindings = [];
 	const missingVerifications = [];
@@ -473,9 +475,23 @@ async function partitionFindings(sources, options = {}, context = {}) {
 		}
 		const verdict = normalizeVerdict(rawVerdict);
 		const severity = normalizeSeverity(verifier.severity, candidate.severity);
-		const evidence = Array.isArray(verifier.evidence) ? verifier.evidence : [];
+		const evidence = Array.isArray(verifier.evidence)
+			? await correctCitations(
+					verifier.evidence,
+					"evidence",
+					id,
+					context,
+					evidenceCorrections,
+				)
+			: [];
 		const counterEvidence = Array.isArray(verifier.counterEvidence)
-			? verifier.counterEvidence
+			? await correctCitations(
+					verifier.counterEvidence,
+					"counterEvidence",
+					id,
+					context,
+					evidenceCorrections,
+				)
 			: [];
 		const evidenceGate = await gateDisposition(
 			id,
@@ -510,10 +526,8 @@ async function partitionFindings(sources, options = {}, context = {}) {
 				title: candidate.title ?? verifier.finding?.title ?? id,
 				requirementIds: arrayOfStrings(candidate.requirementIds),
 				claim: verifier.finalClaim ?? candidate.claim ?? "",
-				evidence: Array.isArray(verifier.evidence) ? verifier.evidence : [],
-				counterEvidence: Array.isArray(verifier.counterEvidence)
-					? verifier.counterEvidence
-					: [],
+				evidence,
+				counterEvidence,
 				recommendedAction:
 					verifier.recommendedAction ?? candidate.recommendedAction ?? "",
 				originalCandidate: candidate,
@@ -680,6 +694,7 @@ async function partitionFindings(sources, options = {}, context = {}) {
 		},
 		verdictCounts,
 		requirementCoverage,
+		...(evidenceCorrections.length > 0 ? { evidenceCorrections } : {}),
 		finalFindings,
 		droppedFindings,
 		needsHuman,

@@ -31,6 +31,134 @@ export function isLocalCitation(row) {
   );
 }
 
+/**
+ * agent-workflow 2026-11-04 (live: a Codex verifier quoted a tab-indented function with spaces, so a
+ * real S6 gap became needs-human): deep-review's 2026-11-01 rule for verifier quotes. A typed
+ * citation whose quote is not inside its cited lines is matched once more against the file: a unique
+ * exact occurrence, else a unique occurrence after folding each line (trim; quote, dash and space
+ * characters), at most EVIDENCE_LINE_TOLERANCE lines from the cited range. The citation then carries
+ * the actual lines and, for a folded match, the file's own text, so the byte gate below stays exact;
+ * every correction is recorded. A quote that differs in words, sits farther away, or occurs more than
+ * once is left as it was (and fails the gate).
+ */
+const EVIDENCE_LINE_TOLERANCE = 10;
+
+function foldEvidenceLine(line) {
+  return line
+    .replace(/\r$/u, "")
+    .replace(/[\u2018\u2019\u201A\u201B]/gu, "'")
+    .replace(/[\u201C\u201D\u201E\u201F]/gu, '"')
+    .replace(/[\u2010-\u2015\u2212]/gu, "-")
+    .replace(/[\u00A0\u2002-\u200A\u202F\u205F\u3000]/gu, " ")
+    .trim();
+}
+
+/** As deep-review's (2026-11-04): a line break with its indentation counts as one space. */
+function locateJoined(text, quote) {
+  const wanted = quote.split("\n").map(foldEvidenceLine).join(" ");
+  if (wanted.length < 8) return null;
+  const starts = [];
+  let joined = "";
+  for (const [index, line] of text.split("\n").entries()) {
+    if (index > 0) joined += " ";
+    starts.push(joined.length);
+    joined += foldEvidenceLine(line);
+  }
+  const at = joined.indexOf(wanted);
+  if (at < 0 || joined.indexOf(wanted, at + 1) >= 0) return null;
+  const lineOf = (offset) => {
+    let line = 0;
+    while (line + 1 < starts.length && starts[line + 1] <= offset) line++;
+    return line + 1;
+  };
+  return { line: lineOf(at), lineEnd: lineOf(at + wanted.length - 1) };
+}
+
+function locateEvidence(text, quote, citedStart, citedEnd) {
+  const lines = text.split("\n");
+  const span = quote.split("\n").length;
+  let found = null;
+  let reason = "line";
+  const exact = [];
+  for (let at = text.indexOf(quote); at >= 0; at = text.indexOf(quote, at + 1)) {
+    const line = text.slice(0, at).split("\n").length;
+    exact.push({ line, lineEnd: line + span - 1 });
+    if (exact.length > 1) return null;
+  }
+  if (exact.length === 1) found = exact[0];
+  else {
+    const folded = quote.split("\n").map(foldEvidenceLine).join("\n");
+    if (folded.length < 8) return null;
+    for (let start = 1; start + span - 1 <= lines.length; start++) {
+      const window = lines
+        .slice(start - 1, start - 1 + span)
+        .map(foldEvidenceLine)
+        .join("\n");
+      if (!window.includes(folded)) continue;
+      if (found) return null;
+      found = { line: start, lineEnd: start + span - 1 };
+    }
+    found ??= locateJoined(text, quote);
+    if (!found) return null;
+    reason = "whitespace";
+    found.text = lines.slice(found.line - 1, found.lineEnd).join("\n");
+  }
+  const distance =
+    found.lineEnd < citedStart
+      ? citedStart - found.lineEnd
+      : citedEnd < found.line
+        ? found.line - citedEnd
+        : 0;
+  return distance > EVIDENCE_LINE_TOLERANCE ? null : { ...found, reason };
+}
+
+/** The citations of one verifier field, corrected where {@link locateEvidence} finds them. */
+export async function correctCitations(value, field, id, context, corrections) {
+  if (!Array.isArray(value)) return value;
+  const out = [];
+  for (const citation of value) {
+    if (!isLocalCitation(citation)) {
+      out.push(citation);
+      continue;
+    }
+    let text;
+    try {
+      text = await readLocalText(context.cwd, citation.file, context.signal);
+    } catch {
+      context.signal?.throwIfAborted();
+      out.push(citation);
+      continue;
+    }
+    let inRange = false;
+    try {
+      inRange = localRange(text, citation.lineStart, citation.lineEnd).includes(citation.quote);
+    } catch {}
+    const found = inRange
+      ? null
+      : locateEvidence(text, citation.quote, citation.lineStart, citation.lineEnd);
+    if (!found) {
+      out.push(citation);
+      continue;
+    }
+    corrections.push({
+      id,
+      field,
+      file: citation.file,
+      cited: `${citation.lineStart}-${citation.lineEnd}`,
+      actual: `${found.line}-${found.lineEnd}`,
+      reason: found.reason,
+      ...(found.reason === "whitespace" ? { quoted: citation.quote, stored: found.text } : {}),
+    });
+    out.push({
+      ...citation,
+      lineStart: found.line,
+      lineEnd: found.lineEnd,
+      ...(found.reason === "whitespace" ? { quote: found.text } : {}),
+    });
+  }
+  return out;
+}
+
 async function checkRows(value, field, context) {
   const rows = [];
   for (const [index, citation] of (Array.isArray(value)

@@ -303,6 +303,33 @@ function foldEvidenceLine(line) {
 		.trim();
 }
 
+/**
+ * agent-workflow 2026-11-04 (live Codex deep-review: a verifier quoted a soft-wrapped Markdown sentence
+ * as one line, so "`aborted`,\n  `AbortError`" became "`aborted`, `AbortError`"): a unique
+ * occurrence of the quote when a line break with its indentation counts as one space. Each line is
+ * folded as above; spacing inside a line still has to match. Tried only after the per-line folding
+ * finds nothing. Returns lines, else null.
+ */
+function locateJoined(text, quote) {
+	const wanted = quote.split("\n").map(foldEvidenceLine).join(" ");
+	if (wanted.length < 8) return null;
+	const starts = [];
+	let joined = "";
+	for (const [index, line] of text.split("\n").entries()) {
+		if (index > 0) joined += " ";
+		starts.push(joined.length);
+		joined += foldEvidenceLine(line);
+	}
+	const at = joined.indexOf(wanted);
+	if (at < 0 || joined.indexOf(wanted, at + 1) >= 0) return null;
+	const lineOf = (offset) => {
+		let line = 0;
+		while (line + 1 < starts.length && starts[line + 1] <= offset) line++;
+		return line + 1;
+	};
+	return { line: lineOf(at), lineEnd: lineOf(at + wanted.length - 1) };
+}
+
 function rangeDistance(line, lineEnd, otherLine, otherEnd) {
 	if (lineEnd < otherLine) return otherLine - lineEnd;
 	if (otherEnd < line) return line - otherEnd;
@@ -340,7 +367,11 @@ function locateEvidence(text, quote, citedLine, citedEnd) {
 				if (hits.length > 1) return null;
 			}
 		}
-		if (hits.length === 0) return null;
+		if (hits.length === 0) {
+			const joined = locateJoined(text, quote);
+			if (!joined) return null;
+			hits.push(joined);
+		}
 		found = hits[0];
 		reason = "whitespace";
 		found.text = lines.slice(found.line - 1, found.lineEnd).join("\n");
@@ -1066,6 +1097,23 @@ function exactSourceQuoteIssue(row, path, context, corrections = null) {
 	return "";
 }
 
+/** True when `path` names a line range of an existing text file and every line in it is blank. */
+function blankPlannedRange(path, context = {}) {
+	const pointer = parseSourceCoveragePointer(path);
+	if (!pointer?.file || pointer.line === undefined) return false;
+	const source = readRepoText(
+		pointer.file,
+		repoRootFromContext(context),
+		MAX_SOURCE_COVERAGE_FILE_BYTES,
+	);
+	if (!source.exists || source.tooLarge || source.invalidUtf8) return false;
+	const lines = source.text.split("\n");
+	if (pointer.lineEnd > lines.length) return false;
+	return lines
+		.slice(pointer.line - 1, pointer.lineEnd)
+		.every((line) => line.trim() === "");
+}
+
 function assessSourceCoverage(requiredValue, coverageValue, context = {}) {
 	const issues = [];
 	const requiredPaths = [];
@@ -1119,6 +1167,13 @@ function assessSourceCoverage(requiredValue, coverageValue, context = {}) {
 			continue;
 		}
 		const row = matches[0];
+		// agent-workflow 2026-11-04 (live Codex deep-review: triage planned SPEC.md:31 and :37, blank
+		// lines; the reviewers rightly could not quote them): a metadata-only row for a planned range
+		// of blank lines has nothing to attest. Recorded as a correction, listed in the report.
+		if (row.status === "metadata-only" && blankPlannedRange(path, context)) {
+			corrections.push({ kind: "blank-planned-range", path });
+			continue;
+		}
 		if (!USABLE_SOURCE_COVERAGE.has(row.status)) {
 			issues.push({
 				path,

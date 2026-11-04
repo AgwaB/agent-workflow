@@ -647,6 +647,24 @@ function renderNoIssueNotes(rows) {
 	return out;
 }
 
+/** agent-workflow 2026-11-04: verifier citations the partition matched with a correction. */
+function renderEvidenceCorrections(partition) {
+	const corrections = asArray(partition.evidenceCorrections).filter(isRecord);
+	if (corrections.length === 0) return [];
+	const out = [
+		"## Evidence corrections",
+		"",
+		"Verifier evidence that differed from the file only in its cited lines or whitespace was matched against the file; the stored evidence is the file's own text.",
+		"",
+	];
+	for (const row of corrections)
+		out.push(
+			`- ${safeInline(row.id)} ${safeInline(row.field)}: ${safeInline(row.file)} lines ${safeInline(row.cited)} → ${safeInline(row.actual)} (${row.reason === "whitespace" ? "matches except whitespace or quote/dash characters" : "the quote occurs once in the file, at these lines"})`,
+		);
+	out.push("");
+	return out;
+}
+
 function renderVerifierIntegrity(partition) {
 	const coverage = partition.verifierCoverage ?? {};
 	const out = [
@@ -816,6 +834,7 @@ function renderMarkdown({
 		...renderNoIssueNotes(asArray(partition.noIssueNotes)),
 		...renderNarrativeRisks(asArray(report?.risks)),
 		...renderVerifierIntegrity(partition),
+		...renderEvidenceCorrections(partition),
 		"## Byte evidence audit",
 		"",
 		...fenced(
