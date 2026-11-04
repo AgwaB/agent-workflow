@@ -86,7 +86,8 @@ function countWords(text) {
 function cleanText(value) {
 	return String(value ?? "")
 		.replace(/\s+/g, " ")
-		.replace(/\s+([,.;:!?])/g, "$1")
+		// Only before punctuation that ends a word: ".agent-workflow/…", " .env" keep their space (2026-11-04).
+		.replace(/\s+([,.;:!?])(?=\s|$)/g, "$1")
 		.trim();
 }
 

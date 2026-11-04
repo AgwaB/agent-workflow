@@ -404,3 +404,37 @@ test("a quote joining a wrapped line, and a metadata-only row for blank planned 
 			),
 	);
 });
+
+// agent-workflow 2026-11-04: normalization notes are reader text; they use the verifier's
+// readerTitle (the finding's title in the task's language) when there is one.
+test("normalization notes name the finding by its reader title", async (t) => {
+	const cwd = project(t);
+	const base = await dedup(cwd, "src/a.ts:1-6", "danger = true;");
+	const out = await pipeline({
+		sources: {
+			"dedup-findings.main": base,
+			"devil-advocate.f1": {
+				findingId: "f1",
+				finding: finding.title,
+				verdict: "KEEP",
+				evidence: [{ file: "src/a.ts", line: 6, quote: "danger = true;" }],
+				counterEvidence: [],
+				recommendedAction: "끄세요",
+				readerTitle: "위험 플래그가 켜진 채로 남음",
+			},
+		},
+		context: { cwd, sourceStatuses: statuses },
+		options: { mode: "partition", dedupStage: "dedup-findings" },
+	});
+	assert.ok(
+		out.normalizationNotes.some((note) =>
+			note.includes(
+				'verifier evidence for "위험 플래그가 켜진 채로 남음" cited src/a.ts:6',
+			),
+		),
+		JSON.stringify(out.normalizationNotes),
+	);
+	assert.ok(
+		!out.normalizationNotes.some((note) => note.includes(finding.title)),
+	);
+});

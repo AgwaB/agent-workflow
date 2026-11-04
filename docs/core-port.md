@@ -563,7 +563,11 @@ nested runs take them from the parent run record.
   and the run status becomes `blocked`. The run is an eligible notice (`notices list`). Nothing retries,
   relaunches or falls back; a foreach batch leader stops the batch with both members blocked instead of
   falling back to per-item launches. The owner decides: an explicit `resume` relaunches with a new attempt
-  key (`executor_needs_decision` is a resumable blocked detail), `stop` abandons it.
+  key (`executor_needs_decision` is a resumable blocked detail), `stop` abandons it. (Until
+  2026-11-04 `stop` on a blocked run changed nothing — its blocked tasks are terminal for the task, so
+  nothing was interrupted and the run stayed blocked under "Needs you". Now `stop` marks blocked tasks
+  `interrupted/workflow_stopped`; the run ends `interrupted`, or `failed` when an earlier task
+  failed. Test: `core-wp37-resume-after-stop.test.mjs`.)
 - Runtime `failed/not_started` (reconcile `absent`) → eligible for the normal transient retry policy
   (new launch attempt, new key, retry limit and backoff apply).
 - `transient`, `rate_limit` → retry policy (rate limit with backoff). `executor_auth`, `executor_config`,

@@ -6,7 +6,8 @@ convention: `createExecutor(config)`; descriptor
 
 Verified against **codex-cli 0.159.2** (ChatGPT login) on 2026-10-26 with 18 live model calls
 (log: `test/fixtures/executors/codex/live-calls.md`); the live tier re-passed on **codex-cli 0.165.0**
-on 2026-11-01 (7 calls), which is now the verified version. Protocol notes below still cite 0.159.2
+on 2026-11-01 (7 calls) and on **codex-cli 0.166.0** on 2026-11-04 (7 calls), which is now the
+verified version. Protocol notes below still cite 0.159.2
 where they were established. Model for every recording: `gpt-5.6-luna`,
 effort `low` (cheapest tier listed by `model/list`; the CLI reports no prices).
 
@@ -287,7 +288,9 @@ budget are not confirmed. `fetch_content` (open_page) not observed.
 - Live (`executor-codex-live.test.mjs`, `AGENT_WORKFLOW_LIVE=1`, real HOME): smoke + kit live tier,
   run once: 5/5 live checks pass (`readonly_enforced`, `tool_allowlist`, `isolation`,
   `session_ownership`, `resume`). Re-run 2026-11-01 on **codex-cli 0.165.0**: smoke and 5/5 pass;
-  the verified version is now 0.165.0 (`live-calls.md` "Re-verification on 0.165.0").
+  the verified version became 0.165.0 (`live-calls.md` "Re-verification on 0.165.0"). Re-run
+  2026-11-04 on **codex-cli 0.166.0**: smoke and 5/5 pass; verified version now 0.166.0 (the MCP
+  output limit was not re-measured).
 
 ## Known limits
 

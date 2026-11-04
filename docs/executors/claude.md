@@ -5,9 +5,10 @@ Entry point: `@agwab/agent-workflow/executors/claude`. Source: `src/executors/cl
 - Factory: `createExecutor(config)` (descriptor convention, R#15). `createClaudeExecutor({ config, faults })` is the typed form.
 - Adapter version: `0.1.0`. SDK contract: `0.1.0`.
 - Verified against **claude-code 2.1.310**, on a claude.ai subscription login, live on 2026-10-26;
-  the live tier re-passed on **2.1.314** on 2026-11-01 (13 calls, $0.017), now the verified version.
+  the live tier re-passed on **2.1.314** on 2026-11-01 (13 calls, $0.017) and on **2.1.318** on
+  2026-11-04 (13 calls), now the verified version.
   Notes below cite 2.1.310 where they were established.
-- Live evidence: 22 calls on `claude-haiku-5-5`, notional $0.029 (+13 on 2.1.314). See `test/fixtures/executors/claude/live-calls.md`.
+- Live evidence: 22 calls on `claude-haiku-5-5`, notional $0.029 (+13 on 2.1.314, +13 on 2.1.318). See `test/fixtures/executors/claude/live-calls.md`.
 - Scrubbed transcripts: `test/fixtures/executors/claude/transcripts/`.
 
 ## Config (descriptor `config`, JSON, no secrets)

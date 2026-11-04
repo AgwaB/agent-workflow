@@ -104,3 +104,20 @@ Totals now 23 calls (WP8: 22, WP4e: 1). Nothing was left under `~/.claude/projec
 13 calls, reported cost $0.0174 in total (sum of `total_cost_usd`). Nothing was left under
 `~/.claude/projects`. `CLAUDE_VERIFIED_CLI_VERSION` is now 2.1.314. Earlier the same day three
 Sonnet 5.5 deep-research runs completed on 2.1.314. Totals now 36 calls.
+
+## Re-verification on 2.1.318 (2026-11-04)
+
+`agent-workflow doctor` reported `installed 2.1.318 (verified 2.1.314, differs)`. Same login,
+`AGENT_WORKFLOW_LIVE=1 node --test test/unit/executor-claude-live.test.mjs` (real HOME), model alias
+`haiku`.
+
+| # | Purpose | Calls | Outcome |
+|---|---|---|---|
+| 37 | Smoke: read-only run with the real artifact MCP server | 1 | pass (6.6 s) |
+| 38–40 | Concurrency: three parallel `claude -p` runs | 3 | pass (3.4 s) |
+| 41 | Native WebSearch + WebFetch | 1 | pass (12.9 s) |
+| 42–43 | System prompt append and replace | 2 | pass (7.2 s) |
+| 44–49 | Kit live tier (resume = 2 calls) | 6 | pass (20.6 s) |
+
+`CLAUDE_VERIFIED_CLI_VERSION` is now 2.1.318. The same day 2.1.318 also ran the live run of every
+bundled workflow (spec-review, impact-review, deep-review; haiku). Totals now 49 calls.

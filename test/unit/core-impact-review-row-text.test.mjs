@@ -178,4 +178,6 @@ test("the completion summary keeps reviewed file names and hides only engine art
 	assert.match(summary, /\[run omitted\]/u);
 	assert.match(summary, /\[task omitted\]/u);
 	assert.match(summary, /final-audit\.\[artifact omitted\]/u);
+	// A path starting with "." keeps the space before it.
+	assert.match(summary, /\[task omitted\], \[artifact omitted\]/u);
 });

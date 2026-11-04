@@ -4146,6 +4146,9 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 		const entry = row.entry;
 		if (!row.batched && !row.reviewerFinding) continue;
 		const title = row.batched ? row.title : row.reviewerFinding.title;
+		// agent-workflow 2026-11-04: notes are reader text, so they name the finding by the verifier's
+		// translation when there is one (an English reviewer title showed in a Korean report).
+		const noteTitle = readerTextOf(entry).readerTitle ?? title;
 		const reviewerFinding = row.batched
 			? byFindingId.get(row.findingId)
 			: row.reviewerFinding;
@@ -4157,11 +4160,11 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 		const fallbackId = `verdict-${String(verdictIndex).padStart(3, "0")}`;
 		if (invalid !== undefined) {
 			normalizationNotes.push(
-				`unrecognized verdict ${JSON.stringify(invalid)} for "${title}" routed to NEEDS_HUMAN`,
+				`unrecognized verdict ${JSON.stringify(invalid)} for "${noteTitle}" routed to NEEDS_HUMAN`,
 			);
 		} else if (normalized) {
 			normalizationNotes.push(
-				`verdict "${String(entry.verdict)}" normalized to ${verdict} for "${title}"`,
+				`verdict "${String(entry.verdict)}" normalized to ${verdict} for "${noteTitle}"`,
 			);
 		}
 		const structuredVerifierEvidence =
@@ -4299,7 +4302,7 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 				note,
 			});
 			normalizationNotes.push(
-				`verdict for "${title}" came from incomplete source coverage; routed to NEEDS_HUMAN instead of ${verdict}`,
+				`verdict for "${noteTitle}" came from incomplete source coverage; routed to NEEDS_HUMAN instead of ${verdict}`,
 			);
 			continue;
 		}
@@ -4332,8 +4335,8 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 			}
 			normalizationNotes.push(
 				correction.reason === "whitespace"
-					? `verifier evidence for "${title}" matched ${correction.file}:${correction.actual} except whitespace or quote/dash characters; the file text was stored`
-					: `verifier evidence for "${title}" cited ${correction.file}:${correction.cited}; the exact quote occurs once, at ${correction.actual}; line corrected`,
+					? `verifier evidence for "${noteTitle}" matched ${correction.file}:${correction.actual} except whitespace or quote/dash characters; the file text was stored`
+					: `verifier evidence for "${noteTitle}" cited ${correction.file}:${correction.cited}; the exact quote occurs once, at ${correction.actual}; line corrected`,
 			);
 		}
 		if (verifierEvidenceIssues.length > 0) {
@@ -4352,7 +4355,7 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 				note: failure.statusDetail,
 			});
 			normalizationNotes.push(
-				`verdict for "${title}" had ungrounded verifier evidence; routed to NEEDS_HUMAN instead of ${verdict}`,
+				`verdict for "${noteTitle}" had ungrounded verifier evidence; routed to NEEDS_HUMAN instead of ${verdict}`,
 			);
 			continue;
 		}
@@ -4370,7 +4373,7 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 				},
 			});
 			normalizationNotes.push(
-				`batched ${verdict} for "${title}" routed to NEEDS_HUMAN: ${batchDemotionReason}`,
+				`batched ${verdict} for "${noteTitle}" routed to NEEDS_HUMAN: ${batchDemotionReason}`,
 			);
 			continue;
 		}
@@ -4400,7 +4403,7 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 					: "verdict lacked independent verifier evidence required for a reportable disposition",
 			});
 			normalizationNotes.push(
-				`verdict for "${title}" lacked grounding evidence; routed to NEEDS_HUMAN instead of ${verdict}`,
+				`verdict for "${noteTitle}" lacked grounding evidence; routed to NEEDS_HUMAN instead of ${verdict}`,
 			);
 			continue;
 		}

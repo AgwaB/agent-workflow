@@ -45,7 +45,8 @@ function cleanText(value) {
 	return String(value ?? "")
 		.replace(/[\u0000-\u001f\u007f-\u009f]/g, " ")
 		.replace(/\s+/g, " ")
-		.replace(/\s+([,.;:!?])/g, "$1")
+		// Only before punctuation that ends a word: ".agent-workflow/…", " .env" keep their space (2026-11-04).
+		.replace(/\s+([,.;:!?])(?=\s|$)/g, "$1")
 		.trim();
 }
 

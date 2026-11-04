@@ -170,3 +170,34 @@ test("a held lease on a run that was not stopped is refused at once (no wait)", 
 	assert.ok(Date.now() - startedAt < 1_500);
 	assert.equal(await held, true);
 });
+
+// agent-workflow 2026-11-04 (live: a stopped blocked run stayed blocked under "Needs you"): stop
+// abandons a blocked run — its blocked task is interrupted and the run leaves the blocked state.
+test("stop abandons a blocked run: the blocked task is interrupted and the run is no longer blocked", async () => {
+	const { cwd, specPath, id } = await project({ mode: "crash-after-consume" });
+	const started = await engine.runWorkflowSpec(specPath, cwd, {
+		task: "crash after consume, then stop",
+		executor: id,
+	});
+	const blocked = await engine.waitForRun(cwd, started.runId, 60_000);
+	assert.equal(blocked.status, "blocked");
+	const blockedTaskIds = blocked.tasks
+		.filter((task) => task.status === "blocked")
+		.map((task) => task.taskId);
+	assert.ok(blockedTaskIds.length > 0);
+	await waitForLeaseFree(cwd, started.runId);
+	const stopped = await engine.stopRun(cwd, started.runId);
+	assert.deepEqual(
+		stopped.interruptedTaskIds.sort(),
+		[...blockedTaskIds].sort(),
+	);
+	const run = await store.readRunRecord(cwd, started.runId);
+	assert.equal(run.status, "interrupted");
+	for (const taskId of blockedTaskIds) {
+		const task = run.tasks.find((candidate) => candidate.taskId === taskId);
+		assert.deepEqual(
+			[task.status, task.statusDetail],
+			["interrupted", "workflow_stopped"],
+		);
+	}
+});

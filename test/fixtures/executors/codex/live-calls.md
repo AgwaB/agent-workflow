@@ -89,3 +89,19 @@ returned `refused` because the resume check's second attempt record points at th
 deleted and forgotten. `CODEX_VERIFIED_CLI_VERSION` is now 0.165.0. Earlier the same day: three
 Codex deep-research runs on 0.165.0 completed, and the MCP output limit was re-measured (see
 docs/executors/codex.md). Totals now 26 live calls.
+
+## Re-verification on 0.166.0 (2026-11-04)
+
+`agent-workflow doctor` reported `installed 0.166.0 (verified 0.165.0, differs)`. Same login,
+`AGENT_WORKFLOW_LIVE=1 node --test test/unit/executor-codex-live.test.mjs` (real HOME), model
+`gpt-5.6-luna` effort `low`.
+
+| # | Purpose | Duration | Outcome |
+|---|---|---|---|
+| 27 | Live test smoke: read-only turn with usage, no cost | 6453 ms | pass |
+| 28–33 | Kit live tier: `readonly_enforced`, `tool_allowlist`, `isolation`, `session_ownership`, `resume` (2 turns) | 36211 ms (all) | 5/5 pass |
+
+Deleted threads: `deleted`, `deleted`, `refused` (as on 0.165.0: the resume check's second attempt
+points at the thread already deleted). `CODEX_VERIFIED_CLI_VERSION` is now 0.166.0; the MCP output
+limit was not re-measured. The same day 0.166.0 ran the live run of every bundled workflow. Totals now
+33 live calls.
