@@ -316,7 +316,10 @@ server started with another `--host` is not woken.
 End to end (Codex 0.166.0 TUI with the plugin, a plain "run deep-review … and tell me the result"):
 the agent launched and ended its turn without `workflow_wait`; when the run completed the supervisor
 logged `host wake: codex queue <thread>: queued`, the line appeared in the TUI as a message, and the
-agent read the report once and told the user the verdict, the six findings and the link.
+agent read the report once and told the user the verdict, the six findings and the link. The
+ChatGPT desktop app's Codex (its own app server, 26.1029): same result (the queued line arrived in the
+app's task as a message 11 s after the run ended and the agent reported verdict, report and link),
+after the login-shell PATH fix below (before it, the app's server could not find `claude`).
 `AGENT_WORKFLOW_HOST_WAKE=0` (in the server's environment) turns the Codex wake off. The `codex queue` call is killed
 (SIGKILL) after 30 s, so a stuck call cannot keep the supervisor alive; without a running daemon
 `codex queue` uses an in-process app server and starts no daemon (Codex source,
