@@ -85,6 +85,17 @@ async function main(): Promise<void> {
 		else process.stdout.write("", () => process.exit(code));
 	};
 	process.stdout.on("error", () => exit(0));
+	// 2026-11-05: an app may start the server with a PATH that lacks the user's CLIs (the ChatGPT
+	// app's Codex: /usr/bin:/bin:… only); add the login shell's entries before any tool call.
+	const { adoptLoginShellPath } = await import(
+		"../../hosts/login-shell-path.js"
+	);
+	const ready = adoptLoginShellPath(process.env)
+		.then((added) => {
+			if (added.length)
+				log(`PATH: added ${added.length} entries from the login shell`);
+		})
+		.catch(() => undefined);
 	const waitSliceMs = hostMcpWaitSliceMs({
 		host,
 		env: process.env,
@@ -98,6 +109,7 @@ async function main(): Promise<void> {
 		host,
 		env: process.env,
 		waitSliceMs,
+		ready,
 		serverVersion: packageVersion(),
 		onDrained: () => exit(0),
 	});

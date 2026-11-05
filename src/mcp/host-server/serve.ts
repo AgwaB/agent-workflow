@@ -18,6 +18,8 @@ export interface HostMcpStdioOptions extends HostMcpServiceOptions {
 	serverVersion: string;
 	/** Called once after input EOF (or `shutdown()`) and all in-flight calls have answered. */
 	onDrained: () => void;
+	/** 2026-11-05: tool calls wait for this first (the login-shell PATH, login-shell-path.ts). */
+	ready?: Promise<unknown>;
 }
 
 export function serveHostMcpStdio(options: HostMcpStdioOptions): {
@@ -33,7 +35,10 @@ export function serveHostMcpStdio(options: HostMcpStdioOptions): {
 		instructions: hostMcpInstructions(options.waitSliceMs),
 		tools: (protocolVersion) =>
 			hostMcpToolDefinitions(protocolVersion, options.waitSliceMs),
-		callTool: (name, args, context) => service.call(name, args, context),
+		callTool: async (name, args, context) => {
+			await options.ready;
+			return service.call(name, args, context);
+		},
 		onDrained: options.onDrained,
 	});
 }

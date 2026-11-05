@@ -324,6 +324,18 @@ agent read the report once and told the user the verdict, the six findings and t
 --resume` was not used: it resumes on the local app-server daemon, which on the test machine still
 held older credentials (usage-limit errors while the CLI's login had quota).
 
+## PATH of a server an app starts (2026-11-05)
+
+The ChatGPT app's Codex starts MCP servers with `PATH=/usr/bin:/bin:/usr/sbin:/sbin` plus its own
+directories, so a CLI in `~/.local/bin`, `/usr/local/bin`, homebrew or nvm is not found (live: "spawn
+claude ENOENT", the run never started). The server asks the user's login shell for its PATH at start
+(`$SHELL -l -c` and `$SHELL -i -l -c`, both at once, at most 10 s; `src/hosts/login-shell-path.ts`)
+and appends the absolute entries the current PATH lacks; tool calls wait for it, `initialize` does
+not. Workers and the detached supervisor inherit the result. As kimi-code
+(`packages/kaos/src/login-shell-path.ts`), trilium (`binary_lookup.ts` `findOnPath`) and cline
+(`remote/shell-path.ts`). On the test machine `-l` took 0.01 s (no nvm or homebrew entries), `-i -l`
+3-5 s. `AGENT_WORKFLOW_LOGIN_SHELL_PATH=0` turns it off; Windows and csh/tcsh are skipped.
+
 ## Server started in the home directory (2026-11-04)
 
 The Claude desktop app starts the server in ~ (no project). Its `.agent-workflow` there is the
