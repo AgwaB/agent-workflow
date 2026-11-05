@@ -47,9 +47,9 @@ export interface StageRequirementContext {
 	readonly readOnly: boolean;
 	/** Stage has required reads → `mcpInjection` required/refuse. */
 	readonly hasRequiredReads: boolean;
-	/** Precise `tools: [...]` list (Pi names). Non-empty → `toolAllowlist.fine` preferred. */
+	/** Precise `tools: [...]` list (workflow names). Non-empty → `toolAllowlist.fine` preferred. */
 	readonly tools?: readonly string[];
-	/** Adapter's Pi→executor mapping. Unmapped tools follow the same B4 rule as `toolAllowlist.fine`. */
+	/** Adapter's workflow→executor mapping. Unmapped tools follow the same B4 rule as `toolAllowlist.fine`. */
 	readonly toolMapping?: ToolMapping;
 	/** The spec allows running as readOnly when precise tool limits are unavailable. */
 	readonly allowReadOnlyDowngrade?: boolean;

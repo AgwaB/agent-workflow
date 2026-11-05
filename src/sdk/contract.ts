@@ -54,7 +54,7 @@ export interface SubmitRequest {
 	readonly systemPrompt?: string;
 	readonly model?: string;
 	readonly effort?: string;
-	/** Pi tool names; the adapter maps them (see tools.ts). */
+	/** Workflow tool names; the adapter maps them (see tools.ts). */
 	readonly tools: readonly string[];
 	readonly readOnly: boolean;
 	readonly mcpServers: readonly McpServerSpec[];

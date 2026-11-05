@@ -63,7 +63,7 @@ import { schedulePeriodicAdapterStatePrune } from "../state-retention.js";
 import { CODEX_TOOL_MAPPING, planCodexTools } from "./tools.js";
 import { executorModelId } from "../../core/executor-model-id.js";
 
-/** Pi's `openai-codex/<id>` (a legacy `~/.pi` agent or workflow) is `<id>` for the Codex CLI. */
+/** Resolve cross-executor model names such as `openai-codex/<id>` to the Codex CLI form. */
 function codexModel(model: string | undefined): string | undefined {
 	if (model === undefined || model === "") return model;
 	const translated = executorModelId("codex", model);

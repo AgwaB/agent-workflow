@@ -43,7 +43,7 @@ test("darwin-process-identity-helper", async () => {
 
 	assert.equal(
 		manifest.schema,
-		"pi-subagent-darwin-process-identity-helper-v1",
+		"agent-workflow-darwin-process-identity-helper-v1",
 	);
 	assert.equal(manifest.sourceSha256, sha256(source));
 	assert.equal(manifest.binarySha256, sha256(binary));

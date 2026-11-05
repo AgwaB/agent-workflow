@@ -1,5 +1,5 @@
 /**
- * Pi tool name → Claude Code tool mapping (plan §2.4, owner decision "Pi 도구 이름 매핑").
+ * Workflow tool name → Claude Code tool mapping (plan §2.4, owner decision "workflow tool mapping").
  * Names verified against `claude` 2.1.310 `system/init.tools` and live tool calls (WP8); see
  * docs/executors/claude.md for the evidence per row.
  */

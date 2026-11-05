@@ -6,7 +6,7 @@ import type { ExecutorDescriptor } from "../sdk/descriptor.js";
 import type { NegotiationReport } from "../sdk/requirements.js";
 import { isPlainObject, type JsonValue } from "../sdk/json.js";
 import type { ToolKind } from "../sdk/events.js";
-import { isMutatingKind, PI_TOOL_KINDS } from "../sdk/tools.js";
+import { isMutatingKind, WORKFLOW_TOOL_KINDS } from "../sdk/tools.js";
 import { AGENT_WORKFLOW_ROLE_ENV } from "./process-role.js";
 import {
 	workflowTaskCapabilityLaunch,
@@ -1513,7 +1513,9 @@ export function workflowTaskApprovalPolicy(
 	const kinds = new Set<ToolKind>();
 	const tools = compiledTask.runtime.tools ?? [...DEFAULT_WORKER_TOOLS];
 	for (const tool of tools) {
-		const kind = (PI_TOOL_KINDS as Record<string, ToolKind | undefined>)[tool];
+		const kind = (WORKFLOW_TOOL_KINDS as Record<string, ToolKind | undefined>)[
+			tool
+		];
 		if (kind !== undefined) kinds.add(kind);
 	}
 	const readOnly = workflowTaskReadOnly(compiledTask) || forcedReadOnly;
@@ -1688,17 +1690,16 @@ export const workflowTaskBackend: WorkflowBackend = {
 };
 
 /**
- * Run records keep `backend: {type: "local-pi", mode: "headless"}` (stored-format literal, F5);
- * it now names this runtime-API backend.
+ * Run records use `backend: {type: "local", mode: "headless"}` for the runtime-API backend.
  */
 export const WORKFLOW_TASK_BACKEND_KEY = {
-	type: "local-pi",
+	type: "local",
 	mode: "headless",
 } as const;
 
 let unregisterWorkflowTaskBackend: (() => void) | undefined;
 
-/** Idempotently register the core task backend for `local-pi/headless` run records. */
+/** Idempotently register the core task backend for `local/headless` run records. */
 export function ensureWorkflowTaskBackendRegistered(): void {
 	unregisterWorkflowTaskBackend ??= registerWorkflowBackend(
 		WORKFLOW_TASK_BACKEND_KEY,

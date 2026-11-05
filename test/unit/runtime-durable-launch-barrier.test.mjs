@@ -50,7 +50,7 @@ test("durable-launch-barrier", async () => {
 					)
 				: value;
 
-	const root = await mkdtemp(join(tmpdir(), "pi-subagent-launch-barrier-"));
+	const root = await mkdtemp(join(tmpdir(), "agent-workflow-launch-barrier-"));
 	try {
 		const descriptor = await createDurableLaunchBarrierV2({
 			directory: join(root, "barrier"),
@@ -262,7 +262,7 @@ test("durable-launch-barrier", async () => {
 			const crashedTempPath = `${crashBarrier.decisionPath}.txn.crashed.tmp`;
 			await writeFile(crashedTempPath, prefix, { mode: 0o600 });
 			const fakeReadyBody = {
-				schema: "pi-subagent-durable-launch-barrier-ready-v2",
+				schema: "agent-workflow-durable-launch-barrier-ready-v2",
 				barrierIdentitySha256: crashBarrier.identitySha256,
 				challenge: crashBarrier.challenge,
 				decisionNonce: crashBarrier.decisionNonce,
@@ -280,7 +280,7 @@ test("durable-launch-barrier", async () => {
 			if (index === 1) {
 				await rm(crashedTempPath);
 				const expectedReleaseBody = {
-					schema: "pi-subagent-durable-launch-barrier-decision-v2",
+					schema: "agent-workflow-durable-launch-barrier-decision-v2",
 					kind: "released",
 					barrierIdentitySha256: crashBarrier.identitySha256,
 					challenge: crashBarrier.challenge,
@@ -398,7 +398,7 @@ test("durable-launch-barrier", async () => {
 		await assert.rejects(access(markerPath));
 
 		const releaseBody = {
-			schema: "pi-subagent-durable-launch-barrier-decision-v2",
+			schema: "agent-workflow-durable-launch-barrier-decision-v2",
 			kind: "released",
 			barrierIdentitySha256: descriptor.identitySha256,
 			challenge: descriptor.challenge,
@@ -661,7 +661,7 @@ test("durable-launch-barrier", async () => {
 				pollIntervalMs: 5,
 			});
 			const readyBody = {
-				schema: "pi-subagent-durable-launch-barrier-ready-v2",
+				schema: "agent-workflow-durable-launch-barrier-ready-v2",
 				barrierIdentitySha256: crashV2.identitySha256,
 				challenge: crashV2.challenge,
 				decisionNonce: crashV2.decisionNonce,
@@ -684,7 +684,7 @@ test("durable-launch-barrier", async () => {
 			const decisionBody =
 				winner === "released"
 					? {
-							schema: "pi-subagent-durable-launch-barrier-decision-v2",
+							schema: "agent-workflow-durable-launch-barrier-decision-v2",
 							kind: "released",
 							kind: "released",
 							barrierIdentitySha256: crashV2.identitySha256,
@@ -697,7 +697,7 @@ test("durable-launch-barrier", async () => {
 							releasePayloadSha256: "d".repeat(64),
 						}
 					: {
-							schema: "pi-subagent-durable-launch-barrier-decision-v2",
+							schema: "agent-workflow-durable-launch-barrier-decision-v2",
 							kind: "released",
 							kind: "revoked",
 							barrierIdentitySha256: crashV2.identitySha256,

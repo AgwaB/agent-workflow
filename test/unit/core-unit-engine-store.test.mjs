@@ -885,7 +885,7 @@ test("workflow resume reset preserves retry accounting metadata", () => {
 	assert.equal(task.resumeEvents[0].backendAttemptId, "attempt_backend");
 });
 
-test("schema and compiler support pi-subagent headless backend", async () => {
+test("compiler uses local/headless without an authored backend selector", async () => {
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
@@ -894,17 +894,19 @@ test("schema and compiler support pi-subagent headless backend", async () => {
 			cwd,
 			task: "Review",
 		});
-		assert.equal(defaultCompiled.backend.mode, "headless");
+		assert.deepEqual(defaultCompiled.backend, {
+			type: "local",
+			mode: "headless",
+		});
 		assert.equal(defaultCompiled.maxConcurrency, 16);
 
 		const headlessSpec = workflowSpec("unit-scout", {
 			defaults: { backend: { mode: "headless" } },
 		});
-		assert.equal(parseWorkflow(headlessSpec).defaults.backend.mode, "headless");
-		assert.equal(
-			(await compileWorkflow(headlessSpec, { cwd, task: "Review" })).backend
-				.mode,
-			"headless",
+		assertIssue(
+			assertThrowsFlow(() => parseWorkflow(headlessSpec)),
+			"$.defaults.backend",
+			"unknown field",
 		);
 
 		assertThrowsFlow(() =>
@@ -4018,7 +4020,7 @@ test("subagent launch gate honors env override and recovers slots after throw", 
 					total: 1,
 				},
 				cwd,
-				backend: { type: "local-pi", mode: "headless" },
+				backend: { type: "local", mode: "headless" },
 				createdAt: now,
 				updatedAt: now,
 				specPath: "workflow.json",

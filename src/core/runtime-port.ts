@@ -46,7 +46,7 @@ export interface SubagentResultEnvelope {
 }
 
 export interface DurableLaunchBarrierDescriptor {
-	schema: "pi-subagent-durable-launch-barrier-v2";
+	schema: "agent-workflow-durable-launch-barrier-v2";
 	identitySha256: string;
 	directory: string;
 	readyPath: string;
@@ -62,7 +62,7 @@ export interface DurableLaunchBarrierDescriptor {
 }
 
 export interface DurableLaunchBarrierReady {
-	schema: "pi-subagent-durable-launch-barrier-ready-v2";
+	schema: "agent-workflow-durable-launch-barrier-ready-v2";
 	barrierIdentitySha256: string;
 	challenge: string;
 	decisionNonce: string;
@@ -78,7 +78,7 @@ export interface DurableLaunchBarrierReady {
 }
 
 export interface DurableLaunchBarrierReleaseDecision {
-	schema: "pi-subagent-durable-launch-barrier-decision-v2";
+	schema: "agent-workflow-durable-launch-barrier-decision-v2";
 	kind: "released";
 	barrierIdentitySha256: string;
 	challenge: string;
@@ -93,7 +93,7 @@ export interface DurableLaunchBarrierReleaseDecision {
 }
 
 export interface DurableLaunchBarrierRevocationDecision {
-	schema: "pi-subagent-durable-launch-barrier-decision-v2";
+	schema: "agent-workflow-durable-launch-barrier-decision-v2";
 	kind: "revoked";
 	barrierIdentitySha256: string;
 	challenge: string;
@@ -115,7 +115,7 @@ export interface DurableLaunchBarrierResolution {
 }
 
 export interface DurableLaunchBarrierAck {
-	schema: "pi-subagent-durable-launch-barrier-ack-v2";
+	schema: "agent-workflow-durable-launch-barrier-ack-v2";
 	barrierIdentitySha256: string;
 	challenge: string;
 	decisionNonce: string;

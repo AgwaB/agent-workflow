@@ -676,7 +676,7 @@ export async function settleDurableLaunchBarrier(options: {
 			},
 		);
 		if (
-			ready.schema !== "pi-subagent-durable-launch-barrier-ready-v2" ||
+			ready.schema !== "agent-workflow-durable-launch-barrier-ready-v2" ||
 			ready.barrierIdentitySha256 !== durableBarrierDescriptor.identitySha256 ||
 			ready.challenge !== durableBarrierDescriptor.challenge ||
 			ready.decisionNonce !== durableBarrierDescriptor.decisionNonce ||
@@ -820,7 +820,7 @@ export async function settleDurableLaunchBarrier(options: {
 		const release = resolution.decision;
 		if (
 			release.kind !== "released" ||
-			release.schema !== "pi-subagent-durable-launch-barrier-decision-v2" ||
+			release.schema !== "agent-workflow-durable-launch-barrier-decision-v2" ||
 			release.barrierIdentitySha256 !==
 				durableBarrierDescriptor.identitySha256 ||
 			release.challenge !== durableBarrierDescriptor.challenge ||
@@ -858,7 +858,7 @@ export async function settleDurableLaunchBarrier(options: {
 			},
 		);
 		if (
-			ack.schema !== "pi-subagent-durable-launch-barrier-ack-v2" ||
+			ack.schema !== "agent-workflow-durable-launch-barrier-ack-v2" ||
 			ack.barrierIdentitySha256 !== durableBarrierDescriptor.identitySha256 ||
 			ack.challenge !== durableBarrierDescriptor.challenge ||
 			ack.decisionNonce !== durableBarrierDescriptor.decisionNonce ||

@@ -135,7 +135,7 @@ test("validate, roles, agents and show <workflow>: data and text", async () => {
 		valid.text,
 		/^Workflow spec valid: host-one-stage\nSpec: wf\.json/,
 	);
-	assert.doesNotMatch(valid.text, /local-pi/);
+	assert.doesNotMatch(valid.text, /backend=/);
 
 	await writeFile(
 		join(ctx.cwd, "bad.json"),

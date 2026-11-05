@@ -305,7 +305,7 @@ function fakeApi({
 						async createDurableLaunchBarrierV2(options) {
 							barrierCount += 1;
 							const barrier = {
-								schema: "pi-subagent-durable-launch-barrier-v2",
+								schema: "agent-workflow-durable-launch-barrier-v2",
 								identitySha256: createHash("sha256")
 									.update(`barrier-${barrierCount}`)
 									.digest("hex"),
@@ -337,7 +337,7 @@ function fakeApi({
 							const launch = launches.at(-1);
 							assert.ok(launch, "barrier ready requires a launched worker");
 							const ready = {
-								schema: "pi-subagent-durable-launch-barrier-ready-v2",
+								schema: "agent-workflow-durable-launch-barrier-ready-v2",
 								barrierIdentitySha256: barrier.identitySha256,
 								challenge: barrier.challenge,
 								decisionNonce: barrier.decisionNonce,
@@ -364,7 +364,7 @@ function fakeApi({
 						) {
 							const state = barriers.get(barrier.identitySha256);
 							state.decision ??= {
-								schema: "pi-subagent-durable-launch-barrier-decision-v2",
+								schema: "agent-workflow-durable-launch-barrier-decision-v2",
 								kind: "released",
 								barrierIdentitySha256: barrier.identitySha256,
 								challenge: barrier.challenge,
@@ -389,7 +389,7 @@ function fakeApi({
 						async revokeDurableLaunchBarrierV2(barrier, options) {
 							const state = barriers.get(barrier.identitySha256);
 							state.decision ??= {
-								schema: "pi-subagent-durable-launch-barrier-decision-v2",
+								schema: "agent-workflow-durable-launch-barrier-decision-v2",
 								kind: "revoked",
 								barrierIdentitySha256: barrier.identitySha256,
 								challenge: barrier.challenge,
@@ -420,7 +420,7 @@ function fakeApi({
 						async waitForDurableLaunchBarrierV2Ack(barrier, release) {
 							const state = barriers.get(barrier.identitySha256);
 							state.ack = {
-								schema: "pi-subagent-durable-launch-barrier-ack-v2",
+								schema: "agent-workflow-durable-launch-barrier-ack-v2",
 								barrierIdentitySha256: barrier.identitySha256,
 								challenge: barrier.challenge,
 								decisionNonce: barrier.decisionNonce,

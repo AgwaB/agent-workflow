@@ -4,6 +4,7 @@ import {
 	artifactGraphWorkflowSpec,
 	compileWorkflow,
 	makeProject,
+	parseWorkflow,
 	writeAgent,
 } from "../helpers/unit-test-support.mjs";
 import { hostToolInheritanceNotice } from "../../dist/core/capability-negotiation.js";
@@ -124,7 +125,7 @@ test("unsupported agent frontmatter remains inert like any unknown key", () => {
 
 test("barrier V1 is rejected at request validation and worker binding boundaries", () => {
 	const descriptor = {
-		schema: "pi-subagent-durable-launch-barrier-v1",
+		schema: "agent-workflow-durable-launch-barrier-v1",
 		identitySha256: "1".repeat(64),
 		subjectSha256: "2".repeat(64),
 	};
@@ -154,7 +155,7 @@ test("barrier V1 is rejected at request validation and worker binding boundaries
 		() =>
 			buildDurableWorkerBinding({
 				preflight: {
-					schema: "pi-subagent-durable-worker-binding-preflight-v1",
+					schema: "agent-workflow-durable-worker-binding-preflight-v1",
 				},
 			}),
 		/binding v2 preflight is required/,
@@ -173,4 +174,110 @@ test("the public runtime no longer exports the V1 barrier API", async () => {
 		assert.equal(Object.hasOwn(runtime, name), false, name);
 	}
 	assert.equal(typeof runtime.createDurableLaunchBarrierV2, "function");
+});
+
+test("compiled workflows use local/headless and reject any authored backend selector", async () => {
+	const cwd = makeProject();
+	writeAgent(cwd, "unit-scout", "read");
+	const spec = artifactGraphWorkflowSpec();
+	const compiled = await compileWorkflow(spec, { cwd, task: "Read." });
+	assert.deepEqual(compiled.backend, { type: "local", mode: "headless" });
+	for (const backend of [
+		{},
+		{ type: "local", mode: "headless" },
+		{ type: ["local", "pi"].join("-"), mode: "headless" },
+	]) {
+		assert.throws(
+			() => parseWorkflow({ ...spec, defaults: { ...spec.defaults, backend } }),
+			(error) =>
+				error.issues.some(
+					(issue) =>
+						issue.path === "$.defaults.backend" &&
+						issue.message === "unknown field",
+				),
+		);
+	}
+});
+
+test("retired V2 runtime schema prefixes are rejected, never aliased", () => {
+	// Build retired schema names explicitly to distinguish rejection fixtures from current writers.
+	const retiredPrefix = ["pi", "subagent"].join("-");
+	const descriptor = {
+		schema: `${retiredPrefix}-durable-launch-barrier-v2`,
+		identitySha256: "1".repeat(64),
+		subjectSha256: "2".repeat(64),
+	};
+	const validation = validateResolveInput({
+		task: "Read.",
+		backend: "headless",
+		async: true,
+		durableLaunchBarrier: descriptor,
+	});
+	assert.equal(validation.ok, false);
+	assert.match(validation.failure.error, /schema/);
+	assert.throws(
+		() =>
+			prepareDurableWorkerBinding({
+				payload: {
+					cwd: "/tmp",
+					runId: "r",
+					attemptId: "a",
+					input: { durableLaunchBarrier: descriptor },
+				},
+				launchPayloadSha256: "3".repeat(64),
+				executionPlanSha256: "4".repeat(64),
+			}),
+		/barrier v2 is required/,
+	);
+	assert.throws(
+		() =>
+			buildDurableWorkerBinding({
+				preflight: {
+					schema: `${retiredPrefix}-durable-worker-binding-preflight-v2`,
+				},
+			}),
+		/binding v2 preflight is required/,
+	);
+	assert.throws(
+		() =>
+			buildDurableWorkerBinding({
+				preflight: {
+					schema: "agent-workflow-durable-worker-binding-preflight-v2",
+				},
+				ack: { schema: `${retiredPrefix}-durable-launch-barrier-ack-v2` },
+			}),
+		/barrier v2 acknowledgement is required/,
+	);
+});
+
+test("retired backend identities are not registered", async () => {
+	const { resolveWorkflowBackend } = await import(
+		"../../dist/core/task-launch.js"
+	);
+	const { WORKFLOW_TASK_BACKEND_KEY, workflowTaskBackend } = await import(
+		"../../dist/core/task-backend.js"
+	);
+	assert.deepEqual(WORKFLOW_TASK_BACKEND_KEY, {
+		type: "local",
+		mode: "headless",
+	});
+	assert.equal(
+		resolveWorkflowBackend({ backend: WORKFLOW_TASK_BACKEND_KEY }),
+		workflowTaskBackend,
+	);
+	assert.throws(
+		() =>
+			resolveWorkflowBackend({
+				backend: { type: ["local", "pi"].join("-"), mode: "headless" },
+			}),
+		/Unsupported workflow backend/,
+	);
+});
+
+test("SDK tool exports use workflow vocabulary without retired aliases", async () => {
+	const sdk = await import("../../dist/sdk/index.js");
+	assert.ok(sdk.WORKFLOW_TOOL_NAMES.includes("read"));
+	assert.equal(sdk.WORKFLOW_TOOL_KINDS.write, "edit");
+	for (const name of ["NAMES", "KINDS"])
+		assert.equal(Object.hasOwn(sdk, ["PI", "TOOL", name].join("_")), false);
 });

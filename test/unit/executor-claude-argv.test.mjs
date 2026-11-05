@@ -21,7 +21,7 @@ import {
 	defaultApprovalPolicy,
 	describeExecutor,
 	mapTools,
-	PI_TOOL_NAMES,
+	WORKFLOW_TOOL_NAMES,
 	validateCapabilities,
 	validateExecutorDescriptor,
 } from "../../dist/sdk/index.js";
@@ -310,7 +310,7 @@ test("prompt goes to stdin as one stream-json user message", () => {
 
 test("tool mapping covers every Pi tool; kinds follow ACP", () => {
 	assert.deepEqual(
-		mapTools([...PI_TOOL_NAMES], CLAUDE_TOOL_MAPPING).unmapped,
+		mapTools([...WORKFLOW_TOOL_NAMES], CLAUDE_TOOL_MAPPING).unmapped,
 		[],
 	);
 	assert.equal(claudeToolKind("Bash"), "execute");

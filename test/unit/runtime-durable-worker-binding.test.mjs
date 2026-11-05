@@ -20,7 +20,7 @@ test("durable-worker-binding", async () => {
 		cwd: "/tmp/binding-cwd",
 		input: {
 			durableLaunchBarrier: {
-				schema: "pi-subagent-durable-launch-barrier-v2",
+				schema: "agent-workflow-durable-launch-barrier-v2",
 				identitySha256: "1".repeat(64),
 				subjectSha256: "2".repeat(64),
 				authorityBindingSha256: "6".repeat(64),
@@ -28,7 +28,7 @@ test("durable-worker-binding", async () => {
 		},
 	};
 	const ack = {
-		schema: "pi-subagent-durable-launch-barrier-ack-v2",
+		schema: "agent-workflow-durable-launch-barrier-ack-v2",
 		readySha256: "3".repeat(64),
 		decisionSha256: "4".repeat(64),
 		ackSha256: "5".repeat(64),
@@ -56,7 +56,7 @@ test("durable-worker-binding", async () => {
 		workerPid: 1234,
 	});
 	assert.deepEqual(preflight, {
-		schema: "pi-subagent-durable-worker-binding-preflight-v2",
+		schema: "agent-workflow-durable-worker-binding-preflight-v2",
 		runId: payload.runId,
 		attemptId: payload.attemptId,
 		cwdSha256: sha(executionCwd),
@@ -77,7 +77,7 @@ test("durable-worker-binding", async () => {
 		preflight,
 	});
 	assert.deepEqual(binding, {
-		schema: "pi-subagent-durable-worker-binding-v2",
+		schema: "agent-workflow-durable-worker-binding-v2",
 		runId: payload.runId,
 		attemptId: payload.attemptId,
 		cwdSha256: sha(executionCwd),
@@ -115,7 +115,7 @@ test("durable-worker-binding", async () => {
 		workerPid: 1234,
 	});
 	assert.equal(process.env[DURABLE_WORKER_BINDING_ENV], undefined);
-	assert.equal(installed.schema, "pi-subagent-durable-worker-binding-v2");
+	assert.equal(installed.schema, "agent-workflow-durable-worker-binding-v2");
 	assert.throws(
 		() =>
 			prepareDurableWorkerBinding({
@@ -124,7 +124,7 @@ test("durable-worker-binding", async () => {
 					input: {
 						...payload.input,
 						durableLaunchBarrier: {
-							schema: "pi-subagent-durable-launch-barrier-v2",
+							schema: "agent-workflow-durable-launch-barrier-v2",
 							...payload.input.durableLaunchBarrier,
 							authorityBindingSha256: "forged",
 						},

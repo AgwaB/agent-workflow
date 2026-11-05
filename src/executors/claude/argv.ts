@@ -282,7 +282,7 @@ export function buildClaudeInvocation(
 		argv.push("--mcp-config", options.mcpConfigPath);
 	}
 	if (req.model !== undefined && req.model !== "") {
-		// Pi's `anthropic/<id>` (a legacy `~/.pi` agent or workflow) is `<id>` for Claude Code; other
+		// Cross-executor model resolution maps `anthropic/<id>` to `<id>` for Claude Code; other
 		// providers are refused before launch (capability negotiation) and here.
 		const translated = executorModelId("claude", req.model);
 		if ("refused" in translated)

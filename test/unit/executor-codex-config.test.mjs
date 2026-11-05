@@ -124,12 +124,13 @@ test("tool mapping: coarse sandbox, readOnly always wins, web → live web_searc
 		"workflow_artifact",
 	])
 		assert.ok(
-			CODEX_TOOL_MAPPING_ROWS.some((row) => row.piName === tool),
+			CODEX_TOOL_MAPPING_ROWS.some((row) => row.workflowName === tool),
 			tool,
 		);
 	assert.deepEqual(
-		CODEX_TOOL_MAPPING_ROWS.find((row) => row.piName === "workflow_artifact")
-			.entry,
+		CODEX_TOOL_MAPPING_ROWS.find(
+			(row) => row.workflowName === "workflow_artifact",
+		).entry,
 		{ type: "mcp", server: "workflow_artifact", tool: "workflow_artifact" },
 	);
 	// Safe (explicit or absent, WP4e): never danger-full-access, approvals on-request.

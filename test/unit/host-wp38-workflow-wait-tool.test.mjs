@@ -63,7 +63,7 @@ function runRecord(cwd, overrides = {}) {
 			interrupted: 0,
 		},
 		cwd,
-		backend: { type: "local-pi", mode: "headless" },
+		backend: { type: "local", mode: "headless" },
 		createdAt: "2026-07-25T00:00:00.000Z",
 		updatedAt: "2026-07-25T00:00:01.000Z",
 		specPath: ".agent-workflow/workflows/spec.json",

@@ -23,7 +23,7 @@ export function isDurableLaunchBarrierError(
 }
 
 export interface DurableLaunchBarrierV2Descriptor {
-	schema: "pi-subagent-durable-launch-barrier-v2";
+	schema: "agent-workflow-durable-launch-barrier-v2";
 	identitySha256: string;
 	directory: string;
 	readyPath: string;
@@ -44,7 +44,7 @@ export interface DurableLaunchBarrierV2Descriptor {
 }
 
 export interface DurableLaunchBarrierV2Ready {
-	schema: "pi-subagent-durable-launch-barrier-ready-v2";
+	schema: "agent-workflow-durable-launch-barrier-ready-v2";
 	barrierIdentitySha256: string;
 	challenge: string;
 	decisionNonce: string;
@@ -60,7 +60,7 @@ export interface DurableLaunchBarrierV2Ready {
 }
 
 export interface DurableLaunchBarrierV2ReleaseDecision {
-	schema: "pi-subagent-durable-launch-barrier-decision-v2";
+	schema: "agent-workflow-durable-launch-barrier-decision-v2";
 	kind: "released";
 	barrierIdentitySha256: string;
 	challenge: string;
@@ -75,7 +75,7 @@ export interface DurableLaunchBarrierV2ReleaseDecision {
 }
 
 export interface DurableLaunchBarrierV2RevocationDecision {
-	schema: "pi-subagent-durable-launch-barrier-decision-v2";
+	schema: "agent-workflow-durable-launch-barrier-decision-v2";
 	kind: "revoked";
 	barrierIdentitySha256: string;
 	challenge: string;
@@ -92,7 +92,7 @@ export type DurableLaunchBarrierV2Decision =
 	| DurableLaunchBarrierV2RevocationDecision;
 
 export interface DurableLaunchBarrierV2Ack {
-	schema: "pi-subagent-durable-launch-barrier-ack-v2";
+	schema: "agent-workflow-durable-launch-barrier-ack-v2";
 	barrierIdentitySha256: string;
 	challenge: string;
 	decisionNonce: string;
@@ -614,7 +614,7 @@ export async function createDurableLaunchBarrierV2(options: {
 	await mkdir(directory, { mode: 0o700 });
 	const directoryIdentity = await assertOwnerOnlyDirectory(directory);
 	const body = {
-		schema: "pi-subagent-durable-launch-barrier-v2" as const,
+		schema: "agent-workflow-durable-launch-barrier-v2" as const,
 		directory,
 		readyPath: join(directory, "ready-v2.json"),
 		decisionPath: join(directory, "decision-v2.json"),
@@ -655,7 +655,7 @@ export function assertDurableLaunchBarrierV2Descriptor(
 			"durable launch barrier v2 descriptor is invalid",
 		);
 	const descriptor = value as DurableLaunchBarrierV2Descriptor;
-	if (descriptor.schema !== "pi-subagent-durable-launch-barrier-v2")
+	if (descriptor.schema !== "agent-workflow-durable-launch-barrier-v2")
 		throw new DurableLaunchBarrierError(
 			"durable launch barrier v2 schema mismatch",
 		);
@@ -738,7 +738,7 @@ function assertReadyV2(
 	const ready = value as DurableLaunchBarrierV2Ready;
 	const { readySha256, ...body } = ready;
 	if (
-		ready.schema !== "pi-subagent-durable-launch-barrier-ready-v2" ||
+		ready.schema !== "agent-workflow-durable-launch-barrier-ready-v2" ||
 		ready.barrierIdentitySha256 !== descriptor.identitySha256 ||
 		ready.challenge !== descriptor.challenge ||
 		ready.decisionNonce !== descriptor.decisionNonce ||
@@ -780,7 +780,7 @@ function assertDecisionV2(
 	const decision = value as DurableLaunchBarrierV2Decision;
 	const { decisionSha256, ...body } = decision;
 	if (
-		decision.schema !== "pi-subagent-durable-launch-barrier-decision-v2" ||
+		decision.schema !== "agent-workflow-durable-launch-barrier-decision-v2" ||
 		(decision.kind !== "released" && decision.kind !== "revoked") ||
 		decision.barrierIdentitySha256 !== descriptor.identitySha256 ||
 		decision.challenge !== descriptor.challenge ||
@@ -836,7 +836,7 @@ function assertAckV2(
 	const ack = value as DurableLaunchBarrierV2Ack;
 	const { ackSha256, ...body } = ack;
 	if (
-		ack.schema !== "pi-subagent-durable-launch-barrier-ack-v2" ||
+		ack.schema !== "agent-workflow-durable-launch-barrier-ack-v2" ||
 		ack.barrierIdentitySha256 !== descriptor.identitySha256 ||
 		ack.challenge !== descriptor.challenge ||
 		ack.decisionNonce !== descriptor.decisionNonce ||
@@ -912,7 +912,7 @@ export async function resolveDurableLaunchBarrierV2Release(
 		releasePayloadSha256,
 	);
 	const body = {
-		schema: "pi-subagent-durable-launch-barrier-decision-v2" as const,
+		schema: "agent-workflow-durable-launch-barrier-decision-v2" as const,
 		kind: "released" as const,
 		barrierIdentitySha256: descriptor.identitySha256,
 		challenge: descriptor.challenge,
@@ -960,7 +960,7 @@ export async function revokeDurableLaunchBarrierV2(
 		options.reasonSha256,
 	);
 	const body = {
-		schema: "pi-subagent-durable-launch-barrier-decision-v2" as const,
+		schema: "agent-workflow-durable-launch-barrier-decision-v2" as const,
 		kind: "revoked" as const,
 		barrierIdentitySha256: descriptor.identitySha256,
 		challenge: descriptor.challenge,
@@ -1078,7 +1078,7 @@ export async function awaitDurableLaunchBarrierV2(options: {
 			"durable launch barrier v2 was aborted before ready",
 		);
 	const readyBody = {
-		schema: "pi-subagent-durable-launch-barrier-ready-v2" as const,
+		schema: "agent-workflow-durable-launch-barrier-ready-v2" as const,
 		barrierIdentitySha256: descriptor.identitySha256,
 		challenge: descriptor.challenge,
 		decisionNonce: descriptor.decisionNonce,
@@ -1112,7 +1112,7 @@ export async function awaitDurableLaunchBarrierV2(options: {
 			"durable launch barrier v2 was aborted before acknowledgement",
 		);
 	const ackBody = {
-		schema: "pi-subagent-durable-launch-barrier-ack-v2" as const,
+		schema: "agent-workflow-durable-launch-barrier-ack-v2" as const,
 		barrierIdentitySha256: descriptor.identitySha256,
 		challenge: descriptor.challenge,
 		decisionNonce: descriptor.decisionNonce,

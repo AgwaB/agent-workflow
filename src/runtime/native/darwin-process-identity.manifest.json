@@ -1,5 +1,5 @@
 {
-  "schema": "pi-subagent-darwin-process-identity-helper-v1",
+  "schema": "agent-workflow-darwin-process-identity-helper-v1",
   "sourceSha256": "cf7b06a3e353cd74af33be0df4d945fc82893deddf81eb559fe892d31c5f660f",
   "binarySha256": "59dcaed4ea8a7ed9c7bef997ed5eaae413c97b318af36f592a285b9b093fed54",
   "architectures": [

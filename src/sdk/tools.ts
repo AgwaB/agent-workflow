@@ -1,11 +1,11 @@
 /**
- * Pi tool name → executor tool mapping (stage-1 plan §2.4, owner decision "Pi 도구 이름 매핑").
- * Workflow specs name tools with Pi names; each adapter ships a mapping table. A tool without a
+ * Workflow tool name → executor tool mapping (stage-1 plan §2.4, owner decision "workflow tool mapping").
+ * Workflow specs name tools with workflow names; each adapter ships a mapping table. A tool without a
  * mapping is recorded as `none` and handled by B4 (degrade to readOnly if the spec allows, else refuse).
  */
 import type { ToolKind } from "./events.js";
 
-export const PI_TOOL_NAMES = [
+export const WORKFLOW_TOOL_NAMES = [
 	"read",
 	"grep",
 	"find",
@@ -17,21 +17,22 @@ export const PI_TOOL_NAMES = [
 	"fetch_content",
 	"workflow_artifact",
 ] as const;
-export type PiToolName = (typeof PI_TOOL_NAMES)[number];
+export type WorkflowToolName = (typeof WORKFLOW_TOOL_NAMES)[number];
 
-/** ACP tool kind of each Pi tool; drives readOnly enforcement and approval policy. */
-export const PI_TOOL_KINDS: Readonly<Record<PiToolName, ToolKind>> = {
-	read: "read",
-	grep: "search",
-	find: "search",
-	ls: "read",
-	bash: "execute",
-	edit: "edit",
-	write: "edit",
-	web_search: "fetch",
-	fetch_content: "fetch",
-	workflow_artifact: "read",
-};
+/** ACP tool kind of each workflow tool; drives readOnly enforcement and approval policy. */
+export const WORKFLOW_TOOL_KINDS: Readonly<Record<WorkflowToolName, ToolKind>> =
+	{
+		read: "read",
+		grep: "search",
+		find: "search",
+		ls: "read",
+		bash: "execute",
+		edit: "edit",
+		write: "edit",
+		web_search: "fetch",
+		fetch_content: "fetch",
+		workflow_artifact: "read",
+	};
 
 /** Kinds that change state. Denied in readOnly stages (D2, R#4). */
 export const MUTATING_TOOL_KINDS: readonly ToolKind[] = [
@@ -59,9 +60,9 @@ export type ToolMappingEntry =
 
 export interface ToolMapping {
 	readonly executorId: string;
-	/** Keyed by Pi tool name (custom names allowed). Missing keys count as `none`. */
+	/** Keyed by workflow tool name (custom names allowed). Missing keys count as `none`. */
 	readonly entries: Readonly<Record<string, ToolMappingEntry>>;
-	/** Kinds for non-Pi tool names; Pi names fall back to PI_TOOL_KINDS, others to `other`. */
+	/** Kinds for custom tool names; workflow names fall back to WORKFLOW_TOOL_KINDS, others to `other`. */
 	readonly kinds?: Readonly<Record<string, ToolKind>>;
 }
 
@@ -83,8 +84,8 @@ export interface ToolMappingResult {
 export function toolKind(name: string, mapping?: ToolMapping): ToolKind {
 	const custom = mapping?.kinds?.[name];
 	if (custom !== undefined) return custom;
-	return (PI_TOOL_NAMES as readonly string[]).includes(name)
-		? PI_TOOL_KINDS[name as PiToolName]
+	return (WORKFLOW_TOOL_NAMES as readonly string[]).includes(name)
+		? WORKFLOW_TOOL_KINDS[name as WorkflowToolName]
 		: "other";
 }
 
@@ -126,10 +127,10 @@ export function mapTools(
 	return { executorTools, mcpTools, sandbox, unmapped, mutating, kinds };
 }
 
-/** Identity mapping (the Pi executor uses Pi names natively). */
+/** Identity mapping (the Pi executor uses workflow names natively). */
 export function identityToolMapping(
 	executorId: string,
-	names: readonly string[] = PI_TOOL_NAMES,
+	names: readonly string[] = WORKFLOW_TOOL_NAMES,
 ): ToolMapping {
 	const entries: Record<string, ToolMappingEntry> = {};
 	for (const name of names) entries[name] = { type: "tool", names: [name] };

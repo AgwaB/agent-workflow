@@ -32,7 +32,10 @@ import {
 	resolveHostContext,
 	withHostContext,
 } from "../../dist/core/host-context.js";
-import { createLaunchBootstrapProvenance } from "../../dist/core/launch-bootstrap-provenance.js";
+import {
+	createLaunchBootstrapProvenance,
+	recordLaunchBootstrapProvenance,
+} from "../../dist/core/launch-bootstrap-provenance.js";
 import { resolveWorkflowResourcePolicy } from "../../dist/core/resource-inheritance.js";
 import {
 	createRunRecord,
@@ -453,6 +456,24 @@ test("artifact access: canonical config, MCP server spec, and provenance digests
 		"unit",
 		launch,
 	);
+	assert.deepEqual(record.backend, {
+		id: "unit",
+		type: "local",
+		mode: "headless",
+	});
+	const { identitySha256: _identity, ...retiredRecord } = record;
+	retiredRecord.backend = {
+		...record.backend,
+		type: ["local", "pi"].join("-"),
+	};
+	assert.throws(
+		() =>
+			recordLaunchBootstrapProvenance(
+				{},
+				{ ...retiredRecord, identitySha256: sha256Canonical(retiredRecord) },
+			),
+		/launch-bootstrap provenance is malformed/,
+	);
 	assert.deepEqual(Object.keys(record.artifacts).sort(), [
 		"configSha256",
 		"manifestSha256",
@@ -480,10 +501,10 @@ test("artifact access: canonical config, MCP server spec, and provenance digests
 });
 
 test("task-launch: backends are registered by WP4c, not hard-wired to pi-subagent", () => {
-	const run = { backend: { type: "local-pi", mode: "headless" } };
+	const run = { backend: { type: "local", mode: "headless" } };
 	assert.throws(
 		() => resolveWorkflowBackend(run),
-		/Unsupported workflow backend: local-pi\/headless/,
+		/Unsupported workflow backend: local\/headless/,
 	);
 	const backend = { id: "unit" };
 	const unregister = registerWorkflowBackend(run.backend, backend);
