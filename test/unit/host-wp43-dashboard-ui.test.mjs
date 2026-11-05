@@ -750,21 +750,35 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 
 	// A run update that changes nothing structural keeps the drawn graph (so the flow animation
 	// keeps its phase and hover survives); a status change redraws it.
+	// First drawing of a run replays the journey: every card and link gets a scripted fade
+	// (layer by layer) on top of the stylesheet's flow animations. 2026-11-05 (CI: on a slower
+	// machine the replay, about 1 s, had finished and left getAnimations() before the check ran):
+	// count the scripted animations as they start instead.
+	const { identifier: replayHook } = await browser.send(
+		"Page.addScriptToEvaluateOnNewDocument",
+		{
+			source: `(() => {
+				const animate = Element.prototype.animate;
+				window.__awAnimated = [];
+				Element.prototype.animate = function (...args) {
+					window.__awAnimated.push(this);
+					return animate.apply(this, args);
+				};
+			})();`,
+		},
+	);
 	await open(`run=${running}`);
 	await browser.waitFor(() => document.querySelector(".edge.active"));
-	// First drawing of a run replays the journey: every card and link gets a scripted fade
-	// (layer by layer) on top of the stylesheet's flow animations.
 	assert.ok(
 		(await browser.evaluate(
 			() =>
-				document
-					.getAnimations()
-					.filter(
-						(a) =>
-							!(a instanceof CSSAnimation) && a.effect.target.closest(".graph"),
-					).length,
+				window.__awAnimated.filter((target) => target.closest(".graph"))
+					.length,
 		)) >= 15,
 	);
+	await browser.send("Page.removeScriptToEvaluateOnNewDocument", {
+		identifier: replayHook,
+	});
 	await browser.evaluate(() => {
 		document.getElementById("canvas").dataset.mark = "kept";
 		document.getElementById("run-header").dataset.mark = "old";
