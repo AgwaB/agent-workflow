@@ -10,7 +10,7 @@
 // in both permission modes (WP4e): `free` (the default) and `safe`. Run after `npm run build`:
 //
 //   node test/helpers/bundled-support-table.mjs           # print the table
-//   node test/helpers/bundled-support-table.mjs --write   # update docs/bundled-workflows.md
+//   node test/helpers/bundled-support-table.mjs --write   # update docs/usage.md#bundled-workflows
 //
 // `test/unit/bundled-workflows.test.mjs` fails when the committed table is stale.
 import { readFile, writeFile } from "node:fs/promises";
@@ -28,11 +28,11 @@ export const BUNDLED_SPEC_FILES = [
 	"workflows/spec-review/spec.json",
 ];
 export const SUPPORT_TABLE_EXECUTORS = ["pi", "codex", "claude"];
-/** Permission modes (docs/permissions.md); `free` is the default of every run. */
+/** Permission modes (docs/usage.md#permission-modes); `free` is the default of every run. */
 export const SUPPORT_TABLE_PERMISSION_MODES = ["free", "safe"];
 export const SUPPORT_TABLE_START = "<!-- bundled-support-table:start -->";
 export const SUPPORT_TABLE_END = "<!-- bundled-support-table:end -->";
-const DOC = join(root, "docs", "bundled-workflows.md");
+const DOC = join(root, "docs", "usage.md");
 
 async function modules() {
 	const [{ compileWorkflow }, { parseWorkflow }, negotiation, profiles, sdk] =
@@ -216,7 +216,9 @@ export async function readCommittedSupportTable() {
 	const start = text.indexOf(SUPPORT_TABLE_START);
 	const end = text.indexOf(SUPPORT_TABLE_END);
 	if (start < 0 || end < start)
-		throw new Error("docs/bundled-workflows.md has no support-table markers");
+		throw new Error(
+			"docs/usage.md#bundled-workflows has no support-table markers",
+		);
 	return { text, start, end: end + SUPPORT_TABLE_END.length };
 }
 
@@ -228,7 +230,7 @@ async function main() {
 	}
 	const { text, start, end } = await readCommittedSupportTable();
 	await writeFile(DOC, `${text.slice(0, start)}${table}${text.slice(end)}`);
-	process.stdout.write("updated docs/bundled-workflows.md\n");
+	process.stdout.write("updated docs/usage.md#bundled-workflows\n");
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1])

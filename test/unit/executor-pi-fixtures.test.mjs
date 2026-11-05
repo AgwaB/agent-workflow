@@ -23,7 +23,7 @@ function files(dir) {
 }
 
 test("Pi fixtures and docs carry no secrets, emails, home paths or host names", () => {
-	const targets = [...files(fixtures), join(root, "docs/executors/pi.md")];
+	const targets = [...files(fixtures), join(root, "docs/executors.md")];
 	const offenders = [];
 	for (const path of targets) {
 		const text = readFileSync(path, "utf8");

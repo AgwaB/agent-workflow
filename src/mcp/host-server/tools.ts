@@ -4,7 +4,7 @@
 // host API handler (src/hosts/api.ts). Schemas and wording follow the Pi host's `aw_*` tools
 // (src/hosts/pi/tools.ts); differences: `detach` defaults to true (MCP calls are time-limited),
 // every tool takes an optional `cwd` below the server's root, and degradation confirmation goes
-// through MCP elicitation when the client supports it. docs/host-mcp.md.
+// through MCP elicitation when the client supports it. docs/hosts.md#claude-code-and-codex.
 // WP28 (owner decision Q7): every CLI command is a tool: workflow_resume, workflow_show,
 // workflow_roles, workflow_agents, workflow_notices, workflow_doctor, workflow_prune,
 // workflow_profile and workflow_supervise (detached). Changing calls (prune without dry run,

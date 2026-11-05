@@ -126,6 +126,6 @@ test("shipped text (src, dist, docs, skills, workflows, agents, README) has no s
 		[],
 	);
 	// The words the earlier pattern rejected are still in the shipped docs and sources.
-	const docs = readFileSync(join(repo, "docs/environment.md"), "utf8");
+	const docs = readFileSync(join(repo, "docs/usage.md"), "utf8");
 	assert.match(docs, /ANTHROPIC_API_KEY/);
 });

@@ -10,7 +10,7 @@
  *
  * The engine always sets `SubmitRequest.permissionMode` explicitly (engine default: `free`). A caller
  * that omits it gets `safe` (SDK default), so a third-party integration never becomes permissive by
- * accident. Adapter obligations per mode: docs/permissions.md.
+ * accident. Adapter obligations per mode: docs/usage.md#permission-modes.
  */
 export type PermissionMode = "free" | "safe";
 

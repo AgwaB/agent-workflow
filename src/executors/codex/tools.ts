@@ -3,7 +3,7 @@
  * Codex has no per-tool allowlist: file/shell tools are only expressible as a sandbox mode
  * (`toolAllowlist: coarse`). Web tools map to Codex's hosted `web_search` (C2), the artifact tool
  * to the engine-injected MCP server (A2-4). `verified` records whether a live codex-cli run
- * exercised the row (see docs/executors/codex.md).
+ * exercised the row (see docs/executors.md#codex).
  */
 import {
 	ARTIFACT_MCP_SERVER_NAME,

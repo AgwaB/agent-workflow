@@ -9,7 +9,7 @@ const LAUNCH_FLAGS = `  --executor <id>              executor for this run (pi, 
                                default: first installed and logged-in of pi, claude, codex)
   --profile <name>             workflow-declared execution profile, else a saved user profile,
                                else a built-in preset (codex, claude, pi, mixed)
-  --permission-mode free|safe  approvals/sandbox mode (default free; see docs/permissions.md)
+  --permission-mode free|safe  approvals/sandbox mode (default free; see docs/usage.md#permission-modes)
   --allow-unverified <a,b>     accept these unverified executor capabilities (B4 opt-in)
   --model <id>                 model override for every stage
   --effort <level>             effort override: off, minimal, low, medium, high, xhigh, max

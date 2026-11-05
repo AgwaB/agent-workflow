@@ -70,7 +70,7 @@ export const PI_EXECUTOR_TOOL_MAPPING: ToolMapping = {
 /** Tools inheritHostTools adds; the shared list lives in core. */
 export const INHERITED_HOST_TOOLS = INHERITED_HOST_TOOL_NAMES;
 
-/** `mcp__<server>__<tool>` with chars outside `[A-Za-z0-9_]` → `_` (Pi 1.1 `docs/mcp.md`). */
+/** `mcp__<server>__<tool>` with chars outside `[A-Za-z0-9_]` → `_` (Pi 1.1 `docs/extending.md#workflow-artifact-mcp-server`). */
 export function piMcpToolName(server: string, tool: string): string {
 	return `mcp__${server}__${tool}`.replace(/[^A-Za-z0-9_]/gu, "_");
 }

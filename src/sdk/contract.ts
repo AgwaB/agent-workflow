@@ -69,7 +69,7 @@ export interface SubmitRequest {
 	/**
 	 * D2 revised (WP4e): `free` = no approval prompts and no sandbox restrictions unless `readOnly`;
 	 * `safe` = no bypass/auto-accept settings. Absent → `safe` (`effectivePermissionMode`). The engine
-	 * always sets it. Adapter obligations per mode: docs/permissions.md.
+	 * always sets it. Adapter obligations per mode: docs/usage.md#permission-modes.
 	 */
 	readonly permissionMode?: PermissionMode;
 	/**

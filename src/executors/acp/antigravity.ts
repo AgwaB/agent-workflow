@@ -278,7 +278,7 @@ export async function antigravityLaunchEnv(
 	return {};
 }
 
-/** agy_acp_server version the live tier passed on (docs/executors/acp.md). */
+/** agy_acp_server version the live tier passed on (docs/executors.md#antigravity-acp). */
 export const ANTIGRAVITY_VERIFIED_SERVER_VERSION = "1.4.5";
 
 /**

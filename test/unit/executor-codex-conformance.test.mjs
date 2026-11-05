@@ -21,7 +21,7 @@ test("codex adapter passes every offline conformance check", async () => {
 	assert.deepEqual(failures, []);
 	const offline = report.results.filter((result) => result.tier === "offline");
 	// Justified skip (WP5b): the adapter clips normalized tool_call.output at 16,384 chars, so the
-	// event view cannot show a 30,400-char page whole (docs/executors/codex.md "MCP output limit").
+	// event view cannot show a 30,400-char page whole (docs/executors.md#codex "MCP output limit").
 	assert.deepEqual(
 		offline
 			.filter((result) => result.status !== "pass")

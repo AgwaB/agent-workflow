@@ -1,6 +1,6 @@
 # `agent-workflow` CLI
 
-The CLI needs no Pi packages. It shares [host API handlers](host-api.md) with the MCP server
+The CLI needs no Pi packages. It shares [host API handlers](extending.md#host-api) with the MCP server
 and Pi host.
 
 ```sh
@@ -58,7 +58,7 @@ A run argument accepts the run id or an unambiguous prefix.
 
 Every command except `help`/`--version` (and the terminal views `watch`, `dashboard`, `statusline`,
 `notify-check`, whose data the `workflow_status`/`workflow_wait` tools already return) is also a host MCP tool (`workflow_<command>`,
-[host-mcp.md](host-mcp.md#tools)); the MCP forms of `prune --yes`, `profile set|delete|default`, `profile workflow set|clear` and
+[host-mcp.md](hosts.md#tools)); the MCP forms of `prune --yes`, `profile set|delete|default`, `profile workflow set|clear` and
 `notices acknowledge|clear` ask the user to confirm through MCP elicitation (as does
 `workflow_approve`, the MCP form of `approve`), and a client that
 cannot ask is refused with the CLI command line to run here instead. `supervise` on MCP starts the
@@ -85,7 +85,7 @@ These options also apply to `auto`.
 |---|---|
 | `--executor <id>` | Executor for this run: `pi`, `codex`, `claude` (or a registered id). Highest precedence. |
 | `--profile <name>` | A profile the workflow declares (`executionProfiles`), else a saved user profile with that name, else a built-in preset (`codex`, `claude`, `pi`, `mixed`). Without it: the workflow's saved preference profile, if any. |
-| `--permission-mode free\|safe` | Approvals and sandbox (`docs/permissions.md`). Default `free`. |
+| `--permission-mode free\|safe` | Approvals and sandbox (`docs/usage.md#permission-modes`). Default `free`. |
 | `--allow-unverified <a,b>` | Accept these `unverified` executor capabilities, e.g. `contextIsolation`. |
 | `--model <id>` | Model override for every stage. |
 | `--effort <level>` | Effort override: `off minimal low medium high xhigh max ultra` (`--thinking`/`--reasoning` are aliases). Each executor and model gets the nearest level it supports, the lower one on a tie (Codex `ultra` on Luna → `max`; Claude/Pi `ultra` → `max`; Codex `off`/`minimal` → `low`), and `check`/the launch text says so. |
@@ -320,7 +320,7 @@ Serves one project's runs on **127.0.0.1 only**, at the project's last port when
 ephemeral port (or `--port` 1–65535). Prints `Dashboard: http://127.0.0.1:<port>/` once. **No
 sign-in by default:** any browser on this computer opens it directly (loopback bind, `Host`
 allowlist, same-origin/CSRF checks on every action; another local user or process could see runs
-and press the controls — see [docs/dashboard.md](dashboard.md)). `--auth` (or
+and press the controls — see [docs/hosts.md#dashboard](hosts.md#dashboard)). `--auth` (or
 `AGENT_WORKFLOW_DASHBOARD_AUTH=1`, which auto-started dashboards inherit) turns sign-in on for
 shared machines: the printed URL then carries a session token (`/?token=…`) that establishes the
 browser session; the session persists across restarts in `<project>/.agent-workflow/dashboard-session`
@@ -362,7 +362,7 @@ agent and non-TTY suppression. Browser failures never fail the workflow.
 Run/task state, bounded redacted logs, text reports and Stop / Resume / Approve / Reject use the
 same host API as the Pi board. Live updates use SSE (default 1 s polls; environment
 `AGENT_WORKFLOW_DASHBOARD_POLL_MS` accepts 500–10000, with a 1 s minimum effective interval).
-Security and HTTP contract: [dashboard.md](dashboard.md).
+Security and HTTP contract: [dashboard.md](hosts.md#dashboard).
 
 ## `statusline`, `watch`, `notify-check`
 
@@ -409,7 +409,7 @@ agent-workflow: workflow "deep-review" (run workflow_…) finished — verdict N
 and nothing otherwise (exit 0). `--run <id>` looks at that run only; with `--follow` it exits once
 the run has settled (after printing its line, or at once when that state was already reported).
 `--session <id>` reports only the runs that Claude Code session launched and keeps
-its monitor stamp fresh: the Claude Code plugin's completion monitor ([host-mcp.md](host-mcp.md)). Blocked runs name the approval (`approve`) or the
+its monitor stamp fresh: the Claude Code plugin's completion monitor ([host-mcp.md](hosts.md#claude-code-and-codex)). Blocked runs name the approval (`approve`) or the
 inspect/resume commands; `--host claude-code|codex|generic` words the follow-ups as MCP tool calls.
 Receipts: `.agent-workflow/notify-check/` (created by the first check in a project that has runs,
 or by the first `wait` that returns a settled state)
@@ -424,7 +424,7 @@ they appear (a long-lived feed, for example a Claude Code plugin monitor). `--st
 check, with the check's start time as its mtime (a check that deferred runs removes it instead, so
 the hook checks again until the backlog is drained); the receipts directory is created only as a real
 directory inside a real `.agent-workflow` (a symlinked one is refused and nothing is written). Hook
-setup: [plugins.md](plugins.md#completion-check-hook).
+setup: [plugins.md](hosts.md#completion-check-hook).
 
 ## Exit codes
 
@@ -449,7 +449,7 @@ as a failure. Passing verdicts (for example `NEEDS_WORK` and
 
 ## Environment
 
-See [environment variables](environment.md) for configuration and defaults.
+See [environment variables](usage.md#environment-variables) for configuration and defaults.
 
 ### Test-executor hook (tests only)
 

@@ -115,9 +115,9 @@ const SETUP_HINTS: Readonly<Record<string, ExecutorSetupHints>> = {
 	antigravity: {
 		cli: "agy_acp_server",
 		install: null,
-		installDoc: "docs/executors/acp.md",
+		installDoc: "docs/executors.md#antigravity-acp",
 		login:
-			'sign the Antigravity worker home in to Google once (docs/executors/acp.md, "Antigravity preset")',
+			'sign the Antigravity worker home in to Google once (docs/executors.md#antigravity-acp, "Antigravity preset")',
 		check:
 			"agy_acp_server on PATH or AGENT_WORKFLOW_AGY_ACP_SERVER (ACP initialize)",
 	},

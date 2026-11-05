@@ -132,7 +132,7 @@ export function summarizeUsage(
 	};
 }
 
-/** `failed.class` → (status, failureKind). See docs/architecture.md "Failure kinds". */
+/** `failed.class` → (status, failureKind). See docs/extending.md#architecture "Failure kinds". */
 export function statusForFailureClass(failureClass: FailedEvent["class"]): {
 	status: Status;
 	failureKind: FailureKind;

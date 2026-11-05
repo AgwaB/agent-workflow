@@ -1,6 +1,6 @@
 // Pi executor adapter (WP6): `pi --mode json --print` (A2-3). Public entry
 // `@agwab/agent-workflow/executors/pi`; descriptor convention `createExecutor(config)` (B1, R#15).
-// See docs/executors/pi.md.
+// See docs/executors.md#pi.
 import type { JsonValue } from "../../sdk/json.js";
 import { createPiExecutor, type PiExecutor } from "./executor.js";
 

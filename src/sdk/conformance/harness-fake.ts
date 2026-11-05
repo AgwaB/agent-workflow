@@ -131,7 +131,7 @@ const failing = (failureClass: FailureClass, message: string): FakeStep[] => [
 	},
 ];
 
-/** Default fake script for each scenario (see docs/conformance.md for scenario contracts). */
+/** Default fake script for each scenario (see docs/extending.md#conformance-kit for scenario contracts). */
 export const FAKE_SCENARIO_SCRIPTS: Readonly<
 	Record<ConformanceScenario, readonly FakeStep[]>
 > = {

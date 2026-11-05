@@ -135,7 +135,7 @@ test("a client limit cuts a projection, flags the ledger row and never satisfies
 	const all = await rows();
 	assert.equal("deliveryUnverified" in all[1], false);
 	assert.equal(satisfiesRequiredRead(all, "producer", "refs"), true);
-	// The core ledger reader still parses the rows (it drops the extra flag; see docs/mcp.md).
+	// The core ledger reader still parses the rows (it drops the extra flag; see docs/extending.md#workflow-artifact-mcp-server).
 	const parsed = await readWorkflowArtifactReadLedger(fixture.ledgerPath);
 	assert.deepEqual(
 		parsed.map((row) => row.truncated),

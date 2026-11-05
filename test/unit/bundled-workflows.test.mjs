@@ -1,5 +1,5 @@
 // New in agent-workflow (WP10): the bundled workflows, skills and agents after the migration
-// (docs/bundled-workflows.md): they validate and compile, carry no Pi-only references, the
+// (docs/usage.md#bundled-workflows): they validate and compile, carry no Pi-only references, the
 // deep-research report states that source verification is model-reported, and the committed
 // per-executor support table matches the offline negotiation.
 import assert from "node:assert/strict";
@@ -211,7 +211,7 @@ test("the committed support table matches the offline B4 negotiation", async () 
 	assert.equal(
 		text.slice(start, end),
 		renderBundledSupportTable(rows),
-		"docs/bundled-workflows.md is stale: run `npm run build && node test/helpers/bundled-support-table.mjs --write`",
+		"docs/usage.md#bundled-workflows is stale: run `npm run build && node test/helpers/bundled-support-table.mjs --write`",
 	);
 	// The table is honest about the bundled shape: nothing refuses on Claude; Codex records the
 	// coarse tool allowlist in both modes, and only `safe` degrades the precise tool lists to

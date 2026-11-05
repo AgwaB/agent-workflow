@@ -3,7 +3,7 @@
 // output (tools/release/plugins.mjs), JSON shape and required fields, version sync with
 // package.json, the exact npx pin, the per-host `--host` value, the absence of manifests that would
 // register the server a second time or with the wrong working directory, and that both
-// marketplaces resolve to the plugin directory. docs/plugins.md.
+// marketplaces resolve to the plugin directory. docs/hosts.md#claude-code-and-codex.
 // WP36: the Claude Code manifest's inline UserPromptSubmit hook runs `agent-workflow notify-check`
 // from the same pinned package (guarded by the project's run directory, always exit 0); Codex has no
 // plugin hook (host UX investigation record).
@@ -267,7 +267,7 @@ test("no second server registration and no portable manifest that would start th
 	// Claude Code loads `.mcp.json` from a plugin root in addition to plugin.json `mcpServers`.
 	assert.equal(existsSync(join(pluginDir, ".mcp.json")), false);
 	// Codex prefers a root Agent Plugins plugin.json/mcp.json over .codex-plugin/ and starts its
-	// stdio servers in the plugin root, not the project (docs/plugins.md).
+	// stdio servers in the plugin root, not the project (docs/hosts.md#claude-code-and-codex).
 	assert.equal(existsSync(join(pluginDir, "plugin.json")), false);
 	assert.equal(existsSync(join(pluginDir, "mcp.json")), false);
 	// Claude Code would load these directories as plugin components.
@@ -326,7 +326,7 @@ test("install docs pin the package version", () => {
 	let count = 0;
 	for (const path of [
 		"README.md",
-		"docs/plugins.md",
+		"docs/hosts.md",
 		`${plugins.PLUGIN_DIR}/README.md`,
 	]) {
 		const text = readFileSync(join(root, path), "utf8");

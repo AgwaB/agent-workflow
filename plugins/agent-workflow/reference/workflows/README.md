@@ -1,6 +1,6 @@
 # agent-workflow bundled workflows
 
-These are the official bundled workflow starters shipped with agent-workflow (see `docs/bundled-workflows.md` for the per-executor support table). A workflow defines structure and role prompts; the concrete task is supplied at runtime.
+These are the official bundled workflow starters shipped with agent-workflow (see `docs/usage.md#bundled-workflows` for the per-executor support table). A workflow defines structure and role prompts; the concrete task is supplied at runtime.
 
 Run them from the project root by exact workflow name with the `agent-workflow` CLI, or with the same actions as `/aw …` in Pi (and the `aw_list` / `aw_run` / `aw_wait` agent tools):
 

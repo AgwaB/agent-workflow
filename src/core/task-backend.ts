@@ -1178,7 +1178,7 @@ function captureToolCallsEnabled(): boolean {
 
 /**
  * WP35: the executor descriptor for one task. Pi-only per-task options travel as descriptor config
- * (docs/executors/pi.md): `inheritHostTools` exactly when the sealed launch carries the run's host
+ * (docs/executors.md#pi): `inheritHostTools` exactly when the sealed launch carries the run's host
  * context (the task inherits host tools); `fast: "on"` (+ `fastApi`, the API the compiler bound)
  * when the task asks for the fast tier and the recorded negotiation accepted `fastTier` (an
  * `unverified` fastTier needs the run's opt-in; without it the preview said "runs without fast

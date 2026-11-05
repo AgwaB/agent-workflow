@@ -41,7 +41,7 @@ export type ConformanceArea = (typeof CONFORMANCE_AREAS)[number];
 
 /**
  * Behaviours a harness can stage. Each check names the scenarios it needs; a check whose scenario the
- * harness does not support is skipped (never silently passed). See docs/conformance.md for contracts.
+ * harness does not support is skipped (never silently passed). See docs/extending.md#conformance-kit for contracts.
  */
 export const CONFORMANCE_SCENARIOS = [
 	/** started → message_delta(s) → usage → completed. */
