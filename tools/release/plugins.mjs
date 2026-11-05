@@ -482,7 +482,7 @@ result and report paths when the run finishes.
 Contents:
 
 - MCP server \`agent-workflow\`: \`npx ${npxLaunch(version, "<claude-code|codex>").args.join(" ")}\`
-  (Node.js 24 or later; the first start downloads the package). Claude Code reads
+  (Node.js 22 or later; the first start downloads the package). Claude Code reads
   \`.claude-plugin/plugin.json\`, Codex reads \`.codex-plugin/plugin.json\`; each passes its own \`--host\`.
 - Skills: \`agent-workflow\` (tool call protocol), \`workflow-guide\` (authoring workflows),
   \`execution-router\` (choosing a route without running anything).

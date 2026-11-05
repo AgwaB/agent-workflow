@@ -293,7 +293,7 @@ and above the selected profile. Stored in
 - the executor a run here uses when no `--executor` or workflow-declared profile selects one, and
   why (saved default profile, host default, or the installed-default order);
 - the permission-mode default (`free`, or the default saved profile's mode);
-- the Node version (requires `>=24`); `AGENT_WORKFLOW_HOME` and whether it is writable;
+- the Node version (requires `>=22`); `AGENT_WORKFLOW_HOME` and whether it is writable;
 - Pi's web tools (WP35): whether `pi-web-access` is installed in the user's Pi (`pi list`), shown under
   `pi`; when it is missing, the install command `pi install npm:pi-web-access` (it is not bundled);
   which of `web_search` / `fetch_content` it actually registers (2026-11-02: a Pi session that exits
